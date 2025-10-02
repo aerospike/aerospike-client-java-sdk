@@ -1,0 +1,16 @@
+.DS_Store
+.classpath
+.metadata
+.project
+.settings
+bin
+target
+apidocs
+*.tgz
+*.zip
+*.out
+*.jar
+*.iml
+.idea/
+.vscode
+dependency-reduced-pom.xml
