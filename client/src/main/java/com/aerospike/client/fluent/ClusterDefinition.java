@@ -1,10 +1,28 @@
+/*
+ * Copyright 2012-2025 Aerospike, Inc.
+ *
+ * Portions may be licensed to Aerospike, Inc. under one or more contributor
+ * license agreements WHICH ARE COMPATIBLE WITH THE APACHE LICENSE, VERSION 2.0.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy of
+ * the License at http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
+ */
 package com.aerospike.client.fluent;
 
-import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 
 import com.aerospike.client.fluent.Log.Callback;
 import com.aerospike.client.fluent.Log.Level;
+import com.aerospike.client.fluent.policy.AuthMode;
 
 /**
  * Builder class for configuring and creating Aerospike cluster connections.
@@ -27,14 +45,31 @@ import com.aerospike.client.fluent.Log.Level;
  * @see Session
  */
 public class ClusterDefinition {
-    private String userName;
-    private String password;
-    private String clusterName;
-    private int[] preferrredRacks;
-    private boolean useServicesAlternate = false;
-    private Level logLevel = Level.WARN;
+	String clientVersion;
+	String appId;
+    String clusterName;
+	String configPath;
+    byte[] userName;
+    byte[] password;
+    byte[] passwordHash;
+    int[] preferrredRacks;
+    private Level logLevel = Level.INFO;
     private Callback callback = null;
-    TlsBuilder tlsBuilder = null;
+	Map<String,String> ipMap;
+    TlsBuilder tlsBuilder;
+	AuthMode authMode = AuthMode.NONE;
+	int minConnsPerNode;
+	int maxConnsPerNode = 100;
+	int connPoolsPerNode = 1;
+	int configInterval = 60000;
+	int tendInterval = 1000;
+	int tendTimeout = 1000;
+	int loginTimeout = 5000;
+	int maxErrorRate = 100;
+	int errorRateWindow = 1;
+    boolean failIfNotConnected = true;
+	boolean validateClusterName;
+    boolean useServicesAlternate;
 
     private final Host[] hosts;
 
@@ -72,6 +107,10 @@ public class ClusterDefinition {
     private void setup() {
         Log.setLevel(logLevel);
         Log.setCallbackStandard();
+
+		this.clientVersion = Optional.ofNullable(getClass().getPackage())
+			.map(Package::getImplementationVersion)
+			.orElse("n/a");
     }
 
     /**
@@ -85,8 +124,59 @@ public class ClusterDefinition {
      * @return this ClusterDefinition for method chaining
      */
     public ClusterDefinition withNativeCredentials(String userName, String password) {
-        this.userName = userName == null || userName.isEmpty() ? null : userName;
-        this.password = password;
+    	return setCredentials(AuthMode.INTERNAL, userName, password);
+    }
+
+    public ClusterDefinition withExternalCredentials(String userName, String password) {
+    	return setCredentials(AuthMode.EXTERNAL, userName, password);
+    }
+
+    public ClusterDefinition withExternalInsecureCredentials(String userName, String password) {
+    	return setCredentials(AuthMode.EXTERNAL_INSECURE, userName, password);
+    }
+
+    private ClusterDefinition setCredentials(AuthMode mode, String userName, String password) {
+    	if (userName == null || userName.isEmpty()) {
+    		this.authMode = AuthMode.NONE;
+    		this.userName = null;
+    		this.password = null;
+    	}
+    	else {
+    		this.authMode = mode;
+    		this.userName = Buffer.stringToUtf8(userName);
+
+			// Only store clear text password if external authentication is used.
+			if (authMode != AuthMode.INTERNAL) {
+				this.password = Buffer.stringToUtf8(password);
+			}
+
+			if (password == null) {
+				password = "";
+			}
+
+			password = AdminCommand.hashPassword(password);
+			this.passwordHash = Buffer.stringToUtf8(password);
+    	}
+		return this;
+   }
+
+    public ClusterDefinition withCertificateCredentials() {
+    	this.userName = null;
+		this.password = null;
+		this.authMode = AuthMode.PKI;
+		return this;
+    }
+
+    public boolean isAuthEnabled() {
+    	return authMode != AuthMode.NONE;
+    }
+
+	/**
+	 * Set application ID. Metrics are loosely tied to this.
+	 * Changing the appId will not reset the metric counters.
+	 */
+    public ClusterDefinition appId(String appId) {
+        this.appId = appId;
         return this;
     }
 
@@ -209,56 +299,178 @@ public class ClusterDefinition {
         this.tlsBuilder = tlsBuilder;
     }
 
-/* TODO Remove
-    private ClientPolicy getPolicy() {
-        ClientPolicy policy = new ClientPolicy();
-        policy.user = userName;
-        policy.password = password;
-        policy.authMode = AuthMode.INTERNAL;
-
-        policy.useServicesAlternate = useServicesAlternate;
-        if (preferrredRacks != null && preferrredRacks.length > 0) {
-            policy.rackAware = true;
-            policy.rackIds = new ArrayList<>();
-            for (int thisRack : preferrredRacks) {
-                policy.rackIds.add(thisRack);
-            }
-        }
-
-        if (clusterName != null) {
-            policy.clusterName = clusterName;
-            policy.validateClusterName = true;
-        }
-
-        if (tlsBuilder != null && tlsBuilder.isTlsEnabled()) {
-            policy.tlsPolicy = new TlsPolicy();
-
-
-            // Use custom SSLContext if available (from PEM files, key stores, etc.)
-            javax.net.ssl.SSLContext sslContext = tlsBuilder.createSslContext();
-            if (sslContext != null) {
-                policy.tlsPolicy.context = sslContext;
-            }
-
-            // Configure additional TLS policy settings
-            if (tlsBuilder.getProtocols() != null) {
-                policy.tlsPolicy.protocols = tlsBuilder.getProtocols();
-            }
-            if (tlsBuilder.getCiphers() != null) {
-                policy.tlsPolicy.ciphers = tlsBuilder.getCiphers();
-            }
-            policy.tlsPolicy.forLoginOnly = tlsBuilder.isForLoginOnly();
-
-            // Set revocation certificates if configured
-            if (tlsBuilder.getRevokeCertificates() != null) {
-                policy.tlsPolicy.revokeCertificates = tlsBuilder.getRevokeCertificates();
-            }
-            // Note: revokeCertificatesForLoginOnly field not available in current TlsPolicy
-            // policy.tlsPolicy.revokeCertificatesForLoginOnly = tlsBuilder.isRevokeCertificatesForLoginOnly();
-        }
-        return policy;
+	/**
+	 * Set whether cluster instantiation should fail if the client fails to connect to a seed or
+	 * all the seed's peers.
+	 * <p>
+	 * If true, throw an exception if all seed connections fail or a seed is valid,
+	 * but all peers from that seed are not reachable.
+	 * <p>
+	 * If false, a partial cluster will be created and the client will automatically connect
+	 * to the remaining nodes when they become available.
+	 * <p>
+	 * Default: true
+	 */
+    public ClusterDefinition failIfNotConnected(boolean failIfNotConnected) {
+        this.failIfNotConnected = failIfNotConnected;
+        return this;
     }
-*/
+
+	/**
+	 * When validateClusterName is true and clusterName is populated, verify that
+	 * clusterName matches the cluster-name field in the service section in each server
+	 * configuration. This ensures that the specified seed nodes belong to the expected cluster on
+	 * startup. If not, the client will refuse to add the node to the client's view of the cluster.
+	 * <p>
+	 * Default: false
+	 */
+    public ClusterDefinition validateClusterName(boolean validateClusterName) {
+        this.validateClusterName = validateClusterName;
+        return this;
+    }
+
+    /**
+	 * Set dynamic configuration path. If not null, dynamic configuration is enabled.
+	 * <p>
+	 * Default: 60000
+	 */
+    public ClusterDefinition configPath(String configPath) {
+        this.configPath = configPath;
+        return this;
+    }
+
+    /**
+	 * Set milliseconds between dynamic configuration check for file modifications.
+	 * <p>
+	 * Default: 60000
+	 */
+    public ClusterDefinition configInterval(int configInterval) {
+        this.configInterval = configInterval;
+        return this;
+    }
+
+    /**
+	 * Set interval in milliseconds between cluster tends.
+	 * <p>
+	 * Default: 1000
+	 */
+    public ClusterDefinition tendInterval(int tendInterval) {
+        this.tendInterval = tendInterval;
+        return this;
+    }
+
+	/**
+	 * Cluster tend info call timeout in milliseconds. The timeout when opening a connection
+	 * to the server node for the first time and when polling each node for cluster status.
+	 * <p>
+	 * Default: 1000
+	 */
+    public ClusterDefinition tendTimeout(int tendTimeout) {
+        this.tendTimeout = tendTimeout;
+        return this;
+    }
+
+	/**
+	 * Set login timeout in milliseconds.  The timeout is used when user authentication is enabled
+	 * and a node login is being performed.
+	 * <p>
+	 * Default: 5000
+	 */
+    public ClusterDefinition loginTimeout(int loginTimeout) {
+        this.loginTimeout = loginTimeout;
+        return this;
+    }
+
+	/**
+	 * Set IP translation table is used in cases where different clients use different server
+	 * IP addresses.  This may be necessary when using clients from both inside and outside
+	 * a local area network.  Default is no translation.
+	 * <p>
+	 * The key is the IP address returned from friend info requests to other servers.  The
+	 * value is the real IP address used to connect to the server.
+	 * <p>
+	 * Default: null (no IP address translation)
+	 */
+    public ClusterDefinition ipMap(Map<String,String> ipMap) {
+        this.ipMap = ipMap;
+        return this;
+    }
+
+	/**
+	 * Set maximum number of errors allowed per node per {@link #errorRateWindow} before backoff
+	 * algorithm throws {@link com.aerospike.client.AeroException.Backoff} on database
+	 * commands to that node. If maxErrorRate is zero, there is no error limit and
+	 * the exception will never be thrown.
+	 * <p>
+	 * The counted error types are any error that causes the connection to close (socket errors
+	 * and client timeouts) and {@link com.aerospike.client.ResultCode#DEVICE_OVERLOAD}.
+	 * <p>
+	 * Default: 100
+	 */
+    public ClusterDefinition maxErrorRate(int maxErrorRate) {
+        this.maxErrorRate = maxErrorRate;
+        return this;
+    }
+
+	/**
+	 * Set number of cluster tend iterations that defines the window for {@link #maxErrorRate}.
+	 * One tend iteration is defined as {@link #tendInterval} plus the time to tend all nodes.
+	 * At the end of the window, the error count is reset to zero and backoff state is removed
+	 * on all nodes.
+	 * <p>
+	 * Default: 1
+	 */
+    public ClusterDefinition errorRateWindow(int errorRateWindow) {
+        this.errorRateWindow = errorRateWindow;
+        return this;
+    }
+
+	/**
+	 * Set number of synchronous connection pools used for each node.  Machines with 8 cpu cores or
+	 * less usually need just one connection pool per node.  Machines with a large number of cpu
+	 * cores may have their synchronous performance limited by contention for pooled connections.
+	 * Contention for pooled connections can be reduced by creating multiple mini connection pools
+	 * per node.
+	 * <p>
+	 * Default: 1
+	 */
+    public ClusterDefinition connPoolsPerNode(int connPoolsPerNode) {
+        this.connPoolsPerNode = connPoolsPerNode;
+        return this;
+    }
+
+	/**
+	 * Set minimum number of synchronous connections allowed per server node. Preallocate min connections
+	 * on client node creation.  The client will periodically allocate new connections if count falls
+	 * below min connections.
+	 * <p>
+	 * Server proto-fd-idle-ms and client {@link ClientPolicy#maxSocketIdle} should be set to zero
+	 * (no reap) if minConnsPerNode is greater than zero.  Reaping connections can defeat the purpose
+	 * of keeping connections in reserve for a future burst of activity.
+	 * <p>
+	 * Default: 0
+	 */
+    public ClusterDefinition minConnsPerNode(int minConnsPerNode) {
+        this.minConnsPerNode = minConnsPerNode;
+        return this;
+    }
+
+	/**
+	 * Set maximum number of synchronous connections allowed per server node.  Commands will go
+	 * through retry logic and potentially fail with "ResultCode.NO_MORE_CONNECTIONS" if the maximum
+	 * number of connections would be exceeded.
+	 * <p>
+	 * The number of connections used per node depends on concurrent commands in progress
+	 * plus sub-commands used for parallel multi-node commands (batch, scan, and query).
+	 * One connection will be used for each command.
+	 * <p>
+	 * Default: 100
+	 */
+    public ClusterDefinition maxConnsPerNode(int maxConnsPerNode) {
+        this.maxConnsPerNode = maxConnsPerNode;
+        return this;
+    }
+
     /**
      * Establishes a connection to the Aerospike cluster.
      *

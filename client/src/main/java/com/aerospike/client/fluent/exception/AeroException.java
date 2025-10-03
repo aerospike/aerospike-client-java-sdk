@@ -123,4 +123,37 @@ public class AeroException extends RuntimeException {
 			super(resultCode, message);
 		}
 	}
+
+	/**
+	 * Exception thrown when chosen node is not active.
+	 */
+	public static final class InvalidNode extends AeroException {
+		private static final long serialVersionUID = 1L;
+
+		/*
+		public InvalidNode(int clusterSize, Partition partition) {
+			super(ResultCode.INVALID_NODE_ERROR,
+				(clusterSize == 0) ? "Cluster is empty" : "Node not found for partition " + partition);
+		}*/
+
+		public InvalidNode(int partitionId) {
+			super(ResultCode.INVALID_NODE_ERROR, "Node not found for partition " + partitionId);
+		}
+
+		public InvalidNode(String message) {
+			super(ResultCode.INVALID_NODE_ERROR, message);
+		}
+	}
+
+	/**
+	 * Exception thrown when namespace is invalid.
+	 */
+	public static final class InvalidNamespace extends AeroException {
+		private static final long serialVersionUID = 1L;
+
+		public InvalidNamespace(String ns, int mapSize) {
+			super(ResultCode.INVALID_NAMESPACE,
+				(mapSize == 0) ? "Partition map empty" : "Namespace not found in partition map: " + ns);
+		}
+	}
 }

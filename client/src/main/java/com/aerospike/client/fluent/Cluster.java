@@ -2,6 +2,7 @@ package com.aerospike.client.fluent;
 
 import java.io.Closeable;
 import java.time.Duration;
+import java.util.HashMap;
 import java.util.Set;
 
 import com.aerospike.client.fluent.policy.Behavior;
@@ -31,12 +32,16 @@ public class Cluster implements Closeable {
      */
     public static final Duration INDEX_REFRESH = Duration.ofSeconds(5);
 
-    private ClusterDefinition def;
-    //private IndexesMonitor indexesMonitor;
+    ClusterDefinition def;
+	volatile Node[] nodes;
+	volatile HashMap<String,Partitions> partitionMap;
+
+	//private IndexesMonitor indexesMonitor;
     private RecordMappingFactory recordMappingFactory = null;
 
     Cluster(ClusterDefinition def, Host[] seeds) {
         this.def = def;
+		partitionMap = new HashMap<String,Partitions>();
         //this.indexesMonitor = new IndexesMonitor();
         //this.indexesMonitor.startMonitor(createSession(Behavior.DEFAULT), INDEX_REFRESH);
 
@@ -111,7 +116,7 @@ public class Cluster implements Closeable {
         //return client.isConnected();
     }
 
-    /**
+	/**
      * Closes the cluster connection and releases all associated resources.
      *
      * <p>This method stops the index monitor and closes the underlying client
@@ -129,5 +134,9 @@ public class Cluster implements Closeable {
     public void close() {
         //indexesMonitor.stopMonitor();
         //this.client.close();
+    }
+
+    void setNodes(Node[] nodes) {
+    	this.nodes = nodes;
     }
 }
