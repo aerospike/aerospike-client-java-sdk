@@ -16,7 +16,7 @@ package com.aerospike.client.fluent.util;
 import static java.lang.Character.MAX_SURROGATE;
 import static java.lang.Character.MIN_SURROGATE;
 
-import com.aerospike.client.fluent.exception.AeroException;
+import com.aerospike.client.fluent.AeroException;
 
 /**
  * Low-level, high-performance utility methods related to the {@linkplain Charsets#UTF_8 UTF-8}

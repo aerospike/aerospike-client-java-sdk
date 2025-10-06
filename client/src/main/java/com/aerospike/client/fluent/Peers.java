@@ -20,8 +20,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 
-import com.aerospike.client.fluent.exception.AeroException;
-
 public final class Peers {
 	public final ArrayList<Peer> peers;
 	public final HashMap<String,Node> nodes;

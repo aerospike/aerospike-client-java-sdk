@@ -22,11 +22,11 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.UUID;
 
+import com.aerospike.client.fluent.AeroException;
 import com.aerospike.client.fluent.Buffer;
 import com.aerospike.client.fluent.ParticleType;
 import com.aerospike.client.fluent.Value;
 import com.aerospike.client.fluent.cdt.MapOrder;
-import com.aerospike.client.fluent.exception.AeroException;
 
 /**
  * Serialize collection objects using MessagePack format specification:

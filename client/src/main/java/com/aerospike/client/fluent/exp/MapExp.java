@@ -16,10 +16,10 @@
  */
 package com.aerospike.client.fluent.exp;
 
+import com.aerospike.client.fluent.AeroException;
 import com.aerospike.client.fluent.cdt.CTX;
 import com.aerospike.client.fluent.cdt.MapPolicy;
 import com.aerospike.client.fluent.cdt.MapReturnType;
-import com.aerospike.client.fluent.exception.AeroException;
 import com.aerospike.client.fluent.util.Pack;
 
 /**

@@ -38,7 +38,6 @@ import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLSocketFactory;
 import javax.security.auth.x500.X500Principal;
 
-import com.aerospike.client.fluent.exception.AeroException;
 import com.aerospike.client.fluent.util.Util;
 
 /**

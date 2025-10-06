@@ -22,8 +22,6 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 
-import com.aerospike.client.fluent.exception.AeroException;
-
 /**
  * Multi-record transaction. Each command in the transaction must use the same namespace.
  */

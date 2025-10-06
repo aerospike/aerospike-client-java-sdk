@@ -54,7 +54,7 @@ public class ClusterDefinition {
     byte[] passwordHash;
     int[] preferrredRacks;
     private Level logLevel = Level.INFO;
-    private Callback callback = null;
+    private Callback callback = null;  // TODO Handle custom log callback.
 	Map<String,String> ipMap;
     TlsBuilder tlsBuilder;
 	AuthMode authMode = AuthMode.NONE;
@@ -398,7 +398,7 @@ public class ClusterDefinition {
 
 	/**
 	 * Set maximum number of errors allowed per node per {@link #errorRateWindow} before backoff
-	 * algorithm throws {@link com.aerospike.client.AeroException.Backoff} on database
+	 * algorithm throws {@link com.aerospike.client.fluent.AeroException.Backoff} on database
 	 * commands to that node. If maxErrorRate is zero, there is no error limit and
 	 * the exception will never be thrown.
 	 * <p>
@@ -521,5 +521,9 @@ public class ClusterDefinition {
         }
 
         return newHosts;
+    }
+
+    Host[] getHosts() {
+    	return hosts;
     }
 }

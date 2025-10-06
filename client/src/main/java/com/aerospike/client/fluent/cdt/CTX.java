@@ -18,8 +18,8 @@ package com.aerospike.client.fluent.cdt;
 
 import java.util.List;
 
+import com.aerospike.client.fluent.AeroException;
 import com.aerospike.client.fluent.Value;
-import com.aerospike.client.fluent.exception.AeroException;
 import com.aerospike.client.fluent.util.Crypto;
 import com.aerospike.client.fluent.util.Pack;
 import com.aerospike.client.fluent.util.Unpacker;

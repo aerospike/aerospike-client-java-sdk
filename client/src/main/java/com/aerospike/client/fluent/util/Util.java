@@ -38,7 +38,7 @@ import javax.management.AttributeList;
 import javax.management.MBeanServer;
 import javax.management.ObjectName;
 
-import com.aerospike.client.fluent.exception.AeroException;
+import com.aerospike.client.fluent.AeroException;
 
 public final class Util {
 	public static void sleep(long millis) {

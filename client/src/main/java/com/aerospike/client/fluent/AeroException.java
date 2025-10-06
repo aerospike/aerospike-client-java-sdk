@@ -1,13 +1,27 @@
-package com.aerospike.client.fluent.exception;
+/*
+ * Copyright 2012-2025 Aerospike, Inc.
+ *
+ * Portions may be licensed to Aerospike, Inc. under one or more contributor
+ * license agreements WHICH ARE COMPATIBLE WITH THE APACHE LICENSE, VERSION 2.0.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy of
+ * the License at http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
+ */
+package com.aerospike.client.fluent;
 
 import java.util.List;
 
-import com.aerospike.client.fluent.ResultCode;
-
 public class AeroException extends RuntimeException {
     private static final long serialVersionUID = 1L;
-    // TODO restore
-    //protected transient Node node;
+
+    protected transient Node node;
     //protected transient Policy policy;
     protected List<AeroException> subExceptions;
     protected int resultCode = ResultCode.CLIENT_ERROR;
@@ -32,12 +46,84 @@ public class AeroException extends RuntimeException {
         super(message, e);
         this.resultCode = resultCode;
     }
+
     public AeroException(int resultCode, String message) {
         super(message);
         this.resultCode = resultCode;
     }
 
-    public static AeroException resultCodeToException(int resultCode, String message, boolean inDoubt) {
+	@Override
+	public String getMessage() {
+		StringBuilder sb = new StringBuilder(512);
+
+		sb.append("Error ");
+		sb.append(resultCode);
+
+		if (iteration >= 0) {
+			sb.append(',');
+			sb.append(iteration);
+		}
+
+		/* TODO Support these fields.
+		if (policy != null) {
+			sb.append(',');
+			sb.append(policy.connectTimeout);
+			sb.append(',');
+			sb.append(policy.socketTimeout);
+			sb.append(',');
+			sb.append(policy.totalTimeout);
+			sb.append(',');
+			sb.append(policy.maxRetries);
+		}
+		*/
+
+		if (inDoubt) {
+			sb.append(",inDoubt");
+		}
+
+		if (node != null) {
+			sb.append(',');
+			sb.append(node.toString());
+		}
+
+		sb.append(": ");
+		sb.append(getBaseMessage());
+
+		if (subExceptions != null) {
+			sb.append(System.lineSeparator());
+			sb.append("sub-exceptions:");
+
+			for (AeroException ae : subExceptions) {
+				sb.append(System.lineSeparator());
+				sb.append(ae.getMessage());
+			}
+		}
+		return sb.toString();
+	}
+
+	/**
+	 * Return base message without extra metadata.
+	 */
+	public String getBaseMessage() {
+		String message = super.getMessage();
+		return (message != null)? message : ResultCode.getResultString(resultCode);
+	}
+
+	/**
+	 * Get last node used.
+	 */
+	public final Node getNode() {
+		return node;
+	}
+
+	/**
+	 * Set last node used.
+	 */
+	public final void setNode(Node node) {
+		this.node = node;
+	}
+
+	public static AeroException resultCodeToException(int resultCode, String message, boolean inDoubt) {
         switch (resultCode) {
         case ResultCode.QUOTA_EXCEEDED:
         case ResultCode.QUOTAS_NOT_ENABLED:
@@ -75,7 +161,47 @@ public class AeroException extends RuntimeException {
         }
     }
 
-	/**
+    public static class SecurityException extends AeroException {
+        private static final long serialVersionUID = 1L;
+
+        public SecurityException(int resultCode, String message, boolean inDoubt) {
+            super(resultCode, message, inDoubt);
+        }
+    }
+
+    public static class AuthenticationException extends SecurityException {
+        private static final long serialVersionUID = 1L;
+
+        public AuthenticationException(int resultCode, String message, boolean inDoubt) {
+            super(resultCode, message, inDoubt);
+        }
+    }
+
+    public static class AuthorizationException extends SecurityException {
+        private static final long serialVersionUID = 1L;
+
+        public AuthorizationException(int resultCode, String message, boolean inDoubt) {
+            super(resultCode, message, inDoubt);
+        }
+    }
+
+    public static class GenerationException extends AeroException {
+        private static final long serialVersionUID = 1L;
+
+        public GenerationException(int resultCode, String message, boolean inDoubt) {
+            super(resultCode, message, inDoubt);
+        }
+    }
+
+    public static class QuotaException extends AeroException {
+        private static final long serialVersionUID = 1L;
+
+        public QuotaException(int resultCode, String message, boolean inDoubt) {
+            super(resultCode, message, inDoubt);
+        }
+    }
+
+    /**
 	 * Exception thrown when a serialization error occurs.
 	 */
 	public static final class Serialize extends AeroException {

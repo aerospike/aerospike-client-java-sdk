@@ -31,9 +31,9 @@ import org.yaml.snakeyaml.Yaml;
 import org.yaml.snakeyaml.constructor.Constructor;
 import org.yaml.snakeyaml.representer.Representer;
 
+import com.aerospike.client.fluent.AeroException;
 import com.aerospike.client.fluent.Log;
 import com.aerospike.client.fluent.configuration.serializers.Configuration;
-import com.aerospike.client.fluent.exception.AeroException;
 
 public class YamlConfigProvider implements ConfigurationProvider {
 	private static final String CONFIG_PATH_ENV = "AEROSPIKE_CLIENT_CONFIG_URL";

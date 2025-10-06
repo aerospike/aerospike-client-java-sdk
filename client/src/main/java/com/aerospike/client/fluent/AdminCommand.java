@@ -24,7 +24,6 @@ import java.util.concurrent.TimeUnit;
 
 import org.mindrot.jbcrypt.BCrypt;
 
-import com.aerospike.client.fluent.exception.AeroException;
 import com.aerospike.client.fluent.policy.AuthMode;
 
 public class AdminCommand {

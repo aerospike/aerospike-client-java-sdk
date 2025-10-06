@@ -21,7 +21,6 @@ import java.net.InetSocketAddress;
 import java.util.HashMap;
 import java.util.List;
 
-import com.aerospike.client.fluent.exception.AeroException;
 import com.aerospike.client.fluent.util.Crypto;
 
 /**

@@ -1,9 +1,27 @@
+/*
+ * Copyright 2012-2025 Aerospike, Inc.
+ *
+ * Portions may be licensed to Aerospike, Inc. under one or more contributor
+ * license agreements WHICH ARE COMPATIBLE WITH THE APACHE LICENSE, VERSION 2.0.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy of
+ * the License at http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
+ */
 package com.aerospike.client.fluent;
 
 import java.io.Closeable;
 import java.time.Duration;
 import java.util.HashMap;
-import java.util.Set;
+import java.util.Map.Entry;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReferenceArray;
 
 import com.aerospike.client.fluent.policy.Behavior;
 
@@ -33,8 +51,10 @@ public class Cluster implements Closeable {
     public static final Duration INDEX_REFRESH = Duration.ofSeconds(5);
 
     ClusterDefinition def;
+    ClusterTend tend;
 	volatile Node[] nodes;
 	volatile HashMap<String,Partitions> partitionMap;
+	private final AtomicInteger nodeIndex;
 
 	//private IndexesMonitor indexesMonitor;
     private RecordMappingFactory recordMappingFactory = null;
@@ -42,9 +62,11 @@ public class Cluster implements Closeable {
     Cluster(ClusterDefinition def, Host[] seeds) {
         this.def = def;
 		partitionMap = new HashMap<String,Partitions>();
+		nodeIndex = new AtomicInteger();
         //this.indexesMonitor = new IndexesMonitor();
         //this.indexesMonitor.startMonitor(createSession(Behavior.DEFAULT), INDEX_REFRESH);
 
+		tend = new ClusterTend(this);
     }
 
     /**
@@ -112,9 +134,108 @@ public class Cluster implements Closeable {
      * @return true if the connection is active, false otherwise
      */
     public boolean isConnected() {
-    	return false;
-        //return client.isConnected();
+		// Must copy array reference for copy on write semantics to work.
+		Node[] nodeArray = nodes;
+
+		if (nodeArray.length > 0 && tend.isActive()) {
+			// Even though nodes exist, they may not be currently responding.  Check further.
+			for (Node node : nodeArray) {
+				// Mark connected if any node is active and cluster tend consecutive info request
+				// failures are less than 5.
+				if (node.active && node.failures < 5) {
+					return true;
+				}
+			}
+		}
+		return false;
     }
+
+	public final Node getRandomNode() throws AeroException.InvalidNode {
+		// Must copy array reference for copy on write semantics to work.
+		Node[] nodeArray = nodes;
+
+		if (nodeArray.length > 0) {
+			int index = Math.abs(nodeIndex.getAndIncrement() % nodeArray.length);
+
+			for (int i = 0; i < nodeArray.length; i++) {
+				Node node = nodeArray[index];
+
+				if (node.isActive()) {
+					return node;
+				}
+				index++;
+				index %= nodeArray.length;
+			}
+		}
+		throw new AeroException.InvalidNode("Cluster is empty");
+	}
+
+	public final Node[] getNodes() {
+		// Must copy array reference for copy on write semantics to work.
+		Node[] nodeArray = nodes;
+		return nodeArray;
+	}
+
+	public final Node[] validateNodes() {
+		// Must copy array reference for copy on write semantics to work.
+		Node[] nodeArray = nodes;
+
+		if (nodeArray.length == 0) {
+			throw new AeroException(ResultCode.SERVER_NOT_AVAILABLE, "Cluster is empty");
+		}
+		return nodeArray;
+	}
+
+	public final Node getNode(String nodeName) throws AeroException.InvalidNode {
+		Node node = findNode(nodeName);
+
+		if (node == null) {
+			throw new AeroException.InvalidNode("Invalid node name: " + nodeName);
+		}
+		return node;
+	}
+
+	protected final Node findNode(String nodeName) {
+		// Must copy array reference for copy on write semantics to work.
+		Node[] nodeArray = nodes;
+
+		for (Node node : nodeArray) {
+			if (node.getName().equals(nodeName)) {
+				return node;
+			}
+		}
+		return null;
+	}
+
+	/*
+	public final boolean isConnCurrentTran(long lastUsed) {
+		return maxSocketIdleNanosTran == 0 || (System.nanoTime() - lastUsed) <= maxSocketIdleNanosTran;
+	}
+
+	public final boolean isConnCurrentTrim(long lastUsed) {
+		return (System.nanoTime() - lastUsed) <= maxSocketIdleNanosTrim;
+	}*/
+
+	public final void printPartitionMap() {
+		for (Entry<String,Partitions> entry : partitionMap.entrySet()) {
+			String namespace = entry.getKey();
+			Partitions partitions = entry.getValue();
+			AtomicReferenceArray<Node>[] replicas = partitions.replicas;
+
+			for (int i = 0; i < replicas.length; i++) {
+				AtomicReferenceArray<Node> nodeArray = replicas[i];
+				int max = nodeArray.length();
+
+				for (int j = 0; j < max; j++) {
+					Node node = nodeArray.get(j);
+
+					if (node != null) {
+						Log.info(namespace + ',' + i + ',' + j + ',' + node);
+					}
+				}
+			}
+		}
+	}
 
 	/**
      * Closes the cluster connection and releases all associated resources.

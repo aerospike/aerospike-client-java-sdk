@@ -19,9 +19,11 @@ package com.aerospike.client.fluent;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.concurrent.ConcurrentLinkedDeque;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReferenceArray;
 
-import com.aerospike.client.fluent.exception.AeroException;
+import com.aerospike.client.fluent.util.ThreadLocalData;
 import com.aerospike.client.fluent.util.Util;
 
 /**
@@ -32,16 +34,21 @@ public class ClusterTend implements Runnable {
 	private final ClusterDefinition def;
 	private final Thread tendThread;
 	private final HashMap<String,Node> nodesMap;
+	private final ConcurrentLinkedDeque<ConnectionRecover> recoverQueue;
+	private final AtomicInteger recoverCount;
 	private volatile Host[] seeds;
 	private int tendCount;
 	private volatile int invalidNodeCount;
-	private volatile boolean tendValid;
+	private volatile boolean valid;
 
-    ClusterTend(Cluster cluster, Host[] seeds) {
+    ClusterTend(Cluster cluster) {
     	this.cluster = cluster;
-    	this.seeds = seeds;
     	this.def = cluster.def;
+    	this.seeds = cluster.def.getHosts();
 		this.nodesMap = new HashMap<String,Node>();
+
+		this.recoverCount = new AtomicInteger();
+		this.recoverQueue = new ConcurrentLinkedDeque<ConnectionRecover>();
 
 		// Tend cluster until all nodes identified.
 		waitTillStabilized(def.failIfNotConnected);
@@ -66,7 +73,7 @@ public class ClusterTend implements Runnable {
 		}
 
 		// Run cluster tend thread.
-		tendValid = true;
+		valid = true;
 		tendThread = new Thread(this);
 		tendThread.setName("tend");
 		tendThread.setDaemon(true);
@@ -74,7 +81,7 @@ public class ClusterTend implements Runnable {
     }
 
 	public final void run() {
-		while (tendValid) {
+		while (valid) {
 			// Tend cluster.
 			try {
 				tend(false, false);
@@ -223,8 +230,7 @@ public class ClusterTend implements Runnable {
 			}
 		}
 
-		// TODO: Handle connection recovery.
-		//processRecoverQueue();
+		processRecoverQueue();
 	}
 
 	private boolean seedNode(Peers peers, boolean failIfNotConnected) {
@@ -426,6 +432,12 @@ public class ClusterTend implements Runnable {
 		return false;
 	}
 
+	Node createNode(NodeValidator nv) {
+		Node node = new Node(cluster, nv);
+		node.createMinConnections();
+		return node;
+	}
+
 	private void addNodes(Node seed, Peers peers) {
 		// Add all nodes at once to avoid copying entire array multiple times.
 		// Create temporary nodes array.
@@ -545,5 +557,80 @@ public class ClusterTend implements Runnable {
 
 		// Replace nodes with copy.
 		cluster.setNodes(nodeArray);
+	}
+
+	public final void recoverConnection(ConnectionRecover cs) {
+		// Many cloud providers encounter performance problems when sockets are
+		// closed by the client when the server still has data left to write.
+		// The solution is to shutdown the socket and give the server time to
+		// respond before closing the socket.
+		//
+		// Put connection on a queue for later closing.
+		if (cs.isComplete()) {
+			return;
+		}
+
+		// Do not let queue get out of control.
+		if (recoverCount.getAndIncrement() < 10000) {
+			recoverQueue.offerLast(cs);
+		}
+		else {
+			recoverCount.getAndDecrement();
+			cs.abort();
+		}
+	}
+
+	private void processRecoverQueue() {
+		ConnectionRecover last = recoverQueue.peekLast();
+
+		if (last == null) {
+			return;
+		}
+
+		// Thread local can be used here because this method
+		// is only called from the cluster tend thread.
+		byte[] buf = ThreadLocalData.getBuffer();
+		ConnectionRecover cs;
+
+		while ((cs = recoverQueue.pollFirst()) != null) {
+			if (cs.drain(buf)) {
+				recoverCount.getAndDecrement();
+			}
+			else {
+				recoverQueue.offerLast(cs);
+			}
+
+			if (cs == last) {
+				break;
+			}
+		}
+	}
+
+	public final void interruptTendSleep() {
+		// Interrupt tendThread's sleep(), so node refreshes will be performed sooner.
+		tendThread.interrupt();
+	}
+
+	public final boolean isActive() {
+		return valid;
+	}
+
+	/**
+	 * Return connection recoverQueue size. The queue contains connections that have timed out and
+	 * need to be drained before returning the connection to a connection pool. The recoverQueue
+	 * is only used when {@link com.aerospike.client.policy.Policy#timeoutDelay} is true.
+	 * <p>
+	 * Since recoverQueue is a linked list where the size() calculation is expensive, a separate
+	 * counter is used to track recoverQueue.size().
+	 */
+	public final int getRecoverQueueSize() {
+		return recoverCount.get();
+	}
+
+	/**
+	 * Return count of add node failures in the most recent cluster tend iteration.
+	 */
+	public final int getInvalidNodeCount() {
+		return invalidNodeCount;
 	}
 }

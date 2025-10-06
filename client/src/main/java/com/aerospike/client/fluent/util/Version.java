@@ -18,7 +18,7 @@ package com.aerospike.client.fluent.util;
 
 import java.net.InetSocketAddress;
 
-import com.aerospike.client.fluent.exception.AeroException;
+import com.aerospike.client.fluent.AeroException;
 
 public final class Version implements Comparable<Version> {
 	public static final Version SERVER_VERSION_8_1 = new Version(8, 1, 0, 0);

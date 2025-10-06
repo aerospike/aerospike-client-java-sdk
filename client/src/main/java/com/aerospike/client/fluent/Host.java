@@ -19,8 +19,6 @@ package com.aerospike.client.fluent;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.aerospike.client.fluent.exception.AeroException;
-
 /**
  * Host name/port of database server.
  */

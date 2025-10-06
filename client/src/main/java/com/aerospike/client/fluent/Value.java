@@ -25,7 +25,6 @@ import java.util.SortedMap;
 import java.util.UUID;
 
 import com.aerospike.client.fluent.cdt.MapOrder;
-import com.aerospike.client.fluent.exception.AeroException;
 import com.aerospike.client.fluent.util.Packer;
 
 /**
