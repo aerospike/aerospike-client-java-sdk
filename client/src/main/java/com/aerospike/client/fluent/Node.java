@@ -25,6 +25,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import com.aerospike.client.cluster.Node;
 import com.aerospike.client.fluent.AdminCommand.LoginCommand;
 import com.aerospike.client.fluent.util.Util;
 import com.aerospike.client.fluent.util.Version;
@@ -984,6 +985,22 @@ public class Node implements Closeable {
 		return version;
 	}
 
+	@Override
+	public final String toString() {
+		return name + ' ' + host;
+	}
+
+	@Override
+	public final int hashCode() {
+		return name.hashCode();
+	}
+
+	@Override
+	public final boolean equals(Object obj) {
+		Node other = (Node) obj;
+		return this.name.equals(other.name);
+	}
+
 	/**
 	 * Close all socket connections.
 	 */
@@ -1002,4 +1019,6 @@ public class Node implements Closeable {
 			}
 		}
 	}
+
+
 }

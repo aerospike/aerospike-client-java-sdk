@@ -61,11 +61,11 @@ public class Cluster implements Closeable {
 
     Cluster(ClusterDefinition def, Host[] seeds) {
         this.def = def;
+		nodes = new Node[0];
 		partitionMap = new HashMap<String,Partitions>();
 		nodeIndex = new AtomicInteger();
         //this.indexesMonitor = new IndexesMonitor();
         //this.indexesMonitor.startMonitor(createSession(Behavior.DEFAULT), INDEX_REFRESH);
-
 		tend = new ClusterTend(this);
     }
 
