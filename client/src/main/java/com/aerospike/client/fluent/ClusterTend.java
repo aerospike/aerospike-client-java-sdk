@@ -33,7 +33,7 @@ public class ClusterTend implements Runnable {
 	private final Cluster cluster;
 	private final ClusterDefinition def;
 	private final Thread tendThread;
-	private final HashMap<String,Node> nodesMap;
+	final HashMap<String,Node> nodesMap;
 	private final ConcurrentLinkedDeque<ConnectionRecover> recoverQueue;
 	private final AtomicInteger recoverCount;
 	private volatile Host[] seeds;
@@ -430,12 +430,6 @@ public class ClusterTend implements Runnable {
 			}
 		}
 		return false;
-	}
-
-	Node createNode(NodeValidator nv) {
-		Node node = new Node(cluster, nv);
-		node.createMinConnections();
-		return node;
 	}
 
 	private void addNodes(Node seed, Peers peers) {

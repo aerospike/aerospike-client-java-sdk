@@ -18,12 +18,15 @@ package com.aerospike.client.fluent;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.SocketTimeoutException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import com.aerospike.client.fluent.AdminCommand.LoginCommand;
+import com.aerospike.client.fluent.util.Util;
 import com.aerospike.client.fluent.util.Version;
 
 /**
@@ -43,12 +46,12 @@ public class Node implements Closeable {
 	private static final String[] INFO_PERIODIC = new String[] {"node", "peers-generation", "partition-generation"};
 	private static final String[] INFO_PERIODIC_REB = new String[] {"node", "peers-generation", "partition-generation", "rebalance-generation"};
 
-	protected final Cluster cluster;  // TODO Change to ClusterDefinition?
-	private final String name;
+	protected final Cluster cluster;
+	private String name;
 	private String hostname; // Optional hostname.
-	private final Host host; // Host with IP address name.
+	private Host host; // Host with IP address name.
 	protected final InetSocketAddress address;
-	private final Pool[] connectionPools;
+	private Pool[] connectionPools;
 	private Connection tendConnection;
 	private byte[] sessionToken;
 	private long sessionExpiration;
@@ -56,11 +59,11 @@ public class Node implements Closeable {
 	//private volatile NodeMetrics metrics;
 	final AtomicInteger connsOpened;
 	final AtomicInteger connsClosed;
-	private final AtomicInteger errorRateCount;
+	private AtomicInteger errorRateCount;
 	protected int maxErrorRate;
-	private final Counter errorCounter;
-	private final Counter timeoutCounter;
-	private final Counter keyBusyCounter;
+	private Counter errorCounter;
+	private Counter timeoutCounter;
+	private Counter keyBusyCounter;
 	protected int connectionIter;
 	private int peersGeneration;
 	int partitionGeneration;
@@ -68,18 +71,18 @@ public class Node implements Closeable {
 	protected int peersCount;
 	protected int referenceCount;
 	protected int failures;
-	private final int features;
+	//private int features;
 	protected boolean partitionChanged;
 	protected boolean rebalanceChanged;
 	protected volatile boolean performLogin;
 	protected volatile boolean active;
-	private final Version version;
+	private Version version;
 
 	/**
 	 * Initialize server node with connection parameters.
 	 *
-	 * @param cluster			collection of active server nodes
-	 * @param nv				connection parameters
+	 * @param cluster	collection of active server nodes
+	 * @param nv		connection parameters
 	 */
 	public Node(Cluster cluster, NodeValidator nv) {
 		ClusterDefinition def = cluster.def;
@@ -91,7 +94,7 @@ public class Node implements Closeable {
 		this.tendConnection = nv.primaryConn;
 		this.sessionToken = nv.sessionToken;
 		this.sessionExpiration = nv.sessionExpiration;
-		this.features = nv.features;
+		//this.features = nv.features;
 		this.version = nv.version;
 		this.connsOpened = new AtomicInteger(1);
 		this.connsClosed = new AtomicInteger(0);
@@ -131,11 +134,396 @@ public class Node implements Closeable {
 		}
 	}
 
+	private Node createNode(NodeValidator nv) {
+		Node node = new Node(cluster, nv);
+		node.createMinConnections();
+		return node;
+	}
+
 	public final void createMinConnections() {
 		for (Pool pool : connectionPools) {
 			if (pool.minSize > 0) {
 				createConnections(pool, pool.minSize);
 			}
+		}
+	}
+
+	/**
+	 * Request current status from server node.
+	 */
+	public final void refresh(Peers peers) {
+		if (! active) {
+			return;
+		}
+
+		try {
+			ClusterDefinition def = cluster.def;
+
+			if (tendConnection.isClosed()) {
+				tendConnection = createConnection(null, def.tendTimeout);
+
+				if (def.isAuthEnabled()) {
+					byte[] token = sessionToken;
+
+					if (token == null || shouldLogin()) {
+						login();
+					}
+					else {
+						if (! AdminCommand.authenticate(def, tendConnection, token)) {
+							// Authentication failed. Session token probably expired.
+							// Login again to get new session token.
+							login();
+						}
+					}
+				}
+			}
+			else {
+				if (def.isAuthEnabled() && shouldLogin()) {
+					login();
+				}
+			}
+
+			String[] commands = def.isRackAware() ? INFO_PERIODIC_REB : INFO_PERIODIC;
+			HashMap<String,String> infoMap = infoRequest(tendConnection, commands);
+
+			verifyNodeName(infoMap);
+			verifyPeersGeneration(infoMap, peers);
+			verifyPartitionGeneration(infoMap);
+
+			if (def.isRackAware()) {
+				verifyRebalanceGeneration(infoMap);
+			}
+			peers.refreshCount++;
+
+			// Reload peers, partitions and racks if there were failures on previous tend.
+			if (failures > 0) {
+				peers.genChanged = true;
+				partitionChanged = true;
+				rebalanceChanged = def.isRackAware();
+			}
+			failures = 0;
+		}
+		catch (Throwable e) {
+			peers.genChanged = true;
+			refreshFailed(e);
+		}
+	}
+
+	private HashMap<String,String> infoRequest(Connection conn, String... names) {
+		Info info = new Info(this, conn, names);
+		return info.parseMultiResponse();
+	}
+
+	private boolean shouldLogin() {
+		return performLogin || (sessionExpiration > 0 && System.nanoTime() >= sessionExpiration);
+	}
+
+	private void login() throws IOException {
+		if (Log.infoEnabled()) {
+			Log.info("Login to " + this);
+		}
+
+		try {
+			LoginCommand login = new LoginCommand(cluster.def, tendConnection);
+			sessionToken = login.sessionToken;
+			sessionExpiration = login.sessionExpiration;
+			performLogin = false;
+		}
+		catch (Throwable e) {
+			performLogin = true;
+			throw e;
+		}
+	}
+
+	public final void signalLogin() {
+		// Only login when sessionToken is supported
+		// and login not already been requested.
+		if (! performLogin) {
+			performLogin = true;
+			cluster.tend.interruptTendSleep();
+		}
+	}
+
+	private void verifyNodeName(HashMap <String,String> infoMap) {
+		// If the node name has changed, remove node from cluster and hope one of the other host
+		// aliases is still valid.  Round-robbin DNS may result in a hostname that resolves to a
+		// new address.
+		String infoName = infoMap.get("node");
+
+		if (infoName == null || infoName.length() == 0) {
+			throw new AerospikeException.Parse("Node name is empty");
+		}
+
+		if (! name.equals(infoName)) {
+			// Set node to inactive immediately.
+			active = false;
+			throw new AerospikeException("Node name has changed. Old=" + name + " New=" + infoName);
+		}
+	}
+
+	private void verifyPeersGeneration(HashMap<String,String> infoMap, Peers peers) {
+		String genString = infoMap.get("peers-generation");
+
+		if (genString == null || genString.length() == 0) {
+			throw new AerospikeException.Parse("peers-generation is empty");
+		}
+
+		int gen = Integer.parseInt(genString);
+
+		if (peersGeneration != gen) {
+			peers.genChanged = true;
+
+			if (peersGeneration > gen) {
+				if (Log.infoEnabled()) {
+					Log.info("Quick node restart detected: node=" + this + " oldgen=" + peersGeneration + " newgen=" + gen);
+				}
+				restart();
+			}
+		}
+	}
+
+	private void restart() {
+		try {
+			// Reset error rate.
+			resetErrorRate();
+
+			// Login when user authentication is enabled.
+			if (cluster.def.isAuthEnabled()) {
+				login();
+			}
+
+			// Balance sync connections.
+			balanceConnections();
+		}
+		catch (Throwable e) {
+			if (Log.warnEnabled()) {
+				Log.warn("Node restart failed: " + this + ' ' + Util.getErrorMessage(e));
+			}
+		}
+	}
+
+	private void verifyPartitionGeneration(HashMap<String,String> infoMap) {
+		String genString = infoMap.get("partition-generation");
+
+		if (genString == null || genString.length() == 0) {
+			throw new AerospikeException.Parse("partition-generation is empty");
+		}
+
+		int gen = Integer.parseInt(genString);
+
+		if (partitionGeneration != gen) {
+			this.partitionChanged = true;
+		}
+	}
+
+	private void verifyRebalanceGeneration(HashMap<String,String> infoMap) {
+		String genString = infoMap.get("rebalance-generation");
+
+		if (genString == null || genString.length() == 0) {
+			throw new AerospikeException.Parse("rebalance-generation is empty");
+		}
+
+		int gen = Integer.parseInt(genString);
+
+		if (rebalanceGeneration != gen) {
+			this.rebalanceChanged = true;
+		}
+	}
+
+	public final void refreshPeers(Peers peers) {
+		// Do not refresh peers when node connection has already failed during this cluster tend iteration.
+		if (failures > 0 || ! active) {
+			return;
+		}
+
+		try {
+			if (Log.debugEnabled()) {
+				Log.debug("Update peers for node " + this);
+			}
+			PeerParser parser = new PeerParser(cluster.def, this, tendConnection, peers.peers);
+			peersCount = peers.peers.size();
+
+			boolean peersValidated = true;
+
+			for (Peer peer : peers.peers) {
+				if (findPeerNode(cluster, peers, peer)) {
+					// Node already exists. Do not even try to connect to hosts.
+					continue;
+				}
+
+				boolean nodeValidated = false;
+
+				// Find first host that connects.
+				for (Host host : peer.hosts) {
+					// Do not attempt to add a peer if it has already failed in this cluster tend iteration.
+					if (peers.hasFailed(host)) {
+						continue;
+					}
+
+					try {
+						// Attempt connection to host.
+						NodeValidator nv = new NodeValidator();
+						nv.validateNode(cluster.def, host);
+
+						if (! peer.nodeName.equals(nv.name)) {
+							// Must look for new node name in the unlikely event that node names do not agree.
+							if (Log.warnEnabled()) {
+								Log.warn("Peer node " + peer.nodeName + " is different than actual node " + nv.name + " for host " + host);
+							}
+						}
+
+						// Create new node.
+						Node node = createNode(nv);
+						peers.nodes.put(nv.name, node);
+						nodeValidated = true;
+
+						if (peer.replaceNode != null) {
+							if (Log.infoEnabled()) {
+								Log.info("Replace node: " + peer.replaceNode);
+							}
+							peers.removeNodes.add(peer.replaceNode);
+						}
+						break;
+					}
+					catch (Throwable e) {
+						peers.fail(host);
+
+						if (Log.warnEnabled()) {
+							Log.warn("Add node " + host + " failed: " + Util.getErrorMessage(e));
+						}
+					}
+				}
+
+				if (! nodeValidated) {
+					peersValidated = false;
+				}
+			}
+
+			// Only set new peers generation if all referenced peers are added to the cluster.
+			if (peersValidated) {
+				peersGeneration = parser.generation;
+			}
+			peers.refreshCount++;
+		}
+		catch (Throwable e) {
+			refreshFailed(e);
+		}
+	}
+
+	private static boolean findPeerNode(Cluster cluster, Peers peers, Peer peer) {
+		// Check global node map for existing cluster.
+		Node node = cluster.tend.nodesMap.get(peer.nodeName);
+
+		if (node != null) {
+			// Node name found.
+			if (node.failures <= 0 || node.address.getAddress().isLoopbackAddress()) {
+				// If the node does not have cluster tend errors or is localhost,
+				// reject new peer as the IP address does not need to change.
+				node.referenceCount++;
+				return true;
+			}
+
+			// Match peer hosts with the node host.
+			for (Host h : peer.hosts) {
+				if (h.port == node.host.port) {
+					// Check for IP address (node.host.name is an IP address) or hostname if it exists.
+					if (h.name.equals(node.host.name) || (node.hostname != null && h.name.equals(node.hostname))) {
+						// Main node host is also the same as one of the peer hosts.
+						// Peer should not be added.
+						node.referenceCount++;
+						return true;
+					}
+
+					// Peer name might be a hostname. Get peer IP addresses and check with node IP address.
+					try {
+						InetAddress[] addresses = InetAddress.getAllByName(h.name);
+
+						for (InetAddress address : addresses) {
+							if (address.equals(node.address.getAddress()) ||
+								address.isLoopbackAddress()) {
+								// Set peer hostname for faster future lookups.
+								node.hostname = h.name;
+								node.referenceCount++;
+								return true;
+							}
+						}
+					}
+					catch (Throwable t) {
+						// Peer name is invalid. replaceNode may be set, but that node will
+						// not be replaced because NodeValidator will reject it.
+						Log.error("Invalid peer received by cluster tend: " + h.name);
+					}
+				}
+			}
+			peer.replaceNode = node;
+		}
+
+		// Check local node map for this tend iteration.
+		node = peers.nodes.get(peer.nodeName);
+
+		if (node != null) {
+			node.referenceCount++;
+			peer.replaceNode = null;
+			return true;
+		}
+		return false;
+	}
+
+	protected final void refreshPartitions(Peers peers) {
+		// Do not refresh partitions when node connection has already failed during this cluster tend iteration.
+		// Also, avoid "split cluster" case where this node thinks it's a 1-node cluster.
+		// Unchecked, such a node can dominate the partition map and cause all other
+		// nodes to be dropped.
+		if (failures > 0 || ! active || (peersCount == 0 && peers.refreshCount > 1)) {
+			return;
+		}
+
+		try {
+			if (Log.debugEnabled()) {
+				Log.debug("Update partition map for node " + this);
+			}
+			PartitionParser parser = new PartitionParser(tendConnection, this, cluster.partitionMap, Node.PARTITIONS);
+
+			if (parser.isPartitionMapCopied()) {
+				cluster.partitionMap = parser.getPartitionMap();
+			}
+			partitionGeneration = parser.getGeneration();
+		}
+		catch (Throwable e) {
+			refreshFailed(e);
+		}
+	}
+
+	protected final void refreshRacks() {
+		// Do not refresh racks when node connection has already failed during this cluster tend iteration.
+		if (failures > 0 || ! active) {
+			return;
+		}
+
+		try {
+			if (Log.debugEnabled()) {
+				Log.debug("Update racks for node " + this);
+			}
+			RackParser parser = new RackParser(this, tendConnection);
+
+			rebalanceGeneration = parser.getGeneration();
+			racks = parser.getRacks();
+		}
+		catch (Throwable e) {
+			refreshFailed(e);
+		}
+	}
+
+	private void refreshFailed(Throwable e) {
+		failures++;
+
+		if (! tendConnection.isClosed()) {
+			closeConnectionOnError(tendConnection);
+		}
+
+		// Only log message if cluster is still active.
+		if (cluster.tend.isActive() && Log.warnEnabled()) {
+			Log.warn("Node " + this + " refresh failed: " + Util.getErrorMessage(e));
 		}
 	}
 
@@ -418,37 +806,49 @@ public class Node implements Closeable {
 		}
 	}
 
-	public final void signalLogin() {
-		// Only login when sessionToken is supported
-		// and login not already been requested.
-		if (! performLogin) {
-			performLogin = true;
-			cluster.tend.interruptTendSleep();
+	final void balanceConnections() {
+		for (Pool pool : connectionPools) {
+			int excess = pool.excess();
+
+			if (excess > 0) {
+				pool.closeIdle(this, excess);
+			}
+			else if (excess < 0 && errorRateWithinLimit()) {
+				createConnections(pool, -excess);
+			}
 		}
 	}
 
-	public final void refresh(Peers peers) {
-		// TODO: Implement
+	/**
+	 * Close pooled connection on error and decrement connection count.
+	 */
+	public final void closeConnection(Connection conn) {
+		conn.pool.total.getAndDecrement();
+		closeConnectionOnError(conn);
 	}
 
-	public final void refreshPeers(Peers peers) {
-		// TODO: Implement
+	/**
+	 * Close any connection on error.
+	 */
+	public final void closeConnectionOnError(Connection conn) {
+		connsClosed.getAndIncrement();
+		incrErrorRate();
+		conn.close();
 	}
 
-	protected final void refreshPartitions(Peers peers) {
-		// TODO: Implement
+	/**
+	 * Close connection without incrementing error count.
+	 */
+	public final void closeIdleConnection(Connection conn) {
+		connsClosed.getAndIncrement();
+		conn.close();
 	}
 
-	protected final void refreshRacks() {
-		// TODO: Implement
-	}
-
-	final void balanceConnections() {
-		// TODO: Implement
+	public final boolean errorRateWithinLimit() {
+		return cluster.def.maxErrorRate <= 0 || errorRateCount.get() <= cluster.def.maxErrorRate;
 	}
 
 	public final void incrErrorRate() {
-		// TODO add def to node instance instead of cluster??
 		if (cluster.def.maxErrorRate > 0) {
 			errorRateCount.getAndIncrement();
 		}
@@ -470,6 +870,29 @@ public class Node implements Closeable {
 				maxErrorRate = 1;
 			}
 		}
+	}
+
+	/**
+	 * Increment transaction error count. If the error is retryable, multiple errors per
+	 * transaction may occur.
+	 */
+	public void addError(String namespace) {
+		errorCounter.increment(namespace);
+	}
+
+	/**
+	 * Increment transaction timeout count. If the timeout is retryable (ie socketTimeout),
+	 * multiple timeouts per transaction may occur.
+	 */
+	public void addTimeout(String namespace) {
+		timeoutCounter.increment(namespace);
+	}
+
+	/**
+	 * Increment the key busy counter.
+	 */
+	public void addKeyBusy(String namespace) {
+		keyBusyCounter.increment(namespace);
 	}
 
 	/**
@@ -559,31 +982,6 @@ public class Node implements Closeable {
 	 */
 	public Version getVersion() {
 		return version;
-	}
-
-	/**
-	 * Close pooled connection on error and decrement connection count.
-	 */
-	public final void closeConnection(Connection conn) {
-		conn.pool.total.getAndDecrement();
-		closeConnectionOnError(conn);
-	}
-
-	/**
-	 * Close any connection on error.
-	 */
-	public final void closeConnectionOnError(Connection conn) {
-		connsClosed.getAndIncrement();
-		incrErrorRate();
-		conn.close();
-	}
-
-	/**
-	 * Close connection without incrementing error count.
-	 */
-	public final void closeIdleConnection(Connection conn) {
-		connsClosed.getAndIncrement();
-		conn.close();
 	}
 
 	/**

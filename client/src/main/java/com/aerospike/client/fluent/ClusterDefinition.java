@@ -559,4 +559,8 @@ public class ClusterDefinition {
     Host[] getHosts() {
     	return hosts;
     }
+
+    boolean isRackAware() {
+    	return preferrredRacks != null;
+    }
 }

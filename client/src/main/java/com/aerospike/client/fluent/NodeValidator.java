@@ -202,11 +202,10 @@ public final class NodeValidator {
 				}
 			}
 
-			List<String> commands = new ArrayList<String>(6);
+			List<String> commands = new ArrayList<String>(5);
 			commands.add("node");
 			commands.add("partition-generation");
 			commands.add("build");
-			commands.add("features");
 
 			boolean validateCluster = def.validateClusterName;
 			if (validateCluster) {
@@ -246,7 +245,6 @@ public final class NodeValidator {
 			if (sendUserAgent) {
 				Info.request(conn, "user-agent-set:value=" + getB64userAgent(def));
 			}
-			setFeatures(map);
 
 			if (validateCluster) {
 				validateClusterName(def, map);
@@ -313,49 +311,6 @@ public final class NodeValidator {
 	private void validateServerBuildVersion(HashMap<String,String> map) {
 		String build = map.get("build");
 		version = Version.convertStringToVersion(build, name, primaryAddress);
-	}
-
-	private void setFeatures(HashMap<String,String> map) {
-		try {
-			String featuresString = map.get("features");
-			int begin = 0;
-			int end = 0;
-
-			while (end < featuresString.length()) {
-				end = featuresString.indexOf(';', begin);
-
-				if (end < 0) {
-					end = featuresString.length();
-				}
-
-				int len = end - begin;
-
-				if (featuresString.regionMatches(begin, "pscans", 0, len)) {
-					this.features |= Node.HAS_PARTITION_SCAN;
-				}
-				else if (featuresString.regionMatches(begin, "query-show", 0, len)) {
-					this.features |= Node.HAS_QUERY_SHOW;
-				}
-				else if (featuresString.regionMatches(begin, "batch-any", 0, len)) {
-					this.features |= Node.HAS_BATCH_ANY;
-				}
-				else if (featuresString.regionMatches(begin, "pquery", 0, len)) {
-					this.features |= Node.HAS_PARTITION_QUERY;
-				}
-				begin = end + 1;
-			}
-		}
-		catch (Throwable e) {
-			// Unexpected exception. Use defaults.
-		}
-
-		// This client requires partition scan support. Partition scans were first
-		// supported in server version 4.9. Do not allow any server node into the
-		// cluster that is running server version < 4.9.
-		if ((this.features & Node.HAS_PARTITION_SCAN) == 0) {
-			throw new AerospikeException("Node " + this.name + ' ' + this.primaryHost +
-					" version < 4.9. This client requires server version >= 4.9");
-		}
 	}
 
 	private void validateClusterName(ClusterDefinition def, HashMap<String,String> map) {

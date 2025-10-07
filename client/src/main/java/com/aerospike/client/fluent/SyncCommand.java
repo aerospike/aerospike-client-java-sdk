@@ -17,12 +17,7 @@
 package com.aerospike.client.fluent;
 
 import java.io.IOException;
-import java.net.SocketTimeoutException;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.concurrent.TimeUnit;
-
-import com.aerospike.client.fluent.policy.SettablePolicy;
 
 public abstract class SyncCommand extends Command {
 	// private static final AtomicLong TranCounter = new AtomicLong();
@@ -301,18 +296,19 @@ public abstract class SyncCommand extends Command {
 		subExceptions.add(exception);*/
 	}
 
+	/*
 	private void prepareException(Node node, AerospikeException ae, List<AerospikeException> subExceptions) {
 		ae.setNode(node);
-		/*
 		ae.setPolicy(policy);
 		ae.setIteration(iteration);
 		ae.setInDoubt(isWrite(), commandSentCounter);
-		ae.setSubExceptions(subExceptions);*/
+		ae.setSubExceptions(subExceptions);
 
 		if (ae.getInDoubt()) {
 			onInDoubt();
 		}
 	}
+	*/
 
 	protected void onInDoubt() {
 		// Write commands will override this method.

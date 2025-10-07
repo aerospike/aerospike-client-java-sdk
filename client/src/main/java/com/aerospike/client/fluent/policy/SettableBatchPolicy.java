@@ -65,7 +65,8 @@ public class SettableBatchPolicy extends SettablePolicy {
         super.mergeFrom(thisPolicy);
     }
 
-    protected BatchPolicy formPolicy(BatchPolicy policy) {
+    @SuppressWarnings("deprecation")
+	protected BatchPolicy formPolicy(BatchPolicy policy) {
         if (allowInlineMemoryAccess != null) {
             policy.allowInline = allowInlineMemoryAccess;
         }

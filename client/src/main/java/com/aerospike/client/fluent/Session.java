@@ -16,20 +16,17 @@
  */
 package com.aerospike.client.fluent;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import com.aerospike.client.fluent.exp.Exp;
 import com.aerospike.client.fluent.exp.Expression;
 import com.aerospike.client.fluent.policy.Behavior;
 
 public class Session {
-    private final Cluster cluster;
+    //private final Cluster cluster;
     private final Behavior behavior;
     //private final IAerospikeClient client;
 
     protected Session(Cluster connection, Behavior behavior) {
-        this.cluster = connection;
+        //this.cluster = connection;
         this.behavior = behavior;
         //this.client = connection.getUnderlyingClient();
     }
