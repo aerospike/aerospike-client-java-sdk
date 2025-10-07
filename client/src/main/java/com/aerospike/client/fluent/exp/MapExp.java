@@ -16,7 +16,7 @@
  */
 package com.aerospike.client.fluent.exp;
 
-import com.aerospike.client.fluent.AeroException;
+import com.aerospike.client.fluent.AerospikeException;
 import com.aerospike.client.fluent.cdt.CTX;
 import com.aerospike.client.fluent.cdt.MapPolicy;
 import com.aerospike.client.fluent.cdt.MapReturnType;
@@ -638,7 +638,7 @@ public final class MapExp {
 
 		default:
 		case MapReturnType.NONE:
-			throw new AeroException("Invalid MapReturnType: " + returnType);
+			throw new AerospikeException("Invalid MapReturnType: " + returnType);
 		}
 	}
 }

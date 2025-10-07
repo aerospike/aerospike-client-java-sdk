@@ -110,7 +110,7 @@ public class ClusterTend implements Runnable {
 			String message = "Cluster seed(s) failed";
 
 			if (failIfNotConnected) {
-				throw new AeroException(message);
+				throw new AerospikeException(message);
 			}
 			else {
 				Log.warn(message);
@@ -255,7 +255,7 @@ public class ClusterTend implements Runnable {
 
 				if (seed.tlsName != null && def.tlsBuilder == null) {
 					// Fail immediately for known configuration errors like this.
-					throw new AeroException.Connection("Seed host tlsName '" + seed.tlsName +
+					throw new AerospikeException.Connection("Seed host tlsName '" + seed.tlsName +
 						"' defined but client tlsPolicy not enabled", e);
 				}
 
@@ -299,7 +299,7 @@ public class ClusterTend implements Runnable {
 					sb.append(System.lineSeparator());
 				}
 			}
-			throw new AeroException.Connection(sb.toString());
+			throw new AerospikeException.Connection(sb.toString());
 		}
 		return false;
 	}

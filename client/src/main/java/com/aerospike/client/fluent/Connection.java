@@ -51,12 +51,12 @@ public final class Connection implements Closeable {
 	private volatile long lastUsed;
 
 	public Connection(InetSocketAddress address, int timeoutMillis)
-		throws AeroException.Connection {
+		throws AerospikeException.Connection {
 		this(address, timeoutMillis, null, null);
 	}
 
 	public Connection(InetSocketAddress address, int timeoutMillis, Node node, Pool pool)
-		throws AeroException.Connection {
+		throws AerospikeException.Connection {
 		this.pool = pool;
 
 		try {
@@ -88,24 +88,24 @@ public final class Connection implements Closeable {
 				throw e;
 			}
 		}
-		catch (AeroException ae) {
+		catch (AerospikeException ae) {
 			throw ae;
 		}
 		catch (Throwable e) {
-			throw new AeroException.Connection(e);
+			throw new AerospikeException.Connection(e);
 		}
 	}
 
 	public Connection(
 		TlsBuilder tls, String tlsName, InetSocketAddress address, int timeoutMillis
-	) throws AeroException.Connection {
+	) throws AerospikeException.Connection {
 		this(tls, tlsName, address, timeoutMillis, null, null);
 	}
 
 	public Connection(
 		TlsBuilder tls, String tlsName, InetSocketAddress address, int timeoutMillis, Node node,
 		Pool pool
-	) throws AeroException.Connection {
+	) throws AerospikeException.Connection {
 		this.pool = pool;
 
 		try {
@@ -169,11 +169,11 @@ public final class Connection implements Closeable {
 				throw e;
 			}
 		}
-		catch (AeroException ae) {
+		catch (AerospikeException ae) {
 			throw ae;
 		}
 		catch (Throwable e) {
-			throw new AeroException.Connection(e);
+			throw new AerospikeException.Connection(e);
 		}
 	}
 
@@ -183,7 +183,7 @@ public final class Connection implements Closeable {
 		if (tlsName == null) {
 			// Do not throw AerospikeException.Connection because that exception will be retried.
 			// We don't want to retry on TLS errors. Throw standard AerospikeException instead.
-			throw new AeroException("Invalid TLS name: null");
+			throw new AerospikeException("Invalid TLS name: null");
 		}
 
 		// Exclude certificate serial numbers.
@@ -192,7 +192,7 @@ public final class Connection implements Closeable {
 
 			for (BigInteger sn : tls.getRevokeCertificates()) {
 				if (sn.equals(serialNumber)) {
-					throw new AeroException("Invalid certificate serial number: " + sn);
+					throw new AerospikeException("Invalid certificate serial number: " + sn);
 				}
 			}
 		}
@@ -238,7 +238,7 @@ public final class Connection implements Closeable {
 			}
 		}
 
-		throw new AeroException("Invalid TLS name: " + tlsName);
+		throw new AerospikeException("Invalid TLS name: " + tlsName);
 	}
 
 	public void write(byte[] buffer, int length) throws IOException {

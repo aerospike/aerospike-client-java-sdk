@@ -31,7 +31,7 @@ import org.yaml.snakeyaml.Yaml;
 import org.yaml.snakeyaml.constructor.Constructor;
 import org.yaml.snakeyaml.representer.Representer;
 
-import com.aerospike.client.fluent.AeroException;
+import com.aerospike.client.fluent.AerospikeException;
 import com.aerospike.client.fluent.Log;
 import com.aerospike.client.fluent.configuration.serializers.Configuration;
 
@@ -86,7 +86,7 @@ public class YamlConfigProvider implements ConfigurationProvider {
 			loadConfiguration();
 		}
 		catch (Throwable t) {
-			throw new AeroException("Failed to parse " + configPath + ": " + t);
+			throw new AerospikeException("Failed to parse " + configPath + ": " + t);
 		}
 	}
 
@@ -109,7 +109,7 @@ public class YamlConfigProvider implements ConfigurationProvider {
 		File file = new File(path);
 
 		if (!file.exists()) {
-			throw new AeroException("File does not exist: " + path);
+			throw new AerospikeException("File does not exist: " + path);
 		}
 
 		long newLastModified = file.lastModified();
@@ -133,7 +133,7 @@ public class YamlConfigProvider implements ConfigurationProvider {
 			fileInputStream = new FileInputStream(path);
 		}
 		catch (FileNotFoundException e) {
-			throw new AeroException("File not found", e);
+			throw new AerospikeException("File not found", e);
 		}
 
 		try {
@@ -141,7 +141,7 @@ public class YamlConfigProvider implements ConfigurationProvider {
 			lastModified = newLastModified;
 
 			if ( configuration.getVersion() == null ) {
-				throw new AeroException("YAML config must contain a valid version field.");
+				throw new AerospikeException("YAML config must contain a valid version field.");
 			}
 			if (Log.debugEnabled()) {
 				Log.debug("YAML config successfully loaded.");

@@ -16,7 +16,7 @@
  */
 package com.aerospike.client.fluent.exp;
 
-import com.aerospike.client.fluent.AeroException;
+import com.aerospike.client.fluent.AerospikeException;
 import com.aerospike.client.fluent.cdt.CTX;
 import com.aerospike.client.fluent.cdt.ListPolicy;
 import com.aerospike.client.fluent.cdt.ListReturnType;
@@ -501,7 +501,7 @@ public final class ListExp {
 
 		default:
 		case ListReturnType.NONE:
-			throw new AeroException("Invalid ListReturnType: " + returnType);
+			throw new AerospikeException("Invalid ListReturnType: " + returnType);
 		}
 	}
 

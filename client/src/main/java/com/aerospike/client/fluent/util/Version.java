@@ -18,7 +18,7 @@ package com.aerospike.client.fluent.util;
 
 import java.net.InetSocketAddress;
 
-import com.aerospike.client.fluent.AeroException;
+import com.aerospike.client.fluent.AerospikeException;
 
 public final class Version implements Comparable<Version> {
 	public static final Version SERVER_VERSION_8_1 = new Version(8, 1, 0, 0);
@@ -43,7 +43,7 @@ public final class Version implements Comparable<Version> {
 	public static Version convertStringToVersion(String strVersion, String nodeName, InetSocketAddress primaryAddress) {
 		Version version = new Version(strVersion);
 		if (!strVersion.startsWith(version.toString())) {
-			throw new AeroException("Node " + nodeName + " " + primaryAddress.toString() + " version is invalid: " + strVersion);
+			throw new AerospikeException("Node " + nodeName + " " + primaryAddress.toString() + " version is invalid: " + strVersion);
 		}
 		return version;
 	}

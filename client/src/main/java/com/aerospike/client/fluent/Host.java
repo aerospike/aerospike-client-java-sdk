@@ -101,7 +101,7 @@ public final class Host {
 			return new HostParser(str).parseHosts(defaultPort);
 		}
 		catch (Throwable e) {
-			throw new AeroException("Invalid hosts string: " + str);
+			throw new AerospikeException("Invalid hosts string: " + str);
 		}
 	}
 
@@ -121,7 +121,7 @@ public final class Host {
 			return new HostParser(str).parseServiceHosts();
 		}
 		catch (Throwable e) {
-			throw new AeroException("Invalid service hosts string: " + str);
+			throw new AerospikeException("Invalid service hosts string: " + str);
 		}
 	}
 

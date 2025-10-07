@@ -22,7 +22,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.UUID;
 
-import com.aerospike.client.fluent.AeroException;
+import com.aerospike.client.fluent.AerospikeException;
 import com.aerospike.client.fluent.Buffer;
 import com.aerospike.client.fluent.ParticleType;
 import com.aerospike.client.fluent.Value;
@@ -44,7 +44,7 @@ public final class Packer {
 			return packer.getBuffer();
 		}
 		catch (Throwable e) {
-			throw new AeroException.Serialize(e);
+			throw new AerospikeException.Serialize(e);
 		}
 	}
 
@@ -57,7 +57,7 @@ public final class Packer {
 			return packer.getBuffer();
 		}
 		catch (Throwable e) {
-			throw new AeroException.Serialize(e);
+			throw new AerospikeException.Serialize(e);
 		}
 	}
 
@@ -70,7 +70,7 @@ public final class Packer {
 			return packer.getBuffer();
 		}
 		catch (Throwable e) {
-			throw new AeroException.Serialize(e);
+			throw new AerospikeException.Serialize(e);
 		}
 	}
 
@@ -83,7 +83,7 @@ public final class Packer {
 			return packer.getBuffer();
 		}
 		catch (Throwable e) {
-			throw new AeroException.Serialize(e);
+			throw new AerospikeException.Serialize(e);
 		}
 	}
 
@@ -319,7 +319,7 @@ public final class Packer {
 			return;
 		}
 
-		throw new AeroException("Unsupported type: " + obj.getClass().getName());
+		throw new AerospikeException("Unsupported type: " + obj.getClass().getName());
 	}
 
 	public void packByteBuffer(ByteBuffer bb) {

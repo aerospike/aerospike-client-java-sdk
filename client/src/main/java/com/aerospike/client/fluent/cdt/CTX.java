@@ -18,7 +18,7 @@ package com.aerospike.client.fluent.cdt;
 
 import java.util.List;
 
-import com.aerospike.client.fluent.AeroException;
+import com.aerospike.client.fluent.AerospikeException;
 import com.aerospike.client.fluent.Value;
 import com.aerospike.client.fluent.util.Crypto;
 import com.aerospike.client.fluent.util.Pack;
@@ -146,7 +146,7 @@ public final class CTX {
 			int id = (int)(long)(Long)list.get(i);
 
 			if (++i >= max) {
-				throw new AeroException.Parse("List count must be even");
+				throw new AerospikeException.Parse("List count must be even");
 			}
 
 			Object obj = list.get(i);

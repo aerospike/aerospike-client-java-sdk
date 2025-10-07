@@ -159,7 +159,7 @@ public final class Txn {
 	 */
 	public void verifyCommand() {
 		if (state != Txn.State.OPEN) {
-			throw new AeroException("Command not allowed in current transaction state: " + state);
+			throw new AerospikeException("Command not allowed in current transaction state: " + state);
 		}
 	}
 
@@ -226,7 +226,7 @@ public final class Txn {
 			namespace = ns;
 		}
 		else if (! namespace.equals(ns)) {
-			throw new AeroException("Namespace must be the same for all commands in the transaction. orig: " +
+			throw new AerospikeException("Namespace must be the same for all commands in the transaction. orig: " +
 				namespace + " new: " + ns);
 		}
 	}

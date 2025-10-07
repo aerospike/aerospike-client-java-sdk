@@ -107,5 +107,10 @@ public class Command {
 		}
 	}
 
+	public Command() {
+		maxRetries = 0;
+		serverTimeout = 0;
+	}
+
 	// TODO: Port command methods.
 }

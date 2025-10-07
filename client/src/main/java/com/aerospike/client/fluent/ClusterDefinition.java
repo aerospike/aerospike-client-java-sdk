@@ -104,6 +104,38 @@ public class ClusterDefinition {
         setup();
     }
 
+    /**
+     * Copy constructor.
+     */
+    public ClusterDefinition(ClusterDefinition other) {
+    	this.clientVersion = other.clientVersion;
+		this.appId = other.appId;
+		this.clusterName = other.clusterName;
+		this.configPath = other.configPath;
+		this.userName = other.userName;
+		this.password = other.password;
+		this.passwordHash = other.passwordHash;
+		this.preferrredRacks = other.preferrredRacks;
+		this.logLevel = other.logLevel;
+		this.callback = other.callback;
+		this.ipMap = other.ipMap;
+		this.tlsBuilder = other.tlsBuilder;
+		this.authMode = other.authMode;
+		this.minConnsPerNode = other.minConnsPerNode;
+		this.maxConnsPerNode = other.maxConnsPerNode;
+		this.connPoolsPerNode = other.connPoolsPerNode;
+		this.configInterval = other.configInterval;
+		this.tendInterval = other.tendInterval;
+		this.tendTimeout = other.tendTimeout;
+		this.loginTimeout = other.loginTimeout;
+		this.maxErrorRate = other.maxErrorRate;
+		this.errorRateWindow = other.errorRateWindow;
+		this.failIfNotConnected = other.failIfNotConnected;
+		this.validateClusterName = other.validateClusterName;
+		this.useServicesAlternate = other.useServicesAlternate;
+		this.hosts = other.hosts;
+    }
+
     private void setup() {
         Log.setLevel(logLevel);
         Log.setCallbackStandard();
@@ -398,7 +430,7 @@ public class ClusterDefinition {
 
 	/**
 	 * Set maximum number of errors allowed per node per {@link #errorRateWindow} before backoff
-	 * algorithm throws {@link com.aerospike.client.fluent.AeroException.Backoff} on database
+	 * algorithm throws {@link com.aerospike.client.fluent.AerospikeException.Backoff} on database
 	 * commands to that node. If maxErrorRate is zero, there is no error limit and
 	 * the exception will never be thrown.
 	 * <p>
@@ -491,8 +523,9 @@ public class ClusterDefinition {
      * @see Cluster#close()
      */
     public Cluster connect() {
-        Host[] seeds = getEffectiveHosts();
-    	return new Cluster(this, seeds);
+        ClusterDefinition def = new ClusterDefinition(this);
+        Host[] seeds = def.getEffectiveHosts();
+    	return new Cluster(def, seeds);
     }
 
     /**

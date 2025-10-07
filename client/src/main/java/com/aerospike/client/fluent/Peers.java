@@ -62,6 +62,6 @@ public final class Peers {
 			}
 			sb.append(host);
 		}
-		throw new AeroException(sb.toString());
+		throw new AerospikeException(sb.toString());
 	}
 }

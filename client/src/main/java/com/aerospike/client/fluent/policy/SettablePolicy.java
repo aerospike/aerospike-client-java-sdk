@@ -23,7 +23,7 @@ import java.util.Objects;
 import com.aerospike.client.fluent.policy.Behavior.CommandType;
 
 public class SettablePolicy {
-    private Integer maximumNumberOfCallAttempts;           // maxRetries + 1
+	private Integer maximumNumberOfCallAttempts;           // maxRetries + 1
     private Integer resetTtlOnReadAtPercent;               // readTouchTtlPercent
     private Integer waitForCallToComplete;                 // socketTimeout
     private Integer waitForSocketResponseAfterCallFails;   // timeoutDelay
@@ -252,4 +252,44 @@ public class SettablePolicy {
                 && Objects.equals(waitForConnectionToComplete, other.waitForConnectionToComplete)
                 && Objects.equals(waitForSocketResponseAfterCallFails, other.waitForSocketResponseAfterCallFails);
     }
+
+    public Integer getMaximumNumberOfCallAttempts() {
+		return maximumNumberOfCallAttempts;
+	}
+
+	public Integer getResetTtlOnReadAtPercent() {
+		return resetTtlOnReadAtPercent;
+	}
+
+	public Integer getWaitForCallToComplete() {
+		return waitForCallToComplete;
+	}
+
+	public Integer getWaitForSocketResponseAfterCallFails() {
+		return waitForSocketResponseAfterCallFails;
+	}
+
+	public Integer getAbandonCallAfter() {
+		return abandonCallAfter;
+	}
+
+	public Boolean getUseCompression() {
+		return useCompression;
+	}
+
+	public Integer getWaitForConnectionToComplete() {
+		return waitForConnectionToComplete;
+	}
+
+	public Integer getDelayBetweenRetries() {
+		return delayBetweenRetries;
+	}
+
+	public List<NodeCategory> getReplicaOrder() {
+		return replicaOrder;
+	}
+
+	public Boolean getSendKey() {
+		return sendKey;
+	}
 }

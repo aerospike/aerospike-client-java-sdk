@@ -27,7 +27,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.TreeMap;
 
-import com.aerospike.client.fluent.AeroException;
+import com.aerospike.client.fluent.AerospikeException;
 import com.aerospike.client.fluent.Buffer;
 import com.aerospike.client.fluent.ParticleType;
 import com.aerospike.client.fluent.Value;
@@ -75,7 +75,7 @@ public abstract class Unpacker<T> {
 			return unpackList(count);
 		}
 		catch (Throwable e) {
-			throw new AeroException.Serialize(e);
+			throw new AerospikeException.Serialize(e);
 		}
 	}
 
@@ -137,7 +137,7 @@ public abstract class Unpacker<T> {
 			return unpackMap(count);
 		}
 		catch (Throwable e) {
-			throw new AeroException.Serialize(e);
+			throw new AerospikeException.Serialize(e);
 		}
 	}
 
@@ -465,7 +465,7 @@ public abstract class Unpacker<T> {
 			return unpacker.unpackObject();
 		}
 		catch (Throwable e) {
-			throw new AeroException.Serialize(e);
+			throw new AerospikeException.Serialize(e);
 		}
 	}
 

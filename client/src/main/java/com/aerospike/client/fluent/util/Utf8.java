@@ -16,7 +16,7 @@ package com.aerospike.client.fluent.util;
 import static java.lang.Character.MAX_SURROGATE;
 import static java.lang.Character.MIN_SURROGATE;
 
-import com.aerospike.client.fluent.AeroException;
+import com.aerospike.client.fluent.AerospikeException;
 
 /**
  * Low-level, high-performance utility methods related to the {@linkplain Charsets#UTF_8 UTF-8}
@@ -66,7 +66,7 @@ public final class Utf8 {
 
 		if (utf8Length < utf16Length) {
 			// Necessary and sufficient condition for overflow because of maximum 3x expansion
-			throw new AeroException("UTF-8 length does not fit in int: " + (utf8Length + (1L << 32)));
+			throw new AerospikeException("UTF-8 length does not fit in int: " + (utf8Length + (1L << 32)));
 		}
 		return utf8Length;
 	}
@@ -84,7 +84,7 @@ public final class Utf8 {
 				if (MIN_SURROGATE <= c && c <= MAX_SURROGATE) {
 					// Check that we have a well-formed surrogate pair.
 					if (Character.codePointAt(sequence, i) == c) {
-						throw new AeroException("Unpaired surrogate at index " + i);
+						throw new AerospikeException("Unpaired surrogate at index " + i);
 					}
 					i++;
 				}

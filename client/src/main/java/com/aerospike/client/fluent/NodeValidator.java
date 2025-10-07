@@ -162,11 +162,11 @@ public final class NodeValidator {
 			addresses = InetAddress.getAllByName(host.name);
 		}
 		catch (UnknownHostException uhe) {
-			throw new AeroException.Connection("Invalid host: " + host);
+			throw new AerospikeException.Connection("Invalid host: " + host);
 		}
 
 		if (addresses.length == 0) {
-			throw new AeroException.Connection("Failed to find addresses for " + host);
+			throw new AerospikeException.Connection("Failed to find addresses for " + host);
 		}
 		return addresses;
 	}
@@ -288,7 +288,7 @@ public final class NodeValidator {
 		this.name = map.get("node");
 
 		if (this.name == null) {
-			throw new AeroException.InvalidNode("Node name is null");
+			throw new AerospikeException.InvalidNode("Node name is null");
 		}
 	}
 
@@ -300,12 +300,12 @@ public final class NodeValidator {
 			gen = Integer.parseInt(genString);
 		}
 		catch (Throwable e) {
-			throw new AeroException.InvalidNode("Node " + this.name + ' ' + this.primaryHost +
+			throw new AerospikeException.InvalidNode("Node " + this.name + ' ' + this.primaryHost +
 				" returned invalid partition-generation: " + genString);
 		}
 
 		if (gen == -1) {
-			throw new AeroException.InvalidNode("Node " + this.name + ' ' + this.primaryHost +
+			throw new AerospikeException.InvalidNode("Node " + this.name + ' ' + this.primaryHost +
 				" is not yet fully initialized");
 		}
 	}
@@ -353,7 +353,7 @@ public final class NodeValidator {
 		// supported in server version 4.9. Do not allow any server node into the
 		// cluster that is running server version < 4.9.
 		if ((this.features & Node.HAS_PARTITION_SCAN) == 0) {
-			throw new AeroException("Node " + this.name + ' ' + this.primaryHost +
+			throw new AerospikeException("Node " + this.name + ' ' + this.primaryHost +
 					" version < 4.9. This client requires server version >= 4.9");
 		}
 	}
@@ -362,7 +362,7 @@ public final class NodeValidator {
 		String id = map.get("cluster-name");
 
 		if (id == null || ! def.clusterName.equals(id)) {
-			throw new AeroException.InvalidNode("Node " + this.name + ' ' + this.primaryHost + ' ' +
+			throw new AerospikeException.InvalidNode("Node " + this.name + ' ' + this.primaryHost + ' ' +
 				" expected cluster name '" + def.clusterName + "' received '" + id + "'");
 		}
 	}
@@ -425,7 +425,7 @@ public final class NodeValidator {
 						try {
 							if (this.sessionToken != null) {
 								if (! AdminCommand.authenticate(def, conn, this.sessionToken)) {
-									throw new AeroException("Authentication failed");
+									throw new AerospikeException("Authentication failed");
 								}
 							}
 
@@ -495,7 +495,7 @@ public final class NodeValidator {
 							try {
 								if (sessionToken != null) {
 									if (! AdminCommand.authenticate(def, clearConn, sessionToken)) {
-										throw new AeroException("Authentication failed");
+										throw new AerospikeException("Authentication failed");
 									}
 								}
 								return;  // Authenticated clear connection.
@@ -513,7 +513,7 @@ public final class NodeValidator {
 					// Try next host.
 				}
 			}
-			throw new AeroException("Invalid non-TLS address: " + result);
+			throw new AerospikeException("Invalid non-TLS address: " + result);
 		}
 	}
 }

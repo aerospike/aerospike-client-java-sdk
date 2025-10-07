@@ -38,7 +38,7 @@ import javax.management.AttributeList;
 import javax.management.MBeanServer;
 import javax.management.ObjectName;
 
-import com.aerospike.client.fluent.AeroException;
+import com.aerospike.client.fluent.AerospikeException;
 
 public final class Util {
 	public static void sleep(long millis) {
@@ -52,7 +52,7 @@ public final class Util {
 	public static String getErrorMessage(Throwable e) {
 		// Connection error messages don't need a stacktrace.
 		Throwable cause = e.getCause();
-		if (e instanceof SocketException || e instanceof AeroException.Connection ||
+		if (e instanceof SocketException || e instanceof AerospikeException.Connection ||
 			cause instanceof SocketTimeoutException) {
 			return e.getMessage();
 		}
@@ -88,7 +88,7 @@ public final class Util {
 			}
 		}
 		catch (Throwable e) {
-			throw new AeroException("Failed to read " + file.getAbsolutePath(), e);
+			throw new AerospikeException("Failed to read " + file.getAbsolutePath(), e);
 		}
 	}
 
@@ -113,7 +113,7 @@ public final class Util {
 			}
 		}
 		catch (Throwable e) {
-			throw new AeroException("Failed to read resource " + resourcePath, e);
+			throw new AerospikeException("Failed to read resource " + resourcePath, e);
 		}
 	}
 

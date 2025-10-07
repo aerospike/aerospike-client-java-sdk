@@ -150,7 +150,7 @@ public class Cluster implements Closeable {
 		return false;
     }
 
-	public final Node getRandomNode() throws AeroException.InvalidNode {
+	public final Node getRandomNode() throws AerospikeException.InvalidNode {
 		// Must copy array reference for copy on write semantics to work.
 		Node[] nodeArray = nodes;
 
@@ -167,7 +167,7 @@ public class Cluster implements Closeable {
 				index %= nodeArray.length;
 			}
 		}
-		throw new AeroException.InvalidNode("Cluster is empty");
+		throw new AerospikeException.InvalidNode("Cluster is empty");
 	}
 
 	public final Node[] getNodes() {
@@ -181,16 +181,16 @@ public class Cluster implements Closeable {
 		Node[] nodeArray = nodes;
 
 		if (nodeArray.length == 0) {
-			throw new AeroException(ResultCode.SERVER_NOT_AVAILABLE, "Cluster is empty");
+			throw new AerospikeException(ResultCode.SERVER_NOT_AVAILABLE, "Cluster is empty");
 		}
 		return nodeArray;
 	}
 
-	public final Node getNode(String nodeName) throws AeroException.InvalidNode {
+	public final Node getNode(String nodeName) throws AerospikeException.InvalidNode {
 		Node node = findNode(nodeName);
 
 		if (node == null) {
-			throw new AeroException.InvalidNode("Invalid node name: " + nodeName);
+			throw new AerospikeException.InvalidNode("Invalid node name: " + nodeName);
 		}
 		return node;
 	}
@@ -207,11 +207,14 @@ public class Cluster implements Closeable {
 		return null;
 	}
 
-	/*
+	/* Not used since maxSocketIdle is always assumed to be zero in new client
+	 * TODO REMOVE
 	public final boolean isConnCurrentTran(long lastUsed) {
 		return maxSocketIdleNanosTran == 0 || (System.nanoTime() - lastUsed) <= maxSocketIdleNanosTran;
 	}
+	*/
 
+	/*
 	public final boolean isConnCurrentTrim(long lastUsed) {
 		return (System.nanoTime() - lastUsed) <= maxSocketIdleNanosTrim;
 	}*/

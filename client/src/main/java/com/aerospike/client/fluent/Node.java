@@ -43,7 +43,7 @@ public class Node implements Closeable {
 	private static final String[] INFO_PERIODIC = new String[] {"node", "peers-generation", "partition-generation"};
 	private static final String[] INFO_PERIODIC_REB = new String[] {"node", "peers-generation", "partition-generation", "rebalance-generation"};
 
-	protected final Cluster cluster;
+	protected final Cluster cluster;  // TODO Change to ClusterDefinition?
 	private final String name;
 	private String hostname; // Optional hostname.
 	private final Host host; // Host with IP address name.
@@ -132,7 +132,279 @@ public class Node implements Closeable {
 	}
 
 	public final void createMinConnections() {
-		// TODO: Implement
+		for (Pool pool : connectionPools) {
+			if (pool.minSize > 0) {
+				createConnections(pool, pool.minSize);
+			}
+		}
+	}
+
+	private void createConnections(Pool pool, int count) {
+		// Create sync connections.
+		while (count > 0) {
+			Connection conn;
+
+			try {
+				conn = createConnection(pool);
+			}
+			catch (Throwable e) {
+				// Failing to create min connections is not considered fatal.
+				// Log failure and return.
+				if (Log.debugEnabled()) {
+					Log.debug("Failed to create connection: " + e.getMessage());
+				}
+				return;
+			}
+
+			if (pool.offer(conn)) {
+				pool.total.getAndIncrement();
+			}
+			else {
+				closeIdleConnection(conn);
+				break;
+			}
+			count--;
+		}
+	}
+
+	private Connection createConnection(Pool pool) {
+		Connection conn = createConnection(pool, cluster.def.tendTimeout);
+
+		if (cluster.def.isAuthEnabled()) {
+			byte[] token = sessionToken;
+
+			if (token != null) {
+				try {
+					if (! AdminCommand.authenticate(cluster.def, conn, token)) {
+						throw new AerospikeException("Authentication failed");
+					}
+				}
+				catch (AerospikeException ae) {
+					closeConnectionOnError(conn);
+					throw ae;
+				}
+				catch (Throwable e) {
+					closeConnectionOnError(conn);
+					throw new AerospikeException("Authentication failed", e);
+				}
+			}
+		}
+		return conn;
+	}
+
+	private Connection createConnection(Pool pool, int timeout) {
+		// Create sync connection.
+		/*
+		Connection conn;
+
+		if (cluster.metricsEnabled) {
+			long begin = System.nanoTime();
+
+			conn = (cluster.tlsPolicy != null && !cluster.tlsPolicy.forLoginOnly) ?
+				new Connection(cluster.tlsPolicy, host.tlsName, address, timeout, this, pool) :
+				new Connection(address, timeout, this, pool);
+
+			long elapsed = System.nanoTime() - begin;
+			metrics.addLatency(null, LatencyType.CONN, elapsed);
+		}
+		else {
+			conn = (cluster.tlsPolicy != null && !cluster.tlsPolicy.forLoginOnly) ?
+				new Connection(cluster.tlsPolicy, host.tlsName, address, timeout, this, pool) :
+				new Connection(address, timeout, this, pool);
+		}
+		*/
+
+		TlsBuilder tls = cluster.def.tlsBuilder;
+
+		Connection conn = (tls != null && !tls.isForLoginOnly()) ?
+				new Connection(tls, host.tlsName, address, timeout, this, pool) :
+				new Connection(address, timeout, this, pool);
+
+		connsOpened.getAndIncrement();
+		return conn;
+	}
+
+	/**
+	 * Get a socket connection from connection pool to the server node.
+	 */
+	public final Connection getConnection(int timeoutMillis) {
+		try {
+			return getConnection(null, timeoutMillis, timeoutMillis, 0);
+		}
+		catch (Connection.ReadTimeout crt) {
+			throw new AerospikeException.Timeout(this, timeoutMillis, timeoutMillis, timeoutMillis);
+		}
+	}
+
+	/**
+	 * Get a socket connection from connection pool to the server node.
+	 */
+	public final Connection getConnection(int connectTimeout, int socketTimeout) {
+		try {
+			return getConnection(null, connectTimeout, socketTimeout, 0);
+		}
+		catch (Connection.ReadTimeout crt) {
+			throw new AerospikeException.Timeout(this, connectTimeout, socketTimeout, socketTimeout);
+		}
+	}
+
+	/**
+	 * Get a socket connection from connection pool to the server node.
+	 */
+	public final Connection getConnection(SyncCommand cmd, int connectTimeout, int socketTimeout, int timeoutDelay) {
+		int max = cluster.def.connPoolsPerNode;
+		int initialIndex;
+		boolean backward;
+
+		if (max == 1) {
+			initialIndex = 0;
+			backward = false;
+		}
+		else {
+			int iter = connectionIter++; // not atomic by design
+			initialIndex = iter % max;
+			if (initialIndex < 0) {
+				initialIndex += max;
+			}
+			backward = true;
+		}
+
+		Pool pool = connectionPools[initialIndex];
+		int queueIndex = initialIndex;
+		Connection conn;
+
+		while (true) {
+			conn = pool.poll();
+
+			if (conn != null) {
+				// Found socket.
+				// Verify that socket is active.
+				//if (cluster.isConnCurrentTran(conn.getLastUsed())) {
+				try {
+					conn.setTimeout(socketTimeout);
+					return conn;
+				}
+				catch (Throwable e) {
+					// Set timeout failed. Something is probably wrong with timeout
+					// value itself, so don't empty queue retrying.  Just get out.
+					closeConnection(conn);
+					throw new AerospikeException.Connection(e);
+				}
+				//}
+				//pool.closeIdle(this, conn);
+			}
+			else if (pool.total.getAndIncrement() < pool.capacity()) {
+				// Socket not found and queue has available slot.
+				// Create new connection.
+				long startTime;
+				int timeout;
+
+				if (connectTimeout > 0) {
+					timeout = connectTimeout;
+					startTime = System.nanoTime();
+				}
+				else {
+					timeout = socketTimeout;
+					startTime = 0;
+				}
+
+				try {
+					conn = createConnection(pool, timeout);
+				}
+				catch (Throwable e) {
+					pool.total.getAndDecrement();
+					throw e;
+				}
+
+				if (cluster.def.isAuthEnabled()) {
+					byte[] token = this.sessionToken;
+
+					if (token != null) {
+						try {
+							if (! AdminCommand.authenticate(cluster.def, conn, token)) {
+								signalLogin();
+								throw new AerospikeException("Authentication failed");
+							}
+						}
+						catch (AerospikeException ae) {
+							// Socket not authenticated.  Do not put back into pool.
+							closeConnection(conn);
+							throw ae;
+						}
+						catch (Connection.ReadTimeout crt) {
+							if (timeoutDelay > 0) {
+								// The connection state is always STATE_READ_AUTH_HEADER here which
+								// does not reference isSingle, so just pass in true for isSingle in
+								// ConnectionRecover.
+								cluster.tend.recoverConnection(
+									new ConnectionRecover(conn, this, timeoutDelay, crt, true));
+							}
+							else {
+								closeConnection(conn);
+							}
+							throw crt;
+						}
+						catch (SocketTimeoutException ste) {
+							closeConnection(conn);
+							// This is really a socket write timeout, but the calling
+							// method's catch handler just identifies error as a client
+							// timeout, which is what we need.
+							throw new Connection.ReadTimeout(null, 0, 0, (byte)0);
+						}
+						catch (IOException ioe) {
+							closeConnection(conn);
+							throw new AerospikeException.Connection(ioe);
+						}
+						catch (Throwable e) {
+							closeConnection(conn);
+							throw e;
+						}
+					}
+				}
+
+				if (timeout != socketTimeout) {
+					// Reset timeout to socketTimeout.
+					try {
+						conn.setTimeout(socketTimeout);
+					}
+					catch (Throwable e) {
+						closeConnection(conn);
+						throw new AerospikeException.Connection(e);
+					}
+				}
+
+				if (connectTimeout > 0 && cmd != null) {
+					// Adjust deadline for socket connect time when connectTimeout defined.
+					cmd.resetDeadline(startTime);
+				}
+
+				return conn;
+			}
+			else {
+				// Socket not found and queue is full.  Try another queue.
+				pool.total.getAndDecrement();
+
+				if (backward) {
+					if (queueIndex > 0) {
+						queueIndex--;
+					}
+					else {
+						queueIndex = initialIndex;
+
+						if (++queueIndex >= max) {
+							break;
+						}
+						backward = false;
+					}
+				}
+				else if (++queueIndex >= max) {
+					break;
+				}
+				pool = connectionPools[queueIndex];
+			}
+		}
+		throw new AerospikeException.Connection(ResultCode.NO_MORE_CONNECTIONS,
+				"Node " + this + " max connections " + cluster.def.maxConnsPerNode + " would be exceeded.");
 	}
 
 	/**
@@ -143,6 +415,15 @@ public class Node implements Closeable {
 	public final void putConnection(Connection conn) {
 		if (! active || ! conn.pool.offer(conn)) {
 			closeConnection(conn);
+		}
+	}
+
+	public final void signalLogin() {
+		// Only login when sessionToken is supported
+		// and login not already been requested.
+		if (! performLogin) {
+			performLogin = true;
+			cluster.tend.interruptTendSleep();
 		}
 	}
 
@@ -164,22 +445,6 @@ public class Node implements Closeable {
 
 	final void balanceConnections() {
 		// TODO: Implement
-	}
-
-	/**
-	 * Get a socket connection from connection pool to the server node.
-	 */
-	public final Connection getConnection(int timeoutMillis) {
-		// TODO: Implement
-		return null;
-	}
-
-	/**
-	 * Get a socket connection from connection pool to the server node.
-	 */
-	public final Connection getConnection(int connectTimeout, int socketTimeout) {
-		// TODO: Implement
-		return null;
 	}
 
 	public final void incrErrorRate() {

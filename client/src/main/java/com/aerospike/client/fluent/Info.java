@@ -80,7 +80,7 @@ public class Info {
 	 * @return						info value
 	 */
 	public static String request(String hostname, int port, String name)
-		throws AeroException {
+		throws AerospikeException {
 		return request(new InetSocketAddress(hostname, port), name);
 	}
 
@@ -95,7 +95,7 @@ public class Info {
 	 * @return						info name/value pairs
 	 */
 	public static HashMap<String,String> request(String hostname, int port, String... names)
-		throws AeroException {
+		throws AerospikeException {
 		return request(new InetSocketAddress(hostname, port), names);
 	}
 
@@ -108,7 +108,7 @@ public class Info {
 	 * @return						info name/value pairs
 	 */
 	public static HashMap<String,String> request(String hostname, int port)
-		throws AeroException {
+		throws AerospikeException {
 		return request(new InetSocketAddress(hostname, port));
 	}
 
@@ -125,7 +125,7 @@ public class Info {
 	 * @return						info value
 	 */
 	public static String request(InetSocketAddress socketAddress, String name)
-		throws AeroException {
+		throws AerospikeException {
 		Connection conn = new Connection(socketAddress, DEFAULT_TIMEOUT);
 
 		try {
@@ -145,7 +145,7 @@ public class Info {
 	 * @return						info name/value pairs
 	 */
 	public static HashMap<String,String> request(InetSocketAddress socketAddress, String... names)
-		throws AeroException {
+		throws AerospikeException {
 		Connection conn = new Connection(socketAddress, DEFAULT_TIMEOUT);
 
 		try {
@@ -164,7 +164,7 @@ public class Info {
 	 * @return						info name/value pairs
 	 */
 	public static HashMap<String,String> request(InetSocketAddress socketAddress)
-		throws AeroException {
+		throws AerospikeException {
 		Connection conn = new Connection(socketAddress, DEFAULT_TIMEOUT);
 
 		try {
@@ -187,7 +187,7 @@ public class Info {
 	 * @return						info value
 	 */
 	public static String request(Connection conn, String name)
-		throws AeroException {
+		throws AerospikeException {
 
 		Info info = new Info(conn, name);
 		return info.parseSingleResponse(name);
@@ -201,7 +201,7 @@ public class Info {
 	 * @return						info name/value pairs
 	 */
 	public static HashMap<String,String> request(Connection conn, String... names)
-		throws AeroException {
+		throws AerospikeException {
 
 		Info info = new Info(conn, names);
 		return info.parseMultiResponse();
@@ -215,7 +215,7 @@ public class Info {
 	 * @return						info name/value pairs
 	 */
 	public static HashMap<String,String> request(Connection conn, List<String> names)
-		throws AeroException {
+		throws AerospikeException {
 
 		Info info = new Info(conn, names);
 		return info.parseMultiResponse();
@@ -228,7 +228,7 @@ public class Info {
 	 * @return						info name/value pairs
 	 */
 	public static HashMap<String,String> request(Connection conn)
-		throws AeroException {
+		throws AerospikeException {
 		Info info = new Info(conn);
 		return info.parseMultiResponse();
 	}
@@ -255,7 +255,7 @@ public class Info {
 		}
 		else {
 			// Client errors result in a exception.
-			throw new AeroException(error.code, "Unrecognized info response: " + response);
+			throw new AerospikeException(error.code, "Unrecognized info response: " + response);
 		}
 	}
 
@@ -465,7 +465,7 @@ public class Info {
 			offset = 0;
 		}
 		catch (IOException ioe) {
-			throw new AeroException.Connection(ioe);
+			throw new AerospikeException.Connection(ioe);
 		}
 	}
 
@@ -484,7 +484,7 @@ public class Info {
 			}
 		}
 		else {
-			throw new AeroException.Parse("Info response does not include: " + name);
+			throw new AerospikeException.Parse("Info response does not include: " + name);
 		}
 	}
 
@@ -559,7 +559,7 @@ public class Info {
 			}
 			offset++;
 		}
-		throw new AeroException.Parse("Failed to find " + name);
+		throw new AerospikeException.Parse("Failed to find " + name);
 	}
 
 	/**
@@ -597,7 +597,7 @@ public class Info {
 
 		String message = parseString('\n');
 
-		throw new AeroException(code, message);
+		throw new AerospikeException(code, message);
 	}
 
 	/**
@@ -707,7 +707,7 @@ public class Info {
 
 	public void expect(char expected) {
 		if (expected != buffer[offset]) {
-			throw new AeroException.Parse("Expected " + expected + " Received: " + (char)(buffer[offset] & 0xFF));
+			throw new AerospikeException.Parse("Expected " + expected + " Received: " + (char)(buffer[offset] & 0xFF));
 		}
 		offset++;
 	}
