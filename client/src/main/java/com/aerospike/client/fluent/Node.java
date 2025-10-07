@@ -25,7 +25,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import com.aerospike.client.cluster.Node;
 import com.aerospike.client.fluent.AdminCommand.LoginCommand;
 import com.aerospike.client.fluent.util.Util;
 import com.aerospike.client.fluent.util.Version;
