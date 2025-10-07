@@ -70,6 +70,7 @@ public class ClusterDefinition {
     boolean failIfNotConnected = true;
 	boolean validateClusterName;
     boolean useServicesAlternate;
+	boolean forceSingleNode;
 
     private final Host[] hosts;
 
@@ -500,6 +501,20 @@ public class ClusterDefinition {
 	 */
     public ClusterDefinition maxConnsPerNode(int maxConnsPerNode) {
         this.maxConnsPerNode = maxConnsPerNode;
+        return this;
+    }
+
+	/**
+	 * For testing purposes only.
+	 * <p>
+	 * Should the AerospikeClient instance communicate with the first seed node only
+	 * instead of using the data partition map to determine which node to send the
+	 * database command.
+	 * <p>
+	 * Default: false
+	 */
+    public ClusterDefinition forceSingleNode(boolean forceSingleNode) {
+        this.forceSingleNode = forceSingleNode;
         return this;
     }
 

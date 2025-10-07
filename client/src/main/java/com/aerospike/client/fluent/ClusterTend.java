@@ -32,7 +32,7 @@ import com.aerospike.client.fluent.util.Util;
 public class ClusterTend implements Runnable {
 	private final Cluster cluster;
 	private final ClusterDefinition def;
-	private final Thread tendThread;
+	private Thread tendThread;
 	final HashMap<String,Node> nodesMap;
 	private final ConcurrentLinkedDeque<ConnectionRecover> recoverQueue;
 	private final AtomicInteger recoverCount;
@@ -49,7 +49,9 @@ public class ClusterTend implements Runnable {
 
 		this.recoverCount = new AtomicInteger();
 		this.recoverQueue = new ConcurrentLinkedDeque<ConnectionRecover>();
+    }
 
+	public void runThread() {
 		// Tend cluster until all nodes identified.
 		waitTillStabilized(def.failIfNotConnected);
 
@@ -78,7 +80,7 @@ public class ClusterTend implements Runnable {
 		tendThread.setName("tend");
 		tendThread.setDaemon(true);
 		tendThread.start();
-    }
+	}
 
 	public final void run() {
 		while (valid) {
@@ -96,12 +98,52 @@ public class ClusterTend implements Runnable {
 		}
 	}
 
+	void forceSingleNode() {
+		// Initialize tendThread, but do not start it.
+		valid = true;
+		tendThread = new Thread(this);
+
+		// Validate first seed.
+		Host seed = seeds[0];
+		NodeValidator nv = new NodeValidator();
+		Node node = null;
+
+		try {
+			node = nv.seedNode(cluster, seed, null);
+		}
+		catch (Throwable e) {
+			throw new AerospikeException("Seed " + seed + " failed: " + e.getMessage(), e);
+		}
+
+		node.createMinConnections();
+
+		// Add seed node to nodes.
+		HashMap<String,Node> nodesToAdd = new HashMap<String,Node>(1);
+		nodesToAdd.put(node.getName(), node);
+		addNodes(nodesToAdd);
+
+		// Initialize partitionMaps.
+		Peers peers = new Peers(cluster.nodes.length + 16);
+		node.refreshPartitions(peers);
+
+		// Set partition maps for all namespaces to point to same node.
+		for (Partitions partitions : cluster.partitionMap.values()) {
+			for (AtomicReferenceArray<Node> nodeArray : partitions.replicas) {
+				int max = nodeArray.length();
+
+				for (int i = 0; i < max; i++) {
+					nodeArray.set(i, node);
+				}
+			}
+		}
+	}
+
 	/**
 	 * Tend the cluster until it has stabilized and return control.
 	 * This helps avoid initial database request timeout issues when
 	 * a large number of threads are initiated at client startup.
 	 */
-	private final void waitTillStabilized(boolean failIfNotConnected) {
+	private void waitTillStabilized(boolean failIfNotConnected) {
 		// Tend now requests partition maps in same iteration as the nodes
 		// are added, so there is no need to call tend twice anymore.
 		tend(failIfNotConnected, true);
@@ -121,7 +163,7 @@ public class ClusterTend implements Runnable {
 	/**
 	 * Check health of all nodes in the cluster.
 	 */
-	private final void tend(boolean failIfNotConnected, boolean isInit) {
+	private void tend(boolean failIfNotConnected, boolean isInit) {
 		// All node additions/deletions are performed in tend thread.
 		// Initialize tend iteration node statistics.
 		Node[] nodes = cluster.nodes;
@@ -377,7 +419,7 @@ public class ClusterTend implements Runnable {
 		return false;
 	}
 
-	private final void findNodesToRemove(Peers peers) {
+	private void findNodesToRemove(Peers peers) {
 		int refreshCount = peers.refreshCount;
 		HashSet<Node> removeNodes = peers.removeNodes;
 
@@ -415,7 +457,7 @@ public class ClusterTend implements Runnable {
 		}
 	}
 
-	private final boolean findNodeInPartitionMap(Node filter) {
+	private boolean findNodeInPartitionMap(Node filter) {
 		for (Partitions partitions : cluster.partitionMap.values()) {
 			for (AtomicReferenceArray<Node> nodeArray : partitions.replicas) {
 				int max = nodeArray.length();
@@ -484,7 +526,7 @@ public class ClusterTend implements Runnable {
 		nodesMap.put(node.getName(), node);
 	}
 
-	private final void removeNodes(HashSet<Node> nodesToRemove) {
+	private void removeNodes(HashSet<Node> nodesToRemove) {
 		// There is no need to delete nodes from partitionWriteMap because the nodes
 		// have already been set to inactive. Further connection requests will result
 		// in an exception and a different node will be tried.
@@ -518,7 +560,7 @@ public class ClusterTend implements Runnable {
 	/**
 	 * Remove nodes using copy on write semantics.
 	 */
-	private final void removeNodesCopy(HashSet<Node> nodesToRemove) {
+	private void removeNodesCopy(HashSet<Node> nodesToRemove) {
 		// Create temporary nodes array.
 		// Since nodes are only marked for deletion using node references in the nodes array,
 		// and the tend thread is the only thread modifying nodes, we are guaranteed that nodes

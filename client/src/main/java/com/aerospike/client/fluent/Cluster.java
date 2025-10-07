@@ -67,6 +67,13 @@ public class Cluster implements Closeable {
         //this.indexesMonitor = new IndexesMonitor();
         //this.indexesMonitor.startMonitor(createSession(Behavior.DEFAULT), INDEX_REFRESH);
 		tend = new ClusterTend(this);
+
+		if (def.forceSingleNode) {
+			forceSingleNode();
+		}
+		else {
+			tend.runThread();
+		}
     }
 
     /**
@@ -239,6 +246,19 @@ public class Cluster implements Closeable {
 			}
 		}
 	}
+
+    private void forceSingleNode() {
+		// Communicate with the first seed node only.
+		// Do not run cluster tend thread.
+    	// For testing purposes only.
+		try {
+			tend.forceSingleNode();
+		}
+		catch (Throwable e) {
+			close();
+			throw e;
+		}
+    }
 
 	/**
      * Closes the cluster connection and releases all associated resources.
