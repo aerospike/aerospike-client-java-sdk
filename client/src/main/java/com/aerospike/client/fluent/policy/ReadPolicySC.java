@@ -17,21 +17,22 @@
 package com.aerospike.client.fluent.policy;
 
 /**
- * Batch parent policy.
+ * Read policy for SC (strong consistency) namespaces.
  */
-public class BatchPolicy extends Policy {
+public final class ReadPolicySC extends Policy {
 	/**
-	 * Batch inline suggestion for server processing.
+	 * Read mode for SC (strong consistency) namespaces.
 	 * <p>
-	 * Default: {@link BatchInline.INLINE_IN_MEMORY}
+	 * Default: {@link ReadModeSC#SESSION}
 	 */
-	public final BatchInline inline;
+    public final ReadModeSC mode;
 
 	/**
-	 * Copy batch policy from another batch policy.
+	 * Copy policy from dynamic configuration policy.
 	 */
-	public BatchPolicy(SettableBatchPolicy other) {
+	public ReadPolicySC(SettableConsistencyModeReadPolicy other) {
 		super(other);
-        this.inline = (other.inline != null) ? other.inline : BatchInline.INLINE_IN_MEMORY;
+        this.mode = (other.readConsistency != null) ?
+        	other.readConsistency :  ReadModeSC.SESSION;
 	}
 }

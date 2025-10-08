@@ -21,26 +21,15 @@ import java.util.Objects;
 import com.aerospike.client.fluent.policy.Behavior.CommandType;
 
 public class SettableBatchPolicy extends SettablePolicy {
-    private Boolean allowInlineMemoryAccess;            // AllowInline
-    private Boolean allowInlineSsdAccess;               // AllowInlineSSD
-    private Integer maxConcurrentServers;               // maxConcurrentNodes
+    BatchInline inline;      // AllowInline
 
     public static class Builder extends SettablePolicy.BuilderBase<Builder> {
         public Builder(BehaviorBuilder builder, CommandType type) {
             super(builder, type, new SettableBatchPolicy());
         }
-        public SettableBatchPolicy.Builder maxConcurrentServers(int value) {
-            checkMinValue(value, 0, "max concurrent servers");
-            getPolicy().maxConcurrentServers = value;
-            return this;
-        }
 
-        public SettableBatchPolicy.Builder allowInlineMemoryAccess(boolean allow) {
-            getPolicy().allowInlineMemoryAccess = allow;
-            return this;
-        }
-        public SettableBatchPolicy.Builder allowInlineSsdAccess(boolean allow) {
-            getPolicy().allowInlineSsdAccess = allow;
+        public SettableBatchPolicy.Builder inline(BatchInline inline) {
+            getPolicy().inline = inline;
             return this;
         }
 
@@ -53,31 +42,14 @@ public class SettableBatchPolicy extends SettablePolicy {
         if (thisPolicy == null) {
             return;
         }
-        if (this.allowInlineMemoryAccess == null) {
-            this.allowInlineMemoryAccess = thisPolicy.allowInlineMemoryAccess;
-        }
-        if (this.allowInlineSsdAccess == null) {
-            this.allowInlineSsdAccess = thisPolicy.allowInlineSsdAccess;
-        }
-        if (this.maxConcurrentServers == null) {
-            this.maxConcurrentServers = thisPolicy.maxConcurrentServers;
+        if (this.inline == null) {
+            this.inline = thisPolicy.inline;
         }
         super.mergeFrom(thisPolicy);
     }
 
-    @SuppressWarnings("deprecation")
-	protected BatchPolicy formPolicy(BatchPolicy policy) {
-        if (allowInlineMemoryAccess != null) {
-            policy.allowInline = allowInlineMemoryAccess;
-        }
-        if (allowInlineSsdAccess != null) {
-            policy.allowInlineSSD = allowInlineSsdAccess;
-        }
-        if (maxConcurrentServers != null) {
-            policy.maxConcurrentThreads = maxConcurrentServers;
-        }
-        super.formPolicy(policy);
-        return policy;
+	protected BatchPolicy formPolicy() {
+    	return new BatchPolicy(this);
     }
 
     @Override
@@ -85,7 +57,7 @@ public class SettableBatchPolicy extends SettablePolicy {
         final int prime = 31;
         int result = super.hashCode();
         result = prime * result +
-                Objects.hash(allowInlineMemoryAccess, allowInlineSsdAccess, maxConcurrentServers);
+                Objects.hash(inline);
         return result;
     }
 
@@ -101,10 +73,6 @@ public class SettableBatchPolicy extends SettablePolicy {
 			return false;
 		}
         SettableBatchPolicy other = (SettableBatchPolicy) obj;
-        return Objects.equals(allowInlineMemoryAccess, other.allowInlineMemoryAccess)
-                && Objects.equals(allowInlineSsdAccess, other.allowInlineSsdAccess)
-                && Objects.equals(maxConcurrentServers, other.maxConcurrentServers);
+        return Objects.equals(inline, other.inline);
     }
-
-
 }

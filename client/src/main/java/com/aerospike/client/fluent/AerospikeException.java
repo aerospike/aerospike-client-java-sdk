@@ -18,13 +18,13 @@ package com.aerospike.client.fluent;
 
 import java.util.List;
 
-import com.aerospike.client.fluent.policy.SettablePolicy;
+import com.aerospike.client.fluent.policy.Policy;
 
 public class AerospikeException extends RuntimeException {
     private static final long serialVersionUID = 1L;
 
     protected transient Node node;
-    protected transient SettablePolicy policy;
+    protected transient Policy policy;
     protected List<AerospikeException> subExceptions;
     protected int resultCode = ResultCode.CLIENT_ERROR;
     protected int iteration = -1;
@@ -68,13 +68,13 @@ public class AerospikeException extends RuntimeException {
 
 		if (policy != null) {
 			sb.append(',');
-			sb.append(policy.getWaitForConnectionToComplete());
+			sb.append(policy.connectTimeout);
 			sb.append(',');
-			sb.append(policy.getWaitForCallToComplete());
+			sb.append(policy.socketTimeout);
 			sb.append(',');
-			sb.append(policy.getAbandonCallAfter());
+			sb.append(policy.totalTimeout);
 			sb.append(',');
-			sb.append(policy.getMaximumNumberOfCallAttempts());
+			sb.append(policy.maxRetries);
 		}
 
 		if (inDoubt) {

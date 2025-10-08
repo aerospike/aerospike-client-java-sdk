@@ -51,14 +51,10 @@ public class Behavior {
                             .migrationReadConsistency(ReadModeAP.ALL)
                         .done()
                         .onBatchReads()
-                            .maxConcurrentServers(1)
-                            .allowInlineMemoryAccess(true)
-                            .allowInlineSsdAccess(false)
+                            .inline(BatchInline.INLINE_IN_MEMORY)
                         .done()
                         .onBatchWrites()
-                            .allowInlineMemoryAccess(true)
-                            .allowInlineSsdAccess(false)
-                            .maxConcurrentServers(1)
+                        	.inline(BatchInline.INLINE_IN_MEMORY)
                         .done()
                         .onConsistencyModeReads()
                             .readConsistency(ReadModeSC.SESSION)
@@ -344,28 +340,8 @@ public class Behavior {
         return new InfoPolicy(getSharedInfoPolicy());
     }
 
-    @SuppressWarnings("unchecked")
     public <T extends Policy> T getMutablePolicy(CommandType type) {
-        T result = getSharedPolicy(type);
-        switch (type) {
-        case WRITE_NON_RETRYABLE:
-        case WRITE_RETRYABLE:
-            return (T)(new WritePolicy(result));
-
-        case BATCH_READ:
-        case BATCH_WRITE:
-            return (T)(new BatchPolicy(result));
-        case QUERY:
-            return (T)(new QueryPolicy(result));
-        case READ_AP:
-        case READ_SC:
-            return (T)(new Policy(result));
-        case INFO:
-            throw new IllegalArgumentException("Cannot pass 'INFO' to getMutablePolicy, use getMutableInfoPolicy instead");
-        case ALL:
-        default:
-            throw new IllegalArgumentException("Cannot pass '" + type + "' to getMutablePolicy");
-        }
+    	return getSharedPolicy(type);
     }
 
     /**
@@ -389,21 +365,21 @@ public class Behavior {
             case WRITE_NON_RETRYABLE:
             case WRITE_RETRYABLE:
                 return aggregateSettablePolicy(new SettableWritePolicy(), type)
-                        .formPolicy(new WritePolicy());
+                        .formPolicy();
 
             case BATCH_READ:
             case BATCH_WRITE:
                 return aggregateSettablePolicy(new SettableBatchPolicy(), type)
-                        .formPolicy(new BatchPolicy());
+                        .formPolicy();
             case QUERY:
                 return aggregateSettablePolicy(new SettableQueryPolicy(), type)
-                        .formPolicy(new QueryPolicy());
+                        .formPolicy();
             case READ_AP:
                 return aggregateSettablePolicy(new SettableAvailabilityModeReadPolicy(), type)
-                        .formPolicy(new Policy());
+                        .formPolicy();
             case READ_SC:
                 return aggregateSettablePolicy(new SettableConsistencyModeReadPolicy(), type)
-                        .formPolicy(new Policy());
+                        .formPolicy();
             case INFO:
                 throw new IllegalArgumentException("Cannot pass 'INFO' to getSharedPolicy, use getSharedInfoPolicy instead");
             case ALL:

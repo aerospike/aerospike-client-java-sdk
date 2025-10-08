@@ -21,7 +21,7 @@ import java.util.Objects;
 import com.aerospike.client.fluent.policy.Behavior.CommandType;
 
 public class SettableAvailabilityModeReadPolicy extends SettablePolicy {
-    private ReadModeAP migrationReadConsistency;        // readModeAP
+    ReadModeAP migrationReadConsistency;        // readModeAP
 
     public static class Builder extends SettablePolicy.BuilderBase<Builder> {
         public Builder(BehaviorBuilder builder, CommandType type) {
@@ -48,12 +48,8 @@ public class SettableAvailabilityModeReadPolicy extends SettablePolicy {
         super.mergeFrom(thisPolicy);
     }
 
-    protected Policy formPolicy(Policy policy) {
-        if (migrationReadConsistency != null) {
-            policy.readModeAP = this.migrationReadConsistency;
-        }
-        super.formPolicy(policy);
-        return policy;
+    protected ReadPolicyAP formPolicy() {
+    	return new ReadPolicyAP(this);
     }
 
     @Override

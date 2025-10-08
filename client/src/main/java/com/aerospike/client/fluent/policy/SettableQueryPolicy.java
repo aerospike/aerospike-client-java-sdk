@@ -21,8 +21,8 @@ import java.util.Objects;
 import com.aerospike.client.fluent.policy.Behavior.CommandType;
 
 public class SettableQueryPolicy extends SettablePolicy {
-    private Integer recordQueueSize;
-    private Integer maxConcurrentServers;
+    Integer recordQueueSize;
+    Integer maxConcurrentServers;
 
     public static class Builder extends SettablePolicy.BuilderBase<Builder> {
         public Builder(BehaviorBuilder builder, CommandType type) {
@@ -56,15 +56,8 @@ public class SettableQueryPolicy extends SettablePolicy {
         super.mergeFrom(thisPolicy);
     }
 
-    protected QueryPolicy formPolicy(QueryPolicy policy) {
-        if (recordQueueSize != null) {
-            policy.recordQueueSize = this.recordQueueSize;
-        }
-        if (maxConcurrentServers != null) {
-            policy.maxConcurrentNodes = this.maxConcurrentServers;
-        }
-        super.formPolicy(policy);
-        return policy;
+    protected QueryPolicy formPolicy() {
+    	return new QueryPolicy(this);
     }
 
     @Override

@@ -21,7 +21,7 @@ import java.util.Objects;
 import com.aerospike.client.fluent.policy.Behavior.CommandType;
 
 public class SettableConsistencyModeReadPolicy extends SettablePolicy {
-    private ReadModeSC readConsistency;                 // readModeSC
+    ReadModeSC readConsistency;                 // readModeSC
 
     public static class Builder extends SettablePolicy.BuilderBase<Builder> {
         public Builder(BehaviorBuilder builder, CommandType type) {
@@ -36,6 +36,7 @@ public class SettableConsistencyModeReadPolicy extends SettablePolicy {
             return ((SettableConsistencyModeReadPolicy)policy);
         }
     }
+
     protected void mergeFrom(SettableConsistencyModeReadPolicy thisPolicy) {
         if (thisPolicy == null) {
             return;
@@ -46,12 +47,8 @@ public class SettableConsistencyModeReadPolicy extends SettablePolicy {
         super.mergeFrom(thisPolicy);
     }
 
-    protected Policy formPolicy(Policy policy) {
-        if (readConsistency != null) {
-            policy.readModeSC = this.readConsistency;
-        }
-        super.formPolicy(policy);
-        return policy;
+    protected ReadPolicySC formPolicy() {
+    	return new ReadPolicySC(this);
     }
 
     @Override
@@ -76,6 +73,4 @@ public class SettableConsistencyModeReadPolicy extends SettablePolicy {
         SettableConsistencyModeReadPolicy other = (SettableConsistencyModeReadPolicy) obj;
         return readConsistency == other.readConsistency;
     }
-
-
 }

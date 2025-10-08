@@ -17,21 +17,22 @@
 package com.aerospike.client.fluent.policy;
 
 /**
- * Batch parent policy.
+ * Read policy for AP (availability) namespaces.
  */
-public class BatchPolicy extends Policy {
+public final class ReadPolicyAP extends Policy {
 	/**
-	 * Batch inline suggestion for server processing.
+	 * Read mode for AP (availability) namespaces.
 	 * <p>
-	 * Default: {@link BatchInline.INLINE_IN_MEMORY}
+	 * Default: {@link ReadModeAP#ONE}
 	 */
-	public final BatchInline inline;
+    public final ReadModeAP mode;
 
 	/**
-	 * Copy batch policy from another batch policy.
+	 * Copy policy from dynamic configuration policy.
 	 */
-	public BatchPolicy(SettableBatchPolicy other) {
+	public ReadPolicyAP(SettableAvailabilityModeReadPolicy other) {
 		super(other);
-        this.inline = (other.inline != null) ? other.inline : BatchInline.INLINE_IN_MEMORY;
+        this.mode = (other.migrationReadConsistency != null) ?
+        	other.migrationReadConsistency :  ReadModeAP.ONE;
 	}
 }

@@ -23,19 +23,19 @@ import java.util.Objects;
 import com.aerospike.client.fluent.policy.Behavior.CommandType;
 
 public class SettablePolicy {
-	private Integer maximumNumberOfCallAttempts;           // maxRetries + 1
-    private Integer resetTtlOnReadAtPercent;               // readTouchTtlPercent
-    private Integer waitForCallToComplete;                 // socketTimeout
-    private Integer waitForSocketResponseAfterCallFails;   // timeoutDelay
+	Integer maximumNumberOfCallAttempts;           // maxRetries + 1
+    Integer resetTtlOnReadAtPercent;               // readTouchTtlPercent
+    Integer waitForCallToComplete;                 // socketTimeout
+    Integer waitForSocketResponseAfterCallFails;   // timeoutDelay
     // Info policies really aren't settable policies as it only has an abandonCallAfter setting.
     // However, it makes the code cleaner to treat them as if they are, but that means we need to
     // set this field from the sub-class
-    protected Integer abandonCallAfter;                      // TotalTimeout
-    private Boolean useCompression;                        // compress
-    private Integer waitForConnectionToComplete;           // connectTimeout
-    private Integer delayBetweenRetries;                   // sleepBetweenRetries
-    private List<NodeCategory> replicaOrder;               // replica
-    private Boolean sendKey;                               // sendKey
+    Integer abandonCallAfter;                      // TotalTimeout
+    Boolean useCompression;                        // compress
+    Integer waitForConnectionToComplete;           // connectTimeout
+    Integer delayBetweenRetries;                   // sleepBetweenRetries
+    List<NodeCategory> replicaOrder;               // replica
+    Boolean sendKey;                               // sendKey
 
     // We have to use self-referential generics for a fluent pattern
     // This generic template builder is not normally instanitated directly
@@ -188,39 +188,8 @@ public class SettablePolicy {
         }
     }
 
-    protected Policy formPolicy(Policy policy) {
-        if (this.maximumNumberOfCallAttempts != null) {
-            policy.maxRetries = this.maximumNumberOfCallAttempts - 1;
-        }
-        if (this.resetTtlOnReadAtPercent != null) {
-            policy.readTouchTtlPercent = this.resetTtlOnReadAtPercent;
-        }
-        if (this.waitForCallToComplete != null) {
-            policy.socketTimeout = this.waitForCallToComplete;
-        }
-        if (this.waitForSocketResponseAfterCallFails != null) {
-            policy.timeoutDelay = this.waitForSocketResponseAfterCallFails;
-        }
-        if (this.abandonCallAfter != null) {
-            policy.totalTimeout = this.abandonCallAfter;
-        }
-        if (this.useCompression != null) {
-            policy.compress = this.useCompression;
-        }
-        if (this.waitForConnectionToComplete != null) {
-            policy.connectTimeout = this.waitForConnectionToComplete;
-        }
-        if (this.delayBetweenRetries != null) {
-            policy.sleepBetweenRetries = this.delayBetweenRetries;
-        }
-        // This has no equivalent in the underlying code
-        if (this.replicaOrder != null) {
-            policy.replica = Replica.SEQUENCE; // this.replicaOrder;
-        }
-        if (this.sendKey != null) {
-            policy.sendKey = this.sendKey;
-        }
-        return policy;
+    protected Policy formPolicy() {
+    	return new Policy(this);
     }
 
     @Override
@@ -252,44 +221,4 @@ public class SettablePolicy {
                 && Objects.equals(waitForConnectionToComplete, other.waitForConnectionToComplete)
                 && Objects.equals(waitForSocketResponseAfterCallFails, other.waitForSocketResponseAfterCallFails);
     }
-
-    public Integer getMaximumNumberOfCallAttempts() {
-		return maximumNumberOfCallAttempts;
-	}
-
-	public Integer getResetTtlOnReadAtPercent() {
-		return resetTtlOnReadAtPercent;
-	}
-
-	public Integer getWaitForCallToComplete() {
-		return waitForCallToComplete;
-	}
-
-	public Integer getWaitForSocketResponseAfterCallFails() {
-		return waitForSocketResponseAfterCallFails;
-	}
-
-	public Integer getAbandonCallAfter() {
-		return abandonCallAfter;
-	}
-
-	public Boolean getUseCompression() {
-		return useCompression;
-	}
-
-	public Integer getWaitForConnectionToComplete() {
-		return waitForConnectionToComplete;
-	}
-
-	public Integer getDelayBetweenRetries() {
-		return delayBetweenRetries;
-	}
-
-	public List<NodeCategory> getReplicaOrder() {
-		return replicaOrder;
-	}
-
-	public Boolean getSendKey() {
-		return sendKey;
-	}
 }

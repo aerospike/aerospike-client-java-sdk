@@ -13,17 +13,17 @@ import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 
 class BehaviorYamlLoader {
-    
+
     private static final ObjectMapper objectMapper;
-    
+
     static {
         objectMapper = new ObjectMapper(new YAMLFactory());
         objectMapper.registerModule(new JavaTimeModule());
     }
-    
+
     /**
      * Load a Behavior from a YAML file and convert it to use the builder pattern
-     * 
+     *
      * @param file The YAML file to load
      * @return A new Behavior instance created from the YAML configuration
      * @throws JsonParseException if the YAML is malformed
@@ -36,10 +36,10 @@ class BehaviorYamlLoader {
         // Return the first behavior or DEFAULT if none found
         return behaviors.isEmpty() ? Behavior.DEFAULT : behaviors.values().iterator().next();
     }
-    
+
     /**
      * Load behaviors from a YAML file and register them in the tree structure
-     * 
+     *
      * @param file The YAML file to load
      * @return Map of behavior names to behaviors
      * @throws JsonParseException if the YAML is malformed
@@ -50,24 +50,24 @@ class BehaviorYamlLoader {
         BehaviorYamlConfig config = objectMapper.readValue(file, BehaviorYamlConfig.class);
         return updateBehaviorsFromConfig(config);
     }
-    
+
     /**
      * Update existing behaviors from YAML configuration, creating new ones if they don't exist
-     * 
+     *
      * @param config The YAML configuration
      * @return Map of behavior names to behaviors (including existing ones)
      */
     static Map<String, Behavior> updateBehaviorsFromConfig(BehaviorYamlConfig config) {
         BehaviorRegistry registry = BehaviorRegistry.getInstance();
         Map<String, Behavior> updatedBehaviors = new HashMap<>();
-        
+
         if (config.getBehaviors() != null) {
             for (BehaviorYamlConfig.BehaviorConfig behaviorConfig : config.getBehaviors()) {
                 String behaviorName = behaviorConfig.getName();
-                
+
                 // Check if behavior already exists
                 Optional<Behavior> existingBehavior = registry.getBehavior(behaviorName);
-                
+
                 if (existingBehavior.isPresent()) {
                     // Update existing behavior
                     Behavior updatedBehavior = updateExistingBehavior(existingBehavior.get(), behaviorConfig);
@@ -80,13 +80,13 @@ class BehaviorYamlLoader {
                 }
             }
         }
-        
+
         return updatedBehaviors;
     }
-    
+
     /**
      * Update an existing behavior with new configuration
-     * 
+     *
      * @param existingBehavior The existing behavior to update
      * @param config The new configuration
      * @return The updated behavior (same instance)
@@ -94,38 +94,38 @@ class BehaviorYamlLoader {
     private static Behavior updateExistingBehavior(Behavior existingBehavior, BehaviorYamlConfig.BehaviorConfig config) {
         // Clear the behavior's cache to force regeneration
         existingBehavior.clearCache();
-        
+
         // Update the behavior's configuration by applying the new settings
         // This is a simplified approach - in a real implementation, you might want to
         // update the internal policies directly rather than recreating them
-        
+
         // For now, we'll create a new behavior with the same name and replace the old one
         // This maintains the same reference but updates the configuration
         Behavior updatedBehavior = createNewBehavior(config);
-        
+
         // Update the registry to point to the new behavior
         BehaviorRegistry.getInstance().registerBehavior(updatedBehavior);
-        
+
         return updatedBehavior;
     }
-    
+
     /**
      * Create a new behavior from configuration
-     * 
+     *
      * @param config The behavior configuration
      * @return A new Behavior instance
      */
     private static Behavior createNewBehavior(BehaviorYamlConfig.BehaviorConfig config) {
         BehaviorBuilder builder = new BehaviorBuilder();
         applyBehaviorConfigToBuilder(builder, config);
-        
+
         // Create the behavior with the specified name and exception policy
         String name = config.getName() != null ? config.getName() : "yaml-loaded";
-        Behavior.ExceptionPolicy exceptionPolicy = config.getExceptionPolicy() != null ? 
+        Behavior.ExceptionPolicy exceptionPolicy = config.getExceptionPolicy() != null ?
             config.getExceptionPolicy() : Behavior.ExceptionPolicy.RETURN_AS_MANY_RESULTS_AS_POSSIBLE;
-        
+
         Behavior behavior = new Behavior(name, builder, exceptionPolicy);
-        
+
         // Apply global settings
         if (config.getSendKey() != null) {
             behavior.withSendKey(config.getSendKey());
@@ -133,7 +133,7 @@ class BehaviorYamlLoader {
         if (config.getUseCompression() != null) {
             behavior.withUseCompression(config.getUseCompression());
         }
-        
+
         // Establish parent-child relationship if parent is specified
         if (config.getParent() != null && !"default".equals(config.getParent())) {
             BehaviorRegistry registry = BehaviorRegistry.getInstance();
@@ -143,7 +143,7 @@ class BehaviorYamlLoader {
                 Behavior derivedBehavior = parent.get().deriveWithChanges(name, builder2 -> {
                     applyBehaviorConfigToBuilder(builder2, config);
                 });
-                
+
                 // Apply global settings to the derived behavior
                 if (config.getSendKey() != null) {
                     derivedBehavior.withSendKey(config.getSendKey());
@@ -151,24 +151,24 @@ class BehaviorYamlLoader {
                 if (config.getUseCompression() != null) {
                     derivedBehavior.withUseCompression(config.getUseCompression());
                 }
-                
+
                 return derivedBehavior;
             }
         }
-        
+
         return behavior;
     }
-    
+
     /**
      * Convert a YAML configuration object to a map of behaviors using the builder pattern
-     * 
+     *
      * @param config The YAML configuration
      * @return Map of behavior names to behaviors
      */
     static Map<String, Behavior> convertToBehaviors(BehaviorYamlConfig config) {
         Map<String, Behavior> behaviors = new HashMap<>();
         Map<String, BehaviorYamlConfig.BehaviorConfig> configsByName = new HashMap<>();
-        
+
         // First pass: create all behaviors without parent relationships
         if (config.getBehaviors() != null) {
             for (BehaviorYamlConfig.BehaviorConfig behaviorConfig : config.getBehaviors()) {
@@ -177,46 +177,46 @@ class BehaviorYamlLoader {
                 configsByName.put(behavior.getName(), behaviorConfig);
             }
         }
-        
+
         // Second pass: establish parent-child relationships
         for (BehaviorYamlConfig.BehaviorConfig behaviorConfig : configsByName.values()) {
             if (behaviorConfig.getParent() != null && !"default".equals(behaviorConfig.getParent())) {
                 Behavior child = behaviors.get(behaviorConfig.getName());
                 Behavior parent = behaviors.get(behaviorConfig.getParent());
-                
+
                 if (child != null && parent != null) {
                     // Use the existing deriveWithChanges mechanism to establish parent-child relationship
                     Behavior derivedBehavior = parent.deriveWithChanges(child.getName(), builder -> {
                         // Apply the child's configuration to the builder
                         applyBehaviorConfigToBuilder(builder, behaviorConfig);
                     });
-                    
+
                     // Replace the standalone behavior with the derived one
                     behaviors.put(derivedBehavior.getName(), derivedBehavior);
                 }
             }
         }
-        
+
         return behaviors;
     }
-    
+
     /**
      * Convert a single behavior configuration to a Behavior using the builder pattern
-     * 
+     *
      * @param config The behavior configuration
      * @return A new Behavior instance
      */
     static Behavior convertToBehavior(BehaviorYamlConfig.BehaviorConfig config) {
         BehaviorBuilder builder = new BehaviorBuilder();
         applyBehaviorConfigToBuilder(builder, config);
-        
+
         // Create the behavior with the specified name and exception policy
         String name = config.getName() != null ? config.getName() : "yaml-loaded";
-        Behavior.ExceptionPolicy exceptionPolicy = config.getExceptionPolicy() != null ? 
+        Behavior.ExceptionPolicy exceptionPolicy = config.getExceptionPolicy() != null ?
             config.getExceptionPolicy() : Behavior.ExceptionPolicy.RETURN_AS_MANY_RESULTS_AS_POSSIBLE;
-        
+
         Behavior behavior = new Behavior(name, builder, exceptionPolicy);
-        
+
         // Apply global settings
         if (config.getSendKey() != null) {
             behavior.withSendKey(config.getSendKey());
@@ -224,10 +224,10 @@ class BehaviorYamlLoader {
         if (config.getUseCompression() != null) {
             behavior.withUseCompression(config.getUseCompression());
         }
-        
+
         return behavior;
     }
-    
+
     /**
      * Apply behavior configuration to a builder
      */
@@ -238,7 +238,7 @@ class BehaviorYamlLoader {
             applyPolicyConfig(allOperationsBuilder, config.getAllOperations());
             allOperationsBuilder.done();
         }
-        
+
         // Apply consistency mode reads configuration
         if (config.getConsistencyModeReads() != null) {
             SettableConsistencyModeReadPolicy.Builder consistencyBuilder = builder.onConsistencyModeReads();
@@ -248,7 +248,7 @@ class BehaviorYamlLoader {
             }
             consistencyBuilder.done();
         }
-        
+
         // Apply availability mode reads configuration
         if (config.getAvailabilityModeReads() != null) {
             SettableAvailabilityModeReadPolicy.Builder availabilityBuilder = builder.onAvailablityModeReads();
@@ -258,7 +258,7 @@ class BehaviorYamlLoader {
             }
             availabilityBuilder.done();
         }
-        
+
         // Apply retryable writes configuration
         if (config.getRetryableWrites() != null) {
             SettableWritePolicy.Builder writeBuilder = builder.onRetryableWrites();
@@ -268,7 +268,7 @@ class BehaviorYamlLoader {
             }
             writeBuilder.done();
         }
-        
+
         // Apply non-retryable writes configuration
         if (config.getNonRetryableWrites() != null) {
             SettableWritePolicy.Builder writeBuilder = builder.onNonRetryableWrites();
@@ -278,7 +278,7 @@ class BehaviorYamlLoader {
             }
             writeBuilder.done();
         }
-        
+
         // Apply batch reads configuration
         if (config.getBatchReads() != null) {
             SettableBatchPolicy.Builder batchBuilder = builder.onBatchReads();
@@ -286,7 +286,7 @@ class BehaviorYamlLoader {
             applyBatchConfig(batchBuilder, config.getBatchReads());
             batchBuilder.done();
         }
-        
+
         // Apply batch writes configuration
         if (config.getBatchWrites() != null) {
             SettableBatchPolicy.Builder batchBuilder = builder.onBatchWrites();
@@ -294,7 +294,7 @@ class BehaviorYamlLoader {
             applyBatchConfig(batchBuilder, config.getBatchWrites());
             batchBuilder.done();
         }
-        
+
         // Apply query configuration
         if (config.getQuery() != null) {
             SettableQueryPolicy.Builder queryBuilder = builder.onQuery();
@@ -307,7 +307,7 @@ class BehaviorYamlLoader {
             }
             queryBuilder.done();
         }
-        
+
         // Apply info configuration
         if (config.getInfo() != null) {
             SettableInfoPolicy.Builder infoBuilder = builder.onInfo();
@@ -317,7 +317,7 @@ class BehaviorYamlLoader {
             infoBuilder.done();
         }
     }
-    
+
     /**
      * Apply common policy configuration to a builder
      */
@@ -353,19 +353,41 @@ class BehaviorYamlLoader {
             builder.waitForSocketResponseAfterCallFails(config.getWaitForSocketResponseAfterCallFails());
         }
     }
-    
+
     /**
      * Apply batch-specific configuration to a batch builder
      */
     private static void applyBatchConfig(SettableBatchPolicy.Builder builder, BehaviorYamlConfig.BatchConfig config) {
-        if (config.getMaxConcurrentServers() != null) {
-            builder.maxConcurrentServers(config.getMaxConcurrentServers());
-        }
         if (config.getAllowInlineMemoryAccess() != null) {
-            builder.allowInlineMemoryAccess(config.getAllowInlineMemoryAccess());
+        	boolean inlineMemory = config.getAllowInlineMemoryAccess();
+
+            if (config.getAllowInlineSsdAccess() != null) {
+            	boolean inlineSsd = config.getAllowInlineSsdAccess();
+
+            	if (inlineMemory && inlineSsd) {
+            		builder.inline(BatchInline.INLINE_ALL);
+            	}
+            	else if (inlineMemory) {
+            		builder.inline(BatchInline.INLINE_IN_MEMORY);
+            	}
+            	else if (inlineSsd) {
+            		builder.inline(BatchInline.INLINE_ALL);
+            	}
+            	else {
+            		builder.inline(BatchInline.NONE);
+            	}
+            }
+            else if (inlineMemory) {
+        		builder.inline(BatchInline.INLINE_IN_MEMORY);
+            }
+            else {
+        		builder.inline(BatchInline.NONE);
+            }
         }
-        if (config.getAllowInlineSsdAccess() != null) {
-            builder.allowInlineSsdAccess(config.getAllowInlineSsdAccess());
+        else if (config.getAllowInlineSsdAccess() != null) {
+        	if (config.getAllowInlineSsdAccess()) {
+            	builder.inline(BatchInline.INLINE_ALL);
+        	}
         }
     }
-} 
+}

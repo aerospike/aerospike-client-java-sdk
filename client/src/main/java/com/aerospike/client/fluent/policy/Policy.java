@@ -16,62 +16,17 @@
  */
 package com.aerospike.client.fluent.policy;
 
-import java.util.Objects;
-
-import com.aerospike.client.fluent.Log;
-import com.aerospike.client.fluent.Txn;
-import com.aerospike.client.fluent.configuration.ConfigurationProvider;
-import com.aerospike.client.fluent.configuration.serializers.Configuration;
-import com.aerospike.client.fluent.configuration.serializers.DynamicConfiguration;
-import com.aerospike.client.fluent.configuration.serializers.dynamicconfig.DynamicReadConfig;
-import com.aerospike.client.fluent.exp.Expression;
-
 /**
  * Command policy attributes used in all database commands.
  */
 public class Policy {
-	/**
-	 * Multi-record transaction. If this field is populated, the corresponding
-	 * command will be included in the transaction. This field is ignored for scan/query.
-	 * <p>
-	 * Default: null
-	 */
-	public Txn txn;
-
-	/**
-	 * Read policy for AP (availability) namespaces.
-	 * <p>
-	 * Default: {@link ReadModeAP#ONE}
-	 */
-	public ReadModeAP readModeAP = ReadModeAP.ONE;
-
-	/**
-	 * Read policy for SC (strong consistency) namespaces.
-	 * <p>
-	 * Default: {@link ReadModeSC#SESSION}
-	 */
-	public ReadModeSC readModeSC = ReadModeSC.SESSION;
-
 	/**
 	 * Replica algorithm used to determine the target node for a partition derived from a key
 	 * or requested in a scan/query.
 	 * <p>
 	 * Default: {@link Replica#SEQUENCE}
 	 */
-	public Replica replica = Replica.SEQUENCE;
-
-	/**
-	 * Optional expression filter. If filterExp exists and evaluates to false, the
-	 * command is ignored.
-	 * <p>
-	 * Default: null
-	 * <p>
-	 * <pre>Example:{@code
-	 * Policy p = new Policy();
-	 * p.filterExp = Exp.build(Exp.eq(Exp.intBin("a"), Exp.val(11)));
-	 * }</pre>
-	 */
-	public Expression filterExp;
+	public final Replica replica;
 
 	/**
 	 * Socket connect timeout in milliseconds. If connectTimeout greater than zero, it will
@@ -87,7 +42,7 @@ public class Policy {
 	 * <p>
 	 * Default: 0
 	 */
-	public int connectTimeout;
+	public final int connectTimeout;
 
 	/**
 	 * Socket idle timeout in milliseconds when processing a database command.
@@ -106,7 +61,7 @@ public class Policy {
 	 * <p>
 	 * Default: 30000ms
 	 */
-	public int socketTimeout = 30000;
+	public final int socketTimeout;
 
 	/**
 	 * Total command timeout in milliseconds.
@@ -130,7 +85,7 @@ public class Policy {
 	 * <p>
 	 * Default for all other commands: 1000ms
 	 */
-	public int totalTimeout = 1000;
+	public final int totalTimeout;
 
 	/**
 	 * Delay milliseconds after socket read timeout in an attempt to recover the socket
@@ -161,7 +116,7 @@ public class Policy {
 	 * <p>
 	 * Default: 0 (no delay, connection closed on timeout)
 	 */
-	public int timeoutDelay;
+	public final int timeoutDelay;
 
 	/**
 	 * Maximum number of retries before aborting the current command.
@@ -182,7 +137,7 @@ public class Policy {
 	 * <p>
 	 * Default for scan/query: 5 (6 attempts. See {@link ScanPolicy#ScanPolicy()} comments.)
 	 */
-	public int maxRetries = 2;
+	public final int maxRetries;
 
 	/**
 	 * Milliseconds to sleep between retries.  Enter zero to skip sleep.
@@ -206,7 +161,7 @@ public class Policy {
 	 * <p>
 	 * Default: 0 (do not sleep between retries)
 	 */
-	public int sleepBetweenRetries;
+	public final int sleepBetweenRetries;
 
 	/**
 	 * Determine how record TTL (time to live) is affected on reads. When enabled, the server can
@@ -228,7 +183,7 @@ public class Policy {
 	 * <p>
 	 * Default: 0
 	 */
-	public int readTouchTtlPercent;
+	public final int readTouchTtlPercent;
 
 	/**
 	 * Send user defined key in addition to hash digest on both reads and writes.
@@ -241,7 +196,7 @@ public class Policy {
 	 * <p>
 	 * Default: false (do not send the user defined key)
 	 */
-	public boolean sendKey;
+	public final boolean sendKey;
 
 	/**
 	 * Use zlib compression on command buffers sent to the server and responses received
@@ -253,246 +208,41 @@ public class Policy {
 	 * <p>
 	 * Default: false
 	 */
-	public boolean compress;
+	public final boolean compress;
 
 	/**
-	 * Throw exception if {@link #filterExp} is defined and that filter evaluates
-	 * to false (command ignored).  The {@link com.aerospike.client.AerospikeException}
-	 * will contain result code {@link com.aerospike.client.ResultCode#FILTERED_OUT}.
-	 * <p>
-	 * This field is not applicable to batch, scan or query commands.
-	 * <p>
-	 * Default: false
+	 * Copy policy from dynamic configuration policy.
 	 */
-	public boolean failOnFilteredOut;
+	public Policy(SettablePolicy other) {
+        // This has no equivalent in the underlying code
+		this.replica = (other.replicaOrder != null)?
+			Replica.SEQUENCE : Replica.SEQUENCE;
 
-	/**
-	 * Copy policy from another policy.
-	 */
-	public Policy(Policy other) {
-		this.txn = other.txn;
-		this.readModeAP = other.readModeAP;
-		this.readModeSC = other.readModeSC;
-		this.replica = other.replica;
-		this.filterExp = other.filterExp;
-		this.connectTimeout = other.connectTimeout;
-		this.socketTimeout = other.socketTimeout;
-		this.totalTimeout = other.totalTimeout;
-		this.timeoutDelay = other.timeoutDelay;
-		this.maxRetries = other.maxRetries;
-		this.sleepBetweenRetries = other.sleepBetweenRetries;
-		this.readTouchTtlPercent = other.readTouchTtlPercent;
-		this.sendKey = other.sendKey;
-		this.compress = other.compress;
-		this.failOnFilteredOut = other.failOnFilteredOut;
-	}
+		this.connectTimeout = (other.waitForConnectionToComplete != null)?
+			other.waitForConnectionToComplete : 0;
 
-	/**
-	 * Copy policy from another policy AND override certain policy attributes if they exist in the configProvider.
-	 * Any policy overrides will not get logged.
-	 */
-	public Policy(Policy other, ConfigurationProvider configProvider) {
-		this(other);
-		updateFromConfig(configProvider,false);
-	}
+		this.socketTimeout =  (other.waitForCallToComplete != null)?
+			other.waitForCallToComplete : 30000;
 
-	/**
-	 * Copy policy from another policy AND override certain policy attributes if they exist in the configProvider.
-	 * Any default policy overrides will get logged.
-	 */
-	public Policy(Policy other, ConfigurationProvider configProvider, boolean isDefaultPolicy) {
-		this(other);
-		updateFromConfig(configProvider, isDefaultPolicy);
-	}
+		this.totalTimeout = (other.abandonCallAfter != null)?
+			other.abandonCallAfter : 1000;
 
-	/**
-	 * Default constructor.
-	 */
-	public Policy() {
-	}
+    	this.timeoutDelay = (other.waitForSocketResponseAfterCallFails != null)?
+    		other.waitForSocketResponseAfterCallFails : 0;
 
-	/**
-	 * Create a single timeout by setting socketTimeout and totalTimeout
-	 * to the same value.
-	 */
-	public final void setTimeout(int timeout) {
-		this.socketTimeout = timeout;
-		this.totalTimeout = timeout;
-	}
+		this.maxRetries = (other.maximumNumberOfCallAttempts != null)?
+        	other.maximumNumberOfCallAttempts - 1 : 2;
 
-	/**
-	 * Set socketTimeout and totalTimeout.  If totalTimeout defined and
-	 * socketTimeout greater than totalTimeout, set socketTimeout to
-	 * totalTimeout.
-	 */
-	public final void setTimeouts(int socketTimeout, int totalTimeout) {
-		this.socketTimeout = socketTimeout;
-		this.totalTimeout = totalTimeout;
+    	this.sleepBetweenRetries = (other.delayBetweenRetries != null)?
+    		other.delayBetweenRetries : 0;
 
-		if (totalTimeout > 0 && (socketTimeout == 0 || socketTimeout > totalTimeout)) {
-			this.socketTimeout = totalTimeout;
-		}
-	}
+    	this.readTouchTtlPercent = (other.resetTtlOnReadAtPercent != null)?
+    		other.resetTtlOnReadAtPercent : 0;
 
-	// Include setters to facilitate Spring's ConfigurationProperties.
+    	this.sendKey = (other.sendKey != null)?
+    		other.sendKey : false;
 
-	public void setTxn(Txn txn) {
-		this.txn = txn;
-	}
-
-	public void setReadModeAP(ReadModeAP readModeAP) {
-		this.readModeAP = readModeAP;
-	}
-
-	public void setReadModeSC(ReadModeSC readModeSC) {
-		this.readModeSC = readModeSC;
-	}
-
-	public void setReplica(Replica replica) {
-		this.replica = replica;
-	}
-
-	public void setFilterExp(Expression filterExp) {
-		this.filterExp = filterExp;
-	}
-
-	public void setConnectTimeout(int connectTimeout) {
-		this.connectTimeout = connectTimeout;
-	}
-
-	public void setSocketTimeout(int socketTimeout) {
-		this.socketTimeout = socketTimeout;
-	}
-
-	public void setTotalTimeout(int totalTimeout) {
-		this.totalTimeout = totalTimeout;
-	}
-
-	public void setTimeoutDelay(int timeoutDelay) {
-		this.timeoutDelay = timeoutDelay;
-	}
-
-	public void setMaxRetries(int maxRetries) {
-		this.maxRetries = maxRetries;
-	}
-
-	public void setSleepBetweenRetries(int sleepBetweenRetries) {
-		this.sleepBetweenRetries = sleepBetweenRetries;
-	}
-
-	public void setReadTouchTtlPercent(int readTouchTtlPercent) {
-		this.readTouchTtlPercent = readTouchTtlPercent;
-	}
-
-	public void setSendKey(boolean sendKey) {
-		this.sendKey = sendKey;
-	}
-
-	public void setCompress(boolean compress) {
-		this.compress = compress;
-	}
-
-	public void setFailOnFilteredOut(boolean failOnFilteredOut) {
-		this.failOnFilteredOut = failOnFilteredOut;
-	}
-
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
-		if (o == null || getClass() != o.getClass()) {
-			return false;
-		}
-		Policy policy = (Policy) o;
-		return connectTimeout == policy.connectTimeout && socketTimeout == policy.socketTimeout && totalTimeout == policy.totalTimeout && timeoutDelay == policy.timeoutDelay && maxRetries == policy.maxRetries && sleepBetweenRetries == policy.sleepBetweenRetries && readTouchTtlPercent == policy.readTouchTtlPercent && sendKey == policy.sendKey && compress == policy.compress && failOnFilteredOut == policy.failOnFilteredOut && Objects.equals(txn, policy.txn) && readModeAP == policy.readModeAP && readModeSC == policy.readModeSC && replica == policy.replica && Objects.equals(filterExp, policy.filterExp);
-	}
-
-	@Override
-	public int hashCode() {
-		return Objects.hash(txn, readModeAP, readModeSC, replica, filterExp, connectTimeout, socketTimeout, totalTimeout, timeoutDelay, maxRetries, sleepBetweenRetries, readTouchTtlPercent, sendKey, compress, failOnFilteredOut);
-	}
-
-	private void updateFromConfig(ConfigurationProvider configProvider, boolean log) {
-		boolean logUpdate = false;
-		if (configProvider == null) {
-			return;
-		}
-		Configuration config = configProvider.fetchConfiguration();
-		if (config == null) {
-			return;
-		}
-		DynamicConfiguration dConfig = config.getDynamicConfiguration();
-		if (dConfig == null) {
-			return;
-		}
-		DynamicReadConfig dynRC = dConfig.getDynamicReadConfig();
-		if (dynRC == null) {
-			return;
-		}
-
-		if (log && Log.infoEnabled()) {
-			logUpdate = true;
-		}
-		if (dynRC.readModeAP != null && this.readModeAP != dynRC.readModeAP) {
-			this.readModeAP = dynRC.readModeAP;
-			if (logUpdate) {
-				Log.info("Set Policy.readModeAP = " + this.readModeAP);
-			}
-		}
-		if (dynRC.readModeSC != null && this.readModeSC != dynRC.readModeSC) {
-			this.readModeSC = dynRC.readModeSC;
-			if (logUpdate) {
-				Log.info("Set Policy.readModeSC = " + this.readModeSC);
-			}
-		}
-		if (dynRC.connectTimeout != null && this.connectTimeout != dynRC.connectTimeout.value) {
-			this.connectTimeout = dynRC.connectTimeout.value;
-			if (logUpdate) {
-				Log.info("Set Policy.connectTimeout = " + this.connectTimeout);
-			}
-		}
-		if (dynRC.failOnFilteredOut != null && this.failOnFilteredOut != dynRC.failOnFilteredOut.value) {
-			this.failOnFilteredOut = dynRC.failOnFilteredOut.value;
-			if (logUpdate) {
-				Log.info("Set Policy.failOnFilteredOut = " + this.failOnFilteredOut);
-			}
-		}
-		if (dynRC.replica != null && this.replica != dynRC.replica) {
-			this.replica = dynRC.replica;
-			if (logUpdate) {
-				Log.info("Set Policy.replica = " + this.replica);
-			}
-		}
-		if (dynRC.sleepBetweenRetries != null && this.sleepBetweenRetries != dynRC.sleepBetweenRetries.value) {
-			this.sleepBetweenRetries = dynRC.sleepBetweenRetries.value;
-			if (logUpdate) {
-				Log.info("Set Policy.sleepBetweenRetries = " + this.sleepBetweenRetries);
-			}
-		}
-		if (dynRC.socketTimeout != null && this.socketTimeout != dynRC.socketTimeout.value) {
-			this.socketTimeout = dynRC.socketTimeout.value;
-			if (logUpdate) {
-				Log.info("Set Policy.socketTimeout = " + this.socketTimeout);
-			}
-		}
-		if (dynRC.timeoutDelay != null && this.timeoutDelay != dynRC.timeoutDelay.value) {
-			this.timeoutDelay = dynRC.timeoutDelay.value;
-			if (logUpdate) {
-				Log.info("Set Policy.timeoutDelay = " + this.timeoutDelay);
-			}
-		}
-		if (dynRC.totalTimeout != null && this.totalTimeout != dynRC.totalTimeout.value) {
-			this.totalTimeout = dynRC.totalTimeout.value;
-			if (logUpdate) {
-				Log.info("Set Policy.totalTimeout = " + this.totalTimeout);
-			}
-		}
-		if (dynRC.maxRetries != null && this.maxRetries != dynRC.maxRetries.value) {
-			this.maxRetries = dynRC.maxRetries.value;
-			if (logUpdate) {
-				Log.info("Set Policy.maxRetries = " + this.maxRetries);
-			}
-		}
+    	this.compress = (other.useCompression != null)?
+    		other.useCompression : false;
 	}
 }
