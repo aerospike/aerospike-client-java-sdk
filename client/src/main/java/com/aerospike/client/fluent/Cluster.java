@@ -55,6 +55,7 @@ public class Cluster implements Closeable {
 	volatile Node[] nodes;
 	volatile HashMap<String,Partitions> partitionMap;
 	private final AtomicInteger nodeIndex;
+	final AtomicInteger replicaIndex;
 
 	//private IndexesMonitor indexesMonitor;
     private RecordMappingFactory recordMappingFactory = null;
@@ -64,6 +65,7 @@ public class Cluster implements Closeable {
 		nodes = new Node[0];
 		partitionMap = new HashMap<String,Partitions>();
 		nodeIndex = new AtomicInteger();
+		replicaIndex = new AtomicInteger();
         //this.indexesMonitor = new IndexesMonitor();
         //this.indexesMonitor.startMonitor(createSession(Behavior.DEFAULT), INDEX_REFRESH);
 		tend = new ClusterTend(this);

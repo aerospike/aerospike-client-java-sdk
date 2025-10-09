@@ -107,7 +107,7 @@ public class Node implements Closeable {
 		this.partitionGeneration = -1;
 		this.rebalanceGeneration = -1;
 		this.partitionChanged = true;
-		this.rebalanceChanged = def.preferrredRacks != null;
+		this.rebalanceChanged = def.rackIds != null;
 		this.racks = this.rebalanceChanged ? new HashMap<String,Integer>() : null;
 		this.active = true;
 
@@ -842,6 +842,27 @@ public class Node implements Closeable {
 	public final void closeIdleConnection(Connection conn) {
 		connsClosed.getAndIncrement();
 		conn.close();
+	}
+
+	/**
+	 * Return if this node has the same rack as the client for the
+	 * given namespace.
+	 */
+	public final boolean hasRack(String namespace, int rackId) {
+		// Must copy map reference for copy on write semantics to work.
+		Map<String,Integer> map = this.racks;
+
+		if (map == null) {
+			return false;
+		}
+
+		Integer r = map.get(namespace);
+
+		if (r == null) {
+			return false;
+		}
+
+		return r == rackId;
 	}
 
 	public final boolean errorRateWithinLimit() {

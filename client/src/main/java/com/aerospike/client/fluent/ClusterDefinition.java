@@ -52,7 +52,7 @@ public class ClusterDefinition {
     byte[] userName;
     byte[] password;
     byte[] passwordHash;
-    int[] preferrredRacks;
+    int[] rackIds;
     private Level logLevel = Level.INFO;
     private Callback callback = null;  // TODO Handle custom log callback.
 	Map<String,String> ipMap;
@@ -116,7 +116,7 @@ public class ClusterDefinition {
 		this.userName = other.userName;
 		this.password = other.password;
 		this.passwordHash = other.passwordHash;
-		this.preferrredRacks = other.preferrredRacks;
+		this.rackIds = other.rackIds;
 		this.logLevel = other.logLevel;
 		this.callback = other.callback;
 		this.ipMap = other.ipMap;
@@ -239,7 +239,7 @@ public class ClusterDefinition {
      * @return this ClusterDefinition for method chaining
      */
     public ClusterDefinition preferringRacks(int ... racks) {
-        this.preferrredRacks = racks;
+        this.rackIds = racks;
         return this;
     }
 
@@ -576,6 +576,6 @@ public class ClusterDefinition {
     }
 
     boolean isRackAware() {
-    	return preferrredRacks != null;
+    	return rackIds != null;
     }
 }
