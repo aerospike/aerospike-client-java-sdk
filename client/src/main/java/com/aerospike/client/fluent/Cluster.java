@@ -21,6 +21,7 @@ import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map.Entry;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReferenceArray;
 
 import com.aerospike.client.fluent.policy.Behavior;
@@ -54,8 +55,11 @@ public class Cluster implements Closeable {
     ClusterTend tend;
 	volatile Node[] nodes;
 	volatile HashMap<String,Partitions> partitionMap;
+	private final AtomicLong commandCount;
+	private final AtomicLong retryCount;
 	private final AtomicInteger nodeIndex;
 	final AtomicInteger replicaIndex;
+	private boolean metricsEnabled;
 
 	//private IndexesMonitor indexesMonitor;
     private RecordMappingFactory recordMappingFactory = null;
@@ -64,6 +68,8 @@ public class Cluster implements Closeable {
         this.def = def;
 		nodes = new Node[0];
 		partitionMap = new HashMap<String,Partitions>();
+		commandCount = new AtomicLong();
+		retryCount = new AtomicLong();
 		nodeIndex = new AtomicInteger();
 		replicaIndex = new AtomicInteger();
         //this.indexesMonitor = new IndexesMonitor();
@@ -228,6 +234,10 @@ public class Cluster implements Closeable {
 		return (System.nanoTime() - lastUsed) <= maxSocketIdleNanosTrim;
 	}*/
 
+	public final void recoverConnection(ConnectionRecover cs) {
+		tend.recoverConnection(cs);
+	}
+
 	public final void printPartitionMap() {
 		for (Entry<String,Partitions> entry : partitionMap.entrySet()) {
 			String namespace = entry.getKey();
@@ -263,7 +273,52 @@ public class Cluster implements Closeable {
     }
 
 	/**
-     * Closes the cluster connection and releases all associated resources.
+	 * Increment command count when metrics are enabled.
+	 */
+	public final void addCommandCount() {
+		if (metricsEnabled) {
+			commandCount.getAndIncrement();
+		}
+	}
+
+	/**
+	 * Return command count. The value is cumulative and not reset per metrics interval.
+	 */
+	public final long getCommandCount() {
+		return commandCount.get();
+	}
+
+	/**
+	 * Increment command retry count. There can be multiple retries for a single command.
+	 */
+	public final void addRetry() {
+		retryCount.getAndIncrement();
+	}
+
+	/**
+	 * Add command retry count. There can be multiple retries for a single command.
+	 */
+	public final void addRetries(int count) {
+		retryCount.getAndAdd(count);
+	}
+
+	/**
+	 * Return command retry count. The value is cumulative and not reset per metrics interval.
+	 */
+	public final long getRetryCount() {
+		return retryCount.get();
+	}
+
+	final void setNodes(Node[] nodes) {
+    	this.nodes = nodes;
+    }
+
+    public final boolean isActive() {
+    	return tend.isActive();
+    }
+
+    /**
+     * Close the cluster connection and releases all associated resources.
      *
      * <p>This method stops the index monitor and closes the underlying client
      * connection. It should be called when the cluster is no longer needed
@@ -280,9 +335,5 @@ public class Cluster implements Closeable {
     public void close() {
         //indexesMonitor.stopMonitor();
         //this.client.close();
-    }
-
-    void setNodes(Node[] nodes) {
-    	this.nodes = nodes;
     }
 }

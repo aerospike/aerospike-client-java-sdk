@@ -14,7 +14,13 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.aerospike.client.fluent;
+package com.aerospike.client.fluent.command;
+
+import com.aerospike.client.fluent.Cluster;
+import com.aerospike.client.fluent.Txn;
+import com.aerospike.client.fluent.exp.Expression;
+import com.aerospike.client.fluent.policy.Replica;
+import com.aerospike.client.fluent.policy.SettablePolicy;
 
 public class Command {
 	public static final int INFO1_READ				= (1 << 0); // Contains a read operation.
@@ -85,32 +91,68 @@ public class Command {
 	public static final long AS_MSG_TYPE = 3L;
 	public static final long MSG_TYPE_COMPRESSED = 4L;
 
-	public byte[] dataBuffer;
-	public int dataOffset;
-	public final int maxRetries;
-	public final int serverTimeout;
-	public int socketTimeout;
-	public int totalTimeout;
-	public Long version;
+	final Cluster cluster;
+	final String namespace;
+	final Txn txn;
+	final Expression filterExp;
+	final Replica replica;
+	final int connectTimeout;
+	final int socketTimeout;
+	final int totalTimeout;
+	final int serverTimeout;
+	final int timeoutDelay;
+	final int maxRetries;
+	final int sleepBetweenRetries;
+	final int readTouchTtlPercent; // TODO should be in read policy?
+	final boolean sendKey;
+	final boolean compress;
+	final boolean failOnFilteredOut;
 
-	public Command(int socketTimeout, int totalTimeout, int maxRetries) {
-		this.maxRetries = maxRetries;
-		this.totalTimeout = totalTimeout;
+	public Command(
+		Cluster cluster, String namespace, Txn txn, SettablePolicy policy
+	) {
+		this.cluster = cluster;
+		this.namespace = namespace;
+		this.txn = txn;
+		this.filterExp = null;          // TODO: Pass in when supported in external api.
+		this.failOnFilteredOut = false; // TODO: Pass in when supported in external api.
+
+		replica = policy.getReplica();
+		connectTimeout = policy.getConnectTimeout();
+		totalTimeout = policy.getTotalTimeout();
+		int st = policy.getSocketTimeout();
 
 		if (totalTimeout > 0) {
-			this.socketTimeout = (socketTimeout < totalTimeout && socketTimeout > 0)? socketTimeout : totalTimeout;
-			this.serverTimeout = this.socketTimeout;
+			socketTimeout = (st < totalTimeout && st > 0)? st : totalTimeout;
+			serverTimeout = socketTimeout;
 		}
 		else {
-			this.socketTimeout = socketTimeout;
-			this.serverTimeout = 0;
+			socketTimeout = st;
+			serverTimeout = 0;
 		}
+
+		timeoutDelay = policy.getTimeoutDelay();
+		maxRetries = policy.getMaxRetries();
+		sleepBetweenRetries = policy.getSleepBetweenRetries();
+		readTouchTtlPercent = policy.getReadTouchTtlPercent();
+		sendKey = policy.getSendKey();
+		compress = policy.getCompress();
 	}
 
-	public Command() {
-		maxRetries = 0;
-		serverTimeout = 0;
+	public int getConnectTimeout() {
+		return connectTimeout;
 	}
 
-	// TODO: Port command methods.
+	public int getSocketTimeout() {
+		return socketTimeout;
+	}
+
+	public int getTotalTimeout() {
+		return totalTimeout;
+	}
+
+	public int getMaxRetries() {
+		return maxRetries;
+	}
+
 }

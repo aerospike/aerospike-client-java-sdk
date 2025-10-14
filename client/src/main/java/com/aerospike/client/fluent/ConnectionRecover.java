@@ -21,6 +21,9 @@ import java.io.IOException;
 import java.net.SocketTimeoutException;
 import java.util.concurrent.TimeUnit;
 
+import com.aerospike.client.fluent.command.Buffer;
+import com.aerospike.client.fluent.command.Command;
+
 public final class ConnectionRecover {
 	//private static final AtomicInteger Counter = new AtomicInteger();
 

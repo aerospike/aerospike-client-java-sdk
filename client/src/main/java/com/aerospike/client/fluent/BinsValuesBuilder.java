@@ -7,6 +7,14 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.aerospike.client.fluent.command.OperateCommand;
+import com.aerospike.client.fluent.command.SyncOperateExecutor;
+import com.aerospike.client.fluent.policy.Behavior.CommandType;
+import com.aerospike.client.fluent.policy.GenerationPolicy;
+import com.aerospike.client.fluent.policy.ReadModeAP;
+import com.aerospike.client.fluent.policy.ReadModeSC;
+import com.aerospike.client.fluent.policy.SettableWritePolicy;
+
 /**
  * Builder for the bins+values pattern in OperationBuilder.
  * This allows setting multiple bin names and then providing values for each record.
@@ -218,7 +226,7 @@ public class BinsValuesBuilder {
         return ops;
     }
 
-    private int getExpriation(ValueData valueData) {
+    private int getExpiration(ValueData valueData) {
         if (valueData.expirationInSeconds != Long.MIN_VALUE) {
             return opBuilder.getExpirationAsInt(valueData.expirationInSeconds);
         }
@@ -256,30 +264,58 @@ public class BinsValuesBuilder {
     }
 
     protected RecordStream executeIndividual() {
-    	/*
+    	// This method is only used for single record writes.
+    	Session session = opBuilder.getSession();
+
+    	SettableWritePolicy policy = session.getBehavior().getSettablePolicy(
+        	CommandType.WRITE_RETRYABLE);
+
+        // TODO: Where are these readModes located for operate?
+        ReadModeAP readModeAP = ReadModeAP.ONE;
+        ReadModeSC readModeSC = ReadModeSC.SESSION;
+
+        Cluster cluster = session.getCluster();
         Key[] keyArray = new Key[keys.size()];
         Record[] recordArray = new Record[keys.size()];
+
+		if (txnToUse != null) {
+			// TODO: Get policy for transaction monitor write.
+			//TxnMonitor.addKeys(txnToUse, cluster, policy, keys);
+		}
 
         for (int i = 0; i < keys.size(); i++) {
             Key key = keys.get(i);
             ValueData valueSet = valueSets.get(key);
             Operation[] ops = getOperationsForValueData(valueSet);
-            WritePolicy wp = opBuilder.getWritePolicy(true, valueSet.generation, this.opBuilder.opType);
-            wp.expiration = getExpriation(valueSet);
-            wp.txn = this.txnToUse;
+
+            GenerationPolicy genPolicy;
+
+            if (valueSet.generation != 0) {
+            	// TODO: Why EXPECT_GEN_GT not supported?
+                genPolicy = GenerationPolicy.EXPECT_GEN_EQUAL;
+            }
+            else {
+            	genPolicy = GenerationPolicy.NONE;
+            }
+
+            int ttl = getExpiration(valueSet);
+
+            OperateCommand cmd = new OperateCommand(cluster, txnToUse, key, opBuilder.opType,
+				genPolicy, valueSet.generation, ttl, readModeAP, readModeSC, policy, ops
+				);
 
             try {
-                Record record = opBuilder.getSession().getClient().operate(wp, key, ops);
-                keyArray[i] = key;
-                recordArray[i] = record;
-            } catch (AerospikeException ae) {
-                opBuilder.showWarningsOnExceptionAndThrow(ae, txnToUse, key, wp.expiration);
+            	SyncOperateExecutor exec = new SyncOperateExecutor(cluster, cmd);
+            	exec.execute();
+
+            	Record record = exec.getRecord();
+	            keyArray[i] = key;
+	            recordArray[i] = record;
+            }
+            catch (AerospikeException ae) {
+                opBuilder.showWarningsOnExceptionAndThrow(ae, txnToUse, key, ttl);
             }
         }
-
         return new RecordStream(keyArray, recordArray, 0, 0, null);
-        */
-    	return null;
     }
-
 }

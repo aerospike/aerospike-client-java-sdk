@@ -324,11 +324,11 @@ public class TlsBuilder {
     // Package-private getters for ClusterDefinition to access the configured values
     String getTlsName() { return tlsName; }
     String getCaFile() { return caFile; }
-    String[] getProtocols() { return protocols; }
-    String[] getCiphers() { return ciphers; }
+    public String[] getProtocols() { return protocols; }
+    public String[] getCiphers() { return ciphers; }
     boolean isForLoginOnly() { return forLoginOnly; }
     boolean isRevokeCertificatesForLoginOnly() { return revokeCertificatesForLoginOnly; }
-    java.math.BigInteger[] getRevokeCertificates() { return revokeCertificates; }
+    public java.math.BigInteger[] getRevokeCertificates() { return revokeCertificates; }
     String getClientCertFile() { return clientCertFile; }
     String getClientKeyFile() { return clientKeyFile; }
     String getClientKeyPassword() { return clientKeyPassword; }
@@ -338,7 +338,7 @@ public class TlsBuilder {
     String getKeyStorePath() { return keyStorePath; }
     String getKeyStorePassword() { return keyStorePassword; }
     String getKeyStoreType() { return keyStoreType; }
-    SSLContext getCustomSslContext() { return customSslContext; }
+    public SSLContext getCustomSslContext() { return customSslContext; }
     boolean isTrustAllCertificates() { return enableTrustAllCertificates; }
 
     /**

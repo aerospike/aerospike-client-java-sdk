@@ -22,6 +22,7 @@ import java.util.Optional;
 
 import com.aerospike.client.fluent.Log.Callback;
 import com.aerospike.client.fluent.Log.Level;
+import com.aerospike.client.fluent.command.Buffer;
 import com.aerospike.client.fluent.policy.AuthMode;
 
 /**

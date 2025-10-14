@@ -18,24 +18,42 @@ package com.aerospike.client.fluent;
 
 import java.util.List;
 
-import com.aerospike.client.fluent.policy.Policy;
+import com.aerospike.client.fluent.command.Command;
 
 public class AerospikeException extends RuntimeException {
     private static final long serialVersionUID = 1L;
 
     protected transient Node node;
-    protected transient Policy policy;
+    protected transient Command cmd;
     protected List<AerospikeException> subExceptions;
     protected int resultCode = ResultCode.CLIENT_ERROR;
     protected int iteration = -1;
     protected boolean inDoubt;
 
-    public AerospikeException(String message) {
+    public AerospikeException(int resultCode, String message) {
         super(message);
+        this.resultCode = resultCode;
     }
 
-    public AerospikeException(String message, Throwable e) {
+	public AerospikeException(int resultCode, Throwable e) {
+		super(e);
+		this.resultCode = resultCode;
+	}
+
+	public AerospikeException(int resultCode) {
+		super();
+		this.resultCode = resultCode;
+	}
+
+	public AerospikeException(int resultCode, boolean inDoubt) {
+		super();
+		this.resultCode = resultCode;
+		this.inDoubt = inDoubt;
+	}
+
+    public AerospikeException(int resultCode, String message, Throwable e) {
         super(message, e);
+        this.resultCode = resultCode;
     }
 
     public AerospikeException(int resultCode, String message, boolean inDoubt) {
@@ -44,15 +62,17 @@ public class AerospikeException extends RuntimeException {
         this.inDoubt = inDoubt;
     }
 
-    public AerospikeException(int resultCode, String message, Throwable e) {
+    public AerospikeException(String message, Throwable e) {
         super(message, e);
-        this.resultCode = resultCode;
     }
 
-    public AerospikeException(int resultCode, String message) {
+	public AerospikeException(String message) {
         super(message);
-        this.resultCode = resultCode;
     }
+
+	public AerospikeException(Throwable e) {
+		super(e);
+	}
 
 	@Override
 	public String getMessage() {
@@ -66,15 +86,15 @@ public class AerospikeException extends RuntimeException {
 			sb.append(iteration);
 		}
 
-		if (policy != null) {
+		if (cmd != null) {
 			sb.append(',');
-			sb.append(policy.connectTimeout);
+			sb.append(cmd.getConnectTimeout());
 			sb.append(',');
-			sb.append(policy.socketTimeout);
+			sb.append(cmd.getSocketTimeout());
 			sb.append(',');
-			sb.append(policy.totalTimeout);
+			sb.append(cmd.getTotalTimeout());
 			sb.append(',');
-			sb.append(policy.maxRetries);
+			sb.append(cmd.getMaxRetries());
 		}
 
 		if (inDoubt) {
@@ -110,10 +130,10 @@ public class AerospikeException extends RuntimeException {
 	}
 
 	/**
-	 * Get integer result code.
+	 * Should connection be put back into pool.
 	 */
-	public final int getResultCode() {
-		return resultCode;
+	public final boolean keepConnection() {
+		return ResultCode.keepConnection(resultCode);
 	}
 
 	/**
@@ -131,10 +151,77 @@ public class AerospikeException extends RuntimeException {
 	}
 
 	/**
+	 * Set command associated with the exception.
+	 */
+	public final Command getCommand() {
+		return cmd;
+	}
+
+	/**
+	 * Set command associated with the exception.
+	 */
+	public final void setCommand(Command cmd) {
+		this.cmd = cmd;
+	}
+
+	/**
+	 * Get sub exceptions.  Will be null if a retry did not occur.
+	 */
+	public final List<AerospikeException> getSubExceptions() {
+		return subExceptions;
+	}
+
+	/**
+	 * Set sub exceptions.
+	 */
+	public final void setSubExceptions(List<AerospikeException> subExceptions) {
+		this.subExceptions = subExceptions;
+	}
+
+	/**
+	 * Get integer result code.
+	 */
+	public final int getResultCode() {
+		return resultCode;
+	}
+
+	/**
+	 * Get number of attempts before failing.
+	 */
+	public final int getIteration() {
+		return iteration;
+	}
+
+	/**
+	 * Set number of attempts before failing.
+	 */
+	public final void setIteration(int iteration) {
+		this.iteration = iteration;
+	}
+
+	/**
 	 * Is it possible that write command may have completed.
 	 */
 	public final boolean getInDoubt() {
 		return inDoubt;
+	}
+
+	/**
+	 * Sets the inDoubt value to inDoubt.
+	 */
+	public void setInDoubt(boolean inDoubt) {
+		this.inDoubt = inDoubt;
+	}
+
+	/**
+	 * Set whether it is possible that the write command may have completed
+	 * even though this exception was generated.  This may be the case when a
+	 * client error occurs (like timeout) after the command was sent to the server.
+	 */
+	public final void setInDoubt(boolean isWrite, int commandSentCounter) {
+		if (isWrite && (commandSentCounter > 1 || (commandSentCounter == 1 && (resultCode == ResultCode.TIMEOUT || resultCode <= 0)))) {
+			this.inDoubt = true;
+		}
 	}
 
 	/**
@@ -147,33 +234,29 @@ public class AerospikeException extends RuntimeException {
 		 * If true, client initiated timeout.  If false, server initiated timeout.
 		 */
 		public boolean client;
-
+/*
 		public Timeout(String message, int iteration, int totalTimeout, boolean inDoubt) {
 			super(ResultCode.TIMEOUT, message);
 			super.iteration = iteration;
 			super.inDoubt = inDoubt;
 
-			/*
 			Policy p = new Policy();
 			p.connectTimeout = 0;
 			p.socketTimeout = 0;
 			p.totalTimeout = totalTimeout;
 			p.maxRetries = -1;
 			super.policy = p;
-			*/
 			this.client = true;
 		}
-/*
-		public Timeout(Policy policy, boolean client) {
+*/
+		public Timeout(Command cmd, boolean client) {
 			// Other base exception fields are set after this constructor.
 			super(ResultCode.TIMEOUT, (client ? "Client" : "Server") + " timeout");
-			super.policy = policy;
-			this.connectTimeout = policy.connectTimeout;
-			this.socketTimeout = policy.socketTimeout;
-			this.timeout = policy.totalTimeout;
+			super.cmd = cmd;
 			this.client = client;
 		}
 
+/*
 		public Timeout(Policy policy, int iteration) {
 			super(ResultCode.TIMEOUT, "Client timeout");
 			super.policy = policy;
@@ -334,6 +417,18 @@ public class AerospikeException extends RuntimeException {
 
 		public QueryTerminated(Throwable e) {
 			super(ResultCode.QUERY_TERMINATED, "Query terminated", e);
+		}
+	}
+
+	/**
+	 * Exception thrown when node is in backoff mode due to excessive
+	 * number of errors.
+	 */
+	public static class Backoff extends AerospikeException {
+		private static final long serialVersionUID = 1L;
+
+		public Backoff(int resultCode) {
+			super(resultCode);
 		}
 	}
 

@@ -20,8 +20,8 @@ import java.util.Base64;
 
 import org.bouncycastle.crypto.digests.RIPEMD160Digest;
 
-import com.aerospike.client.fluent.Buffer;
 import com.aerospike.client.fluent.Value;
+import com.aerospike.client.fluent.command.Buffer;
 
 public final class Crypto {
 	/**

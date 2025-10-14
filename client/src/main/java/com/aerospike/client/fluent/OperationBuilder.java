@@ -6,11 +6,9 @@ import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
-import java.util.stream.Collectors;
 
 import com.aerospike.client.fluent.policy.BatchPolicy;
 import com.aerospike.client.fluent.policy.BatchWritePolicy;
-import com.aerospike.client.fluent.policy.RecordExistsAction;
 import com.aerospike.client.fluent.policy.WritePolicy;
 
 public class OperationBuilder {
@@ -201,22 +199,6 @@ public class OperationBuilder {
         return this;
     }
 
-    protected static RecordExistsAction recordExistsActionFromOpType(OpType opType) {
-        switch (opType) {
-        case INSERT:
-            return RecordExistsAction.CREATE_ONLY;
-        case UPDATE:
-            return RecordExistsAction.UPDATE_ONLY;
-        case UPSERT:
-            return RecordExistsAction.UPDATE;
-        case REPLACE:
-            return RecordExistsAction.REPLACE;
-
-        default:
-            throw new IllegalStateException("received an action of " + opType + " which should be handled elsewhere");
-        }
-    }
-
     protected int getNumKeys() {
         return keys.size();
     }
@@ -232,19 +214,6 @@ public class OperationBuilder {
         else {
             return (int) expirationInSeconds;
         }
-    }
-
-    protected WritePolicy getWritePolicy(boolean retryable, int generation, OpType opType) {
-    	/*
-        WritePolicy result = (WritePolicy)session.getBehavior().getMutablePolicy(retryable ? CommandType.WRITE_RETRYABLE : CommandType.WRITE_NON_RETRYABLE);
-        if (generation != 0) {
-            result.generation = generation;
-            result.generationPolicy = GenerationPolicy.EXPECT_GEN_EQUAL;
-        }
-        result.recordExistsAction = recordExistsActionFromOpType(opType);
-        return result;
-        */
-    	return null;
     }
 
     public RecordStream execute() {

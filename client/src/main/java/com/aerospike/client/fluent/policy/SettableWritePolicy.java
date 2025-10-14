@@ -21,7 +21,7 @@ import java.util.Objects;
 import com.aerospike.client.fluent.policy.Behavior.CommandType;
 
 public class SettableWritePolicy extends SettablePolicy {
-    Boolean durableDelete;      // durableDelete
+	Boolean durableDelete;      // durableDelete
 
     public static class Builder extends SettablePolicy.BuilderBase<Builder> {
         public Builder(BehaviorBuilder builder, CommandType type) {
@@ -51,6 +51,10 @@ public class SettableWritePolicy extends SettablePolicy {
     protected WritePolicy formPolicy() {
     	return new WritePolicy(this);
     }
+
+    public boolean getDurableDelete() {
+    	return (durableDelete != null) ? durableDelete : false;
+	}
 
     @Override
     public int hashCode() {

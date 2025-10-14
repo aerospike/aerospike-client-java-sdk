@@ -21,6 +21,7 @@ import java.net.InetSocketAddress;
 import java.util.HashMap;
 import java.util.List;
 
+import com.aerospike.client.fluent.command.Buffer;
 import com.aerospike.client.fluent.util.Crypto;
 
 /**

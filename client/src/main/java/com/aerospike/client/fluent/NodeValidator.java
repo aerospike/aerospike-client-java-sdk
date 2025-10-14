@@ -24,6 +24,7 @@ import java.util.HashMap;
 import java.util.List;
 
 import com.aerospike.client.fluent.AdminCommand.LoginCommand;
+import com.aerospike.client.fluent.command.Buffer;
 import com.aerospike.client.fluent.util.Crypto;
 import com.aerospike.client.fluent.util.Util;
 import com.aerospike.client.fluent.util.Version;

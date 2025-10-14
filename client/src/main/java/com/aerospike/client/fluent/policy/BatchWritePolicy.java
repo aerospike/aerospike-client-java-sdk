@@ -45,7 +45,7 @@ public final class BatchWritePolicy {
 	 * <p>
 	 * Default: RecordExistsAction.UPDATE
 	 */
-	public RecordExistsAction recordExistsAction = RecordExistsAction.UPDATE;
+	//public RecordExistsAction recordExistsAction = RecordExistsAction.UPDATE;
 
 	/**
 	 * Desired consistency guarantee when committing a command on the server. The default
@@ -149,7 +149,7 @@ public final class BatchWritePolicy {
 	 */
 	public BatchWritePolicy(BatchWritePolicy other) {
 		this.filterExp = other.filterExp;
-		this.recordExistsAction = other.recordExistsAction;
+		//this.recordExistsAction = other.recordExistsAction;
 		this.commitLevel = other.commitLevel;
 		this.generationPolicy = other.generationPolicy;
 		this.generation = other.generation;
@@ -207,9 +207,9 @@ public final class BatchWritePolicy {
 		this.filterExp = filterExp;
 	}
 
-	public void setRecordExistsAction(RecordExistsAction recordExistsAction) {
-		this.recordExistsAction = recordExistsAction;
-	}
+	//public void setRecordExistsAction(RecordExistsAction recordExistsAction) {
+	//	this.recordExistsAction = recordExistsAction;
+	//}
 
 	public void setCommitLevel(CommitLevel commitLevel) {
 		this.commitLevel = commitLevel;

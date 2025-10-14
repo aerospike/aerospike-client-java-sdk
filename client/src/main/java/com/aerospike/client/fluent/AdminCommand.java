@@ -22,6 +22,8 @@ import java.util.concurrent.TimeUnit;
 
 import org.mindrot.jbcrypt.BCrypt;
 
+import com.aerospike.client.fluent.command.Buffer;
+import com.aerospike.client.fluent.command.Command;
 import com.aerospike.client.fluent.policy.AuthMode;
 
 public class AdminCommand {

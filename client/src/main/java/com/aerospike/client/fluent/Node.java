@@ -26,6 +26,7 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import com.aerospike.client.fluent.AdminCommand.LoginCommand;
+import com.aerospike.client.fluent.command.SyncExecutor;
 import com.aerospike.client.fluent.util.Util;
 import com.aerospike.client.fluent.util.Version;
 
@@ -639,7 +640,7 @@ public class Node implements Closeable {
 	/**
 	 * Get a socket connection from connection pool to the server node.
 	 */
-	public final Connection getConnection(SyncCommand cmd, int connectTimeout, int socketTimeout, int timeoutDelay) {
+	public final Connection getConnection(SyncExecutor cmd, int connectTimeout, int socketTimeout, int timeoutDelay) {
 		int max = cluster.def.connPoolsPerNode;
 		int initialIndex;
 		boolean backward;
@@ -863,6 +864,12 @@ public class Node implements Closeable {
 		}
 
 		return r == rackId;
+	}
+
+	public final void validateErrorCount() {
+		if (! errorRateWithinLimit()) {
+			throw new AerospikeException.Backoff(ResultCode.MAX_ERROR_RATE);
+		}
 	}
 
 	public final boolean errorRateWithinLimit() {

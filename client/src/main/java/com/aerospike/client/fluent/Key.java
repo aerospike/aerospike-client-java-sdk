@@ -18,6 +18,7 @@ package com.aerospike.client.fluent;
 
 import java.util.Arrays;
 
+import com.aerospike.client.fluent.command.Buffer;
 import com.aerospike.client.fluent.util.Crypto;
 
 /**

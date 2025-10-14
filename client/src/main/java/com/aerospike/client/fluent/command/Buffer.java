@@ -14,12 +14,14 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.aerospike.client.fluent;
+package com.aerospike.client.fluent.command;
 
 import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 
+import com.aerospike.client.fluent.ParticleType;
+import com.aerospike.client.fluent.Value;
 import com.aerospike.client.fluent.util.Unpacker;
 import com.aerospike.client.fluent.util.Utf8;
 

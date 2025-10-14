@@ -192,6 +192,47 @@ public class SettablePolicy {
     	return new Policy(this);
     }
 
+	public Replica getReplica() {
+		// TODO Convert replicaOrder to replica.
+		return Replica.SEQUENCE;
+	}
+
+	public int getConnectTimeout() {
+		return (waitForConnectionToComplete != null)? waitForConnectionToComplete : 0;
+	}
+
+	public int getSocketTimeout() {
+		return (waitForCallToComplete != null)? waitForCallToComplete : 30000;
+	}
+
+	public int getTotalTimeout() {
+		return (abandonCallAfter != null)? abandonCallAfter : 1000;
+	}
+
+	public int getTimeoutDelay() {
+		return (waitForSocketResponseAfterCallFails != null)? waitForSocketResponseAfterCallFails : 0;
+	}
+
+	public int getMaxRetries() {
+		return (maximumNumberOfCallAttempts != null)? maximumNumberOfCallAttempts - 1: 2;
+	}
+
+	public int getSleepBetweenRetries() {
+		return (delayBetweenRetries != null)? delayBetweenRetries : 0;
+	}
+
+	public int getReadTouchTtlPercent() {
+		return (resetTtlOnReadAtPercent != null)? resetTtlOnReadAtPercent : 0;
+	}
+
+	public boolean getSendKey() {
+		return (sendKey != null)? sendKey : false;
+	}
+
+	public boolean getCompress() {
+		return (useCompression != null)? useCompression : false;
+	}
+
     @Override
     public int hashCode() {
         return Objects.hash(abandonCallAfter, delayBetweenRetries, maximumNumberOfCallAttempts, replicaOrder,

@@ -50,10 +50,10 @@ public class Session {
         return this.behavior;
     }
 
-/*
     public Cluster getCluster() {
         return cluster;
     }
+    /*
 
     public void truncate(DataSet set) {
         this.client.truncate(null, set.getNamespace(), set.getSet(), null);

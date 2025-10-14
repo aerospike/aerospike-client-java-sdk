@@ -389,6 +389,37 @@ public class Behavior {
         });
     }
 
+    @SuppressWarnings("unchecked")
+    public <T extends SettablePolicy> T getSettablePolicy(CommandType type) {
+        return (T)cachedPolicies.computeIfAbsent(type, cmdType -> {
+            switch (type) {
+            case WRITE_NON_RETRYABLE:
+            case WRITE_RETRYABLE:
+                return aggregateSettablePolicy(new SettableWritePolicy(), type);
+
+            case BATCH_READ:
+            case BATCH_WRITE:
+                return aggregateSettablePolicy(new SettableBatchPolicy(), type);
+
+            case QUERY:
+                return aggregateSettablePolicy(new SettableQueryPolicy(), type);
+
+            case READ_AP:
+                return aggregateSettablePolicy(new SettableAvailabilityModeReadPolicy(), type);
+
+            case READ_SC:
+                return aggregateSettablePolicy(new SettableConsistencyModeReadPolicy(), type);
+
+            case INFO:
+                throw new IllegalArgumentException("Cannot pass 'INFO' to getSharedPolicy, use getSharedInfoPolicy instead");
+
+            case ALL:
+            default:
+                throw new IllegalArgumentException("Cannot pass '" + type + "' to getSharedPolicy");
+            }
+        });
+    }
+
     public static void main(String[] args) throws Exception {
         Behavior beh = Behavior.DEFAULT.deriveWithChanges("writeTest", builder -> {
             builder

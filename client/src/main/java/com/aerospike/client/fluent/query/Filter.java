@@ -18,10 +18,10 @@ package com.aerospike.client.fluent.query;
 
 import java.util.Arrays;
 
-import com.aerospike.client.fluent.Buffer;
 import com.aerospike.client.fluent.ParticleType;
 import com.aerospike.client.fluent.Value;
 import com.aerospike.client.fluent.cdt.CTX;
+import com.aerospike.client.fluent.command.Buffer;
 import com.aerospike.client.fluent.exp.Expression;
 import com.aerospike.client.fluent.util.Pack;
 

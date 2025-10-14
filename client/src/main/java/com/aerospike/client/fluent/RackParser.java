@@ -18,6 +18,8 @@ package com.aerospike.client.fluent;
 
 import java.util.HashMap;
 
+import com.aerospike.client.fluent.command.Buffer;
+
 /**
  * Parse rack-ids info command.
  */

@@ -83,27 +83,6 @@ public final class Expression implements Serializable {
 		return Crypto.encodeBase64(bytes);
 	}
 
-	/**
-	 * Estimate expression size in wire protocol.
-	 * For internal use only.
-	 */
-	/* TODO RESTORE
-	public int size() {
-		return bytes.length + Command.FIELD_HEADER_SIZE;
-	}
-	*/
-	/**
-	 * Write expression in wire protocol.
-	 * For internal use only.
-	 */
-	/* TODO RESTORE
-	public void write(Command cmd) {
-		cmd.writeExpHeader(bytes.length);
-		System.arraycopy(bytes, 0, cmd.dataBuffer, cmd.dataOffset, bytes.length);
-		cmd.dataOffset += bytes.length;
-	}
-	*/
-
 	@Override
 	public int hashCode() {
 		final int prime = 31;
