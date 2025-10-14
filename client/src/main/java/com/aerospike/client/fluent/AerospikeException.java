@@ -21,12 +21,15 @@ import java.util.List;
 import com.aerospike.client.fluent.command.Command;
 
 public class AerospikeException extends RuntimeException {
-    private static final long serialVersionUID = 1L;
+	private static final long serialVersionUID = 1L;
 
     protected transient Node node;
-    protected transient Command cmd;
     protected List<AerospikeException> subExceptions;
     protected int resultCode = ResultCode.CLIENT_ERROR;
+	private int connectTimeout;
+	private int socketTimeout;
+	private int totalTimeout;
+	private int maxRetries;
     protected int iteration = -1;
     protected boolean inDoubt;
 
@@ -86,16 +89,14 @@ public class AerospikeException extends RuntimeException {
 			sb.append(iteration);
 		}
 
-		if (cmd != null) {
-			sb.append(',');
-			sb.append(cmd.getConnectTimeout());
-			sb.append(',');
-			sb.append(cmd.getSocketTimeout());
-			sb.append(',');
-			sb.append(cmd.getTotalTimeout());
-			sb.append(',');
-			sb.append(cmd.getMaxRetries());
-		}
+		sb.append(',');
+		sb.append(connectTimeout);
+		sb.append(',');
+		sb.append(socketTimeout);
+		sb.append(',');
+		sb.append(totalTimeout);
+		sb.append(',');
+		sb.append(maxRetries);
 
 		if (inDoubt) {
 			sb.append(",inDoubt");
@@ -153,15 +154,27 @@ public class AerospikeException extends RuntimeException {
 	/**
 	 * Set command associated with the exception.
 	 */
-	public final Command getCommand() {
-		return cmd;
+	public final void setCommand(Command cmd) {
+		connectTimeout = cmd.getConnectTimeout();
+		socketTimeout = cmd.getSocketTimeout();
+		totalTimeout = cmd.getTotalTimeout();
+		maxRetries = cmd.getMaxRetries();
 	}
 
-	/**
-	 * Set command associated with the exception.
-	 */
-	public final void setCommand(Command cmd) {
-		this.cmd = cmd;
+    public int getConnectTimeout() {
+		return connectTimeout;
+	}
+
+	public int getSocketTimeout() {
+		return socketTimeout;
+	}
+
+	public int getTotalTimeout() {
+		return totalTimeout;
+	}
+
+	public int getMaxRetries() {
+		return maxRetries;
 	}
 
 	/**
@@ -234,52 +247,29 @@ public class AerospikeException extends RuntimeException {
 		 * If true, client initiated timeout.  If false, server initiated timeout.
 		 */
 		public boolean client;
-/*
+
 		public Timeout(String message, int iteration, int totalTimeout, boolean inDoubt) {
 			super(ResultCode.TIMEOUT, message);
+			super.totalTimeout = totalTimeout;
 			super.iteration = iteration;
 			super.inDoubt = inDoubt;
-
-			Policy p = new Policy();
-			p.connectTimeout = 0;
-			p.socketTimeout = 0;
-			p.totalTimeout = totalTimeout;
-			p.maxRetries = -1;
-			super.policy = p;
 			this.client = true;
 		}
-*/
+
 		public Timeout(Command cmd, boolean client) {
 			// Other base exception fields are set after this constructor.
 			super(ResultCode.TIMEOUT, (client ? "Client" : "Server") + " timeout");
-			super.cmd = cmd;
+			super.setCommand(cmd);
 			this.client = client;
 		}
 
-/*
-		public Timeout(Policy policy, int iteration) {
-			super(ResultCode.TIMEOUT, "Client timeout");
-			super.policy = policy;
-			super.iteration = iteration;
-			this.connectTimeout = policy.connectTimeout;
-			this.socketTimeout = policy.socketTimeout;
-			this.timeout = policy.totalTimeout;
-			this.client = true;
-		}
-*/
 		public Timeout(Node node, int connectTimeout, int socketTimeout, int totalTimeout) {
 			super(ResultCode.TIMEOUT, "Client timeout");
 			super.node = node;
+			super.connectTimeout = connectTimeout;
+			super.socketTimeout = socketTimeout;
+			super.totalTimeout = totalTimeout;
 			super.iteration = 1;
-
-			/*
-			Policy p = new Policy();
-			p.connectTimeout = connectTimeout;
-			p.socketTimeout = socketTimeout;
-			p.totalTimeout = totalTimeout;
-			p.maxRetries = 0;
-			super.policy = p;
-			*/
 			this.client = true;
 		}
 	}

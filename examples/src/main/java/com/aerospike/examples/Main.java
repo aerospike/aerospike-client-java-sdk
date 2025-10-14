@@ -23,6 +23,8 @@ public class Main {
 	            .values("Bob", 25)
 	            .values("Jane", 46)
 	            .execute();
+
+            System.out.println("Upsert success");
        }
     }
 }

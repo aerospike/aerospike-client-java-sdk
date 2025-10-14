@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2024 Aerospike, Inc.
+ * Copyright 2012-2021 Aerospike, Inc.
  *
  * Portions may be licensed to Aerospike, Inc. under one or more contributor
  * license agreements WHICH ARE COMPATIBLE WITH THE APACHE LICENSE, VERSION 2.0.
@@ -17,40 +17,37 @@
 package com.aerospike.client.fluent.policy;
 
 /**
- * Policy attributes used for info commands.
+ * How to handle writes when the record already exists.
  */
-public final class InfoPolicy {
+public enum RecordExistsAction {
 	/**
-	 * Info command socket timeout in milliseconds.
-	 * <p>
-	 * Default: 1000
+	 * Create or update record.
+	 * Merge write command bins with existing bins.
 	 */
-	public int timeout;
-
-	/**
-	 * Copy timeout from other InfoPolicy.
-	 */
-	public InfoPolicy(InfoPolicy other) {
-		this.timeout = other.timeout;
-	}
+	UPDATE,
 
 	/**
-	 * Set timeout from argument.
+	 * Update record only. Fail if record does not exist.
+	 * Merge write command bins with existing bins.
 	 */
-	public InfoPolicy(int timeout) {
-		this.timeout = timeout;
-	}
+	UPDATE_ONLY,
 
 	/**
-	 * Default constructor.  Default is one second timeout.
+	 * Create or replace record.
+	 * Delete existing bins not referenced by write command bins.
+	 * Supported by Aerospike server versions &gt;= 3.1.6.
 	 */
-	public InfoPolicy() {
-		timeout = 1000;
-	}
+	REPLACE,
 
-	// Include setters to facilitate Spring's ConfigurationProperties.
+	/**
+	 * Replace record only. Fail if record does not exist.
+	 * Delete existing bins not referenced by write command bins.
+	 * Supported by Aerospike server versions &gt;= 3.1.6.
+	 */
+	REPLACE_ONLY,
 
-	public void setTimeout(int timeout) {
-		this.timeout = timeout;
-	}
+	/**
+	 * Create only.  Fail if record exists.
+	 */
+	CREATE_ONLY
 }

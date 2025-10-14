@@ -20,11 +20,13 @@ import java.io.Closeable;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map.Entry;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReferenceArray;
 
 import com.aerospike.client.fluent.policy.Behavior;
+import com.aerospike.dsl.Index;
 
 /**
  * Represents a connection to an Aerospike cluster.
@@ -61,7 +63,7 @@ public class Cluster implements Closeable {
 	final AtomicInteger replicaIndex;
 	private boolean metricsEnabled;
 
-	//private IndexesMonitor indexesMonitor;
+	private IndexesMonitor indexesMonitor;
     private RecordMappingFactory recordMappingFactory = null;
 
     Cluster(ClusterDefinition def, Host[] seeds) {
@@ -94,11 +96,9 @@ public class Cluster implements Closeable {
      * @return a set of Index objects representing available secondary indexes
      * @see Index
      */
-    /*
     public Set<Index> getIndexes() {
         return indexesMonitor.getIndexes();
     }
-    */
 
     /**
      * Sets the record mapping factory for this cluster.

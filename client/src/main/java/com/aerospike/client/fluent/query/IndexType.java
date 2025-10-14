@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2024 Aerospike, Inc.
+ * Copyright 2012-2023 Aerospike, Inc.
  *
  * Portions may be licensed to Aerospike, Inc. under one or more contributor
  * license agreements WHICH ARE COMPATIBLE WITH THE APACHE LICENSE, VERSION 2.0.
@@ -14,43 +14,29 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.aerospike.client.fluent.policy;
+package com.aerospike.client.fluent.query;
 
 /**
- * Policy attributes used for info commands.
+ * Underlying data type of secondary index.
  */
-public final class InfoPolicy {
+public enum IndexType {
 	/**
-	 * Info command socket timeout in milliseconds.
-	 * <p>
-	 * Default: 1000
+	 * Number index.
 	 */
-	public int timeout;
+	NUMERIC,
 
 	/**
-	 * Copy timeout from other InfoPolicy.
+	 * String index.
 	 */
-	public InfoPolicy(InfoPolicy other) {
-		this.timeout = other.timeout;
-	}
+	STRING,
 
 	/**
-	 * Set timeout from argument.
+	 * byte[] index. Requires server version 7.0+.
 	 */
-	public InfoPolicy(int timeout) {
-		this.timeout = timeout;
-	}
+	BLOB,
 
 	/**
-	 * Default constructor.  Default is one second timeout.
+	 * 2-dimensional spherical geospatial index.
 	 */
-	public InfoPolicy() {
-		timeout = 1000;
-	}
-
-	// Include setters to facilitate Spring's ConfigurationProperties.
-
-	public void setTimeout(int timeout) {
-		this.timeout = timeout;
-	}
+	GEO2DSPHERE;
 }

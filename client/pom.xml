@@ -15,6 +15,12 @@
 
   <dependencies>
     <dependency>
+      <groupId>com.aerospike</groupId>
+        <artifactId>aerospike-expression-dsl</artifactId>
+        <version>0.1.0</version>
+    </dependency>
+
+    <dependency>
       <groupId>org.mindrot</groupId>
       <artifactId>jbcrypt</artifactId>
     </dependency>

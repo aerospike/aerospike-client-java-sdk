@@ -22,6 +22,7 @@ import java.util.HashMap;
 import java.util.List;
 
 import com.aerospike.client.fluent.command.Buffer;
+import com.aerospike.client.fluent.policy.InfoPolicy;
 import com.aerospike.client.fluent.util.Crypto;
 
 /**
@@ -59,6 +60,30 @@ public class Info {
 			String response = info.parseSingleResponse(name);
 			node.putConnection(conn);
 			return response;
+		}
+		catch (Throwable e) {
+			node.closeConnection(conn);
+			throw e;
+		}
+	}
+
+	/**
+	 * Get one info value by name from the specified database server node.
+	 * This method supports user authentication.
+	 *
+	 * @param policy	info command configuration parameters, pass in null for defaults
+	 * @param node		server node
+	 * @param name		name of variable to retrieve
+	 */
+	public static String request(InfoPolicy policy, Node node, String name) throws AerospikeException {
+		int timeout = (policy == null) ? DEFAULT_TIMEOUT : policy.timeout;
+		Connection conn = node.getConnection(timeout);
+
+		try {
+			Info info = new Info(node, conn, name);
+			String result = info.parseSingleResponse(name);
+			node.putConnection(conn);
+			return result;
 		}
 		catch (Throwable e) {
 			node.closeConnection(conn);

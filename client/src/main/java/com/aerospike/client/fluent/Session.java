@@ -16,10 +16,12 @@
  */
 package com.aerospike.client.fluent;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import com.aerospike.client.fluent.exp.Exp;
 import com.aerospike.client.fluent.exp.Expression;
+import com.aerospike.client.fluent.info.InfoCommands;
 import com.aerospike.client.fluent.policy.Behavior;
 
 public class Session {
@@ -62,7 +64,7 @@ public class Session {
     public RecordMappingFactory getRecordMappingFactory() {
         return this.cluster.getRecordMappingFactory();
     }
-
+*/
     private List<Key> buildKeyList(Key key1, Key key2, Key ...keys) {
         List<Key> keyList = new ArrayList<>();
         keyList.add(key1);
@@ -72,7 +74,7 @@ public class Session {
         }
         return keyList;
     }
-*/
+
     // --------------------------------------------
     // Query functionality
     // --------------------------------------------
@@ -103,7 +105,7 @@ public class Session {
     // -------------------
     // CUD functionality
     // -------------------
-    /*
+
     public OperationBuilder insertInto(Key key) {
         return new OperationBuilder(this, key, OpType.INSERT);
     }
@@ -119,11 +121,11 @@ public class Session {
     public OperationBuilder replace(Key key) {
         return new OperationBuilder(this, key, OpType.UPSERT);
     }
-*/
+
     public OperationBuilder upsert(List<Key> keys) {
         return new OperationBuilder(this, keys, OpType.UPSERT);
     }
-/*
+
     public OperationBuilder upsert(Key key1, Key key2, Key... keys) {
         List<Key> keyList = buildKeyList(key1, key2, keys);
         return new OperationBuilder(this, keyList, OpType.UPSERT);
@@ -194,10 +196,11 @@ public class Session {
     // --------------------------------
     // Object mapping functionality
     // --------------------------------
+
     public OperationObjectBuilder insertInto(DataSet dataSet) {
         return new OperationObjectBuilder(this, dataSet, OpType.INSERT);
     }
-
+/*
     public <T> OperationObjectBuilder<T> insertInto(TypeSafeDataSet<T> dataSet) {
         return new OperationObjectBuilder<T>(this, dataSet, OpType.INSERT);
     }
@@ -260,11 +263,11 @@ public class Session {
     // ---------------------
     // Info functionality
     // ---------------------
-    /*
+
     public InfoCommands info() {
         return new InfoCommands(this);
     }
-*/
+
     public boolean isNamespaceSC(String namespace) {
         Partitions partitionMap = cluster.partitionMap.get(namespace);
         if (partitionMap == null) {
