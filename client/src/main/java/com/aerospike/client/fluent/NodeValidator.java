@@ -208,8 +208,7 @@ public final class NodeValidator {
 			commands.add("partition-generation");
 			commands.add("build");
 
-			boolean validateCluster = def.validateClusterName;
-			if (validateCluster) {
+			if (def.clusterName != null) {
 				commands.add("cluster-name");
 			}
 
@@ -247,7 +246,7 @@ public final class NodeValidator {
 				Info.request(conn, "user-agent-set:value=" + getB64userAgent(def));
 			}
 
-			if (validateCluster) {
+			if (def.clusterName != null) {
 				validateClusterName(def, map);
 			}
 

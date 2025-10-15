@@ -69,7 +69,6 @@ public class ClusterDefinition {
 	int maxErrorRate = 100;
 	int errorRateWindow = 1;
     boolean failIfNotConnected = true;
-	boolean validateClusterName;
     boolean useServicesAlternate;
 	boolean forceSingleNode;
 
@@ -133,7 +132,6 @@ public class ClusterDefinition {
 		this.maxErrorRate = other.maxErrorRate;
 		this.errorRateWindow = other.errorRateWindow;
 		this.failIfNotConnected = other.failIfNotConnected;
-		this.validateClusterName = other.validateClusterName;
 		this.useServicesAlternate = other.useServicesAlternate;
 		this.hosts = other.hosts;
     }
@@ -347,19 +345,6 @@ public class ClusterDefinition {
 	 */
     public ClusterDefinition failIfNotConnected(boolean failIfNotConnected) {
         this.failIfNotConnected = failIfNotConnected;
-        return this;
-    }
-
-	/**
-	 * When validateClusterName is true and clusterName is populated, verify that
-	 * clusterName matches the cluster-name field in the service section in each server
-	 * configuration. This ensures that the specified seed nodes belong to the expected cluster on
-	 * startup. If not, the client will refuse to add the node to the client's view of the cluster.
-	 * <p>
-	 * Default: false
-	 */
-    public ClusterDefinition validateClusterName(boolean validateClusterName) {
-        this.validateClusterName = validateClusterName;
         return this;
     }
 
