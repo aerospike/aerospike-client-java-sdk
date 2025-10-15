@@ -26,8 +26,8 @@ import com.aerospike.client.fluent.Record;
 import com.aerospike.client.fluent.ResultCode;
 import com.aerospike.client.fluent.metrics.LatencyType;
 
-public final class SyncOperateExecutor extends SyncExecutor {
-	private final OperateCommand operate;
+public class SyncOperateExecutor extends SyncExecutor {
+	final OperateCommand operate;
 	private Record record;
 
 	public SyncOperateExecutor(Cluster cluster, OperateCommand cmd) {
@@ -37,17 +37,17 @@ public final class SyncOperateExecutor extends SyncExecutor {
 	}
 
 	@Override
-	protected boolean isWrite() {
+	protected final boolean isWrite() {
 		return true;
 	}
 
 	@Override
-	protected Node getNode() {
+	protected final Node getNode() {
 		return operate.partition.getNodeWrite(cluster);
 	}
 
 	@Override
-	protected LatencyType getLatencyType() {
+	protected final LatencyType getLatencyType() {
 		return LatencyType.WRITE;
 	}
 
@@ -83,7 +83,7 @@ public final class SyncOperateExecutor extends SyncExecutor {
 	}
 
 	@Override
-	protected boolean prepareRetry(boolean timeout) {
+	protected final boolean prepareRetry(boolean timeout) {
 		operate.partition.prepareRetryWrite(timeout);
 		return true;
 	}
@@ -95,7 +95,7 @@ public final class SyncOperateExecutor extends SyncExecutor {
 		}
 	}
 
-	public Record getRecord() {
+	public final Record getRecord() {
 		return record;
 	}
 }

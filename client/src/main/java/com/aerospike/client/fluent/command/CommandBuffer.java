@@ -60,6 +60,43 @@ public final class CommandBuffer {
 		compress(cmd);
 	}
 
+	//--------------------------------------------------
+	// Transaction Monitor
+	//--------------------------------------------------
+
+	public final void setTxnAddKeys(OperateCommand cmd) {
+		begin();
+		int fieldCount = estimateKeySize(cmd.key);
+		dataOffset += cmd.size;
+
+		sizeBuffer();
+
+		dataBuffer[8]  = Command.MSG_REMAINING_HEADER_SIZE;
+		dataBuffer[9]  = (byte)cmd.readAttr;
+		dataBuffer[10] = (byte)cmd.writeAttr;
+		dataBuffer[11] = (byte)0;
+		dataBuffer[12] = 0;
+		dataBuffer[13] = 0;
+		Buffer.intToBytes(0, dataBuffer, 14);
+		Buffer.intToBytes(cmd.ttl, dataBuffer, 18);
+		Buffer.intToBytes(cmd.serverTimeout, dataBuffer, 22);
+		Buffer.shortToBytes(fieldCount, dataBuffer, 26);
+		Buffer.shortToBytes(cmd.ops.length, dataBuffer, 28);
+		dataOffset = Command.MSG_TOTAL_HEADER_SIZE;
+
+		writeKey(cmd.key);
+
+		for (Operation op : cmd.ops) {
+			writeOperation(op);
+		}
+		end();
+		compress(cmd);
+	}
+
+	//--------------------------------------------------
+	// Command Sizing
+	//--------------------------------------------------
+
 	private int estimateKeySize(Command cmd, Key key, boolean hasWrite) {
 		int fieldCount = estimateKeySize(key);
 
@@ -120,6 +157,10 @@ public final class CommandBuffer {
 	private void sizeBuffer() {
 		dataBuffer = new byte[dataOffset];
 	}
+
+	//--------------------------------------------------
+	// Command Writes
+	//--------------------------------------------------
 
 	private final void writeHeaderOperate(OperateCommand cmd, int fieldCount) {
 		// Set flags.
@@ -295,6 +336,10 @@ public final class CommandBuffer {
 		dataOffset += nameLength + valueLength;
 	}
 
+	//--------------------------------------------------
+	// Command begin/end
+	//--------------------------------------------------
+
 	private void begin() {
 		dataOffset = Command.MSG_TOTAL_HEADER_SIZE;
 	}
@@ -304,6 +349,10 @@ public final class CommandBuffer {
 		long proto = (dataOffset - 8) | (Command.CL_MSG_VERSION << 56) | (Command.AS_MSG_TYPE << 48);
 		Buffer.longToBytes(proto, dataBuffer, 0);
 	}
+
+	//--------------------------------------------------
+	// Command compress
+	//--------------------------------------------------
 
 	private final void compress(Command cmd) {
 		if (cmd.compress && dataOffset > Command.COMPRESS_THRESHOLD) {
@@ -328,6 +377,10 @@ public final class CommandBuffer {
 			}
 		}
 	}
+
+	//--------------------------------------------------
+	// Getters
+	//--------------------------------------------------
 
 	public byte[] getBuffer() {
 		return dataBuffer;

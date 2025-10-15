@@ -16,27 +16,33 @@
  */
 package com.aerospike.client.fluent.command;
 
-public final class TxnAddKeys {
-	/*
-	private final OperateArgs args;
+import java.io.IOException;
 
-	public TxnAddKeys(Cluster cluster, Txn txn, WritePolicy policy, Key key, OperateArgs args) {
-		super(cluster, txn, policy, key);
-		this.args = args;
+import com.aerospike.client.fluent.AerospikeException;
+import com.aerospike.client.fluent.Cluster;
+import com.aerospike.client.fluent.Connection;
+import com.aerospike.client.fluent.Node;
+import com.aerospike.client.fluent.ResultCode;
+
+public final class SyncTxnAddKeysExecutor extends SyncOperateExecutor {
+	public SyncTxnAddKeysExecutor(Cluster cluster, OperateCommand cmd) {
+		super(cluster, cmd);
 	}
 
 	@Override
-	protected void writeBuffer() {
-		// TODO: Fill in ttl.
-		setTxnAddKeys(writePolicy, key, 0, args);
+	protected CommandBuffer getCommandBuffer() {
+		CommandBuffer cb = new CommandBuffer();
+		cb.setTxnAddKeys(operate);
+		return cb;
 	}
 
 	@Override
-	protected void parseResult(Node node, Connection conn) throws IOException {
-		RecordParser rp = new RecordParser(conn, dataBuffer);
-		rp.parseTranDeadline(txn);
+	protected void parseResult(Node node, Connection conn, byte[] buffer) throws IOException {
+		RecordParser rp = new RecordParser(conn, buffer);
+		rp.parseTranDeadline(cmd.txn);
+
 		if (node.isMetricsEnabled()) {
-			node.addBytesIn(namespace, rp.bytesIn);
+			node.addBytesIn(cmd.namespace, rp.bytesIn);
 		}
 
 		if (rp.resultCode == ResultCode.OK) {
@@ -44,5 +50,9 @@ public final class TxnAddKeys {
 		}
 
 		throw new AerospikeException(rp.resultCode, "Server error");
-	}*/
+	}
+
+	@Override
+	protected void onInDoubt() {
+	}
 }

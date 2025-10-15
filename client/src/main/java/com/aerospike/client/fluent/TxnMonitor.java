@@ -16,6 +16,7 @@
  */
 package com.aerospike.client.fluent;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -23,8 +24,14 @@ import com.aerospike.client.fluent.cdt.ListOperation;
 import com.aerospike.client.fluent.cdt.ListOrder;
 import com.aerospike.client.fluent.cdt.ListPolicy;
 import com.aerospike.client.fluent.cdt.ListWriteFlags;
+import com.aerospike.client.fluent.command.OperateCommand;
+import com.aerospike.client.fluent.command.SyncTxnAddKeysExecutor;
 import com.aerospike.client.fluent.policy.BatchPolicy;
+import com.aerospike.client.fluent.policy.BehaviorBuilder;
 import com.aerospike.client.fluent.policy.Policy;
+import com.aerospike.client.fluent.policy.ReadModeAP;
+import com.aerospike.client.fluent.policy.ReadModeSC;
+import com.aerospike.client.fluent.policy.SettableWritePolicy;
 import com.aerospike.client.fluent.policy.WritePolicy;
 
 public final class TxnMonitor {
@@ -51,7 +58,7 @@ public final class TxnMonitor {
 		addWriteKeys(txn, cluster, policy, ops);
 	}
 
-	public static void addKeys(Txn txn, Cluster cluster, Policy policy, List<Key> keys) {
+	public static void addKeys(Txn txn, Cluster cluster, SettableWritePolicy policy, List<Key> keys) {
 		Operation[] ops = getTranOps(txn, keys);
 		addWriteKeys(txn, cluster, policy, ops);
 	}
@@ -148,29 +155,28 @@ public final class TxnMonitor {
 		*/
 	}
 
-	public static Key getTxnMonitorKey(Txn txn) {
-		return new Key(txn.getNamespace(), "<ERO~MRT", txn.getId());
+	private static void addWriteKeys(Txn txn, Cluster cluster, SettableWritePolicy policy, Operation[] ops) {
+		Key txnKey = getTxnMonitorKey(txn);
+
+		SettableWritePolicy txnPolicy = new BehaviorBuilder().onRetryableWrites()
+			.waitForConnectionToComplete(Duration.ofMillis(policy.getConnectTimeout()))
+			.waitForCallToComplete(Duration.ofMillis(policy.getSocketTimeout()))
+			.abandonCallAfter(Duration.ofMillis(policy.getTotalTimeout()))
+			.waitForSocketResponseAfterCallFails(Duration.ofMillis(policy.getTimeoutDelay()))
+			.maximumNumberOfCallAttempts(policy.getMaxRetries() + 1)
+			.delayBetweenRetries(Duration.ofMillis(policy.getSleepBetweenRetries()))
+			.useCompression(policy.getCompress())
+			.getPolicy();
+
+        OperateCommand cmd = new OperateCommand(cluster, txn, txnKey, OpType.UPSERT,
+			0, txn.getTimeout(), ReadModeAP.ONE, ReadModeSC.SESSION, txnPolicy, ops
+			);
+
+        SyncTxnAddKeysExecutor exec = new SyncTxnAddKeysExecutor(cluster, cmd);
+    	exec.execute();
 	}
 
-	public static WritePolicy copyTimeoutPolicy(Policy policy) {
-		/*
-		// Inherit some fields from the original command's policy.
-		WritePolicy wp = new WritePolicy();
-		wp.connectTimeout = policy.connectTimeout;
-		wp.socketTimeout = policy.socketTimeout;
-		wp.totalTimeout = policy.totalTimeout;
-		wp.timeoutDelay = policy.timeoutDelay;
-		wp.maxRetries = policy.maxRetries;
-		wp.sleepBetweenRetries = policy.sleepBetweenRetries;
-		wp.compress = policy.compress;
-		wp.respondAllOps = true;
-
-		// Note that the server only accepts the timeout on transaction monitor record create.
-		// The server ignores the transaction timeout field on successive transaction monitor
-		// record updates.
-		wp.expiration = policy.txn.getTimeout();
-		return wp;
-		*/
-		return null;
+	public static Key getTxnMonitorKey(Txn txn) {
+		return new Key(txn.getNamespace(), "<ERO~MRT", txn.getId());
 	}
 }
