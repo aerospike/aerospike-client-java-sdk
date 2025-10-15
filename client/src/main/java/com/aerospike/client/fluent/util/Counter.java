@@ -15,7 +15,7 @@
  * the License.
  */
 
-package com.aerospike.client.fluent;
+package com.aerospike.client.fluent.util;
 
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.ConcurrentHashMap;

@@ -27,6 +27,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import com.aerospike.client.fluent.AdminCommand.LoginCommand;
 import com.aerospike.client.fluent.command.SyncExecutor;
+import com.aerospike.client.fluent.util.Counter;
 import com.aerospike.client.fluent.util.Util;
 import com.aerospike.client.fluent.util.Version;
 
