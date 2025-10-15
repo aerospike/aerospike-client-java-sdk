@@ -26,7 +26,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReferenceArray;
 
 import com.aerospike.client.fluent.policy.Behavior;
-import com.aerospike.dsl.Index;
+import com.aerospike.client.fluent.dsl.Index;
 
 /**
  * Represents a connection to an Aerospike cluster.

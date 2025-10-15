@@ -596,7 +596,7 @@ public class BinsValuesBuilder implements FilterableOperation<BinsValuesBuilder>
                 opBuilder.showWarningsOnExceptionAndThrow(ae, txnToUse, key, ttl);
             }
         }
-        return new RecordStream(keyArray, recordArray, 0, 0, null);
+        return new RecordStream(keyArray, recordArray, 0, 0, null, true);
     }
 
     /**

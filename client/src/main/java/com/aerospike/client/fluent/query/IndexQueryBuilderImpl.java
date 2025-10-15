@@ -1,6 +1,7 @@
 package com.aerospike.client.fluent.query;
 
 import com.aerospike.client.fluent.DataSet;
+import com.aerospike.client.fluent.Log;
 import com.aerospike.client.fluent.RecordStream;
 import com.aerospike.client.fluent.Session;
 
@@ -12,9 +13,40 @@ class IndexQueryBuilderImpl extends QueryImpl {
     }
 
     @Override
+    public boolean allowsSecondaryIndexQuery() {
+        return true;
+    }
+    @Override
     public RecordStream execute() {
-    	return null;
-    	/*
+        if (getQueryBuilder().getTxnToUse() != null) {
+            return executeSync();
+        } else {
+            return executeAsync();
+        }
+    }
+
+    @Override
+    public RecordStream executeSync() {
+        return executeInternal();
+    }
+
+    @Override
+    public RecordStream executeAsync() {
+        if (getQueryBuilder().getTxnToUse() != null && Log.warnEnabled()) {
+            Log.warn(
+                "executeAsync() called within a transaction. " +
+                "Async operations may still be in flight when commit() is called, " +
+                "which could lead to inconsistent state. " +
+                "Consider using executeSync() or execute() for transactional safety."
+            );
+        }
+        // Index queries stream results; async and sync behave similarly
+        return executeInternal();
+    }
+    
+    private RecordStream executeInternal() {
+		return null;
+	/*
         QueryPolicy queryPolicy = getSession().getBehavior().getMutablePolicy(CommandType.QUERY);
         if (this.getQueryBuilder().getWithNoBins()) {
             queryPolicy.includeBinData = false;

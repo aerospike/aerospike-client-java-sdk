@@ -5,10 +5,15 @@ import java.util.List;
 
 import com.aerospike.client.fluent.DataSet;
 import com.aerospike.client.fluent.Key;
+import com.aerospike.client.fluent.Log;
 import com.aerospike.client.fluent.Partition;
+import com.aerospike.client.fluent.RecordMapper;
 import com.aerospike.client.fluent.RecordStream;
+import com.aerospike.client.fluent.ResultCode;
 import com.aerospike.client.fluent.Session;
 import com.aerospike.client.fluent.Txn;
+import com.aerospike.client.fluent.dsl.BooleanExpression;
+import com.aerospike.client.fluent.exp.Exp;
 
 /**
  * Builder class for constructing and executing queries against Aerospike.
@@ -54,7 +59,7 @@ import com.aerospike.client.fluent.Txn;
  * @see SortDir
  * @see SortProperties
  */
-public class QueryBuilder {
+public class QueryBuilder implements KeyBasedQueryBuilderInterface<QueryBuilder> {
     private final QueryImpl implementation;
     private String[] binNames = null;
     private boolean withNoBins = false;
@@ -62,8 +67,9 @@ public class QueryBuilder {
     private int pageSize = 0;
     private int startPartition = 0;
     private int endPartition = 4096;
-    String dslString = null;
-    //private BooleanExpression dsl = null;
+    protected boolean respondAllKeys = false;
+    protected boolean failOnFilteredOut = false;
+    private WhereClauseProcessor dsl = null;
     private List<SortProperties> sortInfo = null;
     private Txn txnToUse;
 
@@ -335,7 +341,47 @@ public class QueryBuilder {
         this.sortInfo.add(new SortProperties(field, sortDir, caseSensitive));
         return this;
     }
-
+    
+    /**
+     * If the query has a `where` clause and is provided either a single key or a list of keys,
+     * any records which are filtered out will appear in the
+     * stream against an exception code of {@link ResultCode.FILTERED_OUT} rather than just not 
+     * appearing in the result stream.
+     * @return this QueryBuilder for method chaining
+     */
+    public QueryBuilder failOnFilteredOut() {
+        this.failOnFilteredOut = true;
+        return this;
+    }
+    
+    protected boolean isFailOnFilteredOut() {
+        return this.failOnFilteredOut;
+    }
+    
+    /**
+     * By default, if a key is provided (or is part of a list of keys) but the key does not map to a record
+     * then nothing will be returned in the stream against that key. However, if this flag is specified, {@code null} will be
+     * in the stream again that key.
+     * @return this QueryBuilder for method chaining
+     */
+    public QueryBuilder respondAllKeys() {
+        this.respondAllKeys = true;
+        return this;
+    }
+    
+    protected boolean isRespondAllKeys() {
+        return this.respondAllKeys;
+    }
+    
+    private void setWhereClause(WhereClauseProcessor clause) {
+        if (this.dsl == null) {
+            this.dsl = clause;
+        }
+        else {
+            throw new IllegalArgumentException("Only one 'where' clause can be specified. There is already one of '%s' and another is being set to '%s'"
+                    .formatted(this.dsl, clause));
+        }
+    }
     /**
      * Adds a filter condition using a DSL string.
      *
@@ -360,24 +406,17 @@ public class QueryBuilder {
      * @throws IllegalArgumentException if multiple filter conditions are specified
      */
     public QueryBuilder where(String dsl, Object ... params) {
-    	/*
-        if (this.dslString != null && !this.dslString.equals(dsl)) {
-            throw new IllegalArgumentException(String.format("different DSL strings have been provided in 'where' clauses. The first is \"%s\", the second is \"%s\"",
-                    this.dslString, dsl));
-        }
-        if (this.dsl != null) {
-            throw new IllegalArgumentException("A Dsl as a string and a DSL as an expression cannot both be specified.");
-        }
+        WhereClauseProcessor impl;
         if (dsl == null || dsl.isEmpty()) {
-            this.dslString = null;
+            impl = null;
         }
         else if (params.length == 0) {
-            this.dslString = dsl;
+            impl = WhereClauseProcessor.from(this.implementation.allowsSecondaryIndexQuery(), dsl);
         }
         else {
-            this.dslString = String.format(dsl, params);
+            impl = WhereClauseProcessor.from(this.implementation.allowsSecondaryIndexQuery(), String.format(dsl, params));
         }
-        */
+        setWhereClause(impl);
         return this;
     }
 
@@ -405,15 +444,32 @@ public class QueryBuilder {
      * @return this QueryBuilder for method chaining
      * @throws IllegalArgumentException if multiple filter conditions are specified
      */
-    /*
     public QueryBuilder where(BooleanExpression dsl) {
-        if (this.dslString != null || this.dsl != null) {
-            throw new IllegalArgumentException("Multiple .where(...) conditions cannot be specified.");
-        }
-        this.dsl = dsl;
+        setWhereClause(WhereClauseProcessor.from(dsl));
         return this;
     }
-	*/
+    
+    public QueryBuilder where(PreparedDsl dsl, Object ... params) {
+        setWhereClause(WhereClauseProcessor.from(this.implementation.allowsSecondaryIndexQuery(), dsl, params));
+        return this;
+    }
+    /**
+     * Add a filter condition using a Exp operation. 
+     * 
+     * <p>Note: This method may be deprecated in the future -- use a string version instead.</p>
+     * <p>Note: If this method is used, no secondary index can be used. </p>
+     * 
+     * <p>Only one filter condition can be specified per query. Multiple calls
+     * to this method or {@link #where(String)} will throw an exception.</p>
+     * 
+     * @param exp - The expression to validate the records against.
+     * @return
+     */
+    public QueryBuilder where(Exp exp) {
+        setWhereClause(WhereClauseProcessor.from(exp));
+        return this;
+    }
+	
     /**
      * Gets the bin names to read.
      *
@@ -538,7 +594,60 @@ public class QueryBuilder {
      * @return a RecordStream containing the query results
      * @see RecordStream
      */
+    @Override
     public RecordStream execute() {
-        return this.implementation.execute();
+        // Default: async unless in transaction
+        if (txnToUse != null) {
+            return executeSync();
+        } else {
+            return executeAsync();
+        }
+    }
+    
+    /**
+     * Execute the query synchronously. All operations complete before this method returns.
+     * <p>
+     * Use this when you need guaranteed completion before proceeding, or when in a transaction.
+     * Operations are still parallelized internally using virtual threads, but all threads
+     * are joined before returning.
+     * 
+     * @return RecordStream containing the results
+     */
+    @Override
+    public RecordStream executeSync() {
+        if (Log.debugEnabled()) {
+            Log.debug("QueryBuilder.executeSync() called, transaction: " + (txnToUse != null ? "yes" : "no"));
+        }
+        return this.implementation.executeSync();
+    }
+    
+    /**
+     * Execute the query asynchronously using virtual threads for parallel execution.
+     * Results are streamed as they become available.
+     * <p>
+     * <b>WARNING:</b> Using this in transactions may lead to operations still being in flight
+     * when commit() is called, potentially leading to inconsistent state. A warning will be logged.
+     * 
+     * @return RecordStream that will be populated as results arrive
+     */
+    @Override
+    public RecordStream executeAsync() {
+        if (Log.debugEnabled()) {
+            Log.debug("QueryBuilder.executeAsync() called, transaction: " + (txnToUse != null ? "yes" : "no"));
+        }
+        
+        if (txnToUse != null && Log.warnEnabled()) {
+            Log.warn(
+                "executeAsync() called within a transaction. " +
+                "Async operations may still be in flight when commit() is called, " +
+                "which could lead to inconsistent state. " +
+                "Consider using executeSync() or execute() for transactional safety."
+            );
+        }
+        return this.implementation.executeAsync();
+    }
+    
+    protected WhereClauseProcessor getDsl() {
+        return this.dsl;
     }
 }

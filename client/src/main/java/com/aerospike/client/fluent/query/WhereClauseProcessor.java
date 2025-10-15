@@ -9,14 +9,15 @@ import com.aerospike.client.fluent.Session;
 import com.aerospike.client.fluent.Value;
 import com.aerospike.client.fluent.dsl.BooleanExpression;
 import com.aerospike.client.fluent.exp.Exp;
-import com.aerospike.dsl.DslParseException;
-import com.aerospike.dsl.ExpressionContext;
-import com.aerospike.dsl.Index;
-import com.aerospike.dsl.IndexContext;
-import com.aerospike.dsl.ParseResult;
-import com.aerospike.dsl.ParsedExpression;
-import com.aerospike.dsl.api.DSLParser;
-import com.aerospike.dsl.impl.DSLParserImpl;
+import com.aerospike.client.fluent.dsl.stub.DslParseException;
+import com.aerospike.client.fluent.dsl.stub.ExpressionContext;
+import com.aerospike.client.fluent.dsl.Index;
+import com.aerospike.client.fluent.dsl.stub.IndexContext;
+import com.aerospike.client.fluent.cdt.*;
+import com.aerospike.client.fluent.dsl.ParseResult;
+import com.aerospike.client.fluent.dsl.stub.ParsedExpression;
+import com.aerospike.client.fluent.dsl.stub.DSLParser;
+import com.aerospike.client.fluent.dsl.stub.DSLParserImpl;
 
 public abstract class WhereClauseProcessor {
     protected final boolean allowsIndex;
@@ -73,10 +74,7 @@ public abstract class WhereClauseProcessor {
     }
 
     public ParseResult process(String dsl, String namespace, Session session) {
-    	// TODO Resolve issue that dsl library depends on old client!
-    	return null;
-    	/*
-       DSLParser parser = new DSLParserImpl();
+        DSLParser parser = new DSLParserImpl();
 
         ParsedExpression parseResult;
         IndexContext indexContext = null;
@@ -113,7 +111,6 @@ public abstract class WhereClauseProcessor {
         }
 
         return result;
-        */
     }
 
     private static class WhereStringImpl extends WhereClauseProcessor {
@@ -155,9 +152,7 @@ public abstract class WhereClauseProcessor {
 
         @Override
         public ParseResult process(String namespace, Session session) {
-        	// TODO Resolve issue that dsl library depends on old client!
-        	return null;
-            // return new ParseResult(null, dsl.toAerospikeExp());
+             return new ParseResult(null, dsl.toAerospikeExp());
         }
     }
 
@@ -170,9 +165,7 @@ public abstract class WhereClauseProcessor {
 
         @Override
         public ParseResult process(String namespace, Session session) {
-        	// TODO Resolve issue that dsl library depends on old client!
-        	return null;
-            //return new ParseResult(null, dsl);
+            return new ParseResult(null, dsl);
         }
     }
 

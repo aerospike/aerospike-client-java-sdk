@@ -9,9 +9,9 @@ public class SingleItemRecordStream implements RecordStreamImpl {
     private boolean read = false;
     private boolean isFirstPage = true;
 
-    public SingleItemRecordStream(Key key, Record record) {
+    public SingleItemRecordStream(Key key, Record record, boolean respondAllOps) {
         this.record = new RecordResult(key, record);
-        if (record == null) {
+        if (record == null && !respondAllOps) {
             // no data, mark as read
             this.read = true;
         }

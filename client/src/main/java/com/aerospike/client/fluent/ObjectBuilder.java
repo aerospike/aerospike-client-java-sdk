@@ -18,7 +18,7 @@ import com.aerospike.client.fluent.policy.BatchWritePolicy;
 import com.aerospike.client.fluent.policy.Behavior.CommandType;
 import com.aerospike.client.fluent.policy.GenerationPolicy;
 import com.aerospike.client.fluent.policy.WritePolicy;
-import com.aerospike.dsl.ParseResult;
+import com.aerospike.client.fluent.dsl.ParseResult;
 
 public class ObjectBuilder<T> {
     private final OperationObjectBuilder<T> opBuilder;
