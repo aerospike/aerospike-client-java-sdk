@@ -44,7 +44,7 @@ public class ClusterTend implements Runnable {
     ClusterTend(Cluster cluster) {
     	this.cluster = cluster;
     	this.def = cluster.def;
-    	this.seeds = cluster.def.getHosts();
+    	this.seeds = cluster.def.getEffectiveHosts();
 		this.nodesMap = new HashMap<String,Node>();
 
 		this.recoverCount = new AtomicInteger();

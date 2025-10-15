@@ -540,15 +540,14 @@ public class ClusterDefinition {
      */
     public Cluster connect() {
         ClusterDefinition def = new ClusterDefinition(this);
-        Host[] seeds = def.getEffectiveHosts();
-    	return new Cluster(def, seeds);
+    	return new Cluster(def);
     }
 
     /**
      * Gets the effective hosts array, potentially creating new Host instances with TLS names
      * if TLS is configured and the existing hosts don't have TLS names set.
      */
-    private Host[] getEffectiveHosts() {
+    Host[] getEffectiveHosts() {
         // If no TLS configuration or no TLS name specified, return original hosts
         if (tlsBuilder == null || !tlsBuilder.isTlsEnabled() || tlsBuilder.getTlsName() == null) {
             return hosts;
@@ -570,10 +569,6 @@ public class ClusterDefinition {
         }
 
         return newHosts;
-    }
-
-    Host[] getHosts() {
-    	return hosts;
     }
 
     boolean isRackAware() {

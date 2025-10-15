@@ -66,7 +66,7 @@ public class Cluster implements Closeable {
 	private IndexesMonitor indexesMonitor;
     private RecordMappingFactory recordMappingFactory = null;
 
-    Cluster(ClusterDefinition def, Host[] seeds) {
+    Cluster(ClusterDefinition def) {
         this.def = def;
 		nodes = new Node[0];
 		partitionMap = new HashMap<String,Partitions>();
