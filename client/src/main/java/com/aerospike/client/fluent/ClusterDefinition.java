@@ -213,16 +213,15 @@ public class ClusterDefinition {
     }
 
     /**
-     * Validates that the cluster name matches the expected value.
+     * Set cluster name. This field is used to identify the cluster in metrics and logs.
+     * This field is also used to validate that the server cluster name matches on initial
+     * contact with the server node. If the actual cluster name doesn't match, the node
+     * will not be added to the client's view of the cluster.
      *
-     * <p>This enables cluster name validation to ensure the client connects to
-     * the expected cluster. If the actual cluster name doesn't match, the connection
-     * will fail.</p>
-     *
-     * @param clusterName the expected cluster name to validate against
+     * @param clusterName the assigned cluster name
      * @return this ClusterDefinition for method chaining
      */
-    public ClusterDefinition validateClusterNameIs(String clusterName) {
+    public ClusterDefinition clusterName(String clusterName) {
         this.clusterName = clusterName;
         return this;
     }
