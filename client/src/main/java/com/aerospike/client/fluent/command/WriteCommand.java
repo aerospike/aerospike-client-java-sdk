@@ -22,7 +22,6 @@ import com.aerospike.client.fluent.OpType;
 import com.aerospike.client.fluent.Partition;
 import com.aerospike.client.fluent.Txn;
 import com.aerospike.client.fluent.policy.CommitLevel;
-import com.aerospike.client.fluent.policy.GenerationPolicy;
 import com.aerospike.client.fluent.policy.SettableWritePolicy;
 
 public class WriteCommand extends Command {
@@ -30,22 +29,19 @@ public class WriteCommand extends Command {
 	final Partition partition;
 	final OpType type;
 	final CommitLevel commitLevel;
-	final GenerationPolicy genPolicy;
 	final int gen;
 	final int ttl;
 	final boolean onLockingOnly;
 	final boolean durableDelete;
 
 	public WriteCommand(
-		Cluster cluster, Txn txn, Key key, OpType type, GenerationPolicy genPolicy, int gen,
-		int ttl, SettableWritePolicy policy
+		Cluster cluster, Txn txn, Key key, OpType type, int gen, int ttl, SettableWritePolicy policy
 	) {
 		super(cluster, key.namespace, txn, policy);
 		this.key = key;
 		this.partition = Partition.write(cluster, replica, key);
 		this.type = type;
 		this.commitLevel = CommitLevel.COMMIT_ALL;
-		this.genPolicy = genPolicy;
 		this.gen = gen;
 		this.ttl = ttl;
 		this.onLockingOnly = false;

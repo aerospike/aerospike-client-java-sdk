@@ -123,7 +123,7 @@ public final class CommandBuffer {
 
 	private final void writeHeaderOperate(OperateCommand cmd, int fieldCount) {
 		// Set flags.
-		int generation = 0;
+		int gen = 0;
 		int ttl = cmd.hasWrite ? cmd.ttl : cmd.readTouchTtlPercent;
 		int readAttr = cmd.readAttr;
 		int writeAttr = cmd.writeAttr;
@@ -149,17 +149,9 @@ public final class CommandBuffer {
 			break;
 		}
 
-		switch (cmd.genPolicy) {
-		case NONE:
-			break;
-		case EXPECT_GEN_EQUAL:
-			generation = cmd.gen;
+		if (cmd.gen > 0) {
+			gen = cmd.gen;
 			writeAttr |= Command.INFO2_GENERATION;
-			break;
-		case EXPECT_GEN_GT:
-			generation = cmd.gen;
-			writeAttr |= Command.INFO2_GENERATION_GT;
-			break;
 		}
 
 		if (cmd.commitLevel == CommitLevel.COMMIT_MASTER) {
@@ -203,7 +195,7 @@ public final class CommandBuffer {
 		dataBuffer[11] = (byte)infoAttr;
 		dataBuffer[12] = (byte)txnAttr;
 		dataBuffer[13] = 0; // clear the result code
-		Buffer.intToBytes(generation, dataBuffer, 14);
+		Buffer.intToBytes(gen, dataBuffer, 14);
 		Buffer.intToBytes(ttl, dataBuffer, 18);
 		Buffer.intToBytes(cmd.serverTimeout, dataBuffer, 22);
 		Buffer.shortToBytes(fieldCount, dataBuffer, 26);

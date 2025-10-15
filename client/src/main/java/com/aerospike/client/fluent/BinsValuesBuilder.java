@@ -569,20 +569,10 @@ public class BinsValuesBuilder implements FilterableOperation<BinsValuesBuilder>
             ValueData valueSet = valueSets.get(key);
             Operation[] ops = getOperationsForValueData(valueSet);
 
-            GenerationPolicy genPolicy;
-
-            if (valueSet.generation != 0) {
-            	// TODO: Why EXPECT_GEN_GT not supported?
-                genPolicy = GenerationPolicy.EXPECT_GEN_EQUAL;
-            }
-            else {
-            	genPolicy = GenerationPolicy.NONE;
-            }
-
             int ttl = getExpiration(valueSet);
 
             OperateCommand cmd = new OperateCommand(cluster, txnToUse, key, opBuilder.opType,
-				genPolicy, valueSet.generation, ttl, readModeAP, readModeSC, policy, ops
+				valueSet.generation, ttl, readModeAP, readModeSC, policy, ops
 				);
 
             try {
