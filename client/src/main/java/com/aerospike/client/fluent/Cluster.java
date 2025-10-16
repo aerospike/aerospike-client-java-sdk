@@ -61,6 +61,7 @@ public class Cluster implements Closeable {
 	private final AtomicLong retryCount;
 	private final AtomicInteger nodeIndex;
 	final AtomicInteger replicaIndex;
+	final Log.Context context;
 	private boolean metricsEnabled;
 
 	private IndexesMonitor indexesMonitor;
@@ -74,8 +75,11 @@ public class Cluster implements Closeable {
 		retryCount = new AtomicLong();
 		nodeIndex = new AtomicInteger();
 		replicaIndex = new AtomicInteger();
-        //this.indexesMonitor = new IndexesMonitor();
+		context = def.context;
+
+		//this.indexesMonitor = new IndexesMonitor();
         //this.indexesMonitor.startMonitor(createSession(Behavior.DEFAULT), INDEX_REFRESH);
+
 		tend = new ClusterTend(this);
 
 		if (def.forceSingleNode) {
@@ -252,7 +256,7 @@ public class Cluster implements Closeable {
 					Node node = nodeArray.get(j);
 
 					if (node != null) {
-						Log.info(namespace + ',' + i + ',' + j + ',' + node);
+						Log.info(context, namespace + ',' + i + ',' + j + ',' + node);
 					}
 				}
 			}

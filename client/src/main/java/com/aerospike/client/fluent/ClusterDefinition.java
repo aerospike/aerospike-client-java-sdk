@@ -54,6 +54,7 @@ public class ClusterDefinition {
     byte[] password;
     byte[] passwordHash;
     int[] rackIds;
+	Log.Context context;
     private Level logLevel = Level.INFO;
     private Callback callback = null;  // TODO Handle custom log callback.
 	Map<String,String> ipMap;
@@ -117,6 +118,7 @@ public class ClusterDefinition {
 		this.password = other.password;
 		this.passwordHash = other.passwordHash;
 		this.rackIds = other.rackIds;
+		this.context = other.context;
 		this.logLevel = other.logLevel;
 		this.callback = other.callback;
 		this.ipMap = other.ipMap;
@@ -524,6 +526,7 @@ public class ClusterDefinition {
      */
     public Cluster connect() {
         ClusterDefinition def = new ClusterDefinition(this);
+        def.context = new Log.Context(def.clusterName);
     	return new Cluster(def);
     }
 

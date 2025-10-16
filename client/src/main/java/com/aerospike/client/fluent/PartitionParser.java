@@ -126,7 +126,7 @@ public final class PartitionParser extends Info {
 				}
 				else if (partitions.replicas.length != replicaCount) {
 					if (Log.infoEnabled()) {
-						Log.info("Namespace " + namespace + " replication factor changed from " + partitions.replicas.length + " to " + replicaCount);
+						Log.info(node.cluster.context, "Namespace " + namespace + " replication factor changed from " + partitions.replicas.length + " to " + replicaCount);
 					}
 
 					// Resize partition map.
@@ -200,7 +200,7 @@ public final class PartitionParser extends Info {
 				else {
 					if (!regimeError) {
 						if (Log.infoEnabled()) {
-							Log.info(node.toString() + " regime(" + regime + ") < old regime(" + regimeOld + ")");
+							Log.info(node.cluster.context, node.toString() + " regime(" + regime + ") < old regime(" + regimeOld + ")");
 						}
 						regimeError = true;
 					}

@@ -51,6 +51,27 @@ public final class Log {
 	}
 
 	/**
+	 * Additional context sent to log callback messages.
+	 */
+	public static class Context {
+		/**
+		 * Empty context for use when context is not available.
+		 */
+		public static final Context Empty = new Context("");
+
+		/**
+		 * Cluster name. Will be empty string if clusterName is not defined in ClusterDefinition
+		 * or the log message is not associated with a cluster.
+		 */
+		public final String clusterName;
+
+		public Context(String clusterName)
+		{
+			this.clusterName = clusterName;
+		}
+	}
+
+	/**
 	 * An object implementing this interface may be passed in to
 	 * {@link #setCallback(Callback callback) setCallback()},
 	 * so the caller can channel Aerospike client logs as desired.
@@ -59,10 +80,11 @@ public final class Log {
 		/**
 		 * This method will be called for each client log statement.
 		 *
-		 * @param level		{@link Level log level}
+		 * @param context	additional context associated with the log message
+		 * @param level		log level
 		 * @param message	log message
 		 */
-		public void log(Level level, String message);
+		public void log(Context context, Level level, String message);
 	}
 
 	private static volatile Level gLevel = Level.INFO;
@@ -134,38 +156,58 @@ public final class Log {
 
 	/**
 	 * Log an error message.
-	 *
-	 * @param message		message string not terminated with a newline
 	 */
 	public static void error(String message) {
 		log(Level.ERROR, message);
 	}
 
 	/**
-	 * Log a warning message.
-	 *
-	 * @param message		message string not terminated with a newline
+	 * Log an error message with context.
+	 */
+	public static void error(Context context, String message) {
+		log(context, Level.ERROR, message);
+	}
+
+	/**
+	 * Log warning message.
 	 */
 	public static void warn(String message) {
 		log(Level.WARN, message);
 	}
 
 	/**
-	 * Log an info message.
-	 *
-	 * @param message		message string not terminated with a newline
+	 * Log warning message with context.
+	 */
+	public static void warn(Context context, String message) {
+		log(context, Level.WARN, message);
+	}
+
+	/**
+	 * Log info message.
 	 */
 	public static void info(String message) {
 		log(Level.INFO, message);
 	}
 
 	/**
-	 * Log an debug message.
-	 *
-	 * @param message		message string not terminated with a newline
+	 * Log info message with context.
+	 */
+	public static void info(Context context, String message) {
+		log(context, Level.INFO, message);
+	}
+
+	/**
+	 * Log debug message.
 	 */
 	public static void debug(String message) {
 		log(Level.DEBUG, message);
+	}
+
+	/**
+	 * Log debug message with context.
+	 */
+	public static void debug(Context context, String message) {
+		log(context, Level.DEBUG, message);
 	}
 
 	/**
@@ -175,9 +217,19 @@ public final class Log {
 	 * @param message		message string not terminated with a newline
 	 */
 	public static void log(Level level, String message) {
-		if (gCallback != null && level.ordinal() <= gLevel.ordinal() ) {
+		if (gCallback != null && level.ordinal() <= gLevel.ordinal()) {
 			try {
-				gCallback.log(level, message);
+				gCallback.log(Context.Empty, level, message);
+			}
+			catch (Throwable e) {
+			}
+		}
+	}
+
+	public static void log(Context context, Level level, String message) {
+		if (gCallback != null && level.ordinal() <= gLevel.ordinal()) {
+			try {
+				gCallback.log(context, level, message);
 			}
 			catch (Throwable e) {
 			}
@@ -189,8 +241,23 @@ public final class Log {
 			DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss z").withZone(ZoneId.systemDefault());
 
 		@Override
-		public void log(Level level, String message) {
-			System.out.println(LocalDateTime.now().format(Formatter) + ' ' + level + ' ' + message);
+		public void log(Context context, Level level, String message) {
+			StringBuilder sb = new StringBuilder(message.length() + 128);
+
+			sb.append(LocalDateTime.now().format(Formatter));
+
+			if (context.clusterName != null && context.clusterName.length() > 0)
+			{
+				sb.append(' ');
+				sb.append(context.clusterName);
+			}
+
+			sb.append(' ');
+			sb.append(level.toString());
+			sb.append(' ');
+			sb.append(message);
+
+			System.out.println(sb.toString());
 		}
 	}
 }

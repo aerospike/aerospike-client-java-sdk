@@ -173,7 +173,7 @@ public class AdminCommand {
 					}
 					else {
 						if (Log.warnEnabled()) {
-							Log.warn("Invalid session TTL: " + seconds);
+							Log.warn(def.context, "Invalid session TTL: " + seconds);
 						}
 					}
 				}

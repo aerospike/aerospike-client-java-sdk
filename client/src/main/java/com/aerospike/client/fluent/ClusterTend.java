@@ -57,7 +57,7 @@ public class ClusterTend implements Runnable {
 
 		if (Log.debugEnabled()) {
 			for (Host host : seeds) {
-				Log.debug("Add seed " + host);
+				Log.debug(cluster.context, "Add seed " + host);
 			}
 		}
 
@@ -90,7 +90,7 @@ public class ClusterTend implements Runnable {
 			}
 			catch (Throwable e) {
 				if (Log.warnEnabled()) {
-					Log.warn("Cluster tend failed: " + Util.getErrorMessage(e));
+					Log.warn(cluster.context, "Cluster tend failed: " + Util.getErrorMessage(e));
 				}
 			}
 			// Sleep between polling intervals.
@@ -155,7 +155,7 @@ public class ClusterTend implements Runnable {
 				throw new AerospikeException(message);
 			}
 			else {
-				Log.warn(message);
+				Log.warn(cluster.context, message);
 			}
 		}
 	}
@@ -267,7 +267,7 @@ public class ClusterTend implements Runnable {
 			}
 			catch (Throwable t) {
 				if (Log.warnEnabled()) {
-					Log.warn("Dynamic configuration failed: " + t);
+					Log.warn(cluster.context, "Dynamic configuration failed: " + t);
 				}
 			}
 		}
@@ -310,7 +310,7 @@ public class ClusterTend implements Runnable {
 				}
 				else {
 					if (Log.warnEnabled()) {
-						Log.warn("Seed " + seed + " failed: " + Util.getErrorMessage(e));
+						Log.warn(cluster.context, "Seed " + seed + " failed: " + Util.getErrorMessage(e));
 					}
 				}
 			}
@@ -401,7 +401,7 @@ public class ClusterTend implements Runnable {
 		// Add new seeds
 		for (Host host : hosts) {
 			if (Log.debugEnabled()) {
-				Log.debug("Add seed " + host);
+				Log.debug(cluster.context, "Add seed " + host);
 			}
 			seedArray[count++] = host;
 		}
@@ -520,7 +520,7 @@ public class ClusterTend implements Runnable {
 
 	private void addNode(Node node) {
 		if (Log.infoEnabled()) {
-			Log.info("Add node " + node);
+			Log.info(cluster.context, "Add node " + node);
 		}
 
 		nodesMap.put(node.getName(), node);
@@ -572,7 +572,7 @@ public class ClusterTend implements Runnable {
 		for (Node node : cluster.nodes) {
 			if (nodesToRemove.contains(node)) {
 				if (Log.infoEnabled()) {
-					Log.info("Remove node " + node);
+					Log.info(cluster.context, "Remove node " + node);
 				}
 			}
 			else {
@@ -583,7 +583,7 @@ public class ClusterTend implements Runnable {
 		// Do sanity check to make sure assumptions are correct.
 		if (count < nodeArray.length) {
 			if (Log.warnEnabled()) {
-				Log.warn("Node remove mismatch. Expected " + nodeArray.length + " Received " + count);
+				Log.warn(cluster.context, "Node remove mismatch. Expected " + nodeArray.length + " Received " + count);
 			}
 			// Resize array.
 			Node[] nodeArray2 = new Node[count];

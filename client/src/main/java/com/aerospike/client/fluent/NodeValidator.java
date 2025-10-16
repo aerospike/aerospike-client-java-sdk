@@ -70,7 +70,7 @@ public final class NodeValidator {
 			catch (Throwable e) {
 				// Log exception and continue to next alias.
 				if (Log.debugEnabled()) {
-					Log.debug("Address " + address + ' ' + host.port + " failed: " +
+					Log.debug(cluster.context, "Address " + address + ' ' + host.port + " failed: " +
 						Util.getErrorMessage(e));
 				}
 
@@ -119,7 +119,7 @@ public final class NodeValidator {
 		// Node is valid. Drop fallback if it exists.
 		if (fallback != null) {
 			if (Log.infoEnabled()) {
-				Log.info("Skip orphan node: " + fallback);
+				Log.info(node.cluster.context, "Skip orphan node: " + fallback);
 			}
 			fallback.close();
 			fallback = null;
@@ -142,7 +142,7 @@ public final class NodeValidator {
 			catch (Throwable e) {
 				// Log exception and continue to next alias.
 				if (Log.debugEnabled()) {
-					Log.debug("Address " + address + ' ' + host.port + " failed: " +
+					Log.debug(def.context, "Address " + address + ' ' + host.port + " failed: " +
 						Util.getErrorMessage(e));
 				}
 
@@ -409,7 +409,7 @@ public final class NodeValidator {
 		// because the server access-address is not configured.  Log warning and continue
 		// with original seed.
 		if (Log.infoEnabled()) {
-			Log.info("Invalid address " + result + ". access-address is probably not configured on server.");
+			Log.info(def.context, "Invalid address " + result + ". access-address is probably not configured on server.");
 		}
 	}
 
