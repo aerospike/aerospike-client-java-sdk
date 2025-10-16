@@ -55,7 +55,7 @@ public final class BatchDeletePolicy {
 	 * <p>
 	 * Default: GenerationPolicy.NONE
 	 */
-	public GenerationPolicy generationPolicy = GenerationPolicy.NONE;
+	//public GenerationPolicy generationPolicy = GenerationPolicy.NONE;
 
 	/**
 	 * Expected generation. Generation is the number of times a record has been modified
@@ -106,7 +106,7 @@ public final class BatchDeletePolicy {
 	public BatchDeletePolicy(BatchDeletePolicy other) {
 		this.filterExp = other.filterExp;
 		this.commitLevel = other.commitLevel;
-		this.generationPolicy = other.generationPolicy;
+		//this.generationPolicy = other.generationPolicy;
 		this.generation = other.generation;
 		this.durableDelete = other.durableDelete;
 		this.sendKey = other.sendKey;
@@ -161,10 +161,6 @@ public final class BatchDeletePolicy {
 
 	public void setCommitLevel(CommitLevel commitLevel) {
 		this.commitLevel = commitLevel;
-	}
-
-	public void setGenerationPolicy(GenerationPolicy generationPolicy) {
-		this.generationPolicy = generationPolicy;
 	}
 
 	public void setGeneration(int generation) {

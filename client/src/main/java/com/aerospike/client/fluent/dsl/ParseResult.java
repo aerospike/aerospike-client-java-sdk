@@ -10,20 +10,20 @@ import com.aerospike.client.fluent.query.Filter;
 public class ParseResult {
     private final Filter filter;
     private final Exp exp;
-    
+
     public ParseResult(Filter filter, Exp exp) {
         this.filter = filter;
         this.exp = exp;
     }
-    
+
     public Exp getExp() {
         return exp;
     }
-    
+
     public Filter getFilter() {
         return filter;
     }
-    
+
     public boolean hasFilter() {
         return filter != null;
     }

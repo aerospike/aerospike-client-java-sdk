@@ -65,7 +65,7 @@ public final class BatchWritePolicy {
 	 * <p>
 	 * Default: GenerationPolicy.NONE
 	 */
-	public GenerationPolicy generationPolicy = GenerationPolicy.NONE;
+	//public GenerationPolicy generationPolicy = GenerationPolicy.NONE;
 
 	/**
 	 * Expected generation. Generation is the number of times a record has been modified
@@ -151,7 +151,7 @@ public final class BatchWritePolicy {
 		this.filterExp = other.filterExp;
 		//this.recordExistsAction = other.recordExistsAction;
 		this.commitLevel = other.commitLevel;
-		this.generationPolicy = other.generationPolicy;
+		//this.generationPolicy = other.generationPolicy;
 		this.generation = other.generation;
 		this.expiration = other.expiration;
 		this.durableDelete = other.durableDelete;
@@ -213,10 +213,6 @@ public final class BatchWritePolicy {
 
 	public void setCommitLevel(CommitLevel commitLevel) {
 		this.commitLevel = commitLevel;
-	}
-
-	public void setGenerationPolicy(GenerationPolicy generationPolicy) {
-		this.generationPolicy = generationPolicy;
 	}
 
 	public void setGeneration(int generation) {

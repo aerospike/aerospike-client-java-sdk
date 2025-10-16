@@ -45,7 +45,7 @@ public final class WritePolicy extends Policy {
 	 * <p>
 	 * Default: GenerationPolicy.NONE
 	 */
-	public GenerationPolicy generationPolicy = GenerationPolicy.NONE;
+	//public GenerationPolicy generationPolicy = GenerationPolicy.NONE;
 
 	/**
 	 * Desired consistency guarantee when committing a command on the server. The default
@@ -163,7 +163,7 @@ public final class WritePolicy extends Policy {
 	public WritePolicy(WritePolicy other) {
 		super(other);
 		this.recordExistsAction = other.recordExistsAction;
-		this.generationPolicy = other.generationPolicy;
+		//this.generationPolicy = other.generationPolicy;
 		this.commitLevel = other.commitLevel;
 		this.generation = other.generation;
 		this.expiration = other.expiration;
@@ -193,7 +193,7 @@ public final class WritePolicy extends Policy {
 		final int prime = 31;
 		int result = super.hashCode();
 		result = prime * result + Objects.hash(commitLevel, durableDelete, expiration, onLockingOnly, generation,
-				generationPolicy, recordExistsAction, respondAllOps, xdr);
+				recordExistsAction, respondAllOps, xdr);
 		return result;
 	}
 
@@ -211,7 +211,7 @@ public final class WritePolicy extends Policy {
 		WritePolicy other = (WritePolicy) obj;
 		return commitLevel == other.commitLevel && durableDelete == other.durableDelete
 				&& expiration == other.expiration && onLockingOnly == other.onLockingOnly
-				&& generation == other.generation && generationPolicy == other.generationPolicy
+				&& generation == other.generation
 				&& recordExistsAction == other.recordExistsAction && respondAllOps == other.respondAllOps
 				&& xdr == other.xdr;
 	}
@@ -305,10 +305,6 @@ public final class WritePolicy extends Policy {
 
 	public void setRecordExistsAction(RecordExistsAction recordExistsAction) {
 		this.recordExistsAction = recordExistsAction;
-	}
-
-	public void setGenerationPolicy(GenerationPolicy generationPolicy) {
-		this.generationPolicy = generationPolicy;
 	}
 
 	public void setCommitLevel(CommitLevel commitLevel) {

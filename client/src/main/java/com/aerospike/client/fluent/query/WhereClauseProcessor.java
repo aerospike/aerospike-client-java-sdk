@@ -8,16 +8,15 @@ import com.aerospike.client.fluent.ParticleType;
 import com.aerospike.client.fluent.Session;
 import com.aerospike.client.fluent.Value;
 import com.aerospike.client.fluent.dsl.BooleanExpression;
-import com.aerospike.client.fluent.exp.Exp;
-import com.aerospike.client.fluent.dsl.stub.DslParseException;
-import com.aerospike.client.fluent.dsl.stub.ExpressionContext;
 import com.aerospike.client.fluent.dsl.Index;
-import com.aerospike.client.fluent.dsl.stub.IndexContext;
-import com.aerospike.client.fluent.cdt.*;
 import com.aerospike.client.fluent.dsl.ParseResult;
-import com.aerospike.client.fluent.dsl.stub.ParsedExpression;
 import com.aerospike.client.fluent.dsl.stub.DSLParser;
 import com.aerospike.client.fluent.dsl.stub.DSLParserImpl;
+import com.aerospike.client.fluent.dsl.stub.DslParseException;
+import com.aerospike.client.fluent.dsl.stub.ExpressionContext;
+import com.aerospike.client.fluent.dsl.stub.IndexContext;
+import com.aerospike.client.fluent.dsl.stub.ParsedExpression;
+import com.aerospike.client.fluent.exp.Exp;
 
 public abstract class WhereClauseProcessor {
     protected final boolean allowsIndex;
