@@ -32,8 +32,17 @@ public class Main {
 
             System.out.println("Upsert success");
 
-            List<Key> keys = set.ids(1,2);
-            RecordStream rs = session.query(keys).execute();
+            RecordStream rs = session.query(set.ids(1)).execute();
+
+            if (rs.hasNext()) {
+            	Record rec = rs.next().recordOrThrow();
+            	System.out.println("Record = " + rec);
+            }
+            else {
+            	System.out.println("Error: No records returned");
+            }
+
+            rs = session.query(set.ids(1,2)).execute();
 
             if (rs.hasNext()) {
             	Record rec = rs.next().recordOrThrow();
