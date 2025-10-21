@@ -1,9 +1,22 @@
 package com.aerospike.client.fluent.query;
 
+import java.util.HashMap;
+
+import com.aerospike.client.fluent.AerospikeException;
+import com.aerospike.client.fluent.Cluster;
 import com.aerospike.client.fluent.Key;
 import com.aerospike.client.fluent.Log;
+import com.aerospike.client.fluent.Partitions;
+import com.aerospike.client.fluent.Record;
 import com.aerospike.client.fluent.RecordStream;
+import com.aerospike.client.fluent.ResultCode;
 import com.aerospike.client.fluent.Session;
+import com.aerospike.client.fluent.Txn;
+import com.aerospike.client.fluent.command.ReadCommand;
+import com.aerospike.client.fluent.command.SyncReadExecutor;
+import com.aerospike.client.fluent.policy.Behavior.CommandType;
+import com.aerospike.client.fluent.policy.SettableAvailabilityModeReadPolicy;
+import com.aerospike.client.fluent.policy.SettableConsistencyModeReadPolicy;
 
 class SingleKeyQueryBuilderImpl extends QueryImpl {
     private final Key key;
@@ -26,7 +39,7 @@ class SingleKeyQueryBuilderImpl extends QueryImpl {
             return executeAsync();
         }
     }
-    
+
     @Override
     public RecordStream executeSync() {
         return executeInternal();
@@ -47,27 +60,47 @@ class SingleKeyQueryBuilderImpl extends QueryImpl {
     }
 
     private RecordStream executeInternal() {
-    	return null;
-    	/*
-        Policy policy = getSession().getBehavior().getMutablePolicy(CommandType.READ_SC);
-        policy.txn = this.getQueryBuilder().getTxnToUse();
-        policy.failOnFilteredOut = this.getQueryBuilder().isFailOnFilteredOut();
-        if (!getQueryBuilder().isKeyInPartitionRange(key)) {
-            if (this.getQueryBuilder().respondAllKeys) {
-                return new RecordStream(key, null, true);
-            }
-            return new RecordStream();
-        }
+    	System.out.println("IN executeInternal");
+    	Session session = getSession();
+    	Cluster cluster = session.getCluster();
+    	QueryBuilder qb = getQueryBuilder();
+        boolean failOnFilteredOut = qb.isFailOnFilteredOut();
+
+        Txn txn = qb.getTxnToUse();
+
+        if (txn != null) {
+			txn.prepareRead(key.namespace);
+		}
+
+		// Must copy hashmap reference for copy on write semantics to work.
+		HashMap<String,Partitions> partitionMap = cluster.getPartitionMap();
+		Partitions partitions = partitionMap.get(key.namespace);
+
+		if (partitions == null) {
+			throw new AerospikeException.InvalidNamespace(key.namespace, partitionMap.size());
+		}
+
         try {
-            if (getQueryBuilder().getWithNoBins()) {
-                return new RecordStream(key, getSession().getClient().getHeader(policy, key), this.getQueryBuilder().respondAllKeys);
-            }
-            else {
-                return new RecordStream(key, 
-                        getSession().getClient().get(policy, key, getQueryBuilder().getBinNames()),
-                        this.getQueryBuilder().respondAllKeys
-                    );
-            }
+    		ReadCommand cmd;
+
+        	if (partitions.scMode) {
+    			SettableConsistencyModeReadPolicy policy = session.getBehavior().getSettablePolicy(
+    				CommandType.READ_SC);
+    			cmd = new ReadCommand(cluster, partitions, txn, key, qb.getBinNames(),
+    				qb.getWithNoBins(), failOnFilteredOut, policy);
+    		}
+    		else {
+    			SettableAvailabilityModeReadPolicy policy = session.getBehavior().getSettablePolicy(
+    				CommandType.READ_AP);
+    			cmd = new ReadCommand(cluster, partitions, txn, key, qb.getBinNames(),
+    				qb.getWithNoBins(), failOnFilteredOut, policy);
+    		}
+
+        	SyncReadExecutor exec = new SyncReadExecutor(cluster, cmd);
+        	exec.execute();
+
+        	Record record = exec.getRecord();
+        	return new RecordStream(key, record, true);
         }
         catch (AerospikeException ae) {
             if (Log.warnEnabled() && ae.getResultCode() == ResultCode.UNSUPPORTED_FEATURE) {
@@ -77,6 +110,6 @@ class SingleKeyQueryBuilderImpl extends QueryImpl {
                 }
             }
             throw ae;
-        }*/
+        }
     }
 }

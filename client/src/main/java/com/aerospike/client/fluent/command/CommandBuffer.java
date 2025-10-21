@@ -61,6 +61,54 @@ public final class CommandBuffer {
 	}
 
 	//--------------------------------------------------
+	// Read
+	//--------------------------------------------------
+
+	public final void setRead(ReadCommand cmd) {
+		int readAttr = Command.INFO1_READ;
+		int opCount = 0;
+
+		if (cmd.withNoBins) {
+			readAttr |= Command.INFO1_NOBINDATA;
+		}
+		else if (cmd.binNames != null && cmd.binNames.length > 0) {
+			opCount = cmd.binNames.length;
+		}
+		else {
+			readAttr |= Command.INFO1_GET_ALL;
+		}
+
+		begin();
+		int fieldCount = estimateKeySize(cmd, cmd.key, false);
+
+		if (cmd.filterExp != null) {
+			sizeFieldExpression(cmd.filterExp);
+			fieldCount++;
+		}
+
+		if (opCount != 0) {
+			for (String binName : cmd.binNames) {
+				estimateOperationSize(binName);
+			}
+		}
+
+		sizeBuffer();
+		writeHeaderRead(cmd, cmd.serverTimeout, readAttr, 0, 0, fieldCount, opCount);
+		writeKey(cmd, cmd.key, false);
+
+		if (cmd.filterExp != null) {
+			writeFieldExpression(cmd.filterExp);
+		}
+
+		if (opCount != 0) {
+			for (String binName : cmd.binNames) {
+				writeOperation(binName, Operation.Type.READ);
+			}
+		}
+		end();
+	}
+
+	//--------------------------------------------------
 	// Transaction Monitor
 	//--------------------------------------------------
 
@@ -125,6 +173,10 @@ public final class CommandBuffer {
 		dataOffset += key.digest.length + Command.FIELD_HEADER_SIZE;
 		fieldCount++;
 		return fieldCount;
+	}
+
+	private void estimateOperationSize(String binName) {
+		dataOffset += Buffer.estimateSizeUtf8(binName) + Command.OPERATION_HEADER_SIZE;
 	}
 
 	private int sizeTxn(Command cmd, Key key, boolean hasWrite) {
@@ -244,6 +296,53 @@ public final class CommandBuffer {
 		dataOffset = Command.MSG_TOTAL_HEADER_SIZE;
 	}
 
+	private void writeHeaderRead(
+		ReadCommand cmd,
+		int timeout,
+		int readAttr,
+		int writeAttr,
+		int infoAttr,
+		int fieldCount,
+		int operationCount
+	) {
+		switch (cmd.readModeSC) {
+		case SESSION:
+			break;
+		case LINEARIZE:
+			infoAttr |= Command.INFO3_SC_READ_TYPE;
+			break;
+		case ALLOW_REPLICA:
+			infoAttr |= Command.INFO3_SC_READ_RELAX;
+			break;
+		case ALLOW_UNAVAILABLE:
+			infoAttr |= Command.INFO3_SC_READ_TYPE | Command.INFO3_SC_READ_RELAX;
+			break;
+		}
+
+		if (cmd.readModeAP == ReadModeAP.ALL) {
+			readAttr |= Command.INFO1_READ_MODE_AP_ALL;
+		}
+
+		if (cmd.compress) {
+			readAttr |= Command.INFO1_COMPRESS_RESPONSE;
+		}
+
+		// Write all header data except total size which must be written last.
+		dataBuffer[8] = Command.MSG_REMAINING_HEADER_SIZE; // Message header length.
+		dataBuffer[9] = (byte)readAttr;
+		dataBuffer[10] = (byte)writeAttr;
+		dataBuffer[11] = (byte)infoAttr;
+
+		for (int i = 12; i < 18; i++) {
+			dataBuffer[i] = 0;
+		}
+		Buffer.intToBytes(cmd.readTouchTtlPercent, dataBuffer, 18);
+		Buffer.intToBytes(timeout, dataBuffer, 22);
+		Buffer.shortToBytes(fieldCount, dataBuffer, 26);
+		Buffer.shortToBytes(operationCount, dataBuffer, 28);
+		dataOffset = Command.MSG_TOTAL_HEADER_SIZE;
+	}
+
 	private void writeKey(Command cmd, Key key, boolean sendDeadline) {
 		writeKey(key);
 		writeTxn(cmd.txn, sendDeadline);
@@ -334,6 +433,18 @@ public final class CommandBuffer {
 		dataBuffer[dataOffset++] = (byte) 0;
 		dataBuffer[dataOffset++] = (byte) nameLength;
 		dataOffset += nameLength + valueLength;
+	}
+
+	private void writeOperation(String name, Operation.Type operation) {
+		int nameLength = Buffer.stringToUtf8(name, dataBuffer, dataOffset + Command.OPERATION_HEADER_SIZE);
+
+		Buffer.intToBytes(nameLength + 4, dataBuffer, dataOffset);
+		dataOffset += 4;
+		dataBuffer[dataOffset++] = (byte) operation.protocolType;
+		dataBuffer[dataOffset++] = (byte) 0;
+		dataBuffer[dataOffset++] = (byte) 0;
+		dataBuffer[dataOffset++] = (byte) nameLength;
+		dataOffset += nameLength;
 	}
 
 	//--------------------------------------------------

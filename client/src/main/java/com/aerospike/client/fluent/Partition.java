@@ -38,48 +38,7 @@ public final class Partition {
 		return new Partition(partitions, key, replica, null, false);
 	}
 
-	public static Partition read(Cluster cluster, Policy policy, Key key) {
-		/*
-		// Must copy hashmap reference for copy on write semantics to work.
-		HashMap<String,Partitions> map = cluster.partitionMap;
-		Partitions partitions = map.get(key.namespace);
-
-		if (partitions == null) {
-			throw new AerospikeException.InvalidNamespace(key.namespace, map.size());
-		}
-
-		Replica replica;
-		boolean linearize;
-
-		if (partitions.scMode) {
-			switch (policy.readModeSC) {
-			case SESSION:
-				replica = Replica.MASTER;
-				linearize = false;
-				break;
-
-			case LINEARIZE:
-				replica = policy.replica == Replica.PREFER_RACK ? Replica.SEQUENCE : policy.replica;
-				linearize = true;
-				break;
-
-			default:
-				replica = policy.replica;
-				linearize = false;
-				break;
-			}
-		}
-		else {
-			replica = policy.replica;
-			linearize = false;
-		}
-		return new Partition(partitions, key, replica, null, linearize);
-		*/
-		return null;
-	}
-
 	public static Replica getReplicaSC(Policy policy) {
-		/*
 		switch (policy.readModeSC) {
 		case SESSION:
 			return Replica.MASTER;
@@ -90,8 +49,6 @@ public final class Partition {
 		default:
 			return policy.replica;
 		}
-		*/
-		return null;
 	}
 
 	public static Node getNodeBatchWrite(
@@ -148,7 +105,7 @@ public final class Partition {
 	public int sequence;
 	private final boolean linearize;
 
-	private Partition(Partitions partitions, Key key, Replica replica, Node prevNode, boolean linearize) {
+	public Partition(Partitions partitions, Key key, Replica replica, Node prevNode, boolean linearize) {
 		this.partitions = partitions;
 		this.namespace = key.namespace;
 		this.replica = replica;

@@ -75,5 +75,7 @@ public class SettableAvailabilityModeReadPolicy extends SettablePolicy {
         return migrationReadConsistency == other.migrationReadConsistency;
     }
 
-
+    public ReadModeAP getReadModeAP() {
+    	return migrationReadConsistency;
+    }
 }

@@ -37,10 +37,11 @@ public class OperateCommand extends WriteCommand {
 	final boolean hasWrite;
 
 	public OperateCommand(
-		Cluster cluster, Txn txn, Key key, OpType type, int gen, int ttl, ReadModeAP readModeAP,
-		ReadModeSC readModeSC, SettableWritePolicy policy, Operation[] ops
+		Cluster cluster, Txn txn, Key key, Operation[] ops, OpType type, int gen, int ttl,
+		ReadModeAP readModeAP, ReadModeSC readModeSC, boolean failOnFilteredOut,
+		SettableWritePolicy policy
 	) {
-		super(cluster, txn, key, type, gen, ttl, policy);
+		super(cluster, txn, key, type, gen, ttl, failOnFilteredOut, policy);
 
 		this.readModeAP = readModeAP;
 		this.readModeSC = readModeSC;

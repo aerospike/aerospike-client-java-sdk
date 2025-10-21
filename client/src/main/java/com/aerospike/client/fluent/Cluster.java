@@ -226,6 +226,10 @@ public class Cluster implements Closeable {
 		return null;
 	}
 
+	public final HashMap<String,Partitions> getPartitionMap() {
+		return partitionMap;
+	}
+
 	/* Not used since maxSocketIdle is always assumed to be zero in new client
 	 * TODO REMOVE
 	public final boolean isConnCurrentTran(long lastUsed) {

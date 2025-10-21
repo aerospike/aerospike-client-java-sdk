@@ -133,7 +133,7 @@ public final class Txn {
 	/**
 	 * Verify current transactions state and namespace for a future read command.
 	 */
-	void prepareRead(String ns) {
+	public void prepareRead(String ns) {
 		verifyCommand();
 		setNamespace(ns);
 	}

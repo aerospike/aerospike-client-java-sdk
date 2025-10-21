@@ -109,13 +109,13 @@ public class Command {
 	final boolean failOnFilteredOut;
 
 	public Command(
-		Cluster cluster, String namespace, Txn txn, SettablePolicy policy
+		Cluster cluster, String namespace, Txn txn, boolean failOnFilteredOut, SettablePolicy policy
 	) {
 		this.cluster = cluster;
 		this.namespace = namespace;
 		this.txn = txn;
 		this.filterExp = null;          // TODO: Pass in when supported in external api.
-		this.failOnFilteredOut = false; // TODO: Pass in when supported in external api.
+		this.failOnFilteredOut = failOnFilteredOut;
 
 		replica = policy.getReplica();
 		connectTimeout = policy.getConnectTimeout();

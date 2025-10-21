@@ -1,10 +1,16 @@
 package com.aerospike.examples;
 
+import java.util.List;
+
 import com.aerospike.client.fluent.Cluster;
 import com.aerospike.client.fluent.ClusterDefinition;
 import com.aerospike.client.fluent.DataSet;
+import com.aerospike.client.fluent.Key;
+import com.aerospike.client.fluent.Record;
+import com.aerospike.client.fluent.RecordStream;
 import com.aerospike.client.fluent.Session;
 import com.aerospike.client.fluent.policy.Behavior;
+import com.aerospike.client.fluent.util.Util;
 
 public class Main {
     public static void main(String[] args) {
@@ -25,6 +31,20 @@ public class Main {
 	            .execute();
 
             System.out.println("Upsert success");
-       }
+
+            List<Key> keys = set.ids(1,2);
+            RecordStream rs = session.query(keys).execute();
+
+            if (rs.hasNext()) {
+            	Record rec = rs.next().recordOrThrow();
+            	System.out.println("Record = " + rec);
+            }
+            else {
+            	System.out.println("Error: No records returned");
+            }
+        }
+        catch (Throwable t) {
+       		System.out.println("Error: " + Util.getErrorMessage(t));
+        }
     }
 }

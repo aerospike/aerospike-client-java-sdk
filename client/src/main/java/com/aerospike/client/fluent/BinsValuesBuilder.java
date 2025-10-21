@@ -561,7 +561,8 @@ public class BinsValuesBuilder implements FilterableOperation<BinsValuesBuilder>
     	SettableWritePolicy policy = session.getBehavior().getSettablePolicy(
         	CommandType.WRITE_RETRYABLE);
 
-        // TODO: Where are these readModes located for operate?
+    	// Since getOperationsForValueData() returns all write operations, the read operations are not relevant.
+    	// Set read modes to default.
         ReadModeAP readModeAP = ReadModeAP.ONE;
         ReadModeSC readModeSC = ReadModeSC.SESSION;
 
@@ -580,8 +581,8 @@ public class BinsValuesBuilder implements FilterableOperation<BinsValuesBuilder>
 
             int ttl = getExpiration(valueSet);
 
-            OperateCommand cmd = new OperateCommand(cluster, txnToUse, key, opBuilder.opType,
-				valueSet.generation, ttl, readModeAP, readModeSC, policy, ops
+            OperateCommand cmd = new OperateCommand(cluster, txnToUse, key, ops, opBuilder.opType,
+				valueSet.generation, ttl, readModeAP, readModeSC, true /* TODO: Need this in external API! */, policy
 				);
 
             try {

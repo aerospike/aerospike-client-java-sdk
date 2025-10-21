@@ -168,8 +168,8 @@ public final class TxnMonitor {
 			.useCompression(policy.getCompress())
 			.getPolicy();
 
-        OperateCommand cmd = new OperateCommand(cluster, txn, txnKey, OpType.UPSERT,
-			0, txn.getTimeout(), ReadModeAP.ONE, ReadModeSC.SESSION, txnPolicy, ops
+        OperateCommand cmd = new OperateCommand(cluster, txn, txnKey, ops, OpType.UPSERT,
+			0, txn.getTimeout(), ReadModeAP.ONE, ReadModeSC.SESSION, false, txnPolicy
 			);
 
         SyncTxnAddKeysExecutor exec = new SyncTxnAddKeysExecutor(cluster, cmd);

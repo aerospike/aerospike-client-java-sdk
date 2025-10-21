@@ -23,6 +23,7 @@ import com.aerospike.client.fluent.exp.Exp;
 import com.aerospike.client.fluent.exp.Expression;
 import com.aerospike.client.fluent.info.InfoCommands;
 import com.aerospike.client.fluent.policy.Behavior;
+import com.aerospike.client.fluent.query.QueryBuilder;
 
 public class Session {
     private final Cluster cluster;
@@ -97,11 +98,11 @@ public class Session {
     public QueryBuilder query(Key key1, Key key2, Key...keys) {
         return new QueryBuilder(this, buildKeyList(key1, key2, keys));
     }
-
+*/
     public QueryBuilder query(List<Key> keyList) {
         return new QueryBuilder(this, keyList);
     }
-*/
+
     // -------------------
     // CUD functionality
     // -------------------

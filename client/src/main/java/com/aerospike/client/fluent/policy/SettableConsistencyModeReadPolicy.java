@@ -73,4 +73,8 @@ public class SettableConsistencyModeReadPolicy extends SettablePolicy {
         SettableConsistencyModeReadPolicy other = (SettableConsistencyModeReadPolicy) obj;
         return readConsistency == other.readConsistency;
     }
+
+    public ReadModeSC getReadModeSC() {
+    	return readConsistency;
+    }
 }
