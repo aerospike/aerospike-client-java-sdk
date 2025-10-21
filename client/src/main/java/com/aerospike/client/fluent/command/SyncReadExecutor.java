@@ -26,8 +26,8 @@ import com.aerospike.client.fluent.Record;
 import com.aerospike.client.fluent.ResultCode;
 import com.aerospike.client.fluent.metrics.LatencyType;
 
-public class SyncReadExecutor extends SyncExecutor {
-	final ReadCommand cmd;
+public final class SyncReadExecutor extends SyncExecutor {
+	private final ReadCommand cmd;
 	private Record record;
 
 	public SyncReadExecutor(Cluster cluster, ReadCommand cmd) {
