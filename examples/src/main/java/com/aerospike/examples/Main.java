@@ -42,6 +42,7 @@ public class Main {
             	System.out.println("Error: No records returned");
             }
 
+            /* Does not work yet.
             rs = session.query(set.ids(1,2)).execute();
 
             if (rs.hasNext()) {
@@ -50,7 +51,7 @@ public class Main {
             }
             else {
             	System.out.println("Error: No records returned");
-            }
+            }*/
         }
         catch (Throwable t) {
        		System.out.println("Error: " + Util.getErrorMessage(t));
