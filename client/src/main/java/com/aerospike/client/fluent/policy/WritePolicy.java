@@ -28,6 +28,7 @@ import com.aerospike.client.fluent.configuration.serializers.dynamicconfig.Dynam
  * Container object for policy attributes used in write operations.
  * This object is passed into methods where database writes can occur.
  */
+@Deprecated(forRemoval = true)
 public final class WritePolicy extends Policy {
 	/**
 	 * Qualify how to handle writes where the record already exists.
@@ -133,9 +134,9 @@ public final class WritePolicy extends Policy {
 	/**
 	 * Copy write policy from another write policy.
 	 */
-	public WritePolicy(SettableWritePolicy other) {
+	public WritePolicy(Settings other) {
 		super(other);
-        this.durableDelete = (other.durableDelete != null) ? other.durableDelete : false;
+        this.durableDelete = (other.useDurableDelete != null) ? other.getUseDurableDelete() : false;
 	}
 
 	/**

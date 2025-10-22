@@ -12,6 +12,7 @@ import com.aerospike.client.fluent.configuration.serializers.dynamicconfig.Dynam
 /**
  * Batch parent policy.
  */
+@Deprecated(forRemoval = true)
 public class BatchPolicy extends Policy {
 	/**
 	 * This field is ignored and deprecated. Sync batch node commands are now always issued using
@@ -84,7 +85,7 @@ public class BatchPolicy extends Policy {
 	/**
 	 * Copy batch policy from another batch policy.
 	 */
-	public BatchPolicy(SettableBatchPolicy other) {
+	public BatchPolicy(Settings other) {
 		super(other);
 		// Do not set for now as this class will eventually be removed.
 	}

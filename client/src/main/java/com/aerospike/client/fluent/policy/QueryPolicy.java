@@ -19,6 +19,7 @@ package com.aerospike.client.fluent.policy;
 /**
  * Query policy.
  */
+@Deprecated(forRemoval = true)
 public final class QueryPolicy extends Policy {
 	/**
 	 * Maximum number of concurrent requests to server nodes at any point in time.
@@ -43,12 +44,13 @@ public final class QueryPolicy extends Policy {
 	/**
 	 * Copy query policy from another query policy.
 	 */
-	public QueryPolicy(SettableQueryPolicy other) {
+	public QueryPolicy(Settings other) {
 		super(other);
-    	this.maxConcurrentNodes = (other.maxConcurrentServers != null)?
-    		other.maxConcurrentServers : 0;
+    	this.maxConcurrentNodes = (other.maxConcurrentNodes != null)?
+    		other.getMaxConcurrentNodes() : 0;
 
     	this.recordQueueSize = (other.recordQueueSize != null)?
     		other.recordQueueSize : 5000;
 	}
+	// TODO: Info timeout / expected duration?
 }

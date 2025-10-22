@@ -2,14 +2,13 @@ package com.aerospike.client.fluent.policy;
 
 import java.time.Duration;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 
 public final class Settings {
     Duration abandonCallAfter;
     Duration delayBetweenRetries;
     Integer maximumNumberOfCallAttempts;
-    List<NodeCategory> replicaOrder;
+    Replica replicaOrder;
     Boolean sendKey;
     Boolean useCompression;
     Duration waitForCallToComplete;
@@ -36,6 +35,30 @@ public final class Settings {
     ReadModeSC readModeSC; // CP
     Integer resetTtlOnReadAtPercent;
 
+    Settings() {}
+    
+    public Settings(Settings orig) {
+        this.abandonCallAfter = orig.abandonCallAfter;
+        this.delayBetweenRetries = orig.delayBetweenRetries;
+        this.maximumNumberOfCallAttempts = orig.maximumNumberOfCallAttempts;
+        this.replicaOrder = orig.replicaOrder;
+        this.sendKey = orig.sendKey;
+        this.useCompression = orig.useCompression;
+        this.waitForCallToComplete = orig.waitForCallToComplete;
+        this.waitForConnectionToComplete = orig.waitForConnectionToComplete;
+        this.waitForSocketResponseAfterCallFails = orig.waitForSocketResponseAfterCallFails;
+        this.recordQueueSize = orig.recordQueueSize;
+        this.maxConcurrentNodes = orig.maxConcurrentNodes;
+        this.allowInlineMemoryAccess = orig.allowInlineMemoryAccess;
+        this.allowInlineSsdAccess = orig.allowInlineSsdAccess;
+        this.useDurableDelete = orig.useDurableDelete;
+        this.simulateXdrWrite = orig.simulateXdrWrite;
+        this.commitLevel = orig.commitLevel;
+        this.readModeAP = orig.readModeAP;
+        this.readModeSC = orig.readModeSC;
+        this.resetTtlOnReadAtPercent = orig.resetTtlOnReadAtPercent;
+    }
+    
     @Override public String toString() {
         Map<String, Object> m = new LinkedHashMap<>();
         if (abandonCallAfter != null) m.put("abandonCallAfter", abandonCallAfter);
@@ -78,7 +101,7 @@ public final class Settings {
         return maximumNumberOfCallAttempts;
     }
 
-    public List<NodeCategory> getReplicaOrder() {
+    public Replica getReplicaOrder() {
         return replicaOrder;
     }
 
@@ -138,11 +161,11 @@ public final class Settings {
         return readModeSC == null ? ReadModeSC.SESSION : readModeSC;
     }
 
-    public Integer getResetTtlOnReadAtPercent() {
-        return resetTtlOnReadAtPercent;
+    public int getResetTtlOnReadAtPercent() {
+        return resetTtlOnReadAtPercent == null ? 0 : resetTtlOnReadAtPercent;
     }
     
-    /*
+    @Deprecated(forRemoval = true)
     public WritePolicy asWritePolicy() {
         WritePolicy writePolicy = new WritePolicy();
         writePolicy.commitLevel = this.commitLevel;
@@ -163,6 +186,7 @@ public final class Settings {
         return writePolicy;
     }
 
+    @Deprecated(forRemoval = true)
     public BatchPolicy asBatchPolicy() {
         BatchPolicy batchPolicy = new BatchPolicy();
         batchPolicy.compress = this.useCompression;
@@ -184,8 +208,9 @@ public final class Settings {
         return batchPolicy;
     }
 
+    @Deprecated(forRemoval = true)
     public QueryPolicy asQueryPolicy() {
-        QueryPolicy queryPolicy = new QueryPolicy();
+        QueryPolicy queryPolicy = new QueryPolicy(this);
         queryPolicy.compress = this.useCompression;
         queryPolicy.connectTimeout = (int)this.waitForConnectionToComplete.toMillis();
         queryPolicy.maxRetries = this.maximumNumberOfCallAttempts - 1;
@@ -199,14 +224,16 @@ public final class Settings {
         queryPolicy.totalTimeout = (int)this.abandonCallAfter.toMillis();
         queryPolicy.timeoutDelay = (int)this.waitForSocketResponseAfterCallFails.toMillis();
 
-        queryPolicy.expectedDuration = QueryDuration.SHORT; // TODO
-        queryPolicy.infoTimeout = 1000; // TODO
-        if (this.maxConcurrentNodes != null) {
-            queryPolicy.maxConcurrentNodes = this.maxConcurrentNodes;
-        }
-        queryPolicy.recordQueueSize = this.recordQueueSize;
+        // TODO
+//        queryPolicy.expectedDuration = QueryDuration.SHORT; // TODO
+//        queryPolicy.infoTimeout = 1000; // TODO
+//        if (this.maxConcurrentNodes != null) {
+//            queryPolicy.maxConcurrentNodes = this.maxConcurrentNodes;
+//        }
+//        queryPolicy.recordQueueSize = this.recordQueueSize;
         return queryPolicy;
     }
+    @Deprecated(forRemoval = true)
     public Policy asReadPolicy() {
         Policy readPolicy = new Policy();
         readPolicy.compress = this.useCompression;
@@ -223,5 +250,6 @@ public final class Settings {
         readPolicy.timeoutDelay = (int)this.waitForSocketResponseAfterCallFails.toMillis();
         return readPolicy;
     }
-    */
+    
+    
 }

@@ -24,68 +24,65 @@ import com.aerospike.client.fluent.Txn;
 import com.aerospike.client.fluent.policy.ReadModeAP;
 import com.aerospike.client.fluent.policy.ReadModeSC;
 import com.aerospike.client.fluent.policy.Replica;
-import com.aerospike.client.fluent.policy.SettableAvailabilityModeReadPolicy;
-import com.aerospike.client.fluent.policy.SettableConsistencyModeReadPolicy;
+import com.aerospike.client.fluent.policy.Settings;
 
 public class ReadCommand extends Command {
-	final Key key;
-	final Partition partition;
-	final ReadModeAP readModeAP;
-	final ReadModeSC readModeSC;
-	final String[] binNames;
-	final int readTouchTtlPercent;
-	final boolean withNoBins;
+    final Key key;
+    final Partition partition;
+    final ReadModeAP readModeAP;
+    final ReadModeSC readModeSC;
+    final String[] binNames;
+    final int readTouchTtlPercent;
+    final boolean withNoBins;
 
-	public ReadCommand(
-		Cluster cluster, Partitions partitions, Txn txn, Key key, String[] binNames,
-		boolean withNoBins, boolean failOnFilteredOut, SettableAvailabilityModeReadPolicy policy
-	) {
-		super(cluster, key.namespace, txn, failOnFilteredOut, policy);
-		this.key = key;
-		this.binNames = binNames;
-		this.partition = new Partition(partitions, key, policy.getReplica(), null, false);
-		this.readModeAP = policy.getReadModeAP();
-		this.readModeSC = ReadModeSC.SESSION;
-		this.readTouchTtlPercent = policy.getReadTouchTtlPercent();
-		this.withNoBins = withNoBins;
-	}
+    public ReadCommand(
+            Cluster cluster, Partitions partitions, Txn txn, Key key, String[] binNames,
+            boolean withNoBins, boolean failOnFilteredOut, Settings policy, boolean isSc
+    ) {
+        super(cluster, key.namespace, txn, failOnFilteredOut, policy);
 
-	public ReadCommand(
-		Cluster cluster, Partitions partitions, Txn txn, Key key, String[] binNames,
-		boolean withNoBins, boolean failOnFilteredOut, SettableConsistencyModeReadPolicy policy
-	) {
-		super(cluster, key.namespace, txn, failOnFilteredOut, policy);
-		this.key = key;
-		this.binNames = binNames;
-		this.readModeAP = ReadModeAP.ONE;
-		this.readModeSC = policy.getReadModeSC();
-		this.readTouchTtlPercent = policy.getReadTouchTtlPercent();
-		this.withNoBins = withNoBins;
+        if (!isSc) {
+            this.key = key;
+            this.binNames = binNames;
+            this.partition = new Partition(partitions, key, policy.getReplicaOrder(), null, false);
+            this.readModeAP = policy.getReadModeAP();
+            this.readModeSC = ReadModeSC.SESSION;
+            this.readTouchTtlPercent = policy.getResetTtlOnReadAtPercent();
+            this.withNoBins = withNoBins;
+        }
+        else {
+            this.key = key;
+            this.binNames = binNames;
+            this.readModeAP = ReadModeAP.ONE;
+            this.readModeSC = policy.getReadModeSC();
+            this.readTouchTtlPercent = policy.getResetTtlOnReadAtPercent();
+            this.withNoBins = withNoBins;
 
-		Replica replica;
-		boolean linearize;
+            Replica replica;
+            boolean linearize;
 
-		switch (readModeSC) {
-		case SESSION:
-			replica = Replica.MASTER;
-			linearize = false;
-			break;
+            switch (readModeSC) {
+            case SESSION:
+                replica = Replica.MASTER;
+                linearize = false;
+                break;
 
-		case LINEARIZE:
-			replica = policy.getReplica();
+            case LINEARIZE:
+                replica = policy.getReplicaOrder();
 
-			if (replica == Replica.PREFER_RACK) {
-				replica = Replica.SEQUENCE;
-			}
-			linearize = true;
-			break;
+                if (replica == Replica.PREFER_RACK) {
+                    replica = Replica.SEQUENCE;
+                }
+                linearize = true;
+                break;
 
-		default:
-			replica = policy.getReplica();
-			linearize = false;
-			break;
-		}
+            default:
+                replica = policy.getReplicaOrder();
+                linearize = false;
+                break;
+            }
 
-		this.partition = new Partition(partitions, key, replica, null, linearize);
-	}
+            this.partition = new Partition(partitions, key, replica, null, linearize);
+        }
+    }
 }

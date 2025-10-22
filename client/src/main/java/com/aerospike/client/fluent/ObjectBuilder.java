@@ -7,14 +7,11 @@ import java.util.Date;
 import java.util.List;
 import java.util.Map;
 
-import com.aerospike.client.fluent.policy.WritePolicy;
-
 public class ObjectBuilder<T> {
     private final OperationObjectBuilder<T> opBuilder;
     private final List<T> elements;
     private RecordMapper<T> recordMapper;
     private int generation = -1;
-    private Map<Integer, WritePolicy> customPolicies;
     private long expirationInSeconds = 0;
     private long expirationInSecondsForAll = 0;
     private Txn txnToUse;

@@ -12,7 +12,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 /**
@@ -131,7 +130,7 @@ public final class Behavior {
                     .abandonCallAfter(Duration.ofSeconds(1))
                     .delayBetweenRetries(Duration.ofMillis(0))
                     .maximumNumberOfCallAttempts(3)
-                    .replicaOrder(List.of(NodeCategory.MASTER))  // Old: SEQUENCE, now explicit list
+                    .replicaOrder(Replica.SEQUENCE)  // Old: SEQUENCE, now explicit list
                     .sendKey(true)
                     .useCompression(false)
                     .waitForCallToComplete(Duration.ofSeconds(30))
@@ -327,48 +326,48 @@ public final class Behavior {
      * @param type The command type
      * @return The policy
      */
-    @SuppressWarnings("unchecked")
-    public <T extends Policy> T getSharedPolicy(CommandType type) {
-        return (T)legacyCachedPolicies.computeIfAbsent(type, cmdType -> {
-            // Map CommandType to new dimensional system
-            switch (type) {
-            case WRITE_NON_RETRYABLE:
-                // Use settings for non-retryable point writes in AP mode (default)
-                Settings settings = resolved.get(new OpKey(OpKind.WRITE_NON_RETRYABLE, OpShape.POINT, Mode.AP));
-                return settings != null ? settings.asWritePolicy() : new WritePolicy();
-
-            case WRITE_RETRYABLE:
-                settings = resolved.get(new OpKey(OpKind.WRITE_RETRYABLE, OpShape.POINT, Mode.AP));
-                return settings != null ? settings.asWritePolicy() : new WritePolicy();
-
-            case BATCH_READ:
-                settings = resolved.get(new OpKey(OpKind.READ, OpShape.BATCH, Mode.AP));
-                return settings != null ? settings.asBatchPolicy() : new BatchPolicy();
-                
-            case BATCH_WRITE:
-                settings = resolved.get(new OpKey(OpKind.WRITE_RETRYABLE, OpShape.BATCH, Mode.AP));
-                return settings != null ? settings.asBatchPolicy() : new BatchPolicy();
-                
-            case QUERY:
-                settings = resolved.get(new OpKey(OpKind.READ, OpShape.QUERY, Mode.AP));
-                return settings != null ? settings.asQueryPolicy() : new QueryPolicy();
-                
-            case READ_AP:
-                settings = resolved.get(new OpKey(OpKind.READ, OpShape.POINT, Mode.AP));
-                return settings != null ? settings.asReadPolicy() : new Policy();
-                
-            case READ_SC:
-                settings = resolved.get(new OpKey(OpKind.READ, OpShape.POINT, Mode.CP));
-                return settings != null ? settings.asReadPolicy() : new Policy();
-                
-            case INFO:
-                throw new IllegalArgumentException("Cannot pass 'INFO' to getSharedPolicy, use getSharedInfoPolicy instead");
-            case ALL:
-            default:
-                throw new IllegalArgumentException("Cannot pass '" + type + "' to getSharedPolicy");
-            }
-        });
-    }
+//    @SuppressWarnings("unchecked")
+//    public <T extends Policy> T getSharedPolicy(CommandType type) {
+//        return (T)legacyCachedPolicies.computeIfAbsent(type, cmdType -> {
+//            // Map CommandType to new dimensional system
+//            switch (type) {
+//            case WRITE_NON_RETRYABLE:
+//                // Use settings for non-retryable point writes in AP mode (default)
+//                Settings settings = resolved.get(new OpKey(OpKind.WRITE_NON_RETRYABLE, OpShape.POINT, Mode.AP));
+//                return settings != null ? settings.asWritePolicy() : new WritePolicy();
+//
+//            case WRITE_RETRYABLE:
+//                settings = resolved.get(new OpKey(OpKind.WRITE_RETRYABLE, OpShape.POINT, Mode.AP));
+//                return settings != null ? settings.asWritePolicy() : new WritePolicy();
+//
+//            case BATCH_READ:
+//                settings = resolved.get(new OpKey(OpKind.READ, OpShape.BATCH, Mode.AP));
+//                return settings != null ? settings.asBatchPolicy() : new BatchPolicy();
+//                
+//            case BATCH_WRITE:
+//                settings = resolved.get(new OpKey(OpKind.WRITE_RETRYABLE, OpShape.BATCH, Mode.AP));
+//                return settings != null ? settings.asBatchPolicy() : new BatchPolicy();
+//                
+//            case QUERY:
+//                settings = resolved.get(new OpKey(OpKind.READ, OpShape.QUERY, Mode.AP));
+//                return settings != null ? settings.asQueryPolicy() : new QueryPolicy();
+//                
+//            case READ_AP:
+//                settings = resolved.get(new OpKey(OpKind.READ, OpShape.POINT, Mode.AP));
+//                return settings != null ? settings.asReadPolicy() : new Policy();
+//                
+//            case READ_SC:
+//                settings = resolved.get(new OpKey(OpKind.READ, OpShape.POINT, Mode.CP));
+//                return settings != null ? settings.asReadPolicy() : new Policy();
+//                
+//            case INFO:
+//                throw new IllegalArgumentException("Cannot pass 'INFO' to getSharedPolicy, use getSharedInfoPolicy instead");
+//            case ALL:
+//            default:
+//                throw new IllegalArgumentException("Cannot pass '" + type + "' to getSharedPolicy");
+//            }
+//        });
+//    }
 
     /**
      * Get mutable policy using legacy CommandType (backward compatibility)
@@ -768,7 +767,7 @@ public final class Behavior {
         if (src.abandonCallAfter != null) dst.abandonCallAfter = src.abandonCallAfter;
         if (src.delayBetweenRetries != null) dst.delayBetweenRetries = src.delayBetweenRetries;
         if (src.maximumNumberOfCallAttempts != null) dst.maximumNumberOfCallAttempts = src.maximumNumberOfCallAttempts;
-        if (src.replicaOrder != null) dst.replicaOrder = List.copyOf(src.replicaOrder);
+        if (src.replicaOrder != null) dst.replicaOrder = src.replicaOrder;
         if (src.sendKey != null) dst.sendKey = src.sendKey;
         if (src.useCompression != null) dst.useCompression = src.useCompression;
         if (src.waitForCallToComplete != null) dst.waitForCallToComplete = src.waitForCallToComplete;
@@ -811,7 +810,7 @@ public final class Behavior {
         CommonTweaks abandonCallAfter(Duration d);
         CommonTweaks delayBetweenRetries(Duration d);
         CommonTweaks maximumNumberOfCallAttempts(int n);
-        CommonTweaks replicaOrder(List<NodeCategory> r);
+        CommonTweaks replicaOrder(Replica r);
         CommonTweaks sendKey(boolean sendKey);
         CommonTweaks useCompression(boolean compress);
         CommonTweaks waitForCallToComplete(Duration d);
@@ -850,7 +849,7 @@ public final class Behavior {
         @Override AllAnyModeTweaks abandonCallAfter(Duration d);
         @Override AllAnyModeTweaks delayBetweenRetries(Duration d);
         @Override AllAnyModeTweaks maximumNumberOfCallAttempts(int n);
-        @Override AllAnyModeTweaks replicaOrder(List<NodeCategory> r);
+        @Override AllAnyModeTweaks replicaOrder(Replica r);
         @Override AllAnyModeTweaks sendKey(boolean sendKey);
         @Override AllAnyModeTweaks useCompression(boolean compress);
         @Override AllAnyModeTweaks waitForCallToComplete(Duration d);
@@ -861,7 +860,7 @@ public final class Behavior {
         @Override ReadAnyAnyModeTweaks abandonCallAfter(Duration d);
         @Override ReadAnyAnyModeTweaks delayBetweenRetries(Duration d);
         @Override ReadAnyAnyModeTweaks maximumNumberOfCallAttempts(int n);
-        @Override ReadAnyAnyModeTweaks replicaOrder(List<NodeCategory> r);
+        @Override ReadAnyAnyModeTweaks replicaOrder(Replica r);
         @Override ReadAnyAnyModeTweaks sendKey(boolean sendKey);
         @Override ReadAnyAnyModeTweaks useCompression(boolean compress);
         @Override ReadAnyAnyModeTweaks waitForCallToComplete(Duration d);
@@ -873,7 +872,7 @@ public final class Behavior {
         @Override ReadAnyApTweaks abandonCallAfter(Duration d);
         @Override ReadAnyApTweaks delayBetweenRetries(Duration d);
         @Override ReadAnyApTweaks maximumNumberOfCallAttempts(int n);
-        @Override ReadAnyApTweaks replicaOrder(List<NodeCategory> r);
+        @Override ReadAnyApTweaks replicaOrder(Replica r);
         @Override ReadAnyApTweaks sendKey(boolean sendKey);
         @Override ReadAnyApTweaks useCompression(boolean compress);
         @Override ReadAnyApTweaks waitForCallToComplete(Duration d);
@@ -886,7 +885,7 @@ public final class Behavior {
         @Override ReadAnyCpTweaks abandonCallAfter(Duration d);
         @Override ReadAnyCpTweaks delayBetweenRetries(Duration d);
         @Override ReadAnyCpTweaks maximumNumberOfCallAttempts(int n);
-        @Override ReadAnyCpTweaks replicaOrder(List<NodeCategory> r);
+        @Override ReadAnyCpTweaks replicaOrder(Replica r);
         @Override ReadAnyCpTweaks sendKey(boolean sendKey);
         @Override ReadAnyCpTweaks useCompression(boolean compress);
         @Override ReadAnyCpTweaks waitForCallToComplete(Duration d);
@@ -899,7 +898,7 @@ public final class Behavior {
         @Override WriteRootAnyModeTweaks abandonCallAfter(Duration d);
         @Override WriteRootAnyModeTweaks delayBetweenRetries(Duration d);
         @Override WriteRootAnyModeTweaks maximumNumberOfCallAttempts(int n);
-        @Override WriteRootAnyModeTweaks replicaOrder(List<NodeCategory> r);
+        @Override WriteRootAnyModeTweaks replicaOrder(Replica r);
         @Override WriteRootAnyModeTweaks sendKey(boolean sendKey);
         @Override WriteRootAnyModeTweaks useCompression(boolean compress);
         @Override WriteRootAnyModeTweaks waitForCallToComplete(Duration d);
@@ -912,7 +911,7 @@ public final class Behavior {
         @Override WriteRootApTweaks abandonCallAfter(Duration d);
         @Override WriteRootApTweaks delayBetweenRetries(Duration d);
         @Override WriteRootApTweaks maximumNumberOfCallAttempts(int n);
-        @Override WriteRootApTweaks replicaOrder(List<NodeCategory> r);
+        @Override WriteRootApTweaks replicaOrder(Replica r);
         @Override WriteRootApTweaks sendKey(boolean sendKey);
         @Override WriteRootApTweaks useCompression(boolean compress);
         @Override WriteRootApTweaks waitForCallToComplete(Duration d);
@@ -926,7 +925,7 @@ public final class Behavior {
         @Override WriteRootCpTweaks abandonCallAfter(Duration d);
         @Override WriteRootCpTweaks delayBetweenRetries(Duration d);
         @Override WriteRootCpTweaks maximumNumberOfCallAttempts(int n);
-        @Override WriteRootCpTweaks replicaOrder(List<NodeCategory> r);
+        @Override WriteRootCpTweaks replicaOrder(Replica r);
         @Override WriteRootCpTweaks sendKey(boolean sendKey);
         @Override WriteRootCpTweaks useCompression(boolean compress);
         @Override WriteRootCpTweaks waitForCallToComplete(Duration d);
@@ -941,7 +940,7 @@ public final class Behavior {
         @Override ReadPointAnyModeTweaks abandonCallAfter(Duration d);
         @Override ReadPointAnyModeTweaks delayBetweenRetries(Duration d);
         @Override ReadPointAnyModeTweaks maximumNumberOfCallAttempts(int n);
-        @Override ReadPointAnyModeTweaks replicaOrder(List<NodeCategory> r);
+        @Override ReadPointAnyModeTweaks replicaOrder(Replica r);
         @Override ReadPointAnyModeTweaks sendKey(boolean sendKey);
         @Override ReadPointAnyModeTweaks useCompression(boolean compress);
         @Override ReadPointAnyModeTweaks waitForCallToComplete(Duration d);
@@ -952,7 +951,7 @@ public final class Behavior {
         @Override ReadBatchAnyModeTweaks abandonCallAfter(Duration d);
         @Override ReadBatchAnyModeTweaks delayBetweenRetries(Duration d);
         @Override ReadBatchAnyModeTweaks maximumNumberOfCallAttempts(int n);
-        @Override ReadBatchAnyModeTweaks replicaOrder(List<NodeCategory> r);
+        @Override ReadBatchAnyModeTweaks replicaOrder(Replica r);
         @Override ReadBatchAnyModeTweaks sendKey(boolean sendKey);
         @Override ReadBatchAnyModeTweaks useCompression(boolean compress);
         @Override ReadBatchAnyModeTweaks waitForCallToComplete(Duration d);
@@ -966,7 +965,7 @@ public final class Behavior {
         @Override ReadQueryAnyModeTweaks abandonCallAfter(Duration d);
         @Override ReadQueryAnyModeTweaks delayBetweenRetries(Duration d);
         @Override ReadQueryAnyModeTweaks maximumNumberOfCallAttempts(int n);
-        @Override ReadQueryAnyModeTweaks replicaOrder(List<NodeCategory> r);
+        @Override ReadQueryAnyModeTweaks replicaOrder(Replica r);
         @Override ReadQueryAnyModeTweaks sendKey(boolean sendKey);
         @Override ReadQueryAnyModeTweaks useCompression(boolean compress);
         @Override ReadQueryAnyModeTweaks waitForCallToComplete(Duration d);
@@ -978,7 +977,7 @@ public final class Behavior {
         @Override ReadPointApTweaks abandonCallAfter(Duration d);
         @Override ReadPointApTweaks delayBetweenRetries(Duration d);
         @Override ReadPointApTweaks maximumNumberOfCallAttempts(int n);
-        @Override ReadPointApTweaks replicaOrder(List<NodeCategory> r);
+        @Override ReadPointApTweaks replicaOrder(Replica r);
         @Override ReadPointApTweaks sendKey(boolean sendKey);
         @Override ReadPointApTweaks useCompression(boolean compress);
         @Override ReadPointApTweaks waitForCallToComplete(Duration d);
@@ -991,7 +990,7 @@ public final class Behavior {
         @Override ReadPointCpTweaks abandonCallAfter(Duration d);
         @Override ReadPointCpTweaks delayBetweenRetries(Duration d);
         @Override ReadPointCpTweaks maximumNumberOfCallAttempts(int n);
-        @Override ReadPointCpTweaks replicaOrder(List<NodeCategory> r);
+        @Override ReadPointCpTweaks replicaOrder(Replica r);
         @Override ReadPointCpTweaks sendKey(boolean sendKey);
         @Override ReadPointCpTweaks useCompression(boolean compress);
         @Override ReadPointCpTweaks waitForCallToComplete(Duration d);
@@ -1004,7 +1003,7 @@ public final class Behavior {
         @Override ReadBatchApTweaks abandonCallAfter(Duration d);
         @Override ReadBatchApTweaks delayBetweenRetries(Duration d);
         @Override ReadBatchApTweaks maximumNumberOfCallAttempts(int n);
-        @Override ReadBatchApTweaks replicaOrder(List<NodeCategory> r);
+        @Override ReadBatchApTweaks replicaOrder(Replica r);
         @Override ReadBatchApTweaks sendKey(boolean sendKey);
         @Override ReadBatchApTweaks useCompression(boolean compress);
         @Override ReadBatchApTweaks waitForCallToComplete(Duration d);
@@ -1020,7 +1019,7 @@ public final class Behavior {
         @Override ReadBatchCpTweaks abandonCallAfter(Duration d);
         @Override ReadBatchCpTweaks delayBetweenRetries(Duration d);
         @Override ReadBatchCpTweaks maximumNumberOfCallAttempts(int n);
-        @Override ReadBatchCpTweaks replicaOrder(List<NodeCategory> r);
+        @Override ReadBatchCpTweaks replicaOrder(Replica r);
         @Override ReadBatchCpTweaks sendKey(boolean sendKey);
         @Override ReadBatchCpTweaks useCompression(boolean compress);
         @Override ReadBatchCpTweaks waitForCallToComplete(Duration d);
@@ -1036,7 +1035,7 @@ public final class Behavior {
         @Override ReadQueryApTweaks abandonCallAfter(Duration d);
         @Override ReadQueryApTweaks delayBetweenRetries(Duration d);
         @Override ReadQueryApTweaks maximumNumberOfCallAttempts(int n);
-        @Override ReadQueryApTweaks replicaOrder(List<NodeCategory> r);
+        @Override ReadQueryApTweaks replicaOrder(Replica r);
         @Override ReadQueryApTweaks sendKey(boolean sendKey);
         @Override ReadQueryApTweaks useCompression(boolean compress);
         @Override ReadQueryApTweaks waitForCallToComplete(Duration d);
@@ -1050,7 +1049,7 @@ public final class Behavior {
         @Override ReadQueryCpTweaks abandonCallAfter(Duration d);
         @Override ReadQueryCpTweaks delayBetweenRetries(Duration d);
         @Override ReadQueryCpTweaks maximumNumberOfCallAttempts(int n);
-        @Override ReadQueryCpTweaks replicaOrder(List<NodeCategory> r);
+        @Override ReadQueryCpTweaks replicaOrder(Replica r);
         @Override ReadQueryCpTweaks sendKey(boolean sendKey);
         @Override ReadQueryCpTweaks useCompression(boolean compress);
         @Override ReadQueryCpTweaks waitForCallToComplete(Duration d);
@@ -1066,7 +1065,7 @@ public final class Behavior {
         @Override WritePointAnyModeTweaks abandonCallAfter(Duration d);
         @Override WritePointAnyModeTweaks delayBetweenRetries(Duration d);
         @Override WritePointAnyModeTweaks maximumNumberOfCallAttempts(int n);
-        @Override WritePointAnyModeTweaks replicaOrder(List<NodeCategory> r);
+        @Override WritePointAnyModeTweaks replicaOrder(Replica r);
         @Override WritePointAnyModeTweaks sendKey(boolean sendKey);
         @Override WritePointAnyModeTweaks useCompression(boolean compress);
         @Override WritePointAnyModeTweaks waitForCallToComplete(Duration d);
@@ -1079,7 +1078,7 @@ public final class Behavior {
         @Override WritePointApTweaks abandonCallAfter(Duration d);
         @Override WritePointApTweaks delayBetweenRetries(Duration d);
         @Override WritePointApTweaks maximumNumberOfCallAttempts(int n);
-        @Override WritePointApTweaks replicaOrder(List<NodeCategory> r);
+        @Override WritePointApTweaks replicaOrder(Replica r);
         @Override WritePointApTweaks sendKey(boolean sendKey);
         @Override WritePointApTweaks useCompression(boolean compress);
         @Override WritePointApTweaks waitForCallToComplete(Duration d);
@@ -1093,7 +1092,7 @@ public final class Behavior {
         @Override WritePointCpTweaks abandonCallAfter(Duration d);
         @Override WritePointCpTweaks delayBetweenRetries(Duration d);
         @Override WritePointCpTweaks maximumNumberOfCallAttempts(int n);
-        @Override WritePointCpTweaks replicaOrder(List<NodeCategory> r);
+        @Override WritePointCpTweaks replicaOrder(Replica r);
         @Override WritePointCpTweaks sendKey(boolean sendKey);
         @Override WritePointCpTweaks useCompression(boolean compress);
         @Override WritePointCpTweaks waitForCallToComplete(Duration d);
@@ -1106,7 +1105,7 @@ public final class Behavior {
         @Override WriteBatchAnyModeTweaks abandonCallAfter(Duration d);
         @Override WriteBatchAnyModeTweaks delayBetweenRetries(Duration d);
         @Override WriteBatchAnyModeTweaks maximumNumberOfCallAttempts(int n);
-        @Override WriteBatchAnyModeTweaks replicaOrder(List<NodeCategory> r);
+        @Override WriteBatchAnyModeTweaks replicaOrder(Replica r);
         @Override WriteBatchAnyModeTweaks sendKey(boolean sendKey);
         @Override WriteBatchAnyModeTweaks useCompression(boolean compress);
         @Override WriteBatchAnyModeTweaks waitForCallToComplete(Duration d);
@@ -1122,7 +1121,7 @@ public final class Behavior {
         @Override WriteBatchApTweaks abandonCallAfter(Duration d);
         @Override WriteBatchApTweaks delayBetweenRetries(Duration d);
         @Override WriteBatchApTweaks maximumNumberOfCallAttempts(int n);
-        @Override WriteBatchApTweaks replicaOrder(List<NodeCategory> r);
+        @Override WriteBatchApTweaks replicaOrder(Replica r);
         @Override WriteBatchApTweaks sendKey(boolean sendKey);
         @Override WriteBatchApTweaks useCompression(boolean compress);
         @Override WriteBatchApTweaks waitForCallToComplete(Duration d);
@@ -1139,7 +1138,7 @@ public final class Behavior {
         @Override WriteBatchCpTweaks abandonCallAfter(Duration d);
         @Override WriteBatchCpTweaks delayBetweenRetries(Duration d);
         @Override WriteBatchCpTweaks maximumNumberOfCallAttempts(int n);
-        @Override WriteBatchCpTweaks replicaOrder(List<NodeCategory> r);
+        @Override WriteBatchCpTweaks replicaOrder(Replica r);
         @Override WriteBatchCpTweaks sendKey(boolean sendKey);
         @Override WriteBatchCpTweaks useCompression(boolean compress);
         @Override WriteBatchCpTweaks waitForCallToComplete(Duration d);
@@ -1157,7 +1156,7 @@ public final class Behavior {
         @Override RetryableWriteAnyModeTweaks abandonCallAfter(Duration d);
         @Override RetryableWriteAnyModeTweaks delayBetweenRetries(Duration d);
         @Override RetryableWriteAnyModeTweaks maximumNumberOfCallAttempts(int n);
-        @Override RetryableWriteAnyModeTweaks replicaOrder(List<NodeCategory> r);
+        @Override RetryableWriteAnyModeTweaks replicaOrder(Replica r);
         @Override RetryableWriteAnyModeTweaks sendKey(boolean sendKey);
         @Override RetryableWriteAnyModeTweaks useCompression(boolean compress);
         @Override RetryableWriteAnyModeTweaks waitForCallToComplete(Duration d);
@@ -1170,7 +1169,7 @@ public final class Behavior {
         @Override RetryableWritePointAnyModeTweaks abandonCallAfter(Duration d);
         @Override RetryableWritePointAnyModeTweaks delayBetweenRetries(Duration d);
         @Override RetryableWritePointAnyModeTweaks maximumNumberOfCallAttempts(int n);
-        @Override RetryableWritePointAnyModeTweaks replicaOrder(List<NodeCategory> r);
+        @Override RetryableWritePointAnyModeTweaks replicaOrder(Replica r);
         @Override RetryableWritePointAnyModeTweaks sendKey(boolean sendKey);
         @Override RetryableWritePointAnyModeTweaks useCompression(boolean compress);
         @Override RetryableWritePointAnyModeTweaks waitForCallToComplete(Duration d);
@@ -1183,7 +1182,7 @@ public final class Behavior {
         @Override RetryableWritePointApTweaks abandonCallAfter(Duration d);
         @Override RetryableWritePointApTweaks delayBetweenRetries(Duration d);
         @Override RetryableWritePointApTweaks maximumNumberOfCallAttempts(int n);
-        @Override RetryableWritePointApTweaks replicaOrder(List<NodeCategory> r);
+        @Override RetryableWritePointApTweaks replicaOrder(Replica r);
         @Override RetryableWritePointApTweaks sendKey(boolean sendKey);
         @Override RetryableWritePointApTweaks useCompression(boolean compress);
         @Override RetryableWritePointApTweaks waitForCallToComplete(Duration d);
@@ -1197,7 +1196,7 @@ public final class Behavior {
         @Override RetryableWritePointCpTweaks abandonCallAfter(Duration d);
         @Override RetryableWritePointCpTweaks delayBetweenRetries(Duration d);
         @Override RetryableWritePointCpTweaks maximumNumberOfCallAttempts(int n);
-        @Override RetryableWritePointCpTweaks replicaOrder(List<NodeCategory> r);
+        @Override RetryableWritePointCpTweaks replicaOrder(Replica r);
         @Override RetryableWritePointCpTweaks sendKey(boolean sendKey);
         @Override RetryableWritePointCpTweaks useCompression(boolean compress);
         @Override RetryableWritePointCpTweaks waitForCallToComplete(Duration d);
@@ -1210,7 +1209,7 @@ public final class Behavior {
         @Override RetryableWriteBatchAnyModeTweaks abandonCallAfter(Duration d);
         @Override RetryableWriteBatchAnyModeTweaks delayBetweenRetries(Duration d);
         @Override RetryableWriteBatchAnyModeTweaks maximumNumberOfCallAttempts(int n);
-        @Override RetryableWriteBatchAnyModeTweaks replicaOrder(List<NodeCategory> r);
+        @Override RetryableWriteBatchAnyModeTweaks replicaOrder(Replica r);
         @Override RetryableWriteBatchAnyModeTweaks sendKey(boolean sendKey);
         @Override RetryableWriteBatchAnyModeTweaks useCompression(boolean compress);
         @Override RetryableWriteBatchAnyModeTweaks waitForCallToComplete(Duration d);
@@ -1226,7 +1225,7 @@ public final class Behavior {
         @Override RetryableWriteBatchApTweaks abandonCallAfter(Duration d);
         @Override RetryableWriteBatchApTweaks delayBetweenRetries(Duration d);
         @Override RetryableWriteBatchApTweaks maximumNumberOfCallAttempts(int n);
-        @Override RetryableWriteBatchApTweaks replicaOrder(List<NodeCategory> r);
+        @Override RetryableWriteBatchApTweaks replicaOrder(Replica r);
         @Override RetryableWriteBatchApTweaks sendKey(boolean sendKey);
         @Override RetryableWriteBatchApTweaks useCompression(boolean compress);
         @Override RetryableWriteBatchApTweaks waitForCallToComplete(Duration d);
@@ -1243,7 +1242,7 @@ public final class Behavior {
         @Override RetryableWriteBatchCpTweaks abandonCallAfter(Duration d);
         @Override RetryableWriteBatchCpTweaks delayBetweenRetries(Duration d);
         @Override RetryableWriteBatchCpTweaks maximumNumberOfCallAttempts(int n);
-        @Override RetryableWriteBatchCpTweaks replicaOrder(List<NodeCategory> r);
+        @Override RetryableWriteBatchCpTweaks replicaOrder(Replica r);
         @Override RetryableWriteBatchCpTweaks sendKey(boolean sendKey);
         @Override RetryableWriteBatchCpTweaks useCompression(boolean compress);
         @Override RetryableWriteBatchCpTweaks waitForCallToComplete(Duration d);
@@ -1260,7 +1259,7 @@ public final class Behavior {
         @Override NonRetryableWriteAnyModeTweaks abandonCallAfter(Duration d);
         @Override NonRetryableWriteAnyModeTweaks delayBetweenRetries(Duration d);
         @Override NonRetryableWriteAnyModeTweaks maximumNumberOfCallAttempts(int n);
-        @Override NonRetryableWriteAnyModeTweaks replicaOrder(List<NodeCategory> r);
+        @Override NonRetryableWriteAnyModeTweaks replicaOrder(Replica r);
         @Override NonRetryableWriteAnyModeTweaks sendKey(boolean sendKey);
         @Override NonRetryableWriteAnyModeTweaks useCompression(boolean compress);
         @Override NonRetryableWriteAnyModeTweaks waitForCallToComplete(Duration d);
@@ -1273,7 +1272,7 @@ public final class Behavior {
         @Override NonRetryableWritePointAnyModeTweaks abandonCallAfter(Duration d);
         @Override NonRetryableWritePointAnyModeTweaks delayBetweenRetries(Duration d);
         @Override NonRetryableWritePointAnyModeTweaks maximumNumberOfCallAttempts(int n);
-        @Override NonRetryableWritePointAnyModeTweaks replicaOrder(List<NodeCategory> r);
+        @Override NonRetryableWritePointAnyModeTweaks replicaOrder(Replica r);
         @Override NonRetryableWritePointAnyModeTweaks sendKey(boolean sendKey);
         @Override NonRetryableWritePointAnyModeTweaks useCompression(boolean compress);
         @Override NonRetryableWritePointAnyModeTweaks waitForCallToComplete(Duration d);
@@ -1286,7 +1285,7 @@ public final class Behavior {
         @Override NonRetryableWritePointApTweaks abandonCallAfter(Duration d);
         @Override NonRetryableWritePointApTweaks delayBetweenRetries(Duration d);
         @Override NonRetryableWritePointApTweaks maximumNumberOfCallAttempts(int n);
-        @Override NonRetryableWritePointApTweaks replicaOrder(List<NodeCategory> r);
+        @Override NonRetryableWritePointApTweaks replicaOrder(Replica r);
         @Override NonRetryableWritePointApTweaks sendKey(boolean sendKey);
         @Override NonRetryableWritePointApTweaks useCompression(boolean compress);
         @Override NonRetryableWritePointApTweaks waitForCallToComplete(Duration d);
@@ -1300,7 +1299,7 @@ public final class Behavior {
         @Override NonRetryableWritePointCpTweaks abandonCallAfter(Duration d);
         @Override NonRetryableWritePointCpTweaks delayBetweenRetries(Duration d);
         @Override NonRetryableWritePointCpTweaks maximumNumberOfCallAttempts(int n);
-        @Override NonRetryableWritePointCpTweaks replicaOrder(List<NodeCategory> r);
+        @Override NonRetryableWritePointCpTweaks replicaOrder(Replica r);
         @Override NonRetryableWritePointCpTweaks sendKey(boolean sendKey);
         @Override NonRetryableWritePointCpTweaks useCompression(boolean compress);
         @Override NonRetryableWritePointCpTweaks waitForCallToComplete(Duration d);
@@ -1313,7 +1312,7 @@ public final class Behavior {
         @Override NonRetryableWriteBatchAnyModeTweaks abandonCallAfter(Duration d);
         @Override NonRetryableWriteBatchAnyModeTweaks delayBetweenRetries(Duration d);
         @Override NonRetryableWriteBatchAnyModeTweaks maximumNumberOfCallAttempts(int n);
-        @Override NonRetryableWriteBatchAnyModeTweaks replicaOrder(List<NodeCategory> r);
+        @Override NonRetryableWriteBatchAnyModeTweaks replicaOrder(Replica r);
         @Override NonRetryableWriteBatchAnyModeTweaks sendKey(boolean sendKey);
         @Override NonRetryableWriteBatchAnyModeTweaks useCompression(boolean compress);
         @Override NonRetryableWriteBatchAnyModeTweaks waitForCallToComplete(Duration d);
@@ -1329,7 +1328,7 @@ public final class Behavior {
         @Override NonRetryableWriteBatchApTweaks abandonCallAfter(Duration d);
         @Override NonRetryableWriteBatchApTweaks delayBetweenRetries(Duration d);
         @Override NonRetryableWriteBatchApTweaks maximumNumberOfCallAttempts(int n);
-        @Override NonRetryableWriteBatchApTweaks replicaOrder(List<NodeCategory> r);
+        @Override NonRetryableWriteBatchApTweaks replicaOrder(Replica r);
         @Override NonRetryableWriteBatchApTweaks sendKey(boolean sendKey);
         @Override NonRetryableWriteBatchApTweaks useCompression(boolean compress);
         @Override NonRetryableWriteBatchApTweaks waitForCallToComplete(Duration d);
@@ -1346,7 +1345,7 @@ public final class Behavior {
         @Override NonRetryableWriteBatchCpTweaks abandonCallAfter(Duration d);
         @Override NonRetryableWriteBatchCpTweaks delayBetweenRetries(Duration d);
         @Override NonRetryableWriteBatchCpTweaks maximumNumberOfCallAttempts(int n);
-        @Override NonRetryableWriteBatchCpTweaks replicaOrder(List<NodeCategory> r);
+        @Override NonRetryableWriteBatchCpTweaks replicaOrder(Replica r);
         @Override NonRetryableWriteBatchCpTweaks sendKey(boolean sendKey);
         @Override NonRetryableWriteBatchCpTweaks useCompression(boolean compress);
         @Override NonRetryableWriteBatchCpTweaks waitForCallToComplete(Duration d);
@@ -1825,7 +1824,7 @@ public final class Behavior {
         @Override public TweaksProxy abandonCallAfter(Duration d) { patch.settings.abandonCallAfter = d; return this; }
         @Override public TweaksProxy delayBetweenRetries(Duration d) { patch.settings.delayBetweenRetries = d; return this; }
         @Override public TweaksProxy maximumNumberOfCallAttempts(int n) { patch.settings.maximumNumberOfCallAttempts = n; return this; }
-        @Override public TweaksProxy replicaOrder(List<NodeCategory> r) { patch.settings.replicaOrder = r; return this; }
+        @Override public TweaksProxy replicaOrder(Replica r) { patch.settings.replicaOrder = r; return this; }
         @Override public TweaksProxy sendKey(boolean sendKey) { patch.settings.sendKey = sendKey; return this; }
         @Override public TweaksProxy useCompression(boolean compress) { patch.settings.useCompression = compress; return this; }
         @Override public TweaksProxy waitForCallToComplete(Duration d) { patch.settings.waitForCallToComplete = d; return this; }

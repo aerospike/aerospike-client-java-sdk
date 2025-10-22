@@ -20,7 +20,7 @@ import com.aerospike.client.fluent.Cluster;
 import com.aerospike.client.fluent.Txn;
 import com.aerospike.client.fluent.exp.Expression;
 import com.aerospike.client.fluent.policy.Replica;
-import com.aerospike.client.fluent.policy.SettablePolicy;
+import com.aerospike.client.fluent.policy.Settings;
 
 public class Command {
 	public static final int INFO1_READ				= (1 << 0); // Contains a read operation.
@@ -109,7 +109,7 @@ public class Command {
 	final boolean failOnFilteredOut;
 
 	public Command(
-		Cluster cluster, String namespace, Txn txn, boolean failOnFilteredOut, SettablePolicy policy
+		Cluster cluster, String namespace, Txn txn, boolean failOnFilteredOut, Settings policy
 	) {
 		this.cluster = cluster;
 		this.namespace = namespace;
@@ -117,10 +117,10 @@ public class Command {
 		this.filterExp = null;          // TODO: Pass in when supported in external api.
 		this.failOnFilteredOut = failOnFilteredOut;
 
-		replica = policy.getReplica();
-		connectTimeout = policy.getConnectTimeout();
-		totalTimeout = policy.getTotalTimeout();
-		int st = policy.getSocketTimeout();
+		replica = policy.getReplicaOrder();
+		connectTimeout = policy.getWaitForConnectionToCompleteMs();
+		totalTimeout = policy.getAbandonCallAfterMs();
+		int st = policy.getWaitForCallToCompleteMs();
 
 		if (totalTimeout > 0) {
 			socketTimeout = (st < totalTimeout && st > 0)? st : totalTimeout;
@@ -131,12 +131,12 @@ public class Command {
 			serverTimeout = 0;
 		}
 
-		timeoutDelay = policy.getTimeoutDelay();
-		maxRetries = policy.getMaxRetries();
-		sleepBetweenRetries = policy.getSleepBetweenRetries();
-		readTouchTtlPercent = policy.getReadTouchTtlPercent();
+		timeoutDelay = policy.getWaitForSocketResponseAfterCallFailsMs();
+		maxRetries = policy.getMaximumNumberOfCallAttempts()-1;
+		sleepBetweenRetries = policy.getDelayBetweenRetriesMs();
+		readTouchTtlPercent = policy.getResetTtlOnReadAtPercent();
 		sendKey = policy.getSendKey();
-		compress = policy.getCompress();
+		compress = policy.getUseCompression();
 	}
 
 	public int getConnectTimeout() {

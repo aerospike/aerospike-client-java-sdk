@@ -29,6 +29,7 @@ import com.aerospike.client.fluent.exp.Expression;
 /**
  * Command policy attributes used in all database commands.
  */
+@Deprecated(forRemoval = true)
 public class Policy {
 	/**
 	 * Multi-record transaction. If this field is populated, the corresponding
@@ -290,37 +291,37 @@ public class Policy {
 	/**
 	 * Copy policy from dynamic configuration policy.
 	 */
-	public Policy(SettablePolicy other) {
+	public Policy(Settings other) {
         // This has no equivalent in the underlying code
 		this.replica = (other.replicaOrder != null)?
 			Replica.SEQUENCE : Replica.SEQUENCE;
 
 		this.connectTimeout = (other.waitForConnectionToComplete != null)?
-			other.waitForConnectionToComplete : 0;
+			other.getWaitForConnectionToCompleteMs() : 0;
 
 		this.socketTimeout =  (other.waitForCallToComplete != null)?
-			other.waitForCallToComplete : 30000;
+			other.getWaitForCallToCompleteMs() : 30000;
 
 		this.totalTimeout = (other.abandonCallAfter != null)?
-			other.abandonCallAfter : 1000;
+			other.getAbandonCallAfterMs() : 1000;
 
     	this.timeoutDelay = (other.waitForSocketResponseAfterCallFails != null)?
-    		other.waitForSocketResponseAfterCallFails : 0;
+    		other.getWaitForSocketResponseAfterCallFailsMs() : 0;
 
 		this.maxRetries = (other.maximumNumberOfCallAttempts != null)?
-        	other.maximumNumberOfCallAttempts - 1 : 2;
+        	other.getMaximumNumberOfCallAttempts() - 1 : 2;
 
     	this.sleepBetweenRetries = (other.delayBetweenRetries != null)?
-    		other.delayBetweenRetries : 0;
+    		other.getDelayBetweenRetriesMs() : 0;
 
     	this.readTouchTtlPercent = (other.resetTtlOnReadAtPercent != null)?
-    		other.resetTtlOnReadAtPercent : 0;
+    		other.getResetTtlOnReadAtPercent() : 0;
 
     	this.sendKey = (other.sendKey != null)?
-    		other.sendKey : false;
+    		other.getSendKey() : false;
 
     	this.compress = (other.useCompression != null)?
-    		other.useCompression : false;
+    		other.getUseCompression() : false;
 	}
 
 	/**

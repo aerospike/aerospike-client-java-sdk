@@ -16,7 +16,6 @@
  */
 package com.aerospike.client.fluent;
 
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -26,13 +25,9 @@ import com.aerospike.client.fluent.cdt.ListPolicy;
 import com.aerospike.client.fluent.cdt.ListWriteFlags;
 import com.aerospike.client.fluent.command.OperateCommand;
 import com.aerospike.client.fluent.command.SyncTxnAddKeysExecutor;
-import com.aerospike.client.fluent.policy.BatchPolicy;
-import com.aerospike.client.fluent.policy.BehaviorBuilder;
-import com.aerospike.client.fluent.policy.Policy;
 import com.aerospike.client.fluent.policy.ReadModeAP;
 import com.aerospike.client.fluent.policy.ReadModeSC;
-import com.aerospike.client.fluent.policy.SettableWritePolicy;
-import com.aerospike.client.fluent.policy.WritePolicy;
+import com.aerospike.client.fluent.policy.Settings;
 
 public final class TxnMonitor {
 	private static final ListPolicy OrderedListPolicy = new ListPolicy(ListOrder.ORDERED,
@@ -41,7 +36,7 @@ public final class TxnMonitor {
 	private static final String BinNameId = "id";
 	private static final String BinNameDigests = "keyds";
 
-	public static void addKey(Txn txn, Cluster cluster, WritePolicy policy, Key cmdKey) {
+	public static void addKey(Txn txn, Cluster cluster, Settings policy, Key cmdKey) {
 		txn.verifyCommand();
 
 		if (txn.getWrites().contains(cmdKey)) {
@@ -53,17 +48,17 @@ public final class TxnMonitor {
 		addWriteKeys(txn, cluster, policy, ops);
 	}
 
-	public static void addKeys(Txn txn, Cluster cluster, BatchPolicy policy, Key[] keys) {
+	public static void addKeys(Txn txn, Cluster cluster, Settings policy, Key[] keys) {
 		Operation[] ops = getTranOps(txn, keys);
 		addWriteKeys(txn, cluster, policy, ops);
 	}
 
-	public static void addKeys(Txn txn, Cluster cluster, SettableWritePolicy policy, List<Key> keys) {
+	public static void addKeys(Txn txn, Cluster cluster, Settings policy, List<Key> keys) {
 		Operation[] ops = getTranOps(txn, keys);
 		addWriteKeys(txn, cluster, policy, ops);
 	}
 
-	public static void addKeysBatch(Txn txn, Cluster cluster, BatchPolicy policy, List<BatchRecord> records) {
+	public static void addKeysBatch(Txn txn, Cluster cluster, Settings policy, List<BatchRecord> records) {
 		Operation[] ops = getTranOpsBatch(txn, records);
 
 		if (ops != null) {
@@ -145,28 +140,29 @@ public final class TxnMonitor {
 		}
 	}
 
-	private static void addWriteKeys(Txn txn, Cluster cluster, Policy policy, Operation[] ops) {
-		/*
+    /*
+	private static void addWriteKeys(Txn txn, Cluster cluster, Settings policy, Operation[] ops) {
 		Key txnKey = getTxnMonitorKey(txn);
 		WritePolicy wp = copyTimeoutPolicy(policy);
 		OperateArgs args = new OperateArgs(ops);
 		TxnAddKeys cmd = new TxnAddKeys(cluster, txnKey, args, txn);
 		cmd.execute();
-		*/
 	}
+        */
 
-	private static void addWriteKeys(Txn txn, Cluster cluster, SettableWritePolicy policy, Operation[] ops) {
+	private static void addWriteKeys(Txn txn, Cluster cluster, Settings policy, Operation[] ops) {
 		Key txnKey = getTxnMonitorKey(txn);
 
-		SettableWritePolicy txnPolicy = new BehaviorBuilder().onRetryableWrites()
-			.waitForConnectionToComplete(Duration.ofMillis(policy.getConnectTimeout()))
-			.waitForCallToComplete(Duration.ofMillis(policy.getSocketTimeout()))
-			.abandonCallAfter(Duration.ofMillis(policy.getTotalTimeout()))
-			.waitForSocketResponseAfterCallFails(Duration.ofMillis(policy.getTimeoutDelay()))
-			.maximumNumberOfCallAttempts(policy.getMaxRetries() + 1)
-			.delayBetweenRetries(Duration.ofMillis(policy.getSleepBetweenRetries()))
-			.useCompression(policy.getCompress())
-			.getPolicy();
+//		SettableWritePolicy txnPolicy = new BehaviorBuilder().onRetryableWrites()
+//			.waitForConnectionToComplete(Duration.ofMillis(policy.getConnectTimeout()))
+//			.waitForCallToComplete(Duration.ofMillis(policy.getSocketTimeout()))
+//			.abandonCallAfter(Duration.ofMillis(policy.getTotalTimeout()))
+//			.waitForSocketResponseAfterCallFails(Duration.ofMillis(policy.getTimeoutDelay()))
+//			.maximumNumberOfCallAttempts(policy.getMaxRetries() + 1)
+//			.delayBetweenRetries(Duration.ofMillis(policy.getSleepBetweenRetries()))
+//			.useCompression(policy.getCompress())
+//			.getPolicy();
+		Settings txnPolicy = new Settings(policy);
 
         OperateCommand cmd = new OperateCommand(cluster, txn, txnKey, ops, OpType.UPSERT,
 			0, txn.getTimeout(), ReadModeAP.ONE, ReadModeSC.SESSION, false, txnPolicy

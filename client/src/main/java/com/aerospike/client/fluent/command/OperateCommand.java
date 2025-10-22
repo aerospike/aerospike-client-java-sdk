@@ -23,7 +23,7 @@ import com.aerospike.client.fluent.Operation;
 import com.aerospike.client.fluent.Txn;
 import com.aerospike.client.fluent.policy.ReadModeAP;
 import com.aerospike.client.fluent.policy.ReadModeSC;
-import com.aerospike.client.fluent.policy.SettableWritePolicy;
+import com.aerospike.client.fluent.policy.Settings;
 
 public class OperateCommand extends WriteCommand {
 	// Read policies are necessary because operate may contain read operations.
@@ -39,13 +39,13 @@ public class OperateCommand extends WriteCommand {
 	public OperateCommand(
 		Cluster cluster, Txn txn, Key key, Operation[] ops, OpType type, int gen, int ttl,
 		ReadModeAP readModeAP, ReadModeSC readModeSC, boolean failOnFilteredOut,
-		SettableWritePolicy policy
+		Settings policy
 	) {
 		super(cluster, txn, key, type, gen, ttl, failOnFilteredOut, policy);
 
 		this.readModeAP = readModeAP;
 		this.readModeSC = readModeSC;
-		this.readTouchTtlPercent = policy.getReadTouchTtlPercent();
+		this.readTouchTtlPercent = policy.getResetTtlOnReadAtPercent();
 		this.ops = ops;
 
 		int dataOffset = 0;

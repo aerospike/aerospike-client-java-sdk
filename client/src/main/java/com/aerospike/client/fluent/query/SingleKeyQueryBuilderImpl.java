@@ -14,9 +14,9 @@ import com.aerospike.client.fluent.Session;
 import com.aerospike.client.fluent.Txn;
 import com.aerospike.client.fluent.command.ReadCommand;
 import com.aerospike.client.fluent.command.SyncReadExecutor;
-import com.aerospike.client.fluent.policy.Behavior.CommandType;
-import com.aerospike.client.fluent.policy.SettableAvailabilityModeReadPolicy;
-import com.aerospike.client.fluent.policy.SettableConsistencyModeReadPolicy;
+import com.aerospike.client.fluent.policy.Behavior.OpKind;
+import com.aerospike.client.fluent.policy.Behavior.OpShape;
+import com.aerospike.client.fluent.policy.Settings;
 
 class SingleKeyQueryBuilderImpl extends QueryImpl {
     private final Key key;
@@ -83,18 +83,9 @@ class SingleKeyQueryBuilderImpl extends QueryImpl {
         try {
     		ReadCommand cmd;
 
-        	if (partitions.scMode) {
-    			SettableConsistencyModeReadPolicy policy = session.getBehavior().getSettablePolicy(
-    				CommandType.READ_SC);
-    			cmd = new ReadCommand(cluster, partitions, txn, key, qb.getBinNames(),
-    				qb.getWithNoBins(), failOnFilteredOut, policy);
-    		}
-    		else {
-    			SettableAvailabilityModeReadPolicy policy = session.getBehavior().getSettablePolicy(
-    				CommandType.READ_AP);
-    			cmd = new ReadCommand(cluster, partitions, txn, key, qb.getBinNames(),
-    				qb.getWithNoBins(), failOnFilteredOut, policy);
-    		}
+			Settings policy = session.getBehavior().getSettings(OpKind.READ, OpShape.POINT, partitions.scMode);
+			cmd = new ReadCommand(cluster, partitions, txn, key, qb.getBinNames(),
+				qb.getWithNoBins(), failOnFilteredOut, policy, partitions.scMode);
 
         	SyncReadExecutor exec = new SyncReadExecutor(cluster, cmd);
         	exec.execute();

@@ -27,10 +27,11 @@ import com.aerospike.client.fluent.command.OperateCommand;
 import com.aerospike.client.fluent.command.SyncOperateExecutor;
 import com.aerospike.client.fluent.dsl.BooleanExpression;
 import com.aerospike.client.fluent.exp.Exp;
-import com.aerospike.client.fluent.policy.Behavior.CommandType;
+import com.aerospike.client.fluent.policy.Behavior.OpKind;
+import com.aerospike.client.fluent.policy.Behavior.OpShape;
 import com.aerospike.client.fluent.policy.ReadModeAP;
 import com.aerospike.client.fluent.policy.ReadModeSC;
-import com.aerospike.client.fluent.policy.SettableWritePolicy;
+import com.aerospike.client.fluent.policy.Settings;
 import com.aerospike.client.fluent.query.PreparedDsl;
 import com.aerospike.client.fluent.query.WhereClauseProcessor;
 
@@ -558,8 +559,8 @@ public class BinsValuesBuilder implements FilterableOperation<BinsValuesBuilder>
     	// This method is only used for single record writes.
     	Session session = opBuilder.getSession();
 
-    	SettableWritePolicy policy = session.getBehavior().getSettablePolicy(
-        	CommandType.WRITE_RETRYABLE);
+    	// TODO: BN: Is there a better way to know if we're in SC or AP?
+    	Settings policy = session.getBehavior().getSettings(OpKind.WRITE_RETRYABLE, OpShape.POINT, session.isNamespaceSC(keys.get(0).namespace));
 
     	// Since getOperationsForValueData() returns all write operations, the read operations are not relevant.
     	// Set read modes to default.

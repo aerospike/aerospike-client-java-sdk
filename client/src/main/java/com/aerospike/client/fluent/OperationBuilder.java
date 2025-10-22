@@ -541,7 +541,7 @@ public class OperationBuilder implements FilterableOperation<OperationBuilder> {
     protected interface OperationMapper {
         Operation[] operationsForKey(Key key);
     }
-
+    
     protected interface BatchWritePolicyMapper {
         BatchWritePolicy batchWritePolicyForKey(Key key);
     }

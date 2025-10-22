@@ -4,6 +4,9 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.util.Optional;
 
+import com.aerospike.client.fluent.policy.Behavior.OpKind;
+import com.aerospike.client.fluent.policy.Behavior.OpShape;
+
 /**
  * Example demonstrating the hierarchical YAML configuration system with dynamic reloading
  */
@@ -157,17 +160,17 @@ public class BehaviorHierarchicalExample {
         System.out.println("\n=== Policy Inheritance Examples ===");
         
         // Get policies from different behaviors
-        var defaultWritePolicy = Behavior.DEFAULT.getSharedPolicy(Behavior.CommandType.WRITE_RETRYABLE);
-        var highPerfWritePolicy = Behavior.getBehavior("high-performance").getSharedPolicy(Behavior.CommandType.WRITE_RETRYABLE);
-        var batchOptWritePolicy = Behavior.getBehavior("batch-optimized").getSharedPolicy(Behavior.CommandType.WRITE_RETRYABLE);
+        var defaultWritePolicy = Behavior.DEFAULT.getSettings(OpKind.WRITE_RETRYABLE, OpShape.POINT, false);
+        var highPerfWritePolicy = Behavior.getBehavior("high-performance").getSettings(OpKind.WRITE_RETRYABLE, OpShape.POINT, false);
+        var batchOptWritePolicy = Behavior.getBehavior("batch-optimized").getSettings(OpKind.WRITE_RETRYABLE, OpShape.POINT, false);
         
-        System.out.println("DEFAULT write policy max retries: " + defaultWritePolicy.maxRetries);
-        System.out.println("High Performance write policy max retries: " + highPerfWritePolicy.maxRetries);
-        System.out.println("Batch Optimized write policy max retries: " + batchOptWritePolicy.maxRetries);
+        System.out.println("DEFAULT write policy max retries: " + defaultWritePolicy.getMaximumNumberOfCallAttempts());
+        System.out.println("High Performance write policy max retries: " + highPerfWritePolicy.getMaximumNumberOfCallAttempts());
+        System.out.println("Batch Optimized write policy max retries: " + batchOptWritePolicy.getMaximumNumberOfCallAttempts());
         
-        System.out.println("DEFAULT write policy sleep between retries: " + defaultWritePolicy.sleepBetweenRetries);
-        System.out.println("High Performance write policy sleep between retries: " + highPerfWritePolicy.sleepBetweenRetries);
-        System.out.println("Batch Optimized write policy sleep between retries: " + batchOptWritePolicy.sleepBetweenRetries);
+        System.out.println("DEFAULT write policy sleep between retries: " + defaultWritePolicy.getDelayBetweenRetriesMs());
+        System.out.println("High Performance write policy sleep between retries: " + highPerfWritePolicy.getDelayBetweenRetriesMs());
+        System.out.println("Batch Optimized write policy sleep between retries: " + batchOptWritePolicy.getDelayBetweenRetriesMs());
         
         // Show inheritance chain
         Behavior batchOpt = Behavior.getBehavior("batch-optimized");
