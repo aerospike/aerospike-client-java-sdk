@@ -109,12 +109,12 @@ public class Command {
 	final boolean failOnFilteredOut;
 
 	public Command(
-		Cluster cluster, String namespace, Txn txn, boolean failOnFilteredOut, SettablePolicy policy
+		Cluster cluster, String namespace, Txn txn, Expression filterExp, boolean failOnFilteredOut, SettablePolicy policy
 	) {
 		this.cluster = cluster;
 		this.namespace = namespace;
 		this.txn = txn;
-		this.filterExp = null;          // TODO: Pass in when supported in external api.
+		this.filterExp = filterExp;
 		this.failOnFilteredOut = failOnFilteredOut;
 
 		replica = policy.getReplica();

@@ -21,6 +21,7 @@ import com.aerospike.client.fluent.Key;
 import com.aerospike.client.fluent.Partition;
 import com.aerospike.client.fluent.Partitions;
 import com.aerospike.client.fluent.Txn;
+import com.aerospike.client.fluent.exp.Expression;
 import com.aerospike.client.fluent.policy.ReadModeAP;
 import com.aerospike.client.fluent.policy.ReadModeSC;
 import com.aerospike.client.fluent.policy.Replica;
@@ -38,9 +39,10 @@ public class ReadCommand extends Command {
 
 	public ReadCommand(
 		Cluster cluster, Partitions partitions, Txn txn, Key key, String[] binNames,
-		boolean withNoBins, boolean failOnFilteredOut, SettableAvailabilityModeReadPolicy policy
+		boolean withNoBins, Expression filterExp, boolean failOnFilteredOut,
+		SettableAvailabilityModeReadPolicy policy
 	) {
-		super(cluster, key.namespace, txn, failOnFilteredOut, policy);
+		super(cluster, key.namespace, txn, filterExp, failOnFilteredOut, policy);
 		this.key = key;
 		this.binNames = binNames;
 		this.partition = new Partition(partitions, key, policy.getReplica(), null, false);
@@ -52,9 +54,10 @@ public class ReadCommand extends Command {
 
 	public ReadCommand(
 		Cluster cluster, Partitions partitions, Txn txn, Key key, String[] binNames,
-		boolean withNoBins, boolean failOnFilteredOut, SettableConsistencyModeReadPolicy policy
+		boolean withNoBins, Expression filterExp, boolean failOnFilteredOut,
+		SettableConsistencyModeReadPolicy policy
 	) {
-		super(cluster, key.namespace, txn, failOnFilteredOut, policy);
+		super(cluster, key.namespace, txn, filterExp, failOnFilteredOut, policy);
 		this.key = key;
 		this.binNames = binNames;
 		this.readModeAP = ReadModeAP.ONE;

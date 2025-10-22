@@ -26,7 +26,9 @@ import java.util.Map;
 import com.aerospike.client.fluent.command.OperateCommand;
 import com.aerospike.client.fluent.command.SyncOperateExecutor;
 import com.aerospike.client.fluent.dsl.BooleanExpression;
+import com.aerospike.client.fluent.dsl.ParseResult;
 import com.aerospike.client.fluent.exp.Exp;
+import com.aerospike.client.fluent.exp.Expression;
 import com.aerospike.client.fluent.policy.Behavior.CommandType;
 import com.aerospike.client.fluent.policy.ReadModeAP;
 import com.aerospike.client.fluent.policy.ReadModeSC;
@@ -561,7 +563,15 @@ public class BinsValuesBuilder implements FilterableOperation<BinsValuesBuilder>
     	SettableWritePolicy policy = session.getBehavior().getSettablePolicy(
         	CommandType.WRITE_RETRYABLE);
 
-    	// Since getOperationsForValueData() returns all write operations, the read operations are not relevant.
+        // Apply filter expression clause if present
+        Expression filterExp = null;
+
+        if (this.dsl != null && !keys.isEmpty()) {
+            ParseResult parseResult = this.dsl.process(keys.get(0).namespace, session);
+            filterExp = Exp.build(parseResult.getExp());
+        }
+
+        // Since getOperationsForValueData() returns all write operations, the read operations are not relevant.
     	// Set read modes to default.
         ReadModeAP readModeAP = ReadModeAP.ONE;
         ReadModeSC readModeSC = ReadModeSC.SESSION;
@@ -582,7 +592,8 @@ public class BinsValuesBuilder implements FilterableOperation<BinsValuesBuilder>
             int ttl = getExpiration(valueSet);
 
             OperateCommand cmd = new OperateCommand(cluster, txnToUse, key, ops, opBuilder.opType,
-				valueSet.generation, ttl, readModeAP, readModeSC, true /* TODO: Need this in external API! */, policy
+				valueSet.generation, ttl, readModeAP, readModeSC, filterExp, true /* TODO: Need this in external API! */,
+				policy
 				);
 
             try {

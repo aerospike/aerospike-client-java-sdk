@@ -14,6 +14,9 @@ import com.aerospike.client.fluent.Session;
 import com.aerospike.client.fluent.Txn;
 import com.aerospike.client.fluent.command.ReadCommand;
 import com.aerospike.client.fluent.command.SyncReadExecutor;
+import com.aerospike.client.fluent.dsl.ParseResult;
+import com.aerospike.client.fluent.exp.Exp;
+import com.aerospike.client.fluent.exp.Expression;
 import com.aerospike.client.fluent.policy.Behavior.CommandType;
 import com.aerospike.client.fluent.policy.SettableAvailabilityModeReadPolicy;
 import com.aerospike.client.fluent.policy.SettableConsistencyModeReadPolicy;
@@ -72,7 +75,15 @@ class SingleKeyQueryBuilderImpl extends QueryImpl {
 			txn.prepareRead(key.namespace);
 		}
 
-		// Must copy hashmap reference for copy on write semantics to work.
+        Expression filterExp = null;
+        WhereClauseProcessor dsl = qb.getDsl();
+
+        if (dsl != null) {
+            ParseResult parseResult = dsl.process(key.namespace, session);
+            filterExp = Exp.build(parseResult.getExp());
+        }
+
+        // Must copy hashmap reference for copy on write semantics to work.
 		HashMap<String,Partitions> partitionMap = cluster.getPartitionMap();
 		Partitions partitions = partitionMap.get(key.namespace);
 
@@ -87,13 +98,13 @@ class SingleKeyQueryBuilderImpl extends QueryImpl {
     			SettableConsistencyModeReadPolicy policy = session.getBehavior().getSettablePolicy(
     				CommandType.READ_SC);
     			cmd = new ReadCommand(cluster, partitions, txn, key, qb.getBinNames(),
-    				qb.getWithNoBins(), failOnFilteredOut, policy);
+    				qb.getWithNoBins(), filterExp, failOnFilteredOut, policy);
     		}
     		else {
     			SettableAvailabilityModeReadPolicy policy = session.getBehavior().getSettablePolicy(
     				CommandType.READ_AP);
     			cmd = new ReadCommand(cluster, partitions, txn, key, qb.getBinNames(),
-    				qb.getWithNoBins(), failOnFilteredOut, policy);
+    				qb.getWithNoBins(), filterExp, failOnFilteredOut, policy);
     		}
 
         	SyncReadExecutor exec = new SyncReadExecutor(cluster, cmd);
