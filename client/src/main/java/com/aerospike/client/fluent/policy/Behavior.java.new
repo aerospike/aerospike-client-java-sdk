@@ -6,6 +6,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -107,18 +108,22 @@ public final class Behavior {
     // -----------------------------------------------------------------------------------
     // Legacy CommandType for backward compatibility
     // -----------------------------------------------------------------------------------
-//    public static enum CommandType {
-//        ALL,
-//        READ_AP,
-//        READ_SC,
-//        WRITE_RETRYABLE,
-//        WRITE_NON_RETRYABLE,
-//        BATCH_READ,
-//        BATCH_WRITE,
-//        QUERY,
-//        INFO
-//    }
+    public static enum CommandType {
+        ALL,
+        READ_AP,
+        READ_SC,
+        WRITE_RETRYABLE,
+        WRITE_NON_RETRYABLE,
+        BATCH_READ,
+        BATCH_WRITE,
+        QUERY,
+        INFO
+    }
 
+    public enum ExceptionPolicy {
+        THROW_ON_ANY_ERROR,
+        RETURN_AS_MANY_RESULTS_AS_POSSIBLE
+    }
 
     // -----------------------------------------------------------------------------------
     // Internal factory (package-private for DEFAULT initialization only)
@@ -204,7 +209,8 @@ public final class Behavior {
     private final Behavior base;       // defaults (may be null)
     private final List<Behavior> children;
     private Map<OpKey, Settings> resolved; // fully-resolved matrix
-//    private ConcurrentHashMap<CommandType, Object> legacyCachedPolicies = new ConcurrentHashMap<>();
+    private ExceptionPolicy exceptionPolicy = null;
+    private ConcurrentHashMap<CommandType, Object> legacyCachedPolicies = new ConcurrentHashMap<>();
 
     private Behavior(String name, List<Patch> patches, Behavior base) {
         this.name = name;
@@ -220,7 +226,7 @@ public final class Behavior {
 
     public void clearCache() {
         this.resolved = formMatrix();
-//        this.legacyCachedPolicies.clear();
+        this.legacyCachedPolicies.clear();
         // Notify all children
         for (Behavior child : children) {
             child.clearCache();
@@ -233,6 +239,15 @@ public final class Behavior {
      */
     void changed() {
         clearCache();
+    }
+    
+    public Behavior exceptionPolicy(ExceptionPolicy exceptionPolicy) {
+        this.exceptionPolicy = exceptionPolicy;
+        return this;
+    }
+
+    public ExceptionPolicy getExceptionPolicy() {
+        return exceptionPolicy != null ? exceptionPolicy : base != null ? base.getExceptionPolicy() : ExceptionPolicy.RETURN_AS_MANY_RESULTS_AS_POSSIBLE;
     }
     
     public String getName() {
@@ -293,33 +308,33 @@ public final class Behavior {
         return resolved.get(new OpKey(kind, shape, isNamespaceSC ? Mode.CP : Mode.AP));
     }
 
-//    // -----------------------------------------------------------------------------------
-//    // Backward compatibility methods for legacy CommandType access
-//    // -----------------------------------------------------------------------------------
-//    
-//    /**
-//     * Get InfoPolicy using old-style access (backward compatibility)
-//     */
-//    public InfoPolicy getSharedInfoPolicy() {
-//        // Info policies don't have operation-specific settings in the new model
-//        // Use global settings
-//        Settings settings = resolved.get(new OpKey(OpKind.READ, OpShape.POINT, Mode.AP));
-//        if (settings == null) {
-//            return new InfoPolicy();
-//        }
-//        InfoPolicy policy = new InfoPolicy();
-//        if (settings.abandonCallAfter != null) {
-//            policy.timeout = (int)settings.abandonCallAfter.toMillis();
-//        }
-//        return policy;
-//    }
+    // -----------------------------------------------------------------------------------
+    // Backward compatibility methods for legacy CommandType access
+    // -----------------------------------------------------------------------------------
+    
+    /**
+     * Get InfoPolicy using old-style access (backward compatibility)
+     */
+    public InfoPolicy getSharedInfoPolicy() {
+        // Info policies don't have operation-specific settings in the new model
+        // Use global settings
+        Settings settings = resolved.get(new OpKey(OpKind.READ, OpShape.POINT, Mode.AP));
+        if (settings == null) {
+            return new InfoPolicy();
+        }
+        InfoPolicy policy = new InfoPolicy();
+        if (settings.abandonCallAfter != null) {
+            policy.timeout = (int)settings.abandonCallAfter.toMillis();
+        }
+        return policy;
+    }
 
     /**
      * Get InfoPolicy (mutable copy) using old-style access (backward compatibility)
      */
-//    public InfoPolicy getMutableInfoPolicy() {
-//        return new InfoPolicy(getSharedInfoPolicy());
-//    }
+    public InfoPolicy getMutableInfoPolicy() {
+        return new InfoPolicy(getSharedInfoPolicy());
+    }
 
     /**
      * Get policy using legacy CommandType (backward compatibility)
@@ -376,9 +391,9 @@ public final class Behavior {
      * @param type The command type
      * @return A mutable copy of the policy
      */
-//    public <T extends Policy> T getMutablePolicy(CommandType type) {
-//        return getSharedPolicy(type);
-//    }
+    public <T extends Policy> T getMutablePolicy(CommandType type) {
+        return getSharedPolicy(type);
+    }
 
     /**
      * Creates a new Behavior derived from this one with additional changes.
@@ -795,6 +810,149 @@ public final class Behavior {
     // Settings captured by each patch (extend with your SettablePolicy knobs)
     // -----------------------------------------------------------------------------------
     
+    public static final class Settings {
+        Duration abandonCallAfter;
+        Duration delayBetweenRetries;
+        Integer maximumNumberOfCallAttempts;
+        List<NodeCategory> replicaOrder;
+        Boolean sendKey;
+        Boolean useCompression;
+        Duration waitForCallToComplete;
+        Duration waitForConnectionToComplete;
+        Duration waitForSocketResponseAfterCallFails;
+
+        // Query-only
+        Integer recordQueueSize;
+        
+        // Batch-only
+        Integer maxConcurrentNodes;
+        Boolean allowInlineMemoryAccess;
+        Boolean allowInlineSsdAccess;
+
+        // Write-mode-specific
+        Boolean useDurableDelete;
+        Boolean simulateXdrWrite;
+
+        // Write-mode-ap-specific
+        CommitLevel commitLevel;
+
+        // Read-mode-specific
+        ReadModeAP readModeAP;           // AP
+        ReadModeSC readModeSC; // CP
+        Integer resetTtlOnReadAtPercent;
+
+        @Override public String toString() {
+            Map<String, Object> m = new LinkedHashMap<>();
+            if (abandonCallAfter != null) m.put("abandonCallAfter", abandonCallAfter);
+            if (delayBetweenRetries != null) m.put("delayBetweenRetries", delayBetweenRetries);
+            if (maximumNumberOfCallAttempts != null) m.put("maximumNumberOfCallAttempts", maximumNumberOfCallAttempts);
+            if (replicaOrder != null) m.put("replicaOrder", replicaOrder);
+            if (sendKey != null) m.put("sendKey", sendKey);
+            if (useCompression != null) m.put("useCompression", useCompression);
+            if (waitForCallToComplete != null) m.put("waitForCallToComplete", waitForCallToComplete);
+            if (waitForConnectionToComplete != null) m.put("waitForConnectionToComplete", waitForConnectionToComplete);
+            if (waitForSocketResponseAfterCallFails != null) m.put("waitForSocketResponseAfterCallFails", waitForSocketResponseAfterCallFails);
+            
+            if (recordQueueSize != null) m.put("recordQueueSize", recordQueueSize);
+            
+            if (maxConcurrentNodes != null) m.put("maxConcurrentNodes", maxConcurrentNodes);
+            if (allowInlineMemoryAccess != null) m.put("allowInlineMemoryAccess", allowInlineMemoryAccess);
+            if (allowInlineSsdAccess != null) m.put("allowInlineSsdAccess", allowInlineSsdAccess);
+            
+            if (useDurableDelete != null) m.put("useDurableDelete", useDurableDelete);
+            if (simulateXdrWrite != null) m.put("simulateXdrWrite", simulateXdrWrite);
+            
+            if (commitLevel != null) m.put("commitLevel", commitLevel);
+            
+            if (readModeAP != null) m.put("readModeAP", readModeAP);
+            if (readModeSC != null) m.put("readModeSC", readModeSC);
+            if (resetTtlOnReadAtPercent != null) m.put("resetTtlOnReadAtPercent", resetTtlOnReadAtPercent);
+            
+            return m.toString();
+        }
+        
+        public WritePolicy asWritePolicy() {
+            WritePolicy writePolicy = new WritePolicy();
+            writePolicy.commitLevel = this.commitLevel;
+            writePolicy.compress = this.useCompression;
+            writePolicy.connectTimeout = (int)this.waitForConnectionToComplete.toMillis();
+            writePolicy.durableDelete = this.useDurableDelete;
+            writePolicy.maxRetries = this.maximumNumberOfCallAttempts - 1;
+            writePolicy.readModeAP = this.readModeAP == null ? ReadModeAP.ALL : this.readModeAP;
+            writePolicy.readModeSC = this.readModeSC == null ? ReadModeSC.SESSION : this.readModeSC;
+//            writePolicy.readTouchTtlPercent = this.resetTtlOnReadAtPercent;
+            writePolicy.replica = Replica.SEQUENCE; // TODO
+            writePolicy.sendKey = this.sendKey;
+            writePolicy.sleepBetweenRetries = (int)this.delayBetweenRetries.toMillis();
+            writePolicy.socketTimeout = (int)this.waitForCallToComplete.toMillis();
+            writePolicy.totalTimeout = (int)this.abandonCallAfter.toMillis();
+            writePolicy.timeoutDelay = (int)this.waitForSocketResponseAfterCallFails.toMillis();
+            
+            return writePolicy;
+        }
+        
+        public BatchPolicy asBatchPolicy() {
+            BatchPolicy batchPolicy = new BatchPolicy();
+            batchPolicy.compress = this.useCompression;
+            batchPolicy.connectTimeout = (int)this.waitForConnectionToComplete.toMillis();
+            batchPolicy.maxRetries = this.maximumNumberOfCallAttempts - 1;
+            batchPolicy.readModeAP = this.readModeAP == null ? ReadModeAP.ALL : this.readModeAP;
+            batchPolicy.readModeSC = this.readModeSC == null ? ReadModeSC.SESSION : this.readModeSC;
+//            batchPolicy.readTouchTtlPercent = this.resetTtlOnReadAtPercent;
+            batchPolicy.replica = Replica.SEQUENCE; // TODO
+            batchPolicy.sendKey = this.sendKey;
+            batchPolicy.sleepBetweenRetries = (int)this.delayBetweenRetries.toMillis();
+            batchPolicy.socketTimeout = (int)this.waitForCallToComplete.toMillis();
+            batchPolicy.totalTimeout = (int)this.abandonCallAfter.toMillis();
+            batchPolicy.timeoutDelay = (int)this.waitForSocketResponseAfterCallFails.toMillis();
+            
+            batchPolicy.allowInline = this.allowInlineMemoryAccess;
+            batchPolicy.allowInlineSSD = this.allowInlineSsdAccess;
+            batchPolicy.maxConcurrentThreads = this.maxConcurrentNodes;
+            return batchPolicy;
+        }
+        
+        public QueryPolicy asQueryPolicy() {
+            QueryPolicy queryPolicy = new QueryPolicy();
+            queryPolicy.compress = this.useCompression;
+            queryPolicy.connectTimeout = (int)this.waitForConnectionToComplete.toMillis();
+            queryPolicy.maxRetries = this.maximumNumberOfCallAttempts - 1;
+            queryPolicy.readModeAP = this.readModeAP == null ? ReadModeAP.ALL : this.readModeAP;
+            queryPolicy.readModeSC = this.readModeSC == null ? ReadModeSC.SESSION : this.readModeSC;
+//            queryPolicy.readTouchTtlPercent = this.resetTtlOnReadAtPercent;
+            queryPolicy.replica = Replica.SEQUENCE; // TODO
+            queryPolicy.sendKey = this.sendKey;
+            queryPolicy.sleepBetweenRetries = (int)this.delayBetweenRetries.toMillis();
+            queryPolicy.socketTimeout = (int)this.waitForCallToComplete.toMillis();
+            queryPolicy.totalTimeout = (int)this.abandonCallAfter.toMillis();
+            queryPolicy.timeoutDelay = (int)this.waitForSocketResponseAfterCallFails.toMillis();
+            
+            queryPolicy.expectedDuration = QueryDuration.SHORT; // TODO
+            queryPolicy.infoTimeout = 1000; // TODO
+            if (this.maxConcurrentNodes != null) {
+                queryPolicy.maxConcurrentNodes = this.maxConcurrentNodes;
+            }
+            queryPolicy.recordQueueSize = this.recordQueueSize;
+            return queryPolicy;
+        }
+        public Policy asReadPolicy() {
+            Policy readPolicy = new Policy();
+            readPolicy.compress = this.useCompression;
+            readPolicy.connectTimeout = (int)this.waitForConnectionToComplete.toMillis();
+            readPolicy.maxRetries = this.maximumNumberOfCallAttempts - 1;
+            readPolicy.readModeAP = this.readModeAP == null ? ReadModeAP.ALL : this.readModeAP;
+            readPolicy.readModeSC = this.readModeSC == null ? ReadModeSC.SESSION : this.readModeSC;
+            readPolicy.readTouchTtlPercent = this.resetTtlOnReadAtPercent;
+            readPolicy.replica = Replica.SEQUENCE; // TODO
+            readPolicy.sendKey = this.sendKey;
+            readPolicy.sleepBetweenRetries = (int)this.delayBetweenRetries.toMillis();
+            readPolicy.socketTimeout = (int)this.waitForCallToComplete.toMillis();
+            readPolicy.totalTimeout = (int)this.abandonCallAfter.toMillis();
+            readPolicy.timeoutDelay = (int)this.waitForSocketResponseAfterCallFails.toMillis();
+            return readPolicy;
+        }
+    }
+
     static final class Patch {
         final SelectionSpec spec;
         final Settings settings = new Settings();
