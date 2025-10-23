@@ -102,7 +102,8 @@ class SingleKeyQueryBuilderImpl extends QueryImpl {
         	exec.execute();
 
         	Record record = exec.getRecord();
-        	return new RecordStream(key, record, true);
+        	// Changed last parameter to "respondAllKeys" instead of "true"
+        	return new RecordStream(key, record, qb.respondAllKeys);
         }
         catch (AerospikeException ae) {
             if (Log.warnEnabled() && ae.getResultCode() == ResultCode.UNSUPPORTED_FEATURE) {
