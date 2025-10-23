@@ -21,6 +21,7 @@ import com.aerospike.client.fluent.Key;
 import com.aerospike.client.fluent.OpType;
 import com.aerospike.client.fluent.Partition;
 import com.aerospike.client.fluent.Txn;
+import com.aerospike.client.fluent.exp.Expression;
 import com.aerospike.client.fluent.policy.CommitLevel;
 import com.aerospike.client.fluent.policy.Settings;
 
@@ -35,10 +36,10 @@ public class WriteCommand extends Command {
 	final boolean durableDelete;
 
 	public WriteCommand(
-		Cluster cluster, Txn txn, Key key, OpType type, int gen, int ttl, boolean failOnFilteredOut,
+		Cluster cluster, Txn txn, Key key, OpType type, int gen, int ttl, Expression filterExp, boolean failOnFilteredOut,
 		Settings policy
 	) {
-		super(cluster, key.namespace, txn,failOnFilteredOut, policy);
+		super(cluster, key.namespace, txn, filterExp, failOnFilteredOut, policy);
 		this.key = key;
 		this.partition = Partition.write(cluster, replica, key);
 		this.type = type;

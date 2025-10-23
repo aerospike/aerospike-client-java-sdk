@@ -165,7 +165,7 @@ public final class TxnMonitor {
 		Settings txnPolicy = new Settings(policy);
 
         OperateCommand cmd = new OperateCommand(cluster, txn, txnKey, ops, OpType.UPSERT,
-			0, txn.getTimeout(), ReadModeAP.ONE, ReadModeSC.SESSION, false, txnPolicy
+			0, txn.getTimeout(), ReadModeAP.ONE, ReadModeSC.SESSION, null, false, txnPolicy
 			);
 
         SyncTxnAddKeysExecutor exec = new SyncTxnAddKeysExecutor(cluster, cmd);

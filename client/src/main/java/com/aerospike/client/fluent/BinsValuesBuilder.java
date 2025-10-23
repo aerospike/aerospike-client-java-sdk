@@ -26,7 +26,9 @@ import java.util.Map;
 import com.aerospike.client.fluent.command.OperateCommand;
 import com.aerospike.client.fluent.command.SyncOperateExecutor;
 import com.aerospike.client.fluent.dsl.BooleanExpression;
+import com.aerospike.client.fluent.dsl.ParseResult;
 import com.aerospike.client.fluent.exp.Exp;
+import com.aerospike.client.fluent.exp.Expression;
 import com.aerospike.client.fluent.policy.Behavior.OpKind;
 import com.aerospike.client.fluent.policy.Behavior.OpShape;
 import com.aerospike.client.fluent.policy.ReadModeAP;
@@ -562,7 +564,15 @@ public class BinsValuesBuilder implements FilterableOperation<BinsValuesBuilder>
     	// TODO: BN: Is there a better way to know if we're in SC or AP?
     	Settings policy = session.getBehavior().getSettings(OpKind.WRITE_RETRYABLE, OpShape.POINT, session.isNamespaceSC(keys.get(0).namespace));
 
-    	// Since getOperationsForValueData() returns all write operations, the read operations are not relevant.
+        // Apply filter expression clause if present
+        Expression filterExp = null;
+
+        if (this.dsl != null && !keys.isEmpty()) {
+            ParseResult parseResult = this.dsl.process(keys.get(0).namespace, session);
+            filterExp = Exp.build(parseResult.getExp());
+        }
+
+        // Since getOperationsForValueData() returns all write operations, the read operations are not relevant.
     	// Set read modes to default.
         ReadModeAP readModeAP = ReadModeAP.ONE;
         ReadModeSC readModeSC = ReadModeSC.SESSION;
@@ -583,7 +593,8 @@ public class BinsValuesBuilder implements FilterableOperation<BinsValuesBuilder>
             int ttl = getExpiration(valueSet);
 
             OperateCommand cmd = new OperateCommand(cluster, txnToUse, key, ops, opBuilder.opType,
-				valueSet.generation, ttl, readModeAP, readModeSC, true /* TODO: Need this in external API! */, policy
+				valueSet.generation, ttl, readModeAP, readModeSC, filterExp, true /* TODO: Need this in external API! */,
+				policy
 				);
 
             try {

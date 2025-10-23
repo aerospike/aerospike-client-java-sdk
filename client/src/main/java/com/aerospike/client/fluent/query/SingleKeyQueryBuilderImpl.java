@@ -14,6 +14,9 @@ import com.aerospike.client.fluent.Session;
 import com.aerospike.client.fluent.Txn;
 import com.aerospike.client.fluent.command.ReadCommand;
 import com.aerospike.client.fluent.command.SyncReadExecutor;
+import com.aerospike.client.fluent.dsl.ParseResult;
+import com.aerospike.client.fluent.exp.Exp;
+import com.aerospike.client.fluent.exp.Expression;
 import com.aerospike.client.fluent.policy.Behavior.OpKind;
 import com.aerospike.client.fluent.policy.Behavior.OpShape;
 import com.aerospike.client.fluent.policy.Settings;
@@ -72,7 +75,15 @@ class SingleKeyQueryBuilderImpl extends QueryImpl {
 			txn.prepareRead(key.namespace);
 		}
 
-		// Must copy hashmap reference for copy on write semantics to work.
+        Expression filterExp = null;
+        WhereClauseProcessor dsl = qb.getDsl();
+
+        if (dsl != null) {
+            ParseResult parseResult = dsl.process(key.namespace, session);
+            filterExp = Exp.build(parseResult.getExp());
+        }
+
+        // Must copy hashmap reference for copy on write semantics to work.
 		HashMap<String,Partitions> partitionMap = cluster.getPartitionMap();
 		Partitions partitions = partitionMap.get(key.namespace);
 
@@ -85,7 +96,7 @@ class SingleKeyQueryBuilderImpl extends QueryImpl {
 
 			Settings policy = session.getBehavior().getSettings(OpKind.READ, OpShape.POINT, partitions.scMode);
 			cmd = new ReadCommand(cluster, partitions, txn, key, qb.getBinNames(),
-				qb.getWithNoBins(), failOnFilteredOut, policy, partitions.scMode);
+				qb.getWithNoBins(), filterExp, failOnFilteredOut, policy, partitions.scMode);
 
         	SyncReadExecutor exec = new SyncReadExecutor(cluster, cmd);
         	exec.execute();

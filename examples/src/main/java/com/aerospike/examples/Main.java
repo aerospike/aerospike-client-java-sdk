@@ -1,11 +1,8 @@
 package com.aerospike.examples;
 
-import java.util.List;
-
 import com.aerospike.client.fluent.Cluster;
 import com.aerospike.client.fluent.ClusterDefinition;
 import com.aerospike.client.fluent.DataSet;
-import com.aerospike.client.fluent.Key;
 import com.aerospike.client.fluent.Record;
 import com.aerospike.client.fluent.RecordStream;
 import com.aerospike.client.fluent.Session;

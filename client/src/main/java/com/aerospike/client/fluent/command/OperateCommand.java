@@ -21,6 +21,7 @@ import com.aerospike.client.fluent.Key;
 import com.aerospike.client.fluent.OpType;
 import com.aerospike.client.fluent.Operation;
 import com.aerospike.client.fluent.Txn;
+import com.aerospike.client.fluent.exp.Expression;
 import com.aerospike.client.fluent.policy.ReadModeAP;
 import com.aerospike.client.fluent.policy.ReadModeSC;
 import com.aerospike.client.fluent.policy.Settings;
@@ -38,10 +39,10 @@ public class OperateCommand extends WriteCommand {
 
 	public OperateCommand(
 		Cluster cluster, Txn txn, Key key, Operation[] ops, OpType type, int gen, int ttl,
-		ReadModeAP readModeAP, ReadModeSC readModeSC, boolean failOnFilteredOut,
+		ReadModeAP readModeAP, ReadModeSC readModeSC, Expression filterExp, boolean failOnFilteredOut,
 		Settings policy
 	) {
-		super(cluster, txn, key, type, gen, ttl, failOnFilteredOut, policy);
+		super(cluster, txn, key, type, gen, ttl, filterExp, failOnFilteredOut, policy);
 
 		this.readModeAP = readModeAP;
 		this.readModeSC = readModeSC;

@@ -21,6 +21,7 @@ import com.aerospike.client.fluent.Key;
 import com.aerospike.client.fluent.Partition;
 import com.aerospike.client.fluent.Partitions;
 import com.aerospike.client.fluent.Txn;
+import com.aerospike.client.fluent.exp.Expression;
 import com.aerospike.client.fluent.policy.ReadModeAP;
 import com.aerospike.client.fluent.policy.ReadModeSC;
 import com.aerospike.client.fluent.policy.Replica;
@@ -37,9 +38,10 @@ public class ReadCommand extends Command {
 
     public ReadCommand(
             Cluster cluster, Partitions partitions, Txn txn, Key key, String[] binNames,
-            boolean withNoBins, boolean failOnFilteredOut, Settings policy, boolean isSc
+            boolean withNoBins, Expression filterExp, boolean failOnFilteredOut, 
+			Settings policy, boolean isSc
     ) {
-        super(cluster, key.namespace, txn, failOnFilteredOut, policy);
+        super(cluster, key.namespace, txn, filterExp, failOnFilteredOut, policy);
 
         if (!isSc) {
             this.key = key;
