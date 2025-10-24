@@ -75,8 +75,6 @@ class BatchKeyQueryBuilderImpl extends QueryImpl {
     }
 
     public RecordStream executeInternal() {
-    	System.out.println("IN BATCH");
-
     	if (keyList.size() == 0) {
             return new RecordStream();
         }

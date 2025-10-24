@@ -558,11 +558,24 @@ public class BinsValuesBuilder implements FilterableOperation<BinsValuesBuilder>
         return new RecordStream(allRecords, 0, 0, null);
         */
 
-    	// This method is only used for single record writes.
-    	Session session = opBuilder.getSession();
+    	if (keys.size() == 0) {
+            return new RecordStream();
+        }
 
-    	// TODO: BN: Is there a better way to know if we're in SC or AP?
-    	Settings policy = session.getBehavior().getSettings(OpKind.WRITE_RETRYABLE, OpShape.POINT, session.isNamespaceSC(keys.get(0).namespace));
+    	Session session = opBuilder.getSession();
+    	Cluster cluster = session.getCluster();
+
+    	// Assume all keys have the same namespace.
+        String namespace = keys.get(0).namespace;
+
+		HashMap<String,Partitions> partitionMap = cluster.getPartitionMap();
+		Partitions partitions = partitionMap.get(namespace);
+
+		if (partitions == null) {
+			throw new AerospikeException.InvalidNamespace(namespace, partitionMap.size());
+		}
+
+    	Settings policy = session.getBehavior().getSettings(OpKind.WRITE_RETRYABLE, OpShape.POINT, partitions.scMode);
 
         // Apply filter expression clause if present
         Expression filterExp = null;
@@ -577,24 +590,23 @@ public class BinsValuesBuilder implements FilterableOperation<BinsValuesBuilder>
         ReadModeAP readModeAP = ReadModeAP.ONE;
         ReadModeSC readModeSC = ReadModeSC.SESSION;
 
-        Cluster cluster = session.getCluster();
         Key[] keyArray = new Key[keys.size()];
         Record[] recordArray = new Record[keys.size()];
 
 		if (txnToUse != null) {
-			TxnMonitor.addKeys(txnToUse, cluster, policy, keys);
+			TxnMonitor.addKeys(txnToUse, cluster, partitions, policy, keys);
 		}
 
-        for (int i = 0; i < keys.size(); i++) {
+		for (int i = 0; i < keys.size(); i++) {
             Key key = keys.get(i);
             ValueData valueSet = valueSets.get(key);
             Operation[] ops = getOperationsForValueData(valueSet);
 
             int ttl = getExpiration(valueSet);
 
-            OperateCommand cmd = new OperateCommand(cluster, txnToUse, key, ops, opBuilder.opType,
-				valueSet.generation, ttl, readModeAP, readModeSC, filterExp, true /* TODO: Need this in external API! */,
-				policy
+            OperateCommand cmd = new OperateCommand(cluster, partitions, txnToUse, key, ops,
+            	opBuilder.opType, valueSet.generation, ttl, readModeAP, readModeSC, filterExp,
+            	opBuilder.failOnFilteredOut, policy
 				);
 
             try {

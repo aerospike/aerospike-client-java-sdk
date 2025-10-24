@@ -20,6 +20,7 @@ import com.aerospike.client.fluent.Cluster;
 import com.aerospike.client.fluent.Key;
 import com.aerospike.client.fluent.OpType;
 import com.aerospike.client.fluent.Partition;
+import com.aerospike.client.fluent.Partitions;
 import com.aerospike.client.fluent.Txn;
 import com.aerospike.client.fluent.exp.Expression;
 import com.aerospike.client.fluent.policy.CommitLevel;
@@ -39,13 +40,13 @@ public class WriteCommand extends Command {
 	final boolean failOnFilteredOut;
 
 	public WriteCommand(
-		Cluster cluster, Txn txn, Key key, OpType type, int gen, int ttl, Expression filterExp,
-		boolean failOnFilteredOut, Settings policy
+		Cluster cluster, Partitions partitions, Txn txn, Key key, OpType type, int gen, int ttl,
+		Expression filterExp, boolean failOnFilteredOut, Settings policy
 	) {
 		super(cluster, key.namespace, txn, filterExp, policy);
 		this.key = key;
         this.replica = policy.getReplicaOrder();
-		this.partition = Partition.write(cluster, replica, key);
+		this.partition = new Partition(partitions, key, replica, null, false);
 		this.type = type;
 		this.commitLevel = CommitLevel.COMMIT_ALL;
 		this.gen = gen;

@@ -37,7 +37,9 @@ public final class TxnMonitor {
 	private static final String BinNameId = "id";
 	private static final String BinNameDigests = "keyds";
 
-	public static void addKey(Txn txn, Cluster cluster, Settings policy, Key cmdKey) {
+	public static void addKey(
+		Txn txn, Cluster cluster, Partitions partitions, Settings policy, Key cmdKey
+	) {
 		txn.verifyCommand();
 
 		if (txn.getWrites().contains(cmdKey)) {
@@ -46,24 +48,30 @@ public final class TxnMonitor {
 		}
 
 		Operation[] ops = getTranOps(txn, cmdKey);
-		addWriteKeys(txn, cluster, policy, ops);
+		addWriteKeys(txn, cluster, partitions, policy, ops);
 	}
 
-	public static void addKeys(Txn txn, Cluster cluster, Settings policy, Key[] keys) {
+	public static void addKeys(
+		Txn txn, Cluster cluster, Partitions partitions, Settings policy, Key[] keys
+	) {
 		Operation[] ops = getTranOps(txn, keys);
-		addWriteKeys(txn, cluster, policy, ops);
+		addWriteKeys(txn, cluster, partitions, policy, ops);
 	}
 
-	public static void addKeys(Txn txn, Cluster cluster, Settings policy, List<Key> keys) {
+	public static void addKeys(
+		Txn txn, Cluster cluster, Partitions partitions, Settings policy, List<Key> keys
+	) {
 		Operation[] ops = getTranOps(txn, keys);
-		addWriteKeys(txn, cluster, policy, ops);
+		addWriteKeys(txn, cluster, partitions, policy, ops);
 	}
 
-	public static void addKeysBatch(Txn txn, Cluster cluster, Settings policy, List<BatchRecord> records) {
+	public static void addKeysBatch(
+		Txn txn, Cluster cluster, Partitions partitions, Settings policy, List<BatchRecord> records
+	) {
 		Operation[] ops = getTranOpsBatch(txn, records);
 
 		if (ops != null) {
-			addWriteKeys(txn, cluster, policy, ops);
+			addWriteKeys(txn, cluster, partitions, policy, ops);
 		}
 	}
 
@@ -151,7 +159,9 @@ public final class TxnMonitor {
 	}
         */
 
-	private static void addWriteKeys(Txn txn, Cluster cluster, Settings policy, Operation[] ops) {
+	private static void addWriteKeys(
+		Txn txn, Cluster cluster, Partitions partitions, Settings policy, Operation[] ops
+	) {
 		Key txnKey = getTxnMonitorKey(txn);
 
 //		SettableWritePolicy txnPolicy = new BehaviorBuilder().onRetryableWrites()
@@ -165,8 +175,9 @@ public final class TxnMonitor {
 //			.getPolicy();
 		Settings txnPolicy = new Settings(policy);
 
-        OperateCommand cmd = new OperateCommand(cluster, txn, txnKey, ops, OpType.UPSERT,
-			0, txn.getTimeout(), ReadModeAP.ONE, ReadModeSC.SESSION, null, false, txnPolicy
+        OperateCommand cmd = new OperateCommand(cluster, partitions, txn, txnKey, ops,
+        	OpType.UPSERT, 0, txn.getTimeout(), ReadModeAP.ONE, ReadModeSC.SESSION, null, false,
+        	txnPolicy
 			);
 
         SyncTxnAddKeysExecutor exec = new SyncTxnAddKeysExecutor(cluster, cmd);

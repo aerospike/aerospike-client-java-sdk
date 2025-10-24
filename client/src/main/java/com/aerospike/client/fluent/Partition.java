@@ -16,7 +16,6 @@
  */
 package com.aerospike.client.fluent;
 
-import java.util.HashMap;
 import java.util.concurrent.atomic.AtomicReferenceArray;
 
 import com.aerospike.client.fluent.command.Buffer;
@@ -24,18 +23,6 @@ import com.aerospike.client.fluent.policy.Replica;
 import com.aerospike.client.fluent.query.PartitionStatus;
 
 public final class Partition {
-
-	public static Partition write(Cluster cluster, Replica replica, Key key) {
-		// Must copy hashmap reference for copy on write semantics to work.
-		HashMap<String,Partitions> map = cluster.partitionMap;
-		Partitions partitions = map.get(key.namespace);
-
-		if (partitions == null) {
-			throw new AerospikeException.InvalidNamespace(key.namespace, map.size());
-		}
-
-		return new Partition(partitions, key, replica, null, false);
-	}
 
 	public static Node getNodeBatchWrite(
 		Cluster cluster,
