@@ -14,12 +14,12 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.aerospike.client.fluent;
+package com.aerospike.client.fluent.command;
 
-import com.aerospike.client.fluent.configuration.ConfigurationProvider;
-import com.aerospike.client.fluent.configuration.serializers.Configuration;
+import com.aerospike.client.fluent.Key;
+import com.aerospike.client.fluent.Value;
 import com.aerospike.client.fluent.policy.BatchUDFPolicy;
-import com.aerospike.client.fluent.policy.Policy;
+import com.aerospike.client.fluent.util.Packer;
 
 /**
  * Batch user defined functions.
@@ -86,7 +86,7 @@ public final class BatchUDF extends BatchRecord {
 	 * For internal use only.
 	 */
 	@Override
-	public boolean equals(BatchRecord obj, ConfigurationProvider configProvider) {
+	public boolean equals(BatchRecord obj) {
 		if (getClass() != obj.getClass()) {
 			return false;
 		}
@@ -102,12 +102,6 @@ public final class BatchUDF extends BatchRecord {
 		if (policy != null) {
 			sendkey = policy.sendKey;
 		}
-		if (configProvider != null) {
-			Configuration config = configProvider.fetchConfiguration();
-			if (config != null && config.hasDBUDFCsendKey()) {
-				sendkey = config.dynamicConfiguration.dynamicBatchUDFconfig.sendKey.value;
-			}
-		}
 
 		return !sendkey;
 	}
@@ -116,29 +110,17 @@ public final class BatchUDF extends BatchRecord {
 	 * Return wire protocol size. For internal use only.
 	 */
 	@Override
-	public int size(Policy parentPolicy, ConfigurationProvider configProvider) {
-		/* TODO RESTORE
+	public int size(Command cmd) {
 		int size = 2; // gen(2) = 2
 
 		if (policy != null) {
-			if (policy.filterExp != null) {
-				size += policy.filterExp.size();
-			}
+			boolean sendkey = policy.sendKey;
 
-			boolean sendkey;
-			sendkey = policy.sendKey;
-			if (configProvider != null) {
-				Configuration config = configProvider.fetchConfiguration();
-				if (config != null && config.hasDBUDFCsendKey()) {
-					sendkey = config.dynamicConfiguration.dynamicBatchUDFconfig.sendKey.value;
-				}
-			}
-
-			if (sendkey || parentPolicy.sendKey) {
+			if (sendkey || cmd.sendKey) {
 				size += key.userKey.estimateSize() + Command.FIELD_HEADER_SIZE + 1;
 			}
 		}
-		else if (parentPolicy.sendKey) {
+		else if (cmd.sendKey) {
 			size += key.userKey.estimateSize() + Command.FIELD_HEADER_SIZE + 1;
 		}
 
@@ -147,7 +129,5 @@ public final class BatchUDF extends BatchRecord {
 		argBytes = Packer.pack(functionArgs);
 		size += argBytes.length + Command.FIELD_HEADER_SIZE;
 		return size;
-		*/
-		return 0;
 	}
 }

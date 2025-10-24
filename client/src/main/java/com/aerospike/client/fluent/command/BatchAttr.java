@@ -19,12 +19,10 @@ package com.aerospike.client.fluent.command;
 import com.aerospike.client.fluent.Operation;
 import com.aerospike.client.fluent.exp.Expression;
 import com.aerospike.client.fluent.policy.BatchDeletePolicy;
-import com.aerospike.client.fluent.policy.BatchPolicy;
 import com.aerospike.client.fluent.policy.BatchReadPolicy;
 import com.aerospike.client.fluent.policy.BatchUDFPolicy;
 import com.aerospike.client.fluent.policy.BatchWritePolicy;
 import com.aerospike.client.fluent.policy.CommitLevel;
-import com.aerospike.client.fluent.policy.Policy;
 import com.aerospike.client.fluent.policy.ReadModeAP;
 
 public final class BatchAttr {
@@ -42,13 +40,13 @@ public final class BatchAttr {
 	public BatchAttr() {
 	}
 
-	public BatchAttr(Policy policy, int rattr) {
-		setRead(policy);
+	public BatchAttr(BatchCommand cmd, int rattr) {
+		setRead(cmd);
 		this.readAttr |= rattr;
 	}
 
-	public BatchAttr(Policy policy, int rattr, Operation[] ops) {
-		setRead(policy);
+	public BatchAttr(BatchCommand cmd, int rattr, Operation[] ops) {
+		setRead(cmd);
 		this.readAttr = rattr;
 
 		if (ops != null) {
@@ -56,7 +54,7 @@ public final class BatchAttr {
 		}
 	}
 
-	public BatchAttr(BatchPolicy rp, BatchWritePolicy wp, Operation[] ops) {
+	public BatchAttr(BatchCommand cmd, BatchWritePolicy wp, Operation[] ops) {
 		boolean readAllBins = false;
 		boolean readHeader = false;
 		boolean hasRead = false;
@@ -97,7 +95,7 @@ public final class BatchAttr {
 			}
 		}
 		else {
-			setRead(rp);
+			setRead(cmd);
 
 			if (readAllBins) {
 				readAttr |= Command.INFO1_GET_ALL;
@@ -108,38 +106,36 @@ public final class BatchAttr {
 		}
 	}
 
-	public void setRead(Policy rp) {
-		/*
+	public void setRead(BatchCommand cmd) {
 		filterExp = null;
-		readAttr = Commander.INFO1_READ;
+		readAttr = Command.INFO1_READ;
 
-		if (rp.readModeAP == ReadModeAP.ALL) {
-			readAttr |= Commander.INFO1_READ_MODE_AP_ALL;
+		if (cmd.readModeAP == ReadModeAP.ALL) {
+			readAttr |= Command.INFO1_READ_MODE_AP_ALL;
 		}
 
 		writeAttr = 0;
 
-		switch (rp.readModeSC) {
+		switch (cmd.readModeSC) {
 		default:
 		case SESSION:
 			infoAttr = 0;
 			break;
 		case LINEARIZE:
-			infoAttr = Commander.INFO3_SC_READ_TYPE;
+			infoAttr = Command.INFO3_SC_READ_TYPE;
 			break;
 		case ALLOW_REPLICA:
-			infoAttr = Commander.INFO3_SC_READ_RELAX;
+			infoAttr = Command.INFO3_SC_READ_RELAX;
 			break;
 		case ALLOW_UNAVAILABLE:
-			infoAttr = Commander.INFO3_SC_READ_TYPE | Commander.INFO3_SC_READ_RELAX;
+			infoAttr = Command.INFO3_SC_READ_TYPE | Command.INFO3_SC_READ_RELAX;
 			break;
 		}
 		txnAttr = 0;
-		expiration = rp.readTouchTtlPercent;
+		expiration = cmd.readTouchTtlPercent;
 		generation = 0;
 		hasWrite = false;
 		sendKey = false;
-		*/
 	}
 
 	public void setRead(BatchReadPolicy rp) {

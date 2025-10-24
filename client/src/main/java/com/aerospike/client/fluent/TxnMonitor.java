@@ -23,6 +23,7 @@ import com.aerospike.client.fluent.cdt.ListOperation;
 import com.aerospike.client.fluent.cdt.ListOrder;
 import com.aerospike.client.fluent.cdt.ListPolicy;
 import com.aerospike.client.fluent.cdt.ListWriteFlags;
+import com.aerospike.client.fluent.command.BatchRecord;
 import com.aerospike.client.fluent.command.OperateCommand;
 import com.aerospike.client.fluent.command.SyncTxnAddKeysExecutor;
 import com.aerospike.client.fluent.policy.ReadModeAP;

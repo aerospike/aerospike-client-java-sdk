@@ -16,31 +16,34 @@
  */
 package com.aerospike.client.fluent.command;
 
+import java.util.List;
+
 import com.aerospike.client.fluent.Cluster;
-import com.aerospike.client.fluent.Key;
-import com.aerospike.client.fluent.Partition;
 import com.aerospike.client.fluent.Partitions;
 import com.aerospike.client.fluent.Txn;
 import com.aerospike.client.fluent.exp.Expression;
 import com.aerospike.client.fluent.policy.Settings;
 
-public class ReadCommand extends ReadCommandBase {
-    final Key key;
-    final Partition partition;
-    final String[] binNames;
-    final boolean withNoBins;
-	final boolean failOnFilteredOut;
+public class BatchCommand extends ReadCommandBase {
+	final Partitions partitions;
+	final List<BatchRecord> records;
+	final boolean respondAllKeys;
+    final boolean inlineMemory;
+    final boolean inlineSSD;
 
-    public ReadCommand(
-        Cluster cluster, Partitions partitions, Txn txn, Key key, String[] binNames,
-        boolean withNoBins, Expression filterExp, boolean failOnFilteredOut,
-		Settings policy
-    ) {
-        super(cluster, key.namespace, partitions, txn, filterExp, policy);
-        this.key = key;
-        this.binNames = binNames;
-        this.withNoBins = withNoBins;
-        this.failOnFilteredOut = failOnFilteredOut;
-        this.partition = new Partition(partitions, key, replica, null, linearize);
-    }
+	public BatchCommand(
+		Cluster cluster, Partitions partitions, Txn txn, String namespace,
+		List<BatchRecord> records, Expression filterExp, boolean respondAllKeys, Settings policy
+	) {
+		super(cluster, namespace, partitions, txn, filterExp, policy);
+		this.partitions = partitions;
+		this.records = records;
+		this.respondAllKeys = respondAllKeys;
+		this.inlineMemory = policy.getAllowInlineMemoryAccess();
+		this.inlineSSD = policy.getAllowInlineSsdAccess();
+	}
+
+	public static boolean inDoubt(boolean isWrite, int commandSentCounter) {
+		return isWrite && commandSentCounter > 1;
+	}
 }

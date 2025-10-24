@@ -1,5 +1,6 @@
 package com.aerospike.client.fluent;
 
+import com.aerospike.client.fluent.command.BatchRecord;
 import com.aerospike.client.fluent.query.KeyRecord;
 
 public record RecordResult(Key key, Record recordOrNull, int resultCode, boolean inDoubt, String message) {

@@ -27,18 +27,18 @@ import com.aerospike.client.fluent.ResultCode;
 import com.aerospike.client.fluent.metrics.LatencyType;
 
 public final class SyncReadExecutor extends SyncExecutor {
-	private final ReadCommand cmd;
+	private final ReadCommand read;
 	private Record record;
 
 	public SyncReadExecutor(Cluster cluster, ReadCommand cmd) {
 		super(cluster, cmd);
-		this.cmd = cmd;
+		this.read = cmd;
 		cluster.addCommandCount();
 	}
 
 	@Override
 	protected final Node getNode() {
-		return cmd.partition.getNodeRead(cluster);
+		return read.partition.getNodeRead(cluster);
 	}
 
 	@Override
@@ -49,14 +49,14 @@ public final class SyncReadExecutor extends SyncExecutor {
 	@Override
 	protected CommandBuffer getCommandBuffer() {
 		CommandBuffer cb = new CommandBuffer();
-		cb.setRead(cmd);
+		cb.setRead(read);
 		return cb;
 	}
 
 	@Override
 	protected void parseResult(Node node, Connection conn, byte[] buffer) throws IOException {
 		RecordParser rp = new RecordParser(conn, buffer);
-		rp.parseFields(cmd.txn, cmd.key, false);
+		rp.parseFields(cmd.txn, read.key, false);
 
 		if (node.isMetricsEnabled()) {
 			node.addBytesIn(cmd.namespace, rp.bytesIn);
@@ -72,7 +72,7 @@ public final class SyncReadExecutor extends SyncExecutor {
 		}
 
 		if (rp.resultCode == ResultCode.FILTERED_OUT) {
-			if (cmd.failOnFilteredOut) {
+			if (read.failOnFilteredOut) {
 				throw new AerospikeException(rp.resultCode);
 			}
 			return;
@@ -83,7 +83,7 @@ public final class SyncReadExecutor extends SyncExecutor {
 
 	@Override
 	protected final boolean prepareRetry(boolean timeout) {
-		cmd.partition.prepareRetryRead(timeout);
+		read.partition.prepareRetryRead(timeout);
 		return true;
 	}
 

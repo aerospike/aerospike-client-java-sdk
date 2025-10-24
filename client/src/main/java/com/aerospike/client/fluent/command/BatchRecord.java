@@ -14,10 +14,11 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.aerospike.client.fluent;
+package com.aerospike.client.fluent.command;
 
-import com.aerospike.client.fluent.configuration.ConfigurationProvider;
-import com.aerospike.client.fluent.policy.Policy;
+import com.aerospike.client.fluent.Key;
+import com.aerospike.client.fluent.Record;
+import com.aerospike.client.fluent.ResultCode;
 
 /**
  * Batch key and record result.
@@ -127,14 +128,14 @@ public class BatchRecord {
 	 * Optimized reference equality check to determine batch wire protocol repeat flag.
 	 * For internal use only.
 	 */
-	public boolean equals(BatchRecord other, ConfigurationProvider configProvider) {
+	public boolean equals(BatchRecord other) {
 		return false;
 	}
 
 	/**
 	 * Return wire protocol size. For internal use only.
 	 */
-	public int size(Policy parentPolicy, ConfigurationProvider configProvider) {
+	public int size(Command cmd) {
 		return 0;
 	}
 

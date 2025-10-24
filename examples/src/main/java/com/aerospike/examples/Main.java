@@ -18,13 +18,22 @@ import com.aerospike.client.fluent.util.Util;
 public class Main {
     public static void main(String[] args) {
         System.out.println("Hello World!");
-        ClusterDefinition def = new ClusterDefinition("localhost", 3100);
+        ClusterDefinition def = new ClusterDefinition("db11", 3000);
 
         try (Cluster cluster = def.connect()) {
             System.out.println("Connected");
 
             Session session = cluster.createSession(Behavior.DEFAULT);
             DataSet set = DataSet.of("test", "set");
+
+            System.out.println("Write 1 record");
+
+            session.upsert(set.ids(10))
+	            .bins("name", "age")
+	            .values("Charlie", 11)
+	            .execute();
+
+            System.out.println("Write 3 records");
 
             session.upsert(set.ids(1,2,3))
 	            .bins("name", "age")
@@ -33,7 +42,7 @@ public class Main {
 	            .values("Jane", 46)
 	            .execute();
 
-            System.out.println("Upsert success");
+            System.out.println("Read 1 record");
 
             RecordStream rs = session.query(set.ids(1)).execute();
 
@@ -44,13 +53,24 @@ public class Main {
             else {
             	System.out.println("Error: No records returned");
             }
-            
+
+            System.out.println("Read 2 records");
+
+            rs = session.query(set.ids(1,2)).execute();
+
+            while (rs.hasNext()) {
+            	Record rec = rs.next().recordOrThrow();
+            	System.out.println("Record = " + rec);
+            }
+
             // Test filtering out
+            System.out.println("Test filtering out");
+
             Optional<RecordResult> rec = session.query(set.ids(2))
                 .where(Dsl.stringBin("name").eq("Bob"))
                 .execute()
                 .getFirst();
-            
+
             rec.ifPresentOrElse(
                     val -> System.out.println("Record for Bob exists, value: " + val),
                     () -> System.out.println("ERROR: Record for Bob does not exist"));
@@ -60,7 +80,7 @@ public class Main {
                     .where(Dsl.stringBin("name").eq("Fred"))
                     .execute()
                     .getFirst();
-                
+
             rec.ifPresentOrElse(
                     val -> System.out.println("ERROR: Record for Fred exists, value: " + val),
                     () -> System.out.println("Record for Fred does not exist (expected)"));
@@ -70,7 +90,7 @@ public class Main {
                     .respondAllKeys()
                     .execute()
                     .getFirst();
-                
+
             rec.ifPresentOrElse(
                     val -> System.out.println("Record for Fred exists, value: " + val),
                     () -> System.out.println("ERROR: Record for Fred does not exist"));
@@ -88,19 +108,6 @@ public class Main {
             catch (AerospikeException ae) {
                 System.out.printf("Exception received as expected: %s (%s)\n", ae.getMessage(), ae.getClass().getSimpleName());
             }
-            
-            
-
-            /* Does not work yet.
-            rs = session.query(set.ids(1,2)).execute();
-
-            if (rs.hasNext()) {
-            	Record rec = rs.next().recordOrThrow();
-            	System.out.println("Record = " + rec);
-            }
-            else {
-            	System.out.println("Error: No records returned");
-            }*/
         }
         catch (Throwable t) {
        		System.out.println("Error: " + Util.getErrorMessage(t));

@@ -14,11 +14,13 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.aerospike.client.fluent;
+package com.aerospike.client.fluent.command;
 
-import com.aerospike.client.fluent.configuration.ConfigurationProvider;
+import com.aerospike.client.fluent.AerospikeException;
+import com.aerospike.client.fluent.Key;
+import com.aerospike.client.fluent.Operation;
+import com.aerospike.client.fluent.ResultCode;
 import com.aerospike.client.fluent.policy.BatchReadPolicy;
-import com.aerospike.client.fluent.policy.Policy;
 
 /**
  * Batch key and read only operations with default policy.
@@ -32,13 +34,13 @@ public final class BatchRead extends BatchRecord {
 
 	/**
 	 * Bins to retrieve for this key. binNames are mutually exclusive with
-	 * {@link com.aerospike.client.BatchRead#ops}.
+	 * {@link com.aerospike.client.fluent.command.BatchRead#ops}.
 	 */
 	public final String[] binNames;
 
 	/**
 	 * Optional operations for this key. ops are mutually exclusive with
-	 * {@link com.aerospike.client.BatchRead#binNames}. A binName can be emulated with
+	 * {@link com.aerospike.client.fluent.command.BatchRead#binNames}. A binName can be emulated with
 	 * {@link com.aerospike.client.Operation#get(String)}
 	 */
 	public final Operation[] ops;
@@ -129,7 +131,7 @@ public final class BatchRead extends BatchRecord {
 	 * For internal use only.
 	 */
 	@Override
-	public boolean equals(BatchRecord obj, ConfigurationProvider configProvider) {
+	public boolean equals(BatchRecord obj) {
 		if (getClass() != obj.getClass()) {
 			return false;
 		}
@@ -142,15 +144,8 @@ public final class BatchRead extends BatchRecord {
 	 * Return wire protocol size. For internal use only.
 	 */
 	@Override
-	public int size(Policy parentPolicy, ConfigurationProvider configProvider) {
-		/*
+	public int size(Command cmd) {
 		int size = 0;
-
-		if (policy != null) {
-			if (policy.filterExp != null) {
-				size += policy.filterExp.size();
-			}
-		}
 
 		if (binNames != null) {
 			for (String binName : binNames) {
@@ -167,7 +162,5 @@ public final class BatchRead extends BatchRecord {
 			}
 		}
 		return size;
-		*/
-		return 0;
 	}
 }

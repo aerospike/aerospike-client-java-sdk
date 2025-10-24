@@ -14,12 +14,10 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.aerospike.client.fluent;
+package com.aerospike.client.fluent.command;
 
-import com.aerospike.client.fluent.configuration.ConfigurationProvider;
-import com.aerospike.client.fluent.configuration.serializers.Configuration;
+import com.aerospike.client.fluent.Key;
 import com.aerospike.client.fluent.policy.BatchDeletePolicy;
-import com.aerospike.client.fluent.policy.Policy;
 
 /**
  * Batch delete operation.
@@ -59,7 +57,7 @@ public final class BatchDelete extends BatchRecord {
 	 * For internal use only.
 	 */
 	@Override
-	public boolean equals(BatchRecord obj, ConfigurationProvider configProvider) {
+	public boolean equals(BatchRecord obj) {
 		if (getClass() != obj.getClass()) {
 			return false;
 		}
@@ -73,12 +71,7 @@ public final class BatchDelete extends BatchRecord {
 		if (policy != null) {
 			sendkey = policy.sendKey;
 		}
-		if (configProvider != null) {
-			Configuration config = configProvider.fetchConfiguration();
-			if (config != null && config.hasDBDCsendKey()) {
-				sendkey = config.dynamicConfiguration.dynamicBatchDeleteConfig.sendKey.value;
-			}
-		}
+
 		return !sendkey;
 	}
 
@@ -86,33 +79,19 @@ public final class BatchDelete extends BatchRecord {
 	 * Return wire protocol size. For internal use only.
 	 */
 	@Override
-	public int size(Policy parentPolicy, ConfigurationProvider configProvider) {
-		/* TODO RESTORE
+	public int size(Command cmd) {
 		int size = 2; // gen(2) = 2
 
 		if (policy != null) {
-			if (policy.filterExp != null) {
-				size += policy.filterExp.size();
-			}
+			boolean sendkey = policy.sendKey;
 
-			boolean sendkey;
-			sendkey = policy.sendKey;
-			if (configProvider != null) {
-				Configuration config = configProvider.fetchConfiguration();
-				if (config != null && config.hasDBDCsendKey()) {
-					sendkey = config.dynamicConfiguration.dynamicBatchDeleteConfig.sendKey.value;
-				}
-			}
-
-			if (sendkey || parentPolicy.sendKey) {
+			if (sendkey || cmd.sendKey) {
 				size += key.userKey.estimateSize() + Command.FIELD_HEADER_SIZE + 1;
 			}
 		}
-		else if (parentPolicy.sendKey) {
+		else if (cmd.sendKey) {
 			size += key.userKey.estimateSize() + Command.FIELD_HEADER_SIZE + 1;
 		}
 		return size;
-		*/
-		return 0;
 	}
 }

@@ -1,11 +1,36 @@
 package com.aerospike.client.fluent.query;
 
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
+import com.aerospike.client.fluent.AerospikeException;
+import com.aerospike.client.fluent.Cluster;
 import com.aerospike.client.fluent.Key;
 import com.aerospike.client.fluent.Log;
+import com.aerospike.client.fluent.Partitions;
 import com.aerospike.client.fluent.RecordStream;
+import com.aerospike.client.fluent.ResultCode;
 import com.aerospike.client.fluent.Session;
+import com.aerospike.client.fluent.Txn;
+import com.aerospike.client.fluent.command.Batch;
+import com.aerospike.client.fluent.command.BatchCommand;
+import com.aerospike.client.fluent.command.BatchExecutor;
+import com.aerospike.client.fluent.command.BatchNode;
+import com.aerospike.client.fluent.command.BatchNodeList;
+import com.aerospike.client.fluent.command.BatchRead;
+import com.aerospike.client.fluent.command.BatchRecord;
+import com.aerospike.client.fluent.command.BatchSingle;
+import com.aerospike.client.fluent.command.BatchStatus;
+import com.aerospike.client.fluent.command.IBatchCommand;
+import com.aerospike.client.fluent.dsl.ParseResult;
+import com.aerospike.client.fluent.exp.Exp;
+import com.aerospike.client.fluent.exp.Expression;
+import com.aerospike.client.fluent.policy.Behavior.OpKind;
+import com.aerospike.client.fluent.policy.Behavior.OpShape;
+import com.aerospike.client.fluent.policy.Settings;
 
 class BatchKeyQueryBuilderImpl extends QueryImpl {
     private final List<Key> keyList;
@@ -13,7 +38,7 @@ class BatchKeyQueryBuilderImpl extends QueryImpl {
         super(builder, session);
         this.keyList = keyList;
     }
-	
+
     @Override
     public boolean allowsSecondaryIndexQuery() {
         return false;
@@ -28,12 +53,12 @@ class BatchKeyQueryBuilderImpl extends QueryImpl {
             return executeAsync();
         }
     }
-    
+
     @Override
     public RecordStream executeSync() {
         return executeInternal();
     }
-    
+
     @Override
     public RecordStream executeAsync() {
         if (getQueryBuilder().getTxnToUse() != null && Log.warnEnabled()) {
@@ -48,28 +73,42 @@ class BatchKeyQueryBuilderImpl extends QueryImpl {
         // since we need to wait for the batch to complete anyway
         return executeInternal();
     }
-    
+
     public RecordStream executeInternal() {
-    	return null;
-    	/*
-        if (keyList.size() == 0) {
+    	System.out.println("IN BATCH");
+
+    	if (keyList.size() == 0) {
             return new RecordStream();
         }
-        Expression whereExp = null;
-        if (getQueryBuilder().getDsl() != null) {
-            ParseResult parseResult = getQueryBuilder().getDsl().process(this.keyList.get(0).namespace, getSession());
-            whereExp = Exp.build(parseResult.getExp());
+
+    	Session session = getSession();
+    	Cluster cluster = session.getCluster();
+    	QueryBuilder qb = getQueryBuilder();
+
+        Txn txn = qb.getTxnToUse();
+
+        if (txn != null) {
+			txn.prepareReadKeys(keyList);
+		}
+
+        Expression filterExp = null;
+        WhereClauseProcessor dsl = qb.getDsl();
+
+        if (dsl != null) {
+            ParseResult parseResult = dsl.process(keyList.get(0).namespace, session);
+            filterExp = Exp.build(parseResult.getExp());
         }
-        
+
         long limit = getQueryBuilder().getLimit();
-        List<BatchRecord> batchRecords = new ArrayList<>();
+        List<BatchRecord> batchRecords = new ArrayList<BatchRecord>(keyList.size());
         List<BatchRecord> batchRecordsForServer = hasPartitionFilter() ? new ArrayList<>() : batchRecords;
-        
+
         for (Key thisKey : keyList) {
             // If there is no "where" clause and the limit has been exceeded, exit the loop
-            if (whereExp == null && limit > 0 && batchRecords.size() >= limit) {
+            if (filterExp == null && limit > 0 && batchRecords.size() >= limit) {
                 break;
             }
+
             if (hasPartitionFilter() && !getQueryBuilder().isKeyInPartitionRange(thisKey)) {
                 // We know this one will fail
                 if (!getQueryBuilder().isRespondAllKeys()) {
@@ -96,24 +135,54 @@ class BatchKeyQueryBuilderImpl extends QueryImpl {
             }
         }
 
-        BatchPolicy policy = getSession().getBehavior().getMutablePolicy(CommandType.BATCH_READ);
-        policy.filterExp = whereExp;
-        policy.setTxn(this.getQueryBuilder().getTxnToUse());
-        policy.failOnFilteredOut = this.getQueryBuilder().isFailOnFilteredOut();
-        
-        try {
-            getSession().getClient().operate(policy, batchRecordsForServer);
-            if (!getQueryBuilder().isRespondAllKeys()) {
+        // Assume all keys have the same namespace.
+        String namespace = keyList.get(0).namespace;
+		HashMap<String,Partitions> partitionMap = cluster.getPartitionMap();
+		Partitions partitions = partitionMap.get(namespace);
+
+		if (partitions == null) {
+			throw new AerospikeException.InvalidNamespace(namespace, partitionMap.size());
+		}
+
+		Settings policy = session.getBehavior().getSettings(OpKind.READ, OpShape.BATCH, partitions.scMode);
+
+    	BatchCommand parent = new BatchCommand(cluster, partitions, qb.getTxnToUse(), namespace,
+            	batchRecordsForServer, filterExp, qb.respondAllKeys, policy);
+
+    	BatchStatus status = new BatchStatus(true);
+		List<BatchNode> bns = BatchNodeList.generate(cluster, parent, batchRecordsForServer, status);
+		IBatchCommand[] commands = new IBatchCommand[bns.size()];
+
+    	int count = 0;
+
+		for (BatchNode bn : bns) {
+			if (bn.offsetsSize == 1) {
+				int i = bn.offsets[0];
+				BatchRecord record = batchRecordsForServer.get(i);
+
+				BatchRead br = (BatchRead)record;
+				commands[count++] = new BatchSingle.ReadRecord(cluster, parent, br, status, bn.node);
+			}
+			else {
+				commands[count++] = new Batch.OperateList(cluster, parent, bn, batchRecordsForServer, status);
+			}
+		}
+
+		try {
+			BatchExecutor.execute(cluster, commands, status);
+
+            if (!qb.isRespondAllKeys()) {
                 // Remove any items which have been filtered out.
-                batchRecordsForServer.removeIf(br -> (br.resultCode == ResultCode.OK && br.record == null) 
+                batchRecordsForServer.removeIf(br -> (br.resultCode == ResultCode.OK && br.record == null)
                         || (br.resultCode == ResultCode.KEY_NOT_FOUND_ERROR)
                         || (br.resultCode == ResultCode.FILTERED_OUT && !getQueryBuilder().isFailOnFilteredOut()));
             }
+
             if (hasPartitionFilter()) {
                 // Add the server results into any that were filtered out earlier
                 batchRecords.addAll(batchRecordsForServer);
             }
-            
+
             // TODO: ResultsInKeyOrder?
             return new RecordStream(batchRecords,
                     limit,
@@ -124,17 +193,15 @@ class BatchKeyQueryBuilderImpl extends QueryImpl {
             if (Log.warnEnabled() && ae.getResultCode() == ResultCode.UNSUPPORTED_FEATURE) {
                 if (this.getQueryBuilder().getTxnToUse() != null) {
                     Set<String> namespaces = keyList.stream().map(key->key.namespace).collect(Collectors.toSet());
-                    namespaces.forEach(namespace -> {
-                        if (!getSession().isNamespaceSC(namespace)) {
+                    namespaces.forEach(ns -> {
+                        if (!getSession().isNamespaceSC(ns)) {
                             Log.warn(String.format("Namespace '%s' is involved in transaction, but it is not an SC namespace. "
-                                    + "This will throw an Unsupported Server Feature exception.", namespace));
+                                    + "This will throw an Unsupported Server Feature exception.", ns));
                         }
-
                     });
                 }
             }
             throw ae;
         }
-    */
     }
 }

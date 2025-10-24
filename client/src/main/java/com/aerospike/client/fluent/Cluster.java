@@ -21,6 +21,9 @@ import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map.Entry;
 import java.util.Set;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReferenceArray;
@@ -57,6 +60,7 @@ public class Cluster implements Closeable {
     ClusterTend tend;
 	volatile Node[] nodes;
 	volatile HashMap<String,Partitions> partitionMap;
+	private final ThreadFactory threadFactory;
 	private final AtomicLong commandCount;
 	private final AtomicLong retryCount;
 	private final AtomicInteger nodeIndex;
@@ -71,6 +75,7 @@ public class Cluster implements Closeable {
         this.def = def;
 		nodes = new Node[0];
 		partitionMap = new HashMap<String,Partitions>();
+		threadFactory = Thread.ofVirtual().name("Aerospike-", 0L).factory();
 		commandCount = new AtomicLong();
 		retryCount = new AtomicLong();
 		nodeIndex = new AtomicInteger();
@@ -88,6 +93,10 @@ public class Cluster implements Closeable {
 		else {
 			tend.runThread();
 		}
+    }
+
+    public ExecutorService getExecutorService() {
+    	return Executors.newThreadPerTaskExecutor(threadFactory);
     }
 
     /**

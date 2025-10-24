@@ -29,7 +29,7 @@ import com.aerospike.client.fluent.exp.Expression;
 public final class BatchUDFPolicy {
 	/**
 	 * Optional expression filter. If filterExp exists and evaluates to false, the specific batch key
-	 * request is not performed and {@link com.aerospike.client.BatchRecord#resultCode} is set to
+	 * request is not performed and {@link com.aerospike.client.fluent.command.BatchRecord#resultCode} is set to
 	 * {@link com.aerospike.client.ResultCode#FILTERED_OUT}.
 	 * <p>
 	 * If exists, this filter overrides the batch parent filter {@link com.aerospike.client.policy.Policy#filterExp}

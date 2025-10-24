@@ -11,6 +11,7 @@ import java.util.function.Consumer;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
+import com.aerospike.client.fluent.command.BatchRecord;
 import com.aerospike.client.fluent.policy.QueryPolicy;
 import com.aerospike.client.fluent.query.FixedSizeRecordStream;
 import com.aerospike.client.fluent.query.KeyRecord;

@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2022 Aerospike, Inc.
+ * Copyright 2012-2025 Aerospike, Inc.
  *
  * Portions may be licensed to Aerospike, Inc. under one or more contributor
  * license agreements WHICH ARE COMPATIBLE WITH THE APACHE LICENSE, VERSION 2.0.
@@ -14,27 +14,9 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.aerospike.client.fluent;
+package com.aerospike.client.fluent.command;
 
-/**
- * Batch record results.
- */
-public final class BatchResults {
-	/**
-	 * Record results.
-	 */
-	public final BatchRecord[] records;
-
-	/**
-	 * Indicates if all records returned success.
-	 */
-	public final boolean status;
-
-	/**
-	 * Constructor.
-	 */
-	public BatchResults(BatchRecord[] records, boolean status) {
-		this.records = records;
-		this.status = status;
-	}
+public interface IBatchCommand extends Runnable {
+	void execute();
+	void setInDoubt();
 }

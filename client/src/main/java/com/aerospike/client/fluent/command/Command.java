@@ -19,7 +19,6 @@ package com.aerospike.client.fluent.command;
 import com.aerospike.client.fluent.Cluster;
 import com.aerospike.client.fluent.Txn;
 import com.aerospike.client.fluent.exp.Expression;
-import com.aerospike.client.fluent.policy.Replica;
 import com.aerospike.client.fluent.policy.Settings;
 
 public class Command {
@@ -75,13 +74,6 @@ public class Command {
 	public static final byte STATE_READ_DETAIL = 3;
 	public static final byte STATE_COMPLETE = 4;
 
-	public static final byte BATCH_MSG_READ = 0x0;
-	public static final byte BATCH_MSG_REPEAT = 0x1;
-	public static final byte BATCH_MSG_INFO = 0x2;
-	public static final byte BATCH_MSG_GEN = 0x4;
-	public static final byte BATCH_MSG_TTL = 0x8;
-	public static final byte BATCH_MSG_INFO4 = 0x10;
-
 	public static final int MSG_TOTAL_HEADER_SIZE = 30;
 	public static final int FIELD_HEADER_SIZE = 5;
 	public static final int OPERATION_HEADER_SIZE = 8;
@@ -95,7 +87,6 @@ public class Command {
 	final String namespace;
 	final Txn txn;
 	final Expression filterExp;
-	final Replica replica;
 	final int connectTimeout;
 	final int socketTimeout;
 	final int totalTimeout;
@@ -103,21 +94,17 @@ public class Command {
 	final int timeoutDelay;
 	final int maxRetries;
 	final int sleepBetweenRetries;
-	final int readTouchTtlPercent; // TODO should be in read policy?
 	final boolean sendKey;
 	final boolean compress;
-	final boolean failOnFilteredOut;
 
 	public Command(
-		Cluster cluster, String namespace, Txn txn, Expression filterExp, boolean failOnFilteredOut, Settings policy
+		Cluster cluster, String namespace, Txn txn, Expression filterExp, Settings policy
 	) {
 		this.cluster = cluster;
 		this.namespace = namespace;
 		this.txn = txn;
 		this.filterExp = filterExp;
-		this.failOnFilteredOut = failOnFilteredOut;
 
-		replica = policy.getReplicaOrder();
 		connectTimeout = policy.getWaitForConnectionToCompleteMs();
 		totalTimeout = policy.getAbandonCallAfterMs();
 		int st = policy.getWaitForCallToCompleteMs();
@@ -132,9 +119,8 @@ public class Command {
 		}
 
 		timeoutDelay = policy.getWaitForSocketResponseAfterCallFailsMs();
-		maxRetries = policy.getMaximumNumberOfCallAttempts()-1;
+		maxRetries = policy.getMaximumNumberOfCallAttempts() - 1;
 		sleepBetweenRetries = policy.getDelayBetweenRetriesMs();
-		readTouchTtlPercent = policy.getResetTtlOnReadAtPercent();
 		sendKey = policy.getSendKey();
 		compress = policy.getUseCompression();
 	}
@@ -154,5 +140,4 @@ public class Command {
 	public int getMaxRetries() {
 		return maxRetries;
 	}
-
 }

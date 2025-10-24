@@ -73,7 +73,7 @@ public class SyncOperateExecutor extends SyncExecutor {
 		}
 
 		if (rp.resultCode == ResultCode.FILTERED_OUT) {
-			if (cmd.failOnFilteredOut) {
+			if (operate.failOnFilteredOut) {
 				throw new AerospikeException(rp.resultCode);
 			}
 			return;

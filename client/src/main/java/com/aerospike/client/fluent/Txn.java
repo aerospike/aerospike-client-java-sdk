@@ -22,6 +22,8 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 
+import com.aerospike.client.fluent.command.BatchRead;
+
 /**
  * Multi-record transaction. Each command in the transaction must use the same namespace.
  */
@@ -132,6 +134,7 @@ public final class Txn {
 
 	/**
 	 * Verify current transactions state and namespace for a future read command.
+	 * For internal use only.
 	 */
 	public void prepareRead(String ns) {
 		verifyCommand();
@@ -148,8 +151,17 @@ public final class Txn {
 
 	/**
 	 * Verify current transaction state and namespaces for a future batch read command.
+	 * For internal use only.
 	 */
-	void prepareRead(List<BatchRead> records) {
+	public void prepareReadKeys(List<Key> keys) {
+		verifyCommand();
+		setNamespaceKeys(keys);
+	}
+
+	/**
+	 * Verify current transaction state and namespaces for a future batch read command.
+	 */
+	void prepareReadRecords(List<BatchRead> records) {
 		verifyCommand();
 		setNamespace(records);
 	}
@@ -236,6 +248,16 @@ public final class Txn {
 	 * If namespace already exists, verify new namespace is the same.
 	 */
 	private void setNamespace(Key[] keys) {
+		for (Key key : keys) {
+			setNamespace(key.namespace);
+		}
+	}
+
+	/**
+	 * Set transaction namespaces for each key only if doesn't already exist.
+	 * If namespace already exists, verify new namespace is the same.
+	 */
+	private void setNamespaceKeys(List<Key> keys) {
 		for (Key key : keys) {
 			setNamespace(key.namespace);
 		}

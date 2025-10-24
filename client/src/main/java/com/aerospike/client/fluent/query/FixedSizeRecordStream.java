@@ -6,7 +6,7 @@ import java.util.List;
 import com.aerospike.client.fluent.Key;
 import com.aerospike.client.fluent.Record;
 import com.aerospike.client.fluent.RecordResult;
-import com.aerospike.client.fluent.BatchRecord;
+import com.aerospike.client.fluent.command.BatchRecord;
 
 public class FixedSizeRecordStream implements RecordStreamImpl, Sortable, ResettablePagination {
     private final RecordResult[] records;

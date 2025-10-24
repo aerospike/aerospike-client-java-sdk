@@ -63,7 +63,6 @@ class SingleKeyQueryBuilderImpl extends QueryImpl {
     }
 
     private RecordStream executeInternal() {
-    	System.out.println("IN executeInternal");
     	Session session = getSession();
     	Cluster cluster = session.getCluster();
     	QueryBuilder qb = getQueryBuilder();
@@ -92,11 +91,10 @@ class SingleKeyQueryBuilderImpl extends QueryImpl {
 		}
 
         try {
-    		ReadCommand cmd;
-
 			Settings policy = session.getBehavior().getSettings(OpKind.READ, OpShape.POINT, partitions.scMode);
-			cmd = new ReadCommand(cluster, partitions, txn, key, qb.getBinNames(),
-				qb.getWithNoBins(), filterExp, failOnFilteredOut, policy, partitions.scMode);
+
+			ReadCommand cmd = new ReadCommand(cluster, partitions, txn, key, qb.getBinNames(),
+				qb.getWithNoBins(), filterExp, failOnFilteredOut, policy);
 
         	SyncReadExecutor exec = new SyncReadExecutor(cluster, cmd);
         	exec.execute();

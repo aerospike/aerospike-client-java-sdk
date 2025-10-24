@@ -20,7 +20,6 @@ import java.util.HashMap;
 import java.util.concurrent.atomic.AtomicReferenceArray;
 
 import com.aerospike.client.fluent.command.Buffer;
-import com.aerospike.client.fluent.policy.Policy;
 import com.aerospike.client.fluent.policy.Replica;
 import com.aerospike.client.fluent.query.PartitionStatus;
 
@@ -38,33 +37,14 @@ public final class Partition {
 		return new Partition(partitions, key, replica, null, false);
 	}
 
-	public static Replica getReplicaSC(Policy policy) {
-		switch (policy.readModeSC) {
-		case SESSION:
-			return Replica.MASTER;
-
-		case LINEARIZE:
-			return policy.replica == Replica.PREFER_RACK ? Replica.SEQUENCE : policy.replica;
-
-		default:
-			return policy.replica;
-		}
-	}
-
 	public static Node getNodeBatchWrite(
 		Cluster cluster,
+		Partitions partitions,
 		Key key,
 		Replica replica,
 		Node prevNode,
 		int sequence
 	) {
-		HashMap<String,Partitions> map = cluster.partitionMap;
-		Partitions partitions = map.get(key.namespace);
-
-		if (partitions == null) {
-			throw new AerospikeException.InvalidNamespace(key.namespace, map.size());
-		}
-
 		Partition p = new Partition(partitions, key, replica, prevNode, false);
 		p.sequence = sequence;
 		return p.getNodeWrite(cluster);
@@ -72,23 +52,14 @@ public final class Partition {
 
 	public static Node getNodeBatchRead(
 		Cluster cluster,
+		Partitions partitions,
 		Key key,
 		Replica replica,
-		Replica replicaSC,
 		Node prevNode,
 		int sequence,
 		int sequenceSC
 	) {
-		// Must copy hashmap reference for copy on write semantics to work.
-		HashMap<String,Partitions> map = cluster.partitionMap;
-		Partitions partitions = map.get(key.namespace);
-
-		if (partitions == null) {
-			throw new AerospikeException.InvalidNamespace(key.namespace, map.size());
-		}
-
 		if (partitions.scMode) {
-			replica = replicaSC;
 			sequence = sequenceSC;
 		}
 
