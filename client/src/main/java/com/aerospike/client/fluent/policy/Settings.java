@@ -200,7 +200,7 @@ public final class Settings {
     }
 
     public int getResetTtlOnReadAtPercent() {
-        return resetTtlOnReadAtPercent == null ? 0 : resetTtlOnReadAtPercent;
+        return resetTtlOnReadAtPercent;
     }
 
     @Deprecated(forRemoval = true)
