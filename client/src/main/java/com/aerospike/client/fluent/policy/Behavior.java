@@ -131,6 +131,8 @@ public final class Behavior {
                     .delayBetweenRetries(Duration.ofMillis(0))
                     .maximumNumberOfCallAttempts(3)
                     .replicaOrder(Replica.SEQUENCE)  // Old: SEQUENCE, now explicit list
+                    .readMode(ReadModeAP.ALL)
+                    .consistency(ReadModeSC.SESSION)
                     .sendKey(true)
                     .useCompression(false)
                     .waitForCallToComplete(Duration.ofSeconds(30))
@@ -139,14 +141,6 @@ public final class Behavior {
             )
             .on(Selectors.reads(), ops -> ops
                     .resetTtlOnReadAtPercent(0)
-            )
-            // AP read defaults
-            .on(Selectors.reads().ap(), ops -> ops
-                    .readMode(ReadModeAP.ALL)  // Old: migrationReadModeSC
-            )
-            // CP read defaults
-            .on(Selectors.reads().cp(), ops -> ops
-                    .consistency(ReadModeSC.SESSION)  // Old: SESSION
             )
             // Batch read defaults
             .on(Selectors.reads().batch(), ops -> ops
@@ -846,6 +840,7 @@ public final class Behavior {
 
     // Concrete Any-Mode markers (covariant return redeclaration)
     public interface AllAnyModeTweaks extends CommonTweaks {
+        // Common tweaks
         @Override AllAnyModeTweaks abandonCallAfter(Duration d);
         @Override AllAnyModeTweaks delayBetweenRetries(Duration d);
         @Override AllAnyModeTweaks maximumNumberOfCallAttempts(int n);
@@ -855,6 +850,24 @@ public final class Behavior {
         @Override AllAnyModeTweaks waitForCallToComplete(Duration d);
         @Override AllAnyModeTweaks waitForConnectionToComplete(Duration d);
         @Override AllAnyModeTweaks waitForSocketResponseAfterCallFails(Duration d);
+        
+        // Read-specific settings
+        AllAnyModeTweaks resetTtlOnReadAtPercent(int percent);
+        AllAnyModeTweaks readMode(ReadModeAP mode);
+        AllAnyModeTweaks consistency(ReadModeSC c);
+        
+        // Write-specific settings
+        AllAnyModeTweaks useDurableDelete(boolean b);
+        AllAnyModeTweaks simulateXdrWrite(boolean b);
+        AllAnyModeTweaks commitLevel(CommitLevel level);
+        
+        // Batch-specific settings
+        AllAnyModeTweaks maxConcurrentNodes(int n);
+        AllAnyModeTweaks allowInlineMemoryAccess(boolean v);
+        AllAnyModeTweaks allowInlineSsdAccess(boolean v);
+        
+        // Query-specific settings
+        AllAnyModeTweaks recordQueueSize(int n);
     }
     public interface ReadAnyAnyModeTweaks extends ReadTweaks {
         @Override ReadAnyAnyModeTweaks abandonCallAfter(Duration d);
