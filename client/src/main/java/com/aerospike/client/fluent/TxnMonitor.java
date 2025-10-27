@@ -164,20 +164,9 @@ public final class TxnMonitor {
 	) {
 		Key txnKey = getTxnMonitorKey(txn);
 
-//		SettableWritePolicy txnPolicy = new BehaviorBuilder().onRetryableWrites()
-//			.waitForConnectionToComplete(Duration.ofMillis(policy.getConnectTimeout()))
-//			.waitForCallToComplete(Duration.ofMillis(policy.getSocketTimeout()))
-//			.abandonCallAfter(Duration.ofMillis(policy.getTotalTimeout()))
-//			.waitForSocketResponseAfterCallFails(Duration.ofMillis(policy.getTimeoutDelay()))
-//			.maximumNumberOfCallAttempts(policy.getMaxRetries() + 1)
-//			.delayBetweenRetries(Duration.ofMillis(policy.getSleepBetweenRetries()))
-//			.useCompression(policy.getCompress())
-//			.getPolicy();
-		Settings txnPolicy = new Settings(policy);
-
         OperateCommand cmd = new OperateCommand(cluster, partitions, txn, txnKey, ops,
         	OpType.UPSERT, 0, txn.getTimeout(), ReadModeAP.ONE, ReadModeSC.SESSION, null, false,
-        	txnPolicy
+        	policy
 			);
 
         SyncTxnAddKeysExecutor exec = new SyncTxnAddKeysExecutor(cluster, cmd);
