@@ -16,11 +16,11 @@ import com.aerospike.client.fluent.ResultCode;
 import com.aerospike.client.fluent.Session;
 import com.aerospike.client.fluent.Txn;
 import com.aerospike.client.fluent.command.Batch;
-import com.aerospike.client.fluent.command.BatchCommand;
 import com.aerospike.client.fluent.command.BatchExecutor;
 import com.aerospike.client.fluent.command.BatchNode;
 import com.aerospike.client.fluent.command.BatchNodeList;
 import com.aerospike.client.fluent.command.BatchRead;
+import com.aerospike.client.fluent.command.BatchReadCommand;
 import com.aerospike.client.fluent.command.BatchRecord;
 import com.aerospike.client.fluent.command.BatchSingle;
 import com.aerospike.client.fluent.command.BatchStatus;
@@ -30,6 +30,8 @@ import com.aerospike.client.fluent.exp.Exp;
 import com.aerospike.client.fluent.exp.Expression;
 import com.aerospike.client.fluent.policy.Behavior.OpKind;
 import com.aerospike.client.fluent.policy.Behavior.OpShape;
+import com.aerospike.client.fluent.policy.ReadModeSC;
+import com.aerospike.client.fluent.policy.Replica;
 import com.aerospike.client.fluent.policy.Settings;
 
 class BatchKeyQueryBuilderImpl extends QueryImpl {
@@ -143,14 +145,50 @@ class BatchKeyQueryBuilderImpl extends QueryImpl {
 		}
 
 		Settings policy = session.getBehavior().getSettings(OpKind.READ, OpShape.BATCH, partitions.scMode);
+		BatchReadCommand parent;
+		Replica replica;
 
-    	BatchCommand parent = new BatchCommand(cluster, partitions, qb.getTxnToUse(), namespace,
-            	batchRecordsForServer, filterExp, qb.respondAllKeys, policy);
+        if (partitions.scMode) {
+            ReadModeSC mode = policy.getReadModeSC();
+            boolean linearize;
+
+            switch (mode) {
+            case SESSION:
+            	replica = Replica.MASTER;
+            	linearize = false;
+                break;
+
+            case LINEARIZE:
+                replica = policy.getReplicaOrder();
+
+                if (replica == Replica.PREFER_RACK) {
+                    replica = Replica.SEQUENCE;
+                }
+            	linearize = true;
+                break;
+
+            default:
+                replica = policy.getReplicaOrder();
+            	linearize = false;
+                break;
+            }
+
+            parent = new BatchReadCommand(cluster, partitions, qb.getTxnToUse(), namespace,
+            	batchRecordsForServer, filterExp, replica, mode, qb.respondAllKeys,
+            	linearize, policy);
+        }
+        else {
+            replica = policy.getReplicaOrder();
+            parent = new BatchReadCommand(cluster, partitions, qb.getTxnToUse(), namespace,
+                batchRecordsForServer, filterExp, replica, policy.getReadModeAP(),
+                qb.respondAllKeys, policy);
+       }
 
     	BatchStatus status = new BatchStatus(true);
-		List<BatchNode> bns = BatchNodeList.generate(cluster, parent, batchRecordsForServer, status);
-		IBatchCommand[] commands = new IBatchCommand[bns.size()];
+		List<BatchNode> bns = BatchNodeList.generate(cluster, partitions, replica,
+			batchRecordsForServer, status);
 
+		IBatchCommand[] commands = new IBatchCommand[bns.size()];
     	int count = 0;
 
 		for (BatchNode bn : bns) {

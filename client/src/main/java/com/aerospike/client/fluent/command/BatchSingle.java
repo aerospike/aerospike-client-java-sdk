@@ -23,6 +23,7 @@ import com.aerospike.client.fluent.Cluster;
 import com.aerospike.client.fluent.Connection;
 import com.aerospike.client.fluent.Key;
 import com.aerospike.client.fluent.Node;
+import com.aerospike.client.fluent.Operation;
 import com.aerospike.client.fluent.Partition;
 import com.aerospike.client.fluent.ResultCode;
 import com.aerospike.client.fluent.metrics.LatencyType;
@@ -137,23 +138,25 @@ public final class BatchSingle {
 	}
 */
 	public static class ReadRecord extends SingleExecutor {
+		private final BatchReadCommand cmd;
 		private final BatchRead record;
 
 		public ReadRecord(
 			Cluster cluster,
-			BatchCommand parent,
+			BatchReadCommand cmd,
 			BatchRead record,
 			BatchStatus status,
 			Node node
 		) {
-			super(cluster, parent, status, record.key, node, false);
+			super(cluster, cmd, status, record.key, node, false);
+			this.cmd = cmd;
 			this.record = record;
 		}
 
 		@Override
 		protected CommandBuffer getCommandBuffer() {
 			CommandBuffer cb = new CommandBuffer();
-			cb.setRead(parent, record);
+			cb.setRead(cmd, record);
 			return cb;
 		}
 
@@ -173,6 +176,17 @@ public final class BatchSingle {
 				record.setError(rp.resultCode, false);
 				status.setRowError();
 			}
+		}
+
+		@Override
+		protected boolean prepareRetry(boolean timeout) {
+			Partition p = new Partition(parent.partitions, key, parent.replica, null, cmd.linearize);
+			p.sequence = sequence;
+			p.prevNode = node;
+			p.prepareRetryRead(timeout);
+			node = p.getNodeRead(cluster);
+			sequence = p.sequence;
+			return true;
 		}
 	}
 /*
@@ -211,45 +225,48 @@ public final class BatchSingle {
 			existsArray[index] = rp.resultCode == 0;
 		}
 	}
-
-	public static final class OperateBatchRecord extends BaseCommand {
+*/
+	public static final class OperateRecord extends SingleExecutor {
 		private final Operation[] ops;
 		private final BatchAttr attr;
 		private final BatchRecord record;
 
-		public OperateBatchRecord(
+		public OperateRecord(
 			Cluster cluster,
-			BatchPolicy policy,
+			BatchCommand parent,
 			Operation[] ops,
 			BatchAttr attr,
 			BatchRecord record,
 			BatchStatus status,
 			Node node
 		) {
-			super(cluster, policy, status, record.key, node, attr.hasWrite);
+			super(cluster, parent, status, record.key, node, attr.hasWrite);
 			this.ops = ops;
 			this.attr = attr;
 			this.record = record;
 		}
 
 		@Override
-		protected void writeBuffer() {
-			setOperate(policy, attr, record.key, ops);
+		protected CommandBuffer getCommandBuffer() {
+			CommandBuffer cb = new CommandBuffer();
+			cb.setOperate(parent, attr, record.key, ops);
+			return cb;
 		}
 
 		@Override
-		protected void parseResult(Node node, Connection conn) throws IOException {
-			RecordParser rp = new RecordParser(conn, dataBuffer);
-			rp.parseFields(policy.txn, key, record.hasWrite);
-			if (node.areMetricsEnabled()) {
-				node.addBytesIn(namespace, rp.bytesIn);
+		protected void parseResult(Node node, Connection conn, byte[] buffer) throws IOException {
+			RecordParser rp = new RecordParser(conn, buffer);
+			rp.parseFields(cmd.txn, key, record.hasWrite);
+
+			if (node.isMetricsEnabled()) {
+				node.addBytesIn(cmd.namespace, rp.bytesIn);
 			}
 
 			if (rp.resultCode == ResultCode.OK) {
 				record.setRecord(rp.parseRecord(true));
 			}
 			else {
-				record.setError(rp.resultCode, Command.batchInDoubt(attr.hasWrite, commandSentCounter));
+				record.setError(rp.resultCode, BatchCommand.inDoubt(attr.hasWrite, commandSentCounter));
 				status.setRowError();
 			}
 		}
@@ -260,8 +277,19 @@ public final class BatchSingle {
 				record.inDoubt = true;
 			}
 		}
-	}
 
+		@Override
+		protected boolean prepareRetry(boolean timeout) {
+			Partition p = new Partition(parent.partitions, key, parent.replica, null, false);
+			p.sequence = sequence;
+			p.prevNode = node;
+			p.prepareRetryWrite(timeout);
+			node = p.getNodeWrite(cluster);
+			sequence = p.sequence;
+			return true;
+		}
+	}
+/*
 	public static final class Delete extends BaseCommand {
 		private final BatchAttr attr;
 		private final BatchRecord record;
@@ -528,27 +556,6 @@ public final class BatchSingle {
 		@Override
 		protected void addSubException(AerospikeException ae) {
 			status.addSubException(ae);
-		}
-
-		@Override
-		protected boolean prepareRetry(boolean timeout) {
-			if (hasWrite) {
-				Partition p = new Partition(parent.partitions, key, parent.replica, null, false);
-				p.sequence = sequence;
-				p.prevNode = node;
-				p.prepareRetryWrite(timeout);
-				node = p.getNodeWrite(cluster);
-				sequence = p.sequence;
-			}
-			else {
-				Partition p = new Partition(parent.partitions, key, parent.replica, null, parent.linearize);
-				p.sequence = sequence;
-				p.prevNode = node;
-				p.prepareRetryRead(timeout);
-				node = p.getNodeRead(cluster);
-				sequence = p.sequence;
-			}
-			return true;
 		}
 
 		public void setInDoubt() {

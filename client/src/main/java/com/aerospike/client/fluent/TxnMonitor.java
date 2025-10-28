@@ -24,10 +24,8 @@ import com.aerospike.client.fluent.cdt.ListOrder;
 import com.aerospike.client.fluent.cdt.ListPolicy;
 import com.aerospike.client.fluent.cdt.ListWriteFlags;
 import com.aerospike.client.fluent.command.BatchRecord;
-import com.aerospike.client.fluent.command.OperateCommand;
+import com.aerospike.client.fluent.command.OperateWriteCommand;
 import com.aerospike.client.fluent.command.SyncTxnAddKeysExecutor;
-import com.aerospike.client.fluent.policy.ReadModeAP;
-import com.aerospike.client.fluent.policy.ReadModeSC;
 import com.aerospike.client.fluent.policy.Settings;
 
 public final class TxnMonitor {
@@ -164,9 +162,8 @@ public final class TxnMonitor {
 	) {
 		Key txnKey = getTxnMonitorKey(txn);
 
-        OperateCommand cmd = new OperateCommand(cluster, partitions, txn, txnKey, ops,
-        	OpType.UPSERT, 0, txn.getTimeout(), ReadModeAP.ONE, ReadModeSC.SESSION, null, false,
-        	policy
+        OperateWriteCommand cmd = new OperateWriteCommand(cluster, partitions, txn, txnKey, ops,
+        	OpType.UPSERT, 0, txn.getTimeout(), null, false, policy
 			);
 
         SyncTxnAddKeysExecutor exec = new SyncTxnAddKeysExecutor(cluster, cmd);

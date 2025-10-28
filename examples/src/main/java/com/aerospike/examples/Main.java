@@ -10,7 +10,6 @@ import com.aerospike.client.fluent.Record;
 import com.aerospike.client.fluent.RecordResult;
 import com.aerospike.client.fluent.RecordStream;
 import com.aerospike.client.fluent.Session;
-import com.aerospike.client.fluent.dsl.BooleanExpression;
 import com.aerospike.client.fluent.dsl.Dsl;
 import com.aerospike.client.fluent.policy.Behavior;
 import com.aerospike.client.fluent.util.Util;
@@ -40,6 +39,22 @@ public class Main {
 	            .values("Tim", 312)
 	            .values("Bob", 25)
 	            .values("Jane", 46)
+	            .execute();
+
+            System.out.println("Write 10 records");
+
+            session.upsert(set.ids(10,11,12,13,14,15,16,17,18,19))
+	            .bins("name", "age")
+	            .values("Tim", 312)
+	            .values("Bob", 25)
+	            .values("Jane", 46)
+	            .values("Tim", 200)
+	            .values("User1", 201)
+	            .values("User2", 202)
+	            .values("User3", 203)
+	            .values("User4", 204)
+	            .values("User5", 205)
+	            .values("User6", 206)
 	            .execute();
 
             System.out.println("Read 1 record");

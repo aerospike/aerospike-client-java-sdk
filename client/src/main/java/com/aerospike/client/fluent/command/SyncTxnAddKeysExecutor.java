@@ -25,7 +25,7 @@ import com.aerospike.client.fluent.Node;
 import com.aerospike.client.fluent.ResultCode;
 
 public final class SyncTxnAddKeysExecutor extends SyncOperateExecutor {
-	public SyncTxnAddKeysExecutor(Cluster cluster, OperateCommand cmd) {
+	public SyncTxnAddKeysExecutor(Cluster cluster, OperateWriteCommand cmd) {
 		super(cluster, cmd);
 	}
 

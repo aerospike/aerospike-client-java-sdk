@@ -17,6 +17,7 @@
 package com.aerospike.client.fluent.policy;
 
 import com.aerospike.client.fluent.Log;
+import com.aerospike.client.fluent.OpType;
 import com.aerospike.client.fluent.configuration.ConfigurationProvider;
 import com.aerospike.client.fluent.configuration.serializers.Configuration;
 import com.aerospike.client.fluent.configuration.serializers.DynamicConfiguration;
@@ -39,6 +40,8 @@ public final class BatchWritePolicy {
 	 * Default: null
 	 */
 	public Expression filterExp;
+
+	public OpType opType;
 
 	/**
 	 * Qualify how to handle writes where the record already exists.

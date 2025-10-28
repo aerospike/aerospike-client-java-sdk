@@ -48,7 +48,7 @@ public final class CommandBuffer {
 	// Operate
 	//--------------------------------------------------
 
-	public void setOperate(OperateCommand cmd) {
+	public void setOperate(OperateWriteCommand cmd) {
 		begin();
 		int fieldCount = estimateKeySize(cmd, cmd.key, cmd.hasWrite);
 
@@ -67,6 +67,22 @@ public final class CommandBuffer {
 		}
 
 		for (Operation op : cmd.ops) {
+			writeOperation(op);
+		}
+		end();
+		compress(cmd);
+	}
+
+	public void setOperate(BatchCommand cmd, BatchAttr attr, Key key, Operation[] ops) {
+		begin();
+		Expression exp = getBatchExpression(cmd, attr);
+		int fieldCount = estimateKeyAttrSize(cmd, key, attr, exp);
+
+		dataOffset += attr.opSize;
+		sizeBuffer();
+		writeKeyAttr(cmd, key, attr, exp, fieldCount, ops.length);
+
+		for (Operation op : ops) {
 			writeOperation(op);
 		}
 		end();
@@ -121,7 +137,7 @@ public final class CommandBuffer {
 		end();
 	}
 
-	public void setRead(BatchCommand cmd, BatchRead br) {
+	public void setRead(BatchReadCommand cmd, BatchRead br) {
 		begin();
 
 		BatchReadPolicy rp = br.policy;
@@ -286,7 +302,7 @@ public final class CommandBuffer {
 							attr.setRead(br.policy);
 						}
 						else {
-							attr.setRead(cmd);
+							attr.setRead((BatchReadCommand)cmd);
 						}
 
 						if (br.binNames != null) {
@@ -366,6 +382,10 @@ public final class CommandBuffer {
 			flags |= 0x4;
 		}
 		return flags;
+	}
+
+	private static final Expression getBatchExpression(BatchCommand cmd, BatchAttr attr) {
+		return (attr.filterExp != null) ? attr.filterExp : cmd.filterExp;
 	}
 
 	private static boolean canRepeat(
@@ -579,7 +599,7 @@ public final class CommandBuffer {
 	// Transaction Monitor
 	//--------------------------------------------------
 
-	public void setTxnAddKeys(OperateCommand cmd) {
+	public void setTxnAddKeys(OperateWriteCommand cmd) {
 		begin();
 		int fieldCount = estimateKeySize(cmd.key);
 		dataOffset += cmd.size;
@@ -696,10 +716,12 @@ public final class CommandBuffer {
 	// Command Writes
 	//--------------------------------------------------
 
-	private void writeHeaderOperate(OperateCommand cmd, int fieldCount) {
+	private void writeHeaderOperate(OperateWriteCommand cmd, int fieldCount) {
 		// Set flags.
 		int gen = 0;
-		int ttl = cmd.hasWrite ? cmd.ttl : cmd.readTouchTtlPercent;
+		// Operate() is currently defined as only write operations.
+		//int ttl = cmd.hasWrite ? cmd.ttl : cmd.readTouchTtlPercent;
+		int ttl = cmd.ttl;
 		int readAttr = cmd.readAttr;
 		int writeAttr = cmd.writeAttr;
 		int infoAttr = 0;
@@ -741,6 +763,8 @@ public final class CommandBuffer {
 			txnAttr |= Command.INFO4_TXN_ON_LOCKING_ONLY;
 		}
 
+		// Operate() is currently defined as only write operations.
+		/*
 		switch (cmd.readModeSC) {
 		case SESSION:
 			break;
@@ -758,6 +782,7 @@ public final class CommandBuffer {
 		if (cmd.readModeAP == ReadModeAP.ALL) {
 			readAttr |= Command.INFO1_READ_MODE_AP_ALL;
 		}
+		*/
 
 		if (cmd.compress) {
 			readAttr |= Command.INFO1_COMPRESS_RESPONSE;

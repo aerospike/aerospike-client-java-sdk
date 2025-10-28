@@ -24,6 +24,7 @@ import com.aerospike.client.fluent.Cluster;
 import com.aerospike.client.fluent.Key;
 import com.aerospike.client.fluent.Node;
 import com.aerospike.client.fluent.Partition;
+import com.aerospike.client.fluent.Partitions;
 import com.aerospike.client.fluent.ResultCode;
 import com.aerospike.client.fluent.policy.Replica;
 
@@ -325,7 +326,8 @@ public final class BatchNodeList {
 	 */
 	public static List<BatchNode> generate(
 		Cluster cluster,
-		BatchCommand parent,
+		Partitions partitions,
+		Replica replica,
 		List<? extends BatchRecord> records,
 		IBatchStatus status
 	) {
@@ -341,8 +343,6 @@ public final class BatchNodeList {
 			keysPerNode = 10;
 		}
 
-		final Replica replica = parent.replica;
-
 		// Split keys by server node.
 		List<BatchNode> batchNodes = new ArrayList<BatchNode>(nodes.length);
 		AerospikeException except = null;
@@ -354,8 +354,8 @@ public final class BatchNodeList {
 				b.prepare();
 
 				Node node = b.hasWrite ?
-					Partition.getNodeBatchWrite(cluster, parent.partitions, b.key, replica, null, 0) :
-					Partition.getNodeBatchRead(cluster, parent.partitions, b.key, replica, null, 0, 0);
+					Partition.getNodeBatchWrite(cluster, partitions, b.key, replica, null, 0) :
+					Partition.getNodeBatchRead(cluster, partitions, b.key, replica, null, 0, 0);
 
 				BatchNode batchNode = findBatchNode(batchNodes, node);
 
@@ -393,7 +393,8 @@ public final class BatchNodeList {
 	 */
 	public static List<BatchNode> generate(
 		Cluster cluster,
-		BatchCommand parent,
+		Partitions partitions,
+		Replica replica,
 		List<? extends BatchRecord> records,
 		int sequenceAP,
 		int sequenceSC,
@@ -411,8 +412,6 @@ public final class BatchNodeList {
 			keysPerNode = 10;
 		}
 
-		final Replica replica = parent.replica;
-
 		// Split keys by server node.
 		List<BatchNode> batchNodes = new ArrayList<BatchNode>(nodes.length);
 		AerospikeException except = null;
@@ -428,8 +427,8 @@ public final class BatchNodeList {
 
 			try {
 				Node node = b.hasWrite ?
-					Partition.getNodeBatchWrite(cluster, parent.partitions, b.key, replica, batchSeed.node, sequenceAP) :
-					Partition.getNodeBatchRead(cluster, parent.partitions, b.key, replica, batchSeed.node, sequenceAP, sequenceSC);
+					Partition.getNodeBatchWrite(cluster, partitions, b.key, replica, batchSeed.node, sequenceAP) :
+					Partition.getNodeBatchRead(cluster, partitions, b.key, replica, batchSeed.node, sequenceAP, sequenceSC);
 
 				BatchNode batchNode = findBatchNode(batchNodes, node);
 

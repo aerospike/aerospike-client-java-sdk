@@ -40,12 +40,12 @@ public final class BatchAttr {
 	public BatchAttr() {
 	}
 
-	public BatchAttr(BatchCommand cmd, int rattr) {
+	public BatchAttr(BatchReadCommand cmd, int rattr) {
 		setRead(cmd);
 		this.readAttr |= rattr;
 	}
 
-	public BatchAttr(BatchCommand cmd, int rattr, Operation[] ops) {
+	public BatchAttr(BatchReadCommand cmd, int rattr, Operation[] ops) {
 		setRead(cmd);
 		this.readAttr = rattr;
 
@@ -54,7 +54,7 @@ public final class BatchAttr {
 		}
 	}
 
-	public BatchAttr(BatchCommand cmd, BatchWritePolicy wp, Operation[] ops) {
+	public BatchAttr(BatchReadCommand cmd, BatchWritePolicy wp, Operation[] ops) {
 		boolean readAllBins = false;
 		boolean readHeader = false;
 		boolean hasRead = false;
@@ -106,7 +106,7 @@ public final class BatchAttr {
 		}
 	}
 
-	public void setRead(BatchCommand cmd) {
+	public void setRead(BatchReadCommand cmd) {
 		filterExp = null;
 		readAttr = Command.INFO1_READ;
 
@@ -201,39 +201,30 @@ public final class BatchAttr {
 		expiration = wp.expiration;
 		hasWrite = true;
 		sendKey = wp.sendKey;
-/*
-		switch (wp.generationPolicy) {
-		default:
-		case NONE:
-			generation = 0;
-			break;
-		case EXPECT_GEN_EQUAL:
+
+		if (wp.generation > 0) {
 			generation = (short)wp.generation;
 			writeAttr |= Command.INFO2_GENERATION;
+		}
+
+		switch (wp.opType) {
+		default:
+		case UPSERT:
 			break;
-		case EXPECT_GEN_GT:
-			generation = (short)wp.generation;
-			writeAttr |= Command.INFO2_GENERATION_GT;
+
+		case INSERT:
+			writeAttr |= Command.INFO2_CREATE_ONLY;
+			break;
+
+		case UPDATE:
+			infoAttr |= Command.INFO3_UPDATE_ONLY;
+			break;
+
+		case REPLACE:
+			infoAttr |= Command.INFO3_CREATE_OR_REPLACE;
 			break;
 		}
 
-		switch (wp.recordExistsAction) {
-		case UPDATE:
-			break;
-		case UPDATE_ONLY:
-			infoAttr |= Commander.INFO3_UPDATE_ONLY;
-			break;
-		case REPLACE:
-			infoAttr |= Commander.INFO3_CREATE_OR_REPLACE;
-			break;
-		case REPLACE_ONLY:
-			infoAttr |= Commander.INFO3_REPLACE_ONLY;
-			break;
-		case CREATE_ONLY:
-			writeAttr |= Commander.INFO2_CREATE_ONLY;
-			break;
-		}
-*/
 		if (wp.durableDelete) {
 			writeAttr |= Command.INFO2_DURABLE_DELETE;
 		}
@@ -299,22 +290,12 @@ public final class BatchAttr {
 		expiration = 0;
 		hasWrite = true;
 		sendKey = dp.sendKey;
-/*
-		switch (dp.generationPolicy) {
-		default:
-		case NONE:
-			generation = 0;
-			break;
-		case EXPECT_GEN_EQUAL:
+
+		if (dp.generation > 0) {
 			generation = (short)dp.generation;
 			writeAttr |= Command.INFO2_GENERATION;
-			break;
-		case EXPECT_GEN_GT:
-			generation = (short)dp.generation;
-			writeAttr |= Command.INFO2_GENERATION_GT;
-			break;
 		}
-*/
+
 		if (dp.durableDelete) {
 			writeAttr |= Command.INFO2_DURABLE_DELETE;
 		}

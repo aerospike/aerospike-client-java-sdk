@@ -22,22 +22,26 @@ import com.aerospike.client.fluent.Cluster;
 import com.aerospike.client.fluent.Partitions;
 import com.aerospike.client.fluent.Txn;
 import com.aerospike.client.fluent.exp.Expression;
+import com.aerospike.client.fluent.policy.Replica;
 import com.aerospike.client.fluent.policy.Settings;
 
-public class BatchCommand extends ReadCommandBase {
+public class BatchCommand extends Command {
 	final Partitions partitions;
 	final List<BatchRecord> records;
+	final Replica replica;
 	final boolean respondAllKeys;
     final boolean inlineMemory;
     final boolean inlineSSD;
 
 	public BatchCommand(
 		Cluster cluster, Partitions partitions, Txn txn, String namespace,
-		List<BatchRecord> records, Expression filterExp, boolean respondAllKeys, Settings policy
+		List<BatchRecord> records, Expression filterExp, Replica replica, boolean respondAllKeys,
+		Settings policy
 	) {
-		super(cluster, namespace, partitions, txn, filterExp, policy);
+		super(cluster, namespace, txn, filterExp, policy);
 		this.partitions = partitions;
 		this.records = records;
+		this.replica = replica;
 		this.respondAllKeys = respondAllKeys;
 		this.inlineMemory = policy.getAllowInlineMemoryAccess();
 		this.inlineSSD = policy.getAllowInlineSsdAccess();

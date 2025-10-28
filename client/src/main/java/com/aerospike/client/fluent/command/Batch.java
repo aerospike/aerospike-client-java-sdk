@@ -281,7 +281,8 @@ public final class Batch {
 
 		@Override
 		protected List<BatchNode> generateBatchNodes() {
-			return BatchNodeList.generate(cluster, parent, records, sequenceAP, sequenceSC, batch, status);
+			return BatchNodeList.generate(cluster, parent.partitions, parent.replica, records,
+				sequenceAP, sequenceSC, batch, status);
 		}
 	}
 /*
@@ -698,7 +699,15 @@ public final class Batch {
 			}
 			sequenceAP++;
 
-			if (! timeout || parent.readModeSC != ReadModeSC.LINEARIZE) {
+			if (! timeout) {
+				sequenceSC++;
+			}
+			else if (parent instanceof BatchReadCommand brc) {
+				if (brc.readModeSC != ReadModeSC.LINEARIZE) {
+					sequenceSC++;
+				}
+			}
+			else {
 				sequenceSC++;
 			}
 			return false;

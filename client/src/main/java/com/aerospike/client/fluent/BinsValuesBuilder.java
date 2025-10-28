@@ -18,21 +18,32 @@ package com.aerospike.client.fluent;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import com.aerospike.client.fluent.command.OperateCommand;
+import com.aerospike.client.fluent.command.Batch;
+import com.aerospike.client.fluent.command.BatchAttr;
+import com.aerospike.client.fluent.command.BatchCommand;
+import com.aerospike.client.fluent.command.BatchExecutor;
+import com.aerospike.client.fluent.command.BatchNode;
+import com.aerospike.client.fluent.command.BatchNodeList;
+import com.aerospike.client.fluent.command.BatchRecord;
+import com.aerospike.client.fluent.command.BatchSingle;
+import com.aerospike.client.fluent.command.BatchStatus;
+import com.aerospike.client.fluent.command.BatchWrite;
+import com.aerospike.client.fluent.command.IBatchCommand;
+import com.aerospike.client.fluent.command.OperateWriteCommand;
 import com.aerospike.client.fluent.command.SyncOperateExecutor;
 import com.aerospike.client.fluent.dsl.BooleanExpression;
 import com.aerospike.client.fluent.dsl.ParseResult;
 import com.aerospike.client.fluent.exp.Exp;
 import com.aerospike.client.fluent.exp.Expression;
+import com.aerospike.client.fluent.policy.BatchWritePolicy;
 import com.aerospike.client.fluent.policy.Behavior.OpKind;
 import com.aerospike.client.fluent.policy.Behavior.OpShape;
-import com.aerospike.client.fluent.policy.ReadModeAP;
-import com.aerospike.client.fluent.policy.ReadModeSC;
 import com.aerospike.client.fluent.policy.Settings;
 import com.aerospike.client.fluent.query.PreparedDsl;
 import com.aerospike.client.fluent.query.WhereClauseProcessor;
@@ -425,39 +436,87 @@ public class BinsValuesBuilder implements FilterableOperation<BinsValuesBuilder>
     }
 
     protected RecordStream executeBatch() {
-    	/*
-        BatchPolicy batchPolicy = opBuilder.getSession().getBehavior().getMutablePolicy(CommandType.BATCH_WRITE);
-        batchPolicy.setTxn(txnToUse);
+    	Session session = opBuilder.getSession();
+    	Cluster cluster = session.getCluster();
 
-        // Apply where clause if present
-        Expression whereExp = null;
+    	// Assume all keys have the same namespace.
+        String namespace = keys.get(0).namespace;
+
+		HashMap<String,Partitions> partitionMap = cluster.getPartitionMap();
+		Partitions partitions = partitionMap.get(namespace);
+
+		if (partitions == null) {
+			throw new AerospikeException.InvalidNamespace(namespace, partitionMap.size());
+		}
+
+    	Settings policy = session.getBehavior().getSettings(OpKind.WRITE_RETRYABLE, OpShape.BATCH, partitions.scMode);
+
+        // Apply filter expression clause if present
+        Expression filterExp = null;
+
         if (this.dsl != null && !keys.isEmpty()) {
-            ParseResult parseResult = this.dsl.process(keys.get(0).namespace, opBuilder.getSession());
-            whereExp = Exp.build(parseResult.getExp());
+            ParseResult parseResult = this.dsl.process(keys.get(0).namespace, session);
+            filterExp = Exp.build(parseResult.getExp());
         }
-        batchPolicy.filterExp = whereExp;
-        batchPolicy.failOnFilteredOut = this.failOnFilteredOut;
 
-        List<BatchRecord> batchRecords = new ArrayList<>();
+        Txn txn = opBuilder.getTxnToUse();
+
+		if (txn != null) {
+			TxnMonitor.addKeys(txnToUse, cluster, partitions, policy, keys);
+		}
+
+        List<BatchRecord> batchRecords = new ArrayList<>(keys.size());
+
         for (Key key : keys) {
             ValueData valueSet = valueSets.get(key);
             Operation[] ops = getOperationsForValueData(valueSet);
+
             BatchWritePolicy bwp = new BatchWritePolicy();
-            // Fix: Apply policies even when generation is 0
+
             if (valueSet.generation != 0) {
                 bwp.generation = valueSet.generation;
-                bwp.generationPolicy = GenerationPolicy.EXPECT_GEN_EQUAL;
             }
+
             bwp.expiration = getExpiration(valueSet);
-            bwp.recordExistsAction = OperationBuilder.recordExistsActionFromOpType(opBuilder.opType);
+            bwp.opType = opBuilder.opType;
+
             batchRecords.add(new BatchWrite(bwp, key, ops));
         }
-        batchPolicy.txn = this.txnToUse;
 
-        opBuilder.getSession().getClient().operate(batchPolicy, batchRecords);
+        BatchCommand parent = new BatchCommand(cluster, partitions, txn, namespace,
+    		batchRecords, filterExp, policy.getReplicaOrder(), opBuilder.respondAllKeys, policy);
 
-        // Handle respondAllKeys and filterExp behavior
-        if (!respondAllKeys && whereExp != null) {
+    	BatchStatus status = new BatchStatus(true);
+		List<BatchNode> bns = BatchNodeList.generate(cluster, partitions, policy.getReplicaOrder(),
+			batchRecords, status);
+
+		IBatchCommand[] commands = new IBatchCommand[bns.size()];
+    	int count = 0;
+
+		for (BatchNode bn : bns) {
+			if (bn.offsetsSize == 1) {
+				int i = bn.offsets[0];
+				BatchRecord record = batchRecords.get(i);
+
+				BatchWrite bw = (BatchWrite)record;
+				BatchAttr attr = new BatchAttr();
+
+				attr.setWrite(bw.policy);
+				attr.adjustWrite(bw.ops);
+				attr.setOpSize(bw.ops);
+
+				commands[count++] = new BatchSingle.OperateRecord(cluster, parent, bw.ops, attr,
+					record, status, bn.node);
+			}
+			else {
+				commands[count++] = new Batch.OperateList(cluster, parent, bn, batchRecords, status);
+			}
+		}
+
+		BatchExecutor.execute(cluster, commands, status);
+
+		// Handle respondAllKeys and filterExp behavior
+        if (!respondAllKeys && filterExp != null) {
             // Remove any items which have been filtered out or not found
             batchRecords.removeIf(br -> (br.resultCode == ResultCode.OK && br.record == null)
                     || (br.resultCode == ResultCode.KEY_NOT_FOUND_ERROR)
@@ -465,8 +524,6 @@ public class BinsValuesBuilder implements FilterableOperation<BinsValuesBuilder>
         }
 
         return new RecordStream(batchRecords, 0, 0, null);
-        */
-    	return null;
     }
 
     /**
@@ -585,11 +642,6 @@ public class BinsValuesBuilder implements FilterableOperation<BinsValuesBuilder>
             filterExp = Exp.build(parseResult.getExp());
         }
 
-        // Since getOperationsForValueData() returns all write operations, the read operations are not relevant.
-    	// Set read modes to default.
-        ReadModeAP readModeAP = ReadModeAP.ONE;
-        ReadModeSC readModeSC = ReadModeSC.SESSION;
-
         Key[] keyArray = new Key[keys.size()];
         Record[] recordArray = new Record[keys.size()];
 
@@ -604,9 +656,9 @@ public class BinsValuesBuilder implements FilterableOperation<BinsValuesBuilder>
 
             int ttl = getExpiration(valueSet);
 
-            OperateCommand cmd = new OperateCommand(cluster, partitions, txnToUse, key, ops,
-            	opBuilder.opType, valueSet.generation, ttl, readModeAP, readModeSC, filterExp,
-            	opBuilder.failOnFilteredOut, policy
+            OperateWriteCommand cmd = new OperateWriteCommand(cluster, partitions, txnToUse, key, ops,
+            	opBuilder.opType, valueSet.generation, ttl, filterExp, opBuilder.failOnFilteredOut,
+            	policy
 				);
 
             try {

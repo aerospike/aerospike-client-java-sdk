@@ -27,10 +27,10 @@ import com.aerospike.client.fluent.ResultCode;
 import com.aerospike.client.fluent.metrics.LatencyType;
 
 public class SyncOperateExecutor extends SyncExecutor {
-	final OperateCommand operate;
+	final OperateWriteCommand operate;
 	private Record record;
 
-	public SyncOperateExecutor(Cluster cluster, OperateCommand cmd) {
+	public SyncOperateExecutor(Cluster cluster, OperateWriteCommand cmd) {
 		super(cluster, cmd);
 		this.operate = cmd;
 		cluster.addCommandCount();
