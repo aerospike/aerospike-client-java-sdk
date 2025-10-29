@@ -23,6 +23,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import com.aerospike.client.fluent.command.Batch;
@@ -442,24 +443,9 @@ public class BinsValuesBuilder implements FilterableOperation<BinsValuesBuilder>
 
     	// Assume all keys have the same namespace.
         String namespace = keys.get(0).namespace;
-
-		HashMap<String,Partitions> partitionMap = cluster.getPartitionMap();
-		Partitions partitions = partitionMap.get(namespace);
-
-		if (partitions == null) {
-			throw new AerospikeException.InvalidNamespace(namespace, partitionMap.size());
-		}
-
+		Partitions partitions = getPartitions(cluster, namespace);
     	Settings policy = session.getBehavior().getSettings(OpKind.WRITE_RETRYABLE, OpShape.BATCH, partitions.scMode);
-
-        // Apply filter expression clause if present
-        Expression filterExp = null;
-
-        if (this.dsl != null && !keys.isEmpty()) {
-            ParseResult parseResult = this.dsl.process(keys.get(0).namespace, session);
-            filterExp = Exp.build(parseResult.getExp());
-        }
-
+        final Expression filterExp = getFilterExp(session, namespace);
         Txn txn = opBuilder.getTxnToUse();
 
 		if (txn != null) {
@@ -532,116 +518,18 @@ public class BinsValuesBuilder implements FilterableOperation<BinsValuesBuilder>
      * All virtual threads are joined before returning.
      */
     protected RecordStream executeIndividualSync() {
-    	/*
-        Expression tempWhere = null;
-        // Apply where clause if present
-        if (this.dsl != null && !keys.isEmpty()) {
-            ParseResult parseResult = this.dsl.process(keys.get(0).namespace, opBuilder.getSession());
-            tempWhere = Exp.build(parseResult.getExp());
-        }
-        final Expression whereExp = tempWhere;
-
-        // Single key: synchronous execution
-        if (keys.size() == 1) {
-            Key key = keys.get(0);
-            ValueData valueSet = valueSets.get(key);
-            Operation[] ops = getOperationsForValueData(valueSet);
-            WritePolicy wp = opBuilder.getWritePolicy(true, valueSet.generation, this.opBuilder.opType);
-            wp.expiration = getExpiration(valueSet);
-            wp.txn = this.txnToUse;
-            wp.filterExp = whereExp;
-
-            List<BatchRecord> records = new ArrayList<>();
-            try {
-                com.aerospike.client.Record record = opBuilder.getSession().getClient().operate(wp, key, ops);
-                if (respondAllKeys || record != null) {
-                    records.add(new BatchRecord(key, record, true));
-                }
-            } catch (AerospikeException ae) {
-                if (ae.getResultCode() == ResultCode.FILTERED_OUT) {
-                    if (failOnFilteredOut || respondAllKeys) {
-                        records.add(new BatchRecord(key, null, ae.getResultCode(), ae.getInDoubt(), true));
-                    }
-                } else {
-                    opBuilder.showWarningsOnException(ae, txnToUse, key, wp.expiration);
-                    records.add(new BatchRecord(key, null, ae.getResultCode(), ae.getInDoubt(), true));
-                }
-            }
-            return new RecordStream(records, 0, 0, null);
-        }
-
-        // Multiple keys: parallel execution with virtual threads, JOINED before return
-        List<BatchRecord> allRecords = new CopyOnWriteArrayList<>();
-        CountDownLatch latch = new CountDownLatch(keys.size());
-
-        for (Key key : keys) {
-            ValueData valueSet = valueSets.get(key);
-            Thread.startVirtualThread(() -> {
-                try {
-                    Operation[] ops = getOperationsForValueData(valueSet);
-                    WritePolicy wp = opBuilder.getWritePolicy(true, valueSet.generation, this.opBuilder.opType);
-                    wp.expiration = getExpiration(valueSet);
-                    wp.txn = this.txnToUse;
-                    wp.filterExp = whereExp;
-
-                    try {
-                        com.aerospike.client.Record record = opBuilder.getSession().getClient().operate(wp, key, ops);
-                        if (respondAllKeys || record != null) {
-                            allRecords.add(new BatchRecord(key, record, true));
-                        }
-                    } catch (AerospikeException ae) {
-                        if (ae.getResultCode() == ResultCode.FILTERED_OUT) {
-                            if (failOnFilteredOut || respondAllKeys) {
-                                allRecords.add(new BatchRecord(key, null, ae.getResultCode(), ae.getInDoubt(), true));
-                            }
-                        } else {
-                            opBuilder.showWarningsOnException(ae, txnToUse, key, wp.expiration);
-                            allRecords.add(new BatchRecord(key, null, ae.getResultCode(), ae.getInDoubt(), true));
-                        }
-                    }
-                } finally {
-                    latch.countDown();
-                }
-            });
-        }
-
-        // WAIT for all threads to complete
-        try {
-            latch.await();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new RuntimeException("Interrupted while waiting for operations to complete", e);
-        }
-
-        return new RecordStream(allRecords, 0, 0, null);
-        */
-
     	if (keys.size() == 0) {
             return new RecordStream();
         }
 
     	Session session = opBuilder.getSession();
     	Cluster cluster = session.getCluster();
+    	Key firstKey = keys.get(0);
 
     	// Assume all keys have the same namespace.
-        String namespace = keys.get(0).namespace;
-
-		HashMap<String,Partitions> partitionMap = cluster.getPartitionMap();
-		Partitions partitions = partitionMap.get(namespace);
-
-		if (partitions == null) {
-			throw new AerospikeException.InvalidNamespace(namespace, partitionMap.size());
-		}
-
+		Partitions partitions = getPartitions(cluster, firstKey.namespace);
     	Settings policy = session.getBehavior().getSettings(OpKind.WRITE_RETRYABLE, OpShape.POINT, partitions.scMode);
-
-        // Apply filter expression clause if present
-        Expression filterExp = null;
-
-        if (this.dsl != null && !keys.isEmpty()) {
-            ParseResult parseResult = this.dsl.process(keys.get(0).namespace, session);
-            filterExp = Exp.build(parseResult.getExp());
-        }
+        final Expression filterExp = getFilterExp(session, firstKey.namespace);
 
         Key[] keyArray = new Key[keys.size()];
         Record[] recordArray = new Record[keys.size()];
@@ -650,29 +538,24 @@ public class BinsValuesBuilder implements FilterableOperation<BinsValuesBuilder>
 			TxnMonitor.addKeys(txnToUse, cluster, partitions, policy, keys);
 		}
 
-		for (int i = 0; i < keys.size(); i++) {
-            Key key = keys.get(i);
-            ValueData valueSet = valueSets.get(key);
-            Operation[] ops = getOperationsForValueData(valueSet);
-            int ttl = getExpiration(valueSet);
+    	if (keys.size() == 1) {
+            keyArray[0] = firstKey;
+            recordArray[0] = operate(cluster, partitions, policy, filterExp, firstKey);
+            return new RecordStream(keyArray, recordArray, 0, 0, null, true);
+    	}
 
-            OperateWriteCommand cmd = new OperateWriteCommand(cluster, partitions, txnToUse, key, ops,
-            	opBuilder.opType, valueSet.generation, ttl, filterExp, opBuilder.failOnFilteredOut,
-            	policy
-				);
-
-            try {
-            	SyncOperateExecutor exec = new SyncOperateExecutor(cluster, cmd);
-            	exec.execute();
-
-            	Record record = exec.getRecord();
+    	// Run multiple keys in parallel and join.
+		try (ExecutorService es = cluster.getExecutorService()) {
+			for (int i = 0; i < keys.size(); i++) {
+	            final Key key = keys.get(i);
+	            final int idx = i;
 	            keyArray[i] = key;
-	            recordArray[i] = record;
-            }
-            catch (AerospikeException ae) {
-                opBuilder.showWarningsOnExceptionAndThrow(ae, txnToUse, key, ttl);
-            }
-        }
+
+	            es.submit(() -> {
+	            	recordArray[idx] = operate(cluster, partitions, policy, filterExp, key);
+	            });
+	        }
+		}
         return new RecordStream(keyArray, recordArray, 0, 0, null, true);
     }
 
@@ -690,25 +573,9 @@ public class BinsValuesBuilder implements FilterableOperation<BinsValuesBuilder>
 
     	// Assume all keys have the same namespace.
         String namespace = keys.get(0).namespace;
-
-		HashMap<String,Partitions> partitionMap = cluster.getPartitionMap();
-		Partitions partitions = partitionMap.get(namespace);
-
-		if (partitions == null) {
-			throw new AerospikeException.InvalidNamespace(namespace, partitionMap.size());
-		}
-
+		Partitions partitions = getPartitions(cluster, namespace);
     	Settings policy = session.getBehavior().getSettings(OpKind.WRITE_RETRYABLE, OpShape.POINT, partitions.scMode);
-
-    	Expression tempWhere = null;
-
-        // Apply where clause if present
-        if (this.dsl != null && !keys.isEmpty()) {
-            ParseResult parseResult = this.dsl.process(keys.get(0).namespace, opBuilder.getSession());
-            tempWhere = Exp.build(parseResult.getExp());
-        }
-
-        final Expression filterExp = tempWhere;
+        final Expression filterExp = getFilterExp(session, namespace);
 
 		// Even single key: use async execution with virtual thread
         AsyncRecordStream asyncStream = new AsyncRecordStream(keys.size());
@@ -721,38 +588,24 @@ public class BinsValuesBuilder implements FilterableOperation<BinsValuesBuilder>
     		}
 
             for (Key key : keys) {
-                ValueData valueSet = valueSets.get(key);
-
                 cluster.startVirtualThread(() -> {
                		System.out.println("VThread");
                     try {
-                        Operation[] ops = getOperationsForValueData(valueSet);
-                        int ttl = getExpiration(valueSet);
+    	            	Record rec = operate(cluster, partitions, policy, filterExp, key);
 
-                        OperateWriteCommand cmd = new OperateWriteCommand(cluster, partitions, txnToUse, key, ops,
-                            	opBuilder.opType, valueSet.generation, ttl, filterExp, opBuilder.failOnFilteredOut,
-                            	policy
-                				);
-
-                        try {
-                        	SyncOperateExecutor exec = new SyncOperateExecutor(cluster, cmd);
-                        	exec.execute();
-
-                        	Record record = exec.getRecord();
-
-                            if (respondAllKeys || record != null) {
-                                asyncStream.publish(new RecordResult(key, record));
-                            }
-                        } catch (AerospikeException ae) {
-                            if (ae.getResultCode() == ResultCode.FILTERED_OUT) {
-                                if (failOnFilteredOut || respondAllKeys) {
-                                    asyncStream.publish(new RecordResult(key, ae.getResultCode(), ae.getInDoubt(), ResultCode.getResultString(ae.getResultCode())));
-                                }
-                                // Otherwise skip this record
-                            } else {
-                                opBuilder.showWarningsOnException(ae, txnToUse, key, ttl);
+                        if (respondAllKeys || rec != null) {
+                            asyncStream.publish(new RecordResult(key, rec));
+                        }
+                    }
+                    catch (AerospikeException ae) {
+                        if (ae.getResultCode() == ResultCode.FILTERED_OUT) {
+                            if (failOnFilteredOut || respondAllKeys) {
                                 asyncStream.publish(new RecordResult(key, ae.getResultCode(), ae.getInDoubt(), ResultCode.getResultString(ae.getResultCode())));
                             }
+                            // Otherwise skip this record
+                        }
+                        else {
+                            asyncStream.publish(new RecordResult(key, ae.getResultCode(), ae.getInDoubt(), ResultCode.getResultString(ae.getResultCode())));
                         }
                     }
                     finally {
@@ -765,5 +618,54 @@ public class BinsValuesBuilder implements FilterableOperation<BinsValuesBuilder>
         });
 
         return new RecordStream(asyncStream);
+    }
+
+    private Record operate(
+    	Cluster cluster, Partitions partitions, Settings policy, Expression filterExp, Key key
+    ) {
+        ValueData valueSet = valueSets.get(key);
+        Operation[] ops = getOperationsForValueData(valueSet);
+        int ttl = getExpiration(valueSet);
+
+        OperateWriteCommand cmd = new OperateWriteCommand(cluster, partitions, txnToUse, key, ops,
+        	opBuilder.opType, valueSet.generation, ttl, filterExp, opBuilder.failOnFilteredOut,
+        	policy
+			);
+
+        try {
+        	SyncOperateExecutor exec = new SyncOperateExecutor(cluster, cmd);
+        	exec.execute();
+        	return exec.getRecord();
+        }
+        catch (AerospikeException ae) {
+            if (ae.getResultCode() == ResultCode.FILTERED_OUT) {
+            	throw ae;
+            }
+            else {
+            	opBuilder.showWarningsOnExceptionAndThrow(ae, txnToUse, key, ttl);
+            	return null;
+            }
+        }
+    }
+
+    private Partitions getPartitions(Cluster cluster, String namespace) {
+		HashMap<String,Partitions> partitionMap = cluster.getPartitionMap();
+    	Partitions partitions = partitionMap.get(namespace);
+
+    	if (partitions == null) {
+    		throw new AerospikeException.InvalidNamespace(namespace, partitionMap.size());
+    	}
+    	return partitions;
+    }
+
+    private Expression getFilterExp(Session session, String namespace) {
+        if (dsl != null) {
+            // Apply filter expression clause.
+            ParseResult parseResult = dsl.process(namespace, session);
+            return Exp.build(parseResult.getExp());
+        }
+        else {
+        	return null;
+        }
     }
 }
