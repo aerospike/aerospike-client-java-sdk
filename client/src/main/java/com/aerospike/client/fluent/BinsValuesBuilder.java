@@ -23,6 +23,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import com.aerospike.client.fluent.command.Batch;
 import com.aerospike.client.fluent.command.BatchAttr;
@@ -653,7 +654,6 @@ public class BinsValuesBuilder implements FilterableOperation<BinsValuesBuilder>
             Key key = keys.get(i);
             ValueData valueSet = valueSets.get(key);
             Operation[] ops = getOperationsForValueData(valueSet);
-
             int ttl = getExpiration(valueSet);
 
             OperateWriteCommand cmd = new OperateWriteCommand(cluster, partitions, txnToUse, key, ops,
@@ -681,40 +681,89 @@ public class BinsValuesBuilder implements FilterableOperation<BinsValuesBuilder>
      * Returns immediately; virtual threads complete in background.
      */
     protected RecordStream executeIndividualAsync() {
-    	/*
-        Expression tempWhere = null;
+    	if (keys.size() == 0) {
+            return new RecordStream();
+        }
+
+    	Session session = opBuilder.getSession();
+    	Cluster cluster = session.getCluster();
+
+    	// Assume all keys have the same namespace.
+        String namespace = keys.get(0).namespace;
+
+		HashMap<String,Partitions> partitionMap = cluster.getPartitionMap();
+		Partitions partitions = partitionMap.get(namespace);
+
+		if (partitions == null) {
+			throw new AerospikeException.InvalidNamespace(namespace, partitionMap.size());
+		}
+
+    	Settings policy = session.getBehavior().getSettings(OpKind.WRITE_RETRYABLE, OpShape.POINT, partitions.scMode);
+
+    	Expression tempWhere = null;
+
         // Apply where clause if present
         if (this.dsl != null && !keys.isEmpty()) {
             ParseResult parseResult = this.dsl.process(keys.get(0).namespace, opBuilder.getSession());
             tempWhere = Exp.build(parseResult.getExp());
         }
-        final Expression whereExp = tempWhere;
 
-        // Even single key: use async execution with virtual thread
+        final Expression filterExp = tempWhere;
+
+		// Even single key: use async execution with virtual thread
         AsyncRecordStream asyncStream = new AsyncRecordStream(keys.size());
         AtomicInteger pendingOps = new AtomicInteger(keys.size());
 
-        for (Key key : keys) {
-            ValueData valueSet = valueSets.get(key);
-            Thread.startVirtualThread(() -> {
-                try {
-                    Operation[] ops = getOperationsForValueData(valueSet);
-                    WritePolicy wp = opBuilder.getWritePolicy(true, valueSet.generation, this.opBuilder.opType);
-                    wp.expiration = getExpiration(valueSet);
-                    wp.txn = this.txnToUse;
-                    wp.filterExp = whereExp;
+        cluster.startVirtualThread(() -> {
+       		System.out.println("PARENT VThread");
+    		if (txnToUse != null) {
+    			TxnMonitor.addKeys(txnToUse, cluster, partitions, policy, keys);
+    		}
 
-                    opBuilder.executeAndPublishSingleOperation(wp, key, ops, asyncStream);
-                } finally {
-                    if (pendingOps.decrementAndGet() == 0) {
-                        asyncStream.complete();
+            for (Key key : keys) {
+                ValueData valueSet = valueSets.get(key);
+
+                cluster.startVirtualThread(() -> {
+               		System.out.println("VThread");
+                    try {
+                        Operation[] ops = getOperationsForValueData(valueSet);
+                        int ttl = getExpiration(valueSet);
+
+                        OperateWriteCommand cmd = new OperateWriteCommand(cluster, partitions, txnToUse, key, ops,
+                            	opBuilder.opType, valueSet.generation, ttl, filterExp, opBuilder.failOnFilteredOut,
+                            	policy
+                				);
+
+                        try {
+                        	SyncOperateExecutor exec = new SyncOperateExecutor(cluster, cmd);
+                        	exec.execute();
+
+                        	Record record = exec.getRecord();
+
+                            if (respondAllKeys || record != null) {
+                                asyncStream.publish(new RecordResult(key, record));
+                            }
+                        } catch (AerospikeException ae) {
+                            if (ae.getResultCode() == ResultCode.FILTERED_OUT) {
+                                if (failOnFilteredOut || respondAllKeys) {
+                                    asyncStream.publish(new RecordResult(key, ae.getResultCode(), ae.getInDoubt(), ResultCode.getResultString(ae.getResultCode())));
+                                }
+                                // Otherwise skip this record
+                            } else {
+                                opBuilder.showWarningsOnException(ae, txnToUse, key, ttl);
+                                asyncStream.publish(new RecordResult(key, ae.getResultCode(), ae.getInDoubt(), ResultCode.getResultString(ae.getResultCode())));
+                            }
+                        }
                     }
-                }
-            });
-        }
+                    finally {
+                        if (pendingOps.decrementAndGet() == 0) {
+                            asyncStream.complete();
+                        }
+                    }
+                });
+            }
+        });
 
         return new RecordStream(asyncStream);
-        */
-    	return null;
     }
 }

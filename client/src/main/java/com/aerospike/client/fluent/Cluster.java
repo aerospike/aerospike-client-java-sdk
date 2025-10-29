@@ -99,6 +99,10 @@ public class Cluster implements Closeable {
     	return Executors.newThreadPerTaskExecutor(threadFactory);
     }
 
+    public void startVirtualThread(Runnable runnable) {
+        threadFactory.newThread(runnable).start();
+    }
+
     /**
      * Gets the set of available indexes in the cluster.
      *

@@ -32,6 +32,15 @@ public class Main {
 	            .values("Charlie", 11)
 	            .execute();
 
+            System.out.println("Write 1 record async");
+
+            RecordStream rs = session.upsert(set.ids(100))
+	            .bins("name", "age")
+	            .values("Charlie", 999)
+	            .executeAsync();
+
+            //System.out.println(rs.getFirst());
+
             System.out.println("Write 3 records");
 
             session.upsert(set.ids(1,2,3))
@@ -59,7 +68,7 @@ public class Main {
 
             System.out.println("Read 1 record");
 
-            RecordStream rs = session.query(set.ids(1)).execute();
+            rs = session.query(set.ids(100)).execute();
 
             if (rs.hasNext()) {
             	Record rec = rs.next().recordOrThrow();
