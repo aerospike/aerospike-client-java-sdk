@@ -39,7 +39,7 @@ public class Main {
 	            .values("Charlie", 999)
 	            .executeAsync();
 
-            //System.out.println(rs.getFirst());
+            System.out.println(rs.getFirst());
 
             System.out.println("Write 3 records");
 
