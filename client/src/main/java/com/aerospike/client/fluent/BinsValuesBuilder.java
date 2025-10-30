@@ -419,25 +419,7 @@ public class BinsValuesBuilder implements FilterableOperation<BinsValuesBuilder>
         }
     }
 
-    private Operation[] getOperationsForValueData(ValueData valueData) {
-        Object[] values = valueData.values;
-        Operation[] ops = new Operation[binNames.length];
-        for (int i = 0; i < binNames.length; i++) {
-            ops[i] = Operation.put(new Bin(binNames[i], Value.get(values[i])));
-        }
-        return ops;
-    }
-
-    private int getExpiration(ValueData valueData) {
-        if (valueData.expirationInSeconds != Long.MIN_VALUE) {
-            return opBuilder.getExpirationAsInt(valueData.expirationInSeconds);
-        }
-        else {
-            return opBuilder.getExpirationAsInt(expirationInSecondsForAll);
-        }
-    }
-
-    protected RecordStream executeBatch() {
+    private RecordStream executeBatch() {
     	Session session = opBuilder.getSession();
     	Cluster cluster = session.getCluster();
 
@@ -517,7 +499,7 @@ public class BinsValuesBuilder implements FilterableOperation<BinsValuesBuilder>
      * Execute operations synchronously for individual keys (< batch threshold).
      * All virtual threads are joined before returning.
      */
-    protected RecordStream executeIndividualSync() {
+    private RecordStream executeIndividualSync() {
     	if (keys.size() == 0) {
             return new RecordStream();
         }
@@ -563,7 +545,7 @@ public class BinsValuesBuilder implements FilterableOperation<BinsValuesBuilder>
      * Execute operations asynchronously for individual keys (< batch threshold).
      * Returns immediately; virtual threads complete in background.
      */
-    protected RecordStream executeIndividualAsync() {
+    private RecordStream executeIndividualAsync() {
     	if (keys.size() == 0) {
             return new RecordStream();
         }
@@ -576,46 +558,54 @@ public class BinsValuesBuilder implements FilterableOperation<BinsValuesBuilder>
 		Partitions partitions = getPartitions(cluster, namespace);
     	Settings policy = session.getBehavior().getSettings(OpKind.WRITE_RETRYABLE, OpShape.POINT, partitions.scMode);
         final Expression filterExp = getFilterExp(session, namespace);
-
-		// Even single key: use async execution with virtual thread
         AsyncRecordStream asyncStream = new AsyncRecordStream(keys.size());
-        AtomicInteger pendingOps = new AtomicInteger(keys.size());
 
-        cluster.startVirtualThread(() -> {
-    		if (txnToUse != null) {
-    			TxnMonitor.addKeys(txnToUse, cluster, partitions, policy, keys);
-    		}
-
-            for (Key key : keys) {
-                cluster.startVirtualThread(() -> {
-                    try {
-    	            	Record rec = operate(cluster, partitions, policy, filterExp, key);
-
-                        if (respondAllKeys || rec != null) {
-                            asyncStream.publish(new RecordResult(key, rec));
-                        }
-                    }
-                    catch (AerospikeException ae) {
-                        if (ae.getResultCode() == ResultCode.FILTERED_OUT) {
-                            if (failOnFilteredOut || respondAllKeys) {
-                                asyncStream.publish(new RecordResult(key, ae.getResultCode(), ae.getInDoubt(), ResultCode.getResultString(ae.getResultCode())));
-                            }
-                            // Otherwise skip this record
-                        }
-                        else {
-                            asyncStream.publish(new RecordResult(key, ae.getResultCode(), ae.getInDoubt(), ResultCode.getResultString(ae.getResultCode())));
-                        }
-                    }
-                    finally {
-                        if (pendingOps.decrementAndGet() == 0) {
-                            asyncStream.complete();
-                        }
-                    }
-                });
-            }
-        });
+		if (txnToUse != null) {
+	    	cluster.startVirtualThread(() -> {
+	    		TxnMonitor.addKeys(txnToUse, cluster, partitions, policy, keys);
+	    		operateKeysAsync(cluster, partitions, policy, filterExp, asyncStream);
+	        });
+    	}
+		else {
+    		operateKeysAsync(cluster, partitions, policy, filterExp, asyncStream);
+		}
 
         return new RecordStream(asyncStream);
+    }
+
+    private void operateKeysAsync(
+    	Cluster cluster, Partitions partitions, Settings policy, Expression filterExp,
+    	AsyncRecordStream asyncStream
+    ) {
+        AtomicInteger pendingOps = new AtomicInteger(keys.size());
+
+        for (Key key : keys) {
+            cluster.startVirtualThread(() -> {
+                try {
+	            	Record rec = operate(cluster, partitions, policy, filterExp, key);
+
+                    if (respondAllKeys || rec != null) {
+                        asyncStream.publish(new RecordResult(key, rec));
+                    }
+                }
+                catch (AerospikeException ae) {
+                    if (ae.getResultCode() == ResultCode.FILTERED_OUT) {
+                        if (failOnFilteredOut || respondAllKeys) {
+                            asyncStream.publish(new RecordResult(key, ae.getResultCode(), ae.getInDoubt(), ResultCode.getResultString(ae.getResultCode())));
+                        }
+                        // Otherwise skip this record
+                    }
+                    else {
+                        asyncStream.publish(new RecordResult(key, ae.getResultCode(), ae.getInDoubt(), ResultCode.getResultString(ae.getResultCode())));
+                    }
+                }
+                finally {
+                    if (pendingOps.decrementAndGet() == 0) {
+                        asyncStream.complete();
+                    }
+                }
+            });
+        }
     }
 
     private Record operate(
@@ -664,6 +654,24 @@ public class BinsValuesBuilder implements FilterableOperation<BinsValuesBuilder>
         }
         else {
         	return null;
+        }
+    }
+
+    private Operation[] getOperationsForValueData(ValueData valueData) {
+        Object[] values = valueData.values;
+        Operation[] ops = new Operation[binNames.length];
+        for (int i = 0; i < binNames.length; i++) {
+            ops[i] = Operation.put(new Bin(binNames[i], Value.get(values[i])));
+        }
+        return ops;
+    }
+
+    private int getExpiration(ValueData valueData) {
+        if (valueData.expirationInSeconds != Long.MIN_VALUE) {
+            return opBuilder.getExpirationAsInt(valueData.expirationInSeconds);
+        }
+        else {
+            return opBuilder.getExpirationAsInt(expirationInSecondsForAll);
         }
     }
 }
