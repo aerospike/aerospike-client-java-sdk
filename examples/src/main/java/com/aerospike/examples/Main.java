@@ -16,12 +16,12 @@ import com.aerospike.client.fluent.util.Util;
 
 public class Main {
     public static void main(String[] args) {
-        System.out.println("Hello World!");
         ClusterDefinition def = new ClusterDefinition(System.getProperty("host", "db11"),
                 Integer.valueOf(System.getProperty("port", "3000")));
 
+        System.out.println("Connect");
+
         try (Cluster cluster = def.connect()) {
-            System.out.println("Connected");
 
             Session session = cluster.createSession(Behavior.DEFAULT);
             DataSet set = DataSet.of("test", "set");
