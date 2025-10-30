@@ -17,7 +17,8 @@ import com.aerospike.client.fluent.util.Util;
 public class Main {
     public static void main(String[] args) {
         System.out.println("Hello World!");
-        ClusterDefinition def = new ClusterDefinition("db11", 3000);
+        ClusterDefinition def = new ClusterDefinition(System.getProperty("host", "db11"), 
+                Integer.valueOf(System.getProperty("port", "3000")));
 
         try (Cluster cluster = def.connect()) {
             System.out.println("Connected");
