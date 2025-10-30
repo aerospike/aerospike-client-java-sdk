@@ -17,7 +17,7 @@ import com.aerospike.client.fluent.util.Util;
 public class Main {
     public static void main(String[] args) {
         System.out.println("Hello World!");
-        ClusterDefinition def = new ClusterDefinition(System.getProperty("host", "db11"), 
+        ClusterDefinition def = new ClusterDefinition(System.getProperty("host", "db11"),
                 Integer.valueOf(System.getProperty("port", "3000")));
 
         try (Cluster cluster = def.connect()) {
@@ -40,7 +40,7 @@ public class Main {
 	            .values("Charlie", 999)
 	            .executeAsync();
 
-            System.out.println(rs.getFirst());
+            //System.out.println(rs.getFirst());
 
             System.out.println("Write 3 records");
 

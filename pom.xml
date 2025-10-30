@@ -40,7 +40,7 @@
     <snakeyaml.version>2.4</snakeyaml.version>
     <jbcrypt.version>0.4</jbcrypt.version>
     <commons-cli.version>1.9.0</commons-cli.version>
-    <junit.version>4.13.1</junit.version>
+    <junit.version>6.0.0</junit.version>
   </properties>
 
   <dependencyManagement>
@@ -70,8 +70,8 @@
       </dependency>
 
       <dependency>
-        <groupId>junit</groupId>
-        <artifactId>junit</artifactId>
+        <groupId>org.junit.jupiter</groupId>
+        <artifactId>junit-jupiter-api</artifactId>
         <version>${junit.version}</version>
         <scope>test</scope>
       </dependency>

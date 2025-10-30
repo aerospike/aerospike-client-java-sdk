@@ -582,14 +582,12 @@ public class BinsValuesBuilder implements FilterableOperation<BinsValuesBuilder>
         AtomicInteger pendingOps = new AtomicInteger(keys.size());
 
         cluster.startVirtualThread(() -> {
-       		System.out.println("PARENT VThread");
     		if (txnToUse != null) {
     			TxnMonitor.addKeys(txnToUse, cluster, partitions, policy, keys);
     		}
 
             for (Key key : keys) {
                 cluster.startVirtualThread(() -> {
-               		System.out.println("VThread");
                     try {
     	            	Record rec = operate(cluster, partitions, policy, filterExp, key);
 
