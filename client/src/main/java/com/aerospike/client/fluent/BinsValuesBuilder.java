@@ -51,10 +51,10 @@ import com.aerospike.client.fluent.query.PreparedDsl;
 import com.aerospike.client.fluent.query.WhereClauseProcessor;
 
 /**
- * Builder for the bins+values pattern in OperationBuilder.
- * This allows setting multiple bin names and then providing values for each record.
+ * Builder for the bins+values pattern in OperationBuilder. This allows setting
+ * multiple bin names and then providing values for each record.
  */
-public class BinsValuesBuilder implements FilterableOperation<BinsValuesBuilder> {
+public class BinsValuesBuilder extends AbstractFilterableBuilder implements FilterableOperation<BinsValuesBuilder> {
     private static class ValueData {
         private Object[] values;
         private int generation = 0;
@@ -72,9 +72,6 @@ public class BinsValuesBuilder implements FilterableOperation<BinsValuesBuilder>
     private final List<Key> keys;
     private ValueData current = null;
     private Txn txnToUse;
-    protected WhereClauseProcessor dsl = null;
-    protected boolean respondAllKeys = false;
-    protected boolean failOnFilteredOut = false;
 
     public BinsValuesBuilder(OperationBuilder opBuilder, List<Key> keys, String binName, String... binNames) {
         this.opBuilder = opBuilder;
@@ -86,33 +83,32 @@ public class BinsValuesBuilder implements FilterableOperation<BinsValuesBuilder>
     }
 
     /**
-     * Add a set of values for one record. The number of values must match the number of bins.
-     * Multiple calls to this method can be chained together.
+     * Add a set of values for one record. The number of values must match the
+     * number of bins. Multiple calls to this method can be chained together.
      *
      * @param values The values for this record
      * @return This builder for chaining
      */
     public BinsValuesBuilder values(Object... values) {
         if (values.length != binNames.length) {
-            throw new IllegalArgumentException(String.format(
-                "When calling '.values(...)' to specify the values for multiple bins,"
-                + " the number of values must match the number of bins specified in the '.bins(...)' call."
-                + " This call specified %d bins, but supplied %d values.",
-                binNames.length, values.length));
+            throw new IllegalArgumentException(
+                    String.format("When calling '.values(...)' to specify the values for multiple bins,"
+                            + " the number of values must match the number of bins specified in the '.bins(...)' call."
+                            + " This call specified %d bins, but supplied %d values.", binNames.length, values.length));
         }
 
         checkRoomToAddAnotherValue();
         current = new ValueData(values);
-        valueSets.put(keys.get(valueSets.size()),current);
+        valueSets.put(keys.get(valueSets.size()), current);
         return this;
     }
 
     private void checkValuesExist(String name) {
         if (valueSets.size() == 0) {
-            throw new IllegalArgumentException(String.format(
-                    "%s was called when no values were defined (by calling '.values'). This method"
-                    + " sets parameters on the values for that record, so call '.values' before"
-                    + " calling this method", name));
+            throw new IllegalArgumentException(
+                    String.format("%s was called when no values were defined (by calling '.values'). This method"
+                            + " sets parameters on the values for that record, so call '.values' before"
+                            + " calling this method", name));
         }
     }
 
@@ -185,7 +181,8 @@ public class BinsValuesBuilder implements FilterableOperation<BinsValuesBuilder>
     // Multi-key expiry methods (only available for multiple keys)
     public BinsValuesBuilder expireAllRecordsAfter(Duration duration) {
         if (!opBuilder.isMultiKey()) {
-            throw new IllegalStateException("expireAllRecordsAfter() is only available when multiple keys are specified");
+            throw new IllegalStateException(
+                    "expireAllRecordsAfter() is only available when multiple keys are specified");
         }
         this.expirationInSecondsForAll = duration.getSeconds();
         return this;
@@ -193,7 +190,8 @@ public class BinsValuesBuilder implements FilterableOperation<BinsValuesBuilder>
 
     public BinsValuesBuilder expireAllRecordsAfterSeconds(long seconds) {
         if (!opBuilder.isMultiKey()) {
-            throw new IllegalStateException("expireAllRecordsAfterSeconds() is only available when multiple keys are specified");
+            throw new IllegalStateException(
+                    "expireAllRecordsAfterSeconds() is only available when multiple keys are specified");
         }
         this.expirationInSecondsForAll = seconds;
         return this;
@@ -217,7 +215,8 @@ public class BinsValuesBuilder implements FilterableOperation<BinsValuesBuilder>
 
     public BinsValuesBuilder neverExpireAllRecords() {
         if (!opBuilder.isMultiKey()) {
-            throw new IllegalStateException("neverExpireAllRecords() is only available when multiple keys are specified");
+            throw new IllegalStateException(
+                    "neverExpireAllRecords() is only available when multiple keys are specified");
         }
         this.expirationInSecondsForAll = OperationBuilder.TTL_NEVER_EXPIRE;
         return this;
@@ -225,7 +224,8 @@ public class BinsValuesBuilder implements FilterableOperation<BinsValuesBuilder>
 
     public BinsValuesBuilder withNoChangeInExpirationForAllRecords() {
         if (!opBuilder.isMultiKey()) {
-            throw new IllegalStateException("withNoChangeInExpirationForAllRecords() is only available when multiple keys are specified");
+            throw new IllegalStateException(
+                    "withNoChangeInExpirationForAllRecords() is only available when multiple keys are specified");
         }
         this.expirationInSecondsForAll = OperationBuilder.TTL_NO_CHANGE;
         return this;
@@ -233,47 +233,31 @@ public class BinsValuesBuilder implements FilterableOperation<BinsValuesBuilder>
 
     public BinsValuesBuilder expiryFromServerDefaultForAllRecords() {
         if (!opBuilder.isMultiKey()) {
-            throw new IllegalStateException("expiryFromServerDefaultForAllRecords() is only available when multiple keys are specified");
+            throw new IllegalStateException(
+                    "expiryFromServerDefaultForAllRecords() is only available when multiple keys are specified");
         }
         this.expirationInSecondsForAll = OperationBuilder.TTL_SERVER_DEFAULT;
         return this;
     }
 
-    private void setWhereClause(WhereClauseProcessor clause) {
-        if (this.dsl == null) {
-            this.dsl = clause;
-        }
-        else {
-            throw new IllegalArgumentException("Only one 'where' clause can be specified. There is already one of '%s' and another is being set to '%s'"
-                    .formatted(this.dsl, clause));
-        }
-    }
-
     /**
-     * Apply a where clause filter to these operations. Only records matching the filter will be affected.
+     * Apply a where clause filter to these operations. Only records matching the
+     * filter will be affected.
      * <p>
-     * The DSL string can contain parameters which are replaced with the passed arguments. For example:
+     * The DSL string can contain parameters which are replaced with the passed
+     * arguments. For example:
+     * 
      * <pre>
      * builder.where("$.age > %d", 21)
      * </pre>
      *
-     * @param dsl The DSL string defining the filter condition
+     * @param dsl    The DSL string defining the filter condition
      * @param params Optional parameters to be substituted into the DSL string
      * @return This builder for method chaining
      */
     @Override
-    public BinsValuesBuilder where(String dsl, Object ... params) {
-        WhereClauseProcessor impl;
-        if (dsl == null || dsl.isEmpty()) {
-            impl = null;
-        }
-        else if (params.length == 0) {
-            impl = WhereClauseProcessor.from(false, dsl);
-        }
-        else {
-            impl = WhereClauseProcessor.from(false, String.format(dsl, params));
-        }
-        setWhereClause(impl);
+    public BinsValuesBuilder where(String dsl, Object... params) {
+        setWhereClause(createWhereClauseProcessor(false, dsl, params));
         return this;
     }
 
@@ -291,22 +275,22 @@ public class BinsValuesBuilder implements FilterableOperation<BinsValuesBuilder>
     }
 
     /**
-     * Apply a where clause filter to these operations using a prepared DSL.
-     * Only records matching the filter will be affected.
+     * Apply a where clause filter to these operations using a prepared DSL. Only
+     * records matching the filter will be affected.
      *
-     * @param dsl The prepared DSL defining the filter condition
+     * @param dsl    The prepared DSL defining the filter condition
      * @param params Parameters to be substituted into the prepared DSL
      * @return This builder for method chaining
      */
     @Override
-    public BinsValuesBuilder where(PreparedDsl dsl, Object ... params) {
+    public BinsValuesBuilder where(PreparedDsl dsl, Object... params) {
         setWhereClause(WhereClauseProcessor.from(false, dsl, params));
         return this;
     }
 
     /**
-     * Apply a where clause filter to these operations using an Aerospike expression.
-     * Only records matching the filter will be affected.
+     * Apply a where clause filter to these operations using an Aerospike
+     * expression. Only records matching the filter will be affected.
      *
      * @param exp The Aerospike expression defining the filter condition
      * @return This builder for method chaining
@@ -318,9 +302,10 @@ public class BinsValuesBuilder implements FilterableOperation<BinsValuesBuilder>
     }
 
     /**
-     * If a where clause is specified and a record is filtered out, it will appear in the
-     * result stream with an exception code of {@link ResultCode#FILTERED_OUT} rather than
-     * being silently omitted from the results.
+     * If a where clause is specified and a record is filtered out, it will appear
+     * in the result stream with an exception code of
+     * {@link ResultCode#FILTERED_OUT} rather than being silently omitted from the
+     * results.
      *
      * @return This builder for method chaining
      */
@@ -331,9 +316,10 @@ public class BinsValuesBuilder implements FilterableOperation<BinsValuesBuilder>
     }
 
     /**
-     * By default, if a key does not map to a record (or is filtered out), nothing will be
-     * returned in the stream for that key. If this flag is specified, a result will be
-     * included in the stream for every key, even if the record doesn't exist or was filtered out.
+     * By default, if a key does not map to a record (or is filtered out), nothing
+     * will be returned in the stream for that key. If this flag is specified, a
+     * result will be included in the stream for every key, even if the record
+     * doesn't exist or was filtered out.
      *
      * @return This builder for method chaining
      */
@@ -344,8 +330,8 @@ public class BinsValuesBuilder implements FilterableOperation<BinsValuesBuilder>
     }
 
     /**
-     * Execute operations with default behavior (synchronous).
-     * All operations complete before this method returns, making it safe for transactions.
+     * Execute operations with default behavior (synchronous). All operations
+     * complete before this method returns, making it safe for transactions.
      *
      * @return RecordStream containing the results
      */
@@ -354,85 +340,84 @@ public class BinsValuesBuilder implements FilterableOperation<BinsValuesBuilder>
     }
 
     /**
-     * Execute operations synchronously. All operations complete before this method returns.
+     * Execute operations synchronously. All operations complete before this method
+     * returns.
      * <p>
-     * Operations are parallelized using virtual threads, but all threads are joined before
-     * returning. This ensures transaction safety and deterministic behavior.
+     * Operations are parallelized using virtual threads, but all threads are joined
+     * before returning. This ensures transaction safety and deterministic behavior.
      *
      * @return RecordStream containing the results
      */
     public RecordStream executeSync() {
         if (Log.debugEnabled()) {
-            Log.debug("BinsValuesBuilder.executeSync() called for " + keys.size() + " key(s), transaction: " +
-                     (txnToUse != null ? "yes" : "no"));
+            Log.debug("BinsValuesBuilder.executeSync() called for " + keys.size() + " key(s), transaction: "
+                    + (txnToUse != null ? "yes" : "no"));
         }
 
         if (valueSets.size() != opBuilder.getNumKeys()) {
             throw new IllegalArgumentException(String.format(
-                "The number of '.values(...)' calls (%d) must match the number of specified keys (%d)",
-                valueSets.size(), opBuilder.getNumKeys()));
+                    "The number of '.values(...)' calls (%d) must match the number of specified keys (%d)",
+                    valueSets.size(), opBuilder.getNumKeys()));
         }
 
         if (keys.size() >= OperationBuilder.getBatchOperationThreshold()) {
-            return executeBatch();
-        }
-        else {
+            return executeBatchSync();
+        } else {
             return executeIndividualSync();
         }
     }
 
     /**
-     * Execute operations asynchronously using virtual threads for parallel execution.
-     * Method returns immediately; results are consumed via the RecordStream.
+     * Execute operations asynchronously using virtual threads for parallel
+     * execution. Method returns immediately; results are consumed via the
+     * RecordStream.
      * <p>
-     * <b>WARNING:</b> Using this in transactions may lead to operations still being in flight
-     * when commit() is called, potentially leading to inconsistent state. A warning will be logged.
+     * <b>WARNING:</b> Using this in transactions may lead to operations still being
+     * in flight when commit() is called, potentially leading to inconsistent state.
+     * A warning will be logged.
      *
      * @return RecordStream that will be populated as results arrive
      */
     public RecordStream executeAsync() {
         if (Log.debugEnabled()) {
-            Log.debug("BinsValuesBuilder.executeAsync() called for " + keys.size() + " key(s), transaction: " +
-                     (txnToUse != null ? "yes" : "no"));
+            Log.debug("BinsValuesBuilder.executeAsync() called for " + keys.size() + " key(s), transaction: "
+                    + (txnToUse != null ? "yes" : "no"));
         }
 
         if (this.txnToUse != null && Log.warnEnabled()) {
-            Log.warn(
-                "executeAsync() called within a transaction. " +
-                "Async operations may still be in flight when commit() is called, " +
-                "which could lead to inconsistent state. " +
-                "Consider using executeSync() or execute() for transactional safety."
-            );
+            Log.warn("executeAsync() called within a transaction. "
+                    + "Async operations may still be in flight when commit() is called, "
+                    + "which could lead to inconsistent state. "
+                    + "Consider using executeSync() or execute() for transactional safety.");
         }
 
         if (valueSets.size() != opBuilder.getNumKeys()) {
             throw new IllegalArgumentException(String.format(
-                "The number of '.values(...)' calls (%d) must match the number of specified keys (%d)",
-                valueSets.size(), opBuilder.getNumKeys()));
+                    "The number of '.values(...)' calls (%d) must match the number of specified keys (%d)",
+                    valueSets.size(), opBuilder.getNumKeys()));
         }
 
         if (keys.size() >= OperationBuilder.getBatchOperationThreshold()) {
-            return executeBatch();
-        }
-        else {
+            return executeBatchSync();
+        } else {
             return executeIndividualAsync();
         }
     }
 
-    private RecordStream executeBatch() {
-    	Session session = opBuilder.getSession();
-    	Cluster cluster = session.getCluster();
+    private RecordStream executeBatchSync() {
+        Session session = opBuilder.getSession();
+        Cluster cluster = session.getCluster();
 
-    	// Assume all keys have the same namespace.
+        // Assume all keys have the same namespace.
         String namespace = keys.get(0).namespace;
-		Partitions partitions = getPartitions(cluster, namespace);
-    	Settings policy = session.getBehavior().getSettings(OpKind.WRITE_RETRYABLE, OpShape.BATCH, partitions.scMode);
+        Partitions partitions = getPartitions(cluster, namespace);
+        Settings policy = session.getBehavior().getSettings(OpKind.WRITE_RETRYABLE, OpShape.BATCH, partitions.scMode);
         final Expression filterExp = getFilterExp(session, namespace);
         Txn txn = opBuilder.getTxnToUse();
 
-		if (txn != null) {
-			TxnMonitor.addKeys(txnToUse, cluster, partitions, policy, keys);
-		}
+        if (txn != null) {
+            TxnMonitor.addKeys(txnToUse, cluster, partitions, policy, keys);
+        }
 
         List<BatchRecord> batchRecords = new ArrayList<>(keys.size());
 
@@ -452,93 +437,128 @@ public class BinsValuesBuilder implements FilterableOperation<BinsValuesBuilder>
             batchRecords.add(new BatchWrite(bwp, key, ops));
         }
 
-        BatchCommand parent = new BatchCommand(cluster, partitions, txn, namespace,
-    		batchRecords, filterExp, policy.getReplicaOrder(), opBuilder.respondAllKeys, policy);
+        BatchCommand parent = new BatchCommand(cluster, partitions, txn, namespace, batchRecords, filterExp,
+                policy.getReplicaOrder(), opBuilder.respondAllKeys, policy);
 
-    	BatchStatus status = new BatchStatus(true);
-		List<BatchNode> bns = BatchNodeList.generate(cluster, partitions, policy.getReplicaOrder(),
-			batchRecords, status);
+        BatchStatus status = new BatchStatus(true);
+        List<BatchNode> bns = BatchNodeList.generate(cluster, partitions, policy.getReplicaOrder(), batchRecords,
+                status);
 
-		IBatchCommand[] commands = new IBatchCommand[bns.size()];
-    	int count = 0;
+        IBatchCommand[] commands = new IBatchCommand[bns.size()];
+        int count = 0;
 
-		for (BatchNode bn : bns) {
-			if (bn.offsetsSize == 1) {
-				int i = bn.offsets[0];
-				BatchRecord record = batchRecords.get(i);
+        for (BatchNode bn : bns) {
+            if (bn.offsetsSize == 1) {
+                int i = bn.offsets[0];
+                BatchRecord record = batchRecords.get(i);
 
-				BatchWrite bw = (BatchWrite)record;
-				BatchAttr attr = new BatchAttr();
+                BatchWrite bw = (BatchWrite) record;
+                BatchAttr attr = new BatchAttr();
 
-				attr.setWrite(bw.policy);
-				attr.adjustWrite(bw.ops);
-				attr.setOpSize(bw.ops);
+                attr.setWrite(bw.policy);
+                attr.adjustWrite(bw.ops);
+                attr.setOpSize(bw.ops);
 
-				commands[count++] = new BatchSingle.OperateRecord(cluster, parent, bw.ops, attr,
-					record, status, bn.node);
-			}
-			else {
-				commands[count++] = new Batch.OperateList(cluster, parent, bn, batchRecords, status);
-			}
-		}
-
-		BatchExecutor.execute(cluster, commands, status);
-
-		// Handle respondAllKeys and filterExp behavior
-        if (!respondAllKeys && filterExp != null) {
-            // Remove any items which have been filtered out or not found
-            batchRecords.removeIf(br -> (br.resultCode == ResultCode.OK && br.record == null)
-                    || (br.resultCode == ResultCode.KEY_NOT_FOUND_ERROR)
-                    || (br.resultCode == ResultCode.FILTERED_OUT && !failOnFilteredOut));
+                commands[count++] = new BatchSingle.OperateRecord(cluster, parent, bw.ops, attr, record, status,
+                        bn.node);
+            } else {
+                commands[count++] = new Batch.OperateList(cluster, parent, bn, batchRecords, status);
+            }
         }
 
-        return new RecordStream(batchRecords, 0, 0, null);
+        BatchExecutor.execute(cluster, commands, status);
+        
+        List<RecordResult> results = new ArrayList<>();
+        for (int i = 0; i < keys.size(); i++) {
+            BatchRecord br = batchRecords.get(i);
+            // Handle respondAllKeys and filterExp behavior
+            if (switch (br.resultCode) {
+            case ResultCode.KEY_NOT_FOUND_ERROR -> respondAllKeys;
+            case ResultCode.FILTERED_OUT -> failOnFilteredOut || respondAllKeys;
+            default -> true;
+            }) {
+                if (policy.getStackTraceOnException() && br.resultCode != ResultCode.OK) {
+                    results.add(new RecordResult(br,
+                            AerospikeException.resultCodeToException(br.resultCode, null, br.inDoubt), i));
+                } else {
+                    results.add(new RecordResult(br, i));
+                }
+            }
+
+            // Handle respondAllKeys and filterExp behavior
+        }
+        return new RecordStream(results, 0, 0, null, true);
     }
 
     /**
-     * Execute operations synchronously for individual keys (< batch threshold).
-     * All virtual threads are joined before returning.
+     * Execute operations synchronously for individual keys (< batch threshold). All
+     * virtual threads are joined before returning.
      */
     private RecordStream executeIndividualSync() {
-    	if (keys.size() == 0) {
+        if (keys.size() == 0) {
             return new RecordStream();
         }
 
-    	Session session = opBuilder.getSession();
-    	Cluster cluster = session.getCluster();
-    	Key firstKey = keys.get(0);
+        Session session = opBuilder.getSession();
+        Cluster cluster = session.getCluster();
+        Key firstKey = keys.get(0);
 
-    	// Assume all keys have the same namespace.
-		Partitions partitions = getPartitions(cluster, firstKey.namespace);
-    	Settings policy = session.getBehavior().getSettings(OpKind.WRITE_RETRYABLE, OpShape.POINT, partitions.scMode);
-        final Expression filterExp = getFilterExp(session, firstKey.namespace);
+        // Assume all keys have the same namespace.
+        Partitions partitions = getPartitions(cluster, firstKey.namespace);
+        Settings policy = session.getBehavior().getSettings(OpKind.WRITE_RETRYABLE, OpShape.POINT, partitions.scMode);
+        final Expression filterExp = processWhereClause(keys.get(0).namespace, opBuilder.getSession());
 
-        Key[] keyArray = new Key[keys.size()];
-        Record[] recordArray = new Record[keys.size()];
+//        Key[] keyArray = new Key[keys.size()];
+//        Record[] recordArray = new Record[keys.size()];
+        List<RecordResult> records = new ArrayList<>();
 
-		if (txnToUse != null) {
-			TxnMonitor.addKeys(txnToUse, cluster, partitions, policy, keys);
-		}
+        if (txnToUse != null) {
+            TxnMonitor.addKeys(txnToUse, cluster, partitions, policy, keys);
+        }
 
-    	if (keys.size() == 1) {
-            keyArray[0] = firstKey;
-            recordArray[0] = operate(cluster, partitions, policy, filterExp, firstKey);
-            return new RecordStream(keyArray, recordArray, 0, 0, null, true);
-    	}
+        if (keys.size() == 1) {
+            try {
+                Record rec = operate(cluster, partitions, policy, filterExp, firstKey);
+                if (respondAllKeys || rec != null) {
+                    records.add(new RecordResult(firstKey, rec, 0));
+                }
+            }
+            catch (AerospikeException ae) {
+                if (shouldPublishException(ae)) {
+                    if (ae.getResultCode() != ResultCode.FILTERED_OUT) {
+                        opBuilder.showWarningsOnException(ae, txnToUse, firstKey, getExpiration(valueSets.get(firstKey)));
+                    }
+                    records.add(new RecordResult(firstKey, ae.getResultCode(), ae.getInDoubt(), ResultCode.getResultString(ae.getResultCode()), policy.getStackTraceOnException(), 0));
+                }
+            }
+            
+        } else {
+            // Run multiple keys in parallel and join.
+            try (ExecutorService es = cluster.getExecutorService()) {
+                for (int i = 0; i < keys.size(); i++) {
+                    final Key key = keys.get(i);
+                    final int idx = i;
 
-    	// Run multiple keys in parallel and join.
-		try (ExecutorService es = cluster.getExecutorService()) {
-			for (int i = 0; i < keys.size(); i++) {
-	            final Key key = keys.get(i);
-	            final int idx = i;
-	            keyArray[i] = key;
+                    es.submit(() -> {
+                        try {
+                            Record record = operate(cluster, partitions, policy, filterExp, key);
+                            if (respondAllKeys || record != null) {
+                                records.add(new RecordResult(key, record, idx));
+                            }
+                        } catch (AerospikeException ae) {
+                            if (shouldPublishException(ae)) {
+                                if (ae.getResultCode() != ResultCode.FILTERED_OUT) {
+                                    opBuilder.showWarningsOnException(ae, txnToUse, key, getExpiration(valueSets.get(key)));
+                                }
+                                records.add(new RecordResult(key, ae.getResultCode(), ae.getInDoubt(), ResultCode.getResultString(ae.getResultCode()), policy.getStackTraceOnException(), idx));
+                            }
+                        }
 
-	            es.submit(() -> {
-	            	recordArray[idx] = operate(cluster, partitions, policy, filterExp, key);
-	            });
-	        }
-		}
-        return new RecordStream(keyArray, recordArray, 0, 0, null, true);
+                    });
+                }
+            }
+        }
+        return new RecordStream(records.toArray(new RecordResult[0]), 0, 0, null, false);
     }
 
     /**
@@ -546,60 +566,56 @@ public class BinsValuesBuilder implements FilterableOperation<BinsValuesBuilder>
      * Returns immediately; virtual threads complete in background.
      */
     private RecordStream executeIndividualAsync() {
-    	if (keys.size() == 0) {
+        if (keys.size() == 0) {
             return new RecordStream();
         }
 
-    	Session session = opBuilder.getSession();
-    	Cluster cluster = session.getCluster();
+        Session session = opBuilder.getSession();
+        Cluster cluster = session.getCluster();
 
-    	// Assume all keys have the same namespace.
+        // Assume all keys have the same namespace.
         String namespace = keys.get(0).namespace;
-		Partitions partitions = getPartitions(cluster, namespace);
-    	Settings policy = session.getBehavior().getSettings(OpKind.WRITE_RETRYABLE, OpShape.POINT, partitions.scMode);
+        Partitions partitions = getPartitions(cluster, namespace);
+        Settings policy = session.getBehavior().getSettings(OpKind.WRITE_RETRYABLE, OpShape.POINT, partitions.scMode);
         final Expression filterExp = getFilterExp(session, namespace);
         AsyncRecordStream asyncStream = new AsyncRecordStream(keys.size());
 
-		if (txnToUse != null) {
-	    	cluster.startVirtualThread(() -> {
-	    		TxnMonitor.addKeys(txnToUse, cluster, partitions, policy, keys);
-	    		operateKeysAsync(cluster, partitions, policy, filterExp, asyncStream);
-	        });
-    	}
-		else {
-    		operateKeysAsync(cluster, partitions, policy, filterExp, asyncStream);
-		}
+        if (txnToUse != null) {
+            cluster.startVirtualThread(() -> {
+                TxnMonitor.addKeys(txnToUse, cluster, partitions, policy, keys);
+                operateKeysAsync(cluster, partitions, policy, filterExp, asyncStream);
+            });
+        } else {
+            operateKeysAsync(cluster, partitions, policy, filterExp, asyncStream);
+        }
 
         return new RecordStream(asyncStream);
     }
 
-    private void operateKeysAsync(
-    	Cluster cluster, Partitions partitions, Settings policy, Expression filterExp,
-    	AsyncRecordStream asyncStream
-    ) {
+    private void operateKeysAsync(Cluster cluster, Partitions partitions, Settings policy, Expression filterExp,
+            AsyncRecordStream asyncStream) {
         AtomicInteger pendingOps = new AtomicInteger(keys.size());
 
-        for (Key key : keys) {
+        for (int i = 0; i < keys.size(); i++) {
+            Key key = keys.get(i);
+            final int index = i;
             cluster.startVirtualThread(() -> {
                 try {
-	            	Record rec = operate(cluster, partitions, policy, filterExp, key);
+                    Record rec = operate(cluster, partitions, policy, filterExp, key);
 
                     if (respondAllKeys || rec != null) {
-                        asyncStream.publish(new RecordResult(key, rec));
+                        asyncStream.publish(new RecordResult(key, rec, index));
                     }
-                }
-                catch (AerospikeException ae) {
+                } catch (AerospikeException ae) {
                     if (ae.getResultCode() == ResultCode.FILTERED_OUT) {
                         if (failOnFilteredOut || respondAllKeys) {
-                            asyncStream.publish(new RecordResult(key, ae.getResultCode(), ae.getInDoubt(), ResultCode.getResultString(ae.getResultCode())));
+                            asyncStream.publish(new RecordResult(key, ae, index));
                         }
                         // Otherwise skip this record
+                    } else {
+                        asyncStream.publish(new RecordResult(key, ae, index));
                     }
-                    else {
-                        asyncStream.publish(new RecordResult(key, ae.getResultCode(), ae.getInDoubt(), ResultCode.getResultString(ae.getResultCode())));
-                    }
-                }
-                finally {
+                } finally {
                     if (pendingOps.decrementAndGet() == 0) {
                         asyncStream.complete();
                     }
@@ -608,42 +624,36 @@ public class BinsValuesBuilder implements FilterableOperation<BinsValuesBuilder>
         }
     }
 
-    private Record operate(
-    	Cluster cluster, Partitions partitions, Settings policy, Expression filterExp, Key key
-    ) {
+    private Record operate(Cluster cluster, Partitions partitions, Settings policy, Expression filterExp, Key key) {
         ValueData valueSet = valueSets.get(key);
         Operation[] ops = getOperationsForValueData(valueSet);
         int ttl = getExpiration(valueSet);
 
-        OperateWriteCommand cmd = new OperateWriteCommand(cluster, partitions, txnToUse, key, ops,
-        	opBuilder.opType, valueSet.generation, ttl, filterExp, opBuilder.failOnFilteredOut,
-        	policy
-			);
+        OperateWriteCommand cmd = new OperateWriteCommand(cluster, partitions, txnToUse, key, ops, opBuilder.opType,
+                valueSet.generation, ttl, filterExp, opBuilder.failOnFilteredOut, policy);
 
         try {
-        	SyncOperateExecutor exec = new SyncOperateExecutor(cluster, cmd);
-        	exec.execute();
-        	return exec.getRecord();
-        }
-        catch (AerospikeException ae) {
+            SyncOperateExecutor exec = new SyncOperateExecutor(cluster, cmd);
+            exec.execute();
+            return exec.getRecord();
+        } catch (AerospikeException ae) {
             if (ae.getResultCode() == ResultCode.FILTERED_OUT) {
-            	throw ae;
-            }
-            else {
-            	opBuilder.showWarningsOnExceptionAndThrow(ae, txnToUse, key, ttl);
-            	return null;
+                throw ae;
+            } else {
+                opBuilder.showWarningsOnExceptionAndThrow(ae, txnToUse, key, ttl);
+                return null;
             }
         }
     }
 
     private Partitions getPartitions(Cluster cluster, String namespace) {
-		HashMap<String,Partitions> partitionMap = cluster.getPartitionMap();
-    	Partitions partitions = partitionMap.get(namespace);
+        HashMap<String, Partitions> partitionMap = cluster.getPartitionMap();
+        Partitions partitions = partitionMap.get(namespace);
 
-    	if (partitions == null) {
-    		throw new AerospikeException.InvalidNamespace(namespace, partitionMap.size());
-    	}
-    	return partitions;
+        if (partitions == null) {
+            throw new AerospikeException.InvalidNamespace(namespace, partitionMap.size());
+        }
+        return partitions;
     }
 
     private Expression getFilterExp(Session session, String namespace) {
@@ -651,9 +661,8 @@ public class BinsValuesBuilder implements FilterableOperation<BinsValuesBuilder>
             // Apply filter expression clause.
             ParseResult parseResult = dsl.process(namespace, session);
             return Exp.build(parseResult.getExp());
-        }
-        else {
-        	return null;
+        } else {
+            return null;
         }
     }
 
@@ -669,8 +678,7 @@ public class BinsValuesBuilder implements FilterableOperation<BinsValuesBuilder>
     private int getExpiration(ValueData valueData) {
         if (valueData.expirationInSeconds != Long.MIN_VALUE) {
             return opBuilder.getExpirationAsInt(valueData.expirationInSeconds);
-        }
-        else {
+        } else {
             return opBuilder.getExpirationAsInt(expirationInSecondsForAll);
         }
     }

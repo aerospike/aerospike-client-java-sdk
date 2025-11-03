@@ -19,9 +19,12 @@ public class FixedSizeRecordStream implements RecordStreamImpl, Sortable, Resett
     public FixedSizeRecordStream(Key[] keys, Record[] records, long limit, int pageSize, List<SortProperties> sortProperties, boolean respondAllKeys) {
         this(convertToRecordResults(keys, records), limit, pageSize, sortProperties, respondAllKeys);
     }
-    public FixedSizeRecordStream(List<BatchRecord> records, long limit, int pageSize, List<SortProperties> sortProperties) {
+    public FixedSizeRecordStream(List<BatchRecord> records, long limit, int pageSize, List<SortProperties> sortProperties, boolean stackTraceOnException) {
         // Do not filter by null if !respondAllKeys as it must be done by the caller, in case there is a partition filter
-        RecordResult[] recs = records.stream().map(RecordResult::new).toArray(RecordResult[]::new);
+        RecordResult[] recs = new RecordResult[records.size()];
+        for (int i = 0; i < records.size(); i++) {
+            recs[i] = new RecordResult(records.get(i), stackTraceOnException, i); // Batch operation, index = position
+        }
 
         if (limit > 0 && limit < recs.length) {
             recs = Arrays.copyOf(recs, (int)limit);
@@ -44,7 +47,7 @@ public class FixedSizeRecordStream implements RecordStreamImpl, Sortable, Resett
                 .filter(rec -> rec.recordOrNull() != null)
                 .toArray(RecordResult[]::new);
         }
-        if (limit < recs.length) {
+        if (limit > 0 && recs.length > limit) {
             recs = Arrays.copyOf(records, (int)limit);
         }
         this.records = recs;
@@ -59,7 +62,7 @@ public class FixedSizeRecordStream implements RecordStreamImpl, Sortable, Resett
     private static RecordResult[] convertToRecordResults(Key[] keys, Record[] records) {
         RecordResult[] recordResults = new RecordResult[keys.length];
         for (int i = 0; i < keys.length; i++) {
-            recordResults[i] = new RecordResult(keys[i], records[i]);
+            recordResults[i] = new RecordResult(keys[i], records[i], i); // Batch operation, index = position
         }
         return recordResults;
     }

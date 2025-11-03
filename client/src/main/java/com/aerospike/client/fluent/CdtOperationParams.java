@@ -25,6 +25,11 @@ class CdtOperationParams {
         this.int1 = int1;
         this.operation = operation;
     }
+    public CdtOperationParams(CdtOperation operation, int int1, int int2) {
+        this.int1 = int1;
+        this.int2 = int2;
+        this.operation = operation;
+    }
     public CdtOperationParams(CdtOperation operation, int int1, ListOrder createType, boolean pad) {
         this.int1 = int1;
         this.operation = operation;
@@ -44,7 +49,17 @@ class CdtOperationParams {
         this.val2 = val2;
         this.operation = operation;
     }
-
+    public CdtOperationParams(CdtOperation operation, Value val1, int int1) {
+        this.val1 = val1;
+        this.int1 = int1;
+        this.operation = operation;
+    }
+    public CdtOperationParams(CdtOperation operation, Value val1, int int1, int int2) {
+        this.val1 = val1;
+        this.int1 = int1;
+        this.int2 = int2;
+        this.operation = operation;
+    }
     public CdtOperationParams(CdtOperation operation, List<Value> values) {
         this.values = values;
         this.operation = operation;
@@ -126,7 +141,12 @@ class CdtOperationParams {
         this.operation = operation;
         this.int1 = int1;
     }
-
+    public void pushCurrentToContextAndReplaceWith(CdtOperation operation, int int1, int int2) {
+        pushCurrentToContext();
+        this.operation = operation;
+        this.int1 = int1;
+        this.int2 = int2;
+    }
     public void pushCurrentToContextAndReplaceWith(CdtOperation operation, int int1, ListOrder createType, boolean pad) {
         pushCurrentToContext();
         this.operation = operation;
@@ -154,6 +174,27 @@ class CdtOperationParams {
         this.val2 = val2;
     }
 
+    public void pushCurrentToContextAndReplaceWith(CdtOperation operation, Value val1, int int1) {
+        pushCurrentToContext();
+        this.operation = operation;
+        this.val1 = val1;
+        this.int1 = int1;
+    }
+
+    public void pushCurrentToContextAndReplaceWith(CdtOperation operation, Value val1, int int1, int int2) {
+        pushCurrentToContext();
+        this.operation = operation;
+        this.val1 = val1;
+        this.int1 = int1;
+        this.int2 = int2;
+    }
+
+    public void pushCurrentToContextAndReplaceWith(CdtOperation operation, List<Value> values) {
+        pushCurrentToContext();
+        this.operation = operation;
+        this.values = values;
+    }
+
     public void pushCurrentToContext() {
         if (ctx == null) {
             ctx = new ArrayList<>();
@@ -169,4 +210,9 @@ class CdtOperationParams {
         }
         return this.ctx.toArray(CTX[]::new);
     }
+
+    public boolean hasInt2() {
+        return this.int2 != 0;
+    }
+
 }

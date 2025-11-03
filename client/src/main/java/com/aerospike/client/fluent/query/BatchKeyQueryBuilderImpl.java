@@ -11,6 +11,7 @@ import com.aerospike.client.fluent.Cluster;
 import com.aerospike.client.fluent.Key;
 import com.aerospike.client.fluent.Log;
 import com.aerospike.client.fluent.Partitions;
+import com.aerospike.client.fluent.RecordResult;
 import com.aerospike.client.fluent.RecordStream;
 import com.aerospike.client.fluent.ResultCode;
 import com.aerospike.client.fluent.Session;
@@ -174,14 +175,14 @@ class BatchKeyQueryBuilderImpl extends QueryImpl {
             }
 
             parent = new BatchReadCommand(cluster, partitions, qb.getTxnToUse(), namespace,
-            	batchRecordsForServer, filterExp, replica, mode, qb.respondAllKeys,
+            	batchRecordsForServer, filterExp, replica, mode, qb.isRespondAllKeys(),
             	linearize, policy);
         }
         else {
             replica = policy.getReplicaOrder();
             parent = new BatchReadCommand(cluster, partitions, qb.getTxnToUse(), namespace,
                 batchRecordsForServer, filterExp, replica, policy.getReadModeAP(),
-                qb.respondAllKeys, policy);
+                qb.isRespondAllKeys(), policy);
        }
 
     	BatchStatus status = new BatchStatus(true);
@@ -218,12 +219,22 @@ class BatchKeyQueryBuilderImpl extends QueryImpl {
                 // Add the server results into any that were filtered out earlier
                 batchRecords.addAll(batchRecordsForServer);
             }
-
+            // Convert BatchRecord to RecordResult
+            List<RecordResult> results = new ArrayList<>();
+            Settings settings = getSession().getBehavior()
+                    .getSettings(OpKind.READ, OpShape.BATCH, getSession().isNamespaceSC(keyList.get(0).namespace));
+            for (int i = 0; i < batchRecords.size(); i++) {
+                BatchRecord br = batchRecords.get(i);
+                if (getQueryBuilder().shouldIncludeResult(br.resultCode)) {
+                    results.add(getQueryBuilder().createRecordResultFromBatchRecord(br, settings, i));
+                }
+            }
             // TODO: ResultsInKeyOrder?
-            return new RecordStream(batchRecords,
+            return new RecordStream(results,
                     limit,
                     getQueryBuilder().getPageSize(),
-                    getQueryBuilder().getSortInfo());
+                    getQueryBuilder().getSortInfo(),
+                    true);
         }
         catch (AerospikeException ae) {
             if (Log.warnEnabled() && ae.getResultCode() == ResultCode.UNSUPPORTED_FEATURE) {

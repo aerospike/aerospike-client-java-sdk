@@ -55,7 +55,7 @@ public class PaginatedRecordStream implements RecordStreamImpl {
 
     @Override
     public RecordResult next() {
-        return new RecordResult(recordSet.getKeyRecord());
+        return new RecordResult(recordSet.getKeyRecord(), -1); // Query operation, index = -1
     }
 
     @Override

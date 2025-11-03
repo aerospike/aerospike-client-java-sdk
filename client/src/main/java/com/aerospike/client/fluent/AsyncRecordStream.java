@@ -55,11 +55,12 @@ public final class AsyncRecordStream implements AutoCloseable, Iterable<RecordRe
 			return; // best effort
 		}
         // Block with backpressure, but wake up promptly if closed/completed
-        for (;;) {
+        while (true) {
             if (cancelled.getAsBoolean()) {
 				return;
 			}
             try {
+                // TODO: Should this value be substantially larger?
                 if (queue.offer(result, 50, TimeUnit.MILLISECONDS)) {
 					return;
 				}
@@ -138,7 +139,7 @@ public final class AsyncRecordStream implements AutoCloseable, Iterable<RecordRe
             }
 
             private Object fetch() {
-                for (;;) {
+                while (true) {
                     try {
                         Object o = queue.take();
                         if (o == END) {

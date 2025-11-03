@@ -10,6 +10,7 @@ public final class Settings {
     Integer maximumNumberOfCallAttempts;
     Replica replicaOrder;
     Boolean sendKey;
+    Boolean stackTraceOnException;
     Boolean useCompression;
     Duration waitForCallToComplete;
     Duration waitForConnectionToComplete;
@@ -57,6 +58,7 @@ public final class Settings {
         this.readModeAP = orig.readModeAP;
         this.readModeSC = orig.readModeSC;
         this.resetTtlOnReadAtPercent = orig.resetTtlOnReadAtPercent;
+		this.stackTraceOnException = orig.stackTraceOnException;
     }
 
     @Override public String toString() {
@@ -122,6 +124,9 @@ public final class Settings {
 		}
         if (resetTtlOnReadAtPercent != null) {
 			m.put("resetTtlOnReadAtPercent", resetTtlOnReadAtPercent);
+		}
+        if (stackTraceOnException != null) {
+		    m.put("stackTraceOnException", stackTraceOnException);
 		}
 
         return m.toString();
@@ -202,8 +207,10 @@ public final class Settings {
     public int getResetTtlOnReadAtPercent() {
         return resetTtlOnReadAtPercent;
     }
-
-    @Deprecated(forRemoval = true)
+    public boolean getStackTraceOnException() {
+        return stackTraceOnException;
+    }
+    
     public WritePolicy asWritePolicy() {
         WritePolicy writePolicy = new WritePolicy();
         writePolicy.commitLevel = this.commitLevel;
@@ -213,7 +220,7 @@ public final class Settings {
         writePolicy.maxRetries = this.maximumNumberOfCallAttempts - 1;
         writePolicy.readModeAP = this.readModeAP == null ? ReadModeAP.ALL : this.readModeAP;
         writePolicy.readModeSC = this.readModeSC == null ? ReadModeSC.SESSION : this.readModeSC;
-        //            writePolicy.readTouchTtlPercent = this.resetTtlOnReadAtPercent;
+        writePolicy.readTouchTtlPercent = this.resetTtlOnReadAtPercent;
         writePolicy.replica = Replica.SEQUENCE; // TODO
         writePolicy.sendKey = this.sendKey;
         writePolicy.sleepBetweenRetries = (int)this.delayBetweenRetries.toMillis();
@@ -232,7 +239,7 @@ public final class Settings {
         batchPolicy.maxRetries = this.maximumNumberOfCallAttempts - 1;
         batchPolicy.readModeAP = this.readModeAP == null ? ReadModeAP.ALL : this.readModeAP;
         batchPolicy.readModeSC = this.readModeSC == null ? ReadModeSC.SESSION : this.readModeSC;
-        //            batchPolicy.readTouchTtlPercent = this.resetTtlOnReadAtPercent;
+        batchPolicy.readTouchTtlPercent = this.resetTtlOnReadAtPercent;
         batchPolicy.replica = Replica.SEQUENCE; // TODO
         batchPolicy.sendKey = this.sendKey;
         batchPolicy.sleepBetweenRetries = (int)this.delayBetweenRetries.toMillis();
@@ -254,7 +261,7 @@ public final class Settings {
         queryPolicy.maxRetries = this.maximumNumberOfCallAttempts - 1;
         queryPolicy.readModeAP = this.readModeAP == null ? ReadModeAP.ALL : this.readModeAP;
         queryPolicy.readModeSC = this.readModeSC == null ? ReadModeSC.SESSION : this.readModeSC;
-        //            queryPolicy.readTouchTtlPercent = this.resetTtlOnReadAtPercent;
+        queryPolicy.readTouchTtlPercent = this.resetTtlOnReadAtPercent;
         queryPolicy.replica = Replica.SEQUENCE; // TODO
         queryPolicy.sendKey = this.sendKey;
         queryPolicy.sleepBetweenRetries = (int)this.delayBetweenRetries.toMillis();
