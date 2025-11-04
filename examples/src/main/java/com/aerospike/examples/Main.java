@@ -67,6 +67,26 @@ public class Main {
 	            .values("User6", 206)
 	            .execute();
 
+            System.out.println("Write 10 records async");
+
+            rs = session.upsert(set.ids(110,111,112,113,114,115,116,117,118,119))
+	            .bins("name", "age")
+	            .values("Tim", 312)
+	            .values("Bob", 25)
+	            .values("Jane", 46)
+	            .values("Tim", 200)
+	            .values("User1", 201)
+	            .values("User2", 202)
+	            .values("User3", 203)
+	            .values("User4", 204)
+	            .values("User5", 205)
+	            .values("User6", 206)
+	            .executeAsync();
+
+            while (rs.hasNext()) {
+                System.out.println(rs.next());
+            }
+
             System.out.println("Read 1 record");
 
             rs = session.query(set.ids(100)).execute();

@@ -20,9 +20,11 @@ import java.util.List;
 import java.util.concurrent.ExecutorService;
 
 import com.aerospike.client.fluent.AerospikeException;
+import com.aerospike.client.fluent.AsyncRecordStream;
 import com.aerospike.client.fluent.Cluster;
 import com.aerospike.client.fluent.Key;
 import com.aerospike.client.fluent.Record;
+import com.aerospike.client.fluent.RecordResult;
 import com.aerospike.client.fluent.ResultCode;
 import com.aerospike.client.fluent.metrics.LatencyType;
 import com.aerospike.client.fluent.policy.ReadModeSC;
@@ -201,10 +203,10 @@ public final class Batch {
 	// OperateList
 	//-------------------------------------------------------
 
-	public static final class OperateList extends NodeExecutor {
+	public static final class OperateListSync extends NodeExecutor {
 		private final List<BatchRecord> records;
 
-		public OperateList(
+		public OperateListSync(
 			Cluster cluster,
 			BatchCommand parent,
 			BatchNode batch,
@@ -276,7 +278,7 @@ public final class Batch {
 
 		@Override
 		protected NodeExecutor createCommand(BatchNode batchNode) {
-			return new OperateList(cluster, parent, batchNode, records, status);
+			return new OperateListSync(cluster, parent, batchNode, records, status);
 		}
 
 		@Override
@@ -285,6 +287,108 @@ public final class Batch {
 				sequenceAP, sequenceSC, batch, status);
 		}
 	}
+
+	public static final class OperateListAsync extends NodeExecutor {
+		private final List<BatchRecord> records;
+		private final AsyncRecordStream stream;
+
+		public OperateListAsync(
+			Cluster cluster,
+			BatchCommand parent,
+			BatchNode batch,
+			List<BatchRecord> records,
+			AsyncRecordStream stream,
+			BatchStatus status
+		) {
+			super(cluster, parent, batch, status, true);
+			this.records = records;
+			this.stream = stream;
+		}
+
+		@Override
+		protected boolean isWrite() {
+			// This method is only called to set inDoubt on node level errors.
+			// setError() will filter out reads when setting record level inDoubt.
+			return true;
+		}
+
+		@Override
+		protected CommandBuffer getCommandBuffer() {
+			CommandBuffer cb = new CommandBuffer();
+			cb.setBatchOperate(parent, batch, null, null, null);
+			return cb;
+		}
+
+		@Override
+		protected boolean parseRow() {
+			BatchRecord br = records.get(batchIndex);
+
+			parseFields(br);
+
+			if (resultCode == 0) {
+				Record rec = parseRecord();
+
+				br.setRecord(rec);
+
+                if (parent.respondAllKeys || rec != null) {
+                    stream.publish(new RecordResult(br, batchIndex));
+                }
+				return true;
+			}
+
+			if (resultCode == ResultCode.UDF_BAD_RESPONSE) {
+				// Record is returned with a FAILURE bin indicating server error message.
+				Record rec = parseRecord();
+				String msg = rec.getString("FAILURE");
+
+				if (msg != null) {
+					// Need to store record because failure bin contains an error message.
+					br.record = rec;
+					br.resultCode = resultCode;
+					br.inDoubt = BatchCommand.inDoubt(br.hasWrite, commandSentCounter);
+					status.setRowError();
+
+	                if (parent.respondAllKeys || rec != null) {
+	                    stream.publish(new RecordResult(br, batchIndex));
+	                }
+					return true;
+				}
+			}
+
+			br.setError(resultCode, BatchCommand.inDoubt(br.hasWrite, commandSentCounter));
+			status.setRowError();
+            stream.publish(new RecordResult(br, batchIndex));
+			return true;
+		}
+
+		@Override
+		protected void inDoubt() {
+			// TODO: Use async indoubt logic instead.
+			for (int index : batch.offsets) {
+				BatchRecord record = records.get(index);
+
+				if (record.resultCode == ResultCode.NO_RESPONSE) {
+					record.inDoubt = record.hasWrite;
+
+					if (record.inDoubt && parent.txn != null) {
+						parent.txn.onWriteInDoubt(record.key);
+					}
+				}
+			}
+		}
+
+		@Override
+		protected NodeExecutor createCommand(BatchNode batchNode) {
+			return new OperateListSync(cluster, parent, batchNode, records, status);
+		}
+
+		@Override
+		protected List<BatchNode> generateBatchNodes() {
+			return BatchNodeList.generate(cluster, parent.partitions, parent.replica, records,
+				sequenceAP, sequenceSC, batch, status);
+		}
+	}
+
 /*
 	//-------------------------------------------------------
 	// OperateArray

@@ -201,7 +201,7 @@ class BatchKeyQueryBuilderImpl extends QueryImpl {
 				commands[count++] = new BatchSingle.ReadRecord(cluster, parent, br, status, bn.node);
 			}
 			else {
-				commands[count++] = new Batch.OperateList(cluster, parent, bn, batchRecordsForServer, status);
+				commands[count++] = new Batch.OperateListSync(cluster, parent, bn, batchRecordsForServer, status);
 			}
 		}
 

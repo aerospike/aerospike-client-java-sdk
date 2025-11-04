@@ -19,12 +19,14 @@ package com.aerospike.client.fluent.command;
 import java.io.IOException;
 
 import com.aerospike.client.fluent.AerospikeException;
+import com.aerospike.client.fluent.AsyncRecordStream;
 import com.aerospike.client.fluent.Cluster;
 import com.aerospike.client.fluent.Connection;
 import com.aerospike.client.fluent.Key;
 import com.aerospike.client.fluent.Node;
 import com.aerospike.client.fluent.Operation;
 import com.aerospike.client.fluent.Partition;
+import com.aerospike.client.fluent.RecordResult;
 import com.aerospike.client.fluent.ResultCode;
 import com.aerospike.client.fluent.metrics.LatencyType;
 
@@ -226,12 +228,42 @@ public final class BatchSingle {
 		}
 	}
 */
-	public static final class OperateRecord extends SingleExecutor {
+	public static final class OperateRecordAsync extends OperateRecordSync {
+		private final AsyncRecordStream stream;
+		private final int index;
+
+		public OperateRecordAsync(
+			Cluster cluster,
+			BatchCommand parent,
+			Operation[] ops,
+			BatchAttr attr,
+			BatchRecord br,
+			BatchStatus status,
+			Node node,
+			AsyncRecordStream stream,
+			int index
+		) {
+			super(cluster, parent, ops, attr, br, status, node);
+			this.stream = stream;
+			this.index = index;
+		}
+
+		@Override
+		public void run() {
+			super.run();
+
+        	if (parent.respondAllKeys || super.record.record != null) {
+        		stream.publish(new RecordResult(super.record, index));
+        	}
+		}
+	}
+
+	public static class OperateRecordSync extends SingleExecutor {
 		private final Operation[] ops;
 		private final BatchAttr attr;
 		private final BatchRecord record;
 
-		public OperateRecord(
+		public OperateRecordSync(
 			Cluster cluster,
 			BatchCommand parent,
 			Operation[] ops,
