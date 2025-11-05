@@ -19,8 +19,8 @@ package com.aerospike.client.fluent;
 import java.util.concurrent.atomic.AtomicReferenceArray;
 
 import com.aerospike.client.fluent.command.Buffer;
+import com.aerospike.client.fluent.command.PartitionStatus;
 import com.aerospike.client.fluent.policy.Replica;
-import com.aerospike.client.fluent.query.PartitionStatus;
 
 public final class Partition {
 

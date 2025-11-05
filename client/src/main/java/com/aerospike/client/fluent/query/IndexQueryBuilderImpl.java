@@ -1,9 +1,21 @@
 package com.aerospike.client.fluent.query;
 
+import java.util.List;
+
+import com.aerospike.client.fluent.Cluster;
 import com.aerospike.client.fluent.DataSet;
 import com.aerospike.client.fluent.Log;
 import com.aerospike.client.fluent.RecordStream;
 import com.aerospike.client.fluent.Session;
+import com.aerospike.client.fluent.command.PartitionFilter;
+import com.aerospike.client.fluent.command.QueryForeground;
+import com.aerospike.client.fluent.dsl.ParseResult;
+import com.aerospike.client.fluent.exp.Exp;
+import com.aerospike.client.fluent.exp.Expression;
+import com.aerospike.client.fluent.policy.Settings;
+import com.aerospike.client.fluent.policy.Behavior.Mode;
+import com.aerospike.client.fluent.policy.Behavior.OpKind;
+import com.aerospike.client.fluent.policy.Behavior.OpShape;
 
 class IndexQueryBuilderImpl extends QueryImpl {
     private final DataSet dataSet;
@@ -43,46 +55,42 @@ class IndexQueryBuilderImpl extends QueryImpl {
         // Index queries stream results; async and sync behave similarly
         return executeInternal();
     }
-    
+
     private RecordStream executeInternal() {
-		return null;
-	/*
-        QueryPolicy queryPolicy = getSession().getBehavior().getMutablePolicy(CommandType.QUERY);
-        if (this.getQueryBuilder().getWithNoBins()) {
-            queryPolicy.includeBinData = false;
-        }
+        Session session = getSession();
+        Cluster cluster = session.getCluster();
+        QueryBuilder qb = getQueryBuilder();
 
-        long pageSize = getQueryBuilder().getPageSize();
-        long limit = getQueryBuilder().getLimit();
-        List<SortProperties> sortInfo = getQueryBuilder().getSortInfo();
-
-        Statement stmt = new Statement();
-        stmt.setNamespace(dataSet.getNamespace());
-        stmt.setSetName(dataSet.getSet());
-        stmt.setBinNames(getQueryBuilder().getBinNames());
-
-        if (getQueryBuilder().dslString != null) {
-            ParseResult parseResult = this.getParseResultFromWhereClause(getQueryBuilder().dslString, this.dataSet.getNamespace(), true);
-            queryPolicy.filterExp = parseResult.getExp() == null ? null : Exp.build(parseResult.getExp());
-            stmt.setFilter(parseResult.getFilter());
-        }
-
-        if (pageSize > 0) {
-            stmt.setMaxRecords(pageSize);
-        }
-        else if (limit > 0 && pageSize == 0) {
-            stmt.setMaxRecords(limit);
-        }
-
-        // No need to set transactions, they're not supported by queries
-        // queryPolicy.txn = this.getQueryBuilder().getTxnToUse();
+        Settings policy = session.getBehavior().getSettings(OpKind.READ, OpShape.QUERY, Mode.ANY);
+        Expression filterExp = getFilterExp();
 
         PartitionFilter filter = PartitionFilter.range(
                 getQueryBuilder().getStartPartition(),
                 getQueryBuilder().getEndPartition() - getQueryBuilder().getStartPartition());
 
+        List<SortProperties> sortInfo = getQueryBuilder().getSortInfo();
+
+        QueryForeground cmd = new QueryForeground(cluster, dataSet, filterExp, policy, qb, 0,
+        	null, null);
+
+        return null;
+        // TODO Complete
+    	/*
+        return new RecordStream(session, queryPolicy, stmt, filter, queryResults, limit, sortInfo);
         RecordSet queryResults = getSession().getClient().queryPartitions(queryPolicy, stmt, filter);
-        return new RecordStream(getSession(), queryPolicy, stmt, filter, queryResults, limit, sortInfo);
-        */
+     */
+    }
+
+    private Expression getFilterExp() {
+        WhereClauseProcessor dsl = getQueryBuilder().getDsl();
+
+        if (dsl != null) {
+            // Apply filter expression clause.
+            ParseResult parseResult = dsl.process(dataSet.getNamespace(), getSession());
+            return Exp.build(parseResult.getExp());
+        }
+        else {
+            return null;
+        }
     }
 }

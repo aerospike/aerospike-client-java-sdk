@@ -19,6 +19,9 @@ import com.aerospike.client.fluent.exp.Exp;
 import com.aerospike.client.fluent.exp.Expression;
 import com.aerospike.client.fluent.policy.Behavior.OpKind;
 import com.aerospike.client.fluent.policy.Behavior.OpShape;
+import com.aerospike.client.fluent.policy.ReadModeAP;
+import com.aerospike.client.fluent.policy.ReadModeSC;
+import com.aerospike.client.fluent.policy.Replica;
 import com.aerospike.client.fluent.policy.Settings;
 
 class SingleKeyQueryBuilderImpl extends QueryImpl {
@@ -90,11 +93,49 @@ class SingleKeyQueryBuilderImpl extends QueryImpl {
 			throw new AerospikeException.InvalidNamespace(key.namespace, partitionMap.size());
 		}
 
-        try {
-			Settings policy = session.getBehavior().getSettings(OpKind.READ, OpShape.POINT, partitions.scMode);
+		Settings policy = session.getBehavior().getSettings(OpKind.READ, OpShape.POINT, partitions.scMode);
 
+		ReadModeAP readModeAP;
+		ReadModeSC readModeSC;
+		Replica replica;
+		boolean linearize;
+
+        if (partitions.scMode) {
+            readModeAP = ReadModeAP.ONE;
+            readModeSC = policy.getReadModeSC();
+
+            switch (readModeSC) {
+            case SESSION:
+                replica = Replica.MASTER;
+                linearize = false;
+                break;
+
+            case LINEARIZE:
+                replica = policy.getReplicaOrder();
+
+                if (replica == Replica.PREFER_RACK) {
+                    replica = Replica.SEQUENCE;
+                }
+                linearize = true;
+                break;
+
+            default:
+                replica = policy.getReplicaOrder();
+                linearize = false;
+                break;
+            }
+        }
+        else {
+            replica = policy.getReplicaOrder();
+            readModeAP = policy.getReadModeAP();
+            readModeSC = ReadModeSC.SESSION;
+            linearize = false;
+        }
+
+		try {
 			ReadCommand cmd = new ReadCommand(cluster, partitions, txn, key, qb.getBinNames(),
-				qb.getWithNoBins(), filterExp, failOnFilteredOut, policy);
+				replica, readModeAP, readModeSC, linearize, qb.getWithNoBins(), filterExp,
+				failOnFilteredOut, policy);
 
         	SyncReadExecutor exec = new SyncReadExecutor(cluster, cmd);
         	exec.execute();

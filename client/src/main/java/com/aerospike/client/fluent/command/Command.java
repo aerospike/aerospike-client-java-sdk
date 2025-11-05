@@ -19,6 +19,7 @@ package com.aerospike.client.fluent.command;
 import com.aerospike.client.fluent.Cluster;
 import com.aerospike.client.fluent.Txn;
 import com.aerospike.client.fluent.exp.Expression;
+import com.aerospike.client.fluent.policy.Replica;
 import com.aerospike.client.fluent.policy.Settings;
 
 public class Command {
@@ -87,6 +88,7 @@ public class Command {
 	final String namespace;
 	final Txn txn;
 	final Expression filterExp;
+	final Replica replica;
 	final int connectTimeout;
 	final int socketTimeout;
 	final int totalTimeout;
@@ -98,12 +100,14 @@ public class Command {
 	final boolean compress;
 
 	public Command(
-		Cluster cluster, String namespace, Txn txn, Expression filterExp, Settings policy
+		Cluster cluster, String namespace, Txn txn, Expression filterExp, Replica replica,
+		Settings policy
 	) {
 		this.cluster = cluster;
 		this.namespace = namespace;
 		this.txn = txn;
 		this.filterExp = filterExp;
+		this.replica = replica;
 
 		connectTimeout = policy.getWaitForConnectionToCompleteMs();
 		totalTimeout = policy.getAbandonCallAfterMs();

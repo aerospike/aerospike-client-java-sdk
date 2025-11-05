@@ -14,10 +14,11 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.aerospike.client.fluent.query;
+package com.aerospike.client.fluent.command;
 
 import com.aerospike.client.fluent.Operation;
 import com.aerospike.client.fluent.Value;
+import com.aerospike.client.fluent.query.Filter;
 import com.aerospike.client.fluent.util.RandomShift;
 
 /**

@@ -263,6 +263,13 @@ public class AerospikeException extends RuntimeException {
 			this.client = client;
 		}
 
+		public Timeout(Command cmd, int iteration) {
+			super(ResultCode.TIMEOUT, "Client timeout");
+			super.setCommand(cmd);
+			super.iteration = iteration;
+			this.client = true;
+		}
+
 		public Timeout(Node node, int connectTimeout, int socketTimeout, int totalTimeout) {
 			super(ResultCode.TIMEOUT, "Client timeout");
 			super.node = node;

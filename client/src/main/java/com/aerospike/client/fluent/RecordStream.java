@@ -12,17 +12,17 @@ import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 import com.aerospike.client.fluent.command.BatchRecord;
+import com.aerospike.client.fluent.command.PartitionFilter;
+import com.aerospike.client.fluent.command.Statement;
 import com.aerospike.client.fluent.policy.QueryPolicy;
 import com.aerospike.client.fluent.query.FixedSizeRecordStream;
 import com.aerospike.client.fluent.query.KeyRecord;
-import com.aerospike.client.fluent.query.PartitionFilter;
 import com.aerospike.client.fluent.query.RecordSet;
 import com.aerospike.client.fluent.query.RecordStreamImpl;
 import com.aerospike.client.fluent.query.ResettablePagination;
 import com.aerospike.client.fluent.query.SingleItemRecordStream;
 import com.aerospike.client.fluent.query.SortProperties;
 import com.aerospike.client.fluent.query.Sortable;
-import com.aerospike.client.fluent.query.Statement;
 
 public class RecordStream implements Iterator<RecordResult>, Closeable {
     private final RecordStreamImpl impl;

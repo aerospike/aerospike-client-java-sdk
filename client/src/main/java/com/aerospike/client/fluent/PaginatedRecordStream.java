@@ -1,10 +1,10 @@
 package com.aerospike.client.fluent;
 
+import com.aerospike.client.fluent.command.PartitionFilter;
+import com.aerospike.client.fluent.command.Statement;
 import com.aerospike.client.fluent.policy.QueryPolicy;
-import com.aerospike.client.fluent.query.PartitionFilter;
 import com.aerospike.client.fluent.query.RecordSet;
 import com.aerospike.client.fluent.query.RecordStreamImpl;
-import com.aerospike.client.fluent.query.Statement;
 
 public class PaginatedRecordStream implements RecordStreamImpl {
     private final QueryPolicy queryPolicy;

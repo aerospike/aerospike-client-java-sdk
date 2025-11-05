@@ -576,8 +576,6 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
             	}
             	finally {
                     if (pending.decrementAndGet() == 0) {
-        	        	// Throw an exception if an error occurred.
-        	    		status.checkException();
                         stream.complete();
                     }
             	}

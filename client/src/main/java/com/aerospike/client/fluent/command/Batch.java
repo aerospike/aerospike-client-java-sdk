@@ -262,15 +262,16 @@ public final class Batch {
 		}
 
 		@Override
-		protected void inDoubt() {
+		protected void setException(AerospikeException ae) {
 			for (int index : batch.offsets) {
-				BatchRecord record = records.get(index);
+				BatchRecord br = records.get(index);
 
-				if (record.resultCode == ResultCode.NO_RESPONSE) {
-					record.inDoubt = record.hasWrite;
+				if (br.resultCode == ResultCode.NO_RESPONSE) {
+					br.resultCode = ae.getResultCode();
+					br.inDoubt = ae.getInDoubt();
 
-					if (record.inDoubt && parent.txn != null) {
-						parent.txn.onWriteInDoubt(record.key);
+					if (br.inDoubt && parent.txn != null) {
+						parent.txn.onWriteInDoubt(br.key);
 					}
 				}
 			}
@@ -362,17 +363,19 @@ public final class Batch {
 		}
 
 		@Override
-		protected void inDoubt() {
-			// TODO: Use async indoubt logic instead.
+		protected void setException(AerospikeException ae) {
 			for (int index : batch.offsets) {
-				BatchRecord record = records.get(index);
+				BatchRecord br = records.get(index);
 
-				if (record.resultCode == ResultCode.NO_RESPONSE) {
-					record.inDoubt = record.hasWrite;
+				if (br.resultCode == ResultCode.NO_RESPONSE) {
+					br.resultCode = ae.getResultCode();
+					br.inDoubt = ae.getInDoubt();
 
-					if (record.inDoubt && parent.txn != null) {
-						parent.txn.onWriteInDoubt(record.key);
+					if (br.inDoubt && parent.txn != null) {
+						parent.txn.onWriteInDoubt(br.key);
 					}
+
+		            stream.publish(new RecordResult(br, ae, batchIndex));
 				}
 			}
 		}
@@ -748,13 +751,13 @@ public final class Batch {
 				}
 			}
 			catch (AerospikeException ae) {
-				if (ae.getInDoubt()) {
-					setInDoubt();
-				}
+				setException(ae);
 				status.setException(ae);
 			}
 			catch (Throwable e) {
-				setInDoubt();
+				AerospikeException ae = new AerospikeException(e);
+				ae.setInDoubt(true);
+				setException(ae);
 				status.setException(new AerospikeException(e));
 			}
 		}
@@ -873,5 +876,6 @@ public final class Batch {
 
 		abstract NodeExecutor createCommand(BatchNode batchNode);
 		abstract List<BatchNode> generateBatchNodes();
+		abstract void setException(AerospikeException ae);
 	}
 }

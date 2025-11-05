@@ -30,6 +30,7 @@ import com.aerospike.client.fluent.policy.BatchReadPolicy;
 import com.aerospike.client.fluent.policy.BatchUDFPolicy;
 import com.aerospike.client.fluent.policy.BatchWritePolicy;
 import com.aerospike.client.fluent.policy.CommitLevel;
+import com.aerospike.client.fluent.policy.QueryDuration;
 import com.aerospike.client.fluent.policy.ReadModeAP;
 
 public final class CommandBuffer {
@@ -596,6 +597,646 @@ public final class CommandBuffer {
 	}
 
 	//--------------------------------------------------
+	// Query
+	//--------------------------------------------------
+
+	public void setQueryForeground(QueryForeground cmd) {
+		int fieldCount = 0;
+		//int filterSize = 0;
+		//int binNameSize = 0;
+
+		begin();
+
+		if (cmd.namespace != null) {
+			dataOffset += Buffer.estimateSizeUtf8(cmd.namespace) + Command.FIELD_HEADER_SIZE;
+			fieldCount++;
+		}
+
+		if (cmd.set != null) {
+			dataOffset += Buffer.estimateSizeUtf8(cmd.set) + Command.FIELD_HEADER_SIZE;
+			fieldCount++;
+		}
+
+		// Estimate recordsPerSecond field size. This field is used in new servers and not used
+		// (but harmless to add) in old servers.
+		if (cmd.recordsPerSecond > 0) {
+			dataOffset += 4 + Command.FIELD_HEADER_SIZE;
+			fieldCount++;
+		}
+
+		// Estimate socket timeout field size. This field is used in new servers and not used
+		// (but harmless to add) in old servers.
+		dataOffset += 4 + Command.FIELD_HEADER_SIZE;
+		fieldCount++;
+
+		// Estimate taskId field.
+		dataOffset += 8 + Command.FIELD_HEADER_SIZE;
+		fieldCount++;
+
+		// TODO: Handle secondary index query
+		//Filter filter = statement.getFilter();
+		String[] binNames = cmd.binNames;
+		//byte[] packedCtx = null;
+		//String indexName = null;
+		//byte[] packedExp = null;
+
+		/*
+		if (filter != null) {
+			IndexCollectionType type = filter.getCollectionType();
+
+			// Estimate INDEX_TYPE field.
+			if (type != IndexCollectionType.DEFAULT) {
+				dataOffset += FIELD_HEADER_SIZE + 1;
+				fieldCount++;
+			}
+
+			// Estimate INDEX_RANGE field.
+			dataOffset += FIELD_HEADER_SIZE;
+			filterSize++;  // num filters
+			filterSize += filter.estimateSize();
+
+			dataOffset += filterSize;
+			fieldCount++;
+
+			if (! isNew) {
+				// Query bin names are specified as a field (Scan bin names are specified later as operations)
+				// in old servers. Estimate size for selected bin names.
+				if (binNames != null && binNames.length > 0) {
+					dataOffset += FIELD_HEADER_SIZE;
+					binNameSize++;  // num bin names
+
+					for (String binName : binNames) {
+						binNameSize += Buffer.estimateSizeUtf8(binName) + 1;
+					}
+					dataOffset += binNameSize;
+					fieldCount++;
+				}
+			}
+
+			packedCtx = filter.getPackedCtx();
+			if (packedCtx != null) {
+				dataOffset += FIELD_HEADER_SIZE + packedCtx.length;
+				fieldCount++;
+			}
+
+			indexName = filter.getIndexName();
+			if (indexName != null) {
+				dataOffset += FIELD_HEADER_SIZE + Buffer.estimateSizeUtf8(indexName);
+				fieldCount++;
+			}
+
+			packedExp = filter.getPackedExp();
+			if (packedExp != null) {
+				dataOffset += FIELD_HEADER_SIZE + packedExp.length;
+				fieldCount++;
+			}
+		}
+		*/
+
+		if (cmd.filterExp != null) {
+			sizeFieldExpression(cmd.filterExp);
+			fieldCount++;
+		}
+
+		long maxRecords = 0;
+		int partsFullSize = 0;
+		int partsPartialDigestSize = 0;
+		int partsPartialBValSize = 0;
+
+		if (cmd.nodePartitions != null) {
+			partsFullSize = cmd.nodePartitions.partsFull.size() * 2;
+			partsPartialDigestSize = cmd.nodePartitions.partsPartial.size() * 20;
+
+			/* TODO Support secondary index query
+			if (filter != null) {
+				partsPartialBValSize = nodePartitions.partsPartial.size() * 8;
+			}
+			*/
+			maxRecords = cmd.nodePartitions.recordMax;
+		}
+
+		if (partsFullSize > 0) {
+			dataOffset += partsFullSize + Command.FIELD_HEADER_SIZE;
+			fieldCount++;
+		}
+
+		if (partsPartialDigestSize > 0) {
+			dataOffset += partsPartialDigestSize + Command.FIELD_HEADER_SIZE;
+			fieldCount++;
+		}
+
+		if (partsPartialBValSize > 0) {
+			dataOffset += partsPartialBValSize + Command.FIELD_HEADER_SIZE;
+			fieldCount++;
+		}
+
+		// Estimate max records field size. This field is used in new servers and not used
+		// (but harmless to add) in old servers.
+		if (maxRecords > 0) {
+			dataOffset += 8 + Command.FIELD_HEADER_SIZE;
+			fieldCount++;
+		}
+
+		// Operations (used in query execute) and bin names (used in scan/query) are mutually exclusive.
+		int operationCount = 0;
+
+		if (binNames != null) {
+			// Estimate size for selected bin names (query bin names already handled for old servers).
+			for (String binName : binNames) {
+				estimateOperationSize(binName);
+			}
+			operationCount = binNames.length;
+		}
+
+		sizeBuffer();
+
+		int readAttr = Command.INFO1_READ;
+		int writeAttr = 0;
+
+		if (!cmd.withNoBins) {
+			readAttr |= Command.INFO1_NOBINDATA;
+		}
+
+		if (cmd.expectedDuration == QueryDuration.SHORT) {
+			readAttr |= Command.INFO1_SHORT_QUERY;
+		}
+		else if (cmd.expectedDuration == QueryDuration.LONG_RELAX_AP) {
+			writeAttr |= Command.INFO2_RELAX_AP_LONG_QUERY;
+		}
+
+		int infoAttr = Command.INFO3_PARTITION_DONE;
+
+		if (cmd.compress) {
+			readAttr |= Command.INFO1_COMPRESS_RESPONSE;
+		}
+
+		// Write all header data except total size which must be written last.
+		dataBuffer[8] = Command.MSG_REMAINING_HEADER_SIZE; // Message header length.
+		dataBuffer[9] = (byte)readAttr;
+		dataBuffer[10] = (byte)writeAttr;
+		dataBuffer[11] = (byte)infoAttr;
+
+		for (int i = 12; i < 18; i++) {
+			dataBuffer[i] = 0;
+		}
+		Buffer.intToBytes(cmd.readTouchTtlPercent, dataBuffer, 18);
+		Buffer.intToBytes(cmd.totalTimeout, dataBuffer, 22);
+		Buffer.shortToBytes(fieldCount, dataBuffer, 26);
+		Buffer.shortToBytes(operationCount, dataBuffer, 28);
+		dataOffset = Command.MSG_TOTAL_HEADER_SIZE;
+
+		if (cmd.namespace != null) {
+			writeField(cmd.namespace, FieldType.NAMESPACE);
+		}
+
+		if (cmd.set != null) {
+			writeField(cmd.set, FieldType.TABLE);
+		}
+
+		// Write records per second.
+		if (cmd.recordsPerSecond > 0) {
+			writeField(cmd.recordsPerSecond, FieldType.RECORDS_PER_SECOND);
+		}
+
+		// Write socket idle timeout.
+		writeField(cmd.socketTimeout, FieldType.SOCKET_TIMEOUT);
+
+		// Write taskId field
+		writeField(cmd.taskId, FieldType.QUERY_ID);
+
+		// TODO: Handle secondary index query
+		/*
+		if (filter != null) {
+			IndexCollectionType type = filter.getCollectionType();
+
+			if (type != IndexCollectionType.DEFAULT) {
+				writeFieldHeader(1, FieldType.INDEX_TYPE);
+				dataBuffer[dataOffset++] = (byte)type.ordinal();
+			}
+
+			writeFieldHeader(filterSize, FieldType.INDEX_RANGE);
+			dataBuffer[dataOffset++] = (byte)1;
+			dataOffset = filter.write(dataBuffer, dataOffset);
+
+			if (!isNew) {
+				// Query bin names are specified as a field (Scan bin names are specified later as operations)
+				// in old servers.
+				if (binNames != null && binNames.length > 0) {
+					writeFieldHeader(binNameSize, FieldType.QUERY_BINLIST);
+					dataBuffer[dataOffset++] = (byte)binNames.length;
+
+					for (String binName : binNames) {
+						int len = Buffer.stringToUtf8(binName, dataBuffer, dataOffset + 1);
+						dataBuffer[dataOffset] = (byte)len;
+						dataOffset += len + 1;
+					}
+				}
+			}
+
+			if (packedCtx != null) {
+				writeFieldHeader(packedCtx.length, FieldType.INDEX_CONTEXT);
+				System.arraycopy(packedCtx, 0, dataBuffer, dataOffset, packedCtx.length);
+				dataOffset += packedCtx.length;
+			}
+
+			if (indexName != null) {
+				writeField(indexName, FieldType.INDEX_NAME);
+			}
+
+			if (packedExp != null) {
+				writeFieldHeader(packedExp.length, FieldType.INDEX_EXPRESSION);
+				System.arraycopy(packedExp, 0, dataBuffer, dataOffset, packedExp.length);
+				dataOffset += packedExp.length;
+			}
+		}
+		*/
+
+		if (cmd.filterExp != null) {
+			writeFieldExpression(cmd.filterExp);
+		}
+
+		if (partsFullSize > 0) {
+			writeFieldHeader(partsFullSize, FieldType.PID_ARRAY);
+
+			for (PartitionStatus part : cmd.nodePartitions.partsFull) {
+				Buffer.shortToLittleBytes(part.id, dataBuffer, dataOffset);
+				dataOffset += 2;
+			}
+		}
+
+		if (partsPartialDigestSize > 0) {
+			writeFieldHeader(partsPartialDigestSize, FieldType.DIGEST_ARRAY);
+
+			for (PartitionStatus part : cmd.nodePartitions.partsPartial) {
+				System.arraycopy(part.digest, 0, dataBuffer, dataOffset, 20);
+				dataOffset += 20;
+			}
+		}
+
+		if (partsPartialBValSize > 0) {
+			writeFieldHeader(partsPartialBValSize, FieldType.BVAL_ARRAY);
+
+			for (PartitionStatus part : cmd.nodePartitions.partsPartial) {
+				Buffer.longToLittleBytes(part.bval, dataBuffer, dataOffset);
+				dataOffset += 8;
+			}
+		}
+
+		if (maxRecords > 0) {
+			writeField(maxRecords, FieldType.MAX_RECORDS);
+		}
+
+		if (binNames != null) {
+			for (String binName : binNames) {
+				writeOperation(binName, Operation.Type.READ);
+			}
+		}
+
+		end();
+	}
+
+	/*
+	public void setQueryBackground(QueryForeground cmd) {
+		byte[] functionArgBuffer = null;
+		int fieldCount = 0;
+		//int filterSize = 0;
+		//int binNameSize = 0;
+
+		begin();
+
+		if (cmd.namespace != null) {
+			dataOffset += Buffer.estimateSizeUtf8(cmd.namespace) + Command.FIELD_HEADER_SIZE;
+			fieldCount++;
+		}
+
+		if (cmd.set != null) {
+			dataOffset += Buffer.estimateSizeUtf8(cmd.set) + Command.FIELD_HEADER_SIZE;
+			fieldCount++;
+		}
+
+		// Estimate recordsPerSecond field size. This field is used in new servers and not used
+		// (but harmless to add) in old servers.
+		if (cmd.recordsPerSecond > 0) {
+			dataOffset += 4 + Command.FIELD_HEADER_SIZE;
+			fieldCount++;
+		}
+
+		// Estimate socket timeout field size. This field is used in new servers and not used
+		// (but harmless to add) in old servers.
+		dataOffset += 4 + Command.FIELD_HEADER_SIZE;
+		fieldCount++;
+
+		// Estimate taskId field.
+		dataOffset += 8 + Command.FIELD_HEADER_SIZE;
+		fieldCount++;
+
+		// TODO: Handle secondary index query
+		//Filter filter = statement.getFilter();
+		String[] binNames = cmd.binNames;
+		//byte[] packedCtx = null;
+		//String indexName = null;
+		//byte[] packedExp = null;
+
+		if (filter != null) {
+			IndexCollectionType type = filter.getCollectionType();
+
+			// Estimate INDEX_TYPE field.
+			if (type != IndexCollectionType.DEFAULT) {
+				dataOffset += FIELD_HEADER_SIZE + 1;
+				fieldCount++;
+			}
+
+			// Estimate INDEX_RANGE field.
+			dataOffset += FIELD_HEADER_SIZE;
+			filterSize++;  // num filters
+			filterSize += filter.estimateSize();
+
+			dataOffset += filterSize;
+			fieldCount++;
+
+			if (! isNew) {
+				// Query bin names are specified as a field (Scan bin names are specified later as operations)
+				// in old servers. Estimate size for selected bin names.
+				if (binNames != null && binNames.length > 0) {
+					dataOffset += FIELD_HEADER_SIZE;
+					binNameSize++;  // num bin names
+
+					for (String binName : binNames) {
+						binNameSize += Buffer.estimateSizeUtf8(binName) + 1;
+					}
+					dataOffset += binNameSize;
+					fieldCount++;
+				}
+			}
+
+			packedCtx = filter.getPackedCtx();
+			if (packedCtx != null) {
+				dataOffset += FIELD_HEADER_SIZE + packedCtx.length;
+				fieldCount++;
+			}
+
+			indexName = filter.getIndexName();
+			if (indexName != null) {
+				dataOffset += FIELD_HEADER_SIZE + Buffer.estimateSizeUtf8(indexName);
+				fieldCount++;
+			}
+
+			packedExp = filter.getPackedExp();
+			if (packedExp != null) {
+				dataOffset += FIELD_HEADER_SIZE + packedExp.length;
+				fieldCount++;
+			}
+		}
+
+		// Estimate aggregation/background function size.
+		if (cmd.functionName != null) {
+			dataOffset += Command.FIELD_HEADER_SIZE + 1;  // udf type
+			dataOffset += Buffer.estimateSizeUtf8(cmd.packageName) + Command.FIELD_HEADER_SIZE;
+			dataOffset += Buffer.estimateSizeUtf8(cmd.functionName) + Command.FIELD_HEADER_SIZE;
+
+			if (cmd.functionArgs.length > 0) {
+				functionArgBuffer = Packer.pack(cmd.functionArgs);
+			}
+			else {
+				functionArgBuffer = new byte[0];
+			}
+			dataOffset += Command.FIELD_HEADER_SIZE + functionArgBuffer.length;
+			fieldCount += 4;
+		}
+
+		if (cmd.filterExp != null) {
+			sizeFieldExpression(cmd.filterExp);
+			fieldCount++;
+		}
+
+		long maxRecords = 0;
+		int partsFullSize = 0;
+		int partsPartialDigestSize = 0;
+		int partsPartialBValSize = 0;
+
+		if (cmd.nodePartitions != null) {
+			partsFullSize = cmd.nodePartitions.partsFull.size() * 2;
+			partsPartialDigestSize = cmd.nodePartitions.partsPartial.size() * 20;
+
+			if (filter != null) {
+				partsPartialBValSize = nodePartitions.partsPartial.size() * 8;
+			}
+			maxRecords = cmd.nodePartitions.recordMax;
+		}
+
+		if (partsFullSize > 0) {
+			dataOffset += partsFullSize + Command.FIELD_HEADER_SIZE;
+			fieldCount++;
+		}
+
+		if (partsPartialDigestSize > 0) {
+			dataOffset += partsPartialDigestSize + Command.FIELD_HEADER_SIZE;
+			fieldCount++;
+		}
+
+		if (partsPartialBValSize > 0) {
+			dataOffset += partsPartialBValSize + Command.FIELD_HEADER_SIZE;
+			fieldCount++;
+		}
+
+		// Estimate max records field size. This field is used in new servers and not used
+		// (but harmless to add) in old servers.
+		if (maxRecords > 0) {
+			dataOffset += 8 + Command.FIELD_HEADER_SIZE;
+			fieldCount++;
+		}
+
+		// Operations (used in query execute) and bin names (used in scan/query) are mutually exclusive.
+		Operation[] operations = cmd.operations;
+		int operationCount = 0;
+
+		if (operations != null) {
+			// Estimate size for background operations.
+			if (! cmd.background) {
+				throw new AerospikeException(ResultCode.PARAMETER_ERROR, "Operations not allowed in foreground query");
+			}
+
+			for (Operation operation : operations) {
+				if (! operation.type.isWrite) {
+					throw new AerospikeException(ResultCode.PARAMETER_ERROR, "Read operations not allowed in background query");
+				}
+				estimateOperationSize(operation);
+			}
+			operationCount = operations.length;
+		}
+		else if (binNames != null) {
+			// Estimate size for selected bin names (query bin names already handled for old servers).
+			for (String binName : binNames) {
+				estimateOperationSize(binName);
+			}
+			operationCount = binNames.length;
+		}
+
+		sizeBuffer();
+
+		if (cmd.background) {
+			// TODO Handle background query.
+			//writeHeaderWrite((WritePolicy)policy, Command.INFO2_WRITE, fieldCount, operationCount);
+		}
+		else {
+			int readAttr = Command.INFO1_READ;
+			int writeAttr = 0;
+
+			if (!cmd.includeBinData) {
+				readAttr |= Command.INFO1_NOBINDATA;
+			}
+
+			if (cmd.expectedDuration == QueryDuration.SHORT) {
+				readAttr |= Command.INFO1_SHORT_QUERY;
+			}
+			else if (cmd.expectedDuration == QueryDuration.LONG_RELAX_AP) {
+				writeAttr |= Command.INFO2_RELAX_AP_LONG_QUERY;
+			}
+
+			int infoAttr = Command.INFO3_PARTITION_DONE;
+
+			if (cmd.compress) {
+				readAttr |= Command.INFO1_COMPRESS_RESPONSE;
+			}
+
+			// Write all header data except total size which must be written last.
+			dataBuffer[8] = Command.MSG_REMAINING_HEADER_SIZE; // Message header length.
+			dataBuffer[9] = (byte)readAttr;
+			dataBuffer[10] = (byte)writeAttr;
+			dataBuffer[11] = (byte)infoAttr;
+
+			for (int i = 12; i < 18; i++) {
+				dataBuffer[i] = 0;
+			}
+			Buffer.intToBytes(cmd.readTouchTtlPercent, dataBuffer, 18);
+			Buffer.intToBytes(cmd.totalTimeout, dataBuffer, 22);
+			Buffer.shortToBytes(fieldCount, dataBuffer, 26);
+			Buffer.shortToBytes(operationCount, dataBuffer, 28);
+			dataOffset = Command.MSG_TOTAL_HEADER_SIZE;
+		}
+
+		if (cmd.namespace != null) {
+			writeField(cmd.namespace, FieldType.NAMESPACE);
+		}
+
+		if (cmd.set != null) {
+			writeField(cmd.set, FieldType.TABLE);
+		}
+
+		// Write records per second.
+		if (cmd.recordsPerSecond > 0) {
+			writeField(cmd.recordsPerSecond, FieldType.RECORDS_PER_SECOND);
+		}
+
+		// Write socket idle timeout.
+		writeField(cmd.socketTimeout, FieldType.SOCKET_TIMEOUT);
+
+		// Write taskId field
+		writeField(cmd.taskId, FieldType.QUERY_ID);
+
+		// TODO: Handle secondary index query
+		if (filter != null) {
+			IndexCollectionType type = filter.getCollectionType();
+
+			if (type != IndexCollectionType.DEFAULT) {
+				writeFieldHeader(1, FieldType.INDEX_TYPE);
+				dataBuffer[dataOffset++] = (byte)type.ordinal();
+			}
+
+			writeFieldHeader(filterSize, FieldType.INDEX_RANGE);
+			dataBuffer[dataOffset++] = (byte)1;
+			dataOffset = filter.write(dataBuffer, dataOffset);
+
+			if (!isNew) {
+				// Query bin names are specified as a field (Scan bin names are specified later as operations)
+				// in old servers.
+				if (binNames != null && binNames.length > 0) {
+					writeFieldHeader(binNameSize, FieldType.QUERY_BINLIST);
+					dataBuffer[dataOffset++] = (byte)binNames.length;
+
+					for (String binName : binNames) {
+						int len = Buffer.stringToUtf8(binName, dataBuffer, dataOffset + 1);
+						dataBuffer[dataOffset] = (byte)len;
+						dataOffset += len + 1;
+					}
+				}
+			}
+
+			if (packedCtx != null) {
+				writeFieldHeader(packedCtx.length, FieldType.INDEX_CONTEXT);
+				System.arraycopy(packedCtx, 0, dataBuffer, dataOffset, packedCtx.length);
+				dataOffset += packedCtx.length;
+			}
+
+			if (indexName != null) {
+				writeField(indexName, FieldType.INDEX_NAME);
+			}
+
+			if (packedExp != null) {
+				writeFieldHeader(packedExp.length, FieldType.INDEX_EXPRESSION);
+				System.arraycopy(packedExp, 0, dataBuffer, dataOffset, packedExp.length);
+				dataOffset += packedExp.length;
+			}
+		}
+
+		if (cmd.functionName != null) {
+			writeFieldHeader(1, FieldType.UDF_OP);
+			dataBuffer[dataOffset++] = cmd.background? (byte)2 : (byte)1;
+			writeField(cmd.packageName, FieldType.UDF_PACKAGE_NAME);
+			writeField(cmd.functionName, FieldType.UDF_FUNCTION);
+			writeField(functionArgBuffer, FieldType.UDF_ARGLIST);
+		}
+
+		if (cmd.filterExp != null) {
+			writeFieldExpression(cmd.filterExp);
+		}
+
+		if (partsFullSize > 0) {
+			writeFieldHeader(partsFullSize, FieldType.PID_ARRAY);
+
+			for (PartitionStatus part : cmd.nodePartitions.partsFull) {
+				Buffer.shortToLittleBytes(part.id, dataBuffer, dataOffset);
+				dataOffset += 2;
+			}
+		}
+
+		if (partsPartialDigestSize > 0) {
+			writeFieldHeader(partsPartialDigestSize, FieldType.DIGEST_ARRAY);
+
+			for (PartitionStatus part : cmd.nodePartitions.partsPartial) {
+				System.arraycopy(part.digest, 0, dataBuffer, dataOffset, 20);
+				dataOffset += 20;
+			}
+		}
+
+		if (partsPartialBValSize > 0) {
+			writeFieldHeader(partsPartialBValSize, FieldType.BVAL_ARRAY);
+
+			for (PartitionStatus part : cmd.nodePartitions.partsPartial) {
+				Buffer.longToLittleBytes(part.bval, dataBuffer, dataOffset);
+				dataOffset += 8;
+			}
+		}
+
+		if (maxRecords > 0) {
+			writeField(maxRecords, FieldType.MAX_RECORDS);
+		}
+
+		if (operations != null) {
+			for (Operation operation : operations) {
+				writeOperation(operation);
+			}
+		}
+		else if (binNames != null) {
+			for (String binName : binNames) {
+				writeOperation(binName, Operation.Type.READ);
+			}
+		}
+
+		end();
+	}
+*/
+	//--------------------------------------------------
 	// Transaction Monitor
 	//--------------------------------------------------
 
@@ -715,6 +1356,76 @@ public final class CommandBuffer {
 	//--------------------------------------------------
 	// Command Writes
 	//--------------------------------------------------
+
+	/*
+	private final void writeHeaderWrite(Command cmd, int writeAttr, int fieldCount, int operationCount) {
+		// Set flags.
+		int generation = 0;
+		int readAttr = 0;
+		int infoAttr = 0;
+		int txnAttr = 0;
+
+		switch (policy.recordExistsAction) {
+		case UPDATE:
+			break;
+		case UPDATE_ONLY:
+			infoAttr |= Command.INFO3_UPDATE_ONLY;
+			break;
+		case REPLACE:
+			infoAttr |= Command.INFO3_CREATE_OR_REPLACE;
+			break;
+		case REPLACE_ONLY:
+			infoAttr |= Command.INFO3_REPLACE_ONLY;
+			break;
+		case CREATE_ONLY:
+			writeAttr |= Command.INFO2_CREATE_ONLY;
+			break;
+		}
+
+		switch (policy.generationPolicy) {
+		case NONE:
+			break;
+		case EXPECT_GEN_EQUAL:
+			generation = policy.generation;
+			writeAttr |= Command.INFO2_GENERATION;
+			break;
+		case EXPECT_GEN_GT:
+			generation = policy.generation;
+			writeAttr |= Command.INFO2_GENERATION_GT;
+			break;
+		}
+
+		if (policy.commitLevel == CommitLevel.COMMIT_MASTER) {
+			infoAttr |= Command.INFO3_COMMIT_MASTER;
+		}
+
+		if (policy.durableDelete) {
+			writeAttr |= Command.INFO2_DURABLE_DELETE;
+		}
+
+		if (policy.onLockingOnly) {
+			txnAttr |= Command.INFO4_TXN_ON_LOCKING_ONLY;
+		}
+
+		if (policy.xdr) {
+			readAttr |= Command.INFO1_XDR;
+		}
+
+		// Write all header data except total size which must be written last.
+		dataBuffer[8]  = Command.MSG_REMAINING_HEADER_SIZE; // Message header length.
+		dataBuffer[9]  = (byte)readAttr;
+		dataBuffer[10] = (byte)writeAttr;
+		dataBuffer[11] = (byte)infoAttr;
+		dataBuffer[12] = (byte)txnAttr;
+		dataBuffer[13] = 0; // clear the result code
+		Buffer.intToBytes(generation, dataBuffer, 14);
+		Buffer.intToBytes(policy.expiration, dataBuffer, 18);
+		Buffer.intToBytes(cmd.serverTimeout, dataBuffer, 22);
+		Buffer.shortToBytes(fieldCount, dataBuffer, 26);
+		Buffer.shortToBytes(operationCount, dataBuffer, 28);
+		dataOffset = Command.MSG_TOTAL_HEADER_SIZE;
+	}
+	*/
 
 	private void writeHeaderOperate(OperateWriteCommand cmd, int fieldCount) {
 		// Set flags.
@@ -922,6 +1633,12 @@ public final class CommandBuffer {
 		dataOffset += 7;
 	}
 
+	private void writeField(long val, int type) {
+		writeFieldHeader(8, type);
+		Buffer.longToBytes(val, dataBuffer, dataOffset);
+		dataOffset += 8;
+	}
+
 	private void writeFieldLE(long val, int type) {
 		writeFieldHeader(8, type);
 		Buffer.longToLittleBytes(val, dataBuffer, dataOffset);
@@ -946,6 +1663,12 @@ public final class CommandBuffer {
 		System.arraycopy(bytes, 0, dataBuffer, dataOffset + Command.FIELD_HEADER_SIZE, bytes.length);
 		writeFieldHeader(bytes.length, type);
 		dataOffset += bytes.length;
+	}
+
+	private void writeField(int val, int type) {
+		writeFieldHeader(4, type);
+		Buffer.intToBytes(val, dataBuffer, dataOffset);
+		dataOffset += 4;
 	}
 
 	private void writeFieldHeader(int size, int type) {

@@ -30,7 +30,6 @@ import com.aerospike.client.fluent.policy.Settings;
 public class ReadCommand extends Command {
     final Key key;
     final Partition partition;
-	final Replica replica;
     final ReadModeAP readModeAP;
     final ReadModeSC readModeSC;
     final String[] binNames;
@@ -41,49 +40,18 @@ public class ReadCommand extends Command {
 
     public ReadCommand(
         Cluster cluster, Partitions partitions, Txn txn, Key key, String[] binNames,
-        boolean withNoBins, Expression filterExp, boolean failOnFilteredOut,
-		Settings policy
+        Replica replica, ReadModeAP readModeAP, ReadModeSC readModeSC, boolean linearize,
+        boolean withNoBins, Expression filterExp, boolean failOnFilteredOut, Settings policy
     ) {
-        super(cluster, key.namespace, txn, filterExp, policy);
-
-        if (partitions.scMode) {
-            this.readModeAP = ReadModeAP.ONE;
-            this.readModeSC = policy.getReadModeSC();
-
-            switch (readModeSC) {
-            case SESSION:
-                this.replica = Replica.MASTER;
-                this.linearize = false;
-                break;
-
-            case LINEARIZE:
-                Replica replica = policy.getReplicaOrder();
-
-                if (replica == Replica.PREFER_RACK) {
-                    replica = Replica.SEQUENCE;
-                }
-                this.replica = replica;
-                this.linearize = true;
-                break;
-
-            default:
-                this.replica = policy.getReplicaOrder();
-                this.linearize = false;
-                break;
-            }
-        }
-        else {
-            this.replica = policy.getReplicaOrder();
-            this.readModeAP = policy.getReadModeAP();
-            this.readModeSC = ReadModeSC.SESSION;
-            this.linearize = false;
-        }
-
+        super(cluster, key.namespace, txn, filterExp, replica, policy);
         this.key = key;
+        this.partition = new Partition(partitions, key, replica, null, linearize);
+        this.readModeAP = readModeAP;
+        this.readModeSC = readModeSC;
         this.binNames = binNames;
         this.readTouchTtlPercent = policy.getResetTtlOnReadAtPercent();
         this.withNoBins = withNoBins;
         this.failOnFilteredOut = failOnFilteredOut;
-        this.partition = new Partition(partitions, key, replica, null, linearize);
+        this.linearize = linearize;
     }
 }

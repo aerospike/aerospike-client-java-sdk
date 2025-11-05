@@ -14,7 +14,7 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.aerospike.client.fluent.query;
+package com.aerospike.client.fluent.command;
 
 import java.io.Serializable;
 
