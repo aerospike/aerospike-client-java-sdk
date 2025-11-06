@@ -203,7 +203,7 @@ public final class Batch {
 	// OperateList
 	//-------------------------------------------------------
 
-	public static final class OperateListSync extends NodeExecutor {
+	public static final class OperateListSync extends BatchNodeExecutor {
 		private final List<BatchRecord> records;
 
 		public OperateListSync(
@@ -278,7 +278,7 @@ public final class Batch {
 		}
 
 		@Override
-		protected NodeExecutor createCommand(BatchNode batchNode) {
+		protected BatchNodeExecutor createCommand(BatchNode batchNode) {
 			return new OperateListSync(cluster, parent, batchNode, records, status);
 		}
 
@@ -289,7 +289,7 @@ public final class Batch {
 		}
 	}
 
-	public static final class OperateListAsync extends NodeExecutor {
+	public static final class OperateListAsync extends BatchNodeExecutor {
 		private final List<BatchRecord> records;
 		private final AsyncRecordStream stream;
 
@@ -381,7 +381,7 @@ public final class Batch {
 		}
 
 		@Override
-		protected NodeExecutor createCommand(BatchNode batchNode) {
+		protected BatchNodeExecutor createCommand(BatchNode batchNode) {
 			return new OperateListSync(cluster, parent, batchNode, records, status);
 		}
 
@@ -719,7 +719,7 @@ public final class Batch {
 	// Batch Base Command
 	//-------------------------------------------------------
 
-	public static abstract class NodeExecutor extends MultiExecutor implements IBatchCommand {
+	public static abstract class BatchNodeExecutor extends NodeExecutor implements IBatchCommand {
 		final BatchCommand parent;
 		final BatchNode batch;
 		final BatchStatus status;
@@ -727,7 +727,7 @@ public final class Batch {
 		int sequenceSC;
 		boolean splitRetry;
 
-		public NodeExecutor(
+		public BatchNodeExecutor(
 			Cluster cluster,
 			BatchCommand parent,
 			BatchNode batch,
@@ -843,7 +843,7 @@ public final class Batch {
 			// Run batch retries in parallel using virtual threads.
 			try (ExecutorService es = cluster.getExecutorService();) {
 				for (BatchNode batchNode : batchNodes) {
-					NodeExecutor exec = createCommand(batchNode);
+					BatchNodeExecutor exec = createCommand(batchNode);
 					exec.sequenceAP = sequenceAP;
 					exec.sequenceSC = sequenceSC;
 					exec.socketTimeout = socketTimeout;
@@ -874,7 +874,7 @@ public final class Batch {
 			// Do nothing by default. Batch writes will override this method.
 		}
 
-		abstract NodeExecutor createCommand(BatchNode batchNode);
+		abstract BatchNodeExecutor createCommand(BatchNode batchNode);
 		abstract List<BatchNode> generateBatchNodes();
 		abstract void setException(AerospikeException ae);
 	}

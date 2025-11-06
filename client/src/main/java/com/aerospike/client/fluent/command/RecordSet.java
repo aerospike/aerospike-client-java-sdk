@@ -14,7 +14,7 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.aerospike.client.fluent.query;
+package com.aerospike.client.fluent.command;
 
 import java.io.Closeable;
 import java.util.Iterator;
@@ -24,6 +24,7 @@ import java.util.concurrent.BlockingQueue;
 import com.aerospike.client.fluent.AerospikeException;
 import com.aerospike.client.fluent.Key;
 import com.aerospike.client.fluent.Record;
+import com.aerospike.client.fluent.query.KeyRecord;
 
 /**
  * This class manages record retrieval from queries.

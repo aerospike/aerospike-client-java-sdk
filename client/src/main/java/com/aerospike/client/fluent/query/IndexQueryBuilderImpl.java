@@ -1,21 +1,23 @@
 package com.aerospike.client.fluent.query;
 
-import java.util.List;
-
+import com.aerospike.client.fluent.AsyncRecordStream;
 import com.aerospike.client.fluent.Cluster;
 import com.aerospike.client.fluent.DataSet;
 import com.aerospike.client.fluent.Log;
+import com.aerospike.client.fluent.Node;
 import com.aerospike.client.fluent.RecordStream;
 import com.aerospike.client.fluent.Session;
 import com.aerospike.client.fluent.command.PartitionFilter;
-import com.aerospike.client.fluent.command.QueryForeground;
+import com.aerospike.client.fluent.command.PartitionTracker;
+import com.aerospike.client.fluent.command.QueryCommand;
+import com.aerospike.client.fluent.command.QueryExecutor;
 import com.aerospike.client.fluent.dsl.ParseResult;
 import com.aerospike.client.fluent.exp.Exp;
 import com.aerospike.client.fluent.exp.Expression;
-import com.aerospike.client.fluent.policy.Settings;
 import com.aerospike.client.fluent.policy.Behavior.Mode;
 import com.aerospike.client.fluent.policy.Behavior.OpKind;
 import com.aerospike.client.fluent.policy.Behavior.OpShape;
+import com.aerospike.client.fluent.policy.Settings;
 
 class IndexQueryBuilderImpl extends QueryImpl {
     private final DataSet dataSet;
@@ -64,21 +66,31 @@ class IndexQueryBuilderImpl extends QueryImpl {
         Settings policy = session.getBehavior().getSettings(OpKind.READ, OpShape.QUERY, Mode.ANY);
         Expression filterExp = getFilterExp();
 
-        PartitionFilter filter = PartitionFilter.range(
+        // TODO Sort?
+        //List<SortProperties> sortInfo = getQueryBuilder().getSortInfo();
+
+		QueryCommand cmd = new QueryCommand(cluster, dataSet, filterExp, policy, qb);
+
+		Node[] nodes = cluster.validateNodes();
+
+		PartitionFilter filter = PartitionFilter.range(
                 getQueryBuilder().getStartPartition(),
                 getQueryBuilder().getEndPartition() - getQueryBuilder().getStartPartition());
 
-        List<SortProperties> sortInfo = getQueryBuilder().getSortInfo();
+		PartitionTracker tracker = new PartitionTracker(cmd, nodes, filter);
+        AsyncRecordStream stream = new AsyncRecordStream(5000);
+        QueryExecutor exec = new QueryExecutor(cluster, cmd, nodes.length, tracker, stream);
 
-        QueryForeground cmd = new QueryForeground(cluster, dataSet, filterExp, policy, qb, 0,
-        	null, null);
+        cluster.startVirtualThread(() -> {
+    		try {
+    	        exec.execute();
+    		}
+    		catch (Throwable e) {
+    			exec.stopThreads(e);
+    		}
+        });
 
-        return null;
-        // TODO Complete
-    	/*
-        return new RecordStream(session, queryPolicy, stmt, filter, queryResults, limit, sortInfo);
-        RecordSet queryResults = getSession().getClient().queryPartitions(queryPolicy, stmt, filter);
-     */
+        return new RecordStream(stream);
     }
 
     private Expression getFilterExp() {

@@ -30,12 +30,12 @@ import com.aerospike.client.fluent.Node;
 import com.aerospike.client.fluent.Record;
 import com.aerospike.client.fluent.command.RecordParser.OpResults;
 
-public abstract class MultiExecutor extends SyncExecutor {
+public abstract class NodeExecutor extends SyncExecutor {
 	private static final int MAX_BUFFER_SIZE = 1024 * 1024 * 128;  // 128 MB
 
 	private final Node node;
-	private byte[] dataBuffer;
-	private int dataOffset;
+	protected byte[] dataBuffer;
+	protected int dataOffset;
 	protected int info3;
 	protected int resultCode;
 	protected int generation;
@@ -49,23 +49,20 @@ public abstract class MultiExecutor extends SyncExecutor {
 	/**
 	 * Batch and server execute constructor.
 	 */
-	protected MultiExecutor(Cluster cluster, BatchCommand cmd, Node node, boolean isOperation) {
+	protected NodeExecutor(Cluster cluster, BatchCommand cmd, Node node, boolean isOperation) {
 		super(cluster, cmd);
 		this.node = node;
 		this.isOperation = isOperation;
 	}
 
 	/**
-	 * Partition scan/query constructor.
+	 * Query constructor.
 	 */
-	/*
-	protected MultiCommand(Cluster cluster, Policy policy, Node node, String namespace, int socketTimeout, int totalTimeout) {
-		super(cluster, policy, socketTimeout, totalTimeout, namespace);
+	protected NodeExecutor(Cluster cluster, QueryCommand cmd, Node node) {
+		super(cluster, cmd);
 		this.node = node;
 		this.isOperation = false;
-		this.clusterKey = 0;
-		this.first = false;
-	}*/
+	}
 
 	@Override
 	protected boolean isSingle() {

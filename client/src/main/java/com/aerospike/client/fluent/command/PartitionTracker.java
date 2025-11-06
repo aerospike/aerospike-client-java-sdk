@@ -60,17 +60,17 @@ public final class PartitionTracker {
 		setMaxRecords(policy.maxRecords);
 	}
 */
-	public PartitionTracker(QueryForeground policy, Statement stmt, Node[] nodes) {
+	public PartitionTracker(QueryCommand policy, Statement stmt, Node[] nodes) {
 		this(policy, nodes.length);
 		setMaxRecords(policy, stmt);
 	}
 
-	public PartitionTracker(QueryForeground policy, Statement stmt, int nodeCapacity) {
+	public PartitionTracker(QueryCommand policy, Statement stmt, int nodeCapacity) {
 		this(policy, nodeCapacity);
 		setMaxRecords(policy, stmt);
 	}
 
-	private PartitionTracker(QueryForeground policy, int nodeCapacity) {
+	private PartitionTracker(QueryCommand policy, int nodeCapacity) {
 		this.partitionBegin = 0;
 		this.nodeCapacity = nodeCapacity;
 		this.nodeFilter = null;
@@ -92,7 +92,7 @@ public final class PartitionTracker {
 	}
 	*/
 
-	public PartitionTracker(QueryForeground policy, Statement stmt, Node nodeFilter) {
+	public PartitionTracker(QueryCommand policy, Statement stmt, Node nodeFilter) {
 		this(policy, nodeFilter);
 		setMaxRecords(policy, stmt);
 	}
@@ -116,11 +116,11 @@ public final class PartitionTracker {
 		this((Policy)policy, nodeCapacity, filter, policy.maxRecords);
 	}
 */
-	public PartitionTracker(QueryForeground cmd, Statement stmt, Node[] nodes, PartitionFilter filter) {
-		this(cmd, nodes, filter, (stmt.maxRecords > 0) ? stmt.maxRecords : cmd.maxRecords);
+	public PartitionTracker(QueryCommand cmd, Node[] nodes, PartitionFilter filter) {
+		this(cmd, nodes, filter, cmd.maxRecords);
 	}
 
-	public PartitionTracker(QueryForeground cmd, Statement stmt, int nodeCapacity, PartitionFilter filter) {
+	public PartitionTracker(QueryCommand cmd, Statement stmt, int nodeCapacity, PartitionFilter filter) {
 		this(cmd, nodeCapacity, filter, (stmt.maxRecords > 0) ?
 			stmt.maxRecords : cmd.maxRecords);
 	}
@@ -175,7 +175,7 @@ public final class PartitionTracker {
 		init(cmd);
 	}
 
-	private void setMaxRecords(QueryForeground cmd, Statement stmt) {
+	private void setMaxRecords(QueryCommand cmd, Statement stmt) {
 		setMaxRecords((stmt.maxRecords > 0)? stmt.maxRecords : cmd.maxRecords);
 	}
 

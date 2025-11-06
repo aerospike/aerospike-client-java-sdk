@@ -153,6 +153,17 @@ public class Main {
             catch (AerospikeException ae) {
                 System.out.printf("Exception received as expected: %s (%s)\n", ae.getMessage(), ae.getClass().getSimpleName());
             }
+
+            System.out.println("Foreground query");
+
+            rs = session.query(set).execute();
+            int count = 0;
+
+            while (rs.hasNext()) {
+                System.out.println(rs.next());
+                count++;
+            }
+            System.out.println("Foreground query count: " + count);
         }
         catch (Throwable t) {
        		System.out.println("Error: " + Util.getErrorMessage(t));

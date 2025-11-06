@@ -18,38 +18,35 @@ package com.aerospike.client.fluent.command;
 
 import com.aerospike.client.fluent.Cluster;
 import com.aerospike.client.fluent.DataSet;
-import com.aerospike.client.fluent.command.PartitionTracker.NodePartitions;
 import com.aerospike.client.fluent.exp.Expression;
 import com.aerospike.client.fluent.policy.QueryDuration;
 import com.aerospike.client.fluent.policy.Settings;
 import com.aerospike.client.fluent.query.QueryBuilder;
 
-public class QueryForeground extends Command {
+public final class QueryCommand extends Command {
 	final String set;
-	final long taskId;
+	final QueryDuration expectedDuration;
 	final long maxRecords;
-	final PartitionTracker tracker;
-	final NodePartitions nodePartitions;
 	final String[] binNames;
+	final int maxConcurrentNodes;
 	final int recordsPerSecond;
 	final int readTouchTtlPercent;
 	final boolean withNoBins;
-	final QueryDuration expectedDuration;
 
-	public QueryForeground(
-		Cluster cluster, DataSet set, Expression filterExp, Settings policy, QueryBuilder qb, long taskId,
-		PartitionTracker tracker, NodePartitions nodePartitions
+	public QueryCommand(
+		Cluster cluster, DataSet set, Expression filterExp, Settings policy, QueryBuilder qb
 	) {
 		super(cluster, set.getNamespace(), null, filterExp, policy.getReplicaOrder(), policy);
 		this.set = set.getSet();
-		this.taskId = taskId;
- 		this.tracker = tracker;
-		this.nodePartitions = nodePartitions;
+		this.expectedDuration = QueryDuration.LONG;
 		this.binNames = qb.getBinNames();
+		// TODO: Settings class says only used in batch, but it's really used in query.
+		// Settings needs to populate maxConcurrentNodes for query.
+		//this.maxConcurrentNodes = policy.getMaxConcurrentNodes();
+		this.maxConcurrentNodes = 0;
 		this.recordsPerSecond = 0;
 		this.readTouchTtlPercent = 0;
 		this.withNoBins = qb.getWithNoBins();
-		this.expectedDuration = QueryDuration.LONG;
 
 		if (qb.getPageSize() > 0) {
 			this.maxRecords = qb.getPageSize();

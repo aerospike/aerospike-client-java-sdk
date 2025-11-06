@@ -24,6 +24,7 @@ import com.aerospike.client.fluent.Operation;
 import com.aerospike.client.fluent.ResultCode;
 import com.aerospike.client.fluent.Txn;
 import com.aerospike.client.fluent.Value;
+import com.aerospike.client.fluent.command.PartitionTracker.NodePartitions;
 import com.aerospike.client.fluent.exp.Expression;
 import com.aerospike.client.fluent.policy.BatchDeletePolicy;
 import com.aerospike.client.fluent.policy.BatchReadPolicy;
@@ -600,7 +601,9 @@ public final class CommandBuffer {
 	// Query
 	//--------------------------------------------------
 
-	public void setQueryForeground(QueryForeground cmd) {
+	public void setQuery(
+		QueryCommand cmd, PartitionTracker tracker, NodePartitions nodePartitions, long taskId
+	) {
 		int fieldCount = 0;
 		//int filterSize = 0;
 		//int binNameSize = 0;
@@ -703,16 +706,16 @@ public final class CommandBuffer {
 		int partsPartialDigestSize = 0;
 		int partsPartialBValSize = 0;
 
-		if (cmd.nodePartitions != null) {
-			partsFullSize = cmd.nodePartitions.partsFull.size() * 2;
-			partsPartialDigestSize = cmd.nodePartitions.partsPartial.size() * 20;
+		if (nodePartitions != null) {
+			partsFullSize = nodePartitions.partsFull.size() * 2;
+			partsPartialDigestSize = nodePartitions.partsPartial.size() * 20;
 
 			/* TODO Support secondary index query
 			if (filter != null) {
 				partsPartialBValSize = nodePartitions.partsPartial.size() * 8;
 			}
 			*/
-			maxRecords = cmd.nodePartitions.recordMax;
+			maxRecords = nodePartitions.recordMax;
 		}
 
 		if (partsFullSize > 0) {
@@ -753,7 +756,7 @@ public final class CommandBuffer {
 		int readAttr = Command.INFO1_READ;
 		int writeAttr = 0;
 
-		if (!cmd.withNoBins) {
+		if (cmd.withNoBins) {
 			readAttr |= Command.INFO1_NOBINDATA;
 		}
 
@@ -802,7 +805,7 @@ public final class CommandBuffer {
 		writeField(cmd.socketTimeout, FieldType.SOCKET_TIMEOUT);
 
 		// Write taskId field
-		writeField(cmd.taskId, FieldType.QUERY_ID);
+		writeField(taskId, FieldType.QUERY_ID);
 
 		// TODO: Handle secondary index query
 		/*
@@ -858,7 +861,7 @@ public final class CommandBuffer {
 		if (partsFullSize > 0) {
 			writeFieldHeader(partsFullSize, FieldType.PID_ARRAY);
 
-			for (PartitionStatus part : cmd.nodePartitions.partsFull) {
+			for (PartitionStatus part : nodePartitions.partsFull) {
 				Buffer.shortToLittleBytes(part.id, dataBuffer, dataOffset);
 				dataOffset += 2;
 			}
@@ -867,7 +870,7 @@ public final class CommandBuffer {
 		if (partsPartialDigestSize > 0) {
 			writeFieldHeader(partsPartialDigestSize, FieldType.DIGEST_ARRAY);
 
-			for (PartitionStatus part : cmd.nodePartitions.partsPartial) {
+			for (PartitionStatus part : nodePartitions.partsPartial) {
 				System.arraycopy(part.digest, 0, dataBuffer, dataOffset, 20);
 				dataOffset += 20;
 			}
@@ -876,7 +879,7 @@ public final class CommandBuffer {
 		if (partsPartialBValSize > 0) {
 			writeFieldHeader(partsPartialBValSize, FieldType.BVAL_ARRAY);
 
-			for (PartitionStatus part : cmd.nodePartitions.partsPartial) {
+			for (PartitionStatus part : nodePartitions.partsPartial) {
 				Buffer.longToLittleBytes(part.bval, dataBuffer, dataOffset);
 				dataOffset += 8;
 			}

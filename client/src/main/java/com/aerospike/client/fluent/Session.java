@@ -79,7 +79,7 @@ public class Session {
     // --------------------------------------------
     // Query functionality
     // --------------------------------------------
-    /*
+
     public QueryBuilder query(DataSet dataSet) {
         return new QueryBuilder(this, dataSet);
     }
@@ -87,7 +87,7 @@ public class Session {
     public QueryBuilder query(Key key) {
         return new QueryBuilder(this, key);
     }
-*/
+
     /**
      * Point or batch read with one or more keys. Query with no parameters is valid, so must have (Key, Key...) to differentiate
      * @param key

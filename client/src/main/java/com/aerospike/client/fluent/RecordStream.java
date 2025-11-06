@@ -17,7 +17,6 @@ import com.aerospike.client.fluent.command.Statement;
 import com.aerospike.client.fluent.policy.QueryPolicy;
 import com.aerospike.client.fluent.query.FixedSizeRecordStream;
 import com.aerospike.client.fluent.query.KeyRecord;
-import com.aerospike.client.fluent.query.RecordSet;
 import com.aerospike.client.fluent.query.RecordStreamImpl;
 import com.aerospike.client.fluent.query.ResettablePagination;
 import com.aerospike.client.fluent.query.SingleItemRecordStream;
@@ -27,7 +26,7 @@ import com.aerospike.client.fluent.query.Sortable;
 public class RecordStream implements Iterator<RecordResult>, Closeable {
     private final RecordStreamImpl impl;
     public RecordStream() {impl = null;}
-    
+
     public RecordStream(Key key, Record record, boolean respondAllKeys) {
         impl = new SingleItemRecordStream(key, record, respondAllKeys);
     }
@@ -37,22 +36,22 @@ public class RecordStream implements Iterator<RecordResult>, Closeable {
 //    public RecordStream(List<BatchRecord> records, long limit, int pageSize, List<SortProperties> sortProperties) {
 //        impl = new FixedSizeRecordStream(records, limit, pageSize, sortProperties, true); // Default to true for backward compatibility
 //    }
-//    
+//
 //    public RecordStream(List<BatchRecord> records, long limit, int pageSize, List<SortProperties> sortProperties, boolean stackTraceOnException) {
 //        impl = new FixedSizeRecordStream(records, limit, pageSize, sortProperties, stackTraceOnException);
 //    }
-    
+
     public RecordStream(RecordResult[] records, long limit, int pageSize, List<SortProperties> sortProperties, boolean respondAllKeys) {
         impl = new FixedSizeRecordStream(records, limit, pageSize, sortProperties, respondAllKeys);
     }
-    
+
     public RecordStream(List<RecordResult> records, long limit, int pageSize, List<SortProperties> sortProperties, boolean respondAllKeys) {
         impl = new FixedSizeRecordStream(records.toArray(RecordResult[]::new), limit, pageSize, sortProperties, respondAllKeys);
     }
     public RecordStream(AsyncRecordStream asyncStream) {
         impl = asyncStream;
     }
-    
+
     public RecordStream(Session session, QueryPolicy queryPolicy, Statement statement,
             PartitionFilter filter, long limit, List<SortProperties> sortProperties) {
     	impl = null;
@@ -115,7 +114,7 @@ public class RecordStream implements Iterator<RecordResult>, Closeable {
         });
         return records;
     }
-    
+
     /**
      * Filter the stream to return only failed operations. A failed operation is one where
      * the result code is not {@link ResultCode#OK}.
@@ -128,28 +127,28 @@ public class RecordStream implements Iterator<RecordResult>, Closeable {
      * RecordStream results = session.update(keys).bin("name").setTo("value").execute();
      * RecordStream failures = results.failures();
      * failures.forEach(failure -> {
-     *     System.err.println("Failed for key: " + failure.key() + 
+     *     System.err.println("Failed for key: " + failure.key() +
      *                        ", reason: " + failure.message());
      * });
      * </pre>
-     * 
+     *
      * @return A new RecordStream containing only records with resultCode != OK
      */
     public RecordStream failures() {
         List<RecordResult> failedRecords = new ArrayList<>();
-        
+
         while (this.hasNext()) {
             RecordResult result = this.next();
             if (result.resultCode() != ResultCode.OK) {
                 failedRecords.add(result);
             }
         }
-        
+
         // Return new RecordStream with filtered results
         // Using limit=0, pageSize=0, sortProperties=null for simple filtering
         return new RecordStream(failedRecords, 0L, 0, null, true);
     }
-    
+
     /**
      * Return the records from the current page as a list of entities.
      * @param <T>
