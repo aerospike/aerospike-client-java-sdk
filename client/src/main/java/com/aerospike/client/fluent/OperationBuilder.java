@@ -149,6 +149,9 @@ public class OperationBuilder implements FilterableOperation<OperationBuilder> {
     }
 
     public OperationBuilder ensureGenerationIs(int generation) {
+        if (generation <= 0) {
+            throw new IllegalArgumentException("Generation must be greater than 0");
+        }
         this.generation = generation;
         return this;
     }

@@ -11,7 +11,7 @@ public class ObjectBuilder<T> {
     private final OperationObjectBuilder<T> opBuilder;
     private final List<T> elements;
     private RecordMapper<T> recordMapper;
-    private int generation = -1;
+    private int generation = 0;
     private long expirationInSeconds = 0;
     private long expirationInSecondsForAll = 0;
     private Txn txnToUse;
@@ -38,6 +38,9 @@ public class ObjectBuilder<T> {
     }
 
     public ObjectBuilder<T> ensureGenerationIs(int generation) {
+        if (generation <= 0) {
+            throw new IllegalArgumentException("Generation must be greater than 0");
+        }
         this.generation = generation;
         return this;
     }
@@ -360,7 +363,7 @@ public class ObjectBuilder<T> {
         CommandType type = OperationBuilder.areOperationsRetryable(operations) ? CommandType.WRITE_RETRYABLE : CommandType.WRITE_NON_RETRYABLE;
         WritePolicy wp = this.opBuilder.getSession().getBehavior().getSharedPolicy(type);
         wp.txn = this.txnToUse;
-        if (generation >= 0) {
+        if (generation > 0) {
             wp.generation = generation;
             wp.generationPolicy = GenerationPolicy.EXPECT_GEN_EQUAL;
         }
@@ -413,7 +416,7 @@ public class ObjectBuilder<T> {
                 WritePolicy wp = this.opBuilder.getSession().getBehavior().getSharedPolicy(type);
                 wp.txn = this.txnToUse;
 
-                if (generation >= 0) {
+                if (generation > 0) {
                     wp.generation = generation;
                     wp.generationPolicy = GenerationPolicy.EXPECT_GEN_EQUAL;
                 }
@@ -553,7 +556,7 @@ public class ObjectBuilder<T> {
                     WritePolicy wp = this.opBuilder.getSession().getBehavior().getSharedPolicy(type);
                     wp.txn = this.txnToUse;
 
-                    if (generation >= 0) {
+                    if (generation > 0) {
                         wp.generation = generation;
                         wp.generationPolicy = GenerationPolicy.EXPECT_GEN_EQUAL;
                     }
@@ -627,7 +630,7 @@ public class ObjectBuilder<T> {
                     WritePolicy wp = this.opBuilder.getSession().getBehavior().getSharedPolicy(type);
                     wp.txn = this.txnToUse;
 
-                    if (generation >= 0) {
+                    if (generation > 0) {
                         wp.generation = generation;
                         wp.generationPolicy = GenerationPolicy.EXPECT_GEN_EQUAL;
                     }
@@ -694,7 +697,7 @@ public class ObjectBuilder<T> {
 
             BatchWritePolicy bwp = new BatchWritePolicy();
             bwp.sendKey = batchPolicy.sendKey;
-            if (generation != 0) {
+            if (generation > 0) {
                 bwp.generation = generation;
                 bwp.generationPolicy = GenerationPolicy.EXPECT_GEN_EQUAL;
             }

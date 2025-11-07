@@ -121,6 +121,9 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
     }
 
     public BinsValuesBuilder ensureGenerationIs(int generation) {
+        if (generation <= 0) {
+            throw new IllegalArgumentException("Generation must be greater than 0");
+        }
         checkValuesExist("ensureGenerationIs");
         current.generation = generation;
         return this;
@@ -427,7 +430,7 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
 
             BatchWritePolicy bwp = new BatchWritePolicy();
 
-            if (valueSet.generation != 0) {
+            if (valueSet.generation > 0) {
                 bwp.generation = valueSet.generation;
             }
 
@@ -511,7 +514,7 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
 
             BatchWritePolicy bwp = new BatchWritePolicy();
 
-            if (valueSet.generation != 0) {
+            if (valueSet.generation > 0) {
                 bwp.generation = valueSet.generation;
             }
 
