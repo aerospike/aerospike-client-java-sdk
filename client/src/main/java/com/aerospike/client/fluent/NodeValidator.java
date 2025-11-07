@@ -311,13 +311,18 @@ public final class NodeValidator {
 	private void validateServerBuildVersion(HashMap<String,String> map) {
 		String build = map.get("build");
 		version = Version.convertStringToVersion(build, name, primaryAddress);
+
+		if (version.isLessThan(Version.MIN_SERVER_VERSION)) {
+			throw new AerospikeException.InvalidNode("Node " + this.name + ' ' + this.primaryHost +
+				" version " + version + " must be >= " + Version.MIN_SERVER_VERSION);
+		}
 	}
 
 	private void validateClusterName(ClusterDefinition def, HashMap<String,String> map) {
 		String id = map.get("cluster-name");
 
 		if (id == null || ! def.clusterName.equals(id)) {
-			throw new AerospikeException.InvalidNode("Node " + this.name + ' ' + this.primaryHost + ' ' +
+			throw new AerospikeException.InvalidNode("Node " + this.name + ' ' + this.primaryHost +
 				" expected cluster name '" + def.clusterName + "' received '" + id + "'");
 		}
 	}

@@ -21,6 +21,7 @@ import java.net.InetSocketAddress;
 import com.aerospike.client.fluent.AerospikeException;
 
 public final class Version implements Comparable<Version> {
+	public static final Version MIN_SERVER_VERSION = new Version(6, 0, 0, 0);
 	public static final Version SERVER_VERSION_8_1 = new Version(8, 1, 0, 0);
 
 	/*
