@@ -19,6 +19,9 @@ package com.aerospike.client.fluent;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.aerospike.client.AerospikeException;
+import com.aerospike.client.Info;
+import com.aerospike.client.cluster.Node;
 import com.aerospike.client.fluent.exp.Exp;
 import com.aerospike.client.fluent.exp.Expression;
 import com.aerospike.client.fluent.info.InfoCommands;
@@ -56,16 +59,45 @@ public class Session {
     public Cluster getCluster() {
         return cluster;
     }
-    /*
 
     public void truncate(DataSet set) {
-        this.client.truncate(null, set.getNamespace(), set.getSet(), null);
+		// Send truncate command to one node. That node will distribute the command to other nodes.
+		StringBuilder sb = new StringBuilder(200);
+
+		if (set.getSet() != null) {
+			sb.append("truncate:namespace=");
+			sb.append(set.getNamespace());
+			sb.append(";set=");
+			sb.append(set.getSet());
+		}
+		else {
+			sb.append("truncate-namespace:namespace=");
+			sb.append(set.getNamespace());
+		}
+
+		/* TODO: Support beforeLastUpdate?
+		if (beforeLastUpdate != null) {
+			sb.append(";lut=");
+			// Convert to nanoseconds since unix epoch (1970-01-01)
+			sb.append(beforeLastUpdate.getTimeInMillis() * 1000000L);
+		}
+		*/
+
+		Node node = cluster.getRandomNode();
+
+		String response = Info.request(null, node, sb.toString());
+
+		if (! response.equalsIgnoreCase("ok")) {
+			throw new AerospikeException("Truncate failed: " + response);
+		}
     }
 
+/*
     public RecordMappingFactory getRecordMappingFactory() {
         return this.cluster.getRecordMappingFactory();
     }
 */
+
     private List<Key> buildKeyList(Key key1, Key key2, Key ...keys) {
         List<Key> keyList = new ArrayList<>();
         keyList.add(key1);

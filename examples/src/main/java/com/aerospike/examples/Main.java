@@ -164,6 +164,9 @@ public class Main {
                 count++;
             }
             System.out.println("Foreground query count: " + count);
+
+            System.out.println("Truncate records");
+            session.truncate(set);
         }
         catch (Throwable t) {
        		System.out.println("Error: " + Util.getErrorMessage(t));
