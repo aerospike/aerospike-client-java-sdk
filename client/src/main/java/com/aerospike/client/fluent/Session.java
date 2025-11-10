@@ -272,14 +272,13 @@ public class Session {
     public interface Transactional<T> {
         T execute(TransactionalSession txn);
     }
-    /*
 
     // Functional interface for void-returning operations
     @FunctionalInterface
     public interface TransactionalVoid {
         void execute(TransactionalSession txn);
     }
-
+/*
     public <T> T doInTransaction(Transactional<T> operation) {
         return new TransactionalSession(cluster, behavior).doInTransaction(operation);
     }

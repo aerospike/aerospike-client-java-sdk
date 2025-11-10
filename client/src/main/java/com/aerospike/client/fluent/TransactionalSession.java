@@ -1,17 +1,14 @@
 package com.aerospike.client.fluent;
 
-import com.aerospike.client.AerospikeException;
-import com.aerospike.client.ResultCode;
-import com.aerospike.client.Txn;
-import com.aerospike.policy.Behavior;
+import com.aerospike.client.fluent.policy.Behavior;
 
 /**
  * A session that supports transactional operations with automatic retry logic.
- * 
+ *
  * <p>This class extends the base Session class to provide transactional capabilities.
  * It manages Aerospike transactions with built-in retry logic for transient failures
  * and proper cleanup of transaction resources.</p>
- * 
+ *
  * <p>The transaction system supports:</p>
  * <ul>
  *   <li><strong>Automatic retry:</strong> Retries on transient failures like MRT_BLOCKED, MRT_VERSION_MISMATCH, and TXN_FAILED</li>
@@ -19,34 +16,34 @@ import com.aerospike.policy.Behavior;
  *   <li><strong>Resource cleanup:</strong> Automatically aborts transactions on exceptions</li>
  *   <li><strong>Return values:</strong> Supports both void and value-returning operations</li>
  * </ul>
- * 
+ *
  * <p>Example usage:</p>
  * <pre>{@code
  * TransactionalSession session = new TransactionalSession(cluster, behavior);
- * 
+ *
  * // Void transaction
  * session.doInTransaction(txSession -> {
  *     // Perform operations within transaction
  *     txSession.put(key, bin);
  * });
- * 
+ *
  * // Value-returning transaction
  * String result = session.doInTransaction(txSession -> {
  *     Record record = txSession.get(key);
  *     return record.getString("value");
  * });
  * }</pre>
- * 
+ *
  * @author Aerospike
  * @since 1.0
  */
 public class TransactionalSession extends Session{
     private final Txn txn;
     private int count = 0;
-    
+
     /**
      * Creates a new TransactionalSession with the specified cluster and behavior.
-     * 
+     *
      * @param cluster the Aerospike cluster
      * @param behavior the behavior configuration for this session
      */
@@ -57,17 +54,17 @@ public class TransactionalSession extends Session{
 
     /**
      * Gets the current transaction object.
-     * 
+     *
      * @return the current Txn instance
      */
     @Override
     public Txn getCurrentTransaction() {
         return this.txn;
     }
-    
+
     /**
      * Executes a transactional operation that returns a value.
-     * 
+     *
      * <p>This method provides automatic retry logic for transient failures and ensures
      * proper transaction cleanup. The operation will be retried automatically for
      * the following result codes:</p>
@@ -76,9 +73,9 @@ public class TransactionalSession extends Session{
      *   <li>MRT_VERSION_MISMATCH</li>
      *   <li>TXN_FAILED</li>
      * </ul>
-     * 
+     *
      * <p>For other failures, the exception will be thrown immediately without retry.</p>
-     * 
+     *
      * @param <T> the type of value returned by the operation
      * @param operation the transactional operation to execute
      * @return the result of the operation
@@ -86,6 +83,8 @@ public class TransactionalSession extends Session{
      * @throws RuntimeException if any other exception occurs during execution
      */
     public <T> T doInTransaction(Transactional<T> operation) {
+    	return null;
+    	/*
         try {
             if (++count > 1) {
                 // Nested transaction, do not enforce transaction semantics
@@ -122,11 +121,12 @@ public class TransactionalSession extends Session{
         finally {
             count--;
         }
+        */
     }
 
     /**
      * Executes a transactional operation that does not return a value.
-     * 
+     *
      * <p>This method provides automatic retry logic for transient failures and ensures
      * proper transaction cleanup. The operation will be retried automatically for
      * the following result codes:</p>
@@ -135,14 +135,15 @@ public class TransactionalSession extends Session{
      *   <li>MRT_VERSION_MISMATCH</li>
      *   <li>TXN_FAILED</li>
      * </ul>
-     * 
+     *
      * <p>For other failures, the exception will be thrown immediately without retry.</p>
-     * 
+     *
      * @param operation the transactional operation to execute
      * @throws AerospikeException if the operation fails with a non-retryable error
      * @throws RuntimeException if any other exception occurs during execution
      */
     public void doInTransaction(TransactionalVoid operation) {
+    	/*
         try {
             if (++count > 1) {
                 // Nested transaction, do not enforce transaction semantics
@@ -178,6 +179,7 @@ public class TransactionalSession extends Session{
         finally {
             count--;
         }
+        */
     }
 
 }
