@@ -28,9 +28,9 @@ import java.util.Map.Entry;
 import java.util.TreeMap;
 
 import com.aerospike.client.fluent.AerospikeException;
+import com.aerospike.client.fluent.ParticleType;
 import com.aerospike.client.fluent.Value;
 import com.aerospike.client.fluent.command.Buffer;
-import com.aerospike.client.fluent.command.ParticleType;
 
 /**
  * De-serialize collection objects using MessagePack format specification:

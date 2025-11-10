@@ -20,6 +20,7 @@ import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 
+import com.aerospike.client.fluent.ParticleType;
 import com.aerospike.client.fluent.Value;
 import com.aerospike.client.fluent.util.Unpacker;
 import com.aerospike.client.fluent.util.Utf8;
