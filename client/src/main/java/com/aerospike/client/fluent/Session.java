@@ -19,9 +19,6 @@ package com.aerospike.client.fluent;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.aerospike.client.AerospikeException;
-import com.aerospike.client.Info;
-import com.aerospike.client.cluster.Node;
 import com.aerospike.client.fluent.exp.Exp;
 import com.aerospike.client.fluent.exp.Expression;
 import com.aerospike.client.fluent.info.InfoCommands;
