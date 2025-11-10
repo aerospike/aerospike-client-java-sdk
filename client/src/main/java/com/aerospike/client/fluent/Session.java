@@ -278,7 +278,7 @@ public class Session {
     public interface TransactionalVoid {
         void execute(TransactionalSession txn);
     }
-/*
+
     public <T> T doInTransaction(Transactional<T> operation) {
         return new TransactionalSession(cluster, behavior).doInTransaction(operation);
     }
@@ -289,7 +289,7 @@ public class Session {
 //            return null; // Hidden from user
         });
     }
-*/
+
     // ---------------------
     // Info functionality
     // ---------------------
