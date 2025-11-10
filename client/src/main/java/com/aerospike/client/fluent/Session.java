@@ -89,11 +89,9 @@ public class Session {
 		}
     }
 
-/*
     public RecordMappingFactory getRecordMappingFactory() {
         return this.cluster.getRecordMappingFactory();
     }
-*/
 
     private List<Key> buildKeyList(Key key1, Key key2, Key ...keys) {
         List<Key> keyList = new ArrayList<>();
@@ -123,11 +121,10 @@ public class Session {
      * @param keys
      * @return
      */
-  /*
     public QueryBuilder query(Key key1, Key key2, Key...keys) {
         return new QueryBuilder(this, buildKeyList(key1, key2, keys));
     }
-*/
+
     public QueryBuilder query(List<Key> keyList) {
         return new QueryBuilder(this, keyList);
     }
@@ -227,14 +224,16 @@ public class Session {
     // Object mapping functionality
     // --------------------------------
 
-    public OperationObjectBuilder insertInto(DataSet dataSet) {
+    @SuppressWarnings("rawtypes")
+	public OperationObjectBuilder insertInto(DataSet dataSet) {
         return new OperationObjectBuilder(this, dataSet, OpType.INSERT);
     }
-/*
+
     public <T> OperationObjectBuilder<T> insertInto(TypeSafeDataSet<T> dataSet) {
         return new OperationObjectBuilder<T>(this, dataSet, OpType.INSERT);
     }
 
+    @SuppressWarnings("rawtypes")
     public OperationObjectBuilder upsert(DataSet dataSet) {
         return new OperationObjectBuilder(this, dataSet, OpType.UPSERT);
     }
@@ -243,6 +242,7 @@ public class Session {
         return new OperationObjectBuilder<T>(this, dataSet, OpType.UPSERT);
     }
 
+    @SuppressWarnings("rawtypes")
     public OperationObjectBuilder update(DataSet dataSet) {
         return new OperationObjectBuilder(this, dataSet, OpType.UPDATE);
     }
@@ -250,11 +250,11 @@ public class Session {
     public <T> OperationObjectBuilder<T> update(TypeSafeDataSet<T> dataSet) {
         return new OperationObjectBuilder<T>(this, dataSet, OpType.UPDATE);
     }
-*/
 
     // ---------------------------
     // Transaction functionality
     // ---------------------------
+
     /**
      * Return the current transaction, if any.
      * @return
@@ -266,12 +266,13 @@ public class Session {
     // --------------------------------------
     // Transaction helper methods
     // --------------------------------------
+
     // Functional interface for returning a result
-    /*
     @FunctionalInterface
     public interface Transactional<T> {
         T execute(TransactionalSession txn);
     }
+    /*
 
     // Functional interface for void-returning operations
     @FunctionalInterface
