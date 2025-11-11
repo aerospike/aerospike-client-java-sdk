@@ -1,0 +1,98 @@
+name: Java Build & Release
+on:
+  push:
+    tags:
+      - '[0-9]+.[0-9]+.[0-9]+'
+permissions:
+  id-token: write
+  contents: read
+  packages: write
+  attestations: write
+
+jobs:
+  extract-version:
+    runs-on: ${{ vars.BUILD_CONTAINER_DISTRO_VERSION }}
+    # Will only run if the push is a tag and the base ref is a branch in stage
+    if: |
+      startsWith(github.ref, 'refs/tags/') &&
+      contains(github.event.base_ref, 'refs/heads/CLIENT-3877')
+
+    # contains(github.event.base_ref, 'refs/heads/stage')
+    steps:
+      - uses: actions/checkout@v5
+      - name: Extract Version
+        id: extract
+        uses: ./.github/actions/extract-version-from-tag
+    outputs:
+      version: ${{ steps.extract.outputs.version }}
+      git_tag: ${{ steps.extract.outputs.git_tag }}
+
+  build-packages:
+    uses: aerospike/shared-workflows/.github/workflows/reusable_execute-build.yaml@v2.0.2
+    needs: extract-version
+    with:
+      runs-on: ${{ vars.BUILD_CONTAINER_DISTRO_VERSION }}
+      jf-project: ${{ vars.JFROG_PROJECT }}
+      jf-build-name: aerospike-client-java-fluent
+      jf-build-id: ${{ github.run_number }}-buildinfo-${{ needs.extract-version.outputs.version }}
+      gh-checkout-path: project-location # In the case of running in shared_workflows gh_checkout_path and gh_source_path will have the same content but we put them here by way of example.
+      # gh-workflows-ref: v2.0.2
+      gh-source-path: repo-source
+      working-directory: repo-source/.github/workflows/execute-build/test_apps/hi
+      build-script: |
+        mvn \
+          --batch-mode \
+          --no-transfer-progress \
+          --update-snapshots \
+          --fail-at-end \
+          --errors \
+          source:jar javadoc:javadoc clean package \
+          -DskipTests # Skip tests since tests are performed on PR's
+      gh-artifact-directory: build
+      gh-artifact-name: build-artifacts-${{ needs.extract-version.outputs.version }}
+      gh-retention-days: 1 # default
+      jf-url: https://artifact.aerospike.io # default
+      oidc-provider-name: ${{ secrets.OIDC_PROVIDER_NAME }}
+      oidc-audience: ${{ secrets.OIDC_AUDIANCE }}
+      publish-build-info: true
+
+  sign-artifacts:
+    needs: [build-packages, extract-version]
+    uses:  aerospike/shared-workflows/actions/setup-gpg@e@37581d0437fe0b76315dafc402882c875789b1af
+    with:
+      gh-retention-days: 1
+      gh-artifact-name: build-artifacts-${{ needs.extract-version.outputs.version }}
+      # gh-workflows-ref: v2.0.2 # Use specific shared-workflows version
+    secrets:
+      gpg-private-key: ${{ secrets.GPG_SECRET_KEY }}
+      gpg-public-key: ${{ secrets.GPG_PUBLIC_KEY }}
+      gpg-key-pass: ${{ secrets.GPG_PASS }}
+
+  deploy-artifacts:
+    needs: [sign-artifacts, extract-version]
+    uses: aerospike/shared-workflows/.github/workflows/reusable_deploy-artifacts.yaml@37581d0437fe0b76315dafc402882c875789b1af
+    with:
+      jf-project: ${{ vars.JFROG_PROJECT }}
+      jf-build-name: aerospike-client-java-fluent
+      jf-metadata-build-id: ${{ github.run_number }}-buildinfo
+      jf-build-id: ${{ github.run_number }}
+      gh-artifact-name: ${{ needs.sign-artifacts.outputs.gh-artifact-name }}
+      version: ${{ needs.extract-version.outputs.version }}
+      gh-retention-days: 1
+      # gh-workflows-ref: v2.0.2  # Use specific shared-workflows version
+      oidc-provider-name: gh-dev-test
+      oidc-audience: aerospike/testing
+      dry-run: false
+
+  create-release-bundle:
+    needs: [extract-version, deploy-artifacts]
+    uses: aerospike/shared-workflows/.github/workflows/reusable_create-release-bundle.yaml@37581d0437fe0b76315dafc402882c875789b1af
+    with:
+      jf-project: ${{ vars.JFROG_PROJECT }}
+      jf-build-names: aerospike-client-java-fluent:${{ github.run_number }},test-build-container:${{ github.run_number }}
+      jf-bundle-name: aerospike-client-java-fluent
+      version: ${{ needs.extract-version.outputs.version }}
+      # gh-workflows-ref: v2.0.2  # Use specific shared-workflows version
+      oidc-provider-name: gh-dev-test
+      oidc-audience: aerospike/testing
+      dry-run: false
