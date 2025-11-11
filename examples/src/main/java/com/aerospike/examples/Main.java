@@ -168,8 +168,12 @@ public class Main {
                 count++;
             }
             System.out.println("Foreground query count: " + count);
+
             Settings settings = Behavior.DEFAULT.getSettings(OpKind.READ, OpShape.QUERY, Mode.CP);
             System.out.printf("Batch mode maxConcurrentNodes = %d\n", settings.getMaxConcurrentNodes());
+
+            System.out.println("Truncate records");
+            session.truncate(set);
         }
         catch (Throwable t) {
        		System.out.println("Error: " + Util.getErrorMessage(t));

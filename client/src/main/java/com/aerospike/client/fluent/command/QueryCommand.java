@@ -40,12 +40,10 @@ public final class QueryCommand extends Command {
 		this.set = set.getSet();
 		this.expectedDuration = QueryDuration.LONG;
 		this.binNames = qb.getBinNames();
-		// TODO: Settings class says only used in batch, but it's really used in query.
-		// Settings needs to populate maxConcurrentNodes for query.
-		//this.maxConcurrentNodes = policy.getMaxConcurrentNodes();
-		this.maxConcurrentNodes = 0;
+		this.maxConcurrentNodes = policy.getMaxConcurrentNodes();
+		// TODO: recordsPerSecond needs to be added to either QueryBuilder or Settings.
 		this.recordsPerSecond = 0;
-		this.readTouchTtlPercent = 0;
+		this.readTouchTtlPercent = policy.getResetTtlOnReadAtPercent();
 		this.withNoBins = qb.getWithNoBins();
 
 		if (qb.getChunkSize() > 0) {
