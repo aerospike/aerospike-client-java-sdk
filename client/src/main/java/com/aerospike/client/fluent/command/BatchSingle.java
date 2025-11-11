@@ -139,7 +139,7 @@ public final class BatchSingle {
 		}
 	}
 */
-	public static class ReadRecord extends SingleExecutor {
+	public static class ReadRecord extends BatchSingleExecutor {
 		private final BatchReadCommand cmd;
 		private final BatchRead record;
 
@@ -258,7 +258,7 @@ public final class BatchSingle {
 		}
 	}
 
-	public static class OperateRecordSync extends SingleExecutor {
+	public static class OperateRecordSync extends BatchSingleExecutor {
 		private final Operation[] ops;
 		private final BatchAttr attr;
 		private final BatchRecord record;
@@ -442,9 +442,9 @@ public final class BatchSingle {
 	// Transaction
 	//-------------------------------------------------------
 /*
-	public static final class TxnVerify extends BaseCommand {
+	public static final class TxnVerify extends BatchSingleExecutor {
 		private final long version;
-		private final BatchRecord record;
+		private final BatchRecord br;
 
 		public TxnVerify(
 			Cluster cluster,
@@ -457,6 +457,13 @@ public final class BatchSingle {
 			super(cluster, policy, status, record.key, node, false);
 			this.version = version;
 			this.record = record;
+		}
+
+		@Override
+		protected CommandBuffer getCommandBuffer() {
+			CommandBuffer cb = new CommandBuffer();
+			cb.setTxnVerify(br.key, version);
+			return cb;
 		}
 
 		@Override
@@ -479,7 +486,8 @@ public final class BatchSingle {
 			}
 		}
 	}
-
+*/
+/*
 	public static final class TxnRoll extends BaseCommand {
 		private final Txn txn;
 		private final BatchRecord record;
@@ -528,7 +536,7 @@ public final class BatchSingle {
 		}
 	}
 */
-	public static abstract class SingleExecutor extends SyncExecutor implements IBatchCommand {
+	public static abstract class BatchSingleExecutor extends SyncExecutor implements IBatchCommand {
 		final BatchCommand parent;
 		BatchStatus status;
 		Key key;
@@ -537,7 +545,7 @@ public final class BatchSingle {
 		boolean hasWrite;
 		boolean isSC;
 
-		public SingleExecutor(
+		public BatchSingleExecutor(
 			Cluster cluster,
 			BatchCommand cmd,
 			BatchStatus status,

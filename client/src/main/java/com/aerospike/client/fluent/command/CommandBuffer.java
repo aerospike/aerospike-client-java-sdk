@@ -19,6 +19,7 @@ package com.aerospike.client.fluent.command;
 import java.util.zip.Deflater;
 
 import com.aerospike.client.fluent.AerospikeException;
+import com.aerospike.client.fluent.Bin;
 import com.aerospike.client.fluent.Key;
 import com.aerospike.client.fluent.Operation;
 import com.aerospike.client.fluent.ResultCode;
@@ -1272,6 +1273,73 @@ public final class CommandBuffer {
 		compress(cmd);
 	}
 
+	public void setTxnVerify(ReadCommand cmd, long ver) {
+		begin();
+		int fieldCount = estimateKeySize(cmd.key);
+
+		// Version field.
+		dataOffset += 7 + Command.FIELD_HEADER_SIZE;
+		fieldCount++;
+
+		sizeBuffer();
+		dataBuffer[8] = Command.MSG_REMAINING_HEADER_SIZE;
+		dataBuffer[9] = (byte)(Command.INFO1_READ | Command.INFO1_NOBINDATA);
+		dataBuffer[10] = (byte)0;
+		dataBuffer[11] = (byte)Command.INFO3_SC_READ_TYPE;
+		dataBuffer[12] = (byte)Command.INFO4_TXN_VERIFY_READ;
+		dataBuffer[13] = 0;
+		Buffer.intToBytes(0, dataBuffer, 14);
+		Buffer.intToBytes(0, dataBuffer, 18);
+		Buffer.intToBytes(cmd.serverTimeout, dataBuffer, 22);
+		Buffer.shortToBytes(fieldCount, dataBuffer, 26);
+		Buffer.shortToBytes(0, dataBuffer, 28);
+		dataOffset = Command.MSG_TOTAL_HEADER_SIZE;
+
+		writeKey(cmd.key);
+		writeFieldVersion(ver);
+		end();
+	}
+
+	public void setTxnMarkRollForward(WriteCommand cmd) {
+		Bin bin = new Bin("fwd", true);
+
+		begin();
+		int fieldCount = estimateKeySize(cmd.key);
+		estimateOperationSize(bin);
+		writeTxnMonitor(cmd, 0, Command.INFO2_WRITE, fieldCount, 1);
+		writeOperation(bin, Operation.Type.WRITE);
+		end();
+	}
+
+	public void setTxnClose(WriteCommand cmd) {
+		begin();
+		int fieldCount = estimateKeySize(cmd.key);
+		writeTxnMonitor(cmd, 0, Command.INFO2_WRITE | Command.INFO2_DELETE | Command.INFO2_DURABLE_DELETE,
+			fieldCount, 0);
+		end();
+	}
+
+	private void writeTxnMonitor(
+		WriteCommand cmd, int readAttr, int writeAttr, int fieldCount, int opCount
+	) {
+		sizeBuffer();
+
+		dataBuffer[8]  = Command.MSG_REMAINING_HEADER_SIZE;
+		dataBuffer[9]  = (byte)readAttr;
+		dataBuffer[10] = (byte)writeAttr;
+		dataBuffer[11] = (byte)0;
+		dataBuffer[12] = 0;
+		dataBuffer[13] = 0;
+		Buffer.intToBytes(0, dataBuffer, 14);
+		Buffer.intToBytes(0, dataBuffer, 18);
+		Buffer.intToBytes(cmd.serverTimeout, dataBuffer, 22);
+		Buffer.shortToBytes(fieldCount, dataBuffer, 26);
+		Buffer.shortToBytes(opCount, dataBuffer, 28);
+		dataOffset = Command.MSG_TOTAL_HEADER_SIZE;
+
+		writeKey(cmd.key);
+	}
+
 	//--------------------------------------------------
 	// Command Sizing
 	//--------------------------------------------------
@@ -1314,6 +1382,11 @@ public final class CommandBuffer {
 		dataOffset += key.digest.length + Command.FIELD_HEADER_SIZE;
 		fieldCount++;
 		return fieldCount;
+	}
+
+	private final void estimateOperationSize(Bin bin) {
+		dataOffset += Buffer.estimateSizeUtf8(bin.name) + Command.OPERATION_HEADER_SIZE;
+		dataOffset += bin.value.estimateSize();
 	}
 
 	private void estimateOperationSize(Operation operation) {
@@ -1678,6 +1751,19 @@ public final class CommandBuffer {
 		Buffer.intToBytes(size+1, dataBuffer, dataOffset);
 		dataOffset += 4;
 		dataBuffer[dataOffset++] = (byte)type;
+	}
+
+	private void writeOperation(Bin bin, Operation.Type operation) {
+		int nameLength = Buffer.stringToUtf8(bin.name, dataBuffer, dataOffset + Command.OPERATION_HEADER_SIZE);
+		int valueLength = bin.value.write(dataBuffer, dataOffset + Command.OPERATION_HEADER_SIZE + nameLength);
+
+		Buffer.intToBytes(nameLength + valueLength + 4, dataBuffer, dataOffset);
+		dataOffset += 4;
+		dataBuffer[dataOffset++] = (byte) operation.protocolType;
+		dataBuffer[dataOffset++] = (byte) bin.value.getType();
+		dataBuffer[dataOffset++] = (byte) 0;
+		dataBuffer[dataOffset++] = (byte) nameLength;
+		dataOffset += nameLength + valueLength;
 	}
 
 	private void writeOperation(Operation operation) {

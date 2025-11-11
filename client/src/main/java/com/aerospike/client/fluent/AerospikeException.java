@@ -18,6 +18,7 @@ package com.aerospike.client.fluent;
 
 import java.util.List;
 
+import com.aerospike.client.fluent.command.BatchRecord;
 import com.aerospike.client.fluent.command.Command;
 
 public class AerospikeException extends RuntimeException {
@@ -426,6 +427,86 @@ public class AerospikeException extends RuntimeException {
 
 		public Backoff(int resultCode) {
 			super(resultCode);
+		}
+	}
+
+	/**
+	 * Exception thrown when a transaction commit fails.
+	 */
+	public static final class Commit extends AerospikeException {
+		private static final long serialVersionUID = 1L;
+
+		/**
+		 * Error status of the attempted commit.
+		 */
+		public final CommitError error;
+
+		/**
+		 * Verify result for each read key in the transaction. May be null if failure occurred
+		 * before verify.
+		 */
+		public final BatchRecord[] verifyRecords;
+
+		/**
+		 * Roll forward/backward result for each write key in the transaction. May be null if
+		 * failure occurred before roll forward/backward.
+		 */
+		public final BatchRecord[] rollRecords;
+
+		public Commit(CommitError error, BatchRecord[] verifyRecords, BatchRecord[] rollRecords) {
+			super(ResultCode.TXN_FAILED, error.str);
+			this.error = error;
+			this.verifyRecords = verifyRecords;
+			this.rollRecords = rollRecords;
+		}
+
+		public Commit(CommitError error, BatchRecord[] verifyRecords, BatchRecord[] rollRecords, Throwable cause) {
+			super(ResultCode.TXN_FAILED, error.str, cause);
+			this.error = error;
+			this.verifyRecords = verifyRecords;
+			this.rollRecords = rollRecords;
+		}
+
+		@Override
+		public String getMessage() {
+			String msg = super.getMessage();
+			StringBuilder sb = new StringBuilder(1024);
+			recordsToString(sb, "verify errors:", verifyRecords);
+			recordsToString(sb, "roll errors:", rollRecords);
+			return msg + sb.toString();
+		}
+	}
+
+	private static void recordsToString(StringBuilder sb, String title, BatchRecord[] records) {
+		if (records == null) {
+			return;
+		}
+
+		int count = 0;
+
+		for (BatchRecord br : records) {
+			// Only show results with an error response.
+			if (!(br.resultCode == ResultCode.OK || br.resultCode == ResultCode.NO_RESPONSE)) {
+				// Only show first 3 errors.
+				if (count >= 3) {
+					sb.append(System.lineSeparator());
+					sb.append("...");
+					break;
+				}
+
+				if (count == 0) {
+					sb.append(System.lineSeparator());
+					sb.append(title);
+				}
+
+				sb.append(System.lineSeparator());
+				sb.append(br.key);
+				sb.append(',');
+				sb.append(br.resultCode);
+				sb.append(',');
+				sb.append(br.inDoubt);
+				count++;
+			}
 		}
 	}
 

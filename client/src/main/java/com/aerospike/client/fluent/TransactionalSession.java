@@ -1,6 +1,10 @@
 package com.aerospike.client.fluent;
 
+import com.aerospike.client.fluent.command.TxnRoll;
 import com.aerospike.client.fluent.policy.Behavior;
+import com.aerospike.client.fluent.policy.Settings;
+import com.aerospike.client.fluent.policy.Behavior.OpKind;
+import com.aerospike.client.fluent.policy.Behavior.OpShape;
 
 /**
  * A session that supports transactional operations with automatic retry logic.
@@ -180,5 +184,27 @@ public class TransactionalSession extends Session{
             count--;
         }
         */
+    }
+
+    private void commit() {
+    	/*
+		TxnRoll tr = new TxnRoll(getCluster(), txn);
+		Settings policy = getBehavior().getSettings(OpKind.READ, OpShape.BATCH, partitions.scMode);
+
+		switch (txn.getState()) {
+			default:
+			case OPEN:
+				tr.verify(mergedTxnVerifyPolicyDefault, mergedTxnRollPolicyDefault);
+				return tr.commit(mergedTxnRollPolicyDefault);
+
+			case VERIFIED:
+				return tr.commit(mergedTxnRollPolicyDefault);
+
+			case COMMITTED:
+				return;
+
+			case ABORTED:
+				throw new AerospikeException(ResultCode.TXN_ALREADY_ABORTED, "Transaction already aborted");
+		}*/
     }
 }
