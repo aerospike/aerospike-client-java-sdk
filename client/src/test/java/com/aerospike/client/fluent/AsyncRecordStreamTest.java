@@ -507,7 +507,7 @@ public class AsyncRecordStreamTest {
 		            Thread.ofVirtual().start(() -> {
 		                try {
 		                    startLatch.await();
-		                    if (stream.hasMorePages()) {
+		                    if (stream.hasMoreChunks()) {
 		                        trueCount.incrementAndGet();
 		                    }
 		                } catch (InterruptedException e) {
