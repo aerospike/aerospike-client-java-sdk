@@ -8,6 +8,7 @@ import com.aerospike.client.fluent.Key;
 import com.aerospike.client.fluent.Log;
 import com.aerospike.client.fluent.Partitions;
 import com.aerospike.client.fluent.Record;
+import com.aerospike.client.fluent.RecordResult;
 import com.aerospike.client.fluent.RecordStream;
 import com.aerospike.client.fluent.ResultCode;
 import com.aerospike.client.fluent.Session;
@@ -141,8 +142,10 @@ class SingleKeyQueryBuilderImpl extends QueryImpl {
         	exec.execute();
 
         	Record record = exec.getRecord();
-        	// Changed last parameter to "respondAllKeys" instead of "true"
-        	return new RecordStream(key, record, qb.isRespondAllKeys());
+            if (record != null || qb.isRespondAllKeys()) {
+	        	return new RecordStream(key, record);
+			}
+			return new RecordStream();
         }
         catch (AerospikeException ae) {
             if (Log.warnEnabled() && ae.getResultCode() == ResultCode.UNSUPPORTED_FEATURE) {
@@ -151,7 +154,10 @@ class SingleKeyQueryBuilderImpl extends QueryImpl {
                             + "This will throw an Unsupported Server Feature Exception.", key.namespace));
                 }
             }
-            throw ae;
+            if (qb.shouldIncludeResult(0)) {
+                return new RecordStream(new RecordResult(key, ae, 0));
+            }
+            return new RecordStream();
         }
     }
 }

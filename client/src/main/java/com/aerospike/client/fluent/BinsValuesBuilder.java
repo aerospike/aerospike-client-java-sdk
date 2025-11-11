@@ -436,6 +436,8 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
 
             bwp.expiration = getExpiration(valueSet);
             bwp.opType = opBuilder.opType;
+            bwp.sendKey = policy.getSendKey();
+            bwp.durableDelete = policy.getUseDurableDelete();
 
             batchRecords.add(new BatchWrite(bwp, key, ops));
         }
@@ -490,7 +492,7 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
 
             // Handle respondAllKeys and filterExp behavior
         }
-        return new RecordStream(results, 0, 0, null, true);
+        return new RecordStream(results, 0);
     }
 
     private RecordStream executeBatchAsync() {
@@ -520,6 +522,7 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
 
             bwp.expiration = getExpiration(valueSet);
             bwp.opType = opBuilder.opType;
+            bwp.sendKey = policy.getSendKey();
 
             batchRecords.add(new BatchWrite(bwp, key, ops));
         }
@@ -604,10 +607,6 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
         Settings policy = session.getBehavior().getSettings(OpKind.WRITE_RETRYABLE, OpShape.POINT, partitions.scMode);
         final Expression filterExp = processWhereClause(keys.get(0).namespace, opBuilder.getSession());
 
-//        Key[] keyArray = new Key[keys.size()];
-//        Record[] recordArray = new Record[keys.size()];
-        List<RecordResult> records = new ArrayList<>();
-
         if (txnToUse != null) {
             TxnMonitor.addKeys(txnToUse, cluster, partitions, policy, keys);
         }
@@ -616,7 +615,7 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
             try {
                 Record rec = operate(cluster, partitions, policy, filterExp, firstKey);
                 if (respondAllKeys || rec != null) {
-                    records.add(new RecordResult(firstKey, rec, 0));
+                    return new RecordStream(firstKey, rec);
                 }
             }
             catch (AerospikeException ae) {
@@ -624,12 +623,14 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
                     if (ae.getResultCode() != ResultCode.FILTERED_OUT) {
                         opBuilder.showWarningsOnException(ae, txnToUse, firstKey, getExpiration(valueSets.get(firstKey)));
                     }
-                    records.add(new RecordResult(firstKey, ae.getResultCode(), ae.getInDoubt(), ResultCode.getResultString(ae.getResultCode()), policy.getStackTraceOnException(), 0));
+                    return new RecordStream(new RecordResult(firstKey, ae, 0));
                 }
             }
+            return new RecordStream();
 
         } else {
             // Run multiple keys in parallel and join.
+            AsyncRecordStream stream = new AsyncRecordStream(keys.size());
             try (ExecutorService es = cluster.getExecutorService()) {
                 for (int i = 0; i < keys.size(); i++) {
                     final Key key = keys.get(i);
@@ -639,22 +640,22 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
                         try {
                             Record record = operate(cluster, partitions, policy, filterExp, key);
                             if (respondAllKeys || record != null) {
-                                records.add(new RecordResult(key, record, idx));
+                                stream.publish(new RecordResult(key, record, idx));
                             }
                         } catch (AerospikeException ae) {
                             if (shouldPublishException(ae)) {
                                 if (ae.getResultCode() != ResultCode.FILTERED_OUT) {
                                     opBuilder.showWarningsOnException(ae, txnToUse, key, getExpiration(valueSets.get(key)));
                                 }
-                                records.add(new RecordResult(key, ae.getResultCode(), ae.getInDoubt(), ResultCode.getResultString(ae.getResultCode()), policy.getStackTraceOnException(), idx));
+                                stream.publish(new RecordResult(key, ae, idx));
                             }
                         }
 
                     });
                 }
             }
+            return new RecordStream(stream.complete());
         }
-        return new RecordStream(records.toArray(new RecordResult[0]), 0, 0, null, false);
     }
 
     /**

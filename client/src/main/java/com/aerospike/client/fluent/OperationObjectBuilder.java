@@ -8,14 +8,11 @@ import com.aerospike.client.fluent.exp.Exp;
 import com.aerospike.client.fluent.query.PreparedDsl;
 import com.aerospike.client.fluent.query.WhereClauseProcessor;
 
-public class OperationObjectBuilder<T> implements FilterableOperation<OperationObjectBuilder<T>> {
+public class OperationObjectBuilder<T> extends AbstractFilterableBuilder implements FilterableOperation<OperationObjectBuilder<T>> {
     private final DataSet dataSet;
     private final List<Operation> ops = new ArrayList<>();
     private final OpType opType;
     private final Session session;
-    protected WhereClauseProcessor dsl = null;
-    protected boolean respondAllKeys = false;
-    protected boolean failOnFilteredOut = false;
 
     public OperationObjectBuilder(Session session, DataSet dataSet, OpType type) {
         this.dataSet = dataSet;
@@ -52,29 +49,10 @@ public class OperationObjectBuilder<T> implements FilterableOperation<OperationO
         return opType;
     }
 
-    private void setWhereClause(WhereClauseProcessor clause) {
-        if (this.dsl == null) {
-            this.dsl = clause;
-        }
-        else {
-            throw new IllegalArgumentException("Only one 'where' clause can be specified. There is already one of '%s' and another is being set to '%s'"
-                    .formatted(this.dsl, clause));
-        }
-    }
 
     @Override
     public OperationObjectBuilder<T> where(String dsl, Object ... params) {
-        WhereClauseProcessor impl;
-        if (dsl == null || dsl.isEmpty()) {
-            impl = null;
-        }
-        else if (params.length == 0) {
-            impl = WhereClauseProcessor.from(false, dsl);
-        }
-        else {
-            impl = WhereClauseProcessor.from(false, String.format(dsl, params));
-        }
-        setWhereClause(impl);
+        setWhereClause(createWhereClauseProcessor(false, dsl, params));
         return this;
     }
 

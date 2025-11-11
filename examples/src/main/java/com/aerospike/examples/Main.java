@@ -12,6 +12,10 @@ import com.aerospike.client.fluent.RecordStream;
 import com.aerospike.client.fluent.Session;
 import com.aerospike.client.fluent.dsl.Dsl;
 import com.aerospike.client.fluent.policy.Behavior;
+import com.aerospike.client.fluent.policy.Behavior.Mode;
+import com.aerospike.client.fluent.policy.Behavior.OpKind;
+import com.aerospike.client.fluent.policy.Behavior.OpShape;
+import com.aerospike.client.fluent.policy.Settings;
 import com.aerospike.client.fluent.util.Util;
 
 public class Main {
@@ -164,9 +168,8 @@ public class Main {
                 count++;
             }
             System.out.println("Foreground query count: " + count);
-
-            System.out.println("Truncate records");
-            session.truncate(set);
+            Settings settings = Behavior.DEFAULT.getSettings(OpKind.READ, OpShape.QUERY, Mode.CP);
+            System.out.printf("Batch mode maxConcurrentNodes = %d\n", settings.getMaxConcurrentNodes());
         }
         catch (Throwable t) {
        		System.out.println("Error: " + Util.getErrorMessage(t));

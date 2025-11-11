@@ -48,10 +48,10 @@ public final class QueryCommand extends Command {
 		this.readTouchTtlPercent = 0;
 		this.withNoBins = qb.getWithNoBins();
 
-		if (qb.getPageSize() > 0) {
-			this.maxRecords = qb.getPageSize();
+		if (qb.getChunkSize() > 0) {
+			this.maxRecords = qb.getChunkSize();
 		}
-	    else if (qb.getPageSize() == 0 && qb.getLimit() > 0) {
+	    else if (qb.getChunkSize() == 0 && qb.getLimit() > 0) {
 			this.maxRecords = qb.getLimit();
 		}
 	    else {

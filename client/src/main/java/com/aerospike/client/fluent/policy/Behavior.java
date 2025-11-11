@@ -131,6 +131,7 @@ public final class Behavior {
                     .delayBetweenRetries(Duration.ofMillis(0))
                     .useDurableDelete(false)
                     .maximumNumberOfCallAttempts(3)
+                    .maxConcurrentNodes(1)
                     .replicaOrder(Replica.SEQUENCE)  // Old: SEQUENCE, now explicit list
                     .readMode(ReadModeAP.ALL)
                     .consistency(ReadModeSC.SESSION)
@@ -2088,5 +2089,7 @@ public final class Behavior {
         Settings nonRetryablePoint = batchOptimized.getSettings(OpKind.WRITE_NON_RETRYABLE, OpShape.POINT, Mode.AP);
         System.out.println("  Retryable point commitLevel: " + retryablePoint.commitLevel + " (should be COMMIT_ALL)");
         System.out.println("  Non-retryable point commitLevel: " + nonRetryablePoint.commitLevel + " (should be COMMIT_ALL)");
+        
+        System.out.println(Behavior.DEFAULT.getSettings(OpKind.READ, OpShape.QUERY, Mode.ANY).getRecordQueueSize());
     }
 }

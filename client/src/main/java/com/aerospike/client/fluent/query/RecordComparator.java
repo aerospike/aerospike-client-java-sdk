@@ -32,25 +32,25 @@ public class RecordComparator implements Comparator<RecordResult>{
         }
         SortProperties sortProperties = sortPropertiesList.get(index);
 
-        Object o1 = map1.get(sortProperties.getName());
-        Object o2 = map2.get(sortProperties.getName());
+        Object o1 = map1.get(sortProperties.name());
+        Object o2 = map2.get(sortProperties.name());
 
         if (o1 == null && o2 == null) {
             return compare(index+1, map1, map2);
         }
         else if (o1 == null) {
-            return sortProperties.getSortDir() == SortDir.SORT_ASC ? -1 : 1;
+            return sortProperties.sortDir() == SortDir.SORT_ASC ? -1 : 1;
         }
         else if (o2 == null) {
-            return sortProperties.getSortDir() == SortDir.SORT_ASC ? 1 : -1;
+            return sortProperties.sortDir() == SortDir.SORT_ASC ? 1 : -1;
         }
         else {
-            int result = this.getComparator(!sortProperties.isCaseInsensitive()).compare(o1, o2);
+            int result = this.getComparator(!sortProperties.caseInsensitive()).compare(o1, o2);
             if (result == 0) {
                 // Identical elements, move onto the next one
                 return compare(index+1, map1, map2);
             }
-            else if (sortProperties.getSortDir() == SortDir.SORT_DESC) {
+            else if (sortProperties.sortDir() == SortDir.SORT_DESC) {
                 return -result;
             }
             else {

@@ -65,7 +65,7 @@ public abstract class AbstractFilterableBuilder {
     /**
      * Create RecordResult from BatchRecord with proper stack trace handling.
      */
-    public RecordResult createRecordResultFromBatchRecord(
+    public static RecordResult createRecordResultFromBatchRecord(
             BatchRecord br, 
             Settings settings, 
             int index) {

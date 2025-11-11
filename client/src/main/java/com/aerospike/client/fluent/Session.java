@@ -16,13 +16,17 @@
  */
 package com.aerospike.client.fluent;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.List;
 
 import com.aerospike.client.fluent.exp.Exp;
 import com.aerospike.client.fluent.exp.Expression;
 import com.aerospike.client.fluent.info.InfoCommands;
 import com.aerospike.client.fluent.policy.Behavior;
+import com.aerospike.client.fluent.query.BaseQueryBuilder;
+import com.aerospike.client.fluent.query.KeyBasedQueryBuilderInterface;
 import com.aerospike.client.fluent.query.QueryBuilder;
 
 public class Session {
@@ -57,7 +61,30 @@ public class Session {
         return cluster;
     }
 
+    /**
+     * Remove records in specified namespace/set efficiently.  This method is many orders of magnitude
+     * faster than deleting records one at a time.
+     * <p>
+     * See <a href="https://www.aerospike.com/docs/reference/info#truncate">https://www.aerospike.com/docs/reference/info#truncate</a>
+     * <p>
+     * This asynchronous server call may return before the truncation is complete.  The user can still
+     * write new records after the server call returns because new records will have last update times
+     * greater than the truncate cutoff (set at the time of truncate call).
+     */
     public void truncate(DataSet set) {
+        truncate(set, null);
+    }
+    /**
+     * Remove records in specified namespace/set that were last updated before the specified time. This method is many orders of magnitude
+     * faster than deleting records one at a time.
+     * <p>
+     * See <a href="https://www.aerospike.com/docs/reference/info#truncate">https://www.aerospike.com/docs/reference/info#truncate</a>
+     * <p>
+     * This asynchronous server call may return before the truncation is complete.  The user can still
+     * write new records after the server call returns because new records will have last update times
+     * greater than the truncate cutoff (set at the time of truncate call).
+     */
+    public void truncate(DataSet set, Calendar beforeLastUpdate) {
 		// Send truncate command to one node. That node will distribute the command to other nodes.
 		StringBuilder sb = new StringBuilder(200);
 
@@ -72,13 +99,11 @@ public class Session {
 			sb.append(set.getNamespace());
 		}
 
-		/* TODO: Support beforeLastUpdate?
 		if (beforeLastUpdate != null) {
 			sb.append(";lut=");
 			// Convert to nanoseconds since unix epoch (1970-01-01)
 			sb.append(beforeLastUpdate.getTimeInMillis() * 1000000L);
 		}
-		*/
 
 		Node node = cluster.getRandomNode();
 
@@ -107,11 +132,11 @@ public class Session {
     // Query functionality
     // --------------------------------------------
 
-    public QueryBuilder query(DataSet dataSet) {
+    public BaseQueryBuilder<QueryBuilder> query(DataSet dataSet) {
         return new QueryBuilder(this, dataSet);
     }
 
-    public QueryBuilder query(Key key) {
+    public KeyBasedQueryBuilderInterface<QueryBuilder> query(Key key) {
         return new QueryBuilder(this, key);
     }
 
@@ -121,11 +146,11 @@ public class Session {
      * @param keys
      * @return
      */
-    public QueryBuilder query(Key key1, Key key2, Key...keys) {
+    public KeyBasedQueryBuilderInterface<QueryBuilder> query(Key key1, Key key2, Key...keys) {
         return new QueryBuilder(this, buildKeyList(key1, key2, keys));
     }
 
-    public QueryBuilder query(List<Key> keyList) {
+    public KeyBasedQueryBuilderInterface<QueryBuilder> query(List<Key> keyList) {
         return new QueryBuilder(this, keyList);
     }
 
@@ -133,7 +158,7 @@ public class Session {
     // CUD functionality
     // -------------------
 
-    public OperationBuilder insertInto(Key key) {
+    public OperationBuilder insert(Key key) {
         return new OperationBuilder(this, key, OpType.INSERT);
     }
 
@@ -158,11 +183,11 @@ public class Session {
         return new OperationBuilder(this, keyList, OpType.UPSERT);
     }
 
-    public OperationBuilder insertInto(List<Key> keys) {
+    public OperationBuilder insert(List<Key> keys) {
         return new OperationBuilder(this, keys, OpType.INSERT);
     }
 
-    public OperationBuilder insertInto(Key key1, Key key2, Key... keys) {
+    public OperationBuilder insert(Key key1, Key key2, Key... keys) {
         List<Key> keyList = buildKeyList(key1, key2, keys);
         return new OperationBuilder(this, keyList, OpType.INSERT);
     }
@@ -224,16 +249,14 @@ public class Session {
     // Object mapping functionality
     // --------------------------------
 
-    @SuppressWarnings("rawtypes")
-	public OperationObjectBuilder insertInto(DataSet dataSet) {
+    public OperationObjectBuilder insert(DataSet dataSet) {
         return new OperationObjectBuilder(this, dataSet, OpType.INSERT);
     }
 
-    public <T> OperationObjectBuilder<T> insertInto(TypeSafeDataSet<T> dataSet) {
+    public <T> OperationObjectBuilder<T> insert(TypeSafeDataSet<T> dataSet) {
         return new OperationObjectBuilder<T>(this, dataSet, OpType.INSERT);
     }
 
-    @SuppressWarnings("rawtypes")
     public OperationObjectBuilder upsert(DataSet dataSet) {
         return new OperationObjectBuilder(this, dataSet, OpType.UPSERT);
     }
@@ -242,7 +265,6 @@ public class Session {
         return new OperationObjectBuilder<T>(this, dataSet, OpType.UPSERT);
     }
 
-    @SuppressWarnings("rawtypes")
     public OperationObjectBuilder update(DataSet dataSet) {
         return new OperationObjectBuilder(this, dataSet, OpType.UPDATE);
     }

@@ -8,7 +8,14 @@ package com.aerospike.client.fluent;
  * interface is only returned after a context call which is selects multiple elements.
  */
 public interface CdtActionInvertableBuilder extends CdtActionNonInvertableBuilder {
+    public OperationBuilder getAllOtherValues();
+    public OperationBuilder getAllOtherKeys();
     public OperationBuilder countAllOthers();
+    public OperationBuilder getAllOtherIndexes();
+    public OperationBuilder getAllOtherReverseIndexes();
+    public OperationBuilder getAllOtherRanks();
+    public OperationBuilder getAllOtherReverseRanks();
+    public OperationBuilder getAllOtherKeysAndValues();
     public OperationBuilder removeAllOthers();
 
 }

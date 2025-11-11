@@ -65,10 +65,9 @@ public class QueryBuilder extends AbstractFilterableBuilder implements KeyBasedQ
     private String[] binNames = null;
     private boolean withNoBins = false;
     private long limit = 0;
-    private int pageSize = 0;
+    private int chunkSize = 0;
     private int startPartition = 0;
     private int endPartition = 4096;
-    private List<SortProperties> sortInfo = null;
     private Txn txnToUse;
 
     /**
@@ -203,11 +202,11 @@ public class QueryBuilder extends AbstractFilterableBuilder implements KeyBasedQ
      * @return this QueryBuilder for method chaining
      * @throws IllegalArgumentException if pageSize is <= 0
      */
-    public QueryBuilder pageSize(int pageSize) {
-        if (pageSize <= 0) {
-            throw new IllegalArgumentException("Page size must be > 0, not " + pageSize);
+    public QueryBuilder chunkSize(int chunkSize) {
+        if (chunkSize <= 0) {
+            throw new IllegalArgumentException("Chunk size must be > 0, not " + chunkSize);
         }
-        this.pageSize = pageSize;
+        this.chunkSize = chunkSize;
         return this;
     }
 
@@ -276,67 +275,6 @@ public class QueryBuilder extends AbstractFilterableBuilder implements KeyBasedQ
         sanityCheckPartitionRange(startIncl, endExcl);
         this.startPartition = startIncl;
         this.endPartition = endExcl;
-        return this;
-    }
-
-    /**
-     * Adds a sort field in ascending order with case sensitivity.
-     *
-     * <p>This method adds a field to the sort criteria. Multiple sort fields can
-     * be added, and they will be applied in the order they are added.</p>
-     *
-     * @param field the field name to sort by
-     * @return this QueryBuilder for method chaining
-     */
-    public QueryBuilder sortReturnedSubsetBy(String field) {
-        return sortReturnedSubsetBy(field, SortDir.SORT_ASC, true);
-    }
-
-    /**
-     * Adds a sort field in ascending order with specified case sensitivity.
-     *
-     * @param field the field name to sort by
-     * @param caseInsensitive true for case-insensitive sorting, false for case-sensitive
-     * @return this QueryBuilder for method chaining
-     */
-    public QueryBuilder sortReturnedSubsetBy(String field, boolean caseInsensitive) {
-        return sortReturnedSubsetBy(field, SortDir.SORT_ASC, caseInsensitive);
-    }
-
-    /**
-     * Adds a sort field with specified direction and case sensitivity.
-     *
-     * @param field the field name to sort by
-     * @param sortDir the sort direction (ascending or descending)
-     * @return this QueryBuilder for method chaining
-     */
-    public QueryBuilder sortReturnedSubsetBy(String field, SortDir sortDir) {
-        return sortReturnedSubsetBy(field, sortDir, true);
-    }
-
-    /**
-     * Adds a sort field with specified direction and case sensitivity.
-     *
-     * <p>This method allows you to specify the complete sort criteria for a field.
-     * Multiple sort fields can be added, and they will be applied in the order
-     * they are added.</p>
-     *
-     * <p>Note: Sorting requires that a limit be set on the query to prevent
-     * excessive memory usage.</p>
-     *
-     * @param field the field name to sort by
-     * @param sortDir the sort direction (ascending or descending)
-     * @param caseSensitive true for case-sensitive sorting, false for case-insensitive
-     * @return this QueryBuilder for method chaining
-     */
-    public QueryBuilder sortReturnedSubsetBy(String field, SortDir sortDir, boolean caseSensitive) {
-        if (sortDir == null) {
-            sortDir = SortDir.SORT_ASC;
-        }
-        if (this.sortInfo == null) {
-            this.sortInfo = new ArrayList<>();
-        }
-        this.sortInfo.add(new SortProperties(field, sortDir, caseSensitive));
         return this;
     }
     
@@ -477,21 +415,12 @@ public class QueryBuilder extends AbstractFilterableBuilder implements KeyBasedQ
     }
 
     /**
-     * Gets the sort information.
-     *
-     * @return the list of sort properties, or null if not specified
-     */
-    public List<SortProperties> getSortInfo() {
-        return sortInfo;
-    }
-
-    /**
      * Gets the page size.
      *
      * @return the page size, or 0 if not set
      */
-    public int getPageSize() {
-        return pageSize;
+    public int getChunkSize() {
+        return chunkSize;
     }
 
     /**

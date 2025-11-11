@@ -101,7 +101,7 @@ class BatchKeyQueryBuilderImpl extends QueryImpl {
         }
 
         long limit = getQueryBuilder().getLimit();
-        List<BatchRecord> batchRecords = new ArrayList<BatchRecord>(keyList.size());
+        List<BatchRecord> batchRecords = new ArrayList<>(keyList.size());
         List<BatchRecord> batchRecordsForServer = hasPartitionFilter() ? new ArrayList<>() : batchRecords;
 
         for (Key thisKey : keyList) {
@@ -230,11 +230,7 @@ class BatchKeyQueryBuilderImpl extends QueryImpl {
                 }
             }
             // TODO: ResultsInKeyOrder?
-            return new RecordStream(results,
-                    limit,
-                    getQueryBuilder().getPageSize(),
-                    getQueryBuilder().getSortInfo(),
-                    true);
+            return new RecordStream(results, limit);
         }
         catch (AerospikeException ae) {
             if (Log.warnEnabled() && ae.getResultCode() == ResultCode.UNSUPPORTED_FEATURE) {

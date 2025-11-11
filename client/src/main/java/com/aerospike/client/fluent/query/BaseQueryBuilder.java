@@ -52,16 +52,24 @@ public interface BaseQueryBuilder<T extends BaseQueryBuilder<T>> {
     T limit(long limit);
     
     /**
-     * Sets the page size for paginated results.
+     * Sets the chunk size for server-side streaming.
      * 
-     * <p>This method controls how many records are returned per page when using
-     * pagination. The page size affects memory usage and network round trips.</p>
+     * <p>This method controls how many records are fetched per chunk from the server
+     * when using server-side streaming. The chunk size affects memory usage and network
+     * round trips. This is distinct from client-side pagination provided by
+     * {@link com.aerospike.NavigatableRecordStream}.</p>
      * 
-     * @param pageSize the number of records per page (must be > 0)
+     * <p><b>Use cases:</b></p>
+     * <ul>
+     *   <li>Smaller chunks (e.g., 100-1000): Lower memory, more network calls</li>
+     *   <li>Larger chunks (e.g., 5000-10000): Higher throughput, more memory</li>
+     * </ul>
+     * 
+     * @param chunkSize the number of records per chunk (must be > 0)
      * @return this QueryBuilder for method chaining
-     * @throws IllegalArgumentException if pageSize is <= 0
+     * @throws IllegalArgumentException if chunkSize is <= 0
      */
-    T pageSize(int pageSize);
+    T chunkSize(int chunkSize);
     
     /**
      * Targets a specific partition for the query.
@@ -91,52 +99,6 @@ public interface BaseQueryBuilder<T extends BaseQueryBuilder<T>> {
      * @throws IllegalArgumentException if the partition range is invalid or already set
      */
     T onPartitionRange(int startIncl, int endExcl);
-    
-    /**
-     * Adds a sort field in ascending order with case sensitivity.
-     * 
-     * <p>This method adds a field to the sort criteria. Multiple sort fields can
-     * be added, and they will be applied in the order they are added.</p>
-     * 
-     * @param field the field name to sort by
-     * @return this QueryBuilder for method chaining
-     */
-    T sortReturnedSubsetBy(String field);
-    
-    /**
-     * Adds a sort field in ascending order with specified case sensitivity.
-     * 
-     * @param field the field name to sort by
-     * @param caseInsensitive true for case-insensitive sorting, false for case-sensitive
-     * @return this QueryBuilder for method chaining
-     */
-    T sortReturnedSubsetBy(String field, boolean caseInsensitive);
-    
-    /**
-     * Adds a sort field with specified direction and case sensitivity.
-     * 
-     * @param field the field name to sort by
-     * @param sortDir the sort direction (ascending or descending)
-     * @return this QueryBuilder for method chaining
-     */
-    T sortReturnedSubsetBy(String field, SortDir sortDir);
-    
-    /**
-     * Adds a sort field with specified direction and case sensitivity.
-     * 
-     * <p>This method allows you to specify the complete sort criteria for a field.
-     * Multiple sort fields can be added, and they will be applied in the order
-     * they are added.</p>
-     * 
-     * <p>Note: Sorting requires that a limit be set on the query to prevent
-     * excessive memory usage.</p>
-     * 
-     * @param field the field name to sort by
-     * @param sortDir the sort direction (ascending or descending)
-     * @param caseSensitive true for case-sensitive sorting, false for case-insensitive
-     * @return this QueryBuilder for method chaining
-     */
-    T sortReturnedSubsetBy(String field, SortDir sortDir, boolean caseSensitive);
     
     /**
      * Adds a filter condition using a DSL string.

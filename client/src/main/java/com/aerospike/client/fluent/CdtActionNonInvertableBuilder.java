@@ -10,5 +10,10 @@ public interface CdtActionNonInvertableBuilder {
     public OperationBuilder getValues();
     public OperationBuilder getKeys();
     public OperationBuilder count();
+    public OperationBuilder getIndex();
+    public OperationBuilder getReverseIndex();
+    public OperationBuilder getRank();
+    public OperationBuilder getReverseRank();
+    public OperationBuilder getKeyAndValue();
     public OperationBuilder remove();
 }

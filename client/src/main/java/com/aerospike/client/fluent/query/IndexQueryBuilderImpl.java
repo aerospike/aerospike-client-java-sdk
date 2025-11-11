@@ -66,9 +66,6 @@ class IndexQueryBuilderImpl extends QueryImpl {
         Settings policy = session.getBehavior().getSettings(OpKind.READ, OpShape.QUERY, Mode.ANY);
         Expression filterExp = getFilterExp();
 
-        // TODO Sort?
-        //List<SortProperties> sortInfo = getQueryBuilder().getSortInfo();
-
 		QueryCommand cmd = new QueryCommand(cluster, dataSet, filterExp, policy, qb);
 
 		Node[] nodes = cluster.validateNodes();
@@ -78,7 +75,7 @@ class IndexQueryBuilderImpl extends QueryImpl {
                 getQueryBuilder().getEndPartition() - getQueryBuilder().getStartPartition());
 
 		PartitionTracker tracker = new PartitionTracker(cmd, nodes, filter);
-        AsyncRecordStream stream = new AsyncRecordStream(5000);
+        AsyncRecordStream stream = new AsyncRecordStream(policy.getRecordQueueSize());
         QueryExecutor exec = new QueryExecutor(cluster, cmd, nodes.length, tracker, stream);
 
         cluster.startVirtualThread(() -> {

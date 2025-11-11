@@ -41,7 +41,7 @@ public class CdtGetOrRemoveBuilder extends AbstractCdtBuilder
 
     public OperationBuilder getValues() {
         switch (params.getOperation()) {
-        case CdtOperation.MAP_BY_INDEX:
+        case MAP_BY_INDEX:
             return opBuilder.addOp(MapOperation.getByIndex(binName, params.getInt1(), MapReturnType.VALUE, params.context()));
         case MAP_BY_INDEX_RANGE:
             if (params.hasInt2()) {

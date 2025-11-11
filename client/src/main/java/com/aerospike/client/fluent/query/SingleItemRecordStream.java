@@ -9,16 +9,12 @@ public class SingleItemRecordStream implements RecordStreamImpl {
     private boolean read = false;
     private boolean isFirstPage = true;
 
-    public SingleItemRecordStream(Key key, Record record, boolean respondAllOps) {
-        this.record = new RecordResult(key, record, 0); // Single item, index = 0
-        if (record == null && !respondAllOps) {
-            // no data, mark as read
-            this.read = true;
-        }
+    public SingleItemRecordStream(RecordResult rec) {
+        this.record = rec;
     }
 
     @Override
-    public boolean hasMorePages() {
+    public boolean hasMoreChunks() {
         if (isFirstPage) {
             isFirstPage = false;
             return true;
