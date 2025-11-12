@@ -28,7 +28,7 @@ jobs:
       git_tag: ${{ steps.extract.outputs.git_tag }}
 
   build-packages:
-    uses: aerospike/shared-workflows/.github/workflows/reusable_execute-build.yaml@v2.0.2
+    uses: aerospike/shared-workflows/.github/workflows/reusable_execute-build.yaml@37581d0437fe0b76315dafc402882c875789b1af
     needs: extract-version
     with:
       runs-on: ${{ vars.BUILD_CONTAINER_DISTRO_VERSION }}
@@ -58,7 +58,7 @@ jobs:
 
   sign-artifacts:
     needs: [build-packages, extract-version]
-    uses:  aerospike/shared-workflows/actions/setup-gpg@e@37581d0437fe0b76315dafc402882c875789b1af
+    uses:  aerospike/shared-workflows/actions/reusable_sign-artifacts.yaml@e@37581d0437fe0b76315dafc402882c875789b1af
     with:
       gh-retention-days: 1
       gh-artifact-name: build-artifacts-${{ needs.extract-version.outputs.version }}
