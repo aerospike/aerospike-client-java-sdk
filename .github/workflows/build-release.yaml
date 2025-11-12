@@ -7,6 +7,17 @@ permissions:
 
 on:
   workflow_call:
+    secrets:
+      GPG_SECRET_KEY:
+        required: true
+      GPG_PUBLIC_KEY:
+        required: true
+      GPG_PASS:
+        required: true
+      OIDC_AUDIENCE:
+        required: true
+      OIDC_PROVIDER_NAME:
+        required: true
 
 jobs:
   extract-version:
@@ -50,9 +61,10 @@ jobs:
       gh-artifact-name: build-artifacts-${{ needs.extract-version.outputs.version }}
       gh-retention-days: 1 # default
       jf-url: https://artifact.aerospike.io # default
-      oidc-provider-name: ${{ secrets.OIDC_PROVIDER_NAME }}
-      oidc-audience: ${{ secrets.OIDC_AUDIANCE }}
       publish-build-info: true
+    secrets:
+      oidc-provider-name: ${{ secrets.OIDC_PROVIDER_NAME }}
+      oidc-audience: ${{ secrets.OIDC_AUDIENCE }}
 
   sign-artifacts:
     needs: [build-packages, extract-version]
