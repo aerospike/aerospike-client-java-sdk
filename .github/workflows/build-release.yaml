@@ -14,10 +14,6 @@ on:
         required: true
       GPG_PASS:
         required: true
-      OIDC_AUDIENCE:
-        required: true
-      OIDC_PROVIDER_NAME:
-        required: true
 
 jobs:
   extract-version:
@@ -62,8 +58,8 @@ jobs:
       gh-retention-days: 1 # default
       jf-url: https://artifact.aerospike.io # default
       publish-build-info: true
-      oidc-provider-name: ${{ secrets.OIDC_PROVIDER_NAME }}
-      oidc-audience: ${{ secrets.OIDC_AUDIENCE }}
+      oidc-provider-name: ${{ vars.OIDC_PROVIDER_NAME }}
+      oidc-audience: ${{ vars.OIDC_AUDIENCE }}
 
   sign-artifacts:
     needs: [build-packages, extract-version]
