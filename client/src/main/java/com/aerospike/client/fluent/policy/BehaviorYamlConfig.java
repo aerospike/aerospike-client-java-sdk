@@ -58,6 +58,21 @@ class BehaviorYamlConfig {
         @JsonProperty("info")
         private InfoConfig info;
         
+        @JsonProperty("systemTxnVerify")
+        private SystemTxnVerifyConfig systemTxnVerify;
+        
+        @JsonProperty("systemTxnRoll")
+        private SystemTxnRollConfig systemTxnRoll;
+        
+        @JsonProperty("systemConnections")
+        private SystemConnectionsConfig systemConnections;
+        
+        @JsonProperty("systemCircuitBreaker")
+        private SystemCircuitBreakerConfig systemCircuitBreaker;
+        
+        @JsonProperty("systemRefresh")
+        private SystemRefreshConfig systemRefresh;
+        
         // Getters and setters
         public String getName() { return name; }
         public void setName(String name) { this.name = name; }
@@ -97,6 +112,21 @@ class BehaviorYamlConfig {
         
         public InfoConfig getInfo() { return info; }
         public void setInfo(InfoConfig info) { this.info = info; }
+        
+        public SystemTxnVerifyConfig getSystemTxnVerify() { return systemTxnVerify; }
+        public void setSystemTxnVerify(SystemTxnVerifyConfig systemTxnVerify) { this.systemTxnVerify = systemTxnVerify; }
+        
+        public SystemTxnRollConfig getSystemTxnRoll() { return systemTxnRoll; }
+        public void setSystemTxnRoll(SystemTxnRollConfig systemTxnRoll) { this.systemTxnRoll = systemTxnRoll; }
+        
+        public SystemConnectionsConfig getSystemConnections() { return systemConnections; }
+        public void setSystemConnections(SystemConnectionsConfig systemConnections) { this.systemConnections = systemConnections; }
+        
+        public SystemCircuitBreakerConfig getSystemCircuitBreaker() { return systemCircuitBreaker; }
+        public void setSystemCircuitBreaker(SystemCircuitBreakerConfig systemCircuitBreaker) { this.systemCircuitBreaker = systemCircuitBreaker; }
+        
+        public SystemRefreshConfig getSystemRefresh() { return systemRefresh; }
+        public void setSystemRefresh(SystemRefreshConfig systemRefresh) { this.systemRefresh = systemRefresh; }
     }
     
     // Base policy configuration
@@ -239,5 +269,69 @@ class BehaviorYamlConfig {
     // Info configuration
     public static class InfoConfig extends PolicyConfig {
         // Info only has abandonCallAfter from the base PolicyConfig
+    }
+    
+    // System - Transaction Verify configuration (read-like settings)
+    public static class SystemTxnVerifyConfig extends PolicyConfig {
+        @JsonProperty("consistency")
+        private ReadModeSC consistency;
+        
+        public ReadModeSC getConsistency() { return consistency; }
+        public void setConsistency(ReadModeSC consistency) { this.consistency = consistency; }
+    }
+    
+    // System - Transaction Roll configuration (write-like settings)
+    public static class SystemTxnRollConfig extends PolicyConfig {
+        // Uses base PolicyConfig fields: abandonCallAfter, delayBetweenRetries, maximumNumberOfCallAttempts,
+        // replicaOrder, waitForCallToComplete, waitForConnectionToComplete, waitForSocketResponseAfterCallFails
+    }
+    
+    // System - Connections configuration
+    public static class SystemConnectionsConfig {
+        @JsonProperty("minimumConnectionsPerNode")
+        private Integer minimumConnectionsPerNode;
+        
+        @JsonProperty("maximumConnectionsPerNode")
+        private Integer maximumConnectionsPerNode;
+        
+        @JsonDeserialize(using = DurationDeserializer.class)
+        @JsonSerialize(using = DurationSerializer.class)
+        @JsonProperty("maximumSocketIdleTime")
+        private Duration maximumSocketIdleTime;
+        
+        public Integer getMinimumConnectionsPerNode() { return minimumConnectionsPerNode; }
+        public void setMinimumConnectionsPerNode(Integer minimumConnectionsPerNode) { this.minimumConnectionsPerNode = minimumConnectionsPerNode; }
+        
+        public Integer getMaximumConnectionsPerNode() { return maximumConnectionsPerNode; }
+        public void setMaximumConnectionsPerNode(Integer maximumConnectionsPerNode) { this.maximumConnectionsPerNode = maximumConnectionsPerNode; }
+        
+        public Duration getMaximumSocketIdleTime() { return maximumSocketIdleTime; }
+        public void setMaximumSocketIdleTime(Duration maximumSocketIdleTime) { this.maximumSocketIdleTime = maximumSocketIdleTime; }
+    }
+    
+    // System - Circuit Breaker configuration
+    public static class SystemCircuitBreakerConfig {
+        @JsonProperty("numTendIntervalsInErrorWindow")
+        private Integer numTendIntervalsInErrorWindow;
+        
+        @JsonProperty("maximumErrorsInErrorWindow")
+        private Integer maximumErrorsInErrorWindow;
+        
+        public Integer getNumTendIntervalsInErrorWindow() { return numTendIntervalsInErrorWindow; }
+        public void setNumTendIntervalsInErrorWindow(Integer numTendIntervalsInErrorWindow) { this.numTendIntervalsInErrorWindow = numTendIntervalsInErrorWindow; }
+        
+        public Integer getMaximumErrorsInErrorWindow() { return maximumErrorsInErrorWindow; }
+        public void setMaximumErrorsInErrorWindow(Integer maximumErrorsInErrorWindow) { this.maximumErrorsInErrorWindow = maximumErrorsInErrorWindow; }
+    }
+    
+    // System - Refresh configuration
+    public static class SystemRefreshConfig {
+        @JsonDeserialize(using = DurationDeserializer.class)
+        @JsonSerialize(using = DurationSerializer.class)
+        @JsonProperty("tendInterval")
+        private Duration tendInterval;
+        
+        public Duration getTendInterval() { return tendInterval; }
+        public void setTendInterval(Duration tendInterval) { this.tendInterval = tendInterval; }
     }
 } 

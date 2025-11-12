@@ -228,6 +228,62 @@ class BehaviorYamlLoader {
                 }
             });
         }
+        
+        // Apply system - txnVerify configuration
+        if (config.getSystemTxnVerify() != null) {
+            builder.on(Behavior.Selectors.system().txnVerify(), ops -> {
+                applyCommonConfig(ops, config.getSystemTxnVerify());
+                if (config.getSystemTxnVerify().getConsistency() != null) {
+                    ops.consistency(config.getSystemTxnVerify().getConsistency());
+                }
+            });
+        }
+        
+        // Apply system - txnRoll configuration
+        if (config.getSystemTxnRoll() != null) {
+            builder.on(Behavior.Selectors.system().txnRoll(), ops -> {
+                applyCommonConfig(ops, config.getSystemTxnRoll());
+            });
+        }
+        
+        // Apply system - connections configuration
+        if (config.getSystemConnections() != null) {
+            builder.on(Behavior.Selectors.system().connections(), ops -> {
+                BehaviorYamlConfig.SystemConnectionsConfig connConfig = config.getSystemConnections();
+                if (connConfig.getMinimumConnectionsPerNode() != null) {
+                    ops.minimumConnectionsPerNode(connConfig.getMinimumConnectionsPerNode());
+                }
+                if (connConfig.getMaximumConnectionsPerNode() != null) {
+                    ops.maximumConnectionsPerNode(connConfig.getMaximumConnectionsPerNode());
+                }
+                if (connConfig.getMaximumSocketIdleTime() != null) {
+                    ops.maximumSocketIdleTime(connConfig.getMaximumSocketIdleTime());
+                }
+            });
+        }
+        
+        // Apply system - circuitBreaker configuration
+        if (config.getSystemCircuitBreaker() != null) {
+            builder.on(Behavior.Selectors.system().circuitBreaker(), ops -> {
+                BehaviorYamlConfig.SystemCircuitBreakerConfig cbConfig = config.getSystemCircuitBreaker();
+                if (cbConfig.getNumTendIntervalsInErrorWindow() != null) {
+                    ops.numTendIntervalsInErrorWindow(cbConfig.getNumTendIntervalsInErrorWindow());
+                }
+                if (cbConfig.getMaximumErrorsInErrorWindow() != null) {
+                    ops.maximumErrorsInErrorWindow(cbConfig.getMaximumErrorsInErrorWindow());
+                }
+            });
+        }
+        
+        // Apply system - refresh configuration
+        if (config.getSystemRefresh() != null) {
+            builder.on(Behavior.Selectors.system().refresh(), ops -> {
+                BehaviorYamlConfig.SystemRefreshConfig refreshConfig = config.getSystemRefresh();
+                if (refreshConfig.getTendInterval() != null) {
+                    ops.tendInterval(refreshConfig.getTendInterval());
+                }
+            });
+        }
     }
     
     /**

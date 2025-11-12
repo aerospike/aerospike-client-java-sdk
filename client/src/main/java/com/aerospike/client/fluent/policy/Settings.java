@@ -36,6 +36,18 @@ public final class Settings {
     ReadModeSC readModeSC; // CP
     Integer resetTtlOnReadAtPercent;
 
+    // System settings - connections
+    Integer minimumConnectionsPerNode;
+    Integer maximumConnectionsPerNode;
+    Duration maximumSocketIdleTime;
+
+    // System settings - circuitBreaker
+    Integer numTendIntervalsInErrorWindow;
+    Integer maximumErrorsInErrorWindow;
+
+    // System settings - refresh
+    Duration tendInterval;
+
     Settings() {}
 
     public Settings(Settings orig) {
@@ -59,6 +71,12 @@ public final class Settings {
         this.readModeSC = orig.readModeSC;
         this.resetTtlOnReadAtPercent = orig.resetTtlOnReadAtPercent;
 		this.stackTraceOnException = orig.stackTraceOnException;
+		this.minimumConnectionsPerNode = orig.minimumConnectionsPerNode;
+		this.maximumConnectionsPerNode = orig.maximumConnectionsPerNode;
+		this.maximumSocketIdleTime = orig.maximumSocketIdleTime;
+		this.numTendIntervalsInErrorWindow = orig.numTendIntervalsInErrorWindow;
+		this.maximumErrorsInErrorWindow = orig.maximumErrorsInErrorWindow;
+		this.tendInterval = orig.tendInterval;
     }
 
     @Override public String toString() {
@@ -128,6 +146,27 @@ public final class Settings {
         if (stackTraceOnException != null) {
 		    m.put("stackTraceOnException", stackTraceOnException);
 		}
+
+        if (minimumConnectionsPerNode != null) {
+            m.put("minimumConnectionsPerNode", minimumConnectionsPerNode);
+        }
+        if (maximumConnectionsPerNode != null) {
+            m.put("maximumConnectionsPerNode", maximumConnectionsPerNode);
+        }
+        if (maximumSocketIdleTime != null) {
+            m.put("maximumSocketIdleTime", maximumSocketIdleTime);
+        }
+
+        if (numTendIntervalsInErrorWindow != null) {
+            m.put("numTendIntervalsInErrorWindow", numTendIntervalsInErrorWindow);
+        }
+        if (maximumErrorsInErrorWindow != null) {
+            m.put("maximumErrorsInErrorWindow", maximumErrorsInErrorWindow);
+        }
+
+        if (tendInterval != null) {
+            m.put("tendInterval", tendInterval);
+        }
 
         return m.toString();
     }
@@ -209,6 +248,31 @@ public final class Settings {
     }
     public boolean getStackTraceOnException() {
         return stackTraceOnException;
+    }
+    
+    // System settings getters with defaults
+    public int getMinimumConnectionsPerNode() {
+        return minimumConnectionsPerNode != null ? minimumConnectionsPerNode : 0;
+    }
+    
+    public int getMaximumConnectionsPerNode() {
+        return maximumConnectionsPerNode != null ? maximumConnectionsPerNode : 100;
+    }
+    
+    public Duration getMaximumSocketIdleTime() {
+        return maximumSocketIdleTime != null ? maximumSocketIdleTime : Duration.ofSeconds(55);
+    }
+    
+    public int getNumTendIntervalsInErrorWindow() {
+        return numTendIntervalsInErrorWindow != null ? numTendIntervalsInErrorWindow : 1;
+    }
+    
+    public int getMaximumErrorsInErrorWindow() {
+        return maximumErrorsInErrorWindow != null ? maximumErrorsInErrorWindow : 100;
+    }
+    
+    public Duration getTendInterval() {
+        return tendInterval != null ? tendInterval : Duration.ofSeconds(1);
     }
     
     public WritePolicy asWritePolicy() {

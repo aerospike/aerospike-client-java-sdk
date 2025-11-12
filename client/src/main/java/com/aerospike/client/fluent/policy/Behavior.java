@@ -94,6 +94,29 @@ import java.util.stream.Collectors;
  *   <li><b>Mode:</b> AP (availability priority), CP (consistency priority)</li>
  * </ul>
  *
+ * <h2>System-Level Configuration</h2>
+ * Beyond read/write operations, the {@code system()} selector provides access to system-level settings:
+ * <ul>
+ *   <li><b>txnVerify:</b> Transaction verification retry and consistency settings (read-like)</li>
+ *   <li><b>txnRoll:</b> Transaction rollback retry settings (write-like)</li>
+ *   <li><b>connections:</b> Connection pool configuration per node</li>
+ *   <li><b>circuitBreaker:</b> Error thresholds and circuit breaking behavior</li>
+ *   <li><b>refresh:</b> Cluster state refresh interval (tend frequency)</li>
+ * </ul>
+ * <h3>System Configuration Example:</h3>
+ * <pre>{@code
+ * Behavior customSystem = Behavior.DEFAULT.deriveWithChanges("customSystem", builder -> builder
+ *     .on(Selectors.system().txnVerify(), ops -> ops
+ *         .consistency(ReadModeSC.LINEARIZE)
+ *         .maximumNumberOfCallAttempts(10)
+ *     )
+ *     .on(Selectors.system().connections(), ops -> ops
+ *         .maximumConnectionsPerNode(200)
+ *         .maximumSocketIdleTime(Duration.ofSeconds(120))
+ *     )
+ * );
+ * }</pre>
+ *
  * <h2>Thread Safety</h2>
  * Behavior instances are immutable and thread-safe once built. The builder is not thread-safe.
  *
@@ -185,6 +208,38 @@ public final class Behavior {
             .on(Selectors.writes().ap(), ops -> ops
                     .commitLevel(CommitLevel.COMMIT_ALL)
             )
+            // System - txnVerify defaults
+            .on(Selectors.system().txnVerify(), ops -> ops
+                    .consistency(ReadModeSC.LINEARIZE)
+                    .replicaOrder(Replica.MASTER)
+                    .maximumNumberOfCallAttempts(6)
+                    .waitForCallToComplete(Duration.ofSeconds(3))
+                    .abandonCallAfter(Duration.ofSeconds(10))
+                    .delayBetweenRetries(Duration.ofSeconds(1))
+            )
+            // System - txnRoll defaults
+            .on(Selectors.system().txnRoll(), ops -> ops
+                    .replicaOrder(Replica.MASTER)
+                    .maximumNumberOfCallAttempts(6)
+                    .waitForCallToComplete(Duration.ofSeconds(3))
+                    .abandonCallAfter(Duration.ofSeconds(10))
+                    .delayBetweenRetries(Duration.ofSeconds(1))
+            )
+            // System - connections defaults
+            .on(Selectors.system().connections(), ops -> ops
+                    .minimumConnectionsPerNode(0)
+                    .maximumConnectionsPerNode(100)
+                    .maximumSocketIdleTime(Duration.ofSeconds(55))
+            )
+            // System - circuitBreaker defaults
+            .on(Selectors.system().circuitBreaker(), ops -> ops
+                    .numTendIntervalsInErrorWindow(1)
+                    .maximumErrorsInErrorWindow(100)
+            )
+            // System - refresh defaults
+            .on(Selectors.system().refresh(), ops -> ops
+                    .tendInterval(Duration.ofSeconds(1))
+            )
             .build();
 
     // -----------------------------------------------------------------------------------
@@ -195,7 +250,6 @@ public final class Behavior {
     private final Behavior base;       // defaults (may be null)
     private final List<Behavior> children;
     private Map<OpKey, Settings> resolved; // fully-resolved matrix
-//    private ConcurrentHashMap<CommandType, Object> legacyCachedPolicies = new ConcurrentHashMap<>();
 
     private Behavior(String name, List<Patch> patches, Behavior base) {
         this.name = name;
@@ -211,7 +265,6 @@ public final class Behavior {
 
     public void clearCache() {
         this.resolved = formMatrix();
-//        this.legacyCachedPolicies.clear();
         // Notify all children
         for (Behavior child : children) {
             child.clearCache();
@@ -265,6 +318,21 @@ public final class Behavior {
     }
 
     public String name() { return name; }
+    
+    @Override
+    public String toString() {
+        StringBuilder sb = new StringBuilder();
+        sb.append("Behavior[name=").append(name);
+        if (base != null) {
+            sb.append(", parent=").append(base.name);
+        }
+        sb.append(", patches=").append(patches.size());
+        if (!children.isEmpty()) {
+            sb.append(", children=").append(children.size());
+        }
+        sb.append("]");
+        return sb.toString();
+    }
 
     /**
      * Get the resolved settings for a specific operation.
@@ -685,8 +753,17 @@ public final class Behavior {
     // -----------------------------------------------------------------------------------
     // Dimensions
     // -----------------------------------------------------------------------------------
-    public enum OpKind { READ, WRITE_RETRYABLE, WRITE_NON_RETRYABLE }
-    public enum OpShape { ANY, POINT, BATCH, QUERY }
+    public enum OpKind { 
+        READ, 
+        WRITE_RETRYABLE, 
+        WRITE_NON_RETRYABLE,
+        SYSTEM_TXN_VERIFY,
+        SYSTEM_TXN_ROLL,
+        SYSTEM_CONNECTIONS,
+        SYSTEM_CIRCUIT_BREAKER,
+        SYSTEM_REFRESH
+    }
+    public enum OpShape { ANY, POINT, BATCH, QUERY, SYSTEM }
     public enum Mode { ANY, AP, CP }
 
     // -----------------------------------------------------------------------------------
@@ -696,16 +773,26 @@ public final class Behavior {
         final OpKind kind;   // null == ALL kinds
         final OpShape shape; // ANY/POINT/BATCH/QUERY
         final Mode mode;     // ANY/AP/CP
+        final boolean isWriteOnlyWildcard; // true if kind==null means "both write kinds only"
 
         SelectionSpec(OpKind kind, OpShape shape, Mode mode) {
-            this.kind = kind; this.shape = shape; this.mode = mode;
+            this(kind, shape, mode, false);
         }
-        SelectionSpec withKind(OpKind k)  { return new SelectionSpec(k, shape, mode); }
-        SelectionSpec withShape(OpShape s){ return new SelectionSpec(kind, s, mode); }
-        SelectionSpec withMode(Mode m)    { return new SelectionSpec(kind, shape, m); }
+        
+        SelectionSpec(OpKind kind, OpShape shape, Mode mode, boolean isWriteOnlyWildcard) {
+            this.kind = kind; 
+            this.shape = shape; 
+            this.mode = mode;
+            this.isWriteOnlyWildcard = isWriteOnlyWildcard;
+        }
+        
+        SelectionSpec withKind(OpKind k)  { return new SelectionSpec(k, shape, mode, false); }
+        SelectionSpec withShape(OpShape s){ return new SelectionSpec(kind, s, mode, isWriteOnlyWildcard); }
+        SelectionSpec withMode(Mode m)    { return new SelectionSpec(kind, shape, m, isWriteOnlyWildcard); }
 
         @Override public String toString() {
-            return "[" + (kind == null? "ALL" : kind) + ", " + shape + ", " + mode + "]";
+            String kindStr = kind == null ? (isWriteOnlyWildcard ? "WRITES" : "ALL") : kind.toString();
+            return "[" + kindStr + ", " + shape + ", " + mode + "]";
         }
     }
 
@@ -722,7 +809,18 @@ public final class Behavior {
     }
 
     static boolean applies(SelectionSpec s, OpKey k) {
-        if (s.kind  != null        && s.kind  != k.kind ) return false;
+        if (s.kind == null) {
+            if (s.isWriteOnlyWildcard) {
+                // Only match write operations
+                if (k.kind != OpKind.WRITE_RETRYABLE && k.kind != OpKind.WRITE_NON_RETRYABLE) {
+                    return false;
+                }
+            }
+            // else: kind==null with isWriteOnlyWildcard==false means match ALL kinds (from all())
+        } else if (s.kind != k.kind) {
+            return false;
+        }
+        
         if (s.shape != OpShape.ANY && s.shape != k.shape) return false;
         if (s.mode  != Mode.ANY    && s.mode  != k.mode ) return false;
         return true;
@@ -746,6 +844,12 @@ public final class Behavior {
             out.add(new OpKey(OpKind.WRITE_NON_RETRYABLE, OpShape.POINT, m));
             out.add(new OpKey(OpKind.WRITE_NON_RETRYABLE, OpShape.BATCH, m));
         }
+        // SYSTEM operations (only ANY mode is meaningful for system operations)
+        out.add(new OpKey(OpKind.SYSTEM_TXN_VERIFY, OpShape.SYSTEM, Mode.ANY));
+        out.add(new OpKey(OpKind.SYSTEM_TXN_ROLL, OpShape.SYSTEM, Mode.ANY));
+        out.add(new OpKey(OpKind.SYSTEM_CONNECTIONS, OpShape.SYSTEM, Mode.ANY));
+        out.add(new OpKey(OpKind.SYSTEM_CIRCUIT_BREAKER, OpShape.SYSTEM, Mode.ANY));
+        out.add(new OpKey(OpKind.SYSTEM_REFRESH, OpShape.SYSTEM, Mode.ANY));
         return out;
     }
 
@@ -781,6 +885,14 @@ public final class Behavior {
         if (src.readModeAP != null) dst.readModeAP = src.readModeAP;
         if (src.readModeSC != null) dst.readModeSC = src.readModeSC;
         if (src.resetTtlOnReadAtPercent != null) dst.resetTtlOnReadAtPercent = src.resetTtlOnReadAtPercent;
+        
+        // System settings
+        if (src.minimumConnectionsPerNode != null) dst.minimumConnectionsPerNode = src.minimumConnectionsPerNode;
+        if (src.maximumConnectionsPerNode != null) dst.maximumConnectionsPerNode = src.maximumConnectionsPerNode;
+        if (src.maximumSocketIdleTime != null) dst.maximumSocketIdleTime = src.maximumSocketIdleTime;
+        if (src.numTendIntervalsInErrorWindow != null) dst.numTendIntervalsInErrorWindow = src.numTendIntervalsInErrorWindow;
+        if (src.maximumErrorsInErrorWindow != null) dst.maximumErrorsInErrorWindow = src.maximumErrorsInErrorWindow;
+        if (src.tendInterval != null) dst.tendInterval = src.tendInterval;
     }
 
     // -----------------------------------------------------------------------------------
@@ -1411,6 +1523,67 @@ public final class Behavior {
         @Override NonRetryableWriteBatchCpTweaks simulateXdrWrite(boolean b);
     }
 
+    // SYSTEM tweaks interfaces
+    /**
+     * Tweaks for transaction verification operations (read-like settings).
+     * Provides configuration for transactional verification calls.
+     */
+    public interface SystemTxnVerifyTweaks extends CommonTweaks {
+        SystemTxnVerifyTweaks consistency(ReadModeSC consistency);
+        SystemTxnVerifyTweaks replicaOrder(Replica replicaOrder);
+        @Override SystemTxnVerifyTweaks maximumNumberOfCallAttempts(int attempts);
+        @Override SystemTxnVerifyTweaks waitForCallToComplete(Duration duration);
+        @Override SystemTxnVerifyTweaks abandonCallAfter(Duration duration);
+        @Override SystemTxnVerifyTweaks delayBetweenRetries(Duration duration);
+        @Override SystemTxnVerifyTweaks waitForConnectionToComplete(Duration d);
+        @Override SystemTxnVerifyTweaks waitForSocketResponseAfterCallFails(Duration d);
+        @Override SystemTxnVerifyTweaks useCompression(boolean compress);
+        @Override SystemTxnVerifyTweaks stackTraceOnException(boolean enabled);
+    }
+    
+    /**
+     * Tweaks for transaction rollback operations (write-like settings).
+     * Provides configuration for transactional rollback calls.
+     */
+    public interface SystemTxnRollTweaks extends CommonTweaks {
+        SystemTxnRollTweaks replicaOrder(Replica replicaOrder);
+        @Override SystemTxnRollTweaks maximumNumberOfCallAttempts(int attempts);
+        @Override SystemTxnRollTweaks waitForCallToComplete(Duration duration);
+        @Override SystemTxnRollTweaks abandonCallAfter(Duration duration);
+        @Override SystemTxnRollTweaks delayBetweenRetries(Duration duration);
+        @Override SystemTxnRollTweaks waitForConnectionToComplete(Duration d);
+        @Override SystemTxnRollTweaks waitForSocketResponseAfterCallFails(Duration d);
+        @Override SystemTxnRollTweaks useCompression(boolean compress);
+        @Override SystemTxnRollTweaks stackTraceOnException(boolean enabled);
+    }
+    
+    /**
+     * Tweaks for connection pool configuration.
+     * Controls connection pooling behavior per node.
+     */
+    public interface SystemConnectionsTweaks extends TweaksView {
+        SystemConnectionsTweaks minimumConnectionsPerNode(int min);
+        SystemConnectionsTweaks maximumConnectionsPerNode(int max);
+        SystemConnectionsTweaks maximumSocketIdleTime(Duration duration);
+    }
+    
+    /**
+     * Tweaks for circuit breaker configuration.
+     * Controls error thresholds and circuit breaking behavior.
+     */
+    public interface SystemCircuitBreakerTweaks extends TweaksView {
+        SystemCircuitBreakerTweaks numTendIntervalsInErrorWindow(int intervals);
+        SystemCircuitBreakerTweaks maximumErrorsInErrorWindow(int errors);
+    }
+    
+    /**
+     * Tweaks for cluster refresh configuration.
+     * Controls how frequently cluster state is refreshed.
+     */
+    public interface SystemRefreshTweaks extends TweaksView {
+        SystemRefreshTweaks tendInterval(Duration interval);
+    }
+
     // -----------------------------------------------------------------------------------
     // Selectors + factories
     // -----------------------------------------------------------------------------------
@@ -1576,7 +1749,40 @@ public final class Behavior {
          * 
          * @return selector for write operations
          */
-        public static WriteRootSelector<WriteRootAnyModeTweaks> writes() { return new WriteRootSel(new SelectionSpec(null, OpShape.ANY, Mode.ANY)); }
+        public static WriteRootSelector<WriteRootAnyModeTweaks> writes() { return new WriteRootSel(new SelectionSpec(null, OpShape.ANY, Mode.ANY, true)); }
+        
+        /**
+         * Selects system-level operations for transaction verification, connection management,
+         * circuit breaking, and cluster refresh operations.
+         * 
+         * <h3>Sub-categories:</h3>
+         * <ul>
+         *   <li><b>txnVerify</b> - Transaction verification operations (read-like)</li>
+         *   <li><b>txnRoll</b> - Transaction rollback operations (write-like)</li>
+         *   <li><b>connections</b> - Connection pool configuration</li>
+         *   <li><b>circuitBreaker</b> - Error threshold and circuit breaker settings</li>
+         *   <li><b>refresh</b> - Cluster state refresh interval</li>
+         * </ul>
+         * 
+         * <h3>Example usage:</h3>
+         * <pre>{@code
+         * Behavior custom = Behavior.DEFAULT.deriveWithChanges("custom", builder -> builder
+         *     .on(Selectors.system().txnVerify(), ops -> ops
+         *         .maximumNumberOfCallAttempts(10)
+         *         .waitForCallToComplete(Duration.ofSeconds(5))
+         *     )
+         *     .on(Selectors.system().connections(), ops -> ops
+         *         .maximumConnectionsPerNode(200)
+         *         .maximumSocketIdleTime(Duration.ofSeconds(120))
+         *     )
+         * );
+         * }</pre>
+         * 
+         * @return selector for system operations
+         */
+        public static SystemRootSelector system() { 
+            return new SystemRootSel(new SelectionSpec(null, OpShape.SYSTEM, Mode.ANY)); 
+        }
     }
 
     public static final class AllSelector implements Selector<AllAnyModeTweaks> {
@@ -1727,6 +1933,44 @@ public final class Behavior {
         WriteBatchSelector<WriteBatchCpTweaks> cp();
     }
 
+    // SYSTEM selectors
+    /**
+     * Root selector for system-level operations.
+     * Allows selection of specific system sub-categories: txnVerify, txnRoll, connections, circuitBreaker, refresh.
+     */
+    public interface SystemRootSelector {
+        SystemTxnVerifySelector txnVerify();
+        SystemTxnRollSelector txnRoll();
+        SystemConnectionsSelector connections();
+        SystemCircuitBreakerSelector circuitBreaker();
+        SystemRefreshSelector refresh();
+    }
+    
+    /**
+     * Selector for transaction verification operations (read-like settings).
+     */
+    public interface SystemTxnVerifySelector extends Selector<SystemTxnVerifyTweaks> {}
+    
+    /**
+     * Selector for transaction rollback operations (write-like settings).
+     */
+    public interface SystemTxnRollSelector extends Selector<SystemTxnRollTweaks> {}
+    
+    /**
+     * Selector for connection pool configuration.
+     */
+    public interface SystemConnectionsSelector extends Selector<SystemConnectionsTweaks> {}
+    
+    /**
+     * Selector for circuit breaker settings.
+     */
+    public interface SystemCircuitBreakerSelector extends Selector<SystemCircuitBreakerTweaks> {}
+    
+    /**
+     * Selector for cluster refresh settings.
+     */
+    public interface SystemRefreshSelector extends Selector<SystemRefreshTweaks> {}
+
     public static final class WriteRootSel implements WriteRootSelector<WriteRootAnyModeTweaks> {
         private final SelectionSpec spec;
         WriteRootSel(SelectionSpec spec) { this.spec = spec; }
@@ -1848,6 +2092,58 @@ public final class Behavior {
         @Override public WriteBatchSelector<WriteBatchCpTweaks> cp() { return new WriteBatchSel<>(spec.withMode(Mode.CP)); }
     }
 
+    // SYSTEM selector implementations
+    static final class SystemRootSel implements SystemRootSelector {
+        private final SelectionSpec spec;
+        SystemRootSel(SelectionSpec spec) { this.spec = spec; }
+        
+        @Override public SystemTxnVerifySelector txnVerify() { 
+            return new SystemTxnVerifySel(spec.withKind(OpKind.SYSTEM_TXN_VERIFY)); 
+        }
+        @Override public SystemTxnRollSelector txnRoll() { 
+            return new SystemTxnRollSel(spec.withKind(OpKind.SYSTEM_TXN_ROLL)); 
+        }
+        @Override public SystemConnectionsSelector connections() { 
+            return new SystemConnectionsSel(spec.withKind(OpKind.SYSTEM_CONNECTIONS)); 
+        }
+        @Override public SystemCircuitBreakerSelector circuitBreaker() { 
+            return new SystemCircuitBreakerSel(spec.withKind(OpKind.SYSTEM_CIRCUIT_BREAKER)); 
+        }
+        @Override public SystemRefreshSelector refresh() { 
+            return new SystemRefreshSel(spec.withKind(OpKind.SYSTEM_REFRESH)); 
+        }
+    }
+    
+    static final class SystemTxnVerifySel implements SystemTxnVerifySelector {
+        private final SelectionSpec spec;
+        SystemTxnVerifySel(SelectionSpec spec) { this.spec = spec; }
+        @Override public SelectionSpec spec() { return spec; }
+    }
+    
+    static final class SystemTxnRollSel implements SystemTxnRollSelector {
+        private final SelectionSpec spec;
+        SystemTxnRollSel(SelectionSpec spec) { this.spec = spec; }
+        @Override public SelectionSpec spec() { return spec; }
+    }
+    
+    static final class SystemConnectionsSel implements SystemConnectionsSelector {
+        private final SelectionSpec spec;
+        SystemConnectionsSel(SelectionSpec spec) { this.spec = spec; }
+        @Override public SelectionSpec spec() { return spec; }
+    }
+    
+    static final class SystemCircuitBreakerSel implements SystemCircuitBreakerSelector {
+        private final SelectionSpec spec;
+        SystemCircuitBreakerSel(SelectionSpec spec) { this.spec = spec; }
+        @Override public SelectionSpec spec() { return spec; }
+    }
+    
+    static final class SystemRefreshSel implements SystemRefreshSelector {
+        private final SelectionSpec spec;
+        SystemRefreshSel(SelectionSpec spec) { this.spec = spec; }
+        @Override public SelectionSpec spec() { return spec; }
+    }
+
     // -----------------------------------------------------------------------------------
     // Tweaks proxy (records into Patch) — returns TweaksProxy (covariant for all)
     // -----------------------------------------------------------------------------------
@@ -1868,7 +2164,9 @@ public final class Behavior {
     RetryableWriteBatchApTweaks, RetryableWriteBatchCpTweaks, RetryableWritePointApTweaks, RetryableWritePointCpTweaks,
     // write views (non-retryable)
     NonRetryableWriteAnyModeTweaks, NonRetryableWritePointAnyModeTweaks, NonRetryableWriteBatchAnyModeTweaks,
-    NonRetryableWriteBatchApTweaks, NonRetryableWriteBatchCpTweaks, NonRetryableWritePointApTweaks, NonRetryableWritePointCpTweaks {
+    NonRetryableWriteBatchApTweaks, NonRetryableWriteBatchCpTweaks, NonRetryableWritePointApTweaks, NonRetryableWritePointCpTweaks,
+    // system views
+    SystemTxnVerifyTweaks, SystemTxnRollTweaks, SystemConnectionsTweaks, SystemCircuitBreakerTweaks, SystemRefreshTweaks {
 
         private final Patch patch;
         TweaksProxy(Patch patch) { this.patch = patch; }
@@ -1906,6 +2204,18 @@ public final class Behavior {
         // Read modes
         @Override public TweaksProxy readMode(ReadModeAP mode) { patch.settings.readModeAP = mode; return this; }
         @Override public TweaksProxy consistency(ReadModeSC c) { patch.settings.readModeSC = c; return this; }
+        
+        // System - connections
+        @Override public TweaksProxy minimumConnectionsPerNode(int min) { patch.settings.minimumConnectionsPerNode = min; return this; }
+        @Override public TweaksProxy maximumConnectionsPerNode(int max) { patch.settings.maximumConnectionsPerNode = max; return this; }
+        @Override public TweaksProxy maximumSocketIdleTime(Duration d) { patch.settings.maximumSocketIdleTime = d; return this; }
+        
+        // System - circuitBreaker
+        @Override public TweaksProxy numTendIntervalsInErrorWindow(int intervals) { patch.settings.numTendIntervalsInErrorWindow = intervals; return this; }
+        @Override public TweaksProxy maximumErrorsInErrorWindow(int errors) { patch.settings.maximumErrorsInErrorWindow = errors; return this; }
+        
+        // System - refresh
+        @Override public TweaksProxy tendInterval(Duration interval) { patch.settings.tendInterval = interval; return this; }
     }
 
     // -----------------------------------------------------------------------------------
