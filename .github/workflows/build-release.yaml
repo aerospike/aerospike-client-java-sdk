@@ -1,9 +1,10 @@
 name: Java Build & Release
+
 on:
   push:
     branches:
       - CLIENT-3877
-    # tags:
+  workflow_dispatch:
     #   - '[0-9]+.[0-9]+.[0-9]+'
 permissions:
   id-token: write
@@ -20,7 +21,7 @@ jobs:
     #   contains(github.event.base_ref, 'refs/heads/CLIENT-3877')
     # contains(github.event.base_ref, 'refs/heads/stage')
     steps:
-      - uses: actions/checkout@v5
+      - uses: aerospike/shared-workflows/.github/actions/extract-version-from-tag@4f6ae2c7ea490091395ebab3bb02dec01192fc34
       - name: Extract Version
         id: extract
         uses: ./.github/actions/extract-version-from-tag
@@ -59,7 +60,7 @@ jobs:
 
   sign-artifacts:
     needs: [build-packages, extract-version]
-    uses:  aerospike/shared-workflows/actions/reusable_sign-artifacts.yaml@e@37581d0437fe0b76315dafc402882c875789b1af
+    uses: aerospike/shared-workflows/actions/reusable_sign-artifacts.yaml@e@37581d0437fe0b76315dafc402882c875789b1af
     with:
       gh-retention-days: 1
       gh-artifact-name: build-artifacts-${{ needs.extract-version.outputs.version }}

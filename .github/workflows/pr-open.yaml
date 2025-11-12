@@ -32,7 +32,7 @@ jobs:
           echo "Detected Java version: $VERSION"
           echo "java_version=$VERSION" >> $GITHUB_OUTPUT
 
-      - name: Set up JDK ${{ vars.JAVA_DISTRIBUTION }} ${{ steps.extract_java.outputs.java_version }} 
+      - name: Set up JDK ${{ vars.JAVA_DISTRIBUTION }} ${{ steps.extract_java.outputs.java_version }}
         uses: actions/setup-java@v4
         with:
           distribution: ${{ vars.JAVA_DISTRIBUTION }}
@@ -60,7 +60,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: test-reports-jdk-${{ steps.extract_java.outputs.java_version }} 
+          name: test-reports-jdk-${{ steps.extract_java.outputs.java_version }}
           path: |
             **/target/surefire-reports/**
             **/target/failsafe-reports/**
