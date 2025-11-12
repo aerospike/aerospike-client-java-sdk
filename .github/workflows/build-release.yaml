@@ -25,13 +25,13 @@ jobs:
     #   contains(github.event.base_ref, 'refs/heads/CLIENT-3877')
     # contains(github.event.base_ref, 'refs/heads/stage')
     steps:
-      - uses: aerospike/shared-workflows/.github/actions/extract-version-from-tag@4f6ae2c7ea490091395ebab3bb02dec01192fc34
+      #- uses: aerospike/shared-workflows/.github/actions/extract-version-from-tag@4f6ae2c7ea490091395ebab3bb02dec01192fc34
+      - uses: actions/checkout@v5
       - name: Extract Version
         id: extract
         uses: ./.github/actions/extract-version-from-tag
     outputs:
       version: ${{ steps.extract.outputs.version }}
-      git_tag: ${{ steps.extract.outputs.git_tag }}
 
   build-packages:
     uses: aerospike/shared-workflows/.github/workflows/reusable_execute-build.yaml@37581d0437fe0b76315dafc402882c875789b1af
