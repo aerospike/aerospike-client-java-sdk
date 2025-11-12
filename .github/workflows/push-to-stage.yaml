@@ -10,7 +10,7 @@ on:
 jobs:
   build-stage:
     name: Build stage
-    uses: ./.github/workflows/build-release.yaml@CLIENT-3877
+    uses: ./.github/workflows/build-release.yaml@b81592e3b393b3db0321bf982dfab9cc2c19255e
     secrets: inherit
 
 #jobs:
