@@ -11,6 +11,7 @@ import com.aerospike.client.fluent.RecordResult;
 import com.aerospike.client.fluent.RecordStream;
 import com.aerospike.client.fluent.Session;
 import com.aerospike.client.fluent.dsl.Dsl;
+import com.aerospike.client.fluent.exp.Exp;
 import com.aerospike.client.fluent.policy.Behavior;
 import com.aerospike.client.fluent.policy.Behavior.Mode;
 import com.aerospike.client.fluent.policy.Behavior.OpKind;
@@ -174,6 +175,13 @@ public class Main {
 
             System.out.println("Truncate records");
             session.truncate(set);
+            
+            Exp exp = Exp.or(
+                    Exp.eq(Exp.stringBin("name"), Exp.val("Tim")),
+                    Exp.gt(Exp.intBin("age"), Exp.val(21))
+            );
+            System.out.println(exp);
+            
         }
         catch (Throwable t) {
        		System.out.println("Error: " + Util.getErrorMessage(t));

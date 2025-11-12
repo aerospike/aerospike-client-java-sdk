@@ -16,6 +16,7 @@
  */
 package com.aerospike.client.fluent.exp;
 
+import java.util.Arrays;
 import java.util.Calendar;
 import java.util.List;
 import java.util.Map;
@@ -1235,6 +1236,81 @@ public abstract class Exp {
 	public static final int MODIFY = 0x40;
 	private static final long NANOS_PER_MILLIS = 1000000L;
 
+	// Package visible
+    static String cmdAsString(int cmd) {
+        switch (cmd) {
+        case UNKNOWN: return "UNKNOWN";
+        case EQ: return "EQ";
+        case NE: return "NE";
+        case GT: return "GT";
+        case GE: return "GE";
+        case LT: return "LT";
+        case LE: return "LE";
+        case REGEX: return "REGEX";
+        case GEO: return "GEO";
+        case AND: return "AND";
+        case OR: return "OR";
+        case NOT: return "NOT";
+        case EXCLUSIVE: return "EXCLUSIVE";
+        case ADD: return "ADD";
+        case SUB: return "SUB";
+        case MUL: return "MUL";
+        case DIV: return "DIV";
+        case POW: return "POW";
+        case LOG: return "LOG";
+        case MOD: return "MOD";
+        case ABS: return "ABS";
+        case FLOOR: return "FLOOR";
+        case CEIL: return "CEIL";
+        case TO_INT: return "TO_INT";
+        case TO_FLOAT: return "TO_FLOAT";
+        case INT_AND: return "INT_AND";
+        case INT_OR: return "INT_OR";
+        case INT_XOR: return "INT_XOR";
+        case INT_NOT: return "INT_NOT";
+        case INT_LSHIFT: return "INT_LSHIFT";
+        case INT_RSHIFT: return "INT_RSHIFT";
+        case INT_ARSHIFT: return "INT_ARSHIFT";
+        case INT_COUNT: return "INT_COUNT";
+        case INT_LSCAN: return "INT_LSCAN";
+        case INT_RSCAN: return "INT_RSCAN";
+        case MIN: return "MIN";
+        case MAX: return "MAX";
+        case DIGEST_MODULO: return "DIGEST_MODULO";
+        case DEVICE_SIZE: return "DEVICE_SIZE";
+        case LAST_UPDATE: return "LAST_UPDATE";
+        case SINCE_UPDATE: return "SINCE_UPDATE";
+        case VOID_TIME: return "VOID_TIME";
+        case TTL: return "TTL";
+        case SET_NAME: return "SET_NAME";
+        case KEY_EXISTS: return "KEY_EXISTS";
+        case IS_TOMBSTONE: return "IS_TOMBSTONE";
+        case MEMORY_SIZE: return "MEMORY_SIZE";
+        case RECORD_SIZE: return "RECORD_SIZE";
+        case KEY: return "KEY";
+        case BIN: return "BIN";
+        case BIN_TYPE: return "BIN_TYPE";
+        case COND: return "COND";
+        case VAR: return "VAR";
+        case LET: return "LET";
+        case QUOTED: return "QUOTED";
+        case CALL: return "CALL";
+        default:
+            return null;
+        }
+    }
+    
+    protected String expsAsString(Exp[] exps) {
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < exps.length; i++) {
+            if (i > 0) {
+                sb.append(", ");
+            }
+            sb.append(exps[i].toString());
+        }
+        return sb.toString();
+    }
+
 	public abstract void pack(Packer packer);
 
 	/**
@@ -1252,6 +1328,10 @@ public abstract class Exp {
 			this.retType = retType;
 			this.module = module;
 		}
+
+	    public String toString() {
+	        return "Module [bin=" + bin + ", bytes=" + bytes + ", retType=" + retType + ", module=" + module + "]";
+	    }
 
 		@Override
 		public void pack(Packer packer) {
@@ -1273,6 +1353,10 @@ public abstract class Exp {
 			this.type = type;
 		}
 
+	    public String toString() {
+	        return "Bin(" + type.toString().substring(0,1) + "\"" + name + "\")";
+	    }
+
 		@Override
 		public void pack(Packer packer) {
 			packer.packArrayBegin(3);
@@ -1293,6 +1377,9 @@ public abstract class Exp {
 			this.flags = flags;
 		}
 
+	    public String toString() {
+	        return "Regex [bin=" + bin + ", regex=" + regex + ", flags=" + flags + "]";
+	    }
 		@Override
 		public void pack(Packer packer) {
 			packer.packArrayBegin(4);
@@ -1310,7 +1397,12 @@ public abstract class Exp {
 			this.exps = exps;
 		}
 
-		@Override
+	    @Override
+	    public String toString() {
+	        return "Let [exps=" + expsAsString(exps) + "]";
+	    }
+
+	    @Override
 		public void pack(Packer packer) {
 			// Let wire format: LET <defname1>, <defexp1>, <defname2>, <defexp2>, ..., <scope exp>
 			int count = (exps.length - 1) * 2 + 2;
@@ -1332,6 +1424,10 @@ public abstract class Exp {
 			this.exp = exp;
 		}
 
+	    @Override
+	    public String toString() {
+	        return "Def [name=" + name + ", exp=" + exp + "]";
+	    }
 		@Override
 		public void pack(Packer packer) {
 			packer.packString(name);
@@ -1348,6 +1444,97 @@ public abstract class Exp {
 			this.cmd = cmd;
 		}
 
+	    private String multiArgOp(String separator) {
+	        StringBuilder sb = new StringBuilder().append('(');
+	        for (int i = 0; i < exps.length; i++) {
+	            if (i > 0) {
+	                sb.append(' ').append(separator).append(' ');
+	            }
+	            sb.append(exps[i].toString());
+	        }
+	        return sb.append(')').toString();
+	    }
+	    
+	    private String formatCond() {
+	        StringBuilder sb = new StringBuilder();
+	        if (exps.length == 0) {
+	            return "COND()";
+	        }
+	        else if (exps.length == 1) {
+	            return "COND(" +exps[0].toString() + ")";
+	        }
+	        for (int i = 0; i < exps.length; i+=2) {
+	            boolean needsThen = true;
+	            int index = i+1;
+	            if (i == 0) {
+	                sb.append("IF (");
+	            }
+	            else if (i < (exps.length - 1)){
+	                sb.append(" ELSE IF (");
+	            }
+	            else {
+	                needsThen = false;
+	            }
+	            if (needsThen) {
+	                sb.append(exps[i].toString()).append(") THEN ");
+	            }
+	            else {
+	                sb.append(" ELSE ");
+	                index = i;
+	            }
+	            sb.append(exps[index].toString());
+	        }
+	        return sb.toString();
+	    }
+	    @Override
+	    public String toString() {
+	        String cmdStr = cmdAsString(cmd);
+	        if (cmdStr == null) {
+	            return "CmdExp [exps=" + expsAsString(exps) + ", cmd=" + cmd + "]";
+	        }
+	        switch (cmd) {
+	        case GT:
+	            return multiArgOp(">");
+	        case GE:
+	            return multiArgOp(">=");
+	        case LE:
+	            return multiArgOp("<=");
+	        case LT:
+	            return multiArgOp("<");
+	        case EQ:
+	            return multiArgOp("==");
+	        case NE:
+	            return multiArgOp("!=");
+	        case ADD:
+	            return multiArgOp("+");
+	        case SUB:
+	            return multiArgOp("-");
+	        case MUL:
+	            return multiArgOp("*");
+	        case DIV:
+	            return multiArgOp("/");
+	        case AND:
+	            return multiArgOp(" AND ");
+	        case OR:
+	            return multiArgOp(" OR ");
+	        case INT_AND:
+	            return multiArgOp("&");
+	        case INT_ARSHIFT:
+	            return multiArgOp(">>");
+	        case INT_LSHIFT:
+	            return multiArgOp("<<");
+	        case INT_OR:
+	            return multiArgOp("|");
+	        case INT_RSHIFT:
+	            return multiArgOp(">>>");
+	        case COND:
+	            // Special case
+	            return formatCond();
+	        default:
+	            return cmdStr + "(" + expsAsString(exps) + ")";
+	                
+	        }
+	    }
 		@Override
 		public void pack(Packer packer) {
 			packer.packArrayBegin(exps.length + 1);
@@ -1368,7 +1555,16 @@ public abstract class Exp {
 			this.val = val;
 		}
 
-		@Override
+	    @Override
+	    public String toString() {
+	        String cmdStr = cmdAsString(cmd);
+	        if (cmdStr == null) {
+	            return "CmdInt [cmd=" + cmd + ", val=" + val + "]";
+	        }
+	        return cmdStr + "(" + val + ")";
+	    }
+
+	    @Override
 		public void pack(Packer packer) {
 			packer.packArrayBegin(2);
 			packer.packInt(cmd);
@@ -1385,7 +1581,16 @@ public abstract class Exp {
 			this.cmd = cmd;
 		}
 
-		@Override
+	    @Override
+	    public String toString() {
+	        String cmdStr = cmdAsString(cmd);
+	        if (cmdStr == null) {
+	            return "CmdStr [str=" + str + ", cmd=" + cmd + "]";
+	        }
+	        return cmdStr + "(\"" + str + "\")";
+	    }
+
+	    @Override
 		public void pack(Packer packer) {
 			packer.packArrayBegin(2);
 			packer.packInt(cmd);
@@ -1400,6 +1605,18 @@ public abstract class Exp {
 			this.cmd = cmd;
 		}
 
+	    @Override
+	    public String toString() {
+	        String cmdStr = cmdAsString(cmd);
+	        if (cmdStr == null) {
+	            return "Cmd [cmd=" + cmd + "]";
+	            
+	        }
+	        else {
+	            return cmdStr;
+	        }
+	    }
+	    
 		@Override
 		public void pack(Packer packer) {
 			packer.packArrayBegin(1);
@@ -1414,6 +1631,11 @@ public abstract class Exp {
 			this.val = val;
 		}
 
+	    @Override
+	    public String toString() {
+	        return "Bool [val=" + val + "]";
+	    }
+	    
 		@Override
 		public void pack(Packer packer) {
 			packer.packBoolean(val);
@@ -1427,6 +1649,11 @@ public abstract class Exp {
 			this.val = val;
 		}
 
+	    @Override
+	    public String toString() {
+	        return val + "L";
+	    }
+	    
 		@Override
 		public void pack(Packer packer) {
 			packer.packLong(val);
@@ -1439,6 +1666,11 @@ public abstract class Exp {
 		private Float(double val) {
 			this.val = val;
 		}
+
+	    @Override
+	    public String toString() {
+	        return val + "f";
+	    }
 
 		@Override
 		public void pack(Packer packer) {
@@ -1454,7 +1686,12 @@ public abstract class Exp {
 			this.val = val;
 		}
 
-		@Override
+	    @Override
+	    public String toString() {
+	        return "\"" + val + "\"";
+	    }
+
+	    @Override
 		public void pack(Packer packer) {
 			packer.packParticleString(val);
 		}
@@ -1467,7 +1704,12 @@ public abstract class Exp {
 			this.val = val;
 		}
 
-		@Override
+	    @Override
+	    public String toString() {
+	        return "Geo [val=" + val + "]";
+	    }
+
+	    @Override
 		public void pack(Packer packer) {
 			packer.packGeoJSON(val);
 		}
@@ -1480,7 +1722,12 @@ public abstract class Exp {
 			this.val = val;
 		}
 
-		@Override
+	    @Override
+	    public String toString() {
+	        return "Blob [val=" + Arrays.toString(val) + "]";
+	    }
+
+	    @Override
 		public void pack(Packer packer) {
 			packer.packParticleBytes(val);
 
@@ -1494,6 +1741,11 @@ public abstract class Exp {
 			this.list = list;
 		}
 
+	    @Override
+	    public String toString() {
+	        return "ListVal [list=" + list + "]";
+	    }
+	    
 		@Override
 		public void pack(Packer packer) {
 			// List values need an extra array and QUOTED in order to distinguish
@@ -1511,6 +1763,11 @@ public abstract class Exp {
 			this.map = map;
 		}
 
+	    @Override
+	    public String toString() {
+	        return "MapVal [map=" + map + "]";
+	    }
+	    
 		@Override
 		public void pack(Packer packer) {
 			packer.packMap(map);
@@ -1518,6 +1775,11 @@ public abstract class Exp {
 	}
 
 	private static final class Nil extends Exp {
+	    @Override
+	    public String toString() {
+	        return "Nil";
+	    }
+	    
 		@Override
 		public void pack(Packer packer) {
 			packer.packNil();
@@ -1525,14 +1787,24 @@ public abstract class Exp {
 	}
 
 	private static final class Infinity extends Exp {
-		@Override
+	    @Override
+	    public String toString() {
+	        return "Infinity []";
+	    }
+
+	    @Override
 		public void pack(Packer packer) {
 			packer.packInfinity();
 		}
 	}
 
 	private static final class Wildcard extends Exp {
-		@Override
+	    @Override
+	    public String toString() {
+	        return "Wildcard []";
+	    }
+
+	    @Override
 		public void pack(Packer packer) {
 			packer.packWildcard();
 		}
@@ -1547,7 +1819,12 @@ public abstract class Exp {
 			this.bytes = e.getBytes();
 		}
 
-		@Override
+	    @Override
+	    public String toString() {
+	        return "ExpBytes [bytes=" + Arrays.toString(bytes) + "]";
+	    }
+
+	    @Override
 		public void pack(Packer packer) {
 			packer.packByteArray(bytes, 0, bytes.length);
 		}
