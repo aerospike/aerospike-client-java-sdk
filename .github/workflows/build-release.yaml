@@ -62,7 +62,6 @@ jobs:
       gh-retention-days: 1 # default
       jf-url: https://artifact.aerospike.io # default
       publish-build-info: true
-    secrets:
       oidc-provider-name: ${{ secrets.OIDC_PROVIDER_NAME }}
       oidc-audience: ${{ secrets.OIDC_AUDIENCE }}
 

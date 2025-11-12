@@ -12,13 +12,3 @@ jobs:
     name: Build stage
     uses: ./.github/workflows/build-release.yaml
     secrets: inherit
-
-#jobs:
-#  build-stage:
-#    name: Build stage
-#    uses: ./.github/workflows/release-stage.yaml
-#    with:
-#      ref: ${{ github.ref }}
-#      build-number: ${{ github.run_number }}
-#    secrets: inherit
-#
