@@ -87,8 +87,8 @@ jobs:
       gh-artifact-name: ${{ needs.sign-artifacts.outputs.gh-artifact-name }}
       version: ${{ needs.extract-version.outputs.version }}
       gh-retention-days: 1
-      oidc-provider-name: gh-dev-test
-      oidc-audience: aerospike/testing
+      oidc-provider-name: ${{ vars.OIDC_PROVIDER_NAME }}
+      oidc-audience: ${{ vars.OIDC_AUDIENCE }}
       dry-run: false
 
   create-release-bundle:
@@ -99,7 +99,6 @@ jobs:
       jf-build-names: aerospike-client-java-fluent:${{ github.run_number }},test-build-container:${{ github.run_number }}
       jf-bundle-name: aerospike-client-java-fluent
       version: ${{ needs.extract-version.outputs.version }}
-      # gh-workflows-ref: v2.0.2  # Use specific shared-workflows version
-      oidc-provider-name: gh-dev-test
-      oidc-audience: aerospike/testing
+      oidc-provider-name: ${{ vars.OIDC_PROVIDER_NAME }}
+      oidc-audience: ${{ vars.OIDC_AUDIENCE }}
       dry-run: false
