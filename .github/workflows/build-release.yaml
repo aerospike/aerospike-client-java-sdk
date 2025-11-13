@@ -69,7 +69,7 @@ jobs:
     uses: aerospike/shared-workflows/.github/workflows/reusable_sign-artifacts.yaml@37581d0437fe0b76315dafc402882c875789b1af
     with:
       gh-retention-days: 1
-      gh-artifact-name: build-artifacts-${{ needs.extract-version.outputs.version }}
+      gh-artifact-name: build-artifacts-${{ needs.extract-version.outputs.version }}_signed
       gh-unsigned-artifacts: build-artifacts-${{ needs.extract-version.outputs.version }}
     secrets:
       gpg-private-key: ${{ secrets.GPG_SECRET_KEY }}
@@ -87,7 +87,6 @@ jobs:
       gh-artifact-name: ${{ needs.sign-artifacts.outputs.gh-artifact-name }}
       version: ${{ needs.extract-version.outputs.version }}
       gh-retention-days: 1
-      # gh-workflows-ref: v2.0.2  # Use specific shared-workflows version
       oidc-provider-name: gh-dev-test
       oidc-audience: aerospike/testing
       dry-run: false
