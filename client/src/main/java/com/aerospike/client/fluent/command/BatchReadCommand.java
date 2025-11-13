@@ -33,7 +33,7 @@ public class BatchReadCommand extends BatchCommand {
     final int readTouchTtlPercent;
     final boolean linearize;
 
-	public BatchReadCommand(
+	private BatchReadCommand(
 		Cluster cluster, Partitions partitions, Txn txn, String namespace,
 		List<BatchRecord> records, Expression filterExp, Replica replica, ReadModeAP mode,
 		boolean respondAllKeys, Settings policy
@@ -47,7 +47,7 @@ public class BatchReadCommand extends BatchCommand {
         this.linearize = false;
 	}
 
-	public BatchReadCommand(
+	private BatchReadCommand(
 		Cluster cluster, Partitions partitions, Txn txn, String namespace,
 		List<BatchRecord> records, Expression filterExp, Replica replica, ReadModeSC mode,
 		boolean respondAllKeys, boolean linearize, Settings policy
@@ -58,5 +58,49 @@ public class BatchReadCommand extends BatchCommand {
 		this.readModeSC = mode;
         this.readTouchTtlPercent = policy.getResetTtlOnReadAtPercent();
         this.linearize = linearize;
+	}
+
+	public static BatchReadCommand create(
+		Cluster cluster, Txn txn, String namespace, List<BatchRecord> recs, Partitions partitions,
+		Expression filterExp, Settings policy, boolean respondAllKeys
+	) {
+		BatchReadCommand cmd;
+		Replica replica;
+
+        if (partitions.scMode) {
+            ReadModeSC mode = policy.getReadModeSC();
+            boolean linearize;
+
+            switch (mode) {
+            case SESSION:
+            	replica = Replica.MASTER;
+            	linearize = false;
+                break;
+
+            case LINEARIZE:
+                replica = policy.getReplicaOrder();
+
+                if (replica == Replica.PREFER_RACK) {
+                    replica = Replica.SEQUENCE;
+                }
+            	linearize = true;
+                break;
+
+            default:
+                replica = policy.getReplicaOrder();
+            	linearize = false;
+                break;
+            }
+
+            cmd = new BatchReadCommand(cluster, partitions, txn, namespace, recs, filterExp,
+            	replica, mode, respondAllKeys, linearize, policy);
+        }
+        else {
+            replica = policy.getReplicaOrder();
+            cmd = new BatchReadCommand(cluster, partitions, txn, namespace, recs, filterExp,
+            	replica, policy.getReadModeAP(), respondAllKeys, policy);
+        }
+
+        return cmd;
 	}
 }

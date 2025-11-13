@@ -88,7 +88,7 @@ public class Command {
 	final String namespace;
 	final Txn txn;
 	final Expression filterExp;
-	final Replica replica;
+	public final Replica replica;
 	final int connectTimeout;
 	final int socketTimeout;
 	final int totalTimeout;

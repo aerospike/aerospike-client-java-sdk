@@ -23,23 +23,42 @@ import com.aerospike.client.fluent.Cluster;
 import com.aerospike.client.fluent.Connection;
 import com.aerospike.client.fluent.Node;
 import com.aerospike.client.fluent.ResultCode;
+import com.aerospike.client.fluent.metrics.LatencyType;
 
-public final class TxnMarkRollForward extends SyncOperateExecutor {
-	public TxnMarkRollForward(Cluster cluster, OperateWriteCommand cmd) {
+public final class TxnMarkRollForward extends SyncExecutor {
+	private final WriteCommand write;
+
+	public TxnMarkRollForward(Cluster cluster, WriteCommand cmd) {
 		super(cluster, cmd);
+		this.write = cmd;
+	}
+
+	@Override
+	protected final boolean isWrite() {
+		return true;
+	}
+
+	@Override
+	protected final Node getNode() {
+		return write.partition.getNodeWrite(cluster);
+	}
+
+	@Override
+	protected final LatencyType getLatencyType() {
+		return LatencyType.WRITE;
 	}
 
 	@Override
 	protected CommandBuffer getCommandBuffer() {
 		CommandBuffer cb = new CommandBuffer();
-		cb.setTxnMarkRollForward(operate);
+		cb.setTxnMarkRollForward(write);
 		return cb;
 	}
 
 	@Override
 	protected void parseResult(Node node, Connection conn, byte[] buffer) throws IOException {
 		RecordParser rp = new RecordParser(conn, buffer);
-		rp.parseFields(cmd.txn, operate.key, true);
+		rp.skipFields();
 
 		if (node.isMetricsEnabled()) {
 			node.addBytesIn(cmd.namespace, rp.bytesIn);
@@ -52,6 +71,12 @@ public final class TxnMarkRollForward extends SyncOperateExecutor {
 		}
 
 		throw new AerospikeException(rp.resultCode);
+	}
+
+	@Override
+	protected final boolean prepareRetry(boolean timeout) {
+		write.partition.prepareRetryWrite(timeout);
+		return true;
 	}
 
 	@Override

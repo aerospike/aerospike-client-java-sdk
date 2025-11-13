@@ -445,22 +445,22 @@ public class AerospikeException extends RuntimeException {
 		 * Verify result for each read key in the transaction. May be null if failure occurred
 		 * before verify.
 		 */
-		public final BatchRecord[] verifyRecords;
+		public final List<BatchRecord> verifyRecords;
 
 		/**
 		 * Roll forward/backward result for each write key in the transaction. May be null if
 		 * failure occurred before roll forward/backward.
 		 */
-		public final BatchRecord[] rollRecords;
+		public final List<BatchRecord> rollRecords;
 
-		public Commit(CommitError error, BatchRecord[] verifyRecords, BatchRecord[] rollRecords) {
+		public Commit(CommitError error, List<BatchRecord> verifyRecords, List<BatchRecord> rollRecords) {
 			super(ResultCode.TXN_FAILED, error.str);
 			this.error = error;
 			this.verifyRecords = verifyRecords;
 			this.rollRecords = rollRecords;
 		}
 
-		public Commit(CommitError error, BatchRecord[] verifyRecords, BatchRecord[] rollRecords, Throwable cause) {
+		public Commit(CommitError error, List<BatchRecord> verifyRecords, List<BatchRecord> rollRecords, Throwable cause) {
 			super(ResultCode.TXN_FAILED, error.str, cause);
 			this.error = error;
 			this.verifyRecords = verifyRecords;
@@ -477,7 +477,7 @@ public class AerospikeException extends RuntimeException {
 		}
 	}
 
-	private static void recordsToString(StringBuilder sb, String title, BatchRecord[] records) {
+	private static void recordsToString(StringBuilder sb, String title, List<BatchRecord> records) {
 		if (records == null) {
 			return;
 		}

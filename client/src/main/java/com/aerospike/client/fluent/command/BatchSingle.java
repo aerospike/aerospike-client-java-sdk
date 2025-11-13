@@ -28,6 +28,7 @@ import com.aerospike.client.fluent.Operation;
 import com.aerospike.client.fluent.Partition;
 import com.aerospike.client.fluent.RecordResult;
 import com.aerospike.client.fluent.ResultCode;
+import com.aerospike.client.fluent.Txn;
 import com.aerospike.client.fluent.metrics.LatencyType;
 
 public final class BatchSingle {
@@ -441,101 +442,125 @@ public final class BatchSingle {
 	//-------------------------------------------------------
 	// Transaction
 	//-------------------------------------------------------
-/*
+
 	public static final class TxnVerify extends BatchSingleExecutor {
+		private final BatchReadCommand read;
 		private final long version;
 		private final BatchRecord br;
 
 		public TxnVerify(
 			Cluster cluster,
-			BatchPolicy policy,
-			long version,
-			BatchRecord record,
+			BatchReadCommand cmd,
 			BatchStatus status,
-			Node node
+			BatchRecord br,
+			Node node,
+			long version
 		) {
-			super(cluster, policy, status, record.key, node, false);
+			super(cluster, cmd, status, br.key, node, false);
+			this.read = cmd;
 			this.version = version;
-			this.record = record;
+			this.br = br;
 		}
 
 		@Override
 		protected CommandBuffer getCommandBuffer() {
 			CommandBuffer cb = new CommandBuffer();
-			cb.setTxnVerify(br.key, version);
+			cb.setTxnVerify(br.key, version, cmd.serverTimeout);
 			return cb;
 		}
 
 		@Override
-		protected void writeBuffer() {
-			setTxnVerify(record.key, version);
-		}
+		protected void parseResult(Node node, Connection conn, byte[] buffer) throws IOException {
+			RecordParser rp = new RecordParser(conn, buffer);
 
-		@Override
-		protected void parseResult(Node node, Connection conn) throws IOException {
-			RecordParser rp = new RecordParser(conn, dataBuffer);
-			if (node.areMetricsEnabled()) {
-				node.addBytesIn(namespace, rp.bytesIn);
+			if (node.isMetricsEnabled()) {
+				node.addBytesIn(cmd.namespace, rp.bytesIn);
 			}
+
 			if (rp.resultCode == ResultCode.OK) {
-				record.resultCode = rp.resultCode;
+				br.resultCode = rp.resultCode;
 			}
 			else {
-				record.setError(rp.resultCode, false);
+				br.setError(rp.resultCode, false);
 				status.setRowError();
 			}
 		}
+
+		@Override
+		protected boolean prepareRetry(boolean timeout) {
+			Partition p = new Partition(read.partitions, key, read.replica, null, read.linearize);
+			p.sequence = sequence;
+			p.prevNode = node;
+			p.prepareRetryRead(timeout);
+			node = p.getNodeRead(cluster);
+			sequence = p.sequence;
+			return true;
+		}
 	}
-*/
-/*
-	public static final class TxnRoll extends BaseCommand {
+
+	public static final class TxnRoll extends BatchSingleExecutor {
 		private final Txn txn;
-		private final BatchRecord record;
+		private final BatchRecord br;
 		private final int attr;
 
 		public TxnRoll(
 			Cluster cluster,
-			BatchPolicy policy,
+			BatchCommand cmd,
 			Txn txn,
-			BatchRecord record,
+			BatchRecord br,
 			BatchStatus status,
 			Node node,
 			int attr
 		) {
-			super(cluster, policy, status, record.key, node, true);
+			super(cluster, cmd, status, br.key, node, true);
 			this.txn = txn;
-			this.record = record;
+			this.br = br;
 			this.attr = attr;
 		}
 
 		@Override
-		protected void writeBuffer() {
-			setTxnRoll(record.key, txn, attr);
+		protected CommandBuffer getCommandBuffer() {
+			CommandBuffer cb = new CommandBuffer();
+			cb.setTxnRoll(br.key, txn, attr, cmd.serverTimeout);
+			return cb;
 		}
 
 		@Override
-		protected void parseResult(Node node, Connection conn) throws IOException {
-			RecordParser rp = new RecordParser(conn, dataBuffer);
-			if (node.areMetricsEnabled()) {
-				node.addBytesIn(namespace, rp.bytesIn);
+		protected void parseResult(Node node, Connection conn, byte[] buffer) throws IOException {
+			RecordParser rp = new RecordParser(conn, buffer);
+
+			if (node.isMetricsEnabled()) {
+				node.addBytesIn(cmd.namespace, rp.bytesIn);
 			}
+
 			if (rp.resultCode == ResultCode.OK) {
-				record.resultCode = rp.resultCode;
+				br.resultCode = rp.resultCode;
 			}
 			else {
-				record.setError(rp.resultCode, Command.batchInDoubt(true, commandSentCounter));
+				br.setError(rp.resultCode, BatchCommand.inDoubt(true, commandSentCounter));
 				status.setRowError();
 			}
 		}
 
 		@Override
 		public void setInDoubt() {
-			if (record.resultCode == ResultCode.NO_RESPONSE) {
-				record.inDoubt = true;
+			if (br.resultCode == ResultCode.NO_RESPONSE) {
+				br.inDoubt = true;
 			}
 		}
+
+		@Override
+		protected boolean prepareRetry(boolean timeout) {
+			Partition p = new Partition(parent.partitions, key, parent.replica, null, false);
+			p.sequence = sequence;
+			p.prevNode = node;
+			p.prepareRetryWrite(timeout);
+			node = p.getNodeWrite(cluster);
+			sequence = p.sequence;
+			return true;
+		}
 	}
-*/
+
 	public static abstract class BatchSingleExecutor extends SyncExecutor implements IBatchCommand {
 		final BatchCommand parent;
 		BatchStatus status;

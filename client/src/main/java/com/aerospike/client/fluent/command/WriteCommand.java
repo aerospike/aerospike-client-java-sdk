@@ -52,4 +52,17 @@ public class WriteCommand extends Command {
 		this.durableDelete = policy.getUseDurableDelete();
 		this.failOnFilteredOut = failOnFilteredOut;
 	}
+
+	public WriteCommand(Cluster cluster, Key key, Settings policy) {
+		super(cluster, key.namespace, null, null, policy.getReplicaOrder(), policy);
+		this.key = key;
+		this.partition = null;
+		this.type = OpType.UPSERT;
+		this.commitLevel = CommitLevel.COMMIT_ALL;
+		this.gen = 0;
+		this.ttl = 0;
+		this.onLockingOnly = false;
+		this.durableDelete = policy.getUseDurableDelete();
+		this.failOnFilteredOut = false;
+	}
 }

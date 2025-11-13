@@ -578,29 +578,25 @@ public final class Batch {
 			return BatchNodeList.generate(cluster, batchPolicy, keys, records, sequenceAP, sequenceSC, batch, attr.hasWrite, status);
 		}
 	}
-
+*/
 	//-------------------------------------------------------
 	// Transaction
 	//-------------------------------------------------------
 
-	public static final class TxnVerify extends BatchCommand {
-		private final Key[] keys;
+	public static final class TxnVerify extends BatchNodeExecutor {
+		private final List<BatchRecord> records;
 		private final Long[] versions;
-		private final BatchRecord[] records;
 
 		public TxnVerify(
 			Cluster cluster,
+			BatchReadCommand parent,
 			BatchNode batch,
-			BatchPolicy batchPolicy,
-			Key[] keys,
-			Long[] versions,
-			BatchRecord[] records,
-			BatchStatus status
+			BatchStatus status,
+			Long[] versions
 		) {
-			super(cluster, batch, batchPolicy, status, false);
-			this.keys = keys;
+			super(cluster, parent, batch, status, false);
+			this.records = parent.records;
 			this.versions = versions;
-			this.records = records;
 		}
 
 		@Override
@@ -609,15 +605,17 @@ public final class Batch {
 		}
 
 		@Override
-		protected void writeBuffer() {
-			setBatchTxnVerify(batchPolicy, keys, versions, batch);
+		protected CommandBuffer getCommandBuffer() {
+			CommandBuffer cb = new CommandBuffer();
+			cb.setBatchOperate(parent, batch, null, null, null);
+			return cb;
 		}
 
 		@Override
 		protected boolean parseRow() {
 			skipKey(fieldCount);
 
-			BatchRecord record = records[batchIndex];
+			BatchRecord record = records.get(batchIndex);
 
 			if (resultCode == 0) {
 				record.resultCode = resultCode;
@@ -630,60 +628,69 @@ public final class Batch {
 		}
 
 		@Override
-		protected BatchCommand createCommand(BatchNode batchNode) {
-			return new TxnVerify(cluster, batchNode, batchPolicy, keys, versions, records, status);
+		protected void setException(AerospikeException ae) {
+			for (int index : batch.offsets) {
+				BatchRecord br = records.get(index);
+
+				if (br.resultCode == ResultCode.NO_RESPONSE) {
+					br.resultCode = ae.getResultCode();
+					br.inDoubt = ae.getInDoubt();
+				}
+			}
+		}
+
+		@Override
+		protected TxnVerify createCommand(BatchNode batchNode) {
+			return new TxnVerify(cluster, (BatchReadCommand)parent, batchNode, status, versions);
 		}
 
 		@Override
 		protected List<BatchNode> generateBatchNodes() {
-			return BatchNodeList.generate(cluster, batchPolicy, keys, records, sequenceAP, sequenceSC, batch, false, status);
+			return BatchNodeList.generate(cluster, parent.partitions, parent.replica, records,
+					sequenceAP, sequenceSC, batch, status);
 		}
 	}
 
-	public static final class TxnRoll extends BatchCommand {
-		private final Txn txn;
-		private final Key[] keys;
-		private final BatchRecord[] records;
+	public static final class TxnRoll extends BatchNodeExecutor {
+		private final List<BatchRecord> records;
 		private final BatchAttr attr;
 
 		public TxnRoll(
 			Cluster cluster,
+			BatchCommand parent,
 			BatchNode batch,
-			BatchPolicy batchPolicy,
-			Txn txn,
-			Key[] keys,
-			BatchRecord[] records,
-			BatchAttr attr,
-			BatchStatus status
+			BatchStatus status,
+			List<BatchRecord> records,
+			BatchAttr attr
 		) {
-			super(cluster, batch, batchPolicy, status, false);
-			this.txn = txn;
-			this.keys = keys;
+			super(cluster, parent, batch, status, false);
 			this.records = records;
 			this.attr = attr;
 		}
 
 		@Override
 		protected boolean isWrite() {
-			return attr.hasWrite;
+			return true;
 		}
 
 		@Override
-		protected void writeBuffer() {
-			setBatchTxnRoll(batchPolicy, txn, keys, batch, attr);
+		protected CommandBuffer getCommandBuffer() {
+			CommandBuffer cb = new CommandBuffer();
+			cb.setBatchTxnRoll(parent, batch, attr);
+			return cb;
 		}
 
 		@Override
 		protected boolean parseRow() {
 			skipKey(fieldCount);
 
-			BatchRecord record = records[batchIndex];
+			BatchRecord record = records.get(batchIndex);
 
 			if (resultCode == 0) {
 				record.resultCode = resultCode;
 			}
 			else {
-				record.setError(resultCode, Command.batchInDoubt(attr.hasWrite, commandSentCounter));
+				record.setError(resultCode, BatchCommand.inDoubt(attr.hasWrite, commandSentCounter));
 				status.setRowError();
 			}
 			return true;
@@ -696,7 +703,7 @@ public final class Batch {
 			}
 
 			for (int index : batch.offsets) {
-				BatchRecord record = records[index];
+				BatchRecord record = records.get(index);
 
 				if (record.resultCode == ResultCode.NO_RESPONSE) {
 					record.inDoubt = true;
@@ -705,16 +712,29 @@ public final class Batch {
 		}
 
 		@Override
-		protected BatchCommand createCommand(BatchNode batchNode) {
-			return new TxnRoll(cluster, batchNode, batchPolicy, txn, keys, records, attr, status);
+		protected void setException(AerospikeException ae) {
+			for (int index : batch.offsets) {
+				BatchRecord br = records.get(index);
+
+				if (br.resultCode == ResultCode.NO_RESPONSE) {
+					br.resultCode = ae.getResultCode();
+					br.inDoubt = ae.getInDoubt();
+				}
+			}
+		}
+
+		@Override
+		protected TxnRoll createCommand(BatchNode batchNode) {
+			return new TxnRoll(cluster, parent, batchNode, status, records, attr);
 		}
 
 		@Override
 		protected List<BatchNode> generateBatchNodes() {
-			return BatchNodeList.generate(cluster, batchPolicy, keys, records, sequenceAP, sequenceSC, batch, attr.hasWrite, status);
+			return BatchNodeList.generate(cluster, parent.partitions, parent.replica, records,
+					sequenceAP, sequenceSC, batch, status);
 		}
 	}
-*/
+
 	//-------------------------------------------------------
 	// Batch Base Command
 	//-------------------------------------------------------

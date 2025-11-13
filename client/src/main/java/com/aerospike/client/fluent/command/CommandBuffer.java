@@ -16,6 +16,7 @@
  */
 package com.aerospike.client.fluent.command;
 
+import java.util.List;
 import java.util.zip.Deflater;
 
 import com.aerospike.client.fluent.AerospikeException;
@@ -1273,9 +1274,9 @@ public final class CommandBuffer {
 		compress(cmd);
 	}
 
-	public void setTxnVerify(ReadCommand cmd, long ver) {
+	public void setTxnVerify(Key key, long ver, int serverTimeout) {
 		begin();
-		int fieldCount = estimateKeySize(cmd.key);
+		int fieldCount = estimateKeySize(key);
 
 		// Version field.
 		dataOffset += 7 + Command.FIELD_HEADER_SIZE;
@@ -1290,12 +1291,12 @@ public final class CommandBuffer {
 		dataBuffer[13] = 0;
 		Buffer.intToBytes(0, dataBuffer, 14);
 		Buffer.intToBytes(0, dataBuffer, 18);
-		Buffer.intToBytes(cmd.serverTimeout, dataBuffer, 22);
+		Buffer.intToBytes(serverTimeout, dataBuffer, 22);
 		Buffer.shortToBytes(fieldCount, dataBuffer, 26);
 		Buffer.shortToBytes(0, dataBuffer, 28);
 		dataOffset = Command.MSG_TOTAL_HEADER_SIZE;
 
-		writeKey(cmd.key);
+		writeKey(key);
 		writeFieldVersion(ver);
 		end();
 	}
@@ -1311,12 +1312,157 @@ public final class CommandBuffer {
 		end();
 	}
 
+	public void setTxnRoll(Key key, Txn txn, int txnAttr, int serverTimeout) {
+		begin();
+		int fieldCount = estimateKeySize(key);
+
+		fieldCount += sizeTxn(key, txn, false);
+
+		sizeBuffer();
+		dataBuffer[8]  = Command.MSG_REMAINING_HEADER_SIZE;
+		dataBuffer[9]  = (byte)0;
+		dataBuffer[10] = (byte)Command.INFO2_WRITE | Command.INFO2_DURABLE_DELETE;
+		dataBuffer[11] = (byte)0;
+		dataBuffer[12] = (byte)txnAttr;
+		dataBuffer[13] = 0; // clear the result code
+		Buffer.intToBytes(0, dataBuffer, 14);
+		Buffer.intToBytes(0, dataBuffer, 18);
+		Buffer.intToBytes(serverTimeout, dataBuffer, 22);
+		Buffer.shortToBytes(fieldCount, dataBuffer, 26);
+		Buffer.shortToBytes(0, dataBuffer, 28);
+		dataOffset = Command.MSG_TOTAL_HEADER_SIZE;
+
+		writeKey(key);
+		writeTxn(txn, false);
+		end();
+	}
+
+	public void setBatchTxnRoll(BatchCommand cmd, BatchNode batch, BatchAttr attr) {
+		// Estimate buffer size.
+		begin();
+		int fieldCount = 1;
+		int max = batch.offsetsSize;
+		Long[] versions = new Long[max];
+		Txn txn = cmd.txn;
+		List<BatchRecord> recs = cmd.records;
+
+		for (int i = 0; i < max; i++) {
+			int offset = batch.offsets[i];
+			BatchRecord br = recs.get(offset);
+			versions[i] = txn.getReadVersion(br.key);
+		}
+
+		// Batch field
+		dataOffset += Command.FIELD_HEADER_SIZE + 5;
+
+		Key keyPrev = null;
+		Long verPrev = null;
+
+		for (int i = 0; i < max; i++) {
+			int offset = batch.offsets[i];
+			BatchRecord br = recs.get(offset);
+			Key key = br.key;
+			Long ver = versions[i];
+
+			dataOffset += key.digest.length + 4;
+
+			if (canRepeat(key, keyPrev, ver, verPrev)) {
+				// Can set repeat previous namespace/bin names to save space.
+				dataOffset++;
+			}
+			else {
+				// Write full header and namespace/set/bin names.
+				dataOffset += 12; // header(4) + ttl(4) + fieldCount(2) + opCount(2) = 12
+				dataOffset += Buffer.estimateSizeUtf8(key.namespace) + Command.FIELD_HEADER_SIZE;
+				dataOffset += Buffer.estimateSizeUtf8(key.setName) + Command.FIELD_HEADER_SIZE;
+				sizeTxnBatch(txn, ver, attr.hasWrite);
+				dataOffset += 2; // gen(2) = 2
+				keyPrev = key;
+				verPrev = ver;
+			}
+		}
+
+		sizeBuffer();
+
+		writeBatchHeader(cmd, fieldCount);
+
+		int fieldSizeOffset = dataOffset;
+		writeFieldHeader(0, FieldType.BATCH_INDEX);  // Need to update size at end
+
+		Buffer.intToBytes(max, dataBuffer, dataOffset);
+		dataOffset += 4;
+		dataBuffer[dataOffset++] = getBatchFlags(cmd);
+		keyPrev = null;
+		verPrev = null;
+
+		for (int i = 0; i < max; i++) {
+			int offset = batch.offsets[i];
+			BatchRecord br = recs.get(offset);
+			Key key = br.key;
+			Long ver = versions[i];
+
+			Buffer.intToBytes(offset, dataBuffer, dataOffset);
+			dataOffset += 4;
+
+			byte[] digest = key.digest;
+			System.arraycopy(digest, 0, dataBuffer, dataOffset, digest.length);
+			dataOffset += digest.length;
+
+			if (canRepeat(key, keyPrev, ver, verPrev)) {
+				// Can set repeat previous namespace/bin names to save space.
+				dataBuffer[dataOffset++] = BATCH_MSG_REPEAT;
+			}
+			else {
+				// Write full message.
+				writeBatchWrite(key, txn, ver, attr, null, 0, 0);
+				keyPrev = key;
+				verPrev = ver;
+			}
+		}
+
+		// Write real field size.
+		Buffer.intToBytes(dataOffset - Command.MSG_TOTAL_HEADER_SIZE - 4, dataBuffer, fieldSizeOffset);
+		end();
+		compress(cmd);
+	}
+
 	public void setTxnClose(WriteCommand cmd) {
 		begin();
+
 		int fieldCount = estimateKeySize(cmd.key);
-		writeTxnMonitor(cmd, 0, Command.INFO2_WRITE | Command.INFO2_DELETE | Command.INFO2_DURABLE_DELETE,
+
+		writeTxnMonitor(cmd, 0,
+			Command.INFO2_WRITE | Command.INFO2_DELETE | Command.INFO2_DURABLE_DELETE,
 			fieldCount, 0);
+
 		end();
+	}
+
+	private static boolean canRepeat(Key key, Key keyPrev, Long ver, Long verPrev) {
+		return verPrev == ver && keyPrev != null && keyPrev.namespace == key.namespace &&
+				keyPrev.setName == key.setName;
+	}
+
+	private int sizeTxn(Key key, Txn txn, boolean hasWrite) {
+		int fieldCount = 0;
+
+		if (txn != null) {
+			dataOffset += 8 + Command.FIELD_HEADER_SIZE;
+			fieldCount++;
+
+			version = txn.getReadVersion(key);
+
+			if (version != null) {
+				dataOffset += 7 + Command.FIELD_HEADER_SIZE;
+				fieldCount++;
+			}
+
+			if (hasWrite && txn.getDeadline() != 0) {
+				dataOffset += 4 + Command.FIELD_HEADER_SIZE;
+				fieldCount++;
+			}
+		}
+		return fieldCount;
 	}
 
 	private void writeTxnMonitor(

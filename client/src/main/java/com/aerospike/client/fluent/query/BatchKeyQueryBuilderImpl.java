@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import com.aerospike.client.fluent.AbstractFilterableBuilder;
 import com.aerospike.client.fluent.AerospikeException;
 import com.aerospike.client.fluent.Cluster;
 import com.aerospike.client.fluent.Key;
@@ -31,8 +32,6 @@ import com.aerospike.client.fluent.exp.Exp;
 import com.aerospike.client.fluent.exp.Expression;
 import com.aerospike.client.fluent.policy.Behavior.OpKind;
 import com.aerospike.client.fluent.policy.Behavior.OpShape;
-import com.aerospike.client.fluent.policy.ReadModeSC;
-import com.aerospike.client.fluent.policy.Replica;
 import com.aerospike.client.fluent.policy.Settings;
 
 class BatchKeyQueryBuilderImpl extends QueryImpl {
@@ -146,47 +145,11 @@ class BatchKeyQueryBuilderImpl extends QueryImpl {
 		}
 
 		Settings policy = session.getBehavior().getSettings(OpKind.READ, OpShape.BATCH, partitions.scMode);
-		BatchReadCommand parent;
-		Replica replica;
-
-        if (partitions.scMode) {
-            ReadModeSC mode = policy.getReadModeSC();
-            boolean linearize;
-
-            switch (mode) {
-            case SESSION:
-            	replica = Replica.MASTER;
-            	linearize = false;
-                break;
-
-            case LINEARIZE:
-                replica = policy.getReplicaOrder();
-
-                if (replica == Replica.PREFER_RACK) {
-                    replica = Replica.SEQUENCE;
-                }
-            	linearize = true;
-                break;
-
-            default:
-                replica = policy.getReplicaOrder();
-            	linearize = false;
-                break;
-            }
-
-            parent = new BatchReadCommand(cluster, partitions, qb.getTxnToUse(), namespace,
-            	batchRecordsForServer, filterExp, replica, mode, qb.isRespondAllKeys(),
-            	linearize, policy);
-        }
-        else {
-            replica = policy.getReplicaOrder();
-            parent = new BatchReadCommand(cluster, partitions, qb.getTxnToUse(), namespace,
-                batchRecordsForServer, filterExp, replica, policy.getReadModeAP(),
-                qb.isRespondAllKeys(), policy);
-       }
+		BatchReadCommand parent = BatchReadCommand.create(cluster, txn, namespace,
+			batchRecordsForServer, partitions, filterExp, policy, qb.isRespondAllKeys());
 
     	BatchStatus status = new BatchStatus(true);
-		List<BatchNode> bns = BatchNodeList.generate(cluster, partitions, replica,
+		List<BatchNode> bns = BatchNodeList.generate(cluster, partitions, parent.replica,
 			batchRecordsForServer, status);
 
 		IBatchCommand[] commands = new IBatchCommand[bns.size()];
@@ -226,7 +189,7 @@ class BatchKeyQueryBuilderImpl extends QueryImpl {
             for (int i = 0; i < batchRecords.size(); i++) {
                 BatchRecord br = batchRecords.get(i);
                 if (getQueryBuilder().shouldIncludeResult(br.resultCode)) {
-                    results.add(getQueryBuilder().createRecordResultFromBatchRecord(br, settings, i));
+                    results.add(AbstractFilterableBuilder.createRecordResultFromBatchRecord(br, settings, i));
                 }
             }
             // TODO: ResultsInKeyOrder?

@@ -206,7 +206,7 @@ public final class RecordParser {
 		}
 	}
 
-	private void skipFields() {
+	public void skipFields() {
 		// There can be fields in the response (setname etc).
 		// But for now, ignore them. Expose them to the API if needed in the future.
 		for (int i = 0; i < fieldCount; i++) {

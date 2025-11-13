@@ -2,9 +2,10 @@ package com.aerospike.client.fluent;
 
 import com.aerospike.client.fluent.command.TxnRoll;
 import com.aerospike.client.fluent.policy.Behavior;
-import com.aerospike.client.fluent.policy.Settings;
+import com.aerospike.client.fluent.policy.Behavior.Mode;
 import com.aerospike.client.fluent.policy.Behavior.OpKind;
 import com.aerospike.client.fluent.policy.Behavior.OpShape;
+import com.aerospike.client.fluent.policy.Settings;
 
 /**
  * A session that supports transactional operations with automatic retry logic.
@@ -87,8 +88,6 @@ public class TransactionalSession extends Session{
      * @throws RuntimeException if any other exception occurs during execution
      */
     public <T> T doInTransaction(Transactional<T> operation) {
-    	return null;
-    	/*
         try {
             if (++count > 1) {
                 // Nested transaction, do not enforce transaction semantics
@@ -99,11 +98,12 @@ public class TransactionalSession extends Session{
                 while (true) {
                     try {
                         T result = operation.execute(this);
-                        this.getClient().commit(txn);
+                        commit();
                         return result;
                     }
                     catch (AerospikeException ae) {
-                        this.getClient().abort(txn);
+                        abort();
+
                         switch (ae.getResultCode()) {
                         case ResultCode.MRT_BLOCKED:
                         case ResultCode.MRT_VERSION_MISMATCH:
@@ -116,7 +116,7 @@ public class TransactionalSession extends Session{
                         }
                     }
                     catch (Exception e) {
-                        this.getClient().abort(txn);
+                        abort();
                         throw e;
                     }
                 }
@@ -125,7 +125,6 @@ public class TransactionalSession extends Session{
         finally {
             count--;
         }
-        */
     }
 
     /**
@@ -147,7 +146,6 @@ public class TransactionalSession extends Session{
      * @throws RuntimeException if any other exception occurs during execution
      */
     public void doInTransaction(TransactionalVoid operation) {
-    	/*
         try {
             if (++count > 1) {
                 // Nested transaction, do not enforce transaction semantics
@@ -158,11 +156,12 @@ public class TransactionalSession extends Session{
                 while (true) {
                     try {
                         operation.execute(this);
-                        this.getClient().commit(txn);
+                        commit();
                     }
                     catch (AerospikeException ae) {
-                        this.getClient().abort(txn);
-                        switch (ae.getResultCode()) {
+                    	abort();
+
+                    	switch (ae.getResultCode()) {
                         case ResultCode.MRT_BLOCKED:
                         case ResultCode.MRT_VERSION_MISMATCH:
                         case ResultCode.TXN_FAILED:
@@ -174,7 +173,7 @@ public class TransactionalSession extends Session{
                         }
                     }
                     catch (Exception e) {
-                        this.getClient().abort(txn);
+                    	abort();
                         throw e;
                     }
                 }
@@ -183,28 +182,45 @@ public class TransactionalSession extends Session{
         finally {
             count--;
         }
-        */
     }
 
-    private void commit() {
-    	/*
+    private CommitStatus commit() {
 		TxnRoll tr = new TxnRoll(getCluster(), txn);
-		Settings policy = getBehavior().getSettings(OpKind.READ, OpShape.BATCH, partitions.scMode);
+		Settings verifyPolicy = getBehavior().getSettings(OpKind.SYSTEM_TXN_VERIFY, OpShape.SYSTEM, Mode.ANY);
+		Settings rollPolicy = getBehavior().getSettings(OpKind.SYSTEM_TXN_ROLL, OpShape.SYSTEM, Mode.ANY);
 
 		switch (txn.getState()) {
 			default:
 			case OPEN:
-				tr.verify(mergedTxnVerifyPolicyDefault, mergedTxnRollPolicyDefault);
-				return tr.commit(mergedTxnRollPolicyDefault);
+				tr.verify(verifyPolicy, rollPolicy);
+				return tr.commit(rollPolicy);
 
 			case VERIFIED:
-				return tr.commit(mergedTxnRollPolicyDefault);
+				return tr.commit(rollPolicy);
 
 			case COMMITTED:
-				return;
+				return CommitStatus.ALREADY_COMMITTED;
 
 			case ABORTED:
 				throw new AerospikeException(ResultCode.TXN_ALREADY_ABORTED, "Transaction already aborted");
-		}*/
+		}
     }
+
+	private AbortStatus abort() {
+		TxnRoll tr = new TxnRoll(getCluster(), txn);
+		Settings rollPolicy = getBehavior().getSettings(OpKind.SYSTEM_TXN_ROLL, OpShape.SYSTEM, Mode.ANY);
+
+		switch (txn.getState()) {
+			default:
+			case OPEN:
+			case VERIFIED:
+				return tr.abort(rollPolicy);
+
+			case COMMITTED:
+				throw new AerospikeException(ResultCode.TXN_ALREADY_COMMITTED, "Transaction already committed");
+
+			case ABORTED:
+				return AbortStatus.ALREADY_ABORTED;
+		}
+	}
 }

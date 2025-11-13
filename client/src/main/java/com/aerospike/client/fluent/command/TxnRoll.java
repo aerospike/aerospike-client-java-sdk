@@ -17,6 +17,7 @@
 package com.aerospike.client.fluent.command;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -27,24 +28,33 @@ import com.aerospike.client.fluent.Cluster;
 import com.aerospike.client.fluent.CommitError;
 import com.aerospike.client.fluent.CommitStatus;
 import com.aerospike.client.fluent.Key;
+import com.aerospike.client.fluent.Partitions;
 import com.aerospike.client.fluent.ResultCode;
 import com.aerospike.client.fluent.Txn;
 import com.aerospike.client.fluent.TxnMonitor;
-import com.aerospike.client.fluent.policy.BatchPolicy;
-import com.aerospike.client.fluent.policy.WritePolicy;
+import com.aerospike.client.fluent.policy.Settings;
 
 public final class TxnRoll {
 	private final Cluster cluster;
+	private final Partitions partitions;
 	private final Txn txn;
-	private BatchRecord[] verifyRecords;
-	private BatchRecord[] rollRecords;
+	private List<BatchRecord> verifyRecords;
+	private List<BatchRecord> rollRecords;
 
 	public TxnRoll(Cluster cluster, Txn txn) {
 		this.cluster = cluster;
 		this.txn = txn;
+
+		HashMap<String,Partitions> partitionMap = cluster.getPartitionMap();
+
+		this.partitions = partitionMap.get(txn.getNamespace());
+
+		if (partitions == null) {
+			throw new AerospikeException.InvalidNamespace(txn.getNamespace(), partitionMap.size());
+		}
 	}
 
-	public void verify(BatchPolicy verifyPolicy, BatchPolicy rollPolicy) {
+	public void verify(Settings verifyPolicy, Settings rollPolicy) {
 		try {
 			// Verify read versions in batch.
 			verifyRecordVersions(verifyPolicy);
@@ -64,9 +74,9 @@ public final class TxnRoll {
 
 			if (txn.closeMonitor()) {
 				try {
-					WritePolicy writePolicy = new WritePolicy(rollPolicy);
 					Key txnKey = TxnMonitor.getTxnMonitorKey(txn);
-					close(writePolicy, txnKey);
+					WriteCommand cmd = new WriteCommand(cluster, txnKey, rollPolicy);
+					close(cmd);
 				}
 				catch (Throwable t3) {
 					// Throw combination of verify and close exceptions.
@@ -82,14 +92,14 @@ public final class TxnRoll {
 		txn.setState(Txn.State.VERIFIED);
 	}
 
-	public CommitStatus commit(BatchPolicy rollPolicy) {
-		WritePolicy writePolicy = new WritePolicy(rollPolicy);
+	public CommitStatus commit(Settings rollPolicy) {
 		Key txnKey = TxnMonitor.getTxnMonitorKey(txn);
+		WriteCommand cmd = new WriteCommand(cluster, txnKey, rollPolicy);
 
 		if (txn.monitorExists()) {
 			// Tell transaction monitor that a roll-forward will commence.
 			try {
-				markRollForward(writePolicy, txnKey);
+				markRollForward(cmd);
 			}
 			catch (AerospikeException ae) {
 				AerospikeException.Commit aec = createCommitException(CommitError.MARK_ROLL_FORWARD_ABANDONED, ae);
@@ -135,7 +145,7 @@ public final class TxnRoll {
 		if (txn.closeMonitor()) {
 			// Remove transaction monitor.
 			try {
-				close(writePolicy, txnKey);
+				close(cmd);
 			}
 			catch (Throwable t) {
 				return CommitStatus.CLOSE_ABANDONED;
@@ -158,7 +168,7 @@ public final class TxnRoll {
 		return aec;
 	}
 
-	public AbortStatus abort(BatchPolicy rollPolicy) {
+	public AbortStatus abort(Settings rollPolicy) {
 		txn.setState(Txn.State.ABORTED);
 
 		try {
@@ -170,9 +180,9 @@ public final class TxnRoll {
 
 		if (txn.closeMonitor()) {
 			try {
-				WritePolicy writePolicy = new WritePolicy(rollPolicy);
 				Key txnKey = TxnMonitor.getTxnMonitorKey(txn);
-				close(writePolicy, txnKey);
+				WriteCommand cmd = new WriteCommand(cluster, txnKey, rollPolicy);
+				close(cmd);
 			}
 			catch (Throwable t) {
 				return AbortStatus.CLOSE_ABANDONED;
@@ -181,9 +191,8 @@ public final class TxnRoll {
 		return AbortStatus.OK;
 	}
 
-	private void verifyRecordVersions(BatchPolicy verifyPolicy) {
+	private void verifyRecordVersions(Settings verifyPolicy) {
 		// Validate record versions in a batch.
-		/*
 		Set<Map.Entry<Key, Long>> reads = txn.getReads();
 		int max = reads.size();
 
@@ -192,86 +201,83 @@ public final class TxnRoll {
 		}
 
         List<BatchRecord> batchRecords = new ArrayList<BatchRecord>(max);
-
-        for (Map.Entry<Key, Long> entry : reads) {
-			Key key = entry.getKey();
-			BatchRecord br = new BatchRead
-
-        }
-
-
-
-
-        BatchRecord[] records = new BatchRecord[max];
-		Key[] keys = new Key[max];
 		Long[] versions = new Long[max];
 		int count = 0;
 
-		for (Map.Entry<Key, Long> entry : reads) {
+        for (Map.Entry<Key, Long> entry : reads) {
 			Key key = entry.getKey();
-			keys[count] = key;
-			records[count] = new BatchRecord(key, false);
-			versions[count] = entry.getValue();
-			count++;
-		}
+			BatchRecord br = new BatchRead(key, false);
 
-		this.verifyRecords = records;
+			batchRecords.add(br);
+			versions[count++] = entry.getValue();
+        }
+
+		this.verifyRecords = batchRecords;
+
+        BatchReadCommand parent = BatchReadCommand.create(cluster, txn, txn.getNamespace(),
+        	batchRecords, partitions, null, verifyPolicy, false);
 
 		BatchStatus status = new BatchStatus(true);
-		List<BatchNode> bns = BatchNodeList.generate(cluster, verifyPolicy, keys, records, false, status);
-		IBatchCommand[] commands = new IBatchCommand[bns.size()];
+
+        List<BatchNode> bns = BatchNodeList.generate(cluster, partitions,
+        	verifyPolicy.getReplicaOrder(), batchRecords, status);
+
+        IBatchCommand[] commands = new IBatchCommand[bns.size()];
 
 		count = 0;
 
 		for (BatchNode bn : bns) {
 			if (bn.offsetsSize == 1) {
 				int i = bn.offsets[0];
-				commands[count++] = new BatchSingle.TxnVerify(
-					cluster, verifyPolicy, versions[i], records[i], status, bn.node);
+				commands[count++] = new BatchSingle.TxnVerify(cluster, parent, status,
+					batchRecords.get(i), bn.node, versions[i]);
 			}
 			else {
-				commands[count++] = new Batch.TxnVerify(
-					cluster, bn, verifyPolicy, keys, versions, records, status);
+				commands[count++] = new Batch.TxnVerify(cluster, parent, bn, status, versions);
 			}
 		}
 
-		BatchExecutor.execute(cluster, verifyPolicy, commands, status);
+		BatchExecutor.execute(cluster, commands, status);
 
 		if (!status.getStatus()) {
 			throw new RuntimeException("Failed to verify one or more record versions");
-		}*/
+		}
 	}
 
-	private void markRollForward(WritePolicy writePolicy, Key txnKey) {
+	private void markRollForward(WriteCommand cmd) {
 		// Tell transaction monitor that a roll-forward will commence.
-		/*
-		TxnMarkRollForward cmd = new TxnMarkRollForward(cluster, writePolicy, txnKey);
-		cmd.execute();
-		*/
+		TxnMarkRollForward mark = new TxnMarkRollForward(cluster, cmd);
+		mark.execute();
 	}
 
-	private void roll(BatchPolicy rollPolicy, int txnAttr) {
+	private void roll(Settings rollPolicy, int txnAttr) {
 		Set<Key> keySet = txn.getWrites();
+		int max = keySet.size();
 
-		if (keySet.isEmpty()) {
+		if (max == 0) {
 			return;
 		}
 
-		Key[] keys = keySet.toArray(new Key[keySet.size()]);
-		BatchRecord[] records = new BatchRecord[keys.length];
+        List<BatchRecord> batchRecords = new ArrayList<BatchRecord>(max);
 
-		for (int i = 0; i < keys.length; i++) {
-			records[i] = new BatchRecord(keys[i], true);
-		}
+        for (Key key : keySet) {
+			BatchRecord br = new BatchWrite(key, null);
+			batchRecords.add(br);
+        }
 
-		this.rollRecords = records;
+		this.rollRecords = batchRecords;
 
 		BatchAttr attr = new BatchAttr();
 		attr.setTxn(txnAttr);
 
-		BatchStatus status = new BatchStatus(true);
-/*
-		List<BatchNode> bns = BatchNodeList.generate(cluster, rollPolicy, keys, records, true, status);
+        BatchCommand parent = new BatchCommand(cluster, partitions, txn, txn.getNamespace(),
+            batchRecords, null, rollPolicy.getReplicaOrder(), false, rollPolicy);
+
+        BatchStatus status = new BatchStatus(true);
+
+		List<BatchNode> bns = BatchNodeList.generate(cluster, partitions,
+				rollPolicy.getReplicaOrder(), batchRecords, status);
+
 		IBatchCommand[] commands = new IBatchCommand[bns.size()];
 		int count = 0;
 
@@ -279,29 +285,28 @@ public final class TxnRoll {
 			if (bn.offsetsSize == 1) {
 				int i = bn.offsets[0];
 				commands[count++] = new BatchSingle.TxnRoll(
-					cluster, rollPolicy, txn, records[i], status, bn.node, txnAttr);
+					cluster, parent, txn, batchRecords.get(i), status, bn.node, txnAttr);
 			}
 			else {
 				commands[count++] = new Batch.TxnRoll(
-					cluster, bn, rollPolicy, txn, keys, records, attr, status);
+					cluster, parent, bn, status, batchRecords, attr);
 			}
 		}
-		BatchExecutor.execute(cluster, rollPolicy, commands, status);
+
+		BatchExecutor.execute(cluster, commands, status);
 
 		if (!status.getStatus()) {
 			String rollString = txnAttr == Command.INFO4_TXN_ROLL_FORWARD? "commit" : "abort";
 			throw new RuntimeException("Failed to " + rollString + " one or more records");
-		}*/
+		}
 	}
 
-	private void close(WritePolicy writePolicy, Key txnKey) {
+	private void close(WriteCommand cmd) {
 		// Delete transaction monitor on server.
-		/*
-		TxnClose cmd = new TxnClose(cluster, txn, writePolicy, txnKey);
-		cmd.execute();
+		TxnClose close = new TxnClose(cluster, cmd);
+		close.execute();
 
 		// Clear transaction fields on client.
 		txn.clear();
-		*/
 	}
 }
