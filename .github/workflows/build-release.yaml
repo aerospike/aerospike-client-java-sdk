@@ -50,6 +50,8 @@ jobs:
           --errors \
           source:jar javadoc:javadoc clean package \
           -DskipTests
+
+          cp -r target/*.jar build
       gh-artifact-directory: build
       gh-artifact-name: build-artifacts-${{ needs.extract-version.outputs.version }}
       gh-retention-days: 1 # default
