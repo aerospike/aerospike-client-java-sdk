@@ -43,8 +43,8 @@ jobs:
       jf-build-id: ${{ github.run_number }}-buildinfo-${{ needs.extract-version.outputs.version }}
       gh-checkout-path: project-location # In the case of running in shared_workflows gh_checkout_path and gh_source_path will have the same content but we put them here by way of example.
       # gh-workflows-ref: v2.0.2
-      gh-source-path: repo-source
-      working-directory: repo-source/.github/workflows/execute-build/test_apps/hi
+      gh-source-path: aerospike-client-java-fluent
+      working-directory: aerospike-client-java-fluent
       build-script: |
         mvn \
           --batch-mode \
