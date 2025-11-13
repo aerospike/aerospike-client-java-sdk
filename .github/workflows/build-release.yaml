@@ -41,8 +41,7 @@ jobs:
       jf-project: ${{ vars.JFROG_PROJECT }}
       jf-build-name: aerospike-client-java-fluent
       jf-build-id: ${{ github.run_number }}-buildinfo-${{ needs.extract-version.outputs.version }}
-      gh-checkout-path: project-location # In the case of running in shared_workflows gh_checkout_path and gh_source_path will have the same content but we put them here by way of example.
-      # gh-workflows-ref: v2.0.2
+      gh-checkout-path: shared-workflows
       gh-source-path: aerospike-client-java-fluent
       working-directory: aerospike-client-java-fluent
       build-script: |
