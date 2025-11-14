@@ -175,13 +175,33 @@ public class Main {
 
             System.out.println("Truncate records");
             session.truncate(set);
-            
+
             Exp exp = Exp.or(
                     Exp.eq(Exp.stringBin("name"), Exp.val("Tim")),
                     Exp.gt(Exp.intBin("age"), Exp.val(21))
             );
             System.out.println(exp);
-            
+
+            System.out.println("Transaction");
+
+            session.doInTransaction(txnSession -> {
+            	txnSession.upsert(set.id(33))
+	            .bins("name", "age")
+	            .values("Charlie", 33)
+	            .execute();
+
+            	txnSession.upsert(set.id(22))
+	            .bins("name", "age")
+	            .values("Tom", 22)
+	            .execute();
+           });
+
+            rs = session.query(set.ids(111111,222222)).execute();
+
+            while (rs.hasNext()) {
+            	Record r = rs.next().recordOrThrow();
+            	System.out.println("Record = " + r);
+            }
         }
         catch (Throwable t) {
        		System.out.println("Error: " + Util.getErrorMessage(t));

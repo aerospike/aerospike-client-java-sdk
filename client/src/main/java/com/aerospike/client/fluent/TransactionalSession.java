@@ -96,29 +96,29 @@ public class TransactionalSession extends Session{
             else {
                 // Outmost transaction, commit when complete.
                 while (true) {
+                	T result;
+
                     try {
-                        T result = operation.execute(this);
-                        commit();
-                        return result;
+                        result = operation.execute(this);
                     }
                     catch (AerospikeException ae) {
                         abort();
 
-                        switch (ae.getResultCode()) {
-                        case ResultCode.MRT_BLOCKED:
-                        case ResultCode.MRT_VERSION_MISMATCH:
-                        case ResultCode.TXN_FAILED:
-                            // These can be retried from the beginning
-                            break;
-                        default:
-                            // These cannot be retried
+                    	if (retryCommit(ae)) {
+                    		// TODO: Retry indefinitely? Should there be a sleep here?
+                    		continue;
+                    	}
+                    	else {
                             throw ae;
-                        }
+                    	}
                     }
                     catch (Exception e) {
                         abort();
                         throw e;
                     }
+
+                    commit();
+                    return result;
                 }
             }
         }
@@ -156,32 +156,45 @@ public class TransactionalSession extends Session{
                 while (true) {
                     try {
                         operation.execute(this);
-                        commit();
                     }
                     catch (AerospikeException ae) {
                     	abort();
 
-                    	switch (ae.getResultCode()) {
-                        case ResultCode.MRT_BLOCKED:
-                        case ResultCode.MRT_VERSION_MISMATCH:
-                        case ResultCode.TXN_FAILED:
-                            // These can be retried from the beginning
-                            break;
-                        default:
-                            // These cannot be retried
+                    	if (retryCommit(ae)) {
+                    		// TODO: Retry indefinitely? Should there be a sleep here?
+                    		continue;
+                    	}
+                    	else {
                             throw ae;
-                        }
+                    	}
                     }
                     catch (Exception e) {
                     	abort();
                         throw e;
                     }
+
+                	commit();
+                	return;
                 }
             }
         }
         finally {
             count--;
         }
+    }
+
+    private boolean retryCommit(AerospikeException ae) {
+    	switch (ae.getResultCode()) {
+	        case ResultCode.MRT_BLOCKED:
+	        case ResultCode.MRT_VERSION_MISMATCH:
+	        case ResultCode.TXN_FAILED:
+	            // These can be retried from the beginning
+	        	return true;
+
+	        default:
+	            // These cannot be retried
+	        	return false;
+    	}
     }
 
     private CommitStatus commit() {

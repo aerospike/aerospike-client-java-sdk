@@ -75,7 +75,7 @@ public final class TxnRoll {
 			if (txn.closeMonitor()) {
 				try {
 					Key txnKey = TxnMonitor.getTxnMonitorKey(txn);
-					WriteCommand cmd = new WriteCommand(cluster, txnKey, rollPolicy);
+					WriteCommand cmd = new WriteCommand(cluster, partitions, txnKey, rollPolicy);
 					close(cmd);
 				}
 				catch (Throwable t3) {
@@ -94,7 +94,7 @@ public final class TxnRoll {
 
 	public CommitStatus commit(Settings rollPolicy) {
 		Key txnKey = TxnMonitor.getTxnMonitorKey(txn);
-		WriteCommand cmd = new WriteCommand(cluster, txnKey, rollPolicy);
+		WriteCommand cmd = new WriteCommand(cluster, partitions, txnKey, rollPolicy);
 
 		if (txn.monitorExists()) {
 			// Tell transaction monitor that a roll-forward will commence.
@@ -181,7 +181,7 @@ public final class TxnRoll {
 		if (txn.closeMonitor()) {
 			try {
 				Key txnKey = TxnMonitor.getTxnMonitorKey(txn);
-				WriteCommand cmd = new WriteCommand(cluster, txnKey, rollPolicy);
+				WriteCommand cmd = new WriteCommand(cluster, partitions, txnKey, rollPolicy);
 				close(cmd);
 			}
 			catch (Throwable t) {
