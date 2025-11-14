@@ -15,7 +15,8 @@ runs:
         # Checking if previous commit contains pom.xml. This should always return true
         if ! git show "${COMMIT_REF}:pom.xml" &>/dev/null; then
           echo "Error: pom.xml not found in commit ${COMMIT_REF}"
-          exit 1
+          echo "is-snapshot='true'" >> $GITHUB_OUTPUT
+          exit 0
         fi
 
         # Getting previous version
