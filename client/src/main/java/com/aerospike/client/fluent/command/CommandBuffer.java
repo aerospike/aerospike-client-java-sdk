@@ -1465,6 +1465,20 @@ public final class CommandBuffer {
 		return fieldCount;
 	}
 
+	private void writeTxn(Txn txn, boolean sendDeadline) {
+		if (txn != null) {
+			writeFieldLE(txn.getId(), FieldType.TXN_ID);
+
+			if (version != null) {
+				writeFieldVersion(version);
+			}
+
+			if (sendDeadline && txn.getDeadline() != 0) {
+				writeFieldLE(txn.getDeadline(), FieldType.TXN_DEADLINE);
+			}
+		}
+	}
+
 	private void writeTxnMonitor(
 		WriteCommand cmd, int readAttr, int writeAttr, int fieldCount, int opCount
 	) {
@@ -1503,7 +1517,7 @@ public final class CommandBuffer {
 	private int estimateKeySize(Command cmd, Key key, boolean hasWrite) {
 		int fieldCount = estimateKeySize(key);
 
-		fieldCount += sizeTxn(cmd, key, hasWrite);
+		fieldCount += sizeTxn(key, cmd.txn, hasWrite);
 
 		if (cmd.sendKey) {
 			dataOffset += key.userKey.estimateSize() + Command.FIELD_HEADER_SIZE + 1;
@@ -1542,28 +1556,6 @@ public final class CommandBuffer {
 
 	private void estimateOperationSize(String binName) {
 		dataOffset += Buffer.estimateSizeUtf8(binName) + Command.OPERATION_HEADER_SIZE;
-	}
-
-	private int sizeTxn(Command cmd, Key key, boolean hasWrite) {
-		int fieldCount = 0;
-
-		if (cmd.txn != null) {
-			dataOffset += 8 + Command.FIELD_HEADER_SIZE;
-			fieldCount++;
-
-			version = cmd.txn.getReadVersion(key);
-
-			if (version != null) {
-				dataOffset += 7 + Command.FIELD_HEADER_SIZE;
-				fieldCount++;
-			}
-
-			if (hasWrite && cmd.txn.getDeadline() != 0) {
-				dataOffset += 4 + Command.FIELD_HEADER_SIZE;
-				fieldCount++;
-			}
-		}
-		return fieldCount;
 	}
 
 	private void sizeFieldExpression(Expression exp) {
@@ -1828,20 +1820,6 @@ public final class CommandBuffer {
 		writeField(key.digest, FieldType.DIGEST_RIPE);
 	}
 
-	private void writeTxn(Txn txn, boolean sendDeadline) {
-		if (txn != null) {
-			writeFieldLE(txn.getId(), FieldType.TXN_ID);
-
-			if (version != null) {
-				writeFieldVersion(version);
-			}
-
-			if (sendDeadline && txn.getDeadline() != 0) {
-				writeFieldLE(txn.getDeadline(), FieldType.TXN_DEADLINE);
-			}
-		}
-	}
-
 	private void writeFieldExpression(Expression exp) {
 		byte[] bytes = exp.getBytes();
 		writeFieldHeader(bytes.length, FieldType.FILTER_EXP);
@@ -1853,6 +1831,18 @@ public final class CommandBuffer {
 		writeFieldHeader(7, FieldType.RECORD_VERSION);
 		Buffer.longToVersionBytes(ver, dataBuffer, dataOffset);
 		dataOffset += 7;
+	}
+
+	private void writeField(int val, int type) {
+		writeFieldHeader(4, type);
+		Buffer.intToBytes(val, dataBuffer, dataOffset);
+		dataOffset += 4;
+	}
+
+	private void writeFieldLE(int val, int type) {
+		writeFieldHeader(4, type);
+		Buffer.intToLittleBytes(val, dataBuffer, dataOffset);
+		dataOffset += 4;
 	}
 
 	private void writeField(long val, int type) {
@@ -1885,12 +1875,6 @@ public final class CommandBuffer {
 		System.arraycopy(bytes, 0, dataBuffer, dataOffset + Command.FIELD_HEADER_SIZE, bytes.length);
 		writeFieldHeader(bytes.length, type);
 		dataOffset += bytes.length;
-	}
-
-	private void writeField(int val, int type) {
-		writeFieldHeader(4, type);
-		Buffer.intToBytes(val, dataBuffer, dataOffset);
-		dataOffset += 4;
 	}
 
 	private void writeFieldHeader(int size, int type) {

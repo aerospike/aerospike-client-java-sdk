@@ -185,21 +185,37 @@ public class Main {
             System.out.println("Transaction");
 
             session.doInTransaction(txnSession -> {
-            	txnSession.upsert(set.id(33))
+            	txnSession.upsert(set.id(2222))
 	            .bins("name", "age")
 	            .values("Charlie", 33)
 	            .execute();
 
-            	txnSession.upsert(set.id(22))
+            	txnSession.upsert(set.id(3333))
 	            .bins("name", "age")
 	            .values("Tom", 22)
 	            .execute();
-           });
 
-            rs = session.query(set.ids(111111,222222)).execute();
+            	System.out.println("Read in transaction");
+                RecordStream stream = txnSession.query(set.ids(2222)).execute();
+                if (stream.hasNext()) {
+                	Record r = stream.next().recordOrThrow();
+                	System.out.println("Record = " + r);
+                }
 
-            while (rs.hasNext()) {
-            	Record r = rs.next().recordOrThrow();
+                /* TODO Why does this not compile?
+                while (stream.hasNext()) {
+                	Record r = stream.next().recordOrThrow();
+                	System.out.println("Record = " + r);
+                }
+                */
+            });
+
+            System.out.println("Read Transaction Values");
+
+            RecordStream stream = session.query(set.ids(2222,3333)).execute();
+
+            while (stream.hasNext()) {
+            	Record r = stream.next().recordOrThrow();
             	System.out.println("Record = " + r);
             }
         }

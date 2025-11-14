@@ -41,8 +41,12 @@ public class BatchCommand extends Command {
 		this.partitions = partitions;
 		this.records = records;
 		this.respondAllKeys = respondAllKeys;
-		this.inlineMemory = policy.getAllowInlineMemoryAccess();
-		this.inlineSSD = policy.getAllowInlineSsdAccess();
+		// TODO Settings not initializing this correctly.
+		//this.inlineMemory = policy.getAllowInlineMemoryAccess();
+		//this.inlineSSD = policy.getAllowInlineSsdAccess();
+		this.inlineMemory = true;
+		this.inlineSSD = false;
+
 	}
 
 	public static boolean inDoubt(boolean isWrite, int commandSentCounter) {
