@@ -84,7 +84,7 @@ jobs:
       jf-build-name: aerospike-client-java-fluent
       jf-metadata-build-id: ${{ github.run_number }}-buildinfo
       jf-build-id: ${{ github.run_number }}
-      gh-artifact-name: ${{ needs.sign-artifacts.outputs.gh-artifact-name }}
+      gh-artifact-name: build-artifacts-${{ needs.extract-version.outputs.version }}_signed
       version: ${{ needs.extract-version.outputs.version }}
       gh-retention-days: 1
       oidc-provider-name: ${{ vars.OIDC_PROVIDER_NAME }}
