@@ -62,7 +62,7 @@ jobs:
 
         echo "Copying artifacts to ./build/"
         for file in "$ARTIFACT_PATH"/*; do
-          if [[ "$file" == *"-jar-with-dependencies.jar" ] || [[ "$file" == *"_remote.repositories" ]]]; then
+          if [[ "$file" == *"-jar-with-dependencies.jar" ]] || [[ "$file" == *"_remote.repositories" ]]; then
             continue
           fi
           cp "$file" build/
