@@ -49,7 +49,7 @@ jobs:
           --update-snapshots \
           --fail-at-end \
           --errors \
-          source:jar javadoc:javadoc clean package \
+          source:jar javadoc:javadoc clean install \
           -DskipTests
 
         LOCAL_REPO=$(mvn help:evaluate -Dexpression=settings.localRepository -q -DforceStdout)
