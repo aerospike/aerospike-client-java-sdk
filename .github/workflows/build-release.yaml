@@ -52,11 +52,26 @@ jobs:
           source:jar javadoc:javadoc clean package \
           -DskipTests
 
-        for jar in client/target/*.jar; do
-          if [[ ! "$jar" == *"-jar-with-dependencies.jar" ]]; then
-            cp "$jar" build/
+        LOCAL_REPO=$(mvn help:evaluate -Dexpression=settings.localRepository -q -DforceStdout)
+        GROUP_ID=$(mvn help:evaluate -Dexpression=project.groupId -q -DforceStdout)
+        ARTIFACT_ID=$(mvn help:evaluate -Dexpression=project.artifactId -q -DforceStdout)
+        VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
+
+        GROUP_PATH=$(echo "$GROUP_ID" | tr '.' '/')
+        ARTIFACT_PATH="$LOCAL_REPO/$GROUP_PATH/$ARTIFACT_ID/$VERSION"
+
+        echo "Local repository path: $LOCAL_REPO"
+        echo "Artifact installed in: $ARTIFACT_PATH"
+
+        echo "Copying artifacts to ./build/"
+        for file in "$ARTIFACT_PATH"/*; do
+          # skip shaded/uber JAR if desired
+          if [[ "$file" == *"-jar-with-dependencies.jar" ]]; then
+            continue
           fi
+          cp "$file" build/
         done
+
       gh-artifact-directory: build
       gh-artifact-name: build-artifacts-${{ needs.extract-version.outputs.version }}
       gh-retention-days: 1 # default
