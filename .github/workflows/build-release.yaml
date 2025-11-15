@@ -1,6 +1,5 @@
 name: Build and release
 
-
 permissions:
   id-token: write
   packages: write
