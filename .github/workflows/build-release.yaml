@@ -52,6 +52,8 @@ jobs:
           clean install \
           -DskipTests
 
+        cd client
+
         LOCAL_REPO=$(mvn help:evaluate -Dexpression=settings.localRepository -q -DforceStdout)
         GROUP_ID=$(mvn help:evaluate -Dexpression=project.groupId -q -DforceStdout)
         ARTIFACT_ID=$(mvn help:evaluate -Dexpression=project.artifactId -q -DforceStdout)
