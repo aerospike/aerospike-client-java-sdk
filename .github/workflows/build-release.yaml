@@ -62,6 +62,8 @@ jobs:
         GROUP_PATH=$(echo "$GROUP_ID" | tr '.' '/')
         ARTIFACT_PATH="$LOCAL_REPO/$GROUP_PATH/$ARTIFACT_ID/$VERSION"
 
+        cd -
+
         echo "Copying artifacts to ./build/"
         for file in "$ARTIFACT_PATH"/*; do
           if [[ "$file" == *"-jar-with-dependencies.jar" ]] || [[ "$file" == *"_remote.repositories" ]]; then
