@@ -60,13 +60,9 @@ jobs:
         GROUP_PATH=$(echo "$GROUP_ID" | tr '.' '/')
         ARTIFACT_PATH="$LOCAL_REPO/$GROUP_PATH/$ARTIFACT_ID/$VERSION"
 
-        echo "Local repository path: $LOCAL_REPO"
-        echo "Artifact installed in: $ARTIFACT_PATH"
-
         echo "Copying artifacts to ./build/"
         for file in "$ARTIFACT_PATH"/*; do
-          # skip shaded/uber JAR if desired
-          if [[ "$file" == *"-jar-with-dependencies.jar" ]]; then
+          if [[ "$file" == *"-jar-with-dependencies.jar" ] || [[ "$file" == *"_remote.repositories" ]]]; then
             continue
           fi
           cp "$file" build/
