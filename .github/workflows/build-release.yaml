@@ -79,7 +79,7 @@ jobs:
 
   deploy-artifacts:
     needs: [sign-artifacts, extract-version]
-    uses: aerospike/shared-workflows/.github/workflows/reusable_deploy-artifacts.yaml@9a7dd346c7d88065041db7025121a8dcfb00709c
+    uses: aerospike/shared-workflows/.github/workflows/reusable_deploy-artifacts.yaml@bf1a8d5ef42f3daf71a262ca4b4156bde94bb7af
     with:
       jf-project: ${{ vars.JFROG_PROJECT }}
       jf-build-name: aerospike-client-java-fluent
