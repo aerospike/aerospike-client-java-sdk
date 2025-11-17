@@ -1,0 +1,68 @@
+name: PR CI
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    branches: [dev/*, stage, init]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pr-ci-${{ github.workflow }}-${{ github.event.pull_request.head.sha }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    name: Build & Test
+    runs-on: ${{ vars.BUILD_CONTAINER_DISTRO_VERSION }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Extract Java version from pom.xml
+        id: extract_java
+        run: |
+          DEFAULT_VERSION=21
+          VERSION=$(grep -m1 -E '<(maven.compiler.source|java.version)>' pom.xml | sed -E 's/.*>(.*)<.*/\1/')
+          if [ -z "$VERSION" ]; then
+            echo "Could not detect Java version, defaulting to $DEFAULT_VERSION"
+            VERSION=$DEFAULT_VERSION
+          fi
+          echo "Detected Java version: $VERSION"
+          echo "java_version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Set up JDK ${{ vars.JAVA_DISTRIBUTION }} ${{ steps.extract_java.outputs.java_version }}
+        uses: actions/setup-java@v4
+        with:
+          distribution: ${{ vars.JAVA_DISTRIBUTION }}
+          java-version: ${{ steps.extract_java.outputs.java_version }}
+          cache: maven
+
+      - name: Show Java & Maven
+        run: |
+          java -version
+          mvn -v
+
+      - name: Build & run all tests
+        run: |
+          mvn \
+           --batch-mode \
+           --no-transfer-progress \
+           --update-snapshots \
+           --fail-at-end \
+           --errors \
+           verify
+        env:
+          MAVEN_OPTS: ${{ vars.MAVEN_OPTS }}
+
+      - name: Upload surefire/failsafe reports (always)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports-jdk-${{ steps.extract_java.outputs.java_version }}
+          path: |
+            **/target/surefire-reports/**
+            **/target/failsafe-reports/**
+          if-no-files-found: ignore
+          retention-days: ${{ vars.ARTIFACT_RETENTION_DAYS }}
