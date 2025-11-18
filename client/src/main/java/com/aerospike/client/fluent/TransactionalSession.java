@@ -66,10 +66,19 @@ public class TransactionalSession extends Session{
     public Txn getCurrentTransaction() {
         return this.txn;
     }
-
+    
     /**
      * Executes a transactional operation that returns a value.
-     *
+     * 
+     * <p>Use this method when your transaction needs to return a result, such as
+     * reading data or computing a value based on transactional operations.</p>
+     * 
+     * <p><b>Why the different name?</b> This method is named differently from 
+     * {@link #doInTransaction(Session.TransactionalVoid)} to avoid Java type inference 
+     * ambiguity with complex lambda bodies. Without distinct names, the compiler cannot 
+     * determine which overload to use when the lambda contains control flow statements 
+     * like {@code while} loops, forcing users to add explicit {@code return null;} statements.</p>
+     * 
      * <p>This method provides automatic retry logic for transient failures and ensures
      * proper transaction cleanup. The operation will be retried automatically for
      * the following result codes:</p>
@@ -78,16 +87,26 @@ public class TransactionalSession extends Session{
      *   <li>MRT_VERSION_MISMATCH</li>
      *   <li>TXN_FAILED</li>
      * </ul>
-     *
+     * 
      * <p>For other failures, the exception will be thrown immediately without retry.</p>
-     *
+     * 
+     * <p><b>Example usage:</b>
+     * <pre>{@code
+     * String userName = txSession.doInTransactionReturning(tx -> {
+     *     RecordStream results = tx.query(users.id(userId)).execute();
+     *     Record record = results.getFirst().get().recordOrThrow();
+     *     return record.getString("name");
+     * });
+     * }</pre>
+     * 
      * @param <T> the type of value returned by the operation
      * @param operation the transactional operation to execute
      * @return the result of the operation
      * @throws AerospikeException if the operation fails with a non-retryable error
      * @throws RuntimeException if any other exception occurs during execution
+     * @see #doInTransaction(Session.TransactionalVoid)
      */
-    public <T> T doInTransaction(Transactional<T> operation) {
+    public <T> T doInTransactionReturning(Transactional<T> operation) {
         try {
             if (++count > 1) {
                 // Nested transaction, do not enforce transaction semantics
@@ -129,7 +148,11 @@ public class TransactionalSession extends Session{
 
     /**
      * Executes a transactional operation that does not return a value.
-     *
+     * 
+     * <p>Use this method when your transaction only needs to perform operations
+     * without returning a result to the caller. This is the most common case for
+     * transactional writes and updates.</p>
+     * 
      * <p>This method provides automatic retry logic for transient failures and ensures
      * proper transaction cleanup. The operation will be retried automatically for
      * the following result codes:</p>
@@ -138,12 +161,25 @@ public class TransactionalSession extends Session{
      *   <li>MRT_VERSION_MISMATCH</li>
      *   <li>TXN_FAILED</li>
      * </ul>
-     *
+     * 
      * <p>For other failures, the exception will be thrown immediately without retry.</p>
-     *
+     * 
+     * <p><b>Example usage:</b>
+     * <pre>{@code
+     * txSession.doInTransaction(tx -> {
+     *     tx.upsert(accounts.id("acc1"))
+     *         .bin("balance").add(-100)
+     *         .execute();
+     *     tx.upsert(accounts.id("acc2"))
+     *         .bin("balance").add(100)
+     *         .execute();
+     * });
+     * }</pre>
+     * 
      * @param operation the transactional operation to execute
      * @throws AerospikeException if the operation fails with a non-retryable error
      * @throws RuntimeException if any other exception occurs during execution
+     * @see #doInTransactionReturning(Transactional)
      */
     public void doInTransaction(TransactionalVoid operation) {
         try {

@@ -216,6 +216,8 @@ public final class Behavior {
                     .waitForCallToComplete(Duration.ofSeconds(3))
                     .abandonCallAfter(Duration.ofSeconds(10))
                     .delayBetweenRetries(Duration.ofSeconds(1))
+                    .allowInlineMemoryAccess(false)
+                    .allowInlineSsdAccess(true)
             )
             // System - txnRoll defaults
             .on(Selectors.system().txnRoll(), ops -> ops
@@ -224,6 +226,8 @@ public final class Behavior {
                     .waitForCallToComplete(Duration.ofSeconds(3))
                     .abandonCallAfter(Duration.ofSeconds(10))
                     .delayBetweenRetries(Duration.ofSeconds(1))
+                    .allowInlineMemoryAccess(false)
+                    .allowInlineSsdAccess(true)
             )
             // System - connections defaults
             .on(Selectors.system().connections(), ops -> ops
@@ -335,11 +339,27 @@ public final class Behavior {
     }
 
     /**
+     * Get the resolved settings for a specific system operation.
+     * The settings are fully resolved, including inheritance from parent behaviors.
+     * @throws IllegalArgumentException if a non-system setting is specified
+     */
+    public Settings getSystemSettings(OpKind kind) {
+        if (kind.isSystem()) {
+            return resolved.get(new OpKey(kind, OpShape.SYSTEM, Mode.ANY));
+        }
+        else {
+            throw new IllegalArgumentException("Only SYSYTEM_* OpKinds are supported");
+        }
+    }
+    /**
      * Get the resolved settings for a specific operation.
      * Returns null if no settings have been configured for this operation.
      * The settings are fully resolved, including inheritance from parent behaviors.
      */
     public Settings getSettings(OpKind kind, OpShape shape, Mode mode) {
+        if (kind.isSystem()) {
+            return getSystemSettings(kind);
+        }
         return resolved.get(new OpKey(kind, shape, mode));
     }
 
@@ -349,6 +369,9 @@ public final class Behavior {
      * The settings are fully resolved, including inheritance from parent behaviors.
      */
     public Settings getSettings(OpKind kind, OpShape shape, boolean isNamespaceSC) {
+        if (kind.isSystem()) {
+            return getSystemSettings(kind);
+        }
         return resolved.get(new OpKey(kind, shape, isNamespaceSC ? Mode.CP : Mode.AP));
     }
 
@@ -754,14 +777,23 @@ public final class Behavior {
     // Dimensions
     // -----------------------------------------------------------------------------------
     public enum OpKind { 
-        READ, 
-        WRITE_RETRYABLE, 
-        WRITE_NON_RETRYABLE,
-        SYSTEM_TXN_VERIFY,
-        SYSTEM_TXN_ROLL,
-        SYSTEM_CONNECTIONS,
-        SYSTEM_CIRCUIT_BREAKER,
-        SYSTEM_REFRESH
+        READ(false), 
+        WRITE_RETRYABLE(false), 
+        WRITE_NON_RETRYABLE(false),
+        SYSTEM_TXN_VERIFY(true),
+        SYSTEM_TXN_ROLL(true),
+        SYSTEM_CONNECTIONS(true),
+        SYSTEM_CIRCUIT_BREAKER(true),
+        SYSTEM_REFRESH(true);
+        
+        private boolean system;
+        private OpKind(boolean isSystem) {
+            this.system = isSystem;
+        }
+        
+        public boolean isSystem() {
+            return system;
+        }
     }
     public enum OpShape { ANY, POINT, BATCH, QUERY, SYSTEM }
     public enum Mode { ANY, AP, CP }
@@ -1528,7 +1560,7 @@ public final class Behavior {
      * Tweaks for transaction verification operations (read-like settings).
      * Provides configuration for transactional verification calls.
      */
-    public interface SystemTxnVerifyTweaks extends CommonTweaks {
+    public interface SystemTxnVerifyTweaks extends BatchTweaks {
         SystemTxnVerifyTweaks consistency(ReadModeSC consistency);
         SystemTxnVerifyTweaks replicaOrder(Replica replicaOrder);
         @Override SystemTxnVerifyTweaks maximumNumberOfCallAttempts(int attempts);
@@ -1539,13 +1571,20 @@ public final class Behavior {
         @Override SystemTxnVerifyTweaks waitForSocketResponseAfterCallFails(Duration d);
         @Override SystemTxnVerifyTweaks useCompression(boolean compress);
         @Override SystemTxnVerifyTweaks stackTraceOnException(boolean enabled);
+        @Override SystemTxnVerifyTweaks maxConcurrentNodes(int n);
+        @Override SystemTxnVerifyTweaks allowInlineMemoryAccess(boolean v);
+        @Override SystemTxnVerifyTweaks allowInlineSsdAccess(boolean v);
     }
     
     /**
      * Tweaks for transaction rollback operations (write-like settings).
      * Provides configuration for transactional rollback calls.
+     * 
+     * <p><b>Note:</b> Transaction rollback is internally implemented as a batch operation,
+     * so batch-specific settings (maxConcurrentNodes, allowInlineMemoryAccess, allowInlineSsdAccess)
+     * are available and apply to these operations.</p>
      */
-    public interface SystemTxnRollTweaks extends CommonTweaks {
+    public interface SystemTxnRollTweaks extends BatchTweaks {
         SystemTxnRollTweaks replicaOrder(Replica replicaOrder);
         @Override SystemTxnRollTweaks maximumNumberOfCallAttempts(int attempts);
         @Override SystemTxnRollTweaks waitForCallToComplete(Duration duration);
@@ -1555,6 +1594,9 @@ public final class Behavior {
         @Override SystemTxnRollTweaks waitForSocketResponseAfterCallFails(Duration d);
         @Override SystemTxnRollTweaks useCompression(boolean compress);
         @Override SystemTxnRollTweaks stackTraceOnException(boolean enabled);
+        @Override SystemTxnRollTweaks maxConcurrentNodes(int n);
+        @Override SystemTxnRollTweaks allowInlineMemoryAccess(boolean v);
+        @Override SystemTxnRollTweaks allowInlineSsdAccess(boolean v);
     }
     
     /**
