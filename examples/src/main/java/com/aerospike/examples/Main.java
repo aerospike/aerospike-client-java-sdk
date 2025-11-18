@@ -197,17 +197,11 @@ public class Main {
 
             	System.out.println("Read in transaction");
                 RecordStream stream = txnSession.query(set.ids(2222)).execute();
-                if (stream.hasNext()) {
-                	Record r = stream.next().recordOrThrow();
-                	System.out.println("Record = " + r);
-                }
 
-                /* TODO Why does this not compile?
                 while (stream.hasNext()) {
                 	Record r = stream.next().recordOrThrow();
                 	System.out.println("Record = " + r);
                 }
-                */
             });
 
             System.out.println("Read Transaction Values");
