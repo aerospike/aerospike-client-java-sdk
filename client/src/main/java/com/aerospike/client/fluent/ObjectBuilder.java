@@ -7,6 +7,7 @@ import java.util.Date;
 import java.util.List;
 import java.util.Map;
 
+import com.aerospike.client.fluent.command.Txn;
 import com.aerospike.client.fluent.exp.Expression;
 
 public class ObjectBuilder<T> {

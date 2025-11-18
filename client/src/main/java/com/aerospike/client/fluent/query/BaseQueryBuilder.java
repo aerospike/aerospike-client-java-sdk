@@ -3,7 +3,7 @@ package com.aerospike.client.fluent.query;
 import com.aerospike.client.fluent.RecordMapper;
 import com.aerospike.client.fluent.RecordStream;
 import com.aerospike.client.fluent.Session;
-import com.aerospike.client.fluent.Txn;
+import com.aerospike.client.fluent.command.Txn;
 import com.aerospike.client.fluent.dsl.BooleanExpression;
 
 /**

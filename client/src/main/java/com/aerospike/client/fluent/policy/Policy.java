@@ -19,7 +19,7 @@ package com.aerospike.client.fluent.policy;
 import java.util.Objects;
 
 import com.aerospike.client.fluent.Log;
-import com.aerospike.client.fluent.Txn;
+import com.aerospike.client.fluent.command.Txn;
 import com.aerospike.client.fluent.configuration.ConfigurationProvider;
 import com.aerospike.client.fluent.configuration.serializers.Configuration;
 import com.aerospike.client.fluent.configuration.serializers.DynamicConfiguration;

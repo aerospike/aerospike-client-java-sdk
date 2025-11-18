@@ -24,7 +24,6 @@ import com.aerospike.client.fluent.Bin;
 import com.aerospike.client.fluent.Key;
 import com.aerospike.client.fluent.Operation;
 import com.aerospike.client.fluent.ResultCode;
-import com.aerospike.client.fluent.Txn;
 import com.aerospike.client.fluent.Value;
 import com.aerospike.client.fluent.command.PartitionTracker.NodePartitions;
 import com.aerospike.client.fluent.exp.Expression;

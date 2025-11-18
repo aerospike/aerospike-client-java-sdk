@@ -1,5 +1,8 @@
 package com.aerospike.client.fluent;
 
+import com.aerospike.client.fluent.command.AbortStatus;
+import com.aerospike.client.fluent.command.CommitStatus;
+import com.aerospike.client.fluent.command.Txn;
 import com.aerospike.client.fluent.command.TxnRoll;
 import com.aerospike.client.fluent.policy.Behavior;
 import com.aerospike.client.fluent.policy.Behavior.Mode;

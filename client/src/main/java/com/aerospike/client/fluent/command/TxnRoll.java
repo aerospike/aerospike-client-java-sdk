@@ -22,16 +22,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import com.aerospike.client.fluent.AbortStatus;
 import com.aerospike.client.fluent.AerospikeException;
 import com.aerospike.client.fluent.Cluster;
-import com.aerospike.client.fluent.CommitError;
-import com.aerospike.client.fluent.CommitStatus;
 import com.aerospike.client.fluent.Key;
 import com.aerospike.client.fluent.Partitions;
 import com.aerospike.client.fluent.ResultCode;
-import com.aerospike.client.fluent.Txn;
-import com.aerospike.client.fluent.TxnMonitor;
 import com.aerospike.client.fluent.policy.Settings;
 
 public final class TxnRoll {

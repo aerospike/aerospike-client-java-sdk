@@ -27,7 +27,6 @@ import com.aerospike.client.fluent.AerospikeException;
 import com.aerospike.client.fluent.Connection;
 import com.aerospike.client.fluent.Key;
 import com.aerospike.client.fluent.Record;
-import com.aerospike.client.fluent.Txn;
 
 public final class RecordParser {
 	public final byte[] dataBuffer;

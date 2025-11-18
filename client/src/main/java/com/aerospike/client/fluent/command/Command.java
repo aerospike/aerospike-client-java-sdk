@@ -17,7 +17,6 @@
 package com.aerospike.client.fluent.command;
 
 import com.aerospike.client.fluent.Cluster;
-import com.aerospike.client.fluent.Txn;
 import com.aerospike.client.fluent.exp.Expression;
 import com.aerospike.client.fluent.policy.Replica;
 import com.aerospike.client.fluent.policy.Settings;

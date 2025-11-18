@@ -14,18 +14,22 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.aerospike.client.fluent;
+package com.aerospike.client.fluent.command;
 
 import java.util.ArrayList;
 import java.util.List;
 
+import com.aerospike.client.fluent.Bin;
+import com.aerospike.client.fluent.Cluster;
+import com.aerospike.client.fluent.Key;
+import com.aerospike.client.fluent.OpType;
+import com.aerospike.client.fluent.Operation;
+import com.aerospike.client.fluent.Partitions;
+import com.aerospike.client.fluent.Value;
 import com.aerospike.client.fluent.cdt.ListOperation;
 import com.aerospike.client.fluent.cdt.ListOrder;
 import com.aerospike.client.fluent.cdt.ListPolicy;
 import com.aerospike.client.fluent.cdt.ListWriteFlags;
-import com.aerospike.client.fluent.command.BatchRecord;
-import com.aerospike.client.fluent.command.OperateWriteCommand;
-import com.aerospike.client.fluent.command.SyncTxnAddKeysExecutor;
 import com.aerospike.client.fluent.policy.Settings;
 
 public final class TxnMonitor {

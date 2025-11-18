@@ -39,6 +39,8 @@ import com.aerospike.client.fluent.command.BatchWrite;
 import com.aerospike.client.fluent.command.IBatchCommand;
 import com.aerospike.client.fluent.command.OperateWriteCommand;
 import com.aerospike.client.fluent.command.SyncOperateExecutor;
+import com.aerospike.client.fluent.command.Txn;
+import com.aerospike.client.fluent.command.TxnMonitor;
 import com.aerospike.client.fluent.dsl.BooleanExpression;
 import com.aerospike.client.fluent.dsl.ParseResult;
 import com.aerospike.client.fluent.exp.Exp;

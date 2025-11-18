@@ -20,6 +20,7 @@ import java.util.List;
 
 import com.aerospike.client.fluent.command.BatchRecord;
 import com.aerospike.client.fluent.command.Command;
+import com.aerospike.client.fluent.command.CommitError;
 
 public class AerospikeException extends RuntimeException {
 	private static final long serialVersionUID = 1L;

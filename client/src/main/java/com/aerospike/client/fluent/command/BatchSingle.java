@@ -28,7 +28,6 @@ import com.aerospike.client.fluent.Operation;
 import com.aerospike.client.fluent.Partition;
 import com.aerospike.client.fluent.RecordResult;
 import com.aerospike.client.fluent.ResultCode;
-import com.aerospike.client.fluent.Txn;
 import com.aerospike.client.fluent.metrics.LatencyType;
 
 public final class BatchSingle {

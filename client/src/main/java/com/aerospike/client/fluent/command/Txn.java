@@ -14,7 +14,7 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.aerospike.client.fluent;
+package com.aerospike.client.fluent.command;
 
 import java.util.List;
 import java.util.Map;
@@ -22,7 +22,9 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 
-import com.aerospike.client.fluent.command.BatchRead;
+import com.aerospike.client.fluent.AerospikeException;
+import com.aerospike.client.fluent.Key;
+import com.aerospike.client.fluent.ResultCode;
 
 /**
  * Multi-record transaction. Each command in the transaction must use the same namespace.
