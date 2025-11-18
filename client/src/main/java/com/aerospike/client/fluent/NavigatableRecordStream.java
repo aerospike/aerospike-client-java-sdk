@@ -232,6 +232,31 @@ public class NavigatableRecordStream implements ResettablePagination, Closeable 
     }
     
     /**
+     * Sorts the records by multiple sort properties.
+     * 
+     * <p>This method <b>replaces</b> any existing sort criteria with the new list.
+     * The records are immediately re-sorted and iteration is reset. This is the
+     * recommended way to sort by multiple columns.</p>
+     * 
+     * <p>Example:</p>
+     * <pre>{@code
+     * navigatable.sortBy(
+     *     SortProperties.ascendingIgnoreCase("lastName"),    // Primary sort
+     *     SortProperties.descendingIgnoreCase("firstName"),  // Secondary sort
+     *     SortProperties.descending("age")                   // Tertiary sort
+     * );
+     * }</pre>
+     * 
+     * @param sortPropertyList the list of sort properties to apply
+     * @return this NavigatableRecordStream for method chaining
+     */
+    public NavigatableRecordStream sortBy(SortProperties ... sortPropertyList) {
+        this.sortInfo = Arrays.asList(sortPropertyList);
+        applySort();
+        return this;
+    }
+    
+    /**
      * Sorts the records by a single sort property.
      * 
      * <p>This method <b>replaces</b> any existing sort criteria with the new property.
