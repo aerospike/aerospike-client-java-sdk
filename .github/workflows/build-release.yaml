@@ -1,5 +1,6 @@
 name: Build and release
 
+
 permissions:
   id-token: write
   packages: write
@@ -95,7 +96,7 @@ jobs:
     needs: [sign-artifacts, extract-version]
     uses: aerospike/shared-workflows/.github/workflows/reusable_deploy-artifacts.yaml@52354f739fde07de513266b2060c07b08f0c7a79
     with:
-      gh-workflows-ref: 66d88b92ebc9cefbdbc6b0afb45b987dadbcaa10
+      gh-workflows-ref: 9e3f2287b82d96d4283e9268d684d7320b2f98f9
       jf-project: ${{ vars.JFROG_PROJECT }}
       jf-build-name: aerospike-client-java-fluent
       jf-metadata-build-id: ${{ github.run_number }}-buildinfo
