@@ -16,6 +16,7 @@
  */
 package com.aerospike.client.fluent;
 
+import java.util.ArrayDeque;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantLock;
@@ -29,30 +30,67 @@ import java.util.concurrent.locks.ReentrantLock;
 public final class Pool {
 	private static final long MaxSocketIdleNanosTrim = TimeUnit.SECONDS.toNanos(55);
 
-	private final Connection[] conns;
-	private int head;
-	private int tail;
-	private int size;
-	final int minSize;
+	private final Node node;
 	private final ReentrantLock lock;
-	final AtomicInteger total;  // total connections: inUse + inPool
+	private final ArrayDeque<Connection> queue;
+	private final AtomicInteger total;  // total connections: inUse + inPool
+	private int minSize;
+	private int maxSize;
 
-	public Pool(int minSize, int maxSize) {
+	/**
+	 * Initialize connection pool.
+	 */
+	public Pool(Node node, int minSize, int maxSize) {
+		this.node = node;
 		this.minSize = minSize;
-		conns = new Connection[maxSize];
-		lock = new ReentrantLock(false);
-		total = new AtomicInteger();
-	}
-
-	public int capacity() {
-		return conns.length;
+		this.maxSize = maxSize;
+		this.lock = new ReentrantLock(false);
+		this.queue = new ArrayDeque<>(maxSize);
+		this.total = new AtomicInteger();
 	}
 
 	/**
-	 * Return number of connections that might be closed.
+	 * Resize minimum connections.
 	 */
-	public int excess() {
-		return total.get() - minSize;
+	public void setMinSize(int minSize) {
+		final ReentrantLock lock = this.lock;
+		lock.lock();
+
+		try {
+			this.minSize = minSize;
+		}
+		finally {
+			lock.unlock();
+		}
+	}
+
+	/**
+	 * Resize maximum connections.
+	 */
+	public void setMaxSize(int maxSize) {
+		final ReentrantLock lock = this.lock;
+		lock.lock();
+
+		try {
+			int excess = queue.size() - maxSize;
+
+			if (excess > 0) {
+				// Close oldest connections.
+				for (int i = 0; i < excess; i++) {
+					Connection conn = queue.pollLast();
+
+					if (conn == null) {
+						break;
+					}
+
+					closeIdle(conn);
+				}
+			}
+			this.maxSize = maxSize;
+		}
+		finally {
+			lock.unlock();
+		}
 	}
 
 	/**
@@ -67,17 +105,11 @@ public final class Pool {
 		lock.lock();
 
 		try {
-			if (size == conns.length) {
+			if (queue.size() >= maxSize) {
 				return false;
 			}
 
-			final Connection[] conns = this.conns;
-			conns[head] = conn;
-
-			if (++head == conns.length) {
-				head = 0;
-			}
-			size++;
+			queue.addFirst(conn);
 			return true;
 		}
 		finally {
@@ -93,22 +125,7 @@ public final class Pool {
 		lock.lock();
 
 		try {
-			if (size == 0) {
-				return null;
-			}
-
-			if (head == 0) {
-				head = conns.length - 1;
-			}
-			else {
-				head--;
-			}
-			size--;
-
-			final Connection[] conns = this.conns;
-			final Connection conn = conns[head];
-			conns[head] = null;
-			return conn;
+			return queue.pollFirst();
 		}
 		finally {
 			lock.unlock();
@@ -118,7 +135,7 @@ public final class Pool {
 	/**
 	 * Close connections that are idle for more than maxSocketIdle up to count.
 	 */
-	void closeIdle(Node node, int count) {
+	public void closeIdle(int count) {
 		while (count > 0) {
 			// Lock on each iteration to give fairness to other
 			// threads polling for connections.
@@ -127,40 +144,35 @@ public final class Pool {
 			lock.lock();
 
 			try {
-				if (size == 0) {
+				// The oldest connection is at tail.
+				conn = queue.peekLast();
+
+				if (conn == null) {
 					return;
 				}
-
-				// The oldest connection is at tail.
-				final Connection[] conns = this.conns;
-				conn = conns[tail];
 
 				if (isConnCurrentTrim(conn.getLastUsed())) {
 					return;
 				}
 
-				conns[tail] = null;
-
-				if (++tail == conns.length) {
-					tail = 0;
-				}
-				size--;
+				conn = queue.pollLast();
 			}
 			finally {
 				lock.unlock();
 			}
 
 			// Close connection outside of lock.
-			closeIdle(node, conn);
+			closeIdle(conn);
 			count--;
 		}
 	}
 
+	// TODO: Use Behavior or ClusterDefinition maxSocketIdle?
 	private boolean isConnCurrentTrim(long lastUsed) {
 		return (System.nanoTime() - lastUsed) <= MaxSocketIdleNanosTrim;
 	}
 
-	void closeIdle(Node node, Connection conn) {
+	private void closeIdle(Connection conn) {
 		total.getAndDecrement();
 		node.closeIdleConnection(conn);
 	}
@@ -173,10 +185,45 @@ public final class Pool {
 		lock.lock();
 
 		try {
-			return size;
+			return queue.size();
 		}
 		finally {
 			lock.unlock();
 		}
+	}
+
+	/**
+	 * Get minimum connection count.
+	 */
+	public int getMinSize() {
+		return minSize;
+	}
+
+	/**
+	 * Get maximum connection count.
+	 */
+	public int getMaxSize() {
+		return maxSize;
+	}
+
+	/**
+	 * Increment total connections count.
+	 */
+	public int incrTotal() {
+		return total.getAndIncrement();
+	}
+
+	/**
+	 * Decrement total connections count.
+	 */
+	public int decrTotal() {
+		return total.getAndDecrement();
+	}
+
+	/**
+	 * Return count of connections that might be closed.
+	 */
+	public int excess() {
+		return total.get() - minSize;
 	}
 }

@@ -259,6 +259,22 @@ public class Cluster implements Closeable {
 		tend.recoverConnection(cs);
 	}
 
+	public final void setMinConnsPerNode(int min) {
+		Node[] nodeArray = nodes;
+
+		for (Node node : nodeArray) {
+			node.setMinConnections(min);
+		}
+	}
+
+	public final void setMaxConnsPerNode(int max) {
+		Node[] nodeArray = nodes;
+
+		for (Node node : nodeArray) {
+			node.setMaxConnections(max);
+		}
+	}
+
 	public final void printPartitionMap() {
 		for (Entry<String,Partitions> entry : partitionMap.entrySet()) {
 			String namespace = entry.getKey();

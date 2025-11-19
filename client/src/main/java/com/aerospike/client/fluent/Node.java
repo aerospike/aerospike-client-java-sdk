@@ -131,7 +131,7 @@ public class Node implements Closeable {
 			int minSize = i < remMin ? min + 1 : min;
 			int maxSize = i < remMax ? max + 1 : max;
 
-			Pool pool = new Pool(minSize, maxSize);
+			Pool pool = new Pool(this, minSize, maxSize);
 			connectionPools[i] = pool;
 		}
 	}
@@ -144,9 +144,35 @@ public class Node implements Closeable {
 
 	public final void createMinConnections() {
 		for (Pool pool : connectionPools) {
-			if (pool.minSize > 0) {
-				createConnections(pool, pool.minSize);
+			if (pool.getMinSize() > 0) {
+				createConnections(pool, pool.getMinSize());
 			}
+		}
+	}
+
+	public final void setMinConnections(int minConnections) {
+		// Distribute minConnections across pools.
+		int min = minConnections / connectionPools.length;
+		int remMin = minConnections - (min * connectionPools.length);
+
+		for (int i = 0; i < connectionPools.length; i++) {
+			Pool pool = connectionPools[i];
+			int minSize = i < remMin ? min + 1 : min;
+
+			pool.setMinSize(minSize);
+		}
+	}
+
+	public final void setMaxConnections(int maxConnections) {
+		// Distribute maxConnections across pools.
+		int max = maxConnections / connectionPools.length;
+		int remMax = maxConnections - (max * connectionPools.length);
+
+		for (int i = 0; i < connectionPools.length; i++) {
+			Pool pool = connectionPools[i];
+			int maxSize = i < remMax ? max + 1 : max;
+
+			pool.setMaxSize(maxSize);
 		}
 	}
 
@@ -547,7 +573,7 @@ public class Node implements Closeable {
 			}
 
 			if (pool.offer(conn)) {
-				pool.total.getAndIncrement();
+				pool.incrTotal();
 			}
 			else {
 				closeIdleConnection(conn);
@@ -683,7 +709,7 @@ public class Node implements Closeable {
 				//}
 				//pool.closeIdle(this, conn);
 			}
-			else if (pool.total.getAndIncrement() < pool.capacity()) {
+			else if (pool.incrTotal() < pool.getMaxSize()) {
 				// Socket not found and queue has available slot.
 				// Create new connection.
 				long startTime;
@@ -702,7 +728,7 @@ public class Node implements Closeable {
 					conn = createConnection(pool, timeout);
 				}
 				catch (Throwable e) {
-					pool.total.getAndDecrement();
+					pool.decrTotal();
 					throw e;
 				}
 
@@ -772,7 +798,7 @@ public class Node implements Closeable {
 			}
 			else {
 				// Socket not found and queue is full.  Try another queue.
-				pool.total.getAndDecrement();
+				pool.decrTotal();
 
 				if (backward) {
 					if (queueIndex > 0) {
@@ -813,7 +839,7 @@ public class Node implements Closeable {
 			int excess = pool.excess();
 
 			if (excess > 0) {
-				pool.closeIdle(this, excess);
+				pool.closeIdle(excess);
 			}
 			else if (excess < 0 && errorRateWithinLimit()) {
 				createConnections(pool, -excess);
@@ -825,7 +851,7 @@ public class Node implements Closeable {
 	 * Close pooled connection on error and decrement connection count.
 	 */
 	public final void closeConnection(Connection conn) {
-		conn.pool.total.getAndDecrement();
+		conn.pool.decrTotal();
 		closeConnectionOnError(conn);
 	}
 
