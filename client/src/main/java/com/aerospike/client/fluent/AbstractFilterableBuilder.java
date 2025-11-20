@@ -55,7 +55,7 @@ public abstract class AbstractFilterableBuilder {
     /**
      * Determine if an exception result should be published.
      */
-    public boolean shouldPublishException(AerospikeException ae) {
+    protected boolean shouldPublishException(AerospikeException ae) {
         return switch (ae.getResultCode()) {
             case ResultCode.FILTERED_OUT -> failOnFilteredOut || respondAllKeys;
             default -> true;

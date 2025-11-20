@@ -204,6 +204,18 @@ public final class Behavior {
                     .allowInlineMemoryAccess(true)
                     .allowInlineSsdAccess(false)
             )
+            // Query write defaults (background operations)
+            // Background operations run server-side on entire sets and require different timeout/retry settings
+            .on(Selectors.writes().retryable().query(), ops -> ops
+                    .maximumNumberOfCallAttempts(1)  // Background tasks don't retry - managed by server
+                    .waitForCallToComplete(Duration.ofSeconds(0))  // Don't wait - return immediately with ExecuteTask
+                    .abandonCallAfter(Duration.ofSeconds(30))  // Generous timeout for large scan operations
+            )
+            .on(Selectors.writes().nonRetryable().query(), ops -> ops
+                    .maximumNumberOfCallAttempts(1)  // Background tasks don't retry - managed by server
+                    .waitForCallToComplete(Duration.ofSeconds(0))  // Don't wait - return immediately with ExecuteTask
+                    .abandonCallAfter(Duration.ofSeconds(30))  // Generous timeout for large scan operations
+            )
             // AP write defaults
             .on(Selectors.writes().ap(), ops -> ops
                     .commitLevel(CommitLevel.COMMIT_ALL)
@@ -870,11 +882,13 @@ public final class Behavior {
         for (Mode m : Mode.values()) {
             out.add(new OpKey(OpKind.WRITE_RETRYABLE, OpShape.POINT, m));
             out.add(new OpKey(OpKind.WRITE_RETRYABLE, OpShape.BATCH, m));
+            out.add(new OpKey(OpKind.WRITE_RETRYABLE, OpShape.QUERY, m));
         }
         // NON-RETRYABLE WRITES
         for (Mode m : Mode.values()) {
             out.add(new OpKey(OpKind.WRITE_NON_RETRYABLE, OpShape.POINT, m));
             out.add(new OpKey(OpKind.WRITE_NON_RETRYABLE, OpShape.BATCH, m));
+            out.add(new OpKey(OpKind.WRITE_NON_RETRYABLE, OpShape.QUERY, m));
         }
         // SYSTEM operations (only ANY mode is meaningful for system operations)
         out.add(new OpKey(OpKind.SYSTEM_TXN_VERIFY, OpShape.SYSTEM, Mode.ANY));
@@ -1555,6 +1569,94 @@ public final class Behavior {
         @Override NonRetryableWriteBatchCpTweaks simulateXdrWrite(boolean b);
     }
 
+    // Query write tweaks (for background operations)
+    public interface RetryableWriteQueryAnyModeTweaks extends QueryTweaks, RetryableWriteTweaks {
+        @Override RetryableWriteQueryAnyModeTweaks abandonCallAfter(Duration d);
+        @Override RetryableWriteQueryAnyModeTweaks delayBetweenRetries(Duration d);
+        @Override RetryableWriteQueryAnyModeTweaks maximumNumberOfCallAttempts(int n);
+        @Override RetryableWriteQueryAnyModeTweaks replicaOrder(Replica r);
+        @Override RetryableWriteQueryAnyModeTweaks sendKey(boolean sendKey);
+        @Override RetryableWriteQueryAnyModeTweaks useCompression(boolean compress);
+        @Override RetryableWriteQueryAnyModeTweaks waitForCallToComplete(Duration d);
+        @Override RetryableWriteQueryAnyModeTweaks waitForConnectionToComplete(Duration d);
+        @Override RetryableWriteQueryAnyModeTweaks waitForSocketResponseAfterCallFails(Duration d);
+        @Override RetryableWriteQueryAnyModeTweaks stackTraceOnException(boolean enabled);
+        @Override RetryableWriteQueryAnyModeTweaks useDurableDelete(boolean b);
+        @Override RetryableWriteQueryAnyModeTweaks simulateXdrWrite(boolean b);
+    }
+    public interface RetryableWriteQueryApTweaks extends QueryTweaks, WriteApTweaks {
+        @Override RetryableWriteQueryApTweaks abandonCallAfter(Duration d);
+        @Override RetryableWriteQueryApTweaks delayBetweenRetries(Duration d);
+        @Override RetryableWriteQueryApTweaks maximumNumberOfCallAttempts(int n);
+        @Override RetryableWriteQueryApTweaks replicaOrder(Replica r);
+        @Override RetryableWriteQueryApTweaks sendKey(boolean sendKey);
+        @Override RetryableWriteQueryApTweaks useCompression(boolean compress);
+        @Override RetryableWriteQueryApTweaks waitForCallToComplete(Duration d);
+        @Override RetryableWriteQueryApTweaks waitForConnectionToComplete(Duration d);
+        @Override RetryableWriteQueryApTweaks waitForSocketResponseAfterCallFails(Duration d);
+        @Override RetryableWriteQueryApTweaks stackTraceOnException(boolean enabled);
+        @Override RetryableWriteQueryApTweaks useDurableDelete(boolean b);
+        @Override RetryableWriteQueryApTweaks simulateXdrWrite(boolean b);
+        @Override RetryableWriteQueryApTweaks commitLevel(CommitLevel level);
+    }
+    public interface RetryableWriteQueryCpTweaks extends QueryTweaks, RetryableWriteTweaks {
+        @Override RetryableWriteQueryCpTweaks abandonCallAfter(Duration d);
+        @Override RetryableWriteQueryCpTweaks delayBetweenRetries(Duration d);
+        @Override RetryableWriteQueryCpTweaks maximumNumberOfCallAttempts(int n);
+        @Override RetryableWriteQueryCpTweaks replicaOrder(Replica r);
+        @Override RetryableWriteQueryCpTweaks sendKey(boolean sendKey);
+        @Override RetryableWriteQueryCpTweaks useCompression(boolean compress);
+        @Override RetryableWriteQueryCpTweaks waitForCallToComplete(Duration d);
+        @Override RetryableWriteQueryCpTweaks waitForConnectionToComplete(Duration d);
+        @Override RetryableWriteQueryCpTweaks waitForSocketResponseAfterCallFails(Duration d);
+        @Override RetryableWriteQueryCpTweaks stackTraceOnException(boolean enabled);
+        @Override RetryableWriteQueryCpTweaks useDurableDelete(boolean b);
+        @Override RetryableWriteQueryCpTweaks simulateXdrWrite(boolean b);
+    }
+    public interface NonRetryableWriteQueryAnyModeTweaks extends QueryTweaks, NonRetryableWriteTweaks {
+        @Override NonRetryableWriteQueryAnyModeTweaks abandonCallAfter(Duration d);
+        @Override NonRetryableWriteQueryAnyModeTweaks delayBetweenRetries(Duration d);
+        @Override NonRetryableWriteQueryAnyModeTweaks maximumNumberOfCallAttempts(int n);
+        @Override NonRetryableWriteQueryAnyModeTweaks replicaOrder(Replica r);
+        @Override NonRetryableWriteQueryAnyModeTweaks sendKey(boolean sendKey);
+        @Override NonRetryableWriteQueryAnyModeTweaks useCompression(boolean compress);
+        @Override NonRetryableWriteQueryAnyModeTweaks waitForCallToComplete(Duration d);
+        @Override NonRetryableWriteQueryAnyModeTweaks waitForConnectionToComplete(Duration d);
+        @Override NonRetryableWriteQueryAnyModeTweaks waitForSocketResponseAfterCallFails(Duration d);
+        @Override NonRetryableWriteQueryAnyModeTweaks stackTraceOnException(boolean enabled);
+        @Override NonRetryableWriteQueryAnyModeTweaks useDurableDelete(boolean b);
+        @Override NonRetryableWriteQueryAnyModeTweaks simulateXdrWrite(boolean b);
+    }
+    public interface NonRetryableWriteQueryApTweaks extends QueryTweaks, WriteApTweaks {
+        @Override NonRetryableWriteQueryApTweaks abandonCallAfter(Duration d);
+        @Override NonRetryableWriteQueryApTweaks delayBetweenRetries(Duration d);
+        @Override NonRetryableWriteQueryApTweaks maximumNumberOfCallAttempts(int n);
+        @Override NonRetryableWriteQueryApTweaks replicaOrder(Replica r);
+        @Override NonRetryableWriteQueryApTweaks sendKey(boolean sendKey);
+        @Override NonRetryableWriteQueryApTweaks useCompression(boolean compress);
+        @Override NonRetryableWriteQueryApTweaks waitForCallToComplete(Duration d);
+        @Override NonRetryableWriteQueryApTweaks waitForConnectionToComplete(Duration d);
+        @Override NonRetryableWriteQueryApTweaks waitForSocketResponseAfterCallFails(Duration d);
+        @Override NonRetryableWriteQueryApTweaks stackTraceOnException(boolean enabled);
+        @Override NonRetryableWriteQueryApTweaks useDurableDelete(boolean b);
+        @Override NonRetryableWriteQueryApTweaks simulateXdrWrite(boolean b);
+        @Override NonRetryableWriteQueryApTweaks commitLevel(CommitLevel level);
+    }
+    public interface NonRetryableWriteQueryCpTweaks extends QueryTweaks, NonRetryableWriteTweaks {
+        @Override NonRetryableWriteQueryCpTweaks abandonCallAfter(Duration d);
+        @Override NonRetryableWriteQueryCpTweaks delayBetweenRetries(Duration d);
+        @Override NonRetryableWriteQueryCpTweaks maximumNumberOfCallAttempts(int n);
+        @Override NonRetryableWriteQueryCpTweaks replicaOrder(Replica r);
+        @Override NonRetryableWriteQueryCpTweaks sendKey(boolean sendKey);
+        @Override NonRetryableWriteQueryCpTweaks useCompression(boolean compress);
+        @Override NonRetryableWriteQueryCpTweaks waitForCallToComplete(Duration d);
+        @Override NonRetryableWriteQueryCpTweaks waitForConnectionToComplete(Duration d);
+        @Override NonRetryableWriteQueryCpTweaks waitForSocketResponseAfterCallFails(Duration d);
+        @Override NonRetryableWriteQueryCpTweaks stackTraceOnException(boolean enabled);
+        @Override NonRetryableWriteQueryCpTweaks useDurableDelete(boolean b);
+        @Override NonRetryableWriteQueryCpTweaks simulateXdrWrite(boolean b);
+    }
+
     // SYSTEM tweaks interfaces
     /**
      * Tweaks for transaction verification operations (read-like settings).
@@ -1941,6 +2043,7 @@ public final class Behavior {
         RetryableWriteSelector<T> cp();
         RetryableWritePointSelector<RetryableWritePointAnyModeTweaks> point();
         RetryableWriteBatchSelector<RetryableWriteBatchAnyModeTweaks> batch();
+        RetryableWriteQuerySelector<RetryableWriteQueryAnyModeTweaks> query();
     }
     public interface RetryableWritePointSelector<T extends TweaksView> extends Selector<T> {
         RetryableWritePointSelector<RetryableWritePointApTweaks> ap();
@@ -1950,11 +2053,16 @@ public final class Behavior {
         RetryableWriteBatchSelector<RetryableWriteBatchApTweaks> ap();
         RetryableWriteBatchSelector<RetryableWriteBatchCpTweaks> cp();
     }
+    public interface RetryableWriteQuerySelector<T extends TweaksView> extends Selector<T> {
+        RetryableWriteQuerySelector<RetryableWriteQueryApTweaks> ap();
+        RetryableWriteQuerySelector<RetryableWriteQueryCpTweaks> cp();
+    }
     public interface NonRetryableWriteSelector<T extends TweaksView> extends Selector<T> {
         NonRetryableWriteSelector<T> ap();
         NonRetryableWriteSelector<T> cp();
         NonRetryableWritePointSelector<NonRetryableWritePointAnyModeTweaks> point();
         NonRetryableWriteBatchSelector<NonRetryableWriteBatchAnyModeTweaks> batch();
+        NonRetryableWriteQuerySelector<NonRetryableWriteQueryAnyModeTweaks> query();
     }
     public interface NonRetryableWritePointSelector<T extends TweaksView> extends Selector<T> {
         NonRetryableWritePointSelector<NonRetryableWritePointApTweaks> ap();
@@ -1963,6 +2071,10 @@ public final class Behavior {
     public interface NonRetryableWriteBatchSelector<T extends TweaksView> extends Selector<T> {
         NonRetryableWriteBatchSelector<NonRetryableWriteBatchApTweaks> ap();
         NonRetryableWriteBatchSelector<NonRetryableWriteBatchCpTweaks> cp();
+    }
+    public interface NonRetryableWriteQuerySelector<T extends TweaksView> extends Selector<T> {
+        NonRetryableWriteQuerySelector<NonRetryableWriteQueryApTweaks> ap();
+        NonRetryableWriteQuerySelector<NonRetryableWriteQueryCpTweaks> cp();
     }
 
     // Write shape selectors (retryability-agnostic - apply to both retryable and non-retryable)
@@ -2077,6 +2189,7 @@ public final class Behavior {
 
         @Override public RetryableWritePointSelector<RetryableWritePointAnyModeTweaks> point() { return new RetryableWritePointSel<>(spec.withShape(OpShape.POINT)); }
         @Override public RetryableWriteBatchSelector<RetryableWriteBatchAnyModeTweaks> batch() { return new RetryableWriteBatchSel<>(spec.withShape(OpShape.BATCH)); }
+        @Override public RetryableWriteQuerySelector<RetryableWriteQueryAnyModeTweaks> query() { return new RetryableWriteQuerySel<>(spec.withShape(OpShape.QUERY)); }
     }
     public static final class RetryableWritePointSel<T extends TweaksView> implements RetryableWritePointSelector<T> {
         private final SelectionSpec spec;
@@ -2092,6 +2205,13 @@ public final class Behavior {
         @Override public RetryableWriteBatchSelector<RetryableWriteBatchApTweaks> ap() { return new RetryableWriteBatchSel<>(spec.withMode(Mode.AP)); }
         @Override public RetryableWriteBatchSelector<RetryableWriteBatchCpTweaks> cp() { return new RetryableWriteBatchSel<>(spec.withMode(Mode.CP)); }
     }
+    public static final class RetryableWriteQuerySel<T extends TweaksView> implements RetryableWriteQuerySelector<T> {
+        private final SelectionSpec spec;
+        RetryableWriteQuerySel(SelectionSpec spec) { this.spec = spec; }
+        @Override public SelectionSpec spec() { return spec; }
+        @Override public RetryableWriteQuerySelector<RetryableWriteQueryApTweaks> ap() { return new RetryableWriteQuerySel<>(spec.withMode(Mode.AP)); }
+        @Override public RetryableWriteQuerySelector<RetryableWriteQueryCpTweaks> cp() { return new RetryableWriteQuerySel<>(spec.withMode(Mode.CP)); }
+    }
     public static final class NonRetryableWriteAnySel implements NonRetryableWriteSelector<NonRetryableWriteAnyModeTweaks> {
         private final SelectionSpec spec;
         NonRetryableWriteAnySel(SelectionSpec spec) { this.spec = spec; }
@@ -2102,6 +2222,7 @@ public final class Behavior {
 
         @Override public NonRetryableWritePointSelector<NonRetryableWritePointAnyModeTweaks> point() { return new NonRetryableWritePointSel<>(spec.withShape(OpShape.POINT)); }
         @Override public NonRetryableWriteBatchSelector<NonRetryableWriteBatchAnyModeTweaks> batch() { return new NonRetryableWriteBatchSel<>(spec.withShape(OpShape.BATCH)); }
+        @Override public NonRetryableWriteQuerySelector<NonRetryableWriteQueryAnyModeTweaks> query() { return new NonRetryableWriteQuerySel<>(spec.withShape(OpShape.QUERY)); }
     }
     public static final class NonRetryableWritePointSel<T extends TweaksView> implements NonRetryableWritePointSelector<T> {
         private final SelectionSpec spec;
@@ -2116,6 +2237,13 @@ public final class Behavior {
         @Override public SelectionSpec spec() { return spec; }
         @Override public NonRetryableWriteBatchSelector<NonRetryableWriteBatchApTweaks> ap() { return new NonRetryableWriteBatchSel<>(spec.withMode(Mode.AP)); }
         @Override public NonRetryableWriteBatchSelector<NonRetryableWriteBatchCpTweaks> cp() { return new NonRetryableWriteBatchSel<>(spec.withMode(Mode.CP)); }
+    }
+    public static final class NonRetryableWriteQuerySel<T extends TweaksView> implements NonRetryableWriteQuerySelector<T> {
+        private final SelectionSpec spec;
+        NonRetryableWriteQuerySel(SelectionSpec spec) { this.spec = spec; }
+        @Override public SelectionSpec spec() { return spec; }
+        @Override public NonRetryableWriteQuerySelector<NonRetryableWriteQueryApTweaks> ap() { return new NonRetryableWriteQuerySel<>(spec.withMode(Mode.AP)); }
+        @Override public NonRetryableWriteQuerySelector<NonRetryableWriteQueryCpTweaks> cp() { return new NonRetryableWriteQuerySel<>(spec.withMode(Mode.CP)); }
     }
 
     // Write shape selector implementations (retryability-agnostic)
@@ -2204,9 +2332,11 @@ public final class Behavior {
     // write views (retryable)
     RetryableWriteAnyModeTweaks, RetryableWritePointAnyModeTweaks, RetryableWriteBatchAnyModeTweaks,
     RetryableWriteBatchApTweaks, RetryableWriteBatchCpTweaks, RetryableWritePointApTweaks, RetryableWritePointCpTweaks,
+    RetryableWriteQueryAnyModeTweaks, RetryableWriteQueryApTweaks, RetryableWriteQueryCpTweaks,
     // write views (non-retryable)
     NonRetryableWriteAnyModeTweaks, NonRetryableWritePointAnyModeTweaks, NonRetryableWriteBatchAnyModeTweaks,
     NonRetryableWriteBatchApTweaks, NonRetryableWriteBatchCpTweaks, NonRetryableWritePointApTweaks, NonRetryableWritePointCpTweaks,
+    NonRetryableWriteQueryAnyModeTweaks, NonRetryableWriteQueryApTweaks, NonRetryableWriteQueryCpTweaks,
     // system views
     SystemTxnVerifyTweaks, SystemTxnRollTweaks, SystemConnectionsTweaks, SystemCircuitBreakerTweaks, SystemRefreshTweaks {
 

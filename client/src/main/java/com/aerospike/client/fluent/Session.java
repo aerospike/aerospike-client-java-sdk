@@ -373,7 +373,63 @@ public class Session {
 //            return null; // Hidden from user
         });
     }
-
+    
+    // ------------------------------------
+    // Background Operations functionality
+    // ------------------------------------
+    /**
+     * Enter background task mode for performing set-level operations asynchronously
+     * on the server side. Background operations run as server-side scans/queries
+     * and return an ExecuteTask for monitoring completion.
+     * 
+     * <p><b>Background Operations:</b></p>
+     * <ul>
+     *   <li>Run on entire sets (not specific keys)</li>
+     *   <li>Cannot be part of transactions</li>
+     *   <li>Return ExecuteTask (not record data)</li>
+     *   <li>Support UPDATE, DELETE, and TOUCH operations only</li>
+     * </ul>
+     * 
+     * <p><b>Use Cases:</b></p>
+     * <ul>
+     *   <li>Bulk updates based on criteria</li>
+     *   <li>Cleaning up old records</li>
+     *   <li>Extending TTL for active records</li>
+     * </ul>
+     * 
+     * <p><b>Example:</b></p>
+     * <pre>{@code
+     * // Update all customers over 30
+     * ExecuteTask task = session.backgroundTask()
+     *     .update(customerDataSet)
+     *     .where("$.age > 30")
+     *     .bin("category").setTo("senior")
+     *     .execute();
+     * 
+     * task.waitTillComplete();
+     * 
+     * // Delete old inactive records
+     * ExecuteTask deleteTask = session.backgroundTask()
+     *     .delete(customerDataSet)
+     *     .where("$.lastLogin < 1609459200000")
+     *     .execute();
+     * 
+     * // Touch active users to extend TTL
+     * ExecuteTask touchTask = session.backgroundTask()
+     *     .touch(activeUsers)
+     *     .where("$.status == 'active'")
+     *     .expireRecordAfter(Duration.ofDays(30))
+     *     .execute();
+     * }</pre>
+     * 
+     * @return BackgroundTaskSession for creating background operations
+     * @see BackgroundTaskSession
+     * @see BackgroundOperationBuilder
+     */
+    public BackgroundTaskSession backgroundTask() {
+        return new BackgroundTaskSession(this);
+    }
+    
     // ---------------------
     // Info functionality
     // ---------------------

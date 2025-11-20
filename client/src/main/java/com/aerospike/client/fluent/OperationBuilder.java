@@ -21,13 +21,9 @@ import com.aerospike.client.fluent.policy.WritePolicy;
 import com.aerospike.client.fluent.query.PreparedDsl;
 import com.aerospike.client.fluent.query.WhereClauseProcessor;
 
-public class OperationBuilder extends AbstractFilterableBuilder implements FilterableOperation<OperationBuilder> {
+public class OperationBuilder extends AbstractOperationBuilder<OperationBuilder> implements FilterableOperation<OperationBuilder> {
     private final List<Key> keys;
-    protected final List<Operation> ops = new ArrayList<>();
-    protected final OpType opType;
-    protected final Session session;
     protected int generation = 0;
-    protected long expirationInSeconds = 0;   // Default, get value from server
     protected long expirationInSecondsForAll = 0;
     protected Txn txnToUse;
 
@@ -101,54 +97,62 @@ public class OperationBuilder extends AbstractFilterableBuilder implements Filte
     }
 
     public OperationBuilder(Session session, Key key, OpType type) {
+        super(session, type);
         this.keys = List.of(key);
-        this.opType = type;
-        this.session = session;
         this.txnToUse = session.getCurrentTransaction();
     }
 
     public OperationBuilder(Session session, List<Key> keys, OpType type) {
+        super(session, type);
         this.keys = keys;
-        this.opType = type;
-        this.session = session;
         this.txnToUse = session.getCurrentTransaction();
     }
-
-    public BinBuilder bin(String binName) {
-        return new BinBuilder(this, binName);
+    
+    // Covariant return type overrides for method chaining
+    @Override
+    public OperationBuilder expireRecordAfter(Duration duration) {
+        super.expireRecordAfter(duration);
+        return this;
     }
-
+    
+    @Override
+    public OperationBuilder expireRecordAfterSeconds(int expirationInSeconds) {
+        super.expireRecordAfterSeconds(expirationInSeconds);
+        return this;
+    }
+    
+    @Override
+    public OperationBuilder expireRecordAt(Date date) {
+        super.expireRecordAt(date);
+        return this;
+    }
+    
+    @Override
+    public OperationBuilder expireRecordAt(LocalDateTime date) {
+        super.expireRecordAt(date);
+        return this;
+    }
+    
+    @Override
+    public OperationBuilder withNoChangeInExpiration() {
+        super.withNoChangeInExpiration();
+        return this;
+    }
+    
+    @Override
+    public OperationBuilder neverExpire() {
+        super.neverExpire();
+        return this;
+    }
+    
+    @Override
+    public OperationBuilder expiryFromServerDefault() {
+        super.expiryFromServerDefault();
+        return this;
+    }
+    
     public BinsValuesBuilder bins(String binName, String... binNames) {
         return new BinsValuesBuilder(this, keys, binName, binNames);
-    }
-    protected OperationBuilder setTo(Bin bin) {
-        this.ops.add(Operation.put(bin));
-        return this;
-    }
-
-    protected OperationBuilder get(String binName) {
-        this.ops.add(Operation.get(binName));
-        return this;
-    }
-
-    protected OperationBuilder append(Bin bin) {
-        this.ops.add(Operation.append(bin));
-        return this;
-    }
-
-    protected OperationBuilder prepend(Bin bin) {
-        this.ops.add(Operation.prepend(bin));
-        return this;
-    }
-
-    protected OperationBuilder add(Bin bin) {
-        this.ops.add(Operation.add(bin));
-        return this;
-    }
-
-    protected OperationBuilder addOp(Operation op) {
-        this.ops.add(op);
-        return this;
     }
 
     public OperationBuilder ensureGenerationIs(int generation) {
@@ -156,59 +160,6 @@ public class OperationBuilder extends AbstractFilterableBuilder implements Filte
             throw new IllegalArgumentException("Generation must be greater than 0");
         }
         this.generation = generation;
-        return this;
-    }
-
-    public OperationBuilder expireRecordAfter(Duration duration) {
-        this.expirationInSeconds = duration.toSeconds();
-        return this;
-    }
-
-    public OperationBuilder expireRecordAfterSeconds(int expirationInSeconds) {
-        this.expirationInSeconds = expirationInSeconds;
-        return this;
-    }
-
-    protected long getExpirationInSecondsAndCheckValue(Date date) {
-        long expirationInSeconds = (date.getTime() - new Date().getTime())/ 1000L;
-        if (expirationInSeconds < 0) {
-            throw new IllegalArgumentException("Expiration must be set in the future, not to " + date);
-        }
-        return expirationInSeconds;
-    }
-
-    public OperationBuilder expireRecordAt(Date date) {
-        this.expirationInSeconds = getExpirationInSecondsAndCheckValue(date);
-        return this;
-    }
-
-    protected long getExpirationInSecondsAndCheckValue(LocalDateTime date) {
-        LocalDateTime now = LocalDateTime.now();
-        long expirationInSeconds = ChronoUnit.SECONDS.between(now, date);
-        if (expirationInSeconds < 0) {
-            throw new IllegalArgumentException("Expiration must be set in the future, not to " + date);
-        }
-        return expirationInSeconds;
-    }
-
-
-    public OperationBuilder expireRecordAt(LocalDateTime date) {
-        this.expirationInSeconds = getExpirationInSecondsAndCheckValue(date);
-        return this;
-    }
-
-    public OperationBuilder withNoChangeInExpiration() {
-        this.expirationInSeconds = TTL_NO_CHANGE;
-        return this;
-    }
-
-    public OperationBuilder neverExpire() {
-        this.expirationInSeconds = TTL_NEVER_EXPIRE;
-        return this;
-    }
-
-    public OperationBuilder expiryFromServerDefault() {
-        this.expirationInSeconds = TTL_SERVER_DEFAULT;
         return this;
     }
 
@@ -388,9 +339,10 @@ public class OperationBuilder extends AbstractFilterableBuilder implements Filte
         }
     }
 
-    private int getExpirationAsInt() {
+    @Override
+    protected int getExpirationAsInt() {
         long effectiveExpiration = (expirationInSeconds != 0) ? expirationInSeconds : expirationInSecondsForAll;
-        return getExpirationAsInt(effectiveExpiration);
+        return super.getExpirationAsInt(effectiveExpiration);
     }
     
     protected Settings getSettings(boolean retryable) {
@@ -459,29 +411,19 @@ public class OperationBuilder extends AbstractFilterableBuilder implements Filte
     public RecordStream executeSync() {
     	/*
         if (Log.debugEnabled()) {
-            Log.debug("OperationBuilder.executeSync() called for " + keys.size() + " key(s), transaction: " +
+            Log.debug("OperationBuilder.executeSync() called for " + keys.size() + " key(s), transaction: " + 
                      (txnToUse != null ? "yes" : "no"));
         }
-
+        
         Operation[] operations = ops.toArray(new Operation[0]);
         boolean retryable = OperationBuilder.areOperationsRetryable(operations);
-        WritePolicy wp = getWritePolicy(retryable, generation, opType);
-        long effectiveExpiration = (expirationInSeconds != 0) ? expirationInSeconds : expirationInSecondsForAll;
-        wp.expiration = getExpirationAsInt(effectiveExpiration);
-        wp.txn = this.txnToUse;
-
+        Settings settings = getSettings(retryable);
+        
         // Use batch operations if 10 or more keys
         if (keys.size() >= getBatchOperationThreshold()) {
-            BatchPolicy batchPolicy = session.getBehavior().getMutablePolicy(CommandType.BATCH_WRITE);
-            batchPolicy.txn = wp.txn;
-            BatchWritePolicy bwp = new BatchWritePolicy();
-            bwp.expiration = wp.expiration;
-            bwp.generation = wp.generation;
-            bwp.generationPolicy = wp.generationPolicy;
-            bwp.sendKey = wp.sendKey;
-            return executeBatch(batchPolicy, operations, bwp);
+            return executeBatchSync(settings, operations);
         } else {
-            return executeIndividualSync(wp, operations);
+            return executeIndividualParallelSync(settings, operations, keys);
         }
         */
     	return null;
@@ -499,10 +441,10 @@ public class OperationBuilder extends AbstractFilterableBuilder implements Filte
     public RecordStream executeAsync() {
     	/*
         if (Log.debugEnabled()) {
-            Log.debug("OperationBuilder.executeAsync() called for " + keys.size() + " key(s), transaction: " +
+            Log.debug("OperationBuilder.executeAsync() called for " + keys.size() + " key(s), transaction: " + 
                      (txnToUse != null ? "yes" : "no"));
         }
-
+        
         if (txnToUse != null && Log.warnEnabled()) {
             Log.warn(
                 "executeAsync() called within a transaction. " +
@@ -511,26 +453,16 @@ public class OperationBuilder extends AbstractFilterableBuilder implements Filte
                 "Consider using executeSync() or execute() for transactional safety."
             );
         }
-
+        
         Operation[] operations = ops.toArray(new Operation[0]);
         boolean retryable = OperationBuilder.areOperationsRetryable(operations);
-        WritePolicy wp = getWritePolicy(retryable, generation, opType);
-        long effectiveExpiration = (expirationInSeconds != 0) ? expirationInSeconds : expirationInSecondsForAll;
-        wp.expiration = getExpirationAsInt(effectiveExpiration);
-        wp.txn = this.txnToUse;
-
+        Settings settings = getSettings(retryable);
+        
         // Use batch operations if 10 or more keys
         if (keys.size() >= getBatchOperationThreshold()) {
-            BatchPolicy batchPolicy = session.getBehavior().getMutablePolicy(CommandType.BATCH_WRITE);
-            batchPolicy.txn = wp.txn;
-            BatchWritePolicy bwp = new BatchWritePolicy();
-            bwp.expiration = wp.expiration;
-            bwp.generation = wp.generation;
-            bwp.generationPolicy = wp.generationPolicy;
-            bwp.sendKey = wp.sendKey;
-            return executeBatch(batchPolicy, operations, bwp);
+            return executeBatchAsync(settings, operations);
         } else {
-            return executeIndividualAsync(wp, operations);
+            return executeIndividualAsync(settings, operations);
         }
         */
     	return null;
@@ -559,6 +491,9 @@ public class OperationBuilder extends AbstractFilterableBuilder implements Filte
         wp.generationPolicy = getGenerationPolicy(generation);
         wp.txn = this.txnToUse;
         wp.recordExistsAction = recordExistsActionFromOpType(opType);
+        wp.sendKey = settings.getSendKey();
+        wp.durableDelete = settings.getUseDurableDelete();
+        
         return wp;
     }
 
@@ -570,17 +505,13 @@ public class OperationBuilder extends AbstractFilterableBuilder implements Filte
         batchWritePolicy.recordExistsAction = recordExistsActionFromOpType(opType);
         return batchWritePolicy;
     }
-    protected WritePolicy getWritePolicy(Settings settings, int generation, OpType opType) {
-        WritePolicy result = settings.asWritePolicy();
-        result.generation = generation;
-        result.generationPolicy = getGenerationPolicy(generation);
-        result.recordExistsAction = recordExistsActionFromOpType(opType);
-        return result;
     }
 */
 
     protected RecordStream executeBatchSync(Settings settings, Operation[] operations) {
     	/*
+        BatchWritePolicy batchWritePolicy = getBatchWritePolicy();
+
         BatchPolicy batchPolicy = settingsToBatchPolicy(settings);
         List<BatchRecord> batchRecords = keys.stream()
                 .map(key -> new BatchWrite(batchWritePolicy, key, operations))
@@ -667,6 +598,7 @@ public class OperationBuilder extends AbstractFilterableBuilder implements Filte
             boolean stackTraceOnException) {
 /*
         try {
+        try {
             Record record = session.getClient().operate(wp, key, operations);
             if (respondAllKeys || record != null) {
                 asyncStream.publish(new RecordResult(key, record, index));
@@ -674,12 +606,12 @@ public class OperationBuilder extends AbstractFilterableBuilder implements Filte
         } catch (AerospikeException ae) {
             if (ae.getResultCode() == ResultCode.FILTERED_OUT) {
                 if (failOnFilteredOut || respondAllKeys) {
-                    asyncStream.publish(new RecordResult(key, ae, index));
+                    asyncStream.publish(new RecordResult(key, AeroException.from(ae), index));
                 }
                 // Otherwise skip this record
             } else {
-                showWarningsOnException(ae, txnToUse, key, wp.expiration);
-                asyncStream.publish(new RecordResult(key, ae, index));
+                showWarningsOnException(ae, txnToUse, key, getExpirationAsInt());
+                asyncStream.publish(new RecordResult(key, AeroException.from(ae), index));
             }
         }
 */

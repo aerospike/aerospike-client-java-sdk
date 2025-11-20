@@ -9,121 +9,121 @@ import com.aerospike.client.fluent.CdtGetOrRemoveBuilder.CdtOperation;
 import com.aerospike.client.fluent.cdt.ListOrder;
 import com.aerospike.client.fluent.cdt.MapOrder;
 
-public class BinBuilder extends AbstractCdtBuilder{
-    public BinBuilder(OperationBuilder opBuilder, String binName) {
+public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractCdtBuilder<T> {
+    public BinBuilder(T opBuilder, String binName) {
         super(opBuilder, binName, null);
     }
 
     /**
      * Create set database operation.
      */
-    public OperationBuilder setTo(String value) {
+    public T setTo(String value) {
         return opBuilder.setTo(new Bin(binName, value));
     }
     /**
      * Create set database operation.
      */
-    public OperationBuilder setTo(int value) {
+    public T setTo(int value) {
         return opBuilder.setTo(new Bin(binName, value));
     }
     /**
      * Create set database operation.
      */
-    public OperationBuilder setTo(long value) {
+    public T setTo(long value) {
         return opBuilder.setTo(new Bin(binName, value));
     }
     /**
      * Create set database operation.
      */
-    public OperationBuilder setTo(float value) {
+    public T setTo(float value) {
         return opBuilder.setTo(new Bin(binName, value));
     }
     /**
      * Create set database operation.
      */
-    public OperationBuilder setTo(double value) {
+    public T setTo(double value) {
         return opBuilder.setTo(new Bin(binName, value));
     }
     /**
      * Create set database operation.
      */
-    public OperationBuilder setTo(boolean value) {
+    public T setTo(boolean value) {
         return opBuilder.setTo(new Bin(binName, value));
     }
     /**
      * Create set database operation.
      */
-    public OperationBuilder setTo(byte[] value) {
+    public T setTo(byte[] value) {
         return opBuilder.setTo(new Bin(binName, value));
     }
     /**
      * Create set database operation.
      */
-    public OperationBuilder setTo(List<?> value) {
+    public T setTo(List<?> value) {
         return opBuilder.setTo(new Bin(binName, value));
     }
     /**
      * Create set database operation.
      */
-    public OperationBuilder setTo(Map<?, ?> value) {
+    public T setTo(Map<?, ?> value) {
         return opBuilder.setTo(new Bin(binName, value));
     }
     /**
      * Create set database operation.
      */
-    public OperationBuilder setTo(SortedMap<?, ?> value) {
+    public T setTo(SortedMap<?, ?> value) {
         return opBuilder.setTo(new Bin(binName, value));
     }
     /**
      * Create bin-remove operation.
      */
-    public OperationBuilder remove() {
+    public T remove() {
         return opBuilder.setTo(Bin.asNull(binName));
     }
     /**
      * Create set database operation.
      */
-    public OperationBuilder get() {
+    public T get() {
         return opBuilder.get(binName);
     }
     /**
      * Create string append database operation.
      */
-    public OperationBuilder append(String value) {
+    public T append(String value) {
         return opBuilder.append(new Bin(binName, value));
     }
     /**
      * Create string prepend database operation.
      */
-    public OperationBuilder prepend(String value) {
+    public T prepend(String value) {
         return opBuilder.prepend(new Bin(binName, value));
     }
     /**
      * Create integer add database operation. If the record or bin does not exist, the
      * record/bin will be created by default with the value to be added.
      */
-    public OperationBuilder add(int amount) {
+    public T add(int amount) {
         return opBuilder.add(new Bin(binName, amount));
     }
     /**
      * Create long add database operation. If the record or bin does not exist, the
      * record/bin will be created by default with the value to be added.
      */
-    public OperationBuilder add(long amount) {
+    public T add(long amount) {
         return opBuilder.add(new Bin(binName, amount));
     }
     /**
      * Create float add database operation. If the record or bin does not exist, the
      * record/bin will be created by default with the value to be added.
      */
-    public OperationBuilder add(float amount) {
+    public T add(float amount) {
         return opBuilder.add(new Bin(binName, amount));
     }
     /**
      * Create double add database operation. If the record or bin does not exist, the
      * record/bin will be created by default with the value to be added.
      */
-    public OperationBuilder add(double amount) {
+    public T add(double amount) {
         return opBuilder.add(new Bin(binName, amount));
     }
 
