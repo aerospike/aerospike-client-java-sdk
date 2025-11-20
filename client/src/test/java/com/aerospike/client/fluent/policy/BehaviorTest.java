@@ -41,7 +41,7 @@ import com.aerospike.client.fluent.policy.Behavior.Selectors;
  * - Inheritance and override behavior
  * - DEFAULT behavior completeness
  */
-public class BehaviorTests {
+public class BehaviorTest {
     @Nested
     @DisplayName("DEFAULT Behavior Tests")
     class DefaultBehaviorTests {

@@ -3,14 +3,8 @@ package com.aerospike.client.fluent.policy;
 import java.time.Duration;
 import java.util.List;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
-import com.fasterxml.jackson.databind.annotation.JsonSerialize;
-import com.fasterxml.jackson.datatype.jsr310.ser.DurationSerializer;
-
 class BehaviorYamlConfig {
     
-    @JsonProperty("behaviors")
     private List<BehaviorConfig> behaviors;
     
     // Getters and setters
@@ -19,58 +13,23 @@ class BehaviorYamlConfig {
     
     // Individual behavior configuration
     public static class BehaviorConfig {
-        @JsonProperty("name")
         private String name;
-        
-        @JsonProperty("parent")
         private String parent;
-        
-        @JsonProperty("sendKey")
         private Boolean sendKey;
-        
-        @JsonProperty("useCompression")
         private Boolean useCompression;
-        
-        @JsonProperty("allOperations")
         private PolicyConfig allOperations;
-        
-        @JsonProperty("readModeSC")
         private ConsistencyModeReadConfig readModeSC;
-        
-        @JsonProperty("readModeAP")
         private AvailabilityModeReadConfig readModeAP;
-        
-        @JsonProperty("retryableWrites")
         private WriteConfig retryableWrites;
-        
-        @JsonProperty("nonRetryableWrites")
         private WriteConfig nonRetryableWrites;
-        
-        @JsonProperty("batchReads")
         private BatchConfig batchReads;
-        
-        @JsonProperty("batchWrites")
         private BatchConfig batchWrites;
-        
-        @JsonProperty("query")
         private QueryConfig query;
-        
-        @JsonProperty("info")
         private InfoConfig info;
-        
-        @JsonProperty("systemTxnVerify")
         private SystemTxnVerifyConfig systemTxnVerify;
-        
-        @JsonProperty("systemTxnRoll")
         private SystemTxnRollConfig systemTxnRoll;
-        
-        @JsonProperty("systemConnections")
         private SystemConnectionsConfig systemConnections;
-        
-        @JsonProperty("systemCircuitBreaker")
         private SystemCircuitBreakerConfig systemCircuitBreaker;
-        
-        @JsonProperty("systemRefresh")
         private SystemRefreshConfig systemRefresh;
         
         // Getters and setters
@@ -131,44 +90,15 @@ class BehaviorYamlConfig {
     
     // Base policy configuration
     public static class PolicyConfig {
-        @JsonDeserialize(using = DurationDeserializer.class)
-        @JsonSerialize(using = DurationSerializer.class)
-        @JsonProperty("abandonCallAfter")
         private Duration abandonCallAfter;
-        
-        @JsonDeserialize(using = DurationDeserializer.class)
-        @JsonSerialize(using = DurationSerializer.class)
-        @JsonProperty("delayBetweenRetries")
         private Duration delayBetweenRetries;
-        
-        @JsonProperty("maximumNumberOfCallAttempts")
         private Integer maximumNumberOfCallAttempts;
-        
-        @JsonProperty("replicaOrder")
         private Replica replicaOrder;
-        
-        @JsonProperty("resetTtlOnReadAtPercent")
         private Integer resetTtlOnReadAtPercent;
-        
-        @JsonProperty("sendKey")
         private Boolean sendKey;
-        
-        @JsonProperty("useCompression")
         private Boolean useCompression;
-        
-        @JsonDeserialize(using = DurationDeserializer.class)
-        @JsonSerialize(using = DurationSerializer.class)
-        @JsonProperty("waitForCallToComplete")
         private Duration waitForCallToComplete;
-        
-        @JsonDeserialize(using = DurationDeserializer.class)
-        @JsonSerialize(using = DurationSerializer.class)
-        @JsonProperty("waitForConnectionToComplete")
         private Duration waitForConnectionToComplete;
-        
-        @JsonDeserialize(using = DurationDeserializer.class)
-        @JsonSerialize(using = DurationSerializer.class)
-        @JsonProperty("waitForSocketResponseAfterCallFails")
         private Duration waitForSocketResponseAfterCallFails;
         
         // Getters and setters
@@ -205,7 +135,6 @@ class BehaviorYamlConfig {
     
     // Consistency mode read configuration
     public static class ConsistencyModeReadConfig extends PolicyConfig {
-        @JsonProperty("readModeSC")
         private ReadModeSC readModeSC;
         
         public ReadModeSC getReadConsistency() { return readModeSC; }
@@ -214,7 +143,6 @@ class BehaviorYamlConfig {
     
     // Availability mode read configuration
     public static class AvailabilityModeReadConfig extends PolicyConfig {
-        @JsonProperty("readModeAP")
         private ReadModeAP readModeAP;
         
         public ReadModeAP getMigrationReadConsistency() { return readModeAP; }
@@ -223,7 +151,6 @@ class BehaviorYamlConfig {
     
     // Write configuration
     public static class WriteConfig extends PolicyConfig {
-        @JsonProperty("useDurableDelete")
         private Boolean useDurableDelete;
         
         public Boolean getUseDurableDelete() { return useDurableDelete; }
@@ -232,13 +159,8 @@ class BehaviorYamlConfig {
     
     // Batch configuration
     public static class BatchConfig extends PolicyConfig {
-        @JsonProperty("maxConcurrentServers")
         private Integer maxConcurrentServers;
-        
-        @JsonProperty("allowInlineMemoryAccess")
         private Boolean allowInlineMemoryAccess;
-        
-        @JsonProperty("allowInlineSsdAccess")
         private Boolean allowInlineSsdAccess;
         
         public Integer getMaxConcurrentServers() { return maxConcurrentServers; }
@@ -253,10 +175,7 @@ class BehaviorYamlConfig {
     
     // Query configuration
     public static class QueryConfig extends PolicyConfig {
-        @JsonProperty("recordQueueSize")
         private Integer recordQueueSize;
-        
-        @JsonProperty("maxConcurrentServers")
         private Integer maxConcurrentServers;
         
         public Integer getRecordQueueSize() { return recordQueueSize; }
@@ -273,7 +192,6 @@ class BehaviorYamlConfig {
     
     // System - Transaction Verify configuration (read-like settings)
     public static class SystemTxnVerifyConfig extends PolicyConfig {
-        @JsonProperty("consistency")
         private ReadModeSC consistency;
         
         public ReadModeSC getConsistency() { return consistency; }
@@ -288,15 +206,8 @@ class BehaviorYamlConfig {
     
     // System - Connections configuration
     public static class SystemConnectionsConfig {
-        @JsonProperty("minimumConnectionsPerNode")
         private Integer minimumConnectionsPerNode;
-        
-        @JsonProperty("maximumConnectionsPerNode")
         private Integer maximumConnectionsPerNode;
-        
-        @JsonDeserialize(using = DurationDeserializer.class)
-        @JsonSerialize(using = DurationSerializer.class)
-        @JsonProperty("maximumSocketIdleTime")
         private Duration maximumSocketIdleTime;
         
         public Integer getMinimumConnectionsPerNode() { return minimumConnectionsPerNode; }
@@ -311,10 +222,7 @@ class BehaviorYamlConfig {
     
     // System - Circuit Breaker configuration
     public static class SystemCircuitBreakerConfig {
-        @JsonProperty("numTendIntervalsInErrorWindow")
         private Integer numTendIntervalsInErrorWindow;
-        
-        @JsonProperty("maximumErrorsInErrorWindow")
         private Integer maximumErrorsInErrorWindow;
         
         public Integer getNumTendIntervalsInErrorWindow() { return numTendIntervalsInErrorWindow; }
@@ -326,9 +234,6 @@ class BehaviorYamlConfig {
     
     // System - Refresh configuration
     public static class SystemRefreshConfig {
-        @JsonDeserialize(using = DurationDeserializer.class)
-        @JsonSerialize(using = DurationSerializer.class)
-        @JsonProperty("tendInterval")
         private Duration tendInterval;
         
         public Duration getTendInterval() { return tendInterval; }
