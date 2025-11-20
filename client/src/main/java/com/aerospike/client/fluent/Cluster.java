@@ -260,7 +260,9 @@ public class Cluster implements Closeable {
 	}
 
 	public final void setMinConnsPerNode(int min) {
-		Node[] nodeArray = nodes;
+		def.minConnsPerNode = min;
+
+ 		Node[] nodeArray = nodes;
 
 		for (Node node : nodeArray) {
 			node.setMinConnections(min);
@@ -268,6 +270,8 @@ public class Cluster implements Closeable {
 	}
 
 	public final void setMaxConnsPerNode(int max) {
+		def.maxConnsPerNode = max;
+
 		Node[] nodeArray = nodes;
 
 		for (Node node : nodeArray) {
