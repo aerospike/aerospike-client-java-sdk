@@ -62,7 +62,9 @@ public final class CommandBuffer {
 		dataOffset += cmd.size;
 		sizeBuffer();
 
-		writeHeaderOperate(cmd, fieldCount);
+		// Operate() is currently defined as only write operations.
+		writeHeaderWrite(cmd, cmd.readAttr, cmd.writeAttr, fieldCount, cmd.ops.length);
+
 		writeKey(cmd, cmd.key, cmd.hasWrite);
 
 		if (cmd.filterExp != null) {
@@ -194,6 +196,29 @@ public final class CommandBuffer {
 			for (Operation op : br.ops) {
 				writeOperation(op);
 			}
+		}
+		end();
+	}
+
+	//--------------------------------------------------
+	// Delete
+	//--------------------------------------------------
+
+	public void setDelete(WriteCommand cmd) {
+		begin();
+		int fieldCount = estimateKeySize(cmd, cmd.key, true);
+
+		if (cmd.filterExp != null) {
+			sizeFieldExpression(cmd.filterExp);
+			fieldCount++;
+		}
+
+		sizeBuffer();
+		writeHeaderWrite(cmd, 0, Command.INFO2_WRITE | Command.INFO2_DELETE, fieldCount, 0);
+		writeKey(cmd, cmd.key, true);
+
+		if (cmd.filterExp != null) {
+			writeFieldExpression(cmd.filterExp);
 		}
 		end();
 	}
@@ -1462,17 +1487,12 @@ public final class CommandBuffer {
 	// Command Writes
 	//--------------------------------------------------
 
-	private void writeHeaderOperate(OperateWriteCommand cmd, int fieldCount) {
+	private void writeHeaderWrite(
+		WriteCommand cmd, int readAttr, int writeAttr, int fieldCount, int opCount
+	) {
 		// Set flags.
-		int gen = 0;
-		// Operate() is currently defined as only write operations.
-		//int ttl = cmd.hasWrite ? cmd.ttl : cmd.readTouchTtlPercent;
-		int ttl = cmd.ttl;
-		int readAttr = cmd.readAttr;
-		int writeAttr = cmd.writeAttr;
 		int infoAttr = 0;
 		int txnAttr = 0;
-		int operationCount = cmd.ops.length;
 
 		switch (cmd.type) {
 		default:
@@ -1493,7 +1513,6 @@ public final class CommandBuffer {
 		}
 
 		if (cmd.gen > 0) {
-			gen = cmd.gen;
 			writeAttr |= Command.INFO2_GENERATION;
 		}
 
@@ -1509,27 +1528,6 @@ public final class CommandBuffer {
 			txnAttr |= Command.INFO4_TXN_ON_LOCKING_ONLY;
 		}
 
-		// Operate() is currently defined as only write operations.
-		/*
-		switch (cmd.readModeSC) {
-		case SESSION:
-			break;
-		case LINEARIZE:
-			infoAttr |= Command.INFO3_SC_READ_TYPE;
-			break;
-		case ALLOW_REPLICA:
-			infoAttr |= Command.INFO3_SC_READ_RELAX;
-			break;
-		case ALLOW_UNAVAILABLE:
-			infoAttr |= Command.INFO3_SC_READ_TYPE | Command.INFO3_SC_READ_RELAX;
-			break;
-		}
-
-		if (cmd.readModeAP == ReadModeAP.ALL) {
-			readAttr |= Command.INFO1_READ_MODE_AP_ALL;
-		}
-		*/
-
 		if (cmd.compress) {
 			readAttr |= Command.INFO1_COMPRESS_RESPONSE;
 		}
@@ -1541,11 +1539,11 @@ public final class CommandBuffer {
 		dataBuffer[11] = (byte)infoAttr;
 		dataBuffer[12] = (byte)txnAttr;
 		dataBuffer[13] = 0; // clear the result code
-		Buffer.intToBytes(gen, dataBuffer, 14);
-		Buffer.intToBytes(ttl, dataBuffer, 18);
+		Buffer.intToBytes(cmd.gen, dataBuffer, 14);
+		Buffer.intToBytes(cmd.ttl, dataBuffer, 18);
 		Buffer.intToBytes(cmd.serverTimeout, dataBuffer, 22);
 		Buffer.shortToBytes(fieldCount, dataBuffer, 26);
-		Buffer.shortToBytes(operationCount, dataBuffer, 28);
+		Buffer.shortToBytes(opCount, dataBuffer, 28);
 		dataOffset = Command.MSG_TOTAL_HEADER_SIZE;
 	}
 

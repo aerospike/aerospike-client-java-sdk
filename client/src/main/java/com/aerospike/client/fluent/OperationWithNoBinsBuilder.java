@@ -17,7 +17,17 @@
 package com.aerospike.client.fluent;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+
+import com.aerospike.client.fluent.command.DeleteExecutor;
+import com.aerospike.client.fluent.command.Txn;
+import com.aerospike.client.fluent.command.TxnMonitor;
+import com.aerospike.client.fluent.command.WriteCommand;
+import com.aerospike.client.fluent.exp.Expression;
+import com.aerospike.client.fluent.policy.Behavior.OpKind;
+import com.aerospike.client.fluent.policy.Behavior.OpShape;
+import com.aerospike.client.fluent.policy.Settings;
 
 public class OperationWithNoBinsBuilder {
     private final List<Key> keys;
@@ -105,31 +115,78 @@ public class OperationWithNoBinsBuilder {
             throw new IllegalStateException("received an action of " + opType + " which should be handled elsewhere");
         }
     }
+    */
 
     public List<Boolean> execute() {
-        WritePolicy wp = session.getBehavior()
-                .getSettings(OpKind.WRITE_RETRYABLE, OpShape.POINT, session.isNamespaceSC(getAnyKey().namespace))
-                .asWritePolicy();
         if (key != null) {
             boolean result;
+
             switch (opType) {
             case EXISTS:
-                result = session.getClient().exists(wp, key);
+            	// TODO: Do exists
+                //result = session.getClient().exists(wp, key);
+            	result = false;
                 break;
             case TOUCH:
-                result = session.getClient().touched(wp, key);
+            	// TODO: Do touch
+                //result = session.getClient().touched(wp, key);
+            	result = false;
                 break;
             case DELETE:
-                result = session.getClient().delete(wp, key);
+                result = delete(key);
                 break;
             default:
                 throw new IllegalStateException("received an action of " + opType + " which should be handled elsewhere");
             }
+
             return List.of(result);
         }
         else {
-            return batchExecute(wp);
+        	// TODO Batch exists/touch/delete.
+            //return batchExecute(wp);
+        	return null;
         }
     }
-    */
+
+    private boolean delete(Key key) {
+        Cluster cluster = session.getCluster();
+        Partitions partitions = getPartitions(cluster, key.namespace);
+        Settings policy = session.getBehavior().getSettings(OpKind.WRITE_RETRYABLE, OpShape.POINT, partitions.scMode);
+
+        // TODO: Where is the txn instance?
+        Txn txn = null;
+
+        // TODO: Where is the gen instance?
+        int gen = 0;
+
+        // TODO: Where is the ttl instance?
+        int ttl = 0;
+
+        // TODO: Where is the filter expression?
+        Expression filterExp = null;
+
+        // TODO: Where is failOnFilteredOut?
+        boolean failOnFilteredOut = false;
+
+        WriteCommand cmd = new WriteCommand(cluster, partitions, txn, key, OpType.DELETE,
+        	gen, ttl, filterExp, failOnFilteredOut, policy);
+
+        if (txn != null) {
+        	TxnMonitor.addKeys(txn, cluster, partitions, policy, keys);
+        }
+
+        DeleteExecutor exec = new DeleteExecutor(cluster, cmd);
+        exec.execute();
+        return exec.existed();
+    }
+
+    private Partitions getPartitions(Cluster cluster, String namespace) {
+        HashMap<String, Partitions> partitionMap = cluster.getPartitionMap();
+        Partitions partitions = partitionMap.get(namespace);
+
+        if (partitions == null) {
+            throw new AerospikeException.InvalidNamespace(namespace, partitionMap.size());
+        }
+        return partitions;
+    }
 }

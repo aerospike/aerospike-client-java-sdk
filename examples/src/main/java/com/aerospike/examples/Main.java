@@ -1,5 +1,6 @@
 package com.aerospike.examples;
 
+import java.util.List;
 import java.util.Optional;
 
 import com.aerospike.client.fluent.AerospikeException;
@@ -116,6 +117,14 @@ public class Main {
             while (rs.hasNext()) {
             	Record rec = rs.next().recordOrThrow();
             	System.out.println("Record = " + rec);
+            }
+
+            System.out.println("Delete 1 record");
+
+            List<Boolean> results = session.delete(set.ids(118)).execute();
+
+            for (boolean b : results) {
+            	System.out.println("Result: " + b);
             }
 
             // Test filtering out
