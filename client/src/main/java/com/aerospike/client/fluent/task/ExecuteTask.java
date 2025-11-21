@@ -20,8 +20,6 @@ import com.aerospike.client.fluent.AerospikeException;
 import com.aerospike.client.fluent.Cluster;
 import com.aerospike.client.fluent.Info;
 import com.aerospike.client.fluent.Node;
-import com.aerospike.client.fluent.command.Statement;
-import com.aerospike.client.fluent.policy.Policy;
 import com.aerospike.client.fluent.util.Version;
 
 /**
@@ -33,23 +31,8 @@ public class ExecuteTask extends Task {
 	/**
 	 * Initialize task with fields needed to query server nodes.
 	 */
-	public ExecuteTask(Cluster cluster, Policy policy, Statement statement, long taskId) {
-		this(cluster, policy, taskId, statement.isScan());
-	}
-
-	/**
-	 * Initialize task with fields needed to query server nodes.
-	 */
-	public ExecuteTask(Cluster cluster, Policy policy, long taskId, boolean isScan) {
-		super(cluster, policy.socketTimeout);
-		this.taskId = taskId;
-	}
-
-	/**
-	 * Initialize task with fields needed to query server nodes.
-	 */
-	protected ExecuteTask(long taskId, boolean isScan) {
-		super(null, 1000);
+	public ExecuteTask(Cluster cluster, long taskId, int timeout) {
+		super(cluster, timeout);
 		this.taskId = taskId;
 	}
 
@@ -73,7 +56,7 @@ public class ExecuteTask extends Task {
 			Version serverVersion = node.getVersion();
 			String command = serverVersion.isGreaterOrEqual(Version.SERVER_VERSION_8_1) ? "query-show:id=" + tid : "query-show:trid=" + tid;
 
-			String response = Info.request(policy, node, command);
+			String response = Info.request(node, command, timeout);
 
 			if (response.startsWith("ERROR:2")) {
 				// Query not found.

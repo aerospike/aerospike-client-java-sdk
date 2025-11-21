@@ -17,6 +17,7 @@ import com.aerospike.client.fluent.policy.Behavior.Mode;
 import com.aerospike.client.fluent.policy.Behavior.OpKind;
 import com.aerospike.client.fluent.policy.Behavior.OpShape;
 import com.aerospike.client.fluent.policy.Settings;
+import com.aerospike.client.fluent.task.ExecuteTask;
 import com.aerospike.client.fluent.util.Util;
 
 public class Main {
@@ -30,6 +31,10 @@ public class Main {
 
             Session session = cluster.createSession(Behavior.DEFAULT);
             DataSet set = DataSet.of("test", "set");
+
+            System.out.println("Truncate records");
+
+            session.truncate(set);
 
             System.out.println("Write 1 record");
 
@@ -173,9 +178,6 @@ public class Main {
             Settings settings = Behavior.DEFAULT.getSettings(OpKind.READ, OpShape.QUERY, Mode.CP);
             System.out.printf("Batch mode maxConcurrentNodes = %d\n", settings.getMaxConcurrentNodes());
 
-            System.out.println("Truncate records");
-            session.truncate(set);
-
             Exp exp = Exp.or(
                     Exp.eq(Exp.stringBin("name"), Exp.val("Tim")),
                     Exp.gt(Exp.intBin("age"), Exp.val(21))
@@ -211,6 +213,26 @@ public class Main {
             while (stream.hasNext()) {
             	Record r = stream.next().recordOrThrow();
             	System.out.println("Record = " + r);
+            }
+
+            System.out.println("Background query");
+
+            ExecuteTask task = session.backgroundTask().update(set)
+	            .bin("age").add(1)
+	            // TODO: Support DSL
+	            //.where("$.name = 'Tim'")
+	            .execute();
+
+            task.waitTillComplete();
+
+            rs = session.query(set.ids(10)).execute();
+
+            if (rs.hasNext()) {
+            	Record r = rs.next().recordOrThrow();
+            	System.out.println("Record = " + r);
+            }
+            else {
+            	System.out.println("Error: No records returned");
             }
         }
         catch (Throwable t) {

@@ -44,7 +44,6 @@ public final class QueryNodeExecutor extends NodeExecutor {
 		this.tracker = tracker;
 		this.nodePartitions = nodePartitions;
 		this.stream = stream;
-		cluster.addCommandCount();
 	}
 
 	@Override

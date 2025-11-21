@@ -83,20 +83,20 @@ public class Command {
 	public static final long AS_MSG_TYPE = 3L;
 	public static final long MSG_TYPE_COMPRESSED = 4L;
 
-	final Cluster cluster;
-	final String namespace;
-	final Txn txn;
-	final Expression filterExp;
+	public final Cluster cluster;
+	public final String namespace;
+	public final Txn txn;
+	public final Expression filterExp;
 	public final Replica replica;
-	final int connectTimeout;
-	final int socketTimeout;
-	final int totalTimeout;
-	final int serverTimeout;
-	final int timeoutDelay;
-	final int maxRetries;
-	final int sleepBetweenRetries;
-	final boolean sendKey;
-	final boolean compress;
+	public final int connectTimeout;
+	public final int socketTimeout;
+	public final int totalTimeout;
+	public final int serverTimeout;
+	public final int timeoutDelay;
+	public final int maxRetries;
+	public final int sleepBetweenRetries;
+	public final boolean sendKey;
+	public final boolean compress;
 
 	public Command(
 		Cluster cluster, String namespace, Txn txn, Expression filterExp, Replica replica,

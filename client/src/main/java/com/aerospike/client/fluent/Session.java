@@ -107,7 +107,7 @@ public class Session {
 
 		Node node = cluster.getRandomNode();
 
-		String response = Info.request(null, node, sb.toString());
+		String response = Info.request(node, sb.toString());
 
 		if (! response.equalsIgnoreCase("ok")) {
 			throw new AerospikeException("Truncate failed: " + response);
@@ -249,7 +249,8 @@ public class Session {
     // Object mapping functionality
     // --------------------------------
 
-    public OperationObjectBuilder insert(DataSet dataSet) {
+    @SuppressWarnings("rawtypes")
+	public OperationObjectBuilder insert(DataSet dataSet) {
         return new OperationObjectBuilder(this, dataSet, OpType.INSERT);
     }
 
@@ -257,6 +258,7 @@ public class Session {
         return new OperationObjectBuilder<T>(this, dataSet, OpType.INSERT);
     }
 
+    @SuppressWarnings("rawtypes")
     public OperationObjectBuilder upsert(DataSet dataSet) {
         return new OperationObjectBuilder(this, dataSet, OpType.UPSERT);
     }
@@ -265,6 +267,7 @@ public class Session {
         return new OperationObjectBuilder<T>(this, dataSet, OpType.UPSERT);
     }
 
+    @SuppressWarnings("rawtypes")
     public OperationObjectBuilder update(DataSet dataSet) {
         return new OperationObjectBuilder(this, dataSet, OpType.UPDATE);
     }
@@ -300,23 +303,23 @@ public class Session {
     public interface TransactionalVoid {
         void execute(TransactionalSession txn);
     }
-    
+
     /**
      * Executes a transactional operation and returns a value.
-     * 
+     *
      * <p>Use this method when your transaction needs to return a result, such as
      * reading data or computing a value based on transactional operations.</p>
-     * 
-     * <p><b>Why the different name?</b> This method is named differently from 
-     * {@link #doInTransaction(TransactionalVoid)} to avoid Java type inference ambiguity 
-     * with complex lambda bodies. Without distinct names, the compiler cannot determine 
-     * which overload to use when the lambda contains control flow statements like 
+     *
+     * <p><b>Why the different name?</b> This method is named differently from
+     * {@link #doInTransaction(TransactionalVoid)} to avoid Java type inference ambiguity
+     * with complex lambda bodies. Without distinct names, the compiler cannot determine
+     * which overload to use when the lambda contains control flow statements like
      * {@code while} loops, forcing users to add explicit {@code return null;} statements.</p>
-     * 
+     *
      * <p>The transaction provides automatic retry logic for transient failures and ensures
      * proper cleanup. Operations will be retried automatically for result codes like
      * MRT_BLOCKED, MRT_VERSION_MISMATCH, and TXN_FAILED.</p>
-     * 
+     *
      * <p><b>Example usage:</b>
      * <pre>{@code
      * String userName = session.doInTransactionReturning(tx -> {
@@ -325,7 +328,7 @@ public class Session {
      *     return record.getString("name");
      * });
      * }</pre>
-     * 
+     *
      * @param <T> the return type
      * @param operation the transactional operation to execute
      * @return the value returned by the operation
@@ -337,18 +340,18 @@ public class Session {
     public <T> T doInTransactionReturning(Transactional<T> operation) {
         return new TransactionalSession(cluster, behavior).doInTransactionReturning(operation);
     }
-    
+
     /**
      * Executes a transactional operation that does not return a value.
-     * 
+     *
      * <p>Use this method when your transaction only needs to perform operations
      * without returning a result to the caller. This is the most common case for
      * transactional writes and updates.</p>
-     * 
+     *
      * <p>The transaction provides automatic retry logic for transient failures and ensures
      * proper cleanup. Operations will be retried automatically for result codes like
      * MRT_BLOCKED, MRT_VERSION_MISMATCH, and TXN_FAILED.</p>
-     * 
+     *
      * <p><b>Example usage:</b>
      * <pre>{@code
      * session.doInTransaction(txn -> {
@@ -360,7 +363,7 @@ public class Session {
      *         .execute();
      * });
      * }</pre>
-     * 
+     *
      * @param operation the transactional operation to execute
      * @throws AerospikeException if the operation fails with a non-retryable error
      * @throws RuntimeException if any other exception occurs during execution
@@ -373,7 +376,7 @@ public class Session {
 //            return null; // Hidden from user
         });
     }
-    
+
     // ------------------------------------
     // Background Operations functionality
     // ------------------------------------
@@ -381,7 +384,7 @@ public class Session {
      * Enter background task mode for performing set-level operations asynchronously
      * on the server side. Background operations run as server-side scans/queries
      * and return an ExecuteTask for monitoring completion.
-     * 
+     *
      * <p><b>Background Operations:</b></p>
      * <ul>
      *   <li>Run on entire sets (not specific keys)</li>
@@ -389,14 +392,14 @@ public class Session {
      *   <li>Return ExecuteTask (not record data)</li>
      *   <li>Support UPDATE, DELETE, and TOUCH operations only</li>
      * </ul>
-     * 
+     *
      * <p><b>Use Cases:</b></p>
      * <ul>
      *   <li>Bulk updates based on criteria</li>
      *   <li>Cleaning up old records</li>
      *   <li>Extending TTL for active records</li>
      * </ul>
-     * 
+     *
      * <p><b>Example:</b></p>
      * <pre>{@code
      * // Update all customers over 30
@@ -405,15 +408,15 @@ public class Session {
      *     .where("$.age > 30")
      *     .bin("category").setTo("senior")
      *     .execute();
-     * 
+     *
      * task.waitTillComplete();
-     * 
+     *
      * // Delete old inactive records
      * ExecuteTask deleteTask = session.backgroundTask()
      *     .delete(customerDataSet)
      *     .where("$.lastLogin < 1609459200000")
      *     .execute();
-     * 
+     *
      * // Touch active users to extend TTL
      * ExecuteTask touchTask = session.backgroundTask()
      *     .touch(activeUsers)
@@ -421,7 +424,7 @@ public class Session {
      *     .expireRecordAfter(Duration.ofDays(30))
      *     .execute();
      * }</pre>
-     * 
+     *
      * @return BackgroundTaskSession for creating background operations
      * @see BackgroundTaskSession
      * @see BackgroundOperationBuilder
@@ -429,7 +432,7 @@ public class Session {
     public BackgroundTaskSession backgroundTask() {
         return new BackgroundTaskSession(this);
     }
-    
+
     // ---------------------
     // Info functionality
     // ---------------------

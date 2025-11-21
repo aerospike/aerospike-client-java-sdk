@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2021 Aerospike, Inc.
+ * Copyright 2012-2025 Aerospike, Inc.
  *
  * Portions may be licensed to Aerospike, Inc. under one or more contributor
  * license agreements WHICH ARE COMPATIBLE WITH THE APACHE LICENSE, VERSION 2.0.
@@ -20,7 +20,6 @@ import com.aerospike.client.fluent.AerospikeException;
 import com.aerospike.client.fluent.Cluster;
 import com.aerospike.client.fluent.Info;
 import com.aerospike.client.fluent.Node;
-import com.aerospike.client.fluent.policy.Policy;
 
 /**
  * Task used to poll for UDF registration completion.
@@ -31,8 +30,8 @@ public final class RegisterTask extends Task {
 	/**
 	 * Initialize task with fields needed to query server nodes.
 	 */
-	public RegisterTask(Cluster cluster, Policy policy, String packageName) {
-		super(cluster, policy.socketTimeout);
+	public RegisterTask(Cluster cluster, String packageName, int timeout) {
+		super(cluster, timeout);
 		this.packageName = packageName;
 	}
 
@@ -46,7 +45,7 @@ public final class RegisterTask extends Task {
 		String command = "udf-list";
 
 		for (Node node : nodes) {
-			String response = Info.request(policy, node, command);
+			String response = Info.request(node, command, timeout);
 			String find = "filename=" + packageName;
 			int index = response.indexOf(find);
 

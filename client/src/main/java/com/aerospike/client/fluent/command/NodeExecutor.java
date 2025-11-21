@@ -47,18 +47,18 @@ public abstract class NodeExecutor extends SyncExecutor {
 	protected volatile boolean valid = true;
 
 	/**
-	 * Batch and server execute constructor.
+	 * Batch and background query constructor.
 	 */
-	protected NodeExecutor(Cluster cluster, BatchCommand cmd, Node node, boolean isOperation) {
+	protected NodeExecutor(Cluster cluster, Command cmd, Node node, boolean isOperation) {
 		super(cluster, cmd);
 		this.node = node;
 		this.isOperation = isOperation;
 	}
 
 	/**
-	 * Query constructor.
+	 * Foreground query constructor.
 	 */
-	protected NodeExecutor(Cluster cluster, QueryCommand cmd, Node node) {
+	protected NodeExecutor(Cluster cluster, Command cmd, Node node) {
 		super(cluster, cmd);
 		this.node = node;
 		this.isOperation = false;

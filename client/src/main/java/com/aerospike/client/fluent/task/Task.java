@@ -20,7 +20,6 @@ import java.util.concurrent.TimeUnit;
 
 import com.aerospike.client.fluent.AerospikeException;
 import com.aerospike.client.fluent.Cluster;
-import com.aerospike.client.fluent.policy.InfoPolicy;
 import com.aerospike.client.fluent.util.Util;
 
 /**
@@ -32,7 +31,7 @@ public abstract class Task {
 	public static final int COMPLETE = 2;
 
 	protected final Cluster cluster;
-	protected InfoPolicy policy;
+	protected int timeout;
 	private boolean done;
 
 	/**
@@ -40,7 +39,7 @@ public abstract class Task {
 	 */
 	public Task(Cluster cluster, int timeout) {
 		this.cluster = cluster;
-		this.policy = new InfoPolicy(timeout);
+		this.timeout = timeout;
 		this.done = false;
 	}
 
@@ -49,7 +48,7 @@ public abstract class Task {
 	 */
 	public Task() {
 		this.cluster = null;
-		this.policy = null;
+		this.timeout = 0;
 		this.done = true;
 	}
 
@@ -77,8 +76,7 @@ public abstract class Task {
 	 * zero.
 	 */
 	public final void waitTillComplete(int sleepInterval, int timeout) {
-		policy = new InfoPolicy();
-		policy.timeout = timeout;
+		this.timeout = timeout;
 		taskWait(sleepInterval);
 	}
 
@@ -92,7 +90,7 @@ public abstract class Task {
 			return;
 		}
 
-		long deadline = (policy.timeout > 0)? System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(policy.timeout) : 0L;
+		long deadline = (timeout > 0)? System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(timeout) : 0L;
 		int iteration = 1;
 
 		do {
@@ -106,13 +104,13 @@ public abstract class Task {
 			// (especially for background query execute), so "NOT_FOUND" can
 			// really mean complete. If not found and timeout not defined,
 			// consider task complete.
-			if (status == COMPLETE || (status == NOT_FOUND && policy.timeout == 0)) {
+			if (status == COMPLETE || (status == NOT_FOUND && timeout == 0)) {
 				done = true;
 				return;
 			}
 
 			// Check for timeout.
-			if (policy.timeout > 0 && System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(sleepInterval) > deadline) {
+			if (timeout > 0 && System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(sleepInterval) > deadline) {
 				// Timeout has been reached or will be reached after next sleep.
 				// Do not throw timeout exception when status is "NOT_FOUND" because the server will drop
 				// background query execute task listings immediately after completion (which makes client
@@ -124,7 +122,7 @@ public abstract class Task {
 					return;
 				}
 				else {
-					throw new AerospikeException.Timeout("Client timeout in taskWait()", iteration, policy.timeout, true);
+					throw new AerospikeException.Timeout("Client timeout in taskWait()", iteration, timeout, true);
 				}
 			}
 

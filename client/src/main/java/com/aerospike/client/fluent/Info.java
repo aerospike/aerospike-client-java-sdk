@@ -75,8 +75,11 @@ public class Info {
 	 * @param node		server node
 	 * @param name		name of variable to retrieve
 	 */
-	public static String request(InfoPolicy policy, Node node, String name) throws AerospikeException {
-		int timeout = (policy == null) ? DEFAULT_TIMEOUT : policy.timeout;
+	public static String request(Node node, String name, int timeout) {
+		if (timeout <= 0) {
+			timeout = DEFAULT_TIMEOUT;
+		}
+
 		Connection conn = node.getConnection(timeout);
 
 		try {
@@ -88,116 +91,6 @@ public class Info {
 		catch (Throwable e) {
 			node.closeConnection(conn);
 			throw e;
-		}
-	}
-
-	//-------------------------------------------------------
-	// Get Info via Host Name and Port
-	//-------------------------------------------------------
-
-	/**
-	 * Get one info value by name from the specified database server node, using
-	 * host name and port.
-	 * This method does not support user authentication.
-	 *
-	 * @param hostname				host name
-	 * @param port					host port
-	 * @param name					name of value to retrieve
-	 * @return						info value
-	 */
-	public static String request(String hostname, int port, String name)
-		throws AerospikeException {
-		return request(new InetSocketAddress(hostname, port), name);
-	}
-
-	/**
-	 * Get many info values by name from the specified database server node,
-	 * using host name and port.
-	 * This method does not support user authentication.
-	 *
-	 * @param hostname				host name
-	 * @param port					host port
-	 * @param names					names of values to retrieve
-	 * @return						info name/value pairs
-	 */
-	public static HashMap<String,String> request(String hostname, int port, String... names)
-		throws AerospikeException {
-		return request(new InetSocketAddress(hostname, port), names);
-	}
-
-	/**
-	 * Get default info from the specified database server node, using host name and port.
-	 * This method does not support user authentication.
-	 *
-	 * @param hostname				host name
-	 * @param port					host port
-	 * @return						info name/value pairs
-	 */
-	public static HashMap<String,String> request(String hostname, int port)
-		throws AerospikeException {
-		return request(new InetSocketAddress(hostname, port));
-	}
-
-	//-------------------------------------------------------
-	// Get Info via Socket Address
-	//-------------------------------------------------------
-
-	/**
-	 * Get one info value by name from the specified database server node.
-	 * This method does not support TLS connections nor user authentication.
-	 *
-	 * @param socketAddress			<code>InetSocketAddress</code> of server node
-	 * @param name					name of value to retrieve
-	 * @return						info value
-	 */
-	public static String request(InetSocketAddress socketAddress, String name)
-		throws AerospikeException {
-		Connection conn = new Connection(socketAddress, DEFAULT_TIMEOUT);
-
-		try {
-			return request(conn, name);
-		}
-		finally {
-			conn.close();
-		}
-	}
-
-	/**
-	 * Get many info values by name from the specified database server node.
-	 * This method does not support TLS connections nor user authentication.
-	 *
-	 * @param socketAddress			<code>InetSocketAddress</code> of server node
-	 * @param names					names of values to retrieve
-	 * @return						info name/value pairs
-	 */
-	public static HashMap<String,String> request(InetSocketAddress socketAddress, String... names)
-		throws AerospikeException {
-		Connection conn = new Connection(socketAddress, DEFAULT_TIMEOUT);
-
-		try {
-			return request(conn, names);
-		}
-		finally {
-			conn.close();
-		}
-	}
-
-	/**
-	 * Get all the default info from the specified database server node.
-	 * This method does not support TLS connections nor user authentication.
-	 *
-	 * @param socketAddress			<code>InetSocketAddress</code> of server node
-	 * @return						info name/value pairs
-	 */
-	public static HashMap<String,String> request(InetSocketAddress socketAddress)
-		throws AerospikeException {
-		Connection conn = new Connection(socketAddress, DEFAULT_TIMEOUT);
-
-		try {
-			return request(conn);
-		}
-		finally {
-			conn.close();
 		}
 	}
 

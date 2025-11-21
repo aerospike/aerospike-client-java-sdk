@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2024 Aerospike, Inc.
+ * Copyright 2012-2025 Aerospike, Inc.
  *
  * Portions may be licensed to Aerospike, Inc. under one or more contributor
  * license agreements WHICH ARE COMPATIBLE WITH THE APACHE LICENSE, VERSION 2.0.
@@ -21,7 +21,6 @@ import com.aerospike.client.fluent.Cluster;
 import com.aerospike.client.fluent.Info;
 import com.aerospike.client.fluent.Node;
 import com.aerospike.client.fluent.ResultCode;
-import com.aerospike.client.fluent.policy.Policy;
 import com.aerospike.client.fluent.util.Version;
 
 /**
@@ -37,8 +36,8 @@ public final class IndexTask extends Task {
 	/**
 	 * Initialize task with fields needed to query server nodes.
 	 */
-	public IndexTask(Cluster cluster, Policy policy, String namespace, String indexName, boolean isCreate) {
-		super(cluster, policy.socketTimeout);
+	public IndexTask(Cluster cluster, String namespace, String indexName, boolean isCreate, int timeout) {
+		super(cluster, timeout);
 		this.namespace = namespace;
 		this.indexName = indexName;
 		this.isCreate = isCreate;
@@ -60,7 +59,7 @@ public final class IndexTask extends Task {
 					statusCommand = IndexTask.buildStatusCommand(namespace, indexName, currentServerVersion);
 				}
 
-				String response = Info.request(policy, node, statusCommand);
+				String response = Info.request(node, statusCommand, timeout);
 				int status = parseStatusResponse(statusCommand, response, isCreate);
 
 				if (status != Task.COMPLETE) {
@@ -73,7 +72,7 @@ public final class IndexTask extends Task {
 					existsCommand = buildExistsCommand(namespace, indexName, currentServerVersion);
 				}
 
-				String response = Info.request(policy, node, existsCommand);
+				String response = Info.request(node, existsCommand, timeout);
 				int status = parseExistsResponse(existsCommand, response);
 
 				if (status != Task.COMPLETE) {
