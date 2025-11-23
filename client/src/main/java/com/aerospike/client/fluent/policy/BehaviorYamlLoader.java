@@ -1,16 +1,17 @@
 package com.aerospike.client.fluent.policy;
 
+import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
 import org.yaml.snakeyaml.LoaderOptions;
-import org.yaml.snakeyaml.TypeDescription;
 import org.yaml.snakeyaml.Yaml;
 import org.yaml.snakeyaml.constructor.Constructor;
 import org.yaml.snakeyaml.introspector.Property;
@@ -106,6 +107,19 @@ class BehaviorYamlLoader {
     }
     
     /**
+     * TODO: we might not want this methods for the public API
+     * Load behaviors from a YAML string and register them in the tree structure
+     * 
+     * @param yamlString The YAML string to load
+     * @return Map of behavior names to behaviors
+     * @throws IOException if there's an error parsing the YAML
+     */
+    public static Map<String, Behavior> loadBehaviorsFromString(String yamlString) throws IOException {
+        BehaviorYamlConfig config = loadYamlConfigFromString(yamlString);
+        return updateBehaviorsFromConfig(config);
+    }
+    
+    /**
      * Load YAML configuration from file using SnakeYAML
      */
     private static BehaviorYamlConfig loadYamlConfig(File file) throws IOException {
@@ -113,6 +127,17 @@ class BehaviorYamlLoader {
             return yaml.load(inputStream);
         } catch (Exception e) {
             throw new IOException("Failed to parse YAML file: " + file, e);
+        }
+    }
+    
+    /**
+     * Load YAML configuration from string using SnakeYAML
+     */
+    private static BehaviorYamlConfig loadYamlConfigFromString(String yamlString) throws IOException {
+        try (InputStream inputStream = new ByteArrayInputStream(yamlString.getBytes(StandardCharsets.UTF_8))) {
+            return yaml.load(inputStream);
+        } catch (Exception e) {
+            throw new IOException("Failed to parse YAML string", e);
         }
     }
     
@@ -225,6 +250,10 @@ class BehaviorYamlLoader {
         if (config.getAllOperations() != null) {
             builder.on(Behavior.Selectors.all(), ops -> {
                 applyCommonConfig(ops, config.getAllOperations());
+                // Apply read-specific properties if present
+                if (config.getAllOperations().getResetTtlOnReadAtPercent() != null) {
+                    ops.resetTtlOnReadAtPercent(config.getAllOperations().getResetTtlOnReadAtPercent());
+                }
             });
         }
         

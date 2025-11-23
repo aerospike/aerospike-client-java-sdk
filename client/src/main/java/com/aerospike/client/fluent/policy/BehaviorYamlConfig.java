@@ -3,7 +3,7 @@ package com.aerospike.client.fluent.policy;
 import java.time.Duration;
 import java.util.List;
 
-class BehaviorYamlConfig {
+public class BehaviorYamlConfig {
     
     private List<BehaviorConfig> behaviors;
     
