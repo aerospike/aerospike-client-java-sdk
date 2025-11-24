@@ -128,3 +128,4 @@ public class ConfigurationTypeDescription {
         return !type.isEnum();
     }
 }
+

@@ -1,28 +1,31 @@
 package com.aerospike.client.fluent.policy;
 
-import java.io.IOException;
 import java.time.Duration;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import com.fasterxml.jackson.core.JsonParser;
-import com.fasterxml.jackson.databind.DeserializationContext;
-import com.fasterxml.jackson.databind.JsonDeserializer;
+import org.yaml.snakeyaml.constructor.AbstractConstruct;
+import org.yaml.snakeyaml.nodes.Node;
+import org.yaml.snakeyaml.nodes.ScalarNode;
+import org.yaml.snakeyaml.nodes.Tag;
 
 /**
- * Custom deserializer for Duration that supports human-readable formats like "10s", "20ms", "1m", etc.
+ * SnakeYAML constructor for parsing Duration from human-readable formats like "10s", "20ms", "1m", etc.
  */
-public class DurationDeserializer extends JsonDeserializer<Duration> {
+class DurationConstruct extends AbstractConstruct {
     
-    // Pattern to match duration strings like "10s", "20ms", "1m", "2h", etc.
-    private static final Pattern DURATION_PATTERN = Pattern.compile(
-        "^(\\d+)\\s*([a-zA-Z]+)$"
-    );
+    private static final Pattern DURATION_PATTERN = Pattern.compile("^(\\d+)\\s*([a-zA-Z]+)$");
     
     @Override
-    public Duration deserialize(JsonParser p, DeserializationContext ctxt) throws IOException {
-        String value = p.getValueAsString();
-        
+    public Object construct(Node node) {
+        String value = ((ScalarNode) node).getValue();
+        return parseDuration(value);
+    }
+    
+    /**
+     * Parse a duration string - supports both human-readable and ISO-8601 formats
+     */
+    static Duration parseDuration(String value) {
         if (value == null || value.trim().isEmpty()) {
             return null;
         }
@@ -35,11 +38,11 @@ public class DurationDeserializer extends JsonDeserializer<Duration> {
             return duration;
         }
         
-        // If that fails, try to parse as ISO-8601 duration (Jackson's default format)
+        // If that fails, try to parse as ISO-8601 duration
         try {
             return Duration.parse(value);
         } catch (Exception e) {
-            throw new IOException("Cannot parse duration: " + value + 
+            throw new IllegalArgumentException("Cannot parse duration: " + value + 
                 ". Expected format: <number><unit> (e.g., '10s', '20ms', '1m') or ISO-8601 duration", e);
         }
     }
@@ -47,7 +50,7 @@ public class DurationDeserializer extends JsonDeserializer<Duration> {
     /**
      * Parse human-readable duration strings like "10s", "20ms", "1m", etc.
      */
-    private Duration parseHumanReadableDuration(String value) {
+    private static Duration parseHumanReadableDuration(String value) {
         Matcher matcher = DURATION_PATTERN.matcher(value);
         if (!matcher.matches()) {
             return null;
@@ -56,50 +59,16 @@ public class DurationDeserializer extends JsonDeserializer<Duration> {
         long amount = Long.parseLong(matcher.group(1));
         String unit = matcher.group(2).toLowerCase();
         
-        switch (unit) {
-            case "ns":
-            case "nanos":
-            case "nanosecond":
-            case "nanoseconds":
-                return Duration.ofNanos(amount);
-                
-            case "us":
-            case "micros":
-            case "microsecond":
-            case "microseconds":
-                return Duration.ofNanos(amount * 1000);
-                
-            case "ms":
-            case "millis":
-            case "millisecond":
-            case "milliseconds":
-                return Duration.ofMillis(amount);
-                
-            case "s":
-            case "sec":
-            case "second":
-            case "seconds":
-                return Duration.ofSeconds(amount);
-                
-            case "m":
-            case "min":
-            case "minute":
-            case "minutes":
-                return Duration.ofMinutes(amount);
-                
-            case "h":
-            case "hr":
-            case "hour":
-            case "hours":
-                return Duration.ofHours(amount);
-                
-            case "d":
-            case "day":
-            case "days":
-                return Duration.ofDays(amount);
-                
-            default:
-                return null; // Unknown unit
-        }
+        return switch (unit) {
+            case "ns", "nanos", "nanosecond", "nanoseconds" -> Duration.ofNanos(amount);
+            case "us", "micros", "microsecond", "microseconds" -> Duration.ofNanos(amount * 1000);
+            case "ms", "millis", "millisecond", "milliseconds" -> Duration.ofMillis(amount);
+            case "s", "sec", "second", "seconds" -> Duration.ofSeconds(amount);
+            case "m", "min", "minute", "minutes" -> Duration.ofMinutes(amount);
+            case "h", "hr", "hour", "hours" -> Duration.ofHours(amount);
+            case "d", "day", "days" -> Duration.ofDays(amount);
+            default -> null; // Unknown unit
+        };
     }
-} 
+}
+

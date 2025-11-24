@@ -1,24 +1,83 @@
 package com.aerospike.client.fluent.policy;
 
+import java.io.ByteArrayInputStream;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
-import com.fasterxml.jackson.core.JsonParseException;
-import com.fasterxml.jackson.databind.JsonMappingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import org.yaml.snakeyaml.LoaderOptions;
+import org.yaml.snakeyaml.Yaml;
+import org.yaml.snakeyaml.constructor.Constructor;
+import org.yaml.snakeyaml.introspector.Property;
+import org.yaml.snakeyaml.introspector.PropertyUtils;
+import org.yaml.snakeyaml.nodes.Node;
+import org.yaml.snakeyaml.nodes.ScalarNode;
+import org.yaml.snakeyaml.nodes.Tag;
 
 class BehaviorYamlLoader {
     
-    private static final ObjectMapper objectMapper;
+    private static final Yaml yaml;
     
     static {
-        objectMapper = new ObjectMapper(new YAMLFactory());
-        objectMapper.registerModule(new JavaTimeModule());
+        LoaderOptions loaderOptions = new LoaderOptions();
+        CustomConstructor constructor = new CustomConstructor(BehaviorYamlConfig.class, loaderOptions);
+        yaml = new Yaml(constructor);
+    }
+    
+    /**
+     * Custom SnakeYAML constructor that handles Duration parsing and property name mapping
+     */
+    private static class CustomConstructor extends Constructor {
+        
+        public CustomConstructor(Class<?> theRoot, LoaderOptions loadingConfig) {
+            super(theRoot, loadingConfig);
+            
+            // Register Duration constructor
+            this.yamlConstructors.put(new Tag(Duration.class), new DurationConstruct());
+            
+            // Use custom property utils to skip missing properties
+            PropertyUtils propertyUtils = new PropertyUtils() {
+                @Override
+                public Property getProperty(Class<?> type, String name) {
+                    try {
+                        return super.getProperty(type, name);
+                    } catch (Exception e) {
+                        // If property not found, skip it
+                        return null;
+                    }
+                }
+            };
+            propertyUtils.setSkipMissingProperties(true);
+            this.setPropertyUtils(propertyUtils);
+        }
+        
+        @Override
+        protected Object constructObject(Node node) {
+            if (node instanceof ScalarNode) {
+                ScalarNode scalarNode = (ScalarNode) node;
+                String value = scalarNode.getValue();
+                
+                // Try to detect if this is a Duration value based on format
+                if (isDurationValue(value)) {
+                    return DurationConstruct.parseDuration(value);
+                }
+            }
+            return super.constructObject(node);
+        }
+        
+        private boolean isDurationValue(String value) {
+            if (value == null || value.isEmpty()) {
+                return false;
+            }
+            // Check if it looks like a duration (number followed by time unit or ISO-8601)
+            return value.matches("^\\d+\\s*[a-zA-Z]+$") || value.startsWith("PT") || value.startsWith("P");
+        }
     }
     
     /**
@@ -26,12 +85,10 @@ class BehaviorYamlLoader {
      * 
      * @param file The YAML file to load
      * @return A new Behavior instance created from the YAML configuration
-     * @throws JsonParseException if the YAML is malformed
-     * @throws JsonMappingException if the YAML structure doesn't match the expected format
-     * @throws IOException if there's an error reading the file
+     * @throws IOException if there's an error reading or parsing the file
      */
-    public static Behavior loadFromFile(File file) throws JsonParseException, JsonMappingException, IOException {
-        BehaviorYamlConfig config = objectMapper.readValue(file, BehaviorYamlConfig.class);
+    public static Behavior loadFromFile(File file) throws IOException {
+        BehaviorYamlConfig config = loadYamlConfig(file);
         Map<String, Behavior> behaviors = convertToBehaviors(config);
         // Return the first behavior or DEFAULT if none found
         return behaviors.isEmpty() ? Behavior.DEFAULT : behaviors.values().iterator().next();
@@ -42,13 +99,46 @@ class BehaviorYamlLoader {
      * 
      * @param file The YAML file to load
      * @return Map of behavior names to behaviors
-     * @throws JsonParseException if the YAML is malformed
-     * @throws JsonMappingException if the YAML structure doesn't match the expected format
-     * @throws IOException if there's an error reading the file
+     * @throws IOException if there's an error reading or parsing the file
      */
-    public static Map<String, Behavior> loadBehaviorsFromFile(File file) throws JsonParseException, JsonMappingException, IOException {
-        BehaviorYamlConfig config = objectMapper.readValue(file, BehaviorYamlConfig.class);
+    public static Map<String, Behavior> loadBehaviorsFromFile(File file) throws IOException {
+        BehaviorYamlConfig config = loadYamlConfig(file);
         return updateBehaviorsFromConfig(config);
+    }
+    
+    /**
+     * TODO: we might not want this methods for the public API
+     * Load behaviors from a YAML string and register them in the tree structure
+     * 
+     * @param yamlString The YAML string to load
+     * @return Map of behavior names to behaviors
+     * @throws IOException if there's an error parsing the YAML
+     */
+    public static Map<String, Behavior> loadBehaviorsFromString(String yamlString) throws IOException {
+        BehaviorYamlConfig config = loadYamlConfigFromString(yamlString);
+        return updateBehaviorsFromConfig(config);
+    }
+    
+    /**
+     * Load YAML configuration from file using SnakeYAML
+     */
+    private static BehaviorYamlConfig loadYamlConfig(File file) throws IOException {
+        try (InputStream inputStream = new FileInputStream(file)) {
+            return yaml.load(inputStream);
+        } catch (Exception e) {
+            throw new IOException("Failed to parse YAML file: " + file, e);
+        }
+    }
+    
+    /**
+     * Load YAML configuration from string using SnakeYAML
+     */
+    private static BehaviorYamlConfig loadYamlConfigFromString(String yamlString) throws IOException {
+        try (InputStream inputStream = new ByteArrayInputStream(yamlString.getBytes(StandardCharsets.UTF_8))) {
+            return yaml.load(inputStream);
+        } catch (Exception e) {
+            throw new IOException("Failed to parse YAML string", e);
+        }
     }
     
     /**
@@ -160,6 +250,10 @@ class BehaviorYamlLoader {
         if (config.getAllOperations() != null) {
             builder.on(Behavior.Selectors.all(), ops -> {
                 applyCommonConfig(ops, config.getAllOperations());
+                // Apply read-specific properties if present
+                if (config.getAllOperations().getResetTtlOnReadAtPercent() != null) {
+                    ops.resetTtlOnReadAtPercent(config.getAllOperations().getResetTtlOnReadAtPercent());
+                }
             });
         }
         

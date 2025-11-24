@@ -16,8 +16,6 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 import com.aerospike.client.fluent.Log;
-import com.fasterxml.jackson.core.JsonParseException;
-import com.fasterxml.jackson.databind.JsonMappingException;
 
 /**
  * Monitors a YAML file for changes and dynamically reloads behaviors
@@ -218,10 +216,8 @@ class BehaviorFileMonitor implements Closeable {
 
             Log.info("Updated " + updatedBehaviors.size() + " behaviors from: " + yamlFilePath);
 
-        } catch (JsonParseException | JsonMappingException e) {
-            System.err.println("Error parsing YAML file: " + e.getMessage());
         } catch (IOException e) {
-            System.err.println("Error reading YAML file: " + e.getMessage());
+            System.err.println("Error reading or parsing YAML file: " + e.getMessage());
         } catch (Exception e) {
             System.err.println("Unexpected error loading behaviors: " + e.getMessage());
             e.printStackTrace();
