@@ -12,6 +12,7 @@ import com.aerospike.client.fluent.RecordResult;
 import com.aerospike.client.fluent.RecordStream;
 import com.aerospike.client.fluent.ResultCode;
 import com.aerospike.client.fluent.Session;
+import com.aerospike.client.fluent.command.ReadAttr;
 import com.aerospike.client.fluent.command.ReadCommand;
 import com.aerospike.client.fluent.command.SyncReadExecutor;
 import com.aerospike.client.fluent.command.Txn;
@@ -20,9 +21,6 @@ import com.aerospike.client.fluent.exp.Exp;
 import com.aerospike.client.fluent.exp.Expression;
 import com.aerospike.client.fluent.policy.Behavior.OpKind;
 import com.aerospike.client.fluent.policy.Behavior.OpShape;
-import com.aerospike.client.fluent.policy.ReadModeAP;
-import com.aerospike.client.fluent.policy.ReadModeSC;
-import com.aerospike.client.fluent.policy.Replica;
 import com.aerospike.client.fluent.policy.Settings;
 
 class SingleKeyQueryBuilderImpl extends QueryImpl {
@@ -95,48 +93,11 @@ class SingleKeyQueryBuilderImpl extends QueryImpl {
 		}
 
 		Settings policy = session.getBehavior().getSettings(OpKind.READ, OpShape.POINT, partitions.scMode);
-
-		ReadModeAP readModeAP;
-		ReadModeSC readModeSC;
-		Replica replica;
-		boolean linearize;
-
-        if (partitions.scMode) {
-            readModeAP = ReadModeAP.ONE;
-            readModeSC = policy.getReadModeSC();
-
-            switch (readModeSC) {
-            case SESSION:
-                replica = Replica.MASTER;
-                linearize = false;
-                break;
-
-            case LINEARIZE:
-                replica = policy.getReplicaOrder();
-
-                if (replica == Replica.PREFER_RACK) {
-                    replica = Replica.SEQUENCE;
-                }
-                linearize = true;
-                break;
-
-            default:
-                replica = policy.getReplicaOrder();
-                linearize = false;
-                break;
-            }
-        }
-        else {
-            replica = policy.getReplicaOrder();
-            readModeAP = policy.getReadModeAP();
-            readModeSC = ReadModeSC.SESSION;
-            linearize = false;
-        }
+		ReadAttr attr = new ReadAttr(partitions, policy);
 
 		try {
 			ReadCommand cmd = new ReadCommand(cluster, partitions, txn, key, qb.getBinNames(),
-				replica, readModeAP, readModeSC, linearize, qb.getWithNoBins(), filterExp,
-				failOnFilteredOut, policy);
+				qb.getWithNoBins(), filterExp, failOnFilteredOut, policy, attr);
 
         	SyncReadExecutor exec = new SyncReadExecutor(cluster, cmd);
         	exec.execute();

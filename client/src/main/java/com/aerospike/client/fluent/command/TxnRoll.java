@@ -209,8 +209,10 @@ public final class TxnRoll {
 
 		this.verifyRecords = batchRecords;
 
-        BatchReadCommand parent = BatchReadCommand.create(cluster, txn, txn.getNamespace(),
-        	batchRecords, partitions, null, verifyPolicy, false);
+		ReadAttr attr = new ReadAttr(partitions, verifyPolicy);
+
+		BatchReadCommand parent = new BatchReadCommand(cluster, partitions, txn, txn.getNamespace(),
+			batchRecords, null, false, verifyPolicy, attr);
 
 		BatchStatus status = new BatchStatus(true);
 

@@ -23,7 +23,6 @@ import com.aerospike.client.fluent.Partitions;
 import com.aerospike.client.fluent.exp.Expression;
 import com.aerospike.client.fluent.policy.ReadModeAP;
 import com.aerospike.client.fluent.policy.ReadModeSC;
-import com.aerospike.client.fluent.policy.Replica;
 import com.aerospike.client.fluent.policy.Settings;
 
 public class BatchReadCommand extends BatchCommand {
@@ -32,60 +31,16 @@ public class BatchReadCommand extends BatchCommand {
     final int readTouchTtlPercent;
     final boolean linearize;
 
-	private BatchReadCommand(
+	public BatchReadCommand(
 		Cluster cluster, Partitions partitions, Txn txn, String namespace,
-		List<BatchRecord> records, Expression filterExp, Replica replica, ReadModeAP readModeAP,
-		ReadModeSC readModeSC, boolean respondAllKeys, boolean linearize, Settings policy
+		List<BatchRecord> records, Expression filterExp, boolean respondAllKeys, Settings policy,
+		ReadAttr attr
 	) {
-		super(cluster, partitions, txn, namespace, records, filterExp, replica, respondAllKeys,
+		super(cluster, partitions, txn, namespace, records, filterExp, attr.replica, respondAllKeys,
 			policy);
-		this.readModeAP = readModeAP;
-		this.readModeSC = readModeSC;
+		this.readModeAP = attr.readModeAP;
+		this.readModeSC = attr.readModeSC;
         this.readTouchTtlPercent = policy.getResetTtlOnReadAtPercent();
-        this.linearize = linearize;
-	}
-
-	public static BatchReadCommand create(
-		Cluster cluster, Txn txn, String namespace, List<BatchRecord> recs, Partitions partitions,
-		Expression filterExp, Settings policy, boolean respondAllKeys
-	) {
-		BatchReadCommand cmd;
-		Replica replica;
-
-        if (partitions.scMode) {
-            ReadModeSC readModeSC = policy.getReadModeSC();
-            boolean linearize;
-
-            switch (readModeSC) {
-            case SESSION:
-            	replica = Replica.MASTER;
-            	linearize = false;
-                break;
-
-            case LINEARIZE:
-                replica = policy.getReplicaOrder();
-
-                if (replica == Replica.PREFER_RACK) {
-                    replica = Replica.SEQUENCE;
-                }
-            	linearize = true;
-                break;
-
-            default:
-                replica = policy.getReplicaOrder();
-            	linearize = false;
-                break;
-            }
-
-            cmd = new BatchReadCommand(cluster, partitions, txn, namespace, recs, filterExp,
-            	replica, ReadModeAP.ONE, readModeSC, respondAllKeys, linearize, policy);
-        }
-        else {
-            replica = policy.getReplicaOrder();
-            cmd = new BatchReadCommand(cluster, partitions, txn, namespace, recs, filterExp,
-            	replica, policy.getReadModeAP(), ReadModeSC.SESSION, respondAllKeys, false, policy);
-        }
-
-        return cmd;
+        this.linearize = attr.linearize;
 	}
 }

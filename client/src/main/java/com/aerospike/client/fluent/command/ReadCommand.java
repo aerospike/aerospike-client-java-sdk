@@ -23,7 +23,6 @@ import com.aerospike.client.fluent.Partitions;
 import com.aerospike.client.fluent.exp.Expression;
 import com.aerospike.client.fluent.policy.ReadModeAP;
 import com.aerospike.client.fluent.policy.ReadModeSC;
-import com.aerospike.client.fluent.policy.Replica;
 import com.aerospike.client.fluent.policy.Settings;
 
 public class ReadCommand extends Command {
@@ -39,18 +38,18 @@ public class ReadCommand extends Command {
 
     public ReadCommand(
         Cluster cluster, Partitions partitions, Txn txn, Key key, String[] binNames,
-        Replica replica, ReadModeAP readModeAP, ReadModeSC readModeSC, boolean linearize,
-        boolean withNoBins, Expression filterExp, boolean failOnFilteredOut, Settings policy
+        boolean withNoBins, Expression filterExp, boolean failOnFilteredOut, Settings policy,
+        ReadAttr attr
     ) {
-        super(cluster, key.namespace, txn, filterExp, replica, policy);
+        super(cluster, key.namespace, txn, filterExp, attr.replica, policy);
         this.key = key;
-        this.partition = new Partition(partitions, key, replica, null, linearize);
-        this.readModeAP = readModeAP;
-        this.readModeSC = readModeSC;
+        this.partition = new Partition(partitions, key, replica, null, attr.linearize);
+        this.readModeAP = attr.readModeAP;
+        this.readModeSC = attr.readModeSC;
         this.binNames = binNames;
         this.readTouchTtlPercent = policy.getResetTtlOnReadAtPercent();
         this.withNoBins = withNoBins;
         this.failOnFilteredOut = failOnFilteredOut;
-        this.linearize = linearize;
+        this.linearize = attr.linearize;
     }
 }

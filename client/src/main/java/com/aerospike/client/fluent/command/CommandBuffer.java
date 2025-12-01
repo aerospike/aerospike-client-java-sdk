@@ -95,6 +95,30 @@ public final class CommandBuffer {
 	}
 
 	//--------------------------------------------------
+	// Exists
+	//--------------------------------------------------
+
+	public final void setExists(ReadCommand cmd) {
+		begin();
+		int fieldCount = estimateKeySize(cmd, cmd.key, false);
+
+		if (cmd.filterExp != null) {
+			sizeFieldExpression(cmd.filterExp);
+			fieldCount++;
+		}
+
+		sizeBuffer();
+
+		writeHeaderRead(cmd, cmd.serverTimeout, Command.INFO1_READ | Command.INFO1_NOBINDATA, 0, 0, fieldCount, 0);
+		writeKey(cmd, cmd.key, false);
+
+		if (cmd.filterExp != null) {
+			writeFieldExpression(cmd.filterExp);
+		}
+		end();
+	}
+
+	//--------------------------------------------------
 	// Read
 	//--------------------------------------------------
 
@@ -201,6 +225,33 @@ public final class CommandBuffer {
 	}
 
 	//--------------------------------------------------
+	// Touch
+	//--------------------------------------------------
+
+	public final void setTouch(WriteCommand cmd) {
+		begin();
+		int fieldCount = estimateKeySize(cmd, cmd.key, true);
+
+		if (cmd.filterExp != null) {
+			sizeFieldExpression(cmd.filterExp);
+			fieldCount++;
+		}
+
+		estimateOperationSize();
+
+		sizeBuffer();
+
+		writeHeaderWrite(cmd, 0, Command.INFO2_WRITE, fieldCount, 1);
+		writeKey(cmd, cmd.key, true);
+
+		if (cmd.filterExp != null) {
+			writeFieldExpression(cmd.filterExp);
+		}
+		writeOperation(Operation.Type.TOUCH);
+		end();
+	}
+
+	//--------------------------------------------------
 	// Delete
 	//--------------------------------------------------
 
@@ -214,6 +265,7 @@ public final class CommandBuffer {
 		}
 
 		sizeBuffer();
+
 		writeHeaderWrite(cmd, 0, Command.INFO2_WRITE | Command.INFO2_DELETE, fieldCount, 0);
 		writeKey(cmd, cmd.key, true);
 
@@ -1460,7 +1512,7 @@ public final class CommandBuffer {
 		return fieldCount;
 	}
 
-	private final void estimateOperationSize(Bin bin) {
+	private void estimateOperationSize(Bin bin) {
 		dataOffset += Buffer.estimateSizeUtf8(bin.name) + Command.OPERATION_HEADER_SIZE;
 		dataOffset += bin.value.estimateSize();
 	}
@@ -1472,6 +1524,10 @@ public final class CommandBuffer {
 
 	private void estimateOperationSize(String binName) {
 		dataOffset += Buffer.estimateSizeUtf8(binName) + Command.OPERATION_HEADER_SIZE;
+	}
+
+	private void estimateOperationSize() {
+		dataOffset += Command.OPERATION_HEADER_SIZE;
 	}
 
 	private void sizeFieldExpression(Expression exp) {
@@ -1548,12 +1604,7 @@ public final class CommandBuffer {
 	}
 
 	private void writeHeaderRead(
-		ReadCommand cmd,
-		int timeout,
-		int readAttr,
-		int writeAttr,
-		int infoAttr,
-		int fieldCount,
+		ReadCommand cmd, int timeout, int readAttr, int writeAttr, int infoAttr, int fieldCount,
 		int operationCount
 	) {
 		switch (cmd.readModeSC) {
@@ -1738,6 +1789,15 @@ public final class CommandBuffer {
 		dataBuffer[dataOffset++] = (byte) 0;
 		dataBuffer[dataOffset++] = (byte) nameLength;
 		dataOffset += nameLength;
+	}
+
+	private void writeOperation(Operation.Type operation) {
+		Buffer.intToBytes(4, dataBuffer, dataOffset);
+		dataOffset += 4;
+		dataBuffer[dataOffset++] = (byte) operation.protocolType;
+		dataBuffer[dataOffset++] = 0;
+		dataBuffer[dataOffset++] = 0;
+		dataBuffer[dataOffset++] = 0;
 	}
 
 	//--------------------------------------------------

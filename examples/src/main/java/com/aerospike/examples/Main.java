@@ -119,9 +119,25 @@ public class Main {
             	System.out.println("Record = " + rec);
             }
 
+            System.out.println("Exists 1 record");
+
+            List<Boolean> results = session.exists(set.ids(113)).execute();
+
+            for (boolean b : results) {
+            	System.out.println("Result: " + b);
+            }
+
+            System.out.println("Touch 1 record");
+
+            results = session.touch(set.ids(113)).execute();
+
+            for (boolean b : results) {
+            	System.out.println("Result: " + b);
+            }
+
             System.out.println("Delete 1 record");
 
-            List<Boolean> results = session.delete(set.ids(118)).execute();
+            results = session.delete(set.ids(118)).execute();
 
             for (boolean b : results) {
             	System.out.println("Result: " + b);

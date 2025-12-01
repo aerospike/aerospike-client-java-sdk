@@ -233,18 +233,6 @@ public class Session {
         return new OperationWithNoBinsBuilder(this, keys, OpType.EXISTS);
     }
 
-    public OperationWithNoBinsBuilder delete(Key key) {
-        return new OperationWithNoBinsBuilder(this, key, OpType.DELETE);
-    }
-
-    public OperationWithNoBinsBuilder delete(Key key1, Key key2, Key ... keys) {
-        return new OperationWithNoBinsBuilder(this, buildKeyList(key1, key2, keys), OpType.DELETE);
-    }
-
-    public OperationWithNoBinsBuilder delete(List<Key> keys) {
-        return new OperationWithNoBinsBuilder(this, keys, OpType.DELETE);
-    }
-    /*
     public DeleteBuilder delete(Key key) {
         return new DeleteBuilder(this, key);
     }
@@ -256,7 +244,6 @@ public class Session {
     public DeleteBuilder delete(List<Key> keys) {
         return new DeleteBuilder(this, keys);
     }
-    */
 
     // --------------------------------
     // Object mapping functionality

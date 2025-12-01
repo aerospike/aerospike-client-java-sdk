@@ -1,3 +1,19 @@
+/*
+ * Copyright 2012-2025 Aerospike, Inc.
+ *
+ * Portions may be licensed to Aerospike, Inc. under one or more contributor
+ * license agreements WHICH ARE COMPATIBLE WITH THE APACHE LICENSE, VERSION 2.0.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy of
+ * the License at http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
+ */
 package com.aerospike.client.fluent.query;
 
 import java.util.ArrayList;
@@ -26,6 +42,7 @@ import com.aerospike.client.fluent.command.BatchRecord;
 import com.aerospike.client.fluent.command.BatchSingle;
 import com.aerospike.client.fluent.command.BatchStatus;
 import com.aerospike.client.fluent.command.IBatchCommand;
+import com.aerospike.client.fluent.command.ReadAttr;
 import com.aerospike.client.fluent.command.Txn;
 import com.aerospike.client.fluent.dsl.ParseResult;
 import com.aerospike.client.fluent.exp.Exp;
@@ -145,8 +162,10 @@ class BatchKeyQueryBuilderImpl extends QueryImpl {
 		}
 
 		Settings policy = session.getBehavior().getSettings(OpKind.READ, OpShape.BATCH, partitions.scMode);
-		BatchReadCommand parent = BatchReadCommand.create(cluster, txn, namespace,
-			batchRecordsForServer, partitions, filterExp, policy, qb.isRespondAllKeys());
+		ReadAttr attr = new ReadAttr(partitions, policy);
+
+		BatchReadCommand parent = new BatchReadCommand(cluster, partitions, txn, namespace,
+			batchRecordsForServer, filterExp, qb.isRespondAllKeys(), policy, attr);
 
     	BatchStatus status = new BatchStatus(true);
 		List<BatchNode> bns = BatchNodeList.generate(cluster, partitions, parent.replica,
