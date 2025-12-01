@@ -40,6 +40,7 @@ public final class QueryCommand extends Command {
 		this.set = set.getSet();
 		this.recordsPerSecond = qb.getRecordsPerSecond();
 		// TODO Need to support expectedDuration
+		// this.expectedDuration = (this.recordsPerSecond > 0)? qb.getExpectedDuration() : QueryDuration.LONG;
 		this.expectedDuration = QueryDuration.LONG;
 		this.binNames = qb.getBinNames();
 		this.maxConcurrentNodes = policy.getMaxConcurrentNodes();
