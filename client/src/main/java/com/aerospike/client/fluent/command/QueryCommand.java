@@ -38,10 +38,11 @@ public final class QueryCommand extends Command {
 	) {
 		super(cluster, set.getNamespace(), null, filterExp, policy.getReplicaOrder(), policy);
 		this.set = set.getSet();
+		this.recordsPerSecond = qb.getRecordsPerSecond();
+		// TODO Need to support expectedDuration
 		this.expectedDuration = QueryDuration.LONG;
 		this.binNames = qb.getBinNames();
 		this.maxConcurrentNodes = policy.getMaxConcurrentNodes();
-		this.recordsPerSecond = qb.getRecordsPerSecond();
 		this.readTouchTtlPercent = policy.getResetTtlOnReadAtPercent();
 		this.withNoBins = qb.getWithNoBins();
 
