@@ -1,12 +1,12 @@
 package com.aerospike.client.fluent.query;
 
-import java.util.ArrayList;
 import java.util.List;
 
 import com.aerospike.client.fluent.AbstractFilterableBuilder;
 import com.aerospike.client.fluent.DataSet;
 import com.aerospike.client.fluent.Key;
 import com.aerospike.client.fluent.Log;
+import com.aerospike.client.fluent.NavigatableRecordStream;
 import com.aerospike.client.fluent.Partition;
 import com.aerospike.client.fluent.RecordMapper;
 import com.aerospike.client.fluent.RecordStream;
@@ -60,7 +60,9 @@ import com.aerospike.client.fluent.exp.Exp;
  * @see SortDir
  * @see SortProperties
  */
-public class QueryBuilder extends AbstractFilterableBuilder implements KeyBasedQueryBuilderInterface<QueryBuilder> {
+public class QueryBuilder extends AbstractFilterableBuilder implements
+            KeyBasedQueryBuilderInterface<QueryBuilder>,
+            IndexBasedQueryBuilderInterface<QueryBuilder> {
     private final QueryImpl implementation;
     private String[] binNames = null;
     private boolean withNoBins = false;
@@ -69,6 +71,7 @@ public class QueryBuilder extends AbstractFilterableBuilder implements KeyBasedQ
     private int startPartition = 0;
     private int endPartition = 4096;
     private Txn txnToUse;
+    private int recordsPerSecond = 0;
 
     /**
      * Creates a QueryBuilder for querying an entire dataset.
@@ -193,14 +196,22 @@ public class QueryBuilder extends AbstractFilterableBuilder implements KeyBasedQ
     }
 
     /**
-     * Sets the page size for paginated results.
+     * Sets the chunk size for server-side streaming.
      *
-     * <p>This method controls how many records are returned per page when using
-     * pagination. The page size affects memory usage and network round trips.</p>
+     * <p>This method controls how many records are fetched per chunk from the server
+     * when using server-side streaming. The chunk size affects memory usage and network
+     * round trips. This is distinct from client-side pagination provided by
+     * {@link NavigatableRecordStream}.</p>
      *
-     * @param pageSize the number of records per page (must be > 0)
+     * <p><b>Use cases:</b></p>
+     * <ul>
+     *   <li>Smaller chunks (e.g., 100-1000): Lower memory, more network calls</li>
+     *   <li>Larger chunks (e.g., 5000-10000): Higher throughput, more memory</li>
+     * </ul>
+     *
+     * @param chunkSize the number of records per chunk (must be > 0)
      * @return this QueryBuilder for method chaining
-     * @throws IllegalArgumentException if pageSize is <= 0
+     * @throws IllegalArgumentException if chunkSize is <= 0
      */
     public QueryBuilder chunkSize(int chunkSize) {
         if (chunkSize <= 0) {
@@ -277,11 +288,11 @@ public class QueryBuilder extends AbstractFilterableBuilder implements KeyBasedQ
         this.endPartition = endExcl;
         return this;
     }
-    
+
     /**
      * If the query has a `where` clause and is provided either a single key or a list of keys,
      * any records which are filtered out will appear in the
-     * stream against an exception code of {@link ResultCode.FILTERED_OUT} rather than just not 
+     * stream against an exception code of {@link ResultCode.FILTERED_OUT} rather than just not
      * appearing in the result stream.
      * @return this QueryBuilder for method chaining
      */
@@ -289,11 +300,11 @@ public class QueryBuilder extends AbstractFilterableBuilder implements KeyBasedQ
         this.failOnFilteredOut = true;
         return this;
     }
-    
+
     protected boolean isFailOnFilteredOut() {
         return this.failOnFilteredOut;
     }
-    
+
     /**
      * By default, if a key is provided (or is part of a list of keys) but the key does not map to a record
      * then nothing will be returned in the stream against that key. However, if this flag is specified, {@code null} will be
@@ -304,11 +315,26 @@ public class QueryBuilder extends AbstractFilterableBuilder implements KeyBasedQ
         this.respondAllKeys = true;
         return this;
     }
-    
+
     protected boolean isRespondAllKeys() {
         return this.respondAllKeys;
     }
-    
+
+    /**
+     * Rate limit the records per second returned from the server. Note that this will force
+     * this to be a "long" query, allowing it to be tracked on the server.
+     *
+     * @return this QueryBuilder for method chaining
+     */
+    public QueryBuilder recordsPerSecond(int recordsPerSecond) {
+        this.recordsPerSecond = recordsPerSecond;
+        return this;
+    }
+
+    public int getRecordsPerSecond() {
+        return this.recordsPerSecond;
+    }
+
     /**
      * Adds a filter condition using a DSL string.
      *
@@ -365,20 +391,20 @@ public class QueryBuilder extends AbstractFilterableBuilder implements KeyBasedQ
         setWhereClause(WhereClauseProcessor.from(dsl));
         return this;
     }
-    
+
     public QueryBuilder where(PreparedDsl dsl, Object ... params) {
         setWhereClause(WhereClauseProcessor.from(this.implementation.allowsSecondaryIndexQuery(), dsl, params));
         return this;
     }
     /**
-     * Add a filter condition using a Exp operation. 
-     * 
+     * Add a filter condition using a Exp operation.
+     *
      * <p>Note: This method may be deprecated in the future -- use a string version instead.</p>
      * <p>Note: If this method is used, no secondary index can be used. </p>
-     * 
+     *
      * <p>Only one filter condition can be specified per query. Multiple calls
      * to this method or {@link #where(String)} will throw an exception.</p>
-     * 
+     *
      * @param exp - The expression to validate the records against.
      * @return
      */
@@ -386,7 +412,7 @@ public class QueryBuilder extends AbstractFilterableBuilder implements KeyBasedQ
         setWhereClause(WhereClauseProcessor.from(exp));
         return this;
     }
-	
+
     /**
      * Gets the bin names to read.
      *
@@ -415,9 +441,9 @@ public class QueryBuilder extends AbstractFilterableBuilder implements KeyBasedQ
     }
 
     /**
-     * Gets the page size.
+     * Gets the chunk size for server-side streaming.
      *
-     * @return the page size, or 0 if not set
+     * @return the chunk size, or 0 if not set
      */
     public int getChunkSize() {
         return chunkSize;
@@ -462,7 +488,7 @@ public class QueryBuilder extends AbstractFilterableBuilder implements KeyBasedQ
      * session.doInTransaction(txnSession -> {
      *     Optional<KeyRecord> result = txnSession.query(customerDataSet.id(1)).execute().getFirst();
      *     // Do stuff...
-     *     txnSession.insertInto(customerDataSet.id(3));
+     *     txnSession.insert(customerDataSet.id(3));
      *     txnSession.delete(customerDataSet.id(3));
      * });
      * </pre>
@@ -494,8 +520,8 @@ public class QueryBuilder extends AbstractFilterableBuilder implements KeyBasedQ
      * <p>The RecordStream provides methods for:</p>
      * <ul>
      *   <li>Iterating through results: {@link RecordStream#hasNext()}, {@link RecordStream#next()}</li>
-     *   <li>Pagination: {@link RecordStream#hasMorePages()}</li>
-     *   <li>Sorting: {@link RecordStream#asSortable()}</li>
+     *   <li>Server-side chunking: {@link RecordStream#hasMoreChunks()}</li>
+     *   <li>Client-side sorting/pagination: {@link RecordStream#asNavigatableStream()}</li>
      *   <li>Object conversion: {@link RecordStream#toObjectList(RecordMapper)}</li>
      * </ul>
      *
@@ -511,14 +537,14 @@ public class QueryBuilder extends AbstractFilterableBuilder implements KeyBasedQ
             return executeAsync();
         }
     }
-    
+
     /**
      * Execute the query synchronously. All operations complete before this method returns.
      * <p>
      * Use this when you need guaranteed completion before proceeding, or when in a transaction.
      * Operations are still parallelized internally using virtual threads, but all threads
      * are joined before returning.
-     * 
+     *
      * @return RecordStream containing the results
      */
     @Override
@@ -528,14 +554,14 @@ public class QueryBuilder extends AbstractFilterableBuilder implements KeyBasedQ
         }
         return this.implementation.executeSync();
     }
-    
+
     /**
      * Execute the query asynchronously using virtual threads for parallel execution.
      * Results are streamed as they become available.
      * <p>
      * <b>WARNING:</b> Using this in transactions may lead to operations still being in flight
      * when commit() is called, potentially leading to inconsistent state. A warning will be logged.
-     * 
+     *
      * @return RecordStream that will be populated as results arrive
      */
     @Override
@@ -543,7 +569,7 @@ public class QueryBuilder extends AbstractFilterableBuilder implements KeyBasedQ
         if (Log.debugEnabled()) {
             Log.debug("QueryBuilder.executeAsync() called, transaction: " + (txnToUse != null ? "yes" : "no"));
         }
-        
+
         if (txnToUse != null && Log.warnEnabled()) {
             Log.warn(
                 "executeAsync() called within a transaction. " +
@@ -554,7 +580,7 @@ public class QueryBuilder extends AbstractFilterableBuilder implements KeyBasedQ
         }
         return this.implementation.executeAsync();
     }
-    
+
     protected WhereClauseProcessor getDsl() {
         return this.dsl;
     }

@@ -25,7 +25,7 @@ import com.aerospike.client.fluent.exp.Exp;
 import com.aerospike.client.fluent.exp.Expression;
 import com.aerospike.client.fluent.info.InfoCommands;
 import com.aerospike.client.fluent.policy.Behavior;
-import com.aerospike.client.fluent.query.BaseQueryBuilder;
+import com.aerospike.client.fluent.query.IndexBasedQueryBuilderInterface;
 import com.aerospike.client.fluent.query.KeyBasedQueryBuilderInterface;
 import com.aerospike.client.fluent.query.QueryBuilder;
 
@@ -131,8 +131,7 @@ public class Session {
     // --------------------------------------------
     // Query functionality
     // --------------------------------------------
-
-    public BaseQueryBuilder<QueryBuilder> query(DataSet dataSet) {
+    public IndexBasedQueryBuilderInterface<QueryBuilder> query(DataSet dataSet) {
         return new QueryBuilder(this, dataSet);
     }
 
@@ -233,6 +232,7 @@ public class Session {
     public OperationWithNoBinsBuilder exists(List<Key> keys) {
         return new OperationWithNoBinsBuilder(this, keys, OpType.EXISTS);
     }
+
     public OperationWithNoBinsBuilder delete(Key key) {
         return new OperationWithNoBinsBuilder(this, key, OpType.DELETE);
     }
@@ -244,6 +244,19 @@ public class Session {
     public OperationWithNoBinsBuilder delete(List<Key> keys) {
         return new OperationWithNoBinsBuilder(this, keys, OpType.DELETE);
     }
+    /*
+    public DeleteBuilder delete(Key key) {
+        return new DeleteBuilder(this, key);
+    }
+
+    public DeleteBuilder delete(Key key1, Key key2, Key ... keys) {
+        return new DeleteBuilder(this, buildKeyList(key1, key2, keys));
+    }
+
+    public DeleteBuilder delete(List<Key> keys) {
+        return new DeleteBuilder(this, keys);
+    }
+    */
 
     // --------------------------------
     // Object mapping functionality

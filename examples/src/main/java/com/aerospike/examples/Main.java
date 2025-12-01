@@ -175,7 +175,10 @@ public class Main {
 
             System.out.println("Foreground query");
 
-            rs = session.query(set).execute();
+            rs = session.query(set)
+            	.recordsPerSecond(5000)
+            	.execute();
+
             int count = 0;
 
             while (rs.hasNext()) {
@@ -234,7 +237,8 @@ public class Main {
 
             task.waitTillComplete();
 
-            rs = session.query(set.ids(10)).execute();
+            rs = session.query(set.ids(10))
+            	.execute();
 
             if (rs.hasNext()) {
             	Record r = rs.next().recordOrThrow();

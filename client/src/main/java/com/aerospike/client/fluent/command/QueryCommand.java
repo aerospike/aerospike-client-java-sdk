@@ -41,8 +41,7 @@ public final class QueryCommand extends Command {
 		this.expectedDuration = QueryDuration.LONG;
 		this.binNames = qb.getBinNames();
 		this.maxConcurrentNodes = policy.getMaxConcurrentNodes();
-		// TODO: recordsPerSecond needs to be added to either QueryBuilder or Settings.
-		this.recordsPerSecond = 0;
+		this.recordsPerSecond = qb.getRecordsPerSecond();
 		this.readTouchTtlPercent = policy.getResetTtlOnReadAtPercent();
 		this.withNoBins = qb.getWithNoBins();
 
