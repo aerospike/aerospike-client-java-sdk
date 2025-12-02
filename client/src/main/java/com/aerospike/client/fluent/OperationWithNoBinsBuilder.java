@@ -18,12 +18,27 @@ package com.aerospike.client.fluent;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 
+import com.aerospike.client.fluent.command.Batch;
+import com.aerospike.client.fluent.command.BatchAttr;
+import com.aerospike.client.fluent.command.BatchCommand;
+import com.aerospike.client.fluent.command.BatchDelete;
+import com.aerospike.client.fluent.command.BatchExecutor;
+import com.aerospike.client.fluent.command.BatchNode;
+import com.aerospike.client.fluent.command.BatchNodeList;
+import com.aerospike.client.fluent.command.BatchRead;
+import com.aerospike.client.fluent.command.BatchReadCommand;
+import com.aerospike.client.fluent.command.BatchRecord;
+import com.aerospike.client.fluent.command.BatchSingle;
+import com.aerospike.client.fluent.command.BatchStatus;
+import com.aerospike.client.fluent.command.BatchWrite;
 import com.aerospike.client.fluent.command.DeleteExecutor;
 import com.aerospike.client.fluent.command.ExistsExecutor;
+import com.aerospike.client.fluent.command.IBatchCommand;
 import com.aerospike.client.fluent.command.ReadAttr;
 import com.aerospike.client.fluent.command.ReadCommand;
 import com.aerospike.client.fluent.command.TouchExecutor;
@@ -32,6 +47,8 @@ import com.aerospike.client.fluent.command.WriteCommand;
 import com.aerospike.client.fluent.dsl.BooleanExpression;
 import com.aerospike.client.fluent.exp.Exp;
 import com.aerospike.client.fluent.exp.Expression;
+import com.aerospike.client.fluent.policy.BatchDeletePolicy;
+import com.aerospike.client.fluent.policy.BatchWritePolicy;
 import com.aerospike.client.fluent.policy.Behavior.OpKind;
 import com.aerospike.client.fluent.policy.Behavior.OpShape;
 import com.aerospike.client.fluent.policy.Settings;
@@ -235,20 +252,10 @@ public class OperationWithNoBinsBuilder extends AbstractSessionOperationBuilder<
 
     public List<Boolean> execute() {
         if (key != null) {
-            // Single key operation
             return executeSingleKey();
         }
         else {
-        	// TODO Batch exists/touch/delete.
-            //return batchExecute(wp);
-        	return null;
-            // Multi-key (batch) operation
-        	/*
-            WritePolicy wp = session.getBehavior()
-                    .getSettings(OpKind.WRITE_RETRYABLE, OpShape.BATCH, session.isNamespaceSC(getAnyKey().namespace))
-                    .asWritePolicy();
-            return batchExecute(wp);
-            */
+        	return executeBatch();
         }
     }
 
@@ -329,130 +336,212 @@ public class OperationWithNoBinsBuilder extends AbstractSessionOperationBuilder<
         return exec.existed();
     }
 
-	/* TODO Batch
-    private List<Boolean> batchExecute() {
-        String namespace = getAnyKey().namespace;
-
+    private List<Boolean> executeBatch() {
         switch (opType) {
-        case EXISTS: {
-            BatchPolicy batchPolicy = session.getBehavior()
-                    .getSettings(OpKind.READ, OpShape.BATCH, session.isNamespaceSC(namespace))
-                    .asBatchPolicy();
-            batchPolicy = applyBatchPolicySettings(batchPolicy, namespace);
+        case EXISTS:
+        	return existsBatch();
 
-            boolean[] results = session.getClient().exists(batchPolicy, keys.toArray(new Key[0]));
-            return toList(results);
-        }
+        case TOUCH:
+        	return touchBatch();
 
-        case TOUCH: {
-            BatchPolicy batchPolicy = session.getBehavior()
-                    .getSettings(OpKind.WRITE_RETRYABLE, OpShape.BATCH, session.isNamespaceSC(namespace))
-                    .asBatchPolicy();
-            batchPolicy = applyBatchPolicySettings(batchPolicy, namespace);
-
-            BatchWritePolicy batchWritePolicy = new BatchWritePolicy();
-            batchWritePolicy.sendKey = batchPolicy.sendKey;
-
-            if (expirationInSecondsForAll != 0) {
-                batchWritePolicy.expiration = (int) expirationInSecondsForAll;
-            }
-            applyGenerationPolicy(batchWritePolicy);
-
-            BatchResults results = session.getClient().operate(batchPolicy, batchWritePolicy, keys.toArray(Key[]::new), Operation.touch());
-            return processBatchResults(results);
-        }
-
-        case DELETE: {
-            BatchPolicy batchPolicy = session.getBehavior()
-                    .getSettings(OpKind.WRITE_RETRYABLE, OpShape.BATCH, session.isNamespaceSC(namespace))
-                    .asBatchPolicy();
-            batchPolicy = applyBatchPolicySettings(batchPolicy, namespace);
-
-            BatchDeletePolicy batchDeletePolicy = new BatchDeletePolicy();
-            batchDeletePolicy.sendKey = batchPolicy.sendKey;
-
-            applyGenerationPolicy(batchDeletePolicy);
-
-            if (durablyDelete != null) {
-                batchDeletePolicy.durableDelete = durablyDelete;
-            }
-
-            BatchResults results = session.getClient().delete(batchPolicy, batchDeletePolicy, keys.toArray(Key[]::new));
-            return processBatchResults(results);
-        }
+        case DELETE:
+        	return deleteBatch();
 
         default:
             throw new IllegalStateException("received an action of " + opType + " which should be handled elsewhere");
         }
     }
 
-    private List<Boolean> processBatchResults(BatchResults results) {
+    private List<Boolean> existsBatch() {
+    	Cluster cluster = session.getCluster();
+        String namespace = keys.get(0).namespace;
+        Partitions partitions = getPartitions(cluster, namespace);
+		Settings policy = session.getBehavior().getSettings(OpKind.READ, OpShape.BATCH, partitions.scMode);
+        Expression filterExp = processWhereClause(namespace, session);
+
+        List<BatchRecord> batchRecords = new ArrayList<>(keys.size());
+
+        for (Key key : keys) {
+            batchRecords.add(new BatchRead(key, false));
+        }
+
+		if (txnToUse != null) {
+			txnToUse.prepareReadKeys(keys);
+		}
+
+		ReadAttr attr = new ReadAttr(partitions, policy);
+
+		BatchReadCommand parent = new BatchReadCommand(cluster, partitions, txnToUse, namespace,
+			batchRecords, filterExp, respondAllKeys, policy, attr);
+
+    	BatchStatus status = new BatchStatus(true);
+		List<BatchNode> bns = BatchNodeList.generate(cluster, partitions, parent.replica,
+			batchRecords, status);
+
+		IBatchCommand[] commands = new IBatchCommand[bns.size()];
+    	int count = 0;
+
+		for (BatchNode bn : bns) {
+			if (bn.offsetsSize == 1) {
+				int i = bn.offsets[0];
+				BatchRecord record = batchRecords.get(i);
+
+				BatchRead br = (BatchRead)record;
+				commands[count++] = new BatchSingle.Exists(cluster, parent, br, status, bn.node);
+			}
+			else {
+				commands[count++] = new Batch.OperateListSync(cluster, parent, bn, batchRecords, status);
+			}
+		}
+
+		BatchExecutor.execute(cluster, commands, status);
+
+		ArrayList<Boolean> list = new ArrayList<>(batchRecords.size());
+
+		for (BatchRecord br : batchRecords) {
+			list.add(br.resultCode == ResultCode.OK);
+		}
+
+		return list;
+    }
+
+    private List<Boolean> touchBatch() {
+    	Cluster cluster = session.getCluster();
+        String namespace = keys.get(0).namespace;
+        Partitions partitions = getPartitions(cluster, namespace);
+		Settings policy = session.getBehavior().getSettings(OpKind.WRITE_RETRYABLE, OpShape.BATCH, partitions.scMode);
+        Expression filterExp = processWhereClause(namespace, session);
+
+		if (txnToUse != null) {
+        	TxnMonitor.addKeys(txnToUse, cluster, partitions, policy, keys);
+		}
+
+    	// TODO: Move policies directly into BatchWriteCommand (like is done in BatchReadCommand).
+        BatchWritePolicy bwp = new BatchWritePolicy();
+        bwp.generation = generation;
+        bwp.expiration = getExpirationAsInt();
+        bwp.opType = OpType.TOUCH;
+        bwp.sendKey = policy.getSendKey();
+        bwp.durableDelete = policy.getUseDurableDelete();
+
+        Operation[] ops = new Operation[] {Operation.touch()};
+
+        List<BatchRecord> batchRecords = new ArrayList<>(keys.size());
+
+        for (Key key : keys) {
+            batchRecords.add(new BatchWrite(bwp, key, ops));
+        }
+
+        BatchCommand parent = new BatchCommand(cluster, partitions, txnToUse, namespace,
+        	batchRecords, filterExp, policy.getReplicaOrder(), respondAllKeys, policy);
+
+        BatchStatus status = new BatchStatus(true);
+        List<BatchNode> bns = BatchNodeList.generate(cluster, partitions, policy.getReplicaOrder(),
+        	batchRecords, status);
+
+        IBatchCommand[] commands = new IBatchCommand[bns.size()];
+        int count = 0;
+
+        for (BatchNode bn : bns) {
+            if (bn.offsetsSize == 1) {
+                int i = bn.offsets[0];
+                BatchRecord record = batchRecords.get(i);
+
+                BatchWrite bw = (BatchWrite) record;
+                BatchAttr battr = new BatchAttr();
+
+                battr.setWrite(bw.policy);
+                battr.adjustWrite(bw.ops);
+                battr.setOpSize(bw.ops);
+
+                commands[count++] = new BatchSingle.OperateRecordSync(cluster, parent, bw.ops, battr, record, status,
+                        bn.node);
+            }
+            else {
+                commands[count++] = new Batch.OperateListSync(cluster, parent, bn, batchRecords, status);
+            }
+        }
+
+		BatchExecutor.execute(cluster, commands, status);
+
         List<Boolean> booleanArray = new ArrayList<>();
-        for (BatchRecord record : results.records) {
-            if (failOnFilteredOut && record.resultCode == ResultCode.FILTERED_OUT) {
+
+        for (BatchRecord br : batchRecords) {
+        	if (br.resultCode == ResultCode.OK) {
+				booleanArray.add(true);
+        	}
+        	else if (br.resultCode == ResultCode.FILTERED_OUT && failOnFilteredOut) {
                 throw new RuntimeException("Record was filtered out by filter expression");
             }
-            booleanArray.add(record.resultCode == ResultCode.OK);
+        	else {
+				booleanArray.add(false);
+        	}
         }
         return booleanArray;
     }
 
-    private void applyGenerationPolicy(Object policy) {
-        if (generation > 0) {
-            if (policy instanceof BatchWritePolicy) {
-                BatchWritePolicy bwp = (BatchWritePolicy) policy;
-                bwp.generationPolicy = com.aerospike.client.policy.GenerationPolicy.EXPECT_GEN_EQUAL;
-                bwp.generation = generation;
-            } else if (policy instanceof BatchDeletePolicy) {
-                BatchDeletePolicy bdp = (BatchDeletePolicy) policy;
-                bdp.generationPolicy = com.aerospike.client.policy.GenerationPolicy.EXPECT_GEN_EQUAL;
-                bdp.generation = generation;
-            }
-        }
-    }
-    */
-
-    /**
-     * Apply filter expression and respondAllKeys to a batch policy.
-     * Creates a new BatchPolicy if modifications are needed.
-     */
-    /*
-    private BatchPolicy applyBatchPolicySettings(BatchPolicy batchPolicy, String namespace) {
-        // Apply filter expression if set
+    private List<Boolean> deleteBatch() {
+    	Cluster cluster = session.getCluster();
+        String namespace = keys.get(0).namespace;
+        Partitions partitions = getPartitions(cluster, namespace);
+		Settings policy = session.getBehavior().getSettings(OpKind.WRITE_RETRYABLE, OpShape.BATCH, partitions.scMode);
         Expression filterExp = processWhereClause(namespace, session);
-        if (filterExp != null) {
-            batchPolicy = new BatchPolicy(batchPolicy);
-            batchPolicy.filterExp = filterExp;
+
+		if (txnToUse != null) {
+        	TxnMonitor.addKeys(txnToUse, cluster, partitions, policy, keys);
+		}
+
+    	// TODO: Move policies directly into BatchWriteCommand (like is done in BatchReadCommand).
+        BatchDeletePolicy bdp = new BatchDeletePolicy();
+        bdp.generation = generation;
+        bdp.sendKey = policy.getSendKey();
+        bdp.durableDelete = policy.getUseDurableDelete();
+
+        List<BatchRecord> batchRecords = new ArrayList<>(keys.size());
+
+        for (Key key : keys) {
+            batchRecords.add(new BatchDelete(bdp, key));
         }
 
-        // Apply respondAllKeys flag
-        if (respondAllKeys) {
-            if (batchPolicy == null || filterExp == null) {
-                batchPolicy = new BatchPolicy(batchPolicy);
+        BatchCommand parent = new BatchCommand(cluster, partitions, txnToUse, namespace,
+        	batchRecords, filterExp, policy.getReplicaOrder(), respondAllKeys, policy);
+
+        BatchStatus status = new BatchStatus(true);
+        List<BatchNode> bns = BatchNodeList.generate(cluster, partitions, policy.getReplicaOrder(),
+        	batchRecords, status);
+
+        IBatchCommand[] commands = new IBatchCommand[bns.size()];
+        int count = 0;
+
+        for (BatchNode bn : bns) {
+            if (bn.offsetsSize == 1) {
+                int i = bn.offsets[0];
+                BatchDelete bd = (BatchDelete)batchRecords.get(i);
+
+                commands[count++] = new BatchSingle.Delete(cluster, parent, bd, status, bn.node);
             }
-            batchPolicy.respondAllKeys = true;
+            else {
+                commands[count++] = new Batch.OperateListSync(cluster, parent, bn, batchRecords, status);
+            }
         }
 
-        return batchPolicy;
-    }
+		BatchExecutor.execute(cluster, commands, status);
 
-    private List<Boolean> toList(boolean[] booleanArray) {
-        List<Boolean> results = new ArrayList<>();
-        for (int i = 0; i < booleanArray.length; i++) {
-            results.add(booleanArray[i]);
-        }
-        return results;
-    }
-    private Key getAnyKey() {
-        if (key != null) {
-            return key;
-        }
-        else {
-            return keys.get(0);
-        }
-    }
+        List<Boolean> booleanArray = new ArrayList<>();
 
-    */
+        for (BatchRecord br : batchRecords) {
+        	if (br.resultCode == ResultCode.OK || br.resultCode == ResultCode.KEY_NOT_FOUND_ERROR) {
+				booleanArray.add(true);
+        	}
+        	else if (br.resultCode == ResultCode.FILTERED_OUT && failOnFilteredOut) {
+                throw new RuntimeException("Record was filtered out by filter expression");
+            }
+        	else {
+				booleanArray.add(false);
+        	}
+        }
+        return booleanArray;
+    }
 
     private Partitions getPartitions(Cluster cluster, String namespace) {
         HashMap<String, Partitions> partitionMap = cluster.getPartitionMap();

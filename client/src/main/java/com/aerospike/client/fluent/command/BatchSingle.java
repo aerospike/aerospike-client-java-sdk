@@ -26,6 +26,7 @@ import com.aerospike.client.fluent.Key;
 import com.aerospike.client.fluent.Node;
 import com.aerospike.client.fluent.Operation;
 import com.aerospike.client.fluent.Partition;
+import com.aerospike.client.fluent.Record;
 import com.aerospike.client.fluent.RecordResult;
 import com.aerospike.client.fluent.ResultCode;
 import com.aerospike.client.fluent.metrics.LatencyType;
@@ -191,43 +192,60 @@ public final class BatchSingle {
 			return true;
 		}
 	}
-/*
-	public static final class Exists extends BaseCommand {
-		private final Key key;
-		private final boolean[] existsArray;
-		private final int index;
+
+	public static final class Exists extends BatchSingleExecutor {
+		private final BatchReadCommand cmd;
+		private final BatchRead record;
 
 		public Exists(
 			Cluster cluster,
-			Policy policy,
-			Key key,
-			boolean[] existsArray,
-			int index,
+			BatchReadCommand cmd,
+			BatchRead record,
 			BatchStatus status,
 			Node node
 		) {
-			super(cluster, policy, status, key, node, false);
-			this.key = key;
-			this.existsArray = existsArray;
-			this.index = index;
+			super(cluster, cmd, status, record.key, node, false);
+			this.cmd = cmd;
+			this.record = record;
 		}
 
 		@Override
-		protected void writeBuffer() {
-			setExists(policy, key);
+		protected CommandBuffer getCommandBuffer() {
+			CommandBuffer cb = new CommandBuffer();
+			cb.setExists(cmd, record);
+			return cb;
 		}
 
 		@Override
-		protected void parseResult(Node node, Connection conn) throws IOException {
-			RecordParser rp = new RecordParser(conn, dataBuffer);
-			rp.parseFields(policy.txn, key, false);
-			if (node.areMetricsEnabled()) {
-				node.addBytesIn(namespace, rp.bytesIn);
+		protected void parseResult(Node node, Connection conn, byte[] buffer) throws IOException {
+			RecordParser rp = new RecordParser(conn, buffer);
+			rp.parseFields(cmd.txn, key, false);
+
+			if (node.isMetricsEnabled()) {
+				node.addBytesIn(cmd.namespace, rp.bytesIn);
 			}
-			existsArray[index] = rp.resultCode == 0;
+
+			if (rp.resultCode == ResultCode.OK) {
+				record.setRecord(rp.parseRecord(false));
+			}
+			else {
+				record.setError(rp.resultCode, false);
+				status.setRowError();
+			}
+		}
+
+		@Override
+		protected boolean prepareRetry(boolean timeout) {
+			Partition p = new Partition(parent.partitions, key, parent.replica, null, cmd.linearize);
+			p.sequence = sequence;
+			p.prevNode = node;
+			p.prepareRetryRead(timeout);
+			node = p.getNodeRead(cluster);
+			sequence = p.sequence;
+			return true;
 		}
 	}
-*/
+
 	public static final class OperateRecordAsync extends OperateRecordSync {
 		private final AsyncRecordStream stream;
 		private final int index;
@@ -321,44 +339,46 @@ public final class BatchSingle {
 			return true;
 		}
 	}
-/*
-	public static final class Delete extends BaseCommand {
-		private final BatchAttr attr;
-		private final BatchRecord record;
+
+	public static final class Delete extends BatchSingleExecutor {
+		private final BatchCommand cmd;
+		private final BatchDelete record;
 
 		public Delete(
 			Cluster cluster,
-			BatchPolicy policy,
-			BatchAttr attr,
-			BatchRecord record,
+			BatchCommand cmd,
+			BatchDelete record,
 			BatchStatus status,
 			Node node
 		) {
-			super(cluster, policy, status, record.key, node, true);
-			this.attr = attr;
+			super(cluster, cmd, status, record.key, node, true);
+			this.cmd = cmd;
 			this.record = record;
 		}
 
 		@Override
-		protected void writeBuffer() {
-			setDelete(policy, record.key, attr);
+		protected CommandBuffer getCommandBuffer() {
+			CommandBuffer cb = new CommandBuffer();
+			cb.setDelete(cmd, record);
+			return cb;
 		}
 
 		@Override
-		protected void parseResult(Node node, Connection conn) throws IOException {
-			RecordParser rp = new RecordParser(conn, dataBuffer);
-			rp.parseFields(policy.txn, key, true);
+		protected void parseResult(Node node, Connection conn, byte[] buffer) throws IOException {
+			RecordParser rp = new RecordParser(conn, buffer);
+			rp.parseFields(cmd.txn, key, true);
 
-			if (node.areMetricsEnabled()) {
-				node.addBytesIn(namespace, rp.bytesIn);
+			if (node.isMetricsEnabled()) {
+				node.addBytesIn(cmd.namespace, rp.bytesIn);
 			}
+
 			if (rp.resultCode == ResultCode.OK) {
 				record.setRecord(new Record(null, rp.generation, rp.expiration));
 			}
 			else {
 				// A KEY_NOT_FOUND_ERROR on a delete is benign, but still results in an overall
 				// batch status of false to be consistent with the original batch code.
-				record.setError(rp.resultCode, Command.batchInDoubt(true, commandSentCounter));
+				record.setError(rp.resultCode, BatchCommand.inDoubt(true, commandSentCounter));
 				status.setRowError();
 			}
 		}
@@ -369,8 +389,19 @@ public final class BatchSingle {
 				record.inDoubt = true;
 			}
 		}
-	}
 
+		@Override
+		protected boolean prepareRetry(boolean timeout) {
+			Partition p = new Partition(parent.partitions, key, parent.replica, null, false);
+			p.sequence = sequence;
+			p.prevNode = node;
+			p.prepareRetryWrite(timeout);
+			node = p.getNodeWrite(cluster);
+			sequence = p.sequence;
+			return true;
+		}
+	}
+/*
 	public static final class UDF extends BaseCommand {
 		private final String packageName;
 		private final String functionName;

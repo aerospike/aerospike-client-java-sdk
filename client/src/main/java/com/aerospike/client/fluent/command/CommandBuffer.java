@@ -118,6 +118,31 @@ public final class CommandBuffer {
 		end();
 	}
 
+	public void setExists(BatchReadCommand cmd, BatchRead br) {
+		begin();
+
+		BatchReadPolicy rp = br.policy;
+		BatchAttr attr = new BatchAttr();
+		Expression exp;
+
+		if (rp != null) {
+			attr.setRead(rp);
+			exp = (rp.filterExp != null) ? rp.filterExp : cmd.filterExp;
+		}
+		else {
+			attr.setRead(cmd);
+			exp = cmd.filterExp;
+		}
+
+		attr.adjustRead(false);
+
+		int fieldCount = estimateKeyAttrSize(cmd, br.key, attr, exp);
+
+		sizeBuffer();
+		writeKeyAttr(cmd, br.key, attr, exp, fieldCount, 0);
+		end();
+	}
+
 	//--------------------------------------------------
 	// Read
 	//--------------------------------------------------
@@ -268,6 +293,58 @@ public final class CommandBuffer {
 
 		writeHeaderWrite(cmd, 0, Command.INFO2_WRITE | Command.INFO2_DELETE, fieldCount, 0);
 		writeKey(cmd, cmd.key, true);
+
+		if (cmd.filterExp != null) {
+			writeFieldExpression(cmd.filterExp);
+		}
+		end();
+	}
+
+	public void setDelete(BatchCommand cmd, BatchDelete bd) {
+		begin();
+		int fieldCount = estimateKeySize(cmd, bd.key, true);
+
+		if (cmd.filterExp != null) {
+			sizeFieldExpression(cmd.filterExp);
+			fieldCount++;
+		}
+
+		sizeBuffer();
+
+		// Set flags.
+		BatchDeletePolicy bdp = bd.policy;
+		int writeAttr = Command.INFO2_WRITE | Command.INFO2_DELETE;
+		int txnAttr = 0;
+
+		if (bdp.generation > 0) {
+			writeAttr |= Command.INFO2_GENERATION;
+		}
+
+		if (bdp.durableDelete) {
+			writeAttr |= Command.INFO2_DURABLE_DELETE;
+		}
+
+		/*
+		if (cmd.onLockingOnly) {
+			txnAttr |= Command.INFO4_TXN_ON_LOCKING_ONLY;
+		}
+		*/
+
+		// Write all header data except total size which must be written last.
+		dataBuffer[8]  = Command.MSG_REMAINING_HEADER_SIZE; // Message header length.
+		dataBuffer[9]  = (byte)0;
+		dataBuffer[10] = (byte)writeAttr;
+		dataBuffer[11] = (byte)0;
+		dataBuffer[12] = (byte)txnAttr;
+		dataBuffer[13] = 0; // clear the result code
+		Buffer.intToBytes(bdp.generation, dataBuffer, 14);
+		Buffer.intToBytes(0, dataBuffer, 18);
+		Buffer.intToBytes(cmd.serverTimeout, dataBuffer, 22);
+		Buffer.shortToBytes(fieldCount, dataBuffer, 26);
+		Buffer.shortToBytes(0, dataBuffer, 28);
+		dataOffset = Command.MSG_TOTAL_HEADER_SIZE;
+
+		writeKey(cmd, bd.key, true);
 
 		if (cmd.filterExp != null) {
 			writeFieldExpression(cmd.filterExp);

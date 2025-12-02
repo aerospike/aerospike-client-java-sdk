@@ -143,6 +143,30 @@ public class Main {
             	System.out.println("Result: " + b);
             }
 
+            System.out.println("Batch exists");
+
+            results = session.exists(set.ids(113,114,999)).execute();
+
+            for (boolean b : results) {
+            	System.out.println("Result: " + b);
+            }
+
+            System.out.println("Batch touch");
+
+            results = session.touch(set.ids(113,114,999)).execute();
+
+            for (boolean b : results) {
+            	System.out.println("Result: " + b);
+            }
+
+            System.out.println("Batch delete");
+
+            results = session.delete(set.ids(113,114,999)).execute();
+
+            for (boolean b : results) {
+            	System.out.println("Result: " + b);
+            }
+
             // Test filtering out
             System.out.println("Test filtering out");
 
