@@ -1,3 +1,19 @@
+/*
+ * Copyright 2012-2025 Aerospike, Inc.
+ *
+ * Portions may be licensed to Aerospike, Inc. under one or more contributor
+ * license agreements WHICH ARE COMPATIBLE WITH THE APACHE LICENSE, VERSION 2.0.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy of
+ * the License at http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
+ */
 package com.aerospike.client.fluent.policy;
 
 import java.io.Closeable;
@@ -29,7 +45,7 @@ import java.util.stream.Collectors;
  * <h2>Basic Usage</h2>
  * <p><b>Note:</b> All behaviors must derive from an existing behavior. The root of all behavior
  * hierarchies is {@link #DEFAULT}, which provides sensible defaults for all operations.</p>
- * 
+ *
  * <h3>Creating a derived behavior:</h3>
  * <pre>{@code
  * // Derive from DEFAULT with changes
@@ -41,14 +57,14 @@ import java.util.stream.Collectors;
  *         .useDurableDelete(true)
  *     )
  * );
- * 
+ *
  * // Create hierarchy: DEFAULT -> production -> productionHighLoad
  * Behavior productionHighLoad = production.deriveWithChanges("productionHighLoad", builder -> builder
  *     .on(Selectors.reads().batch(), ops -> ops
  *         .maxConcurrentNodes(16)
  *     )
  * );
- *     
+ *
  * // Retrieve resolved settings for a specific operation
  * Settings settings = production.getSettings(OpKind.READ, OpShape.BATCH, Mode.AP);
  * }</pre>
@@ -58,12 +74,12 @@ import java.util.stream.Collectors;
  * Build selector chains from general to specific for best type safety:
  * <pre>{@code
  * // READS: kind → shape → mode
- * Selectors.reads().batch().ap()     // ✓ Exposes readMode(), maxConcurrentNodes(), etc.
- * Selectors.reads().query().cp()     // ✓ Exposes consistency(), recordQueueSize(), etc.
- * 
+ * Selectors.reads().batch().ap()     // Exposes readMode(), maxConcurrentNodes(), etc.
+ * Selectors.reads().query().cp()     // Exposes consistency(), recordQueueSize(), etc.
+ *
  * // WRITES: kind → retryability → shape → mode
- * Selectors.writes().retryable().point().ap()    // ✓ Exposes commitLevel()
- * Selectors.writes().nonRetryable().batch().cp() // ✓ Exposes useDurableDelete()
+ * Selectors.writes().retryable().point().ap()    // Exposes commitLevel()
+ * Selectors.writes().nonRetryable().batch().cp() // Exposes useDurableDelete()
  * }</pre>
  *
  * <h3>Alternative Pattern (Works but loses type safety):</h3>
@@ -71,9 +87,9 @@ import java.util.stream.Collectors;
  * <pre>{@code
  * // Mode selected first - works at runtime, but loses compile-time type safety
  * Selectors.writes().ap().retryable().point()  // ⚠ Works, but intermediate types don't expose commitLevel()
- * 
+ *
  * // Recommended alternative: select mode last
- * Selectors.writes().retryable().point().ap()  // ✓ Full type safety throughout chain
+ * Selectors.writes().retryable().point().ap()  // Full type safety throughout chain
  * }</pre>
  *
  * <h2>Configuration Hierarchy</h2>
@@ -89,30 +105,33 @@ import java.util.stream.Collectors;
  *
  * <h2>Operation Types</h2>
  * <ul>
- *   <li><b>OpKind:</b> READ, WRITE_RETRYABLE, WRITE_NON_RETRYABLE</li>
- *   <li><b>OpShape:</b> POINT (single record), BATCH (multiple records), QUERY (scan with filter)</li>
+ *   <li><b>OpKind:</b> READ, WRITE_RETRYABLE, WRITE_NON_RETRYABLE, SYSTEM_TXN_VERIFY, SYSTEM_TXN_ROLL</li>
+ *   <li><b>OpShape:</b> POINT (single record), BATCH (multiple records), QUERY (scan with filter),
+ *       SYSTEM (system-level operations)</li>
  *   <li><b>Mode:</b> AP (availability priority), CP (consistency priority)</li>
  * </ul>
  *
- * <h2>System-Level Configuration</h2>
- * Beyond read/write operations, the {@code system()} selector provides access to system-level settings:
+ * <h2>Transaction Configuration</h2>
+ * The {@code transaction()} selector provides access to transaction-specific operations:
  * <ul>
  *   <li><b>txnVerify:</b> Transaction verification retry and consistency settings (read-like)</li>
  *   <li><b>txnRoll:</b> Transaction rollback retry settings (write-like)</li>
- *   <li><b>connections:</b> Connection pool configuration per node</li>
- *   <li><b>circuitBreaker:</b> Error thresholds and circuit breaking behavior</li>
- *   <li><b>refresh:</b> Cluster state refresh interval (tend frequency)</li>
  * </ul>
- * <h3>System Configuration Example:</h3>
+ *
+ * <p><b>Note:</b> System-level settings (connections, circuit breaker, refresh intervals) are no longer
+ * configured via Behaviors. Use {@link com.aerospike.SystemSettings} and
+ * {@link com.aerospike.ClusterDefinition#withSystemSettings(com.aerospike.SystemSettings)} instead.</p>
+ *
+ * <h3>Transaction Configuration Example:</h3>
  * <pre>{@code
- * Behavior customSystem = Behavior.DEFAULT.deriveWithChanges("customSystem", builder -> builder
- *     .on(Selectors.system().txnVerify(), ops -> ops
+ * Behavior customTxn = Behavior.DEFAULT.deriveWithChanges("customTxn", builder -> builder
+ *     .on(Selectors.transaction().txnVerify(), ops -> ops
  *         .consistency(ReadModeSC.LINEARIZE)
  *         .maximumNumberOfCallAttempts(10)
  *     )
- *     .on(Selectors.system().connections(), ops -> ops
- *         .maximumConnectionsPerNode(200)
- *         .maximumSocketIdleTime(Duration.ofSeconds(120))
+ *     .on(Selectors.transaction().txnRoll(), ops -> ops
+ *         .allowInlineMemoryAccess(false)
+ *         .maxConcurrentNodes(8)
  *     )
  * );
  * }</pre>
@@ -125,22 +144,6 @@ import java.util.stream.Collectors;
  * @see Selectors
  */
 public final class Behavior {
-
-    // -----------------------------------------------------------------------------------
-    // Legacy CommandType for backward compatibility
-    // -----------------------------------------------------------------------------------
-//    public static enum CommandType {
-//        ALL,
-//        READ_AP,
-//        READ_SC,
-//        WRITE_RETRYABLE,
-//        WRITE_NON_RETRYABLE,
-//        BATCH_READ,
-//        BATCH_WRITE,
-//        QUERY,
-//        INFO
-//    }
-
 
     // -----------------------------------------------------------------------------------
     // Internal factory (package-private for DEFAULT initialization only)
@@ -220,8 +223,8 @@ public final class Behavior {
             .on(Selectors.writes().ap(), ops -> ops
                     .commitLevel(CommitLevel.COMMIT_ALL)
             )
-            // System - txnVerify defaults
-            .on(Selectors.system().txnVerify(), ops -> ops
+            // Transaction - txnVerify defaults
+            .on(Selectors.transaction().txnVerify(), ops -> ops
                     .consistency(ReadModeSC.LINEARIZE)
                     .replicaOrder(Replica.MASTER)
                     .maximumNumberOfCallAttempts(6)
@@ -231,8 +234,8 @@ public final class Behavior {
                     .allowInlineMemoryAccess(false)
                     .allowInlineSsdAccess(true)
             )
-            // System - txnRoll defaults
-            .on(Selectors.system().txnRoll(), ops -> ops
+            // Transaction - txnRoll defaults
+            .on(Selectors.transaction().txnRoll(), ops -> ops
                     .replicaOrder(Replica.MASTER)
                     .maximumNumberOfCallAttempts(6)
                     .waitForCallToComplete(Duration.ofSeconds(3))
@@ -240,21 +243,6 @@ public final class Behavior {
                     .delayBetweenRetries(Duration.ofSeconds(1))
                     .allowInlineMemoryAccess(false)
                     .allowInlineSsdAccess(true)
-            )
-            // System - connections defaults
-            .on(Selectors.system().connections(), ops -> ops
-                    .minimumConnectionsPerNode(0)
-                    .maximumConnectionsPerNode(100)
-                    .maximumSocketIdleTime(Duration.ofSeconds(55))
-            )
-            // System - circuitBreaker defaults
-            .on(Selectors.system().circuitBreaker(), ops -> ops
-                    .numTendIntervalsInErrorWindow(1)
-                    .maximumErrorsInErrorWindow(100)
-            )
-            // System - refresh defaults
-            .on(Selectors.system().refresh(), ops -> ops
-                    .tendInterval(Duration.ofSeconds(1))
             )
             .build();
 
@@ -273,7 +261,7 @@ public final class Behavior {
         this.base = base;
         this.resolved = formMatrix();
         this.children = new ArrayList<>();
-        
+
         if (base != null) {
             base.children.add(this);
         }
@@ -286,7 +274,7 @@ public final class Behavior {
             child.clearCache();
         }
     }
-    
+
     /**
      * Invoke this method whenever the behavior is changed after construction. It will reform
      * its values from its parent and then notify children of the change.
@@ -294,19 +282,19 @@ public final class Behavior {
     void changed() {
         clearCache();
     }
-    
+
     public String getName() {
         return name;
     }
-    
+
     public Behavior getParent() {
         return this.base;
     }
-    
+
     public List<Behavior> getChildren() {
         return Collections.unmodifiableList(children);
     }
-    
+
     private Map<OpKey, Settings> formMatrix() {
         // 1) Start with parent's resolved matrix (if any).
         Map<OpKey, Settings> matrix = new HashMap<>();
@@ -324,7 +312,9 @@ public final class Behavior {
             for (OpKey key : allKeys) {
                 if (applies(p.spec, key)) {
                     Settings acc = matrix.get(key);
-                    if (acc == null) acc = new Settings();
+                    if (acc == null) {
+						acc = new Settings();
+					}
                     mergeInto(acc, p.settings);
                     matrix.put(key, acc);
                 }
@@ -334,7 +324,7 @@ public final class Behavior {
     }
 
     public String name() { return name; }
-    
+
     @Override
     public String toString() {
         StringBuilder sb = new StringBuilder();
@@ -387,97 +377,10 @@ public final class Behavior {
         return resolved.get(new OpKey(kind, shape, isNamespaceSC ? Mode.CP : Mode.AP));
     }
 
-//    // -----------------------------------------------------------------------------------
-//    // Backward compatibility methods for legacy CommandType access
-//    // -----------------------------------------------------------------------------------
-//    
-//    /**
-//     * Get InfoPolicy using old-style access (backward compatibility)
-//     */
-//    public InfoPolicy getSharedInfoPolicy() {
-//        // Info policies don't have operation-specific settings in the new model
-//        // Use global settings
-//        Settings settings = resolved.get(new OpKey(OpKind.READ, OpShape.POINT, Mode.AP));
-//        if (settings == null) {
-//            return new InfoPolicy();
-//        }
-//        InfoPolicy policy = new InfoPolicy();
-//        if (settings.abandonCallAfter != null) {
-//            policy.timeout = (int)settings.abandonCallAfter.toMillis();
-//        }
-//        return policy;
-//    }
-
-    /**
-     * Get InfoPolicy (mutable copy) using old-style access (backward compatibility)
-     */
-//    public InfoPolicy getMutableInfoPolicy() {
-//        return new InfoPolicy(getSharedInfoPolicy());
-//    }
-
-    /**
-     * Get policy using legacy CommandType (backward compatibility)
-     * 
-     * @param type The command type
-     * @return The policy
-     */
-//    @SuppressWarnings("unchecked")
-//    public <T extends Policy> T getSharedPolicy(CommandType type) {
-//        return (T)legacyCachedPolicies.computeIfAbsent(type, cmdType -> {
-//            // Map CommandType to new dimensional system
-//            switch (type) {
-//            case WRITE_NON_RETRYABLE:
-//                // Use settings for non-retryable point writes in AP mode (default)
-//                Settings settings = resolved.get(new OpKey(OpKind.WRITE_NON_RETRYABLE, OpShape.POINT, Mode.AP));
-//                return settings != null ? settings.asWritePolicy() : new WritePolicy();
-//
-//            case WRITE_RETRYABLE:
-//                settings = resolved.get(new OpKey(OpKind.WRITE_RETRYABLE, OpShape.POINT, Mode.AP));
-//                return settings != null ? settings.asWritePolicy() : new WritePolicy();
-//
-//            case BATCH_READ:
-//                settings = resolved.get(new OpKey(OpKind.READ, OpShape.BATCH, Mode.AP));
-//                return settings != null ? settings.asBatchPolicy() : new BatchPolicy();
-//                
-//            case BATCH_WRITE:
-//                settings = resolved.get(new OpKey(OpKind.WRITE_RETRYABLE, OpShape.BATCH, Mode.AP));
-//                return settings != null ? settings.asBatchPolicy() : new BatchPolicy();
-//                
-//            case QUERY:
-//                settings = resolved.get(new OpKey(OpKind.READ, OpShape.QUERY, Mode.AP));
-//                return settings != null ? settings.asQueryPolicy() : new QueryPolicy();
-//                
-//            case READ_AP:
-//                settings = resolved.get(new OpKey(OpKind.READ, OpShape.POINT, Mode.AP));
-//                return settings != null ? settings.asReadPolicy() : new Policy();
-//                
-//            case READ_SC:
-//                settings = resolved.get(new OpKey(OpKind.READ, OpShape.POINT, Mode.CP));
-//                return settings != null ? settings.asReadPolicy() : new Policy();
-//                
-//            case INFO:
-//                throw new IllegalArgumentException("Cannot pass 'INFO' to getSharedPolicy, use getSharedInfoPolicy instead");
-//            case ALL:
-//            default:
-//                throw new IllegalArgumentException("Cannot pass '" + type + "' to getSharedPolicy");
-//            }
-//        });
-//    }
-
-    /**
-     * Get mutable policy using legacy CommandType (backward compatibility)
-     * 
-     * @param type The command type
-     * @return A mutable copy of the policy
-     */
-//    public <T extends Policy> T getMutablePolicy(CommandType type) {
-//        return getSharedPolicy(type);
-//    }
-
     /**
      * Creates a new Behavior derived from this one with additional changes.
      * This is a convenience method that automatically sets this behavior as the parent.
-     * 
+     *
      * <h3>Usage:</h3>
      * <pre>{@code
      * Behavior child = parent.deriveWithChanges("childName", builder -> builder
@@ -489,7 +392,7 @@ public final class Behavior {
      *     )
      * );
      * }</pre>
-     * 
+     *
      * @param name the name for the derived behavior
      * @param configurator a consumer that configures additional settings on the builder
      * @return a new Behavior with settings inherited from this one plus the configured changes
@@ -498,10 +401,10 @@ public final class Behavior {
         BehaviorBuilder builder = new BehaviorBuilderImpl(name, this);
         configurator.accept(builder);
         Behavior newBehavior = builder.build();
-        
+
         // Register the manually created behavior
         BehaviorRegistry.getInstance().registerBehavior(newBehavior);
-        
+
         return newBehavior;
     }
 
@@ -620,7 +523,9 @@ public final class Behavior {
         sb.append("Behavior: ").append(name).append('\n');
 
         sb.append("--- Patches ---").append('\n');
-        if (patches.isEmpty()) sb.append("(no overrides)").append('\n');
+        if (patches.isEmpty()) {
+			sb.append("(no overrides)").append('\n');
+		}
         int i = 0;
         for (Patch p : patches) {
             sb.append(String.format(Locale.ROOT, "%02d %s -> %s", ++i, p.spec, p.settings)).append('\n');
@@ -629,7 +534,9 @@ public final class Behavior {
         sb.append("--- Resolved Matrix ---").append('\n');
         for (OpKey k : listAllKeys()) {
             Settings s = resolved.get(k);
-            if (s != null) sb.append(k).append(" => ").append(s).append('\n');
+            if (s != null) {
+				sb.append(k).append(" => ").append(s).append('\n');
+			}
         }
         return sb.toString();
     }
@@ -639,12 +546,12 @@ public final class Behavior {
     // -----------------------------------------------------------------------------------
     /**
      * Builder for constructing Behavior instances with fluent configuration.
-     * 
+     *
      * <p><b>Note:</b> This builder is not directly accessible. Use {@link #deriveWithChanges(String, java.util.function.Consumer)}
      * to create new behaviors that inherit from an existing behavior.</p>
-     * 
+     *
      * <h2>Basic Usage</h2>
-     * 
+     *
      * <h3>Creating a derived Behavior:</h3>
      * <pre>{@code
      * // Derive from DEFAULT
@@ -658,7 +565,7 @@ public final class Behavior {
      *         .readMode(ReadModeAP.ALL)
      *     )
      * );
-     * 
+     *
      * // Create a child behavior
      * Behavior productionHighLoad = production.deriveWithChanges("productionHighLoad", builder -> builder
      *     .on(Selectors.writes().cp(), ops -> ops
@@ -666,21 +573,21 @@ public final class Behavior {
      *     )
      * );
      * }</pre>
-     * 
+     *
      * <h2>Configuration Patterns</h2>
-     * 
+     *
      * <h3>Lambda Style (Recommended):</h3>
      * <pre>{@code
      * builder.on(selector, ops -> ops.method1().method2())
      * }</pre>
      * Returns the builder for chaining.
-     * 
+     *
      * <h3>Ad-hoc Style (Alternative):</h3>
      * <pre>{@code
      * builder.on(selector).method1().method2()
      * }</pre>
      * Returns the tweaks view directly. Useful for single operations.
-     * 
+     *
      * @see Behavior#builder(String)
      * @see Behavior#deriveWithChanges(String, java.util.function.Consumer)
      * @see Selectors
@@ -689,10 +596,10 @@ public final class Behavior {
         /**
          * Sets the parent behavior from which this behavior will inherit settings.
          * Settings from the parent are applied first, then overridden by settings configured in this builder.
-         * 
+         *
          * <p><b>Note:</b> Consider using {@link Behavior#deriveWithChanges(String, java.util.function.Consumer)}
          * instead, which is more intuitive for creating derived behaviors.
-         * 
+         *
          * @param base the parent behavior to inherit from
          * @return this builder for chaining
          */
@@ -700,17 +607,17 @@ public final class Behavior {
 
         /**
          * Ad-hoc configuration style: returns the tweaks view for direct method chaining.
-         * 
+         *
          * <p><b>Usage:</b>
          * <pre>{@code
          * builder.on(Selectors.reads().batch().ap())
          *     .maxConcurrentNodes(8)
          *     .readMode(ReadModeAP.ALL);
          * }</pre>
-         * 
+         *
          * <p><b>Note:</b> The lambda style {@link #on(Selector, java.util.function.Consumer)} is preferred
          * for better readability with multiple configurations.
-         * 
+         *
          * @param selector the selector specifying which operations to configure
          * @param <T> the type of tweaks view returned
          * @return the tweaks view for configuring settings
@@ -719,7 +626,7 @@ public final class Behavior {
 
         /**
          * Lambda configuration style (recommended): accepts a consumer to configure settings.
-         * 
+         *
          * <p><b>Usage:</b>
          * <pre>{@code
          * builder.on(Selectors.reads().batch().ap(), ops -> ops
@@ -727,14 +634,14 @@ public final class Behavior {
          *     .readMode(ReadModeAP.ALL)
          * );
          * }</pre>
-         * 
+         *
          * <p>This style is preferred because:
          * <ul>
          *   <li>More readable for multiple settings</li>
          *   <li>Returns builder for continued chaining</li>
          *   <li>IDE can better format the lambda body</li>
          * </ul>
-         * 
+         *
          * @param selector the selector specifying which operations to configure
          * @param apply the consumer that configures settings
          * @param <T> the type of tweaks view
@@ -744,7 +651,7 @@ public final class Behavior {
 
         /**
          * Builds the final immutable Behavior instance with all configured settings.
-         * 
+         *
          * @return the constructed Behavior
          */
         Behavior build();
@@ -788,25 +695,23 @@ public final class Behavior {
     // -----------------------------------------------------------------------------------
     // Dimensions
     // -----------------------------------------------------------------------------------
-    public enum OpKind { 
-        READ(false), 
-        WRITE_RETRYABLE(false), 
+    public enum OpKind {
+        READ(false),
+        WRITE_RETRYABLE(false),
         WRITE_NON_RETRYABLE(false),
         SYSTEM_TXN_VERIFY(true),
-        SYSTEM_TXN_ROLL(true),
-        SYSTEM_CONNECTIONS(true),
-        SYSTEM_CIRCUIT_BREAKER(true),
-        SYSTEM_REFRESH(true);
-        
+        SYSTEM_TXN_ROLL(true);
+
         private boolean system;
         private OpKind(boolean isSystem) {
             this.system = isSystem;
         }
-        
+
         public boolean isSystem() {
             return system;
         }
     }
+
     public enum OpShape { ANY, POINT, BATCH, QUERY, SYSTEM }
     public enum Mode { ANY, AP, CP }
 
@@ -814,22 +719,22 @@ public final class Behavior {
     // Selection spec + resolution helpers
     // -----------------------------------------------------------------------------------
     static final class SelectionSpec {
-        final OpKind kind;   // null == ALL kinds
-        final OpShape shape; // ANY/POINT/BATCH/QUERY
+        final OpKind kind;   // null == ALL kinds (all()) OR both write kinds (writes())
+        final OpShape shape; // ANY/POINT/BATCH/QUERY/SYSTEM
         final Mode mode;     // ANY/AP/CP
         final boolean isWriteOnlyWildcard; // true if kind==null means "both write kinds only"
 
         SelectionSpec(OpKind kind, OpShape shape, Mode mode) {
             this(kind, shape, mode, false);
         }
-        
+
         SelectionSpec(OpKind kind, OpShape shape, Mode mode, boolean isWriteOnlyWildcard) {
-            this.kind = kind; 
-            this.shape = shape; 
+            this.kind = kind;
+            this.shape = shape;
             this.mode = mode;
             this.isWriteOnlyWildcard = isWriteOnlyWildcard;
         }
-        
+
         SelectionSpec withKind(OpKind k)  { return new SelectionSpec(k, shape, mode, false); }
         SelectionSpec withShape(OpShape s){ return new SelectionSpec(kind, s, mode, isWriteOnlyWildcard); }
         SelectionSpec withMode(Mode m)    { return new SelectionSpec(kind, shape, m, isWriteOnlyWildcard); }
@@ -845,7 +750,9 @@ public final class Behavior {
         final OpKind kind; final OpShape shape; final Mode mode;
         OpKey(OpKind k, OpShape s, Mode m) { this.kind = k; this.shape = s; this.mode = m; }
         @Override public boolean equals(Object o) {
-            if (!(o instanceof OpKey)) return false;
+            if (!(o instanceof OpKey)) {
+				return false;
+			}
             OpKey x = (OpKey)o; return kind==x.kind && shape==x.shape && mode==x.mode;
         }
         @Override public int hashCode() { return Objects.hash(kind, shape, mode); }
@@ -864,9 +771,13 @@ public final class Behavior {
         } else if (s.kind != k.kind) {
             return false;
         }
-        
-        if (s.shape != OpShape.ANY && s.shape != k.shape) return false;
-        if (s.mode  != Mode.ANY    && s.mode  != k.mode ) return false;
+
+        if (s.shape != OpShape.ANY && s.shape != k.shape) {
+			return false;
+		}
+        if (s.mode  != Mode.ANY    && s.mode  != k.mode ) {
+			return false;
+		}
         return true;
     }
 
@@ -893,58 +804,89 @@ public final class Behavior {
         // SYSTEM operations (only ANY mode is meaningful for system operations)
         out.add(new OpKey(OpKind.SYSTEM_TXN_VERIFY, OpShape.SYSTEM, Mode.ANY));
         out.add(new OpKey(OpKind.SYSTEM_TXN_ROLL, OpShape.SYSTEM, Mode.ANY));
-        out.add(new OpKey(OpKind.SYSTEM_CONNECTIONS, OpShape.SYSTEM, Mode.ANY));
-        out.add(new OpKey(OpKind.SYSTEM_CIRCUIT_BREAKER, OpShape.SYSTEM, Mode.ANY));
-        out.add(new OpKey(OpKind.SYSTEM_REFRESH, OpShape.SYSTEM, Mode.ANY));
         return out;
     }
 
     static Settings copyOf(Settings s) {
-        if (s == null) return null;
+        if (s == null) {
+			return null;
+		}
         Settings t = new Settings();
         mergeInto(t, s);
         return t;
     }
     static void mergeInto(Settings dst, Settings src) {
-        if (src.abandonCallAfter != null) dst.abandonCallAfter = src.abandonCallAfter;
-        if (src.delayBetweenRetries != null) dst.delayBetweenRetries = src.delayBetweenRetries;
-        if (src.maximumNumberOfCallAttempts != null) dst.maximumNumberOfCallAttempts = src.maximumNumberOfCallAttempts;
-        if (src.replicaOrder != null) dst.replicaOrder = src.replicaOrder;
-        if (src.sendKey != null) dst.sendKey = src.sendKey;
-        if (src.useCompression != null) dst.useCompression = src.useCompression;
-        if (src.waitForCallToComplete != null) dst.waitForCallToComplete = src.waitForCallToComplete;
-        if (src.waitForConnectionToComplete != null) dst.waitForConnectionToComplete = src.waitForConnectionToComplete;
-        if (src.waitForSocketResponseAfterCallFails != null) dst.waitForSocketResponseAfterCallFails = src.waitForSocketResponseAfterCallFails;
-        if (src.stackTraceOnException != null) dst.stackTraceOnException = src.stackTraceOnException;
-        
-        if (src.recordQueueSize != null) dst.recordQueueSize = src.recordQueueSize;
-        
-        if (src.maxConcurrentNodes != null) dst.maxConcurrentNodes = src.maxConcurrentNodes;
-        if (src.allowInlineMemoryAccess != null) dst.allowInlineMemoryAccess = src.allowInlineMemoryAccess;
-        if (src.allowInlineSsdAccess != null) dst.allowInlineSsdAccess = src.allowInlineSsdAccess;
-        
-        if (src.useDurableDelete != null) dst.useDurableDelete = src.useDurableDelete;
-        if (src.simulateXdrWrite != null) dst.simulateXdrWrite = src.simulateXdrWrite;
+        if (src.abandonCallAfter != null) {
+			dst.abandonCallAfter = src.abandonCallAfter;
+		}
+        if (src.delayBetweenRetries != null) {
+			dst.delayBetweenRetries = src.delayBetweenRetries;
+		}
+        if (src.maximumNumberOfCallAttempts != null) {
+			dst.maximumNumberOfCallAttempts = src.maximumNumberOfCallAttempts;
+		}
+        if (src.replicaOrder != null) {
+			dst.replicaOrder = src.replicaOrder;
+		}
+        if (src.sendKey != null) {
+			dst.sendKey = src.sendKey;
+		}
+        if (src.useCompression != null) {
+			dst.useCompression = src.useCompression;
+		}
+        if (src.waitForCallToComplete != null) {
+			dst.waitForCallToComplete = src.waitForCallToComplete;
+		}
+        if (src.waitForConnectionToComplete != null) {
+			dst.waitForConnectionToComplete = src.waitForConnectionToComplete;
+		}
+        if (src.waitForSocketResponseAfterCallFails != null) {
+			dst.waitForSocketResponseAfterCallFails = src.waitForSocketResponseAfterCallFails;
+		}
+        if (src.stackTraceOnException != null) {
+			dst.stackTraceOnException = src.stackTraceOnException;
+		}
 
-        if (src.commitLevel != null) dst.commitLevel = src.commitLevel;
-        
-        if (src.readModeAP != null) dst.readModeAP = src.readModeAP;
-        if (src.readModeSC != null) dst.readModeSC = src.readModeSC;
-        if (src.resetTtlOnReadAtPercent != null) dst.resetTtlOnReadAtPercent = src.resetTtlOnReadAtPercent;
-        
-        // System settings
-        if (src.minimumConnectionsPerNode != null) dst.minimumConnectionsPerNode = src.minimumConnectionsPerNode;
-        if (src.maximumConnectionsPerNode != null) dst.maximumConnectionsPerNode = src.maximumConnectionsPerNode;
-        if (src.maximumSocketIdleTime != null) dst.maximumSocketIdleTime = src.maximumSocketIdleTime;
-        if (src.numTendIntervalsInErrorWindow != null) dst.numTendIntervalsInErrorWindow = src.numTendIntervalsInErrorWindow;
-        if (src.maximumErrorsInErrorWindow != null) dst.maximumErrorsInErrorWindow = src.maximumErrorsInErrorWindow;
-        if (src.tendInterval != null) dst.tendInterval = src.tendInterval;
+        if (src.recordQueueSize != null) {
+			dst.recordQueueSize = src.recordQueueSize;
+		}
+
+        if (src.maxConcurrentNodes != null) {
+			dst.maxConcurrentNodes = src.maxConcurrentNodes;
+		}
+        if (src.allowInlineMemoryAccess != null) {
+			dst.allowInlineMemoryAccess = src.allowInlineMemoryAccess;
+		}
+        if (src.allowInlineSsdAccess != null) {
+			dst.allowInlineSsdAccess = src.allowInlineSsdAccess;
+		}
+
+        if (src.useDurableDelete != null) {
+			dst.useDurableDelete = src.useDurableDelete;
+		}
+        if (src.simulateXdrWrite != null) {
+			dst.simulateXdrWrite = src.simulateXdrWrite;
+		}
+
+        if (src.commitLevel != null) {
+			dst.commitLevel = src.commitLevel;
+		}
+
+        if (src.readModeAP != null) {
+			dst.readModeAP = src.readModeAP;
+		}
+        if (src.readModeSC != null) {
+			dst.readModeSC = src.readModeSC;
+		}
+        if (src.resetTtlOnReadAtPercent != null) {
+			dst.resetTtlOnReadAtPercent = src.resetTtlOnReadAtPercent;
+		}
     }
 
     // -----------------------------------------------------------------------------------
     // Settings captured by each patch (extend with your SettablePolicy knobs)
     // -----------------------------------------------------------------------------------
-    
+
     static final class Patch {
         final SelectionSpec spec;
         final Settings settings = new Settings();
@@ -1013,22 +955,22 @@ public final class Behavior {
         @Override AllAnyModeTweaks waitForConnectionToComplete(Duration d);
         @Override AllAnyModeTweaks waitForSocketResponseAfterCallFails(Duration d);
         @Override AllAnyModeTweaks stackTraceOnException(boolean enabled);
-        
+
         // Read-specific settings
         AllAnyModeTweaks resetTtlOnReadAtPercent(int percent);
         AllAnyModeTweaks readMode(ReadModeAP mode);
         AllAnyModeTweaks consistency(ReadModeSC c);
-        
+
         // Write-specific settings
         AllAnyModeTweaks useDurableDelete(boolean b);
         AllAnyModeTweaks simulateXdrWrite(boolean b);
         AllAnyModeTweaks commitLevel(CommitLevel level);
-        
+
         // Batch-specific settings
         AllAnyModeTweaks maxConcurrentNodes(int n);
         AllAnyModeTweaks allowInlineMemoryAccess(boolean v);
         AllAnyModeTweaks allowInlineSsdAccess(boolean v);
-        
+
         // Query-specific settings
         AllAnyModeTweaks recordQueueSize(int n);
     }
@@ -1661,6 +1603,10 @@ public final class Behavior {
     /**
      * Tweaks for transaction verification operations (read-like settings).
      * Provides configuration for transactional verification calls.
+     *
+     * <p><b>Note:</b> Transaction verification is internally implemented as a batch operation,
+     * so batch-specific settings (maxConcurrentNodes, allowInlineMemoryAccess, allowInlineSsdAccess)
+     * are available and apply to these operations.</p>
      */
     public interface SystemTxnVerifyTweaks extends BatchTweaks {
         SystemTxnVerifyTweaks consistency(ReadModeSC consistency);
@@ -1677,11 +1623,11 @@ public final class Behavior {
         @Override SystemTxnVerifyTweaks allowInlineMemoryAccess(boolean v);
         @Override SystemTxnVerifyTweaks allowInlineSsdAccess(boolean v);
     }
-    
+
     /**
      * Tweaks for transaction rollback operations (write-like settings).
      * Provides configuration for transactional rollback calls.
-     * 
+     *
      * <p><b>Note:</b> Transaction rollback is internally implemented as a batch operation,
      * so batch-specific settings (maxConcurrentNodes, allowInlineMemoryAccess, allowInlineSsdAccess)
      * are available and apply to these operations.</p>
@@ -1700,33 +1646,7 @@ public final class Behavior {
         @Override SystemTxnRollTweaks allowInlineMemoryAccess(boolean v);
         @Override SystemTxnRollTweaks allowInlineSsdAccess(boolean v);
     }
-    
-    /**
-     * Tweaks for connection pool configuration.
-     * Controls connection pooling behavior per node.
-     */
-    public interface SystemConnectionsTweaks extends TweaksView {
-        SystemConnectionsTweaks minimumConnectionsPerNode(int min);
-        SystemConnectionsTweaks maximumConnectionsPerNode(int max);
-        SystemConnectionsTweaks maximumSocketIdleTime(Duration duration);
-    }
-    
-    /**
-     * Tweaks for circuit breaker configuration.
-     * Controls error thresholds and circuit breaking behavior.
-     */
-    public interface SystemCircuitBreakerTweaks extends TweaksView {
-        SystemCircuitBreakerTweaks numTendIntervalsInErrorWindow(int intervals);
-        SystemCircuitBreakerTweaks maximumErrorsInErrorWindow(int errors);
-    }
-    
-    /**
-     * Tweaks for cluster refresh configuration.
-     * Controls how frequently cluster state is refreshed.
-     */
-    public interface SystemRefreshTweaks extends TweaksView {
-        SystemRefreshTweaks tendInterval(Duration interval);
-    }
+
 
     // -----------------------------------------------------------------------------------
     // Selectors + factories
@@ -1735,17 +1655,17 @@ public final class Behavior {
 
     /**
      * Factory for creating selectors that specify which operations to configure.
-     * 
+     *
      * <p>Selectors use a fluent API to narrow down operation types from general to specific,
      * exposing only the configuration methods that are valid for each operation type.
-     * 
+     *
      * <h2>Selector Hierarchy</h2>
-     * 
+     *
      * <h3>All Operations:</h3>
      * <pre>{@code
      * Selectors.all()  // Configures ALL operations (reads + writes, all shapes, all modes)
      * }</pre>
-     * 
+     *
      * <h3>Read Operations:</h3>
      * <pre>{@code
      * // By shape:
@@ -1753,45 +1673,45 @@ public final class Behavior {
      * Selectors.reads().get()   // Single-record reads (POINT)
      * Selectors.reads().batch() // Multi-record reads (BATCH)
      * Selectors.reads().query() // Query/scan operations (QUERY)
-     * 
+     *
      * // By mode:
      * Selectors.reads().ap()    // All AP-mode reads
      * Selectors.reads().cp()    // All CP-mode reads
-     * 
+     *
      * // Combined (recommended order: shape → mode):
      * Selectors.reads().batch().ap()  // Batch reads in AP mode (exposes readMode, maxConcurrentNodes)
      * Selectors.reads().query().cp()  // Queries in CP mode (exposes consistency, recordQueueSize)
      * }</pre>
-     * 
+     *
      * <h3>Write Operations:</h3>
      * <pre>{@code
      * // By shape (applies to both retryable and non-retryable):
      * Selectors.writes().point()  // All single-record writes
      * Selectors.writes().batch()  // All multi-record writes
-     * 
+     *
      * // By retryability:
      * Selectors.writes().retryable()     // Retryable writes (puts, updates)
      * Selectors.writes().nonRetryable()  // Non-retryable writes (deletes, operations)
-     * 
+     *
      * // Combined - shape then mode (recommended for retryability-agnostic):
      * Selectors.writes().point().ap()    // All point writes in AP mode (exposes commitLevel)
      * Selectors.writes().batch().cp()    // All batch writes in CP mode
-     * 
+     *
      * // Combined - retryability then shape (more specific):
      * Selectors.writes().retryable().point()   // Only retryable point writes
      * Selectors.writes().nonRetryable().batch() // Only non-retryable batch writes
-     * 
+     *
      * // Combined - retryability then shape then mode:
      * Selectors.writes().retryable().point().ap()       // Retryable point writes in AP
      * Selectors.writes().nonRetryable().batch().cp()    // Non-retryable batch writes in CP
-     * 
+     *
      * // By mode (applies to all shapes and retryability):
      * Selectors.writes().ap()  // All writes in AP mode
      * Selectors.writes().cp()  // All writes in CP mode
      * }</pre>
-     * 
+     *
      * <h2>Configuration Precedence</h2>
-     * 
+     *
      * Settings cascade from general to specific (last-writer wins):
      * <ol>
      *   <li>Parent behavior (via defaultsFrom or deriveWithChanges)</li>
@@ -1801,9 +1721,9 @@ public final class Behavior {
      *   <li>Shape level - .get(), .batch(), .query()</li>
      *   <li>Mode level - .ap() or .cp()</li>
      * </ol>
-     * 
+     *
      * <h2>Examples</h2>
-     * 
+     *
      * <h3>Configuring all operations:</h3>
      * <pre>{@code
      * builder.on(Selectors.all(), ops -> ops
@@ -1811,7 +1731,7 @@ public final class Behavior {
      *     .maximumNumberOfCallAttempts(3)
      * );
      * }</pre>
-     * 
+     *
      * <h3>Configuring specific read types:</h3>
      * <pre>{@code
      * builder
@@ -1830,7 +1750,7 @@ public final class Behavior {
      *         .recordQueueSize(10000)
      *     );
      * }</pre>
-     * 
+     *
      * <h3>Configuring write operations:</h3>
      * <pre>{@code
      * builder
@@ -1856,7 +1776,7 @@ public final class Behavior {
      *         .maximumNumberOfCallAttempts(1)
      *     );
      * }</pre>
-     * 
+     *
      * <h2>Best Practices</h2>
      * <ul>
      *   <li><b>Order matters for type safety:</b> Select mode last for best compile-time checking
@@ -1866,66 +1786,68 @@ public final class Behavior {
      *   <li><b>Use meaningful names:</b> Name behaviors descriptively (e.g., "production", "highLoad")</li>
      *   <li><b>Build hierarchies:</b> Use deriveWithChanges to create environment-specific configurations</li>
      * </ul>
-     * 
+     *
      * @see Behavior.BehaviorBuilder#on(Selector, java.util.function.Consumer)
      * @see Behavior#deriveWithChanges(String, java.util.function.Consumer)
      */
     public static final class Selectors {
         private Selectors() {}
-        
+
         /**
          * Selects ALL operations (reads, writes, all shapes, all modes).
          * Use this for settings that should apply universally.
-         * 
+         *
          * @return selector for all operations
          */
         public static AllSelector all() { return new AllSelector(new SelectionSpec(null, OpShape.ANY, Mode.ANY)); }
-        
+
         /**
          * Selects all READ operations. Continue chaining to narrow by shape or mode.
-         * 
+         *
          * @return selector for read operations
          */
         public static ReadAnySelector<ReadAnyAnyModeTweaks> reads() { return new ReadAnySel<>(new SelectionSpec(OpKind.READ, OpShape.ANY, Mode.ANY)); }
-        
+
         /**
          * Selects all WRITE operations. Continue chaining to narrow by retryability, shape, or mode.
-         * 
+         *
          * @return selector for write operations
          */
         public static WriteRootSelector<WriteRootAnyModeTweaks> writes() { return new WriteRootSel(new SelectionSpec(null, OpShape.ANY, Mode.ANY, true)); }
-        
+
         /**
-         * Selects system-level operations for transaction verification, connection management,
-         * circuit breaking, and cluster refresh operations.
-         * 
+         * Selects transaction-specific operations for verification and rollback.
+         *
+         * <p><b>Note:</b> System-level settings (connections, circuit breaker, refresh intervals)
+         * have been moved to {@link com.aerospike.SystemSettings}. Use
+         * {@link com.aerospike.ClusterDefinition#withSystemSettings(com.aerospike.SystemSettings)}
+         * to configure those settings.</p>
+         *
          * <h3>Sub-categories:</h3>
          * <ul>
          *   <li><b>txnVerify</b> - Transaction verification operations (read-like)</li>
          *   <li><b>txnRoll</b> - Transaction rollback operations (write-like)</li>
-         *   <li><b>connections</b> - Connection pool configuration</li>
-         *   <li><b>circuitBreaker</b> - Error threshold and circuit breaker settings</li>
-         *   <li><b>refresh</b> - Cluster state refresh interval</li>
          * </ul>
-         * 
+         *
          * <h3>Example usage:</h3>
          * <pre>{@code
          * Behavior custom = Behavior.DEFAULT.deriveWithChanges("custom", builder -> builder
-         *     .on(Selectors.system().txnVerify(), ops -> ops
+         *     .on(Selectors.transaction().txnVerify(), ops -> ops
+         *         .consistency(ReadModeSC.LINEARIZE)
          *         .maximumNumberOfCallAttempts(10)
          *         .waitForCallToComplete(Duration.ofSeconds(5))
          *     )
-         *     .on(Selectors.system().connections(), ops -> ops
-         *         .maximumConnectionsPerNode(200)
-         *         .maximumSocketIdleTime(Duration.ofSeconds(120))
+         *     .on(Selectors.transaction().txnRoll(), ops -> ops
+         *         .maximumNumberOfCallAttempts(6)
+         *         .delayBetweenRetries(Duration.ofSeconds(1))
          *     )
          * );
          * }</pre>
-         * 
-         * @return selector for system operations
+         *
+         * @return selector for transaction operations
          */
-        public static SystemRootSelector system() { 
-            return new SystemRootSel(new SelectionSpec(null, OpShape.SYSTEM, Mode.ANY)); 
+        public static TransactionRootSelector transaction() {
+            return new TransactionRootSel(new SelectionSpec(null, OpShape.SYSTEM, Mode.ANY));
         }
     }
 
@@ -1995,9 +1917,9 @@ public final class Behavior {
     // WRITE selectors (shape → mode and retryable toggle)
     /**
      * Root selector for write operations. Allows selection of mode, retryability, and shape.
-     * 
+     *
      * <h3>Selector Ordering Patterns</h3>
-     * 
+     *
      * <p><b>Recommended Pattern (Retryability → Shape → Mode):</b>
      * <pre>{@code
      * // Best type safety - mode-specific methods available in final type
@@ -2005,14 +1927,14 @@ public final class Behavior {
      * Selectors.writes().retryable().batch().cp()    // Returns RetryableWriteBatchCpTweaks
      * Selectors.writes().nonRetryable().point().cp() // Returns NonRetryableWritePointCpTweaks
      * }</pre>
-     * 
+     *
      * <p><b>Alternative Pattern (Mode → Retryability → Shape):</b>
      * <pre>{@code
      * // Works at runtime, but loses type-specific methods in intermediate steps
      * Selectors.writes().ap().retryable().point()    // ⚠ Returns RetryableWritePointAnyModeTweaks (no commitLevel visible)
      * // However, the mode IS correctly set internally and will be applied
      * }</pre>
-     * 
+     *
      * <p><b>Why Order Matters:</b></p>
      * <ul>
      *   <li>Java's type system resolves types at compile time based on method return types</li>
@@ -2020,7 +1942,7 @@ public final class Behavior {
      *   <li>When mode is selected FIRST, subsequent selectors return generic types that don't expose mode-specific methods</li>
      *   <li>Runtime behavior is identical - the SelectionSpec correctly captures all selections regardless of order</li>
      * </ul>
-     * 
+     *
      * <p><b>Type Safety vs Runtime Behavior:</b></p>
      * Both patterns produce the same runtime result. The difference is compile-time type checking:
      * <ul>
@@ -2033,7 +1955,7 @@ public final class Behavior {
         WriteRootSelector<WriteRootCpTweaks> cp();
         RetryableWriteSelector<RetryableWriteAnyModeTweaks> retryable();
         NonRetryableWriteSelector<NonRetryableWriteAnyModeTweaks> nonRetryable();
-        
+
         // Shape selection without retryability (applies to both retryable and non-retryable)
         WritePointSelector<WritePointAnyModeTweaks> point();
         WriteBatchSelector<WriteBatchAnyModeTweaks> batch();
@@ -2092,38 +2014,34 @@ public final class Behavior {
      * Root selector for system-level operations.
      * Allows selection of specific system sub-categories: txnVerify, txnRoll, connections, circuitBreaker, refresh.
      */
-    public interface SystemRootSelector {
+    /**
+     * Root selector for transaction operations.
+     *
+     * <p>Provides access to transaction verification and rollback operation selectors.
+     * These operations are used internally by the client to manage multi-record transactions.</p>
+     *
+     * <p><b>Note:</b> System-level settings (connections, circuit breaker, refresh intervals)
+     * have been moved to {@link com.aerospike.SystemSettings} and are no longer configurable via Behaviors.
+     * Only transaction-specific operations remain in this selector.</p>
+     *
+     * @see com.aerospike.SystemSettings
+     * @see com.aerospike.SystemSettingsRegistry
+     */
+    public interface TransactionRootSelector {
         SystemTxnVerifySelector txnVerify();
         SystemTxnRollSelector txnRoll();
-        SystemConnectionsSelector connections();
-        SystemCircuitBreakerSelector circuitBreaker();
-        SystemRefreshSelector refresh();
     }
-    
+
     /**
      * Selector for transaction verification operations (read-like settings).
      */
     public interface SystemTxnVerifySelector extends Selector<SystemTxnVerifyTweaks> {}
-    
+
     /**
      * Selector for transaction rollback operations (write-like settings).
      */
     public interface SystemTxnRollSelector extends Selector<SystemTxnRollTweaks> {}
-    
-    /**
-     * Selector for connection pool configuration.
-     */
-    public interface SystemConnectionsSelector extends Selector<SystemConnectionsTweaks> {}
-    
-    /**
-     * Selector for circuit breaker settings.
-     */
-    public interface SystemCircuitBreakerSelector extends Selector<SystemCircuitBreakerTweaks> {}
-    
-    /**
-     * Selector for cluster refresh settings.
-     */
-    public interface SystemRefreshSelector extends Selector<SystemRefreshTweaks> {}
+
 
     public static final class WriteRootSel implements WriteRootSelector<WriteRootAnyModeTweaks> {
         private final SelectionSpec spec;
@@ -2139,7 +2057,7 @@ public final class Behavior {
         // but the return type doesn't reflect mode-specific methods (type system limitation)
         @Override public RetryableWriteSelector<RetryableWriteAnyModeTweaks> retryable() { return new RetryableWriteAnySel(spec.withKind(OpKind.WRITE_RETRYABLE)); }
         @Override public NonRetryableWriteSelector<NonRetryableWriteAnyModeTweaks> nonRetryable() { return new NonRetryableWriteAnySel(spec.withKind(OpKind.WRITE_NON_RETRYABLE)); }
-        
+
         // Shape selection (retryability-agnostic - applies to both retryable and non-retryable)
         @Override public WritePointSelector<WritePointAnyModeTweaks> point() { return new WritePointSel<>(spec.withShape(OpShape.POINT)); }
         @Override public WriteBatchSelector<WriteBatchAnyModeTweaks> batch() { return new WriteBatchSel<>(spec.withShape(OpShape.BATCH)); }
@@ -2156,7 +2074,7 @@ public final class Behavior {
         // Limitation: subsequent selector chain won't expose AP-specific methods like commitLevel()
         @Override public RetryableWriteSelector<RetryableWriteAnyModeTweaks> retryable() { return new RetryableWriteAnySel(spec.withKind(OpKind.WRITE_RETRYABLE)); }
         @Override public NonRetryableWriteSelector<NonRetryableWriteAnyModeTweaks> nonRetryable() { return new NonRetryableWriteAnySel(spec.withKind(OpKind.WRITE_NON_RETRYABLE)); }
-        
+
         // Shape selection (retryability-agnostic) - AP mode preserved in SelectionSpec
         // Note: returns generic AnyMode types, but can still call .ap() afterward to expose AP-specific methods
         @Override public WritePointSelector<WritePointAnyModeTweaks> point() { return new WritePointSel<>(spec.withShape(OpShape.POINT)); }
@@ -2173,7 +2091,7 @@ public final class Behavior {
         // These return generic types, but the CP mode is preserved in the SelectionSpec
         @Override public RetryableWriteSelector<RetryableWriteAnyModeTweaks> retryable() { return new RetryableWriteAnySel(spec.withKind(OpKind.WRITE_RETRYABLE)); }
         @Override public NonRetryableWriteSelector<NonRetryableWriteAnyModeTweaks> nonRetryable() { return new NonRetryableWriteAnySel(spec.withKind(OpKind.WRITE_NON_RETRYABLE)); }
-        
+
         // Shape selection (retryability-agnostic) - CP mode preserved in SelectionSpec
         // Note: returns generic AnyMode types, but can still call .cp() afterward to expose CP-specific methods
         @Override public WritePointSelector<WritePointAnyModeTweaks> point() { return new WritePointSel<>(spec.withShape(OpShape.POINT)); }
@@ -2262,55 +2180,28 @@ public final class Behavior {
         @Override public WriteBatchSelector<WriteBatchCpTweaks> cp() { return new WriteBatchSel<>(spec.withMode(Mode.CP)); }
     }
 
-    // SYSTEM selector implementations
-    static final class SystemRootSel implements SystemRootSelector {
+    // TRANSACTION selector implementations
+    static final class TransactionRootSel implements TransactionRootSelector {
         private final SelectionSpec spec;
-        SystemRootSel(SelectionSpec spec) { this.spec = spec; }
-        
-        @Override public SystemTxnVerifySelector txnVerify() { 
-            return new SystemTxnVerifySel(spec.withKind(OpKind.SYSTEM_TXN_VERIFY)); 
+        TransactionRootSel(SelectionSpec spec) { this.spec = spec; }
+
+        @Override public SystemTxnVerifySelector txnVerify() {
+            return new SystemTxnVerifySel(spec.withKind(OpKind.SYSTEM_TXN_VERIFY));
         }
-        @Override public SystemTxnRollSelector txnRoll() { 
-            return new SystemTxnRollSel(spec.withKind(OpKind.SYSTEM_TXN_ROLL)); 
-        }
-        @Override public SystemConnectionsSelector connections() { 
-            return new SystemConnectionsSel(spec.withKind(OpKind.SYSTEM_CONNECTIONS)); 
-        }
-        @Override public SystemCircuitBreakerSelector circuitBreaker() { 
-            return new SystemCircuitBreakerSel(spec.withKind(OpKind.SYSTEM_CIRCUIT_BREAKER)); 
-        }
-        @Override public SystemRefreshSelector refresh() { 
-            return new SystemRefreshSel(spec.withKind(OpKind.SYSTEM_REFRESH)); 
+        @Override public SystemTxnRollSelector txnRoll() {
+            return new SystemTxnRollSel(spec.withKind(OpKind.SYSTEM_TXN_ROLL));
         }
     }
-    
+
     static final class SystemTxnVerifySel implements SystemTxnVerifySelector {
         private final SelectionSpec spec;
         SystemTxnVerifySel(SelectionSpec spec) { this.spec = spec; }
         @Override public SelectionSpec spec() { return spec; }
     }
-    
+
     static final class SystemTxnRollSel implements SystemTxnRollSelector {
         private final SelectionSpec spec;
         SystemTxnRollSel(SelectionSpec spec) { this.spec = spec; }
-        @Override public SelectionSpec spec() { return spec; }
-    }
-    
-    static final class SystemConnectionsSel implements SystemConnectionsSelector {
-        private final SelectionSpec spec;
-        SystemConnectionsSel(SelectionSpec spec) { this.spec = spec; }
-        @Override public SelectionSpec spec() { return spec; }
-    }
-    
-    static final class SystemCircuitBreakerSel implements SystemCircuitBreakerSelector {
-        private final SelectionSpec spec;
-        SystemCircuitBreakerSel(SelectionSpec spec) { this.spec = spec; }
-        @Override public SelectionSpec spec() { return spec; }
-    }
-    
-    static final class SystemRefreshSel implements SystemRefreshSelector {
-        private final SelectionSpec spec;
-        SystemRefreshSel(SelectionSpec spec) { this.spec = spec; }
         @Override public SelectionSpec spec() { return spec; }
     }
 
@@ -2338,7 +2229,7 @@ public final class Behavior {
     NonRetryableWriteBatchApTweaks, NonRetryableWriteBatchCpTweaks, NonRetryableWritePointApTweaks, NonRetryableWritePointCpTweaks,
     NonRetryableWriteQueryAnyModeTweaks, NonRetryableWriteQueryApTweaks, NonRetryableWriteQueryCpTweaks,
     // system views
-    SystemTxnVerifyTweaks, SystemTxnRollTweaks, SystemConnectionsTweaks, SystemCircuitBreakerTweaks, SystemRefreshTweaks {
+    SystemTxnVerifyTweaks, SystemTxnRollTweaks {
 
         private final Patch patch;
         TweaksProxy(Patch patch) { this.patch = patch; }
@@ -2376,27 +2267,15 @@ public final class Behavior {
         // Read modes
         @Override public TweaksProxy readMode(ReadModeAP mode) { patch.settings.readModeAP = mode; return this; }
         @Override public TweaksProxy consistency(ReadModeSC c) { patch.settings.readModeSC = c; return this; }
-        
-        // System - connections
-        @Override public TweaksProxy minimumConnectionsPerNode(int min) { patch.settings.minimumConnectionsPerNode = min; return this; }
-        @Override public TweaksProxy maximumConnectionsPerNode(int max) { patch.settings.maximumConnectionsPerNode = max; return this; }
-        @Override public TweaksProxy maximumSocketIdleTime(Duration d) { patch.settings.maximumSocketIdleTime = d; return this; }
-        
-        // System - circuitBreaker
-        @Override public TweaksProxy numTendIntervalsInErrorWindow(int intervals) { patch.settings.numTendIntervalsInErrorWindow = intervals; return this; }
-        @Override public TweaksProxy maximumErrorsInErrorWindow(int errors) { patch.settings.maximumErrorsInErrorWindow = errors; return this; }
-        
-        // System - refresh
-        @Override public TweaksProxy tendInterval(Duration interval) { patch.settings.tendInterval = interval; return this; }
     }
 
     // -----------------------------------------------------------------------------------
     // Example usage (lambda style) + full selector coverage test with parent inheritance
     // -----------------------------------------------------------------------------------
-    
+
     /**
      * Demonstrates selector usage patterns and configuration hierarchy.
-     * 
+     *
      * <h3>Selector Pattern Examples:</h3>
      * This method shows both recommended and alternative selector patterns.
      */
@@ -2450,11 +2329,11 @@ public final class Behavior {
                 .on(Selectors.reads().query().cp(),  ops -> ops.consistency(ReadModeSC.LINEARIZE))
 
                 // WRITE SELECTOR PATTERN EXAMPLES:
-                
+
                 // ✓ RECOMMENDED: Mode selection first works for broad settings
                 .on(Selectors.writes().ap(), ops -> ops.abandonCallAfter(Duration.ofMillis(80)))
                 .on(Selectors.writes().cp(), ops -> ops.waitForCallToComplete(Duration.ofMillis(40)))
-                
+
                 // ✓ RECOMMENDED PATTERN: Retryability → Shape → Mode
                 // This pattern exposes mode-specific methods (like commitLevel) in the final type
                 .on(Selectors.writes().retryable().point().ap(), ops -> ops
@@ -2464,7 +2343,7 @@ public final class Behavior {
                 .on(Selectors.writes().retryable().point().cp(), ops -> ops.maximumNumberOfCallAttempts(8))
                 .on(Selectors.writes().retryable().batch().ap(), ops -> ops.maximumNumberOfCallAttempts(7).maxConcurrentNodes(5))
                 .on(Selectors.writes().retryable().batch().cp(), ops -> ops.maximumNumberOfCallAttempts(6).maxConcurrentNodes(4))
-                
+
                 // ⚠ ALTERNATIVE PATTERN: Mode → Retryability → Shape
                 // This also works at runtime, but the final type doesn't expose mode-specific methods
                 // Uncomment to see - it compiles and works correctly, mode is applied:
@@ -2489,7 +2368,7 @@ public final class Behavior {
     public static void main(String[] args) {
         System.out.println(Behavior.DEFAULT.explain());
         System.out.println();
-        
+
         // Demonstrate getSettings() method
         System.out.println("=== Testing getSettings() ===");
         Settings readBatchAp = Behavior.DEFAULT.getSettings(OpKind.READ, OpShape.BATCH, Mode.AP);
@@ -2499,17 +2378,17 @@ public final class Behavior {
         System.out.println("  readModeAP: " + readBatchAp.readModeAP);
         System.out.println("  abandonCallAfter: " + readBatchAp.abandonCallAfter);
         System.out.println();
-        
+
         Settings writeRetryableCp = Behavior.DEFAULT.getSettings(OpKind.WRITE_RETRYABLE, OpShape.POINT, Mode.CP);
         System.out.println("WRITE_RETRYABLE:POINT:CP settings:");
         System.out.println("  maximumNumberOfCallAttempts: " + writeRetryableCp.maximumNumberOfCallAttempts);
         System.out.println("  useDurableDelete: " + writeRetryableCp.useDurableDelete);
         System.out.println("  abandonCallAfter: " + writeRetryableCp.abandonCallAfter);
-        
+
         // Test with custom behavior that inherits from DEFAULT
         System.out.println();
         System.out.println("=== Custom Behavior with Inheritance ===");
-        
+
         // NEW API: deriveWithChanges (recommended pattern)
         Behavior custom = Behavior.DEFAULT.deriveWithChanges("custom", builder -> builder
                 // EXAMPLE: Recommended pattern - mode last for type safety
@@ -2519,7 +2398,7 @@ public final class Behavior {
                         .readMode(ReadModeAP.ALL)  // ✓ readMode() is visible because we selected AP last
                 )
         );
-        
+
         // OLD API: builder pattern (still works, shown for comparison)
         // Behavior custom = Behavior.builder("custom")
         //         .defaultsFrom(Behavior.DEFAULT)
@@ -2529,7 +2408,7 @@ public final class Behavior {
         //                 .readMode(ReadModeAP.ALL)
         //         )
         //         .build();
-        
+
         Settings customReadBatchAp = custom.getSettings(OpKind.READ, OpShape.BATCH, Mode.AP);
         System.out.println("Custom READ:BATCH:AP settings (showing overrides + inherited):");
         System.out.println("  maxConcurrentNodes: " + customReadBatchAp.maxConcurrentNodes + " (overridden)");
@@ -2546,7 +2425,7 @@ public final class Behavior {
         // NEW: Demonstrate retryability-agnostic write selectors
         System.out.println();
         System.out.println("=== Retryability-Agnostic Write Selectors ===");
-        
+
         Behavior batchOptimized = Behavior.DEFAULT.deriveWithChanges("batchOptimized", builder -> builder
                 // Configure ALL batch writes (retryable AND non-retryable)
                 .on(Selectors.writes().batch(), ops -> ops
@@ -2558,20 +2437,19 @@ public final class Behavior {
                         .commitLevel(CommitLevel.COMMIT_ALL)
                 )
         );
-        
+
         System.out.println("Checking that .batch() applies to BOTH retryable and non-retryable:");
         Settings retryableBatch = batchOptimized.getSettings(OpKind.WRITE_RETRYABLE, OpShape.BATCH, Mode.AP);
         Settings nonRetryableBatch = batchOptimized.getSettings(OpKind.WRITE_NON_RETRYABLE, OpShape.BATCH, Mode.AP);
         System.out.println("  Retryable batch maxConcurrentNodes: " + retryableBatch.maxConcurrentNodes + " (should be 16)");
         System.out.println("  Non-retryable batch maxConcurrentNodes: " + nonRetryableBatch.maxConcurrentNodes + " (should be 16)");
         System.out.println();
-        
+
         System.out.println("Checking that .point().ap() exposes commitLevel and applies to both:");
         Settings retryablePoint = batchOptimized.getSettings(OpKind.WRITE_RETRYABLE, OpShape.POINT, Mode.AP);
         Settings nonRetryablePoint = batchOptimized.getSettings(OpKind.WRITE_NON_RETRYABLE, OpShape.POINT, Mode.AP);
         System.out.println("  Retryable point commitLevel: " + retryablePoint.commitLevel + " (should be COMMIT_ALL)");
         System.out.println("  Non-retryable point commitLevel: " + nonRetryablePoint.commitLevel + " (should be COMMIT_ALL)");
-        
         System.out.println(Behavior.DEFAULT.getSettings(OpKind.READ, OpShape.QUERY, Mode.ANY).getRecordQueueSize());
     }
 }

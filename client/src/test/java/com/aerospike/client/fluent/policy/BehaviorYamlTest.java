@@ -17,6 +17,10 @@
 package com.aerospike.client.fluent.policy;
 
 import org.junit.jupiter.api.Test;
+
+import com.aerospike.client.fluent.SystemSettings;
+import com.aerospike.client.fluent.SystemSettingsRegistry;
+
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.DisplayName;
 
@@ -45,7 +49,7 @@ public class BehaviorYamlTest {
         void testSimpleBehavior() throws IOException {
             String yaml = """
                 behaviors:
-                  - name: simple
+                  simple:
                     allOperations:
                       abandonCallAfter: 5s
                       maximumNumberOfCallAttempts: 3
@@ -70,7 +74,7 @@ public class BehaviorYamlTest {
         void testMultipleOperationTypes() throws IOException {
             String yaml = """
                 behaviors:
-                  - name: multi-op
+                  multi-op:
                     consistencyModeReads:
                       abandonCallAfter: 2s
                       readConsistency: SESSION
@@ -107,7 +111,7 @@ public class BehaviorYamlTest {
         void testSecondsFormat() throws IOException {
             String yaml = """
                 behaviors:
-                  - name: seconds-test
+                  seconds-test:
                     allOperations:
                       abandonCallAfter: 30s
                       delayBetweenRetries: 1s
@@ -126,7 +130,7 @@ public class BehaviorYamlTest {
         void testMillisecondsFormat() throws IOException {
             String yaml = """
                 behaviors:
-                  - name: millis-test
+                  millis-test:
                     allOperations:
                       abandonCallAfter: 500ms
                       delayBetweenRetries: 100ms
@@ -145,7 +149,7 @@ public class BehaviorYamlTest {
         void testMinutesAndHours() throws IOException {
             String yaml = """
                 behaviors:
-                  - name: time-test
+                  time-test:
                     allOperations:
                       abandonCallAfter: 2m
                       waitForCallToComplete: 1h
@@ -169,7 +173,7 @@ public class BehaviorYamlTest {
         void testNanosecondsFormats() throws IOException {
             String yaml = """
                 behaviors:
-                  - name: nanos-test
+                  nanos-test:
                     allOperations:
                       abandonCallAfter: 1000ns
                       delayBetweenRetries: 500nanos
@@ -192,7 +196,7 @@ public class BehaviorYamlTest {
         void testMicrosecondsFormats() throws IOException {
             String yaml = """
                 behaviors:
-                  - name: micros-test
+                  micros-test:
                     allOperations:
                       abandonCallAfter: 1000us
                       delayBetweenRetries: 500micros
@@ -216,7 +220,7 @@ public class BehaviorYamlTest {
         void testMillisecondsFormats() throws IOException {
             String yaml = """
                 behaviors:
-                  - name: millis-test
+                  millis-test:
                     allOperations:
                       abandonCallAfter: 100ms
                       delayBetweenRetries: 50millis
@@ -239,7 +243,7 @@ public class BehaviorYamlTest {
         void testSecondsFormats() throws IOException {
             String yaml = """
                 behaviors:
-                  - name: seconds-test
+                  seconds-test:
                     allOperations:
                       abandonCallAfter: 10s
                       delayBetweenRetries: 5sec
@@ -262,7 +266,7 @@ public class BehaviorYamlTest {
         void testMinutesFormats() throws IOException {
             String yaml = """
                 behaviors:
-                  - name: minutes-test
+                  minutes-test:
                     allOperations:
                       abandonCallAfter: 1m
                       delayBetweenRetries: 2min
@@ -285,7 +289,7 @@ public class BehaviorYamlTest {
         void testHoursFormats() throws IOException {
             String yaml = """
                 behaviors:
-                  - name: hours-test
+                  hours-test:
                     allOperations:
                       abandonCallAfter: 1h
                       delayBetweenRetries: 2hr
@@ -308,7 +312,7 @@ public class BehaviorYamlTest {
         void testDaysFormats() throws IOException {
             String yaml = """
                 behaviors:
-                  - name: days-test
+                  days-test:
                     allOperations:
                       abandonCallAfter: 1d
                       delayBetweenRetries: 2day
@@ -329,7 +333,7 @@ public class BehaviorYamlTest {
         void testMillisecondsToSecondsConversion() throws IOException {
             String yaml = """
                 behaviors:
-                  - name: conversion-test
+                  conversion-test:
                     allOperations:
                       abandonCallAfter: 5000ms
                       delayBetweenRetries: 5s
@@ -349,7 +353,7 @@ public class BehaviorYamlTest {
         void testSecondsToMinutesConversion() throws IOException {
             String yaml = """
                 behaviors:
-                  - name: conversion-test
+                  conversion-test:
                     allOperations:
                       abandonCallAfter: 120s
                       delayBetweenRetries: 2m
@@ -369,7 +373,7 @@ public class BehaviorYamlTest {
         void testMinutesToHoursConversion() throws IOException {
             String yaml = """
                 behaviors:
-                  - name: conversion-test
+                  conversion-test:
                     allOperations:
                       abandonCallAfter: 60m
                       delayBetweenRetries: 1h
@@ -389,7 +393,7 @@ public class BehaviorYamlTest {
         void testHoursToDaysConversion() throws IOException {
             String yaml = """
                 behaviors:
-                  - name: conversion-test
+                  conversion-test:
                     allOperations:
                       abandonCallAfter: 24h
                       delayBetweenRetries: 1d
@@ -409,7 +413,7 @@ public class BehaviorYamlTest {
         void testMicrosecondsToMillisecondsConversion() throws IOException {
             String yaml = """
                 behaviors:
-                  - name: conversion-test
+                  conversion-test:
                     allOperations:
                       abandonCallAfter: 5000us
                       delayBetweenRetries: 5ms
@@ -429,7 +433,7 @@ public class BehaviorYamlTest {
         void testLargeValues() throws IOException {
             String yaml = """
                 behaviors:
-                  - name: large-values-test
+                  large-values-test:
                     allOperations:
                       abandonCallAfter: 999999ms
                       delayBetweenRetries: 86400s
@@ -450,7 +454,7 @@ public class BehaviorYamlTest {
         void testMixedUnits() throws IOException {
             String yaml = """
                 behaviors:
-                  - name: mixed-units
+                  mixed-units:
                     allOperations:
                       abandonCallAfter: 500ms
                     consistencyModeReads:
@@ -484,7 +488,7 @@ public class BehaviorYamlTest {
         void testDurationWithWhitespace() throws IOException {
             String yaml = """
                 behaviors:
-                  - name: whitespace-test
+                  whitespace-test:
                     allOperations:
                       abandonCallAfter: 10 s
                       delayBetweenRetries: 500 ms
@@ -508,13 +512,13 @@ public class BehaviorYamlTest {
         void testParentChildInheritance() throws IOException {
             String yaml = """
                 behaviors:
-                  - name: parent-config
+                  parent-config:
                     allOperations:
                       abandonCallAfter: 10s
                       maximumNumberOfCallAttempts: 5
                       delayBetweenRetries: 500ms
-                  
-                  - name: child-config
+
+                  child-config:
                     parent: parent-config
                     allOperations:
                       abandonCallAfter: 20s
@@ -545,7 +549,7 @@ public class BehaviorYamlTest {
         void testDefaultParent() throws IOException {
             String yaml = """
                 behaviors:
-                  - name: standalone
+                  standalone:
                     allOperations:
                       abandonCallAfter: 15s
                 """;
@@ -568,7 +572,7 @@ public class BehaviorYamlTest {
         void testBatchReadConfig() throws IOException {
             String yaml = """
                 behaviors:
-                  - name: batch-config
+                  batch-config:
                     batchReads:
                       abandonCallAfter: 30s
                       maxConcurrentServers: 10
@@ -593,7 +597,7 @@ public class BehaviorYamlTest {
         void testBatchWriteConfig() throws IOException {
             String yaml = """
                 behaviors:
-                  - name: batch-writes
+                  batch-writes:
                     batchWrites:
                       abandonCallAfter: 45s
                       maxConcurrentServers: 8
@@ -625,7 +629,7 @@ public class BehaviorYamlTest {
         void testQueryConfig() throws IOException {
             String yaml = """
                 behaviors:
-                  - name: query-config
+                  query-config:
                     query:
                       abandonCallAfter: 60s
                       recordQueueSize: 5000
@@ -654,7 +658,7 @@ public class BehaviorYamlTest {
         void testRetryableWriteConfig() throws IOException {
             String yaml = """
                 behaviors:
-                  - name: retry-writes
+                  retry-writes:
                     retryableWrites:
                       abandonCallAfter: 8s
                       useDurableDelete: true
@@ -679,7 +683,7 @@ public class BehaviorYamlTest {
         void testNonRetryableWriteConfig() throws IOException {
             String yaml = """
                 behaviors:
-                  - name: no-retry-writes
+                  no-retry-writes:
                     nonRetryableWrites:
                       abandonCallAfter: 3s
                       useDurableDelete: false
@@ -707,7 +711,7 @@ public class BehaviorYamlTest {
         void testSystemTxnVerifyConfig() throws IOException {
             String yaml = """
                 behaviors:
-                  - name: sys-txn
+                  sys-txn:
                     systemTxnVerify:
                       abandonCallAfter: 1s
                       consistency: LINEARIZE
@@ -725,67 +729,276 @@ public class BehaviorYamlTest {
             assertEquals(2, txnSettings.maximumNumberOfCallAttempts);
         }
 
+        // Note: System settings (connections, circuit breaker, refresh) are now loaded
+        // via SystemSettings/SystemSettingsRegistry, not as part of behaviors.
+        // See the system: section in YAML configuration.
+    }
+
+    @Nested
+    @DisplayName("System Settings Tests")
+    class SystemSettingsTests {
+
         @Test
-        @DisplayName("Should load system connections configuration")
-        void testSystemConnectionsConfig() throws IOException {
+        @DisplayName("Should load default system settings")
+        void testDefaultSystemSettings() throws IOException {
             String yaml = """
-                behaviors:
-                  - name: sys-connections
-                    systemConnections:
-                      minimumConnectionsPerNode: 5
+                system:
+                  DEFAULT:
+                    connections:
+                      minimumConnectionsPerNode: 10
                       maximumConnectionsPerNode: 100
-                      maximumSocketIdleTime: 30s
-                """;
-
-            Map<String, Behavior> behaviors = loadFromYamlString(yaml);
-            Behavior sysConn = behaviors.get("sys-connections");
-
-            Settings connSettings = sysConn.getSettings(Behavior.OpKind.SYSTEM_CONNECTIONS, Behavior.OpShape.POINT, Behavior.Mode.AP);
-
-            assertNotNull(connSettings);
-            assertEquals(5, connSettings.minimumConnectionsPerNode);
-            assertEquals(100, connSettings.maximumConnectionsPerNode);
-            assertEquals(Duration.ofSeconds(30), connSettings.maximumSocketIdleTime);
-        }
-
-        @Test
-        @DisplayName("Should load system circuit breaker configuration")
-        void testSystemCircuitBreakerConfig() throws IOException {
-            String yaml = """
-                behaviors:
-                  - name: sys-circuit-breaker
-                    systemCircuitBreaker:
-                      numTendIntervalsInErrorWindow: 5
+                    circuitBreaker:
+                      numTendIntervalsInErrorWindow: 2
                       maximumErrorsInErrorWindow: 50
+                    refresh:
+                      tendInterval: 1s
                 """;
 
-            Map<String, Behavior> behaviors = loadFromYamlString(yaml);
-            Behavior sysCB = behaviors.get("sys-circuit-breaker");
+            loadFromYamlString(yaml);
 
-            Settings cbSettings = sysCB.getSettings(Behavior.OpKind.SYSTEM_CIRCUIT_BREAKER, Behavior.OpShape.POINT, Behavior.Mode.AP);
+            SystemSettingsRegistry registry = SystemSettingsRegistry.getInstance();
+            SystemSettings defaults = registry.getDefaultSettings();
 
-            assertNotNull(cbSettings);
-            assertEquals(5, cbSettings.numTendIntervalsInErrorWindow);
-            assertEquals(50, cbSettings.maximumErrorsInErrorWindow);
+            assertNotNull(defaults);
+            assertEquals(10, defaults.getMinimumConnectionsPerNode());
+            assertEquals(100, defaults.getMaximumConnectionsPerNode());
+            assertEquals(2, defaults.getNumTendIntervalsInErrorWindow());
+            assertEquals(50, defaults.getMaximumErrorsInErrorWindow());
+            assertEquals(Duration.ofSeconds(1), defaults.getTendInterval());
         }
 
         @Test
-        @DisplayName("Should load system refresh configuration")
-        void testSystemRefreshConfig() throws IOException {
+        @DisplayName("Should load cluster-specific system settings")
+        void testClusterSpecificSystemSettings() throws IOException {
+            String yaml = """
+                system:
+                  production:
+                    connections:
+                      minimumConnectionsPerNode: 50
+                      maximumConnectionsPerNode: 300
+                    circuitBreaker:
+                      numTendIntervalsInErrorWindow: 3
+                      maximumErrorsInErrorWindow: 100
+                    refresh:
+                      tendInterval: 500ms
+                """;
+
+            loadFromYamlString(yaml);
+
+            SystemSettingsRegistry registry = SystemSettingsRegistry.getInstance();
+            SystemSettings production = registry.getClusterSettings("production");
+
+            assertNotNull(production);
+            assertEquals(50, production.getMinimumConnectionsPerNode());
+            assertEquals(300, production.getMaximumConnectionsPerNode());
+            assertEquals(3, production.getNumTendIntervalsInErrorWindow());
+            assertEquals(100, production.getMaximumErrorsInErrorWindow());
+            assertEquals(Duration.ofMillis(500), production.getTendInterval());
+        }
+
+        @Test
+        @DisplayName("Should load multiple cluster settings")
+        void testMultipleClusterSettings() throws IOException {
+            String yaml = """
+                system:
+                  DEFAULT:
+                    connections:
+                      minimumConnectionsPerNode: 5
+                      maximumConnectionsPerNode: 50
+                  production:
+                    connections:
+                      minimumConnectionsPerNode: 100
+                      maximumConnectionsPerNode: 500
+                  development:
+                    connections:
+                      minimumConnectionsPerNode: 1
+                      maximumConnectionsPerNode: 10
+                """;
+
+            loadFromYamlString(yaml);
+
+            SystemSettingsRegistry registry = SystemSettingsRegistry.getInstance();
+
+            SystemSettings defaults = registry.getDefaultSettings();
+            assertEquals(5, defaults.getMinimumConnectionsPerNode());
+            assertEquals(50, defaults.getMaximumConnectionsPerNode());
+
+            SystemSettings production = registry.getClusterSettings("production");
+            assertEquals(100, production.getMinimumConnectionsPerNode());
+            assertEquals(500, production.getMaximumConnectionsPerNode());
+
+            SystemSettings development = registry.getClusterSettings("development");
+            assertEquals(1, development.getMinimumConnectionsPerNode());
+            assertEquals(10, development.getMaximumConnectionsPerNode());
+        }
+
+        @Test
+        @DisplayName("Should load only connection settings")
+        void testConnectionSettingsOnly() throws IOException {
+            String yaml = """
+                system:
+                  DEFAULT:
+                    connections:
+                      minimumConnectionsPerNode: 20
+                      maximumConnectionsPerNode: 200
+                      maximumSocketIdleTime: 55s
+                """;
+
+            loadFromYamlString(yaml);
+
+            SystemSettingsRegistry registry = SystemSettingsRegistry.getInstance();
+            SystemSettings defaults = registry.getDefaultSettings();
+
+            assertNotNull(defaults);
+            assertEquals(20, defaults.getMinimumConnectionsPerNode());
+            assertEquals(200, defaults.getMaximumConnectionsPerNode());
+            assertEquals(Duration.ofSeconds(55), defaults.getMaximumSocketIdleTime());
+        }
+
+        @Test
+        @DisplayName("Should load only circuit breaker settings")
+        void testCircuitBreakerSettingsOnly() throws IOException {
+            String yaml = """
+                system:
+                  DEFAULT:
+                    circuitBreaker:
+                      numTendIntervalsInErrorWindow: 5
+                      maximumErrorsInErrorWindow: 200
+                """;
+
+            loadFromYamlString(yaml);
+
+            SystemSettingsRegistry registry = SystemSettingsRegistry.getInstance();
+            SystemSettings defaults = registry.getDefaultSettings();
+
+            assertNotNull(defaults);
+            assertEquals(5, defaults.getNumTendIntervalsInErrorWindow());
+            assertEquals(200, defaults.getMaximumErrorsInErrorWindow());
+        }
+
+        @Test
+        @DisplayName("Should load only refresh settings")
+        void testRefreshSettingsOnly() throws IOException {
+            String yaml = """
+                system:
+                  DEFAULT:
+                    refresh:
+                      tendInterval: 2s
+                """;
+
+            loadFromYamlString(yaml);
+
+            SystemSettingsRegistry registry = SystemSettingsRegistry.getInstance();
+            SystemSettings defaults = registry.getDefaultSettings();
+
+            assertNotNull(defaults);
+            assertEquals(Duration.ofSeconds(2), defaults.getTendInterval());
+        }
+
+        @Test
+        @DisplayName("Should parse duration formats in system settings")
+        void testDurationFormatsInSystemSettings() throws IOException {
+            String yaml = """
+                system:
+                  DEFAULT:
+                    connections:
+                      maximumSocketIdleTime: 30s
+                    refresh:
+                      tendInterval: 500ms
+                  fast-refresh:
+                    refresh:
+                      tendInterval: 100ms
+                  slow-refresh:
+                    refresh:
+                      tendInterval: 5s
+                """;
+
+            loadFromYamlString(yaml);
+
+            SystemSettingsRegistry registry = SystemSettingsRegistry.getInstance();
+
+            SystemSettings defaults = registry.getDefaultSettings();
+            assertEquals(Duration.ofSeconds(30), defaults.getMaximumSocketIdleTime());
+            assertEquals(Duration.ofMillis(500), defaults.getTendInterval());
+
+            SystemSettings fastRefresh = registry.getClusterSettings("fast-refresh");
+            assertEquals(Duration.ofMillis(100), fastRefresh.getTendInterval());
+
+            SystemSettings slowRefresh = registry.getClusterSettings("slow-refresh");
+            assertEquals(Duration.ofSeconds(5), slowRefresh.getTendInterval());
+        }
+
+        @Test
+        @DisplayName("Should load both behaviors and system settings together")
+        void testBehaviorsAndSystemSettingsTogether() throws IOException {
             String yaml = """
                 behaviors:
-                  - name: sys-refresh
-                    systemRefresh:
-                      tendInterval: 1000ms
+                  production:
+                    allOperations:
+                      abandonCallAfter: 10s
+                      maximumNumberOfCallAttempts: 5
+
+                system:
+                  DEFAULT:
+                    connections:
+                      minimumConnectionsPerNode: 25
+                      maximumConnectionsPerNode: 250
+                    circuitBreaker:
+                      numTendIntervalsInErrorWindow: 3
+                  production:
+                    connections:
+                      minimumConnectionsPerNode: 50
+                      maximumConnectionsPerNode: 500
                 """;
 
             Map<String, Behavior> behaviors = loadFromYamlString(yaml);
-            Behavior sysRefresh = behaviors.get("sys-refresh");
 
-            Settings refreshSettings = sysRefresh.getSettings(Behavior.OpKind.SYSTEM_REFRESH, Behavior.OpShape.POINT, Behavior.Mode.AP);
+            // Verify behaviors loaded
+            assertNotNull(behaviors);
+            assertTrue(behaviors.containsKey("production"));
+            Behavior production = behaviors.get("production");
+            Settings settings = production.getSettings(Behavior.OpKind.READ, Behavior.OpShape.POINT, Behavior.Mode.AP);
+            assertEquals(Duration.ofSeconds(10), settings.abandonCallAfter);
+            assertEquals(5, settings.maximumNumberOfCallAttempts);
 
-            assertNotNull(refreshSettings);
-            assertEquals(Duration.ofMillis(1000), refreshSettings.tendInterval);
+            // Verify system settings loaded
+            SystemSettingsRegistry registry = SystemSettingsRegistry.getInstance();
+
+            SystemSettings defaults = registry.getDefaultSettings();
+            assertEquals(25, defaults.getMinimumConnectionsPerNode());
+            assertEquals(250, defaults.getMaximumConnectionsPerNode());
+            assertEquals(3, defaults.getNumTendIntervalsInErrorWindow());
+
+            SystemSettings productionSystem = registry.getClusterSettings("production");
+            assertEquals(50, productionSystem.getMinimumConnectionsPerNode());
+            assertEquals(500, productionSystem.getMaximumConnectionsPerNode());
+        }
+
+        @Test
+        @DisplayName("Should handle empty system settings map")
+        void testEmptySystemSettingsMap() throws IOException {
+            String yaml = """
+                system: {}
+                """;
+
+            // Should not throw exception
+            loadFromYamlString(yaml);
+        }
+
+        @Test
+        @DisplayName("Should handle missing system section")
+        void testMissingSystemSection() throws IOException {
+            String yaml = """
+                behaviors:
+                  simple:
+                    allOperations:
+                      abandonCallAfter: 5s
+                """;
+
+            // Should not throw exception when system section is missing
+            Map<String, Behavior> behaviors = loadFromYamlString(yaml);
+            assertNotNull(behaviors);
+            assertTrue(behaviors.containsKey("simple"));
         }
     }
 
@@ -798,13 +1011,13 @@ public class BehaviorYamlTest {
         void testMultipleBehaviorsWithHierarchy() throws IOException {
             String yaml = """
                 behaviors:
-                  - name: base-performance
+                  base-performance:
                     allOperations:
                       abandonCallAfter: 5s
                       maximumNumberOfCallAttempts: 3
                       delayBetweenRetries: 100ms
-                    
-                  - name: high-throughput
+
+                  high-throughput:
                     parent: base-performance
                     batchReads:
                       maxConcurrentServers: 16
@@ -813,8 +1026,8 @@ public class BehaviorYamlTest {
                     query:
                       recordQueueSize: 10000
                       maxConcurrentServers: 16
-                    
-                  - name: low-latency
+
+                  low-latency:
                     parent: base-performance
                     allOperations:
                       abandonCallAfter: 1s
@@ -847,10 +1060,10 @@ public class BehaviorYamlTest {
         void testComprehensiveConfiguration() throws IOException {
             String yaml = """
                 behaviors:
-                  - name: production-config
+                  production-config:
                     sendKey: true
                     useCompression: false
-                
+
                     allOperations:
                       abandonCallAfter: 10s
                       waitForCallToComplete: 5s
@@ -859,22 +1072,22 @@ public class BehaviorYamlTest {
                       delayBetweenRetries: 250ms
                       replicaOrder: SEQUENCE
                       resetTtlOnReadAtPercent: 80
-                    
+
                     consistencyModeReads:
                       readConsistency: SESSION
-                    
+
                     availabilityModeReads:
                       migrationReadConsistency: ONE
-                    
+
                     retryableWrites:
                       useDurableDelete: true
                       maximumNumberOfCallAttempts: 5
-                    
+
                     batchReads:
                       maxConcurrentServers: 12
                       allowInlineMemoryAccess: true
                       allowInlineSsdAccess: false
-                    
+
                     query:
                       recordQueueSize: 8000
                       maxConcurrentServers: 10
@@ -913,10 +1126,10 @@ public class BehaviorYamlTest {
     class ErrorHandlingTests {
 
         @Test
-        @DisplayName("Should handle empty behaviors list")
-        void testEmptyBehaviorsList() throws IOException {
+        @DisplayName("Should handle empty behaviors map")
+        void testEmptyBehaviorsMap() throws IOException {
             String yaml = """
-                behaviors: []
+                behaviors: {}
                 """;
 
             Map<String, Behavior> behaviors = loadFromYamlString(yaml);
@@ -930,7 +1143,7 @@ public class BehaviorYamlTest {
         void testInvalidYaml() {
             String yaml = """
                 behaviors:
-                  - name: invalid
+                  invalid:
                     allOperations
                       invalid syntax here
                 """;

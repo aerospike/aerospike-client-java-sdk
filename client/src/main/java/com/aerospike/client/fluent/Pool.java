@@ -17,7 +17,6 @@
 package com.aerospike.client.fluent;
 
 import java.util.ArrayDeque;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -28,8 +27,6 @@ import java.util.concurrent.locks.ReentrantLock;
  * because it's not bounded and it's size() method is too expensive.
  */
 public final class Pool {
-	private static final long MaxSocketIdleNanosTrim = TimeUnit.SECONDS.toNanos(55);
-
 	private final Node node;
 	private final ReentrantLock lock;
 	private final ArrayDeque<Connection> queue;
@@ -167,9 +164,8 @@ public final class Pool {
 		}
 	}
 
-	// TODO: Use Behavior or ClusterDefinition maxSocketIdle?
 	private boolean isConnCurrentTrim(long lastUsed) {
-		return (System.nanoTime() - lastUsed) <= MaxSocketIdleNanosTrim;
+		return (System.nanoTime() - lastUsed) <= node.cluster.def.maxSocketIdleNanosTrim;
 	}
 
 	private void closeIdle(Connection conn) {

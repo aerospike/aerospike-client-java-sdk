@@ -19,6 +19,8 @@ package com.aerospike.client.fluent;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 
 import com.aerospike.client.fluent.Log.Callback;
 import com.aerospike.client.fluent.Log.Level;
@@ -60,6 +62,7 @@ public class ClusterDefinition {
 	Map<String,String> ipMap;
     TlsBuilder tlsBuilder;
 	AuthMode authMode = AuthMode.NONE;
+	long maxSocketIdleNanosTrim = TimeUnit.SECONDS.toNanos(55);
 	int minConnsPerNode;
 	int maxConnsPerNode = 100;
 	int connPoolsPerNode = 1;
@@ -332,7 +335,83 @@ public class ClusterDefinition {
         this.tlsBuilder = tlsBuilder;
     }
 
-	/**
+    /**
+     * Sets system settings for this cluster using a pre-built SystemSettings instance.
+     *
+     * <p>System settings control cluster-wide behavior such as connection pool size,
+     * circuit breaker configuration, and cluster refresh intervals. These settings
+     * are applied at connection time and can be dynamically updated.</p>
+     *
+     * <p><b>Priority:</b> Code-provided settings (Level 2) override hard-coded defaults
+     * but are overridden by YAML default and cluster-specific settings.</p>
+     *
+     * <p>Example usage:</p>
+     * <pre>{@code
+     * SystemSettings settings = SystemSettings.builder()
+     *     .connections(ops -> ops
+     *         .minimumConnectionsPerNode(150)
+     *         .maximumConnectionsPerNode(500)
+     *     )
+     *     .build();
+     *
+     * new ClusterDefinition("localhost", 3000)
+     *     .withSystemSettings(settings)
+     *     .connect();
+     * }</pre>
+     *
+     * @param settings the system settings to apply
+     * @return this ClusterDefinition for method chaining
+     * @see SystemSettings
+     * @see #withSystemSettings(Consumer)
+     */
+    public ClusterDefinition withSystemSettings(SystemSettings settings) {
+        this.minConnsPerNode = settings.getMinimumConnectionsPerNode();
+        this.maxConnsPerNode = settings.getMaximumConnectionsPerNode();
+        this.maxErrorRate = settings.getMaximumErrorsInErrorWindow();
+        this.errorRateWindow = settings.getNumTendIntervalsInErrorWindow();
+        this.tendInterval = (int)settings.getTendInterval().toMillis();
+        this.maxSocketIdleNanosTrim = settings.getMaximumSocketIdleTime().toNanos();
+        return this;
+    }
+
+    /**
+     * Sets system settings for this cluster using a lambda configurator.
+     *
+     * <p>This is the recommended approach for inline configuration, consistent with
+     * the Behavior API. It allows concise, fluent configuration without requiring
+     * explicit builder management.</p>
+     *
+     * <p><b>Priority:</b> Code-provided settings (Level 2) override hard-coded defaults
+     * but are overridden by YAML default and cluster-specific settings.</p>
+     *
+     * <p>Example usage:</p>
+     * <pre>{@code
+     * new ClusterDefinition("localhost", 3000)
+     *     .withSystemSettings(builder -> builder
+     *         .connections(ops -> ops
+     *             .minimumConnectionsPerNode(150)
+     *             .maximumConnectionsPerNode(500)
+     *         )
+     *         .circuitBreaker(ops -> ops
+     *             .maximumErrorsInErrorWindow(200)
+     *         )
+     *     )
+     *     .connect();
+     * }</pre>
+     *
+     * @param configurator lambda to configure system settings
+     * @return this ClusterDefinition for method chaining
+     * @see SystemSettings
+     * @see #withSystemSettings(SystemSettings)
+     */
+    public ClusterDefinition withSystemSettings(Consumer<SystemSettings.Builder> configurator) {
+        SystemSettings.Builder builder = SystemSettings.builder();
+        configurator.accept(builder);
+        SystemSettings settings = builder.build();
+        return withSystemSettings(settings);
+    }
+
+    /**
 	 * Set whether cluster instantiation should fail if the client fails to connect to a seed or
 	 * all the seed's peers.
 	 * <p>
@@ -366,16 +445,6 @@ public class ClusterDefinition {
 	 */
     public ClusterDefinition configInterval(int configInterval) {
         this.configInterval = configInterval;
-        return this;
-    }
-
-    /**
-	 * Set interval in milliseconds between cluster tends.
-	 * <p>
-	 * Default: 1000
-	 */
-    public ClusterDefinition tendInterval(int tendInterval) {
-        this.tendInterval = tendInterval;
         return this;
     }
 
@@ -417,35 +486,6 @@ public class ClusterDefinition {
     }
 
 	/**
-	 * Set maximum number of errors allowed per node per {@link #errorRateWindow} before backoff
-	 * algorithm throws {@link com.aerospike.client.fluent.AerospikeException.Backoff} on database
-	 * commands to that node. If maxErrorRate is zero, there is no error limit and
-	 * the exception will never be thrown.
-	 * <p>
-	 * The counted error types are any error that causes the connection to close (socket errors
-	 * and client timeouts) and {@link com.aerospike.client.ResultCode#DEVICE_OVERLOAD}.
-	 * <p>
-	 * Default: 100
-	 */
-    public ClusterDefinition maxErrorRate(int maxErrorRate) {
-        this.maxErrorRate = maxErrorRate;
-        return this;
-    }
-
-	/**
-	 * Set number of cluster tend iterations that defines the window for {@link #maxErrorRate}.
-	 * One tend iteration is defined as {@link #tendInterval} plus the time to tend all nodes.
-	 * At the end of the window, the error count is reset to zero and backoff state is removed
-	 * on all nodes.
-	 * <p>
-	 * Default: 1
-	 */
-    public ClusterDefinition errorRateWindow(int errorRateWindow) {
-        this.errorRateWindow = errorRateWindow;
-        return this;
-    }
-
-	/**
 	 * Set number of synchronous connection pools used for each node.  Machines with 8 cpu cores or
 	 * less usually need just one connection pool per node.  Machines with a large number of cpu
 	 * cores may have their synchronous performance limited by contention for pooled connections.
@@ -456,38 +496,6 @@ public class ClusterDefinition {
 	 */
     public ClusterDefinition connPoolsPerNode(int connPoolsPerNode) {
         this.connPoolsPerNode = connPoolsPerNode;
-        return this;
-    }
-
-	/**
-	 * Set minimum number of synchronous connections allowed per server node. Preallocate min connections
-	 * on client node creation.  The client will periodically allocate new connections if count falls
-	 * below min connections.
-	 * <p>
-	 * Server proto-fd-idle-ms and client {@link ClientPolicy#maxSocketIdle} should be set to zero
-	 * (no reap) if minConnsPerNode is greater than zero.  Reaping connections can defeat the purpose
-	 * of keeping connections in reserve for a future burst of activity.
-	 * <p>
-	 * Default: 0
-	 */
-    public ClusterDefinition minConnsPerNode(int minConnsPerNode) {
-        this.minConnsPerNode = minConnsPerNode;
-        return this;
-    }
-
-	/**
-	 * Set maximum number of synchronous connections allowed per server node.  Commands will go
-	 * through retry logic and potentially fail with "ResultCode.NO_MORE_CONNECTIONS" if the maximum
-	 * number of connections would be exceeded.
-	 * <p>
-	 * The number of connections used per node depends on concurrent commands in progress
-	 * plus sub-commands used for parallel multi-node commands (batch, scan, and query).
-	 * One connection will be used for each command.
-	 * <p>
-	 * Default: 100
-	 */
-    public ClusterDefinition maxConnsPerNode(int maxConnsPerNode) {
-        this.maxConnsPerNode = maxConnsPerNode;
         return this;
     }
 
@@ -511,6 +519,10 @@ public class ClusterDefinition {
      * <p>This method creates and returns a Cluster instance using the configured
      * parameters. The returned Cluster should be closed when no longer needed
      * to properly release resources.</p>
+     *
+     * <p><b>System Settings:</b> The cluster will use system settings based on
+     * a 4-level priority hierarchy. If {@code validateClusterName()} was called,
+     * cluster-specific settings from YAML will be used if available.</p>
      *
      * <p>Example with try-with-resources:</p>
      * <pre>{@code
@@ -561,4 +573,87 @@ public class ClusterDefinition {
     boolean isRackAware() {
     	return rackIds != null;
     }
+
+    // TODO: Remove these old methods that were replaced with withSystemSettings().
+
+	/**
+	 * Set minimum number of synchronous connections allowed per server node. Preallocate min connections
+	 * on client node creation.  The client will periodically allocate new connections if count falls
+	 * below min connections.
+	 * <p>
+	 * Server proto-fd-idle-ms and client {@link ClientPolicy#maxSocketIdle} should be set to zero
+	 * (no reap) if minConnsPerNode is greater than zero.  Reaping connections can defeat the purpose
+	 * of keeping connections in reserve for a future burst of activity.
+	 * <p>
+	 * Default: 0
+	 */
+    /*
+    public ClusterDefinition minConnsPerNode(int minConnsPerNode) {
+        this.minConnsPerNode = minConnsPerNode;
+        return this;
+    }
+    */
+
+	/**
+	 * Set maximum number of synchronous connections allowed per server node.  Commands will go
+	 * through retry logic and potentially fail with "ResultCode.NO_MORE_CONNECTIONS" if the maximum
+	 * number of connections would be exceeded.
+	 * <p>
+	 * The number of connections used per node depends on concurrent commands in progress
+	 * plus sub-commands used for parallel multi-node commands (batch, scan, and query).
+	 * One connection will be used for each command.
+	 * <p>
+	 * Default: 100
+	 */
+    /*
+    public ClusterDefinition maxConnsPerNode(int maxConnsPerNode) {
+        this.maxConnsPerNode = maxConnsPerNode;
+        return this;
+    }
+    */
+
+	/**
+	 * Set maximum number of errors allowed per node per {@link #errorRateWindow} before backoff
+	 * algorithm throws {@link com.aerospike.client.fluent.AerospikeException.Backoff} on database
+	 * commands to that node. If maxErrorRate is zero, there is no error limit and
+	 * the exception will never be thrown.
+	 * <p>
+	 * The counted error types are any error that causes the connection to close (socket errors
+	 * and client timeouts) and {@link com.aerospike.client.ResultCode#DEVICE_OVERLOAD}.
+	 * <p>
+	 * Default: 100
+	 */
+    /*
+    public ClusterDefinition maxErrorRate(int maxErrorRate) {
+        this.maxErrorRate = maxErrorRate;
+        return this;
+    }
+    */
+
+	/**
+	 * Set number of cluster tend iterations that defines the window for {@link #maxErrorRate}.
+	 * One tend iteration is defined as {@link #tendInterval} plus the time to tend all nodes.
+	 * At the end of the window, the error count is reset to zero and backoff state is removed
+	 * on all nodes.
+	 * <p>
+	 * Default: 1
+	 */
+    /*
+    public ClusterDefinition errorRateWindow(int errorRateWindow) {
+        this.errorRateWindow = errorRateWindow;
+        return this;
+    }
+	*/
+
+    /**
+	 * Set interval in milliseconds between cluster tends.
+	 * <p>
+	 * Default: 1000
+	 */
+    /*
+    public ClusterDefinition tendInterval(int tendInterval) {
+        this.tendInterval = tendInterval;
+        return this;
+    }
+	*/
 }

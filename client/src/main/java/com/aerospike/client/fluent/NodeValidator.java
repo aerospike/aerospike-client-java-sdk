@@ -207,10 +207,7 @@ public final class NodeValidator {
 			commands.add("node");
 			commands.add("partition-generation");
 			commands.add("build");
-
-			if (def.clusterName != null) {
-				commands.add("cluster-name");
-			}
+			commands.add("cluster-name");
 
 			String addressCommand = null;
 
@@ -246,9 +243,7 @@ public final class NodeValidator {
 				Info.request(conn, "user-agent-set:value=" + getB64userAgent(def));
 			}
 
-			if (def.clusterName != null) {
-				validateClusterName(def, map);
-			}
+			processClusterName(def, map);
 
 			if (addressCommand != null) {
 				setAddress(def, map, addressCommand, tlsName);
@@ -318,12 +313,19 @@ public final class NodeValidator {
 		}
 	}
 
-	private void validateClusterName(ClusterDefinition def, HashMap<String,String> map) {
-		String id = map.get("cluster-name");
+	private void processClusterName(ClusterDefinition def, HashMap<String,String> map) {
+		String name = map.get("cluster-name");
 
-		if (id == null || ! def.clusterName.equals(id)) {
-			throw new AerospikeException.InvalidNode("Node " + this.name + ' ' + this.primaryHost +
-				" expected cluster name '" + def.clusterName + "' received '" + id + "'");
+		if (def.clusterName == null || def.clusterName.isEmpty()) {
+			// User did not provide clusterName, so use server clusterName.
+			def.clusterName = name;
+		}
+		else {
+			// Ensure clusterName is consistent across client and all server nodes.
+			if (name == null || !def.clusterName.equals(name)) {
+				throw new AerospikeException.InvalidNode("Node " + this.name + ' ' + this.primaryHost +
+					" expected cluster name '" + def.clusterName + "' received '" + name + "'");
+			}
 		}
 	}
 

@@ -68,7 +68,7 @@ public class Cluster implements Closeable {
 	final Log.Context context;
 	private boolean metricsEnabled;
 
-	private IndexesMonitor indexesMonitor;
+	private final IndexesMonitor indexesMonitor;
     private RecordMappingFactory recordMappingFactory = null;
 
     Cluster(ClusterDefinition def) {
@@ -82,10 +82,12 @@ public class Cluster implements Closeable {
 		replicaIndex = new AtomicInteger();
 		context = def.context;
 
+		// TODO: Resolve when new DSL library is available.
 		//this.indexesMonitor = new IndexesMonitor();
         //this.indexesMonitor.startMonitor(createSession(Behavior.DEFAULT), INDEX_REFRESH);
+		this.indexesMonitor = null;
 
-		tend = new ClusterTend(this);
+        tend = new ClusterTend(this);
 
 		if (def.forceSingleNode) {
 			forceSingleNode();
@@ -182,7 +184,50 @@ public class Cluster implements Closeable {
 		return false;
     }
 
-	public final Node getRandomNode() throws AerospikeException.InvalidNode {
+    /**
+     * Gets the cluster name.
+     *
+     * <p>This may be the name provided via {@code validateClusterName()}, or the
+     * name discovered from the server if none was provided.</p>
+     *
+     * @return the cluster name, or null if not specified and not yet discovered
+     */
+    public String getClusterName() {
+        return def.clusterName;
+    }
+
+    /**
+     * Applies system settings dynamically to this cluster.
+     * Called by {@link SystemSettingsRegistry} when settings are updated.
+     *
+     * <p><b>Note:</b> This is an internal method and should not be called directly.
+     * System settings are automatically managed by the registry.</p>
+     *
+     * @param settings the system settings to apply
+     */
+    void applySystemSettings(SystemSettings settings) {
+        if (settings == null) {
+            return;
+        }
+
+        // Currently, the Aerospike Java client does not support dynamic updates
+        // to system-level settings like connection pool sizes, socket idle times,
+        // circuit breaker settings, or tend intervals.
+        //
+        // These settings are applied at connection time via ClientPolicy.
+        // This method is a placeholder for future enhancement.
+        //
+        // When dynamic updates become available, implement them here:
+        // - client.setMinConnsPerNode(settings.getMinimumConnectionsPerNode())
+        // - client.setMaxConnsPerNode(settings.getMaximumConnectionsPerNode())
+        // - etc.
+
+        Log.info("System settings updated for cluster '" +
+            (def.clusterName != null ? def.clusterName : "(unnamed)") +
+            "'. Note: Settings will take effect on next connection.");
+    }
+
+    public final Node getRandomNode() throws AerospikeException.InvalidNode {
 		// Must copy array reference for copy on write semantics to work.
 		Node[] nodeArray = nodes;
 
