@@ -135,7 +135,7 @@ public class SystemSettings {
 
         return merged.build();
     }
-
+    
     // Getters
     public Integer getMinimumConnectionsPerNode() { return minimumConnectionsPerNode; }
     public Integer getMaximumConnectionsPerNode() { return maximumConnectionsPerNode; }

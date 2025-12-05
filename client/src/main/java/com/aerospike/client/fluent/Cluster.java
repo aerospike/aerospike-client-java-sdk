@@ -71,7 +71,7 @@ public class Cluster implements Closeable {
 	private final IndexesMonitor indexesMonitor;
     private RecordMappingFactory recordMappingFactory = null;
 
-    Cluster(ClusterDefinition def) {
+    Cluster(ClusterDefinition def, SystemSettings effectiveSettings) {
         this.def = def;
 		nodes = new Node[0];
 		partitionMap = new HashMap<String,Partitions>();
@@ -82,6 +82,7 @@ public class Cluster implements Closeable {
 		replicaIndex = new AtomicInteger();
 		context = def.context;
 
+		this.applySystemSettings(effectiveSettings);
 		// TODO: Resolve when new DSL library is available.
 		//this.indexesMonitor = new IndexesMonitor();
         //this.indexesMonitor.startMonitor(createSession(Behavior.DEFAULT), INDEX_REFRESH);
@@ -210,6 +211,26 @@ public class Cluster implements Closeable {
             return;
         }
 
+        // TODO: BN Review
+        if (settings.getMinimumConnectionsPerNode() != null) {
+            this.def.minConnsPerNode = settings.getMinimumConnectionsPerNode();
+        }
+        if (settings.getMaximumConnectionsPerNode() != null) {
+            this.def.maxConnsPerNode = settings.getMaximumConnectionsPerNode();
+        }
+        if (settings.getMaximumErrorsInErrorWindow() != null) {
+            this.def.maxErrorRate = settings.getMaximumErrorsInErrorWindow();
+        }
+        if (settings.getNumTendIntervalsInErrorWindow() != null) {
+            this.def.errorRateWindow = settings.getNumTendIntervalsInErrorWindow();
+        }
+        if (settings.getTendInterval() != null) {
+            this.def.tendInterval = (int)settings.getTendInterval().toMillis();
+        }
+        if (settings.getMaximumSocketIdleTime() != null) {
+            this.def.maxSocketIdleNanosTrim = settings.getMaximumSocketIdleTime().toNanos();
+        }
+
         // Currently, the Aerospike Java client does not support dynamic updates
         // to system-level settings like connection pool sizes, socket idle times,
         // circuit breaker settings, or tend intervals.
@@ -225,6 +246,10 @@ public class Cluster implements Closeable {
         Log.info("System settings updated for cluster '" +
             (def.clusterName != null ? def.clusterName : "(unnamed)") +
             "'. Note: Settings will take effect on next connection.");
+        
+        if (Log.debugEnabled()) {
+            Log.debug("\tMinConnsPerNode=%d;MaxConnsPerNode=%d;maxErrorRate=%d");
+        }
     }
 
     public final Node getRandomNode() throws AerospikeException.InvalidNode {

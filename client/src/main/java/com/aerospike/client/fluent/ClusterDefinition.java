@@ -22,6 +22,8 @@ import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
+import com.aerospike.client.fluent.SystemSettings;
+import com.aerospike.client.fluent.SystemSettingsRegistry;
 import com.aerospike.client.fluent.Log.Callback;
 import com.aerospike.client.fluent.Log.Level;
 import com.aerospike.client.fluent.command.Buffer;
@@ -48,6 +50,7 @@ import com.aerospike.client.fluent.policy.AuthMode;
  * @see Session
  */
 public class ClusterDefinition {
+    private SystemSettings userSuppliedSystemSettings;
 	String clientVersion;
 	String appId;
     String clusterName;
@@ -365,12 +368,13 @@ public class ClusterDefinition {
      * @see #withSystemSettings(Consumer)
      */
     public ClusterDefinition withSystemSettings(SystemSettings settings) {
-        this.minConnsPerNode = settings.getMinimumConnectionsPerNode();
-        this.maxConnsPerNode = settings.getMaximumConnectionsPerNode();
-        this.maxErrorRate = settings.getMaximumErrorsInErrorWindow();
-        this.errorRateWindow = settings.getNumTendIntervalsInErrorWindow();
-        this.tendInterval = (int)settings.getTendInterval().toMillis();
-        this.maxSocketIdleNanosTrim = settings.getMaximumSocketIdleTime().toNanos();
+        this.userSuppliedSystemSettings = settings;
+//        this.minConnsPerNode = settings.getMinimumConnectionsPerNode();
+//        this.maxConnsPerNode = settings.getMaximumConnectionsPerNode();
+//        this.maxErrorRate = settings.getMaximumErrorsInErrorWindow();
+//        this.errorRateWindow = settings.getNumTendIntervalsInErrorWindow();
+//        this.tendInterval = (int)settings.getTendInterval().toMillis();
+//        this.maxSocketIdleNanosTrim = settings.getMaximumSocketIdleTime().toNanos();
         return this;
     }
 
@@ -539,7 +543,13 @@ public class ClusterDefinition {
     public Cluster connect() {
         ClusterDefinition def = new ClusterDefinition(this);
         def.context = new Log.Context(def.clusterName);
-    	return new Cluster(def);
+        
+        // Apply system settings to policy (4-level hierarchy)
+        SystemSettings effectiveSettings = SystemSettingsRegistry.getInstance()
+            .getEffectiveSettings(clusterName, userSuppliedSystemSettings);
+
+        
+    	return new Cluster(def, effectiveSettings);
     }
 
     /**

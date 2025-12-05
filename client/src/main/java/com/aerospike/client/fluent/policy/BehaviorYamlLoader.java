@@ -155,30 +155,29 @@ class BehaviorYamlLoader {
         Map<String, Behavior> updatedBehaviors = new HashMap<>();
 
         if (config.getBehaviors() != null) {
-            for (BehaviorYamlConfig.BehaviorConfig behaviorConfig : config.getBehaviors()) {
-                String behaviorName = behaviorConfig.getName();
-
+            for (Map.Entry<String, BehaviorYamlConfig.BehaviorConfig> entry : config.getBehaviors().entrySet()) {
+                String behaviorName = entry.getKey();
+                BehaviorYamlConfig.BehaviorConfig behaviorConfig = entry.getValue();
+                
                 // Check if behavior already exists
                 Optional<Behavior> existingBehavior = registry.getBehavior(behaviorName);
-
+                
                 if (existingBehavior.isPresent()) {
                     // Update existing behavior
-                    Behavior updatedBehavior = updateExistingBehavior(existingBehavior.get(), behaviorConfig);
+                    Behavior updatedBehavior = updateExistingBehavior(existingBehavior.get(), behaviorName, behaviorConfig);
                     updatedBehaviors.put(behaviorName, updatedBehavior);
                 } else {
                     // Create new behavior
-                    Behavior newBehavior = createNewBehavior(behaviorConfig);
+                    Behavior newBehavior = createNewBehavior(behaviorName, behaviorConfig);
                     updatedBehaviors.put(behaviorName, newBehavior);
                     registry.registerBehavior(newBehavior);
                 }
             }
         }
-
-        // Load system settings from the same configuration
-        if (config.getSystem() != null) {
-            loadSystemSettings(config.getSystem());
-        }
-
+        
+        // Load system settings
+        loadSystemSettings(config);
+        
         return updatedBehaviors;
     }
 
@@ -189,11 +188,11 @@ class BehaviorYamlLoader {
      * @param config The new configuration
      * @return The updated behavior (new instance with same name)
      */
-    private static Behavior updateExistingBehavior(Behavior existingBehavior, BehaviorYamlConfig.BehaviorConfig config) {
+    private static Behavior updateExistingBehavior(Behavior existingBehavior, String name, BehaviorYamlConfig.BehaviorConfig config) {
         // Create a new behavior with the updated configuration
         // Note: This creates a new instance rather than modifying the existing one
-        Behavior updatedBehavior = createNewBehavior(config);
-
+        Behavior updatedBehavior = createNewBehavior(name, config);
+        
         // Update the registry to point to the new behavior
         BehaviorRegistry.getInstance().registerBehavior(updatedBehavior);
 
@@ -202,13 +201,12 @@ class BehaviorYamlLoader {
 
     /**
      * Create a new behavior from configuration using the new selector-based API
-     *
+     * 
+     * @param name The behavior name (from the map key)
      * @param config The behavior configuration
      * @return A new Behavior instance
      */
-    private static Behavior createNewBehavior(BehaviorYamlConfig.BehaviorConfig config) {
-        String name = config.getName() != null ? config.getName() : "yaml-loaded";
-
+    private static Behavior createNewBehavior(String name, BehaviorYamlConfig.BehaviorConfig config) {
         // Determine parent behavior
         Behavior parent = Behavior.DEFAULT;
         if (config.getParent() != null && !"default".equalsIgnoreCase(config.getParent())) {
@@ -238,12 +236,17 @@ class BehaviorYamlLoader {
 
         // Create all behaviors (parent relationships are handled in createNewBehavior)
         if (config.getBehaviors() != null) {
-            for (BehaviorYamlConfig.BehaviorConfig behaviorConfig : config.getBehaviors()) {
-                Behavior behavior = createNewBehavior(behaviorConfig);
-                behaviors.put(behavior.name(), behavior);
+            for (Map.Entry<String, BehaviorYamlConfig.BehaviorConfig> entry : config.getBehaviors().entrySet()) {
+                String name = entry.getKey();
+                BehaviorYamlConfig.BehaviorConfig behaviorConfig = entry.getValue();
+                Behavior behavior = createNewBehavior(name, behaviorConfig);
+                behaviors.put(name, behavior);
             }
         }
-
+        
+        // Load system settings
+        loadSystemSettings(config);
+        
         return behaviors;
     }
 
@@ -408,21 +411,24 @@ class BehaviorYamlLoader {
      *
      * @param systemConfig The system configuration from YAML
      */
-    private static void loadSystemSettings(BehaviorYamlConfig.SystemConfig systemConfig) {
-        SystemSettingsRegistry registry = SystemSettingsRegistry.getInstance();
-
-        // Load default settings
-        if (systemConfig.getDefaultSettings() != null) {
-            SystemSettings defaultSettings = convertToSystemSettings(systemConfig.getDefaultSettings());
-            registry.updateDefaultSettings(defaultSettings);
+    private static void loadSystemSettings(BehaviorYamlConfig config) {
+        if (config.getSystem() == null) {
+            return;
         }
-
-        // Load cluster-specific settings
-        if (systemConfig.getClusters() != null) {
-            for (Map.Entry<String, BehaviorYamlConfig.SystemSettingsConfig> entry :
-                 systemConfig.getClusters().entrySet()) {
-                SystemSettings clusterSettings = convertToSystemSettings(entry.getValue());
-                registry.updateClusterSettings(entry.getKey(), clusterSettings);
+        
+        SystemSettingsRegistry registry = SystemSettingsRegistry.getInstance();
+        
+        for (Map.Entry<String, BehaviorYamlConfig.SystemSettingsConfig> entry : config.getSystem().entrySet()) {
+            String name = entry.getKey();
+            BehaviorYamlConfig.SystemSettingsConfig settingsConfig = entry.getValue();
+            SystemSettings settings = convertToSystemSettings(settingsConfig);
+            
+            if ("DEFAULT".equalsIgnoreCase(name)) {
+                // Update default settings
+                registry.updateDefaultSettings(settings);
+            } else {
+                // Update cluster-specific settings
+                registry.updateClusterSettings(name, settings);
             }
         }
     }
@@ -438,7 +444,7 @@ class BehaviorYamlLoader {
 
         // Connections settings
         if (config.getConnections() != null) {
-            BehaviorYamlConfig.ConnectionsConfig connConfig = config.getConnections();
+            BehaviorYamlConfig.SystemConnectionsConfig connConfig = config.getConnections();
             builder.connections(ops -> {
                 if (connConfig.getMinimumConnectionsPerNode() != null) {
                     ops.minimumConnectionsPerNode(connConfig.getMinimumConnectionsPerNode());
@@ -456,7 +462,7 @@ class BehaviorYamlLoader {
 
         // Circuit breaker settings
         if (config.getCircuitBreaker() != null) {
-            BehaviorYamlConfig.CircuitBreakerConfig cbConfig = config.getCircuitBreaker();
+            BehaviorYamlConfig.SystemCircuitBreakerConfig cbConfig = config.getCircuitBreaker();
             builder.circuitBreaker(ops -> {
                 if (cbConfig.getNumTendIntervalsInErrorWindow() != null) {
                     ops.numTendIntervalsInErrorWindow(cbConfig.getNumTendIntervalsInErrorWindow());
@@ -470,7 +476,7 @@ class BehaviorYamlLoader {
 
         // Refresh settings
         if (config.getRefresh() != null) {
-            BehaviorYamlConfig.RefreshConfig refreshConfig = config.getRefresh();
+            BehaviorYamlConfig.SystemRefreshConfig refreshConfig = config.getRefresh();
             builder.refresh(ops -> {
                 if (refreshConfig.getTendInterval() != null) {
                     ops.tendInterval(refreshConfig.getTendInterval());

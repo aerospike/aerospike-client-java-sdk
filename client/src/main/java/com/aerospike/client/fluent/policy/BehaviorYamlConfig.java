@@ -17,23 +17,22 @@
 package com.aerospike.client.fluent.policy;
 
 import java.time.Duration;
-import java.util.List;
+import java.util.Map;
 
 public class BehaviorYamlConfig {
 
-    private List<BehaviorConfig> behaviors;
-    private SystemConfig system;
-
+    private Map<String, BehaviorConfig> behaviors;
+    private Map<String, SystemSettingsConfig> system;
+    
     // Getters and setters
-    public List<BehaviorConfig> getBehaviors() { return behaviors; }
-    public void setBehaviors(List<BehaviorConfig> behaviors) { this.behaviors = behaviors; }
-
-    public SystemConfig getSystem() { return system; }
-    public void setSystem(SystemConfig system) { this.system = system; }
-
-    // Individual behavior configuration
+    public Map<String, BehaviorConfig> getBehaviors() { return behaviors; }
+    public void setBehaviors(Map<String, BehaviorConfig> behaviors) { this.behaviors = behaviors; }
+    
+    public Map<String, SystemSettingsConfig> getSystem() { return system; }
+    public void setSystem(Map<String, SystemSettingsConfig> system) { this.system = system; }
+    
+    // Individual behavior configuration (name is the map key)
     public static class BehaviorConfig {
-        private String name;
         private String parent;
         private Boolean sendKey;
         private Boolean useCompression;
@@ -48,11 +47,11 @@ public class BehaviorYamlConfig {
         private InfoConfig info;
         private SystemTxnVerifyConfig systemTxnVerify;
         private SystemTxnRollConfig systemTxnRoll;
-
+        private SystemConnectionsConfig systemConnections;
+        private SystemCircuitBreakerConfig systemCircuitBreaker;
+        private SystemRefreshConfig systemRefresh;
+        
         // Getters and setters
-        public String getName() { return name; }
-        public void setName(String name) { this.name = name; }
-
         public String getParent() { return parent; }
         public void setParent(String parent) { this.parent = parent; }
 
@@ -94,6 +93,15 @@ public class BehaviorYamlConfig {
 
         public SystemTxnRollConfig getSystemTxnRoll() { return systemTxnRoll; }
         public void setSystemTxnRoll(SystemTxnRollConfig systemTxnRoll) { this.systemTxnRoll = systemTxnRoll; }
+        
+        public SystemConnectionsConfig getSystemConnections() { return systemConnections; }
+        public void setSystemConnections(SystemConnectionsConfig systemConnections) { this.systemConnections = systemConnections; }
+        
+        public SystemCircuitBreakerConfig getSystemCircuitBreaker() { return systemCircuitBreaker; }
+        public void setSystemCircuitBreaker(SystemCircuitBreakerConfig systemCircuitBreaker) { this.systemCircuitBreaker = systemCircuitBreaker; }
+        
+        public SystemRefreshConfig getSystemRefresh() { return systemRefresh; }
+        public void setSystemRefresh(SystemRefreshConfig systemRefresh) { this.systemRefresh = systemRefresh; }
     }
 
     // Base policy configuration
@@ -211,51 +219,9 @@ public class BehaviorYamlConfig {
         // Uses base PolicyConfig fields: abandonCallAfter, delayBetweenRetries, maximumNumberOfCallAttempts,
         // replicaOrder, waitForCallToComplete, waitForConnectionToComplete, waitForSocketResponseAfterCallFails
     }
-
-    // -----------------------------------------------------------------------------------
-    // System Settings Configuration (for unified YAML)
-    // -----------------------------------------------------------------------------------
-
-    /**
-     * Top-level system settings configuration containing default and cluster-specific settings.
-     */
-    public static class SystemConfig {
-        private SystemSettingsConfig defaultSettings;
-        private java.util.Map<String, SystemSettingsConfig> clusters;
-
-        public SystemSettingsConfig getDefaultSettings() { return defaultSettings; }
-        public void setDefaultSettings(SystemSettingsConfig defaultSettings) {
-            this.defaultSettings = defaultSettings;
-        }
-
-        public java.util.Map<String, SystemSettingsConfig> getClusters() { return clusters; }
-        public void setClusters(java.util.Map<String, SystemSettingsConfig> clusters) {
-            this.clusters = clusters;
-        }
-    }
-
-    /**
-     * System settings for a single cluster or default settings.
-     */
-    public static class SystemSettingsConfig {
-        private ConnectionsConfig connections;
-        private CircuitBreakerConfig circuitBreaker;
-        private RefreshConfig refresh;
-
-        public ConnectionsConfig getConnections() { return connections; }
-        public void setConnections(ConnectionsConfig connections) { this.connections = connections; }
-
-        public CircuitBreakerConfig getCircuitBreaker() { return circuitBreaker; }
-        public void setCircuitBreaker(CircuitBreakerConfig circuitBreaker) { this.circuitBreaker = circuitBreaker; }
-
-        public RefreshConfig getRefresh() { return refresh; }
-        public void setRefresh(RefreshConfig refresh) { this.refresh = refresh; }
-    }
-
-    /**
-     * Connection pool configuration.
-     */
-    public static class ConnectionsConfig {
+    
+    // System - Connections configuration
+    public static class SystemConnectionsConfig {
         private Integer minimumConnectionsPerNode;
         private Integer maximumConnectionsPerNode;
         private Duration maximumSocketIdleTime;
@@ -269,28 +235,40 @@ public class BehaviorYamlConfig {
         public Duration getMaximumSocketIdleTime() { return maximumSocketIdleTime; }
         public void setMaximumSocketIdleTime(Duration maximumSocketIdleTime) { this.maximumSocketIdleTime = maximumSocketIdleTime; }
     }
-
-    /**
-     * Circuit breaker configuration.
-     */
-    public static class CircuitBreakerConfig {
+    
+    // System - Circuit Breaker configuration
+    public static class SystemCircuitBreakerConfig {
         private Integer numTendIntervalsInErrorWindow;
         private Integer maximumErrorsInErrorWindow;
-
+        
         public Integer getNumTendIntervalsInErrorWindow() { return numTendIntervalsInErrorWindow; }
         public void setNumTendIntervalsInErrorWindow(Integer numTendIntervalsInErrorWindow) { this.numTendIntervalsInErrorWindow = numTendIntervalsInErrorWindow; }
-
+        
         public Integer getMaximumErrorsInErrorWindow() { return maximumErrorsInErrorWindow; }
         public void setMaximumErrorsInErrorWindow(Integer maximumErrorsInErrorWindow) { this.maximumErrorsInErrorWindow = maximumErrorsInErrorWindow; }
     }
-
-    /**
-     * Cluster refresh configuration.
-     */
-    public static class RefreshConfig {
+    
+    // System - Refresh configuration
+    public static class SystemRefreshConfig {
         private Duration tendInterval;
-
+        
         public Duration getTendInterval() { return tendInterval; }
         public void setTendInterval(Duration tendInterval) { this.tendInterval = tendInterval; }
     }
-}
+    
+    // System settings configuration (for cluster-level settings)
+    public static class SystemSettingsConfig {
+        private SystemConnectionsConfig connections;
+        private SystemCircuitBreakerConfig circuitBreaker;
+        private SystemRefreshConfig refresh;
+        
+        public SystemConnectionsConfig getConnections() { return connections; }
+        public void setConnections(SystemConnectionsConfig connections) { this.connections = connections; }
+        
+        public SystemCircuitBreakerConfig getCircuitBreaker() { return circuitBreaker; }
+        public void setCircuitBreaker(SystemCircuitBreakerConfig circuitBreaker) { this.circuitBreaker = circuitBreaker; }
+        
+        public SystemRefreshConfig getRefresh() { return refresh; }
+        public void setRefresh(SystemRefreshConfig refresh) { this.refresh = refresh; }
+    }
+} 

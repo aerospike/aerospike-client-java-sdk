@@ -7,7 +7,6 @@ import java.util.regex.Pattern;
 import org.yaml.snakeyaml.constructor.AbstractConstruct;
 import org.yaml.snakeyaml.nodes.Node;
 import org.yaml.snakeyaml.nodes.ScalarNode;
-import org.yaml.snakeyaml.nodes.Tag;
 
 /**
  * SnakeYAML constructor for parsing Duration from human-readable formats like "10s", "20ms", "1m", etc.
