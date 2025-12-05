@@ -16,14 +16,13 @@
  */
 package com.aerospike.client.fluent;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
-import com.aerospike.client.fluent.SystemSettings;
-import com.aerospike.client.fluent.SystemSettingsRegistry;
 import com.aerospike.client.fluent.Log.Callback;
 import com.aerospike.client.fluent.Log.Level;
 import com.aerospike.client.fluent.command.Buffer;
@@ -50,7 +49,7 @@ import com.aerospike.client.fluent.policy.AuthMode;
  * @see Session
  */
 public class ClusterDefinition {
-    private SystemSettings userSuppliedSystemSettings;
+	private SystemSettings userSuppliedSystemSettings;
 	String clientVersion;
 	String appId;
     String clusterName;
@@ -116,6 +115,7 @@ public class ClusterDefinition {
      * Copy constructor.
      */
     public ClusterDefinition(ClusterDefinition other) {
+    	this.userSuppliedSystemSettings = other.userSuppliedSystemSettings;
     	this.clientVersion = other.clientVersion;
 		this.appId = other.appId;
 		this.clusterName = other.clusterName;
@@ -130,6 +130,7 @@ public class ClusterDefinition {
 		this.ipMap = other.ipMap;
 		this.tlsBuilder = other.tlsBuilder;
 		this.authMode = other.authMode;
+		this.maxSocketIdleNanosTrim = other.maxSocketIdleNanosTrim;
 		this.minConnsPerNode = other.minConnsPerNode;
 		this.maxConnsPerNode = other.maxConnsPerNode;
 		this.connPoolsPerNode = other.connPoolsPerNode;
@@ -141,6 +142,7 @@ public class ClusterDefinition {
 		this.errorRateWindow = other.errorRateWindow;
 		this.failIfNotConnected = other.failIfNotConnected;
 		this.useServicesAlternate = other.useServicesAlternate;
+		this.forceSingleNode = other.forceSingleNode;
 		this.hosts = other.hosts;
     }
 
@@ -543,12 +545,11 @@ public class ClusterDefinition {
     public Cluster connect() {
         ClusterDefinition def = new ClusterDefinition(this);
         def.context = new Log.Context(def.clusterName);
-        
+
         // Apply system settings to policy (4-level hierarchy)
         SystemSettings effectiveSettings = SystemSettingsRegistry.getInstance()
             .getEffectiveSettings(clusterName, userSuppliedSystemSettings);
 
-        
     	return new Cluster(def, effectiveSettings);
     }
 
@@ -584,86 +585,115 @@ public class ClusterDefinition {
     	return rackIds != null;
     }
 
-    // TODO: Remove these old methods that were replaced with withSystemSettings().
+	public String getClientVersion() {
+		return clientVersion;
+	}
 
-	/**
-	 * Set minimum number of synchronous connections allowed per server node. Preallocate min connections
-	 * on client node creation.  The client will periodically allocate new connections if count falls
-	 * below min connections.
-	 * <p>
-	 * Server proto-fd-idle-ms and client {@link ClientPolicy#maxSocketIdle} should be set to zero
-	 * (no reap) if minConnsPerNode is greater than zero.  Reaping connections can defeat the purpose
-	 * of keeping connections in reserve for a future burst of activity.
-	 * <p>
-	 * Default: 0
-	 */
-    /*
-    public ClusterDefinition minConnsPerNode(int minConnsPerNode) {
-        this.minConnsPerNode = minConnsPerNode;
-        return this;
-    }
-    */
+	public String getAppId() {
+		return appId;
+	}
 
-	/**
-	 * Set maximum number of synchronous connections allowed per server node.  Commands will go
-	 * through retry logic and potentially fail with "ResultCode.NO_MORE_CONNECTIONS" if the maximum
-	 * number of connections would be exceeded.
-	 * <p>
-	 * The number of connections used per node depends on concurrent commands in progress
-	 * plus sub-commands used for parallel multi-node commands (batch, scan, and query).
-	 * One connection will be used for each command.
-	 * <p>
-	 * Default: 100
-	 */
-    /*
-    public ClusterDefinition maxConnsPerNode(int maxConnsPerNode) {
-        this.maxConnsPerNode = maxConnsPerNode;
-        return this;
-    }
-    */
+	public String getClusterName() {
+		return clusterName;
+	}
 
-	/**
-	 * Set maximum number of errors allowed per node per {@link #errorRateWindow} before backoff
-	 * algorithm throws {@link com.aerospike.client.fluent.AerospikeException.Backoff} on database
-	 * commands to that node. If maxErrorRate is zero, there is no error limit and
-	 * the exception will never be thrown.
-	 * <p>
-	 * The counted error types are any error that causes the connection to close (socket errors
-	 * and client timeouts) and {@link com.aerospike.client.ResultCode#DEVICE_OVERLOAD}.
-	 * <p>
-	 * Default: 100
-	 */
-    /*
-    public ClusterDefinition maxErrorRate(int maxErrorRate) {
-        this.maxErrorRate = maxErrorRate;
-        return this;
-    }
-    */
+	public String getConfigPath() {
+		return configPath;
+	}
 
-	/**
-	 * Set number of cluster tend iterations that defines the window for {@link #maxErrorRate}.
-	 * One tend iteration is defined as {@link #tendInterval} plus the time to tend all nodes.
-	 * At the end of the window, the error count is reset to zero and backoff state is removed
-	 * on all nodes.
-	 * <p>
-	 * Default: 1
-	 */
-    /*
-    public ClusterDefinition errorRateWindow(int errorRateWindow) {
-        this.errorRateWindow = errorRateWindow;
-        return this;
-    }
-	*/
+	public byte[] getUserName() {
+		return userName;
+	}
 
-    /**
-	 * Set interval in milliseconds between cluster tends.
-	 * <p>
-	 * Default: 1000
-	 */
-    /*
-    public ClusterDefinition tendInterval(int tendInterval) {
-        this.tendInterval = tendInterval;
-        return this;
-    }
-	*/
+	public byte[] getPassword() {
+		return password;
+	}
+
+	public byte[] getPasswordHash() {
+		return passwordHash;
+	}
+
+	public int[] getRackIds() {
+		return rackIds;
+	}
+
+	public Log.Context getContext() {
+		return context;
+	}
+
+	public Level getLogLevel() {
+		return logLevel;
+	}
+
+	public Callback getCallback() {
+		return callback;
+	}
+
+	public Map<String, String> getIpMap() {
+		return ipMap;
+	}
+
+	public TlsBuilder getTlsBuilder() {
+		return tlsBuilder;
+	}
+
+	public AuthMode getAuthMode() {
+		return authMode;
+	}
+
+	public Duration getMaximumSocketIdleTime() {
+		return Duration.ofNanos(maxSocketIdleNanosTrim);
+	}
+
+	public int getMinimumConnectionsPerNode() {
+		return minConnsPerNode;
+	}
+
+	public int getMaximumConnectionsPerNode() {
+		return maxConnsPerNode;
+	}
+
+	public int getConnPoolsPerNode() {
+		return connPoolsPerNode;
+	}
+
+	public int getConfigInterval() {
+		return configInterval;
+	}
+
+	public Duration getTendInterval() {
+		return Duration.ofMillis(tendInterval);
+	}
+
+	public int getTendTimeout() {
+		return tendTimeout;
+	}
+
+	public int getLoginTimeout() {
+		return loginTimeout;
+	}
+
+	public int getMaximumErrorsInErrorWindow() {
+		return maxErrorRate;
+	}
+
+	public int getNumTendIntervalsInErrorWindow() {
+		return errorRateWindow;
+	}
+
+	public boolean isFailIfNotConnected() {
+		return failIfNotConnected;
+	}
+
+	public boolean isUseServicesAlternate() {
+		return useServicesAlternate;
+	}
+
+	public boolean isForceSingleNode() {
+		return forceSingleNode;
+	}
+
+	public Host[] getHosts() {
+		return hosts;
+	}
 }

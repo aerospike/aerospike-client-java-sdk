@@ -24,6 +24,7 @@ import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReferenceArray;
@@ -64,7 +65,8 @@ public class Cluster implements Closeable {
 	private final AtomicLong commandCount;
 	private final AtomicLong retryCount;
 	private final AtomicInteger nodeIndex;
-	final AtomicInteger replicaIndex;
+	private final AtomicInteger replicaIndex;
+	private final AtomicBoolean closed;
 	final Log.Context context;
 	private boolean metricsEnabled;
 
@@ -80,9 +82,11 @@ public class Cluster implements Closeable {
 		retryCount = new AtomicLong();
 		nodeIndex = new AtomicInteger();
 		replicaIndex = new AtomicInteger();
+		closed = new AtomicBoolean();
 		context = def.context;
 
 		this.applySystemSettings(effectiveSettings);
+
 		// TODO: Resolve when new DSL library is available.
 		//this.indexesMonitor = new IndexesMonitor();
         //this.indexesMonitor.startMonitor(createSession(Behavior.DEFAULT), INDEX_REFRESH);
@@ -211,22 +215,26 @@ public class Cluster implements Closeable {
             return;
         }
 
-        // TODO: BN Review
         if (settings.getMinimumConnectionsPerNode() != null) {
-            this.def.minConnsPerNode = settings.getMinimumConnectionsPerNode();
+        	setMinConnsPerNode(settings.getMinimumConnectionsPerNode());
         }
+
         if (settings.getMaximumConnectionsPerNode() != null) {
-            this.def.maxConnsPerNode = settings.getMaximumConnectionsPerNode();
+        	setMaxConnsPerNode(settings.getMaximumConnectionsPerNode());
         }
+
         if (settings.getMaximumErrorsInErrorWindow() != null) {
-            this.def.maxErrorRate = settings.getMaximumErrorsInErrorWindow();
+            def.maxErrorRate = settings.getMaximumErrorsInErrorWindow();
         }
+
         if (settings.getNumTendIntervalsInErrorWindow() != null) {
-            this.def.errorRateWindow = settings.getNumTendIntervalsInErrorWindow();
+        	def.errorRateWindow = settings.getNumTendIntervalsInErrorWindow();
         }
+
         if (settings.getTendInterval() != null) {
             this.def.tendInterval = (int)settings.getTendInterval().toMillis();
         }
+
         if (settings.getMaximumSocketIdleTime() != null) {
             this.def.maxSocketIdleNanosTrim = settings.getMaximumSocketIdleTime().toNanos();
         }
@@ -246,13 +254,13 @@ public class Cluster implements Closeable {
         Log.info("System settings updated for cluster '" +
             (def.clusterName != null ? def.clusterName : "(unnamed)") +
             "'. Note: Settings will take effect on next connection.");
-        
+
         if (Log.debugEnabled()) {
             Log.debug("\tMinConnsPerNode=%,d;MaxConnsPerNode=%,d;MaxErrorRate=%,d;ErrorRateWindow=%,d;TendInterval=%,dms;MaxSocketIdleNanos=%,dns"
-                    .formatted(this.def.minConnsPerNode, 
-                            this.def.maxConnsPerNode, 
-                            this.def.maxErrorRate, 
-                            this.def.errorRateWindow, 
+                    .formatted(this.def.minConnsPerNode,
+                            this.def.maxConnsPerNode,
+                            this.def.maxErrorRate,
+                            this.def.errorRateWindow,
                             this.def.tendInterval,
                             this.def.maxSocketIdleNanosTrim));
         }
@@ -319,23 +327,11 @@ public class Cluster implements Closeable {
 		return partitionMap;
 	}
 
-	/* Not used since maxSocketIdle is always assumed to be zero in new client
-	 * TODO REMOVE
-	public final boolean isConnCurrentTran(long lastUsed) {
-		return maxSocketIdleNanosTran == 0 || (System.nanoTime() - lastUsed) <= maxSocketIdleNanosTran;
-	}
-	*/
-
-	/*
-	public final boolean isConnCurrentTrim(long lastUsed) {
-		return (System.nanoTime() - lastUsed) <= maxSocketIdleNanosTrim;
-	}*/
-
 	public final void recoverConnection(ConnectionRecover cs) {
 		tend.recoverConnection(cs);
 	}
 
-	public final void setMinConnsPerNode(int min) {
+	private void setMinConnsPerNode(int min) {
 		def.minConnsPerNode = min;
 
  		Node[] nodeArray = nodes;
@@ -345,7 +341,7 @@ public class Cluster implements Closeable {
 		}
 	}
 
-	public final void setMaxConnsPerNode(int max) {
+	private final void setMaxConnsPerNode(int max) {
 		def.maxConnsPerNode = max;
 
 		Node[] nodeArray = nodes;
@@ -387,6 +383,10 @@ public class Cluster implements Closeable {
 			close();
 			throw e;
 		}
+    }
+
+    final int incrReplicaIndex() {
+    	return replicaIndex.getAndIncrement();
     }
 
 	/**
@@ -450,7 +450,31 @@ public class Cluster implements Closeable {
      */
     @Override
     public void close() {
+    	// TODO: Call stopMonitor() when DSL is supported.
         //indexesMonitor.stopMonitor();
-        //this.client.close();
+
+    	if (! closed.compareAndSet(false, true)) {
+			// close() has already been called.
+			return;
+		}
+
+    	tend.close();
+
+    	/* TODO Handle metrics close.
+		synchronized(metricsLock) {
+			try {
+				disableMetricsInternal();
+			}
+			catch (Throwable e) {
+				Log.warn("DisableMetrics failed: " + Util.getErrorMessage(e));
+			}
+		}
+		*/
+
+		Node[] nodeArray = nodes;
+
+		for (Node node : nodeArray) {
+			node.close();
+		}
     }
 }

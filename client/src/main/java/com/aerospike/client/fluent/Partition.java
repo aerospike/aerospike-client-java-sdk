@@ -241,7 +241,7 @@ public final class Partition {
 		AtomicReferenceArray<Node>[] replicas = partitions.replicas;
 
 		for (int i = 0; i < replicas.length; i++) {
-			int index = Math.abs(cluster.replicaIndex.getAndIncrement() % replicas.length);
+			int index = Math.abs(cluster.incrReplicaIndex() % replicas.length);
 			Node node = replicas[index].get(partitionId);
 
 			if (node != null && node.isActive()) {

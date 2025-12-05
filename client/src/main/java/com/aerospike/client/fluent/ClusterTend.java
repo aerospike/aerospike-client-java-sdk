@@ -669,4 +669,10 @@ public class ClusterTend implements Runnable {
 	public final int getInvalidNodeCount() {
 		return invalidNodeCount;
 	}
+
+	public final void close() {
+		// Stop cluster tend thread.
+		valid = false;
+		tendThread.interrupt();
+	}
 }

@@ -6,6 +6,7 @@ import java.time.Duration;
 
 import org.junit.jupiter.api.Test;
 
+import com.aerospike.client.fluent.ClusterDefinition;
 import com.aerospike.client.fluent.SystemSettings;
 import com.aerospike.client.fluent.SystemSettingsRegistry;
 import com.aerospike.client.fluent.policy.Behavior.Mode;
@@ -95,10 +96,13 @@ public class SystemBehaviorTest {
         SystemSettingsRegistry registry = SystemSettingsRegistry.getInstance();
         SystemSettings defaults = registry.getDefaultSettings();
 
+        ClusterDefinition def = new ClusterDefinition("host", 3000)
+            .withSystemSettings(defaults);
+
         // Verify defaults as specified in the plan
-        assertEquals(0, defaults.getMinimumConnectionsPerNode());
-        assertEquals(100, defaults.getMaximumConnectionsPerNode());
-        assertEquals(Duration.ofSeconds(55), defaults.getMaximumSocketIdleTime());
+        assertEquals(0, def.getMinimumConnectionsPerNode());
+        assertEquals(100, def.getMaximumConnectionsPerNode());
+        assertEquals(Duration.ofSeconds(55), def.getMaximumSocketIdleTime());
     }
 
     @Test
@@ -121,9 +125,12 @@ public class SystemBehaviorTest {
         SystemSettingsRegistry registry = SystemSettingsRegistry.getInstance();
         SystemSettings defaults = registry.getDefaultSettings();
 
+        ClusterDefinition def = new ClusterDefinition("host", 3000)
+        	.withSystemSettings(defaults);
+
         // Verify defaults as specified in the plan
-        assertEquals(1, defaults.getNumTendIntervalsInErrorWindow());
-        assertEquals(100, defaults.getMaximumErrorsInErrorWindow());
+        assertEquals(1, def.getNumTendIntervalsInErrorWindow());
+        assertEquals(100, def.getMaximumErrorsInErrorWindow());
     }
 
     @Test
@@ -144,8 +151,11 @@ public class SystemBehaviorTest {
         SystemSettingsRegistry registry = SystemSettingsRegistry.getInstance();
         SystemSettings defaults = registry.getDefaultSettings();
 
+        ClusterDefinition def = new ClusterDefinition("host", 3000)
+            .withSystemSettings(defaults);
+
         // Verify defaults as specified in the plan
-        assertEquals(Duration.ofSeconds(1), defaults.getTendInterval());
+        assertEquals(Duration.ofMillis(1000), def.getTendInterval());
     }
 
     @Test
