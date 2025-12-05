@@ -248,7 +248,13 @@ public class Cluster implements Closeable {
             "'. Note: Settings will take effect on next connection.");
         
         if (Log.debugEnabled()) {
-            Log.debug("\tMinConnsPerNode=%d;MaxConnsPerNode=%d;maxErrorRate=%d");
+            Log.debug("\tMinConnsPerNode=%,d;MaxConnsPerNode=%,d;MaxErrorRate=%,d;ErrorRateWindow=%,d;TendInterval=%,dms;MaxSocketIdleNanos=%,dns"
+                    .formatted(this.def.minConnsPerNode, 
+                            this.def.maxConnsPerNode, 
+                            this.def.maxErrorRate, 
+                            this.def.errorRateWindow, 
+                            this.def.tendInterval,
+                            this.def.maxSocketIdleNanosTrim));
         }
     }
 
