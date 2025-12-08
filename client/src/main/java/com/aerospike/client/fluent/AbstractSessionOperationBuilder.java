@@ -772,7 +772,8 @@ public abstract class AbstractSessionOperationBuilder<T extends AbstractSessionO
     }
 
     // ========================================================================
-    // HELPER METHODS - Apply Fluent API Settings to Policy Objects
+    // HELPER METHODS - Apply Fluent API Settings to Policy Objects.
+    // @todo: these should be removed when the legacy policies are removed from the fluent client
     // ========================================================================
 
     /**
