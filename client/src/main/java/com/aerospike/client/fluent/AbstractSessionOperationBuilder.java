@@ -6,7 +6,17 @@ import java.time.temporal.ChronoUnit;
 import java.util.Date;
 
 import com.aerospike.client.fluent.command.Txn;
+import com.aerospike.client.fluent.policy.BatchPolicy;
+import com.aerospike.client.fluent.policy.BatchReadPolicy;
+import com.aerospike.client.fluent.policy.BatchWritePolicy;
+import com.aerospike.client.fluent.policy.CommitLevel;
+import com.aerospike.client.fluent.policy.Policy;
+import com.aerospike.client.fluent.policy.QueryPolicy;
+import com.aerospike.client.fluent.policy.ReadModeAP;
+import com.aerospike.client.fluent.policy.ReadModeSC;
 import com.aerospike.client.fluent.policy.RecordExistsAction;
+import com.aerospike.client.fluent.policy.Replica;
+import com.aerospike.client.fluent.policy.WritePolicy;
 
 /**
  * Abstract base class for session-based operation builders that provides common functionality
@@ -32,6 +42,34 @@ public abstract class AbstractSessionOperationBuilder<T extends AbstractSessionO
     protected long expirationInSeconds = 0;  // Default, get value from server
     protected int generation = 0;
     protected Txn txnToUse;
+
+    // Timeout settings (null = use default from behavior/policy)
+    protected Integer connectTimeout = null;
+    protected Integer socketTimeout = null;
+    protected Integer totalTimeout = null;
+    protected Integer timeoutDelay = null;
+
+    // Retry settings
+    protected Integer maxRetries = null;
+    protected Integer sleepBetweenRetries = null;
+
+    // Read mode settings
+    protected ReadModeAP readModeAP = null;
+    protected ReadModeSC readModeSC = null;
+    protected Replica replica = null;
+    protected Integer readTouchTtlPercent = null;
+
+    // Write behavior settings
+    protected RecordExistsAction recordExistsAction = null;
+    protected CommitLevel commitLevel = null;
+    protected Boolean durableDelete = null;
+    protected Boolean respondAllOps = null;
+    protected Boolean onLockingOnly = null;
+    protected Boolean xdr = null;
+
+    // Other settings
+    protected Boolean sendKey = null;
+    protected Boolean compress = null;
 
     /**
      * TTL constant: Record never expires (TTL = -1)
@@ -241,6 +279,616 @@ public abstract class AbstractSessionOperationBuilder<T extends AbstractSessionO
      */
     protected Session getSession() {
         return this.session;
+    }
+
+    // ========================================================================
+    // TIMEOUT SETTINGS - Fluent API Methods
+    // ========================================================================
+
+    /**
+     * Set the socket connection timeout for this operation.
+     * <p>
+     * Socket connection timeout in milliseconds. If connectTimeout is zero,
+     * there will be no connection timeout.
+     * </p>
+     *
+     * @param connectTimeout timeout in milliseconds
+     * @return this builder for method chaining
+     */
+    public T withConnectTimeout(int connectTimeout) {
+        this.connectTimeout = connectTimeout;
+        return self();
+    }
+
+    /**
+     * Set the socket connection timeout for this operation.
+     *
+     * @param duration timeout duration
+     * @return this builder for method chaining
+     */
+    public T withConnectTimeout(Duration duration) {
+        this.connectTimeout = (int) duration.toMillis();
+        return self();
+    }
+
+    /**
+     * Set the socket idle timeout for this operation.
+     * <p>
+     * Socket idle timeout in milliseconds. If socketTimeout is zero and
+     * totalTimeout is non-zero, there will be no socket idle timeout.
+     * </p>
+     *
+     * @param socketTimeout timeout in milliseconds
+     * @return this builder for method chaining
+     */
+    public T withSocketTimeout(int socketTimeout) {
+        this.socketTimeout = socketTimeout;
+        return self();
+    }
+
+    /**
+     * Set the socket idle timeout for this operation.
+     *
+     * @param duration timeout duration
+     * @return this builder for method chaining
+     */
+    public T withSocketTimeout(Duration duration) {
+        this.socketTimeout = (int) duration.toMillis();
+        return self();
+    }
+
+    /**
+     * Set the total transaction timeout for this operation.
+     * <p>
+     * Total transaction timeout in milliseconds. If totalTimeout is not zero and
+     * totalTimeout is reached before the operation completes, the operation will abort.
+     * </p>
+     *
+     * @param totalTimeout timeout in milliseconds
+     * @return this builder for method chaining
+     */
+    public T withTotalTimeout(int totalTimeout) {
+        this.totalTimeout = totalTimeout;
+        return self();
+    }
+
+    /**
+     * Set the total transaction timeout for this operation.
+     *
+     * @param duration timeout duration
+     * @return this builder for method chaining
+     */
+    public T withTotalTimeout(Duration duration) {
+        this.totalTimeout = (int) duration.toMillis();
+        return self();
+    }
+
+    /**
+     * Set the timeout delay for this operation.
+     * <p>
+     * Delay in milliseconds after the socket timeout to allow for transaction
+     * cleanup. This field is only applicable to asynchronous commands.
+     * </p>
+     *
+     * @param timeoutDelay delay in milliseconds
+     * @return this builder for method chaining
+     */
+    public T withTimeoutDelay(int timeoutDelay) {
+        this.timeoutDelay = timeoutDelay;
+        return self();
+    }
+
+    /**
+     * Set the timeout delay for this operation.
+     *
+     * @param duration delay duration
+     * @return this builder for method chaining
+     */
+    public T withTimeoutDelay(Duration duration) {
+        this.timeoutDelay = (int) duration.toMillis();
+        return self();
+    }
+
+    /**
+     * Set all timeouts at once (connect, socket, and total).
+     *
+     * @param timeout timeout value to apply to all timeout settings (in milliseconds)
+     * @return this builder for method chaining
+     */
+    public T withTimeout(int timeout) {
+        this.connectTimeout = timeout;
+        this.socketTimeout = timeout;
+        this.totalTimeout = timeout;
+        return self();
+    }
+
+    /**
+     * Set all timeouts at once (connect, socket, and total).
+     *
+     * @param duration timeout duration to apply to all timeout settings
+     * @return this builder for method chaining
+     */
+    public T withTimeout(Duration duration) {
+        int millis = (int) duration.toMillis();
+        this.connectTimeout = millis;
+        this.socketTimeout = millis;
+        this.totalTimeout = millis;
+        return self();
+    }
+
+    // ========================================================================
+    // RETRY SETTINGS - Fluent API Methods
+    // ========================================================================
+
+    /**
+     * Set the maximum number of retries for this operation.
+     * <p>
+     * Maximum number of retries before aborting the current operation.
+     * The initial attempt is not counted as a retry.
+     * </p>
+     *
+     * @param maxRetries maximum number of retries
+     * @return this builder for method chaining
+     */
+    public T withMaxRetries(int maxRetries) {
+        this.maxRetries = maxRetries;
+        return self();
+    }
+
+    /**
+     * Set the delay between retries for this operation.
+     * <p>
+     * Milliseconds to sleep between retries. Only applies when maxRetries &gt; 0.
+     * </p>
+     *
+     * @param sleepBetweenRetries delay in milliseconds
+     * @return this builder for method chaining
+     */
+    public T withSleepBetweenRetries(int sleepBetweenRetries) {
+        this.sleepBetweenRetries = sleepBetweenRetries;
+        return self();
+    }
+
+    /**
+     * Set the delay between retries for this operation.
+     *
+     * @param duration delay duration
+     * @return this builder for method chaining
+     */
+    public T withSleepBetweenRetries(Duration duration) {
+        this.sleepBetweenRetries = (int) duration.toMillis();
+        return self();
+    }
+
+    /**
+     * Disable retries for this operation.
+     *
+     * @return this builder for method chaining
+     */
+    public T withoutRetries() {
+        this.maxRetries = 0;
+        return self();
+    }
+
+    // ========================================================================
+    // READ MODE SETTINGS - Fluent API Methods
+    // ========================================================================
+
+    /**
+     * Set the read mode for AP (availability) namespaces for this operation.
+     * <p>
+     * Read policy for AP (availability) namespaces. How duplicates should be
+     * consulted in a read operation. Only makes a difference during migrations.
+     * </p>
+     *
+     * @param readModeAP read mode (ONE or ALL)
+     * @return this builder for method chaining
+     */
+    public T withReadModeAP(ReadModeAP readModeAP) {
+        this.readModeAP = readModeAP;
+        return self();
+    }
+
+    /**
+     * Set the read mode for SC (strong consistency) namespaces for this operation.
+     * <p>
+     * Read policy for SC (strong consistency) namespaces. Determines SC read
+     * consistency options.
+     * </p>
+     *
+     * @param readModeSC read mode (SESSION, LINEARIZE, ALLOW_REPLICA, ALLOW_UNAVAILABLE)
+     * @return this builder for method chaining
+     */
+    public T withReadModeSC(ReadModeSC readModeSC) {
+        this.readModeSC = readModeSC;
+        return self();
+    }
+
+    /**
+     * Set the replica selection algorithm for this operation.
+     * <p>
+     * Determines which node to use for read operations when there are multiple
+     * replicas.
+     * </p>
+     *
+     * @param replica replica algorithm (MASTER, MASTER_PROLES, SEQUENCE, PREFER_RACK, RANDOM)
+     * @return this builder for method chaining
+     */
+    public T withReplica(Replica replica) {
+        this.replica = replica;
+        return self();
+    }
+
+    /**
+     * Set the read touch TTL percent for this operation.
+     * <p>
+     * Determine how record TTL (time to live) is affected on reads. When enabled,
+     * the server can efficiently operate as a read-based LRU cache.
+     * <ul>
+     * <li>0: Use server config default-read-touch-ttl-pct for the record's namespace/set</li>
+     * <li>-1: Do not reset record TTL on reads</li>
+     * <li>1-100: Reset record TTL on reads when within this percentage of the most recent write TTL</li>
+     * </ul>
+     * </p>
+     *
+     * @param readTouchTtlPercent percentage value
+     * @return this builder for method chaining
+     */
+    public T withReadTouchTtlPercent(int readTouchTtlPercent) {
+        this.readTouchTtlPercent = readTouchTtlPercent;
+        return self();
+    }
+
+    /**
+     * Disable read touch TTL for this operation (do not reset TTL on reads).
+     *
+     * @return this builder for method chaining
+     */
+    public T withoutReadTouchTtl() {
+        this.readTouchTtlPercent = -1;
+        return self();
+    }
+
+    // ========================================================================
+    // WRITE BEHAVIOR SETTINGS - Fluent API Methods
+    // ========================================================================
+
+    /**
+     * Set how to handle writes when the record already exists.
+     * <p>
+     * Options:
+     * <ul>
+     * <li>UPDATE: Create or update record. Merge write bins with existing bins</li>
+     * <li>UPDATE_ONLY: Update record only. Fail if record does not exist</li>
+     * <li>REPLACE: Create or replace record. Delete existing bins not in write command</li>
+     * <li>REPLACE_ONLY: Replace record only. Fail if record does not exist</li>
+     * <li>CREATE_ONLY: Create only. Fail if record exists</li>
+     * </ul>
+     * </p>
+     *
+     * @param action record exists action
+     * @return this builder for method chaining
+     */
+    public T withRecordExistsAction(RecordExistsAction action) {
+        this.recordExistsAction = action;
+        return self();
+    }
+
+    /**
+     * Set the write operation to only create new records (fail if exists).
+     *
+     * @return this builder for method chaining
+     */
+    public T createOnly() {
+        this.recordExistsAction = RecordExistsAction.CREATE_ONLY;
+        return self();
+    }
+
+    /**
+     * Set the write operation to only update existing records (fail if not exists).
+     *
+     * @return this builder for method chaining
+     */
+    public T updateOnly() {
+        this.recordExistsAction = RecordExistsAction.UPDATE_ONLY;
+        return self();
+    }
+
+    /**
+     * Set the write operation to replace the entire record (create or replace).
+     *
+     * @return this builder for method chaining
+     */
+    public T replaceRecord() {
+        this.recordExistsAction = RecordExistsAction.REPLACE;
+        return self();
+    }
+
+    /**
+     * Set the write operation to replace only existing records (fail if not exists).
+     *
+     * @return this builder for method chaining
+     */
+    public T replaceOnly() {
+        this.recordExistsAction = RecordExistsAction.REPLACE_ONLY;
+        return self();
+    }
+
+    /**
+     * Set the commit level for write operations.
+     * <p>
+     * Desired consistency guarantee when committing a command:
+     * <ul>
+     * <li>COMMIT_ALL: Wait for master and all replica commits</li>
+     * <li>COMMIT_MASTER: Wait for master commit only</li>
+     * </ul>
+     * </p>
+     *
+     * @param commitLevel commit level
+     * @return this builder for method chaining
+     */
+    public T withCommitLevel(CommitLevel commitLevel) {
+        this.commitLevel = commitLevel;
+        return self();
+    }
+
+    /**
+     * Set commit level to wait for all replicas.
+     *
+     * @return this builder for method chaining
+     */
+    public T commitAll() {
+        this.commitLevel = CommitLevel.COMMIT_ALL;
+        return self();
+    }
+
+    /**
+     * Set commit level to wait for master only.
+     *
+     * @return this builder for method chaining
+     */
+    public T commitMasterOnly() {
+        this.commitLevel = CommitLevel.COMMIT_MASTER;
+        return self();
+    }
+
+    /**
+     * Enable durable delete for this operation.
+     * <p>
+     * If the command results in a record deletion, leave a tombstone for the record.
+     * This prevents deleted records from reappearing after node failures.
+     * Valid for Aerospike Server Enterprise Edition only.
+     * </p>
+     *
+     * @return this builder for method chaining
+     */
+    public T withDurableDelete() {
+        this.durableDelete = true;
+        return self();
+    }
+
+    /**
+     * Disable durable delete for this operation (default behavior).
+     *
+     * @return this builder for method chaining
+     */
+    public T withoutDurableDelete() {
+        this.durableDelete = false;
+        return self();
+    }
+
+    /**
+     * Return results for all operations in a multi-operation command.
+     * <p>
+     * If true, the server will return results for every operation. If false,
+     * the server will only return the result of the last operation.
+     * </p>
+     *
+     * @return this builder for method chaining
+     */
+    public T respondAllOps() {
+        this.respondAllOps = true;
+        return self();
+    }
+
+    /**
+     * Execute the write command only if the record is not already locked by this transaction.
+     * <p>
+     * If true and the record is already locked, the command will throw an exception
+     * with MRT_ALREADY_LOCKED error code. Useful for safely retrying non-idempotent writes.
+     * </p>
+     *
+     * @return this builder for method chaining
+     */
+    public T onlyIfNotLocked() {
+        this.onLockingOnly = true;
+        return self();
+    }
+
+    /**
+     * Operate in XDR mode for this operation.
+     * <p>
+     * Indicates that the write operation should be processed in XDR mode.
+     * </p>
+     *
+     * @return this builder for method chaining
+     */
+    public T asXdrWrite() {
+        this.xdr = true;
+        return self();
+    }
+
+    // ========================================================================
+    // OTHER SETTINGS - Fluent API Methods
+    // ========================================================================
+
+    /**
+     * Send the user-defined key in addition to the hash digest.
+     * <p>
+     * If true, the key will be stored with the record on the server and can be
+     * retrieved later.
+     * </p>
+     *
+     * @return this builder for method chaining
+     */
+    public T sendKey() {
+        this.sendKey = true;
+        return self();
+    }
+
+    /**
+     * Do not send the user-defined key (default behavior).
+     *
+     * @return this builder for method chaining
+     */
+    public T withoutSendingKey() {
+        this.sendKey = false;
+        return self();
+    }
+
+    /**
+     * Use zlib compression on command buffers sent to the server and responses received.
+     * <p>
+     * This will increase cpu and memory usage (for extra compressed buffers), but
+     * decrease the size of data sent over the network.
+     * Requires Enterprise Edition Server.
+     * </p>
+     *
+     * @return this builder for method chaining
+     */
+    public T withCompression() {
+        this.compress = true;
+        return self();
+    }
+
+    /**
+     * Do not use compression (default behavior).
+     *
+     * @return this builder for method chaining
+     */
+    public T withoutCompression() {
+        this.compress = false;
+        return self();
+    }
+
+    // ========================================================================
+    // HELPER METHODS - Apply Fluent API Settings to Policy Objects
+    // ========================================================================
+
+    /**
+     * Apply fluent API settings to a Policy. Only non-null builder fields override policy defaults.
+     */
+    protected void applyFluentApiSettings(Policy policy) {
+        if (this.connectTimeout != null) {
+            policy.connectTimeout = this.connectTimeout;
+        }
+        if (this.socketTimeout != null) {
+            policy.socketTimeout = this.socketTimeout;
+        }
+        if (this.totalTimeout != null) {
+            policy.totalTimeout = this.totalTimeout;
+        }
+        if (this.timeoutDelay != null) {
+            policy.timeoutDelay = this.timeoutDelay;
+        }
+        if (this.maxRetries != null) {
+            policy.maxRetries = this.maxRetries;
+        }
+        if (this.sleepBetweenRetries != null) {
+            policy.sleepBetweenRetries = this.sleepBetweenRetries;
+        }
+        if (this.readModeAP != null) {
+            policy.readModeAP = this.readModeAP;
+        }
+        if (this.readModeSC != null) {
+            policy.readModeSC = this.readModeSC;
+        }
+        if (this.replica != null) {
+            policy.replica = this.replica;
+        }
+        if (this.readTouchTtlPercent != null) {
+            policy.readTouchTtlPercent = this.readTouchTtlPercent;
+        }
+        if (this.sendKey != null) {
+            policy.sendKey = this.sendKey;
+        }
+        if (this.compress != null) {
+            policy.compress = this.compress;
+        }
+    }
+
+    /**
+     * Apply fluent API settings to a WritePolicy, including write-specific fields.
+     */
+    protected void applyFluentApiWriteSettings(WritePolicy policy) {
+        applyFluentApiSettings(policy);
+
+        if (this.recordExistsAction != null) {
+            policy.recordExistsAction = this.recordExistsAction;
+        }
+        if (this.commitLevel != null) {
+            policy.commitLevel = this.commitLevel;
+        }
+        if (this.durableDelete != null) {
+            policy.durableDelete = this.durableDelete;
+        }
+        if (this.respondAllOps != null) {
+            policy.respondAllOps = this.respondAllOps;
+        }
+        if (this.onLockingOnly != null) {
+            policy.onLockingOnly = this.onLockingOnly;
+        }
+        if (this.xdr != null) {
+            policy.xdr = this.xdr;
+        }
+    }
+
+    /**
+     * Apply fluent API settings to a BatchWritePolicy.
+     * Note: recordExistsAction not applied (BatchWritePolicy uses opType instead).
+     */
+    protected void applyFluentApiBatchWriteSettings(BatchWritePolicy policy) {
+        if (this.commitLevel != null) {
+            policy.commitLevel = this.commitLevel;
+        }
+        if (this.durableDelete != null) {
+            policy.durableDelete = this.durableDelete;
+        }
+        if (this.onLockingOnly != null) {
+            policy.onLockingOnly = this.onLockingOnly;
+        }
+        if (this.sendKey != null) {
+            policy.sendKey = this.sendKey;
+        }
+    }
+
+    /**
+     * Apply fluent API settings to a BatchReadPolicy.
+     */
+    protected void applyFluentApiBatchReadSettings(BatchReadPolicy policy) {
+        if (this.readModeAP != null) {
+            policy.readModeAP = this.readModeAP;
+        }
+        if (this.readModeSC != null) {
+            policy.readModeSC = this.readModeSC;
+        }
+        if (this.readTouchTtlPercent != null) {
+            policy.readTouchTtlPercent = this.readTouchTtlPercent;
+        }
+    }
+
+    /**
+     * Apply fluent API settings to a BatchPolicy.
+     */
+    protected void applyFluentApiBatchSettings(BatchPolicy policy) {
+        applyFluentApiSettings(policy);
+    }
+
+    /**
+     * Apply fluent API settings to a QueryPolicy.
+     */
+    protected void applyFluentApiQuerySettings(QueryPolicy policy) {
+        applyFluentApiSettings(policy);
     }
 }
 

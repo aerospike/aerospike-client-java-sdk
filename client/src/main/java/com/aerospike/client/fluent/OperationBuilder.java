@@ -1,12 +1,5 @@
 package com.aerospike.client.fluent;
 
-import java.time.Duration;
-import java.time.LocalDateTime;
-import java.time.temporal.ChronoUnit;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
-
 import com.aerospike.client.fluent.command.Txn;
 import com.aerospike.client.fluent.dsl.BooleanExpression;
 import com.aerospike.client.fluent.exp.Exp;
@@ -20,6 +13,11 @@ import com.aerospike.client.fluent.policy.Settings;
 import com.aerospike.client.fluent.policy.WritePolicy;
 import com.aerospike.client.fluent.query.PreparedDsl;
 import com.aerospike.client.fluent.query.WhereClauseProcessor;
+
+import java.time.Duration;
+import java.time.LocalDateTime;
+import java.util.Date;
+import java.util.List;
 
 public class OperationBuilder extends AbstractOperationBuilder<OperationBuilder> implements FilterableOperation<OperationBuilder> {
     private final List<Key> keys;
@@ -471,29 +469,35 @@ public class OperationBuilder extends AbstractOperationBuilder<OperationBuilder>
     protected Session getSession() {
         return this.session;
     }
-/*
+
     private BatchPolicy settingsToBatchPolicy(Settings settings) {
         BatchPolicy batchPolicy = settings.asBatchPolicy();
         batchPolicy.txn = this.txnToUse;
-        
-        // Apply where clause if present
         batchPolicy.filterExp = keys.isEmpty() ? null : processWhereClause(keys.get(0).namespace, session);
         batchPolicy.failOnFilteredOut = this.failOnFilteredOut;
+
+        applyFluentApiBatchSettings(batchPolicy);
         return batchPolicy;
     }
-    
+
     private WritePolicy settingsToWritePolicy(Settings settings, Expression filterExp) {
         WritePolicy wp = settings.asWritePolicy();
-        wp.filterExp = filterExp; 
+        wp.filterExp = filterExp;
         wp.failOnFilteredOut = this.failOnFilteredOut;
         wp.expiration = getExpirationAsInt();
         wp.generation = generation;
-        wp.generationPolicy = getGenerationPolicy(generation);
         wp.txn = this.txnToUse;
         wp.recordExistsAction = recordExistsActionFromOpType(opType);
-        wp.sendKey = settings.getSendKey();
-        wp.durableDelete = settings.getUseDurableDelete();
-        
+
+        // Fallback to settings if fluent API not used
+        if (this.sendKey == null) {
+            wp.sendKey = settings.getSendKey();
+        }
+        if (this.durableDelete == null) {
+            wp.durableDelete = settings.getUseDurableDelete();
+        }
+
+        applyFluentApiWriteSettings(wp);
         return wp;
     }
 
@@ -501,12 +505,11 @@ public class OperationBuilder extends AbstractOperationBuilder<OperationBuilder>
         BatchWritePolicy batchWritePolicy = new BatchWritePolicy();
         batchWritePolicy.expiration = getExpirationAsInt();
         batchWritePolicy.generation = generation;
-        batchWritePolicy.generationPolicy = getGenerationPolicy(generation);
-        batchWritePolicy.recordExistsAction = recordExistsActionFromOpType(opType);
+        batchWritePolicy.opType = this.opType;
+
+        applyFluentApiBatchWriteSettings(batchWritePolicy);
         return batchWritePolicy;
     }
-    }
-*/
 
     protected RecordStream executeBatchSync(Settings settings, Operation[] operations) {
     	/*
