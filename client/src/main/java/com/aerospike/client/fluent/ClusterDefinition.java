@@ -49,6 +49,8 @@ import com.aerospike.client.fluent.policy.AuthMode;
  * @see Session
  */
 public class ClusterDefinition {
+	private static final String CONFIG_PATH_ENV = "AEROSPIKE_CLIENT_CONFIG_URL";
+
 	private SystemSettings userSuppliedSystemSettings;
 	String clientVersion;
 	String appId;
@@ -549,6 +551,20 @@ public class ClusterDefinition {
         // Apply system settings to policy (4-level hierarchy)
         SystemSettings effectiveSettings = SystemSettingsRegistry.getInstance()
             .getEffectiveSettings(clusterName, userSuppliedSystemSettings);
+
+		String configPath = System.getenv(CONFIG_PATH_ENV);
+
+		if (configPath != null && !configPath.isEmpty()) {
+			try {
+				// TODO: Tim: How merge file settings into effectiveSettings?
+
+				//File file = new File(configPath);
+				//Behavior.startMonitoring(configFile);
+			}
+			catch (Throwable t) {
+				throw new AerospikeException("Failed to read: " + configPath, t);
+			}
+		}
 
     	return new Cluster(def, effectiveSettings);
     }
