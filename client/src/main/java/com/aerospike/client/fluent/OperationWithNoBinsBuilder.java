@@ -36,6 +36,7 @@ import com.aerospike.client.fluent.command.BatchRecord;
 import com.aerospike.client.fluent.command.BatchSingle;
 import com.aerospike.client.fluent.command.BatchStatus;
 import com.aerospike.client.fluent.command.BatchWrite;
+import com.aerospike.client.fluent.command.BatchWriteCommand;
 import com.aerospike.client.fluent.command.DeleteExecutor;
 import com.aerospike.client.fluent.command.ExistsExecutor;
 import com.aerospike.client.fluent.command.IBatchCommand;
@@ -47,7 +48,6 @@ import com.aerospike.client.fluent.command.WriteCommand;
 import com.aerospike.client.fluent.dsl.BooleanExpression;
 import com.aerospike.client.fluent.exp.Exp;
 import com.aerospike.client.fluent.exp.Expression;
-import com.aerospike.client.fluent.policy.BatchDeletePolicy;
 import com.aerospike.client.fluent.policy.BatchWritePolicy;
 import com.aerospike.client.fluent.policy.Behavior.OpKind;
 import com.aerospike.client.fluent.policy.Behavior.OpShape;
@@ -491,20 +491,16 @@ public class OperationWithNoBinsBuilder extends AbstractSessionOperationBuilder<
         	TxnMonitor.addKeys(txnToUse, cluster, partitions, policy, keys);
 		}
 
-    	// TODO: Move policies directly into BatchWriteCommand (like is done in BatchReadCommand).
-        BatchDeletePolicy bdp = new BatchDeletePolicy();
-        bdp.generation = generation;
-        bdp.sendKey = policy.getSendKey();
-        bdp.durableDelete = policy.getUseDurableDelete();
-
         List<BatchRecord> batchRecords = new ArrayList<>(keys.size());
 
         for (Key key : keys) {
-            batchRecords.add(new BatchDelete(bdp, key));
+        	// TODO: Tim: When generation is used, it's highly likely to change between keys,
+        	// but the api only specifies generation once for the entire batch.
+            batchRecords.add(new BatchDelete(key, generation));
         }
 
-        BatchCommand parent = new BatchCommand(cluster, partitions, txnToUse, namespace,
-        	batchRecords, filterExp, policy.getReplicaOrder(), respondAllKeys, policy);
+        BatchWriteCommand parent = new BatchWriteCommand(cluster, partitions, txnToUse, namespace,
+        	batchRecords, filterExp, respondAllKeys, policy);
 
         BatchStatus status = new BatchStatus(true);
         List<BatchNode> bns = BatchNodeList.generate(cluster, partitions, policy.getReplicaOrder(),

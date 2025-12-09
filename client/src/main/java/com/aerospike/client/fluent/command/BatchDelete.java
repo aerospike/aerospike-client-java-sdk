@@ -17,31 +17,34 @@
 package com.aerospike.client.fluent.command;
 
 import com.aerospike.client.fluent.Key;
-import com.aerospike.client.fluent.policy.BatchDeletePolicy;
 
 /**
  * Batch delete operation.
  */
 public final class BatchDelete extends BatchRecord {
 	/**
-	 * Optional delete policy.
+	 * Expected generation. Generation is the number of times a record has been modified
+	 * (including creation) on the server. This field is only relevant when generationPolicy
+	 * is not NONE.
+	 * <p>
+	 * Default: 0
 	 */
-	public final BatchDeletePolicy policy;
+	public int generation;
 
 	/**
 	 * Initialize key.
 	 */
 	public BatchDelete(Key key) {
 		super(key, true);
-		this.policy = null;
+		this.generation = 0;
 	}
 
 	/**
 	 * Initialize policy and key.
 	 */
-	public BatchDelete(BatchDeletePolicy policy, Key key) {
+	public BatchDelete(Key key, int generation) {
 		super(key, true);
-		this.policy = policy;
+		this.generation = generation;
 	}
 
 	/**
@@ -63,16 +66,7 @@ public final class BatchDelete extends BatchRecord {
 		}
 
 		BatchDelete other = (BatchDelete)obj;
-		if (policy != other.policy) {
-			return false;
-		}
-
-		boolean sendkey = false;
-		if (policy != null) {
-			sendkey = policy.sendKey;
-		}
-
-		return !sendkey;
+		return generation == other.generation;
 	}
 
 	/**
@@ -82,14 +76,7 @@ public final class BatchDelete extends BatchRecord {
 	public int size(Command cmd) {
 		int size = 2; // gen(2) = 2
 
-		if (policy != null) {
-			boolean sendkey = policy.sendKey;
-
-			if (sendkey || cmd.sendKey) {
-				size += key.userKey.estimateSize() + Command.FIELD_HEADER_SIZE + 1;
-			}
-		}
-		else if (cmd.sendKey) {
+		if (cmd.sendKey) {
 			size += key.userKey.estimateSize() + Command.FIELD_HEADER_SIZE + 1;
 		}
 		return size;

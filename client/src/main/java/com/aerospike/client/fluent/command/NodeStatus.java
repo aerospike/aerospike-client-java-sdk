@@ -20,7 +20,6 @@ import java.util.ArrayList;
 import java.util.concurrent.locks.ReentrantLock;
 
 import com.aerospike.client.fluent.AerospikeException;
-import com.aerospike.client.fluent.Key;
 
 public final class NodeStatus {
 	private final ReentrantLock lock;

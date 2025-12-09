@@ -341,12 +341,12 @@ public final class BatchSingle {
 	}
 
 	public static final class Delete extends BatchSingleExecutor {
-		private final BatchCommand cmd;
+		private final BatchWriteCommand cmd;
 		private final BatchDelete record;
 
 		public Delete(
 			Cluster cluster,
-			BatchCommand cmd,
+			BatchWriteCommand cmd,
 			BatchDelete record,
 			BatchStatus status,
 			Node node

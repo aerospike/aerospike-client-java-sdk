@@ -27,7 +27,6 @@ import com.aerospike.client.fluent.ResultCode;
 import com.aerospike.client.fluent.Value;
 import com.aerospike.client.fluent.command.PartitionTracker.NodePartitions;
 import com.aerospike.client.fluent.exp.Expression;
-import com.aerospike.client.fluent.policy.BatchDeletePolicy;
 import com.aerospike.client.fluent.policy.BatchReadPolicy;
 import com.aerospike.client.fluent.policy.BatchUDFPolicy;
 import com.aerospike.client.fluent.policy.BatchWritePolicy;
@@ -300,7 +299,7 @@ public final class CommandBuffer {
 		end();
 	}
 
-	public void setDelete(BatchCommand cmd, BatchDelete bd) {
+	public void setDelete(BatchWriteCommand cmd, BatchDelete bd) {
 		begin();
 		int fieldCount = estimateKeySize(cmd, bd.key, true);
 
@@ -312,15 +311,14 @@ public final class CommandBuffer {
 		sizeBuffer();
 
 		// Set flags.
-		BatchDeletePolicy bdp = bd.policy;
 		int writeAttr = Command.INFO2_WRITE | Command.INFO2_DELETE;
 		int txnAttr = 0;
 
-		if (bdp.generation > 0) {
+		if (bd.generation > 0) {
 			writeAttr |= Command.INFO2_GENERATION;
 		}
 
-		if (bdp.durableDelete) {
+		if (cmd.durableDelete) {
 			writeAttr |= Command.INFO2_DURABLE_DELETE;
 		}
 
@@ -337,7 +335,7 @@ public final class CommandBuffer {
 		dataBuffer[11] = (byte)0;
 		dataBuffer[12] = (byte)txnAttr;
 		dataBuffer[13] = 0; // clear the result code
-		Buffer.intToBytes(bdp.generation, dataBuffer, 14);
+		Buffer.intToBytes(bd.generation, dataBuffer, 14);
 		Buffer.intToBytes(0, dataBuffer, 18);
 		Buffer.intToBytes(cmd.serverTimeout, dataBuffer, 22);
 		Buffer.shortToBytes(fieldCount, dataBuffer, 26);
@@ -360,8 +358,7 @@ public final class CommandBuffer {
 		BatchCommand cmd,
 		BatchNode batch,
 		BatchWritePolicy writePolicy,
-		BatchUDFPolicy udfPolicy,
-		BatchDeletePolicy deletePolicy
+		BatchUDFPolicy udfPolicy
 	) {
 		begin();
 		int max = batch.offsetsSize;
@@ -506,9 +503,8 @@ public final class CommandBuffer {
 
 					case BATCH_DELETE: {
 						BatchDelete bd = (BatchDelete)record;
-						BatchDeletePolicy bdp = (bd.policy != null)? bd.policy : deletePolicy;
 
-						attr.setDelete(bdp);
+						attr.setDelete((BatchWriteCommand)cmd, bd);
 						writeBatchWrite(key, txn, ver, attr, attr.filterExp, 0, 0);
 						break;
 					}

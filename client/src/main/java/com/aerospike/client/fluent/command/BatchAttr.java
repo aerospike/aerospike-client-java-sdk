@@ -18,7 +18,6 @@ package com.aerospike.client.fluent.command;
 
 import com.aerospike.client.fluent.Operation;
 import com.aerospike.client.fluent.exp.Expression;
-import com.aerospike.client.fluent.policy.BatchDeletePolicy;
 import com.aerospike.client.fluent.policy.BatchReadPolicy;
 import com.aerospike.client.fluent.policy.BatchUDFPolicy;
 import com.aerospike.client.fluent.policy.BatchWritePolicy;
@@ -281,27 +280,23 @@ public final class BatchAttr {
 		}
 	}
 
-	public void setDelete(BatchDeletePolicy dp) {
-		filterExp = dp.filterExp;
+	public void setDelete(BatchWriteCommand cmd, BatchDelete bd) {
+		filterExp = cmd.filterExp;
 		readAttr = 0;
 		writeAttr = Command.INFO2_WRITE | Command.INFO2_RESPOND_ALL_OPS | Command.INFO2_DELETE;
 		infoAttr = 0;
 		txnAttr = 0;
 		expiration = 0;
 		hasWrite = true;
-		sendKey = dp.sendKey;
+		sendKey = cmd.sendKey;
 
-		if (dp.generation > 0) {
-			generation = (short)dp.generation;
+		if (bd.generation > 0) {
+			generation = (short)bd.generation;
 			writeAttr |= Command.INFO2_GENERATION;
 		}
 
-		if (dp.durableDelete) {
+		if (cmd.durableDelete) {
 			writeAttr |= Command.INFO2_DURABLE_DELETE;
-		}
-
-		if (dp.commitLevel == CommitLevel.COMMIT_MASTER) {
-			infoAttr |= Command.INFO3_COMMIT_MASTER;
 		}
 	}
 
