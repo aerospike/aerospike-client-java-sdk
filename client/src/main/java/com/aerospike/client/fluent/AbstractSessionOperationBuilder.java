@@ -6,17 +6,13 @@ import java.time.temporal.ChronoUnit;
 import java.util.Date;
 
 import com.aerospike.client.fluent.command.Txn;
-import com.aerospike.client.fluent.policy.BatchPolicy;
 import com.aerospike.client.fluent.policy.BatchReadPolicy;
 import com.aerospike.client.fluent.policy.BatchWritePolicy;
 import com.aerospike.client.fluent.policy.CommitLevel;
-import com.aerospike.client.fluent.policy.Policy;
-import com.aerospike.client.fluent.policy.QueryPolicy;
 import com.aerospike.client.fluent.policy.ReadModeAP;
 import com.aerospike.client.fluent.policy.ReadModeSC;
 import com.aerospike.client.fluent.policy.RecordExistsAction;
 import com.aerospike.client.fluent.policy.Replica;
-import com.aerospike.client.fluent.policy.WritePolicy;
 
 /**
  * Abstract base class for session-based operation builders that provides common functionality
@@ -777,74 +773,6 @@ public abstract class AbstractSessionOperationBuilder<T extends AbstractSessionO
     // ========================================================================
 
     /**
-     * Apply fluent API settings to a Policy. Only non-null builder fields override policy defaults.
-     */
-    protected void applyFluentApiSettings(Policy policy) {
-        if (this.connectTimeout != null) {
-            policy.connectTimeout = this.connectTimeout;
-        }
-        if (this.socketTimeout != null) {
-            policy.socketTimeout = this.socketTimeout;
-        }
-        if (this.totalTimeout != null) {
-            policy.totalTimeout = this.totalTimeout;
-        }
-        if (this.timeoutDelay != null) {
-            policy.timeoutDelay = this.timeoutDelay;
-        }
-        if (this.maxRetries != null) {
-            policy.maxRetries = this.maxRetries;
-        }
-        if (this.sleepBetweenRetries != null) {
-            policy.sleepBetweenRetries = this.sleepBetweenRetries;
-        }
-        if (this.readModeAP != null) {
-            policy.readModeAP = this.readModeAP;
-        }
-        if (this.readModeSC != null) {
-            policy.readModeSC = this.readModeSC;
-        }
-        if (this.replica != null) {
-            policy.replica = this.replica;
-        }
-        if (this.readTouchTtlPercent != null) {
-            policy.readTouchTtlPercent = this.readTouchTtlPercent;
-        }
-        if (this.sendKey != null) {
-            policy.sendKey = this.sendKey;
-        }
-        if (this.compress != null) {
-            policy.compress = this.compress;
-        }
-    }
-
-    /**
-     * Apply fluent API settings to a WritePolicy, including write-specific fields.
-     */
-    protected void applyFluentApiWriteSettings(WritePolicy policy) {
-        applyFluentApiSettings(policy);
-
-        if (this.recordExistsAction != null) {
-            policy.recordExistsAction = this.recordExistsAction;
-        }
-        if (this.commitLevel != null) {
-            policy.commitLevel = this.commitLevel;
-        }
-        if (this.durableDelete != null) {
-            policy.durableDelete = this.durableDelete;
-        }
-        if (this.respondAllOps != null) {
-            policy.respondAllOps = this.respondAllOps;
-        }
-        if (this.onLockingOnly != null) {
-            policy.onLockingOnly = this.onLockingOnly;
-        }
-        if (this.xdr != null) {
-            policy.xdr = this.xdr;
-        }
-    }
-
-    /**
      * Apply fluent API settings to a BatchWritePolicy.
      * Note: recordExistsAction not applied (BatchWritePolicy uses opType instead).
      */
@@ -876,20 +804,6 @@ public abstract class AbstractSessionOperationBuilder<T extends AbstractSessionO
         if (this.readTouchTtlPercent != null) {
             policy.readTouchTtlPercent = this.readTouchTtlPercent;
         }
-    }
-
-    /**
-     * Apply fluent API settings to a BatchPolicy.
-     */
-    protected void applyFluentApiBatchSettings(BatchPolicy policy) {
-        applyFluentApiSettings(policy);
-    }
-
-    /**
-     * Apply fluent API settings to a QueryPolicy.
-     */
-    protected void applyFluentApiQuerySettings(QueryPolicy policy) {
-        applyFluentApiSettings(policy);
     }
 }
 

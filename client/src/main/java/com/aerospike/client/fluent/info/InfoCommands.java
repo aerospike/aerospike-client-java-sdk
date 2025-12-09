@@ -13,8 +13,6 @@ import com.aerospike.client.fluent.info.classes.NamespaceDetail;
 import com.aerospike.client.fluent.info.classes.SetDetail;
 import com.aerospike.client.fluent.info.classes.Sindex;
 import com.aerospike.client.fluent.info.classes.SindexDetail;
-import com.aerospike.client.fluent.policy.Policy;
-import com.aerospike.client.fluent.query.IndexCollectionType;
 import com.aerospike.client.fluent.task.IndexTask;
 
 /**
@@ -85,7 +83,6 @@ public class InfoCommands {
      * @throws AerospikeException   if index create fails
      */
     public final IndexTask createIndex(
-        Policy policy,
         String namespace,
         String setName,
         String indexName,

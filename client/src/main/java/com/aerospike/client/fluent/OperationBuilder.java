@@ -1,23 +1,18 @@
 package com.aerospike.client.fluent;
 
-import com.aerospike.client.fluent.command.Txn;
-import com.aerospike.client.fluent.dsl.BooleanExpression;
-import com.aerospike.client.fluent.exp.Exp;
-import com.aerospike.client.fluent.exp.Expression;
-import com.aerospike.client.fluent.policy.BatchPolicy;
-import com.aerospike.client.fluent.policy.BatchWritePolicy;
-import com.aerospike.client.fluent.policy.Behavior.OpKind;
-import com.aerospike.client.fluent.policy.Behavior.OpShape;
-import com.aerospike.client.fluent.policy.GenerationPolicy;
-import com.aerospike.client.fluent.policy.Settings;
-import com.aerospike.client.fluent.policy.WritePolicy;
-import com.aerospike.client.fluent.query.PreparedDsl;
-import com.aerospike.client.fluent.query.WhereClauseProcessor;
-
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.Date;
 import java.util.List;
+
+import com.aerospike.client.fluent.command.Txn;
+import com.aerospike.client.fluent.dsl.BooleanExpression;
+import com.aerospike.client.fluent.exp.Exp;
+import com.aerospike.client.fluent.policy.Behavior.OpKind;
+import com.aerospike.client.fluent.policy.Behavior.OpShape;
+import com.aerospike.client.fluent.policy.Settings;
+import com.aerospike.client.fluent.query.PreparedDsl;
+import com.aerospike.client.fluent.query.WhereClauseProcessor;
 
 public class OperationBuilder extends AbstractOperationBuilder<OperationBuilder> implements FilterableOperation<OperationBuilder> {
     private final List<Key> keys;
@@ -348,10 +343,6 @@ public class OperationBuilder extends AbstractOperationBuilder<OperationBuilder>
                 .getSettings(retryable? OpKind.WRITE_RETRYABLE : OpKind.WRITE_NON_RETRYABLE, OpShape.POINT, session.isNamespaceSC(keys.get(0).namespace));
     }
 
-    public GenerationPolicy getGenerationPolicy(int generation) {
-        return generation > 0 ? GenerationPolicy.EXPECT_GEN_EQUAL : GenerationPolicy.NONE;
-    }
-
     @Override
     public OperationBuilder where(String dsl, Object ... params) {
         setWhereClause(createWhereClauseProcessor(false, dsl, params));
@@ -470,26 +461,6 @@ public class OperationBuilder extends AbstractOperationBuilder<OperationBuilder>
         return this.session;
     }
 
-    private BatchPolicy settingsToBatchPolicy(Settings settings) {
-        BatchPolicy batchPolicy = settings.asBatchPolicy();
-        batchPolicy.txn = this.txnToUse;
-        batchPolicy.filterExp = keys.isEmpty() ? null : processWhereClause(keys.get(0).namespace, session);
-        batchPolicy.failOnFilteredOut = this.failOnFilteredOut;
-
-        applyFluentApiBatchSettings(batchPolicy);
-        return batchPolicy;
-    }
-
-    private BatchWritePolicy getBatchWritePolicy() {
-        BatchWritePolicy batchWritePolicy = new BatchWritePolicy();
-        batchWritePolicy.expiration = getExpirationAsInt();
-        batchWritePolicy.generation = generation;
-        batchWritePolicy.opType = this.opType;
-
-        applyFluentApiBatchWriteSettings(batchWritePolicy);
-        return batchWritePolicy;
-    }
-
     protected RecordStream executeBatchSync(Settings settings, Operation[] operations) {
     	/*
         BatchWritePolicy batchWritePolicy = getBatchWritePolicy();
@@ -552,6 +523,7 @@ public class OperationBuilder extends AbstractOperationBuilder<OperationBuilder>
         showWarningsOnException(ae, txn, key, expiration);
         throw ae;
     }
+
     protected void showWarningsOnException(AerospikeException ae, Txn txn, Key key, int expiration) {
         if (Log.warnEnabled()) {
             if (ae.getResultCode() == ResultCode.FAIL_FORBIDDEN && expiration > 0) {
@@ -566,159 +538,5 @@ public class OperationBuilder extends AbstractOperationBuilder<OperationBuilder>
                 }
             }
         }
-    }
-    /**
-     * Execute a single operation and publish the result to the async stream.
-     * Handles filtering, error handling, and respondAllKeys logic.
-     */
-    protected void executeAndPublishSingleOperation(
-            WritePolicy wp,
-            Key key,
-            Operation[] operations,
-            AsyncRecordStream asyncStream,
-            int index,
-            boolean stackTraceOnException) {
-/*
-        try {
-        try {
-            Record record = session.getClient().operate(wp, key, operations);
-            if (respondAllKeys || record != null) {
-                asyncStream.publish(new RecordResult(key, record, index));
-            }
-        } catch (AerospikeException ae) {
-            if (ae.getResultCode() == ResultCode.FILTERED_OUT) {
-                if (failOnFilteredOut || respondAllKeys) {
-                    asyncStream.publish(new RecordResult(key, AeroException.from(ae), index));
-                }
-                // Otherwise skip this record
-            } else {
-                showWarningsOnException(ae, txnToUse, key, getExpirationAsInt());
-                asyncStream.publish(new RecordResult(key, AeroException.from(ae), index));
-            }
-        }
-*/
-    }
-
-    /**
-     * Execute operations synchronously for individual keys (< batch threshold).
-     * All virtual threads are joined before returning.
-     */
-    protected RecordStream executeIndividualSync(Settings settings, Operation[] operations) {
-    	/*
-        // Apply where clause if present
-        Expression whereExp = null;
-        if (this.dsl != null && !keys.isEmpty()) {
-            ParseResult parseResult = this.dsl.process(keys.get(0).namespace, session);
-            whereExp = Exp.build(parseResult.getExp());
-        }
-        wp.filterExp = whereExp;
-
-        return executeIndividualParallelSync(wp, operations, keys);
-        */
-    	return null;
-    }
-
-    /**
-     * Execute operations asynchronously for individual keys (< batch threshold).
-     * Returns immediately; virtual threads complete in background.
-     */
-    protected RecordStream executeIndividualAsync(Settings settings, Operation[] operations) {
-    	/*
-        // Apply where clause if present
-        Expression filterExp = keys.isEmpty() ? null : processWhereClause(keys.get(0).namespace, session);
-
-        return executeIndividualParallelAsync(settings, filterExp, operations, keys);
-        */
-    	return null;
-    }
-
-    /**
-     * Execute operations in parallel using virtual threads, JOINING all threads before return.
-     * Guarantees all operations complete (successfully or exceptionally) before returning.
-     */
-    protected RecordStream executeIndividualParallelSync(
-            Settings settings,
-            Operation[] operations,
-            List<Key> keysToProcess) {
-    	return null;
-    	/*
-        AsyncRecordStream stream = new AsyncRecordStream(keysToProcess.size());
-        Expression filterExp = keys.isEmpty() ? null : processWhereClause(keys.get(0).namespace, session);
-        WritePolicy wp = settingsToWritePolicy(settings, filterExp);
-        try {
-            // Single key: synchronous execution (no threads needed)
-            if (keysToProcess.size() == 1) {
-
-                Key key = keysToProcess.get(0);
-                executeAndPublishSingleOperation(wp, key, operations, stream, 0, settings.getStackTraceOnException());
-            }
-            else {
-                // Multiple keys: parallel execution with virtual threads, JOINED before return
-                CountDownLatch latch = new CountDownLatch(keysToProcess.size());
-
-                for (int i = 0; i < keysToProcess.size(); i++) {
-                    final int index = i;
-                    final Key key = keysToProcess.get(i);
-                    Thread.startVirtualThread(() -> {
-                        try {
-                            // Execute operation and collect result
-                            executeAndPublishSingleOperation(wp, key, operations, stream, index, settings.getStackTraceOnException());
-                        } finally {
-                            latch.countDown();
-                        }
-                    });
-                }
-
-                // WAIT for all threads to complete
-                try {
-                    latch.await();
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    stream.complete();
-                    throw new RuntimeException("Interrupted while waiting for operations to complete", e);
-                }
-            }
-            return new RecordStream(stream);
-        }
-        finally {
-            stream.complete();
-        }
-        */
-    }
-
-    /**
-     * Execute operations in parallel using virtual threads, WITHOUT joining.
-     * Returns immediately with AsyncRecordStream; threads complete in background.
-     */
-    protected RecordStream executeIndividualParallelAsync(
-            Settings settings,
-            Expression filterExp,
-            Operation[] operations,
-            List<Key> keysToProcess) {
-
-    	return null;
-    	/*
-        // Even single key: use async execution with virtual thread
-        AsyncRecordStream asyncStream = new AsyncRecordStream(keysToProcess.size());
-        AtomicInteger pendingOps = new AtomicInteger(keysToProcess.size());
-
-        WritePolicy wp = settingsToWritePolicy(settings, filterExp);
-        for (int i = 0; i < keysToProcess.size(); i++) {
-            final int index = i;
-            final Key key = keysToProcess.get(i);
-
-            Thread.startVirtualThread(() -> {
-                try {
-                    executeAndPublishSingleOperation(wp, key, operations, asyncStream, index, settings.getStackTraceOnException());
-                } finally {
-                    if (pendingOps.decrementAndGet() == 0) {
-                        asyncStream.complete();
-                    }
-                }
-            });
-        }
-
-        return new RecordStream(asyncStream);
-        */
     }
 }

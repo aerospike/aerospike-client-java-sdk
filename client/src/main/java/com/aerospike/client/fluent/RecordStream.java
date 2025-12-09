@@ -14,7 +14,6 @@ import java.util.stream.StreamSupport;
 import com.aerospike.client.fluent.command.PartitionFilter;
 import com.aerospike.client.fluent.command.RecordSet;
 import com.aerospike.client.fluent.command.Statement;
-import com.aerospike.client.fluent.policy.QueryPolicy;
 import com.aerospike.client.fluent.query.RecordStreamImpl;
 import com.aerospike.client.fluent.query.SingleItemRecordStream;
 
@@ -25,7 +24,7 @@ public class RecordStream implements Iterator<RecordResult>, Closeable {
     public RecordStream(RecordResult rec) {
         impl = new SingleItemRecordStream(rec);
     }
-    
+
     public RecordStream(Key key, Record record) {
         RecordResult rec = new RecordResult(key, record, 0); // Single item, index = 0
         impl = new SingleItemRecordStream(rec);
@@ -33,14 +32,14 @@ public class RecordStream implements Iterator<RecordResult>, Closeable {
     /**
      * Creates a RecordStream from a list of RecordResult objects.
      * This is typically used for batch query results.
-     * 
+     *
      * @param records the list of results
      * @param limit the maximum number of records to include (0 or negative means no limit)
      * @param respondAllKeys if false, null records are filtered out
      */
     public RecordStream(List<RecordResult> records, long limit) {
         AsyncRecordStream asyncStream = new AsyncRecordStream(Math.max(100, records.size()));
-        
+
         // Filter and limit records
         int count = 0;
         for (RecordResult record : records) {
@@ -58,41 +57,41 @@ public class RecordStream implements Iterator<RecordResult>, Closeable {
 
     /**
      * Creates a RecordStream for index/scan queries with server-side chunking.
-     * 
+     *
      * <p>This constructor is used for queries that stream results from the server in chunks.
      * For client-side sorting and pagination, use {@link #asNavigatableStream()} on the
      * returned stream.</p>
-     * 
+     *
      * @param session the Aerospike session
      * @param queryPolicy the query policy
      * @param statement the query statement
      * @param filter the partition filter
      * @param limit the maximum number of records to return (0 or negative means no limit)
      */
-    public RecordStream(Session session, QueryPolicy queryPolicy, Statement statement,
+    public RecordStream(Session session, Statement statement,
             PartitionFilter filter, long limit) {
 
         if (limit <= 0) {
             limit = Long.MAX_VALUE;
         }
-        
+
         // Use chunked streaming for all index queries
         // TODO: BN
         //RecordSet recordSet = session.getClient().queryPartitions(queryPolicy, statement, filter);
         RecordSet recordSet = null;
-        impl = new ChunkedRecordStream(session, queryPolicy, statement, filter, recordSet, limit);
+        impl = new ChunkedRecordStream(session, statement, filter, recordSet, limit);
     }
 
     /**
      * Checks if there are more chunks available from the server.
-     * 
+     *
      * <p>This method is used for server-side streaming pagination (chunks).
      * Returns true if more data chunks are available from the server.</p>
-     * 
+     *
      * <p><b>Note:</b> This is distinct from client-side pagination (pages) provided by
      * {@link NavigatableRecordStream}. Use {@link #asNavigatableStream()} for
      * client-side sorting and bi-directional pagination.</p>
-     * 
+     *
      * @return true if more chunks are available, false otherwise
      */
     public boolean hasMoreChunks() {
@@ -175,12 +174,12 @@ public class RecordStream implements Iterator<RecordResult>, Closeable {
 
     /**
      * Converts this RecordStream into a NavigatableRecordStream for in-memory sorting and pagination.
-     * 
+     *
      * <p>This method reads all records from the current stream into memory and returns a
      * NavigatableRecordStream that provides builder-style APIs for sorting and pagination.
      * This is useful when you need to sort results after fetching them from the database,
      * or when you want to paginate through results in a different way than the original query.</p>
-     * 
+     *
      * <p>Example usage:</p>
      * <pre>
      * RecordStream results = session.query(customerDataSet).execute();
@@ -190,7 +189,7 @@ public class RecordStream implements Iterator<RecordResult>, Closeable {
      *         SortProperties.ascending("name"),
      *         SortProperties.descending("age")
      *     ));
-     * 
+     *
      * // Iterate through pages
      * while (navigatable.hasMorePages()) {
      *     while (navigatable.hasNext()) {
@@ -199,24 +198,24 @@ public class RecordStream implements Iterator<RecordResult>, Closeable {
      *     }
      * }
      * </pre>
-     * 
+     *
      * <p><b>Warning:</b> This method loads all records into memory. For large result sets,
      * consider using the limit parameter in {@link #asNavigatableStream(long)} to avoid
      * excessive memory usage.</p>
-     * 
+     *
      * @return a NavigatableRecordStream containing all records from this stream
      */
     public NavigatableRecordStream asNavigatableStream() {
         return new NavigatableRecordStream(this);
     }
-    
+
     /**
      * Converts this RecordStream into a NavigatableRecordStream with a record limit.
-     * 
+     *
      * <p>This method reads records from the current stream into memory up to the specified
      * limit and returns a NavigatableRecordStream that provides builder-style APIs for
      * sorting and pagination.</p>
-     * 
+     *
      * <p>Example usage:</p>
      * <pre>
      * RecordStream results = session.query(customerDataSet).execute();
@@ -224,20 +223,20 @@ public class RecordStream implements Iterator<RecordResult>, Closeable {
      *     .pageSize(20)
      *     .sortBy(SortProperties.descending("age"));
      * </pre>
-     * 
+     *
      * @param limit the maximum number of records to load into memory (0 or negative means no limit)
      * @return a NavigatableRecordStream containing up to limit records from this stream
      */
     public NavigatableRecordStream asNavigatableStream(long limit) {
         return new NavigatableRecordStream(this, limit);
     }
-    
+
     public void forEach(Consumer<RecordResult> consumer) {
         while (hasNext()) {
             consumer.accept(next());
         }
     }
-    
+
     public Optional<Record> get(Key key) {
         while (hasNext()) {
             RecordResult kr = next();

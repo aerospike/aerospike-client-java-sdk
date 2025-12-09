@@ -1,6 +1,10 @@
 package com.aerospike.client.fluent;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.time.Duration;
 
@@ -12,7 +16,6 @@ import com.aerospike.client.fluent.policy.ReadModeAP;
 import com.aerospike.client.fluent.policy.ReadModeSC;
 import com.aerospike.client.fluent.policy.RecordExistsAction;
 import com.aerospike.client.fluent.policy.Replica;
-import com.aerospike.client.fluent.policy.WritePolicy;
 
 /**
  * Tests for fluent API methods that set operation settings.
@@ -476,65 +479,5 @@ public class FluentApiSettingsTest {
         assertTrue(builder.getDurableDelete());
         assertTrue(builder.getSendKey());
         assertTrue(builder.getCompress());
-    }
-
-    // ========================================================================
-    // Helper Method Tests
-    // ========================================================================
-
-    @Test
-    public void testApplyFluentApiSettings_appliesNonNullFields() {
-        TestOperationBuilder builder = new TestOperationBuilder();
-        builder.withTotalTimeout(5000)
-               .withMaxRetries(3)
-               .withReadModeAP(ReadModeAP.ALL)
-               .sendKey();
-
-        WritePolicy policy = new WritePolicy();
-        policy.totalTimeout = 1000; // Default
-        policy.maxRetries = 0; // Default
-        policy.sendKey = false; // Default
-
-        builder.applyFluentApiWriteSettings(policy);
-
-        assertEquals(5000, policy.totalTimeout);
-        assertEquals(3, policy.maxRetries);
-        assertEquals(ReadModeAP.ALL, policy.readModeAP);
-        assertTrue(policy.sendKey);
-    }
-
-    @Test
-    public void testApplyFluentApiSettings_ignoresNullFields() {
-        TestOperationBuilder builder = new TestOperationBuilder();
-        // Don't set any fluent API fields
-
-        WritePolicy policy = new WritePolicy();
-        policy.totalTimeout = 1000;
-        policy.maxRetries = 2;
-        policy.sendKey = true;
-
-        builder.applyFluentApiWriteSettings(policy);
-
-        // Policy defaults should remain unchanged
-        assertEquals(1000, policy.totalTimeout);
-        assertEquals(2, policy.maxRetries);
-        assertTrue(policy.sendKey);
-    }
-
-    @Test
-    public void testApplyFluentApiWriteSettings_includesWriteFields() {
-        TestOperationBuilder builder = new TestOperationBuilder();
-        builder.withRecordExistsAction(RecordExistsAction.UPDATE_ONLY)
-               .withCommitLevel(CommitLevel.COMMIT_MASTER)
-               .withDurableDelete()
-               .respondAllOps();
-
-        WritePolicy policy = new WritePolicy();
-        builder.applyFluentApiWriteSettings(policy);
-
-        assertEquals(RecordExistsAction.UPDATE_ONLY, policy.recordExistsAction);
-        assertEquals(CommitLevel.COMMIT_MASTER, policy.commitLevel);
-        assertTrue(policy.durableDelete);
-        assertTrue(policy.respondAllOps);
     }
 }
