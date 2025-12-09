@@ -105,50 +105,50 @@ public class OperationBuilder extends AbstractOperationBuilder<OperationBuilder>
         this.keys = keys;
         this.txnToUse = session.getCurrentTransaction();
     }
-    
+
     // Covariant return type overrides for method chaining
     @Override
     public OperationBuilder expireRecordAfter(Duration duration) {
         super.expireRecordAfter(duration);
         return this;
     }
-    
+
     @Override
     public OperationBuilder expireRecordAfterSeconds(int expirationInSeconds) {
         super.expireRecordAfterSeconds(expirationInSeconds);
         return this;
     }
-    
+
     @Override
     public OperationBuilder expireRecordAt(Date date) {
         super.expireRecordAt(date);
         return this;
     }
-    
+
     @Override
     public OperationBuilder expireRecordAt(LocalDateTime date) {
         super.expireRecordAt(date);
         return this;
     }
-    
+
     @Override
     public OperationBuilder withNoChangeInExpiration() {
         super.withNoChangeInExpiration();
         return this;
     }
-    
+
     @Override
     public OperationBuilder neverExpire() {
         super.neverExpire();
         return this;
     }
-    
+
     @Override
     public OperationBuilder expiryFromServerDefault() {
         super.expiryFromServerDefault();
         return this;
     }
-    
+
     public BinsValuesBuilder bins(String binName, String... binNames) {
         return new BinsValuesBuilder(this, keys, binName, binNames);
     }
@@ -342,16 +342,16 @@ public class OperationBuilder extends AbstractOperationBuilder<OperationBuilder>
         long effectiveExpiration = (expirationInSeconds != 0) ? expirationInSeconds : expirationInSecondsForAll;
         return super.getExpirationAsInt(effectiveExpiration);
     }
-    
+
     protected Settings getSettings(boolean retryable) {
         return session.getBehavior()
                 .getSettings(retryable? OpKind.WRITE_RETRYABLE : OpKind.WRITE_NON_RETRYABLE, OpShape.POINT, session.isNamespaceSC(keys.get(0).namespace));
     }
-    
+
     public GenerationPolicy getGenerationPolicy(int generation) {
         return generation > 0 ? GenerationPolicy.EXPECT_GEN_EQUAL : GenerationPolicy.NONE;
     }
-    
+
     @Override
     public OperationBuilder where(String dsl, Object ... params) {
         setWhereClause(createWhereClauseProcessor(false, dsl, params));
@@ -409,14 +409,14 @@ public class OperationBuilder extends AbstractOperationBuilder<OperationBuilder>
     public RecordStream executeSync() {
     	/*
         if (Log.debugEnabled()) {
-            Log.debug("OperationBuilder.executeSync() called for " + keys.size() + " key(s), transaction: " + 
+            Log.debug("OperationBuilder.executeSync() called for " + keys.size() + " key(s), transaction: " +
                      (txnToUse != null ? "yes" : "no"));
         }
-        
+
         Operation[] operations = ops.toArray(new Operation[0]);
         boolean retryable = OperationBuilder.areOperationsRetryable(operations);
         Settings settings = getSettings(retryable);
-        
+
         // Use batch operations if 10 or more keys
         if (keys.size() >= getBatchOperationThreshold()) {
             return executeBatchSync(settings, operations);
@@ -439,10 +439,10 @@ public class OperationBuilder extends AbstractOperationBuilder<OperationBuilder>
     public RecordStream executeAsync() {
     	/*
         if (Log.debugEnabled()) {
-            Log.debug("OperationBuilder.executeAsync() called for " + keys.size() + " key(s), transaction: " + 
+            Log.debug("OperationBuilder.executeAsync() called for " + keys.size() + " key(s), transaction: " +
                      (txnToUse != null ? "yes" : "no"));
         }
-        
+
         if (txnToUse != null && Log.warnEnabled()) {
             Log.warn(
                 "executeAsync() called within a transaction. " +
@@ -451,11 +451,11 @@ public class OperationBuilder extends AbstractOperationBuilder<OperationBuilder>
                 "Consider using executeSync() or execute() for transactional safety."
             );
         }
-        
+
         Operation[] operations = ops.toArray(new Operation[0]);
         boolean retryable = OperationBuilder.areOperationsRetryable(operations);
         Settings settings = getSettings(retryable);
-        
+
         // Use batch operations if 10 or more keys
         if (keys.size() >= getBatchOperationThreshold()) {
             return executeBatchAsync(settings, operations);
@@ -480,27 +480,6 @@ public class OperationBuilder extends AbstractOperationBuilder<OperationBuilder>
         return batchPolicy;
     }
 
-    private WritePolicy settingsToWritePolicy(Settings settings, Expression filterExp) {
-        WritePolicy wp = settings.asWritePolicy();
-        wp.filterExp = filterExp;
-        wp.failOnFilteredOut = this.failOnFilteredOut;
-        wp.expiration = getExpirationAsInt();
-        wp.generation = generation;
-        wp.txn = this.txnToUse;
-        wp.recordExistsAction = recordExistsActionFromOpType(opType);
-
-        // Fallback to settings if fluent API not used
-        if (this.sendKey == null) {
-            wp.sendKey = settings.getSendKey();
-        }
-        if (this.durableDelete == null) {
-            wp.durableDelete = settings.getUseDurableDelete();
-        }
-
-        applyFluentApiWriteSettings(wp);
-        return wp;
-    }
-
     private BatchWritePolicy getBatchWritePolicy() {
         BatchWritePolicy batchWritePolicy = new BatchWritePolicy();
         batchWritePolicy.expiration = getExpirationAsInt();
@@ -519,9 +498,9 @@ public class OperationBuilder extends AbstractOperationBuilder<OperationBuilder>
         List<BatchRecord> batchRecords = keys.stream()
                 .map(key -> new BatchWrite(batchWritePolicy, key, operations))
                 .collect(Collectors.toList());
-        
+
         session.getClient().operate(batchPolicy, batchRecords);
-        
+
         // Convert BatchRecord to RecordResult with proper filtering and stack trace handling
         AsyncRecordStream recordStream = new AsyncRecordStream(batchRecords.size());
         try {
@@ -531,27 +510,27 @@ public class OperationBuilder extends AbstractOperationBuilder<OperationBuilder>
                     recordStream.publish(createRecordResultFromBatchRecord(br, settings, i));
                 }
             }
-            
+
             return new RecordStream(recordStream);
         }
         finally {
             recordStream.complete();
         }
     }
-    
+
     protected RecordStream executeBatchAsync(Settings settings, Operation[] operations) {
         AsyncRecordStream asyncStream = new AsyncRecordStream(keys.size());
         Thread.startVirtualThread(() -> {
             try {
                 BatchWritePolicy batchWritePolicy = getBatchWritePolicy();
-    
+
                 BatchPolicy batchPolicy = settingsToBatchPolicy(settings);
                 List<BatchRecord> batchRecords = keys.stream()
                         .map(key -> new BatchWrite(batchWritePolicy, key, operations))
                         .collect(Collectors.toList());
-                
+
                 session.getClient().operate(batchPolicy, batchRecords);
-                
+
                 for (int i = 0; i < keys.size(); i++) {
                     BatchRecord br = batchRecords.get(i);
                     // Use inherited shouldIncludeResult method
@@ -647,7 +626,7 @@ public class OperationBuilder extends AbstractOperationBuilder<OperationBuilder>
     	/*
         // Apply where clause if present
         Expression filterExp = keys.isEmpty() ? null : processWhereClause(keys.get(0).namespace, session);
-        
+
         return executeIndividualParallelAsync(settings, filterExp, operations, keys);
         */
     	return null;
@@ -658,7 +637,7 @@ public class OperationBuilder extends AbstractOperationBuilder<OperationBuilder>
      * Guarantees all operations complete (successfully or exceptionally) before returning.
      */
     protected RecordStream executeIndividualParallelSync(
-            Settings settings, 
+            Settings settings,
             Operation[] operations,
             List<Key> keysToProcess) {
     	return null;
@@ -669,14 +648,14 @@ public class OperationBuilder extends AbstractOperationBuilder<OperationBuilder>
         try {
             // Single key: synchronous execution (no threads needed)
             if (keysToProcess.size() == 1) {
-                
+
                 Key key = keysToProcess.get(0);
                 executeAndPublishSingleOperation(wp, key, operations, stream, 0, settings.getStackTraceOnException());
             }
             else {
                 // Multiple keys: parallel execution with virtual threads, JOINED before return
                 CountDownLatch latch = new CountDownLatch(keysToProcess.size());
-                
+
                 for (int i = 0; i < keysToProcess.size(); i++) {
                     final int index = i;
                     final Key key = keysToProcess.get(i);
@@ -689,7 +668,7 @@ public class OperationBuilder extends AbstractOperationBuilder<OperationBuilder>
                         }
                     });
                 }
-                
+
                 // WAIT for all threads to complete
                 try {
                     latch.await();
@@ -712,7 +691,7 @@ public class OperationBuilder extends AbstractOperationBuilder<OperationBuilder>
      * Returns immediately with AsyncRecordStream; threads complete in background.
      */
     protected RecordStream executeIndividualParallelAsync(
-            Settings settings, 
+            Settings settings,
             Expression filterExp,
             Operation[] operations,
             List<Key> keysToProcess) {
@@ -738,7 +717,7 @@ public class OperationBuilder extends AbstractOperationBuilder<OperationBuilder>
                 }
             });
         }
-        
+
         return new RecordStream(asyncStream);
         */
     }

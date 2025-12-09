@@ -50,9 +50,61 @@ public final class TxnRoll {
 	}
 
 	public void verify(Settings verifyPolicy, Settings rollPolicy) {
+		BatchReadCommand parent = null;
+
 		try {
-			// Verify read versions in batch.
-			verifyRecordVersions(verifyPolicy);
+			// Verify read versions in a batch.
+			Set<Map.Entry<Key, Long>> reads = txn.getReads();
+			int max = reads.size();
+
+			if (max == 0) {
+				return;
+			}
+
+	        List<BatchRecord> batchRecords = new ArrayList<BatchRecord>(max);
+			Long[] versions = new Long[max];
+			int count = 0;
+
+	        for (Map.Entry<Key, Long> entry : reads) {
+				Key key = entry.getKey();
+				BatchRecord br = new BatchRead(key, false);
+
+				batchRecords.add(br);
+				versions[count++] = entry.getValue();
+	        }
+
+			this.verifyRecords = batchRecords;
+
+			ReadAttr attr = new ReadAttr(partitions, verifyPolicy);
+
+			parent = new BatchReadCommand(cluster, partitions, txn, txn.getNamespace(),
+				batchRecords, null, false, verifyPolicy, attr);
+
+			BatchStatus status = new BatchStatus(true);
+
+	        List<BatchNode> bns = BatchNodeList.generate(cluster, partitions,
+	        	verifyPolicy.getReplicaOrder(), batchRecords, status);
+
+	        IBatchCommand[] commands = new IBatchCommand[bns.size()];
+
+			count = 0;
+
+			for (BatchNode bn : bns) {
+				if (bn.offsetsSize == 1) {
+					int i = bn.offsets[0];
+					commands[count++] = new BatchSingle.TxnVerify(cluster, parent, status,
+						batchRecords.get(i), bn.node, versions[i]);
+				}
+				else {
+					commands[count++] = new Batch.TxnVerify(cluster, parent, bn, status, versions);
+				}
+			}
+
+			BatchExecutor.execute(cluster, commands, status);
+
+			if (!status.getStatus()) {
+				throw new RuntimeException("Failed to verify one or more record versions");
+			}
 		}
 		catch (Throwable t) {
 			// Verify failed. Abort.
@@ -64,7 +116,7 @@ public final class TxnRoll {
 			catch (Throwable t2) {
 				// Throw combination of verify and roll exceptions.
 				t.addSuppressed(t2);
-				throw createCommitException(CommitError.VERIFY_FAIL_ABORT_ABANDONED, t);
+				throw createCommitException(parent, CommitError.VERIFY_FAIL_ABORT_ABANDONED, t);
 			}
 
 			if (txn.closeMonitor()) {
@@ -76,12 +128,12 @@ public final class TxnRoll {
 				catch (Throwable t3) {
 					// Throw combination of verify and close exceptions.
 					t.addSuppressed(t3);
-					throw createCommitException(CommitError.VERIFY_FAIL_CLOSE_ABANDONED, t);
+					throw createCommitException(parent, CommitError.VERIFY_FAIL_CLOSE_ABANDONED, t);
 				}
 			}
 
 			// Throw original exception when abort succeeds.
-			throw createCommitException(CommitError.VERIFY_FAIL, t);
+			throw createCommitException(parent, CommitError.VERIFY_FAIL, t);
 		}
 
 		txn.setState(Txn.State.VERIFIED);
@@ -97,7 +149,8 @@ public final class TxnRoll {
 				markRollForward(cmd);
 			}
 			catch (AerospikeException ae) {
-				AerospikeException.Commit aec = createCommitException(CommitError.MARK_ROLL_FORWARD_ABANDONED, ae);
+				AerospikeException.Commit aec = createCommitException(cmd,
+					CommitError.MARK_ROLL_FORWARD_ABANDONED, ae);
 
 				if (ae.getResultCode() == ResultCode.MRT_ABORTED) {
 					aec.setInDoubt(false);
@@ -117,7 +170,8 @@ public final class TxnRoll {
 				throw aec;
 			}
 			catch (Throwable t) {
-				AerospikeException.Commit aec = createCommitException(CommitError.MARK_ROLL_FORWARD_ABANDONED, t);
+				AerospikeException.Commit aec = createCommitException(cmd,
+					CommitError.MARK_ROLL_FORWARD_ABANDONED, t);
 
 				if (txn.getInDoubt()) {
 					aec.setInDoubt(true);
@@ -149,16 +203,20 @@ public final class TxnRoll {
 		return CommitStatus.OK;
 	}
 
-	private AerospikeException.Commit createCommitException(CommitError error, Throwable cause) {
+	private AerospikeException.Commit createCommitException(
+		Command cmd, CommitError error, Throwable cause
+	) {
 		AerospikeException.Commit aec = new AerospikeException.Commit(error, verifyRecords, rollRecords, cause);
 
 		if (cause instanceof AerospikeException) {
 			AerospikeException src = (AerospikeException)cause;
 			aec.setNode(src.getNode());
-			// TODO Restore
-			//aec.setPolicy(src.getPolicy());
 			aec.setIteration(src.getIteration());
 			aec.setInDoubt(src.getInDoubt());
+
+			if (cmd != null) {
+				aec.setCommand(cmd);
+			}
 		}
 		return aec;
 	}
@@ -184,61 +242,6 @@ public final class TxnRoll {
 			}
 		}
 		return AbortStatus.OK;
-	}
-
-	private void verifyRecordVersions(Settings verifyPolicy) {
-		// Validate record versions in a batch.
-		Set<Map.Entry<Key, Long>> reads = txn.getReads();
-		int max = reads.size();
-
-		if (max == 0) {
-			return;
-		}
-
-        List<BatchRecord> batchRecords = new ArrayList<BatchRecord>(max);
-		Long[] versions = new Long[max];
-		int count = 0;
-
-        for (Map.Entry<Key, Long> entry : reads) {
-			Key key = entry.getKey();
-			BatchRecord br = new BatchRead(key, false);
-
-			batchRecords.add(br);
-			versions[count++] = entry.getValue();
-        }
-
-		this.verifyRecords = batchRecords;
-
-		ReadAttr attr = new ReadAttr(partitions, verifyPolicy);
-
-		BatchReadCommand parent = new BatchReadCommand(cluster, partitions, txn, txn.getNamespace(),
-			batchRecords, null, false, verifyPolicy, attr);
-
-		BatchStatus status = new BatchStatus(true);
-
-        List<BatchNode> bns = BatchNodeList.generate(cluster, partitions,
-        	verifyPolicy.getReplicaOrder(), batchRecords, status);
-
-        IBatchCommand[] commands = new IBatchCommand[bns.size()];
-
-		count = 0;
-
-		for (BatchNode bn : bns) {
-			if (bn.offsetsSize == 1) {
-				int i = bn.offsets[0];
-				commands[count++] = new BatchSingle.TxnVerify(cluster, parent, status,
-					batchRecords.get(i), bn.node, versions[i]);
-			}
-			else {
-				commands[count++] = new Batch.TxnVerify(cluster, parent, bn, status, versions);
-			}
-		}
-
-		BatchExecutor.execute(cluster, commands, status);
-
-		if (!status.getStatus()) {
-			throw new RuntimeException("Failed to verify one or more record versions");
-		}
 	}
 
 	private void markRollForward(WriteCommand cmd) {
