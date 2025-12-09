@@ -7,7 +7,6 @@ import java.util.Date;
 
 import com.aerospike.client.fluent.command.Txn;
 import com.aerospike.client.fluent.policy.BatchReadPolicy;
-import com.aerospike.client.fluent.policy.BatchWritePolicy;
 import com.aerospike.client.fluent.policy.CommitLevel;
 import com.aerospike.client.fluent.policy.ReadModeAP;
 import com.aerospike.client.fluent.policy.ReadModeSC;
@@ -771,25 +770,6 @@ public abstract class AbstractSessionOperationBuilder<T extends AbstractSessionO
     // HELPER METHODS - Apply Fluent API Settings to Policy Objects.
     // @todo: these should be removed when the legacy policies are removed from the fluent client
     // ========================================================================
-
-    /**
-     * Apply fluent API settings to a BatchWritePolicy.
-     * Note: recordExistsAction not applied (BatchWritePolicy uses opType instead).
-     */
-    protected void applyFluentApiBatchWriteSettings(BatchWritePolicy policy) {
-        if (this.commitLevel != null) {
-            policy.commitLevel = this.commitLevel;
-        }
-        if (this.durableDelete != null) {
-            policy.durableDelete = this.durableDelete;
-        }
-        if (this.onLockingOnly != null) {
-            policy.onLockingOnly = this.onLockingOnly;
-        }
-        if (this.sendKey != null) {
-            policy.sendKey = this.sendKey;
-        }
-    }
 
     /**
      * Apply fluent API settings to a BatchReadPolicy.

@@ -28,7 +28,8 @@ public class BatchWriteCommand extends BatchCommand {
 
 	public BatchWriteCommand(
 		Cluster cluster, Partitions partitions, Txn txn, String namespace,
-		List<BatchRecord> records, Expression filterExp, boolean respondAllKeys, Settings policy
+		List<BatchRecord> records, Expression filterExp, boolean respondAllKeys,
+		Settings policy
 	) {
 		super(cluster, partitions, txn, namespace, records, filterExp, policy.getReplicaOrder(),
 			respondAllKeys, policy);

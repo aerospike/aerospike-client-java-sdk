@@ -20,7 +20,6 @@ import com.aerospike.client.fluent.Operation;
 import com.aerospike.client.fluent.exp.Expression;
 import com.aerospike.client.fluent.policy.BatchReadPolicy;
 import com.aerospike.client.fluent.policy.BatchUDFPolicy;
-import com.aerospike.client.fluent.policy.BatchWritePolicy;
 import com.aerospike.client.fluent.policy.CommitLevel;
 import com.aerospike.client.fluent.policy.ReadModeAP;
 
@@ -53,6 +52,7 @@ public final class BatchAttr {
 		}
 	}
 
+	/*
 	public BatchAttr(BatchReadCommand cmd, BatchWritePolicy wp, Operation[] ops) {
 		boolean readAllBins = false;
 		boolean readHeader = false;
@@ -104,6 +104,7 @@ public final class BatchAttr {
 			}
 		}
 	}
+	*/
 
 	public void setRead(BatchReadCommand cmd) {
 		filterExp = null;
@@ -191,22 +192,22 @@ public final class BatchAttr {
 		}
 	}
 
-	public void setWrite(BatchWritePolicy wp) {
-		filterExp = wp.filterExp;
+	public void setWrite(BatchWriteCommand cmd, BatchWrite bw) {
+		filterExp = cmd.filterExp;
 		readAttr = 0;
 		writeAttr = Command.INFO2_WRITE | Command.INFO2_RESPOND_ALL_OPS;
 		infoAttr = 0;
 		txnAttr = 0;
-		expiration = wp.expiration;
+		expiration = bw.ttl;
 		hasWrite = true;
-		sendKey = wp.sendKey;
+		sendKey = cmd.sendKey;
 
-		if (wp.generation > 0) {
-			generation = (short)wp.generation;
+		if (bw.generation > 0) {
+			generation = (short)bw.generation;
 			writeAttr |= Command.INFO2_GENERATION;
 		}
 
-		switch (wp.opType) {
+		switch (bw.opType) {
 		default:
 		case UPSERT:
 			break;
@@ -224,16 +225,8 @@ public final class BatchAttr {
 			break;
 		}
 
-		if (wp.durableDelete) {
+		if (cmd.durableDelete) {
 			writeAttr |= Command.INFO2_DURABLE_DELETE;
-		}
-
-		if (wp.onLockingOnly) {
-			txnAttr |= Command.INFO4_TXN_ON_LOCKING_ONLY;
-		}
-
-		if (wp.commitLevel == CommitLevel.COMMIT_MASTER) {
-			infoAttr |= Command.INFO3_COMMIT_MASTER;
 		}
 	}
 

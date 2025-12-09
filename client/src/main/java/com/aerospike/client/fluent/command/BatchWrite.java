@@ -18,23 +18,63 @@ package com.aerospike.client.fluent.command;
 
 import com.aerospike.client.fluent.AerospikeException;
 import com.aerospike.client.fluent.Key;
+import com.aerospike.client.fluent.OpType;
 import com.aerospike.client.fluent.Operation;
 import com.aerospike.client.fluent.ResultCode;
-import com.aerospike.client.fluent.policy.BatchWritePolicy;
 
 /**
  * Batch key and read/write operations with write policy.
  */
 public final class BatchWrite extends BatchRecord {
 	/**
-	 * Optional write policy.
-	 */
-	public final BatchWritePolicy policy;
-
-	/**
 	 * Required operations for this key.
 	 */
 	public final Operation[] ops;
+
+	/**
+	 * Write operation type.
+	 */
+	public final OpType opType;
+
+	/**
+	 * Expected generation. Generation is the number of times a record has been modified
+	 * (including creation) on the server. If a write operation is creating a record,
+	 * the expected generation would be <code>0</code>. This field is only relevant when
+	 * generationPolicy is not NONE.
+	 * <p>
+	 * The server does not support this field for UDF execute() calls. The read-modify-write
+	 * usage model can still be enforced inside the UDF code itself.
+	 * <p>
+	 * Default: 0
+	 */
+	public final int generation;
+
+	/**
+	 * Record expiration. Also known as ttl (time to live).
+	 * Seconds record will live before being removed by the server.
+	 * <p>
+	 * Expiration values:
+	 * <ul>
+	 * <li>-2: Do not change ttl when record is updated.</li>
+	 * <li>-1: Never expire.</li>
+	 * <li>0: Default to namespace configuration variable "default-ttl" on the server.</li>
+	 * <li>&gt; 0: Actual ttl in seconds.<br></li>
+	 * </ul>
+	 * <p>
+	 * Default: 0
+	 */
+	public final int ttl;
+
+	/**
+	 * Initialize batch key.
+	 */
+	public BatchWrite(Key key) {
+		super(key, true);
+		this.ops = null;
+		this.opType = OpType.UPSERT;
+		this.generation = 0;
+		this.ttl = 0;
+	}
 
 	/**
 	 * Initialize batch key and read/write operations.
@@ -46,7 +86,9 @@ public final class BatchWrite extends BatchRecord {
 	public BatchWrite(Key key, Operation[] ops) {
 		super(key, true);
 		this.ops = ops;
-		this.policy = null;
+		this.opType = OpType.UPSERT;
+		this.generation = 0;
+		this.ttl = 0;
 	}
 
 	/**
@@ -56,10 +98,12 @@ public final class BatchWrite extends BatchRecord {
 	 * makes it difficult (sometimes impossible) to lineup operations with results. Instead,
 	 * use {@link Operation#get(String)} for each bin name.
 	 */
-	public BatchWrite(BatchWritePolicy policy, Key key, Operation[] ops) {
+	public BatchWrite(Key key, Operation[] ops, OpType opType, int generation, int ttl) {
 		super(key, true);
 		this.ops = ops;
-		this.policy = policy;
+		this.opType = opType;
+		this.generation = generation;
+		this.ttl = ttl;
 	}
 
 	/**
@@ -81,16 +125,16 @@ public final class BatchWrite extends BatchRecord {
 		}
 
 		BatchWrite other = (BatchWrite)obj;
-		if (ops != other.ops || policy != other.policy) {
+
+		if (ops != other.ops) {
 			return false;
 		}
 
-		boolean sendkey = false;
-		if (policy != null) {
-			sendkey = policy.sendKey;
+		if (opType != other.opType) {
+			return false;
 		}
 
-		return !sendkey;
+		return generation == other.generation;
 	}
 
 	/**
@@ -100,29 +144,24 @@ public final class BatchWrite extends BatchRecord {
 	public int size(Command cmd) {
 		int size = 2; // gen(2) = 2
 
-		if (policy != null) {
-			boolean sendkey = policy.sendKey;
-
-			if (sendkey || cmd.sendKey) {
-				size += key.userKey.estimateSize() + Command.FIELD_HEADER_SIZE + 1;
-			}
-		}
-		else if (cmd.sendKey) {
+		if (cmd.sendKey) {
 			size += key.userKey.estimateSize() + Command.FIELD_HEADER_SIZE + 1;
 		}
 
-		boolean hasWrite = false;
+		if (ops != null) {
+			boolean hasWrite = false;
 
-		for (Operation op : ops) {
-			if (op.type.isWrite) {
-				hasWrite = true;
+			for (Operation op : ops) {
+				if (op.type.isWrite) {
+					hasWrite = true;
+				}
+				size += Buffer.estimateSizeUtf8(op.binName) + Command.OPERATION_HEADER_SIZE;
+				size += op.value.estimateSize();
 			}
-			size += Buffer.estimateSizeUtf8(op.binName) + Command.OPERATION_HEADER_SIZE;
-			size += op.value.estimateSize();
-		}
 
-		if (! hasWrite) {
-			throw new AerospikeException(ResultCode.PARAMETER_ERROR, "Batch write operations do not contain a write");
+			if (! hasWrite) {
+				throw new AerospikeException(ResultCode.PARAMETER_ERROR, "Batch write operations do not contain a write");
+			}
 		}
 		return size;
 	}

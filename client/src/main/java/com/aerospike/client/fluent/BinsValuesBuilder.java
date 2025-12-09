@@ -28,7 +28,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import com.aerospike.client.fluent.command.Batch;
 import com.aerospike.client.fluent.command.BatchAttr;
-import com.aerospike.client.fluent.command.BatchCommand;
 import com.aerospike.client.fluent.command.BatchExecutor;
 import com.aerospike.client.fluent.command.BatchNode;
 import com.aerospike.client.fluent.command.BatchNodeList;
@@ -36,6 +35,7 @@ import com.aerospike.client.fluent.command.BatchRecord;
 import com.aerospike.client.fluent.command.BatchSingle;
 import com.aerospike.client.fluent.command.BatchStatus;
 import com.aerospike.client.fluent.command.BatchWrite;
+import com.aerospike.client.fluent.command.BatchWriteCommand;
 import com.aerospike.client.fluent.command.IBatchCommand;
 import com.aerospike.client.fluent.command.OperateWriteCommand;
 import com.aerospike.client.fluent.command.SyncOperateExecutor;
@@ -45,7 +45,6 @@ import com.aerospike.client.fluent.dsl.BooleanExpression;
 import com.aerospike.client.fluent.dsl.ParseResult;
 import com.aerospike.client.fluent.exp.Exp;
 import com.aerospike.client.fluent.exp.Expression;
-import com.aerospike.client.fluent.policy.BatchWritePolicy;
 import com.aerospike.client.fluent.policy.Behavior.OpKind;
 import com.aerospike.client.fluent.policy.Behavior.OpShape;
 import com.aerospike.client.fluent.policy.Settings;
@@ -429,23 +428,13 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
         for (Key key : keys) {
             ValueData valueSet = valueSets.get(key);
             Operation[] ops = getOperationsForValueData(valueSet);
+            int ttl = getExpiration(valueSet);
 
-            BatchWritePolicy bwp = new BatchWritePolicy();
-
-            if (valueSet.generation > 0) {
-                bwp.generation = valueSet.generation;
-            }
-
-            bwp.expiration = getExpiration(valueSet);
-            bwp.opType = opBuilder.opType;
-            bwp.sendKey = policy.getSendKey();
-            bwp.durableDelete = policy.getUseDurableDelete();
-
-            batchRecords.add(new BatchWrite(bwp, key, ops));
+            batchRecords.add(new BatchWrite(key, ops, opBuilder.opType, valueSet.generation, ttl));
         }
 
-        BatchCommand parent = new BatchCommand(cluster, partitions, txn, namespace, batchRecords, filterExp,
-                policy.getReplicaOrder(), opBuilder.respondAllKeys, policy);
+        BatchWriteCommand parent = new BatchWriteCommand(cluster, partitions, txn, namespace,
+        	batchRecords, filterExp, opBuilder.respondAllKeys, policy);
 
         BatchStatus status = new BatchStatus(true);
         List<BatchNode> bns = BatchNodeList.generate(cluster, partitions, policy.getReplicaOrder(), batchRecords,
@@ -462,7 +451,7 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
                 BatchWrite bw = (BatchWrite) record;
                 BatchAttr attr = new BatchAttr();
 
-                attr.setWrite(bw.policy);
+                attr.setWrite(parent, bw);
                 attr.adjustWrite(bw.ops);
                 attr.setOpSize(bw.ops);
 
@@ -515,24 +504,15 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
         for (Key key : keys) {
             ValueData valueSet = valueSets.get(key);
             Operation[] ops = getOperationsForValueData(valueSet);
+            int ttl = getExpiration(valueSet);
 
-            BatchWritePolicy bwp = new BatchWritePolicy();
-
-            if (valueSet.generation > 0) {
-                bwp.generation = valueSet.generation;
-            }
-
-            bwp.expiration = getExpiration(valueSet);
-            bwp.opType = opBuilder.opType;
-            bwp.sendKey = policy.getSendKey();
-
-            batchRecords.add(new BatchWrite(bwp, key, ops));
+            batchRecords.add(new BatchWrite(key, ops, opBuilder.opType, valueSet.generation, ttl));
         }
 
         Txn txn = opBuilder.getTxnToUse();
 
-        BatchCommand parent = new BatchCommand(cluster, partitions, txn, namespace, batchRecords, filterExp,
-                policy.getReplicaOrder(), opBuilder.respondAllKeys, policy);
+        BatchWriteCommand parent = new BatchWriteCommand(cluster, partitions, txn, namespace,
+        	batchRecords, filterExp, opBuilder.respondAllKeys, policy);
 
         BatchStatus status = new BatchStatus(true);
         List<BatchNode> bns = BatchNodeList.generate(cluster, partitions, policy.getReplicaOrder(), batchRecords,
@@ -550,7 +530,7 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
                 BatchWrite bw = (BatchWrite) record;
                 BatchAttr attr = new BatchAttr();
 
-                attr.setWrite(bw.policy);
+                attr.setWrite(parent, bw);
                 attr.adjustWrite(bw.ops);
                 attr.setOpSize(bw.ops);
 

@@ -29,7 +29,6 @@ import com.aerospike.client.fluent.command.PartitionTracker.NodePartitions;
 import com.aerospike.client.fluent.exp.Expression;
 import com.aerospike.client.fluent.policy.BatchReadPolicy;
 import com.aerospike.client.fluent.policy.BatchUDFPolicy;
-import com.aerospike.client.fluent.policy.BatchWritePolicy;
 import com.aerospike.client.fluent.policy.CommitLevel;
 import com.aerospike.client.fluent.policy.QueryDuration;
 import com.aerospike.client.fluent.policy.ReadModeAP;
@@ -357,7 +356,6 @@ public final class CommandBuffer {
 	public final void setBatchOperate(
 		BatchCommand cmd,
 		BatchNode batch,
-		BatchWritePolicy writePolicy,
 		BatchUDFPolicy udfPolicy
 	) {
 		begin();
@@ -481,9 +479,8 @@ public final class CommandBuffer {
 
 					case BATCH_WRITE: {
 						BatchWrite bw = (BatchWrite)record;
-						BatchWritePolicy bwp = (bw.policy != null)? bw.policy : writePolicy;
 
-						attr.setWrite(bwp);
+						attr.setWrite((BatchWriteCommand)cmd, bw);
 						attr.adjustWrite(bw.ops);
 						writeBatchOperations(key, txn, ver, bw.ops, attr, attr.filterExp);
 						break;

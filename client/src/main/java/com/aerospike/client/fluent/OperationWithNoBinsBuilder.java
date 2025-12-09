@@ -25,7 +25,6 @@ import java.util.List;
 
 import com.aerospike.client.fluent.command.Batch;
 import com.aerospike.client.fluent.command.BatchAttr;
-import com.aerospike.client.fluent.command.BatchCommand;
 import com.aerospike.client.fluent.command.BatchDelete;
 import com.aerospike.client.fluent.command.BatchExecutor;
 import com.aerospike.client.fluent.command.BatchNode;
@@ -48,7 +47,6 @@ import com.aerospike.client.fluent.command.WriteCommand;
 import com.aerospike.client.fluent.dsl.BooleanExpression;
 import com.aerospike.client.fluent.exp.Exp;
 import com.aerospike.client.fluent.exp.Expression;
-import com.aerospike.client.fluent.policy.BatchWritePolicy;
 import com.aerospike.client.fluent.policy.Behavior.OpKind;
 import com.aerospike.client.fluent.policy.Behavior.OpShape;
 import com.aerospike.client.fluent.policy.Settings;
@@ -411,29 +409,22 @@ public class OperationWithNoBinsBuilder extends AbstractSessionOperationBuilder<
         Partitions partitions = getPartitions(cluster, namespace);
 		Settings policy = session.getBehavior().getSettings(OpKind.WRITE_RETRYABLE, OpShape.BATCH, partitions.scMode);
         Expression filterExp = processWhereClause(namespace, session);
+        int ttl = getExpirationAsInt();
 
 		if (txnToUse != null) {
         	TxnMonitor.addKeys(txnToUse, cluster, partitions, policy, keys);
 		}
-
-    	// TODO: Move policies directly into BatchWriteCommand (like is done in BatchReadCommand).
-        BatchWritePolicy bwp = new BatchWritePolicy();
-        bwp.generation = generation;
-        bwp.expiration = getExpirationAsInt();
-        bwp.opType = OpType.TOUCH;
-        bwp.sendKey = policy.getSendKey();
-        bwp.durableDelete = policy.getUseDurableDelete();
 
         Operation[] ops = new Operation[] {Operation.touch()};
 
         List<BatchRecord> batchRecords = new ArrayList<>(keys.size());
 
         for (Key key : keys) {
-            batchRecords.add(new BatchWrite(bwp, key, ops));
+            batchRecords.add(new BatchWrite(key, ops, OpType.TOUCH, generation, ttl));
         }
 
-        BatchCommand parent = new BatchCommand(cluster, partitions, txnToUse, namespace,
-        	batchRecords, filterExp, policy.getReplicaOrder(), respondAllKeys, policy);
+        BatchWriteCommand parent = new BatchWriteCommand(cluster, partitions, txnToUse, namespace,
+        	batchRecords, filterExp, respondAllKeys, policy);
 
         BatchStatus status = new BatchStatus(true);
         List<BatchNode> bns = BatchNodeList.generate(cluster, partitions, policy.getReplicaOrder(),
@@ -450,7 +441,7 @@ public class OperationWithNoBinsBuilder extends AbstractSessionOperationBuilder<
                 BatchWrite bw = (BatchWrite) record;
                 BatchAttr battr = new BatchAttr();
 
-                battr.setWrite(bw.policy);
+                battr.setWrite(parent, bw);
                 battr.adjustWrite(bw.ops);
                 battr.setOpSize(bw.ops);
 
