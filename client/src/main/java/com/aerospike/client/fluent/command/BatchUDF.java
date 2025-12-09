@@ -18,18 +18,12 @@ package com.aerospike.client.fluent.command;
 
 import com.aerospike.client.fluent.Key;
 import com.aerospike.client.fluent.Value;
-import com.aerospike.client.fluent.policy.BatchUDFPolicy;
 import com.aerospike.client.fluent.util.Packer;
 
 /**
  * Batch user defined functions.
  */
 public final class BatchUDF extends BatchRecord {
-	/**
-	 * Optional UDF policy.
-	 */
-	public final BatchUDFPolicy policy;
-
 	/**
 	 * Package or lua module name.
 	 */
@@ -46,6 +40,22 @@ public final class BatchUDF extends BatchRecord {
 	public final Value[] functionArgs;
 
 	/**
+	 * Record expiration. Also known as ttl (time to live).
+	 * Seconds record will live before being removed by the server.
+	 * <p>
+	 * Expiration values:
+	 * <ul>
+	 * <li>-2: Do not change ttl when record is updated.</li>
+	 * <li>-1: Never expire.</li>
+	 * <li>0: Default to namespace configuration variable "default-ttl" on the server.</li>
+	 * <li>&gt; 0: Actual ttl in seconds.<br></li>
+	 * </ul>
+	 * <p>
+	 * Default: 0
+	 */
+	public final int ttl;
+
+	/**
 	 * Wire protocol bytes for function args. For internal use only.
 	 */
 	public byte[] argBytes;
@@ -53,24 +63,13 @@ public final class BatchUDF extends BatchRecord {
 	/**
 	 * Constructor using default policy.
 	 */
-	public BatchUDF(Key key, String packageName, String functionName, Value[] functionArgs) {
+	public BatchUDF(Key key, String packageName, String functionName, Value[] functionArgs, int ttl) {
 		super(key, true);
-		this.policy = null;
 		this.packageName = packageName;
 		this.functionName = functionName;
 		this.functionArgs = functionArgs;
+		this.ttl = ttl;
 		// Do not set argBytes here because may not be necessary if batch repeat flag is used.
-	}
-
-	/**
-	 * Constructor using specified policy.
-	 */
-	public BatchUDF(BatchUDFPolicy policy, Key key, String packageName, String functionName, Value[] functionArgs) {
-		super(key, true);
-		this.policy = policy;
-		this.packageName = packageName;
-		this.functionName = functionName;
-		this.functionArgs = functionArgs;
 	}
 
 	/**
@@ -94,16 +93,11 @@ public final class BatchUDF extends BatchRecord {
 		BatchUDF other = (BatchUDF)obj;
 
 		if (functionName != other.functionName || functionArgs != other.functionArgs ||
-				packageName != other.packageName || policy != other.policy) {
+				packageName != other.packageName || ttl != other.ttl) {
 			return false;
 		}
 
-		boolean sendkey = false;
-		if (policy != null) {
-			sendkey = policy.sendKey;
-		}
-
-		return !sendkey;
+		return true;
 	}
 
 	/**
@@ -113,14 +107,7 @@ public final class BatchUDF extends BatchRecord {
 	public int size(Command cmd) {
 		int size = 2; // gen(2) = 2
 
-		if (policy != null) {
-			boolean sendkey = policy.sendKey;
-
-			if (sendkey || cmd.sendKey) {
-				size += key.userKey.estimateSize() + Command.FIELD_HEADER_SIZE + 1;
-			}
-		}
-		else if (cmd.sendKey) {
+		if (cmd.sendKey) {
 			size += key.userKey.estimateSize() + Command.FIELD_HEADER_SIZE + 1;
 		}
 

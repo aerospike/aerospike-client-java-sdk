@@ -19,8 +19,6 @@ package com.aerospike.client.fluent.command;
 import com.aerospike.client.fluent.Operation;
 import com.aerospike.client.fluent.exp.Expression;
 import com.aerospike.client.fluent.policy.BatchReadPolicy;
-import com.aerospike.client.fluent.policy.BatchUDFPolicy;
-import com.aerospike.client.fluent.policy.CommitLevel;
 import com.aerospike.client.fluent.policy.ReadModeAP;
 
 public final class BatchAttr {
@@ -249,27 +247,19 @@ public final class BatchAttr {
 		}
 	}
 
-	public void setUDF(BatchUDFPolicy up) {
-		filterExp = up.filterExp;
+	public void setUDF(BatchWriteCommand cmd, BatchUDF bu) {
+		filterExp = cmd.filterExp;
 		readAttr = 0;
 		writeAttr = Command.INFO2_WRITE;
 		infoAttr = 0;
 		txnAttr = 0;
-		expiration = up.expiration;
+		expiration = bu.ttl;
 		generation = 0;
 		hasWrite = true;
-		sendKey = up.sendKey;
+		sendKey = cmd.sendKey;
 
-		if (up.durableDelete) {
+		if (cmd.durableDelete) {
 			writeAttr |= Command.INFO2_DURABLE_DELETE;
-		}
-
-		if (up.onLockingOnly) {
-			txnAttr |= Command.INFO4_TXN_ON_LOCKING_ONLY;
-		}
-
-		if (up.commitLevel == CommitLevel.COMMIT_MASTER) {
-			infoAttr |= Command.INFO3_COMMIT_MASTER;
 		}
 	}
 

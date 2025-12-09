@@ -227,7 +227,7 @@ public final class Batch {
 		@Override
 		protected CommandBuffer getCommandBuffer() {
 			CommandBuffer cb = new CommandBuffer();
-			cb.setBatchOperate(parent, batch, null);
+			cb.setBatchOperate(parent, batch);
 			return cb;
 		}
 
@@ -316,7 +316,7 @@ public final class Batch {
 		@Override
 		protected CommandBuffer getCommandBuffer() {
 			CommandBuffer cb = new CommandBuffer();
-			cb.setBatchOperate(parent, batch, null);
+			cb.setBatchOperate(parent, batch);
 			return cb;
 		}
 
@@ -607,7 +607,7 @@ public final class Batch {
 		@Override
 		protected CommandBuffer getCommandBuffer() {
 			CommandBuffer cb = new CommandBuffer();
-			cb.setBatchOperate(parent, batch, null);
+			cb.setBatchOperate(parent, batch);
 			return cb;
 		}
 

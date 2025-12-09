@@ -28,7 +28,6 @@ import com.aerospike.client.fluent.Value;
 import com.aerospike.client.fluent.command.PartitionTracker.NodePartitions;
 import com.aerospike.client.fluent.exp.Expression;
 import com.aerospike.client.fluent.policy.BatchReadPolicy;
-import com.aerospike.client.fluent.policy.BatchUDFPolicy;
 import com.aerospike.client.fluent.policy.CommitLevel;
 import com.aerospike.client.fluent.policy.QueryDuration;
 import com.aerospike.client.fluent.policy.ReadModeAP;
@@ -353,11 +352,7 @@ public final class CommandBuffer {
 	// Batch Read/Write Operations
 	//--------------------------------------------------
 
-	public final void setBatchOperate(
-		BatchCommand cmd,
-		BatchNode batch,
-		BatchUDFPolicy udfPolicy
-	) {
+	public final void setBatchOperate(BatchCommand cmd, BatchNode batch) {
 		begin();
 		int max = batch.offsetsSize;
 		Txn txn = cmd.txn;
@@ -488,9 +483,8 @@ public final class CommandBuffer {
 
 					case BATCH_UDF: {
 						BatchUDF bu = (BatchUDF)record;
-						BatchUDFPolicy bup = (bu.policy != null)? bu.policy : udfPolicy;
 
-						attr.setUDF(bup);
+						attr.setUDF((BatchWriteCommand)cmd, bu);
 						writeBatchWrite(key, txn, ver, attr, attr.filterExp, 3, 0);
 						writeField(bu.packageName, FieldType.UDF_PACKAGE_NAME);
 						writeField(bu.functionName, FieldType.UDF_FUNCTION);
