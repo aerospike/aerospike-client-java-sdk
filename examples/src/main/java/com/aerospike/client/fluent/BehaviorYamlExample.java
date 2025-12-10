@@ -1,15 +1,24 @@
-package com.aerospike.client.fluent.policy;
+package com.aerospike.client.fluent;
 
-import java.io.File;
-import java.util.Map;
+import com.aerospike.client.fluent.policy.Behavior;
+import com.aerospike.client.fluent.policy.Settings;
+
+import java.io.Closeable;
+import java.io.IOException;
+import java.util.Set;
 
 /**
  * Example demonstrating how to load Behavior configurations from YAML files
  * using the new selector-based API.
  * 
+ * <h2>Running with run_examples script</h2>
+ * <pre>{@code
+ * ./run_examples BehaviorYamlExample
+ * }</pre>
+ * 
  * <p>This example shows:
  * <ul>
- *   <li>Loading behaviors from YAML files</li>
+ *   <li>Loading behaviors from YAML files using Behavior.startMonitoring()</li>
  *   <li>Accessing resolved settings for specific operation types</li>
  *   <li>Using the new getSettings() API</li>
  *   <li>Working with behavior hierarchies (parent-child relationships)</li>
@@ -17,20 +26,24 @@ import java.util.Map;
  */
 public class BehaviorYamlExample {
     
-    // TODO: move to unit tests
+    private static final String DEFAULT_CONFIG_PATH = "src/main/resources/behavior-example.yml";
+    
     public static void main(String[] args) {
-        try {
-            // Load all behaviors from YAML file
-            File yamlFile = new File("src/main/resources/behavior-example.yml");
-            Map<String, Behavior> behaviors = BehaviorYamlLoader.loadBehaviorsFromFile(yamlFile);
+        Args.parse(args); // Parse args for --help support
+        
+        try (Closeable monitor = Behavior.startMonitoringWithResource(DEFAULT_CONFIG_PATH)) {
+            // Wait a moment for initial load
+            Thread.sleep(500);
+
+            // Get all loaded behaviors
+            Set<Behavior> behaviors = Behavior.getAllBehaviors();
             
-            System.out.println("=== Loaded Behaviors ===");
+            System.out.println("=== Loaded Behaviors from " + DEFAULT_CONFIG_PATH + " ===");
             System.out.println("Total behaviors loaded: " + behaviors.size());
             System.out.println();
             
             // Demonstrate each loaded behavior
-            for (Map.Entry<String, Behavior> entry : behaviors.entrySet()) {
-                Behavior behavior = entry.getValue();
+            for (Behavior behavior : behaviors) {
                 System.out.println("--- Behavior: " + behavior.name() + " ---");
                 
                 // Show parent relationship
@@ -44,9 +57,9 @@ public class BehaviorYamlExample {
             }
             
             // Demonstrate a specific behavior in detail
-            if (behaviors.containsKey("high-performance")) {
+            Behavior highPerf = Behavior.getBehavior("high-performance");
+            if (highPerf != Behavior.DEFAULT) {
                 System.out.println("=== Detailed Example: high-performance Behavior ===");
-                Behavior highPerf = behaviors.get("high-performance");
                 
                 // Show resolved settings for retryable writes
                 Settings writeSettings = highPerf.getSettings(
@@ -57,10 +70,10 @@ public class BehaviorYamlExample {
                 
                 if (writeSettings != null) {
                     System.out.println("Retryable Write Settings (POINT, AP):");
-                    System.out.println("  abandonCallAfter: " + writeSettings.abandonCallAfter);
-                    System.out.println("  maximumNumberOfCallAttempts: " + writeSettings.maximumNumberOfCallAttempts);
-                    System.out.println("  useDurableDelete: " + writeSettings.useDurableDelete);
-                    System.out.println("  delayBetweenRetries: " + writeSettings.delayBetweenRetries);
+                    System.out.println("  abandonCallAfter: " + writeSettings.getAbandonCallAfterMs() + "ms");
+                    System.out.println("  maximumNumberOfCallAttempts: " + writeSettings.getMaximumNumberOfCallAttempts());
+                    System.out.println("  useDurableDelete: " + writeSettings.getUseDurableDelete());
+                    System.out.println("  delayBetweenRetries: " + writeSettings.getDelayBetweenRetriesMs() + "ms");
                 }
                 System.out.println();
                 
@@ -73,17 +86,17 @@ public class BehaviorYamlExample {
                 
                 if (querySettings != null) {
                     System.out.println("Query Settings (QUERY, AP):");
-                    System.out.println("  recordQueueSize: " + querySettings.recordQueueSize);
-                    System.out.println("  maximumNumberOfCallAttempts: " + querySettings.maximumNumberOfCallAttempts);
-                    System.out.println("  abandonCallAfter: " + querySettings.abandonCallAfter);
+                    System.out.println("  recordQueueSize: " + querySettings.getRecordQueueSize());
+                    System.out.println("  maximumNumberOfCallAttempts: " + querySettings.getMaximumNumberOfCallAttempts());
+                    System.out.println("  abandonCallAfter: " + querySettings.getAbandonCallAfterMs() + "ms");
                 }
                 System.out.println();
             }
             
             // Demonstrate batch-optimized behavior (child of high-performance)
-            if (behaviors.containsKey("batch-optimized")) {
+            Behavior batchOpt = Behavior.getBehavior("batch-optimized");
+            if (batchOpt != Behavior.DEFAULT) {
                 System.out.println("=== Inheritance Example: batch-optimized (child of high-performance) ===");
-                Behavior batchOpt = behaviors.get("batch-optimized");
                 
                 Settings batchReadSettings = batchOpt.getSettings(
                     Behavior.OpKind.READ, 
@@ -93,16 +106,18 @@ public class BehaviorYamlExample {
                 
                 if (batchReadSettings != null) {
                     System.out.println("Batch Read Settings (inherited + overridden):");
-                    System.out.println("  maxConcurrentNodes: " + batchReadSettings.maxConcurrentNodes + " (overridden from parent)");
-                    System.out.println("  allowInlineMemoryAccess: " + batchReadSettings.allowInlineMemoryAccess + " (overridden from parent)");
-                    System.out.println("  abandonCallAfter: " + batchReadSettings.abandonCallAfter + " (inherited from parent)");
-                    System.out.println("  maximumNumberOfCallAttempts: " + batchReadSettings.maximumNumberOfCallAttempts + " (inherited from parent)");
+                    System.out.println("  maxConcurrentNodes: " + batchReadSettings.getMaxConcurrentNodes() + " (overridden from parent)");
+                    System.out.println("  allowInlineMemoryAccess: " + batchReadSettings.getAllowInlineMemoryAccess() + " (overridden from parent)");
+                    System.out.println("  abandonCallAfter: " + batchReadSettings.getAbandonCallAfterMs() + "ms (inherited from parent)");
+                    System.out.println("  maximumNumberOfCallAttempts: " + batchReadSettings.getMaximumNumberOfCallAttempts() + " (inherited from parent)");
                 }
             }
             
-        } catch (Exception e) {
+        } catch (IOException e) {
             System.err.println("Error loading behavior from YAML: " + e.getMessage());
             e.printStackTrace();
+        } catch (InterruptedException e) {
+            System.out.println("Interrupted");
         }
     }
     
@@ -112,20 +127,20 @@ public class BehaviorYamlExample {
     private static void demonstrateSettings(Behavior behavior) {
         // Read operations
         Settings readBatchAp = behavior.getSettings(Behavior.OpKind.READ, Behavior.OpShape.BATCH, Behavior.Mode.AP);
-        if (readBatchAp != null && readBatchAp.maxConcurrentNodes != null) {
-            System.out.println("  Batch reads (AP): maxConcurrentNodes=" + readBatchAp.maxConcurrentNodes);
+        if (readBatchAp != null) {
+            System.out.println("  Batch reads (AP): maxConcurrentNodes=" + readBatchAp.getMaxConcurrentNodes());
         }
         
         // Write operations
         Settings writeRetryable = behavior.getSettings(Behavior.OpKind.WRITE_RETRYABLE, Behavior.OpShape.POINT, Behavior.Mode.AP);
-        if (writeRetryable != null && writeRetryable.useDurableDelete != null) {
-            System.out.println("  Retryable writes: useDurableDelete=" + writeRetryable.useDurableDelete);
+        if (writeRetryable != null) {
+            System.out.println("  Retryable writes: useDurableDelete=" + writeRetryable.getUseDurableDelete());
         }
         
         // Query operations
         Settings query = behavior.getSettings(Behavior.OpKind.READ, Behavior.OpShape.QUERY, Behavior.Mode.AP);
-        if (query != null && query.recordQueueSize != null) {
-            System.out.println("  Query: recordQueueSize=" + query.recordQueueSize);
+        if (query != null) {
+            System.out.println("  Query: recordQueueSize=" + query.getRecordQueueSize());
         }
     }
-} 
+}
