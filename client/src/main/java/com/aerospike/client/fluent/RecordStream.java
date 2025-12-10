@@ -17,7 +17,7 @@ import com.aerospike.client.fluent.command.Statement;
 import com.aerospike.client.fluent.query.RecordStreamImpl;
 import com.aerospike.client.fluent.query.SingleItemRecordStream;
 
-public class RecordStream implements Iterator<RecordResult>, Iterable<RecordResult>, Closeable {
+public class RecordStream implements Iterator<RecordResult>, Closeable {
     private final RecordStreamImpl impl;
     public RecordStream() {impl = null;}
 
@@ -105,11 +105,6 @@ public class RecordStream implements Iterator<RecordResult>, Iterable<RecordResu
     @Override
     public RecordResult next() {
         return impl == null ? null : impl.next();
-    }
-
-    @Override
-    public Iterator<RecordResult> iterator() {
-        return this;
     }
 
     /**
@@ -236,7 +231,7 @@ public class RecordStream implements Iterator<RecordResult>, Iterable<RecordResu
         return new NavigatableRecordStream(this, limit);
     }
 
-    public void forEach(Consumer<? super RecordResult> consumer) {
+    public void forEach(Consumer<RecordResult> consumer) {
         while (hasNext()) {
             consumer.accept(next());
         }

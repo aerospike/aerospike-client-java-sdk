@@ -20,18 +20,12 @@ import com.aerospike.client.fluent.AerospikeException;
 import com.aerospike.client.fluent.Key;
 import com.aerospike.client.fluent.Operation;
 import com.aerospike.client.fluent.ResultCode;
-import com.aerospike.client.fluent.policy.BatchReadPolicy;
 
 /**
  * Batch key and read only operations with default policy.
  * Used in batch read commands where different bins are needed for each key.
  */
 public final class BatchRead extends BatchRecord {
-	/**
-	 * Optional read policy.
-	 */
-	public final BatchReadPolicy policy;
-
 	/**
 	 * Bins to retrieve for this key. binNames are mutually exclusive with
 	 * {@link com.aerospike.client.fluent.command.BatchRead#ops}.
@@ -57,7 +51,6 @@ public final class BatchRead extends BatchRecord {
 	 */
 	public BatchRead(Key key, String[] binNames) {
 		super(key, false);
-		this.policy = null;
 		this.binNames = binNames;
 		this.ops = null;
 		this.readAllBins = false;
@@ -68,7 +61,6 @@ public final class BatchRead extends BatchRecord {
 	 */
 	public BatchRead(Key key, boolean readAllBins) {
 		super(key, false);
-		this.policy = null;
 		this.binNames = null;
 		this.ops = null;
 		this.readAllBins = readAllBins;
@@ -79,40 +71,6 @@ public final class BatchRead extends BatchRecord {
 	 */
 	public BatchRead(Key key, Operation[] ops) {
 		super(key, false);
-		this.policy = null;
-		this.binNames = null;
-		this.ops = ops;
-		this.readAllBins = false;
-	}
-
-	/**
-	 * Initialize batch policy, key and bins to retrieve.
-	 */
-	public BatchRead(BatchReadPolicy policy, Key key, String[] binNames) {
-		super(key, false);
-		this.policy = policy;
-		this.binNames = binNames;
-		this.ops = null;
-		this.readAllBins = false;
-	}
-
-	/**
-	 * Initialize batch policy, key and readAllBins indicator.
-	 */
-	public BatchRead(BatchReadPolicy policy, Key key, boolean readAllBins) {
-		super(key, false);
-		this.policy = policy;
-		this.binNames = null;
-		this.ops = null;
-		this.readAllBins = readAllBins;
-	}
-
-	/**
-	 * Initialize batch policy, key and read operations.
-	 */
-	public BatchRead(BatchReadPolicy policy, Key key, Operation[] ops) {
-		super(key, false);
-		this.policy = policy;
 		this.binNames = null;
 		this.ops = ops;
 		this.readAllBins = false;
@@ -137,7 +95,7 @@ public final class BatchRead extends BatchRecord {
 		}
 
 		BatchRead other = (BatchRead)obj;
-		return binNames == other.binNames && ops == other.ops && policy == other.policy && readAllBins == other.readAllBins;
+		return binNames == other.binNames && ops == other.ops && readAllBins == other.readAllBins;
 	}
 
 	/**

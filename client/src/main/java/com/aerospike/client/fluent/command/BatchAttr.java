@@ -18,7 +18,6 @@ package com.aerospike.client.fluent.command;
 
 import com.aerospike.client.fluent.Operation;
 import com.aerospike.client.fluent.exp.Expression;
-import com.aerospike.client.fluent.policy.BatchReadPolicy;
 import com.aerospike.client.fluent.policy.ReadModeAP;
 
 public final class BatchAttr {
@@ -105,7 +104,7 @@ public final class BatchAttr {
 	*/
 
 	public void setRead(BatchReadCommand cmd) {
-		filterExp = null;
+		filterExp = cmd.filterExp;
 		readAttr = Command.INFO1_READ;
 
 		if (cmd.readModeAP == ReadModeAP.ALL) {
@@ -131,38 +130,6 @@ public final class BatchAttr {
 		}
 		txnAttr = 0;
 		expiration = cmd.readTouchTtlPercent;
-		generation = 0;
-		hasWrite = false;
-		sendKey = false;
-	}
-
-	public void setRead(BatchReadPolicy rp) {
-		filterExp = rp.filterExp;
-		readAttr = Command.INFO1_READ;
-
-		if (rp.readModeAP == ReadModeAP.ALL) {
-			readAttr |= Command.INFO1_READ_MODE_AP_ALL;
-		}
-
-		writeAttr = 0;
-
-		switch (rp.readModeSC) {
-		default:
-		case SESSION:
-			infoAttr = 0;
-			break;
-		case LINEARIZE:
-			infoAttr = Command.INFO3_SC_READ_TYPE;
-			break;
-		case ALLOW_REPLICA:
-			infoAttr = Command.INFO3_SC_READ_RELAX;
-			break;
-		case ALLOW_UNAVAILABLE:
-			infoAttr = Command.INFO3_SC_READ_TYPE | Command.INFO3_SC_READ_RELAX;
-			break;
-		}
-		txnAttr = 0;
-		expiration = rp.readTouchTtlPercent;
 		generation = 0;
 		hasWrite = false;
 		sendKey = false;
