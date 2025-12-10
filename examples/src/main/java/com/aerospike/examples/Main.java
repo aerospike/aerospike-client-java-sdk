@@ -28,10 +28,12 @@ public class Main {
             Integer.valueOf(System.getProperty("port", "3000")))
     	    .withSystemSettings(builder -> builder
     	    	.circuitBreaker(ops -> ops.maximumErrorsInErrorWindow(200))
+    	    	/*
     	        .connections(conn -> conn
     	        	.minimumConnectionsPerNode(200)
     	            .maximumConnectionsPerNode(200)
     	         )
+    	         */
     	    );
 
         System.out.println("Connect");

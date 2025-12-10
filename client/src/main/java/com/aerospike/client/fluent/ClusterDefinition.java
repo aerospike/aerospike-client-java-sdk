@@ -27,6 +27,7 @@ import com.aerospike.client.fluent.Log.Callback;
 import com.aerospike.client.fluent.Log.Level;
 import com.aerospike.client.fluent.command.Buffer;
 import com.aerospike.client.fluent.policy.AuthMode;
+import com.aerospike.client.fluent.policy.Behavior;
 
 /**
  * Builder class for configuring and creating Aerospike cluster connections.
@@ -548,24 +549,23 @@ public class ClusterDefinition {
         ClusterDefinition def = new ClusterDefinition(this);
         def.context = new Log.Context(def.clusterName);
 
-        // Apply system settings to policy (4-level hierarchy)
-        SystemSettings effectiveSettings = SystemSettingsRegistry.getInstance()
-            .getEffectiveSettings(clusterName, userSuppliedSystemSettings);
-
 		String configPath = System.getenv(CONFIG_PATH_ENV);
 
 		if (configPath != null && !configPath.isEmpty()) {
 			try {
-				// TODO: Tim: How merge file settings into effectiveSettings?
-
-				//File file = new File(configPath);
-				//Behavior.startMonitoring(configFile);
+				Behavior.startMonitoring(configPath);
 			}
 			catch (Throwable t) {
-				throw new AerospikeException("Failed to read: " + configPath, t);
+				throw new AerospikeException("Failed to read " + configPath +
+					" specified in environment variable " + CONFIG_PATH_ENV, t);
 			}
 		}
 
+        // Apply system settings to policy (4-level hierarchy)
+        SystemSettings effectiveSettings = SystemSettingsRegistry.getInstance()
+            .getEffectiveSettings(clusterName, userSuppliedSystemSettings);
+
+        System.out.println("MaximumConnectionsPerNode = " + effectiveSettings.getMaximumConnectionsPerNode());
     	return new Cluster(def, effectiveSettings);
     }
 
