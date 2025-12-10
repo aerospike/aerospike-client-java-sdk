@@ -6,7 +6,6 @@ import java.time.temporal.ChronoUnit;
 import java.util.Date;
 
 import com.aerospike.client.fluent.command.Txn;
-import com.aerospike.client.fluent.policy.BatchReadPolicy;
 import com.aerospike.client.fluent.policy.CommitLevel;
 import com.aerospike.client.fluent.policy.ReadModeAP;
 import com.aerospike.client.fluent.policy.ReadModeSC;
@@ -764,26 +763,6 @@ public abstract class AbstractSessionOperationBuilder<T extends AbstractSessionO
     public T withoutCompression() {
         this.compress = false;
         return self();
-    }
-
-    // ========================================================================
-    // HELPER METHODS - Apply Fluent API Settings to Policy Objects.
-    // @todo: these should be removed when the legacy policies are removed from the fluent client
-    // ========================================================================
-
-    /**
-     * Apply fluent API settings to a BatchReadPolicy.
-     */
-    protected void applyFluentApiBatchReadSettings(BatchReadPolicy policy) {
-        if (this.readModeAP != null) {
-            policy.readModeAP = this.readModeAP;
-        }
-        if (this.readModeSC != null) {
-            policy.readModeSC = this.readModeSC;
-        }
-        if (this.readTouchTtlPercent != null) {
-            policy.readTouchTtlPercent = this.readTouchTtlPercent;
-        }
     }
 }
 

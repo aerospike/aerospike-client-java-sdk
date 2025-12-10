@@ -27,7 +27,6 @@ import com.aerospike.client.fluent.ResultCode;
 import com.aerospike.client.fluent.Value;
 import com.aerospike.client.fluent.command.PartitionTracker.NodePartitions;
 import com.aerospike.client.fluent.exp.Expression;
-import com.aerospike.client.fluent.policy.BatchReadPolicy;
 import com.aerospike.client.fluent.policy.CommitLevel;
 import com.aerospike.client.fluent.policy.QueryDuration;
 import com.aerospike.client.fluent.policy.ReadModeAP;
@@ -118,25 +117,15 @@ public final class CommandBuffer {
 	public void setExists(BatchReadCommand cmd, BatchRead br) {
 		begin();
 
-		BatchReadPolicy rp = br.policy;
 		BatchAttr attr = new BatchAttr();
-		Expression exp;
 
-		if (rp != null) {
-			attr.setRead(rp);
-			exp = (rp.filterExp != null) ? rp.filterExp : cmd.filterExp;
-		}
-		else {
-			attr.setRead(cmd);
-			exp = cmd.filterExp;
-		}
-
+		attr.setRead(cmd);
 		attr.adjustRead(false);
 
-		int fieldCount = estimateKeyAttrSize(cmd, br.key, attr, exp);
+		int fieldCount = estimateKeyAttrSize(cmd, br.key, attr, cmd.filterExp);
 
 		sizeBuffer();
-		writeKeyAttr(cmd, br.key, attr, exp, fieldCount, 0);
+		writeKeyAttr(cmd, br.key, attr, cmd.filterExp, fieldCount, 0);
 		end();
 	}
 
@@ -191,19 +180,10 @@ public final class CommandBuffer {
 	public void setRead(BatchReadCommand cmd, BatchRead br) {
 		begin();
 
-		BatchReadPolicy rp = br.policy;
 		BatchAttr attr = new BatchAttr();
-		Expression exp;
 		int opCount;
 
-		if (rp != null) {
-			attr.setRead(rp);
-			exp = (rp.filterExp != null) ? rp.filterExp : cmd.filterExp;
-		}
-		else {
-			attr.setRead(cmd);
-			exp = cmd.filterExp;
-		}
+		attr.setRead(cmd);
 
 		if (br.binNames != null) {
 			opCount = br.binNames.length;
@@ -228,10 +208,10 @@ public final class CommandBuffer {
 			opCount = 0;
 		}
 
-		int fieldCount = estimateKeyAttrSize(cmd, br.key, attr, exp);
+		int fieldCount = estimateKeyAttrSize(cmd, br.key, attr, cmd.filterExp);
 
 		sizeBuffer();
-		writeKeyAttr(cmd, br.key, attr, exp, fieldCount, opCount);
+		writeKeyAttr(cmd, br.key, attr, cmd.filterExp, fieldCount, opCount);
 
 		if (br.binNames != null) {
 			for (String binName : br.binNames) {
@@ -445,12 +425,7 @@ public final class CommandBuffer {
 					case BATCH_READ: {
 						BatchRead br = (BatchRead)record;
 
-						if (br.policy != null) {
-							attr.setRead(br.policy);
-						}
-						else {
-							attr.setRead((BatchReadCommand)cmd);
-						}
+						attr.setRead((BatchReadCommand)cmd);
 
 						if (br.binNames != null) {
 							if (br.binNames.length > 0) {
