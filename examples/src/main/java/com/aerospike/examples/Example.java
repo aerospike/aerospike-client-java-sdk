@@ -14,7 +14,7 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.aerospike.client.fluent;
+package com.aerospike.examples;
 
 import java.lang.reflect.Constructor;
 import java.util.List;
@@ -26,6 +26,7 @@ import java.util.List;
  * The base class handles example lifecycle (begin/end logging) and provides a console for output.
  */
 public abstract class Example {
+    private static final String PACKAGE_NAME = "com.aerospike.examples.";
     
     protected Console console;
     
@@ -56,7 +57,7 @@ public abstract class Example {
      * @throws Exception if the example fails or cannot be found
      */
     public static void runExample(String exampleName, Parameters params, Console console) throws Exception {
-        String fullName = "com.aerospike.client.fluent." + exampleName;
+        String fullName =  PACKAGE_NAME + exampleName;
         Class<?> cls = Class.forName(fullName);
         
         if (Example.class.isAssignableFrom(cls)) {

@@ -14,7 +14,7 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.aerospike.client.fluent;
+package com.aerospike.examples;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Options;

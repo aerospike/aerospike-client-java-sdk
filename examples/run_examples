@@ -29,4 +29,4 @@ if [ -z "$JAR_FILE" ]; then
 fi
 
 # Run Main with all arguments
-java -cp "$JAR_FILE" com.aerospike.client.fluent.Main "$@"
+java -cp "$JAR_FILE" com.aerospike.examples.Main "$@"

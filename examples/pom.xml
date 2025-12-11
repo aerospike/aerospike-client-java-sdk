@@ -40,7 +40,7 @@
           </descriptorRefs>
           <archive>
             <manifest>
-              <mainClass>com.aerospike.client.fluent.Main</mainClass>
+              <mainClass>com.aerospike.examples.Main</mainClass>
             </manifest>
           </archive>
         </configuration>

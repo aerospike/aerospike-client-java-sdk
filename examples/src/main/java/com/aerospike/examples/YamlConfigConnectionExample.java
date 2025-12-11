@@ -14,8 +14,10 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.aerospike.client.fluent;
+package com.aerospike.examples;
 
+import com.aerospike.client.fluent.*;
+import com.aerospike.client.fluent.Record;
 import com.aerospike.client.fluent.policy.Behavior;
 import com.aerospike.client.fluent.policy.Settings;
 import com.aerospike.client.fluent.util.Util;
