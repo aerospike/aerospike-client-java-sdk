@@ -2,6 +2,19 @@
 # This file demonstrates the YAML configuration structure for the Aerospike Java Fluent Client.
 # Set the environment variable AEROSPIKE_CLIENT_CONFIG_URL to point to this file.
 
+system:
+  # Default settings apply to all clusters unless overridden
+  DEFAULT:
+    connections:
+      minimumConnectionsPerNode: 200
+      maximumConnectionsPerNode: 500
+  # Cluster-specific settings for cluster named "bncluster"
+  bncluster:
+    connections:
+      minimumConnectionsPerNode: 400
+      maximumConnectionsPerNode: 600
+
+
 # Behavior definitions for operation policies
 behaviors:
   # High-performance configuration with aggressive timeouts

@@ -49,6 +49,7 @@ public class Main {
     private static final String[] EXAMPLE_NAMES = new String[] {
         "BehaviorHierarchicalExample",
         "BehaviorYamlExample",
+        "CompleteYamlConfigExample",
         "YamlConfigConnectionExample"
     };
     

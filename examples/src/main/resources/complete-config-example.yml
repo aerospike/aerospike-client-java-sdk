@@ -1,0 +1,294 @@
+# =============================================================================
+# SYSTEM SETTINGS
+# =============================================================================
+system:
+  DEFAULT:
+    connections:
+      minimumConnectionsPerNode: 10
+      maximumConnectionsPerNode: 300
+      maximumSocketIdleTime: 55s
+    circuitBreaker:
+      numTendIntervalsInErrorWindow: 2
+      maximumErrorsInErrorWindow: 100
+    refresh:
+      tendInterval: 1s
+
+  production:
+    connections:
+      minimumConnectionsPerNode: 50
+      maximumConnectionsPerNode: 500
+      maximumSocketIdleTime: 60s
+    circuitBreaker:
+      numTendIntervalsInErrorWindow: 3
+      maximumErrorsInErrorWindow: 50
+    refresh:
+      tendInterval: 500ms
+
+  development:
+    connections:
+      minimumConnectionsPerNode: 1
+      maximumConnectionsPerNode: 20
+      maximumSocketIdleTime: 30s
+    circuitBreaker:
+      numTendIntervalsInErrorWindow: 1
+      maximumErrorsInErrorWindow: 200
+    refresh:
+      tendInterval: 2s
+
+  bncluster:
+    connections:
+      minimumConnectionsPerNode: 400
+      maximumConnectionsPerNode: 600
+      maximumSocketIdleTime: 45s
+    circuitBreaker:
+      numTendIntervalsInErrorWindow: 2
+      maximumErrorsInErrorWindow: 75
+
+
+# =============================================================================
+# BEHAVIOR DEFINITIONS
+# =============================================================================
+behaviors:
+  high-performance:
+    # Top-level behavior settings (apply to all operations in this behavior)
+    sendKey: false
+    useCompression: false
+
+    allOperations:
+      abandonCallAfter: 1s
+      maximumNumberOfCallAttempts: 2
+      delayBetweenRetries: 25ms
+      waitForCallToComplete: 3s
+      waitForConnectionToComplete: 500ms
+      waitForSocketResponseAfterCallFails: 100ms
+      replicaOrder: SEQUENCE
+      sendKey: false
+      useCompression: false
+      # Auto-touch records when TTL drops below this percentage (read operations)
+      resetTtlOnReadAtPercent: 50
+
+    retryableWrites:
+      useDurableDelete: false
+      maximumNumberOfCallAttempts: 3
+      delayBetweenRetries: 50ms
+      abandonCallAfter: 2s
+
+    nonRetryableWrites:
+      useDurableDelete: false
+      abandonCallAfter: 2s
+      maximumNumberOfCallAttempts: 1
+
+    consistencyModeReads:
+      readConsistency: SESSION
+      abandonCallAfter: 1s
+      maximumNumberOfCallAttempts: 2
+
+    availabilityModeReads:
+      migrationReadConsistency: ONE
+      abandonCallAfter: 1s
+      maximumNumberOfCallAttempts: 2
+
+    batchReads:
+      maxConcurrentServers: 8
+      allowInlineMemoryAccess: true
+      allowInlineSsdAccess: true
+      abandonCallAfter: 3s
+      maximumNumberOfCallAttempts: 2
+
+    batchWrites:
+      maxConcurrentServers: 6
+      abandonCallAfter: 5s
+      maximumNumberOfCallAttempts: 2
+
+    query:
+      recordQueueSize: 5000
+      maxConcurrentServers: 8
+      abandonCallAfter: 30s
+      maximumNumberOfCallAttempts: 1
+
+    systemTxnVerify:
+      consistency: SESSION
+      abandonCallAfter: 2s
+      maximumNumberOfCallAttempts: 3
+
+    systemTxnRoll:
+      abandonCallAfter: 5s
+      maximumNumberOfCallAttempts: 5
+      delayBetweenRetries: 200ms
+
+
+  high-reliability:
+    # Top-level behavior settings
+    sendKey: true
+    useCompression: true
+
+    allOperations:
+      abandonCallAfter: 10s
+      maximumNumberOfCallAttempts: 5
+      delayBetweenRetries: 1s
+      waitForCallToComplete: 30s
+      waitForConnectionToComplete: 2s
+      waitForSocketResponseAfterCallFails: 500ms
+      replicaOrder: MASTER_PROLES
+      sendKey: true
+      useCompression: true
+      # Auto-touch when TTL below 30% for critical data
+      resetTtlOnReadAtPercent: 30
+
+    retryableWrites:
+      useDurableDelete: true
+      maximumNumberOfCallAttempts: 7
+      delayBetweenRetries: 2s
+      abandonCallAfter: 20s
+
+    nonRetryableWrites:
+      useDurableDelete: true
+      abandonCallAfter: 15s
+      maximumNumberOfCallAttempts: 3
+
+    consistencyModeReads:
+      readConsistency: LINEARIZE
+      abandonCallAfter: 8s
+      maximumNumberOfCallAttempts: 4
+
+    availabilityModeReads:
+      migrationReadConsistency: ALL
+      abandonCallAfter: 8s
+      maximumNumberOfCallAttempts: 4
+
+    batchReads:
+      maxConcurrentServers: 5
+      allowInlineMemoryAccess: false
+      allowInlineSsdAccess: false
+      abandonCallAfter: 15s
+      maximumNumberOfCallAttempts: 3
+
+    batchWrites:
+      maxConcurrentServers: 4
+      abandonCallAfter: 20s
+      maximumNumberOfCallAttempts: 4
+
+    query:
+      recordQueueSize: 10000
+      maxConcurrentServers: 4
+      abandonCallAfter: 60s
+
+
+  batch-optimized:
+    parent: high-performance
+
+    batchReads:
+      maxConcurrentServers: 16
+      allowInlineMemoryAccess: true
+      allowInlineSsdAccess: true
+      abandonCallAfter: 5s
+      maximumNumberOfCallAttempts: 3
+
+    batchWrites:
+      maxConcurrentServers: 12
+      abandonCallAfter: 8s
+      maximumNumberOfCallAttempts: 3
+
+    query:
+      recordQueueSize: 20000
+      maxConcurrentServers: 16
+      abandonCallAfter: 45s
+
+
+  development:
+    allOperations:
+      abandonCallAfter: 30s
+      maximumNumberOfCallAttempts: 1
+      delayBetweenRetries: 0ms
+      waitForCallToComplete: 60s
+      waitForConnectionToComplete: 10s
+      sendKey: true
+      useCompression: false
+
+    retryableWrites:
+      useDurableDelete: false
+      maximumNumberOfCallAttempts: 1
+
+    nonRetryableWrites:
+      useDurableDelete: false
+      maximumNumberOfCallAttempts: 1
+
+    batchReads:
+      maxConcurrentServers: 2
+      allowInlineMemoryAccess: true
+      allowInlineSsdAccess: true
+      abandonCallAfter: 60s
+
+    query:
+      recordQueueSize: 1000
+      maxConcurrentServers: 2
+      abandonCallAfter: 120s
+
+
+  analytics:
+    parent: high-reliability
+
+    query:
+      recordQueueSize: 50000
+      maxConcurrentServers: 32
+      abandonCallAfter: 300s
+      maximumNumberOfCallAttempts: 2
+
+    batchReads:
+      maxConcurrentServers: 32
+      allowInlineMemoryAccess: true
+      allowInlineSsdAccess: true
+      abandonCallAfter: 60s
+
+
+  real-time:
+    sendKey: false
+    useCompression: false
+
+    allOperations:
+      abandonCallAfter: 500ms
+      maximumNumberOfCallAttempts: 1
+      delayBetweenRetries: 0ms
+      waitForCallToComplete: 1s
+      waitForConnectionToComplete: 200ms
+      waitForSocketResponseAfterCallFails: 50ms
+      replicaOrder: MASTER
+      sendKey: false
+      useCompression: false
+
+    retryableWrites:
+      useDurableDelete: false
+      maximumNumberOfCallAttempts: 1
+      abandonCallAfter: 500ms
+
+    availabilityModeReads:
+      migrationReadConsistency: ONE
+      abandonCallAfter: 300ms
+
+
+  # Cache-refresh behavior: auto-touch records to extend TTL on reads
+  cache-refresh:
+    parent: high-performance
+
+    allOperations:
+      # Touch records when their TTL drops below 80% of original
+      # This keeps frequently-accessed records from expiring
+      resetTtlOnReadAtPercent: 80
+
+    # For cache reads, use ONE replica for speed
+    availabilityModeReads:
+      migrationReadConsistency: ONE
+      abandonCallAfter: 500ms
+
+
+# =============================================================================
+# NOTES ON UNIMPLEMENTED SETTINGS
+# =============================================================================
+# The following setting is defined in DynamicConfig but NOT yet processed
+# by BehaviorYamlLoader (will be silently ignored):
+#
+#   info:
+#     abandonCallAfter: 5s    # Timeout for info/admin commands
+#
+# This may be implemented in a future version.
+
