@@ -41,7 +41,7 @@ import com.aerospike.client.fluent.util.Util;
  * 
  * <p>With custom host and port:</p>
  * <pre>{@code
- * ./run_examples YamlConfigConnectionExample --host db1.example.com --port 3100 --use-alternate
+ * ./run_examples YamlConfigConnectionExample --host db1.example.com --port 3100 --servicesAlternate
  * }</pre>
  * 
  * <h2>Using a custom configuration file (optional)</h2>
@@ -61,48 +61,50 @@ import com.aerospike.client.fluent.util.Util;
  * 
  * <p>If the environment variable is not set, the example will use default settings.</p>
  */
-public class YamlConfigConnectionExample {
+public class YamlConfigConnectionExample extends Example {
     
     private static final String ENV_CONFIG_URL = "AEROSPIKE_CLIENT_CONFIG_URL";
     
-    public static void main(String[] args) {
-        // Parse command line arguments
-        Args arguments = Args.parse(args);
-        
+    public YamlConfigConnectionExample(Console console) {
+        super(console);
+    }
+    
+    @Override
+    public void runExample(Parameters params) throws Exception {
         // Check if the configuration environment variable is set
         String configPath = System.getenv(ENV_CONFIG_URL);
         
-        System.out.println("=== Aerospike Fluent Client - YAML Configuration Example ===\n");
+        console.write("=== Aerospike Fluent Client - YAML Configuration Example ===\n");
         
         if (configPath == null || configPath.isEmpty()) {
-            System.out.println("Note: " + ENV_CONFIG_URL + " environment variable is not set.");
-            System.out.println("The client will use default settings.\n");
-            System.out.println("To use a custom configuration, set the environment variable:");
-            System.out.println("  export " + ENV_CONFIG_URL + "=/path/to/client-config-example.yml\n");
+            console.write("Note: " + ENV_CONFIG_URL + " environment variable is not set.");
+            console.write("The client will use default settings.\n");
+            console.write("To use a custom configuration, set the environment variable:");
+            console.write("  export " + ENV_CONFIG_URL + "=/path/to/client-config-example.yml\n");
         } else {
-            System.out.println("Configuration file: " + configPath);
-            System.out.println("The client will load behaviors and settings from this file.\n");
+            console.write("Configuration file: " + configPath);
+            console.write("The client will load behaviors and settings from this file.\n");
         }
         
-        System.out.println("Connection settings: " + arguments);
-        System.out.println("Connecting to Aerospike cluster at " + arguments.getHost() + ":" + arguments.getPort());
-        if (arguments.isUseAlternate()) {
-            System.out.println("Using alternate services for cluster discovery");
+        console.write("Connection settings: " + params);
+        console.write("Connecting to Aerospike cluster at " + params.host + ":" + params.port);
+        if (params.useServicesAlternate) {
+            console.write("Using alternate services for cluster discovery");
         }
         
         // Create cluster definition
         // When connect() is called, it automatically checks for AEROSPIKE_CLIENT_CONFIG_URL
         // and loads the configuration if the environment variable is set
-        ClusterDefinition clusterDef = new ClusterDefinition(arguments.getHost(), arguments.getPort())
+        ClusterDefinition clusterDef = new ClusterDefinition(params.host, params.port)
             .appId("yaml-config-example")
             .failIfNotConnected(true);
         
-        if (arguments.isUseAlternate()) {
+        if (params.useServicesAlternate) {
             clusterDef.usingServicesAlternate();
         }
         
         try (Cluster cluster = clusterDef.connect()) {
-            System.out.println("Successfully connected to cluster!\n");
+            console.write("Successfully connected to cluster!\n");
             
             // Show if behaviors were loaded from YAML
             demonstrateBehaviorLoading();
@@ -111,22 +113,22 @@ public class YamlConfigConnectionExample {
             Behavior behavior = getBehaviorOrDefault("fast-operations");
             Session session = cluster.createSession(behavior);
             
-            System.out.println("Using behavior: " + behavior.name() + "\n");
+            console.write("Using behavior: " + behavior.name() + "\n");
             
             // Perform example operations
-            performExampleOperations(session);
+            performExampleOperations(session, params);
             
             // Demonstrate using different behaviors for different operations
             demonstrateBehaviorSwitching(cluster);
             
         } catch (Throwable t) {
-            System.err.println("Error: " + Util.getErrorMessage(t));
+            console.error("Error: " + Util.getErrorMessage(t));
             t.printStackTrace();
         } finally {
             // Clean up monitoring if it was started
             if (Behavior.isMonitoring()) {
                 Behavior.shutdownMonitor();
-                System.out.println("\nBehavior monitoring stopped.");
+                console.write("\nBehavior monitoring stopped.");
             }
         }
     }
@@ -134,9 +136,9 @@ public class YamlConfigConnectionExample {
     /**
      * Demonstrate that behaviors were loaded from YAML configuration
      */
-    private static void demonstrateBehaviorLoading() {
-        System.out.println("=== Behavior Configuration Status ===");
-        System.out.println("Monitoring active: " + Behavior.isMonitoring());
+    private void demonstrateBehaviorLoading() {
+        console.write("=== Behavior Configuration Status ===");
+        console.write("Monitoring active: " + Behavior.isMonitoring());
         
         // Check for behaviors defined in our example YAML
         String[] expectedBehaviors = {"fast-operations", "safe-operations", "batch-fast"};
@@ -144,7 +146,7 @@ public class YamlConfigConnectionExample {
         for (String behaviorName : expectedBehaviors) {
             Behavior behavior = Behavior.getBehavior(behaviorName);
             if (behavior != Behavior.DEFAULT) {
-                System.out.println("  Found behavior: " + behaviorName);
+                console.write("  Found behavior: " + behaviorName);
                 
                 // Show some settings from the behavior
                 Settings settings = behavior.getSettings(
@@ -153,23 +155,23 @@ public class YamlConfigConnectionExample {
                     Behavior.Mode.AP
                 );
                 if (settings != null) {
-                    System.out.println("    - abandonCallAfter: " + settings.getAbandonCallAfterMs() + "ms");
-                    System.out.println("    - maxRetries: " + settings.getMaximumNumberOfCallAttempts());
+                    console.write("    - abandonCallAfter: " + settings.getAbandonCallAfterMs() + "ms");
+                    console.write("    - maxRetries: " + settings.getMaximumNumberOfCallAttempts());
                 }
             } else {
-                System.out.println("  Behavior not found (using DEFAULT): " + behaviorName);
+                console.write("  Behavior not found (using DEFAULT): " + behaviorName);
             }
         }
-        System.out.println();
+        console.write("");
     }
     
     /**
      * Get a named behavior or fall back to DEFAULT if not found
      */
-    private static Behavior getBehaviorOrDefault(String behaviorName) {
+    private Behavior getBehaviorOrDefault(String behaviorName) {
         Behavior behavior = Behavior.getBehavior(behaviorName);
         if (behavior == Behavior.DEFAULT) {
-            System.out.println("Behavior '" + behaviorName + "' not found in configuration, using DEFAULT");
+            console.write("Behavior '" + behaviorName + "' not found in configuration, using DEFAULT");
         }
         return behavior;
     }
@@ -177,92 +179,92 @@ public class YamlConfigConnectionExample {
     /**
      * Perform example CRUD operations using the session
      */
-    private static void performExampleOperations(Session session) {
-        System.out.println("=== Performing Example Operations ===");
+    private void performExampleOperations(Session session, Parameters params) {
+        console.write("=== Performing Example Operations ===");
         
-        DataSet dataSet = DataSet.of("test", "yaml-config-demo");
+        DataSet dataSet = DataSet.of(params.namespace, "yaml-config-demo");
         
         try {
             // Write a record
-            System.out.println("Writing a test record...");
+            console.write("Writing a test record...");
             session.upsert(dataSet.ids("user-001"))
                 .bins("name", "email", "age")
                 .values("Alice", "alice@example.com", 30)
                 .execute();
-            System.out.println("  Record written successfully.");
+            console.write("  Record written successfully.");
             
             // Read the record back
-            System.out.println("Reading the record back...");
+            console.write("Reading the record back...");
             RecordStream stream = session.query(dataSet.ids("user-001")).execute();
             
             if (stream.hasNext()) {
                 Record record = stream.next().recordOrThrow();
-                System.out.println("  Retrieved: " + record);
+                console.write("  Retrieved: " + record);
             }
             
             // Write multiple records
-            System.out.println("Writing batch of records...");
+            console.write("Writing batch of records...");
             session.upsert(dataSet.ids("user-002", "user-003", "user-004"))
                 .bins("name", "email", "age")
                 .values("Bob", "bob@example.com", 25)
                 .values("Charlie", "charlie@example.com", 35)
                 .values("Diana", "diana@example.com", 28)
                 .execute();
-            System.out.println("  Batch written successfully.");
+            console.write("  Batch written successfully.");
             
             // Check if records exist
-            System.out.println("Checking record existence...");
+            console.write("Checking record existence...");
             var existsResults = session.exists(dataSet.ids("user-001", "user-002", "user-999")).execute();
-            System.out.println("  Exists results: " + existsResults);
+            console.write("  Exists results: " + existsResults);
             
             // Clean up - delete test records
-            System.out.println("Cleaning up test records...");
+            console.write("Cleaning up test records...");
             session.delete(dataSet.ids("user-001", "user-002", "user-003", "user-004")).execute();
-            System.out.println("  Records deleted.");
+            console.write("  Records deleted.");
             
         } catch (Exception e) {
-            System.err.println("Operation failed: " + e.getMessage());
+            console.error("Operation failed: " + e.getMessage());
         }
         
-        System.out.println();
+        console.write("");
     }
     
     /**
      * Demonstrate using different behaviors for different types of operations
      */
-    private static void demonstrateBehaviorSwitching(Cluster cluster) {
-        System.out.println("=== Demonstrating Behavior Switching ===");
-        System.out.println("Different behaviors can be used for different operation types:\n");
+    private void demonstrateBehaviorSwitching(Cluster cluster) {
+        console.write("=== Demonstrating Behavior Switching ===");
+        console.write("Different behaviors can be used for different operation types:\n");
         
         // Fast operations for real-time queries
         Behavior fastBehavior = getBehaviorOrDefault("fast-operations");
-        System.out.println("1. fast-operations: For real-time, latency-sensitive queries");
+        console.write("1. fast-operations: For real-time, latency-sensitive queries");
         showBehaviorSettings(fastBehavior);
         
         // Safe operations for critical writes
         Behavior safeBehavior = getBehaviorOrDefault("safe-operations");
-        System.out.println("2. safe-operations: For critical operations requiring high reliability");
+        console.write("2. safe-operations: For critical operations requiring high reliability");
         showBehaviorSettings(safeBehavior);
         
         // Batch-optimized operations
         Behavior batchBehavior = getBehaviorOrDefault("batch-fast");
-        System.out.println("3. batch-fast: Optimized for batch operations (inherits from fast-operations)");
+        console.write("3. batch-fast: Optimized for batch operations (inherits from fast-operations)");
         showBehaviorSettings(batchBehavior);
         
         // Show inheritance
         if (batchBehavior != Behavior.DEFAULT && batchBehavior.getParent() != null) {
-            System.out.println("   (Parent: " + batchBehavior.getParent().name() + ")");
+            console.write("   (Parent: " + batchBehavior.getParent().name() + ")");
         }
         
-        System.out.println("\nYou can create different sessions for different operation types:");
-        System.out.println("  Session fastSession = cluster.createSession(fastBehavior);");
-        System.out.println("  Session safeSession = cluster.createSession(safeBehavior);");
+        console.write("\nYou can create different sessions for different operation types:");
+        console.write("  Session fastSession = cluster.createSession(fastBehavior);");
+        console.write("  Session safeSession = cluster.createSession(safeBehavior);");
     }
     
     /**
      * Show settings from a behavior for display purposes
      */
-    private static void showBehaviorSettings(Behavior behavior) {
+    private void showBehaviorSettings(Behavior behavior) {
         Settings readSettings = behavior.getSettings(
             Behavior.OpKind.READ, 
             Behavior.OpShape.POINT, 
@@ -276,15 +278,14 @@ public class YamlConfigConnectionExample {
         );
         
         if (readSettings != null) {
-            System.out.println("   Read timeout: " + readSettings.getAbandonCallAfterMs());
-            System.out.println("   Max retries: " + readSettings.getMaximumNumberOfCallAttempts());
+            console.write("   Read timeout: " + readSettings.getAbandonCallAfterMs());
+            console.write("   Max retries: " + readSettings.getMaximumNumberOfCallAttempts());
         }
         
         if (writeSettings != null) {
-            System.out.println("   Durable delete: " + writeSettings.getUseDurableDelete());
+            console.write("   Durable delete: " + writeSettings.getUseDurableDelete());
         }
         
-        System.out.println();
+        console.write("");
     }
 }
-

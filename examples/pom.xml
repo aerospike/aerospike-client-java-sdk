@@ -40,7 +40,7 @@
           </descriptorRefs>
           <archive>
             <manifest>
-              <mainClass>com.aerospike.client.fluent.YamlConfigConnectionExample</mainClass>
+              <mainClass>com.aerospike.client.fluent.Main</mainClass>
             </manifest>
           </archive>
         </configuration>

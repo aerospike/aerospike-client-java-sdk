@@ -5,12 +5,15 @@
 #   mvn package
 #
 # Usage:
-#   ./run_examples <ClassName> -h <host> -p <port> [--use-alternate]
+#   ./run_examples <ClassName> [options]
+#   ./run_examples all [options]
+#   ./run_examples -u
 #
 # Examples:
 #   ./run_examples YamlConfigConnectionExample -h localhost -p 3000
-#   ./run_examples YamlConfigConnectionExample -h localhost -p 3100 --use-alternate
-#   ./run_examples --help
+#   ./run_examples BehaviorYamlExample -h localhost -p 3100 -a
+#   ./run_examples all -h localhost -p 3000
+#   ./run_examples -u
 #
 
 # Get the directory where this script is located
@@ -25,88 +28,5 @@ if [ -z "$JAR_FILE" ]; then
     exit 1
 fi
 
-# Base package for examples
-BASE_PACKAGE="com.aerospike.client.fluent"
-
-# Map example name to class
-get_example_class() {
-    case "$1" in
-        YamlConfigConnectionExample)
-            echo "${BASE_PACKAGE}.YamlConfigConnectionExample"
-            ;;
-        BehaviorYamlExample)
-            echo "${BASE_PACKAGE}.BehaviorYamlExample"
-            ;;
-        BehaviorHierarchicalExample)
-            echo "${BASE_PACKAGE}.BehaviorHierarchicalExample"
-            ;;
-        *)
-            echo ""
-            ;;
-    esac
-}
-
-# Show available examples
-show_examples() {
-    echo "Available examples:"
-    echo ""
-    echo "  YamlConfigConnectionExample    Connect to cluster using YAML configuration"
-    echo "  BehaviorYamlExample            Load behaviors from YAML files"
-    echo "  BehaviorHierarchicalExample    Hierarchical YAML config with dynamic reloading"
-    echo ""
-    echo "Usage: ./run_examples <ClassName> [options]"
-    echo ""
-    echo "Options:"
-    echo "  -h, --host <hostname>    Aerospike server hostname (default: localhost)"
-    echo "  -p, --port <port>        Aerospike server port (default: 3000)"
-    echo "  -u, --use-alternate      Use alternate services for cluster discovery"
-    echo "      --help               Display detailed help"
-    echo ""
-    echo "Example:"
-    echo "  ./run_examples YamlConfigConnectionExample -h localhost -p 3000"
-}
-
-# Show detailed help
-show_help() {
-    echo "Usage: ./run_examples <ClassName> -h <host> -p <port> [--use-alternate]"
-    echo ""
-    echo "Arguments:"
-    echo "  ClassName      Name of the example to run (required)"
-    echo ""
-    show_examples
-    echo ""
-    echo "Environment variables:"
-    echo "  AEROSPIKE_CLIENT_CONFIG_URL    Path to YAML configuration file"
-}
-
-# No arguments - show available examples
-if [ -z "$1" ]; then
-    show_examples
-    exit 0
-fi
-
-# Check for help flag
-if [ "$1" == "--help" ]; then
-    show_help
-    exit 0
-fi
-
-# Determine example class
-EXAMPLE_NAME="$1"
-EXAMPLE_CLASS=$(get_example_class "$EXAMPLE_NAME")
-
-if [ -n "$EXAMPLE_CLASS" ]; then
-    shift  # Remove example name from arguments
-else
-    echo "Error: Unknown example '$EXAMPLE_NAME'"
-    echo ""
-    show_examples
-    exit 1
-fi
-
-echo "Running: $EXAMPLE_CLASS"
-echo "Arguments: $@"
-echo ""
-
-# Run the example
-java -cp "$JAR_FILE" "$EXAMPLE_CLASS" "$@"
+# Run Main with all arguments
+java -cp "$JAR_FILE" com.aerospike.client.fluent.Main "$@"
