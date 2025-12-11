@@ -26,7 +26,8 @@ class BehaviorFileMonitor implements Closeable {
     private static final long DEFAULT_RELOAD_DELAY_MS = 1000; // 1 second delay to avoid multiple reloads
 
     private final BehaviorRegistry registry = BehaviorRegistry.getInstance();
-    private final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor(r -> {
+    // Use a scheduled executor with 2 threads: one for monitoring, one for reload tasks
+    private final ScheduledExecutorService executor = Executors.newScheduledThreadPool(2, r -> {
         Thread t = new Thread(r, "BehaviorFileMonitor");
         t.setDaemon(true);
         return t;
@@ -79,6 +80,9 @@ class BehaviorFileMonitor implements Closeable {
             throw new IOException("YAML file does not exist: " + yamlFilePath);
         }
 
+        // Record the initial modification time
+        this.lastModified = Files.getLastModifiedTime(this.yamlFilePath).toMillis();
+
         // Load initial behaviors
         loadBehaviors();
 
@@ -104,7 +108,7 @@ class BehaviorFileMonitor implements Closeable {
             try {
                 watchService.close();
             } catch (IOException e) {
-                System.err.println("Error closing watch service: " + e.getMessage());
+                Log.error("Error closing watch service: " + e.getMessage());
             }
             watchService = null;
         }
@@ -135,7 +139,6 @@ class BehaviorFileMonitor implements Closeable {
             Log.info("Manually reloaded behaviors from: " + yamlFilePath);
         } catch (Exception e) {
             Log.error("Error reloading behaviors: " + e.getMessage());
-            e.printStackTrace();
         }
     }
 
@@ -165,7 +168,11 @@ class BehaviorFileMonitor implements Closeable {
                     }
                 }
 
-                key.reset();
+                boolean resetValid = key.reset();
+                if (!resetValid) {
+                    Log.warn("WatchKey is no longer valid, stopping file monitoring");
+                    break;
+                }
 
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
@@ -183,6 +190,7 @@ class BehaviorFileMonitor implements Closeable {
         try {
             // Check if file was actually modified
             long currentModified = Files.getLastModifiedTime(yamlFilePath).toMillis();
+
             if (currentModified <= lastModified) {
                 return; // File hasn't actually changed
             }
@@ -217,14 +225,11 @@ class BehaviorFileMonitor implements Closeable {
             Log.info("Updated " + updatedBehaviors.size() + " behaviors from: " + yamlFilePath);
 
         } catch (IOException e) {
-            System.err.println("Error reading or parsing YAML file: " + e.getMessage());
+            Log.error("Error reading or parsing YAML file: " + e.getMessage());
         } catch (Exception e) {
-            System.err.println("Unexpected error loading behaviors: " + e.getMessage());
-            e.printStackTrace();
+            Log.error("Unexpected error loading behaviors: " + e.getMessage());
         }
     }
-
-
 
     /**
      * Shutdown the monitor and cleanup resources

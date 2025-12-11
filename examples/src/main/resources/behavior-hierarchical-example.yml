@@ -1,0 +1,66 @@
+behaviors:
+  high-performance:
+    allOperations:
+      abandonCallAfter: 10s
+      maximumNumberOfCallAttempts: 2
+      delayBetweenRetries: 50ms
+      waitForCallToComplete: 5s
+    retryableWrites:
+      useDurableDelete: false
+      maximumNumberOfCallAttempts: 4
+      delayBetweenRetries: 100ms
+    batchReads:
+      maxConcurrentServers: 2
+      allowInlineMemoryAccess: true
+      allowInlineSsdAccess: true
+    query:
+      recordQueueSize: 1000
+
+  high-reliability:
+    allOperations:
+      abandonCallAfter: 10s
+      maximumNumberOfCallAttempts: 5
+      delayBetweenRetries: 1s
+      waitForCallToComplete: 15s
+    retryableWrites:
+      useDurableDelete: true
+      maximumNumberOfCallAttempts: 7
+      delayBetweenRetries: 2s
+    consistencyModeReads:
+      readConsistency: SESSION
+      abandonCallAfter: 8s
+    batchReads:
+      maxConcurrentServers: 5
+      allowInlineMemoryAccess: false
+      allowInlineSsdAccess: false
+
+  batch-optimized:
+    parent: high-performance
+    batchReads:
+      maxConcurrentServers: 16
+      allowInlineMemoryAccess: true
+      allowInlineSsdAccess: true
+      abandonCallAfter: 5s
+    batchWrites:
+      maxConcurrentServers: 12
+      abandonCallAfter: 8s
+    query:
+      recordQueueSize: 12000
+      maxConcurrentServers: 1
+
+  development:
+    allOperations:
+      abandonCallAfter: 30s
+      maximumNumberOfCallAttempts: 1
+      delayBetweenRetries: 0ms
+      waitForCallToComplete: 60s
+    retryableWrites:
+      useDurableDelete: false
+      maximumNumberOfCallAttempts: 1
+    batchReads:
+      maxConcurrentServers: 2
+      allowInlineMemoryAccess: true
+      allowInlineSsdAccess: true
+    query:
+      recordQueueSize: 1000
+      maxConcurrentServers: 2

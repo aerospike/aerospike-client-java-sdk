@@ -11,6 +11,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
+import com.aerospike.client.fluent.SystemSettings;
 import org.yaml.snakeyaml.LoaderOptions;
 import org.yaml.snakeyaml.Yaml;
 import org.yaml.snakeyaml.constructor.Constructor;
@@ -20,7 +21,6 @@ import org.yaml.snakeyaml.nodes.Node;
 import org.yaml.snakeyaml.nodes.ScalarNode;
 import org.yaml.snakeyaml.nodes.Tag;
 
-import com.aerospike.client.fluent.SystemSettings;
 import com.aerospike.client.fluent.SystemSettingsRegistry;
 
 class BehaviorYamlLoader {
@@ -29,7 +29,7 @@ class BehaviorYamlLoader {
 
     static {
         LoaderOptions loaderOptions = new LoaderOptions();
-        CustomConstructor constructor = new CustomConstructor(BehaviorYamlConfig.class, loaderOptions);
+        CustomConstructor constructor = new CustomConstructor(DynamicConfig.class, loaderOptions);
         yaml = new Yaml(constructor);
     }
 
@@ -91,7 +91,7 @@ class BehaviorYamlLoader {
      * @throws IOException if there's an error reading or parsing the file
      */
     public static Behavior loadFromFile(File file) throws IOException {
-        BehaviorYamlConfig config = loadYamlConfig(file);
+        DynamicConfig config = loadYamlConfig(file);
         Map<String, Behavior> behaviors = convertToBehaviors(config);
         // Return the first behavior or DEFAULT if none found
         return behaviors.isEmpty() ? Behavior.DEFAULT : behaviors.values().iterator().next();
@@ -105,7 +105,7 @@ class BehaviorYamlLoader {
      * @throws IOException if there's an error reading or parsing the file
      */
     public static Map<String, Behavior> loadBehaviorsFromFile(File file) throws IOException {
-        BehaviorYamlConfig config = loadYamlConfig(file);
+        DynamicConfig config = loadYamlConfig(file);
         return updateBehaviorsFromConfig(config);
     }
 
@@ -118,14 +118,14 @@ class BehaviorYamlLoader {
      * @throws IOException if there's an error parsing the YAML
      */
     public static Map<String, Behavior> loadBehaviorsFromString(String yamlString) throws IOException {
-        BehaviorYamlConfig config = loadYamlConfigFromString(yamlString);
+        DynamicConfig config = loadYamlConfigFromString(yamlString);
         return updateBehaviorsFromConfig(config);
     }
 
     /**
      * Load YAML configuration from file using SnakeYAML
      */
-    private static BehaviorYamlConfig loadYamlConfig(File file) throws IOException {
+    private static DynamicConfig loadYamlConfig(File file) throws IOException {
         try (InputStream inputStream = new FileInputStream(file)) {
             return yaml.load(inputStream);
         } catch (Exception e) {
@@ -136,7 +136,7 @@ class BehaviorYamlLoader {
     /**
      * Load YAML configuration from string using SnakeYAML
      */
-    private static BehaviorYamlConfig loadYamlConfigFromString(String yamlString) throws IOException {
+    private static DynamicConfig loadYamlConfigFromString(String yamlString) throws IOException {
         try (InputStream inputStream = new ByteArrayInputStream(yamlString.getBytes(StandardCharsets.UTF_8))) {
             return yaml.load(inputStream);
         } catch (Exception e) {
@@ -150,14 +150,14 @@ class BehaviorYamlLoader {
      * @param config The YAML configuration
      * @return Map of behavior names to behaviors (including existing ones)
      */
-    static Map<String, Behavior> updateBehaviorsFromConfig(BehaviorYamlConfig config) {
+    static Map<String, Behavior> updateBehaviorsFromConfig(DynamicConfig config) {
         BehaviorRegistry registry = BehaviorRegistry.getInstance();
         Map<String, Behavior> updatedBehaviors = new HashMap<>();
 
         if (config.getBehaviors() != null) {
-            for (Map.Entry<String, BehaviorYamlConfig.BehaviorConfig> entry : config.getBehaviors().entrySet()) {
+            for (Map.Entry<String, DynamicConfig.Config> entry : config.getBehaviors().entrySet()) {
                 String behaviorName = entry.getKey();
-                BehaviorYamlConfig.BehaviorConfig behaviorConfig = entry.getValue();
+                DynamicConfig.Config behaviorConfig = entry.getValue();
                 
                 // Check if behavior already exists
                 Optional<Behavior> existingBehavior = registry.getBehavior(behaviorName);
@@ -188,7 +188,7 @@ class BehaviorYamlLoader {
      * @param config The new configuration
      * @return The updated behavior (new instance with same name)
      */
-    private static Behavior updateExistingBehavior(Behavior existingBehavior, String name, BehaviorYamlConfig.BehaviorConfig config) {
+    private static Behavior updateExistingBehavior(Behavior existingBehavior, String name, DynamicConfig.Config config) {
         // Create a new behavior with the updated configuration
         // Note: This creates a new instance rather than modifying the existing one
         Behavior updatedBehavior = createNewBehavior(name, config);
@@ -206,7 +206,7 @@ class BehaviorYamlLoader {
      * @param config The behavior configuration
      * @return A new Behavior instance
      */
-    private static Behavior createNewBehavior(String name, BehaviorYamlConfig.BehaviorConfig config) {
+    private static Behavior createNewBehavior(String name, DynamicConfig.Config config) {
         // Determine parent behavior
         Behavior parent = Behavior.DEFAULT;
         if (config.getParent() != null && !"default".equalsIgnoreCase(config.getParent())) {
@@ -231,14 +231,14 @@ class BehaviorYamlLoader {
      * @param config The YAML configuration
      * @return Map of behavior names to behaviors
      */
-    static Map<String, Behavior> convertToBehaviors(BehaviorYamlConfig config) {
+    static Map<String, Behavior> convertToBehaviors(DynamicConfig config) {
         Map<String, Behavior> behaviors = new HashMap<>();
 
         // Create all behaviors (parent relationships are handled in createNewBehavior)
         if (config.getBehaviors() != null) {
-            for (Map.Entry<String, BehaviorYamlConfig.BehaviorConfig> entry : config.getBehaviors().entrySet()) {
+            for (Map.Entry<String, DynamicConfig.Config> entry : config.getBehaviors().entrySet()) {
                 String name = entry.getKey();
-                BehaviorYamlConfig.BehaviorConfig behaviorConfig = entry.getValue();
+                DynamicConfig.Config behaviorConfig = entry.getValue();
                 Behavior behavior = createNewBehavior(name, behaviorConfig);
                 behaviors.put(name, behavior);
             }
@@ -256,7 +256,7 @@ class BehaviorYamlLoader {
      * @param builder The behavior builder
      * @param config The behavior configuration from YAML
      */
-    private static void applyBehaviorConfigToBuilder(Behavior.BehaviorBuilder builder, BehaviorYamlConfig.BehaviorConfig config) {
+    private static void applyBehaviorConfigToBuilder(Behavior.BehaviorBuilder builder, DynamicConfig.Config config) {
         // Apply all operations configuration
         if (config.getAllOperations() != null) {
             builder.on(Behavior.Selectors.all(), ops -> {
@@ -358,7 +358,7 @@ class BehaviorYamlLoader {
      * @param tweaks The tweaks view (any common tweaks interface)
      * @param config The policy configuration from YAML
      */
-    private static void applyCommonConfig(Behavior.CommonTweaks tweaks, BehaviorYamlConfig.PolicyConfig config) {
+    private static void applyCommonConfig(Behavior.CommonTweaks tweaks, DynamicConfig.Base config) {
         if (config.getAbandonCallAfter() != null) {
             tweaks.abandonCallAfter(config.getAbandonCallAfter());
         }
@@ -394,7 +394,7 @@ class BehaviorYamlLoader {
      * @param tweaks The batch tweaks view
      * @param config The batch configuration from YAML
      */
-    private static void applyBatchConfig(Behavior.BatchTweaks tweaks, BehaviorYamlConfig.BatchConfig config) {
+    private static void applyBatchConfig(Behavior.BatchTweaks tweaks, DynamicConfig.Batch config) {
         if (config.getMaxConcurrentServers() != null) {
             tweaks.maxConcurrentNodes(config.getMaxConcurrentServers());
         }
@@ -411,16 +411,16 @@ class BehaviorYamlLoader {
      *
      * @param systemConfig The system configuration from YAML
      */
-    private static void loadSystemSettings(BehaviorYamlConfig config) {
+    private static void loadSystemSettings(DynamicConfig config) {
         if (config.getSystem() == null) {
             return;
         }
         
         SystemSettingsRegistry registry = SystemSettingsRegistry.getInstance();
         
-        for (Map.Entry<String, BehaviorYamlConfig.SystemSettingsConfig> entry : config.getSystem().entrySet()) {
+        for (Map.Entry<String, DynamicConfig.SystemSettings> entry : config.getSystem().entrySet()) {
             String name = entry.getKey();
-            BehaviorYamlConfig.SystemSettingsConfig settingsConfig = entry.getValue();
+            DynamicConfig.SystemSettings settingsConfig = entry.getValue();
             SystemSettings settings = convertToSystemSettings(settingsConfig);
             
             if ("DEFAULT".equalsIgnoreCase(name)) {
@@ -439,12 +439,12 @@ class BehaviorYamlLoader {
      * @param config The system settings configuration from YAML
      * @return A SystemSettings instance
      */
-    private static SystemSettings convertToSystemSettings(BehaviorYamlConfig.SystemSettingsConfig config) {
-        SystemSettings.Builder builder = SystemSettings.builder();
+    private static SystemSettings convertToSystemSettings(DynamicConfig.SystemSettings config) {
+        SystemSettings.Builder builder = com.aerospike.client.fluent.SystemSettings.builder();
 
         // Connections settings
         if (config.getConnections() != null) {
-            BehaviorYamlConfig.SystemConnectionsConfig connConfig = config.getConnections();
+            DynamicConfig.SystemConnections connConfig = config.getConnections();
             builder.connections(ops -> {
                 if (connConfig.getMinimumConnectionsPerNode() != null) {
                     ops.minimumConnectionsPerNode(connConfig.getMinimumConnectionsPerNode());
@@ -462,7 +462,7 @@ class BehaviorYamlLoader {
 
         // Circuit breaker settings
         if (config.getCircuitBreaker() != null) {
-            BehaviorYamlConfig.SystemCircuitBreakerConfig cbConfig = config.getCircuitBreaker();
+            DynamicConfig.SystemCircuitBreaker cbConfig = config.getCircuitBreaker();
             builder.circuitBreaker(ops -> {
                 if (cbConfig.getNumTendIntervalsInErrorWindow() != null) {
                     ops.numTendIntervalsInErrorWindow(cbConfig.getNumTendIntervalsInErrorWindow());
@@ -476,7 +476,7 @@ class BehaviorYamlLoader {
 
         // Refresh settings
         if (config.getRefresh() != null) {
-            BehaviorYamlConfig.SystemRefreshConfig refreshConfig = config.getRefresh();
+            DynamicConfig.SystemRefresh refreshConfig = config.getRefresh();
             builder.refresh(ops -> {
                 if (refreshConfig.getTendInterval() != null) {
                     ops.tendInterval(refreshConfig.getTendInterval());

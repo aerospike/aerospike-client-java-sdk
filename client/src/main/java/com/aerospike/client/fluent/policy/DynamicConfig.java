@@ -19,37 +19,37 @@ package com.aerospike.client.fluent.policy;
 import java.time.Duration;
 import java.util.Map;
 
-public class BehaviorYamlConfig {
+public class DynamicConfig {
 
-    private Map<String, BehaviorConfig> behaviors;
-    private Map<String, SystemSettingsConfig> system;
+    private Map<String, Config> behaviors;
+    private Map<String, SystemSettings> system;
     
     // Getters and setters
-    public Map<String, BehaviorConfig> getBehaviors() { return behaviors; }
-    public void setBehaviors(Map<String, BehaviorConfig> behaviors) { this.behaviors = behaviors; }
+    public Map<String, Config> getBehaviors() { return behaviors; }
+    public void setBehaviors(Map<String, Config> behaviors) { this.behaviors = behaviors; }
     
-    public Map<String, SystemSettingsConfig> getSystem() { return system; }
-    public void setSystem(Map<String, SystemSettingsConfig> system) { this.system = system; }
+    public Map<String, SystemSettings> getSystem() { return system; }
+    public void setSystem(Map<String, SystemSettings> system) { this.system = system; }
     
     // Individual behavior configuration (name is the map key)
-    public static class BehaviorConfig {
+    public static class Config {
         private String parent;
         private Boolean sendKey;
         private Boolean useCompression;
-        private PolicyConfig allOperations;
-        private ConsistencyModeReadConfig readModeSC;
-        private AvailabilityModeReadConfig readModeAP;
-        private WriteConfig retryableWrites;
-        private WriteConfig nonRetryableWrites;
-        private BatchConfig batchReads;
-        private BatchConfig batchWrites;
-        private QueryConfig query;
-        private InfoConfig info;
+        private Base allOperations;
+        private ConsistencyModeRead readModeSC;
+        private AvailabilityModeRead readModeAP;
+        private Write retryableWrites;
+        private Write nonRetryableWrites;
+        private Batch batchReads;
+        private Batch batchWrites;
+        private Query query;
+        private Info info;
         private SystemTxnVerifyConfig systemTxnVerify;
-        private SystemTxnRollConfig systemTxnRoll;
-        private SystemConnectionsConfig systemConnections;
-        private SystemCircuitBreakerConfig systemCircuitBreaker;
-        private SystemRefreshConfig systemRefresh;
+        private SystemTxnRoll systemTxnRoll;
+        private SystemConnections systemConnections;
+        private SystemCircuitBreaker systemCircuitBreaker;
+        private SystemRefresh systemRefresh;
         
         // Getters and setters
         public String getParent() { return parent; }
@@ -61,51 +61,51 @@ public class BehaviorYamlConfig {
         public Boolean getUseCompression() { return useCompression; }
         public void setUseCompression(Boolean useCompression) { this.useCompression = useCompression; }
 
-        public PolicyConfig getAllOperations() { return allOperations; }
-        public void setAllOperations(PolicyConfig allOperations) { this.allOperations = allOperations; }
+        public Base getAllOperations() { return allOperations; }
+        public void setAllOperations(Base allOperations) { this.allOperations = allOperations; }
 
-        public ConsistencyModeReadConfig getConsistencyModeReads() { return readModeSC; }
-        public void setConsistencyModeReads(ConsistencyModeReadConfig consistencyModeReads) { this.readModeSC = consistencyModeReads; }
+        public ConsistencyModeRead getConsistencyModeReads() { return readModeSC; }
+        public void setConsistencyModeReads(ConsistencyModeRead consistencyModeReads) { this.readModeSC = consistencyModeReads; }
 
-        public AvailabilityModeReadConfig getAvailabilityModeReads() { return readModeAP; }
-        public void setAvailabilityModeReads(AvailabilityModeReadConfig availabilityModeReads) { this.readModeAP = availabilityModeReads; }
+        public AvailabilityModeRead getAvailabilityModeReads() { return readModeAP; }
+        public void setAvailabilityModeReads(AvailabilityModeRead availabilityModeReads) { this.readModeAP = availabilityModeReads; }
 
-        public WriteConfig getRetryableWrites() { return retryableWrites; }
-        public void setRetryableWrites(WriteConfig retryableWrites) { this.retryableWrites = retryableWrites; }
+        public Write getRetryableWrites() { return retryableWrites; }
+        public void setRetryableWrites(Write retryableWrites) { this.retryableWrites = retryableWrites; }
 
-        public WriteConfig getNonRetryableWrites() { return nonRetryableWrites; }
-        public void setNonRetryableWrites(WriteConfig nonRetryableWrites) { this.nonRetryableWrites = nonRetryableWrites; }
+        public Write getNonRetryableWrites() { return nonRetryableWrites; }
+        public void setNonRetryableWrites(Write nonRetryableWrites) { this.nonRetryableWrites = nonRetryableWrites; }
 
-        public BatchConfig getBatchReads() { return batchReads; }
-        public void setBatchReads(BatchConfig batchReads) { this.batchReads = batchReads; }
+        public Batch getBatchReads() { return batchReads; }
+        public void setBatchReads(Batch batchReads) { this.batchReads = batchReads; }
 
-        public BatchConfig getBatchWrites() { return batchWrites; }
-        public void setBatchWrites(BatchConfig batchWrites) { this.batchWrites = batchWrites; }
+        public Batch getBatchWrites() { return batchWrites; }
+        public void setBatchWrites(Batch batchWrites) { this.batchWrites = batchWrites; }
 
-        public QueryConfig getQuery() { return query; }
-        public void setQuery(QueryConfig query) { this.query = query; }
+        public Query getQuery() { return query; }
+        public void setQuery(Query query) { this.query = query; }
 
-        public InfoConfig getInfo() { return info; }
-        public void setInfo(InfoConfig info) { this.info = info; }
+        public Info getInfo() { return info; }
+        public void setInfo(Info info) { this.info = info; }
 
         public SystemTxnVerifyConfig getSystemTxnVerify() { return systemTxnVerify; }
         public void setSystemTxnVerify(SystemTxnVerifyConfig systemTxnVerify) { this.systemTxnVerify = systemTxnVerify; }
 
-        public SystemTxnRollConfig getSystemTxnRoll() { return systemTxnRoll; }
-        public void setSystemTxnRoll(SystemTxnRollConfig systemTxnRoll) { this.systemTxnRoll = systemTxnRoll; }
+        public SystemTxnRoll getSystemTxnRoll() { return systemTxnRoll; }
+        public void setSystemTxnRoll(SystemTxnRoll systemTxnRoll) { this.systemTxnRoll = systemTxnRoll; }
         
-        public SystemConnectionsConfig getSystemConnections() { return systemConnections; }
-        public void setSystemConnections(SystemConnectionsConfig systemConnections) { this.systemConnections = systemConnections; }
+        public SystemConnections getSystemConnections() { return systemConnections; }
+        public void setSystemConnections(SystemConnections systemConnections) { this.systemConnections = systemConnections; }
         
-        public SystemCircuitBreakerConfig getSystemCircuitBreaker() { return systemCircuitBreaker; }
-        public void setSystemCircuitBreaker(SystemCircuitBreakerConfig systemCircuitBreaker) { this.systemCircuitBreaker = systemCircuitBreaker; }
+        public SystemCircuitBreaker getSystemCircuitBreaker() { return systemCircuitBreaker; }
+        public void setSystemCircuitBreaker(SystemCircuitBreaker systemCircuitBreaker) { this.systemCircuitBreaker = systemCircuitBreaker; }
         
-        public SystemRefreshConfig getSystemRefresh() { return systemRefresh; }
-        public void setSystemRefresh(SystemRefreshConfig systemRefresh) { this.systemRefresh = systemRefresh; }
+        public SystemRefresh getSystemRefresh() { return systemRefresh; }
+        public void setSystemRefresh(SystemRefresh systemRefresh) { this.systemRefresh = systemRefresh; }
     }
 
     // Base policy configuration
-    public static class PolicyConfig {
+    public static class Base {
         private Duration abandonCallAfter;
         private Duration delayBetweenRetries;
         private Integer maximumNumberOfCallAttempts;
@@ -150,7 +150,7 @@ public class BehaviorYamlConfig {
     }
 
     // Consistency mode read configuration
-    public static class ConsistencyModeReadConfig extends PolicyConfig {
+    public static class ConsistencyModeRead extends Base {
         private ReadModeSC readModeSC;
 
         public ReadModeSC getReadConsistency() { return readModeSC; }
@@ -158,7 +158,7 @@ public class BehaviorYamlConfig {
     }
 
     // Availability mode read configuration
-    public static class AvailabilityModeReadConfig extends PolicyConfig {
+    public static class AvailabilityModeRead extends Base {
         private ReadModeAP readModeAP;
 
         public ReadModeAP getMigrationReadConsistency() { return readModeAP; }
@@ -166,7 +166,7 @@ public class BehaviorYamlConfig {
     }
 
     // Write configuration
-    public static class WriteConfig extends PolicyConfig {
+    public static class Write extends Base {
         private Boolean useDurableDelete;
 
         public Boolean getUseDurableDelete() { return useDurableDelete; }
@@ -174,7 +174,7 @@ public class BehaviorYamlConfig {
     }
 
     // Batch configuration
-    public static class BatchConfig extends PolicyConfig {
+    public static class Batch extends Base {
         private Integer maxConcurrentServers;
         private Boolean allowInlineMemoryAccess;
         private Boolean allowInlineSsdAccess;
@@ -190,7 +190,7 @@ public class BehaviorYamlConfig {
     }
 
     // Query configuration
-    public static class QueryConfig extends PolicyConfig {
+    public static class Query extends Base {
         private Integer recordQueueSize;
         private Integer maxConcurrentServers;
 
@@ -202,12 +202,12 @@ public class BehaviorYamlConfig {
     }
 
     // Info configuration
-    public static class InfoConfig extends PolicyConfig {
+    public static class Info extends Base {
         // Info only has abandonCallAfter from the base PolicyConfig
     }
 
     // System - Transaction Verify configuration (read-like settings)
-    public static class SystemTxnVerifyConfig extends PolicyConfig {
+    public static class SystemTxnVerifyConfig extends Base {
         private ReadModeSC consistency;
 
         public ReadModeSC getConsistency() { return consistency; }
@@ -215,13 +215,13 @@ public class BehaviorYamlConfig {
     }
 
     // System - Transaction Roll configuration (write-like settings)
-    public static class SystemTxnRollConfig extends PolicyConfig {
+    public static class SystemTxnRoll extends Base {
         // Uses base PolicyConfig fields: abandonCallAfter, delayBetweenRetries, maximumNumberOfCallAttempts,
         // replicaOrder, waitForCallToComplete, waitForConnectionToComplete, waitForSocketResponseAfterCallFails
     }
     
     // System - Connections configuration
-    public static class SystemConnectionsConfig {
+    public static class SystemConnections {
         private Integer minimumConnectionsPerNode;
         private Integer maximumConnectionsPerNode;
         private Duration maximumSocketIdleTime;
@@ -237,7 +237,7 @@ public class BehaviorYamlConfig {
     }
     
     // System - Circuit Breaker configuration
-    public static class SystemCircuitBreakerConfig {
+    public static class SystemCircuitBreaker {
         private Integer numTendIntervalsInErrorWindow;
         private Integer maximumErrorsInErrorWindow;
         
@@ -249,7 +249,7 @@ public class BehaviorYamlConfig {
     }
     
     // System - Refresh configuration
-    public static class SystemRefreshConfig {
+    public static class SystemRefresh {
         private Duration tendInterval;
         
         public Duration getTendInterval() { return tendInterval; }
@@ -257,18 +257,18 @@ public class BehaviorYamlConfig {
     }
     
     // System settings configuration (for cluster-level settings)
-    public static class SystemSettingsConfig {
-        private SystemConnectionsConfig connections;
-        private SystemCircuitBreakerConfig circuitBreaker;
-        private SystemRefreshConfig refresh;
+    public static class SystemSettings {
+        private SystemConnections connections;
+        private SystemCircuitBreaker circuitBreaker;
+        private SystemRefresh refresh;
         
-        public SystemConnectionsConfig getConnections() { return connections; }
-        public void setConnections(SystemConnectionsConfig connections) { this.connections = connections; }
+        public SystemConnections getConnections() { return connections; }
+        public void setConnections(SystemConnections connections) { this.connections = connections; }
         
-        public SystemCircuitBreakerConfig getCircuitBreaker() { return circuitBreaker; }
-        public void setCircuitBreaker(SystemCircuitBreakerConfig circuitBreaker) { this.circuitBreaker = circuitBreaker; }
+        public SystemCircuitBreaker getCircuitBreaker() { return circuitBreaker; }
+        public void setCircuitBreaker(SystemCircuitBreaker circuitBreaker) { this.circuitBreaker = circuitBreaker; }
         
-        public SystemRefreshConfig getRefresh() { return refresh; }
-        public void setRefresh(SystemRefreshConfig refresh) { this.refresh = refresh; }
+        public SystemRefresh getRefresh() { return refresh; }
+        public void setRefresh(SystemRefresh refresh) { this.refresh = refresh; }
     }
 } 
