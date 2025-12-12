@@ -29,14 +29,14 @@ import org.apache.commons.cli.Options;
 
 /**
  * Main entry point for running Aerospike Fluent Client examples.
- * 
+ *
  * <h2>Usage</h2>
  * <pre>{@code
  * ./run_examples <ExampleName> [options]
  * ./run_examples all [options]
  * ./run_examples -u
  * }</pre>
- * 
+ *
  * <h2>Available Examples</h2>
  * <ul>
  *   <li>{@code BehaviorHierarchicalExample} - Demonstrates hierarchical YAML configuration with dynamic reloading</li>
@@ -45,18 +45,19 @@ import org.apache.commons.cli.Options;
  * </ul>
  */
 public class Main {
-    
+
     private static final String[] EXAMPLE_NAMES = new String[] {
         "BehaviorHierarchicalExample",
         "BehaviorYamlExample",
+        "CommonExample",
         "CompleteYamlConfigExample",
         "YamlConfigConnectionExample"
     };
-    
+
     public static String[] getAllExampleNames() {
         return EXAMPLE_NAMES;
     }
-    
+
     /**
      * Main entry point.
      */
@@ -64,23 +65,23 @@ public class Main {
         try {
             Options options = new Options();
             Parameters.addCommonOptions(options);
-            
+
             CommandLineParser parser = new DefaultParser();
             CommandLine cl = parser.parse(options, args, false);
-            
+
             if (args.length == 0 || cl.hasOption("u")) {
                 logUsage(options);
                 return;
             }
-            
-            Parameters params = Parameters.parseParameters(cl);
+
+            Parameters params = new Parameters(cl);
             String[] exampleNames = cl.getArgs();
-            
+
             if (exampleNames.length == 0) {
                 logUsage(options);
                 return;
             }
-            
+
             // Check for "all"
             for (String exampleName : exampleNames) {
                 if (exampleName.equalsIgnoreCase("all")) {
@@ -88,15 +89,15 @@ public class Main {
                     break;
                 }
             }
-            
+
             Console console = new Console();
             runExamples(console, params, exampleNames);
-            
+
         } catch (Exception ex) {
             ex.printStackTrace();
         }
     }
-    
+
     /**
      * Write usage to console.
      */
@@ -108,14 +109,14 @@ public class Main {
         formatter.printHelp(pw, 100, syntax, "options:", options, 0, 2, null);
         System.out.println(sw.toString());
         System.out.println("examples:");
-        
+
         for (String name : EXAMPLE_NAMES) {
             System.out.println("  " + name);
         }
         System.out.println();
         System.out.println("All examples will be run if 'all' is specified as an example.");
     }
-    
+
     /**
      * Run one or more examples.
      */

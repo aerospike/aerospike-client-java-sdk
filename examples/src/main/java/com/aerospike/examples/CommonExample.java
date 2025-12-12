@@ -48,14 +48,13 @@ public class CommonExample extends Example {
     @Override
     public void runExample(Parameters params) throws Exception {
         ClusterDefinition def = new ClusterDefinition(params.host, params.port)
+        	.clusterName(params.clusterName)
     	    .withSystemSettings(builder -> builder
     	    	.circuitBreaker(ops -> ops.maximumErrorsInErrorWindow(200))
-    	    	/*
     	        .connections(conn -> conn
     	        	.minimumConnectionsPerNode(200)
     	            .maximumConnectionsPerNode(200)
     	         )
-    	         */
     	    );
 
         System.out.println("Connect");

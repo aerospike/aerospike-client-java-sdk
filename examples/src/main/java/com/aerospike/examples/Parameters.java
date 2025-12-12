@@ -24,24 +24,38 @@ import org.apache.commons.cli.Options;
  * Contains connection parameters and other settings parsed from command line.
  */
 public class Parameters {
-    
-    public String host;
-    public int port;
-    public String namespace;
-    public String set;
-    public boolean useServicesAlternate;
-    
-    protected Parameters(String host, int port, String namespace, String set, boolean useServicesAlternate) {
-        this.host = host;
-        this.port = port;
-        this.namespace = namespace;
-        this.set = set;
-        this.useServicesAlternate = useServicesAlternate;
+
+    public final String host;
+    public final int port;
+    public final String clusterName;
+    public final String namespace;
+    public final String set;
+    public final boolean useServicesAlternate;
+
+    public Parameters(CommandLine cl) {
+        this.host = cl.getOptionValue("h", "localhost");
+
+        String portString = cl.getOptionValue("p", "3000");
+        this.port = Integer.parseInt(portString);
+
+        this.clusterName = cl.getOptionValue("c");
+        this.namespace = cl.getOptionValue("n", "test");
+
+        String setName = cl.getOptionValue("s", "demoset");
+
+        if (setName.equals("empty")) {
+            this.set = "";
+        }
+        else {
+            this.set = setName;
+        }
+
+        this.useServicesAlternate = cl.hasOption("a");
     }
-    
+
     /**
      * Add common options to the provided Options object.
-     * 
+     *
      * @param options the Options object to add common options to
      */
     public static void addCommonOptions(Options options) {
@@ -50,38 +64,19 @@ public class Parameters {
                 "hostname1[:port1],...\n" +
                 "Default: localhost");
         options.addOption("p", "port", true, "Server default port (default: 3000)");
+        options.addOption("c", "cluster", true, "Cluster name (default: null)");
         options.addOption("n", "namespace", true, "Namespace (default: test)");
         options.addOption("s", "set", true, "Set name. Use 'empty' for empty set (default: demoset)");
         options.addOption("a", "servicesAlternate", false, "Use services alternate for cluster discovery");
         options.addOption("u", "usage", false, "Print usage");
     }
-    
-    /**
-     * Parse command line into Parameters.
-     * 
-     * @param cl the parsed CommandLine
-     * @return Parameters instance with parsed values
-     */
-    public static Parameters parseParameters(CommandLine cl) {
-        String host = cl.getOptionValue("h", "localhost");
-        String portString = cl.getOptionValue("p", "3000");
-        int port = Integer.parseInt(portString);
-        String namespace = cl.getOptionValue("n", "test");
-        String set = cl.getOptionValue("s", "demoset");
-        boolean useServicesAlternate = cl.hasOption("a");
-        
-        if (set.equals("empty")) {
-            set = "";
-        }
-        
-        return new Parameters(host, port, namespace, set, useServicesAlternate);
-    }
-    
+
     @Override
     public String toString() {
         return "Parameters{" +
                 "host='" + host + '\'' +
                 ", port=" + port +
+                ", clusterName=" + clusterName + '\'' +
                 ", namespace='" + namespace + '\'' +
                 ", set='" + set + '\'' +
                 ", useServicesAlternate=" + useServicesAlternate +
