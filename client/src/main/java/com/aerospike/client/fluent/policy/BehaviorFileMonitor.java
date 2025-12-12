@@ -3,6 +3,7 @@ package com.aerospike.client.fluent.policy;
 import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.ClosedWatchServiceException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -176,6 +177,11 @@ class BehaviorFileMonitor implements Closeable {
 
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
+                break;
+            } catch (ClosedWatchServiceException e) {
+                // There is not a isClsoed method which would allow us to check if the watch service is closed, so we have to catch this exception to know that the watch service is closed.
+                // Within this context this is considered normal
+                Log.info("Watch service is closed.");
                 break;
             } catch (Exception e) {
                 Log.error("Error in file monitoring: " + e.getMessage());
