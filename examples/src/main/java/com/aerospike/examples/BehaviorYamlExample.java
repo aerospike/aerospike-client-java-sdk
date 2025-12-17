@@ -20,13 +20,14 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.util.Set;
 
+import com.aerospike.client.fluent.Cluster;
 import com.aerospike.client.fluent.policy.Behavior;
 import com.aerospike.client.fluent.policy.Settings;
 
 /**
  * Example demonstrating how to load Behavior configurations from YAML files
  * using the new selector-based API.
- * 
+ *
  * <p>This example shows:
  * <ul>
  *   <li>Loading behaviors from YAML files using Behavior.startMonitoring()</li>
@@ -36,13 +37,13 @@ import com.aerospike.client.fluent.policy.Settings;
  * </ul>
  */
 public class BehaviorYamlExample extends Example {
-    
+
     public BehaviorYamlExample(Console console) {
         super(console);
     }
-    
+
     @Override
-    public void runExample(Parameters params) throws Exception {
+    public void runExample(Cluster cluster, Args args) throws Exception {
         String yamlFilePath = "src/main/resources/behavior-example.yml";
 
         try (Closeable monitor = Behavior.startMonitoringWithResource(yamlFilePath)) {
@@ -51,37 +52,37 @@ public class BehaviorYamlExample extends Example {
 
             // Get all loaded behaviors
             Set<Behavior> behaviors = Behavior.getAllBehaviors();
-            
+
             console.write("=== Loaded Behaviors ===");
             console.write("Total behaviors loaded: " + behaviors.size());
             console.write("");
-            
+
             // Demonstrate each loaded behavior
             for (Behavior behavior : behaviors) {
                 console.write("--- Behavior: " + behavior.name() + " ---");
-                
+
                 // Show parent relationship
                 if (behavior.getParent() != null) {
                     console.write("  Parent: " + behavior.getParent().name());
                 }
-                
+
                 // Get settings for different operation types using the new API
                 demonstrateSettings(behavior);
                 console.write("");
             }
-            
+
             // Demonstrate a specific behavior in detail
             Behavior highPerf = Behavior.getBehavior("high-performance");
             if (highPerf != Behavior.DEFAULT) {
                 console.write("=== Detailed Example: high-performance Behavior ===");
-                
+
                 // Show resolved settings for retryable writes
                 Settings writeSettings = highPerf.getSettings(
-                    Behavior.OpKind.WRITE_RETRYABLE, 
-                    Behavior.OpShape.POINT, 
+                    Behavior.OpKind.WRITE_RETRYABLE,
+                    Behavior.OpShape.POINT,
                     Behavior.Mode.AP
                 );
-                
+
                 if (writeSettings != null) {
                     console.write("Retryable Write Settings (POINT, AP):");
                     console.write("  abandonCallAfter: " + writeSettings.getAbandonCallAfterMs() + "ms");
@@ -90,14 +91,14 @@ public class BehaviorYamlExample extends Example {
                     console.write("  delayBetweenRetries: " + writeSettings.getDelayBetweenRetriesMs() + "ms");
                 }
                 console.write("");
-                
+
                 // Show resolved settings for query operations
                 Settings querySettings = highPerf.getSettings(
-                    Behavior.OpKind.READ, 
-                    Behavior.OpShape.QUERY, 
+                    Behavior.OpKind.READ,
+                    Behavior.OpShape.QUERY,
                     Behavior.Mode.AP
                 );
-                
+
                 if (querySettings != null) {
                     console.write("Query Settings (QUERY, AP):");
                     console.write("  recordQueueSize: " + querySettings.getRecordQueueSize());
@@ -106,18 +107,18 @@ public class BehaviorYamlExample extends Example {
                 }
                 console.write("");
             }
-            
+
             // Demonstrate batch-optimized behavior (child of high-performance)
             Behavior batchOpt = Behavior.getBehavior("batch-optimized");
             if (batchOpt != Behavior.DEFAULT) {
                 console.write("=== Inheritance Example: batch-optimized (child of high-performance) ===");
-                
+
                 Settings batchReadSettings = batchOpt.getSettings(
-                    Behavior.OpKind.READ, 
-                    Behavior.OpShape.BATCH, 
+                    Behavior.OpKind.READ,
+                    Behavior.OpShape.BATCH,
                     Behavior.Mode.AP
                 );
-                
+
                 if (batchReadSettings != null) {
                     console.write("Batch Read Settings (inherited + overridden):");
                     console.write("  maxConcurrentNodes: " + batchReadSettings.getMaxConcurrentNodes() + " (overridden from parent)");
@@ -126,7 +127,7 @@ public class BehaviorYamlExample extends Example {
                     console.write("  maximumNumberOfCallAttempts: " + batchReadSettings.getMaximumNumberOfCallAttempts() + " (inherited from parent)");
                 }
             }
-            
+
         } catch (IOException e) {
             console.error("Error loading behavior from YAML: " + e.getMessage());
             e.printStackTrace();
@@ -134,7 +135,7 @@ public class BehaviorYamlExample extends Example {
             console.write("Interrupted");
         }
     }
-    
+
     /**
      * Demonstrate getting settings for various operation types
      */
@@ -144,13 +145,13 @@ public class BehaviorYamlExample extends Example {
         if (readBatchAp != null) {
             console.write("  Batch reads (AP): maxConcurrentNodes=" + readBatchAp.getMaxConcurrentNodes());
         }
-        
+
         // Write operations
         Settings writeRetryable = behavior.getSettings(Behavior.OpKind.WRITE_RETRYABLE, Behavior.OpShape.POINT, Behavior.Mode.AP);
         if (writeRetryable != null) {
             console.write("  Retryable writes: useDurableDelete=" + writeRetryable.getUseDurableDelete());
         }
-        
+
         // Query operations
         Settings query = behavior.getSettings(Behavior.OpKind.READ, Behavior.OpShape.QUERY, Behavior.Mode.AP);
         if (query != null) {

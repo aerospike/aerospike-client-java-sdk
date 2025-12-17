@@ -48,7 +48,7 @@ public class CompleteYamlConfigExample extends Example {
     }
 
     @Override
-    public void runExample(Parameters params) throws Exception {
+    public void runExample(Cluster cluster, Args args) throws Exception {
         console.write("=== Complete YAML Configuration Example ===\n");
 
         try (Closeable monitor = Behavior.startMonitoringWithResource(CONFIG_FILE)) {
@@ -58,8 +58,8 @@ public class CompleteYamlConfigExample extends Example {
             displayAllBehaviors();
             demonstrateBehaviorInheritance();
 
-            if (params.host != null) {
-                performClusterOperations(params);
+            if (args.host != null) {
+                performClusterOperations(args);
             } else {
                 console.write("\n=== Skipping Cluster Operations ===");
                 console.write("No host specified. Add -h <host> to perform actual operations.\n");
@@ -245,21 +245,21 @@ public class CompleteYamlConfigExample extends Example {
         console.write("");
     }
 
-    private void performClusterOperations(Parameters params) {
+    private void performClusterOperations(Args args) {
         console.write("=== CLUSTER OPERATIONS ===\n");
 
-        ClusterDefinition clusterDef = new ClusterDefinition(params.host, params.port)
+        ClusterDefinition clusterDef = new ClusterDefinition(args.host, args.port)
             .appId("complete-yaml-example")
             .failIfNotConnected(true);
 
-        if (params.useServicesAlternate) {
+        if (args.useServicesAlternate) {
             clusterDef.usingServicesAlternate();
         }
 
         try (Cluster cluster = clusterDef.connect()) {
-            console.write("Connected to cluster at " + params.host + ":" + params.port + "\n");
+            console.write("Connected to cluster at " + args.host + ":" + args.port + "\n");
 
-            DataSet dataSet = DataSet.of(params.namespace, "complete-yaml-demo");
+            DataSet dataSet = DataSet.of(args.namespace, "complete-yaml-demo");
 
             testWithBehavior(cluster, "high-performance", dataSet);
             testWithBehavior(cluster, "high-reliability", dataSet);

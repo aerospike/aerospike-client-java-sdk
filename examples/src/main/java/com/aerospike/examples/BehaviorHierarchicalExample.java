@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 
+import com.aerospike.client.fluent.Cluster;
 import com.aerospike.client.fluent.policy.Behavior;
 import com.aerospike.client.fluent.policy.Behavior.OpKind;
 import com.aerospike.client.fluent.policy.Behavior.OpShape;
@@ -57,7 +58,7 @@ public class BehaviorHierarchicalExample extends Example {
     }
 
     @Override
-    public void runExample(Parameters params) throws Exception {
+    public void runExample(Cluster cluster, Args args) throws Exception {
         demonstrateDynamicReloading(DEFAULT_CONFIG_PATH);
     }
 

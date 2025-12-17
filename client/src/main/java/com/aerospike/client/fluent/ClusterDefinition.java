@@ -522,56 +522,6 @@ public class ClusterDefinition {
         return this;
     }
 
-// TODO: BN: Policy settings need to be implemented in the new client.
-//    private ClientPolicy getPolicy() {
-//        ClientPolicy policy = new ClientPolicy();
-//        policy.user = userName;
-//        policy.password = password;
-//        policy.authMode = AuthMode.INTERNAL;
-//        
-//        policy.useServicesAlternate = useServicesAlternate;
-//        if (preferrredRacks != null && preferrredRacks.length > 0) {
-//            policy.rackAware = true;
-//            policy.rackIds = new ArrayList<>();
-//            for (int thisRack : preferrredRacks) {
-//                policy.rackIds.add(thisRack);
-//            }
-//        }
-//        
-//        if (clusterName != null) {
-//            policy.clusterName = clusterName;
-//            policy.validateClusterName = true;
-//        }
-//        
-//        if (tlsBuilder != null && tlsBuilder.isTlsEnabled()) {
-//            policy.tlsPolicy = new TlsPolicy();
-//            
-//            
-//            // Use custom SSLContext if available (from PEM files, key stores, etc.)
-//            SSLContext sslContext = tlsBuilder.createSslContext();
-//            if (sslContext != null) {
-//                policy.tlsPolicy.context = sslContext;
-//            }
-//            
-//            // Configure additional TLS policy settings
-//            if (tlsBuilder.getProtocols() != null) {
-//                policy.tlsPolicy.protocols = tlsBuilder.getProtocols();
-//            }
-//            if (tlsBuilder.getCiphers() != null) {
-//                policy.tlsPolicy.ciphers = tlsBuilder.getCiphers();
-//            }
-//            policy.tlsPolicy.forLoginOnly = tlsBuilder.isForLoginOnly();
-//            
-//            // Set revocation certificates if configured
-//            if (tlsBuilder.getRevokeCertificates() != null) {
-//                policy.tlsPolicy.revokeCertificates = tlsBuilder.getRevokeCertificates();
-//            }
-//            // Note: revokeCertificatesForLoginOnly field not available in current TlsPolicy
-//            // policy.tlsPolicy.revokeCertificatesForLoginOnly = tlsBuilder.isRevokeCertificatesForLoginOnly();
-//        }
-//        return policy;
-//    }
-
     /**
      * Establishes a connection to the Aerospike cluster.
      *
@@ -610,10 +560,10 @@ public class ClusterDefinition {
 					" specified in environment variable " + CONFIG_PATH_ENV, t);
 			}
 		}
-		
-		// TODO: BN: Policy settings need to be implemented in the new client.
-//        ClientPolicy policy = getPolicy();
 
+		if (tlsBuilder != null) {
+			tlsBuilder.createSslContext();
+		}
 
         // Apply system settings to policy (4-level hierarchy)
         SystemSettings effectiveSettings = SystemSettingsRegistry.getInstance()
@@ -625,11 +575,11 @@ public class ClusterDefinition {
 
         System.out.println("MaximumConnectionsPerNode = " + effectiveSettings.getMaximumConnectionsPerNode());
     	Cluster cluster = new Cluster(def, effectiveSettings);
-    	
+
         // Register with registry for dynamic updates
         SystemSettingsRegistry.getInstance()
             .registerCluster(cluster, clusterName, effectiveSettings);
-        
+
         return cluster;
     }
 

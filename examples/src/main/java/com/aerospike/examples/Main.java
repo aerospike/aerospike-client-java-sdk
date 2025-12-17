@@ -64,7 +64,7 @@ public class Main {
     public static void main(String[] args) {
         try {
             Options options = new Options();
-            Parameters.addCommonOptions(options);
+            Args.addCommonOptions(options);
 
             CommandLineParser parser = new DefaultParser();
             CommandLine cl = parser.parse(options, args, false);
@@ -74,7 +74,7 @@ public class Main {
                 return;
             }
 
-            Parameters params = new Parameters(cl);
+            Args arguments = new Args(cl);
             String[] exampleNames = cl.getArgs();
 
             if (exampleNames.length == 0) {
@@ -91,7 +91,7 @@ public class Main {
             }
 
             Console console = new Console();
-            runExamples(console, params, exampleNames);
+            runExamples(console, arguments, exampleNames);
 
         } catch (Exception ex) {
             ex.printStackTrace();
@@ -120,11 +120,11 @@ public class Main {
     /**
      * Run one or more examples.
      */
-    public static void runExamples(Console console, Parameters params, String[] examples) throws Exception {
+    public static void runExamples(Console console, Args args, String[] examples) throws Exception {
         List<String> exampleList = new ArrayList<>();
         for (String example : examples) {
             exampleList.add(example);
         }
-        Example.runExamples(console, params, exampleList);
+        Example.runExamples(console, args, exampleList);
     }
 }
