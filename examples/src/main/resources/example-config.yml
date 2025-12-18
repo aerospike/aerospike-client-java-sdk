@@ -1,0 +1,71 @@
+# Example Aerospike Fluent Client Configuration
+# This file demonstrates the map-based YAML structure for behaviors and system settings
+
+behaviors:
+  # DEFAULT behavior - all other behaviors inherit from this
+  DEFAULT:
+    allOperations:
+      abandonCallAfter: 30s
+      waitForCallToComplete: 10s
+      waitForConnectionToComplete: 2s
+      maximumNumberOfCallAttempts: 3
+      delayBetweenRetries: 100ms
+      sendKey: true
+      useCompression: false
+
+  # Production behavior - optimized for production workloads
+  production:
+    parent: DEFAULT
+    allOperations:
+      abandonCallAfter: 15s
+      maximumNumberOfCallAttempts: 5
+    consistencyModeReads:
+      readConsistency: SESSION
+    batchReads:
+      maxConcurrentServers: 12
+      allowInlineMemoryAccess: true
+      allowInlineSsdAccess: true
+    batchWrites:
+      maxConcurrentServers: 8
+      allowInlineMemoryAccess: true
+    query:
+      recordQueueSize: 5000
+      maxConcurrentServers: 10
+
+  # Low-latency behavior - for time-sensitive operations
+  lowLatency:
+    parent: DEFAULT
+    allOperations:
+      abandonCallAfter: 500ms
+      waitForCallToComplete: 250ms
+      maximumNumberOfCallAttempts: 2
+    consistencyModeReads:
+      readConsistency: LINEARIZE
+
+# System settings - cluster-level configuration
+system:
+  # Default system settings for all clusters
+  DEFAULT:
+    connections:
+      minimumConnectionsPerNode: 10
+      maximumConnectionsPerNode: 100
+      maximumSocketIdleTime: 55s
+    circuitBreaker:
+      numTendIntervalsInErrorWindow: 1
+      maximumErrorsInErrorWindow: 100
+    refresh:
+      tendInterval: 1s
+
+  # Production cluster specific settings
+  production:
+    connections:
+      minimumConnectionsPerNode: 50
+      maximumConnectionsPerNode: 300
+    circuitBreaker:
+      maximumErrorsInErrorWindow: 200
+
+  # Development cluster specific settings  
+  development:
+    connections:
+      minimumConnectionsPerNode: 5
+      maximumConnectionsPerNode: 50

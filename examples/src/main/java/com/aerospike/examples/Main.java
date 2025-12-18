@@ -51,6 +51,7 @@ public class Main {
         "BehaviorYamlExample",
         "CommonExample",
         "CompleteYamlConfigExample",
+        "YamlConfigExample",
         "YamlConfigConnectionExample"
     };
 
