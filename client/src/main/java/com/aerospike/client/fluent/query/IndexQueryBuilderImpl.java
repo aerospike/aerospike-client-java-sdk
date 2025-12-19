@@ -11,13 +11,13 @@ import com.aerospike.client.fluent.command.PartitionFilter;
 import com.aerospike.client.fluent.command.PartitionTracker;
 import com.aerospike.client.fluent.command.QueryCommand;
 import com.aerospike.client.fluent.command.QueryExecutor;
-import com.aerospike.client.fluent.dsl.ParseResult;
 import com.aerospike.client.fluent.exp.Exp;
 import com.aerospike.client.fluent.exp.Expression;
 import com.aerospike.client.fluent.policy.Behavior.Mode;
 import com.aerospike.client.fluent.policy.Behavior.OpKind;
 import com.aerospike.client.fluent.policy.Behavior.OpShape;
 import com.aerospike.client.fluent.policy.Settings;
+import com.aerospike.dsl.ParseResult;
 
 class IndexQueryBuilderImpl extends QueryImpl {
     private final DataSet dataSet;

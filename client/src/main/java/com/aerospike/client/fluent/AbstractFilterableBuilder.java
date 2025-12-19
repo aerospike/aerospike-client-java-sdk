@@ -1,11 +1,11 @@
 package com.aerospike.client.fluent;
 
 import com.aerospike.client.fluent.command.BatchRecord;
-import com.aerospike.client.fluent.dsl.ParseResult;
 import com.aerospike.client.fluent.exp.Exp;
 import com.aerospike.client.fluent.exp.Expression;
 import com.aerospike.client.fluent.policy.Settings;
 import com.aerospike.client.fluent.query.WhereClauseProcessor;
+import com.aerospike.dsl.ParseResult;
 
 /**
  * Abstract base class for builders that support filtering operations.

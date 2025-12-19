@@ -1,0 +1,652 @@
+package com.aerospike.dsl.visitor;
+
+import static com.aerospike.dsl.util.ParsingUtils.extractFunctionName;
+import static com.aerospike.dsl.util.ParsingUtils.extractParameter;
+import static com.aerospike.dsl.util.ParsingUtils.extractTypeFromMethod;
+import static com.aerospike.dsl.util.ParsingUtils.unquote;
+import static com.aerospike.dsl.visitor.VisitorUtils.extractVariableNameOrFail;
+import static com.aerospike.dsl.visitor.VisitorUtils.getPathFunctionParam;
+import static com.aerospike.dsl.visitor.VisitorUtils.logicalSetBinAsBooleanExpr;
+import static com.aerospike.dsl.visitor.VisitorUtils.overrideTypeInfo;
+import static com.aerospike.dsl.visitor.VisitorUtils.shouldVisitListElement;
+import static com.aerospike.dsl.visitor.VisitorUtils.shouldVisitMapElement;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.SortedMap;
+import java.util.TreeMap;
+
+import org.antlr.v4.runtime.tree.ParseTree;
+import org.antlr.v4.runtime.tree.RuleNode;
+
+import com.aerospike.client.fluent.exp.Exp;
+import com.aerospike.dsl.ConditionBaseVisitor;
+import com.aerospike.dsl.ConditionParser;
+import com.aerospike.dsl.DslParseException;
+import com.aerospike.dsl.parts.AbstractPart;
+import com.aerospike.dsl.parts.ExpressionContainer;
+import com.aerospike.dsl.parts.cdt.list.ListIndex;
+import com.aerospike.dsl.parts.cdt.list.ListIndexRange;
+import com.aerospike.dsl.parts.cdt.list.ListRank;
+import com.aerospike.dsl.parts.cdt.list.ListRankRange;
+import com.aerospike.dsl.parts.cdt.list.ListRankRangeRelative;
+import com.aerospike.dsl.parts.cdt.list.ListTypeDesignator;
+import com.aerospike.dsl.parts.cdt.list.ListValue;
+import com.aerospike.dsl.parts.cdt.list.ListValueList;
+import com.aerospike.dsl.parts.cdt.list.ListValueRange;
+import com.aerospike.dsl.parts.cdt.map.MapIndex;
+import com.aerospike.dsl.parts.cdt.map.MapIndexRange;
+import com.aerospike.dsl.parts.cdt.map.MapIndexRangeRelative;
+import com.aerospike.dsl.parts.cdt.map.MapKey;
+import com.aerospike.dsl.parts.cdt.map.MapKeyList;
+import com.aerospike.dsl.parts.cdt.map.MapKeyRange;
+import com.aerospike.dsl.parts.cdt.map.MapRank;
+import com.aerospike.dsl.parts.cdt.map.MapRankRange;
+import com.aerospike.dsl.parts.cdt.map.MapRankRangeRelative;
+import com.aerospike.dsl.parts.cdt.map.MapTypeDesignator;
+import com.aerospike.dsl.parts.cdt.map.MapValue;
+import com.aerospike.dsl.parts.cdt.map.MapValueList;
+import com.aerospike.dsl.parts.cdt.map.MapValueRange;
+import com.aerospike.dsl.parts.controlstructure.AndStructure;
+import com.aerospike.dsl.parts.controlstructure.ExclusiveStructure;
+import com.aerospike.dsl.parts.controlstructure.OrStructure;
+import com.aerospike.dsl.parts.controlstructure.WhenStructure;
+import com.aerospike.dsl.parts.controlstructure.WithStructure;
+import com.aerospike.dsl.parts.operand.BooleanOperand;
+import com.aerospike.dsl.parts.operand.FloatOperand;
+import com.aerospike.dsl.parts.operand.IntOperand;
+import com.aerospike.dsl.parts.operand.ListOperand;
+import com.aerospike.dsl.parts.operand.MapOperand;
+import com.aerospike.dsl.parts.operand.MetadataOperand;
+import com.aerospike.dsl.parts.operand.ParsedValueOperand;
+import com.aerospike.dsl.parts.operand.PlaceholderOperand;
+import com.aerospike.dsl.parts.operand.StringOperand;
+import com.aerospike.dsl.parts.operand.VariableOperand;
+import com.aerospike.dsl.parts.operand.WithOperand;
+import com.aerospike.dsl.parts.path.BasePath;
+import com.aerospike.dsl.parts.path.BinPart;
+import com.aerospike.dsl.parts.path.Path;
+import com.aerospike.dsl.parts.path.PathFunction;
+
+public class ExpressionConditionVisitor extends ConditionBaseVisitor<AbstractPart> {
+
+    @Override
+    public AbstractPart visitWithExpression(ConditionParser.WithExpressionContext ctx) {
+        List<WithOperand> expressions = new ArrayList<>();
+
+        // iterate through each definition
+        for (ConditionParser.VariableDefinitionContext vdc : ctx.variableDefinition()) {
+            AbstractPart part = visit(vdc.expression());
+            WithOperand withOperand = new WithOperand(part, vdc.stringOperand().getText());
+            expressions.add(withOperand);
+        }
+        // last expression is the action (described after "do")
+        expressions.add(new WithOperand(visit(ctx.expression()), true));
+        return new ExpressionContainer(new WithStructure(expressions),
+                ExpressionContainer.ExprPartsOperation.WITH_STRUCTURE);
+    }
+
+    @Override
+    public AbstractPart visitWhenExpression(ConditionParser.WhenExpressionContext ctx) {
+        List<AbstractPart> parts = new ArrayList<>();
+        // iterate through each definition declaration
+        for (ConditionParser.ExpressionMappingContext emc : ctx.expressionMapping()) {
+            // visit condition
+            parts.add(visit(emc.expression(0)));
+            // visit action
+            parts.add(visit(emc.expression(1)));
+        }
+        // visit default
+        parts.add(visit(ctx.expression()));
+        return new ExpressionContainer(new WhenStructure(parts), ExpressionContainer.ExprPartsOperation.WHEN_STRUCTURE);
+    }
+
+    @Override
+    public AbstractPart visitAndExpression(ConditionParser.AndExpressionContext ctx) {
+        // If there's only one basicExpression and no 'and' operators, just pass through
+        if (ctx.basicExpression().size() == 1) {
+            return visit(ctx.basicExpression(0));
+        }
+
+        List<ExpressionContainer> expressions = new ArrayList<>();
+        // iterate through each sub-expression
+        for (ConditionParser.BasicExpressionContext ec : ctx.basicExpression()) {
+            ExpressionContainer expr = (ExpressionContainer) visit(ec);
+            if (expr == null) {
+				return null;
+			}
+
+            logicalSetBinAsBooleanExpr(expr);
+            expressions.add(expr);
+        }
+        return new ExpressionContainer(new AndStructure(expressions), ExpressionContainer.ExprPartsOperation.AND_STRUCTURE);
+    }
+
+    @Override
+    public AbstractPart visitOrExpression(ConditionParser.OrExpressionContext ctx) {
+        // If there's only one andExpression and no 'or' operators, just pass through
+        if (ctx.logicalAndExpression().size() == 1) {
+            return visit(ctx.logicalAndExpression(0));
+        }
+
+        List<ExpressionContainer> expressions = new ArrayList<>();
+        // iterate through each sub-expression
+        for (ConditionParser.LogicalAndExpressionContext ec : ctx.logicalAndExpression()) {
+            ExpressionContainer expr = (ExpressionContainer) visit(ec);
+            if (expr == null) {
+				return null;
+			}
+
+            logicalSetBinAsBooleanExpr(expr);
+            expressions.add(expr);
+        }
+        return new ExpressionContainer(new OrStructure(expressions), ExpressionContainer.ExprPartsOperation.OR_STRUCTURE);
+    }
+
+    @Override
+    public AbstractPart visitNotExpression(ConditionParser.NotExpressionContext ctx) {
+        ExpressionContainer expr = (ExpressionContainer) visit(ctx.expression());
+
+        logicalSetBinAsBooleanExpr(expr);
+        return new ExpressionContainer(expr, ExpressionContainer.ExprPartsOperation.NOT);
+    }
+
+    @Override
+    public AbstractPart visitExclusiveExpression(ConditionParser.ExclusiveExpressionContext ctx) {
+        if (ctx.expression().size() < 2) {
+            throw new DslParseException("Exclusive logical operator requires 2 or more expressions");
+        }
+        List<ExpressionContainer> expressions = new ArrayList<>();
+        // iterate through each sub-expression
+        for (ConditionParser.ExpressionContext ec : ctx.expression()) {
+            ExpressionContainer expr = (ExpressionContainer) visit(ec);
+            logicalSetBinAsBooleanExpr(expr);
+            expressions.add(expr);
+        }
+        return new ExpressionContainer(new ExclusiveStructure(expressions),
+                ExpressionContainer.ExprPartsOperation.EXCLUSIVE_STRUCTURE);
+    }
+
+    @Override
+    public AbstractPart visitComparisonExpressionWrapper(ConditionParser.ComparisonExpressionWrapperContext ctx) {
+        // Pass through the wrapper
+        return visit(ctx.comparisonExpression());
+    }
+
+    @Override
+    public AbstractPart visitAdditiveExpressionWrapper(ConditionParser.AdditiveExpressionWrapperContext ctx) {
+        // Pass through the wrapper
+        return visit(ctx.additiveExpression());
+    }
+
+    @Override
+    public AbstractPart visitMultiplicativeExpressionWrapper(ConditionParser.MultiplicativeExpressionWrapperContext ctx) {
+        // Pass through the wrapper
+        return visit(ctx.multiplicativeExpression());
+    }
+
+    @Override
+    public AbstractPart visitBitwiseExpressionWrapper(ConditionParser.BitwiseExpressionWrapperContext ctx) {
+        // Pass through the wrapper
+        return visit(ctx.bitwiseExpression());
+    }
+
+    @Override
+    public AbstractPart visitShiftExpressionWrapper(ConditionParser.ShiftExpressionWrapperContext ctx) {
+        // Pass through the wrapper
+        return visit(ctx.shiftExpression());
+    }
+
+    @Override
+    public AbstractPart visitGreaterThanExpression(ConditionParser.GreaterThanExpressionContext ctx) {
+        AbstractPart left = visit(ctx.additiveExpression(0));
+        AbstractPart right = visit(ctx.additiveExpression(1));
+
+        overrideTypeInfo(left, right);
+
+        return new ExpressionContainer(left, right, ExpressionContainer.ExprPartsOperation.GT);
+    }
+
+    @Override
+    public AbstractPart visitGreaterThanOrEqualExpression(ConditionParser.GreaterThanOrEqualExpressionContext ctx) {
+        AbstractPart left = visit(ctx.additiveExpression(0));
+        AbstractPart right = visit(ctx.additiveExpression(1));
+
+        overrideTypeInfo(left, right);
+
+        return new ExpressionContainer(left, right, ExpressionContainer.ExprPartsOperation.GTEQ);
+    }
+
+    @Override
+    public AbstractPart visitLessThanExpression(ConditionParser.LessThanExpressionContext ctx) {
+        AbstractPart left = visit(ctx.additiveExpression(0));
+        AbstractPart right = visit(ctx.additiveExpression(1));
+
+        overrideTypeInfo(left, right);
+
+        return new ExpressionContainer(left, right, ExpressionContainer.ExprPartsOperation.LT);
+    }
+
+    @Override
+    public AbstractPart visitLessThanOrEqualExpression(ConditionParser.LessThanOrEqualExpressionContext ctx) {
+        AbstractPart left = visit(ctx.additiveExpression(0));
+        AbstractPart right = visit(ctx.additiveExpression(1));
+
+        overrideTypeInfo(left, right);
+
+        return new ExpressionContainer(left, right, ExpressionContainer.ExprPartsOperation.LTEQ);
+    }
+
+    @Override
+    public AbstractPart visitEqualityExpression(ConditionParser.EqualityExpressionContext ctx) {
+        AbstractPart left = visit(ctx.additiveExpression(0));
+        AbstractPart right = visit(ctx.additiveExpression(1));
+
+        overrideTypeInfo(left, right);
+
+        return new ExpressionContainer(left, right, ExpressionContainer.ExprPartsOperation.EQ);
+    }
+
+    @Override
+    public AbstractPart visitInequalityExpression(ConditionParser.InequalityExpressionContext ctx) {
+        AbstractPart left = visit(ctx.additiveExpression(0));
+        AbstractPart right = visit(ctx.additiveExpression(1));
+
+        overrideTypeInfo(left, right);
+
+        return new ExpressionContainer(left, right, ExpressionContainer.ExprPartsOperation.NOTEQ);
+    }
+
+    @Override
+    public AbstractPart visitAddExpression(ConditionParser.AddExpressionContext ctx) {
+        AbstractPart left = visit(ctx.additiveExpression());
+        AbstractPart right = visit(ctx.multiplicativeExpression());
+
+        return new ExpressionContainer(left, right, ExpressionContainer.ExprPartsOperation.ADD);
+    }
+
+    @Override
+    public AbstractPart visitSubExpression(ConditionParser.SubExpressionContext ctx) {
+        AbstractPart left = visit(ctx.additiveExpression());
+        AbstractPart right = visit(ctx.multiplicativeExpression());
+
+        return new ExpressionContainer(left, right, ExpressionContainer.ExprPartsOperation.SUB);
+    }
+
+    @Override
+    public AbstractPart visitMulExpression(ConditionParser.MulExpressionContext ctx) {
+        AbstractPart left = visit(ctx.multiplicativeExpression());
+        AbstractPart right = visit(ctx.bitwiseExpression());
+
+        return new ExpressionContainer(left, right, ExpressionContainer.ExprPartsOperation.MUL);
+    }
+
+    @Override
+    public AbstractPart visitDivExpression(ConditionParser.DivExpressionContext ctx) {
+        AbstractPart left = visit(ctx.multiplicativeExpression());
+        AbstractPart right = visit(ctx.bitwiseExpression());
+
+        return new ExpressionContainer(left, right, ExpressionContainer.ExprPartsOperation.DIV);
+    }
+
+    @Override
+    public AbstractPart visitModExpression(ConditionParser.ModExpressionContext ctx) {
+        AbstractPart left = visit(ctx.multiplicativeExpression()); // first operand
+        AbstractPart right = visit(ctx.bitwiseExpression()); // second operand
+
+        return new ExpressionContainer(left, right, ExpressionContainer.ExprPartsOperation.MOD);
+    }
+
+    @Override
+    public AbstractPart visitIntAndExpression(ConditionParser.IntAndExpressionContext ctx) {
+        AbstractPart left = visit(ctx.bitwiseExpression()); // first operand
+        AbstractPart right = visit(ctx.shiftExpression()); // second operand
+
+        return new ExpressionContainer(left, right, ExpressionContainer.ExprPartsOperation.INT_AND);
+    }
+
+    @Override
+    public AbstractPart visitIntOrExpression(ConditionParser.IntOrExpressionContext ctx) {
+        AbstractPart left = visit(ctx.bitwiseExpression()); // first operand
+        AbstractPart right = visit(ctx.shiftExpression()); // second operand
+
+        return new ExpressionContainer(left, right, ExpressionContainer.ExprPartsOperation.INT_OR);
+    }
+
+    @Override
+    public AbstractPart visitIntXorExpression(ConditionParser.IntXorExpressionContext ctx) {
+        AbstractPart left = visit(ctx.bitwiseExpression()); // first operand
+        AbstractPart right = visit(ctx.shiftExpression()); // second operand
+
+        return new ExpressionContainer(left, right, ExpressionContainer.ExprPartsOperation.INT_XOR);
+    }
+
+    @Override
+    public AbstractPart visitIntNotExpression(ConditionParser.IntNotExpressionContext ctx) {
+        AbstractPart operand = visit(ctx.shiftExpression());
+
+        return new ExpressionContainer(operand, ExpressionContainer.ExprPartsOperation.INT_NOT);
+    }
+
+    @Override
+    public AbstractPart visitIntLShiftExpression(ConditionParser.IntLShiftExpressionContext ctx) {
+        AbstractPart left = visit(ctx.shiftExpression()); // first operand
+        AbstractPart right = visit(ctx.operand()); // second operand
+
+        return new ExpressionContainer(left, right, ExpressionContainer.ExprPartsOperation.L_SHIFT);
+    }
+
+    @Override
+    public AbstractPart visitIntRShiftExpression(ConditionParser.IntRShiftExpressionContext ctx) {
+        AbstractPart left = visit(ctx.shiftExpression()); // first operand
+        AbstractPart right = visit(ctx.operand()); // second operand
+
+        return new ExpressionContainer(left, right, ExpressionContainer.ExprPartsOperation.R_SHIFT);
+    }
+
+    @Override
+    public AbstractPart visitPathFunctionGet(ConditionParser.PathFunctionGetContext ctx) {
+        PathFunction.ReturnParam returnParam = null;
+        Exp.Type binType = null;
+        for (ConditionParser.PathFunctionParamContext paramCtx : ctx.pathFunctionParams().pathFunctionParam()) {
+            if (paramCtx != null) {
+                String typeVal = getPathFunctionParam(paramCtx, "type");
+                if (typeVal != null) {
+					binType = Exp.Type.valueOf(typeVal);
+				}
+                String returnVal = getPathFunctionParam(paramCtx, "return");
+                if (returnVal != null) {
+					returnParam = PathFunction.ReturnParam.valueOf(returnVal);
+				}
+            }
+        }
+        return new PathFunction(PathFunction.PathFunctionType.GET, returnParam, binType);
+    }
+
+    @Override
+    public AbstractPart visitPathFunctionCount(ConditionParser.PathFunctionCountContext ctx) {
+        // todo: TYPE_PARAM?
+        return new PathFunction(PathFunction.PathFunctionType.COUNT, PathFunction.ReturnParam.COUNT, null);
+    }
+
+    @Override
+    public AbstractPart visitPathFunctionCast(ConditionParser.PathFunctionCastContext ctx) {
+        String typeVal = extractTypeFromMethod(ctx.PATH_FUNCTION_CAST().getText());
+        PathFunction.CastType castType = PathFunction.CastType.valueOf(typeVal.toUpperCase());
+        Exp.Type binType = PathFunction.castTypeToExpType(castType);
+
+        return new PathFunction(PathFunction.PathFunctionType.CAST, null, binType);
+    }
+
+    @Override
+    public AbstractPart visitMetadata(ConditionParser.MetadataContext ctx) {
+        String text = ctx.METADATA_FUNCTION().getText();
+        String functionName = extractFunctionName(text);
+        Integer parameter = extractParameter(text);
+
+        if (parameter != null) {
+            return new MetadataOperand(functionName, parameter);
+        } else {
+            return new MetadataOperand(functionName);
+        }
+    }
+
+    @Override
+    public AbstractPart visitBinPart(ConditionParser.BinPartContext ctx) {
+        return new BinPart(ctx.NAME_IDENTIFIER().getText());
+    }
+
+    @Override
+    public AbstractPart visitOperandExpression(ConditionParser.OperandExpressionContext ctx) {
+        return visit(ctx.operand());
+    }
+
+    @Override
+    public AbstractPart visitListConstant(ConditionParser.ListConstantContext ctx) {
+        return readChildrenIntoListOperand(ctx);
+    }
+
+    public ListOperand readChildrenIntoListOperand(RuleNode listNode) {
+        int size = listNode.getChildCount();
+        List<Object> values = new ArrayList<>();
+        for (int i = 0; i < size; i++) {
+            ParseTree child = listNode.getChild(i);
+            if (!shouldVisitListElement(i, size, child)) {
+                continue;
+            }
+
+            AbstractPart operand = visit(child); // delegate to a dedicated visitor
+            if (operand == null) {
+                throw new DslParseException("Unable to parse list operand");
+            }
+
+            try {
+                values.add(((ParsedValueOperand) operand).getValue());
+            } catch (ClassCastException e) {
+                throw new DslParseException("List constant contains elements of different type");
+            }
+        }
+
+        return new ListOperand(values);
+    }
+
+    @Override
+    public AbstractPart visitOrderedMapConstant(ConditionParser.OrderedMapConstantContext ctx) {
+        return readChildrenIntoMapOperand(ctx);
+    }
+
+    public SortedMap<Object, Object> getOrderedMapPair(ParseTree ctx) {
+        if (ctx.getChild(0) == null || ctx.getChild(2) == null) {
+            throw new DslParseException("Unable to parse map operand");
+        }
+
+        Object key = ((ParsedValueOperand) visit(ctx.getChild(0))).getValue();
+        Object value = ((ParsedValueOperand) visit(ctx.getChild(2))).getValue();
+
+        SortedMap<Object, Object> map = new TreeMap<>();
+        map.put(key, value);
+
+        return map;
+    }
+
+    public MapOperand readChildrenIntoMapOperand(RuleNode mapNode) {
+        int size = mapNode.getChildCount();
+        SortedMap<Object, Object> map = new TreeMap<>();
+        for (int i = 0; i < size; i++) {
+            ParseTree child = mapNode.getChild(i);
+            if (!shouldVisitMapElement(i, size, child)) {
+                continue;
+            }
+
+            SortedMap<Object, Object> mapOfPair = getOrderedMapPair(child); // delegate to a dedicated visitor
+
+            try {
+                mapOfPair.forEach(map::putIfAbsent); // put contents of the current map pair to the resulting map
+            } catch (ClassCastException e) {
+                throw new DslParseException("Map constant contains elements of different type");
+            }
+        }
+
+        return new MapOperand(map);
+    }
+
+    @Override
+    public AbstractPart visitStringOperand(ConditionParser.StringOperandContext ctx) {
+        String text = unquote(ctx.getText());
+        return new StringOperand(text);
+    }
+
+    @Override
+    public AbstractPart visitNumberOperand(ConditionParser.NumberOperandContext ctx) {
+        // Delegates to specific visit methods
+        return visitChildren(ctx);
+    }
+
+    @Override
+    public AbstractPart visitIntOperand(ConditionParser.IntOperandContext ctx) {
+        String text = ctx.INT().getText();
+        return new IntOperand(Long.parseLong(text));
+    }
+
+    @Override
+    public AbstractPart visitFloatOperand(ConditionParser.FloatOperandContext ctx) {
+        String text = ctx.FLOAT().getText();
+        return new FloatOperand(Double.parseDouble(text));
+    }
+
+    @Override
+    public AbstractPart visitBooleanOperand(ConditionParser.BooleanOperandContext ctx) {
+        String text = ctx.getText();
+        return new BooleanOperand(Boolean.parseBoolean(text));
+    }
+
+    @Override
+    public AbstractPart visitPlaceholder(ConditionParser.PlaceholderContext ctx) {
+        // Extract index from the placeholder
+        String placeholderText = ctx.getText();
+        int index = Integer.parseInt(placeholderText.substring(1));
+        return new PlaceholderOperand(index);
+    }
+
+    @Override
+    public AbstractPart visitBasePath(ConditionParser.BasePathContext ctx) {
+        BinPart binPart = null;
+        List<AbstractPart> cdtParts = new ArrayList<>();
+        List<ParseTree> ctxChildrenExclDots = ctx.children.stream()
+                .filter(tree -> !tree.getText().equals("."))
+                .toList();
+
+        for (ParseTree child : ctxChildrenExclDots) {
+            AbstractPart part = visit(child);
+            switch (part.getPartType()) {
+                case BIN_PART -> binPart = (BinPart) part;
+                case LIST_PART, MAP_PART -> cdtParts.add(part);
+                default -> throw new DslParseException("Unexpected path part: %s".formatted(part.getPartType()));
+            }
+        }
+
+        if (binPart == null) {
+            throw new DslParseException("Expecting bin to be the first path part from the left");
+        }
+
+        return new BasePath(binPart, cdtParts);
+    }
+
+    @Override
+    public AbstractPart visitVariable(ConditionParser.VariableContext ctx) {
+        String text = ctx.VARIABLE_REFERENCE().getText();
+        return new VariableOperand(extractVariableNameOrFail(text));
+    }
+
+    @Override
+    public AbstractPart visitPath(ConditionParser.PathContext ctx) {
+        BasePath basePath = (BasePath) visit(ctx.basePath());
+        List<AbstractPart> cdtParts = basePath.getCdtParts();
+        overrideWithPathFunction(basePath.getBinPart(), ctx);
+
+        // if there are other parts except bin, get a corresponding Exp
+        if (!cdtParts.isEmpty() || ctx.pathFunction() != null && ctx.pathFunction().pathFunctionCount() != null) {
+            return new Path(basePath, ctx.pathFunction() == null
+                    ? null
+                    : (PathFunction) visit(ctx.pathFunction()));
+        }
+        return basePath.getBinPart();
+    }
+
+    private void overrideWithPathFunction(BinPart binPart, ConditionParser.PathContext ctx) {
+        ConditionParser.PathFunctionContext pathFunctionContext = ctx.pathFunction();
+
+        // Override with path function (explicit get or cast)
+        if (pathFunctionContext != null) {
+            PathFunction pathFunction = (PathFunction) visit(pathFunctionContext);
+            if (pathFunction != null) {
+                Exp.Type type = pathFunction.getBinType();
+                if (type != null) {
+                    binPart.updateExp(type);
+                    binPart.setTypeExplicitlySet(true);
+                }
+            }
+        }
+    }
+
+    @Override
+    public AbstractPart visitListPart(ConditionParser.ListPartContext ctx) {
+        if (ctx.LIST_TYPE_DESIGNATOR() != null) {
+			return ListTypeDesignator.from();
+		}
+        if (ctx.listIndex() != null) {
+			return ListIndex.from(ctx.listIndex());
+		}
+        if (ctx.listValue() != null) {
+			return ListValue.from(ctx.listValue());
+		}
+        if (ctx.listRank() != null) {
+			return ListRank.from(ctx.listRank());
+		}
+        if (ctx.listIndexRange() != null) {
+			return ListIndexRange.from(ctx.listIndexRange());
+		}
+        if (ctx.listValueList() != null) {
+			return ListValueList.from(ctx.listValueList());
+		}
+        if (ctx.listValueRange() != null) {
+			return ListValueRange.from(ctx.listValueRange());
+		}
+        if (ctx.listRankRange() != null) {
+			return ListRankRange.from(ctx.listRankRange());
+		}
+        if (ctx.listRankRangeRelative() != null) {
+			return ListRankRangeRelative.from(ctx.listRankRangeRelative());
+		}
+        throw new DslParseException("Unexpected list part: %s".formatted(ctx.getText()));
+    }
+
+    @Override
+    public AbstractPart visitMapPart(ConditionParser.MapPartContext ctx) {
+        if (ctx.MAP_TYPE_DESIGNATOR() != null) {
+			return MapTypeDesignator.from();
+		}
+        if (ctx.mapKey() != null) {
+			return MapKey.from(ctx.mapKey());
+		}
+        if (ctx.mapIndex() != null) {
+			return MapIndex.from(ctx.mapIndex());
+		}
+        if (ctx.mapValue() != null) {
+			return MapValue.from(ctx.mapValue());
+		}
+        if (ctx.mapRank() != null) {
+			return MapRank.from(ctx.mapRank());
+		}
+        if (ctx.mapKeyRange() != null) {
+			return MapKeyRange.from(ctx.mapKeyRange());
+		}
+        if (ctx.mapKeyList() != null) {
+			return MapKeyList.from(ctx.mapKeyList());
+		}
+        if (ctx.mapIndexRange() != null) {
+			return MapIndexRange.from(ctx.mapIndexRange());
+		}
+        if (ctx.mapValueList() != null) {
+			return MapValueList.from(ctx.mapValueList());
+		}
+        if (ctx.mapValueRange() != null) {
+			return MapValueRange.from(ctx.mapValueRange());
+		}
+        if (ctx.mapRankRange() != null) {
+			return MapRankRange.from(ctx.mapRankRange());
+		}
+        if (ctx.mapRankRangeRelative() != null) {
+			return MapRankRangeRelative.from(ctx.mapRankRangeRelative());
+		}
+        if (ctx.mapIndexRangeRelative() != null) {
+			return MapIndexRangeRelative.from(ctx.mapIndexRangeRelative());
+		}
+        throw new DslParseException("Unexpected map part: %s".formatted(ctx.getText()));
+    }
+
+    @Override
+    protected AbstractPart aggregateResult(AbstractPart aggregate, AbstractPart nextResult) {
+        return nextResult == null ? aggregate : nextResult;
+    }
+}

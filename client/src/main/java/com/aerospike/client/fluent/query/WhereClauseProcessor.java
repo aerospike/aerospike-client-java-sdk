@@ -8,15 +8,15 @@ import com.aerospike.client.fluent.ParticleType;
 import com.aerospike.client.fluent.Session;
 import com.aerospike.client.fluent.Value;
 import com.aerospike.client.fluent.dsl.BooleanExpression;
-import com.aerospike.client.fluent.dsl.Index;
-import com.aerospike.client.fluent.dsl.ParseResult;
-import com.aerospike.client.fluent.dsl.stub.DSLParser;
-import com.aerospike.client.fluent.dsl.stub.DSLParserImpl;
-import com.aerospike.client.fluent.dsl.stub.DslParseException;
-import com.aerospike.client.fluent.dsl.stub.ExpressionContext;
-import com.aerospike.client.fluent.dsl.stub.IndexContext;
-import com.aerospike.client.fluent.dsl.stub.ParsedExpression;
 import com.aerospike.client.fluent.exp.Exp;
+import com.aerospike.dsl.DslParseException;
+import com.aerospike.dsl.ExpressionContext;
+import com.aerospike.dsl.Index;
+import com.aerospike.dsl.IndexContext;
+import com.aerospike.dsl.ParseResult;
+import com.aerospike.dsl.ParsedExpression;
+import com.aerospike.dsl.api.DSLParser;
+import com.aerospike.dsl.impl.DSLParserImpl;
 
 public abstract class WhereClauseProcessor {
     protected final boolean allowsIndex;
@@ -61,7 +61,7 @@ public abstract class WhereClauseProcessor {
                 .append(" ] ")
                 .append(filterCriteriaToString(filter));
         if (indexContext != null) {
-            Collection<Index> indexes = indexContext.getIndexes();
+            Collection<Index> indexes = indexContext.indexes();
             sb.append("{");
             for (Index index : indexes) {
                 sb.append(index.getBinValuesRatio()).append(",");

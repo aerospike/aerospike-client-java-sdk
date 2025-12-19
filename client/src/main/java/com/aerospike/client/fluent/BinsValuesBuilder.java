@@ -42,7 +42,6 @@ import com.aerospike.client.fluent.command.SyncOperateExecutor;
 import com.aerospike.client.fluent.command.Txn;
 import com.aerospike.client.fluent.command.TxnMonitor;
 import com.aerospike.client.fluent.dsl.BooleanExpression;
-import com.aerospike.client.fluent.dsl.ParseResult;
 import com.aerospike.client.fluent.exp.Exp;
 import com.aerospike.client.fluent.exp.Expression;
 import com.aerospike.client.fluent.policy.Behavior.OpKind;
@@ -50,6 +49,7 @@ import com.aerospike.client.fluent.policy.Behavior.OpShape;
 import com.aerospike.client.fluent.policy.Settings;
 import com.aerospike.client.fluent.query.PreparedDsl;
 import com.aerospike.client.fluent.query.WhereClauseProcessor;
+import com.aerospike.dsl.ParseResult;
 
 /**
  * Builder for the bins+values pattern in OperationBuilder. This allows setting

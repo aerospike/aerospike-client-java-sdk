@@ -16,12 +16,12 @@ import com.aerospike.client.fluent.command.ReadAttr;
 import com.aerospike.client.fluent.command.ReadCommand;
 import com.aerospike.client.fluent.command.SyncReadExecutor;
 import com.aerospike.client.fluent.command.Txn;
-import com.aerospike.client.fluent.dsl.ParseResult;
 import com.aerospike.client.fluent.exp.Exp;
 import com.aerospike.client.fluent.exp.Expression;
 import com.aerospike.client.fluent.policy.Behavior.OpKind;
 import com.aerospike.client.fluent.policy.Behavior.OpShape;
 import com.aerospike.client.fluent.policy.Settings;
+import com.aerospike.dsl.ParseResult;
 
 class SingleKeyQueryBuilderImpl extends QueryImpl {
     private final Key key;

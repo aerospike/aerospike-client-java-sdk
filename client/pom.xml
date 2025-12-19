@@ -41,10 +41,21 @@
       <artifactId>junit-jupiter-api</artifactId>
       <scope>test</scope>
     </dependency>
+
     <dependency>
       <groupId>org.junit.jupiter</groupId>
       <artifactId>junit-jupiter-engine</artifactId>
       <scope>test</scope>
+    </dependency>
+
+    <dependency>
+        <groupId>org.antlr</groupId>
+        <artifactId>antlr4-runtime</artifactId>
+    </dependency>
+
+    <dependency>
+        <groupId>org.projectlombok</groupId>
+        <artifactId>lombok</artifactId>
     </dependency>
   </dependencies>
 
@@ -82,6 +93,7 @@
           </execution>
         </executions>
       </plugin>
+
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-jar-plugin</artifactId>
@@ -94,6 +106,7 @@
           </archive>
         </configuration>
       </plugin>
+
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-source-plugin</artifactId>
@@ -115,8 +128,56 @@
           <sourceFileIncludes>
             <include>com/aerospike/client/*</include>
           </sourceFileIncludes>
+        </configuration>
+      </plugin>
+    
+      <plugin>
+        <groupId>org.antlr</groupId>
+        <artifactId>antlr4-maven-plugin</artifactId>
+        <version>${antlr.version}</version>
+        <executions>
+          <execution>
+            <id>antlr</id>
+            <phase>generate-sources</phase>
+            <goals>
+              <goal>antlr4</goal>
+            </goals>
+            <configuration>
+              <sourceDirectory>src/main/antlr4/com/aerospike/dsl</sourceDirectory>
+              <outputDirectory>${project.build.directory}/generated-sources/antlr4/com/aerospike/dsl</outputDirectory>
+              <listener>false</listener>
+              <arguments>
+                <argument>-visitor</argument>
+                <argument>-no-listener</argument>
+              </arguments>
+              <includes>
+                <include>Condition.g4</include>
+              </includes>
           </configuration>
-        </plugin>
+          </execution>
+        </executions>
+    </plugin>
+
+    <plugin>
+      <groupId>org.codehaus.mojo</groupId>
+      <artifactId>build-helper-maven-plugin</artifactId>
+      <version>${build-helper-maven-plugin.version}</version>
+      <executions>
+        <execution>
+          <id>add-source</id>
+          <phase>generate-sources</phase>
+          <goals>
+            <goal>add-source</goal>
+          </goals>
+          <configuration>
+            <sources>
+              <source>${project.build.directory}/generated-sources/antlr4/</source>
+            </sources>
+          </configuration>
+        </execution>
+      </executions>
+    </plugin>
+
     </plugins>
   </build>
 </project>

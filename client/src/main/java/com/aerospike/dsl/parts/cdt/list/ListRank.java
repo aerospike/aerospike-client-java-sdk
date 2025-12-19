@@ -1,0 +1,31 @@
+package com.aerospike.dsl.parts.cdt.list;
+
+import com.aerospike.client.fluent.cdt.CTX;
+import com.aerospike.client.fluent.exp.Exp;
+import com.aerospike.client.fluent.exp.ListExp;
+import com.aerospike.dsl.ConditionParser;
+import com.aerospike.dsl.parts.path.BasePath;
+
+public class ListRank extends ListPart {
+    private final int rank;
+
+    public ListRank(int rank) {
+        super(ListPartType.RANK);
+        this.rank = rank;
+    }
+
+    public static ListRank from(ConditionParser.ListRankContext ctx) {
+        return new ListRank(Integer.parseInt(ctx.INT().getText()));
+    }
+
+    @Override
+    public Exp constructExp(BasePath basePath, Exp.Type valueType, int cdtReturnType, CTX[] context) {
+        return ListExp.getByRank(cdtReturnType, valueType, Exp.val(rank),
+                Exp.bin(basePath.getBinPart().getBinName(), basePath.getBinType()), context);
+    }
+
+    @Override
+    public CTX getContext() {
+        return CTX.listRank(rank);
+    }
+}

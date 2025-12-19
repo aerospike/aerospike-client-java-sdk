@@ -1,10 +1,10 @@
 package com.aerospike.client.fluent;
 
+import com.aerospike.dsl.Index;
+
 import java.time.Duration;
 import java.util.HashSet;
 import java.util.Set;
-
-import com.aerospike.client.fluent.dsl.Index;
 
 /**
  * Monitors secondary indexes in an Aerospike cluster and maintains an up-to-date
