@@ -30,6 +30,8 @@ import com.aerospike.client.fluent.exp.Expression;
 import com.aerospike.client.fluent.policy.CommitLevel;
 import com.aerospike.client.fluent.policy.QueryDuration;
 import com.aerospike.client.fluent.policy.ReadModeAP;
+import com.aerospike.client.fluent.query.Filter;
+import com.aerospike.client.fluent.query.IndexCollectionType;
 
 public final class CommandBuffer {
 	public static final byte BATCH_MSG_READ = 0x0;
@@ -722,8 +724,7 @@ public final class CommandBuffer {
 		QueryCommand cmd, PartitionTracker tracker, NodePartitions nodePartitions, long taskId
 	) {
 		int fieldCount = 0;
-		//int filterSize = 0;
-		//int binNameSize = 0;
+		int filterSize = 0;
 
 		begin();
 
@@ -753,65 +754,47 @@ public final class CommandBuffer {
 		dataOffset += 8 + Command.FIELD_HEADER_SIZE;
 		fieldCount++;
 
-		// TODO: Handle secondary index query
-		//Filter filter = statement.getFilter();
+		Filter filter = cmd.filter;
 		String[] binNames = cmd.binNames;
-		//byte[] packedCtx = null;
-		//String indexName = null;
-		//byte[] packedExp = null;
+		byte[] packedCtx = null;
+		String indexName = null;
+		byte[] packedExp = null;
 
-		/*
 		if (filter != null) {
 			IndexCollectionType type = filter.getCollectionType();
 
 			// Estimate INDEX_TYPE field.
 			if (type != IndexCollectionType.DEFAULT) {
-				dataOffset += FIELD_HEADER_SIZE + 1;
+				dataOffset += Command.FIELD_HEADER_SIZE + 1;
 				fieldCount++;
 			}
 
 			// Estimate INDEX_RANGE field.
-			dataOffset += FIELD_HEADER_SIZE;
+			dataOffset += Command.FIELD_HEADER_SIZE;
 			filterSize++;  // num filters
 			filterSize += filter.estimateSize();
 
 			dataOffset += filterSize;
 			fieldCount++;
 
-			if (! isNew) {
-				// Query bin names are specified as a field (Scan bin names are specified later as operations)
-				// in old servers. Estimate size for selected bin names.
-				if (binNames != null && binNames.length > 0) {
-					dataOffset += FIELD_HEADER_SIZE;
-					binNameSize++;  // num bin names
-
-					for (String binName : binNames) {
-						binNameSize += Buffer.estimateSizeUtf8(binName) + 1;
-					}
-					dataOffset += binNameSize;
-					fieldCount++;
-				}
-			}
-
 			packedCtx = filter.getPackedCtx();
 			if (packedCtx != null) {
-				dataOffset += FIELD_HEADER_SIZE + packedCtx.length;
+				dataOffset += Command.FIELD_HEADER_SIZE + packedCtx.length;
 				fieldCount++;
 			}
 
 			indexName = filter.getIndexName();
 			if (indexName != null) {
-				dataOffset += FIELD_HEADER_SIZE + Buffer.estimateSizeUtf8(indexName);
+				dataOffset += Command.FIELD_HEADER_SIZE + Buffer.estimateSizeUtf8(indexName);
 				fieldCount++;
 			}
 
 			packedExp = filter.getPackedExp();
 			if (packedExp != null) {
-				dataOffset += FIELD_HEADER_SIZE + packedExp.length;
+				dataOffset += Command.FIELD_HEADER_SIZE + packedExp.length;
 				fieldCount++;
 			}
 		}
-		*/
 
 		if (cmd.filterExp != null) {
 			sizeFieldExpression(cmd.filterExp);
@@ -827,11 +810,9 @@ public final class CommandBuffer {
 			partsFullSize = nodePartitions.partsFull.size() * 2;
 			partsPartialDigestSize = nodePartitions.partsPartial.size() * 20;
 
-			/* TODO Support secondary index query
 			if (filter != null) {
 				partsPartialBValSize = nodePartitions.partsPartial.size() * 8;
 			}
-			*/
 			maxRecords = nodePartitions.recordMax;
 		}
 
@@ -924,8 +905,6 @@ public final class CommandBuffer {
 		// Write taskId field
 		writeField(taskId, FieldType.QUERY_ID);
 
-		// TODO: Handle secondary index query
-		/*
 		if (filter != null) {
 			IndexCollectionType type = filter.getCollectionType();
 
@@ -937,21 +916,6 @@ public final class CommandBuffer {
 			writeFieldHeader(filterSize, FieldType.INDEX_RANGE);
 			dataBuffer[dataOffset++] = (byte)1;
 			dataOffset = filter.write(dataBuffer, dataOffset);
-
-			if (!isNew) {
-				// Query bin names are specified as a field (Scan bin names are specified later as operations)
-				// in old servers.
-				if (binNames != null && binNames.length > 0) {
-					writeFieldHeader(binNameSize, FieldType.QUERY_BINLIST);
-					dataBuffer[dataOffset++] = (byte)binNames.length;
-
-					for (String binName : binNames) {
-						int len = Buffer.stringToUtf8(binName, dataBuffer, dataOffset + 1);
-						dataBuffer[dataOffset] = (byte)len;
-						dataOffset += len + 1;
-					}
-				}
-			}
 
 			if (packedCtx != null) {
 				writeFieldHeader(packedCtx.length, FieldType.INDEX_CONTEXT);
@@ -969,7 +933,6 @@ public final class CommandBuffer {
 				dataOffset += packedExp.length;
 			}
 		}
-		*/
 
 		if (cmd.filterExp != null) {
 			writeFieldExpression(cmd.filterExp);

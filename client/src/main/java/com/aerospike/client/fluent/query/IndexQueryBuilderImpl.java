@@ -11,7 +11,6 @@ import com.aerospike.client.fluent.command.PartitionFilter;
 import com.aerospike.client.fluent.command.PartitionTracker;
 import com.aerospike.client.fluent.command.QueryCommand;
 import com.aerospike.client.fluent.command.QueryExecutor;
-import com.aerospike.client.fluent.exp.Exp;
 import com.aerospike.client.fluent.exp.Expression;
 import com.aerospike.client.fluent.policy.Behavior.Mode;
 import com.aerospike.client.fluent.policy.Behavior.OpKind;
@@ -62,19 +61,26 @@ class IndexQueryBuilderImpl extends QueryImpl {
         Session session = getSession();
         Cluster cluster = session.getCluster();
         QueryBuilder qb = getQueryBuilder();
-
         Settings policy = session.getBehavior().getSettings(OpKind.READ, OpShape.QUERY, Mode.ANY);
-        Expression filterExp = getFilterExp();
+        WhereClauseProcessor dsl = getQueryBuilder().getDsl();
+        Filter filter = null;
+        Expression filterExp = null;
 
-		QueryCommand cmd = new QueryCommand(cluster, dataSet, filterExp, policy, qb);
+        if (dsl != null) {
+        	ParseResult pr = dsl.process(dataSet.getNamespace(), getSession());
+        	filter = pr.getFilter();
+        	filterExp = pr.getExpression();
+        }
+
+		QueryCommand cmd = new QueryCommand(cluster, dataSet, filter, filterExp, policy, qb);
 
 		Node[] nodes = cluster.validateNodes();
 
-		PartitionFilter filter = PartitionFilter.range(
+		PartitionFilter pf = PartitionFilter.range(
                 getQueryBuilder().getStartPartition(),
                 getQueryBuilder().getEndPartition() - getQueryBuilder().getStartPartition());
 
-		PartitionTracker tracker = new PartitionTracker(cmd, nodes, filter);
+		PartitionTracker tracker = new PartitionTracker(cmd, nodes, pf);
         AsyncRecordStream stream = new AsyncRecordStream(policy.getRecordQueueSize());
         QueryExecutor exec = new QueryExecutor(cluster, cmd, nodes.length, tracker, stream);
 
@@ -88,18 +94,5 @@ class IndexQueryBuilderImpl extends QueryImpl {
         });
 
         return new RecordStream(stream);
-    }
-
-    private Expression getFilterExp() {
-        WhereClauseProcessor dsl = getQueryBuilder().getDsl();
-
-        if (dsl != null) {
-            // Apply filter expression clause.
-            ParseResult parseResult = dsl.process(dataSet.getNamespace(), getSession());
-            return Exp.build(parseResult.getExp());
-        }
-        else {
-            return null;
-        }
     }
 }

@@ -1,6 +1,7 @@
 package com.aerospike.dsl;
 
 import com.aerospike.client.fluent.exp.Exp;
+import com.aerospike.client.fluent.exp.Expression;
 import com.aerospike.client.fluent.query.Filter;
 
 import lombok.AllArgsConstructor;
@@ -22,4 +23,8 @@ public class ParseResult {
      * Filter {@link Exp}. Can be null in case of invalid or unsupported DSL string
      */
     Exp exp;
+
+    public final Expression getExpression() {
+    	return Exp.build(exp);
+    }
 }

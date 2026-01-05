@@ -21,10 +21,12 @@ import com.aerospike.client.fluent.DataSet;
 import com.aerospike.client.fluent.exp.Expression;
 import com.aerospike.client.fluent.policy.QueryDuration;
 import com.aerospike.client.fluent.policy.Settings;
+import com.aerospike.client.fluent.query.Filter;
 import com.aerospike.client.fluent.query.QueryBuilder;
 
 public final class QueryCommand extends Command {
 	final String set;
+	final Filter filter;
 	final QueryDuration expectedDuration;
 	final long maxRecords;
 	final String[] binNames;
@@ -34,10 +36,11 @@ public final class QueryCommand extends Command {
 	final boolean withNoBins;
 
 	public QueryCommand(
-		Cluster cluster, DataSet set, Expression filterExp, Settings policy, QueryBuilder qb
+		Cluster cluster, DataSet set, Filter filter, Expression filterExp, Settings policy, QueryBuilder qb
 	) {
 		super(cluster, set.getNamespace(), null, filterExp, policy.getReplicaOrder(), policy);
 		this.set = set.getSet();
+		this.filter = filter;
 		this.recordsPerSecond = qb.getRecordsPerSecond();
 		// TODO Need to support expectedDuration
 		// this.expectedDuration = (this.recordsPerSecond > 0)? qb.getExpectedDuration() : QueryDuration.LONG;
