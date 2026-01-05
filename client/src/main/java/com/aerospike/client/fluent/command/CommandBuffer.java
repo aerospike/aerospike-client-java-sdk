@@ -981,8 +981,7 @@ public final class CommandBuffer {
 	public void setBackgroundQuery(BackgroundQueryCommand cmd) {
 		//byte[] functionArgBuffer = null;
 		int fieldCount = 0;
-		//int filterSize = 0;
-		//int binNameSize = 0;
+		int filterSize = 0;
 
 		begin();
 
@@ -1012,9 +1011,7 @@ public final class CommandBuffer {
 		dataOffset += 8 + Command.FIELD_HEADER_SIZE;
 		fieldCount++;
 
-		// TODO: Handle filter expression.
-		/*
-		Filter filter = null;
+		Filter filter = cmd.filter;
 		byte[] packedCtx = null;
 		String indexName = null;
 		byte[] packedExp = null;
@@ -1054,7 +1051,6 @@ public final class CommandBuffer {
 				fieldCount++;
 			}
 		}
-		*/
 
 		// Estimate aggregation/background function size.
 		// TODO: Allow UDF?
@@ -1156,7 +1152,6 @@ public final class CommandBuffer {
 		// Write taskId field
 		writeField(cmd.taskId, FieldType.QUERY_ID);
 
-		/*
 		if (filter != null) {
 			IndexCollectionType type = filter.getCollectionType();
 
@@ -1185,7 +1180,6 @@ public final class CommandBuffer {
 				dataOffset += packedExp.length;
 			}
 		}
-		*/
 
 		// TODO: Allow UDF?
 		/*

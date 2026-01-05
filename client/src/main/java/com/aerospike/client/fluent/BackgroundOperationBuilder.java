@@ -29,9 +29,11 @@ import com.aerospike.client.fluent.policy.Behavior.Mode;
 import com.aerospike.client.fluent.policy.Behavior.OpKind;
 import com.aerospike.client.fluent.policy.Behavior.OpShape;
 import com.aerospike.client.fluent.policy.Settings;
+import com.aerospike.client.fluent.query.Filter;
 import com.aerospike.client.fluent.query.PreparedDsl;
 import com.aerospike.client.fluent.query.WhereClauseProcessor;
 import com.aerospike.client.fluent.task.ExecuteTask;
+import com.aerospike.dsl.ParseResult;
 
 /**
  * Builder for server-side background operations that run on entire sets.
@@ -202,13 +204,21 @@ public class BackgroundOperationBuilder extends AbstractOperationBuilder<Backgro
             Mode.ANY
         );
 
+        Filter filter = null;
+        Expression filterExp = null;
+
+        if (dsl != null) {
+        	ParseResult pr = dsl.process(dataset.getNamespace(), session);
+        	filter = pr.getFilter();
+        	filterExp = pr.getExpression();
+        }
+
         // Add filter expression if where clause is present
-        Expression filterExp = processWhereClause(dataset.getNamespace(), session);
         int ttl = getExpirationAsInt();
 		long taskId = new Random().nextLong();
 
         BackgroundQueryCommand cmd = new BackgroundQueryCommand(cluster, dataset, taskId, opType,
-    		operations, ttl, filterExp, settings);
+    		operations, ttl, filter, filterExp, settings);
 
         final NodeStatus status = new NodeStatus();
 

@@ -22,10 +22,12 @@ import com.aerospike.client.fluent.OpType;
 import com.aerospike.client.fluent.Operation;
 import com.aerospike.client.fluent.exp.Expression;
 import com.aerospike.client.fluent.policy.Settings;
+import com.aerospike.client.fluent.query.Filter;
 
 public final class BackgroundQueryCommand extends Command {
 	final long taskId;
 	final String set;
+	final Filter filter;
 	final OpType type;
 	final Operation[] ops;
 	final int recordsPerSecond;
@@ -34,11 +36,12 @@ public final class BackgroundQueryCommand extends Command {
 
 	public BackgroundQueryCommand(
 		Cluster cluster, DataSet set, long taskId, OpType type, Operation[] ops, int ttl,
-		Expression filterExp, Settings policy
+		Filter filter, Expression filterExp, Settings policy
 	) {
 		super(cluster, set.getNamespace(), null, filterExp, policy.getReplicaOrder(), policy);
 		this.taskId = taskId;
 		this.set = set.getSet();
+		this.filter = filter;
 		this.type = type;
 		this.ops = ops;
 		// TODO: recordsPerSecond needs to be added to either QueryBuilder or Settings.

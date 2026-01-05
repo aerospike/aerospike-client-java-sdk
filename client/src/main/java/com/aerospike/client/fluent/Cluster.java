@@ -87,10 +87,8 @@ public class Cluster implements Closeable {
 
 		this.applySystemSettings(effectiveSettings);
 
-		// TODO: Resolve when new DSL library is available.
-		//this.indexesMonitor = new IndexesMonitor();
-        //this.indexesMonitor.startMonitor(createSession(Behavior.DEFAULT), INDEX_REFRESH);
-		this.indexesMonitor = null;
+		this.indexesMonitor = new IndexesMonitor();
+        this.indexesMonitor.startMonitor(createSession(Behavior.DEFAULT), INDEX_REFRESH);
 
         tend = new ClusterTend(this);
 
@@ -450,14 +448,12 @@ public class Cluster implements Closeable {
      */
     @Override
     public void close() {
-    	// TODO: Call stopMonitor() when DSL is supported.
-        //indexesMonitor.stopMonitor();
-
     	if (! closed.compareAndSet(false, true)) {
 			// close() has already been called.
 			return;
 		}
 
+        indexesMonitor.stopMonitor();
     	tend.close();
 
     	/* TODO Handle metrics close.
