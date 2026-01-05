@@ -302,7 +302,6 @@ public class VisitorUtils {
      * @return {@code true} if the child should be visited as a list element, {@code false} otherwise
      */
     static boolean shouldVisitListElement(int i, int size, ParseTree child) {
-        //noinspection GrazieInspection
         return size > 0 // size is not 0
                 && i != 0 // not the first element ('[')
                 && i != size - 1 // not the last element (']')
@@ -319,7 +318,6 @@ public class VisitorUtils {
      * @return {@code true} if the child should be visited as a map element, {@code false} otherwise
      */
     static boolean shouldVisitMapElement(int i, int size, ParseTree child) {
-        //noinspection GrazieInspection
         return size > 0 // size is not 0
                 && i != 0 // not the first element ('{')
                 && i != size - 1 // not the last element ('}')
@@ -543,16 +541,11 @@ public class VisitorUtils {
             FilterOperationType operationType, long left, long right
     ) {
         return switch (operationType) {
-            case GT:
-                yield new Pair<>(Long.MIN_VALUE, left * right - 1);
-            case GTEQ:
-                yield new Pair<>(Long.MIN_VALUE, left * right);
-            case LT:
-                yield new Pair<>(left * right + 1, Long.MAX_VALUE);
-            case LTEQ:
-                yield new Pair<>(left * right, Long.MAX_VALUE);
-            default:
-                throw new DslParseException("OperationType not supported for division: " + operationType);
+            case GT -> new Pair<>(Long.MIN_VALUE, left * right - 1);
+            case GTEQ -> new Pair<>(Long.MIN_VALUE, left * right);
+            case LT -> new Pair<>(left * right + 1, Long.MAX_VALUE);
+            case LTEQ -> new Pair<>(left * right, Long.MAX_VALUE);
+            default -> throw new DslParseException("OperationType not supported for division: " + operationType);
         };
     }
 
@@ -569,16 +562,11 @@ public class VisitorUtils {
             FilterOperationType operationType, long left, long right
     ) {
         return switch (operationType) {
-            case GT:
-                yield new Pair<>(left * right + 1, Long.MAX_VALUE);
-            case GTEQ:
-                yield new Pair<>(left * right, Long.MAX_VALUE);
-            case LT:
-                yield new Pair<>(Long.MIN_VALUE, left * right - 1);
-            case LTEQ:
-                yield new Pair<>(Long.MIN_VALUE, left * right);
-            default:
-                throw new DslParseException("OperationType not supported for division: " + operationType);
+            case GT -> new Pair<>(left * right + 1, Long.MAX_VALUE);
+            case GTEQ -> new Pair<>(left * right, Long.MAX_VALUE);
+            case LT -> new Pair<>(Long.MIN_VALUE, left * right - 1);
+            case LTEQ -> new Pair<>(Long.MIN_VALUE, left * right);
+            default -> throw new DslParseException("OperationType not supported for division: " + operationType);
         };
     }
 
@@ -596,52 +584,36 @@ public class VisitorUtils {
         if (left > 0 && right > 0) {
             // both operands are positive
             return switch (operationType) {
-                case GT:
-                    yield new Pair<>(1L, getClosestLongToTheLeft((float) left / right));
-                case GTEQ:
-                    yield new Pair<>(1L, left / right);
-                case LT, LTEQ:
-                    yield new Pair<>(null, null);
-                default:
-                    throw new DslParseException("OperationType not supported for division: " + operationType);
+                case GT -> new Pair<>(1L, getClosestLongToTheLeft((float) left / right));
+                case GTEQ -> new Pair<>(1L, left / right);
+                case LT, LTEQ -> new Pair<>(null, null);
+                default -> throw new DslParseException("OperationType not supported for division: " + operationType);
             };
         } else if (left == 0 && right == 0) {
             throw new DslParseException("Cannot divide by zero");
         } else if (left < 0 && right < 0) {
             // both operands are negative
             return switch (operationType) {
-                case GT, GTEQ:
-                    yield new Pair<>(null, null);
-                case LT:
-                    yield new Pair<>(1L, getClosestLongToTheLeft((float) left / right));
-                case LTEQ:
-                    yield new Pair<>(1L, left / right);
-                default:
-                    throw new DslParseException("OperationType not supported for division: " + operationType);
+                case GT, GTEQ -> new Pair<>(null, null);
+                case LT -> new Pair<>(1L, getClosestLongToTheLeft((float) left / right));
+                case LTEQ -> new Pair<>(1L, left / right);
+                default -> throw new DslParseException("OperationType not supported for division: " + operationType);
             };
         } else if (left > 0 && right < 0) {
             // left positive, right negative
             return switch (operationType) {
-                case GT, GTEQ:
-                    yield new Pair<>(null, null);
-                case LT:
-                    yield new Pair<>(getClosestLongToTheRight((float) left / right), -1L);
-                case LTEQ:
-                    yield new Pair<>(left / right, -1L);
-                default:
-                    throw new DslParseException("OperationType not supported for division: " + operationType);
+                case GT, GTEQ -> new Pair<>(null, null);
+                case LT -> new Pair<>(getClosestLongToTheRight((float) left / right), -1L);
+                case LTEQ -> new Pair<>(left / right, -1L);
+                default -> throw new DslParseException("OperationType not supported for division: " + operationType);
             };
         } else if (right > 0 && left < 0) {
             // right positive, left negative
             return switch (operationType) {
-                case GT:
-                    yield new Pair<>(getClosestLongToTheRight((float) left / right), -1L);
-                case GTEQ:
-                    yield new Pair<>(left / right, -1L);
-                case LT, LTEQ:
-                    yield new Pair<>(null, null);
-                default:
-                    throw new DslParseException("OperationType not supported for division: " + operationType);
+                case GT -> new Pair<>(getClosestLongToTheRight((float) left / right), -1L);
+                case GTEQ -> new Pair<>(left / right, -1L);
+                case LT, LTEQ -> new Pair<>(null, null);
+                default -> throw new DslParseException("OperationType not supported for division: " + operationType);
             };
         } else if (left != 0) {
             throw new DslParseException("Division by zero is not allowed");
@@ -1326,7 +1298,7 @@ public class VisitorUtils {
         } else if (expressions.size() > 1) {
             return Exp.and(expressions.toArray(new Exp[0]));
         }
-        return expressions.get(0); // When there is only one Exp return it
+        return expressions.getFirst(); // When there is only one Exp return it
     }
 
     /**
@@ -1521,7 +1493,7 @@ public class VisitorUtils {
         }
 
         // There is only one expression with the largest cardinality
-        chosenExpr = largestCardinalityExprs.get(0);
+        chosenExpr = largestCardinalityExprs.getFirst();
         chosenExpr.hasSecondaryIndexFilter(true);
         return chosenExpr;
     }

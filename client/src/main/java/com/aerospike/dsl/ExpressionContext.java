@@ -1,8 +1,15 @@
 package com.aerospike.dsl;
 
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
+
 /**
  * This class stores input string and optional values for placeholders (if they are used)
  */
+@AllArgsConstructor(staticName = "of")
+@RequiredArgsConstructor(staticName = "of")
+@Getter
 public class ExpressionContext {
 
     /**
@@ -14,21 +21,4 @@ public class ExpressionContext {
      * Optional (needed only if there are placeholders)
      */
     private PlaceholderValues values;
-
-    public ExpressionContext(String expression, PlaceholderValues values) {
-    	this.expression = expression;
-    	this.values = values;
-    }
-
-    public static ExpressionContext of(String expression) {
-    	return new ExpressionContext(expression, null);
-    }
-
-    public String getExpression() {
-    	return expression;
-    }
-
-    public PlaceholderValues getValues() {
-    	return values;
-    }
 }

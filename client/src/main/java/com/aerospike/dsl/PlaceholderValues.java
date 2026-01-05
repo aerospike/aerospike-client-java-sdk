@@ -3,6 +3,7 @@ package com.aerospike.dsl;
 /**
  * This class stores values to be matched with placeholders by indexes
  */
+@SuppressWarnings("ClassCanBeRecord") // Private constructor
 public class PlaceholderValues {
 
     private final Object[] values;
