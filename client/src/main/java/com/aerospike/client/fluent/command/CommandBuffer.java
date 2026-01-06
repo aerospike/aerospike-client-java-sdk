@@ -292,7 +292,7 @@ public final class CommandBuffer {
 
 		// Set flags.
 		int writeAttr = Command.INFO2_WRITE | Command.INFO2_DELETE;
-		int txnAttr = 0;
+		int infoAttr = 0;
 
 		if (bd.generation > 0) {
 			writeAttr |= Command.INFO2_GENERATION;
@@ -300,6 +300,10 @@ public final class CommandBuffer {
 
 		if (cmd.durableDelete) {
 			writeAttr |= Command.INFO2_DURABLE_DELETE;
+		}
+
+		if (cmd.commitLevel == CommitLevel.COMMIT_MASTER) {
+			infoAttr |= Command.INFO3_COMMIT_MASTER;
 		}
 
 		/*
@@ -312,8 +316,8 @@ public final class CommandBuffer {
 		dataBuffer[8]  = Command.MSG_REMAINING_HEADER_SIZE; // Message header length.
 		dataBuffer[9]  = (byte)0;
 		dataBuffer[10] = (byte)writeAttr;
-		dataBuffer[11] = (byte)0;
-		dataBuffer[12] = (byte)txnAttr;
+		dataBuffer[11] = (byte)infoAttr;
+		dataBuffer[12] = (byte)0;
 		dataBuffer[13] = 0; // clear the result code
 		Buffer.intToBytes(bd.generation, dataBuffer, 14);
 		Buffer.intToBytes(0, dataBuffer, 18);
@@ -1113,6 +1117,10 @@ public final class CommandBuffer {
 		case REPLACE:
 			infoAttr |= Command.INFO3_CREATE_OR_REPLACE;
 			break;
+		}
+
+		if (cmd.commitLevel == CommitLevel.COMMIT_MASTER) {
+			infoAttr |= Command.INFO3_COMMIT_MASTER;
 		}
 
 		if (cmd.durableDelete) {

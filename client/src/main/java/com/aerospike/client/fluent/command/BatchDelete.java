@@ -29,7 +29,7 @@ public final class BatchDelete extends BatchRecord {
 	 * <p>
 	 * Default: 0
 	 */
-	public int generation;
+	public final int generation;
 
 	/**
 	 * Initialize key.

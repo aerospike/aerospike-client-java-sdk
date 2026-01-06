@@ -21,9 +21,11 @@ import java.util.List;
 import com.aerospike.client.fluent.Cluster;
 import com.aerospike.client.fluent.Partitions;
 import com.aerospike.client.fluent.exp.Expression;
+import com.aerospike.client.fluent.policy.CommitLevel;
 import com.aerospike.client.fluent.policy.Settings;
 
 public class BatchWriteCommand extends BatchCommand {
+	final CommitLevel commitLevel;
     final boolean durableDelete;
 
 	public BatchWriteCommand(
@@ -33,6 +35,7 @@ public class BatchWriteCommand extends BatchCommand {
 	) {
 		super(cluster, partitions, txn, namespace, records, filterExp, policy.getReplicaOrder(),
 			respondAllKeys, policy);
+		this.commitLevel = policy.getCommitLevel();
 		this.durableDelete = policy.getUseDurableDelete();
 	}
 }

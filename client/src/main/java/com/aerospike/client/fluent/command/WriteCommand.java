@@ -44,7 +44,7 @@ public class WriteCommand extends Command {
 		this.key = key;
 		this.partition = new Partition(partitions, key, replica, null, false);
 		this.type = type;
-		this.commitLevel = CommitLevel.COMMIT_ALL;
+		this.commitLevel = policy.getCommitLevel();
 		this.gen = gen;
 		this.ttl = ttl;
 		this.onLockingOnly = false;
@@ -57,7 +57,7 @@ public class WriteCommand extends Command {
 		this.key = key;
 		this.partition = new Partition(partitions, key, replica, null, false);
 		this.type = OpType.UPSERT;
-		this.commitLevel = CommitLevel.COMMIT_ALL;
+		this.commitLevel = policy.getCommitLevel();
 		this.gen = 0;
 		this.ttl = 0;
 		this.onLockingOnly = false;

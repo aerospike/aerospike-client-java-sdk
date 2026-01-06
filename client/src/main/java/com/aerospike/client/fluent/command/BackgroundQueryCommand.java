@@ -21,6 +21,7 @@ import com.aerospike.client.fluent.DataSet;
 import com.aerospike.client.fluent.OpType;
 import com.aerospike.client.fluent.Operation;
 import com.aerospike.client.fluent.exp.Expression;
+import com.aerospike.client.fluent.policy.CommitLevel;
 import com.aerospike.client.fluent.policy.Settings;
 import com.aerospike.client.fluent.query.Filter;
 
@@ -29,6 +30,7 @@ public final class BackgroundQueryCommand extends Command {
 	final String set;
 	final Filter filter;
 	final OpType type;
+	final CommitLevel commitLevel;
 	final Operation[] ops;
 	final int recordsPerSecond;
 	final int ttl;
@@ -43,6 +45,7 @@ public final class BackgroundQueryCommand extends Command {
 		this.set = set.getSet();
 		this.filter = filter;
 		this.type = type;
+		this.commitLevel = policy.getCommitLevel();
 		this.ops = ops;
 		// TODO: recordsPerSecond needs to be added to either QueryBuilder or Settings.
 		this.recordsPerSecond = 0;
