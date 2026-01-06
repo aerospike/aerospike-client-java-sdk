@@ -28,11 +28,13 @@ import com.aerospike.client.fluent.RecordStream;
 import com.aerospike.client.fluent.Session;
 import com.aerospike.client.fluent.dsl.Dsl;
 import com.aerospike.client.fluent.exp.Exp;
+import com.aerospike.client.fluent.info.classes.IndexType;
 import com.aerospike.client.fluent.policy.Behavior;
 import com.aerospike.client.fluent.policy.Behavior.Mode;
 import com.aerospike.client.fluent.policy.Behavior.OpKind;
 import com.aerospike.client.fluent.policy.Behavior.OpShape;
 import com.aerospike.client.fluent.policy.Settings;
+import com.aerospike.client.fluent.query.IndexCollectionType;
 import com.aerospike.client.fluent.task.ExecuteTask;
 
 /**
@@ -228,7 +230,7 @@ public class CommonExample extends Example {
             System.out.printf("Exception received as expected: %s (%s)\n", ae.getMessage(), ae.getClass().getSimpleName());
         }
 
-        System.out.println("Foreground query");
+        System.out.println("Foreground primary index query");
 
         rs = session.query(set)
         	.recordsPerSecond(5000)
@@ -240,7 +242,8 @@ public class CommonExample extends Example {
             System.out.println(rs.next());
             count++;
         }
-        System.out.println("Foreground query count: " + count);
+
+        System.out.println("Query count: " + count);
 
         Settings settings = Behavior.DEFAULT.getSettings(OpKind.READ, OpShape.QUERY, Mode.CP);
         System.out.printf("Batch mode maxConcurrentNodes = %d\n", settings.getMaxConcurrentNodes());
@@ -250,6 +253,25 @@ public class CommonExample extends Example {
                 Exp.gt(Exp.intBin("age"), Exp.val(21))
         );
         System.out.println(exp);
+
+        System.out.println("Create index");
+
+        session.createIndex(set, "ageidx", "age", IndexType.NUMERIC, IndexCollectionType.DEFAULT);
+
+        System.out.println("Foreground secondary index query");
+
+        rs = session.query(set)
+        	.where("$.age > 200")
+        	.execute();
+
+        count = 0;
+
+        while (rs.hasNext()) {
+            System.out.println(rs.next());
+            count++;
+        }
+
+        System.out.println("Query count: " + count);
 
 /*
             System.out.println("Transaction");

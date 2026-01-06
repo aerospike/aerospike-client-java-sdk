@@ -20,14 +20,21 @@ import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.List;
 
+import com.aerospike.client.fluent.cdt.CTX;
 import com.aerospike.client.fluent.command.Txn;
 import com.aerospike.client.fluent.exp.Exp;
 import com.aerospike.client.fluent.exp.Expression;
 import com.aerospike.client.fluent.info.InfoCommands;
+import com.aerospike.client.fluent.info.classes.IndexType;
 import com.aerospike.client.fluent.policy.Behavior;
 import com.aerospike.client.fluent.query.IndexBasedQueryBuilderInterface;
+import com.aerospike.client.fluent.query.IndexCollectionType;
 import com.aerospike.client.fluent.query.KeyBasedQueryBuilderInterface;
 import com.aerospike.client.fluent.query.QueryBuilder;
+import com.aerospike.client.fluent.task.IndexTask;
+import com.aerospike.client.fluent.util.Crypto;
+import com.aerospike.client.fluent.util.Pack;
+import com.aerospike.client.fluent.util.Version;
 
 public class Session {
     private final Cluster cluster;
@@ -131,6 +138,7 @@ public class Session {
     // --------------------------------------------
     // Query functionality
     // --------------------------------------------
+
     public IndexBasedQueryBuilderInterface<QueryBuilder> query(DataSet dataSet) {
         return new QueryBuilder(this, dataSet);
     }
@@ -448,4 +456,178 @@ public class Session {
         }
         return partitionMap.scMode;
     }
+
+    //---------------------
+    // Index functionality
+    //---------------------
+
+    /**
+     * Create scalar secondary index.
+     * This asynchronous server call will return before command is complete.
+     * The user can optionally wait for command completion by using the returned
+     * IndexTask instance.
+     *
+	 * @param namespace				namespace - equivalent to database name
+	 * @param setName				optional set name - equivalent to database table
+	 * @param indexName				name of secondary index
+	 * @param binName				bin name that data is indexed on
+	 * @param indexType				underlying data type of secondary index
+	 * @param indexCollectionType	index collection type
+	 * @param ctx					optional context to index on elements within a CDT
+	 * @throws AerospikeException	if index create fails
+     */
+    public final IndexTask createIndex(
+    	DataSet set,
+        String indexName,
+        String binName,
+        IndexType indexType,
+		IndexCollectionType indexCollectionType,
+		CTX... ctx
+    ) {
+		Node node = cluster.getRandomNode();
+		String command = buildCreateIndexInfoCommand(node, set.getNamespace(), set.getSet(), indexName, binName, indexType, indexCollectionType, ctx, null);
+
+		// Send index command to one node. That node will distribute the command to other nodes.
+		String response = sendInfoCommand(node, command);
+
+		if (response.equalsIgnoreCase("OK")) {
+			// Return task that could optionally be polled for completion.
+			return new IndexTask(cluster, set.getNamespace(), indexName, true, 1000);
+		}
+
+		int code = parseIndexErrorCode(response);
+		throw new AerospikeException(code, "Create index failed: " + response);
+    }
+
+	private String buildCreateIndexInfoCommand(
+		Node node,
+		String namespace,
+		String setName,
+		String indexName,
+		String binName,
+		IndexType indexType,
+		IndexCollectionType indexCollectionType,
+		CTX[] ctx,
+		Expression exp
+	) {
+		StringBuilder sb = new StringBuilder(1024);
+		Version currentServerVersion = node.getVersion();
+		String createIndexCommand = currentServerVersion.isGreaterOrEqual(Version.SERVER_VERSION_8_1) ? "sindex-create:namespace=": "sindex-create:ns=";
+
+		sb.append(createIndexCommand);
+		sb.append(namespace);
+
+		if (setName != null && setName.length() > 0) {
+			sb.append(";set=");
+			sb.append(setName);
+		}
+
+		sb.append(";indexname=");
+		sb.append(indexName);
+
+		if (exp != null) {
+			String base64 = exp.getBase64();
+
+			sb.append(";exp=");
+			sb.append(base64);
+
+			if (indexCollectionType != IndexCollectionType.DEFAULT) {
+				sb.append(";indextype=");
+				sb.append(indexCollectionType);
+			}
+
+			sb.append(";type=");
+			sb.append(indexType);
+		} else {
+			if (ctx != null && ctx.length > 0) {
+				byte[] bytes = Pack.pack(ctx);
+				String base64 = Crypto.encodeBase64(bytes);
+
+				sb.append(";context=");
+				sb.append(base64);
+			}
+
+			if (indexCollectionType != IndexCollectionType.DEFAULT) {
+				sb.append(";indextype=");
+				sb.append(indexCollectionType);
+			}
+
+			if (node.getVersion().isGreaterOrEqual(Version.SERVER_VERSION_8_1)) {
+				sb.append(";bin=");
+				sb.append(binName);
+				sb.append(";type=");
+				sb.append(indexType);
+			} else {
+				sb.append(";indexdata=");
+				sb.append(binName);
+				sb.append(',');
+				sb.append(indexType);
+			}
+		}
+
+		return sb.toString();
+	}
+
+	/**
+	 * Delete secondary index.
+	 * This asynchronous server call will return before command is complete.
+	 * The user can optionally wait for command completion by using the returned
+	 * IndexTask instance.
+	 *
+	 * @param namespace				namespace - equivalent to database name
+	 * @param setName				optional set name - equivalent to database table
+	 * @param indexName				name of secondary index
+	 * @throws AerospikeException	if index drop fails
+	 */
+	public final IndexTask dropIndex(DataSet set, String indexName) {
+		Node node = this.cluster.getRandomNode();
+		String command = buildDropIndexInfoCommand(node, set.getNamespace(), set.getSet(), indexName);
+
+		// Send index command to one node. That node will distribute the command to other nodes.
+		String response = sendInfoCommand(node, command);
+
+		if (response.equalsIgnoreCase("OK")) {
+			return new IndexTask(cluster, set.getNamespace(), indexName, false, 1000);
+		}
+
+		int code = parseIndexErrorCode(response);
+		throw new AerospikeException(code, "Drop index failed: " + response);
+	}
+
+	private String buildDropIndexInfoCommand(Node node, String namespace, String setName, String indexName) {
+		StringBuilder sb = new StringBuilder(500);
+		Version currentServerVersion = node.getVersion();
+		String deleteIndexCommand = currentServerVersion.isGreaterOrEqual(Version.SERVER_VERSION_8_1) ? "sindex-delete:namespace=": "sindex-delete:ns=";
+
+		sb.append(deleteIndexCommand);
+		sb.append(namespace);
+
+		if (setName != null && setName.length() > 0) {
+			sb.append(";set=");
+			sb.append(setName);
+		}
+		sb.append(";indexname=");
+		sb.append(indexName);
+		return sb.toString();
+	}
+
+	private String sendInfoCommand(Node node, String command) {
+		Connection conn = node.getConnection(1000, 1000);
+		Info info;
+
+		try {
+			info = new Info(node, conn, command);
+			node.putConnection(conn);
+		}
+		catch (Throwable e) {
+			node.closeConnection(conn);
+			throw e;
+		}
+		return info.getValue();
+	}
+
+	private static int parseIndexErrorCode(String response) {
+		Info.Error error = new Info.Error(response);
+		return (error.code == 0)? ResultCode.SERVER_ERROR : error.code;
+	}
 }

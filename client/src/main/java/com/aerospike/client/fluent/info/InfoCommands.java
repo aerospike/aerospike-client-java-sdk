@@ -5,15 +5,12 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
-import com.aerospike.client.fluent.AerospikeException;
 import com.aerospike.client.fluent.Node;
 import com.aerospike.client.fluent.Session;
-import com.aerospike.client.fluent.info.classes.IndexType;
 import com.aerospike.client.fluent.info.classes.NamespaceDetail;
 import com.aerospike.client.fluent.info.classes.SetDetail;
 import com.aerospike.client.fluent.info.classes.Sindex;
 import com.aerospike.client.fluent.info.classes.SindexDetail;
-import com.aerospike.client.fluent.task.IndexTask;
 
 /**
  * Provides high-level methods to execute common Aerospike info commands.
@@ -64,34 +61,6 @@ public class InfoCommands {
      */
     public InfoCommands(Session session) {
         this.session = session;
-    }
-
-    /**
-     * Create scalar secondary index.
-     * This asynchronous server call will return before command is complete.
-     * The user can optionally wait for command completion by using the returned
-     * IndexTask instance.
-     *
-     * TODO: Probably remove this?
-     *
-     * @param policy                generic configuration parameters, pass in null for defaults
-     * @param namespace             namespace - equivalent to database name
-     * @param setName               optional set name - equivalent to database table
-     * @param indexName             name of secondary index
-     * @param binName               bin name that data is indexed on
-     * @param indexType             underlying data type of secondary index
-     * @throws AerospikeException   if index create fails
-     */
-    public final IndexTask createIndex(
-        String namespace,
-        String setName,
-        String indexName,
-        String binName,
-        IndexType indexType
-    ) throws AerospikeException {
-    	// TODO: Support create index.
-    	return null;
-        //return session.getClient().createIndex(policy, namespace, setName, indexName, binName, indexType, IndexCollectionType.DEFAULT);
     }
 
     /**
