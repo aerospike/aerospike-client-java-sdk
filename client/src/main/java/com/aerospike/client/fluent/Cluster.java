@@ -30,6 +30,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReferenceArray;
 
 import com.aerospike.client.fluent.policy.Behavior;
+import com.aerospike.client.fluent.util.Util;
 import com.aerospike.dsl.Index;
 
 /**
@@ -87,9 +88,6 @@ public class Cluster implements Closeable {
 
 		this.applySystemSettings(effectiveSettings);
 
-		this.indexesMonitor = new IndexesMonitor();
-        this.indexesMonitor.startMonitor(createSession(Behavior.DEFAULT), INDEX_REFRESH);
-
         tend = new ClusterTend(this);
 
 		if (def.forceSingleNode) {
@@ -98,6 +96,12 @@ public class Cluster implements Closeable {
 		else {
 			tend.runThread();
 		}
+
+		this.indexesMonitor = new IndexesMonitor();
+        this.indexesMonitor.startMonitor(createSession(Behavior.DEFAULT), INDEX_REFRESH);
+
+        // TODO: Create implementation where this sleep is not needed.
+        Util.sleep(1000);
     }
 
     public ExecutorService getExecutorService() {

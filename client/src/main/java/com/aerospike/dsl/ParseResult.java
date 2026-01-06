@@ -25,6 +25,6 @@ public class ParseResult {
     Exp exp;
 
     public final Expression getExpression() {
-    	return Exp.build(exp);
+		return (exp != null)? Exp.build(exp) : null;
     }
 }

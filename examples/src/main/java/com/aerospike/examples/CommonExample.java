@@ -285,7 +285,8 @@ public class CommonExample extends Example {
 
         ExecuteTask task = session.backgroundTask().update(set)
             .bin("age").add(1)
-            .where("$.name == 'Tim'")
+            //.where("$.age > 200")
+            .where("$.name == 'Tim' and $.age > 20")
             .execute();
 
         task.waitTillComplete();

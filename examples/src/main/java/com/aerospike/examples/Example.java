@@ -22,6 +22,7 @@ import java.util.List;
 
 import com.aerospike.client.fluent.Cluster;
 import com.aerospike.client.fluent.ClusterDefinition;
+import com.aerospike.client.fluent.Log;
 
 /**
  * Abstract base class for all examples.
@@ -48,6 +49,7 @@ public abstract class Example {
      */
     public static void runExamples(Console console, Args args, List<String> examples) throws Exception {
         ClusterDefinition def = new ClusterDefinition(args.host, args.port)
+        	.withLogLevel(Log.Level.DEBUG)
         	.clusterName(args.clusterName)
         	.withSystemSettings(builder -> builder
     	    	.circuitBreaker(ops -> ops.maximumErrorsInErrorWindow(200))

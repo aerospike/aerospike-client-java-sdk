@@ -1,10 +1,11 @@
 package com.aerospike.client.fluent;
 
-import com.aerospike.dsl.Index;
-
 import java.time.Duration;
 import java.util.HashSet;
 import java.util.Set;
+
+import com.aerospike.client.fluent.query.IndexType;
+import com.aerospike.dsl.Index;
 
 /**
  * Monitors secondary indexes in an Aerospike cluster and maintains an up-to-date
@@ -79,7 +80,6 @@ class IndexesMonitor {
      * @throws IllegalArgumentException if session is null or frequency is null/negative
      */
     synchronized void startMonitor(Session session, Duration frequency) {
-    	/*
         if (monitorThread != null) {
             return;
         }
@@ -118,7 +118,6 @@ class IndexesMonitor {
         }, "indexMonitorThread");
         monitorThread.setDaemon(true);
         monitorThread.start();
-        */
     }
 
     /**
