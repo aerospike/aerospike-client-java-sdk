@@ -211,6 +211,9 @@ public class BackgroundOperationBuilder extends AbstractOperationBuilder<Backgro
         	ParseResult pr = dsl.process(dataset.getNamespace(), session);
         	filter = pr.getFilter();
         	filterExp = pr.getExpression();
+
+        	//Exp exp = pr.getExp();
+        	//System.out.println("BACKGROUND FILTEREXP: " + exp.toString());
         }
 
         // Add filter expression if where clause is present

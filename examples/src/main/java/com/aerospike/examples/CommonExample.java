@@ -99,7 +99,7 @@ public class CommonExample extends Example {
 
         rs = session.upsert(set.ids(110,111,112,113,114,115,116,117,118,119))
             .bins("name", "age")
-            .values("Tim", 312)
+            .values("Tim", 21)
             .values("Bob", 25)
             .values("Jane", 46)
             .values("Tim", 200)
@@ -273,57 +273,62 @@ public class CommonExample extends Example {
 
         System.out.println("Query count: " + count);
 
-/*
-            System.out.println("Transaction");
+        rs = session.query(set.ids(10,11,110))
+        	.execute();
 
-            session.doInTransaction(txnSession -> {
-            	txnSession.upsert(set.id(2222))
-	            .bins("name", "age")
-	            .values("Charlie", 33)
-	            .execute();
+        while (rs.hasNext()) {
+        	Record r = rs.next().recordOrThrow();
+        	System.out.println("Record = " + r);
+        }
 
-            	txnSession.upsert(set.id(3333))
-	            .bins("name", "age")
-	            .values("Tom", 22)
-	            .execute();
+        System.out.println("Background query");
 
-            	System.out.println("Read in transaction");
-                RecordStream stream = txnSession.query(set.ids(2222)).execute();
+        ExecuteTask task = session.backgroundTask().update(set)
+            .bin("age").add(1)
+            .where("$.name == 'Tim'")
+            .execute();
 
-                while (stream.hasNext()) {
-                	Record r = stream.next().recordOrThrow();
-                	System.out.println("Record = " + r);
-                }
-            });
+        task.waitTillComplete();
 
-            System.out.println("Read Transaction Values");
+        rs = session.query(set.ids(10,11,110))
+        	.execute();
 
-            RecordStream stream = session.query(set.ids(2222,3333)).execute();
+        while (rs.hasNext()) {
+        	Record r = rs.next().recordOrThrow();
+        	System.out.println("Record = " + r);
+        }
+
+        /*
+        System.out.println("Transaction");
+
+        session.doInTransaction(txnSession -> {
+        	txnSession.upsert(set.id(2222))
+            .bins("name", "age")
+            .values("Charlie", 33)
+            .execute();
+
+        	txnSession.upsert(set.id(3333))
+            .bins("name", "age")
+            .values("Tom", 22)
+            .execute();
+
+        	System.out.println("Read in transaction");
+            RecordStream stream = txnSession.query(set.ids(2222)).execute();
 
             while (stream.hasNext()) {
             	Record r = stream.next().recordOrThrow();
             	System.out.println("Record = " + r);
             }
-*/
-        System.out.println("Background query");
+        });
 
-        ExecuteTask task = session.backgroundTask().update(set)
-            .bin("age").add(1)
-            // TODO: Support DSL
-            //.where("$.name = 'Tim'")
-            .execute();
+        System.out.println("Read Transaction Values");
 
-        task.waitTillComplete();
+        RecordStream stream = session.query(set.ids(2222,3333)).execute();
 
-        rs = session.query(set.ids(10))
-        	.execute();
-
-        if (rs.hasNext()) {
-        	Record r = rs.next().recordOrThrow();
+        while (stream.hasNext()) {
+        	Record r = stream.next().recordOrThrow();
         	System.out.println("Record = " + r);
         }
-        else {
-        	System.out.println("Error: No records returned");
-        }
+    */
     }
 }
