@@ -211,7 +211,6 @@ class BatchKeyQueryBuilderImpl extends QueryImpl {
                     results.add(AbstractFilterableBuilder.createRecordResultFromBatchRecord(br, settings, i));
                 }
             }
-            // TODO: ResultsInKeyOrder?
             return new RecordStream(results, limit);
         }
         catch (AerospikeException ae) {
