@@ -1,3 +1,19 @@
+/*
+ * Copyright 2012-2025 Aerospike, Inc.
+ *
+ * Portions may be licensed to Aerospike, Inc. under one or more contributor
+ * license agreements WHICH ARE COMPATIBLE WITH THE APACHE LICENSE, VERSION 2.0.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy of
+ * the License at http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
+ */
 package com.aerospike.client.fluent;
 
 import java.io.Closeable;
@@ -11,9 +27,7 @@ import java.util.function.Consumer;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
-import com.aerospike.client.fluent.command.PartitionFilter;
-import com.aerospike.client.fluent.command.RecordSet;
-import com.aerospike.client.fluent.command.Statement;
+import com.aerospike.client.fluent.command.QueryCommand;
 import com.aerospike.client.fluent.query.RecordStreamImpl;
 import com.aerospike.client.fluent.query.SingleItemRecordStream;
 
@@ -61,25 +75,13 @@ public class RecordStream implements Iterator<RecordResult>, Closeable {
      * <p>This constructor is used for queries that stream results from the server in chunks.
      * For client-side sorting and pagination, use {@link #asNavigatableStream()} on the
      * returned stream.</p>
-     *
-     * @param session the Aerospike session
-     * @param queryPolicy the query policy
-     * @param statement the query statement
-     * @param filter the partition filter
-     * @param limit the maximum number of records to return (0 or negative means no limit)
      */
-    public RecordStream(Session session, Statement statement,
-            PartitionFilter filter, long limit) {
-
+    public RecordStream(AsyncRecordStream stream, QueryCommand cmd, long limit, int recordQueueSize) {
         if (limit <= 0) {
             limit = Long.MAX_VALUE;
         }
 
-        // Use chunked streaming for all index queries
-        // TODO: BN
-        //RecordSet recordSet = session.getClient().queryPartitions(queryPolicy, statement, filter);
-        RecordSet recordSet = null;
-        impl = new ChunkedRecordStream(session, statement, filter, recordSet, limit);
+        impl = new ChunkedRecordStream(stream, cmd, limit, recordQueueSize);
     }
 
     /**
@@ -97,6 +99,7 @@ public class RecordStream implements Iterator<RecordResult>, Closeable {
     public boolean hasMoreChunks() {
         return impl == null ? false : impl.hasMoreChunks();
     }
+
     @Override
     public boolean hasNext() {
         return impl == null ? false : impl.hasNext();

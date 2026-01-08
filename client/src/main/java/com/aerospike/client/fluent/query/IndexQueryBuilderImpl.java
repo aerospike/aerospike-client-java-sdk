@@ -1,16 +1,28 @@
+/*
+ * Copyright 2012-2025 Aerospike, Inc.
+ *
+ * Portions may be licensed to Aerospike, Inc. under one or more contributor
+ * license agreements WHICH ARE COMPATIBLE WITH THE APACHE LICENSE, VERSION 2.0.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy of
+ * the License at http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
+ */
 package com.aerospike.client.fluent.query;
 
 import com.aerospike.client.fluent.AsyncRecordStream;
 import com.aerospike.client.fluent.Cluster;
 import com.aerospike.client.fluent.DataSet;
 import com.aerospike.client.fluent.Log;
-import com.aerospike.client.fluent.Node;
 import com.aerospike.client.fluent.RecordStream;
 import com.aerospike.client.fluent.Session;
-import com.aerospike.client.fluent.command.PartitionFilter;
-import com.aerospike.client.fluent.command.PartitionTracker;
 import com.aerospike.client.fluent.command.QueryCommand;
-import com.aerospike.client.fluent.command.QueryExecutor;
 import com.aerospike.client.fluent.exp.Expression;
 import com.aerospike.client.fluent.policy.Behavior.Mode;
 import com.aerospike.client.fluent.policy.Behavior.OpKind;
@@ -18,8 +30,9 @@ import com.aerospike.client.fluent.policy.Behavior.OpShape;
 import com.aerospike.client.fluent.policy.Settings;
 import com.aerospike.dsl.ParseResult;
 
-class IndexQueryBuilderImpl extends QueryImpl {
+public class IndexQueryBuilderImpl extends QueryImpl {
     private final DataSet dataSet;
+
     public IndexQueryBuilderImpl(QueryBuilder builder, Session session, DataSet dataSet) {
         super(builder, session);
         this.dataSet = dataSet;
@@ -72,27 +85,18 @@ class IndexQueryBuilderImpl extends QueryImpl {
         	filterExp = pr.getExpression();
         }
 
-		QueryCommand cmd = new QueryCommand(cluster, dataSet, filter, filterExp, policy, qb);
-
-		Node[] nodes = cluster.validateNodes();
-
-		PartitionFilter pf = PartitionFilter.range(
-                getQueryBuilder().getStartPartition(),
-                getQueryBuilder().getEndPartition() - getQueryBuilder().getStartPartition());
-
-		PartitionTracker tracker = new PartitionTracker(cmd, nodes, pf);
         AsyncRecordStream stream = new AsyncRecordStream(policy.getRecordQueueSize());
-        QueryExecutor exec = new QueryExecutor(cluster, cmd, nodes.length, tracker, stream);
+        QueryCommand cmd = new QueryCommand(cluster, dataSet, filter, filterExp, policy, qb);
+    	cmd.execute(stream);
 
-        cluster.startVirtualThread(() -> {
-    		try {
-    	        exec.execute();
-    		}
-    		catch (Throwable e) {
-    			exec.stopThreads(e);
-    		}
-        });
+        if (qb.getChunkSize() == 0) {
+        	// Normal query
+            return new RecordStream(stream);
 
-        return new RecordStream(stream);
+        }
+        else {
+        	// Paginated query
+            return new RecordStream(stream, cmd, qb.getLimit(), policy.getRecordQueueSize());
+        }
     }
 }

@@ -16,8 +16,10 @@
  */
 package com.aerospike.client.fluent.command;
 
+import com.aerospike.client.fluent.AsyncRecordStream;
 import com.aerospike.client.fluent.Cluster;
 import com.aerospike.client.fluent.DataSet;
+import com.aerospike.client.fluent.Node;
 import com.aerospike.client.fluent.exp.Expression;
 import com.aerospike.client.fluent.policy.QueryDuration;
 import com.aerospike.client.fluent.policy.Settings;
@@ -27,6 +29,7 @@ import com.aerospike.client.fluent.query.QueryBuilder;
 public final class QueryCommand extends Command {
 	final String set;
 	final Filter filter;
+    final PartitionFilter pf;
 	final QueryDuration expectedDuration;
 	final long maxRecords;
 	final String[] binNames;
@@ -41,6 +44,10 @@ public final class QueryCommand extends Command {
 		super(cluster, set.getNamespace(), null, filterExp, policy.getReplicaOrder(), policy);
 		this.set = set.getSet();
 		this.filter = filter;
+
+		this.pf = PartitionFilter.range(qb.getStartPartition(),
+	        qb.getEndPartition() - qb.getStartPartition());
+
 		this.recordsPerSecond = qb.getRecordsPerSecond();
 		// TODO Need to support expectedDuration
 		// this.expectedDuration = (this.recordsPerSecond > 0)? qb.getExpectedDuration() : QueryDuration.LONG;
@@ -60,4 +67,24 @@ public final class QueryCommand extends Command {
 	    	this.maxRecords = 0;
 	    }
 	}
+
+    public void execute(AsyncRecordStream stream) {
+		Node[] nodes = cluster.validateNodes();
+
+		PartitionTracker tracker = new PartitionTracker(this, nodes, pf);
+        QueryExecutor exec = new QueryExecutor(cluster, this, nodes.length, tracker, stream);
+
+        cluster.startVirtualThread(() -> {
+    		try {
+    	        exec.execute();
+    		}
+    		catch (Throwable e) {
+    			exec.stopThreads(e);
+    		}
+        });
+    }
+
+    public boolean isDone() {
+    	return pf.isDone();
+    }
 }

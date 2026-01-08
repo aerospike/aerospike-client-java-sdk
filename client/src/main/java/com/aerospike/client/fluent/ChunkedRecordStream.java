@@ -1,8 +1,22 @@
+/*
+ * Copyright 2012-2025 Aerospike, Inc.
+ *
+ * Portions may be licensed to Aerospike, Inc. under one or more contributor
+ * license agreements WHICH ARE COMPATIBLE WITH THE APACHE LICENSE, VERSION 2.0.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy of
+ * the License at http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
+ */
 package com.aerospike.client.fluent;
 
-import com.aerospike.client.fluent.command.PartitionFilter;
-import com.aerospike.client.fluent.command.RecordSet;
-import com.aerospike.client.fluent.command.Statement;
+import com.aerospike.client.fluent.command.QueryCommand;
 import com.aerospike.client.fluent.query.RecordStreamImpl;
 
 /**
@@ -24,29 +38,35 @@ import com.aerospike.client.fluent.query.RecordStreamImpl;
  * </ul>
  */
 public class ChunkedRecordStream implements RecordStreamImpl {
-    private final Statement statement;
-    private final PartitionFilter filter;
-    private RecordSet recordSet;
+	private final QueryCommand cmd;
     private final long limit;
-    private final Session session;
     private long recordCount = 0;
+    private AsyncRecordStream stream;
+    private final int recordQueueSize;
+    private boolean first = true;
 
-    public ChunkedRecordStream(Session session, Statement statement,
-            PartitionFilter filter, RecordSet recordSet, long limit) {
-
-        this.statement = statement;
-        this.filter = filter;
-        this.recordSet = recordSet;
+    public ChunkedRecordStream(AsyncRecordStream stream, QueryCommand cmd, long limit, int recordQueueSize) {
+        this.cmd = cmd;
         this.limit = limit;
-        this.session = session;
+    	this.recordQueueSize = recordQueueSize;
+    	this.stream = stream;
     }
 
     @Override
     public boolean hasMoreChunks() {
-        if (limit > 0 && recordCount >= limit) {
+    	if (first) {
+    		first = false;
+    		return true;
+    	}
+
+        if (cmd.isDone() || (limit > 0 && recordCount >= limit)) {
             return false;
         }
-        return !filter.isDone();
+
+        // Query next chunk.
+    	stream = new AsyncRecordStream(recordQueueSize);
+    	cmd.execute(stream);
+		return true;
     }
 
     @Override
@@ -54,28 +74,18 @@ public class ChunkedRecordStream implements RecordStreamImpl {
         if (limit > 0 && recordCount >= limit) {
             return false;
         }
-        boolean result = recordSet.next();
-        if (!result) {
-            // Move onto the next chunk
-            // TODO: BN
-            //recordSet = session.getClient().queryPartitions(queryPolicy, statement, filter);
-        }
-        else {
-            recordCount++;
-        }
-        return result;
+
+        return stream.hasNext();
     }
 
     @Override
     public RecordResult next() {
-        return new RecordResult(recordSet.getKeyRecord(), -1); // Query operation, index = -1
+        recordCount++;
+        return stream.next();
     }
 
     @Override
     public void close() {
-        if (this.recordSet != null) {
-            this.recordSet.close();
-        }
+    	stream.close();
     }
 }
-

@@ -281,6 +281,33 @@ public class CommonExample extends Example {
         	System.out.println("Record = " + r);
         }
 
+        System.out.println("Paginated secondary index query");
+
+        rs = session.query(set).execute();
+        count = 0;
+
+        while (rs.hasNext()) {
+        	rs.next().recordOrThrow();
+        	count++;
+        }
+
+        System.out.println("Expected paginated query count: " + count);
+
+        rs = session.query(set).chunkSize(5).execute();
+        int chunk = 0;
+        count = 0;
+
+        while (rs.hasMoreChunks()) {
+            System.out.println("Chunk: " + (++chunk));
+
+            while (rs.hasNext()) {
+                System.out.println(rs.next());
+                count++;
+            }
+        }
+
+        System.out.println("Actual Query count: " + count);
+
         System.out.println("Background query");
 
         ExecuteTask task = session.backgroundTask().update(set)
