@@ -782,7 +782,7 @@ public class BehaviorTest {
         @Test
         @DisplayName("Settings.asWritePolicy should convert correctly")
         void testAsWritePolicy() {
-            Behavior behavior = Behavior.DEFAULT.deriveWithChanges("test", builder -> builder
+            Behavior.DEFAULT.deriveWithChanges("test", builder -> builder
                     .on(Selectors.writes().retryable().point().ap(), ops -> ops
                             .abandonCallAfter(Duration.ofSeconds(10))
                             .commitLevel(CommitLevel.COMMIT_MASTER)

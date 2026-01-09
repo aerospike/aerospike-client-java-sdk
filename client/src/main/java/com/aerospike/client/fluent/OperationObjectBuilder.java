@@ -1,3 +1,19 @@
+/*
+ * Copyright 2012-2026 Aerospike, Inc.
+ *
+ * Portions may be licensed to Aerospike, Inc. under one or more contributor
+ * license agreements WHICH ARE COMPATIBLE WITH THE APACHE LICENSE, VERSION 2.0.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy of
+ * the License at http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
+ */
 package com.aerospike.client.fluent;
 
 import java.util.ArrayList;
@@ -10,7 +26,7 @@ import com.aerospike.client.fluent.query.WhereClauseProcessor;
 
 public class OperationObjectBuilder<T> extends AbstractFilterableBuilder implements FilterableOperation<OperationObjectBuilder<T>> {
     private final DataSet dataSet;
-    private final List<Operation> ops = new ArrayList<>();
+    //private final List<Operation> ops = new ArrayList<>();
     private final OpType opType;
     private final Session session;
 
@@ -24,7 +40,8 @@ public class OperationObjectBuilder<T> extends AbstractFilterableBuilder impleme
         return new ObjectBuilder<>(this, elements);
     }
 
-    public ObjectBuilder<T> objects(T element1, T element2, T ... elements) {
+    @SuppressWarnings("unchecked")
+	public ObjectBuilder<T> objects(T element1, T element2, T ... elements) {
         List<T> elementList = new ArrayList<>();
         elementList.add(element1);
         elementList.add(element2);

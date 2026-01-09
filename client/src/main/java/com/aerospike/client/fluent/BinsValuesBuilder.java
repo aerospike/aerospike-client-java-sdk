@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2025 Aerospike, Inc.
+ * Copyright 2012-2026 Aerospike, Inc.
  *
  * Portions may be licensed to Aerospike, Inc. under one or more contributor
  * license agreements WHICH ARE COMPATIBLE WITH THE APACHE LICENSE, VERSION 2.0.
@@ -612,7 +612,8 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
 
         } else {
             // Run multiple keys in parallel and join.
-            AsyncRecordStream stream = new AsyncRecordStream(keys.size());
+            @SuppressWarnings("resource")
+			AsyncRecordStream stream = new AsyncRecordStream(keys.size());
             try (ExecutorService es = cluster.getExecutorService()) {
                 for (int i = 0; i < keys.size(); i++) {
                     final Key key = keys.get(i);

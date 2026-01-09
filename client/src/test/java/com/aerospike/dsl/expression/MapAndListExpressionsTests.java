@@ -142,7 +142,7 @@ public class MapAndListExpressionsTests {
                         )
                 ),
                 Exp.val(2));
-//        TestUtils.parseFilterExpressionAndCompare("$.mapBin1.shape.[].count() > 2", expected);
-//        TestUtils.parseFilterExpressionAndCompare("$.mapBin1.a.dd.[1].{#0}.get(return: UNORDERED_MAP)", expected);
+        TestUtils.parseFilterExpressionAndCompare(ExpressionContext.of("$.mapBin1.shape.[].count() > 2"), expected);
+        TestUtils.parseFilterExpressionAndCompare(ExpressionContext.of("$.mapBin1.a.dd.[1].{#0}.get(return: UNORDERED_MAP)"), expected);
     }
 }

@@ -1,3 +1,19 @@
+/*
+ * Copyright 2012-2026 Aerospike, Inc.
+ *
+ * Portions may be licensed to Aerospike, Inc. under one or more contributor
+ * license agreements WHICH ARE COMPATIBLE WITH THE APACHE LICENSE, VERSION 2.0.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy of
+ * the License at http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
+ */
 package com.aerospike.client.fluent;
 
 import java.time.Duration;
@@ -10,11 +26,12 @@ import java.util.Map;
 import com.aerospike.client.fluent.command.Txn;
 import com.aerospike.client.fluent.exp.Expression;
 
+@SuppressWarnings("unused")
 public class ObjectBuilder<T> {
     private final OperationObjectBuilder<T> opBuilder;
     private final List<T> elements;
-    private RecordMapper<T> recordMapper;
-    private int generation = 0;
+	private RecordMapper<T> recordMapper;
+	private int generation = 0;
     private long expirationInSeconds = 0;
     private long expirationInSecondsForAll = 0;
     private Txn txnToUse;
@@ -342,7 +359,7 @@ public class ObjectBuilder<T> {
     	return null;
     }
 
-    private Operation[] operationsForElement(RecordMapper mapper, T element) {
+    private Operation[] operationsForElement(RecordMapper<T> mapper, T element) {
         Map<String, Value> map = mapper.toMap(element);
         Operation[] operations = new Operation[map.size()];
         int i = 0;
@@ -553,7 +570,7 @@ public class ObjectBuilder<T> {
                     Key key = getKeyForElement(recordMapper, element);
                     Operation[] operations = operationsForElement(recordMapper, element);
 
-                    OpKind type = OperationBuilder.areOperationsRetryable(operations) ? 
+                    OpKind type = OperationBuilder.areOperationsRetryable(operations) ?
                             OpKind.WRITE_RETRYABLE : OpKind.WRITE_NON_RETRYABLE;
                     Settings settings = this.opBuilder.getSession().getBehavior()
                             .getSettings(type, OpShape.POINT, this.opBuilder.getSession().isNamespaceSC(key.namespace));
@@ -667,16 +684,16 @@ public class ObjectBuilder<T> {
         */
     	return null;
     }
-	
+
     private boolean shouldPublish(AerospikeException ae, OperationObjectBuilder<T> opBuilder) {
         return switch (ae.getResultCode()) {
-            case ResultCode.FILTERED_OUT -> 
+            case ResultCode.FILTERED_OUT ->
                 opBuilder.isFailOnFilteredOut() || opBuilder.isRespondAllKeys();
             default -> true;
         };
     }
 
-    
+
     /**
      * Process where clause for object operations.
      * Returns null if no where clause or no elements.
@@ -689,7 +706,7 @@ public class ObjectBuilder<T> {
         Key firstKey = getKeyForElement(firstMapper, elements.get(0));
         return opBuilder.processWhereClause(firstKey.namespace, opBuilder.getSession());
     }
-    
+
     /**
      * Execute operations using batch operations (10+ objects).
      */
@@ -734,14 +751,14 @@ public class ObjectBuilder<T> {
             // Convert BatchRecord to RecordResult with proper stack trace handling
             Settings settings = this.opBuilder.getSession().getBehavior()
                     .getSettings(OpKind.WRITE_NON_RETRYABLE, OpShape.BATCH, Mode.ANY);
-            
+
             for (int i = 0; i < batchWrites.size(); i++) {
                 BatchRecord br = batchWrites.get(i);
                 if (opBuilder.shouldIncludeResult(br.resultCode)) {
                     recordStream.publish(opBuilder.createRecordResultFromBatchRecord(br, settings, i));
                 }
             }
-            
+
             return new RecordStream(recordStream);
         }
         finally {
