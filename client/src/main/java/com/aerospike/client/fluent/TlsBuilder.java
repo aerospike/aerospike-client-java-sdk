@@ -607,25 +607,25 @@ public class TlsBuilder {
         }
     }
 
-    // Package-private getters for ClusterDefinition to access the configured values
-    String getTlsName() { return tlsName; }
-    String getCaFile() { return caFile; }
-    String[] getProtocols() { return protocols; }
-    String[] getCiphers() { return ciphers; }
-    boolean isForLoginOnly() { return forLoginOnly; }
-    boolean isRevokeCertificatesForLoginOnly() { return revokeCertificatesForLoginOnly; }
-    java.math.BigInteger[] getRevokeCertificates() { return revokeCertificates; }
-    String getClientCertFile() { return clientCertFile; }
-    String getClientKeyFile() { return clientKeyFile; }
-    String getClientKeyPassword() { return clientKeyPassword; }
-    String getTrustStorePath() { return trustStorePath; }
-    String getTrustStorePassword() { return trustStorePassword; }
-    String getTrustStoreType() { return trustStoreType; }
-    String getKeyStorePath() { return keyStorePath; }
-    String getKeyStorePassword() { return keyStorePassword; }
-    String getKeyStoreType() { return keyStoreType; }
-    SSLContext getCustomSslContext() { return customSslContext; }
-    boolean isTrustAllCertificates() { return enableTrustAllCertificates; }
+    // Public Getters
+    public String getTlsName() { return tlsName; }
+    public String getCaFile() { return caFile; }
+    public String[] getProtocols() { return protocols; }
+    public String[] getCiphers() { return ciphers; }
+    public boolean isForLoginOnly() { return forLoginOnly; }
+    public boolean isRevokeCertificatesForLoginOnly() { return revokeCertificatesForLoginOnly; }
+    public java.math.BigInteger[] getRevokeCertificates() { return revokeCertificates; }
+    public String getClientCertFile() { return clientCertFile; }
+    public String getClientKeyFile() { return clientKeyFile; }
+    public String getClientKeyPassword() { return clientKeyPassword; }
+    public String getTrustStorePath() { return trustStorePath; }
+    public String getTrustStorePassword() { return trustStorePassword; }
+    public String getTrustStoreType() { return trustStoreType; }
+    public String getKeyStorePath() { return keyStorePath; }
+    public String getKeyStorePassword() { return keyStorePassword; }
+    public String getKeyStoreType() { return keyStoreType; }
+    public SSLContext getCustomSslContext() { return customSslContext; }
+    public boolean isTrustAllCertificates() { return enableTrustAllCertificates; }
 
     /**
      * Returns true if any TLS configuration has been set, indicating TLS should be enabled.

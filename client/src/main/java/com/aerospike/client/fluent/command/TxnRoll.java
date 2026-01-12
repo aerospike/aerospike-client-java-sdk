@@ -25,9 +25,9 @@ import java.util.Set;
 import com.aerospike.client.fluent.AerospikeException;
 import com.aerospike.client.fluent.Cluster;
 import com.aerospike.client.fluent.Key;
-import com.aerospike.client.fluent.Partitions;
 import com.aerospike.client.fluent.ResultCode;
 import com.aerospike.client.fluent.policy.Settings;
+import com.aerospike.client.fluent.tend.Partitions;
 
 public final class TxnRoll {
 	private final Cluster cluster;

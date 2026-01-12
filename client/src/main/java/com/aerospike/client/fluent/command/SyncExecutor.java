@@ -25,10 +25,10 @@ import java.util.concurrent.TimeUnit;
 import com.aerospike.client.fluent.AerospikeException;
 import com.aerospike.client.fluent.Cluster;
 import com.aerospike.client.fluent.Connection;
-import com.aerospike.client.fluent.ConnectionRecover;
 import com.aerospike.client.fluent.Node;
 import com.aerospike.client.fluent.ResultCode;
 import com.aerospike.client.fluent.metrics.LatencyType;
+import com.aerospike.client.fluent.tend.ConnectionRecover;
 import com.aerospike.client.fluent.util.Util;
 
 public abstract class SyncExecutor {

@@ -19,7 +19,7 @@ package com.aerospike.client.fluent.command;
 import java.io.Serializable;
 
 import com.aerospike.client.fluent.Key;
-import com.aerospike.client.fluent.Partition;
+import com.aerospike.client.fluent.tend.Partition;
 
 /**
  * Partition filter used in scan/query. This filter is also used as a cursor.

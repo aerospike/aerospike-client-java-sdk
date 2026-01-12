@@ -27,9 +27,11 @@ import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.concurrent.atomic.AtomicReferenceArray;
 
 import com.aerospike.client.fluent.policy.Behavior;
+import com.aerospike.client.fluent.tend.ClusterTend;
+import com.aerospike.client.fluent.tend.ConnectionRecover;
+import com.aerospike.client.fluent.tend.Partitions;
 import com.aerospike.client.fluent.util.Util;
 import com.aerospike.dsl.Index;
 
@@ -189,6 +191,13 @@ public class Cluster implements Closeable {
 			}
 		}
 		return false;
+    }
+
+    /**
+     * Return the cluster definition.
+     */
+    public ClusterDefinition getClusterDefinition() {
+        return def;
     }
 
     /**
@@ -353,27 +362,6 @@ public class Cluster implements Closeable {
 		}
 	}
 
-	public final void printPartitionMap() {
-		for (Entry<String,Partitions> entry : partitionMap.entrySet()) {
-			String namespace = entry.getKey();
-			Partitions partitions = entry.getValue();
-			AtomicReferenceArray<Node>[] replicas = partitions.replicas;
-
-			for (int i = 0; i < replicas.length; i++) {
-				AtomicReferenceArray<Node> nodeArray = replicas[i];
-				int max = nodeArray.length();
-
-				for (int j = 0; j < max; j++) {
-					Node node = nodeArray.get(j);
-
-					if (node != null) {
-						Log.info(context, namespace + ',' + i + ',' + j + ',' + node);
-					}
-				}
-			}
-		}
-	}
-
     private void forceSingleNode() {
 		// Communicate with the first seed node only.
 		// Do not run cluster tend thread.
@@ -387,7 +375,14 @@ public class Cluster implements Closeable {
 		}
     }
 
-    final int incrReplicaIndex() {
+	/**
+	 * Return log context.
+	 */
+	public final Log.Context getLogContext() {
+		return context;
+	}
+
+    public final int incrReplicaIndex() {
     	return replicaIndex.getAndIncrement();
     }
 
@@ -428,13 +423,22 @@ public class Cluster implements Closeable {
 		return retryCount.get();
 	}
 
-	final void setNodes(Node[] nodes) {
+	public final void setNodes(Node[] nodes) {
     	this.nodes = nodes;
     }
 
     public final boolean isActive() {
     	return tend.isActive();
     }
+
+	final void logPartitionMap() {
+		for (Entry<String,Partitions> entry : partitionMap.entrySet()) {
+			String namespace = entry.getKey();
+			Partitions partitions = entry.getValue();
+
+			partitions.log(context, namespace);
+		}
+	}
 
     /**
      * Close the cluster connection and releases all associated resources.

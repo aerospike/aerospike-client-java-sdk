@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2025 Aerospike, Inc.
+ * Copyright 2012-2026 Aerospike, Inc.
  *
  * Portions may be licensed to Aerospike, Inc. under one or more contributor
  * license agreements WHICH ARE COMPATIBLE WITH THE APACHE LICENSE, VERSION 2.0.
@@ -14,10 +14,17 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.aerospike.client.fluent;
+package com.aerospike.client.fluent.tend;
 
 import java.util.ArrayList;
 import java.util.List;
+
+import com.aerospike.client.fluent.AerospikeException;
+import com.aerospike.client.fluent.ClusterDefinition;
+import com.aerospike.client.fluent.Connection;
+import com.aerospike.client.fluent.Host;
+import com.aerospike.client.fluent.Info;
+import com.aerospike.client.fluent.Node;
 
 /**
  * Parse node's peers.
@@ -32,9 +39,9 @@ public final class PeerParser {
 	public PeerParser(ClusterDefinition def, Node node, Connection conn, List<Peer> peers) {
 		this.def = def;
 
-		String command = (def.tlsBuilder != null)?
-			def.useServicesAlternate ? "peers-tls-alt" : "peers-tls-std" :
-			def.useServicesAlternate ? "peers-clear-alt" : "peers-clear-std";
+		String command = (def.getTlsBuilder() != null)?
+			def.isUseServicesAlternate() ? "peers-tls-alt" : "peers-tls-std" :
+			def.isUseServicesAlternate() ? "peers-clear-alt" : "peers-clear-std";
 
 		parser = new Info(node, conn, command);
 
@@ -114,8 +121,8 @@ public final class PeerParser {
 			host = parser.parseString(':', ',', ']');
 		}
 
-		if (def.ipMap != null) {
-			String alternativeHost = def.ipMap.get(host);
+		if (def.getIpMap() != null) {
+			String alternativeHost = def.getIpMap().get(host);
 
 			if (alternativeHost != null) {
 				host = alternativeHost;

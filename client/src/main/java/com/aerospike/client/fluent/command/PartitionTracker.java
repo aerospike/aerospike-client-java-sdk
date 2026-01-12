@@ -26,10 +26,10 @@ import com.aerospike.client.fluent.AerospikeException;
 import com.aerospike.client.fluent.Cluster;
 import com.aerospike.client.fluent.Key;
 import com.aerospike.client.fluent.Node;
-import com.aerospike.client.fluent.Partition;
-import com.aerospike.client.fluent.Partitions;
 import com.aerospike.client.fluent.ResultCode;
 import com.aerospike.client.fluent.policy.Replica;
+import com.aerospike.client.fluent.tend.Partition;
+import com.aerospike.client.fluent.tend.Partitions;
 
 public final class PartitionTracker {
 	private final PartitionStatus[] partitions;

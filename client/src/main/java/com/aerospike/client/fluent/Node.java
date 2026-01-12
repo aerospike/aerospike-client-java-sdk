@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2025 Aerospike, Inc.
+ * Copyright 2012-2026 Aerospike, Inc.
  *
  * Portions may be licensed to Aerospike, Inc. under one or more contributor
  * license agreements WHICH ARE COMPATIBLE WITH THE APACHE LICENSE, VERSION 2.0.
@@ -27,6 +27,13 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import com.aerospike.client.fluent.AdminCommand.LoginCommand;
 import com.aerospike.client.fluent.command.SyncExecutor;
+import com.aerospike.client.fluent.tend.ConnectionRecover;
+import com.aerospike.client.fluent.tend.NodeValidator;
+import com.aerospike.client.fluent.tend.PartitionParser;
+import com.aerospike.client.fluent.tend.Peer;
+import com.aerospike.client.fluent.tend.PeerParser;
+import com.aerospike.client.fluent.tend.Peers;
+import com.aerospike.client.fluent.tend.RackParser;
 import com.aerospike.client.fluent.util.Counter;
 import com.aerospike.client.fluent.util.Util;
 import com.aerospike.client.fluent.util.Version;
@@ -48,7 +55,7 @@ public class Node implements Closeable {
 	private static final String[] INFO_PERIODIC = new String[] {"node", "peers-generation", "partition-generation"};
 	private static final String[] INFO_PERIODIC_REB = new String[] {"node", "peers-generation", "partition-generation", "rebalance-generation"};
 
-	protected final Cluster cluster;
+	public final Cluster cluster;
 	private String name;
 	private String hostname; // Optional hostname.
 	private Host host; // Host with IP address name.
@@ -440,7 +447,7 @@ public class Node implements Closeable {
 
 	private static boolean findPeerNode(Cluster cluster, Peers peers, Peer peer) {
 		// Check global node map for existing cluster.
-		Node node = cluster.tend.nodesMap.get(peer.nodeName);
+		Node node = cluster.tend.getNodesMap().get(peer.nodeName);
 
 		if (node != null) {
 			// Node name found.
@@ -497,7 +504,7 @@ public class Node implements Closeable {
 		return false;
 	}
 
-	protected final void refreshPartitions(Peers peers) {
+	public final void refreshPartitions(Peers peers) {
 		// Do not refresh partitions when node connection has already failed during this cluster tend iteration.
 		// Also, avoid "split cluster" case where this node thinks it's a 1-node cluster.
 		// Unchecked, such a node can dominate the partition map and cause all other
@@ -522,7 +529,7 @@ public class Node implements Closeable {
 		}
 	}
 
-	protected final void refreshRacks() {
+	public final void refreshRacks() {
 		// Do not refresh racks when node connection has already failed during this cluster tend iteration.
 		if (failures > 0 || ! active) {
 			return;
@@ -834,7 +841,7 @@ public class Node implements Closeable {
 		}
 	}
 
-	final void balanceConnections() {
+	public final void balanceConnections() {
 		for (Pool pool : connectionPools) {
 			int excess = pool.excess();
 
@@ -891,6 +898,12 @@ public class Node implements Closeable {
 		}
 
 		return r == rackId;
+	}
+
+	public void tendReset() {
+		referenceCount = 0;
+		partitionChanged = false;
+		rebalanceChanged = false;
 	}
 
 	public final void validateErrorCount() {
@@ -977,6 +990,13 @@ public class Node implements Closeable {
 	}
 
 	/**
+	 * Return log context.
+	 */
+	public final Log.Context getLogContext() {
+		return cluster.context;
+	}
+
+	/**
 	 * Return server node IP address and port.
 	 */
 	public final Host getHost() {
@@ -1019,10 +1039,36 @@ public class Node implements Closeable {
 	}
 
 	/**
+	 * Return current peers count.
+	 */
+	public int getPeersCount() {
+		return peersCount;
+	}
+
+	public void setPeersCount(int peersCount) {
+		this.peersCount = peersCount;
+	}
+
+
+	/**
 	 * Return current generation of partition maps.
 	 */
 	public final int getPartitionGeneration() {
 		return partitionGeneration;
+	}
+
+	/**
+	 * Return if partition has changed.
+	 */
+	public final boolean isPartitionChanged() {
+		return partitionChanged;
+	}
+
+	/**
+	 * Reset partition generation which forces partitions to be read in the next cluster tend.
+	 */
+	public final void resetPartitionGeneration() {
+		partitionGeneration = -1;
 	}
 
 	/**
@@ -1033,10 +1079,31 @@ public class Node implements Closeable {
 	}
 
 	/**
+	 * Return if rack re-balance is needed.
+	 */
+	public boolean isRebalanceChanged() {
+		return rebalanceChanged;
+	}
+
+	/**
 	 * Return this node's build version
 	 */
 	public Version getVersion() {
 		return version;
+	}
+
+	/**
+	 * Return tend reference count.
+	 */
+	public int getReferenceCount() {
+		return referenceCount;
+	}
+
+	/**
+	 * Return tend failure count.
+	 */
+	public int getFailures() {
+		return failures;
 	}
 
 	@Override

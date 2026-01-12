@@ -16,11 +16,11 @@
  */
 package com.aerospike.client.fluent.command;
 
-import com.aerospike.client.fluent.Partitions;
 import com.aerospike.client.fluent.policy.ReadModeAP;
 import com.aerospike.client.fluent.policy.ReadModeSC;
 import com.aerospike.client.fluent.policy.Replica;
 import com.aerospike.client.fluent.policy.Settings;
+import com.aerospike.client.fluent.tend.Partitions;
 
 public class ReadAttr {
 	public final ReadModeAP readModeAP;

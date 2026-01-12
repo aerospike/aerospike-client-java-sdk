@@ -155,7 +155,7 @@ public class SystemBehaviorTest {
             .withSystemSettings(defaults);
 
         // Verify defaults as specified in the plan
-        assertEquals(Duration.ofMillis(1000), def.getTendInterval());
+        assertEquals(1000, def.getTendInterval());
     }
 
     @Test

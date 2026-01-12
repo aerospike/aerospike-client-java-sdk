@@ -19,11 +19,11 @@ package com.aerospike.client.fluent.command;
 import java.util.List;
 
 import com.aerospike.client.fluent.Cluster;
-import com.aerospike.client.fluent.Partitions;
 import com.aerospike.client.fluent.exp.Expression;
 import com.aerospike.client.fluent.policy.ReadModeAP;
 import com.aerospike.client.fluent.policy.ReadModeSC;
 import com.aerospike.client.fluent.policy.Settings;
+import com.aerospike.client.fluent.tend.Partitions;
 
 public class BatchReadCommand extends BatchCommand {
     final ReadModeAP readModeAP;

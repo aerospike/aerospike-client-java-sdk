@@ -27,7 +27,6 @@ import com.aerospike.client.fluent.AerospikeException;
 import com.aerospike.client.fluent.Cluster;
 import com.aerospike.client.fluent.Key;
 import com.aerospike.client.fluent.Log;
-import com.aerospike.client.fluent.Partitions;
 import com.aerospike.client.fluent.RecordResult;
 import com.aerospike.client.fluent.RecordStream;
 import com.aerospike.client.fluent.ResultCode;
@@ -48,6 +47,7 @@ import com.aerospike.client.fluent.exp.Exp;
 import com.aerospike.client.fluent.exp.Expression;
 import com.aerospike.client.fluent.policy.Behavior.OpKind;
 import com.aerospike.client.fluent.policy.Behavior.OpShape;
+import com.aerospike.client.fluent.tend.Partitions;
 import com.aerospike.client.fluent.policy.Settings;
 import com.aerospike.dsl.ParseResult;
 

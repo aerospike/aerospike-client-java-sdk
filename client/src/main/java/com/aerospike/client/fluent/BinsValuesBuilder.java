@@ -49,6 +49,7 @@ import com.aerospike.client.fluent.policy.Behavior.OpShape;
 import com.aerospike.client.fluent.policy.Settings;
 import com.aerospike.client.fluent.query.PreparedDsl;
 import com.aerospike.client.fluent.query.WhereClauseProcessor;
+import com.aerospike.client.fluent.tend.Partitions;
 import com.aerospike.dsl.ParseResult;
 
 /**

@@ -7,7 +7,6 @@ import com.aerospike.client.fluent.DataSet;
 import com.aerospike.client.fluent.Key;
 import com.aerospike.client.fluent.Log;
 import com.aerospike.client.fluent.NavigatableRecordStream;
-import com.aerospike.client.fluent.Partition;
 import com.aerospike.client.fluent.RecordMapper;
 import com.aerospike.client.fluent.RecordStream;
 import com.aerospike.client.fluent.ResultCode;
@@ -15,6 +14,7 @@ import com.aerospike.client.fluent.Session;
 import com.aerospike.client.fluent.command.Txn;
 import com.aerospike.client.fluent.dsl.BooleanExpression;
 import com.aerospike.client.fluent.exp.Exp;
+import com.aerospike.client.fluent.tend.Partition;
 
 /**
  * Builder class for constructing and executing queries against Aerospike.

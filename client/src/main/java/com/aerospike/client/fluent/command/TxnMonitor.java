@@ -24,13 +24,13 @@ import com.aerospike.client.fluent.Cluster;
 import com.aerospike.client.fluent.Key;
 import com.aerospike.client.fluent.OpType;
 import com.aerospike.client.fluent.Operation;
-import com.aerospike.client.fluent.Partitions;
 import com.aerospike.client.fluent.Value;
 import com.aerospike.client.fluent.cdt.ListOperation;
 import com.aerospike.client.fluent.cdt.ListOrder;
 import com.aerospike.client.fluent.cdt.ListPolicy;
 import com.aerospike.client.fluent.cdt.ListWriteFlags;
 import com.aerospike.client.fluent.policy.Settings;
+import com.aerospike.client.fluent.tend.Partitions;
 
 public final class TxnMonitor {
 	private static final ListPolicy OrderedListPolicy = new ListPolicy(ListOrder.ORDERED,

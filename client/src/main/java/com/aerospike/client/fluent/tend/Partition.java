@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2025 Aerospike, Inc.
+ * Copyright 2012-2026 Aerospike, Inc.
  *
  * Portions may be licensed to Aerospike, Inc. under one or more contributor
  * license agreements WHICH ARE COMPATIBLE WITH THE APACHE LICENSE, VERSION 2.0.
@@ -14,10 +14,14 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.aerospike.client.fluent;
+package com.aerospike.client.fluent.tend;
 
 import java.util.concurrent.atomic.AtomicReferenceArray;
 
+import com.aerospike.client.fluent.AerospikeException;
+import com.aerospike.client.fluent.Cluster;
+import com.aerospike.client.fluent.Key;
+import com.aerospike.client.fluent.Node;
 import com.aerospike.client.fluent.command.Buffer;
 import com.aerospike.client.fluent.command.PartitionStatus;
 import com.aerospike.client.fluent.policy.Replica;
@@ -168,7 +172,7 @@ public final class Partition {
 		int seq2 = 0;
 		Node fallback1 = null;
 		Node fallback2 = null;
-		int[] rackIds = cluster.def.rackIds;
+		int[] rackIds = cluster.getClusterDefinition().getRackIds();
 
 		for (int rackId : rackIds) {
 			int seq = sequence;

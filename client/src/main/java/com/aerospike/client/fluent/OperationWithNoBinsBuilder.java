@@ -52,6 +52,7 @@ import com.aerospike.client.fluent.policy.Behavior.OpShape;
 import com.aerospike.client.fluent.policy.Settings;
 import com.aerospike.client.fluent.query.PreparedDsl;
 import com.aerospike.client.fluent.query.WhereClauseProcessor;
+import com.aerospike.client.fluent.tend.Partitions;
 
 public class OperationWithNoBinsBuilder extends AbstractSessionOperationBuilder<OperationWithNoBinsBuilder> implements FilterableOperation<OperationWithNoBinsBuilder> {
     private final List<Key> keys;

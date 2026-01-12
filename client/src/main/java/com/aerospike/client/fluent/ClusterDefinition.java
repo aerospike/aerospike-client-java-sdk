@@ -587,7 +587,7 @@ public class ClusterDefinition {
      * Gets the effective hosts array, potentially creating new Host instances with TLS names
      * if TLS is configured and the existing hosts don't have TLS names set.
      */
-    Host[] getEffectiveHosts() {
+    public Host[] getEffectiveHosts() {
         // If no TLS configuration or no TLS name specified, return original hosts
         if (tlsBuilder == null || !tlsBuilder.isTlsEnabled() || tlsBuilder.getTlsName() == null) {
             return hosts;
@@ -691,8 +691,8 @@ public class ClusterDefinition {
 		return configInterval;
 	}
 
-	public Duration getTendInterval() {
-		return Duration.ofMillis(tendInterval);
+	public int getTendInterval() {
+		return tendInterval;
 	}
 
 	public int getTendTimeout() {

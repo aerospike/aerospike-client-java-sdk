@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2025 Aerospike, Inc.
+ * Copyright 2012-2026 Aerospike, Inc.
  *
  * Portions may be licensed to Aerospike, Inc. under one or more contributor
  * license agreements WHICH ARE COMPATIBLE WITH THE APACHE LICENSE, VERSION 2.0.
@@ -14,11 +14,15 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.aerospike.client.fluent;
+package com.aerospike.client.fluent.tend;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+
+import com.aerospike.client.fluent.AerospikeException;
+import com.aerospike.client.fluent.Host;
+import com.aerospike.client.fluent.Node;
 
 public final class Peers {
 	public final ArrayList<Peer> peers;

@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2025 Aerospike, Inc.
+ * Copyright 2012-2026 Aerospike, Inc.
  *
  * Portions may be licensed to Aerospike, Inc. under one or more contributor
  * license agreements WHICH ARE COMPATIBLE WITH THE APACHE LICENSE, VERSION 2.0.
@@ -14,7 +14,7 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.aerospike.client.fluent;
+package com.aerospike.client.fluent.tend;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
@@ -23,6 +23,16 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
+import com.aerospike.client.fluent.AdminCommand;
+import com.aerospike.client.fluent.AerospikeException;
+import com.aerospike.client.fluent.Cluster;
+import com.aerospike.client.fluent.ClusterDefinition;
+import com.aerospike.client.fluent.Connection;
+import com.aerospike.client.fluent.Host;
+import com.aerospike.client.fluent.Info;
+import com.aerospike.client.fluent.Log;
+import com.aerospike.client.fluent.Node;
+import com.aerospike.client.fluent.TlsBuilder;
 import com.aerospike.client.fluent.AdminCommand.LoginCommand;
 import com.aerospike.client.fluent.command.Buffer;
 import com.aerospike.client.fluent.util.Crypto;
@@ -30,15 +40,15 @@ import com.aerospike.client.fluent.util.Util;
 import com.aerospike.client.fluent.util.Version;
 
 public final class NodeValidator {
-	Node fallback;
-	String name;
-	Host primaryHost;
-	InetSocketAddress primaryAddress;
-	Connection primaryConn;
-	byte[] sessionToken;
-	long sessionExpiration;
-	int features;
-	Version version;
+	public Node fallback;
+	public String name;
+	public Host primaryHost;
+	public InetSocketAddress primaryAddress;
+	public Connection primaryConn;
+	public byte[] sessionToken;
+	public long sessionExpiration;
+	public int features;
+	public Version version;
 
 	/**
 	 * Return first valid node referenced by seed host aliases. In most cases, aliases
@@ -59,7 +69,7 @@ public final class NodeValidator {
 
 		for (InetAddress address : addresses) {
 			try {
-				validateAddress(cluster.def, address, host.tlsName, host.port, true);
+				validateAddress(cluster.getClusterDefinition(), address, host.tlsName, host.port, true);
 
 				Node node = new Node(cluster, this);
 
@@ -70,7 +80,7 @@ public final class NodeValidator {
 			catch (Throwable e) {
 				// Log exception and continue to next alias.
 				if (Log.debugEnabled()) {
-					Log.debug(cluster.context, "Address " + address + ' ' + host.port + " failed: " +
+					Log.debug(cluster.getLogContext(), "Address " + address + ' ' + host.port + " failed: " +
 						Util.getErrorMessage(e));
 				}
 
@@ -105,7 +115,7 @@ public final class NodeValidator {
 			throw e;
 		}
 
-		if (node.peersCount == 0) {
+		if (node.getPeersCount() == 0) {
 			// Node is suspect because multiple seeds are used and node does not have any peers.
 			if (fallback == null) {
 				fallback = node;
@@ -119,7 +129,7 @@ public final class NodeValidator {
 		// Node is valid. Drop fallback if it exists.
 		if (fallback != null) {
 			if (Log.infoEnabled()) {
-				Log.info(node.cluster.context, "Skip orphan node: " + fallback);
+				Log.info(node.getLogContext(), "Skip orphan node: " + fallback);
 			}
 			fallback.close();
 			fallback = null;
@@ -142,7 +152,7 @@ public final class NodeValidator {
 			catch (Throwable e) {
 				// Log exception and continue to next alias.
 				if (Log.debugEnabled()) {
-					Log.debug(def.context, "Address " + address + ' ' + host.port + " failed: " +
+					Log.debug(def.getContext(), "Address " + address + ' ' + host.port + " failed: " +
 						Util.getErrorMessage(e));
 				}
 
@@ -175,12 +185,12 @@ public final class NodeValidator {
 	private void validateAddress(
 		ClusterDefinition def, InetAddress address, String tlsName, int port, boolean detectLoadBalancer
 	) throws Exception {
-		TlsBuilder tls = def.tlsBuilder;
+		TlsBuilder tls = def.getTlsBuilder();
 
 		InetSocketAddress socketAddress = new InetSocketAddress(address, port);
 		Connection conn = (tls != null) ?
-			new Connection(tls, tlsName, socketAddress, def.tendTimeout) :
-			new Connection(socketAddress, def.tendTimeout);
+			new Connection(tls, tlsName, socketAddress, def.getTendTimeout()) :
+			new Connection(socketAddress, def.getTendTimeout());
 
 		try {
 			if (def.isAuthEnabled()) {
@@ -189,7 +199,7 @@ public final class NodeValidator {
 				sessionToken = admin.sessionToken;
 				sessionExpiration = admin.sessionExpiration;
 
-				if (def.tlsBuilder != null && def.tlsBuilder.isForLoginOnly()) {
+				if (def.getTlsBuilder() != null && def.getTlsBuilder().isForLoginOnly()) {
 					// Switch to using non-TLS socket.
 					SwitchClear sc = new SwitchClear(def, conn, sessionToken);
 					conn.close();
@@ -218,9 +228,9 @@ public final class NodeValidator {
 				}
 				else {
 					// Seed may be load balancer with changing address. Determine real address.
-					addressCommand = (def.tlsBuilder != null)?
-						def.useServicesAlternate ? "service-tls-alt" : "service-tls-std" :
-						def.useServicesAlternate ? "service-clear-alt" : "service-clear-std";
+					addressCommand = (def.getTlsBuilder() != null)?
+						def.isUseServicesAlternate() ? "service-tls-alt" : "service-tls-std" :
+						def.isUseServicesAlternate() ? "service-clear-alt" : "service-clear-std";
 
 					commands.add(addressCommand);
 				}
@@ -258,11 +268,11 @@ public final class NodeValidator {
 	private String getB64userAgent(ClusterDefinition def) {
 		String appIdValue;
 
-		if (def.appId != null) {
-			appIdValue = def.appId;
+		if (def.getAppId() != null) {
+			appIdValue = def.getAppId();
 		}
 		else {
-			byte[] userBytes = def.userName;
+			byte[] userBytes = def.getUserName();
 
 			if (userBytes != null && userBytes.length > 0) {
 				appIdValue = Buffer.utf8ToString(userBytes, 0, userBytes.length);
@@ -272,7 +282,7 @@ public final class NodeValidator {
 			}
 		}
 
-		String userAgent = "1,java-" + def.clientVersion + "," + appIdValue;
+		String userAgent = "1,java-" + def.getClientVersion() + "," + appIdValue;
 
 		return Crypto.encodeBase64(userAgent.getBytes());
 	}
@@ -316,15 +326,15 @@ public final class NodeValidator {
 	private void processClusterName(ClusterDefinition def, HashMap<String,String> map) {
 		String name = map.get("cluster-name");
 
-		if (def.clusterName == null || def.clusterName.isEmpty()) {
+		if (def.getClusterName() == null || def.getClusterName().isEmpty()) {
 			// User did not provide clusterName, so use server clusterName.
-			def.clusterName = name;
+			def.clusterName(name);
 		}
 		else {
 			// Ensure clusterName is consistent across client and all server nodes.
-			if (name == null || !def.clusterName.equals(name)) {
+			if (name == null || !def.getClusterName().equals(name)) {
 				throw new AerospikeException.InvalidNode("Node " + this.name + ' ' + this.primaryHost +
-					" expected cluster name '" + def.clusterName + "' received '" + name + "'");
+					" expected cluster name '" + def.getClusterName() + "' received '" + name + "'");
 			}
 		}
 	}
@@ -347,8 +357,8 @@ public final class NodeValidator {
 		for (Host host : hosts) {
 			h = host;
 
-			if (def.ipMap != null) {
-				String alt = def.ipMap.get(h.name);
+			if (def.getIpMap() != null) {
+				String alt = def.getIpMap().get(h.name);
 
 				if (alt != null) {
 					h = new Host(alt, h.port);
@@ -367,8 +377,8 @@ public final class NodeValidator {
 			try {
 				h = host;
 
-				if (def.ipMap != null) {
-					String alt = def.ipMap.get(h.name);
+				if (def.getIpMap() != null) {
+					String alt = def.getIpMap().get(h.name);
 
 					if (alt != null) {
 						h = new Host(alt, h.port);
@@ -380,9 +390,9 @@ public final class NodeValidator {
 				for (InetAddress address : addresses) {
 					try {
 						InetSocketAddress socketAddress = new InetSocketAddress(address, h.port);
-						Connection conn = (def.tlsBuilder != null) ?
-							new Connection(def.tlsBuilder, tlsName, socketAddress, def.tendTimeout) :
-							new Connection(socketAddress, def.tendTimeout);
+						Connection conn = (def.getTlsBuilder() != null) ?
+							new Connection(def.getTlsBuilder(), tlsName, socketAddress, def.getTendTimeout()) :
+							new Connection(socketAddress, def.getTendTimeout());
 
 						try {
 							if (this.sessionToken != null) {
@@ -416,7 +426,7 @@ public final class NodeValidator {
 		// because the server access-address is not configured.  Log warning and continue
 		// with original seed.
 		if (Log.infoEnabled()) {
-			Log.info(def.context, "Invalid address " + result + ". access-address is probably not configured on server.");
+			Log.info(def.getContext(), "Invalid address " + result + ". access-address is probably not configured on server.");
 		}
 	}
 
@@ -428,7 +438,7 @@ public final class NodeValidator {
 		// Switch from TLS connection to non-TLS connection.
 		private SwitchClear(ClusterDefinition def, Connection conn, byte[] sessionToken) throws Exception {
 			// Obtain non-TLS addresses.
-			String command = def.useServicesAlternate ? "service-clear-alt" : "service-clear-std";
+			String command = def.isUseServicesAlternate() ? "service-clear-alt" : "service-clear-std";
 			String result = Info.request(conn, command);
 			List<Host> hosts = Host.parseServiceHosts(result);
 			Host clearHost;
@@ -438,8 +448,8 @@ public final class NodeValidator {
 				try {
 					clearHost = host;
 
-					if (def.ipMap != null) {
-						String alternativeHost = def.ipMap.get(clearHost.name);
+					if (def.getIpMap() != null) {
+						String alternativeHost = def.getIpMap().get(clearHost.name);
 
 						if (alternativeHost != null) {
 							clearHost = new Host(alternativeHost, clearHost.port);
@@ -452,7 +462,7 @@ public final class NodeValidator {
 						try {
 							clearAddress = ia;
 							clearSocketAddress = new InetSocketAddress(clearAddress, clearHost.port);
-							clearConn = new Connection(clearSocketAddress, def.tendTimeout);
+							clearConn = new Connection(clearSocketAddress, def.getTendTimeout());
 
 							try {
 								if (sessionToken != null) {

@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2025 Aerospike, Inc.
+ * Copyright 2012-2026 Aerospike, Inc.
  *
  * Portions may be licensed to Aerospike, Inc. under one or more contributor
  * license agreements WHICH ARE COMPATIBLE WITH THE APACHE LICENSE, VERSION 2.0.
@@ -21,6 +21,7 @@ import java.util.List;
 import com.aerospike.client.fluent.command.BatchRecord;
 import com.aerospike.client.fluent.command.Command;
 import com.aerospike.client.fluent.command.CommitError;
+import com.aerospike.client.fluent.tend.Partition;
 
 public class AerospikeException extends RuntimeException {
 	private static final long serialVersionUID = 1L;

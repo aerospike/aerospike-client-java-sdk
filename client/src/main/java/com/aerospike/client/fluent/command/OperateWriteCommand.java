@@ -20,9 +20,9 @@ import com.aerospike.client.fluent.Cluster;
 import com.aerospike.client.fluent.Key;
 import com.aerospike.client.fluent.OpType;
 import com.aerospike.client.fluent.Operation;
-import com.aerospike.client.fluent.Partitions;
 import com.aerospike.client.fluent.exp.Expression;
 import com.aerospike.client.fluent.policy.Settings;
+import com.aerospike.client.fluent.tend.Partitions;
 
 public class OperateWriteCommand extends WriteCommand {
 	final Operation[] ops;

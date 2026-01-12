@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2025 Aerospike, Inc.
+ * Copyright 2012-2026 Aerospike, Inc.
  *
  * Portions may be licensed to Aerospike, Inc. under one or more contributor
  * license agreements WHICH ARE COMPATIBLE WITH THE APACHE LICENSE, VERSION 2.0.
@@ -14,11 +14,16 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.aerospike.client.fluent;
+package com.aerospike.client.fluent.tend;
 
 import java.util.HashMap;
 import java.util.concurrent.atomic.AtomicReferenceArray;
 
+import com.aerospike.client.fluent.AerospikeException;
+import com.aerospike.client.fluent.Connection;
+import com.aerospike.client.fluent.Info;
+import com.aerospike.client.fluent.Log;
+import com.aerospike.client.fluent.Node;
 import com.aerospike.client.fluent.command.Buffer;
 import com.aerospike.client.fluent.util.Crypto;
 
@@ -126,7 +131,7 @@ public final class PartitionParser extends Info {
 				}
 				else if (partitions.replicas.length != replicaCount) {
 					if (Log.infoEnabled()) {
-						Log.info(node.cluster.context, "Namespace " + namespace + " replication factor changed from " + partitions.replicas.length + " to " + replicaCount);
+						Log.info(node.getLogContext(), "Namespace " + namespace + " replication factor changed from " + partitions.replicas.length + " to " + replicaCount);
 					}
 
 					// Resize partition map.
@@ -188,7 +193,7 @@ public final class PartitionParser extends Info {
 
 					if (nodeOld != null && nodeOld != node) {
 						// Force previously mapped node to refresh it's partition map on next cluster tend.
-						nodeOld.partitionGeneration = -1;
+						nodeOld.resetPartitionGeneration();
 					}
 
 					// Use lazy set because there is only one producer thread. In addition,
@@ -200,7 +205,7 @@ public final class PartitionParser extends Info {
 				else {
 					if (!regimeError) {
 						if (Log.infoEnabled()) {
-							Log.info(node.cluster.context, node.toString() + " regime(" + regime + ") < old regime(" + regimeOld + ")");
+							Log.info(node.getLogContext(), node.toString() + " regime(" + regime + ") < old regime(" + regimeOld + ")");
 						}
 						regimeError = true;
 					}

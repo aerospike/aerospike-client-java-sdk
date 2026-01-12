@@ -19,11 +19,11 @@ package com.aerospike.client.fluent.command;
 import com.aerospike.client.fluent.Cluster;
 import com.aerospike.client.fluent.Key;
 import com.aerospike.client.fluent.OpType;
-import com.aerospike.client.fluent.Partition;
-import com.aerospike.client.fluent.Partitions;
 import com.aerospike.client.fluent.exp.Expression;
 import com.aerospike.client.fluent.policy.CommitLevel;
 import com.aerospike.client.fluent.policy.Settings;
+import com.aerospike.client.fluent.tend.Partition;
+import com.aerospike.client.fluent.tend.Partitions;
 
 public class WriteCommand extends Command {
 	final Key key;

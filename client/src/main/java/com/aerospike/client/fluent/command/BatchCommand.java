@@ -19,10 +19,10 @@ package com.aerospike.client.fluent.command;
 import java.util.List;
 
 import com.aerospike.client.fluent.Cluster;
-import com.aerospike.client.fluent.Partitions;
 import com.aerospike.client.fluent.exp.Expression;
 import com.aerospike.client.fluent.policy.Replica;
 import com.aerospike.client.fluent.policy.Settings;
+import com.aerospike.client.fluent.tend.Partitions;
 
 public class BatchCommand extends Command {
 	final Partitions partitions;

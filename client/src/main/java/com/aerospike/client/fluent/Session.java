@@ -32,6 +32,7 @@ import com.aerospike.client.fluent.query.IndexCollectionType;
 import com.aerospike.client.fluent.query.KeyBasedQueryBuilderInterface;
 import com.aerospike.client.fluent.query.QueryBuilder;
 import com.aerospike.client.fluent.task.IndexTask;
+import com.aerospike.client.fluent.tend.Partitions;
 import com.aerospike.client.fluent.util.Crypto;
 import com.aerospike.client.fluent.util.Pack;
 import com.aerospike.client.fluent.util.Version;

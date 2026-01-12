@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2025 Aerospike, Inc.
+ * Copyright 2012-2026 Aerospike, Inc.
  *
  * Portions may be licensed to Aerospike, Inc. under one or more contributor
  * license agreements WHICH ARE COMPATIBLE WITH THE APACHE LICENSE, VERSION 2.0.
@@ -14,7 +14,7 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.aerospike.client.fluent;
+package com.aerospike.client.fluent.tend;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -23,6 +23,12 @@ import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReferenceArray;
 
+import com.aerospike.client.fluent.AerospikeException;
+import com.aerospike.client.fluent.Cluster;
+import com.aerospike.client.fluent.ClusterDefinition;
+import com.aerospike.client.fluent.Host;
+import com.aerospike.client.fluent.Log;
+import com.aerospike.client.fluent.Node;
 import com.aerospike.client.fluent.util.ThreadLocalData;
 import com.aerospike.client.fluent.util.Util;
 
@@ -41,10 +47,10 @@ public class ClusterTend implements Runnable {
 	private volatile int invalidNodeCount;
 	private volatile boolean valid;
 
-    ClusterTend(Cluster cluster) {
+    public ClusterTend(Cluster cluster) {
     	this.cluster = cluster;
-    	this.def = cluster.def;
-    	this.seeds = cluster.def.getEffectiveHosts();
+    	this.def = cluster.getClusterDefinition();
+    	this.seeds = this.def.getEffectiveHosts();
 		this.nodesMap = new HashMap<String,Node>();
 
 		this.recoverCount = new AtomicInteger();
@@ -53,17 +59,18 @@ public class ClusterTend implements Runnable {
 
 	public void runThread() {
 		// Tend cluster until all nodes identified.
-		waitTillStabilized(def.failIfNotConnected);
+		waitTillStabilized(def.isFailIfNotConnected());
 
 		if (Log.debugEnabled()) {
 			for (Host host : seeds) {
-				Log.debug(cluster.context, "Add seed " + host);
+				Log.debug(cluster.getLogContext(), "Add seed " + host);
 			}
 		}
 
 		// Add other nodes as seeds, if they don't already exist.
-		ArrayList<Host> seedsToAdd = new ArrayList<Host>(cluster.nodes.length);
-		for (Node node : cluster.nodes) {
+		Node[] nodes = cluster.getNodes();
+		ArrayList<Host> seedsToAdd = new ArrayList<Host>(nodes.length);
+		for (Node node : nodes) {
 			Host host = node.getHost();
 			if (! findSeed(host)) {
 				seedsToAdd.add(host);
@@ -90,15 +97,15 @@ public class ClusterTend implements Runnable {
 			}
 			catch (Throwable e) {
 				if (Log.warnEnabled()) {
-					Log.warn(cluster.context, "Cluster tend failed: " + Util.getErrorMessage(e));
+					Log.warn(cluster.getLogContext(), "Cluster tend failed: " + Util.getErrorMessage(e));
 				}
 			}
 			// Sleep between polling intervals.
-			Util.sleep(def.tendInterval);
+			Util.sleep(def.getTendInterval());
 		}
 	}
 
-	void forceSingleNode() {
+	public void forceSingleNode() {
 		// Initialize tendThread, but do not start it.
 		valid = true;
 		tendThread = new Thread(this);
@@ -123,11 +130,12 @@ public class ClusterTend implements Runnable {
 		addNodes(nodesToAdd);
 
 		// Initialize partitionMaps.
-		Peers peers = new Peers(cluster.nodes.length + 16);
+		Node[] nodes = cluster.getNodes();
+		Peers peers = new Peers(nodes.length + 16);
 		node.refreshPartitions(peers);
 
 		// Set partition maps for all namespaces to point to same node.
-		for (Partitions partitions : cluster.partitionMap.values()) {
+		for (Partitions partitions : cluster.getPartitionMap().values()) {
 			for (AtomicReferenceArray<Node> nodeArray : partitions.replicas) {
 				int max = nodeArray.length();
 
@@ -148,14 +156,14 @@ public class ClusterTend implements Runnable {
 		// are added, so there is no need to call tend twice anymore.
 		tend(failIfNotConnected, true);
 
-		if (cluster.nodes.length == 0) {
+		if (cluster.getNodes().length == 0) {
 			String message = "Cluster seed(s) failed";
 
 			if (failIfNotConnected) {
 				throw new AerospikeException(message);
 			}
 			else {
-				Log.warn(cluster.context, message);
+				Log.warn(cluster.getLogContext(), message);
 			}
 		}
 	}
@@ -166,14 +174,12 @@ public class ClusterTend implements Runnable {
 	private void tend(boolean failIfNotConnected, boolean isInit) {
 		// All node additions/deletions are performed in tend thread.
 		// Initialize tend iteration node statistics.
-		Node[] nodes = cluster.nodes;
+		Node[] nodes = cluster.getNodes();
 		Peers peers = new Peers(nodes.length + 16);
 
 		// Clear node reference counts.
 		for (Node node : nodes) {
-			node.referenceCount = 0;
-			node.partitionChanged = false;
-			node.rebalanceChanged = false;
+			node.tendReset();
 		}
 
 		// If active nodes don't exist, seed cluster.
@@ -220,11 +226,11 @@ public class ClusterTend implements Runnable {
 
 		// Refresh partition map when necessary.
 		for (Node node : nodes) {
-			if (node.partitionChanged) {
+			if (node.isPartitionChanged()) {
 				node.refreshPartitions(peers);
 			}
 
-			if (node.rebalanceChanged) {
+			if (node.isRebalanceChanged()) {
 				node.refreshRacks();
 			}
 		}
@@ -239,7 +245,7 @@ public class ClusterTend implements Runnable {
 		}
 
 		// Reset connection error window for all nodes every connErrorWindow tend iterations.
-		if (tendCount % def.errorRateWindow == 0) {
+		if (tendCount % def.getNumTendIntervalsInErrorWindow() == 0) {
 			for (Node node : nodes) {
 				node.resetErrorRate();
 			}
@@ -257,17 +263,17 @@ public class ClusterTend implements Runnable {
 
 		// Convert config interval from a millisecond duration to the number of cluster tend
 		// iterations.
-		int interval = def.configInterval / def.tendInterval;
+		int interval = def.getConfigInterval() / def.getTendInterval();
 
 		// Check configuration file for updates.
-		if (def.configPath != null && tendCount % interval == 0) {
+		if (def.getConfigPath() != null && tendCount % interval == 0) {
 			try {
 				// TODO: Handle dynamic config.
 				//loadConfiguration();
 			}
 			catch (Throwable t) {
 				if (Log.warnEnabled()) {
-					Log.warn(cluster.context, "Dynamic configuration failed: " + t);
+					Log.warn(cluster.getLogContext(), "Dynamic configuration failed: " + t);
 				}
 			}
 		}
@@ -295,7 +301,7 @@ public class ClusterTend implements Runnable {
 			catch (Throwable e) {
 				peers.fail(seed);
 
-				if (seed.tlsName != null && def.tlsBuilder == null) {
+				if (seed.tlsName != null && def.getTlsBuilder() == null) {
 					// Fail immediately for known configuration errors like this.
 					throw new AerospikeException.Connection("Seed host tlsName '" + seed.tlsName +
 						"' defined but client tlsPolicy not enabled", e);
@@ -310,7 +316,7 @@ public class ClusterTend implements Runnable {
 				}
 				else {
 					if (Log.warnEnabled()) {
-						Log.warn(cluster.context, "Seed " + seed + " failed: " + Util.getErrorMessage(e));
+						Log.warn(cluster.getLogContext(), "Seed " + seed + " failed: " + Util.getErrorMessage(e));
 					}
 				}
 			}
@@ -401,7 +407,7 @@ public class ClusterTend implements Runnable {
 		// Add new seeds
 		for (Host host : hosts) {
 			if (Log.debugEnabled()) {
-				Log.debug(cluster.context, "Add seed " + host);
+				Log.debug(cluster.getLogContext(), "Add seed " + host);
 			}
 			seedArray[count++] = host;
 		}
@@ -422,15 +428,16 @@ public class ClusterTend implements Runnable {
 	private void findNodesToRemove(Peers peers) {
 		int refreshCount = peers.refreshCount;
 		HashSet<Node> removeNodes = peers.removeNodes;
+		Node[] nodes = cluster.getNodes();
 
-		for (Node node : cluster.nodes) {
+		for (Node node : nodes) {
 			if (! node.isActive()) {
 				// Inactive nodes must be removed.
 				removeNodes.add(node);
 				continue;
 			}
 
-			if (refreshCount == 0 && node.failures >= 5) {
+			if (refreshCount == 0 && node.getFailures() >= 5) {
 				// All node info requests failed and this node had 5 consecutive failures.
 				// Remove node.  If no nodes are left, seeds will be tried in next cluster
 				// tend iteration.
@@ -438,10 +445,10 @@ public class ClusterTend implements Runnable {
 				continue;
 			}
 
-			if (cluster.nodes.length > 1 && refreshCount >= 1 && node.referenceCount == 0) {
+			if (nodes.length > 1 && refreshCount >= 1 && node.getReferenceCount() == 0) {
 				// Node is not referenced by other nodes.
 				// Check if node responded to info request.
-				if (node.failures == 0) {
+				if (node.getFailures() == 0) {
 					// Node is alive, but not referenced by other nodes.  Check if mapped.
 					if (! findNodeInPartitionMap(node)) {
 						// Node doesn't have any partitions mapped to it.
@@ -458,7 +465,7 @@ public class ClusterTend implements Runnable {
 	}
 
 	private boolean findNodeInPartitionMap(Node filter) {
-		for (Partitions partitions : cluster.partitionMap.values()) {
+		for (Partitions partitions : cluster.getPartitionMap().values()) {
 			for (AtomicReferenceArray<Node> nodeArray : partitions.replicas) {
 				int max = nodeArray.length();
 
@@ -500,11 +507,12 @@ public class ClusterTend implements Runnable {
 	private void addNodes(HashMap<String,Node> nodesToAdd) {
 		// Add all nodes at once to avoid copying entire array multiple times.
 		// Create temporary nodes array.
-		Node[] nodeArray = new Node[cluster.nodes.length + nodesToAdd.size()];
+		Node[] nodes = cluster.getNodes();
+		Node[] nodeArray = new Node[nodes.length + nodesToAdd.size()];
 		int count = 0;
 
 		// Add existing nodes.
-		for (Node node : cluster.nodes) {
+		for (Node node : nodes) {
 			nodeArray[count++] = node;
 		}
 
@@ -520,7 +528,7 @@ public class ClusterTend implements Runnable {
 
 	private void addNode(Node node) {
 		if (Log.infoEnabled()) {
-			Log.info(cluster.context, "Add node " + node);
+			Log.info(cluster.getLogContext(), "Add node " + node);
 		}
 
 		nodesMap.put(node.getName(), node);
@@ -565,14 +573,15 @@ public class ClusterTend implements Runnable {
 		// Since nodes are only marked for deletion using node references in the nodes array,
 		// and the tend thread is the only thread modifying nodes, we are guaranteed that nodes
 		// in nodesToRemove exist.  Therefore, we know the final array size.
-		Node[] nodeArray = new Node[cluster.nodes.length - nodesToRemove.size()];
+		Node[] nodes = cluster.getNodes();
+		Node[] nodeArray = new Node[nodes.length - nodesToRemove.size()];
 		int count = 0;
 
 		// Add nodes that are not in remove list.
-		for (Node node : cluster.nodes) {
+		for (Node node : nodes) {
 			if (nodesToRemove.contains(node)) {
 				if (Log.infoEnabled()) {
-					Log.info(cluster.context, "Remove node " + node);
+					Log.info(cluster.getLogContext(), "Remove node " + node);
 				}
 			}
 			else {
@@ -583,7 +592,7 @@ public class ClusterTend implements Runnable {
 		// Do sanity check to make sure assumptions are correct.
 		if (count < nodeArray.length) {
 			if (Log.warnEnabled()) {
-				Log.warn(cluster.context, "Node remove mismatch. Expected " + nodeArray.length + " Received " + count);
+				Log.warn(cluster.getLogContext(), "Node remove mismatch. Expected " + nodeArray.length + " Received " + count);
 			}
 			// Resize array.
 			Node[] nodeArray2 = new Node[count];
@@ -649,6 +658,14 @@ public class ClusterTend implements Runnable {
 
 	public final boolean isActive() {
 		return valid;
+	}
+
+
+	/**
+	 * Return map of current nodes.
+	 */
+	public HashMap<String, Node> getNodesMap() {
+		return nodesMap;
 	}
 
 	/**

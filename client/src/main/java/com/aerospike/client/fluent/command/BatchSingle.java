@@ -25,11 +25,11 @@ import com.aerospike.client.fluent.Connection;
 import com.aerospike.client.fluent.Key;
 import com.aerospike.client.fluent.Node;
 import com.aerospike.client.fluent.Operation;
-import com.aerospike.client.fluent.Partition;
 import com.aerospike.client.fluent.Record;
 import com.aerospike.client.fluent.RecordResult;
 import com.aerospike.client.fluent.ResultCode;
 import com.aerospike.client.fluent.metrics.LatencyType;
+import com.aerospike.client.fluent.tend.Partition;
 
 public final class BatchSingle {
 /*

@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2025 Aerospike, Inc.
+ * Copyright 2012-2026 Aerospike, Inc.
  *
  * Portions may be licensed to Aerospike, Inc. under one or more contributor
  * license agreements WHICH ARE COMPATIBLE WITH THE APACHE LICENSE, VERSION 2.0.
@@ -14,9 +14,12 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.aerospike.client.fluent;
+package com.aerospike.client.fluent.tend;
 
 import java.util.concurrent.atomic.AtomicReferenceArray;
+
+import com.aerospike.client.fluent.Log;
+import com.aerospike.client.fluent.Node;
 
 public final class Partitions {
 	public final AtomicReferenceArray<Node>[] replicas;
@@ -62,5 +65,20 @@ public final class Partitions {
 		}
 		this.regimes = other.regimes;
 		this.scMode = other.scMode;
+	}
+
+	public void log(Log.Context context, String namespace) {
+		for (int i = 0; i < replicas.length; i++) {
+			AtomicReferenceArray<Node> nodeArray = replicas[i];
+			int max = nodeArray.length();
+
+			for (int j = 0; j < max; j++) {
+				Node node = nodeArray.get(j);
+
+				if (node != null) {
+					Log.info(context, namespace + ',' + i + ',' + j + ',' + node);
+				}
+			}
+		}
 	}
 }
