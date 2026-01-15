@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2025 Aerospike, Inc.
+ * Copyright 2012-2026 Aerospike, Inc.
  *
  * Portions may be licensed to Aerospike, Inc. under one or more contributor
  * license agreements WHICH ARE COMPATIBLE WITH THE APACHE LICENSE, VERSION 2.0.
@@ -56,6 +56,27 @@ public class Info {
 		try	{
 			Info info = new Info(node, conn, name);
 			String response = info.parseSingleResponse(name);
+			node.putConnection(conn);
+			return response;
+		}
+		catch (Throwable e) {
+			node.closeConnection(conn);
+			throw e;
+		}
+	}
+
+	/**
+	 * Get one info values by names from the specified database server node.
+	 * This method supports user authentication.
+	 *
+	 * @param node		server node
+	 * @param names		names of values to retrieve
+	 */
+	public static HashMap<String,String> request(Node node, String... names) {
+		Connection conn = node.getConnection(DEFAULT_TIMEOUT);
+
+		try	{
+			HashMap<String,String> response = request(conn, names);
 			node.putConnection(conn);
 			return response;
 		}
