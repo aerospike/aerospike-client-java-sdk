@@ -28,7 +28,6 @@ import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Options;
 
 import com.aerospike.client.fluent.policy.AuthMode;
-import com.aerospike.client.fluent.policy.Behavior;
 import com.aerospike.client.fluent.tend.Partitions;
 import com.aerospike.client.fluent.util.Version;
 
