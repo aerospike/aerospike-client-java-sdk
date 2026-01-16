@@ -20,7 +20,14 @@ import java.io.File;
 
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.platform.suite.api.SelectClasses;
+import org.junit.platform.suite.api.Suite;
 
+@Suite
+@SelectClasses({
+	AddTest.class,
+	PutGetTest.class
+})
 public class SuiteSync {
 	public static Cluster cluster = null;
 
