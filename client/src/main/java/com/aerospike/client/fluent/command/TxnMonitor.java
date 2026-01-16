@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2025 Aerospike, Inc.
+ * Copyright 2012-2026 Aerospike, Inc.
  *
  * Portions may be licensed to Aerospike, Inc. under one or more contributor
  * license agreements WHICH ARE COMPATIBLE WITH THE APACHE LICENSE, VERSION 2.0.
@@ -151,23 +151,14 @@ public final class TxnMonitor {
 		}
 	}
 
-    /*
-	private static void addWriteKeys(Txn txn, Cluster cluster, Settings policy, Operation[] ops) {
-		Key txnKey = getTxnMonitorKey(txn);
-		WritePolicy wp = copyTimeoutPolicy(policy);
-		OperateArgs args = new OperateArgs(ops);
-		TxnAddKeys cmd = new TxnAddKeys(cluster, txnKey, args, txn);
-		cmd.execute();
-	}
-        */
-
 	private static void addWriteKeys(
 		Txn txn, Cluster cluster, Partitions partitions, Settings policy, Operation[] ops
 	) {
 		Key txnKey = getTxnMonitorKey(txn);
 
+		OperateArgs args = new OperateArgs(ops);
         OperateWriteCommand cmd = new OperateWriteCommand(cluster, partitions, txn, txnKey, ops,
-        	OpType.UPSERT, 0, txn.getTimeout(), null, false, policy
+        	args, OpType.UPSERT, 0, txn.getTimeout(), null, false, policy
 			);
 
         SyncTxnAddKeysExecutor exec = new SyncTxnAddKeysExecutor(cluster, cmd);

@@ -37,8 +37,9 @@ import com.aerospike.client.fluent.command.BatchStatus;
 import com.aerospike.client.fluent.command.BatchWrite;
 import com.aerospike.client.fluent.command.BatchWriteCommand;
 import com.aerospike.client.fluent.command.IBatchCommand;
+import com.aerospike.client.fluent.command.OperateArgs;
 import com.aerospike.client.fluent.command.OperateWriteCommand;
-import com.aerospike.client.fluent.command.SyncOperateExecutor;
+import com.aerospike.client.fluent.command.OperateWriteExecutor;
 import com.aerospike.client.fluent.command.Txn;
 import com.aerospike.client.fluent.command.TxnMonitor;
 import com.aerospike.client.fluent.dsl.BooleanExpression;
@@ -710,11 +711,13 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
         Operation[] ops = getOperationsForValueData(valueSet);
         int ttl = getExpiration(valueSet);
 
-        OperateWriteCommand cmd = new OperateWriteCommand(cluster, partitions, txnToUse, key, ops, opBuilder.opType,
-                valueSet.generation, ttl, filterExp, opBuilder.failOnFilteredOut, policy);
+		OperateArgs args = new OperateArgs(ops);
+        OperateWriteCommand cmd = new OperateWriteCommand(cluster, partitions, txnToUse, key, ops,
+        	args, opBuilder.opType, valueSet.generation, ttl, filterExp,
+        	opBuilder.failOnFilteredOut, policy);
 
         try {
-            SyncOperateExecutor exec = new SyncOperateExecutor(cluster, cmd);
+            OperateWriteExecutor exec = new OperateWriteExecutor(cluster, cmd);
             exec.execute();
             return exec.getRecord();
         } catch (AerospikeException ae) {

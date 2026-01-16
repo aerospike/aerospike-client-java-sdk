@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2025 Aerospike, Inc.
+ * Copyright 2012-2026 Aerospike, Inc.
  *
  * Portions may be licensed to Aerospike, Inc. under one or more contributor
  * license agreements WHICH ARE COMPATIBLE WITH THE APACHE LICENSE, VERSION 2.0.
@@ -26,11 +26,11 @@ import com.aerospike.client.fluent.Record;
 import com.aerospike.client.fluent.ResultCode;
 import com.aerospike.client.fluent.metrics.LatencyType;
 
-public final class SyncReadExecutor extends SyncExecutor {
+public final class ReadExecutor extends SyncExecutor {
 	private final ReadCommand read;
 	private Record record;
 
-	public SyncReadExecutor(Cluster cluster, ReadCommand cmd) {
+	public ReadExecutor(Cluster cluster, ReadCommand cmd) {
 		super(cluster, cmd);
 		this.read = cmd;
 		cluster.addCommandCount();

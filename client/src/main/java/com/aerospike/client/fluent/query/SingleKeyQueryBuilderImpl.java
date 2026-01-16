@@ -13,7 +13,7 @@ import com.aerospike.client.fluent.ResultCode;
 import com.aerospike.client.fluent.Session;
 import com.aerospike.client.fluent.command.ReadAttr;
 import com.aerospike.client.fluent.command.ReadCommand;
-import com.aerospike.client.fluent.command.SyncReadExecutor;
+import com.aerospike.client.fluent.command.ReadExecutor;
 import com.aerospike.client.fluent.command.Txn;
 import com.aerospike.client.fluent.exp.Exp;
 import com.aerospike.client.fluent.exp.Expression;
@@ -99,7 +99,7 @@ class SingleKeyQueryBuilderImpl extends QueryImpl {
 			ReadCommand cmd = new ReadCommand(cluster, partitions, txn, key, qb.getBinNames(),
 				qb.getWithNoBins(), filterExp, failOnFilteredOut, policy, attr);
 
-        	SyncReadExecutor exec = new SyncReadExecutor(cluster, cmd);
+        	ReadExecutor exec = new ReadExecutor(cluster, cmd);
         	exec.execute();
 
         	Record record = exec.getRecord();

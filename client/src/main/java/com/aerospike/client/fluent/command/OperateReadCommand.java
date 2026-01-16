@@ -18,22 +18,20 @@ package com.aerospike.client.fluent.command;
 
 import com.aerospike.client.fluent.Cluster;
 import com.aerospike.client.fluent.Key;
-import com.aerospike.client.fluent.OpType;
 import com.aerospike.client.fluent.Operation;
 import com.aerospike.client.fluent.exp.Expression;
 import com.aerospike.client.fluent.policy.Settings;
 import com.aerospike.client.fluent.tend.Partitions;
 
-public class OperateWriteCommand extends WriteCommand {
+public class OperateReadCommand extends ReadCommand {
 	final Operation[] ops;
 	final OperateArgs args;
 
-	public OperateWriteCommand(
+	public OperateReadCommand(
 		Cluster cluster, Partitions partitions, Txn txn, Key key, Operation[] ops, OperateArgs args,
-		OpType type, int gen, int ttl, Expression filterExp, boolean failOnFilteredOut,
-		Settings policy
+		Expression filterExp, boolean failOnFilteredOut, Settings policy, ReadAttr attr
 	) {
-		super(cluster, partitions, txn, key, type, gen, ttl, filterExp, failOnFilteredOut, policy);
+		super(cluster, partitions, txn, key, null, false, filterExp, failOnFilteredOut, policy, attr);
 		this.ops = ops;
 		this.args = args;
 	}

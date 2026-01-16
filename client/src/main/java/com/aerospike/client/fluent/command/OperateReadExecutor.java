@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2025 Aerospike, Inc.
+ * Copyright 2012-2026 Aerospike, Inc.
  *
  * Portions may be licensed to Aerospike, Inc. under one or more contributor
  * license agreements WHICH ARE COMPATIBLE WITH THE APACHE LICENSE, VERSION 2.0.
@@ -26,35 +26,30 @@ import com.aerospike.client.fluent.Record;
 import com.aerospike.client.fluent.ResultCode;
 import com.aerospike.client.fluent.metrics.LatencyType;
 
-public class SyncOperateExecutor extends SyncExecutor {
-	final OperateWriteCommand operate;
+public class OperateReadExecutor extends SyncExecutor {
+	final OperateReadCommand operate;
 	private Record record;
 
-	public SyncOperateExecutor(Cluster cluster, OperateWriteCommand cmd) {
+	public OperateReadExecutor(Cluster cluster, OperateReadCommand cmd) {
 		super(cluster, cmd);
 		this.operate = cmd;
 		cluster.addCommandCount();
 	}
 
 	@Override
-	protected final boolean isWrite() {
-		return true;
-	}
-
-	@Override
 	protected final Node getNode() {
-		return operate.partition.getNodeWrite(cluster);
+		return operate.partition.getNodeRead(cluster);
 	}
 
 	@Override
 	protected final LatencyType getLatencyType() {
-		return LatencyType.WRITE;
+		return LatencyType.READ;
 	}
 
 	@Override
 	protected CommandBuffer getCommandBuffer() {
 		CommandBuffer cb = new CommandBuffer();
-		cb.setOperate(operate);
+		cb.setOperateRead(operate);
 		return cb;
 	}
 
@@ -84,15 +79,8 @@ public class SyncOperateExecutor extends SyncExecutor {
 
 	@Override
 	protected final boolean prepareRetry(boolean timeout) {
-		operate.partition.prepareRetryWrite(timeout);
+		operate.partition.prepareRetryRead(timeout);
 		return true;
-	}
-
-	@Override
-	protected void onInDoubt() {
-		if (cmd.txn != null) {
-			cmd.txn.onWriteInDoubt(operate.key);
-		}
 	}
 
 	public final Record getRecord() {

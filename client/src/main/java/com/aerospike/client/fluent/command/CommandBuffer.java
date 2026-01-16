@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2025 Aerospike, Inc.
+ * Copyright 2012-2026 Aerospike, Inc.
  *
  * Portions may be licensed to Aerospike, Inc. under one or more contributor
  * license agreements WHICH ARE COMPATIBLE WITH THE APACHE LICENSE, VERSION 2.0.
@@ -49,21 +49,48 @@ public final class CommandBuffer {
 	// Operate
 	//--------------------------------------------------
 
-	public void setOperate(OperateWriteCommand cmd) {
+	public void setOperateWrite(OperateWriteCommand cmd) {
 		begin();
-		int fieldCount = estimateKeySize(cmd, cmd.key, cmd.hasWrite);
+		OperateArgs args = cmd.args;
+		int fieldCount = estimateKeySize(cmd, cmd.key, args.hasWrite);
 
 		if (cmd.filterExp != null) {
 			sizeFieldExpression(cmd.filterExp);
 			fieldCount++;
 		}
-		dataOffset += cmd.size;
+		dataOffset += args.size;
 		sizeBuffer();
 
-		// Operate() is currently defined as only write operations.
-		writeHeaderWrite(cmd, cmd.readAttr, cmd.writeAttr, fieldCount, cmd.ops.length);
+		writeHeaderWrite(cmd, args.readAttr, args.writeAttr, fieldCount, cmd.ops.length);
 
-		writeKey(cmd, cmd.key, cmd.hasWrite);
+		writeKey(cmd, cmd.key, args.hasWrite);
+
+		if (cmd.filterExp != null) {
+			writeFieldExpression(cmd.filterExp);
+		}
+
+		for (Operation op : cmd.ops) {
+			writeOperation(op);
+		}
+		end();
+		compress(cmd);
+	}
+
+	public void setOperateRead(OperateReadCommand cmd) {
+		begin();
+		OperateArgs args = cmd.args;
+		int fieldCount = estimateKeySize(cmd, cmd.key, args.hasWrite);
+
+		if (cmd.filterExp != null) {
+			sizeFieldExpression(cmd.filterExp);
+			fieldCount++;
+		}
+		dataOffset += args.size;
+		sizeBuffer();
+
+		writeHeaderRead(cmd, args.readAttr, args.writeAttr, 0, fieldCount, cmd.ops.length);
+
+		writeKey(cmd, cmd.key, args.hasWrite);
 
 		if (cmd.filterExp != null) {
 			writeFieldExpression(cmd.filterExp);
@@ -107,7 +134,7 @@ public final class CommandBuffer {
 
 		sizeBuffer();
 
-		writeHeaderRead(cmd, cmd.serverTimeout, Command.INFO1_READ | Command.INFO1_NOBINDATA, 0, 0, fieldCount, 0);
+		writeHeaderRead(cmd, Command.INFO1_READ | Command.INFO1_NOBINDATA, 0, 0, fieldCount, 0);
 		writeKey(cmd, cmd.key, false);
 
 		if (cmd.filterExp != null) {
@@ -164,7 +191,7 @@ public final class CommandBuffer {
 		}
 
 		sizeBuffer();
-		writeHeaderRead(cmd, cmd.serverTimeout, readAttr, 0, 0, fieldCount, opCount);
+		writeHeaderRead(cmd, readAttr, 0, 0, fieldCount, opCount);
 		writeKey(cmd, cmd.key, false);
 
 		if (cmd.filterExp != null) {
@@ -1219,14 +1246,15 @@ public final class CommandBuffer {
 
 	public void setTxnAddKeys(OperateWriteCommand cmd) {
 		begin();
+		OperateArgs args = cmd.args;
 		int fieldCount = estimateKeySize(cmd.key);
-		dataOffset += cmd.size;
+		dataOffset += args.size;
 
 		sizeBuffer();
 
 		dataBuffer[8]  = Command.MSG_REMAINING_HEADER_SIZE;
-		dataBuffer[9]  = (byte)cmd.readAttr;
-		dataBuffer[10] = (byte)cmd.writeAttr;
+		dataBuffer[9]  = (byte)args.readAttr;
+		dataBuffer[10] = (byte)args.writeAttr;
 		dataBuffer[11] = (byte)0;
 		dataBuffer[12] = 0;
 		dataBuffer[13] = 0;
@@ -1608,8 +1636,8 @@ public final class CommandBuffer {
 	}
 
 	private void writeHeaderRead(
-		ReadCommand cmd, int timeout, int readAttr, int writeAttr, int infoAttr, int fieldCount,
-		int operationCount
+		ReadCommand cmd, int readAttr, int writeAttr, int infoAttr, int fieldCount,
+		int opCount
 	) {
 		switch (cmd.readModeSC) {
 		case SESSION:
@@ -1643,9 +1671,9 @@ public final class CommandBuffer {
 			dataBuffer[i] = 0;
 		}
 		Buffer.intToBytes(cmd.readTouchTtlPercent, dataBuffer, 18);
-		Buffer.intToBytes(timeout, dataBuffer, 22);
+		Buffer.intToBytes(cmd.serverTimeout, dataBuffer, 22);
 		Buffer.shortToBytes(fieldCount, dataBuffer, 26);
-		Buffer.shortToBytes(operationCount, dataBuffer, 28);
+		Buffer.shortToBytes(opCount, dataBuffer, 28);
 		dataOffset = Command.MSG_TOTAL_HEADER_SIZE;
 	}
 

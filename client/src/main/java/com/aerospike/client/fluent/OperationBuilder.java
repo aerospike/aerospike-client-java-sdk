@@ -1,18 +1,45 @@
+/*
+ * Copyright 2012-2026 Aerospike, Inc.
+ *
+ * Portions may be licensed to Aerospike, Inc. under one or more contributor
+ * license agreements WHICH ARE COMPATIBLE WITH THE APACHE LICENSE, VERSION 2.0.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy of
+ * the License at http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
+ */
 package com.aerospike.client.fluent;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
 
+import com.aerospike.client.fluent.command.OperateArgs;
+import com.aerospike.client.fluent.command.OperateReadCommand;
+import com.aerospike.client.fluent.command.OperateReadExecutor;
+import com.aerospike.client.fluent.command.OperateWriteCommand;
+import com.aerospike.client.fluent.command.ReadAttr;
+import com.aerospike.client.fluent.command.OperateWriteExecutor;
 import com.aerospike.client.fluent.command.Txn;
+import com.aerospike.client.fluent.command.TxnMonitor;
 import com.aerospike.client.fluent.dsl.BooleanExpression;
 import com.aerospike.client.fluent.exp.Exp;
+import com.aerospike.client.fluent.exp.Expression;
 import com.aerospike.client.fluent.policy.Behavior.OpKind;
 import com.aerospike.client.fluent.policy.Behavior.OpShape;
 import com.aerospike.client.fluent.policy.Settings;
 import com.aerospike.client.fluent.query.PreparedDsl;
 import com.aerospike.client.fluent.query.WhereClauseProcessor;
+import com.aerospike.client.fluent.tend.Partitions;
 
 public class OperationBuilder extends AbstractOperationBuilder<OperationBuilder> implements FilterableOperation<OperationBuilder> {
     private final List<Key> keys;
@@ -53,9 +80,9 @@ public class OperationBuilder extends AbstractOperationBuilder<OperationBuilder>
         return BATCH_OPERATION_THRESHOLD;
     }
 
-    public static boolean areOperationsRetryable(Operation[] operations) {
-        for (Operation operation : operations) {
-            switch (operation.type) {
+    public static boolean areOperationsRetryable(Operation[] ops) {
+        for (Operation op : ops) {
+            switch (op.type) {
             case ADD:
             case APPEND:
             case PREPEND:
@@ -338,11 +365,6 @@ public class OperationBuilder extends AbstractOperationBuilder<OperationBuilder>
         return super.getExpirationAsInt(effectiveExpiration);
     }
 
-    protected Settings getSettings(boolean retryable) {
-        return session.getBehavior()
-                .getSettings(retryable? OpKind.WRITE_RETRYABLE : OpKind.WRITE_NON_RETRYABLE, OpShape.POINT, session.isNamespaceSC(keys.get(0).namespace));
-    }
-
     @Override
     public OperationBuilder where(String dsl, Object ... params) {
         setWhereClause(createWhereClauseProcessor(false, dsl, params));
@@ -398,24 +420,21 @@ public class OperationBuilder extends AbstractOperationBuilder<OperationBuilder>
      * @return RecordStream containing the results
      */
     public RecordStream executeSync() {
-    	/*
         if (Log.debugEnabled()) {
             Log.debug("OperationBuilder.executeSync() called for " + keys.size() + " key(s), transaction: " +
                      (txnToUse != null ? "yes" : "no"));
         }
 
         Operation[] operations = ops.toArray(new Operation[0]);
-        boolean retryable = OperationBuilder.areOperationsRetryable(operations);
-        Settings settings = getSettings(retryable);
 
         // Use batch operations if 10 or more keys
         if (keys.size() >= getBatchOperationThreshold()) {
-            return executeBatchSync(settings, operations);
-        } else {
-            return executeIndividualParallelSync(settings, operations, keys);
+            //return executeBatchSync(settings, operations);
+        	return null;
         }
-        */
-    	return null;
+        else {
+            return executeIndividualSync(operations);
+        }
     }
 
     /**
@@ -519,12 +538,151 @@ public class OperationBuilder extends AbstractOperationBuilder<OperationBuilder>
     	return null;
     }
 
-    protected void showWarningsOnExceptionAndThrow(AerospikeException ae, Txn txn, Key key, int expiration) {
+    /**
+     * Execute operations synchronously for individual keys (< batch threshold). All
+     * virtual threads are joined before returning.
+     */
+    private RecordStream executeIndividualSync(Operation[] operations) {
+        if (keys.size() == 0) {
+            return new RecordStream();
+        }
+
+    	OperateArgs args = new OperateArgs(operations);
+        Cluster cluster = session.getCluster();
+
+        // Assume all keys have the same namespace.
+        Key firstKey = keys.get(0);
+        Partitions partitions = getPartitions(cluster, firstKey.namespace);
+        Settings settings = getSettings(partitions, operations);
+
+        final Expression filterExp = processWhereClause(keys.get(0).namespace, session);
+
+        if (txnToUse != null) {
+            if (args.hasWrite) {
+            	TxnMonitor.addKeys(txnToUse, cluster, partitions, settings, keys);
+            }
+            else {
+            	txnToUse.prepareRead(firstKey.namespace);
+            }
+        }
+
+        if (keys.size() == 1) {
+            try {
+                Record rec = operate(cluster, partitions, operations, settings, filterExp, firstKey, args);
+                if (respondAllKeys || rec != null) {
+                    return new RecordStream(firstKey, rec);
+                }
+            }
+            catch (AerospikeException ae) {
+                if (shouldPublishException(ae)) {
+                    if (ae.getResultCode() != ResultCode.FILTERED_OUT) {
+                        showWarningsOnException(ae, txnToUse, firstKey, (int)expirationInSecondsForAll);
+                    }
+                    return new RecordStream(new RecordResult(firstKey, ae, 0));
+                }
+            }
+            return new RecordStream();
+
+        } else {
+            // Run multiple keys in parallel and join.
+            @SuppressWarnings("resource")
+			AsyncRecordStream stream = new AsyncRecordStream(keys.size());
+            try (ExecutorService es = cluster.getExecutorService()) {
+                for (int i = 0; i < keys.size(); i++) {
+                    final Key key = keys.get(i);
+                    final int idx = i;
+
+                    es.submit(() -> {
+                        try {
+                            Record record = operate(cluster, partitions, operations, settings, filterExp, key, args);
+                            if (respondAllKeys || record != null) {
+                                stream.publish(new RecordResult(key, record, idx));
+                            }
+                        } catch (AerospikeException ae) {
+                            if (shouldPublishException(ae)) {
+                                if (ae.getResultCode() != ResultCode.FILTERED_OUT) {
+                                    showWarningsOnException(ae, txnToUse, key, (int)expirationInSecondsForAll);
+                                }
+                                stream.publish(new RecordResult(key, ae, idx));
+                            }
+                        }
+
+                    });
+                }
+            }
+            return new RecordStream(stream.complete());
+        }
+    }
+
+    private Record operate(
+    	Cluster cluster, Partitions partitions, Operation[] operations, Settings settings,
+    	Expression filterExp, Key key, OperateArgs args
+    ) {
+    	if (args.hasWrite) {
+            OperateWriteCommand cmd = new OperateWriteCommand(cluster, partitions, txnToUse, key,
+            	operations, args, opType, generation, (int)expirationInSecondsForAll, filterExp,
+            	failOnFilteredOut, settings);
+
+            try {
+                OperateWriteExecutor exec = new OperateWriteExecutor(cluster, cmd);
+                exec.execute();
+                return exec.getRecord();
+            }
+            catch (AerospikeException ae) {
+                if (ae.getResultCode() == ResultCode.FILTERED_OUT) {
+                    throw ae;
+                }
+                else {
+                    showWarningsOnExceptionAndThrow(ae, txnToUse, key, (int)expirationInSecondsForAll);
+                    return null;
+                }
+            }
+    	}
+    	else {
+    		ReadAttr attr = new ReadAttr(partitions, settings);
+            OperateReadCommand cmd = new OperateReadCommand(cluster, partitions, txnToUse, key,
+            	operations, args, filterExp, failOnFilteredOut, settings, attr);
+
+            try {
+                OperateReadExecutor exec = new OperateReadExecutor(cluster, cmd);
+                exec.execute();
+                return exec.getRecord();
+            }
+            catch (AerospikeException ae) {
+                if (ae.getResultCode() == ResultCode.FILTERED_OUT) {
+                    throw ae;
+                }
+                else {
+                    showWarningsOnExceptionAndThrow(ae, txnToUse, key, 0);
+                    return null;
+                }
+            }
+    	}
+    }
+
+    private Partitions getPartitions(Cluster cluster, String namespace) {
+        HashMap<String, Partitions> partitionMap = cluster.getPartitionMap();
+        Partitions partitions = partitionMap.get(namespace);
+
+        if (partitions == null) {
+            throw new AerospikeException.InvalidNamespace(namespace, partitionMap.size());
+        }
+        return partitions;
+    }
+
+    private Settings getSettings(Partitions partitions, Operation[] operations) {
+        OpKind kind = OperationBuilder.areOperationsRetryable(operations)?
+        	OpKind.WRITE_RETRYABLE : OpKind.WRITE_NON_RETRYABLE;
+
+        return session.getBehavior().getSettings(kind, OpShape.POINT, partitions.scMode);
+    }
+
+    void showWarningsOnExceptionAndThrow(AerospikeException ae, Txn txn, Key key, int expiration) {
         showWarningsOnException(ae, txn, key, expiration);
         throw ae;
     }
 
-    protected void showWarningsOnException(AerospikeException ae, Txn txn, Key key, int expiration) {
+    void showWarningsOnException(AerospikeException ae, Txn txn, Key key, int expiration) {
         if (Log.warnEnabled()) {
             if (ae.getResultCode() == ResultCode.FAIL_FORBIDDEN && expiration > 0) {
                 Log.warn("Operation failed on server with FAIL_FORBIDDEN (22) and the record had "

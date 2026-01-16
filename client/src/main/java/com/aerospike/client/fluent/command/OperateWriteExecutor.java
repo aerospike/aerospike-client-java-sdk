@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2025 Aerospike, Inc.
+ * Copyright 2012-2026 Aerospike, Inc.
  *
  * Portions may be licensed to Aerospike, Inc. under one or more contributor
  * license agreements WHICH ARE COMPATIBLE WITH THE APACHE LICENSE, VERSION 2.0.
@@ -22,37 +22,80 @@ import com.aerospike.client.fluent.AerospikeException;
 import com.aerospike.client.fluent.Cluster;
 import com.aerospike.client.fluent.Connection;
 import com.aerospike.client.fluent.Node;
+import com.aerospike.client.fluent.Record;
 import com.aerospike.client.fluent.ResultCode;
+import com.aerospike.client.fluent.metrics.LatencyType;
 
-public final class SyncTxnAddKeysExecutor extends OperateWriteExecutor {
-	public SyncTxnAddKeysExecutor(Cluster cluster, OperateWriteCommand cmd) {
+public class OperateWriteExecutor extends SyncExecutor {
+	final OperateWriteCommand operate;
+	private Record record;
+
+	public OperateWriteExecutor(Cluster cluster, OperateWriteCommand cmd) {
 		super(cluster, cmd);
+		this.operate = cmd;
+		cluster.addCommandCount();
+	}
+
+	@Override
+	protected final boolean isWrite() {
+		return true;
+	}
+
+	@Override
+	protected final Node getNode() {
+		return operate.partition.getNodeWrite(cluster);
+	}
+
+	@Override
+	protected final LatencyType getLatencyType() {
+		return LatencyType.WRITE;
 	}
 
 	@Override
 	protected CommandBuffer getCommandBuffer() {
 		CommandBuffer cb = new CommandBuffer();
-		cb.setTxnAddKeys(operate);
+		cb.setOperateWrite(operate);
 		return cb;
 	}
 
 	@Override
 	protected void parseResult(Node node, Connection conn, byte[] buffer) throws IOException {
 		RecordParser rp = new RecordParser(conn, buffer);
-		rp.parseTranDeadline(cmd.txn);
+		rp.parseFields(cmd.txn, operate.key, true);
 
 		if (node.isMetricsEnabled()) {
 			node.addBytesIn(cmd.namespace, rp.bytesIn);
 		}
 
 		if (rp.resultCode == ResultCode.OK) {
+			record = rp.parseRecord(true);
 			return;
 		}
 
-		throw new AerospikeException(rp.resultCode, "Server error");
+		if (rp.resultCode == ResultCode.FILTERED_OUT) {
+			if (operate.failOnFilteredOut) {
+				throw new AerospikeException(rp.resultCode);
+			}
+			return;
+		}
+
+		throw new AerospikeException(rp.resultCode);
+	}
+
+	@Override
+	protected final boolean prepareRetry(boolean timeout) {
+		operate.partition.prepareRetryWrite(timeout);
+		return true;
 	}
 
 	@Override
 	protected void onInDoubt() {
+		if (cmd.txn != null) {
+			cmd.txn.onWriteInDoubt(operate.key);
+		}
+	}
+
+	public final Record getRecord() {
+		return record;
 	}
 }
