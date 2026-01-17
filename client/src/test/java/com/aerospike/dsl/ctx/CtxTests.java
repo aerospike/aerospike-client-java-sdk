@@ -9,7 +9,7 @@ import static com.aerospike.dsl.util.TestUtils.parseCtx;
 import static com.aerospike.dsl.util.TestUtils.parseCtxAndCompareAsBase64;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-class CtxTests {
+public class CtxTests {
 
     @Test
     void listExpression_onlyBin_noCtx() {

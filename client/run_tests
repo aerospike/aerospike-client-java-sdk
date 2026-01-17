@@ -1,7 +1,14 @@
 #!/bin/bash
 
+hastest=false
+
 for i in $*
 do
+  if [[ $i == -Dtest=* ]]
+  then
+    hastest=true
+  fi
+    
   if [[ $i == -D* ]]
   then
     def="$def $i"
@@ -9,5 +16,11 @@ do
     arg="$arg $i"
   fi
 done
+
+if [ "$hastest" = false ]
+then
+    # Run all tests
+    def="$def -Dtest=SuiteAll"
+fi
 
 mvn test -DskipTests=false $def -Dargs="$arg"

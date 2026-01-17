@@ -1,4 +1,4 @@
-package com.aerospike.client.fluent;
+package com.aerospike.client.fluent.policy;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -10,6 +10,9 @@ import java.time.Duration;
 
 import org.junit.jupiter.api.Test;
 
+import com.aerospike.client.fluent.AbstractSessionOperationBuilder;
+import com.aerospike.client.fluent.OpType;
+import com.aerospike.client.fluent.Session;
 import com.aerospike.client.fluent.command.Txn;
 import com.aerospike.client.fluent.policy.CommitLevel;
 import com.aerospike.client.fluent.policy.ReadModeAP;

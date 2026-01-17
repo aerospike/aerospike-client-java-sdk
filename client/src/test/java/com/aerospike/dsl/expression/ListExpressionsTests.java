@@ -14,7 +14,7 @@ import java.util.List;
 import static com.aerospike.dsl.util.TestUtils.parseFilterExp;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-class ListExpressionsTests {
+public class ListExpressionsTests {
 
     @Test
     void listByIndexInteger() {

@@ -16,6 +16,22 @@
  */
 package com.aerospike.client.fluent;
 
-public class TestBase {
-	protected static Args args = Args.Instance;
+import org.junit.platform.suite.api.SelectClasses;
+import org.junit.platform.suite.api.Suite;
+
+import com.aerospike.client.fluent.policy.AsyncRecordStreamTest;
+import com.aerospike.client.fluent.policy.BehaviorTest;
+import com.aerospike.client.fluent.policy.BehaviorYamlTest;
+import com.aerospike.client.fluent.policy.FluentApiSettingsTest;
+import com.aerospike.client.fluent.policy.SystemBehaviorTest;
+
+@Suite
+@SelectClasses({
+	AsyncRecordStreamTest.class,
+	BehaviorTest.class,
+	BehaviorYamlTest.class,
+	FluentApiSettingsTest.class,
+	SystemBehaviorTest.class,
+})
+public class SuiteCore {
 }

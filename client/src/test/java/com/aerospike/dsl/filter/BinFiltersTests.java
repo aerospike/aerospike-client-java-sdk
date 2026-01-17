@@ -13,7 +13,7 @@ import static com.aerospike.dsl.util.TestUtils.parseFilter;
 import static com.aerospike.dsl.util.TestUtils.parseFilterAndCompare;
 import static org.assertj.core.api.Assertions.assertThat;
 
-class BinFiltersTests {
+public class BinFiltersTests {
 
     String NAMESPACE = "test1";
     List<Index> INDEXES = List.of(

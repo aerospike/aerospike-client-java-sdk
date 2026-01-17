@@ -15,7 +15,7 @@ import java.util.List;
 import static com.aerospike.client.fluent.query.IndexCollectionType.LIST;
 
 
-class ListExpressionsTests {
+public class ListExpressionsTests {
 
     String NAMESPACE = "test1";
     List<Index> INDEXES = List.of(

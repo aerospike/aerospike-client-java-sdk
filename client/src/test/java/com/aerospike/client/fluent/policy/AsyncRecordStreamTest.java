@@ -14,7 +14,7 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.aerospike.client.fluent;
+package com.aerospike.client.fluent.policy;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -35,6 +35,11 @@ import java.util.stream.Stream;
 
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+
+import com.aerospike.client.fluent.AsyncRecordStream;
+import com.aerospike.client.fluent.Key;
+import com.aerospike.client.fluent.Record;
+import com.aerospike.client.fluent.RecordResult;
 
 /**
  * Comprehensive tests for AsyncRecordStream covering:

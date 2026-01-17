@@ -9,7 +9,7 @@ import org.junit.jupiter.api.Test;
 import static com.aerospike.dsl.util.TestUtils.parseFilterExp;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-class RecordMetadataTests {
+public class RecordMetadataTests {
 
     @Test
     void deviceSize() {

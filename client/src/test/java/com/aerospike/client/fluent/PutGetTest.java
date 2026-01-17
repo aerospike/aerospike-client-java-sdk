@@ -28,10 +28,10 @@ import org.junit.jupiter.api.Test;
 import com.aerospike.client.fluent.policy.Behavior;
 import com.aerospike.client.fluent.policy.Behavior.Selectors;
 
-public class PutGetTest extends TestSync {
+public class PutGetTest extends ClusterTest {
 	@Test
 	public void putGet() {
-        String key = "putgetkey";
+		String key = "putgetkey";
 
         // Write record.
         session.upsert(args.set.ids(key))
@@ -64,7 +64,7 @@ public class PutGetTest extends TestSync {
 
 	@Test
 	public void getHeader() {
-        String key = "getHeader";
+		String key = "getHeader";
 
         session.upsert(args.set.ids(key))
 	        .bins("mybin")
@@ -88,7 +88,7 @@ public class PutGetTest extends TestSync {
 
 	@Test
 	public void putGetBool() {
-        String key = "putGetBool";
+		String key = "putGetBool";
 
         session.upsert(args.set.ids(key))
 	        .bins("bin1", "bin2", "bin3", "bin4")

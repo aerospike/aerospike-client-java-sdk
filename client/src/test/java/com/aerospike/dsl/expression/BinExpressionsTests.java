@@ -9,7 +9,7 @@ import static com.aerospike.dsl.util.TestUtils.parseFilterExp;
 import static com.aerospike.dsl.util.TestUtils.parseFilterExpressionAndCompare;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-class BinExpressionsTests {
+public class BinExpressionsTests {
 
     @Test
     void binGT() {

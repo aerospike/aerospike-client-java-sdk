@@ -18,24 +18,24 @@ package com.aerospike.client.fluent;
 
 import java.io.File;
 
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
+import org.junit.platform.suite.api.AfterSuite;
+import org.junit.platform.suite.api.BeforeSuite;
 import org.junit.platform.suite.api.SelectClasses;
 import org.junit.platform.suite.api.Suite;
+
+import com.aerospike.client.fluent.policy.Behavior;
 
 @Suite
 @SelectClasses({
 	AddTest.class,
 	PutGetTest.class
 })
-public class SuiteSync {
-	public static Cluster cluster = null;
-
-	@BeforeAll
-	public static void init() {
+public class SuiteCluster {
+	@BeforeSuite
+	public static void beforeSuite() {
+		System.out.println("Begin AerospikeClient");
 		Log.setCallback(null);
 
-		System.out.println("Begin AerospikeClient");
 		Args args = Args.Instance;
 
 		Host[] hosts = Host.parseHosts(args.host, args.port);
@@ -63,15 +63,20 @@ public class SuiteSync {
 	        	.done();
         }
 
-        cluster = def.connect();
+        Cluster cluster = def.connect();
+        Session session;
 
 		try {
+		    session = cluster.createSession(Behavior.DEFAULT);
 			args.setServerSpecific(cluster);
 		}
 		catch (RuntimeException re) {
 			cluster.close();
 			throw re;
 		}
+
+		ClusterTest.cluster = cluster;
+		ClusterTest.session = session;
 	}
 
     private static String resolvePath(String dir, String path) {
@@ -85,11 +90,12 @@ public class SuiteSync {
         return file.getAbsolutePath();
     }
 
-    @AfterAll
-	public static void destroy() {
+    @AfterSuite
+	public static void afterSuite() {
 		System.out.println("End AerospikeClient");
-		if (cluster != null) {
-			cluster.close();
+		if (ClusterTest.cluster != null) {
+			ClusterTest.cluster.close();
+			ClusterTest.cluster = null;
 		}
 	}
 }

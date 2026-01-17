@@ -23,10 +23,10 @@ import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
-public class AddTest extends TestSync {
+public class AddTest extends ClusterTest {
 	@Test
 	public void add() {
-        String key = "addkey";
+		String key = "addkey";
 		String binName = "addbin";
 
 		// Delete record if it already exists.
