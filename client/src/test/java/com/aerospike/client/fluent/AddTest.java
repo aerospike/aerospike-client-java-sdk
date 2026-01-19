@@ -65,4 +65,48 @@ public class AddTest extends ClusterTest {
         val = (int)(long)list.get(1);
 		assertEquals(45, val);
 	}
+
+	@Test
+	public void addBatch() {
+		String binName = "addbin";
+		List<Key> keys = args.set.ids(10,11,12,13,14,15,16,17,18,19);
+
+        session.delete(keys).execute();
+
+        session.upsert(keys)
+        	.bin(binName).add(10)
+	        .execute();
+
+        session.upsert(keys)
+	    	.bin(binName).add(5)
+	        .execute();
+
+        RecordStream rs = session.query(keys)
+        	.readingOnlyBins(binName)
+        	.execute();
+
+        for (int i = 10; i < 20; i++) {
+            assertTrue(rs.hasNext());
+            Record rec = rs.next().recordOrThrow();
+
+        	int val = rec.getInt(binName);
+    		assertEquals(15, val);
+        }
+
+        // Test add and get combined.
+		rs = session.upsert(keys)
+        	.bin(binName).add(30)
+        	.get(binName)
+	        .execute();
+
+        for (int i = 10; i < 20; i++) {
+	        assertTrue(rs.hasNext());
+	        Record rec = rs.next().recordOrThrow();
+
+	        // TODO: Return values in op order and add Record.getValue(int offset) methods?
+	        List<?> list = rec.getList(binName);
+	        int val = (int)(long)list.get(1);
+			assertEquals(45, val);
+        }
+	}
 }

@@ -18,11 +18,26 @@ package com.aerospike.client.fluent;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 
+import com.aerospike.client.fluent.command.Batch;
+import com.aerospike.client.fluent.command.BatchAttr;
+import com.aerospike.client.fluent.command.BatchCommand;
+import com.aerospike.client.fluent.command.BatchExecutor;
+import com.aerospike.client.fluent.command.BatchNode;
+import com.aerospike.client.fluent.command.BatchNodeList;
+import com.aerospike.client.fluent.command.BatchRead;
+import com.aerospike.client.fluent.command.BatchReadCommand;
+import com.aerospike.client.fluent.command.BatchRecord;
+import com.aerospike.client.fluent.command.BatchSingle;
+import com.aerospike.client.fluent.command.BatchStatus;
+import com.aerospike.client.fluent.command.BatchWrite;
+import com.aerospike.client.fluent.command.BatchWriteCommand;
+import com.aerospike.client.fluent.command.IBatchCommand;
 import com.aerospike.client.fluent.command.OperateArgs;
 import com.aerospike.client.fluent.command.OperateReadCommand;
 import com.aerospike.client.fluent.command.OperateReadExecutor;
@@ -401,6 +416,10 @@ public class OperationBuilder extends AbstractOperationBuilder<OperationBuilder>
         return this;
     }
 
+    protected Session getSession() {
+        return this.session;
+    }
+
     /**
      * Execute operations with default behavior (synchronous).
      * All operations complete before this method returns, making it safe for transactions.
@@ -425,15 +444,19 @@ public class OperationBuilder extends AbstractOperationBuilder<OperationBuilder>
                      (txnToUse != null ? "yes" : "no"));
         }
 
+        if (keys.size() == 0) {
+            return new RecordStream();
+        }
+
         Operation[] operations = ops.toArray(new Operation[0]);
+    	OperateArgs args = new OperateArgs(operations);
 
         // Use batch operations if 10 or more keys
         if (keys.size() >= getBatchOperationThreshold()) {
-            //return executeBatchSync(settings, operations);
-        	return null;
+            return executeBatchSync(operations, args);
         }
         else {
-            return executeIndividualSync(operations);
+            return executeIndividualSync(operations, args);
         }
     }
 
@@ -476,20 +499,87 @@ public class OperationBuilder extends AbstractOperationBuilder<OperationBuilder>
     	return null;
     }
 
-    protected Session getSession() {
-        return this.session;
-    }
+    protected RecordStream executeBatchSync(Operation[] operations, OperateArgs args) {
+        Cluster cluster = session.getCluster();
 
-    protected RecordStream executeBatchSync(Settings settings, Operation[] operations) {
-    	/*
-        BatchWritePolicy batchWritePolicy = getBatchWritePolicy();
+        // Assume all keys have the same namespace.
+        Key firstKey = keys.get(0);
+        String namespace = firstKey.namespace;
+        Partitions partitions = getPartitions(cluster, namespace);
+        Settings settings = getSettings(partitions, operations, args, OpShape.BATCH);
+        final Expression filterExp = processWhereClause(firstKey.namespace, session);
 
-        BatchPolicy batchPolicy = settingsToBatchPolicy(settings);
-        List<BatchRecord> batchRecords = keys.stream()
-                .map(key -> new BatchWrite(batchWritePolicy, key, operations))
-                .collect(Collectors.toList());
+        if (txnToUse != null) {
+            if (args.hasWrite) {
+            	TxnMonitor.addKeys(txnToUse, cluster, partitions, settings, keys);
+            }
+            else {
+            	txnToUse.prepareRead(firstKey.namespace);
+            }
+        }
 
-        session.getClient().operate(batchPolicy, batchRecords);
+        List<BatchRecord> batchRecords = new ArrayList<>(keys.size());
+        BatchCommand parent;
+
+        if (args.hasWrite) {
+	        for (Key key : keys) {
+	            batchRecords.add(new BatchWrite(key, operations, opType, generation, (int)expirationInSecondsForAll));
+	        }
+
+	        parent = new BatchWriteCommand(cluster, partitions, txnToUse, namespace,
+	            batchRecords, filterExp, respondAllKeys, settings);
+       }
+        else {
+	        for (Key key : keys) {
+	            batchRecords.add(new BatchRead(key, operations));
+	        }
+
+	        ReadAttr attr = new ReadAttr(partitions, settings);
+
+	        parent = new BatchReadCommand(cluster, partitions, txnToUse, namespace,
+		            batchRecords, filterExp, respondAllKeys, settings, attr);
+       }
+
+        BatchStatus status = new BatchStatus(true);
+        List<BatchNode> bns = BatchNodeList.generate(cluster, partitions, settings.getReplicaOrder(), batchRecords,
+        	status);
+
+        IBatchCommand[] commands = new IBatchCommand[bns.size()];
+        int count = 0;
+
+        for (BatchNode bn : bns) {
+            if (bn.offsetsSize == 1) {
+                int i = bn.offsets[0];
+                BatchRecord rec = batchRecords.get(i);
+
+                if (args.hasWrite) {
+	                BatchWrite bw = (BatchWrite)rec;
+	                BatchAttr attr = new BatchAttr();
+
+	                attr.setWrite((BatchWriteCommand)parent, bw);
+	                attr.adjustWrite(bw.ops);
+	                attr.setOpSize(bw.ops);
+
+	                commands[count++] = new BatchSingle.OperateRecordSync(cluster, parent, bw.ops, attr, rec, status,
+	                        bn.node);
+                }
+                else {
+	                BatchRead br = (BatchRead)rec;
+	                BatchAttr attr = new BatchAttr();
+
+	                attr.setRead((BatchReadCommand)parent);
+	                attr.adjustRead(br.ops);
+	                attr.setOpSize(br.ops);
+
+					commands[count++] = new BatchSingle.ReadRecord(cluster, (BatchReadCommand)parent, br, status, bn.node);
+                }
+            }
+            else {
+                commands[count++] = new Batch.OperateListSync(cluster, parent, bn, batchRecords, status);
+            }
+        }
+
+        BatchExecutor.execute(cluster, commands, status);
 
         // Convert BatchRecord to RecordResult with proper filtering and stack trace handling
         AsyncRecordStream recordStream = new AsyncRecordStream(batchRecords.size());
@@ -500,7 +590,6 @@ public class OperationBuilder extends AbstractOperationBuilder<OperationBuilder>
                     recordStream.publish(createRecordResultFromBatchRecord(br, settings, i));
                 }
             }
-
             return new RecordStream(recordStream);
         }
         finally {
@@ -509,6 +598,7 @@ public class OperationBuilder extends AbstractOperationBuilder<OperationBuilder>
     }
 
     protected RecordStream executeBatchAsync(Settings settings, Operation[] operations) {
+    	/*
         AsyncRecordStream asyncStream = new AsyncRecordStream(keys.size());
         Thread.startVirtualThread(() -> {
             try {
@@ -542,19 +632,13 @@ public class OperationBuilder extends AbstractOperationBuilder<OperationBuilder>
      * Execute operations synchronously for individual keys (< batch threshold). All
      * virtual threads are joined before returning.
      */
-    private RecordStream executeIndividualSync(Operation[] operations) {
-        if (keys.size() == 0) {
-            return new RecordStream();
-        }
-
-    	OperateArgs args = new OperateArgs(operations);
+    private RecordStream executeIndividualSync(Operation[] operations, OperateArgs args) {
         Cluster cluster = session.getCluster();
 
         // Assume all keys have the same namespace.
         Key firstKey = keys.get(0);
         Partitions partitions = getPartitions(cluster, firstKey.namespace);
-        Settings settings = getSettings(partitions, operations);
-
+        Settings settings = getSettings(partitions, operations, args, OpShape.POINT);
         final Expression filterExp = processWhereClause(keys.get(0).namespace, session);
 
         if (txnToUse != null) {
@@ -670,9 +754,18 @@ public class OperationBuilder extends AbstractOperationBuilder<OperationBuilder>
         return partitions;
     }
 
-    private Settings getSettings(Partitions partitions, Operation[] operations) {
-        OpKind kind = OperationBuilder.areOperationsRetryable(operations)?
-        	OpKind.WRITE_RETRYABLE : OpKind.WRITE_NON_RETRYABLE;
+    private Settings getSettings(
+    	Partitions partitions, Operation[] operations, OperateArgs args, OpShape shape
+    ) {
+    	OpKind kind;
+
+    	if (args.hasWrite) {
+    		kind = OperationBuilder.areOperationsRetryable(operations)?
+    			OpKind.WRITE_RETRYABLE : OpKind.WRITE_NON_RETRYABLE;
+    	}
+    	else {
+    		kind = OpKind.READ;
+    	}
 
         return session.getBehavior().getSettings(kind, OpShape.POINT, partitions.scMode);
     }
