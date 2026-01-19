@@ -767,7 +767,7 @@ public class OperationBuilder extends AbstractOperationBuilder<OperationBuilder>
     		kind = OpKind.READ;
     	}
 
-        return session.getBehavior().getSettings(kind, OpShape.POINT, partitions.scMode);
+        return session.getBehavior().getSettings(kind, shape, partitions.scMode);
     }
 
     void showWarningsOnExceptionAndThrow(AerospikeException ae, Txn txn, Key key, int expiration) {
