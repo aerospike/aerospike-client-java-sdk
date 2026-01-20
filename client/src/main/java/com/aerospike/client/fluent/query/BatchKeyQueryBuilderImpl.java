@@ -180,7 +180,7 @@ class BatchKeyQueryBuilderImpl extends QueryImpl {
 				BatchRecord record = batchRecordsForServer.get(i);
 
 				BatchRead br = (BatchRead)record;
-				commands[count++] = new BatchSingle.ReadRecord(cluster, parent, br, status, bn.node);
+				commands[count++] = new BatchSingle.ReadRecordSync(cluster, parent, br, status, bn.node);
 			}
 			else {
 				commands[count++] = new Batch.OperateListSync(cluster, parent, bn, batchRecordsForServer, status);

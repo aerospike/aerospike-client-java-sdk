@@ -67,6 +67,54 @@ public class AddTest extends ClusterTest {
 	}
 
 	@Test
+	public void addAsync() {
+		String key = "addAsync";
+		String binName = "addbin";
+
+		// Delete record if it already exists.
+        session.delete(args.set.id(key)).execute();
+
+		// Perform some adds and check results.
+        RecordStream rs = session.upsert(args.set.id(key))
+        	.bin(binName).add(10)
+	        .executeAsync();
+
+        assertTrue(rs.hasNext());
+        Record rec = rs.next().recordOrThrow();
+
+        rs = session.upsert(args.set.id(key))
+	    	.bin(binName).add(5)
+	        .executeAsync();
+
+        assertTrue(rs.hasNext());
+        rec = rs.next().recordOrThrow();
+
+        rs = session.query(args.set.id(key))
+        	.readingOnlyBins(binName)
+        	.executeAsync();
+
+        assertTrue(rs.hasNext());
+        rec = rs.next().recordOrThrow();
+
+    	int val = rec.getInt(binName);
+		assertEquals(15, val);
+
+		// Test add and get combined.
+		rs = session.upsert(args.set.id(key))
+        	.bin(binName).add(30)
+        	.get(binName)
+	        .executeAsync();
+
+        assertTrue(rs.hasNext());
+        rec = rs.next().recordOrThrow();
+
+        // TODO: Return values in op order and add Record.getValue(int offset) methods?
+        List<?> list = rec.getList(binName);
+        val = (int)(long)list.get(1);
+		assertEquals(45, val);
+	}
+
+	@Test
 	public void addBatch() {
 		String binName = "addbin";
 		List<Key> keys = args.set.ids(10,11,12,13,14,15,16,17,18,19);
@@ -102,6 +150,56 @@ public class AddTest extends ClusterTest {
         for (int i = 10; i < 20; i++) {
 	        assertTrue(rs.hasNext());
 	        Record rec = rs.next().recordOrThrow();
+
+	        // TODO: Return values in op order and add Record.getValue(int offset) methods?
+	        List<?> list = rec.getList(binName);
+	        int val = (int)(long)list.get(1);
+			assertEquals(45, val);
+        }
+	}
+
+	@Test
+	public void addBatchAsync() {
+		String binName = "addbin";
+		List<Key> keys = args.set.ids(100,110,120,130,140,150,160,170,180,190);
+
+        session.delete(keys).execute();
+
+        RecordStream rs = session.upsert(keys)
+        	.bin(binName).add(10)
+	        .executeAsync();
+
+        assertTrue(rs.hasNext());
+        Record rec = rs.next().recordOrThrow();
+
+        rs = session.upsert(keys)
+	    	.bin(binName).add(5)
+	        .executeAsync();
+
+        assertTrue(rs.hasNext());
+        rec = rs.next().recordOrThrow();
+
+        rs = session.query(keys)
+        	.readingOnlyBins(binName)
+        	.executeAsync();
+
+        for (int i = 10; i < 20; i++) {
+            assertTrue(rs.hasNext());
+            rec = rs.next().recordOrThrow();
+
+        	int val = rec.getInt(binName);
+    		assertEquals(15, val);
+        }
+
+        // Test add and get combined.
+		rs = session.upsert(keys)
+        	.bin(binName).add(30)
+        	.get(binName)
+	        .executeAsync();
+
+        for (int i = 10; i < 20; i++) {
+	        assertTrue(rs.hasNext());
+	        rec = rs.next().recordOrThrow();
 
 	        // TODO: Return values in op order and add Record.getValue(int offset) methods?
 	        List<?> list = rec.getList(binName);

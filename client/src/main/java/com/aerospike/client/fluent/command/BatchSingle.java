@@ -100,51 +100,40 @@ public final class BatchSingle {
 			}
 		}
 	}
-
-	public static final class ReadHeader extends BaseCommand {
-		private final Key key;
-		private final Record[] records;
+*/
+	public static class ReadRecordAsync extends ReadRecordSync {
+		private final AsyncRecordStream stream;
 		private final int index;
 
-		public ReadHeader(
+		public ReadRecordAsync(
 			Cluster cluster,
-			Policy policy,
-			Key key,
-			Record[] records,
-			int index,
+			BatchReadCommand cmd,
+			BatchRead rec,
 			BatchStatus status,
-			Node node
+			Node node,
+			AsyncRecordStream stream,
+			int index
 		) {
-			super(cluster, policy, status, key, node, false);
-			this.key = key;
-			this.records = records;
+			super(cluster, cmd, rec, status, node);
+			this.stream = stream;
 			this.index = index;
 		}
 
 		@Override
-		protected void writeBuffer() {
-			setReadHeader(policy, key);
-		}
+		public void run() {
+			super.run();
 
-		@Override
-		protected void parseResult(Node node, Connection conn) throws IOException {
-			RecordParser rp = new RecordParser(conn, dataBuffer);
-			rp.parseFields(policy.txn, key, false);
-
-			if (rp.resultCode == 0) {
-				records[index] = new Record(null, rp.generation, rp.expiration);
-			}
-			if (node.areMetricsEnabled()) {
-				node.addBytesIn(namespace, rp.bytesIn);
-			}
+        	if (parent.respondAllKeys || super.record.record != null) {
+        		stream.publish(new RecordResult(super.record, index));
+        	}
 		}
 	}
-*/
-	public static class ReadRecord extends BatchSingleExecutor {
+
+	public static class ReadRecordSync extends BatchSingleExecutor {
 		private final BatchReadCommand cmd;
 		private final BatchRead record;
 
-		public ReadRecord(
+		public ReadRecordSync(
 			Cluster cluster,
 			BatchReadCommand cmd,
 			BatchRead record,
