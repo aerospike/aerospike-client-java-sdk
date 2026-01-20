@@ -32,6 +32,7 @@ import com.aerospike.client.fluent.command.BatchNodeList;
 import com.aerospike.client.fluent.command.BatchRead;
 import com.aerospike.client.fluent.command.BatchReadCommand;
 import com.aerospike.client.fluent.command.BatchRecord;
+import com.aerospike.client.fluent.command.BatchResults;
 import com.aerospike.client.fluent.command.BatchSingle;
 import com.aerospike.client.fluent.command.BatchStatus;
 import com.aerospike.client.fluent.command.BatchWrite;
@@ -249,6 +250,20 @@ public class OperationWithNoBinsBuilder extends AbstractSessionOperationBuilder<
         return super.getExpirationAsInt(effectiveExpiration);
     }
 
+    /**
+     * Convert boolean array results (from EXISTS batch) to RecordResult list.
+     * true -> ResultCode.OK, false -> ResultCode.KEY_NOT_FOUND_ERROR
+     */
+    private List<RecordResult> toRecordResults(boolean[] booleanArray, Key[] keyArray) {
+        List<RecordResult> results = new ArrayList<>();
+        for (int i = 0; i < booleanArray.length; i++) {
+            int resultCode = booleanArray[i] ? ResultCode.OK : ResultCode.KEY_NOT_FOUND_ERROR;
+            results.add(new RecordResult(keyArray[i], resultCode, false, 
+                    ResultCode.getResultString(resultCode), i));
+        }
+        return results;
+    }
+
     public List<Boolean> execute() {
         if (key != null) {
             return executeSingleKey();
@@ -256,6 +271,23 @@ public class OperationWithNoBinsBuilder extends AbstractSessionOperationBuilder<
         else {
         	return executeBatch();
         }
+    }
+	
+    /**
+     * Process batch results into a list of RecordResults, handling filtered out records.
+     * OK -> ResultCode.OK, not OK -> original result code (including KEY_NOT_FOUND_ERROR)
+     */
+    private List<RecordResult> processBatchResults(BatchResults results) {
+        List<RecordResult> recordResults = new ArrayList<>();
+        int index = 0;
+        for (BatchRecord record : results.records) {
+            if (failOnFilteredOut && record.resultCode == ResultCode.FILTERED_OUT) {
+                throw new RuntimeException("Record was filtered out by filter expression");
+            }
+            // Use the actual result code from the batch record
+            recordResults.add(new RecordResult(record, index++));
+        }
+        return recordResults;
     }
 
     private List<Boolean> executeSingleKey() {

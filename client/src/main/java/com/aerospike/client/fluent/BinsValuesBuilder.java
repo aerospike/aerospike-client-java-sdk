@@ -69,22 +69,23 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
     }
 
     private long expirationInSecondsForAll = 0;
-    private final OperationBuilder opBuilder;
+    private final BinsValuesOperations opBuilder;
     private final String[] binNames;
     private final Map<Key, ValueData> valueSets = new HashMap<>();
     private final List<Key> keys;
     private ValueData current = null;
     private Txn txnToUse;
 
-    public BinsValuesBuilder(OperationBuilder opBuilder, List<Key> keys, String binName, String... binNames) {
+    public BinsValuesBuilder(BinsValuesOperations opBuilder, List<Key> keys, String binName, String... binNames) {
         this.opBuilder = opBuilder;
         this.binNames = new String[1 + binNames.length];
         this.binNames[0] = binName;
         System.arraycopy(binNames, 0, this.binNames, 1, binNames.length);
         this.keys = keys;
-        this.txnToUse = opBuilder.getTxnToUse();
+        if (opBuilder instanceof AbstractSessionOperationBuilder) {
+            this.txnToUse = ((AbstractSessionOperationBuilder<?>) opBuilder).getTxnToUse();
+        }
     }
-
     /**
      * Add a set of values for one record. The number of values must match the
      * number of bins. Multiple calls to this method can be chained together.
@@ -508,7 +509,7 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
             Operation[] ops = getOperationsForValueData(valueSet);
             int ttl = getExpiration(valueSet);
 
-            batchRecords.add(new BatchWrite(key, ops, opBuilder.opType, valueSet.generation, ttl));
+            batchRecords.add(new BatchWrite(key, ops, opBuilder.getOpType(), valueSet.generation, ttl));
         }
 
         Txn txn = opBuilder.getTxnToUse();

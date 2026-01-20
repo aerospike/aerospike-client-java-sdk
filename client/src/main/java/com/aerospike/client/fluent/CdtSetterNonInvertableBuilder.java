@@ -20,54 +20,54 @@ import java.util.Map;
  * Note that this is a paired interface with {@link CdtSetterInvertableBuilder} and they have exactly
  * the same methods, differing only in the interface they extend.
  */
-public interface CdtSetterNonInvertableBuilder extends CdtContextNonInvertableBuilder {
-    public OperationBuilder setTo(long value);
-    public OperationBuilder setTo(String value);
-    public OperationBuilder setTo(byte[] value);
-    public OperationBuilder setTo(boolean value);
-    public OperationBuilder setTo(double value);
-    public OperationBuilder setTo(List<?> value);
-    public OperationBuilder setTo(Map<?,?> value);
-    public <T> OperationBuilder setTo(T value, RecordMapper<T> mapper);
+public interface CdtSetterNonInvertableBuilder<T extends AbstractOperationBuilder<T>> extends CdtContextNonInvertableBuilder<T> {
+    public T setTo(long value);
+    public T setTo(String value);
+    public T setTo(byte[] value);
+    public T setTo(boolean value);
+    public T setTo(double value);
+    public T setTo(List<?> value);
+    public T setTo(Map<?,?> value);
+    public <U> T setTo(U value, RecordMapper<U> mapper);
 
-    public OperationBuilder insert(long value);
-    public OperationBuilder insert(String value);
-    public OperationBuilder insert(byte[] value);
-    public OperationBuilder insert(boolean value);
-    public OperationBuilder insert(double value);
-    public OperationBuilder insert(List<?> value);
-    public OperationBuilder insert(Map<?,?> value);
-    public <T> OperationBuilder insert(T value, RecordMapper<T> mapper);
+    public T insert(long value);
+    public T insert(String value);
+    public T insert(byte[] value);
+    public T insert(boolean value);
+    public T insert(double value);
+    public T insert(List<?> value);
+    public T insert(Map<?,?> value);
+    public <U> T insert(U value, RecordMapper<U> mapper);
 
-    public OperationBuilder insert(long value, boolean allowFailures);
-    public OperationBuilder insert(String value, boolean allowFailures);
-    public OperationBuilder insert(byte[] value, boolean allowFailures);
-    public OperationBuilder insert(boolean value, boolean allowFailures);
-    public OperationBuilder insert(double value, boolean allowFailures);
-    public OperationBuilder insert(List<?> value, boolean allowFailures);
-    public OperationBuilder insert(Map<?,?> value, boolean allowFailures);
-    public <T> OperationBuilder insert(T value, RecordMapper<T> mapper, boolean allowFailures);
+    public T insert(long value, boolean allowFailures);
+    public T insert(String value, boolean allowFailures);
+    public T insert(byte[] value, boolean allowFailures);
+    public T insert(boolean value, boolean allowFailures);
+    public T insert(double value, boolean allowFailures);
+    public T insert(List<?> value, boolean allowFailures);
+    public T insert(Map<?,?> value, boolean allowFailures);
+    public <U> T insert(U value, RecordMapper<U> mapper, boolean allowFailures);
 
-    public OperationBuilder update(long value);
-    public OperationBuilder update(String value);
-    public OperationBuilder update(byte[] value);
-    public OperationBuilder update(boolean value);
-    public OperationBuilder update(double value);
-    public OperationBuilder update(List<?> value);
-    public OperationBuilder update(Map<?,?> value);
-    public <T> OperationBuilder update(T value, RecordMapper<T> mapper);
+    public T update(long value);
+    public T update(String value);
+    public T update(byte[] value);
+    public T update(boolean value);
+    public T update(double value);
+    public T update(List<?> value);
+    public T update(Map<?,?> value);
+    public <U> T update(U value, RecordMapper<U> mapper);
 
-    public OperationBuilder update(long value, boolean allowFailures);
-    public OperationBuilder update(String value, boolean allowFailures);
-    public OperationBuilder update(byte[] value, boolean allowFailures);
-    public OperationBuilder update(boolean value, boolean allowFailures);
-    public OperationBuilder update(double value, boolean allowFailures);
-    public OperationBuilder update(List<?> value, boolean allowFailures);
-    public OperationBuilder update(Map<?,?> value, boolean allowFailures);
-    public <T> OperationBuilder update(T value, RecordMapper<T> mapper, boolean allowFailures);
+    public T update(long value, boolean allowFailures);
+    public T update(String value, boolean allowFailures);
+    public T update(byte[] value, boolean allowFailures);
+    public T update(boolean value, boolean allowFailures);
+    public T update(double value, boolean allowFailures);
+    public T update(List<?> value, boolean allowFailures);
+    public T update(Map<?,?> value, boolean allowFailures);
+    public <U> T update(U value, RecordMapper<U> mapper, boolean allowFailures);
 
-    public OperationBuilder add(long value);
-    public OperationBuilder add(double value);
-    public OperationBuilder add(long value, boolean allowFailures);
-    public OperationBuilder add(double value, boolean allowFailures);
+    public T add(long value);
+    public T add(double value);
+    public T add(long value, boolean allowFailures);
+    public T add(double value, boolean allowFailures);
 }

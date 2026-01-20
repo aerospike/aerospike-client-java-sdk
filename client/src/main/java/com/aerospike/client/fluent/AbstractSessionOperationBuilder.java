@@ -263,6 +263,8 @@ public abstract class AbstractSessionOperationBuilder<T extends AbstractSessionO
             return RecordExistsAction.UPDATE;
         case REPLACE:
             return RecordExistsAction.REPLACE;
+        case TOUCH:
+            return RecordExistsAction.UPDATE_ONLY;
         default:
             throw new IllegalStateException("received an action of " + opType + " which should be handled elsewhere");
         }

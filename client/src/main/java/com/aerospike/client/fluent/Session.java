@@ -163,95 +163,175 @@ public class Session {
     }
 
     // -------------------
-    // CUD functionality
+    // CUD functionality (chainable batch operations)
     // -------------------
-
-    public OperationBuilder insert(Key key) {
-        return new OperationBuilder(this, key, OpType.INSERT);
+    
+    /**
+     * Begin an insert operation. Supports chaining multiple heterogeneous operations.
+     * 
+     * <p>Example:
+     * <pre>{@code
+     * session.insert(users.id("user-1"))
+     *     .bin("name").setTo("Alice")
+     *     .update(users.id("user-2"))
+     *     .bin("age").add(1)
+     *     .execute();
+     * }</pre>
+     * 
+     * @param key the key to insert
+     * @return ChainableOperationBuilder for method chaining
+     */
+    public ChainableOperationBuilder insert(Key key) {
+        return new ChainableOperationBuilder(this, OpType.INSERT).init(key, OpType.INSERT);
+    }
+    
+    /**
+     * Begin an insert operation on multiple keys.
+     */
+    public ChainableOperationBuilder insert(List<Key> keys) {
+        return new ChainableOperationBuilder(this, OpType.INSERT).init(keys, OpType.INSERT);
+    }
+    
+    /**
+     * Begin an insert operation on multiple keys.
+     */
+    public ChainableOperationBuilder insert(Key key1, Key key2, Key... keys) {
+        return new ChainableOperationBuilder(this, OpType.INSERT).init(buildKeyList(key1, key2, keys), OpType.INSERT);
+    }
+    
+    /**
+     * Begin an update operation.
+     */
+    public ChainableOperationBuilder update(Key key) {
+        return new ChainableOperationBuilder(this, OpType.UPDATE).init(key, OpType.UPDATE);
+    }
+    
+    /**
+     * Begin an update operation on multiple keys.
+     */
+    public ChainableOperationBuilder update(List<Key> keys) {
+        return new ChainableOperationBuilder(this, OpType.UPDATE).init(keys, OpType.UPDATE);
+    }
+    
+    /**
+     * Begin an update operation on multiple keys.
+     */
+    public ChainableOperationBuilder update(Key key1, Key key2, Key... keys) {
+        return new ChainableOperationBuilder(this, OpType.UPDATE).init(buildKeyList(key1, key2, keys), OpType.UPDATE);
+    }
+    
+    /**
+     * Begin an upsert operation.
+     */
+    public ChainableOperationBuilder upsert(Key key) {
+        return new ChainableOperationBuilder(this, OpType.UPSERT).init(key, OpType.UPSERT);
+    }
+    
+    /**
+     * Begin an upsert operation on multiple keys.
+     */
+    public ChainableOperationBuilder upsert(List<Key> keys) {
+        return new ChainableOperationBuilder(this, OpType.UPSERT).init(keys, OpType.UPSERT);
+    }
+    
+    /**
+     * Begin an upsert operation on multiple keys.
+     */
+    public ChainableOperationBuilder upsert(Key key1, Key key2, Key... keys) {
+        return new ChainableOperationBuilder(this, OpType.UPSERT).init(buildKeyList(key1, key2, keys), OpType.UPSERT);
+    }
+    
+    /**
+     * Begin a replace operation.
+     */
+    public ChainableOperationBuilder replace(Key key) {
+        return new ChainableOperationBuilder(this, OpType.REPLACE).init(key, OpType.REPLACE);
+    }
+    
+    /**
+     * Begin a replace operation on multiple keys.
+     */
+    public ChainableOperationBuilder replace(List<Key> keys) {
+        return new ChainableOperationBuilder(this, OpType.REPLACE).init(keys, OpType.REPLACE);
+    }
+    
+    /**
+     * Begin a replace operation on multiple keys.
+     */
+    public ChainableOperationBuilder replace(Key key1, Key key2, Key... keys) {
+        return new ChainableOperationBuilder(this, OpType.REPLACE).init(buildKeyList(key1, key2, keys), OpType.REPLACE);
+    }
+    
+    /**
+     * Begin a touch operation. Chainable with other operations.
+     */
+    public ChainableNoBinsBuilder touch(Key key) {
+        return new ChainableNoBinsBuilder(this, new java.util.ArrayList<>(), null, getCurrentTransaction())
+                .touch(key);
     }
 
-    public OperationBuilder update(Key key) {
-        return new OperationBuilder(this, key, OpType.UPDATE);
+    /**
+     * Begin a touch operation on multiple keys.
+     */
+    public ChainableNoBinsBuilder touch(Key key1, Key key2, Key ... keys) {
+        return new ChainableNoBinsBuilder(this, new java.util.ArrayList<>(), null, getCurrentTransaction())
+                .touch(buildKeyList(key1, key2, keys));
     }
 
-    public OperationBuilder upsert(Key key) {
-        return new OperationBuilder(this, key, OpType.UPSERT);
+    /**
+     * Begin a touch operation on multiple keys.
+     */
+    public ChainableNoBinsBuilder touch(List<Key> keys) {
+        return new ChainableNoBinsBuilder(this, new java.util.ArrayList<>(), null, getCurrentTransaction())
+                .touch(keys);
     }
 
-    public OperationBuilder replace(Key key) {
-        return new OperationBuilder(this, key, OpType.UPSERT);
+    /**
+     * Begin an exists operation. Chainable with other operations.
+     */
+    public ChainableNoBinsBuilder exists(Key key) {
+        return new ChainableNoBinsBuilder(this, new java.util.ArrayList<>(), null, getCurrentTransaction())
+                .exists(key);
+    }
+    
+    /**
+     * Begin an exists operation on multiple keys.
+     */
+    public ChainableNoBinsBuilder exists(Key key1, Key key2, Key ... keys) {
+        return new ChainableNoBinsBuilder(this, new java.util.ArrayList<>(), null, getCurrentTransaction())
+                .exists(buildKeyList(key1, key2, keys));
     }
 
-    public OperationBuilder upsert(List<Key> keys) {
-        return new OperationBuilder(this, keys, OpType.UPSERT);
+    /**
+     * Begin an exists operation on multiple keys.
+     */
+    public ChainableNoBinsBuilder exists(List<Key> keys) {
+        return new ChainableNoBinsBuilder(this, new java.util.ArrayList<>(), null, getCurrentTransaction())
+                .exists(keys);
     }
-
-    public OperationBuilder upsert(Key key1, Key key2, Key... keys) {
-        List<Key> keyList = buildKeyList(key1, key2, keys);
-        return new OperationBuilder(this, keyList, OpType.UPSERT);
+    
+    /**
+     * Begin a delete operation. Chainable with other operations.
+     */
+    public ChainableNoBinsBuilder delete(Key key) {
+        return new ChainableNoBinsBuilder(this, new java.util.ArrayList<>(), null, getCurrentTransaction())
+                .delete(key);
     }
-
-    public OperationBuilder insert(List<Key> keys) {
-        return new OperationBuilder(this, keys, OpType.INSERT);
+    
+    /**
+     * Begin a delete operation on multiple keys.
+     */
+    public ChainableNoBinsBuilder delete(Key key1, Key key2, Key ... keys) {
+        return new ChainableNoBinsBuilder(this, new java.util.ArrayList<>(), null, getCurrentTransaction())
+                .delete(buildKeyList(key1, key2, keys));
     }
-
-    public OperationBuilder insert(Key key1, Key key2, Key... keys) {
-        List<Key> keyList = buildKeyList(key1, key2, keys);
-        return new OperationBuilder(this, keyList, OpType.INSERT);
-    }
-
-    public OperationBuilder update(List<Key> keys) {
-        return new OperationBuilder(this, keys, OpType.UPDATE);
-    }
-
-    public OperationBuilder update(Key key1, Key key2, Key... keys) {
-        List<Key> keyList = buildKeyList(key1, key2, keys);
-        return new OperationBuilder(this, keyList, OpType.UPDATE);
-    }
-
-    public OperationBuilder replace(List<Key> keys) {
-        return new OperationBuilder(this, keys, OpType.REPLACE);
-    }
-
-    public OperationBuilder replace(Key key1, Key key2, Key... keys) {
-        List<Key> keyList = buildKeyList(key1, key2, keys);
-        return new OperationBuilder(this, keyList, OpType.REPLACE);
-    }
-
-    public OperationWithNoBinsBuilder touch(Key key) {
-        return new OperationWithNoBinsBuilder(this, key, OpType.TOUCH);
-    }
-
-    public OperationWithNoBinsBuilder touch(Key key1, Key key2, Key ... keys) {
-        return new OperationWithNoBinsBuilder(this, buildKeyList(key1, key2, keys), OpType.TOUCH);
-    }
-
-    public OperationWithNoBinsBuilder touch(List<Key> keys) {
-        return new OperationWithNoBinsBuilder(this, keys, OpType.TOUCH);
-    }
-
-    public OperationWithNoBinsBuilder exists(Key key) {
-        return new OperationWithNoBinsBuilder(this, key, OpType.EXISTS);
-    }
-
-    public OperationWithNoBinsBuilder exists(Key key1, Key key2, Key ... keys) {
-        return new OperationWithNoBinsBuilder(this, buildKeyList(key1, key2, keys), OpType.EXISTS);
-    }
-
-    public OperationWithNoBinsBuilder exists(List<Key> keys) {
-        return new OperationWithNoBinsBuilder(this, keys, OpType.EXISTS);
-    }
-
-    public DeleteBuilder delete(Key key) {
-        return new DeleteBuilder(this, key);
-    }
-
-    public DeleteBuilder delete(Key key1, Key key2, Key ... keys) {
-        return new DeleteBuilder(this, buildKeyList(key1, key2, keys));
-    }
-
-    public DeleteBuilder delete(List<Key> keys) {
-        return new DeleteBuilder(this, keys);
+    
+    /**
+     * Begin a delete operation on multiple keys.
+     */
+    public ChainableNoBinsBuilder delete(List<Key> keys) {
+        return new ChainableNoBinsBuilder(this, new java.util.ArrayList<>(), null, getCurrentTransaction())
+                .delete(keys);
     }
 
     // --------------------------------
