@@ -18,6 +18,7 @@ package com.aerospike.client.fluent;
 
 import java.io.File;
 
+import com.aerospike.client.fluent.query.*;
 import org.junit.platform.suite.api.AfterSuite;
 import org.junit.platform.suite.api.BeforeSuite;
 import org.junit.platform.suite.api.SelectClasses;
@@ -27,10 +28,20 @@ import com.aerospike.client.fluent.policy.Behavior;
 
 @Suite
 @SelectClasses({
-	AddTest.class,
-	AppendTest.class,
-	BitExpTest.class,
-	PutGetTest.class
+        AddTest.class,
+	    AppendTest.class,
+	    BitExpTest.class,
+	    PutGetTest.class,
+        QueryBlobTest.class,
+        QueryCollectionTest.class,
+        QueryContextTest.class,
+        QueryFilterExpTest.class,
+        QueryFilterSetTest.class,
+        QueryIndexTest.class,
+        QueryIntegerTest.class,
+        QueryKeyTest.class,
+        QueryStringTest.class
+
 })
 public class SuiteCluster {
 	@BeforeSuite
