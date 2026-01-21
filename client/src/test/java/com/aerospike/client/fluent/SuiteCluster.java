@@ -29,6 +29,7 @@ import com.aerospike.client.fluent.policy.Behavior;
 @SelectClasses({
 	AddTest.class,
 	AppendTest.class,
+	TestBitExp.class,
 	PutGetTest.class
 })
 public class SuiteCluster {

@@ -1,3 +1,19 @@
+/*
+ * Copyright 2012-2026 Aerospike, Inc.
+ *
+ * Portions may be licensed to Aerospike, Inc. under one or more contributor
+ * license agreements WHICH ARE COMPATIBLE WITH THE APACHE LICENSE, VERSION 2.0.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy of
+ * the License at http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
+ */
 package com.aerospike.client.fluent.query;
 
 import java.util.List;
@@ -14,6 +30,7 @@ import com.aerospike.client.fluent.Session;
 import com.aerospike.client.fluent.command.Txn;
 import com.aerospike.client.fluent.dsl.BooleanExpression;
 import com.aerospike.client.fluent.exp.Exp;
+import com.aerospike.client.fluent.exp.Expression;
 import com.aerospike.client.fluent.tend.Partition;
 
 /**
@@ -392,10 +409,22 @@ public class QueryBuilder extends AbstractFilterableBuilder implements
         return this;
     }
 
-    public QueryBuilder where(PreparedDsl dsl, Object ... params) {
-        setWhereClause(WhereClauseProcessor.from(this.implementation.allowsSecondaryIndexQuery(), dsl, params));
+	/**
+	 * Add a filter condition using an Expression.
+	 *
+	 * <p>Note: If this method is used, no secondary index can be used. </p>
+	 *
+	 * <p>Only one filter condition can be specified per query. Multiple calls
+	 * to this method or {@link #where(String)} will throw an exception.</p>
+	 *
+	 * @param expression filter expression
+	 * @return
+	 */
+    public QueryBuilder where(Expression expression) {
+        setWhereClause(WhereClauseProcessor.from(expression));
         return this;
     }
+
     /**
      * Add a filter condition using a Exp operation.
      *
@@ -410,6 +439,11 @@ public class QueryBuilder extends AbstractFilterableBuilder implements
      */
     public QueryBuilder where(Exp exp) {
         setWhereClause(WhereClauseProcessor.from(exp));
+        return this;
+    }
+
+    public QueryBuilder where(PreparedDsl dsl, Object ... params) {
+        setWhereClause(WhereClauseProcessor.from(this.implementation.allowsSecondaryIndexQuery(), dsl, params));
         return this;
     }
 
