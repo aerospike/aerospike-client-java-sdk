@@ -29,7 +29,7 @@ import com.aerospike.client.fluent.exp.Expression;
 import com.aerospike.client.fluent.operation.BitOverflowAction;
 import com.aerospike.client.fluent.operation.BitPolicy;
 
-public class TestBitExp extends ClusterTest {
+public class BitExpTest extends ClusterTest {
 	private static final String binA = "A";
 
 	@Test
