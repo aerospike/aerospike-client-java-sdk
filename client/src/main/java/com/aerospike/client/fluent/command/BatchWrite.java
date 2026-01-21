@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2025 Aerospike, Inc.
+ * Copyright 2012-2026 Aerospike, Inc.
  *
  * Portions may be licensed to Aerospike, Inc. under one or more contributor
  * license agreements WHICH ARE COMPATIBLE WITH THE APACHE LICENSE, VERSION 2.0.
@@ -16,6 +16,8 @@
  */
 package com.aerospike.client.fluent.command;
 
+import java.util.List;
+
 import com.aerospike.client.fluent.AerospikeException;
 import com.aerospike.client.fluent.Key;
 import com.aerospike.client.fluent.OpType;
@@ -29,7 +31,7 @@ public final class BatchWrite extends BatchRecord {
 	/**
 	 * Required operations for this key.
 	 */
-	public final Operation[] ops;
+	public final List<Operation> ops;
 
 	/**
 	 * Write operation type.
@@ -83,7 +85,7 @@ public final class BatchWrite extends BatchRecord {
 	 * makes it difficult (sometimes impossible) to lineup operations with results. Instead,
 	 * use {@link Operation#get(String)} for each bin name.
 	 */
-	public BatchWrite(Key key, Operation[] ops) {
+	public BatchWrite(Key key, List<Operation> ops) {
 		super(key, true);
 		this.ops = ops;
 		this.opType = OpType.UPSERT;
@@ -98,7 +100,7 @@ public final class BatchWrite extends BatchRecord {
 	 * makes it difficult (sometimes impossible) to lineup operations with results. Instead,
 	 * use {@link Operation#get(String)} for each bin name.
 	 */
-	public BatchWrite(Key key, Operation[] ops, OpType opType, int generation, int ttl) {
+	public BatchWrite(Key key, List<Operation> ops, OpType opType, int generation, int ttl) {
 		super(key, true);
 		this.ops = ops;
 		this.opType = opType;

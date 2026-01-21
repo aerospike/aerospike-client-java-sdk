@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2024 Aerospike, Inc.
+ * Copyright 2012-2026 Aerospike, Inc.
  *
  * Portions may be licensed to Aerospike, Inc. under one or more contributor
  * license agreements WHICH ARE COMPATIBLE WITH THE APACHE LICENSE, VERSION 2.0.
@@ -82,15 +82,6 @@ public final class Operation {
 	 */
 	public static Operation delete() {
 		return new Operation(Type.DELETE);
-	}
-
-	/**
-	 * Create array of operations from varargs. This method can be useful when
-	 * its important to save identical array pointer references. Using varargs
-	 * directly always generates new references.
-	 */
-	public static Operation[] array(Operation... ops) {
-		return ops;
 	}
 
 	public static enum Type {

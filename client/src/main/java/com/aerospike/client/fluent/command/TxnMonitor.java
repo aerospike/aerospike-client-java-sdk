@@ -49,51 +49,47 @@ public final class TxnMonitor {
 			return;
 		}
 
-		Operation[] ops = getTranOps(txn, cmdKey);
+		List<Operation> ops = getTranOps(txn, cmdKey);
 		addWriteKeys(txn, cluster, partitions, policy, ops);
 	}
 
 	public static void addKeys(
 		Txn txn, Cluster cluster, Partitions partitions, Settings policy, Key[] keys
 	) {
-		Operation[] ops = getTranOps(txn, keys);
+		List<Operation> ops = getTranOps(txn, keys);
 		addWriteKeys(txn, cluster, partitions, policy, ops);
 	}
 
 	public static void addKeys(
 		Txn txn, Cluster cluster, Partitions partitions, Settings policy, List<Key> keys
 	) {
-		Operation[] ops = getTranOps(txn, keys);
+		List<Operation> ops = getTranOps(txn, keys);
 		addWriteKeys(txn, cluster, partitions, policy, ops);
 	}
 
 	public static void addKeysBatch(
 		Txn txn, Cluster cluster, Partitions partitions, Settings policy, List<BatchRecord> records
 	) {
-		Operation[] ops = getTranOpsBatch(txn, records);
+		List<Operation> ops = getTranOpsBatch(txn, records);
 
 		if (ops != null) {
 			addWriteKeys(txn, cluster, partitions, policy, ops);
 		}
 	}
 
-	public static Operation[] getTranOps(Txn txn, Key cmdKey) {
+	public static List<Operation> getTranOps(Txn txn, Key cmdKey) {
 		txn.setNamespace(cmdKey.namespace);
 
-		if (txn.monitorExists()) {
-			return new Operation[] {
-				ListOperation.append(OrderedListPolicy, BinNameDigests, Value.get(cmdKey.digest))
-			};
+		List<Operation> ops = new ArrayList<>(2);
+
+		if (!txn.monitorExists()) {
+			ops.add(Operation.put(new Bin(BinNameId, txn.getId())));
 		}
-		else {
-			return new Operation[] {
-				Operation.put(new Bin(BinNameId, txn.getId())),
-				ListOperation.append(OrderedListPolicy, BinNameDigests, Value.get(cmdKey.digest))
-			};
-		}
+		ops.add(ListOperation.append(OrderedListPolicy, BinNameDigests, Value.get(cmdKey.digest)));
+		return ops;
 	}
 
-	public static Operation[] getTranOps(Txn txn, Key[] keys) {
+	public static List<Operation> getTranOps(Txn txn, Key[] keys) {
 		txn.verifyCommand();
 
 		ArrayList<Value> list = new ArrayList<>(keys.length);
@@ -105,7 +101,7 @@ public final class TxnMonitor {
 		return getTranOps(txn, list);
 	}
 
-	public static Operation[] getTranOps(Txn txn, List<Key> keys) {
+	public static List<Operation> getTranOps(Txn txn, List<Key> keys) {
 		txn.verifyCommand();
 
 		ArrayList<Value> list = new ArrayList<>(keys.size());
@@ -117,7 +113,7 @@ public final class TxnMonitor {
 		return getTranOps(txn, list);
 	}
 
-	public static Operation[] getTranOpsBatch(Txn txn, List<BatchRecord> records) {
+	public static List<Operation> getTranOpsBatch(Txn txn, List<BatchRecord> records) {
 		txn.verifyCommand();
 
 		ArrayList<Value> list = new ArrayList<>(records.size());
@@ -137,22 +133,18 @@ public final class TxnMonitor {
 		return getTranOps(txn, list);
 	}
 
-	private static Operation[] getTranOps(Txn txn, ArrayList<Value> list) {
-		if (txn.monitorExists()) {
-			return new Operation[] {
-				ListOperation.appendItems(OrderedListPolicy, BinNameDigests, list)
-			};
+	private static List<Operation> getTranOps(Txn txn, ArrayList<Value> list) {
+		List<Operation> ops = new ArrayList<>(2);
+
+		if (!txn.monitorExists()) {
+			ops.add(Operation.put(new Bin(BinNameId, txn.getId())));
 		}
-		else {
-			return new Operation[] {
-				Operation.put(new Bin(BinNameId, txn.getId())),
-				ListOperation.appendItems(OrderedListPolicy, BinNameDigests, list)
-			};
-		}
+		ops.add(ListOperation.appendItems(OrderedListPolicy, BinNameDigests, list));
+		return ops;
 	}
 
 	private static void addWriteKeys(
-		Txn txn, Cluster cluster, Partitions partitions, Settings policy, Operation[] ops
+		Txn txn, Cluster cluster, Partitions partitions, Settings policy, List<Operation> ops
 	) {
 		Key txnKey = getTxnMonitorKey(txn);
 

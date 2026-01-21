@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2025 Aerospike, Inc.
+ * Copyright 2012-2026 Aerospike, Inc.
  *
  * Portions may be licensed to Aerospike, Inc. under one or more contributor
  * license agreements WHICH ARE COMPATIBLE WITH THE APACHE LICENSE, VERSION 2.0.
@@ -93,7 +93,7 @@ public final class Batch {
 	public static final class GetArrayCommand extends BatchCommand {
 		private final Key[] keys;
 		private final String[] binNames;
-		private final Operation[] ops;
+		private final List<Operation> ops;
 		private final Record[] records;
 		private final int readAttr;
 
@@ -103,7 +103,7 @@ public final class Batch {
 			BatchPolicy policy,
 			Key[] keys,
 			String[] binNames,
-			Operation[] ops,
+			List<Operation> ops,
 			Record[] records,
 			int readAttr,
 			boolean isOperation,
@@ -399,7 +399,7 @@ public final class Batch {
 
 	public static final class OperateArrayCommand extends BatchCommand {
 		private final Key[] keys;
-		private final Operation[] ops;
+		private final List<Operation> ops;
 		private final BatchRecord[] records;
 		private final BatchAttr attr;
 
@@ -408,7 +408,7 @@ public final class Batch {
 			BatchNode batch,
 			BatchPolicy batchPolicy,
 			Key[] keys,
-			Operation[] ops,
+			List<Operation> ops,
 			BatchRecord[] records,
 			BatchAttr attr,
 			BatchStatus status

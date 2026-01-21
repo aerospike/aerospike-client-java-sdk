@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2025 Aerospike, Inc.
+ * Copyright 2012-2026 Aerospike, Inc.
  *
  * Portions may be licensed to Aerospike, Inc. under one or more contributor
  * license agreements WHICH ARE COMPATIBLE WITH THE APACHE LICENSE, VERSION 2.0.
@@ -17,6 +17,7 @@
 package com.aerospike.client.fluent.command;
 
 import java.io.IOException;
+import java.util.List;
 
 import com.aerospike.client.fluent.AerospikeException;
 import com.aerospike.client.fluent.AsyncRecordStream;
@@ -34,13 +35,13 @@ import com.aerospike.client.fluent.tend.Partition;
 public final class BatchSingle {
 /*
 	public static final class OperateRead extends Read {
-		private final Operation[] ops;
+		private final List<Operation> ops;
 
 		public OperateRead(
 			Cluster cluster,
 			BatchPolicy policy,
 			Key key,
-			Operation[] ops,
+			List<Operation> ops,
 			Record[] records,
 			int index,
 			BatchStatus status,
@@ -242,7 +243,7 @@ public final class BatchSingle {
 		public OperateRecordAsync(
 			Cluster cluster,
 			BatchCommand parent,
-			Operation[] ops,
+			List<Operation> ops,
 			BatchAttr attr,
 			BatchRecord br,
 			BatchStatus status,
@@ -266,14 +267,14 @@ public final class BatchSingle {
 	}
 
 	public static class OperateRecordSync extends BatchSingleExecutor {
-		private final Operation[] ops;
+		private final List<Operation> ops;
 		private final BatchAttr attr;
 		private final BatchRecord record;
 
 		public OperateRecordSync(
 			Cluster cluster,
 			BatchCommand parent,
-			Operation[] ops,
+			List<Operation> ops,
 			BatchAttr attr,
 			BatchRecord record,
 			BatchStatus status,

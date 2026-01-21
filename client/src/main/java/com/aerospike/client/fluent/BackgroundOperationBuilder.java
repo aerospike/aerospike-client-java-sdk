@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2025 Aerospike, Inc.
+ * Copyright 2012-2026 Aerospike, Inc.
  *
  * Portions may be licensed to Aerospike, Inc. under one or more contributor
  * license agreements WHICH ARE COMPATIBLE WITH THE APACHE LICENSE, VERSION 2.0.
@@ -16,6 +16,7 @@
  */
 package com.aerospike.client.fluent;
 
+import java.util.List;
 import java.util.Random;
 import java.util.concurrent.ExecutorService;
 
@@ -195,8 +196,7 @@ public class BackgroundOperationBuilder extends AbstractOperationBuilder<Backgro
 
 		cluster.addCommandCount();
 
-		Operation[] operations = ops.toArray(new Operation[0]);
-        boolean retryable = areOperationsRetryable(operations);
+        boolean retryable = areOperationsRetryable(ops);
 
         Settings settings = session.getBehavior().getSettings(
             retryable ? OpKind.WRITE_RETRYABLE : OpKind.WRITE_NON_RETRYABLE,
@@ -221,7 +221,7 @@ public class BackgroundOperationBuilder extends AbstractOperationBuilder<Backgro
 		long taskId = new Random().nextLong();
 
         BackgroundQueryCommand cmd = new BackgroundQueryCommand(cluster, dataset, taskId, opType,
-    		operations, ttl, filter, filterExp, settings);
+    		ops, ttl, filter, filterExp, settings);
 
         final NodeStatus status = new NodeStatus();
 
@@ -251,11 +251,11 @@ public class BackgroundOperationBuilder extends AbstractOperationBuilder<Backgro
      * Checks if the given operations are retryable.
      * Delegates to OperationBuilder's implementation.
      *
-     * @param operations The operations to check
+     * @param ops The operations to check
      * @return true if all operations are retryable, false otherwise
      */
-    private static boolean areOperationsRetryable(Operation[] operations) {
-        return OperationBuilder.areOperationsRetryable(operations);
+    private static boolean areOperationsRetryable(List<Operation> ops) {
+        return OperationBuilder.areOperationsRetryable(ops);
     }
 }
 

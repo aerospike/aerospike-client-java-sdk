@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2025 Aerospike, Inc.
+ * Copyright 2012-2026 Aerospike, Inc.
  *
  * Portions may be licensed to Aerospike, Inc. under one or more contributor
  * license agreements WHICH ARE COMPATIBLE WITH THE APACHE LICENSE, VERSION 2.0.
@@ -416,7 +416,8 @@ public class OperationWithNoBinsBuilder extends AbstractSessionOperationBuilder<
         	TxnMonitor.addKeys(txnToUse, cluster, partitions, policy, keys);
 		}
 
-        Operation[] ops = new Operation[] {Operation.touch()};
+        List<Operation> ops = new ArrayList<>(1);
+        ops.add(Operation.touch());
 
         List<BatchRecord> batchRecords = new ArrayList<>(keys.size());
 

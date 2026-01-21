@@ -16,6 +16,8 @@
  */
 package com.aerospike.client.fluent.command;
 
+import java.util.List;
+
 import com.aerospike.client.fluent.Operation;
 
 public final class OperateArgs {
@@ -24,7 +26,7 @@ public final class OperateArgs {
 	public final int writeAttr;
 	public final boolean hasWrite;
 
-	public OperateArgs(Operation[] ops) {
+	public OperateArgs(List<Operation> ops) {
 		int dataOffset = 0;
 		int rattr = 0;
 		int wattr = 0;

@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2022 Aerospike, Inc.
+ * Copyright 2012-2026 Aerospike, Inc.
  *
  * Portions may be licensed to Aerospike, Inc. under one or more contributor
  * license agreements WHICH ARE COMPATIBLE WITH THE APACHE LICENSE, VERSION 2.0.
@@ -15,6 +15,8 @@
  * the License.
  */
 package com.aerospike.client.fluent.command;
+
+import java.util.List;
 
 import com.aerospike.client.fluent.AerospikeException;
 import com.aerospike.client.fluent.Key;
@@ -37,7 +39,7 @@ public final class BatchRead extends BatchRecord {
 	 * {@link com.aerospike.client.fluent.command.BatchRead#binNames}. A binName can be emulated with
 	 * {@link com.aerospike.client.Operation#get(String)}
 	 */
-	public final Operation[] ops;
+	public final List<Operation> ops;
 
 	/**
 	 * If true, ignore binNames and read all bins.
@@ -69,7 +71,7 @@ public final class BatchRead extends BatchRecord {
 	/**
 	 * Initialize batch key and read operations.
 	 */
-	public BatchRead(Key key, Operation[] ops) {
+	public BatchRead(Key key, List<Operation> ops) {
 		super(key, false);
 		this.binNames = null;
 		this.ops = ops;

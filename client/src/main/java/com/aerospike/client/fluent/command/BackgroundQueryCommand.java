@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2025 Aerospike, Inc.
+ * Copyright 2012-2026 Aerospike, Inc.
  *
  * Portions may be licensed to Aerospike, Inc. under one or more contributor
  * license agreements WHICH ARE COMPATIBLE WITH THE APACHE LICENSE, VERSION 2.0.
@@ -16,6 +16,8 @@
  */
 package com.aerospike.client.fluent.command;
 
+import java.util.List;
+
 import com.aerospike.client.fluent.Cluster;
 import com.aerospike.client.fluent.DataSet;
 import com.aerospike.client.fluent.OpType;
@@ -31,13 +33,13 @@ public final class BackgroundQueryCommand extends Command {
 	final Filter filter;
 	final OpType type;
 	final CommitLevel commitLevel;
-	final Operation[] ops;
+	final List<Operation> ops;
 	final int recordsPerSecond;
 	final int ttl;
 	final boolean durableDelete;
 
 	public BackgroundQueryCommand(
-		Cluster cluster, DataSet set, long taskId, OpType type, Operation[] ops, int ttl,
+		Cluster cluster, DataSet set, long taskId, OpType type, List<Operation> ops, int ttl,
 		Filter filter, Expression filterExp, Settings policy
 	) {
 		super(cluster, set.getNamespace(), null, filterExp, policy.getReplicaOrder(), policy);

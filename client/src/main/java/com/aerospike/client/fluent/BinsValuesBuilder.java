@@ -429,7 +429,7 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
 
         for (Key key : keys) {
             ValueData valueSet = valueSets.get(key);
-            Operation[] ops = getOperationsForValueData(valueSet);
+            List<Operation> ops = getOperationsForValueData(valueSet);
             int ttl = getExpiration(valueSet);
 
             batchRecords.add(new BatchWrite(key, ops, opBuilder.opType, valueSet.generation, ttl));
@@ -505,7 +505,7 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
 
         for (Key key : keys) {
             ValueData valueSet = valueSets.get(key);
-            Operation[] ops = getOperationsForValueData(valueSet);
+            List<Operation> ops = getOperationsForValueData(valueSet);
             int ttl = getExpiration(valueSet);
 
             batchRecords.add(new BatchWrite(key, ops, opBuilder.opType, valueSet.generation, ttl));
@@ -708,7 +708,7 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
 
     private Record operate(Cluster cluster, Partitions partitions, Settings policy, Expression filterExp, Key key) {
         ValueData valueSet = valueSets.get(key);
-        Operation[] ops = getOperationsForValueData(valueSet);
+        List<Operation> ops = getOperationsForValueData(valueSet);
         int ttl = getExpiration(valueSet);
 
 		OperateArgs args = new OperateArgs(ops);
@@ -750,11 +750,11 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
         }
     }
 
-    private Operation[] getOperationsForValueData(ValueData valueData) {
+    private List<Operation> getOperationsForValueData(ValueData valueData) {
         Object[] values = valueData.values;
-        Operation[] ops = new Operation[binNames.length];
+        List<Operation> ops = new ArrayList<>(binNames.length);
         for (int i = 0; i < binNames.length; i++) {
-            ops[i] = Operation.put(new Bin(binNames[i], Value.get(values[i])));
+        	ops.add(Operation.put(new Bin(binNames[i], Value.get(values[i]))));
         }
         return ops;
     }

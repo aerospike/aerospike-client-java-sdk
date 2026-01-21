@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2025 Aerospike, Inc.
+ * Copyright 2012-2026 Aerospike, Inc.
  *
  * Portions may be licensed to Aerospike, Inc. under one or more contributor
  * license agreements WHICH ARE COMPATIBLE WITH THE APACHE LICENSE, VERSION 2.0.
@@ -15,6 +15,8 @@
  * the License.
  */
 package com.aerospike.client.fluent.command;
+
+import java.util.List;
 
 import com.aerospike.client.fluent.Operation;
 import com.aerospike.client.fluent.exp.Expression;
@@ -41,7 +43,7 @@ public final class BatchAttr {
 		this.readAttr |= rattr;
 	}
 
-	public BatchAttr(BatchReadCommand cmd, int rattr, Operation[] ops) {
+	public BatchAttr(BatchReadCommand cmd, int rattr, List<Operation> ops) {
 		setRead(cmd);
 		this.readAttr = rattr;
 
@@ -51,7 +53,7 @@ public final class BatchAttr {
 	}
 
 	/*
-	public BatchAttr(BatchReadCommand cmd, BatchWritePolicy wp, Operation[] ops) {
+	public BatchAttr(BatchReadCommand cmd, BatchWritePolicy wp, List<Operation> ops) {
 		boolean readAllBins = false;
 		boolean readHeader = false;
 		boolean hasRead = false;
@@ -136,7 +138,7 @@ public final class BatchAttr {
 		sendKey = false;
 	}
 
-	public void adjustRead(Operation[] ops) {
+	public void adjustRead(List<Operation> ops) {
 		for (Operation op : ops) {
 			if (op.type == Operation.Type.READ) {
 				if (op.binName == null) {
@@ -200,7 +202,7 @@ public final class BatchAttr {
 		}
 	}
 
-	public void adjustWrite(Operation[] ops) {
+	public void adjustWrite(List<Operation> ops) {
 		for (Operation op : ops) {
 			if (! op.type.isWrite) {
 				readAttr |= Command.INFO1_READ;
@@ -263,7 +265,7 @@ public final class BatchAttr {
 		}
 	}
 
-	public void setOpSize(Operation[] ops) {
+	public void setOpSize(List<Operation> ops) {
 		int dataOffset = 0;
 
 		for (Operation op : ops) {

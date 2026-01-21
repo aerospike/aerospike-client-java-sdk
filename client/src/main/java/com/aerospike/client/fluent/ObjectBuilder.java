@@ -19,6 +19,7 @@ package com.aerospike.client.fluent;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
@@ -359,15 +360,15 @@ public class ObjectBuilder<T> {
     	return null;
     }
 
-    private Operation[] operationsForElement(RecordMapper<T> mapper, T element) {
+    private List<Operation> operationsForElement(RecordMapper<T> mapper, T element) {
         Map<String, Value> map = mapper.toMap(element);
-        Operation[] operations = new Operation[map.size()];
-        int i = 0;
+        List<Operation> ops = new ArrayList<>(map.size());
+
         for (String key : map.keySet()) {
             Value binData = map.get(key);
-            operations[i++] = Operation.put(new Bin(key, binData ));
+            ops.add(Operation.put(new Bin(key, binData)));
         }
-        return operations;
+        return ops;
     }
 
     private Key getKeyForElement(RecordMapper<T> mapper, T element) {
@@ -379,7 +380,7 @@ public class ObjectBuilder<T> {
     	/*
         RecordMapper<T> recordMapper = getMapper(element);
         Key key = getKeyForElement(recordMapper, element);
-        Operation[] operations = operationsForElement(recordMapper, element);
+        List<Operation> operations = operationsForElement(recordMapper, element);
         CommandType type = OperationBuilder.areOperationsRetryable(operations) ? CommandType.WRITE_RETRYABLE : CommandType.WRITE_NON_RETRYABLE;
         WritePolicy wp = this.opBuilder.getSession().getBehavior().getSharedPolicy(type);
         wp.txn = this.txnToUse;
@@ -429,7 +430,7 @@ public class ObjectBuilder<T> {
             try {
                 RecordMapper<T> recordMapper = getMapper(element);
                 Key key = getKeyForElement(recordMapper, element);
-                Operation[] operations = operationsForElement(recordMapper, element);
+                List<Operation> operations = operationsForElement(recordMapper, element);
 
                 CommandType type = OperationBuilder.areOperationsRetryable(operations)
                     ? CommandType.WRITE_RETRYABLE : CommandType.WRITE_NON_RETRYABLE;
@@ -568,7 +569,7 @@ public class ObjectBuilder<T> {
                 try {
                     RecordMapper<T> recordMapper = getMapper(element);
                     Key key = getKeyForElement(recordMapper, element);
-                    Operation[] operations = operationsForElement(recordMapper, element);
+                    List<Operation> operations = operationsForElement(recordMapper, element);
 
                     OpKind type = OperationBuilder.areOperationsRetryable(operations) ?
                             OpKind.WRITE_RETRYABLE : OpKind.WRITE_NON_RETRYABLE;
@@ -646,7 +647,7 @@ public class ObjectBuilder<T> {
                 try {
                     RecordMapper<T> recordMapper = getMapper(element);
                     Key key = getKeyForElement(recordMapper, element);
-                    Operation[] operations = operationsForElement(recordMapper, element);
+                    List<Operation> operations = operationsForElement(recordMapper, element);
 
                     CommandType type = OperationBuilder.areOperationsRetryable(operations)
                         ? CommandType.WRITE_RETRYABLE : CommandType.WRITE_NON_RETRYABLE;
@@ -729,7 +730,7 @@ public class ObjectBuilder<T> {
 	        for (T element : elements) {
 	            RecordMapper<T> recordMapper = getMapper(element);
 	            Key key = getKeyForElement(recordMapper, element);
-	            Operation[] operations = operationsForElement(recordMapper, element);
+	            List<Operation> operations = operationsForElement(recordMapper, element);
 
 	            BatchWritePolicy bwp = new BatchWritePolicy();
 	            bwp.sendKey = batchPolicy.sendKey;

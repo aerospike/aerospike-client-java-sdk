@@ -61,7 +61,7 @@ public final class CommandBuffer {
 		dataOffset += args.size;
 		sizeBuffer();
 
-		writeHeaderWrite(cmd, args.readAttr, args.writeAttr, fieldCount, cmd.ops.length);
+		writeHeaderWrite(cmd, args.readAttr, args.writeAttr, fieldCount, cmd.ops.size());
 
 		writeKey(cmd, cmd.key, args.hasWrite);
 
@@ -88,7 +88,7 @@ public final class CommandBuffer {
 		dataOffset += args.size;
 		sizeBuffer();
 
-		writeHeaderRead(cmd, args.readAttr, args.writeAttr, 0, fieldCount, cmd.ops.length);
+		writeHeaderRead(cmd, args.readAttr, args.writeAttr, 0, fieldCount, cmd.ops.size());
 
 		writeKey(cmd, cmd.key, args.hasWrite);
 
@@ -103,14 +103,14 @@ public final class CommandBuffer {
 		compress(cmd);
 	}
 
-	public void setOperate(BatchCommand cmd, BatchAttr attr, Key key, Operation[] ops) {
+	public void setOperate(BatchCommand cmd, BatchAttr attr, Key key, List<Operation> ops) {
 		begin();
 		Expression exp = getBatchExpression(cmd, attr);
 		int fieldCount = estimateKeyAttrSize(cmd, key, attr, exp);
 
 		dataOffset += attr.opSize;
 		sizeBuffer();
-		writeKeyAttr(cmd, key, attr, exp, fieldCount, ops.length);
+		writeKeyAttr(cmd, key, attr, exp, fieldCount, ops.size());
 
 		for (Operation op : ops) {
 			writeOperation(op);
@@ -223,7 +223,7 @@ public final class CommandBuffer {
 		}
 		else if (br.ops != null) {
 			attr.adjustRead(br.ops);
-			opCount = br.ops.length;
+			opCount = br.ops.size();
 
 			for (Operation op : br.ops) {
 				if (op.type.isWrite) {
@@ -610,12 +610,12 @@ public final class CommandBuffer {
 		}
 	}
 
-	private void writeBatchOperations(Key key, Txn txn, Long ver, Operation[] ops, BatchAttr attr, Expression filter) {
+	private void writeBatchOperations(Key key, Txn txn, Long ver, List<Operation> ops, BatchAttr attr, Expression filter) {
 		if (attr.hasWrite) {
-			writeBatchWrite(key, txn, ver, attr, filter, 0, ops.length);
+			writeBatchWrite(key, txn, ver, attr, filter, 0, ops.size());
 		}
 		else {
-			writeBatchRead(key, txn, ver, attr, filter, ops.length);
+			writeBatchRead(key, txn, ver, attr, filter, ops.size());
 		}
 
 		for (Operation op : ops) {
@@ -1108,7 +1108,7 @@ public final class CommandBuffer {
 		}
 
 		// Operations (used in query execute) and bin names (used in scan/query) are mutually exclusive.
-		Operation[] operations = cmd.ops;
+		List<Operation> operations = cmd.ops;
 		int operationCount = 0;
 
 		if (operations != null) {
@@ -1119,7 +1119,7 @@ public final class CommandBuffer {
 				}
 				estimateOperationSize(operation);
 			}
-			operationCount = operations.length;
+			operationCount = operations.size();
 		}
 
 		sizeBuffer();
@@ -1262,7 +1262,7 @@ public final class CommandBuffer {
 		Buffer.intToBytes(cmd.ttl, dataBuffer, 18);
 		Buffer.intToBytes(cmd.serverTimeout, dataBuffer, 22);
 		Buffer.shortToBytes(fieldCount, dataBuffer, 26);
-		Buffer.shortToBytes(cmd.ops.length, dataBuffer, 28);
+		Buffer.shortToBytes(cmd.ops.size(), dataBuffer, 28);
 		dataOffset = Command.MSG_TOTAL_HEADER_SIZE;
 
 		writeKey(cmd.key);

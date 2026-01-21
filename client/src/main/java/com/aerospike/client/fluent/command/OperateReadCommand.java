@@ -16,6 +16,8 @@
  */
 package com.aerospike.client.fluent.command;
 
+import java.util.List;
+
 import com.aerospike.client.fluent.Cluster;
 import com.aerospike.client.fluent.Key;
 import com.aerospike.client.fluent.Operation;
@@ -24,11 +26,11 @@ import com.aerospike.client.fluent.policy.Settings;
 import com.aerospike.client.fluent.tend.Partitions;
 
 public class OperateReadCommand extends ReadCommand {
-	final Operation[] ops;
+	final List<Operation> ops;
 	final OperateArgs args;
 
 	public OperateReadCommand(
-		Cluster cluster, Partitions partitions, Txn txn, Key key, Operation[] ops, OperateArgs args,
+		Cluster cluster, Partitions partitions, Txn txn, Key key, List<Operation> ops, OperateArgs args,
 		Expression filterExp, boolean failOnFilteredOut, Settings policy, ReadAttr attr
 	) {
 		super(cluster, partitions, txn, key, null, false, filterExp, failOnFilteredOut, policy, attr);

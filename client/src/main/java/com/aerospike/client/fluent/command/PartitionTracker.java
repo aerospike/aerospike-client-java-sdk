@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2025 Aerospike, Inc.
+ * Copyright 2012-2026 Aerospike, Inc.
  *
  * Portions may be licensed to Aerospike, Inc. under one or more contributor
  * license agreements WHICH ARE COMPATIBLE WITH THE APACHE LICENSE, VERSION 2.0.
@@ -49,80 +49,8 @@ public final class PartitionTracker {
 	public int iteration = 1;
 	private long deadline;
 
-/*
-	public PartitionTracker(ScanPolicy policy, Node[] nodes) {
-		this((Policy)policy, nodes.length);
-		setMaxRecords(policy.maxRecords);
-	}
-
-	public PartitionTracker(ScanPolicy policy, int nodeCapacity) {
-		this((Policy)policy, nodeCapacity);
-		setMaxRecords(policy.maxRecords);
-	}
-*/
-	public PartitionTracker(QueryCommand policy, Statement stmt, Node[] nodes) {
-		this(policy, nodes.length);
-		setMaxRecords(policy, stmt);
-	}
-
-	public PartitionTracker(QueryCommand policy, Statement stmt, int nodeCapacity) {
-		this(policy, nodeCapacity);
-		setMaxRecords(policy, stmt);
-	}
-
-	private PartitionTracker(QueryCommand policy, int nodeCapacity) {
-		this.partitionBegin = 0;
-		this.nodeCapacity = nodeCapacity;
-		this.nodeFilter = null;
-		this.partitionFilter = null;
-		this.replica = policy.replica;
-
-		// Create initial partition capacity for each node as average + 25%.
-		int ppn = Node.PARTITIONS / nodeCapacity;
-		ppn += ppn >>> 2;
-		this.partitionsCapacity = ppn;
-		this.partitions = initPartitions(Node.PARTITIONS, null);
-		init(policy);
-	}
-
-	/*
-	public PartitionTracker(ScanPolicy policy, Node nodeFilter) {
-		this((Policy)policy, nodeFilter);
-		setMaxRecords(policy.maxRecords);
-	}
-	*/
-
-	public PartitionTracker(QueryCommand policy, Statement stmt, Node nodeFilter) {
-		this(policy, nodeFilter);
-		setMaxRecords(policy, stmt);
-	}
-
-	private PartitionTracker(Command cmd, Node nodeFilter) {
-		this.partitionBegin = 0;
-		this.nodeCapacity = 1;
-		this.nodeFilter = nodeFilter;
-		this.partitionFilter = null;
-		this.partitionsCapacity = Node.PARTITIONS;
-		this.replica = cmd.replica;
-		this.partitions = initPartitions(Node.PARTITIONS, null);
-		init(cmd);
-	}
-/*
-	public PartitionTracker(ScanPolicy policy, Node[] nodes, PartitionFilter filter) {
-		this((Policy)policy, nodes, filter, policy.maxRecords);
-	}
-
-	public PartitionTracker(ScanPolicy policy, int nodeCapacity, PartitionFilter filter) {
-		this((Policy)policy, nodeCapacity, filter, policy.maxRecords);
-	}
-*/
 	public PartitionTracker(QueryCommand cmd, Node[] nodes, PartitionFilter filter) {
 		this(cmd, nodes, filter, cmd.maxRecords);
-	}
-
-	public PartitionTracker(QueryCommand cmd, Statement stmt, int nodeCapacity, PartitionFilter filter) {
-		this(cmd, nodeCapacity, filter, (stmt.maxRecords > 0) ?
-			stmt.maxRecords : cmd.maxRecords);
 	}
 
 	private PartitionTracker(Command cmd, Node[] nodes, PartitionFilter filter, long maxRecords) {
@@ -173,10 +101,6 @@ public final class PartitionTracker {
 		this.partitions = filter.partitions;
 		this.partitionFilter = filter;
 		init(cmd);
-	}
-
-	private void setMaxRecords(QueryCommand cmd, Statement stmt) {
-		setMaxRecords((stmt.maxRecords > 0)? stmt.maxRecords : cmd.maxRecords);
 	}
 
 	private void setMaxRecords(long maxRecords) {
