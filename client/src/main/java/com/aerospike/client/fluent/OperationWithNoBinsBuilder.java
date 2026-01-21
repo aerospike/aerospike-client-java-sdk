@@ -264,7 +264,7 @@ public class OperationWithNoBinsBuilder extends AbstractSessionOperationBuilder<
         return results;
     }
 
-    public List<Boolean> execute() {
+    public RecordStream execute() {
         if (key != null) {
             return executeSingleKey();
         }
@@ -290,24 +290,31 @@ public class OperationWithNoBinsBuilder extends AbstractSessionOperationBuilder<
         return recordResults;
     }
 
-    private List<Boolean> executeSingleKey() {
+    private RecordStream executeSingleKey() {
         boolean result;
 
-        switch (opType) {
-        case EXISTS:
-        	result = exists(key);
-            break;
-        case TOUCH:
-        	result = touch(key);
-            break;
-        case DELETE:
-            result = delete(key);
-            break;
-        default:
-            throw new IllegalStateException("received an action of " + opType + " which should be handled elsewhere");
+        try {
+            switch (opType) {
+            case EXISTS:
+            	result = exists(key);
+                break;
+            case TOUCH:
+            	result = touch(key);
+                break;
+            case DELETE:
+                result = delete(key);
+                break;
+            default:
+                throw new IllegalStateException("received an action of " + opType + " which should be handled elsewhere");
+            }
+        } catch (AerospikeException ae) {
+            if (failOnFilteredOut && ae.getResultCode() == ResultCode.FILTERED_OUT) {
+                return new RecordStream();
+            }
+            return new RecordStream(new RecordResult(key, ae, 0));
         }
-
-        return List.of(result);
+        int resultCode = result ? ResultCode.OK : ResultCode.KEY_NOT_FOUND_ERROR;
+        return new RecordStream(new RecordResult(key, resultCode, false, ResultCode.getResultString(resultCode), 0));
     }
 
     private boolean exists(Key key) {
@@ -504,7 +511,7 @@ public class OperationWithNoBinsBuilder extends AbstractSessionOperationBuilder<
         return booleanArray;
     }
 
-    private List<Boolean> deleteBatch() {
+    private RecordStream deleteBatch() {
     	Cluster cluster = session.getCluster();
         String namespace = keys.get(0).namespace;
         Partitions partitions = getPartitions(cluster, namespace);
@@ -547,11 +554,10 @@ public class OperationWithNoBinsBuilder extends AbstractSessionOperationBuilder<
 
 		BatchExecutor.execute(cluster, commands, status);
 
-        List<Boolean> booleanArray = new ArrayList<>();
-
+        AsyncRecordStream stream = new AsyncRecordStream(keys.size());
         for (BatchRecord br : batchRecords) {
         	if (br.resultCode == ResultCode.OK || br.resultCode == ResultCode.KEY_NOT_FOUND_ERROR) {
-				booleanArray.add(true);
+        	    stream.publish(new RecordResult(br.key, br.resultCode, false, ResultCode.getResultString(br.resultCode), ));
         	}
         	else if (br.resultCode == ResultCode.FILTERED_OUT && failOnFilteredOut) {
                 throw new RuntimeException("Record was filtered out by filter expression");

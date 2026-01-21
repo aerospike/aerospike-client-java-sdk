@@ -436,10 +436,10 @@ public class ChainableNoBinsBuilder extends AbstractSessionOperationBuilder<Chai
      */
     public ChainableNoBinsBuilder durablyDelete(boolean durable) {
         verifyState("setting durable delete");
-        if (currentSpec.opType != OpType.DELETE) {
+        if (currentSpec.getOpType() != OpType.DELETE) {
             throw new IllegalStateException("durablyDelete() can only be called on delete operations");
         }
-        currentSpec.durablyDelete = durable;
+        currentSpec.setDurablyDelete(durable);
         return this;
     }
     
@@ -450,49 +450,49 @@ public class ChainableNoBinsBuilder extends AbstractSessionOperationBuilder<Chai
     @Override
     public ChainableNoBinsBuilder expireRecordAfter(Duration duration) {
         verifyState("setting expiration");
-        currentSpec.expirationInSeconds = duration.toSeconds();
+        currentSpec.setExpirationInSeconds(duration.toSeconds());
         return this;
     }
     
     @Override
     public ChainableNoBinsBuilder expireRecordAfterSeconds(int expirationInSeconds) {
         verifyState("setting expiration");
-        currentSpec.expirationInSeconds = expirationInSeconds;
+        currentSpec.setExpirationInSeconds(expirationInSeconds);
         return this;
     }
     
     @Override
     public ChainableNoBinsBuilder expireRecordAt(Date date) {
         verifyState("setting expiration");
-        currentSpec.expirationInSeconds = getExpirationInSecondsAndCheckValue(date);
+        currentSpec.setExpirationInSeconds(getExpirationInSecondsAndCheckValue(date));
         return this;
     }
     
     @Override
     public ChainableNoBinsBuilder expireRecordAt(LocalDateTime date) {
         verifyState("setting expiration");
-        currentSpec.expirationInSeconds = getExpirationInSecondsAndCheckValue(date);
+        currentSpec.setExpirationInSeconds(getExpirationInSecondsAndCheckValue(date));
         return this;
     }
     
     @Override
     public ChainableNoBinsBuilder withNoChangeInExpiration() {
         verifyState("setting expiration");
-        currentSpec.expirationInSeconds = TTL_NO_CHANGE;
+        currentSpec.setExpirationInSeconds(TTL_NO_CHANGE);
         return this;
     }
     
     @Override
     public ChainableNoBinsBuilder neverExpire() {
         verifyState("setting expiration");
-        currentSpec.expirationInSeconds = TTL_NEVER_EXPIRE;
+        currentSpec.setExpirationInSeconds(TTL_NEVER_EXPIRE);
         return this;
     }
     
     @Override
     public ChainableNoBinsBuilder expiryFromServerDefault() {
         verifyState("setting expiration");
-        currentSpec.expirationInSeconds = TTL_SERVER_DEFAULT;
+        currentSpec.setExpirationInSeconds(TTL_SERVER_DEFAULT);
         return this;
     }
     
@@ -502,7 +502,7 @@ public class ChainableNoBinsBuilder extends AbstractSessionOperationBuilder<Chai
         if (generation <= 0) {
             throw new IllegalArgumentException("Generation must be greater than 0");
         }
-        currentSpec.generation = generation;
+        currentSpec.setGeneration(generation);
         return this;
     }
     
@@ -515,8 +515,8 @@ public class ChainableNoBinsBuilder extends AbstractSessionOperationBuilder<Chai
         verifyState("setting where clause");
         WhereClauseProcessor processor = createWhereClauseProcessor(false, dsl, params);
         if (processor != null) {
-            ParseResult parseResult = processor.process(getNamespaceFromKeys(currentSpec.keys), session);
-            currentSpec.whereClause = Exp.build(parseResult.getExp());
+            ParseResult parseResult = processor.process(getNamespaceFromKeys(currentSpec.getKeys()), session);
+            currentSpec.setWhereClause(Exp.build(parseResult.getExp()));
         }
         return this;
     }
@@ -525,8 +525,8 @@ public class ChainableNoBinsBuilder extends AbstractSessionOperationBuilder<Chai
     public ChainableNoBinsBuilder where(BooleanExpression dsl) {
         verifyState("setting where clause");
         WhereClauseProcessor processor = WhereClauseProcessor.from(dsl);
-        ParseResult parseResult = processor.process(getNamespaceFromKeys(currentSpec.keys), session);
-        currentSpec.whereClause = Exp.build(parseResult.getExp());
+        ParseResult parseResult = processor.process(getNamespaceFromKeys(currentSpec.getKeys()), session);
+        currentSpec.setWhereClause(Exp.build(parseResult.getExp()));
         return this;
     }
     
@@ -534,8 +534,8 @@ public class ChainableNoBinsBuilder extends AbstractSessionOperationBuilder<Chai
     public ChainableNoBinsBuilder where(PreparedDsl dsl, Object... params) {
         verifyState("setting where clause");
         WhereClauseProcessor processor = WhereClauseProcessor.from(false, dsl, params);
-        ParseResult parseResult = processor.process(getNamespaceFromKeys(currentSpec.keys), session);
-        currentSpec.whereClause = Exp.build(parseResult.getExp());
+        ParseResult parseResult = processor.process(getNamespaceFromKeys(currentSpec.getKeys()), session);
+        currentSpec.setWhereClause(Exp.build(parseResult.getExp()));
         return this;
     }
     
@@ -543,8 +543,8 @@ public class ChainableNoBinsBuilder extends AbstractSessionOperationBuilder<Chai
     public ChainableNoBinsBuilder where(Exp exp) {
         verifyState("setting where clause");
         WhereClauseProcessor processor = WhereClauseProcessor.from(exp);
-        ParseResult parseResult = processor.process(getNamespaceFromKeys(currentSpec.keys), session);
-        currentSpec.whereClause = Exp.build(parseResult.getExp());
+        ParseResult parseResult = processor.process(getNamespaceFromKeys(currentSpec.getKeys()), session);
+        currentSpec.setWhereClause(Exp.build(parseResult.getExp()));
         return this;
     }
     
@@ -558,8 +558,8 @@ public class ChainableNoBinsBuilder extends AbstractSessionOperationBuilder<Chai
      */
     public ChainableNoBinsBuilder defaultWhere(String dsl, Object... params) {
         String namespace = currentSpec != null ? 
-                getNamespaceFromKeys(currentSpec.keys) :
-                (!operationSpecs.isEmpty() ? getNamespaceFromKeys(operationSpecs.get(0).keys) : null);
+                getNamespaceFromKeys(currentSpec.getKeys()) :
+                (!operationSpecs.isEmpty() ? getNamespaceFromKeys(operationSpecs.get(0).getKeys()) : null);
         
         if (namespace == null) {
             throw new IllegalStateException("Cannot set defaultWhere before any operations are specified");
@@ -581,8 +581,8 @@ public class ChainableNoBinsBuilder extends AbstractSessionOperationBuilder<Chai
      */
     public ChainableNoBinsBuilder defaultWhere(BooleanExpression dsl) {
         String namespace = currentSpec != null ? 
-                getNamespaceFromKeys(currentSpec.keys) :
-                (!operationSpecs.isEmpty() ? getNamespaceFromKeys(operationSpecs.get(0).keys) : null);
+                getNamespaceFromKeys(currentSpec.getKeys()) :
+                (!operationSpecs.isEmpty() ? getNamespaceFromKeys(operationSpecs.get(0).getKeys()) : null);
         
         if (namespace == null) {
             throw new IllegalStateException("Cannot set defaultWhere before any operations are specified");
@@ -603,8 +603,8 @@ public class ChainableNoBinsBuilder extends AbstractSessionOperationBuilder<Chai
      */
     public ChainableNoBinsBuilder defaultWhere(PreparedDsl dsl, Object... params) {
         String namespace = currentSpec != null ? 
-                getNamespaceFromKeys(currentSpec.keys) :
-                (!operationSpecs.isEmpty() ? getNamespaceFromKeys(operationSpecs.get(0).keys) : null);
+                getNamespaceFromKeys(currentSpec.getKeys()) :
+                (!operationSpecs.isEmpty() ? getNamespaceFromKeys(operationSpecs.get(0).getKeys()) : null);
         
         if (namespace == null) {
             throw new IllegalStateException("Cannot set defaultWhere before any operations are specified");
@@ -624,8 +624,8 @@ public class ChainableNoBinsBuilder extends AbstractSessionOperationBuilder<Chai
      */
     public ChainableNoBinsBuilder defaultWhere(Exp exp) {
         String namespace = currentSpec != null ? 
-                getNamespaceFromKeys(currentSpec.keys) :
-                (!operationSpecs.isEmpty() ? getNamespaceFromKeys(operationSpecs.get(0).keys) : null);
+                getNamespaceFromKeys(currentSpec.getKeys()) :
+                (!operationSpecs.isEmpty() ? getNamespaceFromKeys(operationSpecs.get(0).getKeys()) : null);
         
         if (namespace == null) {
             throw new IllegalStateException("Cannot set defaultWhere before any operations are specified");
@@ -640,14 +640,14 @@ public class ChainableNoBinsBuilder extends AbstractSessionOperationBuilder<Chai
     @Override
     public ChainableNoBinsBuilder failOnFilteredOut() {
         verifyState("setting failOnFilteredOut");
-        currentSpec.failOnFilteredOut = true;
+        currentSpec.setFailOnFilteredOut(true);
         return this;
     }
     
     @Override
     public ChainableNoBinsBuilder respondAllKeys() {
         verifyState("setting respondAllKeys");
-        currentSpec.respondAllKeys = true;
+        currentSpec.setRespondAllKeys(true);
         return this;
     }
     
@@ -704,9 +704,9 @@ public class ChainableNoBinsBuilder extends AbstractSessionOperationBuilder<Chai
         }
         
         OperationSpec spec = operationSpecs.get(0);
-        return spec.keys.size() == 1 && 
-               spec.operations.isEmpty() && // No bin operations
-               spec.whereClause == null && // No operation-level where clause
+        return spec.getKeys().size() == 1 && 
+               spec.getOperations().isEmpty() && // No bin operations
+               spec.getWhereClause() == null && // No operation-level where clause
                defaultWhereClause == null; // No batch-level where clause
     }
     
@@ -716,22 +716,22 @@ public class ChainableNoBinsBuilder extends AbstractSessionOperationBuilder<Chai
      */
     private RecordStream executeSingleKeyOperation() {
         OperationSpec spec = operationSpecs.get(0);
-        Key key = spec.keys.get(0);
+        Key key = spec.getKeys().get(0);
         
         // Create an OperationWithNoBinsBuilder and configure it
-        OperationWithNoBinsBuilder builder = new OperationWithNoBinsBuilder(session, key, spec.opType);
+        OperationWithNoBinsBuilder builder = new OperationWithNoBinsBuilder(session, key, spec.getOpType());
         
         // Apply the spec's settings
-        if (spec.expirationInSeconds != Long.MIN_VALUE && spec.expirationInSeconds != 0) {
-            builder.expireRecordAfterSeconds((int) spec.expirationInSeconds);
+        if (spec.getExpirationInSeconds() != Long.MIN_VALUE && spec.getExpirationInSeconds() != 0) {
+            builder.expireRecordAfterSeconds((int) spec.getExpirationInSeconds());
         }
-        if (spec.generation > 0) {
-            builder.ensureGenerationIs(spec.generation);
+        if (spec.getGeneration() > 0) {
+            builder.ensureGenerationIs(spec.getGeneration());
         }
-        if (spec.failOnFilteredOut) {
+        if (spec.isFailOnFilteredOut()) {
             builder.failOnFilteredOut();
         }
-        if (spec.respondAllKeys) {
+        if (spec.isRespondAllKeys()) {
             builder.respondAllKeys();
         }
         if (txnToUse != null) {

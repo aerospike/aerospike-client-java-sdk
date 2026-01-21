@@ -433,7 +433,7 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
             Operation[] ops = getOperationsForValueData(valueSet);
             int ttl = getExpiration(valueSet);
 
-            batchRecords.add(new BatchWrite(key, ops, opBuilder.opType, valueSet.generation, ttl));
+            batchRecords.add(new BatchWrite(key, ops, opBuilder.getOpType(), valueSet.generation, ttl));
         }
 
         BatchWriteCommand parent = new BatchWriteCommand(cluster, partitions, txn, namespace,
@@ -714,7 +714,7 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
 
 		OperateArgs args = new OperateArgs(ops);
         OperateWriteCommand cmd = new OperateWriteCommand(cluster, partitions, txnToUse, key, ops,
-        	args, opBuilder.opType, valueSet.generation, ttl, filterExp,
+        	args, opBuilder.getOpType(), valueSet.generation, ttl, filterExp,
         	opBuilder.failOnFilteredOut, policy);
 
         try {

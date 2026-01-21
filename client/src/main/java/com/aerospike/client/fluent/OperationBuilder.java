@@ -61,6 +61,7 @@ public class OperationBuilder extends AbstractOperationBuilder<OperationBuilder>
     protected int generation = 0;
     protected long expirationInSecondsForAll = 0;
     protected Txn txnToUse;
+    private final OpType opType;
 
     /**
      * The threshold for determining when to use batch operations vs individual operations.
@@ -323,7 +324,7 @@ public class OperationBuilder extends AbstractOperationBuilder<OperationBuilder>
         return this;
     }
 
-    protected Txn getTxnToUse() {
+    public Txn getTxnToUse() {
         return this.txnToUse;
     }
 
@@ -363,6 +364,11 @@ public class OperationBuilder extends AbstractOperationBuilder<OperationBuilder>
 
     public boolean isMultiKey() {
         return keys.size() > 1;
+    }
+    
+    @Override
+    public boolean isRespondAllKeys() {
+        return respondAllKeys;
     }
 
     public int getExpirationAsInt(long expirationInSeconds) {
@@ -775,7 +781,12 @@ public class OperationBuilder extends AbstractOperationBuilder<OperationBuilder>
         throw ae;
     }
 
-    void showWarningsOnException(AerospikeException ae, Txn txn, Key key, int expiration) {
+    @Override
+    public OpType getOpType() {
+        return this.opType;
+    }
+    
+    public void showWarningsOnException(AerospikeException ae, Txn txn, Key key, int expiration) {
         if (Log.warnEnabled()) {
             if (ae.getResultCode() == ResultCode.FAIL_FORBIDDEN && expiration > 0) {
                 Log.warn("Operation failed on server with FAIL_FORBIDDEN (22) and the record had "

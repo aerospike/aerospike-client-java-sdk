@@ -11,13 +11,9 @@ import com.aerospike.client.fluent.command.Txn;
 import com.aerospike.client.fluent.dsl.BooleanExpression;
 import com.aerospike.client.fluent.exp.Exp;
 import com.aerospike.client.fluent.exp.Expression;
-import com.aerospike.client.fluent.policy.Settings;
 import com.aerospike.client.fluent.query.PreparedDsl;
 import com.aerospike.client.fluent.query.WhereClauseProcessor;
-import com.aerospike.client.policy.GenerationPolicy;
-import com.aerospike.client.policy.WritePolicy;
 import com.aerospike.dsl.ParseResult;
-import com.aerospike.exception.AeroException;
 
 /**
  * Builder for chainable batch operations that support bin-level modifications.
@@ -772,6 +768,16 @@ public class ChainableOperationBuilder extends AbstractOperationBuilder<Chainabl
         }
         
         @Override
+        public boolean isRespondAllKeys() {
+            return currentSpec != null && currentSpec.isRespondAllKeys();
+        } 
+        
+        @Override
+        public Txn getTxnToUse() {
+            return txnToUse;
+        }
+        
+        @Override
         public int getExpirationAsInt(long expirationInSeconds) {
             return ChainableOperationBuilder.this.getExpirationAsInt(expirationInSeconds);
         }
@@ -786,17 +792,17 @@ public class ChainableOperationBuilder extends AbstractOperationBuilder<Chainabl
             return ChainableOperationBuilder.this.getExpirationInSecondsAndCheckValue(dateTime);
         }
         
-        @Override
-        public WritePolicy getWritePolicy(Settings settings, int generation, OpType opType) {
-            WritePolicy result = settings.asWritePolicy();
-            result.generation = generation;
-            result.generationPolicy = generation > 0 ? 
-                    GenerationPolicy.EXPECT_GEN_EQUAL : 
-                    GenerationPolicy.NONE;
-            result.recordExistsAction = AbstractSessionOperationBuilder.recordExistsActionFromOpType(opType);
-            return result;
-        }
-        
+//        @Override
+//        public WritePolicy getWritePolicy(Settings settings, int generation, OpType opType) {
+//            WritePolicy result = settings.asWritePolicy();
+//            result.generation = generation;
+//            result.generationPolicy = generation > 0 ? 
+//                    GenerationPolicy.EXPECT_GEN_EQUAL : 
+//                    GenerationPolicy.NONE;
+//            result.recordExistsAction = AbstractSessionOperationBuilder.recordExistsActionFromOpType(opType);
+//            return result;
+//        }
+//        
         @Override
         public void showWarningsOnException(AerospikeException ae, Txn txn, Key key, int expiration) {
             if (Log.warnEnabled()) {
@@ -814,30 +820,30 @@ public class ChainableOperationBuilder extends AbstractOperationBuilder<Chainabl
             }
         }
         
-        @Override
-        public void executeAndPublishSingleOperation(
-                WritePolicy wp,
-                Key key,
-                Operation[] operations,
-                AsyncRecordStream asyncStream,
-                int index,
-                boolean stackTraceOnException) {
-            try {
-                Record record = session.getClient().operate(wp, key, operations);
-                if (currentSpec != null && currentSpec.respondAllKeys || record != null) {
-                    asyncStream.publish(new RecordResult(key, record, index));
-                }
-            } catch (AerospikeException ae) {
-                if (ae.getResultCode() == ResultCode.FILTERED_OUT) {
-                    if (currentSpec != null && (currentSpec.failOnFilteredOut || currentSpec.respondAllKeys)) {
-                        asyncStream.publish(new RecordResult(key, AeroException.from(ae), index));
-                    }
-                    // Otherwise skip this record
-                } else {
-                    showWarningsOnException(ae, txnToUse, key, wp.expiration);
-                    asyncStream.publish(new RecordResult(key, AeroException.from(ae), index));
-                }
-            }
-        }
+//        @Override
+//        public void executeAndPublishSingleOperation(
+//                WritePolicy wp,
+//                Key key,
+//                Operation[] operations,
+//                AsyncRecordStream asyncStream,
+//                int index,
+//                boolean stackTraceOnException) {
+//            try {
+//                Record record = session.getClient().operate(wp, key, operations);
+//                if (currentSpec != null && currentSpec.respondAllKeys || record != null) {
+//                    asyncStream.publish(new RecordResult(key, record, index));
+//                }
+//            } catch (AerospikeException ae) {
+//                if (ae.getResultCode() == ResultCode.FILTERED_OUT) {
+//                    if (currentSpec != null && (currentSpec.failOnFilteredOut || currentSpec.respondAllKeys)) {
+//                        asyncStream.publish(new RecordResult(key, AeroException.from(ae), index));
+//                    }
+//                    // Otherwise skip this record
+//                } else {
+//                    showWarningsOnException(ae, txnToUse, key, wp.expiration);
+//                    asyncStream.publish(new RecordResult(key, AeroException.from(ae), index));
+//                }
+//            }
+//        }
     }
 }
