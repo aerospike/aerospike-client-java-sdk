@@ -761,9 +761,14 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
 
     private int getExpiration(ValueData valueData) {
         if (valueData.expirationInSeconds != Long.MIN_VALUE) {
+            // Per-record expiration set via expireRecordAfterSeconds() after values()
             return opBuilder.getExpirationAsInt(valueData.expirationInSeconds);
-        } else {
+        } else if (expirationInSecondsForAll != 0) {
+            // Batch expiration set via expireAllRecordsAfterSeconds()
             return opBuilder.getExpirationAsInt(expirationInSecondsForAll);
+        } else {
+            // Fall back to OperationBuilder's expiration (set before bins())
+            return opBuilder.getExpirationAsInt();
         }
     }
 }
