@@ -18,6 +18,7 @@ package com.aerospike.client.fluent;
 
 import java.io.File;
 
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 
 import com.aerospike.client.fluent.policy.Behavior;
@@ -40,6 +41,23 @@ public class ClusterTest {
 		ClusterDefinition def = new ClusterDefinition(hosts)
 			.withLogLevel(Log.Level.DEBUG)
 			.clusterName(args.clusterName);
+
+		// Handle authenticated requests if provided 
+		if (args.user != null && args.password != null) {
+			switch (args.authMode) {
+				case INTERNAL:
+					def.withNativeCredentials(args.user, args.password);
+					break;
+				case EXTERNAL:
+					def.withExternalCredentials(args.user, args.password);
+					break;
+				case EXTERNAL_INSECURE:
+					def.withExternalInsecureCredentials(args.user, args.password);
+					break;
+				default:
+					break;
+			}
+		}
 
 		if (args.tlsName != null) {
 			String certHome = System.getenv("CERT_HOME");
@@ -68,6 +86,17 @@ public class ClusterTest {
 		catch (RuntimeException re) {
 			cluster.close();
 			throw re;
+		}
+	}
+
+	@AfterAll
+	public static void shutdownCluster() {
+		// Session doesn't need explicit cleanup - it's just a wrapper
+		session = null;
+
+		if (cluster != null) {
+			cluster.close();
+			cluster = null;
 		}
 	}
 
