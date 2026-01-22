@@ -16,8 +16,103 @@
  */
 package com.aerospike.client.fluent;
 
+import java.io.File;
+
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+
+import com.aerospike.client.fluent.policy.Behavior;
+
 public class ClusterTest {
 	public static Args args = Args.Instance;
 	public static Cluster cluster;
 	public static Session session;
+	static boolean initializedBySuite = false;
+
+	@BeforeAll
+	public static void initCluster() {
+		if (session != null) {
+			return; // Already initialized by suite
+		}
+
+		Log.setCallback(null);
+
+		Host[] hosts = Host.parseHosts(args.host, args.port);
+
+		ClusterDefinition def = new ClusterDefinition(hosts)
+			.withLogLevel(Log.Level.DEBUG)
+			.clusterName(args.clusterName);
+
+		// Handle authenticated requests if provided 
+		if (args.user != null && args.password != null) {
+			switch (args.authMode) {
+				case INTERNAL:
+					def.withNativeCredentials(args.user, args.password);
+					break;
+				case EXTERNAL:
+					def.withExternalCredentials(args.user, args.password);
+					break;
+				case EXTERNAL_INSECURE:
+					def.withExternalInsecureCredentials(args.user, args.password);
+					break;
+				default:
+					break;
+			}
+		}
+
+		if (args.tlsName != null) {
+			String certHome = System.getenv("CERT_HOME");
+			if (certHome == null) {
+				certHome = "";
+			}
+
+			String caFile = resolvePath(certHome, args.caFile);
+			String clientCertFile = resolvePath(certHome, args.clientCertFile);
+			String clientKeyFile = resolvePath(certHome, args.clientKeyFile);
+
+			def.withTlsConfigOf()
+				.tlsName(args.tlsName)
+				.caFile(caFile)
+				.clientCertFile(clientCertFile)
+				.clientKeyFile(clientKeyFile)
+				.done();
+		}
+
+		cluster = def.connect();
+
+		try {
+			session = cluster.createSession(Behavior.DEFAULT);
+			args.setServerSpecific(cluster);
+		}
+		catch (RuntimeException re) {
+			cluster.close();
+			throw re;
+		}
+	}
+
+	@AfterAll
+	public static void shutdownCluster() {
+		// Don't close cluster if it was initialized by suite
+		// The suite's @AfterSuite will handle cleanup
+		if (initializedBySuite) {
+			return;
+		}
+
+		// Session doesn't need explicit cleanup - it's just a wrapper
+		session = null;
+
+		if (cluster != null) {
+			cluster.close();
+			cluster = null;
+		}
+	}
+
+	private static String resolvePath(String dir, String path) {
+		File file = new File(path);
+		if (file.isAbsolute()) {
+			return path;
+		}
+		file = new File(dir, path);
+		return file.getAbsolutePath();
+	}
 }

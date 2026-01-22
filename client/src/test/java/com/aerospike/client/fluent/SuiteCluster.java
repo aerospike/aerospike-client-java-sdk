@@ -18,6 +18,7 @@ package com.aerospike.client.fluent;
 
 import java.io.File;
 
+import com.aerospike.client.fluent.query.*;
 import org.junit.platform.suite.api.AfterSuite;
 import org.junit.platform.suite.api.BeforeSuite;
 import org.junit.platform.suite.api.SelectClasses;
@@ -27,10 +28,20 @@ import com.aerospike.client.fluent.policy.Behavior;
 
 @Suite
 @SelectClasses({
-	AddTest.class,
-	AppendTest.class,
-	BitExpTest.class,
-	PutGetTest.class
+        AddTest.class,
+	    AppendTest.class,
+	    BitExpTest.class,
+	    PutGetTest.class,
+        QueryBlobTest.class,
+        QueryCollectionTest.class,
+        QueryContextTest.class,
+        QueryFilterExpTest.class,
+        QueryFilterSetTest.class,
+        QueryIndexTest.class,
+        QueryIntegerTest.class,
+        QueryKeyTest.class,
+        QueryStringTest.class
+
 })
 public class SuiteCluster {
 	@BeforeSuite
@@ -45,6 +56,23 @@ public class SuiteCluster {
         ClusterDefinition def = new ClusterDefinition(hosts)
         	.withLogLevel(Log.Level.DEBUG)
         	.clusterName(args.clusterName);
+
+		// Handle authenticated requests if provided
+		if (args.user != null && args.password != null) {
+			switch (args.authMode) {
+				case INTERNAL:
+					def.withNativeCredentials(args.user, args.password);
+					break;
+				case EXTERNAL:
+					def.withExternalCredentials(args.user, args.password);
+					break;
+				case EXTERNAL_INSECURE:
+					def.withExternalInsecureCredentials(args.user, args.password);
+					break;
+				default:
+					break;
+			}
+		}
 
         if (args.tlsName != null) {
             String certHome = System.getenv("CERT_HOME");
@@ -79,6 +107,7 @@ public class SuiteCluster {
 
 		ClusterTest.cluster = cluster;
 		ClusterTest.session = session;
+		ClusterTest.initializedBySuite = true;
 	}
 
     private static String resolvePath(String dir, String path) {
@@ -98,6 +127,8 @@ public class SuiteCluster {
 		if (ClusterTest.cluster != null) {
 			ClusterTest.cluster.close();
 			ClusterTest.cluster = null;
+			ClusterTest.session = null;
 		}
+		ClusterTest.initializedBySuite = false;
 	}
 }
