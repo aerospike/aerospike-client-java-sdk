@@ -57,6 +57,23 @@ public class SuiteCluster {
         	.withLogLevel(Log.Level.DEBUG)
         	.clusterName(args.clusterName);
 
+		// Handle authenticated requests if provided
+		if (args.user != null && args.password != null) {
+			switch (args.authMode) {
+				case INTERNAL:
+					def.withNativeCredentials(args.user, args.password);
+					break;
+				case EXTERNAL:
+					def.withExternalCredentials(args.user, args.password);
+					break;
+				case EXTERNAL_INSECURE:
+					def.withExternalInsecureCredentials(args.user, args.password);
+					break;
+				default:
+					break;
+			}
+		}
+
         if (args.tlsName != null) {
             String certHome = System.getenv("CERT_HOME");
 
@@ -90,6 +107,7 @@ public class SuiteCluster {
 
 		ClusterTest.cluster = cluster;
 		ClusterTest.session = session;
+		ClusterTest.initializedBySuite = true;
 	}
 
     private static String resolvePath(String dir, String path) {
@@ -109,6 +127,8 @@ public class SuiteCluster {
 		if (ClusterTest.cluster != null) {
 			ClusterTest.cluster.close();
 			ClusterTest.cluster = null;
+			ClusterTest.session = null;
 		}
+		ClusterTest.initializedBySuite = false;
 	}
 }
