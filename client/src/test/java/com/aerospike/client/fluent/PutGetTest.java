@@ -18,10 +18,15 @@ package com.aerospike.client.fluent;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
+
+import java.util.Date;
+import java.util.List;
+import java.util.Map;
 
 import org.junit.jupiter.api.Test;
 
@@ -34,13 +39,13 @@ public class PutGetTest extends ClusterTest {
 		String key = "putgetkey";
 
         // Write record.
-        session.upsert(args.set.ids(key))
+        session.upsert(args.set.id(key))
 	        .bins("bin1", "bin2")
 	        .values("value1", "value2")
 	        .execute();
 
         // Query all bins.
-        RecordStream rs = session.query(args.set.ids(key)).execute();
+        RecordStream rs = session.query(args.set.id(key)).execute();
     	Record rec = rs.next().recordOrThrow();
 
     	String val = rec.getString("bin1");
@@ -50,7 +55,7 @@ public class PutGetTest extends ClusterTest {
 		assertEquals("value2", val);
 
         // Query specific bin.
-        rs = session.query(args.set.ids(key))
+        rs = session.query(args.set.id(key))
         	.readingOnlyBins("bin2")
         	.execute();
     	rec = rs.next().recordOrThrow();
@@ -66,12 +71,12 @@ public class PutGetTest extends ClusterTest {
 	public void getHeader() {
 		String key = "getHeader";
 
-        session.upsert(args.set.ids(key))
+        session.upsert(args.set.id(key))
 	        .bins("mybin")
 	        .values("myvalue")
 	        .execute();
 
-        RecordStream rs = session.query(args.set.ids(key))
+        RecordStream rs = session.query(args.set.id(key))
         	.withNoBins()
         	.execute();
 
@@ -90,12 +95,14 @@ public class PutGetTest extends ClusterTest {
 	public void putGetBool() {
 		String key = "putGetBool";
 
-        session.upsert(args.set.ids(key))
+        session.delete(args.set.id(key)).execute();
+
+        session.upsert(args.set.id(key))
 	        .bins("bin1", "bin2", "bin3", "bin4")
 	        .values(false, true, 0, 1)
 	        .execute();
 
-        RecordStream rs = session.query(args.set.ids(key))
+        RecordStream rs = session.query(args.set.id(key))
         	.execute();
 
     	Record rec = rs.next().recordOrThrow();
@@ -130,12 +137,12 @@ public class PutGetTest extends ClusterTest {
 			bytes[i] = (byte)(i % 256);
 		}
 
-        session.upsert(args.set.ids(key))
+        session.upsert(args.set.id(key))
 	        .bins("bb")
 	        .values(bytes)
 	        .execute();
 
-        RecordStream rs = session.query(args.set.ids(key))
+        RecordStream rs = session.query(args.set.id(key))
             .execute();
 
         Record rec = rs.next().recordOrThrow();
@@ -147,5 +154,43 @@ public class PutGetTest extends ClusterTest {
 			byte b = (byte)(i % 256);
 			assertEquals(b, rcv[i]);
 		}
+	}
+
+	@Test
+	public void putGetObject() {
+		/*
+		String key = "putGetObject";
+
+        CustomerMapper customerMapper = new CustomerMapper();
+        cluster.setRecordMappingFactory(new DefaultRecordMappingFactory(Map.of(
+            Customer.class, customerMapper,
+            Address.class, new AddressMapper()
+        )));
+
+        session.delete(args.set.id(key)).execute();
+
+        Customer customer = new Customer(999, "sample", 456, new Date(),
+        	new Address("123 Main St", "Denver", "CO", "USA", "80112"));
+
+        TypeSafeDataSet<Customer> customerDataSet =
+        	new TypeSafeDataSet<Customer>(args.namespace, args.set.getSet(), Customer.class);
+
+        session.insert(customerDataSet)
+        	.object(customer)
+	        .execute();
+
+        List<Customer> readCustomers = session.query(customerDataSet.id(key))
+        	.execute()
+        	.toObjectList(customerMapper);
+
+		assertNotNull(readCustomers);
+		assertEquals(1, readCustomers.size());
+
+		Customer readCustomer = readCustomers.get(0);
+
+		assertEquals(customer.getId(), readCustomer.getId());
+		assertEquals(customer.getAge(), readCustomer.getAge());
+		assertEquals(customer.getName(), readCustomer.getName());
+		*/
 	}
 }
