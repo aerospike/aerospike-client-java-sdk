@@ -26,10 +26,12 @@ import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import java.util.Date;
 import java.util.List;
-import java.util.Map;
 
 import org.junit.jupiter.api.Test;
 
+import com.aerospike.client.fluent.mapper.Address;
+import com.aerospike.client.fluent.mapper.Customer;
+import com.aerospike.client.fluent.mapper.CustomerMapper;
 import com.aerospike.client.fluent.policy.Behavior;
 import com.aerospike.client.fluent.policy.Behavior.Selectors;
 
@@ -158,18 +160,13 @@ public class PutGetTest extends ClusterTest {
 
 	@Test
 	public void putGetObject() {
-		/*
-		String key = "putGetObject";
+		int key = 999;
 
         CustomerMapper customerMapper = new CustomerMapper();
-        cluster.setRecordMappingFactory(new DefaultRecordMappingFactory(Map.of(
-            Customer.class, customerMapper,
-            Address.class, new AddressMapper()
-        )));
 
         session.delete(args.set.id(key)).execute();
 
-        Customer customer = new Customer(999, "sample", 456, new Date(),
+        Customer customer = new Customer(key, "sample", 456, new Date(),
         	new Address("123 Main St", "Denver", "CO", "USA", "80112"));
 
         TypeSafeDataSet<Customer> customerDataSet =
@@ -177,6 +174,7 @@ public class PutGetTest extends ClusterTest {
 
         session.insert(customerDataSet)
         	.object(customer)
+        	.using(customerMapper)
 	        .execute();
 
         List<Customer> readCustomers = session.query(customerDataSet.id(key))
@@ -191,6 +189,5 @@ public class PutGetTest extends ClusterTest {
 		assertEquals(customer.getId(), readCustomer.getId());
 		assertEquals(customer.getAge(), readCustomer.getAge());
 		assertEquals(customer.getName(), readCustomer.getName());
-		*/
 	}
 }
