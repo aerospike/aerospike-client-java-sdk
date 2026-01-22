@@ -26,6 +26,7 @@ import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import com.aerospike.client.fluent.AerospikeException.InvalidNamespace;
 import com.aerospike.client.fluent.command.Batch;
 import com.aerospike.client.fluent.command.BatchAttr;
 import com.aerospike.client.fluent.command.BatchExecutor;
