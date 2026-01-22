@@ -114,6 +114,8 @@ class BatchExecutor {
         return partitions;
     }
 
+    // TODO: BN - I think it makes sense to merge this into `execute()` but I don't want to limit 
+    // reusability if I do that.
     protected static RecordStream executeBatchSync(Session session, Settings settings, 
             List<BatchRecord> batchRecords, OperateArgs args, Txn txnToUse, String namespace,
             boolean anyFailOnFilteredOut, Expression filterExp, boolean respondAllKeys) {
@@ -258,13 +260,6 @@ class BatchExecutor {
      */
     private static BatchDelete createBatchDelete(OperationSpec spec, Key key,
                                                   Expression filterExp, Settings settings) {
-        
-//        if (spec.getDurablyDelete() != null) {
-//            policy.durableDelete = spec.getDurablyDelete();
-//        } else {
-//            policy.durableDelete = settings.getUseDurableDelete();
-//        }
-        
         // TODO: BN: What about durable delete, filter expression?
         return new BatchDelete(key, spec.getGeneration());
     }
@@ -275,7 +270,7 @@ class BatchExecutor {
     private static BatchWrite createBatchTouch(OperationSpec spec, Key key,
                                                Expression filterExp, Settings settings) {
 
-        // TODO: BN: How to set the "sendKey" and "filterExp" settings?
+        // TODO: BN: How to set the "filterExp" settings?
         return new BatchWrite(key, new Operation[] { Operation.touch() }, OpType.TOUCH, spec.getGeneration(), (int)spec.getExpirationInSeconds());
     }
     

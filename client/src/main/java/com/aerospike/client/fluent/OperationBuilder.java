@@ -61,7 +61,6 @@ public class OperationBuilder extends AbstractOperationBuilder<OperationBuilder>
     protected int generation = 0;
     protected long expirationInSecondsForAll = 0;
     protected Txn txnToUse;
-    private final OpType opType;
 
     /**
      * The threshold for determining when to use batch operations vs individual operations.
@@ -416,6 +415,11 @@ public class OperationBuilder extends AbstractOperationBuilder<OperationBuilder>
         return this;
     }
 
+    @Override
+    public boolean isFailOnFilteredOut() {
+        return this.failOnFilteredOut;
+    }
+    
     @Override
     public OperationBuilder respondAllKeys() {
         this.respondAllKeys = true;
@@ -776,7 +780,7 @@ public class OperationBuilder extends AbstractOperationBuilder<OperationBuilder>
         return session.getBehavior().getSettings(kind, shape, partitions.scMode);
     }
 
-    void showWarningsOnExceptionAndThrow(AerospikeException ae, Txn txn, Key key, int expiration) {
+    public void showWarningsOnExceptionAndThrow(AerospikeException ae, Txn txn, Key key, int expiration) {
         showWarningsOnException(ae, txn, key, expiration);
         throw ae;
     }

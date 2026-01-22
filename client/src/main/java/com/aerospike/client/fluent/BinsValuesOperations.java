@@ -37,6 +37,8 @@ interface BinsValuesOperations {
     
     boolean isRespondAllKeys();
     
+    boolean isFailOnFilteredOut();
+    
     /**
      * Convert expiration in seconds to int, capping at Integer.MAX_VALUE.
      */
@@ -53,24 +55,8 @@ interface BinsValuesOperations {
     long getExpirationInSecondsAndCheckValue(LocalDateTime dateTime);
     
     /**
-     * Create a WritePolicy with the specified settings.
-     */
-//    WritePolicy getWritePolicy(Settings settings, int generation, OpType opType);
-    
-    /**
      * Show warnings for specific exception conditions.
      */
     void showWarningsOnException(AerospikeException ae, Txn txn, Key key, int expiration);
-    
-    /**
-     * Execute a single operation and publish the result to an async stream.
-     */
-//    void executeAndPublishSingleOperation(
-//            WritePolicy wp, 
-//            Key key, 
-//            Operation[] operations,
-//            AsyncRecordStream asyncStream,
-//            int index,
-//            boolean stackTraceOnException);
 }
 

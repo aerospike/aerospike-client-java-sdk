@@ -819,7 +819,12 @@ public class ChainableOperationBuilder extends AbstractOperationBuilder<Chainabl
                 }
             }
         }
-        
+
+        @Override
+        public boolean isFailOnFilteredOut() {
+            return currentSpec != null && currentSpec.isFailOnFilteredOut();
+        }
+
 //        @Override
 //        public void executeAndPublishSingleOperation(
 //                WritePolicy wp,

@@ -437,7 +437,7 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
         }
 
         BatchWriteCommand parent = new BatchWriteCommand(cluster, partitions, txn, namespace,
-        	batchRecords, filterExp, opBuilder.respondAllKeys, policy);
+        	batchRecords, filterExp, opBuilder.isRespondAllKeys(), policy);
 
         BatchStatus status = new BatchStatus(true);
         List<BatchNode> bns = BatchNodeList.generate(cluster, partitions, policy.getReplicaOrder(), batchRecords,
@@ -515,7 +515,7 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
         Txn txn = opBuilder.getTxnToUse();
 
         BatchWriteCommand parent = new BatchWriteCommand(cluster, partitions, txn, namespace,
-        	batchRecords, filterExp, opBuilder.respondAllKeys, policy);
+        	batchRecords, filterExp, opBuilder.isRespondAllKeys(), policy);
 
         BatchStatus status = new BatchStatus(true);
         List<BatchNode> bns = BatchNodeList.generate(cluster, partitions, policy.getReplicaOrder(), batchRecords,
@@ -715,7 +715,7 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
 		OperateArgs args = new OperateArgs(ops);
         OperateWriteCommand cmd = new OperateWriteCommand(cluster, partitions, txnToUse, key, ops,
         	args, opBuilder.getOpType(), valueSet.generation, ttl, filterExp,
-        	opBuilder.failOnFilteredOut, policy);
+        	opBuilder.isFailOnFilteredOut(), policy);
 
         try {
             OperateWriteExecutor exec = new OperateWriteExecutor(cluster, cmd);
@@ -725,8 +725,8 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
             if (ae.getResultCode() == ResultCode.FILTERED_OUT) {
                 throw ae;
             } else {
-                opBuilder.showWarningsOnExceptionAndThrow(ae, txnToUse, key, ttl);
-                return null;
+                opBuilder.showWarningsOnException(ae, txnToUse, key, ttl);
+                throw ae;
             }
         }
     }
