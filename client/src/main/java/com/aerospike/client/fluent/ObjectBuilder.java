@@ -27,6 +27,7 @@ import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import com.aerospike.client.fluent.command.BatchRecord;
 import com.aerospike.client.fluent.command.OperateArgs;
@@ -389,56 +390,6 @@ public class ObjectBuilder<T> {
         return this.opBuilder.getDataSet().idForObject(id);
     }
 
-    private RecordStream executeSingleAsync(T element) {
-    	/*
-        // Single element: use async execution with virtual thread
-        AsyncRecordStream asyncStream = new AsyncRecordStream(1);
-
-        Thread.startVirtualThread(() -> {
-            try {
-                RecordMapper<T> recordMapper = getMapper(element);
-                Key key = getKeyForElement(recordMapper, element);
-                List<Operation> operations = operationsForElement(recordMapper, element);
-
-                CommandType type = OperationBuilder.areOperationsRetryable(operations)
-                    ? CommandType.WRITE_RETRYABLE : CommandType.WRITE_NON_RETRYABLE;
-                WritePolicy wp = this.opBuilder.getSession().getBehavior().getSharedPolicy(type);
-                wp.txn = this.txnToUse;
-
-                if (generation > 0) {
-                    wp.generation = generation;
-                    wp.generationPolicy = GenerationPolicy.EXPECT_GEN_EQUAL;
-                }
-
-                long effectiveExpiration = (expirationInSeconds != 0) ? expirationInSeconds : expirationInSecondsForAll;
-                wp.expiration = getExpirationAsInt(effectiveExpiration);
-
-                // Apply where clause if present
-                if (opBuilder.getDsl() != null) {
-                    ParseResult parseResult = opBuilder.getDsl().process(key.namespace, opBuilder.getSession());
-                    wp.filterExp = Exp.build(parseResult.getExp());
-                }
-
-                try {
-                    Record record = this.opBuilder.getSession().getClient().operate(wp, key, operations);
-                    if (opBuilder.isRespondAllKeys() || record != null) {
-                        asyncStream.publish(new RecordResult(key, record, 0));
-                    }
-                } catch (AerospikeException ae) {
-                    if (shouldPublish(ae, opBuilder)) {
-                        asyncStream.publish(new RecordResult(key, AeroException.from(ae), 0)); // Single key operation, index = 0
-                    }
-                }
-            } finally {
-                asyncStream.complete();
-            }
-        });
-
-        return new RecordStream(asyncStream);
-        */
-    	return null;
-    }
-
     /**
      * Execute operations with default behavior (synchronous).
      * All operations complete before this method returns, making it safe for transactions.
@@ -461,6 +412,10 @@ public class ObjectBuilder<T> {
         if (Log.debugEnabled()) {
             Log.debug("ObjectBuilder.executeSync() called for " + elements.size() + " element(s), transaction: " +
                      (txnToUse != null ? "yes" : "no"));
+        }
+
+        if (elements.size() == 0) {
+            return new RecordStream();
         }
 
         if (elements.size() == 1) {
@@ -496,6 +451,10 @@ public class ObjectBuilder<T> {
                 "which could lead to inconsistent state. " +
                 "Consider using executeSync() or execute() for transactional safety."
             );
+        }
+
+        if (elements.size() == 0) {
+            return new RecordStream();
         }
 
         if (elements.size() == 1) {
@@ -594,14 +553,13 @@ public class ObjectBuilder<T> {
 
         // Apply where clause if present
         final Expression filterExp = getFilterExp(firstKey.namespace);
+        int ttl = (int)((expirationInSeconds != 0) ? expirationInSeconds : expirationInSecondsForAll);
+        boolean stackTraceOnException = settings.getStackTraceOnException();
 
         if (txnToUse != null) {
         	// Assume all operations are write operations.
             TxnMonitor.addKeys(txnToUse, cluster, partitions, settings, keys);
         }
-
-        int ttl = (int)((expirationInSeconds != 0) ? expirationInSeconds : expirationInSecondsForAll);
-        boolean stackTraceOnException = settings.getStackTraceOnException();
 
 		AsyncRecordStream stream = new AsyncRecordStream(elements.size());
 
@@ -635,65 +593,42 @@ public class ObjectBuilder<T> {
      * Returns immediately; virtual threads complete in background.
      */
     private RecordStream executeIndividualAsync() {
-    	/*
-        // Apply where clause if present
-        final Expression whereExp;
-        if (opBuilder.getDsl() != null && !elements.isEmpty()) {
-            RecordMapper<T> firstMapper = getMapper(elements.get(0));
-            Key firstKey = getKeyForElement(firstMapper, elements.get(0));
-            ParseResult parseResult = opBuilder.getDsl().process(firstKey.namespace, opBuilder.getSession());
-            whereExp = Exp.build(parseResult.getExp());
-        } else {
-            whereExp = null;
+        List<Key> keys = new ArrayList<>(elements.size());
+
+        for (T element : elements) {
+            RecordMapper<T> recordMapper = getMapper(element);
+            Key key = getKeyForElement(recordMapper, element);
+            keys.add(key);
         }
 
-        AsyncRecordStream asyncStream = new AsyncRecordStream(elements.size());
+        Session session = opBuilder.getSession();
+        Cluster cluster = session.getCluster();
+        Key firstKey = keys.get(0);
+        Partitions partitions = getPartitions(cluster, firstKey.namespace);
+
+    	// Assume all operations are puts (WRITE_RETRYABLE).
+        Settings settings = session.getBehavior()
+        	.getSettings(OpKind.WRITE_RETRYABLE, OpShape.POINT, partitions.scMode);
+
+        // Apply where clause if present
+        final Expression filterExp = getFilterExp(firstKey.namespace);
+        int ttl = (int)((expirationInSeconds != 0) ? expirationInSeconds : expirationInSecondsForAll);
+        boolean stackTraceOnException = settings.getStackTraceOnException();
+
+        AsyncRecordStream stream = new AsyncRecordStream(elements.size());
         AtomicInteger pendingOps = new AtomicInteger(elements.size());
 
-        for (int i = 0; i < elements.size(); i++) {
-            final int index = i;
-            final T element = elements.get(i);
-            Thread.startVirtualThread(() -> {
-                try {
-                    RecordMapper<T> recordMapper = getMapper(element);
-                    Key key = getKeyForElement(recordMapper, element);
-                    List<Operation> operations = operationsForElement(recordMapper, element);
-
-                    CommandType type = OperationBuilder.areOperationsRetryable(operations)
-                        ? CommandType.WRITE_RETRYABLE : CommandType.WRITE_NON_RETRYABLE;
-                    WritePolicy wp = this.opBuilder.getSession().getBehavior().getSharedPolicy(type);
-                    wp.txn = this.txnToUse;
-
-                    if (generation > 0) {
-                        wp.generation = generation;
-                        wp.generationPolicy = GenerationPolicy.EXPECT_GEN_EQUAL;
-                    }
-
-                    long effectiveExpiration = (expirationInSeconds != 0) ? expirationInSeconds : expirationInSecondsForAll;
-                    wp.expiration = getExpirationAsInt(effectiveExpiration);
-                    wp.filterExp = whereExp;
-
-                    try {
-                        Record record = this.opBuilder.getSession().getClient().operate(wp, key, operations);
-                        if (opBuilder.isRespondAllKeys() || record != null) {
-                            asyncStream.publish(new RecordResult(key, record));
-                        }
-                    } catch (AerospikeException ae) {
-                        if (shouldPublish(ae, opBuilder)) {
-                            asyncStream.publish(new RecordResult(key, ae.getResultCode(), ae.getInDoubt(), ResultCode.getResultString(ae.getResultCode()), stackTraceOnException, index));
-                        }
-                    }
-                } finally {
-                    if (pendingOps.decrementAndGet() == 0) {
-                        asyncStream.complete();
-                    }
-                }
+        if (txnToUse != null) {
+            cluster.startVirtualThread(() -> {
+                TxnMonitor.addKeys(txnToUse, cluster, partitions, settings, keys);
+                operateKeysAsync(cluster, partitions, settings, filterExp, ttl, stream, keys);
             });
         }
+        else {
+            operateKeysAsync(cluster, partitions, settings, filterExp, ttl, stream, keys);
+        }
 
-        return new RecordStream(asyncStream);
-        */
-    	return null;
+        return new RecordStream(stream);
     }
 
     private RecordStream executeSingle(T element) {
@@ -732,6 +667,118 @@ public class ObjectBuilder<T> {
             }
         }
         return new RecordStream();
+    }
+
+    private RecordStream executeSingleAsync(T element) {
+        RecordMapper<T> recordMapper = getMapper(element);
+        Key key = getKeyForElement(recordMapper, element);
+
+        Session session = opBuilder.getSession();
+        Cluster cluster = session.getCluster();
+        Partitions partitions = getPartitions(cluster, key.namespace);
+
+    	// Assume all operations are puts (WRITE_RETRYABLE).
+        Settings settings = session.getBehavior()
+        	.getSettings(OpKind.WRITE_RETRYABLE, OpShape.POINT, partitions.scMode);
+
+        // Apply where clause if present
+        final Expression filterExp = getFilterExp(key.namespace);
+
+        int ttl = (int)((expirationInSeconds != 0) ? expirationInSeconds : expirationInSecondsForAll);
+        boolean stackTraceOnException = settings.getStackTraceOnException();
+        AsyncRecordStream stream = new AsyncRecordStream(1);
+        AtomicInteger pendingOps = new AtomicInteger(1);
+
+        if (txnToUse != null) {
+            cluster.startVirtualThread(() -> {
+                TxnMonitor.addKey(txnToUse, cluster, partitions, settings, key);
+                operateAsync(cluster, partitions, settings, filterExp, key, element, ttl, stream, 0, pendingOps);
+            });
+        }
+        else {
+            operateAsync(cluster, partitions, settings, filterExp, key, element, ttl, stream, 0, pendingOps);
+        }
+
+        return new RecordStream(stream);
+    }
+
+/*
+    private void operateAsync(
+    	Cluster cluster, Partitions partitions, OperateArgs args, Settings settings,
+    	Expression filterExp, AsyncRecordStream asyncStream
+    ) {
+        AtomicInteger pendingOps = new AtomicInteger(elements.size());
+
+        for (int i = 0; i < keys.size(); i++) {
+            Key key = keys.get(i);
+            final int index = i;
+            cluster.startVirtualThread(() -> {
+                try {
+                    Record rec = operate(cluster, partitions, args, settings, filterExp, key);
+
+                    if (respondAllKeys || rec != null) {
+                        asyncStream.publish(new RecordResult(key, rec, index));
+                    }
+                } catch (AerospikeException ae) {
+                    if (ae.getResultCode() == ResultCode.FILTERED_OUT) {
+                        if (failOnFilteredOut || respondAllKeys) {
+                            asyncStream.publish(new RecordResult(key, ae, index));
+                        }
+                        // Otherwise skip this record
+                    } else {
+                        asyncStream.publish(new RecordResult(key, ae, index));
+                    }
+                } finally {
+                    if (pendingOps.decrementAndGet() == 0) {
+                        asyncStream.complete();
+                    }
+                }
+            });
+        }
+    }
+*/
+
+    private void operateKeysAsync(
+    	Cluster cluster, Partitions partitions, Settings settings, Expression filterExp, int ttl,
+    	AsyncRecordStream stream, List<Key> keys
+    ) {
+        AtomicInteger pendingOps = new AtomicInteger(elements.size());
+
+        for (int i = 0; i < elements.size(); i++) {
+        	T element = elements.get(i);
+            Key key = keys.get(i);
+            operateAsync(cluster, partitions, settings, filterExp, key, element, ttl, stream, i, pendingOps);
+        }
+    }
+
+    private void operateAsync(
+    	Cluster cluster, Partitions partitions, Settings settings, Expression filterExp, Key key,
+    	T element, int ttl, AsyncRecordStream stream, int index, AtomicInteger pendingOps
+    ) {
+        cluster.startVirtualThread(() -> {
+            try {
+                Record rec = operate(cluster, partitions, settings, filterExp, key, element, ttl);
+
+                if (opBuilder.respondAllKeys || rec != null) {
+                    stream.publish(new RecordResult(key, rec, index));
+                }
+            }
+            catch (AerospikeException ae) {
+                if (ae.getResultCode() == ResultCode.FILTERED_OUT) {
+                    if (opBuilder.failOnFilteredOut || opBuilder.respondAllKeys) {
+                        stream.publish(new RecordResult(key, ae, index));
+                    }
+                    // Otherwise skip this record
+                } else {
+                    stream.publish(new RecordResult(key, ae, index));
+                }
+            }
+            finally {
+                if (pendingOps.decrementAndGet() == 0) {
+                    stream.complete();
+                }
+            }
+        });
     }
 
     private Record operate(
