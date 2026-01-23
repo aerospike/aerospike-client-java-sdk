@@ -190,4 +190,47 @@ public class PutGetTest extends ClusterTest {
 		assertEquals(customer.getAge(), readCustomer.getAge());
 		assertEquals(customer.getName(), readCustomer.getName());
 	}
+
+	@Test
+	public void putGetObjects() {
+		int key = 2000;
+		int age = 26;
+
+        CustomerMapper customerMapper = new CustomerMapper();
+
+        Customer customer1 = new Customer(key, "sample1", age, new Date(),
+        	new Address("123 Main St", "Denver", "CO", "USA", "80112"));
+
+        Customer customer2 = new Customer(key + 1, "sample2", age + 1, new Date(),
+            new Address("130 Main St", "Denver", "CO", "USA", "80112"));
+
+        Customer customer3 = new Customer(key + 2, "sample3", age + 2, new Date(),
+            new Address("145 Main St", "Denver", "CO", "USA", "80112"));
+
+        TypeSafeDataSet<Customer> customerDataSet =
+        	new TypeSafeDataSet<Customer>(args.namespace, args.set.getSet(), Customer.class);
+
+        session.upsert(customerDataSet)
+        	.objects(customer1, customer2, customer3)
+        	.using(customerMapper)
+	        .execute();
+
+        List<Customer> readCustomers = session.query(customerDataSet.ids(key, key + 1, key + 2))
+        	.execute()
+        	.toObjectList(customerMapper);
+
+		assertNotNull(readCustomers);
+		assertEquals(3, readCustomers.size());
+
+		int count = 1;
+
+		for (Customer c : readCustomers) {
+			assertEquals(key, c.getId());
+			assertEquals(age, c.getAge());
+			assertEquals("sample" + count, c.getName());
+			key++;
+			age++;
+			count++;
+		}
+	}
 }

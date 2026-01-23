@@ -575,7 +575,6 @@ public class ObjectBuilder<T> {
      * All virtual threads are joined before returning.
      */
     private RecordStream executeIndividualSync() {
-    	System.out.println("IN executeIndividualSync");
         List<Key> keys = new ArrayList<>(elements.size());
 
         for (T element : elements) {
@@ -604,50 +603,31 @@ public class ObjectBuilder<T> {
         int ttl = (int)((expirationInSeconds != 0) ? expirationInSeconds : expirationInSecondsForAll);
         boolean stackTraceOnException = settings.getStackTraceOnException();
 
-        if (elements.size() == 1) {
-            T element = elements.get(0);
+		AsyncRecordStream stream = new AsyncRecordStream(elements.size());
 
-            try {
-                Record rec = operate(cluster, partitions, settings, filterExp, firstKey, element, ttl);
+        try (ExecutorService es = cluster.getExecutorService()) {
+            for (int i = 0; i < keys.size(); i++) {
+                final Key key = keys.get(i);
+                final T element = elements.get(i);
+                final int idx = i;
 
-                if (opBuilder.respondAllKeys || rec != null) {
-                    return new RecordStream(firstKey, rec);
-                }
-            }
-            catch (AerospikeException ae) {
-                if (shouldPublish(ae, opBuilder)) {
-                    return new RecordStream(new RecordResult(firstKey, ae, 0));
-                }
-            }
-            return new RecordStream();
-        }
-        else {
-			AsyncRecordStream stream = new AsyncRecordStream(elements.size());
+                es.submit(() -> {
+                    try {
+                        Record rec = operate(cluster, partitions, settings, filterExp, key, element, ttl);
 
-            try (ExecutorService es = cluster.getExecutorService()) {
-                for (int i = 0; i < keys.size(); i++) {
-                    final Key key = keys.get(i);
-                    final T element = elements.get(i);
-                    final int idx = i;
-
-                    es.submit(() -> {
-                        try {
-                            Record rec = operate(cluster, partitions, settings, filterExp, key, element, ttl);
-
-                            if (opBuilder.respondAllKeys || rec != null) {
-                                stream.publish(new RecordResult(key, rec, idx));
-                            }
-                        } catch (AerospikeException ae) {
-                            if (shouldPublish(ae, opBuilder)) {
-                                stream.publish(new RecordResult(key, ae, idx));
-                            }
+                        if (opBuilder.respondAllKeys || rec != null) {
+                            stream.publish(new RecordResult(key, rec, idx));
                         }
-                    });
-                }
+                    } catch (AerospikeException ae) {
+                        if (shouldPublish(ae, opBuilder)) {
+                            stream.publish(new RecordResult(key, ae, idx));
+                        }
+                    }
+                });
             }
-            stream.complete();
-            return new RecordStream(stream);
         }
+        stream.complete();
+        return new RecordStream(stream);
     }
 
     /**
@@ -717,7 +697,6 @@ public class ObjectBuilder<T> {
     }
 
     private RecordStream executeSingle(T element) {
-    	System.out.println("IN executeSingle");
         RecordMapper<T> recordMapper = getMapper(element);
         Key key = getKeyForElement(recordMapper, element);
 
