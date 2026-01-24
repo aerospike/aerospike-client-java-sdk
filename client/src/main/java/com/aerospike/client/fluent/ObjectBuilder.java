@@ -29,10 +29,24 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import com.aerospike.client.fluent.command.Batch;
+import com.aerospike.client.fluent.command.BatchAttr;
+import com.aerospike.client.fluent.command.BatchCommand;
+import com.aerospike.client.fluent.command.BatchExecutor;
+import com.aerospike.client.fluent.command.BatchNode;
+import com.aerospike.client.fluent.command.BatchNodeList;
+import com.aerospike.client.fluent.command.BatchRead;
+import com.aerospike.client.fluent.command.BatchReadCommand;
 import com.aerospike.client.fluent.command.BatchRecord;
+import com.aerospike.client.fluent.command.BatchSingle;
+import com.aerospike.client.fluent.command.BatchStatus;
+import com.aerospike.client.fluent.command.BatchWrite;
+import com.aerospike.client.fluent.command.BatchWriteCommand;
+import com.aerospike.client.fluent.command.IBatchCommand;
 import com.aerospike.client.fluent.command.OperateArgs;
 import com.aerospike.client.fluent.command.OperateWriteCommand;
 import com.aerospike.client.fluent.command.OperateWriteExecutor;
+import com.aerospike.client.fluent.command.ReadAttr;
 import com.aerospike.client.fluent.command.Txn;
 import com.aerospike.client.fluent.command.TxnMonitor;
 import com.aerospike.client.fluent.exp.Exp;
@@ -472,61 +486,78 @@ public class ObjectBuilder<T> {
      * Execute operations using batch operations (10+ objects).
      */
     private RecordStream executeBatch() {
-    	/*
-        List<BatchRecord> batchWrites = new ArrayList<>();
-        BatchPolicy batchPolicy = this.opBuilder.getSession().getBehavior().getMutablePolicy(CommandType.BATCH_WRITE);
-
-        // Apply where clause if present
-        Expression whereExp = processWhereClauseForElements();
-        batchPolicy.failOnFilteredOut = opBuilder.isFailOnFilteredOut();
-        batchPolicy.filterExp = whereExp;
-
-        // Apply expiration: use individual expiration if set, otherwise use "ForAll" expiration
         long effectiveExpiration = (expirationInSeconds != 0) ? expirationInSeconds : expirationInSecondsForAll;
-        int expirationAsInt = getExpirationAsInt(effectiveExpiration);
+        int ttl = getExpirationAsInt(effectiveExpiration);
 
-        AsyncRecordStream recordStream = new AsyncRecordStream(elements.size());
+        List<BatchRecord> batchRecords = new ArrayList<>(elements.size());
+
+        for (T element : elements) {
+            RecordMapper<T> recordMapper = getMapper(element);
+            Key key = getKeyForElement(recordMapper, element);
+            List<Operation> ops = operationsForElement(recordMapper, element);
+            batchRecords.add(new BatchWrite(key, ops, opBuilder.getOpType(), generation, ttl));
+        }
+
+        Session session = opBuilder.getSession();
+        Cluster cluster = session.getCluster();
+        String namespace = opBuilder.getDataSet().getNamespace();
+        Partitions partitions = getPartitions(cluster, namespace);
+
+        // Assume all operations are puts (WRITE_RETRYABLE).
+        Settings settings = session.getBehavior()
+        	.getSettings(OpKind.WRITE_RETRYABLE, OpShape.BATCH, partitions.scMode);
+
+        final Expression filterExp = getFilterExp(namespace);
+
+        if (txnToUse != null) {
+            TxnMonitor.addKeysBatchWrite(txnToUse, cluster, partitions, settings, batchRecords);
+        }
+
+        BatchCommand parent = new BatchWriteCommand(cluster, partitions, txnToUse, namespace,
+            batchRecords, filterExp, opBuilder.respondAllKeys, settings);
+
+        BatchStatus status = new BatchStatus(true);
+        List<BatchNode> bns = BatchNodeList.generate(cluster, partitions, settings.getReplicaOrder(), batchRecords,
+        	status);
+
+        IBatchCommand[] commands = new IBatchCommand[bns.size()];
+        int count = 0;
+
+        for (BatchNode bn : bns) {
+            if (bn.offsetsSize == 1) {
+                int i = bn.offsets[0];
+                BatchRecord rec = batchRecords.get(i);
+                BatchWrite bw = (BatchWrite)rec;
+                BatchAttr attr = new BatchAttr();
+
+                attr.setWrite((BatchWriteCommand)parent, bw);
+                attr.adjustWrite(bw.ops);
+                attr.setOpSize(bw.ops);
+
+                commands[count++] = new BatchSingle.OperateRecordSync(cluster, parent, bw.ops, attr, rec, status,
+                        bn.node);
+            }
+            else {
+                commands[count++] = new Batch.OperateListSync(cluster, parent, bn, batchRecords, status);
+            }
+        }
+
+        BatchExecutor.execute(cluster, commands, status);
+
+        AsyncRecordStream recordStream = new AsyncRecordStream(batchRecords.size());
+
         try {
-	        for (T element : elements) {
-	            RecordMapper<T> recordMapper = getMapper(element);
-	            Key key = getKeyForElement(recordMapper, element);
-	            List<Operation> operations = operationsForElement(recordMapper, element);
-
-	            BatchWritePolicy bwp = new BatchWritePolicy();
-	            bwp.sendKey = batchPolicy.sendKey;
-	            if (generation > 0) {
-	                bwp.generation = generation;
-	                bwp.generationPolicy = GenerationPolicy.EXPECT_GEN_EQUAL;
-	            }
-	            bwp.expiration = expirationAsInt;
-
-	            batchWrites.add(new BatchWrite(bwp, key, operations));
-	        }
-
-	        batchPolicy.setTxn(this.txnToUse);
-
-	        this.opBuilder.getSession().getClient().operate(
-	                batchPolicy,
-	                batchWrites);
-
-            // Convert BatchRecord to RecordResult with proper stack trace handling
-            Settings settings = this.opBuilder.getSession().getBehavior()
-                    .getSettings(OpKind.WRITE_NON_RETRYABLE, OpShape.BATCH, Mode.ANY);
-
-            for (int i = 0; i < batchWrites.size(); i++) {
-                BatchRecord br = batchWrites.get(i);
+            for (int i = 0; i < batchRecords.size(); i++) {
+                BatchRecord br = batchRecords.get(i);
                 if (opBuilder.shouldIncludeResult(br.resultCode)) {
-                    recordStream.publish(opBuilder.createRecordResultFromBatchRecord(br, settings, i));
+                    recordStream.publish(AbstractFilterableBuilder.createRecordResultFromBatchRecord(br, settings, i));
                 }
             }
-
             return new RecordStream(recordStream);
         }
         finally {
             recordStream.complete();
         }
-        */
-    	return null;
     }
 
     /**
@@ -701,42 +732,6 @@ public class ObjectBuilder<T> {
 
         return new RecordStream(stream);
     }
-
-/*
-    private void operateAsync(
-    	Cluster cluster, Partitions partitions, OperateArgs args, Settings settings,
-    	Expression filterExp, AsyncRecordStream asyncStream
-    ) {
-        AtomicInteger pendingOps = new AtomicInteger(elements.size());
-
-        for (int i = 0; i < keys.size(); i++) {
-            Key key = keys.get(i);
-            final int index = i;
-            cluster.startVirtualThread(() -> {
-                try {
-                    Record rec = operate(cluster, partitions, args, settings, filterExp, key);
-
-                    if (respondAllKeys || rec != null) {
-                        asyncStream.publish(new RecordResult(key, rec, index));
-                    }
-                } catch (AerospikeException ae) {
-                    if (ae.getResultCode() == ResultCode.FILTERED_OUT) {
-                        if (failOnFilteredOut || respondAllKeys) {
-                            asyncStream.publish(new RecordResult(key, ae, index));
-                        }
-                        // Otherwise skip this record
-                    } else {
-                        asyncStream.publish(new RecordResult(key, ae, index));
-                    }
-                } finally {
-                    if (pendingOps.decrementAndGet() == 0) {
-                        asyncStream.complete();
-                    }
-                }
-            });
-        }
-    }
-*/
 
     private void operateKeysAsync(
     	Cluster cluster, Partitions partitions, Settings settings, Expression filterExp, int ttl,

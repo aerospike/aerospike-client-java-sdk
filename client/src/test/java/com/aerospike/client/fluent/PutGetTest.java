@@ -24,6 +24,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
@@ -275,8 +276,6 @@ public class PutGetTest extends ClusterTest {
 		int key = 3000;
 		int age = 36;
 
-        CustomerMapper customerMapper = new CustomerMapper();
-
         Customer customer1 = new Customer(key, "sample1", age, new Date(),
         	new Address("123 Main St", "Denver", "CO", "USA", "80112"));
 
@@ -288,6 +287,8 @@ public class PutGetTest extends ClusterTest {
 
         TypeSafeDataSet<Customer> customerDataSet =
         	new TypeSafeDataSet<Customer>(args.namespace, args.set.getSet(), Customer.class);
+
+        CustomerMapper customerMapper = new CustomerMapper();
 
         RecordStream rs = session.upsert(customerDataSet)
         	.objects(customer1, customer2, customer3)
@@ -313,6 +314,51 @@ public class PutGetTest extends ClusterTest {
 			key++;
 			age++;
 			count++;
+		}
+	}
+
+	@Test
+	public void putGetObjectsBatch() {
+		List<Key> keys = args.set.ids(100,101,102,103,104,105,106,107,108,109);
+		Address address = new Address("123 Main St", "Denver", "CO", "USA", "80112");
+		Date date = new Date();
+
+		List<Customer> customers = new ArrayList<>(keys.size());
+
+		for (int i = 0; i < keys.size(); i++) {
+			Key key = keys.get(i);
+			int id = key.userKey.toInteger();
+	        Customer customer = new Customer(id, "sample" + id, 50 + i, date, address);
+
+	        customers.add(customer);
+		}
+
+        TypeSafeDataSet<Customer> customerDataSet =
+           	new TypeSafeDataSet<Customer>(args.namespace, args.set.getSet(), Customer.class);
+
+        CustomerMapper customerMapper = new CustomerMapper();
+
+        session.delete(keys).execute();
+
+        session.upsert(customerDataSet)
+	    	.objects(customers)
+	    	.using(customerMapper)
+	        .execute();
+
+        List<Customer> readCustomers = session.query(keys)
+            .execute()
+        	.toObjectList(customerMapper);
+
+		assertNotNull(readCustomers);
+		assertEquals(10, readCustomers.size());
+
+		int offset = 0;
+
+		for (Customer c : readCustomers) {
+			assertEquals(100 + offset, c.getId());
+			assertEquals(50 + offset, c.getAge());
+			assertEquals("sample" + c.getId(), c.getName());
+			offset++;
 		}
 	}
 }

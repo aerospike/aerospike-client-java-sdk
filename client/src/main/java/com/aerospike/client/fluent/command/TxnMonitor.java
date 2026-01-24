@@ -67,10 +67,17 @@ public final class TxnMonitor {
 		addWriteKeys(txn, cluster, partitions, policy, ops);
 	}
 
-	public static void addKeysBatch(
+	public static void addKeysBatchWrite(
 		Txn txn, Cluster cluster, Partitions partitions, Settings policy, List<BatchRecord> records
 	) {
-		List<Operation> ops = getTranOpsBatch(txn, records);
+		List<Operation> ops = getTranOpsBatchWrite(txn, records);
+		addWriteKeys(txn, cluster, partitions, policy, ops);
+	}
+
+	public static void addKeysBatchReadWrite(
+		Txn txn, Cluster cluster, Partitions partitions, Settings policy, List<BatchRecord> records
+	) {
+		List<Operation> ops = getTranOpsBatchReadWrite(txn, records);
 
 		if (ops != null) {
 			addWriteKeys(txn, cluster, partitions, policy, ops);
@@ -113,7 +120,19 @@ public final class TxnMonitor {
 		return getTranOps(txn, list);
 	}
 
-	public static List<Operation> getTranOpsBatch(Txn txn, List<BatchRecord> records) {
+	private static List<Operation> getTranOpsBatchWrite(Txn txn, List<BatchRecord> records) {
+		txn.verifyCommand();
+
+		ArrayList<Value> list = new ArrayList<>(records.size());
+
+		for (BatchRecord br : records) {
+			txn.setNamespace(br.key.namespace);
+			list.add(Value.get(br.key.digest));
+		}
+		return getTranOps(txn, list);
+	}
+
+	private static List<Operation> getTranOpsBatchReadWrite(Txn txn, List<BatchRecord> records) {
 		txn.verifyCommand();
 
 		ArrayList<Value> list = new ArrayList<>(records.size());
