@@ -479,7 +479,7 @@ public class ObjectBuilder<T> {
             return executeIndividualAsync();
         }
 
-        return executeBatch();
+        return executeBatchAsync();
     }
 
     /**
@@ -508,10 +508,6 @@ public class ObjectBuilder<T> {
         	.getSettings(OpKind.WRITE_RETRYABLE, OpShape.BATCH, partitions.scMode);
 
         final Expression filterExp = getFilterExp(namespace);
-
-        if (txnToUse != null) {
-            TxnMonitor.addKeysBatchWrite(txnToUse, cluster, partitions, settings, batchRecords);
-        }
 
         BatchCommand parent = new BatchWriteCommand(cluster, partitions, txnToUse, namespace,
             batchRecords, filterExp, opBuilder.respondAllKeys, settings);
@@ -542,6 +538,10 @@ public class ObjectBuilder<T> {
             }
         }
 
+        if (txnToUse != null) {
+            TxnMonitor.addKeysBatchWrite(txnToUse, cluster, partitions, settings, batchRecords);
+        }
+
         BatchExecutor.execute(cluster, commands, status);
 
         AsyncRecordStream recordStream = new AsyncRecordStream(batchRecords.size());
@@ -558,6 +558,96 @@ public class ObjectBuilder<T> {
         finally {
             recordStream.complete();
         }
+    }
+
+    /**
+     * Execute operations using async batch operations (10+ objects).
+     */
+    private RecordStream executeBatchAsync() {
+        long effectiveExpiration = (expirationInSeconds != 0) ? expirationInSeconds : expirationInSecondsForAll;
+        int ttl = getExpirationAsInt(effectiveExpiration);
+
+        List<BatchRecord> batchRecords = new ArrayList<>(elements.size());
+
+        for (T element : elements) {
+            RecordMapper<T> recordMapper = getMapper(element);
+            Key key = getKeyForElement(recordMapper, element);
+            List<Operation> ops = operationsForElement(recordMapper, element);
+            batchRecords.add(new BatchWrite(key, ops, opBuilder.getOpType(), generation, ttl));
+        }
+
+        Session session = opBuilder.getSession();
+        Cluster cluster = session.getCluster();
+        String namespace = opBuilder.getDataSet().getNamespace();
+        Partitions partitions = getPartitions(cluster, namespace);
+
+        // Assume all operations are puts (WRITE_RETRYABLE).
+        Settings settings = session.getBehavior()
+        	.getSettings(OpKind.WRITE_RETRYABLE, OpShape.BATCH, partitions.scMode);
+
+        final Expression filterExp = getFilterExp(namespace);
+
+        BatchWriteCommand parent = new BatchWriteCommand(cluster, partitions, txnToUse, namespace,
+            batchRecords, filterExp, opBuilder.respondAllKeys, settings);
+
+        BatchStatus status = new BatchStatus(true);
+        List<BatchNode> bns = BatchNodeList.generate(cluster, partitions, settings.getReplicaOrder(), batchRecords,
+        	status);
+
+        AsyncRecordStream stream = new AsyncRecordStream(elements.size());
+        IBatchCommand[] commands = new IBatchCommand[bns.size()];
+        int count = 0;
+
+        for (BatchNode bn : bns) {
+            if (bn.offsetsSize == 1) {
+                int i = bn.offsets[0];
+                BatchRecord rec = batchRecords.get(i);
+                BatchWrite bw = (BatchWrite)rec;
+                BatchAttr attr = new BatchAttr();
+
+                attr.setWrite(parent, bw);
+                attr.adjustWrite(bw.ops);
+                attr.setOpSize(bw.ops);
+
+                commands[count++] = new BatchSingle.OperateRecordAsync(cluster, parent, bw.ops, attr,
+                	rec, status, bn.node, stream, i);
+            }
+            else {
+                commands[count++] = new Batch.OperateListAsync(cluster, parent, bn, batchRecords,
+                	stream, status);
+            }
+        }
+
+        if (txnToUse != null) {
+            cluster.startVirtualThread(() -> {
+                TxnMonitor.addKeysBatchWrite(txnToUse, cluster, partitions, settings, batchRecords);
+                operateBatchAsync(cluster, commands, status, stream);
+            });
+        }
+        else {
+            operateBatchAsync(cluster, commands, status, stream);
+        }
+
+        return new RecordStream(stream);
+    }
+
+    private void operateBatchAsync(
+    	Cluster cluster, IBatchCommand[] commands, BatchStatus status, AsyncRecordStream stream
+    ) {
+        AtomicInteger pending = new AtomicInteger(commands.length);
+
+		for (IBatchCommand command : commands) {
+            cluster.startVirtualThread(() -> {
+            	try {
+    				command.run();
+            	}
+            	finally {
+                    if (pending.decrementAndGet() == 0) {
+                        stream.complete();
+                    }
+            	}
+	        });
+		}
     }
 
     /**

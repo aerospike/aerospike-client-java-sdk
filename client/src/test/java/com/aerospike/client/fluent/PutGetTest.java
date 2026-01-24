@@ -361,4 +361,52 @@ public class PutGetTest extends ClusterTest {
 			offset++;
 		}
 	}
+
+	@Test
+	public void putGetObjectsBatchAsync() {
+		List<Key> keys = args.set.ids(200,201,202,203,204,205,206,207,208,209);
+		Address address = new Address("123 Main St", "Denver", "CO", "USA", "80112");
+		Date date = new Date();
+
+		List<Customer> customers = new ArrayList<>(keys.size());
+
+		for (int i = 0; i < keys.size(); i++) {
+			Key key = keys.get(i);
+			int id = key.userKey.toInteger();
+	        Customer customer = new Customer(id, "sample" + id, 50 + i, date, address);
+
+	        customers.add(customer);
+		}
+
+        TypeSafeDataSet<Customer> customerDataSet =
+           	new TypeSafeDataSet<Customer>(args.namespace, args.set.getSet(), Customer.class);
+
+        CustomerMapper customerMapper = new CustomerMapper();
+
+        session.delete(keys).execute();
+
+        RecordStream rs = session.upsert(customerDataSet)
+	    	.objects(customers)
+	    	.using(customerMapper)
+	        .executeAsync();
+
+        assertTrue(rs.hasNext());
+        rs.next().recordOrThrow();
+
+        List<Customer> readCustomers = session.query(keys)
+            .execute()
+        	.toObjectList(customerMapper);
+
+		assertNotNull(readCustomers);
+		assertEquals(10, readCustomers.size());
+
+		int offset = 0;
+
+		for (Customer c : readCustomers) {
+			assertEquals(200 + offset, c.getId());
+			assertEquals(50 + offset, c.getAge());
+			assertEquals("sample" + c.getId(), c.getName());
+			offset++;
+		}
+	}
 }
