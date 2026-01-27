@@ -518,12 +518,13 @@ public class OperationBuilder extends AbstractOperationBuilder<OperationBuilder>
             }
         }
 
+    	int ttl = getExpirationAsInt();
         List<BatchRecord> batchRecords = new ArrayList<>(keys.size());
         BatchCommand parent;
 
         if (args.hasWrite) {
 	        for (Key key : keys) {
-	            batchRecords.add(new BatchWrite(key, ops, opType, generation, (int)expirationInSecondsForAll));
+	            batchRecords.add(new BatchWrite(key, ops, opType, generation, ttl));
 	        }
 
 	        parent = new BatchWriteCommand(cluster, partitions, txnToUse, namespace,
@@ -606,13 +607,14 @@ public class OperationBuilder extends AbstractOperationBuilder<OperationBuilder>
         Partitions partitions = getPartitions(cluster, namespace);
         Settings settings = getSettings(partitions, args, OpShape.BATCH);
         final Expression filterExp = processWhereClause(firstKey.namespace, session);
+    	int ttl = getExpirationAsInt();
 
         List<BatchRecord> batchRecords = new ArrayList<>(keys.size());
         BatchCommand parent;
 
         if (args.hasWrite) {
 	        for (Key key : keys) {
-	            batchRecords.add(new BatchWrite(key, ops, opType, generation, (int)expirationInSecondsForAll));
+	            batchRecords.add(new BatchWrite(key, ops, opType, generation, ttl));
 	        }
 
 	        parent = new BatchWriteCommand(cluster, partitions, txnToUse, namespace,
@@ -715,6 +717,7 @@ public class OperationBuilder extends AbstractOperationBuilder<OperationBuilder>
         Partitions partitions = getPartitions(cluster, firstKey.namespace);
         Settings settings = getSettings(partitions, args, OpShape.POINT);
         final Expression filterExp = processWhereClause(firstKey.namespace, session);
+    	int ttl = getExpirationAsInt();
 
         if (txnToUse != null) {
             if (args.hasWrite) {
@@ -735,7 +738,7 @@ public class OperationBuilder extends AbstractOperationBuilder<OperationBuilder>
             catch (AerospikeException ae) {
                 if (shouldPublishException(ae)) {
                     if (ae.getResultCode() != ResultCode.FILTERED_OUT) {
-                        showWarningsOnException(ae, txnToUse, firstKey, (int)expirationInSecondsForAll);
+                        showWarningsOnException(ae, txnToUse, firstKey, ttl);
                     }
                     return new RecordStream(new RecordResult(firstKey, ae, 0));
                 }
@@ -744,7 +747,7 @@ public class OperationBuilder extends AbstractOperationBuilder<OperationBuilder>
 
         } else {
             // Run multiple keys in parallel and join.
-            @SuppressWarnings("resource")
+        	@SuppressWarnings("resource")
 			AsyncRecordStream stream = new AsyncRecordStream(keys.size());
             try (ExecutorService es = cluster.getExecutorService()) {
                 for (int i = 0; i < keys.size(); i++) {
@@ -760,7 +763,7 @@ public class OperationBuilder extends AbstractOperationBuilder<OperationBuilder>
                         } catch (AerospikeException ae) {
                             if (shouldPublishException(ae)) {
                                 if (ae.getResultCode() != ResultCode.FILTERED_OUT) {
-                                    showWarningsOnException(ae, txnToUse, key, (int)expirationInSecondsForAll);
+                                    showWarningsOnException(ae, txnToUse, key, ttl);
                                 }
                                 stream.publish(new RecordResult(key, ae, idx));
                             }
@@ -847,8 +850,10 @@ public class OperationBuilder extends AbstractOperationBuilder<OperationBuilder>
     	Expression filterExp, Key key
     ) {
     	if (args.hasWrite) {
+        	int ttl = getExpirationAsInt();
+
             OperateWriteCommand cmd = new OperateWriteCommand(cluster, partitions, txnToUse, key,
-            	ops, args, opType, generation, (int)expirationInSecondsForAll, filterExp,
+            	ops, args, opType, generation, ttl, filterExp,
             	failOnFilteredOut, settings);
 
             try {
@@ -861,7 +866,7 @@ public class OperationBuilder extends AbstractOperationBuilder<OperationBuilder>
                     throw ae;
                 }
                 else {
-                    showWarningsOnExceptionAndThrow(ae, txnToUse, key, (int)expirationInSecondsForAll);
+                    showWarningsOnExceptionAndThrow(ae, txnToUse, key, ttl);
                     return null;
                 }
             }

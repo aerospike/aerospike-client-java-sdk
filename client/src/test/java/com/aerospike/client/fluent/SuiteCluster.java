@@ -28,20 +28,22 @@ import com.aerospike.client.fluent.policy.Behavior;
 
 @Suite
 @SelectClasses({
-        AddTest.class,
-	    AppendTest.class,
-	    BitExpTest.class,
-	    PutGetTest.class,
-        QueryBlobTest.class,
-        QueryCollectionTest.class,
-        QueryContextTest.class,
-        QueryFilterExpTest.class,
-        QueryFilterSetTest.class,
-        QueryIndexTest.class,
-        QueryIntegerTest.class,
-        QueryKeyTest.class,
-        QueryStringTest.class
-
+    AddTest.class,
+    AppendTest.class,
+    BatchTest.class,
+    BitExpTest.class,
+    DeleteBinTest.class,
+    ExpireTest.class,
+    PutGetTest.class,
+    QueryBlobTest.class,
+    QueryCollectionTest.class,
+    QueryContextTest.class,
+    QueryFilterExpTest.class,
+    QueryFilterSetTest.class,
+    QueryIndexTest.class,
+    QueryIntegerTest.class,
+    QueryKeyTest.class,
+    QueryStringTest.class
 })
 public class SuiteCluster {
 	@BeforeSuite
