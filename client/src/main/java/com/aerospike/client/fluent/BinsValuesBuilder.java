@@ -76,6 +76,14 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
     private ValueData current = null;
     private Txn txnToUse;
 
+    /**
+     * Constructs a new BinsValuesBuilder for setting multiple bin names and values.
+     *
+     * @param opBuilder The parent OperationBuilder
+     * @param keys The list of keys for which values will be set
+     * @param binName The first bin name
+     * @param binNames Additional bin names
+     */
     public BinsValuesBuilder(OperationBuilder opBuilder, List<Key> keys, String binName, String... binNames) {
         this.opBuilder = opBuilder;
         this.binNames = new String[1 + binNames.length];
@@ -123,6 +131,14 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
         }
     }
 
+    /**
+     * Ensure the operation only succeeds if the record generation matches.
+     * This applies to the current record (the one most recently set via values()).
+     *
+     * @param generation the expected generation value
+     * @return this builder for method chaining
+     * @throws IllegalArgumentException if generation is <= 0 or if values() has not been called
+     */
     public BinsValuesBuilder ensureGenerationIs(int generation) {
         if (generation <= 0) {
             throw new IllegalArgumentException("Generation must be greater than 0");
@@ -132,59 +148,146 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
         return this;
     }
 
+    /**
+     * Set the expiration for the current record relative to the current time.
+     * This applies to the record most recently set via values().
+     *
+     * @param duration The duration after which the record should expire
+     * @return This builder for method chaining
+     * @throws IllegalArgumentException if values() has not been called
+     */
     public BinsValuesBuilder expireRecordAfter(Duration duration) {
         checkValuesExist("expireRecordAfter");
         current.expirationInSeconds = duration.toSeconds();
         return this;
     }
 
+    /**
+     * Set the expiration for the current record relative to the current time.
+     * This applies to the record most recently set via values().
+     *
+     * @param expirationInSeconds The number of seconds after which the record should expire
+     * @return This builder for method chaining
+     * @throws IllegalArgumentException if values() has not been called
+     */
     public BinsValuesBuilder expireRecordAfterSeconds(int expirationInSeconds) {
         checkValuesExist("expireRecordAfter");
         current.expirationInSeconds = expirationInSeconds;
         return this;
     }
 
+    /**
+     * Set the expiration for the current record to an absolute date/time.
+     * This applies to the record most recently set via values().
+     *
+     * @param date The date at which the record should expire
+     * @return This builder for method chaining
+     * @throws IllegalArgumentException if the date is in the past or if values() has not been called
+     */
     public BinsValuesBuilder expireRecordAt(Date date) {
         checkValuesExist("expireRecordAfter");
         current.expirationInSeconds = opBuilder.getExpirationInSecondsAndCheckValue(date);
         return this;
     }
 
+    /**
+     * Set the expiration for the current record to an absolute date/time.
+     * This applies to the record most recently set via values().
+     *
+     * @param date The LocalDateTime at which the record should expire
+     * @return This builder for method chaining
+     * @throws IllegalArgumentException if the date is in the past or if values() has not been called
+     */
     public BinsValuesBuilder expireRecordAt(LocalDateTime date) {
         checkValuesExist("expireRecordAfter");
         current.expirationInSeconds = opBuilder.getExpirationInSecondsAndCheckValue(date);
         return this;
     }
 
+    /**
+     * Do not change the expiration of the current record (TTL = -2).
+     * This applies to the record most recently set via values().
+     *
+     * @return This builder for method chaining
+     * @throws IllegalArgumentException if values() has not been called
+     */
     public BinsValuesBuilder withNoChangeInExpiration() {
         checkValuesExist("expireRecordAfter");
         current.expirationInSeconds = OperationBuilder.TTL_NO_CHANGE;
         return this;
     }
 
+    /**
+     * Set the current record to never expire (TTL = -1).
+     * This applies to the record most recently set via values().
+     *
+     * @return This builder for method chaining
+     * @throws IllegalArgumentException if values() has not been called
+     */
     public BinsValuesBuilder neverExpire() {
         checkValuesExist("expireRecordAfter");
         current.expirationInSeconds = OperationBuilder.TTL_NEVER_EXPIRE;
         return this;
     }
 
+    /**
+     * Use the server's default expiration for the current record (TTL = 0).
+     * This applies to the record most recently set via values().
+     *
+     * @return This builder for method chaining
+     * @throws IllegalArgumentException if values() has not been called
+     */
     public BinsValuesBuilder expiryFromServerDefault() {
         checkValuesExist("expireRecordAfter");
         current.expirationInSeconds = OperationBuilder.TTL_SERVER_DEFAULT;
         return this;
     }
 
+    /**
+     * Specify that these operations are not to be included in any transaction, even if a
+     * transaction exists on the underlying session.
+     *
+     * @return This builder for method chaining
+     */
     public BinsValuesBuilder notInAnyTransaction() {
         this.txnToUse = null;
         return this;
     }
 
+    /**
+     * Specify the transaction to use for this call. Note that this should not be commonly used.
+     * A better pattern is to use the {@code doInTransaction} method on {@link Session}:
+     * <pre>
+     * session.doInTransaction(txnSession -> {
+     *     txnSession.insertInto(customerDataSet.id(1))
+     *         .bins("name", "age")
+     *         .values("John", 30)
+     *         .execute();
+     * });
+     * </pre>
+     *
+     * This method should only be used in situations where different parts of a transaction are not all
+     * within the same context, for example forming a transaction on callbacks from a file system.
+     *
+     * @param txn The transaction to use
+     * @return This builder for method chaining
+     */
     public BinsValuesBuilder inTransaction(Txn txn) {
         this.txnToUse = txn;
         return this;
     }
 
     // Multi-key expiry methods (only available for multiple keys)
+    /**
+     * Set the expiration for all records in this operation relative to the current time.
+     * This applies to all keys unless overridden by individual record expiration settings.
+     * <p>
+     * Note: This method is only available when multiple keys are specified.
+     *
+     * @param duration The duration after which all records should expire
+     * @return This builder for method chaining
+     * @throws IllegalStateException if called when only a single key is specified
+     */
     public BinsValuesBuilder expireAllRecordsAfter(Duration duration) {
         if (!opBuilder.isMultiKey()) {
             throw new IllegalStateException(
@@ -194,6 +297,16 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
         return this;
     }
 
+    /**
+     * Set the expiration for all records in this operation relative to the current time.
+     * This applies to all keys unless overridden by individual record expiration settings.
+     * <p>
+     * Note: This method is only available when multiple keys are specified.
+     *
+     * @param seconds The number of seconds after which all records should expire
+     * @return This builder for method chaining
+     * @throws IllegalStateException if called when only a single key is specified
+     */
     public BinsValuesBuilder expireAllRecordsAfterSeconds(long seconds) {
         if (!opBuilder.isMultiKey()) {
             throw new IllegalStateException(
@@ -203,6 +316,17 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
         return this;
     }
 
+    /**
+     * Set the expiration for all records in this operation to an absolute date/time.
+     * This applies to all keys unless overridden by individual record expiration settings.
+     * <p>
+     * Note: This method is only available when multiple keys are specified.
+     *
+     * @param dateTime The LocalDateTime at which all records should expire
+     * @return This builder for method chaining
+     * @throws IllegalStateException if called when only a single key is specified
+     * @throws IllegalArgumentException if the date is in the past
+     */
     public BinsValuesBuilder expireAllRecordsAt(LocalDateTime dateTime) {
         if (!opBuilder.isMultiKey()) {
             throw new IllegalStateException("expireAllRecordsAt() is only available when multiple keys are specified");
@@ -211,6 +335,17 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
         return this;
     }
 
+    /**
+     * Set the expiration for all records in this operation to an absolute date/time.
+     * This applies to all keys unless overridden by individual record expiration settings.
+     * <p>
+     * Note: This method is only available when multiple keys are specified.
+     *
+     * @param date The date at which all records should expire
+     * @return This builder for method chaining
+     * @throws IllegalStateException if called when only a single key is specified
+     * @throws IllegalArgumentException if the date is in the past
+     */
     public BinsValuesBuilder expireAllRecordsAt(Date date) {
         if (!opBuilder.isMultiKey()) {
             throw new IllegalStateException("expireAllRecordsAt() is only available when multiple keys are specified");
@@ -219,6 +354,15 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
         return this;
     }
 
+    /**
+     * Set all records in this operation to never expire (TTL = -1).
+     * This applies to all keys unless overridden by individual record expiration settings.
+     * <p>
+     * Note: This method is only available when multiple keys are specified.
+     *
+     * @return This builder for method chaining
+     * @throws IllegalStateException if called when only a single key is specified
+     */
     public BinsValuesBuilder neverExpireAllRecords() {
         if (!opBuilder.isMultiKey()) {
             throw new IllegalStateException(
@@ -228,6 +372,15 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
         return this;
     }
 
+    /**
+     * Do not change the expiration of all records in this operation (TTL = -2).
+     * This applies to all keys unless overridden by individual record expiration settings.
+     * <p>
+     * Note: This method is only available when multiple keys are specified.
+     *
+     * @return This builder for method chaining
+     * @throws IllegalStateException if called when only a single key is specified
+     */
     public BinsValuesBuilder withNoChangeInExpirationForAllRecords() {
         if (!opBuilder.isMultiKey()) {
             throw new IllegalStateException(
@@ -237,6 +390,15 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
         return this;
     }
 
+    /**
+     * Use the server's default expiration for all records in this operation (TTL = 0).
+     * This applies to all keys unless overridden by individual record expiration settings.
+     * <p>
+     * Note: This method is only available when multiple keys are specified.
+     *
+     * @return This builder for method chaining
+     * @throws IllegalStateException if called when only a single key is specified
+     */
     public BinsValuesBuilder expiryFromServerDefaultForAllRecords() {
         if (!opBuilder.isMultiKey()) {
             throw new IllegalStateException(
