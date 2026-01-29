@@ -31,7 +31,7 @@ import com.aerospike.client.fluent.tend.Partitions;
  * Executor for heterogeneous batch operations.
  * This class converts OperationSpec objects to the appropriate BatchRecord types
  * and executes them as a single batch operation.
- * 
+ *
  * <p>The executor handles mixed operation types including:
  * <ul>
  *   <li>Write operations (upsert, update, insert, replace) - converted to BatchWrite</li>
@@ -43,36 +43,36 @@ import com.aerospike.client.fluent.tend.Partitions;
  * </p>
  */
 class BatchExecutor {
-    
+
     /**
      * Execute a batch of heterogeneous operations.
-     * 
+     *
      * @param session the session to use for execution
      * @param specs the list of operation specifications
      * @param defaultWhereClause optional default filter for operations without explicit where clause
      * @param txn optional transaction to use
      * @return RecordStream containing the results of all operations
      */
-    public static RecordStream execute(Session session, List<OperationSpec> specs, 
+    public static RecordStream execute(Session session, List<OperationSpec> specs,
                                         Expression defaultWhereClause, Txn txn) {
         if (specs.isEmpty()) {
             return new RecordStream();
         }
-        
+
         // Get the namespace from the first key
         String namespace = specs.get(0).getKeys().get(0).namespace;
-        
+
         // Get settings for batch operations
         Settings settings = session.getBehavior()
                 .getSettings(OpKind.WRITE_NON_RETRYABLE, OpShape.BATCH, session.isNamespaceSC(namespace));
-        
+
         // Build list of BatchRecord objects
         List<BatchRecord> batchRecords = new ArrayList<>();
-        
+
         // Set failOnFilteredOut on batch policy if ANY spec has it enabled
         boolean anyFailOnFilteredOut = specs.stream().anyMatch(s -> s.isFailOnFilteredOut());
         boolean anyRespondAllKeys = specs.stream().anyMatch(s -> s.isRespondAllKeys());
-        
+
         for (OperationSpec spec : specs) {
             // Determine which filter to use - per-operation or default
             Expression filterToUse = spec.getWhereClause() != null ? spec.getWhereClause() : defaultWhereClause;
@@ -83,17 +83,17 @@ class BatchExecutor {
                 batchRecords.add(batchRecord);
             }
         }
-        
-        return executeBatchSync(session, 
-                settings, 
-                batchRecords, 
+
+        return executeBatchSync(session,
+                settings,
+                batchRecords,
                 txn,
                 namespace,
                 anyFailOnFilteredOut,
                 defaultWhereClause,
                 anyRespondAllKeys);
     }
-    
+
     private static Partitions getPartitions(Cluster cluster, String namespace) {
         HashMap<String, Partitions> partitionMap = cluster.getPartitionMap();
         Partitions partitions = partitionMap.get(namespace);
@@ -104,26 +104,15 @@ class BatchExecutor {
         return partitions;
     }
 
-    protected static RecordStream executeBatchSync(Session session, Settings settings, 
+    protected static RecordStream executeBatchSync(Session session, Settings settings,
             List<BatchRecord> batchRecords, Txn txnToUse, String namespace,
             boolean anyFailOnFilteredOut, Expression filterExp, boolean respondAllKeys) {
-        
+
         Cluster cluster = session.getCluster();
         Partitions partitions = getPartitions(cluster, namespace);
 
         if (txnToUse != null) {
-            // If there are any reads, also prepare for read
-            boolean hasAnyRead = batchRecords.stream().anyMatch(br -> !br.hasWrite);
-
-            // addKeysBatch only adds keys where hasWrite is true (handles mixed batches)
-            // TODO: BN: Check this logic please
-            if (hasAnyRead) {
-                TxnMonitor.addKeysBatchReadWrite(txnToUse, cluster, partitions, settings, batchRecords);
-                txnToUse.prepareRead(namespace);
-            }
-            else {
-                TxnMonitor.addKeysBatchWrite(txnToUse, cluster, partitions, settings, batchRecords);
-            }
+            TxnMonitor.addKeysBatchReadWrite(txnToUse, cluster, partitions, settings, batchRecords);
         }
 
         // Determine if ANY record has a write to decide parent command type
@@ -200,17 +189,17 @@ class BatchExecutor {
         }
     }
 
-    
+
     /**
      * Create the appropriate BatchRecord for an operation spec and key.
      */
-    private static BatchRecord createBatchRecord(OperationSpec spec, Key key, 
+    private static BatchRecord createBatchRecord(OperationSpec spec, Key key,
                                                   Expression filterExp, Settings settings) {
         if (spec.isQuery()) {
             // Query (read) operation
             return createBatchRead(spec, key, filterExp);
         }
-        
+
         switch (spec.getOpType()) {
         case DELETE:
             return createBatchDelete(spec, key, filterExp, settings);
@@ -228,19 +217,19 @@ class BatchExecutor {
             throw new IllegalStateException("Unknown operation type: " + spec.getOpType());
         }
     }
-    
+
     /**
      * Create BatchWrite for write operations (upsert, update, insert, replace).
      */
-    private static BatchWrite createBatchWrite(OperationSpec spec, Key key, 
+    private static BatchWrite createBatchWrite(OperationSpec spec, Key key,
                                                Expression filterExp, Settings settings) {
         // TODO BN: How to pass the filter expression?
 //        policy.filterExp = filterExp;
-        
-        
+
+
         return new BatchWrite(key, spec.getOperations(), spec.getOpType(), spec.getGeneration(), (int)spec.getExpirationInSeconds());
     }
-    
+
     /**
      * Create BatchDelete for delete operations.
      */
@@ -249,7 +238,7 @@ class BatchExecutor {
         // TODO: BN: What about durable delete, filter expression?
         return new BatchDelete(key, spec.getGeneration());
     }
-    
+
     /**
      * Create BatchWrite with touch operation.
      */
@@ -259,7 +248,7 @@ class BatchExecutor {
         // TODO: BN: How to set the "filterExp" settings?
         return new BatchWrite(key, List.of(Operation.touch()), OpType.TOUCH, spec.getGeneration(), (int)spec.getExpirationInSeconds());
     }
-    
+
     /**
      * Create BatchRead for exists check (metadata only, no bins).
      */
@@ -268,7 +257,7 @@ class BatchExecutor {
         // Exists check: read no bins, just check if record exists
         return new BatchRead(key, false);
     }
-    
+
     /**
      * Create BatchRead for query operations.
      */
@@ -282,51 +271,51 @@ class BatchExecutor {
             return new BatchRead(key, true);
         }
     }
-    
+
     /**
      * Build RecordStream from batch results, respecting respondAllKeys and failOnFilteredOut flags.
      */
-    private static RecordStream buildRecordStream(List<BatchRecord> batchRecords, 
+    private static RecordStream buildRecordStream(List<BatchRecord> batchRecords,
                                                    List<OperationSpec> specs,
                                                    Settings settings) {
         List<RecordResult> results = new ArrayList<>();
-        
+
         int recordIndex = 0;
-        
+
         for (OperationSpec spec : specs) {
             for (int keyIndex = 0; keyIndex < spec.getKeys().size(); keyIndex++) {
                 BatchRecord br = batchRecords.get(recordIndex);
-                
+
                 // Determine if we should include this result
                 boolean includeResult = shouldIncludeResult(br.resultCode, spec);
-                
+
                 if (includeResult) {
                     RecordResult result;
                     if (settings.getStackTraceOnException() && br.resultCode != ResultCode.OK) {
                         result = new RecordResult(
-                            br, 
-                            AerospikeException.resultCodeToException(br.resultCode, null, br.inDoubt), 
+                            br,
+                            AerospikeException.resultCodeToException(br.resultCode, null, br.inDoubt),
                             recordIndex);
                     } else {
                         result = new RecordResult(br, recordIndex);
                     }
                     results.add(result);
                 }
-                
+
                 recordIndex++;
             }
         }
-        
+
         return new RecordStream(results, 0);
     }
-    
+
     /**
      * Determine if a result should be included based on result code and operation flags.
      */
     private static boolean shouldIncludeResult(int resultCode, OperationSpec spec) {
         return shouldIncludeResult(resultCode, spec.isRespondAllKeys(), spec.isFailOnFilteredOut());
     }
-    
+
     /**
      * Determine if a result should be included based on result code and flags.
      */
