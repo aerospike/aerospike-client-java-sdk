@@ -698,18 +698,87 @@ public class ChainableOperationBuilder extends AbstractOperationBuilder<Chainabl
     // ========================================
     
     /**
-     * Execute all chained operations as a single batch.
+     * Execute all chained operations as a single batch with default behavior (synchronous).
+     * All operations complete before this method returns, making it safe for transactions.
      * 
      * @return RecordStream containing the results of all operations
      */
     public RecordStream execute() {
+        return executeSync();
+    }
+    
+    /**
+     * Execute all chained operations synchronously as a single batch.
+     * All operations complete before this method returns, making it safe for transactions.
+     * 
+     * @return RecordStream containing the results of all operations
+     */
+    public RecordStream executeSync() {
         finalizeCurrentOperation();
         
         if (operationSpecs.isEmpty()) {
             throw new IllegalStateException("No operations specified");
         }
         
+        if (Log.debugEnabled()) {
+            int totalKeys = operationSpecs.stream().mapToInt(spec -> spec.getKeys().size()).sum();
+            Log.debug("ChainableOperationBuilder.executeSync() called for " + operationSpecs.size() + 
+                     " operation(s), " + totalKeys + " key(s), transaction: " +
+                     (txnToUse != null ? "yes" : "no"));
+        }
+        
         return BatchExecutor.execute(session, operationSpecs, defaultWhereClause, txnToUse);
+    }
+    
+    /**
+     * Execute all chained operations asynchronously as a single batch.
+     * Method returns immediately; results are consumed via the RecordStream.
+     * <p>
+     * <b>WARNING:</b> Using this in transactions may lead to operations still being in flight
+     * when commit() is called, potentially leading to inconsistent state. A warning will be logged.
+     * 
+     * @return RecordStream that will be populated as results arrive
+     */
+    public RecordStream executeAsync() {
+        finalizeCurrentOperation();
+        
+        if (operationSpecs.isEmpty()) {
+            throw new IllegalStateException("No operations specified");
+        }
+        
+        if (Log.debugEnabled()) {
+            int totalKeys = operationSpecs.stream().mapToInt(spec -> spec.getKeys().size()).sum();
+            Log.debug("ChainableOperationBuilder.executeAsync() called for " + operationSpecs.size() + 
+                     " operation(s), " + totalKeys + " key(s), transaction: " +
+                     (txnToUse != null ? "yes" : "no"));
+        }
+        
+        if (txnToUse != null && Log.warnEnabled()) {
+            Log.warn(
+                "executeAsync() called within a transaction. " +
+                "Async operations may still be in flight when commit() is called, " +
+                "which could lead to inconsistent state. " +
+                "Consider using executeSync() or execute() for transactional safety."
+            );
+        }
+        
+        // Create a stream that will receive results asynchronously
+        int totalKeys = operationSpecs.stream().mapToInt(spec -> spec.getKeys().size()).sum();
+        AsyncRecordStream asyncStream = new AsyncRecordStream(totalKeys);
+        
+        // Execute in a virtual thread so this method returns immediately
+        Cluster cluster = session.getCluster();
+        cluster.startVirtualThread(() -> {
+            try {
+                RecordStream syncResult = BatchExecutor.execute(session, operationSpecs, defaultWhereClause, txnToUse);
+                // Transfer results to the async stream
+                syncResult.forEach(result -> asyncStream.publish(result));
+            } finally {
+                asyncStream.complete();
+            }
+        });
+        
+        return new RecordStream(asyncStream);
     }
     
     // ========================================

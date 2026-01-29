@@ -95,8 +95,8 @@ public class BatchTest extends ClusterTest {
 			keys.add(KeyPrefix + (i + 1));
 		}
 
-        List<Boolean> exists = session.exists(args.set.ids(keys)).execute();
-
+        RecordStream recs = session.exists(args.set.ids(keys)).respondAllKeys().execute();
+        List<Boolean> exists = recs.stream().map(rec ->rec.asBoolean()).toList();
 		assertEquals(Size, exists.size());
 
 		for (int i = 0; i < Size; i++) {
@@ -414,7 +414,8 @@ public class BatchTest extends ClusterTest {
 		}
 
 		// Ensure keys exists
-        List<Boolean> exists = session.exists(args.set.ids(keys)).execute();
+        RecordStream recs = session.exists(args.set.ids(keys)).respondAllKeys().execute();
+        List<Boolean> exists = recs.stream().map(rec ->rec.asBoolean()).toList();
         assertEquals(keys.length, exists.size());
 
 		for (boolean status : exists) {
@@ -422,7 +423,12 @@ public class BatchTest extends ClusterTest {
 		}
 
 		// Delete keys
-        List<Boolean> deletes = session.delete(args.set.ids(keys)).execute();
+        List<Boolean> deletes = session.delete(args.set.ids(keys))
+                .respondAllKeys()
+                .execute()
+                .stream()
+                .map(rec ->rec.asBoolean())
+                .toList();
         assertEquals(keys.length, deletes.size());
 
 		for (boolean status : deletes) {
@@ -430,7 +436,12 @@ public class BatchTest extends ClusterTest {
 		}
 
 		// Ensure keys do not exist
-        exists = session.exists(args.set.ids(keys)).execute();
+        exists = session.exists(args.set.ids(keys))
+                .respondAllKeys()
+                .execute()
+                .stream()
+                .map(rec ->rec.asBoolean())
+                .toList();
         assertEquals(keys.length, exists.size());
 
         for (boolean status : exists) {
