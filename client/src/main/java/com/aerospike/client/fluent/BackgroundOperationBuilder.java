@@ -72,6 +72,7 @@ import com.aerospike.dsl.ParseResult;
  */
 public class BackgroundOperationBuilder extends AbstractOperationBuilder<BackgroundOperationBuilder> implements FilterableOperation<BackgroundOperationBuilder> {
     private final DataSet dataset;
+    private int recordsPerSecond = 0;
 
     /**
      * Constructs a background operation builder.
@@ -155,6 +156,20 @@ public class BackgroundOperationBuilder extends AbstractOperationBuilder<Backgro
     }
 
     /**
+     * Rate limit the records per second processed by this background operation.
+     * 
+     * <p>This can be used to limit the server-side load of background operations
+     * to prevent them from impacting normal operations.</p>
+     * 
+     * @param recordsPerSecond the maximum records per second to process (0 = unlimited)
+     * @return This builder for method chaining
+     */
+    public BackgroundOperationBuilder recordsPerSecond(int recordsPerSecond) {
+        this.recordsPerSecond = recordsPerSecond;
+        return this;
+    }
+
+    /**
      * Not applicable for background operations since they operate on entire sets, not specific keys.
      *
      * @return This builder for method chaining (no-op)
@@ -221,7 +236,7 @@ public class BackgroundOperationBuilder extends AbstractOperationBuilder<Backgro
 		long taskId = new Random().nextLong();
 
         BackgroundQueryCommand cmd = new BackgroundQueryCommand(cluster, dataset, taskId, opType,
-    		ops, ttl, filter, filterExp, settings);
+    		ops, ttl, filter, filterExp, settings, recordsPerSecond);
 
         final NodeStatus status = new NodeStatus();
 

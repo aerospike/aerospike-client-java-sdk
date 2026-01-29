@@ -33,6 +33,7 @@ import com.aerospike.client.fluent.policy.Behavior;
 import com.aerospike.client.fluent.policy.Behavior.Mode;
 import com.aerospike.client.fluent.policy.Behavior.OpKind;
 import com.aerospike.client.fluent.policy.Behavior.OpShape;
+import com.aerospike.client.fluent.policy.QueryDuration;
 import com.aerospike.client.fluent.policy.Settings;
 import com.aerospike.client.fluent.query.IndexCollectionType;
 import com.aerospike.client.fluent.task.ExecuteTask;
@@ -331,6 +332,10 @@ public class CommonExample extends Example {
         	Record r = rs.next().recordOrThrow();
         	System.out.println("Record = " + r);
         }
+        
+        session.query(set).expectedQueryDuration(QueryDuration.LONG).recordsPerSecond(20).execute();
+        
+        session.backgroundTask().update(set).bin("age").add(1).recordsPerSecond(35).execute();
 
         /*
         System.out.println("Transaction");

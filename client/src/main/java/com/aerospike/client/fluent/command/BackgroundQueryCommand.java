@@ -40,7 +40,7 @@ public final class BackgroundQueryCommand extends Command {
 
 	public BackgroundQueryCommand(
 		Cluster cluster, DataSet set, long taskId, OpType type, List<Operation> ops, int ttl,
-		Filter filter, Expression filterExp, Settings policy
+		Filter filter, Expression filterExp, Settings policy, int recordsPerSecond
 	) {
 		super(cluster, set.getNamespace(), null, filterExp, policy.getReplicaOrder(), policy);
 		this.taskId = taskId;
@@ -49,8 +49,7 @@ public final class BackgroundQueryCommand extends Command {
 		this.type = type;
 		this.commitLevel = policy.getCommitLevel();
 		this.ops = ops;
-		// TODO: recordsPerSecond needs to be added to either QueryBuilder or Settings.
-		this.recordsPerSecond = 0;
+		this.recordsPerSecond = recordsPerSecond;
 		this.ttl = ttl;
 		this.durableDelete = policy.getUseDurableDelete();
 	}
