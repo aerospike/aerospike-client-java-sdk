@@ -18,6 +18,7 @@ package com.aerospike.client.fluent;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 
 import java.util.List;
 
@@ -63,6 +64,30 @@ public class AppendTest extends ClusterTest {
         List<?> list = rec.getList(binName);
         val = (String)list.get(1);
 		assertEquals("Hello World!", val);
+		
+		byte[] key1 = new byte[] {1,2,3};
+		byte[] key2 = new byte[] {2,3,4};
+		
+        session.delete(args.set.ids(key1, key2)).execute();
+        
+		session.insert(args.set.id(key1))
+		    .bin(binName).append("empty")
+		    .execute();
+		
+		session.upsert(args.set.ids(key1,key2))
+            .bin(binName).append("full")
+            .execute();
+		
+		rs = session.query(args.set.ids(key1, key2))
+		        .execute();
+		for (int i = 0; i < 2; i++) {
+		    assertTrue(rs.hasNext());
+		    RecordResult item = rs.next();
+		    String str = item.recordOrThrow().getString(binName);
+		    assertEquals(item.index() == 0 ? "emptyfull" : "full",str);
+		}
+        session.delete(args.set.ids(key1, key2)).execute();
+        assertFalse(rs.hasNext());
 	}
 
 	@Test
