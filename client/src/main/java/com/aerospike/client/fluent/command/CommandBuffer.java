@@ -148,7 +148,7 @@ public final class CommandBuffer {
 
 		BatchAttr attr = new BatchAttr();
 
-		attr.setRead(cmd);
+		attr.setReadSingle(cmd, br);
 		attr.adjustRead(false);
 
 		int fieldCount = estimateKeyAttrSize(cmd, br.key, attr, cmd.filterExp);
@@ -212,7 +212,7 @@ public final class CommandBuffer {
 		BatchAttr attr = new BatchAttr();
 		int opCount;
 
-		attr.setRead(cmd);
+		attr.setReadSingle(cmd, br);
 
 		if (br.binNames != null) {
 			opCount = br.binNames.length;
@@ -458,7 +458,7 @@ public final class CommandBuffer {
 					case BATCH_READ: {
 						BatchRead br = (BatchRead)record;
 
-						attr.setRead((BatchReadCommand)cmd);
+						attr.setReadEntry((BatchReadCommand)cmd, br);
 
 						if (br.binNames != null) {
 							if (br.binNames.length > 0) {
@@ -483,7 +483,7 @@ public final class CommandBuffer {
 					case BATCH_WRITE: {
 						BatchWrite bw = (BatchWrite)record;
 
-						attr.setWrite((BatchWriteCommand)cmd, bw);
+						attr.setWriteEntry((BatchWriteCommand)cmd, bw);
 						attr.adjustWrite(bw.ops);
 						writeBatchOperations(key, txn, ver, bw.ops, attr, attr.filterExp);
 						break;
@@ -492,7 +492,7 @@ public final class CommandBuffer {
 					case BATCH_UDF: {
 						BatchUDF bu = (BatchUDF)record;
 
-						attr.setUDF((BatchWriteCommand)cmd, bu);
+						attr.setUDFEntry((BatchWriteCommand)cmd, bu);
 						writeBatchWrite(key, txn, ver, attr, attr.filterExp, 3, 0);
 						writeField(bu.packageName, FieldType.UDF_PACKAGE_NAME);
 						writeField(bu.functionName, FieldType.UDF_FUNCTION);
@@ -503,7 +503,7 @@ public final class CommandBuffer {
 					case BATCH_DELETE: {
 						BatchDelete bd = (BatchDelete)record;
 
-						attr.setDelete((BatchWriteCommand)cmd, bd);
+						attr.setDeleteEntry((BatchWriteCommand)cmd, bd);
 						writeBatchWrite(key, txn, ver, attr, attr.filterExp, 0, 0);
 						break;
 					}
@@ -706,9 +706,9 @@ public final class CommandBuffer {
 			writeFieldLE(txn.getDeadline(), FieldType.TXN_DEADLINE);
 		}
 
-		//if (filter != null) {
-		//	filter.write(this);
-		//}
+		if (filter != null) {
+			writeFieldExpression(filter);
+		}
 
 		if (attr.sendKey) {
 			writeField(key.userKey, FieldType.KEY);
@@ -728,9 +728,9 @@ public final class CommandBuffer {
 
 		writeBatchFields(key, fieldCount, opCount);
 
-		//if (filter != null) {
-		//	filter.write(this);
-		//}
+		if (filter != null) {
+			writeFieldExpression(filter);
+		}
 
 		if (attr.sendKey) {
 			writeField(key.userKey, FieldType.KEY);

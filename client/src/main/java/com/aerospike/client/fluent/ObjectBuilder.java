@@ -495,7 +495,7 @@ public class ObjectBuilder<T> {
             RecordMapper<T> recordMapper = getMapper(element);
             Key key = getKeyForElement(recordMapper, element);
             List<Operation> ops = operationsForElement(recordMapper, element);
-            batchRecords.add(new BatchWrite(key, ops, opBuilder.getOpType(), generation, ttl));
+            batchRecords.add(new BatchWrite(key, null, ops, opBuilder.getOpType(), generation, ttl));
         }
 
         Session session = opBuilder.getSession();
@@ -526,7 +526,7 @@ public class ObjectBuilder<T> {
                 BatchWrite bw = (BatchWrite)rec;
                 BatchAttr attr = new BatchAttr();
 
-                attr.setWrite((BatchWriteCommand)parent, bw);
+                attr.setWriteSingle((BatchWriteCommand)parent, bw);
                 attr.adjustWrite(bw.ops);
                 attr.setOpSize(bw.ops);
 
@@ -573,7 +573,7 @@ public class ObjectBuilder<T> {
             RecordMapper<T> recordMapper = getMapper(element);
             Key key = getKeyForElement(recordMapper, element);
             List<Operation> ops = operationsForElement(recordMapper, element);
-            batchRecords.add(new BatchWrite(key, ops, opBuilder.getOpType(), generation, ttl));
+            batchRecords.add(new BatchWrite(key, null, ops, opBuilder.getOpType(), generation, ttl));
         }
 
         Session session = opBuilder.getSession();
@@ -605,7 +605,7 @@ public class ObjectBuilder<T> {
                 BatchWrite bw = (BatchWrite)rec;
                 BatchAttr attr = new BatchAttr();
 
-                attr.setWrite(parent, bw);
+                attr.setWriteSingle(parent, bw);
                 attr.adjustWrite(bw.ops);
                 attr.setOpSize(bw.ops);
 

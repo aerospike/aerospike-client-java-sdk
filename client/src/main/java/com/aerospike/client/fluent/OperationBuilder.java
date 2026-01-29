@@ -365,7 +365,7 @@ public class OperationBuilder extends AbstractOperationBuilder<OperationBuilder>
     public boolean isMultiKey() {
         return keys.size() > 1;
     }
-    
+
     @Override
     public boolean isRespondAllKeys() {
         return respondAllKeys;
@@ -420,7 +420,7 @@ public class OperationBuilder extends AbstractOperationBuilder<OperationBuilder>
     public boolean isFailOnFilteredOut() {
         return this.failOnFilteredOut;
     }
-    
+
     @Override
     public OperationBuilder respondAllKeys() {
         this.respondAllKeys = true;
@@ -534,7 +534,7 @@ public class OperationBuilder extends AbstractOperationBuilder<OperationBuilder>
 
         if (args.hasWrite) {
 	        for (Key key : keys) {
-	            batchRecords.add(new BatchWrite(key, ops, opType, generation, ttl));
+	            batchRecords.add(new BatchWrite(key, null, ops, opType, generation, ttl));
 	        }
 
 	        parent = new BatchWriteCommand(cluster, partitions, txnToUse, namespace,
@@ -542,7 +542,7 @@ public class OperationBuilder extends AbstractOperationBuilder<OperationBuilder>
        }
         else {
 	        for (Key key : keys) {
-	            batchRecords.add(new BatchRead(key, ops));
+	            batchRecords.add(new BatchRead(key, null, ops));
 	        }
 
 	        ReadAttr attr = new ReadAttr(partitions, settings);
@@ -567,7 +567,7 @@ public class OperationBuilder extends AbstractOperationBuilder<OperationBuilder>
 	                BatchWrite bw = (BatchWrite)rec;
 	                BatchAttr attr = new BatchAttr();
 
-	                attr.setWrite((BatchWriteCommand)parent, bw);
+	                attr.setWriteSingle((BatchWriteCommand)parent, bw);
 	                attr.adjustWrite(bw.ops);
 	                attr.setOpSize(bw.ops);
 
@@ -578,7 +578,7 @@ public class OperationBuilder extends AbstractOperationBuilder<OperationBuilder>
 	                BatchRead br = (BatchRead)rec;
 	                BatchAttr attr = new BatchAttr();
 
-	                attr.setRead((BatchReadCommand)parent);
+                    attr.setReadSingle((BatchReadCommand)parent, br);
 	                attr.adjustRead(br.ops);
 	                attr.setOpSize(br.ops);
 
@@ -624,7 +624,7 @@ public class OperationBuilder extends AbstractOperationBuilder<OperationBuilder>
 
         if (args.hasWrite) {
 	        for (Key key : keys) {
-	            batchRecords.add(new BatchWrite(key, ops, opType, generation, ttl));
+	            batchRecords.add(new BatchWrite(key, null, ops, opType, generation, ttl));
 	        }
 
 	        parent = new BatchWriteCommand(cluster, partitions, txnToUse, namespace,
@@ -632,7 +632,7 @@ public class OperationBuilder extends AbstractOperationBuilder<OperationBuilder>
        }
         else {
 	        for (Key key : keys) {
-	            batchRecords.add(new BatchRead(key, ops));
+	            batchRecords.add(new BatchRead(key, null, ops));
 	        }
 
 	        ReadAttr attr = new ReadAttr(partitions, settings);
@@ -659,7 +659,7 @@ public class OperationBuilder extends AbstractOperationBuilder<OperationBuilder>
 	                BatchWrite bw = (BatchWrite)rec;
 	                BatchAttr attr = new BatchAttr();
 
-	                attr.setWrite(cmd, bw);
+	                attr.setWriteSingle(cmd, bw);
 	                attr.adjustWrite(bw.ops);
 	                attr.setOpSize(bw.ops);
 
@@ -671,7 +671,7 @@ public class OperationBuilder extends AbstractOperationBuilder<OperationBuilder>
 	                BatchRead br = (BatchRead)rec;
 	                BatchAttr attr = new BatchAttr();
 
-	                attr.setRead((BatchReadCommand)parent);
+                    attr.setReadSingle((BatchReadCommand)parent, br);
 	                attr.adjustRead(br.ops);
 	                attr.setOpSize(br.ops);
 
@@ -938,7 +938,7 @@ public class OperationBuilder extends AbstractOperationBuilder<OperationBuilder>
     public OpType getOpType() {
         return this.opType;
     }
-    
+
     public void showWarningsOnException(AerospikeException ae, Txn txn, Key key, int expiration) {
         if (Log.warnEnabled()) {
             if (ae.getResultCode() == ResultCode.FAIL_FORBIDDEN && expiration > 0) {

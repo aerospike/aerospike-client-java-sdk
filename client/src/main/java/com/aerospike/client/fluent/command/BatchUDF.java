@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2024 Aerospike, Inc.
+ * Copyright 2012-2026 Aerospike, Inc.
  *
  * Portions may be licensed to Aerospike, Inc. under one or more contributor
  * license agreements WHICH ARE COMPATIBLE WITH THE APACHE LICENSE, VERSION 2.0.
@@ -18,12 +18,24 @@ package com.aerospike.client.fluent.command;
 
 import com.aerospike.client.fluent.Key;
 import com.aerospike.client.fluent.Value;
+import com.aerospike.client.fluent.exp.Expression;
 import com.aerospike.client.fluent.util.Packer;
 
 /**
  * Batch user defined functions.
  */
 public final class BatchUDF extends BatchRecord {
+	/**
+	 * Optional expression filter. If filterExp exists and evaluates to false, the specific batch key
+	 * request is not performed and the result code is set to
+	 * {@link com.aerospike.client.fluent.ResultCode#FILTERED_OUT}.
+	 * <p>
+	 * If exists, this filter overrides the batch parent filter expression.
+	 * <p>
+	 * Default: null
+	 */
+	public final Expression filterExp;
+
 	/**
 	 * Package or lua module name.
 	 */
@@ -63,8 +75,12 @@ public final class BatchUDF extends BatchRecord {
 	/**
 	 * Constructor using default policy.
 	 */
-	public BatchUDF(Key key, String packageName, String functionName, Value[] functionArgs, int ttl) {
+	public BatchUDF(
+		Key key, Expression filterExp, String packageName, String functionName,
+		Value[] functionArgs, int ttl
+	) {
 		super(key, true);
+		this.filterExp = filterExp;
 		this.packageName = packageName;
 		this.functionName = functionName;
 		this.functionArgs = functionArgs;
@@ -92,6 +108,10 @@ public final class BatchUDF extends BatchRecord {
 
 		BatchUDF other = (BatchUDF)obj;
 
+		if (filterExp != other.filterExp) {
+			return false;
+		}
+
 		if (functionName != other.functionName || functionArgs != other.functionArgs ||
 				packageName != other.packageName || ttl != other.ttl) {
 			return false;
@@ -109,6 +129,10 @@ public final class BatchUDF extends BatchRecord {
 
 		if (cmd.sendKey) {
 			size += key.userKey.estimateSize() + Command.FIELD_HEADER_SIZE + 1;
+		}
+
+		if (filterExp != null) {
+			size += filterExp.getBytes().length + Command.FIELD_HEADER_SIZE;
 		}
 
 		size += Buffer.estimateSizeUtf8(packageName) + Command.FIELD_HEADER_SIZE;

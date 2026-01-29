@@ -258,7 +258,7 @@ public class OperationWithNoBinsBuilder extends AbstractSessionOperationBuilder<
         List<RecordResult> results = new ArrayList<>();
         for (int i = 0; i < booleanArray.length; i++) {
             int resultCode = booleanArray[i] ? ResultCode.OK : ResultCode.KEY_NOT_FOUND_ERROR;
-            results.add(new RecordResult(keyArray[i], resultCode, false, 
+            results.add(new RecordResult(keyArray[i], resultCode, false,
                     ResultCode.getResultString(resultCode), i));
         }
         return results;
@@ -272,7 +272,7 @@ public class OperationWithNoBinsBuilder extends AbstractSessionOperationBuilder<
         	return executeBatch();
         }
     }
-	
+
     /**
      * Process batch results into a list of RecordResults, handling filtered out records.
      * OK -> ResultCode.OK, not OK -> original result code (including KEY_NOT_FOUND_ERROR)
@@ -400,7 +400,7 @@ public class OperationWithNoBinsBuilder extends AbstractSessionOperationBuilder<
         List<BatchRecord> batchRecords = new ArrayList<>(keys.size());
 
         for (Key key : keys) {
-            batchRecords.add(new BatchRead(key, false));
+            batchRecords.add(new BatchRead(key, null, false));
         }
 
 		if (txnToUse != null) {
@@ -458,7 +458,7 @@ public class OperationWithNoBinsBuilder extends AbstractSessionOperationBuilder<
         List<BatchRecord> batchRecords = new ArrayList<>(keys.size());
 
         for (Key key : keys) {
-            batchRecords.add(new BatchWrite(key, ops, OpType.TOUCH, generation, ttl));
+            batchRecords.add(new BatchWrite(key, null, ops, OpType.TOUCH, generation, ttl));
         }
 
         BatchWriteCommand parent = new BatchWriteCommand(cluster, partitions, txnToUse, namespace,
@@ -479,7 +479,7 @@ public class OperationWithNoBinsBuilder extends AbstractSessionOperationBuilder<
                 BatchWrite bw = (BatchWrite) record;
                 BatchAttr battr = new BatchAttr();
 
-                battr.setWrite(parent, bw);
+                battr.setWriteSingle(parent, bw);
                 battr.adjustWrite(bw.ops);
                 battr.setOpSize(bw.ops);
 
@@ -516,7 +516,7 @@ public class OperationWithNoBinsBuilder extends AbstractSessionOperationBuilder<
         for (Key key : keys) {
         	// TODO: Tim: When generation is used, it's highly likely to change between keys,
         	// but the api only specifies generation once for the entire batch.
-            batchRecords.add(new BatchDelete(key, generation));
+            batchRecords.add(new BatchDelete(key, null, generation));
         }
 
         BatchWriteCommand parent = new BatchWriteCommand(cluster, partitions, txnToUse, namespace,
@@ -563,7 +563,7 @@ public class OperationWithNoBinsBuilder extends AbstractSessionOperationBuilder<
         else {
             return new RecordResult(br.key, br.resultCode, false, ResultCode.getResultString(br.resultCode), settings.getStackTraceOnException(), index++);
         }
-        
+
     }
     private Partitions getPartitions(Cluster cluster, String namespace) {
         HashMap<String, Partitions> partitionMap = cluster.getPartitionMap();

@@ -38,6 +38,7 @@ public final class BatchAttr {
 	public BatchAttr() {
 	}
 
+	/*
 	public BatchAttr(BatchReadCommand cmd, int rattr) {
 		setRead(cmd);
 		this.readAttr |= rattr;
@@ -52,7 +53,6 @@ public final class BatchAttr {
 		}
 	}
 
-	/*
 	public BatchAttr(BatchReadCommand cmd, BatchWritePolicy wp, List<Operation> ops) {
 		boolean readAllBins = false;
 		boolean readHeader = false;
@@ -106,8 +106,17 @@ public final class BatchAttr {
 	}
 	*/
 
-	public void setRead(BatchReadCommand cmd) {
-		filterExp = cmd.filterExp;
+	public void setReadSingle(BatchReadCommand cmd, BatchRead br) {
+		Expression e = (br.filterExp != null)? br.filterExp : cmd.filterExp;
+		setRead(cmd, e);
+	}
+
+	public void setReadEntry(BatchReadCommand cmd, BatchRead br) {
+		setRead(cmd, br.filterExp);
+	}
+
+	private void setRead(BatchReadCommand cmd, Expression e) {
+		filterExp = e;
 		readAttr = Command.INFO1_READ;
 
 		if (cmd.readModeAP == ReadModeAP.ALL) {
@@ -160,8 +169,17 @@ public final class BatchAttr {
 		}
 	}
 
-	public void setWrite(BatchWriteCommand cmd, BatchWrite bw) {
-		filterExp = cmd.filterExp;
+	public void setWriteSingle(BatchWriteCommand cmd, BatchWrite bw) {
+		Expression e = (bw.filterExp != null)? bw.filterExp : cmd.filterExp;
+		setWrite(cmd, bw, e);
+	}
+
+	public void setWriteEntry(BatchWriteCommand cmd, BatchWrite bw) {
+		setWrite(cmd, bw, bw.filterExp);
+	}
+
+	private void setWrite(BatchWriteCommand cmd, BatchWrite bw, Expression e) {
+		filterExp = e;
 		readAttr = 0;
 		writeAttr = Command.INFO2_WRITE | Command.INFO2_RESPOND_ALL_OPS;
 		infoAttr = 0;
@@ -225,8 +243,17 @@ public final class BatchAttr {
 		}
 	}
 
-	public void setUDF(BatchWriteCommand cmd, BatchUDF bu) {
-		filterExp = cmd.filterExp;
+	public void setUDFSingle(BatchWriteCommand cmd, BatchUDF bu) {
+		Expression e = (bu.filterExp != null)? bu.filterExp : cmd.filterExp;
+		setUDF(cmd, bu, e);
+	}
+
+	public void setUDFEntry(BatchWriteCommand cmd, BatchUDF bu) {
+		setUDF(cmd, bu, bu.filterExp);
+	}
+
+	private void setUDF(BatchWriteCommand cmd, BatchUDF bu, Expression e) {
+		filterExp = e;
 		readAttr = 0;
 		writeAttr = Command.INFO2_WRITE;
 		infoAttr = 0;
@@ -245,8 +272,17 @@ public final class BatchAttr {
 		}
 	}
 
-	public void setDelete(BatchWriteCommand cmd, BatchDelete bd) {
-		filterExp = cmd.filterExp;
+	public void setDeleteSingle(BatchWriteCommand cmd, BatchDelete bd) {
+		Expression e = (bd.filterExp != null)? bd.filterExp : cmd.filterExp;
+		setDelete(cmd, bd, e);
+	}
+
+	public void setDeleteEntry(BatchWriteCommand cmd, BatchDelete bd) {
+		setDelete(cmd, bd, bd.filterExp);
+	}
+
+	private void setDelete(BatchWriteCommand cmd, BatchDelete bd, Expression e) {
+		filterExp = e;
 		readAttr = 0;
 		writeAttr = Command.INFO2_WRITE | Command.INFO2_RESPOND_ALL_OPS | Command.INFO2_DELETE;
 		infoAttr = 0;

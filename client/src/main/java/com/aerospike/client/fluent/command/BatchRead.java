@@ -22,12 +22,24 @@ import com.aerospike.client.fluent.AerospikeException;
 import com.aerospike.client.fluent.Key;
 import com.aerospike.client.fluent.Operation;
 import com.aerospike.client.fluent.ResultCode;
+import com.aerospike.client.fluent.exp.Expression;
 
 /**
  * Batch key and read only operations with default policy.
  * Used in batch read commands where different bins are needed for each key.
  */
 public final class BatchRead extends BatchRecord {
+	/**
+	 * Optional expression filter. If filterExp exists and evaluates to false, the specific batch key
+	 * request is not performed and the result code is set to
+	 * {@link com.aerospike.client.fluent.ResultCode#FILTERED_OUT}.
+	 * <p>
+	 * If exists, this filter overrides the batch parent filter expression.
+	 * <p>
+	 * Default: null
+	 */
+	public final Expression filterExp;
+
 	/**
 	 * Bins to retrieve for this key. binNames are mutually exclusive with
 	 * {@link com.aerospike.client.fluent.command.BatchRead#ops}.
@@ -51,8 +63,9 @@ public final class BatchRead extends BatchRecord {
 	/**
 	 * Initialize batch key and bins to retrieve.
 	 */
-	public BatchRead(Key key, String[] binNames) {
+	public BatchRead(Key key, Expression filterExp, String[] binNames) {
 		super(key, false);
+		this.filterExp = filterExp;
 		this.binNames = binNames;
 		this.ops = null;
 		this.readAllBins = false;
@@ -61,8 +74,9 @@ public final class BatchRead extends BatchRecord {
 	/**
 	 * Initialize batch key and readAllBins indicator.
 	 */
-	public BatchRead(Key key, boolean readAllBins) {
+	public BatchRead(Key key, Expression filterExp, boolean readAllBins) {
 		super(key, false);
+		this.filterExp = filterExp;
 		this.binNames = null;
 		this.ops = null;
 		this.readAllBins = readAllBins;
@@ -71,8 +85,9 @@ public final class BatchRead extends BatchRecord {
 	/**
 	 * Initialize batch key and read operations.
 	 */
-	public BatchRead(Key key, List<Operation> ops) {
+	public BatchRead(Key key, Expression filterExp, List<Operation> ops) {
 		super(key, false);
+		this.filterExp = filterExp;
 		this.binNames = null;
 		this.ops = ops;
 		this.readAllBins = false;
@@ -97,6 +112,11 @@ public final class BatchRead extends BatchRecord {
 		}
 
 		BatchRead other = (BatchRead)obj;
+
+		if (filterExp != other.filterExp) {
+			return false;
+		}
+
 		return binNames == other.binNames && ops == other.ops && readAllBins == other.readAllBins;
 	}
 
@@ -106,6 +126,10 @@ public final class BatchRead extends BatchRecord {
 	@Override
 	public int size(Command cmd) {
 		int size = 0;
+
+		if (filterExp != null) {
+			size += filterExp.getBytes().length + Command.FIELD_HEADER_SIZE;
+		}
 
 		if (binNames != null) {
 			for (String binName : binNames) {

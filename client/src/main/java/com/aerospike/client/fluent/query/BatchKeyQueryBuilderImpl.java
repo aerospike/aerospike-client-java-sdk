@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2025 Aerospike, Inc.
+ * Copyright 2012-2026 Aerospike, Inc.
  *
  * Portions may be licensed to Aerospike, Inc. under one or more contributor
  * license agreements WHICH ARE COMPATIBLE WITH THE APACHE LICENSE, VERSION 2.0.
@@ -140,13 +140,13 @@ class BatchKeyQueryBuilderImpl extends QueryImpl {
             else {
                 BatchRecord thisBatchRecord;
                 if (getQueryBuilder().getWithNoBins()) {
-                    thisBatchRecord = new BatchRead(thisKey, false);
+                    thisBatchRecord = new BatchRead(thisKey, null, false);
                 }
                 else if (getQueryBuilder().getBinNames() != null) {
-                    thisBatchRecord = new BatchRead(thisKey, getQueryBuilder().getBinNames());
+                    thisBatchRecord = new BatchRead(thisKey, null, getQueryBuilder().getBinNames());
                 }
                 else {
-                    thisBatchRecord = new BatchRead(thisKey, true);
+                    thisBatchRecord = new BatchRead(thisKey, null, true);
                 }
                 batchRecordsForServer.add(thisBatchRecord);
             }

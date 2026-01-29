@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2025 Aerospike, Inc.
+ * Copyright 2012-2026 Aerospike, Inc.
  *
  * Portions may be licensed to Aerospike, Inc. under one or more contributor
  * license agreements WHICH ARE COMPATIBLE WITH THE APACHE LICENSE, VERSION 2.0.
@@ -17,11 +17,23 @@
 package com.aerospike.client.fluent.command;
 
 import com.aerospike.client.fluent.Key;
+import com.aerospike.client.fluent.exp.Expression;
 
 /**
  * Batch delete operation.
  */
 public final class BatchDelete extends BatchRecord {
+	/**
+	 * Optional expression filter. If filterExp exists and evaluates to false, the specific batch key
+	 * request is not performed and the result code is set to
+	 * {@link com.aerospike.client.fluent.ResultCode#FILTERED_OUT}.
+	 * <p>
+	 * If exists, this filter overrides the batch parent filter expression.
+	 * <p>
+	 * Default: null
+	 */
+	public final Expression filterExp;
+
 	/**
 	 * Expected generation. Generation is the number of times a record has been modified
 	 * (including creation) on the server. This field is only relevant when generationPolicy
@@ -36,14 +48,16 @@ public final class BatchDelete extends BatchRecord {
 	 */
 	public BatchDelete(Key key) {
 		super(key, true);
+		this.filterExp = null;
 		this.generation = 0;
 	}
 
 	/**
 	 * Initialize policy and key.
 	 */
-	public BatchDelete(Key key, int generation) {
+	public BatchDelete(Key key, Expression filterExp, int generation) {
 		super(key, true);
+		this.filterExp = filterExp;
 		this.generation = generation;
 	}
 
@@ -66,6 +80,11 @@ public final class BatchDelete extends BatchRecord {
 		}
 
 		BatchDelete other = (BatchDelete)obj;
+
+		if (filterExp != other.filterExp) {
+			return false;
+		}
+
 		return generation == other.generation;
 	}
 
@@ -79,6 +98,11 @@ public final class BatchDelete extends BatchRecord {
 		if (cmd.sendKey) {
 			size += key.userKey.estimateSize() + Command.FIELD_HEADER_SIZE + 1;
 		}
+
+		if (filterExp != null) {
+			size += filterExp.getBytes().length + Command.FIELD_HEADER_SIZE;
+		}
+
 		return size;
 	}
 }

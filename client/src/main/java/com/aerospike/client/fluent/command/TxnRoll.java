@@ -67,7 +67,7 @@ public final class TxnRoll {
 
 	        for (Map.Entry<Key, Long> entry : reads) {
 				Key key = entry.getKey();
-				BatchRecord br = new BatchRead(key, false);
+				BatchRecord br = new BatchRead(key, null, false);
 
 				batchRecords.add(br);
 				versions[count++] = entry.getValue();

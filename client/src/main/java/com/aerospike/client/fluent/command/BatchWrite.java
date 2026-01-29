@@ -23,11 +23,23 @@ import com.aerospike.client.fluent.Key;
 import com.aerospike.client.fluent.OpType;
 import com.aerospike.client.fluent.Operation;
 import com.aerospike.client.fluent.ResultCode;
+import com.aerospike.client.fluent.exp.Expression;
 
 /**
  * Batch key and read/write operations with write policy.
  */
 public final class BatchWrite extends BatchRecord {
+	/**
+	 * Optional expression filter. If filterExp exists and evaluates to false, the specific batch key
+	 * request is not performed and the result code is set to
+	 * {@link com.aerospike.client.fluent.ResultCode#FILTERED_OUT}.
+	 * <p>
+	 * If exists, this filter overrides the batch parent filter expression.
+	 * <p>
+	 * Default: null
+	 */
+	public final Expression filterExp;
+
 	/**
 	 * Required operations for this key.
 	 */
@@ -68,17 +80,6 @@ public final class BatchWrite extends BatchRecord {
 	public final int ttl;
 
 	/**
-	 * Initialize batch key.
-	 */
-	public BatchWrite(Key key) {
-		super(key, true);
-		this.ops = null;
-		this.opType = OpType.UPSERT;
-		this.generation = 0;
-		this.ttl = 0;
-	}
-
-	/**
 	 * Initialize batch key and read/write operations.
 	 * <p>
 	 * {@link Operation#get()} is not allowed because it returns a variable number of bins and
@@ -87,6 +88,7 @@ public final class BatchWrite extends BatchRecord {
 	 */
 	public BatchWrite(Key key, List<Operation> ops) {
 		super(key, true);
+		this.filterExp = null;
 		this.ops = ops;
 		this.opType = OpType.UPSERT;
 		this.generation = 0;
@@ -100,8 +102,11 @@ public final class BatchWrite extends BatchRecord {
 	 * makes it difficult (sometimes impossible) to lineup operations with results. Instead,
 	 * use {@link Operation#get(String)} for each bin name.
 	 */
-	public BatchWrite(Key key, List<Operation> ops, OpType opType, int generation, int ttl) {
+	public BatchWrite(
+		Key key, Expression filterExp, List<Operation> ops, OpType opType, int generation, int ttl
+	) {
 		super(key, true);
+		this.filterExp = filterExp;
 		this.ops = ops;
 		this.opType = opType;
 		this.generation = generation;
@@ -136,6 +141,10 @@ public final class BatchWrite extends BatchRecord {
 			return false;
 		}
 
+		if (filterExp != other.filterExp) {
+			return false;
+		}
+
 		return generation == other.generation;
 	}
 
@@ -165,6 +174,11 @@ public final class BatchWrite extends BatchRecord {
 				throw new AerospikeException(ResultCode.PARAMETER_ERROR, "Batch write operations do not contain a write");
 			}
 		}
+
+		if (filterExp != null) {
+			size += filterExp.getBytes().length + Command.FIELD_HEADER_SIZE;
+		}
+
 		return size;
 	}
 }

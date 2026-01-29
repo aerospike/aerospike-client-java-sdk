@@ -596,7 +596,7 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
             List<Operation> ops = getOperationsForValueData(valueSet);
             int ttl = getExpiration(valueSet);
 
-            batchRecords.add(new BatchWrite(key, ops, opBuilder.getOpType(), valueSet.generation, ttl));
+            batchRecords.add(new BatchWrite(key, null, ops, opBuilder.getOpType(), valueSet.generation, ttl));
         }
 
         BatchWriteCommand parent = new BatchWriteCommand(cluster, partitions, txn, namespace,
@@ -617,7 +617,7 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
                 BatchWrite bw = (BatchWrite) record;
                 BatchAttr attr = new BatchAttr();
 
-                attr.setWrite(parent, bw);
+                attr.setWriteSingle(parent, bw);
                 attr.adjustWrite(bw.ops);
                 attr.setOpSize(bw.ops);
 
@@ -672,7 +672,7 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
             List<Operation> ops = getOperationsForValueData(valueSet);
             int ttl = getExpiration(valueSet);
 
-            batchRecords.add(new BatchWrite(key, ops, opBuilder.getOpType(), valueSet.generation, ttl));
+            batchRecords.add(new BatchWrite(key, null, ops, opBuilder.getOpType(), valueSet.generation, ttl));
         }
 
         Txn txn = opBuilder.getTxnToUse();
@@ -696,7 +696,7 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
                 BatchWrite bw = (BatchWrite) record;
                 BatchAttr attr = new BatchAttr();
 
-                attr.setWrite(parent, bw);
+                attr.setWriteSingle(parent, bw);
                 attr.adjustWrite(bw.ops);
                 attr.setOpSize(bw.ops);
 

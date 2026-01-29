@@ -1,3 +1,19 @@
+/*
+ * Copyright 2012-2026 Aerospike, Inc.
+ *
+ * Portions may be licensed to Aerospike, Inc. under one or more contributor
+ * license agreements WHICH ARE COMPATIBLE WITH THE APACHE LICENSE, VERSION 2.0.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy of
+ * the License at http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
+ */
 package com.aerospike.client.fluent;
 
 import java.util.ArrayList;
@@ -148,7 +164,7 @@ class BatchExecutor {
                     BatchWrite bw = (BatchWrite)rec;
                     BatchAttr attr = new BatchAttr();
 
-                    attr.setWrite((BatchWriteCommand)parent, bw);
+                    attr.setWriteSingle((BatchWriteCommand)parent, bw);
                     attr.adjustWrite(bw.ops);
                     attr.setOpSize(bw.ops);
 
@@ -159,7 +175,7 @@ class BatchExecutor {
                     BatchRead br = (BatchRead)rec;
                     BatchAttr attr = new BatchAttr();
 
-                    attr.setRead((BatchReadCommand)parent);
+                    attr.setReadSingle((BatchReadCommand)parent, br);
                     attr.adjustRead(br.ops);
                     attr.setOpSize(br.ops);
 
@@ -223,11 +239,8 @@ class BatchExecutor {
      */
     private static BatchWrite createBatchWrite(OperationSpec spec, Key key,
                                                Expression filterExp, Settings settings) {
-        // TODO BN: How to pass the filter expression?
-//        policy.filterExp = filterExp;
-
-
-        return new BatchWrite(key, spec.getOperations(), spec.getOpType(), spec.getGeneration(), (int)spec.getExpirationInSeconds());
+        return new BatchWrite(key, spec.getWhereClause(), spec.getOperations(), spec.getOpType(),
+        	spec.getGeneration(), (int)spec.getExpirationInSeconds());
     }
 
     /**
@@ -235,8 +248,8 @@ class BatchExecutor {
      */
     private static BatchDelete createBatchDelete(OperationSpec spec, Key key,
                                                   Expression filterExp, Settings settings) {
-        // TODO: BN: What about durable delete, filter expression?
-        return new BatchDelete(key, spec.getGeneration());
+        // TODO: What about durable delete?
+        return new BatchDelete(key, spec.getWhereClause(), spec.getGeneration());
     }
 
     /**
@@ -244,31 +257,27 @@ class BatchExecutor {
      */
     private static BatchWrite createBatchTouch(OperationSpec spec, Key key,
                                                Expression filterExp, Settings settings) {
-
-        // TODO: BN: How to set the "filterExp" settings?
-        return new BatchWrite(key, List.of(Operation.touch()), OpType.TOUCH, spec.getGeneration(), (int)spec.getExpirationInSeconds());
+        return new BatchWrite(key, spec.getWhereClause(), List.of(Operation.touch()), OpType.TOUCH,
+        	spec.getGeneration(), (int)spec.getExpirationInSeconds());
     }
 
     /**
      * Create BatchRead for exists check (metadata only, no bins).
      */
     private static BatchRead createBatchExists(OperationSpec spec, Key key, Expression filterExp) {
-        // TODO: BN: Filter expressions?
-        // Exists check: read no bins, just check if record exists
-        return new BatchRead(key, false);
+        return new BatchRead(key, spec.getWhereClause(), false);
     }
 
     /**
      * Create BatchRead for query operations.
      */
     private static BatchRead createBatchRead(OperationSpec spec, Key key, Expression filterExp) {
-        // TODO: BN: Filter expressions?
         if (spec.getProjectedBins() != null && spec.getProjectedBins().length > 0) {
             // Read specific bins
-            return new BatchRead(key, spec.getProjectedBins());
+            return new BatchRead(key, spec.getWhereClause(), spec.getProjectedBins());
         } else {
             // Read all bins
-            return new BatchRead(key, true);
+            return new BatchRead(key, spec.getWhereClause(), true);
         }
     }
 
