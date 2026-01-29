@@ -31,6 +31,7 @@ import com.aerospike.client.fluent.command.Txn;
 import com.aerospike.client.fluent.dsl.BooleanExpression;
 import com.aerospike.client.fluent.exp.Exp;
 import com.aerospike.client.fluent.exp.Expression;
+import com.aerospike.client.fluent.policy.QueryDuration;
 import com.aerospike.client.fluent.tend.Partition;
 
 /**
@@ -89,6 +90,7 @@ public class QueryBuilder extends AbstractFilterableBuilder implements
     private int endPartition = 4096;
     private Txn txnToUse;
     private int recordsPerSecond = 0;
+    private QueryDuration expectedQueryDuration = null;
 
     /**
      * Creates a QueryBuilder for querying an entire dataset.
@@ -350,6 +352,22 @@ public class QueryBuilder extends AbstractFilterableBuilder implements
 
     public int getRecordsPerSecond() {
         return this.recordsPerSecond;
+    }
+
+    /**
+     * Sets the expected query duration. The server optimizes query handling
+     * based on this hint.
+     * 
+     * @param duration the expected duration (LONG, SHORT, or LONG_RELAX_AP)
+     * @return this QueryBuilder for method chaining
+     */
+    public QueryBuilder expectedQueryDuration(QueryDuration duration) {
+        this.expectedQueryDuration = duration;
+        return this;
+    }
+
+    public QueryDuration getExpectedQueryDuration() {
+        return this.expectedQueryDuration;
     }
 
     /**
