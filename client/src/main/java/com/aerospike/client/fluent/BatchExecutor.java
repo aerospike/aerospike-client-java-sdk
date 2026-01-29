@@ -248,7 +248,6 @@ class BatchExecutor {
      */
     private static BatchDelete createBatchDelete(OperationSpec spec, Key key,
                                                   Expression filterExp, Settings settings) {
-        // TODO: What about durable delete?
         return new BatchDelete(key, spec.getWhereClause(), spec.getGeneration());
     }
 
