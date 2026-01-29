@@ -34,6 +34,7 @@ import com.aerospike.client.fluent.policy.Behavior;
     BitExpTest.class,
     DeleteBinTest.class,
     ExpireTest.class,
+    FilterExpTest.class,
     PutGetTest.class,
     QueryBlobTest.class,
     QueryCollectionTest.class,
