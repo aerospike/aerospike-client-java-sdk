@@ -1,0 +1,647 @@
+package com.aerospike.client.fluent;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+
+import com.aerospike.client.fluent.command.Txn;
+import com.aerospike.client.fluent.dsl.BooleanExpression;
+import com.aerospike.client.fluent.exp.Exp;
+import com.aerospike.client.fluent.exp.Expression;
+import com.aerospike.client.fluent.query.PreparedDsl;
+import com.aerospike.client.fluent.query.WhereClauseProcessor;
+import com.aerospike.dsl.ParseResult;
+
+/**
+ * Builder for chainable batch query (read) operations.
+ * This builder is used for {@code query} operations that read records without modifying them.
+ * 
+ * <p>Unlike write operations, query operations support bin projection (selecting specific bins to read)
+ * but cannot modify bin values. They can still apply where clauses for filtering.
+ * 
+ * <p>Example usage:
+ * <pre>{@code
+ * session.query(users.ids("user-1", "user-2"))
+ *     .bins("name", "email")  // Only read these bins
+ *     .where("$.age > 21")
+ *     .upsert(users.id("user-3"))
+ *     .bin("status").setTo("active")
+ *     .execute();
+ * }</pre>
+ * 
+ * @see ChainableOperationBuilder for write operations with bin modifications
+ * @see ChainableNoBinsBuilder for operations without bin modifications
+ */
+public class ChainableQueryBuilder extends AbstractFilterableBuilder 
+        implements FilterableOperation<ChainableQueryBuilder> {
+    
+    private final Session session;
+    private final List<OperationSpec> operationSpecs;
+    private OperationSpec currentSpec = null;
+    private Expression defaultWhereClause;
+    private Txn txnToUse;
+    
+    /**
+     * Package-private constructor.
+     */
+    ChainableQueryBuilder(Session session, List<OperationSpec> existingSpecs,
+                         Expression defaultWhereClause, Txn txnToUse) {
+        this.session = session;
+        this.operationSpecs = existingSpecs;
+        this.defaultWhereClause = defaultWhereClause;
+        this.txnToUse = txnToUse;
+    }
+    
+    // ========================================
+    // Initialization methods
+    // ========================================
+    
+    ChainableQueryBuilder initQuery(Key key) {
+        finalizeCurrentOperation();
+        currentSpec = new OperationSpec(List.of(key));  // null opType for query
+        return this;
+    }
+    
+    ChainableQueryBuilder initQuery(List<Key> keys) {
+        finalizeCurrentOperation();
+        currentSpec = new OperationSpec(keys);  // null opType for query
+        return this;
+    }
+    
+    // ========================================
+    // Query-specific methods
+    // ========================================
+    
+    /**
+     * Specify which bins to read (bin projection).
+     * If not called, all bins will be read.
+     * 
+     * @param binNames the names of the bins to read
+     * @return this builder for method chaining
+     */
+    public ChainableQueryBuilder bins(String... binNames) {
+        verifyState("specifying bins");
+        if (binNames == null || binNames.length == 0) {
+            throw new IllegalArgumentException("Must specify at least one bin name");
+        }
+        currentSpec.setProjectedBins(binNames);
+        return this;
+    }
+    
+    // ========================================
+    // Chainable operation methods
+    // ========================================
+    
+    /**
+     * Chain an upsert operation on a single key.
+     * Returns a {@link ChainableOperationBuilder} since upsert operations support bin modifications.
+     * 
+     * @param key the key to upsert
+     * @return ChainableOperationBuilder for method chaining
+     */
+    public ChainableOperationBuilder upsert(Key key) {
+        finalizeCurrentOperation();
+        ChainableOperationBuilder builder = new ChainableOperationBuilder(session, OpType.UPSERT);
+        transferState(builder);
+        return builder.init(key, OpType.UPSERT);
+    }
+    
+    /**
+     * Chain an upsert operation on multiple keys.
+     * 
+     * @param keys the keys to upsert
+     * @return ChainableOperationBuilder for method chaining
+     */
+    public ChainableOperationBuilder upsert(List<Key> keys) {
+        finalizeCurrentOperation();
+        ChainableOperationBuilder builder = new ChainableOperationBuilder(session, OpType.UPSERT);
+        transferState(builder);
+        return builder.init(keys, OpType.UPSERT);
+    }
+    
+    /**
+     * Chain an upsert operation on multiple keys (varargs).
+     * 
+     * @param key1 first key
+     * @param key2 second key
+     * @param moreKeys additional keys
+     * @return ChainableOperationBuilder for method chaining
+     */
+    public ChainableOperationBuilder upsert(Key key1, Key key2, Key... moreKeys) {
+        List<Key> keys = new ArrayList<>();
+        keys.add(key1);
+        keys.add(key2);
+        keys.addAll(Arrays.asList(moreKeys));
+        return upsert(keys);
+    }
+    
+    /**
+     * Chain an update operation on a single key.
+     * Returns a {@link ChainableOperationBuilder} since update operations support bin modifications.
+     * 
+     * @param key the key to update
+     * @return ChainableOperationBuilder for method chaining
+     */
+    public ChainableOperationBuilder update(Key key) {
+        finalizeCurrentOperation();
+        ChainableOperationBuilder builder = new ChainableOperationBuilder(session, OpType.UPDATE);
+        transferState(builder);
+        return builder.init(key, OpType.UPDATE);
+    }
+    
+    /**
+     * Chain an update operation on multiple keys.
+     * 
+     * @param keys the keys to update
+     * @return ChainableOperationBuilder for method chaining
+     */
+    public ChainableOperationBuilder update(List<Key> keys) {
+        finalizeCurrentOperation();
+        ChainableOperationBuilder builder = new ChainableOperationBuilder(session, OpType.UPDATE);
+        transferState(builder);
+        return builder.init(keys, OpType.UPDATE);
+    }
+    
+    /**
+     * Chain an update operation on multiple keys (varargs).
+     * 
+     * @param key1 first key
+     * @param key2 second key
+     * @param moreKeys additional keys
+     * @return ChainableOperationBuilder for method chaining
+     */
+    public ChainableOperationBuilder update(Key key1, Key key2, Key... moreKeys) {
+        List<Key> keys = new ArrayList<>();
+        keys.add(key1);
+        keys.add(key2);
+        keys.addAll(Arrays.asList(moreKeys));
+        return update(keys);
+    }
+    
+    /**
+     * Chain an insert operation on a single key.
+     * Returns a {@link ChainableOperationBuilder} since insert operations support bin modifications.
+     * 
+     * @param key the key to insert
+     * @return ChainableOperationBuilder for method chaining
+     */
+    public ChainableOperationBuilder insert(Key key) {
+        finalizeCurrentOperation();
+        ChainableOperationBuilder builder = new ChainableOperationBuilder(session, OpType.INSERT);
+        transferState(builder);
+        return builder.init(key, OpType.INSERT);
+    }
+    
+    /**
+     * Chain an insert operation on multiple keys.
+     * 
+     * @param keys the keys to insert
+     * @return ChainableOperationBuilder for method chaining
+     */
+    public ChainableOperationBuilder insert(List<Key> keys) {
+        finalizeCurrentOperation();
+        ChainableOperationBuilder builder = new ChainableOperationBuilder(session, OpType.INSERT);
+        transferState(builder);
+        return builder.init(keys, OpType.INSERT);
+    }
+    
+    /**
+     * Chain an insert operation on multiple keys (varargs).
+     * 
+     * @param key1 first key
+     * @param key2 second key
+     * @param moreKeys additional keys
+     * @return ChainableOperationBuilder for method chaining
+     */
+    public ChainableOperationBuilder insert(Key key1, Key key2, Key... moreKeys) {
+        List<Key> keys = new ArrayList<>();
+        keys.add(key1);
+        keys.add(key2);
+        keys.addAll(Arrays.asList(moreKeys));
+        return insert(keys);
+    }
+    
+    /**
+     * Chain a replace operation on a single key.
+     * Returns a {@link ChainableOperationBuilder} since replace operations support bin modifications.
+     * 
+     * @param key the key to replace
+     * @return ChainableOperationBuilder for method chaining
+     */
+    public ChainableOperationBuilder replace(Key key) {
+        finalizeCurrentOperation();
+        ChainableOperationBuilder builder = new ChainableOperationBuilder(session, OpType.REPLACE);
+        transferState(builder);
+        return builder.init(key, OpType.REPLACE);
+    }
+    
+    /**
+     * Chain a replace operation on multiple keys.
+     * 
+     * @param keys the keys to replace
+     * @return ChainableOperationBuilder for method chaining
+     */
+    public ChainableOperationBuilder replace(List<Key> keys) {
+        finalizeCurrentOperation();
+        ChainableOperationBuilder builder = new ChainableOperationBuilder(session, OpType.REPLACE);
+        transferState(builder);
+        return builder.init(keys, OpType.REPLACE);
+    }
+    
+    /**
+     * Chain a replace operation on multiple keys (varargs).
+     * 
+     * @param key1 first key
+     * @param key2 second key
+     * @param moreKeys additional keys
+     * @return ChainableOperationBuilder for method chaining
+     */
+    public ChainableOperationBuilder replace(Key key1, Key key2, Key... moreKeys) {
+        List<Key> keys = new ArrayList<>();
+        keys.add(key1);
+        keys.add(key2);
+        keys.addAll(Arrays.asList(moreKeys));
+        return replace(keys);
+    }
+    
+    /**
+     * Chain a delete operation on a single key.
+     * Returns a {@link ChainableNoBinsBuilder} since delete operations don't support bin modifications.
+     * 
+     * @param key the key to delete
+     * @return ChainableNoBinsBuilder for method chaining
+     */
+    public ChainableNoBinsBuilder delete(Key key) {
+        finalizeCurrentOperation();
+        return new ChainableNoBinsBuilder(session, operationSpecs, defaultWhereClause, txnToUse)
+                .initDelete(key);
+    }
+    
+    /**
+     * Chain a delete operation on multiple keys.
+     * 
+     * @param keys the keys to delete
+     * @return ChainableNoBinsBuilder for method chaining
+     */
+    public ChainableNoBinsBuilder delete(List<Key> keys) {
+        finalizeCurrentOperation();
+        return new ChainableNoBinsBuilder(session, operationSpecs, defaultWhereClause, txnToUse)
+                .initDelete(keys);
+    }
+    
+    /**
+     * Chain a delete operation on multiple keys (varargs).
+     * 
+     * @param key1 first key
+     * @param key2 second key
+     * @param moreKeys additional keys
+     * @return ChainableNoBinsBuilder for method chaining
+     */
+    public ChainableNoBinsBuilder delete(Key key1, Key key2, Key... moreKeys) {
+        List<Key> keys = new ArrayList<>();
+        keys.add(key1);
+        keys.add(key2);
+        keys.addAll(Arrays.asList(moreKeys));
+        return delete(keys);
+    }
+    
+    /**
+     * Chain a touch operation on a single key.
+     * Returns a {@link ChainableNoBinsBuilder} since touch operations don't support bin modifications.
+     * 
+     * @param key the key to touch
+     * @return ChainableNoBinsBuilder for method chaining
+     */
+    public ChainableNoBinsBuilder touch(Key key) {
+        finalizeCurrentOperation();
+        return new ChainableNoBinsBuilder(session, operationSpecs, defaultWhereClause, txnToUse)
+                .initTouch(key);
+    }
+    
+    /**
+     * Chain a touch operation on multiple keys.
+     * 
+     * @param keys the keys to touch
+     * @return ChainableNoBinsBuilder for method chaining
+     */
+    public ChainableNoBinsBuilder touch(List<Key> keys) {
+        finalizeCurrentOperation();
+        return new ChainableNoBinsBuilder(session, operationSpecs, defaultWhereClause, txnToUse)
+                .initTouch(keys);
+    }
+    
+    /**
+     * Chain a touch operation on multiple keys (varargs).
+     * 
+     * @param key1 first key
+     * @param key2 second key
+     * @param moreKeys additional keys
+     * @return ChainableNoBinsBuilder for method chaining
+     */
+    public ChainableNoBinsBuilder touch(Key key1, Key key2, Key... moreKeys) {
+        List<Key> keys = new ArrayList<>();
+        keys.add(key1);
+        keys.add(key2);
+        keys.addAll(Arrays.asList(moreKeys));
+        return touch(keys);
+    }
+    
+    /**
+     * Chain an exists check operation on a single key.
+     * Returns a {@link ChainableNoBinsBuilder} since exists operations don't support bin modifications.
+     * 
+     * @param key the key to check
+     * @return ChainableNoBinsBuilder for method chaining
+     */
+    public ChainableNoBinsBuilder exists(Key key) {
+        finalizeCurrentOperation();
+        return new ChainableNoBinsBuilder(session, operationSpecs, defaultWhereClause, txnToUse)
+                .initExists(key);
+    }
+    
+    /**
+     * Chain an exists check operation on multiple keys.
+     * 
+     * @param keys the keys to check
+     * @return ChainableNoBinsBuilder for method chaining
+     */
+    public ChainableNoBinsBuilder exists(List<Key> keys) {
+        finalizeCurrentOperation();
+        return new ChainableNoBinsBuilder(session, operationSpecs, defaultWhereClause, txnToUse)
+                .initExists(keys);
+    }
+    
+    /**
+     * Chain an exists check operation on multiple keys (varargs).
+     * 
+     * @param key1 first key
+     * @param key2 second key
+     * @param moreKeys additional keys
+     * @return ChainableNoBinsBuilder for method chaining
+     */
+    public ChainableNoBinsBuilder exists(Key key1, Key key2, Key... moreKeys) {
+        List<Key> keys = new ArrayList<>();
+        keys.add(key1);
+        keys.add(key2);
+        keys.addAll(Arrays.asList(moreKeys));
+        return exists(keys);
+    }
+    
+    /**
+     * Chain another query (read) operation on a single key.
+     * 
+     * @param key the key to query
+     * @return this builder for method chaining
+     */
+    public ChainableQueryBuilder query(Key key) {
+        return initQuery(key);
+    }
+    
+    /**
+     * Chain another query (read) operation on multiple keys.
+     * 
+     * @param keys the keys to query
+     * @return this builder for method chaining
+     */
+    public ChainableQueryBuilder query(List<Key> keys) {
+        return initQuery(keys);
+    }
+    
+    /**
+     * Chain another query (read) operation on multiple keys (varargs).
+     * 
+     * @param key1 first key
+     * @param key2 second key
+     * @param moreKeys additional keys
+     * @return this builder for method chaining
+     */
+    public ChainableQueryBuilder query(Key key1, Key key2, Key... moreKeys) {
+        List<Key> keys = new ArrayList<>();
+        keys.add(key1);
+        keys.add(key2);
+        keys.addAll(Arrays.asList(moreKeys));
+        return query(keys);
+    }
+    
+    // ========================================
+    // FilterableOperation implementation
+    // ========================================
+    
+    @Override
+    public ChainableQueryBuilder where(String dsl, Object... params) {
+        verifyState("setting where clause");
+        WhereClauseProcessor processor = createWhereClauseProcessor(false, dsl, params);
+        if (processor != null) {
+            ParseResult parseResult = processor.process(getNamespaceFromKeys(currentSpec.getKeys()), session);
+            currentSpec.setWhereClause(Exp.build(parseResult.getExp()));
+        }
+        return this;
+    }
+    
+    @Override
+    public ChainableQueryBuilder where(BooleanExpression dsl) {
+        verifyState("setting where clause");
+        WhereClauseProcessor processor = WhereClauseProcessor.from(dsl);
+        ParseResult parseResult = processor.process(getNamespaceFromKeys(currentSpec.getKeys()), session);
+        currentSpec.setWhereClause(Exp.build(parseResult.getExp()));
+        return this;
+    }
+    
+    @Override
+    public ChainableQueryBuilder where(PreparedDsl dsl, Object... params) {
+        verifyState("setting where clause");
+        WhereClauseProcessor processor = WhereClauseProcessor.from(false, dsl, params);
+        ParseResult parseResult = processor.process(getNamespaceFromKeys(currentSpec.getKeys()), session);
+        currentSpec.setWhereClause(Exp.build(parseResult.getExp()));
+        return this;
+    }
+    
+    @Override
+    public ChainableQueryBuilder where(Exp exp) {
+        verifyState("setting where clause");
+        WhereClauseProcessor processor = WhereClauseProcessor.from(exp);
+        ParseResult parseResult = processor.process(getNamespaceFromKeys(currentSpec.getKeys()), session);
+        currentSpec.setWhereClause(Exp.build(parseResult.getExp()));
+        return this;
+    }
+    
+    /**
+     * Set the default where clause for all operations in this batch that don't have their own where clause.
+     * 
+     * @param dsl the DSL filter expression
+     * @param params parameters to substitute into the DSL
+     * @return this builder for method chaining
+     * @see ChainableOperationBuilder#defaultWhere(String, Object...)
+     */
+    public ChainableQueryBuilder defaultWhere(String dsl, Object... params) {
+        String namespace = currentSpec != null ? 
+                getNamespaceFromKeys(currentSpec.getKeys()) :
+                (!operationSpecs.isEmpty() ? getNamespaceFromKeys(operationSpecs.get(0).getKeys()) : null);
+        
+        if (namespace == null) {
+            throw new IllegalStateException("Cannot set defaultWhere before any operations are specified");
+        }
+        
+        WhereClauseProcessor processor = createWhereClauseProcessor(false, dsl, params);
+        if (processor != null) {
+            ParseResult parseResult = processor.process(namespace, session);
+            this.defaultWhereClause = Exp.build(parseResult.getExp());
+        }
+        return this;
+    }
+    
+    /**
+     * Set the default where clause using a BooleanExpression.
+     * 
+     * @param dsl the boolean expression filter
+     * @return this builder for method chaining
+     */
+    public ChainableQueryBuilder defaultWhere(BooleanExpression dsl) {
+        String namespace = currentSpec != null ? 
+                getNamespaceFromKeys(currentSpec.getKeys()) :
+                (!operationSpecs.isEmpty() ? getNamespaceFromKeys(operationSpecs.get(0).getKeys()) : null);
+        
+        if (namespace == null) {
+            throw new IllegalStateException("Cannot set defaultWhere before any operations are specified");
+        }
+        
+        WhereClauseProcessor processor = WhereClauseProcessor.from(dsl);
+        ParseResult parseResult = processor.process(namespace, session);
+        this.defaultWhereClause = Exp.build(parseResult.getExp());
+        return this;
+    }
+    
+    /**
+     * Set the default where clause using a PreparedDsl.
+     * 
+     * @param dsl the prepared DSL filter
+     * @param params parameters to bind to the prepared DSL
+     * @return this builder for method chaining
+     */
+    public ChainableQueryBuilder defaultWhere(PreparedDsl dsl, Object... params) {
+        String namespace = currentSpec != null ? 
+                getNamespaceFromKeys(currentSpec.getKeys()) :
+                (!operationSpecs.isEmpty() ? getNamespaceFromKeys(operationSpecs.get(0).getKeys()) : null);
+        
+        if (namespace == null) {
+            throw new IllegalStateException("Cannot set defaultWhere before any operations are specified");
+        }
+        
+        WhereClauseProcessor processor = WhereClauseProcessor.from(false, dsl, params);
+        ParseResult parseResult = processor.process(namespace, session);
+        this.defaultWhereClause = Exp.build(parseResult.getExp());
+        return this;
+    }
+    
+    /**
+     * Set the default where clause using an Aerospike Exp.
+     * 
+     * @param exp the expression filter
+     * @return this builder for method chaining
+     */
+    public ChainableQueryBuilder defaultWhere(Exp exp) {
+        String namespace = currentSpec != null ? 
+                getNamespaceFromKeys(currentSpec.getKeys()) :
+                (!operationSpecs.isEmpty() ? getNamespaceFromKeys(operationSpecs.get(0).getKeys()) : null);
+        
+        if (namespace == null) {
+            throw new IllegalStateException("Cannot set defaultWhere before any operations are specified");
+        }
+        
+        WhereClauseProcessor processor = WhereClauseProcessor.from(exp);
+        ParseResult parseResult = processor.process(namespace, session);
+        this.defaultWhereClause = Exp.build(parseResult.getExp());
+        return this;
+    }
+    
+    @Override
+    public ChainableQueryBuilder failOnFilteredOut() {
+        verifyState("setting failOnFilteredOut");
+        currentSpec.setFailOnFilteredOut(true);
+        return this;
+    }
+    
+    @Override
+    public ChainableQueryBuilder respondAllKeys() {
+        verifyState("setting respondAllKeys");
+        currentSpec.setRespondAllKeys(true);
+        return this;
+    }
+    
+    /**
+     * Specify that operations are not to be included in any transaction.
+     * 
+     * @return this builder for method chaining
+     */
+    public ChainableQueryBuilder notInAnyTransaction() {
+        this.txnToUse = null;
+        return this;
+    }
+    
+    /**
+     * Specify the transaction to use for operations.
+     * 
+     * @param txn the transaction
+     * @return this builder for method chaining
+     */
+    public ChainableQueryBuilder inTransaction(Txn txn) {
+        this.txnToUse = txn;
+        return this;
+    }
+    
+    // ========================================
+    // Execution
+    // ========================================
+    
+    /**
+     * Execute all chained operations as a single batch.
+     * 
+     * @return RecordStream containing the results of all operations
+     */
+    public RecordStream execute() {
+        finalizeCurrentOperation();
+        
+        if (operationSpecs.isEmpty()) {
+            throw new IllegalStateException("No operations specified");
+        }
+        
+        return BatchExecutor.execute(session, operationSpecs, defaultWhereClause, txnToUse);
+    }
+    
+    // ========================================
+    // Internal helpers
+    // ========================================
+    
+    /**
+     * Verify that an operation has been specified before setting properties on it.
+     * 
+     * <p><b>Important:</b> This condition should never occur in normal usage due to the fluent API design.
+     * This check exists as a safety mechanism to provide clear error messages if the API is used incorrectly
+     * (e.g., through reflection or other non-standard means).</p>
+     * 
+     * @param operationContext description of what operation is being attempted (e.g., "specifying bins", "setting where clause")
+     * @throws IllegalStateException if no operation has been specified yet
+     */
+    private void verifyState(String operationContext) {
+        if (currentSpec == null) {
+            throw new IllegalStateException("Must call query() before " + operationContext);
+        }
+    }
+    
+    private void finalizeCurrentOperation() {
+        if (currentSpec != null) {
+            operationSpecs.add(currentSpec);
+            currentSpec = null;
+        }
+    }
+    
+    private String getNamespaceFromKeys(List<Key> keys) {
+        return keys.isEmpty() ? null : keys.get(0).namespace;
+    }
+    
+    private void transferState(ChainableOperationBuilder builder) {
+        // Transfer accumulated operations and state to the new builder
+        // This is done through package-private access
+    }
+}
+

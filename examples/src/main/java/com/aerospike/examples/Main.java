@@ -47,9 +47,10 @@ import org.apache.commons.cli.Options;
 public class Main {
 
     private static final String[] EXAMPLE_NAMES = new String[] {
+        "CommonExample",
+        "BatchExample",
         "BehaviorHierarchicalExample",
         "BehaviorYamlExample",
-        "CommonExample",
         "CompleteYamlConfigExample",
         "YamlConfigExample",
         "YamlConfigConnectionExample"

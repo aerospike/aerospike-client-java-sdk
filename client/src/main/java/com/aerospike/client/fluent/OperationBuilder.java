@@ -57,7 +57,7 @@ import com.aerospike.client.fluent.query.PreparedDsl;
 import com.aerospike.client.fluent.query.WhereClauseProcessor;
 import com.aerospike.client.fluent.tend.Partitions;
 
-public class OperationBuilder extends AbstractOperationBuilder<OperationBuilder> implements FilterableOperation<OperationBuilder> {
+public class OperationBuilder extends AbstractOperationBuilder<OperationBuilder> implements FilterableOperation<OperationBuilder>, BinsValuesOperations {
     private final List<Key> keys;
     protected int generation = 0;
     protected long expirationInSecondsForAll = 0;
@@ -324,7 +324,7 @@ public class OperationBuilder extends AbstractOperationBuilder<OperationBuilder>
         return this;
     }
 
-    protected Txn getTxnToUse() {
+    public Txn getTxnToUse() {
         return this.txnToUse;
     }
 
@@ -358,15 +358,20 @@ public class OperationBuilder extends AbstractOperationBuilder<OperationBuilder>
         return this;
     }
 
-    protected int getNumKeys() {
+    public int getNumKeys() {
         return keys.size();
     }
 
-    protected boolean isMultiKey() {
+    public boolean isMultiKey() {
         return keys.size() > 1;
     }
+    
+    @Override
+    public boolean isRespondAllKeys() {
+        return respondAllKeys;
+    }
 
-    protected int getExpirationAsInt(long expirationInSeconds) {
+    public int getExpirationAsInt(long expirationInSeconds) {
         if (expirationInSeconds > Integer.MAX_VALUE) {
             return Integer.MAX_VALUE;
         }
@@ -412,12 +417,17 @@ public class OperationBuilder extends AbstractOperationBuilder<OperationBuilder>
     }
 
     @Override
+    public boolean isFailOnFilteredOut() {
+        return this.failOnFilteredOut;
+    }
+    
+    @Override
     public OperationBuilder respondAllKeys() {
         this.respondAllKeys = true;
         return this;
     }
 
-    protected Session getSession() {
+    public Session getSession() {
         return this.session;
     }
 
@@ -919,12 +929,17 @@ public class OperationBuilder extends AbstractOperationBuilder<OperationBuilder>
         return session.getBehavior().getSettings(kind, shape, partitions.scMode);
     }
 
-    void showWarningsOnExceptionAndThrow(AerospikeException ae, Txn txn, Key key, int expiration) {
+    public void showWarningsOnExceptionAndThrow(AerospikeException ae, Txn txn, Key key, int expiration) {
         showWarningsOnException(ae, txn, key, expiration);
         throw ae;
     }
 
-    void showWarningsOnException(AerospikeException ae, Txn txn, Key key, int expiration) {
+    @Override
+    public OpType getOpType() {
+        return this.opType;
+    }
+    
+    public void showWarningsOnException(AerospikeException ae, Txn txn, Key key, int expiration) {
         if (Log.warnEnabled()) {
             if (ae.getResultCode() == ResultCode.FAIL_FORBIDDEN && expiration > 0) {
                 Log.warn("Operation failed on server with FAIL_FORBIDDEN (22) and the record had "

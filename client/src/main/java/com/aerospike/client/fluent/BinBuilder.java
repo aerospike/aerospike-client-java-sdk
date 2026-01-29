@@ -131,44 +131,44 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
     // CDT Operations. Note: make sure to mirror these operations to
     // CdtContextNonInvertableBuilder and CdtContextInvertableBuilder
     // ==================================================================
-    public CdtContextNonInvertableBuilder onMapIndex(int index) {
-        return new CdtGetOrRemoveBuilder(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_INDEX, index));
+    public CdtContextNonInvertableBuilder<T> onMapIndex(int index) {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_INDEX, index));
     }
-    public CdtSetterNonInvertableBuilder onMapKey(long key) {
-        return new CdtGetOrRemoveBuilder(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_KEY, Value.get(key)));
+    public CdtSetterNonInvertableBuilder<T> onMapKey(long key) {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_KEY, Value.get(key)));
     }
-    public CdtSetterNonInvertableBuilder onMapKey(long key, MapOrder createType) {
-        return new CdtGetOrRemoveBuilder(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_KEY, Value.get(key), createType));
+    public CdtSetterNonInvertableBuilder<T> onMapKey(long key, MapOrder createType) {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_KEY, Value.get(key), createType));
     }
-    public CdtSetterNonInvertableBuilder onMapKey(String key) {
-        return new CdtGetOrRemoveBuilder(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_KEY, Value.get(key)));
+    public CdtSetterNonInvertableBuilder<T> onMapKey(String key) {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_KEY, Value.get(key)));
     }
-    public CdtSetterNonInvertableBuilder onMapKey(String key, MapOrder createType) {
-        return new CdtGetOrRemoveBuilder(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_KEY, Value.get(key), createType));
+    public CdtSetterNonInvertableBuilder<T> onMapKey(String key, MapOrder createType) {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_KEY, Value.get(key), createType));
     }
-    public CdtSetterNonInvertableBuilder onMapKey(byte[] key) {
-        return new CdtGetOrRemoveBuilder(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_KEY, Value.get(key)));
+    public CdtSetterNonInvertableBuilder<T> onMapKey(byte[] key) {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_KEY, Value.get(key)));
     }
-    public CdtSetterNonInvertableBuilder onMapKey(byte[] key, MapOrder createType) {
-        return new CdtGetOrRemoveBuilder(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_KEY, Value.get(key), createType));
+    public CdtSetterNonInvertableBuilder<T> onMapKey(byte[] key, MapOrder createType) {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_KEY, Value.get(key), createType));
     }
-    public CdtContextNonInvertableBuilder onMapRank(int index) {
-        return new CdtGetOrRemoveBuilder(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_RANK, index));
+    public CdtContextNonInvertableBuilder<T> onMapRank(int index) {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_RANK, index));
     }
-    public CdtContextInvertableBuilder onMapValue(long value) {
-        return new CdtGetOrRemoveBuilder(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE, Value.get(value)));
+    public CdtContextInvertableBuilder<T> onMapValue(long value) {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE, Value.get(value)));
     }
-    public CdtContextInvertableBuilder onMapValue(String value) {
-        return new CdtGetOrRemoveBuilder(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE, Value.get(value)));
+    public CdtContextInvertableBuilder<T> onMapValue(String value) {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE, Value.get(value)));
     }
-    public CdtContextInvertableBuilder onMapValue(byte[] value) {
-        return new CdtGetOrRemoveBuilder(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE, Value.get(value)));
+    public CdtContextInvertableBuilder<T> onMapValue(byte[] value) {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE, Value.get(value)));
     }
-    public CdtActionInvertableBuilder onMapKeyRange(String startIncl, String endExcl) {
-        return new CdtGetOrRemoveBuilder(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_KEY_RANGE, Value.get(startIncl), Value.get(endExcl)));
+    public CdtActionInvertableBuilder<T> onMapKeyRange(String startIncl, String endExcl) {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_KEY_RANGE, Value.get(startIncl), Value.get(endExcl))); 
     }
-    public CdtActionInvertableBuilder onMapValueRange(long startIncl, long endExcl) {
-        return new CdtGetOrRemoveBuilder(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE_RANGE, Value.get(startIncl), Value.get(endExcl)));
+    public CdtActionInvertableBuilder<T> onMapValueRange(long startIncl, long endExcl) {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE_RANGE, Value.get(startIncl), Value.get(endExcl)));
     }
     
     /**
@@ -179,16 +179,16 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      * @param index the relative index offset
      * @return builder for continued chaining (invertable for range operations)
      */
-    public CdtActionInvertableBuilder onMapKeyRelativeIndexRange(long key, int index) {
-        return new CdtGetOrRemoveBuilder(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_KEY_REL_INDEX_RANGE, Value.get(key), index));
+    public CdtActionInvertableBuilder<T> onMapKeyRelativeIndexRange(long key, int index) {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_KEY_REL_INDEX_RANGE, Value.get(key), index));
     }
     
-    public CdtActionInvertableBuilder onMapKeyRelativeIndexRange(String key, int index) {
-        return new CdtGetOrRemoveBuilder(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_KEY_REL_INDEX_RANGE, Value.get(key), index));
+    public CdtActionInvertableBuilder<T> onMapKeyRelativeIndexRange(String key, int index) {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_KEY_REL_INDEX_RANGE, Value.get(key), index));
     }
     
-    public CdtActionInvertableBuilder onMapKeyRelativeIndexRange(byte[] key, int index) {
-        return new CdtGetOrRemoveBuilder(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_KEY_REL_INDEX_RANGE, Value.get(key), index));
+    public CdtActionInvertableBuilder<T> onMapKeyRelativeIndexRange(byte[] key, int index) {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_KEY_REL_INDEX_RANGE, Value.get(key), index));
     }
     
     /**
@@ -200,16 +200,16 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      * @param count the maximum number of items to select
      * @return builder for continued chaining (invertable for range operations)
      */
-    public CdtActionInvertableBuilder onMapKeyRelativeIndexRange(long key, int index, int count) {
-        return new CdtGetOrRemoveBuilder(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_KEY_REL_INDEX_RANGE, Value.get(key), index, count));
+    public CdtActionInvertableBuilder<T> onMapKeyRelativeIndexRange(long key, int index, int count) {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_KEY_REL_INDEX_RANGE, Value.get(key), index, count));
     }
     
-    public CdtActionInvertableBuilder onMapKeyRelativeIndexRange(String key, int index, int count) {
-        return new CdtGetOrRemoveBuilder(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_KEY_REL_INDEX_RANGE, Value.get(key), index, count));
+    public CdtActionInvertableBuilder<T> onMapKeyRelativeIndexRange(String key, int index, int count) {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_KEY_REL_INDEX_RANGE, Value.get(key), index, count));
     }
     
-    public CdtActionInvertableBuilder onMapKeyRelativeIndexRange(byte[] key, int index, int count) {
-        return new CdtGetOrRemoveBuilder(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_KEY_REL_INDEX_RANGE, Value.get(key), index, count));
+    public CdtActionInvertableBuilder<T> onMapKeyRelativeIndexRange(byte[] key, int index, int count) {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_KEY_REL_INDEX_RANGE, Value.get(key), index, count));
     }
     
     /**
@@ -220,36 +220,36 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      * @param rank the relative rank offset
      * @return builder for continued chaining (invertable for range operations)
      */
-    public CdtActionInvertableBuilder onMapValueRelativeRankRange(long value, int rank) {
-        return new CdtGetOrRemoveBuilder(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank));
+    public CdtActionInvertableBuilder<T> onMapValueRelativeRankRange(long value, int rank) {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank));
     }
     
-    public CdtActionInvertableBuilder onMapValueRelativeRankRange(String value, int rank) {
-        return new CdtGetOrRemoveBuilder(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank));
+    public CdtActionInvertableBuilder<T> onMapValueRelativeRankRange(String value, int rank) {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank));
     }
     
-    public CdtActionInvertableBuilder onMapValueRelativeRankRange(byte[] value, int rank) {
-        return new CdtGetOrRemoveBuilder(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank));
+    public CdtActionInvertableBuilder<T> onMapValueRelativeRankRange(byte[] value, int rank) {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank));
     }
     
-    public CdtActionInvertableBuilder onMapValueRelativeRankRange(double value, int rank) {
-        return new CdtGetOrRemoveBuilder(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank));
+    public CdtActionInvertableBuilder<T> onMapValueRelativeRankRange(double value, int rank) {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank));
     }
     
-    public CdtActionInvertableBuilder onMapValueRelativeRankRange(boolean value, int rank) {
-        return new CdtGetOrRemoveBuilder(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank));
+    public CdtActionInvertableBuilder<T> onMapValueRelativeRankRange(boolean value, int rank) {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank));
     }
     
-    public CdtActionInvertableBuilder onMapValueRelativeRankRange(List<?> value, int rank) {
-        return new CdtGetOrRemoveBuilder(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank));
+    public CdtActionInvertableBuilder<T> onMapValueRelativeRankRange(List<?> value, int rank) {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank));
     }
     
-    public CdtActionInvertableBuilder onMapValueRelativeRankRange(Map<?,?> value, int rank) {
-        return new CdtGetOrRemoveBuilder(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank));
+    public CdtActionInvertableBuilder<T> onMapValueRelativeRankRange(Map<?,?> value, int rank) {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank));
     }
     
-    public CdtActionInvertableBuilder onMapValueRelativeRankRange(SpecialValue value, int rank) {
-        return new CdtGetOrRemoveBuilder(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE_REL_RANK_RANGE, value.toAerospikeValue(), rank));
+    public CdtActionInvertableBuilder<T> onMapValueRelativeRankRange(SpecialValue value, int rank) {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE_REL_RANK_RANGE, value.toAerospikeValue(), rank));
     }
     
     /**
@@ -261,36 +261,36 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      * @param count the maximum number of items to select
      * @return builder for continued chaining (invertable for range operations)
      */
-    public CdtActionInvertableBuilder onMapValueRelativeRankRange(long value, int rank, int count) {
-        return new CdtGetOrRemoveBuilder(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank, count));
+    public CdtActionInvertableBuilder<T> onMapValueRelativeRankRange(long value, int rank, int count) {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank, count));
     }
     
-    public CdtActionInvertableBuilder onMapValueRelativeRankRange(String value, int rank, int count) {
-        return new CdtGetOrRemoveBuilder(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank, count));
+    public CdtActionInvertableBuilder<T> onMapValueRelativeRankRange(String value, int rank, int count) {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank, count));
     }
     
-    public CdtActionInvertableBuilder onMapValueRelativeRankRange(byte[] value, int rank, int count) {
-        return new CdtGetOrRemoveBuilder(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank, count));
+    public CdtActionInvertableBuilder<T> onMapValueRelativeRankRange(byte[] value, int rank, int count) {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank, count));
     }
     
-    public CdtActionInvertableBuilder onMapValueRelativeRankRange(double value, int rank, int count) {
-        return new CdtGetOrRemoveBuilder(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank, count));
+    public CdtActionInvertableBuilder<T> onMapValueRelativeRankRange(double value, int rank, int count) {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank, count));
     }
     
-    public CdtActionInvertableBuilder onMapValueRelativeRankRange(boolean value, int rank, int count) {
-        return new CdtGetOrRemoveBuilder(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank, count));
+    public CdtActionInvertableBuilder<T> onMapValueRelativeRankRange(boolean value, int rank, int count) {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank, count));
     }
     
-    public CdtActionInvertableBuilder onMapValueRelativeRankRange(List<?> value, int rank, int count) {
-        return new CdtGetOrRemoveBuilder(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank, count));
+    public CdtActionInvertableBuilder<T> onMapValueRelativeRankRange(List<?> value, int rank, int count) {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank, count));
     }
     
-    public CdtActionInvertableBuilder onMapValueRelativeRankRange(Map<?,?> value, int rank, int count) {
-        return new CdtGetOrRemoveBuilder(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank, count));
+    public CdtActionInvertableBuilder<T> onMapValueRelativeRankRange(Map<?,?> value, int rank, int count) {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank, count));
     }
     
-    public CdtActionInvertableBuilder onMapValueRelativeRankRange(SpecialValue value, int rank, int count) {
-        return new CdtGetOrRemoveBuilder(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE_REL_RANK_RANGE, value.toAerospikeValue(), rank, count));
+    public CdtActionInvertableBuilder<T> onMapValueRelativeRankRange(SpecialValue value, int rank, int count) {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE_REL_RANK_RANGE, value.toAerospikeValue(), rank, count));
     }
 
     /**
@@ -301,8 +301,8 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      * @param count the number of items to select
      * @return builder for continued chaining (invertable for range operations)
      */
-    public CdtActionInvertableBuilder onMapIndexRange(int index, int count) {
-        return new CdtGetOrRemoveBuilder(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_INDEX_RANGE, index, count));
+    public CdtActionInvertableBuilder<T> onMapIndexRange(int index, int count) {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_INDEX_RANGE, index, count));
     }
     
     /**
@@ -312,8 +312,8 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      * @param index the starting index
      * @return builder for continued chaining (invertable for range operations)
      */
-    public CdtActionInvertableBuilder onMapIndexRange(int index) {
-        return new CdtGetOrRemoveBuilder(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_INDEX_RANGE, index));
+    public CdtActionInvertableBuilder<T> onMapIndexRange(int index) {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_INDEX_RANGE, index));
     }
     
     /**
@@ -324,8 +324,8 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      * @param count the number of items to select
      * @return builder for continued chaining (invertable for range operations)
      */
-    public CdtActionInvertableBuilder onMapRankRange(int rank, int count) {
-        return new CdtGetOrRemoveBuilder(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_RANK_RANGE, rank, count));
+    public CdtActionInvertableBuilder<T> onMapRankRange(int rank, int count) {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_RANK_RANGE, rank, count));
     }
     
     /**
@@ -335,147 +335,147 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      * @param rank the starting rank
      * @return builder for continued chaining (invertable for range operations)
      */
-    public CdtActionInvertableBuilder onMapRankRange(int rank) {
-        return new CdtGetOrRemoveBuilder(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_RANK_RANGE, rank));
+    public CdtActionInvertableBuilder<T> onMapRankRange(int rank) {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_RANK_RANGE, rank));
     }
     
     // Additional value type overloads
-    public CdtContextInvertableBuilder onMapValue(double value) {
-        return new CdtGetOrRemoveBuilder(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE, Value.get(value)));
+    public CdtContextInvertableBuilder<T> onMapValue(double value) {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE, Value.get(value)));
     }
-    public CdtContextInvertableBuilder onMapValue(boolean value) {
-        return new CdtGetOrRemoveBuilder(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE, Value.get(value)));
+    public CdtContextInvertableBuilder<T> onMapValue(boolean value) {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE, Value.get(value)));
     }
-    public CdtContextInvertableBuilder onMapValue(List<?> value) {
-        return new CdtGetOrRemoveBuilder(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE, Value.get(value)));
+    public CdtContextInvertableBuilder<T> onMapValue(List<?> value) {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE, Value.get(value)));
     }
-    public CdtContextInvertableBuilder onMapValue(Map<?,?> value) {
-        return new CdtGetOrRemoveBuilder(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE, Value.get(value)));
+    public CdtContextInvertableBuilder<T> onMapValue(Map<?,?> value) {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE, Value.get(value)));
     }
-    public CdtContextInvertableBuilder onMapValue(SpecialValue value) {
-        return new CdtGetOrRemoveBuilder(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE, value.toAerospikeValue()));
+    public CdtContextInvertableBuilder<T> onMapValue(SpecialValue value) {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE, value.toAerospikeValue()));
     }
     
     // Additional range type overloads
-    public CdtActionInvertableBuilder onMapKeyRange(byte[] startIncl, byte[] endExcl) {
-        return new CdtGetOrRemoveBuilder(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_KEY_RANGE, Value.get(startIncl), Value.get(endExcl))); 
+    public CdtActionInvertableBuilder<T> onMapKeyRange(byte[] startIncl, byte[] endExcl) {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_KEY_RANGE, Value.get(startIncl), Value.get(endExcl))); 
     }
-    public CdtActionInvertableBuilder onMapKeyRange(double startIncl, double endExcl) {
-        return new CdtGetOrRemoveBuilder(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_KEY_RANGE, Value.get(startIncl), Value.get(endExcl))); 
+    public CdtActionInvertableBuilder<T> onMapKeyRange(double startIncl, double endExcl) {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_KEY_RANGE, Value.get(startIncl), Value.get(endExcl))); 
     }
     // SpecialValue combinations for onMapKeyRange
-    public CdtActionInvertableBuilder onMapKeyRange(SpecialValue startIncl, SpecialValue endExcl) {
-        return new CdtGetOrRemoveBuilder(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_KEY_RANGE, startIncl.toAerospikeValue(), endExcl.toAerospikeValue())); 
+    public CdtActionInvertableBuilder<T> onMapKeyRange(SpecialValue startIncl, SpecialValue endExcl) {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_KEY_RANGE, startIncl.toAerospikeValue(), endExcl.toAerospikeValue())); 
     }
-    public CdtActionInvertableBuilder onMapKeyRange(SpecialValue startIncl, long endExcl) {
-        return new CdtGetOrRemoveBuilder(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_KEY_RANGE, startIncl.toAerospikeValue(), Value.get(endExcl))); 
+    public CdtActionInvertableBuilder<T> onMapKeyRange(SpecialValue startIncl, long endExcl) {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_KEY_RANGE, startIncl.toAerospikeValue(), Value.get(endExcl))); 
     }
-    public CdtActionInvertableBuilder onMapKeyRange(SpecialValue startIncl, String endExcl) {
-        return new CdtGetOrRemoveBuilder(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_KEY_RANGE, startIncl.toAerospikeValue(), Value.get(endExcl))); 
+    public CdtActionInvertableBuilder<T> onMapKeyRange(SpecialValue startIncl, String endExcl) {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_KEY_RANGE, startIncl.toAerospikeValue(), Value.get(endExcl))); 
     }
-    public CdtActionInvertableBuilder onMapKeyRange(SpecialValue startIncl, byte[] endExcl) {
-        return new CdtGetOrRemoveBuilder(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_KEY_RANGE, startIncl.toAerospikeValue(), Value.get(endExcl))); 
+    public CdtActionInvertableBuilder<T> onMapKeyRange(SpecialValue startIncl, byte[] endExcl) {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_KEY_RANGE, startIncl.toAerospikeValue(), Value.get(endExcl))); 
     }
-    public CdtActionInvertableBuilder onMapKeyRange(SpecialValue startIncl, double endExcl) {
-        return new CdtGetOrRemoveBuilder(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_KEY_RANGE, startIncl.toAerospikeValue(), Value.get(endExcl))); 
+    public CdtActionInvertableBuilder<T> onMapKeyRange(SpecialValue startIncl, double endExcl) {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_KEY_RANGE, startIncl.toAerospikeValue(), Value.get(endExcl))); 
     }
-    public CdtActionInvertableBuilder onMapKeyRange(long startIncl, SpecialValue endExcl) {
-        return new CdtGetOrRemoveBuilder(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_KEY_RANGE, Value.get(startIncl), endExcl.toAerospikeValue())); 
+    public CdtActionInvertableBuilder<T> onMapKeyRange(long startIncl, SpecialValue endExcl) {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_KEY_RANGE, Value.get(startIncl), endExcl.toAerospikeValue())); 
     }
-    public CdtActionInvertableBuilder onMapKeyRange(String startIncl, SpecialValue endExcl) {
-        return new CdtGetOrRemoveBuilder(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_KEY_RANGE, Value.get(startIncl), endExcl.toAerospikeValue())); 
+    public CdtActionInvertableBuilder<T> onMapKeyRange(String startIncl, SpecialValue endExcl) {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_KEY_RANGE, Value.get(startIncl), endExcl.toAerospikeValue())); 
     }
-    public CdtActionInvertableBuilder onMapKeyRange(byte[] startIncl, SpecialValue endExcl) {
-        return new CdtGetOrRemoveBuilder(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_KEY_RANGE, Value.get(startIncl), endExcl.toAerospikeValue())); 
+    public CdtActionInvertableBuilder<T> onMapKeyRange(byte[] startIncl, SpecialValue endExcl) {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_KEY_RANGE, Value.get(startIncl), endExcl.toAerospikeValue())); 
     }
-    public CdtActionInvertableBuilder onMapKeyRange(double startIncl, SpecialValue endExcl) {
-        return new CdtGetOrRemoveBuilder(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_KEY_RANGE, Value.get(startIncl), endExcl.toAerospikeValue())); 
+    public CdtActionInvertableBuilder<T> onMapKeyRange(double startIncl, SpecialValue endExcl) {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_KEY_RANGE, Value.get(startIncl), endExcl.toAerospikeValue())); 
     }
-    public CdtActionInvertableBuilder onMapValueRange(String startIncl, String endExcl) {
-        return new CdtGetOrRemoveBuilder(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE_RANGE, Value.get(startIncl), Value.get(endExcl)));
+    public CdtActionInvertableBuilder<T> onMapValueRange(String startIncl, String endExcl) {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE_RANGE, Value.get(startIncl), Value.get(endExcl)));
     }
-    public CdtActionInvertableBuilder onMapValueRange(byte[] startIncl, byte[] endExcl) {
-        return new CdtGetOrRemoveBuilder(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE_RANGE, Value.get(startIncl), Value.get(endExcl)));
+    public CdtActionInvertableBuilder<T> onMapValueRange(byte[] startIncl, byte[] endExcl) {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE_RANGE, Value.get(startIncl), Value.get(endExcl)));
     }
-    public CdtActionInvertableBuilder onMapValueRange(double startIncl, double endExcl) {
-        return new CdtGetOrRemoveBuilder(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE_RANGE, Value.get(startIncl), Value.get(endExcl)));
+    public CdtActionInvertableBuilder<T> onMapValueRange(double startIncl, double endExcl) {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE_RANGE, Value.get(startIncl), Value.get(endExcl)));
     }
-    public CdtActionInvertableBuilder onMapValueRange(boolean startIncl, boolean endExcl) {
-        return new CdtGetOrRemoveBuilder(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE_RANGE, Value.get(startIncl), Value.get(endExcl)));
+    public CdtActionInvertableBuilder<T> onMapValueRange(boolean startIncl, boolean endExcl) {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE_RANGE, Value.get(startIncl), Value.get(endExcl)));
     }
-    public CdtActionInvertableBuilder onMapValueRange(List<?> startIncl, List<?> endExcl) {
-        return new CdtGetOrRemoveBuilder(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE_RANGE, Value.get(startIncl), Value.get(endExcl)));
+    public CdtActionInvertableBuilder<T> onMapValueRange(List<?> startIncl, List<?> endExcl) {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE_RANGE, Value.get(startIncl), Value.get(endExcl)));
     }
-    public CdtActionInvertableBuilder onMapValueRange(Map<?,?> startIncl, Map<?,?> endExcl) {
-        return new CdtGetOrRemoveBuilder(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE_RANGE, Value.get(startIncl), Value.get(endExcl)));
+    public CdtActionInvertableBuilder<T> onMapValueRange(Map<?,?> startIncl, Map<?,?> endExcl) {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE_RANGE, Value.get(startIncl), Value.get(endExcl)));
     }
     // SpecialValue combinations for onMapValueRange
-    public CdtActionInvertableBuilder onMapValueRange(SpecialValue startIncl, SpecialValue endExcl) {
-        return new CdtGetOrRemoveBuilder(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE_RANGE, startIncl.toAerospikeValue(), endExcl.toAerospikeValue()));
+    public CdtActionInvertableBuilder<T> onMapValueRange(SpecialValue startIncl, SpecialValue endExcl) {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE_RANGE, startIncl.toAerospikeValue(), endExcl.toAerospikeValue()));
     }
-    public CdtActionInvertableBuilder onMapValueRange(SpecialValue startIncl, long endExcl) {
-        return new CdtGetOrRemoveBuilder(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE_RANGE, startIncl.toAerospikeValue(), Value.get(endExcl)));
+    public CdtActionInvertableBuilder<T> onMapValueRange(SpecialValue startIncl, long endExcl) {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE_RANGE, startIncl.toAerospikeValue(), Value.get(endExcl)));
     }
-    public CdtActionInvertableBuilder onMapValueRange(SpecialValue startIncl, String endExcl) {
-        return new CdtGetOrRemoveBuilder(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE_RANGE, startIncl.toAerospikeValue(), Value.get(endExcl)));
+    public CdtActionInvertableBuilder<T> onMapValueRange(SpecialValue startIncl, String endExcl) {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE_RANGE, startIncl.toAerospikeValue(), Value.get(endExcl)));
     }
-    public CdtActionInvertableBuilder onMapValueRange(SpecialValue startIncl, byte[] endExcl) {
-        return new CdtGetOrRemoveBuilder(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE_RANGE, startIncl.toAerospikeValue(), Value.get(endExcl)));
+    public CdtActionInvertableBuilder<T> onMapValueRange(SpecialValue startIncl, byte[] endExcl) {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE_RANGE, startIncl.toAerospikeValue(), Value.get(endExcl)));
     }
-    public CdtActionInvertableBuilder onMapValueRange(SpecialValue startIncl, double endExcl) {
-        return new CdtGetOrRemoveBuilder(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE_RANGE, startIncl.toAerospikeValue(), Value.get(endExcl)));
+    public CdtActionInvertableBuilder<T> onMapValueRange(SpecialValue startIncl, double endExcl) {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE_RANGE, startIncl.toAerospikeValue(), Value.get(endExcl)));
     }
-    public CdtActionInvertableBuilder onMapValueRange(SpecialValue startIncl, boolean endExcl) {
-        return new CdtGetOrRemoveBuilder(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE_RANGE, startIncl.toAerospikeValue(), Value.get(endExcl)));
+    public CdtActionInvertableBuilder<T> onMapValueRange(SpecialValue startIncl, boolean endExcl) {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE_RANGE, startIncl.toAerospikeValue(), Value.get(endExcl)));
     }
-    public CdtActionInvertableBuilder onMapValueRange(SpecialValue startIncl, List<?> endExcl) {
-        return new CdtGetOrRemoveBuilder(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE_RANGE, startIncl.toAerospikeValue(), Value.get(endExcl)));
+    public CdtActionInvertableBuilder<T> onMapValueRange(SpecialValue startIncl, List<?> endExcl) {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE_RANGE, startIncl.toAerospikeValue(), Value.get(endExcl)));
     }
-    public CdtActionInvertableBuilder onMapValueRange(SpecialValue startIncl, Map<?,?> endExcl) {
-        return new CdtGetOrRemoveBuilder(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE_RANGE, startIncl.toAerospikeValue(), Value.get(endExcl)));
+    public CdtActionInvertableBuilder<T> onMapValueRange(SpecialValue startIncl, Map<?,?> endExcl) {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE_RANGE, startIncl.toAerospikeValue(), Value.get(endExcl)));
     }
-    public CdtActionInvertableBuilder onMapValueRange(long startIncl, SpecialValue endExcl) {
-        return new CdtGetOrRemoveBuilder(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE_RANGE, Value.get(startIncl), endExcl.toAerospikeValue()));
+    public CdtActionInvertableBuilder<T> onMapValueRange(long startIncl, SpecialValue endExcl) {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE_RANGE, Value.get(startIncl), endExcl.toAerospikeValue()));
     }
-    public CdtActionInvertableBuilder onMapValueRange(String startIncl, SpecialValue endExcl) {
-        return new CdtGetOrRemoveBuilder(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE_RANGE, Value.get(startIncl), endExcl.toAerospikeValue()));
+    public CdtActionInvertableBuilder<T> onMapValueRange(String startIncl, SpecialValue endExcl) {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE_RANGE, Value.get(startIncl), endExcl.toAerospikeValue()));
     }
-    public CdtActionInvertableBuilder onMapValueRange(byte[] startIncl, SpecialValue endExcl) {
-        return new CdtGetOrRemoveBuilder(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE_RANGE, Value.get(startIncl), endExcl.toAerospikeValue()));
+    public CdtActionInvertableBuilder<T> onMapValueRange(byte[] startIncl, SpecialValue endExcl) {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE_RANGE, Value.get(startIncl), endExcl.toAerospikeValue()));
     }
-    public CdtActionInvertableBuilder onMapValueRange(double startIncl, SpecialValue endExcl) {
-        return new CdtGetOrRemoveBuilder(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE_RANGE, Value.get(startIncl), endExcl.toAerospikeValue()));
+    public CdtActionInvertableBuilder<T> onMapValueRange(double startIncl, SpecialValue endExcl) {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE_RANGE, Value.get(startIncl), endExcl.toAerospikeValue()));
     }
-    public CdtActionInvertableBuilder onMapValueRange(boolean startIncl, SpecialValue endExcl) {
-        return new CdtGetOrRemoveBuilder(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE_RANGE, Value.get(startIncl), endExcl.toAerospikeValue()));
+    public CdtActionInvertableBuilder<T> onMapValueRange(boolean startIncl, SpecialValue endExcl) {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE_RANGE, Value.get(startIncl), endExcl.toAerospikeValue()));
     }
-    public CdtActionInvertableBuilder onMapValueRange(List<?> startIncl, SpecialValue endExcl) {
-        return new CdtGetOrRemoveBuilder(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE_RANGE, Value.get(startIncl), endExcl.toAerospikeValue()));
+    public CdtActionInvertableBuilder<T> onMapValueRange(List<?> startIncl, SpecialValue endExcl) {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE_RANGE, Value.get(startIncl), endExcl.toAerospikeValue()));
     }
-    public CdtActionInvertableBuilder onMapValueRange(Map<?,?> startIncl, SpecialValue endExcl) {
-        return new CdtGetOrRemoveBuilder(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE_RANGE, Value.get(startIncl), endExcl.toAerospikeValue()));
+    public CdtActionInvertableBuilder<T> onMapValueRange(Map<?,?> startIncl, SpecialValue endExcl) {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE_RANGE, Value.get(startIncl), endExcl.toAerospikeValue()));
     }
 
-    public CdtContextNonInvertableBuilder onListIndex(int index) {
-        return new CdtGetOrRemoveBuilder(binName, opBuilder, new CdtOperationParams(CdtOperation.LIST_BY_INDEX, index));
+    public CdtContextNonInvertableBuilder<T> onListIndex(int index) {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.LIST_BY_INDEX, index));
     }
-    public CdtContextNonInvertableBuilder onListIndex(int index, ListOrder order, boolean pad) {
-        return new CdtGetOrRemoveBuilder(binName, opBuilder, new CdtOperationParams(CdtOperation.LIST_BY_INDEX, index, order, pad));
+    public CdtContextNonInvertableBuilder<T> onListIndex(int index, ListOrder order, boolean pad) {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.LIST_BY_INDEX, index, order, pad));
     }
-    public CdtContextNonInvertableBuilder onListRank(int index) {
-        return new CdtGetOrRemoveBuilder(binName, opBuilder, new CdtOperationParams(CdtOperation.LIST_BY_RANK, index));
+    public CdtContextNonInvertableBuilder<T> onListRank(int index) {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.LIST_BY_RANK, index));
     }
-    public CdtContextInvertableBuilder onListValue(long value) {
-        return new CdtGetOrRemoveBuilder(binName, opBuilder, new CdtOperationParams(CdtOperation.LIST_BY_VALUE, Value.get(value)));
+    public CdtContextInvertableBuilder<T> onListValue(long value) {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.LIST_BY_VALUE, Value.get(value)));
     }
-    public CdtContextInvertableBuilder onListValue(String value) {
-        return new CdtGetOrRemoveBuilder(binName, opBuilder, new CdtOperationParams(CdtOperation.LIST_BY_VALUE, Value.get(value)));
+    public CdtContextInvertableBuilder<T> onListValue(String value) {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.LIST_BY_VALUE, Value.get(value)));
     }
-    public CdtContextInvertableBuilder onListValue(byte[] value) {
-        return new CdtGetOrRemoveBuilder(binName, opBuilder, new CdtOperationParams(CdtOperation.LIST_BY_VALUE, Value.get(value)));
+    public CdtContextInvertableBuilder<T> onListValue(byte[] value) {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.LIST_BY_VALUE, Value.get(value)));
     }
-    public CdtContextInvertableBuilder onListValue(SpecialValue value) {
-        return new CdtGetOrRemoveBuilder(binName, opBuilder, new CdtOperationParams(CdtOperation.LIST_BY_VALUE, value.toAerospikeValue()));
+    public CdtContextInvertableBuilder<T> onListValue(SpecialValue value) {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.LIST_BY_VALUE, value.toAerospikeValue()));
     }
     
     /**
@@ -484,13 +484,13 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      * @param keys the list of keys to match
      * @return builder for continued chaining
      */
-    public CdtContextInvertableBuilder onMapKeyList(List<?> keys) {
+    public CdtContextInvertableBuilder<T> onMapKeyList(List<?> keys) {
         List<Value> valueList = new ArrayList<>();
         for (Object key : keys) {
             valueList.add(Value.get(key));
         }
         CdtOperationParams params = new CdtOperationParams(CdtOperation.MAP_BY_KEY_LIST, valueList);
-        return new CdtGetOrRemoveBuilder(this.binName, this.opBuilder, params);
+        return new CdtGetOrRemoveBuilder<>(this.binName, this.opBuilder, params);
     }
     
     /**
@@ -499,13 +499,13 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      * @param values the list of values to match
      * @return builder for continued chaining
      */
-    public CdtContextInvertableBuilder onMapValueList(List<?> values) {
+    public CdtContextInvertableBuilder<T> onMapValueList(List<?> values) {
         List<Value> valueList = new ArrayList<>();
         for (Object value : values) {
             valueList.add(Value.get(value));
         }
         CdtOperationParams params = new CdtOperationParams(CdtOperation.MAP_BY_VALUE_LIST, valueList);
-        return new CdtGetOrRemoveBuilder(this.binName, this.opBuilder, params);
+        return new CdtGetOrRemoveBuilder<>(this.binName, this.opBuilder, params);
     }
 
 }

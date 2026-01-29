@@ -9,7 +9,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * Registry for managing Behavior instances in a tree structure.
  * Provides lookup by name and manages parent-child relationships.
  */
-public class BehaviorRegistry {
+class BehaviorRegistry {
 
     private static final BehaviorRegistry INSTANCE = new BehaviorRegistry();
 

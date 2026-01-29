@@ -32,6 +32,7 @@ import com.aerospike.client.fluent.command.BatchNodeList;
 import com.aerospike.client.fluent.command.BatchRead;
 import com.aerospike.client.fluent.command.BatchReadCommand;
 import com.aerospike.client.fluent.command.BatchRecord;
+import com.aerospike.client.fluent.command.BatchResults;
 import com.aerospike.client.fluent.command.BatchSingle;
 import com.aerospike.client.fluent.command.BatchStatus;
 import com.aerospike.client.fluent.command.BatchWrite;
@@ -249,7 +250,21 @@ public class OperationWithNoBinsBuilder extends AbstractSessionOperationBuilder<
         return super.getExpirationAsInt(effectiveExpiration);
     }
 
-    public List<Boolean> execute() {
+    /**
+     * Convert boolean array results (from EXISTS batch) to RecordResult list.
+     * true -> ResultCode.OK, false -> ResultCode.KEY_NOT_FOUND_ERROR
+     */
+    private List<RecordResult> toRecordResults(boolean[] booleanArray, Key[] keyArray) {
+        List<RecordResult> results = new ArrayList<>();
+        for (int i = 0; i < booleanArray.length; i++) {
+            int resultCode = booleanArray[i] ? ResultCode.OK : ResultCode.KEY_NOT_FOUND_ERROR;
+            results.add(new RecordResult(keyArray[i], resultCode, false, 
+                    ResultCode.getResultString(resultCode), i));
+        }
+        return results;
+    }
+
+    public RecordStream execute() {
         if (key != null) {
             return executeSingleKey();
         }
@@ -257,25 +272,49 @@ public class OperationWithNoBinsBuilder extends AbstractSessionOperationBuilder<
         	return executeBatch();
         }
     }
+	
+    /**
+     * Process batch results into a list of RecordResults, handling filtered out records.
+     * OK -> ResultCode.OK, not OK -> original result code (including KEY_NOT_FOUND_ERROR)
+     */
+    private List<RecordResult> processBatchResults(BatchResults results) {
+        List<RecordResult> recordResults = new ArrayList<>();
+        int index = 0;
+        for (BatchRecord record : results.records) {
+            if (failOnFilteredOut && record.resultCode == ResultCode.FILTERED_OUT) {
+                throw new RuntimeException("Record was filtered out by filter expression");
+            }
+            // Use the actual result code from the batch record
+            recordResults.add(new RecordResult(record, index++));
+        }
+        return recordResults;
+    }
 
-    private List<Boolean> executeSingleKey() {
+    private RecordStream executeSingleKey() {
         boolean result;
 
-        switch (opType) {
-        case EXISTS:
-        	result = exists(key);
-            break;
-        case TOUCH:
-        	result = touch(key);
-            break;
-        case DELETE:
-            result = delete(key);
-            break;
-        default:
-            throw new IllegalStateException("received an action of " + opType + " which should be handled elsewhere");
+        try {
+            switch (opType) {
+            case EXISTS:
+            	result = exists(key);
+                break;
+            case TOUCH:
+            	result = touch(key);
+                break;
+            case DELETE:
+                result = delete(key);
+                break;
+            default:
+                throw new IllegalStateException("received an action of " + opType + " which should be handled elsewhere");
+            }
+        } catch (AerospikeException ae) {
+            if (failOnFilteredOut && ae.getResultCode() == ResultCode.FILTERED_OUT) {
+                return new RecordStream();
+            }
+            return new RecordStream(new RecordResult(key, ae, 0));
         }
-
-        return List.of(result);
+        int resultCode = result ? ResultCode.OK : ResultCode.KEY_NOT_FOUND_ERROR;
+        return new RecordStream(new RecordResult(key, resultCode, false, ResultCode.getResultString(resultCode), 0));
     }
 
     private boolean exists(Key key) {
@@ -335,7 +374,7 @@ public class OperationWithNoBinsBuilder extends AbstractSessionOperationBuilder<
         return exec.existed();
     }
 
-    private List<Boolean> executeBatch() {
+    private RecordStream executeBatch() {
         switch (opType) {
         case EXISTS:
         	return existsBatch();
@@ -351,7 +390,7 @@ public class OperationWithNoBinsBuilder extends AbstractSessionOperationBuilder<
         }
     }
 
-    private List<Boolean> existsBatch() {
+    private RecordStream existsBatch() {
     	Cluster cluster = session.getCluster();
         String namespace = keys.get(0).namespace;
         Partitions partitions = getPartitions(cluster, namespace);
@@ -394,17 +433,14 @@ public class OperationWithNoBinsBuilder extends AbstractSessionOperationBuilder<
 		}
 
 		BatchExecutor.execute(cluster, commands, status);
-
-		ArrayList<Boolean> list = new ArrayList<>(batchRecords.size());
-
-		for (BatchRecord br : batchRecords) {
-			list.add(br.resultCode == ResultCode.OK);
-		}
-
-		return list;
+        AsyncRecordStream stream = new AsyncRecordStream(keys.size());
+        for (BatchRecord br : batchRecords) {
+            stream.publish(this.asRecordResult(br, policy));
+        }
+        return new RecordStream(stream);
     }
 
-    private List<Boolean> touchBatch() {
+    private RecordStream touchBatch() {
     	Cluster cluster = session.getCluster();
         String namespace = keys.get(0).namespace;
         Partitions partitions = getPartitions(cluster, namespace);
@@ -457,23 +493,14 @@ public class OperationWithNoBinsBuilder extends AbstractSessionOperationBuilder<
 
 		BatchExecutor.execute(cluster, commands, status);
 
-        List<Boolean> booleanArray = new ArrayList<>();
-
+        AsyncRecordStream stream = new AsyncRecordStream(keys.size());
         for (BatchRecord br : batchRecords) {
-        	if (br.resultCode == ResultCode.OK) {
-				booleanArray.add(true);
-        	}
-        	else if (br.resultCode == ResultCode.FILTERED_OUT && failOnFilteredOut) {
-                throw new RuntimeException("Record was filtered out by filter expression");
-            }
-        	else {
-				booleanArray.add(false);
-        	}
+            stream.publish(this.asRecordResult(br, policy));
         }
-        return booleanArray;
+        return new RecordStream(stream);
     }
 
-    private List<Boolean> deleteBatch() {
+    private RecordStream deleteBatch() {
     	Cluster cluster = session.getCluster();
         String namespace = keys.get(0).namespace;
         Partitions partitions = getPartitions(cluster, namespace);
@@ -516,22 +543,28 @@ public class OperationWithNoBinsBuilder extends AbstractSessionOperationBuilder<
 
 		BatchExecutor.execute(cluster, commands, status);
 
-        List<Boolean> booleanArray = new ArrayList<>();
-
+        AsyncRecordStream stream = new AsyncRecordStream(keys.size());
         for (BatchRecord br : batchRecords) {
-        	if (br.resultCode == ResultCode.OK || br.resultCode == ResultCode.KEY_NOT_FOUND_ERROR) {
-				booleanArray.add(true);
-        	}
-        	else if (br.resultCode == ResultCode.FILTERED_OUT && failOnFilteredOut) {
-                throw new RuntimeException("Record was filtered out by filter expression");
-            }
-        	else {
-				booleanArray.add(false);
-        	}
+            stream.publish(this.asRecordResult(br, policy));
         }
-        return booleanArray;
+        return new RecordStream(stream);
     }
 
+    private RecordResult asRecordResult(BatchRecord br, Settings settings) {
+        int index = 0;
+        if (br.resultCode == ResultCode.OK || br.resultCode == ResultCode.KEY_NOT_FOUND_ERROR) {
+            return new RecordResult(br.key, br.resultCode, false, ResultCode.getResultString(br.resultCode), false, index++);
+        }
+        else if (br.resultCode == ResultCode.FILTERED_OUT && failOnFilteredOut) {
+            // TODO: If this is done SYNC, throw an exception
+//                throw new AerospikeException("Record was filtered out by filter expression");
+            return new RecordResult(br.key, br.resultCode, false, ResultCode.getResultString(br.resultCode), settings.getStackTraceOnException(), index++);
+        }
+        else {
+            return new RecordResult(br.key, br.resultCode, false, ResultCode.getResultString(br.resultCode), settings.getStackTraceOnException(), index++);
+        }
+        
+    }
     private Partitions getPartitions(Cluster cluster, String namespace) {
         HashMap<String, Partitions> partitionMap = cluster.getPartitionMap();
         Partitions partitions = partitionMap.get(namespace);

@@ -3,7 +3,7 @@ package com.aerospike.client.fluent.policy;
 import java.time.Duration;
 import java.util.Map;
 
-public class BehaviorYamlConfig {
+class BehaviorYamlConfig {
 
     private Map<String, BehaviorConfig> behaviors;
     private Map<String, SystemSettingsConfig> system;
@@ -17,6 +17,7 @@ public class BehaviorYamlConfig {
 
     // Individual behavior configuration (name is the map key)
     public static class BehaviorConfig {
+        private String name;
         private String parent;
         private Boolean sendKey;
         private Boolean useCompression;
@@ -36,6 +37,9 @@ public class BehaviorYamlConfig {
         private SystemRefreshConfig systemRefresh;
 
         // Getters and setters
+        public String getName() { return name; }
+        public void setName(String name) { this.name = name; }
+
         public String getParent() { return parent; }
         public void setParent(String parent) { this.parent = parent; }
 

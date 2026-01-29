@@ -119,8 +119,10 @@ public abstract class AbstractSessionOperationBuilder<T extends AbstractSessionO
 
     /**
      * Validate and calculate expiration from a Date object.
+     * <p/>
+     * This method is public as it is needed to satisfy the interface and cannot have its visibility reduced
      */
-    protected long getExpirationInSecondsAndCheckValue(Date date) {
+    public long getExpirationInSecondsAndCheckValue(Date date) {
         long expirationInSeconds = (date.getTime() - new Date().getTime()) / 1000L;
         if (expirationInSeconds < 0) {
             throw new IllegalArgumentException("Expiration must be set in the future, not to " + date);
@@ -142,8 +144,10 @@ public abstract class AbstractSessionOperationBuilder<T extends AbstractSessionO
 
     /**
      * Validate and calculate expiration from a LocalDateTime object.
+     * <p/>
+     * This method is public as it is needed to satisfy the interface and cannot have its visibility reduced
      */
-    protected long getExpirationInSecondsAndCheckValue(LocalDateTime date) {
+    public long getExpirationInSecondsAndCheckValue(LocalDateTime date) {
         LocalDateTime now = LocalDateTime.now();
         long expirationInSeconds = ChronoUnit.SECONDS.between(now, date);
         if (expirationInSeconds < 0) {
@@ -231,6 +235,10 @@ public abstract class AbstractSessionOperationBuilder<T extends AbstractSessionO
         return this.txnToUse;
     }
 
+    protected OpType getOpType() {
+        return this.opType;
+    }
+    
     /**
      * Specify that these operations are not to be included in any transaction, even if a
      * transaction exists on the underlying session
@@ -263,6 +271,8 @@ public abstract class AbstractSessionOperationBuilder<T extends AbstractSessionO
             return RecordExistsAction.UPDATE;
         case REPLACE:
             return RecordExistsAction.REPLACE;
+        case TOUCH:
+            return RecordExistsAction.UPDATE_ONLY;
         default:
             throw new IllegalStateException("received an action of " + opType + " which should be handled elsewhere");
         }

@@ -1,5 +1,6 @@
 package com.aerospike.dsl.util;
 
+import com.aerospike.client.fluent.RecordResult;
 import com.aerospike.client.fluent.cdt.CTX;
 import com.aerospike.client.fluent.exp.Exp;
 import com.aerospike.client.fluent.exp.Expression;

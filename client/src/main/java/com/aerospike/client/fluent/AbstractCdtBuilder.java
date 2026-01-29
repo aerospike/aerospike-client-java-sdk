@@ -35,191 +35,191 @@ public class AbstractCdtBuilder<T extends AbstractOperationBuilder<T>> {
         this.params = params;
     }
 
-    public OperationBuilder mapClear() {
+    public T mapClear() {
         if (params != null) {
             params.pushCurrentToContext();
-            return (OperationBuilder) this.opBuilder.addOp(MapOperation.clear(binName, params.context()));
+            return this.opBuilder.addOp(MapOperation.clear(binName, params.context()));
         }
         else {
-            return (OperationBuilder) this.opBuilder.addOp(MapOperation.clear(binName));
+            return this.opBuilder.addOp(MapOperation.clear(binName));
         }
     }
 
-    public OperationBuilder mapSize() {
+    public T mapSize() {
         if (params != null) {
             params.pushCurrentToContext();
-            return (OperationBuilder) this.opBuilder.addOp(MapOperation.size(binName, params.context()));
+            return this.opBuilder.addOp(MapOperation.size(binName, params.context()));
         }
         else {
-            return (OperationBuilder) this.opBuilder.addOp(MapOperation.size(binName));
+            return this.opBuilder.addOp(MapOperation.size(binName));
         }
     }
 
-    public OperationBuilder listAppend(Value value) {
+    public T listAppend(Value value) {
         if (params != null) {
             params.pushCurrentToContext();
-            return (OperationBuilder) this.opBuilder.addOp(ListOperation.append(binName, value, params.context()));
+            return this.opBuilder.addOp(ListOperation.append(binName, value, params.context()));
         }
         else {
-            return (OperationBuilder) this.opBuilder.addOp(ListOperation.append(binName, value));
+            return this.opBuilder.addOp(ListOperation.append(binName, value));
         }
     }
-    public OperationBuilder listAppend(long value) {
+    public T listAppend(long value) {
         return listAppend(Value.get(value));
     }
-    public OperationBuilder listAppend(String value) {
+    public T listAppend(String value) {
         return listAppend(Value.get(value));
     }
-    public OperationBuilder listAppend(double value) {
+    public T listAppend(double value) {
         return listAppend(Value.get(value));
     }
-    public OperationBuilder listAppend(boolean value) {
+    public T listAppend(boolean value) {
         return listAppend(Value.get(value));
     }
-    public OperationBuilder listAppend(byte[] value) {
+    public T listAppend(byte[] value) {
         return listAppend(Value.get(value));
     }
-    public OperationBuilder listAppend(List<?> value) {
+    public T listAppend(List<?> value) {
         return listAppend(Value.get(value));
     }
-    public OperationBuilder listAppend(Map<?,?> value) {
+    public T listAppend(Map<?,?> value) {
         return listAppend(Value.get(value));
     }
 
-    public OperationBuilder listAppendUnique(Value value, boolean allowFailures) {
+    public T listAppendUnique(Value value, boolean allowFailures) {
         if (params != null) {
             params.pushCurrentToContext();
             if (allowFailures) {
-                return (OperationBuilder) this.opBuilder.addOp(ListOperation.append(LIST_UNORD_UNIQUE_NO_FAIL, binName, value, params.context()));
+                return this.opBuilder.addOp(ListOperation.append(LIST_UNORD_UNIQUE_NO_FAIL, binName, value, params.context()));
             }
             else {
-                return (OperationBuilder) this.opBuilder.addOp(ListOperation.append(LIST_UNORD_UNIQUE, binName, value, params.context()));
-            }
-        }
-        else {
-            if (allowFailures) {
-                return (OperationBuilder) this.opBuilder.addOp(ListOperation.append(LIST_UNORD_UNIQUE_NO_FAIL, binName, value));
-            }
-            else {
-                return (OperationBuilder) this.opBuilder.addOp(ListOperation.append(LIST_UNORD_UNIQUE, binName, value));
-            }
-        }
-    }
-    public OperationBuilder listAppendUnique(long value, boolean allowFailures) {
-        return listAppendUnique(Value.get(value), allowFailures);
-    }
-    public OperationBuilder listAppendUnique(String value, boolean allowFailures) {
-        return listAppendUnique(Value.get(value), allowFailures);
-    }
-    public OperationBuilder listAppendUnique(double value, boolean allowFailures) {
-        return listAppendUnique(Value.get(value), allowFailures);
-    }
-    public OperationBuilder listAppendUnique(boolean value, boolean allowFailures) {
-        return listAppendUnique(Value.get(value), allowFailures);
-    }
-    public OperationBuilder listAppendUnique(byte[] value, boolean allowFailures) {
-        return listAppendUnique(Value.get(value), allowFailures);
-    }
-    public OperationBuilder listAppendUnique(List<?> value, boolean allowFailures) {
-        return listAppendUnique(Value.get(value), allowFailures);
-    }
-    public OperationBuilder listAppendUnique(Map<?,?> value, boolean allowFailures) {
-        return listAppendUnique(Value.get(value), allowFailures);
-    }
-
-    public OperationBuilder listAdd(Value value) {
-        if (params != null) {
-            params.pushCurrentToContext();
-            return (OperationBuilder) this.opBuilder.addOp(ListOperation.append(LIST_ORD, binName, value, params.context()));
-        }
-        else {
-            return (OperationBuilder) this.opBuilder.addOp(ListOperation.append(LIST_ORD, binName, value));
-        }
-    }
-    /** Add an item to the appropriate spot in an ordered list */
-    public OperationBuilder listAdd(long value) {
-        return listAdd(Value.get(value));
-    }
-    /** Add an item to the appropriate spot in an ordered list */
-    public OperationBuilder listAdd(String value) {
-        return listAdd(Value.get(value));
-    }
-    /** Add an item to the appropriate spot in an ordered list */
-    public OperationBuilder listAdd(double value) {
-        return listAdd(Value.get(value));
-    }
-    /** Add an item to the appropriate spot in an ordered list */
-    public OperationBuilder listAdd(boolean value) {
-        return listAdd(Value.get(value));
-    }
-    /** Add an item to the appropriate spot in an ordered list */
-    public OperationBuilder listAdd(byte[] value) {
-        return listAdd(Value.get(value));
-    }
-    /** Add an item to the appropriate spot in an ordered list */
-    public OperationBuilder listAdd(List<?> value) {
-        return listAdd(Value.get(value));
-    }
-    /** Add an item to the appropriate spot in an ordered list */
-    public OperationBuilder listAdd(Map<?,?> value) {
-        return listAdd(Value.get(value));
-    }
-
-    /** Add an item to the appropriate spot in an ordered list. If the item is not unique
-     * either an exception will be thrown or the error will be silently ignored, based on allowFailures */
-    public OperationBuilder listAddUnique(Value value, boolean allowFailures) {
-        if (params != null) {
-            params.pushCurrentToContext();
-            if (allowFailures) {
-                return (OperationBuilder) this.opBuilder.addOp(ListOperation.append(LIST_ORD_UNIQUE_NO_FAIL, binName, value, params.context()));
-            }
-            else {
-                return (OperationBuilder) this.opBuilder.addOp(ListOperation.append(LIST_ORD_UNIQUE, binName, value, params.context()));
+                return this.opBuilder.addOp(ListOperation.append(LIST_UNORD_UNIQUE, binName, value, params.context()));
             }
         }
         else {
             if (allowFailures) {
-                return (OperationBuilder) this.opBuilder.addOp(ListOperation.append(LIST_ORD_UNIQUE_NO_FAIL, binName, value));
+                return this.opBuilder.addOp(ListOperation.append(LIST_UNORD_UNIQUE_NO_FAIL, binName, value));
             }
             else {
-                return (OperationBuilder) this.opBuilder.addOp(ListOperation.append(LIST_ORD_UNIQUE, binName, value));
+                return this.opBuilder.addOp(ListOperation.append(LIST_UNORD_UNIQUE, binName, value));
+            }
+        }
+    }
+    public T listAppendUnique(long value, boolean allowFailures) {
+        return listAppendUnique(Value.get(value), allowFailures);
+    }
+    public T listAppendUnique(String value, boolean allowFailures) {
+        return listAppendUnique(Value.get(value), allowFailures);
+    }
+    public T listAppendUnique(double value, boolean allowFailures) {
+        return listAppendUnique(Value.get(value), allowFailures);
+    }
+    public T listAppendUnique(boolean value, boolean allowFailures) {
+        return listAppendUnique(Value.get(value), allowFailures);
+    }
+    public T listAppendUnique(byte[] value, boolean allowFailures) {
+        return listAppendUnique(Value.get(value), allowFailures);
+    }
+    public T listAppendUnique(List<?> value, boolean allowFailures) {
+        return listAppendUnique(Value.get(value), allowFailures);
+    }
+    public T listAppendUnique(Map<?,?> value, boolean allowFailures) {
+        return listAppendUnique(Value.get(value), allowFailures);
+    }
+
+    public T listAdd(Value value) {
+        if (params != null) {
+            params.pushCurrentToContext();
+            return this.opBuilder.addOp(ListOperation.append(LIST_ORD, binName, value, params.context()));
+        }
+        else {
+            return this.opBuilder.addOp(ListOperation.append(LIST_ORD, binName, value));
+        }
+    }
+    /** Add an item to the appropriate spot in an ordered list */
+    public T listAdd(long value) {
+        return listAdd(Value.get(value));
+    }
+    /** Add an item to the appropriate spot in an ordered list */
+    public T listAdd(String value) {
+        return listAdd(Value.get(value));
+    }
+    /** Add an item to the appropriate spot in an ordered list */
+    public T listAdd(double value) {
+        return listAdd(Value.get(value));
+    }
+    /** Add an item to the appropriate spot in an ordered list */
+    public T listAdd(boolean value) {
+        return listAdd(Value.get(value));
+    }
+    /** Add an item to the appropriate spot in an ordered list */
+    public T listAdd(byte[] value) {
+        return listAdd(Value.get(value));
+    }
+    /** Add an item to the appropriate spot in an ordered list */
+    public T listAdd(List<?> value) {
+        return listAdd(Value.get(value));
+    }
+    /** Add an item to the appropriate spot in an ordered list */
+    public T listAdd(Map<?,?> value) {
+        return listAdd(Value.get(value));
+    }
+
+    /** Add an item to the appropriate spot in an ordered list. If the item is not unique
+     * either an exception will be thrown or the error will be silently ignored, based on allowFailures */
+    public T listAddUnique(Value value, boolean allowFailures) {
+        if (params != null) {
+            params.pushCurrentToContext();
+            if (allowFailures) {
+                return this.opBuilder.addOp(ListOperation.append(LIST_ORD_UNIQUE_NO_FAIL, binName, value, params.context()));
+            }
+            else {
+                return this.opBuilder.addOp(ListOperation.append(LIST_ORD_UNIQUE, binName, value, params.context()));
+            }
+        }
+        else {
+            if (allowFailures) {
+                return this.opBuilder.addOp(ListOperation.append(LIST_ORD_UNIQUE_NO_FAIL, binName, value));
+            }
+            else {
+                return this.opBuilder.addOp(ListOperation.append(LIST_ORD_UNIQUE, binName, value));
             }
         }
     }
 
     /** Add an item to the appropriate spot in an ordered list. If the item is not unique
      * either an exception will be thrown or the error will be silently ignored, based on allowFailures */
-    public OperationBuilder listAddUnique(long value, boolean allowFailures) {
+    public T listAddUnique(long value, boolean allowFailures) {
         return listAddUnique(Value.get(value), allowFailures);
     }
     /** Add an item to the appropriate spot in an ordered list. If the item is not unique
      * either an exception will be thrown or the error will be silently ignored, based on allowFailures */
-    public OperationBuilder listAddUnique(String value, boolean allowFailures) {
+    public T listAddUnique(String value, boolean allowFailures) {
         return listAddUnique(Value.get(value), allowFailures);
     }
     /** Add an item to the appropriate spot in an ordered list. If the item is not unique
      * either an exception will be thrown or the error will be silently ignored, based on allowFailures */
-    public OperationBuilder listAddUnique(double value, boolean allowFailures) {
+    public T listAddUnique(double value, boolean allowFailures) {
         return listAddUnique(Value.get(value), allowFailures);
     }
     /** Add an item to the appropriate spot in an ordered list. If the item is not unique
      * either an exception will be thrown or the error will be silently ignored, based on allowFailures */
-    public OperationBuilder listAddUnique(boolean value, boolean allowFailures) {
+    public T listAddUnique(boolean value, boolean allowFailures) {
         return listAddUnique(Value.get(value), allowFailures);
     }
     /** Add an item to the appropriate spot in an ordered list. If the item is not unique
      * either an exception will be thrown or the error will be silently ignored, based on allowFailures */
-    public OperationBuilder listAddUnique(byte[] value, boolean allowFailures) {
+    public T listAddUnique(byte[] value, boolean allowFailures) {
         return listAddUnique(Value.get(value), allowFailures);
     }
     /** Add an item to the appropriate spot in an ordered list. If the item is not unique
      * either an exception will be thrown or the error will be silently ignored, based on allowFailures */
-    public OperationBuilder listAddUnique(List<?> value, boolean allowFailures) {
+    public T listAddUnique(List<?> value, boolean allowFailures) {
         return listAddUnique(Value.get(value), allowFailures);
     }
     /** Add an item to the appropriate spot in an ordered list. If the item is not unique
      * either an exception will be thrown or the error will be silently ignored, based on allowFailures */
-    public OperationBuilder listAddUnique(Map<?,?> value, boolean allowFailures) {
+    public T listAddUnique(Map<?,?> value, boolean allowFailures) {
         return listAddUnique(Value.get(value), allowFailures);
     }
 }

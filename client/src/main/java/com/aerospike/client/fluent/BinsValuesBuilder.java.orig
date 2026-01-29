@@ -77,6 +77,7 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
     private ValueData current = null;
     private Txn txnToUse;
 
+<<<<<<< HEAD
     /**
      * Constructs a new BinsValuesBuilder for setting multiple bin names and values.
      *
@@ -85,7 +86,10 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
      * @param binName The first bin name
      * @param binNames Additional bin names
      */
+    public BinsValuesBuilder(OperationBuilder opBuilder, List<Key> keys, String binName, String... binNames) {
+=======
     public BinsValuesBuilder(BinsValuesOperations opBuilder, List<Key> keys, String binName, String... binNames) {
+>>>>>>> refs/heads/merge-multi-batch-commands
         this.opBuilder = opBuilder;
         this.binNames = new String[1 + binNames.length];
         this.binNames[0] = binName;
@@ -931,7 +935,8 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
             // Batch expiration set via expireAllRecordsAfterSeconds()
             return opBuilder.getExpirationAsInt(expirationInSecondsForAll);
         } else {
-            return 0;
+            // Fall back to OperationBuilder's expiration (set before bins())
+            return opBuilder.getExpirationAsInt();
         }
     }
 }
