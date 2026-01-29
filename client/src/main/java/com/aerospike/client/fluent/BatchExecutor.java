@@ -2,9 +2,7 @@ package com.aerospike.client.fluent;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 
 import com.aerospike.client.fluent.command.Batch;
 import com.aerospike.client.fluent.command.BatchAttr;
@@ -20,7 +18,6 @@ import com.aerospike.client.fluent.command.BatchStatus;
 import com.aerospike.client.fluent.command.BatchWrite;
 import com.aerospike.client.fluent.command.BatchWriteCommand;
 import com.aerospike.client.fluent.command.IBatchCommand;
-import com.aerospike.client.fluent.command.OperateArgs;
 import com.aerospike.client.fluent.command.ReadAttr;
 import com.aerospike.client.fluent.command.Txn;
 import com.aerospike.client.fluent.command.TxnMonitor;
@@ -75,17 +72,11 @@ class BatchExecutor {
         // Set failOnFilteredOut on batch policy if ANY spec has it enabled
         boolean anyFailOnFilteredOut = specs.stream().anyMatch(s -> s.isFailOnFilteredOut());
         boolean anyRespondAllKeys = specs.stream().anyMatch(s -> s.isRespondAllKeys());
-
-        
-        // TODO: BN: Is there a better way to do this?
-        // Seem to need this for OperateArgs, this isn't efficient
-        List<Operation> ops = new ArrayList<>();
         
         for (OperationSpec spec : specs) {
             // Determine which filter to use - per-operation or default
             Expression filterToUse = spec.getWhereClause() != null ? spec.getWhereClause() : defaultWhereClause;
 
-            ops.addAll(spec.getOperations());
             // Create BatchRecord(s) for each key in this spec
             for (Key key : spec.getKeys()) {
                 BatchRecord batchRecord = createBatchRecord(spec, key, filterToUse, settings);
@@ -96,7 +87,6 @@ class BatchExecutor {
         return executeBatchSync(session, 
                 settings, 
                 batchRecords, 
-                new OperateArgs(ops.toArray(new Operation[0])),
                 txn,
                 namespace,
                 anyFailOnFilteredOut,
@@ -114,47 +104,39 @@ class BatchExecutor {
         return partitions;
     }
 
-    // TODO: BN - I think it makes sense to merge this into `execute()` but I don't want to limit 
-    // reusability if I do that.
     protected static RecordStream executeBatchSync(Session session, Settings settings, 
-            List<BatchRecord> batchRecords, OperateArgs args, Txn txnToUse, String namespace,
+            List<BatchRecord> batchRecords, Txn txnToUse, String namespace,
             boolean anyFailOnFilteredOut, Expression filterExp, boolean respondAllKeys) {
         
         Cluster cluster = session.getCluster();
         Partitions partitions = getPartitions(cluster, namespace);
 
-        // TODO: BN: Each BatchRecord will have it's where clause in built.
-//        final Expression filterExp = processWhereClause(namespace, session);
-
         if (txnToUse != null) {
-            if (args.hasWrite) {
-                TxnMonitor.addKeys(txnToUse, cluster, partitions, settings, keys);
-            }
-            else {
+            // addKeysBatch only adds keys where hasWrite is true (handles mixed batches)
+            TxnMonitor.addKeysBatch(txnToUse, cluster, partitions, settings, batchRecords);
+            
+            // If there are any reads, also prepare for read
+            boolean hasAnyRead = batchRecords.stream().anyMatch(br -> !br.hasWrite);
+            if (hasAnyRead) {
                 txnToUse.prepareRead(namespace);
             }
         }
 
+        // Determine if ANY record has a write to decide parent command type
+        boolean hasAnyWrite = batchRecords.stream().anyMatch(br -> br.hasWrite);
+
         BatchCommand parent;
 
-        if (args.hasWrite) {
-//            for (Key key : keys) {
-//                batchRecords.add(new BatchWrite(key, operations, opType, generation, (int)expirationInSecondsForAll));
-//            }
-
+        if (hasAnyWrite) {
             parent = new BatchWriteCommand(cluster, partitions, txnToUse, namespace,
                 batchRecords, filterExp, respondAllKeys, settings);
-       }
+        }
         else {
-//            for (Key key : keys) {
-//                batchRecords.add(new BatchRead(key, operations));
-//            }
-
             ReadAttr attr = new ReadAttr(partitions, settings);
 
             parent = new BatchReadCommand(cluster, partitions, txnToUse, namespace,
                     batchRecords, filterExp, respondAllKeys, settings, attr);
-       }
+        }
 
         BatchStatus status = new BatchStatus(true);
         List<BatchNode> bns = BatchNodeList.generate(cluster, partitions, settings.getReplicaOrder(), batchRecords,
@@ -168,7 +150,8 @@ class BatchExecutor {
                 int i = bn.offsets[0];
                 BatchRecord rec = batchRecords.get(i);
 
-                if (args.hasWrite) {
+                // Check the actual record's write status, not args.hasWrite
+                if (rec.hasWrite) {
                     BatchWrite bw = (BatchWrite)rec;
                     BatchAttr attr = new BatchAttr();
 
@@ -195,15 +178,15 @@ class BatchExecutor {
             }
         }
 
-        BatchExecutor.execute(cluster, commands, status);
+        com.aerospike.client.fluent.command.BatchExecutor.execute(cluster, commands, status);
 
         // Convert BatchRecord to RecordResult with proper filtering and stack trace handling
         AsyncRecordStream recordStream = new AsyncRecordStream(batchRecords.size());
         try {
             for (int i = 0; i < batchRecords.size(); i++) {
                 BatchRecord br = batchRecords.get(i);
-                if (shouldIncludeResult(br.resultCode)) {
-                    recordStream.publish(createRecordResultFromBatchRecord(br, settings, i));
+                if (shouldIncludeResult(br.resultCode, respondAllKeys, anyFailOnFilteredOut)) {
+                    recordStream.publish(AbstractFilterableBuilder.createRecordResultFromBatchRecord(br, settings, i));
                 }
             }
             return new RecordStream(recordStream);
@@ -338,13 +321,20 @@ class BatchExecutor {
      * Determine if a result should be included based on result code and operation flags.
      */
     private static boolean shouldIncludeResult(int resultCode, OperationSpec spec) {
+        return shouldIncludeResult(resultCode, spec.isRespondAllKeys(), spec.isFailOnFilteredOut());
+    }
+    
+    /**
+     * Determine if a result should be included based on result code and flags.
+     */
+    private static boolean shouldIncludeResult(int resultCode, boolean respondAllKeys, boolean failOnFilteredOut) {
         switch (resultCode) {
         case ResultCode.OK:
             return true;
         case ResultCode.KEY_NOT_FOUND_ERROR:
-            return spec.isRespondAllKeys();
+            return respondAllKeys;
         case ResultCode.FILTERED_OUT:
-            return spec.isFailOnFilteredOut() || spec.isRespondAllKeys();
+            return failOnFilteredOut || respondAllKeys;
         default:
             return true;  // Include errors in the stream
         }

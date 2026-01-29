@@ -138,51 +138,57 @@ public class CommonExample extends Example {
 
         System.out.println("Exists 1 record");
 
-        List<Boolean> results = session.exists(set.ids(113)).execute();
+        Optional<Boolean> result = session.exists(set.ids(113)).execute().getFirstBoolean();
 
-        for (boolean b : results) {
-        	System.out.println("Result: " + b);
-        }
+        result.ifPresentOrElse(bool -> {
+            System.out.println("Result: " + bool);
+        }, () -> {
+            System.out.println("No record returned. This is unexpected");
+        });
 
         System.out.println("Touch 1 record");
 
-        results = session.touch(set.ids(113)).execute();
+        result = session.touch(set.ids(113)).execute().getFirstBoolean();
 
-        for (boolean b : results) {
-        	System.out.println("Result: " + b);
-        }
+        result.ifPresentOrElse(bool -> {
+            System.out.println("Result: " + bool);
+        }, () -> {
+            System.out.println("No record returned. This is unexpected");
+        });
 
         System.out.println("Delete 1 record");
 
-        results = session.delete(set.ids(118)).execute();
+        result = session.delete(set.ids(118)).execute().getFirstBoolean();
 
-        for (boolean b : results) {
-        	System.out.println("Result: " + b);
-        }
+        result.ifPresentOrElse(bool -> {
+            System.out.println("Result: " + bool);
+        }, () -> {
+            System.out.println("No record returned. This is unexpected");
+        });
 
         System.out.println("Batch exists");
 
-        results = session.exists(set.ids(113,114,999)).execute();
+        RecordStream results = session.exists(set.ids(113,114,999)).respondAllKeys().execute();
 
-        for (boolean b : results) {
-        	System.out.println("Result: " + b);
-        }
+        results.forEach(rr -> {
+            System.out.printf("   Key: %s -> %b\n", rr.key(), rr.asBoolean());
+        });
 
         System.out.println("Batch touch");
 
-        results = session.touch(set.ids(113,114,999)).execute();
+        results = session.touch(set.ids(113,114,999)).respondAllKeys().execute();
 
-        for (boolean b : results) {
-        	System.out.println("Result: " + b);
-        }
+        results.forEach(rr -> {
+            System.out.printf("   Key: %s -> %b\n", rr.key(), rr.asBoolean());
+        });
 
         System.out.println("Batch delete");
 
-        results = session.delete(set.ids(113,114,999)).execute();
+        results = session.delete(set.ids(113,114,999)).respondAllKeys().execute();
 
-        for (boolean b : results) {
-        	System.out.println("Result: " + b);
-        }
+        results.forEach(rr -> {
+            System.out.printf("   Key: %s -> %b\n", rr.key(), rr.asBoolean());
+        });
 
         // Test filtering out
         System.out.println("Test filtering out");
