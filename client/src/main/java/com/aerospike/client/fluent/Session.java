@@ -263,6 +263,27 @@ public class Session {
     }
     
     /**
+     * Begin a replaceIfExists operation (replace only if record exists, fail otherwise).
+     */
+    public ChainableOperationBuilder replaceIfExists(Key key) {
+        return new ChainableOperationBuilder(this, OpType.REPLACE_IF_EXISTS).init(key, OpType.REPLACE_IF_EXISTS);
+    }
+    
+    /**
+     * Begin a replaceIfExists operation on multiple keys.
+     */
+    public ChainableOperationBuilder replaceIfExists(List<Key> keys) {
+        return new ChainableOperationBuilder(this, OpType.REPLACE_IF_EXISTS).init(keys, OpType.REPLACE_IF_EXISTS);
+    }
+    
+    /**
+     * Begin a replaceIfExists operation on multiple keys.
+     */
+    public ChainableOperationBuilder replaceIfExists(Key key1, Key key2, Key... keys) {
+        return new ChainableOperationBuilder(this, OpType.REPLACE_IF_EXISTS).init(buildKeyList(key1, key2, keys), OpType.REPLACE_IF_EXISTS);
+    }
+    
+    /**
      * Begin a touch operation. Chainable with other operations.
      */
     public ChainableNoBinsBuilder touch(Key key) {

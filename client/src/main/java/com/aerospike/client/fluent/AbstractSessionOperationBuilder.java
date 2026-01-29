@@ -271,6 +271,8 @@ public abstract class AbstractSessionOperationBuilder<T extends AbstractSessionO
             return RecordExistsAction.UPDATE;
         case REPLACE:
             return RecordExistsAction.REPLACE;
+        case REPLACE_IF_EXISTS:
+            return RecordExistsAction.REPLACE_ONLY;
         case TOUCH:
             return RecordExistsAction.UPDATE_ONLY;
         default:

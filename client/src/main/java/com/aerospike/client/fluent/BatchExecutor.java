@@ -222,6 +222,7 @@ class BatchExecutor {
         case UPDATE:
         case INSERT:
         case REPLACE:
+        case REPLACE_IF_EXISTS:
             return createBatchWrite(spec, key, filterExp, settings);
         default:
             throw new IllegalStateException("Unknown operation type: " + spec.getOpType());

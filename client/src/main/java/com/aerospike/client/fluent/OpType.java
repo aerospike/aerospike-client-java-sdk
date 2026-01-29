@@ -21,6 +21,7 @@ public enum OpType {
     EXISTS,
     INSERT,
     REPLACE,
+    REPLACE_IF_EXISTS,
     TOUCH,
     UPSERT,
     UPDATE,

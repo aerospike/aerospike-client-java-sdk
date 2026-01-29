@@ -1144,6 +1144,10 @@ public final class CommandBuffer {
 		case REPLACE:
 			infoAttr |= Command.INFO3_CREATE_OR_REPLACE;
 			break;
+
+		case REPLACE_IF_EXISTS:
+			infoAttr |= Command.INFO3_REPLACE_ONLY;
+			break;
 		}
 
 		if (cmd.commitLevel == CommitLevel.COMMIT_MASTER) {
@@ -1597,6 +1601,10 @@ public final class CommandBuffer {
 
 		case REPLACE:
 			infoAttr |= Command.INFO3_CREATE_OR_REPLACE;
+			break;
+
+		case REPLACE_IF_EXISTS:
+			infoAttr |= Command.INFO3_REPLACE_ONLY;
 			break;
 		}
 

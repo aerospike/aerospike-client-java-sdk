@@ -265,6 +265,52 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
     }
     
     /**
+     * Chain a replaceIfExists operation on a single key.
+     * Returns a {@link ChainableOperationBuilder} since replaceIfExists operations support bin modifications.
+     * The operation will fail if the record does not exist.
+     * 
+     * @param key the key to replace
+     * @return ChainableOperationBuilder for method chaining
+     */
+    public ChainableOperationBuilder replaceIfExists(Key key) {
+        finalizeCurrentOperation();
+        ChainableOperationBuilder builder = new ChainableOperationBuilder(session, OpType.REPLACE_IF_EXISTS);
+        transferState(builder);
+        return builder.init(key, OpType.REPLACE_IF_EXISTS);
+    }
+    
+    /**
+     * Chain a replaceIfExists operation on multiple keys.
+     * The operation will fail for any record that does not exist.
+     * 
+     * @param keys the keys to replace
+     * @return ChainableOperationBuilder for method chaining
+     */
+    public ChainableOperationBuilder replaceIfExists(List<Key> keys) {
+        finalizeCurrentOperation();
+        ChainableOperationBuilder builder = new ChainableOperationBuilder(session, OpType.REPLACE_IF_EXISTS);
+        transferState(builder);
+        return builder.init(keys, OpType.REPLACE_IF_EXISTS);
+    }
+    
+    /**
+     * Chain a replaceIfExists operation on multiple keys (varargs).
+     * The operation will fail for any record that does not exist.
+     * 
+     * @param key1 first key
+     * @param key2 second key
+     * @param moreKeys additional keys
+     * @return ChainableOperationBuilder for method chaining
+     */
+    public ChainableOperationBuilder replaceIfExists(Key key1, Key key2, Key... moreKeys) {
+        List<Key> keys = new ArrayList<>();
+        keys.add(key1);
+        keys.add(key2);
+        keys.addAll(Arrays.asList(moreKeys));
+        return replaceIfExists(keys);
+    }
+    
+    /**
      * Chain a delete operation on a single key.
      * Returns a {@link ChainableNoBinsBuilder} since delete operations don't support bin modifications.
      * 
