@@ -737,7 +737,7 @@ public class ChainableNoBinsBuilder extends AbstractSessionOperationBuilder<Chai
         }
 
         // Otherwise use batch execution
-        return BatchExecutor.execute(session, operationSpecs, defaultWhereClause, txnToUse);
+        return OperationSpecExecutor.execute(session, operationSpecs, defaultWhereClause, txnToUse);
     }
 
     /**

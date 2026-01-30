@@ -766,7 +766,7 @@ public class ChainableOperationBuilder extends AbstractOperationBuilder<Chainabl
                      (txnToUse != null ? "yes" : "no"));
         }
         
-        return BatchExecutor.execute(session, operationSpecs, defaultWhereClause, txnToUse);
+        return OperationSpecExecutor.execute(session, operationSpecs, defaultWhereClause, txnToUse);
     }
     
     /**
@@ -809,7 +809,7 @@ public class ChainableOperationBuilder extends AbstractOperationBuilder<Chainabl
         Cluster cluster = session.getCluster();
         cluster.startVirtualThread(() -> {
             try {
-                RecordStream syncResult = BatchExecutor.execute(session, operationSpecs, defaultWhereClause, txnToUse);
+                RecordStream syncResult = OperationSpecExecutor.execute(session, operationSpecs, defaultWhereClause, txnToUse);
                 // Transfer results to the async stream
                 syncResult.forEach(result -> asyncStream.publish(result));
             } finally {

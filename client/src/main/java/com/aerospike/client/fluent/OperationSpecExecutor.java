@@ -58,7 +58,7 @@ import com.aerospike.client.fluent.tend.Partitions;
  * </ul>
  * </p>
  */
-class BatchExecutor {
+class OperationSpecExecutor {
 
     /**
      * Execute a batch of heterogeneous operations.

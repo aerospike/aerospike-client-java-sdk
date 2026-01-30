@@ -651,7 +651,7 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
             throw new IllegalStateException("No operations specified");
         }
         
-        return BatchExecutor.execute(session, operationSpecs, defaultWhereClause, txnToUse);
+        return OperationSpecExecutor.execute(session, operationSpecs, defaultWhereClause, txnToUse);
     }
     
     // ========================================
