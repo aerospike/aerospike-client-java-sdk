@@ -32,9 +32,9 @@ public final class AsyncRecordStream implements AutoCloseable, Iterable<RecordRe
         if (capacity <= 0) {
 			throw new IllegalArgumentException("capacity must be > 0");
 		}
-        // Reserve one extra slot for END/Err marker to prevent deadlock.
-        // Without this, if the queue is full when complete() or error() is called,
-        // the terminal marker cannot be enqueued, causing consumers to hang forever.
+        // Add one extra slot to reduce contention for END/Err marker.
+        // The complete() and error() methods will retry until the marker is added,
+        // but having extra capacity helps reduce wait time.
         this.queue = new ArrayBlockingQueue<>(capacity + 1);
     }
 
@@ -71,25 +71,67 @@ public final class AsyncRecordStream implements AutoCloseable, Iterable<RecordRe
         }
     }
 
-    /** For producers: signal a terminal error (the consumer will see it as a runtime exception). */
+    /**
+     * For producers: signal a terminal error. The consumer will receive this as a runtime exception
+     * when iterating.
+     * 
+     * <p>This method sets the completed flag immediately, which stops any concurrent publishers
+     * from adding more items. It then blocks until the error marker can be added to the queue.
+     * If the queue is full, this method will block indefinitely until the consumer drains
+     * enough items to make room, or until the stream is closed or the thread is interrupted.</p>
+     * 
+     * <p>Safe to call multiple times - only the first call has any effect.</p>
+     * 
+     * @param t the error to propagate to the consumer (if null, a generic RuntimeException is used)
+     */
     public void error(Throwable t) {
         if (t == null) {
-			t = new RuntimeException("Unknown error");
-		}
-        if (completed.get()) {
-			return;
-		}
-        // Try to enqueue the error; if we can't, close the stream immediately
-        if (!queue.offer(new Err(t))) {
-            close();
+            t = new RuntimeException("Unknown error");
+        }
+        if (completed.compareAndSet(false, true)) {
+            // Stop publishers first (they check completed via cancelled())
+            Err err = new Err(t);
+            // Keep trying until error is added - consumer will eventually drain
+            // since publish() stops adding items when completed=true
+            while (!closed.get()) {
+                try {
+                    if (queue.offer(err, 50, TimeUnit.MILLISECONDS)) {
+                        return;
+                    }
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    return;
+                }
+            }
         }
     }
 
-    /** For producers: signal normal completion. Safe to call multiple times. */
+    /**
+     * For producers: signal normal completion of the stream.
+     * 
+     * <p>This method sets the completed flag immediately, which stops any concurrent publishers
+     * from adding more items. It then blocks until the END marker can be added to the queue.
+     * If the queue is full, this method will block indefinitely until the consumer drains
+     * enough items to make room, or until the stream is closed or the thread is interrupted.</p>
+     * 
+     * <p>Safe to call multiple times - only the first call has any effect.</p>
+     * 
+     * @return this stream for method chaining
+     */
     public AsyncRecordStream complete() {
         if (completed.compareAndSet(false, true)) {
-            // Ensure consumer unblocks even if queue is full
-            queue.offer(END);
+            // Keep trying until END is added - consumer will eventually drain
+            // since publish() stops adding items when completed=true
+            while (!closed.get()) {
+                try {
+                    if (queue.offer(END, 50, TimeUnit.MILLISECONDS)) {
+                        break;
+                    }
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    break;
+                }
+            }
         }
         return this;
     }
