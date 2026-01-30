@@ -30,16 +30,37 @@ public class OperationObjectBuilder<T> extends AbstractFilterableBuilder impleme
     private final OpType opType;
     private final Session session;
 
+    /**
+     * Constructs a new OperationObjectBuilder for performing operations on objects.
+     *
+     * @param session the session to use for database operations
+     * @param dataSet the dataset on which to perform operations
+     * @param type the type of operation to perform
+     */
     public OperationObjectBuilder(Session session, DataSet dataSet, OpType type) {
         this.dataSet = dataSet;
         this.opType = type;
         this.session = session;
     }
 
+    /**
+     * Specifies a list of objects to operate on.
+     *
+     * @param elements the list of objects to operate on
+     * @return an ObjectBuilder for configuring and executing the operation
+     */
     public ObjectBuilder<T> objects(List<T> elements) {
         return new ObjectBuilder<>(this, elements);
     }
 
+    /**
+     * Specifies multiple objects to operate on using varargs.
+     *
+     * @param element1 the first object to operate on
+     * @param element2 the second object to operate on
+     * @param elements additional objects to operate on (varargs)
+     * @return an ObjectBuilder for configuring and executing the operation
+     */
     @SuppressWarnings("unchecked")
 	public ObjectBuilder<T> objects(T element1, T element2, T ... elements) {
         List<T> elementList = new ArrayList<>();
@@ -51,66 +72,121 @@ public class OperationObjectBuilder<T> extends AbstractFilterableBuilder impleme
         return new ObjectBuilder<>(this, elementList);
     }
 
+    /**
+     * Specifies a single object to operate on.
+     *
+     * @param element the object to operate on
+     * @return an ObjectBuilder for configuring and executing the operation
+     */
     public ObjectBuilder<T> object(T element) {
         return new ObjectBuilder<T>(this, element);
     }
 
+    /**
+     * Gets the dataset associated with this builder.
+     *
+     * @return the dataset
+     */
     public DataSet getDataSet() {
         return dataSet;
     }
+
+    /**
+     * Gets the session associated with this builder.
+     *
+     * @return the session
+     */
     public Session getSession() {
         return session;
     }
 
+    /**
+     * Gets the operation type for this builder.
+     *
+     * @return the operation type
+     */
     public OpType getOpType() {
         return opType;
     }
 
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public OperationObjectBuilder<T> where(String dsl, Object ... params) {
         setWhereClause(createWhereClauseProcessor(false, dsl, params));
         return this;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public OperationObjectBuilder<T> where(BooleanExpression dsl) {
         setWhereClause(WhereClauseProcessor.from(dsl));
         return this;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public OperationObjectBuilder<T> where(PreparedDsl dsl, Object ... params) {
         setWhereClause(WhereClauseProcessor.from(false, dsl, params));
         return this;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public OperationObjectBuilder<T> where(Exp exp) {
         setWhereClause(WhereClauseProcessor.from(exp));
         return this;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public OperationObjectBuilder<T> failOnFilteredOut() {
         this.failOnFilteredOut = true;
         return this;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public OperationObjectBuilder<T> respondAllKeys() {
         this.respondAllKeys = true;
         return this;
     }
 
+    /**
+     * Gets the where clause processor for this builder.
+     *
+     * @return the where clause processor, or null if no where clause has been set
+     */
     public WhereClauseProcessor getDsl() {
         return dsl;
     }
 
+    /**
+     * Checks whether the respondAllKeys flag is set.
+     *
+     * @return true if respondAllKeys is enabled, false otherwise
+     */
     public boolean isRespondAllKeys() {
         return respondAllKeys;
     }
 
+    /**
+     * Checks whether the failOnFilteredOut flag is set.
+     *
+     * @return true if failOnFilteredOut is enabled, false otherwise
+     */
     public boolean isFailOnFilteredOut() {
         return failOnFilteredOut;
     }

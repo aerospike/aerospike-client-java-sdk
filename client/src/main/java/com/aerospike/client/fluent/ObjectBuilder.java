@@ -68,18 +68,49 @@ public class ObjectBuilder<T> {
     private Txn txnToUse;
 
 
+    /**
+     * Constructs a new ObjectBuilder for operating on multiple objects.
+     *
+     * @param opBuilder the operation builder that created this ObjectBuilder
+     * @param elements the list of objects to operate on
+     */
     public ObjectBuilder(OperationObjectBuilder<T> opBuilder, List<T> elements) {
         this.opBuilder = opBuilder;
         this.elements = elements;
         this.txnToUse = opBuilder.getSession().getCurrentTransaction();
     }
 
+    /**
+     * Constructs a new ObjectBuilder for operating on a single object.
+     *
+     * @param opBuilder the operation builder that created this ObjectBuilder
+     * @param element the object to operate on
+     */
     public ObjectBuilder(OperationObjectBuilder<T> opBuilder, T element) {
         this.opBuilder = opBuilder;
         this.elements = List.of(element);
         this.txnToUse = opBuilder.getSession().getCurrentTransaction();
     }
 
+    /**
+     * Specifies a custom record mapper to use for converting objects to and from Aerospike records.
+     * <p>
+     * By default, the mapper is obtained from the {@link RecordMappingFactory} configured on the
+     * session's cluster. This method allows you to override that default mapper for this specific
+     * operation.
+     * <p>
+     * The mapper is responsible for:
+     * <ul>
+     *   <li>Converting objects to a map of bin names and values for storage</li>
+     *   <li>Extracting the object's ID for key generation</li>
+     * </ul>
+     *
+     * @param recordMapper the record mapper to use for this operation
+     * @return This ObjectBuilder for method chaining
+     * @throws NullPointerException if recordMapper is null
+     * @see RecordMapper
+     * @see RecordMappingFactory
+     */
     public ObjectBuilder<T> using(RecordMapper<T> recordMapper) {
         if (recordMapper == null) {
             throw new NullPointerException("recordMapper parameter to 'using' call cannot be 'null'");
@@ -88,6 +119,21 @@ public class ObjectBuilder<T> {
         return this;
     }
 
+    /**
+     * Ensure the operation only succeeds if the record generation matches.
+     * <p>
+     * Generation is a version number that Aerospike increments each time a record is modified.
+     * By specifying a generation value, you can ensure that the operation only proceeds if the
+     * record has not been modified by another client since you last read it. This provides
+     * optimistic concurrency control.
+     * <p>
+     * If the record's current generation does not match the specified value, the operation
+     * will fail with a generation error.
+     *
+     * @param generation the expected generation value
+     * @return This ObjectBuilder for method chaining
+     * @throws IllegalArgumentException if generation is <= 0
+     */
     public ObjectBuilder<T> ensureGenerationIs(int generation) {
         if (generation <= 0) {
             throw new IllegalArgumentException("Generation must be greater than 0");

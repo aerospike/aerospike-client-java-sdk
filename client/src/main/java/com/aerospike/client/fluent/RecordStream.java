@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2025 Aerospike, Inc.
+ * Copyright 2012-2026 Aerospike, Inc.
  *
  * Portions may be licensed to Aerospike, Inc. under one or more contributor
  * license agreements WHICH ARE COMPATIBLE WITH THE APACHE LICENSE, VERSION 2.0.
@@ -33,12 +33,27 @@ import com.aerospike.client.fluent.query.SingleItemRecordStream;
 
 public class RecordStream implements Iterator<RecordResult>, Closeable {
     private final RecordStreamImpl impl;
+    /**
+     * Creates an empty RecordStream with no implementation.
+     * This constructor is typically used internally or for creating an empty stream.
+     */
     public RecordStream() {impl = null;}
 
+    /**
+     * Creates a RecordStream containing a single RecordResult.
+     *
+     * @param rec the single record result to include in the stream
+     */
     public RecordStream(RecordResult rec) {
         impl = new SingleItemRecordStream(rec);
     }
 
+    /**
+     * Creates a RecordStream containing a single record from a key and record pair.
+     *
+     * @param key the key of the record
+     * @param record the record data
+     */
     public RecordStream(Key key, Record record) {
         RecordResult rec = new RecordResult(key, record, 0); // Single item, index = 0
         impl = new SingleItemRecordStream(rec);
@@ -65,6 +80,12 @@ public class RecordStream implements Iterator<RecordResult>, Closeable {
         asyncStream.complete();
         impl = asyncStream;
     }
+    /**
+     * Creates a RecordStream from an AsyncRecordStream.
+     * This constructor is used internally to wrap asynchronous record streams.
+     *
+     * @param asyncStream the asynchronous record stream to wrap
+     */
     public RecordStream(AsyncRecordStream asyncStream) {
         impl = asyncStream;
     }
@@ -100,11 +121,23 @@ public class RecordStream implements Iterator<RecordResult>, Closeable {
         return impl == null ? false : impl.hasMoreChunks();
     }
 
+    /**
+     * Returns {@code true} if the iteration has more elements.
+     * (In other words, returns {@code true} if {@link #next} would
+     * return an element rather than throwing an exception.)
+     *
+     * @return {@code true} if the iteration has more elements
+     */
     @Override
     public boolean hasNext() {
         return impl == null ? false : impl.hasNext();
     }
 
+    /**
+     * Returns the next element in the iteration.
+     *
+     * @return the next element in the iteration
+     */
     @Override
     public RecordResult next() {
         return impl == null ? null : impl.next();
@@ -234,12 +267,27 @@ public class RecordStream implements Iterator<RecordResult>, Closeable {
         return new NavigatableRecordStream(this, limit);
     }
 
+    /**
+     * Performs the given action for each element of the stream until all elements
+     * have been processed or the action throws an exception.
+     *
+     * @param consumer the action to be performed for each element
+     */
     public void forEach(Consumer<RecordResult> consumer) {
         while (hasNext()) {
             consumer.accept(next());
         }
     }
 
+    /**
+     * Searches the stream for a record with the specified key and returns it if found.
+     * Note that searching through the stream consumes elements, which may not be replayable
+     * if the stream is not generated from a {@code Key} or {@code List<Key>}.
+     *
+     * @param key the key to search for
+     * @return an Optional containing the record if found, or empty if not found or if the result code is not OK
+     * @throws com.aerospike.client.AerospikeException if the record exists but the result code is not OK
+     */
     public Optional<Record> get(Key key) {
         while (hasNext()) {
             RecordResult kr = next();
@@ -320,6 +368,12 @@ public class RecordStream implements Iterator<RecordResult>, Closeable {
         return Optional.empty();
     }
 
+    /**
+     * Gets the first element from the stream and converts it to a Boolean value.
+     * If the stream is empty, returns an empty Optional.
+     *
+     * @return an Optional containing the first element as a Boolean, or empty if the stream is empty
+     */
     public Optional<Boolean> getFirstBoolean() {
         if (hasNext()) {
             return Optional.of(next().asBoolean());
@@ -349,6 +403,19 @@ public class RecordStream implements Iterator<RecordResult>, Closeable {
             return generation;
         }
     }
+    /**
+     * Gets the first element from the stream, maps it to an object using the provided mapper,
+     * and returns it along with its metadata (generation and expiration).
+     *
+     * <p>This method is useful when you need both the mapped object and its record metadata
+     * (generation and expiration) from the first record in the stream.</p>
+     *
+     * @param <T> the type of the object to be returned
+     * @param mapper the mapper to use to convert the record to the class
+     * @return an Optional containing an ObjectWithMetadata with the mapped object and its metadata,
+     *         or empty if the stream is empty
+     * @throws com.aerospike.client.AerospikeException if the result code is not OK
+     */
     public <T> Optional<ObjectWithMetadata<T>> getFirstWithMetadata(RecordMapper<T> mapper) {
         if (hasNext()) {
             RecordResult item = next();
@@ -360,6 +427,10 @@ public class RecordStream implements Iterator<RecordResult>, Closeable {
     }
 
 
+    /**
+     * Closes this stream, releasing any underlying resources.
+     * After closing, the stream should not be used further.
+     */
     @Override
     public void close() {
         if (impl != null) {

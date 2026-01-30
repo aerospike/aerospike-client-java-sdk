@@ -61,12 +61,33 @@ public class OperationWithNoBinsBuilder extends AbstractSessionOperationBuilder<
     protected long expirationInSecondsForAll = 0;
     protected Boolean durablyDelete = null;  // null means use behavior default
 
+    /**
+     * Constructs a builder for a single-key operation that does not modify bins.
+     * <p>
+     * This constructor is used for operations like EXISTS, TOUCH, and DELETE that operate
+     * on a single record without modifying bin values.
+     *
+     * @param session the session to use for database operations
+     * @param key the key of the record to operate on
+     * @param type the type of operation to perform (EXISTS, TOUCH, or DELETE)
+     */
     public OperationWithNoBinsBuilder(Session session, Key key, OpType type) {
         super(session, type);
         this.keys = null;
         this.key = key;
     }
 
+    /**
+     * Constructs a builder for a multi-key operation that does not modify bins.
+     * <p>
+     * This constructor is used for batch operations like EXISTS, TOUCH, and DELETE that operate
+     * on multiple records without modifying bin values. If only one key is provided, the builder
+     * will be optimized for single-key operations.
+     *
+     * @param session the session to use for database operations
+     * @param keys the list of keys of the records to operate on
+     * @param type the type of operation to perform (EXISTS, TOUCH, or DELETE)
+     */
     public OperationWithNoBinsBuilder(Session session, List<Key> keys, OpType type) {
         super(session, type);
         if (keys.size() == 1) {
@@ -264,6 +285,16 @@ public class OperationWithNoBinsBuilder extends AbstractSessionOperationBuilder<
         return results;
     }
 
+    /**
+     * Execute the operation with default behavior (synchronous).
+     * <p>
+     * Executes the operation (EXISTS, TOUCH, or DELETE) for the configured key(s).
+     * For single-key operations, this executes immediately. For multi-key operations,
+     * this executes as a batch operation. All operations complete before this method returns,
+     * making it safe for transactions.
+     *
+     * @return RecordStream containing the results of the operation(s)
+     */
     public RecordStream execute() {
         if (key != null) {
             return executeSingleKey();
