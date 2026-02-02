@@ -156,11 +156,24 @@ public class BackgroundOperationBuilder extends AbstractOperationBuilder<Backgro
     }
 
     /**
+     * Adds a where clause filter to the background operation using an Expression operation.
+     * The filter determines which records in the set will be affected.
+     *
+     * @param e The expression to validate the records against
+     * @return This builder for method chaining
+     */
+    @Override
+    public BackgroundOperationBuilder where(Expression e) {
+        setWhereClause(WhereClauseProcessor.from(e));
+        return this;
+    }
+
+    /**
      * Rate limit the records per second processed by this background operation.
-     * 
+     *
      * <p>This can be used to limit the server-side load of background operations
      * to prevent them from impacting normal operations.</p>
-     * 
+     *
      * @param recordsPerSecond the maximum records per second to process (0 = unlimited)
      * @return This builder for method chaining
      */

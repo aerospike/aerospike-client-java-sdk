@@ -2,6 +2,7 @@ package com.aerospike.client.fluent;
 
 import com.aerospike.client.fluent.dsl.BooleanExpression;
 import com.aerospike.client.fluent.exp.Exp;
+import com.aerospike.client.fluent.exp.Expression;
 import com.aerospike.client.fluent.query.PreparedDsl;
 
 /**
@@ -81,6 +82,21 @@ public interface FilterableOperation<T extends FilterableOperation<T>> {
      * @throws IllegalArgumentException if multiple filter conditions are specified
      */
     T where(Exp exp);
+
+    /**
+     * Adds a filter condition using an Expression operation.
+     *
+     * <p>Note: This method may be deprecated in the future -- use a string version instead.</p>
+     * <p>Note: If this method is used, no secondary index can be used.</p>
+     *
+     * <p>Only one filter condition can be specified per operation. Multiple calls
+     * to this method or other where variants will throw an exception.</p>
+     *
+     * @param e The expression to validate the records against
+     * @return this builder for method chaining
+     * @throws IllegalArgumentException if multiple filter conditions are specified
+     */
+    T where(Expression e);
 
     /**
      * If the operation has a `where` clause and is provided either a single key or a list of keys,

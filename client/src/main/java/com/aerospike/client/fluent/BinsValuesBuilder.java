@@ -472,6 +472,19 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
     }
 
     /**
+     * Adds a where clause filter to the background operation using an Expression operation.
+     * The filter determines which records in the set will be affected.
+     *
+     * @param e The expression to validate the records against
+     * @return This builder for method chaining
+     */
+    @Override
+    public BinsValuesBuilder where(Expression e) {
+        setWhereClause(WhereClauseProcessor.from(e));
+        return this;
+    }
+
+    /**
      * If a where clause is specified and a record is filtered out, it will appear
      * in the result stream with an exception code of
      * {@link ResultCode#FILTERED_OUT} rather than being silently omitted from the

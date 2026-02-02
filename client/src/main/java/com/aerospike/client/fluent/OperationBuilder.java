@@ -411,6 +411,12 @@ public class OperationBuilder extends AbstractOperationBuilder<OperationBuilder>
     }
 
     @Override
+    public OperationBuilder where(Expression e) {
+        setWhereClause(WhereClauseProcessor.from(e));
+        return this;
+    }
+
+    @Override
     public OperationBuilder failOnFilteredOut() {
         this.failOnFilteredOut = true;
         return this;

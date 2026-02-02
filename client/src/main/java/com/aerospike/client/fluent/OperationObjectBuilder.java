@@ -21,6 +21,7 @@ import java.util.List;
 
 import com.aerospike.client.fluent.dsl.BooleanExpression;
 import com.aerospike.client.fluent.exp.Exp;
+import com.aerospike.client.fluent.exp.Expression;
 import com.aerospike.client.fluent.query.PreparedDsl;
 import com.aerospike.client.fluent.query.WhereClauseProcessor;
 
@@ -143,6 +144,15 @@ public class OperationObjectBuilder<T> extends AbstractFilterableBuilder impleme
     @Override
     public OperationObjectBuilder<T> where(Exp exp) {
         setWhereClause(WhereClauseProcessor.from(exp));
+        return this;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public OperationObjectBuilder<T> where(Expression e) {
+        setWhereClause(WhereClauseProcessor.from(e));
         return this;
     }
 

@@ -594,6 +594,15 @@ public class ChainableNoBinsBuilder extends AbstractSessionOperationBuilder<Chai
         return this;
     }
 
+    @Override
+    public ChainableNoBinsBuilder where(Expression e) {
+        verifyState("setting where clause");
+        WhereClauseProcessor processor = WhereClauseProcessor.from(e);
+        ParseResult parseResult = processor.process(getNamespaceFromKeys(currentSpec.getKeys()), session);
+        currentSpec.setWhereClause(Exp.build(parseResult.getExp()));
+        return this;
+    }
+
     /**
      * Set the default where clause for all operations in this batch that don't have their own where clause.
      *
@@ -745,6 +754,7 @@ public class ChainableNoBinsBuilder extends AbstractSessionOperationBuilder<Chai
      * These can be executed more efficiently using the original point operation path.
      */
     private boolean isSingleKeyOperation() {
+        /* TODO Tim: This code is wrong. Batch should never be used on a single key.
         if (operationSpecs.size() != 1) {
             return false;
         }
@@ -756,6 +766,8 @@ public class ChainableNoBinsBuilder extends AbstractSessionOperationBuilder<Chai
                spec.getOperations().isEmpty() && // No bin operations
                spec.getWhereClause() == null && // No operation-level where clause
                defaultWhereClause == null; // No batch-level where clause
+        */
+    	return operationSpecs.size() == 1;
     }
 
     /**
@@ -781,6 +793,9 @@ public class ChainableNoBinsBuilder extends AbstractSessionOperationBuilder<Chai
         }
         if (spec.isRespondAllKeys()) {
             builder.respondAllKeys();
+        }
+        if (spec.getWhereClause() != null) {
+        	builder.where(spec.getWhereClause());
         }
         if (txnToUse != null) {
             builder.inTransaction(txnToUse);

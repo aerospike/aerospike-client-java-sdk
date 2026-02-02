@@ -196,14 +196,20 @@ public class FilterExpTest extends ClusterTest {
 	    RecordStream rs = session.query(args.set.id(keyA)).execute();
 	    assertFalse(rs.hasNext());
 
-        session.delete(args.set.id(keyB))
+		rs = session.delete(args.set.id(keyB))
 	        .where("$.A == 1") // Exp.build(Exp.eq(Exp.intBin(binA), Exp.val(1)));
 	        .execute();
 
+	    assertTrue(rs.hasNext());
+	    rs.next().recordOrThrow();
+
+	    Record rec;
+	    int val;
+
 	    rs = session.query(args.set.id(keyB)).execute();
 	    assertTrue(rs.hasNext());
-	    Record rec = rs.next().recordOrThrow();
-	    int val = rec.getInt(binA);
+	    rec = rs.next().recordOrThrow();
+	    val = rec.getInt(binA);
 		assertEquals(2, val);
 	}
 
@@ -215,11 +221,15 @@ public class FilterExpTest extends ClusterTest {
 	        .execute();
 
         AerospikeException ae = assertThrows(AerospikeException.class, () -> {
-	        session.delete(args.set.id(keyB))
+	        RecordStream rs = session.delete(args.set.id(keyB))
 		        .where("$.A == 1") // Exp.build(Exp.eq(Exp.intBin(binA), Exp.val(1)));
 		        .failOnFilteredOut()
 		        .execute();
-		});
+
+	        // TODO: hasNext() returns false so FILTERED_OUT exception is not thrown.
+		    assertTrue(rs.hasNext());
+		    rs.next().recordOrThrow();
+        });
 
 		assertEquals(ResultCode.FILTERED_OUT, ae.getResultCode());
 	}
@@ -259,11 +269,15 @@ public class FilterExpTest extends ClusterTest {
 	        .execute();
 
         AerospikeException ae = assertThrows(AerospikeException.class, () -> {
-	        session.delete(args.set.id(keyB))
+	        RecordStream rs = session.delete(args.set.id(keyB))
 	        	.durablyDelete(true)
 		        .where("$.A == 1") // Exp.build(Exp.eq(Exp.intBin(binA), Exp.val(1)));
 		        .failOnFilteredOut()
 		        .execute();
+
+	        // TODO: hasNext() returns false so FILTERED_OUT exception is not thrown.
+		    assertTrue(rs.hasNext());
+		    rs.next().recordOrThrow();
 		});
 
 		assertEquals(ResultCode.FILTERED_OUT, ae.getResultCode());

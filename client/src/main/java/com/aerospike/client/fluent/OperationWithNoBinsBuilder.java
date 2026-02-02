@@ -250,6 +250,12 @@ public class OperationWithNoBinsBuilder extends AbstractSessionOperationBuilder<
     }
 
     @Override
+    public OperationWithNoBinsBuilder where(Expression e) {
+        setWhereClause(WhereClauseProcessor.from(e));
+        return this;
+    }
+
+    @Override
     public OperationWithNoBinsBuilder failOnFilteredOut() {
         this.failOnFilteredOut = true;
         return this;
