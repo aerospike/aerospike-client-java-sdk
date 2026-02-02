@@ -167,25 +167,23 @@ public class FilterExpTest extends ClusterTest {
 		assertEquals(ResultCode.FILTERED_OUT, ae.getResultCode());
 	}
 
-/* TODO How put byte[] key in set.ids(keyA, keyB)?
 	@Test
 	public void batch() {
-        RecordStream rs = session.query(args.set.ids(keyA, keyB))
+		List<Key> keys = args.set.ids(List.of(keyA, keyB));
+        RecordStream rs = session.query(keys)
     	    .where("$.A == 1") // Exp.build(Exp.eq(Exp.intBin(binA), Exp.val(1)));
 	        .failOnFilteredOut()
         	.execute();
 
-        BatchPolicy policy = new BatchPolicy();
-		policy.filterExp = Exp.build(Exp.eq(Exp.intBin(binA), Exp.val(1)));
+        assertTrue(rs.hasNext());
+        Record rec = rs.next().recordOrThrow();
+        int val = rec.getInt(binA);
+		assertEquals(1, val);
 
-		Key[] keys = { keyA, keyB };
-
-		Record[] records = client.get(policy, keys);
-
-		assertBinEqual(keyA, records[0], binA, 1);
-		assertEquals(null, records[1]);
+		// TODO: Why does this return true.
+        assertFalse(rs.hasNext());
+        rec = rs.next().recordOrThrow();
 	}
-*/
 
 	@Test
 	public void delete() {
@@ -815,10 +813,12 @@ public class FilterExpTest extends ClusterTest {
 		testExps(exp1, exp2);
 	}
 
-	/* TODO How put byte[] key in set.ids(keyA, keyB)?
+/* TODO Support complex batch
 	@Test
 	public void batchKeyFilter() {
 		// Write/Delete records with filter.
+		List<Key> keys = args.set.ids(List.of(keyA, keyB));
+
 		BatchWritePolicy wp = new BatchWritePolicy();
 		wp.filterExp = Exp.build(Exp.eq(Exp.intBin(binA), Exp.val(1)));
 
@@ -857,8 +857,7 @@ public class FilterExpTest extends ClusterTest {
 		r = recs[2];
 		assertNull(r);
 	}
-	*/
-
+*/
 	private void testDsl(String dsl) {
 		AerospikeException ae = assertThrows(AerospikeException.class, () -> {
 			RecordStream rs2 = session.query(args.set.id(keyA))

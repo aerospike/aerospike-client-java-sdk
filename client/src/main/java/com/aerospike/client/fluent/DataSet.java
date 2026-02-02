@@ -133,8 +133,9 @@ public class DataSet {
         else if (object instanceof Byte || object instanceof Short || object instanceof Integer || object instanceof Long) {
             return id(((Number)object).longValue());
         }
-        else if (object.getClass().isArray() && Byte.class.isAssignableFrom(object.getClass().getComponentType())) {
-            return id((byte[])object);
+        //else {if (object.getClass().isArray() && Byte.class.isAssignableFrom(object.getClass().getComponentType())) {
+        else if (object instanceof byte[]) {
+			return id((byte[])object);
         }
         throw new IllegalArgumentException("Cannot construct a key for object of type " + object.getClass().getSimpleName() +
                 ". Only String, int, long and byte[] are supported.");
