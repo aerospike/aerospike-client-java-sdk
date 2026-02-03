@@ -88,6 +88,37 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
         return this;
     }
 
+    /**
+     * Returns a bin builder for read operations on a specific bin.
+     * 
+     * <p>Unlike write operations, query bin operations only support reading values
+     * ({@code get()}) and computing expressions ({@code selectFrom()}).</p>
+     *
+     * <p>Example:</p>
+     * <pre>{@code
+     * session.query(key)
+     *     .bin("name").get()
+     *     .bin("ageIn20Years").selectFrom("$.age + 20")
+     *     .execute();
+     * }</pre>
+     *
+     * @param binName the name of the bin
+     * @return QueryBinBuilder for constructing bin read operations
+     */
+    public QueryBinBuilder bin(String binName) {
+        verifyState("adding bin operation");
+        return new QueryBinBuilder(this, binName);
+    }
+
+    /**
+     * Package-private method to add an operation to the current spec.
+     * Used by QueryBinBuilder.
+     */
+    void addOperation(Operation op) {
+        verifyState("adding operation");
+        currentSpec.getOperations().add(op);
+    }
+
     // ========================================
     // Chainable operation methods
     // ========================================

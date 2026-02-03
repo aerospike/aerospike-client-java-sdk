@@ -46,6 +46,24 @@ public class CommonExample extends Example {
         super(console);
     }
 
+    public void printRecordStream(String header, RecordStream rs) {
+        if (header != null) {
+            System.out.println("=".repeat(40));
+            System.out.println(header);
+            System.out.println("=".repeat(40));
+        }
+        if (rs == null) {
+            System.out.println("null");
+        }
+        else {
+            rs.forEach(rr -> System.out.println(rr));
+        }
+        if (header != null) {
+            int count = 40 - header.length() - 2;
+            String dashes = (count > 0) ? "-".repeat(count) : "";
+            System.out.printf("%s %s %s\n", dashes, header, dashes);
+        }
+    }
     @Override
     public void runExample(Cluster cluster, Args args) throws Exception {
         Session session = cluster.createSession(Behavior.DEFAULT);
@@ -336,6 +354,29 @@ public class CommonExample extends Example {
         session.query(set).expectedQueryDuration(QueryDuration.LONG).recordsPerSecond(20).execute();
         
         session.backgroundTask().update(set).bin("age").add(1).recordsPerSecond(35).execute();
+
+        // Exp operations - read and write.
+        System.out.println("Read and write operation example");
+        rs = session.upsert(set.ids(1,2,3))
+            .bin("name").setTo("Tim")
+            .bin("age").setTo(312)
+            .bin("readBin").selectFrom("$.age + 12")
+            .bin("writeBin").upsertFrom("$.age + 30")
+            .execute();
+        rs.forEach(rr -> System.out.println(rr));
+        
+        printRecordStream("Single read expression", session.query(set.id(1))
+            .bin("ageIn20Years").selectFrom("$.age + 20")
+            .execute());
+
+        printRecordStream("Batch read expression", session.query(set.ids(1,2,3))
+            .bin("ageIn20Years").selectFrom("$.age + 20")
+            .execute());
+
+        printRecordStream("Query read expression", session.query(set)
+            .bin("ageIn20Years").selectFrom("$.age + 20")
+            .execute());
+
 
         /*
         System.out.println("Transaction");

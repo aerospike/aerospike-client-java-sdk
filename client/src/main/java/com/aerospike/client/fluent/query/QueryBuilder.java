@@ -91,6 +91,7 @@ public class QueryBuilder extends AbstractFilterableBuilder implements
     private Txn txnToUse;
     private int recordsPerSecond = 0;
     private QueryDuration expectedQueryDuration = null;
+    private java.util.List<com.aerospike.client.fluent.Operation> operations = null;
 
     /**
      * Creates a QueryBuilder for querying an entire dataset.
@@ -155,6 +156,46 @@ public class QueryBuilder extends AbstractFilterableBuilder implements
         }
         int partId = Partition.getPartitionId(key.digest);
         return partId >= startPartition && partId < endPartition;
+    }
+
+    /**
+     * Returns a bin builder for read operations on a specific bin.
+     * 
+     * <p>Use this method to read bin values or compute expression-based values.
+     * Unlike {@link #readingOnlyBins(String...)}, this method allows you to add
+     * expression operations like {@code selectFrom()}.</p>
+     *
+     * <p>Example:</p>
+     * <pre>{@code
+     * session.query(key)
+     *     .bin("name").get()
+     *     .bin("ageIn20Years").selectFrom("$.age + 20")
+     *     .execute();
+     * }</pre>
+     *
+     * @param binName the name of the bin
+     * @return QueryBuilderBinBuilder for constructing bin operations
+     */
+    public QueryBuilderBinBuilder bin(String binName) {
+        return new QueryBuilderBinBuilder(this, binName);
+    }
+
+    /**
+     * Package-private method to add an operation.
+     * Used by QueryBuilderBinBuilder.
+     */
+    void addOperation(com.aerospike.client.fluent.Operation op) {
+        if (this.operations == null) {
+            this.operations = new java.util.ArrayList<>();
+        }
+        this.operations.add(op);
+    }
+
+    /**
+     * Get the list of operations (may be null).
+     */
+    public java.util.List<com.aerospike.client.fluent.Operation> getOperations() {
+        return this.operations;
     }
 
     /**

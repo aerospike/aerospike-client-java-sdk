@@ -31,6 +31,26 @@ import com.aerospike.client.fluent.exp.Expression;
 public interface BaseQueryBuilder<T extends BaseQueryBuilder<T>> {
 
     /**
+     * Returns a bin builder for read operations on a specific bin.
+     * 
+     * <p>Use this method to read bin values or compute expression-based values.
+     * Unlike {@link #readingOnlyBins(String...)}, this method allows you to add
+     * expression operations like {@code selectFrom()}.</p>
+     *
+     * <p>Example:</p>
+     * <pre>{@code
+     * session.query(key)
+     *     .bin("name").get()
+     *     .bin("ageIn20Years").selectFrom("$.age + 20")
+     *     .execute();
+     * }</pre>
+     *
+     * @param binName the name of the bin
+     * @return QueryBuilderBinBuilder for constructing bin operations
+     */
+    QueryBuilderBinBuilder bin(String binName);
+
+    /**
      * Specifies which bins to read from the records.
      *
      * <p>This method allows you to optimize query performance by only reading

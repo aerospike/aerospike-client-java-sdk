@@ -4,10 +4,17 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.SortedMap;
+import java.util.function.Consumer;
 
 import com.aerospike.client.fluent.CdtGetOrRemoveBuilder.CdtOperation;
 import com.aerospike.client.fluent.cdt.ListOrder;
 import com.aerospike.client.fluent.cdt.MapOrder;
+import com.aerospike.client.fluent.dsl.BooleanExpression;
+import com.aerospike.client.fluent.exp.Exp;
+import com.aerospike.client.fluent.exp.Expression;
+import com.aerospike.client.fluent.exp.ExpReadFlags;
+import com.aerospike.client.fluent.exp.ExpWriteFlags;
+import com.aerospike.client.fluent.query.PreparedDsl;
 
 public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractCdtBuilder<T> {
     public BinBuilder(T opBuilder, String binName) {
@@ -125,6 +132,322 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      */
     public T add(double amount) {
         return opBuilder.add(new Bin(binName, amount));
+    }
+
+    // ==================================================================
+    // Expression Operations - Read and write values computed from DSL expressions
+    // 
+    // Each operation supports 5 DSL input types:
+    // 1. String dsl - DSL string expression
+    // 2. BooleanExpression - Programmatic boolean expression
+    // 3. PreparedDsl - Prepared DSL with parameters
+    // 4. Exp - Low-level expression builder
+    // 5. Expression - Compiled expression
+    //
+    // Each also has an overload with Consumer<Options> for configuring flags.
+    // ==================================================================
+
+    // ----------------------------------------
+    // selectFrom - Read expression operations
+    // ----------------------------------------
+
+    /**
+     * Create a read expression operation from a DSL string.
+     * @param dsl the DSL expression to evaluate
+     * @return the parent builder for method chaining
+     */
+    public T selectFrom(String dsl) {
+        return opBuilder.addOp(ExpressionOpHelper.createReadOp(binName, dsl, ExpReadFlags.DEFAULT));
+    }
+
+    /**
+     * Create a read expression operation from a DSL string with options.
+     * @param dsl the DSL expression to evaluate
+     * @param options a consumer to configure expression options
+     * @return the parent builder for method chaining
+     */
+    public T selectFrom(String dsl, Consumer<ExpressionReadOptions> options) {
+        ExpressionReadOptions opts = new ExpressionReadOptions();
+        options.accept(opts);
+        return opBuilder.addOp(ExpressionOpHelper.createReadOp(binName, dsl, opts.getFlags()));
+    }
+
+    /**
+     * Create a read expression operation from a BooleanExpression.
+     * @param dsl the boolean expression to evaluate
+     * @return the parent builder for method chaining
+     */
+    public T selectFrom(BooleanExpression dsl) {
+        return opBuilder.addOp(ExpressionOpHelper.createReadOp(binName, dsl, ExpReadFlags.DEFAULT));
+    }
+
+    /**
+     * Create a read expression operation from a BooleanExpression with options.
+     * @param dsl the boolean expression to evaluate
+     * @param options a consumer to configure expression options
+     * @return the parent builder for method chaining
+     */
+    public T selectFrom(BooleanExpression dsl, Consumer<ExpressionReadOptions> options) {
+        ExpressionReadOptions opts = new ExpressionReadOptions();
+        options.accept(opts);
+        return opBuilder.addOp(ExpressionOpHelper.createReadOp(binName, dsl, opts.getFlags()));
+    }
+
+    /**
+     * Create a read expression operation from a PreparedDsl.
+     * @param dsl the prepared DSL statement
+     * @param params the parameters to bind
+     * @return the parent builder for method chaining
+     */
+    public T selectFrom(PreparedDsl dsl, Object... params) {
+        return opBuilder.addOp(ExpressionOpHelper.createReadOp(binName, dsl, params, ExpReadFlags.DEFAULT));
+    }
+
+    /**
+     * Create a read expression operation from a PreparedDsl with options.
+     * @param dsl the prepared DSL statement
+     * @param options a consumer to configure expression options
+     * @param params the parameters to bind
+     * @return the parent builder for method chaining
+     */
+    public T selectFrom(PreparedDsl dsl, Consumer<ExpressionReadOptions> options, Object... params) {
+        ExpressionReadOptions opts = new ExpressionReadOptions();
+        options.accept(opts);
+        return opBuilder.addOp(ExpressionOpHelper.createReadOp(binName, dsl, params, opts.getFlags()));
+    }
+
+    /**
+     * Create a read expression operation from an Exp.
+     * @param exp the expression to evaluate
+     * @return the parent builder for method chaining
+     */
+    public T selectFrom(Exp exp) {
+        return opBuilder.addOp(ExpressionOpHelper.createReadOp(binName, exp, ExpReadFlags.DEFAULT));
+    }
+
+    /**
+     * Create a read expression operation from an Exp with options.
+     * @param exp the expression to evaluate
+     * @param options a consumer to configure expression options
+     * @return the parent builder for method chaining
+     */
+    public T selectFrom(Exp exp, Consumer<ExpressionReadOptions> options) {
+        ExpressionReadOptions opts = new ExpressionReadOptions();
+        options.accept(opts);
+        return opBuilder.addOp(ExpressionOpHelper.createReadOp(binName, exp, opts.getFlags()));
+    }
+
+    /**
+     * Create a read expression operation from an Expression.
+     * @param exp the compiled expression to evaluate
+     * @return the parent builder for method chaining
+     */
+    public T selectFrom(Expression exp) {
+        return opBuilder.addOp(ExpressionOpHelper.createReadOp(binName, exp, ExpReadFlags.DEFAULT));
+    }
+
+    /**
+     * Create a read expression operation from an Expression with options.
+     * @param exp the compiled expression to evaluate
+     * @param options a consumer to configure expression options
+     * @return the parent builder for method chaining
+     */
+    public T selectFrom(Expression exp, Consumer<ExpressionReadOptions> options) {
+        ExpressionReadOptions opts = new ExpressionReadOptions();
+        options.accept(opts);
+        return opBuilder.addOp(ExpressionOpHelper.createReadOp(binName, exp, opts.getFlags()));
+    }
+
+    // ----------------------------------------
+    // insertFrom - Write with CREATE_ONLY
+    // ----------------------------------------
+
+    /** Create a write expression (CREATE_ONLY) from a DSL string. */
+    public T insertFrom(String dsl) {
+        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, dsl, ExpWriteFlags.CREATE_ONLY));
+    }
+
+    /** Create a write expression (CREATE_ONLY) from a DSL string with options. */
+    public T insertFrom(String dsl, Consumer<ExpressionWriteOptions> options) {
+        ExpressionWriteOptions opts = new ExpressionWriteOptions(ExpWriteFlags.CREATE_ONLY);
+        options.accept(opts);
+        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, dsl, opts.getFlags()));
+    }
+
+    /** Create a write expression (CREATE_ONLY) from a BooleanExpression. */
+    public T insertFrom(BooleanExpression dsl) {
+        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, dsl, ExpWriteFlags.CREATE_ONLY));
+    }
+
+    /** Create a write expression (CREATE_ONLY) from a BooleanExpression with options. */
+    public T insertFrom(BooleanExpression dsl, Consumer<ExpressionWriteOptions> options) {
+        ExpressionWriteOptions opts = new ExpressionWriteOptions(ExpWriteFlags.CREATE_ONLY);
+        options.accept(opts);
+        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, dsl, opts.getFlags()));
+    }
+
+    /** Create a write expression (CREATE_ONLY) from a PreparedDsl. */
+    public T insertFrom(PreparedDsl dsl, Object... params) {
+        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, dsl, params, ExpWriteFlags.CREATE_ONLY));
+    }
+
+    /** Create a write expression (CREATE_ONLY) from a PreparedDsl with options. */
+    public T insertFrom(PreparedDsl dsl, Consumer<ExpressionWriteOptions> options, Object... params) {
+        ExpressionWriteOptions opts = new ExpressionWriteOptions(ExpWriteFlags.CREATE_ONLY);
+        options.accept(opts);
+        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, dsl, params, opts.getFlags()));
+    }
+
+    /** Create a write expression (CREATE_ONLY) from an Exp. */
+    public T insertFrom(Exp exp) {
+        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, exp, ExpWriteFlags.CREATE_ONLY));
+    }
+
+    /** Create a write expression (CREATE_ONLY) from an Exp with options. */
+    public T insertFrom(Exp exp, Consumer<ExpressionWriteOptions> options) {
+        ExpressionWriteOptions opts = new ExpressionWriteOptions(ExpWriteFlags.CREATE_ONLY);
+        options.accept(opts);
+        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, exp, opts.getFlags()));
+    }
+
+    /** Create a write expression (CREATE_ONLY) from an Expression. */
+    public T insertFrom(Expression exp) {
+        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, exp, ExpWriteFlags.CREATE_ONLY));
+    }
+
+    /** Create a write expression (CREATE_ONLY) from an Expression with options. */
+    public T insertFrom(Expression exp, Consumer<ExpressionWriteOptions> options) {
+        ExpressionWriteOptions opts = new ExpressionWriteOptions(ExpWriteFlags.CREATE_ONLY);
+        options.accept(opts);
+        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, exp, opts.getFlags()));
+    }
+
+    // ----------------------------------------
+    // updateFrom - Write with UPDATE_ONLY
+    // ----------------------------------------
+
+    /** Create a write expression (UPDATE_ONLY) from a DSL string. */
+    public T updateFrom(String dsl) {
+        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, dsl, ExpWriteFlags.UPDATE_ONLY));
+    }
+
+    /** Create a write expression (UPDATE_ONLY) from a DSL string with options. */
+    public T updateFrom(String dsl, Consumer<ExpressionWriteOptions> options) {
+        ExpressionWriteOptions opts = new ExpressionWriteOptions(ExpWriteFlags.UPDATE_ONLY);
+        options.accept(opts);
+        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, dsl, opts.getFlags()));
+    }
+
+    /** Create a write expression (UPDATE_ONLY) from a BooleanExpression. */
+    public T updateFrom(BooleanExpression dsl) {
+        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, dsl, ExpWriteFlags.UPDATE_ONLY));
+    }
+
+    /** Create a write expression (UPDATE_ONLY) from a BooleanExpression with options. */
+    public T updateFrom(BooleanExpression dsl, Consumer<ExpressionWriteOptions> options) {
+        ExpressionWriteOptions opts = new ExpressionWriteOptions(ExpWriteFlags.UPDATE_ONLY);
+        options.accept(opts);
+        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, dsl, opts.getFlags()));
+    }
+
+    /** Create a write expression (UPDATE_ONLY) from a PreparedDsl. */
+    public T updateFrom(PreparedDsl dsl, Object... params) {
+        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, dsl, params, ExpWriteFlags.UPDATE_ONLY));
+    }
+
+    /** Create a write expression (UPDATE_ONLY) from a PreparedDsl with options. */
+    public T updateFrom(PreparedDsl dsl, Consumer<ExpressionWriteOptions> options, Object... params) {
+        ExpressionWriteOptions opts = new ExpressionWriteOptions(ExpWriteFlags.UPDATE_ONLY);
+        options.accept(opts);
+        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, dsl, params, opts.getFlags()));
+    }
+
+    /** Create a write expression (UPDATE_ONLY) from an Exp. */
+    public T updateFrom(Exp exp) {
+        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, exp, ExpWriteFlags.UPDATE_ONLY));
+    }
+
+    /** Create a write expression (UPDATE_ONLY) from an Exp with options. */
+    public T updateFrom(Exp exp, Consumer<ExpressionWriteOptions> options) {
+        ExpressionWriteOptions opts = new ExpressionWriteOptions(ExpWriteFlags.UPDATE_ONLY);
+        options.accept(opts);
+        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, exp, opts.getFlags()));
+    }
+
+    /** Create a write expression (UPDATE_ONLY) from an Expression. */
+    public T updateFrom(Expression exp) {
+        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, exp, ExpWriteFlags.UPDATE_ONLY));
+    }
+
+    /** Create a write expression (UPDATE_ONLY) from an Expression with options. */
+    public T updateFrom(Expression exp, Consumer<ExpressionWriteOptions> options) {
+        ExpressionWriteOptions opts = new ExpressionWriteOptions(ExpWriteFlags.UPDATE_ONLY);
+        options.accept(opts);
+        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, exp, opts.getFlags()));
+    }
+
+    // ----------------------------------------
+    // upsertFrom - Write with DEFAULT (upsert)
+    // ----------------------------------------
+
+    /** Create a write expression (upsert) from a DSL string. */
+    public T upsertFrom(String dsl) {
+        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, dsl, ExpWriteFlags.DEFAULT));
+    }
+
+    /** Create a write expression (upsert) from a DSL string with options. */
+    public T upsertFrom(String dsl, Consumer<ExpressionWriteOptions> options) {
+        ExpressionWriteOptions opts = new ExpressionWriteOptions(ExpWriteFlags.DEFAULT);
+        options.accept(opts);
+        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, dsl, opts.getFlags()));
+    }
+
+    /** Create a write expression (upsert) from a BooleanExpression. */
+    public T upsertFrom(BooleanExpression dsl) {
+        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, dsl, ExpWriteFlags.DEFAULT));
+    }
+
+    /** Create a write expression (upsert) from a BooleanExpression with options. */
+    public T upsertFrom(BooleanExpression dsl, Consumer<ExpressionWriteOptions> options) {
+        ExpressionWriteOptions opts = new ExpressionWriteOptions(ExpWriteFlags.DEFAULT);
+        options.accept(opts);
+        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, dsl, opts.getFlags()));
+    }
+
+    /** Create a write expression (upsert) from a PreparedDsl. */
+    public T upsertFrom(PreparedDsl dsl, Object... params) {
+        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, dsl, params, ExpWriteFlags.DEFAULT));
+    }
+
+    /** Create a write expression (upsert) from a PreparedDsl with options. */
+    public T upsertFrom(PreparedDsl dsl, Consumer<ExpressionWriteOptions> options, Object... params) {
+        ExpressionWriteOptions opts = new ExpressionWriteOptions(ExpWriteFlags.DEFAULT);
+        options.accept(opts);
+        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, dsl, params, opts.getFlags()));
+    }
+
+    /** Create a write expression (upsert) from an Exp. */
+    public T upsertFrom(Exp exp) {
+        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, exp, ExpWriteFlags.DEFAULT));
+    }
+
+    /** Create a write expression (upsert) from an Exp with options. */
+    public T upsertFrom(Exp exp, Consumer<ExpressionWriteOptions> options) {
+        ExpressionWriteOptions opts = new ExpressionWriteOptions(ExpWriteFlags.DEFAULT);
+        options.accept(opts);
+        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, exp, opts.getFlags()));
+    }
+
+    /** Create a write expression (upsert) from an Expression. */
+    public T upsertFrom(Expression exp) {
+        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, exp, ExpWriteFlags.DEFAULT));
+    }
+
+    /** Create a write expression (upsert) from an Expression with options. */
+    public T upsertFrom(Expression exp, Consumer<ExpressionWriteOptions> options) {
+        ExpressionWriteOptions opts = new ExpressionWriteOptions(ExpWriteFlags.DEFAULT);
+        options.accept(opts);
+        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, exp, opts.getFlags()));
     }
 
     // ==================================================================

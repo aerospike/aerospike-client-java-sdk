@@ -9,7 +9,7 @@ public class PreparedDsl {
         this.statement = statement;
     }
     
-    protected String formValue(Object ...params) {
+    public String formValue(Object ...params) {
         Pattern pattern = Pattern.compile("\\$(\\d+)");
         Matcher matcher = pattern.matcher(statement);
         StringBuffer sb = new StringBuffer();
