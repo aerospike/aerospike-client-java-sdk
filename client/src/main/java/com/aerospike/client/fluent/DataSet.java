@@ -133,7 +133,6 @@ public class DataSet {
         else if (object instanceof Byte || object instanceof Short || object instanceof Integer || object instanceof Long) {
             return id(((Number)object).longValue());
         }
-        //else {if (object.getClass().isArray() && Byte.class.isAssignableFrom(object.getClass().getComponentType())) {
         else if (object instanceof byte[]) {
 			return id((byte[])object);
         }

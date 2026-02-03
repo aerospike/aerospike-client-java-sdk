@@ -345,9 +345,9 @@ public class OperationWithNoBinsBuilder extends AbstractSessionOperationBuilder<
                 throw new IllegalStateException("received an action of " + opType + " which should be handled elsewhere");
             }
         } catch (AerospikeException ae) {
-            if (failOnFilteredOut && ae.getResultCode() == ResultCode.FILTERED_OUT) {
-                return new RecordStream();
-            }
+//            if (failOnFilteredOut && ae.getResultCode() == ResultCode.FILTERED_OUT) {
+//                return new RecordStream();
+//            }
             return new RecordStream(new RecordResult(key, ae, 0));
         }
         int resultCode = result ? ResultCode.OK : ResultCode.KEY_NOT_FOUND_ERROR;

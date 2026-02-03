@@ -106,9 +106,16 @@ class IndexesMonitor {
                     }
                     catch (InterruptedException ie) {
                         Thread.currentThread().interrupt();
+                        break;
                     }
                     catch (Throwable th) {
                         Log.error("Error updating index information: " + th.getMessage());
+                        try {
+                            Thread.sleep(frequency.toMillis());
+                        }
+                        catch (InterruptedException ie) {
+                            Thread.currentThread().interrupt();
+                        }
                     }
                 }
             }

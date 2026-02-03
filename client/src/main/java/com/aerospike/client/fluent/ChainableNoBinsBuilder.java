@@ -754,7 +754,6 @@ public class ChainableNoBinsBuilder extends AbstractSessionOperationBuilder<Chai
      * These can be executed more efficiently using the original point operation path.
      */
     private boolean isSingleKeyOperation() {
-        /* TODO Tim: This code is wrong. Batch should never be used on a single key.
         if (operationSpecs.size() != 1) {
             return false;
         }
@@ -762,12 +761,7 @@ public class ChainableNoBinsBuilder extends AbstractSessionOperationBuilder<Chai
     	OperationSpec spec = operationSpecs.get(0);
     	System.out.println("operationSpecs:" + operationSpecs.size() + ',' + spec.getKeys().size()
     		+ ',' + spec.getOperations().isEmpty() + ',' + spec.getWhereClause() + ',' + defaultWhereClause);
-        return spec.getKeys().size() == 1 &&
-               spec.getOperations().isEmpty() && // No bin operations
-               spec.getWhereClause() == null && // No operation-level where clause
-               defaultWhereClause == null; // No batch-level where clause
-        */
-    	return operationSpecs.size() == 1;
+        return spec.getKeys().size() == 1;
     }
 
     /**

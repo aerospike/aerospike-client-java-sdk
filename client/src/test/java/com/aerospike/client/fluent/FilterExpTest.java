@@ -169,7 +169,7 @@ public class FilterExpTest extends ClusterTest {
 
 	@Test
 	public void batch() {
-		List<Key> keys = args.set.ids(List.of(keyA, keyB));
+		List<Key> keys = args.set.ids(List.of(keyA, keyB, "doesn'Exist"));
         RecordStream rs = session.query(keys)
     	    .where("$.A == 1") // Exp.build(Exp.eq(Exp.intBin(binA), Exp.val(1)));
 	        .failOnFilteredOut()
@@ -180,9 +180,12 @@ public class FilterExpTest extends ClusterTest {
         int val = rec.getInt(binA);
 		assertEquals(1, val);
 
-		// TODO: Why does this return true.
+		// Since "failOnFilteredOut" was specified, we expect there to be 2 record, as the second one was filtered out
+        assertTrue(rs.hasNext());
+        RecordResult recResult = rs.next();
+        assertEquals(recResult.resultCode(), ResultCode.FILTERED_OUT);
+        
         assertFalse(rs.hasNext());
-        rec = rs.next().recordOrThrow();
 	}
 
 	@Test
