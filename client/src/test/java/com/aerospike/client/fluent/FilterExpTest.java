@@ -184,7 +184,7 @@ public class FilterExpTest extends ClusterTest {
         assertTrue(rs.hasNext());
         RecordResult recResult = rs.next();
         assertEquals(recResult.resultCode(), ResultCode.FILTERED_OUT);
-        
+
         assertFalse(rs.hasNext());
 	}
 
@@ -816,51 +816,51 @@ public class FilterExpTest extends ClusterTest {
 		testExps(exp1, exp2);
 	}
 
-/* TODO Support complex batch
 	@Test
 	public void batchKeyFilter() {
 		// Write/Delete records with filter.
-		List<Key> keys = args.set.ids(List.of(keyA, keyB));
+		RecordStream rs = session
+			.upsert(args.set.id(keyA))
+				.bin(binA).setTo(3)
+				.where("$.A == 1")
+			.upsert(args.set.id(keyB))
+				.bin(binA).setTo(3)
+				.where("$.A == 1")
+				.failOnFilteredOut()
+			.delete(args.set.id(keyC))
+				.where("$.A == 0")
+			.execute();
 
-		BatchWritePolicy wp = new BatchWritePolicy();
-		wp.filterExp = Exp.build(Exp.eq(Exp.intBin(binA), Exp.val(1)));
+	    assertTrue(rs.hasNext());
+	    Record rec = rs.next().recordOrThrow();
 
-		BatchDeletePolicy dp = new BatchDeletePolicy();
-		dp.filterExp = Exp.build(Exp.eq(Exp.intBin(binA), Exp.val(0)));
+	    assertTrue(rs.hasNext());
+        RecordResult recResult = rs.next();
+        assertEquals(recResult.resultCode(), ResultCode.FILTERED_OUT);
 
-		Operation[] put = Operation.array(Operation.put(new Bin(binA, 3)));
+	    assertTrue(rs.hasNext());
+	    rs.next().recordOrThrow();
 
-		List<BatchRecord> brecs = new ArrayList<BatchRecord>();
-		brecs.add(new BatchWrite(wp, keyA, put));
-		brecs.add(new BatchWrite(wp, keyB, put));
-		brecs.add(new BatchDelete(dp, keyC));
+	    assertFalse(rs.hasNext());
 
-		boolean status = client.operate(null, brecs);
-		assertFalse(status); // Filtered out result code causes status to be false.
+	    // Read records
+		List<Key> keys = args.set.ids(List.of(keyA, keyB, keyC));
 
-		BatchRecord br = brecs.get(0);
-		assertEquals(ResultCode.OK, br.resultCode);
+        rs = session.query(keys).execute();
 
-		br = brecs.get(1);
-		assertEquals(ResultCode.FILTERED_OUT, br.resultCode);
+        assertTrue(rs.hasNext());
+        rec = rs.next().recordOrThrow();
+        int val = rec.getInt(binA);
+		assertEquals(3, val);
 
-		br = brecs.get(2);
-		assertEquals(ResultCode.OK, br.resultCode);
+        assertTrue(rs.hasNext());
+        rec = rs.next().recordOrThrow();
+        val = rec.getInt(binA);
+		assertEquals(2, val);
 
-		// Read records
-		Key[] keys = new Key[] {keyA, keyB, keyC};
-		Record[] recs = client.get(null, keys, binA);
-
-		Record r = recs[0];
-		assertBinEqual(keyA, r, binA, 3);
-
-		r = recs[1];
-		assertBinEqual(keyB, r, binA, 2);
-
-		r = recs[2];
-		assertNull(r);
+        assertFalse(rs.hasNext());
 	}
-*/
+
 	private void testDsl(String dsl) {
 		AerospikeException ae = assertThrows(AerospikeException.class, () -> {
 			RecordStream rs2 = session.query(args.set.id(keyA))
