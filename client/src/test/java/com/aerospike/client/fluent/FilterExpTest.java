@@ -275,7 +275,6 @@ public class FilterExpTest extends ClusterTest {
 		        .failOnFilteredOut()
 		        .execute();
 
-	        // TODO: hasNext() returns false so FILTERED_OUT exception is not thrown.
 		    assertTrue(rs.hasNext());
 		    rs.next().recordOrThrow();
 		});
@@ -283,38 +282,48 @@ public class FilterExpTest extends ClusterTest {
 		assertEquals(ResultCode.FILTERED_OUT, ae.getResultCode());
 	}
 
-/* TODO Need read level operations support.
 	@Test
 	public void operateRead() {
-		WritePolicy policy = new WritePolicy();
-		policy.filterExp = Exp.build(Exp.eq(Exp.intBin(binA), Exp.val(1)));
+		RecordStream rs = session.upsert(args.set.id(keyA))
+        	.bin(binA).get()
+	        .where("$.A == 1") // Exp.build(Exp.eq(Exp.intBin(binA), Exp.val(1)));
+	        .execute();
 
-		Record r = client.operate(policy, keyA, Operation.get(binA));
+        assertTrue(rs.hasNext());
+        Record rec = rs.next().recordOrThrow();
+        int val = rec.getInt(binA);
+		assertEquals(1, val);
 
-		assertBinEqual(keyA, r, binA, 1);
 
-		r = client.operate(policy, keyB, Operation.get(binA));
+		rs = session.upsert(args.set.id(keyB))
+        	.bin(binA).get()
+	        .where("$.A == 1") // Exp.build(Exp.eq(Exp.intBin(binA), Exp.val(1)));
+	        .execute();
 
-		assertEquals(null, r);
+        assertFalse(rs.hasNext());
 	}
 
 	@Test
 	public void operateReadExcept() {
-		WritePolicy policy = new WritePolicy();
-		policy.filterExp = Exp.build(Exp.eq(Exp.intBin(binA), Exp.val(1)));
-		policy.failOnFilteredOut = true;
+		RecordStream rs = session.upsert(args.set.id(keyA))
+        	.bin(binA).get()
+	        .where("$.A == 1") // Exp.build(Exp.eq(Exp.intBin(binA), Exp.val(1)));
+	        .failOnFilteredOut()
+	        .execute();
 
-		client.operate(policy, keyA, Operation.get(binA));
+        AerospikeException ae = assertThrows(AerospikeException.class, () -> {
+    		RecordStream rs2 = session.upsert(args.set.id(keyB))
+	        	.bin(binA).get()
+		        .where("$.A == 1") // Exp.build(Exp.eq(Exp.intBin(binA), Exp.val(1)));
+		        .failOnFilteredOut()
+		        .execute();
 
-		AerospikeException ae = assertThrows(AerospikeException.class, new ThrowingRunnable() {
-			public void run() {
-				client.operate(policy, keyB, Operation.get(binA));
-			}
+		    assertTrue(rs2.hasNext());
+		    rs2.next().recordOrThrow();
 		});
 
 		assertEquals(ResultCode.FILTERED_OUT, ae.getResultCode());
 	}
-*/
 
 	@Test
 	public void operateWrite() {
