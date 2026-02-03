@@ -189,10 +189,14 @@ public class BatchTest extends ClusterTest {
         assertFalse(rs.hasNext());
 	}
 
-	/* TODO Need complex external API
+/* TODO How query multiple keys each with different ops.
 	@Test
 	public void batchReadComplex() {
-		// Batch allows multiple namespaces in one call, but example test environment may only have one namespace.
+		RecordStream rs = session
+			.query(args.set.id(KeyPrefix + 1))
+				.readingOnlyBins(BinName)
+			.query(args.set.id(KeyPrefix + 2))
+			.execute();
 
 		// bin * 8
 		Expression exp = Exp.build(Exp.mul(Exp.intBin(BinName), Exp.val(8)));
@@ -243,7 +247,6 @@ public class BatchTest extends ClusterTest {
 		}
 	}
 */
-
 /* TODO Need batch read with operations api
 	@Test
 	public void batchListReadOperate() {
@@ -449,7 +452,6 @@ public class BatchTest extends ClusterTest {
 		}
 	}
 
-/* TODO Is delete supposed to return if successful or whether deleted key existed?
 	@Test
 	public void batchDeleteSingleNotFound() {
 		int[] keys = new int[10];
@@ -459,14 +461,9 @@ public class BatchTest extends ClusterTest {
 			keys[i] = firstKey + i;
 		}
 
-        List<Boolean> deletes = session.delete(args.set.ids(keys)).execute();
-        assertEquals(keys.length, deletes.size());
-
-        for (boolean status : deletes) {
-        	assertFalse(status);
-		}
+        RecordStream rs = session.delete(args.set.ids(keys)).execute();
+    	assertFalse(rs.hasNext());
 	}
-*/
 
 /* TODO How set different resetTtlOnReadAtPercent in same batch??
 	@Test

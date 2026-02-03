@@ -227,7 +227,6 @@ public class FilterExpTest extends ClusterTest {
 		        .failOnFilteredOut()
 		        .execute();
 
-	        // TODO: hasNext() returns false so FILTERED_OUT exception is not thrown.
 		    assertTrue(rs.hasNext());
 		    rs.next().recordOrThrow();
         });
