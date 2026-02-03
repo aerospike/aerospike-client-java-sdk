@@ -311,7 +311,12 @@ public class FilterExpTest extends ClusterTest {
 	        .failOnFilteredOut()
 	        .execute();
 
-        AerospikeException ae = assertThrows(AerospikeException.class, () -> {
+        assertTrue(rs.hasNext());
+        Record rec = rs.next().recordOrThrow();
+        int val = rec.getInt(binA);
+		assertEquals(1, val);
+
+		AerospikeException ae = assertThrows(AerospikeException.class, () -> {
     		RecordStream rs2 = session.upsert(args.set.id(keyB))
 	        	.bin(binA).get()
 		        .where("$.A == 1") // Exp.build(Exp.eq(Exp.intBin(binA), Exp.val(1)));
