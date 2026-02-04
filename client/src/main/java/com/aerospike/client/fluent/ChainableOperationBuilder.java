@@ -871,7 +871,7 @@ public class ChainableOperationBuilder extends AbstractOperationBuilder<Chainabl
 
         @Override
         public OpType getOpType() {
-            return currentSpec != null ? currentSpec.getOpType() : null;
+            return currentSpec != null ? ChainableOperationBuilder.this.getOpType() : null;
         }
 
         @Override

@@ -264,7 +264,30 @@ public abstract class AbstractSessionOperationBuilder<T extends AbstractSessionO
     }
 
     protected OpType getOpType() {
+        if (this.recordExistsAction != null) {
+            return opTypeFromRecordExistsAction(this.recordExistsAction);
+        }
         return this.opType;
+    }
+    
+    /**
+     * Convert RecordExistsAction to the corresponding OpType.
+     */
+    private static OpType opTypeFromRecordExistsAction(RecordExistsAction action) {
+        switch (action) {
+        case CREATE_ONLY:
+            return OpType.INSERT;
+        case UPDATE_ONLY:
+            return OpType.UPDATE;
+        case UPDATE:
+            return OpType.UPSERT;
+        case REPLACE:
+            return OpType.REPLACE;
+        case REPLACE_ONLY:
+            return OpType.REPLACE_IF_EXISTS;
+        default:
+            throw new IllegalStateException("Unknown RecordExistsAction: " + action);
+        }
     }
     
     /**
