@@ -18,7 +18,7 @@ class OperationSpec {
     /** The keys that this operation applies to */
     private final List<Key> keys;
     
-    /** The type of operation (UPSERT, UPDATE, INSERT, REPLACE, DELETE, TOUCH, EXISTS, or null for query) */
+    /** The type of operation (UPSERT, UPDATE, INSERT, REPLACE, DELETE, TOUCH, EXISTS or null for query) */
     private final OpType opType;
     
     /** The list of operations to perform on the bins (empty for DELETE, TOUCH, EXISTS) */
@@ -113,7 +113,9 @@ class OperationSpec {
     }
 
     public boolean isRespondAllKeys() {
-        return respondAllKeys;
+        // If UPDATE or REPLACE_IF_EXISTS is specified we must respond all keys too, as these
+        // records SHOULD throw an exception if the record doesn't exist.
+        return respondAllKeys || opType == OpType.REPLACE_IF_EXISTS || opType == OpType.UPDATE;
     }
 
     public void setRespondAllKeys(boolean respondAllKeys) {

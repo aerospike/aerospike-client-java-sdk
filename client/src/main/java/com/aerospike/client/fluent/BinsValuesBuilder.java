@@ -644,12 +644,18 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
         BatchExecutor.execute(cluster, commands, status);
 
         List<RecordResult> results = new ArrayList<>();
+        // UPDATE and REPLACE_IF_EXISTS must always report KEY_NOT_FOUND_ERROR because
+        // these operations are semantically expected to fail on non-existent records.
+        OpType opType = opBuilder.getOpType();
+        boolean effectiveRespondAllKeys = respondAllKeys || 
+            opType == OpType.UPDATE || opType == OpType.REPLACE_IF_EXISTS;
+        
         for (int i = 0; i < keys.size(); i++) {
             BatchRecord br = batchRecords.get(i);
             // Handle respondAllKeys and filterExp behavior
             if (switch (br.resultCode) {
-            case ResultCode.KEY_NOT_FOUND_ERROR -> respondAllKeys;
-            case ResultCode.FILTERED_OUT -> failOnFilteredOut || respondAllKeys;
+            case ResultCode.KEY_NOT_FOUND_ERROR -> effectiveRespondAllKeys;
+            case ResultCode.FILTERED_OUT -> failOnFilteredOut || effectiveRespondAllKeys;
             default -> true;
             }) {
                 if (policy.getStackTraceOnException() && br.resultCode != ResultCode.OK) {

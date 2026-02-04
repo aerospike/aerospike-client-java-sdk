@@ -366,9 +366,16 @@ public class OperationBuilder extends AbstractOperationBuilder<OperationBuilder>
         return keys.size() > 1;
     }
 
+    /**
+     * {@inheritDoc}
+     * 
+     * <p>Returns the effective respondAllKeys value. UPDATE and REPLACE_IF_EXISTS
+     * operations always return true because they must report KEY_NOT_FOUND_ERROR
+     * when the record doesn't exist.</p>
+     */
     @Override
     public boolean isRespondAllKeys() {
-        return respondAllKeys;
+        return isEffectiveRespondAllKeys();
     }
 
     public int getExpirationAsInt(long expirationInSeconds) {
@@ -543,8 +550,9 @@ public class OperationBuilder extends AbstractOperationBuilder<OperationBuilder>
 	            batchRecords.add(new BatchWrite(key, null, ops, opType, generation, ttl));
 	        }
 
+	        // Use effective value: UPDATE/REPLACE_IF_EXISTS must always get server responses for non-existent keys
 	        parent = new BatchWriteCommand(cluster, partitions, txnToUse, namespace,
-	            batchRecords, filterExp, respondAllKeys, settings);
+	            batchRecords, filterExp, isEffectiveRespondAllKeys(), settings);
        }
         else {
 	        for (Key key : keys) {
@@ -553,8 +561,9 @@ public class OperationBuilder extends AbstractOperationBuilder<OperationBuilder>
 
 	        ReadAttr attr = new ReadAttr(partitions, settings);
 
+	        // Use effective value: UPDATE/REPLACE_IF_EXISTS must always get server responses for non-existent keys
 	        parent = new BatchReadCommand(cluster, partitions, txnToUse, namespace,
-		            batchRecords, filterExp, respondAllKeys, settings, attr);
+		            batchRecords, filterExp, isEffectiveRespondAllKeys(), settings, attr);
        }
 
         BatchStatus status = new BatchStatus(true);
@@ -633,8 +642,9 @@ public class OperationBuilder extends AbstractOperationBuilder<OperationBuilder>
 	            batchRecords.add(new BatchWrite(key, null, ops, opType, generation, ttl));
 	        }
 
+	        // Use effective value: UPDATE/REPLACE_IF_EXISTS must always get server responses for non-existent keys
 	        parent = new BatchWriteCommand(cluster, partitions, txnToUse, namespace,
-	            batchRecords, filterExp, respondAllKeys, settings);
+	            batchRecords, filterExp, isEffectiveRespondAllKeys(), settings);
        }
         else {
 	        for (Key key : keys) {
@@ -643,8 +653,9 @@ public class OperationBuilder extends AbstractOperationBuilder<OperationBuilder>
 
 	        ReadAttr attr = new ReadAttr(partitions, settings);
 
+	        // Use effective value: UPDATE/REPLACE_IF_EXISTS must always get server responses for non-existent keys
 	        parent = new BatchReadCommand(cluster, partitions, txnToUse, namespace,
-		            batchRecords, filterExp, respondAllKeys, settings, attr);
+		            batchRecords, filterExp, isEffectiveRespondAllKeys(), settings, attr);
        }
 
         BatchStatus status = new BatchStatus(true);
@@ -747,7 +758,8 @@ public class OperationBuilder extends AbstractOperationBuilder<OperationBuilder>
         if (keys.size() == 1) {
             try {
                 Record rec = operate(cluster, partitions, args, settings, filterExp, firstKey);
-                if (respondAllKeys || rec != null) {
+                // Use effective value: UPDATE/REPLACE_IF_EXISTS must report null records
+                if (isEffectiveRespondAllKeys() || rec != null) {
                     return new RecordStream(firstKey, rec);
                 }
             }
@@ -773,7 +785,8 @@ public class OperationBuilder extends AbstractOperationBuilder<OperationBuilder>
                     es.submit(() -> {
                         try {
                             Record record = operate(cluster, partitions, args, settings, filterExp, key);
-                            if (respondAllKeys || record != null) {
+                            // Use effective value: UPDATE/REPLACE_IF_EXISTS must report null records
+                            if (isEffectiveRespondAllKeys() || record != null) {
                                 stream.publish(new RecordResult(key, record, idx));
                             }
                         } catch (AerospikeException ae) {
@@ -840,12 +853,14 @@ public class OperationBuilder extends AbstractOperationBuilder<OperationBuilder>
                 try {
                     Record rec = operate(cluster, partitions, args, settings, filterExp, key);
 
-                    if (respondAllKeys || rec != null) {
+                    // Use effective value: UPDATE/REPLACE_IF_EXISTS must report null records
+                    if (isEffectiveRespondAllKeys() || rec != null) {
                         asyncStream.publish(new RecordResult(key, rec, index));
                     }
                 } catch (AerospikeException ae) {
                     if (ae.getResultCode() == ResultCode.FILTERED_OUT) {
-                        if (failOnFilteredOut || respondAllKeys) {
+                        // Use effective value: UPDATE/REPLACE_IF_EXISTS must report filtered-out records
+                        if (failOnFilteredOut || isEffectiveRespondAllKeys()) {
                             asyncStream.publish(new RecordResult(key, ae, index));
                         }
                         // Otherwise skip this record

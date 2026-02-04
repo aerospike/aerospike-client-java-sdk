@@ -191,11 +191,10 @@ public class OpTypeTest extends ClusterTest {
 			.bin("name").setTo("should_fail")
 			.execute();
 
-        // TODO: BN: Determine why this test fails (no result?)
-//		assertTrue(rs.hasNext());
-//		RecordResult result = rs.next();
-//		assertFalse(result.isOk());
-//		assertEquals(ResultCode.KEY_NOT_FOUND_ERROR, result.resultCode());
+		assertTrue(rs.hasNext());
+		RecordResult result = rs.next();
+		assertFalse(result.isOk());
+		assertEquals(ResultCode.KEY_NOT_FOUND_ERROR, result.resultCode());
 	}
 
 	// ========== UPDATE Tests ==========
@@ -230,16 +229,17 @@ public class OpTypeTest extends ClusterTest {
 		// Ensure record doesn't exist
 		session.delete(args.set.id(key)).execute();
 
-		// Update should fail because record doesn't exist
+		// Update should fail because record doesn't exist.
+		// Note: No respondAllKeys() needed - UPDATE operations always return errors
+		// because they are semantically expected to fail on non-existent records.
 		RecordStream rs = session.update(args.set.id(key))
 			.bin("name").setTo("should_fail")
 			.execute();
 
-		// TODO: BN: Determine why this test fails (no result?)
-//		assertTrue(rs.hasNext());
-//		RecordResult result = rs.next();
-//		assertFalse(result.isOk());
-//		assertEquals(ResultCode.KEY_NOT_FOUND_ERROR, result.resultCode());
+		assertTrue(rs.hasNext());
+		RecordResult result = rs.next();
+		assertFalse(result.isOk());
+		assertEquals(ResultCode.KEY_NOT_FOUND_ERROR, result.resultCode());
 	}
 
 	// ========== DELETE Tests ==========
