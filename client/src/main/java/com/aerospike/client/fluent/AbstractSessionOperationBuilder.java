@@ -9,7 +9,6 @@ import com.aerospike.client.fluent.command.Txn;
 import com.aerospike.client.fluent.policy.CommitLevel;
 import com.aerospike.client.fluent.policy.ReadModeAP;
 import com.aerospike.client.fluent.policy.ReadModeSC;
-import com.aerospike.client.fluent.policy.RecordExistsAction;
 import com.aerospike.client.fluent.policy.Replica;
 
 /**
@@ -32,7 +31,7 @@ import com.aerospike.client.fluent.policy.Replica;
  */
 public abstract class AbstractSessionOperationBuilder<T extends AbstractSessionOperationBuilder<T>> extends AbstractFilterableBuilder {
     protected final Session session;
-    protected final OpType opType;
+    protected OpType opType;
     protected long expirationInSeconds = 0;  // Default, get value from server
     protected int generation = 0;
     protected Txn txnToUse;
@@ -54,7 +53,6 @@ public abstract class AbstractSessionOperationBuilder<T extends AbstractSessionO
     protected Integer readTouchTtlPercent = null;
 
     // Write behavior settings
-    protected RecordExistsAction recordExistsAction = null;
     protected CommitLevel commitLevel = null;
     protected Boolean durableDelete = null;
     protected Boolean respondAllOps = null;
@@ -264,30 +262,7 @@ public abstract class AbstractSessionOperationBuilder<T extends AbstractSessionO
     }
 
     protected OpType getOpType() {
-        if (this.recordExistsAction != null) {
-            return opTypeFromRecordExistsAction(this.recordExistsAction);
-        }
         return this.opType;
-    }
-    
-    /**
-     * Convert RecordExistsAction to the corresponding OpType.
-     */
-    private static OpType opTypeFromRecordExistsAction(RecordExistsAction action) {
-        switch (action) {
-        case CREATE_ONLY:
-            return OpType.INSERT;
-        case UPDATE_ONLY:
-            return OpType.UPDATE;
-        case UPDATE:
-            return OpType.UPSERT;
-        case REPLACE:
-            return OpType.REPLACE;
-        case REPLACE_ONLY:
-            return OpType.REPLACE_IF_EXISTS;
-        default:
-            throw new IllegalStateException("Unknown RecordExistsAction: " + action);
-        }
     }
     
     /**
@@ -307,28 +282,6 @@ public abstract class AbstractSessionOperationBuilder<T extends AbstractSessionO
     public T inTransaction(Txn txn) {
         this.txnToUse = txn;
         return self();
-    }
-
-    /**
-     * Get the RecordExistsAction based on operation type.
-     */
-    protected static RecordExistsAction recordExistsActionFromOpType(OpType opType) {
-        switch (opType) {
-        case INSERT:
-            return RecordExistsAction.CREATE_ONLY;
-        case UPDATE:
-            return RecordExistsAction.UPDATE_ONLY;
-        case UPSERT:
-            return RecordExistsAction.UPDATE;
-        case REPLACE:
-            return RecordExistsAction.REPLACE;
-        case REPLACE_IF_EXISTS:
-            return RecordExistsAction.REPLACE_ONLY;
-        case TOUCH:
-            return RecordExistsAction.UPDATE_ONLY;
-        default:
-            throw new IllegalStateException("received an action of " + opType + " which should be handled elsewhere");
-        }
     }
 
     /**
@@ -611,33 +564,12 @@ public abstract class AbstractSessionOperationBuilder<T extends AbstractSessionO
     // ========================================================================
 
     /**
-     * Set how to handle writes when the record already exists.
-     * <p>
-     * Options:
-     * <ul>
-     * <li>UPDATE: Create or update record. Merge write bins with existing bins</li>
-     * <li>UPDATE_ONLY: Update record only. Fail if record does not exist</li>
-     * <li>REPLACE: Create or replace record. Delete existing bins not in write command</li>
-     * <li>REPLACE_ONLY: Replace record only. Fail if record does not exist</li>
-     * <li>CREATE_ONLY: Create only. Fail if record exists</li>
-     * </ul>
-     * </p>
-     *
-     * @param action record exists action
-     * @return this builder for method chaining
-     */
-    public T withRecordExistsAction(RecordExistsAction action) {
-        this.recordExistsAction = action;
-        return self();
-    }
-
-    /**
      * Set the write operation to only create new records (fail if exists).
      *
      * @return this builder for method chaining
      */
     public T createOnly() {
-        this.recordExistsAction = RecordExistsAction.CREATE_ONLY;
+        this.opType = OpType.INSERT;
         return self();
     }
 
@@ -647,7 +579,7 @@ public abstract class AbstractSessionOperationBuilder<T extends AbstractSessionO
      * @return this builder for method chaining
      */
     public T updateOnly() {
-        this.recordExistsAction = RecordExistsAction.UPDATE_ONLY;
+        this.opType = OpType.UPDATE;
         return self();
     }
 
@@ -657,7 +589,7 @@ public abstract class AbstractSessionOperationBuilder<T extends AbstractSessionO
      * @return this builder for method chaining
      */
     public T replaceRecord() {
-        this.recordExistsAction = RecordExistsAction.REPLACE;
+        this.opType = OpType.REPLACE;
         return self();
     }
 
@@ -667,7 +599,7 @@ public abstract class AbstractSessionOperationBuilder<T extends AbstractSessionO
      * @return this builder for method chaining
      */
     public T replaceOnly() {
-        this.recordExistsAction = RecordExistsAction.REPLACE_ONLY;
+        this.opType = OpType.REPLACE_IF_EXISTS;
         return self();
     }
 

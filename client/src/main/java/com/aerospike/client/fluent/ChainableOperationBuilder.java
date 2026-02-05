@@ -909,17 +909,6 @@ public class ChainableOperationBuilder extends AbstractOperationBuilder<Chainabl
             return ChainableOperationBuilder.this.getExpirationInSecondsAndCheckValue(dateTime);
         }
 
-//        @Override
-//        public WritePolicy getWritePolicy(Settings settings, int generation, OpType opType) {
-//            WritePolicy result = settings.asWritePolicy();
-//            result.generation = generation;
-//            result.generationPolicy = generation > 0 ?
-//                    GenerationPolicy.EXPECT_GEN_EQUAL :
-//                    GenerationPolicy.NONE;
-//            result.recordExistsAction = AbstractSessionOperationBuilder.recordExistsActionFromOpType(opType);
-//            return result;
-//        }
-//
         @Override
         public void showWarningsOnException(AerospikeException ae, Txn txn, Key key, int expiration) {
             if (Log.warnEnabled()) {

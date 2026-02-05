@@ -17,7 +17,6 @@ import com.aerospike.client.fluent.command.Txn;
 import com.aerospike.client.fluent.policy.CommitLevel;
 import com.aerospike.client.fluent.policy.ReadModeAP;
 import com.aerospike.client.fluent.policy.ReadModeSC;
-import com.aerospike.client.fluent.policy.RecordExistsAction;
 import com.aerospike.client.fluent.policy.Replica;
 
 /**
@@ -63,7 +62,7 @@ public class FluentApiSettingsTest {
         public ReadModeSC getReadModeSC() { return readModeSC; }
         public Replica getReplica() { return replica; }
         public Integer getReadTouchTtlPercent() { return readTouchTtlPercent; }
-        public RecordExistsAction getRecordExistsAction() { return recordExistsAction; }
+        public OpType getOpType() { return opType; }
         public CommitLevel getCommitLevel() { return commitLevel; }
         public Boolean getDurableDelete() { return durableDelete; }
         public Boolean getRespondAllOps() { return respondAllOps; }
@@ -245,38 +244,31 @@ public class FluentApiSettingsTest {
     // ========================================================================
 
     @Test
-    public void testWithRecordExistsAction() {
-        TestOperationBuilder builder = new TestOperationBuilder();
-        builder.withRecordExistsAction(RecordExistsAction.UPDATE_ONLY);
-        assertEquals(RecordExistsAction.UPDATE_ONLY, builder.getRecordExistsAction());
-    }
-
-    @Test
     public void testCreateOnly() {
         TestOperationBuilder builder = new TestOperationBuilder();
         builder.createOnly();
-        assertEquals(RecordExistsAction.CREATE_ONLY, builder.getRecordExistsAction());
+        assertEquals(OpType.INSERT, builder.getOpType());
     }
 
     @Test
     public void testUpdateOnly() {
         TestOperationBuilder builder = new TestOperationBuilder();
         builder.updateOnly();
-        assertEquals(RecordExistsAction.UPDATE_ONLY, builder.getRecordExistsAction());
+        assertEquals(OpType.UPDATE, builder.getOpType());
     }
 
     @Test
     public void testReplaceRecord() {
         TestOperationBuilder builder = new TestOperationBuilder();
         builder.replaceRecord();
-        assertEquals(RecordExistsAction.REPLACE, builder.getRecordExistsAction());
+        assertEquals(OpType.REPLACE, builder.getOpType());
     }
 
     @Test
     public void testReplaceOnly() {
         TestOperationBuilder builder = new TestOperationBuilder();
         builder.replaceOnly();
-        assertEquals(RecordExistsAction.REPLACE_ONLY, builder.getRecordExistsAction());
+        assertEquals(OpType.REPLACE_IF_EXISTS, builder.getOpType());
     }
 
     @Test
@@ -477,7 +469,7 @@ public class FluentApiSettingsTest {
         assertEquals(5000, builder.getTotalTimeout());
         assertEquals(3, builder.getMaxRetries());
         assertEquals(ReadModeAP.ALL, builder.getReadModeAP());
-        assertEquals(RecordExistsAction.UPDATE_ONLY, builder.getRecordExistsAction());
+        assertEquals(OpType.UPDATE, builder.getOpType());
         assertEquals(CommitLevel.COMMIT_ALL, builder.getCommitLevel());
         assertTrue(builder.getDurableDelete());
         assertTrue(builder.getSendKey());

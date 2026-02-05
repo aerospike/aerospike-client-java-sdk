@@ -23,8 +23,6 @@ import static org.junit.jupiter.api.Assertions.fail;
 
 import org.junit.jupiter.api.Test;
 
-import com.aerospike.client.fluent.policy.RecordExistsAction;
-
 public class ReplaceTest extends ClusterTest {
     @Test
     public void replace() {
@@ -35,8 +33,7 @@ public class ReplaceTest extends ClusterTest {
                 .values("value1", "value2")
                 .execute();
 
-        session.upsert(key)
-                .withRecordExistsAction(RecordExistsAction.REPLACE)
+        session.replace(key)
                 .bins("bin3")
                 .values("value3")
                 .execute();
