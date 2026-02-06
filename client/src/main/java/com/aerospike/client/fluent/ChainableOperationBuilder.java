@@ -871,7 +871,14 @@ public class ChainableOperationBuilder extends AbstractOperationBuilder<Chainabl
 
         @Override
         public OpType getOpType() {
-            return currentSpec != null ? ChainableOperationBuilder.this.getOpType() : null;
+            if (currentSpec == null) {
+                return null;
+            }
+            // If parent opType differs from spec opType, it was explicitly modified, `relaceOlhy`
+            // Use parent's in that case, otherwise use currentSpec's
+            OpType parentOpType = ChainableOperationBuilder.this.opType;
+            OpType specOpType = currentSpec.getOpType();
+            return parentOpType != specOpType ? parentOpType : specOpType;
         }
 
         @Override
