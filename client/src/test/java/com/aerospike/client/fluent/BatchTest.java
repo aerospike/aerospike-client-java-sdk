@@ -188,7 +188,16 @@ public class BatchTest extends ClusterTest {
 		}
         assertFalse(rs.hasNext());
 	}
-
+    public void batchReadComplex() {
+        RecordStream rs = session
+            .update(args.set.id(KeyPrefix+7))
+                .bin("name").setTo("Tim")
+            
+            .query(args.set.id(KeyPrefix + 1))
+//                .readingOnlyBins(BinName)
+            .query(args.set.id(KeyPrefix + 2))
+            .execute();
+    }
 /* TODO How query multiple keys each with different ops.
 	@Test
 	public void batchReadComplex() {

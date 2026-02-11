@@ -590,14 +590,14 @@ public class QueryExamples {
             }
             
             // TODO: Put transaction control into policies
-//            session.doInTransaction(txnSession -> {
-//                Optional<RecordResult> recResult = txnSession.query(customerDataSet.id(1)).execute().getFirst();
-//                if (true) {
-//                    txnSession.insert(customerDataSet.id(3));
-//                }
-//                txnSession.delete(customerDataSet.id(3));
-//                txnSession.insert(customerDataSet.id(3)).notInAnyTransaction().execute();
-//            });
+            session.doInTransaction(txnSession -> {
+                Optional<RecordResult> recResult = txnSession.query(customerDataSet.id(1)).execute().getFirst();
+                if (true) {
+                    txnSession.insert(customerDataSet.id(3));
+                }
+                txnSession.delete(customerDataSet.id(3));
+                txnSession.insert(customerDataSet.id(3)).notInAnyTransaction().execute();
+            });
             
             customers = session.query(customerDataSet.ids(20, 21)).execute().toObjectList(customerMapper);
             System.out.println(customers); 
@@ -689,6 +689,7 @@ public class QueryExamples {
                 }
                 System.out.println("---- End sort ---");
             }
+            
 
             // ---------------------------
             // Background query operations
@@ -725,7 +726,6 @@ public class QueryExamples {
                     .defaultWhere("$.updated == false")
                     .execute();
                         
-                    
             
             // --------------------
             // Object mapping
