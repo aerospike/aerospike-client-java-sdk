@@ -37,6 +37,20 @@ import com.aerospike.client.fluent.policy.Behavior;
 import com.aerospike.client.fluent.policy.Behavior.Selectors;
 
 public class PutGetTest extends ClusterTest {
+
+    @Test
+    public void getNonExisting() {
+        String key = "nonexistingkey";
+        String binName = "testBin";
+
+        // Delete record if it already exists.
+        Key dKey = args.set.id(key);
+        session.delete(dKey).execute();
+
+        RecordStream recordStream = session.query(dKey).execute();
+        assertNull(recordStream.getFirstRecord());
+    }
+
 	@Test
 	public void putGet() {
 		String key = "putgetkey";
