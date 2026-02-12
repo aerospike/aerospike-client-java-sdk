@@ -325,7 +325,7 @@ public class RecordStream implements Iterator<RecordResult>, Closeable {
      * @return
      */
     public Record getFirstRecord() {
-        return this.getFirst().map(RecordResult::recordOrThrow).orElse(null);
+        return hasNext() ? next().recordOrThrow() : null;
     }
     /**
      * Get the first element from the stream. If this element failed for any reason, an exception is thrown.
