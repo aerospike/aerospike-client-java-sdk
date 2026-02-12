@@ -30,8 +30,8 @@ import org.junit.jupiter.api.Test;
 
 public class BatchTest extends ClusterTest {
 	private static final String BinName = "bbin";
-	//private static final String BinName2 = "bbin2";
-	//private static final String BinName3 = "bbin3";
+	private static final String BinName2 = "bbin2";
+	private static final String BinName3 = "bbin3";
 	private static final String ListBin = "lbin";
 	private static final String ListBin2 = "lbin2";
 	private static final String KeyPrefix = "batchkey";
@@ -361,9 +361,29 @@ public class BatchTest extends ClusterTest {
 	}
 */
 
-	/* TODO Wait for external batch complex api
+	/* TODO Wait for external batch complex api*/
+	 // BN TRY update instead of query.
 	@Test
 	public void batchWriteComplex() {
+		DataSet ds = new DataSet("invalid", args.set.getSet());
+
+		// Returns PARAMETER ERROR
+		//Feb 03 2026 23:06:53 GMT: WARNING (batch): (batch.c:1110) batch request has unknown namespace
+		//Feb 03 2026 23:06:53 GMT: WARNING (batch): (batch.c:1195) Batch keys mismatch. Expected 4 Received 1
+
+		/*
+        System.out.println("START batchWriteComplex");
+		RecordStream rs = session
+			.upsert(args.set.id(KeyPrefix + 1))
+				.bin(BinName2).setTo(100)
+			.upsert(ds.id(KeyPrefix + 1))
+				.bin(BinName2).setTo(100)
+			.upsert(args.set.id(KeyPrefix + 6))
+				.bin(BinName3).upsertFrom("$.bbin + 1000")
+			.delete(args.set.id(10002))
+			.execute();
+        System.out.println("END batchWriteComplex");
+
 		Expression wexp1 = Exp.build(Exp.add(Exp.intBin(BinName), Exp.val(1000)));
 
 		Operation[] wops1 = Operation.array(Operation.put(new Bin(BinName2, 100)));
@@ -413,8 +433,9 @@ public class BatchTest extends ClusterTest {
 		assertBinEqual(br1.key, br1.record, BinName2, 100);
 		assertBinEqual(br2.key, br2.record, BinName3, 1006);
 		assertEquals(ResultCode.KEY_NOT_FOUND_ERROR, br3.resultCode);
+		*/
 	}
-*/
+
 	@Test
 	public void batchDelete() {
 		// Define keys

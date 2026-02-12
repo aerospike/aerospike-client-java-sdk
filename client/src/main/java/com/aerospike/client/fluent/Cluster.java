@@ -106,10 +106,28 @@ public class Cluster implements Closeable {
         Util.sleep(1000);
     }
 
+    /**
+     * Gets an executor service for running tasks using virtual threads.
+     *
+     * <p>This method returns a new executor service that creates a new virtual thread
+     * for each submitted task. The executor uses the cluster's thread factory which
+     * creates threads with names prefixed with "Aerospike-".</p>
+     *
+     * @return an ExecutorService that creates a new virtual thread per task
+     */
     public ExecutorService getExecutorService() {
     	return Executors.newThreadPerTaskExecutor(threadFactory);
     }
 
+    /**
+     * Starts a new virtual thread to execute the given runnable.
+     *
+     * <p>This is a convenience method for creating and starting a virtual thread
+     * using the cluster's thread factory. The thread will be named with the
+     * "Aerospike-" prefix.</p>
+     *
+     * @param runnable the runnable to execute in the new thread
+     */
     public void startVirtualThread(Runnable runnable) {
         threadFactory.newThread(runnable).start();
     }
@@ -194,7 +212,14 @@ public class Cluster implements Closeable {
     }
 
     /**
-     * Return the cluster definition.
+     * Gets the cluster definition used to create this cluster connection.
+     *
+     * <p>The cluster definition contains the configuration settings that were
+     * used to establish the connection, including seed hosts, connection pool
+     * settings, and other cluster-specific parameters.</p>
+     *
+     * @return the ClusterDefinition instance for this cluster
+     * @see ClusterDefinition
      */
     public ClusterDefinition getClusterDefinition() {
         return def;
@@ -277,6 +302,17 @@ public class Cluster implements Closeable {
         }
     }
 
+    /**
+     * Gets a random active node from the cluster.
+     *
+     * <p>This method selects an active node using a round-robin approach based on
+     * an internal counter. It iterates through the available nodes to find one that
+     * is currently active.</p>
+     *
+     * @return an active Node from the cluster
+     * @throws AerospikeException.InvalidNode if the cluster is empty or no active
+     *         nodes are available
+     */
     public final Node getRandomNode() throws AerospikeException.InvalidNode {
 		// Must copy array reference for copy on write semantics to work.
 		Node[] nodeArray = nodes;
@@ -297,12 +333,32 @@ public class Cluster implements Closeable {
 		throw new AerospikeException.InvalidNode("Cluster is empty");
 	}
 
+	/**
+	 * Gets a copy of the current array of nodes in the cluster.
+	 *
+	 * <p>The returned array is a snapshot of the nodes at the time of the call.
+	 * The cluster may update its node list asynchronously, so the returned array
+	 * may not reflect the current state of the cluster.</p>
+	 *
+	 * @return an array of Node objects representing the current cluster nodes
+	 */
 	public final Node[] getNodes() {
 		// Must copy array reference for copy on write semantics to work.
 		Node[] nodeArray = nodes;
 		return nodeArray;
 	}
 
+	/**
+	 * Validates that the cluster has at least one node available.
+	 *
+	 * <p>This method checks if the cluster has any nodes and throws an exception
+	 * if the cluster is empty. It returns a snapshot of the current node array
+	 * if validation succeeds.</p>
+	 *
+	 * @return an array of Node objects representing the current cluster nodes
+	 * @throws AerospikeException with ResultCode.SERVER_NOT_AVAILABLE if the
+	 *         cluster is empty
+	 */
 	public final Node[] validateNodes() {
 		// Must copy array reference for copy on write semantics to work.
 		Node[] nodeArray = nodes;
@@ -313,6 +369,17 @@ public class Cluster implements Closeable {
 		return nodeArray;
 	}
 
+	/**
+	 * Gets a node by its name.
+	 *
+	 * <p>This method searches for a node in the cluster with the specified name
+	 * and returns it if found. If no node with the given name exists, an exception
+	 * is thrown.</p>
+	 *
+	 * @param nodeName the name of the node to retrieve
+	 * @return the Node with the specified name
+	 * @throws AerospikeException.InvalidNode if no node with the given name exists
+	 */
 	public final Node getNode(String nodeName) throws AerospikeException.InvalidNode {
 		Node node = findNode(nodeName);
 
@@ -334,10 +401,30 @@ public class Cluster implements Closeable {
 		return null;
 	}
 
+	/**
+	 * Gets the partition map for all namespaces in the cluster.
+	 *
+	 * <p>The partition map contains information about how data is partitioned
+	 * across nodes in the cluster for each namespace. This information is used
+	 * for routing operations to the correct nodes.</p>
+	 *
+	 * @return a map from namespace names to their Partitions objects
+	 * @see Partitions
+	 */
 	public final HashMap<String,Partitions> getPartitionMap() {
 		return partitionMap;
 	}
 
+	/**
+	 * Recovers a connection that has failed or become invalid.
+	 *
+	 * <p>This method is used internally to recover connections that have encountered
+	 * errors. The connection recovery process attempts to re-establish the connection
+	 * and restore it to a usable state.</p>
+	 *
+	 * @param cs the ConnectionRecover object containing connection recovery information
+	 * @see ConnectionRecover
+	 */
 	public final void recoverConnection(ConnectionRecover cs) {
 		tend.recoverConnection(cs);
 	}
@@ -376,12 +463,27 @@ public class Cluster implements Closeable {
     }
 
 	/**
-	 * Return log context.
+	 * Gets the log context for this cluster.
+	 *
+	 * <p>The log context provides logging functionality specific to this cluster
+	 * instance, allowing log messages to be associated with the cluster connection.</p>
+	 *
+	 * @return the Log.Context for this cluster
+	 * @see Log.Context
 	 */
 	public final Log.Context getLogContext() {
 		return context;
 	}
 
+    /**
+     * Increments and returns the replica index.
+     *
+     * <p>This method is used internally to select replica nodes for operations.
+     * The replica index is incremented atomically and used in a round-robin
+     * fashion to distribute operations across available replicas.</p>
+     *
+     * @return the incremented replica index value
+     */
     public final int incrReplicaIndex() {
     	return replicaIndex.getAndIncrement();
     }
@@ -423,10 +525,29 @@ public class Cluster implements Closeable {
 		return retryCount.get();
 	}
 
+	/**
+	 * Sets the array of nodes for this cluster.
+	 *
+	 * <p>This method updates the cluster's node list. It is typically called
+	 * internally by the cluster tend mechanism when nodes are discovered or
+	 * removed from the cluster.</p>
+	 *
+	 * @param nodes the new array of nodes for the cluster
+	 */
 	public final void setNodes(Node[] nodes) {
     	this.nodes = nodes;
     }
 
+    /**
+     * Checks if the cluster tend mechanism is currently active.
+     *
+     * <p>The cluster tend mechanism is responsible for monitoring the cluster
+     * topology and keeping the node list up to date. This method indicates
+     * whether that monitoring is currently running.</p>
+     *
+     * @return true if the cluster tend mechanism is active, false otherwise
+     * @see ClusterTend
+     */
     public final boolean isActive() {
     	return tend.isActive();
     }

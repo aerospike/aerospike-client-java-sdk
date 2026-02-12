@@ -322,11 +322,10 @@ public class RecordStream implements Iterator<RecordResult>, Closeable {
      * Convenience method to get the first record out of the record stream. If the record is not present, {@code null}
      * will be returned. If an exception has occurred, the exception will be thrown.
      * <p/>
-     * This is identical to {@code .getFirst().orElse(null).recordOrThrow()}
      * @return
      */
     public Record getFirstRecord() {
-        return this.getFirst().orElse(null).recordOrThrow();
+        return this.getFirst().map(RecordResult::recordOrThrow).orElse(null);
     }
     /**
      * Get the first element from the stream. If this element failed for any reason, an exception is thrown.

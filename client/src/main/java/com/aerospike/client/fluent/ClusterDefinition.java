@@ -115,7 +115,14 @@ public class ClusterDefinition {
     }
 
     /**
-     * Copy constructor.
+     * Copy constructor that creates a new ClusterDefinition with the same configuration
+     * as the provided ClusterDefinition.
+     *
+     * <p>This creates a deep copy of all configuration settings including hosts,
+     * authentication credentials, TLS settings, and connection parameters. The new
+     * instance can be modified independently without affecting the original.</p>
+     *
+     * @param other the ClusterDefinition to copy from
      */
     public ClusterDefinition(ClusterDefinition other) {
     	this.userSuppliedSystemSettings = other.userSuppliedSystemSettings;
@@ -172,10 +179,33 @@ public class ClusterDefinition {
     	return setCredentials(AuthMode.INTERNAL, userName, password);
     }
 
+    /**
+     * Sets authentication credentials for the cluster connection using external authentication.
+     *
+     * <p>This method configures username/password authentication using Aerospike's
+     * external authentication mode. External authentication uses clear text passwords
+     * and is typically used with LDAP or other external authentication systems.</p>
+     *
+     * @param userName the username for authentication
+     * @param password the password for authentication
+     * @return this ClusterDefinition for method chaining
+     */
     public ClusterDefinition withExternalCredentials(String userName, String password) {
     	return setCredentials(AuthMode.EXTERNAL, userName, password);
     }
 
+    /**
+     * Sets authentication credentials for the cluster connection using external insecure authentication.
+     *
+     * <p>This method configures username/password authentication using Aerospike's
+     * external insecure authentication mode. This mode is similar to external authentication
+     * but does not require TLS encryption. Use with caution as credentials are transmitted
+     * in clear text.</p>
+     *
+     * @param userName the username for authentication
+     * @param password the password for authentication
+     * @return this ClusterDefinition for method chaining
+     */
     public ClusterDefinition withExternalInsecureCredentials(String userName, String password) {
     	return setCredentials(AuthMode.EXTERNAL_INSECURE, userName, password);
     }
@@ -205,6 +235,16 @@ public class ClusterDefinition {
 		return this;
    }
 
+    /**
+     * Configures the cluster connection to use certificate-based (PKI) authentication.
+     *
+     * <p>This method enables Public Key Infrastructure (PKI) authentication, which uses
+     * client certificates instead of username/password credentials. When using PKI
+     * authentication, the client certificate must be configured via TLS settings.</p>
+     *
+     * @return this ClusterDefinition for method chaining
+     * @see #withTlsConfigOf()
+     */
     public ClusterDefinition withCertificateCredentials() {
     	this.userName = null;
 		this.password = null;
@@ -212,6 +252,11 @@ public class ClusterDefinition {
 		return this;
     }
 
+    /**
+     * Checks whether authentication is enabled for this cluster definition.
+     *
+     * @return true if authentication is enabled (any mode other than NONE), false otherwise
+     */
     public boolean isAuthEnabled() {
     	return authMode != AuthMode.NONE;
     }
@@ -615,114 +660,257 @@ public class ClusterDefinition {
     	return rackIds != null;
     }
 
+	/**
+	 * Gets the client version string.
+	 *
+	 * @return the client version, or "n/a" if not available
+	 */
 	public String getClientVersion() {
 		return clientVersion;
 	}
 
+	/**
+	 * Gets the application ID.
+	 *
+	 * @return the application ID, or null if not set
+	 */
 	public String getAppId() {
 		return appId;
 	}
 
+	/**
+	 * Gets the cluster name.
+	 *
+	 * @return the cluster name, or null if not set
+	 */
 	public String getClusterName() {
 		return clusterName;
 	}
 
+	/**
+	 * Gets the dynamic configuration file path.
+	 *
+	 * @return the configuration file path, or null if dynamic configuration is disabled
+	 */
 	public String getConfigPath() {
 		return configPath;
 	}
 
+	/**
+	 * Gets the username for authentication as a UTF-8 byte array.
+	 *
+	 * @return the username bytes, or null if authentication is not enabled
+	 */
 	public byte[] getUserName() {
 		return userName;
 	}
 
+	/**
+	 * Gets the password for authentication as a UTF-8 byte array.
+	 *
+	 * <p>Note: This returns the clear text password only for external authentication modes.
+	 * For internal authentication, the password is not stored in clear text.</p>
+	 *
+	 * @return the password bytes, or null if authentication is not enabled or using internal auth
+	 */
 	public byte[] getPassword() {
 		return password;
 	}
 
+	/**
+	 * Gets the hashed password for authentication as a UTF-8 byte array.
+	 *
+	 * @return the hashed password bytes, or null if authentication is not enabled
+	 */
 	public byte[] getPasswordHash() {
 		return passwordHash;
 	}
 
+	/**
+	 * Gets the preferred rack IDs for rack-aware operations.
+	 *
+	 * @return an array of rack IDs, or null if rack awareness is not enabled
+	 */
 	public int[] getRackIds() {
 		return rackIds;
 	}
 
+	/**
+	 * Gets the logging context for this cluster definition.
+	 *
+	 * @return the log context, or null if not set
+	 */
 	public Log.Context getContext() {
 		return context;
 	}
 
+	/**
+	 * Gets the current logging level.
+	 *
+	 * @return the logging level
+	 */
 	public Level getLogLevel() {
 		return logLevel;
 	}
 
+	/**
+	 * Gets the custom log callback.
+	 *
+	 * @return the log callback, or null if using standard logging
+	 */
 	public Callback getCallback() {
 		return callback;
 	}
 
+	/**
+	 * Gets the IP address translation map.
+	 *
+	 * @return the IP map, or null if no IP translation is configured
+	 */
 	public Map<String, String> getIpMap() {
 		return ipMap;
 	}
 
+	/**
+	 * Gets the TLS builder configuration.
+	 *
+	 * @return the TLS builder, or null if TLS is not configured
+	 */
 	public TlsBuilder getTlsBuilder() {
 		return tlsBuilder;
 	}
 
+	/**
+	 * Gets the authentication mode.
+	 *
+	 * @return the authentication mode
+	 */
 	public AuthMode getAuthMode() {
 		return authMode;
 	}
 
+	/**
+	 * Gets the maximum socket idle time before trimming connections.
+	 *
+	 * @return the maximum socket idle time as a Duration
+	 */
 	public Duration getMaximumSocketIdleTime() {
 		return Duration.ofNanos(maxSocketIdleNanosTrim);
 	}
 
+	/**
+	 * Gets the minimum number of connections per node.
+	 *
+	 * @return the minimum connections per node
+	 */
 	public int getMinimumConnectionsPerNode() {
 		return minConnsPerNode;
 	}
 
+	/**
+	 * Gets the maximum number of connections per node.
+	 *
+	 * @return the maximum connections per node
+	 */
 	public int getMaximumConnectionsPerNode() {
 		return maxConnsPerNode;
 	}
 
+	/**
+	 * Gets the number of connection pools per node.
+	 *
+	 * @return the number of connection pools per node
+	 */
 	public int getConnPoolsPerNode() {
 		return connPoolsPerNode;
 	}
 
+	/**
+	 * Gets the interval in milliseconds between dynamic configuration checks.
+	 *
+	 * @return the configuration check interval in milliseconds
+	 */
 	public int getConfigInterval() {
 		return configInterval;
 	}
 
+	/**
+	 * Gets the cluster tend interval in milliseconds.
+	 *
+	 * @return the tend interval in milliseconds
+	 */
 	public int getTendInterval() {
 		return tendInterval;
 	}
 
+	/**
+	 * Gets the cluster tend timeout in milliseconds.
+	 *
+	 * @return the tend timeout in milliseconds
+	 */
 	public int getTendTimeout() {
 		return tendTimeout;
 	}
 
+	/**
+	 * Gets the login timeout in milliseconds.
+	 *
+	 * @return the login timeout in milliseconds
+	 */
 	public int getLoginTimeout() {
 		return loginTimeout;
 	}
 
+	/**
+	 * Gets the maximum number of errors allowed in the error window.
+	 *
+	 * @return the maximum errors in the error window
+	 */
 	public int getMaximumErrorsInErrorWindow() {
 		return maxErrorRate;
 	}
 
+	/**
+	 * Gets the number of tend intervals that make up the error window.
+	 *
+	 * @return the number of tend intervals in the error window
+	 */
 	public int getNumTendIntervalsInErrorWindow() {
 		return errorRateWindow;
 	}
 
+	/**
+	 * Checks whether cluster instantiation should fail if connection fails.
+	 *
+	 * @return true if cluster creation should fail on connection failure, false otherwise
+	 */
 	public boolean isFailIfNotConnected() {
 		return failIfNotConnected;
 	}
 
+	/**
+	 * Checks whether alternate services are enabled for cluster discovery.
+	 *
+	 * @return true if alternate services are enabled, false otherwise
+	 */
 	public boolean isUseServicesAlternate() {
 		return useServicesAlternate;
 	}
 
+	/**
+	 * Checks whether single node mode is forced (for testing purposes).
+	 *
+	 * @return true if single node mode is forced, false otherwise
+	 */
 	public boolean isForceSingleNode() {
 		return forceSingleNode;
 	}
 
+	/**
+	 * Gets the array of host definitions for this cluster.
+	 *
+	 * @return the array of Host objects
+	 */
 	public Host[] getHosts() {
 		return hosts;
 	}
