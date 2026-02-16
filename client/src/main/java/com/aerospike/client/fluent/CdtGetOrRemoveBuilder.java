@@ -343,7 +343,7 @@ public class CdtGetOrRemoveBuilder<T extends AbstractOperationBuilder<T>> extend
         }
     }
 
-    public T getIndex() {
+    public T getIndexes() {
         switch (params.getOperation()) {
         case MAP_BY_INDEX:
             return opBuilder.addOp(MapOperation.getByIndex(binName, params.getInt1(), MapReturnType.INDEX, params.context()));
@@ -389,7 +389,7 @@ public class CdtGetOrRemoveBuilder<T extends AbstractOperationBuilder<T>> extend
         }
     }
 
-    public T getReverseIndex() {
+    public T getReverseIndexes() {
         switch (params.getOperation()) {
         case MAP_BY_INDEX:
             return opBuilder.addOp(MapOperation.getByIndex(binName, params.getInt1(), MapReturnType.REVERSE_INDEX, params.context()));
@@ -435,7 +435,7 @@ public class CdtGetOrRemoveBuilder<T extends AbstractOperationBuilder<T>> extend
         }
     }
 
-    public T getRank() {
+    public T getRanks() {
         switch (params.getOperation()) {
         case MAP_BY_INDEX:
             return opBuilder.addOp(MapOperation.getByIndex(binName, params.getInt1(), MapReturnType.RANK, params.context()));
@@ -481,7 +481,7 @@ public class CdtGetOrRemoveBuilder<T extends AbstractOperationBuilder<T>> extend
         }
     }
 
-    public T getReverseRank() {
+    public T getReverseRanks() {
         switch (params.getOperation()) {
         case MAP_BY_INDEX:
             return opBuilder.addOp(MapOperation.getByIndex(binName, params.getInt1(), MapReturnType.REVERSE_RANK, params.context()));
@@ -527,7 +527,7 @@ public class CdtGetOrRemoveBuilder<T extends AbstractOperationBuilder<T>> extend
         }
     }
 
-    public T getKeyAndValue() {
+    public T getKeysAndValues() {
         switch (params.getOperation()) {
         case MAP_BY_INDEX:
             return opBuilder.addOp(MapOperation.getByIndex(binName, params.getInt1(), MapReturnType.KEY_VALUE, params.context()));

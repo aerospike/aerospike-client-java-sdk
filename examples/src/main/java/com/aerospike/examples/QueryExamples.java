@@ -401,6 +401,7 @@ public class QueryExamples {
                 .bin("rooms").onMapKey("room2").mapClear()
                 .bin("rooms").onMapKeyRange("room4", "room9").remove()
                 .bin("rooms").onMapKey("room1").onMapKey("rates").onMapKey(1).add(5)
+                .bin("rooms").onMapKeyRelativeIndexRange("bob", -1, 1).getKeysAndValues()
                 .bin("rooms2").mapClear()
                 .bin("rooms2").onMapKey("child", MapOrder.KEY_ORDERED).onMapKey("subChild").setTo(5)
                 // TODO: How to insert an element into a list which doesn't exist?

@@ -23,10 +23,10 @@ public interface CdtActionNonInvertableBuilder<T extends AbstractOperationBuilde
     public T getValues();
     public T getKeys();
     public T count();
-    public T getIndex();
-    public T getReverseIndex();
-    public T getRank();
-    public T getReverseRank();
-    public T getKeyAndValue();
+    public T getIndexes();
+    public T getReverseIndexes();
+    public T getRanks();
+    public T getReverseRanks();
+    public T getKeysAndValues();
     public T remove();
 }
