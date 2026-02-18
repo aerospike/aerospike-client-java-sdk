@@ -132,3 +132,29 @@ Why These Tests Need It:
 - QueryBlobTest: Uses `Filter.equal()` and `Filter.contains()` with `IndexType.BLOB` for byte array queries
 
 Recommendation: Add public `where(Filter filter)` method to QueryBuilder to support secondary index queries with CDT contexts and collection types without requiring reflection.
+
+3. Multi-Operation Commands Not Supported on Single Key
+
+The fluent API does **not** support executing multiple operations on a single key in one server call like the original client's `operate()` method.
+
+Original Client:
+```java
+// Single server call with multiple operations
+Record record = client.operate(writePolicy, key,
+    Operation.touch(),
+    Operation.getHeader()
+);
+```
+Need two calls for fluent client.
+Fluent API:
+```java
+session.touch(key).expireRecordAfter(Duration.ofSeconds(2)).execute(); 
+RecordStream rs = session.query(key).withNoBins().execute();
+```
+Architectural Limitation:
+- `OperationSpec.canHaveBinOperations()` returns `false` for `TOUCH`, `DELETE`, and `EXISTS`
+- Touch operations are implemented as standalone `OpType` rather than composable operations
+
+Tests Affected:
+- `TouchTest.touchOperate()` - Uses 2 calls instead of 1; functionally equivalent but not architecturally identical
+- Any tests requiring `client.operate()` with mixed operation types on a single key
