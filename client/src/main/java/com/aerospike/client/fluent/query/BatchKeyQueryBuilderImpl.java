@@ -27,6 +27,7 @@ import com.aerospike.client.fluent.AerospikeException;
 import com.aerospike.client.fluent.Cluster;
 import com.aerospike.client.fluent.Key;
 import com.aerospike.client.fluent.Log;
+import com.aerospike.client.fluent.Operation;
 import com.aerospike.client.fluent.RecordResult;
 import com.aerospike.client.fluent.RecordStream;
 import com.aerospike.client.fluent.ResultCode;
@@ -139,7 +140,13 @@ class BatchKeyQueryBuilderImpl extends QueryImpl {
             }
             else {
                 BatchRecord thisBatchRecord;
-                if (getQueryBuilder().getWithNoBins()) {
+                List<Operation> ops = getQueryBuilder().getOperations();
+                
+                if (ops != null && !ops.isEmpty()) {
+                    // Use operations constructor for CDT reads, selectFrom, etc.
+                    thisBatchRecord = new BatchRead(thisKey, filterExp, ops);
+                }
+                else if (getQueryBuilder().getWithNoBins()) {
                     thisBatchRecord = new BatchRead(thisKey, null, false);
                 }
                 else if (getQueryBuilder().getBinNames() != null) {

@@ -1,16 +1,21 @@
 package com.aerospike.client.fluent.query;
 
 import java.util.HashMap;
+import java.util.List;
 
 import com.aerospike.client.fluent.AerospikeException;
 import com.aerospike.client.fluent.Cluster;
 import com.aerospike.client.fluent.Key;
 import com.aerospike.client.fluent.Log;
+import com.aerospike.client.fluent.Operation;
 import com.aerospike.client.fluent.Record;
 import com.aerospike.client.fluent.RecordResult;
 import com.aerospike.client.fluent.RecordStream;
 import com.aerospike.client.fluent.ResultCode;
 import com.aerospike.client.fluent.Session;
+import com.aerospike.client.fluent.command.OperateArgs;
+import com.aerospike.client.fluent.command.OperateReadCommand;
+import com.aerospike.client.fluent.command.OperateReadExecutor;
 import com.aerospike.client.fluent.command.ReadAttr;
 import com.aerospike.client.fluent.command.ReadCommand;
 import com.aerospike.client.fluent.command.ReadExecutor;
@@ -96,13 +101,25 @@ class SingleKeyQueryBuilderImpl extends QueryImpl {
 		ReadAttr attr = new ReadAttr(partitions, policy);
 
 		try {
-			ReadCommand cmd = new ReadCommand(cluster, partitions, txn, key, qb.getBinNames(),
-				qb.getWithNoBins(), filterExp, failOnFilteredOut, policy, attr);
-
-        	ReadExecutor exec = new ReadExecutor(cluster, cmd);
-        	exec.execute();
-
-        	Record record = exec.getRecord();
+			List<Operation> ops = qb.getOperations();
+			Record record;
+			
+			if (ops != null && !ops.isEmpty()) {
+				// Use OperateReadExecutor when there are operations (CDT reads, selectFrom, etc.)
+				OperateArgs operateArgs = new OperateArgs(ops);
+				OperateReadCommand opCmd = new OperateReadCommand(cluster, partitions, txn, key, ops, operateArgs,
+					filterExp, failOnFilteredOut, policy, attr);
+				OperateReadExecutor exec = new OperateReadExecutor(cluster, opCmd);
+				exec.execute();
+				record = exec.getRecord();
+			} else {
+				// Use ReadExecutor for simple bin reads
+				ReadCommand cmd = new ReadCommand(cluster, partitions, txn, key, qb.getBinNames(),
+					qb.getWithNoBins(), filterExp, failOnFilteredOut, policy, attr);
+				ReadExecutor exec = new ReadExecutor(cluster, cmd);
+				exec.execute();
+				record = exec.getRecord();
+			}
             if (record != null || qb.isRespondAllKeys()) {
 	        	return new RecordStream(key, record);
 			}

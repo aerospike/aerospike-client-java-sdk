@@ -8,7 +8,7 @@ import com.aerospike.client.fluent.cdt.CTX;
 import com.aerospike.client.fluent.cdt.ListOrder;
 import com.aerospike.client.fluent.cdt.MapOrder;
 
-class CdtOperationParams {
+public class CdtOperationParams {
     private CdtOperation operation;
     private List<CTX> ctx;
     private int int1;

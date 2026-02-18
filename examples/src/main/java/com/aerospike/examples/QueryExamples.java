@@ -273,6 +273,9 @@ public class QueryExamples {
                 System.out.printf("Secondary index: %s\n", sindex);
                 System.out.println("   " + session.info().secondaryIndexDetails(sindex));
             });
+            
+            session.truncate(customerDataSet);
+            
             session.upsert(customerDataSet.ids(1,2,3,4,5)).bin("holdings").add(1).execute();
             session.upsert(customerDataSet.ids(1,2,3))
                     .bins("name", "age")
@@ -591,14 +594,14 @@ public class QueryExamples {
             }
             
             // TODO: Put transaction control into policies
-            session.doInTransaction(txnSession -> {
-                Optional<RecordResult> recResult = txnSession.query(customerDataSet.id(1)).execute().getFirst();
-                if (true) {
-                    txnSession.insert(customerDataSet.id(3));
-                }
-                txnSession.delete(customerDataSet.id(3));
-                txnSession.insert(customerDataSet.id(3)).notInAnyTransaction().execute();
-            });
+//            session.doInTransaction(txnSession -> {
+//                Optional<RecordResult> recResult = txnSession.query(customerDataSet.id(1)).execute().getFirst();
+//                if (true) {
+//                    txnSession.insert(customerDataSet.id(3));
+//                }
+//                txnSession.delete(customerDataSet.id(3));
+//                txnSession.insert(customerDataSet.id(3)).notInAnyTransaction().execute();
+//            });
             
             customers = session.query(customerDataSet.ids(20, 21)).execute().toObjectList(customerMapper);
             System.out.println(customers); 
@@ -691,6 +694,36 @@ public class QueryExamples {
                 System.out.println("---- End sort ---");
             }
             
+
+            // ---------------------------
+            // Read and write expressions
+            // ---------------------------
+            System.out.println("--- Expression testing ---");
+            session.replace(customerDataSet.id(223))
+                .bin("age").setTo(500)
+                .bin("value").setTo(123)
+                .execute();
+            
+            System.out.printf("Base record: %s\n",
+                    session.query(customerDataSet.id(223)).execute().getFirst());
+
+            print(session.query(customerDataSet.id(223))
+                .bin("age").get()
+                .execute());
+            System.out.println("Using a read expression");
+            rs = session.query(customerDataSet.ids(223))
+                .bin("bob").selectFrom("$.age + $.value")
+                .execute();
+            print(rs);
+            
+            System.out.println("Using a write expression");
+            session.update(customerDataSet.id(223))
+                .bin("bob").upsertFrom("$.age + 2 * $.value")
+                .execute();
+            System.out.printf("Modified record: %s\n",
+                    session.query(customerDataSet.id(223)).execute().getFirst());
+            
+        
 
             // ---------------------------
             // Background query operations

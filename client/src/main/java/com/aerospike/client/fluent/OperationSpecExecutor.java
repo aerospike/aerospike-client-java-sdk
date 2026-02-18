@@ -271,7 +271,12 @@ class OperationSpecExecutor {
      * Create BatchRead for query operations.
      */
     private static BatchRead createBatchRead(OperationSpec spec, Key key, Expression filterExp) {
-        if (spec.getProjectedBins() != null && spec.getProjectedBins().length > 0) {
+        List<Operation> ops = spec.getOperations();
+        
+        if (ops != null && !ops.isEmpty()) {
+            // Use operations constructor for CDT reads, selectFrom, etc.
+            return new BatchRead(key, filterExp, ops);
+        } else if (spec.getProjectedBins() != null && spec.getProjectedBins().length > 0) {
             // Read specific bins
             return new BatchRead(key, spec.getWhereClause(), spec.getProjectedBins());
         } else {

@@ -16,11 +16,13 @@
  */
 package com.aerospike.client.fluent.query;
 
+import com.aerospike.client.fluent.AerospikeException;
 import com.aerospike.client.fluent.AsyncRecordStream;
 import com.aerospike.client.fluent.Cluster;
 import com.aerospike.client.fluent.DataSet;
 import com.aerospike.client.fluent.Log;
 import com.aerospike.client.fluent.RecordStream;
+import com.aerospike.client.fluent.ResultCode;
 import com.aerospike.client.fluent.Session;
 import com.aerospike.client.fluent.command.QueryCommand;
 import com.aerospike.client.fluent.exp.Expression;
@@ -74,6 +76,14 @@ public class IndexQueryBuilderImpl extends QueryImpl {
         Session session = getSession();
         Cluster cluster = session.getCluster();
         QueryBuilder qb = getQueryBuilder();
+        
+        // Check for operations - not supported on index/scan queries
+        if (qb.getOperations() != null && !qb.getOperations().isEmpty()) {
+            throw new AerospikeException(ResultCode.PARAMETER_ERROR,
+                "CDT read operations and expression operations are not currently supported on " +
+                "dataset-based queries (scans and secondary index queries). " +
+                "Use key-based queries instead: session.query(dataSet.id(key1, key2, ...))");
+        }
         Settings policy = session.getBehavior().getSettings(OpKind.READ, OpShape.QUERY, Mode.ANY);
         WhereClauseProcessor dsl = getQueryBuilder().getDsl();
         Filter filter = null;

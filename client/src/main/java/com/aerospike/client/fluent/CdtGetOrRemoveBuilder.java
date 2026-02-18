@@ -33,7 +33,7 @@ public class CdtGetOrRemoveBuilder<T extends AbstractOperationBuilder<T>> extend
                                             CdtContextInvertableBuilder<T>, CdtContextNonInvertableBuilder<T>,
                                             CdtSetterInvertableBuilder<T>, CdtSetterNonInvertableBuilder<T> {
     
-    protected static enum CdtOperation {
+    public static enum CdtOperation {
         MAP_BY_INDEX,
         MAP_BY_INDEX_RANGE,
         MAP_BY_KEY,
