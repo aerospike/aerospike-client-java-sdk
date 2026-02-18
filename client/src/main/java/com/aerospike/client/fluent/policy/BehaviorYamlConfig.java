@@ -3,7 +3,7 @@ package com.aerospike.client.fluent.policy;
 import java.time.Duration;
 import java.util.Map;
 
-class BehaviorYamlConfig {
+public class BehaviorYamlConfig {
 
     private Map<String, BehaviorConfig> behaviors;
     private Map<String, SystemSettingsConfig> system;
