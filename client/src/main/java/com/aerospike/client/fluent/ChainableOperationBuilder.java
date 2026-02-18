@@ -871,7 +871,14 @@ public class ChainableOperationBuilder extends AbstractOperationBuilder<Chainabl
 
         @Override
         public OpType getOpType() {
-            return currentSpec != null ? currentSpec.getOpType() : null;
+            if (currentSpec == null) {
+                return null;
+            }
+            // If parent opType differs from spec opType, it was explicitly modified, `relaceOlhy`
+            // Use parent's in that case, otherwise use currentSpec's
+            OpType parentOpType = ChainableOperationBuilder.this.opType;
+            OpType specOpType = currentSpec.getOpType();
+            return parentOpType != specOpType ? parentOpType : specOpType;
         }
 
         @Override
@@ -909,17 +916,6 @@ public class ChainableOperationBuilder extends AbstractOperationBuilder<Chainabl
             return ChainableOperationBuilder.this.getExpirationInSecondsAndCheckValue(dateTime);
         }
 
-//        @Override
-//        public WritePolicy getWritePolicy(Settings settings, int generation, OpType opType) {
-//            WritePolicy result = settings.asWritePolicy();
-//            result.generation = generation;
-//            result.generationPolicy = generation > 0 ?
-//                    GenerationPolicy.EXPECT_GEN_EQUAL :
-//                    GenerationPolicy.NONE;
-//            result.recordExistsAction = AbstractSessionOperationBuilder.recordExistsActionFromOpType(opType);
-//            return result;
-//        }
-//
         @Override
         public void showWarningsOnException(AerospikeException ae, Txn txn, Key key, int expiration) {
             if (Log.warnEnabled()) {
