@@ -24,87 +24,59 @@ import com.aerospike.client.fluent.Operation;
 import com.aerospike.client.fluent.ResultCode;
 import com.aerospike.client.fluent.exp.Expression;
 
-/**
- * Batch key and read only operations with default policy.
- * Used in batch read commands where different bins are needed for each key.
- */
 public final class BatchRead extends BatchRecord {
-	/**
-	 * Optional expression filter. If filterExp exists and evaluates to false, the specific batch key
-	 * request is not performed and the result code is set to
-	 * {@link com.aerospike.client.fluent.ResultCode#FILTERED_OUT}.
-	 * <p>
-	 * If exists, this filter overrides the batch parent filter expression.
-	 * <p>
-	 * Default: null
-	 */
-	public final Expression filterExp;
-
-	/**
-	 * Bins to retrieve for this key. binNames are mutually exclusive with
-	 * {@link com.aerospike.client.fluent.command.BatchRead#ops}.
-	 */
-	public final String[] binNames;
-
-	/**
-	 * Optional operations for this key. ops are mutually exclusive with
-	 * {@link com.aerospike.client.fluent.command.BatchRead#binNames}. A binName can be emulated with
-	 * {@link com.aerospike.client.Operation#get(String)}
-	 */
 	public final List<Operation> ops;
-
-	/**
-	 * If true, ignore binNames and read all bins.
-	 * If false and binNames are set, read specified binNames.
-	 * If false and binNames are not set, read record header (generation, expiration) only.
-	 */
+	public final String[] binNames;
+	public final int ttl;
 	public final boolean readAllBins;
 
-	/**
-	 * Initialize batch key and bins to retrieve.
-	 */
-	public BatchRead(Key key, Expression filterExp, String[] binNames) {
-		super(key, false);
-		this.filterExp = filterExp;
-		this.binNames = binNames;
-		this.ops = null;
-		this.readAllBins = false;
-	}
-
-	/**
-	 * Initialize batch key and readAllBins indicator.
-	 */
-	public BatchRead(Key key, Expression filterExp, boolean readAllBins) {
-		super(key, false);
-		this.filterExp = filterExp;
-		this.binNames = null;
-		this.ops = null;
-		this.readAllBins = readAllBins;
-	}
-
-	/**
-	 * Initialize batch key and read operations.
-	 */
-	public BatchRead(Key key, Expression filterExp, List<Operation> ops) {
-		super(key, false);
-		this.filterExp = filterExp;
-		this.binNames = null;
+	public BatchRead(Key key, Expression where, BatchAttr attr, int ttl, List<Operation> ops) {
+		super(key, where, attr);
 		this.ops = ops;
+		this.binNames = null;
+		this.ttl = ttl;
+		this.readAllBins = false;
+
+		for (Operation op : ops) {
+			if (op.type == Operation.Type.READ) {
+				if (op.binName == null) {
+					readAttr |= Command.INFO1_GET_ALL;
+				}
+			}
+			else if (op.type == Operation.Type.READ_HEADER) {
+				readAttr |= Command.INFO1_NOBINDATA;
+			}
+		}
+	}
+
+	public BatchRead(Key key, Expression where, BatchAttr attr, int ttl, String[] binNames) {
+		super(key, where, attr);
+		this.ops = null;
+		this.binNames = binNames;
+		this.ttl = ttl;
 		this.readAllBins = false;
 	}
 
-	/**
-	 * Return batch command type.
-	 */
+	public BatchRead(Key key, Expression where, BatchAttr attr, int ttl, boolean readAllBins) {
+		super(key, where, attr);
+		this.ops = null;
+		this.binNames = null;
+		this.ttl = ttl;
+		this.readAllBins = readAllBins;
+
+		if (readAllBins) {
+			readAttr |= Command.INFO1_GET_ALL;
+		}
+		else {
+			readAttr |= Command.INFO1_NOBINDATA;
+		}
+	}
+
 	@Override
 	public Type getType() {
 		return Type.BATCH_READ;
 	}
 
-	/**
-	 * Optimized reference equality check to determine batch wire protocol repeat flag.
-	 * For internal use only.
-	 */
 	@Override
 	public boolean equals(BatchRecord obj) {
 		if (getClass() != obj.getClass()) {
@@ -113,22 +85,19 @@ public final class BatchRead extends BatchRecord {
 
 		BatchRead other = (BatchRead)obj;
 
-		if (filterExp != other.filterExp) {
+		if (where != other.where) {
 			return false;
 		}
 
 		return binNames == other.binNames && ops == other.ops && readAllBins == other.readAllBins;
 	}
 
-	/**
-	 * Return wire protocol size. For internal use only.
-	 */
 	@Override
 	public int size(Command cmd) {
 		int size = 0;
 
-		if (filterExp != null) {
-			size += filterExp.getBytes().length + Command.FIELD_HEADER_SIZE;
+		if (where != null) {
+			size += where.getBytes().length + Command.FIELD_HEADER_SIZE;
 		}
 
 		if (binNames != null) {

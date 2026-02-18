@@ -36,12 +36,10 @@ import com.aerospike.client.fluent.command.BatchExecutor;
 import com.aerospike.client.fluent.command.BatchNode;
 import com.aerospike.client.fluent.command.BatchNodeList;
 import com.aerospike.client.fluent.command.BatchRead;
-import com.aerospike.client.fluent.command.BatchReadCommand;
 import com.aerospike.client.fluent.command.BatchRecord;
 import com.aerospike.client.fluent.command.BatchSingle;
 import com.aerospike.client.fluent.command.BatchStatus;
 import com.aerospike.client.fluent.command.BatchWrite;
-import com.aerospike.client.fluent.command.BatchWriteCommand;
 import com.aerospike.client.fluent.command.IBatchCommand;
 import com.aerospike.client.fluent.command.OperateArgs;
 import com.aerospike.client.fluent.command.OperateWriteCommand;
@@ -66,7 +64,9 @@ public class ObjectBuilder<T> {
     private long expirationInSeconds = 0;
     private long expirationInSecondsForAll = 0;
     private Txn txnToUse;
-
+    private String namespace;
+    private Partitions partitions;
+    private Settings settings;
 
     /**
      * Constructs a new ObjectBuilder for operating on multiple objects.
@@ -479,14 +479,14 @@ public class ObjectBuilder<T> {
         }
 
         if (elements.size() == 1) {
-            return executeSingle(elements.get(0));
+            return executeSingleSync(elements.get(0));
         }
 
         if (elements.size() < OperationBuilder.getBatchOperationThreshold()) {
             return executeIndividualSync();
         }
 
-        return executeBatch();
+        return executeBatchSync();
     }
 
     /**
@@ -531,36 +531,14 @@ public class ObjectBuilder<T> {
     /**
      * Execute operations using batch operations (10+ objects).
      */
-    private RecordStream executeBatch() {
-        long effectiveExpiration = (expirationInSeconds != 0) ? expirationInSeconds : expirationInSecondsForAll;
-        int ttl = getExpirationAsInt(effectiveExpiration);
-
-        List<BatchRecord> batchRecords = new ArrayList<>(elements.size());
-
-        for (T element : elements) {
-            RecordMapper<T> recordMapper = getMapper(element);
-            Key key = getKeyForElement(recordMapper, element);
-            List<Operation> ops = operationsForElement(recordMapper, element);
-            batchRecords.add(new BatchWrite(key, null, ops, opBuilder.getOpType(), generation, ttl));
-        }
-
-        Session session = opBuilder.getSession();
-        Cluster cluster = session.getCluster();
-        String namespace = opBuilder.getDataSet().getNamespace();
-        Partitions partitions = getPartitions(cluster, namespace);
-
-        // Assume all operations are puts (WRITE_RETRYABLE).
-        Settings settings = session.getBehavior()
-        	.getSettings(OpKind.WRITE_RETRYABLE, OpShape.BATCH, partitions.scMode);
-
-        final Expression filterExp = getFilterExp(namespace);
-
-        BatchCommand parent = new BatchWriteCommand(cluster, partitions, txnToUse, namespace,
-            batchRecords, filterExp, opBuilder.respondAllKeys, settings);
-
+    private RecordStream executeBatchSync() {
+    	BatchCommand parent = prepareBatch();
+        List<BatchRecord> records = parent.getRecords();
+        Cluster cluster = opBuilder.getSession().getCluster();
         BatchStatus status = new BatchStatus(true);
-        List<BatchNode> bns = BatchNodeList.generate(cluster, partitions, settings.getReplicaOrder(), batchRecords,
-        	status);
+
+        List<BatchNode> bns = BatchNodeList.generate(cluster, partitions,
+        	settings.getReplicaOrder(), records, status);
 
         IBatchCommand[] commands = new IBatchCommand[bns.size()];
         int count = 0;
@@ -568,33 +546,28 @@ public class ObjectBuilder<T> {
         for (BatchNode bn : bns) {
             if (bn.offsetsSize == 1) {
                 int i = bn.offsets[0];
-                BatchRecord rec = batchRecords.get(i);
+                BatchRecord rec = records.get(i);
                 BatchWrite bw = (BatchWrite)rec;
-                BatchAttr attr = new BatchAttr();
 
-                attr.setWriteSingle((BatchWriteCommand)parent, bw);
-                attr.adjustWrite(bw.ops);
-                attr.setOpSize(bw.ops);
-
-                commands[count++] = new BatchSingle.OperateRecordSync(cluster, parent, bw.ops, attr, rec, status,
-                        bn.node);
+                commands[count++] = new BatchSingle.OperateRecordSync(cluster, parent, bw,
+                	status, bn.node);
             }
             else {
-                commands[count++] = new Batch.OperateListSync(cluster, parent, bn, batchRecords, status);
+                commands[count++] = new Batch.OperateListSync(cluster, parent, bn, records, status);
             }
         }
 
         if (txnToUse != null) {
-            TxnMonitor.addKeysBatchWrite(txnToUse, cluster, partitions, settings, batchRecords);
+            TxnMonitor.addKeysBatchWrite(txnToUse, cluster, partitions, settings, records);
         }
 
         BatchExecutor.execute(cluster, commands, status);
 
-        AsyncRecordStream recordStream = new AsyncRecordStream(batchRecords.size());
+        AsyncRecordStream recordStream = new AsyncRecordStream(records.size());
 
         try {
-            for (int i = 0; i < batchRecords.size(); i++) {
-                BatchRecord br = batchRecords.get(i);
+            for (int i = 0; i < records.size(); i++) {
+                BatchRecord br = records.get(i);
                 if (opBuilder.shouldIncludeResult(br.resultCode)) {
                     recordStream.publish(AbstractFilterableBuilder.createRecordResultFromBatchRecord(br, settings, i));
                 }
@@ -610,35 +583,13 @@ public class ObjectBuilder<T> {
      * Execute operations using async batch operations (10+ objects).
      */
     private RecordStream executeBatchAsync() {
-        long effectiveExpiration = (expirationInSeconds != 0) ? expirationInSeconds : expirationInSecondsForAll;
-        int ttl = getExpirationAsInt(effectiveExpiration);
-
-        List<BatchRecord> batchRecords = new ArrayList<>(elements.size());
-
-        for (T element : elements) {
-            RecordMapper<T> recordMapper = getMapper(element);
-            Key key = getKeyForElement(recordMapper, element);
-            List<Operation> ops = operationsForElement(recordMapper, element);
-            batchRecords.add(new BatchWrite(key, null, ops, opBuilder.getOpType(), generation, ttl));
-        }
-
-        Session session = opBuilder.getSession();
-        Cluster cluster = session.getCluster();
-        String namespace = opBuilder.getDataSet().getNamespace();
-        Partitions partitions = getPartitions(cluster, namespace);
-
-        // Assume all operations are puts (WRITE_RETRYABLE).
-        Settings settings = session.getBehavior()
-        	.getSettings(OpKind.WRITE_RETRYABLE, OpShape.BATCH, partitions.scMode);
-
-        final Expression filterExp = getFilterExp(namespace);
-
-        BatchWriteCommand parent = new BatchWriteCommand(cluster, partitions, txnToUse, namespace,
-            batchRecords, filterExp, opBuilder.respondAllKeys, settings);
-
+    	BatchCommand parent = prepareBatch();
+        List<BatchRecord> records = parent.getRecords();
+        Cluster cluster = opBuilder.getSession().getCluster();
         BatchStatus status = new BatchStatus(true);
-        List<BatchNode> bns = BatchNodeList.generate(cluster, partitions, settings.getReplicaOrder(), batchRecords,
-        	status);
+
+        List<BatchNode> bns = BatchNodeList.generate(cluster, partitions,
+        	settings.getReplicaOrder(), records, status);
 
         AsyncRecordStream stream = new AsyncRecordStream(elements.size());
         IBatchCommand[] commands = new IBatchCommand[bns.size()];
@@ -647,26 +598,21 @@ public class ObjectBuilder<T> {
         for (BatchNode bn : bns) {
             if (bn.offsetsSize == 1) {
                 int i = bn.offsets[0];
-                BatchRecord rec = batchRecords.get(i);
+                BatchRecord rec = records.get(i);
                 BatchWrite bw = (BatchWrite)rec;
-                BatchAttr attr = new BatchAttr();
 
-                attr.setWriteSingle(parent, bw);
-                attr.adjustWrite(bw.ops);
-                attr.setOpSize(bw.ops);
-
-                commands[count++] = new BatchSingle.OperateRecordAsync(cluster, parent, bw.ops, attr,
-                	rec, status, bn.node, stream, i);
+                commands[count++] = new BatchSingle.OperateRecordAsync(cluster, parent, bw,
+                	status, bn.node, stream, i);
             }
             else {
-                commands[count++] = new Batch.OperateListAsync(cluster, parent, bn, batchRecords,
+                commands[count++] = new Batch.OperateListAsync(cluster, parent, bn, records,
                 	stream, status);
             }
         }
 
         if (txnToUse != null) {
             cluster.startVirtualThread(() -> {
-                TxnMonitor.addKeysBatchWrite(txnToUse, cluster, partitions, settings, batchRecords);
+                TxnMonitor.addKeysBatchWrite(txnToUse, cluster, partitions, settings, records);
                 operateBatchAsync(cluster, commands, status, stream);
             });
         }
@@ -675,6 +621,37 @@ public class ObjectBuilder<T> {
         }
 
         return new RecordStream(stream);
+    }
+
+    private BatchCommand prepareBatch() {
+        Session session = opBuilder.getSession();
+        Cluster cluster = session.getCluster();
+
+        namespace = opBuilder.getDataSet().getNamespace();
+        partitions = getPartitions(cluster, namespace);
+
+        settings = session.getBehavior()
+        	.getSettings(OpKind.WRITE_RETRYABLE, OpShape.BATCH, partitions.scMode);
+
+        long effectiveExpiration = (expirationInSeconds != 0) ? expirationInSeconds : expirationInSecondsForAll;
+        int ttl = getExpirationAsInt(effectiveExpiration);
+
+        BatchAttr attr = new BatchAttr();
+        attr.setWrite(settings, opBuilder.getOpType());
+
+        List<BatchRecord> records = new ArrayList<>(elements.size());
+
+        for (T element : elements) {
+            RecordMapper<T> recordMapper = getMapper(element);
+            Key key = getKeyForElement(recordMapper, element);
+            List<Operation> ops = operationsForElement(recordMapper, element);
+            records.add(new BatchWrite(key, null, attr, opBuilder.getOpType(), ops, generation, ttl));
+        }
+
+        final Expression filterExp = getFilterExp(namespace);
+
+        return new BatchCommand(cluster, partitions, txnToUse, namespace,
+            records, filterExp, opBuilder.respondAllKeys, false, settings);
     }
 
     private void operateBatchAsync(
@@ -798,7 +775,7 @@ public class ObjectBuilder<T> {
         return new RecordStream(stream);
     }
 
-    private RecordStream executeSingle(T element) {
+    private RecordStream executeSingleSync(T element) {
         RecordMapper<T> recordMapper = getMapper(element);
         Key key = getKeyForElement(recordMapper, element);
 

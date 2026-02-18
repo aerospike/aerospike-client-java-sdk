@@ -27,7 +27,6 @@ import com.aerospike.client.fluent.Record;
 import com.aerospike.client.fluent.RecordResult;
 import com.aerospike.client.fluent.ResultCode;
 import com.aerospike.client.fluent.metrics.LatencyType;
-import com.aerospike.client.fluent.policy.ReadModeSC;
 import com.aerospike.client.fluent.policy.Replica;
 
 public final class Batch {
@@ -589,7 +588,7 @@ public final class Batch {
 
 		public TxnVerify(
 			Cluster cluster,
-			BatchReadCommand parent,
+			BatchCommand parent,
 			BatchNode batch,
 			BatchStatus status,
 			Long[] versions
@@ -641,7 +640,7 @@ public final class Batch {
 
 		@Override
 		protected TxnVerify createCommand(BatchNode batchNode) {
-			return new TxnVerify(cluster, (BatchReadCommand)parent, batchNode, status, versions);
+			return new TxnVerify(cluster, parent, batchNode, status, versions);
 		}
 
 		@Override
@@ -653,19 +652,16 @@ public final class Batch {
 
 	public static final class TxnRoll extends BatchNodeExecutor {
 		private final List<BatchRecord> records;
-		private final BatchAttr attr;
 
 		public TxnRoll(
 			Cluster cluster,
 			BatchCommand parent,
 			BatchNode batch,
 			BatchStatus status,
-			List<BatchRecord> records,
-			BatchAttr attr
+			List<BatchRecord> records
 		) {
 			super(cluster, parent, batch, status, false);
 			this.records = records;
-			this.attr = attr;
 		}
 
 		@Override
@@ -676,7 +672,7 @@ public final class Batch {
 		@Override
 		protected CommandBuffer getCommandBuffer() {
 			CommandBuffer cb = new CommandBuffer();
-			cb.setBatchTxnRoll(parent, batch, attr);
+			cb.setBatchTxnRoll(parent, batch);
 			return cb;
 		}
 
@@ -690,7 +686,7 @@ public final class Batch {
 				record.resultCode = resultCode;
 			}
 			else {
-				record.setError(resultCode, BatchCommand.inDoubt(attr.hasWrite, commandSentCounter));
+				record.setError(resultCode, BatchCommand.inDoubt(true, commandSentCounter));
 				status.setRowError();
 			}
 			return true;
@@ -698,10 +694,6 @@ public final class Batch {
 
 		@Override
 		protected void inDoubt() {
-			if (!attr.hasWrite) {
-				return;
-			}
-
 			for (int index : batch.offsets) {
 				BatchRecord record = records.get(index);
 
@@ -725,7 +717,7 @@ public final class Batch {
 
 		@Override
 		protected TxnRoll createCommand(BatchNode batchNode) {
-			return new TxnRoll(cluster, parent, batchNode, status, records, attr);
+			return new TxnRoll(cluster, parent, batchNode, status, records);
 		}
 
 		@Override
@@ -826,15 +818,7 @@ public final class Batch {
 			}
 			sequenceAP++;
 
-			if (! timeout) {
-				sequenceSC++;
-			}
-			else if (parent instanceof BatchReadCommand brc) {
-				if (brc.readModeSC != ReadModeSC.LINEARIZE) {
-					sequenceSC++;
-				}
-			}
-			else {
+			if (! timeout || !parent.linearize) {
 				sequenceSC++;
 			}
 			return false;

@@ -26,17 +26,6 @@ import com.aerospike.client.fluent.util.Packer;
  */
 public final class BatchUDF extends BatchRecord {
 	/**
-	 * Optional expression filter. If filterExp exists and evaluates to false, the specific batch key
-	 * request is not performed and the result code is set to
-	 * {@link com.aerospike.client.fluent.ResultCode#FILTERED_OUT}.
-	 * <p>
-	 * If exists, this filter overrides the batch parent filter expression.
-	 * <p>
-	 * Default: null
-	 */
-	public final Expression filterExp;
-
-	/**
 	 * Package or lua module name.
 	 */
 	public final String packageName;
@@ -76,11 +65,10 @@ public final class BatchUDF extends BatchRecord {
 	 * Constructor using default policy.
 	 */
 	public BatchUDF(
-		Key key, Expression filterExp, String packageName, String functionName,
+		Key key, Expression where, BatchAttr attr, String packageName, String functionName,
 		Value[] functionArgs, int ttl
 	) {
-		super(key, true);
-		this.filterExp = filterExp;
+		super(key, where, attr);
 		this.packageName = packageName;
 		this.functionName = functionName;
 		this.functionArgs = functionArgs;
@@ -108,7 +96,7 @@ public final class BatchUDF extends BatchRecord {
 
 		BatchUDF other = (BatchUDF)obj;
 
-		if (filterExp != other.filterExp) {
+		if (where != other.where) {
 			return false;
 		}
 
@@ -131,8 +119,8 @@ public final class BatchUDF extends BatchRecord {
 			size += key.userKey.estimateSize() + Command.FIELD_HEADER_SIZE + 1;
 		}
 
-		if (filterExp != null) {
-			size += filterExp.getBytes().length + Command.FIELD_HEADER_SIZE;
+		if (where != null) {
+			size += where.getBytes().length + Command.FIELD_HEADER_SIZE;
 		}
 
 		size += Buffer.estimateSizeUtf8(packageName) + Command.FIELD_HEADER_SIZE;

@@ -108,7 +108,7 @@ public final class BatchSingle {
 
 		public ReadRecordAsync(
 			Cluster cluster,
-			BatchReadCommand cmd,
+			BatchCommand cmd,
 			BatchRead rec,
 			BatchStatus status,
 			Node node,
@@ -124,56 +124,56 @@ public final class BatchSingle {
 		public void run() {
 			super.run();
 
-        	if (parent.respondAllKeys || super.record.record != null) {
-        		stream.publish(new RecordResult(super.record, index));
+        	if (parent.respondAllKeys || super.rec.record != null) {
+        		stream.publish(new RecordResult(super.rec, index));
         	}
 		}
 	}
 
 	public static class ReadRecordSync extends BatchSingleExecutor {
-		private final BatchReadCommand cmd;
-		private final BatchRead record;
+		private final BatchCommand cmd;
+		private final BatchRead rec;
 
 		public ReadRecordSync(
 			Cluster cluster,
-			BatchReadCommand cmd,
+			BatchCommand cmd,
 			BatchRead record,
 			BatchStatus status,
 			Node node
 		) {
 			super(cluster, cmd, status, record.key, node, false);
 			this.cmd = cmd;
-			this.record = record;
+			this.rec = record;
 		}
 
 		@Override
 		protected CommandBuffer getCommandBuffer() {
 			CommandBuffer cb = new CommandBuffer();
-			cb.setRead(cmd, record);
+			cb.setRead(cmd, rec);
 			return cb;
 		}
 
 		@Override
 		protected void parseResult(Node node, Connection conn, byte[] buffer) throws IOException {
 			RecordParser rp = new RecordParser(conn, buffer);
-			rp.parseFields(cmd.txn, record.key, false);
+			rp.parseFields(cmd.txn, rec.key, false);
 
 			if (node.isMetricsEnabled()) {
-				node.addBytesIn(cmd.namespace, rp.bytesIn);
+				node.addBytesIn(rec.key.namespace, rp.bytesIn);
 			}
 
 			if (rp.resultCode == ResultCode.OK) {
-				record.setRecord(rp.parseRecord(true));
+				rec.setRecord(rp.parseRecord(true));
 			}
 			else {
-				record.setError(rp.resultCode, false);
+				rec.setError(rp.resultCode, false);
 				status.setRowError();
 			}
 		}
 
 		@Override
 		protected boolean prepareRetry(boolean timeout) {
-			Partition p = new Partition(parent.partitions, key, parent.replica, null, cmd.linearize);
+			Partition p = new Partition(parent.partitions, key, parent.replica, null, rec.linearize);
 			p.sequence = sequence;
 			p.prevNode = node;
 			p.prepareRetryRead(timeout);
@@ -184,25 +184,25 @@ public final class BatchSingle {
 	}
 
 	public static final class Exists extends BatchSingleExecutor {
-		private final BatchReadCommand cmd;
-		private final BatchRead record;
+		private final BatchCommand cmd;
+		private final BatchRead rec;
 
 		public Exists(
 			Cluster cluster,
-			BatchReadCommand cmd,
+			BatchCommand cmd,
 			BatchRead record,
 			BatchStatus status,
 			Node node
 		) {
 			super(cluster, cmd, status, record.key, node, false);
 			this.cmd = cmd;
-			this.record = record;
+			this.rec = record;
 		}
 
 		@Override
 		protected CommandBuffer getCommandBuffer() {
 			CommandBuffer cb = new CommandBuffer();
-			cb.setExists(cmd, record);
+			cb.setExists(cmd, rec);
 			return cb;
 		}
 
@@ -212,21 +212,21 @@ public final class BatchSingle {
 			rp.parseFields(cmd.txn, key, false);
 
 			if (node.isMetricsEnabled()) {
-				node.addBytesIn(cmd.namespace, rp.bytesIn);
+				node.addBytesIn(rec.key.namespace, rp.bytesIn);
 			}
 
 			if (rp.resultCode == ResultCode.OK) {
-				record.setRecord(rp.parseRecord(false));
+				rec.setRecord(rp.parseRecord(false));
 			}
 			else {
-				record.setError(rp.resultCode, false);
+				rec.setError(rp.resultCode, false);
 				status.setRowError();
 			}
 		}
 
 		@Override
 		protected boolean prepareRetry(boolean timeout) {
-			Partition p = new Partition(parent.partitions, key, parent.replica, null, cmd.linearize);
+			Partition p = new Partition(parent.partitions, key, parent.replica, null, rec.linearize);
 			p.sequence = sequence;
 			p.prevNode = node;
 			p.prepareRetryRead(timeout);
@@ -243,15 +243,13 @@ public final class BatchSingle {
 		public OperateRecordAsync(
 			Cluster cluster,
 			BatchCommand parent,
-			List<Operation> ops,
-			BatchAttr attr,
-			BatchRecord br,
+			BatchWrite rec,
 			BatchStatus status,
 			Node node,
 			AsyncRecordStream stream,
 			int index
 		) {
-			super(cluster, parent, ops, attr, br, status, node);
+			super(cluster, parent, rec, status, node);
 			this.stream = stream;
 			this.index = index;
 		}
@@ -260,61 +258,55 @@ public final class BatchSingle {
 		public void run() {
 			super.run();
 
-        	if (parent.respondAllKeys || super.record.record != null) {
-        		stream.publish(new RecordResult(super.record, index));
+        	if (parent.respondAllKeys || super.rec.record != null) {
+        		stream.publish(new RecordResult(super.rec, index));
         	}
 		}
 	}
 
 	public static class OperateRecordSync extends BatchSingleExecutor {
-		private final List<Operation> ops;
-		private final BatchAttr attr;
-		private final BatchRecord record;
+		private final BatchWrite rec;
 
 		public OperateRecordSync(
 			Cluster cluster,
 			BatchCommand parent,
-			List<Operation> ops,
-			BatchAttr attr,
-			BatchRecord record,
+			BatchWrite rec,
 			BatchStatus status,
 			Node node
 		) {
-			super(cluster, parent, status, record.key, node, attr.hasWrite);
-			this.ops = ops;
-			this.attr = attr;
-			this.record = record;
+			super(cluster, parent, status, rec.key, node, rec.hasWrite);
+			this.rec = rec;
 		}
 
 		@Override
 		protected CommandBuffer getCommandBuffer() {
 			CommandBuffer cb = new CommandBuffer();
-			cb.setOperate(parent, attr, record.key, ops);
+			cb.setOperate(parent, rec);
 			return cb;
 		}
 
 		@Override
 		protected void parseResult(Node node, Connection conn, byte[] buffer) throws IOException {
 			RecordParser rp = new RecordParser(conn, buffer);
-			rp.parseFields(cmd.txn, key, record.hasWrite);
+			rp.parseFields(cmd.txn, key, rec.hasWrite);
 
 			if (node.isMetricsEnabled()) {
-				node.addBytesIn(cmd.namespace, rp.bytesIn);
+				node.addBytesIn(rec.key.namespace, rp.bytesIn);
 			}
 
 			if (rp.resultCode == ResultCode.OK) {
-				record.setRecord(rp.parseRecord(true));
+				rec.setRecord(rp.parseRecord(true));
 			}
 			else {
-				record.setError(rp.resultCode, BatchCommand.inDoubt(attr.hasWrite, commandSentCounter));
+				rec.setError(rp.resultCode, BatchCommand.inDoubt(rec.hasWrite, commandSentCounter));
 				status.setRowError();
 			}
 		}
 
 		@Override
 		public void setInDoubt() {
-			if (record.resultCode == ResultCode.NO_RESPONSE) {
-				record.inDoubt = true;
+			if (rec.resultCode == ResultCode.NO_RESPONSE) {
+				rec.inDoubt = true;
 			}
 		}
 
@@ -331,25 +323,25 @@ public final class BatchSingle {
 	}
 
 	public static final class Delete extends BatchSingleExecutor {
-		private final BatchWriteCommand cmd;
-		private final BatchDelete record;
+		private final BatchCommand cmd;
+		private final BatchDelete rec;
 
 		public Delete(
 			Cluster cluster,
-			BatchWriteCommand cmd,
+			BatchCommand cmd,
 			BatchDelete record,
 			BatchStatus status,
 			Node node
 		) {
 			super(cluster, cmd, status, record.key, node, true);
 			this.cmd = cmd;
-			this.record = record;
+			this.rec = record;
 		}
 
 		@Override
 		protected CommandBuffer getCommandBuffer() {
 			CommandBuffer cb = new CommandBuffer();
-			cb.setDelete(cmd, record);
+			cb.setDelete(cmd, rec);
 			return cb;
 		}
 
@@ -359,24 +351,24 @@ public final class BatchSingle {
 			rp.parseFields(cmd.txn, key, true);
 
 			if (node.isMetricsEnabled()) {
-				node.addBytesIn(cmd.namespace, rp.bytesIn);
+				node.addBytesIn(rec.key.namespace, rp.bytesIn);
 			}
 
 			if (rp.resultCode == ResultCode.OK) {
-				record.setRecord(new Record(null, rp.generation, rp.expiration));
+				rec.setRecord(new Record(null, rp.generation, rp.expiration));
 			}
 			else {
 				// A KEY_NOT_FOUND_ERROR on a delete is benign, but still results in an overall
 				// batch status of false to be consistent with the original batch code.
-				record.setError(rp.resultCode, BatchCommand.inDoubt(true, commandSentCounter));
+				rec.setError(rp.resultCode, BatchCommand.inDoubt(true, commandSentCounter));
 				status.setRowError();
 			}
 		}
 
 		@Override
 		public void setInDoubt() {
-			if (record.resultCode == ResultCode.NO_RESPONSE) {
-				record.inDoubt = true;
+			if (rec.resultCode == ResultCode.NO_RESPONSE) {
+				rec.inDoubt = true;
 			}
 		}
 
@@ -464,13 +456,13 @@ public final class BatchSingle {
 	//-------------------------------------------------------
 
 	public static final class TxnVerify extends BatchSingleExecutor {
-		private final BatchReadCommand read;
+		private final BatchCommand read;
 		private final long version;
 		private final BatchRecord br;
 
 		public TxnVerify(
 			Cluster cluster,
-			BatchReadCommand cmd,
+			BatchCommand cmd,
 			BatchStatus status,
 			BatchRecord br,
 			Node node,
@@ -494,7 +486,7 @@ public final class BatchSingle {
 			RecordParser rp = new RecordParser(conn, buffer);
 
 			if (node.isMetricsEnabled()) {
-				node.addBytesIn(cmd.namespace, rp.bytesIn);
+				node.addBytesIn(br.key.namespace, rp.bytesIn);
 			}
 
 			if (rp.resultCode == ResultCode.OK) {
@@ -508,7 +500,7 @@ public final class BatchSingle {
 
 		@Override
 		protected boolean prepareRetry(boolean timeout) {
-			Partition p = new Partition(read.partitions, key, read.replica, null, read.linearize);
+			Partition p = new Partition(read.partitions, key, read.replica, null, br.linearize);
 			p.sequence = sequence;
 			p.prevNode = node;
 			p.prepareRetryRead(timeout);
@@ -550,7 +542,7 @@ public final class BatchSingle {
 			RecordParser rp = new RecordParser(conn, buffer);
 
 			if (node.isMetricsEnabled()) {
-				node.addBytesIn(cmd.namespace, rp.bytesIn);
+				node.addBytesIn(br.key.namespace, rp.bytesIn);
 			}
 
 			if (rp.resultCode == ResultCode.OK) {

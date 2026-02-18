@@ -17,6 +17,7 @@
 package com.aerospike.client.fluent.command;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 
 import com.aerospike.client.fluent.Bin;
@@ -24,12 +25,15 @@ import com.aerospike.client.fluent.Cluster;
 import com.aerospike.client.fluent.Key;
 import com.aerospike.client.fluent.OpType;
 import com.aerospike.client.fluent.Operation;
+import com.aerospike.client.fluent.Session;
 import com.aerospike.client.fluent.Value;
 import com.aerospike.client.fluent.cdt.ListOperation;
 import com.aerospike.client.fluent.cdt.ListOrder;
 import com.aerospike.client.fluent.cdt.ListPolicy;
 import com.aerospike.client.fluent.cdt.ListWriteFlags;
 import com.aerospike.client.fluent.policy.Settings;
+import com.aerospike.client.fluent.policy.Behavior.OpKind;
+import com.aerospike.client.fluent.policy.Behavior.OpShape;
 import com.aerospike.client.fluent.tend.Partitions;
 
 public final class TxnMonitor {
@@ -74,13 +78,11 @@ public final class TxnMonitor {
 		addWriteKeys(txn, cluster, partitions, policy, ops);
 	}
 
-	public static void addKeysBatchReadWrite(
-		Txn txn, Cluster cluster, Partitions partitions, Settings policy, List<BatchRecord> records
-	) {
+	public static void addKeysBatchReadWrite(Txn txn, Session session, List<BatchRecord> records) {
 		List<Operation> ops = getTranOpsBatchReadWrite(txn, records);
 
 		if (ops != null) {
-			addWriteKeys(txn, cluster, partitions, policy, ops);
+			addWriteKeys(txn, session, ops);
 		}
 	}
 
@@ -170,6 +172,24 @@ public final class TxnMonitor {
 		OperateArgs args = new OperateArgs(ops);
         OperateWriteCommand cmd = new OperateWriteCommand(cluster, partitions, txn, txnKey, ops,
         	args, OpType.UPSERT, 0, txn.getTimeout(), null, false, policy
+			);
+
+        SyncTxnAddKeysExecutor exec = new SyncTxnAddKeysExecutor(cluster, cmd);
+    	exec.execute();
+	}
+
+	private static void addWriteKeys(Txn txn, Session session, List<Operation> ops) {
+		Key txnKey = getTxnMonitorKey(txn);
+
+		OperateArgs args = new OperateArgs(ops);
+		Cluster cluster = session.getCluster();
+        Partitions partitions = cluster.getPartitionMap().get(txn.getNamespace());
+
+        Settings settings = session.getBehavior().getSettings(OpKind.WRITE_NON_RETRYABLE,
+        		OpShape.POINT, partitions.scMode);
+
+        OperateWriteCommand cmd = new OperateWriteCommand(cluster, partitions, txn, txnKey, ops,
+        	args, OpType.UPSERT, 0, txn.getTimeout(), null, false, settings
 			);
 
         SyncTxnAddKeysExecutor exec = new SyncTxnAddKeysExecutor(cluster, cmd);

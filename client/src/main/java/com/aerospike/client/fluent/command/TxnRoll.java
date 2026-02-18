@@ -25,6 +25,7 @@ import java.util.Set;
 import com.aerospike.client.fluent.AerospikeException;
 import com.aerospike.client.fluent.Cluster;
 import com.aerospike.client.fluent.Key;
+import com.aerospike.client.fluent.OpType;
 import com.aerospike.client.fluent.ResultCode;
 import com.aerospike.client.fluent.policy.Settings;
 import com.aerospike.client.fluent.tend.Partitions;
@@ -50,7 +51,7 @@ public final class TxnRoll {
 	}
 
 	public void verify(Settings verifyPolicy, Settings rollPolicy) {
-		BatchReadCommand parent = null;
+		BatchCommand parent = null;
 
 		try {
 			// Verify read versions in a batch.
@@ -61,29 +62,31 @@ public final class TxnRoll {
 				return;
 			}
 
-	        List<BatchRecord> batchRecords = new ArrayList<BatchRecord>(max);
+			BatchAttr attr = new BatchAttr();
+	        attr.setRead(rollPolicy, partitions.scMode);
+
+	        List<BatchRecord> records = new ArrayList<BatchRecord>(max);
 			Long[] versions = new Long[max];
+			int ttl = rollPolicy.getResetTtlOnReadAtPercent();
 			int count = 0;
 
 	        for (Map.Entry<Key, Long> entry : reads) {
 				Key key = entry.getKey();
-				BatchRecord br = new BatchRead(key, null, false);
+				BatchRead rec = new BatchRead(key, null, attr, ttl, false);
 
-				batchRecords.add(br);
+				records.add(rec);
 				versions[count++] = entry.getValue();
 	        }
 
-			this.verifyRecords = batchRecords;
+			this.verifyRecords = records;
 
-			ReadAttr attr = new ReadAttr(partitions, verifyPolicy);
-
-			parent = new BatchReadCommand(cluster, partitions, txn, txn.getNamespace(),
-				batchRecords, null, false, verifyPolicy, attr);
+			parent = new BatchCommand(cluster, partitions, txn, txn.getNamespace(),
+				records, null, false, attr.linearize, verifyPolicy);
 
 			BatchStatus status = new BatchStatus(true);
 
 	        List<BatchNode> bns = BatchNodeList.generate(cluster, partitions,
-	        	verifyPolicy.getReplicaOrder(), batchRecords, status);
+	        	verifyPolicy.getReplicaOrder(), records, status);
 
 	        IBatchCommand[] commands = new IBatchCommand[bns.size()];
 
@@ -93,7 +96,7 @@ public final class TxnRoll {
 				if (bn.offsetsSize == 1) {
 					int i = bn.offsets[0];
 					commands[count++] = new BatchSingle.TxnVerify(cluster, parent, status,
-						batchRecords.get(i), bn.node, versions[i]);
+						records.get(i), bn.node, versions[i]);
 				}
 				else {
 					commands[count++] = new Batch.TxnVerify(cluster, parent, bn, status, versions);
@@ -258,25 +261,25 @@ public final class TxnRoll {
 			return;
 		}
 
-        List<BatchRecord> batchRecords = new ArrayList<BatchRecord>(max);
-
-        for (Key key : keySet) {
-			BatchRecord br = new BatchWrite(key, null);
-			batchRecords.add(br);
-        }
-
-		this.rollRecords = batchRecords;
-
 		BatchAttr attr = new BatchAttr();
 		attr.setTxn(txnAttr);
 
+        List<BatchRecord> records = new ArrayList<BatchRecord>(max);
+
+        for (Key key : keySet) {
+			BatchRecord br = new BatchWrite(key, null, attr, OpType.UPDATE, null, 0, 0);
+			records.add(br);
+        }
+
+		this.rollRecords = records;
+
         BatchCommand parent = new BatchCommand(cluster, partitions, txn, txn.getNamespace(),
-            batchRecords, null, rollPolicy.getReplicaOrder(), false, rollPolicy);
+            records, null, false, attr.linearize, rollPolicy);
 
         BatchStatus status = new BatchStatus(true);
 
 		List<BatchNode> bns = BatchNodeList.generate(cluster, partitions,
-				rollPolicy.getReplicaOrder(), batchRecords, status);
+				rollPolicy.getReplicaOrder(), records, status);
 
 		IBatchCommand[] commands = new IBatchCommand[bns.size()];
 		int count = 0;
@@ -285,11 +288,11 @@ public final class TxnRoll {
 			if (bn.offsetsSize == 1) {
 				int i = bn.offsets[0];
 				commands[count++] = new BatchSingle.TxnRoll(
-					cluster, parent, txn, batchRecords.get(i), status, bn.node, txnAttr);
+					cluster, parent, txn, records.get(i), status, bn.node, txnAttr);
 			}
 			else {
 				commands[count++] = new Batch.TxnRoll(
-					cluster, parent, bn, status, batchRecords, attr);
+					cluster, parent, bn, status, records);
 			}
 		}
 

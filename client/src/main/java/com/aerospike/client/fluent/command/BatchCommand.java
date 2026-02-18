@@ -20,31 +20,36 @@ import java.util.List;
 
 import com.aerospike.client.fluent.Cluster;
 import com.aerospike.client.fluent.exp.Expression;
-import com.aerospike.client.fluent.policy.Replica;
 import com.aerospike.client.fluent.policy.Settings;
 import com.aerospike.client.fluent.tend.Partitions;
 
-public class BatchCommand extends Command {
+public final class BatchCommand extends Command {
 	final Partitions partitions;
 	final List<BatchRecord> records;
 	final boolean respondAllKeys;
     final boolean inlineMemory;
     final boolean inlineSSD;
+    final boolean linearize;
 
 	public BatchCommand(
 		Cluster cluster, Partitions partitions, Txn txn, String namespace,
-		List<BatchRecord> records, Expression filterExp, Replica replica, boolean respondAllKeys,
-		Settings policy
+		List<BatchRecord> records, Expression where, boolean respondAllKeys,
+		boolean linearize, Settings policy
 	) {
-		super(cluster, namespace, txn, filterExp, replica, policy);
+		super(cluster, namespace, txn, where, null, policy);
 		this.partitions = partitions;
 		this.records = records;
 		this.respondAllKeys = respondAllKeys;
+		this.linearize = linearize;
 		this.inlineMemory = policy.getAllowInlineMemoryAccess();
 		this.inlineSSD = policy.getAllowInlineSsdAccess();
 	}
 
 	public static boolean inDoubt(boolean isWrite, int commandSentCounter) {
 		return isWrite && commandSentCounter > 1;
+	}
+
+	public List<BatchRecord> getRecords() {
+		return records;
 	}
 }

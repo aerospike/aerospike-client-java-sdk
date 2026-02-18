@@ -16,6 +16,7 @@
  */
 package com.aerospike.client.fluent.tend;
 
+import java.util.HashMap;
 import java.util.concurrent.atomic.AtomicReferenceArray;
 
 import com.aerospike.client.fluent.AerospikeException;
@@ -36,6 +37,9 @@ public final class Partition {
 		Node prevNode,
 		int sequence
 	) {
+		if (partitions == null) {
+			partitions = getPartitions(cluster, key.namespace);
+		}
 		Partition p = new Partition(partitions, key, replica, prevNode, false);
 		p.sequence = sequence;
 		return p.getNodeWrite(cluster);
@@ -50,6 +54,10 @@ public final class Partition {
 		int sequence,
 		int sequenceSC
 	) {
+		if (partitions == null) {
+			partitions = getPartitions(cluster, key.namespace);
+		}
+
 		if (partitions.scMode) {
 			sequence = sequenceSC;
 		}
@@ -58,6 +66,16 @@ public final class Partition {
 		p.sequence = sequence;
 		return p.getNodeRead(cluster);
 	}
+
+    public static Partitions getPartitions(Cluster cluster, String namespace) {
+        HashMap<String, Partitions> partitionMap = cluster.getPartitionMap();
+        Partitions partitions = partitionMap.get(namespace);
+
+        if (partitions == null) {
+            throw new AerospikeException.InvalidNamespace(namespace, partitionMap.size());
+        }
+        return partitions;
+    }
 
 	private Partitions partitions;
 	private final String namespace;

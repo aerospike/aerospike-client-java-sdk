@@ -32,12 +32,10 @@ import com.aerospike.client.fluent.command.BatchExecutor;
 import com.aerospike.client.fluent.command.BatchNode;
 import com.aerospike.client.fluent.command.BatchNodeList;
 import com.aerospike.client.fluent.command.BatchRead;
-import com.aerospike.client.fluent.command.BatchReadCommand;
 import com.aerospike.client.fluent.command.BatchRecord;
 import com.aerospike.client.fluent.command.BatchSingle;
 import com.aerospike.client.fluent.command.BatchStatus;
 import com.aerospike.client.fluent.command.BatchWrite;
-import com.aerospike.client.fluent.command.BatchWriteCommand;
 import com.aerospike.client.fluent.command.IBatchCommand;
 import com.aerospike.client.fluent.command.OperateArgs;
 import com.aerospike.client.fluent.command.OperateReadCommand;
@@ -62,6 +60,9 @@ public class OperationBuilder extends AbstractOperationBuilder<OperationBuilder>
     protected int generation = 0;
     protected long expirationInSecondsForAll = 0;
     protected Txn txnToUse;
+    private String namespace;
+    private Partitions partitions;
+    private Settings settings;
 
     /**
      * The threshold for determining when to use batch operations vs individual operations.
@@ -368,7 +369,7 @@ public class OperationBuilder extends AbstractOperationBuilder<OperationBuilder>
 
     /**
      * {@inheritDoc}
-     * 
+     *
      * <p>Returns the effective respondAllKeys value. UPDATE and REPLACE_IF_EXISTS
      * operations always return true because they must report KEY_NOT_FOUND_ERROR
      * when the record doesn't exist.</p>
@@ -522,53 +523,13 @@ public class OperationBuilder extends AbstractOperationBuilder<OperationBuilder>
         }
     }
 
-    protected RecordStream executeBatchSync(OperateArgs args) {
+    private RecordStream executeBatchSync(OperateArgs args) {
+    	BatchCommand parent = prepareBatch(args);
         Cluster cluster = session.getCluster();
-
-        // Assume all keys have the same namespace.
-        Key firstKey = keys.get(0);
-        String namespace = firstKey.namespace;
-        Partitions partitions = getPartitions(cluster, namespace);
-        Settings settings = getSettings(partitions, args, OpShape.BATCH);
-        final Expression filterExp = processWhereClause(firstKey.namespace, session);
-
-        if (txnToUse != null) {
-            if (args.hasWrite) {
-            	TxnMonitor.addKeys(txnToUse, cluster, partitions, settings, keys);
-            }
-            else {
-            	txnToUse.prepareRead(firstKey.namespace);
-            }
-        }
-
-    	int ttl = getExpirationAsInt();
-        List<BatchRecord> batchRecords = new ArrayList<>(keys.size());
-        BatchCommand parent;
-
-        if (args.hasWrite) {
-	        for (Key key : keys) {
-	            batchRecords.add(new BatchWrite(key, null, ops, opType, generation, ttl));
-	        }
-
-	        // Use effective value: UPDATE/REPLACE_IF_EXISTS must always get server responses for non-existent keys
-	        parent = new BatchWriteCommand(cluster, partitions, txnToUse, namespace,
-	            batchRecords, filterExp, isEffectiveRespondAllKeys(), settings);
-       }
-        else {
-	        for (Key key : keys) {
-	            batchRecords.add(new BatchRead(key, null, ops));
-	        }
-
-	        ReadAttr attr = new ReadAttr(partitions, settings);
-
-	        // Use effective value: UPDATE/REPLACE_IF_EXISTS must always get server responses for non-existent keys
-	        parent = new BatchReadCommand(cluster, partitions, txnToUse, namespace,
-		            batchRecords, filterExp, isEffectiveRespondAllKeys(), settings, attr);
-       }
-
         BatchStatus status = new BatchStatus(true);
-        List<BatchNode> bns = BatchNodeList.generate(cluster, partitions, settings.getReplicaOrder(), batchRecords,
-        	status);
+        List<BatchRecord> records = parent.getRecords();
+        List<BatchNode> bns = BatchNodeList.generate(cluster, partitions,
+        	settings.getReplicaOrder(), records, status);
 
         IBatchCommand[] commands = new IBatchCommand[bns.size()];
         int count = 0;
@@ -576,42 +537,39 @@ public class OperationBuilder extends AbstractOperationBuilder<OperationBuilder>
         for (BatchNode bn : bns) {
             if (bn.offsetsSize == 1) {
                 int i = bn.offsets[0];
-                BatchRecord rec = batchRecords.get(i);
+                BatchRecord rec = records.get(i);
 
                 if (args.hasWrite) {
 	                BatchWrite bw = (BatchWrite)rec;
-	                BatchAttr attr = new BatchAttr();
 
-	                attr.setWriteSingle((BatchWriteCommand)parent, bw);
-	                attr.adjustWrite(bw.ops);
-	                attr.setOpSize(bw.ops);
-
-	                commands[count++] = new BatchSingle.OperateRecordSync(cluster, parent, bw.ops, attr, rec, status,
-	                        bn.node);
+	                commands[count++] = new BatchSingle.OperateRecordSync(cluster, parent, bw,
+	                	status, bn.node);
                 }
                 else {
 	                BatchRead br = (BatchRead)rec;
-	                BatchAttr attr = new BatchAttr();
 
-                    attr.setReadSingle((BatchReadCommand)parent, br);
-	                attr.adjustRead(br.ops);
-	                attr.setOpSize(br.ops);
-
-					commands[count++] = new BatchSingle.ReadRecordSync(cluster, (BatchReadCommand)parent, br, status, bn.node);
+					commands[count++] = new BatchSingle.ReadRecordSync(cluster, parent, br, status,
+						bn.node);
                 }
             }
             else {
-                commands[count++] = new Batch.OperateListSync(cluster, parent, bn, batchRecords, status);
+                commands[count++] = new Batch.OperateListSync(cluster, parent, bn, records, status);
             }
         }
+
+	    if (txnToUse != null) {
+	    	prepareBatchTransaction(args);
+	    }
 
         BatchExecutor.execute(cluster, commands, status);
 
         // Convert BatchRecord to RecordResult with proper filtering and stack trace handling
-        AsyncRecordStream recordStream = new AsyncRecordStream(batchRecords.size());
+        AsyncRecordStream recordStream = new AsyncRecordStream(records.size());
+
         try {
-            for (int i = 0; i < batchRecords.size(); i++) {
-                BatchRecord br = batchRecords.get(i);
+            for (int i = 0; i < records.size(); i++) {
+                BatchRecord br = records.get(i);
+
                 if (shouldIncludeResult(br.resultCode)) {
                     recordStream.publish(createRecordResultFromBatchRecord(br, settings, i));
                 }
@@ -623,44 +581,13 @@ public class OperationBuilder extends AbstractOperationBuilder<OperationBuilder>
         }
     }
 
-    protected RecordStream executeBatchAsync(OperateArgs args) {
+    private RecordStream executeBatchAsync(OperateArgs args) {
+    	BatchCommand parent = prepareBatch(args);
         Cluster cluster = session.getCluster();
-
-        // Assume all keys have the same namespace.
-        Key firstKey = keys.get(0);
-        String namespace = firstKey.namespace;
-        Partitions partitions = getPartitions(cluster, namespace);
-        Settings settings = getSettings(partitions, args, OpShape.BATCH);
-        final Expression filterExp = processWhereClause(firstKey.namespace, session);
-    	int ttl = getExpirationAsInt();
-
-        List<BatchRecord> batchRecords = new ArrayList<>(keys.size());
-        BatchCommand parent;
-
-        if (args.hasWrite) {
-	        for (Key key : keys) {
-	            batchRecords.add(new BatchWrite(key, null, ops, opType, generation, ttl));
-	        }
-
-	        // Use effective value: UPDATE/REPLACE_IF_EXISTS must always get server responses for non-existent keys
-	        parent = new BatchWriteCommand(cluster, partitions, txnToUse, namespace,
-	            batchRecords, filterExp, isEffectiveRespondAllKeys(), settings);
-       }
-        else {
-	        for (Key key : keys) {
-	            batchRecords.add(new BatchRead(key, null, ops));
-	        }
-
-	        ReadAttr attr = new ReadAttr(partitions, settings);
-
-	        // Use effective value: UPDATE/REPLACE_IF_EXISTS must always get server responses for non-existent keys
-	        parent = new BatchReadCommand(cluster, partitions, txnToUse, namespace,
-		            batchRecords, filterExp, isEffectiveRespondAllKeys(), settings, attr);
-       }
-
         BatchStatus status = new BatchStatus(true);
-        List<BatchNode> bns = BatchNodeList.generate(cluster, partitions, settings.getReplicaOrder(),
-        	batchRecords, status);
+        List<BatchRecord> records = parent.getRecords();
+        List<BatchNode> bns = BatchNodeList.generate(cluster, partitions,
+        	settings.getReplicaOrder(), records, status);
 
         AsyncRecordStream stream = new AsyncRecordStream(keys.size());
         IBatchCommand[] commands = new IBatchCommand[bns.size()];
@@ -669,40 +596,30 @@ public class OperationBuilder extends AbstractOperationBuilder<OperationBuilder>
         for (BatchNode bn : bns) {
             if (bn.offsetsSize == 1) {
                 int i = bn.offsets[0];
-                BatchRecord rec = batchRecords.get(i);
+                BatchRecord rec = records.get(i);
 
                 if (args.hasWrite) {
-	                BatchWriteCommand cmd = (BatchWriteCommand)parent;
 	                BatchWrite bw = (BatchWrite)rec;
-	                BatchAttr attr = new BatchAttr();
 
-	                attr.setWriteSingle(cmd, bw);
-	                attr.adjustWrite(bw.ops);
-	                attr.setOpSize(bw.ops);
-
-	                commands[count++] = new BatchSingle.OperateRecordAsync(cluster, cmd, bw.ops,
-	                	attr, bw, status, bn.node, stream, i);
+	                commands[count++] = new BatchSingle.OperateRecordAsync(cluster, parent, bw,
+	                	status, bn.node, stream, i);
                 }
                 else {
-	                BatchReadCommand cmd = (BatchReadCommand)parent;
 	                BatchRead br = (BatchRead)rec;
-	                BatchAttr attr = new BatchAttr();
 
-                    attr.setReadSingle((BatchReadCommand)parent, br);
-	                attr.adjustRead(br.ops);
-	                attr.setOpSize(br.ops);
-
-					commands[count++] = new BatchSingle.ReadRecordAsync(cluster, cmd, br, status, bn.node, stream, i);
+					commands[count++] = new BatchSingle.ReadRecordAsync(cluster, parent, br, status,
+						bn.node, stream, i);
                 }
             }
             else {
-                commands[count++] = new Batch.OperateListAsync(cluster, parent, bn, batchRecords, stream, status);
+                commands[count++] = new Batch.OperateListAsync(cluster, parent, bn, records, stream,
+                	status);
             }
         }
 
         if (txnToUse != null) {
             cluster.startVirtualThread(() -> {
-                TxnMonitor.addKeys(txnToUse, cluster, partitions, settings, keys);
+                prepareBatchTransaction(args);
                 operateBatchAsync(cluster, commands, status, stream);
             });
         }
@@ -711,6 +628,58 @@ public class OperationBuilder extends AbstractOperationBuilder<OperationBuilder>
         }
 
         return new RecordStream(stream);
+    }
+
+    private BatchCommand prepareBatch(OperateArgs args) {
+    	Cluster cluster = session.getCluster();
+
+		// Assume all keys have the same namespace.
+		Key firstKey = keys.get(0);
+
+		namespace = firstKey.namespace;
+		partitions = getPartitions(cluster, namespace);
+		settings = getSettings(partitions, args, OpShape.BATCH);
+
+		final Expression filterExp = processWhereClause(firstKey.namespace, session);
+
+		BatchAttr attr = new BatchAttr();
+		int ttl = getExpirationAsInt();
+		List<BatchRecord> batchRecords = new ArrayList<>(keys.size());
+		BatchCommand parent;
+
+		if (args.hasWrite) {
+		    attr.setWrite(settings, opType);
+
+		    for (Key key : keys) {
+		        batchRecords.add(new BatchWrite(key, null, attr, opType, ops, generation, ttl));
+		    }
+
+		    // Use effective value: UPDATE/REPLACE_IF_EXISTS must always get server responses for non-existent keys
+	        parent = new BatchCommand(cluster, partitions, txnToUse, namespace,
+	            batchRecords, filterExp, isEffectiveRespondAllKeys(), false, settings);
+	    }
+	    else {
+	        attr.setRead(settings, partitions.scMode);
+
+	        for (Key key : keys) {
+	            batchRecords.add(new BatchRead(key, null, attr, ttl, ops));
+	        }
+
+	        // Use effective value: UPDATE/REPLACE_IF_EXISTS must always get server responses for non-existent keys
+	        parent = new BatchCommand(cluster, partitions, txnToUse, namespace,
+	        	batchRecords, filterExp, isEffectiveRespondAllKeys(), attr.linearize, settings);
+	    }
+
+        return parent;
+    }
+
+    private void prepareBatchTransaction(OperateArgs args) {
+        if (args.hasWrite) {
+        	TxnMonitor.addKeys(txnToUse, session.getCluster(), partitions, settings, keys);
+        }
+        else {
+        	txnToUse.prepareRead(namespace);
+        }
     }
 
     private void operateBatchAsync(

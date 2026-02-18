@@ -25,18 +25,17 @@ import java.util.List;
 
 import com.aerospike.client.fluent.command.Batch;
 import com.aerospike.client.fluent.command.BatchAttr;
+import com.aerospike.client.fluent.command.BatchCommand;
 import com.aerospike.client.fluent.command.BatchDelete;
 import com.aerospike.client.fluent.command.BatchExecutor;
 import com.aerospike.client.fluent.command.BatchNode;
 import com.aerospike.client.fluent.command.BatchNodeList;
 import com.aerospike.client.fluent.command.BatchRead;
-import com.aerospike.client.fluent.command.BatchReadCommand;
 import com.aerospike.client.fluent.command.BatchRecord;
 import com.aerospike.client.fluent.command.BatchResults;
 import com.aerospike.client.fluent.command.BatchSingle;
 import com.aerospike.client.fluent.command.BatchStatus;
 import com.aerospike.client.fluent.command.BatchWrite;
-import com.aerospike.client.fluent.command.BatchWriteCommand;
 import com.aerospike.client.fluent.command.DeleteExecutor;
 import com.aerospike.client.fluent.command.ExistsExecutor;
 import com.aerospike.client.fluent.command.IBatchCommand;
@@ -431,27 +430,28 @@ public class OperationWithNoBinsBuilder extends AbstractSessionOperationBuilder<
     	Cluster cluster = session.getCluster();
         String namespace = keys.get(0).namespace;
         Partitions partitions = getPartitions(cluster, namespace);
-		Settings policy = session.getBehavior().getSettings(OpKind.READ, OpShape.BATCH, partitions.scMode);
+
+        Settings settings = session.getBehavior().getSettings(OpKind.READ, OpShape.BATCH,
+			partitions.scMode);
+
         Expression filterExp = processWhereClause(namespace, session);
 
-        List<BatchRecord> batchRecords = new ArrayList<>(keys.size());
+        BatchAttr attr = new BatchAttr();
+        attr.setRead(settings, partitions.scMode);
+
+        List<BatchRecord> records = new ArrayList<>(keys.size());
+        int ttl = settings.getResetTtlOnReadAtPercent();
 
         for (Key key : keys) {
-            batchRecords.add(new BatchRead(key, null, false));
+            records.add(new BatchRead(key, null, attr, ttl, false));
         }
 
-		if (txnToUse != null) {
-			txnToUse.prepareReadKeys(keys);
-		}
-
-		ReadAttr attr = new ReadAttr(partitions, policy);
-
-		BatchReadCommand parent = new BatchReadCommand(cluster, partitions, txnToUse, namespace,
-			batchRecords, filterExp, respondAllKeys, policy, attr);
+		BatchCommand parent = new BatchCommand(cluster, partitions, txnToUse, namespace,
+			records, filterExp, respondAllKeys, attr.linearize, settings);
 
     	BatchStatus status = new BatchStatus(true);
 		List<BatchNode> bns = BatchNodeList.generate(cluster, partitions, parent.replica,
-			batchRecords, status);
+			records, status);
 
 		IBatchCommand[] commands = new IBatchCommand[bns.size()];
     	int count = 0;
@@ -459,20 +459,25 @@ public class OperationWithNoBinsBuilder extends AbstractSessionOperationBuilder<
 		for (BatchNode bn : bns) {
 			if (bn.offsetsSize == 1) {
 				int i = bn.offsets[0];
-				BatchRecord record = batchRecords.get(i);
+				BatchRecord record = records.get(i);
 
 				BatchRead br = (BatchRead)record;
 				commands[count++] = new BatchSingle.Exists(cluster, parent, br, status, bn.node);
 			}
 			else {
-				commands[count++] = new Batch.OperateListSync(cluster, parent, bn, batchRecords, status);
+				commands[count++] = new Batch.OperateListSync(cluster, parent, bn, records, status);
 			}
 		}
 
+		if (txnToUse != null) {
+			txnToUse.prepareReadKeys(keys);
+		}
+
 		BatchExecutor.execute(cluster, commands, status);
-        AsyncRecordStream stream = new AsyncRecordStream(keys.size());
-        for (BatchRecord br : batchRecords) {
-            stream.publish(this.asRecordResult(br, policy));
+
+		AsyncRecordStream stream = new AsyncRecordStream(keys.size());
+        for (BatchRecord br : records) {
+            stream.publish(this.asRecordResult(br, settings));
         }
         return new RecordStream(stream);
     }
@@ -481,29 +486,31 @@ public class OperationWithNoBinsBuilder extends AbstractSessionOperationBuilder<
     	Cluster cluster = session.getCluster();
         String namespace = keys.get(0).namespace;
         Partitions partitions = getPartitions(cluster, namespace);
-		Settings policy = session.getBehavior().getSettings(OpKind.WRITE_RETRYABLE, OpShape.BATCH, partitions.scMode);
+
+        Settings settings = session.getBehavior().getSettings(OpKind.WRITE_RETRYABLE, OpShape.BATCH,
+			partitions.scMode);
+
         Expression filterExp = processWhereClause(namespace, session);
         int ttl = getExpirationAsInt();
-
-		if (txnToUse != null) {
-        	TxnMonitor.addKeys(txnToUse, cluster, partitions, policy, keys);
-		}
 
         List<Operation> ops = new ArrayList<>(1);
         ops.add(Operation.touch());
 
-        List<BatchRecord> batchRecords = new ArrayList<>(keys.size());
+        BatchAttr attr = new BatchAttr();
+        attr.setWrite(settings, OpType.TOUCH);
+
+        List<BatchRecord> records = new ArrayList<>(keys.size());
 
         for (Key key : keys) {
-            batchRecords.add(new BatchWrite(key, null, ops, OpType.TOUCH, generation, ttl));
+            records.add(new BatchWrite(key, null, attr, OpType.TOUCH, ops, generation, ttl));
         }
 
-        BatchWriteCommand parent = new BatchWriteCommand(cluster, partitions, txnToUse, namespace,
-        	batchRecords, filterExp, respondAllKeys, policy);
+        BatchCommand parent = new BatchCommand(cluster, partitions, txnToUse, namespace,
+        	records, filterExp, respondAllKeys, false, settings);
 
         BatchStatus status = new BatchStatus(true);
-        List<BatchNode> bns = BatchNodeList.generate(cluster, partitions, policy.getReplicaOrder(),
-        	batchRecords, status);
+        List<BatchNode> bns = BatchNodeList.generate(cluster, partitions,
+        	settings.getReplicaOrder(), records, status);
 
         IBatchCommand[] commands = new IBatchCommand[bns.size()];
         int count = 0;
@@ -511,28 +518,26 @@ public class OperationWithNoBinsBuilder extends AbstractSessionOperationBuilder<
         for (BatchNode bn : bns) {
             if (bn.offsetsSize == 1) {
                 int i = bn.offsets[0];
-                BatchRecord record = batchRecords.get(i);
-
+                BatchRecord record = records.get(i);
                 BatchWrite bw = (BatchWrite) record;
-                BatchAttr battr = new BatchAttr();
 
-                battr.setWriteSingle(parent, bw);
-                battr.adjustWrite(bw.ops);
-                battr.setOpSize(bw.ops);
-
-                commands[count++] = new BatchSingle.OperateRecordSync(cluster, parent, bw.ops, battr, record, status,
-                        bn.node);
+                commands[count++] = new BatchSingle.OperateRecordSync(cluster, parent, bw, status,
+                	bn.node);
             }
             else {
-                commands[count++] = new Batch.OperateListSync(cluster, parent, bn, batchRecords, status);
+                commands[count++] = new Batch.OperateListSync(cluster, parent, bn, records, status);
             }
         }
+
+		if (txnToUse != null) {
+        	TxnMonitor.addKeys(txnToUse, cluster, partitions, settings, keys);
+		}
 
 		BatchExecutor.execute(cluster, commands, status);
 
         AsyncRecordStream stream = new AsyncRecordStream(keys.size());
-        for (BatchRecord br : batchRecords) {
-            stream.publish(this.asRecordResult(br, policy));
+        for (BatchRecord br : records) {
+            stream.publish(this.asRecordResult(br, settings));
         }
         return new RecordStream(stream);
     }
@@ -541,27 +546,29 @@ public class OperationWithNoBinsBuilder extends AbstractSessionOperationBuilder<
     	Cluster cluster = session.getCluster();
         String namespace = keys.get(0).namespace;
         Partitions partitions = getPartitions(cluster, namespace);
-		Settings policy = session.getBehavior().getSettings(OpKind.WRITE_RETRYABLE, OpShape.BATCH, partitions.scMode);
+
+        Settings settings = session.getBehavior().getSettings(OpKind.WRITE_RETRYABLE, OpShape.BATCH,
+			partitions.scMode);
+
         Expression filterExp = processWhereClause(namespace, session);
 
-		if (txnToUse != null) {
-        	TxnMonitor.addKeys(txnToUse, cluster, partitions, policy, keys);
-		}
+        BatchAttr attr = new BatchAttr();
+        attr.setDelete(settings);
 
-        List<BatchRecord> batchRecords = new ArrayList<>(keys.size());
+        List<BatchRecord> records = new ArrayList<>(keys.size());
 
         for (Key key : keys) {
         	// TODO: Tim: When generation is used, it's highly likely to change between keys,
         	// but the api only specifies generation once for the entire batch.
-            batchRecords.add(new BatchDelete(key, null, generation));
+            records.add(new BatchDelete(key, null, attr, generation));
         }
 
-        BatchWriteCommand parent = new BatchWriteCommand(cluster, partitions, txnToUse, namespace,
-        	batchRecords, filterExp, respondAllKeys, policy);
+        BatchCommand parent = new BatchCommand(cluster, partitions, txnToUse, namespace,
+        	records, filterExp, respondAllKeys, false, settings);
 
         BatchStatus status = new BatchStatus(true);
-        List<BatchNode> bns = BatchNodeList.generate(cluster, partitions, policy.getReplicaOrder(),
-        	batchRecords, status);
+        List<BatchNode> bns = BatchNodeList.generate(cluster, partitions, settings.getReplicaOrder(),
+        	records, status);
 
         IBatchCommand[] commands = new IBatchCommand[bns.size()];
         int count = 0;
@@ -569,20 +576,25 @@ public class OperationWithNoBinsBuilder extends AbstractSessionOperationBuilder<
         for (BatchNode bn : bns) {
             if (bn.offsetsSize == 1) {
                 int i = bn.offsets[0];
-                BatchDelete bd = (BatchDelete)batchRecords.get(i);
+                BatchDelete bd = (BatchDelete)records.get(i);
 
                 commands[count++] = new BatchSingle.Delete(cluster, parent, bd, status, bn.node);
             }
             else {
-                commands[count++] = new Batch.OperateListSync(cluster, parent, bn, batchRecords, status);
+                commands[count++] = new Batch.OperateListSync(cluster, parent, bn, records, status);
             }
         }
+
+		if (txnToUse != null) {
+        	TxnMonitor.addKeys(txnToUse, cluster, partitions, settings, keys);
+		}
 
 		BatchExecutor.execute(cluster, commands, status);
 
         AsyncRecordStream stream = new AsyncRecordStream(keys.size());
-        for (BatchRecord br : batchRecords) {
-            stream.publish(this.asRecordResult(br, policy));
+
+        for (BatchRecord br : records) {
+            stream.publish(this.asRecordResult(br, settings));
         }
         return new RecordStream(stream);
     }

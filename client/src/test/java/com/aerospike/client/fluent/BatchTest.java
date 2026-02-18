@@ -360,7 +360,6 @@ public class BatchTest extends ClusterTest {
 		}
 	}
 */
-
 	/* TODO Wait for external batch complex api*/
 	 // BN TRY update instead of query.
 	@Test
@@ -370,8 +369,7 @@ public class BatchTest extends ClusterTest {
 		// Returns PARAMETER ERROR
 		//Feb 03 2026 23:06:53 GMT: WARNING (batch): (batch.c:1110) batch request has unknown namespace
 		//Feb 03 2026 23:06:53 GMT: WARNING (batch): (batch.c:1195) Batch keys mismatch. Expected 4 Received 1
-
-		/*
+/*
         System.out.println("START batchWriteComplex");
 		RecordStream rs = session
 			.upsert(args.set.id(KeyPrefix + 1))
@@ -383,7 +381,8 @@ public class BatchTest extends ClusterTest {
 			.delete(args.set.id(10002))
 			.execute();
         System.out.println("END batchWriteComplex");
-
+        */
+/*
 		Expression wexp1 = Exp.build(Exp.add(Exp.intBin(BinName), Exp.val(1000)));
 
 		Operation[] wops1 = Operation.array(Operation.put(new Bin(BinName2, 100)));

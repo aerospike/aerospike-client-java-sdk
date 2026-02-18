@@ -17,30 +17,30 @@
 package com.aerospike.client.fluent;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 
 import com.aerospike.client.fluent.command.Batch;
 import com.aerospike.client.fluent.command.BatchAttr;
 import com.aerospike.client.fluent.command.BatchCommand;
 import com.aerospike.client.fluent.command.BatchDelete;
+import com.aerospike.client.fluent.command.BatchExecutor;
 import com.aerospike.client.fluent.command.BatchNode;
 import com.aerospike.client.fluent.command.BatchNodeList;
 import com.aerospike.client.fluent.command.BatchRead;
-import com.aerospike.client.fluent.command.BatchReadCommand;
 import com.aerospike.client.fluent.command.BatchRecord;
 import com.aerospike.client.fluent.command.BatchSingle;
 import com.aerospike.client.fluent.command.BatchStatus;
 import com.aerospike.client.fluent.command.BatchWrite;
-import com.aerospike.client.fluent.command.BatchWriteCommand;
 import com.aerospike.client.fluent.command.IBatchCommand;
-import com.aerospike.client.fluent.command.ReadAttr;
 import com.aerospike.client.fluent.command.Txn;
 import com.aerospike.client.fluent.command.TxnMonitor;
 import com.aerospike.client.fluent.exp.Expression;
+import com.aerospike.client.fluent.policy.Behavior;
+import com.aerospike.client.fluent.policy.Behavior.Mode;
 import com.aerospike.client.fluent.policy.Behavior.OpKind;
 import com.aerospike.client.fluent.policy.Behavior.OpShape;
 import com.aerospike.client.fluent.policy.Settings;
+import com.aerospike.client.fluent.tend.Partition;
 import com.aerospike.client.fluent.tend.Partitions;
 
 /**
@@ -59,7 +59,6 @@ import com.aerospike.client.fluent.tend.Partitions;
  * </p>
  */
 class OperationSpecExecutor {
-
     /**
      * Execute a batch of heterogeneous operations.
      *
@@ -69,87 +68,123 @@ class OperationSpecExecutor {
      * @param txn optional transaction to use
      * @return RecordStream containing the results of all operations
      */
-    public static RecordStream execute(Session session, List<OperationSpec> specs,
-                                        Expression defaultWhereClause, Txn txn) {
+    public static RecordStream execute(
+    	Session session, List<OperationSpec> specs, Expression defaultWhereClause, Txn txn
+    ) {
         if (specs.isEmpty()) {
             return new RecordStream();
         }
 
-        // Get the namespace from the first key
-        String namespace = specs.get(0).getKeys().get(0).namespace;
-
-        // Get settings for batch operations
-        Settings settings = session.getBehavior()
-                .getSettings(OpKind.WRITE_NON_RETRYABLE, OpShape.BATCH, session.isNamespaceSC(namespace));
-
-        // Build list of BatchRecord objects
-        List<BatchRecord> batchRecords = new ArrayList<>();
-
-        // Set failOnFilteredOut on batch policy if ANY spec has it enabled
-        boolean anyFailOnFilteredOut = specs.stream().anyMatch(s -> s.isFailOnFilteredOut());
-        boolean anyRespondAllKeys = specs.stream().anyMatch(s -> s.isRespondAllKeys());
+        // TODO Track count of keys in builders, so it can be used here.
+        List<BatchRecord> records = new ArrayList<>(512);
+        Cluster cluster = session.getCluster();
+        Behavior behavior = session.getBehavior();
+        boolean respondAllKeys = false;
+        boolean failOnFilteredOut = false;
+        OpKind kind = OpKind.READ;
+        Mode mode = Mode.AP;
+        boolean linearize = false;
 
         for (OperationSpec spec : specs) {
-            // Determine which filter to use - per-operation or default
-            Expression filterToUse = spec.getWhereClause() != null ? spec.getWhereClause() : defaultWhereClause;
+            // Set isRespondAllKeys if any spec has isRespondAllKeys.
+            if (spec.isRespondAllKeys()) {
+            	respondAllKeys = true;
+            }
+
+            if (spec.isFailOnFilteredOut()) {
+            	failOnFilteredOut = true;
+            }
 
             // Create BatchRecord(s) for each key in this spec
             for (Key key : spec.getKeys()) {
-                BatchRecord batchRecord = createBatchRecord(spec, key, filterToUse, settings);
-                batchRecords.add(batchRecord);
+            	String namespace = key.namespace;
+                Partitions partitions = Partition.getPartitions(cluster, namespace);
+                boolean scMode = partitions.scMode;
+                BatchRecord rec;
+
+                // TODO: Put in hashmap so can reuse!!
+                BatchAttr attr = new BatchAttr();
+
+                if (spec.isQuery()) {
+                    // Query (read) operation
+                    Settings settings = behavior.getSettings(OpKind.READ, OpShape.BATCH, scMode);
+                    int ttl = settings.getResetTtlOnReadAtPercent();
+
+                    attr.setRead(settings, scMode);
+
+                    if (attr.linearize) {
+                    	linearize = true;
+                    }
+
+                    if (spec.getProjectedBins() != null && spec.getProjectedBins().length > 0) {
+                        // Read specific bins
+                        rec = new BatchRead(key, spec.getWhereClause(), attr, ttl, spec.getProjectedBins());
+                    }
+                    else {
+                        // Read all bins
+                        rec = new BatchRead(key, spec.getWhereClause(), attr, ttl, true);
+                    }
+                }
+                else if (spec.getOpType() == OpType.EXISTS) {
+                    Settings settings = behavior.getSettings(OpKind.READ, OpShape.BATCH, scMode);
+                    int ttl = settings.getResetTtlOnReadAtPercent();
+
+                    attr.setRead(settings, scMode);
+
+                    if (attr.linearize) {
+                    	linearize = true;
+                    }
+
+                    rec = new BatchRead(key, spec.getWhereClause(), attr, ttl, false);
+                }
+                else {
+                    Settings settings = behavior.getSettings(OpKind.WRITE_NON_RETRYABLE, OpShape.BATCH, scMode);
+
+                    switch (spec.getOpType()) {
+                    case UPSERT:
+                    case UPDATE:
+                    case INSERT:
+                    case REPLACE:
+                    case REPLACE_IF_EXISTS:
+                    	attr.setWrite(settings, spec.getOpType());
+                    	rec = new BatchWrite(key, attr, spec);
+                        break;
+
+                    case TOUCH:
+                    	attr.setWrite(settings, spec.getOpType());
+                        rec = new BatchWrite(key, attr, spec, List.of(Operation.touch()), OpType.TOUCH);
+                        break;
+
+                     case DELETE:
+                    	attr.setDelete(settings);
+                        rec = new BatchDelete(key, attr, spec);
+                        break;
+
+                    default:
+                        throw new IllegalStateException("Unknown operation type: " + spec.getOpType());
+                    }
+                }
+
+                if (scMode) {
+                	mode = Mode.CP;
+                }
+
+                if (rec.hasWrite) {
+					kind = OpKind.WRITE_NON_RETRYABLE;
+				}
+
+                records.add(rec);
             }
         }
 
-        return executeBatchSync(session,
-                settings,
-                batchRecords,
-                txn,
-                namespace,
-                anyFailOnFilteredOut,
-                defaultWhereClause,
-                anyRespondAllKeys);
-    }
+        Settings settings = behavior.getSettings(kind, OpShape.BATCH, mode);
 
-    private static Partitions getPartitions(Cluster cluster, String namespace) {
-        HashMap<String, Partitions> partitionMap = cluster.getPartitionMap();
-        Partitions partitions = partitionMap.get(namespace);
-
-        if (partitions == null) {
-            throw new AerospikeException.InvalidNamespace(namespace, partitionMap.size());
-        }
-        return partitions;
-    }
-
-    protected static RecordStream executeBatchSync(Session session, Settings settings,
-            List<BatchRecord> batchRecords, Txn txnToUse, String namespace,
-            boolean anyFailOnFilteredOut, Expression filterExp, boolean respondAllKeys) {
-
-        Cluster cluster = session.getCluster();
-        Partitions partitions = getPartitions(cluster, namespace);
-
-        if (txnToUse != null) {
-            TxnMonitor.addKeysBatchReadWrite(txnToUse, cluster, partitions, settings, batchRecords);
-        }
-
-        // Determine if ANY record has a write to decide parent command type
-        boolean hasAnyWrite = batchRecords.stream().anyMatch(br -> br.hasWrite);
-
-        BatchCommand parent;
-
-        if (hasAnyWrite) {
-            parent = new BatchWriteCommand(cluster, partitions, txnToUse, namespace,
-                batchRecords, filterExp, respondAllKeys, settings);
-        }
-        else {
-            ReadAttr attr = new ReadAttr(partitions, settings);
-
-            parent = new BatchReadCommand(cluster, partitions, txnToUse, namespace,
-                    batchRecords, filterExp, respondAllKeys, settings, attr);
-        }
+        BatchCommand parent = new BatchCommand(cluster, null, txn, null, records,
+        	defaultWhereClause, respondAllKeys, linearize, settings);
 
         BatchStatus status = new BatchStatus(true);
-        List<BatchNode> bns = BatchNodeList.generate(cluster, partitions, settings.getReplicaOrder(), batchRecords,
-            status);
+        List<BatchNode> bns = BatchNodeList.generate(cluster, null, settings.getReplicaOrder(),
+        	records, status);
 
         IBatchCommand[] commands = new IBatchCommand[bns.size()];
         int count = 0;
@@ -157,44 +192,47 @@ class OperationSpecExecutor {
         for (BatchNode bn : bns) {
             if (bn.offsetsSize == 1) {
                 int i = bn.offsets[0];
-                BatchRecord rec = batchRecords.get(i);
+                BatchRecord rec = records.get(i);
 
-                // Check the actual record's write status, not args.hasWrite
-                if (rec.hasWrite) {
-                    BatchWrite bw = (BatchWrite)rec;
-                    BatchAttr attr = new BatchAttr();
+                switch (rec.getType()) {
+                case BATCH_READ:
+					commands[count++] = new BatchSingle.ReadRecordSync(cluster, parent,
+						(BatchRead)rec, status, bn.node);
+                	break;
 
-                    attr.setWriteSingle((BatchWriteCommand)parent, bw);
-                    attr.adjustWrite(bw.ops);
-                    attr.setOpSize(bw.ops);
+                case BATCH_WRITE:
+	                commands[count++] = new BatchSingle.OperateRecordSync(cluster, parent,
+	                	(BatchWrite)rec, status, bn.node);
+	                break;
 
-                    commands[count++] = new BatchSingle.OperateRecordSync(cluster, parent, bw.ops, attr, rec, status,
-                            bn.node);
-                }
-                else {
-                    BatchRead br = (BatchRead)rec;
-                    BatchAttr attr = new BatchAttr();
+	            // TODO Support user defined functions.
+                case BATCH_UDF:
+                	break;
 
-                    attr.setReadSingle((BatchReadCommand)parent, br);
-                    attr.adjustRead(br.ops);
-                    attr.setOpSize(br.ops);
-
-                    commands[count++] = new BatchSingle.ReadRecordSync(cluster, (BatchReadCommand)parent, br, status, bn.node);
-                }
+                case BATCH_DELETE:
+					commands[count++] = new BatchSingle.Delete(cluster, parent,
+						(BatchDelete)rec, status, bn.node);
+                	break;
+               }
             }
             else {
-                commands[count++] = new Batch.OperateListSync(cluster, parent, bn, batchRecords, status);
+                commands[count++] = new Batch.OperateListSync(cluster, parent, bn, records, status);
             }
         }
 
-        com.aerospike.client.fluent.command.BatchExecutor.execute(cluster, commands, status);
+        if (txn != null) {
+            TxnMonitor.addKeysBatchReadWrite(txn, session, records);
+        }
 
-        // Convert BatchRecord to RecordResult with proper filtering and stack trace handling
-        AsyncRecordStream recordStream = new AsyncRecordStream(batchRecords.size());
+        BatchExecutor.execute(cluster, commands, status);
+
+        AsyncRecordStream recordStream = new AsyncRecordStream(records.size());
+
         try {
-            for (int i = 0; i < batchRecords.size(); i++) {
-                BatchRecord br = batchRecords.get(i);
-                if (shouldIncludeResult(br.resultCode, respondAllKeys, anyFailOnFilteredOut)) {
+            for (int i = 0; i < records.size(); i++) {
+                BatchRecord br = records.get(i);
+
+                if (shouldIncludeResult(br.resultCode, respondAllKeys, failOnFilteredOut)) {
                     recordStream.publish(AbstractFilterableBuilder.createRecordResultFromBatchRecord(br, settings, i));
                 }
             }
@@ -202,86 +240,6 @@ class OperationSpecExecutor {
         }
         finally {
             recordStream.complete();
-        }
-    }
-
-
-    /**
-     * Create the appropriate BatchRecord for an operation spec and key.
-     */
-    private static BatchRecord createBatchRecord(OperationSpec spec, Key key,
-                                                  Expression filterExp, Settings settings) {
-        if (spec.isQuery()) {
-            // Query (read) operation
-            return createBatchRead(spec, key, filterExp);
-        }
-
-        switch (spec.getOpType()) {
-        case DELETE:
-            return createBatchDelete(spec, key, filterExp, settings);
-        case TOUCH:
-            return createBatchTouch(spec, key, filterExp, settings);
-        case EXISTS:
-            return createBatchExists(spec, key, filterExp);
-        case UPSERT:
-        case UPDATE:
-        case INSERT:
-        case REPLACE:
-        case REPLACE_IF_EXISTS:
-            return createBatchWrite(spec, key, filterExp, settings);
-        default:
-            throw new IllegalStateException("Unknown operation type: " + spec.getOpType());
-        }
-    }
-
-    /**
-     * Create BatchWrite for write operations (upsert, update, insert, replace).
-     */
-    private static BatchWrite createBatchWrite(OperationSpec spec, Key key,
-                                               Expression filterExp, Settings settings) {
-        return new BatchWrite(key, spec.getWhereClause(), spec.getOperations(), spec.getOpType(),
-        	spec.getGeneration(), (int)spec.getExpirationInSeconds());
-    }
-
-    /**
-     * Create BatchDelete for delete operations.
-     */
-    private static BatchDelete createBatchDelete(OperationSpec spec, Key key,
-                                                  Expression filterExp, Settings settings) {
-        return new BatchDelete(key, spec.getWhereClause(), spec.getGeneration());
-    }
-
-    /**
-     * Create BatchWrite with touch operation.
-     */
-    private static BatchWrite createBatchTouch(OperationSpec spec, Key key,
-                                               Expression filterExp, Settings settings) {
-        return new BatchWrite(key, spec.getWhereClause(), List.of(Operation.touch()), OpType.TOUCH,
-        	spec.getGeneration(), (int)spec.getExpirationInSeconds());
-    }
-
-    /**
-     * Create BatchRead for exists check (metadata only, no bins).
-     */
-    private static BatchRead createBatchExists(OperationSpec spec, Key key, Expression filterExp) {
-        return new BatchRead(key, spec.getWhereClause(), false);
-    }
-
-    /**
-     * Create BatchRead for query operations.
-     */
-    private static BatchRead createBatchRead(OperationSpec spec, Key key, Expression filterExp) {
-        List<Operation> ops = spec.getOperations();
-        
-        if (ops != null && !ops.isEmpty()) {
-            // Use operations constructor for CDT reads, selectFrom, etc.
-            return new BatchRead(key, filterExp, ops);
-        } else if (spec.getProjectedBins() != null && spec.getProjectedBins().length > 0) {
-            // Read specific bins
-            return new BatchRead(key, spec.getWhereClause(), spec.getProjectedBins());
-        } else {
-            // Read all bins
-            return new BatchRead(key, spec.getWhereClause(), true);
         }
     }
 

@@ -86,7 +86,7 @@ public class Command {
 	public final Cluster cluster;
 	public final String namespace;
 	public final Txn txn;
-	public final Expression filterExp;
+	public final Expression where;
 	public final Replica replica;
 	public final int connectTimeout;
 	public final int socketTimeout;
@@ -99,13 +99,13 @@ public class Command {
 	public final boolean compress;
 
 	public Command(
-		Cluster cluster, String namespace, Txn txn, Expression filterExp, Replica replica,
+		Cluster cluster, String namespace, Txn txn, Expression where, Replica replica,
 		Settings policy
 	) {
 		this.cluster = cluster;
 		this.namespace = namespace;
 		this.txn = txn;
-		this.filterExp = filterExp;
+		this.where = where;
 		this.replica = replica;
 
 		connectTimeout = policy.getWaitForConnectionToCompleteMs();

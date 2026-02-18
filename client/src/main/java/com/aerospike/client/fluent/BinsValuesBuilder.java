@@ -26,9 +26,9 @@ import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import com.aerospike.client.fluent.AerospikeException.InvalidNamespace;
 import com.aerospike.client.fluent.command.Batch;
 import com.aerospike.client.fluent.command.BatchAttr;
+import com.aerospike.client.fluent.command.BatchCommand;
 import com.aerospike.client.fluent.command.BatchExecutor;
 import com.aerospike.client.fluent.command.BatchNode;
 import com.aerospike.client.fluent.command.BatchNodeList;
@@ -36,7 +36,6 @@ import com.aerospike.client.fluent.command.BatchRecord;
 import com.aerospike.client.fluent.command.BatchSingle;
 import com.aerospike.client.fluent.command.BatchStatus;
 import com.aerospike.client.fluent.command.BatchWrite;
-import com.aerospike.client.fluent.command.BatchWriteCommand;
 import com.aerospike.client.fluent.command.IBatchCommand;
 import com.aerospike.client.fluent.command.OperateArgs;
 import com.aerospike.client.fluent.command.OperateWriteCommand;
@@ -76,6 +75,9 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
     private final List<Key> keys;
     private ValueData current = null;
     private Txn txnToUse;
+    private String namespace;
+    private Partitions partitions;
+    private Settings settings;
 
     /**
      * Constructs a new BinsValuesBuilder for setting multiple bin names and values.
@@ -537,6 +539,10 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
                     + (txnToUse != null ? "yes" : "no"));
         }
 
+        if (keys.size() == 0) {
+            return new RecordStream();
+        }
+
         if (valueSets.size() != opBuilder.getNumKeys()) {
             throw new IllegalArgumentException(String.format(
                     "The number of '.values(...)' calls (%d) must match the number of specified keys (%d)",
@@ -567,6 +573,10 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
                     + (txnToUse != null ? "yes" : "no"));
         }
 
+        if (keys.size() == 0) {
+            return new RecordStream();
+        }
+
         if (this.txnToUse != null && Log.warnEnabled()) {
             Log.warn("executeAsync() called within a transaction. "
                     + "Async operations may still be in flight when commit() is called, "
@@ -588,36 +598,13 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
     }
 
     private RecordStream executeBatchSync() {
-        Session session = opBuilder.getSession();
-        Cluster cluster = session.getCluster();
-
-        // Assume all keys have the same namespace.
-        String namespace = keys.get(0).namespace;
-        Partitions partitions = getPartitions(cluster, namespace);
-        Settings policy = session.getBehavior().getSettings(OpKind.WRITE_RETRYABLE, OpShape.BATCH, partitions.scMode);
-        final Expression filterExp = getFilterExp(session, namespace);
-        Txn txn = opBuilder.getTxnToUse();
-
-        if (txn != null) {
-            TxnMonitor.addKeys(txnToUse, cluster, partitions, policy, keys);
-        }
-
-        List<BatchRecord> batchRecords = new ArrayList<>(keys.size());
-
-        for (Key key : keys) {
-            ValueData valueSet = valueSets.get(key);
-            List<Operation> ops = getOperationsForValueData(valueSet);
-            int ttl = getExpiration(valueSet);
-
-            batchRecords.add(new BatchWrite(key, null, ops, opBuilder.getOpType(), valueSet.generation, ttl));
-        }
-
-        BatchWriteCommand parent = new BatchWriteCommand(cluster, partitions, txn, namespace,
-        	batchRecords, filterExp, opBuilder.isRespondAllKeys(), policy);
+    	BatchCommand parent = prepareBatch();
+        List<BatchRecord> records = parent.getRecords();
+        Cluster cluster = opBuilder.getSession().getCluster();
 
         BatchStatus status = new BatchStatus(true);
-        List<BatchNode> bns = BatchNodeList.generate(cluster, partitions, policy.getReplicaOrder(), batchRecords,
-                status);
+        List<BatchNode> bns = BatchNodeList.generate(cluster, partitions, settings.getReplicaOrder(),
+        	records, status);
 
         IBatchCommand[] commands = new IBatchCommand[bns.size()];
         int count = 0;
@@ -625,20 +612,21 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
         for (BatchNode bn : bns) {
             if (bn.offsetsSize == 1) {
                 int i = bn.offsets[0];
-                BatchRecord record = batchRecords.get(i);
+                BatchRecord record = records.get(i);
+                BatchWrite bw = (BatchWrite)record;
 
-                BatchWrite bw = (BatchWrite) record;
-                BatchAttr attr = new BatchAttr();
-
-                attr.setWriteSingle(parent, bw);
-                attr.adjustWrite(bw.ops);
-                attr.setOpSize(bw.ops);
-
-                commands[count++] = new BatchSingle.OperateRecordSync(cluster, parent, bw.ops, attr, record, status,
-                        bn.node);
-            } else {
-                commands[count++] = new Batch.OperateListSync(cluster, parent, bn, batchRecords, status);
+                commands[count++] = new BatchSingle.OperateRecordSync(cluster, parent, bw, status,
+                	bn.node);
             }
+            else {
+                commands[count++] = new Batch.OperateListSync(cluster, parent, bn, records, status);
+            }
+        }
+
+        Txn txn = opBuilder.getTxnToUse();
+
+        if (txn != null) {
+            TxnMonitor.addKeys(txnToUse, cluster, partitions, settings, keys);
         }
 
         BatchExecutor.execute(cluster, commands, status);
@@ -647,18 +635,18 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
         // UPDATE and REPLACE_IF_EXISTS must always report KEY_NOT_FOUND_ERROR because
         // these operations are semantically expected to fail on non-existent records.
         OpType opType = opBuilder.getOpType();
-        boolean effectiveRespondAllKeys = respondAllKeys || 
+        boolean effectiveRespondAllKeys = respondAllKeys ||
             opType == OpType.UPDATE || opType == OpType.REPLACE_IF_EXISTS;
-        
+
         for (int i = 0; i < keys.size(); i++) {
-            BatchRecord br = batchRecords.get(i);
+            BatchRecord br = records.get(i);
             // Handle respondAllKeys and filterExp behavior
             if (switch (br.resultCode) {
             case ResultCode.KEY_NOT_FOUND_ERROR -> effectiveRespondAllKeys;
             case ResultCode.FILTERED_OUT -> failOnFilteredOut || effectiveRespondAllKeys;
             default -> true;
             }) {
-                if (policy.getStackTraceOnException() && br.resultCode != ResultCode.OK) {
+                if (settings.getStackTraceOnException() && br.resultCode != ResultCode.OK) {
                     results.add(new RecordResult(br,
                             AerospikeException.resultCodeToException(br.resultCode, null, br.inDoubt), i));
                 } else {
@@ -672,36 +660,13 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
     }
 
     private RecordStream executeBatchAsync() {
-        if (keys.size() == 0) {
-            return new RecordStream();
-        }
-
-        Session session = opBuilder.getSession();
-        Cluster cluster = session.getCluster();
-
-        // Assume all keys have the same namespace.
-        String namespace = keys.get(0).namespace;
-        Partitions partitions = getPartitions(cluster, namespace);
-        Settings policy = session.getBehavior().getSettings(OpKind.WRITE_RETRYABLE, OpShape.BATCH, partitions.scMode);
-        final Expression filterExp = getFilterExp(session, namespace);
-        List<BatchRecord> batchRecords = new ArrayList<>(keys.size());
-
-        for (Key key : keys) {
-            ValueData valueSet = valueSets.get(key);
-            List<Operation> ops = getOperationsForValueData(valueSet);
-            int ttl = getExpiration(valueSet);
-
-            batchRecords.add(new BatchWrite(key, null, ops, opBuilder.getOpType(), valueSet.generation, ttl));
-        }
-
-        Txn txn = opBuilder.getTxnToUse();
-
-        BatchWriteCommand parent = new BatchWriteCommand(cluster, partitions, txn, namespace,
-        	batchRecords, filterExp, opBuilder.isRespondAllKeys(), policy);
+    	BatchCommand parent = prepareBatch();
+        List<BatchRecord> records = parent.getRecords();
+        Cluster cluster = opBuilder.getSession().getCluster();
 
         BatchStatus status = new BatchStatus(true);
-        List<BatchNode> bns = BatchNodeList.generate(cluster, partitions, policy.getReplicaOrder(), batchRecords,
-                status);
+        List<BatchNode> bns = BatchNodeList.generate(cluster, partitions,
+        	settings.getReplicaOrder(), records, status);
 
         AsyncRecordStream stream = new AsyncRecordStream(keys.size());
         IBatchCommand[] commands = new IBatchCommand[bns.size()];
@@ -710,25 +675,23 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
         for (BatchNode bn : bns) {
             if (bn.offsetsSize == 1) {
                 int i = bn.offsets[0];
-                BatchRecord record = batchRecords.get(i);
+                BatchRecord record = records.get(i);
+                BatchWrite bw = (BatchWrite)record;
 
-                BatchWrite bw = (BatchWrite) record;
-                BatchAttr attr = new BatchAttr();
-
-                attr.setWriteSingle(parent, bw);
-                attr.adjustWrite(bw.ops);
-                attr.setOpSize(bw.ops);
-
-                commands[count++] = new BatchSingle.OperateRecordAsync(cluster, parent, bw.ops, attr, record, status,
-                        bn.node, stream, i);
-            } else {
-                commands[count++] = new Batch.OperateListAsync(cluster, parent, bn, batchRecords, stream, status);
+                commands[count++] = new BatchSingle.OperateRecordAsync(cluster, parent, bw, status,
+                	bn.node, stream, i);
+            }
+            else {
+                commands[count++] = new Batch.OperateListAsync(cluster, parent, bn, records, stream,
+                	status);
             }
         }
 
+        Txn txn = opBuilder.getTxnToUse();
+
         if (txn != null) {
             cluster.startVirtualThread(() -> {
-                TxnMonitor.addKeys(txnToUse, cluster, partitions, policy, keys);
+                TxnMonitor.addKeys(txnToUse, cluster, partitions, settings, keys);
                 operateBatchAsync(cluster, commands, status, stream);
             });
         }
@@ -737,6 +700,35 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
         }
 
         return new RecordStream(stream);
+    }
+
+    private BatchCommand prepareBatch() {
+        Session session = opBuilder.getSession();
+        Cluster cluster = session.getCluster();
+
+        // Assume all keys have the same namespace.
+        namespace = keys.get(0).namespace;
+        partitions = getPartitions(cluster, namespace);
+        settings = session.getBehavior().getSettings(OpKind.WRITE_RETRYABLE, OpShape.BATCH,
+        	partitions.scMode);
+        final Expression filterExp = getFilterExp(session, namespace);
+
+        BatchAttr attr = new BatchAttr();
+	    attr.setWrite(settings, opBuilder.getOpType());
+
+		List<BatchRecord> batchRecords = new ArrayList<>(keys.size());
+
+        for (Key key : keys) {
+            ValueData valueSet = valueSets.get(key);
+            List<Operation> ops = getOperationsForValueData(valueSet);
+            int ttl = getExpiration(valueSet);
+
+            batchRecords.add(new BatchWrite(key, null, attr, opBuilder.getOpType(), ops,
+            	valueSet.generation, ttl));
+        }
+
+        return new BatchCommand(cluster, partitions, opBuilder.getTxnToUse(), namespace,
+        	batchRecords, filterExp, opBuilder.isRespondAllKeys(), false, settings);
     }
 
     private void operateBatchAsync(Cluster cluster, IBatchCommand[] commands, BatchStatus status, AsyncRecordStream stream) {

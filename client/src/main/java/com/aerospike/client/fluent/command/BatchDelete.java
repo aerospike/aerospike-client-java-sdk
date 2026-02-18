@@ -17,62 +17,35 @@
 package com.aerospike.client.fluent.command;
 
 import com.aerospike.client.fluent.Key;
+import com.aerospike.client.fluent.OperationSpec;
 import com.aerospike.client.fluent.exp.Expression;
 
-/**
- * Batch delete operation.
- */
 public final class BatchDelete extends BatchRecord {
-	/**
-	 * Optional expression filter. If filterExp exists and evaluates to false, the specific batch key
-	 * request is not performed and the result code is set to
-	 * {@link com.aerospike.client.fluent.ResultCode#FILTERED_OUT}.
-	 * <p>
-	 * If exists, this filter overrides the batch parent filter expression.
-	 * <p>
-	 * Default: null
-	 */
-	public final Expression filterExp;
+	public final int gen;
 
-	/**
-	 * Expected generation. Generation is the number of times a record has been modified
-	 * (including creation) on the server. This field is only relevant when generationPolicy
-	 * is not NONE.
-	 * <p>
-	 * Default: 0
-	 */
-	public final int generation;
+	public BatchDelete(Key key, Expression where, BatchAttr attr, int gen) {
+		super(key, where, attr);
+		this.gen = gen;
 
-	/**
-	 * Initialize key.
-	 */
-	public BatchDelete(Key key) {
-		super(key, true);
-		this.filterExp = null;
-		this.generation = 0;
+		if (gen > 0) {
+			writeAttr |= Command.INFO2_GENERATION;
+		}
 	}
 
-	/**
-	 * Initialize policy and key.
-	 */
-	public BatchDelete(Key key, Expression filterExp, int generation) {
-		super(key, true);
-		this.filterExp = filterExp;
-		this.generation = generation;
+	public BatchDelete(Key key, BatchAttr attr, OperationSpec spec) {
+		super(key, spec.getWhereClause(), attr);
+		this.gen = (short)spec.getGeneration();
+
+		if (gen > 0) {
+			writeAttr |= Command.INFO2_GENERATION;
+		}
 	}
 
-	/**
-	 * Return batch command type.
-	 */
 	@Override
 	public Type getType() {
 		return Type.BATCH_DELETE;
 	}
 
-	/**
-	 * Optimized reference equality check to determine batch wire protocol repeat flag.
-	 * For internal use only.
-	 */
 	@Override
 	public boolean equals(BatchRecord obj) {
 		if (getClass() != obj.getClass()) {
@@ -81,16 +54,13 @@ public final class BatchDelete extends BatchRecord {
 
 		BatchDelete other = (BatchDelete)obj;
 
-		if (filterExp != other.filterExp) {
+		if (where != other.where) {
 			return false;
 		}
 
-		return generation == other.generation;
+		return gen == other.gen;
 	}
 
-	/**
-	 * Return wire protocol size. For internal use only.
-	 */
 	@Override
 	public int size(Command cmd) {
 		int size = 2; // gen(2) = 2
@@ -99,8 +69,8 @@ public final class BatchDelete extends BatchRecord {
 			size += key.userKey.estimateSize() + Command.FIELD_HEADER_SIZE + 1;
 		}
 
-		if (filterExp != null) {
-			size += filterExp.getBytes().length + Command.FIELD_HEADER_SIZE;
+		if (where != null) {
+			size += where.getBytes().length + Command.FIELD_HEADER_SIZE;
 		}
 
 		return size;

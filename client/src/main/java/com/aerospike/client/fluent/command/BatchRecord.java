@@ -19,68 +19,56 @@ package com.aerospike.client.fluent.command;
 import com.aerospike.client.fluent.Key;
 import com.aerospike.client.fluent.Record;
 import com.aerospike.client.fluent.ResultCode;
+import com.aerospike.client.fluent.exp.Expression;
+import com.aerospike.client.fluent.policy.Replica;
 
 /**
  * Batch key and record result.
  */
 public class BatchRecord {
-	/**
-	 * Key.
-	 */
 	public final Key key;
-
-	/**
-	 * Record result after batch command has completed.  Will be null if record was not found
-	 * or an error occurred. See {@link BatchRecord#resultCode}.
-	 */
+	public final Expression where;
+	public final Replica replica;
 	public Record record;
-
-	/**
-	 * Result code for this returned record. See {@link com.aerospike.client.ResultCode}.
-	 * If not {@link com.aerospike.client.ResultCode#OK}, the record will be null.
-	 */
 	public int resultCode;
-
-	/**
-	 * Is it possible that the write command may have completed even though an error
-	 * occurred for this record. This may be the case when a client error occurs (like timeout)
-	 * after the command was sent to the server.
-	 */
+	public byte readAttr;
+	public byte writeAttr;
+	public final byte infoAttr;
+	public final byte txnAttr;
+	public final boolean hasWrite;
+    public final boolean linearize;
 	public boolean inDoubt;
 
-	/**
-	 * Does this command contain a write operation. For internal use only.
+    /**
+	 * Initialize batch key.
 	 */
-	public final boolean hasWrite;
+	public BatchRecord(Key key, Expression where, BatchAttr attr) {
+		this.key = key;
+		this.where = where;
+		this.replica = attr.replica;
+		this.readAttr = attr.readAttr;
+		this.writeAttr = attr.writeAttr;
+		this.infoAttr = attr.infoAttr;
+		this.txnAttr = attr.txnAttr;
+		this.resultCode = ResultCode.NO_RESPONSE;
+		this.hasWrite = attr.hasWrite;
+		this.linearize = attr.linearize;
+	}
 
-	/**
+    /**
 	 * Initialize batch key.
 	 */
 	public BatchRecord(Key key, boolean hasWrite) {
 		this.key = key;
+		this.where = null;
+		this.replica = null;
+		this.readAttr = 0;
+		this.writeAttr = 0;
+		this.infoAttr = 0;
+		this.txnAttr = 0;
 		this.resultCode = ResultCode.NO_RESPONSE;
 		this.hasWrite = hasWrite;
-	}
-
-	/**
-	 * Initialize batch key and record.
-	 */
-	public BatchRecord(Key key, Record record, boolean hasWrite) {
-		this.key = key;
-		this.record = record;
-		this.resultCode = ResultCode.OK;
-		this.hasWrite = hasWrite;
-	}
-
-	/**
-	 * Error constructor.
-	 */
-	public BatchRecord(Key key, Record record, int resultCode, boolean inDoubt, boolean hasWrite) {
-		this.key = key;
-		this.record = record;
-		this.resultCode = resultCode;
-		this.inDoubt = inDoubt;
-		this.hasWrite = hasWrite;
+		this.linearize = false;
 	}
 
 	/**

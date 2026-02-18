@@ -33,23 +33,23 @@ import com.aerospike.client.fluent.RecordStream;
 import com.aerospike.client.fluent.ResultCode;
 import com.aerospike.client.fluent.Session;
 import com.aerospike.client.fluent.command.Batch;
+import com.aerospike.client.fluent.command.BatchAttr;
+import com.aerospike.client.fluent.command.BatchCommand;
 import com.aerospike.client.fluent.command.BatchExecutor;
 import com.aerospike.client.fluent.command.BatchNode;
 import com.aerospike.client.fluent.command.BatchNodeList;
 import com.aerospike.client.fluent.command.BatchRead;
-import com.aerospike.client.fluent.command.BatchReadCommand;
 import com.aerospike.client.fluent.command.BatchRecord;
 import com.aerospike.client.fluent.command.BatchSingle;
 import com.aerospike.client.fluent.command.BatchStatus;
 import com.aerospike.client.fluent.command.IBatchCommand;
-import com.aerospike.client.fluent.command.ReadAttr;
 import com.aerospike.client.fluent.command.Txn;
 import com.aerospike.client.fluent.exp.Exp;
 import com.aerospike.client.fluent.exp.Expression;
 import com.aerospike.client.fluent.policy.Behavior.OpKind;
 import com.aerospike.client.fluent.policy.Behavior.OpShape;
-import com.aerospike.client.fluent.tend.Partitions;
 import com.aerospike.client.fluent.policy.Settings;
+import com.aerospike.client.fluent.tend.Partitions;
 import com.aerospike.dsl.ParseResult;
 
 class BatchKeyQueryBuilderImpl extends QueryImpl {
@@ -101,6 +101,21 @@ class BatchKeyQueryBuilderImpl extends QueryImpl {
 
     	Session session = getSession();
     	Cluster cluster = session.getCluster();
+
+    	// Assume all keys have the same namespace.
+        String namespace = keyList.get(0).namespace;
+		HashMap<String,Partitions> partitionMap = cluster.getPartitionMap();
+		Partitions partitions = partitionMap.get(namespace);
+
+		if (partitions == null) {
+			throw new AerospikeException.InvalidNamespace(namespace, partitionMap.size());
+		}
+
+		Settings settings = session.getBehavior().getSettings(OpKind.READ, OpShape.BATCH, partitions.scMode);
+
+        BatchAttr attr = new BatchAttr();
+        attr.setRead(settings, partitions.scMode);
+
     	QueryBuilder qb = getQueryBuilder();
 
         Txn txn = qb.getTxnToUse();
@@ -109,21 +124,21 @@ class BatchKeyQueryBuilderImpl extends QueryImpl {
 			txn.prepareReadKeys(keyList);
 		}
 
-        Expression filterExp = null;
+        Expression where = null;
         WhereClauseProcessor dsl = qb.getDsl();
 
         if (dsl != null) {
             ParseResult parseResult = dsl.process(keyList.get(0).namespace, session);
-            filterExp = Exp.build(parseResult.getExp());
+            where = Exp.build(parseResult.getExp());
         }
 
         long limit = getQueryBuilder().getLimit();
-        List<BatchRecord> batchRecords = new ArrayList<>(keyList.size());
-        List<BatchRecord> batchRecordsForServer = hasPartitionFilter() ? new ArrayList<>() : batchRecords;
+        List<BatchRecord> records = new ArrayList<>(keyList.size());
+        List<BatchRecord> recordsForServer = hasPartitionFilter() ? new ArrayList<>() : records;
+        int ttl = settings.getResetTtlOnReadAtPercent();
 
         for (Key thisKey : keyList) {
-            // If there is no "where" clause and the limit has been exceeded, exit the loop
-            if (filterExp == null && limit > 0 && batchRecords.size() >= limit) {
+			if (where == null && limit > 0 && records.size() >= limit) {
                 break;
             }
 
@@ -135,48 +150,36 @@ class BatchKeyQueryBuilderImpl extends QueryImpl {
                 }
                 else {
                     // Need to include a record but do not send it to the server
-                    batchRecords.add(new BatchRecord(thisKey, false));
+                    records.add(new BatchRecord(thisKey, false));
                 }
             }
             else {
                 BatchRecord thisBatchRecord;
                 List<Operation> ops = getQueryBuilder().getOperations();
-                
+
                 if (ops != null && !ops.isEmpty()) {
                     // Use operations constructor for CDT reads, selectFrom, etc.
-                    thisBatchRecord = new BatchRead(thisKey, filterExp, ops);
+                    thisBatchRecord = new BatchRead(thisKey, null, attr, ttl, ops);
                 }
                 else if (getQueryBuilder().getWithNoBins()) {
-                    thisBatchRecord = new BatchRead(thisKey, null, false);
+                    thisBatchRecord = new BatchRead(thisKey, null, attr, ttl, false);
                 }
                 else if (getQueryBuilder().getBinNames() != null) {
-                    thisBatchRecord = new BatchRead(thisKey, null, getQueryBuilder().getBinNames());
+                    thisBatchRecord = new BatchRead(thisKey, null, attr, ttl, getQueryBuilder().getBinNames());
                 }
                 else {
-                    thisBatchRecord = new BatchRead(thisKey, null, true);
+                    thisBatchRecord = new BatchRead(thisKey, null, attr, ttl, true);
                 }
-                batchRecordsForServer.add(thisBatchRecord);
+                recordsForServer.add(thisBatchRecord);
             }
         }
 
-        // Assume all keys have the same namespace.
-        String namespace = keyList.get(0).namespace;
-		HashMap<String,Partitions> partitionMap = cluster.getPartitionMap();
-		Partitions partitions = partitionMap.get(namespace);
-
-		if (partitions == null) {
-			throw new AerospikeException.InvalidNamespace(namespace, partitionMap.size());
-		}
-
-		Settings policy = session.getBehavior().getSettings(OpKind.READ, OpShape.BATCH, partitions.scMode);
-		ReadAttr attr = new ReadAttr(partitions, policy);
-
-		BatchReadCommand parent = new BatchReadCommand(cluster, partitions, txn, namespace,
-			batchRecordsForServer, filterExp, qb.isRespondAllKeys(), policy, attr);
+		BatchCommand parent = new BatchCommand(cluster, partitions, txn, namespace,
+			recordsForServer, where, qb.isRespondAllKeys(), attr.linearize, settings);
 
     	BatchStatus status = new BatchStatus(true);
-		List<BatchNode> bns = BatchNodeList.generate(cluster, partitions, parent.replica,
-			batchRecordsForServer, status);
+		List<BatchNode> bns = BatchNodeList.generate(cluster, partitions, attr.replica,
+			recordsForServer, status);
 
 		IBatchCommand[] commands = new IBatchCommand[bns.size()];
     	int count = 0;
@@ -184,13 +187,13 @@ class BatchKeyQueryBuilderImpl extends QueryImpl {
 		for (BatchNode bn : bns) {
 			if (bn.offsetsSize == 1) {
 				int i = bn.offsets[0];
-				BatchRecord record = batchRecordsForServer.get(i);
-
+				BatchRecord record = recordsForServer.get(i);
 				BatchRead br = (BatchRead)record;
+
 				commands[count++] = new BatchSingle.ReadRecordSync(cluster, parent, br, status, bn.node);
 			}
 			else {
-				commands[count++] = new Batch.OperateListSync(cluster, parent, bn, batchRecordsForServer, status);
+				commands[count++] = new Batch.OperateListSync(cluster, parent, bn, recordsForServer, status);
 			}
 		}
 
@@ -199,21 +202,21 @@ class BatchKeyQueryBuilderImpl extends QueryImpl {
 
             if (!qb.isRespondAllKeys()) {
                 // Remove any items which have been filtered out.
-                batchRecordsForServer.removeIf(br -> (br.resultCode == ResultCode.OK && br.record == null)
+                recordsForServer.removeIf(br -> (br.resultCode == ResultCode.OK && br.record == null)
                         || (br.resultCode == ResultCode.KEY_NOT_FOUND_ERROR)
                         || (br.resultCode == ResultCode.FILTERED_OUT && !getQueryBuilder().isFailOnFilteredOut()));
             }
 
             if (hasPartitionFilter()) {
                 // Add the server results into any that were filtered out earlier
-                batchRecords.addAll(batchRecordsForServer);
+                records.addAll(recordsForServer);
             }
             // Convert BatchRecord to RecordResult
             List<RecordResult> results = new ArrayList<>();
-            Settings settings = getSession().getBehavior()
-                    .getSettings(OpKind.READ, OpShape.BATCH, getSession().isNamespaceSC(keyList.get(0).namespace));
-            for (int i = 0; i < batchRecords.size(); i++) {
-                BatchRecord br = batchRecords.get(i);
+
+            for (int i = 0; i < records.size(); i++) {
+                BatchRecord br = records.get(i);
+
                 if (getQueryBuilder().shouldIncludeResult(br.resultCode)) {
                     results.add(AbstractFilterableBuilder.createRecordResultFromBatchRecord(br, settings, i));
                 }

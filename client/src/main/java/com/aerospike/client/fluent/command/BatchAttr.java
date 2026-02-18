@@ -16,24 +16,20 @@
  */
 package com.aerospike.client.fluent.command;
 
-import java.util.List;
-
-import com.aerospike.client.fluent.Operation;
-import com.aerospike.client.fluent.exp.Expression;
+import com.aerospike.client.fluent.OpType;
 import com.aerospike.client.fluent.policy.CommitLevel;
 import com.aerospike.client.fluent.policy.ReadModeAP;
+import com.aerospike.client.fluent.policy.Replica;
+import com.aerospike.client.fluent.policy.Settings;
 
 public final class BatchAttr {
-	public Expression filterExp;
-	public int readAttr;
-	public int writeAttr;
-	public int infoAttr;
-	public int txnAttr;
-	public int expiration;
-	public int opSize;
-	public short generation;
+	public Replica replica;
+	public byte readAttr;
+	public byte writeAttr;
+	public byte infoAttr;
+	public byte txnAttr;
 	public boolean hasWrite;
-	public boolean sendKey;
+    public boolean linearize;
 
 	public BatchAttr() {
 	}
@@ -106,98 +102,62 @@ public final class BatchAttr {
 	}
 	*/
 
-	public void setReadSingle(BatchReadCommand cmd, BatchRead br) {
-		Expression e = (br.filterExp != null)? br.filterExp : cmd.filterExp;
-		setRead(cmd, e);
-	}
-
-	public void setReadEntry(BatchReadCommand cmd, BatchRead br) {
-		setRead(cmd, br.filterExp);
-	}
-
-	private void setRead(BatchReadCommand cmd, Expression e) {
-		filterExp = e;
+	public void setRead(Settings settings, boolean scMode) {
 		readAttr = Command.INFO1_READ;
-
-		if (cmd.readModeAP == ReadModeAP.ALL) {
-			readAttr |= Command.INFO1_READ_MODE_AP_ALL;
-		}
-
 		writeAttr = 0;
-
-		switch (cmd.readModeSC) {
-		default:
-		case SESSION:
-			infoAttr = 0;
-			break;
-		case LINEARIZE:
-			infoAttr = Command.INFO3_SC_READ_TYPE;
-			break;
-		case ALLOW_REPLICA:
-			infoAttr = Command.INFO3_SC_READ_RELAX;
-			break;
-		case ALLOW_UNAVAILABLE:
-			infoAttr = Command.INFO3_SC_READ_TYPE | Command.INFO3_SC_READ_RELAX;
-			break;
-		}
 		txnAttr = 0;
-		expiration = cmd.readTouchTtlPercent;
-		generation = 0;
 		hasWrite = false;
-		sendKey = false;
+
+		if (scMode) {
+            switch (settings.getReadModeSC()) {
+            case SESSION:
+            	replica = Replica.MASTER;
+        		infoAttr = 0;
+            	linearize = false;
+                break;
+
+            case LINEARIZE:
+                if (settings.getReplicaOrder() == Replica.PREFER_RACK) {
+                    replica = Replica.SEQUENCE;
+                }
+                else {
+                	replica = settings.getReplicaOrder();
+                }
+    			infoAttr = Command.INFO3_SC_READ_TYPE;
+                linearize = true;
+                break;
+
+    		case ALLOW_REPLICA:
+            	replica = settings.getReplicaOrder();
+            	infoAttr = (byte)Command.INFO3_SC_READ_RELAX;
+            	linearize = false;
+    			break;
+
+    		case ALLOW_UNAVAILABLE:
+            	replica = settings.getReplicaOrder();
+    			infoAttr = (byte)(Command.INFO3_SC_READ_TYPE | Command.INFO3_SC_READ_RELAX);
+            	linearize = false;
+    			break;
+            }
+        }
+        else {
+    		if (settings.getReadModeAP() == ReadModeAP.ALL) {
+    			readAttr |= Command.INFO1_READ_MODE_AP_ALL;
+    		}
+    		infoAttr = 0;
+            replica = settings.getReplicaOrder();
+            linearize = false;
+        }
 	}
 
-	public void adjustRead(List<Operation> ops) {
-		for (Operation op : ops) {
-			if (op.type == Operation.Type.READ) {
-				if (op.binName == null) {
-					readAttr |= Command.INFO1_GET_ALL;
-				}
-			}
-			else if (op.type == Operation.Type.READ_HEADER) {
-				readAttr |= Command.INFO1_NOBINDATA;
-			}
-		}
-	}
-
-	public void adjustRead(boolean readAllBins) {
-		if (readAllBins) {
-			readAttr |= Command.INFO1_GET_ALL;
-		}
-		else {
-			readAttr |= Command.INFO1_NOBINDATA;
-		}
-	}
-
-	public void setWriteSingle(BatchWriteCommand cmd, BatchWrite bw) {
-		Expression e = (bw.filterExp != null)? bw.filterExp : cmd.filterExp;
-		setWrite(cmd, bw, e);
-	}
-
-	public void setWriteEntry(BatchWriteCommand cmd, BatchWrite bw) {
-		setWrite(cmd, bw, bw.filterExp);
-	}
-
-	private void setWrite(BatchWriteCommand cmd, BatchWrite bw, Expression e) {
-		filterExp = e;
+	public void setWrite(Settings settings, OpType type) {
 		readAttr = 0;
-		writeAttr = Command.INFO2_WRITE | Command.INFO2_RESPOND_ALL_OPS;
+		writeAttr = (byte)(Command.INFO2_WRITE | Command.INFO2_RESPOND_ALL_OPS);
 		infoAttr = 0;
 		txnAttr = 0;
-		expiration = bw.ttl;
 		hasWrite = true;
-		sendKey = cmd.sendKey;
 
-		if (bw.generation > 0) {
-			generation = (short)bw.generation;
-			writeAttr |= Command.INFO2_GENERATION;
-		}
-
-		switch (bw.opType) {
-		default:
-		case UPSERT:
-			break;
-
+		switch (type) {
 		case INSERT:
 			writeAttr |= Command.INFO2_CREATE_ONLY;
 			break;
@@ -213,47 +173,32 @@ public final class BatchAttr {
 		case REPLACE_IF_EXISTS:
 			infoAttr |= Command.INFO3_REPLACE_ONLY;
 			break;
+
+		default:
+			break;
 		}
 
-		if (cmd.durableDelete) {
+		if (settings.getUseDurableDelete()) {
 			writeAttr |= Command.INFO2_DURABLE_DELETE;
 		}
 
-		if (cmd.commitLevel == CommitLevel.COMMIT_MASTER) {
+		if (settings.getCommitLevel() == CommitLevel.COMMIT_MASTER) {
 			infoAttr |= Command.INFO3_COMMIT_MASTER;
 		}
 	}
 
-	public void adjustWrite(List<Operation> ops) {
-		for (Operation op : ops) {
-			if (! op.type.isWrite) {
-				readAttr |= Command.INFO1_READ;
-
-				if (op.type == Operation.Type.READ) {
-					if (op.binName == null) {
-						readAttr |= Command.INFO1_GET_ALL;
-						// When GET_ALL is specified, RESPOND_ALL_OPS must be disabled.
-						writeAttr &= ~Command.INFO2_RESPOND_ALL_OPS;
-					}
-				}
-				else if (op.type == Operation.Type.READ_HEADER) {
-					readAttr |= Command.INFO1_NOBINDATA;
-				}
-			}
-		}
-	}
-
+	/*
 	public void setUDFSingle(BatchWriteCommand cmd, BatchUDF bu) {
-		Expression e = (bu.filterExp != null)? bu.filterExp : cmd.filterExp;
+		Expression e = (bu.where != null)? bu.where : cmd.filterExp;
 		setUDF(cmd, bu, e);
 	}
 
 	public void setUDFEntry(BatchWriteCommand cmd, BatchUDF bu) {
-		setUDF(cmd, bu, bu.filterExp);
+		setUDF(cmd, bu, bu.where);
 	}
 
 	private void setUDF(BatchWriteCommand cmd, BatchUDF bu, Expression e) {
-		filterExp = e;
+		where = e;
 		readAttr = 0;
 		writeAttr = Command.INFO2_WRITE;
 		infoAttr = 0;
@@ -271,59 +216,29 @@ public final class BatchAttr {
 			infoAttr |= Command.INFO3_COMMIT_MASTER;
 		}
 	}
+*/
 
-	public void setDeleteSingle(BatchWriteCommand cmd, BatchDelete bd) {
-		Expression e = (bd.filterExp != null)? bd.filterExp : cmd.filterExp;
-		setDelete(cmd, bd, e);
-	}
-
-	public void setDeleteEntry(BatchWriteCommand cmd, BatchDelete bd) {
-		setDelete(cmd, bd, bd.filterExp);
-	}
-
-	private void setDelete(BatchWriteCommand cmd, BatchDelete bd, Expression e) {
-		filterExp = e;
+	public void setDelete(Settings settings) {
 		readAttr = 0;
-		writeAttr = Command.INFO2_WRITE | Command.INFO2_RESPOND_ALL_OPS | Command.INFO2_DELETE;
+		writeAttr = (byte)(Command.INFO2_WRITE | Command.INFO2_RESPOND_ALL_OPS | Command.INFO2_DELETE);
 		infoAttr = 0;
 		txnAttr = 0;
-		expiration = 0;
 		hasWrite = true;
-		sendKey = cmd.sendKey;
 
-		if (bd.generation > 0) {
-			generation = (short)bd.generation;
-			writeAttr |= Command.INFO2_GENERATION;
-		}
-
-		if (cmd.durableDelete) {
+		if (settings.getUseDurableDelete()) {
 			writeAttr |= Command.INFO2_DURABLE_DELETE;
 		}
 
-		if (cmd.commitLevel == CommitLevel.COMMIT_MASTER) {
+		if (settings.getCommitLevel() == CommitLevel.COMMIT_MASTER) {
 			infoAttr |= Command.INFO3_COMMIT_MASTER;
 		}
 	}
 
-	public void setOpSize(List<Operation> ops) {
-		int dataOffset = 0;
-
-		for (Operation op : ops) {
-			dataOffset += Buffer.estimateSizeUtf8(op.binName) + Command.OPERATION_HEADER_SIZE;
-			dataOffset += op.value.estimateSize();
-		}
-		opSize = dataOffset;
-	}
-
 	public void setTxn(int attr) {
-		filterExp = null;
 		readAttr = 0;
-		writeAttr = Command.INFO2_WRITE | Command.INFO2_RESPOND_ALL_OPS | Command.INFO2_DURABLE_DELETE;
+		writeAttr = (byte)(Command.INFO2_WRITE | Command.INFO2_RESPOND_ALL_OPS | Command.INFO2_DURABLE_DELETE);
 		infoAttr = 0;
-		txnAttr = attr;
-		expiration = 0;
-		generation = 0;
+		txnAttr = (byte)attr;
 		hasWrite = true;
-		sendKey = false;
 	}
 }
