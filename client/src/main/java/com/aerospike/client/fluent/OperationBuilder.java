@@ -524,7 +524,7 @@ public class OperationBuilder extends AbstractOperationBuilder<OperationBuilder>
     private RecordStream executeBatchSync(OperateArgs args) {
     	BatchCommand parent = prepareBatch(args);
         Cluster cluster = session.getCluster();
-        BatchStatus status = new BatchStatus(true);
+        BatchStatus status = new BatchStatus();
         List<BatchRecord> records = parent.getRecords();
         List<BatchNode> bns = BatchNodes.generate(cluster, parent, records, status);
 
@@ -581,7 +581,7 @@ public class OperationBuilder extends AbstractOperationBuilder<OperationBuilder>
     private RecordStream executeBatchAsync(OperateArgs args) {
     	BatchCommand parent = prepareBatch(args);
         Cluster cluster = session.getCluster();
-        BatchStatus status = new BatchStatus(true);
+        BatchStatus status = new BatchStatus();
         List<BatchRecord> records = parent.getRecords();
         List<BatchNode> bns = BatchNodes.generate(cluster, parent, records, status);
 

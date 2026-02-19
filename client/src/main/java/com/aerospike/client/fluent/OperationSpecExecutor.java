@@ -80,6 +80,8 @@ class OperationSpecExecutor {
         Behavior behavior = session.getBehavior();
         // TODO: Put in hashmap
         BatchAttr attr = new BatchAttr();
+        BatchStatus status = new BatchStatus();
+		AerospikeException except = null;
         boolean respondAllKeys = false;
         boolean failOnFilteredOut = false;
         OpKind kind = OpKind.READ;
@@ -96,11 +98,26 @@ class OperationSpecExecutor {
             	failOnFilteredOut = true;
             }
 
-            // Create BatchRecord(s) for each key in this spec
+    		// Create BatchRecord(s) for each key in this spec
             for (Key key : spec.getKeys()) {
-            	String namespace = key.namespace;
-                Partitions partitions = cluster.getPartitions(namespace);
-                boolean scMode = partitions.scMode;
+            	Partitions partitions;
+
+            	try {
+                    partitions = cluster.getPartitions(key.namespace);
+            	}
+            	catch (AerospikeException ae) {
+            		// Create record and set to error state.
+            		BatchRecord rec = new BatchRecord(key, false);
+            		rec.setError(ae.getResultCode(), false);
+                    records.add(rec);
+
+                    if (except == null) {
+        				except = ae;
+        			}
+                    continue;
+            	}
+
+            	boolean scMode = partitions.scMode;
                 BatchRecord rec;
 
                 if (spec.isQuery()) {
@@ -175,12 +192,21 @@ class OperationSpecExecutor {
             }
         }
 
-        Settings settings = behavior.getSettings(kind, OpShape.BATCH, mode);
+		if (except != null) {
+			// Fatal if no key requests were generated on initialization.
+			if (records.size() == 0) {
+				throw except;
+			}
+			else {
+				status.batchKeyError(except);
+			}
+		}
+
+		Settings settings = behavior.getSettings(kind, OpShape.BATCH, mode);
 
         BatchCommand parent = new BatchCommand(cluster, null, txn, null, records,
         	defaultWhereClause, respondAllKeys, linearize, settings);
 
-        BatchStatus status = new BatchStatus(true);
         List<BatchNode> bns = BatchNodes.generate(cluster, parent, records, status);
 
         IBatchCommand[] commands = new IBatchCommand[bns.size()];

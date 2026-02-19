@@ -449,7 +449,7 @@ public class OperationWithNoBinsBuilder extends AbstractSessionOperationBuilder<
 		BatchCommand parent = new BatchCommand(cluster, partitions, txnToUse, namespace,
 			records, filterExp, respondAllKeys, attr.linearize, settings);
 
-    	BatchStatus status = new BatchStatus(true);
+    	BatchStatus status = new BatchStatus();
 		List<BatchNode> bns = BatchNodes.generate(cluster, parent, records, status);
 
 		IBatchCommand[] commands = new IBatchCommand[bns.size()];
@@ -507,7 +507,7 @@ public class OperationWithNoBinsBuilder extends AbstractSessionOperationBuilder<
         BatchCommand parent = new BatchCommand(cluster, partitions, txnToUse, namespace,
         	records, filterExp, respondAllKeys, false, settings);
 
-        BatchStatus status = new BatchStatus(true);
+        BatchStatus status = new BatchStatus();
         List<BatchNode> bns = BatchNodes.generate(cluster, parent, records, status);
 
         IBatchCommand[] commands = new IBatchCommand[bns.size()];
@@ -564,7 +564,7 @@ public class OperationWithNoBinsBuilder extends AbstractSessionOperationBuilder<
         BatchCommand parent = new BatchCommand(cluster, partitions, txnToUse, namespace,
         	records, filterExp, respondAllKeys, false, settings);
 
-        BatchStatus status = new BatchStatus(true);
+        BatchStatus status = new BatchStatus();
         List<BatchNode> bns = BatchNodes.generate(cluster, parent, records, status);
 
         IBatchCommand[] commands = new IBatchCommand[bns.size()];

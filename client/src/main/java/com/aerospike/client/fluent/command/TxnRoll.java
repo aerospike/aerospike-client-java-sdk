@@ -83,7 +83,7 @@ public final class TxnRoll {
 			parent = new BatchCommand(cluster, partitions, txn, txn.getNamespace(),
 				records, null, false, attr.linearize, verifyPolicy);
 
-			BatchStatus status = new BatchStatus(true);
+			BatchStatus status = new BatchStatus();
 
 	        List<BatchNode> bns = BatchNodes.generate(cluster, parent, records, status);
 
@@ -275,7 +275,7 @@ public final class TxnRoll {
         BatchCommand parent = new BatchCommand(cluster, partitions, txn, txn.getNamespace(),
             records, null, false, attr.linearize, rollPolicy);
 
-        BatchStatus status = new BatchStatus(true);
+        BatchStatus status = new BatchStatus();
 
 		List<BatchNode> bns = BatchNodes.generate(cluster, parent, records, status);
 

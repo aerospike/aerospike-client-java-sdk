@@ -601,7 +601,7 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
         Session session = opBuilder.getSession();
         Cluster cluster = session.getCluster();
 
-        BatchStatus status = new BatchStatus(true);
+        BatchStatus status = new BatchStatus();
         List<BatchNode> bns = BatchNodes.generate(cluster, parent, records, status);
 
         IBatchCommand[] commands = new IBatchCommand[bns.size()];
@@ -663,7 +663,7 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
         Session session = opBuilder.getSession();
         Cluster cluster = session.getCluster();
 
-        BatchStatus status = new BatchStatus(true);
+        BatchStatus status = new BatchStatus();
         List<BatchNode> bns = BatchNodes.generate(cluster, parent, records, status);
 
         AsyncRecordStream stream = new AsyncRecordStream(keys.size());

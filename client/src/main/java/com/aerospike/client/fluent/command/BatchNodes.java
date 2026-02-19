@@ -63,6 +63,12 @@ public final class BatchNodes {
 		for (int i = 0; i < max; i++) {
 			BatchRecord b = records.get(i);
 
+			if (b.resultCode != ResultCode.NO_RESPONSE) {
+				// Record will already have an error if namespace is invalid.
+				// Do not send this record to the server.
+				continue;
+			}
+
 			try {
 				b.prepare();
 

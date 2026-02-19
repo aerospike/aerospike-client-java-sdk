@@ -534,7 +534,7 @@ public class ObjectBuilder<T> {
         List<BatchRecord> records = parent.getRecords();
         Session session = opBuilder.getSession();
         Cluster cluster = session.getCluster();
-        BatchStatus status = new BatchStatus(true);
+        BatchStatus status = new BatchStatus();
 
         List<BatchNode> bns = BatchNodes.generate(cluster, parent, records, status);
 
@@ -585,7 +585,7 @@ public class ObjectBuilder<T> {
         List<BatchRecord> records = parent.getRecords();
         Session session = opBuilder.getSession();
         Cluster cluster = session.getCluster();
-        BatchStatus status = new BatchStatus(true);
+        BatchStatus status = new BatchStatus();
 
         List<BatchNode> bns = BatchNodes.generate(cluster, parent, records, status);
 

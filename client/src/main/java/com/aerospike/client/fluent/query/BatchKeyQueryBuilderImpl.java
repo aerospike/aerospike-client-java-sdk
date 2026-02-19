@@ -178,7 +178,7 @@ class BatchKeyQueryBuilderImpl extends QueryImpl {
 		BatchCommand parent = new BatchCommand(cluster, partitions, txn, namespace,
 			recordsForServer, where, qb.isRespondAllKeys(), attr.linearize, settings);
 
-    	BatchStatus status = new BatchStatus(true);
+    	BatchStatus status = new BatchStatus();
 		List<BatchNode> bns = BatchNodes.generate(cluster, parent, recordsForServer, status);
 
 		IBatchCommand[] commands = new IBatchCommand[bns.size()];

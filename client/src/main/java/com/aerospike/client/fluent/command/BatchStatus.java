@@ -27,11 +27,9 @@ public final class BatchStatus implements BatchNodes.IBatchStatus {
 	private ArrayList<AerospikeException> subExceptions;
 	private AerospikeException exception;
 	private boolean error;
-	private final boolean hasResultCode;
 
-	public BatchStatus(boolean hasResultCode) {
+	public BatchStatus() {
 		this.lock = new ReentrantLock();
-		this.hasResultCode = hasResultCode;
 	}
 
 	@Override
@@ -42,14 +40,6 @@ public final class BatchStatus implements BatchNodes.IBatchStatus {
 	@Override
 	public void batchKeyError(AerospikeException e) {
 		error = true;
-
-		if (! hasResultCode) {
-			// Legacy batch read commands that do not store a key specific resultCode.
-			// Store exception and throw on batch completion.
-			if (exception == null) {
-				exception = e;
-			}
-		}
 	}
 
 	public void setRowError() {

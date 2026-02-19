@@ -361,17 +361,12 @@ public class BatchTest extends ClusterTest {
 		}
 	}
 */
-	/* TODO Wait for external batch complex api*/
-	 // BN TRY update instead of query.
 	@Test
 	public void batchWriteComplex() {
+/* TODO delete() currently causes the record to be filtered out. Client side filtering needs to be
+ *  fixed before implementing this test.
 		DataSet ds = new DataSet("invalid", args.set.getSet());
 
-		// Returns PARAMETER ERROR
-		//Feb 03 2026 23:06:53 GMT: WARNING (batch): (batch.c:1110) batch request has unknown namespace
-		//Feb 03 2026 23:06:53 GMT: WARNING (batch): (batch.c:1195) Batch keys mismatch. Expected 4 Received 1
-/*
-        System.out.println("START batchWriteComplex");
 		RecordStream rs = session
 			.upsert(args.set.id(KeyPrefix + 1))
 				.bin(BinName2).setTo(100)
@@ -381,8 +376,34 @@ public class BatchTest extends ClusterTest {
 				.bin(BinName3).upsertFrom("$.bbin + 1000")
 			.delete(args.set.id(10002))
 			.execute();
-        System.out.println("END batchWriteComplex");
-        */
+
+		assertTrue(rs.hasNext());
+		int count = 0;
+
+		while (rs.hasNext()) {
+	        RecordResult rec = rs.next();
+			System.out.println("Rec " + count + ": " + rec.resultCode());
+
+	        if (count != 1) {
+	    		assertEquals(ResultCode.OK, rec.resultCode());
+	        }
+	        else {
+	    		assertEquals(ResultCode.INVALID_NAMESPACE, rec.resultCode());
+	        }
+	        count++;
+		}
+
+		assertEquals(4, count);
+*/
+/* TODO: Complete when multiple query is supported.
+		rs = session
+			.query(args.set.id(KeyPrefix + 1))
+				.bin(BinName2).get()
+			.query(args.set.id(KeyPrefix + 6))
+				.bin(BinName3).get()
+			.execute();
+*/
+
 /*
 		Expression wexp1 = Exp.build(Exp.add(Exp.intBin(BinName), Exp.val(1000)));
 
