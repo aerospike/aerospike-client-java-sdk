@@ -1,0 +1,117 @@
+name: Nightly Integration Tests
+
+on:
+  schedule:
+    - cron: '0 6 * * *' # Daily at 6:00 AM UTC
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  make-matrix:
+    runs-on: ${{ vars.BUILD_CONTAINER_DISTRO_VERSION }}
+    outputs:
+      input-matrix: ${{ steps.create-server-matrix.outputs.input-matrix }}
+      java-version: ${{ steps.extract-java.outputs.java_version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: stage
+
+      - id: create-server-matrix
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          FILE=".github/test_servers_nightly.json"
+
+          if [[ -s "${FILE}" ]]; then
+            echo "Using ${FILE} from repository"
+            JSON="$(cat "${FILE}")"
+          else
+            echo "${FILE} missing or empty"
+            exit 1
+          fi
+
+          echo "${JSON}" | jq . >/dev/null
+
+          MATRIX="$(echo "${JSON}" | jq -c '[to_entries[] | { server: .key } + .value]')"
+
+          {
+            echo "input-matrix<<__JSON__"
+            echo "${MATRIX}"
+            echo "__JSON__"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Extract Java version from pom.xml
+        id: extract-java
+        run: |
+          DEFAULT_VERSION=21
+          VERSION=$(grep -m1 -E '<(maven.compiler.source|java.version)>' pom.xml | sed -E 's/.*>(.*)<.*/\1/')
+          if [ -z "$VERSION" ]; then
+            echo "Could not detect Java version, defaulting to $DEFAULT_VERSION"
+            VERSION=$DEFAULT_VERSION
+          fi
+          echo "Detected Java version: $VERSION"
+          echo "java_version=$VERSION" >> $GITHUB_OUTPUT
+
+  integration-test:
+    name: test-${{ matrix.server }}-${{ matrix.num-nodes }}node
+    needs: make-matrix
+    runs-on: ${{ vars.BUILD_CONTAINER_DISTRO_VERSION }}
+    strategy:
+      matrix:
+        include: ${{ fromJson(needs.make-matrix.outputs.input-matrix) }}
+      fail-fast: false
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: stage
+
+      - name: Set up JDK ${{ vars.JAVA_DISTRIBUTION }} ${{ needs.make-matrix.outputs.java-version }}
+        uses: actions/setup-java@v4
+        with:
+          distribution: ${{ vars.JAVA_DISTRIBUTION }}
+          java-version: ${{ needs.make-matrix.outputs.java-version }}
+          cache: maven
+
+      - name: Show Java & Maven
+        run: |
+          java -version
+          mvn -v
+
+      - name: Setup Aerospike Server (${{ matrix.num-nodes }} node)
+        uses: aerospike/shared-workflows/.github/actions/setup-aes@CLIENT-4213
+        with:
+          server-tag: ${{ matrix.version }}
+          server-type: ${{ matrix.type }}
+          num-nodes: ${{ matrix.num-nodes }}
+          oidc-provider: ${{ vars.OIDC_PROVIDER_NAME }}
+          oidc-audience: ${{ vars.OIDC_AUDIENCE }}
+
+      - name: Build & run integration tests
+        run: |
+          mvn \
+           --batch-mode \
+           --no-transfer-progress \
+           --update-snapshots \
+           --fail-at-end \
+           --errors \
+           verify \
+           -DskipTests=false
+        env:
+          MAVEN_OPTS: ${{ vars.MAVEN_OPTS }}
+
+      - name: Upload surefire/failsafe reports (always)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports-nightly-${{ matrix.server }}-${{ matrix.num-nodes }}node-jdk-${{ needs.make-matrix.outputs.java-version }}
+          path: |
+            **/target/surefire-reports/**
+            **/target/failsafe-reports/**
+          if-no-files-found: ignore
+          retention-days: ${{ vars.ARTIFACT_RETENTION_DAYS }}
