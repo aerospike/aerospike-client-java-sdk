@@ -20,7 +20,6 @@ import com.aerospike.client.fluent.Key;
 import com.aerospike.client.fluent.Record;
 import com.aerospike.client.fluent.ResultCode;
 import com.aerospike.client.fluent.exp.Expression;
-import com.aerospike.client.fluent.policy.Replica;
 
 /**
  * Batch key and record result.
@@ -28,7 +27,6 @@ import com.aerospike.client.fluent.policy.Replica;
 public class BatchRecord {
 	public final Key key;
 	public final Expression where;
-	public final Replica replica;
 	public Record record;
 	public int resultCode;
 	public byte readAttr;
@@ -45,7 +43,6 @@ public class BatchRecord {
 	public BatchRecord(Key key, Expression where, BatchAttr attr) {
 		this.key = key;
 		this.where = where;
-		this.replica = attr.replica;
 		this.readAttr = attr.readAttr;
 		this.writeAttr = attr.writeAttr;
 		this.infoAttr = attr.infoAttr;
@@ -61,7 +58,6 @@ public class BatchRecord {
 	public BatchRecord(Key key, boolean hasWrite) {
 		this.key = key;
 		this.where = null;
-		this.replica = null;
 		this.readAttr = 0;
 		this.writeAttr = 0;
 		this.infoAttr = 0;

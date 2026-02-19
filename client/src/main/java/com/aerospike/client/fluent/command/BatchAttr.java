@@ -19,88 +19,15 @@ package com.aerospike.client.fluent.command;
 import com.aerospike.client.fluent.OpType;
 import com.aerospike.client.fluent.policy.CommitLevel;
 import com.aerospike.client.fluent.policy.ReadModeAP;
-import com.aerospike.client.fluent.policy.Replica;
 import com.aerospike.client.fluent.policy.Settings;
 
 public final class BatchAttr {
-	public Replica replica;
 	public byte readAttr;
 	public byte writeAttr;
 	public byte infoAttr;
 	public byte txnAttr;
 	public boolean hasWrite;
     public boolean linearize;
-
-	public BatchAttr() {
-	}
-
-	/*
-	public BatchAttr(BatchReadCommand cmd, int rattr) {
-		setRead(cmd);
-		this.readAttr |= rattr;
-	}
-
-	public BatchAttr(BatchReadCommand cmd, int rattr, List<Operation> ops) {
-		setRead(cmd);
-		this.readAttr = rattr;
-
-		if (ops != null) {
-			adjustRead(ops);
-		}
-	}
-
-	public BatchAttr(BatchReadCommand cmd, BatchWritePolicy wp, List<Operation> ops) {
-		boolean readAllBins = false;
-		boolean readHeader = false;
-		boolean hasRead = false;
-		boolean hasWriteOp = false;
-
-		for (Operation op : ops) {
-			if (op.type.isWrite) {
-				hasWriteOp = true;
-			}
-			else {
-				hasRead = true;
-
-				if (op.type == Operation.Type.READ) {
-					if (op.binName == null) {
-						readAllBins = true;
-					}
-				}
-				else if (op.type == Operation.Type.READ_HEADER) {
-					readHeader = true;
-				}
-			}
-		}
-
-		if (hasWriteOp) {
-			setWrite(wp);
-
-			if (hasRead) {
-				readAttr |= Command.INFO1_READ;
-
-				if (readAllBins) {
-					readAttr |= Command.INFO1_GET_ALL;
-					// When GET_ALL is specified, RESPOND_ALL_OPS must be disabled.
-					writeAttr &= ~Command.INFO2_RESPOND_ALL_OPS;
-				}
-				else if (readHeader) {
-					readAttr |= Command.INFO1_NOBINDATA;
-				}
-			}
-		}
-		else {
-			setRead(cmd);
-
-			if (readAllBins) {
-				readAttr |= Command.INFO1_GET_ALL;
-			}
-			else if (readHeader) {
-				readAttr |= Command.INFO1_NOBINDATA;
-			}
-		}
-	}
-	*/
 
 	public void setRead(Settings settings, boolean scMode) {
 		readAttr = Command.INFO1_READ;
@@ -111,30 +38,21 @@ public final class BatchAttr {
 		if (scMode) {
             switch (settings.getReadModeSC()) {
             case SESSION:
-            	replica = Replica.MASTER;
         		infoAttr = 0;
             	linearize = false;
                 break;
 
             case LINEARIZE:
-                if (settings.getReplicaOrder() == Replica.PREFER_RACK) {
-                    replica = Replica.SEQUENCE;
-                }
-                else {
-                	replica = settings.getReplicaOrder();
-                }
     			infoAttr = Command.INFO3_SC_READ_TYPE;
                 linearize = true;
                 break;
 
     		case ALLOW_REPLICA:
-            	replica = settings.getReplicaOrder();
             	infoAttr = (byte)Command.INFO3_SC_READ_RELAX;
             	linearize = false;
     			break;
 
     		case ALLOW_UNAVAILABLE:
-            	replica = settings.getReplicaOrder();
     			infoAttr = (byte)(Command.INFO3_SC_READ_TYPE | Command.INFO3_SC_READ_RELAX);
             	linearize = false;
     			break;
@@ -145,7 +63,6 @@ public final class BatchAttr {
     			readAttr |= Command.INFO1_READ_MODE_AP_ALL;
     		}
     		infoAttr = 0;
-            replica = settings.getReplicaOrder();
             linearize = false;
         }
 	}

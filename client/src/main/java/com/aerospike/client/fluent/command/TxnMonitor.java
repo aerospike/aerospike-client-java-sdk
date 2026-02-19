@@ -17,7 +17,6 @@
 package com.aerospike.client.fluent.command;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 
 import com.aerospike.client.fluent.Bin;
@@ -31,9 +30,9 @@ import com.aerospike.client.fluent.cdt.ListOperation;
 import com.aerospike.client.fluent.cdt.ListOrder;
 import com.aerospike.client.fluent.cdt.ListPolicy;
 import com.aerospike.client.fluent.cdt.ListWriteFlags;
-import com.aerospike.client.fluent.policy.Settings;
 import com.aerospike.client.fluent.policy.Behavior.OpKind;
 import com.aerospike.client.fluent.policy.Behavior.OpShape;
+import com.aerospike.client.fluent.policy.Settings;
 import com.aerospike.client.fluent.tend.Partitions;
 
 public final class TxnMonitor {
@@ -43,9 +42,7 @@ public final class TxnMonitor {
 	private static final String BinNameId = "id";
 	private static final String BinNameDigests = "keyds";
 
-	public static void addKey(
-		Txn txn, Cluster cluster, Partitions partitions, Settings policy, Key cmdKey
-	) {
+	public static void addKey(Txn txn, Session session, Key cmdKey) {
 		txn.verifyCommand();
 
 		if (txn.getWrites().contains(cmdKey)) {
@@ -54,28 +51,17 @@ public final class TxnMonitor {
 		}
 
 		List<Operation> ops = getTranOps(txn, cmdKey);
-		addWriteKeys(txn, cluster, partitions, policy, ops);
+		addWriteKeys(txn, session, ops);
 	}
 
-	public static void addKeys(
-		Txn txn, Cluster cluster, Partitions partitions, Settings policy, Key[] keys
-	) {
+	public static void addKeys(Txn txn, Session session, List<Key> keys) {
 		List<Operation> ops = getTranOps(txn, keys);
-		addWriteKeys(txn, cluster, partitions, policy, ops);
+		addWriteKeys(txn, session, ops);
 	}
 
-	public static void addKeys(
-		Txn txn, Cluster cluster, Partitions partitions, Settings policy, List<Key> keys
-	) {
-		List<Operation> ops = getTranOps(txn, keys);
-		addWriteKeys(txn, cluster, partitions, policy, ops);
-	}
-
-	public static void addKeysBatchWrite(
-		Txn txn, Cluster cluster, Partitions partitions, Settings policy, List<BatchRecord> records
-	) {
+	public static void addKeysBatchWrite(Txn txn, Session session, List<BatchRecord> records) {
 		List<Operation> ops = getTranOpsBatchWrite(txn, records);
-		addWriteKeys(txn, cluster, partitions, policy, ops);
+		addWriteKeys(txn, session, ops);
 	}
 
 	public static void addKeysBatchReadWrite(Txn txn, Session session, List<BatchRecord> records) {
@@ -164,20 +150,6 @@ public final class TxnMonitor {
 		return ops;
 	}
 
-	private static void addWriteKeys(
-		Txn txn, Cluster cluster, Partitions partitions, Settings policy, List<Operation> ops
-	) {
-		Key txnKey = getTxnMonitorKey(txn);
-
-		OperateArgs args = new OperateArgs(ops);
-        OperateWriteCommand cmd = new OperateWriteCommand(cluster, partitions, txn, txnKey, ops,
-        	args, OpType.UPSERT, 0, txn.getTimeout(), null, false, policy
-			);
-
-        SyncTxnAddKeysExecutor exec = new SyncTxnAddKeysExecutor(cluster, cmd);
-    	exec.execute();
-	}
-
 	private static void addWriteKeys(Txn txn, Session session, List<Operation> ops) {
 		Key txnKey = getTxnMonitorKey(txn);
 
@@ -186,7 +158,7 @@ public final class TxnMonitor {
         Partitions partitions = cluster.getPartitionMap().get(txn.getNamespace());
 
         Settings settings = session.getBehavior().getSettings(OpKind.WRITE_NON_RETRYABLE,
-        		OpShape.POINT, partitions.scMode);
+        	OpShape.POINT, partitions.scMode);
 
         OperateWriteCommand cmd = new OperateWriteCommand(cluster, partitions, txn, txnKey, ops,
         	args, OpType.UPSERT, 0, txn.getTimeout(), null, false, settings

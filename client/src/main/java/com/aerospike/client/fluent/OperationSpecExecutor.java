@@ -25,7 +25,7 @@ import com.aerospike.client.fluent.command.BatchCommand;
 import com.aerospike.client.fluent.command.BatchDelete;
 import com.aerospike.client.fluent.command.BatchExecutor;
 import com.aerospike.client.fluent.command.BatchNode;
-import com.aerospike.client.fluent.command.BatchNodeList;
+import com.aerospike.client.fluent.command.BatchNodes;
 import com.aerospike.client.fluent.command.BatchRead;
 import com.aerospike.client.fluent.command.BatchRecord;
 import com.aerospike.client.fluent.command.BatchSingle;
@@ -40,7 +40,6 @@ import com.aerospike.client.fluent.policy.Behavior.Mode;
 import com.aerospike.client.fluent.policy.Behavior.OpKind;
 import com.aerospike.client.fluent.policy.Behavior.OpShape;
 import com.aerospike.client.fluent.policy.Settings;
-import com.aerospike.client.fluent.tend.Partition;
 import com.aerospike.client.fluent.tend.Partitions;
 
 /**
@@ -79,6 +78,8 @@ class OperationSpecExecutor {
         List<BatchRecord> records = new ArrayList<>(512);
         Cluster cluster = session.getCluster();
         Behavior behavior = session.getBehavior();
+        // TODO: Put in hashmap
+        BatchAttr attr = new BatchAttr();
         boolean respondAllKeys = false;
         boolean failOnFilteredOut = false;
         OpKind kind = OpKind.READ;
@@ -98,12 +99,9 @@ class OperationSpecExecutor {
             // Create BatchRecord(s) for each key in this spec
             for (Key key : spec.getKeys()) {
             	String namespace = key.namespace;
-                Partitions partitions = Partition.getPartitions(cluster, namespace);
+                Partitions partitions = cluster.getPartitions(namespace);
                 boolean scMode = partitions.scMode;
                 BatchRecord rec;
-
-                // TODO: Put in hashmap so can reuse!!
-                BatchAttr attr = new BatchAttr();
 
                 if (spec.isQuery()) {
                     // Query (read) operation
@@ -183,8 +181,7 @@ class OperationSpecExecutor {
         	defaultWhereClause, respondAllKeys, linearize, settings);
 
         BatchStatus status = new BatchStatus(true);
-        List<BatchNode> bns = BatchNodeList.generate(cluster, null, settings.getReplicaOrder(),
-        	records, status);
+        List<BatchNode> bns = BatchNodes.generate(cluster, parent, records, status);
 
         IBatchCommand[] commands = new IBatchCommand[bns.size()];
         int count = 0;
@@ -246,6 +243,7 @@ class OperationSpecExecutor {
     /**
      * Build RecordStream from batch results, respecting respondAllKeys and failOnFilteredOut flags.
      */
+    /*
     private static RecordStream buildRecordStream(List<BatchRecord> batchRecords,
                                                    List<OperationSpec> specs,
                                                    Settings settings) {
@@ -279,14 +277,15 @@ class OperationSpecExecutor {
 
         return new RecordStream(results, 0);
     }
-
+*/
     /**
      * Determine if a result should be included based on result code and operation flags.
      */
+/*
     private static boolean shouldIncludeResult(int resultCode, OperationSpec spec) {
         return shouldIncludeResult(resultCode, spec.isRespondAllKeys(), spec.isFailOnFilteredOut());
     }
-
+*/
     /**
      * Determine if a result should be included based on result code and flags.
      */

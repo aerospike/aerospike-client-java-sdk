@@ -54,7 +54,14 @@ public final class BatchRead extends BatchRecord {
 		this.ops = null;
 		this.binNames = binNames;
 		this.ttl = ttl;
-		this.readAllBins = false;
+
+		if (binNames.length > 0) {
+			this.readAllBins = false;
+		}
+		else {
+			this.readAllBins = true;
+			readAttr |= Command.INFO1_GET_ALL;
+		}
 	}
 
 	public BatchRead(Key key, Expression where, BatchAttr attr, int ttl, boolean readAllBins) {

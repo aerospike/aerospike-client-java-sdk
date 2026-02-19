@@ -22,7 +22,7 @@ import java.util.concurrent.locks.ReentrantLock;
 import com.aerospike.client.fluent.AerospikeException;
 import com.aerospike.client.fluent.Key;
 
-public final class BatchStatus implements BatchNodeList.IBatchStatus {
+public final class BatchStatus implements BatchNodes.IBatchStatus {
 	private final ReentrantLock lock;
 	private ArrayList<AerospikeException> subExceptions;
 	private AerospikeException exception;

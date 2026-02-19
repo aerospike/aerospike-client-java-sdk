@@ -16,7 +16,6 @@
  */
 package com.aerospike.client.fluent.tend;
 
-import java.util.HashMap;
 import java.util.concurrent.atomic.AtomicReferenceArray;
 
 import com.aerospike.client.fluent.AerospikeException;
@@ -25,57 +24,22 @@ import com.aerospike.client.fluent.Key;
 import com.aerospike.client.fluent.Node;
 import com.aerospike.client.fluent.command.Buffer;
 import com.aerospike.client.fluent.command.PartitionStatus;
+import com.aerospike.client.fluent.policy.ReadModeSC;
 import com.aerospike.client.fluent.policy.Replica;
 
 public final class Partition {
+	public static Replica getReplicaSC(Replica replica, ReadModeSC mode) {
+		switch (mode) {
+		case SESSION:
+			return Replica.MASTER;
 
-	public static Node getNodeBatchWrite(
-		Cluster cluster,
-		Partitions partitions,
-		Key key,
-		Replica replica,
-		Node prevNode,
-		int sequence
-	) {
-		if (partitions == null) {
-			partitions = getPartitions(cluster, key.namespace);
+		case LINEARIZE:
+			return replica == Replica.PREFER_RACK ? Replica.SEQUENCE : replica;
+
+		default:
+			return replica;
 		}
-		Partition p = new Partition(partitions, key, replica, prevNode, false);
-		p.sequence = sequence;
-		return p.getNodeWrite(cluster);
 	}
-
-	public static Node getNodeBatchRead(
-		Cluster cluster,
-		Partitions partitions,
-		Key key,
-		Replica replica,
-		Node prevNode,
-		int sequence,
-		int sequenceSC
-	) {
-		if (partitions == null) {
-			partitions = getPartitions(cluster, key.namespace);
-		}
-
-		if (partitions.scMode) {
-			sequence = sequenceSC;
-		}
-
-		Partition p = new Partition(partitions, key, replica, prevNode, false);
-		p.sequence = sequence;
-		return p.getNodeRead(cluster);
-	}
-
-    public static Partitions getPartitions(Cluster cluster, String namespace) {
-        HashMap<String, Partitions> partitionMap = cluster.getPartitionMap();
-        Partitions partitions = partitionMap.get(namespace);
-
-        if (partitions == null) {
-            throw new AerospikeException.InvalidNamespace(namespace, partitionMap.size());
-        }
-        return partitions;
-    }
 
 	private Partitions partitions;
 	private final String namespace;

@@ -100,7 +100,7 @@ public class Command {
 
 	public Command(
 		Cluster cluster, String namespace, Txn txn, Expression where, Replica replica,
-		Settings policy
+		Settings settings
 	) {
 		this.cluster = cluster;
 		this.namespace = namespace;
@@ -108,9 +108,9 @@ public class Command {
 		this.where = where;
 		this.replica = replica;
 
-		connectTimeout = policy.getWaitForConnectionToCompleteMs();
-		totalTimeout = policy.getAbandonCallAfterMs();
-		int st = policy.getWaitForCallToCompleteMs();
+		connectTimeout = settings.getWaitForConnectionToCompleteMs();
+		totalTimeout = settings.getAbandonCallAfterMs();
+		int st = settings.getWaitForCallToCompleteMs();
 
 		if (totalTimeout > 0) {
 			socketTimeout = (st < totalTimeout && st > 0)? st : totalTimeout;
@@ -121,11 +121,11 @@ public class Command {
 			serverTimeout = 0;
 		}
 
-		timeoutDelay = policy.getWaitForSocketResponseAfterCallFailsMs();
-		maxRetries = policy.getMaximumNumberOfCallAttempts() - 1;
-		sleepBetweenRetries = policy.getDelayBetweenRetriesMs();
-		sendKey = policy.getSendKey();
-		compress = policy.getUseCompression();
+		timeoutDelay = settings.getWaitForSocketResponseAfterCallFailsMs();
+		maxRetries = settings.getMaximumNumberOfCallAttempts() - 1;
+		sleepBetweenRetries = settings.getDelayBetweenRetriesMs();
+		sendKey = settings.getSendKey();
+		compress = settings.getUseCompression();
 	}
 
 	public int getConnectTimeout() {

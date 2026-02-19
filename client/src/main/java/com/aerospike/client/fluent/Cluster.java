@@ -552,6 +552,29 @@ public class Cluster implements Closeable {
     	return tend.isActive();
     }
 
+	/**
+	 * Gets the partition map for a specific namespace.
+	 *
+	 * <p>The partition map contains information about how data is partitioned
+	 * across nodes in the cluster for the specified namespace. This information
+	 * is used for routing operations to the correct nodes based on partition
+	 * assignments.</p>
+	 *
+	 * @param namespace the namespace for which to retrieve partition information
+	 * @return the Partitions object containing partition mapping for the namespace
+	 * @throws AerospikeException.InvalidNamespace if the specified namespace
+	 *         does not exist in the cluster's partition map
+	 */
+	public Partitions getPartitions(String namespace) {
+        HashMap<String, Partitions> map = this.partitionMap;
+        Partitions partitions = map.get(namespace);
+
+        if (partitions == null) {
+            throw new AerospikeException.InvalidNamespace(namespace, map.size());
+        }
+        return partitions;
+    }
+
 	final void logPartitionMap() {
 		for (Entry<String,Partitions> entry : partitionMap.entrySet()) {
 			String namespace = entry.getKey();

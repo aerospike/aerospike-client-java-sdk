@@ -283,8 +283,8 @@ public final class Batch {
 
 		@Override
 		protected List<BatchNode> generateBatchNodes() {
-			return BatchNodeList.generate(cluster, parent.partitions, parent.replica, records,
-				sequenceAP, sequenceSC, batch, status);
+			return BatchNodes.generate(cluster, parent, records, sequenceAP, sequenceSC, batch,
+				status);
 		}
 	}
 
@@ -386,8 +386,8 @@ public final class Batch {
 
 		@Override
 		protected List<BatchNode> generateBatchNodes() {
-			return BatchNodeList.generate(cluster, parent.partitions, parent.replica, records,
-				sequenceAP, sequenceSC, batch, status);
+			return BatchNodes.generate(cluster, parent, records, sequenceAP, sequenceSC, batch,
+				status);
 		}
 	}
 
@@ -645,8 +645,8 @@ public final class Batch {
 
 		@Override
 		protected List<BatchNode> generateBatchNodes() {
-			return BatchNodeList.generate(cluster, parent.partitions, parent.replica, records,
-					sequenceAP, sequenceSC, batch, status);
+			return BatchNodes.generate(cluster, parent, records, sequenceAP, sequenceSC, batch,
+				status);
 		}
 	}
 
@@ -722,8 +722,8 @@ public final class Batch {
 
 		@Override
 		protected List<BatchNode> generateBatchNodes() {
-			return BatchNodeList.generate(cluster, parent.partitions, parent.replica, records,
-					sequenceAP, sequenceSC, batch, status);
+			return BatchNodes.generate(cluster, parent, records, sequenceAP, sequenceSC, batch,
+				status);
 		}
 	}
 

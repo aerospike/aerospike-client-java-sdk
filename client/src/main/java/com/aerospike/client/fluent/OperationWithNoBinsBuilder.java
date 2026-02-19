@@ -29,7 +29,7 @@ import com.aerospike.client.fluent.command.BatchCommand;
 import com.aerospike.client.fluent.command.BatchDelete;
 import com.aerospike.client.fluent.command.BatchExecutor;
 import com.aerospike.client.fluent.command.BatchNode;
-import com.aerospike.client.fluent.command.BatchNodeList;
+import com.aerospike.client.fluent.command.BatchNodes;
 import com.aerospike.client.fluent.command.BatchRead;
 import com.aerospike.client.fluent.command.BatchRecord;
 import com.aerospike.client.fluent.command.BatchResults;
@@ -383,7 +383,7 @@ public class OperationWithNoBinsBuilder extends AbstractSessionOperationBuilder<
             generation, ttl, filterExp, failOnFilteredOut, policy);
 
         if (txnToUse != null) {
-        	TxnMonitor.addKey(txnToUse, cluster, partitions, policy, key);
+        	TxnMonitor.addKey(txnToUse, session, key);
         }
 
         TouchExecutor exec = new TouchExecutor(cluster, cmd);
@@ -402,7 +402,7 @@ public class OperationWithNoBinsBuilder extends AbstractSessionOperationBuilder<
         	generation, ttl, filterExp, failOnFilteredOut, policy);
 
         if (txnToUse != null) {
-        	TxnMonitor.addKey(txnToUse, cluster, partitions, policy, key);
+        	TxnMonitor.addKey(txnToUse, session, key);
         }
 
         DeleteExecutor exec = new DeleteExecutor(cluster, cmd);
@@ -450,8 +450,7 @@ public class OperationWithNoBinsBuilder extends AbstractSessionOperationBuilder<
 			records, filterExp, respondAllKeys, attr.linearize, settings);
 
     	BatchStatus status = new BatchStatus(true);
-		List<BatchNode> bns = BatchNodeList.generate(cluster, partitions, parent.replica,
-			records, status);
+		List<BatchNode> bns = BatchNodes.generate(cluster, parent, records, status);
 
 		IBatchCommand[] commands = new IBatchCommand[bns.size()];
     	int count = 0;
@@ -509,8 +508,7 @@ public class OperationWithNoBinsBuilder extends AbstractSessionOperationBuilder<
         	records, filterExp, respondAllKeys, false, settings);
 
         BatchStatus status = new BatchStatus(true);
-        List<BatchNode> bns = BatchNodeList.generate(cluster, partitions,
-        	settings.getReplicaOrder(), records, status);
+        List<BatchNode> bns = BatchNodes.generate(cluster, parent, records, status);
 
         IBatchCommand[] commands = new IBatchCommand[bns.size()];
         int count = 0;
@@ -530,7 +528,7 @@ public class OperationWithNoBinsBuilder extends AbstractSessionOperationBuilder<
         }
 
 		if (txnToUse != null) {
-        	TxnMonitor.addKeys(txnToUse, cluster, partitions, settings, keys);
+        	TxnMonitor.addKeys(txnToUse, session, keys);
 		}
 
 		BatchExecutor.execute(cluster, commands, status);
@@ -567,8 +565,7 @@ public class OperationWithNoBinsBuilder extends AbstractSessionOperationBuilder<
         	records, filterExp, respondAllKeys, false, settings);
 
         BatchStatus status = new BatchStatus(true);
-        List<BatchNode> bns = BatchNodeList.generate(cluster, partitions, settings.getReplicaOrder(),
-        	records, status);
+        List<BatchNode> bns = BatchNodes.generate(cluster, parent, records, status);
 
         IBatchCommand[] commands = new IBatchCommand[bns.size()];
         int count = 0;
@@ -586,7 +583,7 @@ public class OperationWithNoBinsBuilder extends AbstractSessionOperationBuilder<
         }
 
 		if (txnToUse != null) {
-        	TxnMonitor.addKeys(txnToUse, cluster, partitions, settings, keys);
+        	TxnMonitor.addKeys(txnToUse, session, keys);
 		}
 
 		BatchExecutor.execute(cluster, commands, status);

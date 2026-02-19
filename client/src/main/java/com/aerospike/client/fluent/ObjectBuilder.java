@@ -34,7 +34,7 @@ import com.aerospike.client.fluent.command.BatchAttr;
 import com.aerospike.client.fluent.command.BatchCommand;
 import com.aerospike.client.fluent.command.BatchExecutor;
 import com.aerospike.client.fluent.command.BatchNode;
-import com.aerospike.client.fluent.command.BatchNodeList;
+import com.aerospike.client.fluent.command.BatchNodes;
 import com.aerospike.client.fluent.command.BatchRead;
 import com.aerospike.client.fluent.command.BatchRecord;
 import com.aerospike.client.fluent.command.BatchSingle;
@@ -64,8 +64,6 @@ public class ObjectBuilder<T> {
     private long expirationInSeconds = 0;
     private long expirationInSecondsForAll = 0;
     private Txn txnToUse;
-    private String namespace;
-    private Partitions partitions;
     private Settings settings;
 
     /**
@@ -534,11 +532,11 @@ public class ObjectBuilder<T> {
     private RecordStream executeBatchSync() {
     	BatchCommand parent = prepareBatch();
         List<BatchRecord> records = parent.getRecords();
-        Cluster cluster = opBuilder.getSession().getCluster();
+        Session session = opBuilder.getSession();
+        Cluster cluster = session.getCluster();
         BatchStatus status = new BatchStatus(true);
 
-        List<BatchNode> bns = BatchNodeList.generate(cluster, partitions,
-        	settings.getReplicaOrder(), records, status);
+        List<BatchNode> bns = BatchNodes.generate(cluster, parent, records, status);
 
         IBatchCommand[] commands = new IBatchCommand[bns.size()];
         int count = 0;
@@ -558,7 +556,7 @@ public class ObjectBuilder<T> {
         }
 
         if (txnToUse != null) {
-            TxnMonitor.addKeysBatchWrite(txnToUse, cluster, partitions, settings, records);
+            TxnMonitor.addKeysBatchWrite(txnToUse, session, records);
         }
 
         BatchExecutor.execute(cluster, commands, status);
@@ -585,11 +583,11 @@ public class ObjectBuilder<T> {
     private RecordStream executeBatchAsync() {
     	BatchCommand parent = prepareBatch();
         List<BatchRecord> records = parent.getRecords();
-        Cluster cluster = opBuilder.getSession().getCluster();
+        Session session = opBuilder.getSession();
+        Cluster cluster = session.getCluster();
         BatchStatus status = new BatchStatus(true);
 
-        List<BatchNode> bns = BatchNodeList.generate(cluster, partitions,
-        	settings.getReplicaOrder(), records, status);
+        List<BatchNode> bns = BatchNodes.generate(cluster, parent, records, status);
 
         AsyncRecordStream stream = new AsyncRecordStream(elements.size());
         IBatchCommand[] commands = new IBatchCommand[bns.size()];
@@ -612,7 +610,7 @@ public class ObjectBuilder<T> {
 
         if (txnToUse != null) {
             cluster.startVirtualThread(() -> {
-                TxnMonitor.addKeysBatchWrite(txnToUse, cluster, partitions, settings, records);
+                TxnMonitor.addKeysBatchWrite(txnToUse, session, records);
                 operateBatchAsync(cluster, commands, status, stream);
             });
         }
@@ -627,8 +625,8 @@ public class ObjectBuilder<T> {
         Session session = opBuilder.getSession();
         Cluster cluster = session.getCluster();
 
-        namespace = opBuilder.getDataSet().getNamespace();
-        partitions = getPartitions(cluster, namespace);
+        String namespace = opBuilder.getDataSet().getNamespace();
+        Partitions partitions = getPartitions(cluster, namespace);
 
         settings = session.getBehavior()
         	.getSettings(OpKind.WRITE_RETRYABLE, OpShape.BATCH, partitions.scMode);
@@ -702,7 +700,7 @@ public class ObjectBuilder<T> {
 
         if (txnToUse != null) {
         	// Assume all operations are write operations.
-            TxnMonitor.addKeys(txnToUse, cluster, partitions, settings, keys);
+            TxnMonitor.addKeys(txnToUse, session, keys);
         }
 
 		AsyncRecordStream stream = new AsyncRecordStream(elements.size());
@@ -764,7 +762,7 @@ public class ObjectBuilder<T> {
 
         if (txnToUse != null) {
             cluster.startVirtualThread(() -> {
-                TxnMonitor.addKeys(txnToUse, cluster, partitions, settings, keys);
+                TxnMonitor.addKeys(txnToUse, session, keys);
                 operateKeysAsync(cluster, partitions, settings, filterExp, ttl, stream, keys);
             });
         }
@@ -792,7 +790,7 @@ public class ObjectBuilder<T> {
 
         if (txnToUse != null) {
         	// Assume all operations are write operations.
-            TxnMonitor.addKey(txnToUse, cluster, partitions, settings, key);
+            TxnMonitor.addKey(txnToUse, session, key);
         }
 
         int ttl = (int)((expirationInSeconds != 0) ? expirationInSeconds : expirationInSecondsForAll);
@@ -835,7 +833,7 @@ public class ObjectBuilder<T> {
 
         if (txnToUse != null) {
             cluster.startVirtualThread(() -> {
-                TxnMonitor.addKey(txnToUse, cluster, partitions, settings, key);
+                TxnMonitor.addKey(txnToUse, session, key);
                 operateAsync(cluster, partitions, settings, filterExp, key, element, ttl, stream, 0, pendingOps);
             });
         }

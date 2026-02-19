@@ -20,12 +20,15 @@ import java.util.List;
 
 import com.aerospike.client.fluent.Cluster;
 import com.aerospike.client.fluent.exp.Expression;
+import com.aerospike.client.fluent.policy.Replica;
 import com.aerospike.client.fluent.policy.Settings;
+import com.aerospike.client.fluent.tend.Partition;
 import com.aerospike.client.fluent.tend.Partitions;
 
 public final class BatchCommand extends Command {
-	final Partitions partitions;
 	final List<BatchRecord> records;
+	final Partitions partitions;
+	final Replica replicaSC;
 	final boolean respondAllKeys;
     final boolean inlineMemory;
     final boolean inlineSSD;
@@ -34,15 +37,16 @@ public final class BatchCommand extends Command {
 	public BatchCommand(
 		Cluster cluster, Partitions partitions, Txn txn, String namespace,
 		List<BatchRecord> records, Expression where, boolean respondAllKeys,
-		boolean linearize, Settings policy
+		boolean linearize, Settings settings
 	) {
-		super(cluster, namespace, txn, where, null, policy);
-		this.partitions = partitions;
+		super(cluster, namespace, txn, where, settings.getReplicaOrder(), settings);
 		this.records = records;
+		this.partitions = partitions;
+		this.replicaSC = Partition.getReplicaSC(settings.getReplicaOrder(), settings.getReadModeSC());
 		this.respondAllKeys = respondAllKeys;
 		this.linearize = linearize;
-		this.inlineMemory = policy.getAllowInlineMemoryAccess();
-		this.inlineSSD = policy.getAllowInlineSsdAccess();
+		this.inlineMemory = settings.getAllowInlineMemoryAccess();
+		this.inlineSSD = settings.getAllowInlineSsdAccess();
 	}
 
 	public static boolean inDoubt(boolean isWrite, int commandSentCounter) {

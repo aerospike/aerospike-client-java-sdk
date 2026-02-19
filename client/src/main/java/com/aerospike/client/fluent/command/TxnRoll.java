@@ -85,8 +85,7 @@ public final class TxnRoll {
 
 			BatchStatus status = new BatchStatus(true);
 
-	        List<BatchNode> bns = BatchNodeList.generate(cluster, partitions,
-	        	verifyPolicy.getReplicaOrder(), records, status);
+	        List<BatchNode> bns = BatchNodes.generate(cluster, parent, records, status);
 
 	        IBatchCommand[] commands = new IBatchCommand[bns.size()];
 
@@ -278,8 +277,7 @@ public final class TxnRoll {
 
         BatchStatus status = new BatchStatus(true);
 
-		List<BatchNode> bns = BatchNodeList.generate(cluster, partitions,
-				rollPolicy.getReplicaOrder(), records, status);
+		List<BatchNode> bns = BatchNodes.generate(cluster, parent, records, status);
 
 		IBatchCommand[] commands = new IBatchCommand[bns.size()];
 		int count = 0;

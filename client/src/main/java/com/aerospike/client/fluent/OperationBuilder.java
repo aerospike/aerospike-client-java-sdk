@@ -30,7 +30,7 @@ import com.aerospike.client.fluent.command.BatchAttr;
 import com.aerospike.client.fluent.command.BatchCommand;
 import com.aerospike.client.fluent.command.BatchExecutor;
 import com.aerospike.client.fluent.command.BatchNode;
-import com.aerospike.client.fluent.command.BatchNodeList;
+import com.aerospike.client.fluent.command.BatchNodes;
 import com.aerospike.client.fluent.command.BatchRead;
 import com.aerospike.client.fluent.command.BatchRecord;
 import com.aerospike.client.fluent.command.BatchSingle;
@@ -60,8 +60,6 @@ public class OperationBuilder extends AbstractOperationBuilder<OperationBuilder>
     protected int generation = 0;
     protected long expirationInSecondsForAll = 0;
     protected Txn txnToUse;
-    private String namespace;
-    private Partitions partitions;
     private Settings settings;
 
     /**
@@ -528,8 +526,7 @@ public class OperationBuilder extends AbstractOperationBuilder<OperationBuilder>
         Cluster cluster = session.getCluster();
         BatchStatus status = new BatchStatus(true);
         List<BatchRecord> records = parent.getRecords();
-        List<BatchNode> bns = BatchNodeList.generate(cluster, partitions,
-        	settings.getReplicaOrder(), records, status);
+        List<BatchNode> bns = BatchNodes.generate(cluster, parent, records, status);
 
         IBatchCommand[] commands = new IBatchCommand[bns.size()];
         int count = 0;
@@ -558,7 +555,7 @@ public class OperationBuilder extends AbstractOperationBuilder<OperationBuilder>
         }
 
 	    if (txnToUse != null) {
-	    	prepareBatchTransaction(args);
+	    	prepareBatchTransaction(parent, args);
 	    }
 
         BatchExecutor.execute(cluster, commands, status);
@@ -586,8 +583,7 @@ public class OperationBuilder extends AbstractOperationBuilder<OperationBuilder>
         Cluster cluster = session.getCluster();
         BatchStatus status = new BatchStatus(true);
         List<BatchRecord> records = parent.getRecords();
-        List<BatchNode> bns = BatchNodeList.generate(cluster, partitions,
-        	settings.getReplicaOrder(), records, status);
+        List<BatchNode> bns = BatchNodes.generate(cluster, parent, records, status);
 
         AsyncRecordStream stream = new AsyncRecordStream(keys.size());
         IBatchCommand[] commands = new IBatchCommand[bns.size()];
@@ -619,7 +615,7 @@ public class OperationBuilder extends AbstractOperationBuilder<OperationBuilder>
 
         if (txnToUse != null) {
             cluster.startVirtualThread(() -> {
-                prepareBatchTransaction(args);
+                prepareBatchTransaction(parent, args);
                 operateBatchAsync(cluster, commands, status, stream);
             });
         }
@@ -636,8 +632,8 @@ public class OperationBuilder extends AbstractOperationBuilder<OperationBuilder>
 		// Assume all keys have the same namespace.
 		Key firstKey = keys.get(0);
 
-		namespace = firstKey.namespace;
-		partitions = getPartitions(cluster, namespace);
+		String namespace = firstKey.namespace;
+		Partitions partitions = getPartitions(cluster, namespace);
 		settings = getSettings(partitions, args, OpShape.BATCH);
 
 		final Expression filterExp = processWhereClause(firstKey.namespace, session);
@@ -673,12 +669,12 @@ public class OperationBuilder extends AbstractOperationBuilder<OperationBuilder>
         return parent;
     }
 
-    private void prepareBatchTransaction(OperateArgs args) {
+    private void prepareBatchTransaction(BatchCommand cmd, OperateArgs args) {
         if (args.hasWrite) {
-        	TxnMonitor.addKeys(txnToUse, session.getCluster(), partitions, settings, keys);
+        	TxnMonitor.addKeys(txnToUse, session, keys);
         }
         else {
-        	txnToUse.prepareRead(namespace);
+        	txnToUse.prepareRead(cmd.namespace);
         }
     }
 
@@ -717,7 +713,7 @@ public class OperationBuilder extends AbstractOperationBuilder<OperationBuilder>
 
         if (txnToUse != null) {
             if (args.hasWrite) {
-            	TxnMonitor.addKeys(txnToUse, cluster, partitions, settings, keys);
+            	TxnMonitor.addKeys(txnToUse, session, keys);
             }
             else {
             	txnToUse.prepareRead(firstKey.namespace);
@@ -792,7 +788,7 @@ public class OperationBuilder extends AbstractOperationBuilder<OperationBuilder>
         if (txnToUse != null) {
             if (args.hasWrite) {
                 cluster.startVirtualThread(() -> {
-                    TxnMonitor.addKeys(txnToUse, cluster, partitions, settings, keys);
+                    TxnMonitor.addKeys(txnToUse, session, keys);
                     operateKeysAsync(cluster, partitions, args, settings, filterExp,
                     	asyncStream);
                 });

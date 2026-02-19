@@ -31,7 +31,7 @@ import com.aerospike.client.fluent.command.BatchAttr;
 import com.aerospike.client.fluent.command.BatchCommand;
 import com.aerospike.client.fluent.command.BatchExecutor;
 import com.aerospike.client.fluent.command.BatchNode;
-import com.aerospike.client.fluent.command.BatchNodeList;
+import com.aerospike.client.fluent.command.BatchNodes;
 import com.aerospike.client.fluent.command.BatchRecord;
 import com.aerospike.client.fluent.command.BatchSingle;
 import com.aerospike.client.fluent.command.BatchStatus;
@@ -75,8 +75,6 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
     private final List<Key> keys;
     private ValueData current = null;
     private Txn txnToUse;
-    private String namespace;
-    private Partitions partitions;
     private Settings settings;
 
     /**
@@ -600,11 +598,11 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
     private RecordStream executeBatchSync() {
     	BatchCommand parent = prepareBatch();
         List<BatchRecord> records = parent.getRecords();
-        Cluster cluster = opBuilder.getSession().getCluster();
+        Session session = opBuilder.getSession();
+        Cluster cluster = session.getCluster();
 
         BatchStatus status = new BatchStatus(true);
-        List<BatchNode> bns = BatchNodeList.generate(cluster, partitions, settings.getReplicaOrder(),
-        	records, status);
+        List<BatchNode> bns = BatchNodes.generate(cluster, parent, records, status);
 
         IBatchCommand[] commands = new IBatchCommand[bns.size()];
         int count = 0;
@@ -626,7 +624,7 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
         Txn txn = opBuilder.getTxnToUse();
 
         if (txn != null) {
-            TxnMonitor.addKeys(txnToUse, cluster, partitions, settings, keys);
+            TxnMonitor.addKeys(txnToUse, session, keys);
         }
 
         BatchExecutor.execute(cluster, commands, status);
@@ -662,11 +660,11 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
     private RecordStream executeBatchAsync() {
     	BatchCommand parent = prepareBatch();
         List<BatchRecord> records = parent.getRecords();
-        Cluster cluster = opBuilder.getSession().getCluster();
+        Session session = opBuilder.getSession();
+        Cluster cluster = session.getCluster();
 
         BatchStatus status = new BatchStatus(true);
-        List<BatchNode> bns = BatchNodeList.generate(cluster, partitions,
-        	settings.getReplicaOrder(), records, status);
+        List<BatchNode> bns = BatchNodes.generate(cluster, parent, records, status);
 
         AsyncRecordStream stream = new AsyncRecordStream(keys.size());
         IBatchCommand[] commands = new IBatchCommand[bns.size()];
@@ -691,7 +689,7 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
 
         if (txn != null) {
             cluster.startVirtualThread(() -> {
-                TxnMonitor.addKeys(txnToUse, cluster, partitions, settings, keys);
+                TxnMonitor.addKeys(txnToUse, session, keys);
                 operateBatchAsync(cluster, commands, status, stream);
             });
         }
@@ -707,8 +705,8 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
         Cluster cluster = session.getCluster();
 
         // Assume all keys have the same namespace.
-        namespace = keys.get(0).namespace;
-        partitions = getPartitions(cluster, namespace);
+        String namespace = keys.get(0).namespace;
+        Partitions partitions = getPartitions(cluster, namespace);
         settings = session.getBehavior().getSettings(OpKind.WRITE_RETRYABLE, OpShape.BATCH,
         	partitions.scMode);
         final Expression filterExp = getFilterExp(session, namespace);
@@ -767,7 +765,7 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
         final Expression filterExp = processWhereClause(keys.get(0).namespace, opBuilder.getSession());
 
         if (txnToUse != null) {
-            TxnMonitor.addKeys(txnToUse, cluster, partitions, policy, keys);
+            TxnMonitor.addKeys(txnToUse, session, keys);
         }
 
         if (keys.size() == 1) {
@@ -839,7 +837,7 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
 
         if (txnToUse != null) {
             cluster.startVirtualThread(() -> {
-                TxnMonitor.addKeys(txnToUse, cluster, partitions, policy, keys);
+                TxnMonitor.addKeys(txnToUse, session, keys);
                 operateKeysAsync(cluster, partitions, policy, filterExp, asyncStream);
             });
         } else {

@@ -37,7 +37,7 @@ import com.aerospike.client.fluent.command.BatchAttr;
 import com.aerospike.client.fluent.command.BatchCommand;
 import com.aerospike.client.fluent.command.BatchExecutor;
 import com.aerospike.client.fluent.command.BatchNode;
-import com.aerospike.client.fluent.command.BatchNodeList;
+import com.aerospike.client.fluent.command.BatchNodes;
 import com.aerospike.client.fluent.command.BatchRead;
 import com.aerospike.client.fluent.command.BatchRecord;
 import com.aerospike.client.fluent.command.BatchSingle;
@@ -111,9 +111,10 @@ class BatchKeyQueryBuilderImpl extends QueryImpl {
 			throw new AerospikeException.InvalidNamespace(namespace, partitionMap.size());
 		}
 
-		Settings settings = session.getBehavior().getSettings(OpKind.READ, OpShape.BATCH, partitions.scMode);
+		Settings settings = session.getBehavior().getSettings(OpKind.READ, OpShape.BATCH,
+			partitions.scMode);
 
-        BatchAttr attr = new BatchAttr();
+		BatchAttr attr = new BatchAttr();
         attr.setRead(settings, partitions.scMode);
 
     	QueryBuilder qb = getQueryBuilder();
@@ -154,23 +155,23 @@ class BatchKeyQueryBuilderImpl extends QueryImpl {
                 }
             }
             else {
-                BatchRecord thisBatchRecord;
+                BatchRecord rec;
                 List<Operation> ops = getQueryBuilder().getOperations();
 
                 if (ops != null && !ops.isEmpty()) {
                     // Use operations constructor for CDT reads, selectFrom, etc.
-                    thisBatchRecord = new BatchRead(thisKey, null, attr, ttl, ops);
-                }
-                else if (getQueryBuilder().getWithNoBins()) {
-                    thisBatchRecord = new BatchRead(thisKey, null, attr, ttl, false);
+                    rec = new BatchRead(thisKey, null, attr, ttl, ops);
                 }
                 else if (getQueryBuilder().getBinNames() != null) {
-                    thisBatchRecord = new BatchRead(thisKey, null, attr, ttl, getQueryBuilder().getBinNames());
+                    rec = new BatchRead(thisKey, null, attr, ttl, getQueryBuilder().getBinNames());
+                }
+                else if (getQueryBuilder().getWithNoBins()) {
+                    rec = new BatchRead(thisKey, null, attr, ttl, false);
                 }
                 else {
-                    thisBatchRecord = new BatchRead(thisKey, null, attr, ttl, true);
+                    rec = new BatchRead(thisKey, null, attr, ttl, true);
                 }
-                recordsForServer.add(thisBatchRecord);
+                recordsForServer.add(rec);
             }
         }
 
@@ -178,8 +179,7 @@ class BatchKeyQueryBuilderImpl extends QueryImpl {
 			recordsForServer, where, qb.isRespondAllKeys(), attr.linearize, settings);
 
     	BatchStatus status = new BatchStatus(true);
-		List<BatchNode> bns = BatchNodeList.generate(cluster, partitions, attr.replica,
-			recordsForServer, status);
+		List<BatchNode> bns = BatchNodes.generate(cluster, parent, recordsForServer, status);
 
 		IBatchCommand[] commands = new IBatchCommand[bns.size()];
     	int count = 0;

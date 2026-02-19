@@ -164,7 +164,7 @@ public class BatchTest extends ClusterTest {
 	}
 
 	@Test
-	public void batchReadHeaders () {
+	public void batchReadHeaders() {
 		List<String> keys = new ArrayList<>(Size);
 
 		for (int i = 0; i < Size; i++) {
@@ -188,11 +188,12 @@ public class BatchTest extends ClusterTest {
 		}
         assertFalse(rs.hasNext());
 	}
+
     public void batchReadComplex() {
         RecordStream rs = session
             .update(args.set.id(KeyPrefix+7))
                 .bin("name").setTo("Tim")
-            
+
             .query(args.set.id(KeyPrefix + 1))
 //                .readingOnlyBins(BinName)
             .query(args.set.id(KeyPrefix + 2))
