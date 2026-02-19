@@ -6,6 +6,7 @@ on:
     branches: [dev/*, stage, init]
 
 permissions:
+  id-token: write
   contents: read
 
 concurrency:
@@ -13,15 +14,44 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build-and-test:
-    name: Build & Test
+  make-matrix:
     runs-on: ${{ vars.BUILD_CONTAINER_DISTRO_VERSION }}
+    outputs:
+      input-matrix: ${{ steps.create-server-matrix.outputs.input-matrix }}
+      java-version: ${{ steps.extract-java.outputs.java_version }}
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+
+      - id: create-server-matrix
+        shell: bash
+        env:
+          DEFAULT_JSON: ${{ vars.DEFAULT_SERVER_VERSIONS }}
+          TEST_SERVERS_FILE_PATH: ${{ vars.TEST_SERVERS_FILE_PATH }}
+        run: |
+          set -euo pipefail
+
+          FILE="${TEST_SERVERS_FILE_PATH:-}"
+
+          if [[ -n "${FILE}" && -s "${FILE}" ]]; then
+            echo "Using ${FILE} from repository"
+            JSON="$(cat "${FILE}")"
+          else
+            echo "${FILE:-<unset>} missing or empty – using default_json input"
+            JSON="${DEFAULT_JSON}"
+          fi
+
+          echo "${JSON}" | jq . >/dev/null
+
+          MATRIX="$(echo "${JSON}" | jq -c '[to_entries[] | { server: .key } + .value]')"
+
+          {
+            echo "input-matrix<<__JSON__"
+            echo "${MATRIX}"
+            echo "__JSON__"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Extract Java version from pom.xml
-        id: extract_java
+        id: extract-java
         run: |
           DEFAULT_VERSION=21
           VERSION=$(grep -m1 -E '<(maven.compiler.source|java.version)>' pom.xml | sed -E 's/.*>(.*)<.*/\1/')
@@ -32,11 +62,23 @@ jobs:
           echo "Detected Java version: $VERSION"
           echo "java_version=$VERSION" >> $GITHUB_OUTPUT
 
-      - name: Set up JDK ${{ vars.JAVA_DISTRIBUTION }} ${{ steps.extract_java.outputs.java_version }}
+  integration-test:
+    name: test-${{ matrix.server }}-${{ matrix.num-nodes }}node
+    needs: make-matrix
+    runs-on: ${{ vars.BUILD_CONTAINER_DISTRO_VERSION }}
+    strategy:
+      matrix:
+        include: ${{ fromJson(needs.make-matrix.outputs.input-matrix) }}
+      fail-fast: false
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK ${{ vars.JAVA_DISTRIBUTION }} ${{ needs.make-matrix.outputs.java-version }}
         uses: actions/setup-java@v4
         with:
           distribution: ${{ vars.JAVA_DISTRIBUTION }}
-          java-version: ${{ steps.extract_java.outputs.java_version }}
+          java-version: ${{ needs.make-matrix.outputs.java-version }}
           cache: maven
 
       - name: Show Java & Maven
@@ -44,7 +86,16 @@ jobs:
           java -version
           mvn -v
 
-      - name: Build & run all tests
+      - name: Setup Aerospike Server (${{ matrix.num-nodes }} node)
+        uses: aerospike/shared-workflows/.github/actions/setup-aes@CLIENT-4213
+        with:
+          server-tag: ${{ matrix.version }}
+          server-type: ${{ matrix.type }}
+          num-nodes: ${{ matrix.num-nodes }}
+          oidc-provider: ${{ vars.OIDC_PROVIDER_NAME }}
+          oidc-audience: ${{ vars.OIDC_AUDIENCE }}
+
+      - name: Build & run integration tests
         run: |
           mvn \
            --batch-mode \
@@ -52,7 +103,8 @@ jobs:
            --update-snapshots \
            --fail-at-end \
            --errors \
-           verify
+           verify \
+           -DskipTests=false
         env:
           MAVEN_OPTS: ${{ vars.MAVEN_OPTS }}
 
@@ -60,7 +112,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: test-reports-jdk-${{ steps.extract_java.outputs.java_version }}
+          name: test-reports-${{ matrix.server }}-${{ matrix.num-nodes }}node-jdk-${{ needs.make-matrix.outputs.java-version }}
           path: |
             **/target/surefire-reports/**
             **/target/failsafe-reports/**

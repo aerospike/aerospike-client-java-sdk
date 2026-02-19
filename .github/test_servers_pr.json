@@ -1,0 +1,12 @@
+{
+  "8.1.0.3_2_single": {
+    "version": "8.1.0.3_2",
+    "type": "database-docker-dev-local/aerospike-server-enterprise",
+    "num-nodes": 1
+  },
+  "8.1.1.0_1_single": {
+    "version": "8.1.1.0_1",
+    "type": "database-docker-dev-local/aerospike-server-enterprise",
+    "num-nodes": 1
+  }
+}
