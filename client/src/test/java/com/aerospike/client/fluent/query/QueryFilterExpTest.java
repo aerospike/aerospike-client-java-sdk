@@ -30,6 +30,7 @@ import org.junit.jupiter.api.Test;
 
 import com.aerospike.client.fluent.cdt.ListReturnType;
 import com.aerospike.client.fluent.cdt.MapReturnType;
+import com.aerospike.client.fluent.command.ParticleType;
 import com.aerospike.client.fluent.exp.Exp;
 import com.aerospike.client.fluent.exp.ListExp;
 import com.aerospike.client.fluent.exp.MapExp;

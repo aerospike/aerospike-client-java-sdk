@@ -26,6 +26,7 @@ import java.util.UUID;
 
 import com.aerospike.client.fluent.cdt.MapOrder;
 import com.aerospike.client.fluent.command.Buffer;
+import com.aerospike.client.fluent.command.ParticleType;
 import com.aerospike.client.fluent.util.Packer;
 
 /**
