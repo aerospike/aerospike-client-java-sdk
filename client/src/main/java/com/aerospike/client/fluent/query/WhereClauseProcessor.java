@@ -20,9 +20,9 @@ import java.util.Collection;
 import java.util.Set;
 
 import com.aerospike.client.fluent.Log;
-import com.aerospike.client.fluent.ParticleType;
 import com.aerospike.client.fluent.Session;
 import com.aerospike.client.fluent.Value;
+import com.aerospike.client.fluent.command.ParticleType;
 import com.aerospike.client.fluent.dsl.BooleanExpression;
 import com.aerospike.client.fluent.exp.Exp;
 import com.aerospike.client.fluent.exp.Expression;
