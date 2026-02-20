@@ -276,6 +276,11 @@ public class QueryExamples {
             
             session.truncate(customerDataSet);
             
+            session.update(customerDataSet.id("bob")).bin("A").setTo(2).bin("B").setTo(2.2).execute();
+            RecordStream rs1 = session.query(customerDataSet.id("bob")).execute();
+            System.out.println(rs1.getFirst());
+            System.exit(0);
+            
             session.upsert(customerDataSet.ids(1,2,3,4,5)).bin("holdings").add(1).execute();
             session.upsert(customerDataSet.ids(1,2,3))
                     .bins("name", "age")

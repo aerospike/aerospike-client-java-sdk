@@ -156,7 +156,12 @@ class OperationSpecExecutor {
                     	linearize = true;
                     }
 
-                    if (spec.getProjectedBins() != null && spec.getProjectedBins().length > 0) {
+                    List<Operation> ops = spec.getOperations();
+                    if (ops != null && !ops.isEmpty()) {
+                        // Use operations for CDT reads, selectFrom, etc.
+                        rec = new BatchRead(key, spec.getWhereClause(), attr, ttl, ops);
+                    }
+                    else if (spec.getProjectedBins() != null && spec.getProjectedBins().length > 0) {
                         // Read specific bins
                         rec = new BatchRead(key, spec.getWhereClause(), attr, ttl, spec.getProjectedBins());
                     }
