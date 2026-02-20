@@ -49,11 +49,11 @@ public class Session {
 
     /**
      * Builder class for constructing filter expressions used in queries and operations.
-     * 
+     *
      * <p>This class provides a way to build filter expressions from either an {@link Exp}
      * expression builder or a pre-built {@link Expression} object. Filter expressions
      * are used to filter records in queries and background operations.</p>
-     * 
+     *
      * <p>Example usage:</p>
      * <pre>{@code
      * ExpressionBuilder filter = new ExpressionBuilder(
@@ -63,10 +63,10 @@ public class Session {
      */
     public class ExpressionBuilder {
         private Expression filterExpression = null;
-        
+
         /**
          * Creates an ExpressionBuilder from an Exp expression.
-         * 
+         *
          * @param exp the Exp expression to build into a filter expression
          */
         public ExpressionBuilder(Exp exp) {
@@ -75,7 +75,7 @@ public class Session {
 
         /**
          * Creates an ExpressionBuilder from a pre-built Expression.
-         * 
+         *
          * @param exp the Expression to use as the filter expression
          */
         public ExpressionBuilder(Expression exp) {
@@ -84,7 +84,7 @@ public class Session {
 
         /**
          * Gets the filter expression built by this builder.
-         * 
+         *
          * @return the filter expression
          */
         public Expression getFilterExpression() {
@@ -94,10 +94,10 @@ public class Session {
 
     /**
      * Gets the behavior configuration for this session.
-     * 
+     *
      * <p>The behavior configuration controls how operations are performed, including
      * timeouts, retry policies, consistency levels, and other operational settings.</p>
-     * 
+     *
      * @return the behavior configuration for this session
      * @see Behavior
      */
@@ -107,10 +107,10 @@ public class Session {
 
     /**
      * Gets the cluster associated with this session.
-     * 
+     *
      * <p>The cluster represents the connection to the Aerospike cluster and provides
      * access to cluster-level operations and configuration.</p>
-     * 
+     *
      * @return the cluster associated with this session
      * @see Cluster
      */
@@ -173,14 +173,14 @@ public class Session {
 
     /**
      * Gets the record mapping factory associated with this session's cluster.
-     * 
+     *
      * <p>The record mapping factory provides mappers that convert between Aerospike
      * records and Java objects. This enables automatic object serialization and
      * deserialization when working with typed datasets.</p>
-     * 
+     *
      * <p>If no factory is set, this method will return null, and object mapping
      * operations will not be available.</p>
-     * 
+     *
      * @return the record mapping factory, or null if none is set
      * @see RecordMappingFactory
      * @see DefaultRecordMappingFactory
@@ -206,10 +206,10 @@ public class Session {
 
     /**
      * Creates a query builder for querying an entire dataset.
-     * 
+     *
      * <p>This method creates a query that will scan the entire dataset or use
      * secondary indexes if available. The query can be filtered, sorted, and paginated.</p>
-     * 
+     *
      * <p>Example usage:</p>
      * <pre>{@code
      * RecordStream results = session.query(customerDataSet)
@@ -218,7 +218,7 @@ public class Session {
      *     .limit(100)
      *     .execute();
      * }</pre>
-     * 
+     *
      * @param dataSet the dataset to query
      * @return a query builder for configuring and executing the query
      * @see QueryBuilder
@@ -230,17 +230,17 @@ public class Session {
 
     /**
      * Creates a query builder for querying a single key.
-     * 
+     *
      * <p>This method creates a query that will perform a direct key lookup.
      * The query will return at most one record.</p>
-     * 
+     *
      * <p>Example usage:</p>
      * <pre>{@code
      * RecordStream results = session.query(users.id("user-123"))
      *     .readingOnlyBins("name", "email")
      *     .execute();
      * }</pre>
-     * 
+     *
      * @param key the key to query
      * @return a query builder for configuring and executing the query
      * @see QueryBuilder
@@ -252,13 +252,13 @@ public class Session {
 
     /**
      * Creates a query builder for querying multiple keys using varargs.
-     * 
+     *
      * <p>This method creates a batch query that will perform lookups for multiple keys.
      * If only one key is provided, it will use single key optimization.</p>
-     * 
+     *
      * <p>This overload is provided to differentiate from the single-key query method
      * when querying with no parameters is valid.</p>
-     * 
+     *
      * <p>Example usage:</p>
      * <pre>{@code
      * RecordStream results = session.query(
@@ -267,7 +267,7 @@ public class Session {
      *     users.id("user-3")
      * ).execute();
      * }</pre>
-     * 
+     *
      * @param key1 the first key to query
      * @param key2 the second key to query
      * @param keys additional keys to query (varargs)
@@ -281,10 +281,10 @@ public class Session {
 
     /**
      * Creates a query builder for querying multiple keys from a list.
-     * 
+     *
      * <p>This method creates a batch query that will perform lookups for multiple keys.
      * If only one key is provided in the list, it will use single key optimization.</p>
-     * 
+     *
      * <p>Example usage:</p>
      * <pre>{@code
      * List<Key> keys = Arrays.asList(
@@ -296,7 +296,7 @@ public class Session {
      *     .readingOnlyBins("name", "email")
      *     .execute();
      * }</pre>
-     * 
+     *
      * @param keyList the list of keys to query
      * @return a query builder for configuring and executing the batch query
      * @see QueryBuilder
@@ -309,10 +309,10 @@ public class Session {
     // -------------------
     // CUD functionality (chainable batch operations)
     // -------------------
-    
+
     /**
      * Begin an insert operation. Supports chaining multiple heterogeneous operations.
-     * 
+     *
      * <p>Example:
      * <pre>{@code
      * session.insert(users.id("user-1"))
@@ -321,112 +321,112 @@ public class Session {
      *     .bin("age").add(1)
      *     .execute();
      * }</pre>
-     * 
+     *
      * @param key the key to insert
      * @return ChainableOperationBuilder for method chaining
      */
     public ChainableOperationBuilder insert(Key key) {
         return new ChainableOperationBuilder(this, OpType.INSERT).init(key, OpType.INSERT);
     }
-    
+
     /**
      * Begin an insert operation on multiple keys.
      */
     public ChainableOperationBuilder insert(List<Key> keys) {
         return new ChainableOperationBuilder(this, OpType.INSERT).init(keys, OpType.INSERT);
     }
-    
+
     /**
      * Begin an insert operation on multiple keys.
      */
     public ChainableOperationBuilder insert(Key key1, Key key2, Key... keys) {
         return new ChainableOperationBuilder(this, OpType.INSERT).init(buildKeyList(key1, key2, keys), OpType.INSERT);
     }
-    
+
     /**
      * Begin an update operation.
      */
     public ChainableOperationBuilder update(Key key) {
         return new ChainableOperationBuilder(this, OpType.UPDATE).init(key, OpType.UPDATE);
     }
-    
+
     /**
      * Begin an update operation on multiple keys.
      */
     public ChainableOperationBuilder update(List<Key> keys) {
         return new ChainableOperationBuilder(this, OpType.UPDATE).init(keys, OpType.UPDATE);
     }
-    
+
     /**
      * Begin an update operation on multiple keys.
      */
     public ChainableOperationBuilder update(Key key1, Key key2, Key... keys) {
         return new ChainableOperationBuilder(this, OpType.UPDATE).init(buildKeyList(key1, key2, keys), OpType.UPDATE);
     }
-    
+
     /**
      * Begin an upsert operation.
      */
     public ChainableOperationBuilder upsert(Key key) {
         return new ChainableOperationBuilder(this, OpType.UPSERT).init(key, OpType.UPSERT);
     }
-    
+
     /**
      * Begin an upsert operation on multiple keys.
      */
     public ChainableOperationBuilder upsert(List<Key> keys) {
         return new ChainableOperationBuilder(this, OpType.UPSERT).init(keys, OpType.UPSERT);
     }
-    
+
     /**
      * Begin an upsert operation on multiple keys.
      */
     public ChainableOperationBuilder upsert(Key key1, Key key2, Key... keys) {
         return new ChainableOperationBuilder(this, OpType.UPSERT).init(buildKeyList(key1, key2, keys), OpType.UPSERT);
     }
-    
+
     /**
      * Begin a replace operation.
      */
     public ChainableOperationBuilder replace(Key key) {
         return new ChainableOperationBuilder(this, OpType.REPLACE).init(key, OpType.REPLACE);
     }
-    
+
     /**
      * Begin a replace operation on multiple keys.
      */
     public ChainableOperationBuilder replace(List<Key> keys) {
         return new ChainableOperationBuilder(this, OpType.REPLACE).init(keys, OpType.REPLACE);
     }
-    
+
     /**
      * Begin a replace operation on multiple keys.
      */
     public ChainableOperationBuilder replace(Key key1, Key key2, Key... keys) {
         return new ChainableOperationBuilder(this, OpType.REPLACE).init(buildKeyList(key1, key2, keys), OpType.REPLACE);
     }
-    
+
     /**
      * Begin a replaceIfExists operation (replace only if record exists, fail otherwise).
      */
     public ChainableOperationBuilder replaceIfExists(Key key) {
         return new ChainableOperationBuilder(this, OpType.REPLACE_IF_EXISTS).init(key, OpType.REPLACE_IF_EXISTS);
     }
-    
+
     /**
      * Begin a replaceIfExists operation on multiple keys.
      */
     public ChainableOperationBuilder replaceIfExists(List<Key> keys) {
         return new ChainableOperationBuilder(this, OpType.REPLACE_IF_EXISTS).init(keys, OpType.REPLACE_IF_EXISTS);
     }
-    
+
     /**
      * Begin a replaceIfExists operation on multiple keys.
      */
     public ChainableOperationBuilder replaceIfExists(Key key1, Key key2, Key... keys) {
         return new ChainableOperationBuilder(this, OpType.REPLACE_IF_EXISTS).init(buildKeyList(key1, key2, keys), OpType.REPLACE_IF_EXISTS);
     }
-    
+
     /**
      * Begin a touch operation. Chainable with other operations.
      */
@@ -458,7 +458,7 @@ public class Session {
         return new ChainableNoBinsBuilder(this, new ArrayList<>(), null, getCurrentTransaction())
                 .exists(key);
     }
-    
+
     /**
      * Begin an exists operation on multiple keys.
      */
@@ -474,7 +474,7 @@ public class Session {
         return new ChainableNoBinsBuilder(this, new ArrayList<>(), null, getCurrentTransaction())
                 .exists(keys);
     }
-    
+
     /**
      * Begin a delete operation. Chainable with other operations.
      */
@@ -482,7 +482,7 @@ public class Session {
         return new ChainableNoBinsBuilder(this, new ArrayList<>(), null, getCurrentTransaction())
                 .delete(key);
     }
-    
+
     /**
      * Begin a delete operation on multiple keys.
      */
@@ -490,7 +490,7 @@ public class Session {
         return new ChainableNoBinsBuilder(this, new ArrayList<>(), null, getCurrentTransaction())
                 .delete(buildKeyList(key1, key2, keys));
     }
-    
+
     /**
      * Begin a delete operation on multiple keys.
      */
@@ -505,18 +505,18 @@ public class Session {
 
     /**
      * Begins an insert operation using object mapping for a dataset.
-     * 
+     *
      * <p>This method allows you to insert Java objects into Aerospike using
      * the record mapping factory configured on the cluster. The objects will
      * be automatically serialized to Aerospike records.</p>
-     * 
+     *
      * <p>Example usage:</p>
      * <pre>{@code
      * session.insert(customerDataSet)
      *     .object(customer)
      *     .execute();
      * }</pre>
-     * 
+     *
      * @param dataSet the dataset to insert into
      * @return an OperationObjectBuilder for configuring and executing the insert
      * @see OperationObjectBuilder
@@ -529,10 +529,10 @@ public class Session {
 
     /**
      * Begins an insert operation using type-safe object mapping for a typed dataset.
-     * 
+     *
      * <p>This method provides type-safe object insertion using a {@link TypeSafeDataSet}.
      * The type parameter ensures compile-time type safety when working with objects.</p>
-     * 
+     *
      * <p>Example usage:</p>
      * <pre>{@code
      * TypeSafeDataSet<Customer> customers = ...;
@@ -540,7 +540,7 @@ public class Session {
      *     .object(new Customer("John", "Doe"))
      *     .execute();
      * }</pre>
-     * 
+     *
      * @param <T> the type of objects being inserted
      * @param dataSet the typed dataset to insert into
      * @return a type-safe OperationObjectBuilder for configuring and executing the insert
@@ -554,18 +554,18 @@ public class Session {
 
     /**
      * Begins an upsert operation using object mapping for a dataset.
-     * 
+     *
      * <p>This method allows you to insert or update Java objects in Aerospike using
      * the record mapping factory configured on the cluster. If the record exists,
      * it will be updated; otherwise, it will be created.</p>
-     * 
+     *
      * <p>Example usage:</p>
      * <pre>{@code
      * session.upsert(customerDataSet)
      *     .object(customer)
      *     .execute();
      * }</pre>
-     * 
+     *
      * @param dataSet the dataset to upsert into
      * @return an OperationObjectBuilder for configuring and executing the upsert
      * @see OperationObjectBuilder
@@ -578,10 +578,10 @@ public class Session {
 
     /**
      * Begins an upsert operation using type-safe object mapping for a typed dataset.
-     * 
+     *
      * <p>This method provides type-safe object upsertion using a {@link TypeSafeDataSet}.
      * The type parameter ensures compile-time type safety when working with objects.</p>
-     * 
+     *
      * <p>Example usage:</p>
      * <pre>{@code
      * TypeSafeDataSet<Customer> customers = ...;
@@ -589,7 +589,7 @@ public class Session {
      *     .object(new Customer("John", "Doe"))
      *     .execute();
      * }</pre>
-     * 
+     *
      * @param <T> the type of objects being upserted
      * @param dataSet the typed dataset to upsert into
      * @return a type-safe OperationObjectBuilder for configuring and executing the upsert
@@ -603,18 +603,18 @@ public class Session {
 
     /**
      * Begins an update operation using object mapping for a dataset.
-     * 
+     *
      * <p>This method allows you to update existing Java objects in Aerospike using
      * the record mapping factory configured on the cluster. The record must exist
      * for the update to succeed.</p>
-     * 
+     *
      * <p>Example usage:</p>
      * <pre>{@code
      * session.update(customerDataSet)
      *     .object(customer)
      *     .execute();
      * }</pre>
-     * 
+     *
      * @param dataSet the dataset to update
      * @return an OperationObjectBuilder for configuring and executing the update
      * @see OperationObjectBuilder
@@ -627,10 +627,10 @@ public class Session {
 
     /**
      * Begins an update operation using type-safe object mapping for a typed dataset.
-     * 
+     *
      * <p>This method provides type-safe object updates using a {@link TypeSafeDataSet}.
      * The type parameter ensures compile-time type safety when working with objects.</p>
-     * 
+     *
      * <p>Example usage:</p>
      * <pre>{@code
      * TypeSafeDataSet<Customer> customers = ...;
@@ -638,7 +638,7 @@ public class Session {
      *     .object(existingCustomer)
      *     .execute();
      * }</pre>
-     * 
+     *
      * @param <T> the type of objects being updated
      * @param dataSet the typed dataset to update
      * @return a type-safe OperationObjectBuilder for configuring and executing the update
@@ -668,10 +668,10 @@ public class Session {
 
     /**
      * Functional interface for transactional operations that return a value.
-     * 
+     *
      * <p>This interface is used with {@link #doInTransactionReturning(Transactional)}
      * to execute operations within a transaction that need to return a result.</p>
-     * 
+     *
      * <p>Example usage:</p>
      * <pre>{@code
      * String result = session.doInTransactionReturning(tx -> {
@@ -680,7 +680,7 @@ public class Session {
      *     return record.getString("name");
      * });
      * }</pre>
-     * 
+     *
      * @param <T> the return type of the transactional operation
      * @see #doInTransactionReturning(Transactional)
      * @see TransactionalSession
@@ -689,7 +689,7 @@ public class Session {
     public interface Transactional<T> {
         /**
          * Executes a transactional operation and returns a result.
-         * 
+         *
          * @param txn the transactional session to use for operations
          * @return the result of the transactional operation
          */
@@ -698,10 +698,10 @@ public class Session {
 
     /**
      * Functional interface for transactional operations that do not return a value.
-     * 
+     *
      * <p>This interface is used with {@link #doInTransaction(TransactionalVoid)}
      * to execute operations within a transaction that do not need to return a result.</p>
-     * 
+     *
      * <p>Example usage:</p>
      * <pre>{@code
      * session.doInTransaction(txn -> {
@@ -713,7 +713,7 @@ public class Session {
      *         .execute();
      * });
      * }</pre>
-     * 
+     *
      * @see #doInTransaction(TransactionalVoid)
      * @see TransactionalSession
      */
@@ -721,7 +721,7 @@ public class Session {
     public interface TransactionalVoid {
         /**
          * Executes a transactional operation.
-         * 
+         *
          * @param txn the transactional session to use for operations
          */
         void execute(TransactionalSession txn);
@@ -862,25 +862,25 @@ public class Session {
 
     /**
      * Gets an InfoCommands instance for executing Aerospike info commands.
-     * 
+     *
      * <p>InfoCommands provides high-level methods to execute common Aerospike info
      * commands, such as retrieving namespace details, set information, secondary
      * index information, and build information.</p>
-     * 
+     *
      * <p>Example usage:</p>
      * <pre>{@code
      * InfoCommands commands = session.info();
-     * 
+     *
      * // Get all namespaces
      * Set<String> namespaces = commands.namespaces();
-     * 
+     *
      * // Get namespace details
      * Optional<NamespaceDetail> nsDetail = commands.namespaceDetails("test");
-     * 
+     *
      * // Get all secondary indexes
      * List<Sindex> indexes = commands.secondaryIndexes();
      * }</pre>
-     * 
+     *
      * @return an InfoCommands instance for executing info commands
      * @see InfoCommands
      */
@@ -890,15 +890,15 @@ public class Session {
 
     /**
      * Checks if a namespace is configured for strong consistency (SC) mode.
-     * 
+     *
      * <p>Strong consistency namespaces provide stronger consistency guarantees
      * compared to eventually consistent (AP) namespaces. This affects how
      * operations are performed, particularly for transactions and certain read
      * operations.</p>
-     * 
+     *
      * <p>This method is used internally to determine the appropriate operation
      * settings and policies based on the namespace's consistency mode.</p>
-     * 
+     *
      * @param namespace the namespace to check
      * @return true if the namespace is in strong consistency mode, false otherwise
      * @throws IllegalArgumentException if the namespace is unknown
@@ -921,8 +921,7 @@ public class Session {
      * The user can optionally wait for command completion by using the returned
      * IndexTask instance.
      *
-	 * @param namespace				namespace - equivalent to database name
-	 * @param setName				optional set name - equivalent to database table
+	 * @param set					dataset containing namespace and set information
 	 * @param indexName				name of secondary index
 	 * @param binName				bin name that data is indexed on
 	 * @param indexType				underlying data type of secondary index
@@ -952,6 +951,41 @@ public class Session {
 		int code = parseIndexErrorCode(response);
 		throw new AerospikeException(code, "Create index failed: " + response);
     }
+
+	/**
+	 * Create an expression-based secondary index with the provided index collection type
+	 * This asynchronous server call will return before command is complete.
+	 * The user can optionally wait for command completion by using the returned
+	 * IndexTask instance.
+	 *
+	 * @param set					dataset containing namespace and set information
+	 * @param indexName				name of secondary index
+	 * @param indexType				underlying data type of secondary index
+	 * @param indexCollectionType	index collection type
+	 * @param exp					expression on which to build the index
+	 * @throws AerospikeException	if index create fails
+	 */
+	public final IndexTask createIndex(
+	    DataSet set,
+		String indexName,
+		IndexType indexType,
+		IndexCollectionType indexCollectionType,
+		Expression exp
+	) {
+		Node node = this.cluster.getRandomNode();
+		String command = buildCreateIndexInfoCommand(node, set.getNamespace(), set.getSet(), indexName, null, indexType, indexCollectionType, null, exp);
+
+		// Send index command to one node. That node will distribute the command to other nodes.
+		String response = sendInfoCommand(node, command);
+
+		if (response.equalsIgnoreCase("OK")) {
+			// Return task that could optionally be polled for completion.
+			return new IndexTask(cluster, set.getNamespace(), indexName, true, 1000);
+		}
+
+		int code = parseIndexErrorCode(response);
+		throw new AerospikeException(code, "Create index failed: " + response);
+	}
 
 	private String buildCreateIndexInfoCommand(
 		Node node,

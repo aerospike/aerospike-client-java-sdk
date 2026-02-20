@@ -25,7 +25,7 @@ import com.aerospike.client.fluent.ClusterTest;
 public class QueryGeoTest extends ClusterTest {
 	//private static final String setName = "geo";
 	//private static final String setNamePoints = "geopt";
-	private static final String setNameRegions = "georeg";
+	//private static final String setNameRegions = "georeg";
 	//private static final String indexName = "geoidx";
 	//private static final String binName = "geobin";
 	//private static final int size = 20;
