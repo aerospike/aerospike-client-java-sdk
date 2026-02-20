@@ -18,8 +18,8 @@ package com.aerospike.client.fluent.task;
 
 import com.aerospike.client.fluent.AerospikeException;
 import com.aerospike.client.fluent.Cluster;
-import com.aerospike.client.fluent.Info;
 import com.aerospike.client.fluent.Node;
+import com.aerospike.client.fluent.command.Info;
 import com.aerospike.client.fluent.util.Version;
 
 /**

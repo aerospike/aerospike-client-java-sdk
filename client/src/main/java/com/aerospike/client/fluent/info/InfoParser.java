@@ -11,10 +11,10 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import com.aerospike.client.fluent.Info;
 import com.aerospike.client.fluent.Log;
 import com.aerospike.client.fluent.Node;
 import com.aerospike.client.fluent.Session;
+import com.aerospike.client.fluent.command.Info;
 
 /**
  * Parser for Aerospike info commands that converts raw info strings into structured data.

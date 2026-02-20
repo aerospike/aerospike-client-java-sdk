@@ -14,13 +14,16 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.aerospike.client.fluent;
+package com.aerospike.client.fluent.command;
 
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 
-import com.aerospike.client.fluent.command.Buffer;
+import com.aerospike.client.fluent.AerospikeException;
+import com.aerospike.client.fluent.Connection;
+import com.aerospike.client.fluent.Node;
+import com.aerospike.client.fluent.ResultCode;
 import com.aerospike.client.fluent.util.Crypto;
 
 /**

@@ -14,7 +14,7 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.aerospike.client.fluent;
+package com.aerospike.client.fluent.command;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -22,8 +22,11 @@ import java.util.concurrent.TimeUnit;
 
 import org.mindrot.jbcrypt.BCrypt;
 
-import com.aerospike.client.fluent.command.Buffer;
-import com.aerospike.client.fluent.command.Command;
+import com.aerospike.client.fluent.AerospikeException;
+import com.aerospike.client.fluent.ClusterDefinition;
+import com.aerospike.client.fluent.Connection;
+import com.aerospike.client.fluent.Log;
+import com.aerospike.client.fluent.ResultCode;
 import com.aerospike.client.fluent.policy.AuthMode;
 
 public class AdminCommand {
@@ -98,30 +101,30 @@ public class AdminCommand {
 		public LoginCommand(ClusterDefinition def, Connection conn) throws IOException {
 			super();
 
-			conn.setTimeout(def.loginTimeout);
+			conn.setTimeout(def.getLoginTimeout());
 
 			try {
 				login(def, conn);
 			}
 			finally {
-				conn.setTimeout(def.tendTimeout);
+				conn.setTimeout(def.getTendTimeout());
 			}
 		}
 
 		private void login(ClusterDefinition def, Connection conn) throws IOException {
-			if (def.authMode == AuthMode.INTERNAL) {
+			if (def.getAuthMode() == AuthMode.INTERNAL) {
 				writeHeader(LOGIN, 2);
-				writeField(USER, def.userName);
-				writeField(CREDENTIAL, def.passwordHash);
+				writeField(USER, def.getUserName());
+				writeField(CREDENTIAL, def.getPasswordHash());
 			}
-			else if (def.authMode == AuthMode.PKI) {
+			else if (def.getAuthMode() == AuthMode.PKI) {
 				writeHeader(LOGIN, 0);
 			}
 			else {
 				writeHeader(LOGIN, 3);
-				writeField(USER, def.userName);
-				writeField(CREDENTIAL, def.passwordHash);
-				writeField(CLEAR_PASSWORD, def.password);
+				writeField(USER, def.getUserName());
+				writeField(CREDENTIAL, def.getPasswordHash());
+				writeField(CLEAR_PASSWORD, def.getPassword());
 			}
 			writeSize();
 			conn.write(dataBuffer, dataOffset);
@@ -173,7 +176,7 @@ public class AdminCommand {
 					}
 					else {
 						if (Log.warnEnabled()) {
-							Log.warn(def.context, "Invalid session TTL: " + seconds);
+							Log.warn(def.getContext(), "Invalid session TTL: " + seconds);
 						}
 					}
 				}
@@ -205,9 +208,9 @@ public class AdminCommand {
 	}
 
 	public int setAuthenticate(ClusterDefinition def, byte[] sessionToken) {
-		if (def.authMode != AuthMode.PKI) {
+		if (def.getAuthMode() != AuthMode.PKI) {
 			writeHeader(AUTHENTICATE, 2);
-			writeField(USER, def.userName);
+			writeField(USER, def.getUserName());
 		}
 		else {
 			writeHeader(AUTHENTICATE, 1);
