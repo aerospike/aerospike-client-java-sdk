@@ -17,8 +17,8 @@
 package com.aerospike.examples;
 
 import com.aerospike.client.fluent.Cluster;
-import com.aerospike.client.fluent.Info;
 import com.aerospike.client.fluent.Node;
+import com.aerospike.client.fluent.command.Info;
 
 import static java.lang.String.format;
 

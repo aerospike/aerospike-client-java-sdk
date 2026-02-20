@@ -23,8 +23,8 @@ import com.aerospike.client.fluent.AerospikeException;
 import com.aerospike.client.fluent.ClusterDefinition;
 import com.aerospike.client.fluent.Connection;
 import com.aerospike.client.fluent.Host;
-import com.aerospike.client.fluent.Info;
 import com.aerospike.client.fluent.Node;
+import com.aerospike.client.fluent.command.Info;
 
 /**
  * Parse node's peers.

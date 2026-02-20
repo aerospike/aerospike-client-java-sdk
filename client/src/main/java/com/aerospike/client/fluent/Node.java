@@ -26,6 +26,7 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import com.aerospike.client.fluent.command.AdminCommand;
+import com.aerospike.client.fluent.command.Info;
 import com.aerospike.client.fluent.command.SyncExecutor;
 import com.aerospike.client.fluent.command.AdminCommand.LoginCommand;
 import com.aerospike.client.fluent.tend.ConnectionRecover;
