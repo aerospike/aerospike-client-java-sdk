@@ -14,10 +14,6 @@ import com.aerospike.client.fluent.AbstractSessionOperationBuilder;
 import com.aerospike.client.fluent.OpType;
 import com.aerospike.client.fluent.Session;
 import com.aerospike.client.fluent.command.Txn;
-import com.aerospike.client.fluent.policy.CommitLevel;
-import com.aerospike.client.fluent.policy.ReadModeAP;
-import com.aerospike.client.fluent.policy.ReadModeSC;
-import com.aerospike.client.fluent.policy.Replica;
 
 /**
  * Tests for fluent API methods that set operation settings.

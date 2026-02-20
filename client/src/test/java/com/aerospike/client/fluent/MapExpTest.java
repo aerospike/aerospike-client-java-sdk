@@ -18,17 +18,13 @@ package com.aerospike.client.fluent;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
 import org.junit.jupiter.api.Test;
 
-import com.aerospike.client.fluent.cdt.MapReturnType;
 import com.aerospike.client.fluent.exp.Exp;
 import com.aerospike.client.fluent.exp.Expression;
-import com.aerospike.client.fluent.exp.MapExp;
 
 public class MapExpTest extends ClusterTest {
 	@Test

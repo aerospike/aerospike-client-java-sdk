@@ -16,20 +16,11 @@
  */
 package com.aerospike.client.fluent;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import java.util.ArrayList;
 import java.util.List;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-
-import com.aerospike.client.fluent.cdt.CTX;
-import com.aerospike.client.fluent.cdt.ListPolicy;
-import com.aerospike.client.fluent.exp.Exp;
-import com.aerospike.client.fluent.exp.Expression;
-import com.aerospike.client.fluent.exp.ListExp;
 
 public class ListExpTest extends ClusterTest {
 	String binA = "A";
@@ -66,7 +57,7 @@ public class ListExpTest extends ClusterTest {
 		listB.add(Value.get("z"));
 
 		// TODO: The following is incorrect. We really need listAppendItems() which does not exist.
-		RecordStream rs = session.upsert(keyA)
+		session.upsert(keyA)
 	        .bin(binA).listAppend(listA)
 	        .bin(binB).listAppend(listB)
 	        .bin(binC).setTo("M")
