@@ -694,7 +694,28 @@ public class QueryExamples {
                 System.out.println("---- End sort ---");
             }
             
-
+            // ---------------------------
+            // TTL Test
+            // ---------------------------
+            System.out.println("--- Test TTL ---");
+            session.delete(customerDataSet.id(1)).execute();
+            
+            session.upsert(customerDataSet.id(1))
+                .expireRecordAfterSeconds(5)
+                .bins("binA")
+                .values(5)
+                .execute();
+            System.out.println("Initial read, should be there");
+            System.out.println(session.query(customerDataSet.id(1)).execute().getFirst());
+            try {
+                Thread.sleep(Duration.ofSeconds(6));
+            } catch (InterruptedException e) {
+                // TODO Auto-generated catch block
+                e.printStackTrace();
+            }
+            System.out.println("Read after TTL exires, should not be there");
+            System.out.println(session.query(customerDataSet.id(1)).execute().getFirst());
+            
             // ---------------------------
             // Read and write expressions
             // ---------------------------
@@ -760,6 +781,13 @@ public class QueryExamples {
                     .defaultWhere("$.updated == false")
                     .execute();
                         
+            rsStream = session.query(customerDataSet.ids(1,2,3))
+                            .limit(2)
+                    .update(customerDataSet.ids(4,5,6))
+                        .bin("name").setTo("bob")
+                        .expireRecordAfterSeconds(500)
+                    .query(customerDataSet.id(7))
+                    .execute();
             
             // --------------------
             // Object mapping

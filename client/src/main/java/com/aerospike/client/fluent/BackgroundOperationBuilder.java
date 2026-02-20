@@ -16,7 +16,6 @@
  */
 package com.aerospike.client.fluent;
 
-import java.util.List;
 import java.util.Random;
 import java.util.concurrent.ExecutorService;
 
@@ -275,15 +274,6 @@ public class BackgroundOperationBuilder extends AbstractOperationBuilder<Backgro
 		return new ExecuteTask(cluster, taskId, cmd.socketTimeout);
     }
 
-    /**
-     * Checks if the given operations are retryable.
-     * Delegates to OperationBuilder's implementation.
-     *
-     * @param ops The operations to check
-     * @return true if all operations are retryable, false otherwise
-     */
-    private static boolean areOperationsRetryable(List<Operation> ops) {
-        return OperationBuilder.areOperationsRetryable(ops);
-    }
+    // Note: areOperationsRetryable() is inherited from AbstractOperationBuilder
 }
 

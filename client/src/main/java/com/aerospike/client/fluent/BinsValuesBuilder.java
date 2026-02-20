@@ -69,6 +69,7 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
     }
 
     private long expirationInSecondsForAll = 0;
+    private int generationForAll = 0;
     private final BinsValuesOperations opBuilder;
     private final String[] binNames;
     private final Map<Key, ValueData> valueSets = new HashMap<>();
@@ -82,18 +83,39 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
      *
      * @param opBuilder The parent OperationBuilder
      * @param keys The list of keys for which values will be set
+     * @param initialExpiration The initial expiration in seconds (from parent builder)
      * @param binName The first bin name
      * @param binNames Additional bin names
      */
-    public BinsValuesBuilder(BinsValuesOperations opBuilder, List<Key> keys, String binName, String... binNames) {
+    public BinsValuesBuilder(BinsValuesOperations opBuilder, List<Key> keys, long initialExpiration,
+                             String binName, String... binNames) {
         this.opBuilder = opBuilder;
         this.binNames = new String[1 + binNames.length];
         this.binNames[0] = binName;
         System.arraycopy(binNames, 0, this.binNames, 1, binNames.length);
         this.keys = keys;
+        this.expirationInSecondsForAll = initialExpiration;
         if (opBuilder instanceof AbstractSessionOperationBuilder) {
             this.txnToUse = ((AbstractSessionOperationBuilder<?>) opBuilder).getTxnToUse();
         }
+    }
+
+    /**
+     * Initialize inherited properties from the parent builder's current operation spec.
+     * Package-private method called by ChainableOperationBuilder.bins().
+     *
+     * @param generation the initial generation check value (0 means no check)
+     * @param whereClause the initial where clause expression (null means no filter)
+     * @param failOnFiltered whether to fail on filtered out records
+     * @param respondAll whether to respond with all keys including non-existent
+     */
+    void initFromParent(int generation, Expression whereClause, boolean failOnFiltered, boolean respondAll) {
+        this.generationForAll = generation;
+        if (whereClause != null) {
+            this.dsl = WhereClauseProcessor.from(whereClause);
+        }
+        this.failOnFilteredOut = failOnFiltered;
+        this.respondAllKeys = respondAll;
     }
     /**
      * Add a set of values for one record. The number of values must match the
@@ -215,7 +237,7 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
      */
     public BinsValuesBuilder withNoChangeInExpiration() {
         checkValuesExist("expireRecordAfter");
-        current.expirationInSeconds = OperationBuilder.TTL_NO_CHANGE;
+        current.expirationInSeconds = AbstractOperationBuilder.TTL_NO_CHANGE;
         return this;
     }
 
@@ -228,7 +250,7 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
      */
     public BinsValuesBuilder neverExpire() {
         checkValuesExist("expireRecordAfter");
-        current.expirationInSeconds = OperationBuilder.TTL_NEVER_EXPIRE;
+        current.expirationInSeconds = AbstractOperationBuilder.TTL_NEVER_EXPIRE;
         return this;
     }
 
@@ -241,7 +263,7 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
      */
     public BinsValuesBuilder expiryFromServerDefault() {
         checkValuesExist("expireRecordAfter");
-        current.expirationInSeconds = OperationBuilder.TTL_SERVER_DEFAULT;
+        current.expirationInSeconds = AbstractOperationBuilder.TTL_SERVER_DEFAULT;
         return this;
     }
 
@@ -370,7 +392,7 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
             throw new IllegalStateException(
                     "neverExpireAllRecords() is only available when multiple keys are specified");
         }
-        this.expirationInSecondsForAll = OperationBuilder.TTL_NEVER_EXPIRE;
+        this.expirationInSecondsForAll = AbstractOperationBuilder.TTL_NEVER_EXPIRE;
         return this;
     }
 
@@ -388,7 +410,7 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
             throw new IllegalStateException(
                     "withNoChangeInExpirationForAllRecords() is only available when multiple keys are specified");
         }
-        this.expirationInSecondsForAll = OperationBuilder.TTL_NO_CHANGE;
+        this.expirationInSecondsForAll = AbstractOperationBuilder.TTL_NO_CHANGE;
         return this;
     }
 
@@ -406,7 +428,7 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
             throw new IllegalStateException(
                     "expiryFromServerDefaultForAllRecords() is only available when multiple keys are specified");
         }
-        this.expirationInSecondsForAll = OperationBuilder.TTL_SERVER_DEFAULT;
+        this.expirationInSecondsForAll = AbstractOperationBuilder.TTL_SERVER_DEFAULT;
         return this;
     }
 
@@ -547,7 +569,7 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
                     valueSets.size(), opBuilder.getNumKeys()));
         }
 
-        if (keys.size() >= OperationBuilder.getBatchOperationThreshold()) {
+        if (keys.size() >= AbstractOperationBuilder.getBatchOperationThreshold()) {
             return executeBatchSync();
         } else {
             return executeIndividualSync();
@@ -588,7 +610,7 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
                     valueSets.size(), opBuilder.getNumKeys()));
         }
 
-        if (keys.size() >= OperationBuilder.getBatchOperationThreshold()) {
+        if (keys.size() >= AbstractOperationBuilder.getBatchOperationThreshold()) {
             return executeBatchAsync();
         } else {
             return executeIndividualAsync();
@@ -722,7 +744,7 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
             int ttl = getExpiration(valueSet);
 
             batchRecords.add(new BatchWrite(key, null, attr, opBuilder.getOpType(), ops,
-            	valueSet.generation, ttl));
+            	getGeneration(valueSet), ttl));
         }
 
         return new BatchCommand(cluster, partitions, opBuilder.getTxnToUse(), namespace,
@@ -886,7 +908,7 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
 
 		OperateArgs args = new OperateArgs(ops);
         OperateWriteCommand cmd = new OperateWriteCommand(cluster, partitions, txnToUse, key, ops,
-        	args, opBuilder.getOpType(), valueSet.generation, ttl, filterExp,
+        	args, opBuilder.getOpType(), getGeneration(valueSet), ttl, filterExp,
         	opBuilder.isFailOnFilteredOut(), policy);
 
         try {
@@ -937,8 +959,20 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
             // Per-record expiration set via expireRecordAfterSeconds() after values()
             return opBuilder.getExpirationAsInt(valueData.expirationInSeconds);
         } else if (expirationInSecondsForAll != 0) {
-            // Batch expiration set via expireAllRecordsAfterSeconds()
+            // Batch expiration set via expireAllRecordsAfterSeconds() or from parent builder
             return opBuilder.getExpirationAsInt(expirationInSecondsForAll);
+        } else {
+            return 0;
+        }
+    }
+
+    private int getGeneration(ValueData valueData) {
+        if (valueData.generation > 0) {
+            // Per-record generation set via ensureGenerationIs() after values()
+            return valueData.generation;
+        } else if (generationForAll > 0) {
+            // Batch generation from parent builder (set before bins())
+            return generationForAll;
         } else {
             return 0;
         }

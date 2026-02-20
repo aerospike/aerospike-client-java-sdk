@@ -108,7 +108,15 @@ public class ChainableOperationBuilder extends AbstractOperationBuilder<Chainabl
      */
     public BinsValuesBuilder bins(String binName, String... binNames) {
         verifyState("specifying bins");
-        return new BinsValuesBuilder(new ChainableBinsValuesOperations(), currentSpec.getKeys(), binName, binNames);
+        BinsValuesBuilder builder = new BinsValuesBuilder(new ChainableBinsValuesOperations(), currentSpec.getKeys(),
+                currentSpec.getExpirationInSeconds(), binName, binNames);
+        // Propagate additional properties from the current operation spec
+        builder.initFromParent(
+                currentSpec.getGeneration(),
+                currentSpec.getWhereClause(),
+                currentSpec.isFailOnFilteredOut(),
+                currentSpec.isRespondAllKeys());
+        return builder;
     }
 
     /**

@@ -29,7 +29,6 @@ import com.aerospike.client.fluent.info.classes.IndexType;
 import com.aerospike.client.fluent.policy.Behavior;
 import com.aerospike.client.fluent.query.IndexBasedQueryBuilderInterface;
 import com.aerospike.client.fluent.query.IndexCollectionType;
-import com.aerospike.client.fluent.query.KeyBasedQueryBuilderInterface;
 import com.aerospike.client.fluent.query.QueryBuilder;
 import com.aerospike.client.fluent.task.IndexTask;
 import com.aerospike.client.fluent.tend.Partitions;
@@ -231,32 +230,39 @@ public class Session {
      * Creates a query builder for querying a single key.
      * 
      * <p>This method creates a query that will perform a direct key lookup.
-     * The query will return at most one record.</p>
+     * The query will return at most one record. The returned builder supports
+     * chaining to write operations (upsert, update, insert, etc.).</p>
      * 
      * <p>Example usage:</p>
      * <pre>{@code
+     * // Simple query
      * RecordStream results = session.query(users.id("user-123"))
-     *     .readingOnlyBins("name", "email")
+     *     .bins("name", "email")
+     *     .execute();
+     * 
+     * // Query then write (chainable)
+     * session.query(users.id("user-1"))
+     *     .bin("name").get()
+     *     .upsert(users.id("user-2"))
+     *     .bin("status").setTo("active")
      *     .execute();
      * }</pre>
      * 
      * @param key the key to query
-     * @return a query builder for configuring and executing the query
-     * @see QueryBuilder
-     * @see KeyBasedQueryBuilderInterface
+     * @return a chainable query builder for configuring and executing the query
+     * @see ChainableQueryBuilder
      */
-    public KeyBasedQueryBuilderInterface<QueryBuilder> query(Key key) {
-        return new QueryBuilder(this, key);
+    public ChainableQueryBuilder query(Key key) {
+        return new ChainableQueryBuilder(this, new ArrayList<>(), null, getCurrentTransaction())
+                .initQuery(key);
     }
 
     /**
      * Creates a query builder for querying multiple keys using varargs.
      * 
      * <p>This method creates a batch query that will perform lookups for multiple keys.
-     * If only one key is provided, it will use single key optimization.</p>
-     * 
-     * <p>This overload is provided to differentiate from the single-key query method
-     * when querying with no parameters is valid.</p>
+     * If only one key is provided, it will use single key optimization. The returned
+     * builder supports chaining to write operations.</p>
      * 
      * <p>Example usage:</p>
      * <pre>{@code
@@ -270,19 +276,20 @@ public class Session {
      * @param key1 the first key to query
      * @param key2 the second key to query
      * @param keys additional keys to query (varargs)
-     * @return a query builder for configuring and executing the batch query
-     * @see QueryBuilder
-     * @see KeyBasedQueryBuilderInterface
+     * @return a chainable query builder for configuring and executing the batch query
+     * @see ChainableQueryBuilder
      */
-    public KeyBasedQueryBuilderInterface<QueryBuilder> query(Key key1, Key key2, Key...keys) {
-        return new QueryBuilder(this, buildKeyList(key1, key2, keys));
+    public ChainableQueryBuilder query(Key key1, Key key2, Key...keys) {
+        return new ChainableQueryBuilder(this, new ArrayList<>(), null, getCurrentTransaction())
+                .initQuery(buildKeyList(key1, key2, keys));
     }
 
     /**
      * Creates a query builder for querying multiple keys from a list.
      * 
      * <p>This method creates a batch query that will perform lookups for multiple keys.
-     * If only one key is provided in the list, it will use single key optimization.</p>
+     * If only one key is provided in the list, it will use single key optimization.
+     * The returned builder supports chaining to write operations.</p>
      * 
      * <p>Example usage:</p>
      * <pre>{@code
@@ -292,17 +299,17 @@ public class Session {
      *     users.id("user-3")
      * );
      * RecordStream results = session.query(keys)
-     *     .readingOnlyBins("name", "email")
+     *     .bins("name", "email")
      *     .execute();
      * }</pre>
      * 
      * @param keyList the list of keys to query
-     * @return a query builder for configuring and executing the batch query
-     * @see QueryBuilder
-     * @see KeyBasedQueryBuilderInterface
+     * @return a chainable query builder for configuring and executing the batch query
+     * @see ChainableQueryBuilder
      */
-    public KeyBasedQueryBuilderInterface<QueryBuilder> query(List<Key> keyList) {
-        return new QueryBuilder(this, keyList);
+    public ChainableQueryBuilder query(List<Key> keyList) {
+        return new ChainableQueryBuilder(this, new ArrayList<>(), null, getCurrentTransaction())
+                .initQuery(keyList);
     }
 
     // -------------------

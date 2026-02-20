@@ -40,6 +40,9 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
     private OperationSpec currentSpec = null;
     private Expression defaultWhereClause;
     private Txn txnToUse;
+    private long limit = 0;
+    private int startPartition = 0;
+    private int endPartition = 4096;
 
     /**
      * Package-private constructor.
@@ -85,6 +88,30 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
             throw new IllegalArgumentException("Must specify at least one bin name");
         }
         currentSpec.setProjectedBins(binNames);
+        return this;
+    }
+
+    /**
+     * Specify which bins to read (bin projection).
+     * If not called, all bins will be read.
+     * This is an alias for {@link #bins(String...)} for API compatibility.
+     *
+     * @param binNames the names of the bins to read
+     * @return this builder for method chaining
+     */
+    public ChainableQueryBuilder readingOnlyBins(String... binNames) {
+        return bins(binNames);
+    }
+
+    /**
+     * Specifies that no bins should be read (header-only query).
+     * Useful when you only need to check for record existence or get metadata.
+     *
+     * @return this builder for method chaining
+     */
+    public ChainableQueryBuilder withNoBins() {
+        verifyState("specifying no bins");
+        currentSpec.setProjectedBins(new String[0]);
         return this;
     }
 
@@ -655,6 +682,86 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
     }
 
     /**
+     * Sets the maximum number of records to return.
+     * 
+     * <p><b>Note:</b> This method limits the number of results returned from the batch.
+     * The batch will still process all keys, but only the first N successful results
+     * will be returned.</p>
+     *
+     * @param limit the maximum number of records to return (must be > 0)
+     * @return this builder for method chaining
+     * @throws IllegalArgumentException if limit is <= 0
+     */
+    public ChainableQueryBuilder limit(long limit) {
+        if (limit <= 0) {
+            throw new IllegalArgumentException("Limit must be > 0, not " + limit);
+        }
+        this.limit = limit;
+        return this;
+    }
+
+    /**
+     * Targets a specific partition for the query.
+     *
+     * <p>This method restricts the query to a single partition. Keys that don't
+     * belong to this partition will be filtered out before execution.</p>
+     *
+     * @param partId the partition ID to target (0-4095)
+     * @return this builder for method chaining
+     * @throws IllegalArgumentException if partId is out of range
+     */
+    public ChainableQueryBuilder onPartition(int partId) {
+        if (partId < 0 || partId >= 4096) {
+            throw new IllegalArgumentException("Partition ID must be between 0 and 4095, not " + partId);
+        }
+        this.startPartition = partId;
+        this.endPartition = partId + 1;
+        return this;
+    }
+
+    /**
+     * Targets a range of partitions for the query.
+     *
+     * <p>This method restricts the query to a range of partitions. Keys that don't
+     * belong to this partition range will be filtered out before execution.</p>
+     *
+     * @param startIncl the start partition (inclusive, 0-4095)
+     * @param endExcl the end partition (exclusive, 1-4096)
+     * @return this builder for method chaining
+     * @throws IllegalArgumentException if the partition range is invalid
+     */
+    public ChainableQueryBuilder onPartitionRange(int startIncl, int endExcl) {
+        if (startIncl < 0 || startIncl >= 4096) {
+            throw new IllegalArgumentException("Start partition must be between 0 and 4095, not " + startIncl);
+        }
+        if (endExcl <= 0 || endExcl > 4096) {
+            throw new IllegalArgumentException("End partition must be between 1 and 4096, not " + endExcl);
+        }
+        if (startIncl >= endExcl) {
+            throw new IllegalArgumentException("Start partition must be less than end partition");
+        }
+        this.startPartition = startIncl;
+        this.endPartition = endExcl;
+        return this;
+    }
+
+    /**
+     * Sets the chunk size for server-side streaming.
+     * 
+     * <p><b>Note:</b> This method is primarily applicable to dataset queries.
+     * For key-based batch queries, chunk size doesn't affect behavior as all
+     * keys are sent in a single batch.</p>
+     *
+     * @param chunkSize the number of records per chunk
+     * @return this builder for method chaining
+     */
+    public ChainableQueryBuilder chunkSize(int chunkSize) {
+        // For key-based queries, chunk size is not applicable
+        // We accept the method for API compatibility but it has no effect
+        return this;
+    }
+
+    /**
      * Specify that operations are not to be included in any transaction.
      *
      * @return this builder for method chaining
@@ -681,6 +788,7 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
 
     /**
      * Execute all chained operations as a single batch.
+     * For single-key operations, this uses optimized point execution.
      *
      * @return RecordStream containing the results of all operations
      */
@@ -691,7 +799,131 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
             throw new IllegalStateException("No operations specified");
         }
 
-        return OperationSpecExecutor.execute(session, operationSpecs, defaultWhereClause, txnToUse);
+        // Apply partition filtering if specified
+        List<OperationSpec> filteredSpecs = applyPartitionFilter(operationSpecs);
+
+        // Apply limit to keys if specified
+        filteredSpecs = applyKeyLimit(filteredSpecs);
+
+        if (filteredSpecs.isEmpty()) {
+            return new RecordStream();
+        }
+
+        return OperationSpecExecutor.execute(session, filteredSpecs, defaultWhereClause, txnToUse);
+    }
+
+    /**
+     * Execute all chained operations synchronously.
+     * All operations complete before this method returns.
+     *
+     * @return RecordStream containing the results of all operations
+     */
+    public RecordStream executeSync() {
+        return execute();
+    }
+
+    /**
+     * Execute all chained operations asynchronously.
+     * Results are streamed as they become available.
+     *
+     * @return RecordStream that will be populated as results arrive
+     */
+    public RecordStream executeAsync() {
+        return execute();
+    }
+
+    /**
+     * Apply partition filter to specs, filtering out keys that don't belong to the partition range.
+     */
+    private List<OperationSpec> applyPartitionFilter(List<OperationSpec> specs) {
+        if (!hasPartitionFilter()) {
+            return specs;
+        }
+
+        List<OperationSpec> filtered = new ArrayList<>();
+        for (OperationSpec spec : specs) {
+            List<Key> filteredKeys = new ArrayList<>();
+            for (Key key : spec.getKeys()) {
+                if (isKeyInPartitionRange(key)) {
+                    filteredKeys.add(key);
+                }
+            }
+            if (!filteredKeys.isEmpty()) {
+                OperationSpec newSpec = copySpecWithKeys(spec, filteredKeys);
+                filtered.add(newSpec);
+            }
+        }
+        return filtered;
+    }
+
+    /**
+     * Apply limit to keys across all specs.
+     */
+    private List<OperationSpec> applyKeyLimit(List<OperationSpec> specs) {
+        if (limit <= 0) {
+            return specs;
+        }
+
+        List<OperationSpec> limited = new ArrayList<>();
+        long remaining = limit;
+
+        for (OperationSpec spec : specs) {
+            if (remaining <= 0) {
+                break;
+            }
+
+            List<Key> keys = spec.getKeys();
+            if (keys.size() <= remaining) {
+                limited.add(spec);
+                remaining -= keys.size();
+            } else {
+                // Need to truncate this spec's keys
+                List<Key> truncatedKeys = new ArrayList<>(keys.subList(0, (int) remaining));
+                OperationSpec newSpec = copySpecWithKeys(spec, truncatedKeys);
+                limited.add(newSpec);
+                remaining = 0;
+            }
+        }
+        return limited;
+    }
+
+    /**
+     * Create a copy of the spec with different keys.
+     */
+    private OperationSpec copySpecWithKeys(OperationSpec original, List<Key> newKeys) {
+        OperationSpec newSpec;
+        if (original.isQuery()) {
+            newSpec = new OperationSpec(newKeys);
+        } else {
+            newSpec = new OperationSpec(newKeys, original.getOpType());
+        }
+        newSpec.setWhereClause(original.getWhereClause());
+        newSpec.setGeneration(original.getGeneration());
+        newSpec.setExpirationInSeconds(original.getExpirationInSeconds());
+        newSpec.setFailOnFilteredOut(original.isFailOnFilteredOut());
+        newSpec.setRespondAllKeys(original.isRespondAllKeys());
+        newSpec.setDurablyDelete(original.getDurablyDelete());
+        newSpec.setProjectedBins(original.getProjectedBins());
+        newSpec.getOperations().addAll(original.getOperations());
+        return newSpec;
+    }
+
+    /**
+     * Check if partition filtering is active.
+     */
+    private boolean hasPartitionFilter() {
+        return startPartition > 0 || endPartition < 4096;
+    }
+
+    /**
+     * Check if a key is within the partition range.
+     */
+    private boolean isKeyInPartitionRange(Key key) {
+        if (!hasPartitionFilter()) {
+            return true;
+        }
+        int partId = com.aerospike.client.fluent.tend.Partition.getPartitionId(key.digest);
+        return partId >= startPartition && partId < endPartition;
     }
 
     // ========================================

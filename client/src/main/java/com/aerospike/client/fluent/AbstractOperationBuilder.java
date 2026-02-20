@@ -10,8 +10,7 @@ import java.util.List;
  * bin-level operations via the {@code bin()} method and operations list.</p>
  *
  * <p>This class contains shared functionality between key-specific operations
- * ({@link OperationBuilder}) and set-level background operations
- * ({@link BackgroundOperationBuilder}).</p>
+ * and set-level background operations ({@link BackgroundOperationBuilder}).</p>
  *
  * <p>Subclasses must implement the {@code execute()} method with their specific
  * return type (e.g., RecordStream for key operations, ExecuteTask for background operations).</p>
@@ -19,6 +18,97 @@ import java.util.List;
  * @param <T> the concrete builder type (for fluent method chaining)
  */
 public abstract class AbstractOperationBuilder<T extends AbstractOperationBuilder<T>> extends AbstractSessionOperationBuilder<T> {
+
+    // ========================================
+    // TTL Constants
+    // ========================================
+
+    /**
+     * TTL constant: Record never expires (TTL = -1)
+     */
+    public static final int TTL_NEVER_EXPIRE = -1;
+
+    /**
+     * TTL constant: Do not change the current TTL of the record (TTL = -2)
+     */
+    public static final int TTL_NO_CHANGE = -2;
+
+    /**
+     * TTL constant: Use the server's default TTL for the namespace (TTL = 0)
+     */
+    public static final int TTL_SERVER_DEFAULT = 0;
+
+    // ========================================
+    // Batch Operation Threshold
+    // ========================================
+
+    /**
+     * The threshold for determining when to use batch operations vs individual operations.
+     * Operations with item counts >= this threshold will use batch mode.
+     * Operations with item counts < this threshold will use individual parallel execution.
+     */
+    public static final int BATCH_OPERATION_THRESHOLD = 10;
+
+    /**
+     * Returns the threshold for determining when to use batch operations vs individual operations.
+     * Operations with item counts >= this threshold will use batch mode.
+     * Operations with item counts < this threshold will use individual parallel execution.
+     *
+     * @return the batch operation threshold
+     */
+    public static int getBatchOperationThreshold() {
+        return BATCH_OPERATION_THRESHOLD;
+    }
+
+    // ========================================
+    // Operation Retryability
+    // ========================================
+
+    /**
+     * Determines if a list of operations are safe to retry.
+     * Non-idempotent operations (ADD, APPEND, PREPEND, and modify operations) are not retryable.
+     *
+     * @param ops the list of operations to check
+     * @return true if all operations are retryable, false otherwise
+     */
+    public static boolean areOperationsRetryable(List<Operation> ops) {
+        for (Operation op : ops) {
+            switch (op.type) {
+            case ADD:
+            case APPEND:
+            case PREPEND:
+                // Definitely not retryable
+                return false;
+
+            case BIT_MODIFY:
+            case CDT_MODIFY:
+            case EXP_MODIFY:
+            case HLL_MODIFY:
+            case MAP_MODIFY:
+                // These are questionable. For example, MAP_MODIFY could be CLEAR (retryable) or DECREMENT (non-retryable)
+                // For now return as not retryable, but will need further information in API v2
+                return false;
+
+            case BIT_READ:
+            case CDT_READ:
+            case DELETE:
+            case EXP_READ:
+            case HLL_READ:
+            case MAP_READ:
+            case READ:
+            case READ_HEADER:
+            case TOUCH:
+            case WRITE:
+                // definitely retryable
+            }
+        }
+        return true;
+    }
+
+    // ========================================
+    // Instance Fields and Constructor
+    // ========================================
+
     protected final List<Operation> ops = new ArrayList<>();
 
     protected AbstractOperationBuilder(Session session, OpType opType) {

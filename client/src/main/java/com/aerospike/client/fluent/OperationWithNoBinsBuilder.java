@@ -186,7 +186,7 @@ public class OperationWithNoBinsBuilder extends AbstractSessionOperationBuilder<
         if (!isMultiKey()) {
             throw new IllegalStateException("neverExpireAllRecords() is only available when multiple keys are specified");
         }
-        this.expirationInSecondsForAll = OperationBuilder.TTL_NEVER_EXPIRE;
+        this.expirationInSecondsForAll = AbstractOperationBuilder.TTL_NEVER_EXPIRE;
         return this;
     }
 
@@ -203,7 +203,7 @@ public class OperationWithNoBinsBuilder extends AbstractSessionOperationBuilder<
         if (!isMultiKey()) {
             throw new IllegalStateException("withNoChangeInExpirationForAllRecords() is only available when multiple keys are specified");
         }
-        this.expirationInSecondsForAll = OperationBuilder.TTL_NO_CHANGE;
+        this.expirationInSecondsForAll = AbstractOperationBuilder.TTL_NO_CHANGE;
         return this;
     }
 
@@ -220,7 +220,7 @@ public class OperationWithNoBinsBuilder extends AbstractSessionOperationBuilder<
         if (!isMultiKey()) {
             throw new IllegalStateException("expiryFromServerDefaultForAllRecords() is only available when multiple keys are specified");
         }
-        this.expirationInSecondsForAll = OperationBuilder.TTL_SERVER_DEFAULT;
+        this.expirationInSecondsForAll = AbstractOperationBuilder.TTL_SERVER_DEFAULT;
         return this;
     }
 

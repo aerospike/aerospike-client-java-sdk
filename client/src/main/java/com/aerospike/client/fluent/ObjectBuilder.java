@@ -214,7 +214,7 @@ public class ObjectBuilder<T> {
      * @return This ObjectBuilder for method chaining
      */
     public ObjectBuilder<T> withNoChangeInExpiration() {
-        this.expirationInSeconds = OperationBuilder.TTL_NO_CHANGE;
+        this.expirationInSeconds = AbstractOperationBuilder.TTL_NO_CHANGE;
         return this;
     }
 
@@ -225,7 +225,7 @@ public class ObjectBuilder<T> {
      * @return This ObjectBuilder for method chaining
      */
     public ObjectBuilder<T> neverExpire() {
-        this.expirationInSeconds = OperationBuilder.TTL_NEVER_EXPIRE;
+        this.expirationInSeconds = AbstractOperationBuilder.TTL_NEVER_EXPIRE;
         return this;
     }
 
@@ -236,7 +236,7 @@ public class ObjectBuilder<T> {
      * @return This ObjectBuilder for method chaining
      */
     public ObjectBuilder<T> expiryFromServerDefault() {
-        this.expirationInSeconds = OperationBuilder.TTL_SERVER_DEFAULT;
+        this.expirationInSeconds = AbstractOperationBuilder.TTL_SERVER_DEFAULT;
         return this;
     }
 
@@ -327,7 +327,7 @@ public class ObjectBuilder<T> {
         if (elements.size() <= 1) {
             throw new IllegalStateException("neverExpireAllRecords() is only available when multiple objects are specified");
         }
-        this.expirationInSecondsForAll = OperationBuilder.TTL_NEVER_EXPIRE;
+        this.expirationInSecondsForAll = AbstractOperationBuilder.TTL_NEVER_EXPIRE;
         return this;
     }
 
@@ -344,7 +344,7 @@ public class ObjectBuilder<T> {
         if (elements.size() <= 1) {
             throw new IllegalStateException("withNoChangeInExpirationForAllRecords() is only available when multiple objects are specified");
         }
-        this.expirationInSecondsForAll = OperationBuilder.TTL_NO_CHANGE;
+        this.expirationInSecondsForAll = AbstractOperationBuilder.TTL_NO_CHANGE;
         return this;
     }
 
@@ -361,7 +361,7 @@ public class ObjectBuilder<T> {
         if (elements.size() <= 1) {
             throw new IllegalStateException("expiryFromServerDefaultForAllRecords() is only available when multiple objects are specified");
         }
-        this.expirationInSecondsForAll = OperationBuilder.TTL_SERVER_DEFAULT;
+        this.expirationInSecondsForAll = AbstractOperationBuilder.TTL_SERVER_DEFAULT;
         return this;
     }
 
@@ -480,7 +480,7 @@ public class ObjectBuilder<T> {
             return executeSingleSync(elements.get(0));
         }
 
-        if (elements.size() < OperationBuilder.getBatchOperationThreshold()) {
+        if (elements.size() < AbstractOperationBuilder.getBatchOperationThreshold()) {
             return executeIndividualSync();
         }
 
@@ -519,7 +519,7 @@ public class ObjectBuilder<T> {
             return executeSingleAsync(elements.get(0));
         }
 
-        if (elements.size() < OperationBuilder.getBatchOperationThreshold()) {
+        if (elements.size() < AbstractOperationBuilder.getBatchOperationThreshold()) {
             return executeIndividualAsync();
         }
 

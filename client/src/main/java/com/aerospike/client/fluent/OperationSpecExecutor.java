@@ -31,9 +31,21 @@ import com.aerospike.client.fluent.command.BatchRecord;
 import com.aerospike.client.fluent.command.BatchSingle;
 import com.aerospike.client.fluent.command.BatchStatus;
 import com.aerospike.client.fluent.command.BatchWrite;
+import com.aerospike.client.fluent.command.DeleteExecutor;
+import com.aerospike.client.fluent.command.ExistsExecutor;
 import com.aerospike.client.fluent.command.IBatchCommand;
+import com.aerospike.client.fluent.command.OperateArgs;
+import com.aerospike.client.fluent.command.OperateReadCommand;
+import com.aerospike.client.fluent.command.OperateReadExecutor;
+import com.aerospike.client.fluent.command.OperateWriteCommand;
+import com.aerospike.client.fluent.command.OperateWriteExecutor;
+import com.aerospike.client.fluent.command.ReadAttr;
+import com.aerospike.client.fluent.command.ReadCommand;
+import com.aerospike.client.fluent.command.ReadExecutor;
+import com.aerospike.client.fluent.command.TouchExecutor;
 import com.aerospike.client.fluent.command.Txn;
 import com.aerospike.client.fluent.command.TxnMonitor;
+import com.aerospike.client.fluent.command.WriteCommand;
 import com.aerospike.client.fluent.exp.Expression;
 import com.aerospike.client.fluent.policy.Behavior;
 import com.aerospike.client.fluent.policy.Behavior.Mode;
@@ -72,6 +84,19 @@ class OperationSpecExecutor {
     ) {
         if (specs.isEmpty()) {
             return new RecordStream();
+        }
+
+        // Single-key optimization: bypass batch infrastructure for single-spec, single-key operations
+        if (specs.size() == 1) {
+            OperationSpec spec = specs.get(0);
+            List<Key> keys = spec.getKeys();
+
+            if (keys.size() == 1) {
+                Key key = keys.get(0);
+                Expression filterExp = spec.getWhereClause() != null ? spec.getWhereClause() : defaultWhereClause;
+
+                return executeSingleKey(session, spec, key, filterExp, txn);
+            }
         }
 
         // TODO Track count of keys in builders, so it can be used here.
@@ -326,5 +351,198 @@ class OperationSpecExecutor {
         default:
             return true;  // Include errors in the stream
         }
+    }
+
+    /**
+     * Execute a single-key operation using direct point executors, bypassing batch infrastructure.
+     * This is more efficient than going through BatchNodes, BatchRecord, and BatchExecutor.
+     */
+    private static RecordStream executeSingleKey(
+        Session session, OperationSpec spec, Key key, Expression filterExp, Txn txn
+    ) {
+        Cluster cluster = session.getCluster();
+        Behavior behavior = session.getBehavior();
+        Partitions partitions;
+
+        try {
+            partitions = cluster.getPartitions(key.namespace);
+        } catch (AerospikeException ae) {
+            return new RecordStream(new RecordResult(key, ae, 0));
+        }
+
+        boolean scMode = partitions.scMode;
+        boolean respondAllKeys = spec.isRespondAllKeys();
+        boolean failOnFilteredOut = spec.isFailOnFilteredOut();
+
+        try {
+            if (spec.isQuery()) {
+                return executeSingleKeyRead(session, cluster, behavior, partitions, spec, key, filterExp, txn, scMode, respondAllKeys, failOnFilteredOut);
+            } else if (spec.getOpType() == OpType.EXISTS) {
+                return executeSingleKeyExists(session, cluster, behavior, partitions, spec, key, filterExp, txn, scMode, respondAllKeys, failOnFilteredOut);
+            } else if (spec.getOpType() == OpType.TOUCH) {
+                return executeSingleKeyTouch(session, cluster, behavior, partitions, spec, key, filterExp, txn, scMode, respondAllKeys, failOnFilteredOut);
+            } else if (spec.getOpType() == OpType.DELETE) {
+                return executeSingleKeyDelete(session, cluster, behavior, partitions, spec, key, filterExp, txn, scMode, respondAllKeys, failOnFilteredOut);
+            } else {
+                return executeSingleKeyWrite(session, cluster, behavior, partitions, spec, key, filterExp, txn, scMode, respondAllKeys, failOnFilteredOut);
+            }
+        } catch (AerospikeException ae) {
+            if (shouldIncludeResult(ae.getResultCode(), respondAllKeys, failOnFilteredOut)) {
+                return new RecordStream(new RecordResult(key, ae, 0));
+            }
+            return new RecordStream();
+        }
+    }
+
+    /**
+     * Execute a single-key read operation using ReadExecutor or OperateReadExecutor.
+     */
+    private static RecordStream executeSingleKeyRead(
+        Session session, Cluster cluster, Behavior behavior, Partitions partitions,
+        OperationSpec spec, Key key, Expression filterExp, Txn txn,
+        boolean scMode, boolean respondAllKeys, boolean failOnFilteredOut
+    ) {
+        Settings settings = behavior.getSettings(OpKind.READ, OpShape.POINT, scMode);
+        ReadAttr attr = new ReadAttr(partitions, settings);
+
+        if (txn != null) {
+            txn.prepareRead(key.namespace);
+        }
+
+        List<Operation> ops = spec.getOperations();
+        Record record;
+
+        if (ops != null && !ops.isEmpty()) {
+            OperateArgs operateArgs = new OperateArgs(ops);
+            OperateReadCommand cmd = new OperateReadCommand(cluster, partitions, txn, key, ops, operateArgs,
+                filterExp, failOnFilteredOut, settings, attr);
+            OperateReadExecutor exec = new OperateReadExecutor(cluster, cmd);
+            exec.execute();
+            record = exec.getRecord();
+        } else {
+            String[] binNames = spec.getProjectedBins();
+            boolean withNoBins = binNames == null || binNames.length == 0;
+            ReadCommand cmd = new ReadCommand(cluster, partitions, txn, key, binNames, withNoBins,
+                filterExp, failOnFilteredOut, settings, attr);
+            ReadExecutor exec = new ReadExecutor(cluster, cmd);
+            exec.execute();
+            record = exec.getRecord();
+        }
+
+        if (record != null || respondAllKeys) {
+            return new RecordStream(key, record);
+        }
+        return new RecordStream();
+    }
+
+    /**
+     * Execute a single-key write operation using OperateWriteExecutor.
+     */
+    private static RecordStream executeSingleKeyWrite(
+        Session session, Cluster cluster, Behavior behavior, Partitions partitions,
+        OperationSpec spec, Key key, Expression filterExp, Txn txn,
+        boolean scMode, boolean respondAllKeys, boolean failOnFilteredOut
+    ) {
+        Settings settings = behavior.getSettings(OpKind.WRITE_NON_RETRYABLE, OpShape.POINT, scMode);
+        int gen = spec.getGeneration();
+        int ttl = (int) spec.getExpirationInSeconds();
+        List<Operation> ops = spec.getOperations();
+        OpType opType = spec.getOpType();
+
+        if (txn != null) {
+            TxnMonitor.addKey(txn, session, key);
+        }
+
+        OperateArgs operateArgs = new OperateArgs(ops);
+        OperateWriteCommand cmd = new OperateWriteCommand(cluster, partitions, txn, key, ops, operateArgs,
+            opType, gen, ttl, filterExp, failOnFilteredOut, settings);
+        OperateWriteExecutor exec = new OperateWriteExecutor(cluster, cmd);
+        exec.execute();
+        Record record = exec.getRecord();
+
+        if (record != null || respondAllKeys) {
+            return new RecordStream(key, record);
+        }
+        return new RecordStream();
+    }
+
+    /**
+     * Execute a single-key exists operation using ExistsExecutor.
+     */
+    private static RecordStream executeSingleKeyExists(
+        Session session, Cluster cluster, Behavior behavior, Partitions partitions,
+        OperationSpec spec, Key key, Expression filterExp, Txn txn,
+        boolean scMode, boolean respondAllKeys, boolean failOnFilteredOut
+    ) {
+        Settings settings = behavior.getSettings(OpKind.READ, OpShape.POINT, scMode);
+        ReadAttr attr = new ReadAttr(partitions, settings);
+
+        if (txn != null) {
+            txn.prepareRead(key.namespace);
+        }
+
+        ReadCommand cmd = new ReadCommand(cluster, partitions, txn, key, null, true,
+            filterExp, failOnFilteredOut, settings, attr);
+        ExistsExecutor exec = new ExistsExecutor(cluster, cmd);
+        exec.execute();
+        boolean exists = exec.exists();
+
+        int resultCode = exists ? ResultCode.OK : ResultCode.KEY_NOT_FOUND_ERROR;
+        return new RecordStream(new RecordResult(key, resultCode, false,
+            ResultCode.getResultString(resultCode), 0));
+    }
+
+    /**
+     * Execute a single-key touch operation using TouchExecutor.
+     */
+    private static RecordStream executeSingleKeyTouch(
+        Session session, Cluster cluster, Behavior behavior, Partitions partitions,
+        OperationSpec spec, Key key, Expression filterExp, Txn txn,
+        boolean scMode, boolean respondAllKeys, boolean failOnFilteredOut
+    ) {
+        Settings settings = behavior.getSettings(OpKind.WRITE_NON_RETRYABLE, OpShape.POINT, scMode);
+        int gen = spec.getGeneration();
+        int ttl = (int) spec.getExpirationInSeconds();
+
+        if (txn != null) {
+            TxnMonitor.addKey(txn, session, key);
+        }
+
+        WriteCommand cmd = new WriteCommand(cluster, partitions, txn, key, OpType.TOUCH,
+            gen, ttl, filterExp, failOnFilteredOut, settings);
+        TouchExecutor exec = new TouchExecutor(cluster, cmd);
+        exec.execute();
+        boolean touched = exec.touched();
+
+        int resultCode = touched ? ResultCode.OK : ResultCode.KEY_NOT_FOUND_ERROR;
+        return new RecordStream(new RecordResult(key, resultCode, false,
+            ResultCode.getResultString(resultCode), 0));
+    }
+
+    /**
+     * Execute a single-key delete operation using DeleteExecutor.
+     */
+    private static RecordStream executeSingleKeyDelete(
+        Session session, Cluster cluster, Behavior behavior, Partitions partitions,
+        OperationSpec spec, Key key, Expression filterExp, Txn txn,
+        boolean scMode, boolean respondAllKeys, boolean failOnFilteredOut
+    ) {
+        Settings settings = behavior.getSettings(OpKind.WRITE_RETRYABLE, OpShape.POINT, scMode);
+        int gen = spec.getGeneration();
+        int ttl = (int) spec.getExpirationInSeconds();
+
+        if (txn != null) {
+            TxnMonitor.addKey(txn, session, key);
+        }
+
+        WriteCommand cmd = new WriteCommand(cluster, partitions, txn, key, OpType.DELETE,
+            gen, ttl, filterExp, failOnFilteredOut, settings);
+        DeleteExecutor exec = new DeleteExecutor(cluster, cmd);
+        exec.execute();
+        boolean existed = exec.existed();
+
+        int resultCode = existed ? ResultCode.OK : ResultCode.KEY_NOT_FOUND_ERROR;
+        return new RecordStream(new RecordResult(key, resultCode, false,
+            ResultCode.getResultString(resultCode), 0));
     }
 }
