@@ -25,6 +25,7 @@ import java.util.function.Consumer;
 
 import com.aerospike.client.fluent.Log.Callback;
 import com.aerospike.client.fluent.Log.Level;
+import com.aerospike.client.fluent.command.AdminCommand;
 import com.aerospike.client.fluent.command.Buffer;
 import com.aerospike.client.fluent.policy.AuthMode;
 import com.aerospike.client.fluent.policy.Behavior;

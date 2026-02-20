@@ -23,7 +23,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
-import com.aerospike.client.fluent.AdminCommand;
 import com.aerospike.client.fluent.AerospikeException;
 import com.aerospike.client.fluent.Cluster;
 import com.aerospike.client.fluent.ClusterDefinition;
@@ -33,8 +32,9 @@ import com.aerospike.client.fluent.Info;
 import com.aerospike.client.fluent.Log;
 import com.aerospike.client.fluent.Node;
 import com.aerospike.client.fluent.TlsBuilder;
-import com.aerospike.client.fluent.AdminCommand.LoginCommand;
+import com.aerospike.client.fluent.command.AdminCommand;
 import com.aerospike.client.fluent.command.Buffer;
+import com.aerospike.client.fluent.command.AdminCommand.LoginCommand;
 import com.aerospike.client.fluent.util.Crypto;
 import com.aerospike.client.fluent.util.Util;
 import com.aerospike.client.fluent.util.Version;
