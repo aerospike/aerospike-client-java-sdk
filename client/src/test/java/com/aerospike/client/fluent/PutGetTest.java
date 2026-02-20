@@ -41,7 +41,6 @@ public class PutGetTest extends ClusterTest {
     @Test
     public void getNonExisting() {
         String key = "nonexistingkey";
-        String binName = "testBin";
 
         // Delete record if it already exists.
         Key dKey = args.set.id(key);

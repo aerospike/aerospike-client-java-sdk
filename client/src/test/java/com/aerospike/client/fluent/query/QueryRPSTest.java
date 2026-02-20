@@ -23,12 +23,9 @@ import org.junit.jupiter.api.Test;
 import com.aerospike.client.fluent.AerospikeException;
 import com.aerospike.client.fluent.ClusterTest;
 import com.aerospike.client.fluent.DataSet;
-import com.aerospike.client.fluent.Node;
 import com.aerospike.client.fluent.RecordStream;
 import com.aerospike.client.fluent.ResultCode;
-import com.aerospike.client.fluent.command.Info;
 import com.aerospike.client.fluent.info.classes.IndexType;
-import com.aerospike.client.fluent.util.Version;
 
 public class QueryRPSTest extends ClusterTest {
 	private static final DataSet dataSet = DataSet.of(args.set.getNamespace(), "rps");
@@ -38,8 +35,8 @@ public class QueryRPSTest extends ClusterTest {
 	private static final String binName2 = "rpsbin2";
 	//private static final String binName3 = "rpsbin3";
 	private static final int records_per_node = 1000;
-	private static final int rps = 1000;
-	private static final int expected_duration = 1000 * records_per_node / rps;
+	//private static final int rps = 1000;
+	//private static final int expected_duration = 1000 * records_per_node / rps;
 
 	private static int n_records = 0;
 
@@ -72,6 +69,7 @@ public class QueryRPSTest extends ClusterTest {
 		session.dropIndex(dataSet, indexName);
 	}
 
+	/*
 	private void checkRuntime(Node n, long id) {
 		String taskId = Long.toUnsignedString(id);
 		Version serverVersion = n.getVersion();
@@ -89,6 +87,7 @@ public class QueryRPSTest extends ClusterTest {
 		assert (duration > expected_duration - 500 &&
 				duration < expected_duration + 500);
 	}
+	*/
 
 	void drainRecords(RecordStream rs) {
 		try {

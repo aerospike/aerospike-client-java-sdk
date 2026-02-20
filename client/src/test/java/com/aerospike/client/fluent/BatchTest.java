@@ -30,8 +30,8 @@ import org.junit.jupiter.api.Test;
 
 public class BatchTest extends ClusterTest {
 	private static final String BinName = "bbin";
-	private static final String BinName2 = "bbin2";
-	private static final String BinName3 = "bbin3";
+	//private static final String BinName2 = "bbin2";
+	//private static final String BinName3 = "bbin3";
 	private static final String ListBin = "lbin";
 	private static final String ListBin2 = "lbin2";
 	private static final String KeyPrefix = "batchkey";
@@ -190,7 +190,7 @@ public class BatchTest extends ClusterTest {
 	}
 
     public void batchReadComplex() {
-        RecordStream rs = session
+        session
             .update(args.set.id(KeyPrefix+7))
                 .bin("name").setTo("Tim")
 
