@@ -240,7 +240,7 @@ public class Session {
      * RecordStream results = session.query(users.id("user-123"))
      *     .bins("name", "email")
      *     .execute();
-     * 
+     *
      * // Query then write (chainable)
      * session.query(users.id("user-1"))
      *     .bin("name").get()
