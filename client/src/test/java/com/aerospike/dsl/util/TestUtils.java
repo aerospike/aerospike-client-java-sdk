@@ -1,6 +1,7 @@
 package com.aerospike.dsl.util;
 
-import com.aerospike.client.fluent.RecordResult;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
 import com.aerospike.client.fluent.cdt.CTX;
 import com.aerospike.client.fluent.exp.Exp;
 import com.aerospike.client.fluent.exp.Expression;
@@ -9,9 +10,8 @@ import com.aerospike.dsl.ExpressionContext;
 import com.aerospike.dsl.IndexContext;
 import com.aerospike.dsl.ParsedExpression;
 import com.aerospike.dsl.impl.DSLParserImpl;
-import lombok.experimental.UtilityClass;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import lombok.experimental.UtilityClass;
 
 @UtilityClass
 public class TestUtils {

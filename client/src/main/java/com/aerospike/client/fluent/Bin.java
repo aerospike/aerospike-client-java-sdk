@@ -65,7 +65,7 @@ public final class Bin {
 	 *
 	 * @param name		bin name, current limit is 15 characters
 	 * @param value		bin value
-	 * @param type		bin type, see {@link com.aerospike.client.command.ParticleType}
+	 * @param type		bin type, see {@link com.aerospike.client.fluent.command.command.ParticleType}
 	 */
 	public Bin(String name, byte[] value, int type) {
 		this.name = name;

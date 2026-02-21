@@ -19,6 +19,7 @@ package com.aerospike.client.fluent.query;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import com.aerospike.client.fluent.cdt.CTX;
+import com.aerospike.client.fluent.command.Info;
 import com.aerospike.client.fluent.info.classes.IndexType;
 import com.aerospike.client.fluent.task.IndexTask;
 import org.junit.jupiter.api.Test;

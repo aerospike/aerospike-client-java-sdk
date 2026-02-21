@@ -17,7 +17,7 @@
 package com.aerospike.client.fluent;
 
 public class OperateMapTest extends ClusterTest {
-	private static final String binName = "opmapbin";
+	//private static final String binName = "opmapbin";
 
 /* TODO: How set different map policies in the new client?
 	@Test

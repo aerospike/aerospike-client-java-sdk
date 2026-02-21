@@ -26,6 +26,7 @@ import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
+import com.aerospike.client.fluent.command.Info;
 import com.aerospike.client.fluent.util.Version;
 
 public class ServerInfoTest extends ClusterTest {
