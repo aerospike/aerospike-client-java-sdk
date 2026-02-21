@@ -86,6 +86,7 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
         verifyState("specifying bins");
         if (binNames == null || binNames.length == 0) {
             throw new IllegalArgumentException("Must specify at least one bin name");
+//            return withNoBins();
         }
         currentSpec.setProjectedBins(binNames);
         return this;

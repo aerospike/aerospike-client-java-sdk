@@ -161,12 +161,17 @@ class OperationSpecExecutor {
                         // Use operations for CDT reads, selectFrom, etc.
                         rec = new BatchRead(key, spec.getWhereClause(), attr, ttl, ops);
                     }
-                    else if (spec.getProjectedBins() != null && spec.getProjectedBins().length > 0) {
-                        // Read specific bins
-                        rec = new BatchRead(key, spec.getWhereClause(), attr, ttl, spec.getProjectedBins());
+                    else if (spec.getProjectedBins() != null) {
+                        if (spec.getProjectedBins().length > 0) {
+                            // Read specific bins
+                            rec = new BatchRead(key, spec.getWhereClause(), attr, ttl, spec.getProjectedBins());
+                        } else {
+                            // Empty array = withNoBins (header only)
+                            rec = new BatchRead(key, spec.getWhereClause(), attr, ttl, false);
+                        }
                     }
                     else {
-                        // Read all bins
+                        // null = Read all bins (default)
                         rec = new BatchRead(key, spec.getWhereClause(), attr, ttl, true);
                     }
                 }
@@ -426,7 +431,8 @@ class OperationSpecExecutor {
             record = exec.getRecord();
         } else {
             String[] binNames = spec.getProjectedBins();
-            boolean withNoBins = binNames == null || binNames.length == 0;
+            // withNoBins is true ONLY if explicitly set (empty array), not if null (null = read all bins)
+            boolean withNoBins = binNames != null && binNames.length == 0;
             ReadCommand cmd = new ReadCommand(cluster, partitions, txn, key, binNames, withNoBins,
                 filterExp, failOnFilteredOut, settings, attr);
             ReadExecutor exec = new ReadExecutor(cluster, cmd);
