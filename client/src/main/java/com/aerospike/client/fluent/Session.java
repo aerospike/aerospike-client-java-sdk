@@ -254,7 +254,7 @@ public class Session {
      * @see ChainableQueryBuilder
      */
     public ChainableQueryBuilder query(Key key) {
-        return new ChainableQueryBuilder(this, new ArrayList<>(), null, getCurrentTransaction())
+        return new ChainableQueryBuilder(this, new ArrayList<>(), null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, getCurrentTransaction())
                 .initQuery(key);
     }
 
@@ -284,7 +284,7 @@ public class Session {
      * @see ChainableQueryBuilder
      */
     public ChainableQueryBuilder query(Key key1, Key key2, Key...keys) {
-        return new ChainableQueryBuilder(this, new ArrayList<>(), null, getCurrentTransaction())
+        return new ChainableQueryBuilder(this, new ArrayList<>(), null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, getCurrentTransaction())
                 .initQuery(buildKeyList(key1, key2, keys));
     }
 
@@ -312,7 +312,7 @@ public class Session {
      * @see ChainableQueryBuilder
      */
     public ChainableQueryBuilder query(List<Key> keyList) {
-        return new ChainableQueryBuilder(this, new ArrayList<>(), null, getCurrentTransaction())
+        return new ChainableQueryBuilder(this, new ArrayList<>(), null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, getCurrentTransaction())
                 .initQuery(keyList);
     }
 
@@ -441,7 +441,7 @@ public class Session {
      * Begin a touch operation. Chainable with other operations.
      */
     public ChainableNoBinsBuilder touch(Key key) {
-        return new ChainableNoBinsBuilder(this, new ArrayList<>(), null, getCurrentTransaction())
+        return new ChainableNoBinsBuilder(this, new ArrayList<>(), null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, getCurrentTransaction())
                 .touch(key);
     }
 
@@ -449,7 +449,7 @@ public class Session {
      * Begin a touch operation on multiple keys.
      */
     public ChainableNoBinsBuilder touch(Key key1, Key key2, Key ... keys) {
-        return new ChainableNoBinsBuilder(this, new ArrayList<>(), null, getCurrentTransaction())
+        return new ChainableNoBinsBuilder(this, new ArrayList<>(), null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, getCurrentTransaction())
                 .touch(buildKeyList(key1, key2, keys));
     }
 
@@ -457,7 +457,7 @@ public class Session {
      * Begin a touch operation on multiple keys.
      */
     public ChainableNoBinsBuilder touch(List<Key> keys) {
-        return new ChainableNoBinsBuilder(this, new ArrayList<>(), null, getCurrentTransaction())
+        return new ChainableNoBinsBuilder(this, new ArrayList<>(), null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, getCurrentTransaction())
                 .touch(keys);
     }
 
@@ -465,7 +465,7 @@ public class Session {
      * Begin an exists operation. Chainable with other operations.
      */
     public ChainableNoBinsBuilder exists(Key key) {
-        return new ChainableNoBinsBuilder(this, new ArrayList<>(), null, getCurrentTransaction())
+        return new ChainableNoBinsBuilder(this, new ArrayList<>(), null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, getCurrentTransaction())
                 .exists(key);
     }
 
@@ -473,7 +473,7 @@ public class Session {
      * Begin an exists operation on multiple keys.
      */
     public ChainableNoBinsBuilder exists(Key key1, Key key2, Key ... keys) {
-        return new ChainableNoBinsBuilder(this, new ArrayList<>(), null, getCurrentTransaction())
+        return new ChainableNoBinsBuilder(this, new ArrayList<>(), null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, getCurrentTransaction())
                 .exists(buildKeyList(key1, key2, keys));
     }
 
@@ -481,7 +481,7 @@ public class Session {
      * Begin an exists operation on multiple keys.
      */
     public ChainableNoBinsBuilder exists(List<Key> keys) {
-        return new ChainableNoBinsBuilder(this, new ArrayList<>(), null, getCurrentTransaction())
+        return new ChainableNoBinsBuilder(this, new ArrayList<>(), null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, getCurrentTransaction())
                 .exists(keys);
     }
 
@@ -489,7 +489,7 @@ public class Session {
      * Begin a delete operation. Chainable with other operations.
      */
     public ChainableNoBinsBuilder delete(Key key) {
-        return new ChainableNoBinsBuilder(this, new ArrayList<>(), null, getCurrentTransaction())
+        return new ChainableNoBinsBuilder(this, new ArrayList<>(), null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, getCurrentTransaction())
                 .delete(key);
     }
 
@@ -497,7 +497,7 @@ public class Session {
      * Begin a delete operation on multiple keys.
      */
     public ChainableNoBinsBuilder delete(Key key1, Key key2, Key ... keys) {
-        return new ChainableNoBinsBuilder(this, new ArrayList<>(), null, getCurrentTransaction())
+        return new ChainableNoBinsBuilder(this, new ArrayList<>(), null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, getCurrentTransaction())
                 .delete(buildKeyList(key1, key2, keys));
     }
 
@@ -505,7 +505,7 @@ public class Session {
      * Begin a delete operation on multiple keys.
      */
     public ChainableNoBinsBuilder delete(List<Key> keys) {
-        return new ChainableNoBinsBuilder(this, new ArrayList<>(), null, getCurrentTransaction())
+        return new ChainableNoBinsBuilder(this, new ArrayList<>(), null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, getCurrentTransaction())
                 .delete(keys);
     }
 

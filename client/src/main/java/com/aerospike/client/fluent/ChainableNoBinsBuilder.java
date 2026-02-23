@@ -44,17 +44,19 @@ public class ChainableNoBinsBuilder extends AbstractSessionOperationBuilder<Chai
     private final List<OperationSpec> operationSpecs;
     private OperationSpec currentSpec = null;
     private Expression defaultWhereClause;
+    private long defaultExpirationInSeconds = AbstractOperationBuilder.NOT_EXPLICITLY_SET;
     private Txn txnToUse;
 
     /**
      * Package-private constructor.
      */
     ChainableNoBinsBuilder(Session session, List<OperationSpec> existingSpecs,
-                           Expression defaultWhereClause, Txn txnToUse) {
+                           Expression defaultWhereClause, long defaultExpirationInSeconds, Txn txnToUse) {
         super(session, null);  // opType will be set per operation
         this.session = session;
         this.operationSpecs = existingSpecs;
         this.defaultWhereClause = defaultWhereClause;
+        this.defaultExpirationInSeconds = defaultExpirationInSeconds;
         this.txnToUse = txnToUse;
     }
 
@@ -111,9 +113,8 @@ public class ChainableNoBinsBuilder extends AbstractSessionOperationBuilder<Chai
      */
     public ChainableOperationBuilder upsert(Key key) {
         finalizeCurrentOperation();
-        ChainableOperationBuilder builder = new ChainableOperationBuilder(session, OpType.UPSERT);
-        transferState(builder);
-        return builder.init(key, OpType.UPSERT);
+        return new ChainableOperationBuilder(session, OpType.UPSERT, operationSpecs, defaultWhereClause, defaultExpirationInSeconds, txnToUse)
+                .init(key, OpType.UPSERT);
     }
 
     /**
@@ -124,9 +125,8 @@ public class ChainableNoBinsBuilder extends AbstractSessionOperationBuilder<Chai
      */
     public ChainableOperationBuilder upsert(List<Key> keys) {
         finalizeCurrentOperation();
-        ChainableOperationBuilder builder = new ChainableOperationBuilder(session, OpType.UPSERT);
-        transferState(builder);
-        return builder.init(keys, OpType.UPSERT);
+        return new ChainableOperationBuilder(session, OpType.UPSERT, operationSpecs, defaultWhereClause, defaultExpirationInSeconds, txnToUse)
+                .init(keys, OpType.UPSERT);
     }
 
     /**
@@ -154,9 +154,8 @@ public class ChainableNoBinsBuilder extends AbstractSessionOperationBuilder<Chai
      */
     public ChainableOperationBuilder update(Key key) {
         finalizeCurrentOperation();
-        ChainableOperationBuilder builder = new ChainableOperationBuilder(session, OpType.UPDATE);
-        transferState(builder);
-        return builder.init(key, OpType.UPDATE);
+        return new ChainableOperationBuilder(session, OpType.UPDATE, operationSpecs, defaultWhereClause, defaultExpirationInSeconds, txnToUse)
+                .init(key, OpType.UPDATE);
     }
 
     /**
@@ -167,9 +166,8 @@ public class ChainableNoBinsBuilder extends AbstractSessionOperationBuilder<Chai
      */
     public ChainableOperationBuilder update(List<Key> keys) {
         finalizeCurrentOperation();
-        ChainableOperationBuilder builder = new ChainableOperationBuilder(session, OpType.UPDATE);
-        transferState(builder);
-        return builder.init(keys, OpType.UPDATE);
+        return new ChainableOperationBuilder(session, OpType.UPDATE, operationSpecs, defaultWhereClause, defaultExpirationInSeconds, txnToUse)
+                .init(keys, OpType.UPDATE);
     }
 
     /**
@@ -197,9 +195,8 @@ public class ChainableNoBinsBuilder extends AbstractSessionOperationBuilder<Chai
      */
     public ChainableOperationBuilder insert(Key key) {
         finalizeCurrentOperation();
-        ChainableOperationBuilder builder = new ChainableOperationBuilder(session, OpType.INSERT);
-        transferState(builder);
-        return builder.init(key, OpType.INSERT);
+        return new ChainableOperationBuilder(session, OpType.INSERT, operationSpecs, defaultWhereClause, defaultExpirationInSeconds, txnToUse)
+                .init(key, OpType.INSERT);
     }
 
     /**
@@ -210,9 +207,8 @@ public class ChainableNoBinsBuilder extends AbstractSessionOperationBuilder<Chai
      */
     public ChainableOperationBuilder insert(List<Key> keys) {
         finalizeCurrentOperation();
-        ChainableOperationBuilder builder = new ChainableOperationBuilder(session, OpType.INSERT);
-        transferState(builder);
-        return builder.init(keys, OpType.INSERT);
+        return new ChainableOperationBuilder(session, OpType.INSERT, operationSpecs, defaultWhereClause, defaultExpirationInSeconds, txnToUse)
+                .init(keys, OpType.INSERT);
     }
 
     /**
@@ -240,9 +236,8 @@ public class ChainableNoBinsBuilder extends AbstractSessionOperationBuilder<Chai
      */
     public ChainableOperationBuilder replace(Key key) {
         finalizeCurrentOperation();
-        ChainableOperationBuilder builder = new ChainableOperationBuilder(session, OpType.REPLACE);
-        transferState(builder);
-        return builder.init(key, OpType.REPLACE);
+        return new ChainableOperationBuilder(session, OpType.REPLACE, operationSpecs, defaultWhereClause, defaultExpirationInSeconds, txnToUse)
+                .init(key, OpType.REPLACE);
     }
 
     /**
@@ -253,9 +248,8 @@ public class ChainableNoBinsBuilder extends AbstractSessionOperationBuilder<Chai
      */
     public ChainableOperationBuilder replace(List<Key> keys) {
         finalizeCurrentOperation();
-        ChainableOperationBuilder builder = new ChainableOperationBuilder(session, OpType.REPLACE);
-        transferState(builder);
-        return builder.init(keys, OpType.REPLACE);
+        return new ChainableOperationBuilder(session, OpType.REPLACE, operationSpecs, defaultWhereClause, defaultExpirationInSeconds, txnToUse)
+                .init(keys, OpType.REPLACE);
     }
 
     /**
@@ -284,9 +278,8 @@ public class ChainableNoBinsBuilder extends AbstractSessionOperationBuilder<Chai
      */
     public ChainableOperationBuilder replaceIfExists(Key key) {
         finalizeCurrentOperation();
-        ChainableOperationBuilder builder = new ChainableOperationBuilder(session, OpType.REPLACE_IF_EXISTS);
-        transferState(builder);
-        return builder.init(key, OpType.REPLACE_IF_EXISTS);
+        return new ChainableOperationBuilder(session, OpType.REPLACE_IF_EXISTS, operationSpecs, defaultWhereClause, defaultExpirationInSeconds, txnToUse)
+                .init(key, OpType.REPLACE_IF_EXISTS);
     }
 
     /**
@@ -298,9 +291,8 @@ public class ChainableNoBinsBuilder extends AbstractSessionOperationBuilder<Chai
      */
     public ChainableOperationBuilder replaceIfExists(List<Key> keys) {
         finalizeCurrentOperation();
-        ChainableOperationBuilder builder = new ChainableOperationBuilder(session, OpType.REPLACE_IF_EXISTS);
-        transferState(builder);
-        return builder.init(keys, OpType.REPLACE_IF_EXISTS);
+        return new ChainableOperationBuilder(session, OpType.REPLACE_IF_EXISTS, operationSpecs, defaultWhereClause, defaultExpirationInSeconds, txnToUse)
+                .init(keys, OpType.REPLACE_IF_EXISTS);
     }
 
     /**
@@ -437,7 +429,7 @@ public class ChainableNoBinsBuilder extends AbstractSessionOperationBuilder<Chai
      */
     public ChainableQueryBuilder query(Key key) {
         finalizeCurrentOperation();
-        return new ChainableQueryBuilder(session, operationSpecs, defaultWhereClause, txnToUse)
+        return new ChainableQueryBuilder(session, operationSpecs, defaultWhereClause, defaultExpirationInSeconds, txnToUse)
                 .initQuery(key);
     }
 
@@ -449,7 +441,7 @@ public class ChainableNoBinsBuilder extends AbstractSessionOperationBuilder<Chai
      */
     public ChainableQueryBuilder query(List<Key> keys) {
         finalizeCurrentOperation();
-        return new ChainableQueryBuilder(session, operationSpecs, defaultWhereClause, txnToUse)
+        return new ChainableQueryBuilder(session, operationSpecs, defaultWhereClause, defaultExpirationInSeconds, txnToUse)
                 .initQuery(keys);
     }
 
@@ -692,6 +684,84 @@ public class ChainableNoBinsBuilder extends AbstractSessionOperationBuilder<Chai
         return this;
     }
 
+    // ========================================
+    // Default Expiration Methods
+    // ========================================
+
+    /**
+     * Set the default expiration for all operations in this chain that don't have an explicit expiration.
+     *
+     * @param duration the duration after which records should expire
+     * @return this builder for method chaining
+     */
+    public ChainableNoBinsBuilder defaultExpireRecordAfter(Duration duration) {
+        this.defaultExpirationInSeconds = duration.getSeconds();
+        return this;
+    }
+
+    /**
+     * Set the default expiration for all operations in this chain that don't have an explicit expiration.
+     *
+     * @param seconds the number of seconds after which records should expire
+     * @return this builder for method chaining
+     */
+    public ChainableNoBinsBuilder defaultExpireRecordAfterSeconds(long seconds) {
+        this.defaultExpirationInSeconds = seconds;
+        return this;
+    }
+
+    /**
+     * Set the default expiration for all operations in this chain to an absolute date/time.
+     *
+     * @param dateTime the date/time at which records should expire
+     * @return this builder for method chaining
+     */
+    public ChainableNoBinsBuilder defaultExpireRecordAt(LocalDateTime dateTime) {
+        this.defaultExpirationInSeconds = getExpirationInSecondsAndCheckValue(dateTime);
+        return this;
+    }
+
+    /**
+     * Set the default expiration for all operations in this chain to an absolute date/time.
+     *
+     * @param date the date at which records should expire
+     * @return this builder for method chaining
+     */
+    public ChainableNoBinsBuilder defaultExpireRecordAt(Date date) {
+        this.defaultExpirationInSeconds = getExpirationInSecondsAndCheckValue(date);
+        return this;
+    }
+
+    /**
+     * Set the default expiration for all operations in this chain to never expire (TTL = -1).
+     *
+     * @return this builder for method chaining
+     */
+    public ChainableNoBinsBuilder defaultNeverExpire() {
+        this.defaultExpirationInSeconds = AbstractOperationBuilder.TTL_NEVER_EXPIRE;
+        return this;
+    }
+
+    /**
+     * Set the default to not change TTL for all operations in this chain (TTL = -2).
+     *
+     * @return this builder for method chaining
+     */
+    public ChainableNoBinsBuilder defaultNoChangeInExpiration() {
+        this.defaultExpirationInSeconds = AbstractOperationBuilder.TTL_NO_CHANGE;
+        return this;
+    }
+
+    /**
+     * Set the default expiration for all operations in this chain to use the server default (TTL = 0).
+     *
+     * @return this builder for method chaining
+     */
+    public ChainableNoBinsBuilder defaultExpiryFromServerDefault() {
+        this.defaultExpirationInSeconds = AbstractOperationBuilder.TTL_SERVER_DEFAULT;
+        return this;
+    }
+
     @Override
     public ChainableNoBinsBuilder failOnFilteredOut() {
         verifyState("setting failOnFilteredOut");
@@ -740,7 +810,7 @@ public class ChainableNoBinsBuilder extends AbstractSessionOperationBuilder<Chai
         }
 
         // OperationSpecExecutor handles both single-key optimization and batch execution
-        return OperationSpecExecutor.execute(session, operationSpecs, defaultWhereClause, txnToUse);
+        return OperationSpecExecutor.execute(session, operationSpecs, defaultWhereClause, defaultExpirationInSeconds, txnToUse);
     }
 
     // ========================================
@@ -774,9 +844,5 @@ public class ChainableNoBinsBuilder extends AbstractSessionOperationBuilder<Chai
         return keys.isEmpty() ? null : keys.get(0).namespace;
     }
 
-    private void transferState(ChainableOperationBuilder builder) {
-        // Transfer accumulated operations and state to the new builder
-        // This is done through package-private access
-    }
 }
 

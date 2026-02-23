@@ -343,7 +343,7 @@ public class QueryExamples {
                     .values("Jordan", 45, "red", new Date().getTime())
                     .values("Alex", 67, "blonde", new Date().getTime())
                     .values("Sam", 24, "brown", new Date().getTime())
-                    .expireAllRecordsAfter(Duration.ofDays(30))
+                    .defaultExpireRecordAfter(Duration.ofDays(30))
                     .execute();
             values.forEach(kr -> System.out.printf("%s -> %s\n", kr.key(), kr.recordOrThrow()));
 
@@ -783,6 +783,7 @@ public class QueryExamples {
                 .notInAnyTransaction()
                 .inTransaction(null)
                 .defaultWhere("$.value > 200")
+                .defaultExpireRecordAfter(Duration.ofMinutes(20))
                 .execute();
             System.out.println("Multi operations:");
             print(rsStream);

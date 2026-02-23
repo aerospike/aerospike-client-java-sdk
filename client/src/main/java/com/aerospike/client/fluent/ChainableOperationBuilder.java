@@ -43,6 +43,7 @@ public class ChainableOperationBuilder extends AbstractOperationBuilder<Chainabl
     private final List<OperationSpec> operationSpecs;
     private OperationSpec currentSpec = null;
     private Expression defaultWhereClause;
+    private long defaultExpirationInSeconds = NOT_EXPLICITLY_SET;
 
     /**
      * Package-private constructor for creating a new chain.
@@ -56,10 +57,11 @@ public class ChainableOperationBuilder extends AbstractOperationBuilder<Chainabl
      * Package-private constructor for continuing an existing chain.
      */
     ChainableOperationBuilder(Session session, OpType opType, List<OperationSpec> existingSpecs,
-                              Expression defaultWhereClause, Txn txnToUse) {
+                              Expression defaultWhereClause, long defaultExpirationInSeconds, Txn txnToUse) {
         super(session, opType);
         this.operationSpecs = existingSpecs;
         this.defaultWhereClause = defaultWhereClause;
+        this.defaultExpirationInSeconds = defaultExpirationInSeconds;
         this.txnToUse = txnToUse;
     }
 
@@ -375,7 +377,7 @@ public class ChainableOperationBuilder extends AbstractOperationBuilder<Chainabl
      */
     public ChainableNoBinsBuilder delete(Key key) {
         finalizeCurrentOperation();
-        return new ChainableNoBinsBuilder(session, operationSpecs, defaultWhereClause, txnToUse)
+        return new ChainableNoBinsBuilder(session, operationSpecs, defaultWhereClause, defaultExpirationInSeconds, txnToUse)
                 .initDelete(key);
     }
 
@@ -387,7 +389,7 @@ public class ChainableOperationBuilder extends AbstractOperationBuilder<Chainabl
      */
     public ChainableNoBinsBuilder delete(List<Key> keys) {
         finalizeCurrentOperation();
-        return new ChainableNoBinsBuilder(session, operationSpecs, defaultWhereClause, txnToUse)
+        return new ChainableNoBinsBuilder(session, operationSpecs, defaultWhereClause, defaultExpirationInSeconds, txnToUse)
                 .initDelete(keys);
     }
 
@@ -416,7 +418,7 @@ public class ChainableOperationBuilder extends AbstractOperationBuilder<Chainabl
      */
     public ChainableNoBinsBuilder touch(Key key) {
         finalizeCurrentOperation();
-        return new ChainableNoBinsBuilder(session, operationSpecs, defaultWhereClause, txnToUse)
+        return new ChainableNoBinsBuilder(session, operationSpecs, defaultWhereClause, defaultExpirationInSeconds, txnToUse)
                 .initTouch(key);
     }
 
@@ -428,7 +430,7 @@ public class ChainableOperationBuilder extends AbstractOperationBuilder<Chainabl
      */
     public ChainableNoBinsBuilder touch(List<Key> keys) {
         finalizeCurrentOperation();
-        return new ChainableNoBinsBuilder(session, operationSpecs, defaultWhereClause, txnToUse)
+        return new ChainableNoBinsBuilder(session, operationSpecs, defaultWhereClause, defaultExpirationInSeconds, txnToUse)
                 .initTouch(keys);
     }
 
@@ -457,7 +459,7 @@ public class ChainableOperationBuilder extends AbstractOperationBuilder<Chainabl
      */
     public ChainableNoBinsBuilder exists(Key key) {
         finalizeCurrentOperation();
-        return new ChainableNoBinsBuilder(session, operationSpecs, defaultWhereClause, txnToUse)
+        return new ChainableNoBinsBuilder(session, operationSpecs, defaultWhereClause, defaultExpirationInSeconds, txnToUse)
                 .initExists(key);
     }
 
@@ -469,7 +471,7 @@ public class ChainableOperationBuilder extends AbstractOperationBuilder<Chainabl
      */
     public ChainableNoBinsBuilder exists(List<Key> keys) {
         finalizeCurrentOperation();
-        return new ChainableNoBinsBuilder(session, operationSpecs, defaultWhereClause, txnToUse)
+        return new ChainableNoBinsBuilder(session, operationSpecs, defaultWhereClause, defaultExpirationInSeconds, txnToUse)
                 .initExists(keys);
     }
 
@@ -498,7 +500,7 @@ public class ChainableOperationBuilder extends AbstractOperationBuilder<Chainabl
      */
     public ChainableQueryBuilder query(Key key) {
         finalizeCurrentOperation();
-        return new ChainableQueryBuilder(session, operationSpecs, defaultWhereClause, txnToUse)
+        return new ChainableQueryBuilder(session, operationSpecs, defaultWhereClause, defaultExpirationInSeconds, txnToUse)
                 .initQuery(key);
     }
 
@@ -510,7 +512,7 @@ public class ChainableOperationBuilder extends AbstractOperationBuilder<Chainabl
      */
     public ChainableQueryBuilder query(List<Key> keys) {
         finalizeCurrentOperation();
-        return new ChainableQueryBuilder(session, operationSpecs, defaultWhereClause, txnToUse)
+        return new ChainableQueryBuilder(session, operationSpecs, defaultWhereClause, defaultExpirationInSeconds, txnToUse)
                 .initQuery(keys);
     }
 
@@ -735,6 +737,84 @@ public class ChainableOperationBuilder extends AbstractOperationBuilder<Chainabl
         return this;
     }
 
+    // ========================================
+    // Default Expiration Methods
+    // ========================================
+
+    /**
+     * Set the default expiration for all operations in this chain that don't have an explicit expiration.
+     *
+     * @param duration the duration after which records should expire
+     * @return this builder for method chaining
+     */
+    public ChainableOperationBuilder defaultExpireRecordAfter(Duration duration) {
+        this.defaultExpirationInSeconds = duration.getSeconds();
+        return this;
+    }
+
+    /**
+     * Set the default expiration for all operations in this chain that don't have an explicit expiration.
+     *
+     * @param seconds the number of seconds after which records should expire
+     * @return this builder for method chaining
+     */
+    public ChainableOperationBuilder defaultExpireRecordAfterSeconds(long seconds) {
+        this.defaultExpirationInSeconds = seconds;
+        return this;
+    }
+
+    /**
+     * Set the default expiration for all operations in this chain to an absolute date/time.
+     *
+     * @param dateTime the date/time at which records should expire
+     * @return this builder for method chaining
+     */
+    public ChainableOperationBuilder defaultExpireRecordAt(LocalDateTime dateTime) {
+        this.defaultExpirationInSeconds = getExpirationInSecondsAndCheckValue(dateTime);
+        return this;
+    }
+
+    /**
+     * Set the default expiration for all operations in this chain to an absolute date/time.
+     *
+     * @param date the date at which records should expire
+     * @return this builder for method chaining
+     */
+    public ChainableOperationBuilder defaultExpireRecordAt(Date date) {
+        this.defaultExpirationInSeconds = getExpirationInSecondsAndCheckValue(date);
+        return this;
+    }
+
+    /**
+     * Set the default expiration for all operations in this chain to never expire (TTL = -1).
+     *
+     * @return this builder for method chaining
+     */
+    public ChainableOperationBuilder defaultNeverExpire() {
+        this.defaultExpirationInSeconds = TTL_NEVER_EXPIRE;
+        return this;
+    }
+
+    /**
+     * Set the default to not change TTL for all operations in this chain (TTL = -2).
+     *
+     * @return this builder for method chaining
+     */
+    public ChainableOperationBuilder defaultNoChangeInExpiration() {
+        this.defaultExpirationInSeconds = TTL_NO_CHANGE;
+        return this;
+    }
+
+    /**
+     * Set the default expiration for all operations in this chain to use the server default (TTL = 0).
+     *
+     * @return this builder for method chaining
+     */
+    public ChainableOperationBuilder defaultExpiryFromServerDefault() {
+        this.defaultExpirationInSeconds = TTL_SERVER_DEFAULT;
+        return this;
+    }
+
     @Override
     public ChainableOperationBuilder failOnFilteredOut() {
         verifyState("setting failOnFilteredOut");
@@ -783,7 +863,7 @@ public class ChainableOperationBuilder extends AbstractOperationBuilder<Chainabl
                      (txnToUse != null ? "yes" : "no"));
         }
 
-        return OperationSpecExecutor.execute(session, operationSpecs, defaultWhereClause, txnToUse);
+        return OperationSpecExecutor.execute(session, operationSpecs, defaultWhereClause, defaultExpirationInSeconds, txnToUse);
     }
 
     /**
@@ -826,7 +906,7 @@ public class ChainableOperationBuilder extends AbstractOperationBuilder<Chainabl
         Cluster cluster = session.getCluster();
         cluster.startVirtualThread(() -> {
             try {
-                RecordStream syncResult = OperationSpecExecutor.execute(session, operationSpecs, defaultWhereClause, txnToUse);
+                RecordStream syncResult = OperationSpecExecutor.execute(session, operationSpecs, defaultWhereClause, defaultExpirationInSeconds, txnToUse);
                 // Transfer results to the async stream
                 syncResult.forEach(result -> asyncStream.publish(result));
             } finally {

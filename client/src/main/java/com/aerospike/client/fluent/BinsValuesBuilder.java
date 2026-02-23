@@ -61,14 +61,14 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
     private static class ValueData {
         private Object[] values;
         private int generation = 0;
-        private long expirationInSeconds = Long.MIN_VALUE;
+        private long expirationInSeconds = AbstractOperationBuilder.NOT_EXPLICITLY_SET;
 
         public ValueData(Object[] values) {
             this.values = values;
         }
     }
 
-    private long expirationInSecondsForAll = 0;
+    private long defaultExpirationInSeconds = AbstractOperationBuilder.NOT_EXPLICITLY_SET;
     private int generationForAll = 0;
     private final BinsValuesOperations opBuilder;
     private final String[] binNames;
@@ -94,7 +94,7 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
         this.binNames[0] = binName;
         System.arraycopy(binNames, 0, this.binNames, 1, binNames.length);
         this.keys = keys;
-        this.expirationInSecondsForAll = initialExpiration;
+        this.defaultExpirationInSeconds = initialExpiration;
         if (opBuilder instanceof AbstractSessionOperationBuilder) {
             this.txnToUse = ((AbstractSessionOperationBuilder<?>) opBuilder).getTxnToUse();
         }
@@ -312,12 +312,12 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
      * @return This builder for method chaining
      * @throws IllegalStateException if called when only a single key is specified
      */
-    public BinsValuesBuilder expireAllRecordsAfter(Duration duration) {
+    public BinsValuesBuilder defaultExpireRecordAfter(Duration duration) {
         if (!opBuilder.isMultiKey()) {
             throw new IllegalStateException(
-                    "expireAllRecordsAfter() is only available when multiple keys are specified");
+                    "defaultExpireRecordAfter() is only available when multiple keys are specified");
         }
-        this.expirationInSecondsForAll = duration.getSeconds();
+        this.defaultExpirationInSeconds = duration.getSeconds();
         return this;
     }
 
@@ -331,12 +331,12 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
      * @return This builder for method chaining
      * @throws IllegalStateException if called when only a single key is specified
      */
-    public BinsValuesBuilder expireAllRecordsAfterSeconds(long seconds) {
+    public BinsValuesBuilder defaultExpireRecordAfterSeconds(long seconds) {
         if (!opBuilder.isMultiKey()) {
             throw new IllegalStateException(
-                    "expireAllRecordsAfterSeconds() is only available when multiple keys are specified");
+                    "defaultExpireRecordAfterSeconds() is only available when multiple keys are specified");
         }
-        this.expirationInSecondsForAll = seconds;
+        this.defaultExpirationInSeconds = seconds;
         return this;
     }
 
@@ -351,11 +351,11 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
      * @throws IllegalStateException if called when only a single key is specified
      * @throws IllegalArgumentException if the date is in the past
      */
-    public BinsValuesBuilder expireAllRecordsAt(LocalDateTime dateTime) {
+    public BinsValuesBuilder defaultExpireRecordAt(LocalDateTime dateTime) {
         if (!opBuilder.isMultiKey()) {
-            throw new IllegalStateException("expireAllRecordsAt() is only available when multiple keys are specified");
+            throw new IllegalStateException("defaultExpireRecordAt() is only available when multiple keys are specified");
         }
-        this.expirationInSecondsForAll = opBuilder.getExpirationInSecondsAndCheckValue(dateTime);
+        this.defaultExpirationInSeconds = opBuilder.getExpirationInSecondsAndCheckValue(dateTime);
         return this;
     }
 
@@ -370,11 +370,11 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
      * @throws IllegalStateException if called when only a single key is specified
      * @throws IllegalArgumentException if the date is in the past
      */
-    public BinsValuesBuilder expireAllRecordsAt(Date date) {
+    public BinsValuesBuilder defaultExpireRecordAt(Date date) {
         if (!opBuilder.isMultiKey()) {
-            throw new IllegalStateException("expireAllRecordsAt() is only available when multiple keys are specified");
+            throw new IllegalStateException("defaultExpireRecordAt() is only available when multiple keys are specified");
         }
-        this.expirationInSecondsForAll = opBuilder.getExpirationInSecondsAndCheckValue(date);
+        this.defaultExpirationInSeconds = opBuilder.getExpirationInSecondsAndCheckValue(date);
         return this;
     }
 
@@ -387,12 +387,12 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
      * @return This builder for method chaining
      * @throws IllegalStateException if called when only a single key is specified
      */
-    public BinsValuesBuilder neverExpireAllRecords() {
+    public BinsValuesBuilder defaultNeverExpire() {
         if (!opBuilder.isMultiKey()) {
             throw new IllegalStateException(
-                    "neverExpireAllRecords() is only available when multiple keys are specified");
+                    "defaultNeverExpire() is only available when multiple keys are specified");
         }
-        this.expirationInSecondsForAll = AbstractOperationBuilder.TTL_NEVER_EXPIRE;
+        this.defaultExpirationInSeconds = AbstractOperationBuilder.TTL_NEVER_EXPIRE;
         return this;
     }
 
@@ -405,12 +405,12 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
      * @return This builder for method chaining
      * @throws IllegalStateException if called when only a single key is specified
      */
-    public BinsValuesBuilder withNoChangeInExpirationForAllRecords() {
+    public BinsValuesBuilder defaultNoChangeInExpiration() {
         if (!opBuilder.isMultiKey()) {
             throw new IllegalStateException(
-                    "withNoChangeInExpirationForAllRecords() is only available when multiple keys are specified");
+                    "defaultNoChangeInExpiration() is only available when multiple keys are specified");
         }
-        this.expirationInSecondsForAll = AbstractOperationBuilder.TTL_NO_CHANGE;
+        this.defaultExpirationInSeconds = AbstractOperationBuilder.TTL_NO_CHANGE;
         return this;
     }
 
@@ -423,12 +423,12 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
      * @return This builder for method chaining
      * @throws IllegalStateException if called when only a single key is specified
      */
-    public BinsValuesBuilder expiryFromServerDefaultForAllRecords() {
+    public BinsValuesBuilder defaultExpiryFromServerDefault() {
         if (!opBuilder.isMultiKey()) {
             throw new IllegalStateException(
-                    "expiryFromServerDefaultForAllRecords() is only available when multiple keys are specified");
+                    "defaultExpiryFromServerDefault() is only available when multiple keys are specified");
         }
-        this.expirationInSecondsForAll = AbstractOperationBuilder.TTL_SERVER_DEFAULT;
+        this.defaultExpirationInSeconds = AbstractOperationBuilder.TTL_SERVER_DEFAULT;
         return this;
     }
 
@@ -955,14 +955,14 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
     }
 
     private int getExpiration(ValueData valueData) {
-        if (valueData.expirationInSeconds != Long.MIN_VALUE) {
+        if (valueData.expirationInSeconds != AbstractOperationBuilder.NOT_EXPLICITLY_SET) {
             // Per-record expiration set via expireRecordAfterSeconds() after values()
             return opBuilder.getExpirationAsInt(valueData.expirationInSeconds);
-        } else if (expirationInSecondsForAll != 0) {
-            // Batch expiration set via expireAllRecordsAfterSeconds() or from parent builder
-            return opBuilder.getExpirationAsInt(expirationInSecondsForAll);
+        } else if (defaultExpirationInSeconds != AbstractOperationBuilder.NOT_EXPLICITLY_SET) {
+            // Batch expiration set via defaultExpireRecordAfterSeconds() or from parent builder
+            return opBuilder.getExpirationAsInt(defaultExpirationInSeconds);
         } else {
-            return 0;
+            return (int) AbstractOperationBuilder.TTL_SERVER_DEFAULT;
         }
     }
 

@@ -70,17 +70,34 @@ import com.aerospike.client.fluent.tend.Partitions;
  * </p>
  */
 class OperationSpecExecutor {
+
+    /**
+     * Resolve the TTL for an operation spec.
+     * Resolution order: spec explicit > chain default > server default (0).
+     */
+    private static long resolveTtl(OperationSpec spec, long defaultExpirationInSeconds) {
+        if (spec.hasExplicitExpiration()) {
+            return spec.getExpirationInSeconds();
+        }
+        if (defaultExpirationInSeconds != AbstractOperationBuilder.NOT_EXPLICITLY_SET) {
+            return defaultExpirationInSeconds;
+        }
+        return AbstractOperationBuilder.TTL_SERVER_DEFAULT;
+    }
+
     /**
      * Execute a batch of heterogeneous operations.
      *
      * @param session the session to use for execution
      * @param specs the list of operation specifications
      * @param defaultWhereClause optional default filter for operations without explicit where clause
+     * @param defaultExpirationInSeconds default TTL for operations without explicit expiration (NOT_EXPLICITLY_SET if not set)
      * @param txn optional transaction to use
      * @return RecordStream containing the results of all operations
      */
     public static RecordStream execute(
-    	Session session, List<OperationSpec> specs, Expression defaultWhereClause, Txn txn
+        Session session, List<OperationSpec> specs, Expression defaultWhereClause,
+        long defaultExpirationInSeconds, Txn txn
     ) {
         if (specs.isEmpty()) {
             return new RecordStream();
@@ -95,7 +112,7 @@ class OperationSpecExecutor {
                 Key key = keys.get(0);
                 Expression filterExp = spec.getWhereClause() != null ? spec.getWhereClause() : defaultWhereClause;
 
-                return executeSingleKey(session, spec, key, filterExp, txn);
+                return executeSingleKey(session, spec, key, filterExp, defaultExpirationInSeconds, txn);
             }
         }
 
@@ -368,7 +385,8 @@ class OperationSpecExecutor {
      * This is more efficient than going through BatchNodes, BatchRecord, and BatchExecutor.
      */
     private static RecordStream executeSingleKey(
-        Session session, OperationSpec spec, Key key, Expression filterExp, Txn txn
+        Session session, OperationSpec spec, Key key, Expression filterExp,
+        long defaultExpirationInSeconds, Txn txn
     ) {
         Cluster cluster = session.getCluster();
         Behavior behavior = session.getBehavior();
@@ -383,6 +401,7 @@ class OperationSpecExecutor {
         boolean scMode = partitions.scMode;
         boolean respondAllKeys = spec.isRespondAllKeys();
         boolean failOnFilteredOut = spec.isFailOnFilteredOut();
+        long ttl = resolveTtl(spec, defaultExpirationInSeconds);
 
         try {
             if (spec.isQuery()) {
@@ -390,11 +409,11 @@ class OperationSpecExecutor {
             } else if (spec.getOpType() == OpType.EXISTS) {
                 return executeSingleKeyExists(session, cluster, behavior, partitions, spec, key, filterExp, txn, scMode, respondAllKeys, failOnFilteredOut);
             } else if (spec.getOpType() == OpType.TOUCH) {
-                return executeSingleKeyTouch(session, cluster, behavior, partitions, spec, key, filterExp, txn, scMode, respondAllKeys, failOnFilteredOut);
+                return executeSingleKeyTouch(session, cluster, behavior, partitions, spec, key, filterExp, ttl, txn, scMode, respondAllKeys, failOnFilteredOut);
             } else if (spec.getOpType() == OpType.DELETE) {
                 return executeSingleKeyDelete(session, cluster, behavior, partitions, spec, key, filterExp, txn, scMode, respondAllKeys, failOnFilteredOut);
             } else {
-                return executeSingleKeyWrite(session, cluster, behavior, partitions, spec, key, filterExp, txn, scMode, respondAllKeys, failOnFilteredOut);
+                return executeSingleKeyWrite(session, cluster, behavior, partitions, spec, key, filterExp, ttl, txn, scMode, respondAllKeys, failOnFilteredOut);
             }
         } catch (AerospikeException ae) {
             if (shouldIncludeResult(ae.getResultCode(), respondAllKeys, failOnFilteredOut)) {
@@ -451,12 +470,11 @@ class OperationSpecExecutor {
      */
     private static RecordStream executeSingleKeyWrite(
         Session session, Cluster cluster, Behavior behavior, Partitions partitions,
-        OperationSpec spec, Key key, Expression filterExp, Txn txn,
+        OperationSpec spec, Key key, Expression filterExp, long ttl, Txn txn,
         boolean scMode, boolean respondAllKeys, boolean failOnFilteredOut
     ) {
         Settings settings = behavior.getSettings(OpKind.WRITE_NON_RETRYABLE, OpShape.POINT, scMode);
         int gen = spec.getGeneration();
-        int ttl = (int) spec.getExpirationInSeconds();
         List<Operation> ops = spec.getOperations();
         OpType opType = spec.getOpType();
 
@@ -466,7 +484,7 @@ class OperationSpecExecutor {
 
         OperateArgs operateArgs = new OperateArgs(ops);
         OperateWriteCommand cmd = new OperateWriteCommand(cluster, partitions, txn, key, ops, operateArgs,
-            opType, gen, ttl, filterExp, failOnFilteredOut, settings);
+            opType, gen, (int) ttl, filterExp, failOnFilteredOut, settings);
         OperateWriteExecutor exec = new OperateWriteExecutor(cluster, cmd);
         exec.execute();
         Record record = exec.getRecord();
@@ -508,19 +526,18 @@ class OperationSpecExecutor {
      */
     private static RecordStream executeSingleKeyTouch(
         Session session, Cluster cluster, Behavior behavior, Partitions partitions,
-        OperationSpec spec, Key key, Expression filterExp, Txn txn,
+        OperationSpec spec, Key key, Expression filterExp, long ttl, Txn txn,
         boolean scMode, boolean respondAllKeys, boolean failOnFilteredOut
     ) {
         Settings settings = behavior.getSettings(OpKind.WRITE_NON_RETRYABLE, OpShape.POINT, scMode);
         int gen = spec.getGeneration();
-        int ttl = (int) spec.getExpirationInSeconds();
 
         if (txn != null) {
             TxnMonitor.addKey(txn, session, key);
         }
 
         WriteCommand cmd = new WriteCommand(cluster, partitions, txn, key, OpType.TOUCH,
-            gen, ttl, filterExp, failOnFilteredOut, settings);
+            gen, (int) ttl, filterExp, failOnFilteredOut, settings);
         TouchExecutor exec = new TouchExecutor(cluster, cmd);
         exec.execute();
         boolean touched = exec.touched();

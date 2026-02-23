@@ -30,8 +30,8 @@ public class OperationSpec {
     /** Generation check value (0 means no generation check) */
     private int generation = 0;
 
-    /** Expiration in seconds (0 means server default, -1 means never expire, -2 means no change) */
-    private long expirationInSeconds = 0;
+    /** Expiration in seconds. NOT_EXPLICITLY_SET means not set, 0 = server default, -1 = never expire, -2 = no change */
+    private long expirationInSeconds = AbstractOperationBuilder.NOT_EXPLICITLY_SET;
 
     /** Whether to fail if a record is filtered out by the where clause */
     private boolean failOnFilteredOut = false;
@@ -102,6 +102,14 @@ public class OperationSpec {
 
     public void setExpirationInSeconds(long expirationInSeconds) {
         this.expirationInSeconds = expirationInSeconds;
+    }
+
+    /**
+     * Check if expiration was explicitly set on this operation.
+     * @return true if expiration was explicitly set, false if using default
+     */
+    public boolean hasExplicitExpiration() {
+        return expirationInSeconds != AbstractOperationBuilder.NOT_EXPLICITLY_SET;
     }
 
     public boolean isFailOnFilteredOut() {

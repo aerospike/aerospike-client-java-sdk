@@ -38,6 +38,12 @@ public abstract class AbstractOperationBuilder<T extends AbstractOperationBuilde
      */
     public static final int TTL_SERVER_DEFAULT = 0;
 
+    /**
+     * Sentinel value indicating that expiration has not been explicitly set.
+     * Used to distinguish between "not set" and valid TTL values (including 0 for server default).
+     */
+    public static final long NOT_EXPLICITLY_SET = Long.MIN_VALUE;
+
     // ========================================
     // Batch Operation Threshold
     // ========================================

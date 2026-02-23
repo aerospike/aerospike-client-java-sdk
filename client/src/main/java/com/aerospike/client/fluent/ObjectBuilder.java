@@ -61,8 +61,8 @@ public class ObjectBuilder<T> {
     private final List<T> elements;
 	private RecordMapper<T> recordMapper;
 	private int generation = 0;
-    private long expirationInSeconds = 0;
-    private long expirationInSecondsForAll = 0;
+    private long expirationInSeconds = AbstractOperationBuilder.NOT_EXPLICITLY_SET;
+    private long defaultExpirationInSeconds = AbstractOperationBuilder.NOT_EXPLICITLY_SET;
     private Txn txnToUse;
     private Settings settings;
 
@@ -195,6 +195,20 @@ public class ObjectBuilder<T> {
     }
 
     /**
+     * Resolve the TTL from individual and default expiration settings.
+     * Resolution order: individual > default > server default (0).
+     */
+    private static long resolveTtl(long expirationInSeconds, long defaultExpirationInSeconds) {
+        if (expirationInSeconds != AbstractOperationBuilder.NOT_EXPLICITLY_SET) {
+            return expirationInSeconds;
+        }
+        if (defaultExpirationInSeconds != AbstractOperationBuilder.NOT_EXPLICITLY_SET) {
+            return defaultExpirationInSeconds;
+        }
+        return AbstractOperationBuilder.TTL_SERVER_DEFAULT;
+    }
+
+    /**
      * Set the expiration for records to an absolute date/time.
      * This applies to all objects unless overridden by "ForAll" expiration settings.
      *
@@ -250,11 +264,11 @@ public class ObjectBuilder<T> {
      * @return This ObjectBuilder for method chaining
      * @throws IllegalStateException if called when only a single object is specified
      */
-    public ObjectBuilder<T> expireAllRecordsAfter(Duration duration) {
+    public ObjectBuilder<T> defaultExpireRecordAfter(Duration duration) {
         if (elements.size() <= 1) {
-            throw new IllegalStateException("expireAllRecordsAfter() is only available when multiple objects are specified");
+            throw new IllegalStateException("defaultExpireRecordAfter() is only available when multiple objects are specified");
         }
-        this.expirationInSecondsForAll = duration.getSeconds();
+        this.defaultExpirationInSeconds = duration.getSeconds();
         return this;
     }
 
@@ -268,11 +282,11 @@ public class ObjectBuilder<T> {
      * @return This ObjectBuilder for method chaining
      * @throws IllegalStateException if called when only a single object is specified
      */
-    public ObjectBuilder<T> expireAllRecordsAfterSeconds(long seconds) {
+    public ObjectBuilder<T> defaultExpireRecordAfterSeconds(long seconds) {
         if (elements.size() <= 1) {
-            throw new IllegalStateException("expireAllRecordsAfterSeconds() is only available when multiple objects are specified");
+            throw new IllegalStateException("defaultExpireRecordAfterSeconds() is only available when multiple objects are specified");
         }
-        this.expirationInSecondsForAll = seconds;
+        this.defaultExpirationInSeconds = seconds;
         return this;
     }
 
@@ -287,11 +301,11 @@ public class ObjectBuilder<T> {
      * @throws IllegalStateException if called when only a single object is specified
      * @throws IllegalArgumentException if the date is in the past
      */
-    public ObjectBuilder<T> expireAllRecordsAt(LocalDateTime dateTime) {
+    public ObjectBuilder<T> defaultExpireRecordAt(LocalDateTime dateTime) {
         if (elements.size() <= 1) {
-            throw new IllegalStateException("expireAllRecordsAt() is only available when multiple objects are specified");
+            throw new IllegalStateException("defaultExpireRecordAt() is only available when multiple objects are specified");
         }
-        this.expirationInSecondsForAll = getExpirationInSecondsAndCheckValue(dateTime);
+        this.defaultExpirationInSeconds = getExpirationInSecondsAndCheckValue(dateTime);
         return this;
     }
 
@@ -306,11 +320,11 @@ public class ObjectBuilder<T> {
      * @throws IllegalStateException if called when only a single object is specified
      * @throws IllegalArgumentException if the date is in the past
      */
-    public ObjectBuilder<T> expireAllRecordsAt(Date date) {
+    public ObjectBuilder<T> defaultExpireRecordAt(Date date) {
         if (elements.size() <= 1) {
-            throw new IllegalStateException("expireAllRecordsAt() is only available when multiple objects are specified");
+            throw new IllegalStateException("defaultExpireRecordAt() is only available when multiple objects are specified");
         }
-        this.expirationInSecondsForAll = getExpirationInSecondsAndCheckValue(date);
+        this.defaultExpirationInSeconds = getExpirationInSecondsAndCheckValue(date);
         return this;
     }
 
@@ -323,11 +337,11 @@ public class ObjectBuilder<T> {
      * @return This ObjectBuilder for method chaining
      * @throws IllegalStateException if called when only a single object is specified
      */
-    public ObjectBuilder<T> neverExpireAllRecords() {
+    public ObjectBuilder<T> defaultNeverExpire() {
         if (elements.size() <= 1) {
-            throw new IllegalStateException("neverExpireAllRecords() is only available when multiple objects are specified");
+            throw new IllegalStateException("defaultNeverExpire() is only available when multiple objects are specified");
         }
-        this.expirationInSecondsForAll = AbstractOperationBuilder.TTL_NEVER_EXPIRE;
+        this.defaultExpirationInSeconds = AbstractOperationBuilder.TTL_NEVER_EXPIRE;
         return this;
     }
 
@@ -340,11 +354,11 @@ public class ObjectBuilder<T> {
      * @return This ObjectBuilder for method chaining
      * @throws IllegalStateException if called when only a single object is specified
      */
-    public ObjectBuilder<T> withNoChangeInExpirationForAllRecords() {
+    public ObjectBuilder<T> defaultNoChangeInExpiration() {
         if (elements.size() <= 1) {
-            throw new IllegalStateException("withNoChangeInExpirationForAllRecords() is only available when multiple objects are specified");
+            throw new IllegalStateException("defaultNoChangeInExpiration() is only available when multiple objects are specified");
         }
-        this.expirationInSecondsForAll = AbstractOperationBuilder.TTL_NO_CHANGE;
+        this.defaultExpirationInSeconds = AbstractOperationBuilder.TTL_NO_CHANGE;
         return this;
     }
 
@@ -357,11 +371,11 @@ public class ObjectBuilder<T> {
      * @return This ObjectBuilder for method chaining
      * @throws IllegalStateException if called when only a single object is specified
      */
-    public ObjectBuilder<T> expiryFromServerDefaultForAllRecords() {
+    public ObjectBuilder<T> defaultExpiryFromServerDefault() {
         if (elements.size() <= 1) {
-            throw new IllegalStateException("expiryFromServerDefaultForAllRecords() is only available when multiple objects are specified");
+            throw new IllegalStateException("defaultExpiryFromServerDefault() is only available when multiple objects are specified");
         }
-        this.expirationInSecondsForAll = AbstractOperationBuilder.TTL_SERVER_DEFAULT;
+        this.defaultExpirationInSeconds = AbstractOperationBuilder.TTL_SERVER_DEFAULT;
         return this;
     }
 
@@ -631,7 +645,7 @@ public class ObjectBuilder<T> {
         settings = session.getBehavior()
         	.getSettings(OpKind.WRITE_RETRYABLE, OpShape.BATCH, partitions.scMode);
 
-        long effectiveExpiration = (expirationInSeconds != 0) ? expirationInSeconds : expirationInSecondsForAll;
+        long effectiveExpiration = resolveTtl(expirationInSeconds, defaultExpirationInSeconds);
         int ttl = getExpirationAsInt(effectiveExpiration);
 
         BatchAttr attr = new BatchAttr();
@@ -695,7 +709,7 @@ public class ObjectBuilder<T> {
 
         // Apply where clause if present
         final Expression filterExp = getFilterExp(firstKey.namespace);
-        int ttl = (int)((expirationInSeconds != 0) ? expirationInSeconds : expirationInSecondsForAll);
+        int ttl = (int) resolveTtl(expirationInSeconds, defaultExpirationInSeconds);
         boolean stackTraceOnException = settings.getStackTraceOnException();
 
         if (txnToUse != null) {
@@ -754,7 +768,7 @@ public class ObjectBuilder<T> {
 
         // Apply where clause if present
         final Expression filterExp = getFilterExp(firstKey.namespace);
-        int ttl = (int)((expirationInSeconds != 0) ? expirationInSeconds : expirationInSecondsForAll);
+        int ttl = (int) resolveTtl(expirationInSeconds, defaultExpirationInSeconds);
         boolean stackTraceOnException = settings.getStackTraceOnException();
 
         AsyncRecordStream stream = new AsyncRecordStream(elements.size());
@@ -793,7 +807,7 @@ public class ObjectBuilder<T> {
             TxnMonitor.addKey(txnToUse, session, key);
         }
 
-        int ttl = (int)((expirationInSeconds != 0) ? expirationInSeconds : expirationInSecondsForAll);
+        int ttl = (int) resolveTtl(expirationInSeconds, defaultExpirationInSeconds);
         boolean stackTraceOnException = settings.getStackTraceOnException();
 
         try {
@@ -826,7 +840,7 @@ public class ObjectBuilder<T> {
         // Apply where clause if present
         final Expression filterExp = getFilterExp(key.namespace);
 
-        int ttl = (int)((expirationInSeconds != 0) ? expirationInSeconds : expirationInSecondsForAll);
+        int ttl = (int) resolveTtl(expirationInSeconds, defaultExpirationInSeconds);
         boolean stackTraceOnException = settings.getStackTraceOnException();
         AsyncRecordStream stream = new AsyncRecordStream(1);
         AtomicInteger pendingOps = new AtomicInteger(1);
