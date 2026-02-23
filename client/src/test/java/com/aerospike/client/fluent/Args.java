@@ -19,6 +19,7 @@ package com.aerospike.client.fluent;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.Arrays;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 import org.apache.commons.cli.CommandLine;
@@ -53,7 +54,9 @@ public class Args {
 	public boolean hasTtl;
 	public boolean scMode;
     public boolean useServicesAlternate;
+	public Map<String, String> ipMap;
 	public Version serverVersion;
+	public String containerNamePrefix;
 
 	public Args() {
 		host = "127.0.0.1";
@@ -97,6 +100,9 @@ public class Args {
 	        options.addOption("a", "servicesAlternate", false, "Use services alternate for cluster discovery");
 			options.addOption("d", "debug", false, "Run in debug mode.");
 			options.addOption("u", "usage", false, "Print usage.");
+			options.addOption("ip-map", true, "IP translation for cluster discovery. Format: clusterIp=clientIp, ... "
+					+ "Example: 10.88.0.22=127.0.0.1,10.88.0.23=127.0.0.1");
+			options.addOption("container-prefix", true, "Container name prefix for node-controller/chaos tests (default: aerospike). Env: CONTAINER_NAME_PREFIX");
 
 			CommandLineParser parser = new DefaultParser();
 			CommandLine cl = parser.parse(options, args, false);
@@ -150,11 +156,36 @@ public class Args {
 	            this.clientKeyFile = cl.getOptionValue("clientKeyFile", "key.pem");
 			}
 
+			if (cl.hasOption("ip-map")) {
+				ipMap = parseIpMap(cl.getOptionValue("ip-map"));
+			}
+			containerNamePrefix = cl.getOptionValue("container-prefix", "aerospike");
 	        useServicesAlternate = cl.hasOption("a");
 		}
 		catch (Exception ex) {
 			throw new AerospikeException("Failed to parse args: " + argString);
 		}
+	}
+
+	/**
+	 * Parse --ip-map value: "10.X.0.X=127.X.X.1, 10.X.0.X=127.X.X.1" -> map.
+	 */
+	private static Map<String, String> parseIpMap(String value) {
+		Map<String, String> map = new LinkedHashMap<>();
+		if (value == null || value.trim().isEmpty()) {
+			return map;
+		}
+		for (String entry : value.split(",")) {
+			entry = entry.trim();
+			int eq = entry.indexOf('=');
+			if (eq <= 0) {
+				throw new AerospikeException("Invalid ip-map entry (expected key=value): " + entry);
+			}
+			String clusterIp = entry.substring(0, eq).trim();
+			String clientIp = entry.substring(eq + 1).trim();
+			map.put(clusterIp, clientIp);
+		}
+		return map;
 	}
 
 	private static void logUsage(Options options) {

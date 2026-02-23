@@ -58,7 +58,14 @@ public class SuiteCluster {
 
         ClusterDefinition def = new ClusterDefinition(hosts)
         	.withLogLevel(Log.Level.DEBUG)
-        	.clusterName(args.clusterName);
+        	.clusterName(args.clusterName)
+			.withSystemSettings(SystemSettings.builder()
+					.connections(ops -> ops.maximumConnectionsPerNode(200)).build()
+					.mergeWith(SystemSettings.DEFAULT));
+
+		if (args.ipMap != null && !args.ipMap.isEmpty()) {
+			def.ipMap(args.ipMap);
+		}
 
 		// Handle authenticated requests if provided
 		if (args.user != null && args.password != null) {

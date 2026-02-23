@@ -18,39 +18,43 @@ package com.aerospike.client.fluent;
 
 import java.io.File;
 
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
+import org.junit.platform.suite.api.AfterSuite;
+import org.junit.platform.suite.api.BeforeSuite;
+import org.junit.platform.suite.api.SelectClasses;
+import org.junit.platform.suite.api.Suite;
 
 import com.aerospike.client.fluent.policy.Behavior;
 
-public class ClusterTest {
-	public static Args args = Args.Instance;
-	public static Cluster cluster;
-	public static Session session;
-	static boolean initializedBySuite = false;
 
-	@BeforeAll
-	public static void initCluster() {
-		if (session != null) {
-			return; // Already initialized by suite
-		}
+/**
+ * Suite for chaos / node-churn tests that require Aerolab and a cluster
+ * created by Aerolab. Run separately via {@code -Dtest=SuiteChaosCluster}
+ * when Aerolab is installed.
+ */
+@Suite
+@SelectClasses({
+	NodeChurnPartitionBehaviorTest.class,
+})
+public class SuiteClusterChaos {
 
+	@BeforeSuite
+	public static void beforeSuite() {
+		System.out.println("Begin SuiteChaosCluster (Aerolab/chaos tests)");
 		Log.setCallback(null);
-
+		Args args = Args.Instance;
 		Host[] hosts = Host.parseHosts(args.host, args.port);
 
 		ClusterDefinition def = new ClusterDefinition(hosts)
 			.withLogLevel(Log.Level.DEBUG)
 			.clusterName(args.clusterName)
 			.withSystemSettings(SystemSettings.builder()
-					.connections(ops -> ops.maximumConnectionsPerNode(200)).build()
-					.mergeWith(SystemSettings.DEFAULT));
+				.connections(ops -> ops.maximumConnectionsPerNode(200)).build()
+				.mergeWith(SystemSettings.DEFAULT));
 
 		if (args.ipMap != null && !args.ipMap.isEmpty()) {
 			def.ipMap(args.ipMap);
 		}
 
-		// Handle authenticated requests if provided 
 		if (args.user != null && args.password != null) {
 			switch (args.authMode) {
 				case INTERNAL:
@@ -72,11 +76,9 @@ public class ClusterTest {
 			if (certHome == null) {
 				certHome = "";
 			}
-
 			String caFile = resolvePath(certHome, args.caFile);
 			String clientCertFile = resolvePath(certHome, args.clientCertFile);
 			String clientKeyFile = resolvePath(certHome, args.clientKeyFile);
-
 			def.withTlsConfigOf()
 				.tlsName(args.tlsName)
 				.caFile(caFile)
@@ -85,33 +87,19 @@ public class ClusterTest {
 				.done();
 		}
 
-		cluster = def.connect();
-
+		Cluster cluster = def.connect();
+		Session session;
 		try {
 			session = cluster.createSession(Behavior.DEFAULT);
 			args.setServerSpecific(cluster);
-		}
-		catch (RuntimeException re) {
+		} catch (RuntimeException re) {
 			cluster.close();
 			throw re;
 		}
-	}
 
-	@AfterAll
-	public static void shutdownCluster() {
-		// Don't close cluster if it was initialized by suite
-		// The suite's @AfterSuite will handle cleanup
-		if (initializedBySuite) {
-			return;
-		}
-
-		// Session doesn't need explicit cleanup - it's just a wrapper
-		session = null;
-
-		if (cluster != null) {
-			cluster.close();
-			cluster = null;
-		}
+		ClusterTest.cluster = cluster;
+		ClusterTest.session = session;
+		ClusterTest.initializedBySuite = true;
 	}
 
 	private static String resolvePath(String dir, String path) {
@@ -121,5 +109,16 @@ public class ClusterTest {
 		}
 		file = new File(dir, path);
 		return file.getAbsolutePath();
+	}
+
+	@AfterSuite
+	public static void afterSuite() {
+		System.out.println("End SuiteChaosCluster");
+		if (ClusterTest.cluster != null) {
+			ClusterTest.cluster.close();
+			ClusterTest.cluster = null;
+			ClusterTest.session = null;
+		}
+		ClusterTest.initializedBySuite = false;
 	}
 }
