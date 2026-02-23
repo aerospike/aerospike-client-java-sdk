@@ -701,6 +701,12 @@ public class QueryExamples {
                 System.out.println("---- End sort ---");
             }
             
+            // -------------
+            // UDF Calls
+            // -------------
+            Object udfResult = session.executeUdf(customerDataSet.id(1)).function("pkg", "myFunc").execute().getFirstUdfResult();
+            System.out.println("UDF Result = " + udfResult);
+            
             // ---------------------------
             // TTL Test
             // ---------------------------

@@ -16,44 +16,60 @@ import com.aerospike.client.fluent.query.WhereClauseProcessor;
 import com.aerospike.dsl.ParseResult;
 
 /**
- * Builder for chainable batch query (read) operations.
- * This builder is used for {@code query} operations that read records without modifying them.
+ * Builder for chainable batch UDF (User Defined Function) operations.
+ * This builder is used for executing UDFs on records.
  *
- * <p>Unlike write operations, query operations support bin projection (selecting specific bins to read)
- * but cannot modify bin values. They can still apply where clauses for filtering.
+ * <p>UDFs are server-side Lua functions that can perform custom operations on records.
+ * They are registered on the server and referenced by package name and function name.
  *
  * <p>Example usage:
  * <pre>{@code
- * session.query(users.ids("user-1", "user-2"))
- *     .bins("name", "email")  // Only read these bins
- *     .where("$.age > 21")
- *     .upsert(users.id("user-3"))
- *     .bin("status").setTo("active")
+ * // Execute a UDF with arguments
+ * session.executeUdf(users.id("user-1"))
+ *     .function("myPackage", "myFunction")
+ *     .passing("arg1", 42, true)
+ *     .execute();
+ *
+ * // Execute a UDF with no arguments
+ * session.executeUdf(users.id("user-1"))
+ *     .function("myPackage", "myFunction")
+ *     .execute();
+ *
+ * // Chain with other operations
+ * session.executeUdf(users.id("user-1"))
+ *     .function("myPackage", "myFunction")
+ *     .passing("arg1")
+ *     .upsert(users.id("user-2"))
+ *     .bin("name").setTo("Alice")
  *     .execute();
  * }</pre>
  *
  * @see ChainableOperationBuilder for write operations with bin modifications
  * @see ChainableNoBinsBuilder for operations without bin modifications
+ * @see ChainableQueryBuilder for read operations
  */
-public class ChainableQueryBuilder extends AbstractFilterableBuilder
-        implements FilterableOperation<ChainableQueryBuilder> {
+public class ChainableUdfBuilder extends AbstractSessionOperationBuilder<ChainableUdfBuilder>
+        implements FilterableOperation<ChainableUdfBuilder> {
 
-    private final Session session;
     private final List<OperationSpec> operationSpecs;
     private OperationSpec currentSpec = null;
     private Expression defaultWhereClause;
     private long defaultExpirationInSeconds = AbstractOperationBuilder.NOT_EXPLICITLY_SET;
-    private Txn txnToUse;
-    private long limit = 0;
-    private int startPartition = 0;
-    private int endPartition = 4096;
 
     /**
-     * Package-private constructor.
+     * Package-private constructor for creating a new chain.
      */
-    ChainableQueryBuilder(Session session, List<OperationSpec> existingSpecs,
-                         Expression defaultWhereClause, long defaultExpirationInSeconds, Txn txnToUse) {
-        this.session = session;
+    ChainableUdfBuilder(Session session) {
+        super(session, OpType.UDF);
+        this.operationSpecs = new ArrayList<>();
+    }
+
+    /**
+     * Package-private constructor for continuing an existing chain.
+     */
+    ChainableUdfBuilder(Session session, List<OperationSpec> existingSpecs,
+                        Expression defaultWhereClause, long defaultExpirationInSeconds, Txn txnToUse) {
+        super(session, OpType.UDF);
         this.operationSpecs = existingSpecs;
         this.defaultWhereClause = defaultWhereClause;
         this.defaultExpirationInSeconds = defaultExpirationInSeconds;
@@ -64,97 +80,157 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
     // Initialization methods
     // ========================================
 
-    ChainableQueryBuilder initQuery(Key key) {
-        finalizeCurrentOperation();
-        currentSpec = new OperationSpec(List.of(key));  // null opType for query
-        return this;
-    }
-
-    ChainableQueryBuilder initQuery(List<Key> keys) {
-        finalizeCurrentOperation();
-        currentSpec = new OperationSpec(keys);  // null opType for query
-        return this;
-    }
-
-    // ========================================
-    // Query-specific methods
-    // ========================================
-
     /**
-     * Specify which bins to read (bin projection).
-     * If not called, all bins will be read.
+     * Initialize a UDF operation with the function already specified.
+     * Called by {@link UdfFunctionBuilder#function(String, String)}.
      *
-     * @param binNames the names of the bins to read
+     * @param keys the keys to execute the UDF on
+     * @param packageName the UDF package name
+     * @param functionName the UDF function name
      * @return this builder for method chaining
      */
-    public ChainableQueryBuilder bins(String... binNames) {
-        verifyState("specifying bins");
-        if (binNames == null || binNames.length == 0) {
-            throw new IllegalArgumentException("Must specify at least one bin name");
-//            return withNoBins();
+    ChainableUdfBuilder initUdfWithFunction(List<Key> keys, String packageName, String functionName) {
+        finalizeCurrentOperation();
+        currentSpec = new OperationSpec(keys, OpType.UDF);
+        currentSpec.setUdfPackageName(packageName);
+        currentSpec.setUdfFunctionName(functionName);
+        return this;
+    }
+
+    /**
+     * Specify arguments to pass to the UDF.
+     * Arguments are converted to Aerospike Value objects using {@link Value#get(Object)}.
+     *
+     * <p>Supported argument types include:
+     * <ul>
+     *   <li>String</li>
+     *   <li>byte, short, int, long, float, double</li>
+     *   <li>boolean</li>
+     *   <li>byte[]</li>
+     *   <li>List</li>
+     *   <li>Map</li>
+     *   <li>Value (passed through directly)</li>
+     * </ul>
+     *
+     * @param args the arguments to pass to the UDF
+     * @return this builder for method chaining
+     * @throws AerospikeException if any argument type is not supported
+     */
+    public ChainableUdfBuilder passing(Object... args) {
+        verifyState("specifying UDF arguments");
+        if (args == null || args.length == 0) {
+            currentSpec.setUdfArguments(new Value[0]);
+        } else {
+            Value[] values = new Value[args.length];
+            for (int i = 0; i < args.length; i++) {
+                values[i] = Value.get(args[i]);
+            }
+            currentSpec.setUdfArguments(values);
         }
-        currentSpec.setProjectedBins(binNames);
         return this;
     }
 
     /**
-     * Specify which bins to read (bin projection).
-     * If not called, all bins will be read.
-     * This is an alias for {@link #bins(String...)} for API compatibility.
+     * Specify arguments to pass to the UDF using explicit Value objects.
+     * Use this method when you need more control over type conversion.
      *
-     * @param binNames the names of the bins to read
+     * @param args the Value arguments to pass to the UDF
      * @return this builder for method chaining
      */
-    public ChainableQueryBuilder readingOnlyBins(String... binNames) {
-        return bins(binNames);
-    }
-
-    /**
-     * Specifies that no bins should be read (header-only query).
-     * Useful when you only need to check for record existence or get metadata.
-     *
-     * @return this builder for method chaining
-     */
-    public ChainableQueryBuilder withNoBins() {
-        verifyState("specifying no bins");
-        currentSpec.setProjectedBins(new String[0]);
+    public ChainableUdfBuilder passingValues(Value... args) {
+        verifyState("specifying UDF arguments");
+        currentSpec.setUdfArguments(args == null ? new Value[0] : args);
         return this;
     }
 
     /**
-     * Returns a bin builder for read operations on a specific bin.
-     * 
-     * <p>Unlike write operations, query bin operations only support reading values
-     * ({@code get()}) and computing expressions ({@code selectFrom()}).</p>
+     * Specify arguments to pass to the UDF from a List.
+     * Arguments are converted to Aerospike Value objects using {@link Value#get(Object)}.
      *
-     * <p>Example:</p>
-     * <pre>{@code
-     * session.query(key)
-     *     .bin("name").get()
-     *     .bin("ageIn20Years").selectFrom("$.age + 20")
-     *     .execute();
-     * }</pre>
+     * <p>This is useful when arguments are already collected in a List rather than
+     * as individual values.</p>
      *
-     * @param binName the name of the bin
-     * @return QueryBinBuilder for constructing bin read operations
+     * @param args the list of arguments to pass to the UDF
+     * @return this builder for method chaining
+     * @throws AerospikeException if any argument type is not supported
      */
-    public QueryBinBuilder bin(String binName) {
-        verifyState("adding bin operation");
-        return new QueryBinBuilder(this, binName);
+    public ChainableUdfBuilder passing(List<?> args) {
+        verifyState("specifying UDF arguments");
+        if (args == null || args.isEmpty()) {
+            currentSpec.setUdfArguments(new Value[0]);
+        } else {
+            Value[] values = new Value[args.size()];
+            for (int i = 0; i < args.size(); i++) {
+                values[i] = Value.get(args.get(i));
+            }
+            currentSpec.setUdfArguments(values);
+        }
+        return this;
     }
 
     /**
-     * Package-private method to add an operation to the current spec.
-     * Used by QueryBinBuilder.
+     * Specify arguments to pass to the UDF using a List of explicit Value objects.
+     * Use this method when you need more control over type conversion.
+     *
+     * @param args the list of Value arguments to pass to the UDF
+     * @return this builder for method chaining
      */
-    void addOperation(Operation op) {
-        verifyState("adding operation");
-        currentSpec.getOperations().add(op);
+    public ChainableUdfBuilder passingValues(List<Value> args) {
+        verifyState("specifying UDF arguments");
+        if (args == null || args.isEmpty()) {
+            currentSpec.setUdfArguments(new Value[0]);
+        } else {
+            currentSpec.setUdfArguments(args.toArray(new Value[0]));
+        }
+        return this;
     }
 
     // ========================================
     // Chainable operation methods
     // ========================================
+
+    /**
+     * Chain an executeUdf operation on a single key.
+     * Returns a {@link UdfFunctionBuilder} requiring the UDF function to be specified.
+     *
+     * @param key the key to execute the UDF on
+     * @return UdfFunctionBuilder requiring function specification
+     */
+    public UdfFunctionBuilder executeUdf(Key key) {
+        finalizeCurrentOperation();
+        return new UdfFunctionBuilder(session, List.of(key), operationSpecs, 
+                defaultWhereClause, defaultExpirationInSeconds, txnToUse);
+    }
+
+    /**
+     * Chain an executeUdf operation on multiple keys.
+     * Returns a {@link UdfFunctionBuilder} requiring the UDF function to be specified.
+     *
+     * @param keys the keys to execute the UDF on
+     * @return UdfFunctionBuilder requiring function specification
+     */
+    public UdfFunctionBuilder executeUdf(List<Key> keys) {
+        finalizeCurrentOperation();
+        return new UdfFunctionBuilder(session, keys, operationSpecs,
+                defaultWhereClause, defaultExpirationInSeconds, txnToUse);
+    }
+
+    /**
+     * Chain an executeUdf operation on multiple keys (varargs).
+     * Returns a {@link UdfFunctionBuilder} requiring the UDF function to be specified.
+     *
+     * @param key1 first key
+     * @param key2 second key
+     * @param moreKeys additional keys
+     * @return UdfFunctionBuilder requiring function specification
+     */
+    public UdfFunctionBuilder executeUdf(Key key1, Key key2, Key... moreKeys) {
+        List<Key> keys = new ArrayList<>();
+        keys.add(key1);
+        keys.add(key2);
+        keys.addAll(Arrays.asList(moreKeys));
+        return executeUdf(keys);
+    }
 
     /**
      * Chain an upsert operation on a single key.
@@ -488,32 +564,37 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
     }
 
     /**
-     * Chain another query (read) operation on a single key.
+     * Chain a query (read) operation on a single key.
+     * Returns a {@link ChainableQueryBuilder} for specifying which bins to read.
      *
      * @param key the key to query
-     * @return this builder for method chaining
+     * @return ChainableQueryBuilder for method chaining
      */
     public ChainableQueryBuilder query(Key key) {
-        return initQuery(key);
+        finalizeCurrentOperation();
+        return new ChainableQueryBuilder(session, operationSpecs, defaultWhereClause, defaultExpirationInSeconds, txnToUse)
+                .initQuery(key);
     }
 
     /**
-     * Chain another query (read) operation on multiple keys.
+     * Chain a query (read) operation on multiple keys.
      *
      * @param keys the keys to query
-     * @return this builder for method chaining
+     * @return ChainableQueryBuilder for method chaining
      */
     public ChainableQueryBuilder query(List<Key> keys) {
-        return initQuery(keys);
+        finalizeCurrentOperation();
+        return new ChainableQueryBuilder(session, operationSpecs, defaultWhereClause, defaultExpirationInSeconds, txnToUse)
+                .initQuery(keys);
     }
 
     /**
-     * Chain another query (read) operation on multiple keys (varargs).
+     * Chain a query (read) operation on multiple keys (varargs).
      *
      * @param key1 first key
      * @param key2 second key
      * @param moreKeys additional keys
-     * @return this builder for method chaining
+     * @return ChainableQueryBuilder for method chaining
      */
     public ChainableQueryBuilder query(Key key1, Key key2, Key... moreKeys) {
         List<Key> keys = new ArrayList<>();
@@ -523,45 +604,67 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
         return query(keys);
     }
 
-    /**
-     * Chain a UDF execution on a single key.
-     * Returns a {@link UdfFunctionBuilder} requiring the UDF function to be specified.
-     *
-     * @param key the key to execute the UDF on
-     * @return UdfFunctionBuilder requiring function specification
-     */
-    public UdfFunctionBuilder executeUdf(Key key) {
-        finalizeCurrentOperation();
-        return new UdfFunctionBuilder(session, List.of(key), operationSpecs,
-                defaultWhereClause, defaultExpirationInSeconds, txnToUse);
+    // ========================================
+    // Per-operation policies (override parent to work with OperationSpec)
+    // ========================================
+
+    @Override
+    public ChainableUdfBuilder expireRecordAfter(Duration duration) {
+        verifyState("setting expiration");
+        currentSpec.setExpirationInSeconds(duration.toSeconds());
+        return this;
     }
 
-    /**
-     * Chain a UDF execution on multiple keys.
-     *
-     * @param keys the keys to execute the UDF on
-     * @return UdfFunctionBuilder requiring function specification
-     */
-    public UdfFunctionBuilder executeUdf(List<Key> keys) {
-        finalizeCurrentOperation();
-        return new UdfFunctionBuilder(session, keys, operationSpecs,
-                defaultWhereClause, defaultExpirationInSeconds, txnToUse);
+    @Override
+    public ChainableUdfBuilder expireRecordAfterSeconds(int expirationInSeconds) {
+        verifyState("setting expiration");
+        currentSpec.setExpirationInSeconds(expirationInSeconds);
+        return this;
     }
 
-    /**
-     * Chain a UDF execution on multiple keys (varargs).
-     *
-     * @param key1 first key
-     * @param key2 second key
-     * @param moreKeys additional keys
-     * @return UdfFunctionBuilder requiring function specification
-     */
-    public UdfFunctionBuilder executeUdf(Key key1, Key key2, Key... moreKeys) {
-        List<Key> keys = new ArrayList<>();
-        keys.add(key1);
-        keys.add(key2);
-        keys.addAll(Arrays.asList(moreKeys));
-        return executeUdf(keys);
+    @Override
+    public ChainableUdfBuilder expireRecordAt(Date date) {
+        verifyState("setting expiration");
+        currentSpec.setExpirationInSeconds(getExpirationInSecondsAndCheckValue(date));
+        return this;
+    }
+
+    @Override
+    public ChainableUdfBuilder expireRecordAt(LocalDateTime date) {
+        verifyState("setting expiration");
+        currentSpec.setExpirationInSeconds(getExpirationInSecondsAndCheckValue(date));
+        return this;
+    }
+
+    @Override
+    public ChainableUdfBuilder withNoChangeInExpiration() {
+        verifyState("setting expiration");
+        currentSpec.setExpirationInSeconds(TTL_NO_CHANGE);
+        return this;
+    }
+
+    @Override
+    public ChainableUdfBuilder neverExpire() {
+        verifyState("setting expiration");
+        currentSpec.setExpirationInSeconds(TTL_NEVER_EXPIRE);
+        return this;
+    }
+
+    @Override
+    public ChainableUdfBuilder expiryFromServerDefault() {
+        verifyState("setting expiration");
+        currentSpec.setExpirationInSeconds(TTL_SERVER_DEFAULT);
+        return this;
+    }
+
+    @Override
+    public ChainableUdfBuilder ensureGenerationIs(int generation) {
+        verifyState("setting generation");
+        if (generation <= 0) {
+            throw new IllegalArgumentException("Generation must be greater than 0");
+        }
+        currentSpec.setGeneration(generation);
+        return this;
     }
 
     // ========================================
@@ -569,7 +672,7 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
     // ========================================
 
     @Override
-    public ChainableQueryBuilder where(String dsl, Object... params) {
+    public ChainableUdfBuilder where(String dsl, Object... params) {
         verifyState("setting where clause");
         WhereClauseProcessor processor = createWhereClauseProcessor(false, dsl, params);
         if (processor != null) {
@@ -580,7 +683,7 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
     }
 
     @Override
-    public ChainableQueryBuilder where(BooleanExpression dsl) {
+    public ChainableUdfBuilder where(BooleanExpression dsl) {
         verifyState("setting where clause");
         WhereClauseProcessor processor = WhereClauseProcessor.from(dsl);
         ParseResult parseResult = processor.process(getNamespaceFromKeys(currentSpec.getKeys()), session);
@@ -589,7 +692,7 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
     }
 
     @Override
-    public ChainableQueryBuilder where(PreparedDsl dsl, Object... params) {
+    public ChainableUdfBuilder where(PreparedDsl dsl, Object... params) {
         verifyState("setting where clause");
         WhereClauseProcessor processor = WhereClauseProcessor.from(false, dsl, params);
         ParseResult parseResult = processor.process(getNamespaceFromKeys(currentSpec.getKeys()), session);
@@ -598,7 +701,7 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
     }
 
     @Override
-    public ChainableQueryBuilder where(Exp exp) {
+    public ChainableUdfBuilder where(Exp exp) {
         verifyState("setting where clause");
         WhereClauseProcessor processor = WhereClauseProcessor.from(exp);
         ParseResult parseResult = processor.process(getNamespaceFromKeys(currentSpec.getKeys()), session);
@@ -607,7 +710,7 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
     }
 
     @Override
-    public ChainableQueryBuilder where(Expression e) {
+    public ChainableUdfBuilder where(Expression e) {
         verifyState("setting where clause");
         WhereClauseProcessor processor = WhereClauseProcessor.from(e);
         ParseResult parseResult = processor.process(getNamespaceFromKeys(currentSpec.getKeys()), session);
@@ -621,9 +724,8 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
      * @param dsl the DSL filter expression
      * @param params parameters to substitute into the DSL
      * @return this builder for method chaining
-     * @see ChainableOperationBuilder#defaultWhere(String, Object...)
      */
-    public ChainableQueryBuilder defaultWhere(String dsl, Object... params) {
+    public ChainableUdfBuilder defaultWhere(String dsl, Object... params) {
         String namespace = currentSpec != null ?
                 getNamespaceFromKeys(currentSpec.getKeys()) :
                 (!operationSpecs.isEmpty() ? getNamespaceFromKeys(operationSpecs.get(0).getKeys()) : null);
@@ -646,7 +748,7 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
      * @param dsl the boolean expression filter
      * @return this builder for method chaining
      */
-    public ChainableQueryBuilder defaultWhere(BooleanExpression dsl) {
+    public ChainableUdfBuilder defaultWhere(BooleanExpression dsl) {
         String namespace = currentSpec != null ?
                 getNamespaceFromKeys(currentSpec.getKeys()) :
                 (!operationSpecs.isEmpty() ? getNamespaceFromKeys(operationSpecs.get(0).getKeys()) : null);
@@ -668,7 +770,7 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
      * @param params parameters to bind to the prepared DSL
      * @return this builder for method chaining
      */
-    public ChainableQueryBuilder defaultWhere(PreparedDsl dsl, Object... params) {
+    public ChainableUdfBuilder defaultWhere(PreparedDsl dsl, Object... params) {
         String namespace = currentSpec != null ?
                 getNamespaceFromKeys(currentSpec.getKeys()) :
                 (!operationSpecs.isEmpty() ? getNamespaceFromKeys(operationSpecs.get(0).getKeys()) : null);
@@ -689,7 +791,7 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
      * @param exp the expression filter
      * @return this builder for method chaining
      */
-    public ChainableQueryBuilder defaultWhere(Exp exp) {
+    public ChainableUdfBuilder defaultWhere(Exp exp) {
         String namespace = currentSpec != null ?
                 getNamespaceFromKeys(currentSpec.getKeys()) :
                 (!operationSpecs.isEmpty() ? getNamespaceFromKeys(operationSpecs.get(0).getKeys()) : null);
@@ -714,7 +816,7 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
      * @param duration the duration after which records should expire
      * @return this builder for method chaining
      */
-    public ChainableQueryBuilder defaultExpireRecordAfter(Duration duration) {
+    public ChainableUdfBuilder defaultExpireRecordAfter(Duration duration) {
         this.defaultExpirationInSeconds = duration.getSeconds();
         return this;
     }
@@ -725,7 +827,7 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
      * @param seconds the number of seconds after which records should expire
      * @return this builder for method chaining
      */
-    public ChainableQueryBuilder defaultExpireRecordAfterSeconds(long seconds) {
+    public ChainableUdfBuilder defaultExpireRecordAfterSeconds(long seconds) {
         this.defaultExpirationInSeconds = seconds;
         return this;
     }
@@ -736,7 +838,7 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
      * @param dateTime the date/time at which records should expire
      * @return this builder for method chaining
      */
-    public ChainableQueryBuilder defaultExpireRecordAt(LocalDateTime dateTime) {
+    public ChainableUdfBuilder defaultExpireRecordAt(LocalDateTime dateTime) {
         this.defaultExpirationInSeconds = getExpirationInSecondsAndCheckValue(dateTime);
         return this;
     }
@@ -747,7 +849,7 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
      * @param date the date at which records should expire
      * @return this builder for method chaining
      */
-    public ChainableQueryBuilder defaultExpireRecordAt(Date date) {
+    public ChainableUdfBuilder defaultExpireRecordAt(Date date) {
         this.defaultExpirationInSeconds = getExpirationInSecondsAndCheckValue(date);
         return this;
     }
@@ -757,8 +859,8 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
      *
      * @return this builder for method chaining
      */
-    public ChainableQueryBuilder defaultNeverExpire() {
-        this.defaultExpirationInSeconds = AbstractOperationBuilder.TTL_NEVER_EXPIRE;
+    public ChainableUdfBuilder defaultNeverExpire() {
+        this.defaultExpirationInSeconds = TTL_NEVER_EXPIRE;
         return this;
     }
 
@@ -767,8 +869,8 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
      *
      * @return this builder for method chaining
      */
-    public ChainableQueryBuilder defaultNoChangeInExpiration() {
-        this.defaultExpirationInSeconds = AbstractOperationBuilder.TTL_NO_CHANGE;
+    public ChainableUdfBuilder defaultNoChangeInExpiration() {
+        this.defaultExpirationInSeconds = TTL_NO_CHANGE;
         return this;
     }
 
@@ -777,139 +879,46 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
      *
      * @return this builder for method chaining
      */
-    public ChainableQueryBuilder defaultExpiryFromServerDefault() {
-        this.defaultExpirationInSeconds = AbstractOperationBuilder.TTL_SERVER_DEFAULT;
+    public ChainableUdfBuilder defaultExpiryFromServerDefault() {
+        this.defaultExpirationInSeconds = TTL_SERVER_DEFAULT;
         return this;
     }
 
-    private long getExpirationInSecondsAndCheckValue(LocalDateTime date) {
-        LocalDateTime now = LocalDateTime.now();
-        long expirationInSeconds = java.time.temporal.ChronoUnit.SECONDS.between(now, date);
-        if (expirationInSeconds < 0) {
-            throw new IllegalArgumentException("Expiration must be set in the future, not to " + date);
-        }
-        return expirationInSeconds;
-    }
-
-    private long getExpirationInSecondsAndCheckValue(Date date) {
-        long expirationInSeconds = (date.getTime() - new Date().getTime()) / 1000L;
-        if (expirationInSeconds < 0) {
-            throw new IllegalArgumentException("Expiration must be set in the future, not to " + date);
-        }
-        return expirationInSeconds;
-    }
-
     @Override
-    public ChainableQueryBuilder failOnFilteredOut() {
+    public ChainableUdfBuilder failOnFilteredOut() {
         verifyState("setting failOnFilteredOut");
         currentSpec.setFailOnFilteredOut(true);
         return this;
     }
 
     @Override
-    public ChainableQueryBuilder respondAllKeys() {
+    public ChainableUdfBuilder respondAllKeys() {
         verifyState("setting respondAllKeys");
         currentSpec.setRespondAllKeys(true);
         return this;
     }
 
-    /**
-     * Sets the maximum number of records to return.
-     * 
-     * <p><b>Note:</b> This method limits the number of results returned from the batch.
-     * The batch will still process all keys, but only the first N successful results
-     * will be returned.</p>
-     *
-     * @param limit the maximum number of records to return (must be > 0)
-     * @return this builder for method chaining
-     * @throws IllegalArgumentException if limit is <= 0
-     */
-    public ChainableQueryBuilder limit(long limit) {
-        if (limit <= 0) {
-            throw new IllegalArgumentException("Limit must be > 0, not " + limit);
-        }
-        this.limit = limit;
-        return this;
-    }
+    // ========================================
+    // Transaction support
+    // ========================================
 
     /**
-     * Targets a specific partition for the query.
-     *
-     * <p>This method restricts the query to a single partition. Keys that don't
-     * belong to this partition will be filtered out before execution.</p>
-     *
-     * @param partId the partition ID to target (0-4095)
-     * @return this builder for method chaining
-     * @throws IllegalArgumentException if partId is out of range
-     */
-    public ChainableQueryBuilder onPartition(int partId) {
-        if (partId < 0 || partId >= 4096) {
-            throw new IllegalArgumentException("Partition ID must be between 0 and 4095, not " + partId);
-        }
-        this.startPartition = partId;
-        this.endPartition = partId + 1;
-        return this;
-    }
-
-    /**
-     * Targets a range of partitions for the query.
-     *
-     * <p>This method restricts the query to a range of partitions. Keys that don't
-     * belong to this partition range will be filtered out before execution.</p>
-     *
-     * @param startIncl the start partition (inclusive, 0-4095)
-     * @param endExcl the end partition (exclusive, 1-4096)
-     * @return this builder for method chaining
-     * @throws IllegalArgumentException if the partition range is invalid
-     */
-    public ChainableQueryBuilder onPartitionRange(int startIncl, int endExcl) {
-        if (startIncl < 0 || startIncl >= 4096) {
-            throw new IllegalArgumentException("Start partition must be between 0 and 4095, not " + startIncl);
-        }
-        if (endExcl <= 0 || endExcl > 4096) {
-            throw new IllegalArgumentException("End partition must be between 1 and 4096, not " + endExcl);
-        }
-        if (startIncl >= endExcl) {
-            throw new IllegalArgumentException("Start partition must be less than end partition");
-        }
-        this.startPartition = startIncl;
-        this.endPartition = endExcl;
-        return this;
-    }
-
-    /**
-     * Sets the chunk size for server-side streaming.
-     * 
-     * <p><b>Note:</b> This method is primarily applicable to dataset queries.
-     * For key-based batch queries, chunk size doesn't affect behavior as all
-     * keys are sent in a single batch.</p>
-     *
-     * @param chunkSize the number of records per chunk
-     * @return this builder for method chaining
-     */
-    public ChainableQueryBuilder chunkSize(int chunkSize) {
-        // For key-based queries, chunk size is not applicable
-        // We accept the method for API compatibility but it has no effect
-        return this;
-    }
-
-    /**
-     * Specify that operations are not to be included in any transaction.
+     * Ensure this operation is executed outside of any transaction.
      *
      * @return this builder for method chaining
      */
-    public ChainableQueryBuilder notInAnyTransaction() {
+    public ChainableUdfBuilder notInAnyTransaction() {
         this.txnToUse = null;
         return this;
     }
 
     /**
-     * Specify the transaction to use for operations.
+     * Execute this operation within the specified transaction.
      *
-     * @param txn the transaction
+     * @param txn the transaction to use
      * @return this builder for method chaining
      */
-    public ChainableQueryBuilder inTransaction(Txn txn) {
+    public ChainableUdfBuilder inTransaction(Txn txn) {
         this.txnToUse = txn;
         return this;
     }
@@ -919,143 +928,87 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
     // ========================================
 
     /**
-     * Execute all chained operations as a single batch.
-     * For single-key operations, this uses optimized point execution.
+     * Execute all chained operations as a single batch with default behavior (synchronous).
+     * All operations complete before this method returns, making it safe for transactions.
      *
      * @return RecordStream containing the results of all operations
      */
     public RecordStream execute() {
+        return executeSync();
+    }
+
+    /**
+     * Execute all chained operations synchronously as a single batch.
+     * All operations complete before this method returns, making it safe for transactions.
+     *
+     * @return RecordStream containing the results of all operations
+     */
+    public RecordStream executeSync() {
         finalizeCurrentOperation();
 
         if (operationSpecs.isEmpty()) {
             throw new IllegalStateException("No operations specified");
         }
 
-        // Apply partition filtering if specified
-        List<OperationSpec> filteredSpecs = applyPartitionFilter(operationSpecs);
-
-        // Apply limit to keys if specified
-        filteredSpecs = applyKeyLimit(filteredSpecs);
-
-        if (filteredSpecs.isEmpty()) {
-            return new RecordStream();
+        if (Log.debugEnabled()) {
+            int totalKeys = operationSpecs.stream().mapToInt(spec -> spec.getKeys().size()).sum();
+            Log.debug("ChainableUdfBuilder.executeSync() called for " + operationSpecs.size() +
+                     " operation(s), " + totalKeys + " key(s), transaction: " +
+                     (txnToUse != null ? "yes" : "no"));
         }
 
-        return OperationSpecExecutor.execute(session, filteredSpecs, defaultWhereClause, defaultExpirationInSeconds, txnToUse);
+        return OperationSpecExecutor.execute(session, operationSpecs, defaultWhereClause, defaultExpirationInSeconds, txnToUse);
     }
 
     /**
-     * Execute all chained operations synchronously.
-     * All operations complete before this method returns.
-     *
-     * @return RecordStream containing the results of all operations
-     */
-    public RecordStream executeSync() {
-        return execute();
-    }
-
-    /**
-     * Execute all chained operations asynchronously.
-     * Results are streamed as they become available.
+     * Execute all chained operations asynchronously as a single batch.
+     * Method returns immediately; results are consumed via the RecordStream.
+     * <p>
+     * <b>WARNING:</b> Using this in transactions may lead to operations still being in flight
+     * when commit() is called, potentially leading to inconsistent state. A warning will be logged.
      *
      * @return RecordStream that will be populated as results arrive
      */
     public RecordStream executeAsync() {
-        return execute();
-    }
+        finalizeCurrentOperation();
 
-    /**
-     * Apply partition filter to specs, filtering out keys that don't belong to the partition range.
-     */
-    private List<OperationSpec> applyPartitionFilter(List<OperationSpec> specs) {
-        if (!hasPartitionFilter()) {
-            return specs;
+        if (operationSpecs.isEmpty()) {
+            throw new IllegalStateException("No operations specified");
         }
 
-        List<OperationSpec> filtered = new ArrayList<>();
-        for (OperationSpec spec : specs) {
-            List<Key> filteredKeys = new ArrayList<>();
-            for (Key key : spec.getKeys()) {
-                if (isKeyInPartitionRange(key)) {
-                    filteredKeys.add(key);
-                }
+        if (Log.debugEnabled()) {
+            int totalKeys = operationSpecs.stream().mapToInt(spec -> spec.getKeys().size()).sum();
+            Log.debug("ChainableUdfBuilder.executeAsync() called for " + operationSpecs.size() +
+                     " operation(s), " + totalKeys + " key(s), transaction: " +
+                     (txnToUse != null ? "yes" : "no"));
+        }
+
+        if (txnToUse != null && Log.warnEnabled()) {
+            Log.warn(
+                "executeAsync() called within a transaction. " +
+                "Async operations may still be in flight when commit() is called, " +
+                "which could lead to inconsistent state. " +
+                "Consider using executeSync() or execute() for transactional safety."
+            );
+        }
+
+        // Create a stream that will receive results asynchronously
+        int totalKeys = operationSpecs.stream().mapToInt(spec -> spec.getKeys().size()).sum();
+        AsyncRecordStream asyncStream = new AsyncRecordStream(totalKeys);
+
+        // Execute in a virtual thread so this method returns immediately
+        Cluster cluster = session.getCluster();
+        cluster.startVirtualThread(() -> {
+            try {
+                RecordStream syncResult = OperationSpecExecutor.execute(session, operationSpecs, defaultWhereClause, defaultExpirationInSeconds, txnToUse);
+                // Transfer results to the async stream
+                syncResult.forEach(result -> asyncStream.publish(result));
+            } finally {
+                asyncStream.complete();
             }
-            if (!filteredKeys.isEmpty()) {
-                OperationSpec newSpec = copySpecWithKeys(spec, filteredKeys);
-                filtered.add(newSpec);
-            }
-        }
-        return filtered;
-    }
+        });
 
-    /**
-     * Apply limit to keys across all specs.
-     */
-    private List<OperationSpec> applyKeyLimit(List<OperationSpec> specs) {
-        if (limit <= 0) {
-            return specs;
-        }
-
-        List<OperationSpec> limited = new ArrayList<>();
-        long remaining = limit;
-
-        for (OperationSpec spec : specs) {
-            if (remaining <= 0) {
-                break;
-            }
-
-            List<Key> keys = spec.getKeys();
-            if (keys.size() <= remaining) {
-                limited.add(spec);
-                remaining -= keys.size();
-            } else {
-                // Need to truncate this spec's keys
-                List<Key> truncatedKeys = new ArrayList<>(keys.subList(0, (int) remaining));
-                OperationSpec newSpec = copySpecWithKeys(spec, truncatedKeys);
-                limited.add(newSpec);
-                remaining = 0;
-            }
-        }
-        return limited;
-    }
-
-    /**
-     * Create a copy of the spec with different keys.
-     */
-    private OperationSpec copySpecWithKeys(OperationSpec original, List<Key> newKeys) {
-        OperationSpec newSpec;
-        if (original.isQuery()) {
-            newSpec = new OperationSpec(newKeys);
-        } else {
-            newSpec = new OperationSpec(newKeys, original.getOpType());
-        }
-        newSpec.setWhereClause(original.getWhereClause());
-        newSpec.setGeneration(original.getGeneration());
-        newSpec.setExpirationInSeconds(original.getExpirationInSeconds());
-        newSpec.setFailOnFilteredOut(original.isFailOnFilteredOut());
-        newSpec.setRespondAllKeys(original.isRespondAllKeys());
-        newSpec.setDurablyDelete(original.getDurablyDelete());
-        newSpec.setProjectedBins(original.getProjectedBins());
-        newSpec.getOperations().addAll(original.getOperations());
-        return newSpec;
-    }
-
-    /**
-     * Check if partition filtering is active.
-     */
-    private boolean hasPartitionFilter() {
-        return startPartition > 0 || endPartition < 4096;
-    }
-
-    /**
-     * Check if a key is within the partition range.
-     */
-    private boolean isKeyInPartitionRange(Key key) {
-        if (!hasPartitionFilter()) {
-            return true;
-        }
-        int partId = com.aerospike.client.fluent.tend.Partition.getPartitionId(key.digest);
-        return partId >= startPartition && partId < endPartition;
+        return new RecordStream(asyncStream);
     }
 
     // ========================================
@@ -1065,16 +1018,12 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
     /**
      * Verify that an operation has been specified before setting properties on it.
      *
-     * <p><b>Important:</b> This condition should never occur in normal usage due to the fluent API design.
-     * This check exists as a safety mechanism to provide clear error messages if the API is used incorrectly
-     * (e.g., through reflection or other non-standard means).</p>
-     *
-     * @param operationContext description of what operation is being attempted (e.g., "specifying bins", "setting where clause")
+     * @param operationContext description of what operation is being attempted
      * @throws IllegalStateException if no operation has been specified yet
      */
     private void verifyState(String operationContext) {
         if (currentSpec == null) {
-            throw new IllegalStateException("Must call query() before " + operationContext);
+            throw new IllegalStateException("Must call executeUdf before " + operationContext);
         }
     }
 
@@ -1089,5 +1038,8 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
         return keys.isEmpty() ? null : keys.get(0).namespace;
     }
 
+    @Override
+    protected Session getSession() {
+        return session;
+    }
 }
-

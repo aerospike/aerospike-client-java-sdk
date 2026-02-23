@@ -45,6 +45,15 @@ public class OperationSpec {
     /** For QUERY operations: specific bins to read (null means all bins) */
     private String[] projectedBins = null;
 
+    /** For UDF operations: the package name containing the UDF */
+    private String udfPackageName = null;
+
+    /** For UDF operations: the function name to execute */
+    private String udfFunctionName = null;
+
+    /** For UDF operations: the arguments to pass to the UDF */
+    private Value[] udfArguments = null;
+
     /**
      * Create a write operation spec (upsert, update, insert, replace, delete, touch).
      */
@@ -156,5 +165,36 @@ public class OperationSpec {
 
     public List<Operation> getOperations() {
         return operations;
+    }
+
+    /**
+     * Returns true if this is a UDF operation.
+     */
+    public boolean isUdf() {
+        return opType == OpType.UDF;
+    }
+
+    public String getUdfPackageName() {
+        return udfPackageName;
+    }
+
+    public void setUdfPackageName(String udfPackageName) {
+        this.udfPackageName = udfPackageName;
+    }
+
+    public String getUdfFunctionName() {
+        return udfFunctionName;
+    }
+
+    public void setUdfFunctionName(String udfFunctionName) {
+        this.udfFunctionName = udfFunctionName;
+    }
+
+    public Value[] getUdfArguments() {
+        return udfArguments;
+    }
+
+    public void setUdfArguments(Value[] udfArguments) {
+        this.udfArguments = udfArguments;
     }
 }

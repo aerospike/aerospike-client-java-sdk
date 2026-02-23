@@ -25,6 +25,7 @@ import com.aerospike.client.fluent.command.BatchCommand;
 import com.aerospike.client.fluent.command.BatchDelete;
 import com.aerospike.client.fluent.command.BatchExecutor;
 import com.aerospike.client.fluent.command.BatchNode;
+import com.aerospike.client.fluent.command.BatchUDF;
 import com.aerospike.client.fluent.command.BatchNodes;
 import com.aerospike.client.fluent.command.BatchRead;
 import com.aerospike.client.fluent.command.BatchRecord;
@@ -227,6 +228,15 @@ class OperationSpecExecutor {
                         rec = new BatchDelete(key, attr, spec);
                         break;
 
+                    case UDF:
+                        attr.setWrite(settings, spec.getOpType());
+                        Expression udfWhereClause = spec.getWhereClause() != null ? spec.getWhereClause() : defaultWhereClause;
+                        Value[] udfArgs = spec.getUdfArguments();
+                        int udfTtl = (int) resolveTtl(spec, defaultExpirationInSeconds);
+                        rec = new BatchUDF(key, udfWhereClause, attr, spec.getUdfPackageName(),
+                            spec.getUdfFunctionName(), udfArgs != null ? udfArgs : new Value[0], udfTtl);
+                        break;
+
                     default:
                         throw new IllegalStateException("Unknown operation type: " + spec.getOpType());
                     }
@@ -280,9 +290,9 @@ class OperationSpecExecutor {
 	                	(BatchWrite)rec, status, bn.node);
 	                break;
 
-	            // TODO Support user defined functions.
                 case BATCH_UDF:
-                	break;
+                    commands[count++] = new Batch.OperateListSync(cluster, parent, bn, records, status);
+                    break;
 
                 case BATCH_DELETE:
 					commands[count++] = new BatchSingle.Delete(cluster, parent,
@@ -412,6 +422,8 @@ class OperationSpecExecutor {
                 return executeSingleKeyTouch(session, cluster, behavior, partitions, spec, key, filterExp, ttl, txn, scMode, respondAllKeys, failOnFilteredOut);
             } else if (spec.getOpType() == OpType.DELETE) {
                 return executeSingleKeyDelete(session, cluster, behavior, partitions, spec, key, filterExp, txn, scMode, respondAllKeys, failOnFilteredOut);
+            } else if (spec.getOpType() == OpType.UDF) {
+                return executeSingleKeyUdf(session, cluster, behavior, partitions, spec, key, filterExp, ttl, txn, scMode, respondAllKeys, failOnFilteredOut);
             } else {
                 return executeSingleKeyWrite(session, cluster, behavior, partitions, spec, key, filterExp, ttl, txn, scMode, respondAllKeys, failOnFilteredOut);
             }
@@ -572,5 +584,74 @@ class OperationSpecExecutor {
         int resultCode = existed ? ResultCode.OK : ResultCode.KEY_NOT_FOUND_ERROR;
         return new RecordStream(new RecordResult(key, resultCode, false,
             ResultCode.getResultString(resultCode), 0));
+    }
+
+    /**
+     * Execute a single-key UDF operation using the batch infrastructure.
+     * UDF execution requires server-side Lua functions to be registered.
+     */
+    private static RecordStream executeSingleKeyUdf(
+        Session session, Cluster cluster, Behavior behavior, Partitions partitions,
+        OperationSpec spec, Key key, Expression filterExp, long ttl, Txn txn,
+        boolean scMode, boolean respondAllKeys, boolean failOnFilteredOut
+    ) {
+        Settings settings = behavior.getSettings(OpKind.WRITE_NON_RETRYABLE, OpShape.BATCH, scMode);
+        BatchAttr attr = new BatchAttr();
+        attr.setWrite(settings, OpType.UDF);
+
+        Value[] udfArgs = spec.getUdfArguments();
+        BatchUDF udfRecord = new BatchUDF(key, filterExp, attr, spec.getUdfPackageName(),
+            spec.getUdfFunctionName(), udfArgs != null ? udfArgs : new Value[0], (int) ttl);
+
+        List<BatchRecord> records = new ArrayList<>(1);
+        records.add(udfRecord);
+
+        if (txn != null) {
+            TxnMonitor.addKey(txn, session, key);
+        }
+
+        BatchStatus status = new BatchStatus();
+        BatchCommand parent = new BatchCommand(cluster, null, txn, null, records,
+            filterExp, respondAllKeys, false, settings);
+
+        List<BatchNode> bns = BatchNodes.generate(cluster, parent, records, status);
+
+        IBatchCommand[] commands = new IBatchCommand[bns.size()];
+        int count = 0;
+
+        for (BatchNode bn : bns) {
+            commands[count++] = new Batch.OperateListSync(cluster, parent, bn, records, status);
+        }
+
+        BatchExecutor.execute(cluster, commands, status);
+
+        BatchRecord br = records.get(0);
+        if (shouldIncludeResult(br.resultCode, respondAllKeys, failOnFilteredOut)) {
+            Object udfResult = br.record != null ? extractUdfResult(br.record) : null;
+            return new RecordStream(new RecordResult(key, udfResult, 0));
+        }
+        return new RecordStream();
+    }
+
+    /**
+     * Extract the UDF return value from a record.
+     * UDFs typically return their result in a special bin.
+     */
+    private static Object extractUdfResult(Record record) {
+        if (record == null || record.bins == null) {
+            return null;
+        }
+        Object result = record.bins.get("SUCCESS");
+        if (result != null) {
+            return result;
+        }
+        Object failure = record.bins.get("FAILURE");
+        if (failure != null) {
+            throw new AerospikeException(ResultCode.UDF_BAD_RESPONSE, "UDF execution failed: " + failure);
+        }
+        if (record.bins.size() == 1) {
+            return record.bins.values().iterator().next();
+        }
+        return record.bins;
     }
 }

@@ -461,6 +461,47 @@ public class ChainableNoBinsBuilder extends AbstractSessionOperationBuilder<Chai
         return query(keys);
     }
 
+    /**
+     * Chain a UDF execution on a single key.
+     * Returns a {@link UdfFunctionBuilder} requiring the UDF function to be specified.
+     *
+     * @param key the key to execute the UDF on
+     * @return UdfFunctionBuilder requiring function specification
+     */
+    public UdfFunctionBuilder executeUdf(Key key) {
+        finalizeCurrentOperation();
+        return new UdfFunctionBuilder(session, List.of(key), operationSpecs,
+                defaultWhereClause, defaultExpirationInSeconds, txnToUse);
+    }
+
+    /**
+     * Chain a UDF execution on multiple keys.
+     *
+     * @param keys the keys to execute the UDF on
+     * @return UdfFunctionBuilder requiring function specification
+     */
+    public UdfFunctionBuilder executeUdf(List<Key> keys) {
+        finalizeCurrentOperation();
+        return new UdfFunctionBuilder(session, keys, operationSpecs,
+                defaultWhereClause, defaultExpirationInSeconds, txnToUse);
+    }
+
+    /**
+     * Chain a UDF execution on multiple keys (varargs).
+     *
+     * @param key1 first key
+     * @param key2 second key
+     * @param moreKeys additional keys
+     * @return UdfFunctionBuilder requiring function specification
+     */
+    public UdfFunctionBuilder executeUdf(Key key1, Key key2, Key... moreKeys) {
+        List<Key> keys = new ArrayList<>();
+        keys.add(key1);
+        keys.add(key2);
+        keys.addAll(Arrays.asList(moreKeys));
+        return executeUdf(keys);
+    }
+
     // ========================================
     // Delete-specific methods
     // ========================================

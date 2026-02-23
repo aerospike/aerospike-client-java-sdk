@@ -379,6 +379,35 @@ public class RecordStream implements Iterator<RecordResult>, Closeable {
         }
         return Optional.empty();
     }
+    
+    /**
+     * Gets the first element from the stream and extract the UDF Result (object) from this. 
+     * If the stream is empty, returns an empty Optional.
+     *
+     * @return an Optional containing the result from the UDF invocation of the first result or empty if the stream is empty
+     */
+    public Optional<Object> getFirstUdfResult() {
+        if (hasNext()) {
+            return Optional.of(next().udfResultOrThrow());
+        }
+        return Optional.empty();
+    }
+
+    /**
+     * Gets the first element from the stream and extract the UDF Result (object) from this. This must return a map, and that map
+     * will be converted into an object using the passed mapper.
+     * If the stream is empty, returns an empty Optional.
+     *
+     * @return an Optional containing the result from the UDF invocation of the first result or empty if the stream is empty
+     * @throws AerospikeException with ResultCode = OP_NOT_APPLICABLE if the return value of the UDF is not a map, or other
+     * AerospikeException subclasses based on the ResultCode from the server if other things went wrong.
+     */
+    public <T> Optional<T> getFirstUdfResult(RecordMapper<T> mapper) {
+        if (hasNext()) {
+            return Optional.of(next().udfResultAs(mapper));
+        }
+        return Optional.empty();
+    }
 
     public static class ObjectWithMetadata<T> {
         private final int generation;

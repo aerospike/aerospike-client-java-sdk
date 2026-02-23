@@ -23,6 +23,7 @@ public enum OpType {
     REPLACE,
     REPLACE_IF_EXISTS,
     TOUCH,
+    UDF,
     UPSERT,
     UPDATE,
 }

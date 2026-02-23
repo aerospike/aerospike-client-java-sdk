@@ -317,6 +317,96 @@ public class Session {
     }
 
     // -------------------
+    // UDF execution (chainable batch operations)
+    // -------------------
+
+    /**
+     * Begin a UDF (User Defined Function) execution on a single key.
+     * Supports chaining multiple heterogeneous operations.
+     *
+     * <p>UDFs are server-side Lua functions that can perform custom operations on records.
+     * They are registered on the server and referenced by package name and function name.</p>
+     *
+     * <p>Example:
+     * <pre>{@code
+     * // Execute a UDF with arguments
+     * session.executeUdf(users.id("user-1"))
+     *     .function("myPackage", "myFunction")
+     *     .passing("arg1", 42, true)
+     *     .execute();
+     *
+     * // Execute a UDF with no arguments
+     * session.executeUdf(users.id("user-1"))
+     *     .function("myPackage", "myFunction")
+     *     .execute();
+     *
+     * // Chain with other operations
+     * session.executeUdf(users.id("user-1"))
+     *     .function("myPackage", "myFunction")
+     *     .passing("arg1")
+     *     .upsert(users.id("user-2"))
+     *     .bin("name").setTo("Alice")
+     *     .execute();
+     * }</pre>
+     *
+     * @param key the key to execute the UDF on
+     * @return UdfFunctionBuilder requiring function specification before execution
+     * @see UdfFunctionBuilder
+     * @see ChainableUdfBuilder
+     */
+    public UdfFunctionBuilder executeUdf(Key key) {
+        return new UdfFunctionBuilder(this, List.of(key), new ArrayList<>(), 
+                null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, getCurrentTransaction());
+    }
+
+    /**
+     * Begin a UDF (User Defined Function) execution on multiple keys using varargs.
+     * Supports chaining multiple heterogeneous operations.
+     *
+     * <p>Example:
+     * <pre>{@code
+     * session.executeUdf(users.id("user-1"), users.id("user-2"))
+     *     .function("myPackage", "myFunction")
+     *     .passing("arg1")
+     *     .execute();
+     * }</pre>
+     *
+     * @param key1 the first key to execute the UDF on
+     * @param key2 the second key to execute the UDF on
+     * @param keys additional keys to execute the UDF on (varargs)
+     * @return UdfFunctionBuilder requiring function specification before execution
+     * @see UdfFunctionBuilder
+     * @see ChainableUdfBuilder
+     */
+    public UdfFunctionBuilder executeUdf(Key key1, Key key2, Key... keys) {
+        return new UdfFunctionBuilder(this, buildKeyList(key1, key2, keys), new ArrayList<>(),
+                null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, getCurrentTransaction());
+    }
+
+    /**
+     * Begin a UDF (User Defined Function) execution on multiple keys from a list.
+     * Supports chaining multiple heterogeneous operations.
+     *
+     * <p>Example:
+     * <pre>{@code
+     * List<Key> keys = Arrays.asList(users.id("user-1"), users.id("user-2"));
+     * session.executeUdf(keys)
+     *     .function("myPackage", "myFunction")
+     *     .passing("arg1")
+     *     .execute();
+     * }</pre>
+     *
+     * @param keyList the list of keys to execute the UDF on
+     * @return UdfFunctionBuilder requiring function specification before execution
+     * @see UdfFunctionBuilder
+     * @see ChainableUdfBuilder
+     */
+    public UdfFunctionBuilder executeUdf(List<Key> keyList) {
+        return new UdfFunctionBuilder(this, keyList, new ArrayList<>(),
+                null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, getCurrentTransaction());
+    }
+
+    // -------------------
     // CUD functionality (chainable batch operations)
     // -------------------
 
