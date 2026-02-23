@@ -23,7 +23,7 @@ import com.aerospike.client.fluent.policy.Replica;
  * <ul>
  *   <li>{@link AbstractSessionOperationBuilder} - Base with session, expiration, generation, transactions (this class)</li>
  *   <li>{@link AbstractOperationBuilder} - Adds bin operations via {@code bin()} method</li>
- *   <li>{@link OperationWithNoBinsBuilder} - Direct subclass for no-bin operations (exists, touch, delete)</li>
+ *   <li>{@link ChainableNoBinsBuilder} - Direct subclass for no-bin operations (exists, touch, delete)</li>
  * </ul>
  * </p>
  *

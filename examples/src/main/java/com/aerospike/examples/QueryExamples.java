@@ -755,7 +755,10 @@ public class QueryExamples {
                     session.query(customerDataSet.id(223)).execute().getFirst());
             
         
-
+            session.query(customerDataSet)
+                .readingOnlyBins("name", "age")
+                .execute();
+            
             // ---------------------------
             // Background query operations
             // ---------------------------
@@ -773,10 +776,13 @@ public class QueryExamples {
                     .bin("age").add(1)
                     .bin("dob").setTo(new Date().getTime())
                     .where("$.age > 100")
+                    .expireRecordAfter(Duration.ofMinutes(5))
                 .exists(customerDataSet.ids(1000,1001))
                 .query(customerDataSet.ids(10,12))
                 .delete(customerDataSet.id(1003))
                 .notInAnyTransaction()
+                .inTransaction(null)
+                .defaultWhere("$.value > 200")
                 .execute();
             System.out.println("Multi operations:");
             print(rsStream);

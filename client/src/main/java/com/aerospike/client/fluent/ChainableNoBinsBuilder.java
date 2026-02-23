@@ -739,64 +739,8 @@ public class ChainableNoBinsBuilder extends AbstractSessionOperationBuilder<Chai
             throw new IllegalStateException("No operations specified");
         }
 
-        // Check if this is a simple single-operation, single-key case
-        // If so, delegate to the old builder for backward compatibility
-        if (isSingleKeyOperation()) {
-            return executeSingleKeyOperation();
-        }
-
-        // Otherwise use batch execution
+        // OperationSpecExecutor handles both single-key optimization and batch execution
         return OperationSpecExecutor.execute(session, operationSpecs, defaultWhereClause, txnToUse);
-    }
-
-    /**
-     * Check if this is a single operation on a single key with no chaining and minimal settings.
-     * These can be executed more efficiently using the original point operation path.
-     */
-    private boolean isSingleKeyOperation() {
-        if (operationSpecs.size() != 1) {
-            return false;
-        }
-
-    	OperationSpec spec = operationSpecs.get(0);
-    	System.out.println("operationSpecs:" + operationSpecs.size() + ',' + spec.getKeys().size()
-    		+ ',' + spec.getOperations().isEmpty() + ',' + spec.getWhereClause() + ',' + defaultWhereClause);
-        return spec.getKeys().size() == 1;
-    }
-
-    /**
-     * Execute a single-key operation using the original OperationWithNoBinsBuilder path.
-     * This maintains backward compatibility and handles EXISTS, TOUCH, DELETE correctly.
-     */
-    private RecordStream executeSingleKeyOperation() {
-        OperationSpec spec = operationSpecs.get(0);
-        Key key = spec.getKeys().get(0);
-
-        // Create an OperationWithNoBinsBuilder and configure it
-        OperationWithNoBinsBuilder builder = new OperationWithNoBinsBuilder(session, key, spec.getOpType());
-
-        // Apply the spec's settings
-        if (spec.getExpirationInSeconds() != Long.MIN_VALUE && spec.getExpirationInSeconds() != 0) {
-            builder.expireRecordAfterSeconds((int) spec.getExpirationInSeconds());
-        }
-        if (spec.getGeneration() > 0) {
-            builder.ensureGenerationIs(spec.getGeneration());
-        }
-        if (spec.isFailOnFilteredOut()) {
-            builder.failOnFilteredOut();
-        }
-        if (spec.isRespondAllKeys()) {
-            builder.respondAllKeys();
-        }
-        if (spec.getWhereClause() != null) {
-        	builder.where(spec.getWhereClause());
-        }
-        if (txnToUse != null) {
-            builder.inTransaction(txnToUse);
-        }
-
-        // Execute and convert List<Boolean> to RecordStream
-        return builder.execute();
     }
 
     // ========================================
