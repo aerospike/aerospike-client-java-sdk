@@ -79,7 +79,7 @@ public class IndexQueryBuilderImpl extends QueryImpl {
         
         // Check for operations - not supported on index/scan queries
         if (qb.getOperations() != null && !qb.getOperations().isEmpty()) {
-            throw new AerospikeException(ResultCode.PARAMETER_ERROR,
+            throw new AerospikeException(ResultCode.OP_NOT_APPLICABLE,
                 "CDT read operations and expression operations are not currently supported on " +
                 "dataset-based queries (scans and secondary index queries). " +
                 "Use key-based queries instead: session.query(dataSet.id(key1, key2, ...))");

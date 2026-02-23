@@ -152,19 +152,35 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
     // ----------------------------------------
 
     /**
-     * Create a read expression operation from a DSL string.
-     * @param dsl the DSL expression to evaluate
-     * @return the parent builder for method chaining
+     * Read a computed value from this bin using a DSL expression.
+     * The result appears as a virtual bin in the returned record.
+     *
+     * <pre>{@code
+     * // Compute total from price and quantity
+     * session.query(key)
+     *     .bin("total").selectFrom("$.price * $.quantity")
+     *     .execute();
+     * }</pre>
+     *
+     * @param dsl the DSL expression string
+     * @see #selectFrom(String, Consumer) for options like ignoreEvalFailure()
      */
     public T selectFrom(String dsl) {
         return opBuilder.addOp(ExpressionOpHelper.createReadOp(binName, dsl, ExpReadFlags.DEFAULT));
     }
 
     /**
-     * Create a read expression operation from a DSL string with options.
-     * @param dsl the DSL expression to evaluate
-     * @param options a consumer to configure expression options
-     * @return the parent builder for method chaining
+     * Read a computed value with options.
+     *
+     * <pre>{@code
+     * // Ignore errors if expression can't evaluate
+     * session.query(key)
+     *     .bin("ratio").selectFrom("$.a / $.b", opt -> opt.ignoreEvalFailure())
+     *     .execute();
+     * }</pre>
+     *
+     * @param dsl the DSL expression string
+     * @param options configure via {@code ignoreEvalFailure()}
      */
     public T selectFrom(String dsl, Consumer<ExpressionReadOptions> options) {
         ExpressionReadOptions opts = new ExpressionReadOptions();
@@ -173,19 +189,31 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
     }
 
     /**
-     * Create a read expression operation from a BooleanExpression.
+     * Read a computed value using a programmatic BooleanExpression.
+     *
+     * <pre>{@code
+     * session.query(key)
+     *     .bin("isAdult").selectFrom(Exp.ge(Exp.intBin("age"), Exp.val(18)))
+     *     .execute();
+     * }</pre>
+     *
      * @param dsl the boolean expression to evaluate
-     * @return the parent builder for method chaining
      */
     public T selectFrom(BooleanExpression dsl) {
         return opBuilder.addOp(ExpressionOpHelper.createReadOp(binName, dsl, ExpReadFlags.DEFAULT));
     }
 
     /**
-     * Create a read expression operation from a BooleanExpression with options.
+     * Read a computed value using a BooleanExpression with options.
+     *
+     * <pre>{@code
+     * session.query(key)
+     *     .bin("isAdult").selectFrom(myBoolExpr, opt -> opt.ignoreEvalFailure())
+     *     .execute();
+     * }</pre>
+     *
      * @param dsl the boolean expression to evaluate
-     * @param options a consumer to configure expression options
-     * @return the parent builder for method chaining
+     * @param options configure via {@code ignoreEvalFailure()}
      */
     public T selectFrom(BooleanExpression dsl, Consumer<ExpressionReadOptions> options) {
         ExpressionReadOptions opts = new ExpressionReadOptions();
@@ -194,21 +222,35 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
     }
 
     /**
-     * Create a read expression operation from a PreparedDsl.
+     * Read a computed value using a PreparedDsl with bound parameters.
+     *
+     * <pre>{@code
+     * PreparedDsl calc = PreparedDsl.prepare("$.price * ?");
+     * session.query(key)
+     *     .bin("total").selectFrom(calc, quantity)
+     *     .execute();
+     * }</pre>
+     *
      * @param dsl the prepared DSL statement
-     * @param params the parameters to bind
-     * @return the parent builder for method chaining
+     * @param params parameter values to bind
      */
     public T selectFrom(PreparedDsl dsl, Object... params) {
         return opBuilder.addOp(ExpressionOpHelper.createReadOp(binName, dsl, params, ExpReadFlags.DEFAULT));
     }
 
     /**
-     * Create a read expression operation from a PreparedDsl with options.
+     * Read a computed value using a PreparedDsl with options and bound parameters.
+     *
+     * <pre>{@code
+     * PreparedDsl calc = PreparedDsl.prepare("$.a / ?");
+     * session.query(key)
+     *     .bin("ratio").selectFrom(calc, opt -> opt.ignoreEvalFailure(), divisor)
+     *     .execute();
+     * }</pre>
+     *
      * @param dsl the prepared DSL statement
-     * @param options a consumer to configure expression options
-     * @param params the parameters to bind
-     * @return the parent builder for method chaining
+     * @param options configure via {@code ignoreEvalFailure()}
+     * @param params parameter values to bind
      */
     public T selectFrom(PreparedDsl dsl, Consumer<ExpressionReadOptions> options, Object... params) {
         ExpressionReadOptions opts = new ExpressionReadOptions();
@@ -217,19 +259,32 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
     }
 
     /**
-     * Create a read expression operation from an Exp.
-     * @param exp the expression to evaluate
-     * @return the parent builder for method chaining
+     * Read a computed value using a low-level Exp expression.
+     *
+     * <pre>{@code
+     * Exp computation = Exp.mul(Exp.intBin("price"), Exp.intBin("quantity"));
+     * session.query(key)
+     *     .bin("total").selectFrom(computation)
+     *     .execute();
+     * }</pre>
+     *
+     * @param exp the Exp expression to evaluate
      */
     public T selectFrom(Exp exp) {
         return opBuilder.addOp(ExpressionOpHelper.createReadOp(binName, exp, ExpReadFlags.DEFAULT));
     }
 
     /**
-     * Create a read expression operation from an Exp with options.
-     * @param exp the expression to evaluate
-     * @param options a consumer to configure expression options
-     * @return the parent builder for method chaining
+     * Read a computed value using a low-level Exp expression with options.
+     *
+     * <pre>{@code
+     * session.query(key)
+     *     .bin("ratio").selectFrom(myExp, opt -> opt.ignoreEvalFailure())
+     *     .execute();
+     * }</pre>
+     *
+     * @param exp the Exp expression to evaluate
+     * @param options configure via {@code ignoreEvalFailure()}
      */
     public T selectFrom(Exp exp, Consumer<ExpressionReadOptions> options) {
         ExpressionReadOptions opts = new ExpressionReadOptions();
@@ -238,19 +293,32 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
     }
 
     /**
-     * Create a read expression operation from an Expression.
+     * Read a computed value using a pre-compiled Expression.
+     *
+     * <pre>{@code
+     * Expression compiled = Exp.build(Exp.mul(Exp.intBin("price"), Exp.intBin("qty")));
+     * session.query(key)
+     *     .bin("total").selectFrom(compiled)
+     *     .execute();
+     * }</pre>
+     *
      * @param exp the compiled expression to evaluate
-     * @return the parent builder for method chaining
      */
     public T selectFrom(Expression exp) {
         return opBuilder.addOp(ExpressionOpHelper.createReadOp(binName, exp, ExpReadFlags.DEFAULT));
     }
 
     /**
-     * Create a read expression operation from an Expression with options.
+     * Read a computed value using a pre-compiled Expression with options.
+     *
+     * <pre>{@code
+     * session.query(key)
+     *     .bin("ratio").selectFrom(compiledExp, opt -> opt.ignoreEvalFailure())
+     *     .execute();
+     * }</pre>
+     *
      * @param exp the compiled expression to evaluate
-     * @param options a consumer to configure expression options
-     * @return the parent builder for method chaining
+     * @param options configure via {@code ignoreEvalFailure()}
      */
     public T selectFrom(Expression exp, Consumer<ExpressionReadOptions> options) {
         ExpressionReadOptions opts = new ExpressionReadOptions();
@@ -262,60 +330,179 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
     // insertFrom - Write with CREATE_ONLY
     // ----------------------------------------
 
-    /** Create a write expression (CREATE_ONLY) from a DSL string. */
+    /**
+     * Write expression result only if the bin does not exist.
+     * Fails with BIN_EXISTS_ERROR if the bin already exists.
+     *
+     * <pre>{@code
+     * // Set "total" only if it doesn't exist
+     * session.upsert(key)
+     *     .bin("total").insertFrom("$.price * $.quantity")
+     *     .execute();
+     * }</pre>
+     *
+     * @param dsl the DSL expression string
+     * @see #insertFrom(String, Consumer) to suppress failure if bin exists
+     */
     public T insertFrom(String dsl) {
         return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, dsl, ExpWriteFlags.CREATE_ONLY));
     }
 
-    /** Create a write expression (CREATE_ONLY) from a DSL string with options. */
+    /**
+     * Write expression result only if the bin does not exist, with options.
+     *
+     * <pre>{@code
+     * // Set "total" only if it doesn't exist; don't fail if it does
+     * session.upsert(key)
+     *     .bin("total").insertFrom("$.price * $.quantity", opt -> opt.ignoreOpFailure())
+     *     .execute();
+     * }</pre>
+     *
+     * @param dsl the DSL expression string
+     * @param options configure via {@code ignoreOpFailure()}, {@code deleteIfNull()}, {@code ignoreEvalFailure()}
+     */
     public T insertFrom(String dsl, Consumer<ExpressionWriteOptions> options) {
         ExpressionWriteOptions opts = new ExpressionWriteOptions(ExpWriteFlags.CREATE_ONLY);
         options.accept(opts);
         return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, dsl, opts.getFlags()));
     }
 
-    /** Create a write expression (CREATE_ONLY) from a BooleanExpression. */
+    /**
+     * Write expression result only if bin doesn't exist, using a BooleanExpression.
+     * Fails with BIN_EXISTS_ERROR if the bin already exists.
+     *
+     * <pre>{@code
+     * session.upsert(key)
+     *     .bin("flag").insertFrom(myBoolExpr)
+     *     .execute();
+     * }</pre>
+     *
+     * @param dsl the boolean expression to evaluate
+     */
     public T insertFrom(BooleanExpression dsl) {
         return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, dsl, ExpWriteFlags.CREATE_ONLY));
     }
 
-    /** Create a write expression (CREATE_ONLY) from a BooleanExpression with options. */
+    /**
+     * Write expression result only if bin doesn't exist, using a BooleanExpression with options.
+     *
+     * <pre>{@code
+     * session.upsert(key)
+     *     .bin("flag").insertFrom(myBoolExpr, opt -> opt.ignoreOpFailure())
+     *     .execute();
+     * }</pre>
+     *
+     * @param dsl the boolean expression to evaluate
+     * @param options configure via {@code ignoreOpFailure()}, {@code deleteIfNull()}, {@code ignoreEvalFailure()}
+     */
     public T insertFrom(BooleanExpression dsl, Consumer<ExpressionWriteOptions> options) {
         ExpressionWriteOptions opts = new ExpressionWriteOptions(ExpWriteFlags.CREATE_ONLY);
         options.accept(opts);
         return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, dsl, opts.getFlags()));
     }
 
-    /** Create a write expression (CREATE_ONLY) from a PreparedDsl. */
+    /**
+     * Write expression result only if bin doesn't exist, using a PreparedDsl.
+     * Fails with BIN_EXISTS_ERROR if the bin already exists.
+     *
+     * <pre>{@code
+     * PreparedDsl calc = PreparedDsl.prepare("$.price * ?");
+     * session.upsert(key)
+     *     .bin("total").insertFrom(calc, quantity)
+     *     .execute();
+     * }</pre>
+     *
+     * @param dsl the prepared DSL statement
+     * @param params parameter values to bind
+     */
     public T insertFrom(PreparedDsl dsl, Object... params) {
         return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, dsl, params, ExpWriteFlags.CREATE_ONLY));
     }
 
-    /** Create a write expression (CREATE_ONLY) from a PreparedDsl with options. */
+    /**
+     * Write expression result only if bin doesn't exist, using a PreparedDsl with options.
+     *
+     * <pre>{@code
+     * PreparedDsl calc = PreparedDsl.prepare("$.price * ?");
+     * session.upsert(key)
+     *     .bin("total").insertFrom(calc, opt -> opt.ignoreOpFailure(), quantity)
+     *     .execute();
+     * }</pre>
+     *
+     * @param dsl the prepared DSL statement
+     * @param options configure via {@code ignoreOpFailure()}, {@code deleteIfNull()}, {@code ignoreEvalFailure()}
+     * @param params parameter values to bind
+     */
     public T insertFrom(PreparedDsl dsl, Consumer<ExpressionWriteOptions> options, Object... params) {
         ExpressionWriteOptions opts = new ExpressionWriteOptions(ExpWriteFlags.CREATE_ONLY);
         options.accept(opts);
         return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, dsl, params, opts.getFlags()));
     }
 
-    /** Create a write expression (CREATE_ONLY) from an Exp. */
+    /**
+     * Write expression result only if bin doesn't exist, using a low-level Exp.
+     * Fails with BIN_EXISTS_ERROR if the bin already exists.
+     *
+     * <pre>{@code
+     * Exp computation = Exp.mul(Exp.intBin("price"), Exp.intBin("quantity"));
+     * session.upsert(key)
+     *     .bin("total").insertFrom(computation)
+     *     .execute();
+     * }</pre>
+     *
+     * @param exp the Exp expression to evaluate
+     */
     public T insertFrom(Exp exp) {
         return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, exp, ExpWriteFlags.CREATE_ONLY));
     }
 
-    /** Create a write expression (CREATE_ONLY) from an Exp with options. */
+    /**
+     * Write expression result only if bin doesn't exist, using a low-level Exp with options.
+     *
+     * <pre>{@code
+     * session.upsert(key)
+     *     .bin("total").insertFrom(myExp, opt -> opt.ignoreOpFailure())
+     *     .execute();
+     * }</pre>
+     *
+     * @param exp the Exp expression to evaluate
+     * @param options configure via {@code ignoreOpFailure()}, {@code deleteIfNull()}, {@code ignoreEvalFailure()}
+     */
     public T insertFrom(Exp exp, Consumer<ExpressionWriteOptions> options) {
         ExpressionWriteOptions opts = new ExpressionWriteOptions(ExpWriteFlags.CREATE_ONLY);
         options.accept(opts);
         return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, exp, opts.getFlags()));
     }
 
-    /** Create a write expression (CREATE_ONLY) from an Expression. */
+    /**
+     * Write expression result only if bin doesn't exist, using a pre-compiled Expression.
+     * Fails with BIN_EXISTS_ERROR if the bin already exists.
+     *
+     * <pre>{@code
+     * Expression compiled = Exp.build(Exp.mul(Exp.intBin("price"), Exp.intBin("qty")));
+     * session.upsert(key)
+     *     .bin("total").insertFrom(compiled)
+     *     .execute();
+     * }</pre>
+     *
+     * @param exp the compiled expression to evaluate
+     */
     public T insertFrom(Expression exp) {
         return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, exp, ExpWriteFlags.CREATE_ONLY));
     }
 
-    /** Create a write expression (CREATE_ONLY) from an Expression with options. */
+    /**
+     * Write expression result only if bin doesn't exist, using a pre-compiled Expression with options.
+     *
+     * <pre>{@code
+     * session.upsert(key)
+     *     .bin("total").insertFrom(compiledExp, opt -> opt.ignoreOpFailure())
+     *     .execute();
+     * }</pre>
+     *
+     * @param exp the compiled expression to evaluate
+     * @param options configure via {@code ignoreOpFailure()}, {@code deleteIfNull()}, {@code ignoreEvalFailure()}
+     */
     public T insertFrom(Expression exp, Consumer<ExpressionWriteOptions> options) {
         ExpressionWriteOptions opts = new ExpressionWriteOptions(ExpWriteFlags.CREATE_ONLY);
         options.accept(opts);
@@ -326,60 +513,179 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
     // updateFrom - Write with UPDATE_ONLY
     // ----------------------------------------
 
-    /** Create a write expression (UPDATE_ONLY) from a DSL string. */
+    /**
+     * Write expression result only if the bin already exists.
+     * Fails with BIN_NOT_FOUND if the bin doesn't exist.
+     *
+     * <pre>{@code
+     * // Update "total" only if it exists
+     * session.upsert(key)
+     *     .bin("total").updateFrom("$.price * $.quantity")
+     *     .execute();
+     * }</pre>
+     *
+     * @param dsl the DSL expression string
+     * @see #updateFrom(String, Consumer) to suppress failure if bin is missing
+     */
     public T updateFrom(String dsl) {
         return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, dsl, ExpWriteFlags.UPDATE_ONLY));
     }
 
-    /** Create a write expression (UPDATE_ONLY) from a DSL string with options. */
+    /**
+     * Write expression result only if the bin already exists, with options.
+     *
+     * <pre>{@code
+     * // Update "total" only if it exists; don't fail if it's missing
+     * session.upsert(key)
+     *     .bin("total").updateFrom("$.price * $.quantity", opt -> opt.ignoreOpFailure())
+     *     .execute();
+     * }</pre>
+     *
+     * @param dsl the DSL expression string
+     * @param options configure via {@code ignoreOpFailure()}, {@code deleteIfNull()}, {@code ignoreEvalFailure()}
+     */
     public T updateFrom(String dsl, Consumer<ExpressionWriteOptions> options) {
         ExpressionWriteOptions opts = new ExpressionWriteOptions(ExpWriteFlags.UPDATE_ONLY);
         options.accept(opts);
         return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, dsl, opts.getFlags()));
     }
 
-    /** Create a write expression (UPDATE_ONLY) from a BooleanExpression. */
+    /**
+     * Write expression result only if bin already exists, using a BooleanExpression.
+     * Fails with BIN_NOT_FOUND if the bin doesn't exist.
+     *
+     * <pre>{@code
+     * session.upsert(key)
+     *     .bin("flag").updateFrom(myBoolExpr)
+     *     .execute();
+     * }</pre>
+     *
+     * @param dsl the boolean expression to evaluate
+     */
     public T updateFrom(BooleanExpression dsl) {
         return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, dsl, ExpWriteFlags.UPDATE_ONLY));
     }
 
-    /** Create a write expression (UPDATE_ONLY) from a BooleanExpression with options. */
+    /**
+     * Write expression result only if bin already exists, using a BooleanExpression with options.
+     *
+     * <pre>{@code
+     * session.upsert(key)
+     *     .bin("flag").updateFrom(myBoolExpr, opt -> opt.ignoreOpFailure())
+     *     .execute();
+     * }</pre>
+     *
+     * @param dsl the boolean expression to evaluate
+     * @param options configure via {@code ignoreOpFailure()}, {@code deleteIfNull()}, {@code ignoreEvalFailure()}
+     */
     public T updateFrom(BooleanExpression dsl, Consumer<ExpressionWriteOptions> options) {
         ExpressionWriteOptions opts = new ExpressionWriteOptions(ExpWriteFlags.UPDATE_ONLY);
         options.accept(opts);
         return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, dsl, opts.getFlags()));
     }
 
-    /** Create a write expression (UPDATE_ONLY) from a PreparedDsl. */
+    /**
+     * Write expression result only if bin already exists, using a PreparedDsl.
+     * Fails with BIN_NOT_FOUND if the bin doesn't exist.
+     *
+     * <pre>{@code
+     * PreparedDsl calc = PreparedDsl.prepare("$.price * ?");
+     * session.upsert(key)
+     *     .bin("total").updateFrom(calc, quantity)
+     *     .execute();
+     * }</pre>
+     *
+     * @param dsl the prepared DSL statement
+     * @param params parameter values to bind
+     */
     public T updateFrom(PreparedDsl dsl, Object... params) {
         return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, dsl, params, ExpWriteFlags.UPDATE_ONLY));
     }
 
-    /** Create a write expression (UPDATE_ONLY) from a PreparedDsl with options. */
+    /**
+     * Write expression result only if bin already exists, using a PreparedDsl with options.
+     *
+     * <pre>{@code
+     * PreparedDsl calc = PreparedDsl.prepare("$.price * ?");
+     * session.upsert(key)
+     *     .bin("total").updateFrom(calc, opt -> opt.ignoreOpFailure(), quantity)
+     *     .execute();
+     * }</pre>
+     *
+     * @param dsl the prepared DSL statement
+     * @param options configure via {@code ignoreOpFailure()}, {@code deleteIfNull()}, {@code ignoreEvalFailure()}
+     * @param params parameter values to bind
+     */
     public T updateFrom(PreparedDsl dsl, Consumer<ExpressionWriteOptions> options, Object... params) {
         ExpressionWriteOptions opts = new ExpressionWriteOptions(ExpWriteFlags.UPDATE_ONLY);
         options.accept(opts);
         return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, dsl, params, opts.getFlags()));
     }
 
-    /** Create a write expression (UPDATE_ONLY) from an Exp. */
+    /**
+     * Write expression result only if bin already exists, using a low-level Exp.
+     * Fails with BIN_NOT_FOUND if the bin doesn't exist.
+     *
+     * <pre>{@code
+     * Exp computation = Exp.mul(Exp.intBin("price"), Exp.intBin("quantity"));
+     * session.upsert(key)
+     *     .bin("total").updateFrom(computation)
+     *     .execute();
+     * }</pre>
+     *
+     * @param exp the Exp expression to evaluate
+     */
     public T updateFrom(Exp exp) {
         return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, exp, ExpWriteFlags.UPDATE_ONLY));
     }
 
-    /** Create a write expression (UPDATE_ONLY) from an Exp with options. */
+    /**
+     * Write expression result only if bin already exists, using a low-level Exp with options.
+     *
+     * <pre>{@code
+     * session.upsert(key)
+     *     .bin("total").updateFrom(myExp, opt -> opt.ignoreOpFailure())
+     *     .execute();
+     * }</pre>
+     *
+     * @param exp the Exp expression to evaluate
+     * @param options configure via {@code ignoreOpFailure()}, {@code deleteIfNull()}, {@code ignoreEvalFailure()}
+     */
     public T updateFrom(Exp exp, Consumer<ExpressionWriteOptions> options) {
         ExpressionWriteOptions opts = new ExpressionWriteOptions(ExpWriteFlags.UPDATE_ONLY);
         options.accept(opts);
         return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, exp, opts.getFlags()));
     }
 
-    /** Create a write expression (UPDATE_ONLY) from an Expression. */
+    /**
+     * Write expression result only if bin already exists, using a pre-compiled Expression.
+     * Fails with BIN_NOT_FOUND if the bin doesn't exist.
+     *
+     * <pre>{@code
+     * Expression compiled = Exp.build(Exp.mul(Exp.intBin("price"), Exp.intBin("qty")));
+     * session.upsert(key)
+     *     .bin("total").updateFrom(compiled)
+     *     .execute();
+     * }</pre>
+     *
+     * @param exp the compiled expression to evaluate
+     */
     public T updateFrom(Expression exp) {
         return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, exp, ExpWriteFlags.UPDATE_ONLY));
     }
 
-    /** Create a write expression (UPDATE_ONLY) from an Expression with options. */
+    /**
+     * Write expression result only if bin already exists, using a pre-compiled Expression with options.
+     *
+     * <pre>{@code
+     * session.upsert(key)
+     *     .bin("total").updateFrom(compiledExp, opt -> opt.ignoreOpFailure())
+     *     .execute();
+     * }</pre>
+     *
+     * @param exp the compiled expression to evaluate
+     * @param options configure via {@code ignoreOpFailure()}, {@code deleteIfNull()}, {@code ignoreEvalFailure()}
+     */
     public T updateFrom(Expression exp, Consumer<ExpressionWriteOptions> options) {
         ExpressionWriteOptions opts = new ExpressionWriteOptions(ExpWriteFlags.UPDATE_ONLY);
         options.accept(opts);
@@ -390,60 +696,179 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
     // upsertFrom - Write with DEFAULT (upsert)
     // ----------------------------------------
 
-    /** Create a write expression (upsert) from a DSL string. */
+    /**
+     * Write expression result, creating or overwriting the bin as needed.
+     * Never fails due to bin existence.
+     *
+     * <pre>{@code
+     * // Compute and store total (creates or overwrites)
+     * session.upsert(key)
+     *     .bin("total").upsertFrom("$.price * $.quantity")
+     *     .execute();
+     * }</pre>
+     *
+     * @param dsl the DSL expression string
+     * @see #upsertFrom(String, Consumer) for options like deleteIfNull()
+     */
     public T upsertFrom(String dsl) {
         return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, dsl, ExpWriteFlags.DEFAULT));
     }
 
-    /** Create a write expression (upsert) from a DSL string with options. */
+    /**
+     * Write expression result with options.
+     *
+     * <pre>{@code
+     * // Delete bin if expression returns null
+     * session.upsert(key)
+     *     .bin("discount").upsertFrom("$.coupon", opt -> opt.deleteIfNull())
+     *     .execute();
+     * }</pre>
+     *
+     * @param dsl the DSL expression string
+     * @param options configure via {@code deleteIfNull()}, {@code ignoreEvalFailure()}
+     */
     public T upsertFrom(String dsl, Consumer<ExpressionWriteOptions> options) {
         ExpressionWriteOptions opts = new ExpressionWriteOptions(ExpWriteFlags.DEFAULT);
         options.accept(opts);
         return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, dsl, opts.getFlags()));
     }
 
-    /** Create a write expression (upsert) from a BooleanExpression. */
+    /**
+     * Write expression result, creating or updating the bin, using a BooleanExpression.
+     * Never fails due to bin existence.
+     *
+     * <pre>{@code
+     * session.upsert(key)
+     *     .bin("flag").upsertFrom(myBoolExpr)
+     *     .execute();
+     * }</pre>
+     *
+     * @param dsl the boolean expression to evaluate
+     */
     public T upsertFrom(BooleanExpression dsl) {
         return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, dsl, ExpWriteFlags.DEFAULT));
     }
 
-    /** Create a write expression (upsert) from a BooleanExpression with options. */
+    /**
+     * Write expression result, creating or updating the bin, using a BooleanExpression with options.
+     *
+     * <pre>{@code
+     * session.upsert(key)
+     *     .bin("flag").upsertFrom(myBoolExpr, opt -> opt.deleteIfNull())
+     *     .execute();
+     * }</pre>
+     *
+     * @param dsl the boolean expression to evaluate
+     * @param options configure via {@code deleteIfNull()}, {@code ignoreEvalFailure()}
+     */
     public T upsertFrom(BooleanExpression dsl, Consumer<ExpressionWriteOptions> options) {
         ExpressionWriteOptions opts = new ExpressionWriteOptions(ExpWriteFlags.DEFAULT);
         options.accept(opts);
         return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, dsl, opts.getFlags()));
     }
 
-    /** Create a write expression (upsert) from a PreparedDsl. */
+    /**
+     * Write expression result, creating or updating the bin, using a PreparedDsl.
+     * Never fails due to bin existence.
+     *
+     * <pre>{@code
+     * PreparedDsl calc = PreparedDsl.prepare("$.price * ?");
+     * session.upsert(key)
+     *     .bin("total").upsertFrom(calc, quantity)
+     *     .execute();
+     * }</pre>
+     *
+     * @param dsl the prepared DSL statement
+     * @param params parameter values to bind
+     */
     public T upsertFrom(PreparedDsl dsl, Object... params) {
         return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, dsl, params, ExpWriteFlags.DEFAULT));
     }
 
-    /** Create a write expression (upsert) from a PreparedDsl with options. */
+    /**
+     * Write expression result, creating or updating the bin, using a PreparedDsl with options.
+     *
+     * <pre>{@code
+     * PreparedDsl calc = PreparedDsl.prepare("$.price * ?");
+     * session.upsert(key)
+     *     .bin("total").upsertFrom(calc, opt -> opt.deleteIfNull(), quantity)
+     *     .execute();
+     * }</pre>
+     *
+     * @param dsl the prepared DSL statement
+     * @param options configure via {@code deleteIfNull()}, {@code ignoreEvalFailure()}
+     * @param params parameter values to bind
+     */
     public T upsertFrom(PreparedDsl dsl, Consumer<ExpressionWriteOptions> options, Object... params) {
         ExpressionWriteOptions opts = new ExpressionWriteOptions(ExpWriteFlags.DEFAULT);
         options.accept(opts);
         return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, dsl, params, opts.getFlags()));
     }
 
-    /** Create a write expression (upsert) from an Exp. */
+    /**
+     * Write expression result, creating or updating the bin, using a low-level Exp.
+     * Never fails due to bin existence.
+     *
+     * <pre>{@code
+     * Exp computation = Exp.mul(Exp.intBin("price"), Exp.intBin("quantity"));
+     * session.upsert(key)
+     *     .bin("total").upsertFrom(computation)
+     *     .execute();
+     * }</pre>
+     *
+     * @param exp the Exp expression to evaluate
+     */
     public T upsertFrom(Exp exp) {
         return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, exp, ExpWriteFlags.DEFAULT));
     }
 
-    /** Create a write expression (upsert) from an Exp with options. */
+    /**
+     * Write expression result, creating or updating the bin, using a low-level Exp with options.
+     *
+     * <pre>{@code
+     * session.upsert(key)
+     *     .bin("total").upsertFrom(myExp, opt -> opt.deleteIfNull())
+     *     .execute();
+     * }</pre>
+     *
+     * @param exp the Exp expression to evaluate
+     * @param options configure via {@code deleteIfNull()}, {@code ignoreEvalFailure()}
+     */
     public T upsertFrom(Exp exp, Consumer<ExpressionWriteOptions> options) {
         ExpressionWriteOptions opts = new ExpressionWriteOptions(ExpWriteFlags.DEFAULT);
         options.accept(opts);
         return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, exp, opts.getFlags()));
     }
 
-    /** Create a write expression (upsert) from an Expression. */
+    /**
+     * Write expression result, creating or updating the bin, using a pre-compiled Expression.
+     * Never fails due to bin existence.
+     *
+     * <pre>{@code
+     * Expression compiled = Exp.build(Exp.mul(Exp.intBin("price"), Exp.intBin("qty")));
+     * session.upsert(key)
+     *     .bin("total").upsertFrom(compiled)
+     *     .execute();
+     * }</pre>
+     *
+     * @param exp the compiled expression to evaluate
+     */
     public T upsertFrom(Expression exp) {
         return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, exp, ExpWriteFlags.DEFAULT));
     }
 
-    /** Create a write expression (upsert) from an Expression with options. */
+    /**
+     * Write expression result, creating or updating the bin, using a pre-compiled Expression with options.
+     *
+     * <pre>{@code
+     * session.upsert(key)
+     *     .bin("total").upsertFrom(compiledExp, opt -> opt.deleteIfNull())
+     *     .execute();
+     * }</pre>
+     *
+     * @param exp the compiled expression to evaluate
+     * @param options configure via {@code deleteIfNull()}, {@code ignoreEvalFailure()}
+     */
     public T upsertFrom(Expression exp, Consumer<ExpressionWriteOptions> options) {
         ExpressionWriteOptions opts = new ExpressionWriteOptions(ExpWriteFlags.DEFAULT);
         options.accept(opts);

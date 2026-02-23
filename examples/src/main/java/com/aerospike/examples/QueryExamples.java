@@ -278,10 +278,9 @@ public class QueryExamples {
             
             session.upsert(customerDataSet.id("bob")).bin("A").setTo(2).bin("B").setTo(2.2).execute();
             RecordStream rs1 = session.query(customerDataSet.id("bob"))
-                    .readingOnlyBins()
+                    .readingOnlyBins("name")
                     .execute();
             System.out.println(rs1.getFirst());
-            System.exit(0);
             
             session.upsert(customerDataSet.ids(1,2,3,4,5)).bin("holdings").add(1).execute();
             session.upsert(customerDataSet.ids(1,2,3))
@@ -739,12 +738,16 @@ public class QueryExamples {
                 .bin("age").get()
                 .execute());
             System.out.println("Using a read expression");
+
             rs = session.query(customerDataSet.ids(223))
-                .bin("bob").selectFrom("$.age + $.value")
+                .bin("bob").selectFrom("$.age + $.value", arg -> arg.ignoreEvalFailure())
                 .execute();
             print(rs);
             
             System.out.println("Using a write expression");
+            session.update(customerDataSet.id(1))
+                .bin("value").updateFrom("$.age + 2 * $.value", arg -> arg.ignoreOpFailure().deleteIfNull())
+                .execute();
             session.update(customerDataSet.id(223))
                 .bin("bob").upsertFrom("$.age + 2 * $.value")
                 .execute();
@@ -758,6 +761,7 @@ public class QueryExamples {
             // ---------------------------
             session.backgroundTask().update(customerDataSet)
                 .bin("age").add(1)
+                .bin("bob").upsertFrom("$.age + $.value")
                 .where("$.state == 'nsw'")
                 .execute();
 
@@ -776,6 +780,13 @@ public class QueryExamples {
                 .execute();
             System.out.println("Multi operations:");
             print(rsStream);
+            
+            rsStream = session.query(customerDataSet.ids(1,2,3))
+                        .bin("name").get()
+                        .bin("map").onMapKeyRange(5, 10).getKeysAndValues()
+                    .update(customerDataSet.ids(1))
+                        .bin("age").add(1)
+                    .execute();
             
             rsStream = session
                     .update(customerDataSet.ids(1,2,3))
@@ -809,6 +820,10 @@ public class QueryExamples {
             Customer readCustomer = session.query(customerDataSet.id(999)).execute().toObjectList(customerMapper).get(0);
             System.out.println("Customer read back: " + readCustomer);
             System.out.println("--- End object mapping test ----");
+            
+            session.query(customerDataSet).where("$.name == 'Tim'")
+                .bin("fred").get()
+                .execute();
             
             // ----------------
             // Generation check

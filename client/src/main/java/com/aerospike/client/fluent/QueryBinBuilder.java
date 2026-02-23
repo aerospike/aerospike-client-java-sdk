@@ -87,13 +87,38 @@ public class QueryBinBuilder implements CdtOperationAcceptor<ChainableQueryBuild
     // Supports all 5 DSL input types
     // ----------------------------------------
 
-    /** Create a read expression from a DSL string. */
+    /**
+     * Read a computed value from this bin using a DSL expression.
+     * The result appears as a virtual bin in the returned record.
+     *
+     * <pre>{@code
+     * // Compute total from price and quantity
+     * session.query(key)
+     *     .bin("total").selectFrom("$.price * $.quantity")
+     *     .execute();
+     * }</pre>
+     *
+     * @param dsl the DSL expression string
+     * @see #selectFrom(String, Consumer) for options like ignoreEvalFailure()
+     */
     public ChainableQueryBuilder selectFrom(String dsl) {
         queryBuilder.addOperation(ExpressionOpHelper.createReadOp(binName, dsl, ExpReadFlags.DEFAULT));
         return queryBuilder;
     }
 
-    /** Create a read expression from a DSL string with options. */
+    /**
+     * Read a computed value with options.
+     *
+     * <pre>{@code
+     * // Ignore errors if expression can't evaluate
+     * session.query(key)
+     *     .bin("ratio").selectFrom("$.a / $.b", opt -> opt.ignoreEvalFailure())
+     *     .execute();
+     * }</pre>
+     *
+     * @param dsl the DSL expression string
+     * @param options configure via {@code ignoreEvalFailure()}
+     */
     public ChainableQueryBuilder selectFrom(String dsl, Consumer<ExpressionReadOptions> options) {
         ExpressionReadOptions opts = new ExpressionReadOptions();
         options.accept(opts);
@@ -101,13 +126,34 @@ public class QueryBinBuilder implements CdtOperationAcceptor<ChainableQueryBuild
         return queryBuilder;
     }
 
-    /** Create a read expression from a BooleanExpression. */
+    /**
+     * Read a computed value using a programmatic BooleanExpression.
+     *
+     * <pre>{@code
+     * session.query(key)
+     *     .bin("isAdult").selectFrom(Exp.ge(Exp.intBin("age"), Exp.val(18)))
+     *     .execute();
+     * }</pre>
+     *
+     * @param dsl the boolean expression to evaluate
+     */
     public ChainableQueryBuilder selectFrom(BooleanExpression dsl) {
         queryBuilder.addOperation(ExpressionOpHelper.createReadOp(binName, dsl, ExpReadFlags.DEFAULT));
         return queryBuilder;
     }
 
-    /** Create a read expression from a BooleanExpression with options. */
+    /**
+     * Read a computed value using a BooleanExpression with options.
+     *
+     * <pre>{@code
+     * session.query(key)
+     *     .bin("isAdult").selectFrom(myBoolExpr, opt -> opt.ignoreEvalFailure())
+     *     .execute();
+     * }</pre>
+     *
+     * @param dsl the boolean expression to evaluate
+     * @param options configure via {@code ignoreEvalFailure()}
+     */
     public ChainableQueryBuilder selectFrom(BooleanExpression dsl, Consumer<ExpressionReadOptions> options) {
         ExpressionReadOptions opts = new ExpressionReadOptions();
         options.accept(opts);
@@ -115,13 +161,38 @@ public class QueryBinBuilder implements CdtOperationAcceptor<ChainableQueryBuild
         return queryBuilder;
     }
 
-    /** Create a read expression from a PreparedDsl. */
+    /**
+     * Read a computed value using a PreparedDsl with bound parameters.
+     *
+     * <pre>{@code
+     * PreparedDsl calc = PreparedDsl.prepare("$.price * ?");
+     * session.query(key)
+     *     .bin("total").selectFrom(calc, quantity)
+     *     .execute();
+     * }</pre>
+     *
+     * @param dsl the prepared DSL statement
+     * @param params parameter values to bind
+     */
     public ChainableQueryBuilder selectFrom(PreparedDsl dsl, Object... params) {
         queryBuilder.addOperation(ExpressionOpHelper.createReadOp(binName, dsl, params, ExpReadFlags.DEFAULT));
         return queryBuilder;
     }
 
-    /** Create a read expression from a PreparedDsl with options. */
+    /**
+     * Read a computed value using a PreparedDsl with options and bound parameters.
+     *
+     * <pre>{@code
+     * PreparedDsl calc = PreparedDsl.prepare("$.a / ?");
+     * session.query(key)
+     *     .bin("ratio").selectFrom(calc, opt -> opt.ignoreEvalFailure(), divisor)
+     *     .execute();
+     * }</pre>
+     *
+     * @param dsl the prepared DSL statement
+     * @param options configure via {@code ignoreEvalFailure()}
+     * @param params parameter values to bind
+     */
     public ChainableQueryBuilder selectFrom(PreparedDsl dsl, Consumer<ExpressionReadOptions> options, Object... params) {
         ExpressionReadOptions opts = new ExpressionReadOptions();
         options.accept(opts);
@@ -129,13 +200,35 @@ public class QueryBinBuilder implements CdtOperationAcceptor<ChainableQueryBuild
         return queryBuilder;
     }
 
-    /** Create a read expression from an Exp. */
+    /**
+     * Read a computed value using a low-level Exp expression.
+     *
+     * <pre>{@code
+     * Exp computation = Exp.mul(Exp.intBin("price"), Exp.intBin("quantity"));
+     * session.query(key)
+     *     .bin("total").selectFrom(computation)
+     *     .execute();
+     * }</pre>
+     *
+     * @param exp the Exp expression to evaluate
+     */
     public ChainableQueryBuilder selectFrom(Exp exp) {
         queryBuilder.addOperation(ExpressionOpHelper.createReadOp(binName, exp, ExpReadFlags.DEFAULT));
         return queryBuilder;
     }
 
-    /** Create a read expression from an Exp with options. */
+    /**
+     * Read a computed value using a low-level Exp expression with options.
+     *
+     * <pre>{@code
+     * session.query(key)
+     *     .bin("ratio").selectFrom(myExp, opt -> opt.ignoreEvalFailure())
+     *     .execute();
+     * }</pre>
+     *
+     * @param exp the Exp expression to evaluate
+     * @param options configure via {@code ignoreEvalFailure()}
+     */
     public ChainableQueryBuilder selectFrom(Exp exp, Consumer<ExpressionReadOptions> options) {
         ExpressionReadOptions opts = new ExpressionReadOptions();
         options.accept(opts);
@@ -143,13 +236,35 @@ public class QueryBinBuilder implements CdtOperationAcceptor<ChainableQueryBuild
         return queryBuilder;
     }
 
-    /** Create a read expression from an Expression. */
+    /**
+     * Read a computed value using a pre-compiled Expression.
+     *
+     * <pre>{@code
+     * Expression compiled = Exp.build(Exp.mul(Exp.intBin("price"), Exp.intBin("qty")));
+     * session.query(key)
+     *     .bin("total").selectFrom(compiled)
+     *     .execute();
+     * }</pre>
+     *
+     * @param exp the compiled expression to evaluate
+     */
     public ChainableQueryBuilder selectFrom(Expression exp) {
         queryBuilder.addOperation(ExpressionOpHelper.createReadOp(binName, exp, ExpReadFlags.DEFAULT));
         return queryBuilder;
     }
 
-    /** Create a read expression from an Expression with options. */
+    /**
+     * Read a computed value using a pre-compiled Expression with options.
+     *
+     * <pre>{@code
+     * session.query(key)
+     *     .bin("ratio").selectFrom(compiledExp, opt -> opt.ignoreEvalFailure())
+     *     .execute();
+     * }</pre>
+     *
+     * @param exp the compiled expression to evaluate
+     * @param options configure via {@code ignoreEvalFailure()}
+     */
     public ChainableQueryBuilder selectFrom(Expression exp, Consumer<ExpressionReadOptions> options) {
         ExpressionReadOptions opts = new ExpressionReadOptions();
         options.accept(opts);
