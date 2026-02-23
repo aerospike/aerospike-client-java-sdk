@@ -20,6 +20,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
@@ -143,24 +144,11 @@ public class BatchTest extends ClusterTest {
 
 		String[] binNames = new String[] {};
 
-        RecordStream rs = session.query(args.set.ids(keys))
-           	.readingOnlyBins(binNames)
-        	.execute();
-
-		for (int i = 0; i < Size; i++) {
-	        assertTrue(rs.hasNext());
-	        Record rec = rs.next().recordOrThrow();
-
-			if (i != 5) {
-				String val = rec.getString(BinName);
-				assertEquals(ValuePrefix + (i + 1), val);
-			}
-			else {
-		        int val = rec.getInt(BinName);
-				assertEquals(i + 1, val);
-			}
-		}
-        assertFalse(rs.hasNext());
+		assertThrows(IllegalArgumentException.class, () -> {
+	        session.query(args.set.ids(keys))
+	           	.readingOnlyBins(binNames)
+	        	.execute();
+		});
 	}
 
 	@Test
