@@ -100,10 +100,9 @@ public class Cluster implements Closeable {
 		}
 
 		this.indexesMonitor = new IndexesMonitor();
-        this.indexesMonitor.startMonitor(createSession(Behavior.DEFAULT), INDEX_REFRESH);
-
-        // TODO: Create implementation where this sleep is not needed.
-        Util.sleep(1000);
+        if (!this.indexesMonitor.startMonitor(createSession(Behavior.DEFAULT), INDEX_REFRESH)) {
+            Log.warn("Initial index fetch did not complete within 1 second. Index information may be incomplete.");
+        }
     }
 
     /**

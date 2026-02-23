@@ -3,6 +3,8 @@ package com.aerospike.client.fluent;
 import java.time.Duration;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 import com.aerospike.client.fluent.query.IndexType;
 import com.aerospike.dsl.Index;
@@ -23,7 +25,11 @@ import com.aerospike.dsl.Index;
  * <p>Example usage (typically handled automatically by Cluster):</p>
  * <pre>{@code
  * IndexesMonitor monitor = new IndexesMonitor();
- * monitor.startMonitor(session, Duration.ofSeconds(5));
+ * boolean success = monitor.startMonitor(session, Duration.ofSeconds(5));
+ * if (!success) {
+ *     // Initial index fetch timed out, but monitoring continues in background
+ *     System.out.println("Warning: Index fetch did not complete within 1 second");
+ * }
  *
  * // Get current indexes
  * Set<Index> indexes = monitor.getIndexes();
@@ -69,20 +75,28 @@ class IndexesMonitor {
      *   <li>Sleeps for the specified frequency before repeating</li>
      * </ol>
      *
-     * <p>If the monitor is already running, this method returns immediately
+     * <p>If the monitor is already running, this method returns true immediately
      * without starting a new monitor thread.</p>
      *
      * <p>The monitoring thread handles exceptions gracefully and logs errors
      * without stopping the monitoring process.</p>
      *
+     * <p>This method waits up to 1 second for the initial index fetch to complete.
+     * If the indexes are successfully retrieved within this time, the method returns
+     * true. If the timeout expires before indexes are retrieved, the method returns
+     * false but the monitoring thread continues running in the background.</p>
+     *
      * @param session the session to use for querying index information
      * @param frequency how often to refresh the index information
+     * @return true if the initial index fetch completed within 1 second, false otherwise
      * @throws IllegalArgumentException if session is null or frequency is null/negative
      */
-    synchronized void startMonitor(Session session, Duration frequency) {
+    synchronized boolean startMonitor(Session session, Duration frequency) {
         if (monitorThread != null) {
-            return;
+            return true;
         }
+
+        CountDownLatch initialFetchLatch = new CountDownLatch(1);
 
         monitorThread = new Thread(() -> {
             try {
@@ -102,6 +116,7 @@ class IndexesMonitor {
                             });
 
                         this.setIndexes(indexes);
+                        initialFetchLatch.countDown();
                         Thread.sleep(frequency.toMillis());
                     }
                     catch (InterruptedException ie) {
@@ -110,6 +125,7 @@ class IndexesMonitor {
                     }
                     catch (Throwable th) {
                         Log.error("Error updating index information: " + th.getMessage());
+                        initialFetchLatch.countDown();
                         try {
                             Thread.sleep(frequency.toMillis());
                         }
@@ -125,6 +141,13 @@ class IndexesMonitor {
         }, "indexMonitorThread");
         monitorThread.setDaemon(true);
         monitorThread.start();
+
+        try {
+            return initialFetchLatch.await(1, TimeUnit.SECONDS);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return false;
+        }
     }
 
     /**

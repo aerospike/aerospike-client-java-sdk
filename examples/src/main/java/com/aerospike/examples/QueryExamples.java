@@ -25,6 +25,7 @@ import com.aerospike.client.fluent.Session;
 import com.aerospike.client.fluent.TypeSafeDataSet;
 import com.aerospike.client.fluent.Value;
 import com.aerospike.client.fluent.cdt.MapOrder;
+import com.aerospike.client.fluent.command.Txn;
 import com.aerospike.client.fluent.dsl.Dsl;
 import com.aerospike.client.fluent.info.classes.NamespaceDetail;
 import com.aerospike.client.fluent.info.classes.Sindex;
