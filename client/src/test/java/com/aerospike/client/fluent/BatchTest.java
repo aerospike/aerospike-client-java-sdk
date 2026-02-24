@@ -179,12 +179,13 @@ public class BatchTest extends ClusterTest {
 
     public void batchReadComplex() {
         session
-            .update(args.set.id(KeyPrefix+7))
-                .bin("name").setTo("Tim")
-
             .query(args.set.id(KeyPrefix + 1))
-//                .readingOnlyBins(BinName)
+                .readingOnlyBins(BinName)
             .query(args.set.id(KeyPrefix + 2))
+            .query(args.set.id(KeyPrefix + 3))
+            	.withNoBins()
+            .query(args.set.id(KeyPrefix + 4))
+            .query(args.set.id(KeyPrefix + 5))
             .execute();
     }
 /* TODO How query multiple keys each with different ops.

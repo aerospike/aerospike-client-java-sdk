@@ -16,7 +16,20 @@
  */
 package com.aerospike.client.fluent;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.util.List;
+
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
+import com.aerospike.client.fluent.exp.Exp;
+import com.aerospike.client.fluent.exp.Expression;
 
 public class ExpOperationTest extends ClusterTest {
 	String binA = "A";
@@ -45,105 +58,132 @@ public class ExpOperationTest extends ClusterTest {
 	        .execute();
 	}
 
-/* TODO Need query method that accepts read ops.
 	@Test
 	public void expReadEvalError() {
-		Expression exp = Exp.build(Exp.add(Exp.intBin(binA), Exp.val(4)));
+		String dsl = "$.A + 4";
 
-		Record record = client.operate(null, keyA, ExpOperation.read(expVar, exp, ExpReadFlags.DEFAULT));
-		assertRecordFound(keyA, record);
-		//System.out.println(record);
+        RecordStream rs = session.query(args.set.id(keyA))
+        	.bin(expVar).selectFrom(dsl)
+        	.execute();
 
-		AerospikeException ae = assertThrows(AerospikeException.class, new ThrowingRunnable() {
-			public void run() {
-				// Bin AString doesn't exist on keyB.
-				client.operate(null, keyB, ExpOperation.read(expVar, exp, ExpReadFlags.DEFAULT));
-			}
+        assertTrue(rs.hasNext());
+        Record rec = rs.next().recordOrThrow();
+        int val = rec.getInt(expVar);
+		assertEquals(5, val);
+
+		AerospikeException ae = assertThrows(AerospikeException.class, () -> {
+			// binA doesn't exist on keyB.
+	        RecordStream rs2 = session.query(args.set.id(keyB))
+            	.bin(expVar).selectFrom(dsl)
+            	.execute();
+
+	        assertTrue(rs2.hasNext());
+	        rs2.next().recordOrThrow();
 		});
 
 		assertEquals(ResultCode.OP_NOT_APPLICABLE, ae.getResultCode());
 
 		// Try NO_FAIL.
-		record = client.operate(null, keyB, ExpOperation.read(expVar, exp, ExpReadFlags.EVAL_NO_FAIL));
-		assertRecordFound(keyB, record);
-		//System.out.println(record);
-	}
-*/
+        rs = session.query(args.set.id(keyB))
+        	.bin(expVar).selectFrom(dsl, arg -> arg.ignoreEvalFailure())
+        	.execute();
 
-/* TODO Support ExpOperation operations
+		assertTrue(rs.hasNext());
+        rec = rs.next().recordOrThrow();
+        Object obj = rec.getValue(expVar);
+		assertNull(obj);
+	}
+
 	@Test
 	public void expReadOnWriteEvalError() {
-		Expression wexp = Exp.build(Exp.intBin(binD));
-		Expression rexp = Exp.build(Exp.intBin(binA));
+		String wdsl = "$.D";
+		String rdsl = "$.A";
 
-        session.upsert(args.set.id(keyA))
-        .bin(binD).add(0)
-        	.ops()
-	        .bin(binA).setTo(1)
-	        .bin(binD).setTo(2)
+		RecordStream rs = session.update(args.set.id(keyA))
+        	.bin(binD).upsertFrom(wdsl)
+	        .bin(expVar).selectFrom(rdsl)
 	        .execute();
 
-		Record record = client.operate(null, keyA,
-			ExpOperation.write(binD, wexp, ExpWriteFlags.DEFAULT),
-			ExpOperation.read(expVar, rexp, ExpReadFlags.DEFAULT)
-			);
+        assertTrue(rs.hasNext());
+        Record rec = rs.next().recordOrThrow();
+        int val = rec.getInt(expVar);
+		assertEquals(1, val);
 
-		assertRecordFound(keyA, record);
-		//System.out.println(record);
+		AerospikeException ae = assertThrows(AerospikeException.class, () -> {
+			RecordStream rs2 = session.update(args.set.id(keyB))
+	        	.bin(binD).upsertFrom(wdsl)
+		        .bin(expVar).selectFrom(rdsl)
+		        .execute();
 
-		AerospikeException ae = assertThrows(AerospikeException.class, new ThrowingRunnable() {
-			public void run() {
-				client.operate(null, keyB,
-					ExpOperation.write(binD, wexp, ExpWriteFlags.DEFAULT),
-					ExpOperation.read(expVar, rexp, ExpReadFlags.DEFAULT)
-					);
-			}
+	        assertTrue(rs2.hasNext());
+	        rs2.next().recordOrThrow();
 		});
 
 		assertEquals(ResultCode.OP_NOT_APPLICABLE, ae.getResultCode());
 
-		// Add NO_FAIL.
-		record = client.operate(null, keyB, ExpOperation.read(expVar, rexp, ExpReadFlags.EVAL_NO_FAIL));
-		assertRecordFound(keyB, record);
-		//System.out.println(record);
+		// Try NO_FAIL.
+		rs = session.update(args.set.id(keyB))
+	        .bin(expVar).selectFrom(rdsl, arg -> arg.ignoreEvalFailure())
+	        .execute();
+
+		assertTrue(rs.hasNext());
+        rec = rs.next().recordOrThrow();
+        Object obj = rec.getValue(expVar);
+		assertNull(obj);
 	}
 
 	@Test
 	public void expWriteEvalError() {
-		Expression wexp = Exp.build(Exp.add(Exp.intBin(binA), Exp.val(4)));
-		Expression rexp = Exp.build(Exp.intBin(binC));
+		String wdsl = "$.A + 4";
+		String rdsl = "$.C + 1";
 
-		Record record = client.operate(null, keyA,
-			ExpOperation.write(binC, wexp, ExpReadFlags.DEFAULT),
-			ExpOperation.read(expVar, rexp, ExpReadFlags.DEFAULT)
-			);
+		RecordStream rs = session.update(args.set.id(keyA))
+        	.bin(binC).upsertFrom(wdsl)
+	        .bin(expVar).selectFrom(rdsl)
+	        .execute();
 
-		assertRecordFound(keyA, record);
-		//System.out.println(record);
+        assertTrue(rs.hasNext());
+        Record rec = rs.next().recordOrThrow();
+        int val = rec.getInt(expVar);
+		assertEquals(6, val);
 
-		AerospikeException ae = assertThrows(AerospikeException.class, new ThrowingRunnable() {
-			public void run() {
-				client.operate(null, keyB,
-					ExpOperation.write(binC, wexp, ExpWriteFlags.DEFAULT),
-					ExpOperation.read(expVar, rexp, ExpReadFlags.DEFAULT)
-					);
-			}
+		AerospikeException ae = assertThrows(AerospikeException.class, () -> {
+			RecordStream rs2 = session.update(args.set.id(keyB))
+	        	.bin(binC).upsertFrom(wdsl)
+		        .bin(expVar).selectFrom(rdsl)
+		        .execute();
+
+	        assertTrue(rs2.hasNext());
+	        rs2.next().recordOrThrow();
 		});
 
 		assertEquals(ResultCode.OP_NOT_APPLICABLE, ae.getResultCode());
 
-		// Add NO_FAIL.
-		record = client.operate(null, keyB,
-			ExpOperation.write(binC, wexp, ExpWriteFlags.EVAL_NO_FAIL),
-			ExpOperation.read(expVar, rexp, ExpReadFlags.EVAL_NO_FAIL)
-			);
-		assertRecordFound(keyB, record);
-		//System.out.println(record);
+		// Try NO_FAIL.
+		rs = session.update(args.set.id(keyB))
+	        .bin(binC).upsertFrom(wdsl, arg -> arg.ignoreEvalFailure())
+	        .bin(expVar).selectFrom(rdsl, arg -> arg.ignoreEvalFailure())
+	        .execute();
+
+		assertTrue(rs.hasNext());
+        rec = rs.next().recordOrThrow();
+        Object obj = rec.getValue(expVar);
+		assertNull(obj);
 	}
 
 	@Test
 	public void expWritePolicyError() {
-		Expression wexp = Exp.build(Exp.add(Exp.intBin(binA), Exp.val(4)));
+		/* TODO Wait until ExpWriteFlags.UPDATE_ONLY is supported.
+		Expression wdsl = Exp.build(Exp.add(Exp.intBin(binA), Exp.val(4)));
+
+		AerospikeException ae = assertThrows(AerospikeException.class, () -> {
+			RecordStream rs = session.update(args.set.id(keyA))
+	        	.bin(binC).upsertFrom(wdsl)
+		        .execute();
+
+	        assertTrue(rs2.hasNext());
+	        rs2.next().recordOrThrow();
+		});
 
 		AerospikeException ae = assertThrows(AerospikeException.class, new ThrowingRunnable() {
 			public void run() {
@@ -208,35 +248,39 @@ public class ExpOperationTest extends ClusterTest {
 			ExpOperation.write(binC, wexp, ExpWriteFlags.CREATE_ONLY)
 			);
 		assertRecordFound(keyA, record);
+		*/
 	}
 
 	@Test
 	public void expReturnsUnknown() {
-		Expression exp = Exp.build(
+		// TODO: Convert from Expression to DSL String.
+		Expression dsl = Exp.build(
 			Exp.cond(
 				Exp.eq(Exp.intBin(binC), Exp.val(5)), Exp.unknown(),
 				Exp.binExists(binA), Exp.val(5),
 				Exp.unknown()));
 
-		AerospikeException ae = assertThrows(AerospikeException.class, new ThrowingRunnable() {
-			public void run() {
-				client.operate(null, keyA,
-					ExpOperation.write(binC, exp, ExpWriteFlags.DEFAULT),
-					Operation.get(binC)
-					);			}
+		AerospikeException ae = assertThrows(AerospikeException.class, () -> {
+			RecordStream rs = session.update(args.set.id(keyA))
+	        	.bin(binC).upsertFrom(dsl)
+	        	.bin(binC).get()
+		        .execute();
+
+	        assertTrue(rs.hasNext());
+	        rs.next().recordOrThrow();
 		});
 
 		assertEquals(ResultCode.OP_NOT_APPLICABLE, ae.getResultCode());
 
-		Record record = client.operate(null, keyA,
-			ExpOperation.write(binC, exp, ExpWriteFlags.EVAL_NO_FAIL),
-			Operation.get(binC)
-			);
+		RecordStream rs = session.update(args.set.id(keyA))
+        	.bin(binC).upsertFrom(dsl, arg -> arg.ignoreEvalFailure())
+        	.bin(binC).get()
+	        .execute();
 
-		assertRecordFound(keyA, record);
-		//System.out.println(record);
+        assertTrue(rs.hasNext());
+        Record rec = rs.next().recordOrThrow();
 
-		List<?> results = record.getList(binC);
+		List<?> results = rec.getList(binC);
 		Object val = results.get(0);
 		assertEquals(null, val);
 		val = results.get(1);
@@ -245,161 +289,177 @@ public class ExpOperationTest extends ClusterTest {
 
 	@Test
 	public void expReturnsNil() {
-		Expression exp = Exp.build(Exp.nil());
+		// TODO: Convert from Expression to DSL String.
+		Expression dsl = Exp.build(Exp.nil());
 
-		Record record = client.operate(null, keyA,
-			ExpOperation.read(expVar, exp, ExpReadFlags.DEFAULT),
-			Operation.get(binC)
-			);
+		RecordStream rs = session.query(args.set.id(keyA))
+        	.bin(expVar).selectFrom(dsl)
+        	.bin(binC).get()
+        	.execute();
 
-		assertRecordFound(keyA, record);
-		//System.out.println(record);
-
-		Object val = record.getValue(expVar);
+        assertTrue(rs.hasNext());
+        Record rec = rs.next().recordOrThrow();
+		Object val = rec.getValue(expVar);
 		assertEquals(null, val);
 	}
 
 	@Test
 	public void expReturnsInt() {
-		Expression exp = Exp.build(Exp.add(Exp.intBin(binA), Exp.val(4)));
+		String dsl = "$.A + 4";
 
-		Record record = client.operate(null, keyA,
-			ExpOperation.write(binC, exp, ExpWriteFlags.DEFAULT),
-			Operation.get(binC),
-			ExpOperation.read(expVar, exp, ExpReadFlags.DEFAULT)
-			);
+		RecordStream rs = session.update(args.set.id(keyA))
+        	.bin(binC).upsertFrom(dsl)
+        	.bin(binC).get()
+	        .bin(expVar).selectFrom(dsl)
+	        .execute();
 
-		assertRecordFound(keyA, record);
-		//System.out.println(record);
-
-		List<?> results = record.getList(binC);
-		long val = (Long)results.get(1);
+        assertTrue(rs.hasNext());
+        Record rec = rs.next().recordOrThrow();
+		List<?> results = rec.getList(binC);
+		Object obj = results.get(0);
+		assertEquals(null, obj);
+		int val = (int)(long)results.get(1);
+		assertEquals(5, val);
+		val = rec.getInt(expVar);
 		assertEquals(5, val);
 
-		val = record.getLong(expVar);
-		assertEquals(5, val);
+        rs = session.query(args.set.id(keyA))
+        	.bin(expVar).selectFrom(dsl)
+        	.execute();
 
-		record = client.operate(null, keyA,
-			ExpOperation.read(expVar, exp, ExpReadFlags.DEFAULT)
-			);
-
-		val = record.getLong(expVar);
+        assertTrue(rs.hasNext());
+        rec = rs.next().recordOrThrow();
+		val = rec.getInt(expVar);
 		assertEquals(5, val);
 	}
 
 	@Test
 	public void expReturnsFloat() {
-		Expression exp = Exp.build(Exp.add(Exp.toFloat(Exp.intBin(binA)), Exp.val(4.0)));
+		// TODO: Convert from Expression to DSL String.
+		Expression dsl = Exp.build(Exp.add(Exp.toFloat(Exp.intBin(binA)), Exp.val(4.0)));
+		//String dsl = "$.A + 4.0";
 
-		Record record = client.operate(null, keyA,
-			ExpOperation.write(binC, exp, ExpWriteFlags.DEFAULT),
-			Operation.get(binC),
-			ExpOperation.read(expVar, exp, ExpReadFlags.DEFAULT)
-			);
+		RecordStream rs = session.update(args.set.id(keyA))
+        	.bin(binC).upsertFrom(dsl)
+        	.bin(binC).get()
+	        .bin(expVar).selectFrom(dsl)
+	        .execute();
 
-		assertRecordFound(keyA, record);
-		//System.out.println(record);
-
-		List<?> results = record.getList(binC);
+        assertTrue(rs.hasNext());
+        Record rec = rs.next().recordOrThrow();
+		List<?> results = rec.getList(binC);
 		double val = (Double)results.get(1);
 		double delta = 0.000001;
 		assertEquals(5.0, val, delta);
 
-		val = record.getDouble(expVar);
+		val = rec.getDouble(expVar);
 		assertEquals(5.0, val, delta);
 
-		record = client.operate(null, keyA,
-			ExpOperation.read(expVar, exp, ExpReadFlags.DEFAULT)
-			);
+        rs = session.query(args.set.id(keyA))
+        	.bin(expVar).selectFrom(dsl)
+        	.execute();
 
-		val = record.getDouble(expVar);
+        assertTrue(rs.hasNext());
+        rec = rs.next().recordOrThrow();
+		val = rec.getDouble(expVar);
 		assertEquals(5.0, val, delta);
 	}
 
 	@Test
 	public void expReturnsString() {
+		// TODO: Convert from Expression to DSL String.
 		String str = "xxx";
-		Expression exp = Exp.build(Exp.val(str));
+		Expression dsl = Exp.build(Exp.val(str));
+		//String dsl = str;
 
-		Record record = client.operate(null, keyA,
-			ExpOperation.write(binC, exp, ExpWriteFlags.DEFAULT),
-			Operation.get(binC),
-			ExpOperation.read(expVar, exp, ExpReadFlags.DEFAULT)
-			);
+		RecordStream rs = session.update(args.set.id(keyA))
+        	.bin(binC).upsertFrom(dsl)
+        	.bin(binC).get()
+	        .bin(expVar).selectFrom(dsl)
+	        .execute();
 
-		assertRecordFound(keyA, record);
-		//System.out.println(record);
-
-		List<?> results = record.getList(binC);
+        assertTrue(rs.hasNext());
+        Record rec = rs.next().recordOrThrow();
+		List<?> results = rec.getList(binC);
 		String val = (String)results.get(1);
 		assertEquals(str, val);
 
-		val = record.getString(expVar);
+		val = rec.getString(expVar);
 		assertEquals(str, val);
 
-		record = client.operate(null, keyA,
-			ExpOperation.read(expVar, exp, ExpReadFlags.DEFAULT)
-			);
+        rs = session.query(args.set.id(keyA))
+        	.bin(expVar).selectFrom(dsl)
+        	.execute();
 
-		val = record.getString(expVar);
+        assertTrue(rs.hasNext());
+        rec = rs.next().recordOrThrow();
+		val = rec.getString(expVar);
 		assertEquals(str, val);
 	}
 
 	@Test
 	public void expReturnsBlob() {
+		// TODO: Convert from Expression to DSL String.
 		byte[] bytes = new byte[] {0x78, 0x78, 0x78};
-		Expression exp = Exp.build(Exp.val(bytes));
+		Expression dsl = Exp.build(Exp.val(bytes));
 
-		Record record = client.operate(null, keyA,
-			ExpOperation.write(binC, exp, ExpWriteFlags.DEFAULT),
-			Operation.get(binC),
-			ExpOperation.read(expVar, exp, ExpReadFlags.DEFAULT)
-			);
+		RecordStream rs = session.update(args.set.id(keyA))
+        	.bin(binC).upsertFrom(dsl)
+        	.bin(binC).get()
+	        .bin(expVar).selectFrom(dsl)
+	        .execute();
 
-		assertRecordFound(keyA, record);
-		//System.out.println(record);
-
-		List<?> results = record.getList(binC);
+        assertTrue(rs.hasNext());
+        Record rec = rs.next().recordOrThrow();
+		List<?> results = rec.getList(binC);
 		byte[] val = (byte[])results.get(1);
 		String resultString = "bytes not equal";
-		assertArrayEquals(resultString, bytes, val);
+		assertArrayEquals(bytes, val, resultString);
 
-		val = (byte[])record.getValue(expVar);
-		assertArrayEquals(resultString, bytes, val);
+		val = (byte[])rec.getValue(expVar);
+		assertArrayEquals(bytes, val, resultString);
 
-		record = client.operate(null, keyA,
-			ExpOperation.read(expVar, exp, ExpReadFlags.DEFAULT)
-			);
+        rs = session.query(args.set.id(keyA))
+        	.bin(expVar).selectFrom(dsl)
+        	.execute();
 
-		val = (byte[])record.getValue(expVar);
-		assertArrayEquals(resultString, bytes, val);
+        assertTrue(rs.hasNext());
+        rec = rs.next().recordOrThrow();
+        val = (byte[])rec.getValue(expVar);
+		assertArrayEquals(bytes, val, resultString);
 	}
 
 	@Test
 	public void expReturnsBoolean() {
-		Expression exp = Exp.build(
-			Exp.eq(Exp.intBin(binA), Exp.val(1)));
+		String dsl = "$.A == 1";
 
-		Record record = client.operate(null, keyA,
-			ExpOperation.write(binC, exp, ExpWriteFlags.DEFAULT),
-			Operation.get(binC),
-			ExpOperation.read(expVar, exp, ExpReadFlags.DEFAULT)
-			);
+		RecordStream rs = session.update(args.set.id(keyA))
+        	.bin(binC).upsertFrom(dsl)
+        	.bin(binC).get()
+	        .bin(expVar).selectFrom(dsl)
+	        .execute();
 
-		assertRecordFound(keyA, record);
-		//System.out.println(record);
-
-		List<?> results = record.getList(binC);
+        assertTrue(rs.hasNext());
+        Record rec = rs.next().recordOrThrow();
+		List<?> results = rec.getList(binC);
 		boolean val = (Boolean)results.get(1);
 		assertTrue(val);
 
-		val = record.getBoolean(expVar);
+		val = rec.getBoolean(expVar);
 		assertTrue(val);
 	}
 
 	@Test
 	public void expReturnsHLL() {
-		Expression exp = Exp.build(HLLExp.init(HLLPolicy.Default, Exp.val(4), Exp.nil()));
+		// TODO: Support HLL.
+		/*
+		Expression dsl = Exp.build(HLLExp.init(HLLPolicy.Default, Exp.val(4), Exp.nil()));
+
+		RecordStream rs = session.update(args.set.id(keyA))
+        	.bin(binC).upsertFrom(dsl)
+        	.bin(binC).get()
+	        .bin(expVar).selectFrom(dsl)
+	        .execute();
 
 		Record record = client.operate(null, keyA,
 			HLLOperation.init(HLLPolicy.Default, binH, 4),
@@ -430,26 +490,28 @@ public class ExpOperationTest extends ClusterTest {
 
 		valExp = record.getHLLValue(expVar);
 		assertArrayEquals(resultString, valH.getBytes(), valExp.getBytes());
+		*/
 	}
 
 	@Test
-	public void expMerge()
-	{
+	public void expMerge() {
+		// TODO: Convert from Expression to DSL String.
 		Expression e = Exp.build(Exp.eq(Exp.intBin(binA), Exp.val(0)));
 		Expression eand = Exp.build(Exp.and(Exp.expr(e), Exp.eq(Exp.intBin(binD), Exp.val(2))));
 		Expression eor = Exp.build(Exp.or(Exp.expr(e), Exp.eq(Exp.intBin(binD), Exp.val(2))));
 
-		Record record = client.operate(null, keyA,
-			ExpOperation.read("res1", eand, ExpReadFlags.DEFAULT),
-			ExpOperation.read("res2", eor, ExpReadFlags.DEFAULT));
+		RecordStream rs = session.query(args.set.id(keyA))
+	        .bin("res1").selectFrom(eand)
+	        .bin("res2").selectFrom(eor)
+	        .execute();
 
-		assertRecordFound(keyA, record);
+        assertTrue(rs.hasNext());
+        Record rec = rs.next().recordOrThrow();
 
-		boolean res1 = record.getBoolean("res1");
+		boolean res1 = rec.getBoolean("res1");
 		assertFalse(res1);
 
-		boolean res2 = record.getBoolean("res2");
+		boolean res2 = rec.getBoolean("res2");
 		assertTrue(res2);
 	}
-	*/
 }
