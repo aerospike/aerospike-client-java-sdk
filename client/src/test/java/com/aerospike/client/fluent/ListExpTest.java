@@ -16,11 +16,17 @@
  */
 package com.aerospike.client.fluent;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
 import java.util.ArrayList;
 import java.util.List;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+
+import com.aerospike.client.fluent.exp.Exp;
+import com.aerospike.client.fluent.exp.Expression;
 
 public class ListExpTest extends ClusterTest {
 	String binA = "A";
@@ -118,7 +124,6 @@ public class ListExpTest extends ClusterTest {
 		*/
 	}
 
-/* TODO Implement this test when read/write Expressions are supported.
 	@Test
 	public void expReturnsList() {
 		List<Value> list = new ArrayList<Value>();
@@ -129,28 +134,22 @@ public class ListExpTest extends ClusterTest {
 
 		Expression exp = Exp.build(Exp.val(list));
 
-        session.upsert(keyA)
-	        .bin(binA).listAppend(listA)
-	        .bin(binB).listAppend(listB)
-	        .bin(binC).setTo("M")
+		RecordStream rs = session.upsert(keyA)
+        	.bin(binC).upsertFrom(exp)
+        	.bin(binC).get()
+	        .bin("var").selectFrom(exp)
 	        .execute();
 
-        Record record = client.operate(null, keyA,
-			ExpOperation.write(binC, exp, ExpWriteFlags.DEFAULT),
-			Operation.get(binC),
-			ExpOperation.read("var", exp, ExpReadFlags.DEFAULT)
-			);
+        assertTrue(rs.hasNext());
+        Record rec = rs.next().recordOrThrow();
 
-		//System.out.println(record);
-
-		List<?> results = record.getList(binC);
+		List<?> results = rec.getList(binC);
 		assertEquals(2, results.size());
 
 		List<?> rlist = (List<?>)results.get(1);
 		assertEquals(4, rlist.size());
 
-		List<?> results2 = record.getList("var");
+		List<?> results2 = rec.getList("var");
 		assertEquals(4, results2.size());
 	}
-*/
 }

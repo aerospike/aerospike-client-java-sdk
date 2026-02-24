@@ -16,15 +16,19 @@
  */
 package com.aerospike.client.fluent;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.HashMap;
 import java.util.Map;
 import java.util.TreeMap;
 
 import org.junit.jupiter.api.Test;
 
+import com.aerospike.client.fluent.cdt.MapReturnType;
 import com.aerospike.client.fluent.exp.Exp;
 import com.aerospike.client.fluent.exp.Expression;
+import com.aerospike.client.fluent.exp.MapExp;
 
 public class MapExpTest extends ClusterTest {
 	@Test
@@ -59,7 +63,6 @@ public class MapExpTest extends ClusterTest {
 		assertTrue(m instanceof TreeMap);
 	}
 
-/* TODO Implement test when read expressions are available.
 	@Test
 	public void invertedMapExp() {
 		HashMap<String,Integer> map = new HashMap<>();
@@ -80,13 +83,15 @@ public class MapExpTest extends ClusterTest {
 		Expression e = Exp.build(
 			MapExp.removeByValue(MapReturnType.INVERTED, Exp.val(2), Exp.mapBin(binName)));
 
-		Record rec = client.operate(null, key, ExpOperation.read(bin.name, e, ExpReadFlags.DEFAULT));
-		assertRecordFound(key, rec);
+		RecordStream rs = session.query(key)
+	        .bin(binName).selectFrom(e)
+	        .execute();
 
-		Map<?,?> m = rec.getMap(bin.name);
+        assertTrue(rs.hasNext());
+        Record rec = rs.next().recordOrThrow();
+		Map<?,?> m = rec.getMap(binName);
 		assertEquals(2L, m.size());
 		assertEquals(2L, m.get("b"));
 		assertEquals(2L, m.get("c"));
 	}
-*/
 }
