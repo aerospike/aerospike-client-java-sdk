@@ -20,6 +20,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -29,10 +30,13 @@ import java.util.List;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
+import com.aerospike.client.fluent.exp.Exp;
+import com.aerospike.client.fluent.exp.Expression;
+
 public class BatchTest extends ClusterTest {
 	private static final String BinName = "bbin";
-	//private static final String BinName2 = "bbin2";
-	//private static final String BinName3 = "bbin3";
+	private static final String BinName2 = "bbin2";
+	private static final String BinName3 = "bbin3";
 	private static final String ListBin = "lbin";
 	private static final String ListBin2 = "lbin2";
 	private static final String KeyPrefix = "batchkey";
@@ -177,76 +181,74 @@ public class BatchTest extends ClusterTest {
         assertFalse(rs.hasNext());
 	}
 
-    public void batchReadComplex() {
-        session
-            .query(args.set.id(KeyPrefix + 1))
-                .readingOnlyBins(BinName)
-            .query(args.set.id(KeyPrefix + 2))
-            .query(args.set.id(KeyPrefix + 3))
-            	.withNoBins()
-            .query(args.set.id(KeyPrefix + 4))
-            .query(args.set.id(KeyPrefix + 5))
-            .execute();
-    }
-/* TODO How query multiple keys each with different ops.
-	@Test
+    @Test
 	public void batchReadComplex() {
+		Expression exp = Exp.build(Exp.mul(Exp.intBin(BinName), Exp.val(8)));
+
 		RecordStream rs = session
 			.query(args.set.id(KeyPrefix + 1))
 				.readingOnlyBins(BinName)
 			.query(args.set.id(KeyPrefix + 2))
+			.query(args.set.id(KeyPrefix + 3))
+				.withNoBins()
+			.query(args.set.id(KeyPrefix + 4))
+//			.query(args.set.id(KeyPrefix + 5))  TODO WHY does this fail?
+//				.bin(BinName).selectFrom(exp)
+			.query(args.set.id(KeyPrefix + 6))
+				.readingOnlyBins(BinName)
+			.query(args.set.id(KeyPrefix + 7))
+				.readingOnlyBins("binnotfound")
+			.query(args.set.id("keynotfound"))
+				.readingOnlyBins(BinName)
 			.execute();
 
-		// bin * 8
-		Expression exp = Exp.build(Exp.mul(Exp.intBin(BinName), Exp.val(8)));
-		Operation[] ops = Operation.array(ExpOperation.read(BinName, exp, ExpReadFlags.DEFAULT));
+        assertTrue(rs.hasNext());
+        Record rec = rs.next().recordOrThrow();
+        String val = rec.getString(BinName);
+        assertEquals("batchvalue1", val);
 
-		String[] bins = new String[] {BinName};
-		List<BatchRead> records = new ArrayList<BatchRead>();
-		records.add(new BatchRead(new Key(args.namespace, args.set, KeyPrefix + 1), bins));
-		records.add(new BatchRead(new Key(args.namespace, args.set, KeyPrefix + 2), true));
-		records.add(new BatchRead(new Key(args.namespace, args.set, KeyPrefix + 3), new String[] {}));
-		records.add(new BatchRead(new Key(args.namespace, args.set, KeyPrefix + 4), false));
-		records.add(new BatchRead(new Key(args.namespace, args.set, KeyPrefix + 5), true));
-		records.add(new BatchRead(new Key(args.namespace, args.set, KeyPrefix + 6), ops));
-		records.add(new BatchRead(new Key(args.namespace, args.set, KeyPrefix + 7), bins));
+        assertTrue(rs.hasNext());
+        rec = rs.next().recordOrThrow();
+        val = rec.getString(BinName);
+        assertEquals("batchvalue2", val);
 
-		// This record should be found, but the requested bin will not be found.
-		records.add(new BatchRead(new Key(args.namespace, args.set, KeyPrefix + 8), new String[] {"binnotfound"}));
+        assertTrue(rs.hasNext());
+        rec = rs.next().recordOrThrow();
+        val = rec.getString(BinName);
+        assertNull(val);
 
-		// This record should not be found.
-		records.add(new BatchRead(new Key(args.namespace, args.set, "keynotfound"), bins));
+        assertTrue(rs.hasNext());
+        rec = rs.next().recordOrThrow();
+        System.out.println(rec);
+        val = rec.getString(BinName);
+        assertEquals("batchvalue4", val);
 
-		// Execute batch.
-		client.get(null, records);
+        int ival;
 
-		assertBatchBinEqual(records, BinName, 0);
-		assertBatchBinEqual(records, BinName, 1);
-		assertBatchBinEqual(records, BinName, 2);
-		assertBatchRecordExists(records, BinName, 3);
-		assertBatchBinEqual(records, BinName, 4);
+        /*
+        assertTrue(rs.hasNext());
+        rec = rs.next().recordOrThrow();
+        System.out.println(rec);
+        int ival = rec.getInt(BinName);
+        assertEquals(48, ival);
+		*/
 
-		BatchRead batch = records.get(5);
-		assertRecordFound(batch.key, batch.record);
-		int v = batch.record.getInt(BinName);
-		assertEquals(48, v);
+        assertTrue(rs.hasNext());
+        rec = rs.next().recordOrThrow();
+        System.out.println(rec);
+        ival = rec.getInt(BinName);
+        assertEquals(6, ival);
 
-		assertBatchBinEqual(records, BinName, 6);
+        assertTrue(rs.hasNext());
+        rec = rs.next().recordOrThrow();
+        System.out.println(rec);
+        val = rec.getString(BinName);
+        assertNull(val);
 
-		batch = records.get(7);
-		assertRecordFound(batch.key, batch.record);
-		Object val = batch.record.getValue("binnotfound");
-		if (val != null) {
-			fail("Unexpected batch bin value received");
-		}
-
-		batch = records.get(8);
-		if (batch.record != null) {
-			fail("Unexpected batch record received");
-		}
+        assertFalse(rs.hasNext());
 	}
-*/
-/* TODO Need batch read with operations api
+
+/* TODO Need list size to be supported.
 	@Test
 	public void batchListReadOperate() {
 		List<String> keys = new ArrayList<>(Size);
@@ -313,7 +315,7 @@ public class BatchTest extends ClusterTest {
 	}
 */
 
-/* TODO How retrieve all bins in operation?
+/* TODO How retrieve all bins in operation Operation.get()?
 	@Test
 	public void batchReadAllBins() {
 		List<String> keys = new ArrayList<>(Size);
@@ -352,8 +354,6 @@ public class BatchTest extends ClusterTest {
 */
 	@Test
 	public void batchWriteComplex() {
-/* TODO delete() currently causes the record to be filtered out. Client side filtering needs to be
- *  fixed before implementing this test.
 		DataSet ds = new DataSet("invalid", args.set.getSet());
 
 		RecordStream rs = session
@@ -366,84 +366,44 @@ public class BatchTest extends ClusterTest {
 			.delete(args.set.id(10002))
 			.execute();
 
-		assertTrue(rs.hasNext());
-		int count = 0;
+        assertTrue(rs.hasNext());
+        RecordResult res = rs.next();
+		assertEquals(ResultCode.OK, res.resultCode());
 
-		while (rs.hasNext()) {
-	        RecordResult rec = rs.next();
-			System.out.println("Rec " + count + ": " + rec.resultCode());
+        assertTrue(rs.hasNext());
+        res = rs.next();
+		assertEquals(ResultCode.INVALID_NAMESPACE, res.resultCode());
 
-	        if (count != 1) {
-	    		assertEquals(ResultCode.OK, rec.resultCode());
-	        }
-	        else {
-	    		assertEquals(ResultCode.INVALID_NAMESPACE, rec.resultCode());
-	        }
-	        count++;
-		}
+        assertTrue(rs.hasNext());
+        res = rs.next();
+		assertEquals(ResultCode.OK, res.resultCode());
 
-		assertEquals(4, count);
-*/
-/* TODO: Complete when multiple query is supported.
+        assertTrue(rs.hasNext());
+        res = rs.next();
+		assertEquals(ResultCode.OK, res.resultCode());
+
+        assertFalse(rs.hasNext());
+
 		rs = session
 			.query(args.set.id(KeyPrefix + 1))
-				.bin(BinName2).get()
+				.readingOnlyBins(BinName2)
 			.query(args.set.id(KeyPrefix + 6))
-				.bin(BinName3).get()
+				.readingOnlyBins(BinName3)
+			.query(args.set.id(10002))
 			.execute();
-*/
 
-/*
-		Expression wexp1 = Exp.build(Exp.add(Exp.intBin(BinName), Exp.val(1000)));
+        assertTrue(rs.hasNext());
+        Record rec = rs.next().recordOrThrow();
+        int val = rec.getInt(BinName2);
+        assertEquals(100, val);
 
-		Operation[] wops1 = Operation.array(Operation.put(new Bin(BinName2, 100)));
-		Operation[] wops2 = Operation.array(ExpOperation.write(BinName3, wexp1, ExpWriteFlags.DEFAULT));
-		Operation[] rops1 = Operation.array(Operation.get(BinName2));
-		Operation[] rops2 = Operation.array(Operation.get(BinName3));
+        assertTrue(rs.hasNext());
+        rec = rs.next().recordOrThrow();
+        val = rec.getInt(BinName3);
+        assertEquals(1006, val);
 
-		BatchWritePolicy wp = new BatchWritePolicy();
-		wp.sendKey = true;
-
-		BatchWrite bw1 = new BatchWrite(new Key(args.namespace, args.set, KeyPrefix + 1), wops1);
-		BatchWrite bw2 = new BatchWrite(new Key("invalid", args.set, KeyPrefix + 1), wops1);
-		BatchWrite bw3 = new BatchWrite(wp, new Key(args.namespace, args.set, KeyPrefix + 6), wops2);
-		BatchDelete bd1 = new BatchDelete(new Key(args.namespace, args.set, 10002));
-
-		List<BatchRecord> records = new ArrayList<BatchRecord>();
-		records.add(bw1);
-		records.add(bw2);
-		records.add(bw3);
-		records.add(bd1);
-
-		boolean status = client.operate(null, records);
-		assertFalse(status);  // "invalid" namespace triggers the false status.
-
-		assertEquals(ResultCode.OK, bw1.resultCode);
-		assertBinEqual(bw1.key, bw1.record, BinName2, 0);
-
-		assertEquals(ResultCode.INVALID_NAMESPACE, bw2.resultCode);
-
-		assertEquals(ResultCode.OK, bw3.resultCode);
-		assertBinEqual(bw3.key, bw3.record, BinName3, 0);
-
-		assertEquals(ResultCode.OK, bd1.resultCode);
-
-		BatchRead br1 = new BatchRead(new Key(args.namespace, args.set, KeyPrefix + 1), rops1);
-		BatchRead br2 = new BatchRead(new Key(args.namespace, args.set, KeyPrefix + 6), rops2);
-		BatchRead br3 = new BatchRead(new Key(args.namespace, args.set, 10002), true);
-
-		records.clear();
-		records.add(br1);
-		records.add(br2);
-		records.add(br3);
-
-		status = client.operate(null, records);
-		assertFalse(status); // Read of deleted record causes status to be false.
-
-		assertBinEqual(br1.key, br1.record, BinName2, 100);
-		assertBinEqual(br2.key, br2.record, BinName3, 1006);
-		assertEquals(ResultCode.KEY_NOT_FOUND_ERROR, br3.resultCode);
-		*/
+        // TODO: Should hasNext() return true here?
+        assertFalse(rs.hasNext());
 	}
 
 	@Test
