@@ -288,9 +288,9 @@ public class CompleteYamlConfigExample extends Example {
             Session session = cluster.createSession(behavior);
             String testKey = "test-" + behaviorName;
 
-            session.upsert(dataSet.ids(testKey))
+            session.upsert(dataSet)
                 .bins("behavior", "timestamp", "value")
-                .values(behaviorName, System.currentTimeMillis(), 42)
+                .id(testKey).values(behaviorName, System.currentTimeMillis(), 42)
                 .execute();
             console.write("  Write: OK");
 

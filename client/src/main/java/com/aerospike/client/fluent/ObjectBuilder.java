@@ -24,6 +24,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Arrays;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -461,6 +462,232 @@ public class ObjectBuilder<T> {
         Object id = mapper.id(element);
         return this.opBuilder.getDataSet().idForObject(id);
     }
+
+    // ========================================
+    // Chaining methods — bridge to key/bin-based builders
+    // ========================================
+
+    /**
+     * Materialize the current object operation(s) into {@link OperationSpec} entries
+     * so they can be combined with key/bin-based operations in a single batch.
+     * Each object becomes its own OperationSpec because each maps to a distinct key
+     * with distinct bin values.
+     */
+    private List<OperationSpec> materializeToSpecs() {
+        long effectiveExpiration = resolveTtl(expirationInSeconds, defaultExpirationInSeconds);
+        List<OperationSpec> specs = new ArrayList<>(elements.size());
+        for (T element : elements) {
+            RecordMapper<T> mapper = getMapper(element);
+            Key key = getKeyForElement(mapper, element);
+            List<Operation> ops = operationsForElement(mapper, element);
+            OperationSpec spec = new OperationSpec(List.of(key), opBuilder.getOpType());
+            spec.getOperations().addAll(ops);
+            if (generation > 0) {
+                spec.setGeneration(generation);
+            }
+            if (effectiveExpiration != AbstractOperationBuilder.NOT_EXPLICITLY_SET) {
+                spec.setExpirationInSeconds(effectiveExpiration);
+            }
+            specs.add(spec);
+        }
+        return specs;
+    }
+
+    /**
+     * Chain an insert operation on a single key after this object operation.
+     *
+     * @param key the key to insert
+     * @return ChainableOperationBuilder for method chaining
+     */
+    public ChainableOperationBuilder insert(Key key) {
+        List<OperationSpec> specs = materializeToSpecs();
+        return new ChainableOperationBuilder(opBuilder.getSession(), OpType.INSERT, specs, null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, txnToUse)
+                .init(key, OpType.INSERT);
+    }
+
+    /**
+     * Chain an insert operation on multiple keys after this object operation.
+     *
+     * @param keys the keys to insert
+     * @return ChainableOperationBuilder for method chaining
+     */
+    public ChainableOperationBuilder insert(List<Key> keys) {
+        List<OperationSpec> specs = materializeToSpecs();
+        return new ChainableOperationBuilder(opBuilder.getSession(), OpType.INSERT, specs, null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, txnToUse)
+                .init(keys, OpType.INSERT);
+    }
+
+    /**
+     * Chain an update operation on a single key after this object operation.
+     *
+     * @param key the key to update
+     * @return ChainableOperationBuilder for method chaining
+     */
+    public ChainableOperationBuilder update(Key key) {
+        List<OperationSpec> specs = materializeToSpecs();
+        return new ChainableOperationBuilder(opBuilder.getSession(), OpType.UPDATE, specs, null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, txnToUse)
+                .init(key, OpType.UPDATE);
+    }
+
+    /**
+     * Chain an update operation on multiple keys after this object operation.
+     *
+     * @param keys the keys to update
+     * @return ChainableOperationBuilder for method chaining
+     */
+    public ChainableOperationBuilder update(List<Key> keys) {
+        List<OperationSpec> specs = materializeToSpecs();
+        return new ChainableOperationBuilder(opBuilder.getSession(), OpType.UPDATE, specs, null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, txnToUse)
+                .init(keys, OpType.UPDATE);
+    }
+
+    /**
+     * Chain an upsert operation on a single key after this object operation.
+     *
+     * @param key the key to upsert
+     * @return ChainableOperationBuilder for method chaining
+     */
+    public ChainableOperationBuilder upsert(Key key) {
+        List<OperationSpec> specs = materializeToSpecs();
+        return new ChainableOperationBuilder(opBuilder.getSession(), OpType.UPSERT, specs, null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, txnToUse)
+                .init(key, OpType.UPSERT);
+    }
+
+    /**
+     * Chain an upsert operation on multiple keys after this object operation.
+     *
+     * @param keys the keys to upsert
+     * @return ChainableOperationBuilder for method chaining
+     */
+    public ChainableOperationBuilder upsert(List<Key> keys) {
+        List<OperationSpec> specs = materializeToSpecs();
+        return new ChainableOperationBuilder(opBuilder.getSession(), OpType.UPSERT, specs, null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, txnToUse)
+                .init(keys, OpType.UPSERT);
+    }
+
+    /**
+     * Chain a replace operation on a single key after this object operation.
+     *
+     * @param key the key to replace
+     * @return ChainableOperationBuilder for method chaining
+     */
+    public ChainableOperationBuilder replace(Key key) {
+        List<OperationSpec> specs = materializeToSpecs();
+        return new ChainableOperationBuilder(opBuilder.getSession(), OpType.REPLACE, specs, null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, txnToUse)
+                .init(key, OpType.REPLACE);
+    }
+
+    /**
+     * Chain a replace operation on multiple keys after this object operation.
+     *
+     * @param keys the keys to replace
+     * @return ChainableOperationBuilder for method chaining
+     */
+    public ChainableOperationBuilder replace(List<Key> keys) {
+        List<OperationSpec> specs = materializeToSpecs();
+        return new ChainableOperationBuilder(opBuilder.getSession(), OpType.REPLACE, specs, null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, txnToUse)
+                .init(keys, OpType.REPLACE);
+    }
+
+    /**
+     * Chain a delete operation on a single key after this object operation.
+     *
+     * @param key the key to delete
+     * @return ChainableNoBinsBuilder for method chaining
+     */
+    public ChainableNoBinsBuilder delete(Key key) {
+        List<OperationSpec> specs = materializeToSpecs();
+        return new ChainableNoBinsBuilder(opBuilder.getSession(), specs, null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, txnToUse)
+                .initDelete(key);
+    }
+
+    /**
+     * Chain a delete operation on multiple keys after this object operation.
+     *
+     * @param keys the keys to delete
+     * @return ChainableNoBinsBuilder for method chaining
+     */
+    public ChainableNoBinsBuilder delete(List<Key> keys) {
+        List<OperationSpec> specs = materializeToSpecs();
+        return new ChainableNoBinsBuilder(opBuilder.getSession(), specs, null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, txnToUse)
+                .initDelete(keys);
+    }
+
+    /**
+     * Chain an exists check on a single key after this object operation.
+     *
+     * @param key the key to check
+     * @return ChainableNoBinsBuilder for method chaining
+     */
+    public ChainableNoBinsBuilder exists(Key key) {
+        List<OperationSpec> specs = materializeToSpecs();
+        return new ChainableNoBinsBuilder(opBuilder.getSession(), specs, null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, txnToUse)
+                .initExists(key);
+    }
+
+    /**
+     * Chain an exists check on multiple keys after this object operation.
+     *
+     * @param keys the keys to check
+     * @return ChainableNoBinsBuilder for method chaining
+     */
+    public ChainableNoBinsBuilder exists(List<Key> keys) {
+        List<OperationSpec> specs = materializeToSpecs();
+        return new ChainableNoBinsBuilder(opBuilder.getSession(), specs, null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, txnToUse)
+                .initExists(keys);
+    }
+
+    /**
+     * Chain a query (read) operation on a single key after this object operation.
+     *
+     * @param key the key to query
+     * @return ChainableQueryBuilder for method chaining
+     */
+    public ChainableQueryBuilder query(Key key) {
+        List<OperationSpec> specs = materializeToSpecs();
+        return new ChainableQueryBuilder(opBuilder.getSession(), specs, null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, txnToUse)
+                .initQuery(key);
+    }
+
+    /**
+     * Chain a query (read) operation on multiple keys after this object operation.
+     *
+     * @param keys the keys to query
+     * @return ChainableQueryBuilder for method chaining
+     */
+    public ChainableQueryBuilder query(List<Key> keys) {
+        List<OperationSpec> specs = materializeToSpecs();
+        return new ChainableQueryBuilder(opBuilder.getSession(), specs, null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, txnToUse)
+                .initQuery(keys);
+    }
+
+    /**
+     * Chain a UDF execution on a single key after this object operation.
+     *
+     * @param key the key to execute the UDF on
+     * @return UdfFunctionBuilder requiring function specification
+     */
+    public UdfFunctionBuilder executeUdf(Key key) {
+        List<OperationSpec> specs = materializeToSpecs();
+        return new UdfFunctionBuilder(opBuilder.getSession(), List.of(key), specs,
+                null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, txnToUse);
+    }
+
+    /**
+     * Chain a UDF execution on multiple keys after this object operation.
+     *
+     * @param keys the keys to execute the UDF on
+     * @return UdfFunctionBuilder requiring function specification
+     */
+    public UdfFunctionBuilder executeUdf(List<Key> keys) {
+        List<OperationSpec> specs = materializeToSpecs();
+        return new UdfFunctionBuilder(opBuilder.getSession(), keys, specs,
+                null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, txnToUse);
+    }
+
+    // ========================================
+    // Execution
+    // ========================================
 
     /**
      * Execute operations with default behavior (synchronous).

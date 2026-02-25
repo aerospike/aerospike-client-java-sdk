@@ -101,6 +101,28 @@ public class OperationObjectBuilder<T> extends AbstractFilterableBuilder impleme
     }
 
     /**
+     * Specify a set of bin names for the bins/id/values pattern.
+     * Follow this with {@code .id(x).values(...)} pairs to define each record.
+     *
+     * <p>Example usage:</p>
+     * <pre>{@code
+     * session.insert(customerDataSet)
+     *     .bins("name", "age")
+     *     .id(900).values("Tim", 312)
+     *     .id(901).values("Jane", 28)
+     *     .id(902).values("Bob", 54)
+     *     .execute();
+     * }</pre>
+     *
+     * @param binName the first bin name (required)
+     * @param binNames additional bin names
+     * @return IdValuesBuilder for specifying id/values rows
+     */
+    public IdValuesBuilder bins(String binName, String... binNames) {
+        return new IdValuesBuilder(session, dataSet, opType, binName, binNames);
+    }
+
+    /**
      * Gets the dataset associated with this builder.
      *
      * @return the dataset

@@ -75,60 +75,60 @@ public class CommonExample extends Example {
 
         System.out.println("Write 1 record");
 
-        session.upsert(set.ids(10))
+        session.upsert(set)
             .bins("name", "age")
-            .values("Charlie", 11)
+            .id(10).values("Charlie", 11)
             .execute();
 
         System.out.println("Write 1 record async");
 
-        RecordStream rs = session.upsert(set.ids(100))
+        RecordStream rs = session.upsert(set)
             .bins("name", "age")
-            .values("Charlie", 999)
-            .executeAsync();
+            .id(100).values("Charlie", 999)
+            .execute();
 
         //System.out.println(rs.getFirst());
 
         System.out.println("Write 3 records");
 
-        session.upsert(set.ids(1,2,3))
+        session.upsert(set)
             .bins("name", "age")
-            .values("Tim", 312)
-            .values("Bob", 25)
-            .values("Jane", 46)
+            .id(1).values("Tim", 312)
+            .id(2).values("Bob", 25)
+            .id(3).values("Jane", 46)
             .execute();
 
         System.out.println("Write 10 records");
 
-        session.upsert(set.ids(10,11,12,13,14,15,16,17,18,19))
+        session.upsert(set)
             .bins("name", "age")
-            .values("Tim", 312)
-            .values("Bob", 25)
-            .values("Jane", 46)
-            .values("Tim", 200)
-            .values("User1", 201)
-            .values("User2", 202)
-            .values("User3", 203)
-            .values("User4", 204)
-            .values("User5", 205)
-            .values("User6", 206)
+            .id(10).values("Tim", 312)
+            .id(11).values("Bob", 25)
+            .id(12).values("Jane", 46)
+            .id(13).values("Tim", 200)
+            .id(14).values("User1", 201)
+            .id(15).values("User2", 202)
+            .id(16).values("User3", 203)
+            .id(17).values("User4", 204)
+            .id(18).values("User5", 205)
+            .id(19).values("User6", 206)
             .execute();
 
         System.out.println("Write 10 records async");
 
-        rs = session.upsert(set.ids(110,111,112,113,114,115,116,117,118,119))
+        rs = session.upsert(set)
             .bins("name", "age")
-            .values("Tim", 21)
-            .values("Bob", 25)
-            .values("Jane", 46)
-            .values("Tim", 200)
-            .values("User1", 201)
-            .values("User2", 202)
-            .values("User3", 203)
-            .values("User4", 204)
-            .values("User5", 205)
-            .values("User6", 206)
-            .executeAsync();
+            .id(110).values("Tim", 21)
+            .id(111).values("Bob", 25)
+            .id(112).values("Jane", 46)
+            .id(113).values("Tim", 200)
+            .id(114).values("User1", 201)
+            .id(115).values("User2", 202)
+            .id(116).values("User3", 203)
+            .id(117).values("User4", 204)
+            .id(118).values("User5", 205)
+            .id(119).values("User6", 206)
+            .execute();
 
         while (rs.hasNext()) {
             System.out.println(rs.next());
@@ -382,14 +382,14 @@ public class CommonExample extends Example {
         System.out.println("Transaction");
 
         session.doInTransaction(txnSession -> {
-        	txnSession.upsert(set.id(2222))
+        	txnSession.upsert(set)
             .bins("name", "age")
-            .values("Charlie", 33)
+            .id(2222).values("Charlie", 33)
             .execute();
 
-        	txnSession.upsert(set.id(3333))
+        	txnSession.upsert(set)
             .bins("name", "age")
-            .values("Tom", 22)
+            .id(3333).values("Tom", 22)
             .execute();
 
         	System.out.println("Read in transaction");

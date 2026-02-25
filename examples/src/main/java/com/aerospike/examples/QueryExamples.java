@@ -284,11 +284,11 @@ public class QueryExamples {
             System.out.println(rs1.getFirst());
             
             session.upsert(customerDataSet.ids(1,2,3,4,5)).bin("holdings").add(1).execute();
-            session.upsert(customerDataSet.ids(1,2,3))
+            session.upsert(customerDataSet)
                     .bins("name", "age")
-                    .values("Tim", 312)
-                    .values("Bob", 25)
-                    .values("Jane", 46)
+                    .id(1).values("Tim", 312)
+                    .id(2).values("Bob", 25)
+                    .id(3).values("Jane", 46)
                     .execute();
             
             System.out.printf("id(2) exists: %b\n", session.exists(customerDataSet.ids(2)).execute().getFirst());
@@ -307,14 +307,14 @@ public class QueryExamples {
                     .bin("name").setTo("Tim")
                     .bin("age").setTo(343)
                     .execute();
-            session.upsert(customerDataSet.id(83))
+            session.upsert(customerDataSet)
                     .bins("name", "age")
-                    .values("Tim", 342)
+                    .id(83).values("Tim", 342)
                     .execute();
-            session.upsert(customerDataSet.ids(84, 85))
+            session.upsert(customerDataSet)
                     .bins("name", "age")
-                    .values("Tim", 342)
-                    .values("Fred", 37)
+                    .id(84).values("Tim", 342)
+                    .id(85).values("Fred", 37)
                     .execute();
 
 //            sessionWithoutExceptions.insert(customerDataSet.id(80))
@@ -332,18 +332,18 @@ public class QueryExamples {
 
             session.delete(customerDataSet.ids(900, 901, 902, 903, 904, 905)).execute();
             
-            session.insert(customerDataSet.id(899))
+            session.insert(customerDataSet)
                     .bins("name", "age", "hair", "dob")
-                    .values("Tim", 312, "brown", new Date().getTime());
+                    .id(899).values("Tim", 312, "brown", new Date().getTime());
                     
-            RecordStream values = session.insert(customerDataSet.ids(900, 901, 902, 903, 904,905))
+            RecordStream values = session.insert(customerDataSet)
                     .bins("name", "age", "hair", "dob")
-                    .values("Tim", 312, "brown", new Date().getTime())
-                    .values("Jane", 28, "blonde", new Date().getTime())
-                    .values("Bob", 54, "brown", new Date().getTime()).expireRecordAfter(Duration.ofDays(5))
-                    .values("Jordan", 45, "red", new Date().getTime())
-                    .values("Alex", 67, "blonde", new Date().getTime())
-                    .values("Sam", 24, "brown", new Date().getTime())
+                    .id(900).values("Tim", 312, "brown", new Date().getTime())
+                    .id(901).values("Jane", 28, "blonde", new Date().getTime())
+                    .id(902).values("Bob", 54, "brown", new Date().getTime()).expireRecordAfter(Duration.ofDays(5))
+                    .id(903).values("Jordan", 45, "red", new Date().getTime())
+                    .id(904).values("Alex", 67, "blonde", new Date().getTime())
+                    .id(905).values("Sam", 24, "brown", new Date().getTime())
                     .defaultExpireRecordAfter(Duration.ofDays(30))
                     .execute();
             values.forEach(kr -> System.out.printf("%s -> %s\n", kr.key(), kr.recordOrThrow()));
@@ -356,9 +356,9 @@ public class QueryExamples {
                     .bin("dob").setTo(new Date().getTime())
                     .execute();
                     
-                session.upsert(customerDataSet.id(1000+i))
+                session.upsert(customerDataSet)
                     .bins("name", "age", "hair", "dob")
-                    .values("Tim-"+i, 312+i, "brown", new Date().getTime())
+                    .id(1000+i).values("Tim-"+i, 312+i, "brown", new Date().getTime())
                     .expireRecordAfter(Duration.ofDays(30))
                     .execute();
 //              .values("Jane", 28, "blonde", new Date().getTime())
@@ -704,8 +704,8 @@ public class QueryExamples {
             // -------------
             // UDF Calls
             // -------------
-            Object udfResult = session.executeUdf(customerDataSet.id(1)).function("pkg", "myFunc").execute().getFirstUdfResult();
-            System.out.println("UDF Result = " + udfResult);
+//            Object udfResult = session.executeUdf(customerDataSet.id(1)).function("pkg", "myFunc").execute().getFirstUdfResult();
+//            System.out.println("UDF Result = " + udfResult);
             
             // ---------------------------
             // TTL Test
@@ -713,10 +713,10 @@ public class QueryExamples {
             System.out.println("--- Test TTL ---");
             session.delete(customerDataSet.id(1)).execute();
             
-            session.upsert(customerDataSet.id(1))
-                .expireRecordAfterSeconds(5)
+            session.upsert(customerDataSet)
                 .bins("binA")
-                .values(5)
+                .id(1).values(5)
+                .expireRecordAfterSeconds(5)
                 .execute();
             System.out.println("Initial read, should be there");
             System.out.println(session.query(customerDataSet.id(1)).execute().getFirst());
@@ -782,14 +782,14 @@ public class QueryExamples {
                 .update(customerDataSet.ids(1000, 1001))
                     .bin("age").add(1)
                     .bin("dob").setTo(new Date().getTime())
-                    .where("$.age > 100")
+//                    .where("$.age > 100")
                     .expireRecordAfter(Duration.ofMinutes(5))
                 .exists(customerDataSet.ids(1000,1001))
                 .query(customerDataSet.ids(10,12))
                 .delete(customerDataSet.id(1003))
                 .notInAnyTransaction()
                 .inTransaction(null)
-                .defaultWhere("$.value > 200")
+//                .defaultWhere("$.value > 200")
                 .defaultExpireRecordAfter(Duration.ofMinutes(20))
                 .execute();
             System.out.println("Multi operations:");

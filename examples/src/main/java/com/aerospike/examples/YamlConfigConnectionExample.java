@@ -193,9 +193,9 @@ public class YamlConfigConnectionExample extends Example {
         try {
             // Write a record
             console.write("Writing a test record...");
-            session.upsert(dataSet.ids("user-001"))
+            session.upsert(dataSet)
                 .bins("name", "email", "age")
-                .values("Alice", "alice@example.com", 30)
+                .id("user-001").values("Alice", "alice@example.com", 30)
                 .execute();
             console.write("  Record written successfully.");
 
@@ -210,11 +210,11 @@ public class YamlConfigConnectionExample extends Example {
 
             // Write multiple records
             console.write("Writing batch of records...");
-            session.upsert(dataSet.ids("user-002", "user-003", "user-004"))
+            session.upsert(dataSet)
                 .bins("name", "email", "age")
-                .values("Bob", "bob@example.com", 25)
-                .values("Charlie", "charlie@example.com", 35)
-                .values("Diana", "diana@example.com", 28)
+                .id("user-002").values("Bob", "bob@example.com", 25)
+                .id("user-003").values("Charlie", "charlie@example.com", 35)
+                .id("user-004").values("Diana", "diana@example.com", 28)
                 .execute();
             console.write("  Batch written successfully.");
 
