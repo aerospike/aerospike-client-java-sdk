@@ -31,8 +31,6 @@ import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
-import com.aerospike.client.fluent.exp.Exp;
-import com.aerospike.client.fluent.exp.Expression;
 import com.aerospike.client.fluent.policy.Behavior;
 import com.aerospike.client.fluent.policy.Behavior.Selectors;
 import com.aerospike.client.fluent.util.Util;
@@ -469,29 +467,17 @@ public class BatchTest extends ClusterTest {
 		Key key1 = args.set.id(88888);
 		Key key2 = args.set.id(88889);
 
+		// Write keys with ttl.
 		List<Key> keys = List.of(key1, key2);
 
         session.upsert(keys)
-	    	.expireRecordAfterSeconds(10)
+	    	.expireRecordAfterSeconds(5)
 	    	.bin("a").setTo(1)
 	    	.execute();
 
+		Util.sleep(3000);
 
-/*
-
-		int[] keys = new int[10];
-		int firstKey = 88888;
-
-		for (int i = 0; i < keys.length; i++) {
-			keys[i] = firstKey + i;
-		}
-
-		int ttl = 10;
-
-		// Write keys with ttl.
-
-		Util.sleep(8000);
-
+		// Read records before they expire and reset read ttl on one record.
 		Behavior behavior1 = Behavior.DEFAULT.deriveWithChanges("readttl", builder -> builder
             .on(Selectors.reads(), ops -> ops
             	.resetTtlOnReadAtPercent(80)
@@ -501,62 +487,59 @@ public class BatchTest extends ClusterTest {
         // Use local session to change default behavior.
         Session session1 = cluster.createSession(behavior1);
 
-        Behavior behavior2 = Behavior.DEFAULT.deriveWithChanges("readttl", builder -> builder
-                .on(Selectors.reads(), ops -> ops
-                	.resetTtlOnReadAtPercent(-1)
-                )
-            );
-
-        Session session2 = cluster.createSession(behavior2);
-
-        // Read records before they expire and reset read ttl on one record.
-
-        // TODO How set different resetTtlOnReadAtPercent in same batch??
-        RecordStream rs = session1
-        	.query(args.set.ids(key1))
+	    RecordStream rs = session1
+        	.query(key1)
         	.readingOnlyBins("a")
             .execute();
 
+        assertTrue(rs.hasNext());
+        Record rec = rs.next().recordOrThrow();
+    	int val = rec.getInt("a");
+		assertEquals(1, val);
 
+        Behavior behavior2 = Behavior.DEFAULT.deriveWithChanges("readttl", builder -> builder
+            .on(Selectors.reads(), ops -> ops
+            	.resetTtlOnReadAtPercent(-1)
+            )
+        );
 
-		BatchRead br1 = new BatchRead(brp1, key1, new String[] {"a"});
-		BatchRead br2 = new BatchRead(brp2, key2, new String[] {"a"});
+	    Session session2 = cluster.createSession(behavior2);
 
-		List<BatchRecord> list = new ArrayList<>();
-		list.add(br1);
-		list.add(br2);
+	    rs = session2
+        	.query(key2)
+        	.readingOnlyBins("a")
+            .execute();
 
-		boolean rv = client.operate(null, list);
+        assertTrue(rs.hasNext());
+        rec = rs.next().recordOrThrow();
+    	val = rec.getInt("a");
+		assertEquals(1, val);
 
-		assertEquals(ResultCode.OK, br1.resultCode);
-		assertEquals(ResultCode.OK, br2.resultCode);
-		assertTrue(rv);
+		Util.sleep(3000);
 
 		// Read records again, but don't reset read ttl.
-		Util.sleep(3000);
-		brp1.readTouchTtlPercent = -1;
-		brp2.readTouchTtlPercent = -1;
+	    rs = session2
+        	.query(keys)
+        	.readingOnlyBins("a")
+            .execute();
 
-		br1 = new BatchRead(brp1, key1, new String[] {"a"});
-		br2 = new BatchRead(brp2, key2, new String[] {"a"});
-
-		list.clear();
-		list.add(br1);
-		list.add(br2);
-
-		rv = client.operate(null, list);
+        assertTrue(rs.hasNext());
+        rec = rs.next().recordOrThrow();
+    	val = rec.getInt("a");
+		assertEquals(1, val);
 
 		// Key 2 should have expired.
-		assertEquals(ResultCode.OK, br1.resultCode);
-		assertEquals(ResultCode.KEY_NOT_FOUND_ERROR, br2.resultCode);
-		assertFalse(rv);
+        assertFalse(rs.hasNext());
 
-		// Read  record after it expires, showing it's gone.
-		Util.sleep(8000);
-		rv = client.operate(null, list);
+		Util.sleep(3000);
 
-		assertEquals(ResultCode.KEY_NOT_FOUND_ERROR, br1.resultCode);
-		assertEquals(ResultCode.KEY_NOT_FOUND_ERROR, br2.resultCode);
-		assertFalse(rv);*/
+		// Read records again and both should be expired.
+	    rs = session2
+        	.query(keys)
+        	.readingOnlyBins("a")
+            .execute();
+
+		// All keys should have expired.
+        assertFalse(rs.hasNext());
 	}
 }
