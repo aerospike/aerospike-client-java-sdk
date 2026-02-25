@@ -284,6 +284,9 @@ public class AerospikeException extends RuntimeException {
 		}
 	}
 
+    /**
+     * Security-related error from the server (authentication, authorization, roles, etc.).
+     */
     public static class SecurityException extends AerospikeException {
         private static final long serialVersionUID = 1L;
 
@@ -292,6 +295,9 @@ public class AerospikeException extends RuntimeException {
         }
     }
 
+    /**
+     * Authentication failed: invalid user, password, credential, or session expired.
+     */
     public static class AuthenticationException extends SecurityException {
         private static final long serialVersionUID = 1L;
 
@@ -300,6 +306,9 @@ public class AerospikeException extends RuntimeException {
         }
     }
 
+    /**
+     * Authenticated user lacks the required role or is not whitelisted.
+     */
     public static class AuthorizationException extends SecurityException {
         private static final long serialVersionUID = 1L;
 
@@ -308,6 +317,10 @@ public class AerospikeException extends RuntimeException {
         }
     }
 
+    /**
+     * Record's generation (version) does not match the expected value. Indicates an
+     * optimistic locking conflict -- another writer modified the record first.
+     */
     public static class GenerationException extends AerospikeException {
         private static final long serialVersionUID = 1L;
 
@@ -316,10 +329,231 @@ public class AerospikeException extends RuntimeException {
         }
     }
 
+    /**
+     * Quota limit exceeded or quota configuration error.
+     */
     public static class QuotaException extends AerospikeException {
         private static final long serialVersionUID = 1L;
 
         public QuotaException(int resultCode, String message, boolean inDoubt) {
+            super(resultCode, message, inDoubt);
+        }
+    }
+
+    /**
+     * Record does not exist. Thrown on read, touch, update or replace of a non-existent record.
+     */
+    public static class RecordNotFoundException extends AerospikeException {
+        private static final long serialVersionUID = 1L;
+
+        public RecordNotFoundException(int resultCode, String message, boolean inDoubt) {
+            super(resultCode, message, inDoubt);
+        }
+    }
+
+    /**
+     * Record already exists. Thrown on create-only (insert) operations when the key is already present.
+     */
+    public static class RecordExistsException extends AerospikeException {
+        private static final long serialVersionUID = 1L;
+
+        public RecordExistsException(int resultCode, String message, boolean inDoubt) {
+            super(resultCode, message, inDoubt);
+        }
+    }
+
+    /**
+     * Operation skipped because the record's filter expression evaluated to false.
+     */
+    public static class FilteredException extends AerospikeException {
+        private static final long serialVersionUID = 1L;
+
+        public FilteredException(int resultCode, String message, boolean inDoubt) {
+            super(resultCode, message, inDoubt);
+        }
+    }
+
+    /**
+     * Record size exceeds the server's configured limit.
+     */
+    public static class RecordTooBigException extends AerospikeException {
+        private static final long serialVersionUID = 1L;
+
+        public RecordTooBigException(int resultCode, String message, boolean inDoubt) {
+            super(resultCode, message, inDoubt);
+        }
+    }
+
+    /**
+     * Bin-level error: name too long, wrong type, not found, already exists, or invalid operation.
+     */
+    public static class BinException extends AerospikeException {
+        private static final long serialVersionUID = 1L;
+
+        public BinException(int resultCode, String message, boolean inDoubt) {
+            super(resultCode, message, inDoubt);
+        }
+    }
+
+    /**
+     * Bin already exists on a create-only bin operation.
+     */
+    public static class BinExistsException extends BinException {
+        private static final long serialVersionUID = 1L;
+
+        public BinExistsException(int resultCode, String message, boolean inDoubt) {
+            super(resultCode, message, inDoubt);
+        }
+    }
+
+    /**
+     * Bin not found on an update-only bin operation.
+     */
+    public static class BinNotFoundException extends BinException {
+        private static final long serialVersionUID = 1L;
+
+        public BinNotFoundException(int resultCode, String message, boolean inDoubt) {
+            super(resultCode, message, inDoubt);
+        }
+    }
+
+    /**
+     * Operation is incompatible with the bin's current data type (e.g. arithmetic on a string bin).
+     */
+    public static class BinTypeException extends BinException {
+        private static final long serialVersionUID = 1L;
+
+        public BinTypeException(int resultCode, String message, boolean inDoubt) {
+            super(resultCode, message, inDoubt);
+        }
+    }
+
+    /**
+     * Operation cannot be applied to the bin's current value (e.g. list op on a non-list bin).
+     */
+    public static class BinOpInvalidException extends BinException {
+        private static final long serialVersionUID = 1L;
+
+        public BinOpInvalidException(int resultCode, String message, boolean inDoubt) {
+            super(resultCode, message, inDoubt);
+        }
+    }
+
+    /**
+     * CDT (List/Map) element-level error: element not found or already exists.
+     */
+    public static class ElementException extends AerospikeException {
+        private static final long serialVersionUID = 1L;
+
+        public ElementException(int resultCode, String message, boolean inDoubt) {
+            super(resultCode, message, inDoubt);
+        }
+    }
+
+    /**
+     * Map key or list element not found in an update-only CDT write mode.
+     */
+    public static class ElementNotFoundException extends ElementException {
+        private static final long serialVersionUID = 1L;
+
+        public ElementNotFoundException(int resultCode, String message, boolean inDoubt) {
+            super(resultCode, message, inDoubt);
+        }
+    }
+
+    /**
+     * Map key or list element already exists in a create-only CDT write mode.
+     */
+    public static class ElementExistsException extends ElementException {
+        private static final long serialVersionUID = 1L;
+
+        public ElementExistsException(int resultCode, String message, boolean inDoubt) {
+            super(resultCode, message, inDoubt);
+        }
+    }
+
+    /**
+     * Multi-record transaction (MRT) error: blocked, expired, version mismatch,
+     * write limit exceeded, or invalid transaction state.
+     */
+    public static class TransactionException extends AerospikeException {
+        private static final long serialVersionUID = 1L;
+
+        public TransactionException(int resultCode, String message, boolean inDoubt) {
+            super(resultCode, message, inDoubt);
+        }
+
+        public TransactionException(int resultCode, String message) {
+            super(resultCode, message);
+        }
+
+        public TransactionException(int resultCode, String message, Throwable cause) {
+            super(resultCode, message, cause);
+        }
+    }
+
+    /**
+     * Server or client resource exhaustion: memory, connections, device I/O, or queue capacity.
+     */
+    public static class CapacityException extends AerospikeException {
+        private static final long serialVersionUID = 1L;
+
+        public CapacityException(int resultCode, String message, boolean inDoubt) {
+            super(resultCode, message, inDoubt);
+        }
+    }
+
+    /**
+     * Too many concurrent operations on the same record (hot key contention).
+     */
+    public static class KeyBusyException extends CapacityException {
+        private static final long serialVersionUID = 1L;
+
+        public KeyBusyException(int resultCode, String message, boolean inDoubt) {
+            super(resultCode, message, inDoubt);
+        }
+    }
+
+    /**
+     * Secondary index error: index not found, already exists, out of memory, or limit exceeded.
+     */
+    public static class IndexException extends AerospikeException {
+        private static final long serialVersionUID = 1L;
+
+        public IndexException(int resultCode, String message, boolean inDoubt) {
+            super(resultCode, message, inDoubt);
+        }
+    }
+
+    /**
+     * Server-side query or scan error: aborted, timed out, or queue full.
+     */
+    public static class QueryException extends AerospikeException {
+        private static final long serialVersionUID = 1L;
+
+        public QueryException(int resultCode, String message, boolean inDoubt) {
+            super(resultCode, message, inDoubt);
+        }
+    }
+
+    /**
+     * Batch operation error: one or more keys failed, or batch functionality is disabled.
+     */
+    public static class BatchException extends AerospikeException {
+        private static final long serialVersionUID = 1L;
+
+        public BatchException(int resultCode, String message, boolean inDoubt) {
+            super(resultCode, message, inDoubt);
+        }
+    }
+
+    /**
+     * A user-defined function (UDF) returned an error.
+     */
+    public static class UdfException extends AerospikeException {
+        private static final long serialVersionUID = 1L;
+
+        public UdfException(int resultCode, String message, boolean inDoubt) {
             super(resultCode, message, inDoubt);
         }
     }
@@ -433,9 +667,9 @@ public class AerospikeException extends RuntimeException {
 	}
 
 	/**
-	 * Exception thrown when a transaction commit fails.
+	 * Transaction commit failed. Contains verify and roll-forward/backward details.
 	 */
-	public static final class Commit extends AerospikeException {
+	public static final class Commit extends TransactionException {
 		private static final long serialVersionUID = 1L;
 
 		/**
@@ -512,13 +746,106 @@ public class AerospikeException extends RuntimeException {
 		}
 	}
 
+    /**
+     * Map a server result code to the appropriate exception subclass.
+     *
+     * <pre>
+     * Exception Hierarchy:
+     *
+     * AerospikeException
+     * ├── RecordNotFoundException         KEY_NOT_FOUND_ERROR
+     * ├── RecordExistsException           KEY_EXISTS_ERROR
+     * ├── GenerationException             GENERATION_ERROR
+     * ├── FilteredException               FILTERED_OUT
+     * ├── RecordTooBigException           RECORD_TOO_BIG
+     * ├── BinException                    BIN_NAME_TOO_LONG
+     * │   ├── BinExistsException          BIN_EXISTS_ERROR
+     * │   ├── BinNotFoundException        BIN_NOT_FOUND
+     * │   ├── BinTypeException            BIN_TYPE_ERROR
+     * │   └── BinOpInvalidException       OP_NOT_APPLICABLE
+     * ├── ElementException
+     * │   ├── ElementNotFoundException    ELEMENT_NOT_FOUND
+     * │   └── ElementExistsException      ELEMENT_EXISTS
+     * ├── TransactionException            TXN_ALREADY_ABORTED, TXN_ALREADY_COMMITTED,
+     * │   │                               MRT_BLOCKED, MRT_VERSION_MISMATCH, MRT_EXPIRED,
+     * │   │                               MRT_TOO_MANY_WRITES, MRT_COMMITTED, MRT_ABORTED,
+     * │   │                               MRT_ALREADY_LOCKED, MRT_MONITOR_EXISTS
+     * │   └── Commit                      TXN_FAILED
+     * ├── SecurityException               ILLEGAL_STATE, USER_ALREADY_EXISTS, FORBIDDEN_PASSWORD,
+     * │   │                               SECURITY_NOT_ENABLED, SECURITY_NOT_SUPPORTED,
+     * │   │                               SECURITY_SCHEME_NOT_SUPPORTED, EXPIRED_SESSION,
+     * │   │                               INVALID_ROLE, ROLE_ALREADY_EXISTS, INVALID_PRIVILEGE,
+     * │   │                               INVALID_WHITELIST
+     * │   ├── AuthenticationException     INVALID_USER, INVALID_PASSWORD, INVALID_CREDENTIAL,
+     * │   │                               EXPIRED_PASSWORD, NOT_AUTHENTICATED
+     * │   └── AuthorizationException      ROLE_VIOLATION, NOT_WHITELISTED
+     * ├── QuotaException                  QUOTA_EXCEEDED, QUOTAS_NOT_ENABLED, INVALID_QUOTA
+     * ├── CapacityException               SERVER_MEM_ERROR, DEVICE_OVERLOAD, NO_MORE_CONNECTIONS,
+     * │   │                               ASYNC_QUEUE_FULL, BATCH_QUEUES_FULL,
+     * │   │                               BATCH_MAX_REQUESTS_EXCEEDED
+     * │   └── KeyBusyException            KEY_BUSY
+     * ├── IndexException                  INDEX_ALREADY_EXISTS..INDEX_MAXCOUNT (200-206)
+     * ├── QueryException                  QUERY_ABORTED, QUERY_QUEUEFULL, QUERY_TIMEOUT,
+     * │                                   QUERY_GENERIC, SCAN_ABORT
+     * ├── BatchException                  BATCH_FAILED, BATCH_DISABLED
+     * ├── UdfException                    UDF_BAD_RESPONSE
+     * ├── Timeout                         TIMEOUT
+     * ├── Connection                      SERVER_NOT_AVAILABLE
+     * ├── InvalidNode                     INVALID_NODE_ERROR
+     * ├── Serialize                       SERIALIZE_ERROR
+     * ├── Parse                           PARSE_ERROR
+     * ├── InvalidNamespace                INVALID_NAMESPACE
+     * ├── QueryTerminated                 QUERY_TERMINATED
+     * └── Backoff                         MAX_ERROR_RATE
+     * </pre>
+     */
 	public static AerospikeException resultCodeToException(int resultCode, String message, boolean inDoubt) {
         switch (resultCode) {
-        case ResultCode.QUOTA_EXCEEDED:
-        case ResultCode.QUOTAS_NOT_ENABLED:
-        case ResultCode.INVALID_QUOTA:
-            return new QuotaException(resultCode, message, inDoubt);
 
+        // Record-level
+        case ResultCode.KEY_NOT_FOUND_ERROR:
+            return new RecordNotFoundException(resultCode, message, inDoubt);
+        case ResultCode.KEY_EXISTS_ERROR:
+            return new RecordExistsException(resultCode, message, inDoubt);
+        case ResultCode.GENERATION_ERROR:
+            return new GenerationException(resultCode, message, inDoubt);
+        case ResultCode.FILTERED_OUT:
+            return new FilteredException(resultCode, message, inDoubt);
+        case ResultCode.RECORD_TOO_BIG:
+            return new RecordTooBigException(resultCode, message, inDoubt);
+
+        // Bin-level
+        case ResultCode.BIN_EXISTS_ERROR:
+            return new BinExistsException(resultCode, message, inDoubt);
+        case ResultCode.BIN_NOT_FOUND:
+            return new BinNotFoundException(resultCode, message, inDoubt);
+        case ResultCode.BIN_TYPE_ERROR:
+            return new BinTypeException(resultCode, message, inDoubt);
+        case ResultCode.OP_NOT_APPLICABLE:
+            return new BinOpInvalidException(resultCode, message, inDoubt);
+        case ResultCode.BIN_NAME_TOO_LONG:
+            return new BinException(resultCode, message, inDoubt);
+
+        // CDT element-level
+        case ResultCode.ELEMENT_NOT_FOUND:
+            return new ElementNotFoundException(resultCode, message, inDoubt);
+        case ResultCode.ELEMENT_EXISTS:
+            return new ElementExistsException(resultCode, message, inDoubt);
+
+        // Transaction / MRT
+        case ResultCode.TXN_ALREADY_ABORTED:
+        case ResultCode.TXN_ALREADY_COMMITTED:
+        case ResultCode.MRT_BLOCKED:
+        case ResultCode.MRT_VERSION_MISMATCH:
+        case ResultCode.MRT_EXPIRED:
+        case ResultCode.MRT_TOO_MANY_WRITES:
+        case ResultCode.MRT_COMMITTED:
+        case ResultCode.MRT_ABORTED:
+        case ResultCode.MRT_ALREADY_LOCKED:
+        case ResultCode.MRT_MONITOR_EXISTS:
+            return new TransactionException(resultCode, message, inDoubt);
+
+        // Security
         case ResultCode.INVALID_USER:
         case ResultCode.INVALID_PASSWORD:
         case ResultCode.INVALID_CREDENTIAL:
@@ -527,6 +854,7 @@ public class AerospikeException extends RuntimeException {
             return new AuthenticationException(resultCode, message, inDoubt);
 
         case ResultCode.ROLE_VIOLATION:
+        case ResultCode.NOT_WHITELISTED:
             return new AuthorizationException(resultCode, message, inDoubt);
 
         case ResultCode.ILLEGAL_STATE:
@@ -542,8 +870,49 @@ public class AerospikeException extends RuntimeException {
         case ResultCode.INVALID_WHITELIST:
             return new SecurityException(resultCode, message, inDoubt);
 
-        case ResultCode.GENERATION_ERROR:
-            return new GenerationException(resultCode, message, inDoubt);
+        // Quota
+        case ResultCode.QUOTA_EXCEEDED:
+        case ResultCode.QUOTAS_NOT_ENABLED:
+        case ResultCode.INVALID_QUOTA:
+            return new QuotaException(resultCode, message, inDoubt);
+
+        // Capacity
+        case ResultCode.KEY_BUSY:
+            return new KeyBusyException(resultCode, message, inDoubt);
+        case ResultCode.SERVER_MEM_ERROR:
+        case ResultCode.DEVICE_OVERLOAD:
+        case ResultCode.NO_MORE_CONNECTIONS:
+        case ResultCode.ASYNC_QUEUE_FULL:
+        case ResultCode.BATCH_QUEUES_FULL:
+        case ResultCode.BATCH_MAX_REQUESTS_EXCEEDED:
+            return new CapacityException(resultCode, message, inDoubt);
+
+        // Index
+        case ResultCode.INDEX_ALREADY_EXISTS:
+        case ResultCode.INDEX_NOTFOUND:
+        case ResultCode.INDEX_OOM:
+        case ResultCode.INDEX_NOTREADABLE:
+        case ResultCode.INDEX_GENERIC:
+        case ResultCode.INDEX_NAME_MAXLEN:
+        case ResultCode.INDEX_MAXCOUNT:
+            return new IndexException(resultCode, message, inDoubt);
+
+        // Query / Scan
+        case ResultCode.QUERY_ABORTED:
+        case ResultCode.QUERY_QUEUEFULL:
+        case ResultCode.QUERY_TIMEOUT:
+        case ResultCode.QUERY_GENERIC:
+        case ResultCode.SCAN_ABORT:
+            return new QueryException(resultCode, message, inDoubt);
+
+        // Batch
+        case ResultCode.BATCH_FAILED:
+        case ResultCode.BATCH_DISABLED:
+            return new BatchException(resultCode, message, inDoubt);
+
+        // UDF
+        case ResultCode.UDF_BAD_RESPONSE:
+            return new UdfException(resultCode, message, inDoubt);
 
         default:
             return new AerospikeException(resultCode, message, inDoubt);
