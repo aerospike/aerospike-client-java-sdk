@@ -541,21 +541,8 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
      * @return RecordStream containing the results
      */
     public RecordStream execute() {
-        return executeSync();
-    }
-
-    /**
-     * Execute operations synchronously. All operations complete before this method
-     * returns.
-     * <p>
-     * Operations are parallelized using virtual threads, but all threads are joined
-     * before returning. This ensures transaction safety and deterministic behavior.
-     *
-     * @return RecordStream containing the results
-     */
-    public RecordStream executeSync() {
         if (Log.debugEnabled()) {
-            Log.debug("BinsValuesBuilder.executeSync() called for " + keys.size() + " key(s), transaction: "
+            Log.debug("BinsValuesBuilder.execute() called for " + keys.size() + " key(s), transaction: "
                     + (txnToUse != null ? "yes" : "no"));
         }
 
@@ -601,7 +588,7 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
             Log.warn("executeAsync() called within a transaction. "
                     + "Async operations may still be in flight when commit() is called, "
                     + "which could lead to inconsistent state. "
-                    + "Consider using executeSync() or execute() for transactional safety.");
+                    + "Consider using execute() for transactional safety.");
         }
 
         if (valueSets.size() != opBuilder.getNumKeys()) {

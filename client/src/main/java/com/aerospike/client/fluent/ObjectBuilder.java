@@ -696,20 +696,8 @@ public class ObjectBuilder<T> {
      * @return RecordStream containing the results
      */
     public RecordStream execute() {
-        return executeSync();
-    }
-
-    /**
-     * Execute operations synchronously. All operations complete before this method returns.
-     * <p>
-     * Operations are parallelized using virtual threads, but all threads are joined before
-     * returning. This ensures transaction safety and deterministic behavior.
-     *
-     * @return RecordStream containing the results
-     */
-    public RecordStream executeSync() {
         if (Log.debugEnabled()) {
-            Log.debug("ObjectBuilder.executeSync() called for " + elements.size() + " element(s), transaction: " +
+            Log.debug("ObjectBuilder.execute() called for " + elements.size() + " element(s), transaction: " +
                      (txnToUse != null ? "yes" : "no"));
         }
 
@@ -748,7 +736,7 @@ public class ObjectBuilder<T> {
                 "executeAsync() called within a transaction. " +
                 "Async operations may still be in flight when commit() is called, " +
                 "which could lead to inconsistent state. " +
-                "Consider using executeSync() or execute() for transactional safety."
+                "Consider using execute() for transactional safety."
             );
         }
 

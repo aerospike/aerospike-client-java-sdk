@@ -358,15 +358,6 @@ public class IdValuesRowBuilder {
      * @throws IllegalStateException if no rows have been defined
      */
     public RecordStream execute() {
-        return executeSync();
-    }
-
-    /**
-     * Execute all accumulated rows synchronously.
-     *
-     * @return RecordStream containing the results
-     */
-    public RecordStream executeSync() {
         List<OperationSpec> specs = materializeToSpecs();
         return OperationSpecExecutor.execute(session, specs, null, defaultExpirationInSeconds, txnToUse);
     }

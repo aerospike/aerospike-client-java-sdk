@@ -945,16 +945,6 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
     }
 
     /**
-     * Execute all chained operations synchronously.
-     * All operations complete before this method returns.
-     *
-     * @return RecordStream containing the results of all operations
-     */
-    public RecordStream executeSync() {
-        return execute();
-    }
-
-    /**
      * Execute all chained operations asynchronously.
      * Results are streamed as they become available.
      *

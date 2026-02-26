@@ -28,7 +28,6 @@ abstract class QueryImpl {
         this.queryBuilder = builder;
     }
     public abstract RecordStream execute();
-    public abstract RecordStream executeSync();
     public abstract RecordStream executeAsync();
     public abstract boolean allowsSecondaryIndexQuery();
 

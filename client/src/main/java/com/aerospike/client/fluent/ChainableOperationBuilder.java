@@ -881,16 +881,6 @@ public class ChainableOperationBuilder extends AbstractOperationBuilder<Chainabl
      * @return RecordStream containing the results of all operations
      */
     public RecordStream execute() {
-        return executeSync();
-    }
-
-    /**
-     * Execute all chained operations synchronously as a single batch.
-     * All operations complete before this method returns, making it safe for transactions.
-     *
-     * @return RecordStream containing the results of all operations
-     */
-    public RecordStream executeSync() {
         finalizeCurrentOperation();
 
         if (operationSpecs.isEmpty()) {
@@ -899,7 +889,7 @@ public class ChainableOperationBuilder extends AbstractOperationBuilder<Chainabl
 
         if (Log.debugEnabled()) {
             int totalKeys = operationSpecs.stream().mapToInt(spec -> spec.getKeys().size()).sum();
-            Log.debug("ChainableOperationBuilder.executeSync() called for " + operationSpecs.size() +
+            Log.debug("ChainableOperationBuilder.execute() called for " + operationSpecs.size() +
                      " operation(s), " + totalKeys + " key(s), transaction: " +
                      (txnToUse != null ? "yes" : "no"));
         }
@@ -935,7 +925,7 @@ public class ChainableOperationBuilder extends AbstractOperationBuilder<Chainabl
                 "executeAsync() called within a transaction. " +
                 "Async operations may still be in flight when commit() is called, " +
                 "which could lead to inconsistent state. " +
-                "Consider using executeSync() or execute() for transactional safety."
+                "Consider using execute() for transactional safety."
             );
         }
 

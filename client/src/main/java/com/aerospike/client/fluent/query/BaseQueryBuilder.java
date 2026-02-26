@@ -263,17 +263,6 @@ public interface BaseQueryBuilder<T extends BaseQueryBuilder<T>> {
     RecordStream execute();
 
     /**
-     * Execute the query synchronously. All operations complete before this method returns.
-     * <p>
-     * Use this when you need guaranteed completion before proceeding, or when in a transaction.
-     * Operations are still parallelized internally using virtual threads, but all threads
-     * are joined before returning.
-     *
-     * @return RecordStream containing the results
-     */
-    RecordStream executeSync();
-
-    /**
      * Execute the query asynchronously using virtual threads for parallel execution.
      * Results are streamed as they become available.
      * <p>

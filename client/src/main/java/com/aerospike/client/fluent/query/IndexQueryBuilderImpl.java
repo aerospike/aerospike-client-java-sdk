@@ -46,15 +46,6 @@ public class IndexQueryBuilderImpl extends QueryImpl {
     }
     @Override
     public RecordStream execute() {
-        if (getQueryBuilder().getTxnToUse() != null) {
-            return executeSync();
-        } else {
-            return executeAsync();
-        }
-    }
-
-    @Override
-    public RecordStream executeSync() {
         return executeInternal();
     }
 
@@ -65,10 +56,10 @@ public class IndexQueryBuilderImpl extends QueryImpl {
                 "executeAsync() called within a transaction. " +
                 "Async operations may still be in flight when commit() is called, " +
                 "which could lead to inconsistent state. " +
-                "Consider using executeSync() or execute() for transactional safety."
+                "Consider using execute() for transactional safety."
             );
         }
-        // Index queries stream results; async and sync behave similarly
+        // Index queries stream results via AsyncRecordStream; inherently async
         return executeInternal();
     }
 

@@ -579,29 +579,10 @@ public class QueryBuilder extends AbstractFilterableBuilder implements
      */
     @Override
     public RecordStream execute() {
-        // Default: async unless in transaction
-        if (txnToUse != null) {
-            return executeSync();
-        } else {
-            return executeAsync();
-        }
-    }
-
-    /**
-     * Execute the query synchronously. All operations complete before this method returns.
-     * <p>
-     * Use this when you need guaranteed completion before proceeding, or when in a transaction.
-     * Operations are still parallelized internally using virtual threads, but all threads
-     * are joined before returning.
-     *
-     * @return RecordStream containing the results
-     */
-    @Override
-    public RecordStream executeSync() {
         if (Log.debugEnabled()) {
-            Log.debug("QueryBuilder.executeSync() called, transaction: " + (txnToUse != null ? "yes" : "no"));
+            Log.debug("QueryBuilder.execute() called, transaction: " + (txnToUse != null ? "yes" : "no"));
         }
-        return this.implementation.executeSync();
+        return this.implementation.execute();
     }
 
     /**
@@ -624,7 +605,7 @@ public class QueryBuilder extends AbstractFilterableBuilder implements
                 "executeAsync() called within a transaction. " +
                 "Async operations may still be in flight when commit() is called, " +
                 "which could lead to inconsistent state. " +
-                "Consider using executeSync() or execute() for transactional safety."
+                "Consider using execute() for transactional safety."
             );
         }
         return this.implementation.executeAsync();
