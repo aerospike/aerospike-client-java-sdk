@@ -90,7 +90,7 @@ jobs:
         uses: aerospike/shared-workflows/.github/actions/setup-aes@CLIENT-4213
         with:
           server-tag: ${{ matrix.version }}
-          server-type: ${{ matrix.type }}
+          server-container-repo: ${{ matrix.type }}
           num-nodes: ${{ matrix.num-nodes }}
           oidc-provider: ${{ vars.OIDC_PROVIDER_NAME }}
           oidc-audience: ${{ vars.OIDC_AUDIENCE }}
