@@ -30,7 +30,8 @@ AerospikeException
 ├── QuotaException                  Quota exceeded or quota configuration error
 │
 ├── CapacityException               Server or client resource exhaustion
-│   └── KeyBusyException            Hot key — too many concurrent operations on one record
+│   ├── KeyBusyException            Hot key — too many concurrent operations on one record
+│   └── Connection                  Cannot connect to the server or no available connections
 │
 ├── IndexException                  Secondary index error (not found, already exists, OOM, etc.)
 ├── QueryException                  Server-side query/scan error (aborted, timed out, queue full)
@@ -38,7 +39,6 @@ AerospikeException
 ├── UdfException                    User-defined function returned an error
 │
 ├── Timeout                         Operation timed out (client or server initiated)
-├── Connection                      Cannot connect to the server
 ├── InvalidNode                     Target node is not active
 ├── Serialize                       Client serialization error
 ├── Parse                           Client cannot parse server response

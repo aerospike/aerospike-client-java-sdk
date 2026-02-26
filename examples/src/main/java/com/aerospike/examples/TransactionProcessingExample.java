@@ -269,7 +269,10 @@ public class TransactionProcessingExample {
                     .bin("balanceCents").add(txn.getAmountInCents())
                 .update(customerDataSet.id(customer.getCustomerId()))
                     .bin("totalSpend").add(txn.getAmountInCents())
-                    .bin("statusLevel").upsertFrom("when ($.totalSpend > 100000 => 'PLATINUM', $.totalSpend > 10000 => 'GOLD', $.totalSpend > 100 => 'SILVER', default => 'BRONZE')")
+                    .bin("statusLevel").upsertFrom("when ($.totalSpend > 100000 => 'PLATINUM', "
+                            + "$.totalSpend > 10000 => 'GOLD', "
+                            + "$.totalSpend > 100 => 'SILVER', "
+                            + "default => 'BRONZE')")
                 .execute();
         }
     }

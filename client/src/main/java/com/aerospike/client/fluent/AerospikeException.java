@@ -501,6 +501,14 @@ public class AerospikeException extends RuntimeException {
         public CapacityException(int resultCode, String message, boolean inDoubt) {
             super(resultCode, message, inDoubt);
         }
+
+        public CapacityException(int resultCode, String message) {
+            super(resultCode, message);
+        }
+
+        public CapacityException(int resultCode, String message, Throwable cause) {
+            super(resultCode, message, cause);
+        }
     }
 
     /**
@@ -585,9 +593,9 @@ public class AerospikeException extends RuntimeException {
 	}
 
 	/**
-	 * Exception thrown when client can't connect to the server.
+	 * Cannot connect to the server or no available connections.
 	 */
-	public static final class Connection extends AerospikeException {
+	public static final class Connection extends CapacityException {
 		private static final long serialVersionUID = 1L;
 
 		public Connection(String message) {
@@ -746,6 +754,11 @@ public class AerospikeException extends RuntimeException {
 		}
 	}
 
+	
+    public static AerospikeException resultCodeToException(int resultCode, String message) {
+        return resultCodeToException(resultCode, message, false); 
+    }
+
     /**
      * Map a server result code to the appropriate exception subclass.
      *
@@ -783,14 +796,14 @@ public class AerospikeException extends RuntimeException {
      * ├── CapacityException               SERVER_MEM_ERROR, DEVICE_OVERLOAD, NO_MORE_CONNECTIONS,
      * │   │                               ASYNC_QUEUE_FULL, BATCH_QUEUES_FULL,
      * │   │                               BATCH_MAX_REQUESTS_EXCEEDED
-     * │   └── KeyBusyException            KEY_BUSY
+     * │   ├── KeyBusyException            KEY_BUSY
+     * │   └── Connection                  SERVER_NOT_AVAILABLE
      * ├── IndexException                  INDEX_ALREADY_EXISTS..INDEX_MAXCOUNT (200-206)
      * ├── QueryException                  QUERY_ABORTED, QUERY_QUEUEFULL, QUERY_TIMEOUT,
      * │                                   QUERY_GENERIC, SCAN_ABORT
      * ├── BatchException                  BATCH_FAILED, BATCH_DISABLED
      * ├── UdfException                    UDF_BAD_RESPONSE
      * ├── Timeout                         TIMEOUT
-     * ├── Connection                      SERVER_NOT_AVAILABLE
      * ├── InvalidNode                     INVALID_NODE_ERROR
      * ├── Serialize                       SERIALIZE_ERROR
      * ├── Parse                           PARSE_ERROR
