@@ -362,6 +362,45 @@ public class IdValuesRowBuilder {
         return OperationSpecExecutor.execute(session, specs, null, defaultExpirationInSeconds, txnToUse);
     }
 
+    /**
+     * Execute all accumulated rows asynchronously.
+     * Method returns immediately; results are streamed as they become available.
+     * <p>
+     * <b>WARNING:</b> Using this in transactions may lead to operations still being in flight
+     * when commit() is called, potentially leading to inconsistent state. A warning will be logged.
+     *
+     * @return RecordStream that will be populated as results arrive
+     * @throws IllegalStateException if no rows have been defined
+     */
+    public RecordStream executeAsync() {
+        List<OperationSpec> specs = materializeToSpecs();
+
+        if (txnToUse != null && Log.warnEnabled()) {
+            Log.warn(
+                "executeAsync() called within a transaction. " +
+                "Async operations may still be in flight when commit() is called, " +
+                "which could lead to inconsistent state. " +
+                "Consider using execute() for transactional safety."
+            );
+        }
+
+        int totalKeys = specs.stream().mapToInt(spec -> spec.getKeys().size()).sum();
+        AsyncRecordStream asyncStream = new AsyncRecordStream(totalKeys);
+
+        Cluster cluster = session.getCluster();
+        cluster.startVirtualThread(() -> {
+            try {
+                RecordStream syncResult = OperationSpecExecutor.execute(
+                    session, specs, null, defaultExpirationInSeconds, txnToUse);
+                syncResult.forEach(result -> asyncStream.publish(result));
+            } finally {
+                asyncStream.complete();
+            }
+        });
+
+        return new RecordStream(asyncStream);
+    }
+
     private List<OperationSpec> materializeToSpecs() {
         finalizeCurrentRow();
 

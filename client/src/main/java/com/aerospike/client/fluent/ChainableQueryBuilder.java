@@ -925,33 +925,61 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
      * @return RecordStream containing the results of all operations
      */
     public RecordStream execute() {
-        finalizeCurrentOperation();
-
-        if (operationSpecs.isEmpty()) {
-            throw new IllegalStateException("No operations specified");
-        }
-
-        // Apply partition filtering if specified
-        List<OperationSpec> filteredSpecs = applyPartitionFilter(operationSpecs);
-
-        // Apply limit to keys if specified
-        filteredSpecs = applyKeyLimit(filteredSpecs);
-
-        if (filteredSpecs.isEmpty()) {
+        List<OperationSpec> specs = prepareSpecs();
+        if (specs.isEmpty()) {
             return new RecordStream();
         }
-
-        return OperationSpecExecutor.execute(session, filteredSpecs, defaultWhereClause, defaultExpirationInSeconds, txnToUse);
+        return OperationSpecExecutor.execute(session, specs, defaultWhereClause, defaultExpirationInSeconds, txnToUse);
     }
 
     /**
      * Execute all chained operations asynchronously.
-     * Results are streamed as they become available.
+     * Method returns immediately; results are streamed as they become available.
+     * <p>
+     * <b>WARNING:</b> Using this in transactions may lead to operations still being in flight
+     * when commit() is called, potentially leading to inconsistent state. A warning will be logged.
      *
      * @return RecordStream that will be populated as results arrive
      */
     public RecordStream executeAsync() {
-        return execute();
+        List<OperationSpec> specs = prepareSpecs();
+        if (specs.isEmpty()) {
+            return new RecordStream();
+        }
+
+        if (txnToUse != null && Log.warnEnabled()) {
+            Log.warn(
+                "executeAsync() called within a transaction. " +
+                "Async operations may still be in flight when commit() is called, " +
+                "which could lead to inconsistent state. " +
+                "Consider using execute() for transactional safety."
+            );
+        }
+
+        int totalKeys = specs.stream().mapToInt(spec -> spec.getKeys().size()).sum();
+        AsyncRecordStream asyncStream = new AsyncRecordStream(totalKeys);
+
+        Cluster cluster = session.getCluster();
+        cluster.startVirtualThread(() -> {
+            try {
+                RecordStream syncResult = OperationSpecExecutor.execute(
+                    session, specs, defaultWhereClause, defaultExpirationInSeconds, txnToUse);
+                syncResult.forEach(result -> asyncStream.publish(result));
+            } finally {
+                asyncStream.complete();
+            }
+        });
+
+        return new RecordStream(asyncStream);
+    }
+
+    private List<OperationSpec> prepareSpecs() {
+        finalizeCurrentOperation();
+        if (operationSpecs.isEmpty()) {
+            throw new IllegalStateException("No operations specified");
+        }
+        List<OperationSpec> filteredSpecs = applyPartitionFilter(operationSpecs);
+        return applyKeyLimit(filteredSpecs);
     }
 
     /**

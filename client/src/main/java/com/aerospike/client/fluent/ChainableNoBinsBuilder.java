@@ -844,14 +844,53 @@ public class ChainableNoBinsBuilder extends AbstractSessionOperationBuilder<Chai
      * @return RecordStream containing the results of all operations
      */
     public RecordStream execute() {
-        finalizeCurrentOperation();
+        prepareSpecs();
+        return OperationSpecExecutor.execute(session, operationSpecs, defaultWhereClause, defaultExpirationInSeconds, txnToUse);
+    }
 
+    /**
+     * Execute all chained operations asynchronously.
+     * Method returns immediately; results are streamed as they become available.
+     * <p>
+     * <b>WARNING:</b> Using this in transactions may lead to operations still being in flight
+     * when commit() is called, potentially leading to inconsistent state. A warning will be logged.
+     *
+     * @return RecordStream that will be populated as results arrive
+     */
+    public RecordStream executeAsync() {
+        prepareSpecs();
+
+        if (txnToUse != null && Log.warnEnabled()) {
+            Log.warn(
+                "executeAsync() called within a transaction. " +
+                "Async operations may still be in flight when commit() is called, " +
+                "which could lead to inconsistent state. " +
+                "Consider using execute() for transactional safety."
+            );
+        }
+
+        int totalKeys = operationSpecs.stream().mapToInt(spec -> spec.getKeys().size()).sum();
+        AsyncRecordStream asyncStream = new AsyncRecordStream(totalKeys);
+
+        Cluster cluster = session.getCluster();
+        cluster.startVirtualThread(() -> {
+            try {
+                RecordStream syncResult = OperationSpecExecutor.execute(
+                    session, operationSpecs, defaultWhereClause, defaultExpirationInSeconds, txnToUse);
+                syncResult.forEach(result -> asyncStream.publish(result));
+            } finally {
+                asyncStream.complete();
+            }
+        });
+
+        return new RecordStream(asyncStream);
+    }
+
+    private void prepareSpecs() {
+        finalizeCurrentOperation();
         if (operationSpecs.isEmpty()) {
             throw new IllegalStateException("No operations specified");
         }
-
-        // OperationSpecExecutor handles both single-key optimization and batch execution
-        return OperationSpecExecutor.execute(session, operationSpecs, defaultWhereClause, defaultExpirationInSeconds, txnToUse);
     }
 
     // ========================================

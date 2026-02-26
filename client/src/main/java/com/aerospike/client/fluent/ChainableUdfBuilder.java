@@ -934,11 +934,7 @@ public class ChainableUdfBuilder extends AbstractSessionOperationBuilder<Chainab
      * @return RecordStream containing the results of all operations
      */
     public RecordStream execute() {
-        finalizeCurrentOperation();
-
-        if (operationSpecs.isEmpty()) {
-            throw new IllegalStateException("No operations specified");
-        }
+        prepareSpecs();
 
         if (Log.debugEnabled()) {
             int totalKeys = operationSpecs.stream().mapToInt(spec -> spec.getKeys().size()).sum();
@@ -960,11 +956,7 @@ public class ChainableUdfBuilder extends AbstractSessionOperationBuilder<Chainab
      * @return RecordStream that will be populated as results arrive
      */
     public RecordStream executeAsync() {
-        finalizeCurrentOperation();
-
-        if (operationSpecs.isEmpty()) {
-            throw new IllegalStateException("No operations specified");
-        }
+        prepareSpecs();
 
         if (Log.debugEnabled()) {
             int totalKeys = operationSpecs.stream().mapToInt(spec -> spec.getKeys().size()).sum();
@@ -982,16 +974,13 @@ public class ChainableUdfBuilder extends AbstractSessionOperationBuilder<Chainab
             );
         }
 
-        // Create a stream that will receive results asynchronously
         int totalKeys = operationSpecs.stream().mapToInt(spec -> spec.getKeys().size()).sum();
         AsyncRecordStream asyncStream = new AsyncRecordStream(totalKeys);
 
-        // Execute in a virtual thread so this method returns immediately
         Cluster cluster = session.getCluster();
         cluster.startVirtualThread(() -> {
             try {
                 RecordStream syncResult = OperationSpecExecutor.execute(session, operationSpecs, defaultWhereClause, defaultExpirationInSeconds, txnToUse);
-                // Transfer results to the async stream
                 syncResult.forEach(result -> asyncStream.publish(result));
             } finally {
                 asyncStream.complete();
@@ -999,6 +988,13 @@ public class ChainableUdfBuilder extends AbstractSessionOperationBuilder<Chainab
         });
 
         return new RecordStream(asyncStream);
+    }
+
+    private void prepareSpecs() {
+        finalizeCurrentOperation();
+        if (operationSpecs.isEmpty()) {
+            throw new IllegalStateException("No operations specified");
+        }
     }
 
     // ========================================
