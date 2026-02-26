@@ -33,6 +33,68 @@ import com.aerospike.client.fluent.query.SingleItemRecordStream;
 
 public class RecordStream implements Iterator<RecordResult>, Closeable {
     private final RecordStreamImpl impl;
+
+    // ========================================
+    // Unconsumed error stream detection (disabled)
+    // ========================================
+    // At millions of TPS, Cleaner registration per-stream is too costly.
+    // This implements lazy registration: only streams that actually contain
+    // errors register with the Cleaner. If such a stream is GC'd without
+    // being iterated, a warning is logged -- similar to how CompletableFuture
+    // reports unhandled exceptions.
+    //
+    // To enable:
+    //   1. Uncomment the block below.
+    //   2. Have builders call rs.markContainsErrors() when embedding error
+    //      results into a stream under IN_STREAM disposition.
+    //   3. Uncomment the markConsumed() call in hasNext().
+    //
+    // private static final java.lang.ref.Cleaner CLEANER = java.lang.ref.Cleaner.create();
+    //
+    // /**
+    //  * Shared state between the RecordStream and its Cleaner action.
+    //  * MUST be a separate object -- the cleaning action must never capture
+    //  * a reference to the RecordStream itself, or it can never become
+    //  * phantom-reachable and the cleaner will never fire.
+    //  */
+    // private static class CleanerState implements Runnable {
+    //     volatile boolean consumed;
+    //     final String creationSite;
+    //
+    //     CleanerState(String creationSite) {
+    //         this.creationSite = creationSite;
+    //     }
+    //
+    //     @Override
+    //     public void run() {
+    //         if (!consumed) {
+    //             Log.warn("RecordStream with errors was garbage-collected without being " +
+    //                 "consumed. Errors may have been silently lost. Created at: " + creationSite);
+    //         }
+    //     }
+    // }
+    //
+    // private CleanerState cleanerState;
+    //
+    // /**
+    //  * Mark this stream as containing error results. On the first call,
+    //  * registers with the Cleaner so that a warning is logged if the stream
+    //  * is GC'd without ever being iterated.
+    //  */
+    // public void markContainsErrors() {
+    //     if (cleanerState == null) {
+    //         StackTraceElement caller = Thread.currentThread().getStackTrace()[2];
+    //         cleanerState = new CleanerState(caller.toString());
+    //         CLEANER.register(this, cleanerState);
+    //     }
+    // }
+    //
+    // private void markConsumed() {
+    //     if (cleanerState != null) {
+    //         cleanerState.consumed = true;
+    //     }
+    // }
+
     /**
      * Creates an empty RecordStream with no implementation.
      * This constructor is typically used internally or for creating an empty stream.
@@ -130,6 +192,7 @@ public class RecordStream implements Iterator<RecordResult>, Closeable {
      */
     @Override
     public boolean hasNext() {
+        // markConsumed();  // uncomment to enable unconsumed-error-stream detection
         return impl == null ? false : impl.hasNext();
     }
 
