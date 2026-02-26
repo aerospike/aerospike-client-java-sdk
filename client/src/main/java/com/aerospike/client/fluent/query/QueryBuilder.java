@@ -16,8 +16,6 @@
  */
 package com.aerospike.client.fluent.query;
 
-import java.util.List;
-
 import com.aerospike.client.fluent.AbstractFilterableBuilder;
 import com.aerospike.client.fluent.DataSet;
 import com.aerospike.client.fluent.Key;
@@ -35,19 +33,11 @@ import com.aerospike.client.fluent.policy.QueryDuration;
 import com.aerospike.client.fluent.tend.Partition;
 
 /**
- * Builder class for constructing and executing queries against Aerospike.
+ * Builder class for constructing and executing dataset queries (scans and secondary index queries)
+ * against Aerospike.
  *
  * <p>This class provides a fluent API for building complex queries with support for
- * filtering, sorting, pagination, and partition targeting. The QueryBuilder can be
- * used to query entire datasets, specific keys, or ranges of keys.</p>
- *
- * <p>The QueryBuilder automatically selects the appropriate query implementation
- * based on the input:</p>
- * <ul>
- *   <li><strong>Dataset queries</strong>: Uses secondary indexes when available, falls back to scan</li>
- *   <li><strong>Single key queries</strong>: Direct key lookup</li>
- *   <li><strong>Multiple key queries</strong>: Batch key operations</li>
- * </ul>
+ * filtering, sorting, pagination, and partition targeting.</p>
  *
  * <p>Example usage:</p>
  * <pre>{@code
@@ -72,8 +62,6 @@ import com.aerospike.client.fluent.tend.Partition;
  * }</pre>
  *
  * @see Session#query(DataSet)
- * @see Session#query(Key)
- * @see Session#query(List)
  * @see RecordStream
  * @see SortDir
  * @see SortProperties
@@ -107,38 +95,6 @@ public class QueryBuilder extends AbstractFilterableBuilder implements
         this.txnToUse = session.getCurrentTransaction();
     }
 
-    /**
-     * Creates a QueryBuilder for querying a single key.
-     *
-     * <p>This constructor creates a query that will perform a direct key lookup.
-     * The query will return at most one record.</p>
-     *
-     * @param session the session to use for the query
-     * @param key the key to query
-     */
-    public QueryBuilder(Session session, Key key) {
-        this.implementation = new SingleKeyQueryBuilderImpl(this, session, key);
-        this.txnToUse = session.getCurrentTransaction();
-    }
-
-    /**
-     * Creates a QueryBuilder for querying multiple keys.
-     *
-     * <p>This constructor creates a query that will perform batch key lookups.
-     * If only one key is provided, it will use single key optimization.</p>
-     *
-     * @param session the session to use for the query
-     * @param keys the list of keys to query
-     */
-    public QueryBuilder(Session session, List<Key> keys) {
-        this.txnToUse = session.getCurrentTransaction();
-        if (keys.size() == 1) {
-            this.implementation = new SingleKeyQueryBuilderImpl(this, session, keys.get(0));
-        }
-        else {
-            this.implementation = new BatchKeyQueryBuilderImpl(this, session, keys);
-        }
-    }
 
     /**
      * Checks if a key falls within the current partition range.
