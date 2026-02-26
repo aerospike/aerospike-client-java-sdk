@@ -920,10 +920,13 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
     // ========================================
 
     /**
-     * Execute all chained operations as a single batch.
+     * Execute all chained query operations synchronously with default error handling.
+     * Single-key operations throw on error; batch/multi-key operations embed errors in the stream.
      * For single-key operations, this uses optimized point execution.
      *
      * @return RecordStream containing the results of all operations
+     * @see #execute(ErrorStrategy)
+     * @see #execute(ErrorHandler)
      */
     public RecordStream execute() {
         List<OperationSpec> specs = prepareSpecs();
@@ -934,11 +937,24 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
             defaultExpirationInSeconds, txnToUse, AbstractFilterableBuilder.defaultDisposition(specs));
     }
 
+    /**
+     * Execute all chained query operations synchronously with the given error strategy.
+     *
+     * @param strategy the error strategy (must not be null)
+     * @return RecordStream containing the results
+     */
     public RecordStream execute(ErrorStrategy strategy) {
         Objects.requireNonNull(strategy, "ErrorStrategy must not be null");
         return executeWithDisposition(ErrorDisposition.fromStrategy(strategy));
     }
 
+    /**
+     * Execute all chained query operations synchronously, dispatching errors to the handler.
+     * Error results are excluded from the returned stream.
+     *
+     * @param handler the error handler callback (must not be null)
+     * @return RecordStream containing only successful results
+     */
     public RecordStream execute(ErrorHandler handler) {
         Objects.requireNonNull(handler, "ErrorHandler must not be null");
         return executeWithDisposition(ErrorDisposition.handler(handler));

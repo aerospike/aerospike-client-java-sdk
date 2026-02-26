@@ -353,10 +353,13 @@ public class IdValuesRowBuilder {
     // ========================================
 
     /**
-     * Execute all accumulated rows as a batch operation.
+     * Execute all accumulated rows synchronously with default error handling.
+     * Single-key operations throw on error; batch/multi-key operations embed errors in the stream.
      *
      * @return RecordStream containing the results
      * @throws IllegalStateException if no rows have been defined
+     * @see #execute(ErrorStrategy)
+     * @see #execute(ErrorHandler)
      */
     public RecordStream execute() {
         List<OperationSpec> specs = materializeToSpecs();
@@ -364,11 +367,24 @@ public class IdValuesRowBuilder {
             defaultExpirationInSeconds, txnToUse, AbstractFilterableBuilder.defaultDisposition(specs));
     }
 
+    /**
+     * Execute all accumulated rows synchronously with the given error strategy.
+     *
+     * @param strategy the error strategy (must not be null)
+     * @return RecordStream containing the results
+     */
     public RecordStream execute(ErrorStrategy strategy) {
         Objects.requireNonNull(strategy, "ErrorStrategy must not be null");
         return executeWithDisposition(ErrorDisposition.fromStrategy(strategy));
     }
 
+    /**
+     * Execute all accumulated rows synchronously, dispatching errors to the handler.
+     * Error results are excluded from the returned stream.
+     *
+     * @param handler the error handler callback (must not be null)
+     * @return RecordStream containing only successful results
+     */
     public RecordStream execute(ErrorHandler handler) {
         Objects.requireNonNull(handler, "ErrorHandler must not be null");
         return executeWithDisposition(ErrorDisposition.handler(handler));

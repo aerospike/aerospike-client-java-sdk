@@ -691,10 +691,13 @@ public class ObjectBuilder<T> {
     // ========================================
 
     /**
-     * Execute operations with default behavior (synchronous).
+     * Execute operations synchronously with default error handling.
+     * Single-key operations throw on error; batch/multi-key operations embed errors in the stream.
      * All operations complete before this method returns, making it safe for transactions.
      *
      * @return RecordStream containing the results
+     * @see #execute(ErrorStrategy)
+     * @see #execute(ErrorHandler)
      */
     public RecordStream execute() {
         ErrorDisposition disposition = elements.size() <= 1
@@ -703,11 +706,24 @@ public class ObjectBuilder<T> {
         return executeWithDisposition(disposition);
     }
 
+    /**
+     * Execute operations synchronously with the given error strategy.
+     *
+     * @param strategy the error strategy (must not be null)
+     * @return RecordStream containing the results
+     */
     public RecordStream execute(ErrorStrategy strategy) {
         Objects.requireNonNull(strategy, "ErrorStrategy must not be null");
         return executeWithDisposition(ErrorDisposition.fromStrategy(strategy));
     }
 
+    /**
+     * Execute operations synchronously, dispatching errors to the handler.
+     * Error results are excluded from the returned stream.
+     *
+     * @param handler the error handler callback (must not be null)
+     * @return RecordStream containing only successful results
+     */
     public RecordStream execute(ErrorHandler handler) {
         Objects.requireNonNull(handler, "ErrorHandler must not be null");
         return executeWithDisposition(ErrorDisposition.handler(handler));

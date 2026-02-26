@@ -117,3 +117,55 @@ catch (AerospikeException.TransactionException e) {
 | `UdfException` | `UDF_BAD_RESPONSE` (100) |
 
 All other result codes map to the base `AerospikeException`.
+
+## Error Handling Policy
+
+### Execution Methods
+
+| Method | Behavior |
+|---|---|
+| `execute()` | **Synchronous.** Single-key: throws on error. Batch/multi-key: errors embedded in stream. |
+| `execute(ErrorStrategy)` | Synchronous with explicit strategy. `IN_STREAM` forces errors into the stream even for single-key. |
+| `execute(ErrorHandler)` | Synchronous. Errors dispatched to the callback; excluded from the stream. |
+| `executeAsync(ErrorStrategy)` | Asynchronous (virtual thread). Errors in stream or thrown per strategy. |
+| `executeAsync(ErrorHandler)` | Asynchronous (virtual thread). Errors dispatched to callback. |
+
+### Default Behavior by Key Cardinality
+
+- **Single-key** operations default to `THROW` — the exception is thrown directly, matching idiomatic Java.
+- **Batch / multi-key** operations default to `IN_STREAM` — errors are embedded as `RecordResult` entries
+  so that partial successes are not lost. Use `RecordResult.isOk()` or `failures()` to inspect.
+- Explicit overloads (`execute(ErrorStrategy)`, `execute(ErrorHandler)`) always honor the caller's choice,
+  even if it overrides the default (e.g. `execute(ErrorStrategy.IN_STREAM)` on a single-key operation).
+
+### Non-Actionable Result Codes
+
+`KEY_NOT_FOUND_ERROR` (2) is considered informational, not a true error. It always flows into the
+stream as a `RecordResult` regardless of the error disposition. This matches the common pattern where
+a "not found" result is an expected outcome, not an exceptional condition. Callers check for it via
+`RecordResult.isOk()` or `RecordResult.resultCode()`.
+
+### Async Error Strategy Requirement
+
+`executeAsync()` always requires an explicit error handling strategy — either `ErrorStrategy.IN_STREAM`
+or an `ErrorHandler` callback. There is no no-arg `executeAsync()`. This forces callers to make a
+conscious decision about how errors are surfaced in an asynchronous context where exceptions cannot
+propagate naturally to the caller's stack frame.
+
+### RecordStream Adapters
+
+`RecordStream` provides adapters for composable async consumption:
+
+- `asCompletableFuture()` — drains the stream on a virtual thread and completes with `List<RecordResult>`.
+  Best for point lookups and bounded batch results.
+- `asCompletableFuture(RecordMapper<T>)` — same, but maps each record to `T`.
+- `asPublisher()` — returns a `java.util.concurrent.Flow.Publisher<RecordResult>` with backpressure.
+  Ideal for large or unbounded result sets. Compatible with Project Reactor (`JdkFlowAdapter`) and
+  RxJava 3 (`FlowAdapters.toPublisher()`).
+
+### Internal Mechanism
+
+The `ErrorDisposition` sealed interface (package-private) represents the resolved error routing:
+`Throw`, `InStream`, or `Handler`. Builders compute the default disposition and thread it through
+`OperationSpecExecutor`, which applies it at the point where each record result is produced — no
+post-processing of consumed streams required.

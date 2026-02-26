@@ -876,10 +876,13 @@ public class ChainableOperationBuilder extends AbstractOperationBuilder<Chainabl
     // ========================================
 
     /**
-     * Execute all chained operations as a single batch with default behavior (synchronous).
+     * Execute all chained operations synchronously with default error handling.
+     * Single-key operations throw on error; batch/multi-key operations embed errors in the stream.
      * All operations complete before this method returns, making it safe for transactions.
      *
      * @return RecordStream containing the results of all operations
+     * @see #execute(ErrorStrategy)
+     * @see #execute(ErrorHandler)
      */
     public RecordStream execute() {
         prepareSpecs();
@@ -895,11 +898,25 @@ public class ChainableOperationBuilder extends AbstractOperationBuilder<Chainabl
             defaultExpirationInSeconds, txnToUse, AbstractFilterableBuilder.defaultDisposition(operationSpecs));
     }
 
+    /**
+     * Execute all chained operations synchronously with the given error strategy.
+     * Use {@link ErrorStrategy#IN_STREAM} to force errors into the stream even for single-key operations.
+     *
+     * @param strategy the error strategy (must not be null)
+     * @return RecordStream containing the results
+     */
     public RecordStream execute(ErrorStrategy strategy) {
         Objects.requireNonNull(strategy, "ErrorStrategy must not be null");
         return executeWithDisposition(ErrorDisposition.fromStrategy(strategy));
     }
 
+    /**
+     * Execute all chained operations synchronously, dispatching errors to the handler.
+     * Error results are excluded from the returned stream.
+     *
+     * @param handler the error handler callback (must not be null)
+     * @return RecordStream containing only successful results
+     */
     public RecordStream execute(ErrorHandler handler) {
         Objects.requireNonNull(handler, "ErrorHandler must not be null");
         return executeWithDisposition(ErrorDisposition.handler(handler));
