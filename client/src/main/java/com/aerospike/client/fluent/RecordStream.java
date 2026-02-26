@@ -23,6 +23,11 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Spliterator;
 import java.util.Spliterators;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Flow;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.locks.LockSupport;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
@@ -220,6 +225,234 @@ public class RecordStream implements Iterator<RecordResult>, Closeable {
         return records;
     }
 
+    // ========================================
+    // CompletableFuture adapters
+    // ========================================
+
+    /**
+     * Drains this stream into a {@link CompletableFuture} that completes with all results
+     * as a list. The draining happens on a virtual thread, so this method returns immediately.
+     *
+     * <p>Best suited for point lookups and batch operations with bounded result sets.
+     * For index queries that may return millions of records, prefer {@link #asPublisher()}
+     * or iterate the stream directly.</p>
+     *
+     * <pre>
+     * CompletableFuture&lt;List&lt;RecordResult&gt;&gt; future =
+     *     session.query(dataSet.id("k1", "k2")).executeAsync(ErrorStrategy.IN_STREAM)
+     *            .asCompletableFuture();
+     *
+     * future.thenAccept(results -&gt; results.forEach(r -&gt; System.out.println(r.key())));
+     * </pre>
+     *
+     * @return a CompletableFuture that completes with all results from this stream
+     */
+    public CompletableFuture<List<RecordResult>> asCompletableFuture() {
+        CompletableFuture<List<RecordResult>> future = new CompletableFuture<>();
+        Thread.startVirtualThread(() -> {
+            try {
+                List<RecordResult> results = new ArrayList<>();
+                while (hasNext()) {
+                    results.add(next());
+                }
+                future.complete(results);
+            } catch (Throwable t) {
+                future.completeExceptionally(t);
+            }
+        });
+        return future;
+    }
+
+    /**
+     * Drains this stream, maps each record using the provided mapper, and completes the
+     * returned {@link CompletableFuture} with the mapped list. Records with non-OK result
+     * codes cause the future to complete exceptionally.
+     *
+     * <pre>
+     * CompletableFuture&lt;List&lt;Customer&gt;&gt; future =
+     *     session.query(customerDataSet.id("C001", "C002")).executeAsync(ErrorStrategy.IN_STREAM)
+     *            .asCompletableFuture(customerMapper);
+     * </pre>
+     *
+     * @param <T> the target type
+     * @param mapper the mapper to convert each record
+     * @return a CompletableFuture that completes with the mapped results
+     */
+    public <T> CompletableFuture<List<T>> asCompletableFuture(RecordMapper<T> mapper) {
+        CompletableFuture<List<T>> future = new CompletableFuture<>();
+        Thread.startVirtualThread(() -> {
+            try {
+                List<T> results = new ArrayList<>();
+                while (hasNext()) {
+                    RecordResult rr = next();
+                    Record rec = rr.recordOrThrow();
+                    results.add(mapper.fromMap(rec.bins, rr.key(), rec.generation));
+                }
+                future.complete(results);
+            } catch (Throwable t) {
+                future.completeExceptionally(t);
+            }
+        });
+        return future;
+    }
+
+    // ========================================
+    // Flow.Publisher adapter
+    // ========================================
+
+    /**
+     * Adapts this stream into a {@link Flow.Publisher} for reactive consumption with
+     * backpressure support. Uses only JDK types -- no dependency on Project Reactor or RxJava.
+     *
+     * <p>This publisher is unicast: only one subscriber is supported. Subsequent subscribers
+     * receive {@code onError(IllegalStateException)}.</p>
+     *
+     * <p>Ideal for large or unbounded result sets (e.g. index queries) where collecting
+     * everything into memory via {@link #asCompletableFuture()} is not practical.</p>
+     *
+     * <p><b>Raw JDK usage:</b></p>
+     * <pre>
+     * session.query(dataSet).where("age &gt; 21").executeAsync(ErrorStrategy.IN_STREAM)
+     *     .asPublisher()
+     *     .subscribe(new Flow.Subscriber&lt;&gt;() {
+     *         Flow.Subscription sub;
+     *         public void onSubscribe(Flow.Subscription s) { sub = s; s.request(100); }
+     *         public void onNext(RecordResult item)        { process(item); sub.request(1); }
+     *         public void onError(Throwable t)             { t.printStackTrace(); }
+     *         public void onComplete()                     { System.out.println("done"); }
+     *     });
+     * </pre>
+     *
+     * <p><b>Project Reactor:</b></p>
+     * <pre>
+     * Flow.Publisher&lt;RecordResult&gt; publisher = session.query(dataSet)
+     *     .where("age &gt; 21")
+     *     .executeAsync(ErrorStrategy.IN_STREAM)
+     *     .asPublisher();
+     *
+     * Flux.from(JdkFlowAdapter.flowPublisherToFlux(publisher))
+     *     .filter(RecordResult::isOk)
+     *     .map(r -&gt; r.recordOrThrow().getString("name"))
+     *     .buffer(100)
+     *     .subscribe(batch -&gt; saveBatch(batch));
+     * </pre>
+     *
+     * <p><b>RxJava 3:</b></p>
+     * <pre>
+     * Flow.Publisher&lt;RecordResult&gt; publisher = session.query(dataSet)
+     *     .where("age &gt; 21")
+     *     .executeAsync(ErrorStrategy.IN_STREAM)
+     *     .asPublisher();
+     *
+     * Flowable.fromPublisher(FlowAdapters.toPublisher(publisher))
+     *     .filter(RecordResult::isOk)
+     *     .map(r -&gt; r.recordOrThrow().getString("name"))
+     *     .buffer(100)
+     *     .subscribe(batch -&gt; saveBatch(batch));
+     * </pre>
+     *
+     * <p>Both adapters ({@code JdkFlowAdapter} in Reactor, {@code FlowAdapters} in the JDK's
+     * {@code java.util.concurrent} package) bridge between {@code Flow.Publisher} and the
+     * Reactive Streams {@code org.reactivestreams.Publisher} that Reactor and RxJava expect.</p>
+     *
+     * @return a Flow.Publisher that streams results with backpressure
+     */
+    public Flow.Publisher<RecordResult> asPublisher() {
+        return new RecordStreamPublisher(this);
+    }
+
+    private static class RecordStreamPublisher implements Flow.Publisher<RecordResult> {
+        private final RecordStream source;
+        private final AtomicBoolean subscribed = new AtomicBoolean(false);
+
+        RecordStreamPublisher(RecordStream source) {
+            this.source = source;
+        }
+
+        @Override
+        public void subscribe(Flow.Subscriber<? super RecordResult> subscriber) {
+            if (subscriber == null) {
+                throw new NullPointerException("Subscriber must not be null");
+            }
+            if (!subscribed.compareAndSet(false, true)) {
+                subscriber.onSubscribe(new Flow.Subscription() {
+                    @Override public void request(long n) {}
+                    @Override public void cancel() {}
+                });
+                subscriber.onError(new IllegalStateException(
+                    "RecordStream is single-pass; only one subscriber is supported"));
+                return;
+            }
+            new RecordStreamSubscription(source, subscriber).start();
+        }
+    }
+
+    private static class RecordStreamSubscription implements Flow.Subscription {
+        private final RecordStream source;
+        private final Flow.Subscriber<? super RecordResult> subscriber;
+        private final AtomicLong demand = new AtomicLong(0);
+        private final AtomicBoolean cancelled = new AtomicBoolean(false);
+        private volatile Thread drainThread;
+
+        RecordStreamSubscription(RecordStream source, Flow.Subscriber<? super RecordResult> subscriber) {
+            this.source = source;
+            this.subscriber = subscriber;
+        }
+
+        @Override
+        public void request(long n) {
+            if (n <= 0) {
+                cancelled.set(true);
+                subscriber.onError(new IllegalArgumentException(
+                    "§3.9 spec violation: non-positive request: " + n));
+                return;
+            }
+            demand.getAndUpdate(current -> {
+                long result = current + n;
+                return (result < 0) ? Long.MAX_VALUE : result;
+            });
+            Thread t = drainThread;
+            if (t != null) {
+                LockSupport.unpark(t);
+            }
+        }
+
+        @Override
+        public void cancel() {
+            cancelled.set(true);
+            source.close();
+            Thread t = drainThread;
+            if (t != null) {
+                LockSupport.unpark(t);
+            }
+        }
+
+        void start() {
+            subscriber.onSubscribe(this);
+            Thread.startVirtualThread(() -> {
+                drainThread = Thread.currentThread();
+                try {
+                    while (!cancelled.get()) {
+                        if (!source.hasNext()) {
+                            subscriber.onComplete();
+                            return;
+                        }
+                        while (demand.get() <= 0 && !cancelled.get()) {
+                            LockSupport.park();
+                        }
+                        if (cancelled.get()) return;
+                        demand.decrementAndGet();
+                        subscriber.onNext(source.next());
+                    }
+                } catch (Throwable t) {
+                    if (!cancelled.get()) {
+                        subscriber.onError(t);
+                    }
+                }
+            });
+        }
+    }
+
     /**
      * Filter the stream to return only failed operations. A failed operation is one where
      * the result code is not {@link ResultCode#OK}.
@@ -261,7 +494,7 @@ public class RecordStream implements Iterator<RecordResult>, Closeable {
      */
     public <T> List<T> toObjectList(RecordMapper<T> mapper) {
         // TODO: What should happen if there is an exception in the stream of records? At the moment it is just thrown
-        // to the detriment of the other recods
+        // to the detriment of the other records
         List<T> result = new ArrayList<>();
         while (hasNext()) {
             RecordResult keyRecord = next();
