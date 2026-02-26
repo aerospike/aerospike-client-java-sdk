@@ -22,6 +22,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.Objects;
 
 import com.aerospike.client.fluent.command.Txn;
 
@@ -352,24 +353,102 @@ public class IdValuesRowBuilder {
     // ========================================
 
     /**
-     * Execute all accumulated rows as a batch operation.
+     * Execute all accumulated rows synchronously with default error handling.
+     * Single-key operations throw on error; batch/multi-key operations embed errors in the stream.
      *
      * @return RecordStream containing the results
      * @throws IllegalStateException if no rows have been defined
+     * @see #execute(ErrorStrategy)
+     * @see #execute(ErrorHandler)
      */
     public RecordStream execute() {
-        return executeSync();
+        List<OperationSpec> specs = materializeToSpecs();
+        return OperationSpecExecutor.execute(session, specs, null,
+            defaultExpirationInSeconds, txnToUse, AbstractFilterableBuilder.defaultDisposition(specs));
     }
 
     /**
-     * Execute all accumulated rows synchronously.
+     * Execute all accumulated rows synchronously with the given error strategy.
      *
+     * @param strategy the error strategy (must not be null)
      * @return RecordStream containing the results
      */
-    public RecordStream executeSync() {
-        List<OperationSpec> specs = materializeToSpecs();
-        return OperationSpecExecutor.execute(session, specs, null, defaultExpirationInSeconds, txnToUse);
+    public RecordStream execute(ErrorStrategy strategy) {
+        Objects.requireNonNull(strategy, "ErrorStrategy must not be null");
+        return executeWithDisposition(ErrorDisposition.fromStrategy(strategy));
     }
+
+    /**
+     * Execute all accumulated rows synchronously, dispatching errors to the handler.
+     * Error results are excluded from the returned stream.
+     *
+     * @param handler the error handler callback (must not be null)
+     * @return RecordStream containing only successful results
+     */
+    public RecordStream execute(ErrorHandler handler) {
+        Objects.requireNonNull(handler, "ErrorHandler must not be null");
+        return executeWithDisposition(ErrorDisposition.handler(handler));
+    }
+
+    private RecordStream executeWithDisposition(ErrorDisposition disposition) {
+        List<OperationSpec> specs = materializeToSpecs();
+        return OperationSpecExecutor.execute(session, specs, null, defaultExpirationInSeconds, txnToUse, disposition);
+    }
+
+    /**
+     * Execute all accumulated rows asynchronously with errors embedded in the stream.
+     *
+     * @param strategy the error strategy (must not be null)
+     * @return RecordStream that will be populated as results arrive
+     * @throws IllegalStateException if no rows have been defined
+     */
+    public RecordStream executeAsync(ErrorStrategy strategy) {
+        Objects.requireNonNull(strategy, "ErrorStrategy must not be null");
+        return executeAsyncInternal(null);
+    }
+
+    /**
+     * Execute all accumulated rows asynchronously with errors dispatched to the handler.
+     * Error results are excluded from the returned stream.
+     *
+     * @param handler the error handler callback (must not be null)
+     * @return RecordStream containing only successful results
+     * @throws IllegalStateException if no rows have been defined
+     */
+    public RecordStream executeAsync(ErrorHandler handler) {
+        Objects.requireNonNull(handler, "ErrorHandler must not be null");
+        return executeAsyncInternal(handler);
+    }
+
+    private RecordStream executeAsyncInternal(ErrorHandler errorHandler) {
+        List<OperationSpec> specs = materializeToSpecs();
+
+        if (txnToUse != null && Log.warnEnabled()) {
+            Log.warn(
+                "executeAsync() called within a transaction. " +
+                "Async operations may still be in flight when commit() is called, " +
+                "which could lead to inconsistent state. " +
+                "Consider using execute() for transactional safety."
+            );
+        }
+
+        int totalKeys = specs.stream().mapToInt(spec -> spec.getKeys().size()).sum();
+        AsyncRecordStream asyncStream = new AsyncRecordStream(totalKeys);
+
+        Cluster cluster = session.getCluster();
+        cluster.startVirtualThread(() -> {
+            try {
+                RecordStream syncResult = OperationSpecExecutor.execute(
+                    session, specs, null, defaultExpirationInSeconds, txnToUse);
+                syncResult.forEach(result -> AbstractFilterableBuilder.dispatchResult(result, asyncStream, errorHandler));
+            } finally {
+                asyncStream.complete();
+            }
+        });
+
+        return new RecordStream(asyncStream);
+    }
+
 
     private List<OperationSpec> materializeToSpecs() {
         finalizeCurrentRow();

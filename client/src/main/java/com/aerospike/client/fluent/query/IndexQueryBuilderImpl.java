@@ -16,11 +16,15 @@
  */
 package com.aerospike.client.fluent.query;
 
+import java.util.Objects;
+
+import com.aerospike.client.fluent.AbstractFilterableBuilder;
 import com.aerospike.client.fluent.AerospikeException;
 import com.aerospike.client.fluent.AsyncRecordStream;
 import com.aerospike.client.fluent.Cluster;
 import com.aerospike.client.fluent.DataSet;
-import com.aerospike.client.fluent.Log;
+import com.aerospike.client.fluent.ErrorHandler;
+import com.aerospike.client.fluent.ErrorStrategy;
 import com.aerospike.client.fluent.RecordStream;
 import com.aerospike.client.fluent.ResultCode;
 import com.aerospike.client.fluent.Session;
@@ -46,30 +50,55 @@ public class IndexQueryBuilderImpl extends QueryImpl {
     }
     @Override
     public RecordStream execute() {
-        if (getQueryBuilder().getTxnToUse() != null) {
-            return executeSync();
-        } else {
-            return executeAsync();
-        }
-    }
-
-    @Override
-    public RecordStream executeSync() {
         return executeInternal();
     }
 
     @Override
-    public RecordStream executeAsync() {
-        if (getQueryBuilder().getTxnToUse() != null && Log.warnEnabled()) {
-            Log.warn(
-                "executeAsync() called within a transaction. " +
-                "Async operations may still be in flight when commit() is called, " +
-                "which could lead to inconsistent state. " +
-                "Consider using executeSync() or execute() for transactional safety."
-            );
-        }
-        // Index queries stream results; async and sync behave similarly
+    public RecordStream execute(ErrorStrategy strategy) {
+        Objects.requireNonNull(strategy, "ErrorStrategy must not be null");
         return executeInternal();
+    }
+
+    @Override
+    public RecordStream execute(ErrorHandler handler) {
+        Objects.requireNonNull(handler, "ErrorHandler must not be null");
+        return AbstractFilterableBuilder.filterStreamErrors(executeInternal(), handler);
+    }
+
+    @Override
+    public RecordStream executeAsync(ErrorStrategy strategy) {
+        Objects.requireNonNull(strategy, "ErrorStrategy must not be null");
+        return executeInternal();
+    }
+
+    @Override
+    public RecordStream executeAsync(ErrorHandler handler) {
+        Objects.requireNonNull(handler, "ErrorHandler must not be null");
+        RecordStream source = executeInternal();
+
+        Session session = getSession();
+        Cluster cluster = session.getCluster();
+        Settings policy = session.getBehavior().getSettings(OpKind.READ, OpShape.QUERY, Mode.ANY);
+        AsyncRecordStream filtered = new AsyncRecordStream(policy.getRecordQueueSize());
+
+        cluster.startVirtualThread(() -> {
+            try {
+                source.forEach(result -> {
+                    if (!result.isOk()) {
+                        AerospikeException ex = result.exception() != null
+                            ? result.exception()
+                            : AerospikeException.resultCodeToException(result.resultCode(), result.message(), result.inDoubt());
+                        handler.handle(result.key(), result.index(), ex);
+                    } else {
+                        filtered.publish(result);
+                    }
+                });
+            } finally {
+                filtered.complete();
+            }
+        });
+
+        return new RecordStream(filtered);
     }
 
     private RecordStream executeInternal() {

@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
+import java.util.Objects;
 
 import com.aerospike.client.fluent.command.Txn;
 import com.aerospike.client.fluent.dsl.BooleanExpression;
@@ -875,53 +876,90 @@ public class ChainableOperationBuilder extends AbstractOperationBuilder<Chainabl
     // ========================================
 
     /**
-     * Execute all chained operations as a single batch with default behavior (synchronous).
+     * Execute all chained operations synchronously with default error handling.
+     * Single-key operations throw on error; batch/multi-key operations embed errors in the stream.
      * All operations complete before this method returns, making it safe for transactions.
      *
      * @return RecordStream containing the results of all operations
+     * @see #execute(ErrorStrategy)
+     * @see #execute(ErrorHandler)
      */
     public RecordStream execute() {
-        return executeSync();
-    }
-
-    /**
-     * Execute all chained operations synchronously as a single batch.
-     * All operations complete before this method returns, making it safe for transactions.
-     *
-     * @return RecordStream containing the results of all operations
-     */
-    public RecordStream executeSync() {
-        finalizeCurrentOperation();
-
-        if (operationSpecs.isEmpty()) {
-            throw new IllegalStateException("No operations specified");
-        }
+        prepareSpecs();
 
         if (Log.debugEnabled()) {
             int totalKeys = operationSpecs.stream().mapToInt(spec -> spec.getKeys().size()).sum();
-            Log.debug("ChainableOperationBuilder.executeSync() called for " + operationSpecs.size() +
+            Log.debug("ChainableOperationBuilder.execute() called for " + operationSpecs.size() +
                      " operation(s), " + totalKeys + " key(s), transaction: " +
                      (txnToUse != null ? "yes" : "no"));
         }
 
-        return OperationSpecExecutor.execute(session, operationSpecs, defaultWhereClause, defaultExpirationInSeconds, txnToUse);
+        return OperationSpecExecutor.execute(session, operationSpecs, defaultWhereClause,
+            defaultExpirationInSeconds, txnToUse, AbstractFilterableBuilder.defaultDisposition(operationSpecs));
     }
 
     /**
-     * Execute all chained operations asynchronously as a single batch.
-     * Method returns immediately; results are consumed via the RecordStream.
-     * <p>
-     * <b>WARNING:</b> Using this in transactions may lead to operations still being in flight
-     * when commit() is called, potentially leading to inconsistent state. A warning will be logged.
+     * Execute all chained operations synchronously with the given error strategy.
+     * Use {@link ErrorStrategy#IN_STREAM} to force errors into the stream even for single-key operations.
      *
+     * @param strategy the error strategy (must not be null)
+     * @return RecordStream containing the results
+     */
+    public RecordStream execute(ErrorStrategy strategy) {
+        Objects.requireNonNull(strategy, "ErrorStrategy must not be null");
+        return executeWithDisposition(ErrorDisposition.fromStrategy(strategy));
+    }
+
+    /**
+     * Execute all chained operations synchronously, dispatching errors to the handler.
+     * Error results are excluded from the returned stream.
+     *
+     * @param handler the error handler callback (must not be null)
+     * @return RecordStream containing only successful results
+     */
+    public RecordStream execute(ErrorHandler handler) {
+        Objects.requireNonNull(handler, "ErrorHandler must not be null");
+        return executeWithDisposition(ErrorDisposition.handler(handler));
+    }
+
+    private RecordStream executeWithDisposition(ErrorDisposition disposition) {
+        prepareSpecs();
+
+        if (Log.debugEnabled()) {
+            int totalKeys = operationSpecs.stream().mapToInt(spec -> spec.getKeys().size()).sum();
+            Log.debug("ChainableOperationBuilder.execute() called for " + operationSpecs.size() +
+                     " operation(s), " + totalKeys + " key(s), transaction: " +
+                     (txnToUse != null ? "yes" : "no"));
+        }
+
+        return OperationSpecExecutor.execute(session, operationSpecs, defaultWhereClause, defaultExpirationInSeconds, txnToUse, disposition);
+    }
+
+    /**
+     * Execute all chained operations asynchronously with errors embedded in the stream.
+     *
+     * @param strategy the error strategy (must not be null)
      * @return RecordStream that will be populated as results arrive
      */
-    public RecordStream executeAsync() {
-        finalizeCurrentOperation();
+    public RecordStream executeAsync(ErrorStrategy strategy) {
+        Objects.requireNonNull(strategy, "ErrorStrategy must not be null");
+        return executeAsyncInternal(null);
+    }
 
-        if (operationSpecs.isEmpty()) {
-            throw new IllegalStateException("No operations specified");
-        }
+    /**
+     * Execute all chained operations asynchronously with errors dispatched to the handler.
+     * Error results are excluded from the returned stream.
+     *
+     * @param handler the error handler callback (must not be null)
+     * @return RecordStream containing only successful results
+     */
+    public RecordStream executeAsync(ErrorHandler handler) {
+        Objects.requireNonNull(handler, "ErrorHandler must not be null");
+        return executeAsyncInternal(handler);
+    }
+
+    private RecordStream executeAsyncInternal(ErrorHandler errorHandler) {
+        prepareSpecs();
 
         if (Log.debugEnabled()) {
             int totalKeys = operationSpecs.stream().mapToInt(spec -> spec.getKeys().size()).sum();
@@ -935,27 +973,32 @@ public class ChainableOperationBuilder extends AbstractOperationBuilder<Chainabl
                 "executeAsync() called within a transaction. " +
                 "Async operations may still be in flight when commit() is called, " +
                 "which could lead to inconsistent state. " +
-                "Consider using executeSync() or execute() for transactional safety."
+                "Consider using execute() for transactional safety."
             );
         }
 
-        // Create a stream that will receive results asynchronously
         int totalKeys = operationSpecs.stream().mapToInt(spec -> spec.getKeys().size()).sum();
         AsyncRecordStream asyncStream = new AsyncRecordStream(totalKeys);
 
-        // Execute in a virtual thread so this method returns immediately
         Cluster cluster = session.getCluster();
         cluster.startVirtualThread(() -> {
             try {
                 RecordStream syncResult = OperationSpecExecutor.execute(session, operationSpecs, defaultWhereClause, defaultExpirationInSeconds, txnToUse);
-                // Transfer results to the async stream
-                syncResult.forEach(result -> asyncStream.publish(result));
+                syncResult.forEach(result -> dispatchResult(result, asyncStream, errorHandler));
             } finally {
                 asyncStream.complete();
             }
         });
 
         return new RecordStream(asyncStream);
+    }
+
+
+    private void prepareSpecs() {
+        finalizeCurrentOperation();
+        if (operationSpecs.isEmpty()) {
+            throw new IllegalStateException("No operations specified");
+        }
     }
 
     // ========================================

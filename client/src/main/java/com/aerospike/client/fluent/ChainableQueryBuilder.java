@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
+import java.util.Objects;
 
 import com.aerospike.client.fluent.command.Txn;
 import com.aerospike.client.fluent.dsl.BooleanExpression;
@@ -919,49 +920,117 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
     // ========================================
 
     /**
-     * Execute all chained operations as a single batch.
+     * Execute all chained query operations synchronously with default error handling.
+     * Single-key operations throw on error; batch/multi-key operations embed errors in the stream.
      * For single-key operations, this uses optimized point execution.
      *
      * @return RecordStream containing the results of all operations
+     * @see #execute(ErrorStrategy)
+     * @see #execute(ErrorHandler)
      */
     public RecordStream execute() {
-        finalizeCurrentOperation();
-
-        if (operationSpecs.isEmpty()) {
-            throw new IllegalStateException("No operations specified");
+        List<OperationSpec> specs = prepareSpecs();
+        if (specs.isEmpty()) {
+            return new RecordStream();
         }
+        return OperationSpecExecutor.execute(session, specs, defaultWhereClause,
+            defaultExpirationInSeconds, txnToUse, AbstractFilterableBuilder.defaultDisposition(specs));
+    }
 
-        // Apply partition filtering if specified
-        List<OperationSpec> filteredSpecs = applyPartitionFilter(operationSpecs);
+    /**
+     * Execute all chained query operations synchronously with the given error strategy.
+     *
+     * @param strategy the error strategy (must not be null)
+     * @return RecordStream containing the results
+     */
+    public RecordStream execute(ErrorStrategy strategy) {
+        Objects.requireNonNull(strategy, "ErrorStrategy must not be null");
+        return executeWithDisposition(ErrorDisposition.fromStrategy(strategy));
+    }
 
-        // Apply limit to keys if specified
-        filteredSpecs = applyKeyLimit(filteredSpecs);
+    /**
+     * Execute all chained query operations synchronously, dispatching errors to the handler.
+     * Error results are excluded from the returned stream.
+     *
+     * @param handler the error handler callback (must not be null)
+     * @return RecordStream containing only successful results
+     */
+    public RecordStream execute(ErrorHandler handler) {
+        Objects.requireNonNull(handler, "ErrorHandler must not be null");
+        return executeWithDisposition(ErrorDisposition.handler(handler));
+    }
 
-        if (filteredSpecs.isEmpty()) {
+    private RecordStream executeWithDisposition(ErrorDisposition disposition) {
+        List<OperationSpec> specs = prepareSpecs();
+        if (specs.isEmpty()) {
+            return new RecordStream();
+        }
+        return OperationSpecExecutor.execute(session, specs, defaultWhereClause, defaultExpirationInSeconds, txnToUse, disposition);
+    }
+
+    /**
+     * Execute all chained operations asynchronously with errors embedded in the stream.
+     *
+     * @param strategy the error strategy (must not be null)
+     * @return RecordStream that will be populated as results arrive
+     */
+    public RecordStream executeAsync(ErrorStrategy strategy) {
+        Objects.requireNonNull(strategy, "ErrorStrategy must not be null");
+        return executeAsyncInternal(null);
+    }
+
+    /**
+     * Execute all chained operations asynchronously with errors dispatched to the handler.
+     * Error results are excluded from the returned stream.
+     *
+     * @param handler the error handler callback (must not be null)
+     * @return RecordStream containing only successful results
+     */
+    public RecordStream executeAsync(ErrorHandler handler) {
+        Objects.requireNonNull(handler, "ErrorHandler must not be null");
+        return executeAsyncInternal(handler);
+    }
+
+    private RecordStream executeAsyncInternal(ErrorHandler errorHandler) {
+        List<OperationSpec> specs = prepareSpecs();
+        if (specs.isEmpty()) {
             return new RecordStream();
         }
 
-        return OperationSpecExecutor.execute(session, filteredSpecs, defaultWhereClause, defaultExpirationInSeconds, txnToUse);
+        if (txnToUse != null && Log.warnEnabled()) {
+            Log.warn(
+                "executeAsync() called within a transaction. " +
+                "Async operations may still be in flight when commit() is called, " +
+                "which could lead to inconsistent state. " +
+                "Consider using execute() for transactional safety."
+            );
+        }
+
+        int totalKeys = specs.stream().mapToInt(spec -> spec.getKeys().size()).sum();
+        AsyncRecordStream asyncStream = new AsyncRecordStream(totalKeys);
+
+        Cluster cluster = session.getCluster();
+        cluster.startVirtualThread(() -> {
+            try {
+                RecordStream syncResult = OperationSpecExecutor.execute(
+                    session, specs, defaultWhereClause, defaultExpirationInSeconds, txnToUse);
+                syncResult.forEach(result -> dispatchResult(result, asyncStream, errorHandler));
+            } finally {
+                asyncStream.complete();
+            }
+        });
+
+        return new RecordStream(asyncStream);
     }
 
-    /**
-     * Execute all chained operations synchronously.
-     * All operations complete before this method returns.
-     *
-     * @return RecordStream containing the results of all operations
-     */
-    public RecordStream executeSync() {
-        return execute();
-    }
 
-    /**
-     * Execute all chained operations asynchronously.
-     * Results are streamed as they become available.
-     *
-     * @return RecordStream that will be populated as results arrive
-     */
-    public RecordStream executeAsync() {
-        return execute();
+    private List<OperationSpec> prepareSpecs() {
+        finalizeCurrentOperation();
+        if (operationSpecs.isEmpty()) {
+            throw new IllegalStateException("No operations specified");
+        }
+        List<OperationSpec> filteredSpecs = applyPartitionFilter(operationSpecs);
+        return applyKeyLimit(filteredSpecs);
     }
 
     /**

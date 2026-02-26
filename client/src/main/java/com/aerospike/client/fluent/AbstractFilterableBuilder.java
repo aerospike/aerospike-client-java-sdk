@@ -1,5 +1,8 @@
 package com.aerospike.client.fluent;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import com.aerospike.client.fluent.command.BatchRecord;
 import com.aerospike.client.fluent.exp.Exp;
 import com.aerospike.client.fluent.exp.Expression;
@@ -69,7 +72,7 @@ public abstract class AbstractFilterableBuilder {
             BatchRecord br, 
             Settings settings, 
             int index) {
-        if (settings.getStackTraceOnException() && br.resultCode != ResultCode.OK) {
+        if (settings.getStackTraceOnException() && isActionableError(br.resultCode)) {
             return new RecordResult(
                 br, 
                 AerospikeException.resultCodeToException(br.resultCode, null, br.inDoubt), 
@@ -90,6 +93,64 @@ public abstract class AbstractFilterableBuilder {
         } else {
             return WhereClauseProcessor.from(allowSecondaryIndex, String.format(dsl, params));
         }
+    }
+
+    /**
+     * Determine the default {@link ErrorDisposition} for a list of operation specs.
+     * Single-key operations default to {@code THROW}; multi-key (batch) operations
+     * default to {@code IN_STREAM} so that partial results are not lost.
+     */
+    static ErrorDisposition defaultDisposition(List<OperationSpec> specs) {
+        if (specs.size() == 1 && specs.get(0).getKeys().size() == 1) {
+            return ErrorDisposition.THROW;
+        }
+        return ErrorDisposition.IN_STREAM;
+    }
+
+    /**
+     * Returns true if the result code represents an actionable error that should
+     * be subject to error disposition (THROW / HANDLER). Codes like
+     * {@link ResultCode#KEY_NOT_FOUND_ERROR} are informational and should always
+     * flow through the stream regardless of disposition.
+     */
+    static boolean isActionableError(int resultCode) {
+        return resultCode != ResultCode.OK
+            && resultCode != ResultCode.KEY_NOT_FOUND_ERROR;
+    }
+
+    /**
+     * Dispatch an async result: if a handler is present and the result is an error,
+     * route to the handler; otherwise publish to the stream.
+     */
+    static void dispatchResult(RecordResult result, AsyncRecordStream stream, ErrorHandler handler) {
+        if (handler != null && isActionableError(result.resultCode())) {
+            dispatchError(result, handler);
+        } else {
+            stream.publish(result);
+        }
+    }
+
+    /**
+     * Synchronously filter a RecordStream, dispatching errors to the handler
+     * and returning a new stream containing only successful results.
+     */
+    public static RecordStream filterStreamErrors(RecordStream source, ErrorHandler handler) {
+        List<RecordResult> filtered = new ArrayList<>();
+        source.forEach(result -> {
+            if (isActionableError(result.resultCode())) {
+                dispatchError(result, handler);
+            } else {
+                filtered.add(result);
+            }
+        });
+        return new RecordStream(filtered, 0);
+    }
+
+    static void dispatchError(RecordResult result, ErrorHandler handler) {
+        AerospikeException ex = result.exception() != null
+            ? result.exception()
+            : AerospikeException.resultCodeToException(result.resultCode(), result.message(), result.inDoubt());
+        handler.handle(result.key(), result.index(), ex);
     }
 }
 

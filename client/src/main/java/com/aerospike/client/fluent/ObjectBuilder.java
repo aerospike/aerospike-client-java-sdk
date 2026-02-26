@@ -24,6 +24,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Arrays;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
@@ -690,26 +691,47 @@ public class ObjectBuilder<T> {
     // ========================================
 
     /**
-     * Execute operations with default behavior (synchronous).
+     * Execute operations synchronously with default error handling.
+     * Single-key operations throw on error; batch/multi-key operations embed errors in the stream.
      * All operations complete before this method returns, making it safe for transactions.
      *
      * @return RecordStream containing the results
+     * @see #execute(ErrorStrategy)
+     * @see #execute(ErrorHandler)
      */
     public RecordStream execute() {
-        return executeSync();
+        ErrorDisposition disposition = elements.size() <= 1
+            ? ErrorDisposition.THROW
+            : ErrorDisposition.IN_STREAM;
+        return executeWithDisposition(disposition);
     }
 
     /**
-     * Execute operations synchronously. All operations complete before this method returns.
-     * <p>
-     * Operations are parallelized using virtual threads, but all threads are joined before
-     * returning. This ensures transaction safety and deterministic behavior.
+     * Execute operations synchronously with the given error strategy.
      *
+     * @param strategy the error strategy (must not be null)
      * @return RecordStream containing the results
      */
-    public RecordStream executeSync() {
+    public RecordStream execute(ErrorStrategy strategy) {
+        Objects.requireNonNull(strategy, "ErrorStrategy must not be null");
+        return executeWithDisposition(ErrorDisposition.fromStrategy(strategy));
+    }
+
+    /**
+     * Execute operations synchronously, dispatching errors to the handler.
+     * Error results are excluded from the returned stream.
+     *
+     * @param handler the error handler callback (must not be null)
+     * @return RecordStream containing only successful results
+     */
+    public RecordStream execute(ErrorHandler handler) {
+        Objects.requireNonNull(handler, "ErrorHandler must not be null");
+        return executeWithDisposition(ErrorDisposition.handler(handler));
+    }
+
+    private RecordStream executeWithDisposition(ErrorDisposition disposition) {
         if (Log.debugEnabled()) {
-            Log.debug("ObjectBuilder.executeSync() called for " + elements.size() + " element(s), transaction: " +
+            Log.debug("ObjectBuilder.execute() called for " + elements.size() + " element(s), transaction: " +
                      (txnToUse != null ? "yes" : "no"));
         }
 
@@ -718,26 +740,41 @@ public class ObjectBuilder<T> {
         }
 
         if (elements.size() == 1) {
-            return executeSingleSync(elements.get(0));
+            return executeSingleSync(elements.get(0), disposition);
         }
 
         if (elements.size() < AbstractOperationBuilder.getBatchOperationThreshold()) {
-            return executeIndividualSync();
+            return executeIndividualSync(disposition);
         }
 
-        return executeBatchSync();
+        return executeBatchSync(disposition);
     }
 
     /**
-     * Execute operations asynchronously using virtual threads for parallel execution.
-     * Method returns immediately; results are consumed via the RecordStream.
-     * <p>
-     * <b>WARNING:</b> Using this in transactions may lead to operations still being in flight
-     * when commit() is called, potentially leading to inconsistent state. A warning will be logged.
+     * Execute operations asynchronously with errors embedded in the stream.
      *
+     * @param strategy the error strategy (must not be null)
      * @return RecordStream that will be populated as results arrive
      */
-    public RecordStream executeAsync() {
+    public RecordStream executeAsync(ErrorStrategy strategy) {
+        Objects.requireNonNull(strategy, "ErrorStrategy must not be null");
+        return executeAsyncInStream();
+    }
+
+    /**
+     * Execute operations asynchronously with errors dispatched to the handler.
+     * Error results are excluded from the returned stream.
+     *
+     * @param handler the error handler callback (must not be null)
+     * @return RecordStream containing only successful results
+     */
+    public RecordStream executeAsync(ErrorHandler handler) {
+        Objects.requireNonNull(handler, "ErrorHandler must not be null");
+        RecordStream source = executeAsyncInStream();
+        return filterErrors(source, handler);
+    }
+
+    private RecordStream executeAsyncInStream() {
         if (Log.debugEnabled()) {
             Log.debug("ObjectBuilder.executeAsync() called for " + elements.size() + " element(s), transaction: " +
                      (txnToUse != null ? "yes" : "no"));
@@ -748,7 +785,7 @@ public class ObjectBuilder<T> {
                 "executeAsync() called within a transaction. " +
                 "Async operations may still be in flight when commit() is called, " +
                 "which could lead to inconsistent state. " +
-                "Consider using executeSync() or execute() for transactional safety."
+                "Consider using execute() for transactional safety."
             );
         }
 
@@ -767,10 +804,32 @@ public class ObjectBuilder<T> {
         return executeBatchAsync();
     }
 
+    private RecordStream filterErrors(RecordStream source, ErrorHandler handler) {
+        AsyncRecordStream filtered = new AsyncRecordStream(Math.max(elements.size(), 1));
+        Session session = opBuilder.getSession();
+        session.getCluster().startVirtualThread(() -> {
+            try {
+                source.forEach(result -> {
+                    if (!result.isOk()) {
+                        AerospikeException ex = result.exception() != null
+                            ? result.exception()
+                            : AerospikeException.resultCodeToException(result.resultCode(), result.message(), result.inDoubt());
+                        handler.handle(result.key(), result.index(), ex);
+                    } else {
+                        filtered.publish(result);
+                    }
+                });
+            } finally {
+                filtered.complete();
+            }
+        });
+        return new RecordStream(filtered);
+    }
+
     /**
      * Execute operations using batch operations (10+ objects).
      */
-    private RecordStream executeBatchSync() {
+    private RecordStream executeBatchSync(ErrorDisposition disposition) {
     	BatchCommand parent = prepareBatch();
         List<BatchRecord> records = parent.getRecords();
         Session session = opBuilder.getSession();
@@ -807,8 +866,27 @@ public class ObjectBuilder<T> {
         try {
             for (int i = 0; i < records.size(); i++) {
                 BatchRecord br = records.get(i);
-                if (opBuilder.shouldIncludeResult(br.resultCode)) {
-                    recordStream.publish(AbstractFilterableBuilder.createRecordResultFromBatchRecord(br, settings, i));
+                if (!opBuilder.shouldIncludeResult(br.resultCode)) {
+                    continue;
+                }
+
+                RecordResult result = AbstractFilterableBuilder.createRecordResultFromBatchRecord(br, settings, i);
+
+                if (AbstractFilterableBuilder.isActionableError(br.resultCode)) {
+                    switch (disposition) {
+                        case ErrorDisposition.Throw ignored -> {
+                            AerospikeException ex = result.exception() != null
+                                ? result.exception()
+                                : AerospikeException.resultCodeToException(br.resultCode, null, br.inDoubt);
+                            throw ex;
+                        }
+                        case ErrorDisposition.Handler h ->
+                            AbstractFilterableBuilder.dispatchError(result, h.errorHandler());
+                        case ErrorDisposition.InStream ignored ->
+                            recordStream.publish(result);
+                    }
+                } else {
+                    recordStream.publish(result);
                 }
             }
             return new RecordStream(recordStream);
@@ -916,7 +994,7 @@ public class ObjectBuilder<T> {
      * Execute operations synchronously for individual objects (< batch threshold).
      * All virtual threads are joined before returning.
      */
-    private RecordStream executeIndividualSync() {
+    private RecordStream executeIndividualSync(ErrorDisposition disposition) {
         List<Key> keys = new ArrayList<>(elements.size());
 
         for (T element : elements) {
@@ -937,7 +1015,6 @@ public class ObjectBuilder<T> {
         // Apply where clause if present
         final Expression filterExp = getFilterExp(firstKey.namespace);
         int ttl = (int) resolveTtl(expirationInSeconds, defaultExpirationInSeconds);
-        boolean stackTraceOnException = settings.getStackTraceOnException();
 
         if (txnToUse != null) {
         	// Assume all operations are write operations.
@@ -945,6 +1022,8 @@ public class ObjectBuilder<T> {
         }
 
 		AsyncRecordStream stream = new AsyncRecordStream(elements.size());
+        final java.util.concurrent.atomic.AtomicReference<AerospikeException> firstError =
+            (disposition instanceof ErrorDisposition.Throw) ? new java.util.concurrent.atomic.AtomicReference<>() : null;
 
         try (ExecutorService es = cluster.getExecutorService()) {
             for (int i = 0; i < keys.size(); i++) {
@@ -960,14 +1039,27 @@ public class ObjectBuilder<T> {
                             stream.publish(new RecordResult(key, rec, idx));
                         }
                     } catch (AerospikeException ae) {
-                        if (shouldPublish(ae, opBuilder)) {
-                            stream.publish(new RecordResult(key, ae, idx));
+                        if (!shouldPublish(ae, opBuilder)) {
+                            return;
+                        }
+                        switch (disposition) {
+                            case ErrorDisposition.Throw ignored ->
+                                firstError.compareAndSet(null, ae);
+                            case ErrorDisposition.Handler h ->
+                                h.errorHandler().handle(key, idx, ae);
+                            case ErrorDisposition.InStream ignored ->
+                                stream.publish(new RecordResult(key, ae, idx));
                         }
                     }
                 });
             }
         }
         stream.complete();
+
+        if (firstError != null && firstError.get() != null) {
+            throw firstError.get();
+        }
+
         return new RecordStream(stream);
     }
 
@@ -1014,7 +1106,7 @@ public class ObjectBuilder<T> {
         return new RecordStream(stream);
     }
 
-    private RecordStream executeSingleSync(T element) {
+    private RecordStream executeSingleSync(T element, ErrorDisposition disposition) {
         RecordMapper<T> recordMapper = getMapper(element);
         Key key = getKeyForElement(recordMapper, element);
 
@@ -1035,7 +1127,6 @@ public class ObjectBuilder<T> {
         }
 
         int ttl = (int) resolveTtl(expirationInSeconds, defaultExpirationInSeconds);
-        boolean stackTraceOnException = settings.getStackTraceOnException();
 
         try {
             Record rec = operate(cluster, partitions, settings, filterExp, key, element, ttl);
@@ -1045,8 +1136,15 @@ public class ObjectBuilder<T> {
             }
         }
         catch (AerospikeException ae) {
-            if (shouldPublish(ae, opBuilder)) {
-                return new RecordStream(new RecordResult(key, ae, 0));
+            if (!shouldPublish(ae, opBuilder)) {
+                return new RecordStream();
+            }
+            switch (disposition) {
+                case ErrorDisposition.Throw ignored -> throw ae;
+                case ErrorDisposition.Handler h -> h.errorHandler().handle(key, 0, ae);
+                case ErrorDisposition.InStream ignored -> {
+                    return new RecordStream(new RecordResult(key, ae, 0));
+                }
             }
         }
         return new RecordStream();

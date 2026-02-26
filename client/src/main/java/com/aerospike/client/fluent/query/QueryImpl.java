@@ -16,6 +16,8 @@
  */
 package com.aerospike.client.fluent.query;
 
+import com.aerospike.client.fluent.ErrorHandler;
+import com.aerospike.client.fluent.ErrorStrategy;
 import com.aerospike.client.fluent.RecordStream;
 import com.aerospike.client.fluent.Session;
 
@@ -28,8 +30,10 @@ abstract class QueryImpl {
         this.queryBuilder = builder;
     }
     public abstract RecordStream execute();
-    public abstract RecordStream executeSync();
-    public abstract RecordStream executeAsync();
+    public abstract RecordStream execute(ErrorStrategy strategy);
+    public abstract RecordStream execute(ErrorHandler handler);
+    public abstract RecordStream executeAsync(ErrorStrategy strategy);
+    public abstract RecordStream executeAsync(ErrorHandler handler);
     public abstract boolean allowsSecondaryIndexQuery();
 
 

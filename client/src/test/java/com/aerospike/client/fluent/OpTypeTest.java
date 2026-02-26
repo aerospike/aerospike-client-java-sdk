@@ -18,6 +18,7 @@ package com.aerospike.client.fluent;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
@@ -99,15 +100,13 @@ public class OpTypeTest extends ClusterTest {
 			.bin("name").setTo("original")
 			.execute();
 
-		// Insert should fail because record already exists
-		RecordStream rs = session.insert(args.set.id(key))
-			.bin("name").setTo("should_fail")
-			.execute();
-
-		assertTrue(rs.hasNext());
-		RecordResult result = rs.next();
-		assertFalse(result.isOk());
-		assertEquals(ResultCode.KEY_EXISTS_ERROR, result.resultCode());
+		// Single-key insert defaults to THROW, so this should throw
+		AerospikeException ex = assertThrows(AerospikeException.class, () ->
+			session.insert(args.set.id(key))
+				.bin("name").setTo("should_fail")
+				.execute()
+		);
+		assertEquals(ResultCode.KEY_EXISTS_ERROR, ex.getResultCode());
 	}
 
 	// ========== REPLACE Tests ==========
@@ -186,15 +185,13 @@ public class OpTypeTest extends ClusterTest {
 		// Ensure record doesn't exist
 		session.delete(args.set.id(key)).execute();
 
-		// ReplaceIfExists should fail because record doesn't exist
-		RecordStream rs = session.replaceIfExists(args.set.id(key))
-			.bin("name").setTo("should_fail")
-			.execute();
-
-		assertTrue(rs.hasNext());
-		RecordResult result = rs.next();
-		assertFalse(result.isOk());
-		assertEquals(ResultCode.KEY_NOT_FOUND_ERROR, result.resultCode());
+		// Single-key replaceIfExists defaults to THROW, so this should throw
+		AerospikeException ex = assertThrows(AerospikeException.class, () ->
+			session.replaceIfExists(args.set.id(key))
+				.bin("name").setTo("should_fail")
+				.execute()
+		);
+		assertEquals(ResultCode.KEY_NOT_FOUND_ERROR, ex.getResultCode());
 	}
 
 	// ========== UPDATE Tests ==========
@@ -229,17 +226,13 @@ public class OpTypeTest extends ClusterTest {
 		// Ensure record doesn't exist
 		session.delete(args.set.id(key)).execute();
 
-		// Update should fail because record doesn't exist.
-		// Note: No respondAllKeys() needed - UPDATE operations always return errors
-		// because they are semantically expected to fail on non-existent records.
-		RecordStream rs = session.update(args.set.id(key))
-			.bin("name").setTo("should_fail")
-			.execute();
-
-		assertTrue(rs.hasNext());
-		RecordResult result = rs.next();
-		assertFalse(result.isOk());
-		assertEquals(ResultCode.KEY_NOT_FOUND_ERROR, result.resultCode());
+		// Single-key update defaults to THROW, so this should throw
+		AerospikeException ex = assertThrows(AerospikeException.class, () ->
+			session.update(args.set.id(key))
+				.bin("name").setTo("should_fail")
+				.execute()
+		);
+		assertEquals(ResultCode.KEY_NOT_FOUND_ERROR, ex.getResultCode());
 	}
 
 	// ========== DELETE Tests ==========

@@ -16,10 +16,12 @@
  */
 package com.aerospike.client.fluent.query;
 
-import java.util.List;
+import java.util.Objects;
 
 import com.aerospike.client.fluent.AbstractFilterableBuilder;
 import com.aerospike.client.fluent.DataSet;
+import com.aerospike.client.fluent.ErrorHandler;
+import com.aerospike.client.fluent.ErrorStrategy;
 import com.aerospike.client.fluent.Key;
 import com.aerospike.client.fluent.Log;
 import com.aerospike.client.fluent.NavigatableRecordStream;
@@ -35,19 +37,11 @@ import com.aerospike.client.fluent.policy.QueryDuration;
 import com.aerospike.client.fluent.tend.Partition;
 
 /**
- * Builder class for constructing and executing queries against Aerospike.
+ * Builder class for constructing and executing dataset queries (scans and secondary index queries)
+ * against Aerospike.
  *
  * <p>This class provides a fluent API for building complex queries with support for
- * filtering, sorting, pagination, and partition targeting. The QueryBuilder can be
- * used to query entire datasets, specific keys, or ranges of keys.</p>
- *
- * <p>The QueryBuilder automatically selects the appropriate query implementation
- * based on the input:</p>
- * <ul>
- *   <li><strong>Dataset queries</strong>: Uses secondary indexes when available, falls back to scan</li>
- *   <li><strong>Single key queries</strong>: Direct key lookup</li>
- *   <li><strong>Multiple key queries</strong>: Batch key operations</li>
- * </ul>
+ * filtering, sorting, pagination, and partition targeting.</p>
  *
  * <p>Example usage:</p>
  * <pre>{@code
@@ -72,8 +66,6 @@ import com.aerospike.client.fluent.tend.Partition;
  * }</pre>
  *
  * @see Session#query(DataSet)
- * @see Session#query(Key)
- * @see Session#query(List)
  * @see RecordStream
  * @see SortDir
  * @see SortProperties
@@ -107,38 +99,6 @@ public class QueryBuilder extends AbstractFilterableBuilder implements
         this.txnToUse = session.getCurrentTransaction();
     }
 
-    /**
-     * Creates a QueryBuilder for querying a single key.
-     *
-     * <p>This constructor creates a query that will perform a direct key lookup.
-     * The query will return at most one record.</p>
-     *
-     * @param session the session to use for the query
-     * @param key the key to query
-     */
-    public QueryBuilder(Session session, Key key) {
-        this.implementation = new SingleKeyQueryBuilderImpl(this, session, key);
-        this.txnToUse = session.getCurrentTransaction();
-    }
-
-    /**
-     * Creates a QueryBuilder for querying multiple keys.
-     *
-     * <p>This constructor creates a query that will perform batch key lookups.
-     * If only one key is provided, it will use single key optimization.</p>
-     *
-     * @param session the session to use for the query
-     * @param keys the list of keys to query
-     */
-    public QueryBuilder(Session session, List<Key> keys) {
-        this.txnToUse = session.getCurrentTransaction();
-        if (keys.size() == 1) {
-            this.implementation = new SingleKeyQueryBuilderImpl(this, session, keys.get(0));
-        }
-        else {
-            this.implementation = new BatchKeyQueryBuilderImpl(this, session, keys);
-        }
-    }
 
     /**
      * Checks if a key falls within the current partition range.
@@ -623,55 +583,47 @@ public class QueryBuilder extends AbstractFilterableBuilder implements
      */
     @Override
     public RecordStream execute() {
-        // Default: async unless in transaction
-        if (txnToUse != null) {
-            return executeSync();
-        } else {
-            return executeAsync();
+        if (Log.debugEnabled()) {
+            Log.debug("QueryBuilder.execute() called, transaction: " + (txnToUse != null ? "yes" : "no"));
         }
+        return this.implementation.execute();
     }
 
-    /**
-     * Execute the query synchronously. All operations complete before this method returns.
-     * <p>
-     * Use this when you need guaranteed completion before proceeding, or when in a transaction.
-     * Operations are still parallelized internally using virtual threads, but all threads
-     * are joined before returning.
-     *
-     * @return RecordStream containing the results
-     */
     @Override
-    public RecordStream executeSync() {
-        if (Log.debugEnabled()) {
-            Log.debug("QueryBuilder.executeSync() called, transaction: " + (txnToUse != null ? "yes" : "no"));
-        }
-        return this.implementation.executeSync();
+    public RecordStream execute(ErrorStrategy strategy) {
+        Objects.requireNonNull(strategy, "ErrorStrategy must not be null");
+        return this.implementation.execute(strategy);
     }
 
-    /**
-     * Execute the query asynchronously using virtual threads for parallel execution.
-     * Results are streamed as they become available.
-     * <p>
-     * <b>WARNING:</b> Using this in transactions may lead to operations still being in flight
-     * when commit() is called, potentially leading to inconsistent state. A warning will be logged.
-     *
-     * @return RecordStream that will be populated as results arrive
-     */
     @Override
-    public RecordStream executeAsync() {
-        if (Log.debugEnabled()) {
-            Log.debug("QueryBuilder.executeAsync() called, transaction: " + (txnToUse != null ? "yes" : "no"));
-        }
+    public RecordStream execute(ErrorHandler handler) {
+        Objects.requireNonNull(handler, "ErrorHandler must not be null");
+        return this.implementation.execute(handler);
+    }
 
+    @Override
+    public RecordStream executeAsync(ErrorStrategy strategy) {
+        Objects.requireNonNull(strategy, "ErrorStrategy must not be null");
+        warnIfInTransaction();
+        return this.implementation.executeAsync(strategy);
+    }
+
+    @Override
+    public RecordStream executeAsync(ErrorHandler handler) {
+        Objects.requireNonNull(handler, "ErrorHandler must not be null");
+        warnIfInTransaction();
+        return this.implementation.executeAsync(handler);
+    }
+
+    private void warnIfInTransaction() {
         if (txnToUse != null && Log.warnEnabled()) {
             Log.warn(
                 "executeAsync() called within a transaction. " +
                 "Async operations may still be in flight when commit() is called, " +
                 "which could lead to inconsistent state. " +
-                "Consider using executeSync() or execute() for transactional safety."
+                "Consider using execute() for transactional safety."
             );
         }
-        return this.implementation.executeAsync();
     }
 
     protected WhereClauseProcessor getDsl() {
