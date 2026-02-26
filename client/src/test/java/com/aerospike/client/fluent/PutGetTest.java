@@ -30,6 +30,7 @@ import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
+import com.aerospike.client.fluent.ErrorStrategy;
 import com.aerospike.client.fluent.mapper.Address;
 import com.aerospike.client.fluent.mapper.Customer;
 import com.aerospike.client.fluent.mapper.CustomerMapper;
@@ -222,7 +223,7 @@ public class PutGetTest extends ClusterTest {
         RecordStream rs = session.insert(customerDataSet)
         	.object(customer)
         	.using(customerMapper)
-	        .executeAsync();
+	        .executeAsync(ErrorStrategy.IN_STREAM);
 
         assertTrue(rs.hasNext());
         rs.next().recordOrThrow();
@@ -306,7 +307,7 @@ public class PutGetTest extends ClusterTest {
         RecordStream rs = session.upsert(customerDataSet)
         	.objects(customer1, customer2, customer3)
         	.using(customerMapper)
-	        .executeAsync();
+	        .executeAsync(ErrorStrategy.IN_STREAM);
 
         assertTrue(rs.hasNext());
         rs.next().recordOrThrow();
@@ -401,7 +402,7 @@ public class PutGetTest extends ClusterTest {
         RecordStream rs = session.upsert(customerDataSet)
 	    	.objects(customers)
 	    	.using(customerMapper)
-	        .executeAsync();
+	        .executeAsync(ErrorStrategy.IN_STREAM);
 
         assertTrue(rs.hasNext());
         rs.next().recordOrThrow();

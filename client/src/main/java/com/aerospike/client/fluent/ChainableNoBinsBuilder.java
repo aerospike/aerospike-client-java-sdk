@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
+import java.util.Objects;
 
 import com.aerospike.client.fluent.command.Txn;
 import com.aerospike.client.fluent.dsl.BooleanExpression;
@@ -849,15 +850,29 @@ public class ChainableNoBinsBuilder extends AbstractSessionOperationBuilder<Chai
     }
 
     /**
-     * Execute all chained operations asynchronously.
-     * Method returns immediately; results are streamed as they become available.
-     * <p>
-     * <b>WARNING:</b> Using this in transactions may lead to operations still being in flight
-     * when commit() is called, potentially leading to inconsistent state. A warning will be logged.
+     * Execute all chained operations asynchronously with errors embedded in the stream.
      *
+     * @param strategy the error strategy (must not be null)
      * @return RecordStream that will be populated as results arrive
      */
-    public RecordStream executeAsync() {
+    public RecordStream executeAsync(ErrorStrategy strategy) {
+        Objects.requireNonNull(strategy, "ErrorStrategy must not be null");
+        return executeAsyncInternal(null);
+    }
+
+    /**
+     * Execute all chained operations asynchronously with errors dispatched to the handler.
+     * Error results are excluded from the returned stream.
+     *
+     * @param handler the error handler callback (must not be null)
+     * @return RecordStream containing only successful results
+     */
+    public RecordStream executeAsync(ErrorHandler handler) {
+        Objects.requireNonNull(handler, "ErrorHandler must not be null");
+        return executeAsyncInternal(handler);
+    }
+
+    private RecordStream executeAsyncInternal(ErrorHandler errorHandler) {
         prepareSpecs();
 
         if (txnToUse != null && Log.warnEnabled()) {
@@ -877,7 +892,7 @@ public class ChainableNoBinsBuilder extends AbstractSessionOperationBuilder<Chai
             try {
                 RecordStream syncResult = OperationSpecExecutor.execute(
                     session, operationSpecs, defaultWhereClause, defaultExpirationInSeconds, txnToUse);
-                syncResult.forEach(result -> asyncStream.publish(result));
+                syncResult.forEach(result -> dispatchResult(result, asyncStream, errorHandler));
             } finally {
                 asyncStream.complete();
             }
@@ -885,6 +900,7 @@ public class ChainableNoBinsBuilder extends AbstractSessionOperationBuilder<Chai
 
         return new RecordStream(asyncStream);
     }
+
 
     private void prepareSpecs() {
         finalizeCurrentOperation();

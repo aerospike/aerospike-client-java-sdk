@@ -91,5 +91,20 @@ public abstract class AbstractFilterableBuilder {
             return WhereClauseProcessor.from(allowSecondaryIndex, String.format(dsl, params));
         }
     }
+
+    /**
+     * Dispatch an async result: if a handler is present and the result is an error,
+     * route to the handler; otherwise publish to the stream.
+     */
+    static void dispatchResult(RecordResult result, AsyncRecordStream stream, ErrorHandler handler) {
+        if (handler != null && !result.isOk()) {
+            AerospikeException ex = result.exception() != null
+                ? result.exception()
+                : AerospikeException.resultCodeToException(result.resultCode(), result.message(), result.inDoubt());
+            handler.handle(result.key(), result.index(), ex);
+        } else {
+            stream.publish(result);
+        }
+    }
 }
 

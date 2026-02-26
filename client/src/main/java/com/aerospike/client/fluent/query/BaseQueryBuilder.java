@@ -16,6 +16,8 @@
  */
 package com.aerospike.client.fluent.query;
 
+import com.aerospike.client.fluent.ErrorHandler;
+import com.aerospike.client.fluent.ErrorStrategy;
 import com.aerospike.client.fluent.RecordMapper;
 import com.aerospike.client.fluent.RecordStream;
 import com.aerospike.client.fluent.Session;
@@ -263,13 +265,19 @@ public interface BaseQueryBuilder<T extends BaseQueryBuilder<T>> {
     RecordStream execute();
 
     /**
-     * Execute the query asynchronously using virtual threads for parallel execution.
-     * Results are streamed as they become available.
-     * <p>
-     * <b>WARNING:</b> Using this in transactions may lead to operations still being in flight
-     * when commit() is called, potentially leading to inconsistent state. A warning will be logged.
+     * Execute the query asynchronously with errors embedded in the stream.
      *
+     * @param strategy the error strategy (must not be null)
      * @return RecordStream that will be populated as results arrive
      */
-    RecordStream executeAsync();
+    RecordStream executeAsync(ErrorStrategy strategy);
+
+    /**
+     * Execute the query asynchronously with errors dispatched to the handler.
+     * Error results are excluded from the returned stream.
+     *
+     * @param handler the error handler callback (must not be null)
+     * @return RecordStream containing only successful results
+     */
+    RecordStream executeAsync(ErrorHandler handler);
 }

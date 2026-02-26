@@ -21,6 +21,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
 
+import com.aerospike.client.fluent.ErrorStrategy;
+
 import org.junit.jupiter.api.Test;
 
 public class AddTest extends ClusterTest {
@@ -77,21 +79,21 @@ public class AddTest extends ClusterTest {
 		// Perform some adds and check results.
         RecordStream rs = session.upsert(args.set.id(key))
         	.bin(binName).add(10)
-	        .executeAsync();
+	        .executeAsync(ErrorStrategy.IN_STREAM);
 
         assertTrue(rs.hasNext());
         Record rec = rs.next().recordOrThrow();
 
         rs = session.upsert(args.set.id(key))
 	    	.bin(binName).add(5)
-	        .executeAsync();
+	        .executeAsync(ErrorStrategy.IN_STREAM);
 
         assertTrue(rs.hasNext());
         rec = rs.next().recordOrThrow();
 
         rs = session.query(args.set.id(key))
         	.readingOnlyBins(binName)
-        	.executeAsync();
+        	.executeAsync(ErrorStrategy.IN_STREAM);
 
         assertTrue(rs.hasNext());
         rec = rs.next().recordOrThrow();
@@ -103,7 +105,7 @@ public class AddTest extends ClusterTest {
 		rs = session.upsert(args.set.id(key))
         	.bin(binName).add(30)
         	.get(binName)
-	        .executeAsync();
+	        .executeAsync(ErrorStrategy.IN_STREAM);
 
         assertTrue(rs.hasNext());
         rec = rs.next().recordOrThrow();
@@ -167,21 +169,21 @@ public class AddTest extends ClusterTest {
 
         RecordStream rs = session.upsert(keys)
         	.bin(binName).add(10)
-	        .executeAsync();
+	        .executeAsync(ErrorStrategy.IN_STREAM);
 
         assertTrue(rs.hasNext());
         Record rec = rs.next().recordOrThrow();
 
         rs = session.upsert(keys)
 	    	.bin(binName).add(5)
-	        .executeAsync();
+	        .executeAsync(ErrorStrategy.IN_STREAM);
 
         assertTrue(rs.hasNext());
         rec = rs.next().recordOrThrow();
 
         rs = session.query(keys)
         	.readingOnlyBins(binName)
-        	.executeAsync();
+        	.executeAsync(ErrorStrategy.IN_STREAM);
 
         for (int i = 10; i < 20; i++) {
             assertTrue(rs.hasNext());
@@ -195,7 +197,7 @@ public class AddTest extends ClusterTest {
 		rs = session.upsert(keys)
         	.bin(binName).add(30)
         	.get(binName)
-	        .executeAsync();
+	        .executeAsync(ErrorStrategy.IN_STREAM);
 
         for (int i = 10; i < 20; i++) {
 	        assertTrue(rs.hasNext());

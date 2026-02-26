@@ -24,6 +24,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Arrays;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
@@ -717,15 +718,30 @@ public class ObjectBuilder<T> {
     }
 
     /**
-     * Execute operations asynchronously using virtual threads for parallel execution.
-     * Method returns immediately; results are consumed via the RecordStream.
-     * <p>
-     * <b>WARNING:</b> Using this in transactions may lead to operations still being in flight
-     * when commit() is called, potentially leading to inconsistent state. A warning will be logged.
+     * Execute operations asynchronously with errors embedded in the stream.
      *
+     * @param strategy the error strategy (must not be null)
      * @return RecordStream that will be populated as results arrive
      */
-    public RecordStream executeAsync() {
+    public RecordStream executeAsync(ErrorStrategy strategy) {
+        Objects.requireNonNull(strategy, "ErrorStrategy must not be null");
+        return executeAsyncInStream();
+    }
+
+    /**
+     * Execute operations asynchronously with errors dispatched to the handler.
+     * Error results are excluded from the returned stream.
+     *
+     * @param handler the error handler callback (must not be null)
+     * @return RecordStream containing only successful results
+     */
+    public RecordStream executeAsync(ErrorHandler handler) {
+        Objects.requireNonNull(handler, "ErrorHandler must not be null");
+        RecordStream source = executeAsyncInStream();
+        return filterErrors(source, handler);
+    }
+
+    private RecordStream executeAsyncInStream() {
         if (Log.debugEnabled()) {
             Log.debug("ObjectBuilder.executeAsync() called for " + elements.size() + " element(s), transaction: " +
                      (txnToUse != null ? "yes" : "no"));
@@ -753,6 +769,28 @@ public class ObjectBuilder<T> {
         }
 
         return executeBatchAsync();
+    }
+
+    private RecordStream filterErrors(RecordStream source, ErrorHandler handler) {
+        AsyncRecordStream filtered = new AsyncRecordStream(Math.max(elements.size(), 1));
+        Session session = opBuilder.getSession();
+        session.getCluster().startVirtualThread(() -> {
+            try {
+                source.forEach(result -> {
+                    if (!result.isOk()) {
+                        AerospikeException ex = result.exception() != null
+                            ? result.exception()
+                            : AerospikeException.resultCodeToException(result.resultCode(), result.message(), result.inDoubt());
+                        handler.handle(result.key(), result.index(), ex);
+                    } else {
+                        filtered.publish(result);
+                    }
+                });
+            } finally {
+                filtered.complete();
+            }
+        });
+        return new RecordStream(filtered);
     }
 
     /**

@@ -22,6 +22,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.Objects;
 
 import com.aerospike.client.fluent.command.Txn;
 
@@ -363,16 +364,31 @@ public class IdValuesRowBuilder {
     }
 
     /**
-     * Execute all accumulated rows asynchronously.
-     * Method returns immediately; results are streamed as they become available.
-     * <p>
-     * <b>WARNING:</b> Using this in transactions may lead to operations still being in flight
-     * when commit() is called, potentially leading to inconsistent state. A warning will be logged.
+     * Execute all accumulated rows asynchronously with errors embedded in the stream.
      *
+     * @param strategy the error strategy (must not be null)
      * @return RecordStream that will be populated as results arrive
      * @throws IllegalStateException if no rows have been defined
      */
-    public RecordStream executeAsync() {
+    public RecordStream executeAsync(ErrorStrategy strategy) {
+        Objects.requireNonNull(strategy, "ErrorStrategy must not be null");
+        return executeAsyncInternal(null);
+    }
+
+    /**
+     * Execute all accumulated rows asynchronously with errors dispatched to the handler.
+     * Error results are excluded from the returned stream.
+     *
+     * @param handler the error handler callback (must not be null)
+     * @return RecordStream containing only successful results
+     * @throws IllegalStateException if no rows have been defined
+     */
+    public RecordStream executeAsync(ErrorHandler handler) {
+        Objects.requireNonNull(handler, "ErrorHandler must not be null");
+        return executeAsyncInternal(handler);
+    }
+
+    private RecordStream executeAsyncInternal(ErrorHandler errorHandler) {
         List<OperationSpec> specs = materializeToSpecs();
 
         if (txnToUse != null && Log.warnEnabled()) {
@@ -392,7 +408,7 @@ public class IdValuesRowBuilder {
             try {
                 RecordStream syncResult = OperationSpecExecutor.execute(
                     session, specs, null, defaultExpirationInSeconds, txnToUse);
-                syncResult.forEach(result -> asyncStream.publish(result));
+                syncResult.forEach(result -> AbstractFilterableBuilder.dispatchResult(result, asyncStream, errorHandler));
             } finally {
                 asyncStream.complete();
             }
@@ -400,6 +416,7 @@ public class IdValuesRowBuilder {
 
         return new RecordStream(asyncStream);
     }
+
 
     private List<OperationSpec> materializeToSpecs() {
         finalizeCurrentRow();

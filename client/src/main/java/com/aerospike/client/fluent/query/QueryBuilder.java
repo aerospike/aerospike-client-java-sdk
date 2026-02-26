@@ -16,8 +16,12 @@
  */
 package com.aerospike.client.fluent.query;
 
+import java.util.Objects;
+
 import com.aerospike.client.fluent.AbstractFilterableBuilder;
 import com.aerospike.client.fluent.DataSet;
+import com.aerospike.client.fluent.ErrorHandler;
+import com.aerospike.client.fluent.ErrorStrategy;
 import com.aerospike.client.fluent.Key;
 import com.aerospike.client.fluent.Log;
 import com.aerospike.client.fluent.NavigatableRecordStream;
@@ -585,21 +589,21 @@ public class QueryBuilder extends AbstractFilterableBuilder implements
         return this.implementation.execute();
     }
 
-    /**
-     * Execute the query asynchronously using virtual threads for parallel execution.
-     * Results are streamed as they become available.
-     * <p>
-     * <b>WARNING:</b> Using this in transactions may lead to operations still being in flight
-     * when commit() is called, potentially leading to inconsistent state. A warning will be logged.
-     *
-     * @return RecordStream that will be populated as results arrive
-     */
     @Override
-    public RecordStream executeAsync() {
-        if (Log.debugEnabled()) {
-            Log.debug("QueryBuilder.executeAsync() called, transaction: " + (txnToUse != null ? "yes" : "no"));
-        }
+    public RecordStream executeAsync(ErrorStrategy strategy) {
+        Objects.requireNonNull(strategy, "ErrorStrategy must not be null");
+        warnIfInTransaction();
+        return this.implementation.executeAsync(strategy);
+    }
 
+    @Override
+    public RecordStream executeAsync(ErrorHandler handler) {
+        Objects.requireNonNull(handler, "ErrorHandler must not be null");
+        warnIfInTransaction();
+        return this.implementation.executeAsync(handler);
+    }
+
+    private void warnIfInTransaction() {
         if (txnToUse != null && Log.warnEnabled()) {
             Log.warn(
                 "executeAsync() called within a transaction. " +
@@ -608,7 +612,6 @@ public class QueryBuilder extends AbstractFilterableBuilder implements
                 "Consider using execute() for transactional safety."
             );
         }
-        return this.implementation.executeAsync();
     }
 
     protected WhereClauseProcessor getDsl() {
