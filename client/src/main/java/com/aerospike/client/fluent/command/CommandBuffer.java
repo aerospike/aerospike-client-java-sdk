@@ -470,15 +470,12 @@ public final class CommandBuffer {
 					}
 
 					case BATCH_UDF: {
-						/* TODO Support UDF
 						BatchUDF bu = (BatchUDF)record;
 
-						attr.setUDFEntry((BatchWriteCommand)cmd, bu);
-						writeBatchWrite(key, txn, ver, attr, 3, 0);
+						writeBatchWrite(cmd, bu, 0, bu.ttl, ver, 3, 0);
 						writeField(bu.packageName, FieldType.UDF_PACKAGE_NAME);
 						writeField(bu.functionName, FieldType.UDF_FUNCTION);
 						writeField(bu.argBytes, FieldType.UDF_ARGLIST);
-						*/
 						break;
 					}
 

@@ -1,0 +1,422 @@
+/*
+ * Copyright 2012-2026 Aerospike, Inc.
+ *
+ * Portions may be licensed to Aerospike, Inc. under one or more contributor
+ * license agreements WHICH ARE COMPATIBLE WITH THE APACHE LICENSE, VERSION 2.0.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy of
+ * the License at http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
+ */
+package com.aerospike.client.fluent;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.io.ByteArrayOutputStream;
+import java.io.DataOutputStream;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Optional;
+
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+
+import com.aerospike.client.fluent.task.RegisterTask;
+
+public class UdfTest extends ClusterTest {
+    public static final String lua = """
+		local function putBin(r,name,value)
+		    if not aerospike:exists(r) then aerospike:create(r) end
+		    r[name] = value
+		    aerospike:update(r)
+		end
+
+		-- Set a particular bin
+		function writeBin(r,name,value)
+		    putBin(r,name,value)
+		end
+
+		-- Get a particular bin
+		function readBin(r,name)
+		    return r[name]
+		end
+
+		-- Return generation count of record
+		function getGeneration(r)
+		    return record.gen(r)
+		end
+
+		-- Update record only if gen hasn't changed
+		function writeIfGenerationNotChanged(r,name,value,gen)
+		    if record.gen(r) == gen then
+		        r[name] = value
+		        aerospike:update(r)
+		    end
+		end
+
+		-- Set a particular bin only if record does not already exist.
+		function writeUnique(r,name,value)
+		    if not aerospike:exists(r) then
+		        aerospike:create(r)
+		        r[name] = value
+		        aerospike:update(r)
+		    end
+		end
+
+		-- Validate value before writing.
+		function writeWithValidation(r,name,value)
+		    if (value >= 1 and value <= 10) then
+		        putBin(r,name,value)
+		    else
+		        error("1000:Invalid value")
+		    end
+		end
+
+		-- Record contains two integer bins, name1 and name2.
+		-- For name1 even integers, add value to existing name1 bin.
+		-- For name1 integers with a multiple of 5, delete name2 bin.
+		-- For name1 integers with a multiple of 9, delete record.
+		function processRecord(r,name1,name2,addValue)
+		    local v = r[name1]
+
+		    if (v % 9 == 0) then
+		        aerospike:remove(r)
+		        return
+		    end
+
+		    if (v % 5 == 0) then
+		        r[name2] = nil
+		        aerospike:update(r)
+		        return
+		    end
+
+		    if (v % 2 == 0) then
+		        r[name1] = v + addValue
+		        aerospike:update(r)
+		    end
+		end
+
+		-- Append to end of regular list bin
+		function appendListBin(r, binname, value)
+		  local l = r[binname]
+
+		  if l == nil then
+		    l = list()
+		  end
+
+		  list.append(l, value)
+		  r[binname] = l
+		  aerospike:update(r)
+		end
+
+		-- Set expiration of record
+		-- function expire(r,ttl)
+		--    if record.ttl(r) == gen then
+		--        r[name] = value
+		--        aerospike:update(r)
+		--    end
+		-- end
+		""";
+
+	@BeforeAll
+	public static void register() {
+		RegisterTask task = session.registerUdfString(lua, "record_example.lua");
+		task.waitTillComplete();
+	}
+
+	@Test
+	public void writeUsingUdf() {
+		Key key = args.set.id("writeUsingUdf");
+		String binName = "udfbin1";
+
+		RecordStream rs = session.executeUdf(key)
+        	.function("record_example", "writeBin")
+        	.passing(binName, "string value")
+        	.execute();
+
+        assertTrue(rs.hasNext());
+        Record rec = rs.getFirstRecord();
+        assertNull(rec);
+
+        rs = session.query(key)
+        	.execute();
+
+        assertTrue(rs.hasNext());
+        rec = rs.next().recordOrThrow();
+    	String val = rec.getString(binName);
+		assertEquals("string value", val);
+	}
+
+	@Test
+	public void writeIfGenerationNotChanged() {
+		Key key = args.set.id("writeIfGenerationNotChanged");
+		String binName = "udfbin2";
+
+		// Seed record.
+        session.upsert(key)
+	    	.bin(binName).append("string value")
+	        .execute();
+
+		// Get record generation.
+		RecordStream rs = session.executeUdf(key)
+        	.function("record_example", "getGeneration")
+        	.passing(binName, "string value")
+        	.execute();
+
+        assertTrue(rs.hasNext());
+        Optional<Object> obj = rs.getFirstUdfResult();
+        int gen = (int)obj.orElseThrow();
+        System.out.println("GEN=" + gen);
+
+		// Write record if generation has not changed.
+		rs = session.executeUdf(key)
+        	.function("record_example", "writeIfGenerationNotChanged")
+        	.passing(binName, "string value", gen)
+        	.execute();
+
+        assertTrue(rs.hasNext());
+        obj = rs.getFirstUdfResult();
+        assertNull(obj.get());
+	}
+
+	@Test
+	public void writeIfNotExists() {
+		Key key = args.set.id("writeIfNotExists");
+		String binName = "udfbin3";
+
+		// Delete record if it already exists.
+        session.delete(key).execute();
+
+		// Write record only if not already exists. This should succeed.
+		RecordStream rs = session.executeUdf(key)
+        	.function("record_example", "writeUnique")
+        	.passing(binName, "first")
+        	.execute();
+
+		// Verify record written.
+        rs = session.query(key)
+        	.readingOnlyBins(binName)
+        	.execute();
+
+        assertTrue(rs.hasNext());
+        Record rec = rs.next().recordOrThrow();
+    	String val = rec.getString(binName);
+		assertEquals("first", val);
+
+		// Write record second time. This should fail.
+		rs = session.executeUdf(key)
+        	.function("record_example", "writeUnique")
+        	.passing(binName, "second")
+        	.execute();
+
+		// Verify record not written.
+        rs = session.query(key)
+        	.readingOnlyBins(binName)
+        	.execute();
+
+        assertTrue(rs.hasNext());
+        rec = rs.next().recordOrThrow();
+    	val = rec.getString(binName);
+		assertEquals("first", val);
+	}
+
+	@Test
+	public void writeWithValidation() {
+		Key key = args.set.id("writeWithValidation");
+		String binName = "udfbin4";
+
+		// Lua function writeWithValidation accepts number between 1 and 10.
+		// Write record with valid value.
+		RecordStream rs = session.executeUdf(key)
+        	.function("record_example", "writeWithValidation")
+        	.passing(binName, 4)
+        	.execute();
+
+        assertTrue(rs.hasNext());
+        rs.next().recordOrThrow();
+
+        // Write record with invalid value.
+		AerospikeException ae = assertThrows(AerospikeException.class, () -> {
+			RecordStream rs2 = session.executeUdf(key)
+	        	.function("record_example", "writeWithValidation")
+	        	.passing(binName, 11)
+	        	.execute();
+
+	        assertTrue(rs2.hasNext());
+	        rs2.next().recordOrThrow();
+		});
+
+		assertEquals(ResultCode.UDF_BAD_RESPONSE, ae.getResultCode());
+	}
+	/*
+	@Test
+	public void writeListMapUsingUdf() {
+		Key key = new Key(args.namespace, args.set, "udfkey5");
+
+		ArrayList<Object> inner = new ArrayList<Object>();
+		inner.add("string2");
+		inner.add(8L);
+
+		HashMap<Object,Object> innerMap = new HashMap<Object,Object>();
+		innerMap.put("a", 1L);
+		innerMap.put(2L, "b");
+		innerMap.put("list", inner);
+
+		ArrayList<Object> list = new ArrayList<Object>();
+		list.add("string1");
+		list.add(4L);
+		list.add(inner);
+		list.add(innerMap);
+
+		String binName = "udfbin5";
+
+		client.execute(null, key, "record_example", "writeBin", Value.get(binName), Value.get(list));
+
+		Object received = client.execute(null, key, "record_example", "readBin", Value.get(binName));
+		assertNotNull(received);
+		assertEquals(list, received);
+	}
+
+	@Test
+	public void appendListUsingUdf() {
+		Key key = new Key(args.namespace, args.set, "udfkey5");
+		String binName = "udfbin5";
+		String value = "appended value";
+
+		client.execute(null, key, "record_example", "appendListBin", Value.get(binName), Value.get(value));
+
+		Record record = client.get(null, key, binName);
+		assertRecordFound(key, record);
+
+		Object received = record.getValue(binName);
+
+		if (received != null && received instanceof List<?>) {
+			List<?> list = (List<?>)received;
+
+			if (list.size() == 5) {
+				Object obj = list.get(4);
+
+				if (obj.equals(value)) {
+					return;
+				}
+			}
+		}
+		fail("UDF data mismatch" + System.lineSeparator() +
+			 "Expected: " + value + System.lineSeparator() +
+			 "Received: " + received);
+	}
+
+	@Test
+	public void writeBlobUsingUdf() {
+		Key key = new Key(args.namespace, args.set, "udfkey6");
+		String binName = "udfbin6";
+
+		// Create packed blob using standard java tools.
+		ByteArrayOutputStream baos = new ByteArrayOutputStream();
+		DataOutputStream dos = new DataOutputStream(baos);
+		try {
+			dos.writeInt(9845);
+			dos.writeUTF("Hello world.");
+		}
+		catch (Exception e) {
+			fail("DataOutputStream error: " + e.getMessage());
+		}
+		byte[] blob = baos.toByteArray();
+
+		client.execute(null, key, "record_example", "writeBin", Value.get(binName), Value.get(blob));
+		byte[] received = (byte[])client.execute(null, key, "record_example", "readBin", Value.get(binName));
+		assertArrayEquals(blob, received);
+	}
+
+	@Test
+	public void batchUDF() {
+		Key[] keys = new Key[] {
+			new Key(args.namespace, args.set, 20000),
+			new Key(args.namespace, args.set, 20001)
+		};
+
+		client.delete(null, null, keys);
+
+		BatchResults br = client.execute(null, null, keys, "record_example", "writeBin", Value.get("B5"), Value.get("value5"));
+		assertTrue(br.status);
+
+		Record[] records = client.get(null, keys, "B5");
+		assertEquals(2, records.length);
+
+		for (Record r : records) {
+			assertNotNull(r);
+			assertEquals("value5", r.getString("B5"));
+		}
+	}
+
+	@Test
+	public void batchUDFError() {
+		Key[] keys = new Key[] {
+			new Key(args.namespace, args.set, 20002),
+			new Key(args.namespace, args.set, 20003)
+		};
+
+		client.delete(null, null, keys);
+
+		BatchResults br = client.execute(null, null, keys, "record_example", "writeWithValidation", Value.get("B5"), Value.get(999));
+		assertFalse(br.status);
+
+		for (BatchRecord r : br.records) {
+			assertNotNull(r);
+			assertEquals(ResultCode.UDF_BAD_RESPONSE, r.resultCode);
+
+			String msg = r.record.getUDFError();
+			//System.out.println(msg);
+			assertNotNull(msg);
+		}
+	}
+
+	@Test
+	public void batchUDFComplex() {
+		String bin = "B5";
+
+		Value[] a1 = new Value[] {Value.get(bin), Value.get("value1")};
+		Value[] a2 = new Value[] {Value.get(bin), Value.get(5)};
+		Value[] a3 = new Value[] {Value.get(bin), Value.get(999)};
+
+		BatchUDF b1 = new BatchUDF(new Key(args.namespace, args.set, 20004), "record_example", "writeBin", a1);
+		BatchUDF b2 = new BatchUDF(new Key(args.namespace, args.set, 20005), "record_example", "writeWithValidation", a2);
+		BatchUDF b3 = new BatchUDF(new Key(args.namespace, args.set, 20005), "record_example", "writeWithValidation", a3);
+
+		List<BatchRecord> records = new ArrayList<BatchRecord>();
+		records.add(b1);
+		records.add(b2);
+		records.add(b3);
+
+		boolean status = client.operate(null, records);
+
+		assertFalse(status); // b3 results in an error.
+		assertBinEqual(b1.key, b1.record, bin, 0);
+		assertBinEqual(b2.key, b2.record, bin, 0);
+		assertEquals(ResultCode.UDF_BAD_RESPONSE, b3.resultCode);
+
+		BatchRead b4 = new BatchRead(new Key(args.namespace, args.set, 20004), true);
+		BatchRead b5 = new BatchRead(new Key(args.namespace, args.set, 20005), true);
+
+		records.clear();
+		records.add(b4);
+		records.add(b5);
+
+		status = client.operate(null, records);
+
+		assertTrue(status);
+		assertBinEqual(b4.key, b4.record, bin, "value1");
+		assertBinEqual(b5.key, b5.record, bin, 5);
+	}
+	*/
+}

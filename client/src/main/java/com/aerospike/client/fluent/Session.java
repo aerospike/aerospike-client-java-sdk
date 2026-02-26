@@ -16,12 +16,15 @@
  */
 package com.aerospike.client.fluent;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.List;
 
 import com.aerospike.client.fluent.cdt.CTX;
+import com.aerospike.client.fluent.command.Buffer;
 import com.aerospike.client.fluent.command.Info;
+import com.aerospike.client.fluent.command.RegisterCommand;
 import com.aerospike.client.fluent.command.Txn;
 import com.aerospike.client.fluent.exp.Exp;
 import com.aerospike.client.fluent.exp.Expression;
@@ -32,9 +35,11 @@ import com.aerospike.client.fluent.query.IndexBasedQueryBuilderInterface;
 import com.aerospike.client.fluent.query.IndexCollectionType;
 import com.aerospike.client.fluent.query.QueryBuilder;
 import com.aerospike.client.fluent.task.IndexTask;
+import com.aerospike.client.fluent.task.RegisterTask;
 import com.aerospike.client.fluent.tend.Partitions;
 import com.aerospike.client.fluent.util.Crypto;
 import com.aerospike.client.fluent.util.Pack;
+import com.aerospike.client.fluent.util.Util;
 import com.aerospike.client.fluent.util.Version;
 
 public class Session {
@@ -320,7 +325,98 @@ public class Session {
     // UDF execution (chainable batch operations)
     // -------------------
 
-    /**
+	/**
+	 * Register package located in a file containing user defined functions with server.
+	 * This asynchronous server call will return before command is complete.
+	 * The user can optionally wait for command completion by using the returned
+	 * RegisterTask instance.
+	 *
+	 * @param clientPath			path of client file containing user defined functions, relative to current directory
+	 * @param serverPath			path to store user defined functions on the server, relative to configured script directory.
+	 * @throws AerospikeException	if register fails
+	 */
+	public final RegisterTask registerUdf(String clientPath, String serverPath) {
+		File file = new File(clientPath);
+		byte[] bytes = Util.readFile(file);
+		return RegisterCommand.register(cluster, bytes, serverPath);
+	}
+
+	/**
+	 * Register package located in a resource containing user defined functions with server.
+	 * This asynchronous server call will return before command is complete.
+	 * The user can optionally wait for command completion by using the returned
+	 * RegisterTask instance.
+	 *
+	 * @param resourceLoader		class loader where resource is located.  Example: MyClass.class.getClassLoader() or Thread.currentThread().getContextClassLoader() for webapps
+	 * @param resourcePath			class path where Lua resource is located
+	 * @param serverPath			path to store user defined functions on the server, relative to configured script directory.
+	 * @throws AerospikeException	if register fails
+	 */
+	public final RegisterTask registerUdf(
+		ClassLoader resourceLoader, String resourcePath, String serverPath
+	) {
+		byte[] bytes = Util.readResource(resourceLoader, resourcePath);
+		return RegisterCommand.register(cluster, bytes, serverPath);
+	}
+
+	/**
+	 * Register UDF functions located in a code string with server.  Example:
+	 * <pre>
+	 * {@code
+	 * String code =
+	 *   "local function reducer(val1,val2)\n" +
+	 *   "  return val1 + val2\n" +
+	 *   "end\n" +
+	 *   "\n" +
+	 *   "function sum_single_bin(stream,name)\n" +
+	 *   "  local function mapper(rec)\n" +
+	 *   "	return rec[name]\n" +
+	 *   "  end\n" +
+	 *   "  return stream : map(mapper) : reduce(reducer)\n" +
+	 *   "end\n";
+	 *
+	 * client.registerUdfString(null, code, "mysum.lua", Language.LUA);
+	 * }
+	 * </pre>
+	 * <p>
+	 * This asynchronous server call will return before command is complete.
+	 * The user can optionally wait for command completion by using the returned
+	 * RegisterTask instance.
+	 *
+	 * @param code					code string containing user defined functions.
+	 * @param serverPath			path to store user defined functions on the server, relative to configured script directory.
+	 * @throws AerospikeException	if register fails
+	 */
+	public final RegisterTask registerUdfString(String code, String serverPath) {
+		byte[] bytes = Buffer.stringToUtf8(code);
+		return RegisterCommand.register(cluster, bytes, serverPath);
+	}
+
+	/**
+	 * Remove user defined function from server nodes.
+	 *
+	 * @param serverPath			location of UDF on server nodes.  Example: mylua.lua
+	 * @throws AerospikeException	if remove fails
+	 */
+	public final void removeUdf(String serverPath)
+		throws AerospikeException {
+		// Send UDF command to one node. That node will distribute the UDF command to other nodes.
+		String command = "udf-remove:filename=" + serverPath;
+		Node node = cluster.getRandomNode();
+		String response = Info.request(node, command);
+
+		if (response.equalsIgnoreCase("ok")) {
+			return;
+		}
+
+		if (response.startsWith("error=file_not_found")) {
+			// UDF has already been removed.
+			return;
+		}
+		throw new AerospikeException("Remove UDF failed: " + response);
+	}
+
+	/**
      * Begin a UDF (User Defined Function) execution on a single key.
      * Supports chaining multiple heterogeneous operations.
      *
@@ -355,7 +451,7 @@ public class Session {
      * @see ChainableUdfBuilder
      */
     public UdfFunctionBuilder executeUdf(Key key) {
-        return new UdfFunctionBuilder(this, List.of(key), new ArrayList<>(), 
+        return new UdfFunctionBuilder(this, List.of(key), new ArrayList<>(),
                 null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, getCurrentTransaction());
     }
 

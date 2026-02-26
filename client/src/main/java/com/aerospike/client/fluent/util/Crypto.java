@@ -61,4 +61,3 @@ public final class Crypto {
 		return encoder.encodeToString(src);
 	}
 }
-

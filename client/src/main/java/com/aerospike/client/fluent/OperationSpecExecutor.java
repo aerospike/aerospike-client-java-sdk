@@ -241,7 +241,7 @@ class OperationSpecExecutor {
                         break;
 
                     case UDF:
-                        attr.setWrite(settings, spec.getOpType());
+                        attr.setUDF(settings, spec.getOpType());
                         Expression udfWhereClause = spec.getWhereClause() != null ? spec.getWhereClause() : defaultWhereClause;
                         Value[] udfArgs = spec.getUdfArguments();
                         int udfTtl = (int) resolveTtl(spec, defaultExpirationInSeconds);

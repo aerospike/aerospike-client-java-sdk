@@ -104,36 +104,42 @@ public final class BatchAttr {
 		}
 	}
 
-	/*
-	public void setUDFSingle(BatchWriteCommand cmd, BatchUDF bu) {
-		Expression e = (bu.where != null)? bu.where : cmd.filterExp;
-		setUDF(cmd, bu, e);
-	}
-
-	public void setUDFEntry(BatchWriteCommand cmd, BatchUDF bu) {
-		setUDF(cmd, bu, bu.where);
-	}
-
-	private void setUDF(BatchWriteCommand cmd, BatchUDF bu, Expression e) {
-		where = e;
+	public void setUDF(Settings settings, OpType type) {
 		readAttr = 0;
 		writeAttr = Command.INFO2_WRITE;
 		infoAttr = 0;
 		txnAttr = 0;
-		expiration = bu.ttl;
-		generation = 0;
 		hasWrite = true;
-		sendKey = cmd.sendKey;
 
-		if (cmd.durableDelete) {
+		switch (type) {
+		case INSERT:
+			writeAttr |= Command.INFO2_CREATE_ONLY;
+			break;
+
+		case UPDATE:
+			infoAttr |= Command.INFO3_UPDATE_ONLY;
+			break;
+
+		case REPLACE:
+			infoAttr |= Command.INFO3_CREATE_OR_REPLACE;
+			break;
+
+		case REPLACE_IF_EXISTS:
+			infoAttr |= Command.INFO3_REPLACE_ONLY;
+			break;
+
+		default:
+			break;
+		}
+
+		if (settings.getUseDurableDelete()) {
 			writeAttr |= Command.INFO2_DURABLE_DELETE;
 		}
 
-		if (cmd.commitLevel == CommitLevel.COMMIT_MASTER) {
+		if (settings.getCommitLevel() == CommitLevel.COMMIT_MASTER) {
 			infoAttr |= Command.INFO3_COMMIT_MASTER;
 		}
 	}
-*/
 
 	public void setDelete(Settings settings) {
 		readAttr = 0;
