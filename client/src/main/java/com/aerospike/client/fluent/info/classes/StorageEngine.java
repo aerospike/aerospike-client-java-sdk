@@ -10,7 +10,7 @@ public class StorageEngine {
     private List<StorageFileDetail> files;
     private boolean cacheReplicaWrites;
     private boolean coldStartEmpty;
-    private boolean commitToIdevice;
+    private boolean commitToDevice;
     private CompressionAlgorithm compression;
     private long compressionAcceleration;
     private long compressionLevel;
@@ -47,8 +47,8 @@ public class StorageEngine {
     public boolean isColdStartEmpty() {
         return coldStartEmpty;
     }
-    public boolean isCommitToIdevice() {
-        return commitToIdevice;
+    public boolean isCommitToDevice() {
+        return commitToDevice;
     }
     public CompressionAlgorithm getCompression() {
         return compression;
