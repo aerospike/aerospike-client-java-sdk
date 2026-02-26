@@ -284,7 +284,7 @@ public class MapToObjectMapper {
 
     private static void handleUnknownKey(Object target, String key, String value) {
         if (Log.infoEnabled()) {
-            Log.info(String.format("Unknown key encountered: %s = %s (target class: %s)%n",
+            Log.info(String.format("Unknown key encountered: %s = %s (target class: %s)",
                     key, value, target.getClass().getSimpleName()));
         }
     }
