@@ -30,6 +30,8 @@ abstract class QueryImpl {
         this.queryBuilder = builder;
     }
     public abstract RecordStream execute();
+    public abstract RecordStream execute(ErrorStrategy strategy);
+    public abstract RecordStream execute(ErrorHandler handler);
     public abstract RecordStream executeAsync(ErrorStrategy strategy);
     public abstract RecordStream executeAsync(ErrorHandler handler);
     public abstract boolean allowsSecondaryIndexQuery();

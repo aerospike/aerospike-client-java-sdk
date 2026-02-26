@@ -697,6 +697,23 @@ public class ObjectBuilder<T> {
      * @return RecordStream containing the results
      */
     public RecordStream execute() {
+        ErrorDisposition disposition = elements.size() <= 1
+            ? ErrorDisposition.THROW
+            : ErrorDisposition.IN_STREAM;
+        return executeWithDisposition(disposition);
+    }
+
+    public RecordStream execute(ErrorStrategy strategy) {
+        Objects.requireNonNull(strategy, "ErrorStrategy must not be null");
+        return executeWithDisposition(ErrorDisposition.fromStrategy(strategy));
+    }
+
+    public RecordStream execute(ErrorHandler handler) {
+        Objects.requireNonNull(handler, "ErrorHandler must not be null");
+        return executeWithDisposition(ErrorDisposition.handler(handler));
+    }
+
+    private RecordStream executeWithDisposition(ErrorDisposition disposition) {
         if (Log.debugEnabled()) {
             Log.debug("ObjectBuilder.execute() called for " + elements.size() + " element(s), transaction: " +
                      (txnToUse != null ? "yes" : "no"));
@@ -707,14 +724,14 @@ public class ObjectBuilder<T> {
         }
 
         if (elements.size() == 1) {
-            return executeSingleSync(elements.get(0));
+            return executeSingleSync(elements.get(0), disposition);
         }
 
         if (elements.size() < AbstractOperationBuilder.getBatchOperationThreshold()) {
-            return executeIndividualSync();
+            return executeIndividualSync(disposition);
         }
 
-        return executeBatchSync();
+        return executeBatchSync(disposition);
     }
 
     /**
@@ -796,7 +813,7 @@ public class ObjectBuilder<T> {
     /**
      * Execute operations using batch operations (10+ objects).
      */
-    private RecordStream executeBatchSync() {
+    private RecordStream executeBatchSync(ErrorDisposition disposition) {
     	BatchCommand parent = prepareBatch();
         List<BatchRecord> records = parent.getRecords();
         Session session = opBuilder.getSession();
@@ -833,8 +850,27 @@ public class ObjectBuilder<T> {
         try {
             for (int i = 0; i < records.size(); i++) {
                 BatchRecord br = records.get(i);
-                if (opBuilder.shouldIncludeResult(br.resultCode)) {
-                    recordStream.publish(AbstractFilterableBuilder.createRecordResultFromBatchRecord(br, settings, i));
+                if (!opBuilder.shouldIncludeResult(br.resultCode)) {
+                    continue;
+                }
+
+                RecordResult result = AbstractFilterableBuilder.createRecordResultFromBatchRecord(br, settings, i);
+
+                if (AbstractFilterableBuilder.isActionableError(br.resultCode)) {
+                    switch (disposition) {
+                        case ErrorDisposition.Throw ignored -> {
+                            AerospikeException ex = result.exception() != null
+                                ? result.exception()
+                                : AerospikeException.resultCodeToException(br.resultCode, null, br.inDoubt);
+                            throw ex;
+                        }
+                        case ErrorDisposition.Handler h ->
+                            AbstractFilterableBuilder.dispatchError(result, h.errorHandler());
+                        case ErrorDisposition.InStream ignored ->
+                            recordStream.publish(result);
+                    }
+                } else {
+                    recordStream.publish(result);
                 }
             }
             return new RecordStream(recordStream);
@@ -942,7 +978,7 @@ public class ObjectBuilder<T> {
      * Execute operations synchronously for individual objects (< batch threshold).
      * All virtual threads are joined before returning.
      */
-    private RecordStream executeIndividualSync() {
+    private RecordStream executeIndividualSync(ErrorDisposition disposition) {
         List<Key> keys = new ArrayList<>(elements.size());
 
         for (T element : elements) {
@@ -963,7 +999,6 @@ public class ObjectBuilder<T> {
         // Apply where clause if present
         final Expression filterExp = getFilterExp(firstKey.namespace);
         int ttl = (int) resolveTtl(expirationInSeconds, defaultExpirationInSeconds);
-        boolean stackTraceOnException = settings.getStackTraceOnException();
 
         if (txnToUse != null) {
         	// Assume all operations are write operations.
@@ -971,6 +1006,8 @@ public class ObjectBuilder<T> {
         }
 
 		AsyncRecordStream stream = new AsyncRecordStream(elements.size());
+        final java.util.concurrent.atomic.AtomicReference<AerospikeException> firstError =
+            (disposition instanceof ErrorDisposition.Throw) ? new java.util.concurrent.atomic.AtomicReference<>() : null;
 
         try (ExecutorService es = cluster.getExecutorService()) {
             for (int i = 0; i < keys.size(); i++) {
@@ -986,14 +1023,27 @@ public class ObjectBuilder<T> {
                             stream.publish(new RecordResult(key, rec, idx));
                         }
                     } catch (AerospikeException ae) {
-                        if (shouldPublish(ae, opBuilder)) {
-                            stream.publish(new RecordResult(key, ae, idx));
+                        if (!shouldPublish(ae, opBuilder)) {
+                            return;
+                        }
+                        switch (disposition) {
+                            case ErrorDisposition.Throw ignored ->
+                                firstError.compareAndSet(null, ae);
+                            case ErrorDisposition.Handler h ->
+                                h.errorHandler().handle(key, idx, ae);
+                            case ErrorDisposition.InStream ignored ->
+                                stream.publish(new RecordResult(key, ae, idx));
                         }
                     }
                 });
             }
         }
         stream.complete();
+
+        if (firstError != null && firstError.get() != null) {
+            throw firstError.get();
+        }
+
         return new RecordStream(stream);
     }
 
@@ -1040,7 +1090,7 @@ public class ObjectBuilder<T> {
         return new RecordStream(stream);
     }
 
-    private RecordStream executeSingleSync(T element) {
+    private RecordStream executeSingleSync(T element, ErrorDisposition disposition) {
         RecordMapper<T> recordMapper = getMapper(element);
         Key key = getKeyForElement(recordMapper, element);
 
@@ -1061,7 +1111,6 @@ public class ObjectBuilder<T> {
         }
 
         int ttl = (int) resolveTtl(expirationInSeconds, defaultExpirationInSeconds);
-        boolean stackTraceOnException = settings.getStackTraceOnException();
 
         try {
             Record rec = operate(cluster, partitions, settings, filterExp, key, element, ttl);
@@ -1071,8 +1120,15 @@ public class ObjectBuilder<T> {
             }
         }
         catch (AerospikeException ae) {
-            if (shouldPublish(ae, opBuilder)) {
-                return new RecordStream(new RecordResult(key, ae, 0));
+            if (!shouldPublish(ae, opBuilder)) {
+                return new RecordStream();
+            }
+            switch (disposition) {
+                case ErrorDisposition.Throw ignored -> throw ae;
+                case ErrorDisposition.Handler h -> h.errorHandler().handle(key, 0, ae);
+                case ErrorDisposition.InStream ignored -> {
+                    return new RecordStream(new RecordResult(key, ae, 0));
+                }
             }
         }
         return new RecordStream();

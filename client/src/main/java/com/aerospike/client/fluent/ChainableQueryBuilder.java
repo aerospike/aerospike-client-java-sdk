@@ -930,7 +930,26 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
         if (specs.isEmpty()) {
             return new RecordStream();
         }
-        return OperationSpecExecutor.execute(session, specs, defaultWhereClause, defaultExpirationInSeconds, txnToUse);
+        return OperationSpecExecutor.execute(session, specs, defaultWhereClause,
+            defaultExpirationInSeconds, txnToUse, AbstractFilterableBuilder.defaultDisposition(specs));
+    }
+
+    public RecordStream execute(ErrorStrategy strategy) {
+        Objects.requireNonNull(strategy, "ErrorStrategy must not be null");
+        return executeWithDisposition(ErrorDisposition.fromStrategy(strategy));
+    }
+
+    public RecordStream execute(ErrorHandler handler) {
+        Objects.requireNonNull(handler, "ErrorHandler must not be null");
+        return executeWithDisposition(ErrorDisposition.handler(handler));
+    }
+
+    private RecordStream executeWithDisposition(ErrorDisposition disposition) {
+        List<OperationSpec> specs = prepareSpecs();
+        if (specs.isEmpty()) {
+            return new RecordStream();
+        }
+        return OperationSpecExecutor.execute(session, specs, defaultWhereClause, defaultExpirationInSeconds, txnToUse, disposition);
     }
 
     /**

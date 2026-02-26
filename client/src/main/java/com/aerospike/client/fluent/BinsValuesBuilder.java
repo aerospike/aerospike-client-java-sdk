@@ -542,6 +542,23 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
      * @return RecordStream containing the results
      */
     public RecordStream execute() {
+        ErrorDisposition disposition = keys.size() <= 1
+            ? ErrorDisposition.THROW
+            : ErrorDisposition.IN_STREAM;
+        return executeWithDisposition(disposition);
+    }
+
+    public RecordStream execute(ErrorStrategy strategy) {
+        Objects.requireNonNull(strategy, "ErrorStrategy must not be null");
+        return executeWithDisposition(ErrorDisposition.fromStrategy(strategy));
+    }
+
+    public RecordStream execute(ErrorHandler handler) {
+        Objects.requireNonNull(handler, "ErrorHandler must not be null");
+        return executeWithDisposition(ErrorDisposition.handler(handler));
+    }
+
+    private RecordStream executeWithDisposition(ErrorDisposition disposition) {
         if (Log.debugEnabled()) {
             Log.debug("BinsValuesBuilder.execute() called for " + keys.size() + " key(s), transaction: "
                     + (txnToUse != null ? "yes" : "no"));
@@ -558,9 +575,9 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
         }
 
         if (keys.size() >= AbstractOperationBuilder.getBatchOperationThreshold()) {
-            return executeBatchSync();
+            return executeBatchSync(disposition);
         } else {
-            return executeIndividualSync();
+            return executeIndividualSync(disposition);
         }
     }
 
@@ -640,7 +657,7 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
         return new RecordStream(filtered);
     }
 
-    private RecordStream executeBatchSync() {
+    private RecordStream executeBatchSync(ErrorDisposition disposition) {
     	BatchCommand parent = prepareBatch();
         List<BatchRecord> records = parent.getRecords();
         Session session = opBuilder.getSession();
@@ -675,29 +692,45 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
         BatchExecutor.execute(cluster, commands, status);
 
         List<RecordResult> results = new ArrayList<>();
-        // UPDATE and REPLACE_IF_EXISTS must always report KEY_NOT_FOUND_ERROR because
-        // these operations are semantically expected to fail on non-existent records.
         OpType opType = opBuilder.getOpType();
         boolean effectiveRespondAllKeys = respondAllKeys ||
             opType == OpType.UPDATE || opType == OpType.REPLACE_IF_EXISTS;
 
         for (int i = 0; i < keys.size(); i++) {
             BatchRecord br = records.get(i);
-            // Handle respondAllKeys and filterExp behavior
-            if (switch (br.resultCode) {
-            case ResultCode.KEY_NOT_FOUND_ERROR -> effectiveRespondAllKeys;
-            case ResultCode.FILTERED_OUT -> failOnFilteredOut || effectiveRespondAllKeys;
-            default -> true;
-            }) {
-                if (settings.getStackTraceOnException() && br.resultCode != ResultCode.OK) {
-                    results.add(new RecordResult(br,
-                            AerospikeException.resultCodeToException(br.resultCode, null, br.inDoubt), i));
-                } else {
-                    results.add(new RecordResult(br, i));
-                }
+            boolean include = switch (br.resultCode) {
+                case ResultCode.KEY_NOT_FOUND_ERROR -> effectiveRespondAllKeys;
+                case ResultCode.FILTERED_OUT -> failOnFilteredOut || effectiveRespondAllKeys;
+                default -> true;
+            };
+            if (!include) {
+                continue;
             }
 
-            // Handle respondAllKeys and filterExp behavior
+            RecordResult result;
+            if (settings.getStackTraceOnException() && AbstractFilterableBuilder.isActionableError(br.resultCode)) {
+                result = new RecordResult(br,
+                        AerospikeException.resultCodeToException(br.resultCode, null, br.inDoubt), i);
+            } else {
+                result = new RecordResult(br, i);
+            }
+
+            if (AbstractFilterableBuilder.isActionableError(br.resultCode)) {
+                switch (disposition) {
+                    case ErrorDisposition.Throw ignored -> {
+                        AerospikeException ex = result.exception() != null
+                            ? result.exception()
+                            : AerospikeException.resultCodeToException(br.resultCode, null, br.inDoubt);
+                        throw ex;
+                    }
+                    case ErrorDisposition.Handler h ->
+                        AbstractFilterableBuilder.dispatchError(result, h.errorHandler());
+                    case ErrorDisposition.InStream ignored ->
+                        results.add(result);
+                }
+            } else {
+                results.add(result);
+            }
         }
         return new RecordStream(results, 0);
     }
@@ -795,7 +828,7 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
      * Execute operations synchronously for individual keys (< batch threshold). All
      * virtual threads are joined before returning.
      */
-    private RecordStream executeIndividualSync() {
+    private RecordStream executeIndividualSync(ErrorDisposition disposition) {
         if (keys.size() == 0) {
             return new RecordStream();
         }
@@ -804,7 +837,6 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
         Cluster cluster = session.getCluster();
         Key firstKey = keys.get(0);
 
-        // Assume all keys have the same namespace.
         Partitions partitions = getPartitions(cluster, firstKey.namespace);
         Settings policy = session.getBehavior().getSettings(OpKind.WRITE_RETRYABLE, OpShape.POINT, partitions.scMode);
         final Expression filterExp = processWhereClause(keys.get(0).namespace, opBuilder.getSession());
@@ -821,19 +853,28 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
                 }
             }
             catch (AerospikeException ae) {
-                if (shouldPublishException(ae)) {
-                    if (ae.getResultCode() != ResultCode.FILTERED_OUT) {
-                        opBuilder.showWarningsOnException(ae, txnToUse, firstKey, getExpiration(valueSets.get(firstKey)));
+                if (!shouldPublishException(ae)) {
+                    return new RecordStream();
+                }
+                if (ae.getResultCode() != ResultCode.FILTERED_OUT) {
+                    opBuilder.showWarningsOnException(ae, txnToUse, firstKey, getExpiration(valueSets.get(firstKey)));
+                }
+                switch (disposition) {
+                    case ErrorDisposition.Throw ignored -> throw ae;
+                    case ErrorDisposition.Handler h -> h.errorHandler().handle(firstKey, 0, ae);
+                    case ErrorDisposition.InStream ignored -> {
+                        return new RecordStream(new RecordResult(firstKey, ae, 0));
                     }
-                    return new RecordStream(new RecordResult(firstKey, ae, 0));
                 }
             }
             return new RecordStream();
 
         } else {
-            // Run multiple keys in parallel and join.
             @SuppressWarnings("resource")
 			AsyncRecordStream stream = new AsyncRecordStream(keys.size());
+            final java.util.concurrent.atomic.AtomicReference<AerospikeException> firstError =
+                (disposition instanceof ErrorDisposition.Throw) ? new java.util.concurrent.atomic.AtomicReference<>() : null;
+
             try (ExecutorService es = cluster.getExecutorService()) {
                 for (int i = 0; i < keys.size(); i++) {
                     final Key key = keys.get(i);
@@ -846,18 +887,31 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
                                 stream.publish(new RecordResult(key, record, idx));
                             }
                         } catch (AerospikeException ae) {
-                            if (shouldPublishException(ae)) {
-                                if (ae.getResultCode() != ResultCode.FILTERED_OUT) {
-                                    opBuilder.showWarningsOnException(ae, txnToUse, key, getExpiration(valueSets.get(key)));
-                                }
-                                stream.publish(new RecordResult(key, ae, idx));
+                            if (!shouldPublishException(ae)) {
+                                return;
+                            }
+                            if (ae.getResultCode() != ResultCode.FILTERED_OUT) {
+                                opBuilder.showWarningsOnException(ae, txnToUse, key, getExpiration(valueSets.get(key)));
+                            }
+                            switch (disposition) {
+                                case ErrorDisposition.Throw ignored ->
+                                    firstError.compareAndSet(null, ae);
+                                case ErrorDisposition.Handler h ->
+                                    h.errorHandler().handle(key, idx, ae);
+                                case ErrorDisposition.InStream ignored ->
+                                    stream.publish(new RecordResult(key, ae, idx));
                             }
                         }
-
                     });
                 }
             }
-            return new RecordStream(stream.complete());
+            stream.complete();
+
+            if (firstError != null && firstError.get() != null) {
+                throw firstError.get();
+            }
+
+            return new RecordStream(stream);
         }
     }
 

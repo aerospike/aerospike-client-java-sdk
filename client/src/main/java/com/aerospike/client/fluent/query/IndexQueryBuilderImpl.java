@@ -18,6 +18,7 @@ package com.aerospike.client.fluent.query;
 
 import java.util.Objects;
 
+import com.aerospike.client.fluent.AbstractFilterableBuilder;
 import com.aerospike.client.fluent.AerospikeException;
 import com.aerospike.client.fluent.AsyncRecordStream;
 import com.aerospike.client.fluent.Cluster;
@@ -50,6 +51,18 @@ public class IndexQueryBuilderImpl extends QueryImpl {
     @Override
     public RecordStream execute() {
         return executeInternal();
+    }
+
+    @Override
+    public RecordStream execute(ErrorStrategy strategy) {
+        Objects.requireNonNull(strategy, "ErrorStrategy must not be null");
+        return executeInternal();
+    }
+
+    @Override
+    public RecordStream execute(ErrorHandler handler) {
+        Objects.requireNonNull(handler, "ErrorHandler must not be null");
+        return AbstractFilterableBuilder.filterStreamErrors(executeInternal(), handler);
     }
 
     @Override

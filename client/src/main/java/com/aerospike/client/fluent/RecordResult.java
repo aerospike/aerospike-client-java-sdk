@@ -39,7 +39,7 @@ public record RecordResult(Key key, Record recordOrNull, Object udfReturnValue, 
     // Constructor with error handling based on stackTraceOnException flag
     public RecordResult(Key key, int resultCode, boolean inDoubt, String message, boolean stackTraceOnException, int index) {
         this(key, null, null, resultCode, 
-             stackTraceOnException && resultCode != ResultCode.OK ? 
+             stackTraceOnException && AbstractFilterableBuilder.isActionableError(resultCode) ? 
                  createExceptionWithCleanedStackTrace(resultCode, message, inDoubt) : null,
              inDoubt, message, index);
     }
@@ -47,7 +47,7 @@ public record RecordResult(Key key, Record recordOrNull, Object udfReturnValue, 
     // Constructor for BatchRecord with error handling
     public RecordResult(BatchRecord batchRecord, boolean stackTraceOnException, int index) {
         this(batchRecord.key, batchRecord.record, null, batchRecord.resultCode,
-             stackTraceOnException && batchRecord.resultCode != ResultCode.OK ?
+             stackTraceOnException && AbstractFilterableBuilder.isActionableError(batchRecord.resultCode) ?
                  createExceptionWithCleanedStackTrace(batchRecord.resultCode, 
                      ResultCode.getResultString(batchRecord.resultCode), batchRecord.inDoubt) : null,
              batchRecord.inDoubt, ResultCode.getResultString(batchRecord.resultCode), index);

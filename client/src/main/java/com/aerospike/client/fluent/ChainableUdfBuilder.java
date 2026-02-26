@@ -944,7 +944,31 @@ public class ChainableUdfBuilder extends AbstractSessionOperationBuilder<Chainab
                      (txnToUse != null ? "yes" : "no"));
         }
 
-        return OperationSpecExecutor.execute(session, operationSpecs, defaultWhereClause, defaultExpirationInSeconds, txnToUse);
+        return OperationSpecExecutor.execute(session, operationSpecs, defaultWhereClause,
+            defaultExpirationInSeconds, txnToUse, AbstractFilterableBuilder.defaultDisposition(operationSpecs));
+    }
+
+    public RecordStream execute(ErrorStrategy strategy) {
+        Objects.requireNonNull(strategy, "ErrorStrategy must not be null");
+        return executeWithDisposition(ErrorDisposition.fromStrategy(strategy));
+    }
+
+    public RecordStream execute(ErrorHandler handler) {
+        Objects.requireNonNull(handler, "ErrorHandler must not be null");
+        return executeWithDisposition(ErrorDisposition.handler(handler));
+    }
+
+    private RecordStream executeWithDisposition(ErrorDisposition disposition) {
+        prepareSpecs();
+
+        if (Log.debugEnabled()) {
+            int totalKeys = operationSpecs.stream().mapToInt(spec -> spec.getKeys().size()).sum();
+            Log.debug("ChainableUdfBuilder.execute() called for " + operationSpecs.size() +
+                     " operation(s), " + totalKeys + " key(s), transaction: " +
+                     (txnToUse != null ? "yes" : "no"));
+        }
+
+        return OperationSpecExecutor.execute(session, operationSpecs, defaultWhereClause, defaultExpirationInSeconds, txnToUse, disposition);
     }
 
     /**

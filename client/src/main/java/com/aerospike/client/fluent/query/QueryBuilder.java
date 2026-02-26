@@ -590,6 +590,18 @@ public class QueryBuilder extends AbstractFilterableBuilder implements
     }
 
     @Override
+    public RecordStream execute(ErrorStrategy strategy) {
+        Objects.requireNonNull(strategy, "ErrorStrategy must not be null");
+        return this.implementation.execute(strategy);
+    }
+
+    @Override
+    public RecordStream execute(ErrorHandler handler) {
+        Objects.requireNonNull(handler, "ErrorHandler must not be null");
+        return this.implementation.execute(handler);
+    }
+
+    @Override
     public RecordStream executeAsync(ErrorStrategy strategy) {
         Objects.requireNonNull(strategy, "ErrorStrategy must not be null");
         warnIfInTransaction();

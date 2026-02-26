@@ -265,6 +265,23 @@ public interface BaseQueryBuilder<T extends BaseQueryBuilder<T>> {
     RecordStream execute();
 
     /**
+     * Execute the query synchronously with errors embedded in the stream.
+     *
+     * @param strategy the error strategy (must not be null)
+     * @return a RecordStream containing the query results (including error results)
+     */
+    RecordStream execute(ErrorStrategy strategy);
+
+    /**
+     * Execute the query synchronously with errors dispatched to the handler.
+     * Error results are excluded from the returned stream.
+     *
+     * @param handler the error handler callback (must not be null)
+     * @return RecordStream containing only successful results
+     */
+    RecordStream execute(ErrorHandler handler);
+
+    /**
      * Execute the query asynchronously with errors embedded in the stream.
      *
      * @param strategy the error strategy (must not be null)

@@ -360,7 +360,23 @@ public class IdValuesRowBuilder {
      */
     public RecordStream execute() {
         List<OperationSpec> specs = materializeToSpecs();
-        return OperationSpecExecutor.execute(session, specs, null, defaultExpirationInSeconds, txnToUse);
+        return OperationSpecExecutor.execute(session, specs, null,
+            defaultExpirationInSeconds, txnToUse, AbstractFilterableBuilder.defaultDisposition(specs));
+    }
+
+    public RecordStream execute(ErrorStrategy strategy) {
+        Objects.requireNonNull(strategy, "ErrorStrategy must not be null");
+        return executeWithDisposition(ErrorDisposition.fromStrategy(strategy));
+    }
+
+    public RecordStream execute(ErrorHandler handler) {
+        Objects.requireNonNull(handler, "ErrorHandler must not be null");
+        return executeWithDisposition(ErrorDisposition.handler(handler));
+    }
+
+    private RecordStream executeWithDisposition(ErrorDisposition disposition) {
+        List<OperationSpec> specs = materializeToSpecs();
+        return OperationSpecExecutor.execute(session, specs, null, defaultExpirationInSeconds, txnToUse, disposition);
     }
 
     /**

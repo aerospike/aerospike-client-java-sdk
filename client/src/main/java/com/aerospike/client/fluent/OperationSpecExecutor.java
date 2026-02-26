@@ -87,18 +87,30 @@ class OperationSpecExecutor {
     }
 
     /**
-     * Execute a batch of heterogeneous operations.
+     * Execute a batch of heterogeneous operations with errors embedded in the stream.
+     * Used by async paths where error routing is handled at the builder level.
+     */
+    public static RecordStream execute(
+        Session session, List<OperationSpec> specs, Expression defaultWhereClause,
+        long defaultExpirationInSeconds, Txn txn
+    ) {
+        return execute(session, specs, defaultWhereClause, defaultExpirationInSeconds, txn, ErrorDisposition.IN_STREAM);
+    }
+
+    /**
+     * Execute a batch of heterogeneous operations with the given error disposition.
      *
      * @param session the session to use for execution
      * @param specs the list of operation specifications
      * @param defaultWhereClause optional default filter for operations without explicit where clause
      * @param defaultExpirationInSeconds default TTL for operations without explicit expiration (NOT_EXPLICITLY_SET if not set)
      * @param txn optional transaction to use
+     * @param disposition how to handle per-record errors (throw, embed in stream, or dispatch to handler)
      * @return RecordStream containing the results of all operations
      */
     public static RecordStream execute(
         Session session, List<OperationSpec> specs, Expression defaultWhereClause,
-        long defaultExpirationInSeconds, Txn txn
+        long defaultExpirationInSeconds, Txn txn, ErrorDisposition disposition
     ) {
         if (specs.isEmpty()) {
             return new RecordStream();
@@ -113,7 +125,7 @@ class OperationSpecExecutor {
                 Key key = keys.get(0);
                 Expression filterExp = spec.getWhereClause() != null ? spec.getWhereClause() : defaultWhereClause;
 
-                return executeSingleKey(session, spec, key, filterExp, defaultExpirationInSeconds, txn);
+                return executeSingleKey(session, spec, key, filterExp, defaultExpirationInSeconds, txn, disposition);
             }
         }
 
@@ -317,8 +329,27 @@ class OperationSpecExecutor {
             for (int i = 0; i < records.size(); i++) {
                 BatchRecord br = records.get(i);
 
-                if (shouldIncludeResult(br.resultCode, respondAllKeys, failOnFilteredOut)) {
-                    recordStream.publish(AbstractFilterableBuilder.createRecordResultFromBatchRecord(br, settings, i));
+                if (!shouldIncludeResult(br.resultCode, respondAllKeys, failOnFilteredOut)) {
+                    continue;
+                }
+
+                RecordResult result = AbstractFilterableBuilder.createRecordResultFromBatchRecord(br, settings, i);
+
+                if (AbstractFilterableBuilder.isActionableError(br.resultCode)) {
+                    switch (disposition) {
+                        case ErrorDisposition.Throw ignored -> {
+                            AerospikeException ex = result.exception() != null
+                                ? result.exception()
+                                : AerospikeException.resultCodeToException(br.resultCode, null, br.inDoubt);
+                            throw ex;
+                        }
+                        case ErrorDisposition.Handler h ->
+                            AbstractFilterableBuilder.dispatchError(result, h.errorHandler());
+                        case ErrorDisposition.InStream ignored ->
+                            recordStream.publish(result);
+                    }
+                } else {
+                    recordStream.publish(result);
                 }
             }
             return new RecordStream(recordStream);
@@ -348,7 +379,7 @@ class OperationSpecExecutor {
 
                 if (includeResult) {
                     RecordResult result;
-                    if (settings.getStackTraceOnException() && br.resultCode != ResultCode.OK) {
+                    if (settings.getStackTraceOnException() && AbstractFilterableBuilder.isActionableError(br.resultCode)) {
                         result = new RecordResult(
                             br,
                             AerospikeException.resultCodeToException(br.resultCode, null, br.inDoubt),
@@ -396,7 +427,7 @@ class OperationSpecExecutor {
      */
     private static RecordStream executeSingleKey(
         Session session, OperationSpec spec, Key key, Expression filterExp,
-        long defaultExpirationInSeconds, Txn txn
+        long defaultExpirationInSeconds, Txn txn, ErrorDisposition disposition
     ) {
         Cluster cluster = session.getCluster();
         Behavior behavior = session.getBehavior();
@@ -405,7 +436,7 @@ class OperationSpecExecutor {
         try {
             partitions = cluster.getPartitions(key.namespace);
         } catch (AerospikeException ae) {
-            return new RecordStream(new RecordResult(key, ae, 0));
+            return handleSingleKeyError(key, ae, spec, disposition);
         }
 
         boolean scMode = partitions.scMode;
@@ -428,11 +459,25 @@ class OperationSpecExecutor {
                 return executeSingleKeyWrite(session, cluster, behavior, partitions, spec, key, filterExp, ttl, txn, scMode, respondAllKeys, failOnFilteredOut);
             }
         } catch (AerospikeException ae) {
-            if (shouldIncludeResult(ae.getResultCode(), respondAllKeys, failOnFilteredOut)) {
-                return new RecordStream(new RecordResult(key, ae, 0));
-            }
+            return handleSingleKeyError(key, ae, spec, disposition);
+        }
+    }
+
+    private static RecordStream handleSingleKeyError(
+        Key key, AerospikeException ae, OperationSpec spec, ErrorDisposition disposition
+    ) {
+        if (!shouldIncludeResult(ae.getResultCode(), spec.isRespondAllKeys(), spec.isFailOnFilteredOut())) {
             return new RecordStream();
         }
+
+        return switch (disposition) {
+            case ErrorDisposition.Throw ignored -> throw ae;
+            case ErrorDisposition.InStream ignored -> new RecordStream(new RecordResult(key, ae, 0));
+            case ErrorDisposition.Handler h -> {
+                h.errorHandler().handle(key, 0, ae);
+                yield new RecordStream();
+            }
+        };
     }
 
     /**
