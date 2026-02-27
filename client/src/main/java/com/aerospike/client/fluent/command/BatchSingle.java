@@ -17,7 +17,6 @@
 package com.aerospike.client.fluent.command;
 
 import java.io.IOException;
-import java.util.List;
 
 import com.aerospike.client.fluent.AerospikeException;
 import com.aerospike.client.fluent.AsyncRecordStream;
@@ -25,7 +24,6 @@ import com.aerospike.client.fluent.Cluster;
 import com.aerospike.client.fluent.Connection;
 import com.aerospike.client.fluent.Key;
 import com.aerospike.client.fluent.Node;
-import com.aerospike.client.fluent.Operation;
 import com.aerospike.client.fluent.Record;
 import com.aerospike.client.fluent.RecordResult;
 import com.aerospike.client.fluent.ResultCode;

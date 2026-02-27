@@ -30,7 +30,6 @@ import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
-import com.aerospike.client.fluent.ErrorStrategy;
 import com.aerospike.client.fluent.mapper.Address;
 import com.aerospike.client.fluent.mapper.Customer;
 import com.aerospike.client.fluent.mapper.CustomerMapper;

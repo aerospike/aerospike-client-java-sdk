@@ -619,7 +619,6 @@ public class ClusterDefinition {
             Log.debug("System Settings: " + effectiveSettings);
         }
 
-        System.out.println("MaximumConnectionsPerNode = " + effectiveSettings.getMaximumConnectionsPerNode());
     	Cluster cluster = new Cluster(def, effectiveSettings);
 
         // Register with registry for dynamic updates

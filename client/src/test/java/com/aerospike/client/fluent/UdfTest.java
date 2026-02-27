@@ -16,13 +16,17 @@
  */
 package com.aerospike.client.fluent;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -176,7 +180,6 @@ public class UdfTest extends ClusterTest {
         assertTrue(rs.hasNext());
         Optional<Object> obj = rs.getFirstUdfResult();
         int gen = (int)(long)obj.orElseThrow();
-        System.out.println("GEN=" + gen);
 
 		// Write record if generation has not changed.
 		rs = session.executeUdf(key)
@@ -258,10 +261,11 @@ public class UdfTest extends ClusterTest {
 
 		assertEquals(ResultCode.UDF_BAD_RESPONSE, ae.getResultCode());
 	}
-	/*
+
 	@Test
 	public void writeListMapUsingUdf() {
-		Key key = new Key(args.namespace, args.set, "udfkey5");
+		Key key = args.set.id("writeListMapUsingUdf");
+		String binName = "udfbin5";
 
 		ArrayList<Object> inner = new ArrayList<Object>();
 		inner.add("string2");
@@ -278,47 +282,52 @@ public class UdfTest extends ClusterTest {
 		list.add(inner);
 		list.add(innerMap);
 
-		String binName = "udfbin5";
+		RecordStream rs = session.executeUdf(key)
+        	.function("record_example", "writeBin")
+        	.passing(binName, list)
+        	.execute();
 
-		client.execute(null, key, "record_example", "writeBin", Value.get(binName), Value.get(list));
+        assertTrue(rs.hasNext());
+        rs.next().recordOrThrow();
 
-		Object received = client.execute(null, key, "record_example", "readBin", Value.get(binName));
-		assertNotNull(received);
+		rs = session.executeUdf(key)
+        	.function("record_example", "readBin")
+        	.passing(binName)
+        	.execute();
+
+        assertTrue(rs.hasNext());
+        Optional<Object> obj = rs.getFirstUdfResult();
+        List<?> received = (List<?>)obj.orElseThrow();
 		assertEquals(list, received);
-	}
 
-	@Test
-	public void appendListUsingUdf() {
-		Key key = new Key(args.namespace, args.set, "udfkey5");
-		String binName = "udfbin5";
 		String value = "appended value";
 
-		client.execute(null, key, "record_example", "appendListBin", Value.get(binName), Value.get(value));
+		rs = session.executeUdf(key)
+        	.function("record_example", "appendListBin")
+        	.passing(binName, value)
+        	.execute();
 
-		Record record = client.get(null, key, binName);
-		assertRecordFound(key, record);
+        assertTrue(rs.hasNext());
+        rs.getFirstUdfResult();
 
-		Object received = record.getValue(binName);
+        rs = session.query(key)
+        	.readingOnlyBins(binName)
+        	.execute();
 
-		if (received != null && received instanceof List<?>) {
-			List<?> list = (List<?>)received;
+        assertTrue(rs.hasNext());
+        Record rec = rs.next().recordOrThrow();
+        Object receivedObject = rec.getValue(binName);
+		assertNotNull(receivedObject);
+		assertTrue(receivedObject instanceof List<?>);
 
-			if (list.size() == 5) {
-				Object obj = list.get(4);
-
-				if (obj.equals(value)) {
-					return;
-				}
-			}
-		}
-		fail("UDF data mismatch" + System.lineSeparator() +
-			 "Expected: " + value + System.lineSeparator() +
-			 "Received: " + received);
+		List<?> receivedList = (List<?>)receivedObject;
+		assertEquals(5, receivedList.size());
+		assertEquals(value, receivedList.get(4));
 	}
 
 	@Test
 	public void writeBlobUsingUdf() {
-		Key key = new Key(args.namespace, args.set, "udfkey6");
+		Key key = args.set.id("writeBlobUsingUdf");
 		String binName = "udfbin6";
 
 		// Create packed blob using standard java tools.
@@ -328,95 +337,142 @@ public class UdfTest extends ClusterTest {
 			dos.writeInt(9845);
 			dos.writeUTF("Hello world.");
 		}
-		catch (Exception e) {
-			fail("DataOutputStream error: " + e.getMessage());
+		catch (IOException e) {
+			throw new RuntimeException("DataOutputStream error: " + e.getMessage());
 		}
+
 		byte[] blob = baos.toByteArray();
 
-		client.execute(null, key, "record_example", "writeBin", Value.get(binName), Value.get(blob));
-		byte[] received = (byte[])client.execute(null, key, "record_example", "readBin", Value.get(binName));
+		RecordStream rs = session.executeUdf(key)
+        	.function("record_example", "writeBin")
+        	.passing(binName, blob)
+        	.execute();
+
+        assertTrue(rs.hasNext());
+        rs.getFirstUdfResult();
+
+		rs = session.executeUdf(key)
+        	.function("record_example", "readBin")
+        	.passing(binName)
+        	.execute();
+
+        assertTrue(rs.hasNext());
+        Optional<Object> obj = rs.getFirstUdfResult();
+        byte[] received = (byte[])obj.orElseThrow();
 		assertArrayEquals(blob, received);
 	}
 
 	@Test
 	public void batchUDF() {
-		Key[] keys = new Key[] {
-			new Key(args.namespace, args.set, 20000),
-			new Key(args.namespace, args.set, 20001)
-		};
+		Key key1 = args.set.id(20000);
+		Key key2 = args.set.id(20001);
+		String binName = "B5";
 
-		client.delete(null, null, keys);
+		List<Key> keys = List.of(key1, key2);
 
-		BatchResults br = client.execute(null, null, keys, "record_example", "writeBin", Value.get("B5"), Value.get("value5"));
-		assertTrue(br.status);
+        session.delete(keys).execute();
 
-		Record[] records = client.get(null, keys, "B5");
-		assertEquals(2, records.length);
+		RecordStream rs = session.executeUdf(keys)
+        	.function("record_example", "writeBin")
+        	.passing(binName, "value5")
+        	.execute();
 
-		for (Record r : records) {
-			assertNotNull(r);
-			assertEquals("value5", r.getString("B5"));
-		}
+        assertTrue(rs.hasNext());
+        rs.getFirstUdfResult();
+
+        rs = session.query(keys)
+        	.readingOnlyBins(binName)
+        	.execute();
+
+        assertTrue(rs.hasNext());
+        Record rec = rs.next().recordOrThrow();
+        String val = rec.getString(binName);
+		assertEquals("value5", val);
+
+        assertTrue(rs.hasNext());
+        rec = rs.next().recordOrThrow();
+        val = rec.getString(binName);
+		assertEquals("value5", val);
+
+        assertFalse(rs.hasNext());
 	}
 
 	@Test
 	public void batchUDFError() {
-		Key[] keys = new Key[] {
-			new Key(args.namespace, args.set, 20002),
-			new Key(args.namespace, args.set, 20003)
-		};
+		Key key1 = args.set.id(20002);
+		Key key2 = args.set.id(20003);
+		String binName = "B5";
 
-		client.delete(null, null, keys);
+		List<Key> keys = List.of(key1, key2);
 
-		BatchResults br = client.execute(null, null, keys, "record_example", "writeWithValidation", Value.get("B5"), Value.get(999));
-		assertFalse(br.status);
+        session.delete(keys).execute();
 
-		for (BatchRecord r : br.records) {
-			assertNotNull(r);
-			assertEquals(ResultCode.UDF_BAD_RESPONSE, r.resultCode);
+		AerospikeException ae = assertThrows(AerospikeException.class, () -> {
+	   	    // TODO This command should not really fail with exception. The exception should
+			// not be thrown for all batch rows. Instead, all rows should be returned and the
+			// last row should have the result code set to an error.
+			RecordStream rs = session.executeUdf(keys)
+	        	.function("record_example", "writeWithValidation")
+	        	.passing(binName, 999)
+	        	.execute();
 
-			String msg = r.record.getUDFError();
-			//System.out.println(msg);
-			assertNotNull(msg);
-		}
+	        assertTrue(rs.hasNext());
+	        rs.getFirstUdfResult();
+		});
+
+		assertEquals(ResultCode.UDF_BAD_RESPONSE, ae.getResultCode());
 	}
 
 	@Test
 	public void batchUDFComplex() {
-		String bin = "B5";
+		Key key1 = args.set.id(20004);
+		Key key2 = args.set.id(20005);
+		String binName = "B5";
 
-		Value[] a1 = new Value[] {Value.get(bin), Value.get("value1")};
-		Value[] a2 = new Value[] {Value.get(bin), Value.get(5)};
-		Value[] a3 = new Value[] {Value.get(bin), Value.get(999)};
+   	    // TODO This command fails due to an exception. The exception should not be thrown for
+		// all batch rows. Instead, all rows should be returned and the last row should
+		// have the result code set to an error.
+		RecordStream rs = session
+			.executeUdf(key1)
+        		.function("record_example", "writeBin")
+	        	.passing(binName, "value1")
+			.executeUdf(key2)
+        		.function("record_example", "writeWithValidation")
+	        	.passing(binName, 5)
+			.executeUdf(key2)
+        		.function("record_example", "writeWithValidation")
+	        	.passing(binName, 999)
+	        .execute();
 
-		BatchUDF b1 = new BatchUDF(new Key(args.namespace, args.set, 20004), "record_example", "writeBin", a1);
-		BatchUDF b2 = new BatchUDF(new Key(args.namespace, args.set, 20005), "record_example", "writeWithValidation", a2);
-		BatchUDF b3 = new BatchUDF(new Key(args.namespace, args.set, 20005), "record_example", "writeWithValidation", a3);
+        assertTrue(rs.hasNext());
+        RecordResult res = rs.next();
+		assertEquals(ResultCode.OK, res.resultCode());
 
-		List<BatchRecord> records = new ArrayList<BatchRecord>();
-		records.add(b1);
-		records.add(b2);
-		records.add(b3);
+        assertTrue(rs.hasNext());
+        res = rs.next();
+		assertEquals(ResultCode.OK, res.resultCode());
 
-		boolean status = client.operate(null, records);
+        assertTrue(rs.hasNext());
+        res = rs.next();
+		assertEquals(ResultCode.UDF_BAD_RESPONSE, res.resultCode());
 
-		assertFalse(status); // b3 results in an error.
-		assertBinEqual(b1.key, b1.record, bin, 0);
-		assertBinEqual(b2.key, b2.record, bin, 0);
-		assertEquals(ResultCode.UDF_BAD_RESPONSE, b3.resultCode);
+        assertFalse(rs.hasNext());
 
-		BatchRead b4 = new BatchRead(new Key(args.namespace, args.set, 20004), true);
-		BatchRead b5 = new BatchRead(new Key(args.namespace, args.set, 20005), true);
+		List<Key> keys = List.of(key1, key2);
 
-		records.clear();
-		records.add(b4);
-		records.add(b5);
+		rs = session.query(keys)
+        	.execute();
 
-		status = client.operate(null, records);
+        assertTrue(rs.hasNext());
+        Record rec = rs.next().recordOrThrow();
+        String val = rec.getString(binName);
+		assertEquals("value1", val);
 
-		assertTrue(status);
-		assertBinEqual(b4.key, b4.record, bin, "value1");
-		assertBinEqual(b5.key, b5.record, bin, 5);
+        assertTrue(rs.hasNext());
+        rec = rs.next().recordOrThrow();
+        int ival = rec.getInt(binName);
+		assertEquals(5, ival);
+
+        assertFalse(rs.hasNext());
 	}
-	*/
 }
