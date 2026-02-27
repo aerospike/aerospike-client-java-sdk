@@ -114,8 +114,7 @@ public abstract class AbstractFilterableBuilder {
      * flow through the stream regardless of disposition.
      */
     static boolean isActionableError(int resultCode) {
-        return resultCode != ResultCode.OK
-            && resultCode != ResultCode.KEY_NOT_FOUND_ERROR;
+        return resultCode != ResultCode.OK;
     }
 
     /**

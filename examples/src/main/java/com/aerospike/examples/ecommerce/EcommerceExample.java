@@ -187,7 +187,8 @@ public class EcommerceExample {
         // Option B: ErrorHandler callback -- errors go to the lambda, successes to the stream
         System.out.println("\nUsing ErrorHandler callback:");
         RecordStream rs = session.query(
-                customers.id("C-100"), customers.id("C-MISSING"), customers.id("C-ALSO-MISSING"))
+                customers.ids("C-100", "C-MISSING", "C-ALSO-MISSING"))
+                .respondAllKeys()
                 .execute((key, index, ex) ->
                         System.out.println("  Error at index " + index + " for key "
                                 + key + ": " + ex.getMessage()));
@@ -196,7 +197,8 @@ public class EcommerceExample {
         // Option C: IN_STREAM strategy -- check each result individually
         System.out.println("\nUsing ErrorStrategy.IN_STREAM:");
         RecordStream inStream = session.query(
-                customers.id("C-100"), customers.id("C-MISSING"))
+                customers.ids("C-100", "C-MISSING"))
+                .respondAllKeys()
                 .execute(ErrorStrategy.IN_STREAM);
         inStream.forEach(rr -> {
             if (rr.isOk()) {
