@@ -684,7 +684,7 @@ public class RecordStream implements Iterator<RecordResult>, Closeable {
      */
     public Optional<Object> getFirstUdfResult() {
         if (hasNext()) {
-            return Optional.of(next().udfResultOrThrow());
+            return Optional.ofNullable(next().udfResultOrThrow());
         }
         return Optional.empty();
     }
@@ -700,7 +700,7 @@ public class RecordStream implements Iterator<RecordResult>, Closeable {
      */
     public <T> Optional<T> getFirstUdfResult(RecordMapper<T> mapper) {
         if (hasNext()) {
-            return Optional.of(next().udfResultAs(mapper));
+            return Optional.ofNullable(next().udfResultAs(mapper));
         }
         return Optional.empty();
     }

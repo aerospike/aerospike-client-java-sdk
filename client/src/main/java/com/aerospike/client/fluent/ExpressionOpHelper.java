@@ -20,6 +20,7 @@ import com.aerospike.client.fluent.dsl.BooleanExpression;
 import com.aerospike.client.fluent.exp.Exp;
 import com.aerospike.client.fluent.exp.ExpOperation;
 import com.aerospike.client.fluent.exp.Expression;
+import com.aerospike.client.fluent.query.Filter;
 import com.aerospike.client.fluent.query.PreparedDsl;
 import com.aerospike.dsl.ExpressionContext;
 import com.aerospike.dsl.ParsedExpression;
@@ -128,7 +129,15 @@ public final class ExpressionOpHelper {
         DSLParser parser = new DSLParserImpl();
         ExpressionContext context = ExpressionContext.of(dsl);
         ParsedExpression parseResult = parser.parseExpression(context);
-        return Exp.build(parseResult.getResult().getExp());
+        Exp exp = parseResult.getResult().getExp();
+        
+        if (Log.debugEnabled()) {
+                Log.debug(String.format("Dsl(\"%s\") => (Exp: %s)",
+                        dsl,
+                        exp));
+        }
+
+        return Exp.build(exp);
     }
 
     private static Expression parseStringDsl(String dsl, Object[] params) {

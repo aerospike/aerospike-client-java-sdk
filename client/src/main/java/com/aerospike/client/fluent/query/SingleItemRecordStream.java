@@ -38,15 +38,12 @@ public class SingleItemRecordStream implements RecordStreamImpl {
 
     @Override
     public boolean hasNext() {
-        if (!read) {
-            read = true;
-            return true;
-        }
-        return false;
+        return !read;
     }
 
     @Override
     public RecordResult next() {
+        read = true;
         return record;
     }
 

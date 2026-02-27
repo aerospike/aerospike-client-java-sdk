@@ -17,6 +17,7 @@
 package com.aerospike.client.fluent;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -435,6 +436,119 @@ public class RecordStreamAdapterTest extends ClusterTest {
 		assertTrue(done.await(5, TimeUnit.SECONDS), "Publisher did not complete in time");
 		assertNoError(error);
 		assertEquals(RECORD_COUNT, received.size());
+	}
+
+	// ========== hasNext() idempotency tests ==========
+
+	@Test
+	public void hasNextIdempotentOnSingleItemStream() {
+		RecordStream rs = session.query(args.set.id(KEY_PREFIX + "0")).execute();
+
+		// Multiple hasNext() calls must all return true before next() is called
+		assertTrue(rs.hasNext());
+		assertTrue(rs.hasNext());
+		assertTrue(rs.hasNext());
+
+		RecordResult result = rs.next();
+		assertNotNull(result);
+		assertTrue(result.isOk());
+		assertEquals("user_0", result.recordOrThrow().getString("name"));
+
+		// After consuming the single item, hasNext() must consistently return false
+		assertFalse(rs.hasNext());
+		assertFalse(rs.hasNext());
+	}
+
+	@Test
+	public void hasNextIdempotentOnAsyncStream() {
+		RecordStream rs = session.query(testKeys()).execute();
+
+		// Multiple hasNext() calls before first next()
+		assertTrue(rs.hasNext());
+		assertTrue(rs.hasNext());
+		assertTrue(rs.hasNext());
+
+		int count = 0;
+		while (rs.hasNext()) {
+			// Call hasNext() extra times mid-iteration to verify no skipping
+			assertTrue(rs.hasNext());
+			RecordResult result = rs.next();
+			assertNotNull(result);
+			assertTrue(result.isOk());
+			count++;
+		}
+
+		assertEquals(RECORD_COUNT, count);
+
+		// After exhaustion, hasNext() must consistently return false
+		assertFalse(rs.hasNext());
+		assertFalse(rs.hasNext());
+	}
+
+	@Test
+	public void hasNextIdempotentOnAsyncStreamFromExecuteAsync() {
+		RecordStream rs = session.query(testKeys()).executeAsync(ErrorStrategy.IN_STREAM);
+
+		assertTrue(rs.hasNext());
+		assertTrue(rs.hasNext());
+		assertTrue(rs.hasNext());
+
+		int count = 0;
+		while (rs.hasNext()) {
+			assertTrue(rs.hasNext());
+			RecordResult result = rs.next();
+			assertNotNull(result);
+			count++;
+		}
+
+		assertEquals(RECORD_COUNT, count);
+		assertFalse(rs.hasNext());
+		assertFalse(rs.hasNext());
+	}
+
+	@Test
+	public void hasNextIdempotentOnChunkedStream() {
+		// Index/scan queries produce ChunkedRecordStream
+		// Use a set-wide query filtered to our test keys' bin value pattern
+		session.upsert(args.set.id(KEY_PREFIX + "chunked_0"))
+			.bin("name").setTo("chunked_user")
+			.execute();
+
+		RecordStream rs = session.query(args.set.id(KEY_PREFIX + "chunked_0")).execute();
+
+		// Multiple hasNext() calls must all agree
+		assertTrue(rs.hasNext());
+		assertTrue(rs.hasNext());
+		assertTrue(rs.hasNext());
+
+		RecordResult result = rs.next();
+		assertNotNull(result);
+		assertTrue(result.isOk());
+		assertEquals("chunked_user", result.recordOrThrow().getString("name"));
+
+		assertFalse(rs.hasNext());
+		assertFalse(rs.hasNext());
+	}
+
+	@Test
+	public void hasNextIdempotentOnEmptyStream() {
+		RecordStream rs = new RecordStream();
+
+		// Empty stream must consistently return false
+		assertFalse(rs.hasNext());
+		assertFalse(rs.hasNext());
+		assertFalse(rs.hasNext());
+	}
+
+	@Test
+	public void hasNextIdempotentOnNonExistentKey() {
+		session.delete(args.set.id(KEY_PREFIX + "nonexistent")).execute();
+
+		RecordStream rs = session.query(args.set.id(KEY_PREFIX + "nonexistent")).execute();
+
+		// A query for a non-existent key returns no results
+		assertFalse(rs.hasNext());
+		assertFalse(rs.hasNext());
 	}
 
 	private static void assertNoError(AtomicReference<Throwable> error) {

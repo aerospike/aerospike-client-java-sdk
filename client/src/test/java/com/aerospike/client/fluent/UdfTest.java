@@ -175,7 +175,7 @@ public class UdfTest extends ClusterTest {
 
         assertTrue(rs.hasNext());
         Optional<Object> obj = rs.getFirstUdfResult();
-        int gen = (int)obj.orElseThrow();
+        int gen = (int)(long)obj.orElseThrow();
         System.out.println("GEN=" + gen);
 
 		// Write record if generation has not changed.
@@ -186,7 +186,7 @@ public class UdfTest extends ClusterTest {
 
         assertTrue(rs.hasNext());
         obj = rs.getFirstUdfResult();
-        assertNull(obj.get());
+        assertTrue(obj.isEmpty());
 	}
 
 	@Test

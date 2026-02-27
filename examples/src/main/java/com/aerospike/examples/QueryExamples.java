@@ -277,6 +277,35 @@ public class QueryExamples {
             
             session.truncate(customerDataSet);
             
+            
+            session.insert(customerDataSet.id(1))
+                .bin("Name").setTo("test1")
+                .bin("i1").setTo(1)
+                .bin("i2").setTo(2)
+                .bin("f1").setTo(1.1)
+                .bin("f2").setTo(2.2)
+                .bin("s1").setTo("hello ")
+                .bin("s2").setTo("world")
+                .execute();
+            
+            print(session.query(customerDataSet.id(1)) 
+                .bin("calc0").selectFrom("1.0 == $.f1")
+                .bin("calc0").selectFrom("$.f1 == 1.0 and $.i1 == 2")
+                .bin("calc0").selectFrom("1.0 == $.f1.toFloat()")
+                .bin("calc0").selectFrom("1.0 == $.f1.nonsense()")
+                .bin("calc0").selectFrom("$.f1 == 15.0 and $.f1 == 'String'")
+                .bin("calc0").selectFrom("1.0 + $.f1")
+                .bin("calc0").selectFrom("1.0 + $.i1.get(type: INT).asFloat()")
+                .bin("calc0").selectFrom("$.i1 + $.i2")
+                .bin("calc0").selectFrom("$.f1 + $.f2")
+                .bin("calc0").selectFrom("$.f1 and $.f2 and $.i2 and $.i1")
+                .bin("calc1").selectFrom("$.i1.asFloat() + 4.0")
+                .bin("calc2").selectFrom("1.2 + $.f1 + $.f2 + 1.0")
+                .bin("calc3").selectFrom("$.s1 == 'Tim'")
+                .bin("calc0").selectFrom("$.f1.get(type: FLOAT) + $.f2")
+                .execute());
+            System.exit(0);
+            
             session.upsert(customerDataSet.id("bob")).bin("A").setTo(2).bin("B").setTo(2.2).execute();
             RecordStream rs1 = session.query(customerDataSet.id("bob"))
                     .readingOnlyBins("name")
