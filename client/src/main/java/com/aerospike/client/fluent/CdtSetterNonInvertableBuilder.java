@@ -2,6 +2,7 @@ package com.aerospike.client.fluent;
 
 import java.util.List;
 import java.util.Map;
+import java.util.function.Consumer;
 
 /**
  * This interface provides terminal methods to set values at the end of a CDT chain. The
@@ -10,12 +11,17 @@ import java.util.Map;
  * <ul>
  * <li>{@code setTo} methods which set the value and cannot fail</li>
  * <li>{@code insert} methods which will insert a value only if the key does not exist. These will
- * throw an exception by default if the key exists, but there is an overload which has a parameter to allow the
- * methods to fail silently</li>
- * <li>{@code update} methods which will insert a value only if the key already exists. These will
- * throw an exception by default if the key doesn't exit, but there is an overload which has a parameter to allow the
- * methods to fail silently</li>
+ * throw an exception by default if the key exists, but there is an overload accepting
+ * {@link MapEntryWriteOptions} to control this behavior</li>
+ * <li>{@code update} methods which will update a value only if the key already exists. These will
+ * throw an exception by default if the key doesn't exist, but there is an overload accepting
+ * {@link MapEntryWriteOptions} to control this behavior</li>
+ * <li>{@code upsert} methods which will create or update a map entry unconditionally</li>
+ * <li>{@code add} methods which atomically increment a numeric map value</li>
  * </ul>
+ * 
+ * <p>When no {@link MapEntryWriteOptions} are specified, write operations that may create a new map
+ * will default to {@code MapOrder.KEY_ORDERED}.</p>
  * <p/>
  * Note that this is a paired interface with {@link CdtSetterInvertableBuilder} and they have exactly
  * the same methods, differing only in the interface they extend.
@@ -39,14 +45,14 @@ public interface CdtSetterNonInvertableBuilder<T extends AbstractOperationBuilde
     public T insert(Map<?,?> value);
     public <U> T insert(U value, RecordMapper<U> mapper);
 
-    public T insert(long value, boolean allowFailures);
-    public T insert(String value, boolean allowFailures);
-    public T insert(byte[] value, boolean allowFailures);
-    public T insert(boolean value, boolean allowFailures);
-    public T insert(double value, boolean allowFailures);
-    public T insert(List<?> value, boolean allowFailures);
-    public T insert(Map<?,?> value, boolean allowFailures);
-    public <U> T insert(U value, RecordMapper<U> mapper, boolean allowFailures);
+    public T insert(long value, Consumer<MapEntryWriteOptions> options);
+    public T insert(String value, Consumer<MapEntryWriteOptions> options);
+    public T insert(byte[] value, Consumer<MapEntryWriteOptions> options);
+    public T insert(boolean value, Consumer<MapEntryWriteOptions> options);
+    public T insert(double value, Consumer<MapEntryWriteOptions> options);
+    public T insert(List<?> value, Consumer<MapEntryWriteOptions> options);
+    public T insert(Map<?,?> value, Consumer<MapEntryWriteOptions> options);
+    public <U> T insert(U value, RecordMapper<U> mapper, Consumer<MapEntryWriteOptions> options);
 
     public T update(long value);
     public T update(String value);
@@ -57,17 +63,35 @@ public interface CdtSetterNonInvertableBuilder<T extends AbstractOperationBuilde
     public T update(Map<?,?> value);
     public <U> T update(U value, RecordMapper<U> mapper);
 
-    public T update(long value, boolean allowFailures);
-    public T update(String value, boolean allowFailures);
-    public T update(byte[] value, boolean allowFailures);
-    public T update(boolean value, boolean allowFailures);
-    public T update(double value, boolean allowFailures);
-    public T update(List<?> value, boolean allowFailures);
-    public T update(Map<?,?> value, boolean allowFailures);
-    public <U> T update(U value, RecordMapper<U> mapper, boolean allowFailures);
+    public T update(long value, Consumer<MapEntryWriteOptions> options);
+    public T update(String value, Consumer<MapEntryWriteOptions> options);
+    public T update(byte[] value, Consumer<MapEntryWriteOptions> options);
+    public T update(boolean value, Consumer<MapEntryWriteOptions> options);
+    public T update(double value, Consumer<MapEntryWriteOptions> options);
+    public T update(List<?> value, Consumer<MapEntryWriteOptions> options);
+    public T update(Map<?,?> value, Consumer<MapEntryWriteOptions> options);
+    public <U> T update(U value, RecordMapper<U> mapper, Consumer<MapEntryWriteOptions> options);
+
+    public T upsert(long value);
+    public T upsert(String value);
+    public T upsert(byte[] value);
+    public T upsert(boolean value);
+    public T upsert(double value);
+    public T upsert(List<?> value);
+    public T upsert(Map<?,?> value);
+    public <U> T upsert(U value, RecordMapper<U> mapper);
+
+    public T upsert(long value, Consumer<MapEntryWriteOptions> options);
+    public T upsert(String value, Consumer<MapEntryWriteOptions> options);
+    public T upsert(byte[] value, Consumer<MapEntryWriteOptions> options);
+    public T upsert(boolean value, Consumer<MapEntryWriteOptions> options);
+    public T upsert(double value, Consumer<MapEntryWriteOptions> options);
+    public T upsert(List<?> value, Consumer<MapEntryWriteOptions> options);
+    public T upsert(Map<?,?> value, Consumer<MapEntryWriteOptions> options);
+    public <U> T upsert(U value, RecordMapper<U> mapper, Consumer<MapEntryWriteOptions> options);
 
     public T add(long value);
     public T add(double value);
-    public T add(long value, boolean allowFailures);
-    public T add(double value, boolean allowFailures);
+    public T add(long value, Consumer<MapEntryWriteOptions> options);
+    public T add(double value, Consumer<MapEntryWriteOptions> options);
 }

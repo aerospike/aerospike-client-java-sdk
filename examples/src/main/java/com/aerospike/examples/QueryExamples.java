@@ -288,23 +288,23 @@ public class QueryExamples {
                 .bin("s2").setTo("world")
                 .execute();
             
-            print(session.query(customerDataSet.id(1)) 
-                .bin("calc0").selectFrom("1.0 == $.f1")
-                .bin("calc0").selectFrom("$.f1 == 1.0 and $.i1 == 2")
-                .bin("calc0").selectFrom("1.0 == $.f1.toFloat()")
-                .bin("calc0").selectFrom("1.0 == $.f1.nonsense()")
-                .bin("calc0").selectFrom("$.f1 == 15.0 and $.f1 == 'String'")
-                .bin("calc0").selectFrom("1.0 + $.f1")
-                .bin("calc0").selectFrom("1.0 + $.i1.get(type: INT).asFloat()")
-                .bin("calc0").selectFrom("$.i1 + $.i2")
-                .bin("calc0").selectFrom("$.f1 + $.f2")
-                .bin("calc0").selectFrom("$.f1 and $.f2 and $.i2 and $.i1")
-                .bin("calc1").selectFrom("$.i1.asFloat() + 4.0")
-                .bin("calc2").selectFrom("1.2 + $.f1 + $.f2 + 1.0")
-                .bin("calc3").selectFrom("$.s1 == 'Tim'")
-                .bin("calc0").selectFrom("$.f1.get(type: FLOAT) + $.f2")
-                .execute());
-            System.exit(0);
+//            print(session.query(customerDataSet.id(1)) 
+//                .bin("calc0").selectFrom("1.0 == $.f1")
+//                .bin("calc0").selectFrom("$.f1 == 1.0 and $.i1 == 2")
+//                .bin("calc0").selectFrom("1.0 == $.f1.toFloat()")
+//                .bin("calc0").selectFrom("1.0 == $.f1.nonsense()")
+//                .bin("calc0").selectFrom("$.f1 == 15.0 and $.f1 == 'String'")
+//                .bin("calc0").selectFrom("1.0 + $.f1")
+//                .bin("calc0").selectFrom("1.0 + $.i1.get(type: INT).asFloat()")
+//                .bin("calc0").selectFrom("$.i1 + $.i2")
+//                .bin("calc0").selectFrom("$.f1 + $.f2")
+//                .bin("calc0").selectFrom("$.f1 and $.f2 and $.i2 and $.i1")
+//                .bin("calc1").selectFrom("$.i1.asFloat() + 4.0")
+//                .bin("calc2").selectFrom("1.2 + $.f1 + $.f2 + 1.0")
+//                .bin("calc3").selectFrom("$.s1 == 'Tim'")
+//                .bin("calc0").selectFrom("$.f1.get(type: FLOAT) + $.f2")
+//                .execute());
+//            System.exit(0);
             
             session.upsert(customerDataSet.id("bob")).bin("A").setTo(2).bin("B").setTo(2.2).execute();
             RecordStream rs1 = session.query(customerDataSet.id("bob"))
@@ -432,6 +432,7 @@ public class QueryExamples {
                 .bin("age").setTo(30)
                 .bin("id").get()
                 .bin("dob").setTo(new Date().getTime())
+//                .bin("rooms").onMapKey("room1").update("Hello")
                 .bin("rooms").onMapIndex(2).getValues()
                 .bin("rooms").onMapKeyRange("room1", "room2").countAllOthers()
                 .bin("rooms").onMapKey("room1").getValues()
@@ -447,6 +448,7 @@ public class QueryExamples {
                 // TODO: Should complex operations return one item per call?
 //                .bin("rooms2").onMapKey("child", MapOrder.KEY_ORDERED).onListIndex(0, ListOrder.UNORDERED, false).listAdd(5)
                 .execute();
+
             System.out.println(results.getFirst());
             System.out.println(session.query(customerDataSet.id(102)).execute().getFirst());
             session.update(customerDataSet.id(102))
@@ -781,8 +783,10 @@ public class QueryExamples {
             print(rs);
             
             System.out.println("Using a write expression");
-            session.update(customerDataSet.id(1))
-                .bin("value").updateFrom("$.age + 2 * $.value", arg -> arg.ignoreOpFailure().deleteIfNull())
+            session.upsert(customerDataSet.id(1))
+                .bin("age").setTo(50)
+                .bin("value").setTo(10)
+                .bin("c2").upsertFrom("$.age + 2 * $.value", arg -> arg.ignoreOpFailure().deleteIfNull())
                 .execute();
             session.update(customerDataSet.id(223))
                 .bin("bob").upsertFrom("$.age + 2 * $.value")
@@ -867,6 +871,14 @@ public class QueryExamples {
             session.query(customerDataSet).where("$.name == 'Tim'")
                 .bin("fred").get()
                 .execute();
+            
+            // -----------------------
+            // Object mapping (nested)
+            // -----------------------
+            Address address1 = new Address("123 Main St", "Denver", "CO", "USA", "80000");
+            Customer customer = new Customer(1, "Bob", 37, new Date(), null);
+            session.replace(customerDataSet).object(customer).using(customerMapper).execute();
+            session.upsert(customerDataSet.id(customer.getId())).bin("addrs").onMapKey("home").upsert(address1, new AddressMapper());
             
             // ----------------
             // Generation check

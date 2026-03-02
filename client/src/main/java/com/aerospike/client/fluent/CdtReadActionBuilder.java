@@ -87,4 +87,20 @@ public interface CdtReadActionBuilder<T> {
      * @return the parent builder for method chaining
      */
     T getKeysAndValues();
+
+    /**
+     * Check if the selected element(s) exist. Returns true if count > 0.
+     * @return the parent builder for method chaining
+     */
+    T exists();
+
+    /** @deprecated Will be replaced by AerospikeMap which intrinsically supports ordering. */
+    // TODO: Replace with AerospikeMap
+    @Deprecated
+    T getAsMap();
+
+    /** @deprecated Will be replaced by AerospikeMap which intrinsically supports ordering. */
+    // TODO: Replace with AerospikeMap
+    @Deprecated
+    T getAsOrderedMap();
 }

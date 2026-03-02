@@ -846,6 +846,103 @@ public class Session {
         return new OperationObjectBuilder<T>(this, dataSet, OpType.UPDATE);
     }
 
+    /**
+     * Begins a replace operation using object mapping for a dataset.
+     *
+     * <p>This method allows you to replace entire Aerospike records with Java objects using
+     * the record mapping factory configured on the cluster. Unlike upsert, replace will
+     * completely overwrite all bins in the record with the values from the mapped object.</p>
+     *
+     * <p>Example usage:</p>
+     * <pre>{@code
+     * session.replace(customerDataSet)
+     *     .object(customer)
+     *     .execute();
+     * }</pre>
+     *
+     * @param dataSet the dataset to replace into
+     * @return an OperationObjectBuilder for configuring and executing the replace
+     * @see OperationObjectBuilder
+     * @see RecordMappingFactory
+     */
+    @SuppressWarnings("rawtypes")
+    public OperationObjectBuilder replace(DataSet dataSet) {
+        return new OperationObjectBuilder(this, dataSet, OpType.REPLACE);
+    }
+
+    /**
+     * Begins a replace operation using type-safe object mapping for a typed dataset.
+     *
+     * <p>This method provides type-safe object replacement using a {@link TypeSafeDataSet}.
+     * The type parameter ensures compile-time type safety when working with objects.</p>
+     *
+     * <p>Example usage:</p>
+     * <pre>{@code
+     * TypeSafeDataSet<Customer> customers = ...;
+     * session.replace(customers)
+     *     .object(new Customer("John", "Doe"))
+     *     .execute();
+     * }</pre>
+     *
+     * @param <T> the type of objects being replaced
+     * @param dataSet the typed dataset to replace into
+     * @return a type-safe OperationObjectBuilder for configuring and executing the replace
+     * @see OperationObjectBuilder
+     * @see TypeSafeDataSet
+     * @see RecordMappingFactory
+     */
+    public <T> OperationObjectBuilder<T> replace(TypeSafeDataSet<T> dataSet) {
+        return new OperationObjectBuilder<T>(this, dataSet, OpType.REPLACE);
+    }
+
+    /**
+     * Begins a replaceIfExists operation using object mapping for a dataset.
+     *
+     * <p>This method replaces the entire record only if it already exists in the database.
+     * If the record does not exist, the operation will fail.</p>
+     *
+     * <p>Example usage:</p>
+     * <pre>{@code
+     * session.replaceIfExists(customerDataSet)
+     *     .object(customer)
+     *     .execute();
+     * }</pre>
+     *
+     * @param dataSet the dataset to replace into
+     * @return an OperationObjectBuilder for configuring and executing the replace
+     * @see OperationObjectBuilder
+     * @see RecordMappingFactory
+     */
+    @SuppressWarnings("rawtypes")
+    public OperationObjectBuilder replaceIfExists(DataSet dataSet) {
+        return new OperationObjectBuilder(this, dataSet, OpType.REPLACE_IF_EXISTS);
+    }
+
+    /**
+     * Begins a replaceIfExists operation using type-safe object mapping for a typed dataset.
+     *
+     * <p>This method provides type-safe object replacement using a {@link TypeSafeDataSet},
+     * only if the record already exists. If the record does not exist, the operation will fail.</p>
+     *
+     * <p>Example usage:</p>
+     * <pre>{@code
+     * TypeSafeDataSet<Customer> customers = ...;
+     * session.replaceIfExists(customers)
+     *     .object(existingCustomer)
+     *     .execute();
+     * }</pre>
+     *
+     * @param <T> the type of objects being replaced
+     * @param dataSet the typed dataset to replace into
+     * @return a type-safe OperationObjectBuilder for configuring and executing the replace
+     * @see OperationObjectBuilder
+     * @see TypeSafeDataSet
+     * @see RecordMappingFactory
+     */
+    public <T> OperationObjectBuilder<T> replaceIfExists(TypeSafeDataSet<T> dataSet) {
+        return new OperationObjectBuilder<T>(this, dataSet, OpType.REPLACE_IF_EXISTS);
+    }
+
     // ---------------------------
     // Transaction functionality
     // ---------------------------

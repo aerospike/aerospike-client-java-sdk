@@ -27,6 +27,7 @@ import com.aerospike.client.fluent.cdt.MapOperation;
 import com.aerospike.client.fluent.cdt.MapOrder;
 import com.aerospike.client.fluent.cdt.MapPolicy;
 import com.aerospike.client.fluent.cdt.MapReturnType;
+import com.aerospike.client.fluent.cdt.MapWriteFlags;
 
 public class CdtGetOrRemoveBuilder<T extends AbstractOperationBuilder<T>> extends AbstractCdtBuilder<T> 
                                 implements CdtActionInvertableBuilder<T>, CdtActionNonInvertableBuilder<T>, 
@@ -325,7 +326,7 @@ public class CdtGetOrRemoveBuilder<T extends AbstractOperationBuilder<T>> extend
         case MAP_BY_VALUE_RANGE:
             return opBuilder.addOp(MapOperation.removeByValueRange(binName, params.getVal1(), params.getVal2(), MapReturnType.INVERTED, params.context()));
         case LIST_BY_VALUE:
-            return opBuilder.addOp(ListOperation.getByValue(binName, params.getVal1(), ListReturnType.INVERTED, params.context()));
+            return opBuilder.addOp(ListOperation.removeByValue(binName, params.getVal1(), ListReturnType.INVERTED, params.context()));
         case MAP_BY_KEY_REL_INDEX_RANGE:
             if (params.hasInt2()) {
                 return opBuilder.addOp(MapOperation.removeByKeyRelativeIndexRange(binName, params.getVal1(), params.getInt1(), params.getInt2(), MapReturnType.INVERTED, params.context()));
@@ -1370,172 +1371,458 @@ public class CdtGetOrRemoveBuilder<T extends AbstractOperationBuilder<T>> extend
     // Setter methods after a mapIndex
     // ===============================
 
-    // TODO: Fix map policy
-    // TODO: Should they be part of the behavior? (No?)
-    // TODO: What about the other MapWriteFlags values?
+    /**
+     * Build a MapPolicy using the MapOrder from the current operation params (if specified via
+     * e.g. {@code onMapKey(key, MapOrder.UNORDERED)}), defaulting to {@code MapOrder.KEY_ORDERED}.
+     * The MapOrder determines the type of map to create if the map does not already exist. 
+     * {@link MapWriteFlags}
+     */
+    private MapPolicy resolveMapPolicy(int baseFlags, MapWriteOptions<?> opts) {
+        MapOrder order = (opts != null && opts.getMapOrder() != null) ? opts.getMapOrder()
+                       : (params.getMapCreateType() != null) ? params.getMapCreateType()
+                       : MapOrder.KEY_ORDERED;
+        int flags = baseFlags;
+        boolean persist = false;
+        if (opts != null) {
+            if (opts.isAllowFailures()) flags |= MapWriteFlags.NO_FAIL;
+            if (opts instanceof MapBulkWriteOptions && ((MapBulkWriteOptions) opts).isAllowPartial()) {
+                flags |= MapWriteFlags.PARTIAL;
+            }
+            persist = opts.isPersistIndex();
+        }
+        return cachedMapPolicy(order, flags, persist);
+    }
+
+    private MapEntryWriteOptions applyOptions(java.util.function.Consumer<MapEntryWriteOptions> options) {
+        if (options == null) return null;
+        MapEntryWriteOptions opts = new MapEntryWriteOptions();
+        options.accept(opts);
+        return opts;
+    }
+
     
     public T setTo(long value) {
-        if (params.getOperation() == CdtOperation.MAP_BY_KEY) {
-            return this.opBuilder.addOp(MapOperation.put(MapPolicy.Default, binName, params.getVal1(), Value.get(value), params.context()));
+        if (params.getOperation() == CdtOperation.LIST_BY_INDEX) {
+            return this.opBuilder.addOp(ListOperation.set(binName, params.getInt1(), Value.get(value), params.context()));
         }
         else {
-            // LIST_BY_INDEX
-            return this.opBuilder.addOp(ListOperation.insert(binName, params.getInt1(), Value.get(value), params.context()));
+            return this.opBuilder.addOp(MapOperation.put(resolveMapPolicy(MapWriteFlags.DEFAULT, null), binName, params.getVal1(), Value.get(value), params.context()));
         }
     }
     public T setTo(String value) {
-        return this.opBuilder.addOp(MapOperation.put(MapPolicy.Default, binName, params.getVal1(), Value.get(value), params.context()));
+        if (params.getOperation() == CdtOperation.LIST_BY_INDEX) {
+            return this.opBuilder.addOp(ListOperation.set(binName, params.getInt1(), Value.get(value), params.context()));
+        }
+        else {
+            return this.opBuilder.addOp(MapOperation.put(resolveMapPolicy(MapWriteFlags.DEFAULT, null), binName, params.getVal1(), Value.get(value), params.context()));
+        }
     }
     public T setTo(byte[] value) {
-        return this.opBuilder.addOp(MapOperation.put(MapPolicy.Default, binName, params.getVal1(), Value.get(value), params.context()));
+        if (params.getOperation() == CdtOperation.LIST_BY_INDEX) {
+            return this.opBuilder.addOp(ListOperation.set(binName, params.getInt1(), Value.get(value), params.context()));
+        }
+        else {
+            return this.opBuilder.addOp(MapOperation.put(resolveMapPolicy(MapWriteFlags.DEFAULT, null), binName, params.getVal1(), Value.get(value), params.context()));
+        }
     }
     public T setTo(boolean value) {
-        return this.opBuilder.addOp(MapOperation.put(MapPolicy.Default, binName, params.getVal1(), Value.get(value), params.context()));
+        if (params.getOperation() == CdtOperation.LIST_BY_INDEX) {
+            return this.opBuilder.addOp(ListOperation.set(binName, params.getInt1(), Value.get(value), params.context()));
+        }
+        else {
+            return this.opBuilder.addOp(MapOperation.put(resolveMapPolicy(MapWriteFlags.DEFAULT, null), binName, params.getVal1(), Value.get(value), params.context()));
+        }
     }
     public T setTo(double value) {
-        return this.opBuilder.addOp(MapOperation.put(MapPolicy.Default, binName, params.getVal1(), Value.get(value), params.context()));
+        if (params.getOperation() == CdtOperation.LIST_BY_INDEX) {
+            return this.opBuilder.addOp(ListOperation.set(binName, params.getInt1(), Value.get(value), params.context()));
+        }
+        else {
+            return this.opBuilder.addOp(MapOperation.put(resolveMapPolicy(MapWriteFlags.DEFAULT, null), binName, params.getVal1(), Value.get(value), params.context()));
+        }
     }
     public T setTo(List<?> value) {
-        return this.opBuilder.addOp(MapOperation.put(MapPolicy.Default, binName, params.getVal1(), Value.get(value), params.context()));
+        if (params.getOperation() == CdtOperation.LIST_BY_INDEX) {
+            return this.opBuilder.addOp(ListOperation.set(binName, params.getInt1(), Value.get(value), params.context()));
+        }
+        else {
+            return this.opBuilder.addOp(MapOperation.put(resolveMapPolicy(MapWriteFlags.DEFAULT, null), binName, params.getVal1(), Value.get(value), params.context()));
+        }
     }
     public T setTo(Map<?,?> value) {
-        return this.opBuilder.addOp(MapOperation.put(MapPolicy.Default, binName, params.getVal1(), Value.get(value), params.context()));
+        if (params.getOperation() == CdtOperation.LIST_BY_INDEX) {
+            return this.opBuilder.addOp(ListOperation.set(binName, params.getInt1(), Value.get(value), params.context()));
+        }
+        else {
+            return this.opBuilder.addOp(MapOperation.put(resolveMapPolicy(MapWriteFlags.DEFAULT, null), binName, params.getVal1(), Value.get(value), params.context()));
+        }
     }
     public <U> T setTo(U value, RecordMapper<U> mapper) {
-        return this.opBuilder.addOp(MapOperation.put(MapPolicy.Default, binName, params.getVal1(), Value.get(mapper.toMap(value)), params.context()));
+        if (params.getOperation() == CdtOperation.LIST_BY_INDEX) {
+            return this.opBuilder.addOp(ListOperation.set(binName, params.getInt1(), Value.get(mapper.toMap(value)), params.context()));
+        }
+        else {
+            return this.opBuilder.addOp(MapOperation.put(resolveMapPolicy(MapWriteFlags.DEFAULT, null), binName, params.getVal1(), Value.get(mapper.toMap(value)), params.context()));
+        }
     }
+
+    // =================================
+    // insert methods (CREATE_ONLY)
+    // =================================
 
     public T insert(long value) {
-        return insert(value, false);
+        return insert(value, (java.util.function.Consumer<MapEntryWriteOptions>) null);
     }
     public T insert(String value) {
-        return insert(value, false);
+        return insert(value, (java.util.function.Consumer<MapEntryWriteOptions>) null);
     }
     public T insert(byte[] value) {
-        return insert(value, false);
+        return insert(value, (java.util.function.Consumer<MapEntryWriteOptions>) null);
     }
     public T insert(boolean value) {
-        return insert(value, false);
+        return insert(value, (java.util.function.Consumer<MapEntryWriteOptions>) null);
     }
     public T insert(double value) {
-        return insert(value, false);
+        return insert(value, (java.util.function.Consumer<MapEntryWriteOptions>) null);
     }
     public T insert(List<?> value) {
-        return insert(value, false);
+        return insert(value, (java.util.function.Consumer<MapEntryWriteOptions>) null);
     }
     public T insert(Map<?,?> value) {
-        return insert(value, false);
+        return insert(value, (java.util.function.Consumer<MapEntryWriteOptions>) null);
     }
     public <U> T insert(U value, RecordMapper<U> mapper) {
-        return insert(value, mapper, false);
+        return insert(value, mapper, (java.util.function.Consumer<MapEntryWriteOptions>) null);
     }
 
-
-    public T insert(long value, boolean allowFailures) {
-        MapPolicy mp = allowFailures ? KEY_ORDERED_CREATE_ONLY_NO_FAIL : KEY_ORDERED_CREATE_ONLY;
+    public T insert(long value, java.util.function.Consumer<MapEntryWriteOptions> options) {
+        MapPolicy mp = resolveMapPolicy(MapWriteFlags.CREATE_ONLY, applyOptions(options));
         return this.opBuilder.addOp(MapOperation.put(mp, binName, params.getVal1(), Value.get(value), params.context()));
     }
-    public T insert(String value, boolean allowFailures) {
-        MapPolicy mp = allowFailures ? KEY_ORDERED_CREATE_ONLY_NO_FAIL : KEY_ORDERED_CREATE_ONLY;
+    public T insert(String value, java.util.function.Consumer<MapEntryWriteOptions> options) {
+        MapPolicy mp = resolveMapPolicy(MapWriteFlags.CREATE_ONLY, applyOptions(options));
         return this.opBuilder.addOp(MapOperation.put(mp, binName, params.getVal1(), Value.get(value), params.context()));
     }
-    public T insert(byte[] value, boolean allowFailures) {
-        MapPolicy mp = allowFailures ? KEY_ORDERED_CREATE_ONLY_NO_FAIL : KEY_ORDERED_CREATE_ONLY;
+    public T insert(byte[] value, java.util.function.Consumer<MapEntryWriteOptions> options) {
+        MapPolicy mp = resolveMapPolicy(MapWriteFlags.CREATE_ONLY, applyOptions(options));
         return this.opBuilder.addOp(MapOperation.put(mp, binName, params.getVal1(), Value.get(value), params.context()));
     }
-    public T insert(boolean value, boolean allowFailures) {
-        MapPolicy mp = allowFailures ? KEY_ORDERED_CREATE_ONLY_NO_FAIL : KEY_ORDERED_CREATE_ONLY;
+    public T insert(boolean value, java.util.function.Consumer<MapEntryWriteOptions> options) {
+        MapPolicy mp = resolveMapPolicy(MapWriteFlags.CREATE_ONLY, applyOptions(options));
         return this.opBuilder.addOp(MapOperation.put(mp, binName, params.getVal1(), Value.get(value), params.context()));
     }
-    public T insert(double value, boolean allowFailures) {
-        MapPolicy mp = allowFailures ? KEY_ORDERED_CREATE_ONLY_NO_FAIL : KEY_ORDERED_CREATE_ONLY;
+    public T insert(double value, java.util.function.Consumer<MapEntryWriteOptions> options) {
+        MapPolicy mp = resolveMapPolicy(MapWriteFlags.CREATE_ONLY, applyOptions(options));
         return this.opBuilder.addOp(MapOperation.put(mp, binName, params.getVal1(), Value.get(value), params.context()));
     }
-    public T insert(List<?> value, boolean allowFailures) {
-        MapPolicy mp = allowFailures ? KEY_ORDERED_CREATE_ONLY_NO_FAIL : KEY_ORDERED_CREATE_ONLY;
+    public T insert(List<?> value, java.util.function.Consumer<MapEntryWriteOptions> options) {
+        MapPolicy mp = resolveMapPolicy(MapWriteFlags.CREATE_ONLY, applyOptions(options));
         return this.opBuilder.addOp(MapOperation.put(mp, binName, params.getVal1(), Value.get(value), params.context()));
     }
-    public T insert(Map<?,?> value, boolean allowFailures) {
-        MapPolicy mp = allowFailures ? KEY_ORDERED_CREATE_ONLY_NO_FAIL : KEY_ORDERED_CREATE_ONLY;
+    public T insert(Map<?,?> value, java.util.function.Consumer<MapEntryWriteOptions> options) {
+        MapPolicy mp = resolveMapPolicy(MapWriteFlags.CREATE_ONLY, applyOptions(options));
         return this.opBuilder.addOp(MapOperation.put(mp, binName, params.getVal1(), Value.get(value), params.context()));
     }
-    public <U> T insert(U value, RecordMapper<U> mapper, boolean allowFailures) {
-        MapPolicy mp = allowFailures ? KEY_ORDERED_CREATE_ONLY_NO_FAIL : KEY_ORDERED_UPDATE_ONLY;
+    public <U> T insert(U value, RecordMapper<U> mapper, java.util.function.Consumer<MapEntryWriteOptions> options) {
+        MapPolicy mp = resolveMapPolicy(MapWriteFlags.CREATE_ONLY, applyOptions(options));
         return this.opBuilder.addOp(MapOperation.put(mp, binName, params.getVal1(), Value.get(mapper.toMap(value)), params.context()));
     }
 
-    
+    // =================================
+    // update methods (UPDATE_ONLY)
+    // =================================
+
     public T update(long value) {
-        return update(value, false);
+        return update(value, (java.util.function.Consumer<MapEntryWriteOptions>) null);
     }
     public T update(String value) {
-        return update(value, false);
+        return update(value, (java.util.function.Consumer<MapEntryWriteOptions>) null);
     }
     public T update(byte[] value) {
-        return update(value, false);
+        return update(value, (java.util.function.Consumer<MapEntryWriteOptions>) null);
     }
     public T update(boolean value) {
-        return update(value, false);
+        return update(value, (java.util.function.Consumer<MapEntryWriteOptions>) null);
     }
     public T update(double value) {
-        return update(value, false);
+        return update(value, (java.util.function.Consumer<MapEntryWriteOptions>) null);
     }
     public T update(List<?> value) {
-        return update(value, false);
+        return update(value, (java.util.function.Consumer<MapEntryWriteOptions>) null);
     }
     public T update(Map<?,?> value) {
-        return update(value, false);
+        return update(value, (java.util.function.Consumer<MapEntryWriteOptions>) null);
     }
     public <U> T update(U value, RecordMapper<U> mapper) {
-        return update(value, mapper, false);
+        return update(value, mapper, (java.util.function.Consumer<MapEntryWriteOptions>) null);
     }
 
-
-    public T update(long value, boolean allowFailures) {
-        MapPolicy mp = allowFailures ? KEY_ORDERED_UPDATE_ONLY_NO_FAIL : KEY_ORDERED_UPDATE_ONLY;
+    public T update(long value, java.util.function.Consumer<MapEntryWriteOptions> options) {
+        MapPolicy mp = resolveMapPolicy(MapWriteFlags.UPDATE_ONLY, applyOptions(options));
         return this.opBuilder.addOp(MapOperation.put(mp, binName, params.getVal1(), Value.get(value), params.context()));
     }
-    public T update(String value, boolean allowFailures) {
-        MapPolicy mp = allowFailures ? KEY_ORDERED_UPDATE_ONLY_NO_FAIL : KEY_ORDERED_UPDATE_ONLY;
+    public T update(String value, java.util.function.Consumer<MapEntryWriteOptions> options) {
+        MapPolicy mp = resolveMapPolicy(MapWriteFlags.UPDATE_ONLY, applyOptions(options));
         return this.opBuilder.addOp(MapOperation.put(mp, binName, params.getVal1(), Value.get(value), params.context()));
     }
-    public T update(byte[] value, boolean allowFailures) {
-        MapPolicy mp = allowFailures ? KEY_ORDERED_UPDATE_ONLY_NO_FAIL : KEY_ORDERED_UPDATE_ONLY;
+    public T update(byte[] value, java.util.function.Consumer<MapEntryWriteOptions> options) {
+        MapPolicy mp = resolveMapPolicy(MapWriteFlags.UPDATE_ONLY, applyOptions(options));
         return this.opBuilder.addOp(MapOperation.put(mp, binName, params.getVal1(), Value.get(value), params.context()));
     }
-    public T update(boolean value, boolean allowFailures) {
-        MapPolicy mp = allowFailures ? KEY_ORDERED_UPDATE_ONLY_NO_FAIL : KEY_ORDERED_UPDATE_ONLY;
+    public T update(boolean value, java.util.function.Consumer<MapEntryWriteOptions> options) {
+        MapPolicy mp = resolveMapPolicy(MapWriteFlags.UPDATE_ONLY, applyOptions(options));
         return this.opBuilder.addOp(MapOperation.put(mp, binName, params.getVal1(), Value.get(value), params.context()));
     }
-    public T update(double value, boolean allowFailures) {
-        MapPolicy mp = allowFailures ? KEY_ORDERED_UPDATE_ONLY_NO_FAIL : KEY_ORDERED_UPDATE_ONLY;
+    public T update(double value, java.util.function.Consumer<MapEntryWriteOptions> options) {
+        MapPolicy mp = resolveMapPolicy(MapWriteFlags.UPDATE_ONLY, applyOptions(options));
         return this.opBuilder.addOp(MapOperation.put(mp, binName, params.getVal1(), Value.get(value), params.context()));
     }
-    public T update(List<?> value, boolean allowFailures) {
-        MapPolicy mp = allowFailures ? KEY_ORDERED_UPDATE_ONLY_NO_FAIL : KEY_ORDERED_UPDATE_ONLY;
+    public T update(List<?> value, java.util.function.Consumer<MapEntryWriteOptions> options) {
+        MapPolicy mp = resolveMapPolicy(MapWriteFlags.UPDATE_ONLY, applyOptions(options));
         return this.opBuilder.addOp(MapOperation.put(mp, binName, params.getVal1(), Value.get(value), params.context()));
     }
-    public T update(Map<?,?> value, boolean allowFailures) {
-        MapPolicy mp = allowFailures ? KEY_ORDERED_UPDATE_ONLY_NO_FAIL : KEY_ORDERED_UPDATE_ONLY;
+    public T update(Map<?,?> value, java.util.function.Consumer<MapEntryWriteOptions> options) {
+        MapPolicy mp = resolveMapPolicy(MapWriteFlags.UPDATE_ONLY, applyOptions(options));
         return this.opBuilder.addOp(MapOperation.put(mp, binName, params.getVal1(), Value.get(value), params.context()));
     }
-    public <U> T update(U value, RecordMapper<U> mapper, boolean allowFailures) {
-        MapPolicy mp = allowFailures ? KEY_ORDERED_UPDATE_ONLY_NO_FAIL : KEY_ORDERED_UPDATE_ONLY;
+    public <U> T update(U value, RecordMapper<U> mapper, java.util.function.Consumer<MapEntryWriteOptions> options) {
+        MapPolicy mp = resolveMapPolicy(MapWriteFlags.UPDATE_ONLY, applyOptions(options));
         return this.opBuilder.addOp(MapOperation.put(mp, binName, params.getVal1(), Value.get(mapper.toMap(value)), params.context()));
     }
-    
+
+    // =================================
+    // add methods (increment, DEFAULT flags)
+    // =================================
+
     public T add(long value) {
-        return add(value, false);
+        return add(value, (java.util.function.Consumer<MapEntryWriteOptions>) null);
     }
     public T add(double value) {
-        return add(value, false);
+        return add(value, (java.util.function.Consumer<MapEntryWriteOptions>) null);
     }
-    public T add(long value, boolean allowFailures) {
-        MapPolicy mp = allowFailures ? KEY_ORDERED_UPDATE_ONLY_NO_FAIL : KEY_ORDERED_UPDATE_ONLY;
+    public T add(long value, java.util.function.Consumer<MapEntryWriteOptions> options) {
+        MapPolicy mp = resolveMapPolicy(MapWriteFlags.DEFAULT, applyOptions(options));
         return this.opBuilder.addOp(MapOperation.increment(mp, binName, params.getVal1(), Value.get(value), params.context()));
     }
-    public T add(double value, boolean allowFailures) {
-        MapPolicy mp = allowFailures ? KEY_ORDERED_UPDATE_ONLY_NO_FAIL : KEY_ORDERED_UPDATE_ONLY;
+    public T add(double value, java.util.function.Consumer<MapEntryWriteOptions> options) {
+        MapPolicy mp = resolveMapPolicy(MapWriteFlags.DEFAULT, applyOptions(options));
         return this.opBuilder.addOp(MapOperation.increment(mp, binName, params.getVal1(), Value.get(value), params.context()));
+    }
+
+    // =================================
+    // upsert methods (DEFAULT flags)
+    // =================================
+
+    public T upsert(long value) {
+        return upsert(value, (java.util.function.Consumer<MapEntryWriteOptions>) null);
+    }
+    public T upsert(String value) {
+        return upsert(value, (java.util.function.Consumer<MapEntryWriteOptions>) null);
+    }
+    public T upsert(byte[] value) {
+        return upsert(value, (java.util.function.Consumer<MapEntryWriteOptions>) null);
+    }
+    public T upsert(boolean value) {
+        return upsert(value, (java.util.function.Consumer<MapEntryWriteOptions>) null);
+    }
+    public T upsert(double value) {
+        return upsert(value, (java.util.function.Consumer<MapEntryWriteOptions>) null);
+    }
+    public T upsert(List<?> value) {
+        return upsert(value, (java.util.function.Consumer<MapEntryWriteOptions>) null);
+    }
+    public T upsert(Map<?,?> value) {
+        return upsert(value, (java.util.function.Consumer<MapEntryWriteOptions>) null);
+    }
+    public <U> T upsert(U value, RecordMapper<U> mapper) {
+        return upsert(value, mapper, (java.util.function.Consumer<MapEntryWriteOptions>) null);
+    }
+
+    public T upsert(long value, java.util.function.Consumer<MapEntryWriteOptions> options) {
+        MapPolicy mp = resolveMapPolicy(MapWriteFlags.DEFAULT, applyOptions(options));
+        return this.opBuilder.addOp(MapOperation.put(mp, binName, params.getVal1(), Value.get(value), params.context()));
+    }
+    public T upsert(String value, java.util.function.Consumer<MapEntryWriteOptions> options) {
+        MapPolicy mp = resolveMapPolicy(MapWriteFlags.DEFAULT, applyOptions(options));
+        return this.opBuilder.addOp(MapOperation.put(mp, binName, params.getVal1(), Value.get(value), params.context()));
+    }
+    public T upsert(byte[] value, java.util.function.Consumer<MapEntryWriteOptions> options) {
+        MapPolicy mp = resolveMapPolicy(MapWriteFlags.DEFAULT, applyOptions(options));
+        return this.opBuilder.addOp(MapOperation.put(mp, binName, params.getVal1(), Value.get(value), params.context()));
+    }
+    public T upsert(boolean value, java.util.function.Consumer<MapEntryWriteOptions> options) {
+        MapPolicy mp = resolveMapPolicy(MapWriteFlags.DEFAULT, applyOptions(options));
+        return this.opBuilder.addOp(MapOperation.put(mp, binName, params.getVal1(), Value.get(value), params.context()));
+    }
+    public T upsert(double value, java.util.function.Consumer<MapEntryWriteOptions> options) {
+        MapPolicy mp = resolveMapPolicy(MapWriteFlags.DEFAULT, applyOptions(options));
+        return this.opBuilder.addOp(MapOperation.put(mp, binName, params.getVal1(), Value.get(value), params.context()));
+    }
+    public T upsert(List<?> value, java.util.function.Consumer<MapEntryWriteOptions> options) {
+        MapPolicy mp = resolveMapPolicy(MapWriteFlags.DEFAULT, applyOptions(options));
+        return this.opBuilder.addOp(MapOperation.put(mp, binName, params.getVal1(), Value.get(value), params.context()));
+    }
+    public T upsert(Map<?,?> value, java.util.function.Consumer<MapEntryWriteOptions> options) {
+        MapPolicy mp = resolveMapPolicy(MapWriteFlags.DEFAULT, applyOptions(options));
+        return this.opBuilder.addOp(MapOperation.put(mp, binName, params.getVal1(), Value.get(value), params.context()));
+    }
+    public <U> T upsert(U value, RecordMapper<U> mapper, java.util.function.Consumer<MapEntryWriteOptions> options) {
+        MapPolicy mp = resolveMapPolicy(MapWriteFlags.DEFAULT, applyOptions(options));
+        return this.opBuilder.addOp(MapOperation.put(mp, binName, params.getVal1(), Value.get(mapper.toMap(value)), params.context()));
+    }
+
+    // =================================
+    // exists() - returns true if the selected element exists
+    // =================================
+
+    public T exists() {
+        switch (params.getOperation()) {
+        case MAP_BY_INDEX:
+            return opBuilder.addOp(MapOperation.getByIndex(binName, params.getInt1(), MapReturnType.EXISTS, params.context()));
+        case MAP_BY_INDEX_RANGE:
+            if (params.hasInt2()) {
+                return opBuilder.addOp(MapOperation.getByIndexRange(binName, params.getInt1(), params.getInt2(), MapReturnType.EXISTS, params.context()));
+            } else {
+                return opBuilder.addOp(MapOperation.getByIndexRange(binName, params.getInt1(), MapReturnType.EXISTS, params.context()));
+            }
+        case MAP_BY_KEY:
+            return opBuilder.addOp(MapOperation.getByKey(binName, params.getVal1(), MapReturnType.EXISTS, params.context()));
+        case MAP_BY_KEY_LIST:
+            return opBuilder.addOp(MapOperation.getByKeyList(binName, params.getValues(), MapReturnType.EXISTS, params.context()));
+        case MAP_BY_KEY_RANGE:
+            return opBuilder.addOp(MapOperation.getByKeyRange(binName, params.getVal1(), params.getVal2(), MapReturnType.EXISTS, params.context()));
+        case MAP_BY_RANK:
+            return opBuilder.addOp(MapOperation.getByRank(binName, params.getInt1(), MapReturnType.EXISTS, params.context()));
+        case MAP_BY_RANK_RANGE:
+            return opBuilder.addOp(MapOperation.getByRankRange(binName, params.getInt1(), params.getInt2(), MapReturnType.EXISTS, params.context()));
+        case MAP_BY_VALUE:
+            return opBuilder.addOp(MapOperation.getByValue(binName, params.getVal1(), MapReturnType.EXISTS, params.context()));
+        case MAP_BY_VALUE_LIST:
+            return opBuilder.addOp(MapOperation.getByValueList(binName, params.getValues(), MapReturnType.EXISTS, params.context()));
+        case MAP_BY_VALUE_RANGE:
+            return opBuilder.addOp(MapOperation.getByValueRange(binName, params.getVal1(), params.getVal2(), MapReturnType.EXISTS, params.context()));
+        case LIST_BY_INDEX:
+            return opBuilder.addOp(ListOperation.getByIndex(binName, params.getInt1(), ListReturnType.EXISTS, params.context()));
+        case LIST_BY_RANK:
+            return opBuilder.addOp(ListOperation.getByRank(binName, params.getInt1(), ListReturnType.EXISTS, params.context()));
+        case LIST_BY_VALUE:
+            return opBuilder.addOp(ListOperation.getByValue(binName, params.getVal1(), ListReturnType.EXISTS, params.context()));
+        case MAP_BY_KEY_REL_INDEX_RANGE:
+            if (params.hasInt2()) {
+                return opBuilder.addOp(MapOperation.getByKeyRelativeIndexRange(binName, params.getVal1(), params.getInt1(), params.getInt2(), MapReturnType.EXISTS, params.context()));
+            } else {
+                return opBuilder.addOp(MapOperation.getByKeyRelativeIndexRange(binName, params.getVal1(), params.getInt1(), MapReturnType.EXISTS, params.context()));
+            }
+        case MAP_BY_VALUE_REL_RANK_RANGE:
+            if (params.hasInt2()) {
+                return opBuilder.addOp(MapOperation.getByValueRelativeRankRange(binName, params.getVal1(), params.getInt1(), params.getInt2(), MapReturnType.EXISTS, params.context()));
+            } else {
+                return opBuilder.addOp(MapOperation.getByValueRelativeRankRange(binName, params.getVal1(), params.getInt1(), MapReturnType.EXISTS, params.context()));
+            }
+        default:
+            throw new IllegalArgumentException("exists() does not know how to handle an operation of " + params.getOperation());
+        }
+    }
+
+    // =================================
+    // getAsMap / getAsOrderedMap
+    // =================================
+
+    /** @deprecated Will be replaced by AerospikeMap which intrinsically supports ordering. */
+    // TODO: Replace with AerospikeMap
+    @Deprecated
+    public T getAsMap() {
+        switch (params.getOperation()) {
+        case MAP_BY_INDEX:
+            return opBuilder.addOp(MapOperation.getByIndex(binName, params.getInt1(), MapReturnType.UNORDERED_MAP, params.context()));
+        case MAP_BY_INDEX_RANGE:
+            if (params.hasInt2()) {
+                return opBuilder.addOp(MapOperation.getByIndexRange(binName, params.getInt1(), params.getInt2(), MapReturnType.UNORDERED_MAP, params.context()));
+            } else {
+                return opBuilder.addOp(MapOperation.getByIndexRange(binName, params.getInt1(), MapReturnType.UNORDERED_MAP, params.context()));
+            }
+        case MAP_BY_KEY:
+            return opBuilder.addOp(MapOperation.getByKey(binName, params.getVal1(), MapReturnType.UNORDERED_MAP, params.context()));
+        case MAP_BY_KEY_LIST:
+            return opBuilder.addOp(MapOperation.getByKeyList(binName, params.getValues(), MapReturnType.UNORDERED_MAP, params.context()));
+        case MAP_BY_KEY_RANGE:
+            return opBuilder.addOp(MapOperation.getByKeyRange(binName, params.getVal1(), params.getVal2(), MapReturnType.UNORDERED_MAP, params.context()));
+        case MAP_BY_RANK:
+            return opBuilder.addOp(MapOperation.getByRank(binName, params.getInt1(), MapReturnType.UNORDERED_MAP, params.context()));
+        case MAP_BY_RANK_RANGE:
+            return opBuilder.addOp(MapOperation.getByRankRange(binName, params.getInt1(), params.getInt2(), MapReturnType.UNORDERED_MAP, params.context()));
+        case MAP_BY_VALUE:
+            return opBuilder.addOp(MapOperation.getByValue(binName, params.getVal1(), MapReturnType.UNORDERED_MAP, params.context()));
+        case MAP_BY_VALUE_LIST:
+            return opBuilder.addOp(MapOperation.getByValueList(binName, params.getValues(), MapReturnType.UNORDERED_MAP, params.context()));
+        case MAP_BY_VALUE_RANGE:
+            return opBuilder.addOp(MapOperation.getByValueRange(binName, params.getVal1(), params.getVal2(), MapReturnType.UNORDERED_MAP, params.context()));
+        case MAP_BY_KEY_REL_INDEX_RANGE:
+            if (params.hasInt2()) {
+                return opBuilder.addOp(MapOperation.getByKeyRelativeIndexRange(binName, params.getVal1(), params.getInt1(), params.getInt2(), MapReturnType.UNORDERED_MAP, params.context()));
+            } else {
+                return opBuilder.addOp(MapOperation.getByKeyRelativeIndexRange(binName, params.getVal1(), params.getInt1(), MapReturnType.UNORDERED_MAP, params.context()));
+            }
+        case MAP_BY_VALUE_REL_RANK_RANGE:
+            if (params.hasInt2()) {
+                return opBuilder.addOp(MapOperation.getByValueRelativeRankRange(binName, params.getVal1(), params.getInt1(), params.getInt2(), MapReturnType.UNORDERED_MAP, params.context()));
+            } else {
+                return opBuilder.addOp(MapOperation.getByValueRelativeRankRange(binName, params.getVal1(), params.getInt1(), MapReturnType.UNORDERED_MAP, params.context()));
+            }
+        case LIST_BY_INDEX:
+        case LIST_BY_RANK:
+        case LIST_BY_VALUE:
+        default:
+            throw new IllegalArgumentException("getAsMap() is only valid for map operations, not " + params.getOperation());
+        }
+    }
+
+    /** @deprecated Will be replaced by AerospikeMap which intrinsically supports ordering. */
+    // TODO: Replace with AerospikeMap
+    @Deprecated
+    public T getAsOrderedMap() {
+        switch (params.getOperation()) {
+        case MAP_BY_INDEX:
+            return opBuilder.addOp(MapOperation.getByIndex(binName, params.getInt1(), MapReturnType.ORDERED_MAP, params.context()));
+        case MAP_BY_INDEX_RANGE:
+            if (params.hasInt2()) {
+                return opBuilder.addOp(MapOperation.getByIndexRange(binName, params.getInt1(), params.getInt2(), MapReturnType.ORDERED_MAP, params.context()));
+            } else {
+                return opBuilder.addOp(MapOperation.getByIndexRange(binName, params.getInt1(), MapReturnType.ORDERED_MAP, params.context()));
+            }
+        case MAP_BY_KEY:
+            return opBuilder.addOp(MapOperation.getByKey(binName, params.getVal1(), MapReturnType.ORDERED_MAP, params.context()));
+        case MAP_BY_KEY_LIST:
+            return opBuilder.addOp(MapOperation.getByKeyList(binName, params.getValues(), MapReturnType.ORDERED_MAP, params.context()));
+        case MAP_BY_KEY_RANGE:
+            return opBuilder.addOp(MapOperation.getByKeyRange(binName, params.getVal1(), params.getVal2(), MapReturnType.ORDERED_MAP, params.context()));
+        case MAP_BY_RANK:
+            return opBuilder.addOp(MapOperation.getByRank(binName, params.getInt1(), MapReturnType.ORDERED_MAP, params.context()));
+        case MAP_BY_RANK_RANGE:
+            return opBuilder.addOp(MapOperation.getByRankRange(binName, params.getInt1(), params.getInt2(), MapReturnType.ORDERED_MAP, params.context()));
+        case MAP_BY_VALUE:
+            return opBuilder.addOp(MapOperation.getByValue(binName, params.getVal1(), MapReturnType.ORDERED_MAP, params.context()));
+        case MAP_BY_VALUE_LIST:
+            return opBuilder.addOp(MapOperation.getByValueList(binName, params.getValues(), MapReturnType.ORDERED_MAP, params.context()));
+        case MAP_BY_VALUE_RANGE:
+            return opBuilder.addOp(MapOperation.getByValueRange(binName, params.getVal1(), params.getVal2(), MapReturnType.ORDERED_MAP, params.context()));
+        case MAP_BY_KEY_REL_INDEX_RANGE:
+            if (params.hasInt2()) {
+                return opBuilder.addOp(MapOperation.getByKeyRelativeIndexRange(binName, params.getVal1(), params.getInt1(), params.getInt2(), MapReturnType.ORDERED_MAP, params.context()));
+            } else {
+                return opBuilder.addOp(MapOperation.getByKeyRelativeIndexRange(binName, params.getVal1(), params.getInt1(), MapReturnType.ORDERED_MAP, params.context()));
+            }
+        case MAP_BY_VALUE_REL_RANK_RANGE:
+            if (params.hasInt2()) {
+                return opBuilder.addOp(MapOperation.getByValueRelativeRankRange(binName, params.getVal1(), params.getInt1(), params.getInt2(), MapReturnType.ORDERED_MAP, params.context()));
+            } else {
+                return opBuilder.addOp(MapOperation.getByValueRelativeRankRange(binName, params.getVal1(), params.getInt1(), MapReturnType.ORDERED_MAP, params.context()));
+            }
+        case LIST_BY_INDEX:
+        case LIST_BY_RANK:
+        case LIST_BY_VALUE:
+        default:
+            throw new IllegalArgumentException("getAsOrderedMap() is only valid for map operations, not " + params.getOperation());
+        }
     }
 }

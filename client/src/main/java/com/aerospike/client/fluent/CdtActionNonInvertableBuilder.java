@@ -29,4 +29,19 @@ public interface CdtActionNonInvertableBuilder<T extends AbstractOperationBuilde
     public T getReverseRanks();
     public T getKeysAndValues();
     public T remove();
+
+    /**
+     * Check if the selected element(s) exist. Returns true if count > 0.
+     */
+    public T exists();
+
+    /** @deprecated Will be replaced by AerospikeMap which intrinsically supports ordering. */
+    // TODO: Replace with AerospikeMap
+    @Deprecated
+    public T getAsMap();
+
+    /** @deprecated Will be replaced by AerospikeMap which intrinsically supports ordering. */
+    // TODO: Replace with AerospikeMap
+    @Deprecated
+    public T getAsOrderedMap();
 }

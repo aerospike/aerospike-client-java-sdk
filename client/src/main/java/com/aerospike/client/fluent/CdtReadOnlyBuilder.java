@@ -452,6 +452,156 @@ public class CdtReadOnlyBuilder<T> implements CdtReadContextBuilder<T>,
         }
     }
 
+    @Override
+    public T exists() {
+        switch (params.getOperation()) {
+        case MAP_BY_INDEX:
+            return addOpAndReturn(MapOperation.getByIndex(binName, params.getInt1(), MapReturnType.EXISTS, params.context()));
+        case MAP_BY_INDEX_RANGE:
+            if (params.hasInt2()) {
+                return addOpAndReturn(MapOperation.getByIndexRange(binName, params.getInt1(), params.getInt2(), MapReturnType.EXISTS, params.context()));
+            } else {
+                return addOpAndReturn(MapOperation.getByIndexRange(binName, params.getInt1(), MapReturnType.EXISTS, params.context()));
+            }
+        case MAP_BY_KEY:
+            return addOpAndReturn(MapOperation.getByKey(binName, params.getVal1(), MapReturnType.EXISTS, params.context()));
+        case MAP_BY_KEY_LIST:
+            return addOpAndReturn(MapOperation.getByKeyList(binName, params.getValues(), MapReturnType.EXISTS, params.context()));
+        case MAP_BY_KEY_RANGE:
+            return addOpAndReturn(MapOperation.getByKeyRange(binName, params.getVal1(), params.getVal2(), MapReturnType.EXISTS, params.context()));
+        case MAP_BY_RANK:
+            return addOpAndReturn(MapOperation.getByRank(binName, params.getInt1(), MapReturnType.EXISTS, params.context()));
+        case MAP_BY_RANK_RANGE:
+            return addOpAndReturn(MapOperation.getByRankRange(binName, params.getInt1(), params.getInt2(), MapReturnType.EXISTS, params.context()));
+        case MAP_BY_VALUE:
+            return addOpAndReturn(MapOperation.getByValue(binName, params.getVal1(), MapReturnType.EXISTS, params.context()));
+        case MAP_BY_VALUE_LIST:
+            return addOpAndReturn(MapOperation.getByValueList(binName, params.getValues(), MapReturnType.EXISTS, params.context()));
+        case MAP_BY_VALUE_RANGE:
+            return addOpAndReturn(MapOperation.getByValueRange(binName, params.getVal1(), params.getVal2(), MapReturnType.EXISTS, params.context()));
+        case LIST_BY_INDEX:
+            return addOpAndReturn(ListOperation.getByIndex(binName, params.getInt1(), ListReturnType.EXISTS, params.context()));
+        case LIST_BY_RANK:
+            return addOpAndReturn(ListOperation.getByRank(binName, params.getInt1(), ListReturnType.EXISTS, params.context()));
+        case LIST_BY_VALUE:
+            return addOpAndReturn(ListOperation.getByValue(binName, params.getVal1(), ListReturnType.EXISTS, params.context()));
+        case MAP_BY_KEY_REL_INDEX_RANGE:
+            if (params.hasInt2()) {
+                return addOpAndReturn(MapOperation.getByKeyRelativeIndexRange(binName, params.getVal1(), params.getInt1(), params.getInt2(), MapReturnType.EXISTS, params.context()));
+            } else {
+                return addOpAndReturn(MapOperation.getByKeyRelativeIndexRange(binName, params.getVal1(), params.getInt1(), MapReturnType.EXISTS, params.context()));
+            }
+        case MAP_BY_VALUE_REL_RANK_RANGE:
+            if (params.hasInt2()) {
+                return addOpAndReturn(MapOperation.getByValueRelativeRankRange(binName, params.getVal1(), params.getInt1(), params.getInt2(), MapReturnType.EXISTS, params.context()));
+            } else {
+                return addOpAndReturn(MapOperation.getByValueRelativeRankRange(binName, params.getVal1(), params.getInt1(), MapReturnType.EXISTS, params.context()));
+            }
+        default:
+            throw new IllegalArgumentException("exists() does not know how to handle an operation of " + params.getOperation());
+        }
+    }
+
+    /** @deprecated Will be replaced by AerospikeMap which intrinsically supports ordering. */
+    // TODO: Replace with AerospikeMap
+    @Override
+    @Deprecated
+    public T getAsMap() {
+        switch (params.getOperation()) {
+        case MAP_BY_INDEX:
+            return addOpAndReturn(MapOperation.getByIndex(binName, params.getInt1(), MapReturnType.UNORDERED_MAP, params.context()));
+        case MAP_BY_INDEX_RANGE:
+            if (params.hasInt2()) {
+                return addOpAndReturn(MapOperation.getByIndexRange(binName, params.getInt1(), params.getInt2(), MapReturnType.UNORDERED_MAP, params.context()));
+            } else {
+                return addOpAndReturn(MapOperation.getByIndexRange(binName, params.getInt1(), MapReturnType.UNORDERED_MAP, params.context()));
+            }
+        case MAP_BY_KEY:
+            return addOpAndReturn(MapOperation.getByKey(binName, params.getVal1(), MapReturnType.UNORDERED_MAP, params.context()));
+        case MAP_BY_KEY_LIST:
+            return addOpAndReturn(MapOperation.getByKeyList(binName, params.getValues(), MapReturnType.UNORDERED_MAP, params.context()));
+        case MAP_BY_KEY_RANGE:
+            return addOpAndReturn(MapOperation.getByKeyRange(binName, params.getVal1(), params.getVal2(), MapReturnType.UNORDERED_MAP, params.context()));
+        case MAP_BY_RANK:
+            return addOpAndReturn(MapOperation.getByRank(binName, params.getInt1(), MapReturnType.UNORDERED_MAP, params.context()));
+        case MAP_BY_RANK_RANGE:
+            return addOpAndReturn(MapOperation.getByRankRange(binName, params.getInt1(), params.getInt2(), MapReturnType.UNORDERED_MAP, params.context()));
+        case MAP_BY_VALUE:
+            return addOpAndReturn(MapOperation.getByValue(binName, params.getVal1(), MapReturnType.UNORDERED_MAP, params.context()));
+        case MAP_BY_VALUE_LIST:
+            return addOpAndReturn(MapOperation.getByValueList(binName, params.getValues(), MapReturnType.UNORDERED_MAP, params.context()));
+        case MAP_BY_VALUE_RANGE:
+            return addOpAndReturn(MapOperation.getByValueRange(binName, params.getVal1(), params.getVal2(), MapReturnType.UNORDERED_MAP, params.context()));
+        case MAP_BY_KEY_REL_INDEX_RANGE:
+            if (params.hasInt2()) {
+                return addOpAndReturn(MapOperation.getByKeyRelativeIndexRange(binName, params.getVal1(), params.getInt1(), params.getInt2(), MapReturnType.UNORDERED_MAP, params.context()));
+            } else {
+                return addOpAndReturn(MapOperation.getByKeyRelativeIndexRange(binName, params.getVal1(), params.getInt1(), MapReturnType.UNORDERED_MAP, params.context()));
+            }
+        case MAP_BY_VALUE_REL_RANK_RANGE:
+            if (params.hasInt2()) {
+                return addOpAndReturn(MapOperation.getByValueRelativeRankRange(binName, params.getVal1(), params.getInt1(), params.getInt2(), MapReturnType.UNORDERED_MAP, params.context()));
+            } else {
+                return addOpAndReturn(MapOperation.getByValueRelativeRankRange(binName, params.getVal1(), params.getInt1(), MapReturnType.UNORDERED_MAP, params.context()));
+            }
+        case LIST_BY_INDEX:
+        case LIST_BY_RANK:
+        case LIST_BY_VALUE:
+        default:
+            throw new IllegalArgumentException("getAsMap() is only valid for map operations, not " + params.getOperation());
+        }
+    }
+
+    /** @deprecated Will be replaced by AerospikeMap which intrinsically supports ordering. */
+    // TODO: Replace with AerospikeMap
+    @Override
+    @Deprecated
+    public T getAsOrderedMap() {
+        switch (params.getOperation()) {
+        case MAP_BY_INDEX:
+            return addOpAndReturn(MapOperation.getByIndex(binName, params.getInt1(), MapReturnType.ORDERED_MAP, params.context()));
+        case MAP_BY_INDEX_RANGE:
+            if (params.hasInt2()) {
+                return addOpAndReturn(MapOperation.getByIndexRange(binName, params.getInt1(), params.getInt2(), MapReturnType.ORDERED_MAP, params.context()));
+            } else {
+                return addOpAndReturn(MapOperation.getByIndexRange(binName, params.getInt1(), MapReturnType.ORDERED_MAP, params.context()));
+            }
+        case MAP_BY_KEY:
+            return addOpAndReturn(MapOperation.getByKey(binName, params.getVal1(), MapReturnType.ORDERED_MAP, params.context()));
+        case MAP_BY_KEY_LIST:
+            return addOpAndReturn(MapOperation.getByKeyList(binName, params.getValues(), MapReturnType.ORDERED_MAP, params.context()));
+        case MAP_BY_KEY_RANGE:
+            return addOpAndReturn(MapOperation.getByKeyRange(binName, params.getVal1(), params.getVal2(), MapReturnType.ORDERED_MAP, params.context()));
+        case MAP_BY_RANK:
+            return addOpAndReturn(MapOperation.getByRank(binName, params.getInt1(), MapReturnType.ORDERED_MAP, params.context()));
+        case MAP_BY_RANK_RANGE:
+            return addOpAndReturn(MapOperation.getByRankRange(binName, params.getInt1(), params.getInt2(), MapReturnType.ORDERED_MAP, params.context()));
+        case MAP_BY_VALUE:
+            return addOpAndReturn(MapOperation.getByValue(binName, params.getVal1(), MapReturnType.ORDERED_MAP, params.context()));
+        case MAP_BY_VALUE_LIST:
+            return addOpAndReturn(MapOperation.getByValueList(binName, params.getValues(), MapReturnType.ORDERED_MAP, params.context()));
+        case MAP_BY_VALUE_RANGE:
+            return addOpAndReturn(MapOperation.getByValueRange(binName, params.getVal1(), params.getVal2(), MapReturnType.ORDERED_MAP, params.context()));
+        case MAP_BY_KEY_REL_INDEX_RANGE:
+            if (params.hasInt2()) {
+                return addOpAndReturn(MapOperation.getByKeyRelativeIndexRange(binName, params.getVal1(), params.getInt1(), params.getInt2(), MapReturnType.ORDERED_MAP, params.context()));
+            } else {
+                return addOpAndReturn(MapOperation.getByKeyRelativeIndexRange(binName, params.getVal1(), params.getInt1(), MapReturnType.ORDERED_MAP, params.context()));
+            }
+        case MAP_BY_VALUE_REL_RANK_RANGE:
+            if (params.hasInt2()) {
+                return addOpAndReturn(MapOperation.getByValueRelativeRankRange(binName, params.getVal1(), params.getInt1(), params.getInt2(), MapReturnType.ORDERED_MAP, params.context()));
+            } else {
+                return addOpAndReturn(MapOperation.getByValueRelativeRankRange(binName, params.getVal1(), params.getInt1(), MapReturnType.ORDERED_MAP, params.context()));
+            }
+        case LIST_BY_INDEX:
+        case LIST_BY_RANK:
+        case LIST_BY_VALUE:
+        default:
+            throw new IllegalArgumentException("getAsOrderedMap() is only valid for map operations, not " + params.getOperation());
+        }
+    }
+
     // ========================================
     // Invertable Read Operations (getAllOther*)
     // ========================================
