@@ -32,6 +32,7 @@ import com.aerospike.client.fluent.policy.QueryDuration;
 import com.aerospike.client.fluent.policy.ReadModeAP;
 import com.aerospike.client.fluent.query.Filter;
 import com.aerospike.client.fluent.query.IndexCollectionType;
+import com.aerospike.client.fluent.util.Packer;
 
 public final class CommandBuffer {
 	public static final byte BATCH_MSG_READ = 0x0;
@@ -963,7 +964,7 @@ public final class CommandBuffer {
 	}
 
 	public void setBackgroundQuery(BackgroundQueryCommand cmd) {
-		//byte[] functionArgBuffer = null;
+		byte[] functionArgBuffer = null;
 		int fieldCount = 0;
 		int filterSize = 0;
 
@@ -1037,23 +1038,20 @@ public final class CommandBuffer {
 		}
 
 		// Estimate aggregation/background function size.
-		// TODO: Allow UDF?
-		/*
-		if (statement.getFunctionName() != null) {
-			dataOffset += FIELD_HEADER_SIZE + 1;  // udf type
-			dataOffset += Buffer.estimateSizeUtf8(statement.getPackageName()) + FIELD_HEADER_SIZE;
-			dataOffset += Buffer.estimateSizeUtf8(statement.getFunctionName()) + FIELD_HEADER_SIZE;
+		if (cmd.functionName != null) {
+			dataOffset += Command.FIELD_HEADER_SIZE + 1;  // udf type
+			dataOffset += Buffer.estimateSizeUtf8(cmd.packageName) + Command.FIELD_HEADER_SIZE;
+			dataOffset += Buffer.estimateSizeUtf8(cmd.functionName) + Command.FIELD_HEADER_SIZE;
 
-			if (statement.getFunctionArgs().length > 0) {
-				functionArgBuffer = Packer.pack(statement.getFunctionArgs());
+			if (cmd.functionArgs.length > 0) {
+				functionArgBuffer = Packer.pack(cmd.functionArgs);
 			}
 			else {
 				functionArgBuffer = new byte[0];
 			}
-			dataOffset += FIELD_HEADER_SIZE + functionArgBuffer.length;
+			dataOffset += Command.FIELD_HEADER_SIZE + functionArgBuffer.length;
 			fieldCount += 4;
 		}
-		*/
 
 		if (cmd.where != null) {
 			sizeFieldExpression(cmd.where);
@@ -1173,16 +1171,13 @@ public final class CommandBuffer {
 			}
 		}
 
-		// TODO: Allow UDF?
-		/*
-		if (statement.getFunctionName() != null) {
+		if (cmd.functionName != null) {
 			writeFieldHeader(1, FieldType.UDF_OP);
-			dataBuffer[dataOffset++] = background? (byte)2 : (byte)1;
-			writeField(statement.getPackageName(), FieldType.UDF_PACKAGE_NAME);
-			writeField(statement.getFunctionName(), FieldType.UDF_FUNCTION);
+			dataBuffer[dataOffset++] = (byte)2;
+			writeField(cmd.packageName, FieldType.UDF_PACKAGE_NAME);
+			writeField(cmd.functionName, FieldType.UDF_FUNCTION);
 			writeField(functionArgBuffer, FieldType.UDF_ARGLIST);
 		}
-		*/
 
 		if (cmd.where != null) {
 			writeFieldExpression(cmd.where);
