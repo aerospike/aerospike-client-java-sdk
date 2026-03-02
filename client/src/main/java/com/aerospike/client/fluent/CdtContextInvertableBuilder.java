@@ -2,6 +2,7 @@ package com.aerospike.client.fluent;
 
 import java.util.List;
 import java.util.Map;
+import java.util.function.Consumer;
 
 import com.aerospike.client.fluent.cdt.ListOrder;
 import com.aerospike.client.fluent.cdt.MapOrder;
@@ -131,73 +132,77 @@ public interface CdtContextInvertableBuilder<T extends AbstractOperationBuilder<
     public CdtContextInvertableBuilder<T> onListValue(String value);
     public CdtContextInvertableBuilder<T> onListValue(byte[] value);
 
+    // List index range
+    public CdtActionInvertableBuilder<T> onListIndexRange(int index);
+    public CdtActionInvertableBuilder<T> onListIndexRange(int index, int count);
+
+    // List rank range
+    public CdtActionInvertableBuilder<T> onListRankRange(int rank);
+    public CdtActionInvertableBuilder<T> onListRankRange(int rank, int count);
+
+    // List value range
+    public CdtActionInvertableBuilder<T> onListValueRange(long startIncl, long endExcl);
+    public CdtActionInvertableBuilder<T> onListValueRange(String startIncl, String endExcl);
+    public CdtActionInvertableBuilder<T> onListValueRange(byte[] startIncl, byte[] endExcl);
+    public CdtActionInvertableBuilder<T> onListValueRange(double startIncl, double endExcl);
+    public CdtActionInvertableBuilder<T> onListValueRange(SpecialValue startIncl, SpecialValue endExcl);
+    public CdtActionInvertableBuilder<T> onListValueRange(SpecialValue startIncl, long endExcl);
+    public CdtActionInvertableBuilder<T> onListValueRange(SpecialValue startIncl, String endExcl);
+    public CdtActionInvertableBuilder<T> onListValueRange(SpecialValue startIncl, byte[] endExcl);
+    public CdtActionInvertableBuilder<T> onListValueRange(SpecialValue startIncl, double endExcl);
+    public CdtActionInvertableBuilder<T> onListValueRange(long startIncl, SpecialValue endExcl);
+    public CdtActionInvertableBuilder<T> onListValueRange(String startIncl, SpecialValue endExcl);
+    public CdtActionInvertableBuilder<T> onListValueRange(byte[] startIncl, SpecialValue endExcl);
+    public CdtActionInvertableBuilder<T> onListValueRange(double startIncl, SpecialValue endExcl);
+
+    // List value list
+    public CdtContextInvertableBuilder<T> onListValueList(java.util.List<?> values);
+
+    // List value relative rank range
+    public CdtActionInvertableBuilder<T> onListValueRelativeRankRange(long value, int rank);
+    public CdtActionInvertableBuilder<T> onListValueRelativeRankRange(String value, int rank);
+    public CdtActionInvertableBuilder<T> onListValueRelativeRankRange(byte[] value, int rank);
+    public CdtActionInvertableBuilder<T> onListValueRelativeRankRange(double value, int rank);
+    public CdtActionInvertableBuilder<T> onListValueRelativeRankRange(SpecialValue value, int rank);
+    public CdtActionInvertableBuilder<T> onListValueRelativeRankRange(long value, int rank, int count);
+    public CdtActionInvertableBuilder<T> onListValueRelativeRankRange(String value, int rank, int count);
+    public CdtActionInvertableBuilder<T> onListValueRelativeRankRange(byte[] value, int rank, int count);
+    public CdtActionInvertableBuilder<T> onListValueRelativeRankRange(double value, int rank, int count);
+    public CdtActionInvertableBuilder<T> onListValueRelativeRankRange(SpecialValue value, int rank, int count);
+
     public T mapClear();
     public T mapSize();
-    
-    /** Append an item to the end of an unordered list */
-    public T listAppend(long value);
-    /** Append an item to the end of an unordered list */
-    public T listAppend(String value);
-    /** Append an item to the end of an unordered list */
-    public T listAppend(double value);
-    /** Append an item to the end of an unordered list */
-    public T listAppend(boolean value);
-    /** Append an item to the end of an unordered list */
-    public T listAppend(byte[] value);
-    /** Append an item to the end of an unordered list */
-    public T listAppend(List<?> value);
-    /** Append an item to the end of an unordered list */
-    public T listAppend(Map<?,?> value);
-    /** Append an item to the end of an unordered list with unique items, allowing for failures */
-    public T listAppendUnique(long value, boolean allowFailures);
-    /** Append an item to the end of an unordered list with unique items, allowing for failures */
-    public T listAppendUnique(String value, boolean allowFailures);
-    /** Append an item to the end of an unordered list with unique items, allowing for failures */
-    public T listAppendUnique(double value, boolean allowFailures);
-    /** Append an item to the end of an unordered list with unique items, allowing for failures */
-    public T listAppendUnique(boolean value, boolean allowFailures);
-    /** Append an item to the end of an unordered list with unique items, allowing for failures */
-    public T listAppendUnique(byte[] value, boolean allowFailures);
-    /** Append an item to the end of an unordered list with unique items, allowing for failures */
-    public T listAppendUnique(List<?> value, boolean allowFailures);
-    /** Append an item to the end of an unordered list with unique items, allowing for failures */
-    public T listAppendUnique(Map<?,?> value, boolean allowFailures);
-    
-    /** Add an item to the appropriate spot in an ordered list */
-    public T listAdd(long value);
-    /** Add an item to the appropriate spot in an ordered list */
-    public T listAdd(String value);
-    /** Add an item to the appropriate spot in an ordered list */
-    public T listAdd(double value);
-    /** Add an item to the appropriate spot in an ordered list */
-    public T listAdd(boolean value);
-    /** Add an item to the appropriate spot in an ordered list */
-    public T listAdd(byte[] value);
-    /** Add an item to the appropriate spot in an ordered list */
-    public T listAdd(List<?> value);
-    /** Add an item to the appropriate spot in an ordered list */
-    public T listAdd(Map<?,?> value);
 
-    /** Add an item to the appropriate spot in an ordered list. If the item is not unique 
-     * either an exception will be thrown or the error will be silently ignored, based on allowFailures */
-    public T listAddUnique(long value, boolean allowFailures);
-    /** Add an item to the appropriate spot in an ordered list. If the item is not unique 
-     * either an exception will be thrown or the error will be silently ignored, based on allowFailures */
-    public T listAddUnique(String value, boolean allowFailures);
-    /** Add an item to the appropriate spot in an ordered list. If the item is not unique 
-     * either an exception will be thrown or the error will be silently ignored, based on allowFailures */
-    public T listAddUnique(double value, boolean allowFailures);
-    /** Add an item to the appropriate spot in an ordered list. If the item is not unique 
-     * either an exception will be thrown or the error will be silently ignored, based on allowFailures */
-    public T listAddUnique(boolean value, boolean allowFailures);
-    /** Add an item to the appropriate spot in an ordered list. If the item is not unique 
-     * either an exception will be thrown or the error will be silently ignored, based on allowFailures */
-    public T listAddUnique(byte[] value, boolean allowFailures);
-    /** Add an item to the appropriate spot in an ordered list. If the item is not unique 
-     * either an exception will be thrown or the error will be silently ignored, based on allowFailures */
-    public T listAddUnique(List<?> value, boolean allowFailures);
-    /** Add an item to the appropriate spot in an ordered list. If the item is not unique 
-     * either an exception will be thrown or the error will be silently ignored, based on allowFailures */
-    public T listAddUnique(Map<?,?> value, boolean allowFailures);
+    // listAppend -- unordered list
+    public T listAppend(long value);
+    public T listAppend(String value);
+    public T listAppend(double value);
+    public T listAppend(boolean value);
+    public T listAppend(byte[] value);
+    public T listAppend(List<?> value);
+    public T listAppend(Map<?,?> value);
+    public T listAppend(long value, Consumer<ListEntryWriteOptions> options);
+    public T listAppend(String value, Consumer<ListEntryWriteOptions> options);
+    public T listAppend(double value, Consumer<ListEntryWriteOptions> options);
+    public T listAppend(boolean value, Consumer<ListEntryWriteOptions> options);
+    public T listAppend(byte[] value, Consumer<ListEntryWriteOptions> options);
+    public T listAppend(List<?> value, Consumer<ListEntryWriteOptions> options);
+    public T listAppend(Map<?,?> value, Consumer<ListEntryWriteOptions> options);
+
+    // listAdd -- ordered list
+    public T listAdd(long value);
+    public T listAdd(String value);
+    public T listAdd(double value);
+    public T listAdd(boolean value);
+    public T listAdd(byte[] value);
+    public T listAdd(List<?> value);
+    public T listAdd(Map<?,?> value);
+    public T listAdd(long value, Consumer<ListEntryWriteOptions> options);
+    public T listAdd(String value, Consumer<ListEntryWriteOptions> options);
+    public T listAdd(double value, Consumer<ListEntryWriteOptions> options);
+    public T listAdd(boolean value, Consumer<ListEntryWriteOptions> options);
+    public T listAdd(byte[] value, Consumer<ListEntryWriteOptions> options);
+    public T listAdd(List<?> value, Consumer<ListEntryWriteOptions> options);
+    public T listAdd(Map<?,?> value, Consumer<ListEntryWriteOptions> options);
 
 }

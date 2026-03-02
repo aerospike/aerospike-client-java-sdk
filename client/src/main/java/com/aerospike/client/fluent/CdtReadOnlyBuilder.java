@@ -99,10 +99,32 @@ public class CdtReadOnlyBuilder<T> implements CdtReadContextBuilder<T>,
             return addOpAndReturn(MapOperation.getByValueRange(binName, params.getVal1(), params.getVal2(), MapReturnType.VALUE, params.context()));
         case LIST_BY_INDEX:
             return addOpAndReturn(ListOperation.getByIndex(binName, params.getInt1(), ListReturnType.VALUE, params.context()));
+        case LIST_BY_INDEX_RANGE:
+            if (params.hasInt2()) {
+                return addOpAndReturn(ListOperation.getByIndexRange(binName, params.getInt1(), params.getInt2(), ListReturnType.VALUE, params.context()));
+            } else {
+                return addOpAndReturn(ListOperation.getByIndexRange(binName, params.getInt1(), ListReturnType.VALUE, params.context()));
+            }
         case LIST_BY_RANK:
             return addOpAndReturn(ListOperation.getByRank(binName, params.getInt1(), ListReturnType.VALUE, params.context()));
+        case LIST_BY_RANK_RANGE:
+            if (params.hasInt2()) {
+                return addOpAndReturn(ListOperation.getByRankRange(binName, params.getInt1(), params.getInt2(), ListReturnType.VALUE, params.context()));
+            } else {
+                return addOpAndReturn(ListOperation.getByRankRange(binName, params.getInt1(), ListReturnType.VALUE, params.context()));
+            }
         case LIST_BY_VALUE:
             return addOpAndReturn(ListOperation.getByValue(binName, params.getVal1(), ListReturnType.VALUE, params.context()));
+        case LIST_BY_VALUE_LIST:
+            return addOpAndReturn(ListOperation.getByValueList(binName, params.getValues(), ListReturnType.VALUE, params.context()));
+        case LIST_BY_VALUE_RANGE:
+            return addOpAndReturn(ListOperation.getByValueRange(binName, params.getVal1(), params.getVal2(), ListReturnType.VALUE, params.context()));
+        case LIST_BY_VALUE_REL_RANK_RANGE:
+            if (params.hasInt2()) {
+                return addOpAndReturn(ListOperation.getByValueRelativeRankRange(binName, params.getVal1(), params.getInt1(), params.getInt2(), ListReturnType.VALUE, params.context()));
+            } else {
+                return addOpAndReturn(ListOperation.getByValueRelativeRankRange(binName, params.getVal1(), params.getInt1(), ListReturnType.VALUE, params.context()));
+            }
         case MAP_BY_KEY_REL_INDEX_RANGE:
             if (params.hasInt2()) {
                 return addOpAndReturn(MapOperation.getByKeyRelativeIndexRange(binName, params.getVal1(), params.getInt1(), params.getInt2(), MapReturnType.VALUE, params.context()));
@@ -160,8 +182,13 @@ public class CdtReadOnlyBuilder<T> implements CdtReadContextBuilder<T>,
                 return addOpAndReturn(MapOperation.getByValueRelativeRankRange(binName, params.getVal1(), params.getInt1(), MapReturnType.KEY, params.context()));
             }
         case LIST_BY_INDEX:
+        case LIST_BY_INDEX_RANGE:
         case LIST_BY_RANK:
+        case LIST_BY_RANK_RANGE:
         case LIST_BY_VALUE:
+        case LIST_BY_VALUE_LIST:
+        case LIST_BY_VALUE_RANGE:
+        case LIST_BY_VALUE_REL_RANK_RANGE:
         default:
             throw new IllegalArgumentException("getKeys() does not know how to handle an operation of " + params.getOperation());
         }
@@ -196,10 +223,32 @@ public class CdtReadOnlyBuilder<T> implements CdtReadContextBuilder<T>,
             return addOpAndReturn(MapOperation.getByValueRange(binName, params.getVal1(), params.getVal2(), MapReturnType.COUNT, params.context()));
         case LIST_BY_INDEX:
             return addOpAndReturn(ListOperation.getByIndex(binName, params.getInt1(), ListReturnType.COUNT, params.context()));
+        case LIST_BY_INDEX_RANGE:
+            if (params.hasInt2()) {
+                return addOpAndReturn(ListOperation.getByIndexRange(binName, params.getInt1(), params.getInt2(), ListReturnType.COUNT, params.context()));
+            } else {
+                return addOpAndReturn(ListOperation.getByIndexRange(binName, params.getInt1(), ListReturnType.COUNT, params.context()));
+            }
         case LIST_BY_RANK:
             return addOpAndReturn(ListOperation.getByRank(binName, params.getInt1(), ListReturnType.COUNT, params.context()));
+        case LIST_BY_RANK_RANGE:
+            if (params.hasInt2()) {
+                return addOpAndReturn(ListOperation.getByRankRange(binName, params.getInt1(), params.getInt2(), ListReturnType.COUNT, params.context()));
+            } else {
+                return addOpAndReturn(ListOperation.getByRankRange(binName, params.getInt1(), ListReturnType.COUNT, params.context()));
+            }
         case LIST_BY_VALUE:
             return addOpAndReturn(ListOperation.getByValue(binName, params.getVal1(), ListReturnType.COUNT, params.context()));
+        case LIST_BY_VALUE_LIST:
+            return addOpAndReturn(ListOperation.getByValueList(binName, params.getValues(), ListReturnType.COUNT, params.context()));
+        case LIST_BY_VALUE_RANGE:
+            return addOpAndReturn(ListOperation.getByValueRange(binName, params.getVal1(), params.getVal2(), ListReturnType.COUNT, params.context()));
+        case LIST_BY_VALUE_REL_RANK_RANGE:
+            if (params.hasInt2()) {
+                return addOpAndReturn(ListOperation.getByValueRelativeRankRange(binName, params.getVal1(), params.getInt1(), params.getInt2(), ListReturnType.COUNT, params.context()));
+            } else {
+                return addOpAndReturn(ListOperation.getByValueRelativeRankRange(binName, params.getVal1(), params.getInt1(), ListReturnType.COUNT, params.context()));
+            }
         case MAP_BY_KEY_REL_INDEX_RANGE:
             if (params.hasInt2()) {
                 return addOpAndReturn(MapOperation.getByKeyRelativeIndexRange(binName, params.getVal1(), params.getInt1(), params.getInt2(), MapReturnType.COUNT, params.context()));
@@ -257,8 +306,13 @@ public class CdtReadOnlyBuilder<T> implements CdtReadContextBuilder<T>,
                 return addOpAndReturn(MapOperation.getByValueRelativeRankRange(binName, params.getVal1(), params.getInt1(), MapReturnType.INDEX, params.context()));
             }
         case LIST_BY_INDEX:
+        case LIST_BY_INDEX_RANGE:
         case LIST_BY_RANK:
+        case LIST_BY_RANK_RANGE:
         case LIST_BY_VALUE:
+        case LIST_BY_VALUE_LIST:
+        case LIST_BY_VALUE_RANGE:
+        case LIST_BY_VALUE_REL_RANK_RANGE:
         default:
             throw new IllegalArgumentException("getIndexes() does not know how to handle an operation of " + params.getOperation());
         }
@@ -304,8 +358,13 @@ public class CdtReadOnlyBuilder<T> implements CdtReadContextBuilder<T>,
                 return addOpAndReturn(MapOperation.getByValueRelativeRankRange(binName, params.getVal1(), params.getInt1(), MapReturnType.REVERSE_INDEX, params.context()));
             }
         case LIST_BY_INDEX:
+        case LIST_BY_INDEX_RANGE:
         case LIST_BY_RANK:
+        case LIST_BY_RANK_RANGE:
         case LIST_BY_VALUE:
+        case LIST_BY_VALUE_LIST:
+        case LIST_BY_VALUE_RANGE:
+        case LIST_BY_VALUE_REL_RANK_RANGE:
         default:
             throw new IllegalArgumentException("getReverseIndexes() does not know how to handle an operation of " + params.getOperation());
         }
@@ -351,8 +410,13 @@ public class CdtReadOnlyBuilder<T> implements CdtReadContextBuilder<T>,
                 return addOpAndReturn(MapOperation.getByValueRelativeRankRange(binName, params.getVal1(), params.getInt1(), MapReturnType.RANK, params.context()));
             }
         case LIST_BY_INDEX:
+        case LIST_BY_INDEX_RANGE:
         case LIST_BY_RANK:
+        case LIST_BY_RANK_RANGE:
         case LIST_BY_VALUE:
+        case LIST_BY_VALUE_LIST:
+        case LIST_BY_VALUE_RANGE:
+        case LIST_BY_VALUE_REL_RANK_RANGE:
         default:
             throw new IllegalArgumentException("getRanks() does not know how to handle an operation of " + params.getOperation());
         }
@@ -398,8 +462,13 @@ public class CdtReadOnlyBuilder<T> implements CdtReadContextBuilder<T>,
                 return addOpAndReturn(MapOperation.getByValueRelativeRankRange(binName, params.getVal1(), params.getInt1(), MapReturnType.REVERSE_RANK, params.context()));
             }
         case LIST_BY_INDEX:
+        case LIST_BY_INDEX_RANGE:
         case LIST_BY_RANK:
+        case LIST_BY_RANK_RANGE:
         case LIST_BY_VALUE:
+        case LIST_BY_VALUE_LIST:
+        case LIST_BY_VALUE_RANGE:
+        case LIST_BY_VALUE_REL_RANK_RANGE:
         default:
             throw new IllegalArgumentException("getReverseRanks() does not know how to handle an operation of " + params.getOperation());
         }
@@ -445,8 +514,13 @@ public class CdtReadOnlyBuilder<T> implements CdtReadContextBuilder<T>,
                 return addOpAndReturn(MapOperation.getByValueRelativeRankRange(binName, params.getVal1(), params.getInt1(), MapReturnType.KEY_VALUE, params.context()));
             }
         case LIST_BY_INDEX:
+        case LIST_BY_INDEX_RANGE:
         case LIST_BY_RANK:
+        case LIST_BY_RANK_RANGE:
         case LIST_BY_VALUE:
+        case LIST_BY_VALUE_LIST:
+        case LIST_BY_VALUE_RANGE:
+        case LIST_BY_VALUE_REL_RANK_RANGE:
         default:
             throw new IllegalArgumentException("getKeysAndValues() does not know how to handle an operation of " + params.getOperation());
         }
@@ -481,10 +555,32 @@ public class CdtReadOnlyBuilder<T> implements CdtReadContextBuilder<T>,
             return addOpAndReturn(MapOperation.getByValueRange(binName, params.getVal1(), params.getVal2(), MapReturnType.EXISTS, params.context()));
         case LIST_BY_INDEX:
             return addOpAndReturn(ListOperation.getByIndex(binName, params.getInt1(), ListReturnType.EXISTS, params.context()));
+        case LIST_BY_INDEX_RANGE:
+            if (params.hasInt2()) {
+                return addOpAndReturn(ListOperation.getByIndexRange(binName, params.getInt1(), params.getInt2(), ListReturnType.EXISTS, params.context()));
+            } else {
+                return addOpAndReturn(ListOperation.getByIndexRange(binName, params.getInt1(), ListReturnType.EXISTS, params.context()));
+            }
         case LIST_BY_RANK:
             return addOpAndReturn(ListOperation.getByRank(binName, params.getInt1(), ListReturnType.EXISTS, params.context()));
+        case LIST_BY_RANK_RANGE:
+            if (params.hasInt2()) {
+                return addOpAndReturn(ListOperation.getByRankRange(binName, params.getInt1(), params.getInt2(), ListReturnType.EXISTS, params.context()));
+            } else {
+                return addOpAndReturn(ListOperation.getByRankRange(binName, params.getInt1(), ListReturnType.EXISTS, params.context()));
+            }
         case LIST_BY_VALUE:
             return addOpAndReturn(ListOperation.getByValue(binName, params.getVal1(), ListReturnType.EXISTS, params.context()));
+        case LIST_BY_VALUE_LIST:
+            return addOpAndReturn(ListOperation.getByValueList(binName, params.getValues(), ListReturnType.EXISTS, params.context()));
+        case LIST_BY_VALUE_RANGE:
+            return addOpAndReturn(ListOperation.getByValueRange(binName, params.getVal1(), params.getVal2(), ListReturnType.EXISTS, params.context()));
+        case LIST_BY_VALUE_REL_RANK_RANGE:
+            if (params.hasInt2()) {
+                return addOpAndReturn(ListOperation.getByValueRelativeRankRange(binName, params.getVal1(), params.getInt1(), params.getInt2(), ListReturnType.EXISTS, params.context()));
+            } else {
+                return addOpAndReturn(ListOperation.getByValueRelativeRankRange(binName, params.getVal1(), params.getInt1(), ListReturnType.EXISTS, params.context()));
+            }
         case MAP_BY_KEY_REL_INDEX_RANGE:
             if (params.hasInt2()) {
                 return addOpAndReturn(MapOperation.getByKeyRelativeIndexRange(binName, params.getVal1(), params.getInt1(), params.getInt2(), MapReturnType.EXISTS, params.context()));
@@ -545,8 +641,13 @@ public class CdtReadOnlyBuilder<T> implements CdtReadContextBuilder<T>,
                 return addOpAndReturn(MapOperation.getByValueRelativeRankRange(binName, params.getVal1(), params.getInt1(), MapReturnType.UNORDERED_MAP, params.context()));
             }
         case LIST_BY_INDEX:
+        case LIST_BY_INDEX_RANGE:
         case LIST_BY_RANK:
+        case LIST_BY_RANK_RANGE:
         case LIST_BY_VALUE:
+        case LIST_BY_VALUE_LIST:
+        case LIST_BY_VALUE_RANGE:
+        case LIST_BY_VALUE_REL_RANK_RANGE:
         default:
             throw new IllegalArgumentException("getAsMap() is only valid for map operations, not " + params.getOperation());
         }
@@ -595,8 +696,13 @@ public class CdtReadOnlyBuilder<T> implements CdtReadContextBuilder<T>,
                 return addOpAndReturn(MapOperation.getByValueRelativeRankRange(binName, params.getVal1(), params.getInt1(), MapReturnType.ORDERED_MAP, params.context()));
             }
         case LIST_BY_INDEX:
+        case LIST_BY_INDEX_RANGE:
         case LIST_BY_RANK:
+        case LIST_BY_RANK_RANGE:
         case LIST_BY_VALUE:
+        case LIST_BY_VALUE_LIST:
+        case LIST_BY_VALUE_RANGE:
+        case LIST_BY_VALUE_REL_RANK_RANGE:
         default:
             throw new IllegalArgumentException("getAsOrderedMap() is only valid for map operations, not " + params.getOperation());
         }
@@ -677,10 +783,47 @@ public class CdtReadOnlyBuilder<T> implements CdtReadContextBuilder<T>,
         case MAP_BY_VALUE_RANGE:
             return addOpAndReturn(MapOperation.getByValueRange(binName, params.getVal1(), params.getVal2(), invertedMapType, params.context()));
         case LIST_BY_VALUE:
+        case LIST_BY_VALUE_LIST:
             if (invertedListType < 0) {
                 throw new IllegalArgumentException(methodName + " is not supported for list operations");
             }
-            return addOpAndReturn(ListOperation.getByValue(binName, params.getVal1(), invertedListType, params.context()));
+            if (params.getOperation() == CdtOperation.LIST_BY_VALUE) {
+                return addOpAndReturn(ListOperation.getByValue(binName, params.getVal1(), invertedListType, params.context()));
+            } else {
+                return addOpAndReturn(ListOperation.getByValueList(binName, params.getValues(), invertedListType, params.context()));
+            }
+        case LIST_BY_INDEX_RANGE:
+            if (invertedListType < 0) {
+                throw new IllegalArgumentException(methodName + " is not supported for list operations");
+            }
+            if (params.hasInt2()) {
+                return addOpAndReturn(ListOperation.getByIndexRange(binName, params.getInt1(), params.getInt2(), invertedListType, params.context()));
+            } else {
+                return addOpAndReturn(ListOperation.getByIndexRange(binName, params.getInt1(), invertedListType, params.context()));
+            }
+        case LIST_BY_RANK_RANGE:
+            if (invertedListType < 0) {
+                throw new IllegalArgumentException(methodName + " is not supported for list operations");
+            }
+            if (params.hasInt2()) {
+                return addOpAndReturn(ListOperation.getByRankRange(binName, params.getInt1(), params.getInt2(), invertedListType, params.context()));
+            } else {
+                return addOpAndReturn(ListOperation.getByRankRange(binName, params.getInt1(), invertedListType, params.context()));
+            }
+        case LIST_BY_VALUE_RANGE:
+            if (invertedListType < 0) {
+                throw new IllegalArgumentException(methodName + " is not supported for list operations");
+            }
+            return addOpAndReturn(ListOperation.getByValueRange(binName, params.getVal1(), params.getVal2(), invertedListType, params.context()));
+        case LIST_BY_VALUE_REL_RANK_RANGE:
+            if (invertedListType < 0) {
+                throw new IllegalArgumentException(methodName + " is not supported for list operations");
+            }
+            if (params.hasInt2()) {
+                return addOpAndReturn(ListOperation.getByValueRelativeRankRange(binName, params.getVal1(), params.getInt1(), params.getInt2(), invertedListType, params.context()));
+            } else {
+                return addOpAndReturn(ListOperation.getByValueRelativeRankRange(binName, params.getVal1(), params.getInt1(), invertedListType, params.context()));
+            }
         case MAP_BY_KEY_REL_INDEX_RANGE:
             if (params.hasInt2()) {
                 return addOpAndReturn(MapOperation.getByKeyRelativeIndexRange(binName, params.getVal1(), params.getInt1(), params.getInt2(), invertedMapType, params.context()));
@@ -1214,6 +1357,180 @@ public class CdtReadOnlyBuilder<T> implements CdtReadContextBuilder<T>,
     @Override
     public CdtReadContextInvertableBuilder<T> onListValue(SpecialValue value) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_VALUE, value.toAerospikeValue());
+        return this;
+    }
+
+    @Override
+    public CdtReadActionInvertableBuilder<T> onListIndexRange(int index, int count) {
+        params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_INDEX_RANGE, index, count);
+        return this;
+    }
+
+    @Override
+    public CdtReadActionInvertableBuilder<T> onListIndexRange(int index) {
+        params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_INDEX_RANGE, index);
+        return this;
+    }
+
+    @Override
+    public CdtReadActionInvertableBuilder<T> onListRankRange(int rank, int count) {
+        params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_RANK_RANGE, rank, count);
+        return this;
+    }
+
+    @Override
+    public CdtReadActionInvertableBuilder<T> onListRankRange(int rank) {
+        params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_RANK_RANGE, rank);
+        return this;
+    }
+
+    // List value range methods - all overloads
+    @Override
+    public CdtReadActionInvertableBuilder<T> onListValueRange(long startIncl, long endExcl) {
+        params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_VALUE_RANGE, Value.get(startIncl), Value.get(endExcl));
+        return this;
+    }
+
+    @Override
+    public CdtReadActionInvertableBuilder<T> onListValueRange(String startIncl, String endExcl) {
+        params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_VALUE_RANGE, Value.get(startIncl), Value.get(endExcl));
+        return this;
+    }
+
+    @Override
+    public CdtReadActionInvertableBuilder<T> onListValueRange(byte[] startIncl, byte[] endExcl) {
+        params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_VALUE_RANGE, Value.get(startIncl), Value.get(endExcl));
+        return this;
+    }
+
+    @Override
+    public CdtReadActionInvertableBuilder<T> onListValueRange(double startIncl, double endExcl) {
+        params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_VALUE_RANGE, Value.get(startIncl), Value.get(endExcl));
+        return this;
+    }
+
+    @Override
+    public CdtReadActionInvertableBuilder<T> onListValueRange(SpecialValue startIncl, SpecialValue endExcl) {
+        params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_VALUE_RANGE, startIncl.toAerospikeValue(), endExcl.toAerospikeValue());
+        return this;
+    }
+
+    @Override
+    public CdtReadActionInvertableBuilder<T> onListValueRange(SpecialValue startIncl, long endExcl) {
+        params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_VALUE_RANGE, startIncl.toAerospikeValue(), Value.get(endExcl));
+        return this;
+    }
+
+    @Override
+    public CdtReadActionInvertableBuilder<T> onListValueRange(SpecialValue startIncl, String endExcl) {
+        params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_VALUE_RANGE, startIncl.toAerospikeValue(), Value.get(endExcl));
+        return this;
+    }
+
+    @Override
+    public CdtReadActionInvertableBuilder<T> onListValueRange(SpecialValue startIncl, byte[] endExcl) {
+        params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_VALUE_RANGE, startIncl.toAerospikeValue(), Value.get(endExcl));
+        return this;
+    }
+
+    @Override
+    public CdtReadActionInvertableBuilder<T> onListValueRange(SpecialValue startIncl, double endExcl) {
+        params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_VALUE_RANGE, startIncl.toAerospikeValue(), Value.get(endExcl));
+        return this;
+    }
+
+    @Override
+    public CdtReadActionInvertableBuilder<T> onListValueRange(long startIncl, SpecialValue endExcl) {
+        params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_VALUE_RANGE, Value.get(startIncl), endExcl.toAerospikeValue());
+        return this;
+    }
+
+    @Override
+    public CdtReadActionInvertableBuilder<T> onListValueRange(String startIncl, SpecialValue endExcl) {
+        params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_VALUE_RANGE, Value.get(startIncl), endExcl.toAerospikeValue());
+        return this;
+    }
+
+    @Override
+    public CdtReadActionInvertableBuilder<T> onListValueRange(byte[] startIncl, SpecialValue endExcl) {
+        params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_VALUE_RANGE, Value.get(startIncl), endExcl.toAerospikeValue());
+        return this;
+    }
+
+    @Override
+    public CdtReadActionInvertableBuilder<T> onListValueRange(double startIncl, SpecialValue endExcl) {
+        params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_VALUE_RANGE, Value.get(startIncl), endExcl.toAerospikeValue());
+        return this;
+    }
+
+    @Override
+    public CdtReadContextInvertableBuilder<T> onListValueList(List<?> valueList) {
+        List<Value> values = new ArrayList<>(valueList.size());
+        for (Object v : valueList) {
+            values.add(Value.get(v));
+        }
+        params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_VALUE_LIST, values);
+        return this;
+    }
+
+    // List value relative rank range - all overloads
+    @Override
+    public CdtReadActionInvertableBuilder<T> onListValueRelativeRankRange(long value, int rank) {
+        params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank);
+        return this;
+    }
+
+    @Override
+    public CdtReadActionInvertableBuilder<T> onListValueRelativeRankRange(String value, int rank) {
+        params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank);
+        return this;
+    }
+
+    @Override
+    public CdtReadActionInvertableBuilder<T> onListValueRelativeRankRange(byte[] value, int rank) {
+        params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank);
+        return this;
+    }
+
+    @Override
+    public CdtReadActionInvertableBuilder<T> onListValueRelativeRankRange(double value, int rank) {
+        params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank);
+        return this;
+    }
+
+    @Override
+    public CdtReadActionInvertableBuilder<T> onListValueRelativeRankRange(SpecialValue value, int rank) {
+        params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_VALUE_REL_RANK_RANGE, value.toAerospikeValue(), rank);
+        return this;
+    }
+
+    @Override
+    public CdtReadActionInvertableBuilder<T> onListValueRelativeRankRange(long value, int rank, int count) {
+        params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank, count);
+        return this;
+    }
+
+    @Override
+    public CdtReadActionInvertableBuilder<T> onListValueRelativeRankRange(String value, int rank, int count) {
+        params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank, count);
+        return this;
+    }
+
+    @Override
+    public CdtReadActionInvertableBuilder<T> onListValueRelativeRankRange(byte[] value, int rank, int count) {
+        params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank, count);
+        return this;
+    }
+
+    @Override
+    public CdtReadActionInvertableBuilder<T> onListValueRelativeRankRange(double value, int rank, int count) {
+        params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank, count);
+        return this;
+    }
+
+    @Override
+    public CdtReadActionInvertableBuilder<T> onListValueRelativeRankRange(SpecialValue value, int rank, int count) {
+        params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_VALUE_REL_RANK_RANGE, value.toAerospikeValue(), rank, count);
         return this;
     }
 }

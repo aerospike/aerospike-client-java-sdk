@@ -1225,6 +1225,106 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
     public CdtContextInvertableBuilder<T> onListValue(SpecialValue value) {
         return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.LIST_BY_VALUE, value.toAerospikeValue()));
     }
+
+    // List index range
+    public CdtActionInvertableBuilder<T> onListIndexRange(int index) {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.LIST_BY_INDEX_RANGE, index));
+    }
+    public CdtActionInvertableBuilder<T> onListIndexRange(int index, int count) {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.LIST_BY_INDEX_RANGE, index, count));
+    }
+
+    // List rank range
+    public CdtActionInvertableBuilder<T> onListRankRange(int rank) {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.LIST_BY_RANK_RANGE, rank));
+    }
+    public CdtActionInvertableBuilder<T> onListRankRange(int rank, int count) {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.LIST_BY_RANK_RANGE, rank, count));
+    }
+
+    // List value range - all type combinations
+    public CdtActionInvertableBuilder<T> onListValueRange(long startIncl, long endExcl) {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.LIST_BY_VALUE_RANGE, Value.get(startIncl), Value.get(endExcl)));
+    }
+    public CdtActionInvertableBuilder<T> onListValueRange(String startIncl, String endExcl) {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.LIST_BY_VALUE_RANGE, Value.get(startIncl), Value.get(endExcl)));
+    }
+    public CdtActionInvertableBuilder<T> onListValueRange(byte[] startIncl, byte[] endExcl) {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.LIST_BY_VALUE_RANGE, Value.get(startIncl), Value.get(endExcl)));
+    }
+    public CdtActionInvertableBuilder<T> onListValueRange(double startIncl, double endExcl) {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.LIST_BY_VALUE_RANGE, Value.get(startIncl), Value.get(endExcl)));
+    }
+    // SpecialValue combinations for onListValueRange
+    public CdtActionInvertableBuilder<T> onListValueRange(SpecialValue startIncl, SpecialValue endExcl) {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.LIST_BY_VALUE_RANGE, startIncl.toAerospikeValue(), endExcl.toAerospikeValue()));
+    }
+    public CdtActionInvertableBuilder<T> onListValueRange(SpecialValue startIncl, long endExcl) {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.LIST_BY_VALUE_RANGE, startIncl.toAerospikeValue(), Value.get(endExcl)));
+    }
+    public CdtActionInvertableBuilder<T> onListValueRange(SpecialValue startIncl, String endExcl) {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.LIST_BY_VALUE_RANGE, startIncl.toAerospikeValue(), Value.get(endExcl)));
+    }
+    public CdtActionInvertableBuilder<T> onListValueRange(SpecialValue startIncl, byte[] endExcl) {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.LIST_BY_VALUE_RANGE, startIncl.toAerospikeValue(), Value.get(endExcl)));
+    }
+    public CdtActionInvertableBuilder<T> onListValueRange(SpecialValue startIncl, double endExcl) {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.LIST_BY_VALUE_RANGE, startIncl.toAerospikeValue(), Value.get(endExcl)));
+    }
+    public CdtActionInvertableBuilder<T> onListValueRange(long startIncl, SpecialValue endExcl) {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.LIST_BY_VALUE_RANGE, Value.get(startIncl), endExcl.toAerospikeValue()));
+    }
+    public CdtActionInvertableBuilder<T> onListValueRange(String startIncl, SpecialValue endExcl) {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.LIST_BY_VALUE_RANGE, Value.get(startIncl), endExcl.toAerospikeValue()));
+    }
+    public CdtActionInvertableBuilder<T> onListValueRange(byte[] startIncl, SpecialValue endExcl) {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.LIST_BY_VALUE_RANGE, Value.get(startIncl), endExcl.toAerospikeValue()));
+    }
+    public CdtActionInvertableBuilder<T> onListValueRange(double startIncl, SpecialValue endExcl) {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.LIST_BY_VALUE_RANGE, Value.get(startIncl), endExcl.toAerospikeValue()));
+    }
+
+    // List value list
+    public CdtContextInvertableBuilder<T> onListValueList(List<?> values) {
+        List<Value> valueList = new ArrayList<>();
+        for (Object value : values) {
+            valueList.add(Value.get(value));
+        }
+        CdtOperationParams params = new CdtOperationParams(CdtOperation.LIST_BY_VALUE_LIST, valueList);
+        return new CdtGetOrRemoveBuilder<>(this.binName, this.opBuilder, params);
+    }
+
+    // List value relative rank range
+    public CdtActionInvertableBuilder<T> onListValueRelativeRankRange(long value, int rank) {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.LIST_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank));
+    }
+    public CdtActionInvertableBuilder<T> onListValueRelativeRankRange(String value, int rank) {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.LIST_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank));
+    }
+    public CdtActionInvertableBuilder<T> onListValueRelativeRankRange(byte[] value, int rank) {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.LIST_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank));
+    }
+    public CdtActionInvertableBuilder<T> onListValueRelativeRankRange(double value, int rank) {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.LIST_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank));
+    }
+    public CdtActionInvertableBuilder<T> onListValueRelativeRankRange(SpecialValue value, int rank) {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.LIST_BY_VALUE_REL_RANK_RANGE, value.toAerospikeValue(), rank));
+    }
+    public CdtActionInvertableBuilder<T> onListValueRelativeRankRange(long value, int rank, int count) {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.LIST_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank, count));
+    }
+    public CdtActionInvertableBuilder<T> onListValueRelativeRankRange(String value, int rank, int count) {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.LIST_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank, count));
+    }
+    public CdtActionInvertableBuilder<T> onListValueRelativeRankRange(byte[] value, int rank, int count) {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.LIST_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank, count));
+    }
+    public CdtActionInvertableBuilder<T> onListValueRelativeRankRange(double value, int rank, int count) {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.LIST_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank, count));
+    }
+    public CdtActionInvertableBuilder<T> onListValueRelativeRankRange(SpecialValue value, int rank, int count) {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.LIST_BY_VALUE_REL_RANK_RANGE, value.toAerospikeValue(), rank, count));
+    }
     
     /**
      * Navigate to map items by a list of keys.

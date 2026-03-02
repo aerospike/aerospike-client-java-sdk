@@ -503,4 +503,194 @@ public class QueryBinBuilder implements CdtOperationAcceptor<ChainableQueryBuild
     public CdtReadContextInvertableBuilder<ChainableQueryBuilder> onListValue(byte[] value) {
         return new CdtReadOnlyBuilder<>(binName, this, new CdtOperationParams(CdtOperation.LIST_BY_VALUE, Value.get(value)));
     }
+
+    /**
+     * Navigate to list elements by index range (from index to end).
+     *
+     * @param index the starting index
+     * @return read-only CDT builder for terminal operations
+     */
+    public CdtReadActionInvertableBuilder<ChainableQueryBuilder> onListIndexRange(int index) {
+        return new CdtReadOnlyBuilder<>(binName, this, new CdtOperationParams(CdtOperation.LIST_BY_INDEX_RANGE, index));
+    }
+
+    /**
+     * Navigate to list elements by index range.
+     *
+     * @param index the starting index
+     * @param count the number of elements
+     * @return read-only CDT builder for terminal operations
+     */
+    public CdtReadActionInvertableBuilder<ChainableQueryBuilder> onListIndexRange(int index, int count) {
+        return new CdtReadOnlyBuilder<>(binName, this, new CdtOperationParams(CdtOperation.LIST_BY_INDEX_RANGE, index, count));
+    }
+
+    /**
+     * Navigate to list elements by rank range (from rank to end).
+     *
+     * @param rank the starting rank (0 = lowest value)
+     * @return read-only CDT builder for terminal operations
+     */
+    public CdtReadActionInvertableBuilder<ChainableQueryBuilder> onListRankRange(int rank) {
+        return new CdtReadOnlyBuilder<>(binName, this, new CdtOperationParams(CdtOperation.LIST_BY_RANK_RANGE, rank));
+    }
+
+    /**
+     * Navigate to list elements by rank range.
+     *
+     * @param rank the starting rank (0 = lowest value)
+     * @param count the number of elements
+     * @return read-only CDT builder for terminal operations
+     */
+    public CdtReadActionInvertableBuilder<ChainableQueryBuilder> onListRankRange(int rank, int count) {
+        return new CdtReadOnlyBuilder<>(binName, this, new CdtOperationParams(CdtOperation.LIST_BY_RANK_RANGE, rank, count));
+    }
+
+    /**
+     * Navigate to list elements by value range.
+     *
+     * @param startIncl inclusive start value
+     * @param endExcl exclusive end value
+     * @return read-only CDT builder for terminal operations
+     */
+    public CdtReadActionInvertableBuilder<ChainableQueryBuilder> onListValueRange(long startIncl, long endExcl) {
+        return new CdtReadOnlyBuilder<>(binName, this, new CdtOperationParams(CdtOperation.LIST_BY_VALUE_RANGE, Value.get(startIncl), Value.get(endExcl)));
+    }
+
+    /** Navigate to list elements by value range. */
+    public CdtReadActionInvertableBuilder<ChainableQueryBuilder> onListValueRange(String startIncl, String endExcl) {
+        return new CdtReadOnlyBuilder<>(binName, this, new CdtOperationParams(CdtOperation.LIST_BY_VALUE_RANGE, Value.get(startIncl), Value.get(endExcl)));
+    }
+
+    /** Navigate to list elements by value range. */
+    public CdtReadActionInvertableBuilder<ChainableQueryBuilder> onListValueRange(byte[] startIncl, byte[] endExcl) {
+        return new CdtReadOnlyBuilder<>(binName, this, new CdtOperationParams(CdtOperation.LIST_BY_VALUE_RANGE, Value.get(startIncl), Value.get(endExcl)));
+    }
+
+    /** Navigate to list elements by value range. */
+    public CdtReadActionInvertableBuilder<ChainableQueryBuilder> onListValueRange(double startIncl, double endExcl) {
+        return new CdtReadOnlyBuilder<>(binName, this, new CdtOperationParams(CdtOperation.LIST_BY_VALUE_RANGE, Value.get(startIncl), Value.get(endExcl)));
+    }
+
+    /** Navigate to list elements by value range (SpecialValue combinations). */
+    public CdtReadActionInvertableBuilder<ChainableQueryBuilder> onListValueRange(SpecialValue startIncl, SpecialValue endExcl) {
+        return new CdtReadOnlyBuilder<>(binName, this, new CdtOperationParams(CdtOperation.LIST_BY_VALUE_RANGE, startIncl.toAerospikeValue(), endExcl.toAerospikeValue()));
+    }
+
+    /** Navigate to list elements by value range. */
+    public CdtReadActionInvertableBuilder<ChainableQueryBuilder> onListValueRange(SpecialValue startIncl, long endExcl) {
+        return new CdtReadOnlyBuilder<>(binName, this, new CdtOperationParams(CdtOperation.LIST_BY_VALUE_RANGE, startIncl.toAerospikeValue(), Value.get(endExcl)));
+    }
+
+    /** Navigate to list elements by value range. */
+    public CdtReadActionInvertableBuilder<ChainableQueryBuilder> onListValueRange(SpecialValue startIncl, String endExcl) {
+        return new CdtReadOnlyBuilder<>(binName, this, new CdtOperationParams(CdtOperation.LIST_BY_VALUE_RANGE, startIncl.toAerospikeValue(), Value.get(endExcl)));
+    }
+
+    /** Navigate to list elements by value range. */
+    public CdtReadActionInvertableBuilder<ChainableQueryBuilder> onListValueRange(SpecialValue startIncl, byte[] endExcl) {
+        return new CdtReadOnlyBuilder<>(binName, this, new CdtOperationParams(CdtOperation.LIST_BY_VALUE_RANGE, startIncl.toAerospikeValue(), Value.get(endExcl)));
+    }
+
+    /** Navigate to list elements by value range. */
+    public CdtReadActionInvertableBuilder<ChainableQueryBuilder> onListValueRange(SpecialValue startIncl, double endExcl) {
+        return new CdtReadOnlyBuilder<>(binName, this, new CdtOperationParams(CdtOperation.LIST_BY_VALUE_RANGE, startIncl.toAerospikeValue(), Value.get(endExcl)));
+    }
+
+    /** Navigate to list elements by value range. */
+    public CdtReadActionInvertableBuilder<ChainableQueryBuilder> onListValueRange(long startIncl, SpecialValue endExcl) {
+        return new CdtReadOnlyBuilder<>(binName, this, new CdtOperationParams(CdtOperation.LIST_BY_VALUE_RANGE, Value.get(startIncl), endExcl.toAerospikeValue()));
+    }
+
+    /** Navigate to list elements by value range. */
+    public CdtReadActionInvertableBuilder<ChainableQueryBuilder> onListValueRange(String startIncl, SpecialValue endExcl) {
+        return new CdtReadOnlyBuilder<>(binName, this, new CdtOperationParams(CdtOperation.LIST_BY_VALUE_RANGE, Value.get(startIncl), endExcl.toAerospikeValue()));
+    }
+
+    /** Navigate to list elements by value range. */
+    public CdtReadActionInvertableBuilder<ChainableQueryBuilder> onListValueRange(byte[] startIncl, SpecialValue endExcl) {
+        return new CdtReadOnlyBuilder<>(binName, this, new CdtOperationParams(CdtOperation.LIST_BY_VALUE_RANGE, Value.get(startIncl), endExcl.toAerospikeValue()));
+    }
+
+    /** Navigate to list elements by value range. */
+    public CdtReadActionInvertableBuilder<ChainableQueryBuilder> onListValueRange(double startIncl, SpecialValue endExcl) {
+        return new CdtReadOnlyBuilder<>(binName, this, new CdtOperationParams(CdtOperation.LIST_BY_VALUE_RANGE, Value.get(startIncl), endExcl.toAerospikeValue()));
+    }
+
+    /**
+     * Navigate to list elements by a list of values.
+     *
+     * @param valueList the values to match
+     * @return read-only CDT builder for terminal operations
+     */
+    public CdtReadContextInvertableBuilder<ChainableQueryBuilder> onListValueList(List<?> valueList) {
+        List<Value> values = new ArrayList<>(valueList.size());
+        for (Object v : valueList) {
+            values.add(Value.get(v));
+        }
+        return new CdtReadOnlyBuilder<>(binName, this, new CdtOperationParams(CdtOperation.LIST_BY_VALUE_LIST, values));
+    }
+
+    /**
+     * Navigate to list elements by value relative to rank range.
+     *
+     * @param value the reference value
+     * @param rank the relative rank offset
+     * @return read-only CDT builder for terminal operations
+     */
+    public CdtReadActionInvertableBuilder<ChainableQueryBuilder> onListValueRelativeRankRange(long value, int rank) {
+        return new CdtReadOnlyBuilder<>(binName, this, new CdtOperationParams(CdtOperation.LIST_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank));
+    }
+
+    /** Navigate to list elements by value relative to rank range. */
+    public CdtReadActionInvertableBuilder<ChainableQueryBuilder> onListValueRelativeRankRange(String value, int rank) {
+        return new CdtReadOnlyBuilder<>(binName, this, new CdtOperationParams(CdtOperation.LIST_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank));
+    }
+
+    /** Navigate to list elements by value relative to rank range. */
+    public CdtReadActionInvertableBuilder<ChainableQueryBuilder> onListValueRelativeRankRange(byte[] value, int rank) {
+        return new CdtReadOnlyBuilder<>(binName, this, new CdtOperationParams(CdtOperation.LIST_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank));
+    }
+
+    /** Navigate to list elements by value relative to rank range. */
+    public CdtReadActionInvertableBuilder<ChainableQueryBuilder> onListValueRelativeRankRange(double value, int rank) {
+        return new CdtReadOnlyBuilder<>(binName, this, new CdtOperationParams(CdtOperation.LIST_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank));
+    }
+
+    /** Navigate to list elements by value relative to rank range. */
+    public CdtReadActionInvertableBuilder<ChainableQueryBuilder> onListValueRelativeRankRange(SpecialValue value, int rank) {
+        return new CdtReadOnlyBuilder<>(binName, this, new CdtOperationParams(CdtOperation.LIST_BY_VALUE_REL_RANK_RANGE, value.toAerospikeValue(), rank));
+    }
+
+    /**
+     * Navigate to list elements by value relative to rank range with count limit.
+     *
+     * @param value the reference value
+     * @param rank the relative rank offset
+     * @param count the maximum number of elements to select
+     * @return read-only CDT builder for terminal operations
+     */
+    public CdtReadActionInvertableBuilder<ChainableQueryBuilder> onListValueRelativeRankRange(long value, int rank, int count) {
+        return new CdtReadOnlyBuilder<>(binName, this, new CdtOperationParams(CdtOperation.LIST_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank, count));
+    }
+
+    /** Navigate to list elements by value relative to rank range with count limit. */
+    public CdtReadActionInvertableBuilder<ChainableQueryBuilder> onListValueRelativeRankRange(String value, int rank, int count) {
+        return new CdtReadOnlyBuilder<>(binName, this, new CdtOperationParams(CdtOperation.LIST_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank, count));
+    }
+
+    /** Navigate to list elements by value relative to rank range with count limit. */
+    public CdtReadActionInvertableBuilder<ChainableQueryBuilder> onListValueRelativeRankRange(byte[] value, int rank, int count) {
+        return new CdtReadOnlyBuilder<>(binName, this, new CdtOperationParams(CdtOperation.LIST_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank, count));
+    }
+
+    /** Navigate to list elements by value relative to rank range with count limit. */
+    public CdtReadActionInvertableBuilder<ChainableQueryBuilder> onListValueRelativeRankRange(double value, int rank, int count) {
+        return new CdtReadOnlyBuilder<>(binName, this, new CdtOperationParams(CdtOperation.LIST_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank, count));
+    }
+
+    /** Navigate to list elements by value relative to rank range with count limit. */
+    public CdtReadActionInvertableBuilder<ChainableQueryBuilder> onListValueRelativeRankRange(SpecialValue value, int rank, int count) {
+        return new CdtReadOnlyBuilder<>(binName, this, new CdtOperationParams(CdtOperation.LIST_BY_VALUE_REL_RANK_RANGE, value.toAerospikeValue(), rank, count));
+    }
 }

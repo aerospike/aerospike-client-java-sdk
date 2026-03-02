@@ -158,6 +158,36 @@ public interface CdtReadContextBuilder<T> extends CdtReadActionBuilder<T> {
     CdtReadContextInvertableBuilder<T> onListValue(byte[] value);
     CdtReadContextInvertableBuilder<T> onListValue(SpecialValue value);
 
+    // List range operations
+    CdtReadActionInvertableBuilder<T> onListIndexRange(int index, int count);
+    CdtReadActionInvertableBuilder<T> onListIndexRange(int index);
+    CdtReadActionInvertableBuilder<T> onListRankRange(int rank, int count);
+    CdtReadActionInvertableBuilder<T> onListRankRange(int rank);
+    CdtReadActionInvertableBuilder<T> onListValueRange(long startIncl, long endExcl);
+    CdtReadActionInvertableBuilder<T> onListValueRange(String startIncl, String endExcl);
+    CdtReadActionInvertableBuilder<T> onListValueRange(byte[] startIncl, byte[] endExcl);
+    CdtReadActionInvertableBuilder<T> onListValueRange(double startIncl, double endExcl);
+    CdtReadActionInvertableBuilder<T> onListValueRange(SpecialValue startIncl, SpecialValue endExcl);
+    CdtReadActionInvertableBuilder<T> onListValueRange(SpecialValue startIncl, long endExcl);
+    CdtReadActionInvertableBuilder<T> onListValueRange(SpecialValue startIncl, String endExcl);
+    CdtReadActionInvertableBuilder<T> onListValueRange(SpecialValue startIncl, byte[] endExcl);
+    CdtReadActionInvertableBuilder<T> onListValueRange(SpecialValue startIncl, double endExcl);
+    CdtReadActionInvertableBuilder<T> onListValueRange(long startIncl, SpecialValue endExcl);
+    CdtReadActionInvertableBuilder<T> onListValueRange(String startIncl, SpecialValue endExcl);
+    CdtReadActionInvertableBuilder<T> onListValueRange(byte[] startIncl, SpecialValue endExcl);
+    CdtReadActionInvertableBuilder<T> onListValueRange(double startIncl, SpecialValue endExcl);
+    CdtReadContextInvertableBuilder<T> onListValueList(List<?> values);
+    CdtReadActionInvertableBuilder<T> onListValueRelativeRankRange(long value, int rank);
+    CdtReadActionInvertableBuilder<T> onListValueRelativeRankRange(String value, int rank);
+    CdtReadActionInvertableBuilder<T> onListValueRelativeRankRange(byte[] value, int rank);
+    CdtReadActionInvertableBuilder<T> onListValueRelativeRankRange(double value, int rank);
+    CdtReadActionInvertableBuilder<T> onListValueRelativeRankRange(SpecialValue value, int rank);
+    CdtReadActionInvertableBuilder<T> onListValueRelativeRankRange(long value, int rank, int count);
+    CdtReadActionInvertableBuilder<T> onListValueRelativeRankRange(String value, int rank, int count);
+    CdtReadActionInvertableBuilder<T> onListValueRelativeRankRange(byte[] value, int rank, int count);
+    CdtReadActionInvertableBuilder<T> onListValueRelativeRankRange(double value, int rank, int count);
+    CdtReadActionInvertableBuilder<T> onListValueRelativeRankRange(SpecialValue value, int rank, int count);
+
     // Read-only terminal operations
     /**
      * Get the size of the map at the current CDT path.
