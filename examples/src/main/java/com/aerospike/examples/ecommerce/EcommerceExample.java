@@ -43,7 +43,7 @@ public class EcommerceExample {
             // 1. Seed 20 customers, 100 products, and
             //    54 orders into Aerospike
             // ==========================================
-            SeedData.seed(session, customers, products, orders);
+            SeedData.seed(session, customers, products, orders); 
 
             // ==========================================
             // 2. Place an order using CompletableFuture
@@ -220,14 +220,9 @@ public class EcommerceExample {
         System.out.println("--- Streaming orders for customer " + customerId
                 + " via Flow.Publisher ---");
 
-        // Fetch all 3 orders for Alice (C-100)
-        List<String> aliceOrderIds = SeedData.ORDERS.stream()
-                .filter(o -> o.getCustomerId().equals(customerId))
-                .map(Order::getOrderId)
-                .toList();
-
         Flow.Publisher<RecordResult> publisher = session
-                .query(aliceOrderIds.stream().map(orders::id).toList())
+                .query(orders)
+                .where("$.customerId == '" + customerId + "'")
                 .executeAsync(ErrorStrategy.IN_STREAM)
                 .asPublisher();
 

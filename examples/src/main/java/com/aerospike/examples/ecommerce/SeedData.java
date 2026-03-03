@@ -20,7 +20,7 @@ public class SeedData {
     // -----------------------------------------------------------------
     // Customers
     // -----------------------------------------------------------------
-    static final List<Customer> CUSTOMERS = List.of(
+    private static final List<Customer> CUSTOMERS = List.of(
         new Customer("C-100", "Alice Park",       "alice@example.com",         500_000,         0),
         new Customer("C-101", "Bob Chen",         "bob.chen@example.com",      250_000,     8_499),
         new Customer("C-102", "Carol Martinez",   "carol.m@example.com",       100_000,    52_300),
@@ -46,7 +46,7 @@ public class SeedData {
     // -----------------------------------------------------------------
     // Products (100 items across categories)
     // -----------------------------------------------------------------
-    static final List<Product> PRODUCTS = List.of(
+    private static final List<Product> PRODUCTS = List.of(
         // Electronics
         new Product("SKU-TV55",    "55\" 4K Smart TV",             49_999,  20),
         new Product("SKU-TV65",    "65\" OLED TV",                 129_999,   8),
@@ -158,7 +158,7 @@ public class SeedData {
     // -----------------------------------------------------------------
     // Orders -- spread across customers so each has at least one
     // -----------------------------------------------------------------
-    static final List<Order> ORDERS;
+    private static final List<Order> ORDERS;
 
     static {
         long now = System.currentTimeMillis();
@@ -253,16 +253,12 @@ public class SeedData {
                 + PRODUCTS.size() + " products, "
                 + ORDERS.size() + " orders ...");
 
-        for (Customer c : CUSTOMERS) {
-            session.upsert(customers).object(c).using(CUSTOMER_MAPPER).execute();
-        }
-        for (Product p : PRODUCTS) {
-            session.upsert(products).object(p).using(PRODUCT_MAPPER).execute();
-        }
-        for (Order o : ORDERS) {
-            session.upsert(orders).object(o).using(ORDER_MAPPER).execute();
-        }
+        long now = System.nanoTime();
+        session.replace(customers).objects(CUSTOMERS).using(CUSTOMER_MAPPER).execute();
+        session.replace(products).objects(PRODUCTS).using(PRODUCT_MAPPER).execute();
+        session.replace(orders).objects(ORDERS).using(ORDER_MAPPER).execute();
+        long totalTime = (System.nanoTime() - now) / 1_000;
 
-        System.out.println("Seed data loaded.\n");
+        System.out.printf("Seed data loaded (%,d records) in %,dus.\n", CUSTOMERS.size() + PRODUCTS.size() + ORDERS.size(), totalTime);
     }
 }
