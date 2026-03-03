@@ -407,20 +407,21 @@ public class UdfTest extends ClusterTest {
 
         session.delete(keys).execute();
 
-		AerospikeException ae = assertThrows(AerospikeException.class, () -> {
-	   	    // TODO This command should not really fail with exception. The exception should
-			// not be thrown for all batch rows. Instead, all rows should be returned and the
-			// last row should have the result code set to an error.
-			RecordStream rs = session.executeUdf(keys)
-	        	.function("record_example", "writeWithValidation")
-	        	.passing(binName, 999)
-	        	.execute();
+		RecordStream rs = session.executeUdf(keys)
+        	.function("record_example", "writeWithValidation")
+        	.passing(binName, 999)
+        	.respondAllKeys()
+        	.execute();
 
-	        assertTrue(rs.hasNext());
-	        rs.getFirstUdfResult();
-		});
+        assertTrue(rs.hasNext());
+        RecordResult res = rs.next();
+		assertEquals(ResultCode.UDF_BAD_RESPONSE, res.resultCode());
 
-		assertEquals(ResultCode.UDF_BAD_RESPONSE, ae.getResultCode());
+        assertTrue(rs.hasNext());
+        res = rs.next();
+		assertEquals(ResultCode.UDF_BAD_RESPONSE, res.resultCode());
+
+        assertFalse(rs.hasNext());
 	}
 
 	@Test
@@ -429,19 +430,19 @@ public class UdfTest extends ClusterTest {
 		Key key2 = args.set.id(20005);
 		String binName = "B5";
 
-   	    // TODO This command fails due to an exception. The exception should not be thrown for
-		// all batch rows. Instead, all rows should be returned and the last row should
-		// have the result code set to an error.
 		RecordStream rs = session
 			.executeUdf(key1)
         		.function("record_example", "writeBin")
 	        	.passing(binName, "value1")
+	        	.respondAllKeys()
 			.executeUdf(key2)
         		.function("record_example", "writeWithValidation")
 	        	.passing(binName, 5)
+	        	.respondAllKeys()
 			.executeUdf(key2)
         		.function("record_example", "writeWithValidation")
 	        	.passing(binName, 999)
+	        	.respondAllKeys()
 	        .execute();
 
         assertTrue(rs.hasNext());

@@ -22,6 +22,7 @@ import com.aerospike.client.fluent.Cluster;
 import com.aerospike.client.fluent.DataSet;
 import com.aerospike.client.fluent.OpType;
 import com.aerospike.client.fluent.Operation;
+import com.aerospike.client.fluent.Value;
 import com.aerospike.client.fluent.exp.Expression;
 import com.aerospike.client.fluent.policy.CommitLevel;
 import com.aerospike.client.fluent.policy.Settings;
@@ -34,6 +35,9 @@ public final class BackgroundQueryCommand extends Command {
 	final OpType type;
 	final CommitLevel commitLevel;
 	final List<Operation> ops;
+	final String packageName;
+	final String functionName;
+	final Value[] functionArgs;
 	final int recordsPerSecond;
 	final int ttl;
 	final boolean durableDelete;
@@ -49,6 +53,9 @@ public final class BackgroundQueryCommand extends Command {
 		this.type = type;
 		this.commitLevel = policy.getCommitLevel();
 		this.ops = ops;
+		this.packageName = null;
+		this.functionName = null;
+		this.functionArgs = null;
 		this.recordsPerSecond = recordsPerSecond;
 		this.ttl = ttl;
 		this.durableDelete = policy.getUseDurableDelete();
