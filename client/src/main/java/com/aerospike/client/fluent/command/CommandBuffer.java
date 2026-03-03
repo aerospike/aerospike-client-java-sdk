@@ -251,6 +251,65 @@ public final class CommandBuffer {
 	}
 
 	//--------------------------------------------------
+	// UDF
+	//--------------------------------------------------
+
+	public final void setUdf(UdfCommand cmd) {
+		begin();
+		int fieldCount = estimateKeySize(cmd, cmd.key, true);
+
+		if (cmd.where != null) {
+			sizeFieldExpression(cmd.where);
+			fieldCount++;
+		}
+
+		byte[] argBytes = Packer.pack(cmd.args);
+		fieldCount += estimateUdfSize(cmd.packageName, cmd.functionName, argBytes);
+
+		sizeBuffer();
+		writeHeaderWrite(cmd, 0, Command.INFO2_WRITE, fieldCount, 0);
+		writeKey(cmd, cmd.key, true);
+
+		if (cmd.where != null) {
+			writeFieldExpression(cmd.where);
+		}
+
+		writeField(cmd.packageName, FieldType.UDF_PACKAGE_NAME);
+		writeField(cmd.functionName, FieldType.UDF_FUNCTION);
+		writeField(argBytes, FieldType.UDF_ARGLIST);
+		end();
+		compress(cmd);
+	}
+
+	/*
+	public final void setUdf(Policy policy, BatchAttr attr, Key key, String packageName, String functionName, Value[] args) {
+		byte[] argBytes = Packer.pack(args);
+		setUdf(policy, attr, key, packageName, functionName, argBytes);
+	}
+
+	public final void setUdf(Policy policy, BatchAttr attr, Key key, String packageName, String functionName, byte[] argBytes) {
+		begin();
+		Expression exp = getBatchExpression(policy, attr);
+		int fieldCount = estimateKeyAttrSize(policy, key, attr, exp);
+		fieldCount += estimateUdfSize(packageName, functionName, argBytes);
+
+		sizeBuffer();
+		writeKeyAttr(policy, key, attr, exp, fieldCount, 0);
+		writeField(packageName, FieldType.UDF_PACKAGE_NAME);
+		writeField(functionName, FieldType.UDF_FUNCTION);
+		writeField(argBytes, FieldType.UDF_ARGLIST);
+		end();
+		compress(policy);
+	}*/
+
+	private final int estimateUdfSize(String packageName, String functionName, byte[] bytes) {
+		dataOffset += Buffer.estimateSizeUtf8(packageName) + Command.FIELD_HEADER_SIZE;
+		dataOffset += Buffer.estimateSizeUtf8(functionName) + Command.FIELD_HEADER_SIZE;
+		dataOffset += bytes.length + Command.FIELD_HEADER_SIZE;
+		return 3;
+	}
+
+	//--------------------------------------------------
 	// Touch
 	//--------------------------------------------------
 

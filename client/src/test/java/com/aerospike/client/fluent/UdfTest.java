@@ -259,7 +259,8 @@ public class UdfTest extends ClusterTest {
 	        rs2.next().recordOrThrow();
 		});
 
-		assertEquals(ResultCode.UDF_BAD_RESPONSE, ae.getResultCode());
+		// The UDF 1000 error code is returned by the writeWithValidation() lua function.
+		assertEquals(1000, ae.getResultCode());
 	}
 
 	@Test
