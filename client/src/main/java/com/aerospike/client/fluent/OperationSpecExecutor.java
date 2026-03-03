@@ -305,7 +305,8 @@ class OperationSpecExecutor {
 	                break;
 
                 case BATCH_UDF:
-                    commands[count++] = new Batch.OperateListSync(cluster, parent, bn, records, status);
+                    commands[count++] = new BatchSingle.Udf(cluster, parent, (BatchUDF)rec, status,
+                    	bn.node);
                     break;
 
                 case BATCH_DELETE:

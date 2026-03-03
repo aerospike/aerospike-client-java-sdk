@@ -281,26 +281,22 @@ public final class CommandBuffer {
 		compress(cmd);
 	}
 
-	/*
-	public final void setUdf(Policy policy, BatchAttr attr, Key key, String packageName, String functionName, Value[] args) {
-		byte[] argBytes = Packer.pack(args);
-		setUdf(policy, attr, key, packageName, functionName, argBytes);
-	}
-
-	public final void setUdf(Policy policy, BatchAttr attr, Key key, String packageName, String functionName, byte[] argBytes) {
+	public final void setUdf(BatchCommand cmd, BatchUDF rec) {
 		begin();
-		Expression exp = getBatchExpression(policy, attr);
-		int fieldCount = estimateKeyAttrSize(policy, key, attr, exp);
-		fieldCount += estimateUdfSize(packageName, functionName, argBytes);
+		Expression where = (rec.where != null)? rec.where : cmd.where;
+		int fieldCount = estimateKeyAttrSize(cmd, rec, where);
+
+		byte[] argBytes = Packer.pack(rec.functionArgs);
+		fieldCount += estimateUdfSize(rec.packageName, rec.functionName, argBytes);
 
 		sizeBuffer();
-		writeKeyAttr(policy, key, attr, exp, fieldCount, 0);
-		writeField(packageName, FieldType.UDF_PACKAGE_NAME);
-		writeField(functionName, FieldType.UDF_FUNCTION);
+		writeKeyAttr(cmd, rec, where, 0, rec.ttl, fieldCount, 0);
+		writeField(rec.packageName, FieldType.UDF_PACKAGE_NAME);
+		writeField(rec.functionName, FieldType.UDF_FUNCTION);
 		writeField(argBytes, FieldType.UDF_ARGLIST);
 		end();
-		compress(policy);
-	}*/
+		compress(cmd);
+	}
 
 	private final int estimateUdfSize(String packageName, String functionName, byte[] bytes) {
 		dataOffset += Buffer.estimateSizeUtf8(packageName) + Command.FIELD_HEADER_SIZE;
