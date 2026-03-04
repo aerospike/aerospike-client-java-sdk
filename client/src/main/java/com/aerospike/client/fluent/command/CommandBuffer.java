@@ -251,6 +251,61 @@ public final class CommandBuffer {
 	}
 
 	//--------------------------------------------------
+	// UDF
+	//--------------------------------------------------
+
+	public final void setUdf(UdfCommand cmd) {
+		begin();
+		int fieldCount = estimateKeySize(cmd, cmd.key, true);
+
+		if (cmd.where != null) {
+			sizeFieldExpression(cmd.where);
+			fieldCount++;
+		}
+
+		byte[] argBytes = Packer.pack(cmd.args);
+		fieldCount += estimateUdfSize(cmd.packageName, cmd.functionName, argBytes);
+
+		sizeBuffer();
+		writeHeaderWrite(cmd, 0, Command.INFO2_WRITE, fieldCount, 0);
+		writeKey(cmd, cmd.key, true);
+
+		if (cmd.where != null) {
+			writeFieldExpression(cmd.where);
+		}
+
+		writeField(cmd.packageName, FieldType.UDF_PACKAGE_NAME);
+		writeField(cmd.functionName, FieldType.UDF_FUNCTION);
+		writeField(argBytes, FieldType.UDF_ARGLIST);
+		end();
+		compress(cmd);
+	}
+
+	public final void setUdf(BatchCommand cmd, BatchUDF rec) {
+		begin();
+		Expression where = (rec.where != null)? rec.where : cmd.where;
+		int fieldCount = estimateKeyAttrSize(cmd, rec, where);
+
+		byte[] argBytes = Packer.pack(rec.functionArgs);
+		fieldCount += estimateUdfSize(rec.packageName, rec.functionName, argBytes);
+
+		sizeBuffer();
+		writeKeyAttr(cmd, rec, where, 0, rec.ttl, fieldCount, 0);
+		writeField(rec.packageName, FieldType.UDF_PACKAGE_NAME);
+		writeField(rec.functionName, FieldType.UDF_FUNCTION);
+		writeField(argBytes, FieldType.UDF_ARGLIST);
+		end();
+		compress(cmd);
+	}
+
+	private final int estimateUdfSize(String packageName, String functionName, byte[] bytes) {
+		dataOffset += Buffer.estimateSizeUtf8(packageName) + Command.FIELD_HEADER_SIZE;
+		dataOffset += Buffer.estimateSizeUtf8(functionName) + Command.FIELD_HEADER_SIZE;
+		dataOffset += bytes.length + Command.FIELD_HEADER_SIZE;
+		return 3;
+	}
+
+	//--------------------------------------------------
 	// Touch
 	//--------------------------------------------------
 

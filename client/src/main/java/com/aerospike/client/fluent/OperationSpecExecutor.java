@@ -46,6 +46,8 @@ import com.aerospike.client.fluent.command.ReadExecutor;
 import com.aerospike.client.fluent.command.TouchExecutor;
 import com.aerospike.client.fluent.command.Txn;
 import com.aerospike.client.fluent.command.TxnMonitor;
+import com.aerospike.client.fluent.command.UdfCommand;
+import com.aerospike.client.fluent.command.UdfExecutor;
 import com.aerospike.client.fluent.command.WriteCommand;
 import com.aerospike.client.fluent.exp.Expression;
 import com.aerospike.client.fluent.policy.Behavior;
@@ -303,7 +305,8 @@ class OperationSpecExecutor {
 	                break;
 
                 case BATCH_UDF:
-                    commands[count++] = new Batch.OperateListSync(cluster, parent, bn, records, status);
+                    commands[count++] = new BatchSingle.Udf(cluster, parent, (BatchUDF)rec, status,
+                    	bn.node);
                     break;
 
                 case BATCH_DELETE:
@@ -448,11 +451,11 @@ class OperationSpecExecutor {
             if (spec.isQuery()) {
                 return executeSingleKeyRead(session, cluster, behavior, partitions, spec, key, filterExp, txn, scMode, respondAllKeys, failOnFilteredOut);
             } else if (spec.getOpType() == OpType.EXISTS) {
-                return executeSingleKeyExists(session, cluster, behavior, partitions, spec, key, filterExp, txn, scMode, respondAllKeys, failOnFilteredOut);
+                return executeSingleKeyExists(session, cluster, behavior, partitions, spec, key, filterExp, txn, scMode, failOnFilteredOut);
             } else if (spec.getOpType() == OpType.TOUCH) {
-                return executeSingleKeyTouch(session, cluster, behavior, partitions, spec, key, filterExp, ttl, txn, scMode, respondAllKeys, failOnFilteredOut);
+                return executeSingleKeyTouch(session, cluster, behavior, partitions, spec, key, filterExp, ttl, txn, scMode, failOnFilteredOut);
             } else if (spec.getOpType() == OpType.DELETE) {
-                return executeSingleKeyDelete(session, cluster, behavior, partitions, spec, key, filterExp, txn, scMode, respondAllKeys, failOnFilteredOut);
+                return executeSingleKeyDelete(session, cluster, behavior, partitions, spec, key, filterExp, txn, scMode, failOnFilteredOut);
             } else if (spec.getOpType() == OpType.UDF) {
                 return executeSingleKeyUdf(session, cluster, behavior, partitions, spec, key, filterExp, ttl, txn, scMode, respondAllKeys, failOnFilteredOut);
             } else {
@@ -558,7 +561,7 @@ class OperationSpecExecutor {
     private static RecordStream executeSingleKeyExists(
         Session session, Cluster cluster, Behavior behavior, Partitions partitions,
         OperationSpec spec, Key key, Expression filterExp, Txn txn,
-        boolean scMode, boolean respondAllKeys, boolean failOnFilteredOut
+        boolean scMode, boolean failOnFilteredOut
     ) {
         Settings settings = behavior.getSettings(OpKind.READ, OpShape.POINT, scMode);
         ReadAttr attr = new ReadAttr(partitions, settings);
@@ -584,7 +587,7 @@ class OperationSpecExecutor {
     private static RecordStream executeSingleKeyTouch(
         Session session, Cluster cluster, Behavior behavior, Partitions partitions,
         OperationSpec spec, Key key, Expression filterExp, long ttl, Txn txn,
-        boolean scMode, boolean respondAllKeys, boolean failOnFilteredOut
+        boolean scMode, boolean failOnFilteredOut
     ) {
         Settings settings = behavior.getSettings(OpKind.WRITE_NON_RETRYABLE, OpShape.POINT, scMode);
         int gen = spec.getGeneration();
@@ -610,7 +613,7 @@ class OperationSpecExecutor {
     private static RecordStream executeSingleKeyDelete(
         Session session, Cluster cluster, Behavior behavior, Partitions partitions,
         OperationSpec spec, Key key, Expression filterExp, Txn txn,
-        boolean scMode, boolean respondAllKeys, boolean failOnFilteredOut
+        boolean scMode, boolean failOnFilteredOut
     ) {
         Settings settings = behavior.getSettings(OpKind.WRITE_RETRYABLE, OpShape.POINT, scMode);
         int gen = spec.getGeneration();
@@ -632,49 +635,33 @@ class OperationSpecExecutor {
     }
 
     /**
-     * Execute a single-key UDF operation using the batch infrastructure.
+     * Execute a single-key UDF operation.
      * UDF execution requires server-side Lua functions to be registered.
      */
     private static RecordStream executeSingleKeyUdf(
         Session session, Cluster cluster, Behavior behavior, Partitions partitions,
-        OperationSpec spec, Key key, Expression filterExp, long ttl, Txn txn,
+        OperationSpec spec, Key key, Expression where, long ttl, Txn txn,
         boolean scMode, boolean respondAllKeys, boolean failOnFilteredOut
     ) {
-        Settings settings = behavior.getSettings(OpKind.WRITE_NON_RETRYABLE, OpShape.BATCH, scMode);
-        BatchAttr attr = new BatchAttr();
-        attr.setWrite(settings, OpType.UDF);
-
-        Value[] udfArgs = spec.getUdfArguments();
-        BatchUDF udfRecord = new BatchUDF(key, filterExp, attr, spec.getUdfPackageName(),
-            spec.getUdfFunctionName(), udfArgs != null ? udfArgs : new Value[0], (int) ttl);
-
-        List<BatchRecord> records = new ArrayList<>(1);
-        records.add(udfRecord);
+        Settings settings = behavior.getSettings(OpKind.WRITE_NON_RETRYABLE, OpShape.POINT, scMode);
 
         if (txn != null) {
             TxnMonitor.addKey(txn, session, key);
         }
 
-        BatchStatus status = new BatchStatus();
-        BatchCommand parent = new BatchCommand(cluster, null, txn, null, records,
-            filterExp, respondAllKeys, false, settings);
+        UdfCommand cmd = new UdfCommand(cluster, partitions, txn, key, spec, (int)ttl, where,
+    		failOnFilteredOut, settings);
 
-        List<BatchNode> bns = BatchNodes.generate(cluster, parent, records, status);
+        UdfExecutor exec = new UdfExecutor(cluster, cmd);
+        exec.execute();
 
-        IBatchCommand[] commands = new IBatchCommand[bns.size()];
-        int count = 0;
+        Record rec = exec.getRecord();
 
-        for (BatchNode bn : bns) {
-            commands[count++] = new Batch.OperateListSync(cluster, parent, bn, records, status);
-        }
-
-        BatchExecutor.execute(cluster, commands, status);
-
-        BatchRecord br = records.get(0);
-        if (shouldIncludeResult(br.resultCode, respondAllKeys, failOnFilteredOut)) {
-            Object udfResult = br.record != null ? extractUdfResult(br.record) : null;
+        if (rec != null || respondAllKeys) {
+            Object udfResult = (rec != null)? extractUdfResult(rec) : null;
             return new RecordStream(new RecordResult(key, udfResult, 0));
         }
+
         return new RecordStream();
     }
 

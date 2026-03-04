@@ -31,75 +31,7 @@ import com.aerospike.client.fluent.metrics.LatencyType;
 import com.aerospike.client.fluent.tend.Partition;
 
 public final class BatchSingle {
-/*
-	public static final class OperateRead extends Read {
-		private final List<Operation> ops;
 
-		public OperateRead(
-			Cluster cluster,
-			BatchPolicy policy,
-			Key key,
-			List<Operation> ops,
-			Record[] records,
-			int index,
-			BatchStatus status,
-			Node node
-		) {
-			super(cluster, policy, key, null, records, index, status, node, true);
-			this.ops = ops;
-		}
-
-		@Override
-		protected void writeBuffer() {
-			setRead(policy, key, ops);
-		}
-	}
-
-	public static class Read extends BaseCommand {
-		protected final Key key;
-		private final String[] binNames;
-		private final Record[] records;
-		private final int index;
-		private final boolean isOperation;
-
-		public Read(
-			Cluster cluster,
-			Policy policy,
-			Key key,
-			String[] binNames,
-			Record[] records,
-			int index,
-			BatchStatus status,
-			Node node,
-			boolean isOperation
-		) {
-			super(cluster, policy, status, key, node, false);
-			this.key = key;
-			this.binNames = binNames;
-			this.records = records;
-			this.index = index;
-			this.isOperation = isOperation;
-		}
-
-		@Override
-		protected void writeBuffer() {
-			setRead(policy, key, binNames);
-		}
-
-		@Override
-		protected void parseResult(Node node, Connection conn) throws IOException {
-			RecordParser rp = new RecordParser(conn, dataBuffer);
-			rp.parseFields(policy.txn, key, false);
-
-			if (rp.resultCode == ResultCode.OK) {
-				records[index] = rp.parseRecord(isOperation);
-			}
-			if (node.areMetricsEnabled()) {
-				node.addBytesIn(namespace, rp.bytesIn);
-			}
-		}
-	}
-*/
 	public static class ReadRecordAsync extends ReadRecordSync {
 		private final AsyncRecordStream stream;
 		private final int index;
@@ -381,47 +313,41 @@ public final class BatchSingle {
 			return true;
 		}
 	}
-/*
-	public static final class UDF extends BaseCommand {
-		private final String packageName;
-		private final String functionName;
-		private final Value[] args;
-		private final BatchAttr attr;
-		private final BatchRecord record;
 
-		public UDF(
+	public static final class Udf extends BatchSingleExecutor {
+		private final BatchCommand cmd;
+		private final BatchUDF rec;
+
+		public Udf(
 			Cluster cluster,
-			BatchPolicy policy,
-			String packageName,
-			String functionName,
-			Value[] args,
-			BatchAttr attr,
-			BatchRecord record,
+			BatchCommand cmd,
+			BatchUDF rec,
 			BatchStatus status,
 			Node node
 		) {
-			super(cluster, policy, status, record.key, node, true);
-			this.packageName = packageName;
-			this.functionName = functionName;
-			this.args = args;
-			this.attr = attr;
-			this.record = record;
+			super(cluster, cmd, status, rec.key, node, true);
+			this.cmd = cmd;
+			this.rec = rec;
 		}
 
 		@Override
-		protected void writeBuffer() {
-			setUdf(policy, attr, record.key, packageName, functionName, args);
+		protected CommandBuffer getCommandBuffer() {
+			CommandBuffer cb = new CommandBuffer();
+			cb.setUdf(cmd, rec);
+			return cb;
 		}
 
 		@Override
-		protected void parseResult(Node node, Connection conn) throws IOException {
-			RecordParser rp = new RecordParser(conn, dataBuffer);
-			rp.parseFields(policy.txn, key, true);
-			if (node.areMetricsEnabled()) {
-				node.addBytesIn(namespace, rp.bytesIn);
+		protected void parseResult(Node node, Connection conn, byte[] buffer) throws IOException {
+			RecordParser rp = new RecordParser(conn, buffer);
+			rp.parseFields(cmd.txn, key, true);
+
+			if (node.isMetricsEnabled()) {
+				node.addBytesIn(rec.key.namespace, rp.bytesIn);
 			}
+
 			if (rp.resultCode == ResultCode.OK) {
-				record.setRecord(rp.parseRecord(false));
+				rec.setRecord(rp.parseRecord(false));
 			}
 			else if (rp.resultCode == ResultCode.UDF_BAD_RESPONSE) {
 				Record r = rp.parseRecord(false);
@@ -429,26 +355,37 @@ public final class BatchSingle {
 
 				if (m != null) {
 					// Need to store record because failure bin contains an error message.
-					record.record = r;
-					record.resultCode = rp.resultCode;
-					record.inDoubt = Command.batchInDoubt(true, commandSentCounter);
+					rec.record = r;
+					rec.resultCode = rp.resultCode;
+					rec.inDoubt = BatchCommand.inDoubt(true, commandSentCounter);
 					status.setRowError();
 				}
 			}
 			else {
-				record.setError(rp.resultCode, Command.batchInDoubt(true, commandSentCounter));
+				rec.setError(rp.resultCode, BatchCommand.inDoubt(rec.hasWrite, commandSentCounter));
 				status.setRowError();
 			}
 		}
 
 		@Override
 		public void setInDoubt() {
-			if (record.resultCode == ResultCode.NO_RESPONSE) {
-				record.inDoubt = true;
+			if (rec.resultCode == ResultCode.NO_RESPONSE) {
+				rec.inDoubt = true;
 			}
 		}
+
+		@Override
+		protected boolean prepareRetry(boolean timeout) {
+			Partition p = new Partition(parent.partitions, key, parent.replica, null, false);
+			p.sequence = sequence;
+			p.prevNode = node;
+			p.prepareRetryWrite(timeout);
+			node = p.getNodeWrite(cluster);
+			sequence = p.sequence;
+			return true;
+		}
 	}
-*/
+
 	//-------------------------------------------------------
 	// Transaction
 	//-------------------------------------------------------

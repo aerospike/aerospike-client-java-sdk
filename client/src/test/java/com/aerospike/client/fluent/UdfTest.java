@@ -259,7 +259,8 @@ public class UdfTest extends ClusterTest {
 	        rs2.next().recordOrThrow();
 		});
 
-		assertEquals(ResultCode.UDF_BAD_RESPONSE, ae.getResultCode());
+		// The UDF 1000 error code is returned by the writeWithValidation() lua function.
+		assertEquals(1000, ae.getResultCode());
 	}
 
 	@Test
@@ -400,7 +401,7 @@ public class UdfTest extends ClusterTest {
 	@Test
 	public void batchUDFError() {
 		Key key1 = args.set.id(20002);
-		Key key2 = args.set.id(20003);
+		Key key2 = args.set.id(20004);
 		String binName = "B5";
 
 		List<Key> keys = List.of(key1, key2);
@@ -426,8 +427,8 @@ public class UdfTest extends ClusterTest {
 
 	@Test
 	public void batchUDFComplex() {
-		Key key1 = args.set.id(20004);
-		Key key2 = args.set.id(20005);
+		Key key1 = args.set.id(20005);
+		Key key2 = args.set.id(20007);
 		String binName = "B5";
 
 		RecordStream rs = session

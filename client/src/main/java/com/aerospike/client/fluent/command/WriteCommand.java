@@ -38,30 +38,30 @@ public class WriteCommand extends Command {
 
 	public WriteCommand(
 		Cluster cluster, Partitions partitions, Txn txn, Key key, OpType type, int gen, int ttl,
-		Expression filterExp, boolean failOnFilteredOut, Settings policy
+		Expression where, boolean failOnFilteredOut, Settings settings
 	) {
-		super(cluster, key.namespace, txn, filterExp, policy.getReplicaOrder(), policy);
+		super(cluster, key.namespace, txn, where, settings.getReplicaOrder(), settings);
 		this.key = key;
 		this.partition = new Partition(partitions, key, replica, null, false);
 		this.type = type;
-		this.commitLevel = policy.getCommitLevel();
+		this.commitLevel = settings.getCommitLevel();
 		this.gen = gen;
 		this.ttl = ttl;
 		this.onLockingOnly = false;
-		this.durableDelete = policy.getUseDurableDelete();
+		this.durableDelete = settings.getUseDurableDelete();
 		this.failOnFilteredOut = failOnFilteredOut;
 	}
 
-	public WriteCommand(Cluster cluster, Partitions partitions, Key key, Settings policy) {
-		super(cluster, key.namespace, null, null, policy.getReplicaOrder(), policy);
+	public WriteCommand(Cluster cluster, Partitions partitions, Key key, Settings settings) {
+		super(cluster, key.namespace, null, null, settings.getReplicaOrder(), settings);
 		this.key = key;
 		this.partition = new Partition(partitions, key, replica, null, false);
 		this.type = OpType.UPSERT;
-		this.commitLevel = policy.getCommitLevel();
+		this.commitLevel = settings.getCommitLevel();
 		this.gen = 0;
 		this.ttl = 0;
 		this.onLockingOnly = false;
-		this.durableDelete = policy.getUseDurableDelete();
+		this.durableDelete = settings.getUseDurableDelete();
 		this.failOnFilteredOut = false;
 	}
 }
