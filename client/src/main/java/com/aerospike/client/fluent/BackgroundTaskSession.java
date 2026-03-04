@@ -3,42 +3,51 @@ package com.aerospike.client.fluent;
 /**
  * Context for performing server-side background operations on entire sets.
  * Obtained via {@link Session#backgroundTask()}.
- * 
+ *
  * <p>Background operations run asynchronously on the server and return
- * an {@link com.aerospike.client.task.ExecuteTask} for monitoring completion.
+ * an {@link com.aerospike.client.fluent.task.ExecuteTask} for monitoring completion.
  * They operate on entire sets and cannot be part of transactions.</p>
- * 
+ *
  * <p><b>Supported Operations:</b></p>
  * <ul>
  *   <li>UPDATE - Update existing records only</li>
  *   <li>DELETE - Delete existing records</li>
  *   <li>TOUCH - Touch existing records (update TTL)</li>
+ *   <li>UDF - Execute a registered Lua function against matching records</li>
  * </ul>
- * 
+ *
  * <p><b>Limitations:</b></p>
  * <ul>
- *   <li>Records must already exist (no INSERT/UPSERT)</li>
  *   <li>Cannot be used within transactions</li>
  *   <li>Operates on entire sets (no specific keys)</li>
  *   <li>Does not return record data, only completion status</li>
  * </ul>
- * 
- * <p><b>Example:</b></p>
+ *
+ * <p><b>Examples:</b></p>
  * <pre>{@code
+ * // Bulk update
  * ExecuteTask task = session.backgroundTask()
  *     .update(customerDataSet)
  *     .where("$.age > 30")
  *     .bin("category").setTo("senior")
  *     .expireRecordAfter(Duration.ofDays(90))
  *     .execute();
- * 
+ *
+ * // Background UDF
+ * ExecuteTask udfTask = session.backgroundTask()
+ *     .executeUdf(products)
+ *     .function("inventory", "applyDiscount")
+ *     .passing(0.20)
+ *     .where("$.stock > 250")
+ *     .execute();
+ *
  * // Monitor progress
  * task.waitTillComplete();
- * System.out.println("Updated records: " + task.getRecordsRead());
  * }</pre>
- * 
+ *
  * @see Session#backgroundTask()
  * @see BackgroundOperationBuilder
+ * @see BackgroundUdfFunctionBuilder
  */
 public class BackgroundTaskSession {
     private final Session session;
@@ -123,6 +132,38 @@ public class BackgroundTaskSession {
      */
     public BackgroundOperationBuilder touch(DataSet dataset) {
         return new BackgroundOperationBuilder(session, dataset, OpType.TOUCH);
+    }
+
+    /**
+     * Create a background UDF operation for a dataset.
+     * Executes a registered Lua function against all records in the set
+     * that match an optional where clause.
+     *
+     * <p>Background UDFs run server-side and are useful for bulk transformations
+     * that need custom logic beyond simple bin updates. The UDF package must be
+     * registered on the server before use.</p>
+     *
+     * <p><b>Example:</b></p>
+     * <pre>{@code
+     * ExecuteTask task = session.backgroundTask()
+     *     .executeUdf(products)
+     *     .function("inventory", "applyDiscount")
+     *     .passing(0.20)
+     *     .where("$.stock > 250")
+     *     .recordsPerSecond(5000)
+     *     .execute();
+     *
+     * task.waitTillComplete();
+     * }</pre>
+     *
+     * @param dataset The dataset (namespace + set) to operate on
+     * @return BackgroundUdfFunctionBuilder requiring the UDF function to be specified
+     * @throws IllegalStateException if called within a transaction
+     * @see BackgroundUdfFunctionBuilder#function(String, String)
+     * @see BackgroundUdfBuilder
+     */
+    public BackgroundUdfFunctionBuilder executeUdf(DataSet dataset) {
+        return new BackgroundUdfFunctionBuilder(session, dataset);
     }
 }
 

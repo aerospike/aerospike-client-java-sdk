@@ -1106,7 +1106,7 @@ public class Session {
      *   <li>Run on entire sets (not specific keys)</li>
      *   <li>Cannot be part of transactions</li>
      *   <li>Return ExecuteTask (not record data)</li>
-     *   <li>Support UPDATE, DELETE, and TOUCH operations only</li>
+     *   <li>Support UPDATE, DELETE, TOUCH, and UDF operations</li>
      * </ul>
      *
      * <p><b>Use Cases:</b></p>
@@ -1114,9 +1114,10 @@ public class Session {
      *   <li>Bulk updates based on criteria</li>
      *   <li>Cleaning up old records</li>
      *   <li>Extending TTL for active records</li>
+     *   <li>Executing Lua UDFs against matching records</li>
      * </ul>
      *
-     * <p><b>Example:</b></p>
+     * <p><b>Examples:</b></p>
      * <pre>{@code
      * // Update all customers over 30
      * ExecuteTask task = session.backgroundTask()
@@ -1139,11 +1140,20 @@ public class Session {
      *     .where("$.status == 'active'")
      *     .expireRecordAfter(Duration.ofDays(30))
      *     .execute();
+     *
+     * // Execute a UDF against all overstocked products
+     * ExecuteTask udfTask = session.backgroundTask()
+     *     .executeUdf(products)
+     *     .function("inventory", "applyDiscount")
+     *     .passing(0.20)
+     *     .where("$.stock > 250")
+     *     .execute();
      * }</pre>
      *
      * @return BackgroundTaskSession for creating background operations
      * @see BackgroundTaskSession
      * @see BackgroundOperationBuilder
+     * @see BackgroundUdfFunctionBuilder
      */
     public BackgroundTaskSession backgroundTask() {
         return new BackgroundTaskSession(this);

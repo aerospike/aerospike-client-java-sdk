@@ -60,4 +60,25 @@ public final class BackgroundQueryCommand extends Command {
 		this.ttl = ttl;
 		this.durableDelete = policy.getUseDurableDelete();
 	}
+	
+   public BackgroundQueryCommand(
+           Cluster cluster, DataSet set, long taskId, OpType type,  int ttl,
+           String packageName, String functionName, Value[] functionArgs,
+           Filter filter, Expression filterExp, Settings policy, int recordsPerSecond
+       ) {
+       super(cluster, set.getNamespace(), null, filterExp, policy.getReplicaOrder(), policy);
+       this.taskId = taskId;
+       this.set = set.getSet();
+       this.filter = filter;
+       this.type = type;
+       this.commitLevel = policy.getCommitLevel();
+       this.packageName = packageName;
+       this.functionName = functionName;
+       this.functionArgs = functionArgs;
+       this.ops = null;
+       this.recordsPerSecond = recordsPerSecond;
+       this.ttl = ttl;
+       this.durableDelete = policy.getUseDurableDelete();
+   }
+
 }

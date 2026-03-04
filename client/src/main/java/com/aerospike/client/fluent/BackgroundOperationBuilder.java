@@ -233,6 +233,21 @@ public class BackgroundOperationBuilder extends AbstractOperationBuilder<Backgro
 
         Filter filter = null;
         Expression filterExp = null;
+        
+        // Set the ops to be valid based on the opType
+        if (ops.isEmpty()) {
+            switch (opType) {
+            case DELETE:
+                ops.add(Operation.delete());
+                break;
+            case TOUCH:
+                ops.add(Operation.touch());
+                break;
+            default:
+                throw AerospikeException.resultCodeToException(
+                        ResultCode.PARAMETER_ERROR, "No operations were passed to an update() running as a background task.");
+            }
+        }
 
         if (dsl != null) {
         	ParseResult pr = dsl.process(dataset.getNamespace(), session);
