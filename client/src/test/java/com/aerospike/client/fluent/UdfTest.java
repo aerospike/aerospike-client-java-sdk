@@ -435,15 +435,12 @@ public class UdfTest extends ClusterTest {
 			.executeUdf(key1)
         		.function("record_example", "writeBin")
 	        	.passing(binName, "value1")
-	        	.includeMissingKeys()
 			.executeUdf(key2)
         		.function("record_example", "writeWithValidation")
 	        	.passing(binName, 5)
-	        	.includeMissingKeys()
 			.executeUdf(key2)
         		.function("record_example", "writeWithValidation")
 	        	.passing(binName, 999)
-	        	.includeMissingKeys()
 	        .execute();
 
         assertTrue(rs.hasNext());
