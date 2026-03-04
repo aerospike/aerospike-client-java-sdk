@@ -222,7 +222,7 @@ public final class CommandBuffer {
 
 			for (Operation op : rec.ops) {
 				if (op.type.isWrite) {
-					throw new AerospikeException(ResultCode.PARAMETER_ERROR, "Write operations not allowed in read");
+					throw AerospikeException.resultCodeToException(ResultCode.PARAMETER_ERROR, "Write operations not allowed in read");
 				}
 				estimateOperationSize(op);
 			}
@@ -1121,7 +1121,7 @@ public final class CommandBuffer {
 			// Estimate size for background operations.
 			for (Operation operation : operations) {
 				if (! operation.type.isWrite) {
-					throw new AerospikeException(ResultCode.PARAMETER_ERROR, "Read operations not allowed in background query");
+					throw AerospikeException.resultCodeToException(ResultCode.PARAMETER_ERROR, "Read operations not allowed in background query");
 				}
 				estimateOperationSize(operation);
 			}

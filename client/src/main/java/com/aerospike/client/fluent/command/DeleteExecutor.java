@@ -78,13 +78,13 @@ public class DeleteExecutor extends SyncExecutor {
 
 		if (rp.resultCode == ResultCode.FILTERED_OUT) {
 			if (delete.failOnFilteredOut) {
-				throw new AerospikeException(rp.resultCode);
+				throw AerospikeException.resultCodeToException(rp.resultCode, null);
 			}
 			existed = true;
 			return;
 		}
 
-		throw new AerospikeException(rp.resultCode);
+		throw AerospikeException.resultCodeToException(rp.resultCode, null);
 	}
 
 	@Override

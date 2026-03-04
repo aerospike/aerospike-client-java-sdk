@@ -363,7 +363,7 @@ public class Cluster implements Closeable {
 		Node[] nodeArray = nodes;
 
 		if (nodeArray.length == 0) {
-			throw new AerospikeException(ResultCode.SERVER_NOT_AVAILABLE, "Cluster is empty");
+			throw AerospikeException.resultCodeToException(ResultCode.SERVER_NOT_AVAILABLE, "Cluster is empty");
 		}
 		return nodeArray;
 	}

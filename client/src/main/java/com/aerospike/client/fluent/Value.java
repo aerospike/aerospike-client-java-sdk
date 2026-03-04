@@ -409,7 +409,7 @@ public abstract class Value {
 
 		@Override
 		public void validateKeyType() {
-			throw new AerospikeException(ResultCode.PARAMETER_ERROR, "Invalid key type: null");
+			throw AerospikeException.resultCodeToException(ResultCode.PARAMETER_ERROR, "Invalid key type: null");
 		}
 
 		@Override
@@ -1154,7 +1154,7 @@ public abstract class Value {
 
 		@Override
 		public void validateKeyType() {
-			throw new AerospikeException(ResultCode.PARAMETER_ERROR, "Invalid key type: boolean");
+			throw AerospikeException.resultCodeToException(ResultCode.PARAMETER_ERROR, "Invalid key type: boolean");
 		}
 
 		@Override
@@ -1230,7 +1230,7 @@ public abstract class Value {
 
 		@Override
 		public void validateKeyType() {
-			throw new AerospikeException(ResultCode.PARAMETER_ERROR, "Invalid key type: BoolIntValue");
+			throw AerospikeException.resultCodeToException(ResultCode.PARAMETER_ERROR, "Invalid key type: BoolIntValue");
 		}
 
 		@Override
@@ -1307,7 +1307,7 @@ public abstract class Value {
 
 		@Override
 		public void validateKeyType() {
-			throw new AerospikeException(ResultCode.PARAMETER_ERROR, "Invalid key type: GeoJson");
+			throw AerospikeException.resultCodeToException(ResultCode.PARAMETER_ERROR, "Invalid key type: GeoJson");
 		}
 
 		@Override
@@ -1371,7 +1371,7 @@ public abstract class Value {
 
 		@Override
 		public void validateKeyType() {
-			throw new AerospikeException(ResultCode.PARAMETER_ERROR, "Invalid key type: HLL");
+			throw AerospikeException.resultCodeToException(ResultCode.PARAMETER_ERROR, "Invalid key type: HLL");
 		}
 
 		@Override
@@ -1441,7 +1441,7 @@ public abstract class Value {
 
 		@Override
 		public void validateKeyType() {
-			throw new AerospikeException(ResultCode.PARAMETER_ERROR, "Invalid key type: value[]");
+			throw AerospikeException.resultCodeToException(ResultCode.PARAMETER_ERROR, "Invalid key type: value[]");
 		}
 
 		@Override
@@ -1507,7 +1507,7 @@ public abstract class Value {
 
 		@Override
 		public void validateKeyType() {
-			throw new AerospikeException(ResultCode.PARAMETER_ERROR, "Invalid key type: list");
+			throw AerospikeException.resultCodeToException(ResultCode.PARAMETER_ERROR, "Invalid key type: list");
 		}
 
 		@Override
@@ -1584,7 +1584,7 @@ public abstract class Value {
 
 		@Override
 		public void validateKeyType() {
-			throw new AerospikeException(ResultCode.PARAMETER_ERROR, "Invalid key type: map");
+			throw AerospikeException.resultCodeToException(ResultCode.PARAMETER_ERROR, "Invalid key type: map");
 		}
 
 		@Override
@@ -1656,7 +1656,7 @@ public abstract class Value {
 
 		@Override
 		public void validateKeyType() {
-			throw new AerospikeException(ResultCode.PARAMETER_ERROR, "Invalid key type: map");
+			throw AerospikeException.resultCodeToException(ResultCode.PARAMETER_ERROR, "Invalid key type: map");
 		}
 
 		@Override
@@ -1715,12 +1715,12 @@ public abstract class Value {
 
 		@Override
 		public void validateKeyType() {
-			throw new AerospikeException(ResultCode.PARAMETER_ERROR, "Invalid key type: INF");
+			throw AerospikeException.resultCodeToException(ResultCode.PARAMETER_ERROR, "Invalid key type: INF");
 		}
 
 		@Override
 		public int getType() {
-			throw new AerospikeException(ResultCode.PARAMETER_ERROR, "Invalid particle type: INF");
+			throw AerospikeException.resultCodeToException(ResultCode.PARAMETER_ERROR, "Invalid particle type: INF");
 		}
 
 		@Override
@@ -1730,7 +1730,7 @@ public abstract class Value {
 /*
 		@Override
 		public LuaValue getLuaValue(LuaInstance instance) {
-			throw new AerospikeException(ResultCode.PARAMETER_ERROR, "Invalid lua type: INF");
+			throw AerospikeException.resultCodeToException(ResultCode.PARAMETER_ERROR, "Invalid lua type: INF");
 		}
 */
 		@Override
@@ -1771,12 +1771,12 @@ public abstract class Value {
 
 		@Override
 		public void validateKeyType() {
-			throw new AerospikeException(ResultCode.PARAMETER_ERROR, "Invalid key type: wildcard");
+			throw AerospikeException.resultCodeToException(ResultCode.PARAMETER_ERROR, "Invalid key type: wildcard");
 		}
 
 		@Override
 		public int getType() {
-			throw new AerospikeException(ResultCode.PARAMETER_ERROR, "Invalid particle type: wildcard");
+			throw AerospikeException.resultCodeToException(ResultCode.PARAMETER_ERROR, "Invalid particle type: wildcard");
 		}
 
 		@Override
@@ -1786,7 +1786,7 @@ public abstract class Value {
 /*
 		@Override
 		public LuaValue getLuaValue(LuaInstance instance) {
-			throw new AerospikeException(ResultCode.PARAMETER_ERROR, "Invalid lua type: wildcard");
+			throw AerospikeException.resultCodeToException(ResultCode.PARAMETER_ERROR, "Invalid lua type: wildcard");
 		}
 */
 		@Override

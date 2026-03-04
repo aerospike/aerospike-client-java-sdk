@@ -151,7 +151,7 @@ public record RecordResult(Key key, Record recordOrNull, Object udfReturnValue, 
             return null;
         }
         if (!(udfReturnValue instanceof Map)) {
-            throw new AerospikeException(ResultCode.OP_NOT_APPLICABLE, 
+            throw AerospikeException.resultCodeToException(ResultCode.OP_NOT_APPLICABLE, 
                     "UDF result is not a Map, cannot use RecordMapper. Actual type: " 
                 + udfReturnValue.getClass().getName());
         }

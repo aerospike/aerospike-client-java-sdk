@@ -78,13 +78,13 @@ public class TouchExecutor extends SyncExecutor {
 
 		if (rp.resultCode == ResultCode.FILTERED_OUT) {
 			if (touch.failOnFilteredOut) {
-				throw new AerospikeException(rp.resultCode);
+				throw AerospikeException.resultCodeToException(rp.resultCode, null);
 			}
 			touched = false;
 			return;
 		}
 
-		throw new AerospikeException(rp.resultCode);
+		throw AerospikeException.resultCodeToException(rp.resultCode, null);
 	}
 
 	@Override

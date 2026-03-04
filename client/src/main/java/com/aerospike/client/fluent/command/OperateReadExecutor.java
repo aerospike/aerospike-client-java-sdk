@@ -69,12 +69,12 @@ public class OperateReadExecutor extends SyncExecutor {
 
 		if (rp.resultCode == ResultCode.FILTERED_OUT) {
 			if (operate.failOnFilteredOut) {
-				throw new AerospikeException(rp.resultCode);
+				throw AerospikeException.resultCodeToException(rp.resultCode, null);
 			}
 			return;
 		}
 
-		throw new AerospikeException(rp.resultCode);
+		throw AerospikeException.resultCodeToException(rp.resultCode, null);
 	}
 
 	@Override

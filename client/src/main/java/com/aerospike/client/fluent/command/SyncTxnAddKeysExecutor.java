@@ -49,7 +49,7 @@ public final class SyncTxnAddKeysExecutor extends OperateWriteExecutor {
 			return;
 		}
 
-		throw new AerospikeException(rp.resultCode, "Server error");
+		throw AerospikeException.resultCodeToException(rp.resultCode, "Server error");
 	}
 
 	@Override

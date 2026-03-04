@@ -529,7 +529,7 @@ public class TxnTest extends ClusterTest {
 			case COMMITTED:
 				break;
 			case ABORTED:
-				throw new AerospikeException(ResultCode.TXN_ALREADY_ABORTED, "Transaction already aborted");
+				throw AerospikeException.resultCodeToException(ResultCode.TXN_ALREADY_ABORTED, "Transaction already aborted");
 		}
 	}
 
@@ -547,7 +547,7 @@ public class TxnTest extends ClusterTest {
 				tr.abort(rollPolicy);
 				break;
 			case COMMITTED:
-				throw new AerospikeException(ResultCode.TXN_ALREADY_COMMITTED, "Transaction already committed");
+				throw AerospikeException.resultCodeToException(ResultCode.TXN_ALREADY_COMMITTED, "Transaction already committed");
 			case ABORTED:
 				break;
 		}

@@ -70,7 +70,7 @@ public final class TxnMarkRollForward extends SyncExecutor {
 			return;
 		}
 
-		throw new AerospikeException(rp.resultCode);
+		throw AerospikeException.resultCodeToException(rp.resultCode, null);
 	}
 
 	@Override

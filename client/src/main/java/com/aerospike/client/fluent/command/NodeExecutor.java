@@ -208,7 +208,7 @@ public abstract class NodeExecutor extends SyncExecutor {
 			if ((info3 & Command.INFO3_LAST) != 0) {
 				if (resultCode != 0) {
 					// The server returned a fatal error.
-					throw new AerospikeException(resultCode);
+					throw AerospikeException.resultCodeToException(resultCode, null);
 				}
 				return false;
 			}

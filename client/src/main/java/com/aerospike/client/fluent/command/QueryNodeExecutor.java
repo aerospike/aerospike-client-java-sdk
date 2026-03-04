@@ -74,7 +74,7 @@ public final class QueryNodeExecutor extends NodeExecutor {
 		}
 
 		if (resultCode != 0) {
-			throw new AerospikeException(resultCode);
+			throw AerospikeException.resultCodeToException(resultCode, null);
 		}
 
 		Record record = parseRecord();

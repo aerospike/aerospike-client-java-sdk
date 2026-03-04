@@ -254,7 +254,7 @@ public class TransactionalSession extends Session{
 				return CommitStatus.ALREADY_COMMITTED;
 
 			case ABORTED:
-				throw new AerospikeException(ResultCode.TXN_ALREADY_ABORTED, "Transaction already aborted");
+				throw AerospikeException.resultCodeToException(ResultCode.TXN_ALREADY_ABORTED, "Transaction already aborted");
 		}
     }
 
@@ -269,7 +269,7 @@ public class TransactionalSession extends Session{
 				return tr.abort(rollPolicy);
 
 			case COMMITTED:
-				throw new AerospikeException(ResultCode.TXN_ALREADY_COMMITTED, "Transaction already committed");
+				throw AerospikeException.resultCodeToException(ResultCode.TXN_ALREADY_COMMITTED, "Transaction already committed");
 
 			case ABORTED:
 				return AbortStatus.ALREADY_ABORTED;

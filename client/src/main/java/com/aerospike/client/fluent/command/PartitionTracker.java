@@ -62,16 +62,16 @@ public final class PartitionTracker {
 		// cluster partitions may change on the server and PartitionFilter will never have access
 		// to Cluster instance.  Use fixed number of partitions for now.
 		if (!(filter.begin >= 0 && filter.begin < Node.PARTITIONS)) {
-			throw new AerospikeException(ResultCode.PARAMETER_ERROR, "Invalid partition begin " + filter.begin +
+			throw AerospikeException.resultCodeToException(ResultCode.PARAMETER_ERROR, "Invalid partition begin " + filter.begin +
 				". Valid range: 0-" + (Node.PARTITIONS - 1));
 		}
 
 		if (filter.count <= 0) {
-			throw new AerospikeException(ResultCode.PARAMETER_ERROR, "Invalid partition count " + filter.count);
+			throw AerospikeException.resultCodeToException(ResultCode.PARAMETER_ERROR, "Invalid partition count " + filter.count);
 		}
 
 		if (filter.begin + filter.count > Node.PARTITIONS) {
-			throw new AerospikeException(ResultCode.PARAMETER_ERROR, "Invalid partition range (" + filter.begin +
+			throw AerospikeException.resultCodeToException(ResultCode.PARAMETER_ERROR, "Invalid partition range (" + filter.begin +
 				',' + filter.count + ')');
 		}
 
@@ -105,7 +105,7 @@ public final class PartitionTracker {
 
 	private void setMaxRecords(long maxRecords) {
 		if (maxRecords < 0) {
-			throw new AerospikeException(ResultCode.PARAMETER_ERROR, "Invalid maxRecords: " + maxRecords);
+			throw AerospikeException.resultCodeToException(ResultCode.PARAMETER_ERROR, "Invalid maxRecords: " + maxRecords);
 		}
 		this.maxRecords = maxRecords;
 	}
@@ -137,7 +137,7 @@ public final class PartitionTracker {
 		}
 
 		if (replica == Replica.RANDOM) {
-			throw new AerospikeException(ResultCode.PARAMETER_ERROR, "Invalid replica: " + replica.toString());
+			throw AerospikeException.resultCodeToException(ResultCode.PARAMETER_ERROR, "Invalid replica: " + replica.toString());
 		}
 	}
 
@@ -385,7 +385,7 @@ public final class PartitionTracker {
 				sb.append(System.lineSeparator());
 			}
 
-			AerospikeException ae = new AerospikeException(last.getResultCode(), sb.toString());
+			AerospikeException ae = AerospikeException.resultCodeToException(last.getResultCode(), sb.toString());
 			ae.setNode(last.getNode());
 			ae.setCommand(cmd);
 			ae.setIteration(iteration);

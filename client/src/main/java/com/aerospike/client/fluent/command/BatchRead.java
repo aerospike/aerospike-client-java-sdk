@@ -115,7 +115,7 @@ public final class BatchRead extends BatchRecord {
 		else if (ops != null) {
 			for (Operation op : ops) {
 				if (op.type.isWrite) {
-					throw new AerospikeException(ResultCode.PARAMETER_ERROR, "Write operations not allowed in batch read");
+					throw AerospikeException.resultCodeToException(ResultCode.PARAMETER_ERROR, "Write operations not allowed in batch read");
 				}
 				size += Buffer.estimateSizeUtf8(op.binName) + Command.OPERATION_HEADER_SIZE;
 				size += op.value.estimateSize();

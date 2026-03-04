@@ -73,12 +73,12 @@ public final class ReadExecutor extends SyncExecutor {
 
 		if (rp.resultCode == ResultCode.FILTERED_OUT) {
 			if (read.failOnFilteredOut) {
-				throw new AerospikeException(rp.resultCode);
+				throw AerospikeException.resultCodeToException(rp.resultCode, null);
 			}
 			return;
 		}
 
-		throw new AerospikeException(rp.resultCode);
+		throw AerospikeException.resultCodeToException(rp.resultCode, null);
 	}
 
 	@Override

@@ -1252,7 +1252,7 @@ public class Session {
 		}
 
 		int code = parseIndexErrorCode(response);
-		throw new AerospikeException(code, "Create index failed: " + response);
+		throw AerospikeException.resultCodeToException(code, "Create index failed: " + response);
     }
 
 	/**
@@ -1287,7 +1287,7 @@ public class Session {
 		}
 
 		int code = parseIndexErrorCode(response);
-		throw new AerospikeException(code, "Create index failed: " + response);
+		throw AerospikeException.resultCodeToException(code, "Create index failed: " + response);
 	}
 
 	private String buildCreateIndexInfoCommand(
@@ -1382,7 +1382,7 @@ public class Session {
 		}
 
 		int code = parseIndexErrorCode(response);
-		throw new AerospikeException(code, "Drop index failed: " + response);
+		throw AerospikeException.resultCodeToException(code, "Drop index failed: " + response);
 	}
 
 	private String buildDropIndexInfoCommand(Node node, String namespace, String setName, String indexName) {

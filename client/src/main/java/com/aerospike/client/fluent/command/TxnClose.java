@@ -68,7 +68,7 @@ public final class TxnClose extends SyncExecutor {
 			return;
 		}
 
-		throw new AerospikeException(rp.resultCode);
+		throw AerospikeException.resultCodeToException(rp.resultCode, null);
 	}
 
 	@Override

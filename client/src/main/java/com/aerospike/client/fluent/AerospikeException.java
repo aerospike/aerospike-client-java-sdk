@@ -892,6 +892,8 @@ public class AerospikeException extends RuntimeException {
         // Capacity
         case ResultCode.KEY_BUSY:
             return new KeyBusyException(resultCode, message, inDoubt);
+        case ResultCode.SERVER_NOT_AVAILABLE:
+            return new Connection(message != null ? message : "Connection failed");
         case ResultCode.SERVER_MEM_ERROR:
         case ResultCode.DEVICE_OVERLOAD:
         case ResultCode.NO_MORE_CONNECTIONS:

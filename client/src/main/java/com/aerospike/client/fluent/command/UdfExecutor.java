@@ -80,12 +80,12 @@ public class UdfExecutor extends SyncExecutor {
 
 		if (rp.resultCode == ResultCode.FILTERED_OUT) {
 			if (udf.failOnFilteredOut) {
-				throw new AerospikeException(rp.resultCode);
+				throw AerospikeException.resultCodeToException(rp.resultCode, null);
 			}
 			return;
 		}
 
-		throw new AerospikeException(rp.resultCode);
+		throw AerospikeException.resultCodeToException(rp.resultCode, null);
 	}
 
 	@Override
@@ -105,7 +105,7 @@ public class UdfExecutor extends SyncExecutor {
 		String ret = (String)rec.bins.get("FAILURE");
 
 		if (ret == null) {
-			throw new AerospikeException(resultCode);
+			throw AerospikeException.resultCodeToException(resultCode, null);
 		}
 
 		String message;
@@ -118,10 +118,10 @@ public class UdfExecutor extends SyncExecutor {
 		}
 		catch (Throwable e) {
 			// Use generic exception if parse error occurs.
-			throw new AerospikeException(resultCode, ret);
+			throw AerospikeException.resultCodeToException(resultCode, ret);
 		}
 
-		throw new AerospikeException(code, message);
+		throw AerospikeException.resultCodeToException(code, message);
 	}
 
 	public Record getRecord() {
