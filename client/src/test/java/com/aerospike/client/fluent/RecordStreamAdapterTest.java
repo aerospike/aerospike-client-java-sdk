@@ -90,6 +90,7 @@ public class RecordStreamAdapterTest extends ClusterTest {
 	public void completableFutureEmptyStream() throws Exception {
 		RecordStream rs = new RecordStream();
 		CompletableFuture<List<RecordResult>> future = rs.asCompletableFuture();
+		rs.close();
 
 		List<RecordResult> results = future.get(5, TimeUnit.SECONDS);
 		assertTrue(results.isEmpty());
@@ -154,11 +155,8 @@ public class RecordStreamAdapterTest extends ClusterTest {
 		AtomicReference<Throwable> error = new AtomicReference<>();
 
 		rs.asPublisher().subscribe(new Flow.Subscriber<>() {
-			Flow.Subscription sub;
-
 			@Override
 			public void onSubscribe(Flow.Subscription s) {
-				sub = s;
 				s.request(Long.MAX_VALUE);
 			}
 
@@ -394,6 +392,7 @@ public class RecordStreamAdapterTest extends ClusterTest {
 			}
 		});
 
+		rs.close();
 		assertTrue(done.await(5, TimeUnit.SECONDS));
 		assertNoError(error);
 		assertTrue(completed.get());
@@ -408,11 +407,8 @@ public class RecordStreamAdapterTest extends ClusterTest {
 		AtomicReference<Throwable> error = new AtomicReference<>();
 
 		rs.asPublisher().subscribe(new Flow.Subscriber<>() {
-			Flow.Subscription sub;
-
 			@Override
 			public void onSubscribe(Flow.Subscription s) {
-				sub = s;
 				s.request(Long.MAX_VALUE);
 			}
 
@@ -538,6 +534,7 @@ public class RecordStreamAdapterTest extends ClusterTest {
 		assertFalse(rs.hasNext());
 		assertFalse(rs.hasNext());
 		assertFalse(rs.hasNext());
+		rs.close();
 	}
 
 	@Test
