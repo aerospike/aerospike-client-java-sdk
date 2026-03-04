@@ -22,5 +22,5 @@ public interface KeyBasedQueryBuilderInterface<T extends KeyBasedQueryBuilderInt
      * in the stream again that key.
      * @return this QueryBuilder for method chaining
      */
-    T respondAllKeys();
+    T includeMissingKeys();
 }

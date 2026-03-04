@@ -968,7 +968,7 @@ public class ObjectBuilder<T> {
         final Expression filterExp = getFilterExp(namespace);
 
         return new BatchCommand(cluster, partitions, txnToUse, namespace,
-            records, filterExp, opBuilder.respondAllKeys, false, settings);
+            records, filterExp, opBuilder.includeMissingKeys, false, settings);
     }
 
     private void operateBatchAsync(
@@ -1035,7 +1035,7 @@ public class ObjectBuilder<T> {
                     try {
                         Record rec = operate(cluster, partitions, settings, filterExp, key, element, ttl);
 
-                        if (opBuilder.respondAllKeys || rec != null) {
+                        if (opBuilder.includeMissingKeys || rec != null) {
                             stream.publish(new RecordResult(key, rec, idx));
                         }
                     } catch (AerospikeException ae) {
@@ -1131,7 +1131,7 @@ public class ObjectBuilder<T> {
         try {
             Record rec = operate(cluster, partitions, settings, filterExp, key, element, ttl);
 
-            if (opBuilder.respondAllKeys || rec != null) {
+            if (opBuilder.includeMissingKeys || rec != null) {
                 return new RecordStream(key, rec);
             }
         }
@@ -1204,13 +1204,13 @@ public class ObjectBuilder<T> {
             try {
                 Record rec = operate(cluster, partitions, settings, filterExp, key, element, ttl);
 
-                if (opBuilder.respondAllKeys || rec != null) {
+                if (opBuilder.includeMissingKeys || rec != null) {
                     stream.publish(new RecordResult(key, rec, index));
                 }
             }
             catch (AerospikeException ae) {
                 if (ae.getResultCode() == ResultCode.FILTERED_OUT) {
-                    if (opBuilder.failOnFilteredOut || opBuilder.respondAllKeys) {
+                    if (opBuilder.failOnFilteredOut || opBuilder.includeMissingKeys) {
                         stream.publish(new RecordResult(key, ae, index));
                     }
                     // Otherwise skip this record
@@ -1264,7 +1264,7 @@ public class ObjectBuilder<T> {
     private boolean shouldPublish(AerospikeException ae, OperationObjectBuilder<T> opBuilder) {
         return switch (ae.getResultCode()) {
             case ResultCode.FILTERED_OUT ->
-                opBuilder.isFailOnFilteredOut() || opBuilder.isRespondAllKeys();
+                opBuilder.isFailOnFilteredOut() || opBuilder.isIncludeMissingKeys();
             default -> true;
         };
     }

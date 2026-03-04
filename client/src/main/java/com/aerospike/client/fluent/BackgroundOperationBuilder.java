@@ -201,9 +201,9 @@ public class BackgroundOperationBuilder extends AbstractOperationBuilder<Backgro
      * @throws UnsupportedOperationException as this method is not applicable to background operations
      */
     @Override
-    public BackgroundOperationBuilder respondAllKeys() {
+    public BackgroundOperationBuilder includeMissingKeys() {
         throw new UnsupportedOperationException(
-            "respondAllKeys() is not applicable to background operations. " +
+            "includeMissingKeys() is not applicable to background operations. " +
             "This method is only for key-based operations.");
     }
 

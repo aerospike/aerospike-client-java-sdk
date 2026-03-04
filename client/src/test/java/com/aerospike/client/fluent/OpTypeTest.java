@@ -390,7 +390,7 @@ public class OpTypeTest extends ClusterTest {
 
 		// Batch replaceIfExists - should succeed for key1 and key2, fail for key3
 		RecordStream rs = session.replaceIfExists(args.set.id(key1), args.set.id(key2), args.set.id(key3))
-			.respondAllKeys()
+			.includeMissingKeys()
 			.bin("value").setTo("batch_replaced")
 			.execute();
 

@@ -812,9 +812,9 @@ public class ChainableNoBinsBuilder extends AbstractSessionOperationBuilder<Chai
     }
 
     @Override
-    public ChainableNoBinsBuilder respondAllKeys() {
-        verifyState("setting respondAllKeys");
-        currentSpec.setRespondAllKeys(true);
+    public ChainableNoBinsBuilder includeMissingKeys() {
+        verifyState("setting includeMissingKeys");
+        currentSpec.setIncludeMissingKeys(true);
         return this;
     }
 

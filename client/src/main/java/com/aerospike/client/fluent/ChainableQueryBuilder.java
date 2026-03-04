@@ -808,9 +808,9 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
     }
 
     @Override
-    public ChainableQueryBuilder respondAllKeys() {
-        verifyState("setting respondAllKeys");
-        currentSpec.setRespondAllKeys(true);
+    public ChainableQueryBuilder includeMissingKeys() {
+        verifyState("setting includeMissingKeys");
+        currentSpec.setIncludeMissingKeys(true);
         return this;
     }
 
@@ -1102,7 +1102,7 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
         newSpec.setGeneration(original.getGeneration());
         newSpec.setExpirationInSeconds(original.getExpirationInSeconds());
         newSpec.setFailOnFilteredOut(original.isFailOnFilteredOut());
-        newSpec.setRespondAllKeys(original.isRespondAllKeys());
+        newSpec.setIncludeMissingKeys(original.isIncludeMissingKeys());
         newSpec.setDurablyDelete(original.getDurablyDelete());
         newSpec.setProjectedBins(original.getProjectedBins());
         newSpec.getOperations().addAll(original.getOperations());

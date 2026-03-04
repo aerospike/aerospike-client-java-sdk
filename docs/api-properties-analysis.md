@@ -93,7 +93,7 @@ session.upsert(key)
     ├── .where(Expression)               // Filter expression
     │
     ├── .failOnFilteredOut()             // Fail if filtered
-    ├── .respondAllKeys()                // Include all keys in response
+    ├── .includeMissingKeys()                // Include all keys in response
     │
     ├── .notInAnyTransaction()           // Override session transaction
     ├── .inTransaction(Txn)              // Use specific transaction
@@ -128,7 +128,7 @@ session.delete(key)
     ├── .where(Expression)               // Filter expression
     │
     ├── .failOnFilteredOut()             // Fail if filtered
-    ├── .respondAllKeys()                // Include all keys in response
+    ├── .includeMissingKeys()                // Include all keys in response
     │
     ├── .notInAnyTransaction()           // Override session transaction
     ├── .inTransaction(Txn)              // Use specific transaction
@@ -161,7 +161,7 @@ session.query(key)
     ├── .where(Expression)               // Filter expression
     │
     ├── .failOnFilteredOut()             // Fail if filtered
-    ├── .respondAllKeys()                // Include all keys in response
+    ├── .includeMissingKeys()                // Include all keys in response
     │
     ├── .notInAnyTransaction()           // Override session transaction
     ├── .inTransaction(Txn)              // Use specific transaction
@@ -207,7 +207,7 @@ session.upsert(key).bins("a", "b").values(1, 2)
     ├── .where(Expression)               // Filter expression
     │
     ├── .failOnFilteredOut()             // Fail if filtered
-    ├── .respondAllKeys()                // Include all keys in response
+    ├── .includeMissingKeys()                // Include all keys in response
     │
     ├── .notInAnyTransaction()           // Override session transaction
     ├── .inTransaction(Txn)              // Use specific transaction
@@ -228,7 +228,7 @@ session.query(dataSet)
     ├── .where(Expression)               // Filter expression
     │
     ├── .failOnFilteredOut()             // Fail if filtered
-    ├── .respondAllKeys()                // Include all keys in response
+    ├── .includeMissingKeys()                // Include all keys in response
     │
     ├── .recordsPerSecond(int)           // Throttle query
     ├── .maxRecordsPerSecond(int)        // Max throttle (index queries)
@@ -309,7 +309,7 @@ When one builder creates another (e.g., `bins()` creating `BinsValuesBuilder`), 
 | `whereClause` | `currentSpec.getWhereClause()` | ✅ Yes | Passed via initFromParent() |
 | `generation` | `currentSpec.getGeneration()` | ✅ Yes | Passed via initFromParent() |
 | `failOnFilteredOut` | `currentSpec.isFailOnFilteredOut()` | ✅ Yes | Passed via initFromParent() |
-| `respondAllKeys` | `currentSpec.isRespondAllKeys()` | ✅ Yes | Passed via initFromParent() |
+| `includeMissingKeys` | `currentSpec.isIncludeMissingKeys()` | ✅ Yes | Passed via initFromParent() |
 
 #### ChainableOperationBuilder → ChainableNoBinsBuilder (via `.delete()`, `.touch()`, `.exists()`)
 
@@ -342,7 +342,7 @@ session.upsert(key)
     .ensureGenerationIs(3)        // Sets currentSpec.generation ✅ FIXED
     .where("$.age > 21")          // Sets currentSpec.whereClause ✅ FIXED
     .failOnFilteredOut()          // Sets currentSpec.failOnFilteredOut ✅ FIXED
-    .respondAllKeys()             // Sets currentSpec.respondAllKeys ✅ FIXED
+    .includeMissingKeys()             // Sets currentSpec.includeMissingKeys ✅ FIXED
     .bins("a", "b")               // Creates BinsValuesBuilder - properties now propagated
     .values(1, 2)
     .execute();
@@ -354,7 +354,7 @@ All properties are now propagated via `BinsValuesBuilder.initFromParent()`:
 - `generation` - ✅ Passed via `initFromParent()` to `generationForAll` field
 - `whereClause` - ✅ Passed via `initFromParent()` to `dsl` field
 - `failOnFilteredOut` - ✅ Passed via `initFromParent()` to inherited field
-- `respondAllKeys` - ✅ Passed via `initFromParent()` to inherited field
+- `includeMissingKeys` - ✅ Passed via `initFromParent()` to inherited field
 
 ### Issue 2: sendKey Not Available on All Builders ⏸️ DEFERRED
 
@@ -391,7 +391,7 @@ public BinsValuesBuilder bins(String binName, String... binNames) {
             currentSpec.getGeneration(),
             currentSpec.getWhereClause(),
             currentSpec.isFailOnFilteredOut(),
-            currentSpec.isRespondAllKeys());
+            currentSpec.isIncludeMissingKeys());
     return builder;
 }
 ```
@@ -414,7 +414,7 @@ To verify property propagation, test these patterns:
 - [x] `session.upsert(key).ensureGenerationIs(3).bins(...).values(...).execute()` - Generation check
 - [x] `session.upsert(key).where(...).bins(...).values(...).execute()` - Filter applied
 - [x] `session.upsert(key).failOnFilteredOut().bins(...).values(...).execute()` - Flag honored
-- [x] `session.upsert(key).respondAllKeys().bins(...).values(...).execute()` - Flag honored
+- [x] `session.upsert(key).includeMissingKeys().bins(...).values(...).execute()` - Flag honored
 - [x] Chained operations: `session.upsert(k1)....delete(k2)....execute()` - Transaction shared
 - [x] Chained operations: `session.query(k1)....upsert(k2)....execute()` - Transaction shared
 

@@ -330,7 +330,7 @@ public final class Batch {
 
 				br.setRecord(rec);
 
-                if (parent.respondAllKeys || rec != null) {
+                if (parent.includeMissingKeys || rec != null) {
                     stream.publish(new RecordResult(br, batchIndex));
                 }
 				return true;
@@ -348,7 +348,7 @@ public final class Batch {
 					br.inDoubt = BatchCommand.inDoubt(br.hasWrite, commandSentCounter);
 					status.setRowError();
 
-	                if (parent.respondAllKeys || rec != null) {
+	                if (parent.includeMissingKeys || rec != null) {
 	                    stream.publish(new RecordResult(br, batchIndex));
 	                }
 					return true;
@@ -357,7 +357,10 @@ public final class Batch {
 
 			br.setError(resultCode, BatchCommand.inDoubt(br.hasWrite, commandSentCounter));
 			status.setRowError();
-            stream.publish(new RecordResult(br, batchIndex));
+
+			if (resultCode != ResultCode.KEY_NOT_FOUND_ERROR || parent.includeMissingKeys) {
+				stream.publish(new RecordResult(br, batchIndex));
+			}
 			return true;
 		}
 

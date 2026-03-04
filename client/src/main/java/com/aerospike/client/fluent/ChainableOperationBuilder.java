@@ -118,7 +118,7 @@ public class ChainableOperationBuilder extends AbstractOperationBuilder<Chainabl
                 currentSpec.getGeneration(),
                 currentSpec.getWhereClause(),
                 currentSpec.isFailOnFilteredOut(),
-                currentSpec.isRespondAllKeys());
+                currentSpec.isIncludeMissingKeys());
         return builder;
     }
 
@@ -865,9 +865,9 @@ public class ChainableOperationBuilder extends AbstractOperationBuilder<Chainabl
     }
 
     @Override
-    public ChainableOperationBuilder respondAllKeys() {
-        verifyState("setting respondAllKeys");
-        currentSpec.setRespondAllKeys(true);
+    public ChainableOperationBuilder includeMissingKeys() {
+        verifyState("setting includeMissingKeys");
+        currentSpec.setIncludeMissingKeys(true);
         return this;
     }
 
@@ -1064,8 +1064,8 @@ public class ChainableOperationBuilder extends AbstractOperationBuilder<Chainabl
         }
 
         @Override
-        public boolean isRespondAllKeys() {
-            return currentSpec != null && currentSpec.isRespondAllKeys();
+        public boolean isIncludeMissingKeys() {
+            return currentSpec != null && currentSpec.isIncludeMissingKeys();
         }
 
         @Override
@@ -1120,12 +1120,12 @@ public class ChainableOperationBuilder extends AbstractOperationBuilder<Chainabl
 //                boolean stackTraceOnException) {
 //            try {
 //                Record record = session.getClient().operate(wp, key, operations);
-//                if (currentSpec != null && currentSpec.respondAllKeys || record != null) {
+//                if (currentSpec != null && currentSpec.includeMissingKeys || record != null) {
 //                    asyncStream.publish(new RecordResult(key, record, index));
 //                }
 //            } catch (AerospikeException ae) {
 //                if (ae.getResultCode() == ResultCode.FILTERED_OUT) {
-//                    if (currentSpec != null && (currentSpec.failOnFilteredOut || currentSpec.respondAllKeys)) {
+//                    if (currentSpec != null && (currentSpec.failOnFilteredOut || currentSpec.includeMissingKeys)) {
 //                        asyncStream.publish(new RecordResult(key, AeroException.from(ae), index));
 //                    }
 //                    // Otherwise skip this record

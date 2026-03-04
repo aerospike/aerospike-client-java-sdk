@@ -37,7 +37,7 @@ public class OperationSpec {
     private boolean failOnFilteredOut = false;
 
     /** Whether to include results for keys that don't exist or are filtered out */
-    private boolean respondAllKeys = false;
+    private boolean includeMissingKeys = false;
 
     /** For DELETE operations: whether to use durable delete */
     private Boolean durablyDelete = null;
@@ -129,14 +129,14 @@ public class OperationSpec {
         this.failOnFilteredOut = failOnFilteredOut;
     }
 
-    public boolean isRespondAllKeys() {
-        // If UPDATE or REPLACE_IF_EXISTS is specified we must respond all keys too, as these
+    public boolean isIncludeMissingKeys() {
+        // If UPDATE or REPLACE_IF_EXISTS is specified we must include missing keys too, as these
         // records SHOULD throw an exception if the record doesn't exist.
-        return respondAllKeys || opType == OpType.REPLACE_IF_EXISTS || opType == OpType.UPDATE;
+        return includeMissingKeys || opType == OpType.REPLACE_IF_EXISTS || opType == OpType.UPDATE;
     }
 
-    public void setRespondAllKeys(boolean respondAllKeys) {
-        this.respondAllKeys = respondAllKeys;
+    public void setIncludeMissingKeys(boolean includeMissingKeys) {
+        this.includeMissingKeys = includeMissingKeys;
     }
 
     public Boolean getDurablyDelete() {

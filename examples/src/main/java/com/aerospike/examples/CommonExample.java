@@ -187,7 +187,7 @@ public class CommonExample extends Example {
 
         System.out.println("Batch exists");
 
-        RecordStream results = session.exists(set.ids(113,114,999)).respondAllKeys().execute();
+        RecordStream results = session.exists(set.ids(113,114,999)).includeMissingKeys().execute();
 
         results.forEach(rr -> {
             System.out.printf("   Key: %s -> %b\n", rr.key(), rr.asBoolean());
@@ -195,7 +195,7 @@ public class CommonExample extends Example {
 
         System.out.println("Batch touch");
 
-        results = session.touch(set.ids(113,114,999)).respondAllKeys().execute();
+        results = session.touch(set.ids(113,114,999)).includeMissingKeys().execute();
 
         results.forEach(rr -> {
             System.out.printf("   Key: %s -> %b\n", rr.key(), rr.asBoolean());
@@ -203,7 +203,7 @@ public class CommonExample extends Example {
 
         System.out.println("Batch delete");
 
-        results = session.delete(set.ids(113,114,999)).respondAllKeys().execute();
+        results = session.delete(set.ids(113,114,999)).includeMissingKeys().execute();
 
         results.forEach(rr -> {
             System.out.printf("   Key: %s -> %b\n", rr.key(), rr.asBoolean());
@@ -233,7 +233,7 @@ public class CommonExample extends Example {
 
         rec = session.query(set.ids(2))
                 .where(Dsl.stringBin("name").eq("Fred"))
-                .respondAllKeys()
+                .includeMissingKeys()
                 .execute()
                 .getFirst();
 

@@ -35,7 +35,7 @@ interface BinsValuesOperations {
      */
     boolean isMultiKey();
     
-    boolean isRespondAllKeys();
+    boolean isIncludeMissingKeys();
     
     boolean isFailOnFilteredOut();
     

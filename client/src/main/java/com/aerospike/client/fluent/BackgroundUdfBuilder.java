@@ -190,9 +190,9 @@ public class BackgroundUdfBuilder extends AbstractSessionOperationBuilder<Backgr
     }
 
     @Override
-    public BackgroundUdfBuilder respondAllKeys() {
+    public BackgroundUdfBuilder includeMissingKeys() {
         throw new UnsupportedOperationException(
-            "respondAllKeys() is not applicable to background operations. " +
+            "includeMissingKeys() is not applicable to background operations. " +
             "This method is only for key-based operations.");
     }
 

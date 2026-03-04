@@ -188,7 +188,7 @@ public class EcommerceExample {
         System.out.println("\nUsing ErrorHandler callback:");
         RecordStream rs = session.query(
                 customers.ids("C-100", "C-MISSING", "C-ALSO-MISSING"))
-                .respondAllKeys()
+                .includeMissingKeys()
                 .execute((key, index, ex) ->
                         System.out.println("  Error at index " + index + " for key "
                                 + key + ": " + ex.getMessage()));
@@ -198,7 +198,7 @@ public class EcommerceExample {
         System.out.println("\nUsing ErrorStrategy.IN_STREAM:");
         RecordStream inStream = session.query(
                 customers.ids("C-100", "C-MISSING"))
-                .respondAllKeys()
+                .includeMissingKeys()
                 .execute(ErrorStrategy.IN_STREAM);
         inStream.forEach(rr -> {
             if (rr.isOk()) {

@@ -116,7 +116,7 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
             this.dsl = WhereClauseProcessor.from(whereClause);
         }
         this.failOnFilteredOut = failOnFiltered;
-        this.respondAllKeys = respondAll;
+        this.includeMissingKeys = respondAll;
     }
     /**
      * Add a set of values for one record. The number of values must match the
@@ -530,8 +530,8 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
      * @return This builder for method chaining
      */
     @Override
-    public BinsValuesBuilder respondAllKeys() {
-        this.respondAllKeys = true;
+    public BinsValuesBuilder includeMissingKeys() {
+        this.includeMissingKeys = true;
         return this;
     }
 
@@ -709,14 +709,14 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
 
         List<RecordResult> results = new ArrayList<>();
         OpType opType = opBuilder.getOpType();
-        boolean effectiveRespondAllKeys = respondAllKeys ||
+        boolean effectiveIncludeMissingKeys = includeMissingKeys ||
             opType == OpType.UPDATE || opType == OpType.REPLACE_IF_EXISTS;
 
         for (int i = 0; i < keys.size(); i++) {
             BatchRecord br = records.get(i);
             boolean include = switch (br.resultCode) {
-                case ResultCode.KEY_NOT_FOUND_ERROR -> effectiveRespondAllKeys;
-                case ResultCode.FILTERED_OUT -> failOnFilteredOut || effectiveRespondAllKeys;
+                case ResultCode.KEY_NOT_FOUND_ERROR -> effectiveIncludeMissingKeys;
+                case ResultCode.FILTERED_OUT -> failOnFilteredOut || effectiveIncludeMissingKeys;
                 default -> true;
             };
             if (!include) {
@@ -820,7 +820,7 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
         }
 
         return new BatchCommand(cluster, partitions, opBuilder.getTxnToUse(), namespace,
-        	batchRecords, filterExp, opBuilder.isRespondAllKeys(), false, settings);
+        	batchRecords, filterExp, opBuilder.isIncludeMissingKeys(), false, settings);
     }
 
     private void operateBatchAsync(Cluster cluster, IBatchCommand[] commands, BatchStatus status, AsyncRecordStream stream) {
@@ -864,7 +864,7 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
         if (keys.size() == 1) {
             try {
                 Record rec = operate(cluster, partitions, policy, filterExp, firstKey);
-                if (respondAllKeys || rec != null) {
+                if (includeMissingKeys || rec != null) {
                     return new RecordStream(firstKey, rec);
                 }
             }
@@ -899,7 +899,7 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
                     es.submit(() -> {
                         try {
                             Record record = operate(cluster, partitions, policy, filterExp, key);
-                            if (respondAllKeys || record != null) {
+                            if (includeMissingKeys || record != null) {
                                 stream.publish(new RecordResult(key, record, idx));
                             }
                         } catch (AerospikeException ae) {
@@ -973,12 +973,12 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
                 try {
                     Record rec = operate(cluster, partitions, policy, filterExp, key);
 
-                    if (respondAllKeys || rec != null) {
+                    if (includeMissingKeys || rec != null) {
                         asyncStream.publish(new RecordResult(key, rec, index));
                     }
                 } catch (AerospikeException ae) {
                     if (ae.getResultCode() == ResultCode.FILTERED_OUT) {
-                        if (failOnFilteredOut || respondAllKeys) {
+                        if (failOnFilteredOut || includeMissingKeys) {
                             asyncStream.publish(new RecordResult(key, ae, index));
                         }
                         // Otherwise skip this record

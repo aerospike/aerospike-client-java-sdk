@@ -118,5 +118,5 @@ public interface FilterableOperation<T extends FilterableOperation<T>> {
      *
      * @return this builder for method chaining
      */
-    T respondAllKeys();
+    T includeMissingKeys();
 }

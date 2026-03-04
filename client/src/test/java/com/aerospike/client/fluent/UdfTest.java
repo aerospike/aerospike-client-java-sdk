@@ -411,7 +411,7 @@ public class UdfTest extends ClusterTest {
 		RecordStream rs = session.executeUdf(keys)
         	.function("record_example", "writeWithValidation")
         	.passing(binName, 999)
-        	.respondAllKeys()
+        	.includeMissingKeys()
         	.execute();
 
         assertTrue(rs.hasNext());
@@ -435,15 +435,15 @@ public class UdfTest extends ClusterTest {
 			.executeUdf(key1)
         		.function("record_example", "writeBin")
 	        	.passing(binName, "value1")
-	        	.respondAllKeys()
+	        	.includeMissingKeys()
 			.executeUdf(key2)
         		.function("record_example", "writeWithValidation")
 	        	.passing(binName, 5)
-	        	.respondAllKeys()
+	        	.includeMissingKeys()
 			.executeUdf(key2)
         		.function("record_example", "writeWithValidation")
 	        	.passing(binName, 999)
-	        	.respondAllKeys()
+	        	.includeMissingKeys()
 	        .execute();
 
         assertTrue(rs.hasNext());

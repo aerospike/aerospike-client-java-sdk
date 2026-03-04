@@ -16,7 +16,7 @@ import com.aerospike.dsl.ParseResult;
  */
 public abstract class AbstractFilterableBuilder {
     protected WhereClauseProcessor dsl = null;
-    protected boolean respondAllKeys = false;
+    protected boolean includeMissingKeys = false;
     protected boolean failOnFilteredOut = false;
     
     /**
@@ -49,8 +49,8 @@ public abstract class AbstractFilterableBuilder {
      */
     public boolean shouldIncludeResult(int resultCode) {
         return switch (resultCode) {
-            case ResultCode.KEY_NOT_FOUND_ERROR -> respondAllKeys;
-            case ResultCode.FILTERED_OUT -> failOnFilteredOut || respondAllKeys;
+            case ResultCode.KEY_NOT_FOUND_ERROR -> includeMissingKeys;
+            case ResultCode.FILTERED_OUT -> failOnFilteredOut || includeMissingKeys;
             default -> true;
         };
     }
@@ -60,7 +60,7 @@ public abstract class AbstractFilterableBuilder {
      */
     protected boolean shouldPublishException(AerospikeException ae) {
         return switch (ae.getResultCode()) {
-            case ResultCode.FILTERED_OUT -> failOnFilteredOut || respondAllKeys;
+            case ResultCode.FILTERED_OUT -> failOnFilteredOut || includeMissingKeys;
             default -> true;
         };
     }

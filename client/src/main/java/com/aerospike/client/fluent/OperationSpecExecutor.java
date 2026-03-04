@@ -139,16 +139,16 @@ class OperationSpecExecutor {
         BatchAttr attr = new BatchAttr();
         BatchStatus status = new BatchStatus();
 		AerospikeException except = null;
-        boolean respondAllKeys = false;
+        boolean includeMissingKeys = false;
         boolean failOnFilteredOut = false;
         OpKind kind = OpKind.READ;
         Mode mode = Mode.AP;
         boolean linearize = false;
 
         for (OperationSpec spec : specs) {
-            // Set isRespondAllKeys if any spec has isRespondAllKeys.
-            if (spec.isRespondAllKeys()) {
-            	respondAllKeys = true;
+            // Set isIncludeMissingKeys if any spec has isIncludeMissingKeys.
+            if (spec.isIncludeMissingKeys()) {
+            	includeMissingKeys = true;
             }
 
             if (spec.isFailOnFilteredOut()) {
@@ -281,7 +281,7 @@ class OperationSpecExecutor {
 		Settings settings = behavior.getSettings(kind, OpShape.BATCH, mode);
 
         BatchCommand parent = new BatchCommand(cluster, null, txn, null, records,
-        	defaultWhereClause, respondAllKeys, linearize, settings);
+        	defaultWhereClause, includeMissingKeys, linearize, settings);
 
         List<BatchNode> bns = BatchNodes.generate(cluster, parent, records, status);
 
@@ -332,7 +332,7 @@ class OperationSpecExecutor {
             for (int i = 0; i < records.size(); i++) {
                 BatchRecord br = records.get(i);
 
-                if (!shouldIncludeResult(br.resultCode, respondAllKeys, failOnFilteredOut)) {
+                if (!shouldIncludeResult(br.resultCode, includeMissingKeys, failOnFilteredOut)) {
                     continue;
                 }
 
@@ -363,7 +363,7 @@ class OperationSpecExecutor {
     }
 
     /**
-     * Build RecordStream from batch results, respecting respondAllKeys and failOnFilteredOut flags.
+     * Build RecordStream from batch results, respecting includeMissingKeys and failOnFilteredOut flags.
      */
     /*
     private static RecordStream buildRecordStream(List<BatchRecord> batchRecords,
@@ -405,20 +405,20 @@ class OperationSpecExecutor {
      */
 /*
     private static boolean shouldIncludeResult(int resultCode, OperationSpec spec) {
-        return shouldIncludeResult(resultCode, spec.isRespondAllKeys(), spec.isFailOnFilteredOut());
+        return shouldIncludeResult(resultCode, spec.isIncludeMissingKeys(), spec.isFailOnFilteredOut());
     }
 */
     /**
      * Determine if a result should be included based on result code and flags.
      */
-    private static boolean shouldIncludeResult(int resultCode, boolean respondAllKeys, boolean failOnFilteredOut) {
+    private static boolean shouldIncludeResult(int resultCode, boolean includeMissingKeys, boolean failOnFilteredOut) {
         switch (resultCode) {
         case ResultCode.OK:
             return true;
         case ResultCode.KEY_NOT_FOUND_ERROR:
-            return respondAllKeys;
+            return includeMissingKeys;
         case ResultCode.FILTERED_OUT:
-            return failOnFilteredOut || respondAllKeys;
+            return failOnFilteredOut || includeMissingKeys;
         default:
             return true;  // Include errors in the stream
         }
@@ -443,13 +443,13 @@ class OperationSpecExecutor {
         }
 
         boolean scMode = partitions.scMode;
-        boolean respondAllKeys = spec.isRespondAllKeys();
+        boolean includeMissingKeys = spec.isIncludeMissingKeys();
         boolean failOnFilteredOut = spec.isFailOnFilteredOut();
         long ttl = resolveTtl(spec, defaultExpirationInSeconds);
 
         try {
             if (spec.isQuery()) {
-                return executeSingleKeyRead(session, cluster, behavior, partitions, spec, key, filterExp, txn, scMode, respondAllKeys, failOnFilteredOut);
+                return executeSingleKeyRead(session, cluster, behavior, partitions, spec, key, filterExp, txn, scMode, includeMissingKeys, failOnFilteredOut);
             } else if (spec.getOpType() == OpType.EXISTS) {
                 return executeSingleKeyExists(session, cluster, behavior, partitions, spec, key, filterExp, txn, scMode, failOnFilteredOut);
             } else if (spec.getOpType() == OpType.TOUCH) {
@@ -457,9 +457,9 @@ class OperationSpecExecutor {
             } else if (spec.getOpType() == OpType.DELETE) {
                 return executeSingleKeyDelete(session, cluster, behavior, partitions, spec, key, filterExp, txn, scMode, failOnFilteredOut);
             } else if (spec.getOpType() == OpType.UDF) {
-                return executeSingleKeyUdf(session, cluster, behavior, partitions, spec, key, filterExp, ttl, txn, scMode, respondAllKeys, failOnFilteredOut);
+                return executeSingleKeyUdf(session, cluster, behavior, partitions, spec, key, filterExp, ttl, txn, scMode, includeMissingKeys, failOnFilteredOut);
             } else {
-                return executeSingleKeyWrite(session, cluster, behavior, partitions, spec, key, filterExp, ttl, txn, scMode, respondAllKeys, failOnFilteredOut);
+                return executeSingleKeyWrite(session, cluster, behavior, partitions, spec, key, filterExp, ttl, txn, scMode, includeMissingKeys, failOnFilteredOut);
             }
         } catch (AerospikeException ae) {
             return handleSingleKeyError(key, ae, spec, disposition);
@@ -469,7 +469,7 @@ class OperationSpecExecutor {
     private static RecordStream handleSingleKeyError(
         Key key, AerospikeException ae, OperationSpec spec, ErrorDisposition disposition
     ) {
-        if (!shouldIncludeResult(ae.getResultCode(), spec.isRespondAllKeys(), spec.isFailOnFilteredOut())) {
+        if (!shouldIncludeResult(ae.getResultCode(), spec.isIncludeMissingKeys(), spec.isFailOnFilteredOut())) {
             return new RecordStream();
         }
 
@@ -489,7 +489,7 @@ class OperationSpecExecutor {
     private static RecordStream executeSingleKeyRead(
         Session session, Cluster cluster, Behavior behavior, Partitions partitions,
         OperationSpec spec, Key key, Expression filterExp, Txn txn,
-        boolean scMode, boolean respondAllKeys, boolean failOnFilteredOut
+        boolean scMode, boolean includeMissingKeys, boolean failOnFilteredOut
     ) {
         Settings settings = behavior.getSettings(OpKind.READ, OpShape.POINT, scMode);
         ReadAttr attr = new ReadAttr(partitions, settings);
@@ -519,7 +519,7 @@ class OperationSpecExecutor {
             record = exec.getRecord();
         }
 
-        if (record != null || respondAllKeys) {
+        if (record != null || includeMissingKeys) {
             return new RecordStream(key, record);
         }
         return new RecordStream();
@@ -531,7 +531,7 @@ class OperationSpecExecutor {
     private static RecordStream executeSingleKeyWrite(
         Session session, Cluster cluster, Behavior behavior, Partitions partitions,
         OperationSpec spec, Key key, Expression filterExp, long ttl, Txn txn,
-        boolean scMode, boolean respondAllKeys, boolean failOnFilteredOut
+        boolean scMode, boolean includeMissingKeys, boolean failOnFilteredOut
     ) {
         Settings settings = behavior.getSettings(OpKind.WRITE_NON_RETRYABLE, OpShape.POINT, scMode);
         int gen = spec.getGeneration();
@@ -549,7 +549,7 @@ class OperationSpecExecutor {
         exec.execute();
         Record record = exec.getRecord();
 
-        if (record != null || respondAllKeys) {
+        if (record != null || includeMissingKeys) {
             return new RecordStream(key, record);
         }
         return new RecordStream();
@@ -641,7 +641,7 @@ class OperationSpecExecutor {
     private static RecordStream executeSingleKeyUdf(
         Session session, Cluster cluster, Behavior behavior, Partitions partitions,
         OperationSpec spec, Key key, Expression where, long ttl, Txn txn,
-        boolean scMode, boolean respondAllKeys, boolean failOnFilteredOut
+        boolean scMode, boolean includeMissingKeys, boolean failOnFilteredOut
     ) {
         Settings settings = behavior.getSettings(OpKind.WRITE_NON_RETRYABLE, OpShape.POINT, scMode);
 
@@ -657,7 +657,7 @@ class OperationSpecExecutor {
 
         Record rec = exec.getRecord();
 
-        if (rec != null || respondAllKeys) {
+        if (rec != null || includeMissingKeys) {
             Object udfResult = (rec != null)? extractUdfResult(rec) : null;
             return new RecordStream(new RecordResult(key, udfResult, 0));
         }

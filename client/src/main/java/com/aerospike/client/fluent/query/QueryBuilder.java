@@ -331,13 +331,13 @@ public class QueryBuilder extends AbstractFilterableBuilder implements
      * in the stream again that key.
      * @return this QueryBuilder for method chaining
      */
-    public QueryBuilder respondAllKeys() {
-        this.respondAllKeys = true;
+    public QueryBuilder includeMissingKeys() {
+        this.includeMissingKeys = true;
         return this;
     }
 
-    protected boolean isRespondAllKeys() {
-        return this.respondAllKeys;
+    protected boolean isIncludeMissingKeys() {
+        return this.includeMissingKeys;
     }
 
     /**

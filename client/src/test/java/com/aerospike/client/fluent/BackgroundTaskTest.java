@@ -361,7 +361,7 @@ public class BackgroundTaskTest extends ClusterTest {
             session.backgroundTask()
                 .executeUdf(bgSet)
                 .function("bg_test_example", "writeBin")
-                .respondAllKeys()
+                .includeMissingKeys()
         );
     }
 
@@ -379,7 +379,7 @@ public class BackgroundTaskTest extends ClusterTest {
         assertThrows(UnsupportedOperationException.class, () ->
             session.backgroundTask()
                 .update(bgSet)
-                .respondAllKeys()
+                .includeMissingKeys()
         );
     }
 }

@@ -56,7 +56,7 @@ public class OperationObjectBuilder<T> extends AbstractFilterableBuilder impleme
         if (resultCode == ResultCode.KEY_NOT_FOUND_ERROR) {
             // UPDATE and REPLACE_IF_EXISTS must report KEY_NOT_FOUND_ERROR because
             // these operations are semantically expected to fail on non-existent records.
-            return respondAllKeys || opType == OpType.UPDATE || opType == OpType.REPLACE_IF_EXISTS;
+            return includeMissingKeys || opType == OpType.UPDATE || opType == OpType.REPLACE_IF_EXISTS;
         }
         return super.shouldIncludeResult(resultCode);
     }
@@ -208,8 +208,8 @@ public class OperationObjectBuilder<T> extends AbstractFilterableBuilder impleme
      * {@inheritDoc}
      */
     @Override
-    public OperationObjectBuilder<T> respondAllKeys() {
-        this.respondAllKeys = true;
+    public OperationObjectBuilder<T> includeMissingKeys() {
+        this.includeMissingKeys = true;
         return this;
     }
 
@@ -223,12 +223,12 @@ public class OperationObjectBuilder<T> extends AbstractFilterableBuilder impleme
     }
 
     /**
-     * Checks whether the respondAllKeys flag is set.
+     * Checks whether the includeMissingKeys flag is set.
      *
-     * @return true if respondAllKeys is enabled, false otherwise
+     * @return true if includeMissingKeys is enabled, false otherwise
      */
-    public boolean isRespondAllKeys() {
-        return respondAllKeys;
+    public boolean isIncludeMissingKeys() {
+        return includeMissingKeys;
     }
 
     /**

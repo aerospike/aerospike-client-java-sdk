@@ -554,7 +554,7 @@ public final class CommandBuffer {
 	}
 
 	private static byte getBatchFlags(BatchCommand cmd) {
-		byte flags = 0x8;
+		byte flags = 0x8 | 0x4; // always respond all keys to avoid single-error batch exceptions
 
 		if (cmd.inlineMemory) {
 			flags |= 0x1;
@@ -564,9 +564,6 @@ public final class CommandBuffer {
 			flags |= 0x2;
 		}
 
-		if (cmd.respondAllKeys) {
-			flags |= 0x4;
-		}
 		return flags;
 	}
 

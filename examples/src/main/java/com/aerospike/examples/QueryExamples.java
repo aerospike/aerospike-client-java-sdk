@@ -532,13 +532,13 @@ public class QueryExamples {
             print(session.query(keys).where("$.name == 'Tim'").execute());
             
             System.out.println("\nBatchRead where name = 'Tim':");
-            print(session.query(keys).respondAllKeys().where("$.name == 'Tim'").execute());
+            print(session.query(keys).includeMissingKeys().where("$.name == 'Tim'").execute());
             
             System.out.println("\nBatchRead where name = 'Tim':");
-            print(session.query(keys).where("$.name == 'Tim'").respondAllKeys().failOnFilteredOut().execute());
+            print(session.query(keys).where("$.name == 'Tim'").includeMissingKeys().failOnFilteredOut().execute());
 
-//            System.out.println("Read the set, limit 6, test than respondAllKeys() gives a compile error");
-//            print(session.query(customerDataSet).respondAllKeys().execute());
+//            System.out.println("Read the set, limit 6, test than includeMissingKeys() gives a compile error");
+//            print(session.query(customerDataSet).includeMissingKeys().execute());
 //            print(session.query(customerDataSet).failOnFilteredOut().execute());
             
 

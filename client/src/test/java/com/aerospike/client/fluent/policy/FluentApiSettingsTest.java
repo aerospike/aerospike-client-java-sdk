@@ -72,7 +72,7 @@ public class FluentApiSettingsTest {
         public int getGeneration() { return generation; }
         public Txn getTxnToUse() { return txnToUse; }
         public boolean isFailOnFilteredOut() { return failOnFilteredOut; }
-        public boolean isRespondAllKeys() { return respondAllKeys; }
+        public boolean isIncludeMissingKeys() { return includeMissingKeys; }
 
         // Implement filtering methods for testing (from FilterableOperation interface)
         public TestOperationBuilder failOnFilteredOut() {
@@ -80,8 +80,8 @@ public class FluentApiSettingsTest {
             return self();
         }
 
-        public TestOperationBuilder respondAllKeys() {
-            this.respondAllKeys = true;
+        public TestOperationBuilder includeMissingKeys() {
+            this.includeMissingKeys = true;
             return self();
         }
     }
@@ -440,10 +440,10 @@ public class FluentApiSettingsTest {
     }
 
     @Test
-    public void testRespondAllKeys() {
+    public void testIncludeMissingKeys() {
         TestOperationBuilder builder = new TestOperationBuilder();
-        builder.respondAllKeys();
-        assertTrue(builder.isRespondAllKeys());
+        builder.includeMissingKeys();
+        assertTrue(builder.isIncludeMissingKeys());
     }
 
     // ========================================================================

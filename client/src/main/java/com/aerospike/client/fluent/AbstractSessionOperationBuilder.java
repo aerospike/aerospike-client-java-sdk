@@ -94,14 +94,14 @@ public abstract class AbstractSessionOperationBuilder<T extends AbstractSessionO
     }
 
     /**
-     * Returns the effective respondAllKeys value, considering operation type.
+     * Returns the effective includeMissingKeys value, considering operation type.
      * 
      * <p>UPDATE and REPLACE_IF_EXISTS operations must always return KEY_NOT_FOUND_ERROR
      * results because these operations are expected to fail if the record doesn't exist.
-     * Users need to see these failures even without explicitly calling respondAllKeys().</p>
+     * Users need to see these failures even without explicitly calling includeMissingKeys().</p>
      */
-    protected boolean isEffectiveRespondAllKeys() {
-        return respondAllKeys || opType == OpType.UPDATE || opType == OpType.REPLACE_IF_EXISTS;
+    protected boolean isEffectiveIncludeMissingKeys() {
+        return includeMissingKeys || opType == OpType.UPDATE || opType == OpType.REPLACE_IF_EXISTS;
     }
 
     /**
@@ -116,7 +116,7 @@ public abstract class AbstractSessionOperationBuilder<T extends AbstractSessionO
         if (resultCode == ResultCode.KEY_NOT_FOUND_ERROR) {
             // UPDATE and REPLACE_IF_EXISTS must report KEY_NOT_FOUND_ERROR because
             // these operations are semantically expected to fail on non-existent records.
-            return isEffectiveRespondAllKeys();
+            return isEffectiveIncludeMissingKeys();
         }
         return super.shouldIncludeResult(resultCode);
     }

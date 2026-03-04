@@ -893,9 +893,9 @@ public class ChainableUdfBuilder extends AbstractSessionOperationBuilder<Chainab
     }
 
     @Override
-    public ChainableUdfBuilder respondAllKeys() {
-        verifyState("setting respondAllKeys");
-        currentSpec.setRespondAllKeys(true);
+    public ChainableUdfBuilder includeMissingKeys() {
+        verifyState("setting includeMissingKeys");
+        currentSpec.setIncludeMissingKeys(true);
         return this;
     }
 

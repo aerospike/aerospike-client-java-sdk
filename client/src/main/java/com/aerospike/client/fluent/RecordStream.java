@@ -131,7 +131,6 @@ public class RecordStream implements Iterator<RecordResult>, Closeable {
      *
      * @param records the list of results
      * @param limit the maximum number of records to include (0 or negative means no limit)
-     * @param respondAllKeys if false, null records are filtered out
      */
     public RecordStream(List<RecordResult> records, long limit) {
         AsyncRecordStream asyncStream = new AsyncRecordStream(Math.max(100, records.size()));
