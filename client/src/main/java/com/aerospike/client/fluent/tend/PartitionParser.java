@@ -20,10 +20,10 @@ import java.util.HashMap;
 import java.util.concurrent.atomic.AtomicReferenceArray;
 
 import com.aerospike.client.fluent.AerospikeException;
-import com.aerospike.client.fluent.Connection;
 import com.aerospike.client.fluent.Log;
 import com.aerospike.client.fluent.Node;
 import com.aerospike.client.fluent.command.Buffer;
+import com.aerospike.client.fluent.command.Connection;
 import com.aerospike.client.fluent.command.Info;
 import com.aerospike.client.fluent.util.Crypto;
 

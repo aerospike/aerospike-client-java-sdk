@@ -24,10 +24,9 @@ import java.util.zip.Inflater;
 
 import com.aerospike.client.fluent.AerospikeException;
 import com.aerospike.client.fluent.Cluster;
-import com.aerospike.client.fluent.Connection;
-import com.aerospike.client.fluent.Connection.ReadTimeout;
 import com.aerospike.client.fluent.Node;
 import com.aerospike.client.fluent.Record;
+import com.aerospike.client.fluent.command.Connection.ReadTimeout;
 import com.aerospike.client.fluent.command.RecordParser.OpResults;
 
 public abstract class NodeExecutor extends SyncExecutor {

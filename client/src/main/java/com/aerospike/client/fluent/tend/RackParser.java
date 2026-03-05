@@ -19,9 +19,9 @@ package com.aerospike.client.fluent.tend;
 import java.util.HashMap;
 
 import com.aerospike.client.fluent.AerospikeException;
-import com.aerospike.client.fluent.Connection;
 import com.aerospike.client.fluent.Node;
 import com.aerospike.client.fluent.command.Buffer;
+import com.aerospike.client.fluent.command.Connection;
 import com.aerospike.client.fluent.command.Info;
 
 /**

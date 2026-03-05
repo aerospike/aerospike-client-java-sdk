@@ -14,11 +14,13 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.aerospike.client.fluent;
+package com.aerospike.client.fluent.command;
 
 import java.util.ArrayDeque;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantLock;
+
+import com.aerospike.client.fluent.Node;
 
 /**
  * Concurrent bounded LIFO stack of connections.
@@ -165,7 +167,7 @@ public final class Pool {
 	}
 
 	private boolean isConnCurrentTrim(long lastUsed) {
-		return (System.nanoTime() - lastUsed) <= node.cluster.def.maxSocketIdleNanosTrim;
+		return (System.nanoTime() - lastUsed) <= node.cluster.getClusterDefinition().getMaxSocketIdleNanosTrim();
 	}
 
 	private void closeIdle(Connection conn) {

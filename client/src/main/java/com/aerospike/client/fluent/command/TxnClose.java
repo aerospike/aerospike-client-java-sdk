@@ -20,7 +20,6 @@ import java.io.IOException;
 
 import com.aerospike.client.fluent.AerospikeException;
 import com.aerospike.client.fluent.Cluster;
-import com.aerospike.client.fluent.Connection;
 import com.aerospike.client.fluent.Node;
 import com.aerospike.client.fluent.ResultCode;
 import com.aerospike.client.fluent.metrics.LatencyType;

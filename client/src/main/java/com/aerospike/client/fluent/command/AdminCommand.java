@@ -24,7 +24,6 @@ import org.mindrot.jbcrypt.BCrypt;
 
 import com.aerospike.client.fluent.AerospikeException;
 import com.aerospike.client.fluent.ClusterDefinition;
-import com.aerospike.client.fluent.Connection;
 import com.aerospike.client.fluent.Log;
 import com.aerospike.client.fluent.ResultCode;
 import com.aerospike.client.fluent.policy.AuthMode;

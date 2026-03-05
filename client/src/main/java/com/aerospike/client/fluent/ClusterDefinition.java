@@ -799,6 +799,15 @@ public class ClusterDefinition {
 	}
 
 	/**
+	 * Gets the maximum socket idle time in nanoseconds before trimming connections.
+	 *
+	 * @return the maximum socket idle time in nanoseconds
+	 */
+	public long getMaxSocketIdleNanosTrim() {
+		return maxSocketIdleNanosTrim;
+	}
+
+	/**
 	 * Gets the minimum number of connections per node.
 	 *
 	 * @return the minimum connections per node

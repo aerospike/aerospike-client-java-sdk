@@ -24,7 +24,6 @@ import java.util.zip.DataFormatException;
 import java.util.zip.Inflater;
 
 import com.aerospike.client.fluent.AerospikeException;
-import com.aerospike.client.fluent.Connection;
 import com.aerospike.client.fluent.Key;
 import com.aerospike.client.fluent.Record;
 

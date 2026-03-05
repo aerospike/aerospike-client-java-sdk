@@ -23,6 +23,7 @@ import java.util.List;
 
 import com.aerospike.client.fluent.cdt.CTX;
 import com.aerospike.client.fluent.command.Buffer;
+import com.aerospike.client.fluent.command.Connection;
 import com.aerospike.client.fluent.command.Info;
 import com.aerospike.client.fluent.command.RegisterCommand;
 import com.aerospike.client.fluent.command.Txn;

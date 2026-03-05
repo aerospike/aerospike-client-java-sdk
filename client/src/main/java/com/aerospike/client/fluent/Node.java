@@ -26,7 +26,9 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import com.aerospike.client.fluent.command.AdminCommand;
+import com.aerospike.client.fluent.command.Connection;
 import com.aerospike.client.fluent.command.Info;
+import com.aerospike.client.fluent.command.Pool;
 import com.aerospike.client.fluent.command.SyncExecutor;
 import com.aerospike.client.fluent.command.AdminCommand.LoginCommand;
 import com.aerospike.client.fluent.tend.ConnectionRecover;
@@ -838,7 +840,7 @@ public class Node implements Closeable {
 	 * @param conn					socket connection
 	 */
 	public final void putConnection(Connection conn) {
-		if (! active || ! conn.pool.offer(conn)) {
+		if (! active || ! conn.getPool().offer(conn)) {
 			closeConnection(conn);
 		}
 	}
@@ -860,7 +862,7 @@ public class Node implements Closeable {
 	 * Close pooled connection on error and decrement connection count.
 	 */
 	public final void closeConnection(Connection conn) {
-		conn.pool.decrTotal();
+		conn.getPool().decrTotal();
 		closeConnectionOnError(conn);
 	}
 

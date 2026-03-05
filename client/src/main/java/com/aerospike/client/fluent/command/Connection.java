@@ -14,7 +14,7 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.aerospike.client.fluent;
+package com.aerospike.client.fluent.command;
 
 import java.io.Closeable;
 import java.io.EOFException;
@@ -38,6 +38,10 @@ import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLSocketFactory;
 import javax.security.auth.x500.X500Principal;
 
+import com.aerospike.client.fluent.AerospikeException;
+import com.aerospike.client.fluent.Log;
+import com.aerospike.client.fluent.Node;
+import com.aerospike.client.fluent.TlsBuilder;
 import com.aerospike.client.fluent.util.Util;
 
 /**
@@ -47,7 +51,7 @@ public final class Connection implements Closeable {
 	private final Socket socket;
 	private final InputStream in;
 	private final OutputStream out;
-	protected final Pool pool;
+	private final Pool pool;
 	private volatile long lastUsed;
 
 	public Connection(InetSocketAddress address, int timeoutMillis)
@@ -295,6 +299,10 @@ public final class Connection implements Closeable {
 
 	public int read(byte[] buffer, int pos, int length) throws IOException {
 		return in.read(buffer, pos, length);
+	}
+
+	public Pool getPool() {
+		return pool;
 	}
 
 	/**
