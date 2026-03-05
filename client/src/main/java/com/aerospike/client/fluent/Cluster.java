@@ -32,7 +32,6 @@ import com.aerospike.client.fluent.policy.Behavior;
 import com.aerospike.client.fluent.tend.ClusterTend;
 import com.aerospike.client.fluent.tend.ConnectionRecover;
 import com.aerospike.client.fluent.tend.Partitions;
-import com.aerospike.client.fluent.util.Util;
 import com.aerospike.dsl.Index;
 
 /**
