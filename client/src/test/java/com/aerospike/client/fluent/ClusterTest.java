@@ -46,6 +46,10 @@ public class ClusterTest {
 					.connections(ops -> ops.maximumConnectionsPerNode(200)).build()
 					.mergeWith(SystemSettings.DEFAULT));
 
+		if (args.useServicesAlternate) {
+			def.usingServicesAlternate();
+		}
+
 		if (args.ipMap != null && !args.ipMap.isEmpty()) {
 			def.ipMap(args.ipMap);
 		}
