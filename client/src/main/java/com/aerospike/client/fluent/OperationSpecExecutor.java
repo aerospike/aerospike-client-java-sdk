@@ -56,6 +56,7 @@ import com.aerospike.client.fluent.policy.Behavior.OpKind;
 import com.aerospike.client.fluent.policy.Behavior.OpShape;
 import com.aerospike.client.fluent.policy.Settings;
 import com.aerospike.client.fluent.tend.Partitions;
+import com.aerospike.client.fluent.util.Version;
 
 /**
  * Executor for heterogeneous batch operations.
@@ -141,9 +142,9 @@ class OperationSpecExecutor {
 		AerospikeException except = null;
         boolean includeMissingKeys = false;
         boolean failOnFilteredOut = false;
-        OpKind kind = OpKind.READ;
         Mode mode = Mode.AP;
         boolean linearize = false;
+        boolean hasWrite = false;
 
         for (OperationSpec spec : specs) {
             // Set isIncludeMissingKeys if any spec has isIncludeMissingKeys.
@@ -221,6 +222,7 @@ class OperationSpecExecutor {
                 }
                 else {
                     Settings settings = behavior.getSettings(OpKind.WRITE_NON_RETRYABLE, OpShape.BATCH, scMode);
+                    hasWrite = true;
 
                     switch (spec.getOpType()) {
                     case UPSERT:
@@ -260,10 +262,6 @@ class OperationSpecExecutor {
                 	mode = Mode.CP;
                 }
 
-                if (rec.hasWrite) {
-					kind = OpKind.WRITE_NON_RETRYABLE;
-				}
-
                 records.add(rec);
             }
         }
@@ -278,6 +276,7 @@ class OperationSpecExecutor {
 			}
 		}
 
+        OpKind kind = hasWrite? OpKind.WRITE_NON_RETRYABLE : OpKind.READ;
 		Settings settings = behavior.getSettings(kind, OpShape.BATCH, mode);
 
         BatchCommand parent = new BatchCommand(cluster, null, txn, null, records,
@@ -320,11 +319,26 @@ class OperationSpecExecutor {
             }
         }
 
-        if (txn != null) {
-            TxnMonitor.addKeysBatchReadWrite(txn, session, records);
-        }
+		if (txn != null) {
+		    TxnMonitor.addKeysBatchReadWrite(txn, session, records);
+		}
 
         BatchExecutor.execute(cluster, commands, status);
+
+        /*
+		if (txn != null) {
+		    TxnMonitor.addKeysBatchReadWrite(txn, session, records);
+	        BatchExecutor.execute(cluster, commands, status);
+		}
+		else if (hasWrite && mode == Mode.CP && cluster.getVersion().isGreaterOrEqual(Version.SERVER_VERSION_8_0)) {
+			// Create implicit transaction for the batch.
+			settings.getI
+			txn = new Txn();
+		}
+		else {
+	        BatchExecutor.execute(cluster, commands, status);
+		}
+		*/
 
         AsyncRecordStream recordStream = new AsyncRecordStream(records.size());
 

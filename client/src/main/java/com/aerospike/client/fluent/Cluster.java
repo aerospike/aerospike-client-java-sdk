@@ -32,6 +32,7 @@ import com.aerospike.client.fluent.policy.Behavior;
 import com.aerospike.client.fluent.tend.ClusterTend;
 import com.aerospike.client.fluent.tend.ConnectionRecover;
 import com.aerospike.client.fluent.tend.Partitions;
+import com.aerospike.client.fluent.util.Version;
 import com.aerospike.dsl.Index;
 
 /**
@@ -54,7 +55,7 @@ import com.aerospike.dsl.Index;
  * @see Behavior
  */
 public class Cluster implements Closeable {
-    /**
+	/**
      * Default interval for refreshing index information from the cluster.
      */
     public static final Duration INDEX_REFRESH = Duration.ofSeconds(5);
@@ -74,6 +75,7 @@ public class Cluster implements Closeable {
 
 	private final IndexesMonitor indexesMonitor;
     private RecordMappingFactory recordMappingFactory = null;
+    private Version version;
 
     Cluster(ClusterDefinition def, SystemSettings effectiveSettings) {
         this.def = def;
@@ -535,6 +537,48 @@ public class Cluster implements Closeable {
 	public final void setNodes(Node[] nodes) {
     	this.nodes = nodes;
     }
+
+    /**
+     * Gets the minimum server version across all nodes in the cluster.
+     *
+     * <p>The cluster version represents the lowest version of any node currently
+     * in the cluster. This is used to determine feature compatibility, as the
+     * cluster can only use features supported by all nodes.</p>
+     *
+     * <p>The version is automatically maintained by the cluster tend mechanism
+     * as nodes are added or removed. When a node is added, if its version is
+     * lower than the current cluster version, the cluster version is updated
+     * to match the lower version.</p>
+     *
+     * @return the minimum server version in the cluster, or {@code null} if
+     *         no version has been set yet
+     * @see Version
+     * @see #setVersion(Version)
+     */
+    public Version getVersion() {
+		return version;
+	}
+
+	/**
+	 * Sets the minimum server version for the cluster. For internal use only.
+	 *
+	 * <p>This method is typically called by the cluster tend mechanism when
+	 * nodes are added to ensure the cluster version reflects the minimum
+	 * version across all nodes. Setting a lower version than the current
+	 * cluster version will update the cluster to use the lower version,
+	 * ensuring feature compatibility across all nodes.</p>
+	 *
+	 * <p>This method should generally not be called directly by application
+	 * code, as the cluster tend mechanism automatically manages the version
+	 * based on the nodes in the cluster.</p>
+	 *
+	 * @param version the minimum server version to set for the cluster
+	 * @see Version
+	 * @see #getVersion()
+	 */
+	public void setVersion(Version version) {
+		this.version = version;
+	}
 
     /**
      * Checks if the cluster tend mechanism is currently active.

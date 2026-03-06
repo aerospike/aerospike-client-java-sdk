@@ -1,3 +1,19 @@
+/*
+ * Copyright 2012-2026 Aerospike, Inc.
+ *
+ * Portions may be licensed to Aerospike, Inc. under one or more contributor
+ * license agreements WHICH ARE COMPATIBLE WITH THE APACHE LICENSE, VERSION 2.0.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy of
+ * the License at http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
+ */
 package com.aerospike.client.fluent.policy;
 
 import java.time.Duration;
@@ -35,6 +51,7 @@ public class BehaviorYamlConfig {
         private SystemConnectionsConfig systemConnections;
         private SystemCircuitBreakerConfig systemCircuitBreaker;
         private SystemRefreshConfig systemRefresh;
+        private SystemTransactionsConfig systemTransactions;
 
         // Getters and setters
         public String getName() { return name; }
@@ -90,6 +107,9 @@ public class BehaviorYamlConfig {
 
         public SystemRefreshConfig getSystemRefresh() { return systemRefresh; }
         public void setSystemRefresh(SystemRefreshConfig systemRefresh) { this.systemRefresh = systemRefresh; }
+
+        public SystemTransactionsConfig getSystemTransactions() { return systemTransactions; }
+        public void setSystemTransactions(SystemTransactionsConfig systemTransactions) { this.systemTransactions = systemTransactions; }
     }
 
     // Base policy configuration
@@ -244,11 +264,38 @@ public class BehaviorYamlConfig {
         public void setTendInterval(Duration tendInterval) { this.tendInterval = tendInterval; }
     }
 
+    // System - Transactions configuration
+    public static class SystemTransactionsConfig {
+		private Boolean implicitBatchWriteTransactions;
+        private Integer sleepBetweenAttempts;
+        private Integer numberOfAttempts;
+
+        public Boolean getImplicitBatchWriteTransactions() {
+			return implicitBatchWriteTransactions;
+		}
+		public void setImplicitBatchWriteTransactions(Boolean implicitBatchWriteTransactions) {
+			this.implicitBatchWriteTransactions = implicitBatchWriteTransactions;
+		}
+		public Integer getSleepBetweenAttempts() {
+			return sleepBetweenAttempts;
+		}
+		public void setSleepBetweenAttempts(Integer sleepBetweenAttempts) {
+			this.sleepBetweenAttempts = sleepBetweenAttempts;
+		}
+		public Integer getNumberOfAttempts() {
+			return numberOfAttempts;
+		}
+		public void setNumberOfAttempts(Integer numberOfAttempts) {
+			this.numberOfAttempts = numberOfAttempts;
+		}
+    }
+
     // System settings configuration (for cluster-level settings)
     public static class SystemSettingsConfig {
         private SystemConnectionsConfig connections;
         private SystemCircuitBreakerConfig circuitBreaker;
         private SystemRefreshConfig refresh;
+        private SystemTransactionsConfig transactions;
 
         public SystemConnectionsConfig getConnections() { return connections; }
         public void setConnections(SystemConnectionsConfig connections) { this.connections = connections; }
@@ -258,5 +305,8 @@ public class BehaviorYamlConfig {
 
         public SystemRefreshConfig getRefresh() { return refresh; }
         public void setRefresh(SystemRefreshConfig refresh) { this.refresh = refresh; }
+
+        public SystemTransactionsConfig getTransactions() { return transactions; }
+        public void setTransactions(SystemTransactionsConfig transactions) { this.transactions = transactions; }
     }
 }

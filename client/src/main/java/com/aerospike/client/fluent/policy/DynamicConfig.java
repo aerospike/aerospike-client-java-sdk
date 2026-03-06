@@ -23,17 +23,17 @@ public class DynamicConfig {
 
     private Map<String, Config> behaviors;
     private Map<String, SystemSettings> system;
-    
+
     // Getters and setters
     public Map<String, Config> getBehaviors() { return behaviors; }
     public void setBehaviors(Map<String, Config> behaviors) { this.behaviors = behaviors; }
-    
+
     public Map<String, SystemSettings> getSystem() { return system; }
     public void setSystem(Map<String, SystemSettings> system) { this.system = system; }
-    
+
     // Individual behavior configuration (name is the map key)
     public static class Config {
-        private String parent;
+		private String parent;
         private Boolean sendKey;
         private Boolean useCompression;
         private Base allOperations;
@@ -50,7 +50,8 @@ public class DynamicConfig {
         private SystemConnections systemConnections;
         private SystemCircuitBreaker systemCircuitBreaker;
         private SystemRefresh systemRefresh;
-        
+        private SystemTransactions systemTransactions;
+
         // Getters and setters
         public String getParent() { return parent; }
         public void setParent(String parent) { this.parent = parent; }
@@ -93,15 +94,22 @@ public class DynamicConfig {
 
         public SystemTxnRoll getSystemTxnRoll() { return systemTxnRoll; }
         public void setSystemTxnRoll(SystemTxnRoll systemTxnRoll) { this.systemTxnRoll = systemTxnRoll; }
-        
+
         public SystemConnections getSystemConnections() { return systemConnections; }
         public void setSystemConnections(SystemConnections systemConnections) { this.systemConnections = systemConnections; }
-        
+
         public SystemCircuitBreaker getSystemCircuitBreaker() { return systemCircuitBreaker; }
         public void setSystemCircuitBreaker(SystemCircuitBreaker systemCircuitBreaker) { this.systemCircuitBreaker = systemCircuitBreaker; }
-        
+
         public SystemRefresh getSystemRefresh() { return systemRefresh; }
         public void setSystemRefresh(SystemRefresh systemRefresh) { this.systemRefresh = systemRefresh; }
+
+        public SystemTransactions getSystemTransactions() {
+			return systemTransactions;
+		}
+		public void setSystemTransactions(SystemTransactions systemTransactions) {
+			this.systemTransactions = systemTransactions;
+		}
     }
 
     // Base policy configuration
@@ -219,7 +227,7 @@ public class DynamicConfig {
         // Uses base PolicyConfig fields: abandonCallAfter, delayBetweenRetries, maximumNumberOfCallAttempts,
         // replicaOrder, waitForCallToComplete, waitForConnectionToComplete, waitForSocketResponseAfterCallFails
     }
-    
+
     // System - Connections configuration
     public static class SystemConnections {
         private Integer minimumConnectionsPerNode;
@@ -235,40 +243,72 @@ public class DynamicConfig {
         public Duration getMaximumSocketIdleTime() { return maximumSocketIdleTime; }
         public void setMaximumSocketIdleTime(Duration maximumSocketIdleTime) { this.maximumSocketIdleTime = maximumSocketIdleTime; }
     }
-    
+
     // System - Circuit Breaker configuration
     public static class SystemCircuitBreaker {
         private Integer numTendIntervalsInErrorWindow;
         private Integer maximumErrorsInErrorWindow;
-        
+
         public Integer getNumTendIntervalsInErrorWindow() { return numTendIntervalsInErrorWindow; }
         public void setNumTendIntervalsInErrorWindow(Integer numTendIntervalsInErrorWindow) { this.numTendIntervalsInErrorWindow = numTendIntervalsInErrorWindow; }
-        
+
         public Integer getMaximumErrorsInErrorWindow() { return maximumErrorsInErrorWindow; }
         public void setMaximumErrorsInErrorWindow(Integer maximumErrorsInErrorWindow) { this.maximumErrorsInErrorWindow = maximumErrorsInErrorWindow; }
     }
-    
+
     // System - Refresh configuration
     public static class SystemRefresh {
         private Duration tendInterval;
-        
+
         public Duration getTendInterval() { return tendInterval; }
         public void setTendInterval(Duration tendInterval) { this.tendInterval = tendInterval; }
     }
-    
+
+    // System - Transactions configuration
+    public static class SystemTransactions {
+		private Boolean implicitBatchWriteTransactions;
+        private Integer sleepBetweenAttempts;
+        private Integer numberOfAttempts;
+
+        public Boolean getImplicitBatchWriteTransactions() {
+			return implicitBatchWriteTransactions;
+		}
+		public void setImplicitBatchWriteTransactions(Boolean implicitBatchWriteTransactions) {
+			this.implicitBatchWriteTransactions = implicitBatchWriteTransactions;
+		}
+
+		public Integer getSleepBetweenAttempts() {
+			return sleepBetweenAttempts;
+		}
+		public void setSleepBetweenAttempts(Integer sleepBetweenAttempts) {
+			this.sleepBetweenAttempts = sleepBetweenAttempts;
+		}
+
+		public Integer getNumberOfAttempts() {
+			return numberOfAttempts;
+		}
+		public void setNumberOfAttempts(Integer numberOfAttempts) {
+			this.numberOfAttempts = numberOfAttempts;
+		}
+    }
+
     // System settings configuration (for cluster-level settings)
     public static class SystemSettings {
         private SystemConnections connections;
         private SystemCircuitBreaker circuitBreaker;
         private SystemRefresh refresh;
-        
+        private SystemTransactions transactions;
+
         public SystemConnections getConnections() { return connections; }
         public void setConnections(SystemConnections connections) { this.connections = connections; }
-        
+
         public SystemCircuitBreaker getCircuitBreaker() { return circuitBreaker; }
         public void setCircuitBreaker(SystemCircuitBreaker circuitBreaker) { this.circuitBreaker = circuitBreaker; }
-        
+
         public SystemRefresh getRefresh() { return refresh; }
         public void setRefresh(SystemRefresh refresh) { this.refresh = refresh; }
-    }
-} 
+
+        public SystemTransactions getTransactions() { return transactions; }
+        public void setTransactions(SystemTransactions transactions) { this.transactions = transactions; }
+   }
+}

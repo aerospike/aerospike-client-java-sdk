@@ -527,6 +527,11 @@ public class ClusterTend implements Runnable {
 	}
 
 	private void addNode(Node node) {
+		// Set minimum cluster version.
+		if (cluster.getVersion() == null || node.getVersion().isLessThan(cluster.getVersion())) {
+			cluster.setVersion(node.getVersion());
+		}
+
 		if (Log.infoEnabled()) {
 			Log.info(cluster.getLogContext(), "Add node " + node);
 		}
