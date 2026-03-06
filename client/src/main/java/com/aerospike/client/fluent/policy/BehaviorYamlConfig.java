@@ -267,7 +267,7 @@ public class BehaviorYamlConfig {
     // System - Transactions configuration
     public static class SystemTransactionsConfig {
 		private Boolean implicitBatchWriteTransactions;
-        private Integer sleepBetweenAttempts;
+        private Duration sleepBetweenAttempts;
         private Integer numberOfAttempts;
 
         public Boolean getImplicitBatchWriteTransactions() {
@@ -276,10 +276,10 @@ public class BehaviorYamlConfig {
 		public void setImplicitBatchWriteTransactions(Boolean implicitBatchWriteTransactions) {
 			this.implicitBatchWriteTransactions = implicitBatchWriteTransactions;
 		}
-		public Integer getSleepBetweenAttempts() {
+		public Duration getSleepBetweenAttempts() {
 			return sleepBetweenAttempts;
 		}
-		public void setSleepBetweenAttempts(Integer sleepBetweenAttempts) {
+		public void setSleepBetweenAttempts(Duration sleepBetweenAttempts) {
 			this.sleepBetweenAttempts = sleepBetweenAttempts;
 		}
 		public Integer getNumberOfAttempts() {

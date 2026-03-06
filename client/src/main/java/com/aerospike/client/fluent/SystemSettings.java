@@ -84,7 +84,7 @@ public class SystemSettings {
 
     // ===== Transactions Settings =====
     private final Boolean implicitBatchWriteTransactions;
-    private final Integer sleepBetweenAttempts;
+    private final Duration sleepBetweenAttempts;
     private final Integer numberOfAttempts;
 
     /**
@@ -106,7 +106,7 @@ public class SystemSettings {
         )
         .transactions(ops -> ops
         	.implicitBatchWriteTransactions(true)
-        	.sleepBetweenAttempts(1000)
+        	.sleepBetweenAttempts(Duration.ofMillis(1000))
         	.numberOfAttempts(5)
         )
         .build();
@@ -181,7 +181,7 @@ public class SystemSettings {
     public Integer getMaximumErrorsInErrorWindow() { return maximumErrorsInErrorWindow; }
     public Duration getTendInterval() { return tendInterval; }
     public Boolean getImplicitBatchWriteTransactions() { return implicitBatchWriteTransactions; }
-    public Integer getSleepBetweenAttempts() { return sleepBetweenAttempts; }
+    public Duration getSleepBetweenAttempts() { return sleepBetweenAttempts; }
     public Integer getNumberOfAttempts() { return numberOfAttempts; }
 
     @Override
@@ -237,7 +237,7 @@ public class SystemSettings {
         private Integer maximumErrorsInErrorWindow;
         private Duration tendInterval;
         private Boolean implicitBatchWriteTransactions;
-        private Integer sleepBetweenAttempts;
+        private Duration sleepBetweenAttempts;
         private Integer numberOfAttempts;
 
         /**
@@ -307,7 +307,7 @@ public class SystemSettings {
          * builder.transactions(ops -> ops
          *     .implicitBatchWriteTransactions(true)
          *     .numberOfAttempts(5)
-         *     .sleepBetweenAttempts(100)
+         *     .sleepBetweenAttempts(Duration.ofMillis(500))
          * )
          * }</pre>
          *
@@ -408,7 +408,7 @@ public class SystemSettings {
      *     .transactions(ops -> ops
      *         .implicitBatchWriteTransactions(true)
      *         .numberOfAttempts(5)
-     *         .sleepBetweenAttempts(100)
+     *         .sleepBetweenAttempts(Duration.ofMillis(500))
      *     )
      *     .build();
      * }</pre>
@@ -437,13 +437,10 @@ public class SystemSettings {
          * MRT_VERSION_MISMATCH, or TXN_FAILED), the client will wait this duration
          * before retrying the transaction.</p>
          *
-         * <p>The value is specified in milliseconds. A value of 0 means no sleep
-         * between attempts.</p>
-         *
-         * @param n sleep duration in milliseconds between retry attempts (0 or greater)
+         * @param duration sleep duration between retry attempts
          * @return this tweaks instance for method chaining
          */
-    	TransactionsTweaks sleepBetweenAttempts(int n);
+    	TransactionsTweaks sleepBetweenAttempts(Duration duration);
 
         /**
          * Sets the maximum number of transaction retry attempts.
@@ -539,8 +536,8 @@ public class SystemSettings {
         }
 
         @Override
-        public TransactionsTweaks sleepBetweenAttempts(int n) {
-            builder.sleepBetweenAttempts = n;
+        public TransactionsTweaks sleepBetweenAttempts(Duration duration) {
+            builder.sleepBetweenAttempts = duration;
             return this;
         }
 

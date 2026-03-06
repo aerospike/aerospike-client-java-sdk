@@ -1000,6 +1000,78 @@ public class BehaviorYamlTest {
             assertNotNull(behaviors);
             assertTrue(behaviors.containsKey("simple"));
         }
+
+        @Test
+        @DisplayName("Should load transaction settings from YAML")
+        void testTransactionSettings() throws IOException {
+            String yaml = """
+                system:
+                  DEFAULT:
+                    transactions:
+                      implicitBatchWriteTransactions: true
+                      sleepBetweenAttempts: 500ms
+                      numberOfAttempts: 5
+                """;
+
+            loadFromYamlString(yaml);
+
+            SystemSettingsRegistry registry = SystemSettingsRegistry.getInstance();
+            SystemSettings defaults = registry.getDefaultSettings();
+
+            assertNotNull(defaults);
+            assertEquals(true, defaults.getImplicitBatchWriteTransactions());
+            assertEquals(Duration.ofMillis(500), defaults.getSleepBetweenAttempts());
+            assertEquals(5, defaults.getNumberOfAttempts());
+        }
+
+        @Test
+        @DisplayName("Should load partial transaction settings")
+        void testPartialTransactionSettings() throws IOException {
+            String yaml = """
+                system:
+                  DEFAULT:
+                    transactions:
+                      numberOfAttempts: 10
+                """;
+
+            loadFromYamlString(yaml);
+
+            SystemSettingsRegistry registry = SystemSettingsRegistry.getInstance();
+            SystemSettings defaults = registry.getDefaultSettings();
+
+            assertNotNull(defaults);
+            assertEquals(10, defaults.getNumberOfAttempts());
+            assertNull(defaults.getSleepBetweenAttempts());
+            assertNull(defaults.getImplicitBatchWriteTransactions());
+        }
+
+        @Test
+        @DisplayName("Should load cluster-specific transaction settings")
+        void testClusterSpecificTransactionSettings() throws IOException {
+            String yaml = """
+                system:
+                  DEFAULT:
+                    transactions:
+                      sleepBetweenAttempts: 250ms
+                      numberOfAttempts: 3
+                  production:
+                    transactions:
+                      sleepBetweenAttempts: 1s
+                      numberOfAttempts: 10
+                """;
+
+            loadFromYamlString(yaml);
+
+            SystemSettingsRegistry registry = SystemSettingsRegistry.getInstance();
+
+            SystemSettings defaults = registry.getDefaultSettings();
+            assertEquals(Duration.ofMillis(250), defaults.getSleepBetweenAttempts());
+            assertEquals(3, defaults.getNumberOfAttempts());
+
+            SystemSettings production = registry.getClusterSettings("production");
+            assertEquals(Duration.ofSeconds(1), production.getSleepBetweenAttempts());
+            assertEquals(10, production.getNumberOfAttempts());
+        }
     }
 
     @Nested

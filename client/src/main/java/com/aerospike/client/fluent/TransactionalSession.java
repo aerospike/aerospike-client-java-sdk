@@ -1,5 +1,7 @@
 package com.aerospike.client.fluent;
 
+import java.time.Duration;
+
 import com.aerospike.client.fluent.command.AbortStatus;
 import com.aerospike.client.fluent.command.CommitStatus;
 import com.aerospike.client.fluent.command.Txn;
@@ -116,9 +118,13 @@ public class TransactionalSession extends Session{
                 return operation.execute(this);
             }
             else {
-                // Outmost transaction, commit when complete.
-                while (true) {
-                	T result;
+                // Outermost transaction, commit when complete.
+                SystemSettings settings = getCluster().getSystemSettings();
+                int maxAttempts = settings.getNumberOfAttempts();
+                Duration sleepBetweenAttempts = settings.getSleepBetweenAttempts();
+
+                for (int attempt = 1; ; attempt++) {
+                    T result;
 
                     try {
                         result = operation.execute(this);
@@ -126,13 +132,11 @@ public class TransactionalSession extends Session{
                     catch (AerospikeException ae) {
                         abort();
 
-                    	if (retryCommit(ae)) {
-                    		// TODO: Retry indefinitely? Should there be a sleep here?
-                    		continue;
-                    	}
-                    	else {
-                            throw ae;
-                    	}
+                        if (retryCommit(ae) && attempt < maxAttempts) {
+                            sleepBetweenRetries(sleepBetweenAttempts);
+                            continue;
+                        }
+                        throw ae;
                     }
                     catch (Exception e) {
                         abort();
@@ -191,29 +195,31 @@ public class TransactionalSession extends Session{
                 operation.execute(this);
             }
             else {
-                // Outmost transaction, commit when complete.
-                while (true) {
+                // Outermost transaction, commit when complete.
+                SystemSettings settings = getCluster().getSystemSettings();
+                int maxAttempts = settings.getNumberOfAttempts();
+                Duration sleepBetweenAttempts = settings.getSleepBetweenAttempts();
+
+                for (int attempt = 1; ; attempt++) {
                     try {
                         operation.execute(this);
                     }
                     catch (AerospikeException ae) {
-                    	abort();
+                        abort();
 
-                    	if (retryCommit(ae)) {
-                    		// TODO: Retry indefinitely? Should there be a sleep here?
-                    		continue;
-                    	}
-                    	else {
-                            throw ae;
-                    	}
+                        if (retryCommit(ae) && attempt < maxAttempts) {
+                            sleepBetweenRetries(sleepBetweenAttempts);
+                            continue;
+                        }
+                        throw ae;
                     }
                     catch (Exception e) {
-                    	abort();
+                        abort();
                         throw e;
                     }
 
-                	commit();
-                	return;
+                    commit();
+                    return;
                 }
             }
         }
@@ -234,6 +240,17 @@ public class TransactionalSession extends Session{
 	            // These cannot be retried
 	        	return false;
     	}
+    }
+
+    private static void sleepBetweenRetries(Duration sleepBetweenAttempts) {
+        if (sleepBetweenAttempts != null && sleepBetweenAttempts.isPositive()) {
+            try {
+                Thread.sleep(sleepBetweenAttempts.toMillis());
+            }
+            catch (InterruptedException ie) {
+                Thread.currentThread().interrupt();
+            }
+        }
     }
 
     private CommitStatus commit() {

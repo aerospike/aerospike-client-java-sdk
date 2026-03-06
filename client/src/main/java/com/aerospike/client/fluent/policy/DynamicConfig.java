@@ -267,7 +267,7 @@ public class DynamicConfig {
     // System - Transactions configuration
     public static class SystemTransactions {
 		private Boolean implicitBatchWriteTransactions;
-        private Integer sleepBetweenAttempts;
+        private Duration sleepBetweenAttempts;
         private Integer numberOfAttempts;
 
         public Boolean getImplicitBatchWriteTransactions() {
@@ -277,10 +277,10 @@ public class DynamicConfig {
 			this.implicitBatchWriteTransactions = implicitBatchWriteTransactions;
 		}
 
-		public Integer getSleepBetweenAttempts() {
+		public Duration getSleepBetweenAttempts() {
 			return sleepBetweenAttempts;
 		}
-		public void setSleepBetweenAttempts(Integer sleepBetweenAttempts) {
+		public void setSleepBetweenAttempts(Duration sleepBetweenAttempts) {
 			this.sleepBetweenAttempts = sleepBetweenAttempts;
 		}
 

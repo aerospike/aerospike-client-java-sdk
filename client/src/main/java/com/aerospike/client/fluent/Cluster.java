@@ -75,6 +75,7 @@ public class Cluster implements Closeable {
 
 	private final IndexesMonitor indexesMonitor;
     private RecordMappingFactory recordMappingFactory = null;
+    private volatile SystemSettings effectiveSystemSettings = SystemSettings.DEFAULT;
     private Version version;
 
     Cluster(ClusterDefinition def, SystemSettings effectiveSettings) {
@@ -238,6 +239,15 @@ public class Cluster implements Closeable {
     }
 
     /**
+     * Gets the effective system settings for this cluster.
+     *
+     * @return the current effective system settings
+     */
+    public SystemSettings getSystemSettings() {
+        return effectiveSystemSettings;
+    }
+
+    /**
      * Applies system settings dynamically to this cluster.
      * Called by {@link SystemSettingsRegistry} when settings are updated.
      *
@@ -250,6 +260,8 @@ public class Cluster implements Closeable {
         if (settings == null) {
             return;
         }
+
+        this.effectiveSystemSettings = settings;
 
         if (settings.getMinimumConnectionsPerNode() != null) {
         	setMinConnsPerNode(settings.getMinimumConnectionsPerNode());

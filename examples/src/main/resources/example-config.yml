@@ -55,6 +55,9 @@ system:
       maximumErrorsInErrorWindow: 100
     refresh:
       tendInterval: 1s
+    transactions:
+      sleepBetweenAttempts: 250ms
+      numberOfAttempts: 3
 
   # Production cluster specific settings
   production:
