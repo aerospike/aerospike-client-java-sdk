@@ -181,6 +181,8 @@ public class RecordStream implements Iterator<RecordResult>, Closeable {
      * {@link NavigatableRecordStream}. Use {@link #asNavigatableStream()} for
      * client-side sorting and bi-directional pagination.</p>
      *
+     * <p>This method does <b>not</b> close the stream.</p>
+     *
      * @return true if more chunks are available, false otherwise
      */
     public boolean hasMoreChunks() {
@@ -191,6 +193,8 @@ public class RecordStream implements Iterator<RecordResult>, Closeable {
      * Returns {@code true} if the iteration has more elements.
      * (In other words, returns {@code true} if {@link #next} would
      * return an element rather than throwing an exception.)
+     *
+     * <p>This method idempotent 
      *
      * @return {@code true} if the iteration has more elements
      */
@@ -211,9 +215,13 @@ public class RecordStream implements Iterator<RecordResult>, Closeable {
     }
 
     /**
-     * Convert the elements in this RecordStream into a Java Stream class. Note that this loses
-     * pagination information, all the records are accessible through the Stream.
-     * @return
+     * Converts this RecordStream into a Java {@link Stream}. Note that this loses
+     * pagination information; all records are accessible through the Stream.
+     *
+     * <p>This method does <b>not</b> close the stream immediately. Closing the returned
+     * Java Stream (e.g. via try-with-resources) will close the underlying RecordStream.</p>
+     *
+     * @return a Stream of RecordResult backed by this RecordStream
      */
     public Stream<RecordResult> stream() {
         Stream<RecordResult> records = StreamSupport.stream(Spliterators.spliteratorUnknownSize(
@@ -231,6 +239,9 @@ public class RecordStream implements Iterator<RecordResult>, Closeable {
     /**
      * Drains this stream into a {@link CompletableFuture} that completes with all results
      * as a list. The draining happens on a virtual thread, so this method returns immediately.
+     *
+     * <p>This is a <b>terminal operation</b> that closes the stream when draining completes
+     * or an exception occurs.</p>
      *
      * <p>Best suited for point lookups and batch operations with bounded result sets.
      * For index queries that may return millions of records, prefer {@link #asPublisher()}
@@ -257,6 +268,8 @@ public class RecordStream implements Iterator<RecordResult>, Closeable {
                 future.complete(results);
             } catch (Throwable t) {
                 future.completeExceptionally(t);
+            } finally {
+                close();
             }
         });
         return future;
@@ -266,6 +279,9 @@ public class RecordStream implements Iterator<RecordResult>, Closeable {
      * Drains this stream, maps each record using the provided mapper, and completes the
      * returned {@link CompletableFuture} with the mapped list. Records with non-OK result
      * codes cause the future to complete exceptionally.
+     *
+     * <p>This is a <b>terminal operation</b> that closes the stream when draining completes
+     * or an exception occurs.</p>
      *
      * <pre>
      * CompletableFuture&lt;List&lt;Customer&gt;&gt; future =
@@ -290,6 +306,8 @@ public class RecordStream implements Iterator<RecordResult>, Closeable {
                 future.complete(results);
             } catch (Throwable t) {
                 future.completeExceptionally(t);
+            } finally {
+                close();
             }
         });
         return future;
@@ -353,6 +371,9 @@ public class RecordStream implements Iterator<RecordResult>, Closeable {
      * <p>Both adapters ({@code JdkFlowAdapter} in Reactor, {@code FlowAdapters} in the JDK's
      * {@code java.util.concurrent} package) bridge between {@code Flow.Publisher} and the
      * Reactive Streams {@code org.reactivestreams.Publisher} that Reactor and RxJava expect.</p>
+     *
+     * <p>The stream is closed automatically when the subscription completes, errors, or is
+     * cancelled. This method does <b>not</b> close the stream immediately.</p>
      *
      * @return a Flow.Publisher that streams results with backpressure
      */
@@ -447,6 +468,8 @@ public class RecordStream implements Iterator<RecordResult>, Closeable {
                     if (!cancelled.get()) {
                         subscriber.onError(t);
                     }
+                } finally {
+                    source.close();
                 }
             });
         }
@@ -455,61 +478,74 @@ public class RecordStream implements Iterator<RecordResult>, Closeable {
     /**
      * Filter the stream to return only failed operations. A failed operation is one where
      * the result code is not {@link ResultCode#OK}.
-     * <p>
-     * This method consumes the current stream and returns a new RecordStream containing
-     * only the records with non-OK result codes. Useful for error handling and debugging.
-     * <p>
-     * Example usage:
+     *
+     * <p>This is a <b>terminal operation</b> that consumes and closes this stream, returning
+     * a new RecordStream containing only the records with non-OK result codes.</p>
+     *
+     * <p>Example usage:</p>
      * <pre>
      * RecordStream results = session.update(keys).bin("name").setTo("value").execute();
      * RecordStream failures = results.failures();
-     * failures.forEach(failure -> {
+     * failures.forEach(failure -&gt; {
      *     System.err.println("Failed for key: " + failure.key() +
      *                        ", reason: " + failure.message());
      * });
      * </pre>
      *
-     * @return A new RecordStream containing only records with resultCode != OK
+     * @return a new RecordStream containing only records with resultCode != OK. The returned
+     *         stream holds all records in memory and does not require closing, though calling
+     *         {@link #close()} on it is harmless.
      */
     public RecordStream failures() {
-        List<RecordResult> failedRecords = new ArrayList<>();
+        try {
+            List<RecordResult> failedRecords = new ArrayList<>();
 
-        while (this.hasNext()) {
-            RecordResult result = this.next();
-            if (result.resultCode() != ResultCode.OK) {
-                failedRecords.add(result);
+            while (this.hasNext()) {
+                RecordResult result = this.next();
+                if (result.resultCode() != ResultCode.OK) {
+                    failedRecords.add(result);
+                }
             }
-        }
 
-        // Return new RecordStream with filtered results
-        return new RecordStream(failedRecords, 0L);
+            return new RecordStream(failedRecords, 0L);
+        } finally {
+            close();
+        }
     }
 
     /**
-     * Return the records from the current page as a list of entities.
-     * @param <T>
-     * @param mapper
-     * @return
+     * Consumes all records in the stream and returns them as a list of mapped objects.
+     *
+     * <p>This is a <b>terminal operation</b> that closes the stream when all records have
+     * been consumed or an exception occurs.</p>
+     *
+     * @param <T> the target type
+     * @param mapper the mapper to convert each record to the target type
+     * @return a list of mapped objects
+     * @throws AerospikeException if any element has a non-OK result code
      */
     public <T> List<T> toObjectList(RecordMapper<T> mapper) {
-        // TODO: What should happen if there is an exception in the stream of records? At the moment it is just thrown
-        // to the detriment of the other records
-        List<T> result = new ArrayList<>();
-        while (hasNext()) {
-            RecordResult keyRecord = next();
-            Record rec = keyRecord.recordOrThrow();
-            result.add(mapper.fromMap(rec.bins, keyRecord.key(), rec.generation));
+        try {
+            List<T> result = new ArrayList<>();
+            while (hasNext()) {
+                RecordResult keyRecord = next();
+                Record rec = keyRecord.recordOrThrow();
+                result.add(mapper.fromMap(rec.bins, keyRecord.key(), rec.generation));
+            }
+            return result;
+        } finally {
+            close();
         }
-        return result;
     }
 
     /**
      * Converts this RecordStream into a NavigatableRecordStream for in-memory sorting and pagination.
      *
-     * <p>This method reads all records from the current stream into memory and returns a
-     * NavigatableRecordStream that provides builder-style APIs for sorting and pagination.
-     * This is useful when you need to sort results after fetching them from the database,
-     * or when you want to paginate through results in a different way than the original query.</p>
+     * <p>This is a <b>terminal operation</b> that reads all records from the current stream
+     * into memory and closes it, returning a NavigatableRecordStream that provides builder-style
+     * APIs for sorting and pagination. This is useful when you need to sort results after
+     * fetching them from the database, or when you want to paginate through results in a
+     * different way than the original query.</p>
      *
      * <p>Example usage:</p>
      * <pre>
@@ -543,9 +579,9 @@ public class RecordStream implements Iterator<RecordResult>, Closeable {
     /**
      * Converts this RecordStream into a NavigatableRecordStream with a record limit.
      *
-     * <p>This method reads records from the current stream into memory up to the specified
-     * limit and returns a NavigatableRecordStream that provides builder-style APIs for
-     * sorting and pagination.</p>
+     * <p>This is a <b>terminal operation</b> that reads records from the current stream into
+     * memory up to the specified limit and closes it, returning a NavigatableRecordStream that
+     * provides builder-style APIs for sorting and pagination.</p>
      *
      * <p>Example usage:</p>
      * <pre>
@@ -566,122 +602,209 @@ public class RecordStream implements Iterator<RecordResult>, Closeable {
      * Performs the given action for each element of the stream until all elements
      * have been processed or the action throws an exception.
      *
+     * <p>This is a <b>terminal operation</b> that closes the stream when iteration
+     * completes or an exception occurs.</p>
+     *
      * @param consumer the action to be performed for each element
      */
     public void forEach(Consumer<RecordResult> consumer) {
-        while (hasNext()) {
-            consumer.accept(next());
+        try {
+            while (hasNext()) {
+                consumer.accept(next());
+            }
+        } finally {
+            close();
+        }
+    }
+
+    /**
+     * Maps each element in the stream using the provided mapper and passes the result to the
+     * consumer. If any element has a non-OK result code, an exception is thrown.
+     *
+     * <p>This is a <b>terminal operation</b> that closes the stream when iteration
+     * completes or an exception occurs.</p>
+     *
+     * <p>Example usage:</p>
+     * <pre>
+     * session.query(customerDataSet.id("C001", "C002")).execute()
+     *     .forEach(customerMapper, customer -&gt; System.out.println(customer.getName()));
+     * </pre>
+     *
+     * @param <T> the target type
+     * @param mapper the mapper to convert each record to the target type
+     * @param consumer the action to be performed for each mapped element
+     * @throws AerospikeException if any element has a non-OK result code
+     */
+    public <T> void forEach(RecordMapper<T> mapper, Consumer<T> consumer) {
+        try {
+            while (hasNext()) {
+                RecordResult rr = next();
+                Record rec = rr.recordOrThrow();
+                consumer.accept(mapper.fromMap(rec.bins, rr.key(), rec.generation));
+            }
+        } finally {
+            close();
         }
     }
 
     /**
      * Searches the stream for a record with the specified key and returns it if found.
-     * Note that searching through the stream consumes elements, which may not be replayable
-     * if the stream is not generated from a {@code Key} or {@code List<Key>}.
+     *
+     * <p>This is a <b>terminal operation</b> that closes the stream after the search completes
+     * (whether the key is found or not). Because the stream is closed, this operation cannot
+     * be retried on the same stream instance.</p>
      *
      * @param key the key to search for
-     * @return an Optional containing the record if found, or empty if not found or if the result code is not OK
-     * @throws com.aerospike.client.AerospikeException if the record exists but the result code is not OK
+     * @return an Optional containing the record if found, or empty if not found
+     * @throws AerospikeException if the record exists but the result code is not OK
      */
     public Optional<Record> get(Key key) {
-        while (hasNext()) {
-            RecordResult kr = next();
-            if (kr.key().equals(key)) {
-                return Optional.of(kr.recordOrThrow());
+        try {
+            while (hasNext()) {
+                RecordResult kr = next();
+                if (kr.key().equals(key)) {
+                    return Optional.of(kr.recordOrThrow());
+                }
             }
+            return Optional.empty();
+        } finally {
+            close();
         }
-        return Optional.empty();
     }
 
     /**
-     * Find a particular key in the stream and return the data associated with that key, or {@code Optional.empty}
-     * if the key doesn't exist. Note that if the stream is not generated from a {@code Key} or {@code List<Key>}
-     * then finding the key will consume elements in the stream which may not be able to be replayed.
-     * @param <T> - The type of the object to be returned.
-     * @param key - The key of the record
-     * @param mapper - The mapper to use to convert the record to the class
-     * @return An optional containing the data or empty. If the result code is not OK, an exception will be thrown
+     * Searches the stream for a record with the specified key and returns it mapped to the
+     * target type, or {@code Optional.empty()} if the key doesn't exist.
+     *
+     * <p>This is a <b>terminal operation</b> that closes the stream after the search completes
+     * (whether the key is found or not). Because the stream is closed, this operation cannot
+     * be retried on the same stream instance.</p>
+     *
+     * @param <T> the type of the object to be returned
+     * @param key the key of the record
+     * @param mapper the mapper to use to convert the record to the class
+     * @return an Optional containing the mapped data, or empty if the key was not found
+     * @throws AerospikeException if the result code is not OK
      */
     public <T> Optional<T> get(Key key, RecordMapper<T> mapper) {
-        while (hasNext()) {
-            RecordResult thisRecord = next();
-            if (thisRecord.key().equals(key)) {
-                Record rec = thisRecord.recordOrThrow();
-                return Optional.of(mapper.fromMap(rec.bins, thisRecord.key(), rec.generation));
+        try {
+            while (hasNext()) {
+                RecordResult thisRecord = next();
+                if (thisRecord.key().equals(key)) {
+                    Record rec = thisRecord.recordOrThrow();
+                    return Optional.of(mapper.fromMap(rec.bins, thisRecord.key(), rec.generation));
+                }
             }
+            return Optional.empty();
+        } finally {
+            close();
         }
-        return Optional.empty();
     }
 
-    /**
-     * Convenience method to get the first record out of the record stream. If the record is not present, {@code null}
-     * will be returned. If an exception has occurred, the exception will be thrown.
-     * <p/>
-     * @return
-     */
-    public Record getFirstRecord() {
-        return hasNext() ? next().recordOrThrow() : null;
-    }
-    /**
-     * Get the first element from the stream. If this element failed for any reason, an exception is thrown.
-     * @return the first element in the stream
-     */
-    public Optional<RecordResult> getFirst() {
-        return this.getFirst(true);
-    }
+    // ========================================
+    // Pop methods (non-closing single-item retrieval)
+    // ========================================
 
     /**
-     * Get the first element from the stream. If this element failed for any reason and "throwException" is true,
+     * Removes and returns the next element from the stream. If the element has a non-OK result code,
      * an appropriate exception is thrown.
-     * @param throwException - If this is true and the resultCode != OK, an exception is thrown. If this is false,
-     * no exception is thrown, but the resultCode() in the response must be consulted to see if the call was successful or not.
-     * @return the first element in the stream
+     *
+     * <p>This method does <b>not</b> close the stream. The caller is responsible for closing
+     * the stream when done, or for fully consuming it. For a terminal variant that automatically
+     * closes the stream after retrieving the first element, use {@link #getFirst()}.</p>
+     *
+     * @return an Optional containing the next element, or empty if the stream is exhausted
+     * @throws AerospikeException if the element has a non-OK result code
      */
-    public Optional<RecordResult> getFirst(boolean throwException) {
+    public Optional<RecordResult> pop() {
+        return pop(true);
+    }
+
+    /**
+     * Removes and returns the next element from the stream.
+     *
+     * <p>This method does <b>not</b> close the stream. The caller is responsible for closing
+     * the stream when done, or for fully consuming it. For a terminal variant that automatically
+     * closes the stream after retrieving the first element, use {@link #getFirst(boolean)}.</p>
+     *
+     * @param throwException if true and the element has a non-OK result code, an exception is thrown;
+     *        if false, the caller must inspect {@link RecordResult#resultCode()} to check for errors
+     * @return an Optional containing the next element, or empty if the stream is exhausted
+     * @throws AerospikeException if throwException is true and the element has a non-OK result code
+     */
+    public Optional<RecordResult> pop(boolean throwException) {
         if (hasNext()) {
-            if (throwException) {
-                return Optional.of(next().orThrow());
-            }
-            else {
-            return Optional.of(next());
-            }
+            return throwException
+                ? Optional.of(next().orThrow())
+                : Optional.of(next());
         }
         return Optional.empty();
     }
 
     /**
-     * Get the first element from the stream. If this element failed for any reason, an exception is thrown.
-     * @return the first element in the stream
+     * Removes and returns the next element from the stream, mapped to an object using the
+     * provided mapper.
+     *
+     * <p>This method does <b>not</b> close the stream. The caller is responsible for closing
+     * the stream when done, or for fully consuming it. For a terminal variant that automatically
+     * closes the stream, use {@link #getFirst(RecordMapper)}.</p>
+     *
+     * @param <T> the target type
+     * @param mapper the mapper to convert the record to the target type
+     * @return an Optional containing the mapped object, or empty if the stream is exhausted
+     * @throws AerospikeException if the element has a non-OK result code
      */
-    public <T> Optional<T> getFirst(RecordMapper<T> mapper) {
+    public <T> Optional<T> pop(RecordMapper<T> mapper) {
         if (hasNext()) {
             RecordResult item = next();
             Record rec = item.recordOrThrow();
-            return Optional.of(mapper.fromMap(rec.bins, item.key(), item.recordOrThrow().generation));
+            return Optional.of(mapper.fromMap(rec.bins, item.key(), rec.generation));
         }
         return Optional.empty();
     }
 
     /**
-     * Gets the first element from the stream and converts it to a Boolean value.
-     * If the stream is empty, returns an empty Optional.
+     * Removes and returns the next record from the stream, or {@code null} if the stream
+     * is exhausted. If the element has a non-OK result code, an exception is thrown.
      *
-     * @return an Optional containing the first element as a Boolean, or empty if the stream is empty
+     * <p>This method does <b>not</b> close the stream. The caller is responsible for closing
+     * the stream when done, or for fully consuming it. For a terminal variant that automatically
+     * closes the stream, use {@link #getFirstRecord()}.</p>
+     *
+     * @return the next Record, or null if the stream is exhausted
+     * @throws AerospikeException if the element has a non-OK result code
      */
-    public Optional<Boolean> getFirstBoolean() {
+    public Record popRecord() {
+        return hasNext() ? next().recordOrThrow() : null;
+    }
+
+    /**
+     * Removes and returns the next element from the stream, converted to a Boolean value.
+     *
+     * <p>This method does <b>not</b> close the stream. The caller is responsible for closing
+     * the stream when done, or for fully consuming it. For a terminal variant that automatically
+     * closes the stream, use {@link #getFirstBoolean()}.</p>
+     *
+     * @return an Optional containing the next element as a Boolean, or empty if the stream is exhausted
+     */
+    public Optional<Boolean> popBoolean() {
         if (hasNext()) {
             return Optional.of(next().asBoolean());
         }
         return Optional.empty();
     }
-    
+
     /**
-     * Gets the first element from the stream and extract the UDF Result (object) from this. 
-     * If the stream is empty, returns an empty Optional.
+     * Removes and returns the UDF result from the next element in the stream.
      *
-     * @return an Optional containing the result from the UDF invocation of the first result or empty if the stream is empty
+     * <p>This method does <b>not</b> close the stream. The caller is responsible for closing
+     * the stream when done, or for fully consuming it. For a terminal variant that automatically
+     * closes the stream, use {@link #getFirstUdfResult()}.</p>
+     *
+     * @return an Optional containing the UDF result, or empty if the stream is exhausted
+     * @throws AerospikeException if the UDF invocation failed
      */
-    public Optional<Object> getFirstUdfResult() {
+    public Optional<Object> popUdfResult() {
         if (hasNext()) {
             return Optional.ofNullable(next().udfResultOrThrow());
         }
@@ -689,19 +812,180 @@ public class RecordStream implements Iterator<RecordResult>, Closeable {
     }
 
     /**
-     * Gets the first element from the stream and extract the UDF Result (object) from this. This must return a map, and that map
-     * will be converted into an object using the passed mapper.
-     * If the stream is empty, returns an empty Optional.
+     * Removes and returns the UDF result from the next element in the stream, mapped to an
+     * object using the provided mapper. The UDF must return a map.
      *
-     * @return an Optional containing the result from the UDF invocation of the first result or empty if the stream is empty
-     * @throws AerospikeException with ResultCode = OP_NOT_APPLICABLE if the return value of the UDF is not a map, or other
-     * AerospikeException subclasses based on the ResultCode from the server if other things went wrong.
+     * <p>This method does <b>not</b> close the stream. The caller is responsible for closing
+     * the stream when done, or for fully consuming it. For a terminal variant that automatically
+     * closes the stream, use {@link #getFirstUdfResult(RecordMapper)}.</p>
+     *
+     * @param <T> the target type
+     * @param mapper the mapper to convert the UDF result map to the target type
+     * @return an Optional containing the mapped UDF result, or empty if the stream is exhausted
+     * @throws AerospikeException with ResultCode = OP_NOT_APPLICABLE if the UDF return value is not a map
      */
-    public <T> Optional<T> getFirstUdfResult(RecordMapper<T> mapper) {
+    public <T> Optional<T> popUdfResult(RecordMapper<T> mapper) {
         if (hasNext()) {
             return Optional.ofNullable(next().udfResultAs(mapper));
         }
         return Optional.empty();
+    }
+
+    /**
+     * Removes and returns the next element from the stream, mapped to an object along with
+     * its record metadata (generation and expiration).
+     *
+     * <p>This method does <b>not</b> close the stream. The caller is responsible for closing
+     * the stream when done, or for fully consuming it. For a terminal variant that automatically
+     * closes the stream, use {@link #getFirstWithMetadata(RecordMapper)}.</p>
+     *
+     * @param <T> the type of the object to be returned
+     * @param mapper the mapper to convert the record to the target type
+     * @return an Optional containing an ObjectWithMetadata, or empty if the stream is exhausted
+     * @throws AerospikeException if the element has a non-OK result code
+     */
+    public <T> Optional<ObjectWithMetadata<T>> popWithMetadata(RecordMapper<T> mapper) {
+        if (hasNext()) {
+            RecordResult item = next();
+            Record rec = item.recordOrThrow();
+            T object = mapper.fromMap(rec.bins, item.key(), rec.generation);
+            return Optional.of(new ObjectWithMetadata<>(object, rec));
+        }
+        return Optional.empty();
+    }
+
+    // ========================================
+    // GetFirst methods (terminal, auto-close)
+    // ========================================
+
+    /**
+     * Gets the first element from the stream. If the element has a non-OK result code,
+     * an appropriate exception is thrown.
+     *
+     * <p>This is a <b>terminal operation</b> that closes the stream after retrieving the
+     * first element. For a non-closing variant that allows continued iteration, use
+     * {@link #pop()}.</p>
+     *
+     * @return an Optional containing the first element, or empty if the stream is empty
+     * @throws AerospikeException if the element has a non-OK result code
+     */
+    public Optional<RecordResult> getFirst() {
+        return getFirst(true);
+    }
+
+    /**
+     * Gets the first element from the stream.
+     *
+     * <p>This is a <b>terminal operation</b> that closes the stream after retrieving the
+     * first element. For a non-closing variant that allows continued iteration, use
+     * {@link #pop(boolean)}.</p>
+     *
+     * @param throwException if true and the element has a non-OK result code, an exception is thrown;
+     *        if false, the caller must inspect {@link RecordResult#resultCode()} to check for errors
+     * @return an Optional containing the first element, or empty if the stream is empty
+     * @throws AerospikeException if throwException is true and the element has a non-OK result code
+     */
+    public Optional<RecordResult> getFirst(boolean throwException) {
+        try {
+            return pop(throwException);
+        } finally {
+            close();
+        }
+    }
+
+    /**
+     * Gets the first element from the stream, mapped to an object using the provided mapper.
+     *
+     * <p>This is a <b>terminal operation</b> that closes the stream after retrieving the
+     * first element. For a non-closing variant that allows continued iteration, use
+     * {@link #pop(RecordMapper)}.</p>
+     *
+     * @param <T> the target type
+     * @param mapper the mapper to convert the record to the target type
+     * @return an Optional containing the mapped object, or empty if the stream is empty
+     * @throws AerospikeException if the element has a non-OK result code
+     */
+    public <T> Optional<T> getFirst(RecordMapper<T> mapper) {
+        try {
+            return pop(mapper);
+        } finally {
+            close();
+        }
+    }
+
+    /**
+     * Gets the first record from the stream, or {@code null} if the stream is empty.
+     * If the element has a non-OK result code, an exception is thrown.
+     *
+     * <p>This is a <b>terminal operation</b> that closes the stream after retrieving the
+     * first element. For a non-closing variant that allows continued iteration, use
+     * {@link #popRecord()}.</p>
+     *
+     * @return the first Record, or null if the stream is empty
+     * @throws AerospikeException if the element has a non-OK result code
+     */
+    public Record getFirstRecord() {
+        try {
+            return popRecord();
+        } finally {
+            close();
+        }
+    }
+
+    /**
+     * Gets the first element from the stream and converts it to a Boolean value.
+     *
+     * <p>This is a <b>terminal operation</b> that closes the stream after retrieving the
+     * first element. For a non-closing variant that allows continued iteration, use
+     * {@link #popBoolean()}.</p>
+     *
+     * @return an Optional containing the first element as a Boolean, or empty if the stream is empty
+     */
+    public Optional<Boolean> getFirstBoolean() {
+        try {
+            return popBoolean();
+        } finally {
+            close();
+        }
+    }
+
+    /**
+     * Gets the first element from the stream and extracts the UDF result.
+     *
+     * <p>This is a <b>terminal operation</b> that closes the stream after retrieving the
+     * first element. For a non-closing variant that allows continued iteration, use
+     * {@link #popUdfResult()}.</p>
+     *
+     * @return an Optional containing the UDF result, or empty if the stream is empty
+     * @throws AerospikeException if the UDF invocation failed
+     */
+    public Optional<Object> getFirstUdfResult() {
+        try {
+            return popUdfResult();
+        } finally {
+            close();
+        }
+    }
+
+    /**
+     * Gets the first element from the stream and extracts the UDF result, mapped to an object
+     * using the provided mapper. The UDF must return a map.
+     *
+     * <p>This is a <b>terminal operation</b> that closes the stream after retrieving the
+     * first element. For a non-closing variant that allows continued iteration, use
+     * {@link #popUdfResult(RecordMapper)}.</p>
+     *
+     * @param <T> the target type
+     * @param mapper the mapper to convert the UDF result map to the target type
+     * @return an Optional containing the mapped UDF result, or empty if the stream is empty
+     * @throws AerospikeException with ResultCode = OP_NOT_APPLICABLE if the UDF return value is not a map
+     */
+    public <T> Optional<T> getFirstUdfResult(RecordMapper<T> mapper) {
+        try {
+            return popUdfResult(mapper);
+        } finally {
+            close();
+        }
     }
 
     public static class ObjectWithMetadata<T> {
@@ -726,33 +1010,37 @@ public class RecordStream implements Iterator<RecordResult>, Closeable {
             return generation;
         }
     }
+
     /**
      * Gets the first element from the stream, maps it to an object using the provided mapper,
      * and returns it along with its metadata (generation and expiration).
      *
-     * <p>This method is useful when you need both the mapped object and its record metadata
-     * (generation and expiration) from the first record in the stream.</p>
+     * <p>This is a <b>terminal operation</b> that closes the stream after retrieving the
+     * first element. For a non-closing variant that allows continued iteration, use
+     * {@link #popWithMetadata(RecordMapper)}.</p>
      *
      * @param <T> the type of the object to be returned
      * @param mapper the mapper to use to convert the record to the class
      * @return an Optional containing an ObjectWithMetadata with the mapped object and its metadata,
      *         or empty if the stream is empty
-     * @throws com.aerospike.client.AerospikeException if the result code is not OK
+     * @throws AerospikeException if the result code is not OK
      */
     public <T> Optional<ObjectWithMetadata<T>> getFirstWithMetadata(RecordMapper<T> mapper) {
-        if (hasNext()) {
-            RecordResult item = next();
-            Record rec = item.recordOrThrow();
-            T object = mapper.fromMap(rec.bins, item.key(), rec.generation);
-            return Optional.of(new ObjectWithMetadata<T>(object, rec));
+        try {
+            return popWithMetadata(mapper);
+        } finally {
+            close();
         }
-        return Optional.empty();
     }
 
 
     /**
      * Closes this stream, releasing any underlying resources.
      * After closing, the stream should not be used further.
+     *
+     * <p>This method is idempotent -- calling it multiple times has no additional effect.
+     * Terminal operations (such as {@link #getFirst()}, {@link #forEach(Consumer)}, etc.)
+     * call this method automatically.</p>
      */
     @Override
     public void close() {

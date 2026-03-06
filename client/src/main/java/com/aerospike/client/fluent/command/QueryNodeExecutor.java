@@ -85,12 +85,10 @@ public final class QueryNodeExecutor extends NodeExecutor {
 
 		if (tracker.allowRecord(nodePartitions)) {
 			stream.publish(new RecordResult(new KeyRecord(key, record), -1));
-			/*
-			if (! recordSet.put(new KeyRecord(key, record))) {
+			if (stream.cancelled().getAsBoolean()) {
 				stop();
 				throw new AerospikeException.QueryTerminated();
 			}
-			*/
 			tracker.setLast(nodePartitions, key, bval.val);
 		}
 		return true;
