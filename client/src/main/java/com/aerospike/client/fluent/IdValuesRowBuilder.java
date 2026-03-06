@@ -64,6 +64,7 @@ public class IdValuesRowBuilder {
     private RowData currentRow = null;
     private long defaultExpirationInSeconds = AbstractOperationBuilder.NOT_EXPLICITLY_SET;
     private Txn txnToUse;
+    private boolean notInAnyTransaction;
 
     IdValuesRowBuilder(Session session, DataSet dataSet, OpType opType, String[] binNames) {
         this.session = session;
@@ -334,6 +335,7 @@ public class IdValuesRowBuilder {
      */
     public IdValuesRowBuilder notInAnyTransaction() {
         this.txnToUse = null;
+        this.notInAnyTransaction = true;
         return this;
     }
 
@@ -345,6 +347,7 @@ public class IdValuesRowBuilder {
      */
     public IdValuesRowBuilder inTransaction(Txn txn) {
         this.txnToUse = txn;
+        this.notInAnyTransaction = false;
         return this;
     }
 
@@ -364,7 +367,8 @@ public class IdValuesRowBuilder {
     public RecordStream execute() {
         List<OperationSpec> specs = materializeToSpecs();
         return OperationSpecExecutor.execute(session, specs, null,
-            defaultExpirationInSeconds, txnToUse, AbstractFilterableBuilder.defaultDisposition(specs));
+            defaultExpirationInSeconds, txnToUse, notInAnyTransaction,
+            AbstractFilterableBuilder.defaultDisposition(specs));
     }
 
     /**
@@ -392,7 +396,8 @@ public class IdValuesRowBuilder {
 
     private RecordStream executeWithDisposition(ErrorDisposition disposition) {
         List<OperationSpec> specs = materializeToSpecs();
-        return OperationSpecExecutor.execute(session, specs, null, defaultExpirationInSeconds, txnToUse, disposition);
+        return OperationSpecExecutor.execute(session, specs, null, defaultExpirationInSeconds,
+        	txnToUse, notInAnyTransaction, disposition);
     }
 
     /**
@@ -439,7 +444,7 @@ public class IdValuesRowBuilder {
         cluster.startVirtualThread(() -> {
             try {
                 RecordStream syncResult = OperationSpecExecutor.execute(
-                    session, specs, null, defaultExpirationInSeconds, txnToUse);
+                    session, specs, null, defaultExpirationInSeconds, txnToUse, notInAnyTransaction);
                 syncResult.forEach(result -> AbstractFilterableBuilder.dispatchResult(result, asyncStream, errorHandler));
             } finally {
                 asyncStream.complete();

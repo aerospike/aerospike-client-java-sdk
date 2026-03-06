@@ -1,3 +1,19 @@
+/*
+ * Copyright 2012-2026 Aerospike, Inc.
+ *
+ * Portions may be licensed to Aerospike, Inc. under one or more contributor
+ * license agreements WHICH ARE COMPATIBLE WITH THE APACHE LICENSE, VERSION 2.0.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy of
+ * the License at http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
+ */
 package com.aerospike.client.fluent;
 
 import java.time.Duration;
@@ -46,7 +62,6 @@ public class ChainableNoBinsBuilder extends AbstractSessionOperationBuilder<Chai
     private OperationSpec currentSpec = null;
     private Expression defaultWhereClause;
     private long defaultExpirationInSeconds = AbstractOperationBuilder.NOT_EXPLICITLY_SET;
-    private Txn txnToUse;
 
     /**
      * Package-private constructor.
@@ -819,22 +834,6 @@ public class ChainableNoBinsBuilder extends AbstractSessionOperationBuilder<Chai
     }
 
     // ========================================
-    // Transaction support
-    // ========================================
-
-    @Override
-    public ChainableNoBinsBuilder notInAnyTransaction() {
-        this.txnToUse = null;
-        return this;
-    }
-
-    @Override
-    public ChainableNoBinsBuilder inTransaction(Txn txn) {
-        this.txnToUse = txn;
-        return this;
-    }
-
-    // ========================================
     // Execution
     // ========================================
 
@@ -850,7 +849,8 @@ public class ChainableNoBinsBuilder extends AbstractSessionOperationBuilder<Chai
     public RecordStream execute() {
         prepareSpecs();
         return OperationSpecExecutor.execute(session, operationSpecs, defaultWhereClause,
-            defaultExpirationInSeconds, txnToUse, AbstractFilterableBuilder.defaultDisposition(operationSpecs));
+            defaultExpirationInSeconds, txnToUse, notInAnyTransaction,
+            AbstractFilterableBuilder.defaultDisposition(operationSpecs));
     }
 
     /**
@@ -878,7 +878,8 @@ public class ChainableNoBinsBuilder extends AbstractSessionOperationBuilder<Chai
 
     private RecordStream executeWithDisposition(ErrorDisposition disposition) {
         prepareSpecs();
-        return OperationSpecExecutor.execute(session, operationSpecs, defaultWhereClause, defaultExpirationInSeconds, txnToUse, disposition);
+        return OperationSpecExecutor.execute(session, operationSpecs, defaultWhereClause,
+        	defaultExpirationInSeconds, txnToUse, notInAnyTransaction, disposition);
     }
 
     /**
@@ -923,7 +924,8 @@ public class ChainableNoBinsBuilder extends AbstractSessionOperationBuilder<Chai
         cluster.startVirtualThread(() -> {
             try {
                 RecordStream syncResult = OperationSpecExecutor.execute(
-                    session, operationSpecs, defaultWhereClause, defaultExpirationInSeconds, txnToUse);
+                    session, operationSpecs, defaultWhereClause, defaultExpirationInSeconds,
+                    txnToUse, notInAnyTransaction);
                 syncResult.forEach(result -> dispatchResult(result, asyncStream, errorHandler));
             } finally {
                 asyncStream.complete();

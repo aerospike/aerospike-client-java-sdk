@@ -52,6 +52,7 @@ import com.aerospike.client.fluent.policy.Settings;
 import com.aerospike.client.fluent.query.PreparedDsl;
 import com.aerospike.client.fluent.query.WhereClauseProcessor;
 import com.aerospike.client.fluent.tend.Partitions;
+import com.aerospike.client.fluent.util.Version;
 import com.aerospike.dsl.ParseResult;
 
 /**
@@ -77,6 +78,7 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
     private final List<Key> keys;
     private ValueData current = null;
     private Txn txnToUse;
+    private boolean notInAnyTransaction;
     private Settings settings;
 
     /**
@@ -96,8 +98,9 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
         System.arraycopy(binNames, 0, this.binNames, 1, binNames.length);
         this.keys = keys;
         this.defaultExpirationInSeconds = initialExpiration;
-        if (opBuilder instanceof AbstractSessionOperationBuilder) {
-            this.txnToUse = ((AbstractSessionOperationBuilder<?>) opBuilder).getTxnToUse();
+        if (opBuilder instanceof AbstractSessionOperationBuilder builder) {
+            this.txnToUse = builder.getTxnToUse();
+            this.notInAnyTransaction = builder.getNotInAnyTransaction();
         }
     }
 
@@ -699,13 +702,21 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
             }
         }
 
-        Txn txn = opBuilder.getTxnToUse();
-
-        if (txn != null) {
+        if (txnToUse != null) {
             TxnMonitor.addKeys(txnToUse, session, keys);
-        }
-
-        BatchExecutor.execute(cluster, commands, status);
+	        BatchExecutor.execute(cluster, commands, status);
+		}
+		else if (!notInAnyTransaction && parent.getPartitions().scMode &&
+			cluster.getVersion().isGreaterOrEqual(Version.SERVER_VERSION_8_0)) {
+			// Create implicit transaction for the batch.
+	        session.doInTransaction(txnSession -> {
+	            TxnMonitor.addKeys(txnSession.getCurrentTransaction(), txnSession, keys);
+		        BatchExecutor.execute(cluster, commands, status);
+	        });
+		}
+		else {
+	        BatchExecutor.execute(cluster, commands, status);
+		}
 
         List<RecordResult> results = new ArrayList<>();
         OpType opType = opBuilder.getOpType();
@@ -844,7 +855,8 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
      * Execute operations synchronously for individual keys (< batch threshold). All
      * virtual threads are joined before returning.
      */
-    private RecordStream executeIndividualSync(ErrorDisposition disposition) {
+    @SuppressWarnings("resource")
+	private RecordStream executeIndividualSync(ErrorDisposition disposition) {
         if (keys.size() == 0) {
             return new RecordStream();
         }
@@ -886,7 +898,6 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
             return new RecordStream();
 
         } else {
-            @SuppressWarnings("resource")
 			AsyncRecordStream stream = new AsyncRecordStream(keys.size());
             final java.util.concurrent.atomic.AtomicReference<AerospikeException> firstError =
                 (disposition instanceof ErrorDisposition.Throw) ? new java.util.concurrent.atomic.AtomicReference<>() : null;
@@ -1055,7 +1066,7 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
             // Batch expiration set via defaultExpireRecordAfterSeconds() or from parent builder
             return opBuilder.getExpirationAsInt(defaultExpirationInSeconds);
         } else {
-            return (int) AbstractOperationBuilder.TTL_SERVER_DEFAULT;
+            return AbstractOperationBuilder.TTL_SERVER_DEFAULT;
         }
     }
 

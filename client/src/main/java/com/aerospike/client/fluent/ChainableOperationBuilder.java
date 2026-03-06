@@ -1,3 +1,19 @@
+/*
+ * Copyright 2012-2026 Aerospike, Inc.
+ *
+ * Portions may be licensed to Aerospike, Inc. under one or more contributor
+ * license agreements WHICH ARE COMPATIBLE WITH THE APACHE LICENSE, VERSION 2.0.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy of
+ * the License at http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
+ */
 package com.aerospike.client.fluent;
 
 import java.time.Duration;
@@ -895,7 +911,8 @@ public class ChainableOperationBuilder extends AbstractOperationBuilder<Chainabl
         }
 
         return OperationSpecExecutor.execute(session, operationSpecs, defaultWhereClause,
-            defaultExpirationInSeconds, txnToUse, AbstractFilterableBuilder.defaultDisposition(operationSpecs));
+            defaultExpirationInSeconds, txnToUse, notInAnyTransaction,
+            AbstractFilterableBuilder.defaultDisposition(operationSpecs));
     }
 
     /**
@@ -932,7 +949,8 @@ public class ChainableOperationBuilder extends AbstractOperationBuilder<Chainabl
                      (txnToUse != null ? "yes" : "no"));
         }
 
-        return OperationSpecExecutor.execute(session, operationSpecs, defaultWhereClause, defaultExpirationInSeconds, txnToUse, disposition);
+        return OperationSpecExecutor.execute(session, operationSpecs, defaultWhereClause,
+        	defaultExpirationInSeconds, txnToUse, notInAnyTransaction, disposition);
     }
 
     /**
@@ -983,7 +1001,8 @@ public class ChainableOperationBuilder extends AbstractOperationBuilder<Chainabl
         Cluster cluster = session.getCluster();
         cluster.startVirtualThread(() -> {
             try {
-                RecordStream syncResult = OperationSpecExecutor.execute(session, operationSpecs, defaultWhereClause, defaultExpirationInSeconds, txnToUse);
+                RecordStream syncResult = OperationSpecExecutor.execute(session, operationSpecs,
+                	defaultWhereClause, defaultExpirationInSeconds, txnToUse, notInAnyTransaction);
                 syncResult.forEach(result -> dispatchResult(result, asyncStream, errorHandler));
             } finally {
                 asyncStream.complete();

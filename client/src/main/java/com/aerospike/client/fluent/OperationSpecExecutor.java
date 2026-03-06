@@ -95,9 +95,10 @@ class OperationSpecExecutor {
      */
     public static RecordStream execute(
         Session session, List<OperationSpec> specs, Expression defaultWhereClause,
-        long defaultExpirationInSeconds, Txn txn
+        long defaultExpirationInSeconds, Txn txn, boolean notInAnyTransaction
     ) {
-        return execute(session, specs, defaultWhereClause, defaultExpirationInSeconds, txn, ErrorDisposition.IN_STREAM);
+        return execute(session, specs, defaultWhereClause, defaultExpirationInSeconds, txn,
+    		notInAnyTransaction, ErrorDisposition.IN_STREAM);
     }
 
     /**
@@ -108,12 +109,14 @@ class OperationSpecExecutor {
      * @param defaultWhereClause optional default filter for operations without explicit where clause
      * @param defaultExpirationInSeconds default TTL for operations without explicit expiration (NOT_EXPLICITLY_SET if not set)
      * @param txn optional transaction to use
+     * @param notInAnyTransaction disallow implicit transactions
      * @param disposition how to handle per-record errors (throw, embed in stream, or dispatch to handler)
      * @return RecordStream containing the results of all operations
      */
     public static RecordStream execute(
         Session session, List<OperationSpec> specs, Expression defaultWhereClause,
-        long defaultExpirationInSeconds, Txn txn, ErrorDisposition disposition
+        long defaultExpirationInSeconds, Txn txn, boolean notInAnyTransaction,
+        ErrorDisposition disposition
     ) {
         if (specs.isEmpty()) {
             return new RecordStream();
@@ -319,26 +322,21 @@ class OperationSpecExecutor {
             }
         }
 
-		if (txn != null) {
-		    TxnMonitor.addKeysBatchReadWrite(txn, session, records);
-		}
-
-        BatchExecutor.execute(cluster, commands, status);
-
-        /*
-		if (txn != null) {
+        if (txn != null) {
 		    TxnMonitor.addKeysBatchReadWrite(txn, session, records);
 	        BatchExecutor.execute(cluster, commands, status);
 		}
-		else if (hasWrite && mode == Mode.CP && cluster.getVersion().isGreaterOrEqual(Version.SERVER_VERSION_8_0)) {
+		else if (!notInAnyTransaction && hasWrite && mode == Mode.CP &&
+			cluster.getVersion().isGreaterOrEqual(Version.SERVER_VERSION_8_0)) {
 			// Create implicit transaction for the batch.
-			settings.getI
-			txn = new Txn();
+	        session.doInTransaction(txnSession -> {
+			    TxnMonitor.addKeysBatchReadWrite(txnSession.getCurrentTransaction(), txnSession, records);
+		        BatchExecutor.execute(cluster, commands, status);
+	        });
 		}
 		else {
 	        BatchExecutor.execute(cluster, commands, status);
 		}
-		*/
 
         AsyncRecordStream recordStream = new AsyncRecordStream(records.size());
 

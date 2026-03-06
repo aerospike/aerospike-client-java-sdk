@@ -1,3 +1,19 @@
+/*
+ * Copyright 2012-2026 Aerospike, Inc.
+ *
+ * Portions may be licensed to Aerospike, Inc. under one or more contributor
+ * license agreements WHICH ARE COMPATIBLE WITH THE APACHE LICENSE, VERSION 2.0.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy of
+ * the License at http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
+ */
 package com.aerospike.client.fluent;
 
 import java.time.Duration;
@@ -45,6 +61,7 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
     private Expression defaultWhereClause;
     private long defaultExpirationInSeconds = AbstractOperationBuilder.NOT_EXPLICITLY_SET;
     private Txn txnToUse;
+    private boolean notInAnyTransaction;
     private long limit = 0;
     private int startPartition = 0;
     private int endPartition = 4096;
@@ -124,7 +141,7 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
 
     /**
      * Returns a bin builder for read operations on a specific bin.
-     * 
+     *
      * <p>Unlike write operations, query bin operations only support reading values
      * ({@code get()}) and computing expressions ({@code selectFrom()}).</p>
      *
@@ -816,7 +833,7 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
 
     /**
      * Sets the maximum number of records to return.
-     * 
+     *
      * <p><b>Note:</b> This method limits the number of results returned from the batch.
      * The batch will still process all keys, but only the first N successful results
      * will be returned.</p>
@@ -880,7 +897,7 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
 
     /**
      * Sets the chunk size for server-side streaming.
-     * 
+     *
      * <p><b>Note:</b> This method is primarily applicable to dataset queries.
      * For key-based batch queries, chunk size doesn't affect behavior as all
      * keys are sent in a single batch.</p>
@@ -901,6 +918,7 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
      */
     public ChainableQueryBuilder notInAnyTransaction() {
         this.txnToUse = null;
+        this.notInAnyTransaction = true;
         return this;
     }
 
@@ -912,6 +930,7 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
      */
     public ChainableQueryBuilder inTransaction(Txn txn) {
         this.txnToUse = txn;
+        this.notInAnyTransaction = false;
         return this;
     }
 
@@ -934,7 +953,8 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
             return new RecordStream();
         }
         return OperationSpecExecutor.execute(session, specs, defaultWhereClause,
-            defaultExpirationInSeconds, txnToUse, AbstractFilterableBuilder.defaultDisposition(specs));
+            defaultExpirationInSeconds, txnToUse, notInAnyTransaction,
+            AbstractFilterableBuilder.defaultDisposition(specs));
     }
 
     /**
@@ -965,7 +985,8 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
         if (specs.isEmpty()) {
             return new RecordStream();
         }
-        return OperationSpecExecutor.execute(session, specs, defaultWhereClause, defaultExpirationInSeconds, txnToUse, disposition);
+        return OperationSpecExecutor.execute(session, specs, defaultWhereClause,
+        	defaultExpirationInSeconds, txnToUse, notInAnyTransaction, disposition);
     }
 
     /**
@@ -1013,7 +1034,8 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
         cluster.startVirtualThread(() -> {
             try {
                 RecordStream syncResult = OperationSpecExecutor.execute(
-                    session, specs, defaultWhereClause, defaultExpirationInSeconds, txnToUse);
+                    session, specs, defaultWhereClause, defaultExpirationInSeconds, txnToUse,
+                    notInAnyTransaction);
                 syncResult.forEach(result -> dispatchResult(result, asyncStream, errorHandler));
             } finally {
                 asyncStream.complete();

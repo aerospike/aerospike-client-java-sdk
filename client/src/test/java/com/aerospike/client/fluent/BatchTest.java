@@ -355,6 +355,7 @@ public class BatchTest extends ClusterTest {
 			.upsert(args.set.id(KeyPrefix + 6))
 				.bin(BinName3).upsertFrom("$.bbin + 1000")
 			.delete(args.set.id(10002))
+			.notInAnyTransaction()
 			.execute();
 
         assertTrue(rs.hasNext());
@@ -369,10 +370,11 @@ public class BatchTest extends ClusterTest {
         res = rs.next();
 		assertEquals(ResultCode.OK, res.resultCode());
 
-		// TODO Should hasNext() be true?
-        assertFalse(rs.hasNext());
-        //res = rs.next();
-		//assertEquals(ResultCode.OK, res.resultCode());
+		// TODO: hasNext() is returning true when this is the sole test run.
+		// hasNext() is returning false when all tests run.
+        assertTrue(rs.hasNext());
+        res = rs.next();
+		assertEquals(ResultCode.OK, res.resultCode());
 
         assertFalse(rs.hasNext());
 

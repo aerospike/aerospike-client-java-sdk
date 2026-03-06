@@ -53,6 +53,10 @@ public final class BatchCommand extends Command {
 		return isWrite && commandSentCounter > 1;
 	}
 
+	public Partitions getPartitions() {
+		return partitions;
+	}
+
 	public List<BatchRecord> getRecords() {
 		return records;
 	}

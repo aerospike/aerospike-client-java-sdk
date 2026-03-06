@@ -55,6 +55,7 @@ import com.aerospike.client.fluent.policy.Settings;
 import com.aerospike.client.fluent.policy.Behavior.OpKind;
 import com.aerospike.client.fluent.policy.Behavior.OpShape;
 import com.aerospike.client.fluent.tend.Partitions;
+import com.aerospike.client.fluent.util.Version;
 import com.aerospike.dsl.ParseResult;
 
 @SuppressWarnings("unused")
@@ -66,6 +67,7 @@ public class ObjectBuilder<T> {
     private long expirationInSeconds = AbstractOperationBuilder.NOT_EXPLICITLY_SET;
     private long defaultExpirationInSeconds = AbstractOperationBuilder.NOT_EXPLICITLY_SET;
     private Txn txnToUse;
+    private boolean notInAnyTransaction;
     private Settings settings;
 
     /**
@@ -389,6 +391,7 @@ public class ObjectBuilder<T> {
      */
     public ObjectBuilder<T> notInAnyTransaction() {
         this.txnToUse = null;
+        this.notInAnyTransaction = true;
         return this;
     }
 
@@ -411,6 +414,7 @@ public class ObjectBuilder<T> {
      */
     public ObjectBuilder<T> inTransaction(Txn txn) {
         this.txnToUse = txn;
+        this.notInAnyTransaction = false;
         return this;
     }
 
@@ -857,9 +861,19 @@ public class ObjectBuilder<T> {
 
         if (txnToUse != null) {
             TxnMonitor.addKeysBatchWrite(txnToUse, session, records);
-        }
-
-        BatchExecutor.execute(cluster, commands, status);
+	        BatchExecutor.execute(cluster, commands, status);
+		}
+		else if (!notInAnyTransaction && parent.getPartitions().scMode &&
+			cluster.getVersion().isGreaterOrEqual(Version.SERVER_VERSION_8_0)) {
+			// Create implicit transaction for the batch.
+	        session.doInTransaction(txnSession -> {
+	            TxnMonitor.addKeysBatchWrite(txnSession.getCurrentTransaction(), txnSession, records);
+		        BatchExecutor.execute(cluster, commands, status);
+	        });
+		}
+		else {
+	        BatchExecutor.execute(cluster, commands, status);
+		}
 
         AsyncRecordStream recordStream = new AsyncRecordStream(records.size());
 

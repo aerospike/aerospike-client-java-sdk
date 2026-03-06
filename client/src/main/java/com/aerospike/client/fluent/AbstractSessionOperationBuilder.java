@@ -1,3 +1,19 @@
+/*
+ * Copyright 2012-2026 Aerospike, Inc.
+ *
+ * Portions may be licensed to Aerospike, Inc. under one or more contributor
+ * license agreements WHICH ARE COMPATIBLE WITH THE APACHE LICENSE, VERSION 2.0.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy of
+ * the License at http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
+ */
 package com.aerospike.client.fluent;
 
 import java.time.Duration;
@@ -35,6 +51,7 @@ public abstract class AbstractSessionOperationBuilder<T extends AbstractSessionO
     protected long expirationInSeconds = 0;  // Default, get value from server
     protected int generation = 0;
     protected Txn txnToUse;
+    protected boolean notInAnyTransaction;
 
     // Timeout settings (null = use default from behavior/policy)
     protected Integer connectTimeout = null;
@@ -95,7 +112,7 @@ public abstract class AbstractSessionOperationBuilder<T extends AbstractSessionO
 
     /**
      * Returns the effective includeMissingKeys value, considering operation type.
-     * 
+     *
      * <p>UPDATE and REPLACE_IF_EXISTS operations must always return KEY_NOT_FOUND_ERROR
      * results because these operations are expected to fail if the record doesn't exist.
      * Users need to see these failures even without explicitly calling includeMissingKeys().</p>
@@ -106,7 +123,7 @@ public abstract class AbstractSessionOperationBuilder<T extends AbstractSessionO
 
     /**
      * {@inheritDoc}
-     * 
+     *
      * <p>Overridden to ensure UPDATE and REPLACE_IF_EXISTS operations always include
      * KEY_NOT_FOUND_ERROR results, since these operations are expected to fail if the
      * record doesn't exist.</p>
@@ -261,16 +278,21 @@ public abstract class AbstractSessionOperationBuilder<T extends AbstractSessionO
         return this.txnToUse;
     }
 
+    protected boolean getNotInAnyTransaction() {
+        return this.notInAnyTransaction;
+    }
+
     protected OpType getOpType() {
         return this.opType;
     }
-    
+
     /**
      * Specify that these operations are not to be included in any transaction, even if a
      * transaction exists on the underlying session
      */
     public T notInAnyTransaction() {
         this.txnToUse = null;
+        this.notInAnyTransaction = true;
         return self();
     }
 
@@ -281,6 +303,7 @@ public abstract class AbstractSessionOperationBuilder<T extends AbstractSessionO
      */
     public T inTransaction(Txn txn) {
         this.txnToUse = txn;
+        this.notInAnyTransaction = false;
         return self();
     }
 
