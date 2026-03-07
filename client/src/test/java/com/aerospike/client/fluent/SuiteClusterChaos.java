@@ -55,10 +55,6 @@ public class SuiteClusterChaos {
 			def.usingServicesAlternate();
 		}
 
-		if (args.ipMap != null && !args.ipMap.isEmpty()) {
-			def.ipMap(args.ipMap);
-		}
-
 		if (args.user != null && args.password != null) {
 			switch (args.authMode) {
 				case INTERNAL:

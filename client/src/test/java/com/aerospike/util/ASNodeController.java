@@ -69,18 +69,14 @@ public final class ASNodeController {
         elapsed=0
         cluster_size=0
         while ((elapsed < TIMEOUT)); do
-            cluster_size=$(docker logs "$first_container" 2>&1 \\
-                               | grep 'CLUSTER-SIZE' \\
-                               | sed -n 's/.*CLUSTER-SIZE[[:space:]]*\\([0-9]*\\).*/\\1/p' \\
-                               | tail -1)
-            echo ${cluster_size}
-            [[ -z "$cluster_size" ]] && cluster_size=0
-            if [[ "$cluster_size" == "$NUM_NODES" ]]; then
-              echo "Cluster formed: $cluster_size nodes (${elapsed}s)"
-              exit 0
-            fi
-            sleep 2
-            elapsed=$((elapsed + 2))
+             cluster_size=$(docker exec "$first_container" asadm -e "show statistics like cluster_size" | awk -F'|' '/^cluster_size/ {print $2}')
+             [[ -z "$cluster_size" ]] && cluster_size=0
+             if [[ "$cluster_size" -eq "$NUM_NODES" ]]; then
+               echo "Cluster formed: $cluster_size nodes (${elapsed}s)"
+               exit 0
+             fi
+             sleep 2
+             elapsed=$((elapsed + 2))
         done
         echo "Error: Cluster did not form within ${TIMEOUT}s (expected $NUM_NODES nodes)" >&2
         exit 1
@@ -96,24 +92,31 @@ public final class ASNodeController {
         while IFS= read -r line; do [[ -n "$line" ]] && CONTAINERS_ARR+=("$line"); done <<< "$CONTAINERS"
         TIMEOUT=${TIMEOUT:-60}
         echo 'Waiting for cluster stability...'
-        for container in "${CONTAINERS_ARR[@]}"; do
-          echo "Waiting for $container to stabilize..."
-          elapsed=0
-          stable="false"
-          while ((elapsed < TIMEOUT)); do
-            if docker logs "$container" 2>&1 | grep -q 'migrations: complete'; then
-              echo "  $container is stable (${elapsed}s)"
-              stable="true"
-              break
-            fi
-            sleep 2
-            elapsed=$((elapsed + 2))
-          done
-          if [[ "$stable" != "true" ]]; then
-            echo "Error: $container did not stabilize within ${TIMEOUT}s" >&2
-            exit 1
-          fi
+        elapsed=0
+        cluster_migration= false
+        while ((elapsed < TIMEOUT)); do
+             local_migration=true
+             for container in "${CONTAINERS_ARR[@]}"; do
+                 remaining=$(docker exec "$container" asinfo -v statistics | tr ';' '\\n' | awk -F= '/migrate_partitions_remaining/ {print $2}')
+                 [[ -z "$remaining" ]] && remaining=0
+                 echo "$container remaining: $remaining"
+                 if (( remaining != 0 )); then
+                     local_migration=false
+                     break
+                 fi
+             done
+             if $local_migration; then
+               echo "All migrations complete"
+               cluster_migration=true
+               break
+             fi
+             sleep 2
+             elapsed=$((elapsed + 2))
         done
+        if [[ "$cluster_migration" != true ]]; then
+              echo "Error: Migration did not finish within ${TIMEOUT}s"
+              exit 1
+        fi
         echo 'All nodes are stable.'
         """;
 

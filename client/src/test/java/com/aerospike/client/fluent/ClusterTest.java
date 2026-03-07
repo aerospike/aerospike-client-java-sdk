@@ -50,10 +50,6 @@ public class ClusterTest {
 			def.usingServicesAlternate();
 		}
 
-		if (args.ipMap != null && !args.ipMap.isEmpty()) {
-			def.ipMap(args.ipMap);
-		}
-
 		// Handle authenticated requests if provided 
 		if (args.user != null && args.password != null) {
 			switch (args.authMode) {

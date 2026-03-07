@@ -94,10 +94,10 @@ public class NodeChurnPartitionBehaviorTest extends ClusterTest {
 		if (querySession == null) {
 			Behavior queryBehavior = Behavior.DEFAULT.deriveWithChanges("get-single-key",
 					b -> b.on(Behavior.Selectors.reads().get().ap(),
-							ops -> ops.maximumNumberOfCallAttempts(5)
-									.abandonCallAfter(Duration.ofSeconds(8))
-									.delayBetweenRetries(Duration.ofMillis(500))
-									.waitForCallToComplete(Duration.ofSeconds(10))
+							ops -> ops.maximumNumberOfCallAttempts(3)
+									.abandonCallAfter(Duration.ofSeconds(2))
+									.delayBetweenRetries(Duration.ofMillis(200))
+									.waitForCallToComplete(Duration.ofSeconds(3))
 					)
 			);
 			querySession = cluster.createSession(queryBehavior);

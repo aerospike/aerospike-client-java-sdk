@@ -63,10 +63,6 @@ public class SuiteCluster {
 					.connections(ops -> ops.maximumConnectionsPerNode(200)).build()
 					.mergeWith(SystemSettings.DEFAULT));
 
-		if (args.ipMap != null && !args.ipMap.isEmpty()) {
-			def.ipMap(args.ipMap);
-		}
-
 		// Handle authenticated requests if provided
 		if (args.user != null && args.password != null) {
 			switch (args.authMode) {
