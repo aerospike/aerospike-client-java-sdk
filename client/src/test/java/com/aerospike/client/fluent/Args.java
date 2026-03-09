@@ -19,6 +19,7 @@ package com.aerospike.client.fluent;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.Arrays;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 import org.apache.commons.cli.CommandLine;
@@ -54,6 +55,7 @@ public class Args {
 	public boolean scMode;
     public boolean useServicesAlternate;
 	public Version serverVersion;
+	public String containerNamePrefix;
 
 	public Args() {
 		host = "127.0.0.1";
@@ -97,6 +99,7 @@ public class Args {
 	        options.addOption("a", "servicesAlternate", false, "Use services alternate for cluster discovery");
 			options.addOption("d", "debug", false, "Run in debug mode.");
 			options.addOption("u", "usage", false, "Print usage.");
+			options.addOption("container-prefix", true, "Container name prefix for node-controller/chaos tests (default: aerospike). Env: CONTAINER_NAME_PREFIX");
 
 			CommandLineParser parser = new DefaultParser();
 			CommandLine cl = parser.parse(options, args, false);
@@ -150,12 +153,14 @@ public class Args {
 	            this.clientKeyFile = cl.getOptionValue("clientKeyFile", "key.pem");
 			}
 
+			containerNamePrefix = cl.getOptionValue("container-prefix", "aerospike");
 	        useServicesAlternate = cl.hasOption("a");
 		}
 		catch (Exception ex) {
 			throw new AerospikeException("Failed to parse args: " + argString);
 		}
 	}
+
 
 	private static void logUsage(Options options) {
 		HelpFormatter formatter = new HelpFormatter();
