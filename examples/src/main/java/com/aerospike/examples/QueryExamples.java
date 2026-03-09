@@ -14,6 +14,7 @@ import com.aerospike.client.fluent.Cluster;
 import com.aerospike.client.fluent.ClusterDefinition;
 import com.aerospike.client.fluent.DataSet;
 import com.aerospike.client.fluent.DefaultRecordMappingFactory;
+import com.aerospike.client.fluent.ErrorStrategy;
 import com.aerospike.client.fluent.Key;
 import com.aerospike.client.fluent.Log.Level;
 import com.aerospike.client.fluent.NavigatableRecordStream;
@@ -277,6 +278,24 @@ public class QueryExamples {
             
             session.truncate(customerDataSet);
             
+            try {
+                session.update(customerDataSet.id(1)).execute();
+            }
+            catch (AerospikeException ae) {
+                System.out.printf("Exception caught as expected: %s (%s)\n", ae.getMessage(), ae.getClass());
+            }
+            try {
+                session.update(customerDataSet.id(1)).bin("bob").setTo(5).execute();
+            }
+            catch (AerospikeException ae) {
+                System.out.printf("Exception caught as expected on node %s: %s (%s)\n", ae.getNode(), ae.getMessage(), ae.getClass());
+            }
+            RecordStream rss = session.update(customerDataSet.id(1)).bin("bob").setTo(5).executeAsync(ErrorStrategy.IN_STREAM);
+//            rss.getFirst().ifPresent(rr -> System.out.println(rr.));
+            System.out.println(rss.getFirst());
+            
+            
+            System.exit(0);
             
             session.insert(customerDataSet.id(1))
                 .bin("Name").setTo("test1")

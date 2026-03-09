@@ -28,7 +28,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.junit.jupiter.api.Assumptions;
-import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import com.aerospike.client.fluent.policy.Behavior;
@@ -46,8 +46,8 @@ public class BatchTest extends ClusterTest {
 	private static final String ValuePrefix = "batchvalue";
 	private static final int Size = 10;
 
-	@BeforeAll
-	public static void writeRecords() {
+	@BeforeEach
+	public void writeRecords() {
 		int ttl = args.hasTtl? 2592000 : 0;
 
 		for (int i = 1; i <= Size; i++) {
