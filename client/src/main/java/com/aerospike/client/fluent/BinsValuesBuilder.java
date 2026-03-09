@@ -52,7 +52,6 @@ import com.aerospike.client.fluent.policy.Settings;
 import com.aerospike.client.fluent.query.PreparedDsl;
 import com.aerospike.client.fluent.query.WhereClauseProcessor;
 import com.aerospike.client.fluent.tend.Partitions;
-import com.aerospike.client.fluent.util.Version;
 import com.aerospike.dsl.ParseResult;
 
 /**
@@ -78,8 +77,9 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
     private final List<Key> keys;
     private ValueData current = null;
     private Txn txnToUse;
-    private boolean notInAnyTransaction;
     private Settings settings;
+    private boolean notInAnyTransaction;
+    private boolean transactionSet;
 
     /**
      * Constructs a new BinsValuesBuilder for setting multiple bin names and values.
@@ -278,6 +278,12 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
      * @return This builder for method chaining
      */
     public BinsValuesBuilder notInAnyTransaction() {
+    	if (transactionSet) {
+            throw AerospikeException.resultCodeToException(ResultCode.PARAMETER_ERROR,
+            	"The transaction mode has already been set");
+    	}
+    	this.transactionSet = true;
+    	this.notInAnyTransaction = true;
         this.txnToUse = null;
         return this;
     }
@@ -301,7 +307,13 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
      * @return This builder for method chaining
      */
     public BinsValuesBuilder inTransaction(Txn txn) {
-        this.txnToUse = txn;
+    	if (transactionSet) {
+            throw AerospikeException.resultCodeToException(ResultCode.PARAMETER_ERROR,
+            	"The transaction mode has already been set");
+    	}
+    	this.transactionSet = true;
+    	this.txnToUse = txn;
+        this.notInAnyTransaction = false;
         return this;
     }
 
@@ -707,7 +719,7 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
 	        BatchExecutor.execute(cluster, commands, status);
 		}
 		else if (!notInAnyTransaction && parent.getPartitions().scMode &&
-			cluster.getVersion().isGreaterOrEqual(Version.SERVER_VERSION_8_0)) {
+			cluster.allowImplicitBatchWriteTransactions()) {
 			// Create implicit transaction for the batch.
 	        session.doInTransaction(txnSession -> {
 	            TxnMonitor.addKeys(txnSession.getCurrentTransaction(), txnSession, keys);

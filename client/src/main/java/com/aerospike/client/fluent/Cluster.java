@@ -71,12 +71,12 @@ public class Cluster implements Closeable {
 	private final AtomicInteger replicaIndex;
 	private final AtomicBoolean closed;
 	final Log.Context context;
-	private boolean metricsEnabled;
-
 	private final IndexesMonitor indexesMonitor;
     private RecordMappingFactory recordMappingFactory = null;
     private volatile SystemSettings effectiveSystemSettings = SystemSettings.DEFAULT;
     private Version version;
+	private boolean versionGE8;
+	private boolean metricsEnabled;
 
     Cluster(ClusterDefinition def, SystemSettings effectiveSettings) {
         this.def = def;
@@ -550,6 +550,33 @@ public class Cluster implements Closeable {
     	this.nodes = nodes;
     }
 
+	/**
+	 * Determines whether implicit batch write transactions are allowed for this cluster.
+	 *
+	 * <p>This method returns {@code true} only when both of the following conditions are met:
+	 * <ul>
+	 *   <li>The cluster version is 8.0 or higher (implicit batch write transactions
+	 *       require server version 8.0+)</li>
+	 *   <li>Implicit batch write transactions are enabled in the effective system settings</li>
+	 * </ul>
+	 * </p>
+	 *
+	 * <p>When implicit batch write transactions are allowed, batch write operations
+	 * will automatically be wrapped in transactions to ensure atomicity across all
+	 * records in the batch. This means that either all records in the batch are written
+	 * successfully, or none are written (all-or-nothing semantics).</p>
+	 *
+	 * <p>This feature is used internally by batch write operations to determine whether
+	 * to automatically create a transaction context for batch writes that are not already
+	 * part of an explicit transaction.</p>
+	 *
+	 * @return {@code true} if implicit batch write transactions are allowed,
+	 *         {@code false} otherwise
+	 */
+	public boolean allowImplicitBatchWriteTransactions() {
+		return versionGE8 && effectiveSystemSettings.getImplicitBatchWriteTransactions();
+	}
+
     /**
      * Gets the minimum server version across all nodes in the cluster.
      *
@@ -590,6 +617,7 @@ public class Cluster implements Closeable {
 	 */
 	public void setVersion(Version version) {
 		this.version = version;
+		this.versionGE8 = version.isGreaterOrEqual(Version.SERVER_VERSION_8_0);
 	}
 
     /**

@@ -63,12 +63,13 @@ public class ObjectBuilder<T> {
     private final OperationObjectBuilder<T> opBuilder;
     private final List<T> elements;
 	private RecordMapper<T> recordMapper;
-	private int generation = 0;
     private long expirationInSeconds = AbstractOperationBuilder.NOT_EXPLICITLY_SET;
     private long defaultExpirationInSeconds = AbstractOperationBuilder.NOT_EXPLICITLY_SET;
     private Txn txnToUse;
-    private boolean notInAnyTransaction;
     private Settings settings;
+	private int generation = 0;
+    private boolean notInAnyTransaction;
+    private boolean transactionSet;
 
     /**
      * Constructs a new ObjectBuilder for operating on multiple objects.
@@ -390,8 +391,13 @@ public class ObjectBuilder<T> {
      * @return This ObjectBuilder for method chaining
      */
     public ObjectBuilder<T> notInAnyTransaction() {
-        this.txnToUse = null;
+    	if (transactionSet) {
+            throw AerospikeException.resultCodeToException(ResultCode.PARAMETER_ERROR,
+            	"The transaction mode has already been set");
+    	}
+    	this.transactionSet = true;
         this.notInAnyTransaction = true;
+        this.txnToUse = null;
         return this;
     }
 
@@ -413,6 +419,11 @@ public class ObjectBuilder<T> {
      * @return This ObjectBuilder for method chaining
      */
     public ObjectBuilder<T> inTransaction(Txn txn) {
+    	if (transactionSet) {
+            throw AerospikeException.resultCodeToException(ResultCode.PARAMETER_ERROR,
+            	"The transaction mode has already been set");
+    	}
+    	this.transactionSet = true;
         this.txnToUse = txn;
         this.notInAnyTransaction = false;
         return this;
@@ -864,7 +875,7 @@ public class ObjectBuilder<T> {
 	        BatchExecutor.execute(cluster, commands, status);
 		}
 		else if (!notInAnyTransaction && parent.getPartitions().scMode &&
-			cluster.getVersion().isGreaterOrEqual(Version.SERVER_VERSION_8_0)) {
+			cluster.allowImplicitBatchWriteTransactions()) {
 			// Create implicit transaction for the batch.
 	        session.doInTransaction(txnSession -> {
 	            TxnMonitor.addKeysBatchWrite(txnSession.getCurrentTransaction(), txnSession, records);
@@ -1008,7 +1019,8 @@ public class ObjectBuilder<T> {
      * Execute operations synchronously for individual objects (< batch threshold).
      * All virtual threads are joined before returning.
      */
-    private RecordStream executeIndividualSync(ErrorDisposition disposition) {
+    @SuppressWarnings("resource")
+	private RecordStream executeIndividualSync(ErrorDisposition disposition) {
         List<Key> keys = new ArrayList<>(elements.size());
 
         for (T element : elements) {

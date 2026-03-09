@@ -916,31 +916,6 @@ public class ChainableUdfBuilder extends AbstractSessionOperationBuilder<Chainab
     }
 
     // ========================================
-    // Transaction support
-    // ========================================
-
-    /**
-     * Ensure this operation is executed outside of any transaction.
-     *
-     * @return this builder for method chaining
-     */
-    public ChainableUdfBuilder notInAnyTransaction() {
-        this.txnToUse = null;
-        return this;
-    }
-
-    /**
-     * Execute this operation within the specified transaction.
-     *
-     * @param txn the transaction to use
-     * @return this builder for method chaining
-     */
-    public ChainableUdfBuilder inTransaction(Txn txn) {
-        this.txnToUse = txn;
-        return this;
-    }
-
-    // ========================================
     // Execution
     // ========================================
 

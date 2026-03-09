@@ -65,6 +65,7 @@ public class IdValuesRowBuilder {
     private long defaultExpirationInSeconds = AbstractOperationBuilder.NOT_EXPLICITLY_SET;
     private Txn txnToUse;
     private boolean notInAnyTransaction;
+    private boolean transactionSet;
 
     IdValuesRowBuilder(Session session, DataSet dataSet, OpType opType, String[] binNames) {
         this.session = session;
@@ -334,6 +335,11 @@ public class IdValuesRowBuilder {
      * @return this builder for method chaining
      */
     public IdValuesRowBuilder notInAnyTransaction() {
+    	if (transactionSet) {
+            throw AerospikeException.resultCodeToException(ResultCode.PARAMETER_ERROR,
+            	"The transaction mode has already been set");
+    	}
+    	this.transactionSet = true;
         this.txnToUse = null;
         this.notInAnyTransaction = true;
         return this;
@@ -346,6 +352,11 @@ public class IdValuesRowBuilder {
      * @return this builder for method chaining
      */
     public IdValuesRowBuilder inTransaction(Txn txn) {
+    	if (transactionSet) {
+            throw AerospikeException.resultCodeToException(ResultCode.PARAMETER_ERROR,
+            	"The transaction mode has already been set");
+    	}
+    	this.transactionSet = true;
         this.txnToUse = txn;
         this.notInAnyTransaction = false;
         return this;

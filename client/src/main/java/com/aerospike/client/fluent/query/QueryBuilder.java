@@ -19,6 +19,7 @@ package com.aerospike.client.fluent.query;
 import java.util.Objects;
 
 import com.aerospike.client.fluent.AbstractFilterableBuilder;
+import com.aerospike.client.fluent.AerospikeException;
 import com.aerospike.client.fluent.DataSet;
 import com.aerospike.client.fluent.ErrorHandler;
 import com.aerospike.client.fluent.ErrorStrategy;
@@ -75,7 +76,6 @@ public class QueryBuilder extends AbstractFilterableBuilder implements
             IndexBasedQueryBuilderInterface<QueryBuilder> {
     private final QueryImpl implementation;
     private String[] binNames = null;
-    private boolean withNoBins = false;
     private long limit = 0;
     private int chunkSize = 0;
     private int startPartition = 0;
@@ -84,6 +84,8 @@ public class QueryBuilder extends AbstractFilterableBuilder implements
     private int recordsPerSecond = 0;
     private QueryDuration expectedQueryDuration = null;
     private java.util.List<com.aerospike.client.fluent.Operation> operations = null;
+    private boolean withNoBins = false;
+    private boolean transactionSet;
 
     /**
      * Creates a QueryBuilder for querying an entire dataset.
@@ -120,7 +122,7 @@ public class QueryBuilder extends AbstractFilterableBuilder implements
 
     /**
      * Returns a bin builder for read operations on a specific bin.
-     * 
+     *
      * <p>Use this method to read bin values or compute expression-based values.
      * Unlike {@link #readingOnlyBins(String...)}, this method allows you to add
      * expression operations like {@code selectFrom()}.</p>
@@ -358,7 +360,7 @@ public class QueryBuilder extends AbstractFilterableBuilder implements
     /**
      * Sets the expected query duration. The server optimizes query handling
      * based on this hint.
-     * 
+     *
      * @param duration the expected duration (LONG, SHORT, or LONG_RELAX_AP)
      * @return this QueryBuilder for method chaining
      */
@@ -530,6 +532,11 @@ public class QueryBuilder extends AbstractFilterableBuilder implements
      * @return this QueryBuilder for method chaining
      */
     public QueryBuilder notInAnyTransaction() {
+    	if (transactionSet) {
+            throw AerospikeException.resultCodeToException(ResultCode.PARAMETER_ERROR,
+            	"The transaction mode has already been set");
+    	}
+    	this.transactionSet = true;
         this.txnToUse = null;
         return this;
     }
@@ -551,6 +558,11 @@ public class QueryBuilder extends AbstractFilterableBuilder implements
      * @param txn - the transaction to use
      */
     public QueryBuilder inTransaction(Txn txn) {
+    	if (transactionSet) {
+            throw AerospikeException.resultCodeToException(ResultCode.PARAMETER_ERROR,
+            	"The transaction mode has already been set");
+    	}
+    	this.transactionSet = true;
         this.txnToUse = txn;
         return this;
     }

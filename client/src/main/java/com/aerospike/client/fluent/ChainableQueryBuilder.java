@@ -61,10 +61,11 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
     private Expression defaultWhereClause;
     private long defaultExpirationInSeconds = AbstractOperationBuilder.NOT_EXPLICITLY_SET;
     private Txn txnToUse;
-    private boolean notInAnyTransaction;
     private long limit = 0;
     private int startPartition = 0;
     private int endPartition = 4096;
+    private boolean notInAnyTransaction;
+    private boolean transactionSet;
 
     /**
      * Package-private constructor.
@@ -917,7 +918,12 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
      * @return this builder for method chaining
      */
     public ChainableQueryBuilder notInAnyTransaction() {
-        this.txnToUse = null;
+    	if (transactionSet) {
+            throw AerospikeException.resultCodeToException(ResultCode.PARAMETER_ERROR,
+            	"The transaction mode has already been set");
+    	}
+    	this.transactionSet = true;
+    	this.txnToUse = null;
         this.notInAnyTransaction = true;
         return this;
     }
@@ -929,6 +935,11 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
      * @return this builder for method chaining
      */
     public ChainableQueryBuilder inTransaction(Txn txn) {
+    	if (transactionSet) {
+            throw AerospikeException.resultCodeToException(ResultCode.PARAMETER_ERROR,
+            	"The transaction mode has already been set");
+    	}
+    	this.transactionSet = true;
         this.txnToUse = txn;
         this.notInAnyTransaction = false;
         return this;

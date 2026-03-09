@@ -56,7 +56,6 @@ import com.aerospike.client.fluent.policy.Behavior.OpKind;
 import com.aerospike.client.fluent.policy.Behavior.OpShape;
 import com.aerospike.client.fluent.policy.Settings;
 import com.aerospike.client.fluent.tend.Partitions;
-import com.aerospike.client.fluent.util.Version;
 
 /**
  * Executor for heterogeneous batch operations.
@@ -327,7 +326,7 @@ class OperationSpecExecutor {
 	        BatchExecutor.execute(cluster, commands, status);
 		}
 		else if (!notInAnyTransaction && hasWrite && mode == Mode.CP &&
-			cluster.getVersion().isGreaterOrEqual(Version.SERVER_VERSION_8_0)) {
+			cluster.allowImplicitBatchWriteTransactions()) {
 			// Create implicit transaction for the batch.
 	        session.doInTransaction(txnSession -> {
 			    TxnMonitor.addKeysBatchReadWrite(txnSession.getCurrentTransaction(), txnSession, records);
