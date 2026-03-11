@@ -13,7 +13,7 @@ import static com.aerospike.benchmarks.Arguments.toArgs;
 import static com.aerospike.benchmarks.Constants.MS;
 import static com.aerospike.benchmarks.Constants.US;
 
-public class BenchmarkContext {
+public final class BenchmarkContext implements AutoCloseable {
 
     private static final Map<Constants.OP_TYPE, LatencyManager> LATENCY_MANAGER_MAP = new HashMap<>();
 
@@ -59,15 +59,14 @@ public class BenchmarkContext {
         if (benchmarkOpts.getLatency() != null) {
             populateLatenciesPools(benchmarkOpts.getLatency());
         }
-        try (Cluster cluster = def.connect()) {
-            Session session = cluster.createSession(behavior);
-            DataSet dataSet = DataSet.of(
-                    argument.getNamespace(),
-                    argument.getSetName()
-            );
-            ctx = new BenchmarkContext(
-                    def, cluster, session, behavior, dataSet, hasTxn, argument);
-        }
+        Cluster cluster = def.connect();
+        Session session = cluster.createSession(behavior);
+        DataSet dataSet = DataSet.of(
+                argument.getNamespace(),
+                argument.getSetName()
+        );
+        ctx = new BenchmarkContext(
+                def, cluster, session, behavior, dataSet, hasTxn, argument);
 
         return ctx;
     }
@@ -262,6 +261,7 @@ public class BenchmarkContext {
             });
         }
         def.failIfNotConnected(true);
+       // def.withLogLevel(Log.Level.DEBUG);
         return def;
     }
 
@@ -295,5 +295,12 @@ public class BenchmarkContext {
 
     public boolean isHasTxns() {
         return hasTxns;
+    }
+
+    @Override
+    public void close() {
+        if (cluster != null) {
+            cluster.close();
+        }
     }
 }

@@ -10,20 +10,14 @@ public class InsertTaskSync extends InsertTask implements Runnable {
     private final Session session;
     private final long startKey;
     private final long endKey;
-    private String firstBin;
-    private String[] restBins = new String[0];
+    private final String[] binArr;
 
     public InsertTaskSync(Session session, Arguments arguments, CounterStore counters, long start, long keyCount) {
         super(arguments, counters);
         this.startKey = start;
         this.endKey = startKey + keyCount;
         this.session = session;
-        String[] binNamesArr = args.getBinNames(true);
-        this.firstBin = binNamesArr[0];
-        if (binNamesArr.length > 1) {
-            this.restBins = new String[binNamesArr.length - 1];
-            System.arraycopy(binNamesArr, 1, restBins, 0, restBins.length);
-        }
+        this.binArr = args.getBinNames(true);
     }
 
     @Override
@@ -42,22 +36,19 @@ public class InsertTaskSync extends InsertTask implements Runnable {
     }
 
     private void doUpsert(Key key, Value[] values) {
+        var builder = session.upsert(key);
+        for (int i = 0; i < binArr.length; i++) {
+            args.setBinFromValue(builder, binArr[i], values[i]);
+        }
         if (counters.write.latency != null) {
             long begin = System.nanoTime();
-            session.upsert(key)
-                    .bins(firstBin, restBins)
-                    .values((Object) values)
-                    .execute();
+            builder.execute();
             long elapsed = System.nanoTime() - begin;
             counters.write.count.getAndIncrement();
             counters.write.latency.add(elapsed);
         } else {
-            session.upsert(key)
-                    .bins(firstBin, restBins)
-                    .values((Object) values)
-                    .execute();
+            builder.execute();
             counters.write.count.getAndIncrement();
         }
-
     }
 }

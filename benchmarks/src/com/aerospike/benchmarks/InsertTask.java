@@ -16,8 +16,9 @@
  */
 package com.aerospike.benchmarks;
 
-import com.aerospike.benchmarks.client.fluent.AerospikeException;
-import com.aerospike.benchmarks.client.fluent.ResultCode;
+
+import com.aerospike.client.fluent.AerospikeException;
+import com.aerospike.client.fluent.ResultCode;
 
 public abstract class InsertTask {
 

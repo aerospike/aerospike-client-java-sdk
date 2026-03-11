@@ -7,7 +7,10 @@ public class CounterStore {
 
     Current write = new Current();
     Current read = new Current();
+    Current transaction = new Current();
+
     AtomicLong periodBegin = new AtomicLong();
+    AtomicInteger readNotFound = new AtomicInteger();
 
     public static class Current {
         AtomicInteger count = new AtomicInteger(0);

@@ -7,12 +7,16 @@ import picocli.CommandLine.Command;
 import picocli.CommandLine.Spec;
 import picocli.CommandLine.Model.CommandSpec;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.Optional;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 
 
 @Command(
@@ -48,14 +52,18 @@ public class AerospikeBenchmark implements Callable<Integer>, Log.Callback {
 
     private final CounterStore counters = new CounterStore();
 
+    private Supplier<ExecutorService> executorSupplier;
+
     @Override
     public Integer call() throws Exception {
         this.connectionOptions = Optional.ofNullable(connectionOptions).orElse(new ConnectionOptions());
         this.workloadOptions = Optional.ofNullable(workloadOptions).orElse(new WorkloadOptions());
         this.benchmarkOptions = Optional.ofNullable(benchmarkOptions).orElse(new BenchmarkOptions());
-        BenchmarkContext benchmarkContext = BenchmarkContext.buildContext(connectionOptions, workloadOptions, benchmarkOptions);
-        trackLatencyIfEnabled(benchmarkContext);
-        runBenchmark(benchmarkContext);
+        executorSupplier = () -> Executors.newFixedThreadPool(benchmarkOptions.getThreads());
+        try (BenchmarkContext benchmarkContext = BenchmarkContext.buildContext(connectionOptions, workloadOptions, benchmarkOptions)) {
+            trackLatencyIfEnabled(benchmarkContext);
+            runBenchmark(benchmarkContext);
+        }
         return 0;
     }
 
@@ -70,20 +78,41 @@ public class AerospikeBenchmark implements Callable<Integer>, Log.Callback {
         }
     }
 
-
     private void runBenchmark(BenchmarkContext benchmarkContext) throws Exception {
         final Arguments arguments = benchmarkContext.getArguments();
         boolean isInitialisation = arguments.isInitialisation();
 
         if (isInitialisation) {
             doInserts(benchmarkContext);
+        } else {
+            doRwTask(benchmarkContext);
         }
 
     }
 
+    private void doRwTask(BenchmarkContext benchmarkContext) throws InterruptedException {
+        int threads = benchmarkOptions.getThreads();
+        ExecutorService es = executorSupplier.get();
+        RWTask[] tasks = new RWTask[benchmarkContext.getArguments().getThreads()];
+
+        for (int i = 0; i < threads; i++) {
+            RWTaskSync rt = new RWTaskSync(benchmarkContext.getArguments(), counters, benchmarkContext.getSession());
+            tasks[i] = rt;
+            es.execute(rt);
+        }
+        Thread.sleep(900);
+        collectRwStats(benchmarkContext.getArguments(), tasks);
+        es.shutdown();
+        try {
+            es.awaitTermination(5, TimeUnit.MINUTES);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+    }
+
     private void doInserts(BenchmarkContext benchmarkContext) throws InterruptedException {
         Arguments arguments = benchmarkContext.getArguments();
-        ExecutorService es = getExecutorService(arguments);
+        ExecutorService es = executorSupplier.get();
         int numberOfThreads = arguments.getThreads();
         long numberOfKeys = arguments.getNumKeys();
         long tasks = numberOfThreads < numberOfKeys ? numberOfThreads : numberOfKeys;
@@ -94,18 +123,138 @@ public class AerospikeBenchmark implements Callable<Integer>, Log.Callback {
 
         for (long i = 0; i < tasks; i++) {
             long keyCount = (i < rem) ? keysPerTask  + 1 : keysPerTask;
-            InsertTaskSync insertTask = new InsertTaskSync(benchmarkContext.getSession(), arguments, counters, start, keyCount);
+            InsertTaskSync insertTask = new InsertTaskSync(benchmarkContext.getSession(),
+                    arguments,
+                    counters,
+                    start,
+                    keyCount);
             es.execute(insertTask);
             start += keyCount;
         }
         Thread.sleep(900);
-       // collectInsertStats();
+        collectInsertStats(arguments);
         es.shutdownNow();
+        try {
+            es.awaitTermination(5, TimeUnit.MINUTES);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
     }
 
-    private ExecutorService getExecutorService(Arguments arguments) {
-        return Executors.newFixedThreadPool(arguments.getThreads());
+    private void collectInsertStats(Arguments arguments) throws InterruptedException {
+        int total = 0;
+
+        while (total < arguments.getNumKeys()) {
+            long time = System.currentTimeMillis();
+
+            int numWrites = this.counters.write.count.getAndSet(0);
+            int timeoutWrites = this.counters.write.timeouts.getAndSet(0);
+            int errorWrites = this.counters.write.errors.getAndSet(0);
+            total += numWrites;
+
+            this.counters.periodBegin.set(time);
+
+            LocalDateTime dt =
+                    Instant.ofEpochMilli(time).atZone(ZoneId.systemDefault()).toLocalDateTime();
+            System.out.println(
+                    dt.format(TimeFormatter)
+                            + " write(count="
+                            + total
+                            + " tps="
+                            + numWrites
+                            + " timeouts="
+                            + timeoutWrites
+                            + " errors="
+                            + errorWrites
+                            + ")");
+
+            if (this.counters.write.latency != null) {
+                this.counters.write.latency.printHeader(System.out);
+                this.counters.write.latency.printResults(System.out, Constants.OP_TYPE.w.opType);
+            }
+            Thread.sleep(1000);
+        }
+
+        if (this.counters.write.latency != null) {
+            this.counters.write.latency.printSummaryHeader(System.out);
+            this.counters.write.latency.printSummary(System.out, Constants.OP_TYPE.w.opType);
+        }
     }
+
+    private void collectRwStats(Arguments arguments, RWTask[] tasks) throws InterruptedException {
+        long transactionTotal = 0;
+
+        while (true) {
+            long time = System.currentTimeMillis();
+            //int notFound = arguments.isReportNotFound() ? this.counters.readNotFound.getAndSet(0) : 0;
+            this.counters.periodBegin.set(time);
+
+            int numWrites = this.counters.write.count.getAndSet(0);
+            int timeoutWrites = this.counters.write.timeouts.getAndSet(0);
+            int errorWrites = this.counters.write.errors.getAndSet(0);
+            LocalDateTime dt =
+                    Instant.ofEpochMilli(time).atZone(ZoneId.systemDefault()).toLocalDateTime();
+            System.out.print(dt.format(TimeFormatter));
+            System.out.print(
+                    " write(tps="
+                            + numWrites
+                            + " timeouts="
+                            + timeoutWrites
+                            + " errors="
+                            + errorWrites
+                            + ")");
+
+            int numReads = this.counters.read.count.getAndSet(0);
+            int timeoutReads = this.counters.read.timeouts.getAndSet(0);
+            int errorReads = this.counters.read.errors.getAndSet(0);
+            System.out.print(
+                    " read(tps=" + numReads + " timeouts=" + timeoutReads + " errors=" + errorReads + ")");
+
+            // TODO txn calc
+
+            System.out.print(
+                    " total(tps="
+                            + (numWrites + numReads)
+                            + " timeouts="
+                            + (timeoutWrites + timeoutReads)
+                            + " errors="
+                            + (errorWrites + errorReads)
+                            + ")");
+            System.out.println();
+
+            if (this.counters.write.latency != null) {
+                this.counters.write.latency.printHeader(System.out);
+                this.counters.write.latency.printResults(System.out, Constants.OP_TYPE.w.opType);
+                this.counters.read.latency.printResults(System.out, Constants.OP_TYPE.r.opType);
+                if (this.counters.transaction != null && this.counters.transaction.latency != null) {
+                    this.counters.transaction.latency.printResults(System.out, Constants.OP_TYPE.tx.opType);
+                }
+            }
+
+            if (arguments.getTransactionLimit() > 0) {
+                transactionTotal +=
+                        numWrites + timeoutWrites + errorWrites + numReads + timeoutReads + errorReads;
+                if (transactionTotal >= arguments.getTransactionLimit()) {
+                    for (RWTask task : tasks) {
+                        task.stop();
+                    }
+                    if (this.counters.write.latency != null) {
+                        this.counters.write.latency.printSummaryHeader(System.out);
+                        this.counters.write.latency.printSummary(System.out, Constants.OP_TYPE.w.opType);
+                        this.counters.read.latency.printSummary(System.out, Constants.OP_TYPE.r.opType);
+                        if (this.counters.transaction != null && this.counters.transaction.latency != null) {
+                            this.counters.transaction.latency.printSummary(System.out, Constants.OP_TYPE.tx.opType);
+                        }
+                    }
+
+                    System.out.println("Transaction limit reached: " + arguments.getTransactionLimit() + ". Exiting.");
+                    break;
+                }
+            }
+            Thread.sleep(1000);
+        }
+    }
+
 
 
     @Override

@@ -11,9 +11,9 @@ public class LatencyManagerYcsb implements LatencyManager {
 
     private final AtomicInteger _buckets;
     private final AtomicLongArray histogram;
-    private final AtomicLong histogramoverflow;
+    private final AtomicLong histogramOverflow;
     private final AtomicInteger operations;
-    private final AtomicLong totallatency;
+    private final AtomicLong totalLatency;
     private final AtomicInteger warmupCount;
     private final String name;
 
@@ -29,10 +29,10 @@ public class LatencyManagerYcsb implements LatencyManager {
         this.name = name;
         this._buckets = new AtomicInteger(1000);
         this.histogram = new AtomicLongArray(_buckets.get());
-        this.histogramoverflow = new AtomicLong(0);
+        this.histogramOverflow = new AtomicLong(0);
         this.warmupCount = new AtomicInteger(warmupCount);
         this.operations = new AtomicInteger(0);
-        this.totallatency = new AtomicLong(0);
+        this.totalLatency = new AtomicLong(0);
         windowOperations = new AtomicInteger(0);
         windowTotalLatency = new AtomicLong(0);
         min = new AtomicLong(-1);
@@ -41,19 +41,19 @@ public class LatencyManagerYcsb implements LatencyManager {
 
     @Override
     public void add(long elapsed) {
-        if (isWarmUpCompleted()) {
+        if (!isWarmUpCompleted()) {
             return;
         }
         // Latency is specified in ns
         long latencyUs = elapsed / 1000;
         long latencyMs = latencyUs / 1000;
         if (histogram.get(_buckets.get()) > latencyMs) {
-            histogramoverflow.incrementAndGet();
+            histogramOverflow.incrementAndGet();
         } else {
             histogram.incrementAndGet((int)latencyMs);
         }
         operations.incrementAndGet();
-        totallatency.addAndGet(latencyUs);
+        totalLatency.addAndGet(latencyUs);
         windowOperations.incrementAndGet();
         windowTotalLatency.addAndGet(latencyUs);
 
@@ -72,13 +72,13 @@ public class LatencyManagerYcsb implements LatencyManager {
 
     @Override
     public void printResults(PrintStream exporter, String prefix) {
-        if (isWarmUpCompleted()) {
+        if (!isWarmUpCompleted()) {
             int countRemaining = warmupCount.decrementAndGet();
             exporter.println("Warming up (" + countRemaining + " left)...");
             return;
         }
         StringBuilder buffer = new StringBuilder(1024);
-        double avgLatency = (double)totallatency.get() / (double)operations.get();
+        double avgLatency = (double) totalLatency.get() / (double)operations.get();
         double winAvgLatency = (double)windowTotalLatency.get() / (double)windowOperations.get();
         buffer.append(name).append(": Period[");
         buffer.append("Ops:").append(windowOperations.get());
@@ -120,6 +120,6 @@ public class LatencyManagerYcsb implements LatencyManager {
     }
 
     private boolean isWarmUpCompleted() {
-        return this.warmupCount.get() > 0;
+        return this.warmupCount.get() <= 0;
     }
 }

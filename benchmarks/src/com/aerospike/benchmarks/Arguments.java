@@ -55,8 +55,10 @@ public class Arguments {
         args.writeMultiBinPct = workloadContext.writeMultiBinPct;
         args.nThreads = benchmarkOpts.getThreads();
         args.numKeys = workloadOpts.getKeys();
-        args.startKey = workloadOpts.getStartKey();
+        args.startKey = Optional.ofNullable(workloadOpts.getStartKey()).orElse(0L);
         args.objectSpec = toDbObjectSpecs(workloadOpts);
+        args.throughput = Optional.ofNullable(workloadOpts.getThroughput()).orElse(0);
+        args.transactionLimit = Optional.ofNullable(workloadOpts.getTransactions()).orElse(Long.MAX_VALUE);
         return args;
     }
 
@@ -165,61 +167,51 @@ public class Arguments {
     public Value[] getBinValues(RandomShift random, boolean multiBin, long keySeed) {
         int binCount = (multiBin) ? nBins : 1;
         Value[] values = new Value[binCount];
-        fillBinValues(values, random, multiBin, keySeed);
+        fillBinValues(values, random, binCount, keySeed);
         return values;
     }
 
-    /** Fills {@code out} with bin values (0th bin uses keySeed, others random). Caller must ensure out.length >= bin count. */
-    public void getBinValues(Value[] out, RandomShift random, boolean multiBin, long keySeed) {
-        fillBinValues(out, random, multiBin, keySeed);
-    }
-
-    private void fillBinValues(Value[] out, RandomShift random, boolean multiBin, long keySeed) {
-        int binCount = (multiBin) ? nBins : 1;
+    private void fillBinValues(Value[] out, RandomShift random, int binCount, long keySeed) {
         int specLength = objectSpec.length;
         for (int i = 0; i < binCount; i++) {
             out[i] = genValue(random, objectSpec[i % specLength], i == 0 ? keySeed : -1);
         }
     }
 
-    public void setBinFromValue(ChainableOperationBuilder builder, Bin bin) {
-        Object v = bin.value.getObject();
+    public void setBinFromValue(ChainableOperationBuilder builder, String bName, Value value) {
+        Object v = value.getObject();
         if (v == null) {
-            builder.bin(bin.name).remove();
+            builder.bin(bName).remove();
             return;
         }
         switch (v) {
             case String s -> {
-                builder.bin(bin.name).setTo(s);
+                builder.bin(bName).setTo(s);
                 return;
             }
             case Integer i -> {
-                builder.bin(bin.name).setTo(i);
+                builder.bin(bName).setTo(i);
                 return;
             }
             case Long l -> {
-                builder.bin(bin.name).setTo(l);
+                builder.bin(bName).setTo(l);
                 return;
             }
             case Double aDouble -> {
-                builder.bin(bin.name).setTo(aDouble);
+                builder.bin(bName).setTo(aDouble);
                 return;
             }
             case Boolean b -> {
-                builder.bin(bin.name).setTo(b);
+                builder.bin(bName).setTo(b);
                 return;
             }
             case byte[] bytes -> {
-                builder.bin(bin.name).setTo(bytes);
-                return;
-            }
-            case Byte b -> {
-                builder.bin(bin.name).setTo(b.intValue());
+                builder.bin(bName).setTo(bytes);
                 return;
             }
             default -> {}
         }
-        builder.bin(bin.name).setTo(String.valueOf(v));
+        builder.bin(bName).setTo(String.valueOf(v));
     }
 
     private Value genValue(RandomShift random, DBObjectSpec spec, long keySeed) {
