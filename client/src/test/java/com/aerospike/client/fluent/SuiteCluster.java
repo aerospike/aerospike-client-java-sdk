@@ -57,7 +57,7 @@ import com.aerospike.client.fluent.policy.Behavior;
     ReplaceTest.class,
     ServerInfoTest.class,
     TouchTest.class,
-//  TxnTest.class,
+    TxnTest.class,
     UdfTest.class,
     QueryBlobTest.class,
     QueryCollectionTest.class,
