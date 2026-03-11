@@ -12,7 +12,7 @@ import java.util.function.Predicate;
 public final class ASNodeController {
 
     private static final String DEFAULT_CONTAINER_NAME_PREFIX = "aerospike";
-    private static final long DELAY_TIMEOUT_MS = 2000;
+    //private static final long DELAY_TIMEOUT_MS = 2000;
     private static final int DEFAULT_SCRIPT_TIMEOUT_SEC = 120;
     private final String containerNamePrefix;
     private static final String ASD_STOP = "./etc/init.d/aerospike stop";
@@ -141,7 +141,9 @@ public final class ASNodeController {
         List<String> nodes = new ArrayList<>();
         for (String line : output.split("\n")) {
             String name = line.trim();
-            if (name.isEmpty()) continue;
+            if (name.isEmpty()) {
+				continue;
+			}
             if (name.toLowerCase().startsWith(containerNamePrefix)) {
                 nodes.add(name);
             }
@@ -152,8 +154,8 @@ public final class ASNodeController {
     }
 
     private String runCommand(List<String> cmd, Predicate<String> expected) throws Exception {
-        long start = System.currentTimeMillis();
-        long endTime = start + DELAY_TIMEOUT_MS;
+        //long start = System.currentTimeMillis();
+        //long endTime = start + DELAY_TIMEOUT_MS;
         ProcessBuilder pb = new ProcessBuilder(cmd);
         pb.redirectErrorStream(true);
         Process p = pb.start();
@@ -213,7 +215,9 @@ public final class ASNodeController {
     }
 
     private void waitForClusterFormation(int timeoutSec) throws Exception {
-        if (containers.length <= 1) return;
+        if (containers.length <= 1) {
+			return;
+		}
         String containersStr = String.join("\n", containers);
         runScript(SCRIPT_WAIT_CLUSTER_FORMATION,
                 "CONTAINERS", containersStr,
@@ -222,7 +226,9 @@ public final class ASNodeController {
     }
 
     private void waitForServicePort(Integer timeoutSec) throws Exception {
-        if (containers.length == 0) return;
+        if (containers.length == 0) {
+			return;
+		}
         String containersStr = String.join("\n", containers);
         runScript(SCRIPT_WAIT_SERVICE_PORT,
                 "CONTAINERS", containersStr,
@@ -231,7 +237,9 @@ public final class ASNodeController {
     }
 
     private void waitForClusterStability(int timeoutSec) throws Exception {
-        if (containers.length == 0) return;
+        if (containers.length == 0) {
+			return;
+		}
         String containersStr = String.join("\n", containers);
         runScript(SCRIPT_WAIT_CLUSTER_STABILITY,
                 "CONTAINERS", containersStr,
