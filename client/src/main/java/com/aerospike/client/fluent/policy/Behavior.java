@@ -233,6 +233,7 @@ public final class Behavior {
                     .delayBetweenRetries(Duration.ofSeconds(1))
                     .allowInlineMemoryAccess(false)
                     .allowInlineSsdAccess(true)
+                    .sendKey(false)
             )
             // Transaction - txnRoll defaults
             .on(Selectors.transaction().txnRoll(), ops -> ops
@@ -243,6 +244,7 @@ public final class Behavior {
                     .delayBetweenRetries(Duration.ofSeconds(1))
                     .allowInlineMemoryAccess(false)
                     .allowInlineSsdAccess(true)
+                    .sendKey(false)
             )
             .build();
 

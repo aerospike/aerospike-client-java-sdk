@@ -17,11 +17,15 @@
 package com.aerospike.client.fluent;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import com.aerospike.client.fluent.command.Txn;
@@ -32,52 +36,50 @@ import com.aerospike.client.fluent.policy.Settings;
 public class TxnTest extends ClusterTest {
 	private static final String binName = "bin";
 
+	@BeforeAll
+	public static void requireSC() {
+		assumeTrue(args.scMode, "Transactions require strong consistency namespaces");
+	}
+
 	@Test
 	public void txnWrite() {
-		assumeTrue(args.scMode, "Transactions require strong consistency namespaces");
-
-		Key key = args.set.id("mrtkey1");
+		Key key = args.set.id("txnWrite");
 
 		session.upsert(key)
 			.bins(binName)
 			.values("val1")
 			.execute();
 
-		TransactionalSession txnSession = new TransactionalSession(cluster, Behavior.DEFAULT);
-		Txn txn = txnSession.getCurrentTransaction();
+        session.doInTransaction(txnSession -> {
+        	RecordStream rs = txnSession.upsert(key)
+				.bins(binName)
+				.values("val2")
+				.execute();
 
-		txnSession.upsert(key)
-			.bins(binName)
-			.values("val2")
-			.execute();
-
-		commitTxn(txn);
+     		assertTrue(rs.hasNext());
+    		rs.next().recordOrThrow();
+        });
 
 		RecordStream rs = session.query(key).execute();
-		Record record = rs.next().recordOrThrow();
-		assertEquals("val2", record.getString(binName));
+		Record rec = rs.next().recordOrThrow();
+		assertEquals("val2", rec.getString(binName));
 	}
 
 	@Test
 	public void txnWriteTwice() {
-		assumeTrue(args.scMode, "Transactions require strong consistency namespaces");
+		Key key = args.set.id("txnWriteTwice");
 
-		Key key = args.set.id("mrtkey2");
+        session.doInTransaction(txnSession -> {
+			txnSession.upsert(key)
+				.bins(binName)
+				.values("val1")
+				.execute();
 
-		TransactionalSession txnSession = new TransactionalSession(cluster, Behavior.DEFAULT);
-		Txn txn = txnSession.getCurrentTransaction();
-
-		txnSession.upsert(key)
-			.bins(binName)
-			.values("val1")
-			.execute();
-
-		txnSession.upsert(key)
-			.bins(binName)
-			.values("val2")
-			.execute();
-
-		commitTxn(txn);
+			txnSession.upsert(key)
+				.bins(binName)
+				.values("val2")
+				.execute();
+	    });
 
 		RecordStream rs = session.query(key).execute();
 		Record record = rs.next().recordOrThrow();
@@ -86,33 +88,27 @@ public class TxnTest extends ClusterTest {
 
 	@Test
 	public void txnWriteConflict() {
-		assumeTrue(args.scMode, "Transactions require strong consistency namespaces");
+		Key key = args.set.id("txnWriteConflict");
 
-		Key key = args.set.id("mrtkey21");
-
-		TransactionalSession txnSession1 = new TransactionalSession(cluster, Behavior.DEFAULT);
-		TransactionalSession txnSession2 = new TransactionalSession(cluster, Behavior.DEFAULT);
-		Txn txn1 = txnSession1.getCurrentTransaction();
-		Txn txn2 = txnSession2.getCurrentTransaction();
-
-		txnSession1.upsert(key)
+        session.doInTransaction(txnSession1 -> {
+    		txnSession1.upsert(key)
 			.bins(binName)
 			.values("val1")
 			.execute();
 
-		try {
-			txnSession2.upsert(key)
-				.bins(binName)
-				.values("val2")
-				.execute();
-		} catch (AerospikeException ae) {
-			if (ae.getResultCode() != ResultCode.MRT_BLOCKED) {
-				throw ae;
-			}
-		}
+    		session.doInTransaction(txnSession2 -> {
+    			AerospikeException ae = assertThrows(AerospikeException.class, () -> {
+    		        RecordStream rs = txnSession2.upsert(key)
+						.bins(binName)
+						.values("val2")
+						.execute();
 
-		commitTxn(txn1);
-		commitTxn(txn2);
+    		        assertTrue(rs.hasNext());
+    		        rs.next().recordOrThrow();
+    			});
+    			assertEquals(ResultCode.MRT_BLOCKED, ae.getResultCode());
+    		});
+	    });
 
 		RecordStream rs = session.query(key).execute();
 		Record record = rs.next().recordOrThrow();
@@ -121,15 +117,13 @@ public class TxnTest extends ClusterTest {
 
 	@Test
 	public void txnReadFailsForAllStatesExceptOpen() {
-		assumeTrue(args.scMode, "Transactions require strong consistency namespaces");
-
 		Object[][] testCases = new Object[][] {
 			{ Txn.State.OPEN, null },
 			{ Txn.State.COMMITTED, "it has been committed" },
 			{ Txn.State.ABORTED, "it has been aborted" },
 			{ Txn.State.VERIFIED, "it is currently being committed" }
 		};
-		Key key = args.set.id("mrtkey21");
+		Key key = args.set.id("txnReadFailsForAllStatesExceptOpen");
 
 		for (Object[] testCase : testCases) {
 			Txn.State state = (Txn.State) testCase[0];
@@ -157,7 +151,7 @@ public class TxnTest extends ClusterTest {
 					fail("Expected AerospikeException for state " + state);
 				} catch (AerospikeException ex) {
 					if (!ex.getMessage().contains(expectedMessage)) {
-						fail("Expected message containing '" + expectedMessage + "' for state " + state + 
+						fail("Expected message containing '" + expectedMessage + "' for state " + state +
 							" but got: " + ex.getMessage());
 					}
 				}
@@ -165,49 +159,64 @@ public class TxnTest extends ClusterTest {
 		}
 	}
 
-	// txnWriteBlock - NOT MIGRATED
-	// This test cannot be reliably migrated due to fundamental differences in transaction monitor
-	// creation timing between the legacy and fluent APIs. The legacy API creates the transaction
-	// monitor record synchronously with the first transactional write, ensuring the monitor exists
-	// on the server before the write operation returns. The fluent API optimizes monitor creation
-	// by deferring/batching it, making the timing non-deterministic from the test's perspective.
-	// As a result, testing the blocking behavior of concurrent non-transactional writes is not
-	// reliable in the fluent API without synchronous monitor creation guarantees.
-
 	@Test
-	public void txnWriteRead() {
-		assumeTrue(args.scMode, "Transactions require strong consistency namespaces");
-
-		Key key = args.set.id("mrtkey4");
+	public void txnWriteBlock() {
+		Key key = args.set.id("txnWriteBlock");
 
 		session.upsert(key)
 			.bins(binName)
 			.values("val1")
 			.execute();
 
-		TransactionalSession txnSession = new TransactionalSession(cluster, Behavior.DEFAULT);
-		Txn txn = txnSession.getCurrentTransaction();
-
-		txnSession.upsert(key)
+        session.doInTransaction(txnSession -> {
+        	txnSession.upsert(key)
 			.bins(binName)
 			.values("val2")
 			.execute();
 
-		RecordStream rs = session.query(key).execute();
-		Record record = rs.next().recordOrThrow();
-		assertEquals("val1", record.getString(binName));
+   			AerospikeException ae = assertThrows(AerospikeException.class, () -> {
+		        RecordStream rs = session.upsert(key)
+					.bins(binName)
+					.values("val3")
+					.execute();
 
-		commitTxn(txn);
+		        assertTrue(rs.hasNext());
+		        rs.next().recordOrThrow();
+			});
+			assertEquals(ResultCode.MRT_BLOCKED, ae.getResultCode());
+	    });
+	}
 
-		rs = session.query(key).execute();
-		record = rs.next().recordOrThrow();
-		assertEquals("val2", record.getString(binName));
+	@Test
+	public void txnWriteRead() {
+		Key key = args.set.id("txnWriteRead");
+
+		session.upsert(key)
+			.bins(binName)
+			.values("val1")
+			.execute();
+
+        session.doInTransaction(txnSession -> {
+			txnSession.upsert(key)
+				.bins(binName)
+				.values("val2")
+				.execute();
+
+			RecordStream rs = session.query(key).execute();
+			Record rec = rs.next().recordOrThrow();
+			assertEquals("val1", rec.getString(binName));
+	    });
+
+        RecordStream rs = session.query(key).execute();
+        Record rec = rs.next().recordOrThrow();
+		assertEquals("val2", rec.getString(binName));
 	}
 
 	@Test
 	public void txnWriteAbort() {
-		assumeTrue(args.scMode, "Transactions require strong consistency namespaces");
-
+		// TODO It's not possible to call doInTransaction() in this test because that method
+		// implicitly calls commit when finished. This test explicitly calls abort() and must
+		// use low level transactions calls to perform the abort (awkward).
 		Key key = args.set.id("mrtkey5");
 
 		session.upsert(key)
@@ -236,36 +245,29 @@ public class TxnTest extends ClusterTest {
 
 	@Test
 	public void txnDelete() {
-		assumeTrue(args.scMode, "Transactions require strong consistency namespaces");
-
-		Key key = args.set.id("mrtkey6");
+		Key key = args.set.id("txnDelete");
 
 		session.upsert(key)
 			.bins(binName)
 			.values("val1")
 			.execute();
 
-		TransactionalSession txnSession = new TransactionalSession(cluster, Behavior.DEFAULT);
-		Txn txn = txnSession.getCurrentTransaction();
-
-		txnSession.delete(key)
-			.withDurableDelete()
-			.execute();
-
-		commitTxn(txn);
+        session.doInTransaction(txnSession -> {
+    		txnSession.delete(key)
+				.withDurableDelete()
+				.execute();
+	    });
 
 		RecordStream rs = session.query(key).execute();
-		if (rs.hasNext()) {
-			Record record = rs.next().recordOrNull();
-			assertNull(record);
-		}
+        assertFalse(rs.hasNext());
 	}
 
 	@Test
 	public void txnDeleteAbort() {
-		assumeTrue(args.scMode, "Transactions require strong consistency namespaces");
-
-		Key key = args.set.id("mrtkey7");
+		// TODO It's not possible to call doInTransaction() in this test because that method
+		// implicitly calls commit when finished. This test explicitly calls abort() and must
+		// use low level transactions calls to perform the abort (awkward).
+		Key key = args.set.id("txnDeleteAbort");
 
 		session.upsert(key)
 			.bins(binName)
@@ -282,69 +284,63 @@ public class TxnTest extends ClusterTest {
 		abortTxn(txn);
 
 		RecordStream rs = session.query(key).execute();
-		Record record = rs.next().recordOrThrow();
-		assertEquals("val1", record.getString(binName));
+		Record rec = rs.next().recordOrThrow();
+		assertEquals("val1", rec.getString(binName));
 	}
 
 	@Test
 	public void txnDeleteTwice() {
-		assumeTrue(args.scMode, "Transactions require strong consistency namespaces");
-
-		Key key = args.set.id("mrtkey8");
+		Key key = args.set.id("txnDeleteTwice");
 
 		session.upsert(key)
 			.bins(binName)
 			.values("val1")
 			.execute();
 
-		TransactionalSession txnSession = new TransactionalSession(cluster, Behavior.DEFAULT);
-		Txn txn = txnSession.getCurrentTransaction();
+        session.doInTransaction(txnSession -> {
+        	RecordStream rs = txnSession.delete(key)
+				.withDurableDelete()
+				.execute();
 
-		txnSession.delete(key)
-			.withDurableDelete()
-			.execute();
+    		assertTrue(rs.hasNext());
+    		rs.next().recordOrThrow();
 
-		txnSession.delete(key)
-			.withDurableDelete()
-			.execute();
+    		rs = txnSession.delete(key)
+				.withDurableDelete()
+				.execute();
 
-		commitTxn(txn);
+    		assertTrue(rs.hasNext());
+    		rs.next().recordOrNull();
+        });
 
 		RecordStream rs = session.query(key).execute();
-		if (rs.hasNext()) {
-			Record record = rs.next().recordOrNull();
-			assertNull(record);
-		}
+		assertFalse(rs.hasNext());
 	}
 
 	@Test
 	public void txnTouch() {
-		assumeTrue(args.scMode, "Transactions require strong consistency namespaces");
-
-		Key key = args.set.id("mrtkey9");
+		Key key = args.set.id("txnTouch");
 
 		session.upsert(key)
 			.bins(binName)
 			.values("val1")
 			.execute();
 
-		TransactionalSession txnSession = new TransactionalSession(cluster, Behavior.DEFAULT);
-		Txn txn = txnSession.getCurrentTransaction();
-
-		txnSession.touch(key).execute();
-
-		commitTxn(txn);
+        session.doInTransaction(txnSession -> {
+        	txnSession.touch(key).execute();
+        });
 
 		RecordStream rs = session.query(key).execute();
-		Record record = rs.next().recordOrThrow();
-		assertEquals("val1", record.getString(binName));
+		Record rec = rs.next().recordOrThrow();
+		assertEquals("val1", rec.getString(binName));
 	}
 
 	@Test
 	public void txnTouchAbort() {
-		assumeTrue(args.scMode, "Transactions require strong consistency namespaces");
-
-		Key key = args.set.id("mrtkey10");
+		// TODO It's not possible to call doInTransaction() in this test because that method
+		// implicitly calls commit when finished. This test explicitly calls abort() and must
+		// use low level transactions calls to perform the abort (awkward).
+		Key key = args.set.id("txnTouchAbort");
 
 		session.upsert(key)
 			.bins(binName)
@@ -359,44 +355,40 @@ public class TxnTest extends ClusterTest {
 		abortTxn(txn);
 
 		RecordStream rs = session.query(key).execute();
-		Record record = rs.next().recordOrThrow();
-		assertEquals("val1", record.getString(binName));
+		Record rec = rs.next().recordOrThrow();
+		assertEquals("val1", rec.getString(binName));
 	}
 
 	@Test
 	public void txnOperateWrite() {
-		assumeTrue(args.scMode, "Transactions require strong consistency namespaces");
-
-		Key key = args.set.id("mrtkey11");
+		Key key = args.set.id("txnOperateWrite");
 
 		session.upsert(key)
 			.bins(binName, "bin2")
 			.values("val1", "bal1")
 			.execute();
 
-		TransactionalSession txnSession = new TransactionalSession(cluster, Behavior.DEFAULT);
-		Txn txn = txnSession.getCurrentTransaction();
+        session.doInTransaction(txnSession -> {
+    		RecordStream rs = txnSession.upsert(key)
+				.bin(binName).setTo("val2")
+				.get("bin2")
+				.execute();
 
-		RecordStream rs = txnSession.upsert(key)
-			.bin(binName).setTo("val2")
-			.get("bin2")
-			.execute();
+			Record rec = rs.next().recordOrThrow();
+			assertEquals("bal1", rec.getString("bin2"));
+       });
 
-		Record record = rs.next().recordOrThrow();
-		assertEquals("bal1", record.getString("bin2"));
-
-		commitTxn(txn);
-
-		rs = session.query(key).execute();
-		record = rs.next().recordOrThrow();
-		assertEquals("val2", record.getString(binName));
+        RecordStream rs = session.query(key).execute();
+        Record rec = rs.next().recordOrThrow();
+		assertEquals("val2", rec.getString(binName));
 	}
 
 	@Test
 	public void txnOperateWriteAbort() {
-		assumeTrue(args.scMode, "Transactions require strong consistency namespaces");
-
-		Key key = args.set.id("mrtkey12");
+		// TODO It's not possible to call doInTransaction() in this test because that method
+		// implicitly calls commit when finished. This test explicitly calls abort() and must
+		// use low level transactions calls to perform the abort (awkward).
+		Key key = args.set.id("txnOperateWriteAbort");
 
 		session.upsert(key)
 			.bins(binName, "bin2")
@@ -411,20 +403,18 @@ public class TxnTest extends ClusterTest {
 			.get("bin2")
 			.execute();
 
-		Record record = rs.next().recordOrThrow();
-		assertEquals("bal1", record.getString("bin2"));
+		Record rec = rs.next().recordOrThrow();
+		assertEquals("bal1", rec.getString("bin2"));
 
 		abortTxn(txn);
 
 		rs = session.query(key).execute();
-		record = rs.next().recordOrThrow();
-		assertEquals("val1", record.getString(binName));
+		rec = rs.next().recordOrThrow();
+		assertEquals("val1", rec.getString(binName));
 	}
 
 	@Test
 	public void txnBatch() {
-		assumeTrue(args.scMode, "Transactions require strong consistency namespaces");
-
 		java.util.List<Key> keys = args.set.ids(0, 1, 2, 3, 4, 5, 6, 7, 8, 9);
 
 		for (Key key : keys) {
@@ -437,21 +427,18 @@ public class TxnTest extends ClusterTest {
 		RecordStream recs = session.query(keys).execute();
 		assertBatchEqual(keys, recs, 1);
 
-		TransactionalSession txnSession = new TransactionalSession(cluster, Behavior.DEFAULT);
-		Txn txn = txnSession.getCurrentTransaction();
+        session.doInTransaction(txnSession -> {
+    		RecordStream bresults = txnSession.upsert(keys)
+				.bin(binName).setTo(2)
+				.execute();
 
-		RecordStream bresults = txnSession.upsert(keys)
-			.bin(binName).setTo(2)
-			.execute();
-
-		while (bresults.hasNext()) {
-			RecordResult rr = bresults.next();
-			if (rr.resultCode() != 0) {
-				fail("Batch operation failed: " + rr.resultCode());
+			while (bresults.hasNext()) {
+				RecordResult rr = bresults.next();
+				if (rr.resultCode() != 0) {
+					fail("Batch operation failed: " + rr.resultCode());
+				}
 			}
-		}
-
-		commitTxn(txn);
+        });
 
 		recs = session.query(keys).execute();
 		assertBatchEqual(keys, recs, 2);
@@ -459,8 +446,9 @@ public class TxnTest extends ClusterTest {
 
 	@Test
 	public void txnBatchAbort() {
-		assumeTrue(args.scMode, "Transactions require strong consistency namespaces");
-
+		// TODO It's not possible to call doInTransaction() in this test because that method
+		// implicitly calls commit when finished. This test explicitly calls abort() and must
+		// use low level transactions calls to perform the abort (awkward).
 		java.util.List<Key> keys = args.set.ids(10, 11, 12, 13, 14, 15, 16, 17, 18, 19);
 
 		for (Key key : keys) {
@@ -503,34 +491,6 @@ public class TxnTest extends ClusterTest {
 			count++;
 		}
 		assertEquals(keys.size(), count);
-	}
-
-	private void commitTxn(Txn txn) {
-		TxnRoll tr = new TxnRoll(cluster, txn);
-		Settings verifyPolicy = Behavior.DEFAULT.getSettings(
-			Behavior.OpKind.SYSTEM_TXN_VERIFY,
-			Behavior.OpShape.SYSTEM,
-			Behavior.Mode.ANY
-		);
-		Settings rollPolicy = Behavior.DEFAULT.getSettings(
-			Behavior.OpKind.SYSTEM_TXN_ROLL,
-			Behavior.OpShape.SYSTEM,
-			Behavior.Mode.ANY
-		);
-
-		switch (txn.getState()) {
-			case OPEN:
-				tr.verify(verifyPolicy, rollPolicy);
-				tr.commit(rollPolicy);
-				break;
-			case VERIFIED:
-				tr.commit(rollPolicy);
-				break;
-			case COMMITTED:
-				break;
-			case ABORTED:
-				throw AerospikeException.resultCodeToException(ResultCode.TXN_ALREADY_ABORTED, "Transaction already aborted");
-		}
 	}
 
 	private void abortTxn(Txn txn) {

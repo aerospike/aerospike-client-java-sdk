@@ -24,6 +24,9 @@ interface BinsValuesOperations {
      * Get the transaction to use
      */
     Txn getTxnToUse();
+
+    boolean getNotInAnyTransaction();
+
     /**
      * Get the number of keys in this operation.
      */

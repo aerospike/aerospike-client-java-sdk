@@ -1376,11 +1376,19 @@ public final class CommandBuffer {
 			}
 			else {
 				// Write full header and namespace/set/bin names.
-				dataOffset += 12; // header(4) + ttl(4) + fieldCount(2) + opCount(2) = 12
+				// header(4) + gen(2) + ttl(4) + fieldCount(2) + opCount(2) = 14
+				// Extra txnAttr byte added later.
+				dataOffset += 14;
 				dataOffset += Buffer.estimateSizeUtf8(key.namespace) + Command.FIELD_HEADER_SIZE;
 				dataOffset += Buffer.estimateSizeUtf8(key.setName) + Command.FIELD_HEADER_SIZE;
+
+				// This check must be added because it's possible for the user to override
+				// default SYSTEM_TXN_ROLL settings and change sendKey to true. This should
+				// never be done, but we must account for it.
+				if (cmd.sendKey) {
+					dataOffset += key.userKey.estimateSize() + Command.FIELD_HEADER_SIZE + 1;
+				}
 				sizeTxnBatch(txn, ver, true);
-				dataOffset += 2; // gen(2) = 2
 				keyPrev = key;
 				verPrev = ver;
 			}

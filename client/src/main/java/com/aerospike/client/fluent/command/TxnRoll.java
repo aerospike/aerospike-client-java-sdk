@@ -25,10 +25,12 @@ import java.util.Set;
 import com.aerospike.client.fluent.AerospikeException;
 import com.aerospike.client.fluent.Cluster;
 import com.aerospike.client.fluent.Key;
+import com.aerospike.client.fluent.Log;
 import com.aerospike.client.fluent.OpType;
 import com.aerospike.client.fluent.ResultCode;
 import com.aerospike.client.fluent.policy.Settings;
 import com.aerospike.client.fluent.tend.Partitions;
+import com.aerospike.client.fluent.util.Util;
 
 public final class TxnRoll {
 	private final Cluster cluster;
@@ -190,6 +192,9 @@ public final class TxnRoll {
 			roll(rollPolicy, Command.INFO4_TXN_ROLL_FORWARD);
 		}
 		catch (Throwable t) {
+			if (Log.warnEnabled()) {
+				Log.warn("Transaction roll-forward failed: " + Util.getErrorMessage(t));
+			}
 			return CommitStatus.ROLL_FORWARD_ABANDONED;
 		}
 
@@ -266,7 +271,7 @@ public final class TxnRoll {
         List<BatchRecord> records = new ArrayList<BatchRecord>(max);
 
         for (Key key : keySet) {
-			BatchRecord br = new BatchWrite(key, null, attr, OpType.UPDATE, null, 0, 0);
+			BatchRecord br = new BatchWrite(key, null, attr, OpType.UPDATE);
 			records.add(br);
         }
 

@@ -62,6 +62,17 @@ public final class BatchWrite extends BatchRecord {
 		adjustWrite();
 	}
 
+	/**
+	 * This constructor should only be used for transaction roll forward.
+	 */
+	public BatchWrite(Key key, Expression where, BatchAttr attr, OpType opType) {
+		super(key, where, attr);
+		this.opType = opType;
+		this.ops = null;
+		this.gen = 0;
+		this.ttl = 0;
+	}
+
 	private void adjustWrite() {
 		if (gen > 0) {
 			writeAttr |= Command.INFO2_GENERATION;

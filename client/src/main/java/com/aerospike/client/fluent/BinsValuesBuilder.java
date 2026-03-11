@@ -98,10 +98,8 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
         System.arraycopy(binNames, 0, this.binNames, 1, binNames.length);
         this.keys = keys;
         this.defaultExpirationInSeconds = initialExpiration;
-        if (opBuilder instanceof AbstractSessionOperationBuilder builder) {
-            this.txnToUse = builder.getTxnToUse();
-            this.notInAnyTransaction = builder.getNotInAnyTransaction();
-        }
+        this.txnToUse = opBuilder.getTxnToUse();
+        this.notInAnyTransaction = opBuilder.getNotInAnyTransaction();
     }
 
     /**

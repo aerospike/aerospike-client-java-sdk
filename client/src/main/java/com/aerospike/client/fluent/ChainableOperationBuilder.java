@@ -1093,6 +1093,11 @@ public class ChainableOperationBuilder extends AbstractOperationBuilder<Chainabl
         }
 
         @Override
+        public boolean getNotInAnyTransaction() {
+        	return notInAnyTransaction;
+        }
+
+        @Override
         public int getExpirationAsInt(long expirationInSeconds) {
             return ChainableOperationBuilder.this.getExpirationAsInt(expirationInSeconds);
         }
