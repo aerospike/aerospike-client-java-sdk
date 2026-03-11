@@ -17,6 +17,7 @@
 package com.aerospike.client.fluent.command;
 
 import com.aerospike.client.fluent.Key;
+import com.aerospike.client.fluent.Node;
 import com.aerospike.client.fluent.Record;
 import com.aerospike.client.fluent.ResultCode;
 import com.aerospike.client.fluent.exp.Expression;
@@ -27,6 +28,7 @@ import com.aerospike.client.fluent.exp.Expression;
 public class BatchRecord {
 	public final Key key;
 	public final Expression where;
+	public Node node;
 	public Record record;
 	public int resultCode;
 	public byte readAttr;

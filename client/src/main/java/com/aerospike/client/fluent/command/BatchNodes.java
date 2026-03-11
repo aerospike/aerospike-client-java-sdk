@@ -72,14 +72,14 @@ public final class BatchNodes {
 			try {
 				b.prepare();
 
-				Node node = b.hasWrite ?
+				b.node = b.hasWrite ?
 					getNodeBatchWrite(cluster, cmd, b.key, null, 0) :
 					getNodeBatchRead(cluster, cmd, b.key, null, 0, 0);
 
-				BatchNode batchNode = findBatchNode(batchNodes, node);
+				BatchNode batchNode = findBatchNode(batchNodes, b.node);
 
 				if (batchNode == null) {
-					batchNodes.add(new BatchNode(node, keysPerNode, i));
+					batchNodes.add(new BatchNode(b.node, keysPerNode, i));
 				}
 				else {
 					batchNode.addKey(i);
@@ -144,14 +144,14 @@ public final class BatchNodes {
 			}
 
 			try {
-				Node node = b.hasWrite ?
+				b.node = b.hasWrite ?
 					getNodeBatchWrite(cluster, cmd, b.key, batchSeed.node, sequence) :
 					getNodeBatchRead(cluster, cmd, b.key, batchSeed.node, sequence, sequenceSC);
 
-				BatchNode batchNode = findBatchNode(batchNodes, node);
+				BatchNode batchNode = findBatchNode(batchNodes, b.node);
 
 				if (batchNode == null) {
-					batchNodes.add(new BatchNode(node, keysPerNode, offset));
+					batchNodes.add(new BatchNode(b.node, keysPerNode, offset));
 				}
 				else {
 					batchNode.addKey(offset);
