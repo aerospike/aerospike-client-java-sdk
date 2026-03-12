@@ -16,7 +16,6 @@
  */
 package com.aerospike.examples;
 
-import java.util.List;
 import java.util.Optional;
 
 import com.aerospike.client.fluent.AerospikeException;
@@ -261,14 +260,18 @@ public class CommonExample extends Example {
         	.recordsPerSecond(5000)
         	.execute();
 
-        int count = 0;
+        try {
+	        int count = 0;
 
-        while (rs.hasNext()) {
-            System.out.println(rs.next());
-            count++;
+	        while (rs.hasNext()) {
+	            System.out.println(rs.next());
+	            count++;
+	        }
+	        System.out.println("Query count: " + count);
         }
-
-        System.out.println("Query count: " + count);
+        finally {
+        	rs.close();
+        }
 
         Settings settings = Behavior.DEFAULT.getSettings(OpKind.READ, OpShape.QUERY, Mode.CP);
         System.out.printf("Batch mode maxConcurrentNodes = %d\n", settings.getMaxConcurrentNodes());
@@ -289,14 +292,19 @@ public class CommonExample extends Example {
         	.where("$.age > 200")
         	.execute();
 
-        count = 0;
+        try {
+	        int count = 0;
 
-        while (rs.hasNext()) {
-            System.out.println(rs.next());
-            count++;
+	        while (rs.hasNext()) {
+	            System.out.println(rs.next());
+	            count++;
+	        }
+
+	        System.out.println("Query count: " + count);
         }
-
-        System.out.println("Query count: " + count);
+        finally {
+        	rs.close();
+        }
 
         rs = session.query(set.ids(10,11,110))
         	.execute();
@@ -309,29 +317,40 @@ public class CommonExample extends Example {
         System.out.println("Paginated secondary index query");
 
         rs = session.query(set).execute();
-        count = 0;
 
-        while (rs.hasNext()) {
-        	rs.next().recordOrThrow();
-        	count++;
+        try {
+	        int count = 0;
+
+	        while (rs.hasNext()) {
+	        	rs.next().recordOrThrow();
+	        	count++;
+	        }
+	        System.out.println("Expected paginated query count: " + count);
         }
-
-        System.out.println("Expected paginated query count: " + count);
+        finally {
+        	rs.close();
+        }
 
         rs = session.query(set).chunkSize(5).execute();
-        int chunk = 0;
-        count = 0;
 
-        while (rs.hasMoreChunks()) {
-            System.out.println("Chunk: " + (++chunk));
+        try {
+	        int chunk = 0;
+	        int count = 0;
 
-            while (rs.hasNext()) {
-                System.out.println(rs.next());
-                count++;
-            }
+	        while (rs.hasMoreChunks()) {
+	            System.out.println("Chunk: " + (++chunk));
+
+	            while (rs.hasNext()) {
+	                System.out.println(rs.next());
+	                count++;
+	            }
+	        }
+
+	        System.out.println("Actual Query count: " + count);
         }
-
-        System.out.println("Actual Query count: " + count);
+        finally {
+        	rs.close();
+        }
 
         System.out.println("Background query");
 
@@ -350,9 +369,9 @@ public class CommonExample extends Example {
         	Record r = rs.next().recordOrThrow();
         	System.out.println("Record = " + r);
         }
-        
+
         session.query(set).expectedQueryDuration(QueryDuration.LONG).recordsPerSecond(20).execute();
-        
+
         session.backgroundTask().update(set).bin("age").add(1).recordsPerSecond(35).execute();
 
         // Exp operations - read and write.
@@ -364,7 +383,7 @@ public class CommonExample extends Example {
             .bin("writeBin").upsertFrom("$.age + 30")
             .execute();
         rs.forEach(rr -> System.out.println(rr));
-        
+
         printRecordStream("Single read expression", session.query(set.id(1))
             .bin("ageIn20Years").selectFrom("$.age + 20")
             .execute());
@@ -376,39 +395,5 @@ public class CommonExample extends Example {
         printRecordStream("Query read expression", session.query(set)
             .bin("ageIn20Years").selectFrom("$.age + 20")
             .execute());
-
-
-        /*
-        System.out.println("Transaction");
-
-        session.doInTransaction(txnSession -> {
-        	txnSession.upsert(set)
-            .bins("name", "age")
-            .id(2222).values("Charlie", 33)
-            .execute();
-
-        	txnSession.upsert(set)
-            .bins("name", "age")
-            .id(3333).values("Tom", 22)
-            .execute();
-
-        	System.out.println("Read in transaction");
-            RecordStream stream = txnSession.query(set.ids(2222)).execute();
-
-            while (stream.hasNext()) {
-            	Record r = stream.next().recordOrThrow();
-            	System.out.println("Record = " + r);
-            }
-        });
-
-        System.out.println("Read Transaction Values");
-
-        RecordStream stream = session.query(set.ids(2222,3333)).execute();
-
-        while (stream.hasNext()) {
-        	Record r = stream.next().recordOrThrow();
-        	System.out.println("Record = " + r);
-        }
-    */
     }
 }
