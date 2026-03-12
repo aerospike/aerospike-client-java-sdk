@@ -23,6 +23,7 @@ import com.aerospike.client.fluent.policy.AsyncRecordStreamTest;
 import com.aerospike.client.fluent.policy.BehaviorTest;
 import com.aerospike.client.fluent.policy.BehaviorYamlTest;
 import com.aerospike.client.fluent.policy.FluentApiSettingsTest;
+import com.aerospike.client.fluent.policy.QueryProducerCancellationTest;
 import com.aerospike.client.fluent.policy.SystemBehaviorTest;
 
 @Suite
@@ -31,6 +32,7 @@ import com.aerospike.client.fluent.policy.SystemBehaviorTest;
 	BehaviorTest.class,
 	BehaviorYamlTest.class,
 	FluentApiSettingsTest.class,
+	QueryProducerCancellationTest.class,
 	SystemBehaviorTest.class,
 })
 public class SuiteCore {
