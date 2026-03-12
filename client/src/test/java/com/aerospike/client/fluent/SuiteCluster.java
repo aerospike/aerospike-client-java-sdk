@@ -28,6 +28,7 @@ import com.aerospike.client.fluent.policy.Behavior;
 
 @Suite
 @SelectClasses({
+    // Base
     AddTest.class,
     AppendTest.class,
     BackgroundTaskTest.class,
@@ -59,14 +60,20 @@ import com.aerospike.client.fluent.policy.Behavior;
     TouchTest.class,
     TxnTest.class,
     UdfTest.class,
+    // Query
+    ExpSecondaryIndexTest.class,
     QueryBlobTest.class,
+    QueryChildrenTest.class,
     QueryCollectionTest.class,
     QueryContextTest.class,
+    QueryExecuteTest.class,
     QueryFilterExpTest.class,
     QueryFilterSetTest.class,
+    QueryGeoTest.class,
     QueryIndexTest.class,
     QueryIntegerTest.class,
     QueryKeyTest.class,
+    QueryRPSTest.class,
     QueryStringTest.class
 })
 public class SuiteCluster {

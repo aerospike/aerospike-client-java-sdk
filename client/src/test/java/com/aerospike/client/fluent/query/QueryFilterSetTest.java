@@ -131,13 +131,18 @@ public class QueryFilterSetTest extends ClusterTest {
 			.where(filterExp)
 			.execute();
 
-		int count = 0;
-		while (rs.hasNext()) {
-			rs.next();
-			count++;
-		}
+		try {
+			int count = 0;
+			while (rs.hasNext()) {
+				rs.next();
+				count++;
+			}
 
-		assertEquals(3, count);
+			assertEquals(3, count);
+		}
+		finally {
+			rs.close();
+		}
 	}
 
 	@Test
@@ -148,13 +153,18 @@ public class QueryFilterSetTest extends ClusterTest {
 			.where(filterExp)
 			.execute();
 
-		int count = 0;
-		while (rs.hasNext()) {
-			rs.next();
-			count++;
-		}
+		try {
+			int count = 0;
+			while (rs.hasNext()) {
+				rs.next();
+				count++;
+			}
 
-		assertEquals(1, count);
+			assertEquals(1, count);
+		}
+		finally {
+			rs.close();
+		}
 	}
 
 	@Test
@@ -165,13 +175,18 @@ public class QueryFilterSetTest extends ClusterTest {
 			.where(filterExp)
 			.execute();
 
-		int count = 0;
-		while (rs.hasNext()) {
-			rs.next();
-			count++;
-		}
+		try {
+			int count = 0;
+			while (rs.hasNext()) {
+				rs.next();
+				count++;
+			}
 
-		assertEquals(1, count);
+			assertEquals(1, count);
+		}
+		finally {
+			rs.close();
+		}
 	}
 
 	@Test
@@ -182,13 +197,18 @@ public class QueryFilterSetTest extends ClusterTest {
 			.where(filterExp)
 			.execute();
 
-		int count = 0;
-		while (rs.hasNext()) {
-			rs.next();
-			count++;
-		}
+		try {
+			int count = 0;
+			while (rs.hasNext()) {
+				rs.next();
+				count++;
+			}
 
-		assertEquals(5, count);
+			assertEquals(5, count);
+		}
+		finally {
+			rs.close();
+		}
 	}
 
 	@Test
@@ -199,13 +219,18 @@ public class QueryFilterSetTest extends ClusterTest {
 			.where(filterExp)
 			.execute();
 
-		int count = 0;
-		while (rs.hasNext()) {
-			rs.next();
-			count++;
-		}
+		try {
+			int count = 0;
+			while (rs.hasNext()) {
+				rs.next();
+				count++;
+			}
 
-		assertEquals(21, count);
+			assertEquals(21, count);
+		}
+		finally {
+			rs.close();
+		}
 	}
 
 	@Test
@@ -224,13 +249,18 @@ public class QueryFilterSetTest extends ClusterTest {
 			.where(filterExp)
 			.execute();
 
-		int count = 0;
-		while (rs.hasNext()) {
-			rs.next();
-			count++;
-		}
+		try {
+			int count = 0;
+			while (rs.hasNext()) {
+				rs.next();
+				count++;
+			}
 
-		assertEquals(2, count);
+			assertEquals(2, count);
+		}
+		finally {
+			rs.close();
+		}
 	}
 
 	@Test
@@ -243,12 +273,17 @@ public class QueryFilterSetTest extends ClusterTest {
 			.where(filterExp)
 			.execute();
 
-		int count = 0;
-		while (rs.hasNext()) {
-			rs.next();
-			count++;
-		}
+		try {
+			int count = 0;
+			while (rs.hasNext()) {
+				rs.next();
+				count++;
+			}
 
-		assertEquals(1, count);
+			assertEquals(1, count);
+		}
+		finally {
+			rs.close();
+		}
 	}
 }

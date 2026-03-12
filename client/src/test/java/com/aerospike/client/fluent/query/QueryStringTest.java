@@ -69,15 +69,20 @@ public class QueryStringTest extends ClusterTest {
 			.where("$." + binName + " == '" + filter + "'")
 			.execute();
 
-		int count = 0;
-		while (rs.hasNext()) {
-			Record record = rs.next().recordOrThrow();
-			String result = record.getString(binName);
-			assertEquals(filter, result);
-			count++;
-		}
+		try {
+			int count = 0;
+			while (rs.hasNext()) {
+				Record record = rs.next().recordOrThrow();
+				String result = record.getString(binName);
+				assertEquals(filter, result);
+				count++;
+			}
 
-		assertNotEquals(0, count);
+			assertNotEquals(0, count);
+		}
+		finally {
+			rs.close();
+		}
 	}
 
 	@Test
@@ -88,14 +93,19 @@ public class QueryStringTest extends ClusterTest {
 			.where("$." + binName + " == '" + filter + "'")
 			.execute();
 
-		int count = 0;
-		while (rs.hasNext()) {
-			Record record = rs.next().recordOrThrow();
-			String result = record.getString(binName);
-			assertEquals(filter, result);
-			count++;
-		}
+		try {
+			int count = 0;
+			while (rs.hasNext()) {
+				Record record = rs.next().recordOrThrow();
+				String result = record.getString(binName);
+				assertEquals(filter, result);
+				count++;
+			}
 
-		assertNotEquals(0, count);
+			assertNotEquals(0, count);
+		}
+		finally {
+			rs.close();
+		}
 	}
 }

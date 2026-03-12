@@ -110,17 +110,22 @@ public class QueryCollectionTest extends ClusterTest {
 
 		RecordStream rs = queryBuilder.execute();
 
-		int count = 0;
-		while (rs.hasNext()) {
-			Record record = rs.next().recordOrThrow();
-			Map<?,?> result = record.getMap(binName);
+		try {
+			int count = 0;
+			while (rs.hasNext()) {
+				Record record = rs.next().recordOrThrow();
+				Map<?,?> result = record.getMap(binName);
 
-			if (!result.containsKey(queryMapKey)) {
-				fail("Query mismatch: Expected mapKey " + queryMapKey + " Received " + result);
+				if (!result.containsKey(queryMapKey)) {
+					fail("Query mismatch: Expected mapKey " + queryMapKey + " Received " + result);
+				}
+				count++;
 			}
-			count++;
-		}
 
-		assertNotEquals(0, count);
+			assertNotEquals(0, count);
+		}
+		finally {
+			rs.close();
+		}
 	}
 }

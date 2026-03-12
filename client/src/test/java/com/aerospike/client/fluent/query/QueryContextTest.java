@@ -98,17 +98,22 @@ public class QueryContextTest extends ClusterTest {
 
 		RecordStream rs = queryBuilder.execute();
 
-		int count = 0;
-		while (rs.hasNext()) {
-			List<?> list = rs.next().recordOrThrow().getList(binName);
-			long received = (Long)list.get(list.size() - 1);
+		try {
+			int count = 0;
+			while (rs.hasNext()) {
+				List<?> list = rs.next().recordOrThrow().getList(binName);
+				long received = (Long)list.get(list.size() - 1);
 
-			if (received < begin || received > end) {
-				fail("Received not between: " + begin + " and " + end);
+				if (received < begin || received > end) {
+					fail("Received not between: " + begin + " and " + end);
+				}
+				count++;
 			}
-			count++;
-		}
 
-		assertEquals(5, count);
+			assertEquals(5, count);
+		}
+		finally {
+			rs.close();
+		}
 	}
 }

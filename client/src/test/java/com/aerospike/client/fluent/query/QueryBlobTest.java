@@ -117,15 +117,19 @@ public class QueryBlobTest extends ClusterTest {
 
 		RecordStream rs = queryBuilder.execute();
 
-		int count = 0;
-		while (rs.hasNext()) {
-			Record record = rs.next().recordOrThrow();
-			byte[] result = record.getBytes(binName);
-			assertTrue(Arrays.equals(bytes, result));
-			count++;
+		try {
+			int count = 0;
+			while (rs.hasNext()) {
+				Record record = rs.next().recordOrThrow();
+				byte[] result = record.getBytes(binName);
+				assertTrue(Arrays.equals(bytes, result));
+				count++;
+			}
+			assertNotEquals(0, count);
 		}
-
-		assertNotEquals(0, count);
+		finally {
+			rs.close();
+		}
 	}
 
 	@Test
@@ -152,18 +156,22 @@ public class QueryBlobTest extends ClusterTest {
 
 		RecordStream rs = queryBuilder.execute();
 
-		int count = 0;
-		while (rs.hasNext()) {
-			Record record = rs.next().recordOrThrow();
+		try {
+			int count = 0;
+			while (rs.hasNext()) {
+				Record record = rs.next().recordOrThrow();
 
-			List<?> list = record.getList(binNameList);
-			assertEquals(1, list.size());
+				List<?> list = record.getList(binNameList);
+				assertEquals(1, list.size());
 
-			byte[] result = (byte[])list.get(0);
-			assertTrue(Arrays.equals(bytes, result));
-			count++;
+				byte[] result = (byte[])list.get(0);
+				assertTrue(Arrays.equals(bytes, result));
+				count++;
+			}
+			assertEquals(1, count);
 		}
-
-		assertEquals(1, count);
+		finally {
+			rs.close();
+		}
 	}
 }

@@ -39,13 +39,13 @@ public class QueryKeyTest extends ClusterTest {
 	@BeforeAll
 	public static void prepare() {
 		dataSet = DataSet.of(args.namespace, setName);
-		
+
 		// Clean up any existing test data
 		for (int i = 1; i <= size; i++) {
 			String key = keyPrefix + i;
 			session.delete(dataSet.ids(key));
 		}
-		
+
 		try {
 			session.createIndex(dataSet, indexName, binName, IndexType.INTEGER, IndexCollectionType.DEFAULT)
 				.waitTillComplete();
@@ -86,17 +86,22 @@ public class QueryKeyTest extends ClusterTest {
 			))
 			.execute();
 
-		int count = 0;
-		while (rs.hasNext()) {
-			RecordResult result = rs.next();
-			Key key = result.key();
-			assertNotNull(key.userKey);
+		try {
+			int count = 0;
+			while (rs.hasNext()) {
+				RecordResult result = rs.next();
+				Key key = result.key();
+				assertNotNull(key.userKey);
 
-			Object userkey = key.userKey.getObject();
-			assertNotNull(userkey);
-			count++;
+				Object userkey = key.userKey.getObject();
+				assertNotNull(userkey);
+				count++;
+			}
+
+			assertEquals(4, count);
 		}
-
-		assertEquals(4, count);
+		finally {
+			rs.close();
+		}
 	}
 }

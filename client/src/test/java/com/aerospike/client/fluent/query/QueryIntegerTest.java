@@ -38,13 +38,13 @@ public class QueryIntegerTest extends ClusterTest {
 	@BeforeAll
 	public static void prepare() {
 		dataSet = DataSet.of(args.namespace, setName);
-		
+
 		// Clean up any existing test data
 		for (int i = 1; i <= size; i++) {
 			String key = keyPrefix + i;
 			session.delete(dataSet.ids(key));
 		}
-		
+
 		try {
 			session.createIndex(dataSet, indexName, binName, IndexType.INTEGER, IndexCollectionType.DEFAULT)
 				.waitTillComplete();
@@ -84,12 +84,17 @@ public class QueryIntegerTest extends ClusterTest {
 			))
 			.execute();
 
-		int count = 0;
-		while (rs.hasNext()) {
-			rs.next();
-			count++;
-		}
+		try {
+			int count = 0;
+			while (rs.hasNext()) {
+				rs.next();
+				count++;
+			}
 
-		assertEquals(5, count);
+			assertEquals(5, count);
+		}
+		finally {
+			rs.close();
+		}
 	}
 }
