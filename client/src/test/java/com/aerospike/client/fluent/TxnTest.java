@@ -28,9 +28,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import com.aerospike.client.fluent.command.Txn;
-import com.aerospike.client.fluent.command.TxnRoll;
 import com.aerospike.client.fluent.policy.Behavior;
-import com.aerospike.client.fluent.policy.Settings;
 
 public class TxnTest extends ClusterTest {
 	private static final String binName = "bin";
@@ -213,9 +211,6 @@ public class TxnTest extends ClusterTest {
 
 	@Test
 	public void txnWriteAbort() {
-		// TODO It's not possible to call doInTransaction() in this test because that method
-		// implicitly calls commit when finished. This test explicitly calls abort() and must
-		// use low level transactions calls to perform the abort (awkward).
 		Key key = args.set.id("mrtkey5");
 
 		session.upsert(key)
@@ -223,23 +218,22 @@ public class TxnTest extends ClusterTest {
 			.values("val1")
 			.execute();
 
-		TransactionalSession txnSession = new TransactionalSession(cluster, Behavior.DEFAULT);
-		Txn txn = txnSession.getCurrentTransaction();
+        session.doInTransaction(txnSession -> {
+			txnSession.upsert(key)
+				.bins(binName)
+				.values("val2")
+				.execute();
 
-		txnSession.upsert(key)
-			.bins(binName)
-			.values("val2")
-			.execute();
+			RecordStream rs = txnSession.query(key).execute();
+			Record record = rs.next().recordOrThrow();
+			assertEquals("val2", record.getString(binName));
 
-		RecordStream rs = txnSession.query(key).execute();
-		Record record = rs.next().recordOrThrow();
-		assertEquals("val2", record.getString(binName));
+			txnSession.abort();
+	    });
 
-		abortTxn(txn);
-
-		rs = session.query(key).execute();
-		record = rs.next().recordOrThrow();
-		assertEquals("val1", record.getString(binName));
+        RecordStream rs = session.query(key).execute();
+        Record rec = rs.next().recordOrThrow();
+		assertEquals("val1", rec.getString(binName));
 	}
 
 	@Test
@@ -263,9 +257,6 @@ public class TxnTest extends ClusterTest {
 
 	@Test
 	public void txnDeleteAbort() {
-		// TODO It's not possible to call doInTransaction() in this test because that method
-		// implicitly calls commit when finished. This test explicitly calls abort() and must
-		// use low level transactions calls to perform the abort (awkward).
 		Key key = args.set.id("txnDeleteAbort");
 
 		session.upsert(key)
@@ -273,14 +264,13 @@ public class TxnTest extends ClusterTest {
 			.values("val1")
 			.execute();
 
-		TransactionalSession txnSession = new TransactionalSession(cluster, Behavior.DEFAULT);
-		Txn txn = txnSession.getCurrentTransaction();
+        session.doInTransaction(txnSession -> {
+			txnSession.delete(key)
+				.withDurableDelete()
+				.execute();
 
-		txnSession.delete(key)
-			.withDurableDelete()
-			.execute();
-
-		abortTxn(txn);
+			txnSession.abort();
+	    });
 
 		RecordStream rs = session.query(key).execute();
 		Record rec = rs.next().recordOrThrow();
@@ -336,9 +326,6 @@ public class TxnTest extends ClusterTest {
 
 	@Test
 	public void txnTouchAbort() {
-		// TODO It's not possible to call doInTransaction() in this test because that method
-		// implicitly calls commit when finished. This test explicitly calls abort() and must
-		// use low level transactions calls to perform the abort (awkward).
 		Key key = args.set.id("txnTouchAbort");
 
 		session.upsert(key)
@@ -346,12 +333,10 @@ public class TxnTest extends ClusterTest {
 			.values("val1")
 			.execute();
 
-		TransactionalSession txnSession = new TransactionalSession(cluster, Behavior.DEFAULT);
-		Txn txn = txnSession.getCurrentTransaction();
-
-		txnSession.touch(key).execute();
-
-		abortTxn(txn);
+        session.doInTransaction(txnSession -> {
+        	txnSession.touch(key).execute();
+        	txnSession.abort();
+        });
 
 		RecordStream rs = session.query(key).execute();
 		Record rec = rs.next().recordOrThrow();
@@ -384,9 +369,6 @@ public class TxnTest extends ClusterTest {
 
 	@Test
 	public void txnOperateWriteAbort() {
-		// TODO It's not possible to call doInTransaction() in this test because that method
-		// implicitly calls commit when finished. This test explicitly calls abort() and must
-		// use low level transactions calls to perform the abort (awkward).
 		Key key = args.set.id("txnOperateWriteAbort");
 
 		session.upsert(key)
@@ -394,21 +376,21 @@ public class TxnTest extends ClusterTest {
 			.values("val1", "bal1")
 			.execute();
 
-		TransactionalSession txnSession = new TransactionalSession(cluster, Behavior.DEFAULT);
-		Txn txn = txnSession.getCurrentTransaction();
+        session.doInTransaction(txnSession -> {
+			RecordStream rs = txnSession.upsert(key)
+				.bin(binName).setTo("val2")
+				.get("bin2")
+				.execute();
 
-		RecordStream rs = txnSession.upsert(key)
-			.bin(binName).setTo("val2")
-			.get("bin2")
-			.execute();
+			Record rec = rs.next().recordOrThrow();
+			assertEquals("bal1", rec.getString("bin2"));
 
-		Record rec = rs.next().recordOrThrow();
-		assertEquals("bal1", rec.getString("bin2"));
+			txnSession.abort();
+        });
 
-		abortTxn(txn);
 
-		rs = session.query(key).execute();
-		rec = rs.next().recordOrThrow();
+        RecordStream rs = session.query(key).execute();
+        Record rec = rs.next().recordOrThrow();
 		assertEquals("val1", rec.getString(binName));
 	}
 
@@ -445,9 +427,6 @@ public class TxnTest extends ClusterTest {
 
 	@Test
 	public void txnBatchAbort() {
-		// TODO It's not possible to call doInTransaction() in this test because that method
-		// implicitly calls commit when finished. This test explicitly calls abort() and must
-		// use low level transactions calls to perform the abort (awkward).
 		java.util.List<Key> keys = args.set.ids(10, 11, 12, 13, 14, 15, 16, 17, 18, 19);
 
 		for (Key key : keys) {
@@ -460,21 +439,20 @@ public class TxnTest extends ClusterTest {
 		RecordStream recs = session.query(keys).execute();
 		assertBatchEqual(keys, recs, 1);
 
-		TransactionalSession txnSession = new TransactionalSession(cluster, Behavior.DEFAULT);
-		Txn txn = txnSession.getCurrentTransaction();
+        session.doInTransaction(txnSession -> {
+			RecordStream bresults = txnSession.upsert(keys)
+				.bin(binName).setTo(2)
+				.execute();
 
-		RecordStream bresults = txnSession.upsert(keys)
-			.bin(binName).setTo(2)
-			.execute();
-
-		while (bresults.hasNext()) {
-			RecordResult rr = bresults.next();
-			if (rr.resultCode() != 0) {
-				fail("Batch operation failed: " + rr.resultCode());
+			while (bresults.hasNext()) {
+				RecordResult rr = bresults.next();
+				if (rr.resultCode() != 0) {
+					fail("Batch operation failed: " + rr.resultCode());
+				}
 			}
-		}
 
-		abortTxn(txn);
+			txnSession.abort();
+        });
 
 		recs = session.query(keys).execute();
 		assertBatchEqual(keys, recs, 1);
@@ -490,25 +468,5 @@ public class TxnTest extends ClusterTest {
 			count++;
 		}
 		assertEquals(keys.size(), count);
-	}
-
-	private void abortTxn(Txn txn) {
-		TxnRoll tr = new TxnRoll(cluster, txn);
-		Settings rollPolicy = Behavior.DEFAULT.getSettings(
-			Behavior.OpKind.SYSTEM_TXN_ROLL,
-			Behavior.OpShape.SYSTEM,
-			Behavior.Mode.ANY
-		);
-
-		switch (txn.getState()) {
-			case OPEN:
-			case VERIFIED:
-				tr.abort(rollPolicy);
-				break;
-			case COMMITTED:
-				throw AerospikeException.resultCodeToException(ResultCode.TXN_ALREADY_COMMITTED, "Transaction already committed");
-			case ABORTED:
-				break;
-		}
 	}
 }
