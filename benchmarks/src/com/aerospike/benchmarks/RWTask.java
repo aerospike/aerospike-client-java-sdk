@@ -64,7 +64,7 @@ public abstract class RWTask {
 
         // Use predictable value for 0th bin same as key value
         Value[] values = args.getBinValues(random, isMultiBin, keyStart + keyIdx);
-        String[] nameArr = isMultiBin ? new String[]{firstBin} : bNames;
+        String[] nameArr = isMultiBin ? bNames  : new String[]{firstBin};
         try {
             upsert(key, values, nameArr);
         }
@@ -126,9 +126,20 @@ public abstract class RWTask {
         }
     }
 
+    protected void readFailure(AerospikeException ae) {
+        if (ae.getResultCode() == ResultCode.TIMEOUT) {
+            counters.read.timeouts.getAndIncrement();
+        }
+        else {
+            counters.read.errors.getAndIncrement();
+            if (args.isDebug()) {
+                ae.printStackTrace();
+            }
+        }
+    }
+
     protected void readFailure(Exception e) {
         counters.read.errors.getAndIncrement();
-
         if (args.isDebug()) {
             e.printStackTrace();
         }

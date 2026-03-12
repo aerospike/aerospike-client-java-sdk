@@ -15,7 +15,7 @@ import java.util.Optional;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.Semaphore;
 import java.util.function.Supplier;
 
 
@@ -93,21 +93,26 @@ public class AerospikeBenchmark implements Callable<Integer>, Log.Callback {
     private void doRwTask(BenchmarkContext benchmarkContext) throws InterruptedException {
         int threads = benchmarkOptions.getThreads();
         ExecutorService es = executorSupplier.get();
-        RWTask[] tasks = new RWTask[benchmarkContext.getArguments().getThreads()];
+        Arguments arguments = benchmarkContext.getArguments();
+        RWTask[] tasks = new RWTask[threads];
 
-        for (int i = 0; i < threads; i++) {
-            RWTaskSync rt = new RWTaskSync(benchmarkContext.getArguments(), counters, benchmarkContext.getSession());
-            tasks[i] = rt;
-            es.execute(rt);
+        if (benchmarkOptions.isAsync()) {
+            Semaphore inFlight = new Semaphore(arguments.getAsyncMaxCommands());
+            for (int i = 0; i < threads; i++) {
+                RWTaskAsync rt = new RWTaskAsync(arguments, counters, benchmarkContext.getSession(), inFlight);
+                tasks[i] = rt;
+                es.execute(rt);
+            }
+        } else {
+            for (int i = 0; i < threads; i++) {
+                RWTaskSync rt = new RWTaskSync(arguments, counters, benchmarkContext.getSession());
+                tasks[i] = rt;
+                es.execute(rt);
+            }
         }
         Thread.sleep(900);
         collectRwStats(benchmarkContext.getArguments(), tasks);
         es.shutdown();
-        try {
-            es.awaitTermination(5, TimeUnit.MINUTES);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
     }
 
     private void doInserts(BenchmarkContext benchmarkContext) throws InterruptedException {
@@ -121,24 +126,35 @@ public class AerospikeBenchmark implements Callable<Integer>, Log.Callback {
         long rem = numberOfKeys - (keysPerTask * tasks);
         long start = arguments.getStartKey();
 
-        for (long i = 0; i < tasks; i++) {
-            long keyCount = (i < rem) ? keysPerTask  + 1 : keysPerTask;
-            InsertTaskSync insertTask = new InsertTaskSync(benchmarkContext.getSession(),
-                    arguments,
-                    counters,
-                    start,
-                    keyCount);
-            es.execute(insertTask);
-            start += keyCount;
+        if (benchmarkOptions.isAsync()) {
+            Semaphore inFlight = new Semaphore(arguments.getAsyncMaxCommands());
+            for (long i = 0; i < tasks; i++) {
+                long keyCount = (i < rem) ? keysPerTask  + 1 : keysPerTask;
+                InsertTaskAsync insertTask = new InsertTaskAsync(benchmarkContext.getSession(),
+                        arguments,
+                        counters,
+                        inFlight,
+                        start,
+                        keyCount);
+                es.execute(insertTask);
+                start += keyCount;
+            }
+        } else {
+            for (long i = 0; i < tasks; i++) {
+                long keyCount = (i < rem) ? keysPerTask  + 1 : keysPerTask;
+                InsertTaskSync insertTask = new InsertTaskSync(benchmarkContext.getSession(),
+                        arguments,
+                        counters,
+                        start,
+                        keyCount);
+                es.execute(insertTask);
+                start += keyCount;
+            }
         }
+
         Thread.sleep(900);
         collectInsertStats(arguments);
         es.shutdownNow();
-        try {
-            es.awaitTermination(5, TimeUnit.MINUTES);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
     }
 
     private void collectInsertStats(Arguments arguments) throws InterruptedException {
@@ -254,7 +270,6 @@ public class AerospikeBenchmark implements Callable<Integer>, Log.Callback {
             Thread.sleep(1000);
         }
     }
-
 
 
     @Override

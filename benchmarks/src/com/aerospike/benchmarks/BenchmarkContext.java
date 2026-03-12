@@ -107,8 +107,7 @@ public final class BenchmarkContext implements AutoCloseable {
             if (latencyOpts.length > 3) {
                 units = US.equalsIgnoreCase(latencyOpts[3]) ? US : units;
             }
-            //TODO return new LatencyManagerAlternate(columns, bitShift, units);
-            return null;
+            return new LatencyManagerAlternate(columns, bitShift, units);
         }
 
         // -latency 7,1,units[optional]
@@ -245,20 +244,22 @@ public final class BenchmarkContext implements AutoCloseable {
         if (connOpts.getConnPoolsPerNode() != null) {
            def.connPoolsPerNode(connOpts.getConnPoolsPerNode());
         }
+//        def.withSystemSettings(SystemSettings.builder()
+//                .connections(ops -> ops.maximumConnectionsPerNode(200)).build());
         boolean needsSystemSettings = connOpts.getTendInterval() != null
                 || connOpts.getMinConnectionsPerNode() != null
                 || connOpts.getMaxConnectionsPerNode() != null;
         if (needsSystemSettings) {
             def.withSystemSettings(builder -> {
-                if (connOpts.getTendInterval() != null) {
-                    builder.refresh(ops -> ops.tendInterval(Duration.ofMillis(connOpts.getTendInterval())));
-                }
-                if (connOpts.getMinConnectionsPerNode() != null || connOpts.getMaxConnectionsPerNode() != null) {
-                    int min = Optional.ofNullable(connOpts.getMinConnectionsPerNode()).orElse(0);
-                    int max = Optional.ofNullable(connOpts.getMaxConnectionsPerNode()).orElse(100);
-                    builder.connections(ops -> ops.minimumConnectionsPerNode(min).maximumConnectionsPerNode(max));
-                }
-            });
+                        if (connOpts.getTendInterval() != null) {
+                            builder.refresh(ops -> ops.tendInterval(Duration.ofMillis(connOpts.getTendInterval())));
+                        }
+                        if (connOpts.getMinConnectionsPerNode() != null || connOpts.getMaxConnectionsPerNode() != null) {
+                            int min = Optional.ofNullable(connOpts.getMinConnectionsPerNode()).orElse(0);
+                            int max = Optional.ofNullable(connOpts.getMaxConnectionsPerNode()).orElse(100);
+                            builder.connections(ops -> ops.minimumConnectionsPerNode(min).maximumConnectionsPerNode(max));
+                        }
+                    });
         }
         def.failIfNotConnected(true);
        // def.withLogLevel(Log.Level.DEBUG);

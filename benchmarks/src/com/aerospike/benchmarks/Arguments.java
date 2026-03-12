@@ -1,6 +1,5 @@
 package com.aerospike.benchmarks;
 
-import com.aerospike.client.fluent.Bin;
 import com.aerospike.client.fluent.ChainableOperationBuilder;
 import com.aerospike.client.fluent.Value;
 import com.aerospike.client.fluent.util.RandomShift;
@@ -32,6 +31,7 @@ public class Arguments {
     private int nThreads;
     private long numKeys;
     private long startKey;
+    private int asyncMaxCommands;
     public DBObjectSpec[] objectSpec;
 
     public boolean isInitialisation() {
@@ -59,6 +59,7 @@ public class Arguments {
         args.objectSpec = toDbObjectSpecs(workloadOpts);
         args.throughput = Optional.ofNullable(workloadOpts.getThroughput()).orElse(0);
         args.transactionLimit = Optional.ofNullable(workloadOpts.getTransactions()).orElse(Long.MAX_VALUE);
+        args.asyncMaxCommands = Optional.ofNullable(benchmarkOpts.getAsyncMaxCommands()).orElse(100);
         return args;
     }
 
@@ -152,6 +153,10 @@ public class Arguments {
 
     public long getStartKey() {
         return startKey;
+    }
+
+    public int getAsyncMaxCommands() {
+        return asyncMaxCommands;
     }
 
     public String[] getBinNames(boolean multiBin) {

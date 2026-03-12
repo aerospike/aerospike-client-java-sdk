@@ -1,9 +1,11 @@
 package com.aerospike.benchmarks;
 
+import com.aerospike.client.fluent.AerospikeException;
 import com.aerospike.client.fluent.Key;
 import com.aerospike.client.fluent.Session;
 import com.aerospike.client.fluent.Value;
 import com.aerospike.client.fluent.util.RandomShift;
+import com.aerospike.client.fluent.util.Util;
 
 public class InsertTaskSync extends InsertTask implements Runnable {
 
@@ -11,6 +13,7 @@ public class InsertTaskSync extends InsertTask implements Runnable {
     private final long startKey;
     private final long endKey;
     private final String[] binArr;
+    private final boolean useLatency;
 
     public InsertTaskSync(Session session, Arguments arguments, CounterStore counters, long start, long keyCount) {
         super(arguments, counters);
@@ -18,13 +21,39 @@ public class InsertTaskSync extends InsertTask implements Runnable {
         this.endKey = startKey + keyCount;
         this.session = session;
         this.binArr = args.getBinNames(true);
+        this.useLatency = counters.write.latency != null;
     }
 
     @Override
     public void run() {
-        RandomShift random = new RandomShift();
-        for (long i = startKey; i < endKey; i++) {
-            executeCommand(i, random);
+        try {
+            RandomShift random = new RandomShift();
+            for (long i = startKey; i < endKey; i++) {
+                try {
+                    executeCommand(i, random);
+                } catch (AerospikeException ae) {
+                    i--;
+                    writeFailure(ae);
+                } catch (Exception e) {
+                    i--;
+                    writeFailure(e);
+                }
+                // Throttle throughput
+                if (args.getThroughput() > 0) {
+                    int transactions = counters.write.count.get();
+
+                    if (transactions > args.getThroughput()) {
+                        long millis = counters.periodBegin.get() + 1000L - System.currentTimeMillis();
+
+                        if (millis > 0) {
+                            Util.sleep(millis);
+                        }
+                    }
+                }
+            }
+        } catch (Exception ex) {
+            System.out.println("Insert task error: " + ex.getMessage());
+            ex.printStackTrace();
         }
     }
     
@@ -40,15 +69,12 @@ public class InsertTaskSync extends InsertTask implements Runnable {
         for (int i = 0; i < binArr.length; i++) {
             args.setBinFromValue(builder, binArr[i], values[i]);
         }
-        if (counters.write.latency != null) {
-            long begin = System.nanoTime();
-            builder.execute();
-            long elapsed = System.nanoTime() - begin;
-            counters.write.count.getAndIncrement();
+        long begin = System.nanoTime();
+        builder.execute();
+        if (useLatency) {
+            long elapsed = begin - System.nanoTime();
             counters.write.latency.add(elapsed);
-        } else {
-            builder.execute();
-            counters.write.count.getAndIncrement();
         }
+        counters.write.count.getAndIncrement();
     }
 }
