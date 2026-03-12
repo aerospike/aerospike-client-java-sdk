@@ -353,6 +353,11 @@ public class QueryBuilder extends AbstractFilterableBuilder implements
         return this;
     }
 
+    /**
+     * Gets the rate limit for records per second.
+     *
+     * @return the records per second limit, or 0 if not set
+     */
     public int getRecordsPerSecond() {
         return this.recordsPerSecond;
     }
@@ -369,6 +374,11 @@ public class QueryBuilder extends AbstractFilterableBuilder implements
         return this;
     }
 
+    /**
+     * Gets the expected query duration setting.
+     *
+     * @return the expected query duration (LONG, SHORT, or LONG_RELAX_AP)
+     */
     public QueryDuration getExpectedQueryDuration() {
         return this.expectedQueryDuration;
     }
@@ -463,6 +473,29 @@ public class QueryBuilder extends AbstractFilterableBuilder implements
         return this;
     }
 
+    /**
+     * Adds a filter condition using a prepared DSL expression.
+     *
+     * <p>This method allows you to specify a filter condition using a {@link PreparedDsl}
+     * object, which is a pre-parsed DSL expression. This can improve performance when
+     * the same filter is used multiple times, as the parsing only needs to happen once.</p>
+     *
+     * <p>Example usage:</p>
+     * <pre>{@code
+     * PreparedDsl preparedFilter = session.prepareDsl("$.name == ? and $.age > ?");
+     * RecordStream results = session.query(customerDataSet)
+     *     .where(preparedFilter, "Tim", 30)
+     *     .execute();
+     * }</pre>
+     *
+     * <p>Only one filter condition can be specified per query. Multiple calls
+     * to this method or other {@code where()} methods will throw an exception.</p>
+     *
+     * @param dsl the prepared DSL expression
+     * @param params the parameters to bind to the prepared expression
+     * @return this QueryBuilder for method chaining
+     * @throws IllegalArgumentException if multiple filter conditions are specified
+     */
     public QueryBuilder where(PreparedDsl dsl, Object ... params) {
         setWhereClause(WhereClauseProcessor.from(this.implementation.allowsSecondaryIndexQuery(), dsl, params));
         return this;
@@ -601,18 +634,56 @@ public class QueryBuilder extends AbstractFilterableBuilder implements
         return this.implementation.execute();
     }
 
+    /**
+     * Execute the query synchronously with errors embedded in the stream.
+     *
+     * <p>This method executes the query synchronously and embeds error results
+     * directly in the returned stream according to the specified error strategy.
+     * The query will block until all results are available.</p>
+     *
+     * @param strategy the error strategy (must not be null)
+     * @return a RecordStream containing the query results (including error results)
+     * @throws NullPointerException if strategy is null
+     */
     @Override
     public RecordStream execute(ErrorStrategy strategy) {
         Objects.requireNonNull(strategy, "ErrorStrategy must not be null");
         return this.implementation.execute(strategy);
     }
 
+    /**
+     * Execute the query synchronously with errors dispatched to the handler.
+     * Error results are excluded from the returned stream.
+     *
+     * <p>This method executes the query synchronously and dispatches any errors
+     * to the provided handler callback. Only successful results are included
+     * in the returned stream. The query will block until all results are available.</p>
+     *
+     * @param handler the error handler callback (must not be null)
+     * @return RecordStream containing only successful results
+     * @throws NullPointerException if handler is null
+     */
     @Override
     public RecordStream execute(ErrorHandler handler) {
         Objects.requireNonNull(handler, "ErrorHandler must not be null");
         return this.implementation.execute(handler);
     }
 
+    /**
+     * Execute the query asynchronously with errors embedded in the stream.
+     *
+     * <p>This method executes the query asynchronously and embeds error results
+     * directly in the returned stream according to the specified error strategy.
+     * The stream will be populated as results arrive from the server.</p>
+     *
+     * <p><b>Warning:</b> If called within a transaction, a warning will be logged
+     * as async operations may still be in flight when the transaction commits,
+     * which could lead to inconsistent state.</p>
+     *
+     * @param strategy the error strategy (must not be null)
+     * @return RecordStream that will be populated as results arrive
+     * @throws NullPointerException if strategy is null
+     */
     @Override
     public RecordStream executeAsync(ErrorStrategy strategy) {
         Objects.requireNonNull(strategy, "ErrorStrategy must not be null");
@@ -620,6 +691,22 @@ public class QueryBuilder extends AbstractFilterableBuilder implements
         return this.implementation.executeAsync(strategy);
     }
 
+    /**
+     * Execute the query asynchronously with errors dispatched to the handler.
+     * Error results are excluded from the returned stream.
+     *
+     * <p>This method executes the query asynchronously and dispatches any errors
+     * to the provided handler callback. Only successful results are included
+     * in the returned stream. The stream will be populated as results arrive from the server.</p>
+     *
+     * <p><b>Warning:</b> If called within a transaction, a warning will be logged
+     * as async operations may still be in flight when the transaction commits,
+     * which could lead to inconsistent state.</p>
+     *
+     * @param handler the error handler callback (must not be null)
+     * @return RecordStream containing only successful results
+     * @throws NullPointerException if handler is null
+     */
     @Override
     public RecordStream executeAsync(ErrorHandler handler) {
         Objects.requireNonNull(handler, "ErrorHandler must not be null");
