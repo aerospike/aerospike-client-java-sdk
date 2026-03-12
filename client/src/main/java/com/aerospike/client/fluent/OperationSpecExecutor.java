@@ -282,7 +282,7 @@ class OperationSpecExecutor {
 		Settings settings = behavior.getSettings(kind, OpShape.BATCH, mode);
 
         BatchCommand parent = new BatchCommand(cluster, null, txn, null, records,
-        	defaultWhereClause, includeMissingKeys, linearize, settings);
+        	defaultWhereClause, includeMissingKeys, failOnFilteredOut, linearize, settings);
 
         List<BatchNode> bns = BatchNodes.generate(cluster, parent, records, status);
 
@@ -343,7 +343,7 @@ class OperationSpecExecutor {
             for (int i = 0; i < records.size(); i++) {
                 BatchRecord br = records.get(i);
 
-                if (!shouldIncludeResult(br.resultCode, includeMissingKeys, failOnFilteredOut)) {
+                if (!shouldIncludeResult(br.resultCode, includeMissingKeys, failOnFilteredOut, br.hasWrite, true)) {
                     continue;
                 }
 
@@ -420,18 +420,27 @@ class OperationSpecExecutor {
     }
 */
     /**
-     * Determine if a result should be included based on result code and flags.
+     * Determine if a result should be included based on result code, flags, and operation context.
+     * FILTERED_OUT: batch writes always include; otherwise depends on failOnFilteredOut.
+     * KEY_NOT_FOUND: writes always include; reads depend on includeMissingKeys.
      */
-    private static boolean shouldIncludeResult(int resultCode, boolean includeMissingKeys, boolean failOnFilteredOut) {
+    private static boolean shouldIncludeResult(int resultCode, boolean includeMissingKeys,
+            boolean failOnFilteredOut, boolean hasWrite, boolean isBatch) {
         switch (resultCode) {
         case ResultCode.OK:
             return true;
-        case ResultCode.KEY_NOT_FOUND_ERROR:
-            return includeMissingKeys;
         case ResultCode.FILTERED_OUT:
-            return failOnFilteredOut || includeMissingKeys;
+            if (isBatch && hasWrite) {
+                return true;
+            }
+            return failOnFilteredOut;
+        case ResultCode.KEY_NOT_FOUND_ERROR:
+            if (hasWrite) {
+                return true;
+            }
+            return includeMissingKeys;
         default:
-            return true;  // Include errors in the stream
+            return true;
         }
     }
 
@@ -480,7 +489,8 @@ class OperationSpecExecutor {
     private static RecordStream handleSingleKeyError(
         Key key, AerospikeException ae, OperationSpec spec, ErrorDisposition disposition
     ) {
-        if (!shouldIncludeResult(ae.getResultCode(), spec.isIncludeMissingKeys(), spec.isFailOnFilteredOut())) {
+        boolean hasWrite = spec.getOpType() != null;
+        if (!shouldIncludeResult(ae.getResultCode(), spec.isIncludeMissingKeys(), spec.isFailOnFilteredOut(), hasWrite, false)) {
             return new RecordStream();
         }
 

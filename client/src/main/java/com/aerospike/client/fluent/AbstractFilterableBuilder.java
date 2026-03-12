@@ -50,17 +50,17 @@ public abstract class AbstractFilterableBuilder {
     public boolean shouldIncludeResult(int resultCode) {
         return switch (resultCode) {
             case ResultCode.KEY_NOT_FOUND_ERROR -> includeMissingKeys;
-            case ResultCode.FILTERED_OUT -> failOnFilteredOut || includeMissingKeys;
+            case ResultCode.FILTERED_OUT -> failOnFilteredOut;
             default -> true;
         };
     }
     
     /**
-     * Determine if an exception result should be published.
+     * Determine if an exception result should be published (single-key context).
      */
     protected boolean shouldPublishException(AerospikeException ae) {
         return switch (ae.getResultCode()) {
-            case ResultCode.FILTERED_OUT -> failOnFilteredOut || includeMissingKeys;
+            case ResultCode.FILTERED_OUT -> failOnFilteredOut;
             default -> true;
         };
     }

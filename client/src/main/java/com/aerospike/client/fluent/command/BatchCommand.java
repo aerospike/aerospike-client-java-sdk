@@ -30,6 +30,7 @@ public final class BatchCommand extends Command {
 	final Partitions partitions;
 	final Replica replicaSC;
 	final boolean includeMissingKeys;
+	final boolean failOnFilteredOut;
     final boolean inlineMemory;
     final boolean inlineSSD;
     final boolean linearize;
@@ -37,13 +38,14 @@ public final class BatchCommand extends Command {
 	public BatchCommand(
 		Cluster cluster, Partitions partitions, Txn txn, String namespace,
 		List<BatchRecord> records, Expression where, boolean includeMissingKeys,
-		boolean linearize, Settings settings
+		boolean failOnFilteredOut, boolean linearize, Settings settings
 	) {
 		super(cluster, namespace, txn, where, settings.getReplicaOrder(), settings);
 		this.records = records;
 		this.partitions = partitions;
 		this.replicaSC = Partition.getReplicaSC(settings.getReplicaOrder(), settings.getReadModeSC());
 		this.includeMissingKeys = includeMissingKeys;
+		this.failOnFilteredOut = failOnFilteredOut;
 		this.linearize = linearize;
 		this.inlineMemory = settings.getAllowInlineMemoryAccess();
 		this.inlineSSD = settings.getAllowInlineSsdAccess();

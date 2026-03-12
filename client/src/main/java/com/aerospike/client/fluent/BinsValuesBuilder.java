@@ -729,15 +729,13 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
 		}
 
         List<RecordResult> results = new ArrayList<>();
-        OpType opType = opBuilder.getOpType();
-        boolean effectiveIncludeMissingKeys = includeMissingKeys ||
-            opType == OpType.UPDATE || opType == OpType.REPLACE_IF_EXISTS;
+        boolean isWrite = opBuilder.getOpType() != null;
 
         for (int i = 0; i < keys.size(); i++) {
             BatchRecord br = records.get(i);
             boolean include = switch (br.resultCode) {
-                case ResultCode.KEY_NOT_FOUND_ERROR -> effectiveIncludeMissingKeys;
-                case ResultCode.FILTERED_OUT -> failOnFilteredOut || effectiveIncludeMissingKeys;
+                case ResultCode.FILTERED_OUT -> isWrite || failOnFilteredOut;
+                case ResultCode.KEY_NOT_FOUND_ERROR -> isWrite || includeMissingKeys;
                 default -> true;
             };
             if (!include) {
@@ -841,7 +839,7 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
         }
 
         return new BatchCommand(cluster, partitions, opBuilder.getTxnToUse(), namespace,
-        	batchRecords, filterExp, opBuilder.isIncludeMissingKeys(), false, settings);
+        	batchRecords, filterExp, opBuilder.isIncludeMissingKeys(), opBuilder.isFailOnFilteredOut(), false, settings);
     }
 
     private void operateBatchAsync(Cluster cluster, IBatchCommand[] commands, BatchStatus status, AsyncRecordStream stream) {
@@ -883,10 +881,12 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
             TxnMonitor.addKeys(txnToUse, session, keys);
         }
 
+        boolean isWrite = opBuilder.getOpType() != null;
+
         if (keys.size() == 1) {
             try {
                 Record rec = operate(cluster, partitions, policy, filterExp, firstKey);
-                if (includeMissingKeys || rec != null) {
+                if (isWrite || includeMissingKeys || rec != null) {
                     return new RecordStream(firstKey, rec);
                 }
             }
@@ -920,11 +920,11 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
                     es.submit(() -> {
                         try {
                             Record record = operate(cluster, partitions, policy, filterExp, key);
-                            if (includeMissingKeys || record != null) {
+                            if (isWrite || includeMissingKeys || record != null) {
                                 stream.publish(new RecordResult(key, record, idx));
                             }
                         } catch (AerospikeException ae) {
-                            if (!shouldPublishException(ae)) {
+                            if (ae.getResultCode() == ResultCode.FILTERED_OUT && !isWrite && !failOnFilteredOut) {
                                 return;
                             }
                             if (ae.getResultCode() != ResultCode.FILTERED_OUT) {
@@ -986,6 +986,7 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
     private void operateKeysAsync(Cluster cluster, Partitions partitions, Settings policy, Expression filterExp,
             AsyncRecordStream asyncStream) {
         AtomicInteger pendingOps = new AtomicInteger(keys.size());
+        boolean isWrite = opBuilder.getOpType() != null;
 
         for (int i = 0; i < keys.size(); i++) {
             Key key = keys.get(i);
@@ -994,15 +995,14 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
                 try {
                     Record rec = operate(cluster, partitions, policy, filterExp, key);
 
-                    if (includeMissingKeys || rec != null) {
+                    if (isWrite || includeMissingKeys || rec != null) {
                         asyncStream.publish(new RecordResult(key, rec, index));
                     }
                 } catch (AerospikeException ae) {
                     if (ae.getResultCode() == ResultCode.FILTERED_OUT) {
-                        if (failOnFilteredOut || includeMissingKeys) {
+                        if (isWrite || failOnFilteredOut) {
                             asyncStream.publish(new RecordResult(key, ae, index));
                         }
-                        // Otherwise skip this record
                     } else {
                         asyncStream.publish(new RecordResult(key, ae, index));
                     }

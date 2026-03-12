@@ -83,7 +83,7 @@ public final class TxnRoll {
 			this.verifyRecords = records;
 
 			parent = new BatchCommand(cluster, partitions, txn, txn.getNamespace(),
-				records, null, false, attr.linearize, verifyPolicy);
+				records, null, false, false, attr.linearize, verifyPolicy);
 
 			BatchStatus status = new BatchStatus();
 
@@ -278,7 +278,7 @@ public final class TxnRoll {
 		this.rollRecords = records;
 
         BatchCommand parent = new BatchCommand(cluster, partitions, txn, txn.getNamespace(),
-            records, null, false, attr.linearize, rollPolicy);
+            records, null, false, false, attr.linearize, rollPolicy);
 
         BatchStatus status = new BatchStatus();
 

@@ -456,7 +456,8 @@ public class BatchTest extends ClusterTest {
 		}
 
         RecordStream rs = session.delete(args.set.ids(keys)).execute();
-    	assertFalse(rs.hasNext());
+    	assertTrue(rs.hasNext());
+    	assertFalse(rs.next().asBoolean());
 	}
 
 	@Test

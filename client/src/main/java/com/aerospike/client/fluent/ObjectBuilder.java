@@ -891,9 +891,6 @@ public class ObjectBuilder<T> {
         try {
             for (int i = 0; i < records.size(); i++) {
                 BatchRecord br = records.get(i);
-                if (!opBuilder.shouldIncludeResult(br.resultCode)) {
-                    continue;
-                }
 
                 RecordResult result = AbstractFilterableBuilder.createRecordResultFromBatchRecord(br, settings, i);
 
@@ -993,7 +990,7 @@ public class ObjectBuilder<T> {
         final Expression filterExp = getFilterExp(namespace);
 
         return new BatchCommand(cluster, partitions, txnToUse, namespace,
-            records, filterExp, opBuilder.includeMissingKeys, false, settings);
+            records, filterExp, opBuilder.includeMissingKeys, opBuilder.failOnFilteredOut, false, settings);
     }
 
     private void operateBatchAsync(
@@ -1061,11 +1058,9 @@ public class ObjectBuilder<T> {
                     try {
                         Record rec = operate(cluster, partitions, settings, filterExp, key, element, ttl);
 
-                        if (opBuilder.includeMissingKeys || rec != null) {
-                            stream.publish(new RecordResult(key, rec, idx));
-                        }
+                        stream.publish(new RecordResult(key, rec, idx));
                     } catch (AerospikeException ae) {
-                        if (!shouldPublish(ae, opBuilder)) {
+                        if (!shouldPublish(ae, true)) {
                             return;
                         }
                         switch (disposition) {
@@ -1157,12 +1152,10 @@ public class ObjectBuilder<T> {
         try {
             Record rec = operate(cluster, partitions, settings, filterExp, key, element, ttl);
 
-            if (opBuilder.includeMissingKeys || rec != null) {
-                return new RecordStream(key, rec);
-            }
+            return new RecordStream(key, rec);
         }
         catch (AerospikeException ae) {
-            if (!shouldPublish(ae, opBuilder)) {
+            if (!shouldPublish(ae, false)) {
                 return new RecordStream();
             }
             switch (disposition) {
@@ -1199,11 +1192,11 @@ public class ObjectBuilder<T> {
         if (txnToUse != null) {
             cluster.startVirtualThread(() -> {
                 TxnMonitor.addKey(txnToUse, session, key);
-                operateAsync(cluster, partitions, settings, filterExp, key, element, ttl, stream, 0, pendingOps);
+                operateAsync(cluster, partitions, settings, filterExp, key, element, ttl, stream, 0, pendingOps, false);
             });
         }
         else {
-            operateAsync(cluster, partitions, settings, filterExp, key, element, ttl, stream, 0, pendingOps);
+            operateAsync(cluster, partitions, settings, filterExp, key, element, ttl, stream, 0, pendingOps, false);
         }
 
         return new RecordStream(stream);
@@ -1218,31 +1211,26 @@ public class ObjectBuilder<T> {
         for (int i = 0; i < elements.size(); i++) {
         	T element = elements.get(i);
             Key key = keys.get(i);
-            operateAsync(cluster, partitions, settings, filterExp, key, element, ttl, stream, i, pendingOps);
+            operateAsync(cluster, partitions, settings, filterExp, key, element, ttl, stream, i, pendingOps, true);
         }
     }
 
     private void operateAsync(
     	Cluster cluster, Partitions partitions, Settings settings, Expression filterExp, Key key,
-    	T element, int ttl, AsyncRecordStream stream, int index, AtomicInteger pendingOps
+    	T element, int ttl, AsyncRecordStream stream, int index, AtomicInteger pendingOps,
+    	boolean isBatch
     ) {
         cluster.startVirtualThread(() -> {
             try {
                 Record rec = operate(cluster, partitions, settings, filterExp, key, element, ttl);
 
-                if (opBuilder.includeMissingKeys || rec != null) {
-                    stream.publish(new RecordResult(key, rec, index));
-                }
+                stream.publish(new RecordResult(key, rec, index));
             }
             catch (AerospikeException ae) {
-                if (ae.getResultCode() == ResultCode.FILTERED_OUT) {
-                    if (opBuilder.failOnFilteredOut || opBuilder.includeMissingKeys) {
-                        stream.publish(new RecordResult(key, ae, index));
-                    }
-                    // Otherwise skip this record
-                } else {
-                    stream.publish(new RecordResult(key, ae, index));
+                if (!shouldPublish(ae, isBatch)) {
+                    return;
                 }
+                stream.publish(new RecordResult(key, ae, index));
             }
             finally {
                 if (pendingOps.decrementAndGet() == 0) {
@@ -1287,10 +1275,9 @@ public class ObjectBuilder<T> {
         return null;
     }
 
-    private boolean shouldPublish(AerospikeException ae, OperationObjectBuilder<T> opBuilder) {
+    private boolean shouldPublish(AerospikeException ae, boolean isBatch) {
         return switch (ae.getResultCode()) {
-            case ResultCode.FILTERED_OUT ->
-                opBuilder.isFailOnFilteredOut() || opBuilder.isIncludeMissingKeys();
+            case ResultCode.FILTERED_OUT -> isBatch || opBuilder.isFailOnFilteredOut();
             default -> true;
         };
     }

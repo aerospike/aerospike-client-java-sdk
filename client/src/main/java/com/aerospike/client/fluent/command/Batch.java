@@ -330,25 +330,23 @@ public final class Batch {
 
 				br.setRecord(rec);
 
-                if (parent.includeMissingKeys || rec != null) {
+                if (br.hasWrite || parent.includeMissingKeys || rec != null) {
                     stream.publish(new RecordResult(br, batchIndex));
                 }
 				return true;
 			}
 
 			if (resultCode == ResultCode.UDF_BAD_RESPONSE) {
-				// Record is returned with a FAILURE bin indicating server error message.
 				Record rec = parseRecord();
 				String msg = rec.getString("FAILURE");
 
 				if (msg != null) {
-					// Need to store record because failure bin contains an error message.
 					br.record = rec;
 					br.resultCode = resultCode;
 					br.inDoubt = BatchCommand.inDoubt(br.hasWrite, commandSentCounter);
 					status.setRowError();
 
-	                if (parent.includeMissingKeys || rec != null) {
+	                if (br.hasWrite || parent.includeMissingKeys || rec != null) {
 	                    stream.publish(new RecordResult(br, batchIndex));
 	                }
 					return true;
@@ -358,7 +356,12 @@ public final class Batch {
 			br.setError(resultCode, BatchCommand.inDoubt(br.hasWrite, commandSentCounter));
 			status.setRowError();
 
-			if (resultCode != ResultCode.KEY_NOT_FOUND_ERROR || parent.includeMissingKeys) {
+			boolean shouldPublish = switch (resultCode) {
+				case ResultCode.FILTERED_OUT -> br.hasWrite || parent.failOnFilteredOut;
+				case ResultCode.KEY_NOT_FOUND_ERROR -> br.hasWrite || parent.includeMissingKeys;
+				default -> true;
+			};
+			if (shouldPublish) {
 				stream.publish(new RecordResult(br, batchIndex));
 			}
 			return true;

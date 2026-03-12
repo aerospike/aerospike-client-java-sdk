@@ -186,15 +186,12 @@ public final class BatchSingle {
 		@Override
 		public void run() {
 			super.run();
-
-        	if (parent.includeMissingKeys || super.rec.record != null) {
-        		stream.publish(new RecordResult(super.rec, index));
-        	}
+			stream.publish(new RecordResult(super.rec, index));
 		}
 	}
 
 	public static class OperateRecordSync extends BatchSingleExecutor {
-		private final BatchWrite rec;
+		protected final BatchWrite rec;
 
 		public OperateRecordSync(
 			Cluster cluster,
