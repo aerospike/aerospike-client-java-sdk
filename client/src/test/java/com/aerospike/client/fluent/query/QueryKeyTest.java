@@ -47,7 +47,7 @@ public class QueryKeyTest extends ClusterTest {
 		}
 		
 		try {
-			session.createIndex(dataSet, indexName, binName, IndexType.NUMERIC, IndexCollectionType.DEFAULT)
+			session.createIndex(dataSet, indexName, binName, IndexType.INTEGER, IndexCollectionType.DEFAULT)
 				.waitTillComplete();
 		} catch (AerospikeException ae) {
 			if (ae.getResultCode() != ResultCode.INDEX_ALREADY_EXISTS) {

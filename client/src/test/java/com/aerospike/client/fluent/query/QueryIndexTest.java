@@ -42,7 +42,7 @@ public class QueryIndexTest extends ClusterTest {
 			}
 		}
 
-		task = session.createIndex(args.set, indexName, binName, IndexType.NUMERIC, IndexCollectionType.DEFAULT);
+		task = session.createIndex(args.set, indexName, binName, IndexType.INTEGER, IndexCollectionType.DEFAULT);
 		task.waitTillComplete();
 
 		task = session.dropIndex(args.set, indexName);

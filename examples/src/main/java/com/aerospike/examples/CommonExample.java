@@ -281,7 +281,7 @@ public class CommonExample extends Example {
 
         System.out.println("Create index");
 
-        session.createIndex(set, "ageidx", "age", IndexType.NUMERIC, IndexCollectionType.DEFAULT);
+        session.createIndex(set, "ageidx", "age", IndexType.INTEGER, IndexCollectionType.DEFAULT);
 
         System.out.println("Foreground secondary index query");
 

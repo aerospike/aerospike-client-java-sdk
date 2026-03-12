@@ -45,7 +45,7 @@ public class QueryContextTest extends ClusterTest {
 		try {
 			session.createIndex(
 				dataSet, indexName, binName,
-				IndexType.NUMERIC, IndexCollectionType.DEFAULT,
+				IndexType.INTEGER, IndexCollectionType.DEFAULT,
 				CTX.listRank(-1)
 			).waitTillComplete();
 		} catch (AerospikeException ae) {

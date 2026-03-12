@@ -94,7 +94,7 @@ public class ExpSecondaryIndexTest extends ClusterTest {
 
 	public static void addExpSI() {
 		try {
-			session.createIndex(dataSet, indexName, IndexType.NUMERIC, IndexCollectionType.DEFAULT, exp)
+			session.createIndex(dataSet, indexName, IndexType.INTEGER, IndexCollectionType.DEFAULT, exp)
 				.waitTillComplete();
 		}
 		catch (AerospikeException ae) {

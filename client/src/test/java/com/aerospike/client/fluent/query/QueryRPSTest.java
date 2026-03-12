@@ -43,7 +43,7 @@ public class QueryRPSTest extends ClusterTest {
 	@BeforeAll
 	public static void prepare() {
 		try {
-			session.createIndex(dataSet, indexName, binName1, IndexType.NUMERIC, IndexCollectionType.DEFAULT)
+			session.createIndex(dataSet, indexName, binName1, IndexType.INTEGER, IndexCollectionType.DEFAULT)
 				.waitTillComplete();
 		}
 		catch (AerospikeException ae) {

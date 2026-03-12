@@ -1304,7 +1304,14 @@ public class Session {
 	) {
 		StringBuilder sb = new StringBuilder(1024);
 		Version currentServerVersion = node.getVersion();
-		String createIndexCommand = currentServerVersion.isGreaterOrEqual(Version.SERVER_VERSION_8_1) ? "sindex-create:namespace=": "sindex-create:ns=";
+
+		String createIndexCommand =
+			currentServerVersion.isGreaterOrEqual(Version.SERVER_VERSION_8_1)?
+				"sindex-create:namespace=": "sindex-create:ns=";
+
+		String indexTypeString = (indexType == IndexType.INTEGER &&
+			currentServerVersion.isLessThan(Version.SERVER_VERSION_8_2))?
+				"NUMERIC" : indexType.toString();
 
 		sb.append(createIndexCommand);
 		sb.append(namespace);
@@ -1329,7 +1336,7 @@ public class Session {
 			}
 
 			sb.append(";type=");
-			sb.append(indexType);
+			sb.append(indexTypeString);
 		} else {
 			if (ctx != null && ctx.length > 0) {
 				byte[] bytes = Pack.pack(ctx);
@@ -1348,12 +1355,12 @@ public class Session {
 				sb.append(";bin=");
 				sb.append(binName);
 				sb.append(";type=");
-				sb.append(indexType);
+				sb.append(indexTypeString);
 			} else {
 				sb.append(";indexdata=");
 				sb.append(binName);
 				sb.append(',');
-				sb.append(indexType);
+				sb.append(indexTypeString);
 			}
 		}
 
