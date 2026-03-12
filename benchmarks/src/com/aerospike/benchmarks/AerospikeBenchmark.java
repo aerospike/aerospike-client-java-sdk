@@ -54,13 +54,21 @@ public class AerospikeBenchmark implements Callable<Integer>, Log.Callback {
 
     private Supplier<ExecutorService> executorSupplier;
 
+    private boolean isVirtualThread;
+
     @Override
     public Integer call() throws Exception {
         this.connectionOptions = Optional.ofNullable(connectionOptions).orElse(new ConnectionOptions());
         this.workloadOptions = Optional.ofNullable(workloadOptions).orElse(new WorkloadOptions());
         this.benchmarkOptions = Optional.ofNullable(benchmarkOptions).orElse(new BenchmarkOptions());
-        executorSupplier = () -> Executors.newFixedThreadPool(benchmarkOptions.getThreads());
+        this.isVirtualThread = benchmarkOptions.getVirtualThreads() != null;
+
         try (BenchmarkContext benchmarkContext = BenchmarkContext.buildContext(connectionOptions, workloadOptions, benchmarkOptions)) {
+            executorSupplier = () ->
+                    isVirtualThread
+                            ? Executors.newVirtualThreadPerTaskExecutor()
+                            : Executors.newFixedThreadPool(benchmarkContext.getArguments().getThreads());
+
             trackLatencyIfEnabled(benchmarkContext);
             runBenchmark(benchmarkContext);
         }
@@ -91,9 +99,9 @@ public class AerospikeBenchmark implements Callable<Integer>, Log.Callback {
     }
 
     private void doRwTask(BenchmarkContext benchmarkContext) throws InterruptedException {
-        int threads = benchmarkOptions.getThreads();
-        ExecutorService es = executorSupplier.get();
         Arguments arguments = benchmarkContext.getArguments();
+        int threads = arguments.getThreads();
+        ExecutorService es = executorSupplier.get();
         RWTask[] tasks = new RWTask[threads];
 
         if (benchmarkOptions.isAsync()) {
@@ -151,7 +159,6 @@ public class AerospikeBenchmark implements Callable<Integer>, Log.Callback {
                 start += keyCount;
             }
         }
-
         Thread.sleep(900);
         collectInsertStats(arguments);
         es.shutdownNow();
