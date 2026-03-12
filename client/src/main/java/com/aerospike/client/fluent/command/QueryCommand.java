@@ -49,9 +49,7 @@ public final class QueryCommand extends Command {
 	        qb.getEndPartition() - qb.getStartPartition());
 
 		this.recordsPerSecond = qb.getRecordsPerSecond();
-		this.expectedDuration = qb.getExpectedQueryDuration() != null 
-			? qb.getExpectedQueryDuration() 
-			: QueryDuration.LONG;
+		this.expectedDuration = qb.getExpectedQueryDuration();
 		this.binNames = qb.getBinNames();
 		this.maxConcurrentNodes = policy.getMaxConcurrentNodes();
 		this.readTouchTtlPercent = policy.getResetTtlOnReadAtPercent();

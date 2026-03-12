@@ -82,7 +82,7 @@ public class QueryBuilder extends AbstractFilterableBuilder implements
     private int endPartition = 4096;
     private Txn txnToUse;
     private int recordsPerSecond = 0;
-    private QueryDuration expectedQueryDuration = null;
+    private QueryDuration expectedQueryDuration = QueryDuration.LONG;
     private java.util.List<com.aerospike.client.fluent.Operation> operations = null;
     private boolean withNoBins = false;
     private boolean transactionSet;
