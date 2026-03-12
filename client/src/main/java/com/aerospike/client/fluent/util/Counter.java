@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2026 Aerospike, Inc.
+ * Copyright 2012-2026 Aerospike, Inc.
  *
  * Portions may be licensed to Aerospike, Inc. under one or more contributor
  * license agreements WHICH ARE COMPATIBLE WITH THE APACHE LICENSE, VERSION 2.0.
@@ -14,7 +14,6 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-
 package com.aerospike.client.fluent.util;
 
 import java.util.concurrent.atomic.AtomicLong;
