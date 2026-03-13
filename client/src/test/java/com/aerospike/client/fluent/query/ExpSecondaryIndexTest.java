@@ -28,6 +28,7 @@ import org.junit.jupiter.api.Test;
 import com.aerospike.client.fluent.AerospikeException;
 import com.aerospike.client.fluent.ClusterTest;
 import com.aerospike.client.fluent.DataSet;
+import com.aerospike.client.fluent.RecordStream;
 import com.aerospike.client.fluent.ResultCode;
 import com.aerospike.client.fluent.command.Info;
 import com.aerospike.client.fluent.exp.Exp;
@@ -118,7 +119,6 @@ public class ExpSecondaryIndexTest extends ClusterTest {
 
 	@Test
 	public void queryExpSIbyName() {
-		/*
 		String sincdices = getSecondaryIndices();
 		if (!sincdices.contains("indexname=" + indexName)) {
 			addExpSI();
@@ -126,11 +126,12 @@ public class ExpSecondaryIndexTest extends ClusterTest {
 
 		insertTestRecords();
 
+		// TODO Tim: How port Filter.rangeByIndex to fluent client?
+		/*
 		RecordStream rs = session.query(dataSet)
 			.where(exp)
 			.execute();
 
-		// TODO Tim: How port Filter.rangeByIndex to fluent client?
 		stmt.setFilter(Filter.rangeByIndex(indexName, 1, 1));
 		QueryPolicy qp = new QueryPolicy();
 

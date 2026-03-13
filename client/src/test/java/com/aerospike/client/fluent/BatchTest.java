@@ -370,8 +370,6 @@ public class BatchTest extends ClusterTest {
         res = rs.next();
 		assertEquals(ResultCode.OK, res.resultCode());
 
-		// TODO: hasNext() is returning true when this is the sole test run.
-		// hasNext() is returning false when all tests run.
         assertTrue(rs.hasNext());
         res = rs.next();
 		assertEquals(ResultCode.OK, res.resultCode());

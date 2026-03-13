@@ -29,6 +29,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import com.aerospike.client.fluent.exp.Exp;
+import com.aerospike.client.fluent.exp.Expression;
+import com.aerospike.client.fluent.task.RegisterTask;
 
 public class FilterExpTest extends ClusterTest {
 	String binA = "A";
@@ -43,12 +45,8 @@ public class FilterExpTest extends ClusterTest {
 
 	@BeforeAll
 	public static void register() {
-		/* TODO Support UDF
-		RegisterTask task = client.register(null,
-				TestUDF.class.getClassLoader(), "udf/record_example.lua",
-				"record_example.lua", Language.LUA);
+		RegisterTask task = session.registerUdfString(UdfTest.lua, "record_example.lua");
 		task.waitTillComplete();
-		*/
 	}
 
 	@BeforeEach
@@ -385,46 +383,67 @@ public class FilterExpTest extends ClusterTest {
         assertEquals(ResultCode.FILTERED_OUT, ae.getResultCode());
 	}
 
-/* TODO Support UDF
 	@Test
 	public void udf() {
-		WritePolicy policy = new WritePolicy();
-		policy.filterExp = Exp.build(Exp.eq(Exp.intBin(binA), Exp.val(1)));
+		Key key1 = args.set.id(keyA);
+		Expression filter = Exp.build(Exp.eq(Exp.intBin(binA), Exp.val(1)));
 
-		client.execute(policy, keyA, "record_example", "writeBin",
-				Value.get(binA), Value.get(3));
+		session.executeUdf(key1)
+        	.function("record_example", "writeBin")
+        	.passing(binA, 3)
+        	.where(filter)
+        	.execute();
 
-		Record r = client.get(null, keyA);
+		RecordStream rs = session.query(key1).execute();
+        assertTrue(rs.hasNext());
+        Record rec = rs.next().recordOrThrow();
+        int val = rec.getInt(binA);
+        assertEquals(3, val);
 
-		assertBinEqual(keyA, r, binA, 3);
+		Key key2 = args.set.id(keyB);
 
-		client.execute(policy, keyB, "record_example", "writeBin",
-				Value.get(binA), Value.get(3));
+		session.executeUdf(key2)
+	    	.function("record_example", "writeBin")
+	    	.passing(binA, 3)
+	    	.where(filter)
+	    	.execute();
 
-		r = client.get(null, keyB);
-
-		assertBinEqual(keyB, r, binA, 2);
+		rs = session.query(key2).execute();
+        assertTrue(rs.hasNext());
+        rec = rs.next().recordOrThrow();
+        val = rec.getInt(binA);
+        assertEquals(2, val);
 	}
 
 	@Test
 	public void udfExcept() {
-		WritePolicy policy = new WritePolicy();
-		policy.filterExp = Exp.build(Exp.eq(Exp.intBin(binA), Exp.val(1)));
-		policy.failOnFilteredOut = true;
+		Key key1 = args.set.id(keyA);
+		Expression filter = Exp.build(Exp.eq(Exp.intBin(binA), Exp.val(1)));
 
-		client.execute(policy, keyA, "record_example", "writeBin",
-				Value.get(binA), Value.get(3));
+		session.executeUdf(key1)
+	    	.function("record_example", "writeBin")
+	    	.passing(binA, 3)
+	    	.where(filter)
+	    	.failOnFilteredOut()
+	    	.execute();
 
-		AerospikeException ae = assertThrows(AerospikeException.class, new ThrowingRunnable() {
-			public void run() {
-				client.execute(policy, keyB, "record_example", "writeBin",
-					Value.get(binA), Value.get(3));
-			}
+		Key key2 = args.set.id(keyB);
+
+		AerospikeException ae = assertThrows(AerospikeException.class, () -> {
+			RecordStream rs2 = session.executeUdf(key2)
+		    	.function("record_example", "writeBin")
+		    	.passing(binA, 3)
+		    	.where(filter)
+		    	.failOnFilteredOut()
+		    	.execute();
+
+	        assertTrue(rs2.hasNext());
+	        rs2.next().recordOrThrow();
 		});
 
 		assertEquals(ResultCode.FILTERED_OUT, ae.getResultCode());
 	}
-*/
+
 	@Test
 	public void filterExclusive() {
 		/*
