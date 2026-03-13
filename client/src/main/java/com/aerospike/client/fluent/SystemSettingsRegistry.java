@@ -186,9 +186,6 @@ public class SystemSettingsRegistry {
         }
 
         // Layer 3: YAML default settings (only when explicitly set; otherwise code-provided wins)
-        // When no YAML has been loaded, defaultSettings is still SystemSettings.DEFAULT. Applying
-        // it here would overwrite code-provided settings (e.g. numberOfAttempts(1)) with hard-coded
-        // defaults (5). So we only apply Layer 3 when the registry default was explicitly set.
         if (defaultSettings != SystemSettings.DEFAULT) {
             result = defaultSettings.mergeWith(result);
         }
