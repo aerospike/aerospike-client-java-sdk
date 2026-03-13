@@ -261,23 +261,6 @@ public class ClusterTend implements Runnable {
 		}
 		*/
 
-		// Convert config interval from a millisecond duration to the number of cluster tend
-		// iterations.
-		int interval = def.getConfigInterval() / def.getTendInterval();
-
-		// Check configuration file for updates.
-		if (def.getConfigPath() != null && tendCount % interval == 0) {
-			try {
-				// TODO: Handle dynamic config.
-				//loadConfiguration();
-			}
-			catch (Throwable t) {
-				if (Log.warnEnabled()) {
-					Log.warn(cluster.getLogContext(), "Dynamic configuration failed: " + t);
-				}
-			}
-		}
-
 		processRecoverQueue();
 	}
 

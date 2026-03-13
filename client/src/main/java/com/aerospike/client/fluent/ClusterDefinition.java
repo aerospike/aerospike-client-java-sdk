@@ -57,7 +57,6 @@ public class ClusterDefinition {
 	String clientVersion;
 	String appId;
     String clusterName;
-	String configPath;
     byte[] userName;
     byte[] password;
     byte[] passwordHash;
@@ -72,7 +71,6 @@ public class ClusterDefinition {
 	int minConnsPerNode;
 	int maxConnsPerNode = 100;
 	int connPoolsPerNode = 1;
-	int configInterval = 60000;
 	int tendInterval = 1000;
 	int tendTimeout = 1000;
 	int loginTimeout = 5000;
@@ -130,7 +128,6 @@ public class ClusterDefinition {
     	this.clientVersion = other.clientVersion;
 		this.appId = other.appId;
 		this.clusterName = other.clusterName;
-		this.configPath = other.configPath;
 		this.userName = other.userName;
 		this.password = other.password;
 		this.passwordHash = other.passwordHash;
@@ -145,7 +142,6 @@ public class ClusterDefinition {
 		this.minConnsPerNode = other.minConnsPerNode;
 		this.maxConnsPerNode = other.maxConnsPerNode;
 		this.connPoolsPerNode = other.connPoolsPerNode;
-		this.configInterval = other.configInterval;
 		this.tendInterval = other.tendInterval;
 		this.tendTimeout = other.tendTimeout;
 		this.loginTimeout = other.loginTimeout;
@@ -483,26 +479,6 @@ public class ClusterDefinition {
         return this;
     }
 
-    /**
-	 * Set dynamic configuration path. If not null, dynamic configuration is enabled.
-	 * <p>
-	 * Default: 60000
-	 */
-    public ClusterDefinition configPath(String configPath) {
-        this.configPath = configPath;
-        return this;
-    }
-
-    /**
-	 * Set milliseconds between dynamic configuration check for file modifications.
-	 * <p>
-	 * Default: 60000
-	 */
-    public ClusterDefinition configInterval(int configInterval) {
-        this.configInterval = configInterval;
-        return this;
-    }
-
 	/**
 	 * Cluster tend info call timeout in milliseconds. The timeout when opening a connection
 	 * to the server node for the first time and when polling each node for cluster status.
@@ -688,15 +664,6 @@ public class ClusterDefinition {
 	}
 
 	/**
-	 * Gets the dynamic configuration file path.
-	 *
-	 * @return the configuration file path, or null if dynamic configuration is disabled
-	 */
-	public String getConfigPath() {
-		return configPath;
-	}
-
-	/**
 	 * Gets the username for authentication as a UTF-8 byte array.
 	 *
 	 * @return the username bytes, or null if authentication is not enabled
@@ -832,15 +799,6 @@ public class ClusterDefinition {
 	 */
 	public int getConnPoolsPerNode() {
 		return connPoolsPerNode;
-	}
-
-	/**
-	 * Gets the interval in milliseconds between dynamic configuration checks.
-	 *
-	 * @return the configuration check interval in milliseconds
-	 */
-	public int getConfigInterval() {
-		return configInterval;
 	}
 
 	/**
