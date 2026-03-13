@@ -25,17 +25,68 @@ public abstract class RWTask {
 
     protected void runCommand(RandomShift random) {
         try {
-            if (args.getWorkload() == Workload.READ_UPDATE) {
-                readUpdate(random);
+            switch (args.getWorkload()) {
+                case READ_UPDATE:
+                    readUpdate(random);
+                    break;
+                case READ_REPLACE:
+                    readReplace(random);
+                    break;
+                case READ_MODIFY_UPDATE:
+                    readModifyUpdate(random);
+                    break;
+                case READ_MODIFY_INCREMENT:
+                    readModifyIncrement(random);
+                    break;
+                case READ_MODIFY_DECREMENT:
+                    readModifyDecrement(random);
+                    break;
+                default:
+                    System.out.println("Not supported: " + args.getWorkload());
             }
-        }
-        catch (Exception e) {
+        } catch (Exception e) {
             if (args.isDebug()) {
                 e.printStackTrace();
-            }
-            else {
+            } else {
                 System.out.println("Exception - " + e);
             }
+        }
+    }
+
+    private void readModifyDecrement(RandomShift random) {
+        long keyIdx = random.nextLong(keyCount);
+        getBinsAndIncrement(new Key(args.getNamespace(), args.getSetName(), keyStart + keyIdx), -1);
+    }
+
+    private void readModifyIncrement(RandomShift random) {
+        long keyIdx = random.nextLong(keyCount);
+        getBinsAndIncrement(new Key(args.getNamespace(), args.getSetName(), keyStart + keyIdx) , 1);
+    }
+
+    private void readModifyUpdate(RandomShift random) {
+        long key = random.nextLong(keyCount);
+        // Read all bins.
+        doRead(key, true);
+        // Write one bin.
+        doWrite(random, key, false);
+    }
+
+    private void readReplace(RandomShift random) {
+        if (random.nextInt(100) < args.getReadPct()) {
+            boolean isMultiBin = random.nextInt(100) < args.getReadMultiBinPct();
+
+            if (args.getBatchSize() <= 1) {
+                long key = random.nextLong(keyCount);
+                doRead(key, isMultiBin);
+            }
+            else {
+                // TODO read batch
+            }
+        } else {
+            boolean isMultiBin = random.nextInt(100) < args.getWriteMultiBinPct();
+            // Perform Single record write even if in batch mode.
+            long key = random.nextLong(keyCount);
+            doReplace(random, key, isMultiBin);
         }
     }
 
@@ -59,7 +110,24 @@ public abstract class RWTask {
         }
     }
 
-    protected void doWrite(RandomShift random, long keyIdx, boolean isMultiBin) {
+    private void doReplace(RandomShift random, long keyIdx, boolean isMultiBin) {
+        Key key = new Key(args.getNamespace(), args.getSetName(), keyStart + keyIdx);
+
+        // Use predictable value for 0th bin same as key value
+        Value[] values = args.getBinValues(random, isMultiBin, keyStart + keyIdx);
+        String[] nameArr = isMultiBin ? bNames  : new String[]{firstBin};
+        try {
+            createOrReplace(key, values, nameArr);
+        }
+        catch (AerospikeException ae) {
+            writeFailure(ae);
+        }
+        catch (Exception e) {
+            writeFailure(e);
+        }
+    }
+
+    private void doWrite(RandomShift random, long keyIdx, boolean isMultiBin) {
         Key key = new Key(args.getNamespace(), args.getSetName(), keyStart + keyIdx);
 
         // Use predictable value for 0th bin same as key value
@@ -70,11 +138,9 @@ public abstract class RWTask {
         }
         catch (AerospikeException ae) {
             writeFailure(ae);
-            runNextCommand();
         }
         catch (Exception e) {
             writeFailure(e);
-            runNextCommand();
         }
     }
 
@@ -84,7 +150,6 @@ public abstract class RWTask {
         }
         else {
             counters.write.errors.getAndIncrement();
-
             if (args.isDebug()) {
                 ae.printStackTrace();
             }
@@ -110,14 +175,12 @@ public abstract class RWTask {
             }
         } catch (AerospikeException ae) {
             readFailure(ae);
-            runNextCommand();
         } catch (Exception e) {
             readFailure(e);
-            runNextCommand();
         }
     }
 
-    protected void processRead(Key key, RecordStream record) {
+    protected void processRead(Key key, RecordResult record) {
         if (record == null && args.isReportNotFound()) {
             counters.readNotFound.getAndIncrement();
         }
@@ -145,12 +208,11 @@ public abstract class RWTask {
         }
     }
 
-    protected void runNextCommand() {}
-
     protected abstract void get(Key key, String binName);
     protected abstract void get(Key key);
     protected abstract void upsert(Key key, Value[] values, String... bins);
-
+    protected abstract void createOrReplace(Key random, Value[] key, String... bins);
+    protected abstract void getBinsAndIncrement(Key key, int incrementedBy);
 
     public void stop() {
         shouldStop = true;

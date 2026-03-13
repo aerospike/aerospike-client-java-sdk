@@ -1,46 +1,40 @@
 package com.aerospike.benchmarks;
 
-import com.aerospike.client.fluent.Key;
-import com.aerospike.client.fluent.RecordStream;
-import com.aerospike.client.fluent.Session;
-import com.aerospike.client.fluent.Value;
+import com.aerospike.client.fluent.*;
+import com.aerospike.client.fluent.Record;
 import com.aerospike.client.fluent.util.RandomShift;
 import com.aerospike.client.fluent.util.Util;
 
 public class RWTaskSync extends RWTask implements Runnable {
 
     private final Session session;
+    private final boolean useLatency;
 
     public RWTaskSync(Arguments args, CounterStore counters, Session session) {
         super(args, counters);
         this.session = session;
+        this.useLatency = counters.read.latency != null;
     }
 
 
     @Override
     protected void get(Key key, String binName) {
-        RecordStream record;
-        if (counters.read.latency != null) {
-            long begin = System.nanoTime();
-            record = session.query(key).readingOnlyBins(binName).execute();
+        long begin = System.nanoTime();
+        RecordResult record = session.query(key).readingOnlyBins(binName).execute().next();
+        if (useLatency) {
             long elapsed = System.nanoTime() - begin;
             counters.read.latency.add(elapsed);
-        } else {
-            record = session.query(key).readingOnlyBins(binName).execute();
         }
         processRead(key, record);
     }
 
     @Override
     protected void get(Key key) {
-        RecordStream record;
-        if (counters.read.latency != null) {
-            long begin = System.nanoTime();
-            record = session.query(key).execute();
+        long begin = System.nanoTime();
+        RecordResult record = session.query(key).execute().next();
+        if (useLatency) {
             long elapsed = System.nanoTime() - begin;
             counters.read.latency.add(elapsed);
-        } else {
-            record = session.query(key).execute();
         }
         processRead(key, record);
     }
@@ -51,16 +45,72 @@ public class RWTaskSync extends RWTask implements Runnable {
         for (int i = 0; i < values.length; i++) {
             args.setBinFromValue(builder, nameArr[i], values[i]);
         }
-        if (counters.write.latency != null) {
-            long begin = System.nanoTime();
-            builder.execute();
+        long begin = System.nanoTime();
+        builder.execute();
+        if (useLatency) {
             long elapsed = System.nanoTime() - begin;
-            counters.write.count.getAndIncrement();
             counters.write.latency.add(elapsed);
         }
-        else {
-            builder.execute();
+        counters.write.count.getAndIncrement();
+    }
+
+    @Override
+    protected void createOrReplace(Key key, Value[] values, String... nameArr) {
+        var builder = session.replace(key);
+        for (int i = 0; i < values.length; i++) {
+            args.setBinFromValue(builder, nameArr[i], values[i]);
+        }
+        long begin = System.nanoTime();
+        builder.execute();
+        if (useLatency) {
+            long elapsed = System.nanoTime() - begin;
+            counters.write.latency.add(elapsed);
+        }
+        counters.write.count.getAndIncrement();
+    }
+
+    @Override
+    protected void getBinsAndIncrement(Key key, int incrementedBy) {
+        Record rec = readRecordForUpdate(key);
+        incrementCounter(key, rec, incrementedBy);
+    }
+
+    private Record readRecordForUpdate(Key key) {
+        try {
+            long begin = System.nanoTime();
+            RecordResult rec = session.query(key).execute().next();
+            if (useLatency) {
+                counters.read.latency.add(System.nanoTime() - begin);
+            }
+            processRead(key, rec);
+            return rec != null ? rec.recordOrNull() :  null;
+        } catch (AerospikeException ae) {
+            readFailure(ae);
+            return null;
+        } catch (Exception e) {
+            readFailure(e);
+            return null;
+        }
+    }
+
+    private void incrementCounter(Key key, Record rec, int incrementedBy) {
+        try {
+            int generation = (rec != null) ? rec.generation : 0;
+            long begin = System.nanoTime();
+            var cmd = session.upsert(key)
+                    .bin("test-counter").add(incrementedBy);
+            if (generation > 0) {
+                cmd.ensureGenerationIs(generation);
+            }
+            cmd.execute();
+            if (useLatency) {
+                counters.write.latency.add(System.nanoTime() - begin);
+            }
             counters.write.count.getAndIncrement();
+        } catch (AerospikeException ae) {
+            writeFailure(ae);
+        } catch (Exception e) {
+            writeFailure(e);
         }
     }
 

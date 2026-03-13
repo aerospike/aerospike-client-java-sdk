@@ -5,39 +5,86 @@ import com.aerospike.client.fluent.Record;
 import com.aerospike.client.fluent.util.RandomShift;
 
 import java.util.List;
-import java.util.concurrent.Semaphore;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.LockSupport;
+import java.util.function.Consumer;
 
 public class RWTaskAsync extends RWTask implements Runnable {
 
     private final Session session;
     private final boolean useLatency;
-    private final Semaphore inFlightRequest;
+    private final int maxRequestInFlight;
+    private final AtomicInteger localInFlight = new AtomicInteger(0);
+    private final boolean isVirtualThread;
 
 
-    public RWTaskAsync(Arguments args, CounterStore counters, Session session, Semaphore inFlight) {
+
+    public RWTaskAsync(Arguments args, CounterStore counters,
+                                   Session session, int maxLocalInFlight) {
         super(args, counters);
         this.session = session;
         this.useLatency = counters.read.latency != null;
-        this.inFlightRequest = inFlight;
+        this.maxRequestInFlight = maxLocalInFlight;
+        this.isVirtualThread = Thread.currentThread().isVirtual();
     }
 
-    private void acquire() {
-        try {
-            inFlightRequest.acquire();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new RuntimeException("Interrupted waiting for async permit", e);
+    private boolean tryAcquire() {
+        int spins = 0;
+        while (!shouldStop) {
+            int current = localInFlight.get();
+            if (current >= maxRequestInFlight) {
+                spins = backoff(spins);
+                continue;
+            }
+            if (localInFlight.compareAndSet(current, current + 1)) {
+                return true;
+            }
         }
+        return false;
     }
+
+    private int backoff(int spins) {
+        if (isVirtualThread) {
+            LockSupport.parkNanos(1_000);  // 1μs
+            spins = 0;
+        } else {
+            spins++;
+            if (spins < 10) {
+                Thread.onSpinWait();
+            } else if (spins < 50) {
+                Thread.yield(); // give up time-slice
+            } else {
+                LockSupport.parkNanos(10_000); // 10μs sleep, reset
+                spins = 0;
+            }
+        }
+        return spins;
+    }
+
 
     private void release() {
-        inFlightRequest.release();
+        localInFlight.decrementAndGet();
     }
 
+    /**
+     * Wait for all in-flight operations to complete.
+     * Call after stop() for graceful shutdown.
+     */
+    public boolean awaitDrain(long timeoutMs) throws InterruptedException {
+        long deadline = System.currentTimeMillis() + timeoutMs;
+        while (localInFlight.get() > 0) {
+            if (System.currentTimeMillis() > deadline) {
+                return false;  // timed out with pending operations
+            }
+            Thread.sleep(10);
+        }
+        return true;
+    }
 
     @Override
     protected void get(Key key, String binName) {
-        acquire();
+        if (!tryAcquire()) return;
         long begin = useLatency ? System.nanoTime() : 0;
         var handle = session.query(key)
                 .readingOnlyBins(binName)
@@ -54,10 +101,11 @@ public class RWTaskAsync extends RWTask implements Runnable {
                     release();
                     handle.close();
                     if (ex != null) {
-                        if (ex instanceof AerospikeException) {
-                            readFailure((AerospikeException) ex);
-                        } else if (ex instanceof Exception) {
-                            readFailure((Exception) ex);
+                        Throwable cause = ex instanceof CompletionException ? ex.getCause() : ex;
+                        if (cause instanceof AerospikeException) {
+                            readFailure((AerospikeException) cause);
+                        } else if (cause instanceof Exception) {
+                            readFailure((Exception) cause);
                         }
                     }
                 });
@@ -65,7 +113,7 @@ public class RWTaskAsync extends RWTask implements Runnable {
 
     @Override
     protected void get(Key key) {
-        acquire();
+        if (!tryAcquire()) return;
         long begin = useLatency ? System.nanoTime() : 0;
         var handle = session.query(key)
                 .executeAsync(ErrorStrategy.IN_STREAM);
@@ -80,10 +128,11 @@ public class RWTaskAsync extends RWTask implements Runnable {
                     release();
                     handle.close();
                     if (ex != null) {
-                        if (ex instanceof AerospikeException) {
-                            readFailure((AerospikeException) ex);
-                        } else if (ex instanceof Exception) {
-                            readFailure((Exception) ex);
+                        Throwable cause = ex instanceof CompletionException ? ex.getCause() : ex;
+                        if (cause instanceof AerospikeException) {
+                            readFailure((AerospikeException) cause);
+                        } else if (cause instanceof Exception) {
+                            readFailure((Exception) cause);
                         }
                     }
                 });
@@ -91,7 +140,7 @@ public class RWTaskAsync extends RWTask implements Runnable {
 
     @Override
     protected void upsert(Key key, Value[] values, String... bins) {
-        acquire();
+        if (!tryAcquire()) return;
         long begin = counters.write.latency != null ? System.nanoTime() : 0;
         var builder = session.upsert(key);
         for (int i = 0; i < values.length; i++) {
@@ -108,10 +157,101 @@ public class RWTaskAsync extends RWTask implements Runnable {
                     release();
                     handle.close();
                     if (ex != null) {
-                        if (ex instanceof AerospikeException) {
-                            writeFailure((AerospikeException) ex);
-                        } else if (ex instanceof Exception) {
-                            writeFailure((Exception) ex);
+                        Throwable cause = (ex instanceof CompletionException) ? ex.getCause() : ex;
+                        if (cause instanceof AerospikeException) {
+                            writeFailure((AerospikeException) cause);
+                        } else if (cause instanceof Exception) {
+                            writeFailure((Exception) cause);
+                        }
+                    }
+                });
+    }
+
+    @Override
+    protected void createOrReplace(Key key, Value[] values, String... bins) {
+        if (!tryAcquire()) return;
+        long begin = counters.write.latency != null ? System.nanoTime() : 0;
+        var builder = session.replace(key);
+        for (int i = 0; i < values.length; i++) {
+            args.setBinFromValue(builder, bins[i], values[i]);
+        }
+        var handle = builder.executeAsync(ErrorStrategy.IN_STREAM);
+        handle.asCompletableFuture()
+                .thenAccept(results -> {
+                    if (useLatency) {
+                        counters.write.latency.add(System.nanoTime() - begin);
+                    }
+                    processSingleKeyWriteRecord(results);
+                }).whenComplete((r, ex) -> {
+                    release();
+                    handle.close();
+                    if (ex != null) {
+                        Throwable cause = (ex instanceof CompletionException) ? ex.getCause() : ex;
+                        if (cause instanceof AerospikeException) {
+                            writeFailure((AerospikeException) cause);
+                        } else if (cause instanceof Exception) {
+                            writeFailure((Exception) cause);
+                        }
+                    }
+                });
+    }
+
+
+    @Override
+    protected void getBinsAndIncrement(Key key, int incrementedBy) {
+        if (!tryAcquire()) return;
+        readRecordForUpdateAsync(key, rec -> incrementCounterAsync(key, rec, incrementedBy));
+    }
+
+    private void readRecordForUpdateAsync(Key key, Consumer<Record> onSuccess) {
+        long readBegin = useLatency ? System.nanoTime() : 0;
+        var readHandle = session.query(key).executeAsync(ErrorStrategy.IN_STREAM);
+        readHandle.asCompletableFuture()
+                .whenComplete((results, readEx) -> {
+                    readHandle.close();
+                    Record rec = (results == null || results.isEmpty()) ? null : results.getFirst().recordOrNull();
+                    if (readEx != null) {
+                        if (readEx instanceof AerospikeException) {
+                            readFailure((AerospikeException) readEx);
+                        } else if (readEx instanceof Exception) {
+                            readFailure((Exception) readEx);
+                        }
+                    } else {
+                        if (useLatency) {
+                            counters.read.latency.add(System.nanoTime() - readBegin);
+                        }
+                        processSingleKeyReadRecord(key, results);
+                    }
+                    onSuccess.accept(rec);
+                });
+
+    }
+
+    private void incrementCounterAsync(Key key, Record rec, int incrementedBy) {
+        int generation = (rec != null) ? rec.generation : 0;
+        long writeBegin = useLatency ? System.nanoTime() : 0;
+        var cmd = session.upsert(key)
+                .bin("test-counter").add(incrementedBy);
+        if (generation > 0) {
+            cmd.ensureGenerationIs(generation);
+        }
+        var writeHandle = cmd.executeAsync(ErrorStrategy.IN_STREAM);
+        writeHandle.asCompletableFuture()
+                .thenAccept(writeResults -> {
+                    if (useLatency) {
+                        counters.write.latency.add(System.nanoTime() - writeBegin);
+                    }
+                    processSingleKeyWriteRecord(writeResults);
+                })
+                .whenComplete((r, ex) -> {
+                    writeHandle.close();
+                    release();
+                    if (ex != null) {
+                        Throwable cause = (ex instanceof CompletionException) ? ex.getCause() : ex;
+                        if (cause instanceof AerospikeException) {
+                            writeFailure((AerospikeException) cause);
+                        } else if (cause instanceof Exception) {
+                            writeFailure((Exception) cause);
                         }
                     }
                 });
@@ -130,6 +270,9 @@ public class RWTaskAsync extends RWTask implements Runnable {
             return;
         }
         RecordResult first = results.getFirst();
+        if (first.exception() != null) {
+            throw new AerospikeException(first.exception());
+        }
         if (first.isOk()) {
             counters.write.count.getAndIncrement();
         }
@@ -145,6 +288,9 @@ public class RWTaskAsync extends RWTask implements Runnable {
             return;
         }
         RecordResult first = results.getFirst();
+        if (first.exception() != null) {
+            throw new AerospikeException(first.exception());
+        }
         if (first.isOk()) {
             Record record = first.recordOrNull();
             if (args.isReportNotFound() && record == null) {

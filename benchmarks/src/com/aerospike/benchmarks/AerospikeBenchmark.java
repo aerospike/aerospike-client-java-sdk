@@ -105,21 +105,51 @@ public class AerospikeBenchmark implements Callable<Integer>, Log.Callback {
         RWTask[] tasks = new RWTask[threads];
 
         if (benchmarkOptions.isAsync()) {
-            Semaphore inFlight = new Semaphore(arguments.getAsyncMaxCommands());
+            // Distribute max commands evenly across threads
+            int totalMax = arguments.getAsyncMaxCommands();
+            int perThread = totalMax / threads;
+            int remainder = totalMax % threads;
+
             for (int i = 0; i < threads; i++) {
-                RWTaskAsync rt = new RWTaskAsync(arguments, counters, benchmarkContext.getSession(), inFlight);
+                int localMax = perThread + (i < remainder ? 1 : 0);
+                RWTaskAsync rt = new RWTaskAsync(
+                        arguments, counters, benchmarkContext.getSession(), localMax);
                 tasks[i] = rt;
                 es.execute(rt);
             }
+            Thread.sleep(900);
+            collectRwStats(benchmarkContext.getArguments(), tasks);
+            drainAndShutdown(tasks, es);
         } else {
             for (int i = 0; i < threads; i++) {
                 RWTaskSync rt = new RWTaskSync(arguments, counters, benchmarkContext.getSession());
                 tasks[i] = rt;
                 es.execute(rt);
             }
+            Thread.sleep(900);
+            collectRwStats(benchmarkContext.getArguments(), tasks);
+            es.shutdown();
         }
-        Thread.sleep(900);
-        collectRwStats(benchmarkContext.getArguments(), tasks);
+    }
+
+    private void drainAndShutdown(RWTask[] tasks, ExecutorService es) {
+        // Signal all tasks to stop
+        for (RWTask task : tasks) {
+            task.stop();
+        }
+        // Wait for in-flight operations to complete
+        for (RWTask task : tasks) {
+            if (task instanceof RWTaskAsync asyncTask) {
+                try {
+                    boolean drained = asyncTask.awaitDrain(5000);
+                    if (!drained) {
+                        System.out.println("Warning: Task did not drain in time");
+                    }
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            }
+        }
         es.shutdown();
     }
 
