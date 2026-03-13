@@ -244,8 +244,6 @@ public final class BenchmarkContext implements AutoCloseable {
         if (connOpts.getConnPoolsPerNode() != null) {
            def.connPoolsPerNode(connOpts.getConnPoolsPerNode());
         }
-//        def.withSystemSettings(SystemSettings.builder()
-//                .connections(ops -> ops.maximumConnectionsPerNode(200)).build());
         boolean needsSystemSettings = connOpts.getTendInterval() != null
                 || connOpts.getMinConnectionsPerNode() != null
                 || connOpts.getMaxConnectionsPerNode() != null;
