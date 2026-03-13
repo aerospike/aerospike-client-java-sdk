@@ -23,9 +23,12 @@ import org.junit.jupiter.api.Test;
 import com.aerospike.client.fluent.AerospikeException;
 import com.aerospike.client.fluent.ClusterTest;
 import com.aerospike.client.fluent.DataSet;
+import com.aerospike.client.fluent.Node;
 import com.aerospike.client.fluent.RecordStream;
 import com.aerospike.client.fluent.ResultCode;
+import com.aerospike.client.fluent.command.Info;
 import com.aerospike.client.fluent.info.classes.IndexType;
+import com.aerospike.client.fluent.util.Version;
 
 public class QueryRPSTest extends ClusterTest {
 	private static final DataSet dataSet = DataSet.of(args.set.getNamespace(), "rps");
@@ -35,8 +38,8 @@ public class QueryRPSTest extends ClusterTest {
 	private static final String binName2 = "rpsbin2";
 	//private static final String binName3 = "rpsbin3";
 	private static final int records_per_node = 1000;
-	//private static final int rps = 1000;
-	//private static final int expected_duration = 1000 * records_per_node / rps;
+	private static final int rps = 1000;
+	private static final int expected_duration = 1000 * records_per_node / rps;
 
 	private static int n_records = 0;
 
@@ -69,11 +72,12 @@ public class QueryRPSTest extends ClusterTest {
 		session.dropIndex(dataSet, indexName);
 	}
 
-	/*
+	@SuppressWarnings("unused")
 	private void checkRuntime(Node n, long id) {
 		String taskId = Long.toUnsignedString(id);
 		Version serverVersion = n.getVersion();
-		String command = serverVersion.isGreaterOrEqual(Version.SERVER_VERSION_8_1) ? "query-show:id=" + taskId : "query-show:trid=" + taskId;
+		String command = serverVersion.isGreaterOrEqual(Version.SERVER_VERSION_8_1) ?
+			"query-show:id=" + taskId : "query-show:trid=" + taskId;
 
 		String job_info = Info.request(n, command);
 		String s = "run-time=";
@@ -87,7 +91,6 @@ public class QueryRPSTest extends ClusterTest {
 		assert (duration > expected_duration - 500 &&
 				duration < expected_duration + 500);
 	}
-	*/
 
 	void drainRecords(RecordStream rs) {
 		try {
@@ -118,7 +121,7 @@ public class QueryRPSTest extends ClusterTest {
 
 	@Test
 	public void bgScanWithOps() {
-		/* TODO Implement when UDF is supported.
+		/* TODO Implement when setting or retrieving the taskId is supported.
 		Statement stmt = new Statement();
 		stmt.setNamespace(args.namespace); stmt.setSetName(args.set);
 		stmt.setRecordsPerSecond(rps);
@@ -136,7 +139,7 @@ public class QueryRPSTest extends ClusterTest {
 
 	@Test
 	public void bgScanWithUDF() {
-		/* TODO Implement when UDF is supported.
+		/* TODO Implement when setting or retrieving the taskId is supported.
 		Statement stmt = new Statement();
 		stmt.setNamespace(args.namespace); stmt.setSetName(args.set);
 		stmt.setRecordsPerSecond(rps);
@@ -177,7 +180,7 @@ public class QueryRPSTest extends ClusterTest {
 
 	@Test
 	public void bgQueryWithOps() {
-		/* TODO Implement when UDF is supported.
+		/* TODO Implement when setting or retrieving the taskId is supported.
 		Statement stmt = new Statement();
 		stmt.setNamespace(args.namespace); stmt.setSetName(args.set);
 		stmt.setFilter(Filter.range(binName1, 0, n_records));
@@ -196,7 +199,7 @@ public class QueryRPSTest extends ClusterTest {
 
 	@Test
 	public void bgQueryWithUDF() {
-		/* TODO Implement when UDF is supported.
+		/* TODO Implement when setting or retrieving the taskId is supported.
 		Statement stmt = new Statement();
 		stmt.setNamespace(args.namespace); stmt.setSetName(args.set);
 		stmt.setFilter(Filter.range(binName1, 0, n_records));
