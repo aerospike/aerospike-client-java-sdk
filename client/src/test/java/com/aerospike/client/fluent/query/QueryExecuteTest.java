@@ -16,10 +16,28 @@
  */
 package com.aerospike.client.fluent.query;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.fail;
+
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+
+import com.aerospike.client.fluent.AerospikeException;
 import com.aerospike.client.fluent.ClusterTest;
+import com.aerospike.client.fluent.DataSet;
+import com.aerospike.client.fluent.Key;
+import com.aerospike.client.fluent.Record;
+import com.aerospike.client.fluent.RecordStream;
+import com.aerospike.client.fluent.ResultCode;
+import com.aerospike.client.fluent.UdfTest;
+import com.aerospike.client.fluent.exp.Exp;
+import com.aerospike.client.fluent.exp.Expression;
+import com.aerospike.client.fluent.info.classes.IndexType;
+import com.aerospike.client.fluent.task.ExecuteTask;
+import com.aerospike.client.fluent.task.RegisterTask;
 
 public class QueryExecuteTest extends ClusterTest {
-	/* TODO Implement when UDF functionality is supported.
 	private static final String indexName = "tqeindex";
 	private static final String keyPrefix = "tqekey";
 	private static final String binName1 = "tqebin1";
@@ -28,65 +46,59 @@ public class QueryExecuteTest extends ClusterTest {
 
 	@BeforeAll
 	public static void prepare() {
-		RegisterTask rtask = client.register(null, QueryExecuteTest.class.getClassLoader(), "udf/record_example.lua", "record_example.lua", Language.LUA);
-		rtask.waitTillComplete();
+		RegisterTask task = session.registerUdfString(UdfTest.lua, "record_example.lua");
+		task.waitTillComplete();
 
 		try {
-			IndexTask itask = client.createIndex(args.indexPolicy, args.namespace, args.set, indexName, binName1, IndexType.NUMERIC);
-			itask.waitTillComplete();
-		}
-		catch (AerospikeException ae) {
+			session.createIndex(args.set, indexName, binName1, IndexType.INTEGER, IndexCollectionType.DEFAULT)
+				.waitTillComplete();
+		} catch (AerospikeException ae) {
 			if (ae.getResultCode() != ResultCode.INDEX_ALREADY_EXISTS) {
 				throw ae;
 			}
 		}
 
 		for (int i = 1; i <= size; i++) {
-			Key key = new Key(args.namespace, args.set, keyPrefix + i);
-			client.put(null, key, new Bin(binName1, i), new Bin(binName2, i));
+			Key key = args.set.id(keyPrefix + i);
+			session.upsert(key)
+				.bins(binName1, binName2)
+				.values(i, i)
+				.execute();
 		}
 	}
 
 	@AfterAll
 	public static void destroy() {
-		client.dropIndex(null, args.namespace, args.set, indexName);
+		session.dropIndex(args.set, indexName);
 	}
 
 	@Test
 	public void queryExecute() {
-		int begin = 3;
-		int end = 9;
+		ExecuteTask task = session.backgroundTask()
+            .executeUdf(args.set)
+            .function("record_example", "processRecord")
+            .passing(binName1, binName2, 100)
+			.where("$.tqebin1 >= 3 and $.tqebin1 <= 9")
+            .execute();
 
-		Statement stmt = new Statement();
-		stmt.setNamespace(args.namespace);
-		stmt.setSetName(args.set);
-		stmt.setFilter(Filter.range(binName1, begin, end));
-
-		ExecuteTask task = client.execute(null, stmt, "record_example", "processRecord", Value.get(binName1), Value.get(binName2), Value.get(100));
 		task.waitTillComplete(3000, 3000);
 		validateRecords();
 	}
 
 	private void validateRecords() {
-		int begin = 1;
-		int end = size + 100;
-
-		Statement stmt = new Statement();
-		stmt.setNamespace(args.namespace);
-		stmt.setSetName(args.set);
-		stmt.setFilter(Filter.range(binName1, begin, end));
-
-		RecordSet rs = client.query(null, stmt);
+		RecordStream rs = session.query(args.set)
+			.where("$.tqebin1 >= 1 and $.tqebin1 <= " + (size + 100))
+			.execute();
 
 		try {
 			int[] expectedList = new int[] {1,2,3,104,5,106,7,108,-1,10};
 			int expectedSize = size - 1;
 			int count = 0;
 
-			while (rs.next()) {
-				Record record = rs.getRecord();
-				int value1 = record.getInt(binName1);
-				int value2 = record.getInt(binName2);
+			while (rs.hasNext()) {
+				Record rec = rs.next().recordOrThrow();
+				int value1 = rec.getInt(binName1);
+				int value2 = rec.getInt(binName2);
 
 				int val1 = value1;
 
@@ -113,45 +125,38 @@ public class QueryExecuteTest extends ClusterTest {
 
 	@Test
 	public void queryExecuteOperate() {
-		int begin = 3;
-		int end = 9;
+		String binName = "foo";
+		String binValue = "bar";
 
-		Statement stmt = new Statement();
-		stmt.setNamespace(args.namespace);
-		stmt.setSetName(args.set);
-		stmt.setFilter(Filter.range(binName1, begin, end));
+		ExecuteTask task = session.backgroundTask()
+            .update(args.set)
+            .bin(binName).setTo(binValue)
+			.where("$.tqebin1 >= 3 and $.tqebin1 <= 9")
+            .execute();
 
-		Bin bin = new Bin("foo", "bar");
-
-		ExecuteTask task = client.execute(null, stmt, Operation.put(bin));
 		task.waitTillComplete(3000, 3000);
 
-		String expected = bin.value.toString();
-
-		stmt = new Statement();
-		stmt.setNamespace(args.namespace);
-		stmt.setSetName(args.set);
-		stmt.setFilter(Filter.range(binName1, begin, end));
-
-		RecordSet rs = client.query(null, stmt);
+		RecordStream rs = session.query(args.set)
+			.where("$.tqebin1 >= 3 and $.tqebin1 <= 9")
+			.execute();
 
 		try {
 			int count = 0;
 
-			while (rs.next()) {
-				Record record = rs.getRecord();
-				String value = record.getString(bin.name);
+			while (rs.hasNext()) {
+				Record rec = rs.next().recordOrThrow();
+				String value = rec.getString(binName);
 
 				if (value == null) {
-					fail("Bin " + bin.name + " not found");
+					fail("Bin " + binName + " not found");
 				}
 
-				if (! value.equals(expected)) {
-					fail("Data mismatch. Expected " + expected + ". Received " + value);
+				if (! value.equals(binValue)) {
+					fail("Data mismatch. Expected " + binValue + ". Received " + value);
 				}
 				count++;
 			}
-			assertEquals(end - begin + 1, count);
+			assertEquals(7, count);
 		}
 		finally {
 			rs.close();
@@ -161,35 +166,27 @@ public class QueryExecuteTest extends ClusterTest {
 	@Test
 	public void queryExecuteOperateExp() {
 		String binName = "foo";
-		Expression exp = Exp.build(Exp.val("bar"));
+		String binValue = "bar";
+		Expression exp = Exp.build(Exp.val(binValue));
 
-		int begin = 3;
-		int end = 9;
-
-		Statement stmt = new Statement();
-		stmt.setNamespace(args.namespace);
-		stmt.setSetName(args.set);
-		stmt.setFilter(Filter.range(binName1, begin, end));
-
-		ExecuteTask task = client.execute(null, stmt,
-			ExpOperation.write(binName, exp, ExpWriteFlags.DEFAULT)
-			);
+		ExecuteTask task = session.backgroundTask()
+            .update(args.set)
+            .bin(binName).updateFrom(exp)
+			.where("$.tqebin1 >= 3 and $.tqebin1 <= 9")
+            .execute();
 
 		task.waitTillComplete(3000, 3000);
 
-		stmt = new Statement();
-		stmt.setNamespace(args.namespace);
-		stmt.setSetName(args.set);
-		stmt.setFilter(Filter.range(binName1, begin, end));
-
-		RecordSet rs = client.query(null, stmt);
+		RecordStream rs = session.query(args.set)
+			.where("$.tqebin1 >= 3 and $.tqebin1 <= 9")
+			.execute();
 
 		try {
 			int count = 0;
 
-			while (rs.next()) {
-				Record record = rs.getRecord();
-				String value = record.getString(binName);
+			while (rs.hasNext()) {
+				Record rec = rs.next().recordOrThrow();
+				String value = rec.getString(binName);
 
 				if (value == null) {
 					fail("Bin " + binName + " not found");
@@ -200,7 +197,7 @@ public class QueryExecuteTest extends ClusterTest {
 				}
 				count++;
 			}
-			assertEquals(end - begin + 1, count);
+			assertEquals(7, count);
 		}
 		finally {
 			rs.close();
@@ -209,14 +206,13 @@ public class QueryExecuteTest extends ClusterTest {
 
 	@Test
 	public void queryExecuteSetNotFound() {
-		Statement stmt = new Statement();
-		stmt.setNamespace(args.namespace);
-		stmt.setSetName("notfound");
-		stmt.setFilter(Filter.range(binName1, 1, 3));
-
 		// Previous client versions might timeout when set does not exist.
 		// Test to make sure regression has not resurfaced.
-		client.execute(null, stmt, Operation.touch());
+		DataSet ds = DataSet.of(args.set.getNamespace(), "notfound");
+
+		session.backgroundTask()
+			.touch(ds)
+			.where("$.tqebin1 >= 1 and $.tqebin1 <= 3")
+            .execute();
 	}
-	*/
 }
