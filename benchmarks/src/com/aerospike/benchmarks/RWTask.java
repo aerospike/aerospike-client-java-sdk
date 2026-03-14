@@ -3,6 +3,9 @@ package com.aerospike.benchmarks;
 import com.aerospike.client.fluent.*;
 import com.aerospike.client.fluent.util.RandomShift;
 
+import java.util.ArrayList;
+import java.util.List;
+
 public abstract class RWTask {
 
     final Arguments args;
@@ -80,11 +83,11 @@ public abstract class RWTask {
                 doRead(key, isMultiBin);
             }
             else {
-                // TODO read batch
+                doReadBatch(random, isMultiBin);
             }
         } else {
             boolean isMultiBin = random.nextInt(100) < args.getWriteMultiBinPct();
-            // Perform Single record write even if in batch mode.
+            // Perform Single record replace even if in batch mode.
             long key = random.nextLong(keyCount);
             doReplace(random, key, isMultiBin);
         }
@@ -99,7 +102,7 @@ public abstract class RWTask {
                 doRead(key, isMultiBin);
             }
             else {
-                // TODO read batch
+                doReadBatch(random, isMultiBin);
             }
         }
         else {
@@ -109,6 +112,33 @@ public abstract class RWTask {
             doWrite(random, key, isMultiBin);
         }
     }
+
+    protected void doReadBatch(RandomShift random, boolean multiBin) {
+        List<Key> keys = new ArrayList<>(args.getBatchSize());
+        // TODO: batchNamespaces not supported yet
+        for (int i = 0; i < args.getBatchSize(); i++) {
+            long keyIdx = random.nextLong(keyCount);
+            keys.add(new Key(args.getNamespace(), args.getSetName(), keyStart + keyIdx));
+        }
+        try {
+            if (multiBin) {
+                // Read all bins, maybe validate
+                get(keys);
+            }
+            else {
+                // Read one bin, maybe validate
+                get(keys, firstBin);
+            }
+        }
+        catch (AerospikeException ae) {
+            readFailure(ae);
+        }
+        catch (Exception e) {
+            readFailure(e);
+        }
+    }
+
+
 
     private void doReplace(RandomShift random, long keyIdx, boolean isMultiBin) {
         Key key = new Key(args.getNamespace(), args.getSetName(), keyStart + keyIdx);
@@ -213,6 +243,8 @@ public abstract class RWTask {
     protected abstract void upsert(Key key, Value[] values, String... bins);
     protected abstract void createOrReplace(Key random, Value[] key, String... bins);
     protected abstract void getBinsAndIncrement(Key key, int incrementedBy);
+    protected abstract void get(List<Key> keys, String number);
+    protected abstract void get(List<Key> keys);
 
     public void stop() {
         shouldStop = true;

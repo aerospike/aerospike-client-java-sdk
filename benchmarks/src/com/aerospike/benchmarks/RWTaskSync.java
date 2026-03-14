@@ -5,6 +5,8 @@ import com.aerospike.client.fluent.Record;
 import com.aerospike.client.fluent.util.RandomShift;
 import com.aerospike.client.fluent.util.Util;
 
+import java.util.List;
+
 public class RWTaskSync extends RWTask implements Runnable {
 
     private final Session session;
@@ -73,6 +75,42 @@ public class RWTaskSync extends RWTask implements Runnable {
     protected void getBinsAndIncrement(Key key, int incrementedBy) {
         Record rec = readRecordForUpdate(key);
         incrementCounter(key, rec, incrementedBy);
+    }
+
+    @Override
+    protected void get(List<Key> keys, String binName) {
+        RecordStream recs;
+        long begin = System.nanoTime();
+        recs = session.query(keys).bins(binName).execute();
+        if (useLatency) {
+            long elapsed = System.nanoTime() - begin;
+            counters.read.latency.add(elapsed);
+        }
+        RecordStream failedRecs = recs.failures();
+        if (failedRecs.stream().findAny().isPresent()) {
+            readFailure(failedRecs.failures().next().exception());
+        } else {
+            // batch with partial failure are not accounted to successful reads
+            counters.read.count.getAndIncrement();
+        }
+    }
+
+    @Override
+    protected void get(List<Key> keys) {
+        RecordStream recs;
+        long begin = System.nanoTime();
+        recs = session.query(keys).execute();
+        if (useLatency) {
+            long elapsed = System.nanoTime() - begin;
+            counters.read.latency.add(elapsed);
+        }
+        RecordStream failedRecs = recs.failures();
+        if (failedRecs.stream().findAny().isPresent()) {
+            readFailure(failedRecs.failures().next().exception());
+        } else {
+            // batch with partial failure are not accounted to successful reads
+            counters.read.count.getAndIncrement();
+        }
     }
 
     private Record readRecordForUpdate(Key key) {

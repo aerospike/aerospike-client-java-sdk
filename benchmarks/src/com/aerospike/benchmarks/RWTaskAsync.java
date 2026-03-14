@@ -100,14 +100,7 @@ public class RWTaskAsync extends RWTask implements Runnable {
                 .whenComplete((r, ex) -> {
                     release();
                     handle.close();
-                    if (ex != null) {
-                        Throwable cause = ex instanceof CompletionException ? ex.getCause() : ex;
-                        if (cause instanceof AerospikeException) {
-                            readFailure((AerospikeException) cause);
-                        } else if (cause instanceof Exception) {
-                            readFailure((Exception) cause);
-                        }
-                    }
+                    if (ex != null) handleReadException(ex);
                 });
     }
 
@@ -127,14 +120,7 @@ public class RWTaskAsync extends RWTask implements Runnable {
                 .whenComplete((r, ex) -> {
                     release();
                     handle.close();
-                    if (ex != null) {
-                        Throwable cause = ex instanceof CompletionException ? ex.getCause() : ex;
-                        if (cause instanceof AerospikeException) {
-                            readFailure((AerospikeException) cause);
-                        } else if (cause instanceof Exception) {
-                            readFailure((Exception) cause);
-                        }
-                    }
+                    if (ex != null) handleReadException(ex);
                 });
     }
 
@@ -156,14 +142,7 @@ public class RWTaskAsync extends RWTask implements Runnable {
                 }).whenComplete((r, ex) -> {
                     release();
                     handle.close();
-                    if (ex != null) {
-                        Throwable cause = (ex instanceof CompletionException) ? ex.getCause() : ex;
-                        if (cause instanceof AerospikeException) {
-                            writeFailure((AerospikeException) cause);
-                        } else if (cause instanceof Exception) {
-                            writeFailure((Exception) cause);
-                        }
-                    }
+                    if (ex != null) handleWriteException(ex);
                 });
     }
 
@@ -185,14 +164,7 @@ public class RWTaskAsync extends RWTask implements Runnable {
                 }).whenComplete((r, ex) -> {
                     release();
                     handle.close();
-                    if (ex != null) {
-                        Throwable cause = (ex instanceof CompletionException) ? ex.getCause() : ex;
-                        if (cause instanceof AerospikeException) {
-                            writeFailure((AerospikeException) cause);
-                        } else if (cause instanceof Exception) {
-                            writeFailure((Exception) cause);
-                        }
-                    }
+                    if (ex != null) handleWriteException(ex);
                 });
     }
 
@@ -201,6 +173,89 @@ public class RWTaskAsync extends RWTask implements Runnable {
     protected void getBinsAndIncrement(Key key, int incrementedBy) {
         if (!tryAcquire()) return;
         readRecordForUpdateAsync(key, rec -> incrementCounterAsync(key, rec, incrementedBy));
+    }
+
+    @Override
+    protected void get(List<Key> keys, String binName) {
+        if (!tryAcquire()) return;
+        long begin = System.nanoTime();
+        var handle = session.query(keys).bins(binName)
+                .executeAsync(ErrorStrategy.IN_STREAM);
+        handle.asCompletableFuture()
+                .thenAccept(results -> {
+                    if (useLatency) {
+                        long elapsed = System.nanoTime() - begin;
+                        counters.read.latency.add(elapsed);
+                    }
+                    handleBatchReadResult(results);
+                })
+                .whenComplete((r, ex) -> {
+                    release();
+                    handle.close();
+                    if (ex != null) handleReadException(ex);
+                });
+    }
+
+    @Override
+    protected void get(List<Key> keys) {
+        if (!tryAcquire()) return;
+        long begin = System.nanoTime();
+        var handle = session.query(keys)
+                .executeAsync(ErrorStrategy.IN_STREAM);
+        handle.asCompletableFuture()
+                .thenAccept(results -> {
+                    if (useLatency) {
+                        long elapsed = System.nanoTime() - begin;
+                        counters.read.latency.add(elapsed);
+                    }
+                    handleBatchReadResult(results);
+                })
+                .whenComplete((r, ex) -> {
+                    release();
+                    handle.close();
+                    if (ex != null) handleReadException(ex);
+                });
+    }
+
+    @Override
+    public void run() {
+        RandomShift random = new RandomShift();
+        while (!shouldStop) {
+            runCommand(random);
+        }
+    }
+
+    private void handleReadException(Throwable ex) {
+        Throwable cause = ex instanceof CompletionException ? ex.getCause() : ex;
+        if (ex instanceof AerospikeException) {
+            readFailure((AerospikeException) cause);
+        } else {
+            readFailure((Exception) cause);
+        }
+    }
+
+    private void handleWriteException(Throwable ex) {
+        Throwable cause = (ex instanceof CompletionException) ? ex.getCause() : ex;
+        if (cause instanceof AerospikeException) {
+            writeFailure((AerospikeException) cause);
+        } else if (cause instanceof Exception) {
+            writeFailure((Exception) cause);
+        }
+    }
+
+    private void handleBatchReadResult(List<RecordResult> results) {
+        AerospikeException firstFailure = null;
+        for (RecordResult r : results) {
+            if (r.exception() != null) {
+                firstFailure = r.exception();
+                break;
+            }
+        }
+        if (firstFailure == null) {
+            counters.read.count.incrementAndGet();
+        } else {
+            readFailure(firstFailure);
+        }
     }
 
     private void readRecordForUpdateAsync(Key key, Consumer<Record> onSuccess) {
@@ -224,7 +279,6 @@ public class RWTaskAsync extends RWTask implements Runnable {
                     }
                     onSuccess.accept(rec);
                 });
-
     }
 
     private void incrementCounterAsync(Key key, Record rec, int incrementedBy) {
@@ -255,14 +309,6 @@ public class RWTaskAsync extends RWTask implements Runnable {
                         }
                     }
                 });
-    }
-
-    @Override
-    public void run() {
-        RandomShift random = new RandomShift();
-        while (!shouldStop) {
-            runCommand(random);
-        }
     }
 
     private void processSingleKeyWriteRecord(List<RecordResult> results) {

@@ -60,6 +60,7 @@ public class Arguments {
         args.throughput = Optional.ofNullable(workloadOpts.getThroughput()).orElse(0);
         args.transactionLimit = Optional.ofNullable(workloadOpts.getTransactions()).orElse(Long.MAX_VALUE);
         args.asyncMaxCommands = Optional.ofNullable(benchmarkOpts.getAsyncMaxCommands()).orElse(100);
+        args.batchSize = Optional.ofNullable(benchmarkOpts.getBatchSize()).orElse(1);
         return args;
     }
 
