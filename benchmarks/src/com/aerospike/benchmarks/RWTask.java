@@ -4,6 +4,7 @@ import com.aerospike.client.fluent.*;
 import com.aerospike.client.fluent.util.RandomShift;
 
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 
 public abstract class RWTask {
@@ -26,6 +27,42 @@ public abstract class RWTask {
         this.shouldStop = false;
     }
 
+    private void runTransaction(RandomShift random) {
+        long key;
+        Iterator<TransactionalItem> iterator = args.getTransactionalWorkload().iterator(random);
+        long begin = System.nanoTime();
+        while (iterator.hasNext()) {
+            TransactionalItem thisItem = iterator.next();
+            switch (thisItem.getType()) {
+                case MULTI_BIN_READ:
+                    key = random.nextLong(keyCount);
+                    doRead(key, true);
+                    break;
+                case MULTI_BIN_UPDATE:
+                    key = random.nextLong(keyCount);
+                    doWrite(random, key, true);
+                    break;
+                case SINGLE_BIN_READ:
+                    key = random.nextLong(keyCount);
+                    doRead(key, false);
+                    break;
+                case SINGLE_BIN_UPDATE:
+                    key = random.nextLong(keyCount);
+                    doWrite(random, key, false);
+                    break;
+                default:
+                    System.out.println("Ignoring transaction type: " + thisItem.getType());
+                    break;
+            }
+        }
+
+        if (counters.transaction.latency != null) {
+            long elapsed = System.nanoTime() - begin;
+            counters.transaction.latency.add(elapsed);
+            counters.transaction.count.getAndIncrement();
+        }
+    }
+
     protected void runCommand(RandomShift random) {
         try {
             switch (args.getWorkload()) {
@@ -43,6 +80,9 @@ public abstract class RWTask {
                     break;
                 case READ_MODIFY_DECREMENT:
                     readModifyDecrement(random);
+                    break;
+                case TRANSACTION:
+                    runTransaction(random);
                     break;
                 default:
                     System.out.println("Not supported: " + args.getWorkload());

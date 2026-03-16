@@ -16,15 +16,29 @@ public class Application {
         int exitCode = cmd.setColorScheme(colorScheme())
                 .setParameterExceptionHandler(
                         (ex, args1) -> {
-                            System.err.println("Parameter Error: " + ex.getMessage());
+                            exceptionHandler(ex);
                             return 1;
                         })
                 .setExecutionExceptionHandler((ex, commandLine, parseResult) -> {
-                    System.err.println("Execution Error: " + ex.getMessage());
+                    exceptionHandler(ex);
                     return 1;
                 })
                 .execute(args);
         System.exit(exitCode);
+    }
+
+    private static void exceptionHandler(Exception ex) {
+        String message = ex.getMessage();
+        Throwable cause = ex.getCause();
+        if (cause != null && cause.getMessage() != null && !cause.getMessage().isEmpty()) {
+            message = (message != null && !message.isEmpty())
+                    ? message + ": " + cause.getMessage()
+                    : cause.getMessage();
+        }
+        if (message == null || message.isEmpty()) {
+            message = ex.getClass().getSimpleName();
+        }
+        System.err.println("Execution Error: " + message);
     }
 
 

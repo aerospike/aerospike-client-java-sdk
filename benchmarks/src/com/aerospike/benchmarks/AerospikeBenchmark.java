@@ -81,8 +81,8 @@ public class AerospikeBenchmark implements Callable<Integer>, Log.Callback {
         }
         counters.write.latency = context.getLatencyManager(Constants.OP_TYPE.w);
         counters.read.latency = context.getLatencyManager(Constants.OP_TYPE.r);
-        if (context.isHasTxns()) {
-            // TODO set transaction latency
+        if (context.getArguments().isHasTransactions()) {
+            counters.transaction.latency = context.getLatencyManager(Constants.OP_TYPE.tx);
         }
     }
 
@@ -263,7 +263,13 @@ public class AerospikeBenchmark implements Callable<Integer>, Log.Callback {
             System.out.print(
                     " read(tps=" + numReads + " timeouts=" + timeoutReads + " errors=" + errorReads + ")");
 
-            // TODO txn calc
+            int numTransaction = this.counters.transaction.count.getAndSet(0);
+            int timeoutTransaction = this.counters.transaction.timeouts.getAndSet(0);
+            int errorTransaction  = this.counters.transaction.errors.getAndSet(0);
+            if (this.counters.transaction.latency != null) {
+                System.out.print(
+                        " txns(tps=" + numTransaction + " timeouts=" + timeoutTransaction + " errors=" + errorTransaction + " )");
+            }
 
             System.out.print(
                     " total(tps="

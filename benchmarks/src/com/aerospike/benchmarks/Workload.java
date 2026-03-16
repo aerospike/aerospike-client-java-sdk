@@ -50,4 +50,9 @@ public enum Workload {
 	 */
 	READ_MODIFY_DECREMENT,
 
+	/**
+	 * Form business transactions
+	 */
+	TRANSACTION
+
 }

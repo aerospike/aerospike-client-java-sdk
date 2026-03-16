@@ -22,7 +22,6 @@ public final class BenchmarkContext implements AutoCloseable {
     private final Session session;
     private final Behavior behavior;
     private final DataSet dataSet;
-    private final boolean hasTxns;
     private final Arguments arguments;
 
 
@@ -44,7 +43,6 @@ public final class BenchmarkContext implements AutoCloseable {
         this.session = session;
         this.behavior = behavior;
         this.dataSet = dataSet;
-        this.hasTxns = hasTxn;
         this.arguments = arguments;
     }
 
@@ -72,9 +70,12 @@ public final class BenchmarkContext implements AutoCloseable {
     }
 
     private static void populateLatenciesPools(String latencyArg) throws Exception {
-        LATENCY_MANAGER_MAP.putIfAbsent(Constants.OP_TYPE.r, latencyManagerFactory(latencyArg, Constants.OP_TYPE.r.opType));
-        LATENCY_MANAGER_MAP.putIfAbsent(Constants.OP_TYPE.w, latencyManagerFactory(latencyArg, Constants.OP_TYPE.w.opType));
-        LATENCY_MANAGER_MAP.putIfAbsent(Constants.OP_TYPE.tx, latencyManagerFactory(latencyArg, Constants.OP_TYPE.tx.opType));
+        for (Constants.OP_TYPE type : Constants.OP_TYPE.values()) {
+            LATENCY_MANAGER_MAP.putIfAbsent(
+                    type,
+                    latencyManagerFactory(latencyArg, type.opType)
+            );
+        }
     }
 
     private static LatencyManager latencyManagerFactory(String latencyString, String opType) throws Exception {
@@ -290,10 +291,6 @@ public final class BenchmarkContext implements AutoCloseable {
 
     public boolean isLatenciesEnabled() {
         return !LATENCY_MANAGER_MAP.isEmpty();
-    }
-
-    public boolean isHasTxns() {
-        return hasTxns;
     }
 
     @Override

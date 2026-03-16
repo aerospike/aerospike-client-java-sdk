@@ -32,7 +32,11 @@ public class Arguments {
     private long numKeys;
     private long startKey;
     private int asyncMaxCommands;
+    private TransactionalWorkload transactionalWorkload;
     public DBObjectSpec[] objectSpec;
+
+    private boolean hasTransactions;
+
 
     public boolean isInitialisation() {
         return Objects.equals(workload, Workload.INITIALIZE);
@@ -61,6 +65,10 @@ public class Arguments {
         args.transactionLimit = Optional.ofNullable(workloadOpts.getTransactions()).orElse(Long.MAX_VALUE);
         args.asyncMaxCommands = Optional.ofNullable(benchmarkOpts.getAsyncMaxCommands()).orElse(100);
         args.batchSize = Optional.ofNullable(benchmarkOpts.getBatchSize()).orElse(1);
+        args.transactionalWorkload = workloadContext.transactionalWorkload();
+        if (workloadContext.transactionalWorkload() != null) {
+            args.hasTransactions = true;
+        }
         return args;
     }
 
@@ -159,6 +167,15 @@ public class Arguments {
     public int getAsyncMaxCommands() {
         return asyncMaxCommands;
     }
+
+    public TransactionalWorkload getTransactionalWorkload() {
+        return transactionalWorkload;
+    }
+
+    public boolean isHasTransactions() {
+        return hasTransactions;
+    }
+
 
     public String[] getBinNames(boolean multiBin) {
         int binCount = (multiBin) ? nBins : 1;
@@ -273,57 +290,67 @@ public class Arguments {
     }
 
 
-    private record WorkloadContext(Workload workload, int readPct, int readMultiBinPct, int writeMultiBinPct) {
+    private record WorkloadContext(Workload workload, int readPct, int readMultiBinPct, int writeMultiBinPct,
+                                   TransactionalWorkload transactionalWorkload) {
 
         static WorkloadContext toWorkloadContext(String workloadStr) {
-                if (workloadStr == null || workloadStr.isBlank()) {
-                    throw new IllegalArgumentException("Workload string must not be null or blank");
-                }
-                String[] parts = workloadStr.trim().split(",");
-                String type = parts[0].trim().toUpperCase();
-
-                return switch (type) {
-                    case "I" -> parseInitialize(parts);
-                    case "RU" -> parseReadUpdate(parts, Workload.READ_UPDATE);
-                    case "RR" -> parseReadUpdate(parts, Workload.READ_REPLACE);
-                    case "RMU" -> parseSingleArgWorkload(parts, Workload.READ_MODIFY_UPDATE);
-                    case "RMI" -> parseSingleArgWorkload(parts, Workload.READ_MODIFY_INCREMENT);
-                    case "RMD" -> parseSingleArgWorkload(parts, Workload.READ_MODIFY_DECREMENT);
-                    default -> throw new IllegalArgumentException("Unknown workload: " + type);
-                };
+            if (workloadStr == null || workloadStr.isBlank()) {
+                throw new IllegalArgumentException("Workload string must not be null or blank");
             }
+            String[] parts = workloadStr.trim().split(",");
+            String type = parts[0].trim().toUpperCase();
 
-            private static WorkloadContext parseInitialize(String[] parts) {
-                if (parts.length != 1) {
-                    throw new IllegalArgumentException(
-                            "Invalid workload arguments for I: expected 1, got " + parts.length);
-                }
-                return new WorkloadContext(Workload.INITIALIZE, 0, 0, 0);
-            }
-
-            private static WorkloadContext parseReadUpdate(String[] parts, Workload workload) {
-                if (parts.length < 2 || parts.length > 4) {
-                    throw new IllegalArgumentException(
-                            "Invalid workload arguments for " + workload + ": expected 2 to 4, got " + parts.length);
-                }
-                int readPct = Integer.parseInt(parts[1].trim());
-                if (readPct < 0 || readPct > 100) {
-                    throw new IllegalArgumentException(
-                            "Read percentage must be between 0 and 100, got " + readPct);
-                }
-                int readMultiBinPct = parts.length >= 3 ? Integer.parseInt(parts[2].trim()) : 100;
-                int writeMultiBinPct = parts.length >= 4 ? Integer.parseInt(parts[3].trim()) : 100;
-                return new WorkloadContext(workload, readPct, readMultiBinPct, writeMultiBinPct);
-            }
-
-            private static WorkloadContext parseSingleArgWorkload(String[] parts, Workload workload) {
-                if (parts.length != 1) {
-                    throw new IllegalArgumentException(
-                            "Invalid workload arguments for " + workload + ": expected 1, got " + parts.length);
-                }
-                return new WorkloadContext(workload, 0, 0, 0);
-            }
-
+            return switch (type) {
+                case "I" -> parseInitialize(parts);
+                case "RU" -> parseReadUpdate(parts, Workload.READ_UPDATE);
+                case "RR" -> parseReadUpdate(parts, Workload.READ_REPLACE);
+                case "RMU" -> parseSingleArgWorkload(parts, Workload.READ_MODIFY_UPDATE);
+                case "RMI" -> parseSingleArgWorkload(parts, Workload.READ_MODIFY_INCREMENT);
+                case "RMD" -> parseSingleArgWorkload(parts, Workload.READ_MODIFY_DECREMENT);
+                case "TXN" -> parseTransactional(parts);
+                default -> throw new IllegalArgumentException("Unknown workload: " + type);
+            };
         }
+
+        private static WorkloadContext parseInitialize(String[] parts) {
+            if (parts.length != 1) {
+                throw new IllegalArgumentException(
+                        "Invalid workload arguments for I: expected 1, got " + parts.length);
+            }
+            return new WorkloadContext(Workload.INITIALIZE, 0, 0, 0, null);
+        }
+
+        private static WorkloadContext parseReadUpdate(String[] parts, Workload workload) {
+            if (parts.length < 2 || parts.length > 4) {
+                throw new IllegalArgumentException(
+                        "Invalid workload arguments for " + workload + ": expected 2 to 4, got " + parts.length);
+            }
+            int readPct = Integer.parseInt(parts[1].trim());
+            if (readPct < 0 || readPct > 100) {
+                throw new IllegalArgumentException(
+                        "Read percentage must be between 0 and 100, got " + readPct);
+            }
+            int readMultiBinPct = parts.length >= 3 ? Integer.parseInt(parts[2].trim()) : 100;
+            int writeMultiBinPct = parts.length >= 4 ? Integer.parseInt(parts[3].trim()) : 100;
+            return new WorkloadContext(workload, readPct, readMultiBinPct, writeMultiBinPct, null);
+        }
+
+        private static WorkloadContext parseSingleArgWorkload(String[] parts, Workload workload) {
+            if (parts.length != 1) {
+                throw new IllegalArgumentException(
+                        "Invalid workload arguments for " + workload + ": expected 1, got " + parts.length);
+            }
+            return new WorkloadContext(workload, 0, 0, 0, null);
+        }
+
+        private static WorkloadContext parseTransactional(String[] parts) {
+            try {
+                TransactionalWorkload txn = new TransactionalWorkload(parts);
+                return new WorkloadContext(Workload.TRANSACTION, 0, 0, 0, txn);
+            } catch (Exception e) {
+                throw new IllegalArgumentException("Invalid transactional workload", e);
+            }
+        }
+    }
 
 }
