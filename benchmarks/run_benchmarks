@@ -1,0 +1,7 @@
+#! /usr/bin/env bash
+# Java Benchmarks Script.
+#
+# Build with maven before running this script.
+# mvn package
+
+java -jar target/aerospike-benchmarks-*-jar-with-dependencies.jar $*
