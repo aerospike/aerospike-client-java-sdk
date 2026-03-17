@@ -18,8 +18,6 @@ package com.aerospike.client.fluent.query;
 
 import java.util.function.Function;
 
-import com.aerospike.client.fluent.policy.QueryDuration;
-
 /**
  * Interface for query builders that support index (primary or secondary) based operations.
  * These operations are only available when querying from a DataSet
@@ -35,15 +33,6 @@ public interface IndexBasedQueryBuilderInterface<T extends IndexBasedQueryBuilde
     T recordsPerSecond(int recordsPerSecond);
     
     /**
-     * Sets the expected query duration. The server optimizes query handling
-     * based on this hint.
-     * 
-     * @param duration the expected duration (LONG, SHORT, or LONG_RELAX_AP)
-     * @return this QueryBuilder for method chaining
-     */
-    T expectedQueryDuration(QueryDuration duration);
-
-    /**
      * Provides hints to influence secondary index selection and query duration for the
      * {@code where} clause on this query.
      *
@@ -57,9 +46,6 @@ public interface IndexBasedQueryBuilderInterface<T extends IndexBasedQueryBuilde
      *
      * <p>{@code forIndex} and {@code forBin} are mutually exclusive; attempting to call both
      * will not compile.</p>
-     *
-     * <p>If a query duration is specified here, it takes precedence over
-     * {@link #expectedQueryDuration(QueryDuration)}.</p>
      *
      * <p>Example:</p>
      * <pre>{@code

@@ -118,7 +118,7 @@ public class QueryHintBuilderTest extends ClusterTest {
         assertEquals(QueryDuration.SHORT, hint.getQueryDuration());
     }
 
-    // -- effective query duration precedence -----------------------------------
+    // -- effective query duration ------------------------------------------------
 
     @Test
     public void effectiveDurationDefaultsToLong() {
@@ -127,30 +127,20 @@ public class QueryHintBuilderTest extends ClusterTest {
     }
 
     @Test
-    public void effectiveDurationFromExpectedQueryDuration() {
+    public void effectiveDurationFromHint() {
         QueryBuilder qb = new QueryBuilder(session, dataSet);
-        qb.expectedQueryDuration(QueryDuration.SHORT);
-        assertEquals(QueryDuration.SHORT, qb.getEffectiveQueryDuration());
-    }
-
-    @Test
-    public void hintDurationOverridesExpectedQueryDuration() {
-        QueryBuilder qb = new QueryBuilder(session, dataSet);
-        qb.expectedQueryDuration(QueryDuration.LONG)
-          .where("$." + binName + " > 0")
+        qb.where("$." + binName + " > 0")
           .withHint(hint -> hint.queryDuration(QueryDuration.SHORT));
-
         assertEquals(QueryDuration.SHORT, qb.getEffectiveQueryDuration());
     }
 
     @Test
-    public void hintWithoutDurationKeepsExpectedQueryDuration() {
+    public void hintWithoutDurationDefaultsToLong() {
         QueryBuilder qb = new QueryBuilder(session, dataSet);
-        qb.expectedQueryDuration(QueryDuration.LONG_RELAX_AP)
-          .where("$." + binName + " > 0")
+        qb.where("$." + binName + " > 0")
           .withHint(hint -> hint.forIndex("idx"));
 
-        assertEquals(QueryDuration.LONG_RELAX_AP, qb.getEffectiveQueryDuration());
+        assertEquals(QueryDuration.LONG, qb.getEffectiveQueryDuration());
     }
 
     // -- double call throws ---------------------------------------------------

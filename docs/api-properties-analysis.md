@@ -232,7 +232,7 @@ session.query(dataSet)
     │
     ├── .recordsPerSecond(int)           // Throttle query
     ├── .maxRecordsPerSecond(int)        // Max throttle (index queries)
-    ├── .expectedQueryDuration(Duration) // Expected duration hint
+    ├── .withHint(hint -> ...)           // Query hints (index, bin, duration)
     │
     ├── .limit(long)                     // Limit results
     ├── .chunkSize(int)                  // Batch chunk size

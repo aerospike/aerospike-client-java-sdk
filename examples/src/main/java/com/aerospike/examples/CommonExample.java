@@ -370,7 +370,7 @@ public class CommonExample extends Example {
         	System.out.println("Record = " + r);
         }
 
-        session.query(set).expectedQueryDuration(QueryDuration.LONG).recordsPerSecond(20).execute();
+        session.query(set).withHint(hint -> hint.queryDuration(QueryDuration.LONG)).recordsPerSecond(20).execute();
 
         session.backgroundTask().update(set).bin("age").add(1).recordsPerSecond(35).execute();
 

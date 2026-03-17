@@ -83,7 +83,6 @@ public class QueryBuilder extends AbstractFilterableBuilder implements
     private int endPartition = 4096;
     private Txn txnToUse;
     private int recordsPerSecond = 0;
-    private QueryDuration expectedQueryDuration = QueryDuration.LONG;
     private QueryHint.Result queryHint;
     private java.util.List<com.aerospike.client.fluent.Operation> operations = null;
     private boolean withNoBins = false;
@@ -365,27 +364,6 @@ public class QueryBuilder extends AbstractFilterableBuilder implements
     }
 
     /**
-     * Sets the expected query duration. The server optimizes query handling
-     * based on this hint.
-     *
-     * @param duration the expected duration (LONG, SHORT, or LONG_RELAX_AP)
-     * @return this QueryBuilder for method chaining
-     */
-    public QueryBuilder expectedQueryDuration(QueryDuration duration) {
-        this.expectedQueryDuration = duration;
-        return this;
-    }
-
-    /**
-     * Gets the expected query duration setting.
-     *
-     * @return the expected query duration (LONG, SHORT, or LONG_RELAX_AP)
-     */
-    public QueryDuration getExpectedQueryDuration() {
-        return this.expectedQueryDuration;
-    }
-
-    /**
      * {@inheritDoc}
      */
     @Override
@@ -406,14 +384,14 @@ public class QueryBuilder extends AbstractFilterableBuilder implements
     }
 
     /**
-     * Returns the effective query duration, considering both {@link #expectedQueryDuration}
-     * and the hint's query duration (hint takes precedence if set).
+     * Returns the effective query duration from the hint, or {@link QueryDuration#LONG}
+     * if no hint or no duration was specified.
      */
     public QueryDuration getEffectiveQueryDuration() {
         if (queryHint != null && queryHint.getQueryDuration() != null) {
             return queryHint.getQueryDuration();
         }
-        return this.expectedQueryDuration;
+        return QueryDuration.LONG;
     }
 
     /**
