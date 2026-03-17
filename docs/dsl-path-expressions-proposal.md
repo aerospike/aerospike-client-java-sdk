@@ -250,23 +250,36 @@ each child within, filtering for price < 10, then navigates to `title`.
 ### Regex filtering: `=~` operator
 
 The `=~` operator applies a POSIX regex match. It maps to `Exp.regexCompare()`.
+The pattern uses `/pattern/flags` syntax, following the Perl/JavaScript/Ruby convention
+that is the most widely recognised regex notation across programming languages.
 
 **Syntax:**
 ```
-expression =~ 'regex_pattern'
-expression =~ (flags) 'regex_pattern'
+expression =~ /regex_pattern/
+expression =~ /regex_pattern/flags
 ```
 
-Where `flags` is an optional integer for regex flags (e.g., `1` for ICASE).
+**Flag letters:**
+
+| Flag | `RegexFlag` constant | Value | Meaning |
+|------|---------------------|-------|---------|
+| `i` | `RegexFlag.ICASE` | `2` | Case-insensitive matching |
+| `x` | `RegexFlag.EXTENDED` | `1` | Use POSIX extended regex syntax |
+| `n` | `RegexFlag.NOSUB` | `4` | Don't report match positions |
+| `m` | `RegexFlag.NEWLINE` | `8` | `.` doesn't match newline; `^`/`$` match at line boundaries |
+
+Flags compose by concatenation: `/pattern/im` means `RegexFlag.ICASE | RegexFlag.NEWLINE`.
+No flags means `RegexFlag.NONE` (`0`).
 
 **Examples:**
 ```
-$.store.book.*[?(@.title =~ 'Lord.*')]              title matches "Lord..."
-$.store.book.*[?(@.author =~ (1) 'j\.r\.r\.')]     case-insensitive match
-$.store.stationery.*[?(@key =~ 'pen.*')]            keys starting with "pen"
+$.store.book.*[?(@.title =~ /Lord.*/)]                title matches "Lord..."
+$.store.book.*[?(@.author =~ /j\.r\.r\./i)]          case-insensitive match
+$.store.stationery.*[?(@key =~ /pen.*/)]              keys starting with "pen"
+$.store.book.*[?(@.title =~ /^the/im)]                case-insensitive, newline-aware
 ```
 
-**Exp equivalent for `@key =~ 'pen.*'`:**
+**Exp equivalent for `@key =~ /pen.*/`:**
 ```java
 CTX.allChildrenWithFilter(
     Exp.regexCompare("pen.*", RegexFlag.NONE,
@@ -274,18 +287,21 @@ CTX.allChildrenWithFilter(
 )
 ```
 
-**Exp equivalent for `@.title =~ (1) 'Lord.*'`:**
+**Exp equivalent for `@.author =~ /j\.r\.r\./i`:**
 ```java
 CTX.allChildrenWithFilter(
-    Exp.regexCompare("Lord.*", RegexFlag.ICASE,
+    Exp.regexCompare("j\\.r\\.r\\.", RegexFlag.ICASE,
         MapExp.getByKey(MapReturnType.VALUE, Exp.Type.STRING,
-            Exp.val("title"),
+            Exp.val("author"),
             Exp.mapLoopVar(LoopVarPart.VALUE)))
 )
 ```
 
-Note: `=~` would be a general DSL operator, not limited to path expressions. It
-works anywhere you have a string expression on the left.
+Note: `=~` is a general DSL operator, not limited to path expressions. It works
+anywhere you have a string expression on the left:
+```
+$.name =~ /^Alice/i                    top-level bin regex match
+```
 
 ---
 
@@ -543,7 +559,7 @@ preserving the parent list/map hierarchy.
 
 **DSL:**
 ```
-$.store.book.*.*[?(@key =~ 'titl.*')].select()
+$.store.book.*.*[?(@key =~ /titl.*/)].select()
 ```
 
 **Exp equivalent:**
@@ -956,11 +972,11 @@ operand
 // Regex comparison operator
 comparisonExpression
     : ... existing ...
-    | additiveExpression '=~' regexPattern                  // regex match
-    | additiveExpression '=~' '(' INT ')' regexPattern      // regex match with flags
+    | additiveExpression '=~' regexLiteral                  // regex match
     ;
 
-regexPattern: QUOTED_STRING;
+regexLiteral: REGEX_LITERAL;
+REGEX_LITERAL: '/' ~[/]+ '/' [ixnm]*;                      // /pattern/flags
 
 // New path functions
 pathFunction
@@ -1015,7 +1031,7 @@ pathFunctionParamName
 | `Exp.intLoopVar(LIST_INDEX)` | `@index` |
 | `MapExp.getByKey(VALUE, T, "f", mapLoopVar(VALUE))` | `@.f` |
 | Chained `MapExp.getByKey` for deep nav | `@.f.g` |
-| `Exp.regexCompare(pat, flags, exp)` | `expr =~ 'pat'` or `expr =~ (flags) 'pat'` |
+| `Exp.regexCompare(pat, flags, exp)` | `expr =~ /pat/flags` |
 | `Exp.removeResult()` | `.remove()` |
 | `CdtExp.selectByPath(LIST, SelectFlags.VALUE, …)` | `$.bin.path.*.leaf.select()` |
 | `CdtExp.selectByPath(LIST, SelectFlags.MAP_KEY, …)` | `$.bin.path.*.select(return: KEY)` |
