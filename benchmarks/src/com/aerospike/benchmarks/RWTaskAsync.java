@@ -301,12 +301,7 @@ public class RWTaskAsync extends RWTask implements Runnable {
                     writeHandle.close();
                     release();
                     if (ex != null) {
-                        Throwable cause = (ex instanceof CompletionException) ? ex.getCause() : ex;
-                        if (cause instanceof AerospikeException) {
-                            writeFailure((AerospikeException) cause);
-                        } else if (cause instanceof Exception) {
-                            writeFailure((Exception) cause);
-                        }
+                        handleWriteException(ex);
                     }
                 });
     }

@@ -57,7 +57,7 @@ public class Arguments {
         args.readPct = workloadContext.readPct;
         args.readMultiBinPct = workloadContext.readMultiBinPct;
         args.writeMultiBinPct = workloadContext.writeMultiBinPct;
-        args.nThreads = benchmarkOpts.getVirtualThreads() != null ? benchmarkOpts.getVirtualThreads() : benchmarkOpts.getThreads();
+        args.nThreads = benchmarkOpts.getThreads() != null ? benchmarkOpts.getThreads() : benchmarkOpts.getVirtualThreads();
         args.numKeys = workloadOpts.getKeys();
         args.startKey = Optional.ofNullable(workloadOpts.getStartKey()).orElse(0L);
         args.objectSpec = toDbObjectSpecs(workloadOpts);

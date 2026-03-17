@@ -56,7 +56,7 @@ public class BenchmarkOptions {
 		threads = value;
 	}
 
-	private Integer threads = 16;
+	private Integer threads;
 
 	/**
 	 * Set the number of virtual threads the client will use to generate load.
@@ -77,7 +77,7 @@ public class BenchmarkOptions {
 		virtualThreads = value;
 	}
 
-	private Integer virtualThreads;
+	private Integer virtualThreads = 16;
 
 	@Option(
 		names = {"-l", "-latency", "--latency"},

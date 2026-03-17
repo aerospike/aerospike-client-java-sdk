@@ -54,18 +54,18 @@ public class AerospikeBenchmark implements Callable<Integer>, Log.Callback {
 
     private Supplier<ExecutorService> executorSupplier;
 
-    private boolean isVirtualThread;
+    private boolean isPlatformThread;
 
     @Override
     public Integer call() throws Exception {
         this.connectionOptions = Optional.ofNullable(connectionOptions).orElse(new ConnectionOptions());
         this.workloadOptions = Optional.ofNullable(workloadOptions).orElse(new WorkloadOptions());
         this.benchmarkOptions = Optional.ofNullable(benchmarkOptions).orElse(new BenchmarkOptions());
-        this.isVirtualThread = benchmarkOptions.getVirtualThreads() != null;
+        this.isPlatformThread = benchmarkOptions.getThreads() != null;
 
         try (BenchmarkContext benchmarkContext = BenchmarkContext.buildContext(connectionOptions, workloadOptions, benchmarkOptions)) {
             executorSupplier = () ->
-                    isVirtualThread
+                    !isPlatformThread
                             ? Executors.newVirtualThreadPerTaskExecutor()
                             : Executors.newFixedThreadPool(benchmarkContext.getArguments().getThreads());
 
