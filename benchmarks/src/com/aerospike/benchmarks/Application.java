@@ -71,7 +71,7 @@ public class Application {
         @Override
         public String[] getVersion() throws Exception {
             Properties props = new Properties();
-            try (InputStream in = Application.class.getResourceAsStream("project.properties")) {
+            try (InputStream in = Application.class.getClassLoader().getResourceAsStream("project.properties")) {
                 props.load(in);
             }
             return new String[] { props.getProperty("version", "developer-build") };
