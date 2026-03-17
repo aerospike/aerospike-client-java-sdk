@@ -1310,7 +1310,7 @@ public class Session {
 				"sindex-create:namespace=": "sindex-create:ns=";
 
 		String indexTypeString = (indexType == IndexType.INTEGER &&
-			currentServerVersion.isLessThan(Version.SERVER_VERSION_8_2))?
+			currentServerVersion.isLessThan(Version.SERVER_VERSION_8_1_2))?
 				"NUMERIC" : indexType.toString();
 
 		sb.append(createIndexCommand);
