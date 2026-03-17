@@ -185,9 +185,11 @@ public class SystemSettingsRegistry {
             result = codeProvidedSettings.mergeWith(result);
         }
 
-        // Layer 3: YAML default settings
-        result = result.mergeWith(defaultSettings);
-
+        // Layer 3: YAML default settings (only when explicitly set; otherwise code-provided wins)
+        if (defaultSettings != SystemSettings.DEFAULT) {
+             result = defaultSettings.mergeWith(result);
+        }
+        
         // Layer 4: YAML cluster-specific settings (highest priority)
         if (clusterName != null) {
             SystemSettings clusterSpecific = clusterSettings.get(clusterName);
