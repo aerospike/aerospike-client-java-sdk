@@ -16,6 +16,8 @@
  */
 package com.aerospike.client.fluent.query;
 
+import java.util.function.Function;
+
 import com.aerospike.client.fluent.policy.QueryDuration;
 
 /**
@@ -40,4 +42,36 @@ public interface IndexBasedQueryBuilderInterface<T extends IndexBasedQueryBuilde
      * @return this QueryBuilder for method chaining
      */
     T expectedQueryDuration(QueryDuration duration);
+
+    /**
+     * Provides hints to influence secondary index selection and query duration for the
+     * {@code where} clause on this query.
+     *
+     * <p>The hint is configured via a lambda that receives a {@link QueryHint.Start} builder.
+     * Available options (all optional, compose in any order):</p>
+     * <ul>
+     *   <li>{@code forIndex(name)} &ndash; use a specific secondary index by name</li>
+     *   <li>{@code forBin(name)} &ndash; prefer the secondary index on a specific bin</li>
+     *   <li>{@code queryDuration(d)} &ndash; override expected query duration</li>
+     * </ul>
+     *
+     * <p>{@code forIndex} and {@code forBin} are mutually exclusive; attempting to call both
+     * will not compile.</p>
+     *
+     * <p>If a query duration is specified here, it takes precedence over
+     * {@link #expectedQueryDuration(QueryDuration)}.</p>
+     *
+     * <p>Example:</p>
+     * <pre>{@code
+     * session.query(dataSet)
+     *     .where("$.age > 30")
+     *     .withHint(hint -> hint.forIndex("age_idx").queryDuration(QueryDuration.SHORT))
+     *     .execute();
+     * }</pre>
+     *
+     * @param configurator a function that configures the hint
+     * @return this QueryBuilder for method chaining
+     * @throws IllegalArgumentException if called more than once
+     */
+    T withHint(Function<QueryHint.Start, ? extends QueryHint.Result> configurator);
 }

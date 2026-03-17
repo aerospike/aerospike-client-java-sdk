@@ -47,6 +47,7 @@ import com.aerospike.client.fluent.info.classes.NamespaceDetail;
 import com.aerospike.client.fluent.info.classes.Sindex;
 import com.aerospike.client.fluent.policy.Behavior;
 import com.aerospike.client.fluent.policy.Behavior.Selectors;
+import com.aerospike.client.fluent.policy.QueryDuration;
 import com.aerospike.client.fluent.query.SortDir;
 import com.aerospike.client.fluent.query.SortProperties;
 import com.aerospike.client.fluent.task.ExecuteTask;
@@ -832,6 +833,41 @@ public class QueryExamples {
 
             session.query(customerDataSet)
                 .readingOnlyBins("name", "age")
+                .execute();
+
+            // ---------------------------
+            // Query hints
+            // ---------------------------
+            System.out.println("\n--- Query hints ---");
+
+            // Hint with index name: tell the server to use a specific secondary index
+            session.query(customerDataSet)
+                .where("$.age > 30")
+                .withHint(hint -> hint.forIndex("age_idx"))
+                .execute();
+
+            // Hint with bin name: prefer the secondary index on a given bin
+            session.query(customerDataSet)
+                .where("$.age > 30")
+                .withHint(hint -> hint.forBin("age"))
+                .execute();
+
+            // Hint with query duration only: override expected duration
+            session.query(customerDataSet)
+                .where("$.age > 30")
+                .withHint(hint -> hint.queryDuration(QueryDuration.SHORT))
+                .execute();
+
+            // Hint combining index name and query duration
+            session.query(customerDataSet)
+                .where("$.age > 30")
+                .withHint(hint -> hint.forIndex("age_idx").queryDuration(QueryDuration.SHORT))
+                .execute();
+
+            // Hint combining query duration first, then bin name
+            session.query(customerDataSet)
+                .where("$.age > 30")
+                .withHint(hint -> hint.queryDuration(QueryDuration.SHORT).forBin("age"))
                 .execute();
 
             // ---------------------------

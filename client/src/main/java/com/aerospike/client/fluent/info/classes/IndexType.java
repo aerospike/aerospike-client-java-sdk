@@ -18,6 +18,7 @@ package com.aerospike.client.fluent.info.classes;
 
 public enum IndexType {
     STRING,
+    NUMERIC,
     INTEGER,
     GEOJSON,
     BLOB,

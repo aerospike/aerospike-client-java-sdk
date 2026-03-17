@@ -17,6 +17,7 @@
 package com.aerospike.client.fluent.query;
 
 import java.util.Objects;
+import java.util.function.Function;
 
 import com.aerospike.client.fluent.AbstractFilterableBuilder;
 import com.aerospike.client.fluent.AerospikeException;
@@ -83,6 +84,7 @@ public class QueryBuilder extends AbstractFilterableBuilder implements
     private Txn txnToUse;
     private int recordsPerSecond = 0;
     private QueryDuration expectedQueryDuration = QueryDuration.LONG;
+    private QueryHint.Result queryHint;
     private java.util.List<com.aerospike.client.fluent.Operation> operations = null;
     private boolean withNoBins = false;
     private boolean transactionSet;
@@ -380,6 +382,37 @@ public class QueryBuilder extends AbstractFilterableBuilder implements
      * @return the expected query duration (LONG, SHORT, or LONG_RELAX_AP)
      */
     public QueryDuration getExpectedQueryDuration() {
+        return this.expectedQueryDuration;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public QueryBuilder withHint(Function<QueryHint.Start, ? extends QueryHint.Result> configurator) {
+        if (this.queryHint != null) {
+            throw new IllegalArgumentException("withHint() can only be called once per query");
+        }
+        QueryHint.Start start = QueryHint.create();
+        this.queryHint = configurator.apply(start);
+        return this;
+    }
+
+    /**
+     * Gets the query hint, or {@code null} if none was set.
+     */
+    public QueryHint.Result getQueryHint() {
+        return this.queryHint;
+    }
+
+    /**
+     * Returns the effective query duration, considering both {@link #expectedQueryDuration}
+     * and the hint's query duration (hint takes precedence if set).
+     */
+    public QueryDuration getEffectiveQueryDuration() {
+        if (queryHint != null && queryHint.getQueryDuration() != null) {
+            return queryHint.getQueryDuration();
+        }
         return this.expectedQueryDuration;
     }
 

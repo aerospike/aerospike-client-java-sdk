@@ -25,6 +25,7 @@ import com.aerospike.client.fluent.policy.QueryDuration;
 import com.aerospike.client.fluent.policy.Settings;
 import com.aerospike.client.fluent.query.Filter;
 import com.aerospike.client.fluent.query.QueryBuilder;
+import com.aerospike.client.fluent.query.QueryHint;
 
 public final class QueryCommand extends Command {
 	final String set;
@@ -43,13 +44,13 @@ public final class QueryCommand extends Command {
 	) {
 		super(cluster, set.getNamespace(), null, filterExp, policy.getReplicaOrder(), policy);
 		this.set = set.getSet();
-		this.filter = filter;
+		this.filter = applyHintToFilter(filter, qb.getQueryHint());
 
 		this.pf = PartitionFilter.range(qb.getStartPartition(),
 	        qb.getEndPartition() - qb.getStartPartition());
 
 		this.recordsPerSecond = qb.getRecordsPerSecond();
-		this.expectedDuration = qb.getExpectedQueryDuration();
+		this.expectedDuration = qb.getEffectiveQueryDuration();
 		this.binNames = qb.getBinNames();
 		this.maxConcurrentNodes = policy.getMaxConcurrentNodes();
 		this.readTouchTtlPercent = policy.getResetTtlOnReadAtPercent();
@@ -84,5 +85,20 @@ public final class QueryCommand extends Command {
 
     public boolean isDone() {
     	return pf.isDone();
+    }
+
+    private static Filter applyHintToFilter(Filter filter, QueryHint.Result hint) {
+        if (hint == null || filter == null) {
+            return filter;
+        }
+        String hintIndex = hint.getIndexName();
+        String hintBin = hint.getBinName();
+        if (hintIndex == null && hintBin == null) {
+            return filter;
+        }
+        if (hintIndex != null) {
+            return Filter.withOverrides(filter, null, hintIndex);
+        }
+        return Filter.withOverrides(filter, hintBin, null);
     }
 }

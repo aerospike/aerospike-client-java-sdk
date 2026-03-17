@@ -624,6 +624,25 @@ public final class Filter {
 		return new Filter(indexName, null, type, ParticleType.GEOJSON, Value.get(point), Value.get(point));
 	}
 
+	/**
+	 * Create a copy of the given filter with the bin name and/or index name overridden.
+	 * Used by query hints to redirect which secondary index is used.
+	 *
+	 * @param source    the filter to copy
+	 * @param name      the bin name override (may be null to keep the original)
+	 * @param indexName the index name override (may be null to keep the original)
+	 * @return a new Filter with the overridden values
+	 */
+	public static Filter withOverrides(Filter source, String name, String indexName) {
+		return new Filter(
+			name != null ? name : source.name,
+			indexName != null ? indexName : source.indexName,
+			source.colType, source.valType,
+			source.begin, source.end,
+			source.packedCtx, source.packedExp
+		);
+	}
+
 	private final String name;
 	private final String indexName;
 	private final IndexCollectionType colType;
