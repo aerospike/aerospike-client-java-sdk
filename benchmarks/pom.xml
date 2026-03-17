@@ -8,9 +8,9 @@
         <artifactId>aerospike-parent</artifactId>
         <version>0.0.1</version>
     </parent>
-    <artifactId>aerospike-benchmarks</artifactId>
+    <artifactId>aerospike-benchmarks-fluent</artifactId>
     <packaging>jar</packaging>
-    <name>aerospike-benchmarks</name>
+    <name>aerospike-benchmarks-fluent</name>
     <properties>
         <maven.compiler.source>21</maven.compiler.source>
         <maven.compiler.target>21</maven.compiler.target>
