@@ -206,6 +206,36 @@ $.store.book.*[?(@.price > 5 and @.price < 20)]    books in a price range
 
 Maps to `CTX.allChildrenWithFilter(filterExp)`.
 
+### Why `[?(…)]` — syntax rationale
+
+The filter syntax follows the **JSONPath** convention (Stefan Goessner, 2007), which
+is the de facto standard for path expressions in JSON data (analogous to XPath for XML).
+Each character serves a specific disambiguation purpose:
+
+- **`[` `]`** — Brackets already mean "subscript operation on the current path element"
+  in the DSL (`[0]` for index, `[=5]` for value matching). They are the natural container
+  for "apply an operation to this path element."
+- **`?`** — Signals "this is a filter predicate" rather than an index or value lookup.
+  Without it, the parser cannot distinguish `[@.price < 10]` from a complex index
+  expression. The `?` is the disambiguator.
+- **`(` `)`** — Delimits the boolean expression, which may itself contain parentheses
+  for grouping (e.g., `[?(@.price < 10 and (@.category == 'fiction' or @.inStock))]`).
+  Without inner parentheses, a closing `]` would be ambiguous if the expression
+  contained brackets.
+
+Alternatives considered:
+
+| Syntax | Problem |
+|--------|---------|
+| `*{@.price < 10}` | `{}` already means map index/value in the DSL |
+| `*(@.price < 10)` | Ambiguous with path functions like `.select()` |
+| `*[@.price < 10]` | No `?` — ambiguous with list index access |
+| `*<@.price < 10>` | `<` and `>` conflict with comparison operators |
+| `*(filter: @.price < 10)` | Verbose, invented syntax unfamiliar to developers |
+
+The JSONPath convention was chosen for least-surprise: anyone who has used JSONPath,
+jq, MongoDB projections, or SQL/JSON path will recognise `[?(...)]` immediately.
+
 ### Chaining wildcards
 
 Multiple `*` can appear in a single path, each with its own filter scope:
