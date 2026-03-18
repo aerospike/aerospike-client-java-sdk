@@ -113,8 +113,10 @@ public class AerospikeBenchmark implements Callable<Integer>, Log.Callback {
 
             for (int i = 0; i < threads; i++) {
                 int inFlightPerThreadCap = perThread + (i < remainder ? 1 : 0);
+
                 RWTaskAsync rt = new RWTaskAsync(
-                        arguments, counters, benchmarkContext.getSession(), inFlightPerThreadCap);
+                        arguments, counters, benchmarkContext.getSession(), new Semaphore(inFlightPerThreadCap),
+                        inFlightPerThreadCap);
                 tasks[i] = rt;
                 es.execute(rt);
             }

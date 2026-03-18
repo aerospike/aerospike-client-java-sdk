@@ -58,8 +58,8 @@ public class InsertTaskAsync extends InsertTask implements Runnable {
                     }
                     processSingleKeyWriteRecord(results);
                 }).whenComplete((r, ex) -> {
-                    release();
                     handle.close();
+                    release();
                     if (ex != null) {
                         if (ex instanceof AerospikeException) {
                             writeFailure((AerospikeException) ex);
