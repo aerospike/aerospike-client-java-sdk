@@ -6,6 +6,8 @@ import com.aerospike.client.fluent.util.RandomShift;
 
 import java.util.List;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.LockSupport;
 import java.util.function.Consumer;
@@ -15,56 +17,27 @@ public class RWTaskAsync extends RWTask implements Runnable {
     private final Session session;
     private final boolean useLatency;
     private final int maxRequestInFlight;
-    private final AtomicInteger localInFlight = new AtomicInteger(0);
-    private final boolean isVirtualThread;
-
-
+    private final Semaphore inflightReqs;
 
     public RWTaskAsync(Arguments args, CounterStore counters,
-                                   Session session, int maxLocalInFlight) {
+                       Session session, Semaphore semaphore, int maxRequestInFlight) {
         super(args, counters);
         this.session = session;
         this.useLatency = counters.read.latency != null;
-        this.maxRequestInFlight = maxLocalInFlight;
-        this.isVirtualThread = Thread.currentThread().isVirtual();
+        this.inflightReqs = semaphore;
+        this.maxRequestInFlight = maxRequestInFlight;
     }
 
-    private boolean tryAcquire() {
-        int spins = 0;
-        while (!shouldStop) {
-            int current = localInFlight.get();
-            if (current >= maxRequestInFlight) {
-                spins = backoff(spins);
-                continue;
-            }
-            if (localInFlight.compareAndSet(current, current + 1)) {
-                return true;
-            }
+    private void acquire() {
+        try {
+            inflightReqs.acquire();   // blocks if limit reached
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
         }
-        return false;
     }
-
-    private int backoff(int spins) {
-        if (isVirtualThread) {
-            LockSupport.parkNanos(1_000);  // 1μs
-            spins = 0;
-        } else {
-            spins++;
-            if (spins < 10) {
-                Thread.onSpinWait();
-            } else if (spins < 50) {
-                Thread.yield(); // give up time-slice
-            } else {
-                LockSupport.parkNanos(10_000); // 10μs sleep, reset
-                spins = 0;
-            }
-        }
-        return spins;
-    }
-
 
     private void release() {
-        localInFlight.decrementAndGet();
+        inflightReqs.release();
     }
 
     /**
@@ -72,19 +45,16 @@ public class RWTaskAsync extends RWTask implements Runnable {
      * Call after stop() for graceful shutdown.
      */
     public boolean awaitDrain(long timeoutMs) throws InterruptedException {
-        long deadline = System.currentTimeMillis() + timeoutMs;
-        while (localInFlight.get() > 0) {
-            if (System.currentTimeMillis() > deadline) {
-                return false;  // timed out with pending operations
-            }
-            Thread.sleep(10);
+        boolean acquired = inflightReqs.tryAcquire(maxRequestInFlight, timeoutMs, TimeUnit.MILLISECONDS);
+        if (acquired) {
+            inflightReqs.release(maxRequestInFlight);
         }
-        return true;
+        return acquired;
     }
 
     @Override
     protected void get(Key key, String binName) {
-        if (!tryAcquire()) return;
+        acquire();
         long begin = useLatency ? System.nanoTime() : 0;
         var handle = session.query(key)
                 .readingOnlyBins(binName)
@@ -98,15 +68,15 @@ public class RWTaskAsync extends RWTask implements Runnable {
                     processSingleKeyReadRecord(key, results);
                 })
                 .whenComplete((r, ex) -> {
-                    release();
                     handle.close();
+                    release();
                     if (ex != null) handleReadException(ex);
                 });
     }
 
     @Override
     protected void get(Key key) {
-        if (!tryAcquire()) return;
+        acquire();
         long begin = useLatency ? System.nanoTime() : 0;
         var handle = session.query(key)
                 .executeAsync(ErrorStrategy.IN_STREAM);
@@ -118,15 +88,15 @@ public class RWTaskAsync extends RWTask implements Runnable {
                     processSingleKeyReadRecord(key, results);
                 })
                 .whenComplete((r, ex) -> {
-                    release();
                     handle.close();
+                    release();
                     if (ex != null) handleReadException(ex);
                 });
     }
 
     @Override
     protected void upsert(Key key, Value[] values, String... bins) {
-        if (!tryAcquire()) return;
+        acquire();
         long begin = counters.write.latency != null ? System.nanoTime() : 0;
         var builder = session.upsert(key);
         for (int i = 0; i < values.length; i++) {
@@ -140,15 +110,15 @@ public class RWTaskAsync extends RWTask implements Runnable {
                     }
                     processSingleKeyWriteRecord(results);
                 }).whenComplete((r, ex) -> {
-                    release();
                     handle.close();
+                    release();
                     if (ex != null) handleWriteException(ex);
                 });
     }
 
     @Override
     protected void createOrReplace(Key key, Value[] values, String... bins) {
-        if (!tryAcquire()) return;
+        acquire();
         long begin = counters.write.latency != null ? System.nanoTime() : 0;
         var builder = session.replace(key);
         for (int i = 0; i < values.length; i++) {
@@ -162,8 +132,8 @@ public class RWTaskAsync extends RWTask implements Runnable {
                     }
                     processSingleKeyWriteRecord(results);
                 }).whenComplete((r, ex) -> {
-                    release();
                     handle.close();
+                    release();
                     if (ex != null) handleWriteException(ex);
                 });
     }
@@ -171,13 +141,13 @@ public class RWTaskAsync extends RWTask implements Runnable {
 
     @Override
     protected void getBinsAndIncrement(Key key, int incrementedBy) {
-        if (!tryAcquire()) return;
+        acquire();
         readRecordForUpdateAsync(key, rec -> incrementCounterAsync(key, rec, incrementedBy));
     }
 
     @Override
     protected void get(List<Key> keys, String binName) {
-        if (!tryAcquire()) return;
+        acquire();
         long begin = System.nanoTime();
         var handle = session.query(keys).bins(binName)
                 .executeAsync(ErrorStrategy.IN_STREAM);
@@ -190,15 +160,15 @@ public class RWTaskAsync extends RWTask implements Runnable {
                     handleBatchReadResult(results);
                 })
                 .whenComplete((r, ex) -> {
-                    release();
                     handle.close();
+                    release();
                     if (ex != null) handleReadException(ex);
                 });
     }
 
     @Override
     protected void get(List<Key> keys) {
-        if (!tryAcquire()) return;
+        acquire();
         long begin = System.nanoTime();
         var handle = session.query(keys)
                 .executeAsync(ErrorStrategy.IN_STREAM);
@@ -211,8 +181,8 @@ public class RWTaskAsync extends RWTask implements Runnable {
                     handleBatchReadResult(results);
                 })
                 .whenComplete((r, ex) -> {
-                    release();
                     handle.close();
+                    release();
                     if (ex != null) handleReadException(ex);
                 });
     }

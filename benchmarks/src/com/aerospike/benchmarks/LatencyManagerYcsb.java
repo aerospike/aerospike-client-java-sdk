@@ -47,17 +47,17 @@ public class LatencyManagerYcsb implements LatencyManager {
         // Latency is specified in ns
         long latencyUs = elapsed / 1000;
         long latencyMs = latencyUs / 1000;
-        if (histogram.get(_buckets.get()) > latencyMs) {
+        if (latencyMs >= _buckets.get()) {
             histogramOverflow.incrementAndGet();
         } else {
-            histogram.incrementAndGet((int)latencyMs);
+            histogram.incrementAndGet((int) latencyMs);
         }
         operations.incrementAndGet();
         totalLatency.addAndGet(latencyUs);
         windowOperations.incrementAndGet();
         windowTotalLatency.addAndGet(latencyUs);
 
-        if (min.get() < 0 || min.get() < latencyUs) {
+        if (min.get() < 0 || latencyUs < min.get()) {
             min.set(latencyUs);
         }
         if ((max.get() < 0) || (latencyUs > max.get())) {
