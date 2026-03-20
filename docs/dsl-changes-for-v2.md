@@ -48,7 +48,10 @@
 
 ## Regex filtering: `=~` operator
 
-The `=~` operator applies a POSIX regex match. It maps to `Exp.regexCompare()`.
+The `=~` operator applies an ICU regex match. It maps to `Exp.regexCompare()`.
+The server uses the [ICU Regular Expressions](https://unicode-org.github.io/icu/userguide/strings/regexp.html)
+engine, which provides Perl-compatible regex syntax with full Unicode support.
+
 The pattern uses `/pattern/flags` syntax, following the Perl/JavaScript/Ruby convention
 that is the most widely recognised regex notation across programming languages.
 
@@ -62,15 +65,30 @@ The left hand expression must evaluate to a String type.
 
 **Flag letters:**
 
-| Flag | `RegexFlag` constant | Value | Meaning |
-|------|---------------------|-------|---------|
-| `i` | `RegexFlag.ICASE` | `2` | Case-insensitive matching |
-| `x` | `RegexFlag.EXTENDED` | `1` | Use POSIX extended regex syntax |
-| `n` | `RegexFlag.NOSUB` | `4` | Don't report match positions |
-| `m` | `RegexFlag.NEWLINE` | `8` | `.` doesn't match newline; `^`/`$` match at line boundaries |
+| Flag | ICU constant | Meaning |
+|------|---|---|
+| `i` | `UREGEX_CASE_INSENSITIVE` | Case-insensitive matching (full Unicode case folding) |
+| `m` | `UREGEX_MULTILINE` | `^` and `$` match at line boundaries, not just start/end of string |
+| `s` | `UREGEX_DOTALL` | `.` matches line terminators (by default `.` does not match `\n`) |
+| `x` | `UREGEX_COMMENTS` | Free-format mode: unescaped whitespace is ignored, `#` starts a comment to end-of-line |
+| `w` | `UREGEX_UWORD` | Unicode-aware word boundaries for `\b` (uses UAX #29 instead of simple `\w`/`\W` classification) |
 
-Flags compose by concatenation: `/pattern/im` means `RegexFlag.ICASE | RegexFlag.NEWLINE`.
-No flags means `RegexFlag.NONE` (`0`).
+Flags compose by concatenation: `/pattern/im` means case-insensitive + multiline.
+No flags means defaults (case-sensitive, single-line `^`/`$`, `.` does not match `\n`).
+
+> **Note — change from POSIX to ICU:** Earlier versions of Aerospike used POSIX regex
+> with flags `EXTENDED`, `ICASE`, `NOSUB`, and `NEWLINE`. The ICU engine replaces these:
+> - POSIX `EXTENDED` is gone — ICU always uses Perl-like syntax, which is a superset.
+> - POSIX `NOSUB` is gone — it suppressed sub-match reporting, which was never relevant
+>   for `Exp.regexCompare()` (boolean result only).
+> - POSIX `NEWLINE` combined two behaviours that ICU separates: use `m` for multiline
+>   `^`/`$` matching, and `s` for making `.` match newlines.
+>
+> ICU patterns support features not available in POSIX, including lookahead/lookbehind
+> (`(?=...)`, `(?!...)`, `(?<=...)`, `(?<!...)`), non-capturing groups (`(?:...)`),
+> named capture groups (`(?<name>...)`), Unicode property escapes (`\p{Letter}`,
+> `\p{Script=Cyrillic}`), possessive quantifiers (`*+`, `++`, `?+`), and inline flag
+> toggling (`(?i)`, `(?m:...)` etc.) within patterns.
 
 **Examples:**
 ```
@@ -78,7 +96,10 @@ $.name =~ /^Alice/i                                name starts with Alice, case 
 $.store.book.*[?(@.title =~ /Lord.*/)]                title matches "Lord..."
 $.store.book.*[?(@.author =~ /j\.r\.r\./i)]          case-insensitive match
 $.store.stationery.*[?(@key =~ /pen.*/)]              keys starting with "pen"
-$.store.book.*[?(@.title =~ /^the/im)]                case-insensitive, newline-aware
+$.store.book.*[?(@.title =~ /^the/im)]                case-insensitive, multiline
+$.desc =~ /hello\s+world/x                            free-format: whitespace in pattern ignored
+$.name =~ /\p{Script=Greek}/                           match Greek characters (ICU Unicode property)
+$.text =~ /foo(?=bar)/                                 lookahead: "foo" only if followed by "bar"
 ```
 
 **Exp equivalent for `$.name =~ /^Alice/i`:**

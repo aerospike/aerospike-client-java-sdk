@@ -251,7 +251,10 @@ each child within, filtering for price < 10, then navigates to `title`.
 
 ### Regex filtering: `=~` operator
 
-The `=~` operator applies a POSIX regex match. It maps to `Exp.regexCompare()`.
+The `=~` operator applies an ICU regex match. It maps to `Exp.regexCompare()`.
+The server uses the [ICU Regular Expressions](https://unicode-org.github.io/icu/userguide/strings/regexp.html)
+engine, which provides Perl-compatible regex syntax with full Unicode support.
+
 The pattern uses `/pattern/flags` syntax, following the Perl/JavaScript/Ruby convention
 that is the most widely recognised regex notation across programming languages.
 
@@ -263,22 +266,27 @@ expression =~ /regex_pattern/flags
 
 **Flag letters:**
 
-| Flag | `RegexFlag` constant | Value | Meaning |
-|------|---------------------|-------|---------|
-| `i` | `RegexFlag.ICASE` | `2` | Case-insensitive matching |
-| `x` | `RegexFlag.EXTENDED` | `1` | Use POSIX extended regex syntax |
-| `n` | `RegexFlag.NOSUB` | `4` | Don't report match positions |
-| `m` | `RegexFlag.NEWLINE` | `8` | `.` doesn't match newline; `^`/`$` match at line boundaries |
+| Flag | ICU constant | Meaning |
+|------|---|---|
+| `i` | `UREGEX_CASE_INSENSITIVE` | Case-insensitive matching (full Unicode case folding) |
+| `m` | `UREGEX_MULTILINE` | `^` and `$` match at line boundaries, not just start/end of string |
+| `s` | `UREGEX_DOTALL` | `.` matches line terminators (by default `.` does not match `\n`) |
+| `x` | `UREGEX_COMMENTS` | Free-format mode: unescaped whitespace is ignored, `#` starts a comment to end-of-line |
+| `w` | `UREGEX_UWORD` | Unicode-aware word boundaries for `\b` (uses UAX #29 instead of simple `\w`/`\W` classification) |
 
-Flags compose by concatenation: `/pattern/im` means `RegexFlag.ICASE | RegexFlag.NEWLINE`.
-No flags means `RegexFlag.NONE` (`0`).
+Flags compose by concatenation: `/pattern/im` means case-insensitive + multiline.
+No flags means defaults (case-sensitive, single-line `^`/`$`, `.` does not match `\n`).
+
+ICU patterns support features not available in POSIX, including lookahead/lookbehind
+(`(?=...)`, `(?!...)`), non-capturing groups (`(?:...)`), Unicode property escapes
+(`\p{Letter}`), and possessive quantifiers (`*+`, `++`).
 
 **Examples:**
 ```
 $.store.book.*[?(@.title =~ /Lord.*/)]                title matches "Lord..."
 $.store.book.*[?(@.author =~ /j\.r\.r\./i)]          case-insensitive match
 $.store.stationery.*[?(@key =~ /pen.*/)]              keys starting with "pen"
-$.store.book.*[?(@.title =~ /^the/im)]                case-insensitive, newline-aware
+$.store.book.*[?(@.title =~ /^the/im)]                case-insensitive, multiline
 ```
 
 **Exp equivalent for `@key =~ /pen.*/`:**
@@ -978,7 +986,7 @@ comparisonExpression
     ;
 
 regexLiteral: REGEX_LITERAL;
-REGEX_LITERAL: '/' ~[/]+ '/' [ixnm]*;                      // /pattern/flags
+REGEX_LITERAL: '/' ~[/]+ '/' [imswx]*;                      // /pattern/flags (ICU)
 
 // New path functions
 pathFunction
