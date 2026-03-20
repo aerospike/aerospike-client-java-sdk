@@ -16,22 +16,29 @@
  */
 package com.aerospike.dsl.visitor;
 
-import static com.aerospike.dsl.parts.AbstractPart.PartType.BIN_PART;
-import static com.aerospike.dsl.parts.AbstractPart.PartType.EXPRESSION_CONTAINER;
-import static com.aerospike.dsl.parts.AbstractPart.PartType.PATH_OPERAND;
-import static com.aerospike.dsl.parts.AbstractPart.PartType.PLACEHOLDER_OPERAND;
-import static com.aerospike.dsl.parts.ExpressionContainer.ExprPartsOperation.ADD;
-import static com.aerospike.dsl.parts.ExpressionContainer.ExprPartsOperation.AND;
-import static com.aerospike.dsl.parts.ExpressionContainer.ExprPartsOperation.DIV;
-import static com.aerospike.dsl.parts.ExpressionContainer.ExprPartsOperation.EQ;
-import static com.aerospike.dsl.parts.ExpressionContainer.ExprPartsOperation.GT;
-import static com.aerospike.dsl.parts.ExpressionContainer.ExprPartsOperation.GTEQ;
-import static com.aerospike.dsl.parts.ExpressionContainer.ExprPartsOperation.LT;
-import static com.aerospike.dsl.parts.ExpressionContainer.ExprPartsOperation.LTEQ;
-import static com.aerospike.dsl.parts.ExpressionContainer.ExprPartsOperation.MUL;
-import static com.aerospike.dsl.parts.ExpressionContainer.ExprPartsOperation.NOTEQ;
-import static com.aerospike.dsl.parts.ExpressionContainer.ExprPartsOperation.OR;
-import static com.aerospike.dsl.parts.ExpressionContainer.ExprPartsOperation.SUB;
+import static com.aerospike.dsl.parts.AbstractPart.PartType.*;
+import static com.aerospike.dsl.parts.ExpressionContainer.ExprPartsOperation.*;
+import static com.aerospike.dsl.parts.ExpressionContainer.ExprPartsOperation.ABS;
+import static com.aerospike.dsl.parts.ExpressionContainer.ExprPartsOperation.CEIL;
+import static com.aerospike.dsl.parts.ExpressionContainer.ExprPartsOperation.COUNT_ONE_BITS;
+import static com.aerospike.dsl.parts.ExpressionContainer.ExprPartsOperation.FIND_BIT_LEFT;
+import static com.aerospike.dsl.parts.ExpressionContainer.ExprPartsOperation.FIND_BIT_RIGHT;
+import static com.aerospike.dsl.parts.ExpressionContainer.ExprPartsOperation.FLOOR;
+import static com.aerospike.dsl.parts.ExpressionContainer.ExprPartsOperation.IN;
+import static com.aerospike.dsl.parts.ExpressionContainer.ExprPartsOperation.INT_AND;
+import static com.aerospike.dsl.parts.ExpressionContainer.ExprPartsOperation.INT_NOT;
+import static com.aerospike.dsl.parts.ExpressionContainer.ExprPartsOperation.INT_OR;
+import static com.aerospike.dsl.parts.ExpressionContainer.ExprPartsOperation.INT_XOR;
+import static com.aerospike.dsl.parts.ExpressionContainer.ExprPartsOperation.LOG;
+import static com.aerospike.dsl.parts.ExpressionContainer.ExprPartsOperation.LOGICAL_R_SHIFT;
+import static com.aerospike.dsl.parts.ExpressionContainer.ExprPartsOperation.L_SHIFT;
+import static com.aerospike.dsl.parts.ExpressionContainer.ExprPartsOperation.MAX_FUNC;
+import static com.aerospike.dsl.parts.ExpressionContainer.ExprPartsOperation.MIN_FUNC;
+import static com.aerospike.dsl.parts.ExpressionContainer.ExprPartsOperation.MOD;
+import static com.aerospike.dsl.parts.ExpressionContainer.ExprPartsOperation.POW;
+import static com.aerospike.dsl.parts.ExpressionContainer.ExprPartsOperation.R_SHIFT;
+import static com.aerospike.dsl.parts.ExpressionContainer.ExprPartsOperation.TO_FLOAT;
+import static com.aerospike.dsl.parts.ExpressionContainer.ExprPartsOperation.TO_INT;
 import static com.aerospike.dsl.util.ValidationUtils.validateComparableTypes;
 import static com.aerospike.dsl.visitor.VisitorUtils.ArithmeticTermType.ADDEND;
 import static com.aerospike.dsl.visitor.VisitorUtils.ArithmeticTermType.DIVIDEND;
@@ -41,19 +48,12 @@ import static com.aerospike.dsl.visitor.VisitorUtils.ArithmeticTermType.MULTIPLI
 import static com.aerospike.dsl.visitor.VisitorUtils.ArithmeticTermType.MULTIPLIER;
 import static com.aerospike.dsl.visitor.VisitorUtils.ArithmeticTermType.SUBTR;
 
-import java.util.ArrayList;
-import java.util.Base64;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.function.BinaryOperator;
-import java.util.function.Consumer;
-import java.util.function.Predicate;
-import java.util.function.UnaryOperator;
+import java.util.*;
+import java.util.function.*;
 
+import com.aerospike.client.fluent.cdt.ListReturnType;
+import com.aerospike.client.fluent.exp.ListExp;
+import com.aerospike.dsl.parts.operand.*;
 import org.antlr.v4.runtime.misc.Pair;
 import org.antlr.v4.runtime.tree.ParseTree;
 
@@ -73,11 +73,6 @@ import com.aerospike.dsl.parts.controlstructure.ExclusiveStructure;
 import com.aerospike.dsl.parts.controlstructure.OrStructure;
 import com.aerospike.dsl.parts.controlstructure.WhenStructure;
 import com.aerospike.dsl.parts.controlstructure.WithStructure;
-import com.aerospike.dsl.parts.operand.IntOperand;
-import com.aerospike.dsl.parts.operand.MetadataOperand;
-import com.aerospike.dsl.parts.operand.PlaceholderOperand;
-import com.aerospike.dsl.parts.operand.StringOperand;
-import com.aerospike.dsl.parts.operand.WithOperand;
 import com.aerospike.dsl.parts.path.BinPart;
 import com.aerospike.dsl.parts.path.Path;
 import com.aerospike.dsl.util.TypeUtils;
@@ -152,9 +147,14 @@ public class VisitorUtils {
             case MUL -> Exp::mul;
             case DIV -> Exp::div;
             case MOD -> Exp::mod;
+            case POW -> Exp::pow;
+            case LOG -> Exp::log;
+            case FIND_BIT_LEFT -> Exp::lscan;
+            case FIND_BIT_RIGHT -> Exp::rscan;
             case INT_XOR -> Exp::intXor;
             case L_SHIFT -> Exp::lshift;
-            case R_SHIFT -> Exp::rshift;
+            case R_SHIFT -> Exp::arshift;
+            case LOGICAL_R_SHIFT -> Exp::rshift;
             case INT_AND -> Exp::intAnd;
             case INT_OR -> Exp::intOr;
             case AND -> Exp::and;
@@ -180,6 +180,12 @@ public class VisitorUtils {
         return switch (exprPartsOperation) {
             case INT_NOT -> Exp::intNot;
             case NOT -> Exp::not;
+            case ABS -> Exp::abs;
+            case CEIL -> Exp::ceil;
+            case FLOOR -> Exp::floor;
+            case COUNT_ONE_BITS -> Exp::count;
+            case TO_INT -> Exp::toInt;
+            case TO_FLOAT -> Exp::toFloat;
             default -> throw new NoApplicableFilterException("ExprPartsOperation has no matching UnaryOperator<Exp>");
         };
     }
@@ -256,7 +262,6 @@ public class VisitorUtils {
                     overrideTypeInfo(rightPart, right);
                 }
             }
-            default -> {}
         }
     }
 
@@ -348,12 +353,12 @@ public class VisitorUtils {
      * @param binPart     The bin part
      * @param anotherPart The other operand to compare with
      * @param operator    The binary operator to apply
-     * @param binIsLeft   Whether the bin is on the left side of the comparison
+     * @param isBinLeft   Whether the bin is on the left side of the comparison
      * @return The resulting expression
      * @throws DslParseException if the operand type is not supported
      */
     private static Exp getExpBinComparison(BinPart binPart, AbstractPart anotherPart,
-                                           BinaryOperator<Exp> operator, boolean binIsLeft) {
+                                           BinaryOperator<Exp> operator, boolean isBinLeft) {
         Exp binExp = Exp.bin(binPart.getBinName(), binPart.getExpType());
         Exp anotherExp = switch (anotherPart.getPartType()) {
             case INT_OPERAND -> {
@@ -395,7 +400,7 @@ public class VisitorUtils {
                     throw new DslParseException("Operand type not supported: %s".formatted(anotherPart.getPartType()));
         };
 
-        return binIsLeft ? operator.apply(binExp, anotherExp) : operator.apply(anotherExp, binExp);
+        return isBinLeft ? operator.apply(binExp, anotherExp) : operator.apply(anotherExp, binExp);
     }
 
     /**
@@ -851,7 +856,7 @@ public class VisitorUtils {
      * @param externalOperand The operand from the overall filter condition (expected to be an integer)
      * @param operation       The type of the arithmetic operation
      * @param type            The type of the overall filter operation
-     * @param binOnLeft       {@code true} if the bin is on the left side of the arithmetic operation, {@code false} otherwise
+     * @param isBinOnLeft       {@code true} if the bin is on the left side of the arithmetic operation, {@code false} otherwise
      * @return A {@link Filter} for the arithmetic condition
      * @throws NoApplicableFilterException if operands are not integers or if the operation is not supported
      * @throws DslParseException           if type validation fails
@@ -859,7 +864,7 @@ public class VisitorUtils {
     private static Filter handleBinArithmeticExpression(BinPart bin, AbstractPart operand,
                                                         AbstractPart externalOperand,
                                                         ExprPartsOperation operation,
-                                                        FilterOperationType type, boolean binOnLeft) {
+                                                        FilterOperationType type, boolean isBinOnLeft) {
         // Only support integer arithmetic in filters
         if (operand.getPartType() != AbstractPart.PartType.INT_OPERAND || externalOperand.getPartType() != AbstractPart.PartType.INT_OPERAND) {
             throw new NoApplicableFilterException(
@@ -872,7 +877,7 @@ public class VisitorUtils {
         IntOperand secondOperand = (IntOperand) externalOperand;
 
         return applyFilterOperator(bin.getBinName(), firstOperand, secondOperand,
-                operation, type, getFilterTermType(operation, binOnLeft));
+                operation, type, getFilterTermType(operation, isBinOnLeft));
     }
 
     /**
@@ -936,9 +941,7 @@ public class VisitorUtils {
             return getFilterForDivOrFail(binName, valueForDiv, type);
         } else if (operationType == MUL) {
             if (leftValue <= 0) {
-                if (leftValue == 0) {
-					throw new NoApplicableFilterException("Cannot divide by zero");
-				}
+                if (leftValue == 0) throw new NoApplicableFilterException("Cannot divide by zero");
                 type = invertType(type);
             }
             float val = (float) rightValue / leftValue;
@@ -1031,18 +1034,19 @@ public class VisitorUtils {
      * @param expr              The {@link ExpressionContainer} representing the expression tree
      * @param placeholderValues The {@link PlaceholderValues} to match with placeholders by index
      * @param indexes           A map of available secondary indexes, keyed by bin name
+     * @param preferredBin      Optional bin name hint; if non-null the selection algorithm prefers
+     *                          an index on this bin, falling back to cardinality-based selection
+     *                          when the hint cannot be applied
      * @return The updated {@link ExpressionContainer} with the generated {@link Filter} and {@link Exp}.
      * Either of them can be null if there is no suitable filter
      */
     public static AbstractPart buildExpr(ExpressionContainer expr, PlaceholderValues placeholderValues,
-                                         Map<String, List<Index>> indexes) {
-        if (placeholderValues != null) {
-			resolvePlaceholders(expr, placeholderValues);
-		}
+                                         Map<String, List<Index>> indexes, String preferredBin) {
+        if (placeholderValues != null) resolvePlaceholders(expr, placeholderValues);
 
         Filter secondaryIndexFilter = null;
         try {
-            secondaryIndexFilter = getSIFilter(expr, indexes);
+            secondaryIndexFilter = getSIFilter(expr, indexes, preferredBin);
         } catch (NoApplicableFilterException ignored) {
         }
         expr.setFilter(secondaryIndexFilter);
@@ -1071,7 +1075,6 @@ public class VisitorUtils {
                 case WHEN_STRUCTURE -> replacePlaceholdersInWhenStructure(part, placeholderValues);
                 case WITH_STRUCTURE -> replacePlaceholdersInWithStructure(part, placeholderValues);
                 case EXCLUSIVE_STRUCTURE -> replacePlaceholdersInExclusiveStructure(part, placeholderValues);
-                default -> {}
             }
         };
         traverseTree(expression, exprContainersCollector, null);
@@ -1126,9 +1129,7 @@ public class VisitorUtils {
             }
         }
 
-        if (isResolved) {
-			whenStructure.setOperands(subOperands);
-		}
+        if (isResolved) whenStructure.setOperands(subOperands);
     }
 
     /**
@@ -1152,12 +1153,18 @@ public class VisitorUtils {
     /**
      * Replaces placeholders within an {@link ExpressionContainer}.
      * <p>
-     * This method checks the left and right operands of the {@link ExpressionContainer}. If either
-     * operand is a {@link PlaceholderOperand}, it resolves the placeholder using the provided
-     * {@link PlaceholderValues} and updates the operand. For specific comparison operations
-     * (LT, LTEQ, GT, GTEQ, NOTEQ, EQ), it also calls {@code overrideTypeInfo} after
-     * resolution.
+     * Both the left and right operands are checked independently, so both may be
+     * placeholders and both will be resolved in a single pass (e.g. {@code ?0 == ?1}).
      * </p>
+     * <p>
+     * After resolution, operation-specific type inference is applied:
+     * <ul>
+     *   <li>For comparison operations (LT, LTEQ, GT, GTEQ, NOTEQ, EQ) —
+     *       {@code overrideTypeInfo} reconciles operand types.</li>
+     *   <li>For IN operations — the right placeholder is validated to be a {@link java.util.List}
+     *       before resolution, then {@code validateListHomogeneity} enforces uniform element types
+     *       and {@code inferBinTypeFromList} infers the left bin type.</li>
+     * </ul>
      *
      * @param part              The {@link AbstractPart} representing the {@link ExpressionContainer}
      * @param placeholderValues An object storing placeholder indexes and their resolved values
@@ -1168,13 +1175,16 @@ public class VisitorUtils {
         boolean rightIsPlaceholder = !expr.isUnary() && expr.getRight().getPartType() == PLACEHOLDER_OPERAND;
         boolean isResolved = false;
 
-        // Resolve left placeholder and replace it with the resolved operand
+        if (expr.getOperationType() == IN && rightIsPlaceholder) {
+            validateInPlaceholderValue((PlaceholderOperand) expr.getRight(), placeholderValues);
+        }
+
         if (leftIsPlaceholder) {
             PlaceholderOperand placeholder = (PlaceholderOperand) expr.getLeft();
             expr.setLeft(placeholder.resolve(placeholderValues));
             isResolved = true;
-        } else if (rightIsPlaceholder) {
-            // Resolve right placeholder and replace it with the resolved operand
+        }
+        if (rightIsPlaceholder) {
             PlaceholderOperand placeholder = (PlaceholderOperand) expr.getRight();
             expr.setRight(placeholder.resolve(placeholderValues));
             isResolved = true;
@@ -1183,6 +1193,133 @@ public class VisitorUtils {
         if (isResolved && List.of(LT, LTEQ, GT, GTEQ, NOTEQ, EQ).contains(expr.getOperationType())) {
             overrideTypeInfo(expr.getLeft(), expr.getRight());
         }
+        if (isResolved && expr.getOperationType() == IN) {
+            Exp.Type inferredType = validateListHomogeneity(expr.getRight());
+            inferBinTypeFromList(expr.getLeft(), inferredType);
+        }
+    }
+
+    /**
+     * Validates that a placeholder used as the right operand of an IN expression
+     * resolves to a {@link java.util.List}. Called before placeholder resolution
+     * so that the error message references the placeholder index.
+     *
+     * @throws DslParseException if the placeholder index is missing or the placeholder value is not a List
+     */
+    private static void validateInPlaceholderValue(PlaceholderOperand placeholder,
+                                                   PlaceholderValues placeholderValues) {
+        int index = placeholder.getIndex();
+        Object value;
+        try {
+            value = placeholderValues.getValue(index);
+        } catch (IllegalArgumentException e) {
+            throw new DslParseException(e.getMessage(), e);
+        }
+        if (!(value instanceof List)) {
+            throw new DslParseException(
+                    "IN operation requires a List as the right operand for placeholder ?" + index);
+        }
+    }
+
+    /**
+     * Validates that all elements in a LIST_OPERAND are of the same type.
+     * <p>
+     * If the right operand is not a LIST_OPERAND, returns {@code null} (nothing to validate).
+     * Empty or all-null lists also return {@code null} (no type can be inferred).
+     *
+     * @param right the right operand of the IN expression
+     * @return the inferred element type, or {@code null} when validation is not applicable
+     * @throws DslParseException if the list contains elements of different types
+     */
+    static Exp.Type validateListHomogeneity(AbstractPart right) {
+        if (right.getPartType() != LIST_OPERAND) {
+            return null;
+        }
+        return inferTypeFromListElements((ListOperand) right);
+    }
+
+    /**
+     * Infers or validates the left BIN_PART's Exp type against the list element type.
+     * <p>
+     * If the left operand is not a BIN_PART or {@code inferredType} is {@code null},
+     * this method is a no-op.
+     * When the bin type is not explicitly set, it is updated to {@code inferredType};
+     * when it is explicitly set, compatibility is validated via {@code validateComparableTypes}.
+     *
+     * @param left         the left operand of the IN expression
+     * @param inferredType the element type inferred from the right list operand (may be {@code null})
+     */
+    static void inferBinTypeFromList(AbstractPart left, Exp.Type inferredType) {
+        if (inferredType == null || left.getPartType() != BIN_PART) {
+            return;
+        }
+        BinPart leftBin = (BinPart) left;
+        if (!leftBin.isTypeExplicitlySet()) {
+            leftBin.updateExp(inferredType);
+        } else {
+            validateComparableTypes(leftBin.getExpType(), inferredType);
+        }
+    }
+
+    /**
+     * Infer the Aerospike Exp.Type for a list operand by examining its elements.
+     * <p>
+     * Assumes/enforces that all non-null elements in the list are of the same
+     * logical type. If heterogeneous element types are detected, a
+     * {@link DslParseException} is thrown to avoid silent type mismatches.
+     *
+     * @return the inferred type, or {@code null} if the list is empty or contains only nulls
+     *         (no type can be inferred, so homogeneity validation is intentionally skipped)
+     */
+    static Exp.Type inferTypeFromListElements(ListOperand listOperand) {
+        List<Object> values = listOperand.getValue();
+        if (values.isEmpty()) {
+            return null;
+        }
+        Exp.Type inferredType = null;
+        for (Object value : values) {
+            if (value == null) {
+                continue;
+            }
+            Exp.Type currentType = inferElementType(value);
+            if (currentType == null) {
+                throw new DslParseException(
+                        "Unsupported element type in IN list: " + value.getClass().getName());
+            }
+            if (inferredType == null) {
+                inferredType = currentType;
+            } else if (inferredType != currentType) {
+                throw new DslParseException(
+                        "IN list elements must all be of the same type; found "
+                                + inferredType + " and " + currentType);
+            }
+        }
+        return inferredType;
+    }
+
+    /**
+     * Map a single Java object to the corresponding Aerospike Exp.Type.
+     */
+    private static Exp.Type inferElementType(Object element) {
+        if (element instanceof String) {
+            return Exp.Type.STRING;
+        }
+        if (element instanceof Boolean) {
+            return Exp.Type.BOOL;
+        }
+        if (element instanceof Float || element instanceof Double) {
+            return Exp.Type.FLOAT;
+        }
+        if (element instanceof Integer || element instanceof Long) {
+            return Exp.Type.INT;
+        }
+        if (element instanceof List) {
+            return Exp.Type.LIST;
+        }
+        if (element instanceof Map) {
+            return Exp.Type.MAP;
+        }
+        return null;
     }
 
     /**
@@ -1219,9 +1356,7 @@ public class VisitorUtils {
      */
     private static Exp getFilterExp(ExpressionContainer expr) {
         // Skip the expression already used in creating secondary index Filter
-        if (expr.hasSecondaryIndexFilter()) {
-			return null;
-		}
+        if (expr.hasSecondaryIndexFilter()) return null;
 
         return switch (expr.getOperationType()) {
             case OR_STRUCTURE -> orStructureToExp(expr);
@@ -1229,8 +1364,37 @@ public class VisitorUtils {
             case WITH_STRUCTURE -> withStructureToExp(expr);
             case WHEN_STRUCTURE -> whenStructureToExp(expr);
             case EXCLUSIVE_STRUCTURE -> exclStructureToExp(expr);
+            case MIN_FUNC -> variadicToExp(expr, Exp::min);
+            case MAX_FUNC -> variadicToExp(expr, Exp::max);
+            case FIND_BIT_LEFT, FIND_BIT_RIGHT -> binaryFunctionToExp(expr);
             default -> processExpression(expr);
         };
+    }
+
+    /**
+     * Converts a variadic function expression (e.g., min, max) to Exp.
+     * Extracts operands from the {@link FunctionArgs} wrapper and passes them as an array.
+     */
+    private static Exp variadicToExp(ExpressionContainer expr,
+                                     Function<Exp[], Exp> expFactory) {
+        FunctionArgs funcArgs = (FunctionArgs) expr.getLeft();
+        List<AbstractPart> operands = funcArgs.getOperands();
+        Exp[] exps = operands.stream()
+                .map(VisitorUtils::getExp)
+                .toArray(Exp[]::new);
+        return expFactory.apply(exps);
+    }
+
+    /**
+     * Converts a binary function expression to Exp, bypassing BIN_PART type validation.
+     * Used only for findBitLeft/findBitRight, which take (int, bool) operands that
+     * intentionally fail standard {@code validateComparableTypes} validation.
+     */
+    private static Exp binaryFunctionToExp(ExpressionContainer expr) {
+        Exp leftExp = getExp(expr.getLeft());
+        Exp rightExp = getExp(expr.getRight());
+        BinaryOperator<Exp> operator = getExpOperator(expr.getOperationType());
+        return operator.apply(leftExp, rightExp);
     }
 
     /**
@@ -1306,17 +1470,14 @@ public class VisitorUtils {
         List<ExpressionContainer> operands = ((AndStructure) expr.getLeft()).getOperands();
         for (ExpressionContainer part : operands) {
             Exp exp = getExp(part);
-            if (exp != null)
-			 {
-				expressions.add(exp); // Exp can be null if it is already used in secondary index
-			}
+            if (exp != null) expressions.add(exp); // Exp can be null if it is already used in secondary index
         }
         if (expressions.isEmpty()) {
             return null;
         } else if (expressions.size() > 1) {
             return Exp.and(expressions.toArray(new Exp[0]));
         }
-        return expressions.getFirst(); // When there is only one Exp return it
+        return expressions.get(0); // When there is only one Exp return it
     }
 
     /**
@@ -1332,9 +1493,7 @@ public class VisitorUtils {
         // For unary expressions
         if (expr.isUnary()) {
             Exp operandExp = processOperand(left);
-            if (operandExp == null) {
-				return null;
-			}
+            if (operandExp == null) return null;
 
             UnaryOperator<Exp> operator = getUnaryExpOperator(expr.getOperationType());
             return operator.apply(operandExp);
@@ -1342,6 +1501,11 @@ public class VisitorUtils {
 
         // For binary expressions
         AbstractPart right = getExistingPart(expr.getRight(), "Unable to parse right operand");
+
+        // IN operation: ListExp.getByValue(EXISTS, leftExp, rightExp)
+        if (expr.getOperationType() == IN) {
+            return buildInExpression(left, right);
+        }
 
         // Process operands
         Exp leftExp = processOperand(left);
@@ -1356,17 +1520,121 @@ public class VisitorUtils {
 
         // Special handling for AND operation
         if (expr.getOperationType() == AND) {
-            if (leftExp == null) {
-				return rightExp;
-			}
-            if (rightExp == null) {
-				return leftExp;
-			}
+            if (leftExp == null) return rightExp;
+            if (rightExp == null) return leftExp;
+        }
+
+        // Validate operand type compatibility for non-BIN_PART operands.
+        // Arithmetic operations should not involve STRING operands, and comparison
+        // results of arithmetic expressions should be type-compatible.
+        ExprPartsOperation opType = expr.getOperationType();
+        if (NUMERIC_OPERATIONS.contains(opType)
+                || isArithmeticExpressionContainer(left)
+                || isArithmeticExpressionContainer(right)) {
+            validateComparableTypes(resolveExpType(left), resolveExpType(right));
         }
 
         // Apply binary operator
         BinaryOperator<Exp> operator = getExpOperator(expr.getOperationType());
         return operator.apply(leftExp, rightExp);
+    }
+
+    // Operations that always produce a FLOAT result. Used by resolveExpType.
+    private static final EnumSet<ExprPartsOperation> FLOAT_RETURNING_OPERATIONS = EnumSet.of(
+            POW, LOG, CEIL, FLOOR, TO_FLOAT
+    );
+
+    // Operations that always produce an INT result regardless of input operand type.
+    // Used by resolveExpType. All members are also present in NUMERIC_OPERATIONS.
+    private static final EnumSet<ExprPartsOperation> INT_RETURNING_OPERATIONS = EnumSet.of(
+            TO_INT,
+            INT_AND, INT_OR, INT_XOR, INT_NOT,
+            L_SHIFT, R_SHIFT, LOGICAL_R_SHIFT,
+            COUNT_ONE_BITS, FIND_BIT_LEFT, FIND_BIT_RIGHT
+    );
+
+    // All arithmetic/bitwise/cast operations. Used by isArithmeticExpressionContainer to decide
+    // whether to trigger type-compatibility validation on comparison operands (e.g. detecting
+    // "28.asFloat() == \"hello\"" as invalid). FLOAT_RETURNING_OPERATIONS and
+    // INT_RETURNING_OPERATIONS are intentional subsets — members that appear in both sets are
+    // caught first by the more-specific checks inside resolveExpType.
+    private static final EnumSet<ExprPartsOperation> NUMERIC_OPERATIONS = EnumSet.of(
+            ADD, SUB, MUL, DIV, MOD, POW, INT_XOR, INT_NOT, INT_AND, INT_OR,
+            L_SHIFT, R_SHIFT, LOGICAL_R_SHIFT, ABS, CEIL, FLOOR, LOG,
+            MIN_FUNC, MAX_FUNC, COUNT_ONE_BITS, FIND_BIT_LEFT, FIND_BIT_RIGHT,
+            TO_INT, TO_FLOAT
+    );
+
+    /**
+     * Resolves the effective {@link Exp.Type} of an {@link AbstractPart}.
+     * <ul>
+     *   <li>Uses the part's explicit type if set.</li>
+     *   <li>Falls back to the {@code partTypeToExpType} map for literal operands.</li>
+     *   <li>For arithmetic {@link ExpressionContainer} nodes, determines the result type based on
+     *       the operation:
+     *       <ul>
+     *         <li>Always-FLOAT: {@code POW}, {@code LOG}, {@code CEIL}, {@code FLOOR},
+     *             {@code TO_FLOAT}</li>
+     *         <li>Always-INT: bitwise ops, shift ops, {@code TO_INT}, {@code COUNT_ONE_BITS},
+     *             {@code FIND_BIT_LEFT}, {@code FIND_BIT_RIGHT}</li>
+     *         <li>Type-propagating: {@code ABS}, {@code ADD}, {@code SUB}, {@code MUL},
+     *             {@code DIV}, {@code MOD}, {@code MIN_FUNC}, {@code MAX_FUNC} — result type
+     *             follows the left operand; falls back to {@code INT} when unknown.</li>
+     *       </ul>
+     *   </li>
+     * </ul>
+     *
+     * @param part The {@link AbstractPart} whose type to resolve
+     * @return The resolved {@link Exp.Type}, or {@code null} if the type cannot be determined
+     */
+    private static Exp.Type resolveExpType(AbstractPart part) {
+        if (part.getExpType() != null) {
+            return part.getExpType();
+        }
+        Exp.Type mapped = partTypeToExpType.get(part.getPartType());
+        if (mapped != null) {
+            return mapped;
+        }
+        if (part instanceof ExpressionContainer container && container.getOperationType() != null) {
+            ExprPartsOperation op = container.getOperationType();
+            if (FLOAT_RETURNING_OPERATIONS.contains(op)) {
+                return Exp.Type.FLOAT;
+            }
+            if (INT_RETURNING_OPERATIONS.contains(op)) {
+                return Exp.Type.INT;
+            }
+            if (isArithmeticExpressionContainer(part)) {
+                // Type-propagating operations (ABS, ADD, SUB, MUL, DIV, MOD, MIN_FUNC, MAX_FUNC):
+                // propagate FLOAT when the left operand is known to be FLOAT.
+                // Otherwise fall back to INT: any arithmetic result is numeric (never STRING/BOOL),
+                // so returning INT conservatively ensures string comparisons are rejected.
+                if (container.getLeft() != null
+                        && resolveExpType(container.getLeft()) == Exp.Type.FLOAT) {
+                    return Exp.Type.FLOAT;
+                }
+                return Exp.Type.INT;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Builds an Exp for an IN expression using {@code ListExp.getByValue(EXISTS, ...)}.
+     *
+     * @param left  the value to search for
+     * @param right the list to search in
+     * @return an Exp that evaluates to true if the left value exists in the right list
+     */
+    private static Exp buildInExpression(AbstractPart left, AbstractPart right) {
+        Exp leftExp = processOperand(left);
+        Exp rightExp = processOperand(right);
+        return ListExp.getByValue(ListReturnType.EXISTS, leftExp, rightExp);
+    }
+
+    private static boolean isArithmeticExpressionContainer(AbstractPart part) {
+        return part instanceof ExpressionContainer container
+                && container.getOperationType() != null
+                && NUMERIC_OPERATIONS.contains(container.getOperationType());
     }
 
     /**
@@ -1401,9 +1669,7 @@ public class VisitorUtils {
      * an expression container that resulted in a null Exp
      */
     private static Exp processOperand(AbstractPart part) {
-        if (part == null) {
-			return null;
-		}
+        if (part == null) return null;
 
         Exp exp;
         if (part.getPartType() == EXPRESSION_CONTAINER) {
@@ -1437,21 +1703,18 @@ public class VisitorUtils {
      * for secondary index filters), the method attempts to find the most suitable
      * expression within the tree to apply a filter based on index availability and cardinality.
      *
-     * @param expr    The {@link ExpressionContainer} representing the expression tree
-     * @param indexes A map of available secondary indexes, keyed by bin name
+     * @param expr         The {@link ExpressionContainer} representing the expression tree
+     * @param indexes      A map of available secondary indexes, keyed by bin name
+     * @param preferredBin Optional bin name hint for index selection preference
      * @return A secondary index {@link Filter}, or {@code null} if no applicable filter can be generated
      * @throws NoApplicableFilterException if the expression operation type is not supported
      */
-    private static Filter getSIFilter(ExpressionContainer expr, Map<String, List<Index>> indexes) {
-        // If it is an OR query
-        if (expr.getOperationType() == OR) {
-			return null;
-		}
+    private static Filter getSIFilter(ExpressionContainer expr, Map<String, List<Index>> indexes,
+                                      String preferredBin) {
+        if (expr.getOperationType() == OR) return null;
 
-        ExpressionContainer chosenExpr = chooseExprForFilter(expr, indexes);
-        if (chosenExpr == null) {
-			return null;
-		}
+        ExpressionContainer chosenExpr = chooseExprForFilter(expr, indexes, preferredBin);
+        if (chosenExpr == null) return null;
 
         return getFilterOrNull(
                 chosenExpr.getLeft(),
@@ -1462,58 +1725,80 @@ public class VisitorUtils {
 
     /**
      * Chooses the most suitable {@link ExpressionContainer} within a tree to apply a secondary index filter.
-     * Identifies all potential expressions within the tree that could
-     * utilize a secondary index. Selects the expression associated with the secondary index
-     * having the largest cardinality (highest ratio of unique
-     * bin values). If multiple expressions have the same largest cardinality, it
-     * chooses alphabetically based on the bin name. The chosen expression is marked
-     * as having a secondary index filter applied.
+     * Identifies all potential expressions within the tree that could utilize a secondary index.
+     * When a {@code preferredBin} hint is provided, candidates matching that bin are tried first;
+     * if none match, falls back to all candidates. Selection within a candidate set uses the
+     * largest cardinality, then alphabetical bin name as a tiebreaker. The chosen expression
+     * is marked as having a secondary index filter applied.
      *
      * @param exprContainer The root {@link ExpressionContainer} of the expression tree
      * @param indexes       A map of available secondary indexes, keyed by bin name
+     * @param preferredBin  Optional bin name hint for index selection preference
      * @return The chosen {@link ExpressionContainer} for secondary index filtering,
      * or {@code null} if no suitable expression is found
      */
     private static ExpressionContainer chooseExprForFilter(ExpressionContainer exprContainer,
-                                                           Map<String, List<Index>> indexes) {
-        if (indexes == null || indexes.isEmpty()) {
-			return null;
-		}
+                                                           Map<String, List<Index>> indexes,
+                                                           String preferredBin) {
+        if (indexes == null || indexes.isEmpty()) return null;
 
         Map<Integer, List<ExpressionContainer>> exprsPerCardinality =
                 getExpressionsPerCardinality(exprContainer, indexes);
 
-        Map<Integer, List<ExpressionContainer>> largestCardinalityMap;
-        if (exprsPerCardinality.size() > 1) {
-            // Find the entry with the largest key (cardinality)
-            largestCardinalityMap = exprsPerCardinality.entrySet().stream()
-                    .max(Map.Entry.comparingByKey())
-                    .map(entry -> Map.of(entry.getKey(), entry.getValue()))
-                    .orElse(Collections.emptyMap());
-        } else {
-            largestCardinalityMap = new HashMap<>(exprsPerCardinality);
+        if (preferredBin != null) {
+            Map<Integer, List<ExpressionContainer>> hintedCandidates = filterByBin(exprsPerCardinality, preferredBin);
+            ExpressionContainer hinted = selectByCardinalityThenAlpha(hintedCandidates);
+            if (hinted != null) return hinted;
         }
 
-        List<ExpressionContainer> largestCardinalityExprs;
-        if (largestCardinalityMap.isEmpty()) {
-			return null;
-		}
-        largestCardinalityExprs = largestCardinalityMap.values().iterator().next();
+        return selectByCardinalityThenAlpha(exprsPerCardinality);
+    }
 
-        ExpressionContainer chosenExpr;
-        if (largestCardinalityExprs.size() > 1) {
-            // Choosing alphabetically from a number of expressions
-            chosenExpr = largestCardinalityExprs.stream()
-                    .min(Comparator.comparing(expr -> getBinPart(expr, 1).getBinName()))
-                    .orElse(null);
-            chosenExpr.hasSecondaryIndexFilter(true);
-            return chosenExpr;
+    /**
+     * Filters a cardinality map to only include expressions whose bin matches the given name.
+     */
+    private static Map<Integer, List<ExpressionContainer>> filterByBin(
+            Map<Integer, List<ExpressionContainer>> exprsPerCardinality, String binName) {
+        Map<Integer, List<ExpressionContainer>> filtered = new HashMap<>();
+        for (Map.Entry<Integer, List<ExpressionContainer>> entry : exprsPerCardinality.entrySet()) {
+            List<ExpressionContainer> matching = entry.getValue().stream()
+                    .filter(expr -> binName.equals(getBinPart(expr, 1).getBinName()))
+                    .toList();
+            if (!matching.isEmpty()) {
+                filtered.put(entry.getKey(), matching);
+            }
         }
+        return filtered;
+    }
 
-        // There is only one expression with the largest cardinality
-        chosenExpr = largestCardinalityExprs.getFirst();
-        chosenExpr.hasSecondaryIndexFilter(true);
-        return chosenExpr;
+    /**
+     * Selects an expression from a cardinality map using highest cardinality first,
+     * then alphabetical bin name as a tiebreaker. Marks the chosen expression with
+     * {@code hasSecondaryIndexFilter(true)}.
+     *
+     * @return The chosen expression, or {@code null} if the map is empty
+     */
+    private static ExpressionContainer selectByCardinalityThenAlpha(
+            Map<Integer, List<ExpressionContainer>> exprsPerCardinality) {
+        if (exprsPerCardinality.isEmpty()) return null;
+
+        List<ExpressionContainer> topExprs = exprsPerCardinality.entrySet().stream()
+                .max(Map.Entry.comparingByKey())
+                .map(Map.Entry::getValue)
+                .orElse(Collections.emptyList());
+
+        if (topExprs.isEmpty()) return null;
+
+        ExpressionContainer chosen = topExprs.size() > 1
+                ? topExprs.stream()
+                .min(Comparator.comparing(expr -> getBinPart(expr, 1).getBinName()))
+                .orElse(null)
+                : topExprs.get(0);
+
+        if (chosen != null) {
+            chosen.hasSecondaryIndexFilter(true);
+        }
+        return chosen;
     }
 
     /**
@@ -1534,12 +1819,12 @@ public class VisitorUtils {
         Consumer<AbstractPart> exprsPerCardinalityCollector = part -> {
             if (part.getPartType() == EXPRESSION_CONTAINER) {
                 ExpressionContainer expr = (ExpressionContainer) part;
+
+                if (expr.getOperationType() == IN) return;
+
                 BinPart binPart = getBinPart(expr, 2);
 
-                if (binPart == null)
-				 {
-					return; // no bin found
-				}
+                if (binPart == null) return; // no bin found
                 if (!binPart.equals(binPartPrev[0])) {
                     binPartPrev[0] = binPart;
                 } else {
@@ -1574,9 +1859,7 @@ public class VisitorUtils {
                                                         ExpressionContainer expr, BinPart binPart,
                                                         Map<String, List<Index>> indexes) {
         List<Index> indexesByBin = indexes.get(binPart.getBinName());
-        if (indexesByBin == null || indexesByBin.isEmpty()) {
-			return;
-		}
+        if (indexesByBin == null || indexesByBin.isEmpty()) return;
 
         for (Index idx : indexesByBin) {
             // Iterate over all indexes for the same bin
@@ -1624,9 +1907,7 @@ public class VisitorUtils {
                     }
                     return true;
                 }
-                if (logicalExpr.getOperationType() == AND) {
-					return true;
-				}
+                if (logicalExpr.getOperationType() == AND) return true;
                 if (logicalExpr.getOperationType() == OR) {
                     // Both parts of OR-combined query are excluded from secondary index Filter building
                     ((ExpressionContainer) logicalExpr.getLeft()).isExclFromSecondaryIndexFilter(true);
@@ -1666,9 +1947,7 @@ public class VisitorUtils {
      */
     public static void traverseTree(AbstractPart part, Consumer<AbstractPart> visitor, int depth,
                                     Predicate<AbstractPart> stopCondition) {
-        if (part == null) {
-			return;
-		}
+        if (part == null) return;
 
         // Stop if the depth limit is reached
         if (depth < 0) {
@@ -1691,6 +1970,11 @@ public class VisitorUtils {
         if (part.getPartType() == AbstractPart.PartType.AND_STRUCTURE && depth > 0) {
             List<ExpressionContainer> containerList = ((AndStructure) part).getOperands();
             containerList.forEach(container -> traverseTree(container, visitor, depth - 1, stopCondition));
+        }
+
+        if (part.getPartType() == AbstractPart.PartType.FUNCTION_ARGS && depth > 0) {
+            List<AbstractPart> operands = ((FunctionArgs) part).getOperands();
+            operands.forEach(operand -> traverseTree(operand, visitor, depth - 1, stopCondition));
         }
     }
 }

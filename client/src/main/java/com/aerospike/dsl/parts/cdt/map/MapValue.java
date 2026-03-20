@@ -16,14 +16,14 @@
  */
 package com.aerospike.dsl.parts.cdt.map;
 
-import static com.aerospike.dsl.util.ParsingUtils.unquote;
-
 import com.aerospike.client.fluent.Value;
 import com.aerospike.client.fluent.cdt.CTX;
 import com.aerospike.client.fluent.exp.Exp;
 import com.aerospike.client.fluent.exp.MapExp;
 import com.aerospike.dsl.ConditionParser;
 import com.aerospike.dsl.parts.path.BasePath;
+
+import static com.aerospike.dsl.util.ParsingUtils.parseValueIdentifier;
 
 public class MapValue extends MapPart {
     private final Object value;
@@ -34,15 +34,7 @@ public class MapValue extends MapPart {
     }
 
     public static MapValue from(ConditionParser.MapValueContext ctx) {
-        Object mapValue = null;
-        if (ctx.valueIdentifier().NAME_IDENTIFIER() != null) {
-            mapValue = ctx.valueIdentifier().NAME_IDENTIFIER().getText();
-        } else if (ctx.valueIdentifier().QUOTED_STRING() != null) {
-            mapValue = unquote(ctx.valueIdentifier().QUOTED_STRING().getText());
-        } else if (ctx.valueIdentifier().INT() != null) {
-            mapValue = Integer.parseInt(ctx.valueIdentifier().INT().getText());
-        }
-        return new MapValue(mapValue);
+        return new MapValue(parseValueIdentifier(ctx.valueIdentifier()));
     }
 
     @Override

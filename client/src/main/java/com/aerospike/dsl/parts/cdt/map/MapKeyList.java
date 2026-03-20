@@ -16,8 +16,6 @@
  */
 package com.aerospike.dsl.parts.cdt.map;
 
-import static com.aerospike.dsl.util.ParsingUtils.unquote;
-
 import java.util.List;
 
 import com.aerospike.client.fluent.cdt.CTX;
@@ -27,14 +25,15 @@ import com.aerospike.client.fluent.exp.MapExp;
 import com.aerospike.dsl.ConditionParser;
 import com.aerospike.dsl.DslParseException;
 import com.aerospike.dsl.parts.path.BasePath;
+import com.aerospike.dsl.util.ParsingUtils;
 
 public class MapKeyList extends MapPart {
-    private final boolean inverted;
+    private final boolean isInverted;
     private final List<String> keyList;
 
-    public MapKeyList(boolean inverted, List<String> keyList) {
+    public MapKeyList(boolean isInverted, List<String> keyList) {
         super(MapPartType.KEY_LIST);
-        this.inverted = inverted;
+        this.isInverted = isInverted;
         this.keyList = keyList;
     }
 
@@ -47,15 +46,9 @@ public class MapKeyList extends MapPart {
                     keyList != null ? keyList.keyListIdentifier() : invertedKeyList.keyListIdentifier();
             boolean isInverted = keyList == null;
 
-            List<String> keyListStrings = list.mapKey().stream().map(
-                    mapKey -> {
-                        if (mapKey.NAME_IDENTIFIER() != null) {
-                            return mapKey.NAME_IDENTIFIER().getText();
-                        } else {
-                            return unquote(mapKey.QUOTED_STRING().getText());
-                        }
-                    }
-            ).toList();
+            List<String> keyListStrings = list.mapKey().stream()
+                    .map(ParsingUtils::parseMapKey)
+                    .toList();
 
             return new MapKeyList(isInverted, keyListStrings);
         }
@@ -64,7 +57,7 @@ public class MapKeyList extends MapPart {
 
     @Override
     public Exp constructExp(BasePath basePath, Exp.Type valueType, int cdtReturnType, CTX[] context) {
-        if (inverted) {
+        if (isInverted) {
             cdtReturnType = cdtReturnType | MapReturnType.INVERTED;
         }
 

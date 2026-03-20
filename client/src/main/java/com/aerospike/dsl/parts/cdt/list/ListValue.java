@@ -16,7 +16,7 @@
  */
 package com.aerospike.dsl.parts.cdt.list;
 
-import static com.aerospike.dsl.util.ParsingUtils.unquote;
+import static com.aerospike.dsl.util.ParsingUtils.parseValueIdentifier;
 
 import com.aerospike.client.fluent.Value;
 import com.aerospike.client.fluent.cdt.CTX;
@@ -34,15 +34,7 @@ public class ListValue extends ListPart {
     }
 
     public static ListValue from(ConditionParser.ListValueContext ctx) {
-        Object listValue = null;
-        if (ctx.valueIdentifier().NAME_IDENTIFIER() != null) {
-            listValue = ctx.valueIdentifier().NAME_IDENTIFIER().getText();
-        } else if (ctx.valueIdentifier().QUOTED_STRING() != null) {
-            listValue = unquote(ctx.valueIdentifier().QUOTED_STRING().getText());
-        } else if (ctx.valueIdentifier().INT() != null) {
-            listValue = Integer.parseInt(ctx.valueIdentifier().INT().getText());
-        }
-        return new ListValue(listValue);
+        return new ListValue(parseValueIdentifier(ctx.valueIdentifier()));
     }
 
     @Override

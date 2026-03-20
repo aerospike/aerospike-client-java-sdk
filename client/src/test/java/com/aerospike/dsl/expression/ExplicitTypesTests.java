@@ -62,9 +62,9 @@ public class ExplicitTypesTests {
         // A String constant must be quoted
         assertThatThrownBy(() ->
                 TestUtils.parseFilterExpressionAndCompare(ExpressionContext.of("$.stringBin1.get(type: STRING) == yes"),
-                Exp.eq(Exp.stringBin("stringBin1"), Exp.val("yes"))))
+                        Exp.eq(Exp.stringBin("stringBin1"), Exp.val("yes"))))
                 .isInstanceOf(DslParseException.class)
-                .hasMessage("Unable to parse right operand");
+                .hasMessageContaining("Unexpected identifier");
     }
 
     @Test
@@ -133,6 +133,9 @@ public class ExplicitTypesTests {
 
         TestUtils.parseFilterExpressionAndCompare(ExpressionContext.of("$.listBin1.get(type: LIST) == [\"yes\", \"of course\"]"),
                 Exp.eq(Exp.listBin("listBin1"), Exp.val(List.of("yes", "of course"))));
+
+        TestUtils.parseFilterExpressionAndCompare(ExpressionContext.of("$.listBin1.get(type: LIST) == [-1, 2]"),
+                Exp.eq(Exp.listBin("listBin1"), Exp.val(List.of(-1L, 2L))));
     }
 
     @Test
@@ -143,7 +146,7 @@ public class ExplicitTypesTests {
                         Exp.eq(Exp.listBin("listBin1"), Exp.val(List.of("yes", "of course"))))
         )
                 .isInstanceOf(DslParseException.class)
-                .hasMessage("Unable to parse list operand");
+                .hasMessageContaining("Unexpected identifier");
     }
 
     @Test
@@ -173,6 +176,9 @@ public class ExplicitTypesTests {
 
         TestUtils.parseFilterExpressionAndCompare(ExpressionContext.of("[\"yes\", \"of course\"] == $.listBin1.get(type: LIST)"),
                 Exp.eq(Exp.val(List.of("yes", "of course")), Exp.listBin("listBin1")));
+
+        TestUtils.parseFilterExpressionAndCompare(ExpressionContext.of("[-1, 2] == $.listBin1.get(type: LIST)"),
+                Exp.eq(Exp.val(List.of(-1L, 2L)), Exp.listBin("listBin1")));
     }
 
     @Test
@@ -240,6 +246,9 @@ public class ExplicitTypesTests {
         TestUtils.parseFilterExpressionAndCompare(ExpressionContext.of("$.mapBin1.get(type: MAP) == " +
                         "{\"yes\" : [\"yes\", \"of course\"]}"),
                 Exp.eq(Exp.mapBin("mapBin1"), Exp.val(treeMapOf("yes", List.of("yes",  "of course")))));
+
+        TestUtils.parseFilterExpressionAndCompare(ExpressionContext.of("$.mapBin1.get(type: MAP) == {'a':-1}"),
+                Exp.eq(Exp.mapBin("mapBin1"), Exp.val(treeMapOf("a", -1L))));
     }
 
     @Test
@@ -306,6 +315,9 @@ public class ExplicitTypesTests {
         TestUtils.parseFilterExpressionAndCompare(ExpressionContext.of("{\"yes\" : [\"yes\", \"of course\"]} " +
                         "== $.mapBin1.get(type: MAP)"),
                 Exp.eq(Exp.val(treeMapOf("yes", List.of("yes",  "of course"))), Exp.mapBin("mapBin1")));
+
+        TestUtils.parseFilterExpressionAndCompare(ExpressionContext.of("{'a':-1} == $.mapBin1.get(type: MAP)"),
+                Exp.eq(Exp.val(treeMapOf("a", -1L)), Exp.mapBin("mapBin1")));
     }
 
     @Test

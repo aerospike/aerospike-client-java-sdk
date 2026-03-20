@@ -32,7 +32,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 public class BinFiltersTests {
 
     String NAMESPACE = "test1";
-    List<Index> INDEXES = List.of(
+    List<com.aerospike.dsl.Index> INDEXES = List.of(
             Index.builder().namespace(NAMESPACE).bin("intBin1").indexType(IndexType.NUMERIC).binValuesRatio(1).build(),
             Index.builder().namespace(NAMESPACE).bin("stringBin1").indexType(IndexType.STRING).binValuesRatio(1).build()
     );

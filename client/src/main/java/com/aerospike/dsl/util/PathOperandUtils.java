@@ -107,9 +107,7 @@ public class PathOperandUtils {
             if (isListTypeDesignator(lastPathPart) || isMapTypeDesignator(lastPathPart)) {
                 AbstractPart partBeforeDesignator =
                         getPartOrNull(basePath.getCdtParts(), basePath.getCdtParts().size() - 2);
-                if (partBeforeDesignator != null) {
-					lastPathPart = partBeforeDesignator;
-				}
+                if (partBeforeDesignator != null) lastPathPart = partBeforeDesignator;
             }
 
             // If the last path part is a List index or rank
@@ -132,14 +130,10 @@ public class PathOperandUtils {
         }
 
         // Apply defaults
-        if (pathFunction.getReturnParam() == null) {
-			pathFunction =
-			        new PathFunction(pathFunction.getPathFunctionType(), defaultReturnParam, pathFunction.getBinType());
-		}
-        if (pathFunction.getPathFunctionType() == null) {
-			pathFunction =
-			        new PathFunction(GET, pathFunction.getReturnParam(), pathFunction.getBinType());
-		}
+        if (pathFunction.getReturnParam() == null) pathFunction =
+                new PathFunction(pathFunction.getPathFunctionType(), defaultReturnParam, pathFunction.getBinType());
+        if (pathFunction.getPathFunctionType() == null) pathFunction =
+                new PathFunction(GET, pathFunction.getReturnParam(), pathFunction.getBinType());
 
         return pathFunction;
     }
@@ -258,15 +252,15 @@ public class PathOperandUtils {
      * This is used to build the context for nested CDT operations.
      *
      * @param parts       The list of {@link AbstractPart} objects representing path parts
-     * @param includeLast A boolean indicating whether the last part should be included in the context array
+     * @param includesLast A boolean indicating whether the last part should be included in the context array
      * @return An array of {@link CTX} objects
      */
-    public static CTX[] getContextArray(List<AbstractPart> parts, boolean includeLast) {
+    public static CTX[] getContextArray(List<AbstractPart> parts, boolean includesLast) {
         // Nested (Context) map key access
         List<CTX> context = new ArrayList<>();
 
         for (int i = 0; i < parts.size(); i++) {
-            if (!includeLast && i == parts.size() - 1) {
+            if (!includesLast && i == parts.size() - 1) {
                 // Skip last
                 continue;
             }
@@ -375,9 +369,7 @@ public class PathOperandUtils {
                                                  List<AbstractPart> parts) {
         // if existing path function type is SIZE or COUNT
         // and parts are empty (only bin) or previous CDT part is ambiguous (CDT index, rank or map key)
-        if (pathFunction == null) {
-			return false;
-		}
+        if (pathFunction == null) return false;
         PathFunction.PathFunctionType type = pathFunction.getPathFunctionType();
         return (List.of(SIZE, COUNT).contains(type) || pathFunctionIsGetWithCount(pathFunction))
                 && (parts.isEmpty() || (isPrevCdtPartAmbiguous(parts.get(parts.size() - 1))));
@@ -454,7 +446,7 @@ public class PathOperandUtils {
         } else if (pathFunctionType == COUNT) {
             return getValueTypeForCount(lastPathPart);
         }
-        return TypeUtils.getDefaultType(lastPathPart);
+        return lastPathPart != null ? TypeUtils.getDefaultType(lastPathPart) : Exp.Type.INT;
     }
 
     /**

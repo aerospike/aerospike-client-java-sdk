@@ -29,6 +29,7 @@ import com.aerospike.client.fluent.RecordStream;
 import com.aerospike.client.fluent.ResultCode;
 import com.aerospike.client.fluent.Session;
 import com.aerospike.client.fluent.command.QueryCommand;
+import com.aerospike.client.fluent.exp.Exp;
 import com.aerospike.client.fluent.exp.Expression;
 import com.aerospike.client.fluent.policy.Behavior.Mode;
 import com.aerospike.client.fluent.policy.Behavior.OpKind;
@@ -121,7 +122,7 @@ public class IndexQueryBuilderImpl extends QueryImpl {
         if (dsl != null) {
         	ParseResult pr = dsl.process(dataSet.getNamespace(), getSession());
         	filter = pr.getFilter();
-        	filterExp = pr.getExpression();
+        	filterExp = Exp.build(pr.getExp());
         }
 
         AsyncRecordStream stream = new AsyncRecordStream(policy.getRecordQueueSize());

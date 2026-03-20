@@ -22,6 +22,8 @@ import com.aerospike.client.fluent.exp.ListExp;
 import com.aerospike.dsl.ConditionParser;
 import com.aerospike.dsl.parts.path.BasePath;
 
+import static com.aerospike.dsl.util.ParsingUtils.parseSignedInt;
+
 public class ListIndex extends ListPart {
     private final int index;
 
@@ -31,7 +33,7 @@ public class ListIndex extends ListPart {
     }
 
     public static ListIndex from(ConditionParser.ListIndexContext ctx) {
-        return new ListIndex(Integer.parseInt(ctx.INT().getText()));
+        return new ListIndex(parseSignedInt(ctx.signedInt()));
     }
 
     @Override
