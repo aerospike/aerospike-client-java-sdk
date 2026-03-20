@@ -155,7 +155,7 @@ public class RWTaskSync extends RWTask implements Runnable {
     @Override
     public void run() {
         RandomShift random = new RandomShift();
-        while (!shouldStop) {
+        while (!isStopped) {
             runCommand(random);
             // Throttle throughput
             if (args.getThroughput() > 0) {

@@ -15,7 +15,7 @@ public abstract class RWTask {
     final long keyStart;
     final String[] bNames;
     final String firstBin;
-    boolean shouldStop;
+    boolean isStopped;
 
     public RWTask(Arguments args, CounterStore counters) {
         this.args = args;
@@ -24,7 +24,7 @@ public abstract class RWTask {
         this.keyStart = args.getStartKey();
         this.bNames = args.getBinNames(true);
         this.firstBin = bNames[0];
-        this.shouldStop = false;
+        this.isStopped = false;
     }
 
     private void runTransaction(RandomShift random) {
@@ -278,6 +278,8 @@ public abstract class RWTask {
         }
     }
 
+    protected void runNextCommand() {}
+
     protected abstract void get(Key key, String binName);
     protected abstract void get(Key key);
     protected abstract void upsert(Key key, Value[] values, String... bins);
@@ -287,6 +289,7 @@ public abstract class RWTask {
     protected abstract void get(List<Key> keys);
 
     public void stop() {
-        shouldStop = true;
+        isStopped = true;
     }
+
 }

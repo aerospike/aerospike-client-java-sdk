@@ -103,27 +103,27 @@ public class AerospikeBenchmark implements Callable<Integer>, Log.Callback {
         Arguments arguments = benchmarkContext.getArguments();
         int threads = arguments.getThreads();
         ExecutorService es = executorSupplier.get();
-        RWTask[] tasks = new RWTask[threads];
-
         if (benchmarkOptions.isAsync()) {
-            // Distribute max commands evenly across threads
-            int totalMax = arguments.getAsyncMaxCommands();
-            int perThread = totalMax / threads;
-            int remainder = totalMax % threads;
+            int maxReqInFlight = arguments.getAsyncMaxCommands();
+            RWTask[] seedTasks = new RWTask[maxReqInFlight];
 
-            for (int i = 0; i < threads; i++) {
-                int inFlightPerThreadCap = perThread + (i < remainder ? 1 : 0);
-
-                RWTaskAsync rt = new RWTaskAsync(
-                        arguments, counters, benchmarkContext.getSession(), new Semaphore(inFlightPerThreadCap),
-                        inFlightPerThreadCap);
-                tasks[i] = rt;
-                es.execute(rt);
+            for (int i = 0; i < maxReqInFlight; i++) {
+                seedTasks[i] = new RWTaskAsync(arguments, counters, benchmarkContext.getSession());
             }
+            es.execute(() -> {
+                // Start seed commands.
+                for (RWTask task : seedTasks) {
+                    if (task.isStopped) {
+                        continue;
+                    }
+                    task.runNextCommand();
+                }
+            });
             Thread.sleep(900);
-            collectRwStats(benchmarkContext.getArguments(), tasks);
-            drainAndShutdown(tasks, es);
+            collectRwStats(benchmarkContext.getArguments(), seedTasks);
+            drainAndShutdown(seedTasks, es);
         } else {
+            RWTask[] tasks = new RWTask[threads];
             for (int i = 0; i < threads; i++) {
                 RWTaskSync rt = new RWTaskSync(arguments, counters, benchmarkContext.getSession());
                 tasks[i] = rt;
@@ -141,18 +141,18 @@ public class AerospikeBenchmark implements Callable<Integer>, Log.Callback {
             task.stop();
         }
         // Wait for in-flight operations to complete
-        for (RWTask task : tasks) {
-            if (task instanceof RWTaskAsync asyncTask) {
-                try {
-                    boolean drained = asyncTask.awaitDrain(5000);
-                    if (!drained) {
-                        System.out.println("Warning: Task did not drain in time");
-                    }
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                }
-            }
-        }
+//        for (RWTask task : tasks) {
+//            if (task instanceof RWTaskAsync asyncTask) {
+//                try {
+//                    boolean drained = asyncTask.awaitDrain(5000);
+//                    if (!drained) {
+//                        System.out.println("Warning: Task did not drain in time");
+//                    }
+//                } catch (InterruptedException e) {
+//                    Thread.currentThread().interrupt();
+//                }
+//            }
+//        }
         es.shutdown();
     }
 
@@ -168,18 +168,23 @@ public class AerospikeBenchmark implements Callable<Integer>, Log.Callback {
         long start = arguments.getStartKey();
 
         if (benchmarkOptions.isAsync()) {
-            Semaphore inFlight = new Semaphore(arguments.getAsyncMaxCommands());
-            for (long i = 0; i < tasks; i++) {
-                long keyCount = (i < rem) ? keysPerTask  + 1 : keysPerTask;
-                InsertTaskAsync insertTask = new InsertTaskAsync(benchmarkContext.getSession(),
-                        arguments,
-                        counters,
-                        inFlight,
-                        start,
-                        keyCount);
-                es.execute(insertTask);
-                start += keyCount;
-            }
+            es.execute(() -> {
+                long maxConcurrentCommands = arguments.getAsyncMaxCommands();
+                if (maxConcurrentCommands > arguments.getNumKeys()) {
+                    maxConcurrentCommands = arguments.getNumKeys();
+                }
+                long keysPerCommand = arguments.getNumKeys() / maxConcurrentCommands;
+                long keysRem = arguments.getNumKeys() - (keysPerCommand * maxConcurrentCommands);
+                long keyStart = arguments.getStartKey();
+                for (int i = 0; i < maxConcurrentCommands; i++) {
+                    long keyCount = (i < keysRem) ? keysPerCommand + 1 : keysPerCommand;
+                    // Start seed commands on random event loops.
+                    InsertTaskAsync task =
+                            new InsertTaskAsync(benchmarkContext.getSession(), arguments, counters, keyStart, keyCount);
+                    task.runCommand();
+                    keyStart += keyCount;
+                }
+            });
         } else {
             for (long i = 0; i < tasks; i++) {
                 long keyCount = (i < rem) ? keysPerTask  + 1 : keysPerTask;
