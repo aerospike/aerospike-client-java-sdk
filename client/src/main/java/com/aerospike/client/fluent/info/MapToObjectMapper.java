@@ -30,6 +30,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import com.aerospike.client.fluent.Log;
+import com.aerospike.client.fluent.info.annotations.Alias;
 import com.aerospike.client.fluent.info.annotations.Mapping;
 import com.aerospike.client.fluent.info.annotations.Mappings;
 import com.aerospike.client.fluent.info.annotations.Named;
@@ -127,6 +128,10 @@ public class MapToObjectMapper {
 
     // Field cache per class
     private static final Map<Class<?>, ClassCacheEntry> fieldCache = new ConcurrentHashMap<>();
+
+    // Alias cache per enum class: maps normalized alias string -> enum constant
+    @SuppressWarnings("rawtypes")
+    private static final Map<Class<? extends Enum>, Map<String, Enum<?>>> enumAliasCache = new ConcurrentHashMap<>();
 
     private static class PathToken {
         String fieldName;
@@ -343,9 +348,39 @@ public class MapToObjectMapper {
         if (targetType.isEnum()) {
             @SuppressWarnings("rawtypes")
             Class<? extends Enum> enumClass = targetType.asSubclass(Enum.class);
-            return Enum.valueOf(enumClass, value.replaceAll("-", "_").toUpperCase());
+            String normalized = value.replaceAll("-", "_").toUpperCase();
+            try {
+                return Enum.valueOf(enumClass, normalized);
+            } catch (IllegalArgumentException e) {
+                Enum<?> aliased = getEnumAliasMap(enumClass).get(normalized);
+                if (aliased != null) {
+                    return aliased;
+                }
+                throw e;
+            }
         }
 
         throw new IllegalArgumentException("Unsupported type: " + targetType.getName());
+    }
+
+    @SuppressWarnings("rawtypes")
+    private static Map<String, Enum<?>> getEnumAliasMap(Class<? extends Enum> enumClass) {
+        return enumAliasCache.computeIfAbsent(enumClass, cls -> {
+            Map<String, Enum<?>> aliasMap = new HashMap<>();
+            for (Enum<?> constant : cls.getEnumConstants()) {
+                try {
+                    Field field = cls.getField(constant.name());
+                    Alias alias = field.getAnnotation(Alias.class);
+                    if (alias != null) {
+                        for (String a : alias.value()) {
+                            aliasMap.put(a.replaceAll("-", "_").toUpperCase(), constant);
+                        }
+                    }
+                } catch (NoSuchFieldException e) {
+                    // Enum constants are always fields, this shouldn't happen
+                }
+            }
+            return aliasMap;
+        });
     }
 }

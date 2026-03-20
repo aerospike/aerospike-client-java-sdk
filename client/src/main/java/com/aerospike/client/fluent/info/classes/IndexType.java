@@ -16,8 +16,11 @@
  */
 package com.aerospike.client.fluent.info.classes;
 
+import com.aerospike.client.fluent.info.annotations.Alias;
+
 public enum IndexType {
     STRING,
+    @Alias({"numeric"})
     INTEGER,
     GEOJSON,
     BLOB,

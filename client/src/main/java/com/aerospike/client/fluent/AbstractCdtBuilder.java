@@ -199,7 +199,7 @@ public class AbstractCdtBuilder<T extends AbstractOperationBuilder<T>> {
     // listAppend -- append to unordered list
     // =================================
 
-    /** Append an item to the end of an unordered list. */
+    /** Append an item to the end of a list. */
     public T listAppend(Value value) {
         return listAppend(value, (Consumer<ListEntryWriteOptions>) null);
     }
@@ -211,7 +211,7 @@ public class AbstractCdtBuilder<T extends AbstractOperationBuilder<T>> {
     public T listAppend(List<?> value) { return listAppend(Value.get(value)); }
     public T listAppend(Map<?,?> value) { return listAppend(Value.get(value)); }
 
-    /** Append an item to the end of an unordered list with options (e.g. addUnique, allowFailures). */
+    /** Append an item to the end of a list with options (e.g. addUnique, allowFailures). */
     public T listAppend(Value value, Consumer<ListEntryWriteOptions> options) {
         ListEntryWriteOptions opts = applyListOptions(options);
         if (opts != null && (opts.isAddUnique() || opts.isInsertBounded() || opts.isAllowFailures())) {

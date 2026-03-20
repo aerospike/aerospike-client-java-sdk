@@ -19,6 +19,7 @@ package com.aerospike.client.fluent;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Consumer;
 
 import com.aerospike.client.fluent.cdt.ListOperation;
 import com.aerospike.client.fluent.cdt.ListOrder;
@@ -1856,7 +1857,7 @@ public class CdtGetOrRemoveBuilder<T extends AbstractOperationBuilder<T>> extend
         return cachedMapPolicy(order, flags, persist);
     }
 
-    private MapEntryWriteOptions applyOptions(java.util.function.Consumer<MapEntryWriteOptions> options) {
+    private MapEntryWriteOptions applyOptions(Consumer<MapEntryWriteOptions> options) {
         if (options == null) return null;
         MapEntryWriteOptions opts = new MapEntryWriteOptions();
         options.accept(opts);
@@ -1934,80 +1935,80 @@ public class CdtGetOrRemoveBuilder<T extends AbstractOperationBuilder<T>> extend
     // =================================
 
     public T insert(long value) {
-        return insert(value, (java.util.function.Consumer<MapEntryWriteOptions>) null);
+        return insert(value, (Consumer<MapEntryWriteOptions>) null);
     }
     public T insert(String value) {
-        return insert(value, (java.util.function.Consumer<MapEntryWriteOptions>) null);
+        return insert(value, (Consumer<MapEntryWriteOptions>) null);
     }
     public T insert(byte[] value) {
-        return insert(value, (java.util.function.Consumer<MapEntryWriteOptions>) null);
+        return insert(value, (Consumer<MapEntryWriteOptions>) null);
     }
     public T insert(boolean value) {
-        return insert(value, (java.util.function.Consumer<MapEntryWriteOptions>) null);
+        return insert(value, (Consumer<MapEntryWriteOptions>) null);
     }
     public T insert(double value) {
-        return insert(value, (java.util.function.Consumer<MapEntryWriteOptions>) null);
+        return insert(value, (Consumer<MapEntryWriteOptions>) null);
     }
     public T insert(List<?> value) {
-        return insert(value, (java.util.function.Consumer<MapEntryWriteOptions>) null);
+        return insert(value, (Consumer<MapEntryWriteOptions>) null);
     }
     public T insert(Map<?,?> value) {
-        return insert(value, (java.util.function.Consumer<MapEntryWriteOptions>) null);
+        return insert(value, (Consumer<MapEntryWriteOptions>) null);
     }
     public <U> T insert(U value, RecordMapper<U> mapper) {
-        return insert(value, mapper, (java.util.function.Consumer<MapEntryWriteOptions>) null);
+        return insert(value, mapper, (Consumer<MapEntryWriteOptions>) null);
     }
 
-    public T insert(long value, java.util.function.Consumer<MapEntryWriteOptions> options) {
+    public T insert(long value, Consumer<MapEntryWriteOptions> options) {
         if (params.getOperation() == CdtOperation.LIST_BY_INDEX) {
             return this.opBuilder.addOp(ListOperation.insert(binName, params.getInt1(), Value.get(value), params.context()));
         }
         MapPolicy mp = resolveMapPolicy(MapWriteFlags.CREATE_ONLY, applyOptions(options));
         return this.opBuilder.addOp(MapOperation.put(mp, binName, params.getVal1(), Value.get(value), params.context()));
     }
-    public T insert(String value, java.util.function.Consumer<MapEntryWriteOptions> options) {
+    public T insert(String value, Consumer<MapEntryWriteOptions> options) {
         if (params.getOperation() == CdtOperation.LIST_BY_INDEX) {
             return this.opBuilder.addOp(ListOperation.insert(binName, params.getInt1(), Value.get(value), params.context()));
         }
         MapPolicy mp = resolveMapPolicy(MapWriteFlags.CREATE_ONLY, applyOptions(options));
         return this.opBuilder.addOp(MapOperation.put(mp, binName, params.getVal1(), Value.get(value), params.context()));
     }
-    public T insert(byte[] value, java.util.function.Consumer<MapEntryWriteOptions> options) {
+    public T insert(byte[] value, Consumer<MapEntryWriteOptions> options) {
         if (params.getOperation() == CdtOperation.LIST_BY_INDEX) {
             return this.opBuilder.addOp(ListOperation.insert(binName, params.getInt1(), Value.get(value), params.context()));
         }
         MapPolicy mp = resolveMapPolicy(MapWriteFlags.CREATE_ONLY, applyOptions(options));
         return this.opBuilder.addOp(MapOperation.put(mp, binName, params.getVal1(), Value.get(value), params.context()));
     }
-    public T insert(boolean value, java.util.function.Consumer<MapEntryWriteOptions> options) {
+    public T insert(boolean value, Consumer<MapEntryWriteOptions> options) {
         if (params.getOperation() == CdtOperation.LIST_BY_INDEX) {
             return this.opBuilder.addOp(ListOperation.insert(binName, params.getInt1(), Value.get(value), params.context()));
         }
         MapPolicy mp = resolveMapPolicy(MapWriteFlags.CREATE_ONLY, applyOptions(options));
         return this.opBuilder.addOp(MapOperation.put(mp, binName, params.getVal1(), Value.get(value), params.context()));
     }
-    public T insert(double value, java.util.function.Consumer<MapEntryWriteOptions> options) {
+    public T insert(double value, Consumer<MapEntryWriteOptions> options) {
         if (params.getOperation() == CdtOperation.LIST_BY_INDEX) {
             return this.opBuilder.addOp(ListOperation.insert(binName, params.getInt1(), Value.get(value), params.context()));
         }
         MapPolicy mp = resolveMapPolicy(MapWriteFlags.CREATE_ONLY, applyOptions(options));
         return this.opBuilder.addOp(MapOperation.put(mp, binName, params.getVal1(), Value.get(value), params.context()));
     }
-    public T insert(List<?> value, java.util.function.Consumer<MapEntryWriteOptions> options) {
+    public T insert(List<?> value, Consumer<MapEntryWriteOptions> options) {
         if (params.getOperation() == CdtOperation.LIST_BY_INDEX) {
             return this.opBuilder.addOp(ListOperation.insert(binName, params.getInt1(), Value.get(value), params.context()));
         }
         MapPolicy mp = resolveMapPolicy(MapWriteFlags.CREATE_ONLY, applyOptions(options));
         return this.opBuilder.addOp(MapOperation.put(mp, binName, params.getVal1(), Value.get(value), params.context()));
     }
-    public T insert(Map<?,?> value, java.util.function.Consumer<MapEntryWriteOptions> options) {
+    public T insert(Map<?,?> value, Consumer<MapEntryWriteOptions> options) {
         if (params.getOperation() == CdtOperation.LIST_BY_INDEX) {
             return this.opBuilder.addOp(ListOperation.insert(binName, params.getInt1(), Value.get(value), params.context()));
         }
         MapPolicy mp = resolveMapPolicy(MapWriteFlags.CREATE_ONLY, applyOptions(options));
         return this.opBuilder.addOp(MapOperation.put(mp, binName, params.getVal1(), Value.get(value), params.context()));
     }
-    public <U> T insert(U value, RecordMapper<U> mapper, java.util.function.Consumer<MapEntryWriteOptions> options) {
+    public <U> T insert(U value, RecordMapper<U> mapper, Consumer<MapEntryWriteOptions> options) {
         if (params.getOperation() == CdtOperation.LIST_BY_INDEX) {
             return this.opBuilder.addOp(ListOperation.insert(binName, params.getInt1(), Value.get(mapper.toMap(value)), params.context()));
         }
@@ -2020,80 +2021,80 @@ public class CdtGetOrRemoveBuilder<T extends AbstractOperationBuilder<T>> extend
     // =================================
 
     public T update(long value) {
-        return update(value, (java.util.function.Consumer<MapEntryWriteOptions>) null);
+        return update(value, (Consumer<MapEntryWriteOptions>) null);
     }
     public T update(String value) {
-        return update(value, (java.util.function.Consumer<MapEntryWriteOptions>) null);
+        return update(value, (Consumer<MapEntryWriteOptions>) null);
     }
     public T update(byte[] value) {
-        return update(value, (java.util.function.Consumer<MapEntryWriteOptions>) null);
+        return update(value, (Consumer<MapEntryWriteOptions>) null);
     }
     public T update(boolean value) {
-        return update(value, (java.util.function.Consumer<MapEntryWriteOptions>) null);
+        return update(value, (Consumer<MapEntryWriteOptions>) null);
     }
     public T update(double value) {
-        return update(value, (java.util.function.Consumer<MapEntryWriteOptions>) null);
+        return update(value, (Consumer<MapEntryWriteOptions>) null);
     }
     public T update(List<?> value) {
-        return update(value, (java.util.function.Consumer<MapEntryWriteOptions>) null);
+        return update(value, (Consumer<MapEntryWriteOptions>) null);
     }
     public T update(Map<?,?> value) {
-        return update(value, (java.util.function.Consumer<MapEntryWriteOptions>) null);
+        return update(value, (Consumer<MapEntryWriteOptions>) null);
     }
     public <U> T update(U value, RecordMapper<U> mapper) {
-        return update(value, mapper, (java.util.function.Consumer<MapEntryWriteOptions>) null);
+        return update(value, mapper, (Consumer<MapEntryWriteOptions>) null);
     }
 
-    public T update(long value, java.util.function.Consumer<MapEntryWriteOptions> options) {
+    public T update(long value, Consumer<MapEntryWriteOptions> options) {
         if (params.getOperation() == CdtOperation.LIST_BY_INDEX) {
             throw new IllegalArgumentException("upsert/update is not applicable for list operations");
         }
         MapPolicy mp = resolveMapPolicy(MapWriteFlags.UPDATE_ONLY, applyOptions(options));
         return this.opBuilder.addOp(MapOperation.put(mp, binName, params.getVal1(), Value.get(value), params.context()));
     }
-    public T update(String value, java.util.function.Consumer<MapEntryWriteOptions> options) {
+    public T update(String value, Consumer<MapEntryWriteOptions> options) {
         if (params.getOperation() == CdtOperation.LIST_BY_INDEX) {
             throw new IllegalArgumentException("upsert/update is not applicable for list operations");
         }
         MapPolicy mp = resolveMapPolicy(MapWriteFlags.UPDATE_ONLY, applyOptions(options));
         return this.opBuilder.addOp(MapOperation.put(mp, binName, params.getVal1(), Value.get(value), params.context()));
     }
-    public T update(byte[] value, java.util.function.Consumer<MapEntryWriteOptions> options) {
+    public T update(byte[] value, Consumer<MapEntryWriteOptions> options) {
         if (params.getOperation() == CdtOperation.LIST_BY_INDEX) {
             throw new IllegalArgumentException("upsert/update is not applicable for list operations");
         }
         MapPolicy mp = resolveMapPolicy(MapWriteFlags.UPDATE_ONLY, applyOptions(options));
         return this.opBuilder.addOp(MapOperation.put(mp, binName, params.getVal1(), Value.get(value), params.context()));
     }
-    public T update(boolean value, java.util.function.Consumer<MapEntryWriteOptions> options) {
+    public T update(boolean value, Consumer<MapEntryWriteOptions> options) {
         if (params.getOperation() == CdtOperation.LIST_BY_INDEX) {
             throw new IllegalArgumentException("upsert/update is not applicable for list operations");
         }
         MapPolicy mp = resolveMapPolicy(MapWriteFlags.UPDATE_ONLY, applyOptions(options));
         return this.opBuilder.addOp(MapOperation.put(mp, binName, params.getVal1(), Value.get(value), params.context()));
     }
-    public T update(double value, java.util.function.Consumer<MapEntryWriteOptions> options) {
+    public T update(double value, Consumer<MapEntryWriteOptions> options) {
         if (params.getOperation() == CdtOperation.LIST_BY_INDEX) {
             throw new IllegalArgumentException("upsert/update is not applicable for list operations");
         }
         MapPolicy mp = resolveMapPolicy(MapWriteFlags.UPDATE_ONLY, applyOptions(options));
         return this.opBuilder.addOp(MapOperation.put(mp, binName, params.getVal1(), Value.get(value), params.context()));
     }
-    public T update(List<?> value, java.util.function.Consumer<MapEntryWriteOptions> options) {
+    public T update(List<?> value, Consumer<MapEntryWriteOptions> options) {
         if (params.getOperation() == CdtOperation.LIST_BY_INDEX) {
             throw new IllegalArgumentException("upsert/update is not applicable for list operations");
         }
         MapPolicy mp = resolveMapPolicy(MapWriteFlags.UPDATE_ONLY, applyOptions(options));
         return this.opBuilder.addOp(MapOperation.put(mp, binName, params.getVal1(), Value.get(value), params.context()));
     }
-    public T update(Map<?,?> value, java.util.function.Consumer<MapEntryWriteOptions> options) {
+    public T update(Map<?,?> value, Consumer<MapEntryWriteOptions> options) {
         if (params.getOperation() == CdtOperation.LIST_BY_INDEX) {
             throw new IllegalArgumentException("upsert/update is not applicable for list operations");
         }
         MapPolicy mp = resolveMapPolicy(MapWriteFlags.UPDATE_ONLY, applyOptions(options));
         return this.opBuilder.addOp(MapOperation.put(mp, binName, params.getVal1(), Value.get(value), params.context()));
     }
-    public <U> T update(U value, RecordMapper<U> mapper, java.util.function.Consumer<MapEntryWriteOptions> options) {
+    public <U> T update(U value, RecordMapper<U> mapper, Consumer<MapEntryWriteOptions> options) {
         if (params.getOperation() == CdtOperation.LIST_BY_INDEX) {
             throw new IllegalArgumentException("upsert/update is not applicable for list operations");
         }
@@ -2106,19 +2107,19 @@ public class CdtGetOrRemoveBuilder<T extends AbstractOperationBuilder<T>> extend
     // =================================
 
     public T add(long value) {
-        return add(value, (java.util.function.Consumer<MapEntryWriteOptions>) null);
+        return add(value, (Consumer<MapEntryWriteOptions>) null);
     }
     public T add(double value) {
-        return add(value, (java.util.function.Consumer<MapEntryWriteOptions>) null);
+        return add(value, (Consumer<MapEntryWriteOptions>) null);
     }
-    public T add(long value, java.util.function.Consumer<MapEntryWriteOptions> options) {
+    public T add(long value, Consumer<MapEntryWriteOptions> options) {
         if (params.getOperation() == CdtOperation.LIST_BY_INDEX) {
             return this.opBuilder.addOp(ListOperation.increment(binName, params.getInt1(), Value.get(value), params.context()));
         }
         MapPolicy mp = resolveMapPolicy(MapWriteFlags.DEFAULT, applyOptions(options));
         return this.opBuilder.addOp(MapOperation.increment(mp, binName, params.getVal1(), Value.get(value), params.context()));
     }
-    public T add(double value, java.util.function.Consumer<MapEntryWriteOptions> options) {
+    public T add(double value, Consumer<MapEntryWriteOptions> options) {
         if (params.getOperation() == CdtOperation.LIST_BY_INDEX) {
             return this.opBuilder.addOp(ListOperation.increment(binName, params.getInt1(), Value.get(value), params.context()));
         }
@@ -2131,80 +2132,80 @@ public class CdtGetOrRemoveBuilder<T extends AbstractOperationBuilder<T>> extend
     // =================================
 
     public T upsert(long value) {
-        return upsert(value, (java.util.function.Consumer<MapEntryWriteOptions>) null);
+        return upsert(value, (Consumer<MapEntryWriteOptions>) null);
     }
     public T upsert(String value) {
-        return upsert(value, (java.util.function.Consumer<MapEntryWriteOptions>) null);
+        return upsert(value, (Consumer<MapEntryWriteOptions>) null);
     }
     public T upsert(byte[] value) {
-        return upsert(value, (java.util.function.Consumer<MapEntryWriteOptions>) null);
+        return upsert(value, (Consumer<MapEntryWriteOptions>) null);
     }
     public T upsert(boolean value) {
-        return upsert(value, (java.util.function.Consumer<MapEntryWriteOptions>) null);
+        return upsert(value, (Consumer<MapEntryWriteOptions>) null);
     }
     public T upsert(double value) {
-        return upsert(value, (java.util.function.Consumer<MapEntryWriteOptions>) null);
+        return upsert(value, (Consumer<MapEntryWriteOptions>) null);
     }
     public T upsert(List<?> value) {
-        return upsert(value, (java.util.function.Consumer<MapEntryWriteOptions>) null);
+        return upsert(value, (Consumer<MapEntryWriteOptions>) null);
     }
     public T upsert(Map<?,?> value) {
-        return upsert(value, (java.util.function.Consumer<MapEntryWriteOptions>) null);
+        return upsert(value, (Consumer<MapEntryWriteOptions>) null);
     }
     public <U> T upsert(U value, RecordMapper<U> mapper) {
-        return upsert(value, mapper, (java.util.function.Consumer<MapEntryWriteOptions>) null);
+        return upsert(value, mapper, (Consumer<MapEntryWriteOptions>) null);
     }
 
-    public T upsert(long value, java.util.function.Consumer<MapEntryWriteOptions> options) {
+    public T upsert(long value, Consumer<MapEntryWriteOptions> options) {
         if (params.getOperation() == CdtOperation.LIST_BY_INDEX) {
             throw new IllegalArgumentException("upsert/update is not applicable for list operations");
         }
         MapPolicy mp = resolveMapPolicy(MapWriteFlags.DEFAULT, applyOptions(options));
         return this.opBuilder.addOp(MapOperation.put(mp, binName, params.getVal1(), Value.get(value), params.context()));
     }
-    public T upsert(String value, java.util.function.Consumer<MapEntryWriteOptions> options) {
+    public T upsert(String value, Consumer<MapEntryWriteOptions> options) {
         if (params.getOperation() == CdtOperation.LIST_BY_INDEX) {
             throw new IllegalArgumentException("upsert/update is not applicable for list operations");
         }
         MapPolicy mp = resolveMapPolicy(MapWriteFlags.DEFAULT, applyOptions(options));
         return this.opBuilder.addOp(MapOperation.put(mp, binName, params.getVal1(), Value.get(value), params.context()));
     }
-    public T upsert(byte[] value, java.util.function.Consumer<MapEntryWriteOptions> options) {
+    public T upsert(byte[] value, Consumer<MapEntryWriteOptions> options) {
         if (params.getOperation() == CdtOperation.LIST_BY_INDEX) {
             throw new IllegalArgumentException("upsert/update is not applicable for list operations");
         }
         MapPolicy mp = resolveMapPolicy(MapWriteFlags.DEFAULT, applyOptions(options));
         return this.opBuilder.addOp(MapOperation.put(mp, binName, params.getVal1(), Value.get(value), params.context()));
     }
-    public T upsert(boolean value, java.util.function.Consumer<MapEntryWriteOptions> options) {
+    public T upsert(boolean value, Consumer<MapEntryWriteOptions> options) {
         if (params.getOperation() == CdtOperation.LIST_BY_INDEX) {
             throw new IllegalArgumentException("upsert/update is not applicable for list operations");
         }
         MapPolicy mp = resolveMapPolicy(MapWriteFlags.DEFAULT, applyOptions(options));
         return this.opBuilder.addOp(MapOperation.put(mp, binName, params.getVal1(), Value.get(value), params.context()));
     }
-    public T upsert(double value, java.util.function.Consumer<MapEntryWriteOptions> options) {
+    public T upsert(double value, Consumer<MapEntryWriteOptions> options) {
         if (params.getOperation() == CdtOperation.LIST_BY_INDEX) {
             throw new IllegalArgumentException("upsert/update is not applicable for list operations");
         }
         MapPolicy mp = resolveMapPolicy(MapWriteFlags.DEFAULT, applyOptions(options));
         return this.opBuilder.addOp(MapOperation.put(mp, binName, params.getVal1(), Value.get(value), params.context()));
     }
-    public T upsert(List<?> value, java.util.function.Consumer<MapEntryWriteOptions> options) {
+    public T upsert(List<?> value, Consumer<MapEntryWriteOptions> options) {
         if (params.getOperation() == CdtOperation.LIST_BY_INDEX) {
             throw new IllegalArgumentException("upsert/update is not applicable for list operations");
         }
         MapPolicy mp = resolveMapPolicy(MapWriteFlags.DEFAULT, applyOptions(options));
         return this.opBuilder.addOp(MapOperation.put(mp, binName, params.getVal1(), Value.get(value), params.context()));
     }
-    public T upsert(Map<?,?> value, java.util.function.Consumer<MapEntryWriteOptions> options) {
+    public T upsert(Map<?,?> value, Consumer<MapEntryWriteOptions> options) {
         if (params.getOperation() == CdtOperation.LIST_BY_INDEX) {
             throw new IllegalArgumentException("upsert/update is not applicable for list operations");
         }
         MapPolicy mp = resolveMapPolicy(MapWriteFlags.DEFAULT, applyOptions(options));
         return this.opBuilder.addOp(MapOperation.put(mp, binName, params.getVal1(), Value.get(value), params.context()));
     }
-    public <U> T upsert(U value, RecordMapper<U> mapper, java.util.function.Consumer<MapEntryWriteOptions> options) {
+    public <U> T upsert(U value, RecordMapper<U> mapper, Consumer<MapEntryWriteOptions> options) {
         if (params.getOperation() == CdtOperation.LIST_BY_INDEX) {
             throw new IllegalArgumentException("upsert/update is not applicable for list operations");
         }

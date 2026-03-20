@@ -137,8 +137,10 @@ When both sides are untyped (e.g., comparing `@` to another bin), use explicit `
 
 ```
 @.get(type: INT) == $.otherBin.get(type: INT)
-@.price.get(type: FLOAT) > $.threshold.get(type: FLOAT)
+@.price > $.threshold.get(type: FLOAT)
 ```
+
+Note that only one side needs to have its type specified, the DSL should derive the type of the other side.
 
 This follows the same pattern as existing bin-to-bin comparisons in the DSL.
 
