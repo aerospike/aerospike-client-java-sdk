@@ -6,41 +6,31 @@ import com.aerospike.client.fluent.util.RandomShift;
 import java.util.List;
 import java.util.concurrent.Semaphore;
 
-public class InsertTaskAsync extends InsertTask implements Runnable {
+public class InsertTaskAsync extends InsertTask {
 
     private final long startKey;
     private final long endKey;
     private final String[] binArr;
     private final boolean useLatency;
-    private final Semaphore semaphore;
     private final Session session;
+    private final RandomShift random;
     private long currentKey;
 
-    public InsertTaskAsync(Session session, Arguments args, CounterStore counters, Semaphore semaphore,long start, long keyCount) {
+    public InsertTaskAsync(Session session, Arguments args, CounterStore counters, long start, long keyCount) {
         super(args, counters);
         this.startKey = start;
         this.endKey = startKey + keyCount;
         this.binArr = args.getBinNames(true);
         this.useLatency = counters.write.latency != null;
-        this.semaphore = semaphore;
         this.session = session;
+        this.random = new RandomShift();
     }
 
-
-    @Override
-    public void run() {
-        RandomShift random = new RandomShift();
-        while (currentKey + startKey < endKey) {
-            executeCommand(currentKey + startKey, random);
-            currentKey++;
-        }
-    }
-
-    private void executeCommand(long keyIdx, RandomShift random) {
+    public void runCommand() {
+        long keyIdx = startKey + this.currentKey;
         Key key = new Key(args.getNamespace(), args.getSetName(), keyIdx);
         // Use predictable value for 0th bin same as key value
         Value[] values = args.getBinValues(random, true, keyIdx);
-        acquire();
         doUpsert(key, values);
     }
 
@@ -57,9 +47,14 @@ public class InsertTaskAsync extends InsertTask implements Runnable {
                         counters.write.latency.add(System.nanoTime() - begin);
                     }
                     processSingleKeyWriteRecord(results);
+                    if (++currentKey < endKey) {
+                        // Try next command.
+                        runCommand();
+                    } else {
+                        System.out.println("Stopped ..Insert");
+                    }
+
                 }).whenComplete((r, ex) -> {
-                    handle.close();
-                    release();
                     if (ex != null) {
                         if (ex instanceof AerospikeException) {
                             writeFailure((AerospikeException) ex);
@@ -67,21 +62,9 @@ public class InsertTaskAsync extends InsertTask implements Runnable {
                             writeFailure((Exception) ex);
                         }
                         currentKey--;
+                        runCommand();
                     }
                 });
-    }
-
-    private void acquire() {
-        try {
-            semaphore.acquire();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new RuntimeException("Interrupted waiting for async permit", e);
-        }
-    }
-
-    private void release() {
-        semaphore.release();
     }
 
     private void processSingleKeyWriteRecord(List<RecordResult> results) {

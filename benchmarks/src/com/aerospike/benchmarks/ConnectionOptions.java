@@ -124,7 +124,9 @@ public class ConnectionOptions {
 
     @Option(
             names = {"-c", "-clusterName", "--clusterName"},
-            description = "Set expected cluster name.")
+            description =
+                    "Expected cluster name (logs and server validation). "
+                            + "If omitted, the benchmark also checks env AEROSPIKE_CLUSTER_NAME.")
     private String clusterName;
 
     @Option(

@@ -6,97 +6,89 @@ import com.aerospike.client.fluent.util.RandomShift;
 
 import java.util.List;
 import java.util.concurrent.CompletionException;
-import java.util.concurrent.Semaphore;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.locks.LockSupport;
 import java.util.function.Consumer;
 
-public class RWTaskAsync extends RWTask implements Runnable {
+public class RWTaskAsync extends RWTask {
 
     private final Session session;
     private final boolean useLatency;
-    private final int maxRequestInFlight;
-    private final Semaphore inflightReqs;
+    private final RandomShift random;
 
     public RWTaskAsync(Arguments args, CounterStore counters,
-                       Session session, Semaphore semaphore, int maxRequestInFlight) {
+                       Session session) {
         super(args, counters);
         this.session = session;
         this.useLatency = counters.read.latency != null;
-        this.inflightReqs = semaphore;
-        this.maxRequestInFlight = maxRequestInFlight;
+        this.random = new RandomShift();
     }
 
-    private void acquire() {
-        try {
-            inflightReqs.acquire();   // blocks if limit reached
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
-    }
-
-    private void release() {
-        inflightReqs.release();
-    }
+//    private void acquire() {
+//        try {
+//            inflightReqs.acquire();   // blocks if limit reached
+//        } catch (InterruptedException e) {
+//            Thread.currentThread().interrupt();
+//        }
+//    }
+//
+//    private void release() {
+//        inflightReqs.release();
+//    }
 
     /**
      * Wait for all in-flight operations to complete.
      * Call after stop() for graceful shutdown.
      */
-    public boolean awaitDrain(long timeoutMs) throws InterruptedException {
-        boolean acquired = inflightReqs.tryAcquire(maxRequestInFlight, timeoutMs, TimeUnit.MILLISECONDS);
-        if (acquired) {
-            inflightReqs.release(maxRequestInFlight);
-        }
-        return acquired;
-    }
+//    public boolean awaitDrain(long timeoutMs) throws InterruptedException {
+//        boolean acquired = inflightReqs.tryAcquire(maxRequestInFlight, timeoutMs, TimeUnit.MILLISECONDS);
+//        if (acquired) {
+//            inflightReqs.release(maxRequestInFlight);
+//        }
+//        return acquired;
+//    }
 
     @Override
     protected void get(Key key, String binName) {
-        acquire();
         long begin = useLatency ? System.nanoTime() : 0;
         var handle = session.query(key)
                 .readingOnlyBins(binName)
                 .executeAsync(ErrorStrategy.IN_STREAM);
 
         handle.asCompletableFuture()
-                .thenAccept(results -> {
+                .whenComplete((results, ex) -> {
+                    if (ex != null) {
+                        handleReadException(ex);
+                        return;
+                    }
                     if (useLatency) {
                         counters.read.latency.add(System.nanoTime() - begin);
                     }
                     processSingleKeyReadRecord(key, results);
-                })
-                .whenComplete((r, ex) -> {
-                    handle.close();
-                    release();
-                    if (ex != null) handleReadException(ex);
+                    runNextCommand();
                 });
     }
 
     @Override
     protected void get(Key key) {
-        acquire();
+      //  acquire();
         long begin = useLatency ? System.nanoTime() : 0;
         var handle = session.query(key)
                 .executeAsync(ErrorStrategy.IN_STREAM);
         handle.asCompletableFuture()
-                .thenAccept(results -> {
+                .whenComplete((results, ex) -> {
+                    if (ex != null) {
+                        handleReadException(ex);
+                        return;
+                    }
                     if (useLatency) {
                         counters.read.latency.add(System.nanoTime() - begin);
                     }
                     processSingleKeyReadRecord(key, results);
-                })
-                .whenComplete((r, ex) -> {
-                    handle.close();
-                    release();
-                    if (ex != null) handleReadException(ex);
+                    runNextCommand();
                 });
     }
 
     @Override
     protected void upsert(Key key, Value[] values, String... bins) {
-        acquire();
         long begin = counters.write.latency != null ? System.nanoTime() : 0;
         var builder = session.upsert(key);
         for (int i = 0; i < values.length; i++) {
@@ -104,21 +96,21 @@ public class RWTaskAsync extends RWTask implements Runnable {
         }
         var handle = builder.executeAsync(ErrorStrategy.IN_STREAM);
         handle.asCompletableFuture()
-                .thenAccept(results -> {
+                .whenComplete((results, ex) -> {
+                    if (ex != null) {
+                        handleWriteException(ex);
+                        return;
+                    }
                     if (useLatency) {
                         counters.write.latency.add(System.nanoTime() - begin);
                     }
                     processSingleKeyWriteRecord(results);
-                }).whenComplete((r, ex) -> {
-                    handle.close();
-                    release();
-                    if (ex != null) handleWriteException(ex);
+                    runNextCommand();
                 });
     }
 
     @Override
     protected void createOrReplace(Key key, Value[] values, String... bins) {
-        acquire();
         long begin = counters.write.latency != null ? System.nanoTime() : 0;
         var builder = session.replace(key);
         for (int i = 0; i < values.length; i++) {
@@ -126,28 +118,27 @@ public class RWTaskAsync extends RWTask implements Runnable {
         }
         var handle = builder.executeAsync(ErrorStrategy.IN_STREAM);
         handle.asCompletableFuture()
-                .thenAccept(results -> {
+                .whenComplete((results, ex) -> {
+                    if (ex != null) {
+                        handleWriteException(ex);
+                        return;
+                    }
                     if (useLatency) {
                         counters.write.latency.add(System.nanoTime() - begin);
                     }
                     processSingleKeyWriteRecord(results);
-                }).whenComplete((r, ex) -> {
-                    handle.close();
-                    release();
-                    if (ex != null) handleWriteException(ex);
+                    runNextCommand();
                 });
     }
 
 
     @Override
     protected void getBinsAndIncrement(Key key, int incrementedBy) {
-        acquire();
         readRecordForUpdateAsync(key, rec -> incrementCounterAsync(key, rec, incrementedBy));
     }
 
     @Override
     protected void get(List<Key> keys, String binName) {
-        acquire();
         long begin = System.nanoTime();
         var handle = session.query(keys).bins(binName)
                 .executeAsync(ErrorStrategy.IN_STREAM);
@@ -161,14 +152,12 @@ public class RWTaskAsync extends RWTask implements Runnable {
                 })
                 .whenComplete((r, ex) -> {
                     handle.close();
-                    release();
                     if (ex != null) handleReadException(ex);
                 });
     }
 
     @Override
     protected void get(List<Key> keys) {
-        acquire();
         long begin = System.nanoTime();
         var handle = session.query(keys)
                 .executeAsync(ErrorStrategy.IN_STREAM);
@@ -182,15 +171,13 @@ public class RWTaskAsync extends RWTask implements Runnable {
                 })
                 .whenComplete((r, ex) -> {
                     handle.close();
-                    release();
                     if (ex != null) handleReadException(ex);
                 });
     }
 
     @Override
-    public void run() {
-        RandomShift random = new RandomShift();
-        while (!shouldStop) {
+    protected void runNextCommand() {
+        if (!isStopped) {
             runCommand(random);
         }
     }
@@ -202,6 +189,7 @@ public class RWTaskAsync extends RWTask implements Runnable {
         } else {
             readFailure((Exception) cause);
         }
+        runNextCommand();
     }
 
     private void handleWriteException(Throwable ex) {
@@ -211,6 +199,7 @@ public class RWTaskAsync extends RWTask implements Runnable {
         } else if (cause instanceof Exception) {
             writeFailure((Exception) cause);
         }
+        runNextCommand();
     }
 
     private void handleBatchReadResult(List<RecordResult> results) {
@@ -226,6 +215,7 @@ public class RWTaskAsync extends RWTask implements Runnable {
         } else {
             readFailure(firstFailure);
         }
+        runNextCommand();
     }
 
     private void readRecordForUpdateAsync(Key key, Consumer<Record> onSuccess) {
@@ -233,7 +223,6 @@ public class RWTaskAsync extends RWTask implements Runnable {
         var readHandle = session.query(key).executeAsync(ErrorStrategy.IN_STREAM);
         readHandle.asCompletableFuture()
                 .whenComplete((results, readEx) -> {
-                    readHandle.close();
                     Record rec = (results == null || results.isEmpty()) ? null : results.getFirst().recordOrNull();
                     if (readEx != null) {
                         if (readEx instanceof AerospikeException) {
@@ -261,18 +250,16 @@ public class RWTaskAsync extends RWTask implements Runnable {
         }
         var writeHandle = cmd.executeAsync(ErrorStrategy.IN_STREAM);
         writeHandle.asCompletableFuture()
-                .thenAccept(writeResults -> {
+                .whenComplete((writeResults, ex) -> {
+                    if (ex != null) {
+                        handleWriteException(ex);
+                        return;
+                    }
                     if (useLatency) {
                         counters.write.latency.add(System.nanoTime() - writeBegin);
                     }
                     processSingleKeyWriteRecord(writeResults);
-                })
-                .whenComplete((r, ex) -> {
-                    writeHandle.close();
-                    release();
-                    if (ex != null) {
-                        handleWriteException(ex);
-                    }
+                    runNextCommand();
                 });
     }
 

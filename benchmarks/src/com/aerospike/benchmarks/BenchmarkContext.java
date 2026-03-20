@@ -220,6 +220,22 @@ public final class BenchmarkContext implements AutoCloseable {
         return upper.startsWith("TXN,") || "TXN".equals(upper);
     }
 
+    /**
+     * Expected cluster name for logs and validation: {@code -c} / {@code --clusterName}, else
+     * {@code AEROSPIKE_CLUSTER_NAME} env (benchmark-only), so the client sees a name before connect.
+     */
+    private static String resolveClusterNameForBenchmark(ConnectionOptions connOpts) {
+        String fromCli = connOpts.getClusterName();
+        if (fromCli != null && !fromCli.isBlank()) {
+            return fromCli.trim();
+        }
+        String fromEnv = System.getenv("AEROSPIKE_CLUSTER_NAME");
+        if (fromEnv != null && !fromEnv.isBlank()) {
+            return fromEnv.trim();
+        }
+        return null;
+    }
+
     private static ClusterDefinition buildClusterDefinition(ConnectionOptions connOpts) {
         Host[] hosts = Host.parseHosts(connOpts.getHosts(), connOpts.getPort());
         ClusterDefinition def = hosts.length == 1
@@ -230,8 +246,9 @@ public final class BenchmarkContext implements AutoCloseable {
             String pw = connOpts.getPassword() != null ? new String(connOpts.getPassword()) : "";
             def.withNativeCredentials(connOpts.getUser(), pw);
         }
-        if (connOpts.getClusterName() != null) {
-            def.clusterName(connOpts.getClusterName());
+        String clusterName = resolveClusterNameForBenchmark(connOpts);
+        if (clusterName != null) {
+            def.clusterName(clusterName);
         }
         if (connOpts.isServicesAlternate()) {
            def.usingServicesAlternate();
