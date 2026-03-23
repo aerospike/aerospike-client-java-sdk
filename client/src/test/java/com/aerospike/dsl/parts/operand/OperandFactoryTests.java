@@ -8,7 +8,7 @@ import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-class OperandFactoryTests {
+public class OperandFactoryTests {
 
     @Test
     void negMapWithIncomparableKeys() {

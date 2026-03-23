@@ -7,7 +7,7 @@ import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-class IndexTests {
+public class IndexTests {
 
     private static final String NAMESPACE = "test";
     private static final String BIN = "bin1";

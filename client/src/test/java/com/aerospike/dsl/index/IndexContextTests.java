@@ -13,7 +13,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-class IndexContextTests {
+public class IndexContextTests {
 
     private static final String NAMESPACE = "test";
     private static final Index VALID_INDEX = Index.builder()

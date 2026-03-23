@@ -13,7 +13,7 @@ import java.util.TreeMap;
 
 import static com.aerospike.dsl.util.TestUtils.parseFilterExpressionAndCompare;
 
-class InPlaceholderTests {
+public class InPlaceholderTests {
 
     @Test
     void placeholderAsLeftOperand() {

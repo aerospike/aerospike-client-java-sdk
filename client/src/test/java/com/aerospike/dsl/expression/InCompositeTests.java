@@ -11,7 +11,7 @@ import java.util.List;
 
 import static com.aerospike.dsl.util.TestUtils.parseFilterExpressionAndCompare;
 
-class InCompositeTests {
+public class InCompositeTests {
 
     @Test
     void inWithAndOperator() {

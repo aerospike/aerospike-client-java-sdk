@@ -11,7 +11,7 @@ import java.util.Map;
 import static com.aerospike.dsl.util.TestUtils.parseFilterExp;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-class InNegativeTests {
+public class InNegativeTests {
 
     @Test
     void negativeRightOperandString() {

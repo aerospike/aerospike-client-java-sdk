@@ -16,7 +16,7 @@ import static com.aerospike.dsl.util.TestUtils.parseFilterExp;
 import static com.aerospike.dsl.util.TestUtils.parseFilterExpressionAndCompare;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-class InExplicitTypeTests {
+public class InExplicitTypeTests {
 
     @Test
     void explicitListTypeOnRightBin() {

@@ -15,7 +15,7 @@ import java.util.TreeMap;
 
 import static com.aerospike.dsl.util.TestUtils.parseFilterExpressionAndCompare;
 
-class InLiteralTests {
+public class InLiteralTests {
 
     @Test
     void stringLiteralInListLiteral() {

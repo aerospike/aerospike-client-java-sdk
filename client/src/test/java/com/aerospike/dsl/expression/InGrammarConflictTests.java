@@ -14,7 +14,7 @@ import java.util.List;
 
 import static com.aerospike.dsl.util.TestUtils.parseFilterExpressionAndCompare;
 
-class InGrammarConflictTests {
+public class InGrammarConflictTests {
 
     @Test
     void caseInsensitiveIn() {
