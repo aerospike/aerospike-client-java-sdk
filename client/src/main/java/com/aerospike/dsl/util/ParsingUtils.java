@@ -16,12 +16,171 @@
  */
 package com.aerospike.dsl.util;
 
+import com.aerospike.dsl.ConditionParser;
 import com.aerospike.dsl.DslParseException;
 import lombok.NonNull;
 import lombok.experimental.UtilityClass;
+import org.antlr.v4.runtime.ParserRuleContext;
+import org.antlr.v4.runtime.tree.TerminalNode;
+
+import java.math.BigInteger;
 
 @UtilityClass
 public class ParsingUtils {
+
+    private static final BigInteger LONG_MIN_ABS = BigInteger.valueOf(Long.MAX_VALUE).add(BigInteger.ONE);
+    private static final BigInteger INT_MIN_VALUE = BigInteger.valueOf(Integer.MIN_VALUE);
+    private static final BigInteger INT_MAX_VALUE = BigInteger.valueOf(Integer.MAX_VALUE);
+
+    /**
+     * Extracts a signed integer value from a {@code signedInt} parser rule context.
+     * The grammar rule is {@code signedInt: '-'? INT;}, so the context contains
+     * either just an INT token or a '-' followed by an INT token.
+     *
+     * @param ctx The signedInt context from the parser
+     * @return The parsed integer value, negated if a '-' prefix is present
+     */
+    public static int parseSignedInt(ConditionParser.SignedIntContext ctx) {
+        String intText = ctx.INT().getText();
+        boolean isNegative = ctx.getText().startsWith("-");
+        if (isHexOrBinaryIntToken(intText)) {
+            throw new DslParseException("Only decimal integer literals are supported in this element: " + ctx.getText());
+        }
+
+        BigInteger signedValue = getBigInteger(ctx, intText, isNegative);
+
+        return signedValue.intValue();
+    }
+
+    private static BigInteger getBigInteger(ConditionParser.SignedIntContext ctx, String intText, boolean isNegative) {
+        BigInteger value;
+        try {
+            value = new BigInteger(intText, 10);
+        } catch (NumberFormatException e) {
+            throw new DslParseException("Invalid integer literal: " + ctx.getText(), e);
+        }
+        BigInteger signedValue = isNegative ? value.negate() : value;
+
+        if (signedValue.compareTo(INT_MIN_VALUE) < 0 || signedValue.compareTo(INT_MAX_VALUE) > 0) {
+            throw new DslParseException("Signed integer literal out of range for INT: " + ctx.getText());
+        }
+        return signedValue;
+    }
+
+    private static boolean isHexOrBinaryIntToken(String intText) {
+        return intText.length() > 2
+                && intText.charAt(0) == '0'
+                && (intText.charAt(1) == 'x' || intText.charAt(1) == 'X'
+                || intText.charAt(1) == 'b' || intText.charAt(1) == 'B');
+    }
+
+    /**
+     * Parses an unsigned INT token (decimal, hex or binary) into a long value.
+     * The value range is [0, 2^63], where 2^63 is represented as {@link Long#MIN_VALUE}.
+     *
+     * @param text INT token text
+     * @return Parsed long value (unsigned 2^63 maps to {@link Long#MIN_VALUE})
+     */
+    public static long parseUnsignedLongLiteral(String text) {
+        BigInteger value = parseUnsignedIntegerLiteral(text);
+        if (value.compareTo(LONG_MIN_ABS) > 0) {
+            throw new DslParseException("Integer literal out of range: " + text);
+        }
+        return value.longValue();
+    }
+
+    private static BigInteger parseUnsignedIntegerLiteral(String text) {
+        try {
+            int radix = 10;
+            String digits = text;
+            if (text.length() > 2 && text.charAt(0) == '0') {
+                char prefix = text.charAt(1);
+                if (prefix == 'x' || prefix == 'X') {
+                    radix = 16;
+                    digits = text.substring(2);
+                } else if (prefix == 'b' || prefix == 'B') {
+                    radix = 2;
+                    digits = text.substring(2);
+                }
+            }
+            return new BigInteger(digits, radix);
+        } catch (NumberFormatException e) {
+            throw new DslParseException("Invalid integer literal: " + text, e);
+        }
+    }
+
+    /**
+     * Resolves the string content from a parser rule context that may contain
+     * NAME_IDENTIFIER, QUOTED_STRING, or IN tokens.
+     *
+     * @param ctx Any parser rule context containing string-like tokens
+     * @return The resolved string, or {@code null} if no matching token is found
+     */
+    private static String resolveStringToken(ParserRuleContext ctx) {
+        TerminalNode nameId = ctx.getToken(ConditionParser.NAME_IDENTIFIER, 0);
+        if (nameId != null) {
+            return nameId.getText();
+        }
+        TerminalNode quoted = ctx.getToken(ConditionParser.QUOTED_STRING, 0);
+        if (quoted != null) {
+            return unquote(quoted.getText());
+        }
+        TerminalNode in = ctx.getToken(ConditionParser.IN, 0);
+        if (in != null) {
+            return in.getText();
+        }
+        return null;
+    }
+
+    /**
+     * Extracts the text content from a {@code mapKey} parser rule context.
+     * Handles NAME_IDENTIFIER, QUOTED_STRING, and IN keyword (as literal text).
+     *
+     * @param ctx The mapKey context from the parser
+     * @return The parsed key string
+     */
+    public static String parseMapKey(ConditionParser.MapKeyContext ctx) {
+        String result = resolveStringToken(ctx);
+        if (result != null) {
+            return result;
+        }
+        throw new DslParseException("Could not parse mapKey from ctx: %s".formatted(ctx.getText()));
+    }
+
+    /**
+     * Extracts a typed value from a {@code valueIdentifier} parser rule context.
+     * Handles NAME_IDENTIFIER, QUOTED_STRING, IN keyword (as literal text), and signedInt.
+     *
+     * @param ctx The valueIdentifier context from the parser
+     * @return The parsed value as String or Integer
+     */
+    public static Object parseValueIdentifier(ConditionParser.ValueIdentifierContext ctx) {
+        String result = resolveStringToken(ctx);
+        if (result != null) {
+            return result;
+        }
+        if (ctx.signedInt() != null) {
+            return parseSignedInt(ctx.signedInt());
+        }
+        throw new DslParseException("Could not parse valueIdentifier from ctx: %s".formatted(ctx.getText()));
+    }
+
+    /**
+     * Parses a {@code valueIdentifier} context and requires the result to be an {@link Integer}.
+     * Used by value-range elements where only integer operands are valid.
+     *
+     * @param ctx The valueIdentifier context from the parser
+     * @return The parsed integer value
+     * @throws DslParseException if the parsed value is not an integer
+     */
+    public static Integer requireIntValueIdentifier(ConditionParser.ValueIdentifierContext ctx) {
+        Object result = parseValueIdentifier(ctx);
+        if (result instanceof Integer intValue) {
+            return intValue;
+        }
+        throw new DslParseException(
+                "Value range requires integer operands, got: %s".formatted(ctx.getText()));
+    }
 
     /**
      * Get the string inside the quotes.

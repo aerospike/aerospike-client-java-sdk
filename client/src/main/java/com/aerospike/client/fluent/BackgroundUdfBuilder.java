@@ -240,7 +240,7 @@ public class BackgroundUdfBuilder extends AbstractSessionOperationBuilder<Backgr
         if (dsl != null) {
             ParseResult pr = dsl.process(dataset.getNamespace(), session);
             filter = pr.getFilter();
-            filterExp = pr.getExpression();
+            filterExp = Exp.build(pr.getExp());
         }
 
         int ttl = getExpirationAsInt();

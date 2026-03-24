@@ -20,6 +20,8 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.experimental.Accessors;
 
+import java.util.EnumSet;
+
 @Getter
 public class ExpressionContainer extends AbstractPart {
 
@@ -66,12 +68,25 @@ public class ExpressionContainer extends AbstractPart {
         DIV,
         MUL,
         MOD,
+        POW,
         INT_XOR,
         INT_NOT, // unary
         INT_AND,
         INT_OR,
         L_SHIFT,
         R_SHIFT,
+        LOGICAL_R_SHIFT,
+        ABS, // unary
+        CEIL, // unary
+        FLOOR, // unary
+        LOG,
+        MIN_FUNC,
+        MAX_FUNC,
+        COUNT_ONE_BITS, // unary
+        FIND_BIT_LEFT,
+        FIND_BIT_RIGHT,
+        TO_INT, // unary
+        TO_FLOAT, // unary
         AND,
         OR,
         NOT, // unary
@@ -81,10 +96,29 @@ public class ExpressionContainer extends AbstractPart {
         GTEQ,
         LT,
         LTEQ,
+        IN,
         WITH_STRUCTURE, // unary
         WHEN_STRUCTURE, // unary
         EXCLUSIVE_STRUCTURE, // unary
         AND_STRUCTURE,
-        OR_STRUCTURE
+        OR_STRUCTURE;
+
+        // New values not in this set default to "might produce a list" (no false positives).
+        private static final EnumSet<ExprPartsOperation> SCALAR = EnumSet.of(
+                ADD, SUB, MUL, DIV, MOD, POW,
+                INT_AND, INT_OR, INT_XOR, INT_NOT,
+                L_SHIFT, R_SHIFT, LOGICAL_R_SHIFT,
+                ABS, CEIL, FLOOR, LOG,
+                MIN_FUNC, MAX_FUNC,
+                COUNT_ONE_BITS, FIND_BIT_LEFT, FIND_BIT_RIGHT,
+                TO_INT, TO_FLOAT,
+                EQ, NOTEQ, GT, GTEQ, LT, LTEQ,
+                IN, NOT, AND, OR,
+                AND_STRUCTURE, OR_STRUCTURE, EXCLUSIVE_STRUCTURE
+        );
+
+        public boolean isScalar() {
+            return SCALAR.contains(this);
+        }
     }
 }

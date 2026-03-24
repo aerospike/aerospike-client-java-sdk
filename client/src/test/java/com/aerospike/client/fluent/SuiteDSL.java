@@ -16,21 +16,14 @@
  */
 package com.aerospike.client.fluent;
 
+import com.aerospike.dsl.expression.*;
+import com.aerospike.dsl.index.IndexContextTests;
+import com.aerospike.dsl.index.IndexTests;
+import com.aerospike.dsl.parts.operand.OperandFactoryTests;
 import org.junit.platform.suite.api.SelectClasses;
 import org.junit.platform.suite.api.Suite;
 
 import com.aerospike.dsl.ctx.CtxTests;
-import com.aerospike.dsl.expression.ArithmeticExpressionsTests;
-import com.aerospike.dsl.expression.BinExpressionsTests;
-import com.aerospike.dsl.expression.CastingTests;
-import com.aerospike.dsl.expression.ControlStructuresTests;
-import com.aerospike.dsl.expression.ExplicitTypesTests;
-import com.aerospike.dsl.expression.ImplicitTypesTests;
-import com.aerospike.dsl.expression.ListExpressionsTests;
-import com.aerospike.dsl.expression.LogicalExpressionsTests;
-import com.aerospike.dsl.expression.MapAndListExpressionsTests;
-import com.aerospike.dsl.expression.MapExpressionsTests;
-import com.aerospike.dsl.expression.RecordMetadataTests;
 import com.aerospike.dsl.filter.ArithmeticFiltersTests;
 import com.aerospike.dsl.filter.BinFiltersTests;
 import com.aerospike.dsl.filter.ExplicitTypesFiltersTests;
@@ -49,6 +42,13 @@ import com.aerospike.dsl.parsedExpression.PlaceholdersTests;
 	ControlStructuresTests.class,
 	ExplicitTypesTests.class,
 	ImplicitTypesTests.class,
+    InBinTests.class,
+    InCompositeTests.class,
+    InExplicitTypeTests.class,
+    InGrammarConflictTests.class,
+    InLiteralTests.class,
+    InNegativeTests.class,
+    InPlaceholderTests.class,
 	ListExpressionsTests.class,
 	LogicalExpressionsTests.class,
 	MapAndListExpressionsTests.class,
@@ -62,7 +62,12 @@ import com.aerospike.dsl.parsedExpression.PlaceholdersTests;
 	ListExpressionsTests.class,
 	// com.aerospike.dsl.parsedExpression
 	LogicalParsedExpressionTests.class,
-	PlaceholdersTests.class
+	PlaceholdersTests.class,
+    // com.aerospike.dsl.index
+    IndexContextTests.class,
+    IndexTests.class,
+    // com.aerospike.dsl.parts.operand
+    OperandFactoryTests.class
 })
 public class SuiteDSL {
 }

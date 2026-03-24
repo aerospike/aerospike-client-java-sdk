@@ -16,8 +16,6 @@
  */
 package com.aerospike.dsl.parts.cdt.list;
 
-import static com.aerospike.dsl.util.ParsingUtils.unquote;
-
 import java.util.List;
 
 import com.aerospike.client.fluent.cdt.CTX;
@@ -27,14 +25,15 @@ import com.aerospike.client.fluent.exp.ListExp;
 import com.aerospike.dsl.ConditionParser;
 import com.aerospike.dsl.DslParseException;
 import com.aerospike.dsl.parts.path.BasePath;
+import com.aerospike.dsl.util.ParsingUtils;
 
 public class ListValueList extends ListPart {
-    private final boolean inverted;
+    private final boolean isInverted;
     private final List<?> valueList;
 
-    public ListValueList(boolean inverted, List<?> valueList) {
+    public ListValueList(boolean isInverted, List<?> valueList) {
         super(ListPartType.VALUE_LIST);
-        this.inverted = inverted;
+        this.isInverted = isInverted;
         this.valueList = valueList;
     }
 
@@ -47,16 +46,9 @@ public class ListValueList extends ListPart {
                     valueList != null ? valueList.valueListIdentifier() : invertedValueList.valueListIdentifier();
             boolean isInverted = valueList == null;
 
-            List<?> valueListObjects = list.valueIdentifier().stream().map(
-                    listValue -> {
-                        if (listValue.NAME_IDENTIFIER() != null) {
-                            return listValue.NAME_IDENTIFIER().getText();
-                        } else if (listValue.QUOTED_STRING() != null) {
-                            return unquote(listValue.QUOTED_STRING().getText());
-                        }
-                        return Integer.parseInt(listValue.INT().getText());
-                    }
-            ).toList();
+            List<?> valueListObjects = list.valueIdentifier().stream()
+                    .map(ParsingUtils::parseValueIdentifier)
+                    .toList();
 
             return new ListValueList(isInverted, valueListObjects);
         }
@@ -65,7 +57,7 @@ public class ListValueList extends ListPart {
 
     @Override
     public Exp constructExp(BasePath basePath, Exp.Type valueType, int cdtReturnType, CTX[] context) {
-        if (inverted) {
+        if (isInverted) {
             cdtReturnType = cdtReturnType | ListReturnType.INVERTED;
         }
 

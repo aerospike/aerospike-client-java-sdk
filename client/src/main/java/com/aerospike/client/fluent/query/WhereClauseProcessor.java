@@ -78,7 +78,7 @@ public abstract class WhereClauseProcessor {
                 .append(" ] ")
                 .append(filterCriteriaToString(filter));
         if (indexContext != null) {
-            Collection<Index> indexes = indexContext.indexes();
+            Collection<Index> indexes = indexContext.getIndexes();
             sb.append("{");
             for (Index index : indexes) {
                 sb.append(index.getBinValuesRatio()).append(",");

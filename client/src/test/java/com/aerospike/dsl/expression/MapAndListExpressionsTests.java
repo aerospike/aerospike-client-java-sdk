@@ -145,7 +145,7 @@ public class MapAndListExpressionsTests {
         TestUtils.parseFilterExpressionAndCompare(ExpressionContext.of("$.mapBin1.a.[0].cc.get(type: INT) > 100"), expected);
     }
 
-//    @Test
+    //    @Test
     void mapAndListCombinations() {
         Exp expected = Exp.gt(
                 ListExp.size(
@@ -158,7 +158,7 @@ public class MapAndListExpressionsTests {
                         )
                 ),
                 Exp.val(2));
-        TestUtils.parseFilterExpressionAndCompare(ExpressionContext.of("$.mapBin1.shape.[].count() > 2"), expected);
-        TestUtils.parseFilterExpressionAndCompare(ExpressionContext.of("$.mapBin1.a.dd.[1].{#0}.get(return: UNORDERED_MAP)"), expected);
+//        TestUtils.parseFilterExpressionAndCompare("$.mapBin1.shape.[].count() > 2", expected);
+//        TestUtils.parseFilterExpressionAndCompare("$.mapBin1.a.dd.[1].{#0}.get(return: UNORDERED_MAP)", expected);
     }
 }

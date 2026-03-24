@@ -34,7 +34,6 @@ import com.aerospike.dsl.ParseResult;
 import com.aerospike.dsl.ParsedExpression;
 import com.aerospike.dsl.PlaceholderValues;
 import com.aerospike.dsl.util.TestUtils;
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 import java.util.Base64;
@@ -77,9 +76,9 @@ public class PlaceholdersTests {
                 TestUtils.getParsedExpression(ExpressionContext.of("$.intBin1 > ?0", PlaceholderValues.of(100)), null);
         ParseResult result = parsedExpr.getResult(PlaceholderValues.of(200));
 
-        Assertions.assertNull(result.getFilter());
+        assertThat(result.getFilter()).isNull();
         Expression expToCompare = Exp.build(Exp.gt(Exp.intBin("intBin1"), Exp.val(200)));
-        Assertions.assertEquals(Exp.build(result.getExp()), expToCompare);
+        assertThat(Exp.build(result.getExp())).isEqualTo(expToCompare);
     }
 
     @Test
@@ -329,6 +328,13 @@ public class PlaceholdersTests {
                 Exp.eq(Exp.stringBin("pun"), Exp.val("done"))
         );
         TestUtils.parseDslExpressionAndCompare(ExpressionContext.of("exclusive($.hand == ?0, $.pun == ?1)",
-                        PlaceholderValues.of("stand", "done")), filter, exp);
+                PlaceholderValues.of("stand", "done")), filter, exp);
+    }
+
+    @Test
+    void bothPlaceholdersEquality() {
+        Exp exp = Exp.eq(Exp.val(42), Exp.val(42));
+        TestUtils.parseDslExpressionAndCompare(ExpressionContext.of("?0 == ?1",
+                PlaceholderValues.of(42, 42)), null, exp);
     }
 }

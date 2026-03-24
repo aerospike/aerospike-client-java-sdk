@@ -16,9 +16,6 @@
  */
 package com.aerospike.dsl.parts.cdt.map;
 
-import static com.aerospike.dsl.util.ParsingUtils.subtractNullable;
-import static com.aerospike.dsl.util.ParsingUtils.unquote;
-
 import com.aerospike.client.fluent.cdt.CTX;
 import com.aerospike.client.fluent.cdt.MapReturnType;
 import com.aerospike.client.fluent.exp.Exp;
@@ -26,16 +23,19 @@ import com.aerospike.client.fluent.exp.MapExp;
 import com.aerospike.dsl.ConditionParser;
 import com.aerospike.dsl.DslParseException;
 import com.aerospike.dsl.parts.path.BasePath;
+import com.aerospike.dsl.util.ParsingUtils;
+
+import static com.aerospike.dsl.util.ParsingUtils.*;
 
 public class MapRankRangeRelative extends MapPart {
-    private final boolean inverted;
+    private final boolean isInverted;
     private final Integer start;
     private final Integer count;
     private final Object relative;
 
-    public MapRankRangeRelative(boolean inverted, Integer start, Integer end, Object relative) {
+    public MapRankRangeRelative(boolean isInverted, Integer start, Integer end, Object relative) {
         super(MapPartType.RANK_RANGE_RELATIVE);
-        this.inverted = inverted;
+        this.isInverted = isInverted;
         this.start = start;
         this.count = subtractNullable(end, start);
         this.relative = relative;
@@ -51,23 +51,16 @@ public class MapRankRangeRelative extends MapPart {
                             : invertedRankRangeRelative.rankRangeRelativeIdentifier();
             boolean isInverted = rankRangeRelative == null;
 
-            Integer start = Integer.parseInt(range.start().INT().getText());
+            Integer start = parseSignedInt(range.start().signedInt());
             Integer end = null;
             if (range.relativeRankEnd().end() != null) {
-                end = Integer.parseInt(range.relativeRankEnd().end().INT().getText());
+                end = parseSignedInt(range.relativeRankEnd().end().signedInt());
             }
 
             Object relativeValue = null;
             if (range.relativeRankEnd().relativeValue() != null) {
-                ConditionParser.ValueIdentifierContext valueIdentifierContext
-                        = range.relativeRankEnd().relativeValue().valueIdentifier();
-                if (valueIdentifierContext.INT() != null) {
-                    relativeValue = Integer.parseInt(valueIdentifierContext.INT().getText());
-                } else if (valueIdentifierContext.NAME_IDENTIFIER() != null) {
-                    relativeValue = valueIdentifierContext.NAME_IDENTIFIER().getText();
-                } else if (valueIdentifierContext.QUOTED_STRING() != null) {
-                    relativeValue = unquote(valueIdentifierContext.QUOTED_STRING().getText());
-                }
+                relativeValue = ParsingUtils.parseValueIdentifier(
+                        range.relativeRankEnd().relativeValue().valueIdentifier());
             }
 
             return new MapRankRangeRelative(isInverted, start, end, relativeValue);
@@ -77,7 +70,7 @@ public class MapRankRangeRelative extends MapPart {
 
     @Override
     public Exp constructExp(BasePath basePath, Exp.Type valueType, int cdtReturnType, CTX[] context) {
-        if (inverted) {
+        if (isInverted) {
             cdtReturnType = cdtReturnType | MapReturnType.INVERTED;
         }
 
