@@ -19,7 +19,6 @@ package com.aerospike.client.fluent.util;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.AbstractMap;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -28,7 +27,9 @@ import java.util.Map.Entry;
 import java.util.TreeMap;
 
 import com.aerospike.client.fluent.AerospikeException;
+import com.aerospike.client.fluent.AerospikeList;
 import com.aerospike.client.fluent.Value;
+import com.aerospike.client.fluent.cdt.ListOrder;
 import com.aerospike.client.fluent.command.Buffer;
 import com.aerospike.client.fluent.command.ParticleType;
 
@@ -51,7 +52,7 @@ public abstract class Unpacker<T> {
 
 	public final T unpackList() {
 		if (length <= 0) {
-			return getList(new ArrayList<T>(0));
+			return getList(new AerospikeList<T>(0));
 		}
 
 		try {
@@ -70,7 +71,7 @@ public abstract class Unpacker<T> {
 				offset += 4;
 			}
 			else {
-				return getList(new ArrayList<T>(0));
+				return getList(new AerospikeList<T>(0));
 			}
 			return unpackList(count);
 		}
@@ -81,25 +82,38 @@ public abstract class Unpacker<T> {
 
 	private T unpackList(int count) throws IOException, ClassNotFoundException {
 		if (count <= 0) {
-			return getList(new ArrayList<T>(0));
+			return getList(new AerospikeList<T>(0));
 		}
 
 		// Extract first object.
 		int mark = offset;
 		int size = count;
 		T val = unpackObject();
+		ListOrder order = ListOrder.UNORDERED;
 
 		if (val == null) {
 			// Determine if null value is because of an extension type.
 			int type = buffer[mark] & 0xff;
 
 			if (type != 0xc0) {  // not nil type
-				// Ignore extension type.
+				if (type == 0xc7) {
+					int extensionType = buffer[mark + 1] & 0xff;
+
+					if (extensionType == 0) {
+						int bits = buffer[mark + 2] & 0xff;
+
+						if ((bits & 0x01) != 0) {
+							order = ListOrder.ORDERED;
+						}
+					}
+				}
+
+				// Extension entry is not counted in list size.
 				size--;
 			}
 		}
 
-		ArrayList<T> out = new ArrayList<T>(size);
+		AerospikeList<T> out = new AerospikeList<T>(size, order);
 
 		if (size == count) {
 			out.add(val);
@@ -209,7 +223,7 @@ public abstract class Unpacker<T> {
 		// Index/rank range result where order needs to be preserved.
 		// Store in List<Entry<?,?> to preserve order.
 		// The first entry is going to be null (ignored), so use "count - 1" size.
-		List<Entry<T,T>> list = new ArrayList<Entry<T,T>>(count - 1);
+		List<Entry<T,T>> list = new AerospikeList<Entry<T,T>>(count - 1);
 
 		for (int i = 0; i < count; i++) {
 			T key = unpackObject();

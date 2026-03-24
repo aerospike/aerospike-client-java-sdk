@@ -24,6 +24,7 @@ import java.util.zip.DataFormatException;
 import java.util.zip.Inflater;
 
 import com.aerospike.client.fluent.AerospikeException;
+import com.aerospike.client.fluent.AerospikeList;
 import com.aerospike.client.fluent.Key;
 import com.aerospike.client.fluent.Record;
 
@@ -261,7 +262,11 @@ public final class RecordParser {
 		return new Record(bins, generation, expiration);
 	}
 
-	public static class OpResults extends ArrayList<Object> {
+	public static class OpResults extends AerospikeList<Object> {
 		private static final long serialVersionUID = 1L;
+
+		public OpResults() {
+			super(8);
+		}
 	}
 }

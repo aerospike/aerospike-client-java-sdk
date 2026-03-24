@@ -149,8 +149,8 @@ public final class Record {
 	/**
 	 * Get bin value as list.
 	 */
-	public List<?> getList(String name) {
-		return (List<?>)getValue(name);
+	public AerospikeList<?> getList(String name) {
+		return (AerospikeList<?>)getValue(name);
 	}
 
 	/**
