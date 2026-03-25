@@ -33,7 +33,7 @@ import com.aerospike.client.fluent.policy.Behavior;
  *
  * <p>Each test method targets a specific issue identified in the spec review:
  * <ul>
- *   <li>2a: {@code let...then} vs {@code with...do} keyword mismatch</li>
+ *   <li>2a: {@code let...then} vs {@code let...then} keyword mismatch</li>
  *   <li>2b: NAME_IDENTIFIER accepts digit-starting tokens, causing integer map key confusion</li>
  *   <li>2c: {@code >>} operator performs logical right shift instead of arithmetic</li>
  *   <li>2d: {@code exists()} path function silently ignored by visitor</li>
@@ -107,7 +107,7 @@ public class OperationDifferences {
                 .bin("listBin").setTo(List.of(50L, 10L, 40L, 20L, 30L))
                 .execute();
 
-        // Record 6: bins for with/do test
+        // Record 6: bins for let/then test
         session.upsert(set.id(6))
                 .bin("x").setTo(10)
                 .bin("y").setTo(20)
@@ -121,32 +121,32 @@ public class OperationDifferences {
     }
 
     // =========================================================================
-    // 2a: Spec says `let...then`, implementation uses `with...do`
+    // 2a: Spec says `let...then`, implementation uses `let...then`
     // =========================================================================
     static void test2a_LetThenVsWithDo(Session session, DataSet set) {
         System.out.println(SEPARATOR);
-        System.out.println("TEST 2a: Spec keyword 'let...then' vs implementation 'with...do'");
+        System.out.println("TEST 2a: Spec keyword 'let...then' vs implementation 'let...then'");
         System.out.println(SEPARATOR);
         System.out.println();
         System.out.println("Spec defines:     let ('x' = 1, 'y' = ${x} + 1) then (${y} + ${x})");
-        System.out.println("Implementation:   with ('x' = 1, 'y' = ${x} + 1) do (${y} + ${x})");
+        System.out.println("Implementation:   let ('x' = 1, 'y' = ${x} + 1) then (${y} + ${x})");
         System.out.println();
 
-        // with...do should work (current implementation)
-        System.out.println("  [A] Testing with...do (implementation keyword):");
+        // let...then should work (current implementation)
+        System.out.println("  [A] Testing let...then (implementation keyword):");
         try {
             RecordStream rs = session.query(set.id(6))
-                    .bin("result").selectFrom("with ('x' = $.x, 'y' = $.y) do (${x} + ${y})")
+                    .bin("result").selectFrom("let ('x' = $.x, 'y' = $.y) then (${x} + ${y})")
                     .execute();
             Record rec = rs.getFirst().orElseThrow().recordOrThrow();
             long result = rec.getLong("result");
-            System.out.println("      Expression:  with ('x' = $.x, 'y' = $.y) do (${x} + ${y})");
+            System.out.println("      Expression:  let ('x' = $.x, 'y' = $.y) then (${x} + ${y})");
             System.out.println("      Expected:    30");
             System.out.println("      Actual:      " + result);
-            check("2a-with-do", result == 30, "with...do produces correct result");
+            check("2a-let-then", result == 30, "let...then produces correct result");
         } catch (Exception e) {
             System.out.println("      ERROR: " + e.getClass().getSimpleName() + ": " + e.getMessage());
-            check("2a-with-do", false, "with...do should work");
+            check("2a-let-then", false, "let...then should work");
         }
 
         System.out.println();
