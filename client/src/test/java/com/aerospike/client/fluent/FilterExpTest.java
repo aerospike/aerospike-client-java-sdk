@@ -477,7 +477,7 @@ public class FilterExpTest extends ClusterTest {
 					Exp.ge(Exp.var(name), Exp.val(3.2999)),
 					Exp.le(Exp.var(name), Exp.val(3.3001)))));
 		*/
-		testDsl("with(x = $.B.asFloat() + 1.1) do(${x} >= 3.2999 and ${x} <= 3.3001)");
+		testDsl("let(x = $.B.asFloat() + 1.1) then(${x} >= 3.2999 and ${x} <= 3.3001)");
 	}
 
 	@Test

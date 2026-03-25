@@ -53,6 +53,7 @@ import java.util.function.*;
 
 import com.aerospike.client.fluent.cdt.ListReturnType;
 import com.aerospike.client.fluent.exp.ListExp;
+import com.aerospike.dsl.parts.controlstructure.*;
 import com.aerospike.dsl.parts.operand.*;
 import org.antlr.v4.runtime.misc.Pair;
 import org.antlr.v4.runtime.tree.ParseTree;
@@ -68,11 +69,6 @@ import com.aerospike.dsl.PlaceholderValues;
 import com.aerospike.dsl.parts.AbstractPart;
 import com.aerospike.dsl.parts.ExpressionContainer;
 import com.aerospike.dsl.parts.ExpressionContainer.ExprPartsOperation;
-import com.aerospike.dsl.parts.controlstructure.AndStructure;
-import com.aerospike.dsl.parts.controlstructure.ExclusiveStructure;
-import com.aerospike.dsl.parts.controlstructure.OrStructure;
-import com.aerospike.dsl.parts.controlstructure.WhenStructure;
-import com.aerospike.dsl.parts.controlstructure.WithStructure;
 import com.aerospike.dsl.parts.path.BinPart;
 import com.aerospike.dsl.parts.path.Path;
 import com.aerospike.dsl.util.TypeUtils;
@@ -1061,7 +1057,7 @@ public class VisitorUtils {
      * <p>
      * This method traverses the expression tree starting from the root {@link ExpressionContainer}.
      * For each node, it checks for structures like {@link ExpressionContainer},
-     * {@link WhenStructure}, and {@link WithStructure} and replaces any found placeholders with their
+     * {@link WhenStructure}, and {@link LetStructure} and replaces any found placeholders with their
      * corresponding values.
      * </p>
      *
@@ -1073,7 +1069,7 @@ public class VisitorUtils {
             switch (part.getPartType()) {
                 case EXPRESSION_CONTAINER -> replacePlaceholdersInExprContainer(part, placeholderValues);
                 case WHEN_STRUCTURE -> replacePlaceholdersInWhenStructure(part, placeholderValues);
-                case WITH_STRUCTURE -> replacePlaceholdersInWithStructure(part, placeholderValues);
+                case LET_STRUCTURE -> replacePlaceholdersInLetStructure(part, placeholderValues);
                 case EXCLUSIVE_STRUCTURE -> replacePlaceholdersInExclusiveStructure(part, placeholderValues);
             }
         };
@@ -1081,19 +1077,19 @@ public class VisitorUtils {
     }
 
     /**
-     * Replaces placeholders within a {@link WithStructure} object.
+     * Replaces placeholders within a {@link LetStructure} object.
      * <p>
-     * This method iterates through the operands of a given {@link WithStructure}. If an operand
+     * This method iterates through the operands of a given {@link LetStructure}. If an operand
      * is a {@link PlaceholderOperand}, it's resolved using the provided {@link PlaceholderValues}
      * and replaced with the resolved {@link AbstractPart}.
      * </p>
      *
-     * @param part              The {@link AbstractPart} representing the {@link WithStructure}
+     * @param part              The {@link AbstractPart} representing the {@link LetStructure}
      * @param placeholderValues An object storing placeholder indexes and their resolved values
      */
-    private static void replacePlaceholdersInWithStructure(AbstractPart part, PlaceholderValues placeholderValues) {
-        WithStructure withStructure = (WithStructure) part;
-        for (WithOperand subOperand : withStructure.getOperands()) {
+    private static void replacePlaceholdersInLetStructure(AbstractPart part, PlaceholderValues placeholderValues) {
+        LetStructure letStructure = (LetStructure) part;
+        for (LetOperand subOperand : letStructure.getOperands()) {
             if (subOperand.getPart().getPartType() == PLACEHOLDER_OPERAND) {
                 // Replace placeholder part with the resolved operand
                 subOperand.setPart(((PlaceholderOperand) subOperand.getPart()).resolve(placeholderValues));
@@ -1361,7 +1357,7 @@ public class VisitorUtils {
         return switch (expr.getOperationType()) {
             case OR_STRUCTURE -> orStructureToExp(expr);
             case AND_STRUCTURE -> andStructureToExp(expr);
-            case WITH_STRUCTURE -> withStructureToExp(expr);
+            case LET_STRUCTURE -> letStructureToExp(expr);
             case WHEN_STRUCTURE -> whenStructureToExp(expr);
             case EXCLUSIVE_STRUCTURE -> exclStructureToExp(expr);
             case MIN_FUNC -> variadicToExp(expr, Exp::min);
@@ -1398,21 +1394,21 @@ public class VisitorUtils {
     }
 
     /**
-     * Generates filter {@link Exp} for a WITH structure {@link ExpressionContainer}.
+     * Generates filter {@link Exp} for a LET structure {@link ExpressionContainer}.
      *
-     * @param expr The {@link ExpressionContainer} representing WITH structure
+     * @param expr The {@link ExpressionContainer} representing LET structure
      * @return The resulting {@link Exp} expression
      */
-    private static Exp withStructureToExp(ExpressionContainer expr) {
+    private static Exp letStructureToExp(ExpressionContainer expr) {
         List<Exp> expressions = new ArrayList<>();
-        WithStructure withOperandsList = (WithStructure) expr.getLeft(); // extract unary Expr operand
-        List<WithOperand> operands = withOperandsList.getOperands();
-        for (WithOperand withOperand : operands) {
-            if (!withOperand.isLastPart()) {
-                expressions.add(Exp.def(withOperand.getString(), getExp(withOperand.getPart())));
+        LetStructure letOperandsList = (LetStructure) expr.getLeft(); // extract unary Expr operand
+        List<LetOperand> operands = letOperandsList.getOperands();
+        for (LetOperand letOperand : operands) {
+            if (!letOperand.isLastPart()) {
+                expressions.add(Exp.def(letOperand.getString(), getExp(letOperand.getPart())));
             } else {
-                // the last expression is the action (described after "do")
-                expressions.add(getExp(withOperand.getPart()));
+                // the last expression is the action (described after "then")
+                expressions.add(getExp(letOperand.getPart()));
             }
         }
         return Exp.let(expressions.toArray(new Exp[0]));

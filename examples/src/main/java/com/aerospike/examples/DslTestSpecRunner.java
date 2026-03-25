@@ -573,21 +573,21 @@ public class DslTestSpecRunner {
 
         // 10.1 Variable binding (with...do — current implementation)
         readCheck("CS01", session, set, 7,
-                "with ('x' = $.price) do (${x} + 1)", 101L);
+                "let ('x' = $.price) then (${x} + 1)", 101L);
         readExpectError("CS01s", session, set, 7,
                 "let (x = $.price) then (${x} + 1)",
                 "Spec syntax let...then (known issue 2a)");
         readCheck("CS02", session, set, 7,
-                "with ('x' = $.price, 'y' = $.qty) do (${x} * ${y})", 500L);
+                "let ('x' = $.price, 'y' = $.qty) then (${x} * ${y})", 500L);
         readCheck("CS03", session, set, 7,
-                "with ('x' = $.price, 'y' = ${x} * 2) do (${y} + ${x})", 300L);
+                "let ('x' = $.price, 'y' = ${x} * 2) then (${y} + ${x})", 300L);
         readCheck("CS04", session, set, 7,
-                "with ('total' = $.price * $.qty, 'tax' = ${total} / 10) do (${total} + ${tax})", 550L);
+                "let ('total' = $.price * $.qty, 'tax' = ${total} / 10) then (${total} + ${tax})", 550L);
         readPrint("CS05", session, set, 7,
-                "with ('x' = $.price) do (with ('y' = ${x} * 2) do (${y} + ${x}))",
+                "let ('x' = $.price) do (with ('y' = ${x} * 2) then (${y} + ${x}))",
                 "Nested with...do, expect 300");
         filterCheck("CS06", session, set, 7,
-                "with ('total' = $.price * $.qty) do (${total} > 400)", true);
+                "let ('total' = $.price * $.qty) then (${total} > 400)", true);
 
         // 10.2 Conditional (when...default)
         readCheck("CS07", session, set, 7,
@@ -610,14 +610,14 @@ public class DslTestSpecRunner {
 
         // 10.3 Mixed nesting
         readPrint("CS13", session, set, 7,
-                "with ('t' = $.tier) do (when (${t} == 1 => \"gold\", ${t} == 2 => \"silver\", default => \"bronze\"))",
-                "when inside with, expect 'silver'");
+                "let ('t' = $.tier) then (when (${t} == 1 => \"gold\", ${t} == 2 => \"silver\", default => \"bronze\"))",
+                "when inside let, expect 'silver'");
         readPrint("CS14", session, set, 7,
-                "when ($.tier == 2 => with ('p' = $.price) do (${p} * 2), default => 0)",
-                "with inside when branch, expect 200");
+                "when ($.tier == 2 => let ('p' = $.price) then (${p} * 2), default => 0)",
+                "let inside when branch, expect 200");
         readPrint("CS15", session, set, 7,
-                "with ('t' = $.tier) do (when (${t} == 2 => with ('p' = $.price) do (${p} + ${t}), default => 0))",
-                "Deeply nested: with → when → with, expect 102");
+                "let ('t' = $.tier) then (when (${t} == 2 => let ('p' = $.price) then (${p} + ${t}), default => 0))",
+                "Deeply nested: let → when → let, expect 102");
     }
 
     // =====================================================================
@@ -711,8 +711,8 @@ public class DslTestSpecRunner {
                 "Top 5 by value");
 
         readPrint("TX15", session, set, 8,
-                "with ('filtered' = $.txns.{\"1685577600000\"-\"1701388800000\"}.get(return: COUNT)) do (${filtered})",
-                "Chained: time range → count via with...do — expect 6");
+                "let ('filtered' = $.txns.{\"1685577600000\"-\"1701388800000\"}.get(return: COUNT)) then (${filtered})",
+                "Chained: time range → count via let...then — expect 6");
 
         filterCheck("TX18", session, set, 8, "$.txns.{}.count() > 10", true);
         filterCheck("TX19", session, set, 8,
