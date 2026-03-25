@@ -22,14 +22,17 @@ import static org.junit.jupiter.api.Assertions.fail;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.aerospike.client.fluent.*;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
+import com.aerospike.client.fluent.AerospikeException;
+import com.aerospike.client.fluent.ClusterTest;
+import com.aerospike.client.fluent.DataSet;
+import com.aerospike.client.fluent.RecordStream;
+import com.aerospike.client.fluent.ResultCode;
 import com.aerospike.client.fluent.cdt.CTX;
 import com.aerospike.client.fluent.info.classes.IndexType;
-import com.aerospike.dsl.ParseResult;
 
 public class QueryContextTest extends ClusterTest {
 	private static final String indexName = "listrank";
@@ -79,27 +82,16 @@ public class QueryContextTest extends ClusterTest {
 		long begin = 14;
 		long end = 18;
 
-		Filter filter = Filter.range(binName, begin, end, CTX.listRank(-1));
+		// Filter filter = Filter.range(binName, begin, end, CTX.listRank(-1));
+		String where = "$." + binName + ".[#-1] >= " + begin + " and $." + binName + ".[#-1] <= " + end;
 
-		WhereClauseProcessor filterProcessor = new WhereClauseProcessor(true) {
-			@Override
-			public ParseResult process(String namespace, com.aerospike.client.fluent.Session session) {
-				return new ParseResult(filter, null);
-			}
-		};
-
-		var queryBuilder = session.query(dataSet)
-			.readingOnlyBins(binName);
-
-		var setWhereMethod = queryBuilder.getClass().getSuperclass()
-			.getDeclaredMethod("setWhereClause", WhereClauseProcessor.class);
-		setWhereMethod.setAccessible(true);
-		setWhereMethod.invoke(queryBuilder, filterProcessor);
-
-		RecordStream rs = queryBuilder.execute();
+		RecordStream rs = session.query(dataSet)
+			.where(where)
+			.execute();
 
 		try {
 			int count = 0;
+
 			while (rs.hasNext()) {
 				List<?> list = rs.next().recordOrThrow().getList(binName);
 				long received = (Long)list.get(list.size() - 1);
