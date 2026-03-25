@@ -16,6 +16,7 @@
  */
 package com.aerospike.client.fluent.query;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
@@ -28,6 +29,7 @@ import org.junit.jupiter.api.Test;
 import com.aerospike.client.fluent.AerospikeException;
 import com.aerospike.client.fluent.ClusterTest;
 import com.aerospike.client.fluent.DataSet;
+import com.aerospike.client.fluent.Record;
 import com.aerospike.client.fluent.RecordStream;
 import com.aerospike.client.fluent.ResultCode;
 import com.aerospike.client.fluent.command.Info;
@@ -82,7 +84,7 @@ public class ExpSecondaryIndexTest extends ClusterTest {
 	}
 
 	private static void insertPersonRecord(int key, String name, int age, String country) {
-		session.upsert(args.set.id(key))
+		session.upsert(dataSet.ids(key))
 			.bins("name", "age", "country")
 			.values(name, age, country)
 			.execute();
@@ -126,75 +128,77 @@ public class ExpSecondaryIndexTest extends ClusterTest {
 
 		insertTestRecords();
 
-		// TODO Tim: How port Filter.rangeByIndex to fluent client?
-		/*
+		String where = "$.age >= 18 and ($.country == 'Australia' or $.country == 'Canada' or $.country == 'USA')";
+
 		RecordStream rs = session.query(dataSet)
-			.where(exp)
+			.where(where)
 			.execute();
 
-		stmt.setFilter(Filter.rangeByIndex(indexName, 1, 1));
-		QueryPolicy qp = new QueryPolicy();
+		try {
+			int count = 0;
 
-		int count = 0;
-		try (RecordSet recordSet = client.query(qp, stmt)) {
-			while (recordSet.next()) {
-				Record record = recordSet.getRecord();
-				int age = record.getInt("age");
-				String country = record.getString("country");
+			while (rs.hasNext()) {
+				Record rec = rs.next().recordOrThrow();
+				int age = rec.getInt("age");
+				String country = rec.getString("country");
 				assertTrue(age >= 18);
 				assertTrue(countries.contains(country));
 				count++;
 			}
+
+			/*
+			(bins:(name:Alex),(age:47),(country:Canada))
+			(bins:(name:Tim),(age:312),(country:Australia))
+			(bins:(name:Pam),(age:56),(country:Australia))
+			(bins:(name:Bob),(age:47),(country:Canada))
+			(bins:(name:Sam),(age:18),(country:USA))
+			(bins:(name:Susan),(age:32),(country:Canada))
+			 */
+			assertEquals(6, count);
 		}
-		*/
-		/*
-		(bins:(name:Alex),(age:47),(country:Canada))
-		(bins:(name:Tim),(age:312),(country:Australia))
-		(bins:(name:Pam),(age:56),(country:Australia))
-		(bins:(name:Bob),(age:47),(country:Canada))
-		(bins:(name:Sam),(age:18),(country:USA))
-		(bins:(name:Susan),(age:32),(country:Canada))
-		 */
-//		assertEquals(6, count);
+		finally {
+			rs.close();
+		}
 	}
 
 	@Test
 	public void queryExpSIbyExp() {
-		/*
 		String sincdices = getSecondaryIndices();
 		if (!sincdices.contains("indexname=" + indexName)) {
 			addExpSI();
 		}
 
 		insertTestRecords();
-		Statement stmt = new Statement();
-		stmt.setNamespace(args.namespace);
-		stmt.setSetName(setName);
 
-		// TODO Tim: How port Filter.range to fluent client?
-		stmt.setFilter(Filter.range(exp, 1, 1));
-		QueryPolicy qp = new QueryPolicy();
+		// Equivalent to Filter.range(exp, 1, 1): match records where `exp` evaluates to 1.
+		RecordStream rs = session.query(dataSet)
+			.where(Exp.eq(Exp.expr(exp), Exp.val(1)))
+			.execute();
 
-		int count = 0;
-		try (RecordSet recordSet = client.query(qp, stmt)) {
-			while (recordSet.next()) {
-				Record record = recordSet.getRecord();
-				int age = record.getInt("age");
-				String country = record.getString("country");
+		try {
+			int count = 0;
+
+			while (rs.hasNext()) {
+				Record rec = rs.next().recordOrThrow();
+				int age = rec.getInt("age");
+				String country = rec.getString("country");
 				assertTrue(age >= 18);
 				assertTrue(countries.contains(country));
 				count++;
 			}
+
+			/*
+			(bins:(name:Alex),(age:47),(country:Canada))
+			(bins:(name:Tim),(age:312),(country:Australia))
+			(bins:(name:Pam),(age:56),(country:Australia))
+			(bins:(name:Bob),(age:47),(country:Canada))
+			(bins:(name:Sam),(age:18),(country:USA))
+			(bins:(name:Susan),(age:32),(country:Canada))
+			 */
+			assertEquals(6, count);
 		}
-		*/
-		/*
-		(bins:(name:Alex),(age:47),(country:Canada))
-		(bins:(name:Tim),(age:312),(country:Australia))
-		(bins:(name:Pam),(age:56),(country:Australia))
-		(bins:(name:Bob),(age:47),(country:Canada))
-		(bins:(name:Sam),(age:18),(country:USA))
-		(bins:(name:Susan),(age:32),(country:Canada))
-		 */
-//		assertEquals(6, count);
+		finally {
+			rs.close();
+		}
 	}
 }
