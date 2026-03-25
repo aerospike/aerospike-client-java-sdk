@@ -22,14 +22,17 @@ import static org.junit.jupiter.api.Assertions.fail;
 import java.util.HashMap;
 import java.util.Map;
 
-import com.aerospike.client.fluent.*;
-import com.aerospike.client.fluent.Record;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
+import com.aerospike.client.fluent.AerospikeException;
+import com.aerospike.client.fluent.ClusterTest;
+import com.aerospike.client.fluent.DataSet;
+import com.aerospike.client.fluent.Record;
+import com.aerospike.client.fluent.RecordStream;
+import com.aerospike.client.fluent.ResultCode;
 import com.aerospike.client.fluent.info.classes.IndexType;
-import com.aerospike.dsl.ParseResult;
 
 public class QueryCollectionTest extends ClusterTest {
 	private static final String setName = "querycoll";
@@ -91,27 +94,16 @@ public class QueryCollectionTest extends ClusterTest {
 	@Test
 	public void queryCollection() throws Exception {
 		String queryMapKey = mapKeyPrefix+2;
-		Filter filter = Filter.contains(binName, IndexCollectionType.MAPKEYS, queryMapKey);
 
-		// TODO: This is a workaround to avoid the issue with the new filter API.
-		WhereClauseProcessor filterProcessor = new WhereClauseProcessor(true) {
-			@Override
-			public ParseResult process(String namespace, com.aerospike.client.fluent.Session session) {
-				return new ParseResult(filter, null);
-			}
-		};
+		String where = "$." + binName + "." + queryMapKey + ".get(return: EXISTS) == true";
 
-		var queryBuilder = session.query(dataSet);
-
-		var setWhereMethod = queryBuilder.getClass().getSuperclass()
-			.getDeclaredMethod("setWhereClause", WhereClauseProcessor.class);
-		setWhereMethod.setAccessible(true);
-		setWhereMethod.invoke(queryBuilder, filterProcessor);
-
-		RecordStream rs = queryBuilder.execute();
+		RecordStream rs = session.query(dataSet)
+			.where(where)
+			.execute();
 
 		try {
 			int count = 0;
+
 			while (rs.hasNext()) {
 				Record record = rs.next().recordOrThrow();
 				Map<?,?> result = record.getMap(binName);

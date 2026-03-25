@@ -93,6 +93,7 @@ public class QueryBlobTest extends ClusterTest {
 		session.dropIndex(dataSet, indexNameList);
 	}
 
+/* TODO Implement this test when DSL supports blobs in the where clause.
 	@Test
 	public void queryBlob() throws Exception {
 		byte[] bytes = new byte[8];
@@ -131,7 +132,9 @@ public class QueryBlobTest extends ClusterTest {
 			rs.close();
 		}
 	}
+*/
 
+/* TODO Implement this test when DSL supports blobs in the where clause.
 	@Test
 	public void queryBlobInList() throws Exception {
 		byte[] bytes = new byte[8];
@@ -174,4 +177,5 @@ public class QueryBlobTest extends ClusterTest {
 			rs.close();
 		}
 	}
+*/
 }
