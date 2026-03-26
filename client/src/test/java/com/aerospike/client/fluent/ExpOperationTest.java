@@ -357,7 +357,7 @@ public class ExpOperationTest extends ClusterTest {
 	public void expReturnsFloat() {
 		// TODO: Convert from Expression to DSL String.
 		Expression dsl = Exp.build(Exp.add(Exp.toFloat(Exp.intBin(binA)), Exp.val(4.0)));
-		//String dsl = "$.A.asFloat() + 4.0";
+		//String dsl = "$." + binA + ".asFloat() + 4.0";
 
 		RecordStream rs = session.update(args.set.id(keyA))
         	.bin(binC).upsertFrom(dsl)

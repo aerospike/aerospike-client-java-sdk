@@ -72,7 +72,7 @@ public class ExpireTest extends ClusterTest {
 		// Specify that record NEVER expires.
 		// The "Never Expire" value is -1, or 0xFFFFFFFF.
         session.upsert(args.set.id(key))
-	    	.expireRecordAfterSeconds(-1)  // TODO: Is this correct?
+	    	.expireRecordAfterSeconds(-1)
 	        .bin(binName).setTo("noexpirevalue")
 	        .execute();
 
@@ -111,7 +111,7 @@ public class ExpireTest extends ClusterTest {
 		String key = "resetReadTtl";
 
         session.upsert(args.set.id(key))
-	    	.expireRecordAfterSeconds(2)  // TODO: Is this correct?
+	    	.expireRecordAfterSeconds(2)
 	        .bin(binName).setTo("expirevalue")
 	        .execute();
 
