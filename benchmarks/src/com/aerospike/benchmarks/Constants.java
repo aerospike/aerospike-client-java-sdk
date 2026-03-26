@@ -55,7 +55,8 @@ public class Constants {
 			+ " allow_unavailable";
 	public static final String INVALID_COMMIT_LEVEL_MESSAGE =
 		"Invalid commitLevel: '%s'. Allowed values are: all, master";
-
+	public static final String INVALID_DURATION_MESSAGE =
+		"Duration in seconds must be >= 1 (found: %d)";
 
 	public enum OP_TYPE {
 		w ("write"),

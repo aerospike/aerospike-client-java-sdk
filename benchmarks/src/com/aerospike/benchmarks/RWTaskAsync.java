@@ -49,42 +49,52 @@ public class RWTaskAsync extends RWTask {
     @Override
     protected void get(Key key, String binName) {
         long begin = useLatency ? System.nanoTime() : 0;
-        var handle = session.query(key)
-                .readingOnlyBins(binName)
-                .executeAsync(ErrorStrategy.IN_STREAM);
-
-        handle.asCompletableFuture()
-                .whenComplete((results, ex) -> {
-                    if (ex != null) {
-                        handleReadException(ex);
-                        return;
-                    }
-                    if (useLatency) {
-                        counters.read.latency.add(System.nanoTime() - begin);
-                    }
-                    processSingleKeyReadRecord(key, results);
-                    runNextCommand();
-                });
+        session.query(key)
+            .readingOnlyBins(binName)
+            .executeAsyncToCompletableFuture(ErrorStrategy.IN_STREAM)
+            .whenComplete((results, ex) -> {
+                if (ex != null) {
+                    handleReadException(ex);
+                    return;
+                }
+                if (useLatency) {
+                    counters.read.latency.add(System.nanoTime() - begin);
+                }
+                processSingleKeyReadRecord(key, results);
+                runNextCommand();
+            });
     }
 
     @Override
     protected void get(Key key) {
       //  acquire();
         long begin = useLatency ? System.nanoTime() : 0;
-        var handle = session.query(key)
-                .executeAsync(ErrorStrategy.IN_STREAM);
-        handle.asCompletableFuture()
-                .whenComplete((results, ex) -> {
-                    if (ex != null) {
-                        handleReadException(ex);
-                        return;
-                    }
-                    if (useLatency) {
-                        counters.read.latency.add(System.nanoTime() - begin);
-                    }
-                    processSingleKeyReadRecord(key, results);
-                    runNextCommand();
-                });
+        session.query(key)
+            .executeAsyncToCompletableFuture(ErrorStrategy.IN_STREAM)
+            .whenComplete((results, ex) -> {
+                if (ex != null) {
+                    handleReadException(ex);
+                    return;
+                }
+                if (useLatency) {
+                    counters.read.latency.add(System.nanoTime() - begin);
+                }
+                processSingleKeyReadRecord(key, results);
+                runNextCommand();
+            });
+//        var handle = session.query(key)
+//                .executeAsync(ErrorStrategy.IN_STREAM);
+//         handle.asCompletableFuture().whenComplete((results, ex) -> {
+//                    if (ex != null) {
+//                        handleReadException(ex);
+//                        return;
+//                    }
+//                    if (useLatency) {
+//                        counters.read.latency.add(System.nanoTime() - begin);
+//                    }
+//                    processSingleKeyReadRecord(key, results);
+//                    runNextCommand();
+//                });
     }
 
     @Override
@@ -94,8 +104,21 @@ public class RWTaskAsync extends RWTask {
         for (int i = 0; i < values.length; i++) {
             args.setBinFromValue(builder, bins[i], values[i]);
         }
-        var handle = builder.executeAsync(ErrorStrategy.IN_STREAM);
-        handle.asCompletableFuture()
+//        var handle = builder.executeAsync(ErrorStrategy.IN_STREAM);
+//        handle.asCompletableFuture()
+//                .whenComplete((results, ex) -> {
+//                    if (ex != null) {
+//                        handleWriteException(ex);
+//                        return;
+//                    }
+//                    if (useLatency) {
+//                        counters.write.latency.add(System.nanoTime() - begin);
+//                    }
+//                    processSingleKeyWriteRecord(results);
+//                    runNextCommand();
+//                });
+
+        builder.executeAsyncToCompletableFuture(ErrorStrategy.IN_STREAM)
                 .whenComplete((results, ex) -> {
                     if (ex != null) {
                         handleWriteException(ex);
@@ -184,9 +207,9 @@ public class RWTaskAsync extends RWTask {
 
     private void handleReadException(Throwable ex) {
         Throwable cause = ex instanceof CompletionException ? ex.getCause() : ex;
-        if (ex instanceof AerospikeException) {
+        if (cause instanceof AerospikeException) {
             readFailure((AerospikeException) cause);
-        } else {
+        } else if (cause instanceof Exception) {
             readFailure((Exception) cause);
         }
         runNextCommand();
@@ -269,7 +292,8 @@ public class RWTaskAsync extends RWTask {
         }
         RecordResult first = results.getFirst();
         if (first.exception() != null) {
-            throw new AerospikeException(first.exception());
+            handleWriteException(first.exception());
+            return;
         }
         if (first.isOk()) {
             counters.write.count.getAndIncrement();
@@ -287,7 +311,8 @@ public class RWTaskAsync extends RWTask {
         }
         RecordResult first = results.getFirst();
         if (first.exception() != null) {
-            throw new AerospikeException(first.exception());
+            handleReadException(first.exception());
+            return;
         }
         if (first.isOk()) {
             Record record = first.recordOrNull();

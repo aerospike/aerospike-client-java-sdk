@@ -4,7 +4,6 @@ import com.aerospike.client.fluent.*;
 import com.aerospike.client.fluent.util.RandomShift;
 
 import java.util.List;
-import java.util.concurrent.Semaphore;
 
 public class InsertTaskAsync extends InsertTask {
 
