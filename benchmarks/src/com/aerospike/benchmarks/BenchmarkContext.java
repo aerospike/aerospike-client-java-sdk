@@ -36,7 +36,7 @@ public final class BenchmarkContext implements AutoCloseable {
             Session session,
             Behavior behavior,
             DataSet dataSet,
-            boolean hasTxn,
+            boolean hasTxn, // TODO need to be applied
             Arguments arguments) {
         this.clusterDefinition = clusterDefinition;
         this.cluster = cluster;

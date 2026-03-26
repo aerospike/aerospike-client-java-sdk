@@ -220,6 +220,28 @@ public class WorkloadOptions {
 				+ "The default is to run indefinitely.")
 	private Long transactions;
 
+	/**
+	 * Sets how long the async read/write benchmark runs (seconds).
+	 *
+	 * @param value duration in seconds, must be at least 1
+	 * @throws ParameterException if the value is less than 1
+	 */
+	@Option(
+		names = {"--duration", "-duration"},
+		description =
+			"Run the benchmark for this many seconds then stop. Only applies with async read/write "
+				+ "(-a), i.e. RWTaskAsync. Ignored for synchronous RW and for insert workloads. If "
+				+ "omitted, read/write uses -t or runs indefinitely.")
+	public void setDurationSeconds(long value) throws ParameterException {
+		if (value < 1) {
+			throw new ParameterException(
+				getSpec().commandLine(), String.format(Constants.INVALID_DURATION_MESSAGE, value));
+		}
+		durationSeconds = value;
+	}
+
+	private Long durationSeconds;
+
 	@Option(
 		names = {"-rackId"},
 		description = "Set Rack where this benchmark instance resides.  Default: 0")
@@ -432,6 +454,10 @@ public class WorkloadOptions {
 
 	public Long getTransactions() {
 		return transactions;
+	}
+
+	public Long getDurationSeconds() {
+		return durationSeconds;
 	}
 
 	public Integer getRackId() {

@@ -37,6 +37,8 @@ public class Arguments {
 
     private boolean hasTransactions;
 
+    private Long durationSeconds;
+
 
     public boolean isInitialisation() {
         return Objects.equals(workload, Workload.INITIALIZE);
@@ -63,6 +65,7 @@ public class Arguments {
         args.objectSpec = toDbObjectSpecs(workloadOpts);
         args.throughput = Optional.ofNullable(workloadOpts.getThroughput()).orElse(0);
         args.transactionLimit = Optional.ofNullable(workloadOpts.getTransactions()).orElse(Long.MAX_VALUE);
+        args.durationSeconds = workloadOpts.getDurationSeconds();
         args.asyncMaxCommands = Optional.ofNullable(benchmarkOpts.getAsyncMaxCommands()).orElse(100);
         args.batchSize = Optional.ofNullable(benchmarkOpts.getBatchSize()).orElse(1);
         args.transactionalWorkload = workloadContext.transactionalWorkload();
@@ -142,6 +145,10 @@ public class Arguments {
 
     public long getTransactionLimit() {
         return transactionLimit;
+    }
+
+    public Long getDurationSeconds() {
+        return durationSeconds;
     }
 
     public boolean isReportNotFound() {
