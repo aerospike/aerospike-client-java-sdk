@@ -54,6 +54,7 @@ import com.aerospike.dsl.parsedExpression.PlaceholdersTests;
 	MapAndListExpressionsTests.class,
 	MapExpressionsTests.class,
 	RecordMetadataTests.class,
+    SyntaxErrorTests.class,
 	// com.aerospike.dsl.filter
 	ArithmeticFiltersTests.class,
 	BinFiltersTests.class,
