@@ -732,8 +732,7 @@ public class FilterExpTest extends ClusterTest {
 				Exp.val(3));
 
 		testKeyBExps(exp1, exp2);
-		// TODO: Fix non-error.
-		//testKeyBDsls("$." + binE + " >> 62 == 3");
+		testKeyBDsls("$." + binE + " >>> 62 == 3");
 	}
 
 	@Test
