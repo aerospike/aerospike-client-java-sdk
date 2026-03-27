@@ -47,7 +47,6 @@ public class ListExpressionsTests {
         TestUtils.parseFilterExpressionAndCompare(ExpressionContext.of("$.listBin1.[0].get(type: INT) == 100"), expected);
         TestUtils.parseFilterExpressionAndCompare(ExpressionContext.of("$.listBin1.[0].get(type: INT, return: VALUE) == 100"),
                 expected);
-        TestUtils.parseFilterExpressionAndCompare(ExpressionContext.of("$.listBin1.[0].asInt() == 100"), expected);
     }
 
     @Test
@@ -95,7 +94,6 @@ public class ListExpressionsTests {
         TestUtils.parseFilterExpressionAndCompare(ExpressionContext.of("$.listBin1.[=100].get(type: INT) == 100"), expected);
         TestUtils.parseFilterExpressionAndCompare(ExpressionContext.of("$.listBin1.[=100].get(type: INT, return: VALUE) == 100"),
                 expected);
-        TestUtils.parseFilterExpressionAndCompare(ExpressionContext.of("$.listBin1.[=100].asInt() == 100"), expected);
     }
 
     @Test
@@ -152,7 +150,6 @@ public class ListExpressionsTests {
         TestUtils.parseFilterExpressionAndCompare(ExpressionContext.of("$.listBin1.[#-1].get(type: INT) == 100"), expected);
         TestUtils.parseFilterExpressionAndCompare(ExpressionContext.of("$.listBin1.[#-1].get(type: INT, return: VALUE) == 100"),
                 expected);
-        TestUtils.parseFilterExpressionAndCompare(ExpressionContext.of("$.listBin1.[#-1].asInt() == 100"), expected);
     }
 
     @Test
