@@ -29,6 +29,75 @@ import org.junit.jupiter.api.Test;
 
 public class ListMapTest extends ClusterTest {
 	@Test
+	public void aerospikeListBinsValues() {
+		Key key = args.set.id("aerospikeListBinValue");
+		String binName = "listbin";
+
+		session.delete(key).execute();
+
+		AerospikeList<String> list = new AerospikeList<>(16);
+		list.add("e");
+		list.add("d");
+		list.add("c");
+		list.add("b");
+		list.add("a");
+		list.sort();
+
+		session.upsert(key)
+			.bins(binName)
+			.values(list)
+	    	.execute();
+
+		RecordStream rs = session.query(key)
+			.readingOnlyBins(binName)
+			.execute();
+
+        assertTrue(rs.hasNext());
+        Record rec = rs.next().recordOrThrow();
+		List<?> receivedList = rec.getList(binName);
+		assertEquals(5, receivedList.size());
+		assertEquals("a", receivedList.get(0));
+		assertEquals("b", receivedList.get(1));
+		assertEquals("c", receivedList.get(2));
+		assertEquals("d", receivedList.get(3));
+		assertEquals("e", receivedList.get(4));
+	}
+
+	@Test
+	public void aerospikeListOps() {
+		Key key = args.set.id("aerospikeListOps");
+		String binName = "listbin";
+
+		session.delete(key).execute();
+
+		AerospikeList<String> list = new AerospikeList<>(16);
+		list.add("e");
+		list.add("d");
+		list.add("c");
+		list.add("b");
+		list.add("a");
+		list.sort();
+
+		session.upsert(key)
+	        .bin(binName).setTo(list)
+	        .execute();
+
+		RecordStream rs = session.query(key)
+			.readingOnlyBins(binName)
+			.execute();
+
+        assertTrue(rs.hasNext());
+        Record rec = rs.next().recordOrThrow();
+		List<?> receivedList = rec.getList(binName);
+		assertEquals(5, receivedList.size());
+		assertEquals("a", receivedList.get(0));
+		assertEquals("b", receivedList.get(1));
+		assertEquals("c", receivedList.get(2));
+		assertEquals("d", receivedList.get(3));
+		assertEquals("e", receivedList.get(4));
+	}
+
+	@Test
 	public void listStrings() {
 		Key key = args.set.id("listStrings");
 		String binName = "listbin1";

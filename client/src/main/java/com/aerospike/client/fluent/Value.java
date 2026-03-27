@@ -168,6 +168,13 @@ public abstract class Value {
 	/**
 	 * Get list or null value instance.
 	 */
+	public static Value get(AerospikeList<?> value) {
+		return (value == null)? NullValue.INSTANCE : new AerospikeListValue(value);
+	}
+
+	/**
+	 * Get list or null value instance.
+	 */
 	public static Value get(List<?> value) {
 		return (value == null)? NullValue.INSTANCE : new ListValue(value);
 	}
@@ -243,74 +250,77 @@ public abstract class Value {
 			return NullValue.INSTANCE;
 		}
 
-		if (value instanceof Value) {
-			return (Value)value;
+		if (value instanceof Value val) {
+			return val;
 		}
 
-		if (value instanceof byte[]) {
-			return new BytesValue((byte[])value);
+		if (value instanceof byte[] val) {
+			return new BytesValue(val);
 		}
 
-		if (value instanceof String) {
-			return new StringValue((String)value);
+		if (value instanceof String val) {
+			return new StringValue(val);
 		}
 
-		if (value instanceof Integer) {
-			return new IntegerValue((Integer)value);
+		if (value instanceof Integer val) {
+			return new IntegerValue(val);
 		}
 
-		if (value instanceof Long) {
-			return new LongValue((Long)value);
+		if (value instanceof Long val) {
+			return new LongValue(val);
 		}
 
-		if (value instanceof List<?>) {
-			return new ListValue((List<?>)value);
+		if (value instanceof AerospikeList<?> val) {
+			return new AerospikeListValue(val);
 		}
 
-		if (value instanceof Map<?,?>) {
-			return new MapValue((Map<?,?>)value);
+		if (value instanceof List<?> val) {
+			return new ListValue(val);
 		}
 
-		if (value instanceof Double) {
-			return new DoubleValue((Double)value);
+		if (value instanceof Map<?,?> val) {
+			return new MapValue(val);
 		}
 
-		if (value instanceof Float) {
-			return new FloatValue((Float)value);
+		if (value instanceof Double val) {
+			return new DoubleValue(val);
 		}
 
-		if (value instanceof Short) {
-			return new ShortValue((Short)value);
+		if (value instanceof Float val) {
+			return new FloatValue(val);
 		}
 
-		if (value instanceof Boolean) {
+		if (value instanceof Short val) {
+			return new ShortValue(val);
+		}
+
+		if (value instanceof Boolean val) {
 			if (UseBoolBin) {
-				return new BooleanValue((Boolean)value);
+				return new BooleanValue(val);
 			}
 			else {
-				return new BoolIntValue((Boolean)value);
+				return new BoolIntValue(val);
 			}
 		}
 
-		if (value instanceof Byte) {
-			return new ByteValue((byte)value);
+		if (value instanceof Byte val) {
+			return new ByteValue(val);
 		}
 
-		if (value instanceof Character) {
-			return Value.get(((Character)value).charValue());
+		if (value instanceof Character val) {
+			return Value.get((val).charValue());
 		}
 
-		if (value instanceof Enum) {
-        	return new StringValue(value.toString());
+		if (value instanceof Enum val) {
+        	return new StringValue(val.toString());
 		}
 
-		if (value instanceof UUID) {
-			return new StringValue(value.toString());
+		if (value instanceof UUID val) {
+			return new StringValue(val.toString());
 		}
 
-		if (value instanceof ByteBuffer) {
-			ByteBuffer bb = (ByteBuffer)value;
-			return new BytesValue(bb.array());
+		if (value instanceof ByteBuffer val) {
+			return new BytesValue(val.array());
 		}
 
 		throw new AerospikeException("Unsupported type: " + value.getClass().getName());
@@ -1474,6 +1484,72 @@ public abstract class Value {
 		@Override
 		public int hashCode() {
 			return Arrays.hashCode(array);
+		}
+	}
+
+	/**
+	 * AerospikeList value.
+	 */
+	public static final class AerospikeListValue extends Value {
+		private final AerospikeList<?> list;
+		private byte[] bytes;
+
+		public AerospikeListValue(AerospikeList<?> list) {
+			this.list = list;
+		}
+
+		@Override
+		public int estimateSize() {
+			bytes = Packer.pack(list);
+			return bytes.length;
+		}
+
+		@Override
+		public int write(byte[] buffer, int offset) {
+			System.arraycopy(bytes, 0, buffer, offset, bytes.length);
+			return bytes.length;
+		}
+
+		@Override
+		public void pack(Packer packer) {
+			packer.packList(list);
+		}
+
+		@Override
+		public void validateKeyType() {
+			throw AerospikeException.resultCodeToException(ResultCode.PARAMETER_ERROR, "Invalid key type: list");
+		}
+
+		@Override
+		public int getType() {
+			return ParticleType.LIST;
+		}
+
+		@Override
+		public Object getObject() {
+			return list;
+		}
+/*
+		@Override
+		public LuaValue getLuaValue(LuaInstance instance) {
+			return instance.getLuaList(list);
+		}
+*/
+		@Override
+		public String toString() {
+			return list.toString();
+		}
+
+		@Override
+		public boolean equals(Object other) {
+			return (other != null &&
+				this.getClass().equals(other.getClass()) &&
+				this.list.equals(((ListValue)other).list));
+		}
+
+		@Override
+		public int hashCode() {
+			return list.hashCode();
 		}
 	}
 

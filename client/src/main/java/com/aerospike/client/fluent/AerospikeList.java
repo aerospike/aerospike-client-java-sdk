@@ -32,17 +32,7 @@ public class AerospikeList<T> extends ArrayList<T> {
 	private static final long serialVersionUID = 1L;
 
 	private ListOrder order;
-
-	/**
-	 * Creates an empty list with the given capacity and {@link ListOrder} for Aerospike encoding.
-	 *
-	 * @param capacity initial capacity of the backing array
-	 * @param order    unordered or ordered list flag ({@link ListOrder#UNORDERED} or {@link ListOrder#ORDERED})
-	 */
-	public AerospikeList(int capacity, ListOrder order) {
-		super(capacity);
-		this.order = order;
-	}
+	private boolean persistIndex;
 
 	/**
 	 * Creates an empty unordered list with the given capacity.
@@ -53,6 +43,35 @@ public class AerospikeList<T> extends ArrayList<T> {
 	public AerospikeList(int capacity) {
 		super(capacity);
 		this.order = ListOrder.UNORDERED;
+		this.persistIndex = false;
+	}
+
+	/**
+	 * Creates an empty list with the given capacity and {@link ListOrder}.
+	 *
+	 * @param capacity initial capacity of the backing array
+	 * @param order    unordered or ordered list flag ({@link ListOrder#UNORDERED} or {@link ListOrder#ORDERED})
+	 */
+	public AerospikeList(int capacity, ListOrder order) {
+		super(capacity);
+		this.order = order;
+		this.persistIndex = false;
+	}
+
+	/**
+	 * Creates an empty list with the given capacity, {@link ListOrder} and whether an index
+	 * should be stored with the list.
+	 *
+	 * @param capacity 		initial capacity of the backing array
+	 * @param order    		unordered or ordered list flag ({@link ListOrder#UNORDERED} or {@link ListOrder#ORDERED})
+	 * @param persistIndex	if true, persist list index. A list index improves lookup performance,
+	 * 						but requires more storage. A list index can be created for a top-level
+	 * 						ordered list only. Nested and unordered list indexes are not supported.
+	 */
+	public AerospikeList(int capacity, ListOrder order, boolean persistIndex) {
+		super(capacity);
+		this.order = order;
+		this.persistIndex = persistIndex;
 	}
 
 	/**
@@ -78,6 +97,13 @@ public class AerospikeList<T> extends ArrayList<T> {
 	 */
 	public ListOrder getOrder() {
 		return order;
+	}
+
+	/**
+	 * Returns if the server should create an index when the list is ordered.
+	 */
+	public boolean isPersistIndex() {
+		return persistIndex;
 	}
 
 	/**

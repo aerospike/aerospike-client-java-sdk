@@ -23,7 +23,9 @@ import java.util.Map.Entry;
 import java.util.UUID;
 
 import com.aerospike.client.fluent.AerospikeException;
+import com.aerospike.client.fluent.AerospikeList;
 import com.aerospike.client.fluent.Value;
+import com.aerospike.client.fluent.cdt.ListOrder;
 import com.aerospike.client.fluent.cdt.MapOrder;
 import com.aerospike.client.fluent.command.Buffer;
 import com.aerospike.client.fluent.command.ParticleType;
@@ -41,6 +43,19 @@ public final class Packer {
 			packer.packValueArray(val);
 			packer.createBuffer();
 			packer.packValueArray(val);
+			return packer.getBuffer();
+		}
+		catch (Throwable e) {
+			throw new AerospikeException.Serialize(e);
+		}
+	}
+
+	public static byte[] pack(AerospikeList<?> val) {
+		try {
+			Packer packer = new Packer();
+			packer.packList(val);
+			packer.createBuffer();
+			packer.packList(val);
 			return packer.getBuffer();
 		}
 		catch (Throwable e) {
@@ -105,6 +120,25 @@ public final class Packer {
 		packArrayBegin(list.size());
 		for (Value value : list) {
 			value.pack(this);
+		}
+	}
+
+	public void packList(AerospikeList<?> list) {
+		if (list.getOrder() == ListOrder.UNORDERED) {
+			packArrayBegin(list.size());
+		}
+		else {
+			// List is sorted.
+			packArrayBegin(list.size() + 1);
+			packByte(0xc7);
+			packByte(0);
+
+			int attr = list.isPersistIndex() ? 0x01 | 0x10 : 0x01;
+			packByte(attr);
+		}
+
+		for (Object obj : list) {
+			packObject(obj);
 		}
 	}
 

@@ -167,6 +167,17 @@ public final class Bin {
 	}
 
 	/**
+	 * Create bin with an AerospikeList value.  The list value will be serialized as a server list type.
+	 *
+	 * @param name		bin name, current limit is 15 characters
+	 * @param value		bin value
+	 */
+	public Bin(String name, AerospikeList<?> value) {
+		this.name = name;
+		this.value = Value.get(value);
+	}
+
+	/**
 	 * Create bin with a list value.  The list value will be serialized as a server list type.
 	 *
 	 * @param name		bin name, current limit is 15 characters
