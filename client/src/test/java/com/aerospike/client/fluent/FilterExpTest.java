@@ -463,7 +463,7 @@ public class FilterExpTest extends ClusterTest {
 				Exp.val(4));
 
 		testExp(exp);
-		testDsl("($.A + $.D + 1) == 4)");
+		testDsl("($.A + $.D + 1) == 4");
 	}
 
 	@Test
