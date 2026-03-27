@@ -171,11 +171,15 @@ public class RWTaskAsync extends RWTask {
                         long elapsed = System.nanoTime() - begin;
                         counters.read.latency.add(elapsed);
                     }
-                    handleBatchReadResult(results);
+                    handleBatchReadResult(results); // TODO need to move to one stage
                 })
                 .whenComplete((r, ex) -> {
                     handle.close();
-                    if (ex != null) handleReadException(ex);
+                    if (ex != null) {
+                        handleReadException(ex);
+                    } else {
+                        runNextCommand();
+                    }
                 });
     }
 
@@ -194,7 +198,11 @@ public class RWTaskAsync extends RWTask {
                 })
                 .whenComplete((r, ex) -> {
                     handle.close();
-                    if (ex != null) handleReadException(ex);
+                    if (ex != null) {
+                        handleReadException(ex);
+                    } else {
+                        runNextCommand();
+                    }
                 });
     }
 
@@ -205,23 +213,31 @@ public class RWTaskAsync extends RWTask {
         }
     }
 
-    private void handleReadException(Throwable ex) {
+    private void recordReadError(Throwable ex) {
         Throwable cause = ex instanceof CompletionException ? ex.getCause() : ex;
         if (cause instanceof AerospikeException) {
             readFailure((AerospikeException) cause);
         } else if (cause instanceof Exception) {
             readFailure((Exception) cause);
         }
-        runNextCommand();
     }
 
-    private void handleWriteException(Throwable ex) {
+    private void recordWriteError(Throwable ex) {
         Throwable cause = (ex instanceof CompletionException) ? ex.getCause() : ex;
         if (cause instanceof AerospikeException) {
             writeFailure((AerospikeException) cause);
         } else if (cause instanceof Exception) {
             writeFailure((Exception) cause);
         }
+    }
+
+    private void handleReadException(Throwable ex) {
+        recordReadError(ex);
+        runNextCommand();
+    }
+
+    private void handleWriteException(Throwable ex) {
+        recordWriteError(ex);
         runNextCommand();
     }
 
@@ -238,7 +254,6 @@ public class RWTaskAsync extends RWTask {
         } else {
             readFailure(firstFailure);
         }
-        runNextCommand();
     }
 
     private void readRecordForUpdateAsync(Key key, Consumer<Record> onSuccess) {
@@ -292,7 +307,7 @@ public class RWTaskAsync extends RWTask {
         }
         RecordResult first = results.getFirst();
         if (first.exception() != null) {
-            handleWriteException(first.exception());
+            recordWriteError(first.exception());
             return;
         }
         if (first.isOk()) {
@@ -311,7 +326,7 @@ public class RWTaskAsync extends RWTask {
         }
         RecordResult first = results.getFirst();
         if (first.exception() != null) {
-            handleReadException(first.exception());
+            recordReadError(first.exception());
             return;
         }
         if (first.isOk()) {
