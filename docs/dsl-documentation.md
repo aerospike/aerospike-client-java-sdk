@@ -708,7 +708,7 @@ The `**` operator is right-associative: `4.0 ** 5.0 ** 6.0` equals `4.0 ** (5.0 
 3. `+`, `-`
 4. Bitwise operators
 5. Shift operators
-6. Comparison operators
+6. Comparison operators (`==`, `!=`, `>`, `<`, `in`, `=~`)
 7. Logical operators
 
 Use parentheses to clarify or override:
@@ -936,7 +936,7 @@ session.query(set).where(prepared, 21, "Tim").execute();
 |-------|-----------|---------------|
 | 1 | `or` | Left to right |
 | 2 | `and` | Left to right |
-| 3 | `==`, `!=`, `>`, `>=`, `<`, `<=`, `in` | Left to right |
+| 3 | `==`, `!=`, `>`, `>=`, `<`, `<=`, `in`, `=~` | Left to right |
 | 4 | `+`, `-` | Left to right |
 | 5 | `*`, `/`, `%` | Left to right |
 | 6 | `**` | Right to left |
