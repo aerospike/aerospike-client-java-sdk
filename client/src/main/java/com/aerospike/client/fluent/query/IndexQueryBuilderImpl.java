@@ -106,7 +106,7 @@ public class IndexQueryBuilderImpl extends QueryImpl {
         Session session = getSession();
         Cluster cluster = session.getCluster();
         QueryBuilder qb = getQueryBuilder();
-        
+
         // Check for operations - not supported on index/scan queries
         if (qb.getOperations() != null && !qb.getOperations().isEmpty()) {
             throw AerospikeException.resultCodeToException(ResultCode.OP_NOT_APPLICABLE,
@@ -122,7 +122,7 @@ public class IndexQueryBuilderImpl extends QueryImpl {
         if (dsl != null) {
         	ParseResult pr = dsl.process(dataSet.getNamespace(), getSession());
         	filter = pr.getFilter();
-        	filterExp = Exp.build(pr.getExp());
+        	filterExp = pr.getExpression();
         }
 
         AsyncRecordStream stream = new AsyncRecordStream(policy.getRecordQueueSize());
