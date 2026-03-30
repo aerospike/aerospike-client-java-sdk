@@ -2,7 +2,7 @@
 
 ### Problem
 
-The current DSL only accepts literal constants in path element parameters: key names,
+The current AEL only accepts literal constants in path element parameters: key names,
 index integers, value literals, rank integers, and the items inside range bounds and
 lists. Real-world use often requires these values to come from other bins, variables,
 or computed expressions. For example, "give me map entries from key `$.startKey` to
@@ -12,7 +12,7 @@ key `$.endKey`" is not expressible today.
 
 Anywhere a literal constant currently appears as a parameter inside a path element,
 a parenthesised expression `(expr)` can appear instead. The parentheses are the
-universal sub-expression marker. They already exist in the DSL grammar for grouping
+universal sub-expression marker. They already exist in the AEL grammar for grouping
 (`(expression)` in the `operand` rule), so this is a natural extension.
 
 The structural position — determined by prefixes (`=`, `#`, `!`), separators (`-`, `:`,
@@ -160,7 +160,7 @@ list form.
 The table above covers the **input** type — what the parameter expression must evaluate
 to. But path elements also produce an **output** type (what the overall expression
 returns), which depends on the data stored in the database and cannot be determined
-from the DSL alone.
+from the AEL alone.
 
 This is not new to sub-expressions — `$.m.{1}` with a literal has the same issue.
 The output type is resolved by the existing mechanisms:
@@ -182,8 +182,8 @@ This single expression tells us:
 - `$.idx` → INTEGER (because `{...}` is a map-by-index position, which requires INTEGER)
 - The map operation's output → STRING (because `== 'hello'` requires STRING on both sides)
 
-See [Inference from sub-expressions in path parameters](#10-inference-from-sub-expressions-in-path-parameters)
-in the type inference section for the full set of rules.
+See [Inference from sub-expressions in path parameters](type-inference.md#10-inference-from-sub-expressions-in-path-parameters)
+for the full set of rules.
 
 ### Examples with real-world motivation
 

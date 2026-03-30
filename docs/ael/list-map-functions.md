@@ -1,14 +1,14 @@
 # Full syntax of all list / map functions
 
 This section compares the full API surface of `MapExp` and `ListExp` against the
-current DSL spec and grammar, identifying what is missing or incomplete.
+current AEL spec and grammar, identifying what is missing or incomplete.
 
 ### Read operations — coverage summary
 
-The DSL path element syntax maps to `getBy*` methods. The current coverage is
+The AEL path element syntax maps to `getBy*` methods. The current coverage is
 **complete** for all read operations:
 
-| MapExp method | DSL path syntax | Status |
+| MapExp method | AEL path syntax | Status |
 |---|---|---|
 | `getByKey` | `$.m.key`, `$.m.'key'`, `$.m.1` | ✓ Covered |
 | `getByKeyRange` | `$.m.{a-c}`, `$.m.{a-}`, `$.m.{-c}` | ✓ Covered |
@@ -28,7 +28,7 @@ The DSL path element syntax maps to `getBy*` methods. The current coverage is
 | `getByRankRange` (bounded) | `$.m.{#1:3}` | ✓ Covered |
 | `size` | `$.m.count()`, `$.m.{}.count()` | ✓ Covered |
 
-| ListExp method | DSL path syntax | Status |
+| ListExp method | AEL path syntax | Status |
 |---|---|---|
 | `getByIndex` | `$.l.[1]` | ✓ Covered |
 | `getByIndexRange` (open) | `$.l.[1:]` | ✓ Covered |
@@ -52,7 +52,7 @@ REVERSE_INDEX, REVERSE_RANK, NONE).
 ### Read operations — what needs attention
 
 The `get()` function `return:` parameter currently only appears on an explicit `get()`
-call. But the DSL spec says the default return type depends on context (single element
+call. But the AEL spec says the default return type depends on context (single element
 → VALUE, multi-element map → ORDERED_MAP, multi-element list → VALUE). This implicit
 behaviour needs to be documented as a formal rule so that:
 
@@ -69,7 +69,7 @@ $.l.[0:3].get(return: INDEX)   →  getByIndexRange(INDEX, ...)       (explicit 
 The `remove()` function combined with path context covers all `removeBy*` methods.
 The path element determines what to select, and `remove()` applies the removal:
 
-| API method | DSL syntax | Status |
+| API method | AEL syntax | Status |
 |---|---|---|
 | `removeByKey` | `$.m.key.remove()` | ✓ Concept covered |
 | `removeByKeyRange` | `$.m.{a-c}.remove()` | ✓ Concept covered |
@@ -91,7 +91,7 @@ INVERTED, which removes everything **outside** the range.
 remove) return the **modified collection**, not the removed items. The `returnType`
 parameter on remove methods in expression context only accepts `NONE` (remove matched)
 or `INVERTED` (remove unmatched). This differs from operation context (`MapOperation`)
-where remove can return COUNT, VALUE, etc. The DSL's `remove()` in expression context
+where remove can return COUNT, VALUE, etc. The AEL's `remove()` in expression context
 therefore does not need a `return:` parameter — the `!` prefix handles inversion.
 
 ### Mutation functions — MISSING: parameters and verb-based write semantics
@@ -296,7 +296,7 @@ sortParams: 'dropDuplicates' ':' booleanOperand;
 
 ### Complete function reference
 
-For reference, this is the full list of DSL path functions after these changes:
+For reference, this is the full list of AEL path functions after these changes:
 
 **Read functions:**
 

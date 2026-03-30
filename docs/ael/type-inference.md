@@ -1,6 +1,6 @@
 # Advanced type inference
 
-The DSL should derive types of bins, map keys, map values, list values, and variables
+The AEL should derive types of bins, map keys, map values, list values, and variables
 wherever possible. When the parser encounters a bin or variable for the first time
 its type is UNKNOWN. As parsing progresses, context reveals the type. If a bin or
 variable is later encountered with a conflicting type, the parser must raise an error.
@@ -52,7 +52,7 @@ in its constructor).
 
 **This must be removed in v2.** Silent defaults cause unpredictable runtime behaviour:
 if the guessed type happens to match the actual data, the expression works; if not,
-the server returns a `ParameterError` with no indication that the DSL parser made
+the server returns a `ParameterError` with no indication that the AEL parser made
 an arbitrary choice. The user has no way to know that the type was guessed rather
 than inferred.
 
@@ -381,20 +381,20 @@ The parser must raise an error when:
 | Non-integer in bitwise | `3.14 & 0xFF` | `&` requires INTEGER |
 | Exponent with integer | `$.a ** 2` | `**` requires FLOAT; use `2.0` |
 
-### 13. Implementation strategy
+### 13. Possible implementation strategy
 
 1. **First pass (during parse):** Apply type inference rules as expressions are parsed.
    Assign intermediate states (`UNKNOWN`, `SAME_TYPE`, `NUMERIC`) where concrete types
    cannot yet be determined. Propagate concrete types immediately when available.
 2. **Deferred validations:** When both sides of an operator are in intermediate states,
    record the constraint (e.g., "these two must be SAME_TYPE", "these two must be NUMERIC").
-   Do not guess or assign a default.
+   Avoid guessing or assigning a default.
 3. **Second pass (post-parse):** Re-apply all deferred validations. Types discovered
    later in the parse can now resolve intermediate states recorded earlier.
 4. **Final validation:** Check that every bin, variable, and sub-expression has resolved
    to a concrete type. If any remain in an intermediate state (`UNKNOWN`, `SAME_TYPE`,
    or `NUMERIC`), raise a parse error listing the unresolved items with a suggestion
-   to add explicit type annotations. **Do not fall back to a default type.**
+   to add explicit type annotations. **Avoid falling back to a default type.**
 5. **CDT function resolution:** After type inference, resolve generic CDT functions
    (e.g., `size()`) to list-specific or map-specific variants based on the inferred
    bin type.

@@ -4,7 +4,7 @@ Comprehensive test specifications for the Aerospike Expression DSL. Each test
 has sample data, the DSL expression, and the expected output. Tests are marked:
 
 - **Status ✓** — should work with the current implementation
-- **Status ✗** — known to fail (references a known issue from `dsl-spec-vs-implementation.md`)
+- **Status ✗** — known to fail (references a known issue from `ael-spec-vs-implementation.md`)
 - **Status ?** — behaviour uncertain or untested
 
 Tests use the fluent client pattern:

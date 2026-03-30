@@ -91,7 +91,7 @@ $.flags.bitLscan(offset: 0, size: 64, value: true) < 8  first set bit is in high
 
 **Read operations:**
 
-| DSL | Named parameters | Return type | Exp equivalent |
+| AEL | Named parameters | Return type | Exp equivalent |
 |---|---|---|---|
 | `$.b.bitGet(offset:, size:)` | INT, INT | BLOB | `BitExp.get(offset, size, bin)` |
 | `$.b.bitCount(offset:, size:)` | INT, INT | INT | `BitExp.count(offset, size, bin)` |
@@ -101,7 +101,7 @@ $.flags.bitLscan(offset: 0, size: 64, value: true) < 8  first set bit is in high
 
 **Modify operations:**
 
-| DSL | Named parameters | Return type | Exp equivalent |
+| AEL | Named parameters | Return type | Exp equivalent |
 |---|---|---|---|
 | `$.b.bitResize(byteSize:)` | INT | BLOB | `BitExp.resize(policy, byteSize, 0, bin)` |
 | `$.b.bitInsert(byteOffset:, value:)` | INT, BLOB | BLOB | `BitExp.insert(policy, offset, value, bin)` |

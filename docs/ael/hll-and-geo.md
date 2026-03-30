@@ -9,7 +9,7 @@ containment test — not a directional "A contains B" operation.
 
 #### GeoJSON literal
 
-A GeoJSON value is represented in the DSL using the `geoJson()` function wrapping a
+A GeoJSON value is represented in the AEL using the `geoJson()` function wrapping a
 JSON string:
 
 ```
@@ -46,7 +46,7 @@ Exp.geoCompare(Exp.geoBin("region"), Exp.geo("{\"type\":\"Point\",\"coordinates\
 
 #### Complete geo reference
 
-| DSL | Exp equivalent | Return type |
+| AEL | Exp equivalent | Return type |
 |---|---|---|
 | `geoJson('...')` | `Exp.geo("...")` | GEO |
 | `geoCompare(a, b)` | `Exp.geoCompare(a, b)` | BOOLEAN |
@@ -70,7 +70,7 @@ geoCompareFunction: 'geoCompare' '(' expression ',' expression ')';
 ### HyperLogLog (HLL) operations
 
 HLL is a probabilistic data structure for estimating set cardinality. The Aerospike
-server provides HLL bin operations through `HLLExp`. HLL functions in the DSL use the
+server provides HLL bin operations through `HLLExp`. HLL functions in the AEL use the
 method-style pattern — the HLL bin is the path receiver, and parameters are named where
 they aid readability.
 
@@ -88,7 +88,7 @@ $.hbin.hllSimilarity($.otherHll)                   Jaccard similarity → FLOAT 
 
 The second argument to `hllUnion`, `hllUnionCount`, `hllIntersectCount`, and
 `hllSimilarity` is a LIST of HLL values. When comparing against a single HLL bin, the
-DSL wraps it into a list internally. To compare against multiple HLLs, pass a list
+AEL wraps it into a list internally. To compare against multiple HLLs, pass a list
 expression:
 
 ```
@@ -140,7 +140,7 @@ $.setA.hllIntersectCount($.setB) > 500             significant overlap
 
 #### Complete HLL reference
 
-| DSL | Parameters | Return type | Exp equivalent |
+| AEL | Parameters | Return type | Exp equivalent |
 |---|---|---|---|
 | `$.h.hllCount()` | — | INT | `HLLExp.getCount(bin)` |
 | `$.h.hllDescribe()` | — | LIST | `HLLExp.describe(bin)` |

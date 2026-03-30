@@ -1,4 +1,4 @@
-# DSL Path Expressions — Syntax Proposal (v2)
+# AEL Path Expressions — Syntax Proposal (v2)
 
 ## Background
 
@@ -140,9 +140,9 @@ When both sides are untyped (e.g., comparing `@` to another bin), use explicit `
 @.price > $.threshold.get(type: FLOAT)
 ```
 
-Note that only one side needs to have its type specified, the DSL should derive the type of the other side.
+Note that only one side needs to have its type specified, the AEL should derive the type of the other side.
 
-This follows the same pattern as existing bin-to-bin comparisons in the DSL.
+This follows the same pattern as existing bin-to-bin comparisons in the AEL.
 
 ### Multi-level navigation within `@`
 
@@ -215,7 +215,7 @@ is the de facto standard for path expressions in JSON data (analogous to XPath f
 Each character serves a specific disambiguation purpose:
 
 - **`[` `]`** — Brackets already mean "subscript operation on the current path element"
-  in the DSL (`[0]` for index, `[=5]` for value matching). They are the natural container
+  in the AEL (`[0]` for index, `[=5]` for value matching). They are the natural container
   for "apply an operation to this path element."
 - **`?`** — Signals "this is a filter predicate" rather than an index or value lookup.
   Without it, the parser cannot distinguish `[@.price < 10]` from a complex index
@@ -229,7 +229,7 @@ Alternatives considered:
 
 | Syntax | Problem |
 |--------|---------|
-| `*{@.price < 10}` | `{}` already means map index/value in the DSL |
+| `*{@.price < 10}` | `{}` already means map index/value in the AEL |
 | `*(@.price < 10)` | Ambiguous with path functions like `.select()` |
 | `*[@.price < 10]` | No `?` — ambiguous with list index access |
 | `*<@.price < 10>` | `<` and `>` conflict with comparison operators |
@@ -249,39 +249,12 @@ $.store.*.*[?(@.price < 10)].title
 This iterates the top-level keys (`book`, `music`, `stationery`), then iterates
 each child within, filtering for price < 10, then navigates to `title`.
 
-### Regex filtering: `=~` operator
+### Regex filtering within path expressions
 
-The `=~` operator applies an ICU regex match. It maps to `Exp.regexCompare()`.
-The server uses the [ICU Regular Expressions](https://unicode-org.github.io/icu/userguide/strings/regexp.html)
-engine, which provides Perl-compatible regex syntax with full Unicode support.
+The `=~` operator (see [Regex filtering](regex-filtering.md) for full syntax, flags,
+and semantics) can be used inside `*[?(...)]` filters to match on string values or
+map keys:
 
-The pattern uses `/pattern/flags` syntax, following the Perl/JavaScript/Ruby convention
-that is the most widely recognised regex notation across programming languages.
-
-**Syntax:**
-```
-expression =~ /regex_pattern/
-expression =~ /regex_pattern/flags
-```
-
-**Flag letters:**
-
-| Flag | ICU constant | Meaning |
-|------|---|---|
-| `i` | `UREGEX_CASE_INSENSITIVE` | Case-insensitive matching (full Unicode case folding) |
-| `m` | `UREGEX_MULTILINE` | `^` and `$` match at line boundaries, not just start/end of string |
-| `s` | `UREGEX_DOTALL` | `.` matches line terminators (by default `.` does not match `\n`) |
-| `x` | `UREGEX_COMMENTS` | Free-format mode: unescaped whitespace is ignored, `#` starts a comment to end-of-line |
-| `w` | `UREGEX_UWORD` | Unicode-aware word boundaries for `\b` (uses UAX #29 instead of simple `\w`/`\W` classification) |
-
-Flags compose by concatenation: `/pattern/im` means case-insensitive + multiline.
-No flags means defaults (case-sensitive, single-line `^`/`$`, `.` does not match `\n`).
-
-ICU patterns support features not available in POSIX, including lookahead/lookbehind
-(`(?=...)`, `(?!...)`), non-capturing groups (`(?:...)`), Unicode property escapes
-(`\p{Letter}`), and possessive quantifiers (`*+`, `++`).
-
-**Examples:**
 ```
 $.store.book.*[?(@.title =~ /Lord.*/)]                title matches "Lord..."
 $.store.book.*[?(@.author =~ /j\.r\.r\./i)]          case-insensitive match
@@ -305,12 +278,6 @@ CTX.allChildrenWithFilter(
             Exp.val("author"),
             Exp.mapLoopVar(LoopVarPart.VALUE)))
 )
-```
-
-Note: `=~` is a general DSL operator, not limited to path expressions. It works
-anywhere you have a string expression on the left:
-```
-$.name =~ /^Alice/i                    top-level bin regex match
 ```
 
 ---
@@ -337,17 +304,17 @@ $.store.book.*.select(return: KEY, noFail: true)        combined
 
 ### Return type mapping
 
-| DSL `return:` value | `SelectFlags` constant | Numeric | Description |
+| AEL `return:` value | `SelectFlags` constant | Numeric | Description |
 |---------------------|----------------------|---------|-------------|
 | `MATCHING_TREE` | `SelectFlags.MATCHING_TREE` | `0` | Tree from root to matched nodes (server default) |
-| `VALUE` | `SelectFlags.VALUE` | `1` | Flat list of matched values (DSL default) |
+| `VALUE` | `SelectFlags.VALUE` | `1` | Flat list of matched values (AEL default) |
 | `KEY` | `SelectFlags.MAP_KEY` | `2` | List of parent map keys of matched nodes |
 | `KEY_VALUE` | `SelectFlags.MAP_KEY_VALUE` | `3` | List of (key, value) pairs from matched map nodes |
 
 Note: `SelectFlags.LIST_VALUE` and `SelectFlags.MAP_VALUE` are source-code aliases
-for `SelectFlags.VALUE` (all = `1`). The DSL uses `VALUE` for all three.
+for `SelectFlags.VALUE` (all = `1`). The AEL uses `VALUE` for all three.
 
-Note: `MATCHING_TREE` is the server-level default (`0`), but the DSL defaults to
+Note: `MATCHING_TREE` is the server-level default (`0`), but the AEL defaults to
 `VALUE` when `.select()` is called without arguments, since flat value extraction
 is the most common use case.
 
@@ -363,7 +330,7 @@ $.store.book.*.price                   ≡  $.store.book.*.price.select()
 
 ## 5. Modify Operation: `.modify()`
 
-`modify()` transforms each matching element in-place. The argument is a DSL expression
+`modify()` transforms each matching element in-place. The argument is a AEL expression
 using `@` for the current value; the result replaces the element.
 Maps to `CdtExp.modifyByPath()` / `CdtOperation.modifyByPath()`.
 
@@ -375,7 +342,7 @@ $.store.stationery.*.price.modify(@ * 1.1)             10% price increase
 
 | Parameter | Values | Default | Description |
 |-----------|--------|---------|-------------|
-| *first argument* | DSL expression using `@` | (required) | Transformation expression |
+| *first argument* | AEL expression using `@` | (required) | Transformation expression |
 | `noFail` | `true`, `false` | `false` | Skip type mismatches silently |
 
 ---
@@ -418,7 +385,7 @@ All examples use the [Reference Data Structure](#reference-data-structure) above
 
 ### 7.1 Select all book prices
 
-**DSL:**
+**AEL:**
 ```
 $.store.book.*.price
 ```
@@ -438,7 +405,7 @@ CdtOperation.selectByPath("store", SelectFlags.VALUE, ctx1, ctx2, ctx3);
 
 ### 7.2 Select titles of cheap books (price < 10)
 
-**DSL:**
+**AEL:**
 ```
 $.store.book.*[?(@.price < 10.0)].*[?(@key == 'title')].select()
 ```
@@ -467,7 +434,7 @@ from each child, iterate the child's key-value pairs and filter by key.
 
 ### 7.3 Select titles of fiction books priced under 20
 
-**DSL:**
+**AEL:**
 ```
 $.store.book.*[?(@.category == 'fiction' and @.price < 20.0)].*[?(@key == 'title')].select()
 ```
@@ -497,7 +464,7 @@ CdtOperation.selectByPath("store", SelectFlags.VALUE, ctx1, ctx2, ctx3);
 
 ### 7.4 Select stationery item keys with quantity > 50
 
-**DSL:**
+**AEL:**
 ```
 $.store.stationery.*[?(@.quantity > 50)].select(return: KEY)
 ```
@@ -520,7 +487,7 @@ CdtOperation.selectByPath("store", SelectFlags.MAP_KEY, ctx1, ctx2);
 
 ### 7.4b Select stationery key-value pairs with quantity > 50
 
-**DSL:**
+**AEL:**
 ```
 $.store.stationery.*[?(@.quantity > 50)].select(return: KEY_VALUE)
 ```
@@ -543,7 +510,7 @@ CdtOperation.selectByPath("store", SelectFlags.MAP_KEY_VALUE, ctx1, ctx2);
 
 ### 7.5 Select cheap books as a matching tree
 
-**DSL:**
+**AEL:**
 ```
 $.store.book.*[?(@.price < 10.0)].select(return: MATCHING_TREE)
 ```
@@ -567,7 +534,7 @@ preserving the parent list/map hierarchy.
 
 ### 7.6 Select all book titles (using regex on key)
 
-**DSL:**
+**AEL:**
 ```
 $.store.book.*.*[?(@key =~ /titl.*/)].select()
 ```
@@ -589,7 +556,7 @@ CdtOperation.selectByPath("store", SelectFlags.VALUE, ctx1, ctx2, ctx3);
 
 ### 7.7 Select first 3 books by list index
 
-**DSL:**
+**AEL:**
 ```
 $.store.book.*[?(@index < 3)].*[?(@key == 'title')].select()
 ```
@@ -611,7 +578,7 @@ CdtOperation.selectByPath("store", SelectFlags.VALUE, ctx1, ctx2, ctx3);
 
 ### 7.8 Apply 10% discount to all book prices
 
-**DSL:**
+**AEL:**
 ```
 $.store.book.*.price.modify(@ * 0.9)
 ```
@@ -634,7 +601,7 @@ CdtOperation.modifyByPath("store", ModifyFlags.DEFAULT, modifyExp, ctx1, ctx2, c
 
 ### 7.9 Restock all stationery by +50
 
-**DSL:**
+**AEL:**
 ```
 $.store.stationery.*.quantity.modify(@ + 50)
 ```
@@ -657,7 +624,7 @@ CdtOperation.modifyByPath("store", ModifyFlags.DEFAULT, modifyExp, ctx1, ctx2, c
 
 ### 7.10 Double the price of only cheap stationery (price < 2.0)
 
-**DSL:**
+**AEL:**
 ```
 $.store.stationery.*[?(@.price < 2.0)].price.modify(@ * 2)
 ```
@@ -684,7 +651,7 @@ CdtOperation.modifyByPath("store", ModifyFlags.DEFAULT, modifyExp, ctx1, ctx2, c
 
 ### 7.11 Remove out-of-stock books
 
-**DSL:**
+**AEL:**
 ```
 $.store.book.*[?(@.inStock == false)].remove()
 ```
@@ -708,7 +675,7 @@ CdtOperation.modifyByPath("store", ModifyFlags.DEFAULT, removeExp, ctx1, ctx2);
 
 ### 7.12 Remove stationery items with low quantity
 
-**DSL:**
+**AEL:**
 ```
 $.store.stationery.*[?(@.quantity <= 50)].remove()
 ```
@@ -737,7 +704,7 @@ Given data where each book has an `address` sub-map:
 {"title": "...", "publisher": {"city": "London", "country": "UK"}}
 ```
 
-**DSL:**
+**AEL:**
 ```
 $.store.book.*[?(@.publisher.city == 'London')].*[?(@key == 'title')].select()
 ```
@@ -765,7 +732,7 @@ CdtOperation.selectByPath("store", SelectFlags.VALUE, ctx1, ctx2, ctx3);
 
 When comparing `@` or `@.field` to another bin (no literal to infer from):
 
-**DSL:**
+**AEL:**
 ```
 $.store.book.*[?(@.price.get(type: FLOAT) > $.minPrice.get(type: FLOAT))].*[?(@key == 'title')].select()
 ```
@@ -796,7 +763,7 @@ $.store.stationery.*.quantity.*[?(@.get(type: INT) > $.threshold.get(type: INT))
 The top-level `$.store.*` iterates `book` (a list), `music` (a list), and `stationery`
 (a map). These have different structures, so deeper navigation may fail on some.
 
-**DSL:**
+**AEL:**
 ```
 $.store.*.*[?(@.price < 10.0)].select(noFail: true)
 ```
@@ -851,16 +818,16 @@ Expression modifyExp = Exp.build(
 CdtOperation.modifyByPath("store", ModifyFlags.DEFAULT, modifyExp, ctx1, ctx2);
 ```
 
-**Potential DSL syntax (for future consideration):**
+**Potential AEL syntax (for future consideration):**
 
 This pattern modifies the element-as-a-whole (the book map) rather than a specific
-leaf field. In the current DSL proposal, simple leaf modifications are straightforward:
+leaf field. In the current AEL proposal, simple leaf modifications are straightforward:
 
 ```
 $.store.book.*[?(@.inStock == true)].price.modify(@ * 0.9)
 ```
 
-But adding a NEW field to each element requires expressing `MapExp.put` in DSL.
+But adding a NEW field to each element requires expressing `MapExp.put` in AEL.
 Options to explore:
 
 **Option A: `.put()` as a modifier function:**
@@ -890,7 +857,7 @@ Exp modifyExp = Exp.cond(
     Exp.val("standard"));
 ```
 
-**Potential DSL:**
+**Potential AEL:**
 ```
 $.store.book.*.modify(
     when (@.price >= 20.0 => @.put('tier', 'premium'),
@@ -1025,9 +992,9 @@ pathFunctionParamName
 
 ---
 
-## 11. Java API ↔ DSL Mapping Reference
+## 11. Java API ↔ AEL Mapping Reference
 
-| Java API | DSL |
+| Java API | AEL |
 |----------|-----|
 | `CTX.mapKey(Value.get("book"))` | `.book` |
 | `CTX.listIndex(0)` | `.[0]` |
@@ -1052,14 +1019,14 @@ pathFunctionParamName
 
 ---
 
-## 12. Implementation Considerations
+## 12. Possible Implementation Considerations
 
 ### 12.1 Scope of `@`
 
 Each `*[?(...)]` filter has its own `@` scope. In
 `*[?(filter1)].*[?(filter2)]`, `@` in `filter1` refers to elements at the first
 `*` level, and `@` in `filter2` to elements at the second level. The server manages
-scoping — the DSL emits the correct CTX chain.
+scoping — the AEL emits the correct CTX chain.
 
 ### 12.2 Return type inference
 

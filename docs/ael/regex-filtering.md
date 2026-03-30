@@ -87,5 +87,5 @@ CTX.allChildrenWithFilter(
 )
 ```
 
-Note: `=~` is a general DSL operator, not limited to path expressions. It works
+Note: `=~` is a general AEL operator, not limited to path expressions. It works
 anywhere you have a string expression on the left:

@@ -1,7 +1,7 @@
 # String library functions
 
-The Aerospike server is adding a comprehensive string operations API (SERVER-97). String
-functions in the DSL use the method-style pattern — the string bin or expression is the
+The Aerospike server is adding a comprehensive string operations API [(SERVER-97)](https://aerospike.atlassian.net/browse/SERVER-97). String
+functions in the AEL use the method-style pattern — the string bin or expression is the
 path receiver, and parameters are named where they aid readability. This is consistent
 with the CDT, Bit, and HLL function patterns.
 
@@ -178,7 +178,7 @@ $.name.startsWith('Dr.') or $.name.startsWith('Prof.') title check
 
 **P1 — read/transform:**
 
-| DSL | Parameters | Return type |
+| AEL | Parameters | Return type |
 |---|---|---|
 | `$.s.length()` | — | INT |
 | `$.s.substr(from:, to:)` | INT, INT | STRING |
@@ -195,7 +195,7 @@ $.name.startsWith('Dr.') or $.name.startsWith('Prof.') title check
 
 **P1 — modify:**
 
-| DSL | Parameters | Return type |
+| AEL | Parameters | Return type |
 |---|---|---|
 | `$.s.insert(offset:, value:)` | INT, STRING | STRING |
 | `$.s.overwrite(offset:, value:)` | INT, STRING | STRING |
@@ -205,7 +205,7 @@ $.name.startsWith('Dr.') or $.name.startsWith('Prof.') title check
 
 **P2:**
 
-| DSL | Parameters | Return type |
+| AEL | Parameters | Return type |
 |---|---|---|
 | `$.s.toInt()` | — | INT |
 | `$.s.toFloat()` | — | FLOAT |
@@ -217,7 +217,7 @@ $.name.startsWith('Dr.') or $.name.startsWith('Prof.') title check
 
 **P3:**
 
-| DSL | Parameters | Return type |
+| AEL | Parameters | Return type |
 |---|---|---|
 | `$.s.isUpper()` | — | BOOLEAN |
 | `$.s.isLower()` | — | BOOLEAN |
@@ -227,7 +227,7 @@ $.name.startsWith('Dr.') or $.name.startsWith('Prof.') title check
 
 **Cross-type:**
 
-| DSL | Operates on | Return type |
+| AEL | Operates on | Return type |
 |---|---|---|
 | `$.i.toString()` | INT | STRING |
 | `$.f.toString()` | FLOAT | STRING |
@@ -239,7 +239,7 @@ $.name.startsWith('Dr.') or $.name.startsWith('Prof.') title check
 
 ### Design principle: method-style for type-specific functions
 
-The DSL follows a consistent pattern for function style:
+The AEL follows a consistent pattern for function style:
 
 | Category | Style | Why |
 |---|---|---|
