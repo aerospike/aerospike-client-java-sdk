@@ -17,17 +17,13 @@
 package com.aerospike.client.fluent.util;
 
 import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.util.AbstractMap;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
-import java.util.TreeMap;
 
 import com.aerospike.client.fluent.AerospikeException;
 import com.aerospike.client.fluent.AerospikeList;
+import com.aerospike.client.fluent.AerospikeMap;
 import com.aerospike.client.fluent.Value;
 import com.aerospike.client.fluent.cdt.ListOrder;
 import com.aerospike.client.fluent.command.Buffer;
@@ -127,7 +123,7 @@ public abstract class Unpacker<T> {
 
 	public final T unpackMap() {
 		if (length <= 0) {
-			return getMap(new HashMap<T,T>(0));
+			return getMap(new AerospikeMap<T,T>(AerospikeMap.Type.UNORDERED, 0));
 		}
 
 		try {
@@ -146,7 +142,7 @@ public abstract class Unpacker<T> {
 				offset += 4;
 			}
 			else {
-				return getMap(new HashMap<T,T>(0));
+				return getMap(new AerospikeMap<T,T>(AerospikeMap.Type.UNORDERED, 0));
 			}
 			return unpackMap(count);
 		}
@@ -157,7 +153,7 @@ public abstract class Unpacker<T> {
 
 	private T unpackMap(int count) throws IOException, ClassNotFoundException {
 		if (count <= 0) {
-			return getMap(new HashMap<T,T>(0));
+			return getMap(new AerospikeMap<T,T>(AerospikeMap.Type.UNORDERED, 0));
 		}
 
 		// Peek at buffer to determine map type, but do not advance.
@@ -173,19 +169,21 @@ public abstract class Unpacker<T> {
 				// Extension is a map type.  Determine which one.
 				if ((mapBits & 0x08) != 0 && !Value.ReturnMapForKeyValue) {
 					// Index/rank range result where order needs to be preserved.
-					return unpackMapAsList(count);
+					// Use LinkedHashMap since it preserves insertion order.
+					return unpackMap(AerospikeMap.Type.LINKED, count);
 				}
 				else if ((mapBits & 0x01) != 0) {
-					// Sorted map
-					return unpackTreeMap(count);
+					// Sorted map. Use LinkedHashMap since the wire entries are
+					// already sorted and LinkedHashMap preserves insertion order.
+					return unpackMap(AerospikeMap.Type.LINKED, count);
 				}
 			}
 		}
-		return unpackHashMap(count);
+		return unpackMap(AerospikeMap.Type.UNORDERED, count);
 	}
 
-	private T unpackHashMap(int count) throws IOException, ClassNotFoundException {
-		HashMap<T,T> map = new HashMap<T,T>(count);
+	private T unpackMap(AerospikeMap.Type type, int count) throws IOException, ClassNotFoundException {
+		AerospikeMap<T,T> map = new AerospikeMap<T,T>(type, count);
 
 		for (int i = 0; i < count; i++) {
 			T key = unpackObject();
@@ -198,6 +196,7 @@ public abstract class Unpacker<T> {
 		return getMap(map);
 	}
 
+	/*
 	@SuppressWarnings("unchecked")
 	private T unpackTreeMap(int count) throws IOException, ClassNotFoundException {
 		TreeMap<T,T> map = new TreeMap<T,T>();
@@ -235,6 +234,7 @@ public abstract class Unpacker<T> {
 		}
 		return getList((List<T>)list);
 	}
+	*/
 
 	private T unpackBlob(int count) throws IOException, ClassNotFoundException {
 		int type = buffer[offset++] & 0xff;

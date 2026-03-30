@@ -59,22 +59,6 @@ public class AerospikeList<T> extends ArrayList<T> {
 	}
 
 	/**
-	 * Creates an empty list with the given capacity, {@link ListOrder} and whether an index
-	 * should be stored with the list.
-	 *
-	 * @param capacity 		initial capacity of the backing array
-	 * @param order    		unordered or ordered list flag ({@link ListOrder#UNORDERED} or {@link ListOrder#ORDERED})
-	 * @param persistIndex	if true, persist list index. A list index improves lookup performance,
-	 * 						but requires more storage. A list index can be created for a top-level
-	 * 						ordered list only. Nested and unordered list indexes are not supported.
-	 */
-	public AerospikeList(int capacity, ListOrder order, boolean persistIndex) {
-		super(capacity);
-		this.order = order;
-		this.persistIndex = persistIndex;
-	}
-
-	/**
 	 * Sets {@link ListOrder} for Aerospike list encoding. Transitioning from
 	 * {@link ListOrder#UNORDERED} to {@link ListOrder#ORDERED} sorts elements in place with
 	 * {@link #sort()}. All other changes update only the stored flag (no sort).
@@ -97,6 +81,17 @@ public class AerospikeList<T> extends ArrayList<T> {
 	 */
 	public ListOrder getOrder() {
 		return order;
+	}
+
+	/**
+	 * Set whether to create an index on list creation. A list index improves lookup performance,
+	 * but requires more storage. A list index can be created for a top-level ordered list only.
+	 * Nested and unordered list indexes are not supported.
+	 *
+	 * @param persistIndex	if true, persist list index.
+	 */
+	public void setPersistIndex(boolean persistIndex) {
+		this.persistIndex = persistIndex;
 	}
 
 	/**

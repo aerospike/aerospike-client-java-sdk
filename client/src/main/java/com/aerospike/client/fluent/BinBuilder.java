@@ -94,6 +94,12 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
     /**
      * Create set database operation.
      */
+    public T setTo(AerospikeMap<?, ?> value) {
+        return opBuilder.setTo(new Bin(binName, value));
+    }
+    /**
+     * Create set database operation.
+     */
     public T setTo(Map<?, ?> value) {
         return opBuilder.setTo(new Bin(binName, value));
     }

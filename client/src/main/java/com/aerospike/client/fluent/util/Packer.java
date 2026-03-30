@@ -24,6 +24,7 @@ import java.util.UUID;
 
 import com.aerospike.client.fluent.AerospikeException;
 import com.aerospike.client.fluent.AerospikeList;
+import com.aerospike.client.fluent.AerospikeMap;
 import com.aerospike.client.fluent.Value;
 import com.aerospike.client.fluent.cdt.ListOrder;
 import com.aerospike.client.fluent.cdt.MapOrder;
@@ -69,6 +70,19 @@ public final class Packer {
 			packer.packList(val);
 			packer.createBuffer();
 			packer.packList(val);
+			return packer.getBuffer();
+		}
+		catch (Throwable e) {
+			throw new AerospikeException.Serialize(e);
+		}
+	}
+
+	public static byte[] pack(AerospikeMap<?,?> val) {
+		try {
+			Packer packer = new Packer();
+			packer.packMap(val);
+			packer.createBuffer();
+			packer.packMap(val);
 			return packer.getBuffer();
 		}
 		catch (Throwable e) {
@@ -163,11 +177,26 @@ public final class Packer {
 
 	public void packValueMap(Map<Value,Value> map) {
 		MapOrder order = Value.MapValue.getMapOrder(map);
-		packMapBegin(map.size(), order);
+		packMapBegin(map.size(), order, false);
 
 		for (Entry<Value,Value> entry : map.entrySet()) {
 			entry.getKey().pack(this);
 			entry.getValue().pack(this);
+		}
+	}
+
+	public void packMap(AerospikeMap<?,?> map) {
+		if (map.getType() == AerospikeMap.Type.UNORDERED) {
+			// TODO Sort unordered maps here?
+			packMap(map.getMap(), MapOrder.UNORDERED);
+		}
+		else {
+			packMapBegin(map.size(), MapOrder.KEY_ORDERED, map.isPersistIndex());
+
+			for (Entry<?,?> entry : map.entrySet()) {
+				packObject(entry.getKey());
+				packObject(entry.getValue());
+			}
 		}
 	}
 
@@ -177,7 +206,7 @@ public final class Packer {
 	}
 
 	public void packMap(Map<?,?> map, MapOrder order) {
-		packMapBegin(map.size(), order);
+		packMapBegin(map.size(), order, false);
 
 		for (Entry<?,?> entry : map.entrySet()) {
 			packObject(entry.getKey());
@@ -186,7 +215,7 @@ public final class Packer {
 	}
 
 	public void packMap(List<? extends Entry<?,?>> list, MapOrder order) {
-		packMapBegin(list.size(), order);
+		packMapBegin(list.size(), order, false);
 
 		for (Entry<?,?> entry : list) {
 			packObject(entry.getKey());
@@ -194,16 +223,20 @@ public final class Packer {
 		}
 	}
 
-	public void packMapBegin(int size, MapOrder order) {
+	public void packMapBegin(int size, MapOrder order, boolean persistIndex) {
 		if (order == MapOrder.UNORDERED) {
 			packMapBegin(size);
 		}
 		else {
 			// Map is sorted.
+			int attr = persistIndex ? order.attributes | 0x10 : order.attributes;
+
 			packMapBegin(size + 1);
+			// Pack key field.
 			packByte(0xc7);
 			packByte(0);
-			packByte(order.attributes);
+			packByte(attr);
+			// Pack value field.
 			packByte(0xc0);
 		}
 	}

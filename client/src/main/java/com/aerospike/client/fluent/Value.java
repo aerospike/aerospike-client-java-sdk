@@ -182,6 +182,13 @@ public abstract class Value {
 	/**
 	 * Get map or null value instance.
 	 */
+	public static Value get(AerospikeMap<?,?> value) {
+		return (value == null)? NullValue.INSTANCE : new AerospikeMapValue(value);
+	}
+
+	/**
+	 * Get map or null value instance.
+	 */
 	public static Value get(Map<?,?> value) {
 		return (value == null)? NullValue.INSTANCE : new MapValue(value);
 	}
@@ -272,6 +279,10 @@ public abstract class Value {
 
 		if (value instanceof AerospikeList<?> val) {
 			return new AerospikeListValue(val);
+		}
+
+		if (value instanceof AerospikeMap<?,?> val) {
+			return new AerospikeMapValue(val);
 		}
 
 		if (value instanceof List<?> val) {
@@ -1544,7 +1555,7 @@ public abstract class Value {
 		public boolean equals(Object other) {
 			return (other != null &&
 				this.getClass().equals(other.getClass()) &&
-				this.list.equals(((ListValue)other).list));
+				this.list.equals(((AerospikeListValue)other).list));
 		}
 
 		@Override
@@ -1616,6 +1627,72 @@ public abstract class Value {
 		@Override
 		public int hashCode() {
 			return list.hashCode();
+		}
+	}
+
+	/**
+	 * AerospikeMap value.
+	 */
+	public static final class AerospikeMapValue extends Value {
+		private final AerospikeMap<?,?> map;
+		private byte[] bytes;
+
+		public AerospikeMapValue(AerospikeMap<?,?> map)  {
+			this.map = map;
+		}
+
+		@Override
+		public int estimateSize() {
+			bytes = Packer.pack(map);
+			return bytes.length;
+		}
+
+		@Override
+		public int write(byte[] buffer, int offset) {
+			System.arraycopy(bytes, 0, buffer, offset, bytes.length);
+			return bytes.length;
+		}
+
+		@Override
+		public void pack(Packer packer) {
+			packer.packMap(map);
+		}
+
+		@Override
+		public void validateKeyType() {
+			throw AerospikeException.resultCodeToException(ResultCode.PARAMETER_ERROR, "Invalid key type: map");
+		}
+
+		@Override
+		public int getType() {
+			return ParticleType.MAP;
+		}
+
+		@Override
+		public Object getObject() {
+			return map;
+		}
+/*
+		@Override
+		public LuaValue getLuaValue(LuaInstance instance) {
+			return instance.getLuaMap(map);
+		}
+*/
+		@Override
+		public String toString() {
+			return map.toString();
+		}
+
+		@Override
+		public boolean equals(Object other) {
+			return (other != null &&
+				this.getClass().equals(other.getClass()) &&
+				this.map.equals(((AerospikeMapValue)other).map));
+		}
+
+		@Override
+		public int hashCode() {
+			return map.hashCode();
 		}
 	}
 

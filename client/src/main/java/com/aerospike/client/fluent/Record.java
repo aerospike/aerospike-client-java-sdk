@@ -16,7 +16,6 @@
  */
 package com.aerospike.client.fluent;
 
-import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Objects;
@@ -156,8 +155,8 @@ public final class Record {
 	/**
 	 * Get bin value as map.
 	 */
-	public Map<?,?> getMap(String name) {
-		return (Map<?,?>)getValue(name);
+	public AerospikeMap<?,?> getMap(String name) {
+		return (AerospikeMap<?,?>)getValue(name);
 	}
 
 	/**

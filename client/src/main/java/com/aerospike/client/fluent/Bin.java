@@ -189,6 +189,17 @@ public final class Bin {
 	}
 
 	/**
+	 * Create bin with a AerospikeMap value.  The map value will be serialized as a server map type.
+	 *
+	 * @param name		bin name, current limit is 15 characters
+	 * @param value		bin value
+	 */
+	public Bin(String name, AerospikeMap<?,?> value) {
+		this.name = name;
+		this.value = Value.get(value);
+	}
+
+	/**
 	 * Create bin with a map value.  The map value will be serialized as a server map type.
 	 *
 	 * @param name		bin name, current limit is 15 characters

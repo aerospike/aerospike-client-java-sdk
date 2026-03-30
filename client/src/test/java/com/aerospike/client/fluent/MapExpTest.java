@@ -58,9 +58,10 @@ public class MapExpTest extends ClusterTest {
 
 		assertTrue(rs.hasNext());
         Record rec = rs.next().recordOrThrow();
-		Map<?,?> m = rec.getMap(binName);
+		AerospikeMap<?,?> m = rec.getMap(binName);
 
-		assertTrue(m instanceof TreeMap);
+		// A sorted map us returned as a LinkedHashMap for performance.
+		assertEquals(AerospikeMap.Type.LINKED, m.getType());
 	}
 
 	@Test

@@ -98,6 +98,67 @@ public class ListMapTest extends ClusterTest {
 	}
 
 	@Test
+	public void aerospikeMapBinsValues() {
+		Key key = args.set.id("aerospikeMapBinsValues");
+		String binName = "listbin";
+
+		session.delete(key).execute();
+
+		AerospikeMap<String,Integer> map = new AerospikeMap<>(AerospikeMap.Type.UNORDERED, 16);
+		map.put("joe", 90);
+		map.put("jim", 76);
+		map.put("charlie", 78);
+
+		session.upsert(key)
+			.bins(binName)
+			.values(map)
+	    	.execute();
+
+		RecordStream rs = session.query(key)
+			.readingOnlyBins(binName)
+			.execute();
+
+        assertTrue(rs.hasNext());
+        Record rec = rs.next().recordOrThrow();
+        AerospikeMap<?,?> receivedMap = rec.getMap(binName);
+		assertEquals(3, receivedMap.size());
+		assertEquals(90L, receivedMap.get("joe"));
+		assertEquals(76L, receivedMap.get("jim"));
+		assertEquals(78L, receivedMap.get("charlie"));
+		assertEquals(AerospikeMap.Type.UNORDERED, receivedMap.getType());
+	}
+
+	@Test
+	public void aerospikeMapOps() {
+		Key key = args.set.id("aerospikeMapOps");
+		String binName = "listbin";
+
+		session.delete(key).execute();
+
+		AerospikeMap<String,Integer> map = new AerospikeMap<>(AerospikeMap.Type.LINKED, 16);
+		map.put("charlie", 78);
+		map.put("jim", 76);
+		map.put("joe", 90);
+
+		session.upsert(key)
+	        .bin(binName).setTo(map)
+	        .execute();
+
+		RecordStream rs = session.query(key)
+			.readingOnlyBins(binName)
+			.execute();
+
+        assertTrue(rs.hasNext());
+        Record rec = rs.next().recordOrThrow();
+		AerospikeMap<?,?> receivedMap = rec.getMap(binName);
+		assertEquals(3, receivedMap.size());
+		assertEquals(90L, receivedMap.get("joe"));
+		assertEquals(76L, receivedMap.get("jim"));
+		assertEquals(78L, receivedMap.get("charlie"));
+		assertEquals(AerospikeMap.Type.LINKED, receivedMap.getType());
+	}
+
+	@Test
 	public void listStrings() {
 		Key key = args.set.id("listStrings");
 		String binName = "listbin1";
