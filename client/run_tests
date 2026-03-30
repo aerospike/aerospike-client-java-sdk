@@ -19,8 +19,15 @@ done
 
 if [ "$hastest" = false ]
 then
-    # Run all tests
+    # Run the aggregated suite (not every *Test class in the module)
     def="$def -Dtest=SuiteAll"
 fi
 
+# TxnTest (and txnMrtExpiredAfterDeadline) require a strong-consistency namespace. If scMode is false,
+# @BeforeAll skips the entire class — Maven exits 0 and your assertions never run.
+#
+# Run one class or method explicitly, e.g.:
+#   ./run_tests -Dtest=TxnTest
+#   ./run_tests -Dtest=TxnTest#txnMrtExpiredAfterDeadline
+#
 mvn test -DskipTests=false $def -Dargs="$arg"
