@@ -60,7 +60,9 @@ public class MapExpTest extends ClusterTest {
         Record rec = rs.next().recordOrThrow();
 		AerospikeMap<?,?> m = rec.getMap(binName);
 
-		// A sorted map us returned as a LinkedHashMap for performance.
+		// A sorted map is returned as a LinkedHashMap for performance.
+		// The response is ordered, so the LinkedHashMap insertion order
+		// will match the sort order.
 		assertEquals(AerospikeMap.Type.LINKED, m.getType());
 	}
 
