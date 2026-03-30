@@ -458,6 +458,41 @@ public class TxnTest extends ClusterTest {
 		assertBatchEqual(keys, recs, 1);
 	}
 
+	@Test
+	public void txnMrtExpiredAfterDeadline() {
+		Key key = args.set.id("txnMrtExpired");
+
+		session.upsert(key)
+			.bins(binName)
+			.values("val0")
+			.execute();
+
+		AerospikeException ae = assertThrows(AerospikeException.class, () -> session.doInTransaction(txnSession -> {
+            txnSession.getCurrentTransaction().setTimeout(2);
+
+            txnSession.upsert(key)
+                .bins(binName)
+                .values("val1")
+                .execute();
+
+            try {
+                Thread.sleep(3000);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new RuntimeException(e);
+            }
+
+            RecordStream rs = txnSession.upsert(key)
+                .bins(binName)
+                .values("val2")
+                .execute();
+
+            assertTrue(rs.hasNext());
+            rs.next().recordOrThrow();
+        }));
+		assertEquals(ResultCode.MRT_EXPIRED, ae.getResultCode());
+	}
+
 	private void assertBatchEqual(java.util.List<Key> keys, RecordStream recs, int expected) {
 		int count = 0;
 		while (recs.hasNext()) {
