@@ -477,7 +477,7 @@ public class FilterExpTest extends ClusterTest {
 					Exp.le(Exp.var(name), Exp.val(3.3001))));
 
 		testExp(exp);
-		testDsl("let(x = $.B.asFloat() + 1.1) then(${x} >= 3.2999 and ${x} <= 3.3001)");
+		testDsl("let(x = $.B.get(type: FLOAT) + 1.1) then(${x} >= 3.2999 and ${x} <= 3.3001)");
 	}
 
 	@Test
@@ -524,7 +524,7 @@ public class FilterExpTest extends ClusterTest {
 					Exp.le(Exp.var(name), Exp.val(4.8401))));
 
 		testExp(exp);
-		testDsl("let (x = $." + binB + ".asFloat() ** 2.0) then (${x} >= 4.8399 and ${x} <= 4.8401)");
+		testDsl("let (x = $." + binB + ".get(type: FLOAT) ** 2.0) then (${x} >= 4.8399 and ${x} <= 4.8401)");
 	}
 
 	@Test
@@ -538,7 +538,7 @@ public class FilterExpTest extends ClusterTest {
 					Exp.le(Exp.var(name), Exp.val(1.1376))));
 
 		testExp(exp);
-		testDsl("let (x = log($." + binB + ".asFloat(), 2.0)) then (${x} >= 1.1374 and ${x} <= 1.1376)");
+		testDsl("let (x = log($." + binB + ".get(type: FLOAT), 2.0)) then (${x} >= 1.1374 and ${x} <= 1.1376)");
 	}
 
 	@Test
@@ -571,7 +571,7 @@ public class FilterExpTest extends ClusterTest {
 				Exp.val(2.0));
 
 		testExp(exp);
-		testDsl("floor($." + binB + ".asFloat()) == 2.0");
+		testDsl("floor($." + binB + ".get(type: FLOAT)) == 2.0");
 	}
 
 	@Test
@@ -582,7 +582,7 @@ public class FilterExpTest extends ClusterTest {
 				Exp.val(3.0));
 
 		testExp(exp);
-		testDsl("ceil($." + binB + ".asFloat()) == 3.0");
+		testDsl("ceil($." + binB + ".get(type: FLOAT)) == 3.0");
 	}
 
 	// TODO Replace Exp filter with DSL when int cast works.
