@@ -104,24 +104,33 @@ public class AerospikeBenchmark implements Callable<Integer>, Log.Callback {
         Predicate<Arguments> isDurationApplicable = arg -> arg.getDurationSeconds() != null && benchmarkOptions.isAsync();
         ExecutorService es = executorSupplier.get();
         if (benchmarkOptions.isAsync()) {
-            int maxReqInFlight = arguments.getAsyncMaxCommands();
-            RWTask[] seedTasks = new RWTask[maxReqInFlight];
-
-            for (int i = 0; i < maxReqInFlight; i++) {
-                seedTasks[i] = new RWTaskAsync(arguments, counters, benchmarkContext.getSession());
+//            int maxReqInFlight = arguments.getAsyncMaxCommands();
+//            RWTask[] seedTasks = new RWTask[maxReqInFlight];
+//
+//            for (int i = 0; i < maxReqInFlight; i++) {
+//                seedTasks[i] = new RWTaskAsync(arguments, counters, benchmarkContext.getSession());
+//            }
+//            es.execute(() -> {
+//                // Start seed commands.
+//                for (RWTask task : seedTasks) {
+//                    if (task.isStopped) {
+//                        continue;
+//                    }
+//                    task.runNextCommand();
+//                }
+//            });
+//            Thread.sleep(900);
+//            collectRwStats(benchmarkContext.getArguments(), seedTasks, isDurationApplicable.test(arguments));
+//            drainAndShutdown(seedTasks, es);
+            RWTask[] tasks = new RWTask[threads];
+            for (int i = 0; i < threads; i++) {
+                AsyncRwTask2 rt = new AsyncRwTask2(arguments, counters, benchmarkContext.getSession());
+                tasks[i] = rt;
+                es.execute(rt);
             }
-            es.execute(() -> {
-                // Start seed commands.
-                for (RWTask task : seedTasks) {
-                    if (task.isStopped) {
-                        continue;
-                    }
-                    task.runNextCommand();
-                }
-            });
             Thread.sleep(900);
-            collectRwStats(benchmarkContext.getArguments(), seedTasks, isDurationApplicable.test(arguments));
-            drainAndShutdown(seedTasks, es);
+            collectRwStats(benchmarkContext.getArguments(), tasks, isDurationApplicable.test(arguments));
+            es.shutdown();
         } else {
             RWTask[] tasks = new RWTask[threads];
             for (int i = 0; i < threads; i++) {
