@@ -30,11 +30,22 @@ import com.aerospike.client.fluent.cdt.MapPolicy;
 import com.aerospike.client.fluent.cdt.MapReturnType;
 import com.aerospike.client.fluent.cdt.MapWriteFlags;
 
-public class CdtGetOrRemoveBuilder<T extends AbstractOperationBuilder<T>> extends AbstractCdtBuilder<T> 
-                                implements CdtActionInvertableBuilder<T>, CdtActionNonInvertableBuilder<T>, 
+/**
+ * Fluent builder for map and list (CDT) read, remove, existence checks, and nested path operations on a bin.
+ * After {@link BinBuilder} selects a bin, this type holds the current {@link CdtOperationParams} and dispatches
+ * to server map or list operations. Context methods push another step onto the nested path and return {@code this};
+ * terminal operations attach to the parent {@link AbstractOperationBuilder}.
+ *
+ * @param <T> the concrete parent operation builder type for chaining
+ */
+public class CdtGetOrRemoveBuilder<T extends AbstractOperationBuilder<T>> extends AbstractCdtBuilder<T>
+                                implements CdtActionInvertableBuilder<T>, CdtActionNonInvertableBuilder<T>,
                                             CdtContextInvertableBuilder<T>, CdtContextNonInvertableBuilder<T>,
                                             CdtSetterInvertableBuilder<T>, CdtSetterNonInvertableBuilder<T> {
-    
+
+    /**
+     * Discriminator for how map or list elements are selected for subsequent CDT operations.
+     */
     public static enum CdtOperation {
         MAP_BY_INDEX,
         MAP_BY_INDEX_RANGE,
@@ -57,11 +68,23 @@ public class CdtGetOrRemoveBuilder<T extends AbstractOperationBuilder<T>> extend
         LIST_BY_VALUE_RANGE,
         LIST_BY_VALUE_REL_RANK_RANGE
     }
-    
+
+    /**
+     * Creates a builder for CDT operations along a nested map or list path.
+     *
+     * @param binName  target bin name
+     * @param opBuilder parent operation builder
+     * @param params    current selection and CDT context path
+     */
     public CdtGetOrRemoveBuilder(String binName, T opBuilder, CdtOperationParams params) {
         super(opBuilder, binName, params);
     }
 
+    /**
+     * Read element values for the current map or list selection (CDT return type VALUE).
+     *
+     * @return the parent operation builder for chaining
+     */
     public T getValues() {
         switch (params.getOperation()) {
         case MAP_BY_INDEX:
@@ -132,8 +155,13 @@ public class CdtGetOrRemoveBuilder<T extends AbstractOperationBuilder<T>> extend
             throw new IllegalArgumentException("getValues() does not know how to handle an operation of " + params.getOperation());
         }
     }
-    
+
     // TODO: This should be limited so it can only get invoked on maps
+    /**
+     * Read map keys for the current selection. List selections throw at runtime; use only after map paths.
+     *
+     * @return the parent operation builder for chaining
+     */
     public T getKeys() {
         switch (params.getOperation()) {
         case MAP_BY_INDEX:
@@ -184,7 +212,12 @@ public class CdtGetOrRemoveBuilder<T extends AbstractOperationBuilder<T>> extend
             throw new IllegalArgumentException("getKeys() does not know how to handle an operation of " + params.getOperation());
         }
     }
-    
+
+    /**
+     * Return the count of elements matching the current selection.
+     *
+     * @return the parent operation builder for chaining
+     */
     public T count() {
         switch (params.getOperation()) {
         case MAP_BY_INDEX:
@@ -256,6 +289,11 @@ public class CdtGetOrRemoveBuilder<T extends AbstractOperationBuilder<T>> extend
         }
     }
 
+    /**
+     * Return the count of elements not matching the current selection (inverted). Not supported after single-element paths such as {@code onMapIndex}, {@code onMapKey}, or {@code onListIndex}.
+     *
+     * @return the parent operation builder for chaining
+     */
     public T countAllOthers() {
         switch (params.getOperation()) {
         // These three operation cannot be used on the server to get the inverted value. This should not be allowed to occur
@@ -265,7 +303,7 @@ public class CdtGetOrRemoveBuilder<T extends AbstractOperationBuilder<T>> extend
         case LIST_BY_INDEX:
         case LIST_BY_RANK:
             throw new IllegalArgumentException("countAllOthers cannot be called after onMapIndex, onMapKey, onMapRank, onListIndex or onListRank: Th server does not support this");
-            
+
         case MAP_BY_INDEX_RANGE:
             if (params.hasInt2()) {
                 return opBuilder.addOp(MapOperation.getByIndexRange(binName, params.getInt1(), params.getInt2(), MapReturnType.COUNT | MapReturnType.INVERTED, params.context()));
@@ -325,6 +363,11 @@ public class CdtGetOrRemoveBuilder<T extends AbstractOperationBuilder<T>> extend
         }
     }
 
+    /**
+     * Remove elements matching the current map or list selection.
+     *
+     * @return the parent operation builder for chaining
+     */
     public T remove() {
         switch (params.getOperation()) {
         case MAP_BY_INDEX:
@@ -396,6 +439,11 @@ public class CdtGetOrRemoveBuilder<T extends AbstractOperationBuilder<T>> extend
         }
     }
 
+    /**
+     * Remove elements not matching the current selection (inverted). Not supported after single-element paths such as {@code onMapIndex}, {@code onMapKey}, or {@code onListIndex}.
+     *
+     * @return the parent operation builder for chaining
+     */
     public T removeAllOthers() {
         switch (params.getOperation()) {
         // These three operation cannot be used on the server to get the inverted value. This should not be allowed to occur
@@ -465,6 +513,11 @@ public class CdtGetOrRemoveBuilder<T extends AbstractOperationBuilder<T>> extend
         }
     }
 
+    /**
+     * Read indexes for the current selection.
+     *
+     * @return the parent operation builder for chaining
+     */
     public T getIndexes() {
         switch (params.getOperation()) {
         case MAP_BY_INDEX:
@@ -536,6 +589,11 @@ public class CdtGetOrRemoveBuilder<T extends AbstractOperationBuilder<T>> extend
         }
     }
 
+    /**
+     * Read reverse indexes for the current selection.
+     *
+     * @return the parent operation builder for chaining
+     */
     public T getReverseIndexes() {
         switch (params.getOperation()) {
         case MAP_BY_INDEX:
@@ -607,6 +665,11 @@ public class CdtGetOrRemoveBuilder<T extends AbstractOperationBuilder<T>> extend
         }
     }
 
+    /**
+     * Read ranks for the current selection.
+     *
+     * @return the parent operation builder for chaining
+     */
     public T getRanks() {
         switch (params.getOperation()) {
         case MAP_BY_INDEX:
@@ -678,6 +741,11 @@ public class CdtGetOrRemoveBuilder<T extends AbstractOperationBuilder<T>> extend
         }
     }
 
+    /**
+     * Read reverse ranks for the current selection.
+     *
+     * @return the parent operation builder for chaining
+     */
     public T getReverseRanks() {
         switch (params.getOperation()) {
         case MAP_BY_INDEX:
@@ -749,6 +817,11 @@ public class CdtGetOrRemoveBuilder<T extends AbstractOperationBuilder<T>> extend
         }
     }
 
+    /**
+     * Read key-value pairs for the current map selection (maps only).
+     *
+     * @return the parent operation builder for chaining
+     */
     public T getKeysAndValues() {
         switch (params.getOperation()) {
         case MAP_BY_INDEX:
@@ -801,221 +874,654 @@ public class CdtGetOrRemoveBuilder<T extends AbstractOperationBuilder<T>> extend
     }
 
     /**
-     * These methods can called with anything that can be a context, like onMapIndex. This can be an operation (get or remove) in it's own
-     * right, or a step in a context path.
+     * Select a map entry by sort index for nested CDT operations; pushes the selection onto the nested context path.
+     *
+     * @param index index in server map order
+     * @return this builder for continued nested CDT operations
      */
     public CdtContextNonInvertableBuilder<T> onMapIndex(int index) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_INDEX, index);
         return this;
     }
+    /**
+     * Select a map entry by key; pushes the selection onto the nested CDT context path.
+     *
+     * @param key reference map key
+     *
+     * @return this builder for continued nested CDT operations
+     */
     public CdtSetterNonInvertableBuilder<T> onMapKey(long key) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_KEY, Value.get(key));
         return this;
     }
+    /**
+     * Select a map entry by key; pushes the selection onto the nested CDT context path.
+     *
+     * @param key reference map key
+     * @param createType ordering used if the map must be created
+     *
+     * @return this builder for continued nested CDT operations
+     */
     public CdtSetterNonInvertableBuilder<T> onMapKey(long key, MapOrder createType) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_KEY, Value.get(key), createType);
         return this;
     }
+    /**
+     * Select a map entry by key; pushes the selection onto the nested CDT context path.
+     *
+     * @param key reference map key
+     *
+     * @return this builder for continued nested CDT operations
+     * @see #onMapKey(long)
+     */
     public CdtSetterNonInvertableBuilder<T> onMapKey(String key) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_KEY, Value.get(key));
         return this;
     }
+    /**
+     * Select a map entry by key; pushes the selection onto the nested CDT context path.
+     *
+     * @param key reference map key
+     * @param createType ordering used if the map must be created
+     *
+     * @return this builder for continued nested CDT operations
+     * @see #onMapKey(long, MapOrder)
+     */
     public CdtSetterNonInvertableBuilder<T> onMapKey(String key, MapOrder createType) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_KEY, Value.get(key), createType);
         return this;
     }
+    /**
+     * Select a map entry by key; pushes the selection onto the nested CDT context path.
+     *
+     * @param key reference map key
+     *
+     * @return this builder for continued nested CDT operations
+     * @see #onMapKey(long)
+     */
     public CdtSetterNonInvertableBuilder<T> onMapKey(byte[] key) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_KEY, Value.get(key));
         return this;
     }
+    /**
+     * Select a map entry by key; pushes the selection onto the nested CDT context path.
+     *
+     * @param key reference map key
+     * @param createType ordering used if the map must be created
+     *
+     * @return this builder for continued nested CDT operations
+     * @see #onMapKey(long, MapOrder)
+     */
     public CdtSetterNonInvertableBuilder<T> onMapKey(byte[] key, MapOrder createType) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_KEY, Value.get(key), createType);
         return this;
     }
+    /**
+     * Select a map entry by rank; pushes the selection onto the nested CDT context path.
+     *
+     * @param index server CDT index, rank, or count per operation semantics
+     *
+     * @return this builder for continued nested CDT operations
+     */
     public CdtContextNonInvertableBuilder<T> onMapRank(int index) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_RANK, index);
         return this;
     }
+    /**
+     * Select map entries by value identity; pushes the selection onto the nested CDT context path.
+     *
+     * @param value reference value
+     *
+     * @return this builder for continued nested CDT operations
+     */
     public CdtContextInvertableBuilder<T> onMapValue(long value) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_VALUE, Value.get(value));
         return this;
     }
+    /**
+     * Select map entries by value identity; pushes the selection onto the nested CDT context path.
+     *
+     * @param value reference value
+     *
+     * @return this builder for continued nested CDT operations
+     * @see #onMapValue(long)
+     */
     public CdtContextInvertableBuilder<T> onMapValue(String value) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_VALUE, Value.get(value));
         return this;
     }
+    /**
+     * Select map entries by value identity; pushes the selection onto the nested CDT context path.
+     *
+     * @param value reference value
+     *
+     * @return this builder for continued nested CDT operations
+     * @see #onMapValue(long)
+     */
     public CdtContextInvertableBuilder<T> onMapValue(byte[] value) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_VALUE, Value.get(value));
         return this;
     }
+    /**
+     * Select map entries by value identity; pushes the selection onto the nested CDT context path.
+     *
+     * @param value reference value
+     *
+     * @return this builder for continued nested CDT operations
+     * @see #onMapValue(long)
+     */
     public CdtContextInvertableBuilder<T> onMapValue(double value) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_VALUE, Value.get(value));
         return this;
     }
+    /**
+     * Select map entries by value identity; pushes the selection onto the nested CDT context path.
+     *
+     * @param value reference value
+     *
+     * @return this builder for continued nested CDT operations
+     * @see #onMapValue(long)
+     */
     public CdtContextInvertableBuilder<T> onMapValue(boolean value) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_VALUE, Value.get(value));
         return this;
     }
+    /**
+     * Select map entries by value identity; pushes the selection onto the nested CDT context path.
+     *
+     * @param value reference value
+     *
+     * @return this builder for continued nested CDT operations
+     * @see #onMapValue(long)
+     */
     public CdtContextInvertableBuilder<T> onMapValue(List<?> value) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_VALUE, Value.get(value));
         return this;
     }
+    /**
+     * Select map entries by value identity; pushes the selection onto the nested CDT context path.
+     *
+     * @param value reference value
+     *
+     * @return this builder for continued nested CDT operations
+     * @see #onMapValue(long)
+     */
     public CdtContextInvertableBuilder<T> onMapValue(Map<?,?> value) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_VALUE, Value.get(value));
         return this;
     }
+    /**
+     * Select map entries by value identity; pushes the selection onto the nested CDT context path.
+     *
+     * @param value reference value
+     *
+     * @return this builder for continued nested CDT operations
+     * @see #onMapValue(long)
+     */
     public CdtContextInvertableBuilder<T> onMapValue(SpecialValue value) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_VALUE, value.toAerospikeValue());
         return this;
     }
+    /**
+     * Restrict to map keys in {@code [startIncl, endExcl)}; pushes onto the nested context path.
+     *
+     * @param startIncl range bound (inclusive start)
+     * @param endExcl range bound (exclusive end)
+     *
+     * @return this builder for continued nested CDT operations
+     */
     public CdtActionInvertableBuilder<T> onMapKeyRange(long startIncl, long endExcl) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_KEY_RANGE, Value.get(startIncl), Value.get(endExcl));
         return this;
     }
+    /**
+     * Restrict to map keys in {@code [startIncl, endExcl)}; pushes onto the nested context path.
+     *
+     * @param startIncl range bound (inclusive start)
+     * @param endExcl range bound (exclusive end)
+     *
+     * @return this builder for continued nested CDT operations
+     */
     public CdtActionInvertableBuilder<T> onMapKeyRange(String startIncl, String endExcl) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_KEY_RANGE, Value.get(startIncl), Value.get(endExcl));
         return this;
     }
+    /**
+     * Restrict to map keys in {@code [startIncl, endExcl)}; pushes onto the nested context path.
+     *
+     * @param startIncl range bound (inclusive start)
+     * @param endExcl range bound (exclusive end)
+     *
+     * @return this builder for continued nested CDT operations
+     * @see #onMapKeyRange(String, String)
+     */
     public CdtActionInvertableBuilder<T> onMapKeyRange(byte[] startIncl, byte[] endExcl) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_KEY_RANGE, Value.get(startIncl), Value.get(endExcl));
         return this;
     }
+    /**
+     * Restrict to map keys in {@code [startIncl, endExcl)}; pushes onto the nested context path.
+     *
+     * @param startIncl range bound (inclusive start)
+     * @param endExcl range bound (exclusive end)
+     *
+     * @return this builder for continued nested CDT operations
+     * @see #onMapKeyRange(String, String)
+     */
     public CdtActionInvertableBuilder<T> onMapKeyRange(double startIncl, double endExcl) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_KEY_RANGE, Value.get(startIncl), Value.get(endExcl));
         return this;
     }
     // SpecialValue combinations for onMapKeyRange
+    /**
+     * Restrict to map keys in {@code [startIncl, endExcl)}; pushes onto the nested context path.
+     *
+     * @param startIncl range bound (inclusive start)
+     * @param endExcl range bound (exclusive end)
+     *
+     * @return this builder for continued nested CDT operations
+     * @see #onMapKeyRange(String, String)
+     */
     public CdtActionInvertableBuilder<T> onMapKeyRange(SpecialValue startIncl, SpecialValue endExcl) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_KEY_RANGE, startIncl.toAerospikeValue(), endExcl.toAerospikeValue());
         return this;
     }
+    /**
+     * Restrict to map keys in {@code [startIncl, endExcl)}; pushes onto the nested context path.
+     *
+     * @param startIncl range bound (inclusive start)
+     * @param endExcl range bound (exclusive end)
+     *
+     * @return this builder for continued nested CDT operations
+     * @see #onMapKeyRange(String, String)
+     */
     public CdtActionInvertableBuilder<T> onMapKeyRange(SpecialValue startIncl, long endExcl) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_KEY_RANGE, startIncl.toAerospikeValue(), Value.get(endExcl));
         return this;
     }
+    /**
+     * Restrict to map keys in {@code [startIncl, endExcl)}; pushes onto the nested context path.
+     *
+     * @param startIncl range bound (inclusive start)
+     * @param endExcl range bound (exclusive end)
+     *
+     * @return this builder for continued nested CDT operations
+     * @see #onMapKeyRange(String, String)
+     */
     public CdtActionInvertableBuilder<T> onMapKeyRange(SpecialValue startIncl, String endExcl) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_KEY_RANGE, startIncl.toAerospikeValue(), Value.get(endExcl));
         return this;
     }
+    /**
+     * Restrict to map keys in {@code [startIncl, endExcl)}; pushes onto the nested context path.
+     *
+     * @param startIncl range bound (inclusive start)
+     * @param endExcl range bound (exclusive end)
+     *
+     * @return this builder for continued nested CDT operations
+     * @see #onMapKeyRange(String, String)
+     */
     public CdtActionInvertableBuilder<T> onMapKeyRange(SpecialValue startIncl, byte[] endExcl) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_KEY_RANGE, startIncl.toAerospikeValue(), Value.get(endExcl));
         return this;
     }
+    /**
+     * Restrict to map keys in {@code [startIncl, endExcl)}; pushes onto the nested context path.
+     *
+     * @param startIncl range bound (inclusive start)
+     * @param endExcl range bound (exclusive end)
+     *
+     * @return this builder for continued nested CDT operations
+     * @see #onMapKeyRange(String, String)
+     */
     public CdtActionInvertableBuilder<T> onMapKeyRange(SpecialValue startIncl, double endExcl) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_KEY_RANGE, startIncl.toAerospikeValue(), Value.get(endExcl));
         return this;
     }
+    /**
+     * Restrict to map keys in {@code [startIncl, endExcl)}; pushes onto the nested context path.
+     *
+     * @param startIncl range bound (inclusive start)
+     * @param endExcl range bound (exclusive end)
+     *
+     * @return this builder for continued nested CDT operations
+     * @see #onMapKeyRange(String, String)
+     */
     public CdtActionInvertableBuilder<T> onMapKeyRange(long startIncl, SpecialValue endExcl) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_KEY_RANGE, Value.get(startIncl), endExcl.toAerospikeValue());
         return this;
     }
+    /**
+     * Restrict to map keys in {@code [startIncl, endExcl)}; pushes onto the nested context path.
+     *
+     * @param startIncl range bound (inclusive start)
+     * @param endExcl range bound (exclusive end)
+     *
+     * @return this builder for continued nested CDT operations
+     * @see #onMapKeyRange(String, String)
+     */
     public CdtActionInvertableBuilder<T> onMapKeyRange(String startIncl, SpecialValue endExcl) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_KEY_RANGE, Value.get(startIncl), endExcl.toAerospikeValue());
         return this;
     }
+    /**
+     * Restrict to map keys in {@code [startIncl, endExcl)}; pushes onto the nested context path.
+     *
+     * @param startIncl range bound (inclusive start)
+     * @param endExcl range bound (exclusive end)
+     *
+     * @return this builder for continued nested CDT operations
+     * @see #onMapKeyRange(String, String)
+     */
     public CdtActionInvertableBuilder<T> onMapKeyRange(byte[] startIncl, SpecialValue endExcl) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_KEY_RANGE, Value.get(startIncl), endExcl.toAerospikeValue());
         return this;
     }
+    /**
+     * Restrict to map keys in {@code [startIncl, endExcl)}; pushes onto the nested context path.
+     *
+     * @param startIncl range bound (inclusive start)
+     * @param endExcl range bound (exclusive end)
+     *
+     * @return this builder for continued nested CDT operations
+     * @see #onMapKeyRange(String, String)
+     */
     public CdtActionInvertableBuilder<T> onMapKeyRange(double startIncl, SpecialValue endExcl) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_KEY_RANGE, Value.get(startIncl), endExcl.toAerospikeValue());
         return this;
     }
-    
+
+    /**
+     * Restrict to map values in {@code [startIncl, endExcl)}; pushes onto the nested context path.
+     *
+     * @param startIncl range bound (inclusive start)
+     * @param endExcl range bound (exclusive end)
+     *
+     * @return this builder for continued nested CDT operations
+     */
     public CdtActionInvertableBuilder<T> onMapValueRange(long startIncl, long endExcl) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_VALUE_RANGE, Value.get(startIncl), Value.get(endExcl));
         return this;
     }
+    /**
+     * Restrict to map values in {@code [startIncl, endExcl)}; pushes onto the nested context path.
+     *
+     * @param startIncl range bound (inclusive start)
+     * @param endExcl range bound (exclusive end)
+     *
+     * @return this builder for continued nested CDT operations
+     * @see #onMapValueRange(long, long)
+     */
     public CdtActionInvertableBuilder<T> onMapValueRange(String startIncl, String endExcl) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_VALUE_RANGE, Value.get(startIncl), Value.get(endExcl));
         return this;
     }
+    /**
+     * Restrict to map values in {@code [startIncl, endExcl)}; pushes onto the nested context path.
+     *
+     * @param startIncl range bound (inclusive start)
+     * @param endExcl range bound (exclusive end)
+     *
+     * @return this builder for continued nested CDT operations
+     * @see #onMapValueRange(long, long)
+     */
     public CdtActionInvertableBuilder<T> onMapValueRange(byte[] startIncl, byte[] endExcl) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_VALUE_RANGE, Value.get(startIncl), Value.get(endExcl));
         return this;
     }
+    /**
+     * Restrict to map values in {@code [startIncl, endExcl)}; pushes onto the nested context path.
+     *
+     * @param startIncl range bound (inclusive start)
+     * @param endExcl range bound (exclusive end)
+     *
+     * @return this builder for continued nested CDT operations
+     * @see #onMapValueRange(long, long)
+     */
     public CdtActionInvertableBuilder<T> onMapValueRange(double startIncl, double endExcl) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_VALUE_RANGE, Value.get(startIncl), Value.get(endExcl));
         return this;
     }
+    /**
+     * Restrict to map values in {@code [startIncl, endExcl)}; pushes onto the nested context path.
+     *
+     * @param startIncl range bound (inclusive start)
+     * @param endExcl range bound (exclusive end)
+     *
+     * @return this builder for continued nested CDT operations
+     * @see #onMapValueRange(long, long)
+     */
     public CdtActionInvertableBuilder<T> onMapValueRange(boolean startIncl, boolean endExcl) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_VALUE_RANGE, Value.get(startIncl), Value.get(endExcl));
         return this;
     }
+    /**
+     * Restrict to map values in {@code [startIncl, endExcl)}; pushes onto the nested context path.
+     *
+     * @param startIncl range bound (inclusive start)
+     * @param endExcl range bound (exclusive end)
+     *
+     * @return this builder for continued nested CDT operations
+     * @see #onMapValueRange(long, long)
+     */
     public CdtActionInvertableBuilder<T> onMapValueRange(List<?> startIncl, List<?> endExcl) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_VALUE_RANGE, Value.get(startIncl), Value.get(endExcl));
         return this;
     }
+    /**
+     * Restrict to map values in {@code [startIncl, endExcl)}; pushes onto the nested context path.
+     *
+     * @param startIncl range bound (inclusive start)
+     * @param endExcl range bound (exclusive end)
+     *
+     * @return this builder for continued nested CDT operations
+     * @see #onMapValueRange(long, long)
+     */
     public CdtActionInvertableBuilder<T> onMapValueRange(Map<?,?> startIncl, Map<?,?> endExcl) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_VALUE_RANGE, Value.get(startIncl), Value.get(endExcl));
         return this;
     }
     // SpecialValue combinations for onMapValueRange
+    /**
+     * Restrict to map values in {@code [startIncl, endExcl)}; pushes onto the nested context path.
+     *
+     * @param startIncl range bound (inclusive start)
+     * @param endExcl range bound (exclusive end)
+     *
+     * @return this builder for continued nested CDT operations
+     * @see #onMapValueRange(long, long)
+     */
     public CdtActionInvertableBuilder<T> onMapValueRange(SpecialValue startIncl, SpecialValue endExcl) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_VALUE_RANGE, startIncl.toAerospikeValue(), endExcl.toAerospikeValue());
         return this;
     }
+    /**
+     * Restrict to map values in {@code [startIncl, endExcl)}; pushes onto the nested context path.
+     *
+     * @param startIncl range bound (inclusive start)
+     * @param endExcl range bound (exclusive end)
+     *
+     * @return this builder for continued nested CDT operations
+     * @see #onMapValueRange(long, long)
+     */
     public CdtActionInvertableBuilder<T> onMapValueRange(SpecialValue startIncl, long endExcl) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_VALUE_RANGE, startIncl.toAerospikeValue(), Value.get(endExcl));
         return this;
     }
+    /**
+     * Restrict to map values in {@code [startIncl, endExcl)}; pushes onto the nested context path.
+     *
+     * @param startIncl range bound (inclusive start)
+     * @param endExcl range bound (exclusive end)
+     *
+     * @return this builder for continued nested CDT operations
+     * @see #onMapValueRange(long, long)
+     */
     public CdtActionInvertableBuilder<T> onMapValueRange(SpecialValue startIncl, String endExcl) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_VALUE_RANGE, startIncl.toAerospikeValue(), Value.get(endExcl));
         return this;
     }
+    /**
+     * Restrict to map values in {@code [startIncl, endExcl)}; pushes onto the nested context path.
+     *
+     * @param startIncl range bound (inclusive start)
+     * @param endExcl range bound (exclusive end)
+     *
+     * @return this builder for continued nested CDT operations
+     * @see #onMapValueRange(long, long)
+     */
     public CdtActionInvertableBuilder<T> onMapValueRange(SpecialValue startIncl, byte[] endExcl) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_VALUE_RANGE, startIncl.toAerospikeValue(), Value.get(endExcl));
         return this;
     }
+    /**
+     * Restrict to map values in {@code [startIncl, endExcl)}; pushes onto the nested context path.
+     *
+     * @param startIncl range bound (inclusive start)
+     * @param endExcl range bound (exclusive end)
+     *
+     * @return this builder for continued nested CDT operations
+     * @see #onMapValueRange(long, long)
+     */
     public CdtActionInvertableBuilder<T> onMapValueRange(SpecialValue startIncl, double endExcl) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_VALUE_RANGE, startIncl.toAerospikeValue(), Value.get(endExcl));
         return this;
     }
+    /**
+     * Restrict to map values in {@code [startIncl, endExcl)}; pushes onto the nested context path.
+     *
+     * @param startIncl range bound (inclusive start)
+     * @param endExcl range bound (exclusive end)
+     *
+     * @return this builder for continued nested CDT operations
+     * @see #onMapValueRange(long, long)
+     */
     public CdtActionInvertableBuilder<T> onMapValueRange(SpecialValue startIncl, boolean endExcl) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_VALUE_RANGE, startIncl.toAerospikeValue(), Value.get(endExcl));
         return this;
     }
+    /**
+     * Restrict to map values in {@code [startIncl, endExcl)}; pushes onto the nested context path.
+     *
+     * @param startIncl range bound (inclusive start)
+     * @param endExcl range bound (exclusive end)
+     *
+     * @return this builder for continued nested CDT operations
+     * @see #onMapValueRange(long, long)
+     */
     public CdtActionInvertableBuilder<T> onMapValueRange(SpecialValue startIncl, List<?> endExcl) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_VALUE_RANGE, startIncl.toAerospikeValue(), Value.get(endExcl));
         return this;
     }
+    /**
+     * Restrict to map values in {@code [startIncl, endExcl)}; pushes onto the nested context path.
+     *
+     * @param startIncl range bound (inclusive start)
+     * @param endExcl range bound (exclusive end)
+     *
+     * @return this builder for continued nested CDT operations
+     * @see #onMapValueRange(long, long)
+     */
     public CdtActionInvertableBuilder<T> onMapValueRange(SpecialValue startIncl, Map<?,?> endExcl) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_VALUE_RANGE, startIncl.toAerospikeValue(), Value.get(endExcl));
         return this;
     }
+    /**
+     * Restrict to map values in {@code [startIncl, endExcl)}; pushes onto the nested context path.
+     *
+     * @param startIncl range bound (inclusive start)
+     * @param endExcl range bound (exclusive end)
+     *
+     * @return this builder for continued nested CDT operations
+     * @see #onMapValueRange(long, long)
+     */
     public CdtActionInvertableBuilder<T> onMapValueRange(long startIncl, SpecialValue endExcl) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_VALUE_RANGE, Value.get(startIncl), endExcl.toAerospikeValue());
         return this;
     }
+    /**
+     * Restrict to map values in {@code [startIncl, endExcl)}; pushes onto the nested context path.
+     *
+     * @param startIncl range bound (inclusive start)
+     * @param endExcl range bound (exclusive end)
+     *
+     * @return this builder for continued nested CDT operations
+     * @see #onMapValueRange(long, long)
+     */
     public CdtActionInvertableBuilder<T> onMapValueRange(String startIncl, SpecialValue endExcl) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_VALUE_RANGE, Value.get(startIncl), endExcl.toAerospikeValue());
         return this;
     }
+    /**
+     * Restrict to map values in {@code [startIncl, endExcl)}; pushes onto the nested context path.
+     *
+     * @param startIncl range bound (inclusive start)
+     * @param endExcl range bound (exclusive end)
+     *
+     * @return this builder for continued nested CDT operations
+     * @see #onMapValueRange(long, long)
+     */
     public CdtActionInvertableBuilder<T> onMapValueRange(byte[] startIncl, SpecialValue endExcl) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_VALUE_RANGE, Value.get(startIncl), endExcl.toAerospikeValue());
         return this;
     }
+    /**
+     * Restrict to map values in {@code [startIncl, endExcl)}; pushes onto the nested context path.
+     *
+     * @param startIncl range bound (inclusive start)
+     * @param endExcl range bound (exclusive end)
+     *
+     * @return this builder for continued nested CDT operations
+     * @see #onMapValueRange(long, long)
+     */
     public CdtActionInvertableBuilder<T> onMapValueRange(double startIncl, SpecialValue endExcl) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_VALUE_RANGE, Value.get(startIncl), endExcl.toAerospikeValue());
         return this;
     }
+    /**
+     * Restrict to map values in {@code [startIncl, endExcl)}; pushes onto the nested context path.
+     *
+     * @param startIncl range bound (inclusive start)
+     * @param endExcl range bound (exclusive end)
+     *
+     * @return this builder for continued nested CDT operations
+     * @see #onMapValueRange(long, long)
+     */
     public CdtActionInvertableBuilder<T> onMapValueRange(boolean startIncl, SpecialValue endExcl) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_VALUE_RANGE, Value.get(startIncl), endExcl.toAerospikeValue());
         return this;
     }
+    /**
+     * Restrict to map values in {@code [startIncl, endExcl)}; pushes onto the nested context path.
+     *
+     * @param startIncl range bound (inclusive start)
+     * @param endExcl range bound (exclusive end)
+     *
+     * @return this builder for continued nested CDT operations
+     * @see #onMapValueRange(long, long)
+     */
     public CdtActionInvertableBuilder<T> onMapValueRange(List<?> startIncl, SpecialValue endExcl) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_VALUE_RANGE, Value.get(startIncl), endExcl.toAerospikeValue());
         return this;
     }
+    /**
+     * Restrict to map values in {@code [startIncl, endExcl)}; pushes onto the nested context path.
+     *
+     * @param startIncl range bound (inclusive start)
+     * @param endExcl range bound (exclusive end)
+     *
+     * @return this builder for continued nested CDT operations
+     * @see #onMapValueRange(long, long)
+     */
     public CdtActionInvertableBuilder<T> onMapValueRange(Map<?,?> startIncl, SpecialValue endExcl) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_VALUE_RANGE, Value.get(startIncl), endExcl.toAerospikeValue());
         return this;
     }
-    
+
     /**
      * Navigate to map items by key relative to index range.
      * Server selects map items nearest to key and greater by index.
-     * 
+     *
      * @param key the reference key
      * @param index the relative index offset
      * @return builder for continued chaining (invertable for range operations)
@@ -1024,21 +1530,39 @@ public class CdtGetOrRemoveBuilder<T extends AbstractOperationBuilder<T>> extend
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_KEY_REL_INDEX_RANGE, Value.get(key), index);
         return this;
     }
-    
+
+    /**
+     * Select a map entry by key; pushes the selection onto the nested CDT context path.
+     *
+     * @param key reference map key
+     * @param index server CDT index, rank, or count per operation semantics
+     *
+     * @return this builder for continued nested CDT operations
+     * @see #onMapKeyRelativeIndexRange(long, int)
+     */
     public CdtActionInvertableBuilder<T> onMapKeyRelativeIndexRange(String key, int index) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_KEY_REL_INDEX_RANGE, Value.get(key), index);
         return this;
     }
-    
+
+    /**
+     * Select a map entry by key; pushes the selection onto the nested CDT context path.
+     *
+     * @param key reference map key
+     * @param index server CDT index, rank, or count per operation semantics
+     *
+     * @return this builder for continued nested CDT operations
+     * @see #onMapKeyRelativeIndexRange(long, int)
+     */
     public CdtActionInvertableBuilder<T> onMapKeyRelativeIndexRange(byte[] key, int index) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_KEY_REL_INDEX_RANGE, Value.get(key), index);
         return this;
     }
-    
+
     /**
      * Navigate to map items by key relative to index range with count limit.
      * Server selects map items nearest to key and greater by index with a count limit.
-     * 
+     *
      * @param key the reference key
      * @param index the relative index offset
      * @param count the maximum number of items to select
@@ -1048,21 +1572,41 @@ public class CdtGetOrRemoveBuilder<T extends AbstractOperationBuilder<T>> extend
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_KEY_REL_INDEX_RANGE, Value.get(key), index, count);
         return this;
     }
-    
+
+    /**
+     * Select a map entry by key; pushes the selection onto the nested CDT context path.
+     *
+     * @param key reference map key
+     * @param index server CDT index, rank, or count per operation semantics
+     * @param count server CDT index, rank, or count per operation semantics
+     *
+     * @return this builder for continued nested CDT operations
+     * @see #onMapKeyRelativeIndexRange(long, int)
+     */
     public CdtActionInvertableBuilder<T> onMapKeyRelativeIndexRange(String key, int index, int count) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_KEY_REL_INDEX_RANGE, Value.get(key), index, count);
         return this;
     }
-    
+
+    /**
+     * Select a map entry by key; pushes the selection onto the nested CDT context path.
+     *
+     * @param key reference map key
+     * @param index server CDT index, rank, or count per operation semantics
+     * @param count server CDT index, rank, or count per operation semantics
+     *
+     * @return this builder for continued nested CDT operations
+     * @see #onMapKeyRelativeIndexRange(long, int)
+     */
     public CdtActionInvertableBuilder<T> onMapKeyRelativeIndexRange(byte[] key, int index, int count) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_KEY_REL_INDEX_RANGE, Value.get(key), index, count);
         return this;
     }
-    
+
     /**
      * Navigate to map items by value relative to rank range.
      * Server selects map items nearest to value and greater by relative rank.
-     * 
+     *
      * @param value the reference value
      * @param rank the relative rank offset
      * @return builder for continued chaining (invertable for range operations)
@@ -1071,46 +1615,109 @@ public class CdtGetOrRemoveBuilder<T extends AbstractOperationBuilder<T>> extend
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank);
         return this;
     }
-    
+
+    /**
+     * Select map entries by value relative to a rank range; pushes onto the nested context path.
+     *
+     * @param value reference value
+     * @param rank server CDT index, rank, or count per operation semantics
+     *
+     * @return this builder for continued nested CDT operations
+     * @see #onMapValueRelativeRankRange(long, int)
+     */
     public CdtActionInvertableBuilder<T> onMapValueRelativeRankRange(String value, int rank) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank);
         return this;
     }
-    
+
+    /**
+     * Select map entries by value relative to a rank range; pushes onto the nested context path.
+     *
+     * @param value reference value
+     * @param rank server CDT index, rank, or count per operation semantics
+     *
+     * @return this builder for continued nested CDT operations
+     * @see #onMapValueRelativeRankRange(long, int)
+     */
     public CdtActionInvertableBuilder<T> onMapValueRelativeRankRange(byte[] value, int rank) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank);
         return this;
     }
-    
+
+    /**
+     * Select map entries by value relative to a rank range; pushes onto the nested context path.
+     *
+     * @param value reference value
+     * @param rank server CDT index, rank, or count per operation semantics
+     *
+     * @return this builder for continued nested CDT operations
+     * @see #onMapValueRelativeRankRange(long, int)
+     */
     public CdtActionInvertableBuilder<T> onMapValueRelativeRankRange(double value, int rank) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank);
         return this;
     }
-    
+
+    /**
+     * Select map entries by value relative to a rank range; pushes onto the nested context path.
+     *
+     * @param value reference value
+     * @param rank server CDT index, rank, or count per operation semantics
+     *
+     * @return this builder for continued nested CDT operations
+     * @see #onMapValueRelativeRankRange(long, int)
+     */
     public CdtActionInvertableBuilder<T> onMapValueRelativeRankRange(boolean value, int rank) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank);
         return this;
     }
-    
+
+    /**
+     * Select map entries by value relative to a rank range; pushes onto the nested context path.
+     *
+     * @param value reference value
+     * @param rank server CDT index, rank, or count per operation semantics
+     *
+     * @return this builder for continued nested CDT operations
+     * @see #onMapValueRelativeRankRange(long, int)
+     */
     public CdtActionInvertableBuilder<T> onMapValueRelativeRankRange(List<?> value, int rank) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank);
         return this;
     }
-    
+
+    /**
+     * Select map entries by value relative to a rank range; pushes onto the nested context path.
+     *
+     * @param value reference value
+     * @param rank server CDT index, rank, or count per operation semantics
+     *
+     * @return this builder for continued nested CDT operations
+     * @see #onMapValueRelativeRankRange(long, int)
+     */
     public CdtActionInvertableBuilder<T> onMapValueRelativeRankRange(Map<?,?> value, int rank) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank);
         return this;
     }
-    
+
+    /**
+     * Select map entries by value relative to a rank range; pushes onto the nested context path.
+     *
+     * @param value reference value
+     * @param rank server CDT index, rank, or count per operation semantics
+     *
+     * @return this builder for continued nested CDT operations
+     * @see #onMapValueRelativeRankRange(long, int)
+     */
     public CdtActionInvertableBuilder<T> onMapValueRelativeRankRange(SpecialValue value, int rank) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_VALUE_REL_RANK_RANGE, value.toAerospikeValue(), rank);
         return this;
     }
-    
+
     /**
      * Navigate to map items by value relative to rank range with count limit.
      * Server selects map items nearest to value and greater by relative rank with a count limit.
-     * 
+     *
      * @param value the reference value
      * @param rank the relative rank offset
      * @param count the maximum number of items to select
@@ -1120,46 +1727,116 @@ public class CdtGetOrRemoveBuilder<T extends AbstractOperationBuilder<T>> extend
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank, count);
         return this;
     }
-    
+
+    /**
+     * Select map entries by value relative to a rank range; pushes onto the nested context path.
+     *
+     * @param value reference value
+     * @param rank server CDT index, rank, or count per operation semantics
+     * @param count server CDT index, rank, or count per operation semantics
+     *
+     * @return this builder for continued nested CDT operations
+     * @see #onMapValueRelativeRankRange(long, int)
+     */
     public CdtActionInvertableBuilder<T> onMapValueRelativeRankRange(String value, int rank, int count) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank, count);
         return this;
     }
-    
+
+    /**
+     * Select map entries by value relative to a rank range; pushes onto the nested context path.
+     *
+     * @param value reference value
+     * @param rank server CDT index, rank, or count per operation semantics
+     * @param count server CDT index, rank, or count per operation semantics
+     *
+     * @return this builder for continued nested CDT operations
+     * @see #onMapValueRelativeRankRange(long, int)
+     */
     public CdtActionInvertableBuilder<T> onMapValueRelativeRankRange(byte[] value, int rank, int count) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank, count);
         return this;
     }
-    
+
+    /**
+     * Select map entries by value relative to a rank range; pushes onto the nested context path.
+     *
+     * @param value reference value
+     * @param rank server CDT index, rank, or count per operation semantics
+     * @param count server CDT index, rank, or count per operation semantics
+     *
+     * @return this builder for continued nested CDT operations
+     * @see #onMapValueRelativeRankRange(long, int)
+     */
     public CdtActionInvertableBuilder<T> onMapValueRelativeRankRange(double value, int rank, int count) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank, count);
         return this;
     }
-    
+
+    /**
+     * Select map entries by value relative to a rank range; pushes onto the nested context path.
+     *
+     * @param value reference value
+     * @param rank server CDT index, rank, or count per operation semantics
+     * @param count server CDT index, rank, or count per operation semantics
+     *
+     * @return this builder for continued nested CDT operations
+     * @see #onMapValueRelativeRankRange(long, int)
+     */
     public CdtActionInvertableBuilder<T> onMapValueRelativeRankRange(boolean value, int rank, int count) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank, count);
         return this;
     }
-    
+
+    /**
+     * Select map entries by value relative to a rank range; pushes onto the nested context path.
+     *
+     * @param value reference value
+     * @param rank server CDT index, rank, or count per operation semantics
+     * @param count server CDT index, rank, or count per operation semantics
+     *
+     * @return this builder for continued nested CDT operations
+     * @see #onMapValueRelativeRankRange(long, int)
+     */
     public CdtActionInvertableBuilder<T> onMapValueRelativeRankRange(List<?> value, int rank, int count) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank, count);
         return this;
     }
-    
+
+    /**
+     * Select map entries by value relative to a rank range; pushes onto the nested context path.
+     *
+     * @param value reference value
+     * @param rank server CDT index, rank, or count per operation semantics
+     * @param count server CDT index, rank, or count per operation semantics
+     *
+     * @return this builder for continued nested CDT operations
+     * @see #onMapValueRelativeRankRange(long, int)
+     */
     public CdtActionInvertableBuilder<T> onMapValueRelativeRankRange(Map<?,?> value, int rank, int count) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank, count);
         return this;
     }
-    
+
+    /**
+     * Select map entries by value relative to a rank range; pushes onto the nested context path.
+     *
+     * @param value reference value
+     * @param rank server CDT index, rank, or count per operation semantics
+     * @param count server CDT index, rank, or count per operation semantics
+     *
+     * @return this builder for continued nested CDT operations
+     * @see #onMapValueRelativeRankRange(long, int)
+     */
     public CdtActionInvertableBuilder<T> onMapValueRelativeRankRange(SpecialValue value, int rank, int count) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_VALUE_REL_RANK_RANGE, value.toAerospikeValue(), rank, count);
         return this;
     }
-    
+
     /**
      * Navigate to map items by index range.
      * Server selects "count" map items starting at specified index.
-     * 
+     *
      * @param index the starting index
      * @param count the number of items to select
      * @return builder for continued chaining (invertable for range operations)
@@ -1168,11 +1845,11 @@ public class CdtGetOrRemoveBuilder<T extends AbstractOperationBuilder<T>> extend
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_INDEX_RANGE, index, count);
         return this;
     }
-    
+
     /**
      * Navigate to map items by index range to end.
      * Server selects map items starting at specified index to the end of map.
-     * 
+     *
      * @param index the starting index
      * @return builder for continued chaining (invertable for range operations)
      */
@@ -1180,11 +1857,11 @@ public class CdtGetOrRemoveBuilder<T extends AbstractOperationBuilder<T>> extend
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_INDEX_RANGE, index);
         return this;
     }
-    
+
     /**
      * Navigate to map items by rank range.
      * Server selects "count" map items starting at specified rank.
-     * 
+     *
      * @param rank the starting rank
      * @param count the number of items to select
      * @return builder for continued chaining (invertable for range operations)
@@ -1193,11 +1870,11 @@ public class CdtGetOrRemoveBuilder<T extends AbstractOperationBuilder<T>> extend
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_RANK_RANGE, rank, count);
         return this;
     }
-    
+
     /**
      * Navigate to map items by rank range to end.
      * Server selects map items starting at specified rank to the end of map.
-     * 
+     *
      * @param rank the starting rank
      * @return builder for continued chaining (invertable for range operations)
      */
@@ -1205,104 +1882,311 @@ public class CdtGetOrRemoveBuilder<T extends AbstractOperationBuilder<T>> extend
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_RANK_RANGE, rank);
         return this;
     }
-    
+
+    /**
+     * Select a list element by index; pushes onto the nested CDT context path.
+     *
+     * @param index server CDT index, rank, or count per operation semantics
+     *
+     * @return this builder for continued nested CDT operations
+     */
     public CdtContextNonInvertableBuilder<T> onListIndex(int index) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_INDEX, index);
         return this;
     }
+    /**
+     * Select a list element by index; pushes onto the nested CDT context path.
+     *
+     * @param index server CDT index, rank, or count per operation semantics
+     * @param order list order if the list is created
+     * @param pad whether to pad when creating the list
+     *
+     * @return this builder for continued nested CDT operations
+     */
     public CdtContextNonInvertableBuilder<T> onListIndex(int index, ListOrder order, boolean pad) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_INDEX, index, order, pad);
         return this;
     }
+    /**
+     * Select a list element by rank; pushes onto the nested CDT context path.
+     *
+     * @param index server CDT index, rank, or count per operation semantics
+     *
+     * @return this builder for continued nested CDT operations
+     */
     public CdtContextNonInvertableBuilder<T> onListRank(int index) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_RANK, index);
         return this;
     }
+    /**
+     * Select list elements matching a value; pushes onto the nested CDT context path.
+     *
+     * @param value reference value
+     *
+     * @return this builder for continued nested CDT operations
+     */
     public CdtContextInvertableBuilder<T> onListValue(long value) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_VALUE, Value.get(value));
         return this;
     }
+    /**
+     * Select list elements matching a value; pushes onto the nested CDT context path.
+     *
+     * @param value reference value
+     *
+     * @return this builder for continued nested CDT operations
+     * @see #onListValue(long)
+     */
     public CdtContextInvertableBuilder<T> onListValue(String value) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_VALUE, Value.get(value));
         return this;
     }
+    /**
+     * Select list elements matching a value; pushes onto the nested CDT context path.
+     *
+     * @param value reference value
+     *
+     * @return this builder for continued nested CDT operations
+     * @see #onListValue(long)
+     */
     public CdtContextInvertableBuilder<T> onListValue(byte[] value) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_VALUE, Value.get(value));
         return this;
     }
+    /**
+     * Select list elements matching a value; pushes onto the nested CDT context path.
+     *
+     * @param value reference value
+     *
+     * @return this builder for continued nested CDT operations
+     * @see #onListValue(long)
+     */
     public CdtContextInvertableBuilder<T> onListValue(SpecialValue value) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_VALUE, value.toAerospikeValue());
         return this;
     }
 
+    /**
+     * Select a list element by index; pushes onto the nested CDT context path.
+     *
+     * @param index server CDT index, rank, or count per operation semantics
+     *
+     * @return this builder for continued nested CDT operations
+     */
     public CdtActionInvertableBuilder<T> onListIndexRange(int index) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_INDEX_RANGE, index);
         return this;
     }
+    /**
+     * Select a list element by index; pushes onto the nested CDT context path.
+     *
+     * @param index server CDT index, rank, or count per operation semantics
+     * @param count server CDT index, rank, or count per operation semantics
+     *
+     * @return this builder for continued nested CDT operations
+     */
     public CdtActionInvertableBuilder<T> onListIndexRange(int index, int count) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_INDEX_RANGE, index, count);
         return this;
     }
+    /**
+     * Select a list element by rank; pushes onto the nested CDT context path.
+     *
+     * @param rank server CDT index, rank, or count per operation semantics
+     *
+     * @return this builder for continued nested CDT operations
+     */
     public CdtActionInvertableBuilder<T> onListRankRange(int rank) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_RANK_RANGE, rank);
         return this;
     }
+    /**
+     * Select a list element by rank; pushes onto the nested CDT context path.
+     *
+     * @param rank server CDT index, rank, or count per operation semantics
+     * @param count server CDT index, rank, or count per operation semantics
+     *
+     * @return this builder for continued nested CDT operations
+     */
     public CdtActionInvertableBuilder<T> onListRankRange(int rank, int count) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_RANK_RANGE, rank, count);
         return this;
     }
+    /**
+     * Restrict to list values in {@code [startIncl, endExcl)}; pushes onto the nested context path.
+     *
+     * @param startIncl range bound (inclusive start)
+     * @param endExcl range bound (exclusive end)
+     *
+     * @return this builder for continued nested CDT operations
+     */
     public CdtActionInvertableBuilder<T> onListValueRange(long startIncl, long endExcl) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_VALUE_RANGE, Value.get(startIncl), Value.get(endExcl));
         return this;
     }
+    /**
+     * Restrict to list values in {@code [startIncl, endExcl)}; pushes onto the nested context path.
+     *
+     * @param startIncl range bound (inclusive start)
+     * @param endExcl range bound (exclusive end)
+     *
+     * @return this builder for continued nested CDT operations
+     * @see #onListValueRange(long, long)
+     */
     public CdtActionInvertableBuilder<T> onListValueRange(String startIncl, String endExcl) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_VALUE_RANGE, Value.get(startIncl), Value.get(endExcl));
         return this;
     }
+    /**
+     * Restrict to list values in {@code [startIncl, endExcl)}; pushes onto the nested context path.
+     *
+     * @param startIncl range bound (inclusive start)
+     * @param endExcl range bound (exclusive end)
+     *
+     * @return this builder for continued nested CDT operations
+     * @see #onListValueRange(long, long)
+     */
     public CdtActionInvertableBuilder<T> onListValueRange(byte[] startIncl, byte[] endExcl) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_VALUE_RANGE, Value.get(startIncl), Value.get(endExcl));
         return this;
     }
+    /**
+     * Restrict to list values in {@code [startIncl, endExcl)}; pushes onto the nested context path.
+     *
+     * @param startIncl range bound (inclusive start)
+     * @param endExcl range bound (exclusive end)
+     *
+     * @return this builder for continued nested CDT operations
+     * @see #onListValueRange(long, long)
+     */
     public CdtActionInvertableBuilder<T> onListValueRange(double startIncl, double endExcl) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_VALUE_RANGE, Value.get(startIncl), Value.get(endExcl));
         return this;
     }
+    /**
+     * Restrict to list values in {@code [startIncl, endExcl)}; pushes onto the nested context path.
+     *
+     * @param startIncl range bound (inclusive start)
+     * @param endExcl range bound (exclusive end)
+     *
+     * @return this builder for continued nested CDT operations
+     * @see #onListValueRange(long, long)
+     */
     public CdtActionInvertableBuilder<T> onListValueRange(SpecialValue startIncl, SpecialValue endExcl) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_VALUE_RANGE, startIncl.toAerospikeValue(), endExcl.toAerospikeValue());
         return this;
     }
+    /**
+     * Restrict to list values in {@code [startIncl, endExcl)}; pushes onto the nested context path.
+     *
+     * @param startIncl range bound (inclusive start)
+     * @param endExcl range bound (exclusive end)
+     *
+     * @return this builder for continued nested CDT operations
+     * @see #onListValueRange(long, long)
+     */
     public CdtActionInvertableBuilder<T> onListValueRange(SpecialValue startIncl, long endExcl) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_VALUE_RANGE, startIncl.toAerospikeValue(), Value.get(endExcl));
         return this;
     }
+    /**
+     * Restrict to list values in {@code [startIncl, endExcl)}; pushes onto the nested context path.
+     *
+     * @param startIncl range bound (inclusive start)
+     * @param endExcl range bound (exclusive end)
+     *
+     * @return this builder for continued nested CDT operations
+     * @see #onListValueRange(long, long)
+     */
     public CdtActionInvertableBuilder<T> onListValueRange(SpecialValue startIncl, String endExcl) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_VALUE_RANGE, startIncl.toAerospikeValue(), Value.get(endExcl));
         return this;
     }
+    /**
+     * Restrict to list values in {@code [startIncl, endExcl)}; pushes onto the nested context path.
+     *
+     * @param startIncl range bound (inclusive start)
+     * @param endExcl range bound (exclusive end)
+     *
+     * @return this builder for continued nested CDT operations
+     * @see #onListValueRange(long, long)
+     */
     public CdtActionInvertableBuilder<T> onListValueRange(SpecialValue startIncl, byte[] endExcl) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_VALUE_RANGE, startIncl.toAerospikeValue(), Value.get(endExcl));
         return this;
     }
+    /**
+     * Restrict to list values in {@code [startIncl, endExcl)}; pushes onto the nested context path.
+     *
+     * @param startIncl range bound (inclusive start)
+     * @param endExcl range bound (exclusive end)
+     *
+     * @return this builder for continued nested CDT operations
+     * @see #onListValueRange(long, long)
+     */
     public CdtActionInvertableBuilder<T> onListValueRange(SpecialValue startIncl, double endExcl) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_VALUE_RANGE, startIncl.toAerospikeValue(), Value.get(endExcl));
         return this;
     }
+    /**
+     * Restrict to list values in {@code [startIncl, endExcl)}; pushes onto the nested context path.
+     *
+     * @param startIncl range bound (inclusive start)
+     * @param endExcl range bound (exclusive end)
+     *
+     * @return this builder for continued nested CDT operations
+     * @see #onListValueRange(long, long)
+     */
     public CdtActionInvertableBuilder<T> onListValueRange(long startIncl, SpecialValue endExcl) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_VALUE_RANGE, Value.get(startIncl), endExcl.toAerospikeValue());
         return this;
     }
+    /**
+     * Restrict to list values in {@code [startIncl, endExcl)}; pushes onto the nested context path.
+     *
+     * @param startIncl range bound (inclusive start)
+     * @param endExcl range bound (exclusive end)
+     *
+     * @return this builder for continued nested CDT operations
+     * @see #onListValueRange(long, long)
+     */
     public CdtActionInvertableBuilder<T> onListValueRange(String startIncl, SpecialValue endExcl) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_VALUE_RANGE, Value.get(startIncl), endExcl.toAerospikeValue());
         return this;
     }
+    /**
+     * Restrict to list values in {@code [startIncl, endExcl)}; pushes onto the nested context path.
+     *
+     * @param startIncl range bound (inclusive start)
+     * @param endExcl range bound (exclusive end)
+     *
+     * @return this builder for continued nested CDT operations
+     * @see #onListValueRange(long, long)
+     */
     public CdtActionInvertableBuilder<T> onListValueRange(byte[] startIncl, SpecialValue endExcl) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_VALUE_RANGE, Value.get(startIncl), endExcl.toAerospikeValue());
         return this;
     }
+    /**
+     * Restrict to list values in {@code [startIncl, endExcl)}; pushes onto the nested context path.
+     *
+     * @param startIncl range bound (inclusive start)
+     * @param endExcl range bound (exclusive end)
+     *
+     * @return this builder for continued nested CDT operations
+     * @see #onListValueRange(long, long)
+     */
     public CdtActionInvertableBuilder<T> onListValueRange(double startIncl, SpecialValue endExcl) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_VALUE_RANGE, Value.get(startIncl), endExcl.toAerospikeValue());
         return this;
     }
+    /**
+     * Select list elements matching any of the given values; pushes onto the nested context path.
+     *
+     * @param values candidate values
+     *
+     * @return this builder for continued nested CDT operations
+     */
     public CdtContextInvertableBuilder<T> onListValueList(List<?> values) {
         List<Value> valueList = new ArrayList<>();
         for (Object value : values) {
@@ -1311,51 +2195,146 @@ public class CdtGetOrRemoveBuilder<T extends AbstractOperationBuilder<T>> extend
         params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_VALUE_LIST, valueList);
         return this;
     }
+    /**
+     * Select list elements by value relative to rank range; pushes onto the nested context path.
+     *
+     * @param value reference value
+     * @param rank server CDT index, rank, or count per operation semantics
+     *
+     * @return this builder for continued nested CDT operations
+     * @see #onListValueRelativeRankRange(long, int)
+     */
     public CdtActionInvertableBuilder<T> onListValueRelativeRankRange(long value, int rank) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank);
         return this;
     }
+    /**
+     * Select list elements by value relative to rank range; pushes onto the nested context path.
+     *
+     * @param value reference value
+     * @param rank server CDT index, rank, or count per operation semantics
+     *
+     * @return this builder for continued nested CDT operations
+     * @see #onListValueRelativeRankRange(long, int)
+     */
     public CdtActionInvertableBuilder<T> onListValueRelativeRankRange(String value, int rank) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank);
         return this;
     }
+    /**
+     * Select list elements by value relative to rank range; pushes onto the nested context path.
+     *
+     * @param value reference value
+     * @param rank server CDT index, rank, or count per operation semantics
+     *
+     * @return this builder for continued nested CDT operations
+     * @see #onListValueRelativeRankRange(long, int)
+     */
     public CdtActionInvertableBuilder<T> onListValueRelativeRankRange(byte[] value, int rank) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank);
         return this;
     }
+    /**
+     * Select list elements by value relative to rank range; pushes onto the nested context path.
+     *
+     * @param value reference value
+     * @param rank server CDT index, rank, or count per operation semantics
+     *
+     * @return this builder for continued nested CDT operations
+     * @see #onListValueRelativeRankRange(long, int)
+     */
     public CdtActionInvertableBuilder<T> onListValueRelativeRankRange(double value, int rank) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank);
         return this;
     }
+    /**
+     * Select list elements by value relative to rank range; pushes onto the nested context path.
+     *
+     * @param value reference value
+     * @param rank server CDT index, rank, or count per operation semantics
+     *
+     * @return this builder for continued nested CDT operations
+     * @see #onListValueRelativeRankRange(long, int)
+     */
     public CdtActionInvertableBuilder<T> onListValueRelativeRankRange(SpecialValue value, int rank) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_VALUE_REL_RANK_RANGE, value.toAerospikeValue(), rank);
         return this;
     }
+    /**
+     * Select list elements by value relative to rank range; pushes onto the nested context path.
+     *
+     * @param value reference value
+     * @param rank server CDT index, rank, or count per operation semantics
+     * @param count server CDT index, rank, or count per operation semantics
+     *
+     * @return this builder for continued nested CDT operations
+     * @see #onListValueRelativeRankRange(long, int)
+     */
     public CdtActionInvertableBuilder<T> onListValueRelativeRankRange(long value, int rank, int count) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank, count);
         return this;
     }
+    /**
+     * Select list elements by value relative to rank range; pushes onto the nested context path.
+     *
+     * @param value reference value
+     * @param rank server CDT index, rank, or count per operation semantics
+     * @param count server CDT index, rank, or count per operation semantics
+     *
+     * @return this builder for continued nested CDT operations
+     * @see #onListValueRelativeRankRange(long, int)
+     */
     public CdtActionInvertableBuilder<T> onListValueRelativeRankRange(String value, int rank, int count) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank, count);
         return this;
     }
+    /**
+     * Select list elements by value relative to rank range; pushes onto the nested context path.
+     *
+     * @param value reference value
+     * @param rank server CDT index, rank, or count per operation semantics
+     * @param count server CDT index, rank, or count per operation semantics
+     *
+     * @return this builder for continued nested CDT operations
+     * @see #onListValueRelativeRankRange(long, int)
+     */
     public CdtActionInvertableBuilder<T> onListValueRelativeRankRange(byte[] value, int rank, int count) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank, count);
         return this;
     }
+    /**
+     * Select list elements by value relative to rank range; pushes onto the nested context path.
+     *
+     * @param value reference value
+     * @param rank server CDT index, rank, or count per operation semantics
+     * @param count server CDT index, rank, or count per operation semantics
+     *
+     * @return this builder for continued nested CDT operations
+     * @see #onListValueRelativeRankRange(long, int)
+     */
     public CdtActionInvertableBuilder<T> onListValueRelativeRankRange(double value, int rank, int count) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank, count);
         return this;
     }
+    /**
+     * Select list elements by value relative to rank range; pushes onto the nested context path.
+     *
+     * @param value reference value
+     * @param rank server CDT index, rank, or count per operation semantics
+     * @param count server CDT index, rank, or count per operation semantics
+     *
+     * @return this builder for continued nested CDT operations
+     * @see #onListValueRelativeRankRange(long, int)
+     */
     public CdtActionInvertableBuilder<T> onListValueRelativeRankRange(SpecialValue value, int rank, int count) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_VALUE_REL_RANK_RANGE, value.toAerospikeValue(), rank, count);
         return this;
     }
-    
+
     /**
      * Navigate to map items by a list of keys.
      * Server selects map items identified by keys.
-     * 
+     *
      * @param keys the list of keys to match
      * @return builder for continued chaining (invertable for list operations)
      */
@@ -1367,11 +2346,11 @@ public class CdtGetOrRemoveBuilder<T extends AbstractOperationBuilder<T>> extend
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_KEY_LIST, valueList);
         return this;
     }
-    
+
     /**
      * Navigate to map items by a list of values.
      * Server selects map items identified by values.
-     * 
+     *
      * @param values the list of values to match
      * @return builder for continued chaining (invertable for list operations)
      */
@@ -1384,6 +2363,11 @@ public class CdtGetOrRemoveBuilder<T extends AbstractOperationBuilder<T>> extend
         return this;
     }
 
+    /**
+     * Read values for all elements not matching the current selection (inverted).
+     *
+     * @return the parent operation builder for chaining
+     */
     public T getAllOtherValues() {
         switch (params.getOperation()) {
         // These operations cannot be used on the server to get the inverted value. This should not be allowed to occur
@@ -1393,7 +2377,7 @@ public class CdtGetOrRemoveBuilder<T extends AbstractOperationBuilder<T>> extend
         case LIST_BY_INDEX:
         case LIST_BY_RANK:
             throw new IllegalArgumentException("getAllOtherValues cannot be called after onMapIndex, onMapKey, onMapRank, onListIndex or onListRank: The server does not support this");
-            
+
         case MAP_BY_INDEX_RANGE:
             if (params.hasInt2()) {
                 return opBuilder.addOp(MapOperation.getByIndexRange(binName, params.getInt1(), params.getInt2(), MapReturnType.VALUE | MapReturnType.INVERTED, params.context()));
@@ -1453,10 +2437,15 @@ public class CdtGetOrRemoveBuilder<T extends AbstractOperationBuilder<T>> extend
         }
     }
 
+    /**
+     * Read keys for all map entries not matching the current selection (inverted; maps only).
+     *
+     * @return the parent operation builder for chaining
+     */
     public T getAllOtherKeys() {
         switch (params.getOperation()) {
         // These operations cannot be used on the server to get the inverted value. This should not be allowed to occur
-            
+
         case MAP_BY_INDEX_RANGE:
             if (params.hasInt2()) {
                 return opBuilder.addOp(MapOperation.getByIndexRange(binName, params.getInt1(), params.getInt2(), MapReturnType.KEY | MapReturnType.INVERTED, params.context()));
@@ -1503,6 +2492,11 @@ public class CdtGetOrRemoveBuilder<T extends AbstractOperationBuilder<T>> extend
         }
     }
 
+    /**
+     * Read indexes for all elements not matching the current selection (inverted).
+     *
+     * @return the parent operation builder for chaining
+     */
     public T getAllOtherIndexes() {
         switch (params.getOperation()) {
         // These operations cannot be used on the server to get the inverted value. This should not be allowed to occur
@@ -1512,7 +2506,7 @@ public class CdtGetOrRemoveBuilder<T extends AbstractOperationBuilder<T>> extend
         case LIST_BY_INDEX:
         case LIST_BY_RANK:
             throw new IllegalArgumentException("getAllOtherIndexes cannot be called after onMapIndex, onMapKey, onMapRank, onListIndex or onListRank: The server does not support this");
-            
+
         case MAP_BY_INDEX_RANGE:
             if (params.hasInt2()) {
                 return opBuilder.addOp(MapOperation.getByIndexRange(binName, params.getInt1(), params.getInt2(), MapReturnType.INDEX | MapReturnType.INVERTED, params.context()));
@@ -1572,6 +2566,11 @@ public class CdtGetOrRemoveBuilder<T extends AbstractOperationBuilder<T>> extend
         }
     }
 
+    /**
+     * Read reverse indexes for all elements not matching the current selection (inverted).
+     *
+     * @return the parent operation builder for chaining
+     */
     public T getAllOtherReverseIndexes() {
         switch (params.getOperation()) {
         // These operations cannot be used on the server to get the inverted value. This should not be allowed to occur
@@ -1581,7 +2580,7 @@ public class CdtGetOrRemoveBuilder<T extends AbstractOperationBuilder<T>> extend
         case LIST_BY_INDEX:
         case LIST_BY_RANK:
             throw new IllegalArgumentException("getAllOtherReverseIndexes cannot be called after onMapIndex, onMapKey, onMapRank, onListIndex or onListRank: The server does not support this");
-            
+
         case MAP_BY_INDEX_RANGE:
             if (params.hasInt2()) {
                 return opBuilder.addOp(MapOperation.getByIndexRange(binName, params.getInt1(), params.getInt2(), MapReturnType.REVERSE_INDEX | MapReturnType.INVERTED, params.context()));
@@ -1641,6 +2640,11 @@ public class CdtGetOrRemoveBuilder<T extends AbstractOperationBuilder<T>> extend
         }
     }
 
+    /**
+     * Read ranks for all elements not matching the current selection (inverted).
+     *
+     * @return the parent operation builder for chaining
+     */
     public T getAllOtherRanks() {
         switch (params.getOperation()) {
         // These operations cannot be used on the server to get the inverted value. This should not be allowed to occur
@@ -1650,7 +2654,7 @@ public class CdtGetOrRemoveBuilder<T extends AbstractOperationBuilder<T>> extend
         case LIST_BY_INDEX:
         case LIST_BY_RANK:
             throw new IllegalArgumentException("getAllOtherRanks cannot be called after onMapIndex, onMapKey, onMapRank, onListIndex or onListRank: The server does not support this");
-            
+
         case MAP_BY_INDEX_RANGE:
             if (params.hasInt2()) {
                 return opBuilder.addOp(MapOperation.getByIndexRange(binName, params.getInt1(), params.getInt2(), MapReturnType.RANK | MapReturnType.INVERTED, params.context()));
@@ -1710,6 +2714,11 @@ public class CdtGetOrRemoveBuilder<T extends AbstractOperationBuilder<T>> extend
         }
     }
 
+    /**
+     * Read reverse ranks for all elements not matching the current selection (inverted).
+     *
+     * @return the parent operation builder for chaining
+     */
     public T getAllOtherReverseRanks() {
         switch (params.getOperation()) {
         // These operations cannot be used on the server to get the inverted value. This should not be allowed to occur
@@ -1719,7 +2728,7 @@ public class CdtGetOrRemoveBuilder<T extends AbstractOperationBuilder<T>> extend
         case LIST_BY_INDEX:
         case LIST_BY_RANK:
             throw new IllegalArgumentException("getAllOtherReverseRanks cannot be called after onMapIndex, onMapKey, onMapRank, onListIndex or onListRank: The server does not support this");
-            
+
         case MAP_BY_INDEX_RANGE:
             if (params.hasInt2()) {
                 return opBuilder.addOp(MapOperation.getByIndexRange(binName, params.getInt1(), params.getInt2(), MapReturnType.REVERSE_RANK | MapReturnType.INVERTED, params.context()));
@@ -1779,6 +2788,11 @@ public class CdtGetOrRemoveBuilder<T extends AbstractOperationBuilder<T>> extend
         }
     }
 
+    /**
+     * Read key-value pairs for all map entries not matching the current selection (inverted; maps only).
+     *
+     * @return the parent operation builder for chaining
+     */
     public T getAllOtherKeysAndValues() {
         switch (params.getOperation()) {
         // These operations cannot be used on the server to get the inverted value. This should not be allowed to occur
@@ -1794,7 +2808,7 @@ public class CdtGetOrRemoveBuilder<T extends AbstractOperationBuilder<T>> extend
         case LIST_BY_VALUE_RANGE:
         case LIST_BY_VALUE_REL_RANK_RANGE:
             throw new IllegalArgumentException("getAllOtherKeysAndValues cannot be called after onMapIndex, onMapKey, onMapRank, onListIndex or onListRank: The server does not support this");
-            
+
         case MAP_BY_INDEX_RANGE:
             if (params.hasInt2()) {
                 return opBuilder.addOp(MapOperation.getByIndexRange(binName, params.getInt1(), params.getInt2(), MapReturnType.KEY_VALUE | MapReturnType.INVERTED, params.context()));
@@ -1830,7 +2844,7 @@ public class CdtGetOrRemoveBuilder<T extends AbstractOperationBuilder<T>> extend
         }
     }
 
-    
+
     // ===============================
     // Setter methods after a mapIndex
     // ===============================
@@ -1838,7 +2852,7 @@ public class CdtGetOrRemoveBuilder<T extends AbstractOperationBuilder<T>> extend
     /**
      * Build a MapPolicy using the MapOrder from the current operation params (if specified via
      * e.g. {@code onMapKey(key, MapOrder.UNORDERED)}), defaulting to {@code MapOrder.KEY_ORDERED}.
-     * The MapOrder determines the type of map to create if the map does not already exist. 
+     * The MapOrder determines the type of map to create if the map does not already exist.
      * {@link MapWriteFlags}
      */
     private MapPolicy resolveMapPolicy(int baseFlags, MapWriteOptions<?> opts) {
@@ -1848,7 +2862,9 @@ public class CdtGetOrRemoveBuilder<T extends AbstractOperationBuilder<T>> extend
         int flags = baseFlags;
         boolean persist = false;
         if (opts != null) {
-            if (opts.isAllowFailures()) flags |= MapWriteFlags.NO_FAIL;
+            if (opts.isAllowFailures()) {
+				flags |= MapWriteFlags.NO_FAIL;
+			}
             if (opts instanceof MapBulkWriteOptions && ((MapBulkWriteOptions) opts).isAllowPartial()) {
                 flags |= MapWriteFlags.PARTIAL;
             }
@@ -1858,13 +2874,22 @@ public class CdtGetOrRemoveBuilder<T extends AbstractOperationBuilder<T>> extend
     }
 
     private MapEntryWriteOptions applyOptions(Consumer<MapEntryWriteOptions> options) {
-        if (options == null) return null;
+        if (options == null) {
+			return null;
+		}
         MapEntryWriteOptions opts = new MapEntryWriteOptions();
         options.accept(opts);
         return opts;
     }
 
-    
+
+    /**
+     * Set the list element at the selected index, or put a map entry at the selected key.
+     *
+     * @param value value to write
+     *
+     * @return the parent operation builder for chaining
+     */
     public T setTo(long value) {
         if (params.getOperation() == CdtOperation.LIST_BY_INDEX) {
             return this.opBuilder.addOp(ListOperation.set(binName, params.getInt1(), Value.get(value), params.context()));
@@ -1873,6 +2898,13 @@ public class CdtGetOrRemoveBuilder<T extends AbstractOperationBuilder<T>> extend
             return this.opBuilder.addOp(MapOperation.put(resolveMapPolicy(MapWriteFlags.DEFAULT, null), binName, params.getVal1(), Value.get(value), params.context()));
         }
     }
+    /**
+     * Set the list element at the selected index, or put a map entry at the selected key.
+     *
+     * @param value value to write
+     *
+     * @return the parent operation builder for chaining
+     */
     public T setTo(String value) {
         if (params.getOperation() == CdtOperation.LIST_BY_INDEX) {
             return this.opBuilder.addOp(ListOperation.set(binName, params.getInt1(), Value.get(value), params.context()));
@@ -1881,6 +2913,13 @@ public class CdtGetOrRemoveBuilder<T extends AbstractOperationBuilder<T>> extend
             return this.opBuilder.addOp(MapOperation.put(resolveMapPolicy(MapWriteFlags.DEFAULT, null), binName, params.getVal1(), Value.get(value), params.context()));
         }
     }
+    /**
+     * Set the list element at the selected index, or put a map entry at the selected key.
+     *
+     * @param value value to write
+     *
+     * @return the parent operation builder for chaining
+     */
     public T setTo(byte[] value) {
         if (params.getOperation() == CdtOperation.LIST_BY_INDEX) {
             return this.opBuilder.addOp(ListOperation.set(binName, params.getInt1(), Value.get(value), params.context()));
@@ -1889,6 +2928,13 @@ public class CdtGetOrRemoveBuilder<T extends AbstractOperationBuilder<T>> extend
             return this.opBuilder.addOp(MapOperation.put(resolveMapPolicy(MapWriteFlags.DEFAULT, null), binName, params.getVal1(), Value.get(value), params.context()));
         }
     }
+    /**
+     * Set the list element at the selected index, or put a map entry at the selected key.
+     *
+     * @param value value to write
+     *
+     * @return the parent operation builder for chaining
+     */
     public T setTo(boolean value) {
         if (params.getOperation() == CdtOperation.LIST_BY_INDEX) {
             return this.opBuilder.addOp(ListOperation.set(binName, params.getInt1(), Value.get(value), params.context()));
@@ -1897,6 +2943,13 @@ public class CdtGetOrRemoveBuilder<T extends AbstractOperationBuilder<T>> extend
             return this.opBuilder.addOp(MapOperation.put(resolveMapPolicy(MapWriteFlags.DEFAULT, null), binName, params.getVal1(), Value.get(value), params.context()));
         }
     }
+    /**
+     * Set the list element at the selected index, or put a map entry at the selected key.
+     *
+     * @param value value to write
+     *
+     * @return the parent operation builder for chaining
+     */
     public T setTo(double value) {
         if (params.getOperation() == CdtOperation.LIST_BY_INDEX) {
             return this.opBuilder.addOp(ListOperation.set(binName, params.getInt1(), Value.get(value), params.context()));
@@ -1905,6 +2958,13 @@ public class CdtGetOrRemoveBuilder<T extends AbstractOperationBuilder<T>> extend
             return this.opBuilder.addOp(MapOperation.put(resolveMapPolicy(MapWriteFlags.DEFAULT, null), binName, params.getVal1(), Value.get(value), params.context()));
         }
     }
+    /**
+     * Set the list element at the selected index, or put a map entry at the selected key.
+     *
+     * @param value value to write
+     *
+     * @return the parent operation builder for chaining
+     */
     public T setTo(List<?> value) {
         if (params.getOperation() == CdtOperation.LIST_BY_INDEX) {
             return this.opBuilder.addOp(ListOperation.set(binName, params.getInt1(), Value.get(value), params.context()));
@@ -1913,6 +2973,13 @@ public class CdtGetOrRemoveBuilder<T extends AbstractOperationBuilder<T>> extend
             return this.opBuilder.addOp(MapOperation.put(resolveMapPolicy(MapWriteFlags.DEFAULT, null), binName, params.getVal1(), Value.get(value), params.context()));
         }
     }
+    /**
+     * Set the list element at the selected index, or put a map entry at the selected key.
+     *
+     * @param value value to write
+     *
+     * @return the parent operation builder for chaining
+     */
     public T setTo(Map<?,?> value) {
         if (params.getOperation() == CdtOperation.LIST_BY_INDEX) {
             return this.opBuilder.addOp(ListOperation.set(binName, params.getInt1(), Value.get(value), params.context()));
@@ -1921,6 +2988,15 @@ public class CdtGetOrRemoveBuilder<T extends AbstractOperationBuilder<T>> extend
             return this.opBuilder.addOp(MapOperation.put(resolveMapPolicy(MapWriteFlags.DEFAULT, null), binName, params.getVal1(), Value.get(value), params.context()));
         }
     }
+    /**
+     * Set the list element at the selected index, or put a map entry at the selected key.
+     *
+     * @param <U> mapped Java type
+     * @param value value to write
+     * @param mapper converts {@code U} to storable fields
+     *
+     * @return the parent operation builder for chaining
+     */
     public <U> T setTo(U value, RecordMapper<U> mapper) {
         if (params.getOperation() == CdtOperation.LIST_BY_INDEX) {
             return this.opBuilder.addOp(ListOperation.set(binName, params.getInt1(), Value.get(mapper.toMap(value)), params.context()));
@@ -1934,31 +3010,97 @@ public class CdtGetOrRemoveBuilder<T extends AbstractOperationBuilder<T>> extend
     // insert methods (CREATE_ONLY)
     // =================================
 
+    /**
+     * Insert at the selected list index, or map {@code put} with CREATE_ONLY at the selected key.
+     *
+     * @param value value to write
+     *
+     * @return the parent operation builder for chaining
+     */
     public T insert(long value) {
         return insert(value, (Consumer<MapEntryWriteOptions>) null);
     }
+    /**
+     * Insert at the selected list index, or map {@code put} with CREATE_ONLY at the selected key.
+     *
+     * @param value value to write
+     *
+     * @return the parent operation builder for chaining
+     */
     public T insert(String value) {
         return insert(value, (Consumer<MapEntryWriteOptions>) null);
     }
+    /**
+     * Insert at the selected list index, or map {@code put} with CREATE_ONLY at the selected key.
+     *
+     * @param value value to write
+     *
+     * @return the parent operation builder for chaining
+     */
     public T insert(byte[] value) {
         return insert(value, (Consumer<MapEntryWriteOptions>) null);
     }
+    /**
+     * Insert at the selected list index, or map {@code put} with CREATE_ONLY at the selected key.
+     *
+     * @param value value to write
+     *
+     * @return the parent operation builder for chaining
+     */
     public T insert(boolean value) {
         return insert(value, (Consumer<MapEntryWriteOptions>) null);
     }
+    /**
+     * Insert at the selected list index, or map {@code put} with CREATE_ONLY at the selected key.
+     *
+     * @param value value to write
+     *
+     * @return the parent operation builder for chaining
+     */
     public T insert(double value) {
         return insert(value, (Consumer<MapEntryWriteOptions>) null);
     }
+    /**
+     * Insert at the selected list index, or map {@code put} with CREATE_ONLY at the selected key.
+     *
+     * @param value value to write
+     *
+     * @return the parent operation builder for chaining
+     */
     public T insert(List<?> value) {
         return insert(value, (Consumer<MapEntryWriteOptions>) null);
     }
+    /**
+     * Insert at the selected list index, or map {@code put} with CREATE_ONLY at the selected key.
+     *
+     * @param value value to write
+     *
+     * @return the parent operation builder for chaining
+     */
     public T insert(Map<?,?> value) {
         return insert(value, (Consumer<MapEntryWriteOptions>) null);
     }
+    /**
+     * Insert at the selected list index, or map {@code put} with CREATE_ONLY at the selected key.
+     *
+     * @param <U> mapped Java type
+     * @param value value to write
+     * @param mapper converts {@code U} to storable fields
+     *
+     * @return the parent operation builder for chaining
+     */
     public <U> T insert(U value, RecordMapper<U> mapper) {
         return insert(value, mapper, (Consumer<MapEntryWriteOptions>) null);
     }
 
+    /**
+     * Insert at the selected list index, or map {@code put} with CREATE_ONLY at the selected key.
+     *
+     * @param value value to write
+     * @param options value to write
+     *
+     * @return the parent operation builder for chaining
+     */
     public T insert(long value, Consumer<MapEntryWriteOptions> options) {
         if (params.getOperation() == CdtOperation.LIST_BY_INDEX) {
             return this.opBuilder.addOp(ListOperation.insert(binName, params.getInt1(), Value.get(value), params.context()));
@@ -1966,6 +3108,14 @@ public class CdtGetOrRemoveBuilder<T extends AbstractOperationBuilder<T>> extend
         MapPolicy mp = resolveMapPolicy(MapWriteFlags.CREATE_ONLY, applyOptions(options));
         return this.opBuilder.addOp(MapOperation.put(mp, binName, params.getVal1(), Value.get(value), params.context()));
     }
+    /**
+     * Insert at the selected list index, or map {@code put} with CREATE_ONLY at the selected key.
+     *
+     * @param value value to write
+     * @param options value to write
+     *
+     * @return the parent operation builder for chaining
+     */
     public T insert(String value, Consumer<MapEntryWriteOptions> options) {
         if (params.getOperation() == CdtOperation.LIST_BY_INDEX) {
             return this.opBuilder.addOp(ListOperation.insert(binName, params.getInt1(), Value.get(value), params.context()));
@@ -1973,6 +3123,14 @@ public class CdtGetOrRemoveBuilder<T extends AbstractOperationBuilder<T>> extend
         MapPolicy mp = resolveMapPolicy(MapWriteFlags.CREATE_ONLY, applyOptions(options));
         return this.opBuilder.addOp(MapOperation.put(mp, binName, params.getVal1(), Value.get(value), params.context()));
     }
+    /**
+     * Insert at the selected list index, or map {@code put} with CREATE_ONLY at the selected key.
+     *
+     * @param value value to write
+     * @param options value to write
+     *
+     * @return the parent operation builder for chaining
+     */
     public T insert(byte[] value, Consumer<MapEntryWriteOptions> options) {
         if (params.getOperation() == CdtOperation.LIST_BY_INDEX) {
             return this.opBuilder.addOp(ListOperation.insert(binName, params.getInt1(), Value.get(value), params.context()));
@@ -1980,6 +3138,14 @@ public class CdtGetOrRemoveBuilder<T extends AbstractOperationBuilder<T>> extend
         MapPolicy mp = resolveMapPolicy(MapWriteFlags.CREATE_ONLY, applyOptions(options));
         return this.opBuilder.addOp(MapOperation.put(mp, binName, params.getVal1(), Value.get(value), params.context()));
     }
+    /**
+     * Insert at the selected list index, or map {@code put} with CREATE_ONLY at the selected key.
+     *
+     * @param value value to write
+     * @param options value to write
+     *
+     * @return the parent operation builder for chaining
+     */
     public T insert(boolean value, Consumer<MapEntryWriteOptions> options) {
         if (params.getOperation() == CdtOperation.LIST_BY_INDEX) {
             return this.opBuilder.addOp(ListOperation.insert(binName, params.getInt1(), Value.get(value), params.context()));
@@ -1987,6 +3153,14 @@ public class CdtGetOrRemoveBuilder<T extends AbstractOperationBuilder<T>> extend
         MapPolicy mp = resolveMapPolicy(MapWriteFlags.CREATE_ONLY, applyOptions(options));
         return this.opBuilder.addOp(MapOperation.put(mp, binName, params.getVal1(), Value.get(value), params.context()));
     }
+    /**
+     * Insert at the selected list index, or map {@code put} with CREATE_ONLY at the selected key.
+     *
+     * @param value value to write
+     * @param options value to write
+     *
+     * @return the parent operation builder for chaining
+     */
     public T insert(double value, Consumer<MapEntryWriteOptions> options) {
         if (params.getOperation() == CdtOperation.LIST_BY_INDEX) {
             return this.opBuilder.addOp(ListOperation.insert(binName, params.getInt1(), Value.get(value), params.context()));
@@ -1994,6 +3168,14 @@ public class CdtGetOrRemoveBuilder<T extends AbstractOperationBuilder<T>> extend
         MapPolicy mp = resolveMapPolicy(MapWriteFlags.CREATE_ONLY, applyOptions(options));
         return this.opBuilder.addOp(MapOperation.put(mp, binName, params.getVal1(), Value.get(value), params.context()));
     }
+    /**
+     * Insert at the selected list index, or map {@code put} with CREATE_ONLY at the selected key.
+     *
+     * @param value value to write
+     * @param options value to write
+     *
+     * @return the parent operation builder for chaining
+     */
     public T insert(List<?> value, Consumer<MapEntryWriteOptions> options) {
         if (params.getOperation() == CdtOperation.LIST_BY_INDEX) {
             return this.opBuilder.addOp(ListOperation.insert(binName, params.getInt1(), Value.get(value), params.context()));
@@ -2001,6 +3183,14 @@ public class CdtGetOrRemoveBuilder<T extends AbstractOperationBuilder<T>> extend
         MapPolicy mp = resolveMapPolicy(MapWriteFlags.CREATE_ONLY, applyOptions(options));
         return this.opBuilder.addOp(MapOperation.put(mp, binName, params.getVal1(), Value.get(value), params.context()));
     }
+    /**
+     * Insert at the selected list index, or map {@code put} with CREATE_ONLY at the selected key.
+     *
+     * @param value value to write
+     * @param options value to write
+     *
+     * @return the parent operation builder for chaining
+     */
     public T insert(Map<?,?> value, Consumer<MapEntryWriteOptions> options) {
         if (params.getOperation() == CdtOperation.LIST_BY_INDEX) {
             return this.opBuilder.addOp(ListOperation.insert(binName, params.getInt1(), Value.get(value), params.context()));
@@ -2008,6 +3198,16 @@ public class CdtGetOrRemoveBuilder<T extends AbstractOperationBuilder<T>> extend
         MapPolicy mp = resolveMapPolicy(MapWriteFlags.CREATE_ONLY, applyOptions(options));
         return this.opBuilder.addOp(MapOperation.put(mp, binName, params.getVal1(), Value.get(value), params.context()));
     }
+    /**
+     * Insert at the selected list index, or map {@code put} with CREATE_ONLY at the selected key.
+     *
+     * @param <U> mapped Java type
+     * @param value value to write
+     * @param mapper converts {@code U} to storable fields
+     * @param options value to write
+     *
+     * @return the parent operation builder for chaining
+     */
     public <U> T insert(U value, RecordMapper<U> mapper, Consumer<MapEntryWriteOptions> options) {
         if (params.getOperation() == CdtOperation.LIST_BY_INDEX) {
             return this.opBuilder.addOp(ListOperation.insert(binName, params.getInt1(), Value.get(mapper.toMap(value)), params.context()));
@@ -2020,31 +3220,97 @@ public class CdtGetOrRemoveBuilder<T extends AbstractOperationBuilder<T>> extend
     // update methods (UPDATE_ONLY)
     // =================================
 
+    /**
+     * Map {@code put} with UPDATE_ONLY at the selected key (not applicable to list-by-index).
+     *
+     * @param value value to write
+     *
+     * @return the parent operation builder for chaining
+     */
     public T update(long value) {
         return update(value, (Consumer<MapEntryWriteOptions>) null);
     }
+    /**
+     * Map {@code put} with UPDATE_ONLY at the selected key (not applicable to list-by-index).
+     *
+     * @param value value to write
+     *
+     * @return the parent operation builder for chaining
+     */
     public T update(String value) {
         return update(value, (Consumer<MapEntryWriteOptions>) null);
     }
+    /**
+     * Map {@code put} with UPDATE_ONLY at the selected key (not applicable to list-by-index).
+     *
+     * @param value value to write
+     *
+     * @return the parent operation builder for chaining
+     */
     public T update(byte[] value) {
         return update(value, (Consumer<MapEntryWriteOptions>) null);
     }
+    /**
+     * Map {@code put} with UPDATE_ONLY at the selected key (not applicable to list-by-index).
+     *
+     * @param value value to write
+     *
+     * @return the parent operation builder for chaining
+     */
     public T update(boolean value) {
         return update(value, (Consumer<MapEntryWriteOptions>) null);
     }
+    /**
+     * Map {@code put} with UPDATE_ONLY at the selected key (not applicable to list-by-index).
+     *
+     * @param value value to write
+     *
+     * @return the parent operation builder for chaining
+     */
     public T update(double value) {
         return update(value, (Consumer<MapEntryWriteOptions>) null);
     }
+    /**
+     * Map {@code put} with UPDATE_ONLY at the selected key (not applicable to list-by-index).
+     *
+     * @param value value to write
+     *
+     * @return the parent operation builder for chaining
+     */
     public T update(List<?> value) {
         return update(value, (Consumer<MapEntryWriteOptions>) null);
     }
+    /**
+     * Map {@code put} with UPDATE_ONLY at the selected key (not applicable to list-by-index).
+     *
+     * @param value value to write
+     *
+     * @return the parent operation builder for chaining
+     */
     public T update(Map<?,?> value) {
         return update(value, (Consumer<MapEntryWriteOptions>) null);
     }
+    /**
+     * Map {@code put} with UPDATE_ONLY at the selected key (not applicable to list-by-index).
+     *
+     * @param <U> mapped Java type
+     * @param value value to write
+     * @param mapper converts {@code U} to storable fields
+     *
+     * @return the parent operation builder for chaining
+     */
     public <U> T update(U value, RecordMapper<U> mapper) {
         return update(value, mapper, (Consumer<MapEntryWriteOptions>) null);
     }
 
+    /**
+     * Map {@code put} with UPDATE_ONLY at the selected key (not applicable to list-by-index).
+     *
+     * @param value value to write
+     * @param options value to write
+     *
+     * @return the parent operation builder for chaining
+     */
     public T update(long value, Consumer<MapEntryWriteOptions> options) {
         if (params.getOperation() == CdtOperation.LIST_BY_INDEX) {
             throw new IllegalArgumentException("upsert/update is not applicable for list operations");
@@ -2052,6 +3318,14 @@ public class CdtGetOrRemoveBuilder<T extends AbstractOperationBuilder<T>> extend
         MapPolicy mp = resolveMapPolicy(MapWriteFlags.UPDATE_ONLY, applyOptions(options));
         return this.opBuilder.addOp(MapOperation.put(mp, binName, params.getVal1(), Value.get(value), params.context()));
     }
+    /**
+     * Map {@code put} with UPDATE_ONLY at the selected key (not applicable to list-by-index).
+     *
+     * @param value value to write
+     * @param options value to write
+     *
+     * @return the parent operation builder for chaining
+     */
     public T update(String value, Consumer<MapEntryWriteOptions> options) {
         if (params.getOperation() == CdtOperation.LIST_BY_INDEX) {
             throw new IllegalArgumentException("upsert/update is not applicable for list operations");
@@ -2059,6 +3333,14 @@ public class CdtGetOrRemoveBuilder<T extends AbstractOperationBuilder<T>> extend
         MapPolicy mp = resolveMapPolicy(MapWriteFlags.UPDATE_ONLY, applyOptions(options));
         return this.opBuilder.addOp(MapOperation.put(mp, binName, params.getVal1(), Value.get(value), params.context()));
     }
+    /**
+     * Map {@code put} with UPDATE_ONLY at the selected key (not applicable to list-by-index).
+     *
+     * @param value value to write
+     * @param options value to write
+     *
+     * @return the parent operation builder for chaining
+     */
     public T update(byte[] value, Consumer<MapEntryWriteOptions> options) {
         if (params.getOperation() == CdtOperation.LIST_BY_INDEX) {
             throw new IllegalArgumentException("upsert/update is not applicable for list operations");
@@ -2066,6 +3348,14 @@ public class CdtGetOrRemoveBuilder<T extends AbstractOperationBuilder<T>> extend
         MapPolicy mp = resolveMapPolicy(MapWriteFlags.UPDATE_ONLY, applyOptions(options));
         return this.opBuilder.addOp(MapOperation.put(mp, binName, params.getVal1(), Value.get(value), params.context()));
     }
+    /**
+     * Map {@code put} with UPDATE_ONLY at the selected key (not applicable to list-by-index).
+     *
+     * @param value value to write
+     * @param options value to write
+     *
+     * @return the parent operation builder for chaining
+     */
     public T update(boolean value, Consumer<MapEntryWriteOptions> options) {
         if (params.getOperation() == CdtOperation.LIST_BY_INDEX) {
             throw new IllegalArgumentException("upsert/update is not applicable for list operations");
@@ -2073,6 +3363,14 @@ public class CdtGetOrRemoveBuilder<T extends AbstractOperationBuilder<T>> extend
         MapPolicy mp = resolveMapPolicy(MapWriteFlags.UPDATE_ONLY, applyOptions(options));
         return this.opBuilder.addOp(MapOperation.put(mp, binName, params.getVal1(), Value.get(value), params.context()));
     }
+    /**
+     * Map {@code put} with UPDATE_ONLY at the selected key (not applicable to list-by-index).
+     *
+     * @param value value to write
+     * @param options value to write
+     *
+     * @return the parent operation builder for chaining
+     */
     public T update(double value, Consumer<MapEntryWriteOptions> options) {
         if (params.getOperation() == CdtOperation.LIST_BY_INDEX) {
             throw new IllegalArgumentException("upsert/update is not applicable for list operations");
@@ -2080,6 +3378,14 @@ public class CdtGetOrRemoveBuilder<T extends AbstractOperationBuilder<T>> extend
         MapPolicy mp = resolveMapPolicy(MapWriteFlags.UPDATE_ONLY, applyOptions(options));
         return this.opBuilder.addOp(MapOperation.put(mp, binName, params.getVal1(), Value.get(value), params.context()));
     }
+    /**
+     * Map {@code put} with UPDATE_ONLY at the selected key (not applicable to list-by-index).
+     *
+     * @param value value to write
+     * @param options value to write
+     *
+     * @return the parent operation builder for chaining
+     */
     public T update(List<?> value, Consumer<MapEntryWriteOptions> options) {
         if (params.getOperation() == CdtOperation.LIST_BY_INDEX) {
             throw new IllegalArgumentException("upsert/update is not applicable for list operations");
@@ -2087,6 +3393,14 @@ public class CdtGetOrRemoveBuilder<T extends AbstractOperationBuilder<T>> extend
         MapPolicy mp = resolveMapPolicy(MapWriteFlags.UPDATE_ONLY, applyOptions(options));
         return this.opBuilder.addOp(MapOperation.put(mp, binName, params.getVal1(), Value.get(value), params.context()));
     }
+    /**
+     * Map {@code put} with UPDATE_ONLY at the selected key (not applicable to list-by-index).
+     *
+     * @param value value to write
+     * @param options value to write
+     *
+     * @return the parent operation builder for chaining
+     */
     public T update(Map<?,?> value, Consumer<MapEntryWriteOptions> options) {
         if (params.getOperation() == CdtOperation.LIST_BY_INDEX) {
             throw new IllegalArgumentException("upsert/update is not applicable for list operations");
@@ -2094,6 +3408,16 @@ public class CdtGetOrRemoveBuilder<T extends AbstractOperationBuilder<T>> extend
         MapPolicy mp = resolveMapPolicy(MapWriteFlags.UPDATE_ONLY, applyOptions(options));
         return this.opBuilder.addOp(MapOperation.put(mp, binName, params.getVal1(), Value.get(value), params.context()));
     }
+    /**
+     * Map {@code put} with UPDATE_ONLY at the selected key (not applicable to list-by-index).
+     *
+     * @param <U> mapped Java type
+     * @param value value to write
+     * @param mapper converts {@code U} to storable fields
+     * @param options value to write
+     *
+     * @return the parent operation builder for chaining
+     */
     public <U> T update(U value, RecordMapper<U> mapper, Consumer<MapEntryWriteOptions> options) {
         if (params.getOperation() == CdtOperation.LIST_BY_INDEX) {
             throw new IllegalArgumentException("upsert/update is not applicable for list operations");
@@ -2106,12 +3430,34 @@ public class CdtGetOrRemoveBuilder<T extends AbstractOperationBuilder<T>> extend
     // add methods (increment, DEFAULT flags)
     // =================================
 
+    /**
+     * Increment the numeric value at the selected list index or map key.
+     *
+     * @param value value to write
+     *
+     * @return the parent operation builder for chaining
+     */
     public T add(long value) {
         return add(value, (Consumer<MapEntryWriteOptions>) null);
     }
+    /**
+     * Increment the numeric value at the selected list index or map key.
+     *
+     * @param value value to write
+     *
+     * @return the parent operation builder for chaining
+     */
     public T add(double value) {
         return add(value, (Consumer<MapEntryWriteOptions>) null);
     }
+    /**
+     * Increment the numeric value at the selected list index or map key.
+     *
+     * @param value value to write
+     * @param options value to write
+     *
+     * @return the parent operation builder for chaining
+     */
     public T add(long value, Consumer<MapEntryWriteOptions> options) {
         if (params.getOperation() == CdtOperation.LIST_BY_INDEX) {
             return this.opBuilder.addOp(ListOperation.increment(binName, params.getInt1(), Value.get(value), params.context()));
@@ -2119,6 +3465,14 @@ public class CdtGetOrRemoveBuilder<T extends AbstractOperationBuilder<T>> extend
         MapPolicy mp = resolveMapPolicy(MapWriteFlags.DEFAULT, applyOptions(options));
         return this.opBuilder.addOp(MapOperation.increment(mp, binName, params.getVal1(), Value.get(value), params.context()));
     }
+    /**
+     * Increment the numeric value at the selected list index or map key.
+     *
+     * @param value value to write
+     * @param options value to write
+     *
+     * @return the parent operation builder for chaining
+     */
     public T add(double value, Consumer<MapEntryWriteOptions> options) {
         if (params.getOperation() == CdtOperation.LIST_BY_INDEX) {
             return this.opBuilder.addOp(ListOperation.increment(binName, params.getInt1(), Value.get(value), params.context()));
@@ -2131,31 +3485,97 @@ public class CdtGetOrRemoveBuilder<T extends AbstractOperationBuilder<T>> extend
     // upsert methods (DEFAULT flags)
     // =================================
 
+    /**
+     * Map {@code put} with default semantics at the selected key (not applicable to list-by-index).
+     *
+     * @param value value to write
+     *
+     * @return the parent operation builder for chaining
+     */
     public T upsert(long value) {
         return upsert(value, (Consumer<MapEntryWriteOptions>) null);
     }
+    /**
+     * Map {@code put} with default semantics at the selected key (not applicable to list-by-index).
+     *
+     * @param value value to write
+     *
+     * @return the parent operation builder for chaining
+     */
     public T upsert(String value) {
         return upsert(value, (Consumer<MapEntryWriteOptions>) null);
     }
+    /**
+     * Map {@code put} with default semantics at the selected key (not applicable to list-by-index).
+     *
+     * @param value value to write
+     *
+     * @return the parent operation builder for chaining
+     */
     public T upsert(byte[] value) {
         return upsert(value, (Consumer<MapEntryWriteOptions>) null);
     }
+    /**
+     * Map {@code put} with default semantics at the selected key (not applicable to list-by-index).
+     *
+     * @param value value to write
+     *
+     * @return the parent operation builder for chaining
+     */
     public T upsert(boolean value) {
         return upsert(value, (Consumer<MapEntryWriteOptions>) null);
     }
+    /**
+     * Map {@code put} with default semantics at the selected key (not applicable to list-by-index).
+     *
+     * @param value value to write
+     *
+     * @return the parent operation builder for chaining
+     */
     public T upsert(double value) {
         return upsert(value, (Consumer<MapEntryWriteOptions>) null);
     }
+    /**
+     * Map {@code put} with default semantics at the selected key (not applicable to list-by-index).
+     *
+     * @param value value to write
+     *
+     * @return the parent operation builder for chaining
+     */
     public T upsert(List<?> value) {
         return upsert(value, (Consumer<MapEntryWriteOptions>) null);
     }
+    /**
+     * Map {@code put} with default semantics at the selected key (not applicable to list-by-index).
+     *
+     * @param value value to write
+     *
+     * @return the parent operation builder for chaining
+     */
     public T upsert(Map<?,?> value) {
         return upsert(value, (Consumer<MapEntryWriteOptions>) null);
     }
+    /**
+     * Map {@code put} with default semantics at the selected key (not applicable to list-by-index).
+     *
+     * @param <U> mapped Java type
+     * @param value value to write
+     * @param mapper converts {@code U} to storable fields
+     *
+     * @return the parent operation builder for chaining
+     */
     public <U> T upsert(U value, RecordMapper<U> mapper) {
         return upsert(value, mapper, (Consumer<MapEntryWriteOptions>) null);
     }
 
+    /**
+     * Map {@code put} with default semantics at the selected key (not applicable to list-by-index).
+     *
+     * @param value value to write
+     * @param options value to write
+     *
+     * @return the parent operation builder for chaining
+     */
     public T upsert(long value, Consumer<MapEntryWriteOptions> options) {
         if (params.getOperation() == CdtOperation.LIST_BY_INDEX) {
             throw new IllegalArgumentException("upsert/update is not applicable for list operations");
@@ -2163,6 +3583,14 @@ public class CdtGetOrRemoveBuilder<T extends AbstractOperationBuilder<T>> extend
         MapPolicy mp = resolveMapPolicy(MapWriteFlags.DEFAULT, applyOptions(options));
         return this.opBuilder.addOp(MapOperation.put(mp, binName, params.getVal1(), Value.get(value), params.context()));
     }
+    /**
+     * Map {@code put} with default semantics at the selected key (not applicable to list-by-index).
+     *
+     * @param value value to write
+     * @param options value to write
+     *
+     * @return the parent operation builder for chaining
+     */
     public T upsert(String value, Consumer<MapEntryWriteOptions> options) {
         if (params.getOperation() == CdtOperation.LIST_BY_INDEX) {
             throw new IllegalArgumentException("upsert/update is not applicable for list operations");
@@ -2170,6 +3598,14 @@ public class CdtGetOrRemoveBuilder<T extends AbstractOperationBuilder<T>> extend
         MapPolicy mp = resolveMapPolicy(MapWriteFlags.DEFAULT, applyOptions(options));
         return this.opBuilder.addOp(MapOperation.put(mp, binName, params.getVal1(), Value.get(value), params.context()));
     }
+    /**
+     * Map {@code put} with default semantics at the selected key (not applicable to list-by-index).
+     *
+     * @param value value to write
+     * @param options value to write
+     *
+     * @return the parent operation builder for chaining
+     */
     public T upsert(byte[] value, Consumer<MapEntryWriteOptions> options) {
         if (params.getOperation() == CdtOperation.LIST_BY_INDEX) {
             throw new IllegalArgumentException("upsert/update is not applicable for list operations");
@@ -2177,6 +3613,14 @@ public class CdtGetOrRemoveBuilder<T extends AbstractOperationBuilder<T>> extend
         MapPolicy mp = resolveMapPolicy(MapWriteFlags.DEFAULT, applyOptions(options));
         return this.opBuilder.addOp(MapOperation.put(mp, binName, params.getVal1(), Value.get(value), params.context()));
     }
+    /**
+     * Map {@code put} with default semantics at the selected key (not applicable to list-by-index).
+     *
+     * @param value value to write
+     * @param options value to write
+     *
+     * @return the parent operation builder for chaining
+     */
     public T upsert(boolean value, Consumer<MapEntryWriteOptions> options) {
         if (params.getOperation() == CdtOperation.LIST_BY_INDEX) {
             throw new IllegalArgumentException("upsert/update is not applicable for list operations");
@@ -2184,6 +3628,14 @@ public class CdtGetOrRemoveBuilder<T extends AbstractOperationBuilder<T>> extend
         MapPolicy mp = resolveMapPolicy(MapWriteFlags.DEFAULT, applyOptions(options));
         return this.opBuilder.addOp(MapOperation.put(mp, binName, params.getVal1(), Value.get(value), params.context()));
     }
+    /**
+     * Map {@code put} with default semantics at the selected key (not applicable to list-by-index).
+     *
+     * @param value value to write
+     * @param options value to write
+     *
+     * @return the parent operation builder for chaining
+     */
     public T upsert(double value, Consumer<MapEntryWriteOptions> options) {
         if (params.getOperation() == CdtOperation.LIST_BY_INDEX) {
             throw new IllegalArgumentException("upsert/update is not applicable for list operations");
@@ -2191,6 +3643,14 @@ public class CdtGetOrRemoveBuilder<T extends AbstractOperationBuilder<T>> extend
         MapPolicy mp = resolveMapPolicy(MapWriteFlags.DEFAULT, applyOptions(options));
         return this.opBuilder.addOp(MapOperation.put(mp, binName, params.getVal1(), Value.get(value), params.context()));
     }
+    /**
+     * Map {@code put} with default semantics at the selected key (not applicable to list-by-index).
+     *
+     * @param value value to write
+     * @param options value to write
+     *
+     * @return the parent operation builder for chaining
+     */
     public T upsert(List<?> value, Consumer<MapEntryWriteOptions> options) {
         if (params.getOperation() == CdtOperation.LIST_BY_INDEX) {
             throw new IllegalArgumentException("upsert/update is not applicable for list operations");
@@ -2198,6 +3658,14 @@ public class CdtGetOrRemoveBuilder<T extends AbstractOperationBuilder<T>> extend
         MapPolicy mp = resolveMapPolicy(MapWriteFlags.DEFAULT, applyOptions(options));
         return this.opBuilder.addOp(MapOperation.put(mp, binName, params.getVal1(), Value.get(value), params.context()));
     }
+    /**
+     * Map {@code put} with default semantics at the selected key (not applicable to list-by-index).
+     *
+     * @param value value to write
+     * @param options value to write
+     *
+     * @return the parent operation builder for chaining
+     */
     public T upsert(Map<?,?> value, Consumer<MapEntryWriteOptions> options) {
         if (params.getOperation() == CdtOperation.LIST_BY_INDEX) {
             throw new IllegalArgumentException("upsert/update is not applicable for list operations");
@@ -2205,6 +3673,16 @@ public class CdtGetOrRemoveBuilder<T extends AbstractOperationBuilder<T>> extend
         MapPolicy mp = resolveMapPolicy(MapWriteFlags.DEFAULT, applyOptions(options));
         return this.opBuilder.addOp(MapOperation.put(mp, binName, params.getVal1(), Value.get(value), params.context()));
     }
+    /**
+     * Map {@code put} with default semantics at the selected key (not applicable to list-by-index).
+     *
+     * @param <U> mapped Java type
+     * @param value value to write
+     * @param mapper converts {@code U} to storable fields
+     * @param options value to write
+     *
+     * @return the parent operation builder for chaining
+     */
     public <U> T upsert(U value, RecordMapper<U> mapper, Consumer<MapEntryWriteOptions> options) {
         if (params.getOperation() == CdtOperation.LIST_BY_INDEX) {
             throw new IllegalArgumentException("upsert/update is not applicable for list operations");
@@ -2217,6 +3695,11 @@ public class CdtGetOrRemoveBuilder<T extends AbstractOperationBuilder<T>> extend
     // exists() - returns true if the selected element exists
     // =================================
 
+    /**
+     * Test whether elements exist for the current selection (CDT EXISTS return).
+     *
+     * @return the parent operation builder for chaining
+     */
     public T exists() {
         switch (params.getOperation()) {
         case MAP_BY_INDEX:
@@ -2292,7 +3775,12 @@ public class CdtGetOrRemoveBuilder<T extends AbstractOperationBuilder<T>> extend
     // getAsMap / getAsOrderedMap
     // =================================
 
-    /** @deprecated Will be replaced by AerospikeMap which intrinsically supports ordering. */
+    /**
+     * @deprecated Will be replaced by AerospikeMap which intrinsically supports ordering.
+     * Read results as an unordered map (map selections only).
+     *
+     * @return the parent operation builder for chaining
+     */
     // TODO: Replace with AerospikeMap
     @Deprecated
     public T getAsMap() {
@@ -2346,7 +3834,12 @@ public class CdtGetOrRemoveBuilder<T extends AbstractOperationBuilder<T>> extend
         }
     }
 
-    /** @deprecated Will be replaced by AerospikeMap which intrinsically supports ordering. */
+    /**
+     * @deprecated Will be replaced by AerospikeMap which intrinsically supports ordering.
+     * Read results as an ordered map (map selections only).
+     *
+     * @return the parent operation builder for chaining
+     */
     // TODO: Replace with AerospikeMap
     @Deprecated
     public T getAsOrderedMap() {

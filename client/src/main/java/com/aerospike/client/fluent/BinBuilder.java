@@ -32,131 +32,217 @@ import com.aerospike.client.fluent.exp.ExpReadFlags;
 import com.aerospike.client.fluent.exp.ExpWriteFlags;
 import com.aerospike.client.fluent.query.PreparedDsl;
 
+/**
+ * Fluent operations for one bin: scalar writes ({@link #setTo}), reads ({@link #get}), string ops, numeric {@link #add},
+ * expression-backed {@link #selectFrom}, {@link #insertFrom}, {@link #updateFrom}, {@link #upsertFrom}, and nested
+ * list/map CDT paths via {@code onMap*} / {@code onList*} (see {@link AbstractCdtBuilder} for list/map commands once
+ * context is selected).
+ *
+ * @param <T> concrete operation builder type for chaining
+ */
 public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractCdtBuilder<T> {
+
+    /**
+     * @param opBuilder parent builder that collects bins and operations
+     * @param binName   target bin name
+     */
     public BinBuilder(T opBuilder, String binName) {
         super(opBuilder, binName, null);
     }
 
     /**
-     * Create set database operation.
+     * Queues a write that sets this bin to a string value.
+     *
+     * @param value value to store
+     * @return the parent operation builder for chaining
      */
     public T setTo(String value) {
         return opBuilder.setTo(new Bin(binName, value));
     }
+
     /**
-     * Create set database operation.
+     * Queues a write that sets this bin to an integer (stored as a numeric bin).
+     *
+     * @param value value to store
+     * @return the parent operation builder for chaining
      */
     public T setTo(int value) {
         return opBuilder.setTo(new Bin(binName, value));
     }
+
     /**
-     * Create set database operation.
+     * Queues a write that sets this bin to a long (stored as a numeric bin).
+     *
+     * @param value value to store
+     * @return the parent operation builder for chaining
      */
     public T setTo(long value) {
         return opBuilder.setTo(new Bin(binName, value));
     }
+
     /**
-     * Create set database operation.
+     * Queues a write that sets this bin to a float (stored as a double on the server).
+     *
+     * @param value value to store
+     * @return the parent operation builder for chaining
      */
     public T setTo(float value) {
         return opBuilder.setTo(new Bin(binName, value));
     }
+
     /**
-     * Create set database operation.
+     * Queues a write that sets this bin to a double.
+     *
+     * @param value value to store
+     * @return the parent operation builder for chaining
      */
     public T setTo(double value) {
         return opBuilder.setTo(new Bin(binName, value));
     }
+
     /**
-     * Create set database operation.
+     * Queues a write that sets this bin to a boolean.
+     *
+     * @param value value to store
+     * @return the parent operation builder for chaining
      */
     public T setTo(boolean value) {
         return opBuilder.setTo(new Bin(binName, value));
     }
+
     /**
-     * Create set database operation.
+     * Queues a write that sets this bin to a blob (bytes).
+     *
+     * @param value value to store
+     * @return the parent operation builder for chaining
      */
     public T setTo(byte[] value) {
         return opBuilder.setTo(new Bin(binName, value));
     }
+
     /**
-     * Create set database operation.
+     * Queues a write that sets this bin to a list, preserving {@link AerospikeList} order metadata when packed.
+     *
+     * @param value list to store
+     * @return the parent operation builder for chaining
      */
     public T setTo(AerospikeList<?> value) {
-		return opBuilder.setTo(new Bin(binName, value));
+        return opBuilder.setTo(new Bin(binName, value));
     }
+
     /**
-     * Create set database operation.
+     * Queues a write that sets this bin to a list (default list encoding).
+     *
+     * @param value list to store
+     * @return the parent operation builder for chaining
      */
     public T setTo(List<?> value) {
         return opBuilder.setTo(new Bin(binName, value));
     }
+
     /**
-     * Create set database operation.
+     * Queues a write that sets this bin to a map, preserving {@link AerospikeMap} type metadata when packed.
+     *
+     * @param value map to store
+     * @return the parent operation builder for chaining
      */
     public T setTo(AerospikeMap<?, ?> value) {
         return opBuilder.setTo(new Bin(binName, value));
     }
+
     /**
-     * Create set database operation.
+     * Queues a write that sets this bin to a map (default map encoding).
+     *
+     * @param value map to store
+     * @return the parent operation builder for chaining
      */
     public T setTo(Map<?, ?> value) {
         return opBuilder.setTo(new Bin(binName, value));
     }
+
     /**
-     * Create set database operation.
+     * Queues a write that sets this bin to a sorted map (key-ordered map encoding).
+     *
+     * @param value map to store
+     * @return the parent operation builder for chaining
      */
     public T setTo(SortedMap<?, ?> value) {
         return opBuilder.setTo(new Bin(binName, value));
     }
+
     /**
-     * Create bin-remove operation.
+     * Queues a write that removes this bin from the record (null bin).
+     *
+     * @return the parent operation builder for chaining
      */
     public T remove() {
         return opBuilder.setTo(Bin.asNull(binName));
     }
+
     /**
-     * Create set database operation.
+     * Queues a read of this bin in the parent operation (e.g. get or query projection).
+     *
+     * @return the parent operation builder for chaining
      */
     public T get() {
         return opBuilder.get(binName);
     }
+
     /**
-     * Create string append database operation.
+     * Queues a string append on this bin (bin must hold a string).
+     *
+     * @param fragment text to append
+     * @return the parent operation builder for chaining
      */
-    public T append(String value) {
-        return opBuilder.append(new Bin(binName, value));
+    public T append(String fragment) {
+        return opBuilder.append(new Bin(binName, fragment));
     }
+
     /**
-     * Create string prepend database operation.
+     * Queues a string prepend on this bin (bin must hold a string).
+     *
+     * @param fragment text to prepend
+     * @return the parent operation builder for chaining
      */
-    public T prepend(String value) {
-        return opBuilder.prepend(new Bin(binName, value));
+    public T prepend(String fragment) {
+        return opBuilder.prepend(new Bin(binName, fragment));
     }
+
     /**
-     * Create integer add database operation. If the record or bin does not exist, the
-     * record/bin will be created by default with the value to be added.
+     * Queues a numeric add on this bin. If the record or bin is missing, it is created with {@code amount} as the value.
+     *
+     * @param amount delta to add
+     * @return the parent operation builder for chaining
      */
     public T add(int amount) {
         return opBuilder.add(new Bin(binName, amount));
     }
+
     /**
-     * Create long add database operation. If the record or bin does not exist, the
-     * record/bin will be created by default with the value to be added.
+     * Queues a numeric add on this bin. If the record or bin is missing, it is created with {@code amount} as the value.
+     *
+     * @param amount delta to add
+     * @return the parent operation builder for chaining
      */
     public T add(long amount) {
         return opBuilder.add(new Bin(binName, amount));
     }
+
     /**
-     * Create float add database operation. If the record or bin does not exist, the
-     * record/bin will be created by default with the value to be added.
+     * Queues a numeric add on this bin. If the record or bin is missing, it is created with {@code amount} as the value.
+     *
+     * @param amount delta to add
+     * @return the parent operation builder for chaining
      */
     public T add(float amount) {
         return opBuilder.add(new Bin(binName, amount));
     }
+
     /**
-     * Create double add database operation. If the record or bin does not exist, the
-     * record/bin will be created by default with the value to be added.
+     * Queues a numeric add on this bin. If the record or bin is missing, it is created with {@code amount} as the value.
+     *
+     * @param amount delta to add
+     * @return the parent operation builder for chaining
      */
     public T add(double amount) {
         return opBuilder.add(new Bin(binName, amount));
@@ -191,6 +277,7 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      * }</pre>
      *
      * @param dsl the DSL expression string
+     * @return the parent operation builder for chaining
      * @see #selectFrom(String, Consumer) for options like ignoreEvalFailure()
      */
     public T selectFrom(String dsl) {
@@ -209,6 +296,7 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      *
      * @param dsl the DSL expression string
      * @param options configure via {@code ignoreEvalFailure()}
+     * @return the parent operation builder for chaining
      */
     public T selectFrom(String dsl, Consumer<ExpressionReadOptions> options) {
         ExpressionReadOptions opts = new ExpressionReadOptions();
@@ -226,6 +314,7 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      * }</pre>
      *
      * @param dsl the boolean expression to evaluate
+     * @return the parent operation builder for chaining
      */
     public T selectFrom(BooleanExpression dsl) {
         return opBuilder.addOp(ExpressionOpHelper.createReadOp(binName, dsl, ExpReadFlags.DEFAULT));
@@ -242,6 +331,7 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      *
      * @param dsl the boolean expression to evaluate
      * @param options configure via {@code ignoreEvalFailure()}
+     * @return the parent operation builder for chaining
      */
     public T selectFrom(BooleanExpression dsl, Consumer<ExpressionReadOptions> options) {
         ExpressionReadOptions opts = new ExpressionReadOptions();
@@ -261,6 +351,7 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      *
      * @param dsl the prepared DSL statement
      * @param params parameter values to bind
+     * @return the parent operation builder for chaining
      */
     public T selectFrom(PreparedDsl dsl, Object... params) {
         return opBuilder.addOp(ExpressionOpHelper.createReadOp(binName, dsl, params, ExpReadFlags.DEFAULT));
@@ -279,6 +370,7 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      * @param dsl the prepared DSL statement
      * @param options configure via {@code ignoreEvalFailure()}
      * @param params parameter values to bind
+     * @return the parent operation builder for chaining
      */
     public T selectFrom(PreparedDsl dsl, Consumer<ExpressionReadOptions> options, Object... params) {
         ExpressionReadOptions opts = new ExpressionReadOptions();
@@ -297,6 +389,7 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      * }</pre>
      *
      * @param exp the Exp expression to evaluate
+     * @return the parent operation builder for chaining
      */
     public T selectFrom(Exp exp) {
         return opBuilder.addOp(ExpressionOpHelper.createReadOp(binName, exp, ExpReadFlags.DEFAULT));
@@ -313,6 +406,7 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      *
      * @param exp the Exp expression to evaluate
      * @param options configure via {@code ignoreEvalFailure()}
+     * @return the parent operation builder for chaining
      */
     public T selectFrom(Exp exp, Consumer<ExpressionReadOptions> options) {
         ExpressionReadOptions opts = new ExpressionReadOptions();
@@ -331,6 +425,7 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      * }</pre>
      *
      * @param exp the compiled expression to evaluate
+     * @return the parent operation builder for chaining
      */
     public T selectFrom(Expression exp) {
         return opBuilder.addOp(ExpressionOpHelper.createReadOp(binName, exp, ExpReadFlags.DEFAULT));
@@ -347,6 +442,7 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      *
      * @param exp the compiled expression to evaluate
      * @param options configure via {@code ignoreEvalFailure()}
+     * @return the parent operation builder for chaining
      */
     public T selectFrom(Expression exp, Consumer<ExpressionReadOptions> options) {
         ExpressionReadOptions opts = new ExpressionReadOptions();
@@ -370,6 +466,7 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      * }</pre>
      *
      * @param dsl the DSL expression string
+     * @return the parent operation builder for chaining
      * @see #insertFrom(String, Consumer) to suppress failure if bin exists
      */
     public T insertFrom(String dsl) {
@@ -388,6 +485,7 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      *
      * @param dsl the DSL expression string
      * @param options configure via {@code ignoreOpFailure()}, {@code deleteIfNull()}, {@code ignoreEvalFailure()}
+     * @return the parent operation builder for chaining
      */
     public T insertFrom(String dsl, Consumer<ExpressionWriteOptions> options) {
         ExpressionWriteOptions opts = new ExpressionWriteOptions(ExpWriteFlags.CREATE_ONLY);
@@ -406,6 +504,7 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      * }</pre>
      *
      * @param dsl the boolean expression to evaluate
+     * @return the parent operation builder for chaining
      */
     public T insertFrom(BooleanExpression dsl) {
         return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, dsl, ExpWriteFlags.CREATE_ONLY));
@@ -422,6 +521,7 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      *
      * @param dsl the boolean expression to evaluate
      * @param options configure via {@code ignoreOpFailure()}, {@code deleteIfNull()}, {@code ignoreEvalFailure()}
+     * @return the parent operation builder for chaining
      */
     public T insertFrom(BooleanExpression dsl, Consumer<ExpressionWriteOptions> options) {
         ExpressionWriteOptions opts = new ExpressionWriteOptions(ExpWriteFlags.CREATE_ONLY);
@@ -442,6 +542,7 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      *
      * @param dsl the prepared DSL statement
      * @param params parameter values to bind
+     * @return the parent operation builder for chaining
      */
     public T insertFrom(PreparedDsl dsl, Object... params) {
         return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, dsl, params, ExpWriteFlags.CREATE_ONLY));
@@ -460,6 +561,7 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      * @param dsl the prepared DSL statement
      * @param options configure via {@code ignoreOpFailure()}, {@code deleteIfNull()}, {@code ignoreEvalFailure()}
      * @param params parameter values to bind
+     * @return the parent operation builder for chaining
      */
     public T insertFrom(PreparedDsl dsl, Consumer<ExpressionWriteOptions> options, Object... params) {
         ExpressionWriteOptions opts = new ExpressionWriteOptions(ExpWriteFlags.CREATE_ONLY);
@@ -479,6 +581,7 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      * }</pre>
      *
      * @param exp the Exp expression to evaluate
+     * @return the parent operation builder for chaining
      */
     public T insertFrom(Exp exp) {
         return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, exp, ExpWriteFlags.CREATE_ONLY));
@@ -495,6 +598,7 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      *
      * @param exp the Exp expression to evaluate
      * @param options configure via {@code ignoreOpFailure()}, {@code deleteIfNull()}, {@code ignoreEvalFailure()}
+     * @return the parent operation builder for chaining
      */
     public T insertFrom(Exp exp, Consumer<ExpressionWriteOptions> options) {
         ExpressionWriteOptions opts = new ExpressionWriteOptions(ExpWriteFlags.CREATE_ONLY);
@@ -514,6 +618,7 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      * }</pre>
      *
      * @param exp the compiled expression to evaluate
+     * @return the parent operation builder for chaining
      */
     public T insertFrom(Expression exp) {
         return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, exp, ExpWriteFlags.CREATE_ONLY));
@@ -530,6 +635,7 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      *
      * @param exp the compiled expression to evaluate
      * @param options configure via {@code ignoreOpFailure()}, {@code deleteIfNull()}, {@code ignoreEvalFailure()}
+     * @return the parent operation builder for chaining
      */
     public T insertFrom(Expression exp, Consumer<ExpressionWriteOptions> options) {
         ExpressionWriteOptions opts = new ExpressionWriteOptions(ExpWriteFlags.CREATE_ONLY);
@@ -553,6 +659,7 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      * }</pre>
      *
      * @param dsl the DSL expression string
+     * @return the parent operation builder for chaining
      * @see #updateFrom(String, Consumer) to suppress failure if bin is missing
      */
     public T updateFrom(String dsl) {
@@ -571,6 +678,7 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      *
      * @param dsl the DSL expression string
      * @param options configure via {@code ignoreOpFailure()}, {@code deleteIfNull()}, {@code ignoreEvalFailure()}
+     * @return the parent operation builder for chaining
      */
     public T updateFrom(String dsl, Consumer<ExpressionWriteOptions> options) {
         ExpressionWriteOptions opts = new ExpressionWriteOptions(ExpWriteFlags.UPDATE_ONLY);
@@ -589,6 +697,7 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      * }</pre>
      *
      * @param dsl the boolean expression to evaluate
+     * @return the parent operation builder for chaining
      */
     public T updateFrom(BooleanExpression dsl) {
         return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, dsl, ExpWriteFlags.UPDATE_ONLY));
@@ -605,6 +714,7 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      *
      * @param dsl the boolean expression to evaluate
      * @param options configure via {@code ignoreOpFailure()}, {@code deleteIfNull()}, {@code ignoreEvalFailure()}
+     * @return the parent operation builder for chaining
      */
     public T updateFrom(BooleanExpression dsl, Consumer<ExpressionWriteOptions> options) {
         ExpressionWriteOptions opts = new ExpressionWriteOptions(ExpWriteFlags.UPDATE_ONLY);
@@ -625,6 +735,7 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      *
      * @param dsl the prepared DSL statement
      * @param params parameter values to bind
+     * @return the parent operation builder for chaining
      */
     public T updateFrom(PreparedDsl dsl, Object... params) {
         return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, dsl, params, ExpWriteFlags.UPDATE_ONLY));
@@ -643,6 +754,7 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      * @param dsl the prepared DSL statement
      * @param options configure via {@code ignoreOpFailure()}, {@code deleteIfNull()}, {@code ignoreEvalFailure()}
      * @param params parameter values to bind
+     * @return the parent operation builder for chaining
      */
     public T updateFrom(PreparedDsl dsl, Consumer<ExpressionWriteOptions> options, Object... params) {
         ExpressionWriteOptions opts = new ExpressionWriteOptions(ExpWriteFlags.UPDATE_ONLY);
@@ -662,6 +774,7 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      * }</pre>
      *
      * @param exp the Exp expression to evaluate
+     * @return the parent operation builder for chaining
      */
     public T updateFrom(Exp exp) {
         return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, exp, ExpWriteFlags.UPDATE_ONLY));
@@ -678,6 +791,7 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      *
      * @param exp the Exp expression to evaluate
      * @param options configure via {@code ignoreOpFailure()}, {@code deleteIfNull()}, {@code ignoreEvalFailure()}
+     * @return the parent operation builder for chaining
      */
     public T updateFrom(Exp exp, Consumer<ExpressionWriteOptions> options) {
         ExpressionWriteOptions opts = new ExpressionWriteOptions(ExpWriteFlags.UPDATE_ONLY);
@@ -697,6 +811,7 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      * }</pre>
      *
      * @param exp the compiled expression to evaluate
+     * @return the parent operation builder for chaining
      */
     public T updateFrom(Expression exp) {
         return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, exp, ExpWriteFlags.UPDATE_ONLY));
@@ -713,6 +828,7 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      *
      * @param exp the compiled expression to evaluate
      * @param options configure via {@code ignoreOpFailure()}, {@code deleteIfNull()}, {@code ignoreEvalFailure()}
+     * @return the parent operation builder for chaining
      */
     public T updateFrom(Expression exp, Consumer<ExpressionWriteOptions> options) {
         ExpressionWriteOptions opts = new ExpressionWriteOptions(ExpWriteFlags.UPDATE_ONLY);
@@ -736,6 +852,7 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      * }</pre>
      *
      * @param dsl the DSL expression string
+     * @return the parent operation builder for chaining
      * @see #upsertFrom(String, Consumer) for options like deleteIfNull()
      */
     public T upsertFrom(String dsl) {
@@ -754,6 +871,7 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      *
      * @param dsl the DSL expression string
      * @param options configure via {@code deleteIfNull()}, {@code ignoreEvalFailure()}
+     * @return the parent operation builder for chaining
      */
     public T upsertFrom(String dsl, Consumer<ExpressionWriteOptions> options) {
         ExpressionWriteOptions opts = new ExpressionWriteOptions(ExpWriteFlags.DEFAULT);
@@ -772,6 +890,7 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      * }</pre>
      *
      * @param dsl the boolean expression to evaluate
+     * @return the parent operation builder for chaining
      */
     public T upsertFrom(BooleanExpression dsl) {
         return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, dsl, ExpWriteFlags.DEFAULT));
@@ -788,6 +907,7 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      *
      * @param dsl the boolean expression to evaluate
      * @param options configure via {@code deleteIfNull()}, {@code ignoreEvalFailure()}
+     * @return the parent operation builder for chaining
      */
     public T upsertFrom(BooleanExpression dsl, Consumer<ExpressionWriteOptions> options) {
         ExpressionWriteOptions opts = new ExpressionWriteOptions(ExpWriteFlags.DEFAULT);
@@ -808,6 +928,7 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      *
      * @param dsl the prepared DSL statement
      * @param params parameter values to bind
+     * @return the parent operation builder for chaining
      */
     public T upsertFrom(PreparedDsl dsl, Object... params) {
         return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, dsl, params, ExpWriteFlags.DEFAULT));
@@ -826,6 +947,7 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      * @param dsl the prepared DSL statement
      * @param options configure via {@code deleteIfNull()}, {@code ignoreEvalFailure()}
      * @param params parameter values to bind
+     * @return the parent operation builder for chaining
      */
     public T upsertFrom(PreparedDsl dsl, Consumer<ExpressionWriteOptions> options, Object... params) {
         ExpressionWriteOptions opts = new ExpressionWriteOptions(ExpWriteFlags.DEFAULT);
@@ -845,6 +967,7 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      * }</pre>
      *
      * @param exp the Exp expression to evaluate
+     * @return the parent operation builder for chaining
      */
     public T upsertFrom(Exp exp) {
         return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, exp, ExpWriteFlags.DEFAULT));
@@ -861,6 +984,7 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      *
      * @param exp the Exp expression to evaluate
      * @param options configure via {@code deleteIfNull()}, {@code ignoreEvalFailure()}
+     * @return the parent operation builder for chaining
      */
     public T upsertFrom(Exp exp, Consumer<ExpressionWriteOptions> options) {
         ExpressionWriteOptions opts = new ExpressionWriteOptions(ExpWriteFlags.DEFAULT);
@@ -880,6 +1004,7 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      * }</pre>
      *
      * @param exp the compiled expression to evaluate
+     * @return the parent operation builder for chaining
      */
     public T upsertFrom(Expression exp) {
         return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, exp, ExpWriteFlags.DEFAULT));
@@ -896,6 +1021,7 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      *
      * @param exp the compiled expression to evaluate
      * @param options configure via {@code deleteIfNull()}, {@code ignoreEvalFailure()}
+     * @return the parent operation builder for chaining
      */
     public T upsertFrom(Expression exp, Consumer<ExpressionWriteOptions> options) {
         ExpressionWriteOptions opts = new ExpressionWriteOptions(ExpWriteFlags.DEFAULT);
@@ -907,42 +1033,132 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
     // CDT Operations. Note: make sure to mirror these operations to
     // CdtContextNonInvertableBuilder and CdtContextInvertableBuilder
     // ==================================================================
+
+    /**
+     * Select a map entry by sort index for nested CDT ops on this bin's map.
+     *
+     * @param index index in server map order
+     * @return builder for nested map CDT operations at that index
+     */
     public CdtContextNonInvertableBuilder<T> onMapIndex(int index) {
         return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_INDEX, index));
     }
+
+    /**
+     * Select a map entry by key.
+     *
+     * @param key map key
+     * @return builder for nested map CDT operations at that key
+     */
     public CdtSetterNonInvertableBuilder<T> onMapKey(long key) {
         return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_KEY, Value.get(key)));
     }
+
+    /**
+     * Select a map entry by key, using {@code createType} if the map must be created.
+     *
+     * @param key        map key
+     * @param createType ordering for a newly created map
+     * @return builder for nested map CDT operations at that key
+     */
     public CdtSetterNonInvertableBuilder<T> onMapKey(long key, MapOrder createType) {
         return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_KEY, Value.get(key), createType));
     }
+
+    /**
+     * @param key map key
+     * @return builder for nested map CDT operations at that key
+     * @see #onMapKey(long)
+     */
     public CdtSetterNonInvertableBuilder<T> onMapKey(String key) {
         return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_KEY, Value.get(key)));
     }
+
+    /**
+     * @param key        map key
+     * @param createType ordering for a newly created map
+     * @return builder for nested map CDT operations at that key
+     * @see #onMapKey(long, MapOrder)
+     */
     public CdtSetterNonInvertableBuilder<T> onMapKey(String key, MapOrder createType) {
         return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_KEY, Value.get(key), createType));
     }
+
+    /**
+     * @param key map key
+     * @return builder for nested map CDT operations at that key
+     * @see #onMapKey(long)
+     */
     public CdtSetterNonInvertableBuilder<T> onMapKey(byte[] key) {
         return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_KEY, Value.get(key)));
     }
+
+    /**
+     * @param key        map key
+     * @param createType ordering for a newly created map
+     * @return builder for nested map CDT operations at that key
+     * @see #onMapKey(long, MapOrder)
+     */
     public CdtSetterNonInvertableBuilder<T> onMapKey(byte[] key, MapOrder createType) {
         return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_KEY, Value.get(key), createType));
     }
+
+    /**
+     * Select a map entry by rank.
+     *
+     * @param index rank in the map
+     * @return builder for nested map CDT operations at that rank
+     */
     public CdtContextNonInvertableBuilder<T> onMapRank(int index) {
         return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_RANK, index));
     }
+
+    /**
+     * Select map entries by value (identity match).
+     *
+     * @param value value to locate in the map
+     * @return builder for nested map CDT operations on matching entries
+     */
     public CdtContextInvertableBuilder<T> onMapValue(long value) {
         return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE, Value.get(value)));
     }
+
+    /**
+     * @param value value to locate in the map
+     * @return builder for nested map CDT operations on matching entries
+     * @see #onMapValue(long)
+     */
     public CdtContextInvertableBuilder<T> onMapValue(String value) {
         return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE, Value.get(value)));
     }
+
+    /**
+     * @param value value to locate in the map
+     * @return builder for nested map CDT operations on matching entries
+     * @see #onMapValue(long)
+     */
     public CdtContextInvertableBuilder<T> onMapValue(byte[] value) {
         return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE, Value.get(value)));
     }
+
+    /**
+     * Restrict to map keys in {@code [startIncl, endExcl)}.
+     *
+     * @param startIncl inclusive start key
+     * @param endExcl   exclusive end key
+     * @return builder for map CDT operations on that key range
+     */
     public CdtActionInvertableBuilder<T> onMapKeyRange(String startIncl, String endExcl) {
         return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_KEY_RANGE, Value.get(startIncl), Value.get(endExcl)));
     }
+
+    /**
+     * Restrict to map values in {@code [startIncl, endExcl)} (ordered comparison).
+     *
+     * @param startIncl inclusive start value
+     * @param endExcl   exclusive end value
+     * @return builder for map CDT operations on that value range
+     */
     public CdtActionInvertableBuilder<T> onMapValueRange(long startIncl, long endExcl) {
         return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE_RANGE, Value.get(startIncl), Value.get(endExcl)));
     }
@@ -959,10 +1175,22 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
         return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_KEY_REL_INDEX_RANGE, Value.get(key), index));
     }
 
+    /**
+     * @param key   the reference key
+     * @param index the relative index offset
+     * @return builder for continued chaining (invertable for range operations)
+     * @see #onMapKeyRelativeIndexRange(long, int)
+     */
     public CdtActionInvertableBuilder<T> onMapKeyRelativeIndexRange(String key, int index) {
         return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_KEY_REL_INDEX_RANGE, Value.get(key), index));
     }
 
+    /**
+     * @param key   the reference key
+     * @param index the relative index offset
+     * @return builder for continued chaining (invertable for range operations)
+     * @see #onMapKeyRelativeIndexRange(long, int)
+     */
     public CdtActionInvertableBuilder<T> onMapKeyRelativeIndexRange(byte[] key, int index) {
         return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_KEY_REL_INDEX_RANGE, Value.get(key), index));
     }
@@ -980,10 +1208,24 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
         return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_KEY_REL_INDEX_RANGE, Value.get(key), index, count));
     }
 
+    /**
+     * @param key   the reference key
+     * @param index the relative index offset
+     * @param count the maximum number of items to select
+     * @return builder for continued chaining (invertable for range operations)
+     * @see #onMapKeyRelativeIndexRange(long, int, int)
+     */
     public CdtActionInvertableBuilder<T> onMapKeyRelativeIndexRange(String key, int index, int count) {
         return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_KEY_REL_INDEX_RANGE, Value.get(key), index, count));
     }
 
+    /**
+     * @param key   the reference key
+     * @param index the relative index offset
+     * @param count the maximum number of items to select
+     * @return builder for continued chaining (invertable for range operations)
+     * @see #onMapKeyRelativeIndexRange(long, int, int)
+     */
     public CdtActionInvertableBuilder<T> onMapKeyRelativeIndexRange(byte[] key, int index, int count) {
         return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_KEY_REL_INDEX_RANGE, Value.get(key), index, count));
     }
@@ -1000,30 +1242,72 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
         return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank));
     }
 
+    /**
+     * @param value the reference value
+     * @param rank  the relative rank offset
+     * @return builder for continued chaining (invertable for range operations)
+     * @see #onMapValueRelativeRankRange(long, int)
+     */
     public CdtActionInvertableBuilder<T> onMapValueRelativeRankRange(String value, int rank) {
         return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank));
     }
 
+    /**
+     * @param value the reference value
+     * @param rank  the relative rank offset
+     * @return builder for continued chaining (invertable for range operations)
+     * @see #onMapValueRelativeRankRange(long, int)
+     */
     public CdtActionInvertableBuilder<T> onMapValueRelativeRankRange(byte[] value, int rank) {
         return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank));
     }
 
+    /**
+     * @param value the reference value
+     * @param rank  the relative rank offset
+     * @return builder for continued chaining (invertable for range operations)
+     * @see #onMapValueRelativeRankRange(long, int)
+     */
     public CdtActionInvertableBuilder<T> onMapValueRelativeRankRange(double value, int rank) {
         return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank));
     }
 
+    /**
+     * @param value the reference value
+     * @param rank  the relative rank offset
+     * @return builder for continued chaining (invertable for range operations)
+     * @see #onMapValueRelativeRankRange(long, int)
+     */
     public CdtActionInvertableBuilder<T> onMapValueRelativeRankRange(boolean value, int rank) {
         return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank));
     }
 
+    /**
+     * @param value the reference value
+     * @param rank  the relative rank offset
+     * @return builder for continued chaining (invertable for range operations)
+     * @see #onMapValueRelativeRankRange(long, int)
+     */
     public CdtActionInvertableBuilder<T> onMapValueRelativeRankRange(List<?> value, int rank) {
         return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank));
     }
 
+    /**
+     * @param value the reference value
+     * @param rank  the relative rank offset
+     * @return builder for continued chaining (invertable for range operations)
+     * @see #onMapValueRelativeRankRange(long, int)
+     */
     public CdtActionInvertableBuilder<T> onMapValueRelativeRankRange(Map<?,?> value, int rank) {
         return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank));
     }
 
+    /**
+     * @param value the reference value
+     * @param rank  the relative rank offset
+     * @return builder for continued chaining (invertable for range operations)
+     * @see #onMapValueRelativeRankRange(long, int)
+     */
     public CdtActionInvertableBuilder<T> onMapValueRelativeRankRange(SpecialValue value, int rank) {
         return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE_REL_RANK_RANGE, value.toAerospikeValue(), rank));
     }
@@ -1041,30 +1325,79 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
         return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank, count));
     }
 
+    /**
+     * @param value the reference value
+     * @param rank  the relative rank offset
+     * @param count the maximum number of items to select
+     * @return builder for continued chaining (invertable for range operations)
+     * @see #onMapValueRelativeRankRange(long, int, int)
+     */
     public CdtActionInvertableBuilder<T> onMapValueRelativeRankRange(String value, int rank, int count) {
         return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank, count));
     }
 
+    /**
+     * @param value the reference value
+     * @param rank  the relative rank offset
+     * @param count the maximum number of items to select
+     * @return builder for continued chaining (invertable for range operations)
+     * @see #onMapValueRelativeRankRange(long, int, int)
+     */
     public CdtActionInvertableBuilder<T> onMapValueRelativeRankRange(byte[] value, int rank, int count) {
         return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank, count));
     }
 
+    /**
+     * @param value the reference value
+     * @param rank  the relative rank offset
+     * @param count the maximum number of items to select
+     * @return builder for continued chaining (invertable for range operations)
+     * @see #onMapValueRelativeRankRange(long, int, int)
+     */
     public CdtActionInvertableBuilder<T> onMapValueRelativeRankRange(double value, int rank, int count) {
         return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank, count));
     }
 
+    /**
+     * @param value the reference value
+     * @param rank  the relative rank offset
+     * @param count the maximum number of items to select
+     * @return builder for continued chaining (invertable for range operations)
+     * @see #onMapValueRelativeRankRange(long, int, int)
+     */
     public CdtActionInvertableBuilder<T> onMapValueRelativeRankRange(boolean value, int rank, int count) {
         return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank, count));
     }
 
+    /**
+     * @param value the reference value
+     * @param rank  the relative rank offset
+     * @param count the maximum number of items to select
+     * @return builder for continued chaining (invertable for range operations)
+     * @see #onMapValueRelativeRankRange(long, int, int)
+     */
     public CdtActionInvertableBuilder<T> onMapValueRelativeRankRange(List<?> value, int rank, int count) {
         return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank, count));
     }
 
+    /**
+     * @param value the reference value
+     * @param rank  the relative rank offset
+     * @param count the maximum number of items to select
+     * @return builder for continued chaining (invertable for range operations)
+     * @see #onMapValueRelativeRankRange(long, int, int)
+     */
     public CdtActionInvertableBuilder<T> onMapValueRelativeRankRange(Map<?,?> value, int rank, int count) {
         return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank, count));
     }
 
+    /**
+     * @param value the reference value
+     * @param rank  the relative rank offset
+     * @param count the maximum number of items to select
+     * @return builder for continued chaining (invertable for range operations)
+     * @see #onMapValueRelativeRankRange(long, int, int)
+     */
     public CdtActionInvertableBuilder<T> onMapValueRelativeRankRange(SpecialValue value, int rank, int count) {
         return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE_REL_RANK_RANGE, value.toAerospikeValue(), rank, count));
     }
@@ -1115,204 +1448,618 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
         return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_RANK_RANGE, rank));
     }
 
-    // Additional value type overloads
+    /**
+     * @param value value to locate in the map
+     * @return builder for nested map CDT operations on matching entries
+     * @see #onMapValue(long)
+     */
     public CdtContextInvertableBuilder<T> onMapValue(double value) {
         return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE, Value.get(value)));
     }
+
+    /**
+     * @param value value to locate in the map
+     * @return builder for nested map CDT operations on matching entries
+     * @see #onMapValue(long)
+     */
     public CdtContextInvertableBuilder<T> onMapValue(boolean value) {
         return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE, Value.get(value)));
     }
+
+    /**
+     * @param value value to locate in the map
+     * @return builder for nested map CDT operations on matching entries
+     * @see #onMapValue(long)
+     */
     public CdtContextInvertableBuilder<T> onMapValue(List<?> value) {
         return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE, Value.get(value)));
     }
+
+    /**
+     * @param value value to locate in the map
+     * @return builder for nested map CDT operations on matching entries
+     * @see #onMapValue(long)
+     */
     public CdtContextInvertableBuilder<T> onMapValue(Map<?,?> value) {
         return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE, Value.get(value)));
     }
+
+    /**
+     * @param value value to locate in the map
+     * @return builder for nested map CDT operations on matching entries
+     * @see #onMapValue(long)
+     */
     public CdtContextInvertableBuilder<T> onMapValue(SpecialValue value) {
         return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE, value.toAerospikeValue()));
     }
 
-    // Additional range type overloads
+    /**
+     * @param startIncl inclusive start key
+     * @param endExcl   exclusive end key
+     * @return builder for map CDT operations on that key range
+     * @see #onMapKeyRange(String, String)
+     */
     public CdtActionInvertableBuilder<T> onMapKeyRange(byte[] startIncl, byte[] endExcl) {
         return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_KEY_RANGE, Value.get(startIncl), Value.get(endExcl)));
     }
+    /**
+     * @param startIncl inclusive start key
+     * @param endExcl   exclusive end key
+     * @return builder for map CDT operations on that key range
+     * @see #onMapKeyRange(String, String)
+     */
     public CdtActionInvertableBuilder<T> onMapKeyRange(double startIncl, double endExcl) {
         return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_KEY_RANGE, Value.get(startIncl), Value.get(endExcl)));
     }
-    // SpecialValue combinations for onMapKeyRange
+
+    /**
+     * @param startIncl inclusive start key
+     * @param endExcl   exclusive end key
+     * @return builder for map CDT operations on that key range
+     * @see #onMapKeyRange(String, String)
+     */
     public CdtActionInvertableBuilder<T> onMapKeyRange(SpecialValue startIncl, SpecialValue endExcl) {
         return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_KEY_RANGE, startIncl.toAerospikeValue(), endExcl.toAerospikeValue()));
     }
+
+    /**
+     * @param startIncl inclusive start key
+     * @param endExcl   exclusive end key
+     * @return builder for map CDT operations on that key range
+     * @see #onMapKeyRange(String, String)
+     */
     public CdtActionInvertableBuilder<T> onMapKeyRange(SpecialValue startIncl, long endExcl) {
         return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_KEY_RANGE, startIncl.toAerospikeValue(), Value.get(endExcl)));
     }
+
+    /**
+     * @param startIncl inclusive start key
+     * @param endExcl   exclusive end key
+     * @return builder for map CDT operations on that key range
+     * @see #onMapKeyRange(String, String)
+     */
     public CdtActionInvertableBuilder<T> onMapKeyRange(SpecialValue startIncl, String endExcl) {
         return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_KEY_RANGE, startIncl.toAerospikeValue(), Value.get(endExcl)));
     }
+
+    /**
+     * @param startIncl inclusive start key
+     * @param endExcl   exclusive end key
+     * @return builder for map CDT operations on that key range
+     * @see #onMapKeyRange(String, String)
+     */
     public CdtActionInvertableBuilder<T> onMapKeyRange(SpecialValue startIncl, byte[] endExcl) {
         return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_KEY_RANGE, startIncl.toAerospikeValue(), Value.get(endExcl)));
     }
+
+    /**
+     * @param startIncl inclusive start key
+     * @param endExcl   exclusive end key
+     * @return builder for map CDT operations on that key range
+     * @see #onMapKeyRange(String, String)
+     */
     public CdtActionInvertableBuilder<T> onMapKeyRange(SpecialValue startIncl, double endExcl) {
         return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_KEY_RANGE, startIncl.toAerospikeValue(), Value.get(endExcl)));
     }
+
+    /**
+     * @param startIncl inclusive start key
+     * @param endExcl   exclusive end key
+     * @return builder for map CDT operations on that key range
+     * @see #onMapKeyRange(String, String)
+     */
     public CdtActionInvertableBuilder<T> onMapKeyRange(long startIncl, SpecialValue endExcl) {
         return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_KEY_RANGE, Value.get(startIncl), endExcl.toAerospikeValue()));
     }
+
+    /**
+     * @param startIncl inclusive start key
+     * @param endExcl   exclusive end key
+     * @return builder for map CDT operations on that key range
+     * @see #onMapKeyRange(String, String)
+     */
     public CdtActionInvertableBuilder<T> onMapKeyRange(String startIncl, SpecialValue endExcl) {
         return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_KEY_RANGE, Value.get(startIncl), endExcl.toAerospikeValue()));
     }
+
+    /**
+     * @param startIncl inclusive start key
+     * @param endExcl   exclusive end key
+     * @return builder for map CDT operations on that key range
+     * @see #onMapKeyRange(String, String)
+     */
     public CdtActionInvertableBuilder<T> onMapKeyRange(byte[] startIncl, SpecialValue endExcl) {
         return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_KEY_RANGE, Value.get(startIncl), endExcl.toAerospikeValue()));
     }
+
+    /**
+     * @param startIncl inclusive start key
+     * @param endExcl   exclusive end key
+     * @return builder for map CDT operations on that key range
+     * @see #onMapKeyRange(String, String)
+     */
     public CdtActionInvertableBuilder<T> onMapKeyRange(double startIncl, SpecialValue endExcl) {
         return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_KEY_RANGE, Value.get(startIncl), endExcl.toAerospikeValue()));
     }
+
+    /**
+     * @param startIncl inclusive start value
+     * @param endExcl   exclusive end value
+     * @return builder for map CDT operations on that value range
+     * @see #onMapValueRange(long, long)
+     */
     public CdtActionInvertableBuilder<T> onMapValueRange(String startIncl, String endExcl) {
         return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE_RANGE, Value.get(startIncl), Value.get(endExcl)));
     }
+
+    /**
+     * @param startIncl inclusive start value
+     * @param endExcl   exclusive end value
+     * @return builder for map CDT operations on that value range
+     * @see #onMapValueRange(long, long)
+     */
     public CdtActionInvertableBuilder<T> onMapValueRange(byte[] startIncl, byte[] endExcl) {
         return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE_RANGE, Value.get(startIncl), Value.get(endExcl)));
     }
+
+    /**
+     * @param startIncl inclusive start value
+     * @param endExcl   exclusive end value
+     * @return builder for map CDT operations on that value range
+     * @see #onMapValueRange(long, long)
+     */
     public CdtActionInvertableBuilder<T> onMapValueRange(double startIncl, double endExcl) {
         return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE_RANGE, Value.get(startIncl), Value.get(endExcl)));
     }
+
+    /**
+     * @param startIncl inclusive start value
+     * @param endExcl   exclusive end value
+     * @return builder for map CDT operations on that value range
+     * @see #onMapValueRange(long, long)
+     */
     public CdtActionInvertableBuilder<T> onMapValueRange(boolean startIncl, boolean endExcl) {
         return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE_RANGE, Value.get(startIncl), Value.get(endExcl)));
     }
+
+    /**
+     * @param startIncl inclusive start value
+     * @param endExcl   exclusive end value
+     * @return builder for map CDT operations on that value range
+     * @see #onMapValueRange(long, long)
+     */
     public CdtActionInvertableBuilder<T> onMapValueRange(List<?> startIncl, List<?> endExcl) {
         return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE_RANGE, Value.get(startIncl), Value.get(endExcl)));
     }
+
+    /**
+     * @param startIncl inclusive start value
+     * @param endExcl   exclusive end value
+     * @return builder for map CDT operations on that value range
+     * @see #onMapValueRange(long, long)
+     */
     public CdtActionInvertableBuilder<T> onMapValueRange(Map<?,?> startIncl, Map<?,?> endExcl) {
         return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE_RANGE, Value.get(startIncl), Value.get(endExcl)));
     }
-    // SpecialValue combinations for onMapValueRange
+
+    /**
+     * @param startIncl inclusive start value
+     * @param endExcl   exclusive end value
+     * @return builder for map CDT operations on that value range
+     * @see #onMapValueRange(long, long)
+     */
     public CdtActionInvertableBuilder<T> onMapValueRange(SpecialValue startIncl, SpecialValue endExcl) {
         return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE_RANGE, startIncl.toAerospikeValue(), endExcl.toAerospikeValue()));
     }
+
+    /**
+     * @param startIncl inclusive start value
+     * @param endExcl   exclusive end value
+     * @return builder for map CDT operations on that value range
+     * @see #onMapValueRange(long, long)
+     */
     public CdtActionInvertableBuilder<T> onMapValueRange(SpecialValue startIncl, long endExcl) {
         return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE_RANGE, startIncl.toAerospikeValue(), Value.get(endExcl)));
     }
+
+    /**
+     * @param startIncl inclusive start value
+     * @param endExcl   exclusive end value
+     * @return builder for map CDT operations on that value range
+     * @see #onMapValueRange(long, long)
+     */
     public CdtActionInvertableBuilder<T> onMapValueRange(SpecialValue startIncl, String endExcl) {
         return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE_RANGE, startIncl.toAerospikeValue(), Value.get(endExcl)));
     }
+
+    /**
+     * @param startIncl inclusive start value
+     * @param endExcl   exclusive end value
+     * @return builder for map CDT operations on that value range
+     * @see #onMapValueRange(long, long)
+     */
     public CdtActionInvertableBuilder<T> onMapValueRange(SpecialValue startIncl, byte[] endExcl) {
         return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE_RANGE, startIncl.toAerospikeValue(), Value.get(endExcl)));
     }
+
+    /**
+     * @param startIncl inclusive start value
+     * @param endExcl   exclusive end value
+     * @return builder for map CDT operations on that value range
+     * @see #onMapValueRange(long, long)
+     */
     public CdtActionInvertableBuilder<T> onMapValueRange(SpecialValue startIncl, double endExcl) {
         return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE_RANGE, startIncl.toAerospikeValue(), Value.get(endExcl)));
     }
+
+    /**
+     * @param startIncl inclusive start value
+     * @param endExcl   exclusive end value
+     * @return builder for map CDT operations on that value range
+     * @see #onMapValueRange(long, long)
+     */
     public CdtActionInvertableBuilder<T> onMapValueRange(SpecialValue startIncl, boolean endExcl) {
         return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE_RANGE, startIncl.toAerospikeValue(), Value.get(endExcl)));
     }
+
+    /**
+     * @param startIncl inclusive start value
+     * @param endExcl   exclusive end value
+     * @return builder for map CDT operations on that value range
+     * @see #onMapValueRange(long, long)
+     */
     public CdtActionInvertableBuilder<T> onMapValueRange(SpecialValue startIncl, List<?> endExcl) {
         return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE_RANGE, startIncl.toAerospikeValue(), Value.get(endExcl)));
     }
+
+    /**
+     * @param startIncl inclusive start value
+     * @param endExcl   exclusive end value
+     * @return builder for map CDT operations on that value range
+     * @see #onMapValueRange(long, long)
+     */
     public CdtActionInvertableBuilder<T> onMapValueRange(SpecialValue startIncl, Map<?,?> endExcl) {
         return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE_RANGE, startIncl.toAerospikeValue(), Value.get(endExcl)));
     }
+
+    /**
+     * @param startIncl inclusive start value
+     * @param endExcl   exclusive end value
+     * @return builder for map CDT operations on that value range
+     * @see #onMapValueRange(long, long)
+     */
     public CdtActionInvertableBuilder<T> onMapValueRange(long startIncl, SpecialValue endExcl) {
         return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE_RANGE, Value.get(startIncl), endExcl.toAerospikeValue()));
     }
+
+    /**
+     * @param startIncl inclusive start value
+     * @param endExcl   exclusive end value
+     * @return builder for map CDT operations on that value range
+     * @see #onMapValueRange(long, long)
+     */
     public CdtActionInvertableBuilder<T> onMapValueRange(String startIncl, SpecialValue endExcl) {
         return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE_RANGE, Value.get(startIncl), endExcl.toAerospikeValue()));
     }
+
+    /**
+     * @param startIncl inclusive start value
+     * @param endExcl   exclusive end value
+     * @return builder for map CDT operations on that value range
+     * @see #onMapValueRange(long, long)
+     */
     public CdtActionInvertableBuilder<T> onMapValueRange(byte[] startIncl, SpecialValue endExcl) {
         return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE_RANGE, Value.get(startIncl), endExcl.toAerospikeValue()));
     }
+
+    /**
+     * @param startIncl inclusive start value
+     * @param endExcl   exclusive end value
+     * @return builder for map CDT operations on that value range
+     * @see #onMapValueRange(long, long)
+     */
     public CdtActionInvertableBuilder<T> onMapValueRange(double startIncl, SpecialValue endExcl) {
         return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE_RANGE, Value.get(startIncl), endExcl.toAerospikeValue()));
     }
+
+    /**
+     * @param startIncl inclusive start value
+     * @param endExcl   exclusive end value
+     * @return builder for map CDT operations on that value range
+     * @see #onMapValueRange(long, long)
+     */
     public CdtActionInvertableBuilder<T> onMapValueRange(boolean startIncl, SpecialValue endExcl) {
         return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE_RANGE, Value.get(startIncl), endExcl.toAerospikeValue()));
     }
+
+    /**
+     * @param startIncl inclusive start value
+     * @param endExcl   exclusive end value
+     * @return builder for map CDT operations on that value range
+     * @see #onMapValueRange(long, long)
+     */
     public CdtActionInvertableBuilder<T> onMapValueRange(List<?> startIncl, SpecialValue endExcl) {
         return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE_RANGE, Value.get(startIncl), endExcl.toAerospikeValue()));
     }
+
+    /**
+     * @param startIncl inclusive start value
+     * @param endExcl   exclusive end value
+     * @return builder for map CDT operations on that value range
+     * @see #onMapValueRange(long, long)
+     */
     public CdtActionInvertableBuilder<T> onMapValueRange(Map<?,?> startIncl, SpecialValue endExcl) {
         return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_VALUE_RANGE, Value.get(startIncl), endExcl.toAerospikeValue()));
     }
 
+    /**
+     * Select a list element by index for nested CDT ops on this bin's list.
+     *
+     * @param index list index
+     * @return builder for nested list CDT operations at that index
+     */
     public CdtContextNonInvertableBuilder<T> onListIndex(int index) {
         return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.LIST_BY_INDEX, index));
     }
+
+    /**
+     * Like {@link #onListIndex(int)} but supplies list creation policy when the list is created at this index.
+     *
+     * @param index list index
+     * @param order list order if created
+     * @param pad   whether to pad when creating
+     * @return builder for nested list CDT operations at that index
+     */
     public CdtContextNonInvertableBuilder<T> onListIndex(int index, ListOrder order, boolean pad) {
         return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.LIST_BY_INDEX, index, order, pad));
     }
+
+    /**
+     * Select a list element by rank.
+     *
+     * @param index rank in the list
+     * @return builder for nested list CDT operations at that rank
+     */
     public CdtContextNonInvertableBuilder<T> onListRank(int index) {
         return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.LIST_BY_RANK, index));
     }
+
+    /**
+     * Select list elements matching a value.
+     *
+     * @param value element value to locate
+     * @return builder for nested list CDT operations on matching elements
+     */
     public CdtContextInvertableBuilder<T> onListValue(long value) {
         return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.LIST_BY_VALUE, Value.get(value)));
     }
+
+    /**
+     * @param value element value to locate
+     * @return builder for nested list CDT operations on matching elements
+     * @see #onListValue(long)
+     */
     public CdtContextInvertableBuilder<T> onListValue(String value) {
         return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.LIST_BY_VALUE, Value.get(value)));
     }
+
+    /**
+     * @param value element value to locate
+     * @return builder for nested list CDT operations on matching elements
+     * @see #onListValue(long)
+     */
     public CdtContextInvertableBuilder<T> onListValue(byte[] value) {
         return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.LIST_BY_VALUE, Value.get(value)));
     }
+
+    /**
+     * @param value element value to locate
+     * @return builder for nested list CDT operations on matching elements
+     * @see #onListValue(long)
+     */
     public CdtContextInvertableBuilder<T> onListValue(SpecialValue value) {
         return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.LIST_BY_VALUE, value.toAerospikeValue()));
     }
 
-    // List index range
+    /**
+     * Restrict to list elements from {@code index} through the end of the list.
+     *
+     * @param index starting index
+     * @return builder for list CDT operations on that index range
+     */
     public CdtActionInvertableBuilder<T> onListIndexRange(int index) {
         return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.LIST_BY_INDEX_RANGE, index));
     }
+
+    /**
+     * Restrict to {@code count} list elements starting at {@code index}.
+     *
+     * @param index starting index
+     * @param count number of elements
+     * @return builder for list CDT operations on that index range
+     */
     public CdtActionInvertableBuilder<T> onListIndexRange(int index, int count) {
         return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.LIST_BY_INDEX_RANGE, index, count));
     }
 
-    // List rank range
+    /**
+     * Restrict to list elements from {@code rank} through the end of the list.
+     *
+     * @param rank starting rank
+     * @return builder for list CDT operations on that rank range
+     */
     public CdtActionInvertableBuilder<T> onListRankRange(int rank) {
         return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.LIST_BY_RANK_RANGE, rank));
     }
+
+    /**
+     * Restrict to {@code count} list elements starting at {@code rank}.
+     *
+     * @param rank  starting rank
+     * @param count number of elements
+     * @return builder for list CDT operations on that rank range
+     */
     public CdtActionInvertableBuilder<T> onListRankRange(int rank, int count) {
         return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.LIST_BY_RANK_RANGE, rank, count));
     }
 
-    // List value range - all type combinations
+    /**
+     * Restrict to list values in {@code [startIncl, endExcl)} (ordered comparison).
+     *
+     * @param startIncl inclusive start
+     * @param endExcl   exclusive end
+     * @return builder for list CDT operations on that value range
+     */
     public CdtActionInvertableBuilder<T> onListValueRange(long startIncl, long endExcl) {
         return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.LIST_BY_VALUE_RANGE, Value.get(startIncl), Value.get(endExcl)));
     }
+
+    /**
+     * @param startIncl inclusive start
+     * @param endExcl   exclusive end
+     * @return builder for list CDT operations on that value range
+     * @see #onListValueRange(long, long)
+     */
     public CdtActionInvertableBuilder<T> onListValueRange(String startIncl, String endExcl) {
         return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.LIST_BY_VALUE_RANGE, Value.get(startIncl), Value.get(endExcl)));
     }
+
+    /**
+     * @param startIncl inclusive start
+     * @param endExcl   exclusive end
+     * @return builder for list CDT operations on that value range
+     * @see #onListValueRange(long, long)
+     */
     public CdtActionInvertableBuilder<T> onListValueRange(byte[] startIncl, byte[] endExcl) {
         return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.LIST_BY_VALUE_RANGE, Value.get(startIncl), Value.get(endExcl)));
     }
+
+    /**
+     * @param startIncl inclusive start
+     * @param endExcl   exclusive end
+     * @return builder for list CDT operations on that value range
+     * @see #onListValueRange(long, long)
+     */
     public CdtActionInvertableBuilder<T> onListValueRange(double startIncl, double endExcl) {
         return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.LIST_BY_VALUE_RANGE, Value.get(startIncl), Value.get(endExcl)));
     }
-    // SpecialValue combinations for onListValueRange
+
+    /**
+     * @param startIncl inclusive start
+     * @param endExcl   exclusive end
+     * @return builder for list CDT operations on that value range
+     * @see #onListValueRange(long, long)
+     */
     public CdtActionInvertableBuilder<T> onListValueRange(SpecialValue startIncl, SpecialValue endExcl) {
         return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.LIST_BY_VALUE_RANGE, startIncl.toAerospikeValue(), endExcl.toAerospikeValue()));
     }
+
+    /**
+     * @param startIncl inclusive start
+     * @param endExcl   exclusive end
+     * @return builder for list CDT operations on that value range
+     * @see #onListValueRange(long, long)
+     */
     public CdtActionInvertableBuilder<T> onListValueRange(SpecialValue startIncl, long endExcl) {
         return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.LIST_BY_VALUE_RANGE, startIncl.toAerospikeValue(), Value.get(endExcl)));
     }
+
+    /**
+     * @param startIncl inclusive start
+     * @param endExcl   exclusive end
+     * @return builder for list CDT operations on that value range
+     * @see #onListValueRange(long, long)
+     */
     public CdtActionInvertableBuilder<T> onListValueRange(SpecialValue startIncl, String endExcl) {
         return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.LIST_BY_VALUE_RANGE, startIncl.toAerospikeValue(), Value.get(endExcl)));
     }
+
+    /**
+     * @param startIncl inclusive start
+     * @param endExcl   exclusive end
+     * @return builder for list CDT operations on that value range
+     * @see #onListValueRange(long, long)
+     */
     public CdtActionInvertableBuilder<T> onListValueRange(SpecialValue startIncl, byte[] endExcl) {
         return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.LIST_BY_VALUE_RANGE, startIncl.toAerospikeValue(), Value.get(endExcl)));
     }
+
+    /**
+     * @param startIncl inclusive start
+     * @param endExcl   exclusive end
+     * @return builder for list CDT operations on that value range
+     * @see #onListValueRange(long, long)
+     */
     public CdtActionInvertableBuilder<T> onListValueRange(SpecialValue startIncl, double endExcl) {
         return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.LIST_BY_VALUE_RANGE, startIncl.toAerospikeValue(), Value.get(endExcl)));
     }
+
+    /**
+     * @param startIncl inclusive start
+     * @param endExcl   exclusive end
+     * @return builder for list CDT operations on that value range
+     * @see #onListValueRange(long, long)
+     */
     public CdtActionInvertableBuilder<T> onListValueRange(long startIncl, SpecialValue endExcl) {
         return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.LIST_BY_VALUE_RANGE, Value.get(startIncl), endExcl.toAerospikeValue()));
     }
+
+    /**
+     * @param startIncl inclusive start
+     * @param endExcl   exclusive end
+     * @return builder for list CDT operations on that value range
+     * @see #onListValueRange(long, long)
+     */
     public CdtActionInvertableBuilder<T> onListValueRange(String startIncl, SpecialValue endExcl) {
         return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.LIST_BY_VALUE_RANGE, Value.get(startIncl), endExcl.toAerospikeValue()));
     }
+
+    /**
+     * @param startIncl inclusive start
+     * @param endExcl   exclusive end
+     * @return builder for list CDT operations on that value range
+     * @see #onListValueRange(long, long)
+     */
     public CdtActionInvertableBuilder<T> onListValueRange(byte[] startIncl, SpecialValue endExcl) {
         return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.LIST_BY_VALUE_RANGE, Value.get(startIncl), endExcl.toAerospikeValue()));
     }
+
+    /**
+     * @param startIncl inclusive start
+     * @param endExcl   exclusive end
+     * @return builder for list CDT operations on that value range
+     * @see #onListValueRange(long, long)
+     */
     public CdtActionInvertableBuilder<T> onListValueRange(double startIncl, SpecialValue endExcl) {
         return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.LIST_BY_VALUE_RANGE, Value.get(startIncl), endExcl.toAerospikeValue()));
     }
 
-    // List value list
+    /**
+     * Select list elements matching any of the given values.
+     *
+     * @param values candidate values
+     * @return builder for nested list CDT operations on matching elements
+     */
     public CdtContextInvertableBuilder<T> onListValueList(List<?> values) {
         List<Value> valueList = new ArrayList<>();
         for (Object value : values) {
@@ -1322,34 +2069,109 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
         return new CdtGetOrRemoveBuilder<>(this.binName, this.opBuilder, params);
     }
 
-    // List value relative rank range
+    /**
+     * Navigate by value-relative rank (see server CDT list by value relative rank range).
+     *
+     * @param value reference value
+     * @param rank  relative rank offset
+     * @return builder for continued chaining (invertable for range operations)
+     */
     public CdtActionInvertableBuilder<T> onListValueRelativeRankRange(long value, int rank) {
         return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.LIST_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank));
     }
+
+    /**
+     * @param value reference value
+     * @param rank  relative rank offset
+     * @return builder for continued chaining (invertable for range operations)
+     * @see #onListValueRelativeRankRange(long, int)
+     */
     public CdtActionInvertableBuilder<T> onListValueRelativeRankRange(String value, int rank) {
         return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.LIST_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank));
     }
+
+    /**
+     * @param value reference value
+     * @param rank  relative rank offset
+     * @return builder for continued chaining (invertable for range operations)
+     * @see #onListValueRelativeRankRange(long, int)
+     */
     public CdtActionInvertableBuilder<T> onListValueRelativeRankRange(byte[] value, int rank) {
         return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.LIST_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank));
     }
+
+    /**
+     * @param value reference value
+     * @param rank  relative rank offset
+     * @return builder for continued chaining (invertable for range operations)
+     * @see #onListValueRelativeRankRange(long, int)
+     */
     public CdtActionInvertableBuilder<T> onListValueRelativeRankRange(double value, int rank) {
         return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.LIST_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank));
     }
+
+    /**
+     * @param value reference value
+     * @param rank  relative rank offset
+     * @return builder for continued chaining (invertable for range operations)
+     * @see #onListValueRelativeRankRange(long, int)
+     */
     public CdtActionInvertableBuilder<T> onListValueRelativeRankRange(SpecialValue value, int rank) {
         return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.LIST_BY_VALUE_REL_RANK_RANGE, value.toAerospikeValue(), rank));
     }
+
+    /**
+     * Like {@link #onListValueRelativeRankRange(long, int)} with a maximum number of elements.
+     *
+     * @param value reference value
+     * @param rank  relative rank offset
+     * @param count max elements
+     * @return builder for continued chaining (invertable for range operations)
+     */
     public CdtActionInvertableBuilder<T> onListValueRelativeRankRange(long value, int rank, int count) {
         return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.LIST_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank, count));
     }
+
+    /**
+     * @param value reference value
+     * @param rank  relative rank offset
+     * @param count max elements
+     * @return builder for continued chaining (invertable for range operations)
+     * @see #onListValueRelativeRankRange(long, int, int)
+     */
     public CdtActionInvertableBuilder<T> onListValueRelativeRankRange(String value, int rank, int count) {
         return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.LIST_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank, count));
     }
+
+    /**
+     * @param value reference value
+     * @param rank  relative rank offset
+     * @param count max elements
+     * @return builder for continued chaining (invertable for range operations)
+     * @see #onListValueRelativeRankRange(long, int, int)
+     */
     public CdtActionInvertableBuilder<T> onListValueRelativeRankRange(byte[] value, int rank, int count) {
         return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.LIST_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank, count));
     }
+
+    /**
+     * @param value reference value
+     * @param rank  relative rank offset
+     * @param count max elements
+     * @return builder for continued chaining (invertable for range operations)
+     * @see #onListValueRelativeRankRange(long, int, int)
+     */
     public CdtActionInvertableBuilder<T> onListValueRelativeRankRange(double value, int rank, int count) {
         return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.LIST_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank, count));
     }
+
+    /**
+     * @param value reference value
+     * @param rank  relative rank offset
+     * @param count max elements
+     * @return builder for continued chaining (invertable for range operations)
+     * @see #onListValueRelativeRankRange(long, int, int)
+     */
     public CdtActionInvertableBuilder<T> onListValueRelativeRankRange(SpecialValue value, int rank, int count) {
         return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.LIST_BY_VALUE_REL_RANK_RANGE, value.toAerospikeValue(), rank, count));
     }

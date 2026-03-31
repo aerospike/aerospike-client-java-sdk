@@ -30,7 +30,9 @@ import java.util.stream.StreamSupport;
 
 import com.aerospike.client.fluent.query.RecordStreamImpl;
 
-//A push-driven stream that supports backpressure and cancellation.
+/**
+ * A push-driven stream that supports backpressure and cancellation.
+ */
 public final class AsyncRecordStream implements AutoCloseable, Iterable<RecordResult>, RecordStreamImpl {
     private static final Object END = new Object();
     private static final class Err { final Throwable t; Err(Throwable t){ this.t = t; } }
@@ -44,6 +46,10 @@ public final class AsyncRecordStream implements AutoCloseable, Iterable<RecordRe
     // Optional: give producers a way to see if they should stop.
     private final BooleanSupplier cancelled = () -> closed.get() || completed.get();
 
+    /**
+     * @param capacity maximum number of {@link RecordResult} instances the queue holds before
+     *                 {@link #publish} blocks (an extra slot is reserved for terminal markers)
+     */
     public AsyncRecordStream(int capacity) {
         if (capacity <= 0) {
 			throw new IllegalArgumentException("capacity must be > 0");
@@ -90,14 +96,14 @@ public final class AsyncRecordStream implements AutoCloseable, Iterable<RecordRe
     /**
      * For producers: signal a terminal error. The consumer will receive this as a runtime exception
      * when iterating.
-     * 
+     *
      * <p>This method sets the completed flag immediately, which stops any concurrent publishers
      * from adding more items. It then blocks until the error marker can be added to the queue.
      * If the queue is full, this method will block indefinitely until the consumer drains
      * enough items to make room, or until the stream is closed or the thread is interrupted.</p>
-     * 
+     *
      * <p>Safe to call multiple times - only the first call has any effect.</p>
-     * 
+     *
      * @param t the error to propagate to the consumer (if null, a generic RuntimeException is used)
      */
     public void error(Throwable t) {
@@ -124,14 +130,14 @@ public final class AsyncRecordStream implements AutoCloseable, Iterable<RecordRe
 
     /**
      * For producers: signal normal completion of the stream.
-     * 
+     *
      * <p>This method sets the completed flag immediately, which stops any concurrent publishers
      * from adding more items. It then blocks until the END marker can be added to the queue.
      * If the queue is full, this method will block indefinitely until the consumer drains
      * enough items to make room, or until the stream is closed or the thread is interrupted.</p>
-     * 
+     *
      * <p>Safe to call multiple times - only the first call has any effect.</p>
-     * 
+     *
      * @return this stream for method chaining
      */
     public AsyncRecordStream complete() {
@@ -172,6 +178,12 @@ public final class AsyncRecordStream implements AutoCloseable, Iterable<RecordRe
 
     // --- Iterable / Spliterator plumbing so you can use for-each or stream() ---
 
+    /**
+     * {@inheritDoc}
+     * <p>
+     * Blocks on {@link BlockingQueue#take()} until each element arrives. Terminal {@link #error} is thrown as
+     * an unchecked exception from {@link Iterator#next()}.
+     */
     @Override
     public Iterator<RecordResult> iterator() {
         return new Iterator<>() {
@@ -216,6 +228,11 @@ public final class AsyncRecordStream implements AutoCloseable, Iterable<RecordRe
         };
     }
 
+    /**
+     * {@inheritDoc}
+     * <p>
+     * Ordered, non-null elements; size unknown.
+     */
     @Override
     public Spliterator<RecordResult> spliterator() {
         // Unknown size, ordered, non-null, concurrent-ish
@@ -225,6 +242,11 @@ public final class AsyncRecordStream implements AutoCloseable, Iterable<RecordRe
 
     // --- RecordStreamImpl methods ---
 
+    /**
+     * {@inheritDoc}
+     * <p>
+     * Returns {@code true} once (first chunk only), matching single-batch stream behavior.
+     */
     @Override
     public boolean hasMoreChunks() {
         // Mirror SingleItemRecordStream behavior
@@ -232,11 +254,17 @@ public final class AsyncRecordStream implements AutoCloseable, Iterable<RecordRe
         return isFirstPage.compareAndSet(true, false);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public boolean hasNext() {
         return getIterator().hasNext();
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public RecordResult next() {
         return getIterator().next();

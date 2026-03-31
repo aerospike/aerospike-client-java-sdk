@@ -31,6 +31,13 @@ import com.aerospike.client.fluent.cdt.MapOrder;
 import com.aerospike.client.fluent.cdt.MapPolicy;
 import com.aerospike.client.fluent.cdt.MapWriteFlags;
 
+/**
+ * Fluent CDT helpers for a single bin: appends {@link ListOperation} and {@link MapOperation} steps to
+ * {@code opBuilder}. When {@link CdtOperationParams} is non-null, each call pushes the current path into
+ * context so operations apply to nested list/map elements.
+ *
+ * @param <T> concrete operation builder type for chaining
+ */
 public class AbstractCdtBuilder<T extends AbstractOperationBuilder<T>> {
 
     private static final ConcurrentHashMap<Long, MapPolicy> MAP_POLICY_CACHE = new ConcurrentHashMap<>();
@@ -58,6 +65,11 @@ public class AbstractCdtBuilder<T extends AbstractOperationBuilder<T>> {
     protected final String binName;
     protected final CdtOperationParams params;
 
+    /**
+     * @param opBuilder builder that collects CDT operations for the record command
+     * @param binName   target bin name
+     * @param params    nested CDT path state, or {@code null} for top-level bin operations only
+     */
     public AbstractCdtBuilder(T opBuilder, String binName, CdtOperationParams params) {
         this.opBuilder = opBuilder;
         this.binName = binName;
@@ -136,6 +148,10 @@ public class AbstractCdtBuilder<T extends AbstractOperationBuilder<T>> {
         }
     }
 
+    /**
+     * Remove all entries from the map at the current context; the bin remains.
+     *
+     */
     public T mapClear() {
         if (params != null) {
             params.pushCurrentToContext();
@@ -146,6 +162,10 @@ public class AbstractCdtBuilder<T extends AbstractOperationBuilder<T>> {
         }
     }
 
+    /**
+     * Read the number of entries in the map at the current context.
+     *
+     */
     public T mapSize() {
         if (params != null) {
             params.pushCurrentToContext();
@@ -199,19 +219,38 @@ public class AbstractCdtBuilder<T extends AbstractOperationBuilder<T>> {
     // listAppend -- append to unordered list
     // =================================
 
-    /** Append an item to the end of a list. */
+    /**
+     * Append an item to the end of an unordered list.
+     *
+     * @param value value to append
+     */
     public T listAppend(Value value) {
         return listAppend(value, (Consumer<ListEntryWriteOptions>) null);
     }
+
+    /** @see #listAppend(Value) */
     public T listAppend(long value) { return listAppend(Value.get(value)); }
+    /** @see #listAppend(Value) */
     public T listAppend(String value) { return listAppend(Value.get(value)); }
+    /** @see #listAppend(Value) */
     public T listAppend(double value) { return listAppend(Value.get(value)); }
+    /** @see #listAppend(Value) */
     public T listAppend(boolean value) { return listAppend(Value.get(value)); }
+    /** @see #listAppend(Value) */
     public T listAppend(byte[] value) { return listAppend(Value.get(value)); }
+    /** @see #listAppend(Value) */
     public T listAppend(List<?> value) { return listAppend(Value.get(value)); }
+    /** @see #listAppend(Value) */
     public T listAppend(Map<?,?> value) { return listAppend(Value.get(value)); }
 
-    /** Append an item to the end of a list with options (e.g. addUnique, allowFailures). */
+    /**
+     * Append an item to the end of an unordered list with optional write flags
+     * ({@link ListWriteOptions#addUnique()}, {@link ListWriteOptions#insertBounded()},
+     * {@link ListWriteOptions#allowFailures()}).
+     *
+     * @param value   value to append
+     * @param options optional write flags, or {@code null}
+     */
     public T listAppend(Value value, Consumer<ListEntryWriteOptions> options) {
         ListEntryWriteOptions opts = applyListOptions(options);
         if (opts != null && (opts.isAddUnique() || opts.isInsertBounded() || opts.isAllowFailures())) {
@@ -232,31 +271,58 @@ public class AbstractCdtBuilder<T extends AbstractOperationBuilder<T>> {
             return this.opBuilder.addOp(ListOperation.append(binName, value));
         }
     }
+
+    /** @see #listAppend(Value, Consumer) */
     public T listAppend(long value, Consumer<ListEntryWriteOptions> options) { return listAppend(Value.get(value), options); }
+    /** @see #listAppend(Value, Consumer) */
     public T listAppend(String value, Consumer<ListEntryWriteOptions> options) { return listAppend(Value.get(value), options); }
+    /** @see #listAppend(Value, Consumer) */
     public T listAppend(double value, Consumer<ListEntryWriteOptions> options) { return listAppend(Value.get(value), options); }
+    /** @see #listAppend(Value, Consumer) */
     public T listAppend(boolean value, Consumer<ListEntryWriteOptions> options) { return listAppend(Value.get(value), options); }
+    /** @see #listAppend(Value, Consumer) */
     public T listAppend(byte[] value, Consumer<ListEntryWriteOptions> options) { return listAppend(Value.get(value), options); }
+    /** @see #listAppend(Value, Consumer) */
     public T listAppend(List<?> value, Consumer<ListEntryWriteOptions> options) { return listAppend(Value.get(value), options); }
+    /** @see #listAppend(Value, Consumer) */
     public T listAppend(Map<?,?> value, Consumer<ListEntryWriteOptions> options) { return listAppend(Value.get(value), options); }
 
     // =================================
     // listAdd -- add to ordered list
     // =================================
 
-    /** Add an item to the appropriate spot in an ordered list. */
+    /**
+     * Add an item to an ordered list at the position determined by server sort order.
+     *
+     * @param value value to add
+     */
     public T listAdd(Value value) {
         return listAdd(value, (Consumer<ListEntryWriteOptions>) null);
     }
+
+    /** @see #listAdd(Value) */
     public T listAdd(long value) { return listAdd(Value.get(value)); }
+    /** @see #listAdd(Value) */
     public T listAdd(String value) { return listAdd(Value.get(value)); }
+    /** @see #listAdd(Value) */
     public T listAdd(double value) { return listAdd(Value.get(value)); }
+    /** @see #listAdd(Value) */
     public T listAdd(boolean value) { return listAdd(Value.get(value)); }
+    /** @see #listAdd(Value) */
     public T listAdd(byte[] value) { return listAdd(Value.get(value)); }
+    /** @see #listAdd(Value) */
     public T listAdd(List<?> value) { return listAdd(Value.get(value)); }
+    /** @see #listAdd(Value) */
     public T listAdd(Map<?,?> value) { return listAdd(Value.get(value)); }
 
-    /** Add an item to the appropriate spot in an ordered list with options (e.g. addUnique, allowFailures). */
+    /**
+     * Add an item to an ordered list with optional write flags
+     * ({@link ListWriteOptions#addUnique()}, {@link ListWriteOptions#insertBounded()},
+     * {@link ListWriteOptions#allowFailures()}).
+     *
+     * @param value   value to add
+     * @param options optional write flags, or {@code null}
+     */
     public T listAdd(Value value, Consumer<ListEntryWriteOptions> options) {
         ListEntryWriteOptions opts = applyListOptions(options);
         ListPolicy policy = resolveListPolicy(ListOrder.ORDERED, opts);
@@ -268,24 +334,42 @@ public class AbstractCdtBuilder<T extends AbstractOperationBuilder<T>> {
             return this.opBuilder.addOp(ListOperation.append(policy, binName, value));
         }
     }
+
+    /** @see #listAdd(Value, Consumer) */
     public T listAdd(long value, Consumer<ListEntryWriteOptions> options) { return listAdd(Value.get(value), options); }
+    /** @see #listAdd(Value, Consumer) */
     public T listAdd(String value, Consumer<ListEntryWriteOptions> options) { return listAdd(Value.get(value), options); }
+    /** @see #listAdd(Value, Consumer) */
     public T listAdd(double value, Consumer<ListEntryWriteOptions> options) { return listAdd(Value.get(value), options); }
+    /** @see #listAdd(Value, Consumer) */
     public T listAdd(boolean value, Consumer<ListEntryWriteOptions> options) { return listAdd(Value.get(value), options); }
+    /** @see #listAdd(Value, Consumer) */
     public T listAdd(byte[] value, Consumer<ListEntryWriteOptions> options) { return listAdd(Value.get(value), options); }
+    /** @see #listAdd(Value, Consumer) */
     public T listAdd(List<?> value, Consumer<ListEntryWriteOptions> options) { return listAdd(Value.get(value), options); }
+    /** @see #listAdd(Value, Consumer) */
     public T listAdd(Map<?,?> value, Consumer<ListEntryWriteOptions> options) { return listAdd(Value.get(value), options); }
 
     // =================================
     // Bulk list append/add
     // =================================
 
-    /** Append multiple items to the end of an unordered list. */
+    /**
+     * Append multiple items to the end of an unordered list.
+     *
+     * @param items values to append, in order
+     */
     public T listAppendItems(List<?> items) {
         return listAppendItems(items, null);
     }
 
-    /** Append multiple items to the end of an unordered list with options. */
+    /**
+     * Append multiple items to the end of an unordered list with optional bulk write flags
+     * ({@link ListBulkWriteOptions}).
+     *
+     * @param items   values to append, in order
+     * @param options optional configuration (addUnique, insertBounded, allowFailures, allowPartial)
+     */
     public T listAppendItems(List<?> items, Consumer<ListBulkWriteOptions> options) {
         ListBulkWriteOptions opts = applyListBulkOptions(options);
         java.util.List<Value> valueList = toValueList(items);
@@ -308,12 +392,21 @@ public class AbstractCdtBuilder<T extends AbstractOperationBuilder<T>> {
         }
     }
 
-    /** Add multiple items to the appropriate spots in an ordered list. */
+    /**
+     * Add multiple items to an ordered list (server places each by sort order).
+     *
+     * @param items values to add
+     */
     public T listAddItems(List<?> items) {
         return listAddItems(items, null);
     }
 
-    /** Add multiple items to the appropriate spots in an ordered list with options. */
+    /**
+     * Add multiple items to an ordered list with optional bulk write flags ({@link ListBulkWriteOptions}).
+     *
+     * @param items   values to add
+     * @param options optional configuration (addUnique, insertBounded, allowFailures, allowPartial)
+     */
     public T listAddItems(List<?> items, Consumer<ListBulkWriteOptions> options) {
         ListBulkWriteOptions opts = applyListBulkOptions(options);
         ListPolicy policy = resolveListPolicy(ListOrder.ORDERED, opts);
@@ -331,7 +424,10 @@ public class AbstractCdtBuilder<T extends AbstractOperationBuilder<T>> {
     // List structural operations
     // =================================
 
-    /** Return the number of items in the list. */
+    /**
+     * Read the number of elements in the list at the current context.
+     *
+     */
     public T listSize() {
         if (params != null) {
             params.pushCurrentToContext();
@@ -342,7 +438,10 @@ public class AbstractCdtBuilder<T extends AbstractOperationBuilder<T>> {
         }
     }
 
-    /** Remove all items from the list without deleting the bin. */
+    /**
+     * Remove all elements from the list; the bin remains.
+     *
+     */
     public T listClear() {
         if (params != null) {
             params.pushCurrentToContext();
@@ -353,14 +452,19 @@ public class AbstractCdtBuilder<T extends AbstractOperationBuilder<T>> {
         }
     }
 
-    /** Sort the list using default sort flags. */
+    /**
+     * Sort the list with sort flags {@code 0}.
+     *
+     * @see #listSort(int)
+     */
     public T listSort() {
         return listSort(0);
     }
 
     /**
-     * Sort the list.
-     * @param sortFlags sort flags (e.g. {@code ListSortFlags.DROP_DUPLICATES})
+     * Sort the list in server-defined order (see Aerospike list sort flags).
+     *
+     * @param sortFlags sort flags; see {@link com.aerospike.client.fluent.cdt.ListSortFlags}
      */
     public T listSort(int sortFlags) {
         if (params != null) {
@@ -422,6 +526,7 @@ public class AbstractCdtBuilder<T extends AbstractOperationBuilder<T>> {
 
     /**
      * Set the ordering of an existing list.
+     *
      * @param order the list ordering to set
      */
     public T listSetOrder(ListOrder order) {
@@ -436,6 +541,7 @@ public class AbstractCdtBuilder<T extends AbstractOperationBuilder<T>> {
 
     /**
      * Set the ordering of an existing list with persist index option.
+     *
      * @param order the list ordering to set
      * @param persistIndex if true, persist the list index for faster lookups
      */
@@ -453,7 +559,12 @@ public class AbstractCdtBuilder<T extends AbstractOperationBuilder<T>> {
     // List index-based write operations
     // =================================
 
-    /** Insert a value at the specified list index, shifting subsequent elements right. */
+    /**
+     * Insert a value at {@code index}, shifting later elements toward the end.
+     *
+     * @param index list index (0-based)
+     * @param value value to insert
+     */
     public T listInsert(int index, Value value) {
         if (params != null) {
             params.pushCurrentToContext();
@@ -463,18 +574,35 @@ public class AbstractCdtBuilder<T extends AbstractOperationBuilder<T>> {
             return this.opBuilder.addOp(ListOperation.insert(binName, index, value));
         }
     }
+
+    /** @see #listInsert(int, Value) */
     public T listInsert(int index, long value) { return listInsert(index, Value.get(value)); }
+    /** @see #listInsert(int, Value) */
     public T listInsert(int index, String value) { return listInsert(index, Value.get(value)); }
+    /** @see #listInsert(int, Value) */
     public T listInsert(int index, double value) { return listInsert(index, Value.get(value)); }
+    /** @see #listInsert(int, Value) */
     public T listInsert(int index, boolean value) { return listInsert(index, Value.get(value)); }
+    /** @see #listInsert(int, Value) */
     public T listInsert(int index, byte[] value) { return listInsert(index, Value.get(value)); }
 
-    /** Insert multiple items at the specified list index. */
+    /**
+     * Insert multiple values at {@code index}, in order.
+     *
+     * @param index insertion position
+     * @param items values to insert
+     */
     public T listInsertItems(int index, List<?> items) {
         return listInsertItems(index, items, null);
     }
 
-    /** Insert multiple items at the specified list index with options. */
+    /**
+     * Insert multiple values at {@code index} with optional bulk write flags ({@link ListBulkWriteOptions}).
+     *
+     * @param index   insertion position
+     * @param items   values to insert
+     * @param options optional configuration (addUnique, insertBounded, allowFailures, allowPartial)
+     */
     public T listInsertItems(int index, List<?> items, Consumer<ListBulkWriteOptions> options) {
         ListBulkWriteOptions opts = applyListBulkOptions(options);
         java.util.List<Value> valueList = toValueList(items);
@@ -497,7 +625,12 @@ public class AbstractCdtBuilder<T extends AbstractOperationBuilder<T>> {
         }
     }
 
-    /** Set (replace) the value at the specified list index. */
+    /**
+     * Replace the element at {@code index}.
+     *
+     * @param index list index (0-based)
+     * @param value new value
+     */
     public T listSet(int index, Value value) {
         if (params != null) {
             params.pushCurrentToContext();
@@ -507,13 +640,23 @@ public class AbstractCdtBuilder<T extends AbstractOperationBuilder<T>> {
             return this.opBuilder.addOp(ListOperation.set(binName, index, value));
         }
     }
+
+    /** @see #listSet(int, Value) */
     public T listSet(int index, long value) { return listSet(index, Value.get(value)); }
+    /** @see #listSet(int, Value) */
     public T listSet(int index, String value) { return listSet(index, Value.get(value)); }
+    /** @see #listSet(int, Value) */
     public T listSet(int index, double value) { return listSet(index, Value.get(value)); }
+    /** @see #listSet(int, Value) */
     public T listSet(int index, boolean value) { return listSet(index, Value.get(value)); }
+    /** @see #listSet(int, Value) */
     public T listSet(int index, byte[] value) { return listSet(index, Value.get(value)); }
 
-    /** Increment the value at the specified list index by 1. */
+    /**
+     * Increment the numeric element at {@code index} by one.
+     *
+     * @param index list index (0-based)
+     */
     public T listIncrement(int index) {
         if (params != null) {
             params.pushCurrentToContext();
@@ -524,7 +667,12 @@ public class AbstractCdtBuilder<T extends AbstractOperationBuilder<T>> {
         }
     }
 
-    /** Increment the value at the specified list index by the given amount. */
+    /**
+     * Increment the numeric element at {@code index} by {@code value} (integer).
+     *
+     * @param index list index (0-based)
+     * @param value delta to add
+     */
     public T listIncrement(int index, long value) {
         if (params != null) {
             params.pushCurrentToContext();
@@ -535,7 +683,12 @@ public class AbstractCdtBuilder<T extends AbstractOperationBuilder<T>> {
         }
     }
 
-    /** Increment the value at the specified list index by the given amount. */
+    /**
+     * Increment the numeric element at {@code index} by {@code value} (floating-point).
+     *
+     * @param index list index (0-based)
+     * @param value delta to add
+     */
     public T listIncrement(int index, double value) {
         if (params != null) {
             params.pushCurrentToContext();
@@ -550,7 +703,11 @@ public class AbstractCdtBuilder<T extends AbstractOperationBuilder<T>> {
     // List index-based read operations
     // =================================
 
-    /** Get the value at the specified list index. */
+    /**
+     * Read the element at {@code index}.
+     *
+     * @param index list index (0-based)
+     */
     public T listGet(int index) {
         if (params != null) {
             params.pushCurrentToContext();
@@ -561,7 +718,11 @@ public class AbstractCdtBuilder<T extends AbstractOperationBuilder<T>> {
         }
     }
 
-    /** Get values from the specified list index to the end of the list. */
+    /**
+     * Read from {@code index} through the end of the list.
+     *
+     * @param index start index (0-based)
+     */
     public T listGetRange(int index) {
         if (params != null) {
             params.pushCurrentToContext();
@@ -572,7 +733,12 @@ public class AbstractCdtBuilder<T extends AbstractOperationBuilder<T>> {
         }
     }
 
-    /** Get {@code count} values starting at the specified list index. */
+    /**
+     * Read {@code count} elements starting at {@code index}.
+     *
+     * @param index start index (0-based)
+     * @param count number of elements
+     */
     public T listGetRange(int index, int count) {
         if (params != null) {
             params.pushCurrentToContext();
@@ -587,7 +753,11 @@ public class AbstractCdtBuilder<T extends AbstractOperationBuilder<T>> {
     // List index-based remove operations
     // =================================
 
-    /** Remove and discard the item at the specified list index. */
+    /**
+     * Remove the element at {@code index} without returning it.
+     *
+     * @param index list index (0-based)
+     */
     public T listRemove(int index) {
         if (params != null) {
             params.pushCurrentToContext();
@@ -598,7 +768,11 @@ public class AbstractCdtBuilder<T extends AbstractOperationBuilder<T>> {
         }
     }
 
-    /** Remove and discard items from the specified index to the end of the list. */
+    /**
+     * Remove from {@code index} through the end of the list.
+     *
+     * @param index start index (0-based)
+     */
     public T listRemoveRange(int index) {
         if (params != null) {
             params.pushCurrentToContext();
@@ -609,7 +783,12 @@ public class AbstractCdtBuilder<T extends AbstractOperationBuilder<T>> {
         }
     }
 
-    /** Remove and discard {@code count} items starting at the specified index. */
+    /**
+     * Remove {@code count} elements starting at {@code index}.
+     *
+     * @param index start index (0-based)
+     * @param count number of elements to remove
+     */
     public T listRemoveRange(int index, int count) {
         if (params != null) {
             params.pushCurrentToContext();
@@ -620,7 +799,11 @@ public class AbstractCdtBuilder<T extends AbstractOperationBuilder<T>> {
         }
     }
 
-    /** Remove and return the item at the specified list index. */
+    /**
+     * Remove and return the element at {@code index}.
+     *
+     * @param index list index (0-based)
+     */
     public T listPop(int index) {
         if (params != null) {
             params.pushCurrentToContext();
@@ -631,7 +814,11 @@ public class AbstractCdtBuilder<T extends AbstractOperationBuilder<T>> {
         }
     }
 
-    /** Remove and return items from the specified index to the end of the list. */
+    /**
+     * Remove and return from {@code index} through the end of the list.
+     *
+     * @param index start index (0-based)
+     */
     public T listPopRange(int index) {
         if (params != null) {
             params.pushCurrentToContext();
@@ -642,7 +829,12 @@ public class AbstractCdtBuilder<T extends AbstractOperationBuilder<T>> {
         }
     }
 
-    /** Remove and return {@code count} items starting at the specified index. */
+    /**
+     * Remove and return {@code count} elements starting at {@code index}.
+     *
+     * @param index start index (0-based)
+     * @param count number of elements
+     */
     public T listPopRange(int index, int count) {
         if (params != null) {
             params.pushCurrentToContext();
@@ -653,7 +845,12 @@ public class AbstractCdtBuilder<T extends AbstractOperationBuilder<T>> {
         }
     }
 
-    /** Keep {@code count} items starting at the specified index, removing all others. */
+    /**
+     * Keep {@code count} elements starting at {@code index}; remove all others.
+     *
+     * @param index start index (0-based)
+     * @param count number of elements to retain
+     */
     public T listTrim(int index, int count) {
         if (params != null) {
             params.pushCurrentToContext();

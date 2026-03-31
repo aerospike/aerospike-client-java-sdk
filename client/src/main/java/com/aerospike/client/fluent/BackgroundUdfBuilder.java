@@ -154,30 +154,55 @@ public class BackgroundUdfBuilder extends AbstractSessionOperationBuilder<Backgr
         return this;
     }
 
+    /**
+     * {@inheritDoc}
+     * <p>
+     * The predicate is applied on the server so only matching records run the UDF.
+     */
     @Override
     public BackgroundUdfBuilder where(String dsl, Object... params) {
         setWhereClause(createWhereClauseProcessor(true, dsl, params));
         return this;
     }
 
+    /**
+     * {@inheritDoc}
+     * <p>
+     * The predicate is applied on the server so only matching records run the UDF.
+     */
     @Override
     public BackgroundUdfBuilder where(BooleanExpression dsl) {
         setWhereClause(WhereClauseProcessor.from(dsl));
         return this;
     }
 
+    /**
+     * {@inheritDoc}
+     * <p>
+     * The predicate is applied on the server so only matching records run the UDF.
+     */
     @Override
     public BackgroundUdfBuilder where(PreparedDsl dsl, Object... params) {
         setWhereClause(WhereClauseProcessor.from(true, dsl, params));
         return this;
     }
 
+    /**
+     * {@inheritDoc}
+     * <p>
+     * The predicate is applied on the server so only matching records run the UDF.
+     */
     @Override
     public BackgroundUdfBuilder where(Exp exp) {
         setWhereClause(WhereClauseProcessor.from(exp));
         return this;
     }
 
+    /**
+     * {@inheritDoc}
+     * <p>
+     * The predicate is applied on the server so only matching records run the UDF.
+     */
     @Override
     public BackgroundUdfBuilder where(Expression e) {
         setWhereClause(WhereClauseProcessor.from(e));
@@ -198,6 +223,12 @@ public class BackgroundUdfBuilder extends AbstractSessionOperationBuilder<Backgr
         return this;
     }
 
+    /**
+     * Background UDF runs over a set (or filtered subset), not explicit keys, so filtered-out semantics
+     * for key-based reads do not apply.
+     *
+     * @throws UnsupportedOperationException always
+     */
     @Override
     public BackgroundUdfBuilder failOnFilteredOut() {
         throw new UnsupportedOperationException(
@@ -205,6 +236,11 @@ public class BackgroundUdfBuilder extends AbstractSessionOperationBuilder<Backgr
             "This method is only for key-based operations.");
     }
 
+    /**
+     * Background UDF does not address individual keys in a result stream.
+     *
+     * @throws UnsupportedOperationException always
+     */
     @Override
     public BackgroundUdfBuilder includeMissingKeys() {
         throw new UnsupportedOperationException(

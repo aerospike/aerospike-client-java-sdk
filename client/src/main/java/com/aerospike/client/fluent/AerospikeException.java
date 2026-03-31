@@ -36,50 +36,97 @@ public class AerospikeException extends RuntimeException {
     protected int iteration = -1;
     protected boolean inDoubt;
 
+    /**
+     * @param resultCode {@link ResultCode} constant
+     * @param message    detail message
+     */
     public AerospikeException(int resultCode, String message) {
         super(message);
         this.resultCode = resultCode;
     }
 
+	/**
+	 * @param resultCode {@link ResultCode} constant
+	 * @param e          cause (message typically comes from the throwable)
+	 */
 	public AerospikeException(int resultCode, Throwable e) {
 		super(e);
 		this.resultCode = resultCode;
 	}
 
+	/**
+	 * @param resultCode {@link ResultCode} constant; human-readable text from {@link ResultCode#getResultString(int)}
+	 */
 	public AerospikeException(int resultCode) {
 		super();
 		this.resultCode = resultCode;
 	}
 
+	/**
+	 * @param resultCode {@link ResultCode} constant
+	 * @param inDoubt    whether the operation may have succeeded on the server
+	 */
 	public AerospikeException(int resultCode, boolean inDoubt) {
 		super();
 		this.resultCode = resultCode;
 		this.inDoubt = inDoubt;
 	}
 
+    /**
+     * @param resultCode {@link ResultCode} constant
+     * @param message    detail message
+     * @param e          cause
+     */
     public AerospikeException(int resultCode, String message, Throwable e) {
         super(message, e);
         this.resultCode = resultCode;
     }
 
+    /**
+     * @param resultCode {@link ResultCode} constant
+     * @param message    detail message
+     * @param inDoubt    whether the operation may have succeeded on the server
+     */
     public AerospikeException(int resultCode, String message, boolean inDoubt) {
         super(message);
         this.resultCode = resultCode;
         this.inDoubt = inDoubt;
     }
 
+    /**
+     * Client-side or generic error with default {@link ResultCode#CLIENT_ERROR} result code.
+     *
+     * @param message detail message
+     * @param e       cause
+     */
     public AerospikeException(String message, Throwable e) {
         super(message, e);
     }
 
+	/**
+	 * Client-side or generic error with default {@link ResultCode#CLIENT_ERROR} result code.
+	 *
+	 * @param message detail message
+	 */
 	public AerospikeException(String message) {
         super(message);
     }
 
+	/**
+	 * Client-side or generic error with default {@link ResultCode#CLIENT_ERROR} result code.
+	 *
+	 * @param e cause
+	 */
 	public AerospikeException(Throwable e) {
 		super(e);
 	}
 
+	/**
+	 * {@inheritDoc}
+	 * <p>
+	 * Prefixes the base message with result code, retry iteration, timeout settings from {@link #setCommand},
+	 * optional {@code inDoubt} and {@link #node}, and any {@link #subExceptions}.
+	 */
 	@Override
 	public String getMessage() {
 		StringBuilder sb = new StringBuilder(512);
@@ -164,18 +211,22 @@ public class AerospikeException extends RuntimeException {
 		maxRetries = cmd.getMaxRetries();
 	}
 
+	/** Connect timeout (ms) copied from the last {@link #setCommand} call, or zero if unset. */
     public int getConnectTimeout() {
 		return connectTimeout;
 	}
 
+	/** Socket timeout (ms) from {@link #setCommand}, or zero if unset. */
 	public int getSocketTimeout() {
 		return socketTimeout;
 	}
 
+	/** Total timeout (ms) from {@link #setCommand}, or zero if unset. */
 	public int getTotalTimeout() {
 		return totalTimeout;
 	}
 
+	/** Max retries from {@link #setCommand}, or zero if unset. */
 	public int getMaxRetries() {
 		return maxRetries;
 	}
@@ -711,6 +762,11 @@ public class AerospikeException extends RuntimeException {
 			this.rollRecords = rollRecords;
 		}
 
+		/**
+		 * {@inheritDoc}
+		 * <p>
+		 * Appends a short summary of failed {@link #verifyRecords} and {@link #rollRecords} (up to a few entries each).
+		 */
 		@Override
 		public String getMessage() {
 			String msg = super.getMessage();
@@ -754,7 +810,12 @@ public class AerospikeException extends RuntimeException {
 		}
 	}
 
-	
+	/**
+	 * Same as {@link #resultCodeToException(int, String, boolean)} with {@code inDoubt == false}.
+	 *
+	 * @param resultCode {@link ResultCode} from the server or client
+	 * @param message    detail message (may be {@code null})
+	 */
     public static AerospikeException resultCodeToException(int resultCode, String message) {
         return resultCodeToException(resultCode, message, false); 
     }

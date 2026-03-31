@@ -60,10 +60,17 @@ public class AerospikeComparator implements Comparator<Object> {
     
     private final boolean caseSensitiveStrings;
 
+    /**
+     * Creates a comparator with case-sensitive {@link String} comparison.
+     */
     public AerospikeComparator() {
         this(true);
     }
-    
+
+    /**
+     * @param caseSensitiveStrings if {@code true}, {@link String} values use {@link String#compareTo};
+     *                             if {@code false}, {@link String#compareToIgnoreCase}
+     */
     public AerospikeComparator(boolean caseSensitiveStrings) {
         this.caseSensitiveStrings = caseSensitiveStrings;
     }
@@ -143,6 +150,13 @@ public class AerospikeComparator implements Comparator<Object> {
         }
     }
     
+    /**
+     * {@inheritDoc}
+     * <p>
+     * Compares by Aerospike type order first, then within-type rules (e.g. integral values as {@code long},
+     * floating-point as {@code double}, lexicographic strings, element-wise lists, key-sorted maps).
+     * Values that do not map to a supported Aerospike wire type throw {@link UnsupportedOperationException}.
+     */
     @Override
     @SuppressWarnings("unchecked")
     public int compare(Object o1, Object o2) {
