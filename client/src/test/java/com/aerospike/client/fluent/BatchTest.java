@@ -104,7 +104,7 @@ public class BatchTest extends ClusterTest {
 		}
 
         RecordStream recs = session.exists(args.set.ids(keys)).includeMissingKeys().execute();
-        List<Boolean> exists = recs.stream().map(rec ->rec.asBoolean()).toList();
+        List<Boolean> exists = recs.stream().map(rec -> rec.asBoolean()).toList();
 		assertEquals(Size, exists.size());
 
 		for (int i = 0; i < Size; i++) {

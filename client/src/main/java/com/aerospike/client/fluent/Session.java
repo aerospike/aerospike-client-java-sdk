@@ -263,14 +263,14 @@ public class Session {
      * <p>Example usage:</p>
      * <pre>{@code
      * // Simple query
-     * RecordStream results = session.query(users.id("user-123"))
+     * RecordStream results = session.query(dataset.id("user-123"))
      *     .bins("name", "email")
      *     .execute();
      *
      * // Query then write (chainable)
-     * session.query(users.id("user-1"))
+     * session.query(dataset.id("user-1"))
      *     .bin("name").get()
-     *     .upsert(users.id("user-2"))
+     *     .upsert(dataset.id("user-2"))
      *     .bin("status").setTo("active")
      *     .execute();
      * }</pre>
@@ -297,9 +297,9 @@ public class Session {
      * <p>Example usage:</p>
      * <pre>{@code
      * RecordStream results = session.query(
-     *     users.id("user-1"),
-     *     users.id("user-2"),
-     *     users.id("user-3")
+     *     dataset.id("user-1"),
+     *     dataset.id("user-2"),
+     *     dataset.id("user-3")
      * ).execute();
      * }</pre>
      *
@@ -324,9 +324,9 @@ public class Session {
      * <p>Example usage:</p>
      * <pre>{@code
      * List<Key> keys = Arrays.asList(
-     *     users.id("user-1"),
-     *     users.id("user-2"),
-     *     users.id("user-3")
+     *     dataset.id("user-1"),
+     *     dataset.id("user-2"),
+     *     dataset.id("user-3")
      * );
      * RecordStream results = session.query(keys)
      *     .bins("name", "email")
@@ -450,21 +450,21 @@ public class Session {
      * <p>Example:
      * <pre>{@code
      * // Execute a UDF with arguments
-     * session.executeUdf(users.id("user-1"))
+     * session.executeUdf(dataset.id("user-1"))
      *     .function("myPackage", "myFunction")
      *     .passing("arg1", 42, true)
      *     .execute();
      *
      * // Execute a UDF with no arguments
-     * session.executeUdf(users.id("user-1"))
+     * session.executeUdf(dataset.id("user-1"))
      *     .function("myPackage", "myFunction")
      *     .execute();
      *
      * // Chain with other operations
-     * session.executeUdf(users.id("user-1"))
+     * session.executeUdf(dataset.id("user-1"))
      *     .function("myPackage", "myFunction")
      *     .passing("arg1")
-     *     .upsert(users.id("user-2"))
+     *     .upsert(dataset.id("user-2"))
      *     .bin("name").setTo("Alice")
      *     .execute();
      * }</pre>
@@ -485,7 +485,7 @@ public class Session {
      *
      * <p>Example:
      * <pre>{@code
-     * session.executeUdf(users.id("user-1"), users.id("user-2"))
+     * session.executeUdf(dataset.id("user-1"), dataset.id("user-2"))
      *     .function("myPackage", "myFunction")
      *     .passing("arg1")
      *     .execute();
@@ -509,7 +509,7 @@ public class Session {
      *
      * <p>Example:
      * <pre>{@code
-     * List<Key> keys = Arrays.asList(users.id("user-1"), users.id("user-2"));
+     * List<Key> keys = Arrays.asList(dataset.id("user-1"), dataset.id("user-2"));
      * session.executeUdf(keys)
      *     .function("myPackage", "myFunction")
      *     .passing("arg1")
@@ -531,13 +531,14 @@ public class Session {
     // -------------------
 
     /**
-     * Begin an insert operation. Supports chaining multiple heterogeneous operations.
+     * Create record for the given key if it does not exist.
+     * The command will fail if the key exists.
      *
      * <p>Example:
      * <pre>{@code
-     * session.insert(users.id("user-1"))
+     * Key key = dataset.id("user-1");
+     * session.insert(key)
      *     .bin("name").setTo("Alice")
-     *     .update(users.id("user-2"))
      *     .bin("age").add(1)
      *     .execute();
      * }</pre>
@@ -550,7 +551,16 @@ public class Session {
     }
 
     /**
-     * Begin an insert operation on multiple keys.
+     * Create records for the given keys if they do not exist.
+     * The command will fail if a key exists.
+     *
+     * <p>Example:
+     * <pre>{@code
+     * List<Key> keys = dataset.ids("user-1", "user-2");
+     * session.insert(keys)
+     *     .bin("status").setTo("new")
+     *     .execute();
+     * }</pre>
      *
      * @param keys keys to insert in one batch chain
      * @return builder for further operations in the same batch
@@ -560,7 +570,15 @@ public class Session {
     }
 
     /**
-     * Begin an insert operation on multiple keys.
+     * Create records for the given keys if they do not exist.
+     * The command will fail if a key exists.
+     *
+     * <p>Example:
+     * <pre>{@code
+     * session.insert(dataset.id("user-1"), dataset.id("user-2"), dataset.id("user-3"))
+     *     .bin("status").setTo("new")
+     *     .execute();
+     * }</pre>
      *
      * @param key1 first key
      * @param key2 second key
@@ -572,7 +590,17 @@ public class Session {
     }
 
     /**
-     * Begin an update operation.
+     * Update record for the given key if it exists.
+     * The command will fail if the key does not exist.
+     *
+     * <p>Example:
+     * <pre>{@code
+     * Key key = dataset.id("user-1");
+     * session.update(key)
+     *     .bin("name").setTo("Alice")
+     *     .bin("age").add(1)
+     *     .execute();
+     * }</pre>
      *
      * @param key key to update
      * @return builder for further operations in the same batch
@@ -582,7 +610,16 @@ public class Session {
     }
 
     /**
-     * Begin an update operation on multiple keys.
+     * Update records for the given keys if they exist.
+     * The command will fail if a key does not exist.
+     *
+     * <p>Example:
+     * <pre>{@code
+     * List<Key> keys = dataset.ids("user-1", "user-2");
+     * session.update(keys)
+     *     .bin("status").setTo("new")
+     *     .execute();
+     * }</pre>
      *
      * @param keys keys to update in one batch chain
      * @return builder for further operations in the same batch
@@ -592,7 +629,15 @@ public class Session {
     }
 
     /**
-     * Begin an update operation on multiple keys.
+     * Update records for the given keys if they exist.
+     * The command will fail if a key does not exist.
+     *
+     * <p>Example:
+     * <pre>{@code
+     * session.update(dataset.id("user-1"), dataset.id("user-2"), dataset.id("user-3"))
+     *     .bin("status").setTo("new")
+     *     .execute();
+     * }</pre>
      *
      * @param key1 first key
      * @param key2 second key
@@ -604,7 +649,16 @@ public class Session {
     }
 
     /**
-     * Begin an upsert operation.
+     * Write record for the given key.
+     *
+     * <p>Example:
+     * <pre>{@code
+     * Key key = dataset.id("user-1");
+     * session.upsert(key)
+     *     .bin("name").setTo("Alice")
+     *     .bin("age").add(1)
+     *     .execute();
+     * }</pre>
      *
      * @param key key to upsert
      * @return builder for further operations in the same batch
@@ -614,8 +668,16 @@ public class Session {
     }
 
     /**
-     * Begin an upsert operation on multiple keys.
+     * Write records for the given keys.
      *
+     * <p>Example:
+     * <pre>{@code
+     * List<Key> keys = dataset.ids("user-1", "user-2");
+     * session.upsert(keys)
+     *     .bin("status").setTo("new")
+     *     .execute();
+     * }</pre>
+      *
      * @param keys keys to upsert in one batch chain
      * @return builder for further operations in the same batch
      */
@@ -624,7 +686,14 @@ public class Session {
     }
 
     /**
-     * Begin an upsert operation on multiple keys.
+     * Write records for the given keys.
+     *
+     * <p>Example:
+     * <pre>{@code
+     * session.upsert(dataset.id("user-1"), dataset.id("user-2"), dataset.id("user-3"))
+     *     .bin("status").setTo("new")
+     *     .execute();
+     * }</pre>
      *
      * @param key1 first key
      * @param key2 second key
@@ -636,7 +705,17 @@ public class Session {
     }
 
     /**
-     * Begin a replace operation.
+     * Replace record for the given key.
+     * Write referenced bins and delete other non-referenced bins.
+     *
+     * <p>Example:
+     * <pre>{@code
+     * Key key = dataset.id("user-1");
+     * session.replace(key)
+     *     .bin("name").setTo("Alice")
+     *     .bin("age").add(1)
+     *     .execute();
+     * }</pre>
      *
      * @param key key whose record is replaced in full
      * @return builder for further operations in the same batch
@@ -646,7 +725,16 @@ public class Session {
     }
 
     /**
-     * Begin a replace operation on multiple keys.
+     * Replace records for the given keys.
+     * Write referenced bins and delete other non-referenced bins.
+     *
+     * <p>Example:
+     * <pre>{@code
+     * List<Key> keys = dataset.ids("user-1", "user-2");
+     * session.replace(keys)
+     *     .bin("status").setTo("new")
+     *     .execute();
+     * }</pre>
      *
      * @param keys keys to replace in one batch chain
      * @return builder for further operations in the same batch
@@ -656,7 +744,15 @@ public class Session {
     }
 
     /**
-     * Begin a replace operation on multiple keys.
+     * Replace records for the given keys.
+     * Write referenced bins and delete other non-referenced bins.
+     *
+     * <p>Example:
+     * <pre>{@code
+     * session.replace(dataset.id("user-1"), dataset.id("user-2"), dataset.id("user-3"))
+     *     .bin("status").setTo("new")
+     *     .execute();
+     * }</pre>
      *
      * @param key1 first key
      * @param key2 second key
@@ -668,7 +764,18 @@ public class Session {
     }
 
     /**
-     * Begin a replaceIfExists operation (replace only if record exists, fail otherwise).
+     * Replace record for the given key if it exists.
+     * Write referenced bins and delete other non-referenced bins.
+     * The command will fail if the key does not exist.
+     *
+     * <p>Example:
+     * <pre>{@code
+     * Key key = dataset.id("user-1");
+     * session.replaceIfExists(key)
+     *     .bin("name").setTo("Alice")
+     *     .bin("age").add(1)
+     *     .execute();
+     * }</pre>
      *
      * @param key key to replace
      * @return builder for further operations in the same batch
@@ -678,7 +785,17 @@ public class Session {
     }
 
     /**
-     * Begin a replaceIfExists operation on multiple keys.
+     * Replace records for the given keys if they exist.
+     * Write referenced bins and delete other non-referenced bins.
+     * The command will fail if a key does not exist.
+     *
+     * <p>Example:
+     * <pre>{@code
+     * List<Key> keys = dataset.ids("user-1", "user-2");
+     * session.replaceIfExists(keys)
+     *     .bin("status").setTo("new")
+     *     .execute();
+     * }</pre>
      *
      * @param keys keys to replace-if-exists in one batch chain
      * @return builder for further operations in the same batch
@@ -688,7 +805,16 @@ public class Session {
     }
 
     /**
-     * Begin a replaceIfExists operation on multiple keys.
+     * Replace records for the given keys if they exist.
+     * Write referenced bins and delete other non-referenced bins.
+     * The command will fail if a key does not exist.
+     *
+     * <p>Example:
+     * <pre>{@code
+     * session.replaceIfExists(dataset.id("user-1"), dataset.id("user-2"), dataset.id("user-3"))
+     *     .bin("status").setTo("new")
+     *     .execute();
+     * }</pre>
      *
      * @param key1 first key
      * @param key2 second key
@@ -700,7 +826,17 @@ public class Session {
     }
 
     /**
-     * Begin a touch operation. Chainable with other operations.
+	 * Reset record time to expiration for the given key.
+	 * If the record does not exist, it can't be created because the server deletes empty records.
+	 * The command will fail if the key does not exist.
+     *
+     * <p>Example:
+     * <pre>{@code
+     * Key key = dataset.id("user-1");
+     * session.touch(key)
+     *     .expireRecordAfter(Duration.ofSeconds(1000))
+     *     .execute();
+     * }</pre>
      *
      * @param key key whose record TTL is touched
      * @return builder for further no-bin operations in the same batch
@@ -711,7 +847,37 @@ public class Session {
     }
 
     /**
-     * Begin a touch operation on multiple keys.
+	 * Reset records time to expiration for the given keys.
+	 * If a record does not exist, it can't be created because the server deletes empty records.
+	 * The command will fail if a key does not exist.
+     *
+     * <p>Example:
+     * <pre>{@code
+     * List<Key> keys = dataset.ids("user-1", "user-2");
+     * session.touch(keys)
+     *     .expireRecordAfter(Duration.ofSeconds(1000))
+     *     .execute();
+     * }</pre>
+     *
+     * @param keys keys to touch in one batch chain
+     * @return builder for further no-bin operations in the same batch
+     */
+    public ChainableNoBinsBuilder touch(List<Key> keys) {
+        return new ChainableNoBinsBuilder(this, new ArrayList<>(), null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, getCurrentTransaction())
+                .touch(keys);
+    }
+
+    /**
+	 * Reset records time to expiration for the given keys.
+	 * If a record does not exist, it can't be created because the server deletes empty records.
+	 * The command will fail if a key does not exist.
+     *
+     * <p>Example:
+     * <pre>{@code
+     * session.touch(dataset.id("user-1"), dataset.id("user-2"), dataset.id("user-3"))
+     *     .expireRecordAfter(Duration.ofSeconds(1000))
+     *     .execute();
+     * }</pre>
      *
      * @param key1 first key
      * @param key2 second key
@@ -724,18 +890,14 @@ public class Session {
     }
 
     /**
-     * Begin a touch operation on multiple keys.
+	 * Determine if a key exists.
      *
-     * @param keys keys to touch in one batch chain
-     * @return builder for further no-bin operations in the same batch
-     */
-    public ChainableNoBinsBuilder touch(List<Key> keys) {
-        return new ChainableNoBinsBuilder(this, new ArrayList<>(), null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, getCurrentTransaction())
-                .touch(keys);
-    }
-
-    /**
-     * Begin an exists operation. Chainable with other operations.
+     * <p>Example:
+     * <pre>{@code
+     * Key key = dataset.id("user-1");
+     * RecordStream rs = session.exists(key).execute();
+	 * Record rec = rs.getFirstRecord();
+     * }</pre>
      *
      * @param key key to test for existence
      * @return builder for further no-bin operations in the same batch
@@ -746,7 +908,32 @@ public class Session {
     }
 
     /**
-     * Begin an exists operation on multiple keys.
+	 * Determine if keys exist.
+     *
+     * <p>Example:
+     * <pre>{@code
+     * List<Key> keys = dataset.ids("user-1", "user-2");
+     * RecordStream rs = session.exists(keys).execute();
+     * List<Boolean> exists = rs.stream().map(rec -> rec.asBoolean()).toList();
+     * }</pre>
+     *
+     * @param keys keys to test in one batch chain
+     * @return builder for further no-bin operations in the same batch
+     */
+    public ChainableNoBinsBuilder exists(List<Key> keys) {
+        return new ChainableNoBinsBuilder(this, new ArrayList<>(), null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, getCurrentTransaction())
+                .exists(keys);
+    }
+
+    /**
+	 * Determine if keys exist.
+     *
+     * <p>Example:
+     * <pre>{@code
+     * RecordStream rs = session.exists(dataset.id("user-1"), dataset.id("user-2"), dataset.id("user-3"))
+     *     .execute();
+     * List<Boolean> exists = rs.stream().map(rec -> rec.asBoolean()).toList();
+     * }</pre>
      *
      * @param key1 first key
      * @param key2 second key
@@ -756,17 +943,6 @@ public class Session {
     public ChainableNoBinsBuilder exists(Key key1, Key key2, Key ... keys) {
         return new ChainableNoBinsBuilder(this, new ArrayList<>(), null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, getCurrentTransaction())
                 .exists(buildKeyList(key1, key2, keys));
-    }
-
-    /**
-     * Begin an exists operation on multiple keys.
-     *
-     * @param keys keys to test in one batch chain
-     * @return builder for further no-bin operations in the same batch
-     */
-    public ChainableNoBinsBuilder exists(List<Key> keys) {
-        return new ChainableNoBinsBuilder(this, new ArrayList<>(), null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, getCurrentTransaction())
-                .exists(keys);
     }
 
     /**
@@ -1082,7 +1258,7 @@ public class Session {
      * <p>Example usage:</p>
      * <pre>{@code
      * String result = session.doInTransactionReturning(tx -> {
-     *     RecordStream results = tx.query(users.id(userId)).execute();
+     *     RecordStream results = tx.query(dataset.id(userId)).execute();
      *     Record record = results.getFirst().get().recordOrThrow();
      *     return record.getString("name");
      * });
@@ -1153,7 +1329,7 @@ public class Session {
      * <p><b>Example usage:</b>
      * <pre>{@code
      * String userName = session.doInTransactionReturning(tx -> {
-     *     RecordStream results = tx.query(users.id(userId)).execute();
+     *     RecordStream results = tx.query(dataset.id(userId)).execute();
      *     Record record = results.getFirst().get().recordOrThrow();
      *     return record.getString("name");
      * });
