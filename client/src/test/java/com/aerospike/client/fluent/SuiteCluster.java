@@ -74,7 +74,8 @@ import com.aerospike.client.fluent.policy.Behavior;
     QueryIntegerTest.class,
     QueryKeyTest.class,
     QueryRPSTest.class,
-    QueryStringTest.class
+    QueryStringTest.class,
+	QueryWithPartitionPaginationTest.class
 })
 public class SuiteCluster {
 	@BeforeSuite
