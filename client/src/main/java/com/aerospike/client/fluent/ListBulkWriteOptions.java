@@ -43,5 +43,10 @@ public class ListBulkWriteOptions extends ListWriteOptions<ListBulkWriteOptions>
      */
     public ListBulkWriteOptions allowPartial() { this.allowPartial = true; return this; }
 
+    /**
+     * Whether {@link #allowPartial()} was set, i.e. bulk writes may commit valid items when others are denied.
+     *
+     * @return {@code true} if partial success is allowed for bulk list writes
+     */
     public boolean isAllowPartial() { return allowPartial; }
 }

@@ -65,6 +65,11 @@ public final class Log {
 		 */
 		public final String clusterName;
 
+		/**
+		 * Creates a context with the given cluster name for {@link Callback#log(Context, Level, String)}.
+		 *
+		 * @param clusterName cluster label for the message, or empty string if none
+		 */
 		public Context(String clusterName)
 		{
 			this.clusterName = clusterName;
@@ -226,6 +231,13 @@ public final class Log {
 		}
 	}
 
+	/**
+	 * Filter and forward a message to the registered callback with cluster (or other) context.
+	 *
+	 * @param context additional context (e.g. {@link Context#clusterName}); use {@link Context#Empty} if none
+	 * @param level   message severity level
+	 * @param message message string not terminated with a newline
+	 */
 	public static void log(Context context, Level level, String message) {
 		if (gCallback != null && level.ordinal() <= gLevel.ordinal()) {
 			try {

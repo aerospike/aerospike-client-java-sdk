@@ -70,6 +70,7 @@ public class CdtReadOnlyBuilder<T> implements CdtReadContextBuilder<T>,
     // Terminal Read Operations (getValues, getKeys, count, etc.)
     // ========================================
 
+    /** {@inheritDoc} */
     @Override
     public T getValues() {
         switch (params.getOperation()) {
@@ -142,6 +143,7 @@ public class CdtReadOnlyBuilder<T> implements CdtReadContextBuilder<T>,
         }
     }
 
+    /** {@inheritDoc} */
     @Override
     public T getKeys() {
         switch (params.getOperation()) {
@@ -194,6 +196,7 @@ public class CdtReadOnlyBuilder<T> implements CdtReadContextBuilder<T>,
         }
     }
 
+    /** {@inheritDoc} */
     @Override
     public T count() {
         switch (params.getOperation()) {
@@ -266,6 +269,7 @@ public class CdtReadOnlyBuilder<T> implements CdtReadContextBuilder<T>,
         }
     }
 
+    /** {@inheritDoc} */
     @Override
     public T getIndexes() {
         switch (params.getOperation()) {
@@ -318,6 +322,7 @@ public class CdtReadOnlyBuilder<T> implements CdtReadContextBuilder<T>,
         }
     }
 
+    /** {@inheritDoc} */
     @Override
     public T getReverseIndexes() {
         switch (params.getOperation()) {
@@ -370,6 +375,7 @@ public class CdtReadOnlyBuilder<T> implements CdtReadContextBuilder<T>,
         }
     }
 
+    /** {@inheritDoc} */
     @Override
     public T getRanks() {
         switch (params.getOperation()) {
@@ -422,6 +428,7 @@ public class CdtReadOnlyBuilder<T> implements CdtReadContextBuilder<T>,
         }
     }
 
+    /** {@inheritDoc} */
     @Override
     public T getReverseRanks() {
         switch (params.getOperation()) {
@@ -474,6 +481,7 @@ public class CdtReadOnlyBuilder<T> implements CdtReadContextBuilder<T>,
         }
     }
 
+    /** {@inheritDoc} */
     @Override
     public T getKeysAndValues() {
         switch (params.getOperation()) {
@@ -526,6 +534,7 @@ public class CdtReadOnlyBuilder<T> implements CdtReadContextBuilder<T>,
         }
     }
 
+    /** {@inheritDoc} */
     @Override
     public T exists() {
         switch (params.getOperation()) {
@@ -712,41 +721,49 @@ public class CdtReadOnlyBuilder<T> implements CdtReadContextBuilder<T>,
     // Invertable Read Operations (getAllOther*)
     // ========================================
 
+    /** {@inheritDoc} */
     @Override
     public T getAllOtherValues() {
         return getWithInverted(MapReturnType.VALUE, ListReturnType.VALUE, "getAllOtherValues");
     }
 
+    /** {@inheritDoc} */
     @Override
     public T getAllOtherKeys() {
         return getWithInverted(MapReturnType.KEY, -1, "getAllOtherKeys");
     }
 
+    /** {@inheritDoc} */
     @Override
     public T countAllOthers() {
         return getWithInverted(MapReturnType.COUNT, ListReturnType.COUNT, "countAllOthers");
     }
 
+    /** {@inheritDoc} */
     @Override
     public T getAllOtherIndexes() {
         return getWithInverted(MapReturnType.INDEX, -1, "getAllOtherIndexes");
     }
 
+    /** {@inheritDoc} */
     @Override
     public T getAllOtherReverseIndexes() {
         return getWithInverted(MapReturnType.REVERSE_INDEX, -1, "getAllOtherReverseIndexes");
     }
 
+    /** {@inheritDoc} */
     @Override
     public T getAllOtherRanks() {
         return getWithInverted(MapReturnType.RANK, -1, "getAllOtherRanks");
     }
 
+    /** {@inheritDoc} */
     @Override
     public T getAllOtherReverseRanks() {
         return getWithInverted(MapReturnType.REVERSE_RANK, -1, "getAllOtherReverseRanks");
     }
 
+    /** {@inheritDoc} */
     @Override
     public T getAllOtherKeysAndValues() {
         return getWithInverted(MapReturnType.KEY_VALUE, -1, "getAllOtherKeysAndValues");
@@ -841,6 +858,7 @@ public class CdtReadOnlyBuilder<T> implements CdtReadContextBuilder<T>,
         }
     }
 
+    /** {@inheritDoc} */
     @Override
     public T mapSize() {
         return addOpAndReturn(MapOperation.size(binName, params.context()));
@@ -850,216 +868,252 @@ public class CdtReadOnlyBuilder<T> implements CdtReadContextBuilder<T>,
     // Context Navigation Methods
     // ========================================
 
+    /** @see CdtGetOrRemoveBuilder#onMapIndex(int index) */
     @Override
     public CdtReadContextBuilder<T> onMapIndex(int index) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_INDEX, index);
         return this;
     }
 
+    /** @see CdtGetOrRemoveBuilder#onMapIndexRange(int index, int count) */
     @Override
     public CdtReadActionInvertableBuilder<T> onMapIndexRange(int index, int count) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_INDEX_RANGE, index, count);
         return this;
     }
 
+    /** @see CdtGetOrRemoveBuilder#onMapIndexRange(int index) */
     @Override
     public CdtReadActionInvertableBuilder<T> onMapIndexRange(int index) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_INDEX_RANGE, index);
         return this;
     }
 
+    /** @see CdtGetOrRemoveBuilder#onMapKey(long key) */
     @Override
     public CdtReadContextBuilder<T> onMapKey(long key) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_KEY, Value.get(key));
         return this;
     }
 
+    /** @see CdtGetOrRemoveBuilder#onMapKey(String key) */
     @Override
     public CdtReadContextBuilder<T> onMapKey(String key) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_KEY, Value.get(key));
         return this;
     }
 
+    /** @see CdtGetOrRemoveBuilder#onMapKey(byte[] key) */
     @Override
     public CdtReadContextBuilder<T> onMapKey(byte[] key) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_KEY, Value.get(key));
         return this;
     }
 
+    /** @see CdtGetOrRemoveBuilder#onMapKeyRange(long startIncl, long endExcl) */
     @Override
     public CdtReadActionInvertableBuilder<T> onMapKeyRange(long startIncl, long endExcl) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_KEY_RANGE, Value.get(startIncl), Value.get(endExcl));
         return this;
     }
 
+    /** @see CdtGetOrRemoveBuilder#onMapKeyRange(String startIncl, String endExcl) */
     @Override
     public CdtReadActionInvertableBuilder<T> onMapKeyRange(String startIncl, String endExcl) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_KEY_RANGE, Value.get(startIncl), Value.get(endExcl));
         return this;
     }
 
+    /** @see CdtGetOrRemoveBuilder#onMapKeyRange(byte[] startIncl, byte[] endExcl) */
     @Override
     public CdtReadActionInvertableBuilder<T> onMapKeyRange(byte[] startIncl, byte[] endExcl) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_KEY_RANGE, Value.get(startIncl), Value.get(endExcl));
         return this;
     }
 
+    /** @see CdtGetOrRemoveBuilder#onMapKeyRange(double startIncl, double endExcl) */
     @Override
     public CdtReadActionInvertableBuilder<T> onMapKeyRange(double startIncl, double endExcl) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_KEY_RANGE, Value.get(startIncl), Value.get(endExcl));
         return this;
     }
 
+    /** @see CdtGetOrRemoveBuilder#onMapKeyRange(SpecialValue startIncl, SpecialValue endExcl) */
     @Override
     public CdtReadActionInvertableBuilder<T> onMapKeyRange(SpecialValue startIncl, SpecialValue endExcl) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_KEY_RANGE, startIncl.toAerospikeValue(), endExcl.toAerospikeValue());
         return this;
     }
 
+    /** @see CdtGetOrRemoveBuilder#onMapKeyRange(SpecialValue startIncl, long endExcl) */
     @Override
     public CdtReadActionInvertableBuilder<T> onMapKeyRange(SpecialValue startIncl, long endExcl) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_KEY_RANGE, startIncl.toAerospikeValue(), Value.get(endExcl));
         return this;
     }
 
+    /** @see CdtGetOrRemoveBuilder#onMapKeyRange(SpecialValue startIncl, String endExcl) */
     @Override
     public CdtReadActionInvertableBuilder<T> onMapKeyRange(SpecialValue startIncl, String endExcl) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_KEY_RANGE, startIncl.toAerospikeValue(), Value.get(endExcl));
         return this;
     }
 
+    /** @see CdtGetOrRemoveBuilder#onMapKeyRange(SpecialValue startIncl, byte[] endExcl) */
     @Override
     public CdtReadActionInvertableBuilder<T> onMapKeyRange(SpecialValue startIncl, byte[] endExcl) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_KEY_RANGE, startIncl.toAerospikeValue(), Value.get(endExcl));
         return this;
     }
 
+    /** @see CdtGetOrRemoveBuilder#onMapKeyRange(SpecialValue startIncl, double endExcl) */
     @Override
     public CdtReadActionInvertableBuilder<T> onMapKeyRange(SpecialValue startIncl, double endExcl) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_KEY_RANGE, startIncl.toAerospikeValue(), Value.get(endExcl));
         return this;
     }
 
+    /** @see CdtGetOrRemoveBuilder#onMapKeyRange(long startIncl, SpecialValue endExcl) */
     @Override
     public CdtReadActionInvertableBuilder<T> onMapKeyRange(long startIncl, SpecialValue endExcl) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_KEY_RANGE, Value.get(startIncl), endExcl.toAerospikeValue());
         return this;
     }
 
+    /** @see CdtGetOrRemoveBuilder#onMapKeyRange(String startIncl, SpecialValue endExcl) */
     @Override
     public CdtReadActionInvertableBuilder<T> onMapKeyRange(String startIncl, SpecialValue endExcl) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_KEY_RANGE, Value.get(startIncl), endExcl.toAerospikeValue());
         return this;
     }
 
+    /** @see CdtGetOrRemoveBuilder#onMapKeyRange(byte[] startIncl, SpecialValue endExcl) */
     @Override
     public CdtReadActionInvertableBuilder<T> onMapKeyRange(byte[] startIncl, SpecialValue endExcl) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_KEY_RANGE, Value.get(startIncl), endExcl.toAerospikeValue());
         return this;
     }
 
+    /** @see CdtGetOrRemoveBuilder#onMapKeyRange(double startIncl, SpecialValue endExcl) */
     @Override
     public CdtReadActionInvertableBuilder<T> onMapKeyRange(double startIncl, SpecialValue endExcl) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_KEY_RANGE, Value.get(startIncl), endExcl.toAerospikeValue());
         return this;
     }
 
+    /** @see CdtGetOrRemoveBuilder#onMapKeyRelativeIndexRange(long key, int index) */
     @Override
     public CdtReadActionInvertableBuilder<T> onMapKeyRelativeIndexRange(long key, int index) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_KEY_REL_INDEX_RANGE, Value.get(key), index);
         return this;
     }
 
+    /** @see CdtGetOrRemoveBuilder#onMapKeyRelativeIndexRange(String key, int index) */
     @Override
     public CdtReadActionInvertableBuilder<T> onMapKeyRelativeIndexRange(String key, int index) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_KEY_REL_INDEX_RANGE, Value.get(key), index);
         return this;
     }
 
+    /** @see CdtGetOrRemoveBuilder#onMapKeyRelativeIndexRange(byte[] key, int index) */
     @Override
     public CdtReadActionInvertableBuilder<T> onMapKeyRelativeIndexRange(byte[] key, int index) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_KEY_REL_INDEX_RANGE, Value.get(key), index);
         return this;
     }
 
+    /** @see CdtGetOrRemoveBuilder#onMapKeyRelativeIndexRange(long key, int index, int count) */
     @Override
     public CdtReadActionInvertableBuilder<T> onMapKeyRelativeIndexRange(long key, int index, int count) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_KEY_REL_INDEX_RANGE, Value.get(key), index, count);
         return this;
     }
 
+    /** @see CdtGetOrRemoveBuilder#onMapKeyRelativeIndexRange(String key, int index, int count) */
     @Override
     public CdtReadActionInvertableBuilder<T> onMapKeyRelativeIndexRange(String key, int index, int count) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_KEY_REL_INDEX_RANGE, Value.get(key), index, count);
         return this;
     }
 
+    /** @see CdtGetOrRemoveBuilder#onMapKeyRelativeIndexRange(byte[] key, int index, int count) */
     @Override
     public CdtReadActionInvertableBuilder<T> onMapKeyRelativeIndexRange(byte[] key, int index, int count) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_KEY_REL_INDEX_RANGE, Value.get(key), index, count);
         return this;
     }
 
+    /** @see CdtGetOrRemoveBuilder#onMapRank(int index) */
     @Override
     public CdtReadContextBuilder<T> onMapRank(int index) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_RANK, index);
         return this;
     }
 
+    /** @see CdtGetOrRemoveBuilder#onMapRankRange(int rank, int count) */
     @Override
     public CdtReadActionInvertableBuilder<T> onMapRankRange(int rank, int count) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_RANK_RANGE, rank, count);
         return this;
     }
 
+    /** @see CdtGetOrRemoveBuilder#onMapRankRange(int rank) */
     @Override
     public CdtReadActionInvertableBuilder<T> onMapRankRange(int rank) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_RANK_RANGE, rank);
         return this;
     }
 
+    /** @see CdtGetOrRemoveBuilder#onMapValue(long value) */
     @Override
     public CdtReadContextInvertableBuilder<T> onMapValue(long value) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_VALUE, Value.get(value));
         return this;
     }
 
+    /** @see CdtGetOrRemoveBuilder#onMapValue(String value) */
     @Override
     public CdtReadContextInvertableBuilder<T> onMapValue(String value) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_VALUE, Value.get(value));
         return this;
     }
 
+    /** @see CdtGetOrRemoveBuilder#onMapValue(byte[] value) */
     @Override
     public CdtReadContextInvertableBuilder<T> onMapValue(byte[] value) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_VALUE, Value.get(value));
         return this;
     }
 
+    /** @see CdtGetOrRemoveBuilder#onMapValue(double value) */
     @Override
     public CdtReadContextInvertableBuilder<T> onMapValue(double value) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_VALUE, Value.get(value));
         return this;
     }
 
+    /** @see CdtGetOrRemoveBuilder#onMapValue(boolean value) */
     @Override
     public CdtReadContextInvertableBuilder<T> onMapValue(boolean value) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_VALUE, Value.get(value));
         return this;
     }
 
+    /** @see CdtGetOrRemoveBuilder#onMapValue(List<?> value) */
     @Override
     public CdtReadContextInvertableBuilder<T> onMapValue(List<?> value) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_VALUE, Value.get(value));
         return this;
     }
 
+    /** @see CdtGetOrRemoveBuilder#onMapValue(Map<?,?> value) */
     @Override
     public CdtReadContextInvertableBuilder<T> onMapValue(Map<?,?> value) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_VALUE, Value.get(value));
         return this;
     }
 
+    /** @see CdtGetOrRemoveBuilder#onMapValue(SpecialValue value) */
     @Override
     public CdtReadContextInvertableBuilder<T> onMapValue(SpecialValue value) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_VALUE, value.toAerospikeValue());
@@ -1067,132 +1121,154 @@ public class CdtReadOnlyBuilder<T> implements CdtReadContextBuilder<T>,
     }
 
     // Map value range methods - all overloads
+    /** @see CdtGetOrRemoveBuilder#onMapValueRange(long startIncl, long endExcl) */
     @Override
     public CdtReadActionInvertableBuilder<T> onMapValueRange(long startIncl, long endExcl) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_VALUE_RANGE, Value.get(startIncl), Value.get(endExcl));
         return this;
     }
 
+    /** @see CdtGetOrRemoveBuilder#onMapValueRange(String startIncl, String endExcl) */
     @Override
     public CdtReadActionInvertableBuilder<T> onMapValueRange(String startIncl, String endExcl) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_VALUE_RANGE, Value.get(startIncl), Value.get(endExcl));
         return this;
     }
 
+    /** @see CdtGetOrRemoveBuilder#onMapValueRange(byte[] startIncl, byte[] endExcl) */
     @Override
     public CdtReadActionInvertableBuilder<T> onMapValueRange(byte[] startIncl, byte[] endExcl) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_VALUE_RANGE, Value.get(startIncl), Value.get(endExcl));
         return this;
     }
 
+    /** @see CdtGetOrRemoveBuilder#onMapValueRange(double startIncl, double endExcl) */
     @Override
     public CdtReadActionInvertableBuilder<T> onMapValueRange(double startIncl, double endExcl) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_VALUE_RANGE, Value.get(startIncl), Value.get(endExcl));
         return this;
     }
 
+    /** @see CdtGetOrRemoveBuilder#onMapValueRange(boolean startIncl, boolean endExcl) */
     @Override
     public CdtReadActionInvertableBuilder<T> onMapValueRange(boolean startIncl, boolean endExcl) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_VALUE_RANGE, Value.get(startIncl), Value.get(endExcl));
         return this;
     }
 
+    /** @see CdtGetOrRemoveBuilder#onMapValueRange(List<?> startIncl, List<?> endExcl) */
     @Override
     public CdtReadActionInvertableBuilder<T> onMapValueRange(List<?> startIncl, List<?> endExcl) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_VALUE_RANGE, Value.get(startIncl), Value.get(endExcl));
         return this;
     }
 
+    /** @see CdtGetOrRemoveBuilder#onMapValueRange(Map<?,?> startIncl, Map<?,?> endExcl) */
     @Override
     public CdtReadActionInvertableBuilder<T> onMapValueRange(Map<?,?> startIncl, Map<?,?> endExcl) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_VALUE_RANGE, Value.get(startIncl), Value.get(endExcl));
         return this;
     }
 
+    /** @see CdtGetOrRemoveBuilder#onMapValueRange(SpecialValue startIncl, SpecialValue endExcl) */
     @Override
     public CdtReadActionInvertableBuilder<T> onMapValueRange(SpecialValue startIncl, SpecialValue endExcl) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_VALUE_RANGE, startIncl.toAerospikeValue(), endExcl.toAerospikeValue());
         return this;
     }
 
+    /** @see CdtGetOrRemoveBuilder#onMapValueRange(SpecialValue startIncl, long endExcl) */
     @Override
     public CdtReadActionInvertableBuilder<T> onMapValueRange(SpecialValue startIncl, long endExcl) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_VALUE_RANGE, startIncl.toAerospikeValue(), Value.get(endExcl));
         return this;
     }
 
+    /** @see CdtGetOrRemoveBuilder#onMapValueRange(SpecialValue startIncl, String endExcl) */
     @Override
     public CdtReadActionInvertableBuilder<T> onMapValueRange(SpecialValue startIncl, String endExcl) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_VALUE_RANGE, startIncl.toAerospikeValue(), Value.get(endExcl));
         return this;
     }
 
+    /** @see CdtGetOrRemoveBuilder#onMapValueRange(SpecialValue startIncl, byte[] endExcl) */
     @Override
     public CdtReadActionInvertableBuilder<T> onMapValueRange(SpecialValue startIncl, byte[] endExcl) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_VALUE_RANGE, startIncl.toAerospikeValue(), Value.get(endExcl));
         return this;
     }
 
+    /** @see CdtGetOrRemoveBuilder#onMapValueRange(SpecialValue startIncl, double endExcl) */
     @Override
     public CdtReadActionInvertableBuilder<T> onMapValueRange(SpecialValue startIncl, double endExcl) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_VALUE_RANGE, startIncl.toAerospikeValue(), Value.get(endExcl));
         return this;
     }
 
+    /** @see CdtGetOrRemoveBuilder#onMapValueRange(SpecialValue startIncl, boolean endExcl) */
     @Override
     public CdtReadActionInvertableBuilder<T> onMapValueRange(SpecialValue startIncl, boolean endExcl) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_VALUE_RANGE, startIncl.toAerospikeValue(), Value.get(endExcl));
         return this;
     }
 
+    /** @see CdtGetOrRemoveBuilder#onMapValueRange(SpecialValue startIncl, List<?> endExcl) */
     @Override
     public CdtReadActionInvertableBuilder<T> onMapValueRange(SpecialValue startIncl, List<?> endExcl) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_VALUE_RANGE, startIncl.toAerospikeValue(), Value.get(endExcl));
         return this;
     }
 
+    /** @see CdtGetOrRemoveBuilder#onMapValueRange(SpecialValue startIncl, Map<?,?> endExcl) */
     @Override
     public CdtReadActionInvertableBuilder<T> onMapValueRange(SpecialValue startIncl, Map<?,?> endExcl) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_VALUE_RANGE, startIncl.toAerospikeValue(), Value.get(endExcl));
         return this;
     }
 
+    /** @see CdtGetOrRemoveBuilder#onMapValueRange(long startIncl, SpecialValue endExcl) */
     @Override
     public CdtReadActionInvertableBuilder<T> onMapValueRange(long startIncl, SpecialValue endExcl) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_VALUE_RANGE, Value.get(startIncl), endExcl.toAerospikeValue());
         return this;
     }
 
+    /** @see CdtGetOrRemoveBuilder#onMapValueRange(String startIncl, SpecialValue endExcl) */
     @Override
     public CdtReadActionInvertableBuilder<T> onMapValueRange(String startIncl, SpecialValue endExcl) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_VALUE_RANGE, Value.get(startIncl), endExcl.toAerospikeValue());
         return this;
     }
 
+    /** @see CdtGetOrRemoveBuilder#onMapValueRange(byte[] startIncl, SpecialValue endExcl) */
     @Override
     public CdtReadActionInvertableBuilder<T> onMapValueRange(byte[] startIncl, SpecialValue endExcl) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_VALUE_RANGE, Value.get(startIncl), endExcl.toAerospikeValue());
         return this;
     }
 
+    /** @see CdtGetOrRemoveBuilder#onMapValueRange(double startIncl, SpecialValue endExcl) */
     @Override
     public CdtReadActionInvertableBuilder<T> onMapValueRange(double startIncl, SpecialValue endExcl) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_VALUE_RANGE, Value.get(startIncl), endExcl.toAerospikeValue());
         return this;
     }
 
+    /** @see CdtGetOrRemoveBuilder#onMapValueRange(boolean startIncl, SpecialValue endExcl) */
     @Override
     public CdtReadActionInvertableBuilder<T> onMapValueRange(boolean startIncl, SpecialValue endExcl) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_VALUE_RANGE, Value.get(startIncl), endExcl.toAerospikeValue());
         return this;
     }
 
+    /** @see CdtGetOrRemoveBuilder#onMapValueRange(List<?> startIncl, SpecialValue endExcl) */
     @Override
     public CdtReadActionInvertableBuilder<T> onMapValueRange(List<?> startIncl, SpecialValue endExcl) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_VALUE_RANGE, Value.get(startIncl), endExcl.toAerospikeValue());
         return this;
     }
 
+    /** @see CdtGetOrRemoveBuilder#onMapValueRange(Map<?,?> startIncl, SpecialValue endExcl) */
     @Override
     public CdtReadActionInvertableBuilder<T> onMapValueRange(Map<?,?> startIncl, SpecialValue endExcl) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_VALUE_RANGE, Value.get(startIncl), endExcl.toAerospikeValue());
@@ -1200,96 +1276,112 @@ public class CdtReadOnlyBuilder<T> implements CdtReadContextBuilder<T>,
     }
 
     // Map value relative rank range - all overloads
+    /** @see CdtGetOrRemoveBuilder#onMapValueRelativeRankRange(long value, int rank) */
     @Override
     public CdtReadActionInvertableBuilder<T> onMapValueRelativeRankRange(long value, int rank) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank);
         return this;
     }
 
+    /** @see CdtGetOrRemoveBuilder#onMapValueRelativeRankRange(String value, int rank) */
     @Override
     public CdtReadActionInvertableBuilder<T> onMapValueRelativeRankRange(String value, int rank) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank);
         return this;
     }
 
+    /** @see CdtGetOrRemoveBuilder#onMapValueRelativeRankRange(byte[] value, int rank) */
     @Override
     public CdtReadActionInvertableBuilder<T> onMapValueRelativeRankRange(byte[] value, int rank) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank);
         return this;
     }
 
+    /** @see CdtGetOrRemoveBuilder#onMapValueRelativeRankRange(double value, int rank) */
     @Override
     public CdtReadActionInvertableBuilder<T> onMapValueRelativeRankRange(double value, int rank) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank);
         return this;
     }
 
+    /** @see CdtGetOrRemoveBuilder#onMapValueRelativeRankRange(boolean value, int rank) */
     @Override
     public CdtReadActionInvertableBuilder<T> onMapValueRelativeRankRange(boolean value, int rank) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank);
         return this;
     }
 
+    /** @see CdtGetOrRemoveBuilder#onMapValueRelativeRankRange(List<?> value, int rank) */
     @Override
     public CdtReadActionInvertableBuilder<T> onMapValueRelativeRankRange(List<?> value, int rank) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank);
         return this;
     }
 
+    /** @see CdtGetOrRemoveBuilder#onMapValueRelativeRankRange(Map<?,?> value, int rank) */
     @Override
     public CdtReadActionInvertableBuilder<T> onMapValueRelativeRankRange(Map<?,?> value, int rank) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank);
         return this;
     }
 
+    /** @see CdtGetOrRemoveBuilder#onMapValueRelativeRankRange(SpecialValue value, int rank) */
     @Override
     public CdtReadActionInvertableBuilder<T> onMapValueRelativeRankRange(SpecialValue value, int rank) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_VALUE_REL_RANK_RANGE, value.toAerospikeValue(), rank);
         return this;
     }
 
+    /** @see CdtGetOrRemoveBuilder#onMapValueRelativeRankRange(long value, int rank, int count) */
     @Override
     public CdtReadActionInvertableBuilder<T> onMapValueRelativeRankRange(long value, int rank, int count) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank, count);
         return this;
     }
 
+    /** @see CdtGetOrRemoveBuilder#onMapValueRelativeRankRange(String value, int rank, int count) */
     @Override
     public CdtReadActionInvertableBuilder<T> onMapValueRelativeRankRange(String value, int rank, int count) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank, count);
         return this;
     }
 
+    /** @see CdtGetOrRemoveBuilder#onMapValueRelativeRankRange(byte[] value, int rank, int count) */
     @Override
     public CdtReadActionInvertableBuilder<T> onMapValueRelativeRankRange(byte[] value, int rank, int count) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank, count);
         return this;
     }
 
+    /** @see CdtGetOrRemoveBuilder#onMapValueRelativeRankRange(double value, int rank, int count) */
     @Override
     public CdtReadActionInvertableBuilder<T> onMapValueRelativeRankRange(double value, int rank, int count) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank, count);
         return this;
     }
 
+    /** @see CdtGetOrRemoveBuilder#onMapValueRelativeRankRange(boolean value, int rank, int count) */
     @Override
     public CdtReadActionInvertableBuilder<T> onMapValueRelativeRankRange(boolean value, int rank, int count) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank, count);
         return this;
     }
 
+    /** @see CdtGetOrRemoveBuilder#onMapValueRelativeRankRange(List<?> value, int rank, int count) */
     @Override
     public CdtReadActionInvertableBuilder<T> onMapValueRelativeRankRange(List<?> value, int rank, int count) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank, count);
         return this;
     }
 
+    /** @see CdtGetOrRemoveBuilder#onMapValueRelativeRankRange(Map<?,?> value, int rank, int count) */
     @Override
     public CdtReadActionInvertableBuilder<T> onMapValueRelativeRankRange(Map<?,?> value, int rank, int count) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank, count);
         return this;
     }
 
+    /** @see CdtGetOrRemoveBuilder#onMapValueRelativeRankRange(SpecialValue value, int rank, int count) */
     @Override
     public CdtReadActionInvertableBuilder<T> onMapValueRelativeRankRange(SpecialValue value, int rank, int count) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.MAP_BY_VALUE_REL_RANK_RANGE, value.toAerospikeValue(), rank, count);
@@ -1297,6 +1389,7 @@ public class CdtReadOnlyBuilder<T> implements CdtReadContextBuilder<T>,
     }
 
     // Map key and value list
+    /** @see CdtGetOrRemoveBuilder#onMapKeyList(List<?> keys) */
     @Override
     public CdtReadContextInvertableBuilder<T> onMapKeyList(List<?> keys) {
         List<Value> values = new ArrayList<>(keys.size());
@@ -1307,6 +1400,7 @@ public class CdtReadOnlyBuilder<T> implements CdtReadContextBuilder<T>,
         return this;
     }
 
+    /** @see CdtGetOrRemoveBuilder#onMapValueList(List<?> valueList) */
     @Override
     public CdtReadContextInvertableBuilder<T> onMapValueList(List<?> valueList) {
         List<Value> values = new ArrayList<>(valueList.size());
@@ -1318,66 +1412,77 @@ public class CdtReadOnlyBuilder<T> implements CdtReadContextBuilder<T>,
     }
 
     // List operations
+    /** @see CdtGetOrRemoveBuilder#onListIndex(int index) */
     @Override
     public CdtReadContextBuilder<T> onListIndex(int index) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_INDEX, index);
         return this;
     }
 
+    /** @see CdtGetOrRemoveBuilder#onListIndex(int index, ListOrder order, boolean pad) */
     @Override
     public CdtReadContextBuilder<T> onListIndex(int index, ListOrder order, boolean pad) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_INDEX, index, order, pad);
         return this;
     }
 
+    /** @see CdtGetOrRemoveBuilder#onListRank(int index) */
     @Override
     public CdtReadContextBuilder<T> onListRank(int index) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_RANK, index);
         return this;
     }
 
+    /** @see CdtGetOrRemoveBuilder#onListValue(long value) */
     @Override
     public CdtReadContextInvertableBuilder<T> onListValue(long value) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_VALUE, Value.get(value));
         return this;
     }
 
+    /** @see CdtGetOrRemoveBuilder#onListValue(String value) */
     @Override
     public CdtReadContextInvertableBuilder<T> onListValue(String value) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_VALUE, Value.get(value));
         return this;
     }
 
+    /** @see CdtGetOrRemoveBuilder#onListValue(byte[] value) */
     @Override
     public CdtReadContextInvertableBuilder<T> onListValue(byte[] value) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_VALUE, Value.get(value));
         return this;
     }
 
+    /** @see CdtGetOrRemoveBuilder#onListValue(SpecialValue value) */
     @Override
     public CdtReadContextInvertableBuilder<T> onListValue(SpecialValue value) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_VALUE, value.toAerospikeValue());
         return this;
     }
 
+    /** @see CdtGetOrRemoveBuilder#onListIndexRange(int index, int count) */
     @Override
     public CdtReadActionInvertableBuilder<T> onListIndexRange(int index, int count) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_INDEX_RANGE, index, count);
         return this;
     }
 
+    /** @see CdtGetOrRemoveBuilder#onListIndexRange(int index) */
     @Override
     public CdtReadActionInvertableBuilder<T> onListIndexRange(int index) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_INDEX_RANGE, index);
         return this;
     }
 
+    /** @see CdtGetOrRemoveBuilder#onListRankRange(int rank, int count) */
     @Override
     public CdtReadActionInvertableBuilder<T> onListRankRange(int rank, int count) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_RANK_RANGE, rank, count);
         return this;
     }
 
+    /** @see CdtGetOrRemoveBuilder#onListRankRange(int rank) */
     @Override
     public CdtReadActionInvertableBuilder<T> onListRankRange(int rank) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_RANK_RANGE, rank);
@@ -1385,84 +1490,98 @@ public class CdtReadOnlyBuilder<T> implements CdtReadContextBuilder<T>,
     }
 
     // List value range methods - all overloads
+    /** @see CdtGetOrRemoveBuilder#onListValueRange(long startIncl, long endExcl) */
     @Override
     public CdtReadActionInvertableBuilder<T> onListValueRange(long startIncl, long endExcl) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_VALUE_RANGE, Value.get(startIncl), Value.get(endExcl));
         return this;
     }
 
+    /** @see CdtGetOrRemoveBuilder#onListValueRange(String startIncl, String endExcl) */
     @Override
     public CdtReadActionInvertableBuilder<T> onListValueRange(String startIncl, String endExcl) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_VALUE_RANGE, Value.get(startIncl), Value.get(endExcl));
         return this;
     }
 
+    /** @see CdtGetOrRemoveBuilder#onListValueRange(byte[] startIncl, byte[] endExcl) */
     @Override
     public CdtReadActionInvertableBuilder<T> onListValueRange(byte[] startIncl, byte[] endExcl) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_VALUE_RANGE, Value.get(startIncl), Value.get(endExcl));
         return this;
     }
 
+    /** @see CdtGetOrRemoveBuilder#onListValueRange(double startIncl, double endExcl) */
     @Override
     public CdtReadActionInvertableBuilder<T> onListValueRange(double startIncl, double endExcl) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_VALUE_RANGE, Value.get(startIncl), Value.get(endExcl));
         return this;
     }
 
+    /** @see CdtGetOrRemoveBuilder#onListValueRange(SpecialValue startIncl, SpecialValue endExcl) */
     @Override
     public CdtReadActionInvertableBuilder<T> onListValueRange(SpecialValue startIncl, SpecialValue endExcl) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_VALUE_RANGE, startIncl.toAerospikeValue(), endExcl.toAerospikeValue());
         return this;
     }
 
+    /** @see CdtGetOrRemoveBuilder#onListValueRange(SpecialValue startIncl, long endExcl) */
     @Override
     public CdtReadActionInvertableBuilder<T> onListValueRange(SpecialValue startIncl, long endExcl) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_VALUE_RANGE, startIncl.toAerospikeValue(), Value.get(endExcl));
         return this;
     }
 
+    /** @see CdtGetOrRemoveBuilder#onListValueRange(SpecialValue startIncl, String endExcl) */
     @Override
     public CdtReadActionInvertableBuilder<T> onListValueRange(SpecialValue startIncl, String endExcl) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_VALUE_RANGE, startIncl.toAerospikeValue(), Value.get(endExcl));
         return this;
     }
 
+    /** @see CdtGetOrRemoveBuilder#onListValueRange(SpecialValue startIncl, byte[] endExcl) */
     @Override
     public CdtReadActionInvertableBuilder<T> onListValueRange(SpecialValue startIncl, byte[] endExcl) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_VALUE_RANGE, startIncl.toAerospikeValue(), Value.get(endExcl));
         return this;
     }
 
+    /** @see CdtGetOrRemoveBuilder#onListValueRange(SpecialValue startIncl, double endExcl) */
     @Override
     public CdtReadActionInvertableBuilder<T> onListValueRange(SpecialValue startIncl, double endExcl) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_VALUE_RANGE, startIncl.toAerospikeValue(), Value.get(endExcl));
         return this;
     }
 
+    /** @see CdtGetOrRemoveBuilder#onListValueRange(long startIncl, SpecialValue endExcl) */
     @Override
     public CdtReadActionInvertableBuilder<T> onListValueRange(long startIncl, SpecialValue endExcl) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_VALUE_RANGE, Value.get(startIncl), endExcl.toAerospikeValue());
         return this;
     }
 
+    /** @see CdtGetOrRemoveBuilder#onListValueRange(String startIncl, SpecialValue endExcl) */
     @Override
     public CdtReadActionInvertableBuilder<T> onListValueRange(String startIncl, SpecialValue endExcl) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_VALUE_RANGE, Value.get(startIncl), endExcl.toAerospikeValue());
         return this;
     }
 
+    /** @see CdtGetOrRemoveBuilder#onListValueRange(byte[] startIncl, SpecialValue endExcl) */
     @Override
     public CdtReadActionInvertableBuilder<T> onListValueRange(byte[] startIncl, SpecialValue endExcl) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_VALUE_RANGE, Value.get(startIncl), endExcl.toAerospikeValue());
         return this;
     }
 
+    /** @see CdtGetOrRemoveBuilder#onListValueRange(double startIncl, SpecialValue endExcl) */
     @Override
     public CdtReadActionInvertableBuilder<T> onListValueRange(double startIncl, SpecialValue endExcl) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_VALUE_RANGE, Value.get(startIncl), endExcl.toAerospikeValue());
         return this;
     }
 
+    /** @see CdtGetOrRemoveBuilder#onListValueList(List<?> valueList) */
     @Override
     public CdtReadContextInvertableBuilder<T> onListValueList(List<?> valueList) {
         List<Value> values = new ArrayList<>(valueList.size());
@@ -1474,60 +1593,70 @@ public class CdtReadOnlyBuilder<T> implements CdtReadContextBuilder<T>,
     }
 
     // List value relative rank range - all overloads
+    /** @see CdtGetOrRemoveBuilder#onListValueRelativeRankRange(long value, int rank) */
     @Override
     public CdtReadActionInvertableBuilder<T> onListValueRelativeRankRange(long value, int rank) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank);
         return this;
     }
 
+    /** @see CdtGetOrRemoveBuilder#onListValueRelativeRankRange(String value, int rank) */
     @Override
     public CdtReadActionInvertableBuilder<T> onListValueRelativeRankRange(String value, int rank) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank);
         return this;
     }
 
+    /** @see CdtGetOrRemoveBuilder#onListValueRelativeRankRange(byte[] value, int rank) */
     @Override
     public CdtReadActionInvertableBuilder<T> onListValueRelativeRankRange(byte[] value, int rank) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank);
         return this;
     }
 
+    /** @see CdtGetOrRemoveBuilder#onListValueRelativeRankRange(double value, int rank) */
     @Override
     public CdtReadActionInvertableBuilder<T> onListValueRelativeRankRange(double value, int rank) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank);
         return this;
     }
 
+    /** @see CdtGetOrRemoveBuilder#onListValueRelativeRankRange(SpecialValue value, int rank) */
     @Override
     public CdtReadActionInvertableBuilder<T> onListValueRelativeRankRange(SpecialValue value, int rank) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_VALUE_REL_RANK_RANGE, value.toAerospikeValue(), rank);
         return this;
     }
 
+    /** @see CdtGetOrRemoveBuilder#onListValueRelativeRankRange(long value, int rank, int count) */
     @Override
     public CdtReadActionInvertableBuilder<T> onListValueRelativeRankRange(long value, int rank, int count) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank, count);
         return this;
     }
 
+    /** @see CdtGetOrRemoveBuilder#onListValueRelativeRankRange(String value, int rank, int count) */
     @Override
     public CdtReadActionInvertableBuilder<T> onListValueRelativeRankRange(String value, int rank, int count) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank, count);
         return this;
     }
 
+    /** @see CdtGetOrRemoveBuilder#onListValueRelativeRankRange(byte[] value, int rank, int count) */
     @Override
     public CdtReadActionInvertableBuilder<T> onListValueRelativeRankRange(byte[] value, int rank, int count) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank, count);
         return this;
     }
 
+    /** @see CdtGetOrRemoveBuilder#onListValueRelativeRankRange(double value, int rank, int count) */
     @Override
     public CdtReadActionInvertableBuilder<T> onListValueRelativeRankRange(double value, int rank, int count) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank, count);
         return this;
     }
 
+    /** @see CdtGetOrRemoveBuilder#onListValueRelativeRankRange(SpecialValue value, int rank, int count) */
     @Override
     public CdtReadActionInvertableBuilder<T> onListValueRelativeRankRange(SpecialValue value, int rank, int count) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_VALUE_REL_RANK_RANGE, value.toAerospikeValue(), rank, count);

@@ -58,6 +58,24 @@ import com.aerospike.client.fluent.tend.Partitions;
 import com.aerospike.client.fluent.util.Version;
 import com.aerospike.dsl.ParseResult;
 
+/**
+ * Fluent builder for applying a dataset operation (insert, update, upsert, replace, etc.) to one or more
+ * domain objects of type {@code T}. Objects are converted to Aerospike keys and bin writes through a
+ * {@link RecordMapper} from the session's {@link RecordMappingFactory}, or an override from {@link #using}.
+ *
+ * <p>Obtained from {@link OperationObjectBuilder#object(Object)} or {@link OperationObjectBuilder#objects(java.util.List)}
+ * after choosing the operation on a {@link DataSet} (for example {@code session.update(set).objects(...)}).
+ * You can set TTL, generation checks, and transaction scope, then either {@link #execute()} or an
+ * {@code executeAsync} overload, or chain further key-based work via {@link #insert}, {@link #update},
+ * {@link #query}, and related methods, which batch the object writes together with those operations.</p>
+ *
+ * <p>For multiple objects, default expiration helpers apply to any element without its own TTL;
+ * single-object builders do not allow those defaults.</p>
+ *
+ * @param <T> the mapped entity type
+ * @see OperationObjectBuilder
+ * @see RecordMapper
+ */
 @SuppressWarnings("unused")
 public class ObjectBuilder<T> {
     private final OperationObjectBuilder<T> opBuilder;

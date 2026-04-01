@@ -43,6 +43,21 @@ import com.aerospike.client.fluent.util.Pack;
 import com.aerospike.client.fluent.util.Util;
 import com.aerospike.client.fluent.util.Version;
 
+/**
+ * Primary entry point for data and admin operations against an Aerospike cluster in the fluent API.
+ *
+ * <p>A session is tied to a {@link Cluster} and a {@link Behavior} profile (timeouts, retries,
+ * consistency, and related defaults). Obtain instances with {@link Cluster#createSession(Behavior)}.
+ * The base session is not transactional; use {@link TransactionalSession} when you need
+ * multi-record transaction support.</p>
+ *
+ * <p>Typical responsibilities include single-key and batch reads and writes, queries and scans,
+ * secondary index management, UDF registration, truncate, and cluster info commands.</p>
+ *
+ * @see Cluster#createSession(Behavior)
+ * @see Behavior
+ * @see TransactionalSession
+ */
 public class Session {
     private final Cluster cluster;
     private final Behavior behavior;
@@ -132,6 +147,8 @@ public class Session {
      * This asynchronous server call may return before the truncation is complete.  The user can still
      * write new records after the server call returns because new records will have last update times
      * greater than the truncate cutoff (set at the time of truncate call).
+     *
+     * @param set namespace/set to truncate (see {@link #truncate(DataSet, Calendar)})
      */
     public void truncate(DataSet set) {
         truncate(set, null);
@@ -145,6 +162,9 @@ public class Session {
      * This asynchronous server call may return before the truncation is complete.  The user can still
      * write new records after the server call returns because new records will have last update times
      * greater than the truncate cutoff (set at the time of truncate call).
+     *
+     * @param set namespace/set to truncate
+     * @param beforeLastUpdate if non-null, only remove records whose last-update time is before this instant
      */
     public void truncate(DataSet set, Calendar beforeLastUpdate) {
 		// Send truncate command to one node. That node will distribute the command to other nodes.
@@ -334,6 +354,7 @@ public class Session {
 	 *
 	 * @param clientPath			path of client file containing user defined functions, relative to current directory
 	 * @param serverPath			path to store user defined functions on the server, relative to configured script directory.
+	 * @return task that can be used to wait for registration to finish on the cluster
 	 * @throws AerospikeException	if register fails
 	 */
 	public final RegisterTask registerUdf(String clientPath, String serverPath) {
@@ -351,6 +372,7 @@ public class Session {
 	 * @param resourceLoader		class loader where resource is located.  Example: MyClass.class.getClassLoader() or Thread.currentThread().getContextClassLoader() for webapps
 	 * @param resourcePath			class path where Lua resource is located
 	 * @param serverPath			path to store user defined functions on the server, relative to configured script directory.
+	 * @return task that can be used to wait for registration to finish on the cluster
 	 * @throws AerospikeException	if register fails
 	 */
 	public final RegisterTask registerUdf(
@@ -386,6 +408,7 @@ public class Session {
 	 *
 	 * @param code					code string containing user defined functions.
 	 * @param serverPath			path to store user defined functions on the server, relative to configured script directory.
+	 * @return task that can be used to wait for registration to finish on the cluster
 	 * @throws AerospikeException	if register fails
 	 */
 	public final RegisterTask registerUdfString(String code, String serverPath) {
@@ -520,7 +543,7 @@ public class Session {
      * }</pre>
      *
      * @param key the key to insert
-     * @return ChainableOperationBuilder for method chaining
+     * @return builder for further operations in the same batch
      */
     public ChainableOperationBuilder insert(Key key) {
         return new ChainableOperationBuilder(this, OpType.INSERT).init(key, OpType.INSERT);
@@ -528,6 +551,9 @@ public class Session {
 
     /**
      * Begin an insert operation on multiple keys.
+     *
+     * @param keys keys to insert in one batch chain
+     * @return builder for further operations in the same batch
      */
     public ChainableOperationBuilder insert(List<Key> keys) {
         return new ChainableOperationBuilder(this, OpType.INSERT).init(keys, OpType.INSERT);
@@ -535,6 +561,11 @@ public class Session {
 
     /**
      * Begin an insert operation on multiple keys.
+     *
+     * @param key1 first key
+     * @param key2 second key
+     * @param keys additional keys
+     * @return builder for further operations in the same batch
      */
     public ChainableOperationBuilder insert(Key key1, Key key2, Key... keys) {
         return new ChainableOperationBuilder(this, OpType.INSERT).init(buildKeyList(key1, key2, keys), OpType.INSERT);
@@ -542,6 +573,9 @@ public class Session {
 
     /**
      * Begin an update operation.
+     *
+     * @param key key to update
+     * @return builder for further operations in the same batch
      */
     public ChainableOperationBuilder update(Key key) {
         return new ChainableOperationBuilder(this, OpType.UPDATE).init(key, OpType.UPDATE);
@@ -549,6 +583,9 @@ public class Session {
 
     /**
      * Begin an update operation on multiple keys.
+     *
+     * @param keys keys to update in one batch chain
+     * @return builder for further operations in the same batch
      */
     public ChainableOperationBuilder update(List<Key> keys) {
         return new ChainableOperationBuilder(this, OpType.UPDATE).init(keys, OpType.UPDATE);
@@ -556,6 +593,11 @@ public class Session {
 
     /**
      * Begin an update operation on multiple keys.
+     *
+     * @param key1 first key
+     * @param key2 second key
+     * @param keys additional keys
+     * @return builder for further operations in the same batch
      */
     public ChainableOperationBuilder update(Key key1, Key key2, Key... keys) {
         return new ChainableOperationBuilder(this, OpType.UPDATE).init(buildKeyList(key1, key2, keys), OpType.UPDATE);
@@ -563,6 +605,9 @@ public class Session {
 
     /**
      * Begin an upsert operation.
+     *
+     * @param key key to upsert
+     * @return builder for further operations in the same batch
      */
     public ChainableOperationBuilder upsert(Key key) {
         return new ChainableOperationBuilder(this, OpType.UPSERT).init(key, OpType.UPSERT);
@@ -570,6 +615,9 @@ public class Session {
 
     /**
      * Begin an upsert operation on multiple keys.
+     *
+     * @param keys keys to upsert in one batch chain
+     * @return builder for further operations in the same batch
      */
     public ChainableOperationBuilder upsert(List<Key> keys) {
         return new ChainableOperationBuilder(this, OpType.UPSERT).init(keys, OpType.UPSERT);
@@ -577,6 +625,11 @@ public class Session {
 
     /**
      * Begin an upsert operation on multiple keys.
+     *
+     * @param key1 first key
+     * @param key2 second key
+     * @param keys additional keys
+     * @return builder for further operations in the same batch
      */
     public ChainableOperationBuilder upsert(Key key1, Key key2, Key... keys) {
         return new ChainableOperationBuilder(this, OpType.UPSERT).init(buildKeyList(key1, key2, keys), OpType.UPSERT);
@@ -584,6 +637,9 @@ public class Session {
 
     /**
      * Begin a replace operation.
+     *
+     * @param key key whose record is replaced in full
+     * @return builder for further operations in the same batch
      */
     public ChainableOperationBuilder replace(Key key) {
         return new ChainableOperationBuilder(this, OpType.REPLACE).init(key, OpType.REPLACE);
@@ -591,6 +647,9 @@ public class Session {
 
     /**
      * Begin a replace operation on multiple keys.
+     *
+     * @param keys keys to replace in one batch chain
+     * @return builder for further operations in the same batch
      */
     public ChainableOperationBuilder replace(List<Key> keys) {
         return new ChainableOperationBuilder(this, OpType.REPLACE).init(keys, OpType.REPLACE);
@@ -598,6 +657,11 @@ public class Session {
 
     /**
      * Begin a replace operation on multiple keys.
+     *
+     * @param key1 first key
+     * @param key2 second key
+     * @param keys additional keys
+     * @return builder for further operations in the same batch
      */
     public ChainableOperationBuilder replace(Key key1, Key key2, Key... keys) {
         return new ChainableOperationBuilder(this, OpType.REPLACE).init(buildKeyList(key1, key2, keys), OpType.REPLACE);
@@ -605,6 +669,9 @@ public class Session {
 
     /**
      * Begin a replaceIfExists operation (replace only if record exists, fail otherwise).
+     *
+     * @param key key to replace
+     * @return builder for further operations in the same batch
      */
     public ChainableOperationBuilder replaceIfExists(Key key) {
         return new ChainableOperationBuilder(this, OpType.REPLACE_IF_EXISTS).init(key, OpType.REPLACE_IF_EXISTS);
@@ -612,6 +679,9 @@ public class Session {
 
     /**
      * Begin a replaceIfExists operation on multiple keys.
+     *
+     * @param keys keys to replace-if-exists in one batch chain
+     * @return builder for further operations in the same batch
      */
     public ChainableOperationBuilder replaceIfExists(List<Key> keys) {
         return new ChainableOperationBuilder(this, OpType.REPLACE_IF_EXISTS).init(keys, OpType.REPLACE_IF_EXISTS);
@@ -619,6 +689,11 @@ public class Session {
 
     /**
      * Begin a replaceIfExists operation on multiple keys.
+     *
+     * @param key1 first key
+     * @param key2 second key
+     * @param keys additional keys
+     * @return builder for further operations in the same batch
      */
     public ChainableOperationBuilder replaceIfExists(Key key1, Key key2, Key... keys) {
         return new ChainableOperationBuilder(this, OpType.REPLACE_IF_EXISTS).init(buildKeyList(key1, key2, keys), OpType.REPLACE_IF_EXISTS);
@@ -626,6 +701,9 @@ public class Session {
 
     /**
      * Begin a touch operation. Chainable with other operations.
+     *
+     * @param key key whose record TTL is touched
+     * @return builder for further no-bin operations in the same batch
      */
     public ChainableNoBinsBuilder touch(Key key) {
         return new ChainableNoBinsBuilder(this, new ArrayList<>(), null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, getCurrentTransaction())
@@ -634,6 +712,11 @@ public class Session {
 
     /**
      * Begin a touch operation on multiple keys.
+     *
+     * @param key1 first key
+     * @param key2 second key
+     * @param keys additional keys
+     * @return builder for further no-bin operations in the same batch
      */
     public ChainableNoBinsBuilder touch(Key key1, Key key2, Key ... keys) {
         return new ChainableNoBinsBuilder(this, new ArrayList<>(), null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, getCurrentTransaction())
@@ -642,6 +725,9 @@ public class Session {
 
     /**
      * Begin a touch operation on multiple keys.
+     *
+     * @param keys keys to touch in one batch chain
+     * @return builder for further no-bin operations in the same batch
      */
     public ChainableNoBinsBuilder touch(List<Key> keys) {
         return new ChainableNoBinsBuilder(this, new ArrayList<>(), null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, getCurrentTransaction())
@@ -650,6 +736,9 @@ public class Session {
 
     /**
      * Begin an exists operation. Chainable with other operations.
+     *
+     * @param key key to test for existence
+     * @return builder for further no-bin operations in the same batch
      */
     public ChainableNoBinsBuilder exists(Key key) {
         return new ChainableNoBinsBuilder(this, new ArrayList<>(), null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, getCurrentTransaction())
@@ -658,6 +747,11 @@ public class Session {
 
     /**
      * Begin an exists operation on multiple keys.
+     *
+     * @param key1 first key
+     * @param key2 second key
+     * @param keys additional keys
+     * @return builder for further no-bin operations in the same batch
      */
     public ChainableNoBinsBuilder exists(Key key1, Key key2, Key ... keys) {
         return new ChainableNoBinsBuilder(this, new ArrayList<>(), null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, getCurrentTransaction())
@@ -666,6 +760,9 @@ public class Session {
 
     /**
      * Begin an exists operation on multiple keys.
+     *
+     * @param keys keys to test in one batch chain
+     * @return builder for further no-bin operations in the same batch
      */
     public ChainableNoBinsBuilder exists(List<Key> keys) {
         return new ChainableNoBinsBuilder(this, new ArrayList<>(), null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, getCurrentTransaction())
@@ -674,6 +771,9 @@ public class Session {
 
     /**
      * Begin a delete operation. Chainable with other operations.
+     *
+     * @param key key to delete
+     * @return builder for further no-bin operations in the same batch
      */
     public ChainableNoBinsBuilder delete(Key key) {
         return new ChainableNoBinsBuilder(this, new ArrayList<>(), null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, getCurrentTransaction())
@@ -682,6 +782,11 @@ public class Session {
 
     /**
      * Begin a delete operation on multiple keys.
+     *
+     * @param key1 first key
+     * @param key2 second key
+     * @param keys additional keys
+     * @return builder for further no-bin operations in the same batch
      */
     public ChainableNoBinsBuilder delete(Key key1, Key key2, Key ... keys) {
         return new ChainableNoBinsBuilder(this, new ArrayList<>(), null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, getCurrentTransaction())
@@ -690,6 +795,9 @@ public class Session {
 
     /**
      * Begin a delete operation on multiple keys.
+     *
+     * @param keys keys to delete in one batch chain
+     * @return builder for further no-bin operations in the same batch
      */
     public ChainableNoBinsBuilder delete(List<Key> keys) {
         return new ChainableNoBinsBuilder(this, new ArrayList<>(), null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, getCurrentTransaction())
@@ -949,8 +1057,13 @@ public class Session {
     // ---------------------------
 
     /**
-     * Return the current transaction, if any.
-     * @return
+     * Returns the transaction associated with this session, if any.
+     *
+     * <p>This base {@code Session} implementation always returns {@code null}. Call sites use this
+     * hook so the same fluent APIs can participate in transactions when a session implementation
+     * supplies a non-null {@link Txn}.</p>
+     *
+     * @return the active transaction, or {@code null}
      */
     public Txn getCurrentTransaction() {
         return null;
@@ -1231,6 +1344,7 @@ public class Session {
 	 * @param indexType				underlying data type of secondary index
 	 * @param indexCollectionType	index collection type
 	 * @param ctx					optional context to index on elements within a CDT
+	 * @return task that can be polled for index build completion
 	 * @throws AerospikeException	if index create fails
      */
     public final IndexTask createIndex(
@@ -1267,6 +1381,7 @@ public class Session {
 	 * @param indexType				underlying data type of secondary index
 	 * @param indexCollectionType	index collection type
 	 * @param exp					expression on which to build the index
+	 * @return task that can be polled for index build completion
 	 * @throws AerospikeException	if index create fails
 	 */
 	public final IndexTask createIndex(
@@ -1373,9 +1488,9 @@ public class Session {
 	 * The user can optionally wait for command completion by using the returned
 	 * IndexTask instance.
 	 *
-	 * @param namespace				namespace - equivalent to database name
-	 * @param setName				optional set name - equivalent to database table
-	 * @param indexName				name of secondary index
+	 * @param set					dataset (namespace and optional set) the index belongs to
+	 * @param indexName				name of the secondary index to drop
+	 * @return task that can be polled for drop completion
 	 * @throws AerospikeException	if index drop fails
 	 */
 	public final IndexTask dropIndex(DataSet set, String indexName) {

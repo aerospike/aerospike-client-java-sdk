@@ -162,6 +162,11 @@ public class RecordStream implements Iterator<RecordResult>, Closeable {
      * <p>This constructor is used for queries that stream results from the server in chunks.
      * For client-side sorting and pagination, use {@link #asNavigatableStream()} on the
      * returned stream.</p>
+     *
+     * @param stream first-chunk async buffer (see {@link ChunkedRecordStream})
+     * @param cmd query command used to load each chunk
+     * @param limit maximum records to yield; non-positive values are treated as unbounded
+     * @param recordQueueSize async queue capacity per chunk
      */
     public RecordStream(AsyncRecordStream stream, QueryCommand cmd, long limit, int recordQueueSize) {
         if (limit <= 0) {
@@ -194,7 +199,7 @@ public class RecordStream implements Iterator<RecordResult>, Closeable {
      * (In other words, returns {@code true} if {@link #next} would
      * return an element rather than throwing an exception.)
      *
-     * <p>This method idempotent 
+     * <p>Repeated calls return the same answer until {@link #next()} advances the stream.</p>
      *
      * @return {@code true} if the iteration has more elements
      */
@@ -988,24 +993,44 @@ public class RecordStream implements Iterator<RecordResult>, Closeable {
         }
     }
 
+    /**
+     * Domain object plus Aerospike record metadata from {@link #popWithMetadata(RecordMapper)}
+     * and {@link #getFirstWithMetadata(RecordMapper)}.
+     *
+     * @param <T> mapped entity type
+     */
     public static class ObjectWithMetadata<T> {
         private final int generation;
         private final int expiration;
         private final T object;
+
+        /**
+         * @param object mapped value from the record bins
+         * @param rec    source record (generation and expiration are copied)
+         */
         public ObjectWithMetadata(T object, Record rec) {
             this.object = object;
             this.generation = rec.generation;
             this.expiration = rec.expiration;
         }
 
+        /**
+         * @return the mapped domain object
+         */
         public T get() {
             return object;
         }
 
+        /**
+         * @return record TTL / expiration as returned by the server for this result
+         */
         public int getExpiration() {
             return expiration;
         }
 
+        /**
+         * @return record generation (version) from the server
+         */
         public int getGeneration() {
             return generation;
         }

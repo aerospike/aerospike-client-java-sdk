@@ -116,6 +116,11 @@ public record RecordResult(Key key, Record recordOrNull, Object udfReturnValue, 
         return ex;
     }
     
+    /**
+     * Whether the operation completed with {@link ResultCode#OK}.
+     *
+     * @return {@code true} if successful; {@code false} if any other result code
+     */
     public boolean isOk() {
         return this.resultCode == ResultCode.OK;
     }
@@ -135,6 +140,12 @@ public record RecordResult(Key key, Record recordOrNull, Object udfReturnValue, 
         return this;
     }
     
+    /**
+     * Returns the record payload after {@link #orThrow()}.
+     *
+     * @return the Aerospike {@link Record}, or {@code null} when no record is attached to this result
+     * @throws AerospikeException if {@link #isOk()} is false
+     */
     public Record recordOrThrow() {
         orThrow();
         return recordOrNull;
@@ -186,6 +197,14 @@ public record RecordResult(Key key, Record recordOrNull, Object udfReturnValue, 
         return udfReturnValue;
     }
     
+    /**
+     * Interprets the result as a boolean, for example after an {@code exists} call.
+     * {@link ResultCode#OK} maps to {@code true}, {@link ResultCode#KEY_NOT_FOUND_ERROR} to {@code false};
+     * any other code triggers {@link #orThrow()}.
+     *
+     * @return {@code true} if OK, {@code false} if key not found
+     * @throws AerospikeException for other failure codes
+     */
     public boolean asBoolean() {
         if (isOk()) {
             return true;

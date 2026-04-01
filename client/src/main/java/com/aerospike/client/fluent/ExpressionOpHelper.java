@@ -48,10 +48,27 @@ public final class ExpressionOpHelper {
     // Read operations - from String DSL
     // ========================================
 
+    /**
+     * Builds a read expression operation from a DSL string.
+     *
+     * @param binName target bin
+     * @param dsl DSL text parsed to an {@link Expression}
+     * @param flags {@link com.aerospike.client.exp.ExpReadFlags} bitmask
+     * @return Aerospike {@link Operation} for expression read
+     */
     public static Operation createReadOp(String binName, String dsl, int flags) {
         return ExpOperation.read(binName, parseStringDsl(dsl), flags);
     }
 
+    /**
+     * Builds a read expression operation from a DSL string with {@code ?} placeholders replaced by {@code params}.
+     *
+     * @param binName target bin
+     * @param dsl DSL template
+     * @param params values substituted for {@code ?} in order
+     * @param flags {@link com.aerospike.client.exp.ExpReadFlags} bitmask
+     * @return Aerospike {@link Operation} for expression read
+     */
     public static Operation createReadOp(String binName, String dsl, Object[] params, int flags) {
         return ExpOperation.read(binName, parseStringDsl(dsl, params), flags);
     }
@@ -60,18 +77,51 @@ public final class ExpressionOpHelper {
     // Read operations - from other DSL types
     // ========================================
 
+    /**
+     * Builds a read expression operation from a {@link BooleanExpression}.
+     *
+     * @param binName target bin
+     * @param dsl programmatic boolean expression
+     * @param flags {@link com.aerospike.client.exp.ExpReadFlags} bitmask
+     * @return Aerospike {@link Operation} for expression read
+     */
     public static Operation createReadOp(String binName, BooleanExpression dsl, int flags) {
         return ExpOperation.read(binName, fromBooleanExpression(dsl), flags);
     }
 
+    /**
+     * Builds a read expression operation from a {@link PreparedDsl} with bound parameters.
+     *
+     * @param binName target bin
+     * @param dsl prepared DSL
+     * @param params bound parameter values
+     * @param flags {@link com.aerospike.client.exp.ExpReadFlags} bitmask
+     * @return Aerospike {@link Operation} for expression read
+     */
     public static Operation createReadOp(String binName, PreparedDsl dsl, Object[] params, int flags) {
         return ExpOperation.read(binName, fromPreparedDsl(dsl, params), flags);
     }
 
+    /**
+     * Builds a read expression operation from a fluent {@link Exp} builder.
+     *
+     * @param binName target bin
+     * @param exp expression builder (compiled via {@link Exp#build(Exp)})
+     * @param flags {@link com.aerospike.client.exp.ExpReadFlags} bitmask
+     * @return Aerospike {@link Operation} for expression read
+     */
     public static Operation createReadOp(String binName, Exp exp, int flags) {
         return ExpOperation.read(binName, Exp.build(exp), flags);
     }
 
+    /**
+     * Builds a read expression operation from a compiled {@link Expression}.
+     *
+     * @param binName target bin
+     * @param exp compiled expression
+     * @param flags {@link com.aerospike.client.exp.ExpReadFlags} bitmask
+     * @return Aerospike {@link Operation} for expression read
+     */
     public static Operation createReadOp(String binName, Expression exp, int flags) {
         return ExpOperation.read(binName, exp, flags);
     }
@@ -80,10 +130,27 @@ public final class ExpressionOpHelper {
     // Write operations - from String DSL
     // ========================================
 
+    /**
+     * Builds a write expression operation from a DSL string.
+     *
+     * @param binName target bin
+     * @param dsl DSL text parsed to an {@link Expression}
+     * @param flags {@link com.aerospike.client.exp.ExpWriteFlags} bitmask
+     * @return Aerospike {@link Operation} for expression write
+     */
     public static Operation createWriteOp(String binName, String dsl, int flags) {
         return ExpOperation.write(binName, parseStringDsl(dsl), flags);
     }
 
+    /**
+     * Builds a write expression operation from a DSL string with {@code ?} placeholders replaced by {@code params}.
+     *
+     * @param binName target bin
+     * @param dsl DSL template
+     * @param params values substituted for {@code ?} in order
+     * @param flags {@link com.aerospike.client.exp.ExpWriteFlags} bitmask
+     * @return Aerospike {@link Operation} for expression write
+     */
     public static Operation createWriteOp(String binName, String dsl, Object[] params, int flags) {
         return ExpOperation.write(binName, parseStringDsl(dsl, params), flags);
     }
@@ -92,18 +159,51 @@ public final class ExpressionOpHelper {
     // Write operations - from other DSL types
     // ========================================
 
+    /**
+     * Builds a write expression operation from a {@link BooleanExpression}.
+     *
+     * @param binName target bin
+     * @param dsl programmatic boolean expression
+     * @param flags {@link com.aerospike.client.exp.ExpWriteFlags} bitmask
+     * @return Aerospike {@link Operation} for expression write
+     */
     public static Operation createWriteOp(String binName, BooleanExpression dsl, int flags) {
         return ExpOperation.write(binName, fromBooleanExpression(dsl), flags);
     }
 
+    /**
+     * Builds a write expression operation from a {@link PreparedDsl} with bound parameters.
+     *
+     * @param binName target bin
+     * @param dsl prepared DSL
+     * @param params bound parameter values
+     * @param flags {@link com.aerospike.client.exp.ExpWriteFlags} bitmask
+     * @return Aerospike {@link Operation} for expression write
+     */
     public static Operation createWriteOp(String binName, PreparedDsl dsl, Object[] params, int flags) {
         return ExpOperation.write(binName, fromPreparedDsl(dsl, params), flags);
     }
 
+    /**
+     * Builds a write expression operation from a fluent {@link Exp} builder.
+     *
+     * @param binName target bin
+     * @param exp expression builder (compiled via {@link Exp#build(Exp)})
+     * @param flags {@link com.aerospike.client.exp.ExpWriteFlags} bitmask
+     * @return Aerospike {@link Operation} for expression write
+     */
     public static Operation createWriteOp(String binName, Exp exp, int flags) {
         return ExpOperation.write(binName, Exp.build(exp), flags);
     }
 
+    /**
+     * Builds a write expression operation from a compiled {@link Expression}.
+     *
+     * @param binName target bin
+     * @param exp compiled expression
+     * @param flags {@link com.aerospike.client.exp.ExpWriteFlags} bitmask
+     * @return Aerospike {@link Operation} for expression write
+     */
     public static Operation createWriteOp(String binName, Expression exp, int flags) {
         return ExpOperation.write(binName, exp, flags);
     }
@@ -112,10 +212,28 @@ public final class ExpressionOpHelper {
     // Helper methods for AbstractOperationBuilder
     // ========================================
 
+    /**
+     * Appends a DSL-based read expression operation to {@code opBuilder}.
+     *
+     * @param opBuilder operation list builder
+     * @param binName target bin
+     * @param dsl DSL text
+     * @param flags {@link com.aerospike.client.exp.ExpReadFlags} bitmask
+     * @return {@code opBuilder} for chaining
+     */
     public static <T extends AbstractOperationBuilder<T>> T addReadOp(T opBuilder, String binName, String dsl, int flags) {
         return opBuilder.addOp(createReadOp(binName, dsl, flags));
     }
 
+    /**
+     * Appends a DSL-based write expression operation to {@code opBuilder}.
+     *
+     * @param opBuilder operation list builder
+     * @param binName target bin
+     * @param dsl DSL text
+     * @param flags {@link com.aerospike.client.exp.ExpWriteFlags} bitmask
+     * @return {@code opBuilder} for chaining
+     */
     public static <T extends AbstractOperationBuilder<T>> T addWriteOp(T opBuilder, String binName, String dsl, int flags) {
         return opBuilder.addOp(createWriteOp(binName, dsl, flags));
     }

@@ -542,6 +542,7 @@ public class ChainableNoBinsBuilder extends AbstractSessionOperationBuilder<Chai
     // Per-operation policies
     // ========================================
 
+    /** {@inheritDoc} */
     @Override
     public ChainableNoBinsBuilder expireRecordAfter(Duration duration) {
         verifyState("setting expiration");
@@ -549,6 +550,7 @@ public class ChainableNoBinsBuilder extends AbstractSessionOperationBuilder<Chai
         return this;
     }
 
+    /** {@inheritDoc} */
     @Override
     public ChainableNoBinsBuilder expireRecordAfterSeconds(int expirationInSeconds) {
         verifyState("setting expiration");
@@ -556,6 +558,7 @@ public class ChainableNoBinsBuilder extends AbstractSessionOperationBuilder<Chai
         return this;
     }
 
+    /** {@inheritDoc} */
     @Override
     public ChainableNoBinsBuilder expireRecordAt(Date date) {
         verifyState("setting expiration");
@@ -563,6 +566,7 @@ public class ChainableNoBinsBuilder extends AbstractSessionOperationBuilder<Chai
         return this;
     }
 
+    /** {@inheritDoc} */
     @Override
     public ChainableNoBinsBuilder expireRecordAt(LocalDateTime date) {
         verifyState("setting expiration");
@@ -570,6 +574,7 @@ public class ChainableNoBinsBuilder extends AbstractSessionOperationBuilder<Chai
         return this;
     }
 
+    /** {@inheritDoc} */
     @Override
     public ChainableNoBinsBuilder withNoChangeInExpiration() {
         verifyState("setting expiration");
@@ -577,6 +582,7 @@ public class ChainableNoBinsBuilder extends AbstractSessionOperationBuilder<Chai
         return this;
     }
 
+    /** {@inheritDoc} */
     @Override
     public ChainableNoBinsBuilder neverExpire() {
         verifyState("setting expiration");
@@ -584,6 +590,7 @@ public class ChainableNoBinsBuilder extends AbstractSessionOperationBuilder<Chai
         return this;
     }
 
+    /** {@inheritDoc} */
     @Override
     public ChainableNoBinsBuilder expiryFromServerDefault() {
         verifyState("setting expiration");
@@ -591,6 +598,7 @@ public class ChainableNoBinsBuilder extends AbstractSessionOperationBuilder<Chai
         return this;
     }
 
+    /** {@inheritDoc} */
     @Override
     public ChainableNoBinsBuilder ensureGenerationIs(int generation) {
         verifyState("setting generation");
@@ -605,6 +613,7 @@ public class ChainableNoBinsBuilder extends AbstractSessionOperationBuilder<Chai
     // FilterableOperation implementation
     // ========================================
 
+    /** {@inheritDoc} */
     @Override
     public ChainableNoBinsBuilder where(String dsl, Object... params) {
         verifyState("setting where clause");
@@ -616,6 +625,7 @@ public class ChainableNoBinsBuilder extends AbstractSessionOperationBuilder<Chai
         return this;
     }
 
+    /** {@inheritDoc} */
     @Override
     public ChainableNoBinsBuilder where(BooleanExpression dsl) {
         verifyState("setting where clause");
@@ -625,6 +635,7 @@ public class ChainableNoBinsBuilder extends AbstractSessionOperationBuilder<Chai
         return this;
     }
 
+    /** {@inheritDoc} */
     @Override
     public ChainableNoBinsBuilder where(PreparedDsl dsl, Object... params) {
         verifyState("setting where clause");
@@ -634,6 +645,7 @@ public class ChainableNoBinsBuilder extends AbstractSessionOperationBuilder<Chai
         return this;
     }
 
+    /** {@inheritDoc} */
     @Override
     public ChainableNoBinsBuilder where(Exp exp) {
         verifyState("setting where clause");
@@ -643,6 +655,7 @@ public class ChainableNoBinsBuilder extends AbstractSessionOperationBuilder<Chai
         return this;
     }
 
+    /** {@inheritDoc} */
     @Override
     public ChainableNoBinsBuilder where(Expression e) {
         verifyState("setting where clause");
@@ -819,6 +832,7 @@ public class ChainableNoBinsBuilder extends AbstractSessionOperationBuilder<Chai
         return this;
     }
 
+    /** {@inheritDoc} */
     @Override
     public ChainableNoBinsBuilder failOnFilteredOut() {
         verifyState("setting failOnFilteredOut");
@@ -826,6 +840,7 @@ public class ChainableNoBinsBuilder extends AbstractSessionOperationBuilder<Chai
         return this;
     }
 
+    /** {@inheritDoc} */
     @Override
     public ChainableNoBinsBuilder includeMissingKeys() {
         verifyState("setting includeMissingKeys");

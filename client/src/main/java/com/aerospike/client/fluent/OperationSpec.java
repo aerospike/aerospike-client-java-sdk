@@ -105,26 +105,56 @@ public class OperationSpec {
                opType != OpType.EXISTS;
     }
 
+    /**
+     * Optional filter expression for this operation, or {@code null} if none.
+     *
+     * @return the compiled where clause, or {@code null}
+     */
     public Expression getWhereClause() {
         return whereClause;
     }
 
+    /**
+     * Sets the filter expression for this operation.
+     *
+     * @param whereClause compiled expression, or {@code null} to clear
+     */
     public void setWhereClause(Expression whereClause) {
         this.whereClause = whereClause;
     }
 
+    /**
+     * Expected record generation for optimistic locking; {@code 0} means no check.
+     *
+     * @return generation value to match on the server
+     */
     public int getGeneration() {
         return generation;
     }
 
+    /**
+     * Sets the generation check for this spec.
+     *
+     * @param generation expected generation, or {@code 0} to disable
+     */
     public void setGeneration(int generation) {
         this.generation = generation;
     }
 
+    /**
+     * TTL for this operation in seconds, or {@link AbstractOperationBuilder#NOT_EXPLICITLY_SET} if unset.
+     *
+     * @return expiration seconds (including sentinel values such as never-expire / no-change)
+     */
     public long getExpirationInSeconds() {
         return expirationInSeconds;
     }
 
+    /**
+     * Sets TTL for this operation in seconds.
+     *
+     * @param expirationInSeconds seconds until expiry, or Aerospike TTL sentinels ({@code 0}, {@code -1}, {@code -2})
+     */
     public void setExpirationInSeconds(long expirationInSeconds) {
         this.expirationInSeconds = expirationInSeconds;
     }
@@ -137,48 +167,97 @@ public class OperationSpec {
         return expirationInSeconds != AbstractOperationBuilder.NOT_EXPLICITLY_SET;
     }
 
+    /**
+     * Whether a filtered-out record should surface as {@code FILTERED_OUT} in results instead of being omitted.
+     *
+     * @return {@code true} if fail-on-filtered-out is enabled
+     */
     public boolean isFailOnFilteredOut() {
         return failOnFilteredOut;
     }
 
+    /**
+     * @param failOnFilteredOut {@code true} to fail or report when the where clause filters out a key
+     */
     public void setFailOnFilteredOut(boolean failOnFilteredOut) {
         this.failOnFilteredOut = failOnFilteredOut;
     }
 
+    /**
+     * Whether missing keys (or similar) should still produce a stream entry.
+     * For {@link OpType#UPDATE} and {@link OpType#REPLACE_IF_EXISTS} this always behaves as {@code true}
+     * so callers see {@link com.aerospike.client.ResultCode#KEY_NOT_FOUND_ERROR} when the record does not exist.
+     *
+     * @return effective include-missing-keys flag
+     */
     public boolean isIncludeMissingKeys() {
         // If UPDATE or REPLACE_IF_EXISTS is specified we must include missing keys too, as these
         // records SHOULD throw an exception if the record doesn't exist.
         return includeMissingKeys || opType == OpType.REPLACE_IF_EXISTS || opType == OpType.UPDATE;
     }
 
+    /**
+     * @param includeMissingKeys {@code true} to emit results for keys with no record when applicable
+     */
     public void setIncludeMissingKeys(boolean includeMissingKeys) {
         this.includeMissingKeys = includeMissingKeys;
     }
 
+    /**
+     * For delete operations: {@code true}/{@code false} selects durable vs normal delete, {@code null} if unset.
+     *
+     * @return durable-delete preference, or {@code null}
+     */
     public Boolean getDurablyDelete() {
         return durablyDelete;
     }
 
+    /**
+     * @param durablyDelete durable delete flag, or {@code null} to leave server/default behavior
+     */
     public void setDurablyDelete(Boolean durablyDelete) {
         this.durablyDelete = durablyDelete;
     }
 
+    /**
+     * For query specs: bin names to project, or {@code null} for all bins.
+     *
+     * @return projected bin names, or {@code null}
+     */
     public String[] getProjectedBins() {
         return projectedBins;
     }
 
+    /**
+     * @param projectedBins bin names to read, or {@code null} for all bins
+     */
     public void setProjectedBins(String[] projectedBins) {
         this.projectedBins = projectedBins;
     }
 
+    /**
+     * Keys this spec applies to (immutable list reference; not a copy).
+     *
+     * @return non-null key list
+     */
     public List<Key> getKeys() {
         return keys;
     }
 
+    /**
+     * Write/read operation kind, or {@code null} for a query-only spec.
+     *
+     * @return operation type, or {@code null} when {@link #isQuery()}
+     */
     public OpType getOpType() {
         return opType;
     }
 
+    /**
+     * Bin-level operations accumulated for this spec (empty for delete, touch, exists, query).
+     *
+     * @return mutable list of Aerospike {@link Operation}s
+     */
     public List<Operation> getOperations() {
         return operations;
     }
@@ -190,26 +269,50 @@ public class OperationSpec {
         return opType == OpType.UDF;
     }
 
+    /**
+     * UDF Lua package name when {@link #isUdf()}, otherwise may be {@code null}.
+     *
+     * @return registered UDF package name
+     */
     public String getUdfPackageName() {
         return udfPackageName;
     }
 
+    /**
+     * @param udfPackageName Lua package containing the function
+     */
     public void setUdfPackageName(String udfPackageName) {
         this.udfPackageName = udfPackageName;
     }
 
+    /**
+     * UDF function name when {@link #isUdf()}.
+     *
+     * @return function name within the package
+     */
     public String getUdfFunctionName() {
         return udfFunctionName;
     }
 
+    /**
+     * @param udfFunctionName function to invoke
+     */
     public void setUdfFunctionName(String udfFunctionName) {
         this.udfFunctionName = udfFunctionName;
     }
 
+    /**
+     * Arguments passed to the UDF, or {@code null} if none.
+     *
+     * @return UDF argument values
+     */
     public Value[] getUdfArguments() {
         return udfArguments;
     }
 
+    /**
+     * @param udfArguments arguments for the UDF call, or {@code null}
+     */
     public void setUdfArguments(Value[] udfArguments) {
         this.udfArguments = udfArguments;
     }

@@ -45,6 +45,14 @@ public class ChunkedRecordStream implements RecordStreamImpl {
     private final int recordQueueSize;
     private boolean first = true;
 
+    /**
+     * Creates a chunked stream over {@code cmd}, using {@code stream} as the buffer for the first chunk.
+     *
+     * @param stream async buffer for records (replaced when a new chunk is fetched)
+     * @param cmd query command that loads each chunk from the server
+     * @param limit maximum number of records to yield; {@code 0} or less means no limit
+     * @param recordQueueSize capacity of each chunk's {@link AsyncRecordStream}
+     */
     public ChunkedRecordStream(AsyncRecordStream stream, QueryCommand cmd, long limit, int recordQueueSize) {
         this.cmd = cmd;
         this.limit = limit;
@@ -52,6 +60,12 @@ public class ChunkedRecordStream implements RecordStreamImpl {
     	this.stream = stream;
     }
 
+    /**
+     * Whether another server chunk can be loaded after the current one is drained.
+     * The first call returns {@code true} without fetching; later calls run the next chunk query when needed.
+     *
+     * @return {@code false} if the query is finished or the record limit has been reached
+     */
     @Override
     public boolean hasMoreChunks() {
     	if (first) {
@@ -69,6 +83,9 @@ public class ChunkedRecordStream implements RecordStreamImpl {
 		return true;
     }
 
+    /**
+     * Whether a subsequent {@link #next()} is available within the current chunk and under the configured limit.
+     */
     @Override
     public boolean hasNext() {
         if (limit > 0 && recordCount >= limit) {
@@ -78,12 +95,18 @@ public class ChunkedRecordStream implements RecordStreamImpl {
         return stream.hasNext();
     }
 
+    /**
+     * Returns the next record from the current chunk and increments the total count toward any limit.
+     */
     @Override
     public RecordResult next() {
         recordCount++;
         return stream.next();
     }
 
+    /**
+     * Releases resources for the current chunk's async stream.
+     */
     @Override
     public void close() {
     	stream.close();

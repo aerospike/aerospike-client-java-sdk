@@ -60,10 +60,26 @@ public class DefaultRecordMappingFactory implements RecordMappingFactory {
         this.map = map;
     }
 
+    /**
+     * Builds a factory with a single class-to-mapper entry.
+     *
+     * @param clazz the Java type the mapper handles
+     * @param mapper mapper for that type
+     * @return a new factory backed by {@link Map#of(Object, Object)}
+     */
     public static <T> DefaultRecordMappingFactory of(Class<T> clazz, RecordMapper<T> mapper) {
         return new DefaultRecordMappingFactory(Map.of(clazz, mapper));
     }
 
+    /**
+     * Builds a factory with two class-to-mapper entries.
+     *
+     * @param clazz1 first Java type
+     * @param mapper1 mapper for {@code clazz1}
+     * @param clazz2 second Java type
+     * @param mapper2 mapper for {@code clazz2}
+     * @return a new factory backed by {@link Map#of(Object, Object, Object, Object)}
+     */
     public static <T1, T2> DefaultRecordMappingFactory of(
             Class<T1> clazz1, RecordMapper<T1> mapper1,
             Class<T2> clazz2, RecordMapper<T2> mapper2) {
@@ -73,6 +89,17 @@ public class DefaultRecordMappingFactory implements RecordMappingFactory {
                 ));
     }
 
+    /**
+     * Builds a factory with three class-to-mapper entries.
+     *
+     * @param clazz1 first Java type
+     * @param mapper1 mapper for {@code clazz1}
+     * @param clazz2 second Java type
+     * @param mapper2 mapper for {@code clazz2}
+     * @param clazz3 third Java type
+     * @param mapper3 mapper for {@code clazz3}
+     * @return a new factory backed by a fixed-size map from {@link Map#of}
+     */
     public static <T1, T2, T3> DefaultRecordMappingFactory of(
             Class<T1> clazz1, RecordMapper<T1> mapper1,
             Class<T2> clazz2, RecordMapper<T2> mapper2,
@@ -84,6 +111,19 @@ public class DefaultRecordMappingFactory implements RecordMappingFactory {
                 ));
     }
 
+    /**
+     * Builds a factory with four class-to-mapper entries.
+     *
+     * @param clazz1 first Java type
+     * @param mapper1 mapper for {@code clazz1}
+     * @param clazz2 second Java type
+     * @param mapper2 mapper for {@code clazz2}
+     * @param clazz3 third Java type
+     * @param mapper3 mapper for {@code clazz3}
+     * @param clazz4 fourth Java type
+     * @param mapper4 mapper for {@code clazz4}
+     * @return a new factory backed by a fixed-size map from {@link Map#of}
+     */
     public static <T1, T2, T3, T4> DefaultRecordMappingFactory of(
             Class<T1> clazz1, RecordMapper<T1> mapper1,
             Class<T2> clazz2, RecordMapper<T2> mapper2,
