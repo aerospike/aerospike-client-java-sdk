@@ -236,6 +236,7 @@ public class VisitorUtils {
      * @param left  The {@link AbstractPart} whose type might be overridden
      * @param right The {@link AbstractPart} used as a reference for type inference
      */
+    @SuppressWarnings("incomplete-switch")
     private static void overrideTypes(AbstractPart left, AbstractPart right) {
         switch (left.getPartType()) {
             case BIN_PART -> overrideBinType((BinPart) left, right); // For example, in expression "$.intBin1 == 100"
@@ -1070,6 +1071,7 @@ public class VisitorUtils {
      * @param placeholderValues An object storing placeholder indexes and their resolved values
      */
     private static void resolvePlaceholders(ExpressionContainer expression, PlaceholderValues placeholderValues) {
+        @SuppressWarnings("incomplete-switch")
         Consumer<AbstractPart> exprContainersCollector = part -> {
             switch (part.getPartType()) {
                 case EXPRESSION_CONTAINER -> replacePlaceholdersInExprContainer(part, placeholderValues);

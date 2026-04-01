@@ -28,8 +28,9 @@ import com.aerospike.client.fluent.query.Filter;
  * secondary index Filter.
  */
 class NoApplicableFilterException extends RuntimeException {
+    private static final long serialVersionUID = 1L;
 
-    NoApplicableFilterException(String description) {
+	NoApplicableFilterException(String description) {
         super(description);
     }
 }

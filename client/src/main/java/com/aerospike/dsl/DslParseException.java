@@ -22,8 +22,9 @@ package com.aerospike.dsl;
  * unrecoverable issue like invalid input, failing validation or unsupported functionality.
  */
 public class DslParseException extends RuntimeException {
+    private static final long serialVersionUID = 1L;
 
-    public DslParseException(String description) {
+	public DslParseException(String description) {
         super(description);
     }
 
