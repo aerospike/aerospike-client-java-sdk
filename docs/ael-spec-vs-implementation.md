@@ -1,42 +1,29 @@
-# DSL Spec vs Implementation — Identified Differences
+# AEL Spec vs Implementation — Identified Differences
 
-This document catalogues six incongruities between the
-[Expression DSL specification](../CORE-Expression%20DSL.pdf) and its current
-implementation in the `dsl` package. Each section describes what the spec
+This document catalogues incongruities between the
+[Expression AEL specification](../CORE-Expression%20AEL.pdf) and its current
+implementation in the `dsl` package. Items 2b–2f were identified via runtime
+testing; items 2g–2n were identified by comparing the spec documentation
+against the `Condition.g4` grammar. Each section describes what the spec
 requires, what the implementation actually does, and (where applicable)
-references the reproducing test in
-`examples/.../OperationDifferences.java`.
+references the reproducing test in `examples/.../OperationDifferences.java`.
 
----
+## Summary
 
-## 2a. `let...then` vs `with...do` Keyword Mismatch
-
-**Spec (p.18):**
-
-```
-let (x = 1, y = ${x} + 1) then (${y} + ${x})
-```
-
-**Implementation (`Condition.g4` line 24):**
-
-```
-'with' '(' variableDefinition (',' variableDefinition)* ')' 'do' '(' expression ')'   # WithExpression
-```
-
-**Description:**
-The spec defines local variable scoping with the keywords `let` and `then`.
-The grammar instead uses `with` and `do`. The spec's keywords are more
-conventional (`let` is widely understood as variable binding in functional
-languages) and were the agreed-upon target, but the grammar has not been
-updated.
-
-**Impact:**
-
-- `let (x = $.x, y = $.y) then (${x} + ${y})` — fails to parse.
-- `with (x = $.x, y = $.y) do (${x} + ${y})` — works, but contradicts the spec.
-
-**Test:** `test2a_LetThenVsWithDo` (currently commented out in `main`
-because the `with...do` form is still the only working syntax).
+| ID | Issue | Severity | Status |
+|---|---|---|---|
+| 2b | `NAME_IDENTIFIER` allows digit-start → wrong map key type | High | Open — `test2b` |
+| 2d | `exists()` silently dropped by visitor | High | Open — `test2d` |
+| 2e | Mutation functions are grammar stubs with no visitor | Medium | Open — `test2e` |
+| 2f | `deviceSize`/`memorySize` aliased to `recordSize` | Low (server >= 7.0) | Open — requires pre-7.0 server |
+| 2g | `type()` path function missing from grammar | Medium | Open — parse failure |
+| 2h | `put()` map mutation missing from grammar | Medium | Open — parse failure |
+| 2i | Open-start ranges (`{-d}`, `{:5}`, `{#:4}`) missing | Medium | Open — parse failure |
+| 2j | BLOB literals (`X'ffee'`) missing from grammar | Medium | Open — parse failure |
+| 2k | Block comments (`/* */`) missing from grammar | Low | Open — parse failure |
+| 2l | `error`/`unknown` keywords treated as bin names | Medium | Open — silently wrong behaviour |
+| 2m | `WILDCARD`/`NIL`/`INF` not handled as special values | Medium | Open — `NIL`/`INF` treated as string keys |
+| 2n | `$.key()` metadata function missing from grammar | Medium | Open — parse failure |
 
 ---
 
@@ -45,7 +32,7 @@ because the `with...do` form is still the only working syntax).
 **Spec:**
 Unquoted identifiers must match `^[A-Za-z]\w*$` (must start with a letter).
 
-**Implementation (`Condition.g4` line 506):**
+**Implementation (`Condition.g4` line 546):**
 
 ```
 NAME_IDENTIFIER: [a-zA-Z0-9_]+;
@@ -53,7 +40,7 @@ NAME_IDENTIFIER: [a-zA-Z0-9_]+;
 
 **Description:**
 The grammar allows identifiers that start with digits (e.g. `1`, `123abc`).
-This means that when a map has integer keys, the DSL expression `$.m.1`
+This means that when a map has integer keys, the AEL expression `$.m.1`
 is parsed with `1` matching `NAME_IDENTIFIER`, which resolves it as a
 **string** key lookup for `"1"` rather than an **integer** key lookup for `1`.
 
@@ -74,58 +61,9 @@ Given a map with both `1(int)` and `"1"(string)` keys:
 **Test:** `test2b_NameIdentifierTooPermissive`
 
 - **[A]** Map with only integer keys — `$.m.1.get(type: STRING)` returns
-  `null` because the DSL looks up string key `"1"`.
+  `null` because the AEL looks up string key `"1"`.
 - **[B]** Map with both integer key `1` and string key `"1"` — returns the
   string key's value instead of the integer key's value.
-
----
-
-## 2c. `>>` Operator Semantics Reversed
-
-**Spec:**
-
-| Operator | Meaning | Java Equivalent |
-|---|---|---|
-| `>>` | Arithmetic right shift (sign-preserving) | `>>` / `Exp.arshift()` |
-| `>>>` | Logical right shift (zero-fill) | `>>>` / `Exp.rshift()` |
-
-**Implementation (`VisitorUtils.java` line 157):**
-
-```java
-case R_SHIFT -> Exp::rshift;   // logical right shift!
-```
-
-**Description:**
-The DSL's `>>` operator is wired to `Exp.rshift()`, which performs a
-**logical** (zero-fill) right shift. Per the spec and standard Java
-convention, `>>` should be **arithmetic** (sign-preserving) via
-`Exp.arshift()`. Additionally, the spec's `>>>` operator for logical right
-shift does not exist in the grammar at all.
-
-**Impact:**
-
-For negative numbers the result is completely wrong:
-
-```
--8 >> 1
-  Spec / Java:    -4     (arithmetic, sign bit preserved)
-  DSL actual:     9223372036854775804  (logical, zero-fill)
-```
-
-For positive numbers the results are identical (both shift variants produce
-the same output), masking the bug in simple tests.
-
-**Test:** `test2c_RightShiftReversed`
-
-- **[A]** Negative number `-8 >> 1`: expects `-4` (arithmetic), gets
-  `9223372036854775804` (logical).
-- **[B]** Positive number `16 >> 1`: expects `8`, gets `8` — correct by
-  coincidence (both shift types agree for positive values).
-- **[C]** Attempts `$.intBin >>> 1` — fails to parse because `>>>` is
-  not in the grammar.
-
-**Net result:** `>>` does logical when it should do arithmetic, and `>>>`
-doesn't exist at all.
 
 ---
 
@@ -150,11 +88,13 @@ PATH_FUNCTION_EXISTS: 'exists' '()';
 But `ExpressionConditionVisitor` never overrides `visitPathFunctionExists`.
 The default ANTLR visitor returns `null`, which means:
 
-1. `overrideWithPathFunction` receives `null` and does nothing.
-2. In `visitPath`, the condition
-   `!cdtParts.isEmpty() || ctx.pathFunction() != null && ctx.pathFunction().pathFunctionCount() != null`
+1. `visitPathFunctionIfPresent` calls `visit(ctx.pathFunction())`, which
+   dispatches to the default visitor and returns `null`.
+2. In `visitPath`, the check
+   `pathFunction != null && pathFunction.getPathFunctionType() == COUNT`
    evaluates to `false`.
-3. Falls through to `return basePath.getBinPart()` — the `exists()` call
+3. `overrideBinWithPathFunction` receives `null` and does nothing.
+4. Falls through to `return basePath.getBinPart()` — the `exists()` call
    is silently dropped and the expression degrades to reading the bin value
    directly.
 
@@ -195,7 +135,7 @@ These path functions are defined for CDT mutation:
 | `sort()` | Yes | — | `ListExp.sort()` |
 | `put()` | — | Yes | `MapExp.put()` |
 
-**Implementation (`Condition.g4` lines 473-479):**
+**Implementation (`Condition.g4` lines 506-518):**
 
 ```
 pathFunction
@@ -242,10 +182,10 @@ operations are no-ops.
 ## 2f. Metadata Functions Aliasing
 
 **Spec:**
-The DSL metadata functions `deviceSize()`, `memorySize()`, and
+The AEL metadata functions `deviceSize()`, `memorySize()`, and
 `recordSize()` should map to their respective upstream `Exp` methods:
 
-| DSL Function | Expected Upstream Method |
+| AEL Function | Expected Upstream Method |
 |---|---|
 | `$.deviceSize()` | `Exp.deviceSize()` (deprecated, pre-7.0) |
 | `$.memorySize()` | `Exp.memorySize()` (deprecated, pre-7.0) |
@@ -260,7 +200,7 @@ case "deviceSize", "recordSize", "memorySize" -> Exp.recordSize();
 **Description:**
 All three metadata functions are aliased to `Exp.recordSize()`. The
 upstream `Exp.java` has distinct (deprecated) methods `Exp.deviceSize()`
-and `Exp.memorySize()` for pre-7.0 servers. If the DSL is intended to work
+and `Exp.memorySize()` for pre-7.0 servers. If the AEL is intended to work
 with servers older than 7.0, this aliasing produces incorrect results —
 `$.deviceSize()` and `$.memorySize()` would return the total record size
 rather than their respective device/memory sizes.
@@ -275,13 +215,182 @@ server to demonstrate the difference).
 
 ---
 
-## Summary Table
+## 2g. `type()` Path Function — Missing from Grammar
 
-| ID | Issue | Severity | Testable? |
-|---|---|---|---|
-| 2a | `let...then` vs `with...do` keywords | Medium | Yes — `test2a` |
-| 2b | `NAME_IDENTIFIER` allows digit-start → wrong map key type | High | Yes — `test2b` |
-| 2c | `>>` wired to logical shift, `>>>` missing | High | Yes — `test2c` |
-| 2d | `exists()` silently dropped by visitor | High | Yes — `test2d` |
-| 2e | Mutation functions are grammar stubs with no visitor | Medium | Yes — `test2e` |
-| 2f | `deviceSize`/`memorySize` aliased to `recordSize` | Low (server >= 7.0) | Requires pre-7.0 server |
+**Spec:**
+
+```
+$.binA.type() == INT
+```
+
+Returns the data type of the element as an integer constant.
+
+**Implementation:**
+The `type()` function is not defined in the `pathFunction` rule in `Condition.g4`.
+There is no lexer token or parser rule for it.
+
+**Impact:**
+`$.binA.type() == INT` fails to parse. Users cannot inspect bin types at runtime.
+
+---
+
+## 2h. `put()` Map Mutation — Missing from Grammar
+
+**Spec:**
+
+```
+$.mapBin.key.put(value)
+```
+
+Maps to `MapExp.put()` which upserts a key-value pair into a map (creates if
+missing, overwrites if exists).
+
+**Implementation:**
+The grammar defines `set()` but not `put()`. These are **not equivalent**:
+- `set()` maps to `ListExp.set()` — overwrites a value at a specific list index
+- `put()` maps to `MapExp.put()` — upserts a key-value pair into a map
+
+There is no map-level write function in the grammar.
+
+**Impact:**
+Map write operations (inserting or updating key-value pairs) cannot be expressed.
+
+---
+
+## 2i. Open-Start Ranges — Missing from Grammar
+
+**Spec:**
+
+```
+$.m.{-d}          keys from the start up to "d"
+$.m.{:5}          index from start to 5
+$.m.{#:4}         rank from start to 4
+$.l.[:5]          list index from start to 5
+```
+
+**Implementation (`Condition.g4`):**
+- `keyRangeIdentifier`: only `mapKey '-' mapKey` and `mapKey '-'` (open end).
+  No `'-' mapKey` alternative for open start.
+- `indexRangeIdentifier`: only `start ':' end` and `start ':'` (open end).
+  No `':' end` alternative for open start.
+- `rankRangeIdentifier`: same — no open-start form.
+
+**Impact:**
+Expressions like `$.m.{-d}`, `$.m.{:5}`, `$.l.[:3]` fail to parse. Users must
+work around this by using explicit start values (e.g., `$.m.{0:5}` instead of
+`$.m.{:5}`).
+
+---
+
+## 2j. BLOB Literals — Missing from Grammar
+
+**Spec:**
+
+```
+X'ffee'
+x'102030405060708090abcdef'
+```
+
+Hex-encoded byte sequences as literal values.
+
+**Implementation:**
+There is no lexer rule for BLOB/hex literals in `Condition.g4`. The only literal
+types tokenized are `INT`, `FLOAT`, `QUOTED_STRING`, `TRUE`, `FALSE`.
+
+**Impact:**
+BLOB literals cannot be used in expressions. Users cannot compare bin values to
+byte sequences or use BLOB constants in value lists/ranges.
+
+---
+
+## 2k. Block Comments — Missing from Grammar
+
+**Spec:**
+
+```
+/* This is a comment */
+$.age > 21 /* filter adults */
+```
+
+C-style block comments.
+
+**Implementation:**
+There is no comment-skip rule in `Condition.g4`. The only skip rule is
+`WS: [ \t\r\n]+ -> skip`.
+
+**Impact:**
+Expressions containing `/* ... */` comments fail to parse.
+
+---
+
+## 2l. `error`/`unknown` Keywords — Not Explicit in Grammar
+
+**Spec:**
+
+```
+when ($.status in ["GOLD", "PLATINUM"] => true, default => error)
+```
+
+`error` and `unknown` are interchangeable keywords that produce a runtime
+exception when evaluated.
+
+**Implementation:**
+These keywords are not defined as grammar tokens or rules. They match
+`NAME_IDENTIFIER` but are **not** recognised by the visitor — no special
+handling exists for either string. They are treated as ordinary identifiers
+(e.g., bin names or string map keys) rather than as error-producing
+expressions.
+
+**Impact:**
+`when (... default => error)` silently treats `error` as a bin reference
+named `error` rather than raising a runtime exception. The intent of forcing
+a guaranteed failure on unexpected branches is lost.
+
+---
+
+## 2m. `WILDCARD`, `NIL`, `INF` Special Values — Not Explicit in Grammar
+
+**Spec:**
+
+| Value | Description |
+|---|---|
+| `*` (WILDCARD) | Matches any value from that point |
+| `NIL` | Lowest possible CDT comparison value |
+| `INF` | Highest possible CDT comparison value |
+
+**Implementation:**
+`NIL` and `INF` match `NAME_IDENTIFIER: [a-zA-Z0-9_]+` but are **not**
+recognised by the visitor — no special handling maps them to
+`Value.getAsNull()` or `Value.INFINITY`. They are treated as ordinary
+identifiers (bin names or string map keys). `*` (WILDCARD) is not a
+`NAME_IDENTIFIER` match and would need its own lexer token, which does not
+exist.
+
+**Impact:**
+- `$.m.{NIL-d}` treats `NIL` as a string key `"NIL"` rather than the
+  lowest CDT comparison value.
+- `$.m.{a-INF}` treats `INF` as a string key `"INF"` rather than the
+  highest CDT comparison value.
+- `*` (WILDCARD) fails to parse in value contexts where it is expected.
+
+---
+
+## 2n. `$.key()` Metadata Function — Missing from Grammar
+
+**Spec:**
+
+```
+$.key(STR)       user key stored with the record (string)
+$.key(INT)       user key stored with the record (integer)
+$.key(BLOB)      user key stored with the record (blob)
+```
+
+**Implementation:**
+The `METADATA_FUNCTION` token in `Condition.g4` lists `ttl()`, `voidTime()`,
+`lastUpdate()`, `sinceUpdate()`, `setName()`, `keyExists()`, `isTombstone()`,
+`deviceSize()`, `memorySize()`, `recordSize()`, and `digestModulo(INT)`.
+There is no `key(...)` variant.
+
+**Impact:**
+`$.key(STR)` and similar expressions fail to parse. Users cannot access the
+stored user key.

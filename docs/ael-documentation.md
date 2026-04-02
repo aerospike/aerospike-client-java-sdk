@@ -1,14 +1,14 @@
-# Aerospike Expression DSL Reference
+# Aerospike Expression AEL Reference
 
 ## Overview
 
-The Aerospike Expression DSL is a text-based domain-specific language that compiles to Aerospike Expression objects. It provides a concise, readable syntax for:
+The Aerospike Expression AEL is a text-based domain-specific language that compiles to Aerospike Expression objects. It provides a concise, readable syntax for:
 
 - **Filter expressions** — `WHERE` clauses on queries, batch operations, and single-key operations.
 - **Read expressions** — computing derived (synthetic) bins from existing data.
 - **Write expressions** — computing values to store in bins.
 
-A DSL expression is a string that is parsed, compiled to an `Exp` tree, and then evaluated by the Aerospike server against each record.
+A AEL expression is a string that is parsed, compiled to an `Exp` tree, and then evaluated by the Aerospike server against each record.
 
 ---
 
@@ -141,7 +141,7 @@ Map keys can be strings, integers, or BLOBs. Map values can be any supported typ
 
 ## 3. Path Expressions
 
-Paths are the core of the DSL. A path is a dot-separated chain of elements that navigates from a record's bin into nested data structures (maps and lists).
+Paths are the core of the AEL. A path is a dot-separated chain of elements that navigates from a record's bin into nested data structures (maps and lists).
 
 ### Structure
 
@@ -154,9 +154,9 @@ $.<bin>.<context1>.<context2>...<leaf>.<function>
 - **Leaf element**: The final element being targeted.
 - **Function**: An optional terminal operation (`get()`, `count()`, `exists()`, `asInt()`, `asFloat()`).
 
-### How the DSL determines bin type
+### How the AEL determines bin type
 
-The DSL deduces whether a bin is a Map or List from the **first context element** after the bin name:
+The AEL deduces whether a bin is a Map or List from the **first context element** after the bin name:
 
 - Starts with `{` or is a bare/quoted identifier → **Map bin**
 - Starts with `[` → **List bin**
@@ -211,7 +211,7 @@ $.intBin.get(type: INT) > $.floatBin.asInt()
 
 ## 5. Map Path Elements
 
-Maps are key-value structures. The DSL navigates into maps using dot-separated path elements. Map keys can be strings, integers, or BLOBs.
+Maps are key-value structures. The AEL navigates into maps using dot-separated path elements. Map keys can be strings, integers, or BLOBs.
 
 ### 5.1 Singular Map Elements (Context or Leaf)
 
@@ -348,7 +348,7 @@ $.mapBin.count()              -- equivalent shorthand
 
 ## 6. List Path Elements
 
-Lists are ordered sequences accessed by index. The DSL uses square brackets `[]`.
+Lists are ordered sequences accessed by index. The AEL uses square brackets `[]`.
 
 ### 6.1 Singular List Elements (Context or Leaf)
 
@@ -701,17 +701,10 @@ The `**` operator is right-associative: `4.0 ** 5.0 ** 6.0` equals `4.0 ** (5.0 
 | `asFloat()` | Convert preceding integer to float | `28.asFloat() == 28.0` |
 | `asInt()` | Convert preceding float to integer | `27.0.asInt() == 27` |
 
-### Precedence (highest to lowest)
+### Precedence
 
-1. `**` (right-associative)
-2. `*`, `/`, `%`
-3. `+`, `-`
-4. Bitwise operators
-5. Shift operators
-6. Comparison operators (`==`, `!=`, `>`, `<`, `in`, `=~`)
-7. Logical operators
-
-Use parentheses to clarify or override:
+See [Section 16](#16-operator-precedence-lowest-to-highest) for the full
+operator precedence table. Use parentheses to clarify or override:
 
 ```
 ($.price * $.qty) > 1000
@@ -912,7 +905,7 @@ $.result == (when (
 
 ## 15. Prepared Statements (Placeholders)
 
-DSL expressions can be pre-compiled with parameter placeholders for reuse. Placeholders use the syntax `?N` where N is a zero-based index.
+AEL expressions can be pre-compiled with parameter placeholders for reuse. Placeholders use the syntax `?N` where N is a zero-based index.
 
 ```
 $.bin > ?0
@@ -936,12 +929,12 @@ session.query(set).where(prepared, 21, "Tim").execute();
 |-------|-----------|---------------|
 | 1 | `or` | Left to right |
 | 2 | `and` | Left to right |
-| 3 | `==`, `!=`, `>`, `>=`, `<`, `<=`, `in`, `=~` | Left to right |
-| 4 | `+`, `-` | Left to right |
-| 5 | `*`, `/`, `%` | Left to right |
-| 6 | `**` | Right to left |
-| 7 | `&`, `\|`, `^` | Left to right |
-| 8 | `<<`, `>>`, `>>>` | Left to right |
+| 3 | `==`, `!=`, `>`, `>=`, `<`, `<=`, `in` | Left to right |
+| 4 | `&`, `\|`, `^` | Left to right |
+| 5 | `<<`, `>>`, `>>>` | Left to right |
+| 6 | `+`, `-` | Left to right |
+| 7 | `*`, `/`, `%` | Left to right |
+| 8 | `**` | Right to left |
 | 9 | `~` (unary), `not()` | Unary prefix |
 | 10 | Functions, path functions, literals, `()` | — |
 
@@ -1066,9 +1059,9 @@ Navigates into nested data and returns the lowest-ranked map entry as an unorder
 
 ---
 
-## 20. DSL Syntax Rules for AI Agents
+## 20. AEL Syntax Rules for AI Agents
 
-This section provides precise rules for generating correct DSL expressions programmatically.
+This section provides precise rules for generating correct AEL expressions programmatically.
 
 ### Rule 1: Always start paths with `$.`
 
@@ -1147,7 +1140,7 @@ Place `!` immediately after the opening bracket/brace:
 ### Rule 10: Range semantics
 
 - Key ranges and value ranges are **begin-inclusive, end-exclusive**: `{a-d}` includes a, b, c but not d.
-- Index ranges in the DSL are also **exclusive** on the end.
+- Index ranges in the AEL are also **exclusive** on the end.
 - Rank ranges follow the same pattern.
 
 ### Rule 11: Use `get()` to override defaults

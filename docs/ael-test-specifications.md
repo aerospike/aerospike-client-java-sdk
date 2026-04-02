@@ -1,7 +1,7 @@
-# DSL Test Specifications
+# AEL Test Specifications
 
-Comprehensive test specifications for the Aerospike Expression DSL. Each test
-has sample data, the DSL expression, and the expected output. Tests are marked:
+Comprehensive test specifications for the Aerospike Expression AEL. Each test
+has sample data, the AEL expression, and the expected output. Tests are marked:
 
 - **Status ✓** — should work with the current implementation
 - **Status ✗** — known to fail (references a known issue from `ael-spec-vs-implementation.md`)
@@ -11,10 +11,10 @@ Tests use the fluent client pattern:
 
 ```java
 // Read expression (returns a value)
-session.query(set.id(N)).bin("r").selectFrom("<DSL>").execute();
+session.query(set.id(N)).bin("r").selectFrom("<AEL>").execute();
 
 // Filter expression (returns boolean — record included or excluded)
-session.query(set.id(N)).where("<DSL>").execute();
+session.query(set.id(N)).where("<AEL>").execute();
 ```
 
 ---
@@ -143,7 +143,7 @@ etc.
 
 ## 1. Scalar Bin Access
 
-| ID | Description | Record | DSL Expression | Context | Expected | Status |
+| ID | Description | Record | AEL Expression | Context | Expected | Status |
 |----|-------------|--------|----------------|---------|----------|--------|
 | S01 | Read integer bin | 1 | `$.intBin` | Read | `42` (Long) | ✓ |
 | S02 | Read float bin | 1 | `$.floatBin` | Read | `3.14` (Double) | ✓ |
@@ -160,7 +160,7 @@ etc.
 
 ## 2. Type Inference and Casting
 
-| ID | Description | Record | DSL Expression | Context | Expected | Status |
+| ID | Description | Record | AEL Expression | Context | Expected | Status |
 |----|-------------|--------|----------------|---------|----------|--------|
 | T01 | asFloat() on integer bin | 1 | `$.intBin.asFloat()` | Read | `42.0` (Double) | ✓ |
 | T02 | asInt() on float bin | 1 | `$.floatBin.asInt()` | Read | `3` (Long, truncated) | ✓ |
@@ -177,7 +177,7 @@ etc.
 
 ## 2b. Type Derivation
 
-These tests verify whether the DSL parser can derive bin types **without**
+These tests verify whether the AEL parser can derive bin types **without**
 explicit `get(type: ...)` annotations, based on context clues: literals,
 boolean operators, arithmetic operators, and cross-expression propagation.
 
@@ -185,7 +185,7 @@ Uses Record 11: `a=10(INT), b=10(INT), c=true(BOOL), d=11(INT), e=3.14(FLOAT), f
 
 ### Level 1: Literal provides the type hint
 
-| ID | Description | DSL Expression | Context | Expected | Status |
+| ID | Description | AEL Expression | Context | Expected | Status |
 |----|-------------|----------------|---------|----------|--------|
 | TD01 | INT from literal | `$.a > 5` | Filter | `true` (10 > 5; `a` derived INT) | ✓ |
 | TD02 | STRING from literal | `$.f == 'hello'` | Filter | `true` (`f` derived STRING) | ✓ |
@@ -194,7 +194,7 @@ Uses Record 11: `a=10(INT), b=10(INT), c=true(BOOL), d=11(INT), e=3.14(FLOAT), f
 
 ### Level 2: Boolean context implies BOOL
 
-| ID | Description | DSL Expression | Context | Expected | Status |
+| ID | Description | AEL Expression | Context | Expected | Status |
 |----|-------------|----------------|---------|----------|--------|
 | TD05 | AND implies both BOOL | `$.c and not($.g)` | Filter | `true` | ✓ |
 | TD06 | OR implies both BOOL | `$.c or $.g` | Filter | `true` | ✓ |
@@ -202,7 +202,7 @@ Uses Record 11: `a=10(INT), b=10(INT), c=true(BOOL), d=11(INT), e=3.14(FLOAT), f
 
 ### Level 3: Arithmetic context implies numeric type
 
-| ID | Description | DSL Expression | Context | Expected | Status |
+| ID | Description | AEL Expression | Context | Expected | Status |
 |----|-------------|----------------|---------|----------|--------|
 | TD08 | Arithmetic + INT literal | `$.a + 1` | Read | `11` (`a` derived INT) | ✓ |
 | TD09 | Arithmetic + FLOAT literal | `$.e + 1.0` | Read | `4.14` (`e` derived FLOAT) | ✓ |
@@ -213,7 +213,7 @@ Uses Record 11: `a=10(INT), b=10(INT), c=true(BOOL), d=11(INT), e=3.14(FLOAT), f
 The literal in one sub-expression provides the type, which propagates
 across the `==` or `>` operator to type the other operand.
 
-| ID | Description | DSL Expression | Context | Expected | Status |
+| ID | Description | AEL Expression | Context | Expected | Status |
 |----|-------------|----------------|---------|----------|--------|
 | TD11 | Literal propagates through arithmetic+equality | `$.a + 1 == $.d` | Filter | `true` (11 == 11; `d` derived INT from `a+1`) | ? |
 | TD12 | Same propagation, `>` operator | `$.a + 1 > $.b` | Filter | `true` (11 > 10; `b` derived INT) | ? |
@@ -223,14 +223,14 @@ across the `==` or `>` operator to type the other operand.
 Type information from one clause of a boolean chain should propagate to
 shared bin references in other clauses.
 
-| ID | Description | DSL Expression | Context | Expected | Status |
+| ID | Description | AEL Expression | Context | Expected | Status |
 |----|-------------|----------------|---------|----------|--------|
 | TD13 | Full chain: `a`,`b`,`d`=INT; `c`=BOOL | `$.a == $.b and $.c and $.a + 1 == $.d` | Filter | `true` — `a` typed by `+1`, propagates to `b` via `==`; `c` typed by `and`; `d` typed by `== (a+1)` | ? |
 | TD14 | Mixed types in chain | `$.f == 'hello' and $.a + 1 == $.d and $.c` | Filter | `true` — `f`=STRING, `a`/`d`=INT, `c`=BOOL | ? |
 
 ### Level 6: Nested arithmetic with propagation
 
-| ID | Description | DSL Expression | Context | Expected | Status |
+| ID | Description | AEL Expression | Context | Expected | Status |
 |----|-------------|----------------|---------|----------|--------|
 | TD15 | `($.a * $.b) > 50` | `($.a * $.b) > 50` | Filter | `true` (100 > 50; literal 50 propagates through `>` and `*` to both `a` and `b`) | ? |
 | TD16 | No literals anywhere | `($.a + $.b) == ($.d + $.b)` | Filter | `false` (20 ≠ 21) — can the parser work with zero literal hints? | ? |
@@ -240,7 +240,7 @@ shared bin references in other clauses.
 A bin appears in two different sub-expressions. Its type in one should
 inform the other.
 
-| ID | Description | DSL Expression | Context | Expected | Status |
+| ID | Description | AEL Expression | Context | Expected | Status |
 |----|-------------|----------------|---------|----------|--------|
 | TD17 | `$.a` in comparison and arithmetic | `$.a > 0 and $.a + $.b > 15` | Filter | `true` (10>0 and 20>15; `a` INT from `>0`, `b` INT from `a+b` arithmetic) | ? |
 
@@ -248,7 +248,7 @@ inform the other.
 
 The parser should detect and reject type-incompatible operations.
 
-| ID | Description | DSL Expression | Context | Expected | Status |
+| ID | Description | AEL Expression | Context | Expected | Status |
 |----|-------------|----------------|---------|----------|--------|
 | TD18 | INT + STRING | `$.a + $.f` | Read | Error | ? |
 | TD19 | INT > STRING literal | `$.a > 'hello'` | Filter | Error or `false` | ? |
@@ -258,7 +258,7 @@ The parser should detect and reject type-incompatible operations.
 Demonstrates that `asFloat()`/`asInt()` are needed when the parser
 cannot infer type or when operand types differ.
 
-| ID | Description | DSL Expression | Context | Expected | Status |
+| ID | Description | AEL Expression | Context | Expected | Status |
 |----|-------------|----------------|---------|----------|--------|
 | TD20 | Explicit cast resolves mismatch | `$.a.asFloat() + $.e` | Read | `13.14` (10.0 + 3.14) | ✓ |
 | TD21 | No cast → type mismatch | `$.a + $.e` | Read | Error (INT + FLOAT) | ✓ |
@@ -269,7 +269,7 @@ cannot infer type or when operand types differ.
 
 ### 3.1 Singular access
 
-| ID | Description | Record | DSL Expression | Context | Expected | Status |
+| ID | Description | Record | AEL Expression | Context | Expected | Status |
 |----|-------------|--------|----------------|---------|----------|--------|
 | M01 | String key (unquoted) | 2 | `$.m.alpha.get(type: INT)` | Read | `10` | ✓ |
 | M02 | String key (quoted) | 2 | `$.m.'alpha'.get(type: INT)` | Read | `10` | ✓ |
@@ -284,7 +284,7 @@ cannot infer type or when operand types differ.
 
 ### 3.2 Plural access (ranges, lists)
 
-| ID | Description | Record | DSL Expression | Context | Expected | Status |
+| ID | Description | Record | AEL Expression | Context | Expected | Status |
 |----|-------------|--------|----------------|---------|----------|--------|
 | M11 | Key range | 2 | `$.m.{alpha-delta}` | Read | Map with keys `alpha`, `beta` (begin-inclusive, end-exclusive, so `delta` excluded; but actually `alpha` < `beta` < `delta` alphabetically, `gamma` > `delta` ) — returns `{"alpha":10, "beta":20}` | ✓ |
 | M12 | Key range (open-ended) | 2 | `$.m.{delta-}` | Read | `{"delta": 40, "epsilon": 50, "gamma": 30}` | ✓ |
@@ -308,7 +308,7 @@ cannot infer type or when operand types differ.
 
 ### 4.1 Singular access
 
-| ID | Description | Record | DSL Expression | Context | Expected | Status |
+| ID | Description | Record | AEL Expression | Context | Expected | Status |
 |----|-------------|--------|----------------|---------|----------|--------|
 | L01 | Positive index [0] | 2 | `$.l.[0].get(type: INT)` | Read | `50` | ✓ |
 | L02 | Middle index [3] | 2 | `$.l.[3].get(type: INT)` | Read | `20` | ✓ |
@@ -321,7 +321,7 @@ cannot infer type or when operand types differ.
 
 ### 4.2 Plural access (ranges, lists)
 
-| ID | Description | Record | DSL Expression | Context | Expected | Status |
+| ID | Description | Record | AEL Expression | Context | Expected | Status |
 |----|-------------|--------|----------------|---------|----------|--------|
 | L09 | Index range [0:3] | 2 | `$.l.[0:3]` | Read | `[50, 10, 40]` (indices 0, 1, 2) | ✓ |
 | L10 | Index range from end [-3:] | 2 | `$.l.[-3:]` | Read | `[30, 60, 5]` (last 3) | ✓ |
@@ -340,7 +340,7 @@ cannot infer type or when operand types differ.
 
 ## 5. Nested CDT Navigation
 
-| ID | Description | Record | DSL Expression | Context | Expected | Status |
+| ID | Description | Record | AEL Expression | Context | Expected | Status |
 |----|-------------|--------|----------------|---------|----------|--------|
 | N01 | Map → Map → scalar | 3 | `$.profile.address.city.get(type: STRING)` | Read | `"Austin"` | ✓ |
 | N02 | Map → Map → scalar (zip) | 3 | `$.profile.address.zip.get(type: STRING)` | Read | `"73301"` | ✓ |
@@ -360,7 +360,7 @@ cannot infer type or when operand types differ.
 
 ## 6. Arithmetic
 
-| ID | Description | Record | DSL Expression | Context | Expected | Status |
+| ID | Description | Record | AEL Expression | Context | Expected | Status |
 |----|-------------|--------|----------------|---------|----------|--------|
 | A01 | Integer addition | 7 | `$.price + $.qty` | Read | `105` (100 + 5) | ✓ |
 | A02 | Integer subtraction | 7 | `$.price - $.qty` | Read | `95` (100 - 5) | ✓ |
@@ -379,7 +379,7 @@ cannot infer type or when operand types differ.
 
 ## 7. Bitwise Operations
 
-| ID | Description | Record | DSL Expression | Context | Expected | Status |
+| ID | Description | Record | AEL Expression | Context | Expected | Status |
 |----|-------------|--------|----------------|---------|----------|--------|
 | B01 | Bitwise AND | 1 | `$.intBin & 15` | Read | `10` (42 & 0xF = 0b101010 & 0b1111 = 0b1010) | ✓ |
 | B02 | Bitwise OR | 1 | `$.intBin \| 15` | Read | `47` (42 \| 15 = 0b101010 \| 0b001111 = 0b101111) | ✓ |
@@ -396,7 +396,7 @@ cannot infer type or when operand types differ.
 
 ## 8. Comparison Operators
 
-| ID | Description | Record | DSL Expression | Context | Expected | Status |
+| ID | Description | Record | AEL Expression | Context | Expected | Status |
 |----|-------------|--------|----------------|---------|----------|--------|
 | C01 | Equal == | 1 | `$.intBin == 42` | Filter | `true` | ✓ |
 | C02 | Not equal != | 1 | `$.intBin != 42` | Filter | `false` | ✓ |
@@ -422,7 +422,7 @@ cannot infer type or when operand types differ.
 
 ## 9. Logical Operators
 
-| ID | Description | Record | DSL Expression | Context | Expected | Status |
+| ID | Description | Record | AEL Expression | Context | Expected | Status |
 |----|-------------|--------|----------------|---------|----------|--------|
 | LG01 | AND — both true | 1 | `$.intBin > 40 and $.strBin == 'hello'` | Filter | `true` | ✓ |
 | LG02 | AND — one false | 1 | `$.intBin > 50 and $.strBin == 'hello'` | Filter | `false` | ✓ |
@@ -444,7 +444,7 @@ cannot infer type or when operand types differ.
 
 ### 10.1 Variable binding (`with...do` / spec: `let...then`)
 
-| ID | Description | Record | DSL Expression | Context | Expected | Status |
+| ID | Description | Record | AEL Expression | Context | Expected | Status |
 |----|-------------|--------|----------------|---------|----------|--------|
 | CS01 | Simple variable | 7 | `with ('x' = $.price) do (${x} + 1)` | Read | `101` | ✓ |
 | CS01s | Simple variable (spec syntax) | 7 | `let (x = $.price) then (${x} + 1)` | Read | `101` | ✗ 2a |
@@ -456,7 +456,7 @@ cannot infer type or when operand types differ.
 
 ### 10.2 Conditional (`when...default`)
 
-| ID | Description | Record | DSL Expression | Context | Expected | Status |
+| ID | Description | Record | AEL Expression | Context | Expected | Status |
 |----|-------------|--------|----------------|---------|----------|--------|
 | CS07 | Two branches + default, match first | 7 | `when ($.tier == 1 => "gold", $.tier == 2 => "silver", default => "bronze")` | Read | `"silver"` (tier=2) | ✓ |
 | CS08 | Fall to default | 7 | `when ($.tier == 5 => "diamond", default => "standard")` | Read | `"standard"` | ✓ |
@@ -467,7 +467,7 @@ cannot infer type or when operand types differ.
 
 ### 10.3 Mixed nesting
 
-| ID | Description | Record | DSL Expression | Context | Expected | Status |
+| ID | Description | Record | AEL Expression | Context | Expected | Status |
 |----|-------------|--------|----------------|---------|----------|--------|
 | CS13 | when inside with body | 7 | `with ('t' = $.tier) do (when (${t} == 1 => "gold", ${t} == 2 => "silver", default => "bronze"))` | Read | `"silver"` | ✓ |
 | CS14 | with inside when branch | 7 | `when ($.tier == 2 => with ('p' = $.price) do (${p} * 2), default => 0)` | Read | `200` | ✓ |
@@ -479,7 +479,7 @@ cannot infer type or when operand types differ.
 
 ## 11. Metadata
 
-| ID | Description | Record | DSL Expression | Context | Expected | Status |
+| ID | Description | Record | AEL Expression | Context | Expected | Status |
 |----|-------------|--------|----------------|---------|----------|--------|
 | MD01 | TTL | 1 | `$.ttl()` | Read | INT (seconds until expiry, or -1 for never-expire) | ✓ |
 | MD02 | Record size | 1 | `$.recordSize()` | Read | INT > 0 | ✓ |
@@ -496,7 +496,7 @@ cannot infer type or when operand types differ.
 
 ## 12. Path Functions
 
-| ID | Description | Record | DSL Expression | Context | Expected | Status |
+| ID | Description | Record | AEL Expression | Context | Expected | Status |
 |----|-------------|--------|----------------|---------|----------|--------|
 | PF01 | get(type: INT) | 2 | `$.m.alpha.get(type: INT)` | Read | `10` | ✓ |
 | PF02 | get(return: COUNT) on key range | 2 | `$.m.{alpha-delta}.get(return: COUNT)` | Read | `2` | ✓ |
@@ -518,7 +518,7 @@ cannot infer type or when operand types differ.
 > Note: These special values are defined in the spec but may not be
 > available as operands in the current grammar.
 
-| ID | Description | Record | DSL Expression | Context | Expected | Status |
+| ID | Description | Record | AEL Expression | Context | Expected | Status |
 |----|-------------|--------|----------------|---------|----------|--------|
 | SV01 | List comparison with WILDCARD | 2 | `$.l.[] == [50, *]` | Filter | `true` (list starts with 50, wildcard matches rest) | ? |
 | SV02 | Map key range with NIL start | 2 | `$.m.{NIL-delta}` | Read | All keys up to (but not including) `delta` | ? |
@@ -532,7 +532,7 @@ cannot infer type or when operand types differ.
 
 ### 14.1 Boundary conditions
 
-| ID | Description | Record | DSL Expression | Context | Expected | Status |
+| ID | Description | Record | AEL Expression | Context | Expected | Status |
 |----|-------------|--------|----------------|---------|----------|--------|
 | E01 | List index 0 (first) | 2 | `$.l.[0].get(type: INT)` | Read | `50` | ✓ |
 | E02 | List index -1 (last) | 2 | `$.l.[-1].get(type: INT)` | Read | `5` | ✓ |
@@ -544,7 +544,7 @@ cannot infer type or when operand types differ.
 
 ### 14.2 Error conditions
 
-| ID | Description | Record | DSL Expression | Context | Expected | Status |
+| ID | Description | Record | AEL Expression | Context | Expected | Status |
 |----|-------------|--------|----------------|---------|----------|--------|
 | E08 | Out of range index | 2 | `$.l.[100].get(type: INT)` | Read | Error or null (index beyond list) | ? |
 | E09 | Negative index beyond list | 2 | `$.l.[-100].get(type: INT)` | Read | Error or null | ? |
@@ -558,7 +558,7 @@ cannot infer type or when operand types differ.
 
 ### 14.3 Quoted keys and special characters
 
-| ID | Description | Record | DSL Expression | Context | Expected | Status |
+| ID | Description | Record | AEL Expression | Context | Expected | Status |
 |----|-------------|--------|----------------|---------|----------|--------|
 | E17 | Quoted key with special chars | 3 | `$.profile.'name'.get(type: STRING)` | Read | `"Alice"` | ✓ |
 | E18 | Double-quoted key | 3 | `$.profile."name".get(type: STRING)` | Read | `"Alice"` | ✓ |
@@ -569,11 +569,11 @@ cannot infer type or when operand types differ.
 ## 15. Complex Chaining / Transaction Scenario
 
 These tests use Record 8 (transactions map). The goal is to demonstrate
-realistic multi-step DSL usage patterns.
+realistic multi-step AEL usage patterns.
 
 ### 15.1 Basic transaction queries
 
-| ID | Description | Record | DSL Expression | Context | Expected | Status |
+| ID | Description | Record | AEL Expression | Context | Expected | Status |
 |----|-------------|--------|----------------|---------|----------|--------|
 | TX01 | Total transaction count | 8 | `$.txns.{}.count()` | Read | `12` | ✓ |
 | TX02 | Get first transaction (by key) | 8 | `$.txns.{0}.get(return: KEY_VALUE)` | Read | `{"1672531200000,txn01": [150, "Coffee subscription"]}` | ✓ |
@@ -584,7 +584,7 @@ realistic multi-step DSL usage patterns.
 Since map keys are `"timestamp,txnId"` and maps are key-ordered, key range
 queries naturally filter by time.
 
-| ID | Description | Record | DSL Expression | Context | Expected | Status |
+| ID | Description | Record | AEL Expression | Context | Expected | Status |
 |----|-------------|--------|----------------|---------|----------|--------|
 | TX04 | Transactions in Q3 2023 (Jul-Sep) | 8 | `$.txns.{"1688169600000"-"1696118400000"}` | Read | 3 entries: txn07 (3500), txn08 (45), txn09 (12000) | ✓ |
 | TX05 | Count transactions in Q3 | 8 | `$.txns.{"1688169600000"-"1696118400000"}.get(return: COUNT)` | Read | `3` | ✓ |
@@ -598,7 +598,7 @@ queries naturally filter by time.
 Map values are lists `[amount, description]`. Rank ordering compares lists
 element-by-element, so ranking is primarily by amount (the first element).
 
-| ID | Description | Record | DSL Expression | Context | Expected | Status |
+| ID | Description | Record | AEL Expression | Context | Expected | Status |
 |----|-------------|--------|----------------|---------|----------|--------|
 | TX10 | Highest value transaction (rank -1) | 8 | `$.txns.{#-1}.get(return: KEY_VALUE)` | Read | `{"1693526400000,txn09": [12000, "Vacation"]}` | ✓ |
 | TX11 | Lowest value transaction (rank 0) | 8 | `$.txns.{#0}.get(return: KEY_VALUE)` | Read | `{"1690848000000,txn08": [45, "Snacks"]}` | ✓ |
@@ -611,18 +611,18 @@ element-by-element, so ranking is primarily by amount (the first element).
 This is the key scenario: filter by time range, then rank within the
 filtered subset to get top N by value.
 
-**Challenge**: The DSL's plural elements are leaf-only, so you cannot
+**Challenge**: The AEL's plural elements are leaf-only, so you cannot
 chain `{keyRange}` followed by `{#rankRange}` in a single path. This
-requires `with...do` to capture intermediate results — but the DSL
+requires `with...do` to capture intermediate results — but the AEL
 currently cannot apply CDT path operations to variable references.
 
-| ID | Description | Record | DSL Expression | Context | Expected | Status |
+| ID | Description | Record | AEL Expression | Context | Expected | Status |
 |----|-------------|--------|----------------|---------|----------|--------|
 | TX15 | Chain: time range → count | 8 | `with ('filtered' = $.txns.{"1685577600000"-"1701388800000"}.get(return: COUNT)) do (${filtered})` | Read | `6` | ✓ |
-| TX16 | Chain: time range → top 3 | 8 | *(Requires applying rank range to variable — not expressible in current DSL)* | Read | Top 3 from Jun-Nov subset | ? |
-| TX17 | Chain: time range → sum | 8 | *(Requires iteration/aggregation — not expressible in current DSL)* | Read | Sum of amounts in range | ? |
+| TX16 | Chain: time range → top 3 | 8 | *(Requires applying rank range to variable — not expressible in current AEL)* | Read | Top 3 from Jun-Nov subset | ? |
+| TX17 | Chain: time range → sum | 8 | *(Requires iteration/aggregation — not expressible in current AEL)* | Read | Sum of amounts in range | ? |
 
-**Note on TX16 / TX17**: These require the DSL to support applying CDT
+**Note on TX16 / TX17**: These require the AEL to support applying CDT
 operations to expression results (not just bin paths). The equivalent
 `Exp` API code would be:
 
@@ -639,14 +639,14 @@ Exp.let(
 )
 ```
 
-This is a gap in the DSL — variable references cannot be used as CDT
+This is a gap in the AEL — variable references cannot be used as CDT
 operation targets. Consider this a future enhancement.
 
 ### 15.5 Filter based on transaction data
 
 Use the transaction map in `where` filter expressions.
 
-| ID | Description | Record | DSL Expression | Context | Expected | Status |
+| ID | Description | Record | AEL Expression | Context | Expected | Status |
 |----|-------------|--------|----------------|---------|----------|--------|
 | TX18 | Has more than 10 transactions | 8 | `$.txns.{}.count() > 10` | Filter | `true` (12 > 10) | ✓ |
 | TX19 | Has transactions in Q3 | 8 | `$.txns.{"1688169600000"-"1696118400000"}.get(return: COUNT) > 0` | Filter | `true` (3 > 0) | ✓ |
@@ -658,7 +658,7 @@ Use the transaction map in `where` filter expressions.
 
 Record 9 `scores` rank order: `english(78) < math(85) < history(88) < science(92) < art(95)`.
 
-| ID | Description | Record | DSL Expression | Context | Expected | Status |
+| ID | Description | Record | AEL Expression | Context | Expected | Status |
 |----|-------------|--------|----------------|---------|----------|--------|
 | R01 | Get key at rank 0 | 9 | `$.scores.{#0}.get(return: KEY)` | Read | `"english"` | ✓ |
 | R02 | Get value at rank 0 | 9 | `$.scores.{#0}.get(type: INT)` | Read | `78` | ✓ |
@@ -674,7 +674,7 @@ Record 9 `scores` rank order: `english(78) < math(85) < history(88) < science(92
 
 ## 17. Prepared Statements / Placeholders
 
-| ID | Description | Record | DSL Expression | Params | Context | Expected | Status |
+| ID | Description | Record | AEL Expression | Params | Context | Expected | Status |
 |----|-------------|--------|----------------|--------|---------|----------|--------|
 | P01 | Single placeholder | 1 | `$.intBin > ?0` | `[40]` | Filter | `true` (42 > 40) | ✓ |
 | P02 | Two placeholders | 1 | `$.intBin > ?0 and $.strBin == ?1` | `[40, "hello"]` | Filter | `true` | ✓ |
@@ -689,7 +689,7 @@ These test different `get(return: ...)` values on the same data.
 
 Using Record 2 with expression `$.m.{alpha,beta,gamma}`:
 
-| ID | Description | Return Type | DSL Expression | Expected | Status |
+| ID | Description | Return Type | AEL Expression | Expected | Status |
 |----|-------------|-------------|----------------|----------|--------|
 | RT01 | Default (ORDERED_MAP) | — | `$.m.{alpha,beta,gamma}` | `{"alpha":10, "beta":20, "gamma":30}` | ✓ |
 | RT02 | COUNT | COUNT | `$.m.{alpha,beta,gamma}.get(return: COUNT)` | `3` | ✓ |
@@ -709,7 +709,7 @@ Using Record 2 with expression `$.m.{alpha,beta,gamma}`:
 > These are in the grammar but have no visitor implementation (issue 2e).
 > All tests are expected to fail.
 
-| ID | Description | Record | DSL Expression | Context | Expected | Status |
+| ID | Description | Record | AEL Expression | Context | Expected | Status |
 |----|-------------|--------|----------------|---------|----------|--------|
 | MUT01 | List sort | 2 | `$.l.[].sort()` | Write | `[5, 10, 20, 30, 40, 50, 60]` | ✗ 2e |
 | MUT02 | List remove by value | 2 | `$.l.[=50].remove()` | Write | `[10, 40, 20, 30, 60, 5]` | ✗ 2e |
