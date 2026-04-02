@@ -77,7 +77,6 @@ public class FluentApiSettingsTest {
         public OpType getOpType() { return opType; }
         public CommitLevel getCommitLevel() { return commitLevel; }
         public Boolean getDurableDelete() { return durableDelete; }
-        public Boolean getRespondAllOps() { return respondAllOps; }
         public Boolean getOnLockingOnly() { return onLockingOnly; }
         public Boolean getXdr() { return xdr; }
         public Boolean getSendKey() { return sendKey; }
@@ -316,13 +315,6 @@ public class FluentApiSettingsTest {
         TestOperationBuilder builder = new TestOperationBuilder();
         builder.withoutDurableDelete();
         assertFalse(builder.getDurableDelete());
-    }
-
-    @Test
-    public void testRespondAllOps() {
-        TestOperationBuilder builder = new TestOperationBuilder();
-        builder.respondAllOps();
-        assertTrue(builder.getRespondAllOps());
     }
 
     @Test

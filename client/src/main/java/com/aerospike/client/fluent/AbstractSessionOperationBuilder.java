@@ -73,7 +73,6 @@ public abstract class AbstractSessionOperationBuilder<T extends AbstractSessionO
     // Write behavior settings
     protected CommitLevel commitLevel = null;
     protected Boolean durableDelete = null;
-    protected Boolean respondAllOps = null;
     protected Boolean onLockingOnly = null;
     protected Boolean xdr = null;
 
@@ -697,20 +696,6 @@ public abstract class AbstractSessionOperationBuilder<T extends AbstractSessionO
      */
     public T withoutDurableDelete() {
         this.durableDelete = false;
-        return self();
-    }
-
-    /**
-     * Return results for all operations in a multi-operation command.
-     * <p>
-     * If true, the server will return results for every operation. If false,
-     * the server will only return the result of the last operation.
-     * </p>
-     *
-     * @return this builder for method chaining
-     */
-    public T respondAllOps() {
-        this.respondAllOps = true;
         return self();
     }
 
