@@ -30,15 +30,17 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
 
-import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
+import com.aerospike.client.fluent.policy.Behavior;
+import com.aerospike.client.fluent.policy.Behavior.Selectors;
 import com.aerospike.client.fluent.task.RegisterTask;
 
 public class UdfTest extends ClusterTest {
@@ -125,6 +127,23 @@ public class UdfTest extends ClusterTest {
 		  list.append(l, value)
 		  r[binname] = l
 		  aerospike:update(r)
+		end
+
+		-- Busy-wait
+		local function sleep(sec)
+		    local deadline = os.time() + sec
+		    while os.time() <= deadline do
+		    end
+		end
+
+		function wait_and_update(r, bins, secs)
+		    sleep(secs)
+		    if bin ~= nil then
+		       for b, bv in map.pairs(bins) do
+		          r[b] = bv
+		       end
+		    end
+		    return aerospike:update(r)
 		end
 
 		-- Set expiration of record
@@ -524,5 +543,42 @@ public class UdfTest extends ClusterTest {
 		assertEquals(5, ival);
 
         assertFalse(rs.hasNext());
+	}
+
+	@Test
+	public void batchUdfExhaustsRetriesOnSocketTimeoutAndMarksInDoubt() {
+		long secsToWait = 2;
+		final int keyCount = 50;
+		Behavior behavior = Behavior.DEFAULT.deriveWithChanges("batchUdfShortSocket", b -> b
+				.on(Selectors.writes().nonRetryable().batch(), ops -> ops
+						.waitForCallToComplete(Duration.ofMillis(1000))
+						.abandonCallAfter(Duration.ofMillis(10000))
+						.maximumNumberOfCallAttempts(6)
+						.delayBetweenRetries(Duration.ZERO)
+				)
+		);
+
+		Session shortTimeoutSession = cluster.createSession(behavior);
+		List<Key> keys = new ArrayList<>(keyCount);
+		for (int i = 0; i < keyCount; i++) {
+			keys.add(args.set.id("B-UDF_" + i));
+		}
+		session.delete(keys).execute();
+		HashMap<String, Object> bins = new HashMap<>() {{
+			put("bin", 0);
+		}};
+
+		AerospikeException ae = assertThrows(AerospikeException.class, () -> shortTimeoutSession.executeUdf(keys)
+				.function("record_example", "wait_and_update")
+				.passing(bins, secsToWait)
+				.execute()
+		);
+
+		int rc = ae.getResultCode();
+		assertTrue(
+				rc == ResultCode.TIMEOUT || rc == ResultCode.MAX_RETRIES_EXCEEDED,
+				"expected TIMEOUT or MAX_RETRIES_EXCEEDED, got " + rc + ": " + ae.getMessage());
+		assertTrue(ae.getInDoubt(), "expected inDoubt after write timeout; writes might have been processed on server");
+
 	}
 }

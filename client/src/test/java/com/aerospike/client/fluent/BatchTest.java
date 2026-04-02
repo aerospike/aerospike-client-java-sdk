@@ -142,6 +142,39 @@ public class BatchTest extends ClusterTest {
 	}
 
 	@Test
+	public void shouldOmitKeyUnlessIncludeMissingKeysInBatchRead() {
+		String presentKey = KeyPrefix + 1;
+		String missingKey = "missing-key-12yz";
+		session.delete(args.set.id(missingKey)).execute();
+		// Default batch read: missing keys are not published to the stream.
+		RecordStream rs = session
+				.query(args.set.id(presentKey))
+				.readingOnlyBins(BinName)
+				.query(args.set.id(missingKey))
+				.readingOnlyBins(BinName)
+				.execute();
+
+		List<RecordResult> resExcludingMissingKeys = rs.stream().toList();
+		assertEquals(1, resExcludingMissingKeys.size());
+		assertEquals(ResultCode.OK, resExcludingMissingKeys.getFirst().resultCode());
+		assertEquals(ValuePrefix + "1", resExcludingMissingKeys.getFirst().recordOrThrow().getString(BinName));
+
+		// includeMissingKeys: each missing key produces a RecordResult with KEY_NOT_FOUND_ERROR.
+		rs = session
+				.query(args.set.id(presentKey))
+				.readingOnlyBins(BinName)
+				.query(args.set.id(missingKey))
+				.readingOnlyBins(BinName)
+				.includeMissingKeys()
+				.execute();
+
+		List<RecordResult> resWithMissingKey = rs.stream().toList();
+		assertEquals(2, resWithMissingKey.size());
+		assertEquals(ResultCode.OK, resWithMissingKey.get(0).resultCode());
+		assertEquals(ResultCode.KEY_NOT_FOUND_ERROR, resWithMissingKey.get(1).resultCode());
+	}
+
+	@Test
 	public void batchReadsEmptyBinNames() {
 		List<String> keys = new ArrayList<>(Size);
 
