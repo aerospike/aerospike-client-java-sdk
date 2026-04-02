@@ -17,6 +17,7 @@
 package com.aerospike.client.fluent.query;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -24,6 +25,7 @@ import java.util.List;
 import java.util.Map;
 
 import com.aerospike.client.fluent.*;
+import com.aerospike.client.fluent.exp.*;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -31,9 +33,6 @@ import org.junit.jupiter.api.Test;
 import com.aerospike.client.fluent.cdt.ListReturnType;
 import com.aerospike.client.fluent.cdt.MapReturnType;
 import com.aerospike.client.fluent.command.ParticleType;
-import com.aerospike.client.fluent.exp.Exp;
-import com.aerospike.client.fluent.exp.ListExp;
-import com.aerospike.client.fluent.exp.MapExp;
 import com.aerospike.client.fluent.info.classes.IndexType;
 
 public class QueryFilterExpTest extends ClusterTest {
@@ -569,5 +568,19 @@ public class QueryFilterExpTest extends ClusterTest {
 		finally {
 			rs.close();
 		}
+	}
+
+	@Test
+	public void queryInvalidFilterExpression() {
+		Expression invalidFilter = Exp.build(Exp.eq(
+				BitExp.get(Exp.val(0), Exp.val(8), Exp.intBin(binName)),
+				Exp.val(new byte[] {0})
+		));
+
+		AerospikeException ae = assertThrows(AerospikeException.class, () ->
+				session.query(dataSet.id(keyPrefix+"1"))
+						.where(invalidFilter)
+						.execute());
+		assertEquals(ResultCode.PARAMETER_ERROR, ae.getResultCode());
 	}
 }

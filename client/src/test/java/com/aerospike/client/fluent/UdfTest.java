@@ -27,11 +27,15 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
 
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
@@ -132,11 +136,58 @@ public class UdfTest extends ClusterTest {
 		-- end
 		""";
 
+	private static final String REGISTER_FILE_LUA = """
+		local function ensureRecord(r)
+			if not aerospike:exists(r) then aerospike:create(r) end
+		end
+
+		-- Writes a bin and returns the stored value (same idea as record_example writeBin).
+		function udfRegisterFileTest(r, binName, value)
+			ensureRecord(r)
+			r[binName] = value
+			aerospike:update(r)
+			return value
+		end
+		""";
+
+	private static final String SERVER_FILE_NAME = "udf_register_file_test.lua";
+
 	@BeforeAll
 	public static void register() {
 		RegisterTask task = session.registerUdfString(lua, "record_example.lua");
 		task.waitTillComplete();
 	}
+
+	@Test
+	public void registerUdfFromFilePath() throws Exception {
+		Path temp = Files.createTempFile("test-udf", ".lua");
+		try {
+			Files.writeString(temp, REGISTER_FILE_LUA, StandardCharsets.UTF_8);
+			RegisterTask task = session.registerUdf(temp.toAbsolutePath().toString(), SERVER_FILE_NAME);
+			task.waitTillComplete();
+		}
+		finally {
+			Files.deleteIfExists(temp);
+			session.removeUdf(SERVER_FILE_NAME);
+		}
+	}
+
+	@Test
+	public void registerUdfNonExistentFileThrows() throws Exception {
+		Path dir = Files.createTempDirectory("udf-reg-missing");
+		try {
+			Path missing = dir.resolve("no_such_file.lua");
+			AerospikeException ex = assertThrows(AerospikeException.class,
+				() -> session.registerUdf(missing.toString(), "should_not_register.lua"));
+			assertTrue(
+					ex.getMessage().contains("Failed to read")
+			);
+		}
+		finally {
+			Files.deleteIfExists(dir);
+		}
+	}
+
 
 	@Test
 	public void writeUsingUdf() {
