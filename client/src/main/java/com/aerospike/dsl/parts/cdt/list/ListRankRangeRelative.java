@@ -75,14 +75,7 @@ public class ListRankRangeRelative extends ListPart {
             cdtReturnType = cdtReturnType | ListReturnType.INVERTED;
         }
 
-        Exp relativeExp;
-        if (relative instanceof String rel) {
-            relativeExp = Exp.val(rel);
-        } else if (relative instanceof Integer rel) {
-            relativeExp = Exp.val(rel);
-        } else {
-            throw new DslParseException("Unsupported value relative rank");
-        }
+        Exp relativeExp = objectToExp(relative);
 
         Exp startExp = Exp.val(start);
         if (count == null) {

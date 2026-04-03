@@ -37,7 +37,9 @@ import com.aerospike.dsl.parsedExpression.PlaceholdersTests;
 	CtxTests.class,
 	// com.aerospike.dsl.expression
 	ArithmeticExpressionsTests.class,
+    BareGetFunctionTests.class,
 	BinExpressionsTests.class,
+    BlobTests.class,
 	CastingTests.class,
 	ControlStructuresTests.class,
 	ExplicitTypesTests.class,

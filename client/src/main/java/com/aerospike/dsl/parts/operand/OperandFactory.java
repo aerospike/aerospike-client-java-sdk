@@ -16,6 +16,7 @@
  */
 package com.aerospike.dsl.parts.operand;
 
+import com.aerospike.client.fluent.AerospikeComparator;
 import com.aerospike.dsl.DslParseException;
 import com.aerospike.dsl.parts.AbstractPart;
 
@@ -36,6 +37,7 @@ import java.util.TreeMap;
  * @see IntOperand
  * @see ListOperand
  * @see MapOperand
+ * @see BlobOperand
  */
 public interface OperandFactory {
 
@@ -50,6 +52,7 @@ public interface OperandFactory {
      * <li>{@link Integer} or {@link Long} to {@link IntOperand}.</li>
      * <li>{@link List} to {@link ListOperand}.</li>
      * <li>{@link Map} to {@link MapOperand}.</li>
+     * <li>{@code byte[]} to {@link BlobOperand}.</li>
      * </ul>
      *
      * @param value The object to be converted into an operand. This cannot be {@code null}.
@@ -78,12 +81,16 @@ public interface OperandFactory {
             @SuppressWarnings("unchecked")
             SortedMap<Object, Object> objectMap = (SortedMap<Object, Object>) sortedMap;
             return new MapOperand(objectMap);
+        } else if (value instanceof byte[] bytes) {
+            return new BlobOperand(bytes);
         } else if (value instanceof Map<?, ?> map) {
             try {
                 @SuppressWarnings("unchecked")
                 Map<Object, Object> objectMap = (Map<Object, Object>) map;
-                return new MapOperand(new TreeMap<>(objectMap));
-            } catch (ClassCastException | NullPointerException e) {
+                SortedMap<Object, Object> sortedMap = new TreeMap<>(new AerospikeComparator());
+                sortedMap.putAll(objectMap);
+                return new MapOperand(sortedMap);
+            } catch (ClassCastException | NullPointerException | UnsupportedOperationException e) {
                 throw new DslParseException(
                         "Map keys must be mutually comparable for operand creation", e);
             }

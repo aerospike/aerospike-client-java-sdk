@@ -16,6 +16,7 @@
  */
 package com.aerospike.dsl.filter;
 
+import com.aerospike.client.fluent.exp.Exp;
 import com.aerospike.client.fluent.query.Filter;
 import com.aerospike.client.fluent.query.IndexType;
 import com.aerospike.dsl.DslParseException;
@@ -195,5 +196,68 @@ public class ExplicitTypesFiltersTests {
         assertThatThrownBy(() -> parseFilter(ExpressionContext.of("$.stringBin1.get(type: STRING) == $.floatBin2.get(type: FLOAT)")))
                 .isInstanceOf(DslParseException.class)
                 .hasMessage("Cannot compare STRING to FLOAT");
+    }
+
+    // ---- BLOB Literal Filter with IndexContext ----
+
+    @Test
+    void blobHexEqualityFilter() {
+        byte[] data = new byte[]{(byte) 0xff, 0x00};
+        TestUtils.parseFilterAndCompare(
+                ExpressionContext.of("$.blobBin1.get(type: BLOB) == X'ff00'"),
+                INDEX_FILTER_INPUT, Filter.equal("blobBin1", data));
+    }
+
+    @Test
+    void blobHexFilterReversed() {
+        byte[] data = new byte[]{(byte) 0xff, 0x00};
+        TestUtils.parseFilterAndCompare(
+                ExpressionContext.of("X'ff00' == $.blobBin1.get(type: BLOB)"),
+                INDEX_FILTER_INPUT, Filter.equal("blobBin1", data));
+    }
+
+    @Test
+    void b64EqualityFilter() {
+        byte[] data = new byte[]{1, 2, 3};
+        TestUtils.parseFilterAndCompare(
+                ExpressionContext.of("$.blobBin1.get(type: BLOB) == b64'AQID'"),
+                INDEX_FILTER_INPUT, Filter.equal("blobBin1", data));
+    }
+
+    @Test
+    void b64FilterReversed() {
+        byte[] data = new byte[]{1, 2, 3};
+        TestUtils.parseFilterAndCompare(
+                ExpressionContext.of("b64'AQID' == $.blobBin1.get(type: BLOB)"),
+                INDEX_FILTER_INPUT, Filter.equal("blobBin1", data));
+    }
+
+    @Test
+    void blobInequalityNoFilter() {
+        TestUtils.parseDslExpressionAndCompare(
+                ExpressionContext.of("$.blobBin1.get(type: BLOB) != X'ff00'"),
+                null,
+                Exp.ne(Exp.blobBin("blobBin1"), Exp.val(new byte[]{(byte) 0xff, 0x00})),
+                INDEX_FILTER_INPUT);
+    }
+
+    @Test
+    void blobOrderingNoFilter() {
+        TestUtils.parseDslExpressionAndCompare(
+                ExpressionContext.of("$.blobBin1.get(type: BLOB) > X'ff00'"),
+                null,
+                Exp.gt(Exp.blobBin("blobBin1"), Exp.val(new byte[]{(byte) 0xff, 0x00})),
+                INDEX_FILTER_INPUT);
+    }
+
+    @Test
+    void hexAndB64FilterEquiv() {
+        byte[] data = new byte[]{1, 2, 3};
+        Filter hexFilter = TestUtils.parseFilter(
+                ExpressionContext.of("$.blobBin1.get(type: BLOB) == X'010203'"), INDEX_FILTER_INPUT);
+        Filter b64Filter = TestUtils.parseFilter(
+                ExpressionContext.of("$.blobBin1.get(type: BLOB) == b64'AQID'"), INDEX_FILTER_INPUT);
+        assertThat(hexFilter).isEqualTo(b64Filter);
+        assertThat(hexFilter).isEqualTo(Filter.equal("blobBin1", data));
     }
 }

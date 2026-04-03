@@ -19,6 +19,7 @@ package com.aerospike.dsl.parts.operand;
 import java.util.Base64;
 
 import com.aerospike.client.fluent.exp.Exp;
+import com.aerospike.dsl.DslParseException;
 import com.aerospike.dsl.parts.AbstractPart;
 
 import lombok.Getter;
@@ -39,8 +40,13 @@ public class StringOperand extends AbstractPart implements ParsedValueOperand {
     @Override
     public Exp getExp() {
         if (isBlob) {
-            byte[] byteValue = Base64.getDecoder().decode(value);
-            return Exp.val(byteValue);
+            try {
+                byte[] byteValue = Base64.getDecoder().decode(value);
+                return Exp.val(byteValue);
+            } catch (IllegalArgumentException e) {
+                throw new DslParseException(
+                        "String compared to BLOB-typed path is not valid Base64: " + value, e);
+            }
         }
         return Exp.val(value);
     }
