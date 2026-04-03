@@ -107,7 +107,8 @@ public class VisitorUtils {
             AbstractPart.PartType.INT_OPERAND, Exp.Type.INT,
             AbstractPart.PartType.FLOAT_OPERAND, Exp.Type.FLOAT,
             AbstractPart.PartType.STRING_OPERAND, Exp.Type.STRING,
-            AbstractPart.PartType.BOOL_OPERAND, Exp.Type.BOOL
+            AbstractPart.PartType.BOOL_OPERAND, Exp.Type.BOOL,
+            AbstractPart.PartType.BLOB_OPERAND, Exp.Type.BLOB
     );
 
     /**
@@ -236,7 +237,6 @@ public class VisitorUtils {
      * @param left  The {@link AbstractPart} whose type might be overridden
      * @param right The {@link AbstractPart} used as a reference for type inference
      */
-    @SuppressWarnings("incomplete-switch")
     private static void overrideTypes(AbstractPart left, AbstractPart right) {
         switch (left.getPartType()) {
             case BIN_PART -> overrideBinType((BinPart) left, right); // For example, in expression "$.intBin1 == 100"
@@ -371,6 +371,10 @@ public class VisitorUtils {
                 yield anotherPart.getExp();
             }
             case STRING_OPERAND -> handleStringOperandComparison(binPart, (StringOperand) anotherPart);
+            case BLOB_OPERAND -> {
+                validateComparableTypes(binPart.getExpType(), Exp.Type.BLOB);
+                yield anotherPart.getExp();
+            }
             case METADATA_OPERAND -> {
                 // Handle metadata comparison - type determined by metadata function
                 Exp.Type binType = Exp.Type.valueOf(((MetadataOperand) anotherPart).getMetadataType().toString());
@@ -698,6 +702,14 @@ public class VisitorUtils {
                 yield getFilterForArithmeticOrFail(binName, ((IntOperand) operand).getValue(), type, ctx);
             }
             case STRING_OPERAND -> handleStringOperand(bin, binName, ((StringOperand) operand).getValue(), type, ctx);
+            case BLOB_OPERAND -> {
+                validateComparableTypes(bin.getExpType(), Exp.Type.BLOB);
+                if (type != FilterOperationType.EQ) {
+                    throw new NoApplicableFilterException(
+                            "BLOB filter supports only equality comparison");
+                }
+                yield Filter.equal(binName, ((BlobOperand) operand).getValue(), ctx);
+            }
             default -> throw new NoApplicableFilterException(
                     "Operand type not supported: %s".formatted(operand.getPartType()));
         };
@@ -1049,7 +1061,8 @@ public class VisitorUtils {
         Filter secondaryIndexFilter = null;
         try {
             secondaryIndexFilter = getSIFilter(expr, indexes, preferredBin);
-        } catch (NoApplicableFilterException ignored) {
+        } catch (NoApplicableFilterException e) {
+            clearSecondaryIndexFilterFlag(expr);
         }
         expr.setFilter(secondaryIndexFilter);
 
@@ -1071,7 +1084,6 @@ public class VisitorUtils {
      * @param placeholderValues An object storing placeholder indexes and their resolved values
      */
     private static void resolvePlaceholders(ExpressionContainer expression, PlaceholderValues placeholderValues) {
-        @SuppressWarnings("incomplete-switch")
         Consumer<AbstractPart> exprContainersCollector = part -> {
             switch (part.getPartType()) {
                 case EXPRESSION_CONTAINER -> replacePlaceholdersInExprContainer(part, placeholderValues);
@@ -1322,6 +1334,9 @@ public class VisitorUtils {
         if (element instanceof Map) {
             return Exp.Type.MAP;
         }
+        if (element instanceof byte[]) {
+            return Exp.Type.BLOB;
+        }
         return null;
     }
 
@@ -1510,6 +1525,9 @@ public class VisitorUtils {
             return buildInExpression(left, right);
         }
 
+        rejectBlobArithmetic(left, right, expr.getOperationType());
+        coerceStringToBlobIfNeeded(left, right);
+
         // Process operands
         Exp leftExp = processOperand(left);
         Exp rightExp = processOperand(right);
@@ -1540,6 +1558,35 @@ public class VisitorUtils {
         // Apply binary operator
         BinaryOperator<Exp> operator = getExpOperator(expr.getOperationType());
         return operator.apply(leftExp, rightExp);
+    }
+
+    private static final EnumSet<ExprPartsOperation> ARITHMETIC_OPERATIONS = EnumSet.of(
+            ADD, SUB, MUL, DIV, MOD, POW
+    );
+
+    private static void rejectBlobArithmetic(AbstractPart left, AbstractPart right,
+                                             ExprPartsOperation opType) {
+        if (ARITHMETIC_OPERATIONS.contains(opType)
+                && (resolveExpType(left) == Exp.Type.BLOB
+                || resolveExpType(right) == Exp.Type.BLOB)) {
+            throw new DslParseException(
+                    "BLOB type does not support arithmetic operations");
+        }
+    }
+
+    private static void coerceStringToBlobIfNeeded(AbstractPart left, AbstractPart right) {
+        if (isBlobPath(left) && right.getPartType() == STRING_OPERAND) {
+            ((StringOperand) right).setBlob(true);
+        } else if (isBlobPath(right) && left.getPartType() == STRING_OPERAND) {
+            ((StringOperand) left).setBlob(true);
+        }
+    }
+
+    private static boolean isBlobPath(AbstractPart part) {
+        return part.getPartType() == PATH_OPERAND
+                && part instanceof Path path
+                && path.getPathFunction() != null
+                && path.getPathFunction().getBinType() == Exp.Type.BLOB;
     }
 
     // Operations that always produce a FLOAT result. Used by resolveExpType.
@@ -1724,6 +1771,22 @@ public class VisitorUtils {
                 chosenExpr.getRight(),
                 getFilterOperation(chosenExpr.getOperationType())
         );
+    }
+
+    /**
+     * Recursively clears the {@code hasSecondaryIndexFilter} flag on an expression tree.
+     * Called when SI filter generation fails ({@link NoApplicableFilterException}), so that
+     * {@link #getFilterExp} does not skip subtrees that were optimistically marked during
+     * {@link #chooseExprForFilter}.
+     */
+    private static void clearSecondaryIndexFilterFlag(ExpressionContainer expr) {
+        expr.hasSecondaryIndexFilter(false);
+        if (expr.getLeft() instanceof ExpressionContainer left) {
+            clearSecondaryIndexFilterFlag(left);
+        }
+        if (expr.getRight() instanceof ExpressionContainer right) {
+            clearSecondaryIndexFilterFlag(right);
+        }
     }
 
     /**

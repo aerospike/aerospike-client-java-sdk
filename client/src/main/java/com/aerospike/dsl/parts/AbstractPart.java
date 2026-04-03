@@ -62,6 +62,7 @@ public abstract class AbstractPart {
         EXPRESSION_CONTAINER,
         VARIABLE_OPERAND,
         PLACEHOLDER_OPERAND,
-        FUNCTION_ARGS
+        FUNCTION_ARGS,
+        BLOB_OPERAND
     }
 }
