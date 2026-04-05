@@ -74,7 +74,7 @@ public class Session {
      * expression builder or a pre-built {@link Expression} object. Filter expressions
      * are used to filter records in queries and background operations.</p>
      *
-     * <p>Example usage:</p>
+     * <p>Example:</p>
      * <pre>{@code
      * ExpressionBuilder filter = new ExpressionBuilder(
      *     Exp.build(Exp.eq(Exp.stringBin("status"), Exp.val("active")))
@@ -235,7 +235,7 @@ public class Session {
      * <p>This method creates a query that will scan the entire dataset or use
      * secondary indexes if available. The query can be filtered, sorted, and paginated.</p>
      *
-     * <p>Example usage:</p>
+     * <p>Example:</p>
      * <pre>{@code
      * RecordStream results = session.query(customerDataSet)
      *     .where("$.age > 30")
@@ -260,7 +260,7 @@ public class Session {
      * The query will return at most one record. The returned builder supports
      * chaining to write operations (upsert, update, insert, etc.).</p>
      *
-     * <p>Example usage:</p>
+     * <p>Example:</p>
      * <pre>{@code
      * // Simple query
      * RecordStream results = session.query(dataset.id("user-123"))
@@ -294,7 +294,7 @@ public class Session {
      * <p>This overload is provided to differentiate from the single-key query method
      * when querying with no parameters is valid.</p>
      *
-     * <p>Example usage:</p>
+     * <p>Example:</p>
      * <pre>{@code
      * RecordStream results = session.query(
      *     dataset.id("user-1"),
@@ -321,7 +321,7 @@ public class Session {
      * If only one key is provided in the list, it will use single key optimization.
      * The returned builder supports chaining to write operations.</p>
      *
-     * <p>Example usage:</p>
+     * <p>Example:</p>
      * <pre>{@code
      * List<Key> keys = Arrays.asList(
      *     dataset.id("user-1"),
@@ -352,6 +352,11 @@ public class Session {
 	 * The user can optionally wait for command completion by using the returned
 	 * RegisterTask instance.
 	 *
+	 * <p>Example:
+	 * <pre>{@code
+	 * client.registerUdf("udf/record_example.lua", "record_example.lua");
+	 * }</pre>
+	 *
 	 * @param clientPath			path of client file containing user defined functions, relative to current directory
 	 * @param serverPath			path to store user defined functions on the server, relative to configured script directory.
 	 * @return task that can be used to wait for registration to finish on the cluster
@@ -369,6 +374,11 @@ public class Session {
 	 * The user can optionally wait for command completion by using the returned
 	 * RegisterTask instance.
 	 *
+	 * <p>Example:
+	 * <pre>{@code
+	 * client.registerUdf(TestQueryExecute.class.getClassLoader(), "udf/record_example.lua", "record_example.lua");
+	 * }</pre>
+	 *
 	 * @param resourceLoader		class loader where resource is located.  Example: MyClass.class.getClassLoader() or Thread.currentThread().getContextClassLoader() for webapps
 	 * @param resourcePath			class path where Lua resource is located
 	 * @param serverPath			path to store user defined functions on the server, relative to configured script directory.
@@ -383,28 +393,24 @@ public class Session {
 	}
 
 	/**
-	 * Register UDF functions located in a code string with server.  Example:
-	 * <pre>
-	 * {@code
-	 * String code =
-	 *   "local function reducer(val1,val2)\n" +
-	 *   "  return val1 + val2\n" +
-	 *   "end\n" +
-	 *   "\n" +
-	 *   "function sum_single_bin(stream,name)\n" +
-	 *   "  local function mapper(rec)\n" +
-	 *   "	return rec[name]\n" +
-	 *   "  end\n" +
-	 *   "  return stream : map(mapper) : reduce(reducer)\n" +
-	 *   "end\n";
-	 *
-	 * client.registerUdfString(null, code, "mysum.lua", Language.LUA);
-	 * }
-	 * </pre>
-	 * <p>
+	 * Register UDF functions located in a code string with server.
 	 * This asynchronous server call will return before command is complete.
 	 * The user can optionally wait for command completion by using the returned
 	 * RegisterTask instance.
+	 *
+	 * <p>Example:
+	 * <pre>{@code
+	 * String code = """
+	 * function writeIfGenerationNotChanged(r,name,value,gen)
+	 *     if record.gen(r) == gen then
+	 *         r[name] = value
+	 *         aerospike:update(r)
+	 *     end
+	 * end
+	 * """;
+	 *
+	 * client.registerUdfString(code, "gen.lua");
+	 * }</pre>
 	 *
 	 * @param code					code string containing user defined functions.
 	 * @param serverPath			path to store user defined functions on the server, relative to configured script directory.
@@ -418,6 +424,11 @@ public class Session {
 
 	/**
 	 * Remove user defined function from server nodes.
+     *
+     * <p>Example:
+     * <pre>{@code
+     * session.removeUdf("mylua.lua").execute();
+     * }</pre>
 	 *
 	 * @param serverPath			location of UDF on server nodes.  Example: mylua.lua
 	 * @throws AerospikeException	if remove fails
@@ -441,7 +452,7 @@ public class Session {
 	}
 
 	/**
-     * Begin a UDF (User Defined Function) execution on a single key.
+     * Execute a UDF (User Defined Function) for the given key.
      * Supports chaining multiple heterogeneous operations.
      *
      * <p>UDFs are server-side Lua functions that can perform custom operations on records.
@@ -480,7 +491,30 @@ public class Session {
     }
 
     /**
-     * Begin a UDF (User Defined Function) execution on multiple keys using varargs.
+     * Execute a UDF (User Defined Function) on multiple keys from a list.
+     * Supports chaining multiple heterogeneous operations.
+     *
+     * <p>Example:
+     * <pre>{@code
+     * List<Key> keys = Arrays.asList(dataset.id("user-1"), dataset.id("user-2"));
+     * session.executeUdf(keys)
+     *     .function("myPackage", "myFunction")
+     *     .passing("arg1")
+     *     .execute();
+     * }</pre>
+     *
+     * @param keyList the list of keys to execute the UDF on
+     * @return UdfFunctionBuilder requiring function specification before execution
+     * @see UdfFunctionBuilder
+     * @see ChainableUdfBuilder
+     */
+    public UdfFunctionBuilder executeUdf(List<Key> keyList) {
+        return new UdfFunctionBuilder(this, keyList, new ArrayList<>(),
+                null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, getCurrentTransaction());
+    }
+
+    /**
+     * Execute a UDF (User Defined Function) on multiple keys using varargs.
      * Supports chaining multiple heterogeneous operations.
      *
      * <p>Example:
@@ -500,29 +534,6 @@ public class Session {
      */
     public UdfFunctionBuilder executeUdf(Key key1, Key key2, Key... keys) {
         return new UdfFunctionBuilder(this, buildKeyList(key1, key2, keys), new ArrayList<>(),
-                null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, getCurrentTransaction());
-    }
-
-    /**
-     * Begin a UDF (User Defined Function) execution on multiple keys from a list.
-     * Supports chaining multiple heterogeneous operations.
-     *
-     * <p>Example:
-     * <pre>{@code
-     * List<Key> keys = Arrays.asList(dataset.id("user-1"), dataset.id("user-2"));
-     * session.executeUdf(keys)
-     *     .function("myPackage", "myFunction")
-     *     .passing("arg1")
-     *     .execute();
-     * }</pre>
-     *
-     * @param keyList the list of keys to execute the UDF on
-     * @return UdfFunctionBuilder requiring function specification before execution
-     * @see UdfFunctionBuilder
-     * @see ChainableUdfBuilder
-     */
-    public UdfFunctionBuilder executeUdf(List<Key> keyList) {
-        return new UdfFunctionBuilder(this, keyList, new ArrayList<>(),
                 null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, getCurrentTransaction());
     }
 
@@ -946,7 +957,13 @@ public class Session {
     }
 
     /**
-     * Begin a delete operation. Chainable with other operations.
+     * Delete record for the given key.
+     *
+     * <p>Example:
+     * <pre>{@code
+     * Key key = dataset.id("user-1");
+     * session.delete(key).execute();
+     * }</pre>
      *
      * @param key key to delete
      * @return builder for further no-bin operations in the same batch
@@ -957,7 +974,30 @@ public class Session {
     }
 
     /**
-     * Begin a delete operation on multiple keys.
+     * Delete records for the given keys.
+     *
+     * <p>Example:
+     * <pre>{@code
+     * List<Key> keys = dataset.ids("user-1", "user-2");
+     * session.delete(keys).execute();
+     * }</pre>
+     *
+     * @param keys keys to delete in one batch chain
+     * @return builder for further no-bin operations in the same batch
+     */
+    public ChainableNoBinsBuilder delete(List<Key> keys) {
+        return new ChainableNoBinsBuilder(this, new ArrayList<>(), null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, getCurrentTransaction())
+                .delete(keys);
+    }
+
+    /**
+     * Delete records for the given keys.
+     *
+     * <p>Example:
+     * <pre>{@code
+     * session.delete(dataset.id("user-1"), dataset.id("user-2"), dataset.id("user-3"))
+     *     .execute();
+     * }</pre>
      *
      * @param key1 first key
      * @param key2 second key
@@ -967,17 +1007,6 @@ public class Session {
     public ChainableNoBinsBuilder delete(Key key1, Key key2, Key ... keys) {
         return new ChainableNoBinsBuilder(this, new ArrayList<>(), null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, getCurrentTransaction())
                 .delete(buildKeyList(key1, key2, keys));
-    }
-
-    /**
-     * Begin a delete operation on multiple keys.
-     *
-     * @param keys keys to delete in one batch chain
-     * @return builder for further no-bin operations in the same batch
-     */
-    public ChainableNoBinsBuilder delete(List<Key> keys) {
-        return new ChainableNoBinsBuilder(this, new ArrayList<>(), null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, getCurrentTransaction())
-                .delete(keys);
     }
 
     // --------------------------------
@@ -1089,7 +1118,7 @@ public class Session {
      * the record mapping factory configured on the cluster. The record must exist
      * for the update to succeed.</p>
      *
-     * <p>Example usage:</p>
+     * <p>Example:</p>
      * <pre>{@code
      * session.update(customerDataSet)
      *     .object(customer)
@@ -1112,7 +1141,7 @@ public class Session {
      * <p>This method provides type-safe object updates using a {@link TypeSafeDataSet}.
      * The type parameter ensures compile-time type safety when working with objects.</p>
      *
-     * <p>Example usage:</p>
+     * <p>Example:</p>
      * <pre>{@code
      * TypeSafeDataSet<Customer> customers = ...;
      * session.update(customers)
@@ -1138,7 +1167,7 @@ public class Session {
      * the record mapping factory configured on the cluster. Unlike upsert, replace will
      * completely overwrite all bins in the record with the values from the mapped object.</p>
      *
-     * <p>Example usage:</p>
+     * <p>Example:</p>
      * <pre>{@code
      * session.replace(customerDataSet)
      *     .object(customer)
@@ -1161,7 +1190,7 @@ public class Session {
      * <p>This method provides type-safe object replacement using a {@link TypeSafeDataSet}.
      * The type parameter ensures compile-time type safety when working with objects.</p>
      *
-     * <p>Example usage:</p>
+     * <p>Example:</p>
      * <pre>{@code
      * TypeSafeDataSet<Customer> customers = ...;
      * session.replace(customers)
@@ -1186,7 +1215,7 @@ public class Session {
      * <p>This method replaces the entire record only if it already exists in the database.
      * If the record does not exist, the operation will fail.</p>
      *
-     * <p>Example usage:</p>
+     * <p>Example:</p>
      * <pre>{@code
      * session.replaceIfExists(customerDataSet)
      *     .object(customer)
@@ -1209,7 +1238,7 @@ public class Session {
      * <p>This method provides type-safe object replacement using a {@link TypeSafeDataSet},
      * only if the record already exists. If the record does not exist, the operation will fail.</p>
      *
-     * <p>Example usage:</p>
+     * <p>Example:</p>
      * <pre>{@code
      * TypeSafeDataSet<Customer> customers = ...;
      * session.replaceIfExists(customers)
@@ -1242,6 +1271,7 @@ public class Session {
      * @return the active transaction, or {@code null}
      */
     public Txn getCurrentTransaction() {
+    	// TODO Tim This needs to be resolved.
         return null;
     }
 
@@ -1255,7 +1285,7 @@ public class Session {
      * <p>This interface is used with {@link #doInTransactionReturning(Transactional)}
      * to execute operations within a transaction that need to return a result.</p>
      *
-     * <p>Example usage:</p>
+     * <p>Example:</p>
      * <pre>{@code
      * String result = session.doInTransactionReturning(tx -> {
      *     RecordStream results = tx.query(dataset.id(userId)).execute();
@@ -1285,7 +1315,7 @@ public class Session {
      * <p>This interface is used with {@link #doInTransaction(TransactionalVoid)}
      * to execute operations within a transaction that do not need to return a result.</p>
      *
-     * <p>Example usage:</p>
+     * <p>Example:</p>
      * <pre>{@code
      * session.doInTransaction(txn -> {
      *     txn.upsert(accounts.id("acc1"))
@@ -1326,7 +1356,7 @@ public class Session {
      * proper cleanup. Operations will be retried automatically for result codes like
      * MRT_BLOCKED, MRT_VERSION_MISMATCH, and TXN_FAILED.</p>
      *
-     * <p><b>Example usage:</b>
+     * <p><b>Example:</b>
      * <pre>{@code
      * String userName = session.doInTransactionReturning(tx -> {
      *     RecordStream results = tx.query(dataset.id(userId)).execute();
@@ -1358,7 +1388,7 @@ public class Session {
      * proper cleanup. Operations will be retried automatically for result codes like
      * MRT_BLOCKED, MRT_VERSION_MISMATCH, and TXN_FAILED.</p>
      *
-     * <p><b>Example usage:</b>
+     * <p><b>Example:</b>
      * <pre>{@code
      * session.doInTransaction(txn -> {
      *     txn.upsert(accounts.id("acc1"))
@@ -1460,7 +1490,7 @@ public class Session {
      * commands, such as retrieving namespace details, set information, secondary
      * index information, and build information.</p>
      *
-     * <p>Example usage:</p>
+     * <p>Example:</p>
      * <pre>{@code
      * InfoCommands commands = session.info();
      *
@@ -1491,6 +1521,11 @@ public class Session {
      *
      * <p>This method is used internally to determine the appropriate operation
      * settings and policies based on the namespace's consistency mode.</p>
+ 	 *
+     * <p>Example:</p>
+     * <pre>{@code
+     * session.isNamespaceSC("test");
+     * }</pre>
      *
      * @param namespace the namespace to check
      * @return true if the namespace is in strong consistency mode, false otherwise
@@ -1513,6 +1548,12 @@ public class Session {
      * This asynchronous server call will return before command is complete.
      * The user can optionally wait for command completion by using the returned
      * IndexTask instance.
+	 *
+     * <p>Example:</p>
+     * <pre>{@code
+     * session.createIndex(dataSet, indexName, binName, IndexType.STRING, IndexCollectionType.DEFAULT)
+     *     .waitTillComplete();
+     * }</pre>
      *
 	 * @param set					dataset containing namespace and set information
 	 * @param indexName				name of secondary index
@@ -1552,7 +1593,31 @@ public class Session {
 	 * The user can optionally wait for command completion by using the returned
 	 * IndexTask instance.
 	 *
-	 * @param set					dataset containing namespace and set information
+     * <p>Example:</p>
+     * <pre>{@code
+     * // IF (age >= 18 AND country IN ["Australia, "Canada", "USA"])
+     * Expression exp = Exp.build(
+     *     Exp.cond(
+	 *         Exp.and(
+	 *             // Is the age 18 or older?
+     *             Exp.ge(Exp.intBin("age"), Exp.val(18)),
+     *             // Do they live in a target country?
+     *             Exp.or(
+     *                 Exp.eq(Exp.stringBin("country"), Exp.val(countries.get(0))),
+     *                 Exp.eq(Exp.stringBin("country"), Exp.val(countries.get(1))),
+     *                 Exp.eq(Exp.stringBin("country"), Exp.val(countries.get(2)))
+     *             )
+     *         ),
+     *         Exp.val(1),
+     *         Exp.unknown()
+     *     )
+     * );
+     *
+     * session.createIndex(dataSet, indexName, IndexType.INTEGER, IndexCollectionType.DEFAULT, exp)
+	 *     .waitTillComplete();
+     * }</pre>
+	 *
+	 * @param set					dataSet containing namespace and set information
 	 * @param indexName				name of secondary index
 	 * @param indexType				underlying data type of secondary index
 	 * @param indexCollectionType	index collection type
@@ -1664,6 +1729,11 @@ public class Session {
 	 * The user can optionally wait for command completion by using the returned
 	 * IndexTask instance.
 	 *
+     * <p>Example:</p>
+     * <pre>{@code
+     * session.dropIndex(dataSet, indexName);
+     * }</pre>
+     *
 	 * @param set					dataset (namespace and optional set) the index belongs to
 	 * @param indexName				name of the secondary index to drop
 	 * @return task that can be polled for drop completion
