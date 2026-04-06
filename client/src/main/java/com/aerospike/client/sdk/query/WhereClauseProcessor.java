@@ -89,12 +89,12 @@ public abstract class WhereClauseProcessor {
         return sb.toString();
     }
 
-    public ParseResult process(String dsl, String namespace, Session session) {
+    public ParseResult process(String ael, String namespace, Session session) {
         DSLParser parser = new DSLParserImpl();
 
         ParsedExpression parseResult;
         IndexContext indexContext = null;
-        ExpressionContext context = ExpressionContext.of(dsl);
+        ExpressionContext context = ExpressionContext.of(ael);
         if (allowsIndex) {
             Set<Index> indexes = session.getCluster().getIndexes();
             indexContext = IndexContext.of(namespace, indexes);
@@ -105,7 +105,7 @@ public abstract class WhereClauseProcessor {
         }
         ParseResult result = parseResult.getResult();
         if (result.getExp() == null && result.getFilter() == null) {
-            throw new DslParseException("Unknown error parsing AEL: '" + dsl + "'");
+            throw new DslParseException("Unknown error parsing AEL: '" + ael + "'");
         }
 
         if (Log.debugEnabled()) {
@@ -113,14 +113,14 @@ public abstract class WhereClauseProcessor {
                 Filter filter = result.getFilter();
 
                 Log.debug(String.format("Ael('%s', '%s') => (Exp: %s, Filter: %s)",
-                        dsl,
+                        ael,
                         namespace,
                         result.getExp(),
                         formStringOfFilter(filter, indexContext)));
             }
             else {
                 Log.debug(String.format("Ael('%s', '%s') => (Exp: %s)",
-                        dsl,
+                        ael,
                         namespace,
                         result.getExp()));
             }
@@ -130,74 +130,74 @@ public abstract class WhereClauseProcessor {
     }
 
     private static class WhereStringImpl extends WhereClauseProcessor {
-        private final String dsl;
-        public WhereStringImpl(boolean allowsIndex, String dsl) {
+        private final String ael;
+        public WhereStringImpl(boolean allowsIndex, String ael) {
             super(allowsIndex);
-            this.dsl = dsl;
+            this.ael = ael;
         }
 
         @Override
         public ParseResult process(String namespace, Session session) {
-            return process(this.dsl, namespace, session);
+            return process(this.ael, namespace, session);
         }
     }
 
     private static class WherePreparedImpl extends WhereClauseProcessor {
-        private final PreparedAel dsl;
+        private final PreparedAel ael;
         private final Object[] params;
-        public WherePreparedImpl(boolean allowsIndex, PreparedAel dsl, Object... params) {
+        public WherePreparedImpl(boolean allowsIndex, PreparedAel ael, Object... params) {
             super(allowsIndex);
-            this.dsl = dsl;
+            this.ael = ael;
             this.params = params;
         }
 
         @Override
         public ParseResult process(String namespace, Session session) {
             // TODO: For now, until AEL supports prepared statements
-            String dslStr = dsl.formValue(params);
-            return process(dslStr, namespace,  session);
+            String aelStr = ael.formValue(params);
+            return process(aelStr, namespace,  session);
         }
     }
 
     private static class WhereBoolExprImpl extends WhereClauseProcessor {
-        private final BooleanExpression dsl;
-        public WhereBoolExprImpl(boolean allowsIndex, BooleanExpression dsl) {
+        private final BooleanExpression ael;
+        public WhereBoolExprImpl(boolean allowsIndex, BooleanExpression ael) {
             super(allowsIndex);
-            this.dsl = dsl;
+            this.ael = ael;
         }
 
         @Override
         public ParseResult process(String namespace, Session session) {
-             return new ParseResult(null, dsl.toAerospikeExp());
+             return new ParseResult(null, ael.toAerospikeExp());
         }
     }
 
     private static class WhereExpImpl extends WhereClauseProcessor {
-        private final Exp dsl;
-        public WhereExpImpl(boolean allowsIndex, Exp dsl) {
+        private final Exp exp;
+        public WhereExpImpl(boolean allowsIndex, Exp exp) {
             super(allowsIndex);
-            this.dsl = dsl;
+            this.exp = exp;
         }
 
         @Override
         public ParseResult process(String namespace, Session session) {
-            return new ParseResult(null, dsl);
+            return new ParseResult(null, exp);
         }
     }
 
-    public static WhereClauseProcessor from(boolean allowsIndex, String dsl) {
-        return new WhereStringImpl(allowsIndex, dsl);
+    public static WhereClauseProcessor from(boolean allowsIndex, String ael) {
+        return new WhereStringImpl(allowsIndex, ael);
     }
-    public static WhereClauseProcessor from(boolean allowsIndex, PreparedAel dsl, Object ... params) {
-        return new WherePreparedImpl(allowsIndex, dsl, params);
+    public static WhereClauseProcessor from(boolean allowsIndex, PreparedAel ael, Object ... params) {
+        return new WherePreparedImpl(allowsIndex, ael, params);
     }
-    public static WhereClauseProcessor from(BooleanExpression dsl) {
-        return new WhereBoolExprImpl(false, dsl);
+    public static WhereClauseProcessor from(BooleanExpression ael) {
+        return new WhereBoolExprImpl(false, ael);
     }
-    public static WhereClauseProcessor from(Exp dsl) {
-        return new WhereExpImpl(false, dsl);
+    public static WhereClauseProcessor from(Exp exp) {
+        return new WhereExpImpl(false, exp);
     }
-    public static WhereClauseProcessor from(Expression dsl) {
-        return from(Exp.expr(dsl));
+    public static WhereClauseProcessor from(Expression exp) {
+        return from(Exp.expr(exp));
     }
 }

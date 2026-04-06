@@ -101,13 +101,13 @@ public abstract class AbstractFilterableBuilder {
     /**
      * Create WhereClauseProcessor from AEL string.
      */
-    protected WhereClauseProcessor createWhereClauseProcessor(boolean allowSecondaryIndex, String dsl, Object... params) {
-        if (dsl == null || dsl.isEmpty()) {
+    protected WhereClauseProcessor createWhereClauseProcessor(boolean allowSecondaryIndex, String ael, Object... params) {
+        if (ael == null || ael.isEmpty()) {
             return null;
         } else if (params.length == 0) {
-            return WhereClauseProcessor.from(allowSecondaryIndex, dsl);
+            return WhereClauseProcessor.from(allowSecondaryIndex, ael);
         } else {
-            return WhereClauseProcessor.from(allowSecondaryIndex, String.format(dsl, params));
+            return WhereClauseProcessor.from(allowSecondaryIndex, String.format(ael, params));
         }
     }
 
