@@ -114,7 +114,7 @@ public class IndexQueryBuilderImpl extends QueryImpl {
                 "Use key-based queries instead: session.query(dataSet.id(key1, key2, ...))");
         }
         Settings policy = session.getBehavior().getSettings(OpKind.READ, OpShape.QUERY, Mode.ANY);
-        WhereClauseProcessor dsl = getQueryBuilder().getDsl();
+        WhereClauseProcessor dsl = getQueryBuilder().getAel();
         Filter filter = null;
         Expression filterExp = null;
 

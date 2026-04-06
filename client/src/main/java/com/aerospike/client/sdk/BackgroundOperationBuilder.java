@@ -131,7 +131,7 @@ public class BackgroundOperationBuilder extends AbstractOperationBuilder<Backgro
      * Adds a where clause filter to the background operation using a PreparedAel.
      * The filter determines which records in the set will be affected.
      *
-     * @param dsl The PreparedDsl filter
+     * @param dsl The PreparedAel filter
      * @param params Parameters to bind to the prepared AEL
      * @return This builder for method chaining
      */
@@ -249,8 +249,8 @@ public class BackgroundOperationBuilder extends AbstractOperationBuilder<Backgro
             }
         }
 
-        if (dsl != null) {
-        	ParseResult pr = dsl.process(dataset.getNamespace(), session);
+        if (ael != null) {
+        	ParseResult pr = ael.process(dataset.getNamespace(), session);
         	filter = pr.getFilter();
         	filterExp = Exp.build(pr.getExp());
 

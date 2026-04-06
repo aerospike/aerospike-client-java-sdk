@@ -33,7 +33,7 @@ import com.aerospike.dsl.impl.DSLParserImpl;
  * <ul>
  *   <li>{@code String} - AEL string expression</li>
  *   <li>{@code BooleanExpression} - Programmatic boolean expression</li>
- *   <li>{@code PreparedDsl} - Prepared AEL statement with parameters</li>
+ *   <li>{@code PreparedAel} - Prepared AEL statement with parameters</li>
  *   <li>{@code Exp} - Low-level expression builder</li>
  *   <li>{@code Expression} - Compiled expression</li>
  * </ul>
@@ -52,25 +52,25 @@ public final class ExpressionOpHelper {
      * Builds a read expression operation from a AEL string.
      *
      * @param binName target bin
-     * @param dsl AEL text parsed to an {@link Expression}
+     * @param ael AEL text parsed to an {@link Expression}
      * @param flags {@link com.aerospike.client.exp.ExpReadFlags} bitmask
      * @return Aerospike {@link Operation} for expression read
      */
-    public static Operation createReadOp(String binName, String dsl, int flags) {
-        return ExpOperation.read(binName, parseStringDsl(dsl), flags);
+    public static Operation createReadOp(String binName, String ael, int flags) {
+        return ExpOperation.read(binName, parseStringAel(ael), flags);
     }
 
     /**
      * Builds a read expression operation from a AEL string with {@code ?} placeholders replaced by {@code params}.
      *
      * @param binName target bin
-     * @param dsl AEL template
+     * @param ael AEL template
      * @param params values substituted for {@code ?} in order
      * @param flags {@link com.aerospike.client.exp.ExpReadFlags} bitmask
      * @return Aerospike {@link Operation} for expression read
      */
-    public static Operation createReadOp(String binName, String dsl, Object[] params, int flags) {
-        return ExpOperation.read(binName, parseStringDsl(dsl, params), flags);
+    public static Operation createReadOp(String binName, String ael, Object[] params, int flags) {
+        return ExpOperation.read(binName, parseStringAel(ael, params), flags);
     }
 
     // ========================================
@@ -81,25 +81,25 @@ public final class ExpressionOpHelper {
      * Builds a read expression operation from a {@link BooleanExpression}.
      *
      * @param binName target bin
-     * @param dsl programmatic boolean expression
+     * @param ael programmatic boolean expression
      * @param flags {@link com.aerospike.client.exp.ExpReadFlags} bitmask
      * @return Aerospike {@link Operation} for expression read
      */
-    public static Operation createReadOp(String binName, BooleanExpression dsl, int flags) {
-        return ExpOperation.read(binName, fromBooleanExpression(dsl), flags);
+    public static Operation createReadOp(String binName, BooleanExpression ael, int flags) {
+        return ExpOperation.read(binName, fromBooleanExpression(ael), flags);
     }
 
     /**
      * Builds a read expression operation from a {@link PreparedAel} with bound parameters.
      *
      * @param binName target bin
-     * @param dsl prepared AEL
+     * @param ael prepared AEL
      * @param params bound parameter values
      * @param flags {@link com.aerospike.client.exp.ExpReadFlags} bitmask
      * @return Aerospike {@link Operation} for expression read
      */
-    public static Operation createReadOp(String binName, PreparedAel dsl, Object[] params, int flags) {
-        return ExpOperation.read(binName, fromPreparedDsl(dsl, params), flags);
+    public static Operation createReadOp(String binName, PreparedAel ael, Object[] params, int flags) {
+        return ExpOperation.read(binName, fromPreparedAel(ael, params), flags);
     }
 
     /**
@@ -134,25 +134,25 @@ public final class ExpressionOpHelper {
      * Builds a write expression operation from a AEL string.
      *
      * @param binName target bin
-     * @param dsl AEL text parsed to an {@link Expression}
+     * @param ael AEL text parsed to an {@link Expression}
      * @param flags {@link com.aerospike.client.exp.ExpWriteFlags} bitmask
      * @return Aerospike {@link Operation} for expression write
      */
-    public static Operation createWriteOp(String binName, String dsl, int flags) {
-        return ExpOperation.write(binName, parseStringDsl(dsl), flags);
+    public static Operation createWriteOp(String binName, String ael, int flags) {
+        return ExpOperation.write(binName, parseStringAel(ael), flags);
     }
 
     /**
      * Builds a write expression operation from a AEL string with {@code ?} placeholders replaced by {@code params}.
      *
      * @param binName target bin
-     * @param dsl AEL template
+     * @param ael AEL template
      * @param params values substituted for {@code ?} in order
      * @param flags {@link com.aerospike.client.exp.ExpWriteFlags} bitmask
      * @return Aerospike {@link Operation} for expression write
      */
-    public static Operation createWriteOp(String binName, String dsl, Object[] params, int flags) {
-        return ExpOperation.write(binName, parseStringDsl(dsl, params), flags);
+    public static Operation createWriteOp(String binName, String ael, Object[] params, int flags) {
+        return ExpOperation.write(binName, parseStringAel(ael, params), flags);
     }
 
     // ========================================
@@ -163,25 +163,25 @@ public final class ExpressionOpHelper {
      * Builds a write expression operation from a {@link BooleanExpression}.
      *
      * @param binName target bin
-     * @param dsl programmatic boolean expression
+     * @param ael programmatic boolean expression
      * @param flags {@link com.aerospike.client.exp.ExpWriteFlags} bitmask
      * @return Aerospike {@link Operation} for expression write
      */
-    public static Operation createWriteOp(String binName, BooleanExpression dsl, int flags) {
-        return ExpOperation.write(binName, fromBooleanExpression(dsl), flags);
+    public static Operation createWriteOp(String binName, BooleanExpression ael, int flags) {
+        return ExpOperation.write(binName, fromBooleanExpression(ael), flags);
     }
 
     /**
      * Builds a write expression operation from a {@link PreparedAel} with bound parameters.
      *
      * @param binName target bin
-     * @param dsl prepared AEL
+     * @param ael prepared AEL
      * @param params bound parameter values
      * @param flags {@link com.aerospike.client.exp.ExpWriteFlags} bitmask
      * @return Aerospike {@link Operation} for expression write
      */
-    public static Operation createWriteOp(String binName, PreparedAel dsl, Object[] params, int flags) {
-        return ExpOperation.write(binName, fromPreparedDsl(dsl, params), flags);
+    public static Operation createWriteOp(String binName, PreparedAel ael, Object[] params, int flags) {
+        return ExpOperation.write(binName, fromPreparedAel(ael, params), flags);
     }
 
     /**
@@ -217,12 +217,12 @@ public final class ExpressionOpHelper {
      *
      * @param opBuilder operation list builder
      * @param binName target bin
-     * @param dsl AEL text
+     * @param ael AEL text
      * @param flags {@link com.aerospike.client.exp.ExpReadFlags} bitmask
      * @return {@code opBuilder} for chaining
      */
-    public static <T extends AbstractOperationBuilder<T>> T addReadOp(T opBuilder, String binName, String dsl, int flags) {
-        return opBuilder.addOp(createReadOp(binName, dsl, flags));
+    public static <T extends AbstractOperationBuilder<T>> T addReadOp(T opBuilder, String binName, String ael, int flags) {
+        return opBuilder.addOp(createReadOp(binName, ael, flags));
     }
 
     /**
@@ -230,61 +230,61 @@ public final class ExpressionOpHelper {
      *
      * @param opBuilder operation list builder
      * @param binName target bin
-     * @param dsl AEL text
+     * @param ael AEL text
      * @param flags {@link com.aerospike.client.exp.ExpWriteFlags} bitmask
      * @return {@code opBuilder} for chaining
      */
-    public static <T extends AbstractOperationBuilder<T>> T addWriteOp(T opBuilder, String binName, String dsl, int flags) {
-        return opBuilder.addOp(createWriteOp(binName, dsl, flags));
+    public static <T extends AbstractOperationBuilder<T>> T addWriteOp(T opBuilder, String binName, String ael, int flags) {
+        return opBuilder.addOp(createWriteOp(binName, ael, flags));
     }
 
     // ========================================
     // AEL parsing methods
     // ========================================
 
-    private static Expression parseStringDsl(String dsl) {
+    private static Expression parseStringAel(String ael) {
         DSLParser parser = new DSLParserImpl();
-        ExpressionContext context = ExpressionContext.of(dsl);
+        ExpressionContext context = ExpressionContext.of(ael);
         ParsedExpression parseResult = parser.parseExpression(context);
         Exp exp = parseResult.getResult().getExp();
 
         if (Log.debugEnabled()) {
                 Log.debug(String.format("Dsl(\"%s\") => (Exp: %s)",
-                        dsl,
+                        ael,
                         exp));
         }
 
         return Exp.build(exp);
     }
 
-    private static Expression parseStringDsl(String dsl, Object[] params) {
+    private static Expression parseStringAel(String ael, Object[] params) {
         // For now, format the AEL string with params
         // TODO: Use proper prepared statement support when AEL supports it
-        String formattedDsl = formatDsl(dsl, params);
-        return parseStringDsl(formattedDsl);
+        String formattedDsl = formatDsl(ael, params);
+        return parseStringAel(formattedDsl);
     }
 
-    private static Expression fromBooleanExpression(BooleanExpression dsl) {
-        return Exp.build(dsl.toAerospikeExp());
+    private static Expression fromBooleanExpression(BooleanExpression ael) {
+        return Exp.build(ael.toAerospikeExp());
     }
 
-    private static Expression fromPreparedDsl(PreparedAel dsl, Object[] params) {
-        String formattedDsl = dsl.formValue(params);
-        return parseStringDsl(formattedDsl);
+    private static Expression fromPreparedAel(PreparedAel ael, Object[] params) {
+        String formattedDsl = ael.formValue(params);
+        return parseStringAel(formattedDsl);
     }
 
     /**
      * Format a AEL string with parameters.
      * Uses simple positional replacement for ? placeholders.
      */
-    private static String formatDsl(String dsl, Object[] params) {
+    private static String formatDsl(String ael, Object[] params) {
         if (params == null || params.length == 0) {
-            return dsl;
+            return ael;
         }
         StringBuilder result = new StringBuilder();
         int paramIndex = 0;
-        for (int i = 0; i < dsl.length(); i++) {
-            char c = dsl.charAt(i);
+        for (int i = 0; i < ael.length(); i++) {
+            char c = ael.charAt(i);
             if (c == '?' && paramIndex < params.length) {
                 result.append(formatParam(params[paramIndex++]));
             } else {

@@ -114,7 +114,7 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
     void initFromParent(int generation, Expression whereClause, boolean failOnFiltered, boolean respondAll) {
         this.generationForAll = generation;
         if (whereClause != null) {
-            this.dsl = WhereClauseProcessor.from(whereClause);
+            this.ael = WhereClauseProcessor.from(whereClause);
         }
         this.failOnFilteredOut = failOnFiltered;
         this.includeMissingKeys = respondAll;
@@ -1050,9 +1050,9 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
     }
 
     private Expression getFilterExp(Session session, String namespace) {
-        if (dsl != null) {
+        if (ael != null) {
             // Apply filter expression clause.
-            ParseResult parseResult = dsl.process(namespace, session);
+            ParseResult parseResult = ael.process(namespace, session);
             return Exp.build(parseResult.getExp());
         } else {
             return null;

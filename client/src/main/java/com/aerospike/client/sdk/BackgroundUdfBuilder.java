@@ -273,8 +273,8 @@ public class BackgroundUdfBuilder extends AbstractSessionOperationBuilder<Backgr
         Filter filter = null;
         Expression filterExp = null;
 
-        if (dsl != null) {
-            ParseResult pr = dsl.process(dataset.getNamespace(), session);
+        if (ael != null) {
+            ParseResult pr = ael.process(dataset.getNamespace(), session);
             filter = pr.getFilter();
             filterExp = Exp.build(pr.getExp());
         }

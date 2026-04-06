@@ -493,7 +493,7 @@ public class QueryBuilder extends AbstractFilterableBuilder implements
      *
      * <p>Example usage:</p>
      * <pre>{@code
-     * PreparedDsl preparedFilter = session.prepareDsl("$.name == ? and $.age > ?");
+     * PreparedAel preparedFilter = session.prepareAel("$.name == ? and $.age > ?");
      * RecordStream results = session.query(customerDataSet)
      *     .where(preparedFilter, "Tim", 30)
      *     .execute();
@@ -736,7 +736,7 @@ public class QueryBuilder extends AbstractFilterableBuilder implements
         }
     }
 
-    protected WhereClauseProcessor getDsl() {
-        return this.dsl;
+    protected WhereClauseProcessor getAel() {
+        return this.ael;
     }
 }

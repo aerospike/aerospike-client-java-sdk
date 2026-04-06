@@ -77,7 +77,7 @@ public interface FilterableOperation<T extends FilterableOperation<T>> {
      * <p>Only one filter condition can be specified per operation. Multiple calls
      * to this method or other where variants will throw an exception.</p>
      *
-     * @param dsl the PreparedDsl filter
+     * @param dsl the PreparedAel filter
      * @param params parameters to bind to the prepared AEL
      * @return this builder for method chaining
      * @throws IllegalArgumentException if multiple filter conditions are specified

@@ -31,7 +31,7 @@ import com.aerospike.dsl.ParseResult;
  * Provides common functionality for where clauses, result filtering, and exception handling.
  */
 public abstract class AbstractFilterableBuilder {
-    protected WhereClauseProcessor dsl = null;
+    protected WhereClauseProcessor ael = null;
     protected boolean includeMissingKeys = false;
     protected boolean failOnFilteredOut = false;
     
@@ -39,13 +39,13 @@ public abstract class AbstractFilterableBuilder {
      * Set where clause, ensuring only one is specified.
      */
     protected void setWhereClause(WhereClauseProcessor clause) {
-        if (this.dsl == null) {
-            this.dsl = clause;
+        if (this.ael == null) {
+            this.ael = clause;
         } else {
             throw new IllegalArgumentException(
                 "Only one 'where' clause can be specified. " +
                 "There is already one of '%s' and another is being set to '%s'"
-                .formatted(this.dsl, clause));
+                .formatted(this.ael, clause));
         }
     }
     
@@ -53,10 +53,10 @@ public abstract class AbstractFilterableBuilder {
      * Process where clause and return Expression, or null if no clause exists.
      */
     protected Expression processWhereClause(String namespace, Session session) {
-        if (this.dsl == null) {
+        if (this.ael == null) {
             return null;
         }
-        ParseResult parseResult = this.dsl.process(namespace, session);
+        ParseResult parseResult = this.ael.process(namespace, session);
         return Exp.build(parseResult.getExp());
     }
     
