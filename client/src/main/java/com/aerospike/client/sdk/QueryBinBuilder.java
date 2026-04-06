@@ -30,7 +30,7 @@ import com.aerospike.client.sdk.query.PreparedAel;
 
 /**
  * Builder for bin-level read operations in query contexts.
- * 
+ *
  * <p>This builder is used by {@link ChainableQueryBuilder} for query operations
  * and only supports read operations (no write operations like setTo, insertFrom, etc.)</p>
  *
@@ -41,7 +41,7 @@ import com.aerospike.client.sdk.query.PreparedAel;
  *     .bin("name").get()
  *     .bin("ageIn20Years").selectFrom("$.age + 20")
  *     .execute();
- * 
+ *
  * // CDT read operations
  * session.query(key)
  *     .bin("settings").onMapKey("theme").getValues()
@@ -98,11 +98,11 @@ public class QueryBinBuilder implements CdtOperationAcceptor<ChainableQueryBuild
      *     .execute();
      * }</pre>
      *
-     * @param dsl the AEL expression string
+     * @param ael the AEL expression string
      * @see #selectFrom(String, Consumer) for options like ignoreEvalFailure()
      */
-    public ChainableQueryBuilder selectFrom(String dsl) {
-        queryBuilder.addOperation(ExpressionOpHelper.createReadOp(binName, dsl, ExpReadFlags.DEFAULT));
+    public ChainableQueryBuilder selectFrom(String ael) {
+        queryBuilder.addOperation(ExpressionOpHelper.createReadOp(binName, ael, ExpReadFlags.DEFAULT));
         return queryBuilder;
     }
 
@@ -116,13 +116,13 @@ public class QueryBinBuilder implements CdtOperationAcceptor<ChainableQueryBuild
      *     .execute();
      * }</pre>
      *
-     * @param dsl the AEL expression string
+     * @param ael the AEL expression string
      * @param options configure via {@code ignoreEvalFailure()}
      */
-    public ChainableQueryBuilder selectFrom(String dsl, Consumer<ExpressionReadOptions> options) {
+    public ChainableQueryBuilder selectFrom(String ael, Consumer<ExpressionReadOptions> options) {
         ExpressionReadOptions opts = new ExpressionReadOptions();
         options.accept(opts);
-        queryBuilder.addOperation(ExpressionOpHelper.createReadOp(binName, dsl, opts.getFlags()));
+        queryBuilder.addOperation(ExpressionOpHelper.createReadOp(binName, ael, opts.getFlags()));
         return queryBuilder;
     }
 
@@ -135,10 +135,10 @@ public class QueryBinBuilder implements CdtOperationAcceptor<ChainableQueryBuild
      *     .execute();
      * }</pre>
      *
-     * @param dsl the boolean expression to evaluate
+     * @param ael the boolean expression to evaluate
      */
-    public ChainableQueryBuilder selectFrom(BooleanExpression dsl) {
-        queryBuilder.addOperation(ExpressionOpHelper.createReadOp(binName, dsl, ExpReadFlags.DEFAULT));
+    public ChainableQueryBuilder selectFrom(BooleanExpression ael) {
+        queryBuilder.addOperation(ExpressionOpHelper.createReadOp(binName, ael, ExpReadFlags.DEFAULT));
         return queryBuilder;
     }
 
@@ -151,13 +151,13 @@ public class QueryBinBuilder implements CdtOperationAcceptor<ChainableQueryBuild
      *     .execute();
      * }</pre>
      *
-     * @param dsl the boolean expression to evaluate
+     * @param ael the boolean expression to evaluate
      * @param options configure via {@code ignoreEvalFailure()}
      */
-    public ChainableQueryBuilder selectFrom(BooleanExpression dsl, Consumer<ExpressionReadOptions> options) {
+    public ChainableQueryBuilder selectFrom(BooleanExpression ael, Consumer<ExpressionReadOptions> options) {
         ExpressionReadOptions opts = new ExpressionReadOptions();
         options.accept(opts);
-        queryBuilder.addOperation(ExpressionOpHelper.createReadOp(binName, dsl, opts.getFlags()));
+        queryBuilder.addOperation(ExpressionOpHelper.createReadOp(binName, ael, opts.getFlags()));
         return queryBuilder;
     }
 
@@ -171,11 +171,11 @@ public class QueryBinBuilder implements CdtOperationAcceptor<ChainableQueryBuild
      *     .execute();
      * }</pre>
      *
-     * @param dsl the prepared AEL statement
+     * @param ael the prepared AEL statement
      * @param params parameter values to bind
      */
-    public ChainableQueryBuilder selectFrom(PreparedAel dsl, Object... params) {
-        queryBuilder.addOperation(ExpressionOpHelper.createReadOp(binName, dsl, params, ExpReadFlags.DEFAULT));
+    public ChainableQueryBuilder selectFrom(PreparedAel ael, Object... params) {
+        queryBuilder.addOperation(ExpressionOpHelper.createReadOp(binName, ael, params, ExpReadFlags.DEFAULT));
         return queryBuilder;
     }
 
@@ -189,14 +189,14 @@ public class QueryBinBuilder implements CdtOperationAcceptor<ChainableQueryBuild
      *     .execute();
      * }</pre>
      *
-     * @param dsl the prepared AEL statement
+     * @param ael the prepared AEL statement
      * @param options configure via {@code ignoreEvalFailure()}
      * @param params parameter values to bind
      */
-    public ChainableQueryBuilder selectFrom(PreparedAel dsl, Consumer<ExpressionReadOptions> options, Object... params) {
+    public ChainableQueryBuilder selectFrom(PreparedAel ael, Consumer<ExpressionReadOptions> options, Object... params) {
         ExpressionReadOptions opts = new ExpressionReadOptions();
         options.accept(opts);
-        queryBuilder.addOperation(ExpressionOpHelper.createReadOp(binName, dsl, params, opts.getFlags()));
+        queryBuilder.addOperation(ExpressionOpHelper.createReadOp(binName, ael, params, opts.getFlags()));
         return queryBuilder;
     }
 
@@ -278,7 +278,7 @@ public class QueryBinBuilder implements CdtOperationAcceptor<ChainableQueryBuild
 
     /**
      * Navigate to a map element by index.
-     * 
+     *
      * <p>Example:</p>
      * <pre>{@code
      * session.query(key)
@@ -295,7 +295,7 @@ public class QueryBinBuilder implements CdtOperationAcceptor<ChainableQueryBuild
 
     /**
      * Navigate to a map element by key.
-     * 
+     *
      * <p>Example:</p>
      * <pre>{@code
      * session.query(key)
@@ -454,7 +454,7 @@ public class QueryBinBuilder implements CdtOperationAcceptor<ChainableQueryBuild
 
     /**
      * Navigate to a list element by index.
-     * 
+     *
      * <p>Example:</p>
      * <pre>{@code
      * session.query(key)

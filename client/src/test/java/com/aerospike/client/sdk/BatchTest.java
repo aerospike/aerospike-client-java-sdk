@@ -219,7 +219,7 @@ public class BatchTest extends ClusterTest {
 
     @Test
 	public void batchReadComplex() {
-		String dsl = "$.bbin * 8";
+		String ael = "$.bbin * 8";
 
 		RecordStream rs = session
 			.query(args.set.id(KeyPrefix + 1))
@@ -229,7 +229,7 @@ public class BatchTest extends ClusterTest {
 				.withNoBins()
 			.query(args.set.id(KeyPrefix + 4))
 			.query(args.set.id(KeyPrefix + 6))
-				.bin(BinName).selectFrom(dsl)
+				.bin(BinName).selectFrom(ael)
 			.query(args.set.id(KeyPrefix + 7))
 				.readingOnlyBins("binnotfound")
 			.query(args.set.id("keynotfound"))

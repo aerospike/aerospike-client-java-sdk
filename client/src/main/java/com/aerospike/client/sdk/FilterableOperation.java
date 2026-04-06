@@ -48,12 +48,12 @@ public interface FilterableOperation<T extends FilterableOperation<T>> {
      * <p>Only one filter condition can be specified per operation. Multiple calls
      * to this method or other where variants will throw an exception.</p>
      *
-     * @param dsl the AEL filter expression
-     * @param params The params used to replace arguments in the AEL string (used by {@code String.format(dsl, params)})
+     * @param ael the AEL filter expression
+     * @param params The params used to replace arguments in the AEL string (used by {@code String.format(ael, params)})
      * @return this builder for method chaining
      * @throws IllegalArgumentException if multiple filter conditions are specified
      */
-    T where(String dsl, Object ... params);
+    T where(String ael, Object ... params);
 
     /**
      * Adds a filter condition using a BooleanExpression.
@@ -65,11 +65,11 @@ public interface FilterableOperation<T extends FilterableOperation<T>> {
      * <p>Only one filter condition can be specified per operation. Multiple calls
      * to this method or other where variants will throw an exception.</p>
      *
-     * @param dsl the BooleanExpression filter
+     * @param ael the BooleanExpression filter
      * @return this builder for method chaining
      * @throws IllegalArgumentException if multiple filter conditions are specified
      */
-    T where(BooleanExpression dsl);
+    T where(BooleanExpression ael);
 
     /**
      * Adds a filter condition using a PreparedAel.
@@ -77,12 +77,12 @@ public interface FilterableOperation<T extends FilterableOperation<T>> {
      * <p>Only one filter condition can be specified per operation. Multiple calls
      * to this method or other where variants will throw an exception.</p>
      *
-     * @param dsl the PreparedAel filter
+     * @param ael the PreparedAel filter
      * @param params parameters to bind to the prepared AEL
      * @return this builder for method chaining
      * @throws IllegalArgumentException if multiple filter conditions are specified
      */
-    T where(PreparedAel dsl, Object ... params);
+    T where(PreparedAel ael, Object ... params);
 
     /**
      * Adds a filter condition using an Exp operation.

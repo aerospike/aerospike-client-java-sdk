@@ -457,13 +457,13 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
      * builder.where("$.age > %d", 21)
      * </pre>
      *
-     * @param dsl    The AEL string defining the filter condition
+     * @param ael    The AEL string defining the filter condition
      * @param params Optional parameters to be substituted into the AEL string
      * @return This builder for method chaining
      */
     @Override
-    public BinsValuesBuilder where(String dsl, Object... params) {
-        setWhereClause(createWhereClauseProcessor(false, dsl, params));
+    public BinsValuesBuilder where(String ael, Object... params) {
+        setWhereClause(createWhereClauseProcessor(false, ael, params));
         return this;
     }
 
@@ -471,12 +471,12 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
      * Apply a where clause filter to these operations using a boolean expression.
      * Only records matching the filter will be affected.
      *
-     * @param dsl The boolean expression defining the filter condition
+     * @param ael The boolean expression defining the filter condition
      * @return This builder for method chaining
      */
     @Override
-    public BinsValuesBuilder where(BooleanExpression dsl) {
-        setWhereClause(WhereClauseProcessor.from(dsl));
+    public BinsValuesBuilder where(BooleanExpression ael) {
+        setWhereClause(WhereClauseProcessor.from(ael));
         return this;
     }
 
@@ -484,13 +484,13 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
      * Apply a where clause filter to these operations using a prepared AEL. Only
      * records matching the filter will be affected.
      *
-     * @param dsl    The prepared AEL defining the filter condition
+     * @param ael    The prepared AEL defining the filter condition
      * @param params Parameters to be substituted into the prepared AEL
      * @return This builder for method chaining
      */
     @Override
-    public BinsValuesBuilder where(PreparedAel dsl, Object... params) {
-        setWhereClause(WhereClauseProcessor.from(false, dsl, params));
+    public BinsValuesBuilder where(PreparedAel ael, Object... params) {
+        setWhereClause(WhereClauseProcessor.from(false, ael, params));
         return this;
     }
 

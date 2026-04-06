@@ -913,11 +913,11 @@ public class FilterExpTest extends ClusterTest {
         assertFalse(rs.hasNext());
 	}
 
-	private void testDsl(String dsl) {
+	private void testDsl(String ael) {
 		AerospikeException ae = assertThrows(AerospikeException.class, () -> {
 			RecordStream rs2 = session.query(args.set.id(keyA))
 		        .readingOnlyBins(binA)
-		        .where(dsl)
+		        .where(ael)
 		        .failOnFilteredOut()
 		        .execute();
 
@@ -929,7 +929,7 @@ public class FilterExpTest extends ClusterTest {
 
 		RecordStream rs = session.query(args.set.id(keyB))
 	        .readingOnlyBins(binA)
-	        .where(dsl)
+	        .where(ael)
 	        .failOnFilteredOut()
 	        .execute();
 
@@ -965,13 +965,13 @@ public class FilterExpTest extends ClusterTest {
 		assertEquals(2, val);
 	}
 
-	private void testDsls(String dsl) {
-		String dslNot = "not(" + dsl + ")";
+	private void testDsls(String ael) {
+		String aelNot = "not(" + ael + ")";
 
 		AerospikeException ae = assertThrows(AerospikeException.class, () -> {
 			RecordStream rs2 = session.query(args.set.id(keyA))
 		        .readingOnlyBins(binA)
-		        .where(dslNot)
+		        .where(aelNot)
 		        .failOnFilteredOut()
 		        .execute();
 
@@ -983,7 +983,7 @@ public class FilterExpTest extends ClusterTest {
 
 		RecordStream rs = session.query(args.set.id(keyA))
 	        .readingOnlyBins(binA)
-	        .where(dsl)
+	        .where(ael)
 	        .failOnFilteredOut()
 	        .execute();
 
@@ -1019,12 +1019,12 @@ public class FilterExpTest extends ClusterTest {
 		assertEquals(1, val);
 	}
 
-	private void testKeyBDsls(String dsl) {
-		String dslNot = "not(" + dsl + ")";
+	private void testKeyBDsls(String ael) {
+		String aelNot = "not(" + ael + ")";
 
 		AerospikeException ae = assertThrows(AerospikeException.class, () -> {
 			RecordStream rs2 = session.query(args.set.id(keyB))
-		        .where(dslNot)
+		        .where(aelNot)
 		        .failOnFilteredOut()
 		        .execute();
 
@@ -1035,7 +1035,7 @@ public class FilterExpTest extends ClusterTest {
 		assertEquals(ResultCode.FILTERED_OUT, ae.getResultCode());
 
 		RecordStream rs = session.query(args.set.id(keyB))
-	        .where(dsl)
+	        .where(ael)
 	        .failOnFilteredOut()
 	        .execute();
 

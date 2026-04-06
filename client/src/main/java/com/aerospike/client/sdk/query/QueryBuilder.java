@@ -412,13 +412,13 @@ public class QueryBuilder extends AbstractFilterableBuilder implements
      * <p>Only one filter condition can be specified per query. Multiple calls
      * to this method or {@link #where(BooleanExpression)} will throw an exception.</p>
      *
-     * @param dsl the AEL filter expression
-     * @param params The params used to replace arguments in the AEL string (used by {@code String.format(dsl, params)}
+     * @param ael the AEL filter expression
+     * @param params The params used to replace arguments in the AEL string (used by {@code String.format(ael, params)}
      * @return this QueryBuilder for method chaining
      * @throws IllegalArgumentException if multiple filter conditions are specified
      */
-    public QueryBuilder where(String dsl, Object ... params) {
-        setWhereClause(createWhereClauseProcessor(this.implementation.allowsSecondaryIndexQuery(), dsl, params));
+    public QueryBuilder where(String ael, Object ... params) {
+        setWhereClause(createWhereClauseProcessor(this.implementation.allowsSecondaryIndexQuery(), ael, params));
         return this;
     }
 
@@ -442,12 +442,12 @@ public class QueryBuilder extends AbstractFilterableBuilder implements
      * <p>Only one filter condition can be specified per query. Multiple calls
      * to this method or {@link #where(String)} will throw an exception.</p>
      *
-     * @param dsl the BooleanExpression filter
+     * @param ael the BooleanExpression filter
      * @return this QueryBuilder for method chaining
      * @throws IllegalArgumentException if multiple filter conditions are specified
      */
-    public QueryBuilder where(BooleanExpression dsl) {
-        setWhereClause(WhereClauseProcessor.from(dsl));
+    public QueryBuilder where(BooleanExpression ael) {
+        setWhereClause(WhereClauseProcessor.from(ael));
         return this;
     }
 
@@ -502,13 +502,13 @@ public class QueryBuilder extends AbstractFilterableBuilder implements
      * <p>Only one filter condition can be specified per query. Multiple calls
      * to this method or other {@code where()} methods will throw an exception.</p>
      *
-     * @param dsl the prepared AEL expression
+     * @param ael the prepared AEL expression
      * @param params the parameters to bind to the prepared expression
      * @return this QueryBuilder for method chaining
      * @throws IllegalArgumentException if multiple filter conditions are specified
      */
-    public QueryBuilder where(PreparedAel dsl, Object ... params) {
-        setWhereClause(WhereClauseProcessor.from(this.implementation.allowsSecondaryIndexQuery(), dsl, params));
+    public QueryBuilder where(PreparedAel ael, Object ... params) {
+        setWhereClause(WhereClauseProcessor.from(this.implementation.allowsSecondaryIndexQuery(), ael, params));
         return this;
     }
 

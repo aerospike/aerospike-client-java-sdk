@@ -104,13 +104,13 @@ public class BackgroundOperationBuilder extends AbstractOperationBuilder<Backgro
      * Adds a where clause filter to the background operation using a AEL string.
      * The filter determines which records in the set will be affected.
      *
-     * @param dsl The AEL filter expression (e.g., "$.age > 30")
+     * @param ael The AEL filter expression (e.g., "$.age > 30")
      * @param params The parameters to substitute into the AEL expression
      * @return This builder for method chaining
      */
     @Override
-    public BackgroundOperationBuilder where(String dsl, Object... params) {
-        setWhereClause(createWhereClauseProcessor(true, dsl, params));
+    public BackgroundOperationBuilder where(String ael, Object... params) {
+        setWhereClause(createWhereClauseProcessor(true, ael, params));
         return this;
     }
 
@@ -118,12 +118,12 @@ public class BackgroundOperationBuilder extends AbstractOperationBuilder<Backgro
      * Adds a where clause filter to the background operation using a BooleanExpression.
      * The filter determines which records in the set will be affected.
      *
-     * @param dsl The BooleanExpression filter
+     * @param ael The BooleanExpression filter
      * @return This builder for method chaining
      */
     @Override
-    public BackgroundOperationBuilder where(BooleanExpression dsl) {
-        setWhereClause(WhereClauseProcessor.from(dsl));
+    public BackgroundOperationBuilder where(BooleanExpression ael) {
+        setWhereClause(WhereClauseProcessor.from(ael));
         return this;
     }
 
@@ -131,13 +131,13 @@ public class BackgroundOperationBuilder extends AbstractOperationBuilder<Backgro
      * Adds a where clause filter to the background operation using a PreparedAel.
      * The filter determines which records in the set will be affected.
      *
-     * @param dsl The PreparedAel filter
+     * @param ael The PreparedAel filter
      * @param params Parameters to bind to the prepared AEL
      * @return This builder for method chaining
      */
     @Override
-    public BackgroundOperationBuilder where(PreparedAel dsl, Object... params) {
-        setWhereClause(WhereClauseProcessor.from(true, dsl, params));
+    public BackgroundOperationBuilder where(PreparedAel ael, Object... params) {
+        setWhereClause(WhereClauseProcessor.from(true, ael, params));
         return this;
     }
 
@@ -233,7 +233,7 @@ public class BackgroundOperationBuilder extends AbstractOperationBuilder<Backgro
 
         Filter filter = null;
         Expression filterExp = null;
-        
+
         // Set the ops to be valid based on the opType
         if (ops.isEmpty()) {
             switch (opType) {

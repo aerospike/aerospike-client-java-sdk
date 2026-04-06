@@ -60,10 +60,10 @@ public class ExpOperationTest extends ClusterTest {
 
 	@Test
 	public void expReadEvalError() {
-		String dsl = "$.A + 4";
+		String ael = "$.A + 4";
 
         RecordStream rs = session.query(args.set.id(keyA))
-        	.bin(expVar).selectFrom(dsl)
+        	.bin(expVar).selectFrom(ael)
         	.execute();
 
         assertTrue(rs.hasNext());
@@ -74,7 +74,7 @@ public class ExpOperationTest extends ClusterTest {
 		AerospikeException ae = assertThrows(AerospikeException.class, () -> {
 			// binA doesn't exist on keyB.
 	        RecordStream rs2 = session.query(args.set.id(keyB))
-            	.bin(expVar).selectFrom(dsl)
+            	.bin(expVar).selectFrom(ael)
             	.execute();
 
 	        assertTrue(rs2.hasNext());
@@ -85,7 +85,7 @@ public class ExpOperationTest extends ClusterTest {
 
 		// Try NO_FAIL.
         rs = session.query(args.set.id(keyB))
-        	.bin(expVar).selectFrom(dsl, arg -> arg.ignoreEvalFailure())
+        	.bin(expVar).selectFrom(ael, arg -> arg.ignoreEvalFailure())
         	.execute();
 
 		assertTrue(rs.hasNext());
@@ -96,12 +96,12 @@ public class ExpOperationTest extends ClusterTest {
 
 	@Test
 	public void expReadOnWriteEvalError() {
-		String wdsl = "$.D";
-		String rdsl = "$.A";
+		String wael = "$.D";
+		String rael = "$.A";
 
 		RecordStream rs = session.update(args.set.id(keyA))
-        	.bin(binD).upsertFrom(wdsl)
-	        .bin(expVar).selectFrom(rdsl)
+        	.bin(binD).upsertFrom(wael)
+	        .bin(expVar).selectFrom(rael)
 	        .execute();
 
         assertTrue(rs.hasNext());
@@ -111,8 +111,8 @@ public class ExpOperationTest extends ClusterTest {
 
 		AerospikeException ae = assertThrows(AerospikeException.class, () -> {
 			RecordStream rs2 = session.update(args.set.id(keyB))
-	        	.bin(binD).upsertFrom(wdsl)
-		        .bin(expVar).selectFrom(rdsl)
+	        	.bin(binD).upsertFrom(wael)
+		        .bin(expVar).selectFrom(rael)
 		        .execute();
 
 	        assertTrue(rs2.hasNext());
@@ -123,7 +123,7 @@ public class ExpOperationTest extends ClusterTest {
 
 		// Try NO_FAIL.
 		rs = session.update(args.set.id(keyB))
-	        .bin(expVar).selectFrom(rdsl, arg -> arg.ignoreEvalFailure())
+	        .bin(expVar).selectFrom(rael, arg -> arg.ignoreEvalFailure())
 	        .execute();
 
 		assertTrue(rs.hasNext());
@@ -134,12 +134,12 @@ public class ExpOperationTest extends ClusterTest {
 
 	@Test
 	public void expWriteEvalError() {
-		String wdsl = "$.A + 4";
-		String rdsl = "$.C + 1";
+		String wael = "$.A + 4";
+		String rael = "$.C + 1";
 
 		RecordStream rs = session.update(args.set.id(keyA))
-        	.bin(binC).upsertFrom(wdsl)
-	        .bin(expVar).selectFrom(rdsl)
+        	.bin(binC).upsertFrom(wael)
+	        .bin(expVar).selectFrom(rael)
 	        .execute();
 
         assertTrue(rs.hasNext());
@@ -149,8 +149,8 @@ public class ExpOperationTest extends ClusterTest {
 
 		AerospikeException ae = assertThrows(AerospikeException.class, () -> {
 			RecordStream rs2 = session.update(args.set.id(keyB))
-	        	.bin(binC).upsertFrom(wdsl)
-		        .bin(expVar).selectFrom(rdsl)
+	        	.bin(binC).upsertFrom(wael)
+		        .bin(expVar).selectFrom(rael)
 		        .execute();
 
 	        assertTrue(rs2.hasNext());
@@ -161,8 +161,8 @@ public class ExpOperationTest extends ClusterTest {
 
 		// Try NO_FAIL.
 		rs = session.update(args.set.id(keyB))
-	        .bin(binC).upsertFrom(wdsl, arg -> arg.ignoreEvalFailure())
-	        .bin(expVar).selectFrom(rdsl, arg -> arg.ignoreEvalFailure())
+	        .bin(binC).upsertFrom(wael, arg -> arg.ignoreEvalFailure())
+	        .bin(expVar).selectFrom(rael, arg -> arg.ignoreEvalFailure())
 	        .execute();
 
 		assertTrue(rs.hasNext());
@@ -174,11 +174,11 @@ public class ExpOperationTest extends ClusterTest {
 	@Test
 	public void expWritePolicyError() {
 		Key key = args.set.id(keyA);
-		String wdsl = "$.A + 4";
+		String wael = "$.A + 4";
 
 		AerospikeException ae = assertThrows(AerospikeException.class, () -> {
 			RecordStream rs = session.update(key)
-	        	.bin(binC).updateFrom(wdsl)
+	        	.bin(binC).updateFrom(wael)
 		        .execute();
 
 	        assertTrue(rs.hasNext());
@@ -188,7 +188,7 @@ public class ExpOperationTest extends ClusterTest {
 		assertEquals(ResultCode.BIN_NOT_FOUND, ae.getResultCode());
 
 		RecordStream rs = session.update(key)
-        	.bin(binC).updateFrom(wdsl, arg -> arg.ignoreOpFailure())
+        	.bin(binC).updateFrom(wael, arg -> arg.ignoreOpFailure())
 	        .execute();
 
         assertTrue(rs.hasNext());
@@ -197,7 +197,7 @@ public class ExpOperationTest extends ClusterTest {
 		assertEquals(null, val);
 
 		rs = session.update(key)
-        	.bin(binC).insertFrom(wdsl)
+        	.bin(binC).insertFrom(wael)
 	        .execute();
 
         assertTrue(rs.hasNext());
@@ -207,7 +207,7 @@ public class ExpOperationTest extends ClusterTest {
 
 		ae = assertThrows(AerospikeException.class, () -> {
 			RecordStream rs2 = session.update(key)
-	        	.bin(binC).insertFrom(wdsl)
+	        	.bin(binC).insertFrom(wael)
 		        .execute();
 
 	        assertTrue(rs2.hasNext());
@@ -217,7 +217,7 @@ public class ExpOperationTest extends ClusterTest {
 		assertEquals(ResultCode.BIN_EXISTS_ERROR, ae.getResultCode());
 
 		rs = session.update(key)
-        	.bin(binC).insertFrom(wdsl, arg -> arg.ignoreOpFailure())
+        	.bin(binC).insertFrom(wael, arg -> arg.ignoreOpFailure())
 	        .execute();
 
 		assertTrue(rs.hasNext());
@@ -225,13 +225,13 @@ public class ExpOperationTest extends ClusterTest {
 		val = rec.getValue(binC);
 		assertEquals(null, val);
 
-		Expression nildsl = Exp.build(Exp.nil());
+		Expression nilael = Exp.build(Exp.nil());
 		// TODO How specify nil in AEL?
-		//String nildsl = "nil";
+		//String nilael = "nil";
 
 		ae = assertThrows(AerospikeException.class, () -> {
 			RecordStream rs2 = session.update(key)
-				.bin(binC).upsertFrom(nildsl)
+				.bin(binC).upsertFrom(nilael)
 			    .execute();
 
 			assertTrue(rs2.hasNext());
@@ -241,7 +241,7 @@ public class ExpOperationTest extends ClusterTest {
 		assertEquals(ResultCode.OP_NOT_APPLICABLE, ae.getResultCode());
 
 		rs = session.update(key)
-        	.bin(binC).upsertFrom(nildsl, arg -> arg.ignoreOpFailure())
+        	.bin(binC).upsertFrom(nilael, arg -> arg.ignoreOpFailure())
 	        .execute();
 
 		assertTrue(rs.hasNext());
@@ -250,7 +250,7 @@ public class ExpOperationTest extends ClusterTest {
 		assertEquals(null, val);
 
 		rs = session.update(key)
-        	.bin(binC).upsertFrom(nildsl, arg -> arg.ignoreOpFailure().deleteIfNull())
+        	.bin(binC).upsertFrom(nilael, arg -> arg.ignoreOpFailure().deleteIfNull())
 	        .execute();
 
 		assertTrue(rs.hasNext());
@@ -259,7 +259,7 @@ public class ExpOperationTest extends ClusterTest {
 		assertEquals(null, val);
 
 		rs = session.update(key)
-        	.bin(binC).insertFrom(wdsl)
+        	.bin(binC).insertFrom(wael)
 	        .execute();
 
 		assertTrue(rs.hasNext());
@@ -270,18 +270,18 @@ public class ExpOperationTest extends ClusterTest {
 
 	@Test
 	public void expReturnsUnknown() {
-		Expression dsl = Exp.build(
+		Expression ael = Exp.build(
 			Exp.cond(
 				Exp.eq(Exp.intBin(binC), Exp.val(5)), Exp.unknown(),
 				Exp.binExists(binA), Exp.val(5),
 				Exp.unknown()));
 
 		// TODO: Convert from Expression to AEL String.
-		//String dsl = "when ($.C == 5 => unknown, $.A.exists() => 5, default => unknown)";
+		//String ael = "when ($.C == 5 => unknown, $.A.exists() => 5, default => unknown)";
 
 		AerospikeException ae = assertThrows(AerospikeException.class, () -> {
 			RecordStream rs = session.update(args.set.id(keyA))
-	        	.bin(binC).upsertFrom(dsl)
+	        	.bin(binC).upsertFrom(ael)
 	        	.bin(binC).get()
 		        .execute();
 
@@ -292,7 +292,7 @@ public class ExpOperationTest extends ClusterTest {
 		assertEquals(ResultCode.OP_NOT_APPLICABLE, ae.getResultCode());
 
 		RecordStream rs = session.update(args.set.id(keyA))
-        	.bin(binC).upsertFrom(dsl, arg -> arg.ignoreEvalFailure())
+        	.bin(binC).upsertFrom(ael, arg -> arg.ignoreEvalFailure())
         	.bin(binC).get()
 	        .execute();
 
@@ -308,12 +308,12 @@ public class ExpOperationTest extends ClusterTest {
 
 	@Test
 	public void expReturnsNil() {
-		Expression dsl = Exp.build(Exp.nil());
+		Expression ael = Exp.build(Exp.nil());
 		// TODO: Convert from Expression to AEL String.
-		//String dsl = "nil";
+		//String ael = "nil";
 
 		RecordStream rs = session.query(args.set.id(keyA))
-        	.bin(expVar).selectFrom(dsl)
+        	.bin(expVar).selectFrom(ael)
         	.bin(binC).get()
         	.execute();
 
@@ -325,12 +325,12 @@ public class ExpOperationTest extends ClusterTest {
 
 	@Test
 	public void expReturnsInt() {
-		String dsl = "$.A + 4";
+		String ael = "$.A + 4";
 
 		RecordStream rs = session.update(args.set.id(keyA))
-        	.bin(binC).upsertFrom(dsl)
+        	.bin(binC).upsertFrom(ael)
         	.bin(binC).get()
-	        .bin(expVar).selectFrom(dsl)
+	        .bin(expVar).selectFrom(ael)
 	        .execute();
 
         assertTrue(rs.hasNext());
@@ -344,7 +344,7 @@ public class ExpOperationTest extends ClusterTest {
 		assertEquals(5, val);
 
         rs = session.query(args.set.id(keyA))
-        	.bin(expVar).selectFrom(dsl)
+        	.bin(expVar).selectFrom(ael)
         	.execute();
 
         assertTrue(rs.hasNext());
@@ -356,13 +356,13 @@ public class ExpOperationTest extends ClusterTest {
 	@Test
 	public void expReturnsFloat() {
 		// TODO: Convert from Expression to AEL String.
-		Expression dsl = Exp.build(Exp.add(Exp.toFloat(Exp.intBin(binA)), Exp.val(4.0)));
-		//String dsl = "$." + binA + ".asFloat() + 4.0";
+		Expression ael = Exp.build(Exp.add(Exp.toFloat(Exp.intBin(binA)), Exp.val(4.0)));
+		//String ael = "$." + binA + ".asFloat() + 4.0";
 
 		RecordStream rs = session.update(args.set.id(keyA))
-        	.bin(binC).upsertFrom(dsl)
+        	.bin(binC).upsertFrom(ael)
         	.bin(binC).get()
-	        .bin(expVar).selectFrom(dsl)
+	        .bin(expVar).selectFrom(ael)
 	        .execute();
 
         assertTrue(rs.hasNext());
@@ -376,7 +376,7 @@ public class ExpOperationTest extends ClusterTest {
 		assertEquals(5.0, val, delta);
 
         rs = session.query(args.set.id(keyA))
-        	.bin(expVar).selectFrom(dsl)
+        	.bin(expVar).selectFrom(ael)
         	.execute();
 
         assertTrue(rs.hasNext());
@@ -388,12 +388,12 @@ public class ExpOperationTest extends ClusterTest {
 	@Test
 	public void expReturnsString() {
 		String str = "xxx";
-		String dsl = "'xxx'";
+		String ael = "'xxx'";
 
 		RecordStream rs = session.update(args.set.id(keyA))
-        	.bin(binC).upsertFrom(dsl)
+        	.bin(binC).upsertFrom(ael)
         	.bin(binC).get()
-	        .bin(expVar).selectFrom(dsl)
+	        .bin(expVar).selectFrom(ael)
 	        .execute();
 
         assertTrue(rs.hasNext());
@@ -406,7 +406,7 @@ public class ExpOperationTest extends ClusterTest {
 		assertEquals(str, val);
 
         rs = session.query(args.set.id(keyA))
-        	.bin(expVar).selectFrom(dsl)
+        	.bin(expVar).selectFrom(ael)
         	.execute();
 
         assertTrue(rs.hasNext());
@@ -418,14 +418,14 @@ public class ExpOperationTest extends ClusterTest {
 	@Test
 	public void expReturnsBlob() {
 		byte[] bytes = new byte[] {0x78, 0x78, 0x78};
-		Expression dsl = Exp.build(Exp.val(bytes));
+		Expression ael = Exp.build(Exp.val(bytes));
 		// TODO: Convert from Expression to AEL String.
-		//String dsl = "[78, 78, 78]";
+		//String ael = "[78, 78, 78]";
 
 		RecordStream rs = session.update(args.set.id(keyA))
-        	.bin(binC).upsertFrom(dsl)
+        	.bin(binC).upsertFrom(ael)
         	.bin(binC).get()
-	        .bin(expVar).selectFrom(dsl)
+	        .bin(expVar).selectFrom(ael)
 	        .execute();
 
         assertTrue(rs.hasNext());
@@ -439,7 +439,7 @@ public class ExpOperationTest extends ClusterTest {
 		assertArrayEquals(bytes, val, resultString);
 
         rs = session.query(args.set.id(keyA))
-        	.bin(expVar).selectFrom(dsl)
+        	.bin(expVar).selectFrom(ael)
         	.execute();
 
         assertTrue(rs.hasNext());
@@ -450,12 +450,12 @@ public class ExpOperationTest extends ClusterTest {
 
 	@Test
 	public void expReturnsBoolean() {
-		String dsl = "$.A == 1";
+		String ael = "$.A == 1";
 
 		RecordStream rs = session.update(args.set.id(keyA))
-        	.bin(binC).upsertFrom(dsl)
+        	.bin(binC).upsertFrom(ael)
         	.bin(binC).get()
-	        .bin(expVar).selectFrom(dsl)
+	        .bin(expVar).selectFrom(ael)
 	        .execute();
 
         assertTrue(rs.hasNext());
@@ -472,12 +472,12 @@ public class ExpOperationTest extends ClusterTest {
 	public void expReturnsHLL() {
 		// TODO: Support HLL.
 		/*
-		Expression dsl = Exp.build(HLLExp.init(HLLPolicy.Default, Exp.val(4), Exp.nil()));
+		Expression ael = Exp.build(HLLExp.init(HLLPolicy.Default, Exp.val(4), Exp.nil()));
 
 		RecordStream rs = session.update(args.set.id(keyA))
-        	.bin(binC).upsertFrom(dsl)
+        	.bin(binC).upsertFrom(ael)
         	.bin(binC).get()
-	        .bin(expVar).selectFrom(dsl)
+	        .bin(expVar).selectFrom(ael)
 	        .execute();
 
 		Record record = client.operate(null, keyA,

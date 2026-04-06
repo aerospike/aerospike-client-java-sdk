@@ -46,7 +46,7 @@ public class OperationObjectBuilder<T> extends AbstractFilterableBuilder impleme
 
     /**
      * {@inheritDoc}
-     * 
+     *
      * <p>Overridden to ensure UPDATE and REPLACE_IF_EXISTS operations always include
      * KEY_NOT_FOUND_ERROR results, since these operations are expected to fail if the
      * record doesn't exist.</p>
@@ -154,8 +154,8 @@ public class OperationObjectBuilder<T> extends AbstractFilterableBuilder impleme
      * {@inheritDoc}
      */
     @Override
-    public OperationObjectBuilder<T> where(String dsl, Object ... params) {
-        setWhereClause(createWhereClauseProcessor(false, dsl, params));
+    public OperationObjectBuilder<T> where(String ael, Object ... params) {
+        setWhereClause(createWhereClauseProcessor(false, ael, params));
         return this;
     }
 
@@ -163,8 +163,8 @@ public class OperationObjectBuilder<T> extends AbstractFilterableBuilder impleme
      * {@inheritDoc}
      */
     @Override
-    public OperationObjectBuilder<T> where(BooleanExpression dsl) {
-        setWhereClause(WhereClauseProcessor.from(dsl));
+    public OperationObjectBuilder<T> where(BooleanExpression ael) {
+        setWhereClause(WhereClauseProcessor.from(ael));
         return this;
     }
 
@@ -172,8 +172,8 @@ public class OperationObjectBuilder<T> extends AbstractFilterableBuilder impleme
      * {@inheritDoc}
      */
     @Override
-    public OperationObjectBuilder<T> where(PreparedAel dsl, Object ... params) {
-        setWhereClause(WhereClauseProcessor.from(false, dsl, params));
+    public OperationObjectBuilder<T> where(PreparedAel ael, Object ... params) {
+        setWhereClause(WhereClauseProcessor.from(false, ael, params));
         return this;
     }
 

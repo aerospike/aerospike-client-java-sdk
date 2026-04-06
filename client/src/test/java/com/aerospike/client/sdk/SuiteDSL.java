@@ -57,19 +57,19 @@ import com.aerospike.dsl.parsedExpression.PlaceholdersTests;
 	MapExpressionsTests.class,
 	RecordMetadataTests.class,
     SyntaxErrorTests.class,
-	// com.aerospike.dsl.filter
+	// com.aerospike.ael.filter
 	ArithmeticFiltersTests.class,
 	BinFiltersTests.class,
 	ExplicitTypesFiltersTests.class,
 	ImplicitTypesFiltersTests.class,
 	ListExpressionsTests.class,
-	// com.aerospike.dsl.parsedExpression
+	// com.aerospike.ael.parsedExpression
 	LogicalParsedExpressionTests.class,
 	PlaceholdersTests.class,
-    // com.aerospike.dsl.index
+    // com.aerospike.ael.index
     IndexContextTests.class,
     IndexTests.class,
-    // com.aerospike.dsl.parts.operand
+    // com.aerospike.ael.parts.operand
     OperandFactoryTests.class
 })
 public class SuiteDSL {

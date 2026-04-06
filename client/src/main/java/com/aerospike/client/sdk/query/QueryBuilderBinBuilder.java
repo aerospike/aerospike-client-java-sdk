@@ -39,7 +39,7 @@ import com.aerospike.client.sdk.exp.Expression;
 
 /**
  * Builder for bin-level read operations in QueryBuilder contexts.
- * 
+ *
  * <p>This builder is used by {@link QueryBuilder} for query operations
  * and only supports read operations (get, selectFrom, and CDT read operations).</p>
  *
@@ -50,14 +50,14 @@ import com.aerospike.client.sdk.exp.Expression;
  *     .bin("name").get()
  *     .bin("ageIn20Years").selectFrom("$.age + 20")
  *     .execute();
- * 
+ *
  * // CDT read operations
  * session.query(key)
  *     .bin("settings").onMapKey("theme").getValues()
  *     .bin("scores").onListIndex(0).getValues()
  *     .execute();
  * }</pre>
- * 
+ *
  * <p><b>Note:</b> For dataset-based queries (scans/index queries), CDT operations are
  * not currently supported by the server and will throw an exception at execution time.
  * This API is forward-looking to support future server capabilities.</p>
@@ -101,44 +101,44 @@ public class QueryBuilderBinBuilder implements CdtOperationAcceptor<QueryBuilder
     // ----------------------------------------
 
     /** Create a read expression from a AEL string. */
-    public QueryBuilder selectFrom(String dsl) {
-        queryBuilder.addOperation(ExpressionOpHelper.createReadOp(binName, dsl, ExpReadFlags.DEFAULT));
+    public QueryBuilder selectFrom(String ael) {
+        queryBuilder.addOperation(ExpressionOpHelper.createReadOp(binName, ael, ExpReadFlags.DEFAULT));
         return queryBuilder;
     }
 
     /** Create a read expression from a AEL string with options. */
-    public QueryBuilder selectFrom(String dsl, Consumer<ExpressionReadOptions> options) {
+    public QueryBuilder selectFrom(String ael, Consumer<ExpressionReadOptions> options) {
         ExpressionReadOptions opts = new ExpressionReadOptions();
         options.accept(opts);
-        queryBuilder.addOperation(ExpressionOpHelper.createReadOp(binName, dsl, opts.getFlags()));
+        queryBuilder.addOperation(ExpressionOpHelper.createReadOp(binName, ael, opts.getFlags()));
         return queryBuilder;
     }
 
     /** Create a read expression from a BooleanExpression. */
-    public QueryBuilder selectFrom(BooleanExpression dsl) {
-        queryBuilder.addOperation(ExpressionOpHelper.createReadOp(binName, dsl, ExpReadFlags.DEFAULT));
+    public QueryBuilder selectFrom(BooleanExpression ael) {
+        queryBuilder.addOperation(ExpressionOpHelper.createReadOp(binName, ael, ExpReadFlags.DEFAULT));
         return queryBuilder;
     }
 
     /** Create a read expression from a BooleanExpression with options. */
-    public QueryBuilder selectFrom(BooleanExpression dsl, Consumer<ExpressionReadOptions> options) {
+    public QueryBuilder selectFrom(BooleanExpression ael, Consumer<ExpressionReadOptions> options) {
         ExpressionReadOptions opts = new ExpressionReadOptions();
         options.accept(opts);
-        queryBuilder.addOperation(ExpressionOpHelper.createReadOp(binName, dsl, opts.getFlags()));
+        queryBuilder.addOperation(ExpressionOpHelper.createReadOp(binName, ael, opts.getFlags()));
         return queryBuilder;
     }
 
     /** Create a read expression from a PreparedAel. */
-    public QueryBuilder selectFrom(PreparedAel dsl, Object... params) {
-        queryBuilder.addOperation(ExpressionOpHelper.createReadOp(binName, dsl, params, ExpReadFlags.DEFAULT));
+    public QueryBuilder selectFrom(PreparedAel ael, Object... params) {
+        queryBuilder.addOperation(ExpressionOpHelper.createReadOp(binName, ael, params, ExpReadFlags.DEFAULT));
         return queryBuilder;
     }
 
     /** Create a read expression from a PreparedAel with options. */
-    public QueryBuilder selectFrom(PreparedAel dsl, Consumer<ExpressionReadOptions> options, Object... params) {
+    public QueryBuilder selectFrom(PreparedAel ael, Consumer<ExpressionReadOptions> options, Object... params) {
         ExpressionReadOptions opts = new ExpressionReadOptions();
         options.accept(opts);
-        queryBuilder.addOperation(ExpressionOpHelper.createReadOp(binName, dsl, params, opts.getFlags()));
+        queryBuilder.addOperation(ExpressionOpHelper.createReadOp(binName, ael, params, opts.getFlags()));
         return queryBuilder;
     }
 

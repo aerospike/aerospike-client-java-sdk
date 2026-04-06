@@ -252,7 +252,7 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
     // Expression Operations - Read and write values computed from AEL expressions
     //
     // Each operation supports 5 AEL input types:
-    // 1. String dsl - AEL string expression
+    // 1. String ael - AEL string expression
     // 2. BooleanExpression - Programmatic boolean expression
     // 3. PreparedAel - Prepared AEL with parameters
     // 4. Exp - Low-level expression builder
@@ -276,12 +276,12 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      *     .execute();
      * }</pre>
      *
-     * @param dsl the AEL expression string
+     * @param ael the AEL expression string
      * @return the parent operation builder for chaining
      * @see #selectFrom(String, Consumer) for options like ignoreEvalFailure()
      */
-    public T selectFrom(String dsl) {
-        return opBuilder.addOp(ExpressionOpHelper.createReadOp(binName, dsl, ExpReadFlags.DEFAULT));
+    public T selectFrom(String ael) {
+        return opBuilder.addOp(ExpressionOpHelper.createReadOp(binName, ael, ExpReadFlags.DEFAULT));
     }
 
     /**
@@ -294,14 +294,14 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      *     .execute();
      * }</pre>
      *
-     * @param dsl the AEL expression string
+     * @param ael the AEL expression string
      * @param options configure via {@code ignoreEvalFailure()}
      * @return the parent operation builder for chaining
      */
-    public T selectFrom(String dsl, Consumer<ExpressionReadOptions> options) {
+    public T selectFrom(String ael, Consumer<ExpressionReadOptions> options) {
         ExpressionReadOptions opts = new ExpressionReadOptions();
         options.accept(opts);
-        return opBuilder.addOp(ExpressionOpHelper.createReadOp(binName, dsl, opts.getFlags()));
+        return opBuilder.addOp(ExpressionOpHelper.createReadOp(binName, ael, opts.getFlags()));
     }
 
     /**
@@ -313,11 +313,11 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      *     .execute();
      * }</pre>
      *
-     * @param dsl the boolean expression to evaluate
+     * @param ael the boolean expression to evaluate
      * @return the parent operation builder for chaining
      */
-    public T selectFrom(BooleanExpression dsl) {
-        return opBuilder.addOp(ExpressionOpHelper.createReadOp(binName, dsl, ExpReadFlags.DEFAULT));
+    public T selectFrom(BooleanExpression ael) {
+        return opBuilder.addOp(ExpressionOpHelper.createReadOp(binName, ael, ExpReadFlags.DEFAULT));
     }
 
     /**
@@ -329,14 +329,14 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      *     .execute();
      * }</pre>
      *
-     * @param dsl the boolean expression to evaluate
+     * @param ael the boolean expression to evaluate
      * @param options configure via {@code ignoreEvalFailure()}
      * @return the parent operation builder for chaining
      */
-    public T selectFrom(BooleanExpression dsl, Consumer<ExpressionReadOptions> options) {
+    public T selectFrom(BooleanExpression ael, Consumer<ExpressionReadOptions> options) {
         ExpressionReadOptions opts = new ExpressionReadOptions();
         options.accept(opts);
-        return opBuilder.addOp(ExpressionOpHelper.createReadOp(binName, dsl, opts.getFlags()));
+        return opBuilder.addOp(ExpressionOpHelper.createReadOp(binName, ael, opts.getFlags()));
     }
 
     /**
@@ -349,12 +349,12 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      *     .execute();
      * }</pre>
      *
-     * @param dsl the prepared AEL statement
+     * @param ael the prepared AEL statement
      * @param params parameter values to bind
      * @return the parent operation builder for chaining
      */
-    public T selectFrom(PreparedAel dsl, Object... params) {
-        return opBuilder.addOp(ExpressionOpHelper.createReadOp(binName, dsl, params, ExpReadFlags.DEFAULT));
+    public T selectFrom(PreparedAel ael, Object... params) {
+        return opBuilder.addOp(ExpressionOpHelper.createReadOp(binName, ael, params, ExpReadFlags.DEFAULT));
     }
 
     /**
@@ -367,15 +367,15 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      *     .execute();
      * }</pre>
      *
-     * @param dsl the prepared AEL statement
+     * @param ael the prepared AEL statement
      * @param options configure via {@code ignoreEvalFailure()}
      * @param params parameter values to bind
      * @return the parent operation builder for chaining
      */
-    public T selectFrom(PreparedAel dsl, Consumer<ExpressionReadOptions> options, Object... params) {
+    public T selectFrom(PreparedAel ael, Consumer<ExpressionReadOptions> options, Object... params) {
         ExpressionReadOptions opts = new ExpressionReadOptions();
         options.accept(opts);
-        return opBuilder.addOp(ExpressionOpHelper.createReadOp(binName, dsl, params, opts.getFlags()));
+        return opBuilder.addOp(ExpressionOpHelper.createReadOp(binName, ael, params, opts.getFlags()));
     }
 
     /**
@@ -465,12 +465,12 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      *     .execute();
      * }</pre>
      *
-     * @param dsl the AEL expression string
+     * @param ael the AEL expression string
      * @return the parent operation builder for chaining
      * @see #insertFrom(String, Consumer) to suppress failure if bin exists
      */
-    public T insertFrom(String dsl) {
-        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, dsl, ExpWriteFlags.CREATE_ONLY));
+    public T insertFrom(String ael) {
+        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, ael, ExpWriteFlags.CREATE_ONLY));
     }
 
     /**
@@ -483,14 +483,14 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      *     .execute();
      * }</pre>
      *
-     * @param dsl the AEL expression string
+     * @param ael the AEL expression string
      * @param options configure via {@code ignoreOpFailure()}, {@code deleteIfNull()}, {@code ignoreEvalFailure()}
      * @return the parent operation builder for chaining
      */
-    public T insertFrom(String dsl, Consumer<ExpressionWriteOptions> options) {
+    public T insertFrom(String ael, Consumer<ExpressionWriteOptions> options) {
         ExpressionWriteOptions opts = new ExpressionWriteOptions(ExpWriteFlags.CREATE_ONLY);
         options.accept(opts);
-        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, dsl, opts.getFlags()));
+        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, ael, opts.getFlags()));
     }
 
     /**
@@ -503,11 +503,11 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      *     .execute();
      * }</pre>
      *
-     * @param dsl the boolean expression to evaluate
+     * @param ael the boolean expression to evaluate
      * @return the parent operation builder for chaining
      */
-    public T insertFrom(BooleanExpression dsl) {
-        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, dsl, ExpWriteFlags.CREATE_ONLY));
+    public T insertFrom(BooleanExpression ael) {
+        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, ael, ExpWriteFlags.CREATE_ONLY));
     }
 
     /**
@@ -519,14 +519,14 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      *     .execute();
      * }</pre>
      *
-     * @param dsl the boolean expression to evaluate
+     * @param ael the boolean expression to evaluate
      * @param options configure via {@code ignoreOpFailure()}, {@code deleteIfNull()}, {@code ignoreEvalFailure()}
      * @return the parent operation builder for chaining
      */
-    public T insertFrom(BooleanExpression dsl, Consumer<ExpressionWriteOptions> options) {
+    public T insertFrom(BooleanExpression ael, Consumer<ExpressionWriteOptions> options) {
         ExpressionWriteOptions opts = new ExpressionWriteOptions(ExpWriteFlags.CREATE_ONLY);
         options.accept(opts);
-        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, dsl, opts.getFlags()));
+        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, ael, opts.getFlags()));
     }
 
     /**
@@ -540,12 +540,12 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      *     .execute();
      * }</pre>
      *
-     * @param dsl the prepared AEL statement
+     * @param ael the prepared AEL statement
      * @param params parameter values to bind
      * @return the parent operation builder for chaining
      */
-    public T insertFrom(PreparedAel dsl, Object... params) {
-        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, dsl, params, ExpWriteFlags.CREATE_ONLY));
+    public T insertFrom(PreparedAel ael, Object... params) {
+        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, ael, params, ExpWriteFlags.CREATE_ONLY));
     }
 
     /**
@@ -558,15 +558,15 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      *     .execute();
      * }</pre>
      *
-     * @param dsl the prepared AEL statement
+     * @param ael the prepared AEL statement
      * @param options configure via {@code ignoreOpFailure()}, {@code deleteIfNull()}, {@code ignoreEvalFailure()}
      * @param params parameter values to bind
      * @return the parent operation builder for chaining
      */
-    public T insertFrom(PreparedAel dsl, Consumer<ExpressionWriteOptions> options, Object... params) {
+    public T insertFrom(PreparedAel ael, Consumer<ExpressionWriteOptions> options, Object... params) {
         ExpressionWriteOptions opts = new ExpressionWriteOptions(ExpWriteFlags.CREATE_ONLY);
         options.accept(opts);
-        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, dsl, params, opts.getFlags()));
+        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, ael, params, opts.getFlags()));
     }
 
     /**
@@ -658,12 +658,12 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      *     .execute();
      * }</pre>
      *
-     * @param dsl the AEL expression string
+     * @param ael the AEL expression string
      * @return the parent operation builder for chaining
      * @see #updateFrom(String, Consumer) to suppress failure if bin is missing
      */
-    public T updateFrom(String dsl) {
-        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, dsl, ExpWriteFlags.UPDATE_ONLY));
+    public T updateFrom(String ael) {
+        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, ael, ExpWriteFlags.UPDATE_ONLY));
     }
 
     /**
@@ -676,14 +676,14 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      *     .execute();
      * }</pre>
      *
-     * @param dsl the AEL expression string
+     * @param ael the AEL expression string
      * @param options configure via {@code ignoreOpFailure()}, {@code deleteIfNull()}, {@code ignoreEvalFailure()}
      * @return the parent operation builder for chaining
      */
-    public T updateFrom(String dsl, Consumer<ExpressionWriteOptions> options) {
+    public T updateFrom(String ael, Consumer<ExpressionWriteOptions> options) {
         ExpressionWriteOptions opts = new ExpressionWriteOptions(ExpWriteFlags.UPDATE_ONLY);
         options.accept(opts);
-        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, dsl, opts.getFlags()));
+        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, ael, opts.getFlags()));
     }
 
     /**
@@ -696,11 +696,11 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      *     .execute();
      * }</pre>
      *
-     * @param dsl the boolean expression to evaluate
+     * @param ael the boolean expression to evaluate
      * @return the parent operation builder for chaining
      */
-    public T updateFrom(BooleanExpression dsl) {
-        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, dsl, ExpWriteFlags.UPDATE_ONLY));
+    public T updateFrom(BooleanExpression ael) {
+        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, ael, ExpWriteFlags.UPDATE_ONLY));
     }
 
     /**
@@ -712,14 +712,14 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      *     .execute();
      * }</pre>
      *
-     * @param dsl the boolean expression to evaluate
+     * @param ael the boolean expression to evaluate
      * @param options configure via {@code ignoreOpFailure()}, {@code deleteIfNull()}, {@code ignoreEvalFailure()}
      * @return the parent operation builder for chaining
      */
-    public T updateFrom(BooleanExpression dsl, Consumer<ExpressionWriteOptions> options) {
+    public T updateFrom(BooleanExpression ael, Consumer<ExpressionWriteOptions> options) {
         ExpressionWriteOptions opts = new ExpressionWriteOptions(ExpWriteFlags.UPDATE_ONLY);
         options.accept(opts);
-        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, dsl, opts.getFlags()));
+        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, ael, opts.getFlags()));
     }
 
     /**
@@ -733,12 +733,12 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      *     .execute();
      * }</pre>
      *
-     * @param dsl the prepared AEL statement
+     * @param ael the prepared AEL statement
      * @param params parameter values to bind
      * @return the parent operation builder for chaining
      */
-    public T updateFrom(PreparedAel dsl, Object... params) {
-        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, dsl, params, ExpWriteFlags.UPDATE_ONLY));
+    public T updateFrom(PreparedAel ael, Object... params) {
+        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, ael, params, ExpWriteFlags.UPDATE_ONLY));
     }
 
     /**
@@ -751,15 +751,15 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      *     .execute();
      * }</pre>
      *
-     * @param dsl the prepared AEL statement
+     * @param ael the prepared AEL statement
      * @param options configure via {@code ignoreOpFailure()}, {@code deleteIfNull()}, {@code ignoreEvalFailure()}
      * @param params parameter values to bind
      * @return the parent operation builder for chaining
      */
-    public T updateFrom(PreparedAel dsl, Consumer<ExpressionWriteOptions> options, Object... params) {
+    public T updateFrom(PreparedAel ael, Consumer<ExpressionWriteOptions> options, Object... params) {
         ExpressionWriteOptions opts = new ExpressionWriteOptions(ExpWriteFlags.UPDATE_ONLY);
         options.accept(opts);
-        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, dsl, params, opts.getFlags()));
+        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, ael, params, opts.getFlags()));
     }
 
     /**
@@ -851,12 +851,12 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      *     .execute();
      * }</pre>
      *
-     * @param dsl the AEL expression string
+     * @param ael the AEL expression string
      * @return the parent operation builder for chaining
      * @see #upsertFrom(String, Consumer) for options like deleteIfNull()
      */
-    public T upsertFrom(String dsl) {
-        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, dsl, ExpWriteFlags.DEFAULT));
+    public T upsertFrom(String ael) {
+        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, ael, ExpWriteFlags.DEFAULT));
     }
 
     /**
@@ -869,14 +869,14 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      *     .execute();
      * }</pre>
      *
-     * @param dsl the AEL expression string
+     * @param ael the AEL expression string
      * @param options configure via {@code deleteIfNull()}, {@code ignoreEvalFailure()}
      * @return the parent operation builder for chaining
      */
-    public T upsertFrom(String dsl, Consumer<ExpressionWriteOptions> options) {
+    public T upsertFrom(String ael, Consumer<ExpressionWriteOptions> options) {
         ExpressionWriteOptions opts = new ExpressionWriteOptions(ExpWriteFlags.DEFAULT);
         options.accept(opts);
-        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, dsl, opts.getFlags()));
+        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, ael, opts.getFlags()));
     }
 
     /**
@@ -889,11 +889,11 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      *     .execute();
      * }</pre>
      *
-     * @param dsl the boolean expression to evaluate
+     * @param ael the boolean expression to evaluate
      * @return the parent operation builder for chaining
      */
-    public T upsertFrom(BooleanExpression dsl) {
-        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, dsl, ExpWriteFlags.DEFAULT));
+    public T upsertFrom(BooleanExpression ael) {
+        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, ael, ExpWriteFlags.DEFAULT));
     }
 
     /**
@@ -905,14 +905,14 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      *     .execute();
      * }</pre>
      *
-     * @param dsl the boolean expression to evaluate
+     * @param ael the boolean expression to evaluate
      * @param options configure via {@code deleteIfNull()}, {@code ignoreEvalFailure()}
      * @return the parent operation builder for chaining
      */
-    public T upsertFrom(BooleanExpression dsl, Consumer<ExpressionWriteOptions> options) {
+    public T upsertFrom(BooleanExpression ael, Consumer<ExpressionWriteOptions> options) {
         ExpressionWriteOptions opts = new ExpressionWriteOptions(ExpWriteFlags.DEFAULT);
         options.accept(opts);
-        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, dsl, opts.getFlags()));
+        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, ael, opts.getFlags()));
     }
 
     /**
@@ -926,12 +926,12 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      *     .execute();
      * }</pre>
      *
-     * @param dsl the prepared AEL statement
+     * @param ael the prepared AEL statement
      * @param params parameter values to bind
      * @return the parent operation builder for chaining
      */
-    public T upsertFrom(PreparedAel dsl, Object... params) {
-        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, dsl, params, ExpWriteFlags.DEFAULT));
+    public T upsertFrom(PreparedAel ael, Object... params) {
+        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, ael, params, ExpWriteFlags.DEFAULT));
     }
 
     /**
@@ -944,15 +944,15 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      *     .execute();
      * }</pre>
      *
-     * @param dsl the prepared AEL statement
+     * @param ael the prepared AEL statement
      * @param options configure via {@code deleteIfNull()}, {@code ignoreEvalFailure()}
      * @param params parameter values to bind
      * @return the parent operation builder for chaining
      */
-    public T upsertFrom(PreparedAel dsl, Consumer<ExpressionWriteOptions> options, Object... params) {
+    public T upsertFrom(PreparedAel ael, Consumer<ExpressionWriteOptions> options, Object... params) {
         ExpressionWriteOptions opts = new ExpressionWriteOptions(ExpWriteFlags.DEFAULT);
         options.accept(opts);
-        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, dsl, params, opts.getFlags()));
+        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, ael, params, opts.getFlags()));
     }
 
     /**

@@ -658,9 +658,9 @@ public class ChainableOperationBuilder extends AbstractOperationBuilder<Chainabl
     // ========================================
 
     @Override
-    public ChainableOperationBuilder where(String dsl, Object... params) {
+    public ChainableOperationBuilder where(String ael, Object... params) {
         verifyState("setting where clause");
-        WhereClauseProcessor processor = createWhereClauseProcessor(false, dsl, params);
+        WhereClauseProcessor processor = createWhereClauseProcessor(false, ael, params);
         if (processor != null) {
             ParseResult parseResult = processor.process(getNamespaceFromKeys(currentSpec.getKeys()), session);
             currentSpec.setWhereClause(Exp.build(parseResult.getExp()));
@@ -669,18 +669,18 @@ public class ChainableOperationBuilder extends AbstractOperationBuilder<Chainabl
     }
 
     @Override
-    public ChainableOperationBuilder where(BooleanExpression dsl) {
+    public ChainableOperationBuilder where(BooleanExpression ael) {
         verifyState("setting where clause");
-        WhereClauseProcessor processor = WhereClauseProcessor.from(dsl);
+        WhereClauseProcessor processor = WhereClauseProcessor.from(ael);
         ParseResult parseResult = processor.process(getNamespaceFromKeys(currentSpec.getKeys()), session);
         currentSpec.setWhereClause(Exp.build(parseResult.getExp()));
         return this;
     }
 
     @Override
-    public ChainableOperationBuilder where(PreparedAel dsl, Object... params) {
+    public ChainableOperationBuilder where(PreparedAel ael, Object... params) {
         verifyState("setting where clause");
-        WhereClauseProcessor processor = WhereClauseProcessor.from(false, dsl, params);
+        WhereClauseProcessor processor = WhereClauseProcessor.from(false, ael, params);
         ParseResult parseResult = processor.process(getNamespaceFromKeys(currentSpec.getKeys()), session);
         currentSpec.setWhereClause(Exp.build(parseResult.getExp()));
         return this;
@@ -710,11 +710,11 @@ public class ChainableOperationBuilder extends AbstractOperationBuilder<Chainabl
      * <p>This filter is applied to operations that don't have an explicit {@code where()} clause.
      * Operations with their own where clause will use their own filter instead.
      *
-     * @param dsl the AEL filter expression
+     * @param ael the AEL filter expression
      * @param params parameters to substitute into the AEL
      * @return this builder for method chaining
      */
-    public ChainableOperationBuilder defaultWhere(String dsl, Object... params) {
+    public ChainableOperationBuilder defaultWhere(String ael, Object... params) {
         String namespace = currentSpec != null ?
                 getNamespaceFromKeys(currentSpec.getKeys()) :
                 (!operationSpecs.isEmpty() ? getNamespaceFromKeys(operationSpecs.get(0).getKeys()) : null);
@@ -723,7 +723,7 @@ public class ChainableOperationBuilder extends AbstractOperationBuilder<Chainabl
             throw new IllegalStateException("Cannot set defaultWhere before any operations are specified");
         }
 
-        WhereClauseProcessor processor = createWhereClauseProcessor(false, dsl, params);
+        WhereClauseProcessor processor = createWhereClauseProcessor(false, ael, params);
         if (processor != null) {
             ParseResult parseResult = processor.process(namespace, session);
             this.defaultWhereClause = Exp.build(parseResult.getExp());
@@ -734,10 +734,10 @@ public class ChainableOperationBuilder extends AbstractOperationBuilder<Chainabl
     /**
      * Set the default where clause using a BooleanExpression.
      *
-     * @param dsl the boolean expression filter
+     * @param ael the boolean expression filter
      * @return this builder for method chaining
      */
-    public ChainableOperationBuilder defaultWhere(BooleanExpression dsl) {
+    public ChainableOperationBuilder defaultWhere(BooleanExpression ael) {
         String namespace = currentSpec != null ?
                 getNamespaceFromKeys(currentSpec.getKeys()) :
                 (!operationSpecs.isEmpty() ? getNamespaceFromKeys(operationSpecs.get(0).getKeys()) : null);
@@ -746,7 +746,7 @@ public class ChainableOperationBuilder extends AbstractOperationBuilder<Chainabl
             throw new IllegalStateException("Cannot set defaultWhere before any operations are specified");
         }
 
-        WhereClauseProcessor processor = WhereClauseProcessor.from(dsl);
+        WhereClauseProcessor processor = WhereClauseProcessor.from(ael);
         ParseResult parseResult = processor.process(namespace, session);
         this.defaultWhereClause = Exp.build(parseResult.getExp());
         return this;
@@ -755,11 +755,11 @@ public class ChainableOperationBuilder extends AbstractOperationBuilder<Chainabl
     /**
      * Set the default where clause using a PreparedAel.
      *
-     * @param dsl the prepared AEL filter
+     * @param ael the prepared AEL filter
      * @param params parameters to bind to the prepared AEL
      * @return this builder for method chaining
      */
-    public ChainableOperationBuilder defaultWhere(PreparedAel dsl, Object... params) {
+    public ChainableOperationBuilder defaultWhere(PreparedAel ael, Object... params) {
         String namespace = currentSpec != null ?
                 getNamespaceFromKeys(currentSpec.getKeys()) :
                 (!operationSpecs.isEmpty() ? getNamespaceFromKeys(operationSpecs.get(0).getKeys()) : null);
@@ -768,7 +768,7 @@ public class ChainableOperationBuilder extends AbstractOperationBuilder<Chainabl
             throw new IllegalStateException("Cannot set defaultWhere before any operations are specified");
         }
 
-        WhereClauseProcessor processor = WhereClauseProcessor.from(false, dsl, params);
+        WhereClauseProcessor processor = WhereClauseProcessor.from(false, ael, params);
         ParseResult parseResult = processor.process(namespace, session);
         this.defaultWhereClause = Exp.build(parseResult.getExp());
         return this;

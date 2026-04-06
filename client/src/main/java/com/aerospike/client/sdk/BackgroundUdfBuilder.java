@@ -160,8 +160,8 @@ public class BackgroundUdfBuilder extends AbstractSessionOperationBuilder<Backgr
      * The predicate is applied on the server so only matching records run the UDF.
      */
     @Override
-    public BackgroundUdfBuilder where(String dsl, Object... params) {
-        setWhereClause(createWhereClauseProcessor(true, dsl, params));
+    public BackgroundUdfBuilder where(String ael, Object... params) {
+        setWhereClause(createWhereClauseProcessor(true, ael, params));
         return this;
     }
 
@@ -171,8 +171,8 @@ public class BackgroundUdfBuilder extends AbstractSessionOperationBuilder<Backgr
      * The predicate is applied on the server so only matching records run the UDF.
      */
     @Override
-    public BackgroundUdfBuilder where(BooleanExpression dsl) {
-        setWhereClause(WhereClauseProcessor.from(dsl));
+    public BackgroundUdfBuilder where(BooleanExpression ael) {
+        setWhereClause(WhereClauseProcessor.from(ael));
         return this;
     }
 
@@ -182,8 +182,8 @@ public class BackgroundUdfBuilder extends AbstractSessionOperationBuilder<Backgr
      * The predicate is applied on the server so only matching records run the UDF.
      */
     @Override
-    public BackgroundUdfBuilder where(PreparedAel dsl, Object... params) {
-        setWhereClause(WhereClauseProcessor.from(true, dsl, params));
+    public BackgroundUdfBuilder where(PreparedAel ael, Object... params) {
+        setWhereClause(WhereClauseProcessor.from(true, ael, params));
         return this;
     }
 

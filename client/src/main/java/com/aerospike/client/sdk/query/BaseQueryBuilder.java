@@ -158,12 +158,12 @@ public interface BaseQueryBuilder<T extends BaseQueryBuilder<T>> {
      * <p>Only one filter condition can be specified per query. Multiple calls
      * to this method or {@link #where(BooleanExpression)} will throw an exception.</p>
      *
-     * @param dsl the AEL filter expression
-     * @param params The params used to replace arguments in the AEL string (used by {@code String.format(dsl, params)}
+     * @param ael the AEL filter expression
+     * @param params The params used to replace arguments in the AEL string (used by {@code String.format(ael, params)}
      * @return this QueryBuilder for method chaining
      * @throws IllegalArgumentException if multiple filter conditions are specified
      */
-    T where(String dsl, Object ... params);
+    T where(String ael, Object ... params);
 
     /**
      * Adds a filter condition using a BooleanExpression.
@@ -185,11 +185,11 @@ public interface BaseQueryBuilder<T extends BaseQueryBuilder<T>> {
      * <p>Only one filter condition can be specified per query. Multiple calls
      * to this method or {@link #where(String)} will throw an exception.</p>
      *
-     * @param dsl the BooleanExpression filter
+     * @param ael the BooleanExpression filter
      * @return this QueryBuilder for method chaining
      * @throws IllegalArgumentException if multiple filter conditions are specified
      */
-    T where(BooleanExpression dsl);
+    T where(BooleanExpression ael);
 
     /**
      * Adds a filter condition using an Expression.
@@ -197,11 +197,11 @@ public interface BaseQueryBuilder<T extends BaseQueryBuilder<T>> {
      * <p>Only one filter condition can be specified per query. Multiple calls
      * to this method or {@link #where(String)} will throw an exception.</p>
      *
-     * @param dsl filter expression
+     * @param exp filter expression
      * @return this QueryBuilder for method chaining
      * @throws IllegalArgumentException if multiple filter conditions are specified
      */
-    T where(Expression dsl);
+    T where(Expression exp);
 
     /**
      * Adds a filter condition using an Exp instance.
@@ -209,11 +209,11 @@ public interface BaseQueryBuilder<T extends BaseQueryBuilder<T>> {
      * <p>Only one filter condition can be specified per query. Multiple calls
      * to this method or {@link #where(String)} will throw an exception.</p>
      *
-     * @param dsl filter expression
+     * @param exp filter expression
      * @return this QueryBuilder for method chaining
      * @throws IllegalArgumentException if multiple filter conditions are specified
      */
-    T where(Exp dsl);
+    T where(Exp exp);
 
     /**
      * Specifies that these operations are not to be included in any transaction, even if a

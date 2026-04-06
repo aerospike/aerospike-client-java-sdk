@@ -615,9 +615,9 @@ public class ChainableNoBinsBuilder extends AbstractSessionOperationBuilder<Chai
 
     /** {@inheritDoc} */
     @Override
-    public ChainableNoBinsBuilder where(String dsl, Object... params) {
+    public ChainableNoBinsBuilder where(String ael, Object... params) {
         verifyState("setting where clause");
-        WhereClauseProcessor processor = createWhereClauseProcessor(false, dsl, params);
+        WhereClauseProcessor processor = createWhereClauseProcessor(false, ael, params);
         if (processor != null) {
             ParseResult parseResult = processor.process(getNamespaceFromKeys(currentSpec.getKeys()), session);
             currentSpec.setWhereClause(Exp.build(parseResult.getExp()));
@@ -627,9 +627,9 @@ public class ChainableNoBinsBuilder extends AbstractSessionOperationBuilder<Chai
 
     /** {@inheritDoc} */
     @Override
-    public ChainableNoBinsBuilder where(BooleanExpression dsl) {
+    public ChainableNoBinsBuilder where(BooleanExpression ael) {
         verifyState("setting where clause");
-        WhereClauseProcessor processor = WhereClauseProcessor.from(dsl);
+        WhereClauseProcessor processor = WhereClauseProcessor.from(ael);
         ParseResult parseResult = processor.process(getNamespaceFromKeys(currentSpec.getKeys()), session);
         currentSpec.setWhereClause(Exp.build(parseResult.getExp()));
         return this;
@@ -637,9 +637,9 @@ public class ChainableNoBinsBuilder extends AbstractSessionOperationBuilder<Chai
 
     /** {@inheritDoc} */
     @Override
-    public ChainableNoBinsBuilder where(PreparedAel dsl, Object... params) {
+    public ChainableNoBinsBuilder where(PreparedAel ael, Object... params) {
         verifyState("setting where clause");
-        WhereClauseProcessor processor = WhereClauseProcessor.from(false, dsl, params);
+        WhereClauseProcessor processor = WhereClauseProcessor.from(false, ael, params);
         ParseResult parseResult = processor.process(getNamespaceFromKeys(currentSpec.getKeys()), session);
         currentSpec.setWhereClause(Exp.build(parseResult.getExp()));
         return this;
@@ -668,12 +668,12 @@ public class ChainableNoBinsBuilder extends AbstractSessionOperationBuilder<Chai
     /**
      * Set the default where clause for all operations in this batch that don't have their own where clause.
      *
-     * @param dsl the AEL filter expression
+     * @param ael the AEL filter expression
      * @param params parameters to substitute into the AEL
      * @return this builder for method chaining
      * @see ChainableOperationBuilder#defaultWhere(String, Object...)
      */
-    public ChainableNoBinsBuilder defaultWhere(String dsl, Object... params) {
+    public ChainableNoBinsBuilder defaultWhere(String ael, Object... params) {
         String namespace = currentSpec != null ?
                 getNamespaceFromKeys(currentSpec.getKeys()) :
                 (!operationSpecs.isEmpty() ? getNamespaceFromKeys(operationSpecs.get(0).getKeys()) : null);
@@ -682,7 +682,7 @@ public class ChainableNoBinsBuilder extends AbstractSessionOperationBuilder<Chai
             throw new IllegalStateException("Cannot set defaultWhere before any operations are specified");
         }
 
-        WhereClauseProcessor processor = createWhereClauseProcessor(false, dsl, params);
+        WhereClauseProcessor processor = createWhereClauseProcessor(false, ael, params);
         if (processor != null) {
             ParseResult parseResult = processor.process(namespace, session);
             this.defaultWhereClause = Exp.build(parseResult.getExp());
@@ -693,10 +693,10 @@ public class ChainableNoBinsBuilder extends AbstractSessionOperationBuilder<Chai
     /**
      * Set the default where clause using a BooleanExpression.
      *
-     * @param dsl the boolean expression filter
+     * @param ael the boolean expression filter
      * @return this builder for method chaining
      */
-    public ChainableNoBinsBuilder defaultWhere(BooleanExpression dsl) {
+    public ChainableNoBinsBuilder defaultWhere(BooleanExpression ael) {
         String namespace = currentSpec != null ?
                 getNamespaceFromKeys(currentSpec.getKeys()) :
                 (!operationSpecs.isEmpty() ? getNamespaceFromKeys(operationSpecs.get(0).getKeys()) : null);
@@ -705,7 +705,7 @@ public class ChainableNoBinsBuilder extends AbstractSessionOperationBuilder<Chai
             throw new IllegalStateException("Cannot set defaultWhere before any operations are specified");
         }
 
-        WhereClauseProcessor processor = WhereClauseProcessor.from(dsl);
+        WhereClauseProcessor processor = WhereClauseProcessor.from(ael);
         ParseResult parseResult = processor.process(namespace, session);
         this.defaultWhereClause = Exp.build(parseResult.getExp());
         return this;
@@ -714,11 +714,11 @@ public class ChainableNoBinsBuilder extends AbstractSessionOperationBuilder<Chai
     /**
      * Set the default where clause using a PreparedAel.
      *
-     * @param dsl the prepared AEL filter
+     * @param ael the prepared AEL filter
      * @param params parameters to bind to the prepared AEL
      * @return this builder for method chaining
      */
-    public ChainableNoBinsBuilder defaultWhere(PreparedAel dsl, Object... params) {
+    public ChainableNoBinsBuilder defaultWhere(PreparedAel ael, Object... params) {
         String namespace = currentSpec != null ?
                 getNamespaceFromKeys(currentSpec.getKeys()) :
                 (!operationSpecs.isEmpty() ? getNamespaceFromKeys(operationSpecs.get(0).getKeys()) : null);
@@ -727,7 +727,7 @@ public class ChainableNoBinsBuilder extends AbstractSessionOperationBuilder<Chai
             throw new IllegalStateException("Cannot set defaultWhere before any operations are specified");
         }
 
-        WhereClauseProcessor processor = WhereClauseProcessor.from(false, dsl, params);
+        WhereClauseProcessor processor = WhereClauseProcessor.from(false, ael, params);
         ParseResult parseResult = processor.process(namespace, session);
         this.defaultWhereClause = Exp.build(parseResult.getExp());
         return this;
