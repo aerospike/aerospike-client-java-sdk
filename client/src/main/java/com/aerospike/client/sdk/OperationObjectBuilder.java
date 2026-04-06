@@ -19,7 +19,7 @@ package com.aerospike.client.sdk;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.aerospike.client.sdk.dsl.BooleanExpression;
+import com.aerospike.client.sdk.ael.BooleanExpression;
 import com.aerospike.client.sdk.exp.Exp;
 import com.aerospike.client.sdk.exp.Expression;
 import com.aerospike.client.sdk.query.PreparedDsl;

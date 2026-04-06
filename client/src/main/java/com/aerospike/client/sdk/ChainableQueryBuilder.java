@@ -24,8 +24,8 @@ import java.util.Date;
 import java.util.List;
 import java.util.Objects;
 
+import com.aerospike.client.sdk.ael.BooleanExpression;
 import com.aerospike.client.sdk.command.Txn;
-import com.aerospike.client.sdk.dsl.BooleanExpression;
 import com.aerospike.client.sdk.exp.Exp;
 import com.aerospike.client.sdk.exp.Expression;
 import com.aerospike.client.sdk.query.PreparedDsl;

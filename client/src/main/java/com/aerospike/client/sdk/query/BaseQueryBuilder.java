@@ -21,8 +21,8 @@ import com.aerospike.client.sdk.ErrorStrategy;
 import com.aerospike.client.sdk.RecordMapper;
 import com.aerospike.client.sdk.RecordStream;
 import com.aerospike.client.sdk.Session;
+import com.aerospike.client.sdk.ael.BooleanExpression;
 import com.aerospike.client.sdk.command.Txn;
-import com.aerospike.client.sdk.dsl.BooleanExpression;
 import com.aerospike.client.sdk.exp.Exp;
 import com.aerospike.client.sdk.exp.Expression;
 

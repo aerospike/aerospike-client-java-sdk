@@ -27,6 +27,7 @@ import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import com.aerospike.client.sdk.ael.BooleanExpression;
 import com.aerospike.client.sdk.command.Batch;
 import com.aerospike.client.sdk.command.BatchAttr;
 import com.aerospike.client.sdk.command.BatchCommand;
@@ -43,7 +44,6 @@ import com.aerospike.client.sdk.command.OperateWriteCommand;
 import com.aerospike.client.sdk.command.OperateWriteExecutor;
 import com.aerospike.client.sdk.command.Txn;
 import com.aerospike.client.sdk.command.TxnMonitor;
-import com.aerospike.client.sdk.dsl.BooleanExpression;
 import com.aerospike.client.sdk.exp.Exp;
 import com.aerospike.client.sdk.exp.Expression;
 import com.aerospike.client.sdk.policy.Settings;

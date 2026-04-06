@@ -20,10 +20,10 @@ import java.util.List;
 import java.util.Random;
 import java.util.concurrent.ExecutorService;
 
+import com.aerospike.client.sdk.ael.BooleanExpression;
 import com.aerospike.client.sdk.command.BackgroundQueryCommand;
 import com.aerospike.client.sdk.command.BackgroundQueryNodeExecutor;
 import com.aerospike.client.sdk.command.NodeStatus;
-import com.aerospike.client.sdk.dsl.BooleanExpression;
 import com.aerospike.client.sdk.exp.Exp;
 import com.aerospike.client.sdk.exp.Expression;
 import com.aerospike.client.sdk.policy.Settings;

@@ -25,7 +25,7 @@ import com.aerospike.client.sdk.Record;
 import com.aerospike.client.sdk.RecordResult;
 import com.aerospike.client.sdk.RecordStream;
 import com.aerospike.client.sdk.Session;
-import com.aerospike.client.sdk.dsl.Dsl;
+import com.aerospike.client.sdk.ael.Dsl;
 import com.aerospike.client.sdk.exp.Exp;
 import com.aerospike.client.sdk.info.classes.IndexType;
 import com.aerospike.client.sdk.policy.Behavior;

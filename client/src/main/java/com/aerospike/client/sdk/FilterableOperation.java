@@ -16,7 +16,7 @@
  */
 package com.aerospike.client.sdk;
 
-import com.aerospike.client.sdk.dsl.BooleanExpression;
+import com.aerospike.client.sdk.ael.BooleanExpression;
 import com.aerospike.client.sdk.exp.Exp;
 import com.aerospike.client.sdk.exp.Expression;
 import com.aerospike.client.sdk.query.PreparedDsl;
