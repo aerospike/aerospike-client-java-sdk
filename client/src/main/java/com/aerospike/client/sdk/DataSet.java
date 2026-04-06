@@ -23,7 +23,7 @@ import java.util.List;
  * Represents a dataset in Aerospike, which is a collection of records within a namespace.
  * A dataset is identified by a namespace and set name combination.
  *
- * <p>This class provides a fluent API for creating Aerospike keys for records within the dataset.
+ * <p>This class provides an API for creating Aerospike keys for records within the dataset.
  * It supports various key types including String, Integer, Long, and byte array keys.</p>
  *
  * <p>Example usage:</p>

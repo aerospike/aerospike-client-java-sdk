@@ -98,7 +98,7 @@ public class QueryBlobTest extends ClusterTest {
 
 		WhereClauseProcessor filterProcessor = new WhereClauseProcessor(true) {
 			@Override
-			public ParseResult process(String namespace, com.aerospike.client.fluent.Session session) {
+			public ParseResult process(String namespace, com.aerospike.client.sdk.Session session) {
 				return new ParseResult(filter, null);
 			}
 		};
@@ -139,7 +139,7 @@ public class QueryBlobTest extends ClusterTest {
 
 		WhereClauseProcessor filterProcessor = new WhereClauseProcessor(true) {
 			@Override
-			public ParseResult process(String namespace, com.aerospike.client.fluent.Session session) {
+			public ParseResult process(String namespace, com.aerospike.client.sdk.Session session) {
 				return new ParseResult(filter, null);
 			}
 		};

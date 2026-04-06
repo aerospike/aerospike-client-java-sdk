@@ -52,7 +52,7 @@
     <dependencies>
       <dependency>
         <groupId>com.aerospike</groupId>
-        <artifactId>aerospike-client-fluent</artifactId>
+        <artifactId>aerospike-client-sdk</artifactId>
         <version>${project.version}</version>
       </dependency>
 

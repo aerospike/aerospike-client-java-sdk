@@ -31,7 +31,7 @@ import com.aerospike.client.sdk.cdt.MapReturnType;
 import com.aerospike.client.sdk.cdt.MapWriteFlags;
 
 /**
- * Fluent builder for map and list (CDT) read, remove, existence checks, and nested path operations on a bin.
+ * Builder for map and list (CDT) read, remove, existence checks, and nested path operations on a bin.
  * After {@link BinBuilder} selects a bin, this type holds the current {@link CdtOperationParams} and dispatches
  * to server map or list operations. Context methods push another step onto the nested path and return {@code this};
  * terminal operations attach to the parent {@link AbstractOperationBuilder}.

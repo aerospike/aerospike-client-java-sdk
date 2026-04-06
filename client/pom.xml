@@ -8,10 +8,10 @@
     <artifactId>aerospike-parent</artifactId>
     <version>0.0.1</version>
   </parent>
-  <artifactId>aerospike-client-fluent</artifactId>
+  <artifactId>aerospike-client-sdk</artifactId>
   <packaging>jar</packaging>
 
-  <name>aerospike-client-fluent</name>
+  <name>aerospike-client-sdk</name>
 
   <properties>
     <skipTests>true</skipTests>

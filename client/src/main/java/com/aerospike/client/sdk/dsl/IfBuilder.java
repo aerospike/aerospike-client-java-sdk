@@ -21,7 +21,7 @@ import java.util.List;
 
 /**
  * Builder for creating IF-THEN-ELSE IF-ELSE expressions.
- * Provides a fluent API for constructing conditional expressions.
+ * Provides an API for constructing conditional expressions.
  */
 public class IfBuilder {
     private final List<BooleanExpression> conditions = new ArrayList<>();

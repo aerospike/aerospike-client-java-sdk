@@ -32,7 +32,7 @@ import com.aerospike.client.sdk.cdt.MapPolicy;
 import com.aerospike.client.sdk.cdt.MapWriteFlags;
 
 /**
- * Fluent CDT helpers for a single bin: appends {@link ListOperation} and {@link MapOperation} steps to
+ * CDT helpers for a single bin: appends {@link ListOperation} and {@link MapOperation} steps to
  * {@code opBuilder}. When {@link CdtOperationParams} is non-null, each call pushes the current path into
  * context so operations apply to nested list/map elements.
  *
@@ -57,7 +57,7 @@ public class AbstractCdtBuilder<T extends AbstractOperationBuilder<T>> {
      * Return a cached, immutable {@link ListPolicy} for the given combination of order and write flags.
      */
     static ListPolicy cachedListPolicy(ListOrder order, int writeFlags) {
-        long key = ((long) order.attributes << 32) | (long) writeFlags;
+        long key = ((long) order.attributes << 32) | writeFlags;
         return LIST_POLICY_CACHE.computeIfAbsent(key, k -> new ListPolicy(order, writeFlags));
     }
 
@@ -181,14 +181,18 @@ public class AbstractCdtBuilder<T extends AbstractOperationBuilder<T>> {
     // =================================
 
     private ListEntryWriteOptions applyListOptions(Consumer<ListEntryWriteOptions> options) {
-        if (options == null) return null;
+        if (options == null) {
+			return null;
+		}
         ListEntryWriteOptions opts = new ListEntryWriteOptions();
         options.accept(opts);
         return opts;
     }
 
     private ListBulkWriteOptions applyListBulkOptions(Consumer<ListBulkWriteOptions> options) {
-        if (options == null) return null;
+        if (options == null) {
+			return null;
+		}
         ListBulkWriteOptions opts = new ListBulkWriteOptions();
         options.accept(opts);
         return opts;
@@ -197,9 +201,15 @@ public class AbstractCdtBuilder<T extends AbstractOperationBuilder<T>> {
     private ListPolicy resolveListPolicy(ListOrder order, ListWriteOptions<?> opts) {
         int flags = ListWriteFlags.DEFAULT;
         if (opts != null) {
-            if (opts.isAddUnique()) flags |= ListWriteFlags.ADD_UNIQUE;
-            if (opts.isInsertBounded()) flags |= ListWriteFlags.INSERT_BOUNDED;
-            if (opts.isAllowFailures()) flags |= ListWriteFlags.NO_FAIL;
+            if (opts.isAddUnique()) {
+				flags |= ListWriteFlags.ADD_UNIQUE;
+			}
+            if (opts.isInsertBounded()) {
+				flags |= ListWriteFlags.INSERT_BOUNDED;
+			}
+            if (opts.isAllowFailures()) {
+				flags |= ListWriteFlags.NO_FAIL;
+			}
             if (opts instanceof ListBulkWriteOptions && ((ListBulkWriteOptions) opts).isAllowPartial()) {
                 flags |= ListWriteFlags.PARTIAL;
             }
@@ -866,7 +876,9 @@ public class AbstractCdtBuilder<T extends AbstractOperationBuilder<T>> {
     // =================================
 
     private MapBulkWriteOptions applyBulkOptions(Consumer<MapBulkWriteOptions> options) {
-        if (options == null) return null;
+        if (options == null) {
+			return null;
+		}
         MapBulkWriteOptions opts = new MapBulkWriteOptions();
         options.accept(opts);
         return opts;
@@ -879,7 +891,9 @@ public class AbstractCdtBuilder<T extends AbstractOperationBuilder<T>> {
         int flags = baseFlags;
         boolean persist = false;
         if (opts != null) {
-            if (opts.isAllowFailures()) flags |= MapWriteFlags.NO_FAIL;
+            if (opts.isAllowFailures()) {
+				flags |= MapWriteFlags.NO_FAIL;
+			}
             if (opts instanceof MapBulkWriteOptions && ((MapBulkWriteOptions) opts).isAllowPartial()) {
                 flags |= MapWriteFlags.PARTIAL;
             }

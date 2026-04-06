@@ -44,7 +44,7 @@ import com.aerospike.client.sdk.util.Util;
 import com.aerospike.client.sdk.util.Version;
 
 /**
- * Primary entry point for data and admin operations against an Aerospike cluster in the fluent API.
+ * Primary entry point for data and admin operations against an Aerospike cluster in the API.
  *
  * <p>A session is tied to a {@link Cluster} and a {@link Behavior} profile (timeouts, retries,
  * consistency, and related defaults). Obtain instances with {@link Cluster#createSession(Behavior)}.
@@ -1265,7 +1265,7 @@ public class Session {
      * Returns the transaction associated with this session, if any.
      *
      * <p>This base {@code Session} implementation always returns {@code null}. Call sites use this
-     * hook so the same fluent APIs can participate in transactions when a session implementation
+     * hook so the same APIs can participate in transactions when a session implementation
      * supplies a non-null {@link Txn}.</p>
      *
      * @return the active transaction, or {@code null}

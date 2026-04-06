@@ -34,7 +34,7 @@ import java.util.stream.Collectors;
  * Aerospike Policy Behavior Builder — Typed Selectors (non-generic bases)
  *
  * <h2>Overview</h2>
- * Provides a fluent, selector-driven API for configuring Aerospike operation policies with:
+ * Provides selector-driven API for configuring Aerospike operation policies with:
  * <ul>
  *   <li>Global → scoped → most-specific overrides (cascading configuration)</li>
  *   <li>Compile-time safety via typed selectors: only valid knobs are exposed per operation type</li>
@@ -547,7 +547,7 @@ public final class Behavior {
     // Builder
     // -----------------------------------------------------------------------------------
     /**
-     * Builder for constructing Behavior instances with fluent configuration.
+     * Builder for constructing Behavior instances with configuration.
      *
      * <p><b>Note:</b> This builder is not directly accessible. Use {@link #deriveWithChanges(String, java.util.function.Consumer)}
      * to create new behaviors that inherit from an existing behavior.</p>
@@ -1658,7 +1658,7 @@ public final class Behavior {
     /**
      * Factory for creating selectors that specify which operations to configure.
      *
-     * <p>Selectors use a fluent API to narrow down operation types from general to specific,
+     * <p>Selectors use an API to narrow down operation types from general to specific,
      * exposing only the configuration methods that are valid for each operation type.
      *
      * <h2>Selector Hierarchy</h2>

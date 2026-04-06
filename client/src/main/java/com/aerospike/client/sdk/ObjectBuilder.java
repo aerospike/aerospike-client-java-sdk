@@ -59,7 +59,7 @@ import com.aerospike.client.sdk.util.Version;
 import com.aerospike.dsl.ParseResult;
 
 /**
- * Fluent builder for applying a dataset operation (insert, update, upsert, replace, etc.) to one or more
+ * Builder for applying a dataset operation (insert, update, upsert, replace, etc.) to one or more
  * domain objects of type {@code T}. Objects are converted to Aerospike keys and bin writes through a
  * {@link RecordMapper} from the session's {@link RecordMappingFactory}, or an override from {@link #using}.
  *

@@ -34,7 +34,7 @@ import com.aerospike.client.sdk.info.classes.IndexType;
 import com.aerospike.client.sdk.policy.QueryDuration;
 
 /**
- * Integration tests for {@link QueryHint} applied through the {@link QueryBuilder} fluent API.
+ * Integration tests for {@link QueryHint} applied through the {@link QueryBuilder} API.
  *
  * <p>These tests validate that hint values are correctly stored on the builder and that
  * the effective query duration respects hint precedence. Full server-side validation

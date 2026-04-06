@@ -31,7 +31,7 @@ import java.util.List;
  * <p>Subclasses must implement the {@code execute()} method with their specific
  * return type (e.g., RecordStream for key operations, ExecuteTask for background operations).</p>
  *
- * @param <T> the concrete builder type (for fluent method chaining)
+ * @param <T> the concrete builder type (for method chaining)
  */
 public abstract class AbstractOperationBuilder<T extends AbstractOperationBuilder<T>> extends AbstractSessionOperationBuilder<T> {
 

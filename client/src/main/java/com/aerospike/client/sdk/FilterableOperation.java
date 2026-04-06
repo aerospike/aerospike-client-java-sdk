@@ -26,7 +26,7 @@ import com.aerospike.client.sdk.query.PreparedDsl;
  * This interface is implemented by both query and update operation builders to provide
  * consistent filtering capabilities across read and write operations.
  *
- * @param <T> the implementing class type for fluent method chaining
+ * @param <T> the implementing class type for method chaining
  */
 public interface FilterableOperation<T extends FilterableOperation<T>> {
 

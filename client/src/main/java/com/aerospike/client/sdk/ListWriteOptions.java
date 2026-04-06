@@ -28,7 +28,7 @@ package com.aerospike.client.sdk;
  *     .execute();
  * }</pre>
  *
- * @param <T> self-referencing type for fluent chaining in subclasses
+ * @param <T> self-referencing type for chaining in subclasses
  */
 public class ListWriteOptions<T extends ListWriteOptions<T>> {
     private boolean addUnique;

@@ -1,4 +1,4 @@
-# Example Aerospike Fluent Client Configuration
+# Example Aerospike SDK Configuration
 # This file demonstrates the map-based YAML structure for behaviors and system settings
 
 behaviors:

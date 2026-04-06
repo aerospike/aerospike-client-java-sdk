@@ -33,7 +33,7 @@ import com.aerospike.client.sdk.policy.Behavior;
 /**
  * Builder class for configuring and creating Aerospike cluster connections.
  *
- * <p>This class provides a fluent API for configuring various connection parameters
+ * <p>This class provides an API for configuring various connection parameters
  * such as authentication, logging, rack awareness, and cluster validation before
  * establishing a connection to an Aerospike cluster.</p>
  *
@@ -354,7 +354,7 @@ public class ClusterDefinition {
     }
 
     /**
-     * Begins TLS configuration using a fluent builder pattern.
+     * Begins TLS configuration using a builder pattern.
      *
      * <p>This method returns a TlsBuilder that allows you to configure various
      * TLS settings such as TLS name, CA file, protocols, ciphers, and other
@@ -429,7 +429,7 @@ public class ClusterDefinition {
      * Sets system settings for this cluster using a lambda configurator.
      *
      * <p>This is the recommended approach for inline configuration, consistent with
-     * the Behavior API. It allows concise, fluent configuration without requiring
+     * the Behavior API. It allows concise configuration without requiring
      * explicit builder management.</p>
      *
      * <p><b>Priority:</b> Code-provided settings (Level 2) override hard-coded defaults

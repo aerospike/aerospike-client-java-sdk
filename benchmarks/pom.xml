@@ -8,9 +8,9 @@
         <artifactId>aerospike-parent</artifactId>
         <version>0.0.1</version>
     </parent>
-    <artifactId>aerospike-benchmarks-fluent</artifactId>
+    <artifactId>aerospike-benchmarks-sdk</artifactId>
     <packaging>jar</packaging>
-    <name>aerospike-benchmarks-fluent</name>
+    <name>aerospike-benchmarks-sdk</name>
     <properties>
         <maven.compiler.source>21</maven.compiler.source>
         <maven.compiler.target>21</maven.compiler.target>
@@ -19,7 +19,7 @@
     <dependencies>
         <dependency>
             <groupId>com.aerospike</groupId>
-            <artifactId>aerospike-client-fluent</artifactId>
+            <artifactId>aerospike-client-sdk</artifactId>
         </dependency>
         <dependency>
             <groupId>info.picocli</groupId>

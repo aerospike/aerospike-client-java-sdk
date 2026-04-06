@@ -965,7 +965,7 @@ public class ChainableNoBinsBuilder extends AbstractSessionOperationBuilder<Chai
     /**
      * Verify that an operation has been specified before setting properties on it.
      *
-     * <p><b>Important:</b> This condition should never occur in normal usage due to the fluent API design.
+     * <p><b>Important:</b> This condition should never occur in normal usage due to the API design.
      * This check exists as a safety mechanism to provide clear error messages if the API is used incorrectly
      * (e.g., through reflection or other non-standard means).</p>
      *

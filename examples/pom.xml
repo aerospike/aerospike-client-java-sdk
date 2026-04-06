@@ -8,15 +8,15 @@
     <artifactId>aerospike-parent</artifactId>
     <version>0.0.1</version>
   </parent>
-  <artifactId>aerospike-examples-fluent</artifactId>
+  <artifactId>aerospike-examples-sdk</artifactId>
   <packaging>jar</packaging>
 
-  <name>aerospike-examples-fluent</name>
+  <name>aerospike-examples-sdk</name>
 
   <dependencies>
     <dependency>
       <groupId>com.aerospike</groupId>
-      <artifactId>aerospike-client-fluent</artifactId>
+      <artifactId>aerospike-client-sdk</artifactId>
     </dependency>
 
     <!-- Apache command line parser. -->

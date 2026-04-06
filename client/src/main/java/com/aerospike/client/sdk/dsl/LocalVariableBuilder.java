@@ -21,7 +21,7 @@ import java.util.List;
 
 /**
  * Builder for creating expressions with local variable scope.
- * Provides a fluent API for defining variables and their scope.
+ * Provides an API for defining variables and their scope.
  */
 public class LocalVariableBuilder {
     private final List<VariableDefinition> variables = new ArrayList<>();

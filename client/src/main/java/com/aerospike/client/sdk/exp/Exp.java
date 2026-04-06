@@ -232,7 +232,7 @@ public abstract class Exp {
 
 	/**
 	 * Create expression that returns bin's integer particle type.
-	 * See {@link com.aerospike.client.fluent.command.command.ParticleType}.
+	 * See {@link com.aerospike.client.sdk.command.command.ParticleType}.
 	 *
 	 * <pre>{@code
 	 * // Bin "a" particle type is a list

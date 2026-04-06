@@ -34,7 +34,7 @@ import com.aerospike.client.sdk.cdt.MapOrder;
  *     .execute();
  * }</pre>
  *
- * @param <T> self-referencing type for fluent chaining in subclasses
+ * @param <T> self-referencing type for chaining in subclasses
  */
 public class MapWriteOptions<T extends MapWriteOptions<T>> {
     private MapOrder mapOrder;

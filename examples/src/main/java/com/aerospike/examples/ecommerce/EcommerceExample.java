@@ -35,7 +35,7 @@ import com.aerospike.client.sdk.task.ExecuteTask;
 
 /**
  * E-commerce order fulfillment example demonstrating CompletableFuture chaining,
- * Flow.Publisher streaming, and error handling with the Aerospike Fluent API.
+ * Flow.Publisher streaming, and error handling with the Aerospike SDK API.
  *
  * <p>Scenario: A customer places an order. We verify the customer exists, check
  * product stock, create the order, and decrement inventory -- all composed with
@@ -59,7 +59,7 @@ public class EcommerceExample {
             // 1. Seed 20 customers, 100 products, and
             //    54 orders into Aerospike
             // ==========================================
-            SeedData.seed(session, customers, products, orders); 
+            SeedData.seed(session, customers, products, orders);
 
             // ==========================================
             // 2. Place an order using CompletableFuture

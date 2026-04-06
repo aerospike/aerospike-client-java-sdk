@@ -80,7 +80,7 @@ public class YamlConfigConnectionExample extends Example {
         // Check if the configuration environment variable is set
         String configPath = System.getenv(ENV_CONFIG_URL);
 
-        console.write("=== Aerospike Fluent Client - YAML Configuration Example ===\n");
+        console.write("=== Aerospike SDK - YAML Configuration Example ===\n");
 
         if (configPath == null || configPath.isEmpty()) {
             console.write("Note: " + ENV_CONFIG_URL + " environment variable is not set.");

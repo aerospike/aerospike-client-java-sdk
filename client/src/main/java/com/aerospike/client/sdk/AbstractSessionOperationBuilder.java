@@ -43,7 +43,7 @@ import com.aerospike.client.sdk.policy.Replica;
  * </ul>
  * </p>
  *
- * @param <T> the concrete builder type (for fluent method chaining)
+ * @param <T> the concrete builder type (for method chaining)
  */
 public abstract class AbstractSessionOperationBuilder<T extends AbstractSessionOperationBuilder<T>> extends AbstractFilterableBuilder {
     protected final Session session;
@@ -103,7 +103,7 @@ public abstract class AbstractSessionOperationBuilder<T extends AbstractSessionO
 
     /**
      * Returns this builder cast to the concrete type.
-     * Used for fluent method chaining.
+     * Used for method chaining.
      */
     @SuppressWarnings("unchecked")
     protected T self() {
@@ -325,7 +325,7 @@ public abstract class AbstractSessionOperationBuilder<T extends AbstractSessionO
     }
 
     // ========================================================================
-    // TIMEOUT SETTINGS - Fluent API Methods
+    // TIMEOUT SETTINGS - API Methods
     // ========================================================================
 
     /**
@@ -460,7 +460,7 @@ public abstract class AbstractSessionOperationBuilder<T extends AbstractSessionO
     }
 
     // ========================================================================
-    // RETRY SETTINGS - Fluent API Methods
+    // RETRY SETTINGS - API Methods
     // ========================================================================
 
     /**
@@ -514,7 +514,7 @@ public abstract class AbstractSessionOperationBuilder<T extends AbstractSessionO
     }
 
     // ========================================================================
-    // READ MODE SETTINGS - Fluent API Methods
+    // READ MODE SETTINGS - API Methods
     // ========================================================================
 
     /**
@@ -593,7 +593,7 @@ public abstract class AbstractSessionOperationBuilder<T extends AbstractSessionO
     }
 
     // ========================================================================
-    // WRITE BEHAVIOR SETTINGS - Fluent API Methods
+    // WRITE BEHAVIOR SETTINGS - API Methods
     // ========================================================================
 
     /**
@@ -727,7 +727,7 @@ public abstract class AbstractSessionOperationBuilder<T extends AbstractSessionO
     }
 
     // ========================================================================
-    // OTHER SETTINGS - Fluent API Methods
+    // OTHER SETTINGS - API Methods
     // ========================================================================
 
     /**

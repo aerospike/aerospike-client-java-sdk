@@ -33,7 +33,7 @@ import com.aerospike.client.sdk.exp.Expression;
 import com.aerospike.client.sdk.query.PreparedDsl;
 
 /**
- * Fluent operations for one bin: scalar writes ({@link #setTo}), reads ({@link #get}), string ops, numeric {@link #add},
+ * Operations for one bin: scalar writes ({@link #setTo}), reads ({@link #get}), string ops, numeric {@link #add},
  * expression-backed {@link #selectFrom}, {@link #insertFrom}, {@link #updateFrom}, {@link #upsertFrom}, and nested
  * list/map CDT paths via {@code onMap*} / {@code onList*} (see {@link AbstractCdtBuilder} for list/map commands once
  * context is selected).

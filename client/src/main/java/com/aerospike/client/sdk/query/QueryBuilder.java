@@ -42,7 +42,7 @@ import com.aerospike.client.sdk.tend.Partition;
  * Builder class for constructing and executing dataset queries (scans and secondary index queries)
  * against Aerospike.
  *
- * <p>This class provides a fluent API for building complex queries with support for
+ * <p>This class provides an API for building complex queries with support for
  * filtering, sorting, pagination, and partition targeting.</p>
  *
  * <p>Example usage:</p>

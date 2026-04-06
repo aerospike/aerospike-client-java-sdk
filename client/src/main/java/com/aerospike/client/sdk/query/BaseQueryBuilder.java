@@ -28,13 +28,13 @@ import com.aerospike.client.sdk.exp.Expression;
 
 /**
  * Base interface for all query builders with common methods.
- * Uses self-referencing generics to maintain fluent API.
+ * Uses self-referencing generics to maintain SDK.
  */
 public interface BaseQueryBuilder<T extends BaseQueryBuilder<T>> {
 
     /**
      * Returns a bin builder for read operations on a specific bin.
-     * 
+     *
      * <p>Use this method to read bin values or compute expression-based values.
      * Unlike {@link #readingOnlyBins(String...)}, this method allows you to add
      * expression operations like {@code selectFrom()}.</p>

@@ -103,7 +103,7 @@ public final class ExpressionOpHelper {
     }
 
     /**
-     * Builds a read expression operation from a fluent {@link Exp} builder.
+     * Builds a read expression operation from a {@link Exp} builder.
      *
      * @param binName target bin
      * @param exp expression builder (compiled via {@link Exp#build(Exp)})
@@ -185,7 +185,7 @@ public final class ExpressionOpHelper {
     }
 
     /**
-     * Builds a write expression operation from a fluent {@link Exp} builder.
+     * Builds a write expression operation from a {@link Exp} builder.
      *
      * @param binName target bin
      * @param exp expression builder (compiled via {@link Exp#build(Exp)})

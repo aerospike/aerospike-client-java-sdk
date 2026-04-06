@@ -61,7 +61,7 @@ import javax.net.ssl.TrustManagerFactory;
 /**
  * Builder class for configuring TLS settings for Aerospike cluster connections.
  *
- * <p>This class provides a fluent API for configuring TLS parameters such as
+ * <p>This class provides an API for configuring TLS parameters such as
  * TLS name, CA file, protocols, ciphers, and other TLS-specific options.</p>
  *
  * <p>Two certificate formats are supported:</p>

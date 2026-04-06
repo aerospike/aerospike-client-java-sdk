@@ -32,9 +32,9 @@ import com.aerospike.client.sdk.Session;
 import com.aerospike.client.sdk.command.Txn;
 
 /**
- * Tests for fluent API methods that set operation settings.
+ * Tests for API methods that set operation settings.
  */
-public class FluentApiSettingsTest {
+public class ApiSettingsTest {
 
     /**
      * Stub Session for testing - returns null transaction.
@@ -63,7 +63,7 @@ public class FluentApiSettingsTest {
             return this;
         }
 
-        // Expose fields for testing - New fluent API methods
+        // Expose fields for testing - New API methods
         public Integer getConnectTimeout() { return connectTimeout; }
         public Integer getSocketTimeout() { return socketTimeout; }
         public Integer getTotalTimeout() { return totalTimeout; }
@@ -82,7 +82,7 @@ public class FluentApiSettingsTest {
         public Boolean getSendKey() { return sendKey; }
         public Boolean getCompress() { return compress; }
 
-        // Expose fields for testing - Pre-existing fluent API methods
+        // Expose fields for testing - Pre-existing API methods
         public long getExpirationInSeconds() { return expirationInSeconds; }
         public int getGeneration() { return generation; }
         public Txn getTxnToUse() { return txnToUse; }
