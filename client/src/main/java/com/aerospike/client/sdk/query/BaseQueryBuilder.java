@@ -174,8 +174,8 @@ public interface BaseQueryBuilder<T extends BaseQueryBuilder<T>> {
      *
      * <p>Example usage:</p>
      * <pre>{@code
-     * BooleanExpression filter = Dsl.stringBin("name").eq("Tim")
-     *     .and(Dsl.longBin("age").gt(30));
+     * BooleanExpression filter = Ael.stringBin("name").eq("Tim")
+     *     .and(Ael.longBin("age").gt(30));
      *
      * RecordStream results = session.query(customerDataSet)
      *     .where(filter)
