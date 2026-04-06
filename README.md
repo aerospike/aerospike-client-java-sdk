@@ -321,5 +321,5 @@ mvn javadoc:javadoc
 
 ## Dependencies
 
-- Java 21+
+- Java 21+  For improved virtual thread performance Java 24+ is highly recommended.
 - Maven 3.9.5+
