@@ -16,9 +16,9 @@
  */
 package com.aerospike.client.sdk.ael;
 
-public interface DslBin<T> {
+public interface AelBin<T> {
     Comparison<T> eq(T value);
     Comparison<T> ne(T value);
-    Comparison<T> eq(DslBin<T> other);
-    Comparison<T> ne(DslBin<T> other);
+    Comparison<T> eq(AelBin<T> other);
+    Comparison<T> ne(AelBin<T> other);
 }

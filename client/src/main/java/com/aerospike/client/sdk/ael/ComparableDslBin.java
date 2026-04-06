@@ -16,16 +16,16 @@
  */
 package com.aerospike.client.sdk.ael;
 
-public interface ComparableDslBin<T extends Comparable<T>> extends DslBin<T> {
+public interface ComparableDslBin<T extends Comparable<T>> extends AelBin<T> {
     Comparison<T> gt(T value);
     Comparison<T> lt(T value);
     Comparison<T> gte(T value);
     Comparison<T> lte(T value);
 
-    Comparison<T> gt(DslBin<T> other);
-    Comparison<T> lt(DslBin<T> other);
-    Comparison<T> gte(DslBin<T> other);
-    Comparison<T> lte(DslBin<T> other);
+    Comparison<T> gt(AelBin<T> other);
+    Comparison<T> lt(AelBin<T> other);
+    Comparison<T> gte(AelBin<T> other);
+    Comparison<T> lte(AelBin<T> other);
 
     ArithmeticExpression add(Number value);
     ArithmeticExpression sub(Number value);
