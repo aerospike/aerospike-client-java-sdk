@@ -137,8 +137,13 @@ public class UdfTest extends ClusterTest {
 		end
 
 		function wait_and_update(r, bins, secs)
+		    info("WAIT_AND_WRITE BEGIN")
 		    sleep(secs)
-		    if bin ~= nil then
+		    info("WAIT FINISHED")
+			if not aerospike:exists(r) then
+				aerospike:create(r)
+			end
+		    if bins ~= nil then
 		       for b, bv in map.pairs(bins) do
 		          r[b] = bv
 		       end
@@ -546,24 +551,27 @@ public class UdfTest extends ClusterTest {
 	}
 
 	@Test
-	public void batchUdfExhaustsRetriesOnSocketTimeoutAndMarksInDoubt() {
-		long secsToWait = 2;
+	public void batchUdfLongWaitFailsWithClientTimeoutMarksInDoubt() {
+		long secsToWait = 1;
 		final int keyCount = 50;
+
+		int socketMs = 250;
+		int totalTimeoutMs = 0; // fallback to server default - (1000 ms)
+
 		Behavior behavior = Behavior.DEFAULT.deriveWithChanges("batchUdfShortSocket", b -> b
 				.on(Selectors.writes().nonRetryable().batch(), ops -> ops
-						.waitForCallToComplete(Duration.ofMillis(1000))
-						.abandonCallAfter(Duration.ofMillis(10000))
-						.maximumNumberOfCallAttempts(6)
+						.waitForCallToComplete(Duration.ofMillis(socketMs))
+						// server default > client timeout
+						.abandonCallAfter(Duration.ofMillis(totalTimeoutMs))
 						.delayBetweenRetries(Duration.ZERO)
 				)
 		);
-
 		Session shortTimeoutSession = cluster.createSession(behavior);
 		List<Key> keys = new ArrayList<>(keyCount);
 		for (int i = 0; i < keyCount; i++) {
 			keys.add(args.set.id("B-UDF_" + i));
 		}
-		session.delete(keys).execute();
+
 		HashMap<String, Object> bins = new HashMap<>() {{
 			put("bin", 0);
 		}};
@@ -571,14 +579,11 @@ public class UdfTest extends ClusterTest {
 		AerospikeException ae = assertThrows(AerospikeException.class, () -> shortTimeoutSession.executeUdf(keys)
 				.function("record_example", "wait_and_update")
 				.passing(bins, secsToWait)
-				.execute()
-		);
+				.execute());
 
-		int rc = ae.getResultCode();
-		assertTrue(
-				rc == ResultCode.TIMEOUT || rc == ResultCode.MAX_RETRIES_EXCEEDED,
-				"expected TIMEOUT or MAX_RETRIES_EXCEEDED, got " + rc + ": " + ae.getMessage());
-		assertTrue(ae.getInDoubt(), "expected inDoubt after write timeout; writes might have been processed on server");
-
+		assertTrue(ae.inDoubt, "expected inDoubt after client write timeout: " + ae.inDoubt);
+        assertEquals(ResultCode.TIMEOUT, ae.resultCode, "expected TIMEOUT, got " + ae + ": " + ae.getMessage());
 	}
+
+
 }
