@@ -75,7 +75,7 @@ public class ExplicitTypesFiltersTests {
         // A String constant must be quoted
         assertThatThrownBy(() -> parseFilter(ExpressionContext.of("$.stringBin1.get(type: STRING) == yes")))
                 .isInstanceOf(DslParseException.class)
-                .hasMessageContaining("Could not parse given DSL expression input")
+                .hasMessageContaining("Could not parse given AEL expression input")
                 .hasMessageContaining("[Parser] mismatched input '<EOF>'")
                 .hasMessageContaining("at character 37");
     }
@@ -123,7 +123,7 @@ public class ExplicitTypesFiltersTests {
     void listComparison_constantOnRightSide_NegativeTest() {
         assertThatThrownBy(() -> parseFilter(ExpressionContext.of("$.listBin1.get(type: LIST) == [yes, of course]")))
                 .isInstanceOf(DslParseException.class)
-                .hasMessageContaining("Could not parse given DSL expression input")
+                .hasMessageContaining("Could not parse given AEL expression input")
                 .hasMessageContaining("[Parser] mismatched input ','")
                 .hasMessageContaining("at character 34");
     }
@@ -137,7 +137,7 @@ public class ExplicitTypesFiltersTests {
     void listComparison_constantOnLeftSide_NegativeTest() {
         assertThatThrownBy(() -> parseFilter(ExpressionContext.of("[yes, of course] == $.listBin1.get(type: LIST)")))
                 .isInstanceOf(DslParseException.class)
-                .hasMessageContaining("Could not parse given DSL expression input")
+                .hasMessageContaining("Could not parse given AEL expression input")
                 .hasMessageContaining("[Parser] no viable alternative at input")
                 .hasMessageContaining("at character 4");
     }
@@ -151,7 +151,7 @@ public class ExplicitTypesFiltersTests {
     void mapComparison_constantOnRightSide_NegativeTest() {
         assertThatThrownBy(() -> parseFilter(ExpressionContext.of("$.mapBin1.get(type: MAP) == {yes, of course}")))
                 .isInstanceOf(DslParseException.class)
-                .hasMessageContaining("Could not parse given DSL expression input")
+                .hasMessageContaining("Could not parse given AEL expression input")
                 .hasMessageContaining("[Parser] extraneous input 'yes'")
                 .hasMessageContaining("at character 29");
     }
@@ -165,7 +165,7 @@ public class ExplicitTypesFiltersTests {
     void mapComparison_constantOnLeftSide_NegativeTest() {
         assertThatThrownBy(() -> parseFilter(ExpressionContext.of("{yes, of course} == $.mapBin1.get(type: MAP)")))
                 .isInstanceOf(DslParseException.class)
-                .hasMessageContaining("Could not parse given DSL expression input")
+                .hasMessageContaining("Could not parse given AEL expression input")
                 .hasMessageContaining("[Parser] no viable alternative at input")
                 .hasMessageContaining("at character 1");
     }

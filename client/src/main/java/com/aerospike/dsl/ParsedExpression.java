@@ -31,7 +31,7 @@ import com.aerospike.dsl.parts.ExpressionContainer;
 import lombok.Getter;
 
 /**
- * A class to build and store the results of DSL expression parsing: parsed {@code expressionTree}, {@code indexesMap}
+ * A class to build and store the results of AEL expression parsing: parsed {@code expressionTree}, {@code indexesMap}
  * of given indexes, {@code placeholderValues} to match with placeholders and {@link ParseResult} that holds
  * a potential secondary index {@link Filter} and a potential {@link Exp}.
  */
@@ -60,7 +60,7 @@ public class ParsedExpression {
 
     /**
      * @return {@link ParseResult} containing secondary index {@link Filter} and/or filter {@link Exp}.
-     * Each can be null in case of invalid or unsupported DSL string
+     * Each can be null in case of invalid or unsupported AEL string
      * @throws DslParseException If there was an error
      */
     public ParseResult getResult() {
@@ -75,7 +75,7 @@ public class ParsedExpression {
      *
      * @param placeholderValues {@link PlaceholderValues} to match with placeholders by index
      * @return {@link ParseResult} containing secondary index {@link Filter} and/or {@link Exp}.
-     * Each can be null in case of invalid or unsupported DSL string
+     * Each can be null in case of invalid or unsupported AEL string
      * @throws DslParseException If there was an error
      */
     public ParseResult getResult(PlaceholderValues placeholderValues) {

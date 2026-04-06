@@ -1,17 +1,18 @@
 package com.aerospike.dsl.expression;
 
+import static com.aerospike.dsl.util.TestUtils.parseCtx;
+import static com.aerospike.dsl.util.TestUtils.parseDslAndCompare;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
+import org.junit.jupiter.api.Test;
+
 import com.aerospike.client.sdk.exp.Exp;
 import com.aerospike.client.sdk.exp.Expression;
 import com.aerospike.dsl.DslParseException;
 import com.aerospike.dsl.ExpressionContext;
 import com.aerospike.dsl.PlaceholderValues;
 import com.aerospike.dsl.impl.DSLParserImpl;
-import org.junit.jupiter.api.Test;
-
-import static com.aerospike.dsl.util.TestUtils.parseCtx;
-import static com.aerospike.dsl.util.TestUtils.parseDslAndCompare;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
  * Tests that bare {@code .get()} (no parameters) is an identity operation:
@@ -141,7 +142,7 @@ public class BareGetFunctionTests {
     void negParseCtxRejectsBareGet() {
         assertThatThrownBy(() -> parseCtx("$.listBin1.[0].get()"))
                 .isInstanceOf(DslParseException.class)
-                .hasMessageContaining("Could not parse the given DSL path input")
+                .hasMessageContaining("Could not parse the given AEL path input")
                 .hasCauseInstanceOf(UnsupportedOperationException.class)
                 .hasStackTraceContaining("Path function is unsupported");
     }

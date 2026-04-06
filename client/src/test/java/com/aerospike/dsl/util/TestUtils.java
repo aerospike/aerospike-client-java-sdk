@@ -36,9 +36,9 @@ public class TestUtils {
     private static final DSLParserImpl parser = new DSLParserImpl();
 
     /**
-     * Parses the given DSL expression and extracts the resulting {@link Exp} object.
+     * Parses the given AEL expression and extracts the resulting {@link Exp} object.
      *
-     * @param expressionContext The input representing DSL expression
+     * @param expressionContext The input representing AEL expression
      * @return The {@link Exp} object derived from the parsed filter expression
      */
     public static Exp parseFilterExp(ExpressionContext expressionContext) {
@@ -46,9 +46,9 @@ public class TestUtils {
     }
 
     /**
-     * Parses the given DSL expression and returns the resulting {@link ParsedExpression} object.
+     * Parses the given AEL expression and returns the resulting {@link ParsedExpression} object.
      *
-     * @param expressionContext The {@link ExpressionContext} representing DSL expression
+     * @param expressionContext The {@link ExpressionContext} representing AEL expression
      * @param indexContext      The {@link IndexContext} to be used for building secondary index filter
      * @return The {@link Exp} object derived from the parsed filter expression
      */
@@ -57,11 +57,11 @@ public class TestUtils {
     }
 
     /**
-     * Parses the given DSL expression, extracts the resulting {@link Exp} object, converts it to an {@link Expression}
+     * Parses the given AEL expression, extracts the resulting {@link Exp} object, converts it to an {@link Expression}
      * object, and then asserts that it is equal to the {@code expected} {@link Exp} also built into an
      * {@link Expression}.
      *
-     * @param expressionContext The input representing DSL expression
+     * @param expressionContext The input representing AEL expression
      * @param expected          The expected {@link Exp} object to compare against the parsed result
      */
     public static void parseFilterExpressionAndCompare(ExpressionContext expressionContext, Exp expected) {
@@ -84,7 +84,7 @@ public class TestUtils {
     /**
      * Parses the given DL expression using the provided {@link IndexContext} and returns the resulting {@link Filter} object.
      *
-     * @param expressionContext The input representing DSL expression
+     * @param expressionContext The input representing AEL expression
      * @param indexContext      The {@link IndexContext} to be used for building secondary index filter
      * @return A {@link Filter} object derived from the parsed result
      */
@@ -93,10 +93,10 @@ public class TestUtils {
     }
 
     /**
-     * Parses the given DSL expression and asserts that the result is equal to the {@code expected} {@link Filter}
+     * Parses the given AEL expression and asserts that the result is equal to the {@code expected} {@link Filter}
      * object.
      *
-     * @param input    The input representing DSL expression
+     * @param input    The input representing AEL expression
      * @param expected The expected {@link Filter} object to compare against the parsed result
      */
     public static void parseFilterAndCompare(ExpressionContext input, Filter expected) {
@@ -105,10 +105,10 @@ public class TestUtils {
     }
 
     /**
-     * Parses the given DSL expression using the provided {@link IndexContext} and asserts that the result is equal to
+     * Parses the given AEL expression using the provided {@link IndexContext} and asserts that the result is equal to
      * the {@code expected} {@link Filter} object.
      *
-     * @param input        The string input representing DSL expression
+     * @param input        The string input representing AEL expression
      * @param indexContext The {@link IndexContext} to be used for building secondary index filter
      * @param expected     The expected {@link Filter} object to compare against the parsed result
      */
@@ -118,10 +118,10 @@ public class TestUtils {
     }
 
     /**
-     * Parses the given DSL expression and compares the resulting
+     * Parses the given AEL expression and compares the resulting
      * {@link Filter} and {@link Exp} components with the expected {@code filter} and {@code exp}.
      *
-     * @param expressionContext The input representing DSL expression
+     * @param expressionContext The input representing AEL expression
      * @param filter            The expected {@link Filter} component of the parsed result
      * @param exp               The expected {@link Exp} component of the parsed result. Can be {@code null}
      */
@@ -133,10 +133,10 @@ public class TestUtils {
     }
 
     /**
-     * Parses the given DSL expression using the provided {@link IndexContext}
+     * Parses the given AEL expression using the provided {@link IndexContext}
      * and compares the resulting {@link Filter} and {@link Exp} components with the expected {@code filter} and {@code exp}.
      *
-     * @param expressionContext The input representing DSL expression
+     * @param expressionContext The input representing AEL expression
      * @param filter            The expected {@link Filter} component of the parsed result
      * @param exp               The expected {@link Exp} component of the parsed result. Can be {@code null}
      * @param indexContext      The {@link IndexContext} to be used for building secondary index filter
@@ -149,10 +149,10 @@ public class TestUtils {
     }
 
     /**
-     * Parses two DSL expression strings and asserts that they produce identical packed {@link Expression} bytes.
+     * Parses two AEL expression strings and asserts that they produce identical packed {@link Expression} bytes.
      *
-     * @param dslActual   The DSL string whose result is being verified
-     * @param dslExpected The reference DSL string that defines the expected result
+     * @param dslActual   The AEL string whose result is being verified
+     * @param dslExpected The reference AEL string that defines the expected result
      */
     public static void parseDslAndCompare(String dslActual, String dslExpected) {
         Expression actual = Exp.build(parser.parseExpression(ExpressionContext.of(dslActual)).getResult().getExp());
@@ -161,9 +161,9 @@ public class TestUtils {
     }
 
     /**
-     * Parses the given DSL path String into array of {@link CTX}.
+     * Parses the given AEL path String into array of {@link CTX}.
      *
-     * @param pathToCtx String input representing DSL path
+     * @param pathToCtx String input representing AEL path
      * @return The array of {@link CTX} or null
      */
     public static CTX[] parseCtx(String pathToCtx) {
@@ -171,9 +171,9 @@ public class TestUtils {
     }
 
     /**
-     * Parses the given DSL path String and compares arrays of {@link CTX} using {@link CTX#toBase64(CTX[])} method.
+     * Parses the given AEL path String and compares arrays of {@link CTX} using {@link CTX#toBase64(CTX[])} method.
      *
-     * @param pathToCtx String input representing DSL path
+     * @param pathToCtx String input representing AEL path
      * @param expected  The array of {@link CTX} to be used for comparing
      */
     public static void parseCtxAndCompareAsBase64(String pathToCtx, CTX[] expected) {

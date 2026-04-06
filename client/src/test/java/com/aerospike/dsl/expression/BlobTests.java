@@ -125,7 +125,7 @@ public class BlobTests {
         assertThatThrownBy(() -> parseFilterExp(
                 ExpressionContext.of("X'ZZZZ' == $.b.get(type: BLOB)")))
                 .isInstanceOf(DslParseException.class)
-                .hasMessageContaining("Could not parse given DSL expression input");
+                .hasMessageContaining("Could not parse given AEL expression input");
     }
 
     @Test
@@ -133,7 +133,7 @@ public class BlobTests {
         assertThatThrownBy(() -> parseFilterExp(
                 ExpressionContext.of("X'ff 00' == $.b.get(type: BLOB)")))
                 .isInstanceOf(DslParseException.class)
-                .hasMessageContaining("Could not parse given DSL expression input");
+                .hasMessageContaining("Could not parse given AEL expression input");
     }
 
     @Test
@@ -141,7 +141,7 @@ public class BlobTests {
         assertThatThrownBy(() -> parseFilterExp(
                 ExpressionContext.of("b64'!!!!' == $.b.get(type: BLOB)")))
                 .isInstanceOf(DslParseException.class)
-                .hasMessageContaining("Could not parse given DSL expression input");
+                .hasMessageContaining("Could not parse given AEL expression input");
     }
 
     @Test
@@ -149,7 +149,7 @@ public class BlobTests {
         assertThatThrownBy(() -> parseFilterExp(
                 ExpressionContext.of("b64'AQ ID' == $.b.get(type: BLOB)")))
                 .isInstanceOf(DslParseException.class)
-                .hasMessageContaining("Could not parse given DSL expression input");
+                .hasMessageContaining("Could not parse given AEL expression input");
     }
 
     @Test

@@ -39,7 +39,7 @@ import com.aerospike.dsl.ParsedExpression;
 public interface DSLParser {
 
     /**
-     * Parse DSL string into {@link ParsedExpression}.
+     * Parse AEL string into {@link ParsedExpression}.
      * <br><br>
      * Examples:
      * <table border="1">
@@ -112,7 +112,7 @@ public interface DSLParser {
     ParsedExpression parseExpression(ExpressionContext input);
 
     /**
-     * Parse DSL string into {@link ParsedExpression}.
+     * Parse AEL string into {@link ParsedExpression}.
      * <br><br>
      * Examples:
      * <table border="1">
@@ -187,7 +187,7 @@ public interface DSLParser {
     ParsedExpression parseExpression(ExpressionContext input, IndexContext indexContext);
 
     /**
-     * Parse DSL path with CDT context into an array of {@link CTX} objects. The argument must represent a path with context,
+     * Parse AEL path with CDT context into an array of {@link CTX} objects. The argument must represent a path with context,
      * e.g. $.listBinName.[1], $.mapBinName.ab etc.
      *
      * @param dslPath Input string representing path with CDT context, must not be null

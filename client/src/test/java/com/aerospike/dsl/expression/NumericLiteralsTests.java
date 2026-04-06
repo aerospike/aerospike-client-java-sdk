@@ -248,7 +248,7 @@ public class NumericLiteralsTests {
         // 0xGG is not valid hex -- lexer produces INT(0) + NAME_IDENTIFIER(xGG)
         assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of("0xGG == 0")))
                 .isInstanceOf(DslParseException.class)
-                .hasMessageContaining("Could not parse given DSL expression input")
+                .hasMessageContaining("Could not parse given AEL expression input")
                 .hasMessageContaining("[Parser] no viable alternative at input")
                 .hasMessageContaining("at character 5");
     }
@@ -258,7 +258,7 @@ public class NumericLiteralsTests {
         // 0b2 is not valid binary -- lexer produces INT(0) + NAME_IDENTIFIER(b2)
         assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of("0b2 == 0")))
                 .isInstanceOf(DslParseException.class)
-                .hasMessageContaining("Could not parse given DSL expression input")
+                .hasMessageContaining("Could not parse given AEL expression input")
                 .hasMessageContaining("[Parser] no viable alternative at input")
                 .hasMessageContaining("at character 4");
     }
@@ -268,7 +268,7 @@ public class NumericLiteralsTests {
         // "10." is not valid FLOAT -- requires digits after dot
         assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of("10. == 10.0")))
                 .isInstanceOf(DslParseException.class)
-                .hasMessageContaining("Could not parse given DSL expression input")
+                .hasMessageContaining("Could not parse given AEL expression input")
                 .hasMessageContaining("[Parser] no viable alternative at input")
                 .hasMessageContaining("at character 4");
     }

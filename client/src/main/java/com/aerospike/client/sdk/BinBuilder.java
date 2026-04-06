@@ -249,12 +249,12 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
     }
 
     // ==================================================================
-    // Expression Operations - Read and write values computed from DSL expressions
+    // Expression Operations - Read and write values computed from AEL expressions
     //
-    // Each operation supports 5 DSL input types:
-    // 1. String dsl - DSL string expression
+    // Each operation supports 5 AEL input types:
+    // 1. String dsl - AEL string expression
     // 2. BooleanExpression - Programmatic boolean expression
-    // 3. PreparedDsl - Prepared DSL with parameters
+    // 3. PreparedDsl - Prepared AEL with parameters
     // 4. Exp - Low-level expression builder
     // 5. Expression - Compiled expression
     //
@@ -266,7 +266,7 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
     // ----------------------------------------
 
     /**
-     * Read a computed value from this bin using a DSL expression.
+     * Read a computed value from this bin using a AEL expression.
      * The result appears as a virtual bin in the returned record.
      *
      * <pre>{@code
@@ -276,7 +276,7 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      *     .execute();
      * }</pre>
      *
-     * @param dsl the DSL expression string
+     * @param dsl the AEL expression string
      * @return the parent operation builder for chaining
      * @see #selectFrom(String, Consumer) for options like ignoreEvalFailure()
      */
@@ -294,7 +294,7 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      *     .execute();
      * }</pre>
      *
-     * @param dsl the DSL expression string
+     * @param dsl the AEL expression string
      * @param options configure via {@code ignoreEvalFailure()}
      * @return the parent operation builder for chaining
      */
@@ -349,7 +349,7 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      *     .execute();
      * }</pre>
      *
-     * @param dsl the prepared DSL statement
+     * @param dsl the prepared AEL statement
      * @param params parameter values to bind
      * @return the parent operation builder for chaining
      */
@@ -367,7 +367,7 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      *     .execute();
      * }</pre>
      *
-     * @param dsl the prepared DSL statement
+     * @param dsl the prepared AEL statement
      * @param options configure via {@code ignoreEvalFailure()}
      * @param params parameter values to bind
      * @return the parent operation builder for chaining
@@ -465,7 +465,7 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      *     .execute();
      * }</pre>
      *
-     * @param dsl the DSL expression string
+     * @param dsl the AEL expression string
      * @return the parent operation builder for chaining
      * @see #insertFrom(String, Consumer) to suppress failure if bin exists
      */
@@ -483,7 +483,7 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      *     .execute();
      * }</pre>
      *
-     * @param dsl the DSL expression string
+     * @param dsl the AEL expression string
      * @param options configure via {@code ignoreOpFailure()}, {@code deleteIfNull()}, {@code ignoreEvalFailure()}
      * @return the parent operation builder for chaining
      */
@@ -540,7 +540,7 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      *     .execute();
      * }</pre>
      *
-     * @param dsl the prepared DSL statement
+     * @param dsl the prepared AEL statement
      * @param params parameter values to bind
      * @return the parent operation builder for chaining
      */
@@ -558,7 +558,7 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      *     .execute();
      * }</pre>
      *
-     * @param dsl the prepared DSL statement
+     * @param dsl the prepared AEL statement
      * @param options configure via {@code ignoreOpFailure()}, {@code deleteIfNull()}, {@code ignoreEvalFailure()}
      * @param params parameter values to bind
      * @return the parent operation builder for chaining
@@ -658,7 +658,7 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      *     .execute();
      * }</pre>
      *
-     * @param dsl the DSL expression string
+     * @param dsl the AEL expression string
      * @return the parent operation builder for chaining
      * @see #updateFrom(String, Consumer) to suppress failure if bin is missing
      */
@@ -676,7 +676,7 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      *     .execute();
      * }</pre>
      *
-     * @param dsl the DSL expression string
+     * @param dsl the AEL expression string
      * @param options configure via {@code ignoreOpFailure()}, {@code deleteIfNull()}, {@code ignoreEvalFailure()}
      * @return the parent operation builder for chaining
      */
@@ -733,7 +733,7 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      *     .execute();
      * }</pre>
      *
-     * @param dsl the prepared DSL statement
+     * @param dsl the prepared AEL statement
      * @param params parameter values to bind
      * @return the parent operation builder for chaining
      */
@@ -751,7 +751,7 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      *     .execute();
      * }</pre>
      *
-     * @param dsl the prepared DSL statement
+     * @param dsl the prepared AEL statement
      * @param options configure via {@code ignoreOpFailure()}, {@code deleteIfNull()}, {@code ignoreEvalFailure()}
      * @param params parameter values to bind
      * @return the parent operation builder for chaining
@@ -851,7 +851,7 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      *     .execute();
      * }</pre>
      *
-     * @param dsl the DSL expression string
+     * @param dsl the AEL expression string
      * @return the parent operation builder for chaining
      * @see #upsertFrom(String, Consumer) for options like deleteIfNull()
      */
@@ -869,7 +869,7 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      *     .execute();
      * }</pre>
      *
-     * @param dsl the DSL expression string
+     * @param dsl the AEL expression string
      * @param options configure via {@code deleteIfNull()}, {@code ignoreEvalFailure()}
      * @return the parent operation builder for chaining
      */
@@ -926,7 +926,7 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      *     .execute();
      * }</pre>
      *
-     * @param dsl the prepared DSL statement
+     * @param dsl the prepared AEL statement
      * @param params parameter values to bind
      * @return the parent operation builder for chaining
      */
@@ -944,7 +944,7 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      *     .execute();
      * }</pre>
      *
-     * @param dsl the prepared DSL statement
+     * @param dsl the prepared AEL statement
      * @param options configure via {@code deleteIfNull()}, {@code ignoreEvalFailure()}
      * @param params parameter values to bind
      * @return the parent operation builder for chaining

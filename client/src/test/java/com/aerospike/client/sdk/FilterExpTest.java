@@ -585,7 +585,7 @@ public class FilterExpTest extends ClusterTest {
 		testDsl("ceil($." + binB + ".get(type: FLOAT)) == 3.0");
 	}
 
-	// TODO Replace Exp filter with DSL when int cast works.
+	// TODO Replace Exp filter with AEL when int cast works.
 	@Test
 	public void filterToInt() {
 		Exp exp =
@@ -597,7 +597,7 @@ public class FilterExpTest extends ClusterTest {
 		//testDsl("$." + binB + ".asInt()) == 2");
 	}
 
-	// TODO Replace Exp filter with DSL when float cast works.
+	// TODO Replace Exp filter with AEL when float cast works.
 	@Test
 	public void filterToFloat() {
 		Exp exp =

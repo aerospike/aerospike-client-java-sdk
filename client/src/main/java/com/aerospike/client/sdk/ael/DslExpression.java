@@ -19,7 +19,7 @@ package com.aerospike.client.sdk.ael;
 import com.aerospike.client.sdk.exp.Exp;
 
 /**
- * Represents any DSL expression. This is the base interface for all expressions.
+ * Represents any AEL expression. This is the base interface for all expressions.
  */
 public interface DslExpression {
     String toAerospikeExpr();

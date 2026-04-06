@@ -97,16 +97,16 @@ public class QueryBuilderBinBuilder implements CdtOperationAcceptor<QueryBuilder
 
     // ----------------------------------------
     // selectFrom - Read expression operations
-    // Supports all 5 DSL input types
+    // Supports all 5 AEL input types
     // ----------------------------------------
 
-    /** Create a read expression from a DSL string. */
+    /** Create a read expression from a AEL string. */
     public QueryBuilder selectFrom(String dsl) {
         queryBuilder.addOperation(ExpressionOpHelper.createReadOp(binName, dsl, ExpReadFlags.DEFAULT));
         return queryBuilder;
     }
 
-    /** Create a read expression from a DSL string with options. */
+    /** Create a read expression from a AEL string with options. */
     public QueryBuilder selectFrom(String dsl, Consumer<ExpressionReadOptions> options) {
         ExpressionReadOptions opts = new ExpressionReadOptions();
         options.accept(opts);

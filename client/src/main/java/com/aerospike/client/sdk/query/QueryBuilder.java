@@ -395,13 +395,13 @@ public class QueryBuilder extends AbstractFilterableBuilder implements
     }
 
     /**
-     * Adds a filter condition using a DSL string.
+     * Adds a filter condition using a AEL string.
      *
      * <p>This method allows you to specify a filter condition using Aerospike's
-     * Domain Specific Language (DSL). The DSL provides a SQL-like syntax for
+     * Domain Specific Language (AEL). The AEL provides a SQL-like syntax for
      * expressing complex filter conditions.</p>
      *
-     * <p>Example DSL expressions:</p>
+     * <p>Example AEL expressions:</p>
      * <ul>
      *   <li><code>"$.name == 'Tim'"</code> - exact string match</li>
      *   <li><code>"$.age > 30"</code> - numeric comparison</li>
@@ -412,8 +412,8 @@ public class QueryBuilder extends AbstractFilterableBuilder implements
      * <p>Only one filter condition can be specified per query. Multiple calls
      * to this method or {@link #where(BooleanExpression)} will throw an exception.</p>
      *
-     * @param dsl the DSL filter expression
-     * @param params The params used to replace arguments in the DSL string (used by {@code String.format(dsl, params)}
+     * @param dsl the AEL filter expression
+     * @param params The params used to replace arguments in the AEL string (used by {@code String.format(dsl, params)}
      * @return this QueryBuilder for method chaining
      * @throws IllegalArgumentException if multiple filter conditions are specified
      */
@@ -427,7 +427,7 @@ public class QueryBuilder extends AbstractFilterableBuilder implements
      *
      * <p>This method allows you to specify a filter condition using the programmatic
      * BooleanExpression API. This provides type safety and compile-time checking
-     * compared to DSL strings.</p>
+     * compared to AEL strings.</p>
      *
      * <p>Example usage:</p>
      * <pre>{@code
@@ -485,10 +485,10 @@ public class QueryBuilder extends AbstractFilterableBuilder implements
     }
 
     /**
-     * Adds a filter condition using a prepared DSL expression.
+     * Adds a filter condition using a prepared AEL expression.
      *
      * <p>This method allows you to specify a filter condition using a {@link PreparedDsl}
-     * object, which is a pre-parsed DSL expression. This can improve performance when
+     * object, which is a pre-parsed AEL expression. This can improve performance when
      * the same filter is used multiple times, as the parsing only needs to happen once.</p>
      *
      * <p>Example usage:</p>
@@ -502,7 +502,7 @@ public class QueryBuilder extends AbstractFilterableBuilder implements
      * <p>Only one filter condition can be specified per query. Multiple calls
      * to this method or other {@code where()} methods will throw an exception.</p>
      *
-     * @param dsl the prepared DSL expression
+     * @param dsl the prepared AEL expression
      * @param params the parameters to bind to the prepared expression
      * @return this QueryBuilder for method chaining
      * @throws IllegalArgumentException if multiple filter conditions are specified

@@ -70,7 +70,7 @@ public class DSLParserImpl implements DSLParser {
             ParseTree parseTree = getParseTree(pathToCtx);
             return buildCtx(new ExpressionConditionVisitor().visit(parseTree));
         } catch (Exception e) {
-            throw new DslParseException("Could not parse the given DSL path input", e);
+            throw new DslParseException("Could not parse the given AEL path input", e);
         }
     }
 
@@ -92,7 +92,7 @@ public class DSLParserImpl implements DSLParser {
 
         String errorMessage = errorListener.getErrorMessage();
         if (errorMessage != null) {
-            throw new DslParseException("Could not parse given DSL expression input: " + errorMessage);
+            throw new DslParseException("Could not parse given AEL expression input: " + errorMessage);
         }
         return tree;
     }
@@ -112,14 +112,16 @@ public class DSLParserImpl implements DSLParser {
         AbstractPart resultingPart = new ExpressionConditionVisitor().visit(parseTree);
 
         if (resultingPart == null) {
-            throw new DslParseException("Could not parse given DSL expression input");
+            throw new DslParseException("Could not parse given AEL expression input");
         }
 
         return new ParsedExpression(resultingPart, placeholderValues, indexesMap, preferredBin);
     }
 
     private Map<String, List<Index>> buildIndexesMap(Collection<Index> indexes, String namespace) {
-        if (indexes == null || indexes.isEmpty() || namespace == null) return Collections.emptyMap();
+        if (indexes == null || indexes.isEmpty() || namespace == null) {
+			return Collections.emptyMap();
+		}
         return indexes.stream()
                 .filter(idx -> namespace.equals(idx.getNamespace()))
                 .collect(Collectors.groupingBy(Index::getBin));

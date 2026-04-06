@@ -31,13 +31,13 @@ import com.aerospike.client.sdk.query.PreparedDsl;
 public interface FilterableOperation<T extends FilterableOperation<T>> {
 
     /**
-     * Adds a filter condition using a DSL string.
+     * Adds a filter condition using a AEL string.
      *
      * <p>This method allows you to specify a filter condition using Aerospike's
-     * Domain Specific Language (DSL). The DSL provides a SQL-like syntax for
+     * Domain Specific Language (AEL). The AEL provides a SQL-like syntax for
      * expressing complex filter conditions.</p>
      *
-     * <p>Example DSL expressions:</p>
+     * <p>Example AEL expressions:</p>
      * <ul>
      *   <li><code>"$.name == 'Tim'"</code> - exact string match</li>
      *   <li><code>"$.age > 30"</code> - numeric comparison</li>
@@ -48,8 +48,8 @@ public interface FilterableOperation<T extends FilterableOperation<T>> {
      * <p>Only one filter condition can be specified per operation. Multiple calls
      * to this method or other where variants will throw an exception.</p>
      *
-     * @param dsl the DSL filter expression
-     * @param params The params used to replace arguments in the DSL string (used by {@code String.format(dsl, params)})
+     * @param dsl the AEL filter expression
+     * @param params The params used to replace arguments in the AEL string (used by {@code String.format(dsl, params)})
      * @return this builder for method chaining
      * @throws IllegalArgumentException if multiple filter conditions are specified
      */
@@ -60,7 +60,7 @@ public interface FilterableOperation<T extends FilterableOperation<T>> {
      *
      * <p>This method allows you to specify a filter condition using the programmatic
      * BooleanExpression API. This provides type safety and compile-time checking
-     * compared to DSL strings.</p>
+     * compared to AEL strings.</p>
      *
      * <p>Only one filter condition can be specified per operation. Multiple calls
      * to this method or other where variants will throw an exception.</p>
@@ -78,7 +78,7 @@ public interface FilterableOperation<T extends FilterableOperation<T>> {
      * to this method or other where variants will throw an exception.</p>
      *
      * @param dsl the PreparedDsl filter
-     * @param params parameters to bind to the prepared DSL
+     * @param params parameters to bind to the prepared AEL
      * @return this builder for method chaining
      * @throws IllegalArgumentException if multiple filter conditions are specified
      */

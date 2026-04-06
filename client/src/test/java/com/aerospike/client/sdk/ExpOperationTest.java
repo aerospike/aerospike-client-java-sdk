@@ -226,7 +226,7 @@ public class ExpOperationTest extends ClusterTest {
 		assertEquals(null, val);
 
 		Expression nildsl = Exp.build(Exp.nil());
-		// TODO How specify nil in DSL?
+		// TODO How specify nil in AEL?
 		//String nildsl = "nil";
 
 		ae = assertThrows(AerospikeException.class, () -> {
@@ -276,7 +276,7 @@ public class ExpOperationTest extends ClusterTest {
 				Exp.binExists(binA), Exp.val(5),
 				Exp.unknown()));
 
-		// TODO: Convert from Expression to DSL String.
+		// TODO: Convert from Expression to AEL String.
 		//String dsl = "when ($.C == 5 => unknown, $.A.exists() => 5, default => unknown)";
 
 		AerospikeException ae = assertThrows(AerospikeException.class, () -> {
@@ -309,7 +309,7 @@ public class ExpOperationTest extends ClusterTest {
 	@Test
 	public void expReturnsNil() {
 		Expression dsl = Exp.build(Exp.nil());
-		// TODO: Convert from Expression to DSL String.
+		// TODO: Convert from Expression to AEL String.
 		//String dsl = "nil";
 
 		RecordStream rs = session.query(args.set.id(keyA))
@@ -355,7 +355,7 @@ public class ExpOperationTest extends ClusterTest {
 
 	@Test
 	public void expReturnsFloat() {
-		// TODO: Convert from Expression to DSL String.
+		// TODO: Convert from Expression to AEL String.
 		Expression dsl = Exp.build(Exp.add(Exp.toFloat(Exp.intBin(binA)), Exp.val(4.0)));
 		//String dsl = "$." + binA + ".asFloat() + 4.0";
 
@@ -419,7 +419,7 @@ public class ExpOperationTest extends ClusterTest {
 	public void expReturnsBlob() {
 		byte[] bytes = new byte[] {0x78, 0x78, 0x78};
 		Expression dsl = Exp.build(Exp.val(bytes));
-		// TODO: Convert from Expression to DSL String.
+		// TODO: Convert from Expression to AEL String.
 		//String dsl = "[78, 78, 78]";
 
 		RecordStream rs = session.update(args.set.id(keyA))

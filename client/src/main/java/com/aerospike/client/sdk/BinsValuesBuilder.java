@@ -450,15 +450,15 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
      * Apply a where clause filter to these operations. Only records matching the
      * filter will be affected.
      * <p>
-     * The DSL string can contain parameters which are replaced with the passed
+     * The AEL string can contain parameters which are replaced with the passed
      * arguments. For example:
      *
      * <pre>
      * builder.where("$.age > %d", 21)
      * </pre>
      *
-     * @param dsl    The DSL string defining the filter condition
-     * @param params Optional parameters to be substituted into the DSL string
+     * @param dsl    The AEL string defining the filter condition
+     * @param params Optional parameters to be substituted into the AEL string
      * @return This builder for method chaining
      */
     @Override
@@ -481,11 +481,11 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
     }
 
     /**
-     * Apply a where clause filter to these operations using a prepared DSL. Only
+     * Apply a where clause filter to these operations using a prepared AEL. Only
      * records matching the filter will be affected.
      *
-     * @param dsl    The prepared DSL defining the filter condition
-     * @param params Parameters to be substituted into the prepared DSL
+     * @param dsl    The prepared AEL defining the filter condition
+     * @param params Parameters to be substituted into the prepared AEL
      * @return This builder for method chaining
      */
     @Override

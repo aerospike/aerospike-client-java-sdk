@@ -710,8 +710,8 @@ public class ChainableOperationBuilder extends AbstractOperationBuilder<Chainabl
      * <p>This filter is applied to operations that don't have an explicit {@code where()} clause.
      * Operations with their own where clause will use their own filter instead.
      *
-     * @param dsl the DSL filter expression
-     * @param params parameters to substitute into the DSL
+     * @param dsl the AEL filter expression
+     * @param params parameters to substitute into the AEL
      * @return this builder for method chaining
      */
     public ChainableOperationBuilder defaultWhere(String dsl, Object... params) {
@@ -755,8 +755,8 @@ public class ChainableOperationBuilder extends AbstractOperationBuilder<Chainabl
     /**
      * Set the default where clause using a PreparedDsl.
      *
-     * @param dsl the prepared DSL filter
-     * @param params parameters to bind to the prepared DSL
+     * @param dsl the prepared AEL filter
+     * @param params parameters to bind to the prepared AEL
      * @return this builder for method chaining
      */
     public ChainableOperationBuilder defaultWhere(PreparedDsl dsl, Object... params) {

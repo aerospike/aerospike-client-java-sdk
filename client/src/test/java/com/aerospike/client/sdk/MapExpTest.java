@@ -47,7 +47,7 @@ public class MapExpTest extends ClusterTest {
 	        .bin(binName).setTo(map)
 	        .execute();
 
-		// TODO What is DSL equivalent string for this expression.
+		// TODO What is AEL equivalent string for this expression.
 		Expression e = Exp.build(Exp.eq(Exp.mapBin(binName), Exp.val(map)));
 
 		RecordStream rs = session.query(key)
@@ -81,7 +81,7 @@ public class MapExpTest extends ClusterTest {
 	        .bin(binName).setTo(map)
 	        .execute();
 
-		// TODO What is DSL equivalent string for this expression.
+		// TODO What is AEL equivalent string for this expression.
 		// Use INVERTED to return map with entries removed where value != 2.
 		Expression e = Exp.build(
 			MapExp.removeByValue(MapReturnType.INVERTED, Exp.val(2), Exp.mapBin(binName)));

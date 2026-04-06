@@ -738,8 +738,8 @@ public class ChainableUdfBuilder extends AbstractSessionOperationBuilder<Chainab
     /**
      * Set the default where clause for all operations in this batch that don't have their own where clause.
      *
-     * @param dsl the DSL filter expression
-     * @param params parameters to substitute into the DSL
+     * @param dsl the AEL filter expression
+     * @param params parameters to substitute into the AEL
      * @return this builder for method chaining
      */
     public ChainableUdfBuilder defaultWhere(String dsl, Object... params) {
@@ -783,8 +783,8 @@ public class ChainableUdfBuilder extends AbstractSessionOperationBuilder<Chainab
     /**
      * Set the default where clause using a PreparedDsl.
      *
-     * @param dsl the prepared DSL filter
-     * @param params parameters to bind to the prepared DSL
+     * @param dsl the prepared AEL filter
+     * @param params parameters to bind to the prepared AEL
      * @return this builder for method chaining
      */
     public ChainableUdfBuilder defaultWhere(PreparedDsl dsl, Object... params) {

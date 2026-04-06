@@ -17,7 +17,7 @@ public class SyntaxErrorTests {
     void negNonsensePathFunction() {
         assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of("1.0 == $.f1.nonsense()")))
                 .isInstanceOf(DslParseException.class)
-                .hasMessageContaining("Could not parse given DSL expression input")
+                .hasMessageContaining("Could not parse given AEL expression input")
                 .hasMessageContaining("[Parser] extraneous input '()'")
                 .hasMessageContaining("at character 20");
     }
@@ -26,7 +26,7 @@ public class SyntaxErrorTests {
     void negNonsensePathFunctionOnLeft() {
         assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of("$.f1.nonsense() == 1.0")))
                 .isInstanceOf(DslParseException.class)
-                .hasMessageContaining("Could not parse given DSL expression input")
+                .hasMessageContaining("Could not parse given AEL expression input")
                 .hasMessageContaining("[Parser] mismatched input '()'")
                 .hasMessageContaining("at character 13");
     }
@@ -35,7 +35,7 @@ public class SyntaxErrorTests {
     void negTrailingGarbageTokens() {
         assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of("$.intBin1 > 100 garbage")))
                 .isInstanceOf(DslParseException.class)
-                .hasMessageContaining("Could not parse given DSL expression input")
+                .hasMessageContaining("Could not parse given AEL expression input")
                 .hasMessageContaining("[Parser] extraneous input 'garbage'")
                 .hasMessageContaining("at character 16");
     }
@@ -60,7 +60,7 @@ public class SyntaxErrorTests {
                 ExpressionContext.of(
                         "let(x = 5, y = ($.bin.get(type: INT) in ${x})) then (y == true)")))
                 .isInstanceOf(DslParseException.class)
-                .hasMessageContaining("Could not parse given DSL expression input")
+                .hasMessageContaining("Could not parse given AEL expression input")
                 .hasMessageContaining("[Parser] no viable alternative at input")
                 .hasMessageContaining("at character 55");
     }
@@ -71,7 +71,7 @@ public class SyntaxErrorTests {
                 ExpressionContext.of(
                         "let(x = 5, y = ($.bin.get(type: INT) in ${x})) then ($y == true)")))
                 .isInstanceOf(DslParseException.class)
-                .hasMessageContaining("Could not parse given DSL expression input")
+                .hasMessageContaining("Could not parse given AEL expression input")
                 .hasMessageContaining("[Lexer] token recognition error at: '$y'")
                 .hasMessageContaining("at character 53")
                 .hasMessageContaining("[Parser] no viable alternative at input")
@@ -84,7 +84,7 @@ public class SyntaxErrorTests {
                 ExpressionContext.of(
                         "let(x = 5, y = ($.bin.get(type: INT) in ${x)) then (${y} == true)")))
                 .isInstanceOf(DslParseException.class)
-                .hasMessageContaining("Could not parse given DSL expression input")
+                .hasMessageContaining("Could not parse given AEL expression input")
                 .hasMessageContaining("[Lexer] token recognition error at: '${x)'")
                 .hasMessageContaining("at character 40")
                 .hasMessageContaining("[Parser] no viable alternative at input")
@@ -97,7 +97,7 @@ public class SyntaxErrorTests {
                 ExpressionContext.of(
                         "let(x = 5, y = ($.bin.get(type: INT) in x})) then (${y} == true)")))
                 .isInstanceOf(DslParseException.class)
-                .hasMessageContaining("Could not parse given DSL expression input")
+                .hasMessageContaining("Could not parse given AEL expression input")
                 .hasMessageContaining("[Parser] no viable alternative at input")
                 .hasMessageContaining("at character 41");
     }
@@ -108,7 +108,7 @@ public class SyntaxErrorTests {
                 ExpressionContext.of(
                         "let(x = 5, y = ($.bin.get(type: INT) in x)) then (${y} == true)")))
                 .isInstanceOf(DslParseException.class)
-                .hasMessageContaining("Could not parse given DSL expression input")
+                .hasMessageContaining("Could not parse given AEL expression input")
                 .hasMessageContaining("[Parser] no viable alternative at input")
                 .hasMessageContaining("at character 41");
     }
@@ -119,7 +119,7 @@ public class SyntaxErrorTests {
                 ExpressionContext.of(
                         "let(x = 5, y = ($.bin.get(type: INT) in ${{x})) then (${y} == true)")))
                 .isInstanceOf(DslParseException.class)
-                .hasMessageContaining("Could not parse given DSL expression input")
+                .hasMessageContaining("Could not parse given AEL expression input")
                 .hasMessageContaining("[Lexer] token recognition error at: '${{'")
                 .hasMessageContaining("at character 40")
                 .hasMessageContaining("[Parser] no viable alternative at input")
@@ -132,7 +132,7 @@ public class SyntaxErrorTests {
                 ExpressionContext.of(
                         "let(x = 5, y = ($.bin.get(type: INT) in ${x}})) then (${y} == true)")))
                 .isInstanceOf(DslParseException.class)
-                .hasMessageContaining("Could not parse given DSL expression input")
+                .hasMessageContaining("Could not parse given AEL expression input")
                 .hasMessageContaining("[Parser] no viable alternative at input")
                 .hasMessageContaining("at character 44");
     }
@@ -143,7 +143,7 @@ public class SyntaxErrorTests {
                 ExpressionContext.of(
                         "let(x = 5, y = ($.bin.get(type: INT) in $${x})) then (${y} == true)")))
                 .isInstanceOf(DslParseException.class)
-                .hasMessageContaining("Could not parse given DSL expression input")
+                .hasMessageContaining("Could not parse given AEL expression input")
                 .hasMessageContaining("[Lexer] token recognition error at: '$$'")
                 .hasMessageContaining("at character 40")
                 .hasMessageContaining("[Parser] no viable alternative at input")
@@ -156,7 +156,7 @@ public class SyntaxErrorTests {
     void negOrphanedParentheses() {
         assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of("$.intBin1 > ()")))
                 .isInstanceOf(DslParseException.class)
-                .hasMessageContaining("Could not parse given DSL expression input")
+                .hasMessageContaining("Could not parse given AEL expression input")
                 .hasMessageContaining("[Parser] mismatched input '()'")
                 .hasMessageContaining("at character 12");
     }
@@ -167,7 +167,7 @@ public class SyntaxErrorTests {
                 ExpressionContext.of(
                         "let(x = 5, y = ($.bin.get(type: INT in ${x})) then (${y} == true)")))
                 .isInstanceOf(DslParseException.class)
-                .hasMessageContaining("Could not parse given DSL expression input")
+                .hasMessageContaining("Could not parse given AEL expression input")
                 .hasMessageContaining("[Parser] no viable alternative at input")
                 .hasMessageContaining("at character 36");
     }
@@ -179,7 +179,7 @@ public class SyntaxErrorTests {
         assertThatThrownBy(() -> parseFilterExp(
                 ExpressionContext.of("let(x = 5) (${x} + 1)")))
                 .isInstanceOf(DslParseException.class)
-                .hasMessageContaining("Could not parse given DSL expression input")
+                .hasMessageContaining("Could not parse given AEL expression input")
                 .hasMessageContaining("[Parser] no viable alternative at input")
                 .hasMessageContaining("at character 11");
     }
@@ -189,7 +189,7 @@ public class SyntaxErrorTests {
         assertThatThrownBy(() -> parseFilterExp(
                 ExpressionContext.of("let() then (1 + 2)")))
                 .isInstanceOf(DslParseException.class)
-                .hasMessageContaining("Could not parse given DSL expression input")
+                .hasMessageContaining("Could not parse given AEL expression input")
                 .hasMessageContaining("[Parser] no viable alternative at input")
                 .hasMessageContaining("at character 3");
     }
@@ -199,7 +199,7 @@ public class SyntaxErrorTests {
         assertThatThrownBy(() -> parseFilterExp(
                 ExpressionContext.of("let(x 5) then (${x} + 1)")))
                 .isInstanceOf(DslParseException.class)
-                .hasMessageContaining("Could not parse given DSL expression input")
+                .hasMessageContaining("Could not parse given AEL expression input")
                 .hasMessageContaining("[Parser] no viable alternative at input")
                 .hasMessageContaining("at character 6");
     }
@@ -211,7 +211,7 @@ public class SyntaxErrorTests {
         assertThatThrownBy(() -> parseFilterExp(
                 ExpressionContext.of("when($.x == 1 => \"a\")")))
                 .isInstanceOf(DslParseException.class)
-                .hasMessageContaining("Could not parse given DSL expression input")
+                .hasMessageContaining("Could not parse given AEL expression input")
                 .hasMessageContaining("[Parser] no viable alternative at input")
                 .hasMessageContaining("at character 20");
     }
@@ -221,7 +221,7 @@ public class SyntaxErrorTests {
         assertThatThrownBy(() -> parseFilterExp(
                 ExpressionContext.of("when($.x == 1 \"a\", default => \"b\")")))
                 .isInstanceOf(DslParseException.class)
-                .hasMessageContaining("Could not parse given DSL expression input")
+                .hasMessageContaining("Could not parse given AEL expression input")
                 .hasMessageContaining("[Parser] no viable alternative at input")
                 .hasMessageContaining("at character 14");
     }

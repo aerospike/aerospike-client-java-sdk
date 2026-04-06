@@ -90,11 +90,11 @@ Not Migrated (blocked by missing CTX methods):
 
 ## issues & workarounds
 
-1. DSL Bug - Logical AND (`&&`) Parsed as Bitwise AND
+1. AEL Bug - Logical AND (`&&`) Parsed as Bitwise AND
 
-The DSL parser treats `&&` as bitwise AND (`&`) instead of logical AND.
+The AEL parser treats `&&` as bitwise AND (`&`) instead of logical AND.
 - Example: `$.bin >= 14 && $.bin <= 18` incorrectly parses as `bin >= (14 & bin)`
-- Workaround: Use `Exp.and(Exp.ge(...), Exp.le(...))` instead of DSL strings with `&&`
+- Workaround: Use `Exp.and(Exp.ge(...), Exp.le(...))` instead of AEL strings with `&&`
 - Affected Tests: QueryIntegerTest, QueryKeyTest
 
 2. Missing Public `where(Filter)` API

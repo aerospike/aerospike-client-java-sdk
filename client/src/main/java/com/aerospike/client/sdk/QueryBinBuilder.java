@@ -84,11 +84,11 @@ public class QueryBinBuilder implements CdtOperationAcceptor<ChainableQueryBuild
 
     // ----------------------------------------
     // selectFrom - Read expression operations
-    // Supports all 5 DSL input types
+    // Supports all 5 AEL input types
     // ----------------------------------------
 
     /**
-     * Read a computed value from this bin using a DSL expression.
+     * Read a computed value from this bin using a AEL expression.
      * The result appears as a virtual bin in the returned record.
      *
      * <pre>{@code
@@ -98,7 +98,7 @@ public class QueryBinBuilder implements CdtOperationAcceptor<ChainableQueryBuild
      *     .execute();
      * }</pre>
      *
-     * @param dsl the DSL expression string
+     * @param dsl the AEL expression string
      * @see #selectFrom(String, Consumer) for options like ignoreEvalFailure()
      */
     public ChainableQueryBuilder selectFrom(String dsl) {
@@ -116,7 +116,7 @@ public class QueryBinBuilder implements CdtOperationAcceptor<ChainableQueryBuild
      *     .execute();
      * }</pre>
      *
-     * @param dsl the DSL expression string
+     * @param dsl the AEL expression string
      * @param options configure via {@code ignoreEvalFailure()}
      */
     public ChainableQueryBuilder selectFrom(String dsl, Consumer<ExpressionReadOptions> options) {
@@ -171,7 +171,7 @@ public class QueryBinBuilder implements CdtOperationAcceptor<ChainableQueryBuild
      *     .execute();
      * }</pre>
      *
-     * @param dsl the prepared DSL statement
+     * @param dsl the prepared AEL statement
      * @param params parameter values to bind
      */
     public ChainableQueryBuilder selectFrom(PreparedDsl dsl, Object... params) {
@@ -189,7 +189,7 @@ public class QueryBinBuilder implements CdtOperationAcceptor<ChainableQueryBuild
      *     .execute();
      * }</pre>
      *
-     * @param dsl the prepared DSL statement
+     * @param dsl the prepared AEL statement
      * @param options configure via {@code ignoreEvalFailure()}
      * @param params parameter values to bind
      */

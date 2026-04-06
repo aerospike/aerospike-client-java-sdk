@@ -81,7 +81,7 @@ public class ListExpTest extends ClusterTest {
 
         CTX ctx = CTX.listIndex(4);
 
-		// TODO Port to DSL when DSL supports list size.
+		// TODO Port to AEL when AEL supports list size.
 		Expression e = Exp.build(
 			Exp.eq(
 				ListExp.size(

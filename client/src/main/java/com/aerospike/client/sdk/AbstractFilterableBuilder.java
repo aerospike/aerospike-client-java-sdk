@@ -99,7 +99,7 @@ public abstract class AbstractFilterableBuilder {
     }
     
     /**
-     * Create WhereClauseProcessor from DSL string.
+     * Create WhereClauseProcessor from AEL string.
      */
     protected WhereClauseProcessor createWhereClauseProcessor(boolean allowSecondaryIndex, String dsl, Object... params) {
         if (dsl == null || dsl.isEmpty()) {

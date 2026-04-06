@@ -33,7 +33,7 @@ public class IndexContext {
     /**
      * Collection of {@link Index} objects to be used for creating secondary index Filter.
      * Namespace of indexes is matched with the given {@link #namespace}, bin name and index type are matched
-     * with bins in DSL String
+     * with bins in AEL String
      */
     private final Collection<Index> indexes;
     /**

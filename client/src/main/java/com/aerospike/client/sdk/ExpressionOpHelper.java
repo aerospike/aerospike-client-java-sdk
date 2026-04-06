@@ -27,13 +27,13 @@ import com.aerospike.dsl.api.DSLParser;
 import com.aerospike.dsl.impl.DSLParserImpl;
 
 /**
- * Helper class for creating expression operations from various DSL input types.
+ * Helper class for creating expression operations from various AEL input types.
  *
  * <p>Supports the following input types:</p>
  * <ul>
- *   <li>{@code String} - DSL string expression</li>
+ *   <li>{@code String} - AEL string expression</li>
  *   <li>{@code BooleanExpression} - Programmatic boolean expression</li>
- *   <li>{@code PreparedDsl} - Prepared DSL statement with parameters</li>
+ *   <li>{@code PreparedDsl} - Prepared AEL statement with parameters</li>
  *   <li>{@code Exp} - Low-level expression builder</li>
  *   <li>{@code Expression} - Compiled expression</li>
  * </ul>
@@ -45,14 +45,14 @@ public final class ExpressionOpHelper {
     }
 
     // ========================================
-    // Read operations - from String DSL
+    // Read operations - from String AEL
     // ========================================
 
     /**
-     * Builds a read expression operation from a DSL string.
+     * Builds a read expression operation from a AEL string.
      *
      * @param binName target bin
-     * @param dsl DSL text parsed to an {@link Expression}
+     * @param dsl AEL text parsed to an {@link Expression}
      * @param flags {@link com.aerospike.client.exp.ExpReadFlags} bitmask
      * @return Aerospike {@link Operation} for expression read
      */
@@ -61,10 +61,10 @@ public final class ExpressionOpHelper {
     }
 
     /**
-     * Builds a read expression operation from a DSL string with {@code ?} placeholders replaced by {@code params}.
+     * Builds a read expression operation from a AEL string with {@code ?} placeholders replaced by {@code params}.
      *
      * @param binName target bin
-     * @param dsl DSL template
+     * @param dsl AEL template
      * @param params values substituted for {@code ?} in order
      * @param flags {@link com.aerospike.client.exp.ExpReadFlags} bitmask
      * @return Aerospike {@link Operation} for expression read
@@ -74,7 +74,7 @@ public final class ExpressionOpHelper {
     }
 
     // ========================================
-    // Read operations - from other DSL types
+    // Read operations - from other AEL types
     // ========================================
 
     /**
@@ -93,7 +93,7 @@ public final class ExpressionOpHelper {
      * Builds a read expression operation from a {@link PreparedDsl} with bound parameters.
      *
      * @param binName target bin
-     * @param dsl prepared DSL
+     * @param dsl prepared AEL
      * @param params bound parameter values
      * @param flags {@link com.aerospike.client.exp.ExpReadFlags} bitmask
      * @return Aerospike {@link Operation} for expression read
@@ -127,14 +127,14 @@ public final class ExpressionOpHelper {
     }
 
     // ========================================
-    // Write operations - from String DSL
+    // Write operations - from String AEL
     // ========================================
 
     /**
-     * Builds a write expression operation from a DSL string.
+     * Builds a write expression operation from a AEL string.
      *
      * @param binName target bin
-     * @param dsl DSL text parsed to an {@link Expression}
+     * @param dsl AEL text parsed to an {@link Expression}
      * @param flags {@link com.aerospike.client.exp.ExpWriteFlags} bitmask
      * @return Aerospike {@link Operation} for expression write
      */
@@ -143,10 +143,10 @@ public final class ExpressionOpHelper {
     }
 
     /**
-     * Builds a write expression operation from a DSL string with {@code ?} placeholders replaced by {@code params}.
+     * Builds a write expression operation from a AEL string with {@code ?} placeholders replaced by {@code params}.
      *
      * @param binName target bin
-     * @param dsl DSL template
+     * @param dsl AEL template
      * @param params values substituted for {@code ?} in order
      * @param flags {@link com.aerospike.client.exp.ExpWriteFlags} bitmask
      * @return Aerospike {@link Operation} for expression write
@@ -156,7 +156,7 @@ public final class ExpressionOpHelper {
     }
 
     // ========================================
-    // Write operations - from other DSL types
+    // Write operations - from other AEL types
     // ========================================
 
     /**
@@ -175,7 +175,7 @@ public final class ExpressionOpHelper {
      * Builds a write expression operation from a {@link PreparedDsl} with bound parameters.
      *
      * @param binName target bin
-     * @param dsl prepared DSL
+     * @param dsl prepared AEL
      * @param params bound parameter values
      * @param flags {@link com.aerospike.client.exp.ExpWriteFlags} bitmask
      * @return Aerospike {@link Operation} for expression write
@@ -213,11 +213,11 @@ public final class ExpressionOpHelper {
     // ========================================
 
     /**
-     * Appends a DSL-based read expression operation to {@code opBuilder}.
+     * Appends a AEL-based read expression operation to {@code opBuilder}.
      *
      * @param opBuilder operation list builder
      * @param binName target bin
-     * @param dsl DSL text
+     * @param dsl AEL text
      * @param flags {@link com.aerospike.client.exp.ExpReadFlags} bitmask
      * @return {@code opBuilder} for chaining
      */
@@ -226,11 +226,11 @@ public final class ExpressionOpHelper {
     }
 
     /**
-     * Appends a DSL-based write expression operation to {@code opBuilder}.
+     * Appends a AEL-based write expression operation to {@code opBuilder}.
      *
      * @param opBuilder operation list builder
      * @param binName target bin
-     * @param dsl DSL text
+     * @param dsl AEL text
      * @param flags {@link com.aerospike.client.exp.ExpWriteFlags} bitmask
      * @return {@code opBuilder} for chaining
      */
@@ -239,7 +239,7 @@ public final class ExpressionOpHelper {
     }
 
     // ========================================
-    // DSL parsing methods
+    // AEL parsing methods
     // ========================================
 
     private static Expression parseStringDsl(String dsl) {
@@ -258,8 +258,8 @@ public final class ExpressionOpHelper {
     }
 
     private static Expression parseStringDsl(String dsl, Object[] params) {
-        // For now, format the DSL string with params
-        // TODO: Use proper prepared statement support when DSL supports it
+        // For now, format the AEL string with params
+        // TODO: Use proper prepared statement support when AEL supports it
         String formattedDsl = formatDsl(dsl, params);
         return parseStringDsl(formattedDsl);
     }
@@ -274,7 +274,7 @@ public final class ExpressionOpHelper {
     }
 
     /**
-     * Format a DSL string with parameters.
+     * Format a AEL string with parameters.
      * Uses simple positional replacement for ? placeholders.
      */
     private static String formatDsl(String dsl, Object[] params) {

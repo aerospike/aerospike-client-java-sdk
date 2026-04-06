@@ -105,7 +105,7 @@ public abstract class WhereClauseProcessor {
         }
         ParseResult result = parseResult.getResult();
         if (result.getExp() == null && result.getFilter() == null) {
-            throw new DslParseException("Unknown error parsing DSL: '" + dsl + "'");
+            throw new DslParseException("Unknown error parsing AEL: '" + dsl + "'");
         }
 
         if (Log.debugEnabled()) {
@@ -153,7 +153,7 @@ public abstract class WhereClauseProcessor {
 
         @Override
         public ParseResult process(String namespace, Session session) {
-            // TODO: For now, until DSL supports prepared statements
+            // TODO: For now, until AEL supports prepared statements
             String dslStr = dsl.formValue(params);
             return process(dslStr, namespace,  session);
         }

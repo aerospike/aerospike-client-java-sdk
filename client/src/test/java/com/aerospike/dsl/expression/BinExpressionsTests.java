@@ -82,7 +82,7 @@ public class BinExpressionsTests {
     void negativeStringBinEquals() {
         assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of("$.strBin == yes")))
                 .isInstanceOf(DslParseException.class)
-                .hasMessageContaining("Could not parse given DSL expression input")
+                .hasMessageContaining("Could not parse given AEL expression input")
                 .hasMessageContaining("[Parser] mismatched input '<EOF>'")
                 .hasMessageContaining("at character 15");
     }

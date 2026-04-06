@@ -101,11 +101,11 @@ public class BackgroundOperationBuilder extends AbstractOperationBuilder<Backgro
     }
 
     /**
-     * Adds a where clause filter to the background operation using a DSL string.
+     * Adds a where clause filter to the background operation using a AEL string.
      * The filter determines which records in the set will be affected.
      *
-     * @param dsl The DSL filter expression (e.g., "$.age > 30")
-     * @param params The parameters to substitute into the DSL expression
+     * @param dsl The AEL filter expression (e.g., "$.age > 30")
+     * @param params The parameters to substitute into the AEL expression
      * @return This builder for method chaining
      */
     @Override
@@ -132,7 +132,7 @@ public class BackgroundOperationBuilder extends AbstractOperationBuilder<Backgro
      * The filter determines which records in the set will be affected.
      *
      * @param dsl The PreparedDsl filter
-     * @param params Parameters to bind to the prepared DSL
+     * @param params Parameters to bind to the prepared AEL
      * @return This builder for method chaining
      */
     @Override

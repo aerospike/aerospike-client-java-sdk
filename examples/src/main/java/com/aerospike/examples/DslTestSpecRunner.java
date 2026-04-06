@@ -32,7 +32,7 @@ import com.aerospike.client.sdk.policy.Behavior;
 /**
  * Runnable test suite matching the specifications in docs/dsl-test-specifications.md.
  *
- * <p>Connects to Aerospike, seeds test data, and exercises DSL expressions across
+ * <p>Connects to Aerospike, seeds test data, and exercises AEL expressions across
  * all major categories: scalar access, type casting, map/list access, nesting,
  * arithmetic, bitwise, comparison, logical, control structures, metadata,
  * path functions, transactions, rank-based access, return type variations,
