@@ -72,7 +72,7 @@ public interface FilterableOperation<T extends FilterableOperation<T>> {
     T where(BooleanExpression dsl);
 
     /**
-     * Adds a filter condition using a PreparedDsl.
+     * Adds a filter condition using a PreparedAel.
      *
      * <p>Only one filter condition can be specified per operation. Multiple calls
      * to this method or other where variants will throw an exception.</p>

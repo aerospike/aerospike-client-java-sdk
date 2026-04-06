@@ -753,7 +753,7 @@ public class ChainableOperationBuilder extends AbstractOperationBuilder<Chainabl
     }
 
     /**
-     * Set the default where clause using a PreparedDsl.
+     * Set the default where clause using a PreparedAel.
      *
      * @param dsl the prepared AEL filter
      * @param params parameters to bind to the prepared AEL

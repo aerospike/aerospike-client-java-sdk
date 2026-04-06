@@ -128,7 +128,7 @@ public class BackgroundOperationBuilder extends AbstractOperationBuilder<Backgro
     }
 
     /**
-     * Adds a where clause filter to the background operation using a PreparedDsl.
+     * Adds a where clause filter to the background operation using a PreparedAel.
      * The filter determines which records in the set will be affected.
      *
      * @param dsl The PreparedDsl filter

@@ -165,7 +165,7 @@ public class QueryBinBuilder implements CdtOperationAcceptor<ChainableQueryBuild
      * Read a computed value using a PreparedDsl with bound parameters.
      *
      * <pre>{@code
-     * PreparedDsl calc = PreparedDsl.prepare("$.price * ?");
+     * PreparedDsl calc = PreparedAel.prepare("$.price * ?");
      * session.query(key)
      *     .bin("total").selectFrom(calc, quantity)
      *     .execute();
@@ -183,7 +183,7 @@ public class QueryBinBuilder implements CdtOperationAcceptor<ChainableQueryBuild
      * Read a computed value using a PreparedDsl with options and bound parameters.
      *
      * <pre>{@code
-     * PreparedDsl calc = PreparedDsl.prepare("$.a / ?");
+     * PreparedDsl calc = PreparedAel.prepare("$.a / ?");
      * session.query(key)
      *     .bin("ratio").selectFrom(calc, opt -> opt.ignoreEvalFailure(), divisor)
      *     .execute();

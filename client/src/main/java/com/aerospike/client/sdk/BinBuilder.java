@@ -343,7 +343,7 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      * Read a computed value using a PreparedDsl with bound parameters.
      *
      * <pre>{@code
-     * PreparedDsl calc = PreparedDsl.prepare("$.price * ?");
+     * PreparedDsl calc = PreparedAel.prepare("$.price * ?");
      * session.query(key)
      *     .bin("total").selectFrom(calc, quantity)
      *     .execute();
@@ -361,7 +361,7 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      * Read a computed value using a PreparedDsl with options and bound parameters.
      *
      * <pre>{@code
-     * PreparedDsl calc = PreparedDsl.prepare("$.a / ?");
+     * PreparedDsl calc = PreparedAel.prepare("$.a / ?");
      * session.query(key)
      *     .bin("ratio").selectFrom(calc, opt -> opt.ignoreEvalFailure(), divisor)
      *     .execute();
@@ -530,11 +530,11 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
     }
 
     /**
-     * Write expression result only if bin doesn't exist, using a PreparedDsl.
+     * Write expression result only if bin doesn't exist, using a PreparedAel.
      * Fails with BIN_EXISTS_ERROR if the bin already exists.
      *
      * <pre>{@code
-     * PreparedDsl calc = PreparedDsl.prepare("$.price * ?");
+     * PreparedDsl calc = PreparedAel.prepare("$.price * ?");
      * session.upsert(key)
      *     .bin("total").insertFrom(calc, quantity)
      *     .execute();
@@ -552,7 +552,7 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      * Write expression result only if bin doesn't exist, using a PreparedDsl with options.
      *
      * <pre>{@code
-     * PreparedDsl calc = PreparedDsl.prepare("$.price * ?");
+     * PreparedDsl calc = PreparedAel.prepare("$.price * ?");
      * session.upsert(key)
      *     .bin("total").insertFrom(calc, opt -> opt.ignoreOpFailure(), quantity)
      *     .execute();
@@ -723,11 +723,11 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
     }
 
     /**
-     * Write expression result only if bin already exists, using a PreparedDsl.
+     * Write expression result only if bin already exists, using a PreparedAel.
      * Fails with BIN_NOT_FOUND if the bin doesn't exist.
      *
      * <pre>{@code
-     * PreparedDsl calc = PreparedDsl.prepare("$.price * ?");
+     * PreparedDsl calc = PreparedAel.prepare("$.price * ?");
      * session.upsert(key)
      *     .bin("total").updateFrom(calc, quantity)
      *     .execute();
@@ -745,7 +745,7 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      * Write expression result only if bin already exists, using a PreparedDsl with options.
      *
      * <pre>{@code
-     * PreparedDsl calc = PreparedDsl.prepare("$.price * ?");
+     * PreparedDsl calc = PreparedAel.prepare("$.price * ?");
      * session.upsert(key)
      *     .bin("total").updateFrom(calc, opt -> opt.ignoreOpFailure(), quantity)
      *     .execute();
@@ -916,11 +916,11 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
     }
 
     /**
-     * Write expression result, creating or updating the bin, using a PreparedDsl.
+     * Write expression result, creating or updating the bin, using a PreparedAel.
      * Never fails due to bin existence.
      *
      * <pre>{@code
-     * PreparedDsl calc = PreparedDsl.prepare("$.price * ?");
+     * PreparedDsl calc = PreparedAel.prepare("$.price * ?");
      * session.upsert(key)
      *     .bin("total").upsertFrom(calc, quantity)
      *     .execute();
@@ -938,7 +938,7 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      * Write expression result, creating or updating the bin, using a PreparedDsl with options.
      *
      * <pre>{@code
-     * PreparedDsl calc = PreparedDsl.prepare("$.price * ?");
+     * PreparedDsl calc = PreparedAel.prepare("$.price * ?");
      * session.upsert(key)
      *     .bin("total").upsertFrom(calc, opt -> opt.deleteIfNull(), quantity)
      *     .execute();

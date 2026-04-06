@@ -781,7 +781,7 @@ public class ChainableUdfBuilder extends AbstractSessionOperationBuilder<Chainab
     }
 
     /**
-     * Set the default where clause using a PreparedDsl.
+     * Set the default where clause using a PreparedAel.
      *
      * @param dsl the prepared AEL filter
      * @param params parameters to bind to the prepared AEL
