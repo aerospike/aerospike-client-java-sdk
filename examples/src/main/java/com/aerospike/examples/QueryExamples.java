@@ -41,7 +41,7 @@ import com.aerospike.client.sdk.Session;
 import com.aerospike.client.sdk.TypeSafeDataSet;
 import com.aerospike.client.sdk.Value;
 import com.aerospike.client.sdk.Log.Level;
-import com.aerospike.client.sdk.ael.Dsl;
+import com.aerospike.client.sdk.ael.Ael;
 import com.aerospike.client.sdk.cdt.MapOrder;
 import com.aerospike.client.sdk.info.classes.NamespaceDetail;
 import com.aerospike.client.sdk.info.classes.Sindex;
@@ -718,7 +718,7 @@ public class QueryExamples {
             System.out.println("End sorting customers by Name with a where clause\n");
 
             customers = session.query(customerDataSet)
-                    .where(Dsl.stringBin("name").eq("Tim").and(Dsl.longBin("age").gt(30)))
+                    .where(Ael.stringBin("name").eq("Tim").and(Ael.longBin("age").gt(30)))
                     .limit(1000)
                     .execute()
                     .asNavigatableStream()

@@ -19,7 +19,7 @@ package com.aerospike.client.sdk.ael;
 /**
  * Factory class for creating typed bin expressions.
  */
-public class Dsl {
+public class Ael {
     
     // Long bin factory methods
     public static LongBin longBin(String name) {

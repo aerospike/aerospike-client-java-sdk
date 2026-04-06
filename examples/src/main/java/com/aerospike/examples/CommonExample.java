@@ -25,7 +25,7 @@ import com.aerospike.client.sdk.Record;
 import com.aerospike.client.sdk.RecordResult;
 import com.aerospike.client.sdk.RecordStream;
 import com.aerospike.client.sdk.Session;
-import com.aerospike.client.sdk.ael.Dsl;
+import com.aerospike.client.sdk.ael.Ael;
 import com.aerospike.client.sdk.exp.Exp;
 import com.aerospike.client.sdk.info.classes.IndexType;
 import com.aerospike.client.sdk.policy.Behavior;
@@ -212,7 +212,7 @@ public class CommonExample extends Example {
         System.out.println("Test filtering out");
 
         Optional<RecordResult> rec = session.query(set.ids(2))
-            .where(Dsl.stringBin("name").eq("Bob"))
+            .where(Ael.stringBin("name").eq("Bob"))
             .execute()
             .getFirst();
 
@@ -222,7 +222,7 @@ public class CommonExample extends Example {
 
         // Run again, this time looking for "fred" on the "Bob" record, but without failing on filtering out
         rec = session.query(set.ids(2))
-                .where(Dsl.stringBin("name").eq("Fred"))
+                .where(Ael.stringBin("name").eq("Fred"))
                 .execute()
                 .getFirst();
 
@@ -231,7 +231,7 @@ public class CommonExample extends Example {
                 () -> System.out.println("Record for Fred does not exist (expected)"));
 
         rec = session.query(set.ids(2))
-                .where(Dsl.stringBin("name").eq("Fred"))
+                .where(Ael.stringBin("name").eq("Fred"))
                 .includeMissingKeys()
                 .execute()
                 .getFirst();
@@ -244,7 +244,7 @@ public class CommonExample extends Example {
         // Run again, failing on filtered out
         try {
             rec = session.query(set.ids(2))
-                    .where(Dsl.stringBin("name").eq("Fred"))
+                    .where(Ael.stringBin("name").eq("Fred"))
                     .failOnFilteredOut()
                     .execute()
                     .getFirst();
