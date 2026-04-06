@@ -31,7 +31,7 @@ import com.aerospike.client.sdk.policy.Behavior.Mode;
 import com.aerospike.client.sdk.policy.Behavior.OpKind;
 import com.aerospike.client.sdk.policy.Behavior.OpShape;
 import com.aerospike.client.sdk.query.Filter;
-import com.aerospike.client.sdk.query.PreparedDsl;
+import com.aerospike.client.sdk.query.PreparedAel;
 import com.aerospike.client.sdk.query.WhereClauseProcessor;
 import com.aerospike.client.sdk.task.ExecuteTask;
 import com.aerospike.dsl.ParseResult;
@@ -182,7 +182,7 @@ public class BackgroundUdfBuilder extends AbstractSessionOperationBuilder<Backgr
      * The predicate is applied on the server so only matching records run the UDF.
      */
     @Override
-    public BackgroundUdfBuilder where(PreparedDsl dsl, Object... params) {
+    public BackgroundUdfBuilder where(PreparedAel dsl, Object... params) {
         setWhereClause(WhereClauseProcessor.from(true, dsl, params));
         return this;
     }

@@ -22,7 +22,7 @@ import java.util.List;
 import com.aerospike.client.sdk.ael.BooleanExpression;
 import com.aerospike.client.sdk.exp.Exp;
 import com.aerospike.client.sdk.exp.Expression;
-import com.aerospike.client.sdk.query.PreparedDsl;
+import com.aerospike.client.sdk.query.PreparedAel;
 import com.aerospike.client.sdk.query.WhereClauseProcessor;
 
 public class OperationObjectBuilder<T> extends AbstractFilterableBuilder implements FilterableOperation<OperationObjectBuilder<T>> {
@@ -172,7 +172,7 @@ public class OperationObjectBuilder<T> extends AbstractFilterableBuilder impleme
      * {@inheritDoc}
      */
     @Override
-    public OperationObjectBuilder<T> where(PreparedDsl dsl, Object ... params) {
+    public OperationObjectBuilder<T> where(PreparedAel dsl, Object ... params) {
         setWhereClause(WhereClauseProcessor.from(false, dsl, params));
         return this;
     }

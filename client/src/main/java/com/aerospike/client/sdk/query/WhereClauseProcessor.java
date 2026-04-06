@@ -143,9 +143,9 @@ public abstract class WhereClauseProcessor {
     }
 
     private static class WherePreparedImpl extends WhereClauseProcessor {
-        private final PreparedDsl dsl;
+        private final PreparedAel dsl;
         private final Object[] params;
-        public WherePreparedImpl(boolean allowsIndex, PreparedDsl dsl, Object... params) {
+        public WherePreparedImpl(boolean allowsIndex, PreparedAel dsl, Object... params) {
             super(allowsIndex);
             this.dsl = dsl;
             this.params = params;
@@ -188,7 +188,7 @@ public abstract class WhereClauseProcessor {
     public static WhereClauseProcessor from(boolean allowsIndex, String dsl) {
         return new WhereStringImpl(allowsIndex, dsl);
     }
-    public static WhereClauseProcessor from(boolean allowsIndex, PreparedDsl dsl, Object ... params) {
+    public static WhereClauseProcessor from(boolean allowsIndex, PreparedAel dsl, Object ... params) {
         return new WherePreparedImpl(allowsIndex, dsl, params);
     }
     public static WhereClauseProcessor from(BooleanExpression dsl) {

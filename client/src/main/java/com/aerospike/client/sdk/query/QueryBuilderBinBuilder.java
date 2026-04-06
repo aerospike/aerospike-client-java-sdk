@@ -129,13 +129,13 @@ public class QueryBuilderBinBuilder implements CdtOperationAcceptor<QueryBuilder
     }
 
     /** Create a read expression from a PreparedDsl. */
-    public QueryBuilder selectFrom(PreparedDsl dsl, Object... params) {
+    public QueryBuilder selectFrom(PreparedAel dsl, Object... params) {
         queryBuilder.addOperation(ExpressionOpHelper.createReadOp(binName, dsl, params, ExpReadFlags.DEFAULT));
         return queryBuilder;
     }
 
     /** Create a read expression from a PreparedDsl with options. */
-    public QueryBuilder selectFrom(PreparedDsl dsl, Consumer<ExpressionReadOptions> options, Object... params) {
+    public QueryBuilder selectFrom(PreparedAel dsl, Consumer<ExpressionReadOptions> options, Object... params) {
         ExpressionReadOptions opts = new ExpressionReadOptions();
         options.accept(opts);
         queryBuilder.addOperation(ExpressionOpHelper.createReadOp(binName, dsl, params, opts.getFlags()));

@@ -26,7 +26,7 @@ import com.aerospike.client.sdk.cdt.ListOrder;
 import com.aerospike.client.sdk.exp.Exp;
 import com.aerospike.client.sdk.exp.ExpReadFlags;
 import com.aerospike.client.sdk.exp.Expression;
-import com.aerospike.client.sdk.query.PreparedDsl;
+import com.aerospike.client.sdk.query.PreparedAel;
 
 /**
  * Builder for bin-level read operations in query contexts.
@@ -174,7 +174,7 @@ public class QueryBinBuilder implements CdtOperationAcceptor<ChainableQueryBuild
      * @param dsl the prepared AEL statement
      * @param params parameter values to bind
      */
-    public ChainableQueryBuilder selectFrom(PreparedDsl dsl, Object... params) {
+    public ChainableQueryBuilder selectFrom(PreparedAel dsl, Object... params) {
         queryBuilder.addOperation(ExpressionOpHelper.createReadOp(binName, dsl, params, ExpReadFlags.DEFAULT));
         return queryBuilder;
     }
@@ -193,7 +193,7 @@ public class QueryBinBuilder implements CdtOperationAcceptor<ChainableQueryBuild
      * @param options configure via {@code ignoreEvalFailure()}
      * @param params parameter values to bind
      */
-    public ChainableQueryBuilder selectFrom(PreparedDsl dsl, Consumer<ExpressionReadOptions> options, Object... params) {
+    public ChainableQueryBuilder selectFrom(PreparedAel dsl, Consumer<ExpressionReadOptions> options, Object... params) {
         ExpressionReadOptions opts = new ExpressionReadOptions();
         options.accept(opts);
         queryBuilder.addOperation(ExpressionOpHelper.createReadOp(binName, dsl, params, opts.getFlags()));

@@ -28,7 +28,7 @@ import com.aerospike.client.sdk.ael.BooleanExpression;
 import com.aerospike.client.sdk.command.Txn;
 import com.aerospike.client.sdk.exp.Exp;
 import com.aerospike.client.sdk.exp.Expression;
-import com.aerospike.client.sdk.query.PreparedDsl;
+import com.aerospike.client.sdk.query.PreparedAel;
 import com.aerospike.client.sdk.query.WhereClauseProcessor;
 import com.aerospike.dsl.ParseResult;
 
@@ -608,7 +608,7 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
     }
 
     @Override
-    public ChainableQueryBuilder where(PreparedDsl dsl, Object... params) {
+    public ChainableQueryBuilder where(PreparedAel dsl, Object... params) {
         verifyState("setting where clause");
         WhereClauseProcessor processor = WhereClauseProcessor.from(false, dsl, params);
         ParseResult parseResult = processor.process(getNamespaceFromKeys(currentSpec.getKeys()), session);
@@ -687,7 +687,7 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
      * @param params parameters to bind to the prepared AEL
      * @return this builder for method chaining
      */
-    public ChainableQueryBuilder defaultWhere(PreparedDsl dsl, Object... params) {
+    public ChainableQueryBuilder defaultWhere(PreparedAel dsl, Object... params) {
         String namespace = currentSpec != null ?
                 getNamespaceFromKeys(currentSpec.getKeys()) :
                 (!operationSpecs.isEmpty() ? getNamespaceFromKeys(operationSpecs.get(0).getKeys()) : null);

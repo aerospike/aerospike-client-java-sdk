@@ -28,7 +28,7 @@ import com.aerospike.client.sdk.ael.BooleanExpression;
 import com.aerospike.client.sdk.command.Txn;
 import com.aerospike.client.sdk.exp.Exp;
 import com.aerospike.client.sdk.exp.Expression;
-import com.aerospike.client.sdk.query.PreparedDsl;
+import com.aerospike.client.sdk.query.PreparedAel;
 import com.aerospike.client.sdk.query.WhereClauseProcessor;
 import com.aerospike.dsl.ParseResult;
 
@@ -637,7 +637,7 @@ public class ChainableNoBinsBuilder extends AbstractSessionOperationBuilder<Chai
 
     /** {@inheritDoc} */
     @Override
-    public ChainableNoBinsBuilder where(PreparedDsl dsl, Object... params) {
+    public ChainableNoBinsBuilder where(PreparedAel dsl, Object... params) {
         verifyState("setting where clause");
         WhereClauseProcessor processor = WhereClauseProcessor.from(false, dsl, params);
         ParseResult parseResult = processor.process(getNamespaceFromKeys(currentSpec.getKeys()), session);
@@ -718,7 +718,7 @@ public class ChainableNoBinsBuilder extends AbstractSessionOperationBuilder<Chai
      * @param params parameters to bind to the prepared AEL
      * @return this builder for method chaining
      */
-    public ChainableNoBinsBuilder defaultWhere(PreparedDsl dsl, Object... params) {
+    public ChainableNoBinsBuilder defaultWhere(PreparedAel dsl, Object... params) {
         String namespace = currentSpec != null ?
                 getNamespaceFromKeys(currentSpec.getKeys()) :
                 (!operationSpecs.isEmpty() ? getNamespaceFromKeys(operationSpecs.get(0).getKeys()) : null);

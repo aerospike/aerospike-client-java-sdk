@@ -30,7 +30,7 @@ import com.aerospike.client.sdk.exp.Exp;
 import com.aerospike.client.sdk.exp.ExpReadFlags;
 import com.aerospike.client.sdk.exp.ExpWriteFlags;
 import com.aerospike.client.sdk.exp.Expression;
-import com.aerospike.client.sdk.query.PreparedDsl;
+import com.aerospike.client.sdk.query.PreparedAel;
 
 /**
  * Operations for one bin: scalar writes ({@link #setTo}), reads ({@link #get}), string ops, numeric {@link #add},
@@ -353,7 +353,7 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      * @param params parameter values to bind
      * @return the parent operation builder for chaining
      */
-    public T selectFrom(PreparedDsl dsl, Object... params) {
+    public T selectFrom(PreparedAel dsl, Object... params) {
         return opBuilder.addOp(ExpressionOpHelper.createReadOp(binName, dsl, params, ExpReadFlags.DEFAULT));
     }
 
@@ -372,7 +372,7 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      * @param params parameter values to bind
      * @return the parent operation builder for chaining
      */
-    public T selectFrom(PreparedDsl dsl, Consumer<ExpressionReadOptions> options, Object... params) {
+    public T selectFrom(PreparedAel dsl, Consumer<ExpressionReadOptions> options, Object... params) {
         ExpressionReadOptions opts = new ExpressionReadOptions();
         options.accept(opts);
         return opBuilder.addOp(ExpressionOpHelper.createReadOp(binName, dsl, params, opts.getFlags()));
@@ -544,7 +544,7 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      * @param params parameter values to bind
      * @return the parent operation builder for chaining
      */
-    public T insertFrom(PreparedDsl dsl, Object... params) {
+    public T insertFrom(PreparedAel dsl, Object... params) {
         return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, dsl, params, ExpWriteFlags.CREATE_ONLY));
     }
 
@@ -563,7 +563,7 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      * @param params parameter values to bind
      * @return the parent operation builder for chaining
      */
-    public T insertFrom(PreparedDsl dsl, Consumer<ExpressionWriteOptions> options, Object... params) {
+    public T insertFrom(PreparedAel dsl, Consumer<ExpressionWriteOptions> options, Object... params) {
         ExpressionWriteOptions opts = new ExpressionWriteOptions(ExpWriteFlags.CREATE_ONLY);
         options.accept(opts);
         return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, dsl, params, opts.getFlags()));
@@ -737,7 +737,7 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      * @param params parameter values to bind
      * @return the parent operation builder for chaining
      */
-    public T updateFrom(PreparedDsl dsl, Object... params) {
+    public T updateFrom(PreparedAel dsl, Object... params) {
         return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, dsl, params, ExpWriteFlags.UPDATE_ONLY));
     }
 
@@ -756,7 +756,7 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      * @param params parameter values to bind
      * @return the parent operation builder for chaining
      */
-    public T updateFrom(PreparedDsl dsl, Consumer<ExpressionWriteOptions> options, Object... params) {
+    public T updateFrom(PreparedAel dsl, Consumer<ExpressionWriteOptions> options, Object... params) {
         ExpressionWriteOptions opts = new ExpressionWriteOptions(ExpWriteFlags.UPDATE_ONLY);
         options.accept(opts);
         return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, dsl, params, opts.getFlags()));
@@ -930,7 +930,7 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      * @param params parameter values to bind
      * @return the parent operation builder for chaining
      */
-    public T upsertFrom(PreparedDsl dsl, Object... params) {
+    public T upsertFrom(PreparedAel dsl, Object... params) {
         return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, dsl, params, ExpWriteFlags.DEFAULT));
     }
 
@@ -949,7 +949,7 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      * @param params parameter values to bind
      * @return the parent operation builder for chaining
      */
-    public T upsertFrom(PreparedDsl dsl, Consumer<ExpressionWriteOptions> options, Object... params) {
+    public T upsertFrom(PreparedAel dsl, Consumer<ExpressionWriteOptions> options, Object... params) {
         ExpressionWriteOptions opts = new ExpressionWriteOptions(ExpWriteFlags.DEFAULT);
         options.accept(opts);
         return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, dsl, params, opts.getFlags()));

@@ -487,7 +487,7 @@ public class QueryBuilder extends AbstractFilterableBuilder implements
     /**
      * Adds a filter condition using a prepared AEL expression.
      *
-     * <p>This method allows you to specify a filter condition using a {@link PreparedDsl}
+     * <p>This method allows you to specify a filter condition using a {@link PreparedAel}
      * object, which is a pre-parsed AEL expression. This can improve performance when
      * the same filter is used multiple times, as the parsing only needs to happen once.</p>
      *
@@ -507,7 +507,7 @@ public class QueryBuilder extends AbstractFilterableBuilder implements
      * @return this QueryBuilder for method chaining
      * @throws IllegalArgumentException if multiple filter conditions are specified
      */
-    public QueryBuilder where(PreparedDsl dsl, Object ... params) {
+    public QueryBuilder where(PreparedAel dsl, Object ... params) {
         setWhereClause(WhereClauseProcessor.from(this.implementation.allowsSecondaryIndexQuery(), dsl, params));
         return this;
     }

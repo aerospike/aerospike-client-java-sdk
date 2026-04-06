@@ -49,7 +49,7 @@ import com.aerospike.client.sdk.exp.Expression;
 import com.aerospike.client.sdk.policy.Settings;
 import com.aerospike.client.sdk.policy.Behavior.OpKind;
 import com.aerospike.client.sdk.policy.Behavior.OpShape;
-import com.aerospike.client.sdk.query.PreparedDsl;
+import com.aerospike.client.sdk.query.PreparedAel;
 import com.aerospike.client.sdk.query.WhereClauseProcessor;
 import com.aerospike.client.sdk.tend.Partitions;
 import com.aerospike.dsl.ParseResult;
@@ -489,7 +489,7 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
      * @return This builder for method chaining
      */
     @Override
-    public BinsValuesBuilder where(PreparedDsl dsl, Object... params) {
+    public BinsValuesBuilder where(PreparedAel dsl, Object... params) {
         setWhereClause(WhereClauseProcessor.from(false, dsl, params));
         return this;
     }

@@ -30,7 +30,7 @@ import com.aerospike.client.sdk.policy.Behavior.Mode;
 import com.aerospike.client.sdk.policy.Behavior.OpKind;
 import com.aerospike.client.sdk.policy.Behavior.OpShape;
 import com.aerospike.client.sdk.query.Filter;
-import com.aerospike.client.sdk.query.PreparedDsl;
+import com.aerospike.client.sdk.query.PreparedAel;
 import com.aerospike.client.sdk.query.WhereClauseProcessor;
 import com.aerospike.client.sdk.task.ExecuteTask;
 import com.aerospike.dsl.ParseResult;
@@ -136,7 +136,7 @@ public class BackgroundOperationBuilder extends AbstractOperationBuilder<Backgro
      * @return This builder for method chaining
      */
     @Override
-    public BackgroundOperationBuilder where(PreparedDsl dsl, Object... params) {
+    public BackgroundOperationBuilder where(PreparedAel dsl, Object... params) {
         setWhereClause(WhereClauseProcessor.from(true, dsl, params));
         return this;
     }

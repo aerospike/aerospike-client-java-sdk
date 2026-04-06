@@ -20,7 +20,7 @@ import com.aerospike.client.sdk.ael.BooleanExpression;
 import com.aerospike.client.sdk.exp.Exp;
 import com.aerospike.client.sdk.exp.ExpOperation;
 import com.aerospike.client.sdk.exp.Expression;
-import com.aerospike.client.sdk.query.PreparedDsl;
+import com.aerospike.client.sdk.query.PreparedAel;
 import com.aerospike.dsl.ExpressionContext;
 import com.aerospike.dsl.ParsedExpression;
 import com.aerospike.dsl.api.DSLParser;
@@ -90,7 +90,7 @@ public final class ExpressionOpHelper {
     }
 
     /**
-     * Builds a read expression operation from a {@link PreparedDsl} with bound parameters.
+     * Builds a read expression operation from a {@link PreparedAel} with bound parameters.
      *
      * @param binName target bin
      * @param dsl prepared AEL
@@ -98,7 +98,7 @@ public final class ExpressionOpHelper {
      * @param flags {@link com.aerospike.client.exp.ExpReadFlags} bitmask
      * @return Aerospike {@link Operation} for expression read
      */
-    public static Operation createReadOp(String binName, PreparedDsl dsl, Object[] params, int flags) {
+    public static Operation createReadOp(String binName, PreparedAel dsl, Object[] params, int flags) {
         return ExpOperation.read(binName, fromPreparedDsl(dsl, params), flags);
     }
 
@@ -172,7 +172,7 @@ public final class ExpressionOpHelper {
     }
 
     /**
-     * Builds a write expression operation from a {@link PreparedDsl} with bound parameters.
+     * Builds a write expression operation from a {@link PreparedAel} with bound parameters.
      *
      * @param binName target bin
      * @param dsl prepared AEL
@@ -180,7 +180,7 @@ public final class ExpressionOpHelper {
      * @param flags {@link com.aerospike.client.exp.ExpWriteFlags} bitmask
      * @return Aerospike {@link Operation} for expression write
      */
-    public static Operation createWriteOp(String binName, PreparedDsl dsl, Object[] params, int flags) {
+    public static Operation createWriteOp(String binName, PreparedAel dsl, Object[] params, int flags) {
         return ExpOperation.write(binName, fromPreparedDsl(dsl, params), flags);
     }
 
@@ -268,7 +268,7 @@ public final class ExpressionOpHelper {
         return Exp.build(dsl.toAerospikeExp());
     }
 
-    private static Expression fromPreparedDsl(PreparedDsl dsl, Object[] params) {
+    private static Expression fromPreparedDsl(PreparedAel dsl, Object[] params) {
         String formattedDsl = dsl.formValue(params);
         return parseStringDsl(formattedDsl);
     }

@@ -19,7 +19,7 @@ package com.aerospike.client.sdk;
 import com.aerospike.client.sdk.ael.BooleanExpression;
 import com.aerospike.client.sdk.exp.Exp;
 import com.aerospike.client.sdk.exp.Expression;
-import com.aerospike.client.sdk.query.PreparedDsl;
+import com.aerospike.client.sdk.query.PreparedAel;
 
 /**
  * Interface for operations that support filtering with where clauses and key-based options.
@@ -82,7 +82,7 @@ public interface FilterableOperation<T extends FilterableOperation<T>> {
      * @return this builder for method chaining
      * @throws IllegalArgumentException if multiple filter conditions are specified
      */
-    T where(PreparedDsl dsl, Object ... params);
+    T where(PreparedAel dsl, Object ... params);
 
     /**
      * Adds a filter condition using an Exp operation.

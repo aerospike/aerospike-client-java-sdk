@@ -19,9 +19,9 @@ package com.aerospike.client.sdk.query;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-public class PreparedDsl {
+public class PreparedAel {
     private final String statement;
-    public PreparedDsl(String statement) {
+    public PreparedAel(String statement) {
         this.statement = statement;
     }
     
