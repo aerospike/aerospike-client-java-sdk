@@ -218,7 +218,7 @@ public class OperationObjectBuilder<T> extends AbstractFilterableBuilder impleme
      *
      * @return the where clause processor, or null if no where clause has been set
      */
-    public WhereClauseProcessor getDsl() {
+    public WhereClauseProcessor getAel() {
         return ael;
     }
 

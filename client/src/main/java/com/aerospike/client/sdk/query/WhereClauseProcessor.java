@@ -112,14 +112,14 @@ public abstract class WhereClauseProcessor {
             if (allowsIndex && result.getFilter() != null) {
                 Filter filter = result.getFilter();
 
-                Log.debug(String.format("Dsl('%s', '%s') => (Exp: %s, Filter: %s)",
+                Log.debug(String.format("Ael('%s', '%s') => (Exp: %s, Filter: %s)",
                         dsl,
                         namespace,
                         result.getExp(),
                         formStringOfFilter(filter, indexContext)));
             }
             else {
-                Log.debug(String.format("Dsl('%s', '%s') => (Exp: %s)",
+                Log.debug(String.format("Ael('%s', '%s') => (Exp: %s)",
                         dsl,
                         namespace,
                         result.getExp()));

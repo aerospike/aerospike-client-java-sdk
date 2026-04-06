@@ -249,7 +249,7 @@ public final class ExpressionOpHelper {
         Exp exp = parseResult.getResult().getExp();
 
         if (Log.debugEnabled()) {
-                Log.debug(String.format("Dsl(\"%s\") => (Exp: %s)",
+                Log.debug(String.format("Ael(\"%s\") => (Exp: %s)",
                         ael,
                         exp));
         }
@@ -260,8 +260,8 @@ public final class ExpressionOpHelper {
     private static Expression parseStringAel(String ael, Object[] params) {
         // For now, format the AEL string with params
         // TODO: Use proper prepared statement support when AEL supports it
-        String formattedDsl = formatDsl(ael, params);
-        return parseStringAel(formattedDsl);
+        String formattedAel = formatAel(ael, params);
+        return parseStringAel(formattedAel);
     }
 
     private static Expression fromBooleanExpression(BooleanExpression ael) {
@@ -269,15 +269,15 @@ public final class ExpressionOpHelper {
     }
 
     private static Expression fromPreparedAel(PreparedAel ael, Object[] params) {
-        String formattedDsl = ael.formValue(params);
-        return parseStringAel(formattedDsl);
+        String formattedAel = ael.formValue(params);
+        return parseStringAel(formattedAel);
     }
 
     /**
      * Format a AEL string with parameters.
      * Uses simple positional replacement for ? placeholders.
      */
-    private static String formatDsl(String ael, Object[] params) {
+    private static String formatAel(String ael, Object[] params) {
         if (params == null || params.length == 0) {
             return ael;
         }

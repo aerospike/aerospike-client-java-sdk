@@ -1286,8 +1286,8 @@ public class ObjectBuilder<T> {
     }
 
     private Expression getFilterExp(String namespace) {
-        if (opBuilder.getDsl() != null && !elements.isEmpty()) {
-            ParseResult parseResult = opBuilder.getDsl().process(namespace, opBuilder.getSession());
+        if (opBuilder.getAel() != null && !elements.isEmpty()) {
+            ParseResult parseResult = opBuilder.getAel().process(namespace, opBuilder.getSession());
             return Exp.build(parseResult.getExp());
         }
         return null;
