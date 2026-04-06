@@ -22,7 +22,7 @@ import com.aerospike.client.sdk.exp.Exp;
  * Represents a reference to a local variable.
  * This is used within expressions that have local variable scope.
  */
-public class VariableExpression implements DslExpression {
+public class VariableExpression implements AelExpression {
     private final String variableName;
 
     public VariableExpression(String variableName) {

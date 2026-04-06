@@ -22,11 +22,11 @@ import com.aerospike.client.sdk.exp.Exp;
  * Represents a comparison operation between two values or expressions.
  */
 public class Comparison<T> implements BooleanExpression {
-    private final DslExpression left;
+    private final AelExpression left;
     private final ComparisonOp operator;
     private final Object right;
 
-    public Comparison(DslExpression left, ComparisonOp operator, Object right) {
+    public Comparison(AelExpression left, ComparisonOp operator, Object right) {
         this.left = left;
         this.operator = operator;
         this.right = right;
@@ -66,32 +66,32 @@ public class Comparison<T> implements BooleanExpression {
 
     @Override
     public String toString() {
-        return left.toString() + " " + operator.getValue() + " " + (right instanceof DslExpression ? right.toString() : right);
+        return left.toString() + " " + operator.getValue() + " " + (right instanceof AelExpression ? right.toString() : right);
     }
 
     @Override
     public String toAerospikeExpr() {
         switch (operator) {
             case EQ:
-                return "Exp.eq(" + left.toAerospikeExpr() + ", " + (right instanceof DslExpression ? ((DslExpression) right).toAerospikeExpr() : val(right)) + ")";
+                return "Exp.eq(" + left.toAerospikeExpr() + ", " + (right instanceof AelExpression ? ((AelExpression) right).toAerospikeExpr() : val(right)) + ")";
             case NE:
-                return "Exp.ne(" + left.toAerospikeExpr() + ", " + (right instanceof DslExpression ? ((DslExpression) right).toAerospikeExpr() : val(right)) + ")";
+                return "Exp.ne(" + left.toAerospikeExpr() + ", " + (right instanceof AelExpression ? ((AelExpression) right).toAerospikeExpr() : val(right)) + ")";
             case GT:
-                return "Exp.gt(" + left.toAerospikeExpr() + ", " + (right instanceof DslExpression ? ((DslExpression) right).toAerospikeExpr() : val(right)) + ")";
+                return "Exp.gt(" + left.toAerospikeExpr() + ", " + (right instanceof AelExpression ? ((AelExpression) right).toAerospikeExpr() : val(right)) + ")";
             case LT:
-                return "Exp.lt(" + left.toAerospikeExpr() + ", " + (right instanceof DslExpression ? ((DslExpression) right).toAerospikeExpr() : val(right)) + ")";
+                return "Exp.lt(" + left.toAerospikeExpr() + ", " + (right instanceof AelExpression ? ((AelExpression) right).toAerospikeExpr() : val(right)) + ")";
             case GTE:
-                return "Exp.ge(" + left.toAerospikeExpr() + ", " + (right instanceof DslExpression ? ((DslExpression) right).toAerospikeExpr() : val(right)) + ")";
+                return "Exp.ge(" + left.toAerospikeExpr() + ", " + (right instanceof AelExpression ? ((AelExpression) right).toAerospikeExpr() : val(right)) + ")";
             case LTE:
-                return "Exp.le(" + left.toAerospikeExpr() + ", " + (right instanceof DslExpression ? ((DslExpression) right).toAerospikeExpr() : val(right)) + ")";
+                return "Exp.le(" + left.toAerospikeExpr() + ", " + (right instanceof AelExpression ? ((AelExpression) right).toAerospikeExpr() : val(right)) + ")";
             default:
-                return "(" + left.toAerospikeExpr() + " " + operator + " " + (right instanceof DslExpression ? ((DslExpression) right).toAerospikeExpr() : val(right)) + ")";
+                return "(" + left.toAerospikeExpr() + " " + operator + " " + (right instanceof AelExpression ? ((AelExpression) right).toAerospikeExpr() : val(right)) + ")";
         }
     }
 
     private Exp rightAsExp() {
-        if (right instanceof DslExpression) {
-            return ((DslExpression) right).toAerospikeExp();
+        if (right instanceof AelExpression) {
+            return ((AelExpression) right).toAerospikeExp();
         }
         else {
             if (right instanceof String) {

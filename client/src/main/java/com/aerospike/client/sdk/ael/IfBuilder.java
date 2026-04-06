@@ -25,13 +25,13 @@ import java.util.List;
  */
 public class IfBuilder {
     private final List<BooleanExpression> conditions = new ArrayList<>();
-    private final List<DslExpression> results = new ArrayList<>();
-    private DslExpression elseResult;
+    private final List<AelExpression> results = new ArrayList<>();
+    private AelExpression elseResult;
 
     /**
      * Starts an IF expression with the first condition and result.
      */
-    public static IfBuilder if_(BooleanExpression condition, DslExpression result) {
+    public static IfBuilder if_(BooleanExpression condition, AelExpression result) {
         IfBuilder builder = new IfBuilder();
         builder.conditions.add(condition);
         builder.results.add(result);
@@ -41,7 +41,7 @@ public class IfBuilder {
     /**
      * Adds an ELSE IF clause.
      */
-    public IfBuilder elseIf(BooleanExpression condition, DslExpression result) {
+    public IfBuilder elseIf(BooleanExpression condition, AelExpression result) {
         conditions.add(condition);
         results.add(result);
         return this;
@@ -50,7 +50,7 @@ public class IfBuilder {
     /**
      * Adds the ELSE clause and builds the final expression.
      */
-    public IfExpression else_(DslExpression result) {
+    public IfExpression else_(AelExpression result) {
         this.elseResult = result;
         return new IfExpression(conditions, results, elseResult);
     }

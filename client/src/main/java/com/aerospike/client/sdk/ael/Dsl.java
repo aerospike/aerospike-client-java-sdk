@@ -88,7 +88,7 @@ public class Dsl {
     }
     
     // IF-THEN-ELSE functions
-    public static IfBuilder if_(BooleanExpression condition, DslExpression result) {
+    public static IfBuilder if_(BooleanExpression condition, AelExpression result) {
         return IfBuilder.if_(condition, result);
     }
     

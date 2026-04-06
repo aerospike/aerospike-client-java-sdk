@@ -21,7 +21,7 @@ import com.aerospike.client.sdk.exp.Exp;
 /**
  * Represents any AEL expression. This is the base interface for all expressions.
  */
-public interface DslExpression {
+public interface AelExpression {
     String toAerospikeExpr();
     Exp toAerospikeExp();
 }

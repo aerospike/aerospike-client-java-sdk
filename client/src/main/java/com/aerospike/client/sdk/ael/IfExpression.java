@@ -25,12 +25,12 @@ import com.aerospike.client.sdk.exp.Exp;
  * Takes an odd number of arguments: boolean expressions alternating with result expressions.
  * The last expression is the ELSE clause.
  */
-public class IfExpression implements DslExpression {
+public class IfExpression implements AelExpression {
     private final List<BooleanExpression> conditions;
-    private final List<DslExpression> results;
-    private final DslExpression elseResult;
+    private final List<AelExpression> results;
+    private final AelExpression elseResult;
 
-    public IfExpression(List<BooleanExpression> conditions, List<DslExpression> results, DslExpression elseResult) {
+    public IfExpression(List<BooleanExpression> conditions, List<AelExpression> results, AelExpression elseResult) {
         this.conditions = conditions;
         this.results = results;
         this.elseResult = elseResult;

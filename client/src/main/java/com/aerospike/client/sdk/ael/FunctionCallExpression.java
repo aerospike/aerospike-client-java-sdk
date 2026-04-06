@@ -21,11 +21,11 @@ import com.aerospike.client.sdk.exp.Exp;
 /**
  * Represents a function call expression.
  */
-public class FunctionCallExpression implements DslExpression {
+public class FunctionCallExpression implements AelExpression {
     private final String function;
-    private final DslExpression argument;
+    private final AelExpression argument;
 
-    public FunctionCallExpression(String function, DslExpression argument) {
+    public FunctionCallExpression(String function, AelExpression argument) {
         this.function = function;
         this.argument = argument;
     }

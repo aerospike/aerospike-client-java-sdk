@@ -21,7 +21,7 @@ import com.aerospike.client.sdk.exp.Exp;
 /**
  * Represents a literal value expression.
  */
-public class LiteralExpression implements DslExpression {
+public class LiteralExpression implements AelExpression {
     private final Object value;
 
     public LiteralExpression(Object value) {
@@ -40,8 +40,8 @@ public class LiteralExpression implements DslExpression {
 
     @Override
     public Exp toAerospikeExp() {
-        if (value instanceof DslExpression) {
-            return ((DslExpression) value).toAerospikeExp();
+        if (value instanceof AelExpression) {
+            return ((AelExpression) value).toAerospikeExp();
         }
         else {
             if (value instanceof String) {

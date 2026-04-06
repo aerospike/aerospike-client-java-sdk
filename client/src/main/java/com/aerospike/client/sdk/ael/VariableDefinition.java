@@ -21,9 +21,9 @@ package com.aerospike.client.sdk.ael;
  */
 public class VariableDefinition {
     private final String name;
-    private final DslExpression value;
+    private final AelExpression value;
 
-    public VariableDefinition(String name, DslExpression value) {
+    public VariableDefinition(String name, AelExpression value) {
         this.name = name;
         this.value = value;
     }
@@ -32,7 +32,7 @@ public class VariableDefinition {
         return name;
     }
 
-    public DslExpression getValue() {
+    public AelExpression getValue() {
         return value;
     }
 

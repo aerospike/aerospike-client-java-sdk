@@ -40,7 +40,7 @@ public class LocalVariableBuilder {
     /**
      * Defines the value for the current variable.
      */
-    public LocalVariableBuilder as(DslExpression value) {
+    public LocalVariableBuilder as(AelExpression value) {
         variables.add(new VariableDefinition(currentVariableName, value));
         return this;
     }
@@ -57,7 +57,7 @@ public class LocalVariableBuilder {
     /**
      * Completes the variable definition and specifies the result expression.
      */
-    public LocalVariableExpression thenReturn(DslExpression resultExpression) {
+    public LocalVariableExpression thenReturn(AelExpression resultExpression) {
         return new LocalVariableExpression(variables, resultExpression);
     }
 
@@ -65,7 +65,7 @@ public class LocalVariableBuilder {
      * Completes the variable definition and specifies the result expression.
      * This method allows chaining from the 'as' method.
      */
-    public LocalVariableExpression thenReturn(DslExpression resultExpression, LocalVariableBuilder... additionalBuilders) {
+    public LocalVariableExpression thenReturn(AelExpression resultExpression, LocalVariableBuilder... additionalBuilders) {
         List<VariableDefinition> allVariables = new ArrayList<>(variables);
         
         for (LocalVariableBuilder builder : additionalBuilders) {

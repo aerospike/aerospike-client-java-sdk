@@ -32,8 +32,8 @@ public interface ComparableDslBin<T extends Comparable<T>> extends DslBin<T> {
     ArithmeticExpression mul(Number value);
     ArithmeticExpression div(Number value);
 
-    ArithmeticExpression add(DslExpression other);
-    ArithmeticExpression sub(DslExpression other);
-    ArithmeticExpression mul(DslExpression other);
-    ArithmeticExpression div(DslExpression other);
+    ArithmeticExpression add(AelExpression other);
+    ArithmeticExpression sub(AelExpression other);
+    ArithmeticExpression mul(AelExpression other);
+    ArithmeticExpression div(AelExpression other);
 }

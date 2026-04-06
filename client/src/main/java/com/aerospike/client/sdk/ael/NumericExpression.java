@@ -20,7 +20,7 @@ package com.aerospike.client.sdk.ael;
  * Represents a numeric expression that can be used in arithmetic operations.
  * This interface is implemented by both Long and Double expressions.
  */
-public interface NumericExpression extends DslExpression {
+public interface NumericExpression extends AelExpression {
     NumericExpression add(NumericExpression other);
     NumericExpression sub(NumericExpression other);
     NumericExpression mul(NumericExpression other);

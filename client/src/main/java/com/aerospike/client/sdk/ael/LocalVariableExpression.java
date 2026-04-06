@@ -24,11 +24,11 @@ import com.aerospike.client.sdk.exp.Exp;
  * Represents an expression with local variable scope.
  * Defines one or more local variables and evaluates an expression in their scope.
  */
-public class LocalVariableExpression implements DslExpression {
+public class LocalVariableExpression implements AelExpression {
     private final List<VariableDefinition> variables;
-    private final DslExpression resultExpression;
+    private final AelExpression resultExpression;
 
-    public LocalVariableExpression(List<VariableDefinition> variables, DslExpression resultExpression) {
+    public LocalVariableExpression(List<VariableDefinition> variables, AelExpression resultExpression) {
         this.variables = variables;
         this.resultExpression = resultExpression;
     }
@@ -37,7 +37,7 @@ public class LocalVariableExpression implements DslExpression {
         return variables;
     }
 
-    public DslExpression getResultExpression() {
+    public AelExpression getResultExpression() {
         return resultExpression;
     }
 

@@ -20,7 +20,7 @@ package com.aerospike.client.sdk.ael;
  * Represents a boolean expression that can be used in logical operations.
  * This is the base interface for all expressions that can be combined with AND, OR, NOT.
  */
-public interface BooleanExpression extends DslExpression {
+public interface BooleanExpression extends AelExpression {
     BooleanExpression and(BooleanExpression other);
     BooleanExpression or(BooleanExpression other);
     BooleanExpression not();
