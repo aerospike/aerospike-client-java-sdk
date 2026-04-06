@@ -16,11 +16,11 @@
  */
 package com.aerospike.examples;
 
-import com.aerospike.client.fluent.Cluster;
-import com.aerospike.client.fluent.Node;
-import com.aerospike.client.fluent.command.Info;
-
 import static java.lang.String.format;
+
+import com.aerospike.client.sdk.Cluster;
+import com.aerospike.client.sdk.Node;
+import com.aerospike.client.sdk.command.Info;
 
 /**
  * RosterExample demonstrates how to read and initialize the roster for a namespace

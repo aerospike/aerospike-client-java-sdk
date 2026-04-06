@@ -1,6 +1,5 @@
 package com.aerospike.benchmarks;
 
-import com.aerospike.client.fluent.Log;
 import picocli.AutoComplete;
 import picocli.CommandLine.ArgGroup;
 import picocli.CommandLine.Command;
@@ -17,6 +16,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Semaphore;
 import java.util.function.Supplier;
+
+import com.aerospike.client.sdk.Log;
 
 
 @Command(

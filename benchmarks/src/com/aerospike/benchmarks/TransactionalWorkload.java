@@ -1,8 +1,8 @@
 package com.aerospike.benchmarks;
 
-import com.aerospike.client.fluent.util.RandomShift;
-
 import java.util.Iterator;
+
+import com.aerospike.client.sdk.util.RandomShift;
 
 public class TransactionalWorkload implements Iterable<TransactionalItem> {
 

@@ -16,8 +16,8 @@
  */
 package com.aerospike.dsl.parts.cdt.map;
 
-import com.aerospike.client.fluent.cdt.CTX;
-import com.aerospike.client.fluent.exp.Exp;
+import com.aerospike.client.sdk.cdt.CTX;
+import com.aerospike.client.sdk.exp.Exp;
 import com.aerospike.dsl.parts.cdt.CdtPart;
 import com.aerospike.dsl.parts.path.BasePath;
 

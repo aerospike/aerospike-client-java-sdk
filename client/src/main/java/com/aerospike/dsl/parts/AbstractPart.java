@@ -16,9 +16,9 @@
  */
 package com.aerospike.dsl.parts;
 
-import com.aerospike.client.fluent.cdt.CTX;
-import com.aerospike.client.fluent.exp.Exp;
-import com.aerospike.client.fluent.query.Filter;
+import com.aerospike.client.sdk.cdt.CTX;
+import com.aerospike.client.sdk.exp.Exp;
+import com.aerospike.client.sdk.query.Filter;
 
 import lombok.Getter;
 import lombok.Setter;

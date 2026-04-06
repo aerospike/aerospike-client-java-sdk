@@ -16,7 +16,7 @@
  */
 package com.aerospike.dsl.util;
 
-import com.aerospike.client.fluent.exp.Exp;
+import com.aerospike.client.sdk.exp.Exp;
 import com.aerospike.dsl.DslParseException;
 
 import lombok.experimental.UtilityClass;

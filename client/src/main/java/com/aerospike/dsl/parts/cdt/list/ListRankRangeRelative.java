@@ -16,10 +16,6 @@
  */
 package com.aerospike.dsl.parts.cdt.list;
 
-import com.aerospike.client.fluent.cdt.CTX;
-import com.aerospike.client.fluent.cdt.ListReturnType;
-import com.aerospike.client.fluent.exp.Exp;
-import com.aerospike.client.fluent.exp.ListExp;
 import com.aerospike.dsl.ConditionParser;
 import com.aerospike.dsl.DslParseException;
 import com.aerospike.dsl.parts.path.BasePath;
@@ -27,6 +23,11 @@ import com.aerospike.dsl.util.ParsingUtils;
 
 import static com.aerospike.dsl.util.ParsingUtils.*;
 import static com.aerospike.dsl.util.ParsingUtils.parseSignedInt;
+
+import com.aerospike.client.sdk.cdt.CTX;
+import com.aerospike.client.sdk.cdt.ListReturnType;
+import com.aerospike.client.sdk.exp.Exp;
+import com.aerospike.client.sdk.exp.ListExp;
 
 public class ListRankRangeRelative extends ListPart {
     private final boolean isInverted;

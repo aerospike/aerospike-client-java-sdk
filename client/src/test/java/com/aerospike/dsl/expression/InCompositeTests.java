@@ -1,8 +1,8 @@
 package com.aerospike.dsl.expression;
 
-import com.aerospike.client.fluent.cdt.ListReturnType;
-import com.aerospike.client.fluent.exp.Exp;
-import com.aerospike.client.fluent.exp.ListExp;
+import com.aerospike.client.sdk.cdt.ListReturnType;
+import com.aerospike.client.sdk.exp.Exp;
+import com.aerospike.client.sdk.exp.ListExp;
 import com.aerospike.dsl.ExpressionContext;
 import com.aerospike.dsl.PlaceholderValues;
 import org.junit.jupiter.api.Test;

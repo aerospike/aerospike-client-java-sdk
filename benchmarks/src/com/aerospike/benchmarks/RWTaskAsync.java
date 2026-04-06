@@ -1,14 +1,14 @@
 package com.aerospike.benchmarks;
 
-import com.aerospike.client.fluent.*;
-import com.aerospike.client.fluent.Record;
-import com.aerospike.client.fluent.util.RandomShift;
-
 import java.util.List;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.LockSupport;
 import java.util.function.Consumer;
+
+import com.aerospike.client.sdk.*;
+import com.aerospike.client.sdk.Record;
+import com.aerospike.client.sdk.util.RandomShift;
 
 public class RWTaskAsync extends RWTask implements Runnable {
 
@@ -84,7 +84,9 @@ public class RWTaskAsync extends RWTask implements Runnable {
 
     @Override
     protected void get(Key key, String binName) {
-        if (!tryAcquire()) return;
+        if (!tryAcquire()) {
+			return;
+		}
         long begin = useLatency ? System.nanoTime() : 0;
         var handle = session.query(key)
                 .readingOnlyBins(binName)
@@ -100,13 +102,17 @@ public class RWTaskAsync extends RWTask implements Runnable {
                 .whenComplete((r, ex) -> {
                     release();
                     handle.close();
-                    if (ex != null) handleReadException(ex);
+                    if (ex != null) {
+						handleReadException(ex);
+					}
                 });
     }
 
     @Override
     protected void get(Key key) {
-        if (!tryAcquire()) return;
+        if (!tryAcquire()) {
+			return;
+		}
         long begin = useLatency ? System.nanoTime() : 0;
         var handle = session.query(key)
                 .executeAsync(ErrorStrategy.IN_STREAM);
@@ -120,13 +126,17 @@ public class RWTaskAsync extends RWTask implements Runnable {
                 .whenComplete((r, ex) -> {
                     release();
                     handle.close();
-                    if (ex != null) handleReadException(ex);
+                    if (ex != null) {
+						handleReadException(ex);
+					}
                 });
     }
 
     @Override
     protected void upsert(Key key, Value[] values, String... bins) {
-        if (!tryAcquire()) return;
+        if (!tryAcquire()) {
+			return;
+		}
         long begin = counters.write.latency != null ? System.nanoTime() : 0;
         var builder = session.upsert(key);
         for (int i = 0; i < values.length; i++) {
@@ -142,13 +152,17 @@ public class RWTaskAsync extends RWTask implements Runnable {
                 }).whenComplete((r, ex) -> {
                     release();
                     handle.close();
-                    if (ex != null) handleWriteException(ex);
+                    if (ex != null) {
+						handleWriteException(ex);
+					}
                 });
     }
 
     @Override
     protected void createOrReplace(Key key, Value[] values, String... bins) {
-        if (!tryAcquire()) return;
+        if (!tryAcquire()) {
+			return;
+		}
         long begin = counters.write.latency != null ? System.nanoTime() : 0;
         var builder = session.replace(key);
         for (int i = 0; i < values.length; i++) {
@@ -164,20 +178,26 @@ public class RWTaskAsync extends RWTask implements Runnable {
                 }).whenComplete((r, ex) -> {
                     release();
                     handle.close();
-                    if (ex != null) handleWriteException(ex);
+                    if (ex != null) {
+						handleWriteException(ex);
+					}
                 });
     }
 
 
     @Override
     protected void getBinsAndIncrement(Key key, int incrementedBy) {
-        if (!tryAcquire()) return;
+        if (!tryAcquire()) {
+			return;
+		}
         readRecordForUpdateAsync(key, rec -> incrementCounterAsync(key, rec, incrementedBy));
     }
 
     @Override
     protected void get(List<Key> keys, String binName) {
-        if (!tryAcquire()) return;
+        if (!tryAcquire()) {
+			return;
+		}
         long begin = System.nanoTime();
         var handle = session.query(keys).bins(binName)
                 .executeAsync(ErrorStrategy.IN_STREAM);
@@ -192,13 +212,17 @@ public class RWTaskAsync extends RWTask implements Runnable {
                 .whenComplete((r, ex) -> {
                     release();
                     handle.close();
-                    if (ex != null) handleReadException(ex);
+                    if (ex != null) {
+						handleReadException(ex);
+					}
                 });
     }
 
     @Override
     protected void get(List<Key> keys) {
-        if (!tryAcquire()) return;
+        if (!tryAcquire()) {
+			return;
+		}
         long begin = System.nanoTime();
         var handle = session.query(keys)
                 .executeAsync(ErrorStrategy.IN_STREAM);
@@ -213,7 +237,9 @@ public class RWTaskAsync extends RWTask implements Runnable {
                 .whenComplete((r, ex) -> {
                     release();
                     handle.close();
-                    if (ex != null) handleReadException(ex);
+                    if (ex != null) {
+						handleReadException(ex);
+					}
                 });
     }
 

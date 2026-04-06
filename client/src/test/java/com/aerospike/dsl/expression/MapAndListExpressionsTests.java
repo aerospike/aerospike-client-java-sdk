@@ -16,16 +16,17 @@
  */
 package com.aerospike.dsl.expression;
 
-import com.aerospike.client.fluent.Value;
-import com.aerospike.client.fluent.cdt.CTX;
-import com.aerospike.client.fluent.cdt.ListReturnType;
-import com.aerospike.client.fluent.cdt.MapReturnType;
-import com.aerospike.client.fluent.exp.Exp;
-import com.aerospike.client.fluent.exp.ListExp;
-import com.aerospike.client.fluent.exp.MapExp;
+import org.junit.jupiter.api.Test;
+
+import com.aerospike.client.sdk.Value;
+import com.aerospike.client.sdk.cdt.CTX;
+import com.aerospike.client.sdk.cdt.ListReturnType;
+import com.aerospike.client.sdk.cdt.MapReturnType;
+import com.aerospike.client.sdk.exp.Exp;
+import com.aerospike.client.sdk.exp.ListExp;
+import com.aerospike.client.sdk.exp.MapExp;
 import com.aerospike.dsl.ExpressionContext;
 import com.aerospike.dsl.util.TestUtils;
-import org.junit.jupiter.api.Test;
 
 public class MapAndListExpressionsTests {
 
@@ -147,6 +148,7 @@ public class MapAndListExpressionsTests {
 
     //    @Test
     void mapAndListCombinations() {
+    	/*
         Exp expected = Exp.gt(
                 ListExp.size(
                         MapExp.getByKey(
@@ -160,5 +162,6 @@ public class MapAndListExpressionsTests {
                 Exp.val(2));
 //        TestUtils.parseFilterExpressionAndCompare("$.mapBin1.shape.[].count() > 2", expected);
 //        TestUtils.parseFilterExpressionAndCompare("$.mapBin1.a.dd.[1].{#0}.get(return: UNORDERED_MAP)", expected);
+        */
     }
 }

@@ -30,10 +30,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.UnaryOperator;
 
-import com.aerospike.client.fluent.cdt.CTX;
-import com.aerospike.client.fluent.exp.Exp;
-import com.aerospike.client.fluent.exp.ListExp;
-import com.aerospike.client.fluent.exp.MapExp;
+import com.aerospike.client.sdk.cdt.CTX;
+import com.aerospike.client.sdk.exp.Exp;
+import com.aerospike.client.sdk.exp.ListExp;
+import com.aerospike.client.sdk.exp.MapExp;
 import com.aerospike.dsl.parts.AbstractPart;
 import com.aerospike.dsl.parts.cdt.CdtPart;
 import com.aerospike.dsl.parts.cdt.list.ListPart;

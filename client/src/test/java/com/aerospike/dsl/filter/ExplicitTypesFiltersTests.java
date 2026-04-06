@@ -16,9 +16,9 @@
  */
 package com.aerospike.dsl.filter;
 
-import com.aerospike.client.fluent.exp.Exp;
-import com.aerospike.client.fluent.query.Filter;
-import com.aerospike.client.fluent.query.IndexType;
+import com.aerospike.client.sdk.exp.Exp;
+import com.aerospike.client.sdk.query.Filter;
+import com.aerospike.client.sdk.query.IndexType;
 import com.aerospike.dsl.DslParseException;
 import com.aerospike.dsl.ExpressionContext;
 import com.aerospike.dsl.Index;

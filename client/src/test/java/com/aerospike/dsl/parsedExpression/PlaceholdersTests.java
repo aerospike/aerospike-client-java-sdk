@@ -16,17 +16,17 @@
  */
 package com.aerospike.dsl.parsedExpression;
 
-import com.aerospike.client.fluent.AerospikeComparator;
-import com.aerospike.client.fluent.Value;
-import com.aerospike.client.fluent.cdt.CTX;
-import com.aerospike.client.fluent.cdt.ListReturnType;
-import com.aerospike.client.fluent.cdt.MapReturnType;
-import com.aerospike.client.fluent.exp.Exp;
-import com.aerospike.client.fluent.exp.Expression;
-import com.aerospike.client.fluent.exp.ListExp;
-import com.aerospike.client.fluent.exp.MapExp;
-import com.aerospike.client.fluent.query.Filter;
-import com.aerospike.client.fluent.query.IndexType;
+import com.aerospike.client.sdk.AerospikeComparator;
+import com.aerospike.client.sdk.Value;
+import com.aerospike.client.sdk.cdt.CTX;
+import com.aerospike.client.sdk.cdt.ListReturnType;
+import com.aerospike.client.sdk.cdt.MapReturnType;
+import com.aerospike.client.sdk.exp.Exp;
+import com.aerospike.client.sdk.exp.Expression;
+import com.aerospike.client.sdk.exp.ListExp;
+import com.aerospike.client.sdk.exp.MapExp;
+import com.aerospike.client.sdk.query.Filter;
+import com.aerospike.client.sdk.query.IndexType;
 import com.aerospike.dsl.DslParseException;
 import com.aerospike.dsl.ExpressionContext;
 import com.aerospike.dsl.Index;

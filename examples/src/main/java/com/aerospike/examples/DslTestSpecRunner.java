@@ -21,13 +21,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
-import com.aerospike.client.fluent.Cluster;
-import com.aerospike.client.fluent.ClusterDefinition;
-import com.aerospike.client.fluent.DataSet;
-import com.aerospike.client.fluent.Record;
-import com.aerospike.client.fluent.RecordStream;
-import com.aerospike.client.fluent.Session;
-import com.aerospike.client.fluent.policy.Behavior;
+import com.aerospike.client.sdk.Cluster;
+import com.aerospike.client.sdk.ClusterDefinition;
+import com.aerospike.client.sdk.DataSet;
+import com.aerospike.client.sdk.Record;
+import com.aerospike.client.sdk.RecordStream;
+import com.aerospike.client.sdk.Session;
+import com.aerospike.client.sdk.policy.Behavior;
 
 /**
  * Runnable test suite matching the specifications in docs/dsl-test-specifications.md.

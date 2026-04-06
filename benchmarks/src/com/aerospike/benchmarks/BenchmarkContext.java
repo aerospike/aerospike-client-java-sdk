@@ -1,13 +1,13 @@
 package com.aerospike.benchmarks;
 
-import com.aerospike.client.fluent.*;
-import com.aerospike.client.fluent.policy.*;
-
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
+
+import com.aerospike.client.sdk.*;
+import com.aerospike.client.sdk.policy.*;
 
 import static com.aerospike.benchmarks.Arguments.toArgs;
 import static com.aerospike.benchmarks.Constants.MS;

@@ -1,11 +1,11 @@
 package com.aerospike.benchmarks;
 
-import com.aerospike.client.fluent.AerospikeException;
-import com.aerospike.client.fluent.Key;
-import com.aerospike.client.fluent.Session;
-import com.aerospike.client.fluent.Value;
-import com.aerospike.client.fluent.util.RandomShift;
-import com.aerospike.client.fluent.util.Util;
+import com.aerospike.client.sdk.AerospikeException;
+import com.aerospike.client.sdk.Key;
+import com.aerospike.client.sdk.Session;
+import com.aerospike.client.sdk.Value;
+import com.aerospike.client.sdk.util.RandomShift;
+import com.aerospike.client.sdk.util.Util;
 
 public class InsertTaskSync extends InsertTask implements Runnable {
 

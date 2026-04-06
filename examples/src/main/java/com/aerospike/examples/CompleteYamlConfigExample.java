@@ -21,17 +21,17 @@ import java.io.IOException;
 import java.time.Duration;
 import java.util.Set;
 
-import com.aerospike.client.fluent.Cluster;
-import com.aerospike.client.fluent.ClusterDefinition;
-import com.aerospike.client.fluent.DataSet;
-import com.aerospike.client.fluent.Record;
-import com.aerospike.client.fluent.RecordStream;
-import com.aerospike.client.fluent.Session;
-import com.aerospike.client.fluent.SystemSettings;
-import com.aerospike.client.fluent.SystemSettingsRegistry;
-import com.aerospike.client.fluent.policy.Behavior;
-import com.aerospike.client.fluent.policy.Settings;
-import com.aerospike.client.fluent.util.Util;
+import com.aerospike.client.sdk.Cluster;
+import com.aerospike.client.sdk.ClusterDefinition;
+import com.aerospike.client.sdk.DataSet;
+import com.aerospike.client.sdk.Record;
+import com.aerospike.client.sdk.RecordStream;
+import com.aerospike.client.sdk.Session;
+import com.aerospike.client.sdk.SystemSettings;
+import com.aerospike.client.sdk.SystemSettingsRegistry;
+import com.aerospike.client.sdk.policy.Behavior;
+import com.aerospike.client.sdk.policy.Settings;
+import com.aerospike.client.sdk.util.Util;
 
 /**
  * Demonstrates all available YAML configuration options including system settings,

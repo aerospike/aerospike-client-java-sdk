@@ -29,7 +29,7 @@ import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;
 import org.antlr.v4.runtime.tree.ParseTree;
 
-import com.aerospike.client.fluent.cdt.CTX;
+import com.aerospike.client.sdk.cdt.CTX;
 import com.aerospike.dsl.ConditionLexer;
 import com.aerospike.dsl.ConditionParser;
 import com.aerospike.dsl.DslParseException;

@@ -1,11 +1,11 @@
 package com.aerospike.benchmarks;
 
-import com.aerospike.client.fluent.*;
-import com.aerospike.client.fluent.util.RandomShift;
-
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+
+import com.aerospike.client.sdk.*;
+import com.aerospike.client.sdk.util.RandomShift;
 
 public abstract class RWTask {
 

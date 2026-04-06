@@ -1,10 +1,10 @@
 package com.aerospike.dsl.parsedExpression;
 
-import com.aerospike.client.fluent.cdt.ListReturnType;
-import com.aerospike.client.fluent.exp.Exp;
-import com.aerospike.client.fluent.exp.ListExp;
-import com.aerospike.client.fluent.query.Filter;
-import com.aerospike.client.fluent.query.IndexType;
+import com.aerospike.client.sdk.cdt.ListReturnType;
+import com.aerospike.client.sdk.exp.Exp;
+import com.aerospike.client.sdk.exp.ListExp;
+import com.aerospike.client.sdk.query.Filter;
+import com.aerospike.client.sdk.query.IndexType;
 import com.aerospike.dsl.ExpressionContext;
 import com.aerospike.dsl.Index;
 import com.aerospike.dsl.IndexContext;

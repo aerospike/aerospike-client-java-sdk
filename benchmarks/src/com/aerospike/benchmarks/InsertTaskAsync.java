@@ -1,10 +1,10 @@
 package com.aerospike.benchmarks;
 
-import com.aerospike.client.fluent.*;
-import com.aerospike.client.fluent.util.RandomShift;
-
 import java.util.List;
 import java.util.concurrent.Semaphore;
+
+import com.aerospike.client.sdk.*;
+import com.aerospike.client.sdk.util.RandomShift;
 
 public class InsertTaskAsync extends InsertTask implements Runnable {
 

@@ -27,13 +27,13 @@ import static com.aerospike.dsl.visitor.VisitorUtils.shouldVisitMapElement;
 
 import java.util.*;
 
-import com.aerospike.client.fluent.AerospikeComparator;
 import com.aerospike.dsl.parts.controlstructure.*;
 import com.aerospike.dsl.parts.operand.*;
 import org.antlr.v4.runtime.tree.ParseTree;
 import org.antlr.v4.runtime.tree.RuleNode;
 
-import com.aerospike.client.fluent.exp.Exp;
+import com.aerospike.client.sdk.AerospikeComparator;
+import com.aerospike.client.sdk.exp.Exp;
 import com.aerospike.dsl.ConditionBaseVisitor;
 import com.aerospike.dsl.ConditionParser;
 import com.aerospike.dsl.DslParseException;

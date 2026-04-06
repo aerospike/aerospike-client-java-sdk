@@ -16,19 +16,19 @@
  */
 package com.aerospike.dsl.filter;
 
-import com.aerospike.client.fluent.Value;
-import com.aerospike.client.fluent.cdt.CTX;
-import com.aerospike.client.fluent.query.Filter;
-import com.aerospike.client.fluent.query.IndexType;
+import com.aerospike.client.sdk.Value;
+import com.aerospike.client.sdk.cdt.CTX;
+import com.aerospike.client.sdk.query.Filter;
+import com.aerospike.client.sdk.query.IndexType;
 import com.aerospike.dsl.ExpressionContext;
 import com.aerospike.dsl.Index;
 import com.aerospike.dsl.IndexContext;
 import com.aerospike.dsl.util.TestUtils;
 import org.junit.jupiter.api.Test;
 
-import java.util.List;
+import static com.aerospike.client.sdk.query.IndexCollectionType.LIST;
 
-import static com.aerospike.client.fluent.query.IndexCollectionType.LIST;
+import java.util.List;
 
 class ListExpressionsTests {
 

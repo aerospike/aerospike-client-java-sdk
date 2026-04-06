@@ -16,7 +16,7 @@
  */
 package com.aerospike.dsl.parts.operand;
 
-import com.aerospike.client.fluent.AerospikeComparator;
+import com.aerospike.client.sdk.AerospikeComparator;
 import com.aerospike.dsl.DslParseException;
 import com.aerospike.dsl.parts.AbstractPart;
 

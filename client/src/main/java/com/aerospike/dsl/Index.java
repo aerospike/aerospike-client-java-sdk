@@ -16,9 +16,9 @@
  */
 package com.aerospike.dsl;
 
-import com.aerospike.client.fluent.cdt.CTX;
-import com.aerospike.client.fluent.query.IndexCollectionType;
-import com.aerospike.client.fluent.query.IndexType;
+import com.aerospike.client.sdk.cdt.CTX;
+import com.aerospike.client.sdk.query.IndexCollectionType;
+import com.aerospike.client.sdk.query.IndexType;
 
 import lombok.Builder;
 import lombok.EqualsAndHashCode;

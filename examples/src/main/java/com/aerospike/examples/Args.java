@@ -21,7 +21,7 @@ import java.util.Arrays;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Options;
 
-import com.aerospike.client.fluent.policy.AuthMode;
+import com.aerospike.client.sdk.policy.AuthMode;
 
 /**
  * Configuration data for running examples.

@@ -1,0 +1,426 @@
+/*
+ * Copyright 2012-2026 Aerospike, Inc.
+ *
+ * Portions may be licensed to Aerospike, Inc. under one or more contributor
+ * license agreements WHICH ARE COMPATIBLE WITH THE APACHE LICENSE, VERSION 2.0.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy of
+ * the License at http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
+ */
+package com.aerospike.client.sdk.info.classes;
+
+import com.aerospike.client.sdk.info.annotations.Aggregate;
+import com.aerospike.client.sdk.info.annotations.And;
+import com.aerospike.client.sdk.info.annotations.Average;
+import com.aerospike.client.sdk.info.annotations.Mapping;
+import com.aerospike.client.sdk.info.annotations.Mappings;
+import com.aerospike.client.sdk.info.annotations.Or;
+
+import lombok.Getter;
+
+@Getter
+@Mappings({
+    @Mapping(from = "storage-engine", to = "storage-engine.type"),
+    @Mapping(from = "storage-engine.file\\[(\\d+)\\]", to = "storage-engine.files[$1].filePath"),
+    @Mapping(from = "geo2dsphere-within\\.(.+)", to = "geo2dSphereWithin.$1")
+})
+public class NamespaceDetail {
+    private long activeRack;
+    private boolean allowTtlWithoutNsup;
+    private long appealsRecordsExonerated;
+    private long appealsRxActive;
+    private long appealsTxActive;
+    private long appealsTxRemaining;
+    private boolean applyTtlReductions;
+    private boolean autoRevive;
+    private long autoRevivedPartitions;
+    private long backgroundQueryMaxRps;
+    private long batchSubDeleteError;
+    private long batchSubDeleteFilteredOut;
+    private long batchSubDeleteNotFound;
+    private long batchSubDeleteSuccess;
+    private long batchSubDeleteTimeout;
+    private long batchSubLangDeleteSuccess;
+    private long batchSubLangError;
+    private long batchSubLangReadSuccess;
+    private long batchSubLangWriteSuccess;
+    private long batchSubProxyComplete;
+    private long batchSubProxyError;
+    private long batchSubProxyTimeout;
+    private long batchSubReadError;
+    private long batchSubReadFilteredOut;
+    private long batchSubReadNotFound;
+    private long batchSubReadSuccess;
+    private long batchSubReadTimeout;
+    private long batchSubTsvcError;
+    private long batchSubTsvcTimeout;
+    private long batchSubUdfComplete;
+    private long batchSubUdfError;
+    private long batchSubUdfFilteredOut;
+    private long batchSubUdfTimeout;
+    private long batchSubWriteError;
+    private long batchSubWriteFilteredOut;
+    private long batchSubWriteSuccess;
+    private long batchSubWriteTimeout;
+    private long cacheReadPct;
+    private long clientDeleteError;
+    private long clientDeleteFilteredOut;
+    private long clientDeleteNotFound;
+    private long clientDeleteSuccess;
+    private long clientDeleteTimeout;
+    private long clientLangDeleteSuccess;
+    private long clientLangError;
+    private long clientLangReadSuccess;
+    private long clientLangWriteSuccess;
+    private long clientProxyComplete;
+    private long clientProxyError;
+    private long clientProxyTimeout;
+    private long clientReadError;
+    private long clientReadFilteredOut;
+    private long clientReadNotFound;
+    private long clientReadSuccess;
+    private long clientReadTimeout;
+    private long clientTsvcError;
+    private long clientTsvcTimeout;
+    private long clientUdfComplete;
+    private long clientUdfError;
+    private long clientUdfFilteredOut;
+    private long clientUdfTimeout;
+    private long clientWriteError;
+    private long clientWriteFilteredOut;
+    private long clientWriteSuccess;
+    private long clientWriteTimeout;
+    private boolean clockSkewStopWrites;
+    private ConflictResolutionPolicy conflictResolutionPolicy;
+    private boolean conflictResolveWrites;
+    private long currentTime;
+    private long dataAvailPct;
+    private double dataCompressionRatio;
+    private long dataTotalBytes;
+    private long dataUsedBytes;
+    private long dataUsedPct;
+    private long deadPartitions;
+    private long defaultReadTouchTtlPct;
+    private long defaultTtl;
+    private long deletedLastBin;
+    private boolean disableColdStartEviction;
+    private boolean disableMrtWrites;
+    private boolean disableWriteDupRes;
+    private boolean disallowExpunge;
+    private boolean disallowNullSetname;
+    private long dupResAsk;
+    private long dupResRespondNoRead;
+    private long dupResRespondRead;
+    private long effectiveActiveRack;
+    private boolean effectiveIsQuiesced;
+    private boolean effectivePreferUniformBalance;
+    @Average
+    public int effectiveReplicationFactor;
+    private boolean enableBenchmarksBatchSub;
+    private boolean enableBenchmarksOpsSub;
+    private boolean enableBenchmarksRead;
+    private boolean enableBenchmarksUdf;
+    private boolean enableBenchmarksUdfSub;
+    private boolean enableBenchmarksWrite;
+    private boolean enableHistProxy;
+    private long evictedObjects;
+    private long evictHistBuckets;
+    private long evictIndexesMemoryPct;
+    private long evictTenthsPct;
+    private long evictTtl;
+    private long evictVoidTime;
+    private long expiredObjects;
+    private long failClientLostConflict;
+    private long failGeneration;
+    private long failKeyBusy;
+    private long failMrtBlocked;
+    private long failMrtVersionMismatch;
+    private long failRecordTooBig;
+    private long failXdrForbidden;
+    private long failXdrKeyBusy;
+    private long failXdrLostConflict;
+    private boolean forceLongQueries;
+    private long fromProxyBatchSubDeleteError;
+    private long fromProxyBatchSubDeleteFilteredOut;
+    private long fromProxyBatchSubDeleteNotFound;
+    private long fromProxyBatchSubDeleteSuccess;
+    private long fromProxyBatchSubDeleteTimeout;
+    private long fromProxyBatchSubLangDeleteSuccess;
+    private long fromProxyBatchSubLangError;
+    private long fromProxyBatchSubLangReadSuccess;
+    private long fromProxyBatchSubLangWriteSuccess;
+    private long fromProxyBatchSubReadError;
+    private long fromProxyBatchSubReadFilteredOut;
+    private long fromProxyBatchSubReadNotFound;
+    private long fromProxyBatchSubReadSuccess;
+    private long fromProxyBatchSubReadTimeout;
+    private long fromProxyBatchSubTsvcError;
+    private long fromProxyBatchSubTsvcTimeout;
+    private long fromProxyBatchSubUdfComplete;
+    private long fromProxyBatchSubUdfError;
+    private long fromProxyBatchSubUdfFilteredOut;
+    private long fromProxyBatchSubUdfTimeout;
+    private long fromProxyBatchSubWriteError;
+    private long fromProxyBatchSubWriteFilteredOut;
+    private long fromProxyBatchSubWriteSuccess;
+    private long fromProxyBatchSubWriteTimeout;
+    private long fromProxyDeleteError;
+    private long fromProxyDeleteFilteredOut;
+    private long fromProxyDeleteNotFound;
+    private long fromProxyDeleteSuccess;
+    private long fromProxyDeleteTimeout;
+    private long fromProxyLangDeleteSuccess;
+    private long fromProxyLangError;
+    private long fromProxyLangReadSuccess;
+    private long fromProxyLangWriteSuccess;
+    private long fromProxyReadError;
+    private long fromProxyReadFilteredOut;
+    private long fromProxyReadNotFound;
+    private long fromProxyReadSuccess;
+    private long fromProxyReadTimeout;
+    private long fromProxyTsvcError;
+    private long fromProxyTsvcTimeout;
+    private long fromProxyUdfComplete;
+    private long fromProxyUdfError;
+    private long fromProxyUdfFilteredOut;
+    private long fromProxyUdfTimeout;
+    private long fromProxyWriteError;
+    private long fromProxyWriteFilteredOut;
+    private long fromProxyWriteSuccess;
+    private long fromProxyWriteTimeout;
+    private Geo2dSphereWithin geo2dSphereWithin;
+    private long geoRegionQueryCells;
+    private long geoRegionQueryFalsepos;
+    private long geoRegionQueryPoints;
+    private long geoRegionQueryReqs;
+    @Or
+    private boolean hwmBreached;
+    private boolean ignoreMigrateFillDelay;
+    private long indexesMemoryBudget;
+    private long indexStageSize;
+    private IndexStorageType indexType;
+    private long indexUsedBytes;
+    private boolean inlineShortQueries;
+    @Aggregate
+    private long masterObjects;
+    @Aggregate
+    private long masterTombstones;
+    private long maxRecordSize;
+    private long migrateFreshPartitions;
+    private long migrateOrder;
+    private long migrateRecordReceives;
+    private long migrateRecordRetransmits;
+    private long migrateRecordsSkipped;
+    private long migrateRecordsTransmitted;
+    private long migrateRecordsUnreadable;
+    private long migrateRetransmitMs;
+    private long migrateRxInstances;
+    private long migrateRxPartitionsActive;
+    private long migrateRxPartitionsInitial;
+    private long migrateRxPartitionsRemaining;
+    private long migrateSignalsActive;
+    private long migrateSignalsRemaining;
+    private boolean migrateSkipUnreadable;
+    @Average
+    private long migrateSleep;
+    private long migrateTxInstances;
+    private long migrateTxPartitionsActive;
+    private long migrateTxPartitionsImbalance;
+    private long migrateTxPartitionsInitial;
+    private long migrateTxPartitionsLeadRemaining;
+    private long migrateTxPartitionsRemaining;
+    private long mrtDuration;
+    private long mrtMonitorRollBackError;
+    private long mrtMonitorRollBackSuccess;
+    private long mrtMonitorRollBackTimeout;
+    private long mrtMonitorRollForwardError;
+    private long mrtMonitorRollForwardSuccess;
+    private long mrtMonitorRollForwardTimeout;
+    private long mrtMonitorRollTombstoneCreates;
+    private long mrtMonitors;
+    private long mrtMonitorsActive;
+    private long mrtProvisionals;
+    private long mrtRollBackError;
+    private long mrtRollBackSuccess;
+    private long mrtRollBackTimeout;
+    private long mrtRollForwardError;
+    private long mrtRollForwardSuccess;
+    private long mrtRollForwardTimeout;
+    private long mrtVerifyReadError;
+    private long mrtVerifyReadSuccess;
+    private long mrtVerifyReadTimeout;
+    private long nodesQuiesced;
+    private long nonExpirableObjects;
+    @Aggregate
+    private long nonReplicaObjects;
+    @Aggregate
+    private long nonReplicaTombstones;
+    private int nsClusterSize;
+    private double nsupCycleDeletedPct;
+    private long nsupCycleDuration;
+    private long nsupHistPeriod;
+    private long nsupPeriod;
+    private long nsupThreads;
+    private long nsupXdrKeyBusy;
+    @Aggregate
+    public long objects;
+    private long opsSubTsvcError;
+    private long opsSubTsvcTimeout;
+    private long opsSubWriteError;
+    private long opsSubWriteFilteredOut;
+    private long opsSubWriteSuccess;
+    private long opsSubWriteTimeout;
+    private long partitionTreeSprigs;
+    private boolean pendingQuiesce;
+    private long piQueryAggrAbort;
+    private long piQueryAggrComplete;
+    private long piQueryAggrError;
+    private long piQueryLongBasicAbort;
+    private long piQueryLongBasicComplete;
+    private long piQueryLongBasicError;
+    private long piQueryOpsBgAbort;
+    private long piQueryOpsBgComplete;
+    private long piQueryOpsBgError;
+    private long piQueryShortBasicComplete;
+    private long piQueryShortBasicError;
+    private long piQueryShortBasicTimeout;
+    private long piQueryUdfBgAbort;
+    private long piQueryUdfBgComplete;
+    private long piQueryUdfBgError;
+    @And
+    private boolean preferUniformBalance;
+    @Aggregate
+    private long proleObjects;
+    @Aggregate
+    private long proleTombstones;
+    private double queryProtoCompressionRatio;
+    private double queryProtoUncompressedPct;
+    private long rackId;
+    private ReadConsistencyLevelOverride readConsistencyLevelOverride;
+    private long readTouchError;
+    private long readTouchSkip;
+    private long readTouchSuccess;
+    private long readTouchTimeout;
+    private long readTouchTsvcError;
+    private long readTouchTsvcTimeout;
+    private double recordProtoCompressionRatio;
+    private double recordProtoUncompressedPct;
+    private boolean rejectNonXdrWrites;
+    private boolean rejectXdrWrites;
+    private long replicationFactor;
+    private long reReplError;
+    private long reReplSuccess;
+    private long reReplTimeout;
+    private long reReplTsvcError;
+    private long reReplTsvcTimeout;
+    private long retransmitAllBatchSubDeleteDupRes;
+    private long retransmitAllBatchSubDeleteReplWrite;
+    private long retransmitAllBatchSubReadDupRes;
+    private long retransmitAllBatchSubReadReplPing;
+    private long retransmitAllBatchSubUdfDupRes;
+    private long retransmitAllBatchSubUdfReplWrite;
+    private long retransmitAllBatchSubWriteDupRes;
+    private long retransmitAllBatchSubWriteReplWrite;
+    private long retransmitAllDeleteDupRes;
+    private long retransmitAllDeleteReplWrite;
+    private long retransmitAllReadDupRes;
+    private long retransmitAllReadReplPing;
+    private long retransmitAllUdfDupRes;
+    private long retransmitAllUdfReplWrite;
+    private long retransmitAllWriteDupRes;
+    private long retransmitAllWriteReplWrite;
+    private long retransmitOpsSubDupRes;
+    private long retransmitOpsSubReplWrite;
+    private long retransmitUdfSubDupRes;
+    private long retransmitUdfSubReplWrite;
+    private long setIndexUsedBytes;
+    private long sindexGcCleaned;
+    private long sindexStageSize;
+    private IndexStorageType sindexType;
+    private long sindexUsedBytes;
+    private long singleQueryThreads;
+    private long siQueryAggrAbort;
+    private long siQueryAggrComplete;
+    private long siQueryAggrError;
+    private long siQueryLongBasicAbort;
+    private long siQueryLongBasicComplete;
+    private long siQueryLongBasicError;
+    private long siQueryOpsBgAbort;
+    private long siQueryOpsBgComplete;
+    private long siQueryOpsBgError;
+    private long siQueryShortBasicComplete;
+    private long siQueryShortBasicError;
+    private long siQueryShortBasicTimeout;
+    private long siQueryUdfBgAbort;
+    private long siQueryUdfBgComplete;
+    private long siQueryUdfBgError;
+    private long smdEvictVoidTime;
+    @Or
+    private boolean stopWrites;
+    private long stopWritesSysMemoryPct;
+    private StorageEngine storageEngine;
+    private boolean strongConsistency;
+    private boolean strongConsistencyAllowExpunge;
+    private long tombRaiderEligibleAge;
+    private long tombRaiderPeriod;
+    private long tombstones;
+    private long transactionPendingLimit;
+    private long truncateLut;
+    private long truncateThreads;
+    private boolean truncating;
+    private long ttlReductionsApplied;
+    private long ttlReductionsIgnored;
+    private long udfSubLangDeleteSuccess;
+    private long udfSubLangError;
+    private long udfSubLangReadSuccess;
+    private long udfSubLangWriteSuccess;
+    private long udfSubTsvcError;
+    private long udfSubTsvcTimeout;
+    private long udfSubUdfComplete;
+    private long udfSubUdfError;
+    private long udfSubUdfFilteredOut;
+    private long udfSubUdfTimeout;
+    private long unavailablePartitions;
+    @Aggregate
+    private long unreplicatedRecords;
+    private WriteCommitLevelOverride writeCommitLevelOverride;
+    private long xdrBinCemeteries;
+    private long xdrBinTombstoneTtl;
+    private long xdrClientDeleteError;
+    private long xdrClientDeleteNotFound;
+    private long xdrClientDeleteSuccess;
+    private long xdrClientDeleteTimeout;
+    private long xdrClientWriteError;
+    private long xdrClientWriteSuccess;
+    private long xdrClientWriteTimeout;
+    private long xdrFromProxyDeleteError;
+    private long xdrFromProxyDeleteNotFound;
+    private long xdrFromProxyDeleteSuccess;
+    private long xdrFromProxyDeleteTimeout;
+    private long xdrFromProxyWriteError;
+    private long xdrFromProxyWriteSuccess;
+    private long xdrFromProxyWriteTimeout;
+    private long xdrTombRaiderPeriod;
+    private long xdrTombRaiderThreads;
+    private long xdrTombstones;
+    private long xmemId;
+
+    @Override
+    public String toString() {
+        return "NamespaceDetail [effectiveReplicationFactor=" + effectiveReplicationFactor + ", objects=" + objects
+                + ", masterObjects=" + masterObjects + ", proleObjects=" + proleObjects + ", nonReplicaObjects="
+                + nonReplicaObjects + ", unreplicatedRecords=" + unreplicatedRecords + ", deadPartitions="
+                + deadPartitions + ", unavailablePartitions=" + unavailablePartitions + ", stopWrites=" + stopWrites
+                + ", currentTime=" + currentTime + ", expiredObjects=" + expiredObjects + ", evictedObjects="
+                + evictedObjects + ", indexUsedBytes=" + indexUsedBytes + ", setIndexUsedBytes=" + setIndexUsedBytes
+                + ", sindexUsedBytes=" + sindexUsedBytes + ", dataTotalBytes=" + dataTotalBytes + ", dataUsedBytes="
+                + dataUsedBytes + ", cacheReadPct=" + cacheReadPct + "]";
+    }
+}

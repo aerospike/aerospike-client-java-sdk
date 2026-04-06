@@ -16,7 +16,7 @@
  */
 package com.aerospike.dsl.parts.cdt.map;
 
-import com.aerospike.client.fluent.cdt.MapReturnType;
+import com.aerospike.client.sdk.cdt.MapReturnType;
 import com.aerospike.dsl.parts.cdt.CdtPart;
 import com.aerospike.dsl.parts.path.PathFunction;
 

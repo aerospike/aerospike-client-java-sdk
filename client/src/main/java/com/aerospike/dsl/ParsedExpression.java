@@ -22,8 +22,8 @@ import static com.aerospike.dsl.visitor.VisitorUtils.buildExpr;
 import java.util.List;
 import java.util.Map;
 
-import com.aerospike.client.fluent.exp.Exp;
-import com.aerospike.client.fluent.query.Filter;
+import com.aerospike.client.sdk.exp.Exp;
+import com.aerospike.client.sdk.query.Filter;
 import com.aerospike.dsl.annotation.Beta;
 import com.aerospike.dsl.parts.AbstractPart;
 import com.aerospike.dsl.parts.ExpressionContainer;

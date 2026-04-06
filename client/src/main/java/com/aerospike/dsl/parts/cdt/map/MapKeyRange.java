@@ -18,10 +18,10 @@ package com.aerospike.dsl.parts.cdt.map;
 
 import java.util.Optional;
 
-import com.aerospike.client.fluent.cdt.CTX;
-import com.aerospike.client.fluent.cdt.MapReturnType;
-import com.aerospike.client.fluent.exp.Exp;
-import com.aerospike.client.fluent.exp.MapExp;
+import com.aerospike.client.sdk.cdt.CTX;
+import com.aerospike.client.sdk.cdt.MapReturnType;
+import com.aerospike.client.sdk.exp.Exp;
+import com.aerospike.client.sdk.exp.MapExp;
 import com.aerospike.dsl.ConditionParser;
 import com.aerospike.dsl.DslParseException;
 import com.aerospike.dsl.parts.path.BasePath;

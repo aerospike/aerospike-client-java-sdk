@@ -16,8 +16,8 @@
  */
 package com.aerospike.dsl.api;
 
-import com.aerospike.client.fluent.cdt.CTX;
-import com.aerospike.client.fluent.query.Filter;
+import com.aerospike.client.sdk.cdt.CTX;
+import com.aerospike.client.sdk.query.Filter;
 import com.aerospike.dsl.DslParseException;
 import com.aerospike.dsl.ExpressionContext;
 import com.aerospike.dsl.Index;

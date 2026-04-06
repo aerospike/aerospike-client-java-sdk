@@ -1,11 +1,11 @@
 package com.aerospike.benchmarks;
 
-import com.aerospike.client.fluent.*;
-import com.aerospike.client.fluent.Record;
-import com.aerospike.client.fluent.util.RandomShift;
-import com.aerospike.client.fluent.util.Util;
-
 import java.util.List;
+
+import com.aerospike.client.sdk.*;
+import com.aerospike.client.sdk.Record;
+import com.aerospike.client.sdk.util.RandomShift;
+import com.aerospike.client.sdk.util.Util;
 
 public class RWTaskSync extends RWTask implements Runnable {
 

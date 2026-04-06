@@ -16,15 +16,16 @@
  */
 package com.aerospike.dsl.parts.cdt.map;
 
-import com.aerospike.client.fluent.Value;
-import com.aerospike.client.fluent.cdt.CTX;
-import com.aerospike.client.fluent.exp.Exp;
-import com.aerospike.client.fluent.exp.MapExp;
 import com.aerospike.dsl.ConditionParser;
 import com.aerospike.dsl.parts.path.BasePath;
 
 import static com.aerospike.dsl.util.ParsingUtils.objectToExp;
 import static com.aerospike.dsl.util.ParsingUtils.parseValueIdentifier;
+
+import com.aerospike.client.sdk.Value;
+import com.aerospike.client.sdk.cdt.CTX;
+import com.aerospike.client.sdk.exp.Exp;
+import com.aerospike.client.sdk.exp.MapExp;
 
 public class MapValue extends MapPart {
     private final Object value;

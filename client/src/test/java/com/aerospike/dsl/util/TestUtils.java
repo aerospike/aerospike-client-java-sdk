@@ -18,10 +18,10 @@ package com.aerospike.dsl.util;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-import com.aerospike.client.fluent.cdt.CTX;
-import com.aerospike.client.fluent.exp.Exp;
-import com.aerospike.client.fluent.exp.Expression;
-import com.aerospike.client.fluent.query.Filter;
+import com.aerospike.client.sdk.cdt.CTX;
+import com.aerospike.client.sdk.exp.Exp;
+import com.aerospike.client.sdk.exp.Expression;
+import com.aerospike.client.sdk.query.Filter;
 import com.aerospike.dsl.ExpressionContext;
 import com.aerospike.dsl.IndexContext;
 import com.aerospike.dsl.ParsedExpression;

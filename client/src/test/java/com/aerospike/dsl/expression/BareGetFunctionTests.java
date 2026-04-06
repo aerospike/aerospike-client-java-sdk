@@ -1,7 +1,7 @@
 package com.aerospike.dsl.expression;
 
-import com.aerospike.client.fluent.exp.Exp;
-import com.aerospike.client.fluent.exp.Expression;
+import com.aerospike.client.sdk.exp.Exp;
+import com.aerospike.client.sdk.exp.Expression;
 import com.aerospike.dsl.DslParseException;
 import com.aerospike.dsl.ExpressionContext;
 import com.aerospike.dsl.PlaceholderValues;

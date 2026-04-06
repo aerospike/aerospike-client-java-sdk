@@ -16,9 +16,9 @@
  */
 package com.aerospike.dsl;
 
-import com.aerospike.client.fluent.exp.Exp;
-import com.aerospike.client.fluent.exp.Expression;
-import com.aerospike.client.fluent.query.Filter;
+import com.aerospike.client.sdk.exp.Exp;
+import com.aerospike.client.sdk.exp.Expression;
+import com.aerospike.client.sdk.query.Filter;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;

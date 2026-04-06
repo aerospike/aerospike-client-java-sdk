@@ -26,8 +26,8 @@ import static com.aerospike.dsl.util.PathOperandUtils.updateWithCdtTypeDesignato
 
 import java.util.List;
 
-import com.aerospike.client.fluent.cdt.CTX;
-import com.aerospike.client.fluent.exp.Exp;
+import com.aerospike.client.sdk.cdt.CTX;
+import com.aerospike.client.sdk.exp.Exp;
 import com.aerospike.dsl.parts.AbstractPart;
 import com.aerospike.dsl.parts.cdt.CdtPart;
 

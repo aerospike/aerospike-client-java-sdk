@@ -1,12 +1,12 @@
 package com.aerospike.dsl.expression;
 
-import com.aerospike.client.fluent.Value;
-import com.aerospike.client.fluent.cdt.CTX;
-import com.aerospike.client.fluent.cdt.ListReturnType;
-import com.aerospike.client.fluent.cdt.MapReturnType;
-import com.aerospike.client.fluent.exp.Exp;
-import com.aerospike.client.fluent.exp.ListExp;
-import com.aerospike.client.fluent.exp.MapExp;
+import com.aerospike.client.sdk.Value;
+import com.aerospike.client.sdk.cdt.CTX;
+import com.aerospike.client.sdk.cdt.ListReturnType;
+import com.aerospike.client.sdk.cdt.MapReturnType;
+import com.aerospike.client.sdk.exp.Exp;
+import com.aerospike.client.sdk.exp.ListExp;
+import com.aerospike.client.sdk.exp.MapExp;
 import com.aerospike.dsl.ExpressionContext;
 import org.junit.jupiter.api.Test;
 

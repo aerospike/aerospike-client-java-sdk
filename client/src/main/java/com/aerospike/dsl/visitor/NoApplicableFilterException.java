@@ -16,7 +16,7 @@
  */
 package com.aerospike.dsl.visitor;
 
-import com.aerospike.client.fluent.query.Filter;
+import com.aerospike.client.sdk.query.Filter;
 
 /**
  * Indicates that no applicable {@link Filter} could be generated for a given DSL expression. For internal use.
