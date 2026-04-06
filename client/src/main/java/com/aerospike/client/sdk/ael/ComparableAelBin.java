@@ -16,7 +16,7 @@
  */
 package com.aerospike.client.sdk.ael;
 
-public interface ComparableDslBin<T extends Comparable<T>> extends AelBin<T> {
+public interface ComparableAelBin<T extends Comparable<T>> extends AelBin<T> {
     Comparison<T> gt(T value);
     Comparison<T> lt(T value);
     Comparison<T> gte(T value);
