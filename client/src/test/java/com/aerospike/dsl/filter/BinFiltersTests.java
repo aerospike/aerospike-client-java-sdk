@@ -16,11 +16,12 @@
  */
 package com.aerospike.dsl.filter;
 
+import com.aerospike.ael.ExpressionContext;
+import com.aerospike.ael.Index;
+import com.aerospike.ael.IndexContext;
 import com.aerospike.client.sdk.query.Filter;
 import com.aerospike.client.sdk.query.IndexType;
-import com.aerospike.dsl.ExpressionContext;
-import com.aerospike.dsl.Index;
-import com.aerospike.dsl.IndexContext;
+
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -32,7 +33,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 public class BinFiltersTests {
 
     String NAMESPACE = "test1";
-    List<com.aerospike.dsl.Index> INDEXES = List.of(
+    List<com.aerospike.ael.Index> INDEXES = List.of(
             Index.builder().namespace(NAMESPACE).bin("intBin1").indexType(IndexType.NUMERIC).binValuesRatio(1).build(),
             Index.builder().namespace(NAMESPACE).bin("stringBin1").indexType(IndexType.STRING).binValuesRatio(1).build()
     );

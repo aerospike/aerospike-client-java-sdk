@@ -19,6 +19,14 @@ package com.aerospike.client.sdk.query;
 import java.util.Collection;
 import java.util.Set;
 
+import com.aerospike.ael.DslParseException;
+import com.aerospike.ael.ExpressionContext;
+import com.aerospike.ael.Index;
+import com.aerospike.ael.IndexContext;
+import com.aerospike.ael.ParseResult;
+import com.aerospike.ael.ParsedExpression;
+import com.aerospike.ael.api.DSLParser;
+import com.aerospike.ael.impl.DSLParserImpl;
 import com.aerospike.client.sdk.Log;
 import com.aerospike.client.sdk.Session;
 import com.aerospike.client.sdk.Value;
@@ -26,14 +34,6 @@ import com.aerospike.client.sdk.ael.BooleanExpression;
 import com.aerospike.client.sdk.command.ParticleType;
 import com.aerospike.client.sdk.exp.Exp;
 import com.aerospike.client.sdk.exp.Expression;
-import com.aerospike.dsl.DslParseException;
-import com.aerospike.dsl.ExpressionContext;
-import com.aerospike.dsl.Index;
-import com.aerospike.dsl.IndexContext;
-import com.aerospike.dsl.ParseResult;
-import com.aerospike.dsl.ParsedExpression;
-import com.aerospike.dsl.api.DSLParser;
-import com.aerospike.dsl.impl.DSLParserImpl;
 
 public abstract class WhereClauseProcessor {
     protected final boolean allowsIndex;

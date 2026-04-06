@@ -16,8 +16,9 @@
  */
 package com.aerospike.dsl.filter;
 
-import com.aerospike.dsl.ExpressionContext;
 import org.junit.jupiter.api.Test;
+
+import com.aerospike.ael.ExpressionContext;
 
 import static com.aerospike.dsl.util.TestUtils.parseFilter;
 import static org.assertj.core.api.Assertions.assertThat;

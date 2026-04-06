@@ -18,14 +18,14 @@ package com.aerospike.dsl.util;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import com.aerospike.ael.ExpressionContext;
+import com.aerospike.ael.IndexContext;
+import com.aerospike.ael.ParsedExpression;
+import com.aerospike.ael.impl.DSLParserImpl;
 import com.aerospike.client.sdk.cdt.CTX;
 import com.aerospike.client.sdk.exp.Exp;
 import com.aerospike.client.sdk.exp.Expression;
 import com.aerospike.client.sdk.query.Filter;
-import com.aerospike.dsl.ExpressionContext;
-import com.aerospike.dsl.IndexContext;
-import com.aerospike.dsl.ParsedExpression;
-import com.aerospike.dsl.impl.DSLParserImpl;
 
 import lombok.experimental.UtilityClass;
 

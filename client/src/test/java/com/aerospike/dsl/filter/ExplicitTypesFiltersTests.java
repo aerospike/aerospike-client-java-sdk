@@ -16,13 +16,13 @@
  */
 package com.aerospike.dsl.filter;
 
+import com.aerospike.ael.DslParseException;
+import com.aerospike.ael.ExpressionContext;
+import com.aerospike.ael.Index;
+import com.aerospike.ael.IndexContext;
 import com.aerospike.client.sdk.exp.Exp;
 import com.aerospike.client.sdk.query.Filter;
 import com.aerospike.client.sdk.query.IndexType;
-import com.aerospike.dsl.DslParseException;
-import com.aerospike.dsl.ExpressionContext;
-import com.aerospike.dsl.Index;
-import com.aerospike.dsl.IndexContext;
 import com.aerospike.dsl.util.TestUtils;
 import org.junit.jupiter.api.Test;
 

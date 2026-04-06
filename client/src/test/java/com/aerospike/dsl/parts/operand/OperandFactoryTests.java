@@ -1,7 +1,10 @@
 package com.aerospike.dsl.parts.operand;
 
-import com.aerospike.dsl.DslParseException;
 import org.junit.jupiter.api.Test;
+
+import com.aerospike.ael.DslParseException;
+import com.aerospike.ael.parts.operand.MapOperand;
+import com.aerospike.ael.parts.operand.OperandFactory;
 
 import java.util.HashMap;
 import java.util.Map;

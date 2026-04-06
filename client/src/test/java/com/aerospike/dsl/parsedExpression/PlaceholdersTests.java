@@ -16,6 +16,13 @@
  */
 package com.aerospike.dsl.parsedExpression;
 
+import com.aerospike.ael.DslParseException;
+import com.aerospike.ael.ExpressionContext;
+import com.aerospike.ael.Index;
+import com.aerospike.ael.IndexContext;
+import com.aerospike.ael.ParseResult;
+import com.aerospike.ael.ParsedExpression;
+import com.aerospike.ael.PlaceholderValues;
 import com.aerospike.client.sdk.AerospikeComparator;
 import com.aerospike.client.sdk.Value;
 import com.aerospike.client.sdk.cdt.CTX;
@@ -27,13 +34,6 @@ import com.aerospike.client.sdk.exp.ListExp;
 import com.aerospike.client.sdk.exp.MapExp;
 import com.aerospike.client.sdk.query.Filter;
 import com.aerospike.client.sdk.query.IndexType;
-import com.aerospike.dsl.DslParseException;
-import com.aerospike.dsl.ExpressionContext;
-import com.aerospike.dsl.Index;
-import com.aerospike.dsl.IndexContext;
-import com.aerospike.dsl.ParseResult;
-import com.aerospike.dsl.ParsedExpression;
-import com.aerospike.dsl.PlaceholderValues;
 import com.aerospike.dsl.util.TestUtils;
 import org.junit.jupiter.api.Test;
 

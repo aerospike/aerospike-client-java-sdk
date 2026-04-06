@@ -1,13 +1,14 @@
 package com.aerospike.dsl.parsedExpression;
 
+import com.aerospike.ael.ExpressionContext;
+import com.aerospike.ael.Index;
+import com.aerospike.ael.IndexContext;
 import com.aerospike.client.sdk.cdt.ListReturnType;
 import com.aerospike.client.sdk.exp.Exp;
 import com.aerospike.client.sdk.exp.ListExp;
 import com.aerospike.client.sdk.query.Filter;
 import com.aerospike.client.sdk.query.IndexType;
-import com.aerospike.dsl.ExpressionContext;
-import com.aerospike.dsl.Index;
-import com.aerospike.dsl.IndexContext;
+
 import org.junit.jupiter.api.Test;
 
 import java.util.List;

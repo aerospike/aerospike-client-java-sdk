@@ -31,6 +31,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import com.aerospike.ael.ParseResult;
 import com.aerospike.client.sdk.command.Batch;
 import com.aerospike.client.sdk.command.BatchAttr;
 import com.aerospike.client.sdk.command.BatchCommand;
@@ -56,7 +57,6 @@ import com.aerospike.client.sdk.policy.Behavior.OpKind;
 import com.aerospike.client.sdk.policy.Behavior.OpShape;
 import com.aerospike.client.sdk.tend.Partitions;
 import com.aerospike.client.sdk.util.Version;
-import com.aerospike.dsl.ParseResult;
 
 /**
  * Builder for applying a dataset operation (insert, update, upsert, replace, etc.) to one or more

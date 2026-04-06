@@ -16,15 +16,15 @@
  */
 package com.aerospike.client.sdk;
 
+import com.aerospike.ael.ExpressionContext;
+import com.aerospike.ael.ParsedExpression;
+import com.aerospike.ael.api.DSLParser;
+import com.aerospike.ael.impl.DSLParserImpl;
 import com.aerospike.client.sdk.ael.BooleanExpression;
 import com.aerospike.client.sdk.exp.Exp;
 import com.aerospike.client.sdk.exp.ExpOperation;
 import com.aerospike.client.sdk.exp.Expression;
 import com.aerospike.client.sdk.query.PreparedAel;
-import com.aerospike.dsl.ExpressionContext;
-import com.aerospike.dsl.ParsedExpression;
-import com.aerospike.dsl.api.DSLParser;
-import com.aerospike.dsl.impl.DSLParserImpl;
 
 /**
  * Helper class for creating expression operations from various AEL input types.

@@ -1,9 +1,10 @@
 package com.aerospike.dsl.expression;
 
-import com.aerospike.dsl.DslParseException;
-import com.aerospike.dsl.ExpressionContext;
-import com.aerospike.dsl.PlaceholderValues;
 import org.junit.jupiter.api.Test;
+
+import com.aerospike.ael.DslParseException;
+import com.aerospike.ael.ExpressionContext;
+import com.aerospike.ael.PlaceholderValues;
 
 import java.util.List;
 import java.util.Map;

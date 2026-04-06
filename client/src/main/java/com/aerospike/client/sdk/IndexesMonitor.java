@@ -22,8 +22,8 @@ import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
+import com.aerospike.ael.Index;
 import com.aerospike.client.sdk.query.IndexType;
-import com.aerospike.dsl.Index;
 
 /**
  * Monitors secondary indexes in an Aerospike cluster and maintains an up-to-date

@@ -28,12 +28,12 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
+import com.aerospike.ael.Index;
 import com.aerospike.client.sdk.policy.Behavior;
 import com.aerospike.client.sdk.tend.ClusterTend;
 import com.aerospike.client.sdk.tend.ConnectionRecover;
 import com.aerospike.client.sdk.tend.Partitions;
 import com.aerospike.client.sdk.util.Version;
-import com.aerospike.dsl.Index;
 
 /**
  * Represents a connection to an Aerospike cluster.

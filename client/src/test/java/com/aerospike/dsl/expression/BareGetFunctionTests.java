@@ -7,12 +7,12 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import org.junit.jupiter.api.Test;
 
+import com.aerospike.ael.DslParseException;
+import com.aerospike.ael.ExpressionContext;
+import com.aerospike.ael.PlaceholderValues;
+import com.aerospike.ael.impl.DSLParserImpl;
 import com.aerospike.client.sdk.exp.Exp;
 import com.aerospike.client.sdk.exp.Expression;
-import com.aerospike.dsl.DslParseException;
-import com.aerospike.dsl.ExpressionContext;
-import com.aerospike.dsl.PlaceholderValues;
-import com.aerospike.dsl.impl.DSLParserImpl;
 
 /**
  * Tests that bare {@code .get()} (no parameters) is an identity operation:

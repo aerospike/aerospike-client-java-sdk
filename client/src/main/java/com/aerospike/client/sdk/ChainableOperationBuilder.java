@@ -24,13 +24,13 @@ import java.util.Date;
 import java.util.List;
 import java.util.Objects;
 
+import com.aerospike.ael.ParseResult;
 import com.aerospike.client.sdk.ael.BooleanExpression;
 import com.aerospike.client.sdk.command.Txn;
 import com.aerospike.client.sdk.exp.Exp;
 import com.aerospike.client.sdk.exp.Expression;
 import com.aerospike.client.sdk.query.PreparedAel;
 import com.aerospike.client.sdk.query.WhereClauseProcessor;
-import com.aerospike.dsl.ParseResult;
 
 /**
  * Builder for chainable batch operations that support bin-level modifications.

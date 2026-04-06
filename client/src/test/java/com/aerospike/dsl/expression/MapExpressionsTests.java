@@ -16,6 +16,8 @@
  */
 package com.aerospike.dsl.expression;
 
+import com.aerospike.ael.DslParseException;
+import com.aerospike.ael.ExpressionContext;
 import com.aerospike.client.sdk.Value;
 import com.aerospike.client.sdk.cdt.CTX;
 import com.aerospike.client.sdk.cdt.ListReturnType;
@@ -23,8 +25,6 @@ import com.aerospike.client.sdk.cdt.MapReturnType;
 import com.aerospike.client.sdk.exp.Exp;
 import com.aerospike.client.sdk.exp.ListExp;
 import com.aerospike.client.sdk.exp.MapExp;
-import com.aerospike.dsl.DslParseException;
-import com.aerospike.dsl.ExpressionContext;
 import com.aerospike.dsl.util.TestUtils;
 import org.junit.jupiter.api.Test;
 

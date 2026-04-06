@@ -18,6 +18,7 @@ package com.aerospike.client.sdk.query;
 
 import java.util.Objects;
 
+import com.aerospike.ael.ParseResult;
 import com.aerospike.client.sdk.AbstractFilterableBuilder;
 import com.aerospike.client.sdk.AerospikeException;
 import com.aerospike.client.sdk.AsyncRecordStream;
@@ -34,7 +35,6 @@ import com.aerospike.client.sdk.policy.Settings;
 import com.aerospike.client.sdk.policy.Behavior.Mode;
 import com.aerospike.client.sdk.policy.Behavior.OpKind;
 import com.aerospike.client.sdk.policy.Behavior.OpShape;
-import com.aerospike.dsl.ParseResult;
 
 public class IndexQueryBuilderImpl extends QueryImpl {
     private final DataSet dataSet;

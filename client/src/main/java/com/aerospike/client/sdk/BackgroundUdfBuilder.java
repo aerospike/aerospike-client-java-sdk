@@ -20,6 +20,7 @@ import java.util.List;
 import java.util.Random;
 import java.util.concurrent.ExecutorService;
 
+import com.aerospike.ael.ParseResult;
 import com.aerospike.client.sdk.ael.BooleanExpression;
 import com.aerospike.client.sdk.command.BackgroundQueryCommand;
 import com.aerospike.client.sdk.command.BackgroundQueryNodeExecutor;
@@ -34,7 +35,6 @@ import com.aerospike.client.sdk.query.Filter;
 import com.aerospike.client.sdk.query.PreparedAel;
 import com.aerospike.client.sdk.query.WhereClauseProcessor;
 import com.aerospike.client.sdk.task.ExecuteTask;
-import com.aerospike.dsl.ParseResult;
 
 /**
  * Builder for server-side background UDF (User Defined Function) operations.
