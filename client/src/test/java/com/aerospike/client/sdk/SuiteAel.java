@@ -33,9 +33,9 @@ import com.aerospike.dsl.parsedExpression.PlaceholdersTests;
 
 @Suite
 @SelectClasses({
-	// com.aerospike.dsl.ctx
+	// com.aerospike.ael.ctx
 	CtxTests.class,
-	// com.aerospike.dsl.expression
+	// com.aerospike.ael.expression
 	ArithmeticExpressionsTests.class,
     BareGetFunctionTests.class,
 	BinExpressionsTests.class,
@@ -72,5 +72,5 @@ import com.aerospike.dsl.parsedExpression.PlaceholdersTests;
     // com.aerospike.ael.parts.operand
     OperandFactoryTests.class
 })
-public class SuiteDSL {
+public class SuiteAel {
 }

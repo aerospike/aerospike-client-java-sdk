@@ -452,7 +452,7 @@ public class FilterExpTest extends ClusterTest {
 				Exp.eq(Exp.intBin(binD), Exp.val(1)));
 
 		testExp(exp);
-		testDsl("exclusive($.A == 1, $.D == 1)");
+		testAel("exclusive($.A == 1, $.D == 1)");
 	}
 
 	@Test
@@ -463,7 +463,7 @@ public class FilterExpTest extends ClusterTest {
 				Exp.val(4));
 
 		testExp(exp);
-		testDsl("($.A + $.D + 1) == 4");
+		testAel("($.A + $.D + 1) == 4");
 	}
 
 	@Test
@@ -477,7 +477,7 @@ public class FilterExpTest extends ClusterTest {
 					Exp.le(Exp.var(name), Exp.val(3.3001))));
 
 		testExp(exp);
-		testDsl("let(x = $.B.get(type: FLOAT) + 1.1) then(${x} >= 3.2999 and ${x} <= 3.3001)");
+		testAel("let(x = $.B.get(type: FLOAT) + 1.1) then(${x} >= 3.2999 and ${x} <= 3.3001)");
 	}
 
 	@Test
@@ -488,7 +488,7 @@ public class FilterExpTest extends ClusterTest {
 			Exp.val(-2));
 
 		testExp(exp);
-		testDsl("(1 - $.A - $.D) == -2");
+		testAel("(1 - $.A - $.D) == -2");
 	}
 
 	@Test
@@ -499,7 +499,7 @@ public class FilterExpTest extends ClusterTest {
 				Exp.val(4));
 
 		testExp(exp);
-		testDsl("(2 * $.A * $.D) == 4");
+		testAel("(2 * $.A * $.D) == 4");
 	}
 
 	@Test
@@ -510,7 +510,7 @@ public class FilterExpTest extends ClusterTest {
 				Exp.val(4));
 
 		testExp(exp);
-		testDsl("(8 / $.A / $.D) == 4");
+		testAel("(8 / $.A / $.D) == 4");
 	}
 
 	@Test
@@ -524,7 +524,7 @@ public class FilterExpTest extends ClusterTest {
 					Exp.le(Exp.var(name), Exp.val(4.8401))));
 
 		testExp(exp);
-		testDsl("let (x = $." + binB + ".get(type: FLOAT) ** 2.0) then (${x} >= 4.8399 and ${x} <= 4.8401)");
+		testAel("let (x = $." + binB + ".get(type: FLOAT) ** 2.0) then (${x} >= 4.8399 and ${x} <= 4.8401)");
 	}
 
 	@Test
@@ -538,7 +538,7 @@ public class FilterExpTest extends ClusterTest {
 					Exp.le(Exp.var(name), Exp.val(1.1376))));
 
 		testExp(exp);
-		testDsl("let (x = log($." + binB + ".get(type: FLOAT), 2.0)) then (${x} >= 1.1374 and ${x} <= 1.1376)");
+		testAel("let (x = log($." + binB + ".get(type: FLOAT), 2.0)) then (${x} >= 1.1374 and ${x} <= 1.1376)");
 	}
 
 	@Test
@@ -549,7 +549,7 @@ public class FilterExpTest extends ClusterTest {
 				Exp.val(0));
 
 		testExp(exp);
-		testDsl("($." + binA + " % 2) == 0");
+		testAel("($." + binA + " % 2) == 0");
 	}
 
 	@Test
@@ -560,7 +560,7 @@ public class FilterExpTest extends ClusterTest {
 				Exp.val(2));
 
 		testExp(exp);
-		testDsl("abs($." + binE + ") == 2");
+		testAel("abs($." + binE + ") == 2");
 	}
 
 	@Test
@@ -571,7 +571,7 @@ public class FilterExpTest extends ClusterTest {
 				Exp.val(2.0));
 
 		testExp(exp);
-		testDsl("floor($." + binB + ".get(type: FLOAT)) == 2.0");
+		testAel("floor($." + binB + ".get(type: FLOAT)) == 2.0");
 	}
 
 	@Test
@@ -582,7 +582,7 @@ public class FilterExpTest extends ClusterTest {
 				Exp.val(3.0));
 
 		testExp(exp);
-		testDsl("ceil($." + binB + ".get(type: FLOAT)) == 3.0");
+		testAel("ceil($." + binB + ".get(type: FLOAT)) == 3.0");
 	}
 
 	// TODO Replace Exp filter with AEL when int cast works.
@@ -631,7 +631,7 @@ public class FilterExpTest extends ClusterTest {
 					Exp.val(1)));
 
 		testExps(exp1, exp2);
-		testDsls("(($." + binA + " & 0) == 0) and ($." + binA + " & 0xFFFF) == 1");
+		testAels("(($." + binA + " & 0) == 0) and ($." + binA + " & 0xFFFF) == 1");
 	}
 
 	@Test
@@ -656,7 +656,7 @@ public class FilterExpTest extends ClusterTest {
 					Exp.val(0xFF)));
 
 		testExps(exp1, exp2);
-		testDsls("(($." + binA + " | 0) == 1) and ($." + binA + " | 0xFF) == 0xFF");
+		testAels("(($." + binA + " | 0) == 1) and ($." + binA + " | 0xFF) == 0xFF");
 	}
 
 	@Test
@@ -681,7 +681,7 @@ public class FilterExpTest extends ClusterTest {
 					Exp.val(0xFE)));
 
 		testExps(exp1, exp2);
-		testDsls("(($." + binA + " ^ 0) == 1) and ($." + binA + " ^ 0xFF) == 0xFE");
+		testAels("(($." + binA + " ^ 0) == 1) and ($." + binA + " ^ 0xFF) == 0xFE");
 	}
 
 	@Test
@@ -698,7 +698,7 @@ public class FilterExpTest extends ClusterTest {
 				Exp.val(-2));
 
 		testExps(exp1, exp2);
-		testDsls("~($." + binA + ") == -2");
+		testAels("~($." + binA + ") == -2");
 	}
 
 	@Test
@@ -715,7 +715,7 @@ public class FilterExpTest extends ClusterTest {
 				Exp.val(4));
 
 		testExps(exp1, exp2);
-		testDsls("$." + binA + " << 2 == 4");
+		testAels("$." + binA + " << 2 == 4");
 	}
 
 	@Test
@@ -732,7 +732,7 @@ public class FilterExpTest extends ClusterTest {
 				Exp.val(3));
 
 		testKeyBExps(exp1, exp2);
-		testKeyBDsls("$." + binE + " >>> 62 == 3");
+		testKeyBAels("$." + binE + " >>> 62 == 3");
 	}
 
 	@Test
@@ -749,7 +749,7 @@ public class FilterExpTest extends ClusterTest {
 				Exp.val(-1));
 
 		testKeyBExps(exp1, exp2);
-		testKeyBDsls("$." + binE + " >> 62 == -1");
+		testKeyBAels("$." + binE + " >> 62 == -1");
 	}
 
 	@Test
@@ -766,7 +766,7 @@ public class FilterExpTest extends ClusterTest {
 				Exp.val(1));
 
 		testExps(exp1, exp2);
-		testDsls("countOneBits($." + binA + ") == 1");
+		testAels("countOneBits($." + binA + ") == 1");
 	}
 
 	@Test
@@ -783,7 +783,7 @@ public class FilterExpTest extends ClusterTest {
 				Exp.val(63));
 
 		testExps(exp1, exp2);
-		testDsls("findBitLeft($." + binA + ", true) == 63");
+		testAels("findBitLeft($." + binA + ", true) == 63");
 	}
 
 	@Test
@@ -800,7 +800,7 @@ public class FilterExpTest extends ClusterTest {
 				Exp.val(63));
 
 		testExps(exp1, exp2);
-		testDsls("findBitRight($." + binA + ", true) == 63");
+		testAels("findBitRight($." + binA + ", true) == 63");
 	}
 
 	@Test
@@ -817,7 +817,7 @@ public class FilterExpTest extends ClusterTest {
 				Exp.val(-1));
 
 		testExps(exp1, exp2);
-		testDsls("min($." + binA + ", $." + binD + ", $." + binE + ") == -1");
+		testAels("min($." + binA + ", $." + binD + ", $." + binE + ") == -1");
 	}
 
 	@Test
@@ -834,7 +834,7 @@ public class FilterExpTest extends ClusterTest {
 				Exp.val(1));
 
 		testExps(exp1, exp2);
-		testDsls("max($." + binA + ", $." + binD + ", $." + binE + ") == 1");
+		testAels("max($." + binA + ", $." + binD + ", $." + binE + ") == 1");
 	}
 
 	@Test
@@ -913,7 +913,7 @@ public class FilterExpTest extends ClusterTest {
         assertFalse(rs.hasNext());
 	}
 
-	private void testDsl(String ael) {
+	private void testAel(String ael) {
 		AerospikeException ae = assertThrows(AerospikeException.class, () -> {
 			RecordStream rs2 = session.query(args.set.id(keyA))
 		        .readingOnlyBins(binA)
@@ -965,7 +965,7 @@ public class FilterExpTest extends ClusterTest {
 		assertEquals(2, val);
 	}
 
-	private void testDsls(String ael) {
+	private void testAels(String ael) {
 		String aelNot = "not(" + ael + ")";
 
 		AerospikeException ae = assertThrows(AerospikeException.class, () -> {
@@ -1019,7 +1019,7 @@ public class FilterExpTest extends ClusterTest {
 		assertEquals(1, val);
 	}
 
-	private void testKeyBDsls(String ael) {
+	private void testKeyBAels(String ael) {
 		String aelNot = "not(" + ael + ")";
 
 		AerospikeException ae = assertThrows(AerospikeException.class, () -> {
