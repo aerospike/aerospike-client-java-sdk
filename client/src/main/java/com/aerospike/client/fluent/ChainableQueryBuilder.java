@@ -18,8 +18,11 @@ package com.aerospike.client.fluent;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
-import java.util.*;
-import java.util.concurrent.CompletableFuture;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Date;
+import java.util.List;
+import java.util.Objects;
 
 import com.aerospike.client.fluent.command.Txn;
 import com.aerospike.client.fluent.dsl.BooleanExpression;
@@ -1051,69 +1054,6 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
         });
 
         return new RecordStream(asyncStream);
-    }
-
-    /**
-     * Executes asynchronously and completes with all {@link RecordResult} entries in one virtual thread,
-     * without an intermediate {@link AsyncRecordStream} or a separate drain thread for
-     * {@link RecordStream#asCompletableFuture()}. Semantics match
-     * {@code executeAsync(strategy).asCompletableFuture()} for the same {@link ErrorStrategy}.
-     *
-     * <p>Prefer for bounded result sets. For large scans, use {@link #executeAsync(ErrorStrategy)} with
-     * {@link RecordStream#asPublisher()} or iteration.</p>
-     *
-     * @param strategy the error strategy (must not be null)
-     * @return a future that completes with the same ordered list the stream would produce
-     */
-    public CompletableFuture<List<RecordResult>> executeAsyncToCompletableFuture(ErrorStrategy strategy) {
-        Objects.requireNonNull(strategy, "ErrorStrategy must not be null");
-        return executeAsyncToCompletableFutureInternal(null);
-    }
-
-    /**
-     * Like {@link #executeAsyncToCompletableFuture(ErrorStrategy)} with errors dispatched to the handler
-     * and omitted from the completed list (same relationship as {@link #executeAsync(ErrorHandler)}).
-     *
-     * @param handler the error handler (must not be null)
-     * @return a future that completes with successful results only
-     */
-    public CompletableFuture<List<RecordResult>> executeAsyncToCompletableFuture(ErrorHandler handler) {
-        Objects.requireNonNull(handler, "ErrorHandler must not be null");
-        return executeAsyncToCompletableFutureInternal(handler);
-    }
-
-    private CompletableFuture<List<RecordResult>> executeAsyncToCompletableFutureInternal(
-            ErrorHandler errorHandler) {
-
-        List<OperationSpec> specs = prepareSpecs();
-        if (specs.isEmpty()) {
-            return CompletableFuture.completedFuture(Collections.emptyList());
-        }
-
-        if (txnToUse != null && Log.warnEnabled()) {
-            Log.warn(
-                    "executeAsync() called within a transaction. " +
-                            "Async operations may still be in flight when commit() is called, " +
-                            "which could lead to inconsistent state. " +
-                            "Consider using execute() for transactional safety."
-            );
-        }
-
-        int totalKeys = specs.stream().mapToInt(spec -> spec.getKeys().size()).sum();
-        CompletableFuture<List<RecordResult>> future = new CompletableFuture<>();
-        Cluster cluster = session.getCluster();
-        cluster.startVirtualThread(() -> {
-            try {
-                List<RecordResult> results = new ArrayList<>(Math.max(16, totalKeys));
-                RecordStream syncResult = OperationSpecExecutor.execute(session, specs,
-                        defaultWhereClause, defaultExpirationInSeconds, txnToUse, notInAnyTransaction);
-                syncResult.forEach(result -> dispatchResult(result, results, errorHandler));
-                future.complete(results);
-            } catch (Throwable t) {
-                future.completeExceptionally(t);
-            }
-        });
-        return future;
     }
 
 
