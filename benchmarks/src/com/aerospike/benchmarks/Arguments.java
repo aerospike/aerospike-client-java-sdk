@@ -1,13 +1,13 @@
 package com.aerospike.benchmarks;
 
-import com.aerospike.client.fluent.ChainableOperationBuilder;
-import com.aerospike.client.fluent.Value;
-import com.aerospike.client.fluent.util.RandomShift;
 
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 
+import com.aerospike.client.sdk.ChainableOperationBuilder;
+import com.aerospike.client.sdk.Value;
+import com.aerospike.client.sdk.util.RandomShift;
 import picocli.CommandLine.ParameterException;
 
 import static com.aerospike.benchmarks.Constants.DEFAULT_NAMESPACE;

@@ -1,8 +1,8 @@
 package com.aerospike.benchmarks;
 
-import com.aerospike.client.fluent.*;
-import com.aerospike.client.fluent.util.RandomShift;
-import com.aerospike.client.fluent.util.Util;
+import com.aerospike.client.sdk.*;
+import com.aerospike.client.sdk.util.RandomShift;
+import com.aerospike.client.sdk.util.Util;
 
 import java.util.ArrayList;
 import java.util.List;

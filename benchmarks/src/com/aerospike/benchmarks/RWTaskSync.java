@@ -1,9 +1,9 @@
 package com.aerospike.benchmarks;
 
-import com.aerospike.client.fluent.*;
-import com.aerospike.client.fluent.Record;
-import com.aerospike.client.fluent.util.RandomShift;
-import com.aerospike.client.fluent.util.Util;
+
+import com.aerospike.client.sdk.*;
+import com.aerospike.client.sdk.util.RandomShift;
+import com.aerospike.client.sdk.util.Util;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -154,45 +154,6 @@ public class RWTaskSync extends RWTask implements Runnable {
             readFailure(e);
         } finally {
             records.clear();
-        }
-    }
-
-    private Record readRecordForUpdate(Key key) {
-        try {
-            long begin = System.nanoTime();
-            RecordResult rec = session.query(key).execute().next();
-            if (useLatency) {
-                counters.read.latency.add(System.nanoTime() - begin);
-            }
-            processRead(key, rec);
-            return rec != null ? rec.recordOrNull() :  null;
-        } catch (AerospikeException ae) {
-            readFailure(ae);
-            return null;
-        } catch (Exception e) {
-            readFailure(e);
-            return null;
-        }
-    }
-
-    private void incrementCounter(Key key, Record rec, int incrementedBy) {
-        try {
-            int generation = (rec != null) ? rec.generation : 0;
-            long begin = System.nanoTime();
-            var cmd = session.upsert(key)
-                    .bin("test-counter").add(incrementedBy);
-            if (generation > 0) {
-                cmd.ensureGenerationIs(generation);
-            }
-            cmd.execute();
-            if (useLatency) {
-                counters.write.latency.add(System.nanoTime() - begin);
-            }
-            counters.write.count.getAndIncrement();
-        } catch (AerospikeException ae) {
-            writeFailure(ae);
-        } catch (Exception e) {
-            writeFailure(e);
         }
     }
 
