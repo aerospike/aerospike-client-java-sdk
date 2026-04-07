@@ -1263,15 +1263,14 @@ public class Session {
 
     /**
      * Returns the transaction associated with this session, if any.
-     *
-     * <p>This base {@code Session} implementation always returns {@code null}. Call sites use this
-     * hook so the same APIs can participate in transactions when a session implementation
-     * supplies a non-null {@link Txn}.</p>
+     * <p>
+     * This base {@code Session} implementation always returns {@code null}.
+     * {@link TransactionalSession} overrides this method and returns the
+     * current transaction.
      *
      * @return the active transaction, or {@code null}
      */
     public Txn getCurrentTransaction() {
-    	// TODO Tim This needs to be resolved.
         return null;
     }
 
