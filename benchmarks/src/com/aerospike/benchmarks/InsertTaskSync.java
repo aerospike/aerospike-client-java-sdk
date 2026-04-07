@@ -1,9 +1,6 @@
 package com.aerospike.benchmarks;
 
-import com.aerospike.client.fluent.AerospikeException;
-import com.aerospike.client.fluent.Key;
-import com.aerospike.client.fluent.Session;
-import com.aerospike.client.fluent.Value;
+import com.aerospike.client.fluent.*;
 import com.aerospike.client.fluent.util.RandomShift;
 import com.aerospike.client.fluent.util.Util;
 
@@ -70,7 +67,7 @@ public class InsertTaskSync extends InsertTask implements Runnable {
             args.setBinFromValue(builder, binArr[i], values[i]);
         }
         long begin = System.nanoTime();
-        builder.execute();
+        builder.execute().next();
         if (useLatency) {
             long elapsed = begin - System.nanoTime();
             counters.write.latency.add(elapsed);

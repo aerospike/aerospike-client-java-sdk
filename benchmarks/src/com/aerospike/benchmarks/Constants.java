@@ -57,6 +57,8 @@ public class Constants {
 		"Invalid commitLevel: '%s'. Allowed values are: all, master";
 	public static final String INVALID_DURATION_MESSAGE =
 		"Duration in seconds must be >= 1 (found: %d)";
+	public static final String DURATION_FLAG_NOT_ALLOWED =
+		"The --duration argument is not allowed for Insert workload,  workload (-w I).";
 
 	public enum OP_TYPE {
 		w ("write"),

@@ -76,10 +76,10 @@ public abstract class RWTask {
                     readModifyUpdate(random);
                     break;
                 case READ_MODIFY_INCREMENT:
-                    readModifyIncrement(random);
+                    readModifyIncrement(random, 1);
                     break;
                 case READ_MODIFY_DECREMENT:
-                    readModifyDecrement(random);
+                    readModifyIncrement(random, -1);
                     break;
                 case TRANSACTION:
                     runTransaction(random);
@@ -96,14 +96,9 @@ public abstract class RWTask {
         }
     }
 
-    private void readModifyDecrement(RandomShift random) {
+    private void readModifyIncrement(RandomShift random, int stepBy) {
         long keyIdx = random.nextLong(keyCount);
-        getBinsAndIncrement(new Key(args.getNamespace(), args.getSetName(), keyStart + keyIdx), -1);
-    }
-
-    private void readModifyIncrement(RandomShift random) {
-        long keyIdx = random.nextLong(keyCount);
-        getBinsAndIncrement(new Key(args.getNamespace(), args.getSetName(), keyStart + keyIdx) , 1);
+        readModifyIncrement(keyIdx, stepBy);
     }
 
     private void readModifyUpdate(RandomShift random) {
@@ -178,7 +173,17 @@ public abstract class RWTask {
         }
     }
 
-
+    protected void doIncrement(long keyIdx, int incrValue) {
+        try {
+            doIncrement(new Key(args.getNamespace(), args.getSetName(), keyStart + keyIdx), incrValue);
+        }
+        catch (AerospikeException ae) {
+            writeFailure(ae);
+        }
+        catch (Exception e) {
+            writeFailure(e);
+        }
+    }
 
     private void doReplace(RandomShift random, long keyIdx, boolean isMultiBin) {
         Key key = new Key(args.getNamespace(), args.getSetName(), keyStart + keyIdx);
@@ -228,7 +233,6 @@ public abstract class RWTask {
 
     protected void writeFailure(Exception e) {
         counters.write.errors.getAndIncrement();
-
         if (args.isDebug()) {
             e.printStackTrace();
         }
@@ -250,11 +254,17 @@ public abstract class RWTask {
         }
     }
 
+    private void readModifyIncrement(long keyIdx, int incrValue) {
+        // Read all bins.
+        doRead(keyIdx, true);
+        // Increment one bin.
+        doIncrement(keyIdx, incrValue);
+    }
+
     protected void processRead(Key key, RecordResult record) {
         if (record == null && args.isReportNotFound()) {
             counters.readNotFound.getAndIncrement();
-        }
-        else {
+        } else {
             counters.read.count.getAndIncrement();
         }
     }
@@ -262,8 +272,7 @@ public abstract class RWTask {
     protected void readFailure(AerospikeException ae) {
         if (ae.getResultCode() == ResultCode.TIMEOUT) {
             counters.read.timeouts.getAndIncrement();
-        }
-        else {
+        } else {
             counters.read.errors.getAndIncrement();
             if (args.isDebug()) {
                 ae.printStackTrace();
@@ -284,7 +293,7 @@ public abstract class RWTask {
     protected abstract void get(Key key);
     protected abstract void upsert(Key key, Value[] values, String... bins);
     protected abstract void createOrReplace(Key random, Value[] key, String... bins);
-    protected abstract void getBinsAndIncrement(Key key, int incrementedBy);
+    protected abstract void doIncrement(Key key, int incrementedBy);
     protected abstract void get(List<Key> keys, String number);
     protected abstract void get(List<Key> keys);
 

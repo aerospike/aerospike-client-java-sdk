@@ -104,27 +104,9 @@ public class AerospikeBenchmark implements Callable<Integer>, Log.Callback {
         Predicate<Arguments> isDurationApplicable = arg -> arg.getDurationSeconds() != null && benchmarkOptions.isAsync();
         ExecutorService es = executorSupplier.get();
         if (benchmarkOptions.isAsync()) {
-//            int maxReqInFlight = arguments.getAsyncMaxCommands();
-//            RWTask[] seedTasks = new RWTask[maxReqInFlight];
-//
-//            for (int i = 0; i < maxReqInFlight; i++) {
-//                seedTasks[i] = new RWTaskAsync(arguments, counters, benchmarkContext.getSession());
-//            }
-//            es.execute(() -> {
-//                // Start seed commands.
-//                for (RWTask task : seedTasks) {
-//                    if (task.isStopped) {
-//                        continue;
-//                    }
-//                    task.runNextCommand();
-//                }
-//            });
-//            Thread.sleep(900);
-//            collectRwStats(benchmarkContext.getArguments(), seedTasks, isDurationApplicable.test(arguments));
-//            drainAndShutdown(seedTasks, es);
             RWTask[] tasks = new RWTask[threads];
             for (int i = 0; i < threads; i++) {
-                AsyncRwTask2 rt = new AsyncRwTask2(arguments, counters, benchmarkContext.getSession());
+                RWTaskAsync rt = new RWTaskAsync(arguments, counters, benchmarkContext.getSession());
                 tasks[i] = rt;
                 es.execute(rt);
             }
@@ -144,27 +126,6 @@ public class AerospikeBenchmark implements Callable<Integer>, Log.Callback {
         }
     }
 
-    private void drainAndShutdown(RWTask[] tasks, ExecutorService es) {
-        // Signal all tasks to stop
-        for (RWTask task : tasks) {
-            task.stop();
-        }
-        // Wait for in-flight operations to complete
-//        for (RWTask task : tasks) {
-//            if (task instanceof RWTaskAsync asyncTask) {
-//                try {
-//                    boolean drained = asyncTask.awaitDrain(5000);
-//                    if (!drained) {
-//                        System.out.println("Warning: Task did not drain in time");
-//                    }
-//                } catch (InterruptedException e) {
-//                    Thread.currentThread().interrupt();
-//                }
-//            }
-//        }
-        es.shutdown();
-    }
-
     private void doInserts(BenchmarkContext benchmarkContext) throws InterruptedException {
         Arguments arguments = benchmarkContext.getArguments();
         ExecutorService es = executorSupplier.get();
@@ -177,23 +138,16 @@ public class AerospikeBenchmark implements Callable<Integer>, Log.Callback {
         long start = arguments.getStartKey();
 
         if (benchmarkOptions.isAsync()) {
-            es.execute(() -> {
-                long maxConcurrentCommands = arguments.getAsyncMaxCommands();
-                if (maxConcurrentCommands > arguments.getNumKeys()) {
-                    maxConcurrentCommands = arguments.getNumKeys();
-                }
-                long keysPerCommand = arguments.getNumKeys() / maxConcurrentCommands;
-                long keysRem = arguments.getNumKeys() - (keysPerCommand * maxConcurrentCommands);
-                long keyStart = arguments.getStartKey();
-                for (int i = 0; i < maxConcurrentCommands; i++) {
-                    long keyCount = (i < keysRem) ? keysPerCommand + 1 : keysPerCommand;
-                    // Start seed commands on random event loops.
-                    InsertTaskAsync task =
-                            new InsertTaskAsync(benchmarkContext.getSession(), arguments, counters, keyStart, keyCount);
-                    task.runCommand();
-                    keyStart += keyCount;
-                }
-            });
+            for (long i = 0; i < tasks; i++) {
+                long keyCount = (i < rem) ? keysPerTask  + 1 : keysPerTask;
+                InsertTaskAsync insertTaskAsync = new InsertTaskAsync(benchmarkContext.getSession(),
+                        arguments,
+                        counters,
+                        start,
+                        keyCount);
+                es.execute(insertTaskAsync);
+                start += keyCount;
+            }
         } else {
             for (long i = 0; i < tasks; i++) {
                 long keyCount = (i < rem) ? keysPerTask  + 1 : keysPerTask;
@@ -258,7 +212,6 @@ public class AerospikeBenchmark implements Callable<Integer>, Log.Callback {
 
         while (true) {
             long time = System.currentTimeMillis();
-            //int notFound = arguments.isReportNotFound() ? this.counters.readNotFound.getAndSet(0) : 0;
             this.counters.periodBegin.set(time);
 
             int numWrites = this.counters.write.count.getAndSet(0);
