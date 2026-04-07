@@ -102,7 +102,7 @@ stubs (`'insert' '()'`, `'set' '()'`, etc.) but the API methods require paramete
 
 #### Design principle: verbs carry write intent
 
-Following the fluent client's `CdtGetOrRemoveBuilder` pattern, the **function name
+Following the SDK's `CdtGetOrRemoveBuilder` pattern, the **function name
 encodes the write mode** instead of using explicit `writeFlags:` parameters. The key
 or index comes from the path navigation, not the function arguments:
 

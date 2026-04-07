@@ -1,6 +1,6 @@
 # List CDT Operations
 
-This document covers all list Collection Data Type (CDT) operations available in the Aerospike Java Fluent Client.
+This document covers all list Collection Data Type (CDT) operations available in the Aerospike Java SDK.
 
 ## Table of Contents
 
@@ -59,7 +59,7 @@ This document covers all list Collection Data Type (CDT) operations available in
 
 ## Overview
 
-List operations follow the same fluent builder pattern as map operations. You start from a `bin(...)` call, then either:
+List operations follow the same builder pattern as map operations. You start from a `bin(...)` call, then either:
 - Perform a **structural** or **index-based** operation directly (like `listCreate`, `listAppend`, `listGet(3)`), or
 - **Navigate** into the list with an `onList*` selector, then apply a terminal action (read, write, or remove).
 

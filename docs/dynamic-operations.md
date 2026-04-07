@@ -1,8 +1,8 @@
-# Dynamic Operations in the Fluent Client
+# Dynamic Operations in the client SDK
 
 ## Who Is This For?
 
-If you've used the standard Aerospike Java client, you're accustomed to building lists of `Bin` objects or `Operation` objects and passing them to methods like `client.put(policy, key, bins)`. The fluent client uses method chaining instead, which can make it less obvious how to handle **dynamic** scenarios — cases where you don't know at compile time which bins to write, how many operations to perform, or which keys to operate on.
+If you've used the standard Aerospike Java client, you're accustomed to building lists of `Bin` objects or `Operation` objects and passing them to methods like `client.put(policy, key, bins)`. The  client SDK uses method chaining instead, which can make it less obvious how to handle **dynamic** scenarios — cases where you don't know at compile time which bins to write, how many operations to perform, or which keys to operate on.
 
 This guide shows you how.
 
@@ -37,7 +37,7 @@ for (Map.Entry<String, Object> e : data.entrySet()) {
 client.put(policy, key, bins.toArray(new Bin[0]));
 ```
 
-In the fluent client, `.bin("name").setTo(value)` returns the builder so you can chain more calls. The key insight: **the builder itself is mutable and accumulates operations**, so you can call `.bin().setTo()` in a loop just like you'd add to a list.
+In the client SDK, `.bin("name").setTo(value)` returns the builder so you can chain more calls. The key insight: **the builder itself is mutable and accumulates operations**, so you can call `.bin().setTo()` in a loop just like you'd add to a list.
 
 ### From a Map
 
@@ -176,7 +176,7 @@ ops.add(MapOperation.getByKey("rooms", Value.get("room1"), ...));
 client.operate(policy, key, ops.toArray(new Operation[0]));
 ```
 
-In the fluent client, **the builder chain *is* your list**. You build it up step by step, and each step adds to the operation list internally.
+In the client SDK, **the builder chain *is* your list**. You build it up step by step, and each step adds to the operation list internally.
 
 ### Mixing Bin Writes and CDT Operations
 
@@ -237,7 +237,7 @@ builder.execute();
 
 Sometimes you need a single network round-trip to perform **different operations on different keys** — update one record, delete another, run a UDF on a third. In the standard client, you'd use `BatchWrite`, `BatchDelete`, `BatchUDF`, etc. in a list.
 
-In the fluent client, you **chain different operation types**. Each call to `.upsert(key2)` or `.delete(key3)` starts a **new operation spec** in the same batch.
+In the client SDK, you **chain different operation types**. Each call to `.upsert(key2)` or `.delete(key3)` starts a **new operation spec** in the same batch.
 
 ### Different Write Operations Per Key
 
@@ -274,7 +274,7 @@ RecordStream results = session
 
 ### Building a Heterogeneous Batch Dynamically
 
-This is where the fluent pattern requires a little more thought. Because each operation type (upsert, update, delete) transitions the builder to a different type, you need to use a common parent type or structure your loop carefully.
+This is where the pattern requires a little more thought. Because each operation type (upsert, update, delete) transitions the builder to a different type, you need to use a common parent type or structure your loop carefully.
 
 **Pattern: Build from a list of "tasks"**
 

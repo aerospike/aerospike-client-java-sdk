@@ -7,7 +7,7 @@ has sample data, the AEL expression, and the expected output. Tests are marked:
 - **Status ✗** — known to fail (references a known issue from `ael-spec-vs-implementation.md`)
 - **Status ?** — behaviour uncertain or untested
 
-Tests use the fluent client pattern:
+Tests use the pattern:
 
 ```java
 // Read expression (returns a value)

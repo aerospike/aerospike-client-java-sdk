@@ -1,6 +1,6 @@
 # Map CDT Operations
 
-This document covers all map Collection Data Type (CDT) operations available in the Aerospike Java Fluent Client.
+This document covers all map Collection Data Type (CDT) operations available in the Aerospike Java SDK.
 
 ## Table of Contents
 
@@ -55,7 +55,7 @@ This document covers all map Collection Data Type (CDT) operations available in 
 
 ## Overview
 
-Map operations follow a fluent builder pattern. You start from a `bin(...)` call, then either perform a structural operation directly (like `mapCreate`, `mapSize`) or navigate into the map with an `onMap*` selector, then apply a terminal action (read, write, or remove).
+Map operations follow a builder pattern. You start from a `bin(...)` call, then either perform a structural operation directly (like `mapCreate`, `mapSize`) or navigate into the map with an `onMap*` selector, then apply a terminal action (read, write, or remove).
 
 **Default map ordering:** When a write operation creates a new map (because it doesn't already exist), the map defaults to `MapOrder.KEY_ORDERED`. This can be overridden per-operation via `MapEntryWriteOptions` or `MapBulkWriteOptions`, or by passing a `MapOrder` to `onMapKey`.
 
@@ -725,7 +725,7 @@ session.update(key)
 | Value | Description |
 |-------|-------------|
 | `MapOrder.UNORDERED` | Map is not ordered. Fastest writes, unordered iteration. |
-| `MapOrder.KEY_ORDERED` | Map is ordered by key. Default for the fluent client. |
+| `MapOrder.KEY_ORDERED` | Map is ordered by key. Default. |
 | `MapOrder.KEY_VALUE_ORDERED` | Map is ordered by key, then by value. |
 
 ---

@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document describes the implementation of read-only operations (CDT reads, expression-based reads) for query builders in the Aerospike Java Fluent Client. Prior to this change, query operations could only select bins or all record data. Now, queries support the same read operations that update operations support, including:
+This document describes the implementation of read-only operations (CDT reads, expression-based reads) for query builders in the Aerospike Java SDK. Prior to this change, query operations could only select bins or all record data. Now, queries support the same read operations that update operations support, including:
 
 - **CDT (Collection Data Type) read operations** - Map and list navigation with read-only terminal operations
 - **Expression-based reads** - `selectFrom()` operations using AEL expressions
@@ -14,16 +14,16 @@ This document describes the implementation of read-only operations (CDT reads, e
 
 Before implementing, we analyzed the existing codebase and found several pieces of infrastructure that could be reused:
 
-1. **`BatchRead` class** (`client/src/main/java/com/aerospike/client/fluent/command/BatchRead.java`)
+1. **`BatchRead` class** (`client/src/main/java/com/aerospike/client/sdk/command/BatchRead.java`)
    - Already has a constructor that accepts a `List<Operation> ops` (lines 88-94)
    - Validates that operations are read-only types
    - Perfect for batch key queries with user-specified operations
 
-2. **`OperateReadCommand` class** (`client/src/main/java/com/aerospike/client/fluent/command/OperateReadCommand.java`)
+2. **`OperateReadCommand` class** (`client/src/main/java/com/aerospike/client/sdk/command/OperateReadCommand.java`)
    - Extends `ReadCommand` and takes a `List<Operation> ops` and `OperateArgs`
    - Suitable for single-key read operations with custom operations
 
-3. **`CdtOperationParams` class** (`client/src/main/java/com/aerospike/client/fluent/CdtOperationParams.java`)
+3. **`CdtOperationParams` class** (`client/src/main/java/com/aerospike/client/sdk/CdtOperationParams.java`)
    - Already used by `CdtGetOrRemoveBuilder` to store CDT operation parameters
    - Can be reused for read-only CDT operations
 
