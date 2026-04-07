@@ -25,11 +25,6 @@ import java.util.TreeMap;
 
 import org.junit.jupiter.api.Test;
 
-import com.aerospike.client.sdk.cdt.MapReturnType;
-import com.aerospike.client.sdk.exp.Exp;
-import com.aerospike.client.sdk.exp.Expression;
-import com.aerospike.client.sdk.exp.MapExp;
-
 public class MapExpTest extends ClusterTest {
 	@Test
 	public void sortedMapEquality() {
@@ -47,13 +42,12 @@ public class MapExpTest extends ClusterTest {
 	        .bin(binName).setTo(map)
 	        .execute();
 
-		// TODO What is AEL equivalent string for this expression.
-		Expression e = Exp.build(Exp.eq(Exp.mapBin(binName), Exp.val(map)));
+		// Expression where = Exp.build(Exp.eq(Exp.mapBin(binName), Exp.val(map)));
+		String where = "$." + binName + ".get(type: MAP) == {'key1': 'e', 'key2': 'd', 'key3': 'c', 'key4': 'b', 'key5': 'a'}";
 
 		RecordStream rs = session.query(key)
 			.readingOnlyBins(binName)
-			.where(e)
-			//.where("$.m.[] == [{})");
+			.where(where)
 			.execute();
 
 		assertTrue(rs.hasNext());
@@ -81,13 +75,12 @@ public class MapExpTest extends ClusterTest {
 	        .bin(binName).setTo(map)
 	        .execute();
 
-		// TODO What is AEL equivalent string for this expression.
-		// Use INVERTED to return map with entries removed where value != 2.
-		Expression e = Exp.build(
-			MapExp.removeByValue(MapReturnType.INVERTED, Exp.val(2), Exp.mapBin(binName)));
+		//Expression readExp = Exp.build(
+		//	MapExp.removeByValue(MapReturnType.INVERTED, Exp.val(2), Exp.mapBin(binName)));
+		String readExp = "$." + binName + ".{=2}.get(return: ORDERED_MAP)";
 
 		RecordStream rs = session.query(key)
-	        .bin(binName).selectFrom(e)
+	        .bin(binName).selectFrom(readExp)
 	        .execute();
 
         assertTrue(rs.hasNext());
