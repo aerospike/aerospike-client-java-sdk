@@ -146,17 +146,6 @@ public abstract class AbstractFilterableBuilder {
     }
 
     /**
-     * Collect a result into a list, mirroring {@link #dispatchResult(RecordResult, AsyncRecordStream, ErrorHandler)}.
-     */
-    static void dispatchResult(RecordResult result, List<RecordResult> results, ErrorHandler handler) {
-        if (handler != null && isActionableError(result.resultCode())) {
-            dispatchError(result, handler);
-        } else {
-            results.add(result);
-        }
-    }
-
-    /**
      * Synchronously filter a RecordStream, dispatching errors to the handler
      * and returning a new stream containing only successful results.
      */
