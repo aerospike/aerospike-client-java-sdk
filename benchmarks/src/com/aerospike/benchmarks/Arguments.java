@@ -1,12 +1,14 @@
 package com.aerospike.benchmarks;
 
+import com.aerospike.client.fluent.ChainableOperationBuilder;
+import com.aerospike.client.fluent.Value;
+import com.aerospike.client.fluent.util.RandomShift;
+
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 
-import com.aerospike.client.sdk.ChainableOperationBuilder;
-import com.aerospike.client.sdk.Value;
-import com.aerospike.client.sdk.util.RandomShift;
+import picocli.CommandLine.ParameterException;
 
 import static com.aerospike.benchmarks.Constants.DEFAULT_NAMESPACE;
 import static com.aerospike.benchmarks.Constants.DEFAULT_SET;
@@ -31,7 +33,6 @@ public class Arguments {
     private int nThreads;
     private long numKeys;
     private long startKey;
-    private int asyncMaxCommands;
     private TransactionalWorkload transactionalWorkload;
     public DBObjectSpec[] objectSpec;
 
@@ -55,6 +56,13 @@ public class Arguments {
         args.nBins = workloadOpts.getBins();
         args.debug = benchmarkOpts.isDebug();
         WorkloadContext workloadContext = WorkloadContext.toWorkloadContext(workloadOpts.getWorkload());
+        if (workloadContext.workload == Workload.INITIALIZE && workloadOpts.getDurationSeconds() != null) {
+            String msg = Constants.DURATION_FLAG_NOT_ALLOWED;
+            if (workloadOpts.getSpec() != null && workloadOpts.getSpec().commandLine() != null) {
+                throw new ParameterException(workloadOpts.getSpec().commandLine(), msg);
+            }
+            throw new IllegalArgumentException(msg);
+        }
         args.workload = workloadContext.workload;
         args.readPct = workloadContext.readPct;
         args.readMultiBinPct = workloadContext.readMultiBinPct;
@@ -66,7 +74,6 @@ public class Arguments {
         args.throughput = Optional.ofNullable(workloadOpts.getThroughput()).orElse(0);
         args.transactionLimit = Optional.ofNullable(workloadOpts.getTransactions()).orElse(Long.MAX_VALUE);
         args.durationSeconds = workloadOpts.getDurationSeconds();
-        args.asyncMaxCommands = Optional.ofNullable(benchmarkOpts.getAsyncMaxCommands()).orElse(100);
         args.batchSize = Optional.ofNullable(benchmarkOpts.getBatchSize()).orElse(1);
         args.transactionalWorkload = workloadContext.transactionalWorkload();
         if (workloadContext.transactionalWorkload() != null) {
@@ -169,10 +176,6 @@ public class Arguments {
 
     public long getStartKey() {
         return startKey;
-    }
-
-    public int getAsyncMaxCommands() {
-        return asyncMaxCommands;
     }
 
     public TransactionalWorkload getTransactionalWorkload() {

@@ -1,340 +1,217 @@
 package com.aerospike.benchmarks;
 
 import com.aerospike.client.fluent.*;
-import com.aerospike.client.fluent.Record;
 import com.aerospike.client.fluent.util.RandomShift;
+import com.aerospike.client.fluent.util.Util;
 
+import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.CompletionException;
-import java.util.function.Consumer;
 
-public class RWTaskAsync extends RWTask {
+public class RWTaskAsync extends RWTask implements Runnable {
 
     private final Session session;
     private final boolean useLatency;
-    private final RandomShift random;
+    List<RecordResult> records;
 
-    public RWTaskAsync(Arguments args, CounterStore counters,
-                       Session session) {
+    public RWTaskAsync(Arguments args, CounterStore counters, Session session) {
         super(args, counters);
         this.session = session;
         this.useLatency = counters.read.latency != null;
-        this.random = new RandomShift();
+        this.records = new ArrayList<>();
     }
-
-//    private void acquire() {
-//        try {
-//            inflightReqs.acquire();   // blocks if limit reached
-//        } catch (InterruptedException e) {
-//            Thread.currentThread().interrupt();
-//        }
-//    }
-//
-//    private void release() {
-//        inflightReqs.release();
-//    }
-
-    /**
-     * Wait for all in-flight operations to complete.
-     * Call after stop() for graceful shutdown.
-     */
-//    public boolean awaitDrain(long timeoutMs) throws InterruptedException {
-//        boolean acquired = inflightReqs.tryAcquire(maxRequestInFlight, timeoutMs, TimeUnit.MILLISECONDS);
-//        if (acquired) {
-//            inflightReqs.release(maxRequestInFlight);
-//        }
-//        return acquired;
-//    }
 
     @Override
     protected void get(Key key, String binName) {
+        RecordResult rec = null;
         long begin = useLatency ? System.nanoTime() : 0;
-        session.query(key)
-            .readingOnlyBins(binName)
-            .executeAsyncToCompletableFuture(ErrorStrategy.IN_STREAM)
-            .whenComplete((results, ex) -> {
-                if (ex != null) {
-                    handleReadException(ex);
-                    return;
-                }
+        try (var stream = session.query(key)
+                .readingOnlyBins(binName)
+                .executeAsync(ErrorStrategy.IN_STREAM)) {
+            while (stream.hasNext()) {
+                rec = stream.next();
+            }
+            if (rec == null || rec.exception() == null) {
                 if (useLatency) {
                     counters.read.latency.add(System.nanoTime() - begin);
                 }
-                processSingleKeyReadRecord(key, results);
-                runNextCommand();
-            });
+                processRead(key, rec);
+            } else {
+                readFailure(rec.exception());
+            }
+        } catch (Exception e) {
+            readFailure(e);
+        }
     }
 
     @Override
     protected void get(Key key) {
-      //  acquire();
+        RecordResult rec = null;
         long begin = useLatency ? System.nanoTime() : 0;
-        session.query(key)
-            .executeAsyncToCompletableFuture(ErrorStrategy.IN_STREAM)
-            .whenComplete((results, ex) -> {
-                if (ex != null) {
-                    handleReadException(ex);
-                    return;
-                }
+        try (var stream = session.query(key).executeAsync(ErrorStrategy.IN_STREAM)) {
+            while (stream.hasNext()) {
+                rec = stream.next();
+            }
+            if (rec == null || rec.exception() == null) {
                 if (useLatency) {
                     counters.read.latency.add(System.nanoTime() - begin);
                 }
-                processSingleKeyReadRecord(key, results);
-                runNextCommand();
-            });
-//        var handle = session.query(key)
-//                .executeAsync(ErrorStrategy.IN_STREAM);
-//         handle.asCompletableFuture().whenComplete((results, ex) -> {
-//                    if (ex != null) {
-//                        handleReadException(ex);
-//                        return;
-//                    }
-//                    if (useLatency) {
-//                        counters.read.latency.add(System.nanoTime() - begin);
-//                    }
-//                    processSingleKeyReadRecord(key, results);
-//                    runNextCommand();
-//                });
+                processRead(key, rec);
+            } else {
+                readFailure(rec.exception());
+            }
+        } catch (Exception t) {
+            readFailure(t);
+        }
     }
 
     @Override
     protected void upsert(Key key, Value[] values, String... bins) {
+        RecordResult rec = null;
         long begin = counters.write.latency != null ? System.nanoTime() : 0;
         var builder = session.upsert(key);
         for (int i = 0; i < values.length; i++) {
             args.setBinFromValue(builder, bins[i], values[i]);
         }
-//        var handle = builder.executeAsync(ErrorStrategy.IN_STREAM);
-//        handle.asCompletableFuture()
-//                .whenComplete((results, ex) -> {
-//                    if (ex != null) {
-//                        handleWriteException(ex);
-//                        return;
-//                    }
-//                    if (useLatency) {
-//                        counters.write.latency.add(System.nanoTime() - begin);
-//                    }
-//                    processSingleKeyWriteRecord(results);
-//                    runNextCommand();
-//                });
-
-        builder.executeAsyncToCompletableFuture(ErrorStrategy.IN_STREAM)
-                .whenComplete((results, ex) -> {
-                    if (ex != null) {
-                        handleWriteException(ex);
-                        return;
-                    }
-                    if (useLatency) {
-                        counters.write.latency.add(System.nanoTime() - begin);
-                    }
-                    processSingleKeyWriteRecord(results);
-                    runNextCommand();
-                });
+        try (var stream = builder.executeAsync((k, index, ae) -> writeFailure(ae))) {
+            while (stream.hasNext()) {
+                rec = stream.next();
+            }
+            if (rec != null) {
+                if (useLatency) {
+                    counters.write.latency.add(System.nanoTime() - begin);
+                }
+                counters.write.count.getAndIncrement();
+            }
+        } catch (Exception e) {
+            writeFailure(e);
+        }
     }
 
     @Override
     protected void createOrReplace(Key key, Value[] values, String... bins) {
+        RecordResult rec = null;
         long begin = counters.write.latency != null ? System.nanoTime() : 0;
         var builder = session.replace(key);
         for (int i = 0; i < values.length; i++) {
             args.setBinFromValue(builder, bins[i], values[i]);
         }
-        var handle = builder.executeAsync(ErrorStrategy.IN_STREAM);
-        handle.asCompletableFuture()
-                .whenComplete((results, ex) -> {
-                    if (ex != null) {
-                        handleWriteException(ex);
-                        return;
-                    }
-                    if (useLatency) {
-                        counters.write.latency.add(System.nanoTime() - begin);
-                    }
-                    processSingleKeyWriteRecord(results);
-                    runNextCommand();
-                });
-    }
-
-
-    @Override
-    protected void getBinsAndIncrement(Key key, int incrementedBy) {
-        readRecordForUpdateAsync(key, rec -> incrementCounterAsync(key, rec, incrementedBy));
-    }
-
-    @Override
-    protected void get(List<Key> keys, String binName) {
-        long begin = System.nanoTime();
-        var handle = session.query(keys).bins(binName)
-                .executeAsync(ErrorStrategy.IN_STREAM);
-        handle.asCompletableFuture()
-                .thenAccept(results -> {
-                    if (useLatency) {
-                        long elapsed = System.nanoTime() - begin;
-                        counters.read.latency.add(elapsed);
-                    }
-                    handleBatchReadResult(results); // TODO need to move to one stage
-                })
-                .whenComplete((r, ex) -> {
-                    handle.close();
-                    if (ex != null) {
-                        handleReadException(ex);
-                    } else {
-                        runNextCommand();
-                    }
-                });
-    }
-
-    @Override
-    protected void get(List<Key> keys) {
-        long begin = System.nanoTime();
-        var handle = session.query(keys)
-                .executeAsync(ErrorStrategy.IN_STREAM);
-        handle.asCompletableFuture()
-                .thenAccept(results -> {
-                    if (useLatency) {
-                        long elapsed = System.nanoTime() - begin;
-                        counters.read.latency.add(elapsed);
-                    }
-                    handleBatchReadResult(results);
-                })
-                .whenComplete((r, ex) -> {
-                    handle.close();
-                    if (ex != null) {
-                        handleReadException(ex);
-                    } else {
-                        runNextCommand();
-                    }
-                });
-    }
-
-    @Override
-    protected void runNextCommand() {
-        if (!isStopped) {
-            runCommand(random);
-        }
-    }
-
-    private void recordReadError(Throwable ex) {
-        Throwable cause = ex instanceof CompletionException ? ex.getCause() : ex;
-        if (cause instanceof AerospikeException) {
-            readFailure((AerospikeException) cause);
-        } else if (cause instanceof Exception) {
-            readFailure((Exception) cause);
-        }
-    }
-
-    private void recordWriteError(Throwable ex) {
-        Throwable cause = (ex instanceof CompletionException) ? ex.getCause() : ex;
-        if (cause instanceof AerospikeException) {
-            writeFailure((AerospikeException) cause);
-        } else if (cause instanceof Exception) {
-            writeFailure((Exception) cause);
-        }
-    }
-
-    private void handleReadException(Throwable ex) {
-        recordReadError(ex);
-        runNextCommand();
-    }
-
-    private void handleWriteException(Throwable ex) {
-        recordWriteError(ex);
-        runNextCommand();
-    }
-
-    private void handleBatchReadResult(List<RecordResult> results) {
-        AerospikeException firstFailure = null;
-        for (RecordResult r : results) {
-            if (r.exception() != null) {
-                firstFailure = r.exception();
-                break;
+        try (var stream = builder.executeAsync((k, index, ae) -> writeFailure(ae))) {
+            while (stream.hasNext()) {
+                rec = stream.next();
             }
-        }
-        if (firstFailure == null) {
-            counters.read.count.incrementAndGet();
-        } else {
-            readFailure(firstFailure);
+            if (rec != null) {
+                if (useLatency) {
+                    counters.write.latency.add(System.nanoTime() - begin);
+                }
+                counters.write.count.getAndIncrement();
+            }
+        } catch (Exception e) {
+            writeFailure(e);
         }
     }
 
-    private void readRecordForUpdateAsync(Key key, Consumer<Record> onSuccess) {
-        long readBegin = useLatency ? System.nanoTime() : 0;
-        var readHandle = session.query(key).executeAsync(ErrorStrategy.IN_STREAM);
-        readHandle.asCompletableFuture()
-                .whenComplete((results, readEx) -> {
-                    Record rec = (results == null || results.isEmpty()) ? null : results.getFirst().recordOrNull();
-                    if (readEx != null) {
-                        if (readEx instanceof AerospikeException) {
-                            readFailure((AerospikeException) readEx);
-                        } else if (readEx instanceof Exception) {
-                            readFailure((Exception) readEx);
-                        }
-                    } else {
-                        if (useLatency) {
-                            counters.read.latency.add(System.nanoTime() - readBegin);
-                        }
-                        processSingleKeyReadRecord(key, results);
-                    }
-                    onSuccess.accept(rec);
-                });
-    }
+    @Override
+    protected void doIncrement(Key key, int incrementedBy) {
+        RecordResult result = null;
+        long begin = System.nanoTime();
+        RecordStream stream = session.insert(key)
+                .bin("test-counter")
+                .add(incrementedBy)
+                .executeAsync((k, index, exp) -> writeFailure(exp));
 
-    private void incrementCounterAsync(Key key, Record rec, int incrementedBy) {
-        int generation = (rec != null) ? rec.generation : 0;
-        long writeBegin = useLatency ? System.nanoTime() : 0;
-        var cmd = session.upsert(key)
-                .bin("test-counter").add(incrementedBy);
-        if (generation > 0) {
-            cmd.ensureGenerationIs(generation);
+        while (stream.hasNext()) {
+            result = stream.next();
         }
-        var writeHandle = cmd.executeAsync(ErrorStrategy.IN_STREAM);
-        writeHandle.asCompletableFuture()
-                .whenComplete((writeResults, ex) -> {
-                    if (ex != null) {
-                        handleWriteException(ex);
-                        return;
-                    }
-                    if (useLatency) {
-                        counters.write.latency.add(System.nanoTime() - writeBegin);
-                    }
-                    processSingleKeyWriteRecord(writeResults);
-                    runNextCommand();
-                });
-    }
-
-    private void processSingleKeyWriteRecord(List<RecordResult> results) {
-        if (results.isEmpty()) {
-            return;
-        }
-        RecordResult first = results.getFirst();
-        if (first.exception() != null) {
-            recordWriteError(first.exception());
-            return;
-        }
-        if (first.isOk()) {
+        if (result != null) {
+            if (useLatency) {
+                counters.write.latency.add(System.nanoTime() - begin);
+            }
             counters.write.count.getAndIncrement();
         }
     }
 
-    private void processSingleKeyReadRecord(Key key, List<RecordResult> results) {
-        if (results.isEmpty()) {
-            if (args.isReportNotFound()) {
-                counters.readNotFound.getAndIncrement();
+    @Override
+    protected void get(List<Key> keys, String binName) {
+        long elasped = 0;
+        long begin = System.nanoTime();
+        try (var recordStream = session.query(keys).bins(binName).executeAsync(ErrorStrategy.IN_STREAM)) {
+            while (recordStream.hasNext()) {
+                records.add(recordStream.next());
+            }
+            elasped = System.nanoTime() - begin;
+
+            RecordResult errRecord = records.stream().filter(record -> record.exception() != null)
+                    .findAny()
+                    .orElse(null);
+
+            if (errRecord != null) {
+                // batch with partial failure are not accounted to successful reads
+                readFailure(errRecord.exception());
             } else {
+                if (useLatency) {
+                    counters.read.latency.add(elasped);
+                }
                 counters.read.count.getAndIncrement();
             }
-            return;
+        } catch (Exception e) {
+            readFailure(e);
+        } finally {
+            records.clear();
         }
-        RecordResult first = results.getFirst();
-        if (first.exception() != null) {
-            recordReadError(first.exception());
-            return;
-        }
-        if (first.isOk()) {
-            Record record = first.recordOrNull();
-            if (args.isReportNotFound() && record == null) {
-                counters.readNotFound.getAndIncrement();
+    }
+
+    @Override
+    protected void get(List<Key> keys) {
+        long elasped = 0;
+        long begin = System.nanoTime();
+        try (var recordStream = session.query(keys).executeAsync(ErrorStrategy.IN_STREAM)) {
+            while (recordStream.hasNext()) {
+                records.add(recordStream.next());
+            }
+            elasped = System.nanoTime() - begin;
+
+            RecordResult errRecord = records.stream()
+                    .filter(record -> record.exception() != null)
+                    .findAny()
+                    .orElse(null);
+
+            if (errRecord != null) {
+                // batch with partial failure are not accounted to successful reads
+                readFailure(errRecord.exception());
             } else {
+                if (useLatency) {
+                    counters.read.latency.add(elasped);
+                }
                 counters.read.count.getAndIncrement();
+            }
+        } catch (Exception e) {
+            readFailure(e);
+        } finally {
+            records.clear();
+        }
+    }
+
+    @Override
+    public void run() {
+        RandomShift random = new RandomShift();
+        while (!isStopped) {
+            runCommand(random);
+            // Throttle throughput
+            if (args.getThroughput() > 0) {
+                int transactions;
+                if (counters.transaction.latency != null) {
+                    // Measure the transactions as per one "business" transaction
+                    transactions = counters.transaction.count.get();
+                } else {
+                    transactions = counters.write.count.get() + counters.read.count.get();
+                }
+
+                if (transactions > args.getThroughput()) {
+                    long millis = counters.periodBegin.get() + 1000L - System.currentTimeMillis();
+                    if (millis > 0) {
+                        Util.sleep(millis);
+                    }
+                }
             }
         }
     }
