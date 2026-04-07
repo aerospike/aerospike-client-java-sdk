@@ -350,7 +350,7 @@ public class ListMapTest extends ClusterTest {
 		assertEquals(5L, receivedInner2.get(1));
 	}
 
-/* TODO Implement this test when map ordering command exists
+/* TODO Implement this test when MapOrder.KEY_VALUE_ORDERED is supported.
 	@Test
 	public void sortedMapReplace() {
 		Key key = args.set.id("sortedMapReplace");

@@ -28,6 +28,7 @@ import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import com.aerospike.client.sdk.command.Buffer;
 import com.aerospike.client.sdk.exp.Exp;
 import com.aerospike.client.sdk.exp.Expression;
 
@@ -355,9 +356,8 @@ public class ExpOperationTest extends ClusterTest {
 
 	@Test
 	public void expReturnsFloat() {
-		// TODO: Convert from Expression to AEL String.
-		Expression ael = Exp.build(Exp.add(Exp.toFloat(Exp.intBin(binA)), Exp.val(4.0)));
-		//String ael = "$." + binA + ".asFloat() + 4.0";
+		//Expression ael = Exp.build(Exp.add(Exp.toFloat(Exp.intBin(binA)), Exp.val(4.0)));
+		String ael = "$." + binA + ".asFloat() + 4.0";
 
 		RecordStream rs = session.update(args.set.id(keyA))
         	.bin(binC).upsertFrom(ael)
@@ -418,9 +418,8 @@ public class ExpOperationTest extends ClusterTest {
 	@Test
 	public void expReturnsBlob() {
 		byte[] bytes = new byte[] {0x78, 0x78, 0x78};
-		Expression ael = Exp.build(Exp.val(bytes));
-		// TODO: Convert from Expression to AEL String.
-		//String ael = "[78, 78, 78]";
+		//Expression ael = Exp.build(Exp.val(bytes));
+		String ael = "x'" + Buffer.bytesToHexString(bytes) + "'";
 
 		RecordStream rs = session.update(args.set.id(keyA))
         	.bin(binC).upsertFrom(ael)

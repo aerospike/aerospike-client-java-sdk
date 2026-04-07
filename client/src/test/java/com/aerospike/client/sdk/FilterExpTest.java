@@ -585,7 +585,6 @@ public class FilterExpTest extends ClusterTest {
 		testAel("ceil($." + binB + ".get(type: FLOAT)) == 3.0");
 	}
 
-	// TODO Replace Exp filter with AEL when int cast works.
 	@Test
 	public void filterToInt() {
 		Exp exp =
@@ -594,10 +593,9 @@ public class FilterExpTest extends ClusterTest {
 				Exp.val(2));
 
 		testExp(exp);
-		//testAel("$." + binB + ".asInt()) == 2");
+		testAel("$." + binB + ".asInt() == 2");
 	}
 
-	// TODO Replace Exp filter with AEL when float cast works.
 	@Test
 	public void filterToFloat() {
 		Exp exp =
@@ -606,7 +604,7 @@ public class FilterExpTest extends ClusterTest {
 				Exp.val(2.0));
 
 		testExp(exp);
-		//testAel("$.A.asFloat() == 2.0");
+		testAel("$." + binA + ".asFloat() == 2.0");
 	}
 
 	@Test
@@ -859,13 +857,10 @@ public class FilterExpTest extends ClusterTest {
 				Exp.val(2));
 
 		testExps(exp1, exp2);
-		// TODO: This results in a PARAMETER_ERROR. Needs to be fixed.
-		/*
 		testAels("when($." + binA + " == 0 => $." + binD + " + $." + binE +
 			        ", $." + binA + " == 1 => $." + binD + " - $." + binE +
 					", $." + binA + " == 2 => $." + binD + " * $." + binE +
 					", default => -1) == 2");
-		*/
 	}
 
 	@Test
