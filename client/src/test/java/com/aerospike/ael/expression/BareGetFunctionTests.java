@@ -1,7 +1,7 @@
 package com.aerospike.ael.expression;
 
 import static com.aerospike.ael.util.TestUtils.parseCtx;
-import static com.aerospike.ael.util.TestUtils.parseDslAndCompare;
+import static com.aerospike.ael.util.TestUtils.parseAelAndCompare;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -26,79 +26,79 @@ public class BareGetFunctionTests {
 
     @Test
     void binComparison() {
-        parseDslAndCompare("$.intBin1.get() != 100", "$.intBin1 != 100");
+        parseAelAndCompare("$.intBin1.get() != 100", "$.intBin1 != 100");
     }
 
     @Test
     void binComparisonBothSides() {
-        parseDslAndCompare("$.intBin1.get() > $.intBin2.get()", "$.intBin1 > $.intBin2");
+        parseAelAndCompare("$.intBin1.get() > $.intBin2.get()", "$.intBin1 > $.intBin2");
     }
 
     // --- List CDT paths ---
 
     @Test
     void listByIndex() {
-        parseDslAndCompare("$.listBin1.[0].get() == 100", "$.listBin1.[0] == 100");
+        parseAelAndCompare("$.listBin1.[0].get() == 100", "$.listBin1.[0] == 100");
     }
 
     @Test
     void listByValue() {
-        parseDslAndCompare("$.listBin1.[=100].get() == 100", "$.listBin1.[=100] == 100");
+        parseAelAndCompare("$.listBin1.[=100].get() == 100", "$.listBin1.[=100] == 100");
     }
 
     @Test
     void listByRank() {
-        parseDslAndCompare("$.listBin1.[#-1].get() == 100", "$.listBin1.[#-1] == 100");
+        parseAelAndCompare("$.listBin1.[#-1].get() == 100", "$.listBin1.[#-1] == 100");
     }
 
     // --- Map CDT paths ---
 
     @Test
     void mapByKey() {
-        parseDslAndCompare("$.mapBin1.a.get() == 100", "$.mapBin1.a == 100");
+        parseAelAndCompare("$.mapBin1.a.get() == 100", "$.mapBin1.a == 100");
     }
 
     @Test
     void mapByIndex() {
-        parseDslAndCompare("$.mapBin1.{0}.get() == 100", "$.mapBin1.{0} == 100");
+        parseAelAndCompare("$.mapBin1.{0}.get() == 100", "$.mapBin1.{0} == 100");
     }
 
     @Test
     void mapByValue() {
-        parseDslAndCompare("$.mapBin1.{=100}.get() == 100", "$.mapBin1.{=100} == 100");
+        parseAelAndCompare("$.mapBin1.{=100}.get() == 100", "$.mapBin1.{=100} == 100");
     }
 
     @Test
     void mapByRank() {
-        parseDslAndCompare("$.mapBin1.{#-1}.get() == 100", "$.mapBin1.{#-1} == 100");
+        parseAelAndCompare("$.mapBin1.{#-1}.get() == 100", "$.mapBin1.{#-1} == 100");
     }
 
     // --- Nested and mixed CDT paths ---
 
     @Test
     void nestedListIndexes() {
-        parseDslAndCompare(
+        parseAelAndCompare(
                 "$.listBin1.[0].[0].[0].get() == 100",
                 "$.listBin1.[0].[0].[0] == 100");
     }
 
     @Test
     void nestedMapKeys() {
-        parseDslAndCompare(
+        parseAelAndCompare(
                 "$.mapBin1.a.bb.bcc.get() == 100",
                 "$.mapBin1.a.bb.bcc == 100");
     }
 
     @Test
     void mapToList() {
-        parseDslAndCompare(
+        parseAelAndCompare(
                 "$.mapBin1.a.cc.[2].get() > 100",
                 "$.mapBin1.a.cc.[2] > 100");
     }
 
     @Test
     void listToMap() {
-        parseDslAndCompare(
+        parseAelAndCompare(
                 "$.listBin1.[2].cc.get() > 100",
                 "$.listBin1.[2].cc > 100");
     }
@@ -107,21 +107,21 @@ public class BareGetFunctionTests {
 
     @Test
     void arithmetic() {
-        parseDslAndCompare(
+        parseAelAndCompare(
                 "($.intBin1.get() + $.intBin2) > 10",
                 "($.intBin1 + $.intBin2) > 10");
     }
 
     @Test
     void logical() {
-        parseDslAndCompare(
+        parseAelAndCompare(
                 "$.intBin1.get() > 5 and $.intBin2.get() < 10",
                 "$.intBin1 > 5 and $.intBin2 < 10");
     }
 
     @Test
     void inExpression() {
-        parseDslAndCompare(
+        parseAelAndCompare(
                 "$.intBin1.get() in [1, 2, 3]",
                 "$.intBin1 in [1, 2, 3]");
     }

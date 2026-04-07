@@ -88,7 +88,7 @@ session.upsert(key)
     │
     ├── .where(String, Object...)        // Filter expression
     ├── .where(BooleanExpression)        // Filter expression
-    ├── .where(PreparedDsl, Object...)   // Filter expression
+    ├── .where(PreparedAel, Object...)   // Filter expression
     ├── .where(Exp)                      // Filter expression
     ├── .where(Expression)               // Filter expression
     │
@@ -123,7 +123,7 @@ session.delete(key)
     │
     ├── .where(String, Object...)        // Filter expression
     ├── .where(BooleanExpression)        // Filter expression
-    ├── .where(PreparedDsl, Object...)   // Filter expression
+    ├── .where(PreparedAel, Object...)   // Filter expression
     ├── .where(Exp)                      // Filter expression
     ├── .where(Expression)               // Filter expression
     │
@@ -152,11 +152,11 @@ session.query(key)
     ├── .readingOnlyBins(name, ...)      // Alias for bins()
     ├── .withNoBins()                    // Header only
     ├── .bin(name).get()                 // Read specific bin
-    ├── .bin(name).selectFrom(expr)      // DSL expression read
+    ├── .bin(name).selectFrom(expr)      // AEL expression read
     │
     ├── .where(String, Object...)        // Filter expression
     ├── .where(BooleanExpression)        // Filter expression
-    ├── .where(PreparedDsl, Object...)   // Filter expression
+    ├── .where(PreparedAel, Object...)   // Filter expression
     ├── .where(Exp)                      // Filter expression
     ├── .where(Expression)               // Filter expression
     │
@@ -202,7 +202,7 @@ session.upsert(key).bins("a", "b").values(1, 2)
     │
     ├── .where(String, Object...)        // Filter expression
     ├── .where(BooleanExpression)        // Filter expression
-    ├── .where(PreparedDsl, Object...)   // Filter expression
+    ├── .where(PreparedAel, Object...)   // Filter expression
     ├── .where(Exp)                      // Filter expression
     ├── .where(Expression)               // Filter expression
     │
@@ -282,7 +282,7 @@ backgroundSession.upsert(dataSet)
     │
     ├── .where(String, Object...)        // Filter expression
     ├── .where(BooleanExpression)        // Filter expression
-    ├── .where(PreparedDsl, Object...)   // Filter expression
+    ├── .where(PreparedAel, Object...)   // Filter expression
     ├── .where(Exp)                      // Filter expression
     ├── .where(Expression)               // Filter expression
     │
@@ -352,7 +352,7 @@ session.upsert(key)
 All properties are now propagated via `BinsValuesBuilder.initFromParent()`:
 - `expirationInSeconds` - ✅ Passed to constructor
 - `generation` - ✅ Passed via `initFromParent()` to `generationForAll` field
-- `whereClause` - ✅ Passed via `initFromParent()` to `dsl` field
+- `whereClause` - ✅ Passed via `initFromParent()` to `ael` field
 - `failOnFilteredOut` - ✅ Passed via `initFromParent()` to inherited field
 - `includeMissingKeys` - ✅ Passed via `initFromParent()` to inherited field
 

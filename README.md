@@ -13,7 +13,7 @@ This project provides a modern, type-safe API for Aerospike operations, includin
 - **DataSet**: A fluent API for creating and managing Aerospike keys
 - **InfoParser & InfoCommands**: High-level info command execution and parsing
 - **TransactionalSession**: Transactional operations with automatic retry logic
-- **DSL (Domain Specific Language)**: A type-safe query builder with compile-time checking
+- **AEL (Aerospike Expression Language)**: A type-safe query builder with compile-time checking
 - **Type Safety**: Compile-time validation to prevent runtime errors
 - **Fluent APIs**: Chainable method calls for better readability
 
@@ -302,9 +302,9 @@ String result = session.doInTransaction(txSession -> {
 - **Non-Retryable Errors**: Thrown immediately without retry
 - **Resource Cleanup**: Transactions are automatically aborted on any exception
 
-## DSL (Domain Specific Language)
+## AEL (Aerospike Expression Language)
 
-The project also includes a comprehensive DSL for building type-safe queries with compile-time checking. See the DSL examples in the `com.aerospike.dsl` package for more information.
+The project also includes a comprehensive AEL for building type-safe queries with compile-time checking. See the AEL examples in the `com.aerospike.ael` package for more information.
 
 ## Building and Running
 

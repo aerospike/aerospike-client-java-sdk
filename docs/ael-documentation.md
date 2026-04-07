@@ -916,7 +916,7 @@ $.name == ?0 and $.age > ?1
 At execution time, concrete values are bound to each placeholder:
 
 ```java
-PreparedDsl prepared = PreparedDsl.prepare("$.age > ?0 and $.name == ?1");
+PreparedAel prepared = PreparedAel.prepare("$.age > ?0 and $.name == ?1");
 // Bind values at execution time:
 session.query(set).where(prepared, 21, "Tim").execute();
 ```

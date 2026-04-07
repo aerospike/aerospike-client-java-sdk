@@ -2,7 +2,7 @@
 
 This document catalogues incongruities between the
 [Expression AEL specification](../CORE-Expression%20AEL.pdf) and its current
-implementation in the `dsl` package. Items 2b–2f were identified via runtime
+implementation in the `ael` package. Items 2b–2f were identified via runtime
 testing; items 2g–2n were identified by comparing the spec documentation
 against the `Condition.g4` grammar. Each section describes what the spec
 requires, what the implementation actually does, and (where applicable)

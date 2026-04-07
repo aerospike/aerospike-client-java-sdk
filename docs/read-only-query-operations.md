@@ -5,7 +5,7 @@
 This document describes the implementation of read-only operations (CDT reads, expression-based reads) for query builders in the Aerospike Java Fluent Client. Prior to this change, query operations could only select bins or all record data. Now, queries support the same read operations that update operations support, including:
 
 - **CDT (Collection Data Type) read operations** - Map and list navigation with read-only terminal operations
-- **Expression-based reads** - `selectFrom()` operations using DSL expressions
+- **Expression-based reads** - `selectFrom()` operations using AEL expressions
 - **Simple bin reads** - `get()` operations
 
 ## Key Findings

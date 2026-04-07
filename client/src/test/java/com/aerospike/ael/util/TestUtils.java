@@ -125,7 +125,7 @@ public class TestUtils {
      * @param filter            The expected {@link Filter} component of the parsed result
      * @param exp               The expected {@link Exp} component of the parsed result. Can be {@code null}
      */
-    public static void parseDslExpressionAndCompare(ExpressionContext expressionContext, Filter filter, Exp exp) {
+    public static void parseAelExpressionAndCompare(ExpressionContext expressionContext, Filter filter, Exp exp) {
         ParsedExpression actualExpression = parser.parseExpression(expressionContext);
         assertEquals(filter, actualExpression.getResult().getFilter());
         Exp actualExp = actualExpression.getResult().getExp();
@@ -141,7 +141,7 @@ public class TestUtils {
      * @param exp               The expected {@link Exp} component of the parsed result. Can be {@code null}
      * @param indexContext      The {@link IndexContext} to be used for building secondary index filter
      */
-    public static void parseDslExpressionAndCompare(ExpressionContext expressionContext, Filter filter, Exp exp, IndexContext indexContext) {
+    public static void parseAelExpressionAndCompare(ExpressionContext expressionContext, Filter filter, Exp exp, IndexContext indexContext) {
         ParsedExpression actualExpression = parser.parseExpression(expressionContext, indexContext);
         assertEquals(filter, actualExpression.getResult().getFilter());
         Exp actualExp = actualExpression.getResult().getExp();
@@ -154,7 +154,7 @@ public class TestUtils {
      * @param aelActual   The AEL string whose result is being verified
      * @param aelExpected The reference AEL string that defines the expected result
      */
-    public static void parseDslAndCompare(String aelActual, String aelExpected) {
+    public static void parseAelAndCompare(String aelActual, String aelExpected) {
         Expression actual = Exp.build(parser.parseExpression(ExpressionContext.of(aelActual)).getResult().getExp());
         Expression expected = Exp.build(parser.parseExpression(ExpressionContext.of(aelExpected)).getResult().getExp());
         assertEquals(expected, actual);

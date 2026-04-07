@@ -234,7 +234,7 @@ public class ExplicitTypesFiltersTests {
 
     @Test
     void blobInequalityNoFilter() {
-        TestUtils.parseDslExpressionAndCompare(
+        TestUtils.parseAelExpressionAndCompare(
                 ExpressionContext.of("$.blobBin1.get(type: BLOB) != X'ff00'"),
                 null,
                 Exp.ne(Exp.blobBin("blobBin1"), Exp.val(new byte[]{(byte) 0xff, 0x00})),
@@ -243,7 +243,7 @@ public class ExplicitTypesFiltersTests {
 
     @Test
     void blobOrderingNoFilter() {
-        TestUtils.parseDslExpressionAndCompare(
+        TestUtils.parseAelExpressionAndCompare(
                 ExpressionContext.of("$.blobBin1.get(type: BLOB) > X'ff00'"),
                 null,
                 Exp.gt(Exp.blobBin("blobBin1"), Exp.val(new byte[]{(byte) 0xff, 0x00})),

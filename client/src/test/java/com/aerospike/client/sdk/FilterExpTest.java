@@ -594,7 +594,7 @@ public class FilterExpTest extends ClusterTest {
 				Exp.val(2));
 
 		testExp(exp);
-		//testDsl("$." + binB + ".asInt()) == 2");
+		//testAel("$." + binB + ".asInt()) == 2");
 	}
 
 	// TODO Replace Exp filter with AEL when float cast works.
@@ -606,7 +606,7 @@ public class FilterExpTest extends ClusterTest {
 				Exp.val(2.0));
 
 		testExp(exp);
-		//testDsl("$.A.asFloat() == 2.0");
+		//testAel("$.A.asFloat() == 2.0");
 	}
 
 	@Test
@@ -861,7 +861,7 @@ public class FilterExpTest extends ClusterTest {
 		testExps(exp1, exp2);
 		// TODO: This results in a PARAMETER_ERROR. Needs to be fixed.
 		/*
-		testDsls("when($." + binA + " == 0 => $." + binD + " + $." + binE +
+		testAels("when($." + binA + " == 0 => $." + binD + " + $." + binE +
 			        ", $." + binA + " == 1 => $." + binD + " - $." + binE +
 					", $." + binA + " == 2 => $." + binD + " * $." + binE +
 					", default => -1) == 2");

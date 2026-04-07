@@ -14,7 +14,7 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 
 import static com.aerospike.ael.util.TestUtils.NAMESPACE;
-import static com.aerospike.ael.util.TestUtils.parseDslExpressionAndCompare;
+import static com.aerospike.ael.util.TestUtils.parseAelExpressionAndCompare;
 
 class InExprTests {
 
@@ -31,7 +31,7 @@ class InExprTests {
         Filter filter = Filter.equal("intBin2", 100);
         Exp exp = ListExp.getByValue(ListReturnType.EXISTS,
                 Exp.intBin("intBin1"), Exp.val(List.of(1, 2, 3)));
-        parseDslExpressionAndCompare(
+        parseAelExpressionAndCompare(
                 ExpressionContext.of("$.intBin1 in [1, 2, 3] and $.intBin2 == 100"),
                 filter, exp, IndexContext.of(NAMESPACE, indexes));
     }
@@ -47,7 +47,7 @@ class InExprTests {
         Filter filter = Filter.equal("intBin1", 100);
         Exp exp = ListExp.getByValue(ListReturnType.EXISTS,
                 Exp.intBin("intBin2"), Exp.val(List.of(1, 2, 3)));
-        parseDslExpressionAndCompare(
+        parseAelExpressionAndCompare(
                 ExpressionContext.of("$.intBin1 == 100 and $.intBin2 in [1, 2, 3]"),
                 filter, exp, IndexContext.of(NAMESPACE, indexes));
     }
@@ -67,7 +67,7 @@ class InExprTests {
                 Exp.eq(Exp.intBin("intBin1"), Exp.val(100)),
                 ListExp.getByValue(ListReturnType.EXISTS,
                         Exp.intBin("intBin2"), Exp.val(List.of(1, 2, 3))));
-        parseDslExpressionAndCompare(
+        parseAelExpressionAndCompare(
                 ExpressionContext.of("$.intBin1 == 100 and $.intBin2 in [1, 2, 3] and $.intBin3 < 50"),
                 filter, exp, IndexContext.of(NAMESPACE, indexes));
     }
@@ -83,7 +83,7 @@ class InExprTests {
         Filter filter = Filter.range("intBin2", 101, Long.MAX_VALUE);
         Exp exp = ListExp.getByValue(ListReturnType.EXISTS,
                 Exp.intBin("intBin1"), Exp.val(List.of(10, 20)));
-        parseDslExpressionAndCompare(
+        parseAelExpressionAndCompare(
                 ExpressionContext.of("$.intBin1 in [10, 20] and $.intBin2 > 100"),
                 filter, exp, IndexContext.of(NAMESPACE, indexes));
     }
@@ -99,7 +99,7 @@ class InExprTests {
         Filter filter = Filter.range("intBin1", 101, Long.MAX_VALUE);
         Exp exp = ListExp.getByValue(ListReturnType.EXISTS,
                 Exp.intBin("intBin2"), Exp.val(List.of(10, 20)));
-        parseDslExpressionAndCompare(
+        parseAelExpressionAndCompare(
                 ExpressionContext.of("$.intBin1 > 100 and $.intBin2 in [10, 20]"),
                 filter, exp, IndexContext.of(NAMESPACE, indexes));
     }
@@ -120,7 +120,7 @@ class InExprTests {
                         Exp.intBin("intBin1"), Exp.val(List.of(1, 2))),
                 ListExp.getByValue(ListReturnType.EXISTS,
                         Exp.intBin("intBin2"), Exp.val(List.of(3, 4))));
-        parseDslExpressionAndCompare(
+        parseAelExpressionAndCompare(
                 ExpressionContext.of("$.intBin1 in [1, 2] and $.intBin2 in [3, 4]"),
                 filter, exp, IndexContext.of(NAMESPACE, indexes));
     }
@@ -133,7 +133,7 @@ class InExprTests {
                         Exp.intBin("intBin1"), Exp.val(List.of(1, 2))),
                 ListExp.getByValue(ListReturnType.EXISTS,
                         Exp.intBin("intBin2"), Exp.val(List.of(3, 4))));
-        parseDslExpressionAndCompare(
+        parseAelExpressionAndCompare(
                 ExpressionContext.of("$.intBin1 in [1, 2] and $.intBin2 in [3, 4]"),
                 filter, exp);
     }
@@ -154,7 +154,7 @@ class InExprTests {
                         Exp.intBin("intBin1"), Exp.val(List.of(1, 2))),
                 ListExp.getByValue(ListReturnType.EXISTS,
                         Exp.intBin("intBin2"), Exp.val(List.of(3, 4))));
-        parseDslExpressionAndCompare(
+        parseAelExpressionAndCompare(
                 ExpressionContext.of("$.intBin1 in [1, 2] and $.intBin2 in [3, 4] and $.intBin3 == 100"),
                 filter, exp, IndexContext.of(NAMESPACE, indexes));
     }
@@ -175,7 +175,7 @@ class InExprTests {
                         Exp.intBin("intBin2"), Exp.val(List.of(1, 2))),
                 ListExp.getByValue(ListReturnType.EXISTS,
                         Exp.intBin("intBin3"), Exp.val(List.of(3, 4))));
-        parseDslExpressionAndCompare(
+        parseAelExpressionAndCompare(
                 ExpressionContext.of("$.intBin1 == 100 and $.intBin2 in [1, 2] and $.intBin3 in [3, 4]"),
                 filter, exp, IndexContext.of(NAMESPACE, indexes));
     }
@@ -199,7 +199,7 @@ class InExprTests {
                 ListExp.getByValue(ListReturnType.EXISTS,
                         Exp.intBin("b3"), Exp.val(List.of(2))),
                 Exp.gt(Exp.intBin("b4"), Exp.val(100)));
-        parseDslExpressionAndCompare(
+        parseAelExpressionAndCompare(
                 ExpressionContext.of("$.b1 in [1] and $.b2 < 50 and $.b3 in [2] and $.b4 > 100"),
                 filter, exp, IndexContext.of(NAMESPACE, indexes));
     }
@@ -217,7 +217,7 @@ class InExprTests {
         Filter filter = Filter.equal("intBin2", 100);
         Exp exp = ListExp.getByValue(ListReturnType.EXISTS,
                 Exp.intBin("intBin1"), Exp.val(List.of(1, 2)));
-        parseDslExpressionAndCompare(
+        parseAelExpressionAndCompare(
                 ExpressionContext.of("$.intBin1 in [1, 2] and $.intBin2 == 100"),
                 filter, exp, IndexContext.of(NAMESPACE, indexes));
     }
@@ -233,7 +233,7 @@ class InExprTests {
         Filter filter = Filter.range("intBin2", 101, Long.MAX_VALUE);
         Exp exp = ListExp.getByValue(ListReturnType.EXISTS,
                 Exp.intBin("intBin1"), Exp.val(List.of(1, 2)));
-        parseDslExpressionAndCompare(
+        parseAelExpressionAndCompare(
                 ExpressionContext.of("$.intBin1 in [1, 2] and $.intBin2 > 100"),
                 filter, exp, IndexContext.of(NAMESPACE, indexes));
     }
@@ -253,7 +253,7 @@ class InExprTests {
                 ListExp.getByValue(ListReturnType.EXISTS,
                         Exp.intBin("intBin1"), Exp.val(List.of(1, 2))),
                 Exp.lt(Exp.intBin("intBin3"), Exp.val(50)));
-        parseDslExpressionAndCompare(
+        parseAelExpressionAndCompare(
                 ExpressionContext.of("$.intBin1 in [1, 2] and $.intBin2 == 100 and $.intBin3 < 50"),
                 filter, exp, IndexContext.of(NAMESPACE, indexes));
     }
@@ -269,7 +269,7 @@ class InExprTests {
                 ListExp.getByValue(ListReturnType.EXISTS,
                         Exp.intBin("intBin1"), Exp.val(List.of(1, 2))),
                 Exp.eq(Exp.intBin("intBin2"), Exp.val(100)));
-        parseDslExpressionAndCompare(
+        parseAelExpressionAndCompare(
                 ExpressionContext.of("$.intBin1 in [1, 2] and $.intBin2 == 100"),
                 filter, exp, IndexContext.of(NAMESPACE, indexes));
     }
@@ -292,7 +292,7 @@ class InExprTests {
                         Exp.intBin("b1"), Exp.val(List.of(1))),
                 ListExp.getByValue(ListReturnType.EXISTS,
                         Exp.intBin("b2"), Exp.val(List.of(2))));
-        parseDslExpressionAndCompare(
+        parseAelExpressionAndCompare(
                 ExpressionContext.of("$.b1 in [1] and $.b2 in [2] and $.b3 == 100"),
                 filter, exp, IndexContext.of(NAMESPACE, indexes));
     }
@@ -311,7 +311,7 @@ class InExprTests {
                         Exp.intBin("b1"), Exp.val(List.of(1))),
                 ListExp.getByValue(ListReturnType.EXISTS,
                         Exp.intBin("b2"), Exp.val(List.of(2))));
-        parseDslExpressionAndCompare(
+        parseAelExpressionAndCompare(
                 ExpressionContext.of("$.b1 in [1] and $.b2 in [2]"),
                 filter, exp, IndexContext.of(NAMESPACE, indexes));
     }
@@ -335,7 +335,7 @@ class InExprTests {
                 ListExp.getByValue(ListReturnType.EXISTS,
                         Exp.intBin("b3"), Exp.val(List.of(2))),
                 Exp.lt(Exp.intBin("b4"), Exp.val(100)));
-        parseDslExpressionAndCompare(
+        parseAelExpressionAndCompare(
                 ExpressionContext.of("$.b1 in [1] and $.b2 > 50 and $.b3 in [2] and $.b4 < 100"),
                 filter, exp, IndexContext.of(NAMESPACE, indexes));
     }
@@ -355,7 +355,7 @@ class InExprTests {
                 ListExp.getByValue(ListReturnType.EXISTS,
                         Exp.intBin("b2"), Exp.val(List.of(2))),
                 Exp.eq(Exp.intBin("b3"), Exp.val(100)));
-        parseDslExpressionAndCompare(
+        parseAelExpressionAndCompare(
                 ExpressionContext.of("$.b1 in [1] and $.b2 in [2] and $.b3 == 100"),
                 filter, exp, IndexContext.of(NAMESPACE, indexes));
     }
@@ -373,7 +373,7 @@ class InExprTests {
         Filter filter = Filter.equal("intBin2", 100);
         Exp exp = ListExp.getByValue(ListReturnType.EXISTS,
                 Exp.intBin("intBin1"), Exp.val(List.of(1, 2, 3)));
-        parseDslExpressionAndCompare(
+        parseAelExpressionAndCompare(
                 ExpressionContext.of("$.intBin1 in [1, 2, 3] and $.intBin2 == 100"),
                 filter, exp, IndexContext.of(NAMESPACE, indexes, "idx_intBin2"));
     }
@@ -389,7 +389,7 @@ class InExprTests {
         Filter filter = Filter.equal("intBin2", 100);
         Exp exp = ListExp.getByValue(ListReturnType.EXISTS,
                 Exp.intBin("intBin1"), Exp.val(List.of(1, 2, 3)));
-        parseDslExpressionAndCompare(
+        parseAelExpressionAndCompare(
                 ExpressionContext.of("$.intBin1 in [1, 2, 3] and $.intBin2 == 100"),
                 filter, exp, IndexContext.of(NAMESPACE, indexes, "idx_intBin1"));
     }
@@ -409,7 +409,7 @@ class InExprTests {
                 ListExp.getByValue(ListReturnType.EXISTS,
                         Exp.intBin("intBin1"), Exp.val(List.of(1, 2))),
                 Exp.eq(Exp.intBin("intBin2"), Exp.val(100)));
-        parseDslExpressionAndCompare(
+        parseAelExpressionAndCompare(
                 ExpressionContext.of("$.intBin1 in [1, 2] and $.intBin2 == 100 and $.intBin3 > 50"),
                 filter, exp, IndexContext.of(NAMESPACE, indexes, "idx_intBin3"));
     }
@@ -430,7 +430,7 @@ class InExprTests {
                         Exp.intBin("intBin1"), Exp.val(List.of(1, 2))),
                 ListExp.getByValue(ListReturnType.EXISTS,
                         Exp.intBin("intBin2"), Exp.val(List.of(3, 4))));
-        parseDslExpressionAndCompare(
+        parseAelExpressionAndCompare(
                 ExpressionContext.of("$.intBin1 in [1, 2] and $.intBin2 in [3, 4] and $.intBin3 == 100"),
                 filter, exp, IndexContext.of(NAMESPACE, indexes, "idx_intBin3"));
     }
@@ -449,7 +449,7 @@ class InExprTests {
                         Exp.intBin("intBin1"), Exp.val(List.of(1, 2))),
                 ListExp.getByValue(ListReturnType.EXISTS,
                         Exp.intBin("intBin2"), Exp.val(List.of(3, 4))));
-        parseDslExpressionAndCompare(
+        parseAelExpressionAndCompare(
                 ExpressionContext.of("$.intBin1 in [1, 2] and $.intBin2 in [3, 4]"),
                 filter, exp, IndexContext.of(NAMESPACE, indexes, "idx_intBin1"));
     }
@@ -465,7 +465,7 @@ class InExprTests {
         Filter filter = Filter.equal("intBin2", 100);
         Exp exp = ListExp.getByValue(ListReturnType.EXISTS,
                 Exp.intBin("intBin1"), Exp.val(List.of(1, 2, 3)));
-        parseDslExpressionAndCompare(
+        parseAelExpressionAndCompare(
                 ExpressionContext.of("$.intBin1 in [1, 2, 3] and $.intBin2 == 100"),
                 filter, exp, IndexContext.of(NAMESPACE, indexes, "nonExistent"));
     }
@@ -481,7 +481,7 @@ class InExprTests {
         Filter filter = Filter.equal("intBin2", 100);
         Exp exp = ListExp.getByValue(ListReturnType.EXISTS,
                 Exp.intBin("intBin1"), Exp.val(List.of(1, 2, 3)));
-        parseDslExpressionAndCompare(
+        parseAelExpressionAndCompare(
                 ExpressionContext.of("$.intBin1 in [1, 2, 3] and $.intBin2 == 100"),
                 filter, exp, IndexContext.of(NAMESPACE, indexes, "idx_intBin1"));
     }
@@ -497,7 +497,7 @@ class InExprTests {
         Filter filter = Filter.equal("intBin2", 100);
         Exp exp = ListExp.getByValue(ListReturnType.EXISTS,
                 Exp.intBin("intBin1"), Exp.val(List.of(1, 2, 3)));
-        parseDslExpressionAndCompare(
+        parseAelExpressionAndCompare(
                 ExpressionContext.of("$.intBin1 in [1, 2, 3] and $.intBin2 == 100"),
                 filter, exp, IndexContext.of(NAMESPACE, indexes, null));
     }
@@ -513,7 +513,7 @@ class InExprTests {
         Filter filter = Filter.equal("intBin2", 100);
         Exp exp = ListExp.getByValue(ListReturnType.EXISTS,
                 Exp.intBin("intBin1"), Exp.val(List.of(1, 2, 3)));
-        parseDslExpressionAndCompare(
+        parseAelExpressionAndCompare(
                 ExpressionContext.of("$.intBin1 in [1, 2, 3] and $.intBin2 == 100"),
                 filter, exp, IndexContext.of(NAMESPACE, indexes, ""));
     }
@@ -533,7 +533,7 @@ class InExprTests {
                 ListExp.getByValue(ListReturnType.EXISTS,
                         Exp.intBin("intBin1"), Exp.val(List.of(1, 2))),
                 Exp.eq(Exp.intBin("intBin2"), Exp.val(100)));
-        parseDslExpressionAndCompare(
+        parseAelExpressionAndCompare(
                 ExpressionContext.of("$.intBin1 in [1, 2] and $.intBin2 == 100 and $.intBin3 > 50"),
                 filter, exp, IndexContext.of(NAMESPACE, indexes, "idx_intBin3"));
     }
@@ -555,7 +555,7 @@ class InExprTests {
                 ListExp.getByValue(ListReturnType.EXISTS,
                         Exp.intBin("intBin1"), Exp.val(List.of(1, 2))),
                 Exp.gt(Exp.intBin("intBin3"), Exp.val(50)));
-        parseDslExpressionAndCompare(
+        parseAelExpressionAndCompare(
                 ExpressionContext.of("$.intBin1 in [1, 2] and $.intBin2 == 100 and $.intBin3 > 50"),
                 filter, exp, IndexContext.of(NAMESPACE, indexes, "idx_intBin1"));
     }
@@ -576,7 +576,7 @@ class InExprTests {
                         Exp.intBin("intBin1"), Exp.val(List.of(1, 2))),
                 ListExp.getByValue(ListReturnType.EXISTS,
                         Exp.intBin("intBin2"), Exp.val(List.of(3, 4))));
-        parseDslExpressionAndCompare(
+        parseAelExpressionAndCompare(
                 ExpressionContext.of("$.intBin1 in [1, 2] and $.intBin2 in [3, 4] and $.intBin3 < 50"),
                 filter, exp, IndexContext.of(NAMESPACE, indexes, "idx_intBin1"));
     }
@@ -596,7 +596,7 @@ class InExprTests {
                 ListExp.getByValue(ListReturnType.EXISTS,
                         Exp.intBin("intBin1"), Exp.val(List.of(1, 2))),
                 Exp.eq(Exp.intBin("intBin2"), Exp.val(100)));
-        parseDslExpressionAndCompare(
+        parseAelExpressionAndCompare(
                 ExpressionContext.of("$.intBin1 in [1, 2] or $.intBin2 == 100"),
                 filter, exp, IndexContext.of(NAMESPACE, indexes, "idx_intBin2"));
     }
@@ -616,7 +616,7 @@ class InExprTests {
                 ListExp.getByValue(ListReturnType.EXISTS,
                         Exp.intBin("intBin1"), Exp.val(List.of(1, 2))),
                 Exp.eq(Exp.intBin("intBin2"), Exp.val(100)));
-        parseDslExpressionAndCompare(
+        parseAelExpressionAndCompare(
                 ExpressionContext.of("($.intBin1 in [1, 2] or $.intBin2 == 100) and $.intBin3 > 50"),
                 filter, exp, IndexContext.of(NAMESPACE, indexes, "idx_intBin1"));
     }
@@ -634,7 +634,7 @@ class InExprTests {
         Filter filter = Filter.equal("intBin2", 100);
         Exp exp = ListExp.getByValue(ListReturnType.EXISTS,
                 Exp.intBin("intBin1"), Exp.val(List.of(1, 2, 3)));
-        parseDslExpressionAndCompare(
+        parseAelExpressionAndCompare(
                 ExpressionContext.of("$.intBin1 in [1, 2, 3] and $.intBin2 == 100"),
                 filter, exp, IndexContext.withBinHint(NAMESPACE, indexes, "intBin2"));
     }
@@ -650,7 +650,7 @@ class InExprTests {
         Filter filter = Filter.equal("intBin2", 100);
         Exp exp = ListExp.getByValue(ListReturnType.EXISTS,
                 Exp.intBin("intBin1"), Exp.val(List.of(1, 2, 3)));
-        parseDslExpressionAndCompare(
+        parseAelExpressionAndCompare(
                 ExpressionContext.of("$.intBin1 in [1, 2, 3] and $.intBin2 == 100"),
                 filter, exp, IndexContext.withBinHint(NAMESPACE, indexes, "intBin1"));
     }
@@ -670,7 +670,7 @@ class InExprTests {
                 ListExp.getByValue(ListReturnType.EXISTS,
                         Exp.intBin("intBin1"), Exp.val(List.of(1, 2))),
                 Exp.eq(Exp.intBin("intBin2"), Exp.val(100)));
-        parseDslExpressionAndCompare(
+        parseAelExpressionAndCompare(
                 ExpressionContext.of("$.intBin1 in [1, 2] and $.intBin2 == 100 and $.intBin3 > 50"),
                 filter, exp, IndexContext.withBinHint(NAMESPACE, indexes, "intBin3"));
     }
@@ -691,7 +691,7 @@ class InExprTests {
                         Exp.intBin("intBin1"), Exp.val(List.of(1, 2))),
                 ListExp.getByValue(ListReturnType.EXISTS,
                         Exp.intBin("intBin2"), Exp.val(List.of(3, 4))));
-        parseDslExpressionAndCompare(
+        parseAelExpressionAndCompare(
                 ExpressionContext.of("$.intBin1 in [1, 2] and $.intBin2 in [3, 4] and $.intBin3 == 100"),
                 filter, exp, IndexContext.withBinHint(NAMESPACE, indexes, "intBin3"));
     }
@@ -710,7 +710,7 @@ class InExprTests {
                         Exp.intBin("intBin1"), Exp.val(List.of(1, 2))),
                 ListExp.getByValue(ListReturnType.EXISTS,
                         Exp.intBin("intBin2"), Exp.val(List.of(3, 4))));
-        parseDslExpressionAndCompare(
+        parseAelExpressionAndCompare(
                 ExpressionContext.of("$.intBin1 in [1, 2] and $.intBin2 in [3, 4]"),
                 filter, exp, IndexContext.withBinHint(NAMESPACE, indexes, "intBin1"));
     }
@@ -726,7 +726,7 @@ class InExprTests {
         Filter filter = Filter.equal("intBin2", 100);
         Exp exp = ListExp.getByValue(ListReturnType.EXISTS,
                 Exp.intBin("intBin1"), Exp.val(List.of(1, 2, 3)));
-        parseDslExpressionAndCompare(
+        parseAelExpressionAndCompare(
                 ExpressionContext.of("$.intBin1 in [1, 2, 3] and $.intBin2 == 100"),
                 filter, exp, IndexContext.withBinHint(NAMESPACE, indexes, "nonExistent"));
     }
@@ -742,7 +742,7 @@ class InExprTests {
         Filter filter = Filter.equal("intBin2", 100);
         Exp exp = ListExp.getByValue(ListReturnType.EXISTS,
                 Exp.intBin("intBin1"), Exp.val(List.of(1, 2, 3)));
-        parseDslExpressionAndCompare(
+        parseAelExpressionAndCompare(
                 ExpressionContext.of("$.intBin1 in [1, 2, 3] and $.intBin2 == 100"),
                 filter, exp, IndexContext.withBinHint(NAMESPACE, indexes, null));
     }
@@ -758,7 +758,7 @@ class InExprTests {
         Filter filter = Filter.equal("intBin2", 100);
         Exp exp = ListExp.getByValue(ListReturnType.EXISTS,
                 Exp.intBin("intBin1"), Exp.val(List.of(1, 2, 3)));
-        parseDslExpressionAndCompare(
+        parseAelExpressionAndCompare(
                 ExpressionContext.of("$.intBin1 in [1, 2, 3] and $.intBin2 == 100"),
                 filter, exp, IndexContext.withBinHint(NAMESPACE, indexes, "intBin1"));
     }
@@ -778,7 +778,7 @@ class InExprTests {
                 ListExp.getByValue(ListReturnType.EXISTS,
                         Exp.intBin("intBin1"), Exp.val(List.of(1, 2))),
                 Exp.eq(Exp.intBin("intBin2"), Exp.val(100)));
-        parseDslExpressionAndCompare(
+        parseAelExpressionAndCompare(
                 ExpressionContext.of("$.intBin1 in [1, 2] and $.intBin2 == 100 and $.intBin3 > 50"),
                 filter, exp, IndexContext.withBinHint(NAMESPACE, indexes, "intBin3"));
     }
@@ -800,7 +800,7 @@ class InExprTests {
                 ListExp.getByValue(ListReturnType.EXISTS,
                         Exp.intBin("intBin1"), Exp.val(List.of(1, 2))),
                 Exp.gt(Exp.intBin("intBin3"), Exp.val(50)));
-        parseDslExpressionAndCompare(
+        parseAelExpressionAndCompare(
                 ExpressionContext.of("$.intBin1 in [1, 2] and $.intBin2 == 100 and $.intBin3 > 50"),
                 filter, exp, IndexContext.withBinHint(NAMESPACE, indexes, "intBin1"));
     }
@@ -821,7 +821,7 @@ class InExprTests {
                         Exp.intBin("intBin1"), Exp.val(List.of(1, 2))),
                 ListExp.getByValue(ListReturnType.EXISTS,
                         Exp.intBin("intBin2"), Exp.val(List.of(3, 4))));
-        parseDslExpressionAndCompare(
+        parseAelExpressionAndCompare(
                 ExpressionContext.of("$.intBin1 in [1, 2] and $.intBin2 in [3, 4] and $.intBin3 < 50"),
                 filter, exp, IndexContext.withBinHint(NAMESPACE, indexes, "intBin1"));
     }
@@ -841,7 +841,7 @@ class InExprTests {
                 ListExp.getByValue(ListReturnType.EXISTS,
                         Exp.intBin("intBin1"), Exp.val(List.of(1, 2))),
                 Exp.eq(Exp.intBin("intBin2"), Exp.val(100)));
-        parseDslExpressionAndCompare(
+        parseAelExpressionAndCompare(
                 ExpressionContext.of("$.intBin1 in [1, 2] or $.intBin2 == 100"),
                 filter, exp, IndexContext.withBinHint(NAMESPACE, indexes, "intBin2"));
     }
@@ -861,7 +861,7 @@ class InExprTests {
                 ListExp.getByValue(ListReturnType.EXISTS,
                         Exp.intBin("intBin1"), Exp.val(List.of(1, 2))),
                 Exp.eq(Exp.intBin("intBin2"), Exp.val(100)));
-        parseDslExpressionAndCompare(
+        parseAelExpressionAndCompare(
                 ExpressionContext.of("($.intBin1 in [1, 2] or $.intBin2 == 100) and $.intBin3 > 50"),
                 filter, exp, IndexContext.withBinHint(NAMESPACE, indexes, "intBin1"));
     }
