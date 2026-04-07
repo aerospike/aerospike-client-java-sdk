@@ -70,7 +70,7 @@ public class InsertTaskSync extends InsertTask implements Runnable {
             args.setBinFromValue(builder, binArr[i], values[i]);
         }
         long begin = System.nanoTime();
-        builder.execute();
+        builder.execute().next();
         if (useLatency) {
             long elapsed = begin - System.nanoTime();
             counters.write.latency.add(elapsed);

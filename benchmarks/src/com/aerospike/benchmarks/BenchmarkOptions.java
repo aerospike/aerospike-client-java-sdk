@@ -136,10 +136,6 @@ public class BenchmarkOptions {
 		description = "Benchmark asynchronous methods instead of synchronous methods. Default: false")
 	private boolean async;
 
-	@Option(
-		names = {"-C", "-asyncMaxCommands", "--asyncMaxCommands"},
-		description = "Maximum number of concurrent asynchronous database commands. Default: 100")
-	private Integer asyncMaxCommands;
 
 	public CommandSpec getSpec() {
 		return spec;
@@ -181,8 +177,5 @@ public class BenchmarkOptions {
 		return async;
 	}
 
-	public Integer getAsyncMaxCommands() {
-		return asyncMaxCommands;
-	}
 
 }

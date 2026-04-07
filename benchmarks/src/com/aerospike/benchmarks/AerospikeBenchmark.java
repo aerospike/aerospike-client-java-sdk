@@ -14,7 +14,7 @@ import java.util.Optional;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.Semaphore;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 
 import com.aerospike.client.sdk.Log;
@@ -102,56 +102,29 @@ public class AerospikeBenchmark implements Callable<Integer>, Log.Callback {
     private void doRwTask(BenchmarkContext benchmarkContext) throws InterruptedException {
         Arguments arguments = benchmarkContext.getArguments();
         int threads = arguments.getThreads();
+        Predicate<Arguments> isDurationApplicable = arg -> arg.getDurationSeconds() != null && benchmarkOptions.isAsync();
         ExecutorService es = executorSupplier.get();
-        RWTask[] tasks = new RWTask[threads];
-
         if (benchmarkOptions.isAsync()) {
-            // Distribute max commands evenly across threads
-            int totalMax = arguments.getAsyncMaxCommands();
-            int perThread = totalMax / threads;
-            int remainder = totalMax % threads;
-
+            RWTask[] tasks = new RWTask[threads];
             for (int i = 0; i < threads; i++) {
-                int inFlightPerThreadCap = perThread + (i < remainder ? 1 : 0);
-                RWTaskAsync rt = new RWTaskAsync(
-                        arguments, counters, benchmarkContext.getSession(), inFlightPerThreadCap);
+                RWTaskAsync rt = new RWTaskAsync(arguments, counters, benchmarkContext.getSession());
                 tasks[i] = rt;
                 es.execute(rt);
             }
             Thread.sleep(900);
-            collectRwStats(benchmarkContext.getArguments(), tasks);
-            drainAndShutdown(tasks, es);
+            collectRwStats(benchmarkContext.getArguments(), tasks, isDurationApplicable.test(arguments));
+            es.shutdown();
         } else {
+            RWTask[] tasks = new RWTask[threads];
             for (int i = 0; i < threads; i++) {
                 RWTaskSync rt = new RWTaskSync(arguments, counters, benchmarkContext.getSession());
                 tasks[i] = rt;
                 es.execute(rt);
             }
             Thread.sleep(900);
-            collectRwStats(benchmarkContext.getArguments(), tasks);
+            collectRwStats(benchmarkContext.getArguments(), tasks, isDurationApplicable.test(arguments));
             es.shutdown();
         }
-    }
-
-    private void drainAndShutdown(RWTask[] tasks, ExecutorService es) {
-        // Signal all tasks to stop
-        for (RWTask task : tasks) {
-            task.stop();
-        }
-        // Wait for in-flight operations to complete
-        for (RWTask task : tasks) {
-            if (task instanceof RWTaskAsync asyncTask) {
-                try {
-                    boolean drained = asyncTask.awaitDrain(5000);
-                    if (!drained) {
-                        System.out.println("Warning: Task did not drain in time");
-                    }
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                }
-            }
-        }
-        es.shutdown();
     }
 
     private void doInserts(BenchmarkContext benchmarkContext) throws InterruptedException {
@@ -166,16 +139,14 @@ public class AerospikeBenchmark implements Callable<Integer>, Log.Callback {
         long start = arguments.getStartKey();
 
         if (benchmarkOptions.isAsync()) {
-            Semaphore inFlight = new Semaphore(arguments.getAsyncMaxCommands());
             for (long i = 0; i < tasks; i++) {
                 long keyCount = (i < rem) ? keysPerTask  + 1 : keysPerTask;
-                InsertTaskAsync insertTask = new InsertTaskAsync(benchmarkContext.getSession(),
+                InsertTaskAsync insertTaskAsync = new InsertTaskAsync(benchmarkContext.getSession(),
                         arguments,
                         counters,
-                        inFlight,
                         start,
                         keyCount);
-                es.execute(insertTask);
+                es.execute(insertTaskAsync);
                 start += keyCount;
             }
         } else {
@@ -235,12 +206,13 @@ public class AerospikeBenchmark implements Callable<Integer>, Log.Callback {
         }
     }
 
-    private void collectRwStats(Arguments arguments, RWTask[] tasks) throws InterruptedException {
+    private void collectRwStats(Arguments arguments, RWTask[] tasks, boolean isDurationLimit) throws InterruptedException {
         long transactionTotal = 0;
+        long rwStartMs = System.currentTimeMillis();
+        Long deadline = isDurationLimit ? (arguments.getDurationSeconds() * 1000L + rwStartMs) : null;
 
         while (true) {
             long time = System.currentTimeMillis();
-            //int notFound = arguments.isReportNotFound() ? this.counters.readNotFound.getAndSet(0) : 0;
             this.counters.periodBegin.set(time);
 
             int numWrites = this.counters.write.count.getAndSet(0);
@@ -291,6 +263,15 @@ public class AerospikeBenchmark implements Callable<Integer>, Log.Callback {
                 }
             }
 
+            if (deadline != null &&  deadline <= time) {
+                for (RWTask task : tasks) {
+                    task.stop();
+                }
+                printRwLatencySummaries();
+                System.out.println("Duration limit reached: " + arguments.getDurationSeconds() + "s. Exiting.");
+                break;
+            }
+
             if (arguments.getTransactionLimit() > 0) {
                 transactionTotal +=
                         numWrites + timeoutWrites + errorWrites + numReads + timeoutReads + errorReads;
@@ -298,20 +279,23 @@ public class AerospikeBenchmark implements Callable<Integer>, Log.Callback {
                     for (RWTask task : tasks) {
                         task.stop();
                     }
-                    if (this.counters.write.latency != null) {
-                        this.counters.write.latency.printSummaryHeader(System.out);
-                        this.counters.write.latency.printSummary(System.out, Constants.OP_TYPE.w.opType);
-                        this.counters.read.latency.printSummary(System.out, Constants.OP_TYPE.r.opType);
-                        if (this.counters.transaction != null && this.counters.transaction.latency != null) {
-                            this.counters.transaction.latency.printSummary(System.out, Constants.OP_TYPE.tx.opType);
-                        }
-                    }
-
+                    printRwLatencySummaries();
                     System.out.println("Transaction limit reached: " + arguments.getTransactionLimit() + ". Exiting.");
                     break;
                 }
             }
             Thread.sleep(1000);
+        }
+    }
+
+    private void printRwLatencySummaries() {
+        if (this.counters.write.latency != null) {
+            this.counters.write.latency.printSummaryHeader(System.out);
+            this.counters.write.latency.printSummary(System.out, Constants.OP_TYPE.w.opType);
+            this.counters.read.latency.printSummary(System.out, Constants.OP_TYPE.r.opType);
+            if (this.counters.transaction != null && this.counters.transaction.latency != null) {
+                this.counters.transaction.latency.printSummary(System.out, Constants.OP_TYPE.tx.opType);
+            }
         }
     }
 
