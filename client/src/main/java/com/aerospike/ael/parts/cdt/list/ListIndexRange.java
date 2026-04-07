@@ -25,7 +25,7 @@ import com.aerospike.client.sdk.cdt.CTX;
 import com.aerospike.client.sdk.cdt.ListReturnType;
 import com.aerospike.client.sdk.exp.Exp;
 import com.aerospike.client.sdk.exp.ListExp;
-import com.aerospike.dsl.ConditionParser;
+import com.aerospike.ael.ConditionParser;
 
 public class ListIndexRange extends ListPart {
     private final boolean isInverted;

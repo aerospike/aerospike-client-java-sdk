@@ -22,7 +22,7 @@ import com.aerospike.client.sdk.Value;
 import com.aerospike.client.sdk.cdt.CTX;
 import com.aerospike.client.sdk.exp.Exp;
 import com.aerospike.client.sdk.exp.MapExp;
-import com.aerospike.dsl.ConditionParser;
+import com.aerospike.ael.ConditionParser;
 
 public class MapKey extends MapPart {
     private final String key;

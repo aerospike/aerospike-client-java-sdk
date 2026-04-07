@@ -24,7 +24,7 @@ import com.aerospike.client.sdk.Value;
 import com.aerospike.client.sdk.cdt.CTX;
 import com.aerospike.client.sdk.exp.Exp;
 import com.aerospike.client.sdk.exp.ListExp;
-import com.aerospike.dsl.ConditionParser;
+import com.aerospike.ael.ConditionParser;
 
 public class ListValue extends ListPart {
     private final Object value;

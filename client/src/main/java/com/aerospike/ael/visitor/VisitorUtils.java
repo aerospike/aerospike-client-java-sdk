@@ -50,7 +50,7 @@ import com.aerospike.client.sdk.exp.Exp;
 import com.aerospike.client.sdk.exp.ListExp;
 import com.aerospike.client.sdk.query.Filter;
 import com.aerospike.client.sdk.query.IndexType;
-import com.aerospike.dsl.ConditionParser;
+import com.aerospike.ael.ConditionParser;
 
 import lombok.experimental.UtilityClass;
 

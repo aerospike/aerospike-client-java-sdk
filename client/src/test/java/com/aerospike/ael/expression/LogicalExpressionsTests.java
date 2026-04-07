@@ -1,0 +1,146 @@
+/*
+ * Copyright 2012-2026 Aerospike, Inc.
+ *
+ * Portions may be licensed to Aerospike, Inc. under one or more contributor
+ * license agreements WHICH ARE COMPATIBLE WITH THE APACHE LICENSE, VERSION 2.0.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy of
+ * the License at http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
+ */
+package com.aerospike.ael.expression;
+
+import com.aerospike.ael.DslParseException;
+import com.aerospike.ael.ExpressionContext;
+import com.aerospike.client.sdk.exp.Exp;
+import com.aerospike.ael.util.TestUtils;
+import org.junit.jupiter.api.Test;
+import org.opentest4j.AssertionFailedError;
+
+import static com.aerospike.ael.util.TestUtils.parseFilterExp;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+public class LogicalExpressionsTests {
+
+    @Test
+    void binLogicalAndOrCombinations() {
+        Exp expected1 = Exp.and(Exp.gt(Exp.intBin("intBin1"), Exp.val(100)),
+                Exp.gt(Exp.intBin("intBin2"), Exp.val(100)));
+        TestUtils.parseFilterExpressionAndCompare(ExpressionContext.of("$.intBin1 > 100 and $.intBin2 > 100"), expected1);
+
+        Exp expected2 = Exp.or(
+                Exp.and(
+                        Exp.gt(Exp.intBin("intBin1"), Exp.val(100)),
+                        Exp.gt(Exp.intBin("intBin2"), Exp.val(100))
+                ),
+                Exp.lt(Exp.intBin("intBin3"), Exp.val(100))
+        );
+        TestUtils.parseFilterExpressionAndCompare(ExpressionContext.of("$.intBin1 > 100 and $.intBin2 > 100 or $.intBin3 < 100"),
+                expected2);
+        TestUtils.parseFilterExpressionAndCompare(ExpressionContext.of("($.intBin1 > 100 and $.intBin2 > 100) or $.intBin3 < 100"),
+                expected2);
+        TestUtils.parseFilterExpressionAndCompare(ExpressionContext.of("(($.intBin1 > 100 and $.intBin2 > 100) or $.intBin3 < 100)"),
+                expected2);
+
+        Exp expected3 = Exp.and(
+                Exp.gt(Exp.intBin("intBin1"), Exp.val(100)),
+                Exp.or(
+                        Exp.gt(Exp.intBin("intBin2"), Exp.val(100)),
+                        Exp.lt(Exp.intBin("intBin3"), Exp.val(100))
+                )
+        );
+        TestUtils.parseFilterExpressionAndCompare(ExpressionContext.of("($.intBin1 > 100 and ($.intBin2 > 100 or $.intBin3 < 100))"),
+                expected3);
+        TestUtils.parseFilterExpressionAndCompare(ExpressionContext.of("$.intBin1 > 100 and ($.intBin2 > 100 or $.intBin3 < 100)"),
+                expected3);
+        // Check that parentheses make difference
+        assertThatThrownBy(
+                () -> TestUtils.parseFilterExpressionAndCompare(ExpressionContext.of("($.intBin1 > 100 and" +
+                        " ($.intBin2 > 100 or $.intBin3 < 100))"), expected2)
+        ).isInstanceOf(AssertionFailedError.class)
+                .hasMessageContaining("expected:");
+    }
+
+    @Test
+    void logicalNot() {
+        TestUtils.parseFilterExpressionAndCompare(ExpressionContext.of("not($.keyExists())"), Exp.not(Exp.keyExists()));
+    }
+
+    @Test
+    void binLogicalExclusive() {
+        TestUtils.parseFilterExpressionAndCompare(ExpressionContext.of("exclusive($.hand == \"hook\", $.leg == \"peg\")"),
+                Exp.exclusive(
+                        Exp.eq(Exp.stringBin("hand"), Exp.val("hook")),
+                        Exp.eq(Exp.stringBin("leg"), Exp.val("peg"))));
+        TestUtils.parseFilterExpressionAndCompare(ExpressionContext.of("exclusive($.hand == 'hook', $.leg == 'peg')"),
+                Exp.exclusive(
+                        Exp.eq(Exp.stringBin("hand"), Exp.val("hook")),
+                        Exp.eq(Exp.stringBin("leg"), Exp.val("peg"))));
+
+        // More than 2 expressions exclusive
+        TestUtils.parseFilterExpressionAndCompare(ExpressionContext.of("exclusive($.a == \"aVal\", $.b == \"bVal\", " +
+                        "$.c == \"cVal\", $.d == 4)"),
+                Exp.exclusive(
+                        Exp.eq(Exp.stringBin("a"), Exp.val("aVal")),
+                        Exp.eq(Exp.stringBin("b"), Exp.val("bVal")),
+                        Exp.eq(Exp.stringBin("c"), Exp.val("cVal")),
+                        Exp.eq(Exp.intBin("d"), Exp.val(4))));
+    }
+
+    @Test
+    void flatHierarchyAnd() {
+        TestUtils.parseFilterExpressionAndCompare(
+                ExpressionContext.of("$.intBin1 > 100 and $.intBin2 > 100 and $.intBin3 < 100 and $.intBin4 < 100"),
+                Exp.and(
+                        Exp.gt(Exp.intBin("intBin1"), Exp.val(100)),
+                        Exp.gt(Exp.intBin("intBin2"), Exp.val(100)),
+                        Exp.lt(Exp.intBin("intBin3"), Exp.val(100)),
+                        Exp.lt(Exp.intBin("intBin4"), Exp.val(100))
+                )
+        );
+    }
+
+    @Test
+    void negativeSyntaxLogicalOperators() {
+        assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of("($.intBin1 > 100 and ($.intBin2 > 100) or")))
+                .isInstanceOf(DslParseException.class)
+                .hasMessageContaining("Could not parse given AEL expression input")
+                .hasMessageContaining("[Parser] no viable alternative at input")
+                .hasMessageContaining("at character 41");
+
+        assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of("and ($.intBin1 > 100 and ($.intBin2 > 100)")))
+                .isInstanceOf(DslParseException.class)
+                .hasMessageContaining("Could not parse given AEL expression input")
+                .hasMessageContaining("[Parser] extraneous input 'and'")
+                .hasMessageContaining("at character 0");
+
+        assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of("($.intBin1 > 100 and ($.intBin2 > 100) not")))
+                .isInstanceOf(DslParseException.class)
+                .hasMessageContaining("Could not parse given AEL expression input")
+                .hasMessageContaining("[Parser] no viable alternative at input")
+                .hasMessageContaining("at character 39");
+
+        assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of("($.intBin1 > 100 and ($.intBin2 > 100) exclusive")))
+                .isInstanceOf(DslParseException.class)
+                .hasMessageContaining("Could not parse given AEL expression input")
+                .hasMessageContaining("[Parser] no viable alternative at input")
+                .hasMessageContaining("at character 39");
+    }
+
+    @Test
+    void negativeBinLogicalExclusiveWithOneParam() {
+        assertThatThrownBy(() -> TestUtils.parseFilterExpressionAndCompare(ExpressionContext.of("exclusive($.hand == \"hook\")"),
+                Exp.exclusive(
+                        Exp.eq(Exp.stringBin("hand"), Exp.val("hook")))))
+                .isInstanceOf(DslParseException.class)
+                .hasMessageContaining("Could not parse given AEL expression input")
+                .hasMessageContaining("[Parser] no viable alternative at input")
+                .hasMessageContaining("at character 26");
+    }
+}

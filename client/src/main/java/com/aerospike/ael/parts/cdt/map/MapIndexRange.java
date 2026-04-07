@@ -25,7 +25,7 @@ import com.aerospike.client.sdk.cdt.CTX;
 import com.aerospike.client.sdk.cdt.MapReturnType;
 import com.aerospike.client.sdk.exp.Exp;
 import com.aerospike.client.sdk.exp.MapExp;
-import com.aerospike.dsl.ConditionParser;
+import com.aerospike.ael.ConditionParser;
 
 public class MapIndexRange extends MapPart {
     private final boolean isInverted;

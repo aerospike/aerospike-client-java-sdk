@@ -16,20 +16,40 @@
  */
 package com.aerospike.client.sdk;
 
-import com.aerospike.dsl.expression.*;
-import com.aerospike.dsl.index.IndexContextTests;
-import com.aerospike.dsl.index.IndexTests;
-import com.aerospike.dsl.parts.operand.OperandFactoryTests;
 import org.junit.platform.suite.api.SelectClasses;
 import org.junit.platform.suite.api.Suite;
 
-import com.aerospike.dsl.ctx.CtxTests;
-import com.aerospike.dsl.filter.ArithmeticFiltersTests;
-import com.aerospike.dsl.filter.BinFiltersTests;
-import com.aerospike.dsl.filter.ExplicitTypesFiltersTests;
-import com.aerospike.dsl.filter.ImplicitTypesFiltersTests;
-import com.aerospike.dsl.parsedExpression.LogicalParsedExpressionTests;
-import com.aerospike.dsl.parsedExpression.PlaceholdersTests;
+import com.aerospike.ael.ctx.CtxTests;
+import com.aerospike.ael.expression.ArithmeticExpressionsTests;
+import com.aerospike.ael.expression.BareGetFunctionTests;
+import com.aerospike.ael.expression.BinExpressionsTests;
+import com.aerospike.ael.expression.BlobTests;
+import com.aerospike.ael.expression.CastingTests;
+import com.aerospike.ael.expression.ControlStructuresTests;
+import com.aerospike.ael.expression.ExplicitTypesTests;
+import com.aerospike.ael.expression.ImplicitTypesTests;
+import com.aerospike.ael.expression.InBinTests;
+import com.aerospike.ael.expression.InCompositeTests;
+import com.aerospike.ael.expression.InExplicitTypeTests;
+import com.aerospike.ael.expression.InGrammarConflictTests;
+import com.aerospike.ael.expression.InLiteralTests;
+import com.aerospike.ael.expression.InNegativeTests;
+import com.aerospike.ael.expression.InPlaceholderTests;
+import com.aerospike.ael.expression.ListExpressionsTests;
+import com.aerospike.ael.expression.LogicalExpressionsTests;
+import com.aerospike.ael.expression.MapAndListExpressionsTests;
+import com.aerospike.ael.expression.MapExpressionsTests;
+import com.aerospike.ael.expression.RecordMetadataTests;
+import com.aerospike.ael.expression.SyntaxErrorTests;
+import com.aerospike.ael.filter.ArithmeticFiltersTests;
+import com.aerospike.ael.filter.BinFiltersTests;
+import com.aerospike.ael.filter.ExplicitTypesFiltersTests;
+import com.aerospike.ael.filter.ImplicitTypesFiltersTests;
+import com.aerospike.ael.index.IndexContextTests;
+import com.aerospike.ael.index.IndexTests;
+import com.aerospike.ael.parsedExpression.LogicalParsedExpressionTests;
+import com.aerospike.ael.parsedExpression.PlaceholdersTests;
+import com.aerospike.ael.parts.operand.OperandFactoryTests;
 
 @Suite
 @SelectClasses({

@@ -40,8 +40,8 @@ import com.aerospike.ael.api.DSLParser;
 import com.aerospike.ael.parts.AbstractPart;
 import com.aerospike.ael.visitor.ExpressionConditionVisitor;
 import com.aerospike.client.sdk.cdt.CTX;
-import com.aerospike.dsl.ConditionLexer;
-import com.aerospike.dsl.ConditionParser;
+import com.aerospike.ael.ConditionLexer;
+import com.aerospike.ael.ConditionParser;
 
 public class DSLParserImpl implements DSLParser {
 

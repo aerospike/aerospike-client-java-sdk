@@ -18,7 +18,7 @@ package com.aerospike.ael.util;
 
 import com.aerospike.ael.DslParseException;
 import com.aerospike.client.sdk.exp.Exp;
-import com.aerospike.dsl.ConditionParser;
+import com.aerospike.ael.ConditionParser;
 
 import lombok.NonNull;
 import lombok.experimental.UtilityClass;

@@ -1,7 +1,7 @@
 package com.aerospike.ael.impl;
 
 import com.aerospike.ael.DslParseException;
-import com.aerospike.dsl.ConditionLexer;
+import com.aerospike.ael.ConditionLexer;
 
 import org.antlr.v4.runtime.*;
 
@@ -47,8 +47,12 @@ class DSLParserErrorListener extends BaseErrorListener {
         if (firstLexerError != null && firstParserError != null) {
             return "[Lexer] " + firstLexerError + "; [Parser] " + firstParserError;
         }
-        if (firstLexerError != null) return "[Lexer] " + firstLexerError;
-        if (firstParserError != null) return "[Parser] " + firstParserError;
+        if (firstLexerError != null) {
+			return "[Lexer] " + firstLexerError;
+		}
+        if (firstParserError != null) {
+			return "[Parser] " + firstParserError;
+		}
         return null;
     }
 }

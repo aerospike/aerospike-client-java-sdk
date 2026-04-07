@@ -16,7 +16,7 @@
  */
 package com.aerospike.ael.parts.cdt.map;
 
-import com.aerospike.dsl.ConditionParser;
+import com.aerospike.ael.ConditionParser;
 
 import static com.aerospike.ael.util.ParsingUtils.objectToExp;
 import static com.aerospike.ael.util.ParsingUtils.parseValueIdentifier;
