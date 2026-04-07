@@ -16,7 +16,7 @@
  */
 package com.aerospike.ael.parts.cdt;
 
-import com.aerospike.ael.DslParseException;
+import com.aerospike.ael.AelParseException;
 import com.aerospike.ael.parts.AbstractPart;
 import com.aerospike.ael.parts.path.BasePath;
 import com.aerospike.ael.parts.path.PathFunction;
@@ -33,7 +33,7 @@ public abstract class CdtPart extends AbstractPart {
 
     public CTX getContext() {
         // should print the subclass of the cdt type
-        throw new DslParseException("Context is not supported for %s".formatted(this.getClass().getName()));
+        throw new AelParseException("Context is not supported for %s".formatted(this.getClass().getName()));
     }
 
     public abstract int getReturnType(PathFunction.ReturnParam returnParam);

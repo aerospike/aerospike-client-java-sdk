@@ -16,7 +16,7 @@
  */
 package com.aerospike.ael.expression;
 
-import com.aerospike.ael.DslParseException;
+import com.aerospike.ael.AelParseException;
 import com.aerospike.ael.ExpressionContext;
 import com.aerospike.client.sdk.Value;
 import com.aerospike.client.sdk.cdt.CTX;
@@ -36,7 +36,7 @@ public class CastingTests {
     @Test
     void negativeInvalidTypesComparison() {
         assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of("$.stringBin1.get(type: STRING) > $.intBin2.asFloat()")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("Cannot compare STRING to FLOAT");
     }
 
@@ -97,14 +97,14 @@ public class CastingTests {
     @Test
     void castToFloatComparedToStringThrows() {
         assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of("28.asFloat() == \"hello\"")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("Cannot compare");
     }
 
     @Test
     void castToIntComparedToStringThrows() {
         assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of("28.0.asInt() == \"hello\"")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("Cannot compare");
     }
 

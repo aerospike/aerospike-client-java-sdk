@@ -20,7 +20,7 @@ import com.aerospike.ael.ConditionParser;
 
 import static com.aerospike.ael.util.ParsingUtils.requireIntValueIdentifier;
 
-import com.aerospike.ael.DslParseException;
+import com.aerospike.ael.AelParseException;
 import com.aerospike.ael.parts.path.BasePath;
 import com.aerospike.client.sdk.cdt.CTX;
 import com.aerospike.client.sdk.cdt.ListReturnType;
@@ -57,7 +57,7 @@ public class ListValueRange extends ListPart {
 
             return new ListValueRange(isInverted, startValue, endValue);
         }
-        throw new DslParseException("Could not translate ListValueRange from ctx: %s".formatted(ctx));
+        throw new AelParseException("Could not translate ListValueRange from ctx: %s".formatted(ctx));
     }
 
     @Override

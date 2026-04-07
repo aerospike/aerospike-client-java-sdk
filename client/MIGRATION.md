@@ -105,7 +105,7 @@ The AEL parser treats `&&` as bitwise AND (`&`) instead of logical AND.
 - Internal `setWhereClause(WhereClauseProcessor)` method exists but is protected
 
 Issue: Cannot use secondary index queries with collections or CDT contexts through public API
-- `where(String dsl)` - Doesn't support all Filter features
+- `where(String ael)` - Doesn't support all Filter features
 - `where(Exp exp)` - Explicitly disables secondary index usage (see QueryBuilder line 403)
 - `where(Filter filter)` - Method doesn't exist publicly
 

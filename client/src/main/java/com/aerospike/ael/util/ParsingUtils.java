@@ -16,7 +16,7 @@
  */
 package com.aerospike.ael.util;
 
-import com.aerospike.ael.DslParseException;
+import com.aerospike.ael.AelParseException;
 import com.aerospike.client.sdk.exp.Exp;
 import com.aerospike.ael.ConditionParser;
 
@@ -46,7 +46,7 @@ public class ParsingUtils {
         String intText = ctx.INT().getText();
         boolean isNegative = ctx.getText().startsWith("-");
         if (isHexOrBinaryIntToken(intText)) {
-            throw new DslParseException("Only decimal integer literals are supported in this element: " + ctx.getText());
+            throw new AelParseException("Only decimal integer literals are supported in this element: " + ctx.getText());
         }
 
         BigInteger signedValue = getBigInteger(ctx, intText, isNegative);
@@ -59,12 +59,12 @@ public class ParsingUtils {
         try {
             value = new BigInteger(intText, 10);
         } catch (NumberFormatException e) {
-            throw new DslParseException("Invalid integer literal: " + ctx.getText(), e);
+            throw new AelParseException("Invalid integer literal: " + ctx.getText(), e);
         }
         BigInteger signedValue = isNegative ? value.negate() : value;
 
         if (signedValue.compareTo(INT_MIN_VALUE) < 0 || signedValue.compareTo(INT_MAX_VALUE) > 0) {
-            throw new DslParseException("Signed integer literal out of range for INT: " + ctx.getText());
+            throw new AelParseException("Signed integer literal out of range for INT: " + ctx.getText());
         }
         return signedValue;
     }
@@ -86,7 +86,7 @@ public class ParsingUtils {
     public static long parseUnsignedLongLiteral(String text) {
         BigInteger value = parseUnsignedIntegerLiteral(text);
         if (value.compareTo(LONG_MIN_ABS) > 0) {
-            throw new DslParseException("Integer literal out of range: " + text);
+            throw new AelParseException("Integer literal out of range: " + text);
         }
         return value.longValue();
     }
@@ -107,7 +107,7 @@ public class ParsingUtils {
             }
             return new BigInteger(digits, radix);
         } catch (NumberFormatException e) {
-            throw new DslParseException("Invalid integer literal: " + text, e);
+            throw new AelParseException("Invalid integer literal: " + text, e);
         }
     }
 
@@ -146,7 +146,7 @@ public class ParsingUtils {
         if (result != null) {
             return result;
         }
-        throw new DslParseException("Could not parse mapKey from ctx: %s".formatted(ctx.getText()));
+        throw new AelParseException("Could not parse mapKey from ctx: %s".formatted(ctx.getText()));
     }
 
     /**
@@ -172,14 +172,14 @@ public class ParsingUtils {
         if (b64Literal != null) {
             return parseB64ToBytes(b64Literal.getText());
         }
-        throw new DslParseException("Could not parse valueIdentifier from ctx: %s".formatted(ctx.getText()));
+        throw new AelParseException("Could not parse valueIdentifier from ctx: %s".formatted(ctx.getText()));
     }
 
     // Token format: X'hexchars' or x'hexchars' — strip 2-char prefix and trailing quote
     public static byte[] parseHexToBytes(String text) {
         String hex = text.substring(2, text.length() - 1);
         if (hex.length() % 2 != 0) {
-            throw new DslParseException(
+            throw new AelParseException(
                     "BLOB literal must contain an even number of hex characters: " + text);
         }
         byte[] bytes = new byte[hex.length() / 2];
@@ -195,7 +195,7 @@ public class ParsingUtils {
         try {
             return java.util.Base64.getDecoder().decode(b64);
         } catch (IllegalArgumentException e) {
-            throw new DslParseException(
+            throw new AelParseException(
                     "Base64 BLOB literal contains invalid Base64 content: " + text, e);
         }
     }
@@ -206,14 +206,14 @@ public class ParsingUtils {
      *
      * @param ctx The valueIdentifier context from the parser
      * @return The parsed integer value
-     * @throws DslParseException if the parsed value is not an integer
+     * @throws AelParseException if the parsed value is not an integer
      */
     public static Integer requireIntValueIdentifier(ConditionParser.ValueIdentifierContext ctx) {
         Object result = parseValueIdentifier(ctx);
         if (result instanceof Integer intValue) {
             return intValue;
         }
-        throw new DslParseException(
+        throw new AelParseException(
                 "Value range requires integer operands, got: %s".formatted(ctx.getText()));
     }
 
@@ -224,13 +224,13 @@ public class ParsingUtils {
      *
      * @param value The parsed value object
      * @return The corresponding {@link Exp} value expression
-     * @throws DslParseException if the value type is not supported
+     * @throws AelParseException if the value type is not supported
      */
     public static Exp objectToExp(Object value) {
         if (value instanceof String s) return Exp.val(s);
         if (value instanceof Integer i) return Exp.val(i);
         if (value instanceof byte[] b) return Exp.val(b);
-        throw new DslParseException(
+        throw new AelParseException(
                 "Unsupported value type for Exp conversion: " + value.getClass().getSimpleName());
     }
 
@@ -262,13 +262,13 @@ public class ParsingUtils {
      *
      * @param methodName The method name string
      * @return The extracted type string
-     * @throws DslParseException if the method name is not in the correct format
+     * @throws AelParseException if the method name is not in the correct format
      */
     public static String extractTypeFromMethod(String methodName) {
         if (methodName.startsWith("as") && methodName.endsWith("()")) {
             return methodName.substring(2, methodName.length() - 2);
         } else {
-            throw new DslParseException("Invalid method name: %s".formatted(methodName));
+            throw new AelParseException("Invalid method name: %s".formatted(methodName));
         }
     }
 

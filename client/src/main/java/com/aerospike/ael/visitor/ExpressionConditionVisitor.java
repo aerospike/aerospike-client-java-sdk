@@ -29,7 +29,7 @@ import java.util.*;
 import org.antlr.v4.runtime.tree.ParseTree;
 import org.antlr.v4.runtime.tree.RuleNode;
 
-import com.aerospike.ael.DslParseException;
+import com.aerospike.ael.AelParseException;
 import com.aerospike.ael.parts.AbstractPart;
 import com.aerospike.ael.parts.ExpressionContainer;
 import com.aerospike.ael.parts.cdt.list.ListIndex;
@@ -159,7 +159,7 @@ public class ExpressionConditionVisitor extends ConditionBaseVisitor<AbstractPar
     @Override
     public AbstractPart visitExclusiveExpression(ConditionParser.ExclusiveExpressionContext ctx) {
         if (ctx.expression().size() < 2) {
-            throw new DslParseException("Exclusive logical operator requires 2 or more expressions");
+            throw new AelParseException("Exclusive logical operator requires 2 or more expressions");
         }
         List<ExpressionContainer> expressions = new ArrayList<>();
         // iterate through each sub-expression
@@ -288,7 +288,7 @@ public class ExpressionConditionVisitor extends ConditionBaseVisitor<AbstractPar
 
     private static long negateLongLiteral(long value, String input) {
         if (value == Long.MIN_VALUE) {
-            throw new DslParseException("Integer literal out of range: " + input);
+            throw new AelParseException("Integer literal out of range: " + input);
         }
         return -value;
     }
@@ -309,15 +309,15 @@ public class ExpressionConditionVisitor extends ConditionBaseVisitor<AbstractPar
      * the right operand is a list-compatible type (LIST_OPERAND, BIN_PART,
      * PATH_OPERAND, VARIABLE_OPERAND, or PLACEHOLDER_OPERAND).
      *
-     * @throws DslParseException if either operand is null or the right operand
+     * @throws AelParseException if either operand is null or the right operand
      *                           is not a list-compatible type
      */
     private static void validateInRightOperand(AbstractPart left, AbstractPart right) {
         if (left == null) {
-            throw new DslParseException("Unable to parse left operand");
+            throw new AelParseException("Unable to parse left operand");
         }
         if (right == null) {
-            throw new DslParseException("Unable to parse right operand");
+            throw new AelParseException("Unable to parse right operand");
         }
         if (right.getPartType() == AbstractPart.PartType.PLACEHOLDER_OPERAND
                 || right.getPartType() == AbstractPart.PartType.LIST_OPERAND
@@ -326,7 +326,7 @@ public class ExpressionConditionVisitor extends ConditionBaseVisitor<AbstractPar
                 || right.getPartType() == AbstractPart.PartType.VARIABLE_OPERAND) {
             return;
         }
-        throw new DslParseException("IN operation requires a List as the right operand");
+        throw new AelParseException("IN operation requires a List as the right operand");
     }
 
     /**
@@ -348,12 +348,12 @@ public class ExpressionConditionVisitor extends ConditionBaseVisitor<AbstractPar
             if (!rightBin.isTypeExplicitlySet()) {
                 rightBin.updateExp(Exp.Type.LIST);
             } else if (rightBin.getExpType() != Exp.Type.LIST) {
-                throw new DslParseException(
+                throw new AelParseException(
                         "IN operation requires a List as the right operand");
             }
         } else if (right.getPartType() == AbstractPart.PartType.PATH_OPERAND) {
             if (isPathExplicitlyNonList((Path) right)) {
-                throw new DslParseException(
+                throw new AelParseException(
                         "IN operation requires a List as the right operand");
             }
         }
@@ -372,7 +372,7 @@ public class ExpressionConditionVisitor extends ConditionBaseVisitor<AbstractPar
      *
      * @param left         the left operand of the IN expression
      * @param inferredType the element type inferred from the right list (may be {@code null})
-     * @throws DslParseException if the left operand type cannot be determined
+     * @throws AelParseException if the left operand type cannot be determined
      */
     private static void validateLeftTypeNotAmbiguous(AbstractPart left, Exp.Type inferredType) {
         if (inferredType != null) {
@@ -381,7 +381,7 @@ public class ExpressionConditionVisitor extends ConditionBaseVisitor<AbstractPar
         if (!isLeftTypeAmbiguous(left)) {
             return;
         }
-        throw new DslParseException(
+        throw new AelParseException(
                 "cannot infer the type of the left operand for IN operation; "
                         + "use .get(type: <TYPE>) to specify it");
     }
@@ -527,7 +527,7 @@ public class ExpressionConditionVisitor extends ConditionBaseVisitor<AbstractPar
         String varName = ((VariableOperand) expr.getRight()).getValue();
         AbstractPart boundPart = varBindings.get(varName);
         if (boundPart != null && isNotList(boundPart)) {
-            throw new DslParseException(
+            throw new AelParseException(
                     "IN operation requires a List as the right operand; "
                             + "variable '" + varName + "' contains a non-List type");
         }
@@ -678,7 +678,7 @@ public class ExpressionConditionVisitor extends ConditionBaseVisitor<AbstractPar
         // If error recovery created this node without actual parentheses, fail fast
         if (ctx.getChildCount() < 3 || !ctx.getChild(1).getText().equals("(")) {
             String name = ctx.getChildCount() > 0 ? ctx.getChild(0).getText() : "<unknown>";
-            throw new DslParseException("Unexpected identifier: " + name);
+            throw new AelParseException("Unexpected identifier: " + name);
         }
 
         String funcName = ctx.NAME_IDENTIFIER().getText();
@@ -734,20 +734,20 @@ public class ExpressionConditionVisitor extends ConditionBaseVisitor<AbstractPar
                 yield new ExpressionContainer(args.get(0), args.get(1),
                         ExpressionContainer.ExprPartsOperation.FIND_BIT_RIGHT);
             }
-            default -> throw new DslParseException("Unknown function: " + funcName);
+            default -> throw new AelParseException("Unknown function: " + funcName);
         };
     }
 
     private void validateFunctionArgCount(String funcName, List<AbstractPart> args, int expected) {
         if (args.size() != expected) {
-            throw new DslParseException(
+            throw new AelParseException(
                     "Function '%s' expects %d argument(s), got %d".formatted(funcName, expected, args.size()));
         }
     }
 
     private void validateFunctionArgCountAtLeast(String funcName, List<AbstractPart> args, int minCount) {
         if (args.size() < minCount) {
-            throw new DslParseException(
+            throw new AelParseException(
                     "Function '%s' expects at least %d arguments, got %d".formatted(funcName, minCount, args.size()));
         }
     }
@@ -880,7 +880,7 @@ public class ExpressionConditionVisitor extends ConditionBaseVisitor<AbstractPar
         if (ctx.IN() != null) {
             return new BinPart(ctx.IN().getText());
         }
-        throw new DslParseException("Could not parse binPart from ctx: %s".formatted(ctx.getText()));
+        throw new AelParseException("Could not parse binPart from ctx: %s".formatted(ctx.getText()));
     }
 
     @Override
@@ -907,13 +907,13 @@ public class ExpressionConditionVisitor extends ConditionBaseVisitor<AbstractPar
 
             AbstractPart operand = visit(child); // delegate to a dedicated visitor
             if (operand == null) {
-                throw new DslParseException("Unable to parse list operand");
+                throw new AelParseException("Unable to parse list operand");
             }
 
             try {
                 values.add(((ParsedValueOperand) operand).getValue());
             } catch (ClassCastException e) {
-                throw new DslParseException("List constant contains elements of different type");
+                throw new AelParseException("List constant contains elements of different type");
             }
         }
 
@@ -927,7 +927,7 @@ public class ExpressionConditionVisitor extends ConditionBaseVisitor<AbstractPar
 
     public SortedMap<Object, Object> getOrderedMapPair(ParseTree ctx) {
         if (ctx.getChild(0) == null || ctx.getChild(2) == null) {
-            throw new DslParseException("Unable to parse map operand");
+            throw new AelParseException("Unable to parse map operand");
         }
 
         Object key = ((ParsedValueOperand) visit(ctx.getChild(0))).getValue();
@@ -953,7 +953,7 @@ public class ExpressionConditionVisitor extends ConditionBaseVisitor<AbstractPar
             try {
                 mapOfPair.forEach(map::putIfAbsent); // put contents of the current map pair to the resulting map
             } catch (ClassCastException e) {
-                throw new DslParseException("Map constant contains elements of different type");
+                throw new AelParseException("Map constant contains elements of different type");
             }
         }
 
@@ -993,7 +993,7 @@ public class ExpressionConditionVisitor extends ConditionBaseVisitor<AbstractPar
     private static long parseIntLiteral(String text) {
         long parsed = parseUnsignedLongLiteral(text);
         if (parsed == Long.MIN_VALUE) {
-            throw new DslParseException("Integer literal out of range: " + text);
+            throw new AelParseException("Integer literal out of range: " + text);
         }
         return parsed;
     }
@@ -1011,7 +1011,7 @@ public class ExpressionConditionVisitor extends ConditionBaseVisitor<AbstractPar
             String leadingDotFloat = ctx.LEADING_DOT_FLOAT().getText();
             return new FloatOperand(Double.parseDouble("0" + leadingDotFloat));
         } catch (NumberFormatException e) {
-            throw new DslParseException("Invalid float literal: " + ctx.getText(), e);
+            throw new AelParseException("Invalid float literal: " + ctx.getText(), e);
         }
     }
 
@@ -1042,12 +1042,12 @@ public class ExpressionConditionVisitor extends ConditionBaseVisitor<AbstractPar
             switch (part.getPartType()) {
                 case BIN_PART -> binPart = (BinPart) part;
                 case LIST_PART, MAP_PART -> cdtParts.add(part);
-                default -> throw new DslParseException("Unexpected path part: %s".formatted(part.getPartType()));
+                default -> throw new AelParseException("Unexpected path part: %s".formatted(part.getPartType()));
             }
         }
 
         if (binPart == null) {
-            throw new DslParseException("Expecting bin to be the first path part from the left");
+            throw new AelParseException("Expecting bin to be the first path part from the left");
         }
 
         return new BasePath(binPart, cdtParts);
@@ -1128,7 +1128,7 @@ public class ExpressionConditionVisitor extends ConditionBaseVisitor<AbstractPar
         if (ctx.listRankRangeRelative() != null) {
 			return ListRankRangeRelative.from(ctx.listRankRangeRelative());
 		}
-        throw new DslParseException("Unexpected list part: %s".formatted(ctx.getText()));
+        throw new AelParseException("Unexpected list part: %s".formatted(ctx.getText()));
     }
 
     @Override
@@ -1172,7 +1172,7 @@ public class ExpressionConditionVisitor extends ConditionBaseVisitor<AbstractPar
         if (ctx.mapIndexRangeRelative() != null) {
 			return MapIndexRangeRelative.from(ctx.mapIndexRangeRelative());
 		}
-        throw new DslParseException("Unexpected map part: %s".formatted(ctx.getText()));
+        throw new AelParseException("Unexpected map part: %s".formatted(ctx.getText()));
     }
 
     @Override

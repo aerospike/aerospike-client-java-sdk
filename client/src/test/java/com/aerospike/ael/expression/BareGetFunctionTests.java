@@ -7,10 +7,10 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import org.junit.jupiter.api.Test;
 
-import com.aerospike.ael.DslParseException;
+import com.aerospike.ael.AelParseException;
 import com.aerospike.ael.ExpressionContext;
 import com.aerospike.ael.PlaceholderValues;
-import com.aerospike.ael.impl.DSLParserImpl;
+import com.aerospike.ael.impl.AelParserImpl;
 import com.aerospike.client.sdk.exp.Exp;
 import com.aerospike.client.sdk.exp.Expression;
 
@@ -20,7 +20,7 @@ import com.aerospike.client.sdk.exp.Expression;
  */
 public class BareGetFunctionTests {
 
-    private static final DSLParserImpl parser = new DSLParserImpl();
+    private static final AelParserImpl parser = new AelParserImpl();
 
     // --- Plain bin paths ---
 
@@ -141,7 +141,7 @@ public class BareGetFunctionTests {
     @Test
     void negParseCtxRejectsBareGet() {
         assertThatThrownBy(() -> parseCtx("$.listBin1.[0].get()"))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("Could not parse the given AEL path input")
                 .hasCauseInstanceOf(UnsupportedOperationException.class)
                 .hasStackTraceContaining("Path function is unsupported");

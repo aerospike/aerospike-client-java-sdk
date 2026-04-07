@@ -16,7 +16,7 @@
  */
 package com.aerospike.ael.expression;
 
-import com.aerospike.ael.DslParseException;
+import com.aerospike.ael.AelParseException;
 import com.aerospike.ael.ExpressionContext;
 import com.aerospike.client.sdk.exp.Exp;
 
@@ -82,7 +82,7 @@ public class BinExpressionsTests {
     @Test
     void negativeStringBinEquals() {
         assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of("$.strBin == yes")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("Could not parse given AEL expression input")
                 .hasMessageContaining("[Parser] mismatched input '<EOF>'")
                 .hasMessageContaining("at character 15");

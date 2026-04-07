@@ -16,7 +16,7 @@
  */
 package com.aerospike.ael.api;
 
-import com.aerospike.ael.DslParseException;
+import com.aerospike.ael.AelParseException;
 import com.aerospike.ael.ExpressionContext;
 import com.aerospike.ael.Index;
 import com.aerospike.ael.IndexContext;
@@ -36,7 +36,7 @@ import com.aerospike.client.sdk.query.Filter;
  * <li> defining secondary indexes.</li>
  * </ul>
  */
-public interface DSLParser {
+public interface AelParser {
 
     /**
      * Parse AEL string into {@link ParsedExpression}.
@@ -107,7 +107,7 @@ public interface DSLParser {
      * @param input {@link ExpressionContext} containing input string of dot separated elements. If the input string has
      *              placeholders, matching values must be provided within {@code input} too
      * @return {@link ParsedExpression} object
-     * @throws DslParseException in case of invalid syntax
+     * @throws AelParseException in case of invalid syntax
      */
     ParsedExpression parseExpression(ExpressionContext input);
 
@@ -182,7 +182,7 @@ public interface DSLParser {
      * @param indexContext Class containing namespace and collection of {@link Index} objects that represent
      *                     existing secondary indexes. Required for creating {@link Filter}. Can be null
      * @return {@link ParsedExpression} object
-     * @throws DslParseException in case of invalid syntax
+     * @throws AelParseException in case of invalid syntax
      */
     ParsedExpression parseExpression(ExpressionContext input, IndexContext indexContext);
 
@@ -190,9 +190,9 @@ public interface DSLParser {
      * Parse AEL path with CDT context into an array of {@link CTX} objects. The argument must represent a path with context,
      * e.g. $.listBinName.[1], $.mapBinName.ab etc.
      *
-     * @param dslPath Input string representing path with CDT context, must not be null
+     * @param aelPath Input string representing path with CDT context, must not be null
      * @return Array of {@link CTX}
-     * @throws DslParseException in case of invalid syntax
+     * @throws AelParseException in case of invalid syntax
      */
-    CTX[] parseCTX(String dslPath);
+    CTX[] parseCTX(String aelPath);
 }

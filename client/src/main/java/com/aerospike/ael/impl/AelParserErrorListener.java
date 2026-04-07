@@ -1,11 +1,11 @@
 package com.aerospike.ael.impl;
 
-import com.aerospike.ael.DslParseException;
+import com.aerospike.ael.AelParseException;
 import com.aerospike.ael.ConditionLexer;
 
 import org.antlr.v4.runtime.*;
 
-class DSLParserErrorListener extends BaseErrorListener {
+class AelParserErrorListener extends BaseErrorListener {
 
     private String firstLexerError;
     private String firstParserError;
@@ -21,7 +21,7 @@ class DSLParserErrorListener extends BaseErrorListener {
             // These throw immediately to provide a specific error message.
             if (token.getType() == ConditionLexer.LEADING_DOT_FLOAT_HEX_OR_BINARY
                     || token.getType() == ConditionLexer.LEADING_DOT_FLOAT) {
-                throw new DslParseException("Invalid float literal: " + token.getText());
+                throw new AelParseException("Invalid float literal: " + token.getText());
             }
             // Detect malformed leading-dot floats like "..37": the lexer emits a bare '.' for the
             // first dot (LEADING_DOT_FLOAT requires a digit immediately after '.', so it can't
@@ -29,7 +29,7 @@ class DSLParserErrorListener extends BaseErrorListener {
             if (".".equals(token.getText()) && msg != null && msg.contains("LEADING_DOT_FLOAT")
                     && recognizer instanceof Parser parser) {
                 String nextText = parser.getInputStream().LT(2).getText();
-                throw new DslParseException("Invalid float literal: " + token.getText() + nextText);
+                throw new AelParseException("Invalid float literal: " + token.getText() + nextText);
             }
         }
         if (recognizer instanceof Parser) {

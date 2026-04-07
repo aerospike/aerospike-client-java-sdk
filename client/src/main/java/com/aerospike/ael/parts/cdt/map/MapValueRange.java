@@ -20,7 +20,7 @@ import com.aerospike.ael.ConditionParser;
 
 import static com.aerospike.ael.util.ParsingUtils.requireIntValueIdentifier;
 
-import com.aerospike.ael.DslParseException;
+import com.aerospike.ael.AelParseException;
 import com.aerospike.ael.parts.path.BasePath;
 import com.aerospike.client.sdk.cdt.CTX;
 import com.aerospike.client.sdk.cdt.MapReturnType;
@@ -57,7 +57,7 @@ public class MapValueRange extends MapPart {
 
             return new MapValueRange(isInverted, startValue, endValue);
         }
-        throw new DslParseException("Could not translate MapValueRange from ctx: %s".formatted(ctx));
+        throw new AelParseException("Could not translate MapValueRange from ctx: %s".formatted(ctx));
     }
 
     @Override

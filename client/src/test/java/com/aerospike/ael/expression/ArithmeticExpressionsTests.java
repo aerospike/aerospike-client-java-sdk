@@ -16,7 +16,7 @@
  */
 package com.aerospike.ael.expression;
 
-import com.aerospike.ael.DslParseException;
+import com.aerospike.ael.AelParseException;
 import com.aerospike.ael.ExpressionContext;
 import com.aerospike.client.sdk.cdt.ListReturnType;
 import com.aerospike.client.sdk.cdt.MapReturnType;
@@ -506,7 +506,7 @@ public class ArithmeticExpressionsTests {
     @Test
     void negativeUnknownFunction() {
         assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of("unknown($.a) == 5")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("Unknown function");
     }
 
@@ -514,7 +514,7 @@ public class ArithmeticExpressionsTests {
     void negativeWrongArgCountUnary() {
         // abs expects 1 arg, given 2
         assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of("abs($.a, $.b) == 5")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("expects 1 argument(s)");
     }
 
@@ -522,7 +522,7 @@ public class ArithmeticExpressionsTests {
     void negativeWrongArgCountBinary() {
         // log expects 2 args, given 1
         assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of("log(2.0) == 0.0")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("expects 2 argument(s)");
     }
 
@@ -530,24 +530,24 @@ public class ArithmeticExpressionsTests {
     void negativeMinTooFewArgs() {
         // min with 1 arg should fail (needs >= 2)
         assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of("min(5) == 5")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("at least 2 arguments");
     }
 
     @Test
     void negativeArithmetic() {
         assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of("($.apples.get(type: STRING) + 5) > 10")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("Cannot compare STRING to INT");
 
         // Cannot use arithmetic operations on Strings
         assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of("$.apples + \"stringVal\"")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("Cannot compare INT to STRING");
 
         // Result of an arithmetic operation is not a String
         assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of("($.apples * $.bananas) != \"stringVal\"")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("Cannot compare INT to STRING");
     }
 
@@ -557,32 +557,32 @@ public class ArithmeticExpressionsTests {
         // (Message order varies: binary ops detect the mismatch at the bin-type check level,
         // unary ops detect it at the comparison-level validation.)
         assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of("($.a ** 2.0) == \"hello\"")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("STRING")
                 .hasMessageContaining("FLOAT");
         assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of("log($.a, 2.0) == \"hello\"")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("STRING")
                 .hasMessageContaining("FLOAT");
         assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of("ceil($.price) == \"hello\"")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("Cannot compare FLOAT to STRING");
         assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of("floor($.price) == \"hello\"")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("Cannot compare FLOAT to STRING");
     }
 
     @Test
     void negativeArithmeticInvalidLeftAndRightOperands() {
         assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of("(0xGG + $.apples) > 10")))
-                .isInstanceOf(DslParseException.class);
+                .isInstanceOf(AelParseException.class);
         assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of("($.apples + 0b2) > 10")))
-                .isInstanceOf(DslParseException.class);
+                .isInstanceOf(AelParseException.class);
         assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of("(--9223372036854775808 + $.apples) > 10")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("out of range");
         assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of("($.apples + ++9223372036854775808) > 10")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("out of range");
     }
 }

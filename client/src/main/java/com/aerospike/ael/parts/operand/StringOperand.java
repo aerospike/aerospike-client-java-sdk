@@ -18,7 +18,7 @@ package com.aerospike.ael.parts.operand;
 
 import java.util.Base64;
 
-import com.aerospike.ael.DslParseException;
+import com.aerospike.ael.AelParseException;
 import com.aerospike.ael.parts.AbstractPart;
 import com.aerospike.client.sdk.exp.Exp;
 
@@ -44,7 +44,7 @@ public class StringOperand extends AbstractPart implements ParsedValueOperand {
                 byte[] byteValue = Base64.getDecoder().decode(value);
                 return Exp.val(byteValue);
             } catch (IllegalArgumentException e) {
-                throw new DslParseException(
+                throw new AelParseException(
                         "String compared to BLOB-typed path is not valid Base64: " + value, e);
             }
         }

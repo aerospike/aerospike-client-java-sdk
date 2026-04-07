@@ -2,7 +2,7 @@ package com.aerospike.ael.expression;
 
 import org.junit.jupiter.api.Test;
 
-import com.aerospike.ael.DslParseException;
+import com.aerospike.ael.AelParseException;
 import com.aerospike.ael.ExpressionContext;
 import com.aerospike.ael.PlaceholderValues;
 
@@ -17,28 +17,28 @@ public class InNegativeTests {
     @Test
     void negativeRightOperandString() {
         assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of("$.name in \"Bob\"")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("IN operation requires a List as the right operand");
     }
 
     @Test
     void negativeRightOperandInt() {
         assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of("$.name in 42")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("IN operation requires a List as the right operand");
     }
 
     @Test
     void negativeRightOperandFloat() {
         assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of("$.name in 1.5")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("IN operation requires a List as the right operand");
     }
 
     @Test
     void negativeRightOperandBool() {
         assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of("$.name in true")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("IN operation requires a List as the right operand");
     }
 
@@ -46,14 +46,14 @@ public class InNegativeTests {
     void negativeRightOperandMap() {
         assertThatThrownBy(() -> parseFilterExp(
                 ExpressionContext.of("$.name in {\"a\": 1}")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("IN operation requires a List as the right operand");
     }
 
     @Test
     void negativeRightOperandMetadata() {
         assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of("$.name in $.ttl()")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("IN operation requires a List as the right operand");
     }
 
@@ -61,7 +61,7 @@ public class InNegativeTests {
     void negMixedIntAndStringInList() {
         assertThatThrownBy(() -> parseFilterExp(
                 ExpressionContext.of("$.bin in [1, \"hello\"]")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("IN list elements must all be of the same type");
     }
 
@@ -69,7 +69,7 @@ public class InNegativeTests {
     void negMixedBoolAndIntInList() {
         assertThatThrownBy(() -> parseFilterExp(
                 ExpressionContext.of("$.bin in [true, 42]")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("IN list elements must all be of the same type");
     }
 
@@ -77,7 +77,7 @@ public class InNegativeTests {
     void negMixedFloatAndStringInList() {
         assertThatThrownBy(() -> parseFilterExp(
                 ExpressionContext.of("$.bin in [1.5, \"hello\"]")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("IN list elements must all be of the same type");
     }
 
@@ -85,7 +85,7 @@ public class InNegativeTests {
     void negMixedIntAndFloatInList() {
         assertThatThrownBy(() -> parseFilterExp(
                 ExpressionContext.of("$.bin in [1, 1.5]")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("IN list elements must all be of the same type");
     }
 
@@ -93,7 +93,7 @@ public class InNegativeTests {
     void negPlaceholderResolvesToStr() {
         assertThatThrownBy(() -> parseFilterExp(
                 ExpressionContext.of("$.name in ?0", PlaceholderValues.of("Bob"))))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("cannot infer the type of the left operand for IN operation");
     }
 
@@ -101,7 +101,7 @@ public class InNegativeTests {
     void negPlaceholderResolvesToInt() {
         assertThatThrownBy(() -> parseFilterExp(
                 ExpressionContext.of("$.name in ?0", PlaceholderValues.of(42))))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("cannot infer the type of the left operand for IN operation");
     }
 
@@ -109,7 +109,7 @@ public class InNegativeTests {
     void negPlaceholderResolvesToFloat() {
         assertThatThrownBy(() -> parseFilterExp(
                 ExpressionContext.of("$.name in ?0", PlaceholderValues.of(1.5))))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("cannot infer the type of the left operand for IN operation");
     }
 
@@ -117,7 +117,7 @@ public class InNegativeTests {
     void negPlaceholderResolvesToBool() {
         assertThatThrownBy(() -> parseFilterExp(
                 ExpressionContext.of("$.name in ?0", PlaceholderValues.of(true))))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("cannot infer the type of the left operand for IN operation");
     }
 
@@ -126,7 +126,7 @@ public class InNegativeTests {
         assertThatThrownBy(() -> parseFilterExp(
                 ExpressionContext.of("$.name in ?0",
                         PlaceholderValues.of(Map.of("a", 1)))))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("cannot infer the type of the left operand for IN operation");
     }
 
@@ -134,7 +134,7 @@ public class InNegativeTests {
     void negLiteralInMixedTypeList() {
         assertThatThrownBy(() -> parseFilterExp(
                 ExpressionContext.of("\"x\" in [1, \"y\"]")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("IN list elements must all be of the same type");
     }
 
@@ -144,7 +144,7 @@ public class InNegativeTests {
         assertThatThrownBy(() -> parseFilterExp(
                 ExpressionContext.of("?0 in [1, \"y\"]",
                         PlaceholderValues.of(42))))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("IN list elements must all be of the same type");
     }
 
@@ -152,7 +152,7 @@ public class InNegativeTests {
     void negPathInMixedTypeList() {
         assertThatThrownBy(() -> parseFilterExp(
                 ExpressionContext.of("$.rooms.room1.name in [1, \"y\"]")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("IN list elements must all be of the same type");
     }
 
@@ -161,7 +161,7 @@ public class InNegativeTests {
         assertThatThrownBy(() -> parseFilterExp(
                 ExpressionContext.of("$.name.get(type: STRING) in ?0",
                         PlaceholderValues.of(List.of(1, "hello")))))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("IN list elements must all be of the same type");
     }
 
@@ -169,7 +169,7 @@ public class InNegativeTests {
     void negVariableInMixedTypeList() {
         assertThatThrownBy(() -> parseFilterExp(
                 ExpressionContext.of("let(x = 1) then (${x} in [1, \"y\"])")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("IN list elements must all be of the same type");
     }
 
@@ -179,7 +179,7 @@ public class InNegativeTests {
     void negBinInBinAmbiguous() {
         assertThatThrownBy(() -> parseFilterExp(
                 ExpressionContext.of("$.itemType in $.allowedItems")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("cannot infer the type of the left operand for IN operation");
     }
 
@@ -187,7 +187,7 @@ public class InNegativeTests {
     void negBinInPathAmbiguous() {
         assertThatThrownBy(() -> parseFilterExp(
                 ExpressionContext.of("$.name in $.rooms.room1.name")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("cannot infer the type of the left operand for IN operation");
     }
 
@@ -195,7 +195,7 @@ public class InNegativeTests {
     void negBinInListDesignatorAmb() {
         assertThatThrownBy(() -> parseFilterExp(
                 ExpressionContext.of("$.name in $.binName.[]")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("cannot infer the type of the left operand for IN operation");
     }
 
@@ -203,7 +203,7 @@ public class InNegativeTests {
     void negBinInPlaceholderAmb() {
         assertThatThrownBy(() -> parseFilterExp(
                 ExpressionContext.of("$.name in ?0")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("cannot infer the type of the left operand for IN operation");
     }
 
@@ -211,7 +211,7 @@ public class InNegativeTests {
     void negVarBoundToInt() {
         assertThatThrownBy(() -> parseFilterExp(
                 ExpressionContext.of("let(x = 1) then (\"100\" in ${x})")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("IN operation requires a List as the right operand")
                 .hasMessageContaining("variable 'x'");
     }
@@ -220,7 +220,7 @@ public class InNegativeTests {
     void negVarBoundToFloat() {
         assertThatThrownBy(() -> parseFilterExp(
                 ExpressionContext.of("let(x = 1.5) then (\"100\" in ${x})")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("IN operation requires a List as the right operand")
                 .hasMessageContaining("variable 'x'");
     }
@@ -229,7 +229,7 @@ public class InNegativeTests {
     void negVarBoundToBool() {
         assertThatThrownBy(() -> parseFilterExp(
                 ExpressionContext.of("let(x = true) then (\"100\" in ${x})")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("IN operation requires a List as the right operand")
                 .hasMessageContaining("variable 'x'");
     }
@@ -238,7 +238,7 @@ public class InNegativeTests {
     void negVarBoundToString() {
         assertThatThrownBy(() -> parseFilterExp(
                 ExpressionContext.of("let(x = \"hello\") then (\"100\" in ${x})")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("IN operation requires a List as the right operand")
                 .hasMessageContaining("variable 'x'");
     }
@@ -247,7 +247,7 @@ public class InNegativeTests {
     void negVarBoundToMap() {
         assertThatThrownBy(() -> parseFilterExp(
                 ExpressionContext.of("let(x = {\"a\": 1}) then (\"100\" in ${x})")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("IN operation requires a List as the right operand")
                 .hasMessageContaining("variable 'x'");
     }
@@ -256,7 +256,7 @@ public class InNegativeTests {
     void negVarBoundToMetadata() {
         assertThatThrownBy(() -> parseFilterExp(
                 ExpressionContext.of("let(x = $.ttl()) then (\"100\" in ${x})")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("IN operation requires a List as the right operand")
                 .hasMessageContaining("variable 'x'");
     }
@@ -267,7 +267,7 @@ public class InNegativeTests {
     void negVarBoundToArithmeticExpr() {
         assertThatThrownBy(() -> parseFilterExp(
                 ExpressionContext.of("let(x = 1 + 2) then (\"foo\" in ${x})")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("IN operation requires a List as the right operand")
                 .hasMessageContaining("variable 'x'");
     }
@@ -276,7 +276,7 @@ public class InNegativeTests {
     void negVarBoundToFunctionExpr() {
         assertThatThrownBy(() -> parseFilterExp(
                 ExpressionContext.of("let(x = abs(1)) then (\"foo\" in ${x})")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("IN operation requires a List as the right operand")
                 .hasMessageContaining("variable 'x'");
     }
@@ -288,7 +288,7 @@ public class InNegativeTests {
         assertThatThrownBy(() -> parseFilterExp(
                 ExpressionContext.of(
                         "let(x = $.someBin.get(type: INT)) then (\"foo\" in ${x})")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("IN operation requires a List as the right operand")
                 .hasMessageContaining("variable 'x'");
     }
@@ -298,7 +298,7 @@ public class InNegativeTests {
         assertThatThrownBy(() -> parseFilterExp(
                 ExpressionContext.of(
                         "let(x = $.a.b.get(type: STRING)) then (\"foo\" in ${x})")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("IN operation requires a List as the right operand")
                 .hasMessageContaining("variable 'x'");
     }
@@ -310,7 +310,7 @@ public class InNegativeTests {
         assertThatThrownBy(() -> parseFilterExp(
                 ExpressionContext.of(
                         "let(x = 1) then (let(y = [1, 2]) then (\"foo\" in ${x}))")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("IN operation requires a List as the right operand")
                 .hasMessageContaining("variable 'x'");
     }
@@ -320,7 +320,7 @@ public class InNegativeTests {
         assertThatThrownBy(() -> parseFilterExp(
                 ExpressionContext.of(
                         "let(x = [1]) then (let(x = 1) then (\"foo\" in ${x}))")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("IN operation requires a List as the right operand")
                 .hasMessageContaining("variable 'x'");
     }
@@ -330,7 +330,7 @@ public class InNegativeTests {
         assertThatThrownBy(() -> parseFilterExp(
                 ExpressionContext.of(
                         "let(x = 1) then (not(\"foo\" in ${x}))")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("IN operation requires a List as the right operand")
                 .hasMessageContaining("variable 'x'");
     }
@@ -340,7 +340,7 @@ public class InNegativeTests {
         assertThatThrownBy(() -> parseFilterExp(
                 ExpressionContext.of(
                         "let(x = $.a.[].count()) then (\"foo\" in ${x})")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("IN operation requires a List as the right operand")
                 .hasMessageContaining("variable 'x'");
     }
@@ -350,7 +350,7 @@ public class InNegativeTests {
         assertThatThrownBy(() -> parseFilterExp(
                 ExpressionContext.of(
                         "let(x = 5, y = ($.bin.get(type: INT) in ${x})) then (${y} == true)")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("IN operation requires a List as the right operand")
                 .hasMessageContaining("variable 'x'");
     }
@@ -359,7 +359,7 @@ public class InNegativeTests {
     void negBinInVariableAmbiguous() {
         assertThatThrownBy(() -> parseFilterExp(
                 ExpressionContext.of("let(x = [\"a\"]) then ($.name in ${x})")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("cannot infer the type of the left operand for IN operation");
     }
 
@@ -367,7 +367,7 @@ public class InNegativeTests {
     void negPathInBinAmbiguous() {
         assertThatThrownBy(() -> parseFilterExp(
                 ExpressionContext.of("$.rooms.room1.name in $.list")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("cannot infer the type of the left operand for IN operation");
     }
 
@@ -375,7 +375,7 @@ public class InNegativeTests {
     void negPathInPathAmbiguous() {
         assertThatThrownBy(() -> parseFilterExp(
                 ExpressionContext.of("$.rooms.room1.a in $.rooms.room2.b")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("cannot infer the type of the left operand for IN operation");
     }
 
@@ -383,7 +383,7 @@ public class InNegativeTests {
     void negPathInPlaceholderAmbiguous() {
         assertThatThrownBy(() -> parseFilterExp(
                 ExpressionContext.of("$.rooms.room1.name in ?0")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("cannot infer the type of the left operand for IN operation");
     }
 
@@ -392,7 +392,7 @@ public class InNegativeTests {
         assertThatThrownBy(() -> parseFilterExp(
                 ExpressionContext.of("$.name.get(type: STRING) in ?0",
                         PlaceholderValues.of("Bob"))))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("IN operation requires a List as the right operand")
                 .hasMessageContaining("placeholder ?0");
     }
@@ -402,7 +402,7 @@ public class InNegativeTests {
         assertThatThrownBy(() -> parseFilterExp(
                 ExpressionContext.of("?0 in ?1",
                         PlaceholderValues.of("gold", "notAList"))))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("IN operation requires a List as the right operand")
                 .hasMessageContaining("placeholder ?1");
     }
@@ -413,7 +413,7 @@ public class InNegativeTests {
     void negPlaceholderMissingValue() {
         assertThatThrownBy(() -> parseFilterExp(
                 ExpressionContext.of("$.name.get(type: STRING) in ?0", PlaceholderValues.of())))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("Missing value for placeholder ?0");
     }
 
@@ -421,7 +421,7 @@ public class InNegativeTests {
     void negPlaceholderIndexOutOfBounds() {
         assertThatThrownBy(() -> parseFilterExp(
                 ExpressionContext.of("$.name.get(type: STRING) in ?1", PlaceholderValues.of(42))))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("Missing value for placeholder ?1");
     }
 
@@ -432,7 +432,7 @@ public class InNegativeTests {
         assertThatThrownBy(() -> parseFilterExp(
                 ExpressionContext.of("when($.name in $.allowedNames => \"ok\"," +
                         " default => \"no\")")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("cannot infer the type of the left operand for IN operation");
     }
 
@@ -441,7 +441,7 @@ public class InNegativeTests {
         assertThatThrownBy(() -> parseFilterExp(
                 ExpressionContext.of("when($.name.get(type: STRING) in \"Bob\" => \"ok\"," +
                         " default => \"no\")")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("IN operation requires a List as the right operand");
     }
 
@@ -450,7 +450,7 @@ public class InNegativeTests {
         assertThatThrownBy(() -> parseFilterExp(
                 ExpressionContext.of("when($.name in [1, \"hello\"] => \"ok\"," +
                         " default => \"no\")")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("IN list elements must all be of the same type");
     }
 }

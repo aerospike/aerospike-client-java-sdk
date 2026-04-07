@@ -18,7 +18,7 @@ package com.aerospike.ael.parts.cdt.list;
 
 import java.util.List;
 
-import com.aerospike.ael.DslParseException;
+import com.aerospike.ael.AelParseException;
 import com.aerospike.ael.parts.path.BasePath;
 import com.aerospike.ael.util.ParsingUtils;
 import com.aerospike.client.sdk.cdt.CTX;
@@ -52,7 +52,7 @@ public class ListValueList extends ListPart {
 
             return new ListValueList(isInverted, valueListObjects);
         }
-        throw new DslParseException("Could not translate ListValueList from ctx: %s".formatted(ctx));
+        throw new AelParseException("Could not translate ListValueList from ctx: %s".formatted(ctx));
     }
 
     @Override

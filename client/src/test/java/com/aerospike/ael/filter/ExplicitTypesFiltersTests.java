@@ -16,7 +16,7 @@
  */
 package com.aerospike.ael.filter;
 
-import com.aerospike.ael.DslParseException;
+import com.aerospike.ael.AelParseException;
 import com.aerospike.ael.ExpressionContext;
 import com.aerospike.ael.Index;
 import com.aerospike.ael.IndexContext;
@@ -74,7 +74,7 @@ public class ExplicitTypesFiltersTests {
     void stringComparisonNegativeTest() {
         // A String constant must be quoted
         assertThatThrownBy(() -> parseFilter(ExpressionContext.of("$.stringBin1.get(type: STRING) == yes")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("Could not parse given AEL expression input")
                 .hasMessageContaining("[Parser] mismatched input '<EOF>'")
                 .hasMessageContaining("at character 37");
@@ -109,7 +109,7 @@ public class ExplicitTypesFiltersTests {
     @Test
     void negativeBooleanComparison() {
         assertThatThrownBy(() -> parseFilter(ExpressionContext.of("$.boolBin1.get(type: BOOL) == 5")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessage("Cannot compare BOOL to INT");
     }
 
@@ -122,7 +122,7 @@ public class ExplicitTypesFiltersTests {
     @Test
     void listComparison_constantOnRightSide_NegativeTest() {
         assertThatThrownBy(() -> parseFilter(ExpressionContext.of("$.listBin1.get(type: LIST) == [yes, of course]")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("Could not parse given AEL expression input")
                 .hasMessageContaining("[Parser] mismatched input ','")
                 .hasMessageContaining("at character 34");
@@ -136,7 +136,7 @@ public class ExplicitTypesFiltersTests {
     @Test
     void listComparison_constantOnLeftSide_NegativeTest() {
         assertThatThrownBy(() -> parseFilter(ExpressionContext.of("[yes, of course] == $.listBin1.get(type: LIST)")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("Could not parse given AEL expression input")
                 .hasMessageContaining("[Parser] no viable alternative at input")
                 .hasMessageContaining("at character 4");
@@ -150,7 +150,7 @@ public class ExplicitTypesFiltersTests {
     @Test
     void mapComparison_constantOnRightSide_NegativeTest() {
         assertThatThrownBy(() -> parseFilter(ExpressionContext.of("$.mapBin1.get(type: MAP) == {yes, of course}")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("Could not parse given AEL expression input")
                 .hasMessageContaining("[Parser] extraneous input 'yes'")
                 .hasMessageContaining("at character 29");
@@ -164,7 +164,7 @@ public class ExplicitTypesFiltersTests {
     @Test
     void mapComparison_constantOnLeftSide_NegativeTest() {
         assertThatThrownBy(() -> parseFilter(ExpressionContext.of("{yes, of course} == $.mapBin1.get(type: MAP)")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("Could not parse given AEL expression input")
                 .hasMessageContaining("[Parser] no viable alternative at input")
                 .hasMessageContaining("at character 1");
@@ -194,7 +194,7 @@ public class ExplicitTypesFiltersTests {
     @Test
     void negativeTwoDifferentBinTypesComparison() {
         assertThatThrownBy(() -> parseFilter(ExpressionContext.of("$.stringBin1.get(type: STRING) == $.floatBin2.get(type: FLOAT)")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessage("Cannot compare STRING to FLOAT");
     }
 

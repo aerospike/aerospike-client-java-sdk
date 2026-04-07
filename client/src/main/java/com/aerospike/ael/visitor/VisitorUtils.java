@@ -33,7 +33,7 @@ import java.util.function.*;
 import org.antlr.v4.runtime.misc.Pair;
 import org.antlr.v4.runtime.tree.ParseTree;
 
-import com.aerospike.ael.DslParseException;
+import com.aerospike.ael.AelParseException;
 import com.aerospike.ael.Index;
 import com.aerospike.ael.PlaceholderValues;
 import com.aerospike.ael.parts.AbstractPart;
@@ -189,14 +189,14 @@ public class VisitorUtils {
      *
      * @param left  The left {@link AbstractPart} operand, whose type information might be updated
      * @param right The right {@link AbstractPart} operand, whose type information might be updated
-     * @throws DslParseException If either the left or right operand is {@code null}
+     * @throws AelParseException If either the left or right operand is {@code null}
      */
     static void overrideTypeInfo(AbstractPart left, AbstractPart right) {
         if (left == null) {
-            throw new DslParseException("Unable to parse left operand");
+            throw new AelParseException("Unable to parse left operand");
         }
         if (right == null) {
-            throw new DslParseException("Unable to parse right operand");
+            throw new AelParseException("Unable to parse right operand");
         }
         if (left.getPartType() == PLACEHOLDER_OPERAND || right.getPartType() == PLACEHOLDER_OPERAND) {
             return;
@@ -332,7 +332,7 @@ public class VisitorUtils {
      * @param operator    The binary operator to apply
      * @param isBinLeft   Whether the bin is on the left side of the comparison
      * @return The resulting expression
-     * @throws DslParseException if the operand type is not supported
+     * @throws AelParseException if the operand type is not supported
      */
     private static Exp getExpBinComparison(BinPart binPart, AbstractPart anotherPart,
                                            BinaryOperator<Exp> operator, boolean isBinLeft) {
@@ -383,7 +383,7 @@ public class VisitorUtils {
                 yield anotherPart.getExp();
             }
             default ->
-                    throw new DslParseException("Operand type not supported: %s".formatted(anotherPart.getPartType()));
+                    throw new AelParseException("Operand type not supported: %s".formatted(anotherPart.getPartType()));
         };
 
         return isBinLeft ? operator.apply(binExp, anotherExp) : operator.apply(anotherExp, binExp);
@@ -395,7 +395,7 @@ public class VisitorUtils {
      * @param binPart       The {@link BinPart} involved in the comparison
      * @param stringOperand The {@link StringOperand} involved in the comparison
      * @return The {@link Exp} generated from the {@link StringOperand}
-     * @throws DslParseException if type validation fails (e.g., comparing a non-string/blob bin with a String)
+     * @throws AelParseException if type validation fails (e.g., comparing a non-string/blob bin with a String)
      */
     private static Exp handleStringOperandComparison(BinPart binPart, StringOperand stringOperand) {
         boolean isBlobType = binPart.getExpType() != null && binPart.getExpType().equals(Exp.Type.BLOB);
@@ -417,7 +417,7 @@ public class VisitorUtils {
      * @param right    The {@link AbstractPart} on the right side of the comparison
      * @param operator The binary operator to apply
      * @return The resulting {@link Exp} for the comparison
-     * @throws DslParseException if an unsupported operand type is encountered or type validation fails
+     * @throws AelParseException if an unsupported operand type is encountered or type validation fails
      */
     private static Exp getExpLeftBinTypeComparison(BinPart left, AbstractPart right, BinaryOperator<Exp> operator) {
         return getExpBinComparison(left, right, operator, true);
@@ -430,7 +430,7 @@ public class VisitorUtils {
      * @param right    The {@link BinPart} on the right side of the comparison
      * @param operator The binary operator to apply
      * @return The resulting {@link Exp} for the comparison
-     * @throws DslParseException if an unsupported operand type is encountered or type validation fails
+     * @throws AelParseException if an unsupported operand type is encountered or type validation fails
      */
     private static Exp getExpRightBinTypeComparison(AbstractPart left, BinPart right, BinaryOperator<Exp> operator) {
         return getExpBinComparison(right, left, operator, false);
@@ -485,7 +485,7 @@ public class VisitorUtils {
      * @return A {@link Pair} representing the lower and upper bounds of the range for the bin.
      * A {@code null} value in the pair indicates no bound on that side
      * @throws NoApplicableFilterException if division by zero occurs or the term type is unsupported
-     * @throws DslParseException           if undefined division (0/0) occurs
+     * @throws AelParseException           if undefined division (0/0) occurs
      */
     private static Pair<Long, Long> getLimitsForDivisionForFilter(long left, long right, FilterOperationType type,
                                                                   ArithmeticTermType termType) {
@@ -510,7 +510,7 @@ public class VisitorUtils {
      * @param operationType The type of the filter operation
      * @return A {@link Pair} representing the lower and upper bounds of the range for the bin.
      * A {@code null} value in the pair indicates no bound on that side
-     * @throws DslParseException if undefined division (0/0) occurs or if the operation type is not supported
+     * @throws AelParseException if undefined division (0/0) occurs or if the operation type is not supported
      */
     private static Pair<Long, Long> LimitsForBinDividend(
             long left, long right, FilterOperationType operationType
@@ -519,7 +519,7 @@ public class VisitorUtils {
             // both operands are positive
             return getLimitsForBinDividendWithLeftNumberPositive(operationType, left, right);
         } else if (left == 0 && right == 0) {
-            throw new DslParseException("Undefined division for 0 / 0");
+            throw new AelParseException("Undefined division for 0 / 0");
         } else if (left < 0 && right < 0) {
             // both operands are negative
             return getLimitsForBinDividendWithLeftNumberNegative(operationType, left, right);
@@ -530,7 +530,7 @@ public class VisitorUtils {
             // left negative, right positive
             return getLimitsForBinDividendWithLeftNumberNegative(operationType, left, right);
         } else if (left != 0) {
-            throw new DslParseException("Division by zero is not allowed");
+            throw new AelParseException("Division by zero is not allowed");
         } else {
             return new Pair<>(null, null);
         }
@@ -543,7 +543,7 @@ public class VisitorUtils {
      * @param left          The value of the dividend
      * @param right         The value of the divisor
      * @return A {@link Pair} representing the lower and upper bounds of the range for the bin
-     * @throws DslParseException if the operation type is not supported for division
+     * @throws AelParseException if the operation type is not supported for division
      */
     private static Pair<Long, Long> getLimitsForBinDividendWithLeftNumberNegative(
             FilterOperationType operationType, long left, long right
@@ -553,7 +553,7 @@ public class VisitorUtils {
             case GTEQ -> new Pair<>(Long.MIN_VALUE, left * right);
             case LT -> new Pair<>(left * right + 1, Long.MAX_VALUE);
             case LTEQ -> new Pair<>(left * right, Long.MAX_VALUE);
-            default -> throw new DslParseException("OperationType not supported for division: " + operationType);
+            default -> throw new AelParseException("OperationType not supported for division: " + operationType);
         };
     }
 
@@ -564,7 +564,7 @@ public class VisitorUtils {
      * @param left          The value of the dividend
      * @param right         The value of the divisor
      * @return A {@link Pair} representing the lower and upper bounds of the range for the bin
-     * @throws DslParseException if the operation type is not supported for division
+     * @throws AelParseException if the operation type is not supported for division
      */
     private static Pair<Long, Long> getLimitsForBinDividendWithLeftNumberPositive(
             FilterOperationType operationType, long left, long right
@@ -574,7 +574,7 @@ public class VisitorUtils {
             case GTEQ -> new Pair<>(left * right, Long.MAX_VALUE);
             case LT -> new Pair<>(Long.MIN_VALUE, left * right - 1);
             case LTEQ -> new Pair<>(Long.MIN_VALUE, left * right);
-            default -> throw new DslParseException("OperationType not supported for division: " + operationType);
+            default -> throw new AelParseException("OperationType not supported for division: " + operationType);
         };
     }
 
@@ -586,7 +586,7 @@ public class VisitorUtils {
      * @param operationType The type of the filter operation
      * @return A {@link Pair} representing the lower and upper bounds of the range for the bin.
      * A {@code null} value in the pair indicates no bound on that side
-     * @throws DslParseException if division by zero occurs or if the operation type is not supported
+     * @throws AelParseException if division by zero occurs or if the operation type is not supported
      */
     private static Pair<Long, Long> getLimitsForBinDivisor(long left, long right, FilterOperationType operationType) {
         if (left > 0 && right > 0) {
@@ -595,17 +595,17 @@ public class VisitorUtils {
                 case GT -> new Pair<>(1L, getClosestLongToTheLeft((float) left / right));
                 case GTEQ -> new Pair<>(1L, left / right);
                 case LT, LTEQ -> new Pair<>(null, null);
-                default -> throw new DslParseException("OperationType not supported for division: " + operationType);
+                default -> throw new AelParseException("OperationType not supported for division: " + operationType);
             };
         } else if (left == 0 && right == 0) {
-            throw new DslParseException("Cannot divide by zero");
+            throw new AelParseException("Cannot divide by zero");
         } else if (left < 0 && right < 0) {
             // both operands are negative
             return switch (operationType) {
                 case GT, GTEQ -> new Pair<>(null, null);
                 case LT -> new Pair<>(1L, getClosestLongToTheLeft((float) left / right));
                 case LTEQ -> new Pair<>(1L, left / right);
-                default -> throw new DslParseException("OperationType not supported for division: " + operationType);
+                default -> throw new AelParseException("OperationType not supported for division: " + operationType);
             };
         } else if (left > 0 && right < 0) {
             // left positive, right negative
@@ -613,7 +613,7 @@ public class VisitorUtils {
                 case GT, GTEQ -> new Pair<>(null, null);
                 case LT -> new Pair<>(getClosestLongToTheRight((float) left / right), -1L);
                 case LTEQ -> new Pair<>(left / right, -1L);
-                default -> throw new DslParseException("OperationType not supported for division: " + operationType);
+                default -> throw new AelParseException("OperationType not supported for division: " + operationType);
             };
         } else if (right > 0 && left < 0) {
             // right positive, left negative
@@ -621,10 +621,10 @@ public class VisitorUtils {
                 case GT -> new Pair<>(getClosestLongToTheRight((float) left / right), -1L);
                 case GTEQ -> new Pair<>(left / right, -1L);
                 case LT, LTEQ -> new Pair<>(null, null);
-                default -> throw new DslParseException("OperationType not supported for division: " + operationType);
+                default -> throw new AelParseException("OperationType not supported for division: " + operationType);
             };
         } else if (left != 0) {
-            throw new DslParseException("Division by zero is not allowed");
+            throw new AelParseException("Division by zero is not allowed");
         } else {
             return new Pair<>(null, null);
         }
@@ -638,14 +638,14 @@ public class VisitorUtils {
      *                A {@code null} value in the pair indicates no bound on that side
      * @param type    The type of the filter operation
      * @return A {@link Filter} representing the condition
-     * @throws DslParseException if the operation type is not supported for generating a filter
+     * @throws AelParseException if the operation type is not supported for generating a filter
      */
     private static Filter getFilterForDivOrFail(String binName, Pair<Long, Long> value, FilterOperationType type) {
         // Based on the operation type, generate the appropriate filter range
         return switch (type) {
             case GT, GTEQ, LT, LTEQ -> Filter.range(binName, value.a, value.b);  // Range from 1 to value - 1
             case EQ -> Filter.equal(binName, value.a);  // Exact match for equality case
-            default -> throw new DslParseException("OperationType not supported for division: " + type);
+            default -> throw new AelParseException("OperationType not supported for division: " + type);
         };
     }
 
@@ -722,7 +722,7 @@ public class VisitorUtils {
      * @param ctx          Array of {@link CTX} objects representing CDT context, can be null
      * @return An Aerospike {@link Filter} for the string or blob comparison
      * @throws NoApplicableFilterException if the filter operation type is not equality
-     * @throws DslParseException           if type validation fails or base64 decoding fails
+     * @throws AelParseException           if type validation fails or base64 decoding fails
      */
     private static Filter handleStringOperand(BinPart bin, String binName, String operandValue,
                                               FilterOperationType type, CTX[] ctx) {
@@ -749,7 +749,7 @@ public class VisitorUtils {
      * @param right The right operand
      * @param type  The filter operation type
      * @return The appropriate Filter, or null if no filter can be created
-     * @throws DslParseException if operands are invalid
+     * @throws AelParseException if operands are invalid
      */
     private static Filter getFilterOrNull(AbstractPart left, AbstractPart right, FilterOperationType type) {
         validateOperands(left, right);
@@ -787,7 +787,7 @@ public class VisitorUtils {
      * @param otherOperand The other operand in the filter condition
      * @param type         The type of the filter operation
      * @return A {@link Filter} if one can be generated from the nested expression, otherwise {@code null}
-     * @throws DslParseException           if operands within the nested expression are null
+     * @throws AelParseException           if operands within the nested expression are null
      * @throws NoApplicableFilterException if the nested expression structure is not supported for filtering
      */
     private static Filter handleExpressionOperand(ExpressionContainer expr, AbstractPart otherOperand,
@@ -853,7 +853,7 @@ public class VisitorUtils {
      * @param isBinOnLeft       {@code true} if the bin is on the left side of the arithmetic operation, {@code false} otherwise
      * @return A {@link Filter} for the arithmetic condition
      * @throws NoApplicableFilterException if operands are not integers or if the operation is not supported
-     * @throws DslParseException           if type validation fails
+     * @throws AelParseException           if type validation fails
      */
     private static Filter handleBinArithmeticExpression(BinPart bin, AbstractPart operand,
                                                         AbstractPart externalOperand,
@@ -881,14 +881,14 @@ public class VisitorUtils {
      *
      * @param left  The left {@link AbstractPart}
      * @param right The right {@link AbstractPart}
-     * @throws DslParseException if either the left or right operand is null
+     * @throws AelParseException if either the left or right operand is null
      */
     private static void validateOperands(AbstractPart left, AbstractPart right) {
         if (left == null) {
-            throw new DslParseException("Left operand cannot be null");
+            throw new AelParseException("Left operand cannot be null");
         }
         if (right == null) {
-            throw new DslParseException("Right operand cannot be null");
+            throw new AelParseException("Right operand cannot be null");
         }
     }
 
@@ -905,7 +905,7 @@ public class VisitorUtils {
      * @return A secondary index {@link Filter}
      * @throws NoApplicableFilterException if the operation is not supported by secondary index filters,
      *                                     division by zero occurs, or the calculated range is invalid
-     * @throws DslParseException           if undefined division (0/0) occurs or other issues arise
+     * @throws AelParseException           if undefined division (0/0) occurs or other issues arise
      */
     private static Filter applyFilterOperator(String binName, IntOperand leftOperand, IntOperand rightOperand,
                                               ExprPartsOperation operationType, FilterOperationType type,
@@ -1206,7 +1206,7 @@ public class VisitorUtils {
      * resolves to a {@link java.util.List}. Called before placeholder resolution
      * so that the error message references the placeholder index.
      *
-     * @throws DslParseException if the placeholder index is missing or the placeholder value is not a List
+     * @throws AelParseException if the placeholder index is missing or the placeholder value is not a List
      */
     private static void validateInPlaceholderValue(PlaceholderOperand placeholder,
                                                    PlaceholderValues placeholderValues) {
@@ -1215,10 +1215,10 @@ public class VisitorUtils {
         try {
             value = placeholderValues.getValue(index);
         } catch (IllegalArgumentException e) {
-            throw new DslParseException(e.getMessage(), e);
+            throw new AelParseException(e.getMessage(), e);
         }
         if (!(value instanceof List)) {
-            throw new DslParseException(
+            throw new AelParseException(
                     "IN operation requires a List as the right operand for placeholder ?" + index);
         }
     }
@@ -1231,7 +1231,7 @@ public class VisitorUtils {
      *
      * @param right the right operand of the IN expression
      * @return the inferred element type, or {@code null} when validation is not applicable
-     * @throws DslParseException if the list contains elements of different types
+     * @throws AelParseException if the list contains elements of different types
      */
     static Exp.Type validateListHomogeneity(AbstractPart right) {
         if (right.getPartType() != LIST_OPERAND) {
@@ -1268,7 +1268,7 @@ public class VisitorUtils {
      * <p>
      * Assumes/enforces that all non-null elements in the list are of the same
      * logical type. If heterogeneous element types are detected, a
-     * {@link DslParseException} is thrown to avoid silent type mismatches.
+     * {@link AelParseException} is thrown to avoid silent type mismatches.
      *
      * @return the inferred type, or {@code null} if the list is empty or contains only nulls
      *         (no type can be inferred, so homogeneity validation is intentionally skipped)
@@ -1285,13 +1285,13 @@ public class VisitorUtils {
             }
             Exp.Type currentType = inferElementType(value);
             if (currentType == null) {
-                throw new DslParseException(
+                throw new AelParseException(
                         "Unsupported element type in IN list: " + value.getClass().getName());
             }
             if (inferredType == null) {
                 inferredType = currentType;
             } else if (inferredType != currentType) {
-                throw new DslParseException(
+                throw new AelParseException(
                         "IN list elements must all be of the same type; found "
                                 + inferredType + " and " + currentType);
             }
@@ -1495,7 +1495,7 @@ public class VisitorUtils {
      *
      * @param expr The expression to process
      * @return The processed Exp
-     * @throws DslParseException if left or right operands are null in a binary expression
+     * @throws AelParseException if left or right operands are null in a binary expression
      */
     private static Exp processExpression(ExpressionContainer expr) {
         AbstractPart left = getExistingPart(expr.getLeft(), "Unable to parse left operand");
@@ -1567,7 +1567,7 @@ public class VisitorUtils {
         if (ARITHMETIC_OPERATIONS.contains(opType)
                 && (resolveExpType(left) == Exp.Type.BLOB
                 || resolveExpType(right) == Exp.Type.BLOB)) {
-            throw new DslParseException(
+            throw new AelParseException(
                     "BLOB type does not support arithmetic operations");
         }
     }
@@ -1689,18 +1689,18 @@ public class VisitorUtils {
      * Ensures that an {@link AbstractPart} object is not null.
      * <p>
      * This is a utility method used to validate that the given {@link AbstractPart} exists. If the provided
-     * {@code part} is {@code null}, it indicates a parsing error, and a {@link DslParseException}
+     * {@code part} is {@code null}, it indicates a parsing error, and a {@link AelParseException}
      * is thrown with a custom error message. Otherwise, the method simply returns the non-null part.
      * </p>
      *
      * @param part   The part of the expression to be validated
      * @param errMsg The error message to be included in the exception if the part is null
      * @return The provided {@link AbstractPart}, if it is not null
-     * @throws DslParseException if the provided {@code part} is {@code null}
+     * @throws AelParseException if the provided {@code part} is {@code null}
      */
     private static AbstractPart getExistingPart(AbstractPart part, String errMsg) {
         if (part == null) {
-            throw new DslParseException(errMsg);
+            throw new AelParseException(errMsg);
         }
         return part;
     }

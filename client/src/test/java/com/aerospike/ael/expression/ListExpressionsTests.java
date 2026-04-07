@@ -16,7 +16,7 @@
  */
 package com.aerospike.ael.expression;
 
-import com.aerospike.ael.DslParseException;
+import com.aerospike.ael.AelParseException;
 import com.aerospike.ael.ExpressionContext;
 import com.aerospike.client.sdk.cdt.CTX;
 import com.aerospike.client.sdk.cdt.ListReturnType;
@@ -99,16 +99,16 @@ public class ListExpressionsTests {
     @Test
     void listByValueHexAndBinarySelectorsAreUnsupported() {
         assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of("$.listBin1.[=0xff] == 100")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("Only decimal integer literals are supported in this element");
         assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of("$.listBin1.[=0b10] == 100")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("Only decimal integer literals are supported in this element");
         assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of("$.listBin1.[=-0xff] == 100")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("Only decimal integer literals are supported in this element");
         assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of("$.listBin1.[=-0b10] == 100")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("Only decimal integer literals are supported in this element");
     }
 
@@ -155,16 +155,16 @@ public class ListExpressionsTests {
     @Test
     void listByRankHexAndBinarySelectorsAreUnsupported() {
         assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of("$.listBin1.[#0xff] == 100")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("Only decimal integer literals are supported in this element");
         assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of("$.listBin1.[#0b10] == 100")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("Only decimal integer literals are supported in this element");
         assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of("$.listBin1.[#-0xff] == 100")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("Only decimal integer literals are supported in this element");
         assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of("$.listBin1.[#-0b10] == 100")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("Only decimal integer literals are supported in this element");
     }
 
@@ -184,7 +184,7 @@ public class ListExpressionsTests {
     @Test
     void listByRankOutOfRangeSignedLiteral() {
         assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of("$.listBin1.[#-2147483649] == 100")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("out of range");
     }
 
@@ -318,7 +318,7 @@ public class ListExpressionsTests {
     @Test
     void negativeSyntaxList() {
         assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of("$.listBin1.[stringValue] == 100")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("Could not parse given AEL expression input")
                 .hasMessageContaining("[Parser] no viable alternative at input")
                 .hasMessageContaining("at character 12");

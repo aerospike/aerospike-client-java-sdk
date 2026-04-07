@@ -16,7 +16,7 @@
  */
 package com.aerospike.ael.expression;
 
-import com.aerospike.ael.DslParseException;
+import com.aerospike.ael.AelParseException;
 import com.aerospike.ael.ExpressionContext;
 import com.aerospike.client.sdk.exp.Exp;
 import com.aerospike.ael.util.TestUtils;
@@ -63,7 +63,7 @@ public class ExplicitTypesTests {
         assertThatThrownBy(() ->
                 TestUtils.parseFilterExpressionAndCompare(ExpressionContext.of("$.stringBin1.get(type: STRING) == yes"),
                         Exp.eq(Exp.stringBin("stringBin1"), Exp.val("yes"))))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("Could not parse given AEL expression input")
                 .hasMessageContaining("[Parser] mismatched input '<EOF>'")
                 .hasMessageContaining("at character 37");
@@ -104,7 +104,7 @@ public class ExplicitTypesTests {
     @Test
     void negativeBooleanComparison() {
         assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of("$.boolBin1.get(type: BOOL) == 5")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("Cannot compare BOOL to INT");
     }
 
@@ -147,7 +147,7 @@ public class ExplicitTypesTests {
                 TestUtils.parseFilterExpressionAndCompare(ExpressionContext.of("$.listBin1.get(type: LIST) == [yes, of course]"),
                         Exp.eq(Exp.listBin("listBin1"), Exp.val(List.of("yes", "of course"))))
         )
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("Could not parse given AEL expression input")
                 .hasMessageContaining("[Parser] mismatched input ','")
                 .hasMessageContaining("at character 34");
@@ -192,7 +192,7 @@ public class ExplicitTypesTests {
                 TestUtils.parseFilterExpressionAndCompare(ExpressionContext.of("[yes, of course] == $.listBin1.get(type: LIST)"),
                         Exp.eq(Exp.val(List.of("yes", "of course")), Exp.listBin("listBin1")))
         )
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("Could not parse given AEL expression input")
                 .hasMessageContaining("[Parser] no viable alternative at input")
                 .hasMessageContaining("at character 4");
@@ -264,7 +264,7 @@ public class ExplicitTypesTests {
                 TestUtils.parseFilterExpressionAndCompare(ExpressionContext.of("$.mapBin1.get(type: MAP) == {yes, of course}"),
                         Exp.eq(Exp.mapBin("mapBin1"), Exp.val(treeMapOf("yes", "of course"))))
         )
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("Could not parse given AEL expression input")
                 .hasMessageContaining("[Parser] extraneous input 'yes'")
                 .hasMessageContaining("at character 29");
@@ -273,7 +273,7 @@ public class ExplicitTypesTests {
                 TestUtils.parseFilterExpressionAndCompare(ExpressionContext.of("$.mapBin1.get(type: MAP) == ['yes', 'of course']"),
                         Exp.eq(Exp.mapBin("mapBin1"), Exp.val(List.of("yes", "of course"))))
         )
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessage("Cannot compare MAP to LIST");
 
         // Map key can only be Integer or String
@@ -281,7 +281,7 @@ public class ExplicitTypesTests {
                 TestUtils.parseFilterExpressionAndCompare(ExpressionContext.of("$.mapBin1.get(type: MAP) == {[100]:[100]}"),
                         Exp.eq(Exp.mapBin("mapBin1"), Exp.val(List.of("yes", "of course"))))
         )
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("Could not parse given AEL expression input")
                 .hasMessageContaining("[Parser] extraneous input '['")
                 .hasMessageContaining("at character 29");
@@ -337,7 +337,7 @@ public class ExplicitTypesTests {
                 TestUtils.parseFilterExpressionAndCompare(ExpressionContext.of("{yes, of course} == $.mapBin1.get(type: MAP)"),
                         Exp.eq(Exp.mapBin("mapBin1"), Exp.val(treeMapOf("of course", "yes"))))
         )
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("Could not parse given AEL expression input")
                 .hasMessageContaining("[Parser] no viable alternative at input")
                 .hasMessageContaining("at character 1");
@@ -346,7 +346,7 @@ public class ExplicitTypesTests {
                 TestUtils.parseFilterExpressionAndCompare(ExpressionContext.of("['yes', 'of course'] == $.mapBin1.get(type: MAP)"), // incorrect: must be {}
                         Exp.eq(Exp.val(List.of("yes", "of course")), Exp.mapBin("mapBin1")))
         )
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessage("Cannot compare MAP to LIST");
 
         // Map key can only be Integer or String
@@ -354,7 +354,7 @@ public class ExplicitTypesTests {
                 TestUtils.parseFilterExpressionAndCompare(ExpressionContext.of("{[100]:[100]} == $.mapBin1.get(type: MAP)"),
                         Exp.eq(Exp.val(List.of("yes", "of course")), Exp.mapBin("mapBin1")))
         )
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("Could not parse given AEL expression input")
                 .hasMessageContaining("[Parser] no viable alternative at input")
                 .hasMessageContaining("at character 1");
@@ -387,7 +387,7 @@ public class ExplicitTypesTests {
     @Test
     void negativeTwoDifferentBinTypesComparison() {
         assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of("$.stringBin1.get(type: STRING) == $.floatBin2.get(type: FLOAT)")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("Cannot compare STRING to FLOAT");
     }
 

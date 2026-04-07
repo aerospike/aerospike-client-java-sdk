@@ -21,14 +21,14 @@ package com.aerospike.ael;
  * It is typically not expected to be caught by the caller, but rather indicates a potentially
  * unrecoverable issue like invalid input, failing validation or unsupported functionality.
  */
-public class DslParseException extends RuntimeException {
+public class AelParseException extends RuntimeException {
     private static final long serialVersionUID = 1L;
 
-	public DslParseException(String description) {
+	public AelParseException(String description) {
         super(description);
     }
 
-    public DslParseException(String description, Throwable cause) {
+    public AelParseException(String description, Throwable cause) {
         super(description, cause);
     }
 }

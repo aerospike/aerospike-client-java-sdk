@@ -19,14 +19,14 @@ package com.aerospike.client.sdk.query;
 import java.util.Collection;
 import java.util.Set;
 
-import com.aerospike.ael.DslParseException;
+import com.aerospike.ael.AelParseException;
 import com.aerospike.ael.ExpressionContext;
 import com.aerospike.ael.Index;
 import com.aerospike.ael.IndexContext;
 import com.aerospike.ael.ParseResult;
 import com.aerospike.ael.ParsedExpression;
-import com.aerospike.ael.api.DSLParser;
-import com.aerospike.ael.impl.DSLParserImpl;
+import com.aerospike.ael.api.AelParser;
+import com.aerospike.ael.impl.AelParserImpl;
 import com.aerospike.client.sdk.Log;
 import com.aerospike.client.sdk.Session;
 import com.aerospike.client.sdk.Value;
@@ -90,7 +90,7 @@ public abstract class WhereClauseProcessor {
     }
 
     public ParseResult process(String ael, String namespace, Session session) {
-        DSLParser parser = new DSLParserImpl();
+        AelParser parser = new AelParserImpl();
 
         ParsedExpression parseResult;
         IndexContext indexContext = null;
@@ -105,7 +105,7 @@ public abstract class WhereClauseProcessor {
         }
         ParseResult result = parseResult.getResult();
         if (result.getExp() == null && result.getFilter() == null) {
-            throw new DslParseException("Unknown error parsing AEL: '" + ael + "'");
+            throw new AelParseException("Unknown error parsing AEL: '" + ael + "'");
         }
 
         if (Log.debugEnabled()) {

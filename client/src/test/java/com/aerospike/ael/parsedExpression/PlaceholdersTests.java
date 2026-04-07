@@ -16,7 +16,7 @@
  */
 package com.aerospike.ael.parsedExpression;
 
-import com.aerospike.ael.DslParseException;
+import com.aerospike.ael.AelParseException;
 import com.aerospike.ael.ExpressionContext;
 import com.aerospike.ael.Index;
 import com.aerospike.ael.IndexContext;
@@ -91,13 +91,13 @@ public class PlaceholdersTests {
         assertThatThrownBy(() ->
                 TestUtils.parseDslExpressionAndCompare(ExpressionContext.of("$.intBin1 > ?0", null),
                         null, null))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("Operand type not supported: PLACEHOLDER_OPERAND");
 
         assertThatThrownBy(() ->
                 TestUtils.parseDslExpressionAndCompare(ExpressionContext.of("$.intBin1 > ?0"),
                         null, null))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("Operand type not supported: PLACEHOLDER_OPERAND");
 
         assertThatThrownBy(() ->

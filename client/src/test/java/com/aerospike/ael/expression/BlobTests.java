@@ -1,6 +1,6 @@
 package com.aerospike.ael.expression;
 
-import com.aerospike.ael.DslParseException;
+import com.aerospike.ael.AelParseException;
 import com.aerospike.ael.ExpressionContext;
 import com.aerospike.client.sdk.AerospikeComparator;
 import com.aerospike.client.sdk.cdt.ListReturnType;
@@ -108,7 +108,7 @@ public class BlobTests {
     void negativeOddHexLength() {
         assertThatThrownBy(() -> parseFilterExp(
                 ExpressionContext.of("X'f' == $.b.get(type: BLOB)")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("even number of hex characters");
     }
 
@@ -116,7 +116,7 @@ public class BlobTests {
     void negativeOddThreeHexChars() {
         assertThatThrownBy(() -> parseFilterExp(
                 ExpressionContext.of("X'abc' == $.b.get(type: BLOB)")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("even number of hex characters");
     }
 
@@ -124,7 +124,7 @@ public class BlobTests {
     void negativeNonHexChars() {
         assertThatThrownBy(() -> parseFilterExp(
                 ExpressionContext.of("X'ZZZZ' == $.b.get(type: BLOB)")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("Could not parse given AEL expression input");
     }
 
@@ -132,7 +132,7 @@ public class BlobTests {
     void negativeHexWhitespace() {
         assertThatThrownBy(() -> parseFilterExp(
                 ExpressionContext.of("X'ff 00' == $.b.get(type: BLOB)")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("Could not parse given AEL expression input");
     }
 
@@ -140,7 +140,7 @@ public class BlobTests {
     void negativeInvalidB64Chars() {
         assertThatThrownBy(() -> parseFilterExp(
                 ExpressionContext.of("b64'!!!!' == $.b.get(type: BLOB)")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("Could not parse given AEL expression input");
     }
 
@@ -148,7 +148,7 @@ public class BlobTests {
     void negativeB64Whitespace() {
         assertThatThrownBy(() -> parseFilterExp(
                 ExpressionContext.of("b64'AQ ID' == $.b.get(type: BLOB)")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("Could not parse given AEL expression input");
     }
 
@@ -156,7 +156,7 @@ public class BlobTests {
     void negativeInvalidB64Content() {
         assertThatThrownBy(() -> parseFilterExp(
                 ExpressionContext.of("b64'A' == $.b.get(type: BLOB)")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("Base64 BLOB literal contains invalid Base64 content");
     }
 
@@ -256,7 +256,7 @@ public class BlobTests {
     void negativeBlobVsString() {
         assertThatThrownBy(() -> parseFilterExp(
                 ExpressionContext.of("$.blobBin.get(type: BLOB) == $.strBin.get(type: STRING)")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("Cannot compare BLOB to STRING");
     }
 
@@ -273,7 +273,7 @@ public class BlobTests {
     void negativeInvalidBase64StringVsBlob() {
         assertThatThrownBy(() -> parseFilterExp(
                 ExpressionContext.of("$.b.get(type: BLOB) == \"not-base64!!!\"")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("not valid Base64");
     }
 
@@ -288,7 +288,7 @@ public class BlobTests {
     void negativeBlobVsInt() {
         assertThatThrownBy(() -> parseFilterExp(
                 ExpressionContext.of("$.b.get(type: BLOB) == 42")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("Cannot compare BLOB to INT");
     }
 
@@ -352,7 +352,7 @@ public class BlobTests {
     void negativeHeterogeneousInList() {
         assertThatThrownBy(() -> parseFilterExp(
                 ExpressionContext.of("X'aa' IN [X'aa', 1]")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("IN list elements must all be of the same type");
     }
 
@@ -474,7 +474,7 @@ public class BlobTests {
     void negativeBlobIntArithmetic() {
         assertThatThrownBy(() -> parseFilterExp(
                 ExpressionContext.of("X'ff' + 42 == 1")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("BLOB type does not support arithmetic operations");
     }
 
@@ -482,7 +482,7 @@ public class BlobTests {
     void negativeSameTypeBlobArith() {
         assertThatThrownBy(() -> parseFilterExp(
                 ExpressionContext.of("X'ff' + X'ee' == X'dd'")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("BLOB type does not support arithmetic operations");
     }
 
@@ -490,7 +490,7 @@ public class BlobTests {
     void negativeBlobMultiplicative() {
         assertThatThrownBy(() -> parseFilterExp(
                 ExpressionContext.of("X'ff' * 2 == 1")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("BLOB type does not support arithmetic operations");
     }
 
@@ -498,7 +498,7 @@ public class BlobTests {
     void negativeBlobModulo() {
         assertThatThrownBy(() -> parseFilterExp(
                 ExpressionContext.of("X'ff' % 2 == 1")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("BLOB type does not support arithmetic operations");
     }
 
@@ -506,7 +506,7 @@ public class BlobTests {
     void negativeBlobPower() {
         assertThatThrownBy(() -> parseFilterExp(
                 ExpressionContext.of("X'ff' ** 2 == 1")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("BLOB type does not support arithmetic operations");
     }
 
@@ -514,7 +514,7 @@ public class BlobTests {
     void negativeUnaryMinusBlob() {
         assertThatThrownBy(() -> parseFilterExp(
                 ExpressionContext.of("-X'ff' == 1")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("BLOB type does not support arithmetic operations");
     }
 
@@ -522,7 +522,7 @@ public class BlobTests {
     void negativeMixedTypeBitwise() {
         assertThatThrownBy(() -> parseFilterExp(
                 ExpressionContext.of("X'ff' & 42 == 1")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("Cannot compare BLOB to INT");
     }
 

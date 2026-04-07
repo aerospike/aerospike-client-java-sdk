@@ -18,7 +18,7 @@ package com.aerospike.ael.parts.cdt.map;
 
 import java.util.List;
 
-import com.aerospike.ael.DslParseException;
+import com.aerospike.ael.AelParseException;
 import com.aerospike.ael.parts.path.BasePath;
 import com.aerospike.ael.util.ParsingUtils;
 import com.aerospike.client.sdk.cdt.CTX;
@@ -52,7 +52,7 @@ public class MapValueList extends MapPart {
 
             return new MapValueList(isInverted, valueListObjects);
         }
-        throw new DslParseException("Could not translate MapValueList from ctx: %s".formatted(ctx));
+        throw new AelParseException("Could not translate MapValueList from ctx: %s".formatted(ctx));
     }
 
     @Override

@@ -18,8 +18,8 @@ package com.aerospike.client.sdk;
 
 import com.aerospike.ael.ExpressionContext;
 import com.aerospike.ael.ParsedExpression;
-import com.aerospike.ael.api.DSLParser;
-import com.aerospike.ael.impl.DSLParserImpl;
+import com.aerospike.ael.api.AelParser;
+import com.aerospike.ael.impl.AelParserImpl;
 import com.aerospike.client.sdk.ael.BooleanExpression;
 import com.aerospike.client.sdk.exp.Exp;
 import com.aerospike.client.sdk.exp.ExpOperation;
@@ -243,7 +243,7 @@ public final class ExpressionOpHelper {
     // ========================================
 
     private static Expression parseStringAel(String ael) {
-        DSLParser parser = new DSLParserImpl();
+        AelParser parser = new AelParserImpl();
         ExpressionContext context = ExpressionContext.of(ael);
         ParsedExpression parseResult = parser.parseExpression(context);
         Exp exp = parseResult.getResult().getExp();

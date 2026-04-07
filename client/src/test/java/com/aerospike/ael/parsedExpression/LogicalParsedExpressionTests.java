@@ -850,10 +850,10 @@ public class LogicalParsedExpressionTests {
                 ),
                 Exp.gt(Exp.intBin("intBin2"), Exp.val(100))
         );
-        String dslString = "(($.intBin3 > 100 or $.intBin4 > 100) or ($.intBin5 > 100 and $.intBin6 > 100)) " +
+        String aelString = "(($.intBin3 > 100 or $.intBin4 > 100) or ($.intBin5 > 100 and $.intBin6 > 100)) " +
                 "and ($.intBin2 > 100 and $.intBin1 > 100)";
-        parseDslExpressionAndCompare(ExpressionContext.of(dslString), filter, exp, IndexContext.of(TestUtils.NAMESPACE, indexes));
-        parseDslExpressionAndCompare(ExpressionContext.of("(" + dslString + ")"), filter, exp,
+        parseDslExpressionAndCompare(ExpressionContext.of(aelString), filter, exp, IndexContext.of(TestUtils.NAMESPACE, indexes));
+        parseDslExpressionAndCompare(ExpressionContext.of("(" + aelString + ")"), filter, exp,
                 IndexContext.of(TestUtils.NAMESPACE, indexes));
     }
 
@@ -893,10 +893,10 @@ public class LogicalParsedExpressionTests {
                         )
                 )
         );
-        String dslString = "(($.intBin3 > 100 or $.intBin4 > 100) or ($.intBin5 > 100 and $.intBin6 > 100)) " +
+        String aelString = "(($.intBin3 > 100 or $.intBin4 > 100) or ($.intBin5 > 100 and $.intBin6 > 100)) " +
                 "and (($.intBin2 > 100 and $.intBin1 > 100) or ($.intBin7 > 100 and $.intBin8 > 100))";
-        parseDslExpressionAndCompare(ExpressionContext.of(dslString), filter, exp, IndexContext.of(TestUtils.NAMESPACE, indexes));
-        parseDslExpressionAndCompare(ExpressionContext.of("(" + dslString + ")"), filter, exp,
+        parseDslExpressionAndCompare(ExpressionContext.of(aelString), filter, exp, IndexContext.of(TestUtils.NAMESPACE, indexes));
+        parseDslExpressionAndCompare(ExpressionContext.of("(" + aelString + ")"), filter, exp,
                 IndexContext.of(TestUtils.NAMESPACE, indexes));
     }
 

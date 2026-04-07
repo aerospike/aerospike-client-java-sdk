@@ -16,7 +16,7 @@
  */
 package com.aerospike.ael.expression;
 
-import com.aerospike.ael.DslParseException;
+import com.aerospike.ael.AelParseException;
 import com.aerospike.ael.ExpressionContext;
 import com.aerospike.client.sdk.Value;
 import com.aerospike.client.sdk.cdt.CTX;
@@ -266,16 +266,16 @@ public class MapExpressionsTests {
     @Test
     void mapByValueHexAndBinarySelectorsAreUnsupported() {
         assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of("$.mapBin1.{=0xff} == 100")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("Only decimal integer literals are supported in this element");
         assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of("$.mapBin1.{=0b10} == 100")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("Only decimal integer literals are supported in this element");
         assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of("$.mapBin1.{=-0xff} == 100")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("Only decimal integer literals are supported in this element");
         assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of("$.mapBin1.{=-0b10} == 100")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("Only decimal integer literals are supported in this element");
     }
 
@@ -322,16 +322,16 @@ public class MapExpressionsTests {
     @Test
     void mapByRankHexAndBinarySelectorsAreUnsupported() {
         assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of("$.mapBin1.{#0xff} == 100")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("Only decimal integer literals are supported in this element");
         assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of("$.mapBin1.{#0b10} == 100")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("Only decimal integer literals are supported in this element");
         assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of("$.mapBin1.{#-0xff} == 100")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("Only decimal integer literals are supported in this element");
         assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of("$.mapBin1.{#-0b10} == 100")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("Only decimal integer literals are supported in this element");
     }
 

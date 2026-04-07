@@ -61,7 +61,7 @@ public class ParsedExpression {
     /**
      * @return {@link ParseResult} containing secondary index {@link Filter} and/or filter {@link Exp}.
      * Each can be null in case of invalid or unsupported AEL string
-     * @throws DslParseException If there was an error
+     * @throws AelParseException If there was an error
      */
     public ParseResult getResult() {
         if (result == null) {
@@ -76,7 +76,7 @@ public class ParsedExpression {
      * @param placeholderValues {@link PlaceholderValues} to match with placeholders by index
      * @return {@link ParseResult} containing secondary index {@link Filter} and/or {@link Exp}.
      * Each can be null in case of invalid or unsupported AEL string
-     * @throws DslParseException If there was an error
+     * @throws AelParseException If there was an error
      */
     public ParseResult getResult(PlaceholderValues placeholderValues) {
         if (expressionTree != null) {

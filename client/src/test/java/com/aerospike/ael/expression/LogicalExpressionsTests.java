@@ -16,7 +16,7 @@
  */
 package com.aerospike.ael.expression;
 
-import com.aerospike.ael.DslParseException;
+import com.aerospike.ael.AelParseException;
 import com.aerospike.ael.ExpressionContext;
 import com.aerospike.client.sdk.exp.Exp;
 import com.aerospike.ael.util.TestUtils;
@@ -109,25 +109,25 @@ public class LogicalExpressionsTests {
     @Test
     void negativeSyntaxLogicalOperators() {
         assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of("($.intBin1 > 100 and ($.intBin2 > 100) or")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("Could not parse given AEL expression input")
                 .hasMessageContaining("[Parser] no viable alternative at input")
                 .hasMessageContaining("at character 41");
 
         assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of("and ($.intBin1 > 100 and ($.intBin2 > 100)")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("Could not parse given AEL expression input")
                 .hasMessageContaining("[Parser] extraneous input 'and'")
                 .hasMessageContaining("at character 0");
 
         assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of("($.intBin1 > 100 and ($.intBin2 > 100) not")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("Could not parse given AEL expression input")
                 .hasMessageContaining("[Parser] no viable alternative at input")
                 .hasMessageContaining("at character 39");
 
         assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of("($.intBin1 > 100 and ($.intBin2 > 100) exclusive")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("Could not parse given AEL expression input")
                 .hasMessageContaining("[Parser] no viable alternative at input")
                 .hasMessageContaining("at character 39");
@@ -138,7 +138,7 @@ public class LogicalExpressionsTests {
         assertThatThrownBy(() -> TestUtils.parseFilterExpressionAndCompare(ExpressionContext.of("exclusive($.hand == \"hook\")"),
                 Exp.exclusive(
                         Exp.eq(Exp.stringBin("hand"), Exp.val("hook")))))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("Could not parse given AEL expression input")
                 .hasMessageContaining("[Parser] no viable alternative at input")
                 .hasMessageContaining("at character 26");

@@ -1,6 +1,6 @@
 package com.aerospike.ael.expression;
 
-import com.aerospike.ael.DslParseException;
+import com.aerospike.ael.AelParseException;
 import com.aerospike.ael.ExpressionContext;
 import com.aerospike.client.sdk.exp.Exp;
 import com.aerospike.ael.util.TestUtils;
@@ -247,7 +247,7 @@ public class NumericLiteralsTests {
     void invalidHexDigits() {
         // 0xGG is not valid hex -- lexer produces INT(0) + NAME_IDENTIFIER(xGG)
         assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of("0xGG == 0")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("Could not parse given AEL expression input")
                 .hasMessageContaining("[Parser] no viable alternative at input")
                 .hasMessageContaining("at character 5");
@@ -257,7 +257,7 @@ public class NumericLiteralsTests {
     void invalidBinaryDigits() {
         // 0b2 is not valid binary -- lexer produces INT(0) + NAME_IDENTIFIER(b2)
         assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of("0b2 == 0")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("Could not parse given AEL expression input")
                 .hasMessageContaining("[Parser] no viable alternative at input")
                 .hasMessageContaining("at character 4");
@@ -267,7 +267,7 @@ public class NumericLiteralsTests {
     void trailingDotFloat() {
         // "10." is not valid FLOAT -- requires digits after dot
         assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of("10. == 10.0")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("Could not parse given AEL expression input")
                 .hasMessageContaining("[Parser] no viable alternative at input")
                 .hasMessageContaining("at character 4");
@@ -276,175 +276,175 @@ public class NumericLiteralsTests {
     @Test
     void leadingDotHexIsRejected() {
         assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of(".0x10 == 0.0")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("Invalid float literal");
     }
 
     @Test
     void leadingDotHexIsRejectedOnRight() {
         assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of("0.0 == .0x10")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("Invalid float literal");
     }
 
     @Test
     void leadingDotHexWithMinusSignIsRejected() {
         assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of("-.0x10 == 0.0")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("Invalid float literal");
     }
 
     @Test
     void leadingDotHexWithMinusSignIsRejectedOnRight() {
         assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of("0.0 == -.0x10")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("Invalid float literal");
     }
 
     @Test
     void leadingDotHexWithPlusSignIsRejected() {
         assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of("+.0x10 == 0.0")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("Invalid float literal");
     }
 
     @Test
     void leadingDotHexWithPlusSignIsRejectedOnRight() {
         assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of("0.0 == +.0x10")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("Invalid float literal");
     }
 
     @Test
     void leadingDotHexWithDoubleMinusSignIsRejected() {
         assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of("--.0x10 == 0.0")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("Invalid float literal");
     }
 
     @Test
     void leadingDotHexWithDoubleMinusSignIsRejectedOnRight() {
         assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of("0.0 == --.0x10")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("Invalid float literal");
     }
 
     @Test
     void leadingDotHexWithDoublePlusSignIsRejected() {
         assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of("++.0x10 == 0.0")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("Invalid float literal");
     }
 
     @Test
     void leadingDotHexWithDoublePlusSignIsRejectedOnRight() {
         assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of("0.0 == ++.0x10")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("Invalid float literal");
     }
 
     @Test
     void leadingDotBinaryIsRejected() {
         assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of(".0b11 == 0.0")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("Invalid float literal");
     }
 
     @Test
     void leadingDotBinaryIsRejectedOnRight() {
         assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of("0.0 == .0b11")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("Invalid float literal");
     }
 
     @Test
     void leadingDotBinaryWithMinusSignIsRejected() {
         assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of("-.0b11 == 0.0")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("Invalid float literal");
     }
 
     @Test
     void leadingDotBinaryWithMinusSignIsRejectedOnRight() {
         assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of("0.0 == -.0b11")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("Invalid float literal");
     }
 
     @Test
     void leadingDotBinaryWithPlusSignIsRejected() {
         assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of("+.0b11 == 0.0")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("Invalid float literal");
     }
 
     @Test
     void leadingDotBinaryWithPlusSignIsRejectedOnRight() {
         assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of("0.0 == +.0b11")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("Invalid float literal");
     }
 
     @Test
     void leadingDotBinaryWithDoubleMinusSignIsRejected() {
         assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of("--.0b11 == 0.0")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("Invalid float literal");
     }
 
     @Test
     void leadingDotBinaryWithDoubleMinusSignIsRejectedOnRight() {
         assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of("0.0 == --.0b11")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("Invalid float literal");
     }
 
     @Test
     void leadingDotBinaryWithDoublePlusSignIsRejected() {
         assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of("++.0b11 == 0.0")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("Invalid float literal");
     }
 
     @Test
     void leadingDotBinaryWithDoublePlusSignIsRejectedOnRight() {
         assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of("0.0 == ++.0b11")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("Invalid float literal");
     }
 
     @Test
     void decimalIntOverflowPositive() {
         assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of("9223372036854775808 == 0")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("out of range");
     }
 
     @Test
     void decimalIntOverflowNegative() {
         assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of("-9223372036854775809 == 0")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("out of range");
     }
 
     @Test
     void decimalIntOverflowDoubleUnaryMinusLongMin() {
         assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of("--9223372036854775808 == 0")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("out of range");
     }
 
     @Test
     void decimalIntOverflowDoubleUnaryMinusLongMinCast() {
         assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of("--9223372036854775808.asFloat() == 0.0")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("out of range");
     }
 
     @Test
     void hexIntOverflowPositive() {
         assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of("0x8000000000000001 == 0")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("out of range");
     }
 
@@ -486,14 +486,14 @@ public class NumericLiteralsTests {
     void doubleDotFloat() {
         // "..37" has an extraneous leading dot before a valid leading-dot float
         assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of("..37 == 0.0")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("Invalid float literal");
     }
 
     @Test
     void doubleDotFloatOnRight() {
         assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of("0.0 == ..37")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("Invalid float literal");
     }
 
@@ -501,14 +501,14 @@ public class NumericLiteralsTests {
     void embeddedDotFloat() {
         // ".3.7" has digits both before and after an extra dot
         assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of(".3.7 == 0.0")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("Invalid float literal");
     }
 
     @Test
     void embeddedDotFloatOnRight() {
         assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of("0.0 == .3.7")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("Invalid float literal");
     }
 }

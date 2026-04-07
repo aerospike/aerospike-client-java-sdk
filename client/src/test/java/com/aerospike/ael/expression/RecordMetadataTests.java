@@ -16,7 +16,7 @@
  */
 package com.aerospike.ael.expression;
 
-import com.aerospike.ael.DslParseException;
+import com.aerospike.ael.AelParseException;
 import com.aerospike.ael.ExpressionContext;
 import com.aerospike.client.sdk.exp.Exp;
 import com.aerospike.ael.util.TestUtils;
@@ -145,7 +145,7 @@ public class RecordMetadataTests {
     void negativeTtlAsDifferentType() {
         // TODO: should be supported when adding operator + metadata validations (requires a refactor)
         assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of("$.ttl() == true")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("Expecting non-bin operand, got BOOL_OPERAND");
     }
 

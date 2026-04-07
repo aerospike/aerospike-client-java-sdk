@@ -21,7 +21,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import com.aerospike.ael.ExpressionContext;
 import com.aerospike.ael.IndexContext;
 import com.aerospike.ael.ParsedExpression;
-import com.aerospike.ael.impl.DSLParserImpl;
+import com.aerospike.ael.impl.AelParserImpl;
 import com.aerospike.client.sdk.cdt.CTX;
 import com.aerospike.client.sdk.exp.Exp;
 import com.aerospike.client.sdk.exp.Expression;
@@ -33,7 +33,7 @@ import lombok.experimental.UtilityClass;
 public class TestUtils {
 
     public static final String NAMESPACE = "test1";
-    private static final DSLParserImpl parser = new DSLParserImpl();
+    private static final AelParserImpl parser = new AelParserImpl();
 
     /**
      * Parses the given AEL expression and extracts the resulting {@link Exp} object.
@@ -151,12 +151,12 @@ public class TestUtils {
     /**
      * Parses two AEL expression strings and asserts that they produce identical packed {@link Expression} bytes.
      *
-     * @param dslActual   The AEL string whose result is being verified
-     * @param dslExpected The reference AEL string that defines the expected result
+     * @param aelActual   The AEL string whose result is being verified
+     * @param aelExpected The reference AEL string that defines the expected result
      */
-    public static void parseDslAndCompare(String dslActual, String dslExpected) {
-        Expression actual = Exp.build(parser.parseExpression(ExpressionContext.of(dslActual)).getResult().getExp());
-        Expression expected = Exp.build(parser.parseExpression(ExpressionContext.of(dslExpected)).getResult().getExp());
+    public static void parseDslAndCompare(String aelActual, String aelExpected) {
+        Expression actual = Exp.build(parser.parseExpression(ExpressionContext.of(aelActual)).getResult().getExp());
+        Expression expected = Exp.build(parser.parseExpression(ExpressionContext.of(aelExpected)).getResult().getExp());
         assertEquals(expected, actual);
     }
 

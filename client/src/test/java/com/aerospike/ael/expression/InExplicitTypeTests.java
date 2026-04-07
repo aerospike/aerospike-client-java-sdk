@@ -1,6 +1,6 @@
 package com.aerospike.ael.expression;
 
-import com.aerospike.ael.DslParseException;
+import com.aerospike.ael.AelParseException;
 import com.aerospike.ael.ExpressionContext;
 import com.aerospike.ael.PlaceholderValues;
 import com.aerospike.client.sdk.cdt.ListReturnType;
@@ -372,7 +372,7 @@ public class InExplicitTypeTests {
     void negExplicitIntTypeOnRightBin() {
         assertThatThrownBy(() -> parseFilterExp(
                 ExpressionContext.of("$.name in $.tags.get(type: INT)")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("IN operation requires a List as the right operand");
     }
 
@@ -380,7 +380,7 @@ public class InExplicitTypeTests {
     void negExplicitStringTypeOnRightBin() {
         assertThatThrownBy(() -> parseFilterExp(
                 ExpressionContext.of("$.name in $.tags.get(type: STRING)")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("IN operation requires a List as the right operand");
     }
 
@@ -388,7 +388,7 @@ public class InExplicitTypeTests {
     void negNestedPathExplicitStringOnRight() {
         assertThatThrownBy(() -> parseFilterExp(
                 ExpressionContext.of("$.name in $.tags.nested.get(type: STRING)")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("IN operation requires a List as the right operand");
     }
 
@@ -396,7 +396,7 @@ public class InExplicitTypeTests {
     void negExplicitStringInIntList() {
         assertThatThrownBy(() -> parseFilterExp(
                 ExpressionContext.of("$.name.get(type: STRING) in [1, 2]")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("Cannot compare");
     }
 
@@ -404,7 +404,7 @@ public class InExplicitTypeTests {
     void negExplicitIntInStringList() {
         assertThatThrownBy(() -> parseFilterExp(
                 ExpressionContext.of("$.age.get(type: INT) in [\"a\", \"b\"]")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("Cannot compare");
     }
 
@@ -412,7 +412,7 @@ public class InExplicitTypeTests {
     void negExplicitBoolInIntList() {
         assertThatThrownBy(() -> parseFilterExp(
                 ExpressionContext.of("$.flag.get(type: BOOL) in [1, 2]")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("Cannot compare");
     }
 
@@ -420,7 +420,7 @@ public class InExplicitTypeTests {
     void negExplicitIntInBoolList() {
         assertThatThrownBy(() -> parseFilterExp(
                 ExpressionContext.of("$.val.get(type: INT) in [true, false]")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("Cannot compare");
     }
 
@@ -428,7 +428,7 @@ public class InExplicitTypeTests {
     void negExplicitFloatInStringList() {
         assertThatThrownBy(() -> parseFilterExp(
                 ExpressionContext.of("$.val.get(type: FLOAT) in [\"a\", \"b\"]")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("Cannot compare");
     }
 
@@ -436,7 +436,7 @@ public class InExplicitTypeTests {
     void negExplicitFloatInBoolList() {
         assertThatThrownBy(() -> parseFilterExp(
                 ExpressionContext.of("$.val.get(type: FLOAT) in [true, false]")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("Cannot compare");
     }
 
@@ -444,7 +444,7 @@ public class InExplicitTypeTests {
     void negExplicitStringInFloatList() {
         assertThatThrownBy(() -> parseFilterExp(
                 ExpressionContext.of("$.name.get(type: STRING) in [1.5, 2.5]")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("Cannot compare");
     }
 
@@ -452,7 +452,7 @@ public class InExplicitTypeTests {
     void negExplicitStringInBoolList() {
         assertThatThrownBy(() -> parseFilterExp(
                 ExpressionContext.of("$.name.get(type: STRING) in [true, false]")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("Cannot compare");
     }
 
@@ -460,7 +460,7 @@ public class InExplicitTypeTests {
     void negExplicitBoolInStringList() {
         assertThatThrownBy(() -> parseFilterExp(
                 ExpressionContext.of("$.flag.get(type: BOOL) in [\"a\", \"b\"]")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("Cannot compare");
     }
 
@@ -468,7 +468,7 @@ public class InExplicitTypeTests {
     void negExplicitBoolInFloatList() {
         assertThatThrownBy(() -> parseFilterExp(
                 ExpressionContext.of("$.flag.get(type: BOOL) in [1.5, 2.5]")))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("Cannot compare");
     }
 }

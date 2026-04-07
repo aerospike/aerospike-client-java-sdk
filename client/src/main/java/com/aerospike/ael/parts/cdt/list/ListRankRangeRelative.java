@@ -20,7 +20,7 @@ import com.aerospike.ael.ConditionParser;
 
 import static com.aerospike.ael.util.ParsingUtils.*;
 
-import com.aerospike.ael.DslParseException;
+import com.aerospike.ael.AelParseException;
 import com.aerospike.ael.parts.path.BasePath;
 import com.aerospike.ael.util.ParsingUtils;
 import com.aerospike.client.sdk.cdt.CTX;
@@ -66,7 +66,7 @@ public class ListRankRangeRelative extends ListPart {
 
             return new ListRankRangeRelative(isInverted, start, end, relativeValue);
         }
-        throw new DslParseException("Could not translate ListRankRangeRelative from ctx: %s".formatted(ctx));
+        throw new AelParseException("Could not translate ListRankRangeRelative from ctx: %s".formatted(ctx));
     }
 
     @Override

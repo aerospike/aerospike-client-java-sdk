@@ -29,21 +29,21 @@ import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;
 import org.antlr.v4.runtime.tree.ParseTree;
 
-import com.aerospike.ael.DslParseException;
+import com.aerospike.ael.AelParseException;
 import com.aerospike.ael.ExpressionContext;
 import com.aerospike.ael.Index;
 import com.aerospike.ael.IndexContext;
 import com.aerospike.ael.ParsedExpression;
 import com.aerospike.ael.PlaceholderValues;
 import com.aerospike.ael.annotation.Beta;
-import com.aerospike.ael.api.DSLParser;
+import com.aerospike.ael.api.AelParser;
 import com.aerospike.ael.parts.AbstractPart;
 import com.aerospike.ael.visitor.ExpressionConditionVisitor;
 import com.aerospike.client.sdk.cdt.CTX;
 import com.aerospike.ael.ConditionLexer;
 import com.aerospike.ael.ConditionParser;
 
-public class DSLParserImpl implements DSLParser {
+public class AelParserImpl implements AelParser {
 
     @Override
     @Beta
@@ -63,18 +63,18 @@ public class DSLParserImpl implements DSLParser {
     @Beta
     public CTX[] parseCTX(String pathToCtx) {
         if (pathToCtx == null || pathToCtx.isBlank()) {
-            throw new DslParseException("Path must not be null or empty");
+            throw new AelParseException("Path must not be null or empty");
         }
 
         try {
             ParseTree parseTree = getParseTree(pathToCtx);
             return buildCtx(new ExpressionConditionVisitor().visit(parseTree));
         } catch (Exception e) {
-            throw new DslParseException("Could not parse the given AEL path input", e);
+            throw new AelParseException("Could not parse the given AEL path input", e);
         }
     }
 
-    private ConditionParser createParser(String input, DSLParserErrorListener errorListener) {
+    private ConditionParser createParser(String input, AelParserErrorListener errorListener) {
         ConditionLexer lexer = new ConditionLexer(CharStreams.fromString(input));
         lexer.removeErrorListeners();
         lexer.addErrorListener(errorListener);
@@ -86,13 +86,13 @@ public class DSLParserImpl implements DSLParser {
     }
 
     private ParseTree getParseTree(String input) {
-        DSLParserErrorListener errorListener = new DSLParserErrorListener();
+        AelParserErrorListener errorListener = new AelParserErrorListener();
         ConditionParser parser = createParser(input, errorListener);
         ParseTree tree = parser.parse();
 
         String errorMessage = errorListener.getErrorMessage();
         if (errorMessage != null) {
-            throw new DslParseException("Could not parse given AEL expression input: " + errorMessage);
+            throw new AelParseException("Could not parse given AEL expression input: " + errorMessage);
         }
         return tree;
     }
@@ -112,7 +112,7 @@ public class DSLParserImpl implements DSLParser {
         AbstractPart resultingPart = new ExpressionConditionVisitor().visit(parseTree);
 
         if (resultingPart == null) {
-            throw new DslParseException("Could not parse given AEL expression input");
+            throw new AelParseException("Could not parse given AEL expression input");
         }
 
         return new ParsedExpression(resultingPart, placeholderValues, indexesMap, preferredBin);

@@ -16,7 +16,7 @@
  */
 package com.aerospike.ael.parts.operand;
 
-import com.aerospike.ael.DslParseException;
+import com.aerospike.ael.AelParseException;
 import com.aerospike.ael.parts.AbstractPart;
 import com.aerospike.client.sdk.AerospikeComparator;
 
@@ -91,7 +91,7 @@ public interface OperandFactory {
                 sortedMap.putAll(objectMap);
                 return new MapOperand(sortedMap);
             } catch (ClassCastException | NullPointerException | UnsupportedOperationException e) {
-                throw new DslParseException(
+                throw new AelParseException(
                         "Map keys must be mutually comparable for operand creation", e);
             }
         } else {

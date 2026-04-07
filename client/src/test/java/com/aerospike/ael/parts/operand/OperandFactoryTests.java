@@ -1,16 +1,14 @@
 package com.aerospike.ael.parts.operand;
 
-import org.junit.jupiter.api.Test;
-
-import com.aerospike.ael.DslParseException;
-import com.aerospike.ael.parts.operand.MapOperand;
-import com.aerospike.ael.parts.operand.OperandFactory;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.HashMap;
 import java.util.Map;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import org.junit.jupiter.api.Test;
+
+import com.aerospike.ael.AelParseException;
 
 public class OperandFactoryTests {
 
@@ -20,7 +18,7 @@ public class OperandFactoryTests {
         unsupportedKeyMap.put(new Object(), "a");
         unsupportedKeyMap.put(new Object(), "b");
         assertThatThrownBy(() -> OperandFactory.createOperand(unsupportedKeyMap))
-                .isInstanceOf(DslParseException.class)
+                .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("mutually comparable");
     }
 

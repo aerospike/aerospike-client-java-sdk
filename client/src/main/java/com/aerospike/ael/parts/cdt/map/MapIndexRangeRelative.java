@@ -20,7 +20,7 @@ import com.aerospike.ael.ConditionParser;
 
 import static com.aerospike.ael.util.ParsingUtils.*;
 
-import com.aerospike.ael.DslParseException;
+import com.aerospike.ael.AelParseException;
 import com.aerospike.ael.parts.path.BasePath;
 import com.aerospike.ael.util.ParsingUtils;
 import com.aerospike.client.sdk.cdt.CTX;
@@ -64,7 +64,7 @@ public class MapIndexRangeRelative extends MapPart {
             }
             return new MapIndexRangeRelative(isInverted, start, end, relativeKey);
         }
-        throw new DslParseException("Could not translate MapIndexRangeRelative from ctx: %s".formatted(ctx));
+        throw new AelParseException("Could not translate MapIndexRangeRelative from ctx: %s".formatted(ctx));
     }
 
     @Override

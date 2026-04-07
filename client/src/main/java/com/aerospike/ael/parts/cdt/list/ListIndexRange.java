@@ -19,7 +19,7 @@ package com.aerospike.ael.parts.cdt.list;
 import static com.aerospike.ael.util.ParsingUtils.parseSignedInt;
 import static com.aerospike.ael.util.ParsingUtils.subtractNullable;
 
-import com.aerospike.ael.DslParseException;
+import com.aerospike.ael.AelParseException;
 import com.aerospike.ael.parts.path.BasePath;
 import com.aerospike.client.sdk.cdt.CTX;
 import com.aerospike.client.sdk.cdt.ListReturnType;
@@ -56,7 +56,7 @@ public class ListIndexRange extends ListPart {
 
             return new ListIndexRange(isInverted, start, end);
         }
-        throw new DslParseException("Could not translate ListIndexRange from ctx: %s".formatted(ctx));
+        throw new AelParseException("Could not translate ListIndexRange from ctx: %s".formatted(ctx));
     }
 
     @Override
