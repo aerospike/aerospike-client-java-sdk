@@ -17,14 +17,22 @@
 package com.aerospike.client.sdk.query;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
 
 import com.aerospike.client.sdk.AerospikeException;
 import com.aerospike.client.sdk.ClusterTest;
 import com.aerospike.client.sdk.DataSet;
+import com.aerospike.client.sdk.Record;
+import com.aerospike.client.sdk.RecordStream;
 import com.aerospike.client.sdk.ResultCode;
 import com.aerospike.client.sdk.command.Buffer;
 import com.aerospike.client.sdk.info.classes.IndexType;
@@ -88,36 +96,23 @@ public class QueryBlobTest extends ClusterTest {
 		session.dropIndex(dataSet, indexNameList);
 	}
 
-/* TODO Implement this test when AEL supports blobs in the where clause.
 	@Test
 	public void queryBlob() throws Exception {
 		byte[] bytes = new byte[8];
 		Buffer.longToBytes(50003, bytes, 0);
+		String str = Buffer.bytesToHexString(bytes);
 
-		Filter filter = Filter.equal(binName, bytes);
-
-		WhereClauseProcessor filterProcessor = new WhereClauseProcessor(true) {
-			@Override
-			public ParseResult process(String namespace, com.aerospike.client.sdk.Session session) {
-				return new ParseResult(filter, null);
-			}
-		};
-
-		var queryBuilder = session.query(dataSet)
-			.readingOnlyBins(binName);
-
-		var setWhereMethod = queryBuilder.getClass().getSuperclass()
-			.getDeclaredMethod("setWhereClause", WhereClauseProcessor.class);
-		setWhereMethod.setAccessible(true);
-		setWhereMethod.invoke(queryBuilder, filterProcessor);
-
-		RecordStream rs = queryBuilder.execute();
+		RecordStream rs = session.query(dataSet)
+			.readingOnlyBins(binName)
+			.where("$." + binName + " == x'" + str + "'")
+			.execute();
 
 		try {
 			int count = 0;
+
 			while (rs.hasNext()) {
-				Record record = rs.next().recordOrThrow();
-				byte[] result = record.getBytes(binName);
+				Record rec = rs.next().recordOrThrow();
+				byte[] result = rec.getBytes(binName);
 				assertTrue(Arrays.equals(bytes, result));
 				count++;
 			}
@@ -127,35 +122,22 @@ public class QueryBlobTest extends ClusterTest {
 			rs.close();
 		}
 	}
-*/
 
-/* TODO Implement this test when AEL supports blobs in the where clause.
 	@Test
 	public void queryBlobInList() throws Exception {
 		byte[] bytes = new byte[8];
 		Buffer.longToBytes(50003, bytes, 0);
+		String str = Buffer.bytesToHexString(bytes);
+		String where = "$." + binNameList + ".[=X'" + str + "'].get(return: EXISTS) == true";
 
-		Filter filter = Filter.contains(binNameList, IndexCollectionType.LIST, bytes);
-
-		WhereClauseProcessor filterProcessor = new WhereClauseProcessor(true) {
-			@Override
-			public ParseResult process(String namespace, com.aerospike.client.sdk.Session session) {
-				return new ParseResult(filter, null);
-			}
-		};
-
-		var queryBuilder = session.query(dataSet)
-			.readingOnlyBins(binName, binNameList);
-
-		var setWhereMethod = queryBuilder.getClass().getSuperclass()
-			.getDeclaredMethod("setWhereClause", WhereClauseProcessor.class);
-		setWhereMethod.setAccessible(true);
-		setWhereMethod.invoke(queryBuilder, filterProcessor);
-
-		RecordStream rs = queryBuilder.execute();
+		RecordStream rs = session.query(dataSet)
+			.readingOnlyBins(binName, binNameList)
+			.where(where)
+			.execute();
 
 		try {
 			int count = 0;
+
 			while (rs.hasNext()) {
 				Record record = rs.next().recordOrThrow();
 
@@ -172,5 +154,4 @@ public class QueryBlobTest extends ClusterTest {
 			rs.close();
 		}
 	}
-*/
 }
