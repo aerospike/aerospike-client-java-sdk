@@ -52,7 +52,7 @@ public class OperationDifferences {
     public static void main(String[] args) throws Exception {
         try (Cluster cluster = new ClusterDefinition("localhost", 3100).connect()) {
             Session session = cluster.createSession(Behavior.DEFAULT);
-            DataSet set = DataSet.of("test", "dsl_diff_test");
+            DataSet set = DataSet.of("test", "ael_diff_test");
 
             session.truncate(set);
             setupTestData(session, set);

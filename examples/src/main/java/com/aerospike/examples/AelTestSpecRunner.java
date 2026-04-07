@@ -30,7 +30,7 @@ import com.aerospike.client.sdk.Session;
 import com.aerospike.client.sdk.policy.Behavior;
 
 /**
- * Runnable test suite matching the specifications in docs/dsl-test-specifications.md.
+ * Runnable test suite matching the specifications in docs/ael-test-specifications.md.
  *
  * <p>Connects to Aerospike, seeds test data, and exercises AEL expressions across
  * all major categories: scalar access, type casting, map/list access, nesting,
@@ -38,7 +38,7 @@ import com.aerospike.client.sdk.policy.Behavior;
  * path functions, transactions, rank-based access, return type variations,
  * and edge cases.
  */
-public class DslTestSpecRunner {
+public class AelTestSpecRunner {
 
     private static final String SEP = "=".repeat(70);
     private static int totalTests = 0;
@@ -49,7 +49,7 @@ public class DslTestSpecRunner {
     public static void main(String[] args) throws Exception {
         try (Cluster cluster = new ClusterDefinition("localhost", 3100).connect()) {
             Session session = cluster.createSession(Behavior.DEFAULT);
-            DataSet set = DataSet.of("test", "dsl_test_spec");
+            DataSet set = DataSet.of("test", "ael_test_spec");
 
             session.truncate(set);
             Thread.sleep(200);
@@ -629,7 +629,7 @@ public class DslTestSpecRunner {
         readPrint("MD01", session, set, 1, "$.ttl()", "TTL in seconds");
         readPrint("MD02", session, set, 1, "$.recordSize()", "Record size in bytes (> 0)");
         filterPrint("MD03", session, set, 1, "$.keyExists()", "Key exists check");
-        filterCheck("MD04", session, set, 1, "$.setName() == 'dsl_test_spec'", true);
+        filterCheck("MD04", session, set, 1, "$.setName() == 'ael_test_spec'", true);
         filterCheck("MD05", session, set, 1, "$.ttl() > 0 or $.ttl() == -1", true);
         filterCheck("MD06", session, set, 1, "$.sinceUpdate() >= 0", true);
         readPrint("MD07", session, set, 1, "$.voidTime()", "Void time");
@@ -824,12 +824,12 @@ public class DslTestSpecRunner {
      * Execute a read expression and compare to an expected value.
      */
     static void readCheck(String id, Session session, DataSet set, int pk,
-                          String dsl, Object expected) {
+                          String ael, Object expected) {
         totalTests++;
-        System.out.printf("  [%s] %s%n", id, dsl);
+        System.out.printf("  [%s] %s%n", id, ael);
         try {
             RecordStream rs = session.query(set.id(pk))
-                    .bin("r").selectFrom(dsl)
+                    .bin("r").selectFrom(ael)
                     .execute();
             Record rec = rs.getFirst().orElseThrow().recordOrThrow();
             Object actual = rec.bins.get("r");
@@ -861,13 +861,13 @@ public class DslTestSpecRunner {
      * Execute a read expression, print the result without checking.
      */
     static void readPrint(String id, Session session, DataSet set, int pk,
-                          String dsl, String description) {
+                          String ael, String description) {
         totalTests++;
-        System.out.printf("  [%s] %s%n", id, dsl);
+        System.out.printf("  [%s] %s%n", id, ael);
         System.out.printf("      Note: %s%n", description);
         try {
             RecordStream rs = session.query(set.id(pk))
-                    .bin("r").selectFrom(dsl)
+                    .bin("r").selectFrom(ael)
                     .execute();
             Record rec = rs.getFirst().orElseThrow().recordOrThrow();
             Object actual = rec.bins.get("r");
@@ -884,13 +884,13 @@ public class DslTestSpecRunner {
      * Execute a read expression where we expect an error.
      */
     static void readExpectError(String id, Session session, DataSet set, int pk,
-                                String dsl, String description) {
+                                String ael, String description) {
         totalTests++;
-        System.out.printf("  [%s] %s%n", id, dsl);
+        System.out.printf("  [%s] %s%n", id, ael);
         System.out.printf("      Note: %s%n", description);
         try {
             RecordStream rs = session.query(set.id(pk))
-                    .bin("r").selectFrom(dsl)
+                    .bin("r").selectFrom(ael)
                     .execute();
             Record rec = rs.getFirst().orElseThrow().recordOrThrow();
             Object actual = rec.bins.get("r");
@@ -908,12 +908,12 @@ public class DslTestSpecRunner {
      * Execute a filter expression and check whether the record is returned.
      */
     static void filterCheck(String id, Session session, DataSet set, int pk,
-                            String dsl, boolean expectFound) {
+                            String ael, boolean expectFound) {
         totalTests++;
-        System.out.printf("  [%s] %s%n", id, dsl);
+        System.out.printf("  [%s] %s%n", id, ael);
         try {
             RecordStream rs = session.query(set.id(pk))
-                    .where(dsl)
+                    .where(ael)
                     .execute();
             boolean found = rs.getFirst().isPresent();
 
@@ -938,13 +938,13 @@ public class DslTestSpecRunner {
      * Execute a filter expression and print the result without checking.
      */
     static void filterPrint(String id, Session session, DataSet set, int pk,
-                            String dsl, String description) {
+                            String ael, String description) {
         totalTests++;
-        System.out.printf("  [%s] %s%n", id, dsl);
+        System.out.printf("  [%s] %s%n", id, ael);
         System.out.printf("      Note: %s%n", description);
         try {
             RecordStream rs = session.query(set.id(pk))
-                    .where(dsl)
+                    .where(ael)
                     .execute();
             boolean found = rs.getFirst().isPresent();
             passedTests++;

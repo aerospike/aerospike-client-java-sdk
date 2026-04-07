@@ -81,7 +81,7 @@ public class CtxTests {
     }
 
     @Test
-    void listExpression_oneLevel_withFullDslExpression() {
+    void listExpression_oneLevel_withFullAelExpression() {
         assertThatThrownBy(() -> parseCtx("$.listBin1.[0] == 100"))
                 .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("Could not parse the given AEL path input")
@@ -160,7 +160,7 @@ public class CtxTests {
     }
 
     @Test
-    void mapExpression_oneLevel_withFullDslExpression() {
+    void mapExpression_oneLevel_withFullAelExpression() {
         assertThatThrownBy(() -> parseCtx("$.mapBin1.a == 100"))
                 .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("Could not parse the given AEL path input")
