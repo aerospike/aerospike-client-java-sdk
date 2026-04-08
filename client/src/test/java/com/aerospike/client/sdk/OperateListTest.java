@@ -16,29 +16,44 @@
  */
 package com.aerospike.client.sdk;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import org.junit.jupiter.api.Test;
+
+import com.aerospike.client.sdk.cdt.ListOrder;
+import com.aerospike.client.sdk.cdt.ListSortFlags;
+
 public class OperateListTest extends ClusterTest {
-	/* TODO Wait till all list operations are implemented in new client.
 	private static final String binName = "oplistbin";
 
 	@Test
 	public void operateList1() {
-		Key key = new Key(args.namespace, args.set, "oplkey1");
+		Key key = args.set.id("operateList1");
 
-		client.delete(null, key);
+        session.delete(key).execute();
 
 		// Calling append() multiple times performs poorly because the server makes
 		// a copy of the list for each call, but we still need to test it.
 		// Using appendItems() should be used instead for best performance.
-		Record record = client.operate(null, key,
-				ListOperation.append(binName, Value.get(55)),
-				ListOperation.append(binName, Value.get(77)),
-				ListOperation.pop(binName, -1),
-				ListOperation.size(binName)
-				);
+        RecordStream rs = session.upsert(key)
+        	.bin(binName).listAppend(55)
+        	.bin(binName).listAppend(77)
+        	.bin(binName).listPop(-1)
+        	.bin(binName).listSize()
+        	.execute();
 
-		assertRecordFound(key, record);
+        assertTrue(rs.hasNext());
+        Record rec = rs.next().recordOrThrow();
 
-		List<?> list = record.getList(binName);
+		List<?> list = rec.getList(binName);
 
 		long size = (Long)list.get(0);
 		assertEquals(1, size);
@@ -55,37 +70,40 @@ public class OperateListTest extends ClusterTest {
 
 	@Test
 	public void operateList2() {
-		Key key = new Key(args.namespace, args.set, "oplkey2");
+		Key key = args.set.id("operateList2");
 
-		client.delete(null, key);
+        session.delete(key).execute();
 
-		List<Value> itemList = new ArrayList<Value>();
-		itemList.add(Value.get(12));
-		itemList.add(Value.get(-8734));
-		itemList.add(Value.get("my string"));
+		List<Object> itemList = new ArrayList<>();
+		itemList.add(12);
+		itemList.add(-8734);
+		itemList.add("my string");
 
-		Record record = client.operate(null, key,
-				ListOperation.appendItems(binName, itemList),
-				Operation.put(new Bin("otherbin", "hello"))
-				);
+        RecordStream rs = session.upsert(key)
+        	.bin(binName).listAppendItems(itemList)
+        	.bin("otherbin").setTo("hello")
+        	.execute();
 
-		assertRecordFound(key, record);
+        assertTrue(rs.hasNext());
+        rs.next().recordOrThrow();
 
-		record = client.operate(null, key,
-				ListOperation.insert(binName, -1, Value.get(8)),
-				Operation.append(new Bin("otherbin", Value.get("goodbye"))),
-				Operation.get("otherbin"),
-				ListOperation.getRange(binName, 0, 4),
-				ListOperation.getRange(binName, 3)
-				);
+        rs = session.upsert(key)
+        	.bin(binName).listInsert(-1, 8)
+        	.bin("otherbin").append("goodbye")
+        	.bin("otherbin").get()
+        	.bin(binName).listGetRange(0, 4)
+        	.bin(binName).listGetRange(3)
+        	.execute();
 
-		assertRecordFound(key, record);
-		//System.out.println("Record: " + record);
+        assertTrue(rs.hasNext());
+        Record rec = rs.next().recordOrThrow();
 
-		String val = record.getString("otherbin");
+		List<?> list = rec.getList("otherbin");
+
+		String val = (String)list.get(1);
 		assertEquals("hellogoodbye", val);
 
-		List<?> list = record.getList(binName);
+		list = rec.getList(binName);
 
 		long size = (Long)list.get(0);
 		assertEquals(4, size);
@@ -111,177 +129,171 @@ public class OperateListTest extends ClusterTest {
 	@Test
 	public void operateList3() {
 		// Test out of bounds conditions
-		Key key = new Key(args.namespace, args.set, "oplkey3");
+		Key key = args.set.id("operateList3");
 
-		client.delete(null, key);
+        session.delete(key).execute();
 
-		List<Value> itemList = new ArrayList<Value>();
-		itemList.add(Value.get("str1"));
-		itemList.add(Value.get("str2"));
-		itemList.add(Value.get("str3"));
-		itemList.add(Value.get("str4"));
-		itemList.add(Value.get("str5"));
-		itemList.add(Value.get("str6"));
-		itemList.add(Value.get("str7"));
+		List<String> itemList = new ArrayList<>();
+		itemList.add("str1");
+		itemList.add("str2");
+		itemList.add("str3");
+		itemList.add("str4");
+		itemList.add("str5");
+		itemList.add("str6");
+		itemList.add("str7");
 
-		Record record = client.operate(null, key,
-				ListOperation.appendItems(binName, itemList),
-				ListOperation.get(binName, 2),
-				ListOperation.getRange(binName, 6, 4),
-				ListOperation.getRange(binName, -7, 3),
-				ListOperation.getRange(binName, 0, 2),
-				ListOperation.getRange(binName, -2, 4)
-				//ListOperation.get(binName, 7) causes entire command to fail.
-				//ListOperation.getRange(binName, 7, 1), causes entire command to fail.
-				//ListOperation.getRange(binName, -8, 1) causes entire command to fail.
-				//ListOperation.get(binName, -8), causes entire command to fail.
-				);
+		RecordStream rs = session.upsert(key)
+	        .bin(binName).listAppendItems(itemList)
+        	.bin(binName).listGet(2)
+        	.bin(binName).listGetRange(6, 4)
+        	.bin(binName).listGetRange(-7, 3)
+        	.bin(binName).listGetRange(0, 2)
+        	.bin(binName).listGetRange(-2, 4)
+        	.execute();
 
-		assertRecordFound(key, record);
-		//System.out.println("Record: " + record);
+        assertTrue(rs.hasNext());
+        Record rec = rs.next().recordOrThrow();
 
-		List<?> list = record.getList(binName);
+		List<?> list = rec.getList(binName);
 
 		long size = (Long)list.get(0);
 		assertEquals(7, size);
 
-		assertEquals("str3", (String)list.get(1));
+		assertEquals("str3", list.get(1));
 
 		List<?> rangeList = (List<?>)list.get(2);
 		assertEquals(1, rangeList.size());
-		assertEquals("str7", (String)rangeList.get(0));
+		assertEquals("str7", rangeList.get(0));
 
 		rangeList = (List<?>)list.get(3);
 		assertEquals(3, rangeList.size());
-		assertEquals("str1", (String)rangeList.get(0));
-		assertEquals("str2", (String)rangeList.get(1));
-		assertEquals("str3", (String)rangeList.get(2));
+		assertEquals("str1", rangeList.get(0));
+		assertEquals("str2", rangeList.get(1));
+		assertEquals("str3", rangeList.get(2));
 
 		rangeList = (List<?>)list.get(4);
 		assertEquals(2, rangeList.size());
-		assertEquals("str1", (String)rangeList.get(0));
-		assertEquals("str2", (String)rangeList.get(1));
+		assertEquals("str1", rangeList.get(0));
+		assertEquals("str2", rangeList.get(1));
 
 		rangeList = (List<?>)list.get(5);
 		assertEquals(2, rangeList.size());
-		assertEquals("str6", (String)rangeList.get(0));
-		assertEquals("str7", (String)rangeList.get(1));
+		assertEquals("str6", rangeList.get(0));
+		assertEquals("str7", rangeList.get(1));
 	}
 
 	@Test
 	public void operateList4() {
 		// Test all value types.
-		Key key = new Key(args.namespace, args.set, "oplkey4");
+		Key key = args.set.id("operateList4");
 
-		client.delete(null, key);
+        session.delete(key).execute();
 
-		List<Value> inputList = new ArrayList<Value>();
-		inputList.add(Value.get(12));
-		inputList.add(Value.get(-8734.81));
-		inputList.add(Value.get("my string"));
+		List<Object> inputList = new ArrayList<>();
+		inputList.add(12);
+		inputList.add(-8734.81);
+		inputList.add("my string");
 
-		Map<Integer,String> inputMap = new HashMap<Integer,String>();
+		Map<Integer,String> inputMap = new HashMap<>();
 		inputMap.put(9, "data 9");
 		inputMap.put(-2, "data -2");
 
 		byte[] bytes = "string bytes".getBytes();
 
-		List<Value> itemList = new ArrayList<Value>();
-		itemList.add(Value.get(true));
-		itemList.add(Value.get(55));
-		itemList.add(Value.get("string value"));
-		itemList.add(Value.get(inputList));
-		itemList.add(Value.get(bytes));
-		itemList.add(Value.get(99.99));
-		itemList.add(Value.get(inputMap));
+		List<Object> itemList = new ArrayList<>();
+		itemList.add(true);
+		itemList.add(55);
+		itemList.add("string value");
+		itemList.add(inputList);
+		itemList.add(bytes);
+		itemList.add(99.99);
+		itemList.add(inputMap);
 
-		Record record = client.operate(null, key,
-				ListOperation.appendItems(binName, itemList),
-				ListOperation.getRange(binName, 0, 100),
-				ListOperation.set(binName, 1, Value.get("88")),
-				ListOperation.get(binName, 1),
-				ListOperation.popRange(binName, -2, 1),
-				ListOperation.popRange(binName, -1),
-				ListOperation.remove(binName, 3),
-				ListOperation.removeRange(binName, 0, 1),
-				ListOperation.removeRange(binName, 2),
-				ListOperation.size(binName)
-				);
+		RecordStream rs = session.upsert(key)
+	        .bin(binName).listAppendItems(itemList)
+        	.bin(binName).listGetRange(0, 100)
+        	.bin(binName).listSet(1, "88")
+        	.bin(binName).listGet(1)
+        	.bin(binName).listPopRange(-2, 1)
+        	.bin(binName).listPopRange(-1)
+        	.bin(binName).listRemove(3)
+        	.bin(binName).listRemoveRange(0, 1)
+        	.bin(binName).listRemoveRange(2)
+        	.bin(binName).listSize()
+        	.execute();
 
-		assertRecordFound(key, record);
-		//System.out.println("Record: " + record);
+        assertTrue(rs.hasNext());
+	    Record rec = rs.next().recordOrThrow();
 
-		List<?> list = record.getList(binName);
+		List<?> list = rec.getList(binName);
 
 		long size = (Long)list.get(0);
 		assertEquals(7, size);
 
 		List<?> rangeList = (List<?>)list.get(1);
-		assertTrue((boolean)(Boolean)rangeList.get(0));
+		assertTrue((Boolean)rangeList.get(0));
 		assertEquals(55, (long)(Long)rangeList.get(1));
-		assertEquals("string value", (String)rangeList.get(2));
+		assertEquals("string value", rangeList.get(2));
 
 		List<?> subList = (List<?>)rangeList.get(3);
 		assertEquals(3, subList.size());
 		assertEquals(12, (long)(Long)subList.get(0));
-		assertEquals(-8734.81, (double)(Double)subList.get(1), 0.00001);
-		assertEquals("my string", (String)subList.get(2));
+		assertEquals(-8734.81, (Double)subList.get(1), 0.00001);
+		assertEquals("my string", subList.get(2));
 
 		byte[] bt = (byte[])rangeList.get(4);
-		assertArrayEquals("bytes not equal", bytes, bt);
+		assertArrayEquals(bytes, bt, "bytes not equal");
 
-		assertEquals(99.99, (double)(Double)rangeList.get(5), 0.00001);
+		assertEquals(99.99, (Double)rangeList.get(5), 0.00001);
 
 		Map<?,?> subMap = (Map<?,?>)rangeList.get(6);
 		assertEquals(2, subMap.size());
-		assertEquals("data 9", (String)subMap.get(9L));
-		assertEquals("data -2", (String)subMap.get(-2L));
+		assertEquals("data 9", subMap.get(9L));
+		assertEquals("data -2", subMap.get(-2L));
 
-		// Set does not return a result.
-		assertEquals("88", (String)list.get(2));
-
-		subList = (List<?>)list.get(3);
-		assertEquals(1, subList.size());
-		assertEquals(99.99, (double)(Double)subList.get(0), 0.00001);
+		assertEquals("88", list.get(3));
 
 		subList = (List<?>)list.get(4);
 		assertEquals(1, subList.size());
+		assertEquals(99.99, (Double)subList.get(0), 0.00001);
+
+		subList = (List<?>)list.get(5);
+		assertEquals(1, subList.size());
 		assertTrue(subList.get(0) instanceof Map);
 
-		assertEquals(1, (long)(Long)list.get(5));
 		assertEquals(1, (long)(Long)list.get(6));
 		assertEquals(1, (long)(Long)list.get(7));
+		assertEquals(1, (long)(Long)list.get(8));
 
-		size = (Long)list.get(8);
+		size = (Long)list.get(9);
 		assertEquals(2, size);
 	}
 
 	@Test
 	public void operateList5() {
 		// Test trim.
-		Key key = new Key(args.namespace, args.set, "oplkey5");
+		Key key = args.set.id("operateList5");
 
-		client.delete(null, key);
+        session.delete(key).execute();
 
-		List<Value> itemList = new ArrayList<Value>();
-		itemList.add(Value.get("s11"));
-		itemList.add(Value.get("s22222"));
-		itemList.add(Value.get("s3333333"));
-		itemList.add(Value.get("s4444444444"));
-		itemList.add(Value.get("s5555555555555555"));
+		List<String> itemList = new ArrayList<>();
+		itemList.add("s11");
+		itemList.add("s22222");
+		itemList.add("s3333333");
+		itemList.add("s4444444444");
+		itemList.add("s5555555555555555");
 
-		Record record = client.operate(null, key,
-				ListOperation.insertItems(binName, 0, itemList),
-				ListOperation.trim(binName, -5, 5),
-				ListOperation.trim(binName, 1, -5),
-				ListOperation.trim(binName, 1, 2)
-				//ListOperation.trim(binName, 11, 6) causes entire command to fail.
-				);
+		RecordStream rs = session.upsert(key)
+	        .bin(binName).listInsertItems(0, itemList)
+        	.bin(binName).listTrim(-5, 5)
+        	.bin(binName).listTrim(1, -5)
+        	.bin(binName).listTrim(1, 2)
+        	.execute();
 
-		assertRecordFound(key, record);
-		//System.out.println("Record: " + record);
+        assertTrue(rs.hasNext());
+	    Record rec = rs.next().recordOrThrow();
 
-		List<?> list = record.getList(binName);
+		List<?> list = rec.getList(binName);
 
 		long size = (Long)list.get(0);
 		assertEquals(5, size);
@@ -299,37 +311,34 @@ public class OperateListTest extends ClusterTest {
 	@Test
 	public void operateList6() {
 		// Test clear.
-		Key key = new Key(args.namespace, args.set, "oplkey6");
+		Key key = args.set.id("operateList6");
 
-		client.delete(null, key);
+        session.delete(key).execute();
 
-		WritePolicy policy = new WritePolicy();
-		policy.respondAllOps = true;
+		List<String> itemList = new ArrayList<>();
+		itemList.add("s11");
+		itemList.add("s22222");
+		itemList.add("s3333333");
+		itemList.add("s4444444444");
+		itemList.add("s5555555555555555");
 
-		List<Value> itemList = new ArrayList<Value>();
-		itemList.add(Value.get("s11"));
-		itemList.add(Value.get("s22222"));
-		itemList.add(Value.get("s3333333"));
-		itemList.add(Value.get("s4444444444"));
-		itemList.add(Value.get("s5555555555555555"));
+		RecordStream rs = session.upsert(key)
+	        .bin("otherbin").setTo(11)
+        	.bin("otherbin").get()
+	        .bin(binName).listAppendItems(itemList)
+        	.bin(binName).listClear()
+        	.bin(binName).listSize()
+        	.execute();
 
-		Record record = client.operate(policy, key,
-				Operation.put(new Bin("otherbin", 11)),
-				Operation.get("otherbin"),
-				ListOperation.appendItems(binName, itemList),
-				ListOperation.clear(binName),
-				ListOperation.size(binName)
-				);
+        assertTrue(rs.hasNext());
+		Record rec = rs.next().recordOrThrow();
 
-		assertRecordFound(key, record);
-		//System.out.println("Record: " + record);
-
-		List<?> list = record.getList("otherbin");
+		List<?> list = rec.getList("otherbin");
 		assertEquals(2, list.size());
 		assertNull(list.get(0));
 		assertEquals(11, (long)(Long)list.get(1));
 
-		list = record.getList(binName);
+		list = rec.getList(binName);
 
 		long size = (Long)list.get(0);
 		assertEquals(5, size);
@@ -344,26 +353,26 @@ public class OperateListTest extends ClusterTest {
 	@Test
 	public void operateList7() {
 		// Test null values.
-		Key key = new Key(args.namespace, args.set, "oplkey7");
+		Key key = args.set.id("operateList7");
 
-		client.delete(null, key);
+        session.delete(key).execute();
 
-		List<Value> itemList = new ArrayList<Value>();
-		itemList.add(Value.get("s11"));
-		itemList.add(Value.getAsNull());
-		itemList.add(Value.get("s3333333"));
+		List<String> itemList = new ArrayList<>();
+		itemList.add("s11");
+		itemList.add(null);
+		itemList.add("s3333333");
 
-		Record record = client.operate(null, key,
-				ListOperation.appendItems(binName, itemList),
-				ListOperation.get(binName, 0),
-				ListOperation.get(binName, 1),
-				ListOperation.get(binName, 2)
-				);
+		RecordStream rs = session.upsert(key)
+	        .bin(binName).listAppendItems(itemList)
+        	.bin(binName).listGet(0)
+        	.bin(binName).listGet(1)
+        	.bin(binName).listGet(2)
+        	.execute();
 
-		assertRecordFound(key, record);
-		//System.out.println("Record: " + record);
+        assertTrue(rs.hasNext());
+		Record rec = rs.next().recordOrThrow();
 
-		List<?> results = record.getList(binName);
+		List<?> results = rec.getList(binName);
 		int i = 0;
 
 		long size = (Long)results.get(i++);
@@ -382,28 +391,28 @@ public class OperateListTest extends ClusterTest {
 	@Test
 	public void operateList8() {
 		// Test increment.
-		Key key = new Key(args.namespace, args.set, "oplkey8");
+		Key key = args.set.id("operateList8");
 
-		client.delete(null, key);
+        session.delete(key).execute();
 
-		List<Value> itemList = new ArrayList<Value>();
-		itemList.add(Value.get(1));
-		itemList.add(Value.get(2));
-		itemList.add(Value.get(3));
+		List<Integer> itemList = new ArrayList<>();
+		itemList.add(1);
+		itemList.add(2);
+		itemList.add(3);
 
-		Record record = client.operate(null, key,
-				ListOperation.appendItems(binName, itemList),
-				ListOperation.increment(binName, 2),
-				ListOperation.increment(ListPolicy.Default, binName, 2),
-				ListOperation.increment(binName, 1, Value.get(7)),
-				ListOperation.increment(ListPolicy.Default, binName, 1, Value.get(7)),
-				ListOperation.get(binName, 0)
-				);
+		RecordStream rs = session.upsert(key)
+	        .bin(binName).listAppendItems(itemList)
+        	.bin(binName).listIncrement(2)
+        	.bin(binName).listIncrement(2)
+        	.bin(binName).listIncrement(1, 7)
+        	.bin(binName).listIncrement(1, 7)
+        	.bin(binName).listGet(0)
+        	.execute();
 
-		assertRecordFound(key, record);
-		//System.out.println("Record: " + record);
+        assertTrue(rs.hasNext());
+		Record rec = rs.next().recordOrThrow();
 
-		List<?> results = record.getList(binName);
+		List<?> results = rec.getList(binName);
 		int i = 0;
 
 		long size = (Long)results.get(i++);
@@ -427,26 +436,26 @@ public class OperateListTest extends ClusterTest {
 
 	@Test
 	public void operateListSwitchSort() {
-		Key key = new Key(args.namespace, args.set, "oplkey9");
+		Key key = args.set.id("operateListSwitchSort");
 
-		client.delete(null, key);
+        session.delete(key).execute();
 
-		List<Value> itemList = new ArrayList<Value>();
-		itemList.add(Value.get(4));
-		itemList.add(Value.get(3));
-		itemList.add(Value.get(1));
-		itemList.add(Value.get(5));
-		itemList.add(Value.get(2));
+		List<Integer> itemList = new ArrayList<>();
+		itemList.add(4);
+		itemList.add(3);
+		itemList.add(1);
+		itemList.add(5);
+		itemList.add(2);
 
-		Record record = client.operate(null, key,
-				ListOperation.appendItems(ListPolicy.Default, binName, itemList),
-				ListOperation.getByIndex(binName, 3, ListReturnType.VALUE)
-				);
+		RecordStream rs = session.upsert(key)
+	        .bin(binName).listAppendItems(itemList)
+        	.bin(binName).onListIndex(3).getValues()
+        	.execute();
 
-		assertRecordFound(key, record);
-		//System.out.println("Record: " + record);
+		assertTrue(rs.hasNext());
+		Record rec = rs.next().recordOrThrow();
 
-		List<?> results = record.getList(binName);
+		List<?> results = rec.getList(binName);
 		int i = 0;
 
 		long size = (Long)results.get(i++);
@@ -455,28 +464,29 @@ public class OperateListTest extends ClusterTest {
 		long val = (Long)results.get(i++);
 		assertEquals(5L, val);
 
-		List<Value> valueList = new ArrayList<Value>();
-		valueList.add(Value.get(4));
-		valueList.add(Value.get(2));
+		List<Integer> valueList = new ArrayList<>();
+		valueList.add(4);
+		valueList.add(2);
 
 		// Sort list.
-		record = client.operate(null, key,
-				ListOperation.setOrder(binName, ListOrder.ORDERED),
-				ListOperation.getByValue(binName, Value.get(3), ListReturnType.INDEX),
-				ListOperation.getByValueRange(binName, Value.get(-1), Value.get(3), ListReturnType.COUNT),
-				ListOperation.getByValueRange(binName, Value.get(-1), Value.get(3), ListReturnType.EXISTS),
-				ListOperation.getByValueList(binName, valueList, ListReturnType.RANK),
-				ListOperation.getByIndex(binName, 3, ListReturnType.VALUE),
-				ListOperation.getByIndexRange(binName, -2, 2, ListReturnType.VALUE),
-				ListOperation.getByRank(binName, 0, ListReturnType.VALUE),
-				ListOperation.getByRankRange(binName, 2, 3, ListReturnType.VALUE)
-				);
+		rs = session.upsert(key)
+	        .bin(binName).listSetOrder(ListOrder.ORDERED)
+        	.bin(binName).onListValue(3).getIndexes()
+        	.bin(binName).onListValueRange(-1, 3).count()
+        	.bin(binName).onListValueRange(-1, 3).exists()
+        	.bin(binName).onListValueList(valueList).getRanks()
+        	.bin(binName).onListIndex(3).getValues()
+        	.bin(binName).onListIndexRange(-2, 2).getValues()
+        	.bin(binName).onListRank(0).getValues()
+        	.bin(binName).onListRankRange(2, 3).getValues()
+       	.execute();
 
-		assertRecordFound(key, record);
-		//System.out.println("Record: " + record);
+		assertTrue(rs.hasNext());
+		rec = rs.next().recordOrThrow();
+		//System.out.println("REC=" + rec);
 
-		results = record.getList(binName);
-		i = 0;
+		results = rec.getList(binName);
+		i = 1;
 
 		List<?> list = (List<?>)results.get(i++);
 		assertEquals(2L, list.get(0));
@@ -512,63 +522,83 @@ public class OperateListTest extends ClusterTest {
 
 	@Test
 	public void operateListSort() {
-		Key key = new Key(args.namespace, args.set, "oplkey10");
+		Key key = args.set.id("operateListSort");
 
-		client.delete(null, key);
+        session.delete(key).execute();
 
-		List<Value> itemList = new ArrayList<Value>();
-		itemList.add(Value.get(-44));
-		itemList.add(Value.get(33));
-		itemList.add(Value.get(-1));
-		itemList.add(Value.get(33));
-		itemList.add(Value.get(-2));
+        List<Integer> itemList = new ArrayList<>();
+		itemList.add(-44);
+		itemList.add(33);
+		itemList.add(-1);
+		itemList.add(33);
+		itemList.add(-2);
 
-		Record record = client.operate(null, key,
-				ListOperation.appendItems(ListPolicy.Default, binName, itemList),
-				ListOperation.sort(binName, ListSortFlags.DROP_DUPLICATES),
-				ListOperation.size(binName)
-				);
+		RecordStream rs = session.upsert(key)
+	        .bin(binName).listAppendItems(itemList)
+        	.bin(binName).listSort(ListSortFlags.DROP_DUPLICATES)
+        	.bin(binName).listSize()
+        	.execute();
 
-		assertRecordFound(key, record);
-		//System.out.println("Record: " + record);
+		assertTrue(rs.hasNext());
+		Record rec = rs.next().recordOrThrow();
+		//System.out.println("REC=" + rec);
 
-		List<?> results = record.getList(binName);
+		List<?> results = rec.getList(binName);
 		int i = 0;
 
 		long size = (Long)results.get(i++);
 		assertEquals(5L, size);
 
+		Object obj = results.get(i++);
+		assertNull(obj);
+
 		long val = (Long)results.get(i++);
 		assertEquals(4L, val);
 	}
 
+	/* TODO Get feedback on not being able to return values on remove before implementing this test.
 	@Test
 	public void operateListRemove() {
-		Key key = new Key(args.namespace, args.set, "oplkey11");
+		Key key = args.set.id("operateListRemove");
 
-		client.delete(null, key);
+        session.delete(key).execute();
 
-		List<Value> itemList = new ArrayList<Value>();
-		itemList.add(Value.get(-44));
-		itemList.add(Value.get(33));
-		itemList.add(Value.get(-1));
-		itemList.add(Value.get(33));
-		itemList.add(Value.get(-2));
-		itemList.add(Value.get(0));
-		itemList.add(Value.get(22));
-		itemList.add(Value.get(11));
-		itemList.add(Value.get(14));
-		itemList.add(Value.get(6));
+		List<Integer> itemList = new ArrayList<>();
+		itemList.add(-44);
+		itemList.add(33);
+		itemList.add(-1);
+		itemList.add(33);
+		itemList.add(-2);
+		itemList.add(0);
+		itemList.add(22);
+		itemList.add(11);
+		itemList.add(14);
+		itemList.add(6);
 
-		List<Value> valueList = new ArrayList<Value>();
-		valueList.add(Value.get(-45));
-		valueList.add(Value.get(14));
+		List<Integer> valueList = new ArrayList<>();
+		valueList.add(-45);
+		valueList.add(14);
+
+		RecordStream rs = session.upsert(key)
+	        .bin(binName).listAppendItems(itemList)
+        	.bin(binName).onListValue(0).remove()
+        	.bin(binName).onListValueList(valueList).remove()
+        	.bin(binName).onListValueRange(33, 100).remove()
+        	.bin(binName).onListIndex(1).remove()
+        	.bin(binName).onListIndexRange(100, 101).remove()
+        	.bin(binName).onListRank(0).remove()
+        	.bin(binName).onListRankRange(3, 1).remove()
+        	.execute();
+
+		assertTrue(rs.hasNext());
+		Record rec = rs.next().recordOrThrow();
+		System.out.println("REC=" + rec);
 
 		Record record = client.operate(null, key,
 				ListOperation.appendItems(ListPolicy.Default, binName, itemList),
-				ListOperation.removeByValue(binName, Value.get(0), ListReturnType.INDEX),
+				ListOperation.removeByValue(binName, 0), ListReturnType.INDEX,
 				ListOperation.removeByValueList(binName, valueList, ListReturnType.VALUE),
-				ListOperation.removeByValueRange(binName, Value.get(33), Value.get(100), ListReturnType.VALUE),
+				ListOperation.removeByValueRange(binName, 33), Value.get(100), ListReturnType.VALUE,
 				ListOperation.removeByIndex(binName, 1, ListReturnType.VALUE),
 				ListOperation.removeByIndexRange(binName, 100, 101, ListReturnType.VALUE),
 				ListOperation.removeByRank(binName, 0, ListReturnType.VALUE),
@@ -578,7 +608,7 @@ public class OperateListTest extends ClusterTest {
 		assertRecordFound(key, record);
 		//System.out.println("Record: " + record);
 
-		List<?> results = record.getList(binName);
+		List<?> results = rec.getList(binName);
 		int i = 0;
 
 		long size = (Long)results.get(i++);
@@ -610,37 +640,39 @@ public class OperateListTest extends ClusterTest {
 		assertEquals(1L, list.size());
 		assertEquals(22L, list.get(0));
 	}
+	*/
 
 	@Test
 	public void operateListInverted() {
-		Key key = new Key(args.namespace, args.set, "oplkey12");
+		Key key = args.set.id("operateListInverted");
 
-		client.delete(null, key);
+        session.delete(key).execute();
 
-		List<Value> itemList = new ArrayList<Value>();
-		itemList.add(Value.get(4));
-		itemList.add(Value.get(3));
-		itemList.add(Value.get(1));
-		itemList.add(Value.get(5));
-		itemList.add(Value.get(2));
+		List<Integer> itemList = new ArrayList<>();
+		itemList.add(4);
+		itemList.add(3);
+		itemList.add(1);
+		itemList.add(5);
+		itemList.add(2);
 
-		List<Value> valueList = new ArrayList<Value>();
-		valueList.add(Value.get(4));
-		valueList.add(Value.get(2));
+		List<Integer> valueList = new ArrayList<>();
+		valueList.add(4);
+		valueList.add(2);
 
-		Record record = client.operate(null, key,
-				ListOperation.appendItems(ListPolicy.Default, binName, itemList),
-				ListOperation.getByValue(binName, Value.get(3), ListReturnType.INDEX | ListReturnType.INVERTED),
-				ListOperation.getByValueRange(binName, Value.get(-1), Value.get(3), ListReturnType.COUNT | ListReturnType.INVERTED),
-				ListOperation.getByValueList(binName, valueList, ListReturnType.RANK | ListReturnType.INVERTED),
-				ListOperation.getByIndexRange(binName, -2, 2, ListReturnType.VALUE | ListReturnType.INVERTED),
-				ListOperation.getByRankRange(binName, 2, 3, ListReturnType.VALUE | ListReturnType.INVERTED)
-				);
+		RecordStream rs = session.upsert(key)
+	        .bin(binName).listAppendItems(itemList)
+        	.bin(binName).onListValue(3).getAllOtherIndexes()
+        	.bin(binName).onListValueRange(-1, 3).countAllOthers()
+        	.bin(binName).onListValueList(valueList).getAllOtherRanks()
+        	.bin(binName).onListIndexRange(-2, 2).getAllOtherValues()
+        	.bin(binName).onListRankRange(2, 3).getAllOtherValues()
+        	.execute();
 
-		assertRecordFound(key, record);
-		//System.out.println("Record: " + record);
+		assertTrue(rs.hasNext());
+		Record rec = rs.next().recordOrThrow();
+		//System.out.println("REC=" + rec);
 
-		List<?> results = record.getList(binName);
+		List<?> results = rec.getList(binName);
 		int i = 0;
 
 		long size = (Long)results.get(i++);
@@ -676,39 +708,41 @@ public class OperateListTest extends ClusterTest {
 
 	@Test
 	public void operateListGetRelative() {
-		Key key = new Key(args.namespace, args.set, "oplkey13");
+		Key key = args.set.id("operateListGetRelative");
 
-		client.delete(null, key);
+        session.delete(key).execute();
 
-		List<Value> itemList = new ArrayList<Value>();
-		itemList.add(Value.get(0));
-		itemList.add(Value.get(4));
-		itemList.add(Value.get(5));
-		itemList.add(Value.get(9));
-		itemList.add(Value.get(11));
-		itemList.add(Value.get(15));
+		List<Integer> itemList = new ArrayList<>();
+		itemList.add(0);
+		itemList.add(4);
+		itemList.add(5);
+		itemList.add(9);
+		itemList.add(11);
+		itemList.add(15);
 
-		Record record = client.operate(null, key,
-				ListOperation.appendItems(new ListPolicy(ListOrder.ORDERED, ListWriteFlags.DEFAULT), binName, itemList),
-				ListOperation.getByValueRelativeRankRange(binName, Value.get(5), 0, ListReturnType.VALUE),
-				ListOperation.getByValueRelativeRankRange(binName, Value.get(5), 1, ListReturnType.VALUE),
-				ListOperation.getByValueRelativeRankRange(binName, Value.get(5), -1, ListReturnType.VALUE),
-				ListOperation.getByValueRelativeRankRange(binName, Value.get(3), 0, ListReturnType.VALUE),
-				ListOperation.getByValueRelativeRankRange(binName, Value.get(3), 3, ListReturnType.VALUE),
-				ListOperation.getByValueRelativeRankRange(binName, Value.get(3), -3, ListReturnType.VALUE),
-				ListOperation.getByValueRelativeRankRange(binName, Value.get(5), 0, 2, ListReturnType.VALUE),
-				ListOperation.getByValueRelativeRankRange(binName, Value.get(5), 1, 1, ListReturnType.VALUE),
-				ListOperation.getByValueRelativeRankRange(binName, Value.get(5), -1, 2, ListReturnType.VALUE),
-				ListOperation.getByValueRelativeRankRange(binName, Value.get(3), 0, 1, ListReturnType.VALUE),
-				ListOperation.getByValueRelativeRankRange(binName, Value.get(3), 3, 7, ListReturnType.VALUE),
-				ListOperation.getByValueRelativeRankRange(binName, Value.get(3), -3, 2, ListReturnType.VALUE)
-				);
+		RecordStream rs = session.upsert(key)
+			.bin(binName).listSetOrder(ListOrder.ORDERED)
+	        .bin(binName).listAppendItems(itemList)
+        	.bin(binName).onListValueRelativeRankRange(5, 0).getValues()
+        	.bin(binName).onListValueRelativeRankRange(5, 1).getValues()
+        	.bin(binName).onListValueRelativeRankRange(5, -1).getValues()
+        	.bin(binName).onListValueRelativeRankRange(3, 0).getValues()
+        	.bin(binName).onListValueRelativeRankRange(3, 3).getValues()
+        	.bin(binName).onListValueRelativeRankRange(3, -3).getValues()
+        	.bin(binName).onListValueRelativeRankRange(5, 0, 2).getValues()
+        	.bin(binName).onListValueRelativeRankRange(5, 1, 1).getValues()
+        	.bin(binName).onListValueRelativeRankRange(5, -1, 2).getValues()
+        	.bin(binName).onListValueRelativeRankRange(3, 0, 1).getValues()
+        	.bin(binName).onListValueRelativeRankRange(3, 3, 7).getValues()
+        	.bin(binName).onListValueRelativeRankRange(3, -3, 2).getValues()
+        	.execute();
 
-		assertRecordFound(key, record);
-		//System.out.println("Record: " + record);
+		assertTrue(rs.hasNext());
+		Record rec = rs.next().recordOrThrow();
+		//System.out.println("REC=" + rec);
 
-		List<?> results = record.getList(binName);
-		int i = 0;
+		List<?> results = rec.getList(binName);
+		int i = 1;
 
 		long size = (Long)results.get(i++);
 		assertEquals(6L, size);
@@ -783,35 +817,51 @@ public class OperateListTest extends ClusterTest {
 		assertEquals(0L, list.size());
 	}
 
+	/* TODO Get feedback on not being able to return values on remove before implementing this test.
 	@Test
 	public void operateListRemoveRelative() {
-		Key key = new Key(args.namespace, args.set, "oplkey14");
+		Key key = args.set.id("operateListRemoveRelative");
 
-		client.delete(null, key);
+        session.delete(key).execute();
 
-		List<Value> itemList = new ArrayList<Value>();
-		itemList.add(Value.get(0));
-		itemList.add(Value.get(4));
-		itemList.add(Value.get(5));
-		itemList.add(Value.get(9));
-		itemList.add(Value.get(11));
-		itemList.add(Value.get(15));
+		List<Integer> itemList = new ArrayList<>();
+		itemList.add(0);
+		itemList.add(4);
+		itemList.add(5);
+		itemList.add(9);
+		itemList.add(11);
+		itemList.add(15);
+
+		RecordStream rs = session.upsert(key)
+			.bin(binName).listSetOrder(ListOrder.ORDERED)
+	        .bin(binName).listAppendItems(itemList)
+        	.bin(binName).onListValueRelativeRankRange(5, 0).remove()
+        	.bin(binName).onListValueRelativeRankRange(5, 1).remove()
+        	.bin(binName).onListValueRelativeRankRange(5, -1).remove()
+        	.bin(binName).onListValueRelativeRankRange(3, -3, 1).remove()
+        	.bin(binName).onListValueRelativeRankRange(3, -3, 2).remove()
+        	.bin(binName).onListValueRelativeRankRange(3, -3, 3).remove()
+        	.execute();
+
+		assertTrue(rs.hasNext());
+		Record rec = rs.next().recordOrThrow();
+		System.out.println("REC=" + rec);
 
 		Record record = client.operate(null, key,
 				ListOperation.appendItems(new ListPolicy(ListOrder.ORDERED, ListWriteFlags.DEFAULT), binName, itemList),
-				ListOperation.removeByValueRelativeRankRange(binName, Value.get(5), 0, ListReturnType.VALUE),
-				ListOperation.removeByValueRelativeRankRange(binName, Value.get(5), 1, ListReturnType.VALUE),
-				ListOperation.removeByValueRelativeRankRange(binName, Value.get(5), -1, ListReturnType.VALUE),
-				ListOperation.removeByValueRelativeRankRange(binName, Value.get(3), -3, 1, ListReturnType.VALUE),
-				ListOperation.removeByValueRelativeRankRange(binName, Value.get(3), -3, 2, ListReturnType.VALUE),
-				ListOperation.removeByValueRelativeRankRange(binName, Value.get(3), -3, 3, ListReturnType.VALUE)
+				ListOperation.removeByValueRelativeRankRange(binName, 5), 0, ListReturnType.VALUE,
+				ListOperation.removeByValueRelativeRankRange(binName, 5), 1, ListReturnType.VALUE,
+				ListOperation.removeByValueRelativeRankRange(binName, 5), -1, ListReturnType.VALUE,
+				ListOperation.removeByValueRelativeRankRange(binName, 3), -3, 1, ListReturnType.VALUE,
+				ListOperation.removeByValueRelativeRankRange(binName, 3), -3, 2, ListReturnType.VALUE,
+				ListOperation.removeByValueRelativeRankRange(binName, 3), -3, 3, ListReturnType.VALUE
 				);
 
 		assertRecordFound(key, record);
 		//System.out.println("Record: " + record);
 
-		List<?> results = record.getList(binName);
-		int i = 0;
+		List<?> results = rec.getList(binName);
+		int i = 1;
 
 		long size = (Long)results.get(i++);
 		assertEquals(6L, size);
@@ -840,92 +890,112 @@ public class OperateListTest extends ClusterTest {
 		assertEquals(1L, list.size());
 		assertEquals(0L, list.get(0));
 	}
+	*/
 
 	@Test
 	public void operateListPartial() {
-		Key key = new Key(args.namespace, args.set, "oplkey15");
+		Key key = args.set.id("operateListPartial");
 
-		client.delete(null, key);
+        session.delete(key).execute();
 
-		List<Value> itemList = new ArrayList<Value>();
-		itemList.add(Value.get(0));
-		itemList.add(Value.get(4));
-		itemList.add(Value.get(5));
-		itemList.add(Value.get(9));
-		itemList.add(Value.get(9));
-		itemList.add(Value.get(11));
-		itemList.add(Value.get(15));
-		itemList.add(Value.get(0));
+		List<Integer> itemList = new ArrayList<>();
+		itemList.add(0);
+		itemList.add(4);
+		itemList.add(5);
+		itemList.add(9);
+		itemList.add(9);
+		itemList.add(11);
+		itemList.add(15);
+		itemList.add(0);
 
-		Record record = client.operate(null, key,
-				ListOperation.appendItems(new ListPolicy(ListOrder.ORDERED, ListWriteFlags.ADD_UNIQUE | ListWriteFlags.PARTIAL | ListWriteFlags.NO_FAIL), binName, itemList),
-				ListOperation.appendItems(new ListPolicy(ListOrder.ORDERED, ListWriteFlags.ADD_UNIQUE | ListWriteFlags.NO_FAIL), "bin2", itemList)
-				);
+		RecordStream rs = session.upsert(key)
+			.bin(binName).listSetOrder(ListOrder.ORDERED)
+	        .bin(binName).listAppendItems(itemList, opt -> opt
+        		.addUnique()
+        		.allowPartial()
+        		.allowFailures())
+	        .bin("bin2").listAppendItems(itemList, opt -> opt
+	        	.addUnique()
+        		.allowFailures())
+        	.execute();
 
-		assertRecordFound(key, record);
-		//System.out.println("Record: " + record);
+		assertTrue(rs.hasNext());
+		Record rec = rs.next().recordOrThrow();
+		//System.out.println("REC=" + rec);
 
-		long size = record.getLong(binName);
+		List<?> results = rec.getList(binName);
+		long size = (long)results.get(1);
 		assertEquals(6L, size);
 
-		size = record.getLong("bin2");
+		size = rec.getLong("bin2");
 		assertEquals(0L, size);
 
-		itemList = new ArrayList<Value>();
-		itemList.add(Value.get(11));
-		itemList.add(Value.get(3));
+		itemList = new ArrayList<>();
+		itemList.add(11);
+		itemList.add(3);
 
-		record = client.operate(null, key,
-				ListOperation.appendItems(new ListPolicy(ListOrder.ORDERED, ListWriteFlags.ADD_UNIQUE | ListWriteFlags.PARTIAL | ListWriteFlags.NO_FAIL), binName, itemList),
-				ListOperation.appendItems(new ListPolicy(ListOrder.ORDERED, ListWriteFlags.ADD_UNIQUE | ListWriteFlags.NO_FAIL), "bin2", itemList)
-				);
+		rs = session.upsert(key)
+			.bin(binName).listSetOrder(ListOrder.ORDERED)
+	        .bin(binName).listAppendItems(itemList, opt -> opt
+        		.addUnique()
+        		.allowPartial()
+        		.allowFailures())
+	        .bin("bin2").listAppendItems(itemList, opt -> opt
+	        	.addUnique()
+        		.allowFailures())
+        	.execute();
 
-		assertRecordFound(key, record);
-		//System.out.println("Record: " + record);
+		assertTrue(rs.hasNext());
+		rec = rs.next().recordOrThrow();
 
-		size = record.getLong(binName);
+		results = rec.getList(binName);
+		size = (long)results.get(1);
 		assertEquals(7L, size);
 
-		size = record.getLong("bin2");
+		size = rec.getLong("bin2");
 		assertEquals(2L, size);
 	}
 
 	@Test
 	public void operateListInfinity() {
-		Key key = new Key(args.namespace, args.set, "oplkey16");
+		Key key = args.set.id("operateListInfinity");
 
-		client.delete(null, key);
+        session.delete(key).execute();
 
-		List<Value> itemList = new ArrayList<Value>();
-		itemList.add(Value.get(0));
-		itemList.add(Value.get(4));
-		itemList.add(Value.get(5));
-		itemList.add(Value.get(9));
-		itemList.add(Value.get(11));
-		itemList.add(Value.get(15));
+		List<Integer> itemList = new ArrayList<>();
+		itemList.add(0);
+		itemList.add(4);
+		itemList.add(5);
+		itemList.add(9);
+		itemList.add(11);
+		itemList.add(15);
 
-		Record record = client.operate(null, key,
-				ListOperation.appendItems(new ListPolicy(ListOrder.ORDERED, ListWriteFlags.DEFAULT), binName, itemList)
-				);
+		RecordStream rs = session.upsert(key)
+			.bin(binName).listSetOrder(ListOrder.ORDERED)
+	        .bin(binName).listAppendItems(itemList)
+        	.execute();
 
-		assertRecordFound(key, record);
-		//System.out.println("Record: " + record);
+		assertTrue(rs.hasNext());
+		Record rec = rs.next().recordOrThrow();
+		//System.out.println("REC=" + rec);
 
-		long size = record.getLong(binName);
+		List<?> results = rec.getList(binName);
+		long size = (long)results.get(1);
 		assertEquals(6L, size);
 
-		itemList = new ArrayList<Value>();
-		itemList.add(Value.get(11));
-		itemList.add(Value.get(3));
+		itemList = new ArrayList<>();
+		itemList.add(11);
+		itemList.add(3);
 
-		record = client.operate(null, key,
-				ListOperation.getByValueRange(binName, Value.get(10), Value.INFINITY, ListReturnType.VALUE)
-				);
+		rs = session.upsert(key)
+	        .bin(binName).onListValueRange(10, SpecialValue.INFINITY).getValues()
+        	.execute();
 
-		assertRecordFound(key, record);
-		//System.out.println("Record: " + record);
+		assertTrue(rs.hasNext());
+		rec = rs.next().recordOrThrow();
+		//System.out.println("REC=" + rec);
 
-		List<?> results = record.getList(binName);
+		results = rec.getList(binName);
 		int i = 0;
 
 		long val = (Long)results.get(i++);
@@ -937,27 +1007,94 @@ public class OperateListTest extends ClusterTest {
 
 	@Test
 	public void operateListWildcard() {
+		Key key = args.set.id("operateListWildcard");
+
+        session.delete(key).execute();
+
+		List<Object> i1 = new ArrayList<>();
+		i1.add("John");
+		i1.add(55);
+
+		List<Object> i2 = new ArrayList<>();
+		i2.add("Jim");
+		i2.add(95);
+
+		List<Object> i3 = new ArrayList<>();
+		i3.add("Joe");
+		i3.add(80);
+
+		List<List<Object>> itemList = new ArrayList<>();
+
+		itemList.add(i1);
+		itemList.add(i2);
+		itemList.add(i3);
+
+		RecordStream rs = session.upsert(key)
+	        .bin(binName).listAppendItems(itemList)
+        	.execute();
+
+		assertTrue(rs.hasNext());
+		Record rec = rs.next().recordOrThrow();
+		//System.out.println("REC=" + rec);
+
+		long size = rec.getLong(binName);
+		assertEquals(3L, size);
+
+		List<Object> itemList2 = new ArrayList<>();
+		itemList2.add("Jim");
+		itemList2.add(Value.WILDCARD);
+
+		rs = session.upsert(key)
+			// TODO Fix this!
+	        //.bin(binName).onListValue(itemList2).getValues()
+        	.execute();
+
+		assertTrue(rs.hasNext());
+		rec = rs.next().recordOrThrow();
+		System.out.println("REC=" + rec);
+
+		/*
+		record = client.operate(null, key,
+				ListOperation.getByValue(binName, itemList), ListReturnType.VALUE
+				);
+		*/
+
+		List<?> results = rec.getList(binName);
+		int i = 0;
+
+		List<?> items = (List<?>)results.get(i++);
+		String s = (String)items.get(0);
+		assertEquals("Jim", s);
+
+		long v = (Long)items.get(1);
+		assertEquals(95L, v);
+	}
+
+	/* TODO Wait till all list operations are implemented in new client.
+
+	@Test
+	public void operateListWildcard() {
 		Key key = new Key(args.namespace, args.set, "oplkey17");
 
 		client.delete(null, key);
 
 		List<Value> i1 = new ArrayList<Value>();
-		i1.add(Value.get("John"));
-		i1.add(Value.get(55));
+		i1.add("John");
+		i1.add(55);
 
 		List<Value> i2 = new ArrayList<Value>();
-		i2.add(Value.get("Jim"));
-		i2.add(Value.get(95));
+		i2.add("Jim");
+		i2.add(95);
 
 		List<Value> i3 = new ArrayList<Value>();
-		i3.add(Value.get("Joe"));
-		i3.add(Value.get(80));
+		i3.add("Joe");
+		i3.add(80);
 
 		List<Value> itemList = new ArrayList<Value>();
 
-		itemList.add(Value.get(i1));
-		itemList.add(Value.get(i2));
-		itemList.add(Value.get(i3));
+		itemList.add(i1);
+		itemList.add(i2);
+		itemList.add(i3);
 
 		Record record = client.operate(null, key,
 				ListOperation.appendItems(binName, itemList)
@@ -970,11 +1107,11 @@ public class OperateListTest extends ClusterTest {
 		assertEquals(3L, size);
 
 		itemList = new ArrayList<Value>();
-		itemList.add(Value.get("Jim"));
+		itemList.add("Jim");
 		itemList.add(Value.WILDCARD);
 
 		record = client.operate(null, key,
-				ListOperation.getByValue(binName, Value.get(itemList), ListReturnType.VALUE)
+				ListOperation.getByValue(binName, itemList), ListReturnType.VALUE
 				);
 
 		assertRecordFound(key, record);
@@ -998,32 +1135,32 @@ public class OperateListTest extends ClusterTest {
 		client.delete(null, key);
 
 		List<Value> l1 = new ArrayList<Value>();
-		l1.add(Value.get(7));
-		l1.add(Value.get(9));
-		l1.add(Value.get(5));
+		l1.add(7);
+		l1.add(9);
+		l1.add(5);
 
 		List<Value> l2 = new ArrayList<Value>();
-		l2.add(Value.get(1));
-		l2.add(Value.get(2));
-		l2.add(Value.get(3));
+		l2.add(1);
+		l2.add(2);
+		l2.add(3);
 
 		List<Value> l3 = new ArrayList<Value>();
-		l3.add(Value.get(6));
-		l3.add(Value.get(5));
-		l3.add(Value.get(4));
-		l3.add(Value.get(1));
+		l3.add(6);
+		l3.add(5);
+		l3.add(4);
+		l3.add(1);
 
 		List<Value> inputList = new ArrayList<Value>();
-		inputList.add(Value.get(l1));
-		inputList.add(Value.get(l2));
-		inputList.add(Value.get(l3));
+		inputList.add(l1);
+		inputList.add(l2);
+		inputList.add(l3);
 
 		// Create list.
 		client.put(null, key, new Bin(binName, inputList));
 
 		// Append value to last list and retrieve all lists.
 		Record record = client.operate(null, key,
-				ListOperation.append(binName, Value.get(11), CTX.listIndex(-1)),
+				ListOperation.append(binName, 11), CTX.listIndex(-1),
 				Operation.get(binName)
 				);
 
@@ -1056,44 +1193,44 @@ public class OperateListTest extends ClusterTest {
 		client.delete(null, key);
 
 		List<Value> l11 = new ArrayList<Value>();
-		l11.add(Value.get(7));
-		l11.add(Value.get(9));
-		l11.add(Value.get(5));
+		l11.add(7);
+		l11.add(9);
+		l11.add(5);
 
 		List<Value> l12 = new ArrayList<Value>();
-		l12.add(Value.get(13));
+		l12.add(13);
 
 		List<Value> l1 = new ArrayList<Value>();
-		l1.add(Value.get(l11));
-		l1.add(Value.get(l12));
+		l1.add(l11);
+		l1.add(l12);
 
 		List<Value> l21 = new ArrayList<Value>();
-		l21.add(Value.get(9));
+		l21.add(9);
 
 		List<Value> l22 = new ArrayList<Value>();
-		l22.add(Value.get(2));
-		l22.add(Value.get(4));
+		l22.add(2);
+		l22.add(4);
 
 		List<Value> l23 = new ArrayList<Value>();
-		l23.add(Value.get(6));
-		l23.add(Value.get(1));
-		l23.add(Value.get(9));
+		l23.add(6);
+		l23.add(1);
+		l23.add(9);
 
 		List<Value> l2 = new ArrayList<Value>();
-		l2.add(Value.get(l21));
-		l2.add(Value.get(l22));
-		l2.add(Value.get(l23));
+		l2.add(l21);
+		l2.add(l22);
+		l2.add(l23);
 
 		Map<Value,Value> inputMap = new HashMap<Value,Value>();
-		inputMap.put(Value.get("key1"), Value.get(l1));
-		inputMap.put(Value.get("key2"), Value.get(l2));
+		inputMap.put("key1"), Value.get(l1);
+		inputMap.put("key2"), Value.get(l2);
 
 		// Create list.
 		client.put(null, key, new Bin(binName, inputMap));
 
 		// Append value to last list and retrieve map.
 		Record record = client.operate(null, key,
-				ListOperation.append(binName, Value.get(11), CTX.mapKey(Value.get("key2")), CTX.listRank(0)),
+				ListOperation.append(binName, 11), CTX.mapKey(Value.get("key2")), CTX.listRank(0),
 				Operation.get(binName)
 				);
 
@@ -1127,25 +1264,25 @@ public class OperateListTest extends ClusterTest {
 		client.delete(null, key);
 
 		List<Value> l1 = new ArrayList<Value>();
-		l1.add(Value.get(7));
-		l1.add(Value.get(9));
-		l1.add(Value.get(5));
+		l1.add(7);
+		l1.add(9);
+		l1.add(5);
 
 		List<Value> l2 = new ArrayList<Value>();
-		l2.add(Value.get(1));
-		l2.add(Value.get(2));
-		l2.add(Value.get(3));
+		l2.add(1);
+		l2.add(2);
+		l2.add(3);
 
 		List<Value> l3 = new ArrayList<Value>();
-		l3.add(Value.get(6));
-		l3.add(Value.get(5));
-		l3.add(Value.get(4));
-		l3.add(Value.get(1));
+		l3.add(6);
+		l3.add(5);
+		l3.add(4);
+		l3.add(1);
 
 		List<Value> inputList = new ArrayList<Value>();
-		inputList.add(Value.get(l1));
-		inputList.add(Value.get(l2));
-		inputList.add(Value.get(l3));
+		inputList.add(l1);
+		inputList.add(l2);
+		inputList.add(l3);
 
 		// Create list.
 		Record record = client.operate(null, key,
@@ -1156,9 +1293,9 @@ public class OperateListTest extends ClusterTest {
 
 		// Append value to new list created after the original 3 lists.
 		record = client.operate(null, key,
-			ListOperation.append(binName, Value.get(2), CTX.listIndexCreate(3, ListOrder.ORDERED, false)),
+			ListOperation.append(binName, 2), CTX.listIndexCreate(3, ListOrder.ORDERED, false),
 			//ListOperation.create(binName, ListOrder.ORDERED, false, CTX.listIndex(3)),
-			//ListOperation.append(binName, Value.get(2), CTX.listIndex(3)),
+			//ListOperation.append(binName, 2), CTX.listIndex(3),
 			Operation.get(binName)
 		);
 
@@ -1187,9 +1324,9 @@ public class OperateListTest extends ClusterTest {
 		client.delete(null, key);
 
 		List<Value> l1 = new ArrayList<Value>();
-		l1.add(Value.get(3));
-		l1.add(Value.get(2));
-		l1.add(Value.get(1));
+		l1.add(3);
+		l1.add(2);
+		l1.add(1);
 
 		WritePolicy wp = new WritePolicy();
 		wp.respondAllOps = true;
