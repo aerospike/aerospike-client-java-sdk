@@ -1,5 +1,5 @@
-# Aerospike Fluent Client Configuration Example
-# This file demonstrates the YAML configuration structure for the Aerospike Java Fluent Client.
+# Aerospike SDK Configuration Example
+# This file demonstrates the YAML configuration structure for the Aerospike Java SDK.
 # Set the environment variable AEROSPIKE_CLIENT_CONFIG_URL to point to this file.
 
 system:

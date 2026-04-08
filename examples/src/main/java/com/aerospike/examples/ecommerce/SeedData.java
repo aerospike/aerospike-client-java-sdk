@@ -18,8 +18,8 @@ package com.aerospike.examples.ecommerce;
 
 import java.util.List;
 
-import com.aerospike.client.fluent.Session;
-import com.aerospike.client.fluent.TypeSafeDataSet;
+import com.aerospike.client.sdk.Session;
+import com.aerospike.client.sdk.TypeSafeDataSet;
 
 /**
  * Seeds the Aerospike database with 20 customers, 100 products, and a realistic

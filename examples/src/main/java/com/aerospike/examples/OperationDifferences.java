@@ -20,16 +20,16 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import com.aerospike.client.fluent.Cluster;
-import com.aerospike.client.fluent.ClusterDefinition;
-import com.aerospike.client.fluent.DataSet;
-import com.aerospike.client.fluent.Record;
-import com.aerospike.client.fluent.RecordStream;
-import com.aerospike.client.fluent.Session;
-import com.aerospike.client.fluent.policy.Behavior;
+import com.aerospike.client.sdk.Cluster;
+import com.aerospike.client.sdk.ClusterDefinition;
+import com.aerospike.client.sdk.DataSet;
+import com.aerospike.client.sdk.Record;
+import com.aerospike.client.sdk.RecordStream;
+import com.aerospike.client.sdk.Session;
+import com.aerospike.client.sdk.policy.Behavior;
 
 /**
- * Demonstrates incongruities between the DSL spec and its implementation.
+ * Demonstrates incongruities between the AEL spec and its implementation.
  *
  * <p>Each test method targets a specific issue identified in the spec review:
  * <ul>
@@ -52,7 +52,7 @@ public class OperationDifferences {
     public static void main(String[] args) throws Exception {
         try (Cluster cluster = new ClusterDefinition("localhost", 3100).connect()) {
             Session session = cluster.createSession(Behavior.DEFAULT);
-            DataSet set = DataSet.of("test", "dsl_diff_test");
+            DataSet set = DataSet.of("test", "ael_diff_test");
 
             session.truncate(set);
             setupTestData(session, set);
@@ -80,7 +80,7 @@ public class OperationDifferences {
 
         // Record 2: map bin with integer keys only.
         // $.m.1 per the spec should look up integer key 1.
-        // The DSL treats bare `1` as NAME_IDENTIFIER (string), so it looks up string key "1".
+        // The AEL treats bare `1` as NAME_IDENTIFIER (string), so it looks up string key "1".
         Map<Object, Object> intKeyMap = new HashMap<>();
         intKeyMap.put(1L, "val_from_int_key_1");
         intKeyMap.put(2L, "val_from_int_key_2");
@@ -199,7 +199,7 @@ public class OperationDifferences {
             System.out.println("      Expected:    val_from_int_key_1 (integer key 1)");
             System.out.println("      Actual:      " + (result == null ? "null (key not found)" : result));
             check("2b-int-key-lookup", "val_from_int_key_1".equals(result),
-                    "DSL looks up string key \"1\" instead of integer key 1");
+                    "AEL looks up string key \"1\" instead of integer key 1");
         } catch (Exception e) {
             System.out.println("      Expected:    val_from_int_key_1");
             System.out.println("      Actual:      " + e.getClass().getSimpleName() + ": " + e.getMessage());
@@ -220,7 +220,7 @@ public class OperationDifferences {
             System.out.println("      $.m.1 per spec should return: INTEGER_KEY_1 (integer key 1)");
             System.out.println("      $.m.1 actually returns:       " + result);
             check("2b-ambiguous-key", "INTEGER_KEY_1".equals(result),
-                    "DSL resolves to string key instead of integer key");
+                    "AEL resolves to string key instead of integer key");
         } catch (Exception e) {
             System.out.println("      Actual: " + e.getClass().getSimpleName() + ": " + e.getMessage());
             check("2b-ambiguous-key", false, "failed to access key");
@@ -240,7 +240,7 @@ public class OperationDifferences {
         System.out.println("Java and spec convention:");
         System.out.println("  >>  = arithmetic right shift (sign-preserving)");
         System.out.println("  >>> = logical right shift (zero-fill)");
-        System.out.println("DSL implementation maps >> to Exp.rshift() which is logical right shift.");
+        System.out.println("AEL implementation maps >> to Exp.rshift() which is logical right shift.");
         System.out.println();
 
         // -8 in binary (64-bit): 1111...1111 1000
@@ -259,7 +259,7 @@ public class OperationDifferences {
             Record rec = rs.getFirst().orElseThrow().recordOrThrow();
             long result = rec.getLong("result");
             System.out.println("      Expected (spec):     " + expectedArithmetic + " (arithmetic, sign preserved)");
-            System.out.println("      Actual DSL >> :      " + result);
+            System.out.println("      Actual AEL >> :      " + result);
             boolean isCorrect = (result == expectedArithmetic);
             if (!isCorrect && result == expectedLogical) {
                 System.out.println("      Matches logical >>> : yes -- >> is wired to Exp.rshift() (logical)");
@@ -308,13 +308,13 @@ public class OperationDifferences {
             Record rec = rs.getFirst().orElseThrow().recordOrThrow();
             long result = rec.getLong("result");
             System.out.println("      Expected (spec):     " + expectedLogical + " (logical, zero-fill)");
-            System.out.println("      Actual DSL >>> :     " + result);
+            System.out.println("      Actual AEL >>> :     " + result);
             check("2c-logical-rshift", result == expectedLogical,
                     ">>> should be supported per spec");
         } catch (Exception e) {
             System.out.println("      Expected (spec):     " + expectedLogical + " (logical, zero-fill)");
             System.out.println("      Actual:              " + e.getClass().getSimpleName() + ": " + e.getMessage());
-            System.out.println("      >>> is not in the grammar -- DSL only has >> (wired to logical)");
+            System.out.println("      >>> is not in the grammar -- AEL only has >> (wired to logical)");
             System.out.println("      Net result: >> does logical when it should do arithmetic,");
             System.out.println("                  and >>> doesn't exist at all.");
             check("2c-logical-rshift", false,
@@ -564,7 +564,7 @@ public class OperationDifferences {
             Object result = rec.bins.get("result");
             System.out.println("      Expected:    error (type mismatch)");
             System.out.println("      Actual:      " + result + " (type: " + (result == null ? "null" : result.getClass().getSimpleName()) + ")");
-            System.out.println("      If no error: the DSL may be silently promoting types");
+            System.out.println("      If no error: the AEL may be silently promoting types");
             check("cast-mixed-no-cast", false, "mixed-type arithmetic should require explicit cast");
         } catch (Exception e) {
             System.out.println("      Actual:      " + e.getClass().getSimpleName() + ": " + e.getMessage());

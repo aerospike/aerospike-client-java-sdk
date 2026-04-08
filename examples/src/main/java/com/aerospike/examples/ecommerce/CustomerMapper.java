@@ -19,10 +19,10 @@ package com.aerospike.examples.ecommerce;
 import java.util.HashMap;
 import java.util.Map;
 
-import com.aerospike.client.fluent.Key;
-import com.aerospike.client.fluent.RecordMapper;
-import com.aerospike.client.fluent.Value;
-import com.aerospike.client.fluent.util.MapUtil;
+import com.aerospike.client.sdk.Key;
+import com.aerospike.client.sdk.RecordMapper;
+import com.aerospike.client.sdk.Value;
+import com.aerospike.client.sdk.util.MapUtil;
 
 public class CustomerMapper implements RecordMapper<Customer> {
 

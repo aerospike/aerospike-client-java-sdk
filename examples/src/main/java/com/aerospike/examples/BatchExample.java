@@ -16,10 +16,10 @@
  */
 package com.aerospike.examples;
 
-import com.aerospike.client.fluent.Cluster;
-import com.aerospike.client.fluent.DataSet;
-import com.aerospike.client.fluent.Session;
-import com.aerospike.client.fluent.policy.Behavior;
+import com.aerospike.client.sdk.Cluster;
+import com.aerospike.client.sdk.DataSet;
+import com.aerospike.client.sdk.Session;
+import com.aerospike.client.sdk.policy.Behavior;
 
 public class BatchExample extends Example {
     public BatchExample(Console console) {

@@ -1,12 +1,13 @@
 package com.aerospike.benchmarks;
 
-import com.aerospike.client.fluent.policy.AuthMode;
 import picocli.CommandLine.Spec;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.Model.CommandSpec;
 import picocli.CommandLine.ParameterException;
 
 import java.util.Arrays;
+
+import com.aerospike.client.sdk.policy.AuthMode;
 
 /**
  * Represents connection options for the Aerospike database client. This class provides
@@ -124,7 +125,9 @@ public class ConnectionOptions {
 
     @Option(
             names = {"-c", "-clusterName", "--clusterName"},
-            description = "Set expected cluster name.")
+            description =
+                    "Expected cluster name (logs and server validation). "
+                            + "If omitted, the benchmark also checks env AEROSPIKE_CLUSTER_NAME.")
     private String clusterName;
 
     @Option(

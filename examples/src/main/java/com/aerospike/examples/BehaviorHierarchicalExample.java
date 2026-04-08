@@ -21,11 +21,11 @@ import java.io.IOException;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 
-import com.aerospike.client.fluent.Cluster;
-import com.aerospike.client.fluent.policy.Behavior;
-import com.aerospike.client.fluent.policy.Behavior.OpKind;
-import com.aerospike.client.fluent.policy.Behavior.OpShape;
-import com.aerospike.client.fluent.policy.Settings;
+import com.aerospike.client.sdk.Cluster;
+import com.aerospike.client.sdk.policy.Behavior;
+import com.aerospike.client.sdk.policy.Settings;
+import com.aerospike.client.sdk.policy.Behavior.OpKind;
+import com.aerospike.client.sdk.policy.Behavior.OpShape;
 
 /**
  * Example demonstrating the hierarchical YAML configuration system with dynamic reloading.

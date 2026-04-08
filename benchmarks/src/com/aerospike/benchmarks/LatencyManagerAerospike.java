@@ -120,8 +120,8 @@ public class LatencyManagerAerospike implements LatencyManager {
     private void printColumn(PrintStream stream, int limit, double sum, int value) {
         long percent = 0;
 
-        if (value > 0) {
-            percent = Math.round((double)value * 100.0 / sum);
+        if (sum > 0 && value > 0) {
+            percent = Math.round((double) value * 100.0 / sum);
         }
         String percentString = Long.toString(percent) + "%";
         int spaces = Integer.toString(limit).length() + 4 - percentString.length();

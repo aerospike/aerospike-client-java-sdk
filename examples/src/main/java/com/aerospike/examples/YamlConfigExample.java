@@ -23,10 +23,10 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Map;
 
-import com.aerospike.client.fluent.Cluster;
-import com.aerospike.client.fluent.SystemSettingsRegistry;
-import com.aerospike.client.fluent.policy.Behavior;
-import com.aerospike.client.fluent.policy.BehaviorYamlLoader;
+import com.aerospike.client.sdk.Cluster;
+import com.aerospike.client.sdk.SystemSettingsRegistry;
+import com.aerospike.client.sdk.policy.Behavior;
+import com.aerospike.client.sdk.policy.BehaviorYamlLoader;
 
 /**
  * Example demonstrating how to load behaviors and system settings from a YAML file.

@@ -1,0 +1,134 @@
+/*
+ * Copyright 2012-2026 Aerospike, Inc.
+ *
+ * Portions may be licensed to Aerospike, Inc. under one or more contributor
+ * license agreements WHICH ARE COMPATIBLE WITH THE APACHE LICENSE, VERSION 2.0.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy of
+ * the License at http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
+ */
+package com.aerospike.client.sdk.ael;
+
+import com.aerospike.client.sdk.exp.Exp;
+
+/**
+ * Represents a comparison operation between two values or expressions.
+ */
+public class Comparison<T> implements BooleanExpression {
+    private final AelExpression left;
+    private final ComparisonOp operator;
+    private final Object right;
+
+    public Comparison(AelExpression left, ComparisonOp operator, Object right) {
+        this.left = left;
+        this.operator = operator;
+        this.right = right;
+    }
+
+    @Override
+    public BooleanExpression and(BooleanExpression other) {
+        return new LogicalExpression(LogicalOp.AND, this, other);
+    }
+
+    @Override
+    public BooleanExpression or(BooleanExpression other) {
+        return new LogicalExpression(LogicalOp.OR, this, other);
+    }
+
+    @Override
+    public BooleanExpression not() {
+        return new LogicalExpression(LogicalOp.NOT, this, null);
+    }
+
+    @Override
+    public BooleanExpression eq(Boolean value) {
+        return new Comparison<>(left, ComparisonOp.EQ, value);
+    }
+
+    @Override
+    public BooleanExpression ne(Boolean value) {
+        return new Comparison<>(left, ComparisonOp.NE, value);
+    }
+
+    public static String val(Object o) {
+        if (o instanceof String) {
+            return "Exp.val(\"" + o + "\")";
+        }
+        return "Exp.val(" + o.toString() + ")";
+    }
+
+    @Override
+    public String toString() {
+        return left.toString() + " " + operator.getValue() + " " + (right instanceof AelExpression ? right.toString() : right);
+    }
+
+    @Override
+    public String toAerospikeExpr() {
+        switch (operator) {
+            case EQ:
+                return "Exp.eq(" + left.toAerospikeExpr() + ", " + (right instanceof AelExpression ? ((AelExpression) right).toAerospikeExpr() : val(right)) + ")";
+            case NE:
+                return "Exp.ne(" + left.toAerospikeExpr() + ", " + (right instanceof AelExpression ? ((AelExpression) right).toAerospikeExpr() : val(right)) + ")";
+            case GT:
+                return "Exp.gt(" + left.toAerospikeExpr() + ", " + (right instanceof AelExpression ? ((AelExpression) right).toAerospikeExpr() : val(right)) + ")";
+            case LT:
+                return "Exp.lt(" + left.toAerospikeExpr() + ", " + (right instanceof AelExpression ? ((AelExpression) right).toAerospikeExpr() : val(right)) + ")";
+            case GTE:
+                return "Exp.ge(" + left.toAerospikeExpr() + ", " + (right instanceof AelExpression ? ((AelExpression) right).toAerospikeExpr() : val(right)) + ")";
+            case LTE:
+                return "Exp.le(" + left.toAerospikeExpr() + ", " + (right instanceof AelExpression ? ((AelExpression) right).toAerospikeExpr() : val(right)) + ")";
+            default:
+                return "(" + left.toAerospikeExpr() + " " + operator + " " + (right instanceof AelExpression ? ((AelExpression) right).toAerospikeExpr() : val(right)) + ")";
+        }
+    }
+
+    private Exp rightAsExp() {
+        if (right instanceof AelExpression) {
+            return ((AelExpression) right).toAerospikeExp();
+        }
+        else {
+            if (right instanceof String) {
+				return Exp.val((String)right);
+			}
+            if (right instanceof Double) {
+				return Exp.val((Double)right);
+			}
+            if (right instanceof Float) {
+				return Exp.val((Float)right);
+			}
+            if (right instanceof Integer) {
+				return Exp.val((Integer)right);
+			}
+            if (right instanceof Long) {
+				return Exp.val((Long)right);
+			}
+            if (right instanceof byte[]) {
+				return Exp.val((byte [])right);
+			}
+            if (right instanceof Boolean) {
+				return Exp.val((Boolean)right);
+			}
+        }
+        throw new IllegalStateException("Unexpected right hand side type in Comparison: " + right.getClass());
+    }
+
+    @Override
+    public Exp toAerospikeExp() {
+        switch (operator) {
+        case EQ:  return Exp.eq(left.toAerospikeExp(), rightAsExp());
+        case NE:  return Exp.ne(left.toAerospikeExp(), rightAsExp());
+        case GT:  return Exp.gt(left.toAerospikeExp(), rightAsExp());
+        case GTE: return Exp.ge(left.toAerospikeExp(), rightAsExp());
+        case LT:  return Exp.lt(left.toAerospikeExp(), rightAsExp());
+        case LTE: return Exp.le(left.toAerospikeExp(), rightAsExp());
+        }
+        throw new IllegalStateException("Unknown operator in Comparison: " + operator);
+    }
+}

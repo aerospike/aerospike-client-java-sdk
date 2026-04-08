@@ -2,7 +2,7 @@
 ## tests not migrated
 ### udf/aggregation tests
 
-Missing UDF registration and aggregate query support in fluent API
+Missing UDF registration and aggregate query support in API
 
 - TestQuerySum.java - Requires UDF registration (`sum_example.lua`) and aggregate queries
 - TestQueryRPS.java - Setup registers 2 UDFs; 4 of 8 test methods require UDF/aggregation
@@ -17,7 +17,7 @@ Needs:
 
 ### geospatial test
 
-TestQueryGeo.java - Blocked by fluent API bug? Will create a PR/fix if this is indeed a bug
+TestQueryGeo.java - Blocked by API bug? Will create a PR/fix if this is indeed a bug
 
 Issue: `IndexType.GEOJSON` enum sends `"GEOJSON"` to server, but server expects `"geo2dsphere"` (lowercase)
 
@@ -27,7 +27,7 @@ Fix: Add enum-to-string mapping in `Session.buildCreateIndexInfoCommand()` (line
 
 TestIndex.java - Missing pathExpressions integration
 
-Issue: Fluent API's `CTX` class lacks advanced selection methods for CDT structures
+Issue: `CTX` class lacks advanced selection methods for CDT structures
 
 Missing Methods for Remaining Tests:
 - `CTX.allChildren()` - Select all children in a CDT structure
@@ -49,7 +49,7 @@ The test creates secondary indexes where the index is computed from an expressio
 - Querying by expression: `Filter.range(expression, 1, 1)` (available)
 
 Internal Support Exists:
-The fluent API's `Session.buildCreateIndexInfoCommand()` (line 512) already has an `Expression exp` parameter and correctly builds the command with `;exp=<base64>` (lines 529-538). However, this is a private method not exposed in the public API.
+The API's `Session.buildCreateIndexInfoCommand()` (line 512) already has an `Expression exp` parameter and correctly builds the command with `;exp=<base64>` (lines 529-538). However, this is a private method not exposed in the public API.
 
 Test Breakdown (3 methods):
 - `createExpSI()` - Creates expression-based secondary index
@@ -90,11 +90,11 @@ Not Migrated (blocked by missing CTX methods):
 
 ## issues & workarounds
 
-1. DSL Bug - Logical AND (`&&`) Parsed as Bitwise AND
+1. AEL Bug - Logical AND (`&&`) Parsed as Bitwise AND
 
-The DSL parser treats `&&` as bitwise AND (`&`) instead of logical AND.
+The AEL parser treats `&&` as bitwise AND (`&`) instead of logical AND.
 - Example: `$.bin >= 14 && $.bin <= 18` incorrectly parses as `bin >= (14 & bin)`
-- Workaround: Use `Exp.and(Exp.ge(...), Exp.le(...))` instead of DSL strings with `&&`
+- Workaround: Use `Exp.and(Exp.ge(...), Exp.le(...))` instead of AEL strings with `&&`
 - Affected Tests: QueryIntegerTest, QueryKeyTest
 
 2. Missing Public `where(Filter)` API
@@ -105,7 +105,7 @@ The DSL parser treats `&&` as bitwise AND (`&`) instead of logical AND.
 - Internal `setWhereClause(WhereClauseProcessor)` method exists but is protected
 
 Issue: Cannot use secondary index queries with collections or CDT contexts through public API
-- `where(String dsl)` - Doesn't support all Filter features
+- `where(String ael)` - Doesn't support all Filter features
 - `where(Exp exp)` - Explicitly disables secondary index usage (see QueryBuilder line 403)
 - `where(Filter filter)` - Method doesn't exist publicly
 
@@ -135,7 +135,7 @@ Recommendation: Add public `where(Filter filter)` method to QueryBuilder to supp
 
 3. Multi-Operation Commands Not Supported on Single Key
 
-The fluent API does **not** support executing multiple operations on a single key in one server call like the original client's `operate()` method.
+The API does **not** support executing multiple operations on a single key in one server call like the original client's `operate()` method.
 
 Original Client:
 ```java
@@ -145,8 +145,8 @@ Record record = client.operate(writePolicy, key,
     Operation.getHeader()
 );
 ```
-Need two calls for fluent client.
-Fluent API:
+Need two calls for SDK.
+API:
 ```java
 session.touch(key).expireRecordAfter(Duration.ofSeconds(2)).execute(); 
 RecordStream rs = session.query(key).withNoBins().execute();

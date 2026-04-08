@@ -18,15 +18,15 @@ package com.aerospike.examples;
 
 import java.util.Map;
 
-import com.aerospike.client.fluent.Cluster;
-import com.aerospike.client.fluent.ClusterDefinition;
-import com.aerospike.client.fluent.Key;
-import com.aerospike.client.fluent.RecordMapper;
-import com.aerospike.client.fluent.Session;
-import com.aerospike.client.fluent.TypeSafeDataSet;
-import com.aerospike.client.fluent.Value;
-import com.aerospike.client.fluent.policy.Behavior;
-import com.aerospike.client.fluent.util.MapUtil;
+import com.aerospike.client.sdk.Cluster;
+import com.aerospike.client.sdk.ClusterDefinition;
+import com.aerospike.client.sdk.Key;
+import com.aerospike.client.sdk.RecordMapper;
+import com.aerospike.client.sdk.Session;
+import com.aerospike.client.sdk.TypeSafeDataSet;
+import com.aerospike.client.sdk.Value;
+import com.aerospike.client.sdk.policy.Behavior;
+import com.aerospike.client.sdk.util.MapUtil;
 
 public class TransactionProcessingExample {
     public static class Transaction {
@@ -71,7 +71,7 @@ public class TransactionProcessingExample {
             return txn.getId();
         }
     }
-    
+
     public static class Customer {
         private String customerId;
         private String firstName;
@@ -129,7 +129,7 @@ public class TransactionProcessingExample {
             return cust.getCustomerId();
         }
     }
-    
+
     public static class Account {
         private String pan;
         private String customerId;
@@ -182,7 +182,7 @@ public class TransactionProcessingExample {
             return acct.getPan();
         }
     }
-    
+
     public static void main(String[] args) {
         try (Cluster cluster = new ClusterDefinition("localhost", 3100).connect()) {
             Session session = cluster.createSession(Behavior.DEFAULT);
@@ -221,7 +221,7 @@ public class TransactionProcessingExample {
                 .object(account)
                 .using(accountMapper)
                 .execute();
-            
+
             Transaction txn = new Transaction();
             txn.setId("TXN-00001");
             txn.setDesc("Car repairs");
@@ -275,7 +275,7 @@ public class TransactionProcessingExample {
             // client.operate(new BatchPolicy(), batchRecords);
 
             // ======================================================================
-            // New style: Fluent API
+            // New style: API
             // ======================================================================
             session
                 .insert(txnDataSet)

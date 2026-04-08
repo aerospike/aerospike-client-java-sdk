@@ -28,7 +28,7 @@ import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Options;
 
 /**
- * Main entry point for running Aerospike Fluent Client examples.
+ * Main entry point for running Aerospike SDK examples.
  *
  * <h2>Usage</h2>
  * <pre>{@code

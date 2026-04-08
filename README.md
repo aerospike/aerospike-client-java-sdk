@@ -4,29 +4,29 @@
 > This is a developer preview, not yet ready for production use, but with future releases planned. We encourage feedback from the Aerospike 
 > developer community through GitHub issues.
 
-A higher-level API for Aerospike that provides type-safe, fluent interfaces for working with Aerospike databases.
+A higher-level API for Aerospike that provides type-safe, interfaces for working with Aerospike databases.
 
 ## Overview
 
 This project provides a modern, type-safe API for Aerospike operations, including:
 
-- **DataSet**: A fluent API for creating and managing Aerospike keys
+- **DataSet**: An API for creating and managing Aerospike keys
 - **InfoParser & InfoCommands**: High-level info command execution and parsing
 - **TransactionalSession**: Transactional operations with automatic retry logic
-- **DSL (Domain Specific Language)**: A type-safe query builder with compile-time checking
+- **AEL (Aerospike Expression Language)**: A type-safe query builder with compile-time checking
 - **Type Safety**: Compile-time validation to prevent runtime errors
-- **Fluent APIs**: Chainable method calls for better readability
+- **APIs**: Chainable method calls for better readability
 
 ## DataSet Class
 
-The `DataSet` class represents a collection of records within an Aerospike namespace. It provides a fluent API for creating Aerospike keys with various identifier types.
+The `DataSet` class represents a collection of records within an Aerospike namespace. It provides an API for creating Aerospike keys with various identifier types.
 
 ### Key Features
 
 - **Multiple Key Types**: Support for String, Integer, Long, and byte array keys
 - **Batch Operations**: Create multiple keys at once
 - **Type Safety**: Compile-time validation of key types
-- **Fluent API**: Chainable method calls for better readability
+- **API**: Chainable method calls for better readability
 
 ### Basic Usage
 
@@ -302,9 +302,9 @@ String result = session.doInTransaction(txSession -> {
 - **Non-Retryable Errors**: Thrown immediately without retry
 - **Resource Cleanup**: Transactions are automatically aborted on any exception
 
-## DSL (Domain Specific Language)
+## AEL (Aerospike Expression Language)
 
-The project also includes a comprehensive DSL for building type-safe queries with compile-time checking. See the DSL examples in the `com.aerospike.dsl` package for more information.
+The project also includes a comprehensive AEL for building type-safe queries with compile-time checking. See the AEL examples in the `com.aerospike.ael` package for more information.
 
 ## Building and Running
 
@@ -321,5 +321,5 @@ mvn javadoc:javadoc
 
 ## Dependencies
 
-- Java 21+
+- Java 21+  For improved virtual thread performance Java 24+ is highly recommended.
 - Maven 3.9.5+

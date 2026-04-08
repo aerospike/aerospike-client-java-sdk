@@ -1,6 +1,6 @@
 # Exception Hierarchy
 
-All exceptions in the fluent client extend `AerospikeException`, which itself extends `RuntimeException`. The hierarchy is designed so you can catch at exactly the level of specificity you need — catch `BinException` to handle all bin-level errors, or catch `BinNotFoundException` to handle just that one case.
+All exceptions in the client extend `AerospikeException`, which itself extends `RuntimeException`. The hierarchy is designed so you can catch at exactly the level of specificity you need — catch `BinException` to handle all bin-level errors, or catch `BinNotFoundException` to handle just that one case.
 
 ## Tree
 

@@ -7,7 +7,7 @@ has sample data, the AEL expression, and the expected output. Tests are marked:
 - **Status ✗** — known to fail (references a known issue from `ael-spec-vs-implementation.md`)
 - **Status ?** — behaviour uncertain or untested
 
-Tests use the fluent client pattern:
+Tests use the pattern:
 
 ```java
 // Read expression (returns a value)
@@ -484,7 +484,7 @@ cannot infer type or when operand types differ.
 | MD01 | TTL | 1 | `$.ttl()` | Read | INT (seconds until expiry, or -1 for never-expire) | ✓ |
 | MD02 | Record size | 1 | `$.recordSize()` | Read | INT > 0 | ✓ |
 | MD03 | Key exists | 1 | `$.keyExists()` | Filter | `true` or `false` (depends on key storage policy) | ✓ |
-| MD04 | Set name | 1 | `$.setName() == 'dsl_test_spec'` | Filter | `true` | ✓ |
+| MD04 | Set name | 1 | `$.setName() == 'ael_test_spec'` | Filter | `true` | ✓ |
 | MD05 | TTL in filter | 1 | `$.ttl() > 0 or $.ttl() == -1` | Filter | `true` | ✓ |
 | MD06 | Since update | 1 | `$.sinceUpdate() >= 0` | Filter | `true` | ✓ |
 | MD07 | Void time | 1 | `$.voidTime()` | Read | INT (-1 or positive) | ✓ |

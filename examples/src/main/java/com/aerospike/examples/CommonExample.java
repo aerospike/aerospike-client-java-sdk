@@ -18,24 +18,24 @@ package com.aerospike.examples;
 
 import java.util.Optional;
 
-import com.aerospike.client.fluent.AerospikeException;
-import com.aerospike.client.fluent.Cluster;
-import com.aerospike.client.fluent.DataSet;
-import com.aerospike.client.fluent.Record;
-import com.aerospike.client.fluent.RecordResult;
-import com.aerospike.client.fluent.RecordStream;
-import com.aerospike.client.fluent.Session;
-import com.aerospike.client.fluent.dsl.Dsl;
-import com.aerospike.client.fluent.exp.Exp;
-import com.aerospike.client.fluent.info.classes.IndexType;
-import com.aerospike.client.fluent.policy.Behavior;
-import com.aerospike.client.fluent.policy.Behavior.Mode;
-import com.aerospike.client.fluent.policy.Behavior.OpKind;
-import com.aerospike.client.fluent.policy.Behavior.OpShape;
-import com.aerospike.client.fluent.policy.QueryDuration;
-import com.aerospike.client.fluent.policy.Settings;
-import com.aerospike.client.fluent.query.IndexCollectionType;
-import com.aerospike.client.fluent.task.ExecuteTask;
+import com.aerospike.client.sdk.AerospikeException;
+import com.aerospike.client.sdk.Cluster;
+import com.aerospike.client.sdk.DataSet;
+import com.aerospike.client.sdk.Record;
+import com.aerospike.client.sdk.RecordResult;
+import com.aerospike.client.sdk.RecordStream;
+import com.aerospike.client.sdk.Session;
+import com.aerospike.client.sdk.ael.Ael;
+import com.aerospike.client.sdk.exp.Exp;
+import com.aerospike.client.sdk.info.classes.IndexType;
+import com.aerospike.client.sdk.policy.Behavior;
+import com.aerospike.client.sdk.policy.QueryDuration;
+import com.aerospike.client.sdk.policy.Settings;
+import com.aerospike.client.sdk.policy.Behavior.Mode;
+import com.aerospike.client.sdk.policy.Behavior.OpKind;
+import com.aerospike.client.sdk.policy.Behavior.OpShape;
+import com.aerospike.client.sdk.query.IndexCollectionType;
+import com.aerospike.client.sdk.task.ExecuteTask;
 
 /**
  * Examples for common commands.
@@ -212,7 +212,7 @@ public class CommonExample extends Example {
         System.out.println("Test filtering out");
 
         Optional<RecordResult> rec = session.query(set.ids(2))
-            .where(Dsl.stringBin("name").eq("Bob"))
+            .where(Ael.stringBin("name").eq("Bob"))
             .execute()
             .getFirst();
 
@@ -222,7 +222,7 @@ public class CommonExample extends Example {
 
         // Run again, this time looking for "fred" on the "Bob" record, but without failing on filtering out
         rec = session.query(set.ids(2))
-                .where(Dsl.stringBin("name").eq("Fred"))
+                .where(Ael.stringBin("name").eq("Fred"))
                 .execute()
                 .getFirst();
 
@@ -231,7 +231,7 @@ public class CommonExample extends Example {
                 () -> System.out.println("Record for Fred does not exist (expected)"));
 
         rec = session.query(set.ids(2))
-                .where(Dsl.stringBin("name").eq("Fred"))
+                .where(Ael.stringBin("name").eq("Fred"))
                 .includeMissingKeys()
                 .execute()
                 .getFirst();
@@ -244,7 +244,7 @@ public class CommonExample extends Example {
         // Run again, failing on filtered out
         try {
             rec = session.query(set.ids(2))
-                    .where(Dsl.stringBin("name").eq("Fred"))
+                    .where(Ael.stringBin("name").eq("Fred"))
                     .failOnFilteredOut()
                     .execute()
                     .getFirst();

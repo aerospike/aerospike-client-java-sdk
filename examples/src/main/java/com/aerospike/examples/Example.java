@@ -20,9 +20,9 @@ import java.io.File;
 import java.lang.reflect.Constructor;
 import java.util.List;
 
-import com.aerospike.client.fluent.Cluster;
-import com.aerospike.client.fluent.ClusterDefinition;
-import com.aerospike.client.fluent.Log;
+import com.aerospike.client.sdk.Cluster;
+import com.aerospike.client.sdk.ClusterDefinition;
+import com.aerospike.client.sdk.Log;
 
 /**
  * Abstract base class for all examples.
