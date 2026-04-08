@@ -32,7 +32,6 @@ import com.aerospike.client.sdk.DataSet;
 import com.aerospike.client.sdk.RecordStream;
 import com.aerospike.client.sdk.ResultCode;
 import com.aerospike.client.sdk.cdt.CTX;
-import com.aerospike.client.sdk.info.classes.IndexType;
 
 public class QueryContextTest extends ClusterTest {
 	private static final String indexName = "listrank";

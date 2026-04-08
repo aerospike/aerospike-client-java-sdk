@@ -28,7 +28,6 @@ import com.aerospike.client.sdk.DataSet;
 import com.aerospike.client.sdk.RecordStream;
 import com.aerospike.client.sdk.ResultCode;
 import com.aerospike.client.sdk.exp.Exp;
-import com.aerospike.client.sdk.info.classes.IndexType;
 
 public class QueryIntegerTest extends ClusterTest {
 	private static final String setName = "queryint";

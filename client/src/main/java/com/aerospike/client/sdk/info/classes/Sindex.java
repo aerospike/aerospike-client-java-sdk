@@ -21,6 +21,7 @@ import com.aerospike.client.sdk.info.annotations.FirstOf;
 import com.aerospike.client.sdk.info.annotations.Key;
 import com.aerospike.client.sdk.info.annotations.MustMatch;
 import com.aerospike.client.sdk.info.annotations.Named;
+import com.aerospike.client.sdk.query.IndexType;
 
 public class Sindex {
     @Named("ns")

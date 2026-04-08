@@ -18,7 +18,7 @@ public class IndexTests {
         assertThatThrownBy(() -> Index.builder()
                 .namespace(null)
                 .bin(BIN)
-                .indexType(IndexType.NUMERIC)
+                .indexType(IndexType.INTEGER)
                 .binValuesRatio(0)
                 .build())
                 .isInstanceOf(IllegalArgumentException.class)
@@ -30,7 +30,7 @@ public class IndexTests {
         assertThatThrownBy(() -> Index.builder()
                 .namespace("   ")
                 .bin(BIN)
-                .indexType(IndexType.NUMERIC)
+                .indexType(IndexType.INTEGER)
                 .binValuesRatio(0)
                 .build())
                 .isInstanceOf(IllegalArgumentException.class)
@@ -42,7 +42,7 @@ public class IndexTests {
         assertThatThrownBy(() -> Index.builder()
                 .namespace(NAMESPACE)
                 .bin(null)
-                .indexType(IndexType.NUMERIC)
+                .indexType(IndexType.INTEGER)
                 .binValuesRatio(0)
                 .build())
                 .isInstanceOf(IllegalArgumentException.class)
@@ -54,7 +54,7 @@ public class IndexTests {
         assertThatThrownBy(() -> Index.builder()
                 .namespace(NAMESPACE)
                 .bin("")
-                .indexType(IndexType.NUMERIC)
+                .indexType(IndexType.INTEGER)
                 .binValuesRatio(0)
                 .build())
                 .isInstanceOf(IllegalArgumentException.class)
@@ -78,7 +78,7 @@ public class IndexTests {
         assertThatThrownBy(() -> Index.builder()
                 .namespace(NAMESPACE)
                 .bin(BIN)
-                .indexType(IndexType.NUMERIC)
+                .indexType(IndexType.INTEGER)
                 .binValuesRatio(-1)
                 .build())
                 .isInstanceOf(IllegalArgumentException.class)
@@ -89,7 +89,7 @@ public class IndexTests {
     void build_fails_when_namespace_omitted() {
         assertThatThrownBy(() -> Index.builder()
                 .bin(BIN)
-                .indexType(IndexType.NUMERIC)
+                .indexType(IndexType.INTEGER)
                 .binValuesRatio(0)
                 .build())
                 .isInstanceOf(IllegalArgumentException.class)
@@ -100,7 +100,7 @@ public class IndexTests {
     void build_fails_when_bin_omitted() {
         assertThatThrownBy(() -> Index.builder()
                 .namespace(NAMESPACE)
-                .indexType(IndexType.NUMERIC)
+                .indexType(IndexType.INTEGER)
                 .binValuesRatio(0)
                 .build())
                 .isInstanceOf(IllegalArgumentException.class)
@@ -123,7 +123,7 @@ public class IndexTests {
         Index index = Index.builder()
                 .namespace(NAMESPACE)
                 .bin(BIN)
-                .indexType(IndexType.NUMERIC)
+                .indexType(IndexType.INTEGER)
                 .build();
 
         assertThat(index.getBinValuesRatio()).isZero();
@@ -134,7 +134,7 @@ public class IndexTests {
         Index index = Index.builder()
                 .namespace(NAMESPACE)
                 .bin(BIN)
-                .indexType(IndexType.NUMERIC)
+                .indexType(IndexType.INTEGER)
                 .binValuesRatio(0)
                 .build();
 

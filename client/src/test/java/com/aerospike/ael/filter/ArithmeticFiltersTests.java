@@ -35,8 +35,8 @@ public class ArithmeticFiltersTests {
 
     String NAMESPACE = "test1";
     Collection<Index> INDEXES = List.of(
-            Index.builder().namespace("test1").bin("apples").indexType(IndexType.NUMERIC).binValuesRatio(1).build(),
-            Index.builder().namespace("test1").bin("bananas").indexType(IndexType.NUMERIC).binValuesRatio(1).build()
+            Index.builder().namespace("test1").bin("apples").indexType(IndexType.INTEGER).binValuesRatio(1).build(),
+            Index.builder().namespace("test1").bin("bananas").indexType(IndexType.INTEGER).binValuesRatio(1).build()
     );
     IndexContext INDEX_FILTER_INPUT = IndexContext.of(NAMESPACE, INDEXES);
 

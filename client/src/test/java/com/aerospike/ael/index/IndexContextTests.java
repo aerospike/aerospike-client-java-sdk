@@ -20,14 +20,14 @@ public class IndexContextTests {
     private static final Index VALID_INDEX = Index.builder()
             .namespace(NAMESPACE)
             .bin("bin1")
-            .indexType(IndexType.NUMERIC)
+            .indexType(IndexType.INTEGER)
             .binValuesRatio(0)
             .build();
     private static final Index VALID_NAMED_INDEX = Index.builder()
             .namespace(NAMESPACE)
             .bin("bin1")
             .name("idx_bin1")
-            .indexType(IndexType.NUMERIC)
+            .indexType(IndexType.INTEGER)
             .binValuesRatio(0)
             .build();
 
@@ -88,7 +88,7 @@ public class IndexContextTests {
     @Test
     void of_3arg_match_sets_preferred_bin() {
         Index other = Index.builder().namespace(NAMESPACE).bin("bin2").name("idx_bin2")
-                .indexType(IndexType.NUMERIC).binValuesRatio(0).build();
+                .indexType(IndexType.INTEGER).binValuesRatio(0).build();
         Collection<Index> indexes = List.of(VALID_NAMED_INDEX, other);
 
         IndexContext ctx = IndexContext.of(NAMESPACE, indexes, "idx_bin1");
@@ -109,7 +109,7 @@ public class IndexContextTests {
     @Test
     void of_3arg_blank_index_name_returns_all_indexes() {
         Index blankNamedIndex = Index.builder().namespace(NAMESPACE).bin("bin1").name("  ")
-                .indexType(IndexType.NUMERIC).binValuesRatio(0).build();
+                .indexType(IndexType.INTEGER).binValuesRatio(0).build();
         Collection<Index> indexes = List.of(blankNamedIndex);
 
         IndexContext ctx = IndexContext.of(NAMESPACE, indexes, "  ");
@@ -126,7 +126,7 @@ public class IndexContextTests {
     @Test
     void of_3arg_namespace_mismatch_returns_all_indexes() {
         Index wrongNs = Index.builder().namespace("other_ns").bin("bin1").name("idx_bin1")
-                .indexType(IndexType.NUMERIC).binValuesRatio(0).build();
+                .indexType(IndexType.INTEGER).binValuesRatio(0).build();
         Collection<Index> indexes = List.of(wrongNs);
 
         IndexContext ctx = IndexContext.of(NAMESPACE, indexes, "idx_bin1");
@@ -173,7 +173,7 @@ public class IndexContextTests {
     @Test
     void withBinHint_match_sets_preferred_bin() {
         Index other = Index.builder().namespace(NAMESPACE).bin("bin2")
-                .indexType(IndexType.NUMERIC).binValuesRatio(0).build();
+                .indexType(IndexType.INTEGER).binValuesRatio(0).build();
         Collection<Index> indexes = List.of(VALID_INDEX, other);
 
         IndexContext ctx = IndexContext.withBinHint(NAMESPACE, indexes, "bin1");
@@ -187,7 +187,7 @@ public class IndexContextTests {
         Index second = Index.builder().namespace(NAMESPACE).bin("bin1")
                 .indexType(IndexType.STRING).binValuesRatio(5).build();
         Index other = Index.builder().namespace(NAMESPACE).bin("bin2")
-                .indexType(IndexType.NUMERIC).binValuesRatio(10).build();
+                .indexType(IndexType.INTEGER).binValuesRatio(10).build();
         Collection<Index> indexes = List.of(VALID_INDEX, second, other);
 
         IndexContext ctx = IndexContext.withBinHint(NAMESPACE, indexes, "bin1");
@@ -208,7 +208,7 @@ public class IndexContextTests {
     @Test
     void withBinHint_namespace_mismatch_returns_all_indexes() {
         Index wrongNs = Index.builder().namespace("other_ns").bin("bin1")
-                .indexType(IndexType.NUMERIC).binValuesRatio(0).build();
+                .indexType(IndexType.INTEGER).binValuesRatio(0).build();
         Collection<Index> indexes = List.of(wrongNs);
 
         IndexContext ctx = IndexContext.withBinHint(NAMESPACE, indexes, "bin1");

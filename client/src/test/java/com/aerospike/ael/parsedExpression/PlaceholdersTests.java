@@ -116,8 +116,8 @@ public class PlaceholdersTests {
     @Test
     void intBin_GT_has_index() {
         List<Index> indexes = List.of(
-                Index.builder().namespace(NAMESPACE).bin("intBin1").indexType(IndexType.NUMERIC).binValuesRatio(0).build(),
-                Index.builder().namespace(NAMESPACE).bin("intBin2").indexType(IndexType.NUMERIC).binValuesRatio(1).build()
+                Index.builder().namespace(NAMESPACE).bin("intBin1").indexType(IndexType.INTEGER).binValuesRatio(0).build(),
+                Index.builder().namespace(NAMESPACE).bin("intBin2").indexType(IndexType.INTEGER).binValuesRatio(1).build()
         );
         Filter filter = Filter.range("intBin1", 101, Long.MAX_VALUE);
         Exp exp = null;
@@ -128,8 +128,8 @@ public class PlaceholdersTests {
     @Test
     void intBin_GT_has_index_reuseExprTree() {
         List<Index> indexes = List.of(
-                Index.builder().namespace(NAMESPACE).bin("intBin1").indexType(IndexType.NUMERIC).binValuesRatio(0).build(),
-                Index.builder().namespace(NAMESPACE).bin("intBin2").indexType(IndexType.NUMERIC).binValuesRatio(1).build()
+                Index.builder().namespace(NAMESPACE).bin("intBin1").indexType(IndexType.INTEGER).binValuesRatio(0).build(),
+                Index.builder().namespace(NAMESPACE).bin("intBin2").indexType(IndexType.INTEGER).binValuesRatio(1).build()
         );
         ParsedExpression parsedExpr =
                 TestUtils.getParsedExpression(ExpressionContext.of("$.intBin1 > ?0", PlaceholderValues.of(100)),
@@ -152,8 +152,8 @@ public class PlaceholdersTests {
     @Test
     void intBin_GT_AND_all_indexes() {
         List<Index> indexes = List.of(
-                Index.builder().namespace(NAMESPACE).bin("intBin1").indexType(IndexType.NUMERIC).binValuesRatio(0).build(),
-                Index.builder().namespace(NAMESPACE).bin("intBin2").indexType(IndexType.NUMERIC).binValuesRatio(1).build()
+                Index.builder().namespace(NAMESPACE).bin("intBin1").indexType(IndexType.INTEGER).binValuesRatio(0).build(),
+                Index.builder().namespace(NAMESPACE).bin("intBin2").indexType(IndexType.INTEGER).binValuesRatio(1).build()
         );
         Filter filter = Filter.range("intBin2", 101, Long.MAX_VALUE);
         Exp exp = Exp.gt(Exp.intBin("intBin1"), Exp.val(100));
@@ -179,8 +179,8 @@ public class PlaceholdersTests {
                 filter, exp);
 
         Collection<Index> INDEXES = List.of(
-                Index.builder().namespace("test1").bin("apples").indexType(IndexType.NUMERIC).binValuesRatio(1).build(),
-                Index.builder().namespace("test1").bin("bananas").indexType(IndexType.NUMERIC).binValuesRatio(1).build()
+                Index.builder().namespace("test1").bin("apples").indexType(IndexType.INTEGER).binValuesRatio(1).build(),
+                Index.builder().namespace("test1").bin("bananas").indexType(IndexType.INTEGER).binValuesRatio(1).build()
         );
         IndexContext INDEX_FILTER_INPUT = IndexContext.of(NAMESPACE, INDEXES);
         Filter filter2 = Filter.range("apples", 10 - 5 + 1, Long.MAX_VALUE);

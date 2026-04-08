@@ -27,7 +27,6 @@ import com.aerospike.client.sdk.Node;
 import com.aerospike.client.sdk.RecordStream;
 import com.aerospike.client.sdk.ResultCode;
 import com.aerospike.client.sdk.command.Info;
-import com.aerospike.client.sdk.info.classes.IndexType;
 import com.aerospike.client.sdk.util.Version;
 
 public class QueryRPSTest extends ClusterTest {

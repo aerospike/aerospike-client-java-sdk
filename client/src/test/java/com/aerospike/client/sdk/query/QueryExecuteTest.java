@@ -33,7 +33,6 @@ import com.aerospike.client.sdk.ResultCode;
 import com.aerospike.client.sdk.UdfTest;
 import com.aerospike.client.sdk.exp.Exp;
 import com.aerospike.client.sdk.exp.Expression;
-import com.aerospike.client.sdk.info.classes.IndexType;
 import com.aerospike.client.sdk.task.ExecuteTask;
 import com.aerospike.client.sdk.task.RegisterTask;
 

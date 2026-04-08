@@ -23,9 +23,9 @@ class InExprTests {
     @Test
     void inAndEq_allIndexed() {
         List<Index> indexes = List.of(
-                Index.builder().namespace(NAMESPACE).bin("intBin1").indexType(IndexType.NUMERIC)
+                Index.builder().namespace(NAMESPACE).bin("intBin1").indexType(IndexType.INTEGER)
                         .binValuesRatio(0).build(),
-                Index.builder().namespace(NAMESPACE).bin("intBin2").indexType(IndexType.NUMERIC)
+                Index.builder().namespace(NAMESPACE).bin("intBin2").indexType(IndexType.INTEGER)
                         .binValuesRatio(1).build()
         );
         Filter filter = Filter.equal("intBin2", 100);
@@ -39,9 +39,9 @@ class InExprTests {
     @Test
     void eqAndIn_allIndexed() {
         List<Index> indexes = List.of(
-                Index.builder().namespace(NAMESPACE).bin("intBin1").indexType(IndexType.NUMERIC)
+                Index.builder().namespace(NAMESPACE).bin("intBin1").indexType(IndexType.INTEGER)
                         .binValuesRatio(1).build(),
-                Index.builder().namespace(NAMESPACE).bin("intBin2").indexType(IndexType.NUMERIC)
+                Index.builder().namespace(NAMESPACE).bin("intBin2").indexType(IndexType.INTEGER)
                         .binValuesRatio(0).build()
         );
         Filter filter = Filter.equal("intBin1", 100);
@@ -55,11 +55,11 @@ class InExprTests {
     @Test
     void eqAndInAndLt_allIndexed() {
         List<Index> indexes = List.of(
-                Index.builder().namespace(NAMESPACE).bin("intBin1").indexType(IndexType.NUMERIC)
+                Index.builder().namespace(NAMESPACE).bin("intBin1").indexType(IndexType.INTEGER)
                         .binValuesRatio(0).build(),
-                Index.builder().namespace(NAMESPACE).bin("intBin2").indexType(IndexType.NUMERIC)
+                Index.builder().namespace(NAMESPACE).bin("intBin2").indexType(IndexType.INTEGER)
                         .binValuesRatio(0).build(),
-                Index.builder().namespace(NAMESPACE).bin("intBin3").indexType(IndexType.NUMERIC)
+                Index.builder().namespace(NAMESPACE).bin("intBin3").indexType(IndexType.INTEGER)
                         .binValuesRatio(1).build()
         );
         Filter filter = Filter.range("intBin3", Long.MIN_VALUE, 49);
@@ -75,9 +75,9 @@ class InExprTests {
     @Test
     void inAndGt_allIndexed() {
         List<Index> indexes = List.of(
-                Index.builder().namespace(NAMESPACE).bin("intBin1").indexType(IndexType.NUMERIC)
+                Index.builder().namespace(NAMESPACE).bin("intBin1").indexType(IndexType.INTEGER)
                         .binValuesRatio(1).build(),
-                Index.builder().namespace(NAMESPACE).bin("intBin2").indexType(IndexType.NUMERIC)
+                Index.builder().namespace(NAMESPACE).bin("intBin2").indexType(IndexType.INTEGER)
                         .binValuesRatio(0).build()
         );
         Filter filter = Filter.range("intBin2", 101, Long.MAX_VALUE);
@@ -91,9 +91,9 @@ class InExprTests {
     @Test
     void gtAndIn_allIndexed() {
         List<Index> indexes = List.of(
-                Index.builder().namespace(NAMESPACE).bin("intBin1").indexType(IndexType.NUMERIC)
+                Index.builder().namespace(NAMESPACE).bin("intBin1").indexType(IndexType.INTEGER)
                         .binValuesRatio(0).build(),
-                Index.builder().namespace(NAMESPACE).bin("intBin2").indexType(IndexType.NUMERIC)
+                Index.builder().namespace(NAMESPACE).bin("intBin2").indexType(IndexType.INTEGER)
                         .binValuesRatio(1).build()
         );
         Filter filter = Filter.range("intBin1", 101, Long.MAX_VALUE);
@@ -109,9 +109,9 @@ class InExprTests {
     @Test
     void twoIns_allIndexed() {
         List<Index> indexes = List.of(
-                Index.builder().namespace(NAMESPACE).bin("intBin1").indexType(IndexType.NUMERIC)
+                Index.builder().namespace(NAMESPACE).bin("intBin1").indexType(IndexType.INTEGER)
                         .binValuesRatio(0).build(),
-                Index.builder().namespace(NAMESPACE).bin("intBin2").indexType(IndexType.NUMERIC)
+                Index.builder().namespace(NAMESPACE).bin("intBin2").indexType(IndexType.INTEGER)
                         .binValuesRatio(1).build()
         );
         Filter filter = null;
@@ -141,11 +141,11 @@ class InExprTests {
     @Test
     void twoInsAndEq_allIndexed() {
         List<Index> indexes = List.of(
-                Index.builder().namespace(NAMESPACE).bin("intBin1").indexType(IndexType.NUMERIC)
+                Index.builder().namespace(NAMESPACE).bin("intBin1").indexType(IndexType.INTEGER)
                         .binValuesRatio(0).build(),
-                Index.builder().namespace(NAMESPACE).bin("intBin2").indexType(IndexType.NUMERIC)
+                Index.builder().namespace(NAMESPACE).bin("intBin2").indexType(IndexType.INTEGER)
                         .binValuesRatio(0).build(),
-                Index.builder().namespace(NAMESPACE).bin("intBin3").indexType(IndexType.NUMERIC)
+                Index.builder().namespace(NAMESPACE).bin("intBin3").indexType(IndexType.INTEGER)
                         .binValuesRatio(1).build()
         );
         Filter filter = Filter.equal("intBin3", 100);
@@ -162,11 +162,11 @@ class InExprTests {
     @Test
     void eqAndTwoIns_allIndexed() {
         List<Index> indexes = List.of(
-                Index.builder().namespace(NAMESPACE).bin("intBin1").indexType(IndexType.NUMERIC)
+                Index.builder().namespace(NAMESPACE).bin("intBin1").indexType(IndexType.INTEGER)
                         .binValuesRatio(1).build(),
-                Index.builder().namespace(NAMESPACE).bin("intBin2").indexType(IndexType.NUMERIC)
+                Index.builder().namespace(NAMESPACE).bin("intBin2").indexType(IndexType.INTEGER)
                         .binValuesRatio(0).build(),
-                Index.builder().namespace(NAMESPACE).bin("intBin3").indexType(IndexType.NUMERIC)
+                Index.builder().namespace(NAMESPACE).bin("intBin3").indexType(IndexType.INTEGER)
                         .binValuesRatio(0).build()
         );
         Filter filter = Filter.equal("intBin1", 100);
@@ -183,13 +183,13 @@ class InExprTests {
     @Test
     void twoInsAndLtAndGt_allIndexed() {
         List<Index> indexes = List.of(
-                Index.builder().namespace(NAMESPACE).bin("b1").indexType(IndexType.NUMERIC)
+                Index.builder().namespace(NAMESPACE).bin("b1").indexType(IndexType.INTEGER)
                         .binValuesRatio(0).build(),
-                Index.builder().namespace(NAMESPACE).bin("b2").indexType(IndexType.NUMERIC)
+                Index.builder().namespace(NAMESPACE).bin("b2").indexType(IndexType.INTEGER)
                         .binValuesRatio(1).build(),
-                Index.builder().namespace(NAMESPACE).bin("b3").indexType(IndexType.NUMERIC)
+                Index.builder().namespace(NAMESPACE).bin("b3").indexType(IndexType.INTEGER)
                         .binValuesRatio(0).build(),
-                Index.builder().namespace(NAMESPACE).bin("b4").indexType(IndexType.NUMERIC)
+                Index.builder().namespace(NAMESPACE).bin("b4").indexType(IndexType.INTEGER)
                         .binValuesRatio(0).build()
         );
         Filter filter = Filter.range("b2", Long.MIN_VALUE, 49);
@@ -209,9 +209,9 @@ class InExprTests {
     @Test
     void inBinHighestCard_fallback() {
         List<Index> indexes = List.of(
-                Index.builder().namespace(NAMESPACE).bin("intBin1").indexType(IndexType.NUMERIC)
+                Index.builder().namespace(NAMESPACE).bin("intBin1").indexType(IndexType.INTEGER)
                         .binValuesRatio(10).build(),
-                Index.builder().namespace(NAMESPACE).bin("intBin2").indexType(IndexType.NUMERIC)
+                Index.builder().namespace(NAMESPACE).bin("intBin2").indexType(IndexType.INTEGER)
                         .binValuesRatio(1).build()
         );
         Filter filter = Filter.equal("intBin2", 100);
@@ -225,9 +225,9 @@ class InExprTests {
     @Test
     void inBinHighestCard_fallbackGt() {
         List<Index> indexes = List.of(
-                Index.builder().namespace(NAMESPACE).bin("intBin1").indexType(IndexType.NUMERIC)
+                Index.builder().namespace(NAMESPACE).bin("intBin1").indexType(IndexType.INTEGER)
                         .binValuesRatio(10).build(),
-                Index.builder().namespace(NAMESPACE).bin("intBin2").indexType(IndexType.NUMERIC)
+                Index.builder().namespace(NAMESPACE).bin("intBin2").indexType(IndexType.INTEGER)
                         .binValuesRatio(1).build()
         );
         Filter filter = Filter.range("intBin2", 101, Long.MAX_VALUE);
@@ -241,11 +241,11 @@ class InExprTests {
     @Test
     void inBinHighestCard_3exprs() {
         List<Index> indexes = List.of(
-                Index.builder().namespace(NAMESPACE).bin("intBin1").indexType(IndexType.NUMERIC)
+                Index.builder().namespace(NAMESPACE).bin("intBin1").indexType(IndexType.INTEGER)
                         .binValuesRatio(10).build(),
-                Index.builder().namespace(NAMESPACE).bin("intBin2").indexType(IndexType.NUMERIC)
+                Index.builder().namespace(NAMESPACE).bin("intBin2").indexType(IndexType.INTEGER)
                         .binValuesRatio(5).build(),
-                Index.builder().namespace(NAMESPACE).bin("intBin3").indexType(IndexType.NUMERIC)
+                Index.builder().namespace(NAMESPACE).bin("intBin3").indexType(IndexType.INTEGER)
                         .binValuesRatio(1).build()
         );
         Filter filter = Filter.equal("intBin2", 100);
@@ -261,7 +261,7 @@ class InExprTests {
     @Test
     void inBinOnlyIndexed() {
         List<Index> indexes = List.of(
-                Index.builder().namespace(NAMESPACE).bin("intBin1").indexType(IndexType.NUMERIC)
+                Index.builder().namespace(NAMESPACE).bin("intBin1").indexType(IndexType.INTEGER)
                         .binValuesRatio(0).build()
         );
         Filter filter = null;
@@ -279,11 +279,11 @@ class InExprTests {
     @Test
     void twoInBinsHighestCard() {
         List<Index> indexes = List.of(
-                Index.builder().namespace(NAMESPACE).bin("b1").indexType(IndexType.NUMERIC)
+                Index.builder().namespace(NAMESPACE).bin("b1").indexType(IndexType.INTEGER)
                         .binValuesRatio(10).build(),
-                Index.builder().namespace(NAMESPACE).bin("b2").indexType(IndexType.NUMERIC)
+                Index.builder().namespace(NAMESPACE).bin("b2").indexType(IndexType.INTEGER)
                         .binValuesRatio(10).build(),
-                Index.builder().namespace(NAMESPACE).bin("b3").indexType(IndexType.NUMERIC)
+                Index.builder().namespace(NAMESPACE).bin("b3").indexType(IndexType.INTEGER)
                         .binValuesRatio(1).build()
         );
         Filter filter = Filter.equal("b3", 100);
@@ -300,9 +300,9 @@ class InExprTests {
     @Test
     void twoInBinsHighestCard_noOther() {
         List<Index> indexes = List.of(
-                Index.builder().namespace(NAMESPACE).bin("b1").indexType(IndexType.NUMERIC)
+                Index.builder().namespace(NAMESPACE).bin("b1").indexType(IndexType.INTEGER)
                         .binValuesRatio(10).build(),
-                Index.builder().namespace(NAMESPACE).bin("b2").indexType(IndexType.NUMERIC)
+                Index.builder().namespace(NAMESPACE).bin("b2").indexType(IndexType.INTEGER)
                         .binValuesRatio(10).build()
         );
         Filter filter = null;
@@ -319,13 +319,13 @@ class InExprTests {
     @Test
     void twoInBinsHighCard_withGtLt() {
         List<Index> indexes = List.of(
-                Index.builder().namespace(NAMESPACE).bin("b1").indexType(IndexType.NUMERIC)
+                Index.builder().namespace(NAMESPACE).bin("b1").indexType(IndexType.INTEGER)
                         .binValuesRatio(10).build(),
-                Index.builder().namespace(NAMESPACE).bin("b2").indexType(IndexType.NUMERIC)
+                Index.builder().namespace(NAMESPACE).bin("b2").indexType(IndexType.INTEGER)
                         .binValuesRatio(5).build(),
-                Index.builder().namespace(NAMESPACE).bin("b3").indexType(IndexType.NUMERIC)
+                Index.builder().namespace(NAMESPACE).bin("b3").indexType(IndexType.INTEGER)
                         .binValuesRatio(10).build(),
-                Index.builder().namespace(NAMESPACE).bin("b4").indexType(IndexType.NUMERIC)
+                Index.builder().namespace(NAMESPACE).bin("b4").indexType(IndexType.INTEGER)
                         .binValuesRatio(1).build()
         );
         Filter filter = Filter.range("b2", 51, Long.MAX_VALUE);
@@ -343,9 +343,9 @@ class InExprTests {
     @Test
     void twoInsOnlyIndexed() {
         List<Index> indexes = List.of(
-                Index.builder().namespace(NAMESPACE).bin("b1").indexType(IndexType.NUMERIC)
+                Index.builder().namespace(NAMESPACE).bin("b1").indexType(IndexType.INTEGER)
                         .binValuesRatio(0).build(),
-                Index.builder().namespace(NAMESPACE).bin("b2").indexType(IndexType.NUMERIC)
+                Index.builder().namespace(NAMESPACE).bin("b2").indexType(IndexType.INTEGER)
                         .binValuesRatio(0).build()
         );
         Filter filter = null;
@@ -366,9 +366,9 @@ class InExprTests {
     void inAndEq_indexHint_selectsEq() {
         List<Index> indexes = List.of(
                 Index.builder().namespace(NAMESPACE).name("idx_intBin1").bin("intBin1")
-                        .indexType(IndexType.NUMERIC).binValuesRatio(0).build(),
+                        .indexType(IndexType.INTEGER).binValuesRatio(0).build(),
                 Index.builder().namespace(NAMESPACE).name("idx_intBin2").bin("intBin2")
-                        .indexType(IndexType.NUMERIC).binValuesRatio(1).build()
+                        .indexType(IndexType.INTEGER).binValuesRatio(1).build()
         );
         Filter filter = Filter.equal("intBin2", 100);
         Exp exp = ListExp.getByValue(ListReturnType.EXISTS,
@@ -382,9 +382,9 @@ class InExprTests {
     void inAndEq_indexHint_onInBin() {
         List<Index> indexes = List.of(
                 Index.builder().namespace(NAMESPACE).name("idx_intBin1").bin("intBin1")
-                        .indexType(IndexType.NUMERIC).binValuesRatio(0).build(),
+                        .indexType(IndexType.INTEGER).binValuesRatio(0).build(),
                 Index.builder().namespace(NAMESPACE).name("idx_intBin2").bin("intBin2")
-                        .indexType(IndexType.NUMERIC).binValuesRatio(1).build()
+                        .indexType(IndexType.INTEGER).binValuesRatio(1).build()
         );
         Filter filter = Filter.equal("intBin2", 100);
         Exp exp = ListExp.getByValue(ListReturnType.EXISTS,
@@ -398,11 +398,11 @@ class InExprTests {
     void inAndEqAndGt_indexHint_overrides() {
         List<Index> indexes = List.of(
                 Index.builder().namespace(NAMESPACE).name("idx_intBin1").bin("intBin1")
-                        .indexType(IndexType.NUMERIC).binValuesRatio(0).build(),
+                        .indexType(IndexType.INTEGER).binValuesRatio(0).build(),
                 Index.builder().namespace(NAMESPACE).name("idx_intBin2").bin("intBin2")
-                        .indexType(IndexType.NUMERIC).binValuesRatio(10).build(),
+                        .indexType(IndexType.INTEGER).binValuesRatio(10).build(),
                 Index.builder().namespace(NAMESPACE).name("idx_intBin3").bin("intBin3")
-                        .indexType(IndexType.NUMERIC).binValuesRatio(0).build()
+                        .indexType(IndexType.INTEGER).binValuesRatio(0).build()
         );
         Filter filter = Filter.range("intBin3", 51, Long.MAX_VALUE);
         Exp exp = Exp.and(
@@ -418,11 +418,11 @@ class InExprTests {
     void twoInsAndEq_indexHint() {
         List<Index> indexes = List.of(
                 Index.builder().namespace(NAMESPACE).name("idx_intBin1").bin("intBin1")
-                        .indexType(IndexType.NUMERIC).binValuesRatio(0).build(),
+                        .indexType(IndexType.INTEGER).binValuesRatio(0).build(),
                 Index.builder().namespace(NAMESPACE).name("idx_intBin2").bin("intBin2")
-                        .indexType(IndexType.NUMERIC).binValuesRatio(0).build(),
+                        .indexType(IndexType.INTEGER).binValuesRatio(0).build(),
                 Index.builder().namespace(NAMESPACE).name("idx_intBin3").bin("intBin3")
-                        .indexType(IndexType.NUMERIC).binValuesRatio(1).build()
+                        .indexType(IndexType.INTEGER).binValuesRatio(1).build()
         );
         Filter filter = Filter.equal("intBin3", 100);
         Exp exp = Exp.and(
@@ -439,9 +439,9 @@ class InExprTests {
     void twoIns_indexHint_noFilter() {
         List<Index> indexes = List.of(
                 Index.builder().namespace(NAMESPACE).name("idx_intBin1").bin("intBin1")
-                        .indexType(IndexType.NUMERIC).binValuesRatio(0).build(),
+                        .indexType(IndexType.INTEGER).binValuesRatio(0).build(),
                 Index.builder().namespace(NAMESPACE).name("idx_intBin2").bin("intBin2")
-                        .indexType(IndexType.NUMERIC).binValuesRatio(1).build()
+                        .indexType(IndexType.INTEGER).binValuesRatio(1).build()
         );
         Filter filter = null;
         Exp exp = Exp.and(
@@ -458,9 +458,9 @@ class InExprTests {
     void inAndEq_indexHint_unavailable() {
         List<Index> indexes = List.of(
                 Index.builder().namespace(NAMESPACE).name("idx_intBin1").bin("intBin1")
-                        .indexType(IndexType.NUMERIC).binValuesRatio(0).build(),
+                        .indexType(IndexType.INTEGER).binValuesRatio(0).build(),
                 Index.builder().namespace(NAMESPACE).name("idx_intBin2").bin("intBin2")
-                        .indexType(IndexType.NUMERIC).binValuesRatio(1).build()
+                        .indexType(IndexType.INTEGER).binValuesRatio(1).build()
         );
         Filter filter = Filter.equal("intBin2", 100);
         Exp exp = ListExp.getByValue(ListReturnType.EXISTS,
@@ -474,9 +474,9 @@ class InExprTests {
     void inAndEq_indexHint_nsMismatch() {
         List<Index> indexes = List.of(
                 Index.builder().namespace("other_ns").name("idx_intBin1").bin("intBin1")
-                        .indexType(IndexType.NUMERIC).binValuesRatio(0).build(),
+                        .indexType(IndexType.INTEGER).binValuesRatio(0).build(),
                 Index.builder().namespace(NAMESPACE).name("idx_intBin2").bin("intBin2")
-                        .indexType(IndexType.NUMERIC).binValuesRatio(1).build()
+                        .indexType(IndexType.INTEGER).binValuesRatio(1).build()
         );
         Filter filter = Filter.equal("intBin2", 100);
         Exp exp = ListExp.getByValue(ListReturnType.EXISTS,
@@ -490,9 +490,9 @@ class InExprTests {
     void inAndEq_indexHint_null() {
         List<Index> indexes = List.of(
                 Index.builder().namespace(NAMESPACE).name("idx_intBin1").bin("intBin1")
-                        .indexType(IndexType.NUMERIC).binValuesRatio(0).build(),
+                        .indexType(IndexType.INTEGER).binValuesRatio(0).build(),
                 Index.builder().namespace(NAMESPACE).name("idx_intBin2").bin("intBin2")
-                        .indexType(IndexType.NUMERIC).binValuesRatio(1).build()
+                        .indexType(IndexType.INTEGER).binValuesRatio(1).build()
         );
         Filter filter = Filter.equal("intBin2", 100);
         Exp exp = ListExp.getByValue(ListReturnType.EXISTS,
@@ -506,9 +506,9 @@ class InExprTests {
     void inAndEq_indexHint_empty() {
         List<Index> indexes = List.of(
                 Index.builder().namespace(NAMESPACE).name("idx_intBin1").bin("intBin1")
-                        .indexType(IndexType.NUMERIC).binValuesRatio(0).build(),
+                        .indexType(IndexType.INTEGER).binValuesRatio(0).build(),
                 Index.builder().namespace(NAMESPACE).name("idx_intBin2").bin("intBin2")
-                        .indexType(IndexType.NUMERIC).binValuesRatio(1).build()
+                        .indexType(IndexType.INTEGER).binValuesRatio(1).build()
         );
         Filter filter = Filter.equal("intBin2", 100);
         Exp exp = ListExp.getByValue(ListReturnType.EXISTS,
@@ -522,11 +522,11 @@ class InExprTests {
     void inAndEq_indexHint_overridesAlpha() {
         List<Index> indexes = List.of(
                 Index.builder().namespace(NAMESPACE).name("idx_intBin1").bin("intBin1")
-                        .indexType(IndexType.NUMERIC).binValuesRatio(100).build(),
+                        .indexType(IndexType.INTEGER).binValuesRatio(100).build(),
                 Index.builder().namespace(NAMESPACE).name("idx_intBin2").bin("intBin2")
-                        .indexType(IndexType.NUMERIC).binValuesRatio(100).build(),
+                        .indexType(IndexType.INTEGER).binValuesRatio(100).build(),
                 Index.builder().namespace(NAMESPACE).name("idx_intBin3").bin("intBin3")
-                        .indexType(IndexType.NUMERIC).binValuesRatio(100).build()
+                        .indexType(IndexType.INTEGER).binValuesRatio(100).build()
         );
         Filter filter = Filter.range("intBin3", 51, Long.MAX_VALUE);
         Exp exp = Exp.and(
@@ -544,11 +544,11 @@ class InExprTests {
     void inAndEqAndGt_indexHint_onInBin() {
         List<Index> indexes = List.of(
                 Index.builder().namespace(NAMESPACE).name("idx_intBin1").bin("intBin1")
-                        .indexType(IndexType.NUMERIC).binValuesRatio(0).build(),
+                        .indexType(IndexType.INTEGER).binValuesRatio(0).build(),
                 Index.builder().namespace(NAMESPACE).name("idx_intBin2").bin("intBin2")
-                        .indexType(IndexType.NUMERIC).binValuesRatio(1).build(),
+                        .indexType(IndexType.INTEGER).binValuesRatio(1).build(),
                 Index.builder().namespace(NAMESPACE).name("idx_intBin3").bin("intBin3")
-                        .indexType(IndexType.NUMERIC).binValuesRatio(0).build()
+                        .indexType(IndexType.INTEGER).binValuesRatio(0).build()
         );
         Filter filter = Filter.equal("intBin2", 100);
         Exp exp = Exp.and(
@@ -564,11 +564,11 @@ class InExprTests {
     void twoInsAndLt_indexHint_onInBin() {
         List<Index> indexes = List.of(
                 Index.builder().namespace(NAMESPACE).name("idx_intBin1").bin("intBin1")
-                        .indexType(IndexType.NUMERIC).binValuesRatio(0).build(),
+                        .indexType(IndexType.INTEGER).binValuesRatio(0).build(),
                 Index.builder().namespace(NAMESPACE).name("idx_intBin2").bin("intBin2")
-                        .indexType(IndexType.NUMERIC).binValuesRatio(0).build(),
+                        .indexType(IndexType.INTEGER).binValuesRatio(0).build(),
                 Index.builder().namespace(NAMESPACE).name("idx_intBin3").bin("intBin3")
-                        .indexType(IndexType.NUMERIC).binValuesRatio(1).build()
+                        .indexType(IndexType.INTEGER).binValuesRatio(1).build()
         );
         Filter filter = Filter.range("intBin3", Long.MIN_VALUE, 49);
         Exp exp = Exp.and(
@@ -587,9 +587,9 @@ class InExprTests {
     void inOrEq_indexHint_noFilter() {
         List<Index> indexes = List.of(
                 Index.builder().namespace(NAMESPACE).name("idx_intBin1").bin("intBin1")
-                        .indexType(IndexType.NUMERIC).binValuesRatio(0).build(),
+                        .indexType(IndexType.INTEGER).binValuesRatio(0).build(),
                 Index.builder().namespace(NAMESPACE).name("idx_intBin2").bin("intBin2")
-                        .indexType(IndexType.NUMERIC).binValuesRatio(1).build()
+                        .indexType(IndexType.INTEGER).binValuesRatio(1).build()
         );
         Filter filter = null;
         Exp exp = Exp.or(
@@ -605,11 +605,11 @@ class InExprTests {
     void orInAndGt_indexHint_onOrInBin() {
         List<Index> indexes = List.of(
                 Index.builder().namespace(NAMESPACE).name("idx_intBin1").bin("intBin1")
-                        .indexType(IndexType.NUMERIC).binValuesRatio(0).build(),
+                        .indexType(IndexType.INTEGER).binValuesRatio(0).build(),
                 Index.builder().namespace(NAMESPACE).name("idx_intBin2").bin("intBin2")
-                        .indexType(IndexType.NUMERIC).binValuesRatio(1).build(),
+                        .indexType(IndexType.INTEGER).binValuesRatio(1).build(),
                 Index.builder().namespace(NAMESPACE).name("idx_intBin3").bin("intBin3")
-                        .indexType(IndexType.NUMERIC).binValuesRatio(0).build()
+                        .indexType(IndexType.INTEGER).binValuesRatio(0).build()
         );
         Filter filter = Filter.range("intBin3", 51, Long.MAX_VALUE);
         Exp exp = Exp.or(
@@ -626,9 +626,9 @@ class InExprTests {
     @Test
     void inAndEq_binHint_selectsEq() {
         List<Index> indexes = List.of(
-                Index.builder().namespace(NAMESPACE).bin("intBin1").indexType(IndexType.NUMERIC)
+                Index.builder().namespace(NAMESPACE).bin("intBin1").indexType(IndexType.INTEGER)
                         .binValuesRatio(0).build(),
-                Index.builder().namespace(NAMESPACE).bin("intBin2").indexType(IndexType.NUMERIC)
+                Index.builder().namespace(NAMESPACE).bin("intBin2").indexType(IndexType.INTEGER)
                         .binValuesRatio(1).build()
         );
         Filter filter = Filter.equal("intBin2", 100);
@@ -642,9 +642,9 @@ class InExprTests {
     @Test
     void inAndEq_binHint_onInBin() {
         List<Index> indexes = List.of(
-                Index.builder().namespace(NAMESPACE).bin("intBin1").indexType(IndexType.NUMERIC)
+                Index.builder().namespace(NAMESPACE).bin("intBin1").indexType(IndexType.INTEGER)
                         .binValuesRatio(0).build(),
-                Index.builder().namespace(NAMESPACE).bin("intBin2").indexType(IndexType.NUMERIC)
+                Index.builder().namespace(NAMESPACE).bin("intBin2").indexType(IndexType.INTEGER)
                         .binValuesRatio(1).build()
         );
         Filter filter = Filter.equal("intBin2", 100);
@@ -658,11 +658,11 @@ class InExprTests {
     @Test
     void inAndEqAndGt_binHint_overrides() {
         List<Index> indexes = List.of(
-                Index.builder().namespace(NAMESPACE).bin("intBin1").indexType(IndexType.NUMERIC)
+                Index.builder().namespace(NAMESPACE).bin("intBin1").indexType(IndexType.INTEGER)
                         .binValuesRatio(0).build(),
-                Index.builder().namespace(NAMESPACE).bin("intBin2").indexType(IndexType.NUMERIC)
+                Index.builder().namespace(NAMESPACE).bin("intBin2").indexType(IndexType.INTEGER)
                         .binValuesRatio(10).build(),
-                Index.builder().namespace(NAMESPACE).bin("intBin3").indexType(IndexType.NUMERIC)
+                Index.builder().namespace(NAMESPACE).bin("intBin3").indexType(IndexType.INTEGER)
                         .binValuesRatio(0).build()
         );
         Filter filter = Filter.range("intBin3", 51, Long.MAX_VALUE);
@@ -678,11 +678,11 @@ class InExprTests {
     @Test
     void twoInsAndEq_binHint() {
         List<Index> indexes = List.of(
-                Index.builder().namespace(NAMESPACE).bin("intBin1").indexType(IndexType.NUMERIC)
+                Index.builder().namespace(NAMESPACE).bin("intBin1").indexType(IndexType.INTEGER)
                         .binValuesRatio(0).build(),
-                Index.builder().namespace(NAMESPACE).bin("intBin2").indexType(IndexType.NUMERIC)
+                Index.builder().namespace(NAMESPACE).bin("intBin2").indexType(IndexType.INTEGER)
                         .binValuesRatio(0).build(),
-                Index.builder().namespace(NAMESPACE).bin("intBin3").indexType(IndexType.NUMERIC)
+                Index.builder().namespace(NAMESPACE).bin("intBin3").indexType(IndexType.INTEGER)
                         .binValuesRatio(1).build()
         );
         Filter filter = Filter.equal("intBin3", 100);
@@ -699,9 +699,9 @@ class InExprTests {
     @Test
     void twoIns_binHint_noFilter() {
         List<Index> indexes = List.of(
-                Index.builder().namespace(NAMESPACE).bin("intBin1").indexType(IndexType.NUMERIC)
+                Index.builder().namespace(NAMESPACE).bin("intBin1").indexType(IndexType.INTEGER)
                         .binValuesRatio(0).build(),
-                Index.builder().namespace(NAMESPACE).bin("intBin2").indexType(IndexType.NUMERIC)
+                Index.builder().namespace(NAMESPACE).bin("intBin2").indexType(IndexType.INTEGER)
                         .binValuesRatio(1).build()
         );
         Filter filter = null;
@@ -718,9 +718,9 @@ class InExprTests {
     @Test
     void inAndEq_binHint_noMatch() {
         List<Index> indexes = List.of(
-                Index.builder().namespace(NAMESPACE).bin("intBin1").indexType(IndexType.NUMERIC)
+                Index.builder().namespace(NAMESPACE).bin("intBin1").indexType(IndexType.INTEGER)
                         .binValuesRatio(0).build(),
-                Index.builder().namespace(NAMESPACE).bin("intBin2").indexType(IndexType.NUMERIC)
+                Index.builder().namespace(NAMESPACE).bin("intBin2").indexType(IndexType.INTEGER)
                         .binValuesRatio(1).build()
         );
         Filter filter = Filter.equal("intBin2", 100);
@@ -734,9 +734,9 @@ class InExprTests {
     @Test
     void inAndEq_binHint_null() {
         List<Index> indexes = List.of(
-                Index.builder().namespace(NAMESPACE).bin("intBin1").indexType(IndexType.NUMERIC)
+                Index.builder().namespace(NAMESPACE).bin("intBin1").indexType(IndexType.INTEGER)
                         .binValuesRatio(0).build(),
-                Index.builder().namespace(NAMESPACE).bin("intBin2").indexType(IndexType.NUMERIC)
+                Index.builder().namespace(NAMESPACE).bin("intBin2").indexType(IndexType.INTEGER)
                         .binValuesRatio(1).build()
         );
         Filter filter = Filter.equal("intBin2", 100);
@@ -750,9 +750,9 @@ class InExprTests {
     @Test
     void inAndEq_binHint_nsMismatch() {
         List<Index> indexes = List.of(
-                Index.builder().namespace("other_ns").bin("intBin1").indexType(IndexType.NUMERIC)
+                Index.builder().namespace("other_ns").bin("intBin1").indexType(IndexType.INTEGER)
                         .binValuesRatio(0).build(),
-                Index.builder().namespace(NAMESPACE).bin("intBin2").indexType(IndexType.NUMERIC)
+                Index.builder().namespace(NAMESPACE).bin("intBin2").indexType(IndexType.INTEGER)
                         .binValuesRatio(1).build()
         );
         Filter filter = Filter.equal("intBin2", 100);
@@ -766,11 +766,11 @@ class InExprTests {
     @Test
     void inAndEq_binHint_overridesAlpha() {
         List<Index> indexes = List.of(
-                Index.builder().namespace(NAMESPACE).bin("intBin1").indexType(IndexType.NUMERIC)
+                Index.builder().namespace(NAMESPACE).bin("intBin1").indexType(IndexType.INTEGER)
                         .binValuesRatio(100).build(),
-                Index.builder().namespace(NAMESPACE).bin("intBin2").indexType(IndexType.NUMERIC)
+                Index.builder().namespace(NAMESPACE).bin("intBin2").indexType(IndexType.INTEGER)
                         .binValuesRatio(100).build(),
-                Index.builder().namespace(NAMESPACE).bin("intBin3").indexType(IndexType.NUMERIC)
+                Index.builder().namespace(NAMESPACE).bin("intBin3").indexType(IndexType.INTEGER)
                         .binValuesRatio(100).build()
         );
         Filter filter = Filter.range("intBin3", 51, Long.MAX_VALUE);
@@ -788,11 +788,11 @@ class InExprTests {
     @Test
     void inAndEqAndGt_binHint_onInBin() {
         List<Index> indexes = List.of(
-                Index.builder().namespace(NAMESPACE).bin("intBin1").indexType(IndexType.NUMERIC)
+                Index.builder().namespace(NAMESPACE).bin("intBin1").indexType(IndexType.INTEGER)
                         .binValuesRatio(0).build(),
-                Index.builder().namespace(NAMESPACE).bin("intBin2").indexType(IndexType.NUMERIC)
+                Index.builder().namespace(NAMESPACE).bin("intBin2").indexType(IndexType.INTEGER)
                         .binValuesRatio(1).build(),
-                Index.builder().namespace(NAMESPACE).bin("intBin3").indexType(IndexType.NUMERIC)
+                Index.builder().namespace(NAMESPACE).bin("intBin3").indexType(IndexType.INTEGER)
                         .binValuesRatio(0).build()
         );
         Filter filter = Filter.equal("intBin2", 100);
@@ -808,11 +808,11 @@ class InExprTests {
     @Test
     void twoInsAndLt_binHint_onInBin() {
         List<Index> indexes = List.of(
-                Index.builder().namespace(NAMESPACE).bin("intBin1").indexType(IndexType.NUMERIC)
+                Index.builder().namespace(NAMESPACE).bin("intBin1").indexType(IndexType.INTEGER)
                         .binValuesRatio(0).build(),
-                Index.builder().namespace(NAMESPACE).bin("intBin2").indexType(IndexType.NUMERIC)
+                Index.builder().namespace(NAMESPACE).bin("intBin2").indexType(IndexType.INTEGER)
                         .binValuesRatio(0).build(),
-                Index.builder().namespace(NAMESPACE).bin("intBin3").indexType(IndexType.NUMERIC)
+                Index.builder().namespace(NAMESPACE).bin("intBin3").indexType(IndexType.INTEGER)
                         .binValuesRatio(1).build()
         );
         Filter filter = Filter.range("intBin3", Long.MIN_VALUE, 49);
@@ -831,9 +831,9 @@ class InExprTests {
     @Test
     void inOrEq_binHint_noFilter() {
         List<Index> indexes = List.of(
-                Index.builder().namespace(NAMESPACE).bin("intBin1").indexType(IndexType.NUMERIC)
+                Index.builder().namespace(NAMESPACE).bin("intBin1").indexType(IndexType.INTEGER)
                         .binValuesRatio(0).build(),
-                Index.builder().namespace(NAMESPACE).bin("intBin2").indexType(IndexType.NUMERIC)
+                Index.builder().namespace(NAMESPACE).bin("intBin2").indexType(IndexType.INTEGER)
                         .binValuesRatio(1).build()
         );
         Filter filter = null;
@@ -849,11 +849,11 @@ class InExprTests {
     @Test
     void orInAndGt_binHint_onOrInBin() {
         List<Index> indexes = List.of(
-                Index.builder().namespace(NAMESPACE).bin("intBin1").indexType(IndexType.NUMERIC)
+                Index.builder().namespace(NAMESPACE).bin("intBin1").indexType(IndexType.INTEGER)
                         .binValuesRatio(0).build(),
-                Index.builder().namespace(NAMESPACE).bin("intBin2").indexType(IndexType.NUMERIC)
+                Index.builder().namespace(NAMESPACE).bin("intBin2").indexType(IndexType.INTEGER)
                         .binValuesRatio(1).build(),
-                Index.builder().namespace(NAMESPACE).bin("intBin3").indexType(IndexType.NUMERIC)
+                Index.builder().namespace(NAMESPACE).bin("intBin3").indexType(IndexType.INTEGER)
                         .binValuesRatio(0).build()
         );
         Filter filter = Filter.range("intBin3", 51, Long.MAX_VALUE);

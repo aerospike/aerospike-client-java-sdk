@@ -16,14 +16,17 @@
  */
 package com.aerospike.client.sdk.query;
 
+import com.aerospike.client.sdk.info.annotations.Alias;
+
 /**
  * Underlying data type of secondary index.
  */
 public enum IndexType {
 	/**
-	 * Number index.
+	 * Integer index.
 	 */
-	NUMERIC,
+    @Alias({"numeric"})
+	INTEGER,
 
 	/**
 	 * String index.
@@ -39,4 +42,8 @@ public enum IndexType {
 	 * 2-dimensional spherical geospatial index.
 	 */
 	GEO2DSPHERE;
+
+    public static IndexType fromString(String value) {
+        return IndexType.valueOf(value.trim().toUpperCase());
+    }
 }

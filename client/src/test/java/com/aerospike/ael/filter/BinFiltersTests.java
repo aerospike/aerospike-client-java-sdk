@@ -34,7 +34,7 @@ public class BinFiltersTests {
 
     String NAMESPACE = "test1";
     List<com.aerospike.ael.Index> INDEXES = List.of(
-            Index.builder().namespace(NAMESPACE).bin("intBin1").indexType(IndexType.NUMERIC).binValuesRatio(1).build(),
+            Index.builder().namespace(NAMESPACE).bin("intBin1").indexType(IndexType.INTEGER).binValuesRatio(1).build(),
             Index.builder().namespace(NAMESPACE).bin("stringBin1").indexType(IndexType.STRING).binValuesRatio(1).build()
     );
     IndexContext INDEX_FILTER_INPUT = IndexContext.of(NAMESPACE, INDEXES);
@@ -62,8 +62,8 @@ public class BinFiltersTests {
     @Test
     void binGT_logical_combinations() {
         List<Index> indexes = List.of(
-                Index.builder().namespace(NAMESPACE).bin("intBin1").indexType(IndexType.NUMERIC).binValuesRatio(0).build(),
-                Index.builder().namespace(NAMESPACE).bin("intBin2").indexType(IndexType.NUMERIC).binValuesRatio(1).build()
+                Index.builder().namespace(NAMESPACE).bin("intBin1").indexType(IndexType.INTEGER).binValuesRatio(0).build(),
+                Index.builder().namespace(NAMESPACE).bin("intBin2").indexType(IndexType.INTEGER).binValuesRatio(1).build()
         );
         parseFilterAndCompare(ExpressionContext.of("$.intBin1 > 100 and $.intBin2 < 1000"), IndexContext.of(NAMESPACE, indexes),
                 Filter.range("intBin2", Long.MIN_VALUE, 999));

@@ -27,7 +27,6 @@ import com.aerospike.client.sdk.ResultCode;
 import com.aerospike.client.sdk.Value;
 import com.aerospike.client.sdk.cdt.CTX;
 import com.aerospike.client.sdk.command.Info;
-import com.aerospike.client.sdk.info.classes.IndexType;
 import com.aerospike.client.sdk.task.IndexTask;
 
 public class QueryIndexTest extends ClusterTest {

@@ -16,13 +16,13 @@
  */
 package com.aerospike.client.sdk.query;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -35,7 +35,6 @@ import com.aerospike.client.sdk.Record;
 import com.aerospike.client.sdk.RecordStream;
 import com.aerospike.client.sdk.ResultCode;
 import com.aerospike.client.sdk.command.Buffer;
-import com.aerospike.client.sdk.info.classes.IndexType;
 
 public class QueryBlobTest extends ClusterTest {
 	private static final String setName = "queryblob";

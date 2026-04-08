@@ -23,9 +23,11 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
-import com.aerospike.client.sdk.*;
+import com.aerospike.client.sdk.AerospikeException;
+import com.aerospike.client.sdk.ClusterTest;
 import com.aerospike.client.sdk.Record;
-import com.aerospike.client.sdk.info.classes.IndexType;
+import com.aerospike.client.sdk.RecordStream;
+import com.aerospike.client.sdk.ResultCode;
 
 public class QueryStringTest extends ClusterTest {
 	private static final String indexName = "queryindex";

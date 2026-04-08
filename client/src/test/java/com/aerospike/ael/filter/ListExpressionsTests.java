@@ -34,7 +34,7 @@ class ListExpressionsTests {
 
     String NAMESPACE = "test1";
     List<Index> INDEXES = List.of(
-            Index.builder().namespace(NAMESPACE).bin("listBin1").indexType(IndexType.NUMERIC).binValuesRatio(0).build(),
+            Index.builder().namespace(NAMESPACE).bin("listBin1").indexType(IndexType.INTEGER).binValuesRatio(0).build(),
             Index.builder().namespace(NAMESPACE).bin("listBin1").indexType(IndexType.STRING)
                     .binValuesRatio(0).indexCollectionType(LIST).build(),
             Index.builder().namespace(NAMESPACE).bin("listBin1").indexType(IndexType.STRING)

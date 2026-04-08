@@ -41,7 +41,6 @@ import com.aerospike.client.sdk.exp.Exp;
 import com.aerospike.client.sdk.exp.Expression;
 import com.aerospike.client.sdk.exp.ListExp;
 import com.aerospike.client.sdk.exp.MapExp;
-import com.aerospike.client.sdk.info.classes.IndexType;
 
 public class QueryFilterExpTest extends ClusterTest {
 	private static final String setName = args.set + "flt";

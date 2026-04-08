@@ -37,7 +37,7 @@ public class ExplicitTypesFiltersTests {
 
     String NAMESPACE = "test1";
     List<Index> INDEXES = List.of(
-            Index.builder().namespace("test1").bin("intBin1").indexType(IndexType.NUMERIC).binValuesRatio(1).build(),
+            Index.builder().namespace("test1").bin("intBin1").indexType(IndexType.INTEGER).binValuesRatio(1).build(),
             Index.builder().namespace("test1").bin("stringBin1").indexType(IndexType.STRING).binValuesRatio(1).build(),
             Index.builder().namespace("test1").bin("blobBin1").indexType(IndexType.BLOB).binValuesRatio(1).build()
     );

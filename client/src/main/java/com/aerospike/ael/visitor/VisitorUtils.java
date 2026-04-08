@@ -77,7 +77,7 @@ public class VisitorUtils {
     }
 
     private final Map<Exp.Type, IndexType> expTypeToIndexType = Map.of(
-            Exp.Type.INT, IndexType.NUMERIC,
+            Exp.Type.INT, IndexType.INTEGER,
             Exp.Type.STRING, IndexType.STRING,
             Exp.Type.BLOB, IndexType.BLOB
     );
