@@ -176,9 +176,38 @@ public interface CdtReadContextInvertableBuilder<T> extends CdtReadActionInverta
     CdtReadActionInvertableBuilder<T> onListValueRelativeRankRange(SpecialValue value, int rank, int count);
 
     // Read-only terminal operations
+
     /**
      * Get the size of the map at the current CDT path.
      * @return the parent builder for method chaining
      */
     T mapSize();
+
+    /**
+     * Get the number of elements in the list at the current CDT path.
+     * @return the parent builder for method chaining
+     */
+    T listSize();
+
+    /**
+     * Read the element at {@code index} from the list at the current CDT path.
+     * @param index list index (0-based)
+     * @return the parent builder for method chaining
+     */
+    T listGet(int index);
+
+    /**
+     * Read from {@code index} through the end of the list at the current CDT path.
+     * @param index start index (0-based)
+     * @return the parent builder for method chaining
+     */
+    T listGetRange(int index);
+
+    /**
+     * Read {@code count} elements starting at {@code index} from the list at the current CDT path.
+     * @param index start index (0-based)
+     * @param count number of elements
+     * @return the parent builder for method chaining
+     */
+    T listGetRange(int index, int count);
 }

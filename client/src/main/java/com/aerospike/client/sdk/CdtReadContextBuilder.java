@@ -32,8 +32,8 @@ import com.aerospike.client.sdk.cdt.ListOrder;
  * <p>Key differences from read/write version:</p>
  * <ul>
  *   <li>{@code onMapKey()} returns {@link CdtReadContextBuilder} instead of a setter builder</li>
- *   <li>No {@code mapClear()}, {@code listAppend()}, {@code listAdd()} methods</li>
- *   <li>Only {@code mapSize()} is available as a terminal read operation</li>
+ *   <li>No write operations ({@code mapClear()}, {@code listAppend()}, {@code listAdd()}, etc.)</li>
+ *   <li>Read-only terminals: {@code mapSize()}, {@code listSize()}, {@code listGet()}, {@code listGetRange()}</li>
  * </ul>
  *
  * <p>Example:</p>
@@ -189,11 +189,38 @@ public interface CdtReadContextBuilder<T> extends CdtReadActionBuilder<T> {
     CdtReadActionInvertableBuilder<T> onListValueRelativeRankRange(SpecialValue value, int rank, int count);
 
     // Read-only terminal operations
+
     /**
      * Get the size of the map at the current CDT path.
      * @return the parent builder for method chaining
      */
     T mapSize();
-    
-    // Note: mapClear(), listAppend(), listAdd() are NOT available - these are write operations
+
+    /**
+     * Get the number of elements in the list at the current CDT path.
+     * @return the parent builder for method chaining
+     */
+    T listSize();
+
+    /**
+     * Read the element at {@code index} from the list at the current CDT path.
+     * @param index list index (0-based)
+     * @return the parent builder for method chaining
+     */
+    T listGet(int index);
+
+    /**
+     * Read from {@code index} through the end of the list at the current CDT path.
+     * @param index start index (0-based)
+     * @return the parent builder for method chaining
+     */
+    T listGetRange(int index);
+
+    /**
+     * Read {@code count} elements starting at {@code index} from the list at the current CDT path.
+     * @param index start index (0-based)
+     * @param count number of elements
+     * @return the parent builder for method chaining
+     */
+    T listGetRange(int index, int count);
 }

@@ -22,7 +22,9 @@ import java.util.function.Consumer;
 
 import com.aerospike.client.sdk.CdtGetOrRemoveBuilder.CdtOperation;
 import com.aerospike.client.sdk.ael.BooleanExpression;
+import com.aerospike.client.sdk.cdt.ListOperation;
 import com.aerospike.client.sdk.cdt.ListOrder;
+import com.aerospike.client.sdk.cdt.MapOperation;
 import com.aerospike.client.sdk.exp.Exp;
 import com.aerospike.client.sdk.exp.ExpReadFlags;
 import com.aerospike.client.sdk.exp.Expression;
@@ -79,6 +81,60 @@ public class QueryBinBuilder implements CdtOperationAcceptor<ChainableQueryBuild
      */
     public ChainableQueryBuilder get() {
         queryBuilder.addOperation(Operation.get(binName));
+        return queryBuilder;
+    }
+
+    /**
+     * Read the number of entries in the map bin.
+     *
+     * @return the query builder for method chaining
+     */
+    public ChainableQueryBuilder mapSize() {
+        queryBuilder.addOperation(MapOperation.size(binName));
+        return queryBuilder;
+    }
+
+    /**
+     * Read the number of elements in the list bin.
+     *
+     * @return the query builder for method chaining
+     */
+    public ChainableQueryBuilder listSize() {
+        queryBuilder.addOperation(ListOperation.size(binName));
+        return queryBuilder;
+    }
+
+    /**
+     * Read the element at {@code index} from the list bin.
+     *
+     * @param index list index (0-based)
+     * @return the query builder for method chaining
+     */
+    public ChainableQueryBuilder listGet(int index) {
+        queryBuilder.addOperation(ListOperation.get(binName, index));
+        return queryBuilder;
+    }
+
+    /**
+     * Read from {@code index} through the end of the list bin.
+     *
+     * @param index start index (0-based)
+     * @return the query builder for method chaining
+     */
+    public ChainableQueryBuilder listGetRange(int index) {
+        queryBuilder.addOperation(ListOperation.getRange(binName, index));
+        return queryBuilder;
+    }
+
+    /**
+     * Read {@code count} elements starting at {@code index} from the list bin.
+     *
+     * @param index start index (0-based)
+     * @param count number of elements
+     * @return the query builder for method chaining
+     */
+    public ChainableQueryBuilder listGetRange(int index, int count) {
+        queryBuilder.addOperation(ListOperation.getRange(binName, index, count));
         return queryBuilder;
     }
 

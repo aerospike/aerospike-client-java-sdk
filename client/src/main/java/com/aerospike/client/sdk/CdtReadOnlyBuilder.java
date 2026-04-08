@@ -861,7 +861,36 @@ public class CdtReadOnlyBuilder<T> implements CdtReadContextBuilder<T>,
     /** {@inheritDoc} */
     @Override
     public T mapSize() {
+        params.pushCurrentToContext();
         return addOpAndReturn(MapOperation.size(binName, params.context()));
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public T listSize() {
+        params.pushCurrentToContext();
+        return addOpAndReturn(ListOperation.size(binName, params.context()));
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public T listGet(int index) {
+        params.pushCurrentToContext();
+        return addOpAndReturn(ListOperation.get(binName, index, params.context()));
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public T listGetRange(int index) {
+        params.pushCurrentToContext();
+        return addOpAndReturn(ListOperation.getRange(binName, index, params.context()));
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public T listGetRange(int index, int count) {
+        params.pushCurrentToContext();
+        return addOpAndReturn(ListOperation.getRange(binName, index, count, params.context()));
     }
 
     // ========================================

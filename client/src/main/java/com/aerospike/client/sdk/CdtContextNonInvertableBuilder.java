@@ -190,6 +190,11 @@ public interface CdtContextNonInvertableBuilder<T extends AbstractOperationBuild
     public T mapClear();
     public T mapSize();
 
+    public T listSize();
+    public T listGet(int index);
+    public T listGetRange(int index);
+    public T listGetRange(int index, int count);
+
     // listAppend -- unordered list
     public T listAppend(long value);
     public T listAppend(String value);
@@ -221,5 +226,60 @@ public interface CdtContextNonInvertableBuilder<T extends AbstractOperationBuild
     public T listAdd(byte[] value, Consumer<ListEntryWriteOptions> options);
     public T listAdd(List<?> value, Consumer<ListEntryWriteOptions> options);
     public T listAdd(Map<?,?> value, Consumer<ListEntryWriteOptions> options);
+
+    // listAppendItems / listAddItems -- bulk list operations
+    public T listAppendItems(List<?> items);
+    public T listAppendItems(List<?> items, Consumer<ListBulkWriteOptions> options);
+    public T listAddItems(List<?> items);
+    public T listAddItems(List<?> items, Consumer<ListBulkWriteOptions> options);
+
+    // list structural operations
+    public T listClear();
+    public T listSort();
+    public T listSort(int sortFlags);
+    public T listCreate(ListOrder order);
+    public T listCreate(ListOrder order, Consumer<ListCreateOptions> options);
+    public T listSetOrder(ListOrder order);
+    public T listSetOrder(ListOrder order, boolean persistIndex);
+
+    // list index-based write operations
+    public T listInsert(int index, long value);
+    public T listInsert(int index, String value);
+    public T listInsert(int index, double value);
+    public T listInsert(int index, boolean value);
+    public T listInsert(int index, byte[] value);
+    public T listInsertItems(int index, List<?> items);
+    public T listInsertItems(int index, List<?> items, Consumer<ListBulkWriteOptions> options);
+    public T listSet(int index, long value);
+    public T listSet(int index, String value);
+    public T listSet(int index, double value);
+    public T listSet(int index, boolean value);
+    public T listSet(int index, byte[] value);
+    public T listIncrement(int index);
+    public T listIncrement(int index, long value);
+    public T listIncrement(int index, double value);
+
+    // list index-based remove operations
+    public T listRemove(int index);
+    public T listRemoveRange(int index);
+    public T listRemoveRange(int index, int count);
+    public T listPop(int index);
+    public T listPopRange(int index);
+    public T listPopRange(int index, int count);
+    public T listTrim(int index, int count);
+
+    // map structural / policy operations
+    public T mapCreate(MapOrder order);
+    public T mapCreate(MapOrder order, boolean persistIndex);
+    public T mapSetPolicy(MapOrder order);
+    public T mapSetPolicy(MapOrder order, boolean persistIndex);
+
+    // bulk map write operations
+    public T mapUpsertItems(Map<?, ?> items);
+    public T mapUpsertItems(Map<?, ?> items, Consumer<MapBulkWriteOptions> options);
+    public T mapInsertItems(Map<?, ?> items);
+    public T mapInsertItems(Map<?, ?> items, Consumer<MapBulkWriteOptions> options);
+    public T mapUpdateItems(Map<?, ?> items);
+    public T mapUpdateItems(Map<?, ?> items, Consumer<MapBulkWriteOptions> options);
 
 }
