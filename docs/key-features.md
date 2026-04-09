@@ -325,7 +325,8 @@ session
 
 The Aerospike Expression Language is a text-based filter syntax that
 compiles to server-side filter expressions. It can be used anywhere a
-`where` clause is accepted.
+`where` clause is accepted. For the full language reference, see the
+[AEL Documentation](ael-documentation.md).
 
 ```java
 // String-based AEL
@@ -374,7 +375,7 @@ session.query(users)
 ### Prepared AEL (parameterised)
 
 ```java
-PreparedDsl prepared = PreparedDsl.of("$.age > ?1 and $.city == ?2");
+PreparedAel prepared = new PreparedAel("$.age > $1 and $.city == $2");
 session.query(users)
     .where(prepared, 30, "London")
     .execute();
@@ -429,14 +430,19 @@ session.query(users.id("alice"))
     .bin("scores").onMapRank(-1).getValues()
     .execute();
 
-// Remove by key
+// Remove by key (fire-and-forget, no return data)
 session.upsert(users.id("alice"))
-    .bin("prefs").onMapKey("oldSetting").removeValues()
+    .bin("prefs").onMapKey("oldSetting").remove()
     .execute();
 
-// Map put
+// Remove by key and return the removed value
 session.upsert(users.id("alice"))
-    .bin("prefs").mapPut("notifications", true)
+    .bin("prefs").onMapKey("oldSetting").removeAnd().getValues()
+    .execute();
+
+// Set a map entry
+session.upsert(users.id("alice"))
+    .bin("prefs").onMapKey("notifications").upsert(true)
     .execute();
 
 // Increment a map value
@@ -475,7 +481,7 @@ session.upsert(users.id("alice"))
 
 // Remove by index range
 session.upsert(users.id("alice"))
-    .bin("scores").onListIndexRange(0, 2).removeValues()
+    .bin("scores").onListIndexRange(0, 2).remove()
     .execute();
 ```
 
@@ -487,7 +493,7 @@ on all elements *not* matching the selection:
 ```java
 // Count scores in range 90–100
 session.query(users.id("alice"))
-    .bin("scores").onListValueRange(90, 100).getCount()
+    .bin("scores").onListValueRange(90, 100).count()
     .execute();
 
 // Count all scores OUTSIDE that range
@@ -535,12 +541,12 @@ session.query(users.id("alice"))
 
 // Return count
 session.query(users.id("alice"))
-    .bin("scores").onListValueRange(90, 100).getCount()
+    .bin("scores").onListValueRange(90, 100).count()
     .execute();
 
-// Return index
+// Return indexes
 session.query(users.id("alice"))
-    .bin("scores").onListValue(95).getIndex()
+    .bin("scores").onListValue(95).getIndexes()
     .execute();
 ```
 
@@ -568,7 +574,9 @@ for (RecordResult result : rs) {
 ### Pagination and sorting
 
 Use `NavigatableRecordStream` for page-based iteration with client-side
-sorting:
+sorting. **Note:** sorting and pagination require the entire result set to
+be buffered in memory on the client. Use `limit()` to cap the result set
+size and ensure it fits within available heap:
 
 ```java
 RecordStream rs = session.query(users)

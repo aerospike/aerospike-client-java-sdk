@@ -1,425 +1,550 @@
-# API Properties Analysis
+# API Builder Reference
 
-This document catalogs all configurable properties available on Session methods and their builders, showing the path to each attribute and verifying property propagation.
+This document shows the valid method calls at each level of the SDK's fluent API
+and how the builders chain together.
 
-**Last Updated:** All property propagation issues resolved
+## API Flow
 
-**Status:** ✅ All identified issues have been fixed
+The following diagram shows how builders connect. Each box is a builder type; each
+arrow is a method call that transitions to the next builder.
 
-## Entry Points from Session
+```mermaid
+flowchart LR
+    S([Session])
 
-### Write Operations (Key-based)
-| Method | Returns | Description |
-|--------|---------|-------------|
-| `session.insert(Key)` | `ChainableOperationBuilder` | Insert single key |
-| `session.insert(List<Key>)` | `ChainableOperationBuilder` | Insert multiple keys |
-| `session.insert(Key, Key, Key...)` | `ChainableOperationBuilder` | Insert varargs keys |
-| `session.update(Key)` | `ChainableOperationBuilder` | Update single key |
-| `session.update(List<Key>)` | `ChainableOperationBuilder` | Update multiple keys |
-| `session.update(Key, Key, Key...)` | `ChainableOperationBuilder` | Update varargs keys |
-| `session.upsert(Key)` | `ChainableOperationBuilder` | Upsert single key |
-| `session.upsert(List<Key>)` | `ChainableOperationBuilder` | Upsert multiple keys |
-| `session.upsert(Key, Key, Key...)` | `ChainableOperationBuilder` | Upsert varargs keys |
-| `session.replace(Key)` | `ChainableOperationBuilder` | Replace single key |
-| `session.replace(List<Key>)` | `ChainableOperationBuilder` | Replace multiple keys |
-| `session.replace(Key, Key, Key...)` | `ChainableOperationBuilder` | Replace varargs keys |
-| `session.replaceIfExists(Key)` | `ChainableOperationBuilder` | Replace if exists single key |
-| `session.replaceIfExists(List<Key>)` | `ChainableOperationBuilder` | Replace if exists multiple keys |
-| `session.replaceIfExists(Key, Key, Key...)` | `ChainableOperationBuilder` | Replace if exists varargs keys |
+    S -- "upsert / insert / update\nreplace / replaceIfExists" --> COB[ChainableOperationBuilder]
+    S -- "delete / touch / exists" --> CNB[ChainableNoBinsBuilder]
+    S -- "query(Key)" --> CQB[ChainableQueryBuilder]
+    S -- "query(DataSet)" --> QB[QueryBuilder]
+    S -- "executeUdf(Key)" --> UFB[UdfFunctionBuilder]
+    S -- "backgroundTask()" --> BTS([BackgroundTaskSession])
 
-### No-Bins Operations (Key-based)
-| Method | Returns | Description |
-|--------|---------|-------------|
-| `session.touch(Key)` | `ChainableNoBinsBuilder` | Touch single key |
-| `session.touch(List<Key>)` | `ChainableNoBinsBuilder` | Touch multiple keys |
-| `session.touch(Key, Key, Key...)` | `ChainableNoBinsBuilder` | Touch varargs keys |
-| `session.exists(Key)` | `ChainableNoBinsBuilder` | Check exists single key |
-| `session.exists(List<Key>)` | `ChainableNoBinsBuilder` | Check exists multiple keys |
-| `session.exists(Key, Key, Key...)` | `ChainableNoBinsBuilder` | Check exists varargs keys |
-| `session.delete(Key)` | `ChainableNoBinsBuilder` | Delete single key |
-| `session.delete(List<Key>)` | `ChainableNoBinsBuilder` | Delete multiple keys |
-| `session.delete(Key, Key, Key...)` | `ChainableNoBinsBuilder` | Delete varargs keys |
+    UFB -- ".function(pkg, fn)" --> CUB[ChainableUdfBuilder]
 
-### Query Operations (Key-based)
-| Method | Returns | Description |
-|--------|---------|-------------|
-| `session.query(Key)` | `ChainableQueryBuilder` | Query single key |
-| `session.query(List<Key>)` | `ChainableQueryBuilder` | Query multiple keys |
-| `session.query(Key, Key, Key...)` | `ChainableQueryBuilder` | Query varargs keys |
+    BTS -- "update / delete / touch" --> BOB[BackgroundOperationBuilder]
+    BTS -- "executeUdf" --> BUFB[BackgroundUdfFunctionBuilder]
+    BUFB -- ".function(pkg, fn)" --> BUB[BackgroundUdfBuilder]
 
-### Dataset Operations
-| Method | Returns | Description |
-|--------|---------|-------------|
-| `session.query(DataSet)` | `QueryBuilder` | Scan/index query on dataset |
-| `session.insert(DataSet)` | `OperationObjectBuilder` | Insert objects into dataset |
-| `session.upsert(DataSet)` | `OperationObjectBuilder` | Upsert objects into dataset |
-| `session.update(DataSet)` | `OperationObjectBuilder` | Update objects in dataset |
-| `session.insert(TypeSafeDataSet<T>)` | `OperationObjectBuilder<T>` | Type-safe insert |
-| `session.upsert(TypeSafeDataSet<T>)` | `OperationObjectBuilder<T>` | Type-safe upsert |
-| `session.update(TypeSafeDataSet<T>)` | `OperationObjectBuilder<T>` | Type-safe update |
+    COB -- ".bin(name)" --> BB[BinBuilder]
+    COB -- ".bins(names)" --> BVB[BinsValuesBuilder]
 
-### Background Operations
-| Method | Returns | Description |
-|--------|---------|-------------|
-| `BackgroundTaskSession.upsert(DataSet)` | `BackgroundOperationBuilder` | Background upsert |
-| `BackgroundTaskSession.update(DataSet)` | `BackgroundOperationBuilder` | Background update |
-| `BackgroundTaskSession.delete(DataSet)` | `BackgroundOperationBuilder` | Background delete |
+    CQB -- ".bin(name)" --> QBB[QueryBinBuilder]
+
+    COB -- "upsert / insert / ..." --> COB
+    COB -- "delete / touch / exists" --> CNB
+    COB -- "query" --> CQB
+    COB -- "executeUdf" --> UFB
+
+    CNB -- "upsert / insert / ..." --> COB
+    CNB -- "delete / touch / exists" --> CNB
+    CNB -- "query" --> CQB
+    CNB -- "executeUdf" --> UFB
+
+    CQB -- "upsert / insert / ..." --> COB
+    CQB -- "delete / touch / exists" --> CNB
+    CQB -- "query" --> CQB
+    CQB -- "executeUdf" --> UFB
+
+    CUB -- "upsert / insert / ..." --> COB
+    CUB -- "delete / touch / exists" --> CNB
+    CUB -- "query" --> CQB
+    CUB -- "executeUdf" --> UFB
+
+    COB -- ".execute()" --> RS([RecordStream])
+    CNB -- ".execute()" --> RS
+    CQB -- ".execute()" --> RS
+    CUB -- ".execute()" --> RS
+    BVB -- ".execute()" --> RS
+    QB -- ".execute()" --> RS
+    BOB -- ".execute()" --> ET([ExecuteTask])
+    BUB -- ".execute()" --> ET
+```
+
+## CDT Operation Flow
+
+When you call `.bin(name)` on a write or query builder, you enter the CDT
+navigation chain. The return type of each navigation method determines what you
+can do next.
+
+```mermaid
+flowchart LR
+    BB[BinBuilder] -- ".setTo / .add\n.selectFrom / .get\n.upsertFrom / .append / .prepend" --> T([Parent builder])
+
+    BB -- ".onMapKey" --> SET[CdtSetter*]
+    BB -- ".onMapIndex\n.onMapRank\n.onListIndex\n.onListRank" --> CTX_NI[CdtContext\nNonInvertable]
+    BB -- ".onMapValue\n.onMapKeyList\n.onMapValueList\n.onListValue\n.onListValueList" --> CTX_I[CdtContext\nInvertable]
+    BB -- ".onMapKeyRange\n.onMapValueRange\n.onMapIndexRange\n.onMapRankRange\n.onListIndexRange\n.onListRankRange\n.onListValueRange\n..RelativeRankRange" --> ACT_I[CdtAction\nInvertable]
+
+    BB -- "listAppend / listAdd\nlistInsert / listSet\nlistSort / listClear\nmapClear / mapSize\nmapUpsertItems / ..." --> T
+
+    SET -- ".setTo / .insert\n.update / .upsert / .add" --> T
+    SET -- "navigate further\n(same as BinBuilder)" --> CTX_NI & CTX_I & ACT_I
+
+    CTX_NI -- "navigate further" --> SET & CTX_NI & CTX_I & ACT_I
+    CTX_I -- "navigate further" --> SET & CTX_NI & CTX_I & ACT_I
+
+    CTX_NI -- ".getValues / .getKeys\n.count / .remove\n.getIndexes / .getRanks\n.exists" --> T
+    CTX_NI -- ".removeAnd()" --> RRB[RemoveResultBuilder]
+    CTX_I -- "same actions\n+ .getAllOtherValues\n+ .countAllOthers\n+ .removeAllOthers\n+ ..." --> T
+    CTX_I -- ".removeAnd()\n.removeAllOthersAnd()" --> RRB
+    ACT_I -- "same actions as\nCdtContextInvertable" --> T
+    ACT_I -- ".removeAnd()\n.removeAllOthersAnd()" --> RRB
+
+    RRB -- ".getValues / .getKeys\n.count / .getIndexes\n.getRanks / ..." --> T
+```
+
+**Key:** `CdtSetter*`, `CdtContext*`, and `CdtAction*` each come in two flavours —
+`NonInvertable` (single-element selectors like `onMapKey`, `onMapIndex`) and
+`Invertable` (multi-element selectors like `onMapKeyRange`, `onListValue`).
+The invertable variants add `getAllOther*` and `removeAllOthers*` methods.
 
 ---
 
 ## Properties by Builder Type
 
-### ChainableOperationBuilder Properties
+### ChainableOperationBuilder
 
 ```
 session.upsert(key)
-    ├── .bin(name).setTo(value)          // Bin operations
-    ├── .bins(name, ...).values(...)     // Bulk bin pattern → BinsValuesBuilder
+    ├── .bin(name)                        → BinBuilder
+    ├── .bins(name, ...)                  → BinsValuesBuilder
     │
-    ├── .expireRecordAfter(Duration)     // Per-record expiration
-    ├── .expireRecordAfterSeconds(int)   // Per-record expiration
-    ├── .expireRecordAt(Date)            // Per-record expiration
-    ├── .expireRecordAt(LocalDateTime)   // Per-record expiration
-    ├── .withNoChangeInExpiration()      // TTL = -2
-    ├── .neverExpire()                   // TTL = -1
-    ├── .expiryFromServerDefault()       // TTL = 0
+    ├── .expireRecordAfter(Duration)      // Per-record expiration
+    ├── .expireRecordAfterSeconds(int)
+    ├── .expireRecordAt(Date)
+    ├── .expireRecordAt(LocalDateTime)
+    ├── .withNoChangeInExpiration()
+    ├── .neverExpire()
+    ├── .expiryFromServerDefault()
     │
-    ├── .ensureGenerationIs(int)         // Generation check
+    ├── .defaultExpireRecordAfter(Duration)     // Default expiration for batch
+    ├── .defaultExpireRecordAfterSeconds(long)
+    ├── .defaultExpireRecordAt(LocalDateTime)
+    ├── .defaultExpireRecordAt(Date)
+    ├── .defaultNeverExpire()
+    ├── .defaultNoChangeInExpiration()
+    ├── .defaultExpiryFromServerDefault()
     │
-    ├── .where(String, Object...)        // Filter expression
-    ├── .where(BooleanExpression)        // Filter expression
-    ├── .where(PreparedAel, Object...)   // Filter expression
-    ├── .where(Exp)                      // Filter expression
-    ├── .where(Expression)               // Filter expression
+    ├── .ensureGenerationIs(int)
     │
-    ├── .failOnFilteredOut()             // Fail if filtered
-    ├── .includeMissingKeys()                // Include all keys in response
+    ├── .where(String, Object...)         // Per-operation filter
+    ├── .where(BooleanExpression)
+    ├── .where(PreparedAel, Object...)
+    ├── .where(Exp)
+    ├── .where(Expression)
     │
-    ├── .notInAnyTransaction()           // Override session transaction
-    ├── .inTransaction(Txn)              // Use specific transaction
-    ├── .sendKey()                       // Send key to server
+    ├── .defaultWhere(String, Object...)  // Default filter for batch
+    ├── .defaultWhere(BooleanExpression)
+    ├── .defaultWhere(PreparedAel, Object...)
+    ├── .defaultWhere(Exp)
     │
-    ├── .delete(key)                     // Chain → ChainableNoBinsBuilder
-    ├── .touch(key)                      // Chain → ChainableNoBinsBuilder
-    ├── .exists(key)                     // Chain → ChainableNoBinsBuilder
-    ├── .query(key)                      // Chain → ChainableQueryBuilder
-    ├── .upsert(key2)                    // Chain another write operation
+    ├── .failOnFilteredOut()
+    ├── .includeMissingKeys()
     │
-    └── .execute()                       // Execute operations
+    ├── .notInAnyTransaction()
+    ├── .inTransaction(Txn)
+    ├── .sendKey()
+    │
+    ├── .upsert(key) / .insert / .update / .replace / .replaceIfExists
+    ├── .delete(key) / .touch / .exists   → ChainableNoBinsBuilder
+    ├── .query(key)                       → ChainableQueryBuilder
+    ├── .executeUdf(key)                  → UdfFunctionBuilder
+    │
+    ├── .execute()                        → RecordStream
+    ├── .execute(ErrorStrategy)           → RecordStream
+    ├── .execute(ErrorHandler)            → RecordStream
+    ├── .executeAsync(ErrorStrategy)      → RecordStream
+    └── .executeAsync(ErrorHandler)       → RecordStream
 ```
 
-### ChainableNoBinsBuilder Properties
+### ChainableNoBinsBuilder
 
 ```
 session.delete(key)
-    ├── .expireRecordAfter(Duration)     // Per-record expiration (for touch)
-    ├── .expireRecordAfterSeconds(int)   // Per-record expiration (for touch)
-    ├── .expireRecordAt(Date)            // Per-record expiration (for touch)
-    ├── .expireRecordAt(LocalDateTime)   // Per-record expiration (for touch)
-    ├── .withNoChangeInExpiration()      // TTL = -2 (for touch)
-    ├── .neverExpire()                   // TTL = -1 (for touch)
+    ├── .expireRecordAfter(Duration)      // Per-record expiration (for touch)
+    ├── .expireRecordAfterSeconds(int)
+    ├── .expireRecordAt(Date)
+    ├── .expireRecordAt(LocalDateTime)
+    ├── .withNoChangeInExpiration()
+    ├── .neverExpire()
+    ├── .expiryFromServerDefault()
     │
-    ├── .ensureGenerationIs(int)         // Generation check
+    ├── .defaultExpireRecordAfter(Duration)
+    ├── .defaultExpireRecordAfterSeconds(long)
+    ├── .defaultExpireRecordAt(LocalDateTime)
+    ├── .defaultExpireRecordAt(Date)
+    ├── .defaultNeverExpire()
+    ├── .defaultNoChangeInExpiration()
+    ├── .defaultExpiryFromServerDefault()
     │
-    ├── .where(String, Object...)        // Filter expression
-    ├── .where(BooleanExpression)        // Filter expression
-    ├── .where(PreparedAel, Object...)   // Filter expression
-    ├── .where(Exp)                      // Filter expression
-    ├── .where(Expression)               // Filter expression
+    ├── .ensureGenerationIs(int)
     │
-    ├── .failOnFilteredOut()             // Fail if filtered
-    ├── .includeMissingKeys()                // Include all keys in response
+    ├── .where(String, Object...)
+    ├── .where(BooleanExpression)
+    ├── .where(PreparedAel, Object...)
+    ├── .where(Exp)
+    ├── .where(Expression)
     │
-    ├── .notInAnyTransaction()           // Override session transaction
-    ├── .inTransaction(Txn)              // Use specific transaction
+    ├── .defaultWhere(String, Object...)
+    ├── .defaultWhere(BooleanExpression)
+    ├── .defaultWhere(PreparedAel, Object...)
+    ├── .defaultWhere(Exp)
     │
-    ├── .durablyDelete()                 // Durable delete (delete only)
+    ├── .failOnFilteredOut()
+    ├── .includeMissingKeys()
     │
-    ├── .delete(key2)                    // Chain another delete
-    ├── .touch(key2)                     // Chain touch
-    ├── .exists(key2)                    // Chain exists
-    ├── .query(key2)                     // Chain → ChainableQueryBuilder
-    ├── .upsert(key2)                    // Chain → ChainableOperationBuilder
+    ├── .notInAnyTransaction()
+    ├── .inTransaction(Txn)
+    ├── .durablyDelete(boolean)
     │
-    └── .execute()                       // Execute operations
+    ├── .upsert(key) / .insert / ...      → ChainableOperationBuilder
+    ├── .delete(key) / .touch / .exists
+    ├── .query(key)                       → ChainableQueryBuilder
+    ├── .executeUdf(key)                  → UdfFunctionBuilder
+    │
+    ├── .execute()                        → RecordStream
+    ├── .execute(ErrorStrategy)           → RecordStream
+    ├── .execute(ErrorHandler)            → RecordStream
+    ├── .executeAsync(ErrorStrategy)      → RecordStream
+    └── .executeAsync(ErrorHandler)       → RecordStream
 ```
 
-### ChainableQueryBuilder Properties
+### ChainableQueryBuilder
 
 ```
 session.query(key)
-    ├── .bins(name, ...)                 // Specify bins to read
-    ├── .readingOnlyBins(name, ...)      // Alias for bins()
-    ├── .withNoBins()                    // Header only
-    ├── .bin(name).get()                 // Read specific bin
-    ├── .bin(name).selectFrom(expr)      // AEL expression read
+    ├── .bins(name, ...)
+    ├── .readingOnlyBins(name, ...)
+    ├── .withNoBins()
+    ├── .bin(name)                        → QueryBinBuilder
+    │       ├── .get()
+    │       └── .selectFrom(expr)
     │
-    ├── .where(String, Object...)        // Filter expression
-    ├── .where(BooleanExpression)        // Filter expression
-    ├── .where(PreparedAel, Object...)   // Filter expression
-    ├── .where(Exp)                      // Filter expression
-    ├── .where(Expression)               // Filter expression
+    ├── .where(String, Object...)
+    ├── .where(BooleanExpression)
+    ├── .where(PreparedAel, Object...)
+    ├── .where(Exp)
+    ├── .where(Expression)
     │
-    ├── .failOnFilteredOut()             // Fail if filtered
-    ├── .includeMissingKeys()                // Include all keys in response
+    ├── .defaultWhere(String, Object...)
+    ├── .defaultWhere(BooleanExpression)
+    ├── .defaultWhere(PreparedAel, Object...)
+    ├── .defaultWhere(Exp)
     │
-    ├── .notInAnyTransaction()           // Override session transaction
-    ├── .inTransaction(Txn)              // Use specific transaction
+    ├── .defaultExpireRecordAfter(Duration)
+    ├── .defaultExpireRecordAfterSeconds(long)
+    ├── .defaultExpireRecordAt(LocalDateTime)
+    ├── .defaultExpireRecordAt(Date)
+    ├── .defaultNeverExpire()
+    ├── .defaultNoChangeInExpiration()
+    ├── .defaultExpiryFromServerDefault()
     │
-    ├── .limit(long)                     // Limit results
-    ├── .onPartition(int)                // Filter by partition
-    ├── .onPartitionRange(int, int)      // Filter by partition range
-    ├── .chunkSize(int)                  // Batch chunk size (no-op for key-based)
+    ├── .failOnFilteredOut()
+    ├── .includeMissingKeys()
     │
-    ├── .query(key2)                     // Chain another query
-    ├── .upsert(key2)                    // Chain → ChainableOperationBuilder
-    ├── .delete(key2)                    // Chain → ChainableNoBinsBuilder
+    ├── .notInAnyTransaction()
+    ├── .inTransaction(Txn)
     │
-    └── .execute()                       // Execute operations
+    ├── .limit(long)
+    ├── .onPartition(int)
+    ├── .onPartitionRange(int, int)
+    ├── .chunkSize(int)
+    │
+    ├── .upsert(key) / .insert / ...      → ChainableOperationBuilder
+    ├── .delete(key) / .touch / .exists   → ChainableNoBinsBuilder
+    ├── .query(key)
+    ├── .executeUdf(key)                  → UdfFunctionBuilder
+    │
+    ├── .execute()                        → RecordStream
+    ├── .execute(ErrorStrategy)           → RecordStream
+    ├── .execute(ErrorHandler)            → RecordStream
+    ├── .executeAsync(ErrorStrategy)      → RecordStream
+    └── .executeAsync(ErrorHandler)       → RecordStream
 ```
 
-### BinsValuesBuilder Properties (from .bins().values())
+### ChainableUdfBuilder
+
+```
+session.executeUdf(key).function("pkg", "fn")
+    ├── .passing(Object...)
+    ├── .passingValues(Value...)
+    ├── .passing(List<?>)
+    ├── .passingValues(List<Value>)
+    │
+    ├── .expireRecordAfter(Duration)
+    ├── .expireRecordAfterSeconds(int)
+    ├── .expireRecordAt(Date)
+    ├── .expireRecordAt(LocalDateTime)
+    ├── .withNoChangeInExpiration()
+    ├── .neverExpire()
+    ├── .expiryFromServerDefault()
+    │
+    ├── .defaultExpireRecordAfter(Duration)
+    ├── .defaultExpireRecordAfterSeconds(long)
+    ├── .defaultExpireRecordAt(LocalDateTime)
+    ├── .defaultExpireRecordAt(Date)
+    ├── .defaultNeverExpire()
+    ├── .defaultNoChangeInExpiration()
+    ├── .defaultExpiryFromServerDefault()
+    │
+    ├── .ensureGenerationIs(int)
+    │
+    ├── .where(String, Object...)
+    ├── .where(BooleanExpression)
+    ├── .where(PreparedAel, Object...)
+    ├── .where(Exp)
+    ├── .where(Expression)
+    │
+    ├── .defaultWhere(String, Object...)
+    ├── .defaultWhere(BooleanExpression)
+    ├── .defaultWhere(PreparedAel, Object...)
+    ├── .defaultWhere(Exp)
+    │
+    ├── .failOnFilteredOut()
+    ├── .includeMissingKeys()
+    │
+    ├── .upsert(key) / .insert / ...      → ChainableOperationBuilder
+    ├── .delete(key) / .touch / .exists   → ChainableNoBinsBuilder
+    ├── .query(key)                       → ChainableQueryBuilder
+    ├── .executeUdf(key)                  → UdfFunctionBuilder
+    │
+    ├── .execute()                        → RecordStream
+    ├── .execute(ErrorStrategy)           → RecordStream
+    ├── .execute(ErrorHandler)            → RecordStream
+    ├── .executeAsync(ErrorStrategy)      → RecordStream
+    └── .executeAsync(ErrorHandler)       → RecordStream
+```
+
+### BinsValuesBuilder
 
 ```
 session.upsert(key).bins("a", "b").values(1, 2)
-    ├── .values(...)                     // Add more values for next key
+    ├── .values(...)                      // Values for next key
     │
-    ├── .ensureGenerationIs(int)         // Per-record generation
-    ├── .expireRecordAfter(Duration)     // Per-record expiration
-    ├── .expireRecordAfterSeconds(int)   // Per-record expiration
-    ├── .expireRecordAt(Date)            // Per-record expiration
-    ├── .expireRecordAt(LocalDateTime)   // Per-record expiration
-    ├── .withNoChangeInExpiration()      // Per-record TTL = -2
-    ├── .neverExpire()                   // Per-record TTL = -1
+    ├── .ensureGenerationIs(int)
+    ├── .expireRecordAfter(Duration)
+    ├── .expireRecordAfterSeconds(int)
+    ├── .expireRecordAt(Date)
+    ├── .expireRecordAt(LocalDateTime)
+    ├── .withNoChangeInExpiration()
+    ├── .neverExpire()
+    ├── .expiryFromServerDefault()
     │
-    ├── .expireAllRecordsAfter(Duration) // Batch expiration (multi-key only)
-    ├── .expireAllRecordsAfterSeconds(long) // Batch expiration
-    ├── .expireAllRecordsAt(LocalDateTime)  // Batch expiration
-    ├── .expireAllRecordsAt(Date)        // Batch expiration
-    ├── .neverExpireAllRecords()         // Batch TTL = -1
-    ├── .withNoChangeInExpirationForAllRecords() // Batch TTL = -2
-    ├── .expiryFromServerDefaultForAllRecords()  // Batch TTL = 0
+    ├── .defaultExpireRecordAfter(Duration)
+    ├── .defaultExpireRecordAfterSeconds(long)
+    ├── .defaultExpireRecordAt(LocalDateTime)
+    ├── .defaultExpireRecordAt(Date)
+    ├── .defaultNeverExpire()
+    ├── .defaultNoChangeInExpiration()
+    ├── .defaultExpiryFromServerDefault()
     │
-    ├── .where(String, Object...)        // Filter expression
-    ├── .where(BooleanExpression)        // Filter expression
-    ├── .where(PreparedAel, Object...)   // Filter expression
-    ├── .where(Exp)                      // Filter expression
-    ├── .where(Expression)               // Filter expression
+    ├── .where(String, Object...)
+    ├── .where(BooleanExpression)
+    ├── .where(PreparedAel, Object...)
+    ├── .where(Exp)
+    ├── .where(Expression)
     │
-    ├── .failOnFilteredOut()             // Fail if filtered
-    ├── .includeMissingKeys()                // Include all keys in response
+    ├── .failOnFilteredOut()
+    ├── .includeMissingKeys()
     │
-    ├── .notInAnyTransaction()           // Override session transaction
-    ├── .inTransaction(Txn)              // Use specific transaction
+    ├── .notInAnyTransaction()
+    ├── .inTransaction(Txn)
     │
-    └── .execute()                       // Execute operations
+    ├── .execute()                        → RecordStream
+    ├── .execute(ErrorStrategy)           → RecordStream
+    ├── .execute(ErrorHandler)            → RecordStream
+    ├── .executeAsync(ErrorStrategy)      → RecordStream
+    └── .executeAsync(ErrorHandler)       → RecordStream
 ```
 
-### QueryBuilder Properties (Dataset queries)
+### QueryBuilder (dataset queries)
 
 ```
 session.query(dataSet)
-    ├── .bins(name, ...)                 // Specify bins to read
-    ├── .allBins()                       // Read all bins
-    ├── .noBins()                        // Header only
+    ├── .readingOnlyBins(name, ...)
+    ├── .withNoBins()
+    ├── .bin(name)                        → QueryBuilderBinBuilder
+    │       └── .selectFrom(expr)
     │
-    ├── .where(String, Object...)        // Filter/index expression
-    ├── .where(BooleanExpression)        // Filter expression
-    ├── .where(Expression)               // Filter expression
+    ├── .where(String, Object...)
+    ├── .where(BooleanExpression)
+    ├── .where(Expression)
+    ├── .where(Exp)
+    ├── .where(PreparedAel, Object...)
     │
-    ├── .failOnFilteredOut()             // Fail if filtered
-    ├── .includeMissingKeys()                // Include all keys in response
+    ├── .failOnFilteredOut()
+    ├── .includeMissingKeys()
     │
-    ├── .recordsPerSecond(int)           // Throttle query
-    ├── .maxRecordsPerSecond(int)        // Max throttle (index queries)
-    ├── .withHint(hint -> ...)           // Query hints (index, bin, duration)
+    ├── .recordsPerSecond(int)
+    ├── .withHint(hint -> ...)
     │
-    ├── .limit(long)                     // Limit results
-    ├── .chunkSize(int)                  // Batch chunk size
-    ├── .onPartition(int)                // Partition filter
-    ├── .onPartitionRange(int, int)      // Partition range filter
+    ├── .limit(long)
+    ├── .chunkSize(int)
+    ├── .onPartition(int)
+    ├── .onPartitionRange(int, int)
     │
-    ├── .notInAnyTransaction()           // Override session transaction
-    ├── .inTransaction(Txn)              // Use specific transaction
+    ├── .notInAnyTransaction()
+    ├── .inTransaction(Txn)
     │
-    └── .execute()                       // Execute query
+    ├── .execute()                        → RecordStream
+    ├── .execute(ErrorStrategy)           → RecordStream
+    ├── .execute(ErrorHandler)            → RecordStream
+    ├── .executeAsync(ErrorStrategy)      → RecordStream
+    └── .executeAsync(ErrorHandler)       → RecordStream
 ```
 
-### ObjectBuilder Properties
+### OperationObjectBuilder / ObjectBuilder
 
 ```
-session.upsert(dataSet).object(obj)
-    ├── .object(obj2)                    // Add more objects
-    ├── .objects(List<T>)                // Add list of objects
+session.upsert(dataSet)
+    ├── .object(obj)                      → ObjectBuilder
+    ├── .objects(List<T>)                 → ObjectBuilder
+    ├── .objects(T, T, T...)              → ObjectBuilder
+    ├── .bins(name, ...)                  → IdValuesBuilder
     │
-    ├── .ensureGenerationIs(int)         // Per-object generation
-    ├── .expireRecordAfter(Duration)     // Per-object expiration
-    ├── .expireRecordAfterSeconds(int)   // Per-object expiration
-    ├── .expireRecordAt(Date)            // Per-object expiration
-    ├── .expireRecordAt(LocalDateTime)   // Per-object expiration
-    ├── .withNoChangeInExpiration()      // Per-object TTL = -2
-    ├── .neverExpire()                   // Per-object TTL = -1
-    ├── .expiryFromServerDefault()       // Per-object TTL = 0
+    ├── .where(String, Object...)
+    ├── .where(BooleanExpression)
+    ├── .where(PreparedAel, Object...)
+    ├── .where(Exp)
+    ├── .where(Expression)
     │
-    ├── .expireAllRecordsAfter(Duration) // Batch expiration (multi-object only)
-    ├── .expireAllRecordsAfterSeconds(long) // Batch expiration
-    ├── .expireAllRecordsAt(LocalDateTime)  // Batch expiration
-    ├── .expireAllRecordsAt(Date)        // Batch expiration
-    ├── .neverExpireAllRecords()         // Batch TTL = -1
-    ├── .withNoChangeInExpirationForAllRecords() // Batch TTL = -2
+    ├── .failOnFilteredOut()
+    └── .includeMissingKeys()
+
+ObjectBuilder (after .object()):
+    ├── .object(obj2)                     // Add more objects
+    ├── .objects(List<T>)
+    ├── .using(RecordMapper<T>)           // Override mapper
     │
-    ├── .notInAnyTransaction()           // Override session transaction
-    ├── .inTransaction(Txn)              // Use specific transaction
+    ├── .ensureGenerationIs(int)
+    ├── .expireRecordAfter(Duration)
+    ├── .expireRecordAfterSeconds(int)
+    ├── .expireRecordAt(Date)
+    ├── .expireRecordAt(LocalDateTime)
+    ├── .withNoChangeInExpiration()
+    ├── .neverExpire()
+    ├── .expiryFromServerDefault()
     │
-    └── .execute()                       // Execute operations
+    ├── .defaultExpireRecordAfter(Duration)
+    ├── .defaultExpireRecordAfterSeconds(long)
+    ├── .defaultExpireRecordAt(LocalDateTime)
+    ├── .defaultExpireRecordAt(Date)
+    ├── .defaultNeverExpire()
+    ├── .defaultNoChangeInExpiration()
+    │
+    ├── .notInAnyTransaction()
+    ├── .inTransaction(Txn)
+    │
+    └── .execute()                        → RecordStream
 ```
 
-### BackgroundOperationBuilder Properties
+### BackgroundOperationBuilder
 
 ```
-backgroundSession.upsert(dataSet)
-    ├── .bin(name).setTo(value)          // Bin operations
+session.backgroundTask().update(dataSet)
+    ├── .bin(name)                        → BinBuilder
     │
-    ├── .where(String, Object...)        // Filter expression
-    ├── .where(BooleanExpression)        // Filter expression
-    ├── .where(PreparedAel, Object...)   // Filter expression
-    ├── .where(Exp)                      // Filter expression
-    ├── .where(Expression)               // Filter expression
+    ├── .where(String, Object...)
+    ├── .where(BooleanExpression)
+    ├── .where(PreparedAel, Object...)
+    ├── .where(Exp)
+    ├── .where(Expression)
     │
-    ├── .recordsPerSecond(int)           // Throttle operations
+    ├── .recordsPerSecond(int)
     │
-    └── .execute()                       // Execute background operation
+    └── .execute()                        → ExecuteTask
+```
+
+### BackgroundUdfBuilder
+
+```
+session.backgroundTask().executeUdf(dataSet).function("pkg", "fn")
+    ├── .passing(Object...)
+    ├── .passingValues(Value...)
+    ├── .passing(List<?>)
+    │
+    ├── .where(String, Object...)
+    ├── .where(BooleanExpression)
+    ├── .where(PreparedAel, Object...)
+    ├── .where(Exp)
+    ├── .where(Expression)
+    │
+    ├── .recordsPerSecond(int)
+    │
+    └── .execute()                        → ExecuteTask
 ```
 
 ---
 
-## Property Propagation Analysis
+## CDT Navigation Detail
 
-### Transitions Between Builders
+The CDT (Collection Data Type) chain is entered from `BinBuilder` and allows
+navigating into nested list and map structures before choosing an action.
 
-When one builder creates another (e.g., `bins()` creating `BinsValuesBuilder`), properties set on the parent may or may not propagate.
+### Navigation methods and what they return
 
-#### ChainableOperationBuilder → BinsValuesBuilder (via `.bins()`)
+| Method | Returns | When to use |
+|--------|---------|-------------|
+| `onMapKey(key)` | `CdtSetterNonInvertable` | Single map key — can set, navigate, or get/remove |
+| `onMapIndex(idx)` | `CdtContextNonInvertable` | Single map index — can navigate or get/remove |
+| `onMapRank(rank)` | `CdtContextNonInvertable` | Single map rank — can navigate or get/remove |
+| `onMapValue(val)` | `CdtContextInvertable` | Map entries by value — may match multiple |
+| `onMapKeyList(list)` | `CdtContextInvertable` | Map entries by key list — multiple keys |
+| `onMapValueList(list)` | `CdtContextInvertable` | Map entries by value list — multiple values |
+| `onMapKeyRange(start, end)` | `CdtActionInvertable` | Map key range — terminal selection |
+| `onMapValueRange(start, end)` | `CdtActionInvertable` | Map value range — terminal selection |
+| `onMapIndexRange(idx [, count])` | `CdtActionInvertable` | Map index range — terminal selection |
+| `onMapRankRange(rank [, count])` | `CdtActionInvertable` | Map rank range — terminal selection |
+| `onMapKeyRelativeIndexRange(...)` | `CdtActionInvertable` | Relative index from key |
+| `onMapValueRelativeRankRange(...)` | `CdtActionInvertable` | Relative rank from value |
+| `onListIndex(idx)` | `CdtContextNonInvertable` | Single list index — can navigate or get/remove |
+| `onListRank(rank)` | `CdtContextNonInvertable` | Single list rank — can navigate or get/remove |
+| `onListValue(val)` | `CdtContextInvertable` | List elements by value — may match multiple |
+| `onListValueList(list)` | `CdtContextInvertable` | List elements by value list — multiple values |
+| `onListIndexRange(idx [, count])` | `CdtActionInvertable` | List index range — terminal selection |
+| `onListRankRange(rank [, count])` | `CdtActionInvertable` | List rank range — terminal selection |
+| `onListValueRange(start, end)` | `CdtActionInvertable` | List value range — terminal selection |
+| `onListValueRelativeRankRange(...)` | `CdtActionInvertable` | Relative rank from value |
 
-| Property | Source | Propagated? | Notes |
-|----------|--------|-------------|-------|
-| `keys` | `currentSpec.getKeys()` | ✅ Yes | Passed to constructor |
-| `expirationInSeconds` | `currentSpec.getExpirationInSeconds()` | ✅ Yes | Passed to constructor |
-| `txnToUse` | `opBuilder.getTxnToUse()` | ✅ Yes | Retrieved via interface |
-| `whereClause` | `currentSpec.getWhereClause()` | ✅ Yes | Passed via initFromParent() |
-| `generation` | `currentSpec.getGeneration()` | ✅ Yes | Passed via initFromParent() |
-| `failOnFilteredOut` | `currentSpec.isFailOnFilteredOut()` | ✅ Yes | Passed via initFromParent() |
-| `includeMissingKeys` | `currentSpec.isIncludeMissingKeys()` | ✅ Yes | Passed via initFromParent() |
+### Actions available at each level
 
-#### ChainableOperationBuilder → ChainableNoBinsBuilder (via `.delete()`, `.touch()`, `.exists()`)
+| Action | NonInvertable | Invertable | Description |
+|--------|:---:|:---:|-------------|
+| `getValues()` | yes | yes | Return selected values |
+| `getKeys()` | yes | yes | Return selected keys (maps only) |
+| `count()` | yes | yes | Return count of selected elements |
+| `getIndexes()` | yes | yes | Return indexes of selected elements |
+| `getReverseIndexes()` | yes | yes | Return reverse indexes |
+| `getRanks()` | yes | yes | Return ranks |
+| `getReverseRanks()` | yes | yes | Return reverse ranks |
+| `getKeysAndValues()` | yes | yes | Return key-value pairs (maps only) |
+| `exists()` | yes | yes | Return true if any match |
+| `remove()` | yes | yes | Remove selected, return nothing |
+| `removeAnd().getValues()` | yes | yes | Remove selected, return values |
+| `getAllOtherValues()` | — | yes | Return values NOT matching selection |
+| `getAllOtherKeys()` | — | yes | Return keys NOT matching selection |
+| `countAllOthers()` | — | yes | Count elements NOT matching selection |
+| `getAllOtherIndexes()` | — | yes | Indexes NOT matching selection |
+| `getAllOtherReverseIndexes()` | — | yes | Reverse indexes NOT matching |
+| `getAllOtherRanks()` | — | yes | Ranks NOT matching selection |
+| `getAllOtherReverseRanks()` | — | yes | Reverse ranks NOT matching |
+| `getAllOtherKeysAndValues()` | — | yes | Key-value pairs NOT matching |
+| `removeAllOthers()` | — | yes | Remove NOT matching, return nothing |
+| `removeAllOthersAnd().getValues()` | — | yes | Remove NOT matching, return values |
 
-| Property | Source | Propagated? | Notes |
-|----------|--------|-------------|-------|
-| `session` | `session` | ✅ Yes | Passed to constructor |
-| `operationSpecs` | `operationSpecs` | ✅ Yes | Shared list |
-| `defaultWhereClause` | `defaultWhereClause` | ✅ Yes | Passed to constructor |
-| `txnToUse` | `txnToUse` | ✅ Yes | Passed to constructor |
+### CdtSetter actions (from `onMapKey`)
 
-#### ChainableOperationBuilder → ChainableQueryBuilder (via `.query()`)
+In addition to all the navigation and action methods above, `CdtSetter*` adds:
 
-| Property | Source | Propagated? | Notes |
-|----------|--------|-------------|-------|
-| `session` | `session` | ✅ Yes | Passed to constructor |
-| `operationSpecs` | `operationSpecs` | ✅ Yes | Shared list |
-| `defaultWhereClause` | `defaultWhereClause` | ✅ Yes | Passed to constructor |
-| `txnToUse` | `txnToUse` | ✅ Yes | Passed to constructor |
+| Method | Description |
+|--------|-------------|
+| `setTo(value)` | Set the value unconditionally |
+| `insert(value)` | Set only if key doesn't exist |
+| `update(value)` | Set only if key already exists |
+| `upsert(value)` | Create or update unconditionally |
+| `add(value)` | Atomically increment numeric value |
 
----
-
-## Previously Identified Issues (All Resolved)
-
-### Issue 1: Properties Not Propagating to BinsValuesBuilder ✅ FIXED
-
-**Scenario:**
-```java
-session.upsert(key)
-    .expireRecordAfterSeconds(5)  // Sets currentSpec.expirationInSeconds ✅ FIXED
-    .ensureGenerationIs(3)        // Sets currentSpec.generation ✅ FIXED
-    .where("$.age > 21")          // Sets currentSpec.whereClause ✅ FIXED
-    .failOnFilteredOut()          // Sets currentSpec.failOnFilteredOut ✅ FIXED
-    .includeMissingKeys()             // Sets currentSpec.includeMissingKeys ✅ FIXED
-    .bins("a", "b")               // Creates BinsValuesBuilder - properties now propagated
-    .values(1, 2)
-    .execute();
-```
-
-**Resolution:**
-All properties are now propagated via `BinsValuesBuilder.initFromParent()`:
-- `expirationInSeconds` - ✅ Passed to constructor
-- `generation` - ✅ Passed via `initFromParent()` to `generationForAll` field
-- `whereClause` - ✅ Passed via `initFromParent()` to `ael` field
-- `failOnFilteredOut` - ✅ Passed via `initFromParent()` to inherited field
-- `includeMissingKeys` - ✅ Passed via `initFromParent()` to inherited field
-
-### Issue 2: sendKey Not Available on All Builders ⏸️ DEFERRED
-
-The `sendKey()` method is available on `AbstractSessionOperationBuilder` (inherited by `ChainableOperationBuilder` and `ChainableNoBinsBuilder`) but NOT on:
-- `BinsValuesBuilder`
-- `ObjectBuilder`
-- `ChainableQueryBuilder`
-
-**Status:** Deferred - under review whether `sendKey` should be configured via `Behavior` instead of per-operation.
-
-### Issue 3: OperationWithNoBinsBuilder Has Limited Properties ℹ️ BY DESIGN
-
-`OperationWithNoBinsBuilder` (used internally for some operations) does not support:
-- `ensureGenerationIs()` - No generation check support
-- Per-record expiration - Only batch expiration available
-
-**Status:** This is a known limitation of the internal builder. Use `ChainableNoBinsBuilder` for full functionality.
-
----
-
-## Resolution Summary
-
-### Issue 1 (BinsValuesBuilder propagation) - ✅ RESOLVED
-
-Fixed by modifying `ChainableOperationBuilder.bins()` to pass all properties via `initFromParent()`:
-
-```java
-public BinsValuesBuilder bins(String binName, String... binNames) {
-    verifyState("specifying bins");
-    BinsValuesBuilder builder = new BinsValuesBuilder(new ChainableBinsValuesOperations(), currentSpec.getKeys(),
-            currentSpec.getExpirationInSeconds(), binName, binNames);
-    // Propagate additional properties from the current operation spec
-    builder.initFromParent(
-            currentSpec.getGeneration(),
-            currentSpec.getWhereClause(),
-            currentSpec.isFailOnFilteredOut(),
-            currentSpec.isIncludeMissingKeys());
-    return builder;
-}
-```
-
-### Issue 2 (sendKey consistency) - ⏸️ DEFERRED
-
-Under review - `sendKey` may be better configured via `Behavior` rather than per-operation methods.
-
-### Issue 3 (OperationWithNoBinsBuilder) - ℹ️ DOCUMENTED
-
-Known limitation of internal builder. Users should use `ChainableNoBinsBuilder` for full functionality.
-
----
-
-## Testing Checklist
-
-To verify property propagation, test these patterns:
-
-- [x] `session.upsert(key).expireRecordAfterSeconds(5).bins(...).values(...).execute()` - Expiration honored
-- [x] `session.upsert(key).ensureGenerationIs(3).bins(...).values(...).execute()` - Generation check
-- [x] `session.upsert(key).where(...).bins(...).values(...).execute()` - Filter applied
-- [x] `session.upsert(key).failOnFilteredOut().bins(...).values(...).execute()` - Flag honored
-- [x] `session.upsert(key).includeMissingKeys().bins(...).values(...).execute()` - Flag honored
-- [x] Chained operations: `session.upsert(k1)....delete(k2)....execute()` - Transaction shared
-- [x] Chained operations: `session.query(k1)....upsert(k2)....execute()` - Transaction shared
-
----
-
-## Related Documentation
-
-- [Architecture Evolution](architecture-evolution.md) - Overall architecture and implementation details
+Each accepts `long`, `String`, `byte[]`, `boolean`, `double`, `List<?>`, `Map<?,?>`,
+and `RecordMapper<U>` overloads. `insert`, `update`, and `upsert` also have overloads
+accepting `Consumer<MapEntryWriteOptions>` to control create-only / update-only
+semantics and map ordering.

@@ -240,7 +240,7 @@ public class ClusterDefinition {
      * authentication, the client certificate must be configured via TLS settings.</p>
      *
      * @return this ClusterDefinition for method chaining
-     * @see #withTlsConfigOf()
+     * @see #withTlsConfig(Consumer)
      */
     public ClusterDefinition withCertificateCredentials() {
     	this.userName = null;
@@ -364,25 +364,22 @@ public class ClusterDefinition {
      * <p>Example usage:</p>
      * <pre>{@code
      * ClusterDefinition cluster = new ClusterDefinition("localhost", 3100)
-     *     .withTlsConfigOf()
+     *     .withTlsConfig(tls -> tls
      *         .tlsName("myTlsName")
      *         .caFile("myCaFile")
      *         .protocols("TLSv1.2", "TLSv1.3")
-     *     .done()
+     *     )
      *     .withNativeCredentials("myUser", "password");
      * }</pre>
      *
-     * @return a TlsBuilder for configuring TLS settings
+     * @param configurator a consumer that configures TLS settings on the provided {@link TlsBuilder}
+     * @return this ClusterDefinition for method chaining
      */
-    public TlsBuilder withTlsConfigOf() {
-        return new TlsBuilder(this);
-    }
-
-    /**
-     * Package-private setter for TlsBuilder to set itself when done() is called.
-     */
-    void setTlsBuilder(TlsBuilder tlsBuilder) {
-        this.tlsBuilder = tlsBuilder;
+    public ClusterDefinition withTlsConfig(Consumer<TlsBuilder> configurator) {
+        TlsBuilder builder = new TlsBuilder();
+        configurator.accept(builder);
+        this.tlsBuilder = builder;
+        return this;
     }
 
     /**

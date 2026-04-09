@@ -77,12 +77,12 @@ public class ClusterTest {
 			String clientCertFile = resolvePath(certHome, args.clientCertFile);
 			String clientKeyFile = resolvePath(certHome, args.clientKeyFile);
 
-			def.withTlsConfigOf()
+			def.withTlsConfig(tls -> tls
 				.tlsName(args.tlsName)
 				.caFile(caFile)
 				.clientCertFile(clientCertFile)
 				.clientKeyFile(clientKeyFile)
-				.done();
+			);
 		}
 
 		cluster = def.connect();

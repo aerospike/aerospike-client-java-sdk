@@ -70,12 +70,12 @@ public abstract class Example {
             String clientCertFile = resolvePath(certHome, args.clientCertFile);
             String clientKeyFile = resolvePath(certHome, args.clientKeyFile);
 
-            def.withTlsConfigOf()
+            def.withTlsConfig(tls -> tls
             	.tlsName(args.tlsName)
 	            .caFile(caFile)
 	            .clientCertFile(clientCertFile)
 	            .clientKeyFile(clientKeyFile)
-	        	.done();
+	        );
         }
 
         Cluster cluster = def.connect();

@@ -102,49 +102,48 @@ import javax.net.ssl.TrustManagerFactory;
  * <h3>PEM Example (Simple)</h3>
  * <pre>{@code
  * ClusterDefinition cluster = new ClusterDefinition("localhost", 3100)
- *     .withTlsConfigOf()
+ *     .withTlsConfig(tls -> tls
  *         .tlsName("myTlsName")
  *         .caFile("/path/to/ca.pem")
- *     .done()
+ *     )
  *     .withNativeCredentials("myUser", "password");
  * }</pre>
  *
  * <h3>PEM Example (Mutual TLS)</h3>
  * <pre>{@code
  * ClusterDefinition cluster = new ClusterDefinition("localhost", 3100)
- *     .withTlsConfigOf()
+ *     .withTlsConfig(tls -> tls
  *         .tlsName("myTlsName")
  *         .caFile("/path/to/ca.pem")
  *         .clientCertFile("/path/to/client-cert.pem")
  *         .clientKeyFile("/path/to/client-key-pkcs8.pem")  // Must be PKCS#8 format
  *         .protocols("TLSv1.2", "TLSv1.3")
- *     .done()
+ *     )
  *     .withNativeCredentials("myUser", "password");
  * }</pre>
  *
  * <h3>Java KeyStore Example</h3>
  * <pre>{@code
  * ClusterDefinition cluster = new ClusterDefinition("localhost", 3100)
- *     .withTlsConfigOf()
+ *     .withTlsConfig(tls -> tls
  *         .tlsName("myTlsName")
  *         .trustStore("/path/to/truststore.jks", "truststorePassword", "JKS")
  *         .keyStore("/path/to/keystore.jks", "keystorePassword", "JKS")
- *     .done()
+ *     )
  *     .withNativeCredentials("myUser", "password");
  * }</pre>
  *
  * <h3>PKCS12 KeyStore Example</h3>
  * <pre>{@code
  * ClusterDefinition cluster = new ClusterDefinition("localhost", 3100)
- *     .withTlsConfigOf()
+ *     .withTlsConfig(tls -> tls
  *         .tlsName("myTlsName")
  *         .trustStore("/path/to/truststore.p12", "password", "PKCS12")
  *         .keyStore("/path/to/keystore.p12", "password", "PKCS12")
- *     .done();
+ *     );
  * }</pre>
  */
 public class TlsBuilder {
-    private final ClusterDefinition parent;
     private String tlsName;
     private String caFile;
     private String[] protocols;
@@ -165,10 +164,9 @@ public class TlsBuilder {
     private boolean enableTrustAllCertificates = false;
 
     /**
-     * Package-private constructor to be called from ClusterDefinition
+     * Creates a new TlsBuilder with default settings.
      */
-    TlsBuilder(ClusterDefinition parent) {
-        this.parent = parent;
+    public TlsBuilder() {
     }
 
     /**
@@ -418,20 +416,20 @@ public class TlsBuilder {
         // If caFile is defined, create SslContext that references certificate files directly.
         //
         // ClusterDefinition def = new ClusterDefinition(host, port)
-        //     .withTlsConfigOf()
+        //     .withTlsConfig(tls -> tls
         //         .caFile(caFile)
         //         .clientCertFile(clientCertFile)
         //         .clientKeyFile(clientKeyFile)
         //         .tlsName(tlsName)
-    	//         .done();
+        //     );
         //
         // If caFile is not defined, use jvm default SslContext which needs truststore/keystore
         // to be defined on the command line:
         //
         // ClusterDefinition def = new ClusterDefinition(host, port)
-        //     .withTlsConfigOf()
+        //     .withTlsConfig(tls -> tls
         //         .tlsName(tlsName)
-        //         .done();
+        //     );
         //
         // Server authentication:
         // java -Djavax.net.ssl.trustStore=<path> -Djavax.net.ssl.trustStorePassword=<pass> -jar <app jar> <args>
@@ -446,18 +444,6 @@ public class TlsBuilder {
         return customSslContext;
     }
 
-    /**
-     * Completes TLS configuration and returns to the parent ClusterDefinition.
-     *
-     * <p>This method finalizes the TLS configuration and returns control back
-     * to the ClusterDefinition for further configuration or connection establishment.</p>
-     *
-     * @return the parent ClusterDefinition for continued method chaining
-     */
-    public ClusterDefinition done() {
-        parent.setTlsBuilder(this);
-        return parent;
-    }
 
     /**
      * Creates an SSLFactory based on the current TLS configuration.
