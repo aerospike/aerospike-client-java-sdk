@@ -59,7 +59,7 @@ public abstract class Value {
 	public static final Value INFINITY = new InfinityValue();
 
 	/**
-	 * Wildcard value to be used in CDT range comparisons only.
+	 * Wildcard value to be used in CDT value and valueList comparisons only.
 	 */
 	public static final Value WILDCARD = new WildcardValue();
 
