@@ -1127,47 +1127,49 @@ public class OperateListTest extends ClusterTest {
 		long v = (Long)items.get(1);
 		assertEquals(95L, v);
 	}
-
+*/
 	@Test
 	public void operateNestedList() {
-		Key key = new Key(args.namespace, args.set, "oplkey18");
+		Key key = args.set.id("operateNestedList");
 
-		client.delete(null, key);
+        session.delete(key).execute();
 
-		List<Value> l1 = new ArrayList<Value>();
+		List<Integer> l1 = new ArrayList<>();
 		l1.add(7);
 		l1.add(9);
 		l1.add(5);
 
-		List<Value> l2 = new ArrayList<Value>();
+		List<Integer> l2 = new ArrayList<>();
 		l2.add(1);
 		l2.add(2);
 		l2.add(3);
 
-		List<Value> l3 = new ArrayList<Value>();
+		List<Integer> l3 = new ArrayList<>();
 		l3.add(6);
 		l3.add(5);
 		l3.add(4);
 		l3.add(1);
 
-		List<Value> inputList = new ArrayList<Value>();
+		List<List<Integer>> inputList = new ArrayList<>();
 		inputList.add(l1);
 		inputList.add(l2);
 		inputList.add(l3);
 
 		// Create list.
-		client.put(null, key, new Bin(binName, inputList));
+		RecordStream rs = session.upsert(key)
+			.bin(binName).setTo(inputList)
+        	.execute();
 
 		// Append value to last list and retrieve all lists.
-		Record record = client.operate(null, key,
-				ListOperation.append(binName, 11), CTX.listIndex(-1),
-				Operation.get(binName)
-				);
+		rs = session.upsert(key)
+			.bin(binName).onListIndex(-1).listAppend(11)
+			.bin(binName).get()
+	        .execute();
 
-		assertRecordFound(key, record);
-		//System.out.println("Record: " + record);
+		assertTrue(rs.hasNext());
+		Record rec = rs.next().recordOrThrow();
 
-		List<?> results = record.getList(binName);
+		List<?> results = rec.getList(binName);
 		int i = 0;
 
 		long count = (Long)results.get(i++);
@@ -1188,56 +1190,58 @@ public class OperateListTest extends ClusterTest {
 
 	@Test
 	public void operateNestedListMap() {
-		Key key = new Key(args.namespace, args.set, "oplkey19");
+		Key key = args.set.id("operateNestedListMap");
 
-		client.delete(null, key);
+        session.delete(key).execute();
 
-		List<Value> l11 = new ArrayList<Value>();
+		List<Integer> l11 = new ArrayList<>();
 		l11.add(7);
 		l11.add(9);
 		l11.add(5);
 
-		List<Value> l12 = new ArrayList<Value>();
+		List<Integer> l12 = new ArrayList<>();
 		l12.add(13);
 
-		List<Value> l1 = new ArrayList<Value>();
+		List<List<Integer>> l1 = new ArrayList<>();
 		l1.add(l11);
 		l1.add(l12);
 
-		List<Value> l21 = new ArrayList<Value>();
+		List<Integer> l21 = new ArrayList<>();
 		l21.add(9);
 
-		List<Value> l22 = new ArrayList<Value>();
+		List<Integer> l22 = new ArrayList<>();
 		l22.add(2);
 		l22.add(4);
 
-		List<Value> l23 = new ArrayList<Value>();
+		List<Integer> l23 = new ArrayList<>();
 		l23.add(6);
 		l23.add(1);
 		l23.add(9);
 
-		List<Value> l2 = new ArrayList<Value>();
+		List<List<Integer>> l2 = new ArrayList<>();
 		l2.add(l21);
 		l2.add(l22);
 		l2.add(l23);
 
-		Map<Value,Value> inputMap = new HashMap<Value,Value>();
-		inputMap.put("key1"), Value.get(l1);
-		inputMap.put("key2"), Value.get(l2);
+		Map<String,List<List<Integer>>> inputMap = new HashMap<>();
+		inputMap.put("key1", l1);
+		inputMap.put("key2", l2);
 
-		// Create list.
-		client.put(null, key, new Bin(binName, inputMap));
+		// Create map.
+		RecordStream rs = session.upsert(key)
+			.bin(binName).setTo(inputMap)
+        	.execute();
 
 		// Append value to last list and retrieve map.
-		Record record = client.operate(null, key,
-				ListOperation.append(binName, 11), CTX.mapKey(Value.get("key2")), CTX.listRank(0),
-				Operation.get(binName)
-				);
+		rs = session.upsert(key)
+			.bin(binName).onMapKey("key2").onListRank(0).listAppend(11)
+			.bin(binName).get()
+	        .execute();
 
-		assertRecordFound(key, record);
-		//System.out.println("Record: " + record);
+		assertTrue(rs.hasNext());
+		Record rec = rs.next().recordOrThrow();
 
-		List<?> results = record.getList(binName);
+		List<?> results = rec.getList(binName);
 		int i = 0;
 
 		long count = (Long)results.get(i++);
@@ -1259,50 +1263,49 @@ public class OperateListTest extends ClusterTest {
 
 	@Test
 	public void operateListCreateContext() {
-		Key key = new Key(args.namespace, args.set, "oplkey20");
+		Key key = args.set.id("operateListCreateContext");
 
-		client.delete(null, key);
+        session.delete(key).execute();
 
-		List<Value> l1 = new ArrayList<Value>();
+		List<Integer> l1 = new ArrayList<>();
 		l1.add(7);
 		l1.add(9);
 		l1.add(5);
 
-		List<Value> l2 = new ArrayList<Value>();
+		List<Integer> l2 = new ArrayList<>();
 		l2.add(1);
 		l2.add(2);
 		l2.add(3);
 
-		List<Value> l3 = new ArrayList<Value>();
+		List<Integer> l3 = new ArrayList<>();
 		l3.add(6);
 		l3.add(5);
 		l3.add(4);
 		l3.add(1);
 
-		List<Value> inputList = new ArrayList<Value>();
+		List<List<Integer>> inputList = new ArrayList<>();
 		inputList.add(l1);
 		inputList.add(l2);
 		inputList.add(l3);
 
 		// Create list.
-		Record record = client.operate(null, key,
-			ListOperation.appendItems(new ListPolicy(ListOrder.ORDERED, 0), binName, inputList),
-			Operation.get(binName)
-		);
-		//System.out.println("Record: " + record);
+		RecordStream rs = session.upsert(key)
+			.bin(binName).listSetOrder(ListOrder.ORDERED)
+	        .bin(binName).listAppendItems(inputList)
+        	.execute();
 
-		// Append value to new list created after the original 3 lists.
-		record = client.operate(null, key,
-			ListOperation.append(binName, 2), CTX.listIndexCreate(3, ListOrder.ORDERED, false),
-			//ListOperation.create(binName, ListOrder.ORDERED, false, CTX.listIndex(3)),
-			//ListOperation.append(binName, 2), CTX.listIndex(3),
-			Operation.get(binName)
-		);
+		assertTrue(rs.hasNext());
+		Record rec = rs.next().recordOrThrow();
 
-		assertRecordFound(key, record);
-		//System.out.println("Record: " + record);
+		rs = session.upsert(key)
+			.bin(binName).onListIndex(3, ListOrder.ORDERED, false).listAppend(2L)
+			.bin(binName).get()
+			.execute();
 
-		List<?> results = record.getList(binName);
+		assertTrue(rs.hasNext());
+		rec = rs.next().recordOrThrow();
+
+		List<?> results = rec.getList(binName);
 		int i = 0;
 
 		long count = (Long)results.get(i++);
@@ -1319,29 +1322,26 @@ public class OperateListTest extends ClusterTest {
 
 	@Test
 	public void operateListCreate() {
-		Key key = new Key(args.namespace, args.set, "oplkey21");
+		Key key = args.set.id("operateListCreate");
 
-		client.delete(null, key);
+        session.delete(key).execute();
 
-		List<Value> l1 = new ArrayList<Value>();
+		List<Integer> l1 = new ArrayList<>();
 		l1.add(3);
 		l1.add(2);
 		l1.add(1);
 
-		WritePolicy wp = new WritePolicy();
-		wp.respondAllOps = true;
-
 		// Create list with persisted index.
-		Record record = client.operate(wp, key,
-			ListOperation.create(binName, ListOrder.ORDERED, false, true),
-			ListOperation.appendItems(ListPolicy.Default, binName, l1),
-			Operation.get(binName)
-		);
+		RecordStream rs = session.upsert(key)
+			.bin(binName).listSetOrder(ListOrder.ORDERED, true)
+	        .bin(binName).listAppendItems(l1)
+	        .bin(binName).get()
+        	.execute();
 
-		assertRecordFound(key, record);
-		//System.out.println("Record: " + record);
+		assertTrue(rs.hasNext());
+		Record rec = rs.next().recordOrThrow();
 
-		List<?> results = record.getList(binName);
+		List<?> results = rec.getList(binName);
 		assertEquals(3, results.size());  // 3 operations equals 3 results.
 
 		int i = 0;
@@ -1362,5 +1362,5 @@ public class OperateListTest extends ClusterTest {
 
 		val= (Long)list.get(2);
 		assertEquals(3, val);
-	}*/
+	}
 }
