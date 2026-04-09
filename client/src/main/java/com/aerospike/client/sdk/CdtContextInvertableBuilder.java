@@ -58,6 +58,7 @@ public interface CdtContextInvertableBuilder<T extends AbstractOperationBuilder<
     public CdtActionInvertableBuilder<T> onMapKeyRange(String startIncl, String endExcl);
     public CdtActionInvertableBuilder<T> onMapKeyRange(byte[] startIncl, byte[] endExcl);
     public CdtActionInvertableBuilder<T> onMapKeyRange(double startIncl, double endExcl);
+    public CdtActionInvertableBuilder<T> onMapKeyRange(long startIncl, long endExcl);
     // SpecialValue combinations for onMapKeyRange
     public CdtActionInvertableBuilder<T> onMapKeyRange(SpecialValue startIncl, SpecialValue endExcl);
     public CdtActionInvertableBuilder<T> onMapKeyRange(SpecialValue startIncl, long endExcl);
@@ -147,6 +148,11 @@ public interface CdtContextInvertableBuilder<T extends AbstractOperationBuilder<
     public CdtContextInvertableBuilder<T> onListValue(long value);
     public CdtContextInvertableBuilder<T> onListValue(String value);
     public CdtContextInvertableBuilder<T> onListValue(byte[] value);
+    public CdtContextInvertableBuilder<T> onListValue(SpecialValue value);
+    public CdtContextInvertableBuilder<T> onListValue(double value);
+    public CdtContextInvertableBuilder<T> onListValue(boolean value);
+    public CdtContextInvertableBuilder<T> onListValue(List<?> value);
+    public CdtContextInvertableBuilder<T> onListValue(Map<?,?> value);
 
     // List index range
     public CdtActionInvertableBuilder<T> onListIndexRange(int index);
@@ -170,6 +176,15 @@ public interface CdtContextInvertableBuilder<T extends AbstractOperationBuilder<
     public CdtActionInvertableBuilder<T> onListValueRange(String startIncl, SpecialValue endExcl);
     public CdtActionInvertableBuilder<T> onListValueRange(byte[] startIncl, SpecialValue endExcl);
     public CdtActionInvertableBuilder<T> onListValueRange(double startIncl, SpecialValue endExcl);
+    public CdtActionInvertableBuilder<T> onListValueRange(boolean startIncl, boolean endExcl);
+    public CdtActionInvertableBuilder<T> onListValueRange(List<?> startIncl, List<?> endExcl);
+    public CdtActionInvertableBuilder<T> onListValueRange(Map<?,?> startIncl, Map<?,?> endExcl);
+    public CdtActionInvertableBuilder<T> onListValueRange(SpecialValue startIncl, boolean endExcl);
+    public CdtActionInvertableBuilder<T> onListValueRange(boolean startIncl, SpecialValue endExcl);
+    public CdtActionInvertableBuilder<T> onListValueRange(SpecialValue startIncl, List<?> endExcl);
+    public CdtActionInvertableBuilder<T> onListValueRange(List<?> startIncl, SpecialValue endExcl);
+    public CdtActionInvertableBuilder<T> onListValueRange(SpecialValue startIncl, Map<?,?> endExcl);
+    public CdtActionInvertableBuilder<T> onListValueRange(Map<?,?> startIncl, SpecialValue endExcl);
 
     // List value list
     public CdtContextInvertableBuilder<T> onListValueList(java.util.List<?> values);
@@ -185,6 +200,12 @@ public interface CdtContextInvertableBuilder<T extends AbstractOperationBuilder<
     public CdtActionInvertableBuilder<T> onListValueRelativeRankRange(byte[] value, int rank, int count);
     public CdtActionInvertableBuilder<T> onListValueRelativeRankRange(double value, int rank, int count);
     public CdtActionInvertableBuilder<T> onListValueRelativeRankRange(SpecialValue value, int rank, int count);
+    public CdtActionInvertableBuilder<T> onListValueRelativeRankRange(boolean value, int rank);
+    public CdtActionInvertableBuilder<T> onListValueRelativeRankRange(List<?> value, int rank);
+    public CdtActionInvertableBuilder<T> onListValueRelativeRankRange(Map<?,?> value, int rank);
+    public CdtActionInvertableBuilder<T> onListValueRelativeRankRange(boolean value, int rank, int count);
+    public CdtActionInvertableBuilder<T> onListValueRelativeRankRange(List<?> value, int rank, int count);
+    public CdtActionInvertableBuilder<T> onListValueRelativeRankRange(Map<?,?> value, int rank, int count);
 
     public T mapClear();
     public T mapSize();
@@ -247,6 +268,8 @@ public interface CdtContextInvertableBuilder<T extends AbstractOperationBuilder<
     public T listInsert(int index, double value);
     public T listInsert(int index, boolean value);
     public T listInsert(int index, byte[] value);
+    public T listInsert(int index, List<?> value);
+    public T listInsert(int index, Map<?,?> value);
     public T listInsertItems(int index, List<?> items);
     public T listInsertItems(int index, List<?> items, Consumer<ListBulkWriteOptions> options);
     public T listSet(int index, long value);
@@ -254,6 +277,8 @@ public interface CdtContextInvertableBuilder<T extends AbstractOperationBuilder<
     public T listSet(int index, double value);
     public T listSet(int index, boolean value);
     public T listSet(int index, byte[] value);
+    public T listSet(int index, List<?> value);
+    public T listSet(int index, Map<?,?> value);
     public T listIncrement(int index);
     public T listIncrement(int index, long value);
     public T listIncrement(int index, double value);

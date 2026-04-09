@@ -47,6 +47,20 @@ public interface CdtActionNonInvertableBuilder<T extends AbstractOperationBuilde
     public T remove();
 
     /**
+     * Begin a remove operation that also returns data about the removed elements.
+     * Chain a return-type method to specify what the server should return:
+     * <pre>{@code
+     * .onMapValueRange(1, 4).removeAnd().getValues()   // remove and return VALUES
+     * .onMapValueRange(1, 4).removeAnd().count()        // remove and return COUNT
+     * .onMapValueRange(1, 4).removeAnd().getKeys()      // remove and return KEYS (maps only)
+     * }</pre>
+     *
+     * @return a {@link RemoveResultBuilder} for specifying the return type
+     * @see #remove() for fire-and-forget removal with no return data
+     */
+    public RemoveResultBuilder<T> removeAnd();
+
+    /**
      * Check if the selected element(s) exist. Returns true if count > 0.
      */
     public T exists();

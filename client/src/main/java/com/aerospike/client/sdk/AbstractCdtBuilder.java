@@ -595,6 +595,10 @@ public class AbstractCdtBuilder<T extends AbstractOperationBuilder<T>> {
     public T listInsert(int index, boolean value) { return listInsert(index, Value.get(value)); }
     /** @see #listInsert(int, Value) */
     public T listInsert(int index, byte[] value) { return listInsert(index, Value.get(value)); }
+    /** @see #listInsert(int, Value) */
+    public T listInsert(int index, List<?> value) { return listInsert(index, Value.get(value)); }
+    /** @see #listInsert(int, Value) */
+    public T listInsert(int index, Map<?,?> value) { return listInsert(index, Value.get(value)); }
 
     /**
      * Insert multiple values at {@code index}, in order.
@@ -661,6 +665,10 @@ public class AbstractCdtBuilder<T extends AbstractOperationBuilder<T>> {
     public T listSet(int index, boolean value) { return listSet(index, Value.get(value)); }
     /** @see #listSet(int, Value) */
     public T listSet(int index, byte[] value) { return listSet(index, Value.get(value)); }
+    /** @see #listSet(int, Value) */
+    public T listSet(int index, List<?> value) { return listSet(index, Value.get(value)); }
+    /** @see #listSet(int, Value) */
+    public T listSet(int index, Map<?,?> value) { return listSet(index, Value.get(value)); }
 
     /**
      * Increment the numeric element at {@code index} by one.

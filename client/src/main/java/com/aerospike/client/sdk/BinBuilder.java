@@ -1518,6 +1518,16 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      * @return builder for map CDT operations on that key range
      * @see #onMapKeyRange(String, String)
      */
+    public CdtActionInvertableBuilder<T> onMapKeyRange(long startIncl, long endExcl) {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_KEY_RANGE, Value.get(startIncl), Value.get(endExcl)));
+    }
+
+    /**
+     * @param startIncl inclusive start key
+     * @param endExcl   exclusive end key
+     * @return builder for map CDT operations on that key range
+     * @see #onMapKeyRange(String, String)
+     */
     public CdtActionInvertableBuilder<T> onMapKeyRange(SpecialValue startIncl, SpecialValue endExcl) {
         return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.MAP_BY_KEY_RANGE, startIncl.toAerospikeValue(), endExcl.toAerospikeValue()));
     }
@@ -1882,6 +1892,42 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
     }
 
     /**
+     * @param value element value to locate
+     * @return builder for nested list CDT operations on matching elements
+     * @see #onListValue(long)
+     */
+    public CdtContextInvertableBuilder<T> onListValue(double value) {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.LIST_BY_VALUE, Value.get(value)));
+    }
+
+    /**
+     * @param value element value to locate
+     * @return builder for nested list CDT operations on matching elements
+     * @see #onListValue(long)
+     */
+    public CdtContextInvertableBuilder<T> onListValue(boolean value) {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.LIST_BY_VALUE, Value.get(value)));
+    }
+
+    /**
+     * @param value element value to locate
+     * @return builder for nested list CDT operations on matching elements
+     * @see #onListValue(long)
+     */
+    public CdtContextInvertableBuilder<T> onListValue(List<?> value) {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.LIST_BY_VALUE, Value.get(value)));
+    }
+
+    /**
+     * @param value element value to locate
+     * @return builder for nested list CDT operations on matching elements
+     * @see #onListValue(long)
+     */
+    public CdtContextInvertableBuilder<T> onListValue(Map<?,?> value) {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.LIST_BY_VALUE, Value.get(value)));
+    }
+
+    /**
      * Restrict to list elements from {@code index} through the end of the list.
      *
      * @param index starting index
@@ -2055,6 +2101,96 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
     }
 
     /**
+     * @param startIncl inclusive start
+     * @param endExcl   exclusive end
+     * @return builder for list CDT operations on that value range
+     * @see #onListValueRange(long, long)
+     */
+    public CdtActionInvertableBuilder<T> onListValueRange(boolean startIncl, boolean endExcl) {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.LIST_BY_VALUE_RANGE, Value.get(startIncl), Value.get(endExcl)));
+    }
+
+    /**
+     * @param startIncl inclusive start
+     * @param endExcl   exclusive end
+     * @return builder for list CDT operations on that value range
+     * @see #onListValueRange(long, long)
+     */
+    public CdtActionInvertableBuilder<T> onListValueRange(List<?> startIncl, List<?> endExcl) {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.LIST_BY_VALUE_RANGE, Value.get(startIncl), Value.get(endExcl)));
+    }
+
+    /**
+     * @param startIncl inclusive start
+     * @param endExcl   exclusive end
+     * @return builder for list CDT operations on that value range
+     * @see #onListValueRange(long, long)
+     */
+    public CdtActionInvertableBuilder<T> onListValueRange(Map<?,?> startIncl, Map<?,?> endExcl) {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.LIST_BY_VALUE_RANGE, Value.get(startIncl), Value.get(endExcl)));
+    }
+
+    /**
+     * @param startIncl inclusive start
+     * @param endExcl   exclusive end
+     * @return builder for list CDT operations on that value range
+     * @see #onListValueRange(long, long)
+     */
+    public CdtActionInvertableBuilder<T> onListValueRange(SpecialValue startIncl, boolean endExcl) {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.LIST_BY_VALUE_RANGE, startIncl.toAerospikeValue(), Value.get(endExcl)));
+    }
+
+    /**
+     * @param startIncl inclusive start
+     * @param endExcl   exclusive end
+     * @return builder for list CDT operations on that value range
+     * @see #onListValueRange(long, long)
+     */
+    public CdtActionInvertableBuilder<T> onListValueRange(boolean startIncl, SpecialValue endExcl) {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.LIST_BY_VALUE_RANGE, Value.get(startIncl), endExcl.toAerospikeValue()));
+    }
+
+    /**
+     * @param startIncl inclusive start
+     * @param endExcl   exclusive end
+     * @return builder for list CDT operations on that value range
+     * @see #onListValueRange(long, long)
+     */
+    public CdtActionInvertableBuilder<T> onListValueRange(SpecialValue startIncl, List<?> endExcl) {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.LIST_BY_VALUE_RANGE, startIncl.toAerospikeValue(), Value.get(endExcl)));
+    }
+
+    /**
+     * @param startIncl inclusive start
+     * @param endExcl   exclusive end
+     * @return builder for list CDT operations on that value range
+     * @see #onListValueRange(long, long)
+     */
+    public CdtActionInvertableBuilder<T> onListValueRange(List<?> startIncl, SpecialValue endExcl) {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.LIST_BY_VALUE_RANGE, Value.get(startIncl), endExcl.toAerospikeValue()));
+    }
+
+    /**
+     * @param startIncl inclusive start
+     * @param endExcl   exclusive end
+     * @return builder for list CDT operations on that value range
+     * @see #onListValueRange(long, long)
+     */
+    public CdtActionInvertableBuilder<T> onListValueRange(SpecialValue startIncl, Map<?,?> endExcl) {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.LIST_BY_VALUE_RANGE, startIncl.toAerospikeValue(), Value.get(endExcl)));
+    }
+
+    /**
+     * @param startIncl inclusive start
+     * @param endExcl   exclusive end
+     * @return builder for list CDT operations on that value range
+     * @see #onListValueRange(long, long)
+     */
+    public CdtActionInvertableBuilder<T> onListValueRange(Map<?,?> startIncl, SpecialValue endExcl) {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.LIST_BY_VALUE_RANGE, Value.get(startIncl), endExcl.toAerospikeValue()));
+    }
+
+    /**
      * Select list elements matching any of the given values.
      *
      * @param values candidate values
@@ -2174,6 +2310,69 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      */
     public CdtActionInvertableBuilder<T> onListValueRelativeRankRange(SpecialValue value, int rank, int count) {
         return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.LIST_BY_VALUE_REL_RANK_RANGE, value.toAerospikeValue(), rank, count));
+    }
+
+    /**
+     * @param value reference value
+     * @param rank  relative rank offset
+     * @return builder for continued chaining (invertable for range operations)
+     * @see #onListValueRelativeRankRange(long, int)
+     */
+    public CdtActionInvertableBuilder<T> onListValueRelativeRankRange(boolean value, int rank) {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.LIST_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank));
+    }
+
+    /**
+     * @param value reference value
+     * @param rank  relative rank offset
+     * @return builder for continued chaining (invertable for range operations)
+     * @see #onListValueRelativeRankRange(long, int)
+     */
+    public CdtActionInvertableBuilder<T> onListValueRelativeRankRange(List<?> value, int rank) {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.LIST_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank));
+    }
+
+    /**
+     * @param value reference value
+     * @param rank  relative rank offset
+     * @return builder for continued chaining (invertable for range operations)
+     * @see #onListValueRelativeRankRange(long, int)
+     */
+    public CdtActionInvertableBuilder<T> onListValueRelativeRankRange(Map<?,?> value, int rank) {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.LIST_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank));
+    }
+
+    /**
+     * @param value reference value
+     * @param rank  relative rank offset
+     * @param count max elements
+     * @return builder for continued chaining (invertable for range operations)
+     * @see #onListValueRelativeRankRange(long, int, int)
+     */
+    public CdtActionInvertableBuilder<T> onListValueRelativeRankRange(boolean value, int rank, int count) {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.LIST_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank, count));
+    }
+
+    /**
+     * @param value reference value
+     * @param rank  relative rank offset
+     * @param count max elements
+     * @return builder for continued chaining (invertable for range operations)
+     * @see #onListValueRelativeRankRange(long, int, int)
+     */
+    public CdtActionInvertableBuilder<T> onListValueRelativeRankRange(List<?> value, int rank, int count) {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.LIST_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank, count));
+    }
+
+    /**
+     * @param value reference value
+     * @param rank  relative rank offset
+     * @param count max elements
+     * @return builder for continued chaining (invertable for range operations)
+     * @see #onListValueRelativeRankRange(long, int, int)
+     */
+    public CdtActionInvertableBuilder<T> onListValueRelativeRankRange(Map<?,?> value, int rank, int count) {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, new CdtOperationParams(CdtOperation.LIST_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank, count));
     }
 
     /**

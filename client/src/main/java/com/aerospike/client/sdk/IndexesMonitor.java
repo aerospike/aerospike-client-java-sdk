@@ -126,6 +126,7 @@ class IndexesMonitor {
                                                .namespace(sindex.getNamespace())
                                                .bin(sindex.getBin())
                                                .indexType(IndexType.valueOf(sindex.getType().name()))
+                                               .name(sindex.getIndexName())
                                                .binValuesRatio((int)details.getEntriesPerBval())
                                            .build());
                                 });

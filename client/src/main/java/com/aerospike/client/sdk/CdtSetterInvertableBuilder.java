@@ -50,6 +50,7 @@ public interface CdtSetterInvertableBuilder<T extends AbstractOperationBuilder<T
     public T setTo(double value);
     public T setTo(List<?> value);
     public T setTo(Map<?,?> value);
+    public <U> T setTo(U value, RecordMapper<U> mapper);
 
     public T insert(long value);
     public T insert(String value);
@@ -58,6 +59,7 @@ public interface CdtSetterInvertableBuilder<T extends AbstractOperationBuilder<T
     public T insert(double value);
     public T insert(List<?> value);
     public T insert(Map<?,?> value);
+    public <U> T insert(U value, RecordMapper<U> mapper);
 
     public T insert(long value, Consumer<MapEntryWriteOptions> options);
     public T insert(String value, Consumer<MapEntryWriteOptions> options);
@@ -66,6 +68,7 @@ public interface CdtSetterInvertableBuilder<T extends AbstractOperationBuilder<T
     public T insert(double value, Consumer<MapEntryWriteOptions> options);
     public T insert(List<?> value, Consumer<MapEntryWriteOptions> options);
     public T insert(Map<?,?> value, Consumer<MapEntryWriteOptions> options);
+    public <U> T insert(U value, RecordMapper<U> mapper, Consumer<MapEntryWriteOptions> options);
 
     public T update(long value);
     public T update(String value);
@@ -74,6 +77,7 @@ public interface CdtSetterInvertableBuilder<T extends AbstractOperationBuilder<T
     public T update(double value);
     public T update(List<?> value);
     public T update(Map<?,?> value);
+    public <U> T update(U value, RecordMapper<U> mapper);
 
     public T update(long value, Consumer<MapEntryWriteOptions> options);
     public T update(String value, Consumer<MapEntryWriteOptions> options);
@@ -82,6 +86,7 @@ public interface CdtSetterInvertableBuilder<T extends AbstractOperationBuilder<T
     public T update(double value, Consumer<MapEntryWriteOptions> options);
     public T update(List<?> value, Consumer<MapEntryWriteOptions> options);
     public T update(Map<?,?> value, Consumer<MapEntryWriteOptions> options);
+    public <U> T update(U value, RecordMapper<U> mapper, Consumer<MapEntryWriteOptions> options);
 
     public T upsert(long value);
     public T upsert(String value);
@@ -90,6 +95,7 @@ public interface CdtSetterInvertableBuilder<T extends AbstractOperationBuilder<T
     public T upsert(double value);
     public T upsert(List<?> value);
     public T upsert(Map<?,?> value);
+    public <U> T upsert(U value, RecordMapper<U> mapper);
 
     public T upsert(long value, Consumer<MapEntryWriteOptions> options);
     public T upsert(String value, Consumer<MapEntryWriteOptions> options);
@@ -98,6 +104,7 @@ public interface CdtSetterInvertableBuilder<T extends AbstractOperationBuilder<T
     public T upsert(double value, Consumer<MapEntryWriteOptions> options);
     public T upsert(List<?> value, Consumer<MapEntryWriteOptions> options);
     public T upsert(Map<?,?> value, Consumer<MapEntryWriteOptions> options);
+    public <U> T upsert(U value, RecordMapper<U> mapper, Consumer<MapEntryWriteOptions> options);
 
     public T add(long value);
     public T add(double value);

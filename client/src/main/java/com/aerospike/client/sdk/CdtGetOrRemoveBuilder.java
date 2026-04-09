@@ -365,151 +365,177 @@ public class CdtGetOrRemoveBuilder<T extends AbstractOperationBuilder<T>> extend
 
     /**
      * Remove elements matching the current map or list selection.
+     * For map operations the server returns nothing ({@code MapReturnType.NONE}).
+     * For list operations the server returns the count of removed elements ({@code ListReturnType.COUNT}).
      *
      * @return the parent operation builder for chaining
+     * @see #removeAnd() to choose what data the server returns about the removed elements
      */
     public T remove() {
+        return dispatchRemove(MapReturnType.NONE, ListReturnType.COUNT);
+    }
+
+    /**
+     * Begin a remove operation that will also return data about the removed elements.
+     * Chain one of the return-type methods on the result to specify what the server should return.
+     * <pre>{@code
+     * .onMapValueRange(1, 4).removeAnd().getValues()   // remove and return VALUES
+     * .onMapValueRange(1, 4).removeAnd().count()        // remove and return COUNT
+     * .onMapValueRange(1, 4).removeAnd().getKeys()      // remove and return KEYS (maps only)
+     * }</pre>
+     *
+     * @return a {@link RemoveResultBuilder} for specifying the return type
+     * @see #remove() for fire-and-forget removal with no return data
+     */
+    public RemoveResultBuilder<T> removeAnd() {
+        return new RemoveResultBuilder<>(this, 0);
+    }
+
+    /**
+     * Remove elements not matching the current selection (inverted).
+     * Not supported after single-element paths such as {@code onMapIndex},
+     * {@code onMapKey}, or {@code onListIndex}.
+     *
+     * @return the parent operation builder for chaining
+     * @see #removeAllOthersAnd() to choose what data the server returns about the removed elements
+     */
+    public T removeAllOthers() {
+        validateNotSingleElement("removeAllOthers");
+        return dispatchRemove(MapReturnType.INVERTED, ListReturnType.INVERTED);
+    }
+
+    /**
+     * Begin an inverted remove operation that will also return data about the removed elements.
+     * Removes elements NOT matching the current selection and returns data about those removed elements.
+     * Not supported after single-element paths such as {@code onMapIndex},
+     * {@code onMapKey}, or {@code onListIndex}.
+     * <pre>{@code
+     * .onMapValueRange(1, 4).removeAllOthersAnd().getValues()  // remove others, return their VALUES
+     * .onMapValueRange(1, 4).removeAllOthersAnd().count()       // remove others, return COUNT
+     * }</pre>
+     *
+     * @return a {@link RemoveResultBuilder} for specifying the return type
+     * @see #removeAllOthers() for fire-and-forget inverted removal with no return data
+     */
+    public RemoveResultBuilder<T> removeAllOthersAnd() {
+        validateNotSingleElement("removeAllOthersAnd");
+        return new RemoveResultBuilder<>(this, MapReturnType.INVERTED);
+    }
+
+    /**
+     * Dispatch a remove operation with the given return types for map and list operations.
+     * Used internally by {@link #remove()}, {@link #removeAllOthers()}, and {@link RemoveResultBuilder}.
+     */
+    T dispatchRemove(int mapReturnType, int listReturnType) {
         switch (params.getOperation()) {
         case MAP_BY_INDEX:
-            return opBuilder.addOp(MapOperation.removeByIndex(binName, params.getInt1(), MapReturnType.NONE, params.context()));
+            return opBuilder.addOp(MapOperation.removeByIndex(binName, params.getInt1(), mapReturnType, params.context()));
         case MAP_BY_INDEX_RANGE:
             if (params.hasInt2()) {
-                return opBuilder.addOp(MapOperation.removeByIndexRange(binName, params.getInt1(), params.getInt2(), MapReturnType.NONE, params.context()));
+                return opBuilder.addOp(MapOperation.removeByIndexRange(binName, params.getInt1(), params.getInt2(), mapReturnType, params.context()));
             } else {
-                return opBuilder.addOp(MapOperation.removeByIndexRange(binName, params.getInt1(), MapReturnType.NONE, params.context()));
+                return opBuilder.addOp(MapOperation.removeByIndexRange(binName, params.getInt1(), mapReturnType, params.context()));
             }
         case MAP_BY_KEY:
-            return opBuilder.addOp(MapOperation.removeByKey(binName, params.getVal1(), MapReturnType.NONE, params.context()));
+            return opBuilder.addOp(MapOperation.removeByKey(binName, params.getVal1(), mapReturnType, params.context()));
         case MAP_BY_KEY_LIST:
-            return opBuilder.addOp(MapOperation.removeByKeyList(binName, params.getValues(), MapReturnType.NONE, params.context()));
+            return opBuilder.addOp(MapOperation.removeByKeyList(binName, params.getValues(), mapReturnType, params.context()));
         case MAP_BY_KEY_RANGE:
-            return opBuilder.addOp(MapOperation.removeByKeyRange(binName, params.getVal1(), params.getVal2(), MapReturnType.NONE, params.context()));
+            return opBuilder.addOp(MapOperation.removeByKeyRange(binName, params.getVal1(), params.getVal2(), mapReturnType, params.context()));
         case MAP_BY_RANK:
-            return opBuilder.addOp(MapOperation.removeByRank(binName, params.getInt1(), MapReturnType.NONE, params.context()));
+            return opBuilder.addOp(MapOperation.removeByRank(binName, params.getInt1(), mapReturnType, params.context()));
         case MAP_BY_RANK_RANGE:
-            return opBuilder.addOp(MapOperation.removeByRankRange(binName, params.getInt1(), params.getInt2(), MapReturnType.NONE, params.context()));
+            return opBuilder.addOp(MapOperation.removeByRankRange(binName, params.getInt1(), params.getInt2(), mapReturnType, params.context()));
         case MAP_BY_VALUE:
-            return opBuilder.addOp(MapOperation.removeByValue(binName, params.getVal1(), MapReturnType.NONE, params.context()));
+            return opBuilder.addOp(MapOperation.removeByValue(binName, params.getVal1(), mapReturnType, params.context()));
         case MAP_BY_VALUE_LIST:
-            return opBuilder.addOp(MapOperation.removeByValueList(binName, params.getValues(), MapReturnType.NONE, params.context()));
+            return opBuilder.addOp(MapOperation.removeByValueList(binName, params.getValues(), mapReturnType, params.context()));
         case MAP_BY_VALUE_RANGE:
-            return opBuilder.addOp(MapOperation.removeByValueRange(binName, params.getVal1(), params.getVal2(), MapReturnType.NONE, params.context()));
-        case LIST_BY_INDEX:
-            return opBuilder.addOp(ListOperation.removeByIndex(binName, params.getInt1(), ListReturnType.COUNT, params.context()));
-        case LIST_BY_INDEX_RANGE:
-            if (params.hasInt2()) {
-                return opBuilder.addOp(ListOperation.removeByIndexRange(binName, params.getInt1(), params.getInt2(), ListReturnType.COUNT, params.context()));
-            } else {
-                return opBuilder.addOp(ListOperation.removeByIndexRange(binName, params.getInt1(), ListReturnType.COUNT, params.context()));
-            }
-        case LIST_BY_RANK:
-            return opBuilder.addOp(ListOperation.removeByRank(binName, params.getInt1(), ListReturnType.COUNT, params.context()));
-        case LIST_BY_RANK_RANGE:
-            if (params.hasInt2()) {
-                return opBuilder.addOp(ListOperation.removeByRankRange(binName, params.getInt1(), params.getInt2(), ListReturnType.COUNT, params.context()));
-            } else {
-                return opBuilder.addOp(ListOperation.removeByRankRange(binName, params.getInt1(), ListReturnType.COUNT, params.context()));
-            }
-        case LIST_BY_VALUE:
-            return opBuilder.addOp(ListOperation.removeByValue(binName, params.getVal1(), ListReturnType.COUNT, params.context()));
-        case LIST_BY_VALUE_LIST:
-            return opBuilder.addOp(ListOperation.removeByValueList(binName, params.getValues(), ListReturnType.COUNT, params.context()));
-        case LIST_BY_VALUE_RANGE:
-            return opBuilder.addOp(ListOperation.removeByValueRange(binName, params.getVal1(), params.getVal2(), ListReturnType.COUNT, params.context()));
-        case LIST_BY_VALUE_REL_RANK_RANGE:
-            if (params.hasInt2()) {
-                return opBuilder.addOp(ListOperation.removeByValueRelativeRankRange(binName, params.getVal1(), params.getInt1(), params.getInt2(), ListReturnType.COUNT, params.context()));
-            } else {
-                return opBuilder.addOp(ListOperation.removeByValueRelativeRankRange(binName, params.getVal1(), params.getInt1(), ListReturnType.COUNT, params.context()));
-            }
+            return opBuilder.addOp(MapOperation.removeByValueRange(binName, params.getVal1(), params.getVal2(), mapReturnType, params.context()));
         case MAP_BY_KEY_REL_INDEX_RANGE:
             if (params.hasInt2()) {
-                return opBuilder.addOp(MapOperation.removeByKeyRelativeIndexRange(binName, params.getVal1(), params.getInt1(), params.getInt2(), MapReturnType.NONE, params.context()));
+                return opBuilder.addOp(MapOperation.removeByKeyRelativeIndexRange(binName, params.getVal1(), params.getInt1(), params.getInt2(), mapReturnType, params.context()));
             } else {
-                return opBuilder.addOp(MapOperation.removeByKeyRelativeIndexRange(binName, params.getVal1(), params.getInt1(), MapReturnType.NONE, params.context()));
+                return opBuilder.addOp(MapOperation.removeByKeyRelativeIndexRange(binName, params.getVal1(), params.getInt1(), mapReturnType, params.context()));
             }
         case MAP_BY_VALUE_REL_RANK_RANGE:
             if (params.hasInt2()) {
-                return opBuilder.addOp(MapOperation.removeByValueRelativeRankRange(binName, params.getVal1(), params.getInt1(), params.getInt2(), MapReturnType.NONE, params.context()));
+                return opBuilder.addOp(MapOperation.removeByValueRelativeRankRange(binName, params.getVal1(), params.getInt1(), params.getInt2(), mapReturnType, params.context()));
             } else {
-                return opBuilder.addOp(MapOperation.removeByValueRelativeRankRange(binName, params.getVal1(), params.getInt1(), MapReturnType.NONE, params.context()));
+                return opBuilder.addOp(MapOperation.removeByValueRelativeRankRange(binName, params.getVal1(), params.getInt1(), mapReturnType, params.context()));
+            }
+        case LIST_BY_INDEX:
+            return opBuilder.addOp(ListOperation.removeByIndex(binName, params.getInt1(), listReturnType, params.context()));
+        case LIST_BY_INDEX_RANGE:
+            if (params.hasInt2()) {
+                return opBuilder.addOp(ListOperation.removeByIndexRange(binName, params.getInt1(), params.getInt2(), listReturnType, params.context()));
+            } else {
+                return opBuilder.addOp(ListOperation.removeByIndexRange(binName, params.getInt1(), listReturnType, params.context()));
+            }
+        case LIST_BY_RANK:
+            return opBuilder.addOp(ListOperation.removeByRank(binName, params.getInt1(), listReturnType, params.context()));
+        case LIST_BY_RANK_RANGE:
+            if (params.hasInt2()) {
+                return opBuilder.addOp(ListOperation.removeByRankRange(binName, params.getInt1(), params.getInt2(), listReturnType, params.context()));
+            } else {
+                return opBuilder.addOp(ListOperation.removeByRankRange(binName, params.getInt1(), listReturnType, params.context()));
+            }
+        case LIST_BY_VALUE:
+            return opBuilder.addOp(ListOperation.removeByValue(binName, params.getVal1(), listReturnType, params.context()));
+        case LIST_BY_VALUE_LIST:
+            return opBuilder.addOp(ListOperation.removeByValueList(binName, params.getValues(), listReturnType, params.context()));
+        case LIST_BY_VALUE_RANGE:
+            return opBuilder.addOp(ListOperation.removeByValueRange(binName, params.getVal1(), params.getVal2(), listReturnType, params.context()));
+        case LIST_BY_VALUE_REL_RANK_RANGE:
+            if (params.hasInt2()) {
+                return opBuilder.addOp(ListOperation.removeByValueRelativeRankRange(binName, params.getVal1(), params.getInt1(), params.getInt2(), listReturnType, params.context()));
+            } else {
+                return opBuilder.addOp(ListOperation.removeByValueRelativeRankRange(binName, params.getVal1(), params.getInt1(), listReturnType, params.context()));
             }
         default:
-            throw new IllegalArgumentException("remove() does not know how to handle an operation of " + params.getOperation());
+            throw new IllegalArgumentException("remove operation does not know how to handle " + params.getOperation());
         }
     }
 
     /**
-     * Remove elements not matching the current selection (inverted). Not supported after single-element paths such as {@code onMapIndex}, {@code onMapKey}, or {@code onListIndex}.
-     *
-     * @return the parent operation builder for chaining
+     * Convenience overload: same return type for both map and list operations.
      */
-    public T removeAllOthers() {
+    T dispatchRemove(int returnType) {
+        return dispatchRemove(returnType, returnType);
+    }
+
+    /**
+     * Validate that the current operation is not a single-element selector (which cannot be inverted).
+     */
+    private void validateNotSingleElement(String methodName) {
         switch (params.getOperation()) {
-        // These three operation cannot be used on the server to get the inverted value. This should not be allowed to occur
         case MAP_BY_INDEX:
         case MAP_BY_KEY:
         case MAP_BY_RANK:
         case LIST_BY_INDEX:
         case LIST_BY_RANK:
-            throw new IllegalArgumentException("countAllOthers cannot be called after onMapIndex, onMapKey, onMapRank, onListIndex or onListRank: Th server does not support this");
-
-        case MAP_BY_INDEX_RANGE:
-            if (params.hasInt2()) {
-                return opBuilder.addOp(MapOperation.removeByIndexRange(binName, params.getInt1(), params.getInt2(), MapReturnType.INVERTED, params.context()));
-            } else {
-                return opBuilder.addOp(MapOperation.removeByIndexRange(binName, params.getInt1(), MapReturnType.INVERTED, params.context()));
-            }
-        case MAP_BY_KEY_LIST:
-            return opBuilder.addOp(MapOperation.removeByKeyList(binName, params.getValues(), MapReturnType.INVERTED, params.context()));
-        case MAP_BY_KEY_RANGE:
-            return opBuilder.addOp(MapOperation.removeByKeyRange(binName, params.getVal1(), params.getVal2(), MapReturnType.INVERTED, params.context()));
-        case MAP_BY_RANK_RANGE:
-            return opBuilder.addOp(MapOperation.removeByRankRange(binName, params.getInt1(), params.getInt2(), MapReturnType.INVERTED, params.context()));
-        case MAP_BY_VALUE:
-            return opBuilder.addOp(MapOperation.removeByValue(binName, params.getVal1(), MapReturnType.INVERTED, params.context()));
-        case MAP_BY_VALUE_LIST:
-            return opBuilder.addOp(MapOperation.removeByValueList(binName, params.getValues(), MapReturnType.INVERTED, params.context()));
-        case MAP_BY_VALUE_RANGE:
-            return opBuilder.addOp(MapOperation.removeByValueRange(binName, params.getVal1(), params.getVal2(), MapReturnType.INVERTED, params.context()));
-        case LIST_BY_INDEX_RANGE:
-            if (params.hasInt2()) {
-                return opBuilder.addOp(ListOperation.removeByIndexRange(binName, params.getInt1(), params.getInt2(), ListReturnType.INVERTED, params.context()));
-            } else {
-                return opBuilder.addOp(ListOperation.removeByIndexRange(binName, params.getInt1(), ListReturnType.INVERTED, params.context()));
-            }
-        case LIST_BY_RANK_RANGE:
-            if (params.hasInt2()) {
-                return opBuilder.addOp(ListOperation.removeByRankRange(binName, params.getInt1(), params.getInt2(), ListReturnType.INVERTED, params.context()));
-            } else {
-                return opBuilder.addOp(ListOperation.removeByRankRange(binName, params.getInt1(), ListReturnType.INVERTED, params.context()));
-            }
-        case LIST_BY_VALUE:
-            return opBuilder.addOp(ListOperation.removeByValue(binName, params.getVal1(), ListReturnType.INVERTED, params.context()));
-        case LIST_BY_VALUE_LIST:
-            return opBuilder.addOp(ListOperation.removeByValueList(binName, params.getValues(), ListReturnType.INVERTED, params.context()));
-        case LIST_BY_VALUE_RANGE:
-            return opBuilder.addOp(ListOperation.removeByValueRange(binName, params.getVal1(), params.getVal2(), ListReturnType.INVERTED, params.context()));
-        case LIST_BY_VALUE_REL_RANK_RANGE:
-            if (params.hasInt2()) {
-                return opBuilder.addOp(ListOperation.removeByValueRelativeRankRange(binName, params.getVal1(), params.getInt1(), params.getInt2(), ListReturnType.INVERTED, params.context()));
-            } else {
-                return opBuilder.addOp(ListOperation.removeByValueRelativeRankRange(binName, params.getVal1(), params.getInt1(), ListReturnType.INVERTED, params.context()));
-            }
-        case MAP_BY_KEY_REL_INDEX_RANGE:
-            if (params.hasInt2()) {
-                return opBuilder.addOp(MapOperation.removeByKeyRelativeIndexRange(binName, params.getVal1(), params.getInt1(), params.getInt2(), MapReturnType.INVERTED, params.context()));
-            } else {
-                return opBuilder.addOp(MapOperation.removeByKeyRelativeIndexRange(binName, params.getVal1(), params.getInt1(), MapReturnType.INVERTED, params.context()));
-            }
-        case MAP_BY_VALUE_REL_RANK_RANGE:
-            if (params.hasInt2()) {
-                return opBuilder.addOp(MapOperation.removeByValueRelativeRankRange(binName, params.getVal1(), params.getInt1(), params.getInt2(), MapReturnType.INVERTED, params.context()));
-            } else {
-                return opBuilder.addOp(MapOperation.removeByValueRelativeRankRange(binName, params.getVal1(), params.getInt1(), MapReturnType.INVERTED, params.context()));
-            }
+            throw new IllegalArgumentException(methodName + "() cannot be called after onMapIndex, onMapKey, onMapRank, onListIndex or onListRank: The server does not support this");
         default:
-            throw new IllegalArgumentException("removeAllOthers() does not know how to handle an operation of " + params.getOperation());
+            break;
+        }
+    }
+
+    /**
+     * Validate that the current operation is a map operation (not a list operation).
+     */
+    void validateMapOnly(String methodName) {
+        switch (params.getOperation()) {
+        case LIST_BY_INDEX:
+        case LIST_BY_INDEX_RANGE:
+        case LIST_BY_RANK:
+        case LIST_BY_RANK_RANGE:
+        case LIST_BY_VALUE:
+        case LIST_BY_VALUE_LIST:
+        case LIST_BY_VALUE_RANGE:
+        case LIST_BY_VALUE_REL_RANK_RANGE:
+            throw new IllegalArgumentException(methodName + "() is only valid for map operations, not " + params.getOperation());
+        default:
+            break;
         }
     }
 
@@ -1965,6 +1991,54 @@ public class CdtGetOrRemoveBuilder<T extends AbstractOperationBuilder<T>> extend
         params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_VALUE, value.toAerospikeValue());
         return this;
     }
+    /**
+     * Select list elements matching a value; pushes onto the nested CDT context path.
+     *
+     * @param value reference value
+     *
+     * @return this builder for continued nested CDT operations
+     * @see #onListValue(long)
+     */
+    public CdtContextInvertableBuilder<T> onListValue(double value) {
+        params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_VALUE, Value.get(value));
+        return this;
+    }
+    /**
+     * Select list elements matching a value; pushes onto the nested CDT context path.
+     *
+     * @param value reference value
+     *
+     * @return this builder for continued nested CDT operations
+     * @see #onListValue(long)
+     */
+    public CdtContextInvertableBuilder<T> onListValue(boolean value) {
+        params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_VALUE, Value.get(value));
+        return this;
+    }
+    /**
+     * Select list elements matching a value; pushes onto the nested CDT context path.
+     *
+     * @param value reference value
+     *
+     * @return this builder for continued nested CDT operations
+     * @see #onListValue(long)
+     */
+    public CdtContextInvertableBuilder<T> onListValue(List<?> value) {
+        params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_VALUE, Value.get(value));
+        return this;
+    }
+    /**
+     * Select list elements matching a value; pushes onto the nested CDT context path.
+     *
+     * @param value reference value
+     *
+     * @return this builder for continued nested CDT operations
+     * @see #onListValue(long)
+     */
+    public CdtContextInvertableBuilder<T> onListValue(Map<?,?> value) {
+        params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_VALUE, Value.get(value));
+        return this;
+    }
 
     /**
      * Select a list element by index; pushes onto the nested CDT context path.
@@ -2181,6 +2255,123 @@ public class CdtGetOrRemoveBuilder<T extends AbstractOperationBuilder<T>> extend
         return this;
     }
     /**
+     * Restrict to list values in {@code [startIncl, endExcl)}; pushes onto the nested context path.
+     *
+     * @param startIncl range bound (inclusive start)
+     * @param endExcl range bound (exclusive end)
+     *
+     * @return this builder for continued nested CDT operations
+     * @see #onListValueRange(long, long)
+     */
+    public CdtActionInvertableBuilder<T> onListValueRange(boolean startIncl, boolean endExcl) {
+        params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_VALUE_RANGE, Value.get(startIncl), Value.get(endExcl));
+        return this;
+    }
+    /**
+     * Restrict to list values in {@code [startIncl, endExcl)}; pushes onto the nested context path.
+     *
+     * @param startIncl range bound (inclusive start)
+     * @param endExcl range bound (exclusive end)
+     *
+     * @return this builder for continued nested CDT operations
+     * @see #onListValueRange(long, long)
+     */
+    public CdtActionInvertableBuilder<T> onListValueRange(List<?> startIncl, List<?> endExcl) {
+        params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_VALUE_RANGE, Value.get(startIncl), Value.get(endExcl));
+        return this;
+    }
+    /**
+     * Restrict to list values in {@code [startIncl, endExcl)}; pushes onto the nested context path.
+     *
+     * @param startIncl range bound (inclusive start)
+     * @param endExcl range bound (exclusive end)
+     *
+     * @return this builder for continued nested CDT operations
+     * @see #onListValueRange(long, long)
+     */
+    public CdtActionInvertableBuilder<T> onListValueRange(Map<?,?> startIncl, Map<?,?> endExcl) {
+        params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_VALUE_RANGE, Value.get(startIncl), Value.get(endExcl));
+        return this;
+    }
+    /**
+     * Restrict to list values in {@code [startIncl, endExcl)}; pushes onto the nested context path.
+     *
+     * @param startIncl range bound (inclusive start)
+     * @param endExcl range bound (exclusive end)
+     *
+     * @return this builder for continued nested CDT operations
+     * @see #onListValueRange(long, long)
+     */
+    public CdtActionInvertableBuilder<T> onListValueRange(SpecialValue startIncl, boolean endExcl) {
+        params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_VALUE_RANGE, startIncl.toAerospikeValue(), Value.get(endExcl));
+        return this;
+    }
+    /**
+     * Restrict to list values in {@code [startIncl, endExcl)}; pushes onto the nested context path.
+     *
+     * @param startIncl range bound (inclusive start)
+     * @param endExcl range bound (exclusive end)
+     *
+     * @return this builder for continued nested CDT operations
+     * @see #onListValueRange(long, long)
+     */
+    public CdtActionInvertableBuilder<T> onListValueRange(boolean startIncl, SpecialValue endExcl) {
+        params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_VALUE_RANGE, Value.get(startIncl), endExcl.toAerospikeValue());
+        return this;
+    }
+    /**
+     * Restrict to list values in {@code [startIncl, endExcl)}; pushes onto the nested context path.
+     *
+     * @param startIncl range bound (inclusive start)
+     * @param endExcl range bound (exclusive end)
+     *
+     * @return this builder for continued nested CDT operations
+     * @see #onListValueRange(long, long)
+     */
+    public CdtActionInvertableBuilder<T> onListValueRange(SpecialValue startIncl, List<?> endExcl) {
+        params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_VALUE_RANGE, startIncl.toAerospikeValue(), Value.get(endExcl));
+        return this;
+    }
+    /**
+     * Restrict to list values in {@code [startIncl, endExcl)}; pushes onto the nested context path.
+     *
+     * @param startIncl range bound (inclusive start)
+     * @param endExcl range bound (exclusive end)
+     *
+     * @return this builder for continued nested CDT operations
+     * @see #onListValueRange(long, long)
+     */
+    public CdtActionInvertableBuilder<T> onListValueRange(List<?> startIncl, SpecialValue endExcl) {
+        params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_VALUE_RANGE, Value.get(startIncl), endExcl.toAerospikeValue());
+        return this;
+    }
+    /**
+     * Restrict to list values in {@code [startIncl, endExcl)}; pushes onto the nested context path.
+     *
+     * @param startIncl range bound (inclusive start)
+     * @param endExcl range bound (exclusive end)
+     *
+     * @return this builder for continued nested CDT operations
+     * @see #onListValueRange(long, long)
+     */
+    public CdtActionInvertableBuilder<T> onListValueRange(SpecialValue startIncl, Map<?,?> endExcl) {
+        params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_VALUE_RANGE, startIncl.toAerospikeValue(), Value.get(endExcl));
+        return this;
+    }
+    /**
+     * Restrict to list values in {@code [startIncl, endExcl)}; pushes onto the nested context path.
+     *
+     * @param startIncl range bound (inclusive start)
+     * @param endExcl range bound (exclusive end)
+     *
+     * @return this builder for continued nested CDT operations
+     * @see #onListValueRange(long, long)
+     */
+    public CdtActionInvertableBuilder<T> onListValueRange(Map<?,?> startIncl, SpecialValue endExcl) {
+        params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_VALUE_RANGE, Value.get(startIncl), endExcl.toAerospikeValue());
+        return this;
+    }
+    /**
      * Select list elements matching any of the given values; pushes onto the nested context path.
      *
      * @param values candidate values
@@ -2328,6 +2519,87 @@ public class CdtGetOrRemoveBuilder<T extends AbstractOperationBuilder<T>> extend
      */
     public CdtActionInvertableBuilder<T> onListValueRelativeRankRange(SpecialValue value, int rank, int count) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_VALUE_REL_RANK_RANGE, value.toAerospikeValue(), rank, count);
+        return this;
+    }
+    /**
+     * Select list elements by value relative to rank range; pushes onto the nested context path.
+     *
+     * @param value reference value
+     * @param rank server CDT index, rank, or count per operation semantics
+     *
+     * @return this builder for continued nested CDT operations
+     * @see #onListValueRelativeRankRange(long, int)
+     */
+    public CdtActionInvertableBuilder<T> onListValueRelativeRankRange(boolean value, int rank) {
+        params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank);
+        return this;
+    }
+    /**
+     * Select list elements by value relative to rank range; pushes onto the nested context path.
+     *
+     * @param value reference value
+     * @param rank server CDT index, rank, or count per operation semantics
+     *
+     * @return this builder for continued nested CDT operations
+     * @see #onListValueRelativeRankRange(long, int)
+     */
+    public CdtActionInvertableBuilder<T> onListValueRelativeRankRange(List<?> value, int rank) {
+        params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank);
+        return this;
+    }
+    /**
+     * Select list elements by value relative to rank range; pushes onto the nested context path.
+     *
+     * @param value reference value
+     * @param rank server CDT index, rank, or count per operation semantics
+     *
+     * @return this builder for continued nested CDT operations
+     * @see #onListValueRelativeRankRange(long, int)
+     */
+    public CdtActionInvertableBuilder<T> onListValueRelativeRankRange(Map<?,?> value, int rank) {
+        params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank);
+        return this;
+    }
+    /**
+     * Select list elements by value relative to rank range; pushes onto the nested context path.
+     *
+     * @param value reference value
+     * @param rank server CDT index, rank, or count per operation semantics
+     * @param count server CDT index, rank, or count per operation semantics
+     *
+     * @return this builder for continued nested CDT operations
+     * @see #onListValueRelativeRankRange(long, int)
+     */
+    public CdtActionInvertableBuilder<T> onListValueRelativeRankRange(boolean value, int rank, int count) {
+        params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank, count);
+        return this;
+    }
+    /**
+     * Select list elements by value relative to rank range; pushes onto the nested context path.
+     *
+     * @param value reference value
+     * @param rank server CDT index, rank, or count per operation semantics
+     * @param count server CDT index, rank, or count per operation semantics
+     *
+     * @return this builder for continued nested CDT operations
+     * @see #onListValueRelativeRankRange(long, int)
+     */
+    public CdtActionInvertableBuilder<T> onListValueRelativeRankRange(List<?> value, int rank, int count) {
+        params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank, count);
+        return this;
+    }
+    /**
+     * Select list elements by value relative to rank range; pushes onto the nested context path.
+     *
+     * @param value reference value
+     * @param rank server CDT index, rank, or count per operation semantics
+     * @param count server CDT index, rank, or count per operation semantics
+     *
+     * @return this builder for continued nested CDT operations
+     * @see #onListValueRelativeRankRange(long, int)
+     */
+    public CdtActionInvertableBuilder<T> onListValueRelativeRankRange(Map<?,?> value, int rank, int count) {
+        params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank, count);
         return this;
     }
 

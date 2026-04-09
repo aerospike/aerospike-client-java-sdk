@@ -28,7 +28,10 @@ import java.util.Map;
 
 import org.junit.jupiter.api.Test;
 
+import com.aerospike.client.sdk.cdt.ListOperation;
 import com.aerospike.client.sdk.cdt.ListOrder;
+import com.aerospike.client.sdk.cdt.ListPolicy;
+import com.aerospike.client.sdk.cdt.ListReturnType;
 import com.aerospike.client.sdk.cdt.ListSortFlags;
 
 public class OperateListTest extends ClusterTest {
@@ -556,7 +559,6 @@ public class OperateListTest extends ClusterTest {
 		assertEquals(4L, val);
 	}
 
-	/* TODO Get feedback on not being able to return values on remove before implementing this test.
 	@Test
 	public void operateListRemove() {
 		Key key = args.set.id("operateListRemove");
@@ -581,32 +583,32 @@ public class OperateListTest extends ClusterTest {
 
 		RecordStream rs = session.upsert(key)
 	        .bin(binName).listAppendItems(itemList)
-        	.bin(binName).onListValue(0).remove()
-        	.bin(binName).onListValueList(valueList).remove()
-        	.bin(binName).onListValueRange(33, 100).remove()
-        	.bin(binName).onListIndex(1).remove()
-        	.bin(binName).onListIndexRange(100, 101).remove()
-        	.bin(binName).onListRank(0).remove()
-        	.bin(binName).onListRankRange(3, 1).remove()
+        	.bin(binName).onListValue(0).removeAnd().getIndexes()
+        	.bin(binName).onListValueList(valueList).removeAnd().getValues()
+        	.bin(binName).onListValueRange(33, 100).removeAnd().getValues()
+        	.bin(binName).onListIndex(1).removeAnd().getValues()
+        	.bin(binName).onListIndexRange(100, 101).removeAnd().getValues()
+        	.bin(binName).onListRank(0).removeAnd().getValues()
+        	.bin(binName).onListRankRange(3, 1).removeAnd().getValues()
         	.execute();
 
 		assertTrue(rs.hasNext());
 		Record rec = rs.next().recordOrThrow();
 		System.out.println("REC=" + rec);
 
-		Record record = client.operate(null, key,
-				ListOperation.appendItems(ListPolicy.Default, binName, itemList),
-				ListOperation.removeByValue(binName, 0), ListReturnType.INDEX,
-				ListOperation.removeByValueList(binName, valueList, ListReturnType.VALUE),
-				ListOperation.removeByValueRange(binName, 33), Value.get(100), ListReturnType.VALUE,
-				ListOperation.removeByIndex(binName, 1, ListReturnType.VALUE),
-				ListOperation.removeByIndexRange(binName, 100, 101, ListReturnType.VALUE),
-				ListOperation.removeByRank(binName, 0, ListReturnType.VALUE),
-				ListOperation.removeByRankRange(binName, 3, 1, ListReturnType.VALUE)
-				);
+		// Record record = client.operate(null, key,
+		// 		ListOperation.appendItems(ListPolicy.Default, binName, itemList),
+		// 		ListOperation.removeByValue(binName, 0), ListReturnType.INDEX,
+		// 		ListOperation.removeByValueList(binName, valueList, ListReturnType.VALUE),
+		// 		ListOperation.removeByValueRange(binName, 33), Value.get(100), ListReturnType.VALUE,
+		// 		ListOperation.removeByIndex(binName, 1, ListReturnType.VALUE),
+		// 		ListOperation.removeByIndexRange(binName, 100, 101, ListReturnType.VALUE),
+		// 		ListOperation.removeByRank(binName, 0, ListReturnType.VALUE),
+		// 		ListOperation.removeByRankRange(binName, 3, 1, ListReturnType.VALUE)
+		// 		);
 
-		assertRecordFound(key, record);
-		//System.out.println("Record: " + record);
+		// assertRecordFound(key, record);
+		// //System.out.println("Record: " + record);
 
 		List<?> results = rec.getList(binName);
 		int i = 0;
@@ -640,7 +642,6 @@ public class OperateListTest extends ClusterTest {
 		assertEquals(1L, list.size());
 		assertEquals(22L, list.get(0));
 	}
-	*/
 
 	@Test
 	public void operateListInverted() {
@@ -1046,7 +1047,7 @@ public class OperateListTest extends ClusterTest {
 
 		rs = session.upsert(key)
 			// TODO Fix this!
-	        //.bin(binName).onListValue(itemList2).getValues()
+	        .bin(binName).onListValue(itemList2).getValues()
         	.execute();
 
 		assertTrue(rs.hasNext());

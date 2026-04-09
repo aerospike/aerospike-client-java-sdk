@@ -47,4 +47,18 @@ public interface CdtActionInvertableBuilder<T extends AbstractOperationBuilder<T
     public T getAllOtherKeysAndValues();
     public T removeAllOthers();
 
+    /**
+     * Begin an inverted remove operation that also returns data about the removed elements.
+     * Removes elements NOT matching the current selection and returns data about those removed elements.
+     * Not supported after single-element paths such as {@code onMapIndex},
+     * {@code onMapKey}, or {@code onListIndex}.
+     * <pre>{@code
+     * .onMapValueRange(1, 4).removeAllOthersAnd().getValues()  // remove others, return their VALUES
+     * .onMapValueRange(1, 4).removeAllOthersAnd().count()       // remove others, return COUNT
+     * }</pre>
+     *
+     * @return a {@link RemoveResultBuilder} for specifying the return type
+     * @see #removeAllOthers() for fire-and-forget inverted removal with no return data
+     */
+    public RemoveResultBuilder<T> removeAllOthersAnd();
 }

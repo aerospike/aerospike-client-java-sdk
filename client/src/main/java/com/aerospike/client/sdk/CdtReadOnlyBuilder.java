@@ -1490,6 +1490,34 @@ public class CdtReadOnlyBuilder<T> implements CdtReadContextBuilder<T>,
         return this;
     }
 
+    /** @see CdtGetOrRemoveBuilder#onListValue(double value) */
+    @Override
+    public CdtReadContextInvertableBuilder<T> onListValue(double value) {
+        params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_VALUE, Value.get(value));
+        return this;
+    }
+
+    /** @see CdtGetOrRemoveBuilder#onListValue(boolean value) */
+    @Override
+    public CdtReadContextInvertableBuilder<T> onListValue(boolean value) {
+        params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_VALUE, Value.get(value));
+        return this;
+    }
+
+    /** @see CdtGetOrRemoveBuilder#onListValue(List<?> value) */
+    @Override
+    public CdtReadContextInvertableBuilder<T> onListValue(List<?> value) {
+        params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_VALUE, Value.get(value));
+        return this;
+    }
+
+    /** @see CdtGetOrRemoveBuilder#onListValue(Map<?,?> value) */
+    @Override
+    public CdtReadContextInvertableBuilder<T> onListValue(Map<?,?> value) {
+        params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_VALUE, Value.get(value));
+        return this;
+    }
+
     /** @see CdtGetOrRemoveBuilder#onListIndexRange(int index, int count) */
     @Override
     public CdtReadActionInvertableBuilder<T> onListIndexRange(int index, int count) {
@@ -1610,6 +1638,69 @@ public class CdtReadOnlyBuilder<T> implements CdtReadContextBuilder<T>,
         return this;
     }
 
+    /** @see CdtGetOrRemoveBuilder#onListValueRange(boolean startIncl, boolean endExcl) */
+    @Override
+    public CdtReadActionInvertableBuilder<T> onListValueRange(boolean startIncl, boolean endExcl) {
+        params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_VALUE_RANGE, Value.get(startIncl), Value.get(endExcl));
+        return this;
+    }
+
+    /** @see CdtGetOrRemoveBuilder#onListValueRange(List<?> startIncl, List<?> endExcl) */
+    @Override
+    public CdtReadActionInvertableBuilder<T> onListValueRange(List<?> startIncl, List<?> endExcl) {
+        params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_VALUE_RANGE, Value.get(startIncl), Value.get(endExcl));
+        return this;
+    }
+
+    /** @see CdtGetOrRemoveBuilder#onListValueRange(Map<?,?> startIncl, Map<?,?> endExcl) */
+    @Override
+    public CdtReadActionInvertableBuilder<T> onListValueRange(Map<?,?> startIncl, Map<?,?> endExcl) {
+        params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_VALUE_RANGE, Value.get(startIncl), Value.get(endExcl));
+        return this;
+    }
+
+    /** @see CdtGetOrRemoveBuilder#onListValueRange(SpecialValue startIncl, boolean endExcl) */
+    @Override
+    public CdtReadActionInvertableBuilder<T> onListValueRange(SpecialValue startIncl, boolean endExcl) {
+        params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_VALUE_RANGE, startIncl.toAerospikeValue(), Value.get(endExcl));
+        return this;
+    }
+
+    /** @see CdtGetOrRemoveBuilder#onListValueRange(boolean startIncl, SpecialValue endExcl) */
+    @Override
+    public CdtReadActionInvertableBuilder<T> onListValueRange(boolean startIncl, SpecialValue endExcl) {
+        params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_VALUE_RANGE, Value.get(startIncl), endExcl.toAerospikeValue());
+        return this;
+    }
+
+    /** @see CdtGetOrRemoveBuilder#onListValueRange(SpecialValue startIncl, List<?> endExcl) */
+    @Override
+    public CdtReadActionInvertableBuilder<T> onListValueRange(SpecialValue startIncl, List<?> endExcl) {
+        params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_VALUE_RANGE, startIncl.toAerospikeValue(), Value.get(endExcl));
+        return this;
+    }
+
+    /** @see CdtGetOrRemoveBuilder#onListValueRange(List<?> startIncl, SpecialValue endExcl) */
+    @Override
+    public CdtReadActionInvertableBuilder<T> onListValueRange(List<?> startIncl, SpecialValue endExcl) {
+        params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_VALUE_RANGE, Value.get(startIncl), endExcl.toAerospikeValue());
+        return this;
+    }
+
+    /** @see CdtGetOrRemoveBuilder#onListValueRange(SpecialValue startIncl, Map<?,?> endExcl) */
+    @Override
+    public CdtReadActionInvertableBuilder<T> onListValueRange(SpecialValue startIncl, Map<?,?> endExcl) {
+        params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_VALUE_RANGE, startIncl.toAerospikeValue(), Value.get(endExcl));
+        return this;
+    }
+
+    /** @see CdtGetOrRemoveBuilder#onListValueRange(Map<?,?> startIncl, SpecialValue endExcl) */
+    @Override
+    public CdtReadActionInvertableBuilder<T> onListValueRange(Map<?,?> startIncl, SpecialValue endExcl) {
+        params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_VALUE_RANGE, Value.get(startIncl), endExcl.toAerospikeValue());
+        return this;
+    }
+
     /** @see CdtGetOrRemoveBuilder#onListValueList(List<?> valueList) */
     @Override
     public CdtReadContextInvertableBuilder<T> onListValueList(List<?> valueList) {
@@ -1689,6 +1780,48 @@ public class CdtReadOnlyBuilder<T> implements CdtReadContextBuilder<T>,
     @Override
     public CdtReadActionInvertableBuilder<T> onListValueRelativeRankRange(SpecialValue value, int rank, int count) {
         params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_VALUE_REL_RANK_RANGE, value.toAerospikeValue(), rank, count);
+        return this;
+    }
+
+    /** @see CdtGetOrRemoveBuilder#onListValueRelativeRankRange(boolean value, int rank) */
+    @Override
+    public CdtReadActionInvertableBuilder<T> onListValueRelativeRankRange(boolean value, int rank) {
+        params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank);
+        return this;
+    }
+
+    /** @see CdtGetOrRemoveBuilder#onListValueRelativeRankRange(List<?> value, int rank) */
+    @Override
+    public CdtReadActionInvertableBuilder<T> onListValueRelativeRankRange(List<?> value, int rank) {
+        params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank);
+        return this;
+    }
+
+    /** @see CdtGetOrRemoveBuilder#onListValueRelativeRankRange(Map<?,?> value, int rank) */
+    @Override
+    public CdtReadActionInvertableBuilder<T> onListValueRelativeRankRange(Map<?,?> value, int rank) {
+        params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank);
+        return this;
+    }
+
+    /** @see CdtGetOrRemoveBuilder#onListValueRelativeRankRange(boolean value, int rank, int count) */
+    @Override
+    public CdtReadActionInvertableBuilder<T> onListValueRelativeRankRange(boolean value, int rank, int count) {
+        params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank, count);
+        return this;
+    }
+
+    /** @see CdtGetOrRemoveBuilder#onListValueRelativeRankRange(List<?> value, int rank, int count) */
+    @Override
+    public CdtReadActionInvertableBuilder<T> onListValueRelativeRankRange(List<?> value, int rank, int count) {
+        params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank, count);
+        return this;
+    }
+
+    /** @see CdtGetOrRemoveBuilder#onListValueRelativeRankRange(Map<?,?> value, int rank, int count) */
+    @Override
+    public CdtReadActionInvertableBuilder<T> onListValueRelativeRankRange(Map<?,?> value, int rank, int count) {
+        params.pushCurrentToContextAndReplaceWith(CdtOperation.LIST_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank, count);
         return this;
     }
 }
