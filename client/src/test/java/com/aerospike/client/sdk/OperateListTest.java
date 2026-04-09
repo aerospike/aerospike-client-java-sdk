@@ -28,10 +28,7 @@ import java.util.Map;
 
 import org.junit.jupiter.api.Test;
 
-import com.aerospike.client.sdk.cdt.ListOperation;
 import com.aerospike.client.sdk.cdt.ListOrder;
-import com.aerospike.client.sdk.cdt.ListPolicy;
-import com.aerospike.client.sdk.cdt.ListReturnType;
 import com.aerospike.client.sdk.cdt.ListSortFlags;
 
 public class OperateListTest extends ClusterTest {
@@ -594,21 +591,6 @@ public class OperateListTest extends ClusterTest {
 
 		assertTrue(rs.hasNext());
 		Record rec = rs.next().recordOrThrow();
-		System.out.println("REC=" + rec);
-
-		// Record record = client.operate(null, key,
-		// 		ListOperation.appendItems(ListPolicy.Default, binName, itemList),
-		// 		ListOperation.removeByValue(binName, 0), ListReturnType.INDEX,
-		// 		ListOperation.removeByValueList(binName, valueList, ListReturnType.VALUE),
-		// 		ListOperation.removeByValueRange(binName, 33), Value.get(100), ListReturnType.VALUE,
-		// 		ListOperation.removeByIndex(binName, 1, ListReturnType.VALUE),
-		// 		ListOperation.removeByIndexRange(binName, 100, 101, ListReturnType.VALUE),
-		// 		ListOperation.removeByRank(binName, 0, ListReturnType.VALUE),
-		// 		ListOperation.removeByRankRange(binName, 3, 1, ListReturnType.VALUE)
-		// 		);
-
-		// assertRecordFound(key, record);
-		// //System.out.println("Record: " + record);
 
 		List<?> results = rec.getList(binName);
 		int i = 0;
@@ -818,7 +800,6 @@ public class OperateListTest extends ClusterTest {
 		assertEquals(0L, list.size());
 	}
 
-	/* TODO Get feedback on not being able to return values on remove before implementing this test.
 	@Test
 	public void operateListRemoveRelative() {
 		Key key = args.set.id("operateListRemoveRelative");
@@ -836,30 +817,17 @@ public class OperateListTest extends ClusterTest {
 		RecordStream rs = session.upsert(key)
 			.bin(binName).listSetOrder(ListOrder.ORDERED)
 	        .bin(binName).listAppendItems(itemList)
-        	.bin(binName).onListValueRelativeRankRange(5, 0).remove()
-        	.bin(binName).onListValueRelativeRankRange(5, 1).remove()
-        	.bin(binName).onListValueRelativeRankRange(5, -1).remove()
-        	.bin(binName).onListValueRelativeRankRange(3, -3, 1).remove()
-        	.bin(binName).onListValueRelativeRankRange(3, -3, 2).remove()
-        	.bin(binName).onListValueRelativeRankRange(3, -3, 3).remove()
+        	.bin(binName).onListValueRelativeRankRange(5, 0).removeAnd().getValues()
+        	.bin(binName).onListValueRelativeRankRange(5, 1).removeAnd().getValues()
+        	.bin(binName).onListValueRelativeRankRange(5, -1).removeAnd().getValues()
+        	.bin(binName).onListValueRelativeRankRange(3, -3, 1).removeAnd().getValues()
+        	.bin(binName).onListValueRelativeRankRange(3, -3, 2).removeAnd().getValues()
+        	.bin(binName).onListValueRelativeRankRange(3, -3, 3).removeAnd().getValues()
         	.execute();
 
 		assertTrue(rs.hasNext());
 		Record rec = rs.next().recordOrThrow();
-		System.out.println("REC=" + rec);
-
-		Record record = client.operate(null, key,
-				ListOperation.appendItems(new ListPolicy(ListOrder.ORDERED, ListWriteFlags.DEFAULT), binName, itemList),
-				ListOperation.removeByValueRelativeRankRange(binName, 5), 0, ListReturnType.VALUE,
-				ListOperation.removeByValueRelativeRankRange(binName, 5), 1, ListReturnType.VALUE,
-				ListOperation.removeByValueRelativeRankRange(binName, 5), -1, ListReturnType.VALUE,
-				ListOperation.removeByValueRelativeRankRange(binName, 3), -3, 1, ListReturnType.VALUE,
-				ListOperation.removeByValueRelativeRankRange(binName, 3), -3, 2, ListReturnType.VALUE,
-				ListOperation.removeByValueRelativeRankRange(binName, 3), -3, 3, ListReturnType.VALUE
-				);
-
-		assertRecordFound(key, record);
-		//System.out.println("Record: " + record);
+		//System.out.println("REC=" + rec);
 
 		List<?> results = rec.getList(binName);
 		int i = 1;
@@ -891,7 +859,6 @@ public class OperateListTest extends ClusterTest {
 		assertEquals(1L, list.size());
 		assertEquals(0L, list.get(0));
 	}
-	*/
 
 	@Test
 	public void operateListPartial() {
@@ -1046,19 +1013,12 @@ public class OperateListTest extends ClusterTest {
 		itemList2.add(Value.WILDCARD);
 
 		rs = session.upsert(key)
-			// TODO Fix this!
 	        .bin(binName).onListValue(itemList2).getValues()
         	.execute();
 
 		assertTrue(rs.hasNext());
 		rec = rs.next().recordOrThrow();
-		System.out.println("REC=" + rec);
-
-		/*
-		record = client.operate(null, key,
-				ListOperation.getByValue(binName, itemList), ListReturnType.VALUE
-				);
-		*/
+		//System.out.println("REC=" + rec);
 
 		List<?> results = rec.getList(binName);
 		int i = 0;
@@ -1071,64 +1031,6 @@ public class OperateListTest extends ClusterTest {
 		assertEquals(95L, v);
 	}
 
-	/* TODO Wait till all list operations are implemented in new client.
-
-	@Test
-	public void operateListWildcard() {
-		Key key = new Key(args.namespace, args.set, "oplkey17");
-
-		client.delete(null, key);
-
-		List<Value> i1 = new ArrayList<Value>();
-		i1.add("John");
-		i1.add(55);
-
-		List<Value> i2 = new ArrayList<Value>();
-		i2.add("Jim");
-		i2.add(95);
-
-		List<Value> i3 = new ArrayList<Value>();
-		i3.add("Joe");
-		i3.add(80);
-
-		List<Value> itemList = new ArrayList<Value>();
-
-		itemList.add(i1);
-		itemList.add(i2);
-		itemList.add(i3);
-
-		Record record = client.operate(null, key,
-				ListOperation.appendItems(binName, itemList)
-				);
-
-		assertRecordFound(key, record);
-		//System.out.println("Record: " + record);
-
-		long size = record.getLong(binName);
-		assertEquals(3L, size);
-
-		itemList = new ArrayList<Value>();
-		itemList.add("Jim");
-		itemList.add(Value.WILDCARD);
-
-		record = client.operate(null, key,
-				ListOperation.getByValue(binName, itemList), ListReturnType.VALUE
-				);
-
-		assertRecordFound(key, record);
-		//System.out.println("Record: " + record);
-
-		List<?> results = record.getList(binName);
-		int i = 0;
-
-		List<?> items = (List<?>)results.get(i++);
-		String s = (String)items.get(0);
-		assertEquals("Jim", s);
-
-		long v = (Long)items.get(1);
-		assertEquals(95L, v);
-	}
-*/
 	@Test
 	public void operateNestedList() {
 		Key key = args.set.id("operateNestedList");
