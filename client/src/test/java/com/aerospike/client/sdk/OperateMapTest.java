@@ -16,48 +16,49 @@
  */
 package com.aerospike.client.sdk;
 
-public class OperateMapTest extends ClusterTest {
-	//private static final String binName = "opmapbin";
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/* TODO: How set different map policies in the new client?
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import org.junit.jupiter.api.Test;
+
+import com.aerospike.client.sdk.cdt.MapOrder;
+
+public class OperateMapTest extends ClusterTest {
+	private static final String binName = "opmapbin";
+
 	@Test
 	public void operateMapPut() {
-		Key key = args.set.id("opmkey1");
+		Key key = args.set.id("operateMapPut");
 
         session.delete(key).execute();
 
-		MapPolicy putMode = MapPolicy.Default;
-		MapPolicy addMode = new MapPolicy(MapOrder.UNORDERED, MapWriteFlags.CREATE_ONLY);
-		MapPolicy updateMode = new MapPolicy(MapOrder.UNORDERED, MapWriteFlags.UPDATE_ONLY);
-		MapPolicy orderedUpdateMode = new MapPolicy(MapOrder.KEY_ORDERED, MapWriteFlags.UPDATE_ONLY);
-
-		// Calling put() multiple times performs poorly because the server makes
+		// Calling single key writes multiple times performs poorly because the server makes
 		// a copy of the map for each call, but we still need to test it.
-		// putItems() should be used instead for best performance.
-        session.upsert(key)
-	    	.bin(binName).onMapKey(11).insert(789)
-	    	.bin(binName).onMapKey(10).insert(999)
-	    	.bin(binName).onMapKey(12).insert(500)
-	    	.bin(binName).onMapKey(15).insert(1000)
-	    	.bin(binName).onMapKey(10).insert(789)
-	    	.bin(binName).onMapKey(15).insert(789)
+		// Multiple key writes (like upsertItems()) should be used instead for best performance.
+        RecordStream rs = session.upsert(key)
+	    	.bin(binName).onMapKey(11).upsert(789)
+	    	.bin(binName).onMapKey(10).upsert(999)
+	    	.bin(binName).onMapKey(12).insert(500, opt -> opt
+	    		.mapOrder(MapOrder.UNORDERED))
+	    	.bin(binName).onMapKey(15).insert(1000, opt -> opt
+	    		.mapOrder(MapOrder.UNORDERED))
+	    	.bin(binName).onMapKey(10).update(1, opt -> opt
+	    		.mapOrder(MapOrder.KEY_ORDERED))
+	    	.bin(binName).onMapKey(15).update(5, opt -> opt
+		    	.mapOrder(MapOrder.UNORDERED))
 	        .execute();
 
+        assertTrue(rs.hasNext());
+		Record rec = rs.next().recordOrThrow();
 
-		Record record = client.operate(null, key,
-				MapOperation.put(putMode, binName, Value.get(11), Value.get(789)),
-				MapOperation.put(putMode, binName, Value.get(10), Value.get(999)),
-				MapOperation.put(addMode, binName, Value.get(12), Value.get(500)),
-				MapOperation.put(addMode, binName, Value.get(15), Value.get(1000)),
-				// Ordered type should be ignored since map has already been created in first put().
-				MapOperation.put(orderedUpdateMode, binName, Value.get(10), Value.get(1)),
-				MapOperation.put(updateMode, binName, Value.get(15), Value.get(5))
-				);
-
-		assertRecordFound(key, record);
-		//System.out.println("Record: " + record);
-
-		List<?> results = record.getList(binName);
+		List<?> results = rec.getList(binName);
 		int i = 0;
 
 		long size = (Long)results.get(i++);
@@ -78,55 +79,57 @@ public class OperateMapTest extends ClusterTest {
 		size = (Long)results.get(i++);
 		assertEquals(4, size);
 
-		record = client.get(null, key, binName);
-		//System.out.println("Record: " + record);
+		rs = session.query(key).execute();
+		assertTrue(rs.hasNext());
+		rec = rs.next().recordOrThrow();
 
-		Map<?,?> map = record.getMap(binName);
+		Map<?,?> map = rec.getMap(binName);
 		assertEquals(4, map.size());
 		assertEquals(1L, map.get(10L));
 	}
 
 	@Test
 	public void operateMapPutItems() {
-		Key key = new Key(args.namespace, args.set, "opmkey2");
-		client.delete(null, key);
+		Key key = args.set.id("operateMapPutItems");
 
-		Map<Value,Value> addMap = new HashMap<Value,Value>();
-		addMap.put(Value.get(12), Value.get("myval"));
-		addMap.put(Value.get(-8734), Value.get("str2"));
-		addMap.put(Value.get(1), Value.get("my default"));
+        session.delete(key).execute();
 
-		Map<Value,Value> putMap = new HashMap<Value,Value>();
-		putMap.put(Value.get(12), Value.get("myval12222"));
-		putMap.put(Value.get(13), Value.get("str13"));
+		Map<Integer,String> addMap = new HashMap<>();
+		addMap.put(12, "myval");
+		addMap.put(-8734, "str2");
+		addMap.put(1, "my default");
 
-		Map<Value,Value> updateMap = new HashMap<Value,Value>();
-		updateMap.put(Value.get(13), Value.get("myval2"));
+		Map<Integer,String> putMap = new HashMap<>();
+		putMap.put(12, "myval12222");
+		putMap.put(13, "str13");
 
-		Map<Value,Value> replaceMap = new HashMap<Value,Value>();
-		replaceMap.put(Value.get(12), Value.get(23));
-		replaceMap.put(Value.get(-8734), Value.get("changed"));
+		Map<Integer,String> updateMap = new HashMap<>();
+		updateMap.put(13, "myval2");
 
-		MapPolicy putMode = MapPolicy.Default;
-		MapPolicy addMode = new MapPolicy(MapOrder.KEY_ORDERED, MapWriteFlags.CREATE_ONLY);
-		MapPolicy updateMode = new MapPolicy(MapOrder.KEY_ORDERED, MapWriteFlags.UPDATE_ONLY);
+		Map<Integer,Object> replaceMap = new HashMap<>();
+		replaceMap.put(12, 23);
+		replaceMap.put(-8734, "changed");
 
-		Record record = client.operate(null, key,
-			MapOperation.putItems(addMode, binName, addMap),
-			MapOperation.putItems(putMode, binName, putMap),
-			MapOperation.putItems(updateMode, binName, updateMap),
-			MapOperation.putItems(updateMode, binName, replaceMap),
-			MapOperation.getByKey(binName, Value.get(1), MapReturnType.VALUE),
-			MapOperation.getByKey(binName, Value.get(-8734), MapReturnType.VALUE),
-			MapOperation.getByKeyRange(binName, Value.get(12), Value.get(15), MapReturnType.KEY_VALUE),
-			MapOperation.getByKeyRange(binName, Value.get(12), Value.get(15), MapReturnType.UNORDERED_MAP),
-			MapOperation.getByKeyRange(binName, Value.get(12), Value.get(15), MapReturnType.ORDERED_MAP)
-			);
+        RecordStream rs = session.upsert(key)
+	    	.bin(binName).mapInsertItems(addMap, opt -> opt
+    			.mapOrder(MapOrder.KEY_ORDERED))
+	    	.bin(binName).mapUpsertItems(putMap)
+	    	.bin(binName).mapUpdateItems(updateMap, opt -> opt
+	    		.mapOrder(MapOrder.KEY_ORDERED))
+	    	.bin(binName).mapUpdateItems(replaceMap, opt -> opt
+		    	.mapOrder(MapOrder.KEY_ORDERED))
+	    	.bin(binName).onMapKey(1).getValues()
+	    	.bin(binName).onMapKey(-8734).getValues()
+	    	.bin(binName).onMapKeyRange(12, 15).getAsOrderedMap()
+	    	.bin(binName).onMapKeyRange(12, 15).getAsMap()
+	    	.bin(binName).onMapKeyRange(12, 15).getAsOrderedMap()
+	        .execute();
 
-		assertRecordFound(key, record);
-		//System.out.println("Record: " + record);
+        assertTrue(rs.hasNext());
+		Record rec = rs.next().recordOrThrow();
+		//System.out.println("REC=" + rec);
 
-		List<?> results = record.getList(binName);
+		List<?> results = rec.getList(binName);
 		int i = 0;
 
 		long size = (Long)results.get(i++);
@@ -147,53 +150,55 @@ public class OperateMapTest extends ClusterTest {
 		str = (String)results.get(i++);
 		assertEquals("changed", str);
 
-		List<?> list = (List<?>)results.get(i++);
-		assertEquals(2, list.size());
-
-		Map<?,?> map = (Map<?,?>)results.get(i++);
+		AerospikeMap<?,?> map = (AerospikeMap<?,?>)results.get(i++);
 		assertEquals(2, map.size());
-		assertTrue(map instanceof HashMap);
 
-		map = (Map<?,?>)results.get(i++);
+		map = (AerospikeMap<?,?>)results.get(i++);
 		assertEquals(2, map.size());
-		assertTrue(map instanceof TreeMap);
+
+		map = (AerospikeMap<?,?>)results.get(i++);
+		assertEquals(2, map.size());
 	}
 
 	@Test
 	public void operateMapMixed() {
 		// Test normal operations with map operations.
-		Key key = new Key(args.namespace, args.set, "opmkey2");
-		client.delete(null, key);
+		Key key = args.set.id("operateMapMixed");
 
-		Map<Value,Value> itemMap = new HashMap<Value,Value>();
-		itemMap.put(Value.get(12), Value.get("myval"));
-		itemMap.put(Value.get(-8734), Value.get("str2"));
-		itemMap.put(Value.get(1), Value.get("my default"));
-		itemMap.put(Value.get(7), Value.get(1));
+        session.delete(key).execute();
 
-		Record record = client.operate(null, key,
-				MapOperation.putItems(new MapPolicy(MapOrder.KEY_VALUE_ORDERED, MapWriteFlags.DEFAULT), binName, itemMap),
-				Operation.put(new Bin("otherbin", "hello"))
-				);
+		Map<Integer,Object> itemMap = new HashMap<>();
+		itemMap.put(12, "myval");
+		itemMap.put(-8734, "str2");
+		itemMap.put(1, "my default");
+		itemMap.put(7, 1);
 
-		assertRecordFound(key, record);
+        RecordStream rs = session.upsert(key)
+	    	.bin(binName).mapUpsertItems(itemMap, opt -> opt
+    			.mapOrder(MapOrder.KEY_VALUE_ORDERED))
+	    	.bin("otherbin").setTo("hello")
+	        .execute();
 
-		long size = record.getLong(binName);
+        assertTrue(rs.hasNext());
+		Record rec = rs.next().recordOrThrow();
+		//System.out.println("REC=" + rec);
+
+		long size = rec.getLong(binName);
 		assertEquals(4, size);
 
-		record = client.operate(null, key,
-				MapOperation.getByKey(binName, Value.get(12), MapReturnType.INDEX),
-				Operation.append(new Bin("otherbin", Value.get("goodbye"))),
-				Operation.get("otherbin")
-				);
+        rs = session.upsert(key)
+	    	.bin(binName).onMapKey(12).getIndexes()
+	    	.bin("otherbin").append("goodbye")
+	    	.bin("otherbin").get()
+	        .execute();
 
-		assertRecordFound(key, record);
-		//System.out.println("Record: " + record);
+        assertTrue(rs.hasNext());
+		rec = rs.next().recordOrThrow();
 
-		long index = record.getLong(binName);
+		long index = rec.getLong(binName);
 		assertEquals(3, index);
 
-		List<?> results = record.getList("otherbin");
+		List<?> results = rec.getList("otherbin");
 		String val = (String)results.get(1);
 		assertEquals("hellogoodbye", val);
 	}
@@ -201,44 +206,50 @@ public class OperateMapTest extends ClusterTest {
 	@Test
 	public void operateMapSwitch() {
 		// Switch from unordered map to a key ordered map.
-		Key key = new Key(args.namespace, args.set, "opmkey4");
-		client.delete(null, key);
+		Key key = args.set.id("operateMapSwitch");
 
-		Record record = client.operate(null, key,
-				MapOperation.put(MapPolicy.Default, binName, Value.get(4), Value.get(4)),
-				MapOperation.put(MapPolicy.Default, binName, Value.get(3), Value.get(3)),
-				MapOperation.put(MapPolicy.Default, binName, Value.get(2), Value.get(2)),
-				MapOperation.put(MapPolicy.Default, binName, Value.get(1), Value.get(1)),
-				MapOperation.getByIndex(binName, 2, MapReturnType.KEY_VALUE),
-				MapOperation.getByIndexRange(binName, 0, 10, MapReturnType.KEY_VALUE)
-				);
+        session.delete(key).execute();
 
-		assertRecordFound(key, record);
-		//System.out.println("Record: " + record);
+		Map<Integer,Integer> itemMap = new HashMap<>();
+		itemMap.put(4, 4);
+		itemMap.put(3, 3);
+		itemMap.put(2, 2);
+		itemMap.put(1, 1);
 
-		List<?> results = record.getList(binName);
-		int i = 3;
+		RecordStream rs = session.upsert(key)
+	    	.bin(binName).mapUpsertItems(itemMap)
+	    	.bin(binName).onMapIndex(2).getAsOrderedMap()
+	    	.bin(binName).onMapIndexRange(0, 10).getAsOrderedMap()
+	        .execute();
+
+        assertTrue(rs.hasNext());
+		Record rec = rs.next().recordOrThrow();
+		//System.out.println("REC=" + rec);
+
+		List<?> results = rec.getList(binName);
+		int i = 0;
 
 		long size = (Long)results.get(i++);
 		assertEquals(4, size);
 
-		List<?> list = (List<?>)results.get(i++);
-		assertEquals(1, list.size());
+		AerospikeMap<?,?> map = (AerospikeMap<?,?>)results.get(i++);
+		assertEquals(1, map.size());
 
-		list = (List<?>)results.get(i++);
-		assertEquals(4, list.size());
+		map = (AerospikeMap<?,?>)results.get(i++);
+		assertEquals(4, map.size());
 
-		record = client.operate(null, key,
-				MapOperation.setMapPolicy(new MapPolicy(MapOrder.KEY_ORDERED, MapWriteFlags.DEFAULT, true), binName),
-				MapOperation.getByKeyRange(binName, Value.get(3), Value.get(5), MapReturnType.COUNT),
-				MapOperation.getByKeyRange(binName, Value.get(-5), Value.get(2), MapReturnType.KEY_VALUE),
-				MapOperation.getByIndexRange(binName, 0, 10, MapReturnType.KEY_VALUE)
-				);
+		rs = session.upsert(key)
+	    	.bin(binName).mapSetPolicy(MapOrder.KEY_ORDERED, true)
+	    	.bin(binName).onMapKeyRange(3, 5).count()
+	    	.bin(binName).onMapKeyRange(-5, 2).getAsOrderedMap()
+	    	.bin(binName).onMapIndexRange(0, 10).getAsOrderedMap()
+	        .execute();
 
-		assertRecordFound(key, record);
-		//System.out.println("Record: " + record);
+        assertTrue(rs.hasNext());
+		rec = rs.next().recordOrThrow();
+		//System.out.println("REC=" + rec);
 
-		results = record.getList(binName);
+		results = rec.getList(binName);
 		i = 0;
 
 		Object obj = results.get(i++);
@@ -247,83 +258,86 @@ public class OperateMapTest extends ClusterTest {
 		long val = (Long)results.get(i++);
 		assertEquals(2, val);
 
-		list = (List<?>)results.get(i++);
-		assertEquals(1, list.size());
-		Entry<?,?> entry = (Entry<?,?>)list.get(0);
-		assertEquals(1L, entry.getValue());
+		map = (AerospikeMap<?,?>)results.get(i++);
+		assertEquals(1, map.size());
 
-		list = (List<?>)results.get(i++);
-		entry = (Entry<?,?>)list.get(3);
-		assertEquals(4L, entry.getKey());
+		map = (AerospikeMap<?,?>)results.get(i++);
+		assertEquals(4, map.size());
 	}
 
 	@Test
 	public void operateMapRank() {
 		// Test rank.
-		Key key = new Key(args.namespace, args.set, "opmkey6");
-		client.delete(null, key);
+		Key key = args.set.id("operateMapRank");
 
-		Map<Value,Value> inputMap = new HashMap<Value,Value>();
-		inputMap.put(Value.get("Charlie"), Value.get(55));
-		inputMap.put(Value.get("Jim"), Value.get(98));
-		inputMap.put(Value.get("John"), Value.get(76));
-		inputMap.put(Value.get("Harry"), Value.get(82));
+        session.delete(key).execute();
+
+		Map<String,Integer> inputMap = new HashMap<>();
+		inputMap.put("Charlie", 55);
+		inputMap.put("Jim", 98);
+		inputMap.put("John", 76);
+		inputMap.put("Harry", 82);
 
 		// Write values to empty map.
-		Record record = client.operate(null, key,
-				MapOperation.putItems(MapPolicy.Default, binName, inputMap)
-				);
+		RecordStream rs = session.upsert(key)
+	    	.bin(binName).mapUpsertItems(inputMap)
+	        .execute();
 
-		assertRecordFound(key, record);
-		//System.out.println("Record: " + record);
+        assertTrue(rs.hasNext());
+		Record rec = rs.next().recordOrThrow();
 
 		// Increment some user scores.
-		record = client.operate(null, key,
-				MapOperation.increment(MapPolicy.Default, binName, Value.get("John"), Value.get(5)),
-				MapOperation.increment(MapPolicy.Default, binName, Value.get("Jim"), Value.get(-4))
-				);
+		rs = session.upsert(key)
+	    	.bin(binName).onMapKey("John").add(5)
+	    	.bin(binName).onMapKey("Jim").add(-4)
+	        .execute();
 
-		assertRecordFound(key, record);
-		//System.out.println("Record: " + record);
+        assertTrue(rs.hasNext());
+		rec = rs.next().recordOrThrow();
+		//System.out.println("REC=" + rec);
+
+		List<?> results = rec.getList(binName);
+		int i = 0;
+
+		long val = (long)results.get(i++);
+		assertEquals(81L, val);
+
+		val = (long)results.get(i++);
+		assertEquals(94L, val);
 
 		// Get scores.
-		record = client.operate(null, key,
-				MapOperation.getByRankRange(binName, -2, 2, MapReturnType.KEY),
-				MapOperation.getByRankRange(binName, 0, 2, MapReturnType.KEY_VALUE),
-				MapOperation.getByRank(binName, 0, MapReturnType.VALUE),
-				MapOperation.getByRank(binName, 2, MapReturnType.KEY),
-				MapOperation.getByValueRange(binName, Value.get(90), Value.get(95), MapReturnType.RANK),
-				MapOperation.getByValueRange(binName, Value.get(90), Value.get(95), MapReturnType.COUNT),
-				MapOperation.getByValueRange(binName, Value.get(90), Value.get(95), MapReturnType.KEY_VALUE),
-				MapOperation.getByValueRange(binName, Value.get(81), Value.get(82), MapReturnType.KEY),
-				MapOperation.getByValue(binName, Value.get(77), MapReturnType.KEY),
-				MapOperation.getByValue(binName, Value.get(81), MapReturnType.RANK),
-				MapOperation.getByKey(binName, Value.get("Charlie"), MapReturnType.RANK),
-				MapOperation.getByKey(binName, Value.get("Charlie"), MapReturnType.REVERSE_RANK)
-				);
+		rs = session.upsert(key)
+	    	.bin(binName).onMapRankRange(-2, 2).getKeys()
+	    	.bin(binName).onMapRankRange(0, 2).getAsOrderedMap()
+	    	.bin(binName).onMapRank(0).getValues()
+	    	.bin(binName).onMapRank(2).getKeys()
+	    	.bin(binName).onMapValueRange(90, 95).getRanks()
+	    	.bin(binName).onMapValueRange(90, 95).count()
+	    	.bin(binName).onMapValueRange(90, 95).getAsOrderedMap()
+	    	.bin(binName).onMapValueRange(81, 82).getKeys()
+	    	.bin(binName).onMapValue(77).getKeys()
+	    	.bin(binName).onMapValue(81).getRanks()
+	    	.bin(binName).onMapKey("Charlie").getRanks()
+	    	.bin(binName).onMapKey("Charlie").getReverseRanks()
+	        .execute();
 
-		assertRecordFound(key, record);
-		//System.out.println("Record: " + record);
+        assertTrue(rs.hasNext());
+		rec = rs.next().recordOrThrow();
 
-		List<?> results = record.getList(binName);
-		int i = 0;
+		results = rec.getList(binName);
+		i = 0;
 
 		List<?> list = (List<?>)results.get(i++);
 		String str;
-		long val;
 
 		str = (String)list.get(0);
 		assertEquals("Harry", str);
 		str = (String)list.get(1);
 		assertEquals("Jim", str);
 
-		list = (List<?>)results.get(i++);
-		Entry<?,?> entry = (Entry<?,?>)list.get(0);
-		assertEquals("Charlie", entry.getKey());
-		assertEquals(55L, entry.getValue());
-		entry = (Entry<?,?>)list.get(1);
-		assertEquals("John", entry.getKey());
-		assertEquals(81L, entry.getValue());
+		AerospikeMap<?,?> map = (AerospikeMap<?,?>)results.get(i++);
+		assertEquals(55L, (long)map.get("Charlie"));
+		assertEquals(81L, (long)map.get("John"));
 
 		val = (Long)results.get(i++);
 		assertEquals(55, val);
@@ -338,10 +352,8 @@ public class OperateMapTest extends ClusterTest {
 		val = (Long)results.get(i++);
 		assertEquals(1, val);
 
-		list = (List<?>)results.get(i++);
-		entry = (Entry<?,?>)list.get(0);
-		assertEquals("Jim", entry.getKey());
-		assertEquals(94L, entry.getValue());
+		map = (AerospikeMap<?,?>)results.get(i++);
+		assertEquals(94L, (long)map.get("Jim"));
 
 		list = (List<?>)results.get(i++);
 		str = (String)list.get(0);
@@ -364,36 +376,37 @@ public class OperateMapTest extends ClusterTest {
 	@Test
 	public void operateMapRemove() {
 		// Test remove.
-		Key key = new Key(args.namespace, args.set, "opmkey7");
-		client.delete(null, key);
+		Key key = args.set.id("operateMapRemove");
 
-		Map<Value,Value> inputMap = new HashMap<Value,Value>();
-		inputMap.put(Value.get("Charlie"), Value.get(55));
-		inputMap.put(Value.get("Jim"), Value.get(98));
-		inputMap.put(Value.get("John"), Value.get(76));
-		inputMap.put(Value.get("Harry"), Value.get(82));
-		inputMap.put(Value.get("Sally"), Value.get(79));
-		inputMap.put(Value.get("Lenny"), Value.get(84));
-		inputMap.put(Value.get("Abe"), Value.get(88));
+        session.delete(key).execute();
 
-		List<Value> removeItems = new ArrayList<Value>();
-		removeItems.add(Value.get("Sally"));
-		removeItems.add(Value.get("UNKNOWN"));
-		removeItems.add(Value.get("Lenny"));
+		Map<String,Integer> inputMap = new HashMap<>();
+		inputMap.put("Charlie", 55);
+		inputMap.put("Jim", 98);
+		inputMap.put("John", 76);
+		inputMap.put("Harry", 82);
+		inputMap.put("Sally", 79);
+		inputMap.put("Lenny", 84);
+		inputMap.put("Abe", 88);
 
-		Record record = client.operate(null, key,
-				MapOperation.putItems(MapPolicy.Default, binName, inputMap),
-				MapOperation.removeByKey(binName, Value.get("NOTFOUND"), MapReturnType.VALUE),
-				MapOperation.removeByKey(binName, Value.get("Jim"), MapReturnType.VALUE),
-				MapOperation.removeByKeyList(binName, removeItems, MapReturnType.COUNT),
-				MapOperation.removeByValue(binName, Value.get(55), MapReturnType.KEY),
-				MapOperation.size(binName)
-				);
+		List<String> removeItems = new ArrayList<>();
+		removeItems.add("Sally");
+		removeItems.add("UNKNOWN");
+		removeItems.add("Lenny");
 
-		assertRecordFound(key, record);
-		//System.out.println("Record: " + record);
+		RecordStream rs = session.upsert(key)
+		    .bin(binName).mapUpsertItems(inputMap)
+	    	.bin(binName).onMapKey("NOTFOUND").removeAnd().getValues()
+	    	.bin(binName).onMapKey("Jim").removeAnd().getValues()
+	    	.bin(binName).onMapKeyList(removeItems).removeAnd().count()
+	    	.bin(binName).onMapValue(55).removeAnd().getKeys()
+	    	.bin(binName).mapSize()
+		    .execute();
 
-		List<?> results = record.getList(binName);
+        assertTrue(rs.hasNext());
+		Record rec = rs.next().recordOrThrow();
+
+		List<?> results = rec.getList(binName);
 		int i = 0;
 
 		long val = (Long)results.get(i++);
@@ -410,7 +423,7 @@ public class OperateMapTest extends ClusterTest {
 
 		List<?> list = (List<?>)results.get(i++);
 		assertEquals(1, list.size());
-		assertEquals("Charlie", (String)list.get(0));
+		assertEquals("Charlie", list.get(0));
 
 		val = (Long)results.get(i++);
 		assertEquals(3, val);
@@ -419,30 +432,32 @@ public class OperateMapTest extends ClusterTest {
 	@Test
 	public void operateMapRemoveRange() {
 		// Test remove ranges.
-		Key key = new Key(args.namespace, args.set, "opmkey8");
-		client.delete(null, key);
+		Key key = args.set.id("operateMapRemoveRange");
 
-		Map<Value,Value> inputMap = new HashMap<Value,Value>();
-		inputMap.put(Value.get("Charlie"), Value.get(55));
-		inputMap.put(Value.get("Jim"), Value.get(98));
-		inputMap.put(Value.get("John"), Value.get(76));
-		inputMap.put(Value.get("Harry"), Value.get(82));
-		inputMap.put(Value.get("Sally"), Value.get(79));
-		inputMap.put(Value.get("Lenny"), Value.get(84));
-		inputMap.put(Value.get("Abe"), Value.get(88));
+        session.delete(key).execute();
 
-		Record record = client.operate(null, key,
-				MapOperation.putItems(MapPolicy.Default, binName, inputMap),
-				MapOperation.removeByKeyRange(binName, Value.get("J"), Value.get("K"), MapReturnType.COUNT),
-				MapOperation.removeByValueRange(binName, Value.get(80), Value.get(85), MapReturnType.COUNT),
-				MapOperation.removeByIndexRange(binName, 0, 2, MapReturnType.COUNT),
-				MapOperation.removeByRankRange(binName, 0, 2, MapReturnType.COUNT)
-				);
+		Map<String,Integer> inputMap = new HashMap<>();
+		inputMap.put("Charlie", 55);
+		inputMap.put("Jim", 98);
+		inputMap.put("John", 76);
+		inputMap.put("Harry", 82);
+		inputMap.put("Sally", 79);
+		inputMap.put("Lenny", 84);
+		inputMap.put("Abe", 88);
 
-		assertRecordFound(key, record);
-		//System.out.println("Record: " + record);
+		RecordStream rs = session.upsert(key)
+		    .bin(binName).mapUpsertItems(inputMap)
+	    	.bin(binName).onMapKeyRange("J", "K").removeAnd().count()
+	    	.bin(binName).onMapValueRange(80, 85).removeAnd().count()
+	    	.bin(binName).onMapIndexRange(0, 2).removeAnd().count()
+	    	.bin(binName).onMapRankRange(0, 2).removeAnd().count()
+	    	.bin(binName).mapSize()
+		    .execute();
 
-		List<?> results = record.getList(binName);
+		assertTrue(rs.hasNext());
+		Record rec = rs.next().recordOrThrow();
+
+		List<?> results = rec.getList(binName);
 		int i = 0;
 
 		long val = (Long)results.get(i++);
@@ -464,28 +479,33 @@ public class OperateMapTest extends ClusterTest {
 	@Test
 	public void operateMapClear() {
 		// Test clear.
-		Key key = new Key(args.namespace, args.set, "opmkey9");
-		client.delete(null, key);
+		Key key = args.set.id("operateMapClear");
 
-		Map<Value,Value> inputMap = new HashMap<Value,Value>();
-		inputMap.put(Value.get("Charlie"), Value.get(55));
-		inputMap.put(Value.get("Jim"), Value.get(98));
+        session.delete(key).execute();
 
-		Record record = client.operate(null, key,
-				MapOperation.putItems(MapPolicy.Default, binName, inputMap)
-				);
+		Map<String,Integer> inputMap = new HashMap<>();
+		inputMap.put("Charlie", 55);
+		inputMap.put("Jim", 98);
 
-		assertRecordFound(key, record);
+		RecordStream rs = session.upsert(key)
+		    .bin(binName).mapUpsertItems(inputMap)
+		    .execute();
 
-		long size = record.getLong(binName);
+		assertTrue(rs.hasNext());
+		Record rec = rs.next().recordOrThrow();
+
+		long size = rec.getLong(binName);
 		assertEquals(2, size);
 
-		record = client.operate(null, key,
-				MapOperation.clear(binName),
-				MapOperation.size(binName)
-				);
+		rs = session.upsert(key)
+		    .bin(binName).mapClear()
+		    .bin(binName).mapSize()
+		    .execute();
 
-		List<?> results = record.getList(binName);
+		assertTrue(rs.hasNext());
+		rec = rs.next().recordOrThrow();
+
+		List<?> results = rec.getList(binName);
 		size = (Long)results.get(1);
 		assertEquals(0, size);
 	}
@@ -493,54 +513,84 @@ public class OperateMapTest extends ClusterTest {
 	@Test
 	public void operateMapScore() {
 		// Test score.
-		Key key = new Key(args.namespace, args.set, "opmkey10");
-		client.delete(null, key);
+		Key key = args.set.id("operateMapScore");
 
-		MapPolicy mapPolicy = new MapPolicy(MapOrder.KEY_VALUE_ORDERED, MapWriteFlags.DEFAULT);
+        session.delete(key).execute();
 
-		Map<Value,Value> inputMap = new HashMap<Value,Value>();
-		inputMap.put(Value.get("weiling"), Value.get(0));
-		inputMap.put(Value.get("briann"), Value.get(0));
-		inputMap.put(Value.get("brianb"), Value.get(0));
-		inputMap.put(Value.get("meher"), Value.get(0));
+		Map<String,Integer> inputMap = new HashMap<>();
+		inputMap.put("weiling", 0);
+		inputMap.put("briann", 0);
+		inputMap.put("brianb", 0);
+		inputMap.put("meher", 0);
 
-		// Create map.
-		Record record = client.operate(null, key,
-				MapOperation.putItems(mapPolicy, binName, inputMap)
-				);
+		RecordStream rs = session.upsert(key)
+		    .bin(binName).mapUpsertItems(inputMap, opt -> opt
+		    	.mapOrder(MapOrder.KEY_VALUE_ORDERED))
+		    .execute();
 
-		assertRecordFound(key, record);
+		assertTrue(rs.hasNext());
+		Record rec = rs.next().recordOrThrow();
 
 		// Change scores
-		record = client.operate(null, key,
-				MapOperation.increment(mapPolicy, binName, Value.get("weiling"), Value.get(10)),
-				MapOperation.increment(mapPolicy, binName, Value.get("briann"), Value.get(20)),
-				MapOperation.increment(mapPolicy, binName, Value.get("brianb"), Value.get(1)),
-				MapOperation.increment(mapPolicy, binName, Value.get("meher"), Value.get(20))
-				);
+		rs = session.upsert(key)
+		    .bin(binName).onMapKey("weiling").add(10)
+		    .bin(binName).onMapKey("briann").add(20)
+		    .bin(binName).onMapKey("brianb").add(1)
+		    .bin(binName).onMapKey("meher").add(20)
+		    .execute();
 
-		assertRecordFound(key, record);
-		//System.out.println("Record: " + record);
+		assertTrue(rs.hasNext());
+		rec = rs.next().recordOrThrow();
+		//System.out.println("REC=" + rec);
+
+		List<?> results = rec.getList(binName);
+		int i = 0;
+
+		long val = (long)results.get(i++);
+		assertEquals(10, val);
+
+		val = (long)results.get(i++);
+		assertEquals(20, val);
+
+		val = (long)results.get(i++);
+		assertEquals(1, val);
+
+		val = (long)results.get(i++);
+		assertEquals(20, val);
 
 		// Query top 3 scores
-		record = client.operate(null, key,
-				MapOperation.getByRankRange(binName, -3, 3, MapReturnType.KEY)
-				);
+		rs = session.upsert(key)
+		    .bin(binName).onMapRankRange(-3, 3).getKeys()
+		    .execute();
 
-		assertRecordFound(key, record);
-		//System.out.println("Record: " + record);
+		assertTrue(rs.hasNext());
+		rec = rs.next().recordOrThrow();
+		//System.out.println("REC=" + rec);
+
+		results = rec.getList(binName);
+		i = 0;
+
+		String str = (String)results.get(i++);
+		assertEquals("weiling", str);
+
+		str = (String)results.get(i++);
+		assertEquals("briann", str);
+
+		str = (String)results.get(i++);
+		assertEquals("meher", str);
 
 		// Remove people with score 10 and display top 3 again
-		record = client.operate(null, key,
-				MapOperation.removeByValue(binName, Value.get(10), MapReturnType.KEY),
-				MapOperation.getByRankRange(binName, -3, 3, MapReturnType.KEY)
-				);
+		rs = session.upsert(key)
+		    .bin(binName).onMapValue(10).removeAnd().getKeys()
+		    .bin(binName).onMapRankRange(-3, 3).removeAnd().getKeys()
+		    .execute();
 
-		assertRecordFound(key, record);
-		//System.out.println("Record: " + record);
+		assertTrue(rs.hasNext());
+		rec = rs.next().recordOrThrow();
 
-		List<?> results = record.getList(binName);
-		int i = 0;
+		results = rec.getList(binName);
+		i = 0;
+
 		List<?> list = (List<?>)results.get(i++);
 		String s = (String)list.get(0);
 		assertEquals("weiling", s);
@@ -556,94 +606,93 @@ public class OperateMapTest extends ClusterTest {
 
 	@Test
 	public void operateMapGetByList() {
-		Key key = new Key(args.namespace, args.set, "opmkey11");
-		client.delete(null, key);
+		Key key = args.set.id("operateMapGetByList");
 
-		Map<Value,Value> inputMap = new HashMap<Value,Value>();
-		inputMap.put(Value.get("Charlie"), Value.get(55));
-		inputMap.put(Value.get("Jim"), Value.get(98));
-		inputMap.put(Value.get("John"), Value.get(76));
-		inputMap.put(Value.get("Harry"), Value.get(82));
+        session.delete(key).execute();
+
+		Map<String,Integer> inputMap = new HashMap<>();
+		inputMap.put("Charlie", 55);
+		inputMap.put("Jim", 98);
+		inputMap.put("John", 76);
+		inputMap.put("Harry", 82);
 
 		// Write values to empty map.
-		Record record = client.operate(null, key,
-				MapOperation.putItems(MapPolicy.Default, binName, inputMap)
-				);
+		RecordStream rs = session.upsert(key)
+		    .bin(binName).mapUpsertItems(inputMap)
+		    .execute();
 
-		assertRecordFound(key, record);
-		//System.out.println("Record: " + record);
+		assertTrue(rs.hasNext());
+		Record rec = rs.next().recordOrThrow();
 
-		List<Value> keyList = new ArrayList<Value>();
-		keyList.add(Value.get("Harry"));
-		keyList.add(Value.get("Jim"));
+		List<String> keyList = new ArrayList<>();
+		keyList.add("Harry");
+		keyList.add("Jim");
 
-		List<Value> valueList = new ArrayList<Value>();
-		valueList.add(Value.get(76));
-		valueList.add(Value.get(50));
+		List<Integer> valueList = new ArrayList<>();
+		valueList.add(76);
+		valueList.add(50);
 
-		record = client.operate(null, key,
-				MapOperation.getByKeyList(binName, keyList, MapReturnType.KEY_VALUE),
-				MapOperation.getByValueList(binName, valueList, MapReturnType.KEY_VALUE)
-				);
+		rs = session.upsert(key)
+		    .bin(binName).onMapKeyList(keyList).getAsOrderedMap()
+		    .bin(binName).onMapValueList(valueList).getAsOrderedMap()
+		    .execute();
 
-		assertRecordFound(key, record);
-		//System.out.println("Record: " + record);
+		assertTrue(rs.hasNext());
+		rec = rs.next().recordOrThrow();
 
-		List<?> results = record.getList(binName);
-		List<?> list = (List<?>)results.get(0);
-		assertEquals(2L, list.size());
-		Entry<?,?> entry = (Entry<?,?>)list.get(0);
-		assertEquals("Harry", entry.getKey());
-		assertEquals(82L, entry.getValue());
-		entry = (Entry<?,?>)list.get(1);
-		assertEquals("Jim", entry.getKey());
-		assertEquals(98L, entry.getValue());
+		List<?> results = rec.getList(binName);
+		int i = 0;
 
-		list = (List<?>)results.get(1);
-		assertEquals(1L, list.size());
-		entry = (Entry<?,?>)list.get(0);
-		assertEquals("John", entry.getKey());
-		assertEquals(76L, entry.getValue());
+		AerospikeMap<?,?> map = (AerospikeMap<?,?>)results.get(i++);
+		assertEquals(2, map.size());
+		assertEquals(82L, (long)map.get("Harry"));
+		assertEquals(98L, (long)map.get("Jim"));
+
+		map = (AerospikeMap<?,?>)results.get(i++);
+		assertEquals(1, map.size());
+		assertEquals(76L, (long)map.get("John"));
 	}
 
 	@Test
 	public void operateMapInverted() {
-		Key key = new Key(args.namespace, args.set, "opmkey12");
-		client.delete(null, key);
+		Key key = args.set.id("operateMapInverted");
 
-		Map<Value,Value> inputMap = new HashMap<Value,Value>();
-		inputMap.put(Value.get("Charlie"), Value.get(55));
-		inputMap.put(Value.get("Jim"), Value.get(98));
-		inputMap.put(Value.get("John"), Value.get(76));
-		inputMap.put(Value.get("Harry"), Value.get(82));
+        session.delete(key).execute();
+
+		Map<String,Integer> inputMap = new HashMap<>();
+		inputMap.put("Charlie", 55);
+		inputMap.put("Jim", 98);
+		inputMap.put("John", 76);
+		inputMap.put("Harry", 82);
 
 		// Write values to empty map.
-		Record record = client.operate(null, key,
-				MapOperation.putItems(MapPolicy.Default, binName, inputMap)
-				);
+		RecordStream rs = session.upsert(key)
+		    .bin(binName).mapUpsertItems(inputMap)
+		    .execute();
 
-		assertRecordFound(key, record);
+		assertTrue(rs.hasNext());
+		Record rec = rs.next().recordOrThrow();
 
-		List<Value> valueList = new ArrayList<Value>();
-		valueList.add(Value.get(76));
-		valueList.add(Value.get(55));
-		valueList.add(Value.get(98));
-		valueList.add(Value.get(50));
+		List<Integer> valueList = new ArrayList<>();
+		valueList.add(76);
+		valueList.add(55);
+		valueList.add(98);
+		valueList.add(50);
 
-		record = client.operate(null, key,
-				MapOperation.getByValue(binName, Value.get(81), MapReturnType.RANK | MapReturnType.INVERTED),
-				MapOperation.getByValue(binName, Value.get(82), MapReturnType.RANK | MapReturnType.INVERTED),
-				MapOperation.getByValueRange(binName, Value.get(90), Value.get(95), MapReturnType.RANK | MapReturnType.INVERTED),
-				MapOperation.getByValueRange(binName, Value.get(90), Value.get(100), MapReturnType.RANK | MapReturnType.INVERTED),
-				MapOperation.getByValueList(binName, valueList, MapReturnType.KEY_VALUE | MapReturnType.INVERTED),
-				MapOperation.getByRankRange(binName, -2, 2, MapReturnType.KEY | MapReturnType.INVERTED ),
-				MapOperation.getByRankRange(binName, 0, 3, MapReturnType.KEY_VALUE | MapReturnType.INVERTED)
-				);
+		rs = session.upsert(key)
+		    .bin(binName).onMapValue(81).getAllOtherRanks()
+		    .bin(binName).onMapValue(82).getAllOtherRanks()
+		    .bin(binName).onMapValueRange(90, 95).getAllOtherRanks()
+		    .bin(binName).onMapValueRange(90, 100).getAllOtherRanks()
+		    .bin(binName).onMapValueList(valueList).getAllOtherKeysAndValues()
+		    .bin(binName).onMapRankRange(-2, 2).getAllOtherKeys()
+		    .bin(binName).onMapRankRange(0, 3).getAllOtherKeysAndValues()
+		    .execute();
 
-		assertRecordFound(key, record);
-		//System.out.println("Record: " + record);
+		assertTrue(rs.hasNext());
+		rec = rs.next().recordOrThrow();
 
-		List<?> results = record.getList(binName);
+		List<?> results = rec.getList(binName);
 		int i = 0;
 
 		List<?> list = (List<?>)results.get(i++);
@@ -661,77 +710,78 @@ public class OperateMapTest extends ClusterTest {
 		assertEquals(1L, list.get(1));
 		assertEquals(2L, list.get(2));
 
-		list = (List<?>)results.get(i++);
-		assertEquals(1L, list.size());
-		Entry<?,?> entry = (Entry<?,?>)list.get(0);
-		assertEquals("Harry", entry.getKey());
-		assertEquals(82L, entry.getValue());
+		AerospikeMap<?,?> map = (AerospikeMap<?,?>)results.get(i++);
+		assertEquals(1, map.size());
+		assertEquals(82L, (long)map.get("Harry"));
 
 		list = (List<?>)results.get(i++);
 		assertEquals(2L, list.size());
 		assertEquals("Charlie", list.get(0));
 		assertEquals("John", list.get(1));
 
-		list = (List<?>)results.get(i++);
-		assertEquals(1L, list.size());
-		entry = (Entry<?,?>)list.get(0);
-		assertEquals("Jim", entry.getKey());
-		assertEquals(98L, entry.getValue());
+		map = (AerospikeMap<?,?>)results.get(i++);
+		assertEquals(1L, map.size());
+		assertEquals(98L, (long)map.get("Jim"));
 	}
 
 	@Test
 	public void operateMapRemoveByKeyListForNonExistingKey() throws Exception {
-		Key key = new Key(args.namespace, args.set, "opmkey13");
+		Key key = args.set.id("operateMapRemoveByKeyListForNonExistingKey");
 
-		AerospikeException ae = assertThrows(AerospikeException.class, new ThrowingRunnable() {
-			public void run() {
-				client.operate(null, key,
-					MapOperation.removeByKeyList(binName, singletonList(Value.get("key-1")), MapReturnType.VALUE));
-			}
+		AerospikeException ae = assertThrows(AerospikeException.class, () -> {
+			List<String> list = List.of("key-1");
+	        RecordStream rs = session.upsert(key)
+		        .bin(binName).onMapKeyList(list).removeAnd().getValues()
+		        .execute();
+
+	        assertTrue(rs.hasNext());
+	        rs.next().recordOrThrow();
 		});
 
-		assertEquals(ae.getResultCode(), ResultCode.KEY_NOT_FOUND_ERROR);
+		assertEquals(ResultCode.KEY_NOT_FOUND_ERROR, ae.getResultCode());
 	}
 
 	@Test
 	public void operateMapGetRelative() {
-		Key key = new Key(args.namespace, args.set, "opmkey14");
-		client.delete(null, key);
+		Key key = args.set.id("operateMapGetRelative");
 
-		Map<Value,Value> inputMap = new HashMap<Value,Value>();
-		inputMap.put(Value.get(0), Value.get(17));
-		inputMap.put(Value.get(4), Value.get(2));
-		inputMap.put(Value.get(5), Value.get(15));
-		inputMap.put(Value.get(9), Value.get(10));
+        session.delete(key).execute();
+
+		Map<Integer,Integer> inputMap = new HashMap<>();
+		inputMap.put(0, 17);
+		inputMap.put(4, 2);
+		inputMap.put(5, 15);
+		inputMap.put(9, 10);
 
 		// Write values to empty map.
-		Record record = client.operate(null, key,
-				MapOperation.putItems(MapPolicy.Default, binName, inputMap)
-				);
+		RecordStream rs = session.upsert(key)
+		    .bin(binName).mapUpsertItems(inputMap)
+		    .execute();
 
-		assertRecordFound(key, record);
+		assertTrue(rs.hasNext());
+		Record rec = rs.next().recordOrThrow();
 
-		record = client.operate(null, key,
-				MapOperation.getByKeyRelativeIndexRange(binName, Value.get(5), 0, MapReturnType.KEY),
-				MapOperation.getByKeyRelativeIndexRange(binName, Value.get(5), 1, MapReturnType.KEY),
-				MapOperation.getByKeyRelativeIndexRange(binName, Value.get(5), -1, MapReturnType.KEY),
-				MapOperation.getByKeyRelativeIndexRange(binName, Value.get(3), 2, MapReturnType.KEY),
-				MapOperation.getByKeyRelativeIndexRange(binName, Value.get(3), -2, MapReturnType.KEY),
-				MapOperation.getByKeyRelativeIndexRange(binName, Value.get(5), 0, 1, MapReturnType.KEY),
-				MapOperation.getByKeyRelativeIndexRange(binName, Value.get(5), 1, 2, MapReturnType.KEY),
-				MapOperation.getByKeyRelativeIndexRange(binName, Value.get(5), -1, 1, MapReturnType.KEY),
-				MapOperation.getByKeyRelativeIndexRange(binName, Value.get(3), 2, 1, MapReturnType.KEY),
-				MapOperation.getByKeyRelativeIndexRange(binName, Value.get(3), -2, 2, MapReturnType.KEY),
-				MapOperation.getByValueRelativeRankRange(binName, Value.get(11), 1, MapReturnType.VALUE),
-				MapOperation.getByValueRelativeRankRange(binName, Value.get(11), -1, MapReturnType.VALUE),
-				MapOperation.getByValueRelativeRankRange(binName, Value.get(11), 1, 1, MapReturnType.VALUE),
-				MapOperation.getByValueRelativeRankRange(binName, Value.get(11), -1, 1, MapReturnType.VALUE)
-				);
+		rs = session.upsert(key)
+		    .bin(binName).onMapKeyRelativeIndexRange(5, 0).getKeys()
+		    .bin(binName).onMapKeyRelativeIndexRange(5, 1).getKeys()
+		    .bin(binName).onMapKeyRelativeIndexRange(5, -1).getKeys()
+		    .bin(binName).onMapKeyRelativeIndexRange(3, 2).getKeys()
+		    .bin(binName).onMapKeyRelativeIndexRange(3, -2).getKeys()
+		    .bin(binName).onMapKeyRelativeIndexRange(5, 0, 1).getKeys()
+		    .bin(binName).onMapKeyRelativeIndexRange(5, 1, 2).getKeys()
+		    .bin(binName).onMapKeyRelativeIndexRange(5, -1, 1).getKeys()
+		    .bin(binName).onMapKeyRelativeIndexRange(3, 2, 1).getKeys()
+		    .bin(binName).onMapKeyRelativeIndexRange(3, -2, 2).getKeys()
+		    .bin(binName).onMapValueRelativeRankRange(11, 1).getValues()
+		    .bin(binName).onMapValueRelativeRankRange(11, -1).getValues()
+		    .bin(binName).onMapValueRelativeRankRange(11, 1, 1).getValues()
+		    .bin(binName).onMapValueRelativeRankRange(11, -1, 1).getValues()
+		    .execute();
 
-		assertRecordFound(key, record);
-		//System.out.println("Record: " + record);
+		assertTrue(rs.hasNext());
+		rec = rs.next().recordOrThrow();
 
-		List<?> results = record.getList(binName);
+		List<?> results = rec.getList(binName);
 		int i = 0;
 
 		List<?> list = (List<?>)results.get(i++);
@@ -801,32 +851,34 @@ public class OperateMapTest extends ClusterTest {
 
 	@Test
 	public void operateMapRemoveRelative() {
-		Key key = new Key(args.namespace, args.set, "opmkey15");
-		client.delete(null, key);
+		Key key = args.set.id("operateMapRemoveRelative");
 
-		Map<Value,Value> inputMap = new HashMap<Value,Value>();
-		inputMap.put(Value.get(0), Value.get(17));
-		inputMap.put(Value.get(4), Value.get(2));
-		inputMap.put(Value.get(5), Value.get(15));
-		inputMap.put(Value.get(9), Value.get(10));
+        session.delete(key).execute();
+
+		Map<Integer,Integer> inputMap = new HashMap<>();
+		inputMap.put(0, 17);
+		inputMap.put(4, 2);
+		inputMap.put(5, 15);
+		inputMap.put(9, 10);
 
 		// Write values to empty map.
-		Record record = client.operate(null, key,
-				MapOperation.putItems(MapPolicy.Default, binName, inputMap)
-				);
+		RecordStream rs = session.upsert(key)
+		    .bin(binName).mapUpsertItems(inputMap)
+		    .execute();
 
-		assertRecordFound(key, record);
+		assertTrue(rs.hasNext());
+		Record rec = rs.next().recordOrThrow();
 
-		record = client.operate(null, key,
-				MapOperation.removeByKeyRelativeIndexRange(binName, Value.get(5), 0, MapReturnType.VALUE),
-				MapOperation.removeByKeyRelativeIndexRange(binName, Value.get(5), 1, MapReturnType.VALUE),
-				MapOperation.removeByKeyRelativeIndexRange(binName, Value.get(5), -1, 1, MapReturnType.VALUE)
-				);
+		rs = session.upsert(key)
+		    .bin(binName).onMapKeyRelativeIndexRange(5, 0).removeAnd().getValues()
+		    .bin(binName).onMapKeyRelativeIndexRange(5, 1).removeAnd().getValues()
+		    .bin(binName).onMapKeyRelativeIndexRange(5, -1, 1).removeAnd().getValues()
+		    .execute();
 
-		assertRecordFound(key, record);
-		//System.out.println("Record: " + record);
+		assertTrue(rs.hasNext());
+		rec = rs.next().recordOrThrow();
 
-		List<?> results = record.getList(binName);
+		List<?> results = rec.getList(binName);
 		int i = 0;
 
 		List<?> list = (List<?>)results.get(i++);
@@ -842,23 +894,25 @@ public class OperateMapTest extends ClusterTest {
 		assertEquals(2L, list.get(0));
 
 		// Write values to empty map.
-		client.delete(null, key);
+        session.delete(key).execute();
 
-		record = client.operate(null, key,
-				MapOperation.putItems(MapPolicy.Default, binName, inputMap)
-				);
+		rs = session.upsert(key)
+		    .bin(binName).mapUpsertItems(inputMap)
+		    .execute();
 
-		assertRecordFound(key, record);
+		assertTrue(rs.hasNext());
+		rec = rs.next().recordOrThrow();
 
-		record = client.operate(null, key,
-				MapOperation.removeByValueRelativeRankRange(binName, Value.get(11), 1, MapReturnType.VALUE),
-				MapOperation.removeByValueRelativeRankRange(binName, Value.get(11), -1, 1, MapReturnType.VALUE)
-				);
+		rs = session.upsert(key)
+		    .bin(binName).onMapValueRelativeRankRange(11, 1).removeAnd().getValues()
+		    .bin(binName).onMapValueRelativeRankRange(11, -1, 1).removeAnd().getValues()
+		    .execute();
 
-		assertRecordFound(key, record);
-		//System.out.println("Record: " + record);
+		assertTrue(rs.hasNext());
+		rec = rs.next().recordOrThrow();
+		//System.out.println("REC=" + rec);
 
-		results = record.getList(binName);
+		results = rec.getList(binName);
 		i = 0;
 
 		list = (List<?>)results.get(i++);
@@ -872,62 +926,77 @@ public class OperateMapTest extends ClusterTest {
 
 	@Test
 	public void operateMapPartial() {
-		Key key = new Key(args.namespace, args.set, "opmkey16");
-		client.delete(null, key);
+		Key key = args.set.id("operateMapPartial");
 
-		Map<Value,Value> inputMap = new HashMap<Value,Value>();
-		inputMap.put(Value.get(0), Value.get(17));
-		inputMap.put(Value.get(4), Value.get(2));
-		inputMap.put(Value.get(5), Value.get(15));
-		inputMap.put(Value.get(9), Value.get(10));
+        session.delete(key).execute();
+
+		Map<Integer,Integer> inputMap = new HashMap<>();
+		inputMap.put(0, 17);
+		inputMap.put(4, 2);
+		inputMap.put(5, 15);
+		inputMap.put(9, 10);
 
 		// Write values to empty map.
-		Record record = client.operate(null, key,
-				MapOperation.putItems(MapPolicy.Default, binName, inputMap),
-				MapOperation.putItems(MapPolicy.Default, "bin2", inputMap)
-				);
+		RecordStream rs = session.upsert(key)
+		    .bin(binName).mapUpsertItems(inputMap)
+		    .bin("bin2").mapUpsertItems(inputMap)
+		    .execute();
 
-		assertRecordFound(key, record);
+		assertTrue(rs.hasNext());
+		Record rec = rs.next().recordOrThrow();
 
-		Map<Value,Value> sourceMap = new HashMap<Value,Value>();
-		sourceMap.put(Value.get(3), Value.get(3));
-		sourceMap.put(Value.get(5), Value.get(15));
+		Map<Integer,Integer> sourceMap = new HashMap<>();
+		sourceMap.put(3, 3);
+		sourceMap.put(5, 15);
 
-		record = client.operate(null, key,
-				MapOperation.putItems(new MapPolicy(MapOrder.UNORDERED, MapWriteFlags.CREATE_ONLY | MapWriteFlags.PARTIAL | MapWriteFlags.NO_FAIL), binName, sourceMap),
-				MapOperation.putItems(new MapPolicy(MapOrder.UNORDERED, MapWriteFlags.CREATE_ONLY | MapWriteFlags.NO_FAIL), "bin2", sourceMap)
-				);
+		rs = session.upsert(key)
+		    .bin(binName).mapInsertItems(sourceMap, opt -> opt
+		    	.allowPartial()
+		    	.allowFailures())
+		    .bin("bin2").mapInsertItems(sourceMap, opt -> opt
+		    	.allowFailures())
+		    .execute();
 
-		assertRecordFound(key, record);
-		//System.out.println("Record: " + record);
+		assertTrue(rs.hasNext());
+		rec = rs.next().recordOrThrow();
 
-		long size = record.getLong(binName);
+		long size = rec.getLong(binName);
 		assertEquals(5L, size);
 
-		size = record.getLong("bin2");
+		size = rec.getLong("bin2");
 		assertEquals(4L, size);
 	}
 
+	/* TODO Wait till onMapKeyRange(int, SpecialValue) is added.
 	@Test
 	public void operateMapInfinity() {
-		Key key = new Key(args.namespace, args.set, "opmkey17");
-		client.delete(null, key);
+		Key key = args.set.id("operateMapInfinity");
 
-		Map<Value,Value> inputMap = new HashMap<Value,Value>();
-		inputMap.put(Value.get(0), Value.get(17));
-		inputMap.put(Value.get(4), Value.get(2));
-		inputMap.put(Value.get(5), Value.get(15));
-		inputMap.put(Value.get(9), Value.get(10));
+        session.delete(key).execute();
+
+		Map<Integer,Integer> inputMap = new HashMap<>();
+		inputMap.put(0, 17);
+		inputMap.put(4, 2);
+		inputMap.put(5, 15);
+		inputMap.put(9, 10);
 
 		// Write values to empty map.
-		Record record = client.operate(null, key,
-				MapOperation.putItems(MapPolicy.Default, binName, inputMap)
-				);
+		RecordStream rs = session.upsert(key)
+		    .bin(binName).mapUpsertItems(inputMap)
+		    .execute();
 
-		assertRecordFound(key, record);
+		assertTrue(rs.hasNext());
+		Record rec = rs.next().recordOrThrow();
+
+		rs = session.upsert(key)
+		    .bin(binName).onMapKeyRange(5, Value.INFINITY).getKeys()
+		    .execute();
+
+		assertTrue(rs.hasNext());
+		rec = rs.next().recordOrThrow();
 
 		record = client.operate(null, key,
-				MapOperation.getByKeyRange(binName, Value.get(5), Value.INFINITY, MapReturnType.KEY)
+				MapOperation.getByKeyRange(binName, 5, Value.INFINITY, MapReturnType.KEY)
 				);
 
 		assertRecordFound(key, record);
@@ -942,48 +1011,50 @@ public class OperateMapTest extends ClusterTest {
 		v = (Long)results.get(i++);
 		assertEquals(9L, v);
 	}
-
+*/
 	@Test
 	public void operateMapWildcard() {
-		Key key = new Key(args.namespace, args.set, "opmkey18");
-		client.delete(null, key);
+		Key key = args.set.id("operateMapWildcard");
 
-		List<Value> i1 = new ArrayList<Value>();
-		i1.add(Value.get("John"));
-		i1.add(Value.get(55));
+        session.delete(key).execute();
 
-		List<Value> i2 = new ArrayList<Value>();
-		i2.add(Value.get("Jim"));
+		List<Object> i1 = new ArrayList<>();
+		i1.add("John");
+		i1.add(55);
+
+		List<Object> i2 = new ArrayList<>();
+		i2.add("Jim");
 		i2.add(Value.get(95));
 
-		List<Value> i3 = new ArrayList<Value>();
-		i3.add(Value.get("Joe"));
-		i3.add(Value.get(80));
+		List<Object> i3 = new ArrayList<>();
+		i3.add("Joe");
+		i3.add(80);
 
-		Map<Value,Value> inputMap = new HashMap<Value,Value>();
-		inputMap.put(Value.get(4), Value.get(i1));
-		inputMap.put(Value.get(5), Value.get(i2));
-		inputMap.put(Value.get(9), Value.get(i3));
+		Map<Integer,List<Object>> inputMap = new HashMap<>();
+		inputMap.put(4, i1);
+		inputMap.put(5, i2);
+		inputMap.put(9, i3);
 
 		// Write values to empty map.
-		Record record = client.operate(null, key,
-				MapOperation.putItems(MapPolicy.Default, binName, inputMap)
-				);
+		RecordStream rs = session.upsert(key)
+		    .bin(binName).mapUpsertItems(inputMap)
+		    .execute();
 
-		assertRecordFound(key, record);
+		assertTrue(rs.hasNext());
+		Record rec = rs.next().recordOrThrow();
 
-		List<Value> filterList = new ArrayList<Value>();
+		List<Object> filterList = new ArrayList<>();
 		filterList.add(Value.get("Joe"));
 		filterList.add(Value.WILDCARD);
 
-		record = client.operate(null, key,
-				MapOperation.getByValue(binName, Value.get(filterList), MapReturnType.KEY)
-				);
+		rs = session.upsert(key)
+		    .bin(binName).onMapValue(filterList).getKeys()
+		    .execute();
 
-		assertRecordFound(key, record);
-		//System.out.println("Record: " + record);
+		assertTrue(rs.hasNext());
+		rec = rs.next().recordOrThrow();
 
-		List<?> results = record.getList(binName);
+		List<?> results = rec.getList(binName);
 		int i = 0;
 
 		long v = (Long)results.get(i++);
@@ -992,35 +1063,41 @@ public class OperateMapTest extends ClusterTest {
 
 	@Test
 	public void operateNestedMap() {
-		Key key = new Key(args.namespace, args.set, "opmkey19");
-		client.delete(null, key);
+		Key key = args.set.id("operateNestedMap");
 
-		Map<Value,Value> m1 = new HashMap<Value,Value>();
-		m1.put(Value.get("key11"), Value.get(9));
-		m1.put(Value.get("key12"), Value.get(4));
+        session.delete(key).execute();
 
-		Map<Value,Value> m2 = new HashMap<Value,Value>();
-		m2.put(Value.get("key21"), Value.get(3));
-		m2.put(Value.get("key22"), Value.get(5));
+		Map<String,Integer> m1 = new HashMap<>();
+		m1.put("key11", 9);
+		m1.put("key12", 4);
 
-		Map<Value,Value> inputMap = new HashMap<Value,Value>();
-		inputMap.put(Value.get("key1"), Value.get(m1));
-		inputMap.put(Value.get("key2"), Value.get(m2));
+		Map<String,Integer> m2 = new HashMap<>();
+		m2.put("key21", 3);
+		m2.put("key22", 5);
+
+		Map<String,Map<String,Integer>> inputMap = new HashMap<>();
+		inputMap.put("key1", m1);
+		inputMap.put("key2", m2);
 
 		// Create maps.
-		client.put(null, key, new Bin(binName, inputMap));
+		RecordStream rs = session.upsert(key)
+		    .bin(binName).setTo(inputMap)
+		    .execute();
+
+		assertTrue(rs.hasNext());
+		Record rec = rs.next().recordOrThrow();
 
 		// Set map value to 11 for map key "key21" inside of map key "key2"
 		// and retrieve all maps.
-		Record record = client.operate(null, key,
-				MapOperation.put(MapPolicy.Default, binName, Value.get("key21"), Value.get(11), CTX.mapKey(Value.get("key2"))),
-				Operation.get(binName)
-				);
+		rs = session.upsert(key)
+		    .bin(binName).onMapKey("key2").onMapKey("key21").upsert(11)
+		    .bin(binName).get()
+		    .execute();
 
-		assertRecordFound(key, record);
-		//System.out.println("Record: " + record);
+		assertTrue(rs.hasNext());
+		rec = rs.next().recordOrThrow();
 
-		List<?> results = record.getList(binName);
+		List<?> results = rec.getList(binName);
 		int i = 0;
 
 		long count = (Long)results.get(i++);
@@ -1038,43 +1115,49 @@ public class OperateMapTest extends ClusterTest {
 
 	@Test
 	public void operateDoubleNestedMap() {
-		Key key = new Key(args.namespace, args.set, "opmkey20");
-		client.delete(null, key);
+		Key key = args.set.id("operateDoubleNestedMaps");
 
-		Map<Value,Value> m11 = new HashMap<Value,Value>();
-		m11.put(Value.get("key111"), Value.get(1));
+        session.delete(key).execute();
 
-		Map<Value,Value> m12 = new HashMap<Value,Value>();
-		m12.put(Value.get("key121"), Value.get(5));
+		Map<String,Integer> m11 = new HashMap<>();
+		m11.put("key111", 1);
 
-		Map<Value,Value> m1 = new HashMap<Value,Value>();
-		m1.put(Value.get("key11"), Value.get(m11));
-		m1.put(Value.get("key12"), Value.get(m12));
+		Map<String,Integer> m12 = new HashMap<>();
+		m12.put("key121", 5);
 
-		Map<Value,Value> m21 = new HashMap<Value,Value>();
-		m21.put(Value.get("key211"), Value.get(7));
+		Map<String,Map<String,Integer>> m1 = new HashMap<>();
+		m1.put("key11", m11);
+		m1.put("key12", m12);
 
-		Map<Value,Value> m2 = new HashMap<Value,Value>();
-		m2.put(Value.get("key21"), Value.get(m21));
+		Map<String,Integer> m21 = new HashMap<>();
+		m21.put("key211", 7);
 
-		Map<Value,Value> inputMap = new HashMap<Value,Value>();
-		inputMap.put(Value.get("key1"), Value.get(m1));
-		inputMap.put(Value.get("key2"), Value.get(m2));
+		Map<String,Map<String,Integer>> m2 = new HashMap<>();
+		m2.put("key21", m21);
+
+		Map<String,Map<String,Map<String,Integer>>> inputMap = new HashMap<>();
+		inputMap.put("key1", m1);
+		inputMap.put("key2", m2);
 
 		// Create maps.
-		client.put(null, key, new Bin(binName, inputMap));
+		RecordStream rs = session.upsert(key)
+		    .bin(binName).setTo(inputMap)
+		    .execute();
+
+		assertTrue(rs.hasNext());
+		Record rec = rs.next().recordOrThrow();
 
 		// Set map value to 11 for map key "key21" inside of map key "key2"
 		// and retrieve all maps.
-		Record record = client.operate(null, key,
-				MapOperation.put(MapPolicy.Default, binName, Value.get("key121"), Value.get(11), CTX.mapKey(Value.get("key1")), CTX.mapRank(-1)),
-				Operation.get(binName)
-				);
+		rs = session.upsert(key)
+		    .bin(binName).onMapKey("key1").onMapRank(-1).onMapKey("key121").upsert(11)
+		    .bin(binName).get()
+		    .execute();
 
-		assertRecordFound(key, record);
-		//System.out.println("Record: " + record);
+		assertTrue(rs.hasNext());
+		rec = rs.next().recordOrThrow();
 
-		List<?> results = record.getList(binName);
+		List<?> results = rec.getList(binName);
 		int i = 0;
 
 		long count = (Long)results.get(i++);
@@ -1095,79 +1178,81 @@ public class OperateMapTest extends ClusterTest {
 
 	@Test
 	public void operateNestedMapValue() {
-		Key key = new Key(args.namespace, args.set, "opmkey21");
-		client.delete(null, key);
+		Key key = args.set.id("operateNestedMapValue");
 
-		Map<Value,Value> m1 = new HashMap<Value,Value>();
-		m1.put(Value.get(1), Value.get("in"));
-		m1.put(Value.get(3), Value.get("order"));
-		m1.put(Value.get(2), Value.get("key"));
+        session.delete(key).execute();
 
-		Map<Value,Value> inputMap = new HashMap<Value,Value>();
-		inputMap.put(Value.get("first"), Value.get(m1));
+		Map<Integer,String> m1 = new HashMap<>();
+		m1.put(1, "in");
+		m1.put(3, "order");
+		m1.put(2, "key");
 
-		MapPolicy mapPolicy = new MapPolicy(MapOrder.KEY_ORDERED, MapWriteFlags.DEFAULT);
+		AerospikeMap<String,Map<Integer,String>> inputMap = new AerospikeMap<>(AerospikeMap.Type.ORDERED, 10);
+		inputMap.put("first", m1);
 
 		// Create nested maps that are all sorted and lookup by map value.
-		Record record = client.operate(null, key,
-				MapOperation.putItems(mapPolicy, binName, inputMap),
-				MapOperation.put(mapPolicy, binName, Value.get("first"), Value.get(m1)),
-				MapOperation.getByKey(binName, Value.get(3), MapReturnType.KEY_VALUE, CTX.mapValue(Value.get(m1)))
-				);
+		RecordStream rs = session.upsert(key)
+		    .bin(binName).setTo(inputMap)
+		    .bin(binName).onMapKey("first").setTo(m1)
+		    .bin(binName).onMapValue(m1).onMapKey(3).getAsOrderedMap()
+		    .execute();
 
-		assertRecordFound(key, record);
-		//System.out.println("Record: " + record);
+		assertTrue(rs.hasNext());
+		Record rec = rs.next().recordOrThrow();
+		//System.out.println("REC=" + rec);
 
-		List<?> results = record.getList(binName);
+		List<?> results = rec.getList(binName);
 		int i = 0;
+
+		Object obj = results.get(i++);
+		assertNull(obj);
 
 		long count = (Long)results.get(i++);
 		assertEquals(1, count);
 
-		count = (Long)results.get(i++);
-		assertEquals(1, count);
-
-		List<?> list = (List<?>)results.get(i++);
-		assertEquals(1, list.size());
-
-		Entry<?,?> entry = (Entry<?,?>)list.get(0);
-		assertEquals(3L, entry.getKey());
-		assertEquals("order", entry.getValue());
+		AerospikeMap<?,?> map = (AerospikeMap<?,?>)results.get(i++);
+		assertEquals(1, map.size());
+		assertEquals("order", map.get(3L));
 	}
 
 	@Test
 	public void operateMapCreateContext() {
-		Key key = new Key(args.namespace, args.set, "opmkey22");
-		client.delete(null, key);
+		Key key = args.set.id("operateMapCreateContext");
 
-		Map<Value,Value> m1 = new HashMap<Value,Value>();
-		m1.put(Value.get("key11"), Value.get(9));
-		m1.put(Value.get("key12"), Value.get(4));
+        session.delete(key).execute();
 
-		Map<Value,Value> m2 = new HashMap<Value,Value>();
-		m2.put(Value.get("key21"), Value.get(3));
-		m2.put(Value.get("key22"), Value.get(5));
+		Map<String,Integer> m1 = new HashMap<>();
+		m1.put("key11", 9);
+		m1.put("key12", 4);
 
-		Map<Value,Value> inputMap = new HashMap<Value,Value>();
-		inputMap.put(Value.get("key1"), Value.get(m1));
-		inputMap.put(Value.get("key2"), Value.get(m2));
+		Map<String,Integer> m2 = new HashMap<>();
+		m2.put("key21", 3);
+		m2.put("key22", 5);
+
+		Map<String,Map<String,Integer>> inputMap = new HashMap<>();
+		inputMap.put("key1", m1);
+		inputMap.put("key2", m2);
 
 		// Create maps.
-		client.put(null, key, new Bin(binName, inputMap));
+		RecordStream rs = session.upsert(key)
+		    .bin(binName).setTo(inputMap)
+		    .execute();
+
+		assertTrue(rs.hasNext());
+		Record rec = rs.next().recordOrThrow();
 
 		// Set map value to 11 for map key "key21" inside of map key "key2"
 		// and retrieve all maps.
-		Record record = client.operate(null, key,
-				MapOperation.create(binName, MapOrder.KEY_ORDERED, CTX.mapKey(Value.get("key3"))),
-				MapOperation.put(MapPolicy.Default, binName, Value.get("key31"), Value.get(99), CTX.mapKey(Value.get("key3"))),
-				//MapOperation.put(MapPolicy.Default, binName, Value.get("key31"), Value.get(99), CTX.mapKeyCreate(Value.get("key3"), MapOrder.KEY_ORDERED)),
-				Operation.get(binName)
-				);
+		rs = session.upsert(key)
+		    .bin(binName).onMapKey("key3").mapCreate(MapOrder.KEY_ORDERED)
+		    .bin(binName).onMapKey("key3").onMapKey("key31").upsert(99)
+		    .bin(binName).get()
+		    .execute();
 
-		assertRecordFound(key, record);
-		//System.out.println("Record: " + record);
+		assertTrue(rs.hasNext());
+		rec = rs.next().recordOrThrow();
 
-		List<?> results = record.getList(binName);
+		List<?> results = rec.getList(binName);
 		int i = 1;
 
 		long count = (Long)results.get(i++);
@@ -1180,5 +1265,4 @@ public class OperateMapTest extends ClusterTest {
 		long v = (Long)map.get("key31");
 		assertEquals(99, v);
 	}
-	*/
 }

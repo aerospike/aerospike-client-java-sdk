@@ -259,4 +259,22 @@ public final class AerospikeMap<K,V> implements Map<K,V>{
 	public Set<Entry<K, V>> entrySet() {
 		return map.entrySet();
 	}
+
+	/** {@inheritDoc} */
+	@Override
+	public String toString() {
+		return map.toString();
+	}
+
+	/** {@inheritDoc} */
+	@Override
+	public boolean equals(Object other) {
+		return map.equals(other);
+	}
+
+	/** {@inheritDoc} */
+	@Override
+	public int hashCode() {
+		return map.hashCode();
+	}
 }

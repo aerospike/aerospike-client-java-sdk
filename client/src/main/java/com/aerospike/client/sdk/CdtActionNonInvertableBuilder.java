@@ -18,7 +18,7 @@ package com.aerospike.client.sdk;
 
 /**
  * This interface defines the operations available at the end of a CDT path, other than
- * the set(). There are two fundamental operations, get() and remove() but there are 
+ * the set(). There are two fundamental operations, get() and remove() but there are
  * different varieties of these based on the return type (eg count() and getValue() are
  * both get() operations.
  * <p>
@@ -65,13 +65,13 @@ public interface CdtActionNonInvertableBuilder<T extends AbstractOperationBuilde
      */
     public T exists();
 
-    /** @deprecated Will be replaced by AerospikeMap which intrinsically supports ordering. */
-    // TODO: Replace with AerospikeMap
-    @Deprecated
+    /**
+     * Return as {@link com.aerospike.client.sdk.AerospikeMap} with underlying HashMap.
+     */
     public T getAsMap();
 
-    /** @deprecated Will be replaced by AerospikeMap which intrinsically supports ordering. */
-    // TODO: Replace with AerospikeMap
-    @Deprecated
+    /**
+     * Return as {@link com.aerospike.client.sdk.AerospikeMap} with underlying LinkedHashMap.
+     */
     public T getAsOrderedMap();
 }
