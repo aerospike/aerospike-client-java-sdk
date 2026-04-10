@@ -274,72 +274,66 @@ public class BatchTest extends ClusterTest {
         assertFalse(rs.hasNext());
 	}
 
-/* TODO Need list size to be supported.
 	@Test
 	public void batchListReadOperate() {
-		List<String> keys = new ArrayList<>(Size);
+		List<Key> keys = new ArrayList<>(Size);
 
 		for (int i = 0; i < Size; i++) {
-			keys.add(KeyPrefix + (i + 1));
+			keys.add(args.set.id(KeyPrefix + (i + 1)));
 		}
 
 		// Get size and last element of list bin for all records.
-        RecordStream rs = session.query(args.set.ids(keys))
+        RecordStream rs = session.query(keys)
+        	.bin(ListBin).listSize()
+        	.bin(ListBin).onListIndex(-1).getValues()
         	.execute();
 
+        int count = 0;
 
-        Record[] records = client.get(null, keys,
-			ListOperation.size(ListBin),
-			ListOperation.getByIndex(ListBin, -1, ListReturnType.VALUE)
-			);
-
-		for (int i = 0; i < records.length; i++) {
-			Record record = records[i];
-			List<?> results = record.getList(ListBin);
+        while (rs.hasNext()) {
+            Record rec = rs.next().recordOrThrow();
+			List<?> results = rec.getList(ListBin);
 			long size = (Long)results.get(0);
 			long val = (Long)results.get(1);
 
-			assertEquals(i + 1, size);
-			assertEquals(i * (i + 1), val);
-		}
-	}
-*/
+			assertEquals(count + 1, size);
+			assertEquals(count * (count + 1), val);
+			count++;
+        }
 
-/* TODO How get list size()?
+		assertEquals(Size, count);
+	}
+
 	@Test
 	public void batchListWriteOperate() {
-		List<String> keys = new ArrayList<>(Size);
+		List<Key> keys = new ArrayList<>(Size);
 
 		for (int i = 0; i < Size; i++) {
-			keys.add(KeyPrefix + (i + 1));
+			keys.add(args.set.id(KeyPrefix + (i + 1)));
 		}
 
 		// Add integer to list and get size and last element of list bin for all records.
-        session.upsert(args.set.ids(keys))
-	    	.bin(ListBin2).onListIndex(0).listAdd(1000)
-	    	// TO
-	    	.bin(ListBin2).listSize??(0)
+		RecordStream rs = session.upsert(keys)
+	    	.bin(ListBin2).listInsert(0, 1000)
+	    	.bin(ListBin2).listSize()
+	    	.bin(ListBin2).onListIndex(-1).getValues()
 	    	.execute();
 
-		BatchResults bresults = client.operate(null, null, keys,
-			ListOperation.insert(ListBin2, 0, Value.get(1000)),
-			ListOperation.size(ListBin2),
-			ListOperation.getByIndex(ListBin2, -1, ListReturnType.VALUE)
-			);
+        int count = 0;
 
-		for (int i = 0; i < bresults.records.length; i++) {
-			BatchRecord br = bresults.records[i];
-			assertEquals(0, br.resultCode);
-
-			List<?> results = br.record.getList(ListBin2);
+        while (rs.hasNext()) {
+            Record rec = rs.next().recordOrThrow();
+			List<?> results = rec.getList(ListBin2);
 			long size = (Long)results.get(1);
 			long val = (Long)results.get(2);
 
 			assertEquals(3, size);
 			assertEquals(1, val);
-		}
+			count++;
+        }
+
+		assertEquals(Size, count);
 	}
-*/
 
 /* TODO How retrieve all bins in operation Operation.get()?
 	@Test
