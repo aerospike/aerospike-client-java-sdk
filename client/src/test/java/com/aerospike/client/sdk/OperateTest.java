@@ -79,7 +79,7 @@ public class OperateTest extends ClusterTest {
                 rc + " (" + ResultCode.getResultString(rc) + ")");
 	}
 
-/* TODO Implement test when an operate call is supported that deletes the full record.
+	/* TODO Implement test when an operate call is supported that deletes the full record.
 	@Test
 	public void operateDelete() {
 		// Write initial record.
@@ -94,14 +94,19 @@ public class OperateTest extends ClusterTest {
 		// Read bin1 and then delete all.
 		RecordStream rs = session.upsert(key)
 		    .bin(binName1).get()
-	        .remove()
+	        .delete(key)
 	        .execute();
 
-		Record record = client.operate(null, key, Operation.get(bin1.name), Operation.delete());
-		assertBinEqual(key, record, bin1.name, 1);
+		assertTrue(rs.hasNext());
+        Record rec = rs.next().recordOrThrow();
 
-		// Verify record is gone.
-		assertFalse(client.exists(null, key));
+        // Verify record is gone.
+		rs = session.exists(key)
+			.execute();
+
+		assertTrue(rs.hasNext());
+        rec = rs.next().recordOrThrow();
+        System.out.println(rec);
 
 		// Rewrite record.
 		Bin bin2 = new Bin("optintbin2", 2);
@@ -118,5 +123,5 @@ public class OperateTest extends ClusterTest {
 		assertBinEqual(key, record, bin2.name, 2);
 		assertTrue(record.bins.size() == 1);
 	}
-	*/
+*/
 }
