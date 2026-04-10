@@ -31,8 +31,6 @@ import java.util.TreeMap;
 
 import org.junit.jupiter.api.Test;
 
-import com.aerospike.client.sdk.cdt.MapOrder;
-
 public class ListMapTest extends ClusterTest {
 	@Test
 	public void aerospikeListBinsValues() {
@@ -427,7 +425,6 @@ public class ListMapTest extends ClusterTest {
 		assertEquals(geoPoint, val.toString());
 	}
 
-/* TODO Implement this test when MapOrder.KEY_VALUE_ORDERED is supported.
 	@Test
 	public void sortedMapReplace() {
 		Key key = args.set.id("sortedMapReplace");
@@ -435,35 +432,30 @@ public class ListMapTest extends ClusterTest {
 
 		session.delete(key).execute();
 
-		List<Entry<Integer, String>> list = new ArrayList<Entry<Integer,String>>();
-		list.add(new AbstractMap.SimpleEntry<Integer,String>(1, "s1"));
-		list.add(new AbstractMap.SimpleEntry<Integer,String>(2, "s2"));
-		list.add(new AbstractMap.SimpleEntry<Integer,String>(3, "s3"));
+		AerospikeMap<Integer,String> map = new AerospikeMap<>(AerospikeMap.Type.LINKED, 10);
+		map.put(1, "s1");
+		map.put(2, "s2");
+		map.put(3, "s3");
 
-		// How is map order set.
-		session.replace(key)
-	        .bin(binName).setTo(list)
+		RecordStream rs = session.replace(key)
+	        .bin(binName).setTo(map)
 	        .execute();
 
+		assertTrue(rs.hasNext());
+		Record rec = rs.next().recordOrThrow();
 
-		Bin bin = new Bin("mapbin", list, MapOrder.KEY_VALUE_ORDERED);
-		client.put(policy, key, bin);
+		rs = session.query(key)
+			.readingOnlyBins(binName)
+	        .execute();
 
-		Record record = client.get(null, key, bin.name);
-		//System.out.println(record);
+		assertTrue(rs.hasNext());
+		rec = rs.next().recordOrThrow();
 
-		// It's unfortunate that the client returns a tree map here because
-		// KEY_VALUE_ORDERED is sorted by key and then by value.  TreeMap
-		// does not support this sorting behavior...
-		//
-		// TODO: Return List<Entry<?,?>> for KEY_VALUE_ORDERED maps.  This
-		// would be a breaking change.
-		TreeMap<?,?> receivedMap = (TreeMap<?,?>)record.getValue(bin.name);
+		AerospikeMap<?,?> receivedMap = rec.getMap(binName);
 
 		assertEquals(3, receivedMap.size());
 		assertEquals("s1", receivedMap.get((long)1));
 		assertEquals("s2", receivedMap.get((long)2));
 		assertEquals("s3", receivedMap.get((long)3));
 	}
-*/
 }
