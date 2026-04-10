@@ -39,6 +39,7 @@ import com.aerospike.client.sdk.RecordResult;
 import com.aerospike.client.sdk.RecordStream;
 import com.aerospike.client.sdk.ResultCode;
 import com.aerospike.client.sdk.Session;
+import com.aerospike.client.sdk.SpecialValue;
 import com.aerospike.client.sdk.TypeSafeDataSet;
 import com.aerospike.client.sdk.Value;
 import com.aerospike.client.sdk.Log.Level;
@@ -1181,6 +1182,10 @@ public class QueryExamples {
             System.out.println("Final state: " +
                 session.query(customerDataSet.id(500)).execute().getFirst());
             System.out.println("--- End Complex CDT operations ---");
+            
+            session.upsert(customerDataSet.id(1))
+                .bin("test").onMapKeyRange(5, SpecialValue.INFINITY).getKeys()
+                .execute();
         }
     }
 }

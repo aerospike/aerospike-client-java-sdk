@@ -967,7 +967,6 @@ public class OperateMapTest extends ClusterTest {
 		assertEquals(4L, size);
 	}
 
-	/* TODO Wait till onMapKeyRange(int, SpecialValue) is added.
 	@Test
 	public void operateMapInfinity() {
 		Key key = args.set.id("operateMapInfinity");
@@ -989,20 +988,20 @@ public class OperateMapTest extends ClusterTest {
 		Record rec = rs.next().recordOrThrow();
 
 		rs = session.upsert(key)
-		    .bin(binName).onMapKeyRange(5, Value.INFINITY).getKeys()
+		    .bin(binName).onMapKeyRange(5, SpecialValue.INFINITY).getKeys()
 		    .execute();
 
 		assertTrue(rs.hasNext());
 		rec = rs.next().recordOrThrow();
 
-		record = client.operate(null, key,
-				MapOperation.getByKeyRange(binName, 5, Value.INFINITY, MapReturnType.KEY)
-				);
+		// record = client.operate(null, key,
+		// 		MapOperation.getByKeyRange(binName, 5, Value.INFINITY, MapReturnType.KEY)
+		// 		);
 
-		assertRecordFound(key, record);
+		// assertRecordFound(key, rec);
 		//System.out.println("Record: " + record);
 
-		List<?> results = record.getList(binName);
+		List<?> results = rec.getList(binName);
 		int i = 0;
 
 		long v = (Long)results.get(i++);
@@ -1011,7 +1010,7 @@ public class OperateMapTest extends ClusterTest {
 		v = (Long)results.get(i++);
 		assertEquals(9L, v);
 	}
-*/
+
 	@Test
 	public void operateMapWildcard() {
 		Key key = args.set.id("operateMapWildcard");

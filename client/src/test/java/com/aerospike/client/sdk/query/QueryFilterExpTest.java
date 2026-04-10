@@ -43,7 +43,7 @@ import com.aerospike.client.sdk.exp.ListExp;
 import com.aerospike.client.sdk.exp.MapExp;
 
 public class QueryFilterExpTest extends ClusterTest {
-	private static final String setName = args.set + "flt";
+	private static final String setName = args.set.getSet() + "flt";
 	private static final String indexName = "flt";
 	private static final String keyPrefix = "flt";
 	private static final String binName = "fltint";
