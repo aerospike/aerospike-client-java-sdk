@@ -23,6 +23,7 @@ import java.util.Map.Entry;
 
 import com.aerospike.client.sdk.AerospikeException;
 import com.aerospike.client.sdk.AerospikeList;
+import com.aerospike.client.sdk.SpecialValue;
 import com.aerospike.client.sdk.AerospikeMap;
 import com.aerospike.client.sdk.Value;
 import com.aerospike.client.sdk.cdt.ListOrder;
@@ -309,6 +310,11 @@ public final class Packer {
 		if (obj instanceof Value) {
 			Value value = (Value)obj;
 			value.pack(this);
+			return;
+		}
+
+		if (obj instanceof SpecialValue) {
+			((SpecialValue)obj).toAerospikeValue().pack(this);
 			return;
 		}
 

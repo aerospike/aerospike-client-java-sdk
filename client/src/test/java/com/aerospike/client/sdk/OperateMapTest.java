@@ -1023,7 +1023,7 @@ public class OperateMapTest extends ClusterTest {
 
 		List<Object> i2 = new ArrayList<>();
 		i2.add("Jim");
-		i2.add(Value.get(95));
+		i2.add(95);
 
 		List<Object> i3 = new ArrayList<>();
 		i3.add("Joe");
@@ -1043,8 +1043,8 @@ public class OperateMapTest extends ClusterTest {
 		Record rec = rs.next().recordOrThrow();
 
 		List<Object> filterList = new ArrayList<>();
-		filterList.add(Value.get("Joe"));
-		filterList.add(Value.WILDCARD);
+		filterList.add("Joe");
+		filterList.add(SpecialValue.WILDCARD);
 
 		rs = session.upsert(key)
 		    .bin(binName).onMapValue(filterList).getKeys()

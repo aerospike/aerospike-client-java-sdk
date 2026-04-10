@@ -36,7 +36,7 @@ public class QueryWithPartitionPaginationTest extends ClusterTest {
 
 	private static final String KEY_PREFIX = "pq_";
 	private static final String BIN_NAME = "bin1";
-	private static long inserted = 0L;
+	private long inserted = 0L;
 
 	private final DataSet dataSet = DataSet.of(args.namespace, "test_pagination");
 
