@@ -19,8 +19,8 @@ package com.aerospike.client.sdk;
 /**
  * This interface defines the operations available at the end of a CDT path, other than
  * the set(). There are two fundamental operations, get() and remove() but there are
- * different varieties of these based on the return type (eg count() and getValue() are
- * both get() operations.
+ * different varieties of these based on the return type (for example {@code count()} and
+ * {@code getValues()} are both read operations).
  * <p>
  * These methods correspond to MapReturnType values:
  * <ul>
@@ -36,14 +36,70 @@ package com.aerospike.client.sdk;
  * </ul>
  */
 public interface CdtActionNonInvertableBuilder<T extends AbstractOperationBuilder<T>> {
+
+    /**
+     * Read the values of the selected map or list elements (CDT return type {@code VALUE}).
+     *
+     * @return the parent operation builder for continued chaining
+     */
     public T getValues();
+
+    /**
+     * Read the keys of the selected map entries (CDT return type {@code KEY}). Not used for list bins.
+     *
+     * @return the parent operation builder for continued chaining
+     */
     public T getKeys();
+
+    /**
+     * Read how many elements match the current selection (CDT return type {@code COUNT}).
+     *
+     * @return the parent operation builder for continued chaining
+     */
     public T count();
+
+    /**
+     * Read the key or list index positions of the selected elements (CDT return type {@code INDEX}).
+     *
+     * @return the parent operation builder for continued chaining
+     */
     public T getIndexes();
+
+    /**
+     * Read positions in reverse index order (CDT return type {@code REVERSE_INDEX}).
+     *
+     * @return the parent operation builder for continued chaining
+     */
     public T getReverseIndexes();
+
+    /**
+     * Read value ranks for the selected elements (CDT return type {@code RANK}).
+     *
+     * @return the parent operation builder for continued chaining
+     */
     public T getRanks();
+
+    /**
+     * Read ranks in reverse value order (CDT return type {@code REVERSE_RANK}).
+     *
+     * @return the parent operation builder for continued chaining
+     */
     public T getReverseRanks();
+
+    /**
+     * Read key–value pairs for the selected map entries into an {@link AerospikeMap} backed by a
+     * {@link java.util.LinkedHashMap} (CDT return type {@code KEY_VALUE}).
+     *
+     * @return the parent operation builder for continued chaining
+     */
     public T getKeysAndValues();
+
+    /**
+     * Remove the selected elements without returning their data (CDT return type {@code NONE}).
+     *
+     * @return the parent operation builder for continued chaining
+     * @see #removeAnd() to remove and also return information about removed elements
+     */
     public T remove();
 
     /**
@@ -61,17 +117,25 @@ public interface CdtActionNonInvertableBuilder<T extends AbstractOperationBuilde
     public RemoveResultBuilder<T> removeAnd();
 
     /**
-     * Check if the selected element(s) exist. Returns true if count > 0.
+     * Check whether the selected element(s) exist. The server evaluates existence; the client exposes the
+     * result as a boolean when the record is read.
+     *
+     * @return the parent operation builder for continued chaining
      */
     public T exists();
 
     /**
-     * Return as {@link com.aerospike.client.sdk.AerospikeMap} with underlying HashMap.
+     * Read the selected map data as an {@link AerospikeMap} backed by a {@link java.util.HashMap} (unordered).
+     *
+     * @return the parent operation builder for continued chaining
      */
     public T getAsMap();
 
     /**
-     * Return as {@link com.aerospike.client.sdk.AerospikeMap} with underlying LinkedHashMap.
+     * Read the selected map data as an {@link AerospikeMap} backed by a {@link java.util.LinkedHashMap}
+     * (insertion-ordered).
+     *
+     * @return the parent operation builder for continued chaining
      */
     public T getAsOrderedMap();
 }
