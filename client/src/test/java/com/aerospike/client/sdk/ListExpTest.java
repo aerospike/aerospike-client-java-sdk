@@ -22,13 +22,14 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import com.aerospike.client.sdk.cdt.CTX;
+import com.aerospike.client.sdk.cdt.ListPolicy;
 import com.aerospike.client.sdk.cdt.ListReturnType;
 import com.aerospike.client.sdk.cdt.MapReturnType;
 import com.aerospike.client.sdk.exp.Exp;
@@ -51,46 +52,38 @@ public class ListExpTest extends ClusterTest {
 
 	@Test
 	public void modifyWithContext() {
-		List<Value> listSubA = new ArrayList<Value>();
-		listSubA.add(Value.get("e"));
-		listSubA.add(Value.get("d"));
-		listSubA.add(Value.get("c"));
-		listSubA.add(Value.get("b"));
-		listSubA.add(Value.get("a"));
+		List<String> listSubA = new ArrayList<>();
+		listSubA.add("e");
+		listSubA.add("d");
+		listSubA.add("c");
+		listSubA.add("b");
+		listSubA.add("a");
 
-		List<Value> listA = new ArrayList<Value>();
-		listA.add(Value.get("a"));
-		listA.add(Value.get("b"));
-		listA.add(Value.get("c"));
-		listA.add(Value.get("d"));
-		listA.add(Value.get(listSubA));
+		List<Object> listA = new ArrayList<>();
+		listA.add("a");
+		listA.add("b");
+		listA.add("c");
+		listA.add("d");
+		listA.add(listSubA);
 
-		List<Value> listB = new ArrayList<Value>();
-		listB.add(Value.get("x"));
-		listB.add(Value.get("y"));
-		listB.add(Value.get("z"));
+		List<String> listB = new ArrayList<>();
+		listB.add("x");
+		listB.add("y");
+		listB.add("z");
 
-		// TODO: The following is incorrect. We really need listAppendItems() which does not exist.
-		session.upsert(keyA)
-	        .bin(binA).listAppend(listA)
-	        .bin(binB).listAppend(listB)
+		RecordStream rs = session.upsert(keyA)
+	        .bin(binA).listAppendItems(listA)
+	        .bin(binB).listAppendItems(listB)
 	        .bin(binC).setTo("M")
 	        .execute();
-/*
-        assertTrue(rs.hasNext());
+
+		assertTrue(rs.hasNext());
         Record rec = rs.next().recordOrThrow();
 
-		rs = session.query(keyA).execute();
-
-        assertTrue(rs.hasNext());
-        rec = rs.next().recordOrThrow();
-		List<?> result = rec.getList(binA);
-		assertEquals(5, result.size());
-
+		// TODO Port expression to AEL.
         CTX ctx = CTX.listIndex(4);
 
-		// TODO Port to AEL when AEL supports list size.
-		Expression e = Exp.build(
+		Expression where = Exp.build(
 			Exp.eq(
 				ListExp.size(
 					// Temporarily append binB/binC to binA in expression.
@@ -101,16 +94,17 @@ public class ListExpTest extends ClusterTest {
 				Exp.val(9)));
 
 		rs = session.query(keyA)
-    	    .where(e)
+			.readingOnlyBins(binA)
+			.where(where)
 	        .failOnFilteredOut()
-        	.execute();
+			.execute();
 
         assertTrue(rs.hasNext());
         rec = rs.next().recordOrThrow();
-		result = rec.getList(binA);
+		List<?> result = rec.getList(binA);
 		assertEquals(5, result.size());
 
-		e = Exp.build(
+		where = Exp.build(
 			Exp.eq(
 				ListExp.size(
 					// Temporarily append local listB and local "M" string to binA in expression.
@@ -121,15 +115,15 @@ public class ListExpTest extends ClusterTest {
 				Exp.val(9)));
 
 		rs = session.query(keyA)
-    	    .where(e)
+			.readingOnlyBins(binA)
+			.where(where)
 	        .failOnFilteredOut()
-        	.execute();
+			.execute();
 
         assertTrue(rs.hasNext());
         rec = rs.next().recordOrThrow();
 		result = rec.getList(binA);
 		assertEquals(5, result.size());
-		*/
 	}
 
 	@Test
@@ -250,11 +244,11 @@ public class ListExpTest extends ClusterTest {
 
 	@Test
 	public void expReturnsList() {
-		List<Value> list = new ArrayList<Value>();
-		list.add(Value.get("a"));
-		list.add(Value.get("b"));
-		list.add(Value.get("c"));
-		list.add(Value.get("d"));
+		List<String> list = new ArrayList<>();
+		list.add("a");
+		list.add("b");
+		list.add("c");
+		list.add("d");
 
 		Expression exp = Exp.build(Exp.val(list));
 
