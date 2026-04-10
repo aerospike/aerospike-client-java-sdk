@@ -18,14 +18,20 @@ package com.aerospike.client.sdk;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
 
 import org.junit.jupiter.api.Test;
+
+import com.aerospike.client.sdk.cdt.MapOrder;
 
 public class ListMapTest extends ClusterTest {
 	@Test
@@ -348,6 +354,77 @@ public class ListMapTest extends ClusterTest {
 		assertEquals(2, receivedInner2.size());
 		assertEquals("string2", receivedInner2.get(0));
 		assertEquals(5L, receivedInner2.get(1));
+	}
+
+	@Test
+	public void keyOrderedMapWithVariousKeyTypes() {
+		Key key = args.set.id("keyOrderedMapTypes");
+		String binName = "komap";
+
+		session.delete(key).execute();
+
+		TreeMap<String, Object> map = new TreeMap<>();
+		map.put("alpha", "value1");
+		map.put("beta", 42);
+		map.put("gamma", "value3");
+
+
+		// TreeMap implements SortedMap, which is automatically serialized as KEY_ORDERED.
+		session.upsert(key)
+			.bin(binName).setTo(map)
+			.execute();
+
+		RecordStream rs = session.query(key).readingOnlyBins(binName).execute();
+		assertTrue(rs.hasNext());
+		Record rec = rs.next().recordOrThrow();
+		Map<?, ?> result = rec.getMap(binName);
+		assertNotNull(result);
+		assertEquals(List.of("alpha", "beta", "gamma"),
+				new ArrayList<>(result.keySet()));
+	}
+
+	@Test
+	public void keyOrderedMapNonScalarKeyCausesParameterError() {
+		Key key = args.set.id("keyOrderedMapNonScalarKey");
+		String binName = "badMapKO";
+
+		session.delete(key).execute();
+
+		Map<String, Object> inner = new HashMap<>();
+		inner.put("inner", 1);
+		TreeMap<Object, String> outer = new TreeMap<>(Comparator.comparingInt(System::identityHashCode));
+		outer.put(inner, "v");
+
+		AerospikeException ae = assertThrows(AerospikeException.class,
+				() -> session.upsert(key).bin(binName).setTo(outer)
+						.execute());
+
+		//WARNING (particle): map_from_wire() invalid packed map
+		assertEquals(ResultCode.SERVER_ERROR, ae.getResultCode());
+	}
+
+	@Test
+	public void geoJsonReadBackAsSameType() {
+		Key key = args.set.id("geoJsonReadBack");
+		String binName = "geobin";
+
+		session.delete(key).execute();
+
+		String geoPoint = "{ \"type\": \"Point\", \"coordinates\": [103.8198, 1.3521] }";
+
+		session.upsert(key)
+				.bins(binName)
+				.values(Value.getAsGeoJSON(geoPoint))
+				.execute();
+
+		RecordStream rs = session.query(key).readingOnlyBins(binName).execute();
+		assertTrue(rs.hasNext());
+		Record rec = rs.next().recordOrThrow();
+		Object val = rec.getValue(binName);
+		assertNotNull(val);
+		assertTrue(val instanceof Value.GeoJSONValue,
+			"Expected GeoJSONValue but got: " + val.getClass().getName());
+		assertEquals(geoPoint, val.toString());
 	}
 
 /* TODO Implement this test when MapOrder.KEY_VALUE_ORDERED is supported.

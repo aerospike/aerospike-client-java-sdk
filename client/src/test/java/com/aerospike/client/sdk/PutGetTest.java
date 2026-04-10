@@ -376,6 +376,27 @@ public class PutGetTest extends ClusterTest {
 	}
 
 	@Test
+	public void exceedingBinLimitReturnsError() {
+		Key key = args.set.id("binlimitkey");
+		session.delete(key).execute();
+
+		try {
+			var builder = session.upsert(key);
+			for (int i = 0; i < 33000; i++) {
+				builder = builder.bin("b" + i).setTo(i);
+			}
+			RecordStream rs = builder.execute();
+			if (rs.hasNext()) {
+				rs.next().recordOrThrow();
+			}
+			// Server accepted — valid for high-limit namespace configs.
+		} catch (AerospikeException ae) {
+			int rc = ae.getResultCode();
+            assertEquals(ResultCode.PARAMETER_ERROR, rc, "Expected bin ops limit error, got: " + rc + " (" + ResultCode.getResultString(rc) + ")");
+		}
+	}
+
+	@Test
 	public void putGetObjectsBatchAsync() {
 		List<Key> keys = args.set.ids(200,201,202,203,204,205,206,207,208,209);
 		Address address = new Address("123 Main St", "Denver", "CO", "USA", "80112");

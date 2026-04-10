@@ -31,6 +31,8 @@ import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import com.aerospike.client.sdk.exp.Exp;
+import com.aerospike.client.sdk.exp.Expression;
 import com.aerospike.client.sdk.policy.Behavior;
 import com.aerospike.client.sdk.policy.Behavior.Selectors;
 import com.aerospike.client.sdk.util.Util;
@@ -575,5 +577,60 @@ public class BatchTest extends ClusterTest {
 
 		// All keys should have expired.
         assertFalse(rs.hasNext());
+	}
+
+	@Test
+	public void batchReadMixedExpressionsInvalidRowReturnsParameterError() {
+		String key1 = KeyPrefix + 1;
+		String key2 = KeyPrefix + 2;
+
+		// Build a valid expression for one row and garbage bytes for another.
+		Expression validExp = Exp.build(Exp.binExists(BinName));
+		Expression invalidExp = Expression.fromBytes(new byte[] {0x00, 0x01, 0x02});
+
+		RecordStream rs = session
+			.query(args.set.id(key1))
+				.where(validExp)
+			.query(args.set.id(key2))
+				.where(invalidExp)
+			.includeMissingKeys()
+			.execute();
+
+		assertTrue(rs.hasNext());
+		RecordResult res1 = rs.next();
+		assertEquals(ResultCode.OK, res1.resultCode());
+
+		assertTrue(rs.hasNext());
+		RecordResult res2 = rs.next();
+		assertEquals(ResultCode.PARAMETER_ERROR, res2.resultCode());
+	}
+
+	@Test
+	public void batchReadWithInvalidExpressionReturnsParameterError() {
+		String key1 = KeyPrefix + 1;
+		String key2 = KeyPrefix + 2;
+
+		Expression invalidExp = Expression.fromBytes(new byte[] {(byte)0xFF, (byte)0xFE, (byte)0xFD});
+		List<Key> keys = args.set.ids(List.of(key1, key2));
+
+		try {
+			RecordStream rs = session.query(keys)
+				.where(invalidExp)
+				.includeMissingKeys()
+				.execute();
+
+			boolean foundParamError = false;
+			while (rs.hasNext()) {
+				RecordResult res = rs.next();
+				if (res.resultCode() == ResultCode.PARAMETER_ERROR) {
+					foundParamError = true;
+				}
+			}
+			assertTrue(foundParamError,
+				"Expected at least one PARAMETER_ERROR result from batch with invalid expression");
+		} catch (AerospikeException ae) {
+			assertEquals(ResultCode.PARAMETER_ERROR, ae.getResultCode(),
+				"Expected PARAMETER_ERROR, got: " + ResultCode.getResultString(ae.getResultCode()));
+		}
 	}
 }

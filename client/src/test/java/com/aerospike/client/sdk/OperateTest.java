@@ -17,6 +17,7 @@
 package com.aerospike.client.sdk;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
@@ -51,6 +52,31 @@ public class OperateTest extends ClusterTest {
 
 		assertEquals(11, (int)(long)list1.get(1));
 		assertEquals("new string", list2.get(1));
+	}
+
+	@Test
+	public void invalidOperationTypeMismatchReturnsError() {
+		Key key = args.set.id("invalidOp");
+
+		// Write an integer bin.
+		session.upsert(key)
+			.bin("intbin").setTo(42)
+			.execute();
+
+		// Attempt a list append on an integer bin (type mismatch).
+		AerospikeException ae = assertThrows(AerospikeException.class, () -> {
+			RecordStream rs = session.upsert(key)
+				.bin("intbin").listAppend("item")
+				.execute();
+
+			assertTrue(rs.hasNext());
+			rs.next().recordOrThrow();
+		});
+
+		//Apr 10 2026 07:37:45 GMT: WARNING (particle) cdt_process_state_packed_list_modify_optype() invalid type 1
+		int rc = ae.getResultCode();
+        assertEquals(ResultCode.BIN_TYPE_ERROR, rc, "Expected BIN_TYPE_ERROR, got: " +
+                rc + " (" + ResultCode.getResultString(rc) + ")");
 	}
 
 /* TODO Implement test when an operate call is supported that deletes the full record.
