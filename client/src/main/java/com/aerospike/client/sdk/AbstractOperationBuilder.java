@@ -200,5 +200,46 @@ public abstract class AbstractOperationBuilder<T extends AbstractOperationBuilde
         this.ops.add(op);
         return self();
     }
+
+    /**
+     * Add a record-level delete operation to the current operate call.
+     * Unlike {@code delete(Key)} which starts a new batch entry for a different key,
+     * this deletes the record being operated on as part of the same atomic operation.
+     *
+     * <p>This can be combined with other bin operations. For example, to read a bin
+     * value and then delete the record atomically:</p>
+     * <pre>{@code
+     * session.upsert(key)
+     *     .bin("name").get()
+     *     .deleteRecord()
+     *     .execute();
+     * }</pre>
+     *
+     * @return this builder for method chaining
+     */
+    public T deleteRecord() {
+        return addOp(Operation.delete());
+    }
+
+    /**
+     * Add a record-level touch operation to the current operate call.
+     * Unlike {@code touch(Key)} which starts a new batch entry for a different key,
+     * this touches the record being operated on as part of the same atomic operation,
+     * resetting its TTL.
+     *
+     * <p>This can be combined with other bin operations. For example, to read a bin
+     * and reset the record's TTL atomically:</p>
+     * <pre>{@code
+     * session.upsert(key)
+     *     .bin("name").get()
+     *     .touchRecord()
+     *     .execute();
+     * }</pre>
+     *
+     * @return this builder for method chaining
+     */
+    public T touchRecord() {
+        return addOp(Operation.touch());
+    }
 }
 

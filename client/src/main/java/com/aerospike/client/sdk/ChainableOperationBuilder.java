@@ -198,6 +198,20 @@ public class ChainableOperationBuilder extends AbstractOperationBuilder<Chainabl
         return this;
     }
 
+    @Override
+    public ChainableOperationBuilder deleteRecord() {
+        verifyState("deleting record");
+        currentSpec.getOperations().add(Operation.delete());
+        return this;
+    }
+
+    @Override
+    public ChainableOperationBuilder touchRecord() {
+        verifyState("touching record");
+        currentSpec.getOperations().add(Operation.touch());
+        return this;
+    }
+
     // ========================================
     // Chainable operation methods
     // ========================================

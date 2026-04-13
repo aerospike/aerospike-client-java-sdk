@@ -17,6 +17,7 @@
 package com.aerospike.client.sdk;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -79,49 +80,110 @@ public class OperateTest extends ClusterTest {
                 rc + " (" + ResultCode.getResultString(rc) + ")");
 	}
 
-	/* TODO Implement test when an operate call is supported that deletes the full record.
 	@Test
-	public void operateDelete() {
-		// Write initial record.
+	public void operateDeleteRecord() {
 		Key key = args.set.id("operateDelete");
 		String binName1 = "optintbin1";
 		String binName2 = "optintbin2";
 
+		// Write initial record.
 		session.upsert(key)
-	        .bin(binName1).setTo(1)
-	        .execute();
+			.bin(binName1).setTo(1)
+			.execute();
 
-		// Read bin1 and then delete all.
+		// Read bin1 and then delete the record atomically.
 		RecordStream rs = session.upsert(key)
-		    .bin(binName1).get()
-	        .delete(key)
-	        .execute();
-
-		assertTrue(rs.hasNext());
-        Record rec = rs.next().recordOrThrow();
-
-        // Verify record is gone.
-		rs = session.exists(key)
+			.bin(binName1).get()
+			.deleteRecord()
 			.execute();
 
 		assertTrue(rs.hasNext());
-        rec = rs.next().recordOrThrow();
-        System.out.println(rec);
+		Record rec = rs.next().recordOrThrow();
+		assertEquals(1, rec.getLong(binName1));
+
+		// Verify record is gone.
+		rs = session.exists(key).execute();
+		assertTrue(rs.hasNext());
+		assertFalse(rs.next().asBoolean());
 
 		// Rewrite record.
-		Bin bin2 = new Bin("optintbin2", 2);
-
-		client.put(null, key, bin1, bin2);
+		session.insert(key)
+		    .bin(binName1).setTo(1)
+		    .bin(binName2).setTo(2)
+		    .execute();
 
 		// Read bin 1 and then delete all followed by a write of bin2.
-		record = client.operate(null, key, Operation.get(bin1.name), Operation.delete(),
-				Operation.put(bin2), Operation.get(bin2.name));
-		assertBinEqual(key, record, bin1.name, 1);
+		rs = session.upsert(key)
+			.bin(binName1).get()
+			.deleteRecord()
+			.bin(binName2).setTo(2)
+			.bin(binName2).get()
+			.execute();
+
+		rec = rs.getFirstRecord();
+		assertEquals(1, rec.getInt(binName1));
 
 		// Read record.
-		record = client.get(null, key);
-		assertBinEqual(key, record, bin2.name, 2);
-		assertTrue(record.bins.size() == 1);
+		rec = session.query(key).execute().getFirstRecord();
+		assertEquals(2, rec.getInt(binName2));
+		assertTrue(rec.getValue(binName1) == null);
+		assertEquals(1, rec.bins.size());
 	}
-*/
+
+	@Test
+	public void operateTouchRecord() {
+		Key key = args.set.id("operateTouch");
+		String binName1 = "optintbin1";
+
+		// Write initial record with a 60-second TTL.
+		session.upsert(key)
+			.bin(binName1).setTo(42)
+			.expireRecordAfterSeconds(60)
+			.execute();
+
+		// Read bin1 and touch the record to reset TTL atomically.
+		RecordStream rs = session.upsert(key)
+			.bin(binName1).get()
+			.touchRecord()
+			.expireRecordAfterSeconds(120)
+			.execute();
+
+		assertTrue(rs.hasNext());
+		Record rec = rs.next().recordOrThrow();
+		assertEquals(42, rec.getLong(binName1));
+	}
+
+	@Test
+	public void operateDeleteRecordWithRewrite() {
+		Key key = args.set.id("operateDeleteRewrite");
+		String binName1 = "optintbin1";
+		String binName2 = "optintbin2";
+
+		// Write initial record.
+		session.upsert(key)
+			.bin(binName1).setTo(1)
+			.bin(binName2).setTo(2)
+			.execute();
+
+		// Read bin1, delete record, rewrite bin2 -- all atomically.
+		RecordStream rs = session.upsert(key)
+			.bin(binName1).get()
+			.deleteRecord()
+			.bin(binName2).setTo(99)
+			.bin(binName2).get()
+			.execute();
+
+		assertTrue(rs.hasNext());
+		Record rec = rs.next().recordOrThrow();
+		assertEquals(1, rec.getLong(binName1));
+		List<?> list2 = rec.getList(binName2);
+		assertEquals(99, (int)(long)list2.get(1));
+
+		// Verify only bin2 exists (bin1 was deleted with the record, then bin2 was rewritten).
+		rs = session.query(key).execute();
+		assertTrue(rs.hasNext());
+		rec = rs.next().recordOrThrow();
+		assertEquals(99, rec.getLong(binName2));
+		assertTrue(rec.getValue(binName1) == null);
+	}
 }
