@@ -1010,7 +1010,7 @@ public class OperateListTest extends ClusterTest {
 
 		List<Object> itemList2 = new ArrayList<>();
 		itemList2.add("Jim");
-		itemList2.add(Value.WILDCARD);
+		itemList2.add(SpecialValue.WILDCARD);
 
 		rs = session.upsert(key)
 	        .bin(binName).onListValue(itemList2).getValues()
