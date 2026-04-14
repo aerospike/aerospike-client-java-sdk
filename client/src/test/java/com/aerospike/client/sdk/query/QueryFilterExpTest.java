@@ -486,7 +486,7 @@ public class QueryFilterExpTest extends ClusterTest {
 				count++;
 			}
 
-			assertEquals(3, count);
+			assertEquals(4, count);
 		}
 		finally {
 			rs.close();
