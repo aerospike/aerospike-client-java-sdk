@@ -482,12 +482,11 @@ public class ObjectBuilder<T> {
     }
 
     private List<Operation> operationsForElement(RecordMapper<T> mapper, T element) {
-        Map<String, Value> map = mapper.toMap(element);
+        Map<String, Object> map = mapper.toMap(element);
         List<Operation> ops = new ArrayList<>(map.size());
 
-        for (String key : map.keySet()) {
-            Value binData = map.get(key);
-            ops.add(Operation.put(new Bin(key, binData)));
+        for (Map.Entry<String, Object> entry : map.entrySet()) {
+            ops.add(Operation.put(new Bin(entry.getKey(), Value.get(entry.getValue()))));
         }
         return ops;
     }

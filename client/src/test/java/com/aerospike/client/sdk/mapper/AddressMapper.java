@@ -20,7 +20,6 @@ import java.util.Map;
 
 import com.aerospike.client.sdk.Key;
 import com.aerospike.client.sdk.RecordMapper;
-import com.aerospike.client.sdk.Value;
 import com.aerospike.client.sdk.util.MapUtil;
 
 public class AddressMapper implements RecordMapper<Address> {
@@ -36,7 +35,7 @@ public class AddressMapper implements RecordMapper<Address> {
     }
 
     @Override
-    public Map<String, Value> toMap(Address addr) {
+    public Map<String, Object> toMap(Address addr) {
         return MapUtil.buildMap()
                 .add("line1", addr.getLine1())
                 .add("city", addr.getCity())

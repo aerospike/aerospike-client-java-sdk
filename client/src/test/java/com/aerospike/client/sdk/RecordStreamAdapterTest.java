@@ -105,8 +105,8 @@ public class RecordStreamAdapterTest extends ClusterTest {
 			}
 
 			@Override
-			public Map<String, Value> toMap(String obj) {
-				return Map.of("name", Value.get(obj));
+			public Map<String, Object> toMap(String obj) {
+				return Map.of("name", obj);
 			}
 
 			@Override

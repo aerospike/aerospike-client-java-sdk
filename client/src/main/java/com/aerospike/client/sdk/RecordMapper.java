@@ -49,12 +49,12 @@ import java.util.Map;
  *     }
  *
  *     @Override
- *     public Map<String, Value> toMap(Customer customer) {
- *         Map<String, Value> map = new HashMap<>();
- *         map.put("id", Value.get(customer.getId()));
- *         map.put("name", Value.get(customer.getName()));
- *         map.put("age", Value.get(customer.getAge()));
- *         map.put("dob", Value.get(customer.getDob().getTime()));
+ *     public Map<String, Object> toMap(Customer customer) {
+ *         Map<String, Object> map = new HashMap<>();
+ *         map.put("id", customer.getId());
+ *         map.put("name", customer.getName());
+ *         map.put("age", customer.getAge());
+ *         map.put("dob", customer.getDob().getTime());
  *         return map;
  *     }
  *
@@ -88,13 +88,14 @@ public interface RecordMapper<T> {
      * Converts a Java object to a map of bin names and values for storage.
      *
      * <p>This method takes a Java object and converts it to a map where the keys
-     * are bin names and the values are Aerospike Value objects. This map will be
-     * used to store the object in Aerospike.</p>
+     * are bin names and the values are standard Java objects (String, Long, Double,
+     * byte[], List, Map, etc.). The SDK handles the conversion to Aerospike's
+     * internal wire format automatically.</p>
      *
      * @param element the Java object to convert
-     * @return a map of bin names to Aerospike Value objects
+     * @return a map of bin names to Java objects
      */
-    Map<String, Value> toMap(T element);
+    Map<String, Object> toMap(T element);
 
     /**
      * Extracts the ID from a Java object for key generation.

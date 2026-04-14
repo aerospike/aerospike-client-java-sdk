@@ -24,7 +24,6 @@ import java.util.List;
 import java.util.Map;
 
 import com.aerospike.client.sdk.RecordMapper;
-import com.aerospike.client.sdk.Value;
 
 public class MapUtil {
     /**
@@ -151,90 +150,90 @@ public class MapUtil {
     }
 
     public static class MapBuilder {
-        private Map<String, Value> map = new HashMap<>();
+        private Map<String, Object> map = new HashMap<>();
 
         public MapBuilder add(String name, String value) {
-            map.put(name, Value.get(value));
+            map.put(name, value);
             return this;
         }
 
         public MapBuilder add(String name, int value) {
-            map.put(name, Value.get(value));
+            map.put(name, value);
             return this;
         }
 
         public MapBuilder add(String name, long value) {
-            map.put(name, Value.get(value));
+            map.put(name, value);
             return this;
         }
 
         public MapBuilder add(String name, float value) {
-            map.put(name, Value.get(value));
+            map.put(name, value);
             return this;
         }
 
         public MapBuilder add(String name, double value) {
-            map.put(name, Value.get(value));
+            map.put(name, value);
             return this;
         }
 
         public MapBuilder add(String name, boolean value) {
-            map.put(name, Value.get(value));
+            map.put(name, value);
             return this;
         }
 
         public MapBuilder add(String name, byte value) {
-            map.put(name, Value.get(value));
+            map.put(name, value);
             return this;
         }
 
         public MapBuilder add(String name, byte[] value) {
-            map.put(name, Value.get(value));
+            map.put(name, value);
             return this;
         }
 
         public MapBuilder add(String name, Enum<?> value) {
-            map.put(name, Value.get(value));
+            map.put(name, value != null ? value.name() : null);
             return this;
         }
 
         public MapBuilder addAsLong(String name, Date value) {
-            map.put(name, value == null ? Value.get(0L) : Value.get(value.getTime()));
+            map.put(name, value == null ? 0L : value.getTime());
             return this;
         }
 
         public MapBuilder addAsLong(String name, LocalDate value) {
-            map.put(name, value == null ? Value.get(0L) : Value.get(value.toEpochDay()));
+            map.put(name, value == null ? 0L : value.toEpochDay());
             return this;
         }
 
         public <T> MapBuilder add(String name, T obj, RecordMapper<T> mapper) {
             if (obj != null) {
-                map.put(name, Value.get(mapper.toMap(obj)));
+                map.put(name, mapper.toMap(obj));
             }
             return this;
         }
 
         public <T> MapBuilder add(String name, List<T> objList, RecordMapper<T> mapper) {
             if (objList != null) {
-                List<Map<String, Value>> data = new ArrayList<>();
+                List<Map<String, Object>> data = new ArrayList<>();
                 objList.forEach(item -> data.add(mapper.toMap(item)));
-                map.put(name, Value.get(data));
+                map.put(name, data);
             }
             return this;
         }
 
         public MapBuilder add(String name, Map<?, ?> childMap) {
-            map.put(name, Value.get(childMap));
+            map.put(name, childMap);
             return this;
         }
 
         public MapBuilder add(String name, List<?> childObjects) {
-            map.put(name, Value.get(childObjects));
+            map.put(name, childObjects);
             return this;
         }
 
-        public Map<String, Value> done() {
+        public Map<String, Object> done() {
             return map;
         }
     }

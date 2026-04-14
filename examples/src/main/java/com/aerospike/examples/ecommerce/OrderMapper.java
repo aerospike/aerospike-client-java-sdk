@@ -21,7 +21,6 @@ import java.util.Map;
 
 import com.aerospike.client.sdk.Key;
 import com.aerospike.client.sdk.RecordMapper;
-import com.aerospike.client.sdk.Value;
 import com.aerospike.client.sdk.util.MapUtil;
 
 public class OrderMapper implements RecordMapper<Order> {
@@ -40,14 +39,14 @@ public class OrderMapper implements RecordMapper<Order> {
     }
 
     @Override
-    public Map<String, Value> toMap(Order o) {
-        Map<String, Value> map = new HashMap<>();
-        map.put("customerId", Value.get(o.getCustomerId()));
-        map.put("sku", Value.get(o.getSku()));
-        map.put("qty", Value.get(o.getQty()));
-        map.put("totalCents", Value.get(o.getTotalCents()));
-        map.put("status", Value.get(o.getStatus()));
-        map.put("timestamp", Value.get(o.getTimestamp()));
+    public Map<String, Object> toMap(Order o) {
+        Map<String, Object> map = new HashMap<>();
+        map.put("customerId", o.getCustomerId());
+        map.put("sku", o.getSku());
+        map.put("qty", o.getQty());
+        map.put("totalCents", o.getTotalCents());
+        map.put("status", o.getStatus());
+        map.put("timestamp", o.getTimestamp());
         return map;
     }
 

@@ -20,7 +20,6 @@ import java.util.Map;
 
 import com.aerospike.client.sdk.Key;
 import com.aerospike.client.sdk.RecordMapper;
-import com.aerospike.client.sdk.Value;
 import com.aerospike.client.sdk.util.MapUtil;
 
 public class CustomerMapper implements RecordMapper<Customer> {
@@ -36,7 +35,7 @@ public class CustomerMapper implements RecordMapper<Customer> {
     }
 
     @Override
-    public Map<String, Value> toMap(Customer customer) {
+    public Map<String, Object> toMap(Customer customer) {
         return MapUtil.buildMap()
             .add("id", customer.getId())
             .add("age", customer.getAge())

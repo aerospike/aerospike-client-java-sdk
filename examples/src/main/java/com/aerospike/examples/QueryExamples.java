@@ -41,7 +41,6 @@ import com.aerospike.client.sdk.ResultCode;
 import com.aerospike.client.sdk.Session;
 import com.aerospike.client.sdk.SpecialValue;
 import com.aerospike.client.sdk.TypeSafeDataSet;
-import com.aerospike.client.sdk.Value;
 import com.aerospike.client.sdk.Log.Level;
 import com.aerospike.client.sdk.ael.Ael;
 import com.aerospike.client.sdk.cdt.ListOrder;
@@ -170,7 +169,7 @@ public class QueryExamples {
         }
 
         @Override
-        public Map<String, Value> toMap(Address addr) {
+        public Map<String, Object> toMap(Address addr) {
             return MapUtil.buildMap()
                     .add("line1", addr.getLine1())
                     .add("city", addr.getCity())
@@ -200,7 +199,7 @@ public class QueryExamples {
         }
 
         @Override
-        public Map<String, Value> toMap(Customer customer) {
+        public Map<String, Object> toMap(Customer customer) {
             return MapUtil.buildMap()
                     .add("id", customer.getId())
                     .add("age", customer.getAge())

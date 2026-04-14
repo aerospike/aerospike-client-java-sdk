@@ -24,7 +24,6 @@ import com.aerospike.client.sdk.Key;
 import com.aerospike.client.sdk.RecordMapper;
 import com.aerospike.client.sdk.Session;
 import com.aerospike.client.sdk.TypeSafeDataSet;
-import com.aerospike.client.sdk.Value;
 import com.aerospike.client.sdk.policy.Behavior;
 import com.aerospike.client.sdk.util.MapUtil;
 
@@ -57,7 +56,7 @@ public class TransactionProcessingExample {
         }
 
         @Override
-        public Map<String, Value> toMap(Transaction txn) {
+        public Map<String, Object> toMap(Transaction txn) {
             return MapUtil.buildMap()
                 .add("id", txn.getId())
                 .add("desc", txn.getDesc())
@@ -112,7 +111,7 @@ public class TransactionProcessingExample {
         }
 
         @Override
-        public Map<String, Value> toMap(Customer cust) {
+        public Map<String, Object> toMap(Customer cust) {
             return MapUtil.buildMap()
                 .add("customerId", cust.getCustomerId())
                 .add("firstName", cust.getFirstName())
@@ -166,7 +165,7 @@ public class TransactionProcessingExample {
         }
 
         @Override
-        public Map<String, Value> toMap(Account acct) {
+        public Map<String, Object> toMap(Account acct) {
             return MapUtil.buildMap()
                 .add("pan", acct.getPan())
                 .add("customerId", acct.getCustomerId())
