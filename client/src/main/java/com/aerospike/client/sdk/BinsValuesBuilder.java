@@ -875,7 +875,8 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
 
         Partitions partitions = getPartitions(cluster, firstKey.namespace);
         Settings policy = session.getBehavior().getSettings(OpKind.WRITE_RETRYABLE, OpShape.POINT, partitions.scMode);
-        final Expression filterExp = processWhereClause(keys.get(0).namespace, opBuilder.getSession());
+        final Expression filterExp = processWhereClause(keys.get(0).namespace, keys.get(0).setName,
+                opBuilder.getSession());
 
         if (txnToUse != null) {
             TxnMonitor.addKeys(txnToUse, session, keys);
@@ -968,7 +969,7 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
         String namespace = keys.get(0).namespace;
         Partitions partitions = getPartitions(cluster, namespace);
         Settings policy = session.getBehavior().getSettings(OpKind.WRITE_RETRYABLE, OpShape.POINT, partitions.scMode);
-        final Expression filterExp = getFilterExp(session, namespace);
+        final Expression filterExp = getFilterExp(session, namespace, keys.get(0).setName);
         AsyncRecordStream asyncStream = new AsyncRecordStream(keys.size());
 
         if (txnToUse != null) {
@@ -1049,10 +1050,10 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
         return partitions;
     }
 
-    private Expression getFilterExp(Session session, String namespace) {
+    private Expression getFilterExp(Session session, String namespace, String querySet) {
         if (ael != null) {
             // Apply filter expression clause.
-            ParseResult parseResult = ael.process(namespace, session);
+            ParseResult parseResult = ael.process(namespace, querySet, session);
             return Exp.build(parseResult.getExp());
         } else {
             return null;

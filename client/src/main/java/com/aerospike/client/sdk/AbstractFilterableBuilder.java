@@ -53,10 +53,17 @@ public abstract class AbstractFilterableBuilder {
      * Process where clause and return Expression, or null if no clause exists.
      */
     protected Expression processWhereClause(String namespace, Session session) {
+        return processWhereClause(namespace, null, session);
+    }
+
+    /**
+     * Process where clause with optional Aerospike set name for secondary-index catalog filtering.
+     */
+    protected Expression processWhereClause(String namespace, String querySet, Session session) {
         if (this.ael == null) {
             return null;
         }
-        ParseResult parseResult = this.ael.process(namespace, session);
+        ParseResult parseResult = this.ael.process(namespace, querySet, session);
         return Exp.build(parseResult.getExp());
     }
 

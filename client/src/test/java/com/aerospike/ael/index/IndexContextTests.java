@@ -51,6 +51,7 @@ public class IndexContextTests {
 
         assertThat(ctx.getNamespace()).isEqualTo(NAMESPACE);
         assertThat(ctx.getIndexes()).isEmpty();
+        assertThat(ctx.getQuerySet()).isNull();
     }
 
     @Test
@@ -214,5 +215,41 @@ public class IndexContextTests {
         IndexContext ctx = IndexContext.withBinHint(NAMESPACE, indexes, "bin1");
 
         assertThat(ctx.getIndexes()).containsExactlyElementsOf(indexes);
+    }
+
+    @Test
+    void withQuerySet_stores_query_set() {
+        IndexContext ctx = IndexContext.withQuerySet(NAMESPACE, "testScan", List.of(VALID_INDEX));
+
+        assertThat(ctx.getQuerySet()).isEqualTo("testScan");
+        assertThat(ctx.getPreferredBin()).isNull();
+    }
+
+    @Test
+    void withQuerySet_blank_normalized_to_null() {
+        IndexContext ctx = IndexContext.withQuerySet(NAMESPACE, "  ", List.of(VALID_INDEX));
+
+        assertThat(ctx.getQuerySet()).isNull();
+    }
+
+    @Test
+    void withQuerySet_4arg_resolves_hint_only_for_matching_set() {
+        Index idxSet = Index.builder().namespace(NAMESPACE).setName("set").bin("age").name("ageidx")
+                .indexType(IndexType.INTEGER).binValuesRatio(1).build();
+        Index idxScan = Index.builder().namespace(NAMESPACE).setName("testScan").bin("age").name("age_idx")
+                .indexType(IndexType.INTEGER).binValuesRatio(1).build();
+        List<Index> indexes = List.of(idxSet, idxScan);
+
+        IndexContext ctx = IndexContext.withQuerySet(NAMESPACE, "testScan", indexes, "age_idx");
+
+        assertThat(ctx.getQuerySet()).isEqualTo("testScan");
+        assertThat(ctx.getPreferredBin()).isEqualTo("age");
+    }
+
+    @Test
+    void indexMatchesQuerySet_mismatched_set_excluded() {
+        Index idx = Index.builder().namespace(NAMESPACE).setName("set").bin("age")
+                .indexType(IndexType.INTEGER).binValuesRatio(1).build();
+        assertThat(IndexContext.indexMatchesQuerySet(idx, "testScan")).isFalse();
     }
 }
