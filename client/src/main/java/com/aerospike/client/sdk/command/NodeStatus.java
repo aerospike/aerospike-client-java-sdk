@@ -22,41 +22,41 @@ import java.util.concurrent.locks.ReentrantLock;
 import com.aerospike.client.sdk.AerospikeException;
 
 public final class NodeStatus {
-	private final ReentrantLock lock;
-	private ArrayList<AerospikeException> subExceptions;
-	private AerospikeException exception;
+    private final ReentrantLock lock;
+    private ArrayList<AerospikeException> subExceptions;
+    private AerospikeException exception;
 
-	public NodeStatus() {
-		this.lock = new ReentrantLock();
-	}
+    public NodeStatus() {
+        this.lock = new ReentrantLock();
+    }
 
-	public void addSubException(AerospikeException ae) {
-		// Multiple node command threads can call this method concurrently, so must lock.
-		// Use ReentrantLock since it's more compatible with virtual threads than the synchronized
-		// keyword.
-		lock.lock();
+    public void addSubException(AerospikeException ae) {
+        // Multiple node command threads can call this method concurrently, so must lock.
+        // Use ReentrantLock since it's more compatible with virtual threads than the synchronized
+        // keyword.
+        lock.lock();
 
-		try {
-			if (subExceptions == null) {
-				subExceptions = new ArrayList<AerospikeException>();
-			}
-			subExceptions.add(ae);
-		}
-		finally {
-			lock.unlock();
-		}
-	}
+        try {
+            if (subExceptions == null) {
+                subExceptions = new ArrayList<AerospikeException>();
+            }
+            subExceptions.add(ae);
+        }
+        finally {
+            lock.unlock();
+        }
+    }
 
-	public void setException(AerospikeException ae) {
-		if (exception == null) {
-			exception = ae;
-		}
-	}
+    public void setException(AerospikeException ae) {
+        if (exception == null) {
+            exception = ae;
+        }
+    }
 
-	public void checkException() {
-		if (exception != null) {
-			exception.setSubExceptions(subExceptions);
-			throw exception;
-		}
-	}
+    public void checkException() {
+        if (exception != null) {
+            exception.setSubExceptions(subExceptions);
+            throw exception;
+        }
+    }
 }

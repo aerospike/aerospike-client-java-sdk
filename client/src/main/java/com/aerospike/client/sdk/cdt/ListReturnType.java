@@ -20,69 +20,69 @@ package com.aerospike.client.sdk.cdt;
  * List return type. Type of data to return when selecting or removing items from the list.
  */
 public final class ListReturnType {
-	/**
-	 * Do not return a result.
-	 */
-	public static final int NONE = 0;
+    /**
+     * Do not return a result.
+     */
+    public static final int NONE = 0;
 
-	/**
-	 * Return index offset order.
-	 * <ul>
-	 * <li>0 = first key</li>
-	 * <li>N = Nth key</li>
-	 * <li>-1 = last key</li>
-	 * </ul>
-	 */
-	public static final int INDEX = 1;
+    /**
+     * Return index offset order.
+     * <ul>
+     * <li>0 = first key</li>
+     * <li>N = Nth key</li>
+     * <li>-1 = last key</li>
+     * </ul>
+     */
+    public static final int INDEX = 1;
 
-	/**
-	 * Return reverse index offset order.
-	 * <ul>
-	 * <li>0 = last key</li>
-	 * <li>-1 = first key</li>
-	 * </ul>
-	 */
-	public static final int REVERSE_INDEX = 2;
+    /**
+     * Return reverse index offset order.
+     * <ul>
+     * <li>0 = last key</li>
+     * <li>-1 = first key</li>
+     * </ul>
+     */
+    public static final int REVERSE_INDEX = 2;
 
-	/**
-	 * Return value order.
-	 * <ul>
-	 * <li>0 = smallest value</li>
-	 * <li>N = Nth smallest value</li>
-	 * <li>-1 = largest value</li>
-	 * </ul>
-	 */
-	public static final int RANK = 3;
+    /**
+     * Return value order.
+     * <ul>
+     * <li>0 = smallest value</li>
+     * <li>N = Nth smallest value</li>
+     * <li>-1 = largest value</li>
+     * </ul>
+     */
+    public static final int RANK = 3;
 
-	/**
-	 * Return reverse value order.
-	 * <ul>
-	 * <li>0 = largest value</li>
-	 * <li>N = Nth largest value</li>
-	 * <li>-1 = smallest value</li>
-	 * </ul>
-	 */
-	public static final int REVERSE_RANK = 4;
+    /**
+     * Return reverse value order.
+     * <ul>
+     * <li>0 = largest value</li>
+     * <li>N = Nth largest value</li>
+     * <li>-1 = smallest value</li>
+     * </ul>
+     */
+    public static final int REVERSE_RANK = 4;
 
-	/**
-	 * Return count of items selected.
-	 */
-	public static final int COUNT = 5;
+    /**
+     * Return count of items selected.
+     */
+    public static final int COUNT = 5;
 
-	/**
-	 * Return value for single key read and value list for range read.
-	 */
-	public static final int VALUE = 7;
+    /**
+     * Return value for single key read and value list for range read.
+     */
+    public static final int VALUE = 7;
 
-	/**
-	 * Return true if count > 0.
-	 */
-	public static final int EXISTS = 13;
+    /**
+     * Return true if count > 0.
+     */
+    public static final int EXISTS = 13;
 
-	/**
-	 * Invert meaning of list command and return values.  For example:
-	 * <pre>{@code ListOperation.removeByIndexRange(binName, index, count, ListReturnType.VALUE | ListReturnType.INVERTED);}</pre>
-	 * With the INVERTED flag enabled, the items outside of the specified index range will be removed and returned.
-	 */
-	public static final int INVERTED = 0x10000;
+    /**
+     * Invert meaning of list command and return values.  For example:
+     * <pre>{@code ListOperation.removeByIndexRange(binName, index, count, ListReturnType.VALUE | ListReturnType.INVERTED);}</pre>
+     * With the INVERTED flag enabled, the items outside of the specified index range will be removed and returned.
+     */
+    public static final int INVERTED = 0x10000;
 }

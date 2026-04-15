@@ -26,42 +26,42 @@ import com.aerospike.client.sdk.tend.Partition;
 import com.aerospike.client.sdk.tend.Partitions;
 
 public class WriteCommand extends Command {
-	final Key key;
-	final Partition partition;
-	final OpType type;
-	final CommitLevel commitLevel;
-	final int gen;
-	final int ttl;
-	final boolean onLockingOnly;
-	final boolean durableDelete;
-	final boolean failOnFilteredOut;
+    final Key key;
+    final Partition partition;
+    final OpType type;
+    final CommitLevel commitLevel;
+    final int gen;
+    final int ttl;
+    final boolean onLockingOnly;
+    final boolean durableDelete;
+    final boolean failOnFilteredOut;
 
-	public WriteCommand(
-		Cluster cluster, Partitions partitions, Txn txn, Key key, OpType type, int gen, int ttl,
-		Expression where, boolean failOnFilteredOut, Settings settings
-	) {
-		super(cluster, key.namespace, txn, where, settings.getReplicaOrder(), settings);
-		this.key = key;
-		this.partition = new Partition(partitions, key, replica, null, false);
-		this.type = type;
-		this.commitLevel = settings.getCommitLevel();
-		this.gen = gen;
-		this.ttl = ttl;
-		this.onLockingOnly = false;
-		this.durableDelete = settings.getUseDurableDelete();
-		this.failOnFilteredOut = failOnFilteredOut;
-	}
+    public WriteCommand(
+        Cluster cluster, Partitions partitions, Txn txn, Key key, OpType type, int gen, int ttl,
+        Expression where, boolean failOnFilteredOut, Settings settings
+    ) {
+        super(cluster, key.namespace, txn, where, settings.getReplicaOrder(), settings);
+        this.key = key;
+        this.partition = new Partition(partitions, key, replica, null, false);
+        this.type = type;
+        this.commitLevel = settings.getCommitLevel();
+        this.gen = gen;
+        this.ttl = ttl;
+        this.onLockingOnly = false;
+        this.durableDelete = settings.getUseDurableDelete();
+        this.failOnFilteredOut = failOnFilteredOut;
+    }
 
-	public WriteCommand(Cluster cluster, Partitions partitions, Key key, Settings settings) {
-		super(cluster, key.namespace, null, null, settings.getReplicaOrder(), settings);
-		this.key = key;
-		this.partition = new Partition(partitions, key, replica, null, false);
-		this.type = OpType.UPSERT;
-		this.commitLevel = settings.getCommitLevel();
-		this.gen = 0;
-		this.ttl = 0;
-		this.onLockingOnly = false;
-		this.durableDelete = settings.getUseDurableDelete();
-		this.failOnFilteredOut = false;
-	}
+    public WriteCommand(Cluster cluster, Partitions partitions, Key key, Settings settings) {
+        super(cluster, key.namespace, null, null, settings.getReplicaOrder(), settings);
+        this.key = key;
+        this.partition = new Partition(partitions, key, replica, null, false);
+        this.type = OpType.UPSERT;
+        this.commitLevel = settings.getCommitLevel();
+        this.gen = 0;
+        this.ttl = 0;
+        this.onLockingOnly = false;
+        this.durableDelete = settings.getUseDurableDelete();
+        this.failOnFilteredOut = false;
+    }
 }

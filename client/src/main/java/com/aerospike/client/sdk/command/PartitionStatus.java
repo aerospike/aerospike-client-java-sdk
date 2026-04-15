@@ -21,17 +21,17 @@ import java.io.Serializable;
 import com.aerospike.client.sdk.Node;
 
 public final class PartitionStatus implements Serializable {
-	private static final long serialVersionUID = 4L;
+    private static final long serialVersionUID = 4L;
 
-	public long bval;
-	public byte[] digest;
-	public final int id;
-	public transient Node node;
-	public transient int sequence;
-	public boolean retry;
+    public long bval;
+    public byte[] digest;
+    public final int id;
+    public transient Node node;
+    public transient int sequence;
+    public boolean retry;
 
-	public PartitionStatus(int id) {
-		this.id = id;
-		this.retry = true;
-	}
+    public PartitionStatus(int id) {
+        this.id = id;
+        this.retry = true;
+    }
 }

@@ -25,102 +25,102 @@ import com.aerospike.client.sdk.ResultCode;
 import com.aerospike.client.sdk.exp.Expression;
 
 public final class BatchRead extends BatchRecord {
-	public final List<Operation> ops;
-	public final String[] binNames;
-	public final int ttl;
-	public final boolean readAllBins;
+    public final List<Operation> ops;
+    public final String[] binNames;
+    public final int ttl;
+    public final boolean readAllBins;
 
-	public BatchRead(Key key, Expression where, BatchAttr attr, int ttl, List<Operation> ops) {
-		super(key, where, attr);
-		this.ops = ops;
-		this.binNames = null;
-		this.ttl = ttl;
-		this.readAllBins = false;
+    public BatchRead(Key key, Expression where, BatchAttr attr, int ttl, List<Operation> ops) {
+        super(key, where, attr);
+        this.ops = ops;
+        this.binNames = null;
+        this.ttl = ttl;
+        this.readAllBins = false;
 
-		for (Operation op : ops) {
-			if (op.type == Operation.Type.READ) {
-				if (op.binName == null) {
-					readAttr |= Command.INFO1_GET_ALL;
-				}
-			}
-			else if (op.type == Operation.Type.READ_HEADER) {
-				readAttr |= Command.INFO1_NOBINDATA;
-			}
-		}
-	}
+        for (Operation op : ops) {
+            if (op.type == Operation.Type.READ) {
+                if (op.binName == null) {
+                    readAttr |= Command.INFO1_GET_ALL;
+                }
+            }
+            else if (op.type == Operation.Type.READ_HEADER) {
+                readAttr |= Command.INFO1_NOBINDATA;
+            }
+        }
+    }
 
-	public BatchRead(Key key, Expression where, BatchAttr attr, int ttl, String[] binNames) {
-		super(key, where, attr);
-		this.ops = null;
-		this.binNames = binNames;
-		this.ttl = ttl;
+    public BatchRead(Key key, Expression where, BatchAttr attr, int ttl, String[] binNames) {
+        super(key, where, attr);
+        this.ops = null;
+        this.binNames = binNames;
+        this.ttl = ttl;
 
-		if (binNames.length > 0) {
-			this.readAllBins = false;
-		}
-		else {
-			this.readAllBins = true;
-			readAttr |= Command.INFO1_GET_ALL;
-		}
-	}
+        if (binNames.length > 0) {
+            this.readAllBins = false;
+        }
+        else {
+            this.readAllBins = true;
+            readAttr |= Command.INFO1_GET_ALL;
+        }
+    }
 
-	public BatchRead(Key key, Expression where, BatchAttr attr, int ttl, boolean readAllBins) {
-		super(key, where, attr);
-		this.ops = null;
-		this.binNames = null;
-		this.ttl = ttl;
-		this.readAllBins = readAllBins;
+    public BatchRead(Key key, Expression where, BatchAttr attr, int ttl, boolean readAllBins) {
+        super(key, where, attr);
+        this.ops = null;
+        this.binNames = null;
+        this.ttl = ttl;
+        this.readAllBins = readAllBins;
 
-		if (readAllBins) {
-			readAttr |= Command.INFO1_GET_ALL;
-		}
-		else {
-			readAttr |= Command.INFO1_NOBINDATA;
-		}
-	}
+        if (readAllBins) {
+            readAttr |= Command.INFO1_GET_ALL;
+        }
+        else {
+            readAttr |= Command.INFO1_NOBINDATA;
+        }
+    }
 
-	@Override
-	public Type getType() {
-		return Type.BATCH_READ;
-	}
+    @Override
+    public Type getType() {
+        return Type.BATCH_READ;
+    }
 
-	@Override
-	public boolean equals(BatchRecord obj) {
-		if (getClass() != obj.getClass()) {
-			return false;
-		}
+    @Override
+    public boolean equals(BatchRecord obj) {
+        if (getClass() != obj.getClass()) {
+            return false;
+        }
 
-		BatchRead other = (BatchRead)obj;
+        BatchRead other = (BatchRead)obj;
 
-		if (where != other.where) {
-			return false;
-		}
+        if (where != other.where) {
+            return false;
+        }
 
-		return binNames == other.binNames && ops == other.ops && readAllBins == other.readAllBins;
-	}
+        return binNames == other.binNames && ops == other.ops && readAllBins == other.readAllBins;
+    }
 
-	@Override
-	public int size(Command cmd) {
-		int size = 0;
+    @Override
+    public int size(Command cmd) {
+        int size = 0;
 
-		if (where != null) {
-			size += where.getBytes().length + Command.FIELD_HEADER_SIZE;
-		}
+        if (where != null) {
+            size += where.getBytes().length + Command.FIELD_HEADER_SIZE;
+        }
 
-		if (binNames != null) {
-			for (String binName : binNames) {
-				size += Buffer.estimateSizeUtf8(binName) + Command.OPERATION_HEADER_SIZE;
-			}
-		}
-		else if (ops != null) {
-			for (Operation op : ops) {
-				if (op.type.isWrite) {
-					throw AerospikeException.resultCodeToException(ResultCode.PARAMETER_ERROR, "Write operations not allowed in batch read");
-				}
-				size += Buffer.estimateSizeUtf8(op.binName) + Command.OPERATION_HEADER_SIZE;
-				size += op.value.estimateSize();
-			}
-		}
-		return size;
-	}
+        if (binNames != null) {
+            for (String binName : binNames) {
+                size += Buffer.estimateSizeUtf8(binName) + Command.OPERATION_HEADER_SIZE;
+            }
+        }
+        else if (ops != null) {
+            for (Operation op : ops) {
+                if (op.type.isWrite) {
+                    throw AerospikeException.resultCodeToException(ResultCode.PARAMETER_ERROR, "Write operations not allowed in batch read");
+                }
+                size += Buffer.estimateSizeUtf8(op.binName) + Command.OPERATION_HEADER_SIZE;
+                size += op.value.estimateSize();
+            }
+        }
+        return size;
+    }
 }

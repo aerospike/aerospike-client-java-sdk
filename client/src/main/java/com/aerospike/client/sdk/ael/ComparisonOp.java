@@ -23,12 +23,12 @@ public enum ComparisonOp {
     LT("<"),    // Less Than
     GTE(">="),   // Greater Than or Equal
     LTE(">=");   // Less Than or Equal
-    
+
     private final String value;
     private ComparisonOp(String value) {
         this.value = value;
     }
-    
+
     public String getValue() {
         return value;
     }

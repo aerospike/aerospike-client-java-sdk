@@ -119,22 +119,22 @@ public class IndexQueryBuilderImpl extends QueryImpl {
         Expression filterExp = null;
 
         if (where != null) {
-        	ParseResult pr = where.process(dataSet.getNamespace(), getSession());
-        	filter = pr.getFilter();
-        	filterExp = pr.getExpression();
+            ParseResult pr = where.process(dataSet.getNamespace(), getSession());
+            filter = pr.getFilter();
+            filterExp = pr.getExpression();
         }
 
         AsyncRecordStream stream = new AsyncRecordStream(policy.getRecordQueueSize());
         QueryCommand cmd = new QueryCommand(cluster, dataSet, filter, filterExp, policy, qb);
-    	cmd.execute(stream);
+        cmd.execute(stream);
 
         if (qb.getChunkSize() == 0) {
-        	// Normal query
+            // Normal query
             return new RecordStream(stream);
 
         }
         else {
-        	// Paginated query
+            // Paginated query
             return new RecordStream(stream, cmd, qb.getLimit(), policy.getRecordQueueSize());
         }
     }

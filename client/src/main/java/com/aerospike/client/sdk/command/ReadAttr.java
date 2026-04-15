@@ -23,8 +23,8 @@ import com.aerospike.client.sdk.policy.Settings;
 import com.aerospike.client.sdk.tend.Partitions;
 
 public class ReadAttr {
-	public final ReadModeAP readModeAP;
-	public final ReadModeSC readModeSC;
+    public final ReadModeAP readModeAP;
+    public final ReadModeSC readModeSC;
     public final Replica replica;
     public final boolean linearize;
 
@@ -35,8 +35,8 @@ public class ReadAttr {
 
             switch (readModeSC) {
             case SESSION:
-            	this.replica = Replica.MASTER;
-            	this.linearize = false;
+                this.replica = Replica.MASTER;
+                this.linearize = false;
                 break;
 
             case LINEARIZE:
@@ -44,14 +44,14 @@ public class ReadAttr {
                     this.replica = Replica.SEQUENCE;
                 }
                 else {
-                	this.replica = policy.getReplicaOrder();
+                    this.replica = policy.getReplicaOrder();
                 }
                 this.linearize = true;
                 break;
 
             default:
-            	this.replica = policy.getReplicaOrder();
-            	this.linearize = false;
+                this.replica = policy.getReplicaOrder();
+                this.linearize = false;
                 break;
             }
 

@@ -20,14 +20,14 @@ package com.aerospike.client.sdk.command;
  * Transaction commit status code.
  */
 public enum CommitStatus {
-	OK("Commit succeeded"),
-	ALREADY_COMMITTED("Already committed"),
-	ROLL_FORWARD_ABANDONED("Transaction client roll forward abandoned. Server will eventually commit the transaction."),
-	CLOSE_ABANDONED("Transaction has been rolled forward, but transaction client close was abandoned. Server will eventually close the transaction.");
+    OK("Commit succeeded"),
+    ALREADY_COMMITTED("Already committed"),
+    ROLL_FORWARD_ABANDONED("Transaction client roll forward abandoned. Server will eventually commit the transaction."),
+    CLOSE_ABANDONED("Transaction has been rolled forward, but transaction client close was abandoned. Server will eventually close the transaction.");
 
-	public final String str;
+    public final String str;
 
-	CommitStatus(String str) {
-		this.str = str;
-	}
+    CommitStatus(String str) {
+        this.str = str;
+    }
 }

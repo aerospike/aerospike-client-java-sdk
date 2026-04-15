@@ -31,146 +31,146 @@ import com.aerospike.client.sdk.tend.Partition;
  * {@link #setPartitions(PartitionStatus[])} with a null argument.
  */
 public final class PartitionFilter implements Serializable {
-	private static final long serialVersionUID = 4L;
+    private static final long serialVersionUID = 4L;
 
-	/**
-	 * Read all partitions.
-	 */
-	public static PartitionFilter all() {
-		return new PartitionFilter(0, 4096);
-	}
+    /**
+     * Read all partitions.
+     */
+    public static PartitionFilter all() {
+        return new PartitionFilter(0, 4096);
+    }
 
-	/**
-	 * Filter by partition id.
-	 *
-	 * @param id		partition id (0 - 4095)
-	 */
-	public static PartitionFilter id(int id) {
-		return new PartitionFilter(id, 1);
-	}
+    /**
+     * Filter by partition id.
+     *
+     * @param id        partition id (0 - 4095)
+     */
+    public static PartitionFilter id(int id) {
+        return new PartitionFilter(id, 1);
+    }
 
-	/**
-	 * Return records after the key's digest in the partition containing the digest.
-	 * Records in all other partitions are not included. The digest is used to determine
-	 * order and this is not the same as userKey order.
-	 * <p>
-	 * This method only works for scan or query with null filter (primary index query).
-	 * This method does not work for a secondary index query because the digest alone
-	 * is not sufficient to determine a cursor in a secondary index query.
-	 *
-	 * @param key		return records after this key's digest
-	 */
-	public static PartitionFilter after(Key key) {
-		return new PartitionFilter(key.digest);
-	}
+    /**
+     * Return records after the key's digest in the partition containing the digest.
+     * Records in all other partitions are not included. The digest is used to determine
+     * order and this is not the same as userKey order.
+     * <p>
+     * This method only works for scan or query with null filter (primary index query).
+     * This method does not work for a secondary index query because the digest alone
+     * is not sufficient to determine a cursor in a secondary index query.
+     *
+     * @param key       return records after this key's digest
+     */
+    public static PartitionFilter after(Key key) {
+        return new PartitionFilter(key.digest);
+    }
 
-	/**
-	 * Return records after the digest in the partition containing the digest.
-	 * Records in all other partitions are not included. The digest is used to determine
-	 * order and this is not the same as userKey order.
-	 * <p>
-	 * This method only works for scan or query with null filter (primary index query).
-	 * This method does not work for a secondary index query because the digest alone
-	 * is not sufficient to determine a cursor in a secondary index query.
-	 *
-	 * @param digest	return records after this digest
-	 */
-	public static PartitionFilter after(byte[] digest) {
-		return new PartitionFilter(digest);
-	}
+    /**
+     * Return records after the digest in the partition containing the digest.
+     * Records in all other partitions are not included. The digest is used to determine
+     * order and this is not the same as userKey order.
+     * <p>
+     * This method only works for scan or query with null filter (primary index query).
+     * This method does not work for a secondary index query because the digest alone
+     * is not sufficient to determine a cursor in a secondary index query.
+     *
+     * @param digest    return records after this digest
+     */
+    public static PartitionFilter after(byte[] digest) {
+        return new PartitionFilter(digest);
+    }
 
-	/**
-	 * Filter by partition range.
-	 *
-	 * @param begin		start partition id (0 - 4095)
-	 * @param count		number of partitions
-	 */
-	public static PartitionFilter range(int begin, int count) {
-		return new PartitionFilter(begin, count);
-	}
+    /**
+     * Filter by partition range.
+     *
+     * @param begin     start partition id (0 - 4095)
+     * @param count     number of partitions
+     */
+    public static PartitionFilter range(int begin, int count) {
+        return new PartitionFilter(begin, count);
+    }
 
-	final int begin;
-	final int count;
-	final byte[] digest;
-	PartitionStatus[] partitions; // Initialized in PartitionTracker.
-	boolean done;
-	boolean retry;
+    final int begin;
+    final int count;
+    final byte[] digest;
+    PartitionStatus[] partitions; // Initialized in PartitionTracker.
+    boolean done;
+    boolean retry;
 
-	private PartitionFilter(int begin, int count) {
-		this.begin = begin;
-		this.count = count;
-		this.digest = null;
-	}
+    private PartitionFilter(int begin, int count) {
+        this.begin = begin;
+        this.count = count;
+        this.digest = null;
+    }
 
-	private PartitionFilter(byte[] digest) {
-		this.begin = Partition.getPartitionId(digest);
-		this.count = 1;
-		this.digest = digest;
-	}
+    private PartitionFilter(byte[] digest) {
+        this.begin = Partition.getPartitionId(digest);
+        this.count = 1;
+        this.digest = digest;
+    }
 
-	/**
-	 * Return first partition id.
-	 */
-	public int getBegin() {
-		return begin;
-	}
+    /**
+     * Return first partition id.
+     */
+    public int getBegin() {
+        return begin;
+    }
 
-	/**
-	 * Return count of partitions.
-	 */
-	public int getCount() {
-		return count;
-	}
+    /**
+     * Return count of partitions.
+     */
+    public int getCount() {
+        return count;
+    }
 
-	/**
-	 * Return resume after digest.
-	 */
-	public byte[] getDigest() {
-		return digest;
-	}
+    /**
+     * Return resume after digest.
+     */
+    public byte[] getDigest() {
+        return digest;
+    }
 
-	/**
-	 * Return status of each partition after scan termination.
-	 * Useful for external retry of partially completed scans at a later time.
-	 * <p>
-	 * The partition status is accurate for sync/async scanPartitions and async queryPartitions.
-	 * <p>
-	 * The partition status is not accurate for
-	 * {@link com.aerospike.client.AerospikeClient#queryPartitions(com.aerospike.client.policy.QueryPolicy, Statement, PartitionFilter)}
-	 * because the last digest received is set during query parsing, but the user may not have retrieved
-	 * that digest from the RecordSet yet.
-	 */
-	public PartitionStatus[] getPartitions() {
-		return partitions;
-	}
+    /**
+     * Return status of each partition after scan termination.
+     * Useful for external retry of partially completed scans at a later time.
+     * <p>
+     * The partition status is accurate for sync/async scanPartitions and async queryPartitions.
+     * <p>
+     * The partition status is not accurate for
+     * {@link com.aerospike.client.AerospikeClient#queryPartitions(com.aerospike.client.policy.QueryPolicy, Statement, PartitionFilter)}
+     * because the last digest received is set during query parsing, but the user may not have retrieved
+     * that digest from the RecordSet yet.
+     */
+    public PartitionStatus[] getPartitions() {
+        return partitions;
+    }
 
-	/**
-	 * Set cursor status of all partitions. The cursor contains the last record read for each
-	 * partition and is usually obtained from {@link #getPartitions()} after a previous scan/query.
-	 * <p>
-	 * If a previous scan/query returned all records specified by a PartitionFilter instance, a
-	 * future scan/query using the same PartitionFilter instance will only return new records added
-	 * after the last record read (in digest order) in each partition in the previous scan/query.
-	 * To reset the cursor of an existing PartitionFilter instance, call this method with a null
-	 * argument.
-	 */
-	public void setPartitions(PartitionStatus[] partitions) {
-		this.partitions = partitions;
-	}
+    /**
+     * Set cursor status of all partitions. The cursor contains the last record read for each
+     * partition and is usually obtained from {@link #getPartitions()} after a previous scan/query.
+     * <p>
+     * If a previous scan/query returned all records specified by a PartitionFilter instance, a
+     * future scan/query using the same PartitionFilter instance will only return new records added
+     * after the last record read (in digest order) in each partition in the previous scan/query.
+     * To reset the cursor of an existing PartitionFilter instance, call this method with a null
+     * argument.
+     */
+    public void setPartitions(PartitionStatus[] partitions) {
+        this.partitions = partitions;
+    }
 
-	/**
-	 * If using {@link com.aerospike.client.policy.ScanPolicy#maxRecords} or
-	 * {@link com.aerospike.client.policy.QueryPolicy#maxRecords},
-	 * did previous paginated scans with this partition filter instance return all records?
-	 */
-	public boolean isDone() {
-		return done;
-	}
+    /**
+     * If using {@link com.aerospike.client.policy.ScanPolicy#maxRecords} or
+     * {@link com.aerospike.client.policy.QueryPolicy#maxRecords},
+     * did previous paginated scans with this partition filter instance return all records?
+     */
+    public boolean isDone() {
+        return done;
+    }
 
-	/**
-	 * Indicates if the entire filter requires a retry after a failed attempt.
-	 */
-	public boolean isRetry() {
-		return retry;
-	}
+    /**
+     * Indicates if the entire filter requires a retry after a failed attempt.
+     */
+    public boolean isRetry() {
+        return retry;
+    }
 }

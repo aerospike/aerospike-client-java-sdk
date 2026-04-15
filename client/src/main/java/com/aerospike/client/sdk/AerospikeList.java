@@ -29,84 +29,84 @@ import com.aerospike.client.sdk.cdt.ListOrder;
  * @param <T> element type
  */
 public class AerospikeList<T> extends ArrayList<T> {
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private ListOrder order;
-	private boolean persistIndex;
+    private ListOrder order;
+    private boolean persistIndex;
 
-	/**
-	 * Creates an empty unordered list with the given capacity.
-	 * Equivalent to {@code new AerospikeList(capacity, ListOrder.UNORDERED)}.
-	 *
-	 * @param capacity initial capacity of the backing array
-	 */
-	public AerospikeList(int capacity) {
-		super(capacity);
-		this.order = ListOrder.UNORDERED;
-		this.persistIndex = false;
-	}
+    /**
+     * Creates an empty unordered list with the given capacity.
+     * Equivalent to {@code new AerospikeList(capacity, ListOrder.UNORDERED)}.
+     *
+     * @param capacity initial capacity of the backing array
+     */
+    public AerospikeList(int capacity) {
+        super(capacity);
+        this.order = ListOrder.UNORDERED;
+        this.persistIndex = false;
+    }
 
-	/**
-	 * Creates an empty list with the given capacity and {@link ListOrder}.
-	 *
-	 * @param capacity initial capacity of the backing array
-	 * @param order    unordered or ordered list flag ({@link ListOrder#UNORDERED} or {@link ListOrder#ORDERED})
-	 */
-	public AerospikeList(int capacity, ListOrder order) {
-		super(capacity);
-		this.order = order;
-		this.persistIndex = false;
-	}
+    /**
+     * Creates an empty list with the given capacity and {@link ListOrder}.
+     *
+     * @param capacity initial capacity of the backing array
+     * @param order    unordered or ordered list flag ({@link ListOrder#UNORDERED} or {@link ListOrder#ORDERED})
+     */
+    public AerospikeList(int capacity, ListOrder order) {
+        super(capacity);
+        this.order = order;
+        this.persistIndex = false;
+    }
 
-	/**
-	 * Sets {@link ListOrder} for Aerospike list encoding. Transitioning from
-	 * {@link ListOrder#UNORDERED} to {@link ListOrder#ORDERED} sorts elements in place with
-	 * {@link #sort()}. All other changes update only the stored flag (no sort).
-	 *
-	 * @param order new list order
-	 */
-	public void setOrder(ListOrder order) {
-		if (this.order == ListOrder.UNORDERED && order == ListOrder.ORDERED) {
-			sort();
-		}
-		else {
-			this.order = order;
-		}
-	}
+    /**
+     * Sets {@link ListOrder} for Aerospike list encoding. Transitioning from
+     * {@link ListOrder#UNORDERED} to {@link ListOrder#ORDERED} sorts elements in place with
+     * {@link #sort()}. All other changes update only the stored flag (no sort).
+     *
+     * @param order new list order
+     */
+    public void setOrder(ListOrder order) {
+        if (this.order == ListOrder.UNORDERED && order == ListOrder.ORDERED) {
+            sort();
+        }
+        else {
+            this.order = order;
+        }
+    }
 
-	/**
-	 * Returns the list order used when encoding this list for the server.
-	 *
-	 * @return current {@link ListOrder}
-	 */
-	public ListOrder getOrder() {
-		return order;
-	}
+    /**
+     * Returns the list order used when encoding this list for the server.
+     *
+     * @return current {@link ListOrder}
+     */
+    public ListOrder getOrder() {
+        return order;
+    }
 
-	/**
-	 * Set whether to create an index on list creation. A list index improves lookup performance,
-	 * but requires more storage. A list index can be created for a top-level ordered list only.
-	 * Nested and unordered list indexes are not supported.
-	 *
-	 * @param persistIndex	if true, persist list index.
-	 */
-	public void setPersistIndex(boolean persistIndex) {
-		this.persistIndex = persistIndex;
-	}
+    /**
+     * Set whether to create an index on list creation. A list index improves lookup performance,
+     * but requires more storage. A list index can be created for a top-level ordered list only.
+     * Nested and unordered list indexes are not supported.
+     *
+     * @param persistIndex  if true, persist list index.
+     */
+    public void setPersistIndex(boolean persistIndex) {
+        this.persistIndex = persistIndex;
+    }
 
-	/**
-	 * Returns if the server should create an index when the list is ordered.
-	 */
-	public boolean isPersistIndex() {
-		return persistIndex;
-	}
+    /**
+     * Returns if the server should create an index when the list is ordered.
+     */
+    public boolean isPersistIndex() {
+        return persistIndex;
+    }
 
-	/**
-	 * Sorts this list in place using {@link AerospikeComparator} (Aerospike value ordering, aligned
-	 * with server list sort), then sets {@link ListOrder#ORDERED}.
-	 */
-	public void sort() {
-		Collections.sort(this, new AerospikeComparator());
-		this.order = ListOrder.ORDERED;
-	}
+    /**
+     * Sorts this list in place using {@link AerospikeComparator} (Aerospike value ordering, aligned
+     * with server list sort), then sets {@link ListOrder#ORDERED}.
+     */
+    public void sort() {
+        Collections.sort(this, new AerospikeComparator());
+        this.order = ListOrder.ORDERED;
+    }
 }

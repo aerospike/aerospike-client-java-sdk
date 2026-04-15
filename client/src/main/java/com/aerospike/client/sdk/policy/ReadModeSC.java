@@ -22,27 +22,27 @@ package com.aerospike.client.sdk.policy;
  * Determines SC read consistency options.
  */
 public enum ReadModeSC {
-	/**
-	 * Ensures this client will only see an increasing sequence of record versions.
-	 * Client only reads from master. This is the default.
-	 */
-	SESSION,
+    /**
+     * Ensures this client will only see an increasing sequence of record versions.
+     * Client only reads from master. This is the default.
+     */
+    SESSION,
 
-	/**
-	 * Ensures all clients will only see an increasing sequence of record versions.
-	 * Client only reads from master.
-	 */
-	LINEARIZE,
+    /**
+     * Ensures all clients will only see an increasing sequence of record versions.
+     * Client only reads from master.
+     */
+    LINEARIZE,
 
-	/**
-	 * Client may read from master or any full (non-migrating) replica.
-	 * Increasing sequence of record versions is not guaranteed.
-	 */
-	ALLOW_REPLICA,
+    /**
+     * Client may read from master or any full (non-migrating) replica.
+     * Increasing sequence of record versions is not guaranteed.
+     */
+    ALLOW_REPLICA,
 
-	/**
-	 * Client may read from master or any full (non-migrating) replica or from unavailable
-	 * partitions. Increasing sequence of record versions is not guaranteed.
-	 */
-	ALLOW_UNAVAILABLE
+    /**
+     * Client may read from master or any full (non-migrating) replica or from unavailable
+     * partitions. Increasing sequence of record versions is not guaranteed.
+     */
+    ALLOW_UNAVAILABLE
 }

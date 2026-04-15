@@ -52,8 +52,8 @@ public final class AsyncRecordStream implements AutoCloseable, Iterable<RecordRe
      */
     public AsyncRecordStream(int capacity) {
         if (capacity <= 0) {
-			throw new IllegalArgumentException("capacity must be > 0");
-		}
+            throw new IllegalArgumentException("capacity must be > 0");
+        }
         // Add one extra slot to reduce contention for END/Err marker.
         // The complete() and error() methods will retry until the marker is added,
         // but having extra capacity helps reduce wait time.
@@ -70,22 +70,22 @@ public final class AsyncRecordStream implements AutoCloseable, Iterable<RecordRe
     /** For producers: push a result if we are still open. Blocks when backpressure applies. */
     public void publish(RecordResult result) {
         if (result == null) {
-			return;
-		}
+            return;
+        }
         if (cancelled.getAsBoolean())
-		 {
-			return; // best effort
-		}
+         {
+            return; // best effort
+        }
         // Block with backpressure, but wake up promptly if closed/completed
         while (true) {
             if (cancelled.getAsBoolean()) {
-				return;
-			}
+                return;
+            }
             try {
                 // TODO: Should this value be substantially larger?
                 if (queue.offer(result, 50, TimeUnit.MILLISECONDS)) {
-					return;
-				}
+                    return;
+                }
             } catch (InterruptedException ie) {
                 Thread.currentThread().interrupt();
                 return;
@@ -195,8 +195,8 @@ public final class AsyncRecordStream implements AutoCloseable, Iterable<RecordRe
 
             @Override public RecordResult next() {
                 if (next == END) {
-					throw new NoSuchElementException();
-				}
+                    throw new NoSuchElementException();
+                }
                 if (next instanceof Err e) {
                     // Propagate as unchecked
                     RuntimeException re = (e.t instanceof RuntimeException r) ? r : new RuntimeException(e.t);

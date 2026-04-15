@@ -26,7 +26,7 @@ public enum NodeCategory {
     REPLICA_IN_RACK,
     RANDOM,
     RANDOM_IN_RACK;
-    
+
     public static List<NodeCategory> SEQUENCE = List.of(NodeCategory.MASTER, NodeCategory.ANY_REPLICA);
     public static List<NodeCategory> ALLOW_RACK = List.of(NodeCategory.MASTER_OR_REPLICA_IN_RACK);
 

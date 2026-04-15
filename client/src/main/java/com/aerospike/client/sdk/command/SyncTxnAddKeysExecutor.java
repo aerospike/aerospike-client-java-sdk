@@ -24,34 +24,34 @@ import com.aerospike.client.sdk.Node;
 import com.aerospike.client.sdk.ResultCode;
 
 public final class SyncTxnAddKeysExecutor extends OperateWriteExecutor {
-	public SyncTxnAddKeysExecutor(Cluster cluster, OperateWriteCommand cmd) {
-		super(cluster, cmd);
-	}
+    public SyncTxnAddKeysExecutor(Cluster cluster, OperateWriteCommand cmd) {
+        super(cluster, cmd);
+    }
 
-	@Override
-	protected CommandBuffer getCommandBuffer() {
-		CommandBuffer cb = new CommandBuffer();
-		cb.setTxnAddKeys(operate);
-		return cb;
-	}
+    @Override
+    protected CommandBuffer getCommandBuffer() {
+        CommandBuffer cb = new CommandBuffer();
+        cb.setTxnAddKeys(operate);
+        return cb;
+    }
 
-	@Override
-	protected void parseResult(Node node, Connection conn, byte[] buffer) throws IOException {
-		RecordParser rp = new RecordParser(conn, buffer);
-		rp.parseTranDeadline(cmd.txn);
+    @Override
+    protected void parseResult(Node node, Connection conn, byte[] buffer) throws IOException {
+        RecordParser rp = new RecordParser(conn, buffer);
+        rp.parseTranDeadline(cmd.txn);
 
-		if (node.isMetricsEnabled()) {
-			node.addBytesIn(cmd.namespace, rp.bytesIn);
-		}
+        if (node.isMetricsEnabled()) {
+            node.addBytesIn(cmd.namespace, rp.bytesIn);
+        }
 
-		if (rp.resultCode == ResultCode.OK) {
-			return;
-		}
+        if (rp.resultCode == ResultCode.OK) {
+            return;
+        }
 
-		throw AerospikeException.resultCodeToException(rp.resultCode, "Server error");
-	}
+        throw AerospikeException.resultCodeToException(rp.resultCode, "Server error");
+    }
 
-	@Override
-	protected void onInDoubt() {
-	}
+    @Override
+    protected void onInDoubt() {
+    }
 }

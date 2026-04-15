@@ -38,7 +38,7 @@ import com.aerospike.client.sdk.query.RecordStreamImpl;
  * </ul>
  */
 public class ChunkedRecordStream implements RecordStreamImpl {
-	private final QueryCommand cmd;
+    private final QueryCommand cmd;
     private final long limit;
     private long recordCount = 0;
     private AsyncRecordStream stream;
@@ -56,8 +56,8 @@ public class ChunkedRecordStream implements RecordStreamImpl {
     public ChunkedRecordStream(AsyncRecordStream stream, QueryCommand cmd, long limit, int recordQueueSize) {
         this.cmd = cmd;
         this.limit = limit;
-    	this.recordQueueSize = recordQueueSize;
-    	this.stream = stream;
+        this.recordQueueSize = recordQueueSize;
+        this.stream = stream;
     }
 
     /**
@@ -68,19 +68,19 @@ public class ChunkedRecordStream implements RecordStreamImpl {
      */
     @Override
     public boolean hasMoreChunks() {
-    	if (first) {
-    		first = false;
-    		return true;
-    	}
+        if (first) {
+            first = false;
+            return true;
+        }
 
         if (cmd.isDone() || (limit > 0 && recordCount >= limit)) {
             return false;
         }
 
         // Query next chunk.
-    	stream = new AsyncRecordStream(recordQueueSize);
-    	cmd.execute(stream);
-		return true;
+        stream = new AsyncRecordStream(recordQueueSize);
+        cmd.execute(stream);
+        return true;
     }
 
     /**
@@ -109,6 +109,6 @@ public class ChunkedRecordStream implements RecordStreamImpl {
      */
     @Override
     public void close() {
-    	stream.close();
+        stream.close();
     }
 }

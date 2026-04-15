@@ -20,23 +20,23 @@ package com.aerospike.client.sdk.operation;
  * Bitwise operation flags for resize.
  */
 public final class BitResizeFlags {
-	/**
-	 * Default.
-	 */
-	public static final int DEFAULT = 0;
+    /**
+     * Default.
+     */
+    public static final int DEFAULT = 0;
 
-	/**
-	 * Add/remove bytes from the beginning instead of the end.
-	 */
-	public static final int FROM_FRONT = 1;
+    /**
+     * Add/remove bytes from the beginning instead of the end.
+     */
+    public static final int FROM_FRONT = 1;
 
-	/**
-	 * Only allow the byte[] size to increase.
-	 */
-	public static final int GROW_ONLY = 2;
+    /**
+     * Only allow the byte[] size to increase.
+     */
+    public static final int GROW_ONLY = 2;
 
-	/**
-	 * Only allow the byte[] size to decrease.
-	 */
-	public static final int SHRINK_ONLY = 4;
+    /**
+     * Only allow the byte[] size to decrease.
+     */
+    public static final int SHRINK_ONLY = 4;
 }

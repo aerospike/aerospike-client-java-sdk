@@ -26,7 +26,7 @@ import java.util.List;
 public class LocalVariableBuilder {
     private final List<VariableDefinition> variables = new ArrayList<>();
     private final String currentVariableName;
-    
+
     // Constructor for chaining
     LocalVariableBuilder(String variableName, List<VariableDefinition> existingVariables) {
         this.currentVariableName = variableName;
@@ -67,11 +67,11 @@ public class LocalVariableBuilder {
      */
     public LocalVariableExpression thenReturn(AelExpression resultExpression, LocalVariableBuilder... additionalBuilders) {
         List<VariableDefinition> allVariables = new ArrayList<>(variables);
-        
+
         for (LocalVariableBuilder builder : additionalBuilders) {
             allVariables.addAll(builder.variables);
         }
-        
+
         return new LocalVariableExpression(allVariables, resultExpression);
     }
 } 

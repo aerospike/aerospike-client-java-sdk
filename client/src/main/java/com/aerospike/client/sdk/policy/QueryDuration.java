@@ -21,36 +21,36 @@ package com.aerospike.client.sdk.policy;
  * This enum is ignored for aggregation queries, background queries and server versions &lt; 6.0.
  */
 public enum QueryDuration {
-	/**
-	 * The query is expected to return more than 100 records per node. The server optimizes for a large record set in
-	 * the following ways:
-	 * <ul>
-	 * <li>Allow query to be run in multiple threads using the server's query threading configuration.</li>
-	 * <li>Do not relax read consistency for AP namespaces.</li>
-	 * <li>Add the query to the server's query monitor.</li>
-	 * <li>Do not add the overall latency to the server's latency histogram.</li>
-	 * <li>Do not allow server timeouts.</li>
-	 * </ul>
-	 */
-	LONG,
+    /**
+     * The query is expected to return more than 100 records per node. The server optimizes for a large record set in
+     * the following ways:
+     * <ul>
+     * <li>Allow query to be run in multiple threads using the server's query threading configuration.</li>
+     * <li>Do not relax read consistency for AP namespaces.</li>
+     * <li>Add the query to the server's query monitor.</li>
+     * <li>Do not add the overall latency to the server's latency histogram.</li>
+     * <li>Do not allow server timeouts.</li>
+     * </ul>
+     */
+    LONG,
 
-	/**
-	 * The query is expected to return less than 100 records per node. The server optimizes for a small record set in
-	 * the following ways:
-	 * <ul>
-	 * <li>Always run the query in one thread and ignore the server's query threading configuration.</li>
-	 * <li>Allow query to be inlined directly on the server's service thread.</li>
-	 * <li>Relax read consistency for AP namespaces.</li>
-	 * <li>Do not add the query to the server's query monitor.</li>
-	 * <li>Add the overall latency to the server's latency histogram.</li>
-	 * <li>Allow server timeouts. The default server timeout for a short query is 1 second.</li>
-	 * </ul>
-	 */
-	SHORT,
+    /**
+     * The query is expected to return less than 100 records per node. The server optimizes for a small record set in
+     * the following ways:
+     * <ul>
+     * <li>Always run the query in one thread and ignore the server's query threading configuration.</li>
+     * <li>Allow query to be inlined directly on the server's service thread.</li>
+     * <li>Relax read consistency for AP namespaces.</li>
+     * <li>Do not add the query to the server's query monitor.</li>
+     * <li>Add the overall latency to the server's latency histogram.</li>
+     * <li>Allow server timeouts. The default server timeout for a short query is 1 second.</li>
+     * </ul>
+     */
+    SHORT,
 
-	/**
-	 * Treat query as a LONG query, but relax read consistency for AP namespaces.
-	 * This value is treated exactly like LONG for server versions &lt; 7.1.
-	 */
-	LONG_RELAX_AP
+    /**
+     * Treat query as a LONG query, but relax read consistency for AP namespaces.
+     * This value is treated exactly like LONG for server versions &lt; 7.1.
+     */
+    LONG_RELAX_AP
 }

@@ -31,18 +31,18 @@ public class KeyComparator {
 
     public static <T> boolean compareKeyFields(T a, T b) {
         if (a == null || b == null) {
-			return false;
-		}
+            return false;
+        }
         if (!a.getClass().equals(b.getClass())) {
-			return false;
-		}
+            return false;
+        }
 
         Class<?> clazz = a.getClass();
         List<Field> keyFields = keyFieldCache.computeIfAbsent(clazz, KeyComparator::findKeyFields);
 
         if (keyFields.isEmpty()) {
-			return false;
-		}
+            return false;
+        }
 
         try {
             for (Field field : keyFields) {

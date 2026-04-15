@@ -32,196 +32,196 @@ import com.aerospike.client.sdk.query.KeyRecord;
  * The single user thread consumes these records from the queue.
  */
 public class RecordSet implements Iterable<KeyRecord>, Closeable {
-	public static final KeyRecord END = new KeyRecord(null, null);
+    public static final KeyRecord END = new KeyRecord(null, null);
 
-	private final IQueryExecutor executor;
-	private final BlockingQueue<KeyRecord> queue;
-	private KeyRecord record;
-	private volatile boolean valid = true;
+    private final IQueryExecutor executor;
+    private final BlockingQueue<KeyRecord> queue;
+    private KeyRecord record;
+    private volatile boolean valid = true;
 
-	/**
-	 * Initialize record set with underlying producer/consumer queue.
-	 */
-	protected RecordSet(IQueryExecutor executor, int capacity) {
-		this.executor = executor;
-		this.queue = new ArrayBlockingQueue<KeyRecord>(capacity);
-	}
+    /**
+     * Initialize record set with underlying producer/consumer queue.
+     */
+    protected RecordSet(IQueryExecutor executor, int capacity) {
+        this.executor = executor;
+        this.queue = new ArrayBlockingQueue<KeyRecord>(capacity);
+    }
 
-	/**
-	 * For internal use only.
-	 */
-	protected RecordSet() {
-		this.executor = null;
-		this.queue = null;
-	}
+    /**
+     * For internal use only.
+     */
+    protected RecordSet() {
+        this.executor = null;
+        this.queue = null;
+    }
 
-	//-------------------------------------------------------
-	// Record traversal methods
-	//-------------------------------------------------------
+    //-------------------------------------------------------
+    // Record traversal methods
+    //-------------------------------------------------------
 
-	/**
-	 * Retrieve next record.  This method will block until a record is retrieved
-	 * or the query is cancelled.
-	 *
-	 * @return whether record exists - if false, no more records are available
-	 */
-	public boolean next() throws AerospikeException {
-		if (! valid) {
-			executor.checkForException();
-			return false;
-		}
+    /**
+     * Retrieve next record.  This method will block until a record is retrieved
+     * or the query is cancelled.
+     *
+     * @return whether record exists - if false, no more records are available
+     */
+    public boolean next() throws AerospikeException {
+        if (! valid) {
+            executor.checkForException();
+            return false;
+        }
 
-		try {
-			record = queue.take();
-		}
-		catch (InterruptedException ie) {
-			valid = false;
+        try {
+            record = queue.take();
+        }
+        catch (InterruptedException ie) {
+            valid = false;
 
-			/*
-			if (Log.debugEnabled()) {
-				Log.debug("RecordSet " + executor.statement.taskId + " take interrupted");
-			}
-			*/
-			return false;
-		}
+            /*
+            if (Log.debugEnabled()) {
+                Log.debug("RecordSet " + executor.statement.taskId + " take interrupted");
+            }
+            */
+            return false;
+        }
 
-		if (record == END) {
-			valid = false;
-			executor.checkForException();
-			return false;
-		}
-		return true;
-	}
+        if (record == END) {
+            valid = false;
+            executor.checkForException();
+            return false;
+        }
+        return true;
+    }
 
-	/**
-	 * Close query.
-	 */
-	public void close() {
-		valid = false;
+    /**
+     * Close query.
+     */
+    public void close() {
+        valid = false;
 
-		// Check if more records are available.
-		if (record != END && queue.poll() != END) {
-			// Some query threads may still be running. Stop these threads.
-			executor.stopThreads(new AerospikeException.QueryTerminated());
-		}
-	}
+        // Check if more records are available.
+        if (record != END && queue.poll() != END) {
+            // Some query threads may still be running. Stop these threads.
+            executor.stopThreads(new AerospikeException.QueryTerminated());
+        }
+    }
 
-	/**
-	 * Provide Iterator for RecordSet.
-	 */
-	@Override
-	public Iterator<KeyRecord> iterator() {
-		return new RecordSetIterator(this);
-	}
+    /**
+     * Provide Iterator for RecordSet.
+     */
+    @Override
+    public Iterator<KeyRecord> iterator() {
+        return new RecordSetIterator(this);
+    }
 
-	//-------------------------------------------------------
-	// Meta-data retrieval methods
-	//-------------------------------------------------------
+    //-------------------------------------------------------
+    // Meta-data retrieval methods
+    //-------------------------------------------------------
 
-	/**
-	 * Get record's unique identifier.
-	 */
-	public Key getKey() {
-		return record.key;
-	}
+    /**
+     * Get record's unique identifier.
+     */
+    public Key getKey() {
+        return record.key;
+    }
 
-	/**
-	 * Get record's header and bin data.
-	 */
-	public Record getRecord() {
-		return record.record;
-	}
+    /**
+     * Get record's header and bin data.
+     */
+    public Record getRecord() {
+        return record.record;
+    }
 
-	/**
-	 * Get key and record.
-	 */
-	public KeyRecord getKeyRecord() {
-		return record;
-	}
+    /**
+     * Get key and record.
+     */
+    public KeyRecord getKeyRecord() {
+        return record;
+    }
 
-	//-------------------------------------------------------
-	// Methods for internal use only.
-	//-------------------------------------------------------
+    //-------------------------------------------------------
+    // Methods for internal use only.
+    //-------------------------------------------------------
 
-	/**
-	 * Put a record on the queue.
-	 */
-	protected final boolean put(KeyRecord record) {
-		if (! valid) {
-			return false;
-		}
+    /**
+     * Put a record on the queue.
+     */
+    protected final boolean put(KeyRecord record) {
+        if (! valid) {
+            return false;
+        }
 
-		try {
-			// This put will block if queue capacity is reached.
-			queue.put(record);
-			return true;
-		}
-		catch (InterruptedException ie) {
-			/*
-			if (Log.debugEnabled()) {
-				Log.debug("RecordSet " + executor.statement.taskId + " put interrupted");
-			}
-			*/
+        try {
+            // This put will block if queue capacity is reached.
+            queue.put(record);
+            return true;
+        }
+        catch (InterruptedException ie) {
+            /*
+            if (Log.debugEnabled()) {
+                Log.debug("RecordSet " + executor.statement.taskId + " put interrupted");
+            }
+            */
 
-			// Valid may have changed.  Check again.
-			if (valid) {
-				abort();
-			}
-			return false;
-		}
-	}
+            // Valid may have changed.  Check again.
+            if (valid) {
+                abort();
+            }
+            return false;
+        }
+    }
 
-	/**
-	 * Abort retrieval with end token.
-	 */
-	protected void abort() {
-		valid = false;
-		queue.clear();
+    /**
+     * Abort retrieval with end token.
+     */
+    protected void abort() {
+        valid = false;
+        queue.clear();
 
-		// Send end command to command thread.
-		// It's critical that the end offer succeeds.
-		while (! queue.offer(END)) {
-			// Queue must be full. Remove one item to make room.
-			if (queue.poll() == null) {
-				// Can't offer or poll.  Nothing further can be done.
-				/*
-				if (Log.debugEnabled()) {
-					Log.debug("RecordSet " + executor.statement.taskId + " both offer and poll failed on abort");
-				}
-				*/
-				break;
-			}
-		}
-	}
+        // Send end command to command thread.
+        // It's critical that the end offer succeeds.
+        while (! queue.offer(END)) {
+            // Queue must be full. Remove one item to make room.
+            if (queue.poll() == null) {
+                // Can't offer or poll.  Nothing further can be done.
+                /*
+                if (Log.debugEnabled()) {
+                    Log.debug("RecordSet " + executor.statement.taskId + " both offer and poll failed on abort");
+                }
+                */
+                break;
+            }
+        }
+    }
 
-	/**
-	 * Support standard iteration interface for RecordSet.
-	 */
-	private static class RecordSetIterator implements Iterator<KeyRecord>, Closeable {
+    /**
+     * Support standard iteration interface for RecordSet.
+     */
+    private static class RecordSetIterator implements Iterator<KeyRecord>, Closeable {
 
-		private final RecordSet recordSet;
-		private boolean more;
+        private final RecordSet recordSet;
+        private boolean more;
 
-		RecordSetIterator(RecordSet recordSet) {
-			this.recordSet = recordSet;
-			more = this.recordSet.next();
-		}
+        RecordSetIterator(RecordSet recordSet) {
+            this.recordSet = recordSet;
+            more = this.recordSet.next();
+        }
 
-		@Override
-		public boolean hasNext() {
-			return more;
-		}
+        @Override
+        public boolean hasNext() {
+            return more;
+        }
 
-		@Override
-		public KeyRecord next() {
-			KeyRecord kr = recordSet.getKeyRecord();
-			more = recordSet.next();
-			return kr;
-		}
+        @Override
+        public KeyRecord next() {
+            KeyRecord kr = recordSet.getKeyRecord();
+            more = recordSet.next();
+            return kr;
+        }
 
-		@Override
-		public void close() {
-			recordSet.close();
-		}
-	}
+        @Override
+        public void close() {
+            recordSet.close();
+        }
+    }
 }

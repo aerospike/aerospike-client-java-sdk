@@ -30,120 +30,120 @@ import com.aerospike.client.sdk.command.Info;
  * Parse node's peers.
  */
 public final class PeerParser {
-	private final ClusterDefinition def;
-	private final Info parser;
-	private String tlsName;
-	private final int portDefault;
-	public final int generation;
+    private final ClusterDefinition def;
+    private final Info parser;
+    private String tlsName;
+    private final int portDefault;
+    public final int generation;
 
-	public PeerParser(ClusterDefinition def, Node node, Connection conn, List<Peer> peers) {
-		this.def = def;
+    public PeerParser(ClusterDefinition def, Node node, Connection conn, List<Peer> peers) {
+        this.def = def;
 
-		String command = (def.getTlsBuilder() != null)?
-			def.isUseServicesAlternate() ? "peers-tls-alt" : "peers-tls-std" :
-			def.isUseServicesAlternate() ? "peers-clear-alt" : "peers-clear-std";
+        String command = (def.getTlsBuilder() != null)?
+            def.isUseServicesAlternate() ? "peers-tls-alt" : "peers-tls-std" :
+            def.isUseServicesAlternate() ? "peers-clear-alt" : "peers-clear-std";
 
-		parser = new Info(node, conn, command);
+        parser = new Info(node, conn, command);
 
-		if (parser.length == 0) {
-			throw new AerospikeException.Parse(command + " response is empty");
-		}
+        if (parser.length == 0) {
+            throw new AerospikeException.Parse(command + " response is empty");
+        }
 
-		parser.skipToValue();
-		generation = parser.parseInt();
-		parser.expect(',');
-		portDefault = parser.parseInt();
-		parser.expect(',');
-		parser.expect('[');
+        parser.skipToValue();
+        generation = parser.parseInt();
+        parser.expect(',');
+        portDefault = parser.parseInt();
+        parser.expect(',');
+        parser.expect('[');
 
-		// Reset peers
-		peers.clear();
+        // Reset peers
+        peers.clear();
 
-		if (parser.buffer[parser.offset] == ']') {
-			return;
-		}
+        if (parser.buffer[parser.offset] == ']') {
+            return;
+        }
 
-		while (true) {
-			Peer peer = parsePeer();
-			peers.add(peer);
+        while (true) {
+            Peer peer = parsePeer();
+            peers.add(peer);
 
-			if (parser.offset < parser.length && parser.buffer[parser.offset] == ',') {
-				parser.offset++;
-			}
-			else {
-				break;
-			}
-		}
-	}
+            if (parser.offset < parser.length && parser.buffer[parser.offset] == ',') {
+                parser.offset++;
+            }
+            else {
+                break;
+            }
+        }
+    }
 
-	private Peer parsePeer() {
-		Peer peer = new Peer();
-		parser.expect('[');
-		peer.nodeName = parser.parseString(',');
-		parser.offset++;
-		peer.tlsName = tlsName = parser.parseString(',');
-		parser.offset++;
-		peer.hosts = parseHosts();
-		parser.expect(']');
-		return peer;
-	}
+    private Peer parsePeer() {
+        Peer peer = new Peer();
+        parser.expect('[');
+        peer.nodeName = parser.parseString(',');
+        parser.offset++;
+        peer.tlsName = tlsName = parser.parseString(',');
+        parser.offset++;
+        peer.hosts = parseHosts();
+        parser.expect(']');
+        return peer;
+    }
 
-	private List<Host> parseHosts() {
-		ArrayList<Host> hosts = new ArrayList<Host>(4);
-		parser.expect('[');
+    private List<Host> parseHosts() {
+        ArrayList<Host> hosts = new ArrayList<Host>(4);
+        parser.expect('[');
 
-		if (parser.buffer[parser.offset] == ']') {
-			return hosts;
-		}
+        if (parser.buffer[parser.offset] == ']') {
+            return hosts;
+        }
 
-		while (true) {
-			Host host = parseHost();
-			hosts.add(host);
+        while (true) {
+            Host host = parseHost();
+            hosts.add(host);
 
-			if (parser.buffer[parser.offset] == ']') {
-				parser.offset++;
-				return hosts;
-			}
-			parser.offset++;
-		}
-	}
+            if (parser.buffer[parser.offset] == ']') {
+                parser.offset++;
+                return hosts;
+            }
+            parser.offset++;
+        }
+    }
 
-	private Host parseHost() {
-		String host;
+    private Host parseHost() {
+        String host;
 
-		if (parser.buffer[parser.offset] == '[') {
-			// IPV6 addresses can start with bracket.
-			parser.offset++;
-			host = parser.parseString(']');
-			parser.offset++;
-		}
-		else {
-			host = parser.parseString(':', ',', ']');
-		}
+        if (parser.buffer[parser.offset] == '[') {
+            // IPV6 addresses can start with bracket.
+            parser.offset++;
+            host = parser.parseString(']');
+            parser.offset++;
+        }
+        else {
+            host = parser.parseString(':', ',', ']');
+        }
 
-		if (def.getIpMap() != null) {
-			String alternativeHost = def.getIpMap().get(host);
+        if (def.getIpMap() != null) {
+            String alternativeHost = def.getIpMap().get(host);
 
-			if (alternativeHost != null) {
-				host = alternativeHost;
-			}
-		}
+            if (alternativeHost != null) {
+                host = alternativeHost;
+            }
+        }
 
-		if (parser.offset < parser.length) {
-			byte b = parser.buffer[parser.offset];
+        if (parser.offset < parser.length) {
+            byte b = parser.buffer[parser.offset];
 
-			if (b == ':') {
-				parser.offset++;
-				int port = parser.parseInt();
-				return new Host(host, tlsName, port);
-			}
+            if (b == ':') {
+                parser.offset++;
+                int port = parser.parseInt();
+                return new Host(host, tlsName, port);
+            }
 
-			if (b == ',' || b == ']') {
-				return new Host(host, tlsName, portDefault);
-			}
-		}
+            if (b == ',' || b == ']') {
+                return new Host(host, tlsName, portDefault);
+            }
+        }
 
-		String response = parser.getTruncatedResponse();
-		throw new AerospikeException.Parse("Unterminated host in response: " + response);
-	}
+        String response = parser.getTruncatedResponse();
+        throw new AerospikeException.Parse("Unterminated host in response: " + response);
+    }
 }

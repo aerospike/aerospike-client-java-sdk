@@ -24,32 +24,32 @@ package com.aerospike.client.sdk.operation;
  * }</pre>
  */
 public final class HLLWriteFlags {
-	/**
-	 * Default.  Allow create or update.
-	 */
-	public static final int DEFAULT = 0;
+    /**
+     * Default.  Allow create or update.
+     */
+    public static final int DEFAULT = 0;
 
-	/**
-	 * If the bin already exists, the operation will be denied.
-	 * If the bin does not exist, a new bin will be created.
-	 */
-	public static final int CREATE_ONLY = 1;
+    /**
+     * If the bin already exists, the operation will be denied.
+     * If the bin does not exist, a new bin will be created.
+     */
+    public static final int CREATE_ONLY = 1;
 
-	/**
-	 * If the bin already exists, the bin will be overwritten.
-	 * If the bin does not exist, the operation will be denied.
-	 */
-	public static final int UPDATE_ONLY = 2;
+    /**
+     * If the bin already exists, the bin will be overwritten.
+     * If the bin does not exist, the operation will be denied.
+     */
+    public static final int UPDATE_ONLY = 2;
 
-	/**
-	 * Do not raise error if operation is denied.
-	 */
-	public static final int NO_FAIL = 4;
+    /**
+     * Do not raise error if operation is denied.
+     */
+    public static final int NO_FAIL = 4;
 
-	/**
-	 * Allow the resulting set to be the minimum of provided index bits.
-	 * Also, allow the usage of less precise HLL algorithms when minHash bits
-	 * of all participating sets do not match.
-	 */
-	public static final int ALLOW_FOLD = 8;
+    /**
+     * Allow the resulting set to be the minimum of provided index bits.
+     * Also, allow the usage of less precise HLL algorithms when minHash bits
+     * of all participating sets do not match.
+     */
+    public static final int ALLOW_FOLD = 8;
 }

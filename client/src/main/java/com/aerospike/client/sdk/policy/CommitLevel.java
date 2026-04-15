@@ -20,13 +20,13 @@ package com.aerospike.client.sdk.policy;
  * Desired consistency guarantee when committing a command on the server.
  */
 public enum CommitLevel {
-	/**
-	 * Server should wait until successfully committing master and all replicas.
-	 */
-	COMMIT_ALL,
+    /**
+     * Server should wait until successfully committing master and all replicas.
+     */
+    COMMIT_ALL,
 
-	/**
-	 * Server should wait until successfully committing master only.
-	 */
-	COMMIT_MASTER
+    /**
+     * Server should wait until successfully committing master only.
+     */
+    COMMIT_MASTER
 }

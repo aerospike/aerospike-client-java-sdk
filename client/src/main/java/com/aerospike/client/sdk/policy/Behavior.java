@@ -315,8 +315,8 @@ public final class Behavior {
                 if (applies(p.spec, key)) {
                     Settings acc = matrix.get(key);
                     if (acc == null) {
-						acc = new Settings();
-					}
+                        acc = new Settings();
+                    }
                     mergeInto(acc, p.settings);
                     matrix.put(key, acc);
                 }
@@ -526,8 +526,8 @@ public final class Behavior {
 
         sb.append("--- Patches ---").append('\n');
         if (patches.isEmpty()) {
-			sb.append("(no overrides)").append('\n');
-		}
+            sb.append("(no overrides)").append('\n');
+        }
         int i = 0;
         for (Patch p : patches) {
             sb.append(String.format(Locale.ROOT, "%02d %s -> %s", ++i, p.spec, p.settings)).append('\n');
@@ -537,8 +537,8 @@ public final class Behavior {
         for (OpKey k : listAllKeys()) {
             Settings s = resolved.get(k);
             if (s != null) {
-				sb.append(k).append(" => ").append(s).append('\n');
-			}
+                sb.append(k).append(" => ").append(s).append('\n');
+            }
         }
         return sb.toString();
     }
@@ -753,8 +753,8 @@ public final class Behavior {
         OpKey(OpKind k, OpShape s, Mode m) { this.kind = k; this.shape = s; this.mode = m; }
         @Override public boolean equals(Object o) {
             if (!(o instanceof OpKey)) {
-				return false;
-			}
+                return false;
+            }
             OpKey x = (OpKey)o; return kind==x.kind && shape==x.shape && mode==x.mode;
         }
         @Override public int hashCode() { return Objects.hash(kind, shape, mode); }
@@ -775,11 +775,11 @@ public final class Behavior {
         }
 
         if (s.shape != OpShape.ANY && s.shape != k.shape) {
-			return false;
-		}
+            return false;
+        }
         if (s.mode  != Mode.ANY    && s.mode  != k.mode ) {
-			return false;
-		}
+            return false;
+        }
         return true;
     }
 
@@ -811,78 +811,78 @@ public final class Behavior {
 
     static Settings copyOf(Settings s) {
         if (s == null) {
-			return null;
-		}
+            return null;
+        }
         Settings t = new Settings();
         mergeInto(t, s);
         return t;
     }
     static void mergeInto(Settings dst, Settings src) {
         if (src.abandonCallAfter != null) {
-			dst.abandonCallAfter = src.abandonCallAfter;
-		}
+            dst.abandonCallAfter = src.abandonCallAfter;
+        }
         if (src.delayBetweenRetries != null) {
-			dst.delayBetweenRetries = src.delayBetweenRetries;
-		}
+            dst.delayBetweenRetries = src.delayBetweenRetries;
+        }
         if (src.maximumNumberOfCallAttempts != null) {
-			dst.maximumNumberOfCallAttempts = src.maximumNumberOfCallAttempts;
-		}
+            dst.maximumNumberOfCallAttempts = src.maximumNumberOfCallAttempts;
+        }
         if (src.replicaOrder != null) {
-			dst.replicaOrder = src.replicaOrder;
-		}
+            dst.replicaOrder = src.replicaOrder;
+        }
         if (src.sendKey != null) {
-			dst.sendKey = src.sendKey;
-		}
+            dst.sendKey = src.sendKey;
+        }
         if (src.useCompression != null) {
-			dst.useCompression = src.useCompression;
-		}
+            dst.useCompression = src.useCompression;
+        }
         if (src.waitForCallToComplete != null) {
-			dst.waitForCallToComplete = src.waitForCallToComplete;
-		}
+            dst.waitForCallToComplete = src.waitForCallToComplete;
+        }
         if (src.waitForConnectionToComplete != null) {
-			dst.waitForConnectionToComplete = src.waitForConnectionToComplete;
-		}
+            dst.waitForConnectionToComplete = src.waitForConnectionToComplete;
+        }
         if (src.waitForSocketResponseAfterCallFails != null) {
-			dst.waitForSocketResponseAfterCallFails = src.waitForSocketResponseAfterCallFails;
-		}
+            dst.waitForSocketResponseAfterCallFails = src.waitForSocketResponseAfterCallFails;
+        }
         if (src.stackTraceOnException != null) {
-			dst.stackTraceOnException = src.stackTraceOnException;
-		}
+            dst.stackTraceOnException = src.stackTraceOnException;
+        }
 
         if (src.recordQueueSize != null) {
-			dst.recordQueueSize = src.recordQueueSize;
-		}
+            dst.recordQueueSize = src.recordQueueSize;
+        }
 
         if (src.maxConcurrentNodes != null) {
-			dst.maxConcurrentNodes = src.maxConcurrentNodes;
-		}
+            dst.maxConcurrentNodes = src.maxConcurrentNodes;
+        }
         if (src.allowInlineMemoryAccess != null) {
-			dst.allowInlineMemoryAccess = src.allowInlineMemoryAccess;
-		}
+            dst.allowInlineMemoryAccess = src.allowInlineMemoryAccess;
+        }
         if (src.allowInlineSsdAccess != null) {
-			dst.allowInlineSsdAccess = src.allowInlineSsdAccess;
-		}
+            dst.allowInlineSsdAccess = src.allowInlineSsdAccess;
+        }
 
         if (src.useDurableDelete != null) {
-			dst.useDurableDelete = src.useDurableDelete;
-		}
+            dst.useDurableDelete = src.useDurableDelete;
+        }
         if (src.simulateXdrWrite != null) {
-			dst.simulateXdrWrite = src.simulateXdrWrite;
-		}
+            dst.simulateXdrWrite = src.simulateXdrWrite;
+        }
 
         if (src.commitLevel != null) {
-			dst.commitLevel = src.commitLevel;
-		}
+            dst.commitLevel = src.commitLevel;
+        }
 
         if (src.readModeAP != null) {
-			dst.readModeAP = src.readModeAP;
-		}
+            dst.readModeAP = src.readModeAP;
+        }
         if (src.readModeSC != null) {
-			dst.readModeSC = src.readModeSC;
-		}
+            dst.readModeSC = src.readModeSC;
+        }
         if (src.resetTtlOnReadAtPercent != null) {
-			dst.resetTtlOnReadAtPercent = src.resetTtlOnReadAtPercent;
-		}
+            dst.resetTtlOnReadAtPercent = src.resetTtlOnReadAtPercent;
+        }
     }
 
     // -----------------------------------------------------------------------------------

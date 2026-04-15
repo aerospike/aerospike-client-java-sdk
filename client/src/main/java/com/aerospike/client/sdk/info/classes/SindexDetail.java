@@ -50,5 +50,5 @@ public class SindexDetail {
         return "SindexDetail [entries=" + entries + ", usedBytes=" + usedBytes + ", entriesPerBval=" + entriesPerBval
                 + ", entriesPerRec=" + entriesPerRec + ", loadPct=" + loadPct + "]";
     }
-    
+
 }

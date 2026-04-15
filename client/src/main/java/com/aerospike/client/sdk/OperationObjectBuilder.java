@@ -80,7 +80,7 @@ public class OperationObjectBuilder<T> extends AbstractFilterableBuilder impleme
      * @return an ObjectBuilder for configuring and executing the operation
      */
     @SuppressWarnings("unchecked")
-	public ObjectBuilder<T> objects(T element1, T element2, T ... elements) {
+    public ObjectBuilder<T> objects(T element1, T element2, T ... elements) {
         List<T> elementList = new ArrayList<>();
         elementList.add(element1);
         elementList.add(element2);

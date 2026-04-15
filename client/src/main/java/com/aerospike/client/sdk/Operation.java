@@ -20,129 +20,129 @@ package com.aerospike.client.sdk;
  * Database operation definition.  The class is used in client's operate() method.
  */
 public final class Operation {
-	/**
-	 * Create read bin database operation.
-	 */
-	public static Operation get(String binName) {
-		return new Operation(Type.READ, binName);
-	}
+    /**
+     * Create read bin database operation.
+     */
+    public static Operation get(String binName) {
+        return new Operation(Type.READ, binName);
+    }
 
-	/**
-	 * Create read all record bins database operation.
-	 */
-	public static Operation get() {
-		return new Operation(Type.READ);
-	}
+    /**
+     * Create read all record bins database operation.
+     */
+    public static Operation get() {
+        return new Operation(Type.READ);
+    }
 
-	/**
-	 * Create read record header database operation.
-	 */
-	public static Operation getHeader() {
-		return new Operation(Type.READ_HEADER);
-	}
+    /**
+     * Create read record header database operation.
+     */
+    public static Operation getHeader() {
+        return new Operation(Type.READ_HEADER);
+    }
 
-	/**
-	 * Create set database operation.
-	 */
-	public static Operation put(Bin bin) {
-		return new Operation(Type.WRITE, bin.name, bin.value);
-	}
+    /**
+     * Create set database operation.
+     */
+    public static Operation put(Bin bin) {
+        return new Operation(Type.WRITE, bin.name, bin.value);
+    }
 
-	/**
-	 * Create string append database operation.
-	 */
-	public static Operation append(Bin bin) {
-		return new Operation(Type.APPEND, bin.name, bin.value);
-	}
+    /**
+     * Create string append database operation.
+     */
+    public static Operation append(Bin bin) {
+        return new Operation(Type.APPEND, bin.name, bin.value);
+    }
 
-	/**
-	 * Create string prepend database operation.
-	 */
-	public static Operation prepend(Bin bin) {
-		return new Operation(Type.PREPEND, bin.name, bin.value);
-	}
+    /**
+     * Create string prepend database operation.
+     */
+    public static Operation prepend(Bin bin) {
+        return new Operation(Type.PREPEND, bin.name, bin.value);
+    }
 
-	/**
-	 * Create integer/double add database operation. If the record or bin does not exist, the
-	 * record/bin will be created by default with the value to be added.
-	 */
-	public static Operation add(Bin bin) {
-		return new Operation(Type.ADD, bin.name, bin.value);
-	}
+    /**
+     * Create integer/double add database operation. If the record or bin does not exist, the
+     * record/bin will be created by default with the value to be added.
+     */
+    public static Operation add(Bin bin) {
+        return new Operation(Type.ADD, bin.name, bin.value);
+    }
 
-	/**
-	 * Create touch record database operation.
-	 */
-	public static Operation touch() {
-		return new Operation(Type.TOUCH);
-	}
+    /**
+     * Create touch record database operation.
+     */
+    public static Operation touch() {
+        return new Operation(Type.TOUCH);
+    }
 
-	/**
-	 * Create delete record database operation.
-	 */
-	public static Operation delete() {
-		return new Operation(Type.DELETE);
-	}
+    /**
+     * Create delete record database operation.
+     */
+    public static Operation delete() {
+        return new Operation(Type.DELETE);
+    }
 
-	public static enum Type {
-		READ(1, false),
-		READ_HEADER(1, false),
-		WRITE(2, true),
-		CDT_READ(3, false),
-		CDT_MODIFY(4, true),
-		MAP_READ(3, false),
-		MAP_MODIFY(4, true),
-		ADD(5, true),
-		EXP_READ(7, false),
-		EXP_MODIFY(8, true),
-		APPEND(9, true),
-		PREPEND(10, true),
-		TOUCH(11, true),
-		BIT_READ(12, false),
-		BIT_MODIFY(13, true),
-		DELETE(14, true),
-		HLL_READ(15, false),
-		HLL_MODIFY(16, true);
+    public static enum Type {
+        READ(1, false),
+        READ_HEADER(1, false),
+        WRITE(2, true),
+        CDT_READ(3, false),
+        CDT_MODIFY(4, true),
+        MAP_READ(3, false),
+        MAP_MODIFY(4, true),
+        ADD(5, true),
+        EXP_READ(7, false),
+        EXP_MODIFY(8, true),
+        APPEND(9, true),
+        PREPEND(10, true),
+        TOUCH(11, true),
+        BIT_READ(12, false),
+        BIT_MODIFY(13, true),
+        DELETE(14, true),
+        HLL_READ(15, false),
+        HLL_MODIFY(16, true);
 
-		public final int protocolType;
-		public final boolean isWrite;
+        public final int protocolType;
+        public final boolean isWrite;
 
-		private Type(int protocolType, boolean isWrite) {
-			this.protocolType = protocolType;
-			this.isWrite = isWrite;
-		}
-	}
+        private Type(int protocolType, boolean isWrite) {
+            this.protocolType = protocolType;
+            this.isWrite = isWrite;
+        }
+    }
 
-	/**
-	 * Type of operation.
-	 */
-	public final Type type;
+    /**
+     * Type of operation.
+     */
+    public final Type type;
 
-	/**
-	 * Optional bin name used in operation.
-	 */
-	public final String binName;
+    /**
+     * Optional bin name used in operation.
+     */
+    public final String binName;
 
-	/**
-	 * Optional argument to operation.
-	 */
-	public final Value value;
+    /**
+     * Optional argument to operation.
+     */
+    public final Value value;
 
-	public Operation(Type type, String binName, Value value) {
-		this.type = type;
-		this.binName = binName;
-		this.value = value;
-	}
+    public Operation(Type type, String binName, Value value) {
+        this.type = type;
+        this.binName = binName;
+        this.value = value;
+    }
 
-	private Operation(Type type, String binName) {
-		this.type = type;
-		this.binName = binName;
-		this.value = Value.getAsNull();
-	}
+    private Operation(Type type, String binName) {
+        this.type = type;
+        this.binName = binName;
+        this.value = Value.getAsNull();
+    }
 
-	private Operation(Type type) {
-		this.type = type;
-		this.binName = null;
-		this.value = Value.getAsNull();
-	}
+    private Operation(Type type) {
+        this.type = type;
+        this.binName = null;
+        this.value = Value.getAsNull();
+    }
 }

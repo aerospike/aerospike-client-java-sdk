@@ -20,13 +20,13 @@ package com.aerospike.client.sdk.exp;
  * Expression read flags.
  */
 public final class ExpReadFlags {
-	/**
-	 * Default.
-	 */
-	public static final int DEFAULT = 0;
+    /**
+     * Default.
+     */
+    public static final int DEFAULT = 0;
 
-	/**
-	 * Ignore failures caused by the expression resolving to unknown or a non-bin type.
-	 */
-	public static final int EVAL_NO_FAIL = 16;
+    /**
+     * Ignore failures caused by the expression resolving to unknown or a non-bin type.
+     */
+    public static final int EVAL_NO_FAIL = 16;
 }

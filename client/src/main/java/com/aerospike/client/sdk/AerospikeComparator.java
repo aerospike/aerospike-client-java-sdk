@@ -47,27 +47,27 @@ public class AerospikeComparator implements Comparator<Object> {
         DOUBLE (8),
         GEOJSON (9),
         OTHER (10);
-        
+
         private int value;
         private AsType(int value) {
             this.value = value;
         }
-        
+
         public int getOrdinal() {
             return value;
         }
     }
-    
+
     private final boolean caseSensitiveStrings;
 
     public AerospikeComparator() {
         this(true);
     }
-    
+
     public AerospikeComparator(boolean caseSensitiveStrings) {
         this.caseSensitiveStrings = caseSensitiveStrings;
     }
-    
+
     private boolean isByteType(Class<?> clazz) {
         return Byte.class.equals(clazz) ||
                 Byte.TYPE.equals(clazz);
@@ -79,7 +79,7 @@ public class AerospikeComparator implements Comparator<Object> {
     private boolean isFloatType(Object o) {
         return ((o instanceof Float) || (o instanceof Double));
     }
-    
+
     AsType getType(Object o) {
         if (o == null) { return AsType.NULL; }
         else if (o instanceof Boolean) { return AsType.BOOLEAN; }
@@ -95,14 +95,14 @@ public class AerospikeComparator implements Comparator<Object> {
             return AsType.OTHER;
         }
     }
-    
+
     private byte[] toByteArray(Object o) {
         if (o instanceof Value.HLLValue) {
             return ((Value.HLLValue) o).getBytes();
         }
         return (byte[]) o;
     }
-    
+
     private int compareList(List<Object> l1, List<Object> l2) {
         int l1Size = l1.size();
         int l2Size = l2.size();
@@ -117,7 +117,7 @@ public class AerospikeComparator implements Comparator<Object> {
         }
         return l1Size == l2Size ? 0 : -1;
     }
-    
+
     private int compareMap(Map<Object, Object> m1, Map<Object, Object> m2) {
         if (m1.size() == m2.size()) {
             List<Object> sortedKeys1 = new ArrayList<Object>(m1.keySet());
@@ -142,7 +142,7 @@ public class AerospikeComparator implements Comparator<Object> {
             return m1.size() - m2.size();
         }
     }
-    
+
     @Override
     @SuppressWarnings("unchecked")
     public int compare(Object o1, Object o2) {
@@ -151,7 +151,7 @@ public class AerospikeComparator implements Comparator<Object> {
         if (t1.getOrdinal() != t2.getOrdinal()) {
             return t1.getOrdinal() - t2.getOrdinal();
         }
-        
+
         switch (t1) {
         case NULL:
             return 0;

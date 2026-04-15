@@ -20,29 +20,29 @@ package com.aerospike.client.sdk.cdt;
  * List policy directives when creating a list and writing list items.
  */
 public final class ListPolicy {
-	/**
-	 * Default unordered list with normal write semantics.
-	 */
-	public static final ListPolicy Default = new ListPolicy();
+    /**
+     * Default unordered list with normal write semantics.
+     */
+    public static final ListPolicy Default = new ListPolicy();
 
-	public final int attributes;
-	public final int flags;
+    public final int attributes;
+    public final int flags;
 
-	/**
-	 * Default constructor.
-	 * Create unordered list when list does not exist.
-	 * Use normal update mode when writing list items.
-	 */
-	public ListPolicy() {
-		this(ListOrder.UNORDERED, ListWriteFlags.DEFAULT);
-	}
+    /**
+     * Default constructor.
+     * Create unordered list when list does not exist.
+     * Use normal update mode when writing list items.
+     */
+    public ListPolicy() {
+        this(ListOrder.UNORDERED, ListWriteFlags.DEFAULT);
+    }
 
-	/**
-	 * Create list with specified order when list does not exist.
-	 * Use specified write flags {@link ListWriteFlags} when writing list items.
-	 */
-	public ListPolicy(ListOrder order, int flags) {
-		this.attributes = order.attributes;
-		this.flags = flags;
-	}
+    /**
+     * Create list with specified order when list does not exist.
+     * Use specified write flags {@link ListWriteFlags} when writing list items.
+     */
+    public ListPolicy(ListOrder order, int flags) {
+        this.attributes = order.attributes;
+        this.flags = flags;
+    }
 }

@@ -95,26 +95,26 @@ public class Comparison<T> implements BooleanExpression {
         }
         else {
             if (right instanceof String) {
-				return Exp.val((String)right);
-			}
+                return Exp.val((String)right);
+            }
             if (right instanceof Double) {
-				return Exp.val((Double)right);
-			}
+                return Exp.val((Double)right);
+            }
             if (right instanceof Float) {
-				return Exp.val((Float)right);
-			}
+                return Exp.val((Float)right);
+            }
             if (right instanceof Integer) {
-				return Exp.val((Integer)right);
-			}
+                return Exp.val((Integer)right);
+            }
             if (right instanceof Long) {
-				return Exp.val((Long)right);
-			}
+                return Exp.val((Long)right);
+            }
             if (right instanceof byte[]) {
-				return Exp.val((byte [])right);
-			}
+                return Exp.val((byte [])right);
+            }
             if (right instanceof Boolean) {
-				return Exp.val((Boolean)right);
-			}
+                return Exp.val((Boolean)right);
+            }
         }
         throw new IllegalStateException("Unexpected right hand side type in Comparison: " + right.getClass());
     }

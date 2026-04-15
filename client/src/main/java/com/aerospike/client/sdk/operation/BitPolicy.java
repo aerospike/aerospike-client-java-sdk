@@ -20,24 +20,24 @@ package com.aerospike.client.sdk.operation;
  * Bit operation policy.
  */
 public final class BitPolicy {
-	/**
-	 * Default byte[] with normal bin write semantics.
-	 */
-	public static final BitPolicy Default = new BitPolicy();
+    /**
+     * Default byte[] with normal bin write semantics.
+     */
+    public static final BitPolicy Default = new BitPolicy();
 
-	public final int flags;
+    public final int flags;
 
-	/**
-	 * Use default {@link BitWriteFlags} when performing {@link BitOperation} operations.
-	 */
-	public BitPolicy() {
-		this(BitWriteFlags.DEFAULT);
-	}
+    /**
+     * Use default {@link BitWriteFlags} when performing {@link BitOperation} operations.
+     */
+    public BitPolicy() {
+        this(BitWriteFlags.DEFAULT);
+    }
 
-	/**
-	 * Use specified {@link BitWriteFlags} when performing {@link BitOperation} operations.
-	 */
-	public BitPolicy(int flags) {
-		this.flags = flags;
-	}
+    /**
+     * Use specified {@link BitWriteFlags} when performing {@link BitOperation} operations.
+     */
+    public BitPolicy(int flags) {
+        this.flags = flags;
+    }
 }

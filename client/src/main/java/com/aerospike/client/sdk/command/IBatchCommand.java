@@ -17,6 +17,6 @@
 package com.aerospike.client.sdk.command;
 
 public interface IBatchCommand extends Runnable {
-	void execute();
-	void setInDoubt();
+    void execute();
+    void setInDoubt();
 }

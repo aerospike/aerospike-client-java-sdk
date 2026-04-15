@@ -21,85 +21,85 @@ import java.net.InetSocketAddress;
 import com.aerospike.client.sdk.AerospikeException;
 
 public final class Version implements Comparable<Version> {
-	public static final Version MIN_SERVER_VERSION = new Version(6, 0, 0, 0);
-	public static final Version SERVER_VERSION_8_0 = new Version(8, 0, 0, 0);
-	public static final Version SERVER_VERSION_8_1 = new Version(8, 1, 0, 0);
-	public static final Version SERVER_VERSION_8_1_3 = new Version(8, 1, 3, 0);
+    public static final Version MIN_SERVER_VERSION = new Version(6, 0, 0, 0);
+    public static final Version SERVER_VERSION_8_0 = new Version(8, 0, 0, 0);
+    public static final Version SERVER_VERSION_8_1 = new Version(8, 1, 0, 0);
+    public static final Version SERVER_VERSION_8_1_3 = new Version(8, 1, 3, 0);
 
-	/*
-	public static Version getServerVersion(IAerospikeClient client, InfoPolicy policy) {
-		Node node = client.getCluster().getRandomNode();
-		return getServerVersion(policy, node);
-	}
+    /*
+    public static Version getServerVersion(IAerospikeClient client, InfoPolicy policy) {
+        Node node = client.getCluster().getRandomNode();
+        return getServerVersion(policy, node);
+    }
 
-	public static Version getServerVersion(InfoPolicy policy, Node node) {
-		String response = Info.request(policy, node, "build");
-		return new Version(response);
-	}
+    public static Version getServerVersion(InfoPolicy policy, Node node) {
+        String response = Info.request(policy, node, "build");
+        return new Version(response);
+    }
 */
 
-	private final int major;
-	private final int minor;
-	private final int patch;
-	private final int build;
+    private final int major;
+    private final int minor;
+    private final int patch;
+    private final int build;
 
-	public static Version convertStringToVersion(String strVersion, String nodeName, InetSocketAddress primaryAddress) {
-		Version version = new Version(strVersion);
-		if (!strVersion.startsWith(version.toString())) {
-			throw new AerospikeException("Node " + nodeName + " " + primaryAddress.toString() + " version is invalid: " + strVersion);
-		}
-		return version;
-	}
+    public static Version convertStringToVersion(String strVersion, String nodeName, InetSocketAddress primaryAddress) {
+        Version version = new Version(strVersion);
+        if (!strVersion.startsWith(version.toString())) {
+            throw new AerospikeException("Node " + nodeName + " " + primaryAddress.toString() + " version is invalid: " + strVersion);
+        }
+        return version;
+    }
 
-	public Version(String version) {
-		int begin = 0;
-		int i = begin;
-		int max = version.length();
+    public Version(String version) {
+        int begin = 0;
+        int i = begin;
+        int max = version.length();
 
-		i = getNextVersionDigitEndOffset(i, max, version);
-		major = (i > begin)? Integer.parseInt(version.substring(begin, i)) : 0;
-		begin = ++i;
+        i = getNextVersionDigitEndOffset(i, max, version);
+        major = (i > begin)? Integer.parseInt(version.substring(begin, i)) : 0;
+        begin = ++i;
 
-		i = getNextVersionDigitEndOffset(i, max, version);
-		minor = (i > begin)? Integer.parseInt(version.substring(begin, i)) : 0;
-		begin = ++i;
+        i = getNextVersionDigitEndOffset(i, max, version);
+        minor = (i > begin)? Integer.parseInt(version.substring(begin, i)) : 0;
+        begin = ++i;
 
-		i = getNextVersionDigitEndOffset(i, max, version);
-		patch = (i > begin)? Integer.parseInt(version.substring(begin, i)) : 0;
-		begin = ++i;
+        i = getNextVersionDigitEndOffset(i, max, version);
+        patch = (i > begin)? Integer.parseInt(version.substring(begin, i)) : 0;
+        begin = ++i;
 
-		i = getNextVersionDigitEndOffset(i, max, version);
-		build = (i > begin)? Integer.parseInt(version.substring(begin, i)) : 0;
-	}
+        i = getNextVersionDigitEndOffset(i, max, version);
+        build = (i > begin)? Integer.parseInt(version.substring(begin, i)) : 0;
+    }
 
-	public Version(int major, int minor, int patch, int build) {
-		this.major = major;
-		this.minor = minor;
-		this.patch = patch;
-		this.build = build;
-	}
+    public Version(int major, int minor, int patch, int build) {
+        this.major = major;
+        this.minor = minor;
+        this.patch = patch;
+        this.build = build;
+    }
 
-	private int getNextVersionDigitEndOffset(int i, int max, String version) {
-		while (i < max) {
-			if (! Character.isDigit(version.charAt(i))) {
-				break;
-			}
-			i++;
-		}
-		return i;
-	}
+    private int getNextVersionDigitEndOffset(int i, int max, String version) {
+        while (i < max) {
+            if (! Character.isDigit(version.charAt(i))) {
+                break;
+            }
+            i++;
+        }
+        return i;
+    }
 
-	@Override
+    @Override
     public int compareTo(Version other) {
         if (this.major != other.major) {
-			return Integer.compare(this.major, other.major);
-		}
+            return Integer.compare(this.major, other.major);
+        }
         if (this.minor != other.minor) {
-			return Integer.compare(this.minor, other.minor);
-		}
+            return Integer.compare(this.minor, other.minor);
+        }
         if (this.patch != other.patch) {
-			return Integer.compare(this.patch, other.patch);
-		}
+            return Integer.compare(this.patch, other.patch);
+        }
 
         return Integer.compare(this.build, other.build);
     }
@@ -120,33 +120,33 @@ public final class Version implements Comparable<Version> {
         return this.compareTo(new Version(major, minor, patch, build)) < 0;
     }
 
-	@Override
-	public String toString() {
-		return major + "." + minor + "." + patch + "." + build;
-	}
+    @Override
+    public String toString() {
+        return major + "." + minor + "." + patch + "." + build;
+    }
 
-	@Override
-	public boolean equals(Object obj) {
-		if (this == obj) {
-			return true;
-		}
-		if (obj == null) {
-			return false;
-		}
-		if (getClass() != obj.getClass()) {
-			return false;
-		}
-		Version other = (Version) obj;
-		return major == other.major && minor == other.minor && patch == other.patch;
-	}
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj) {
+            return true;
+        }
+        if (obj == null) {
+            return false;
+        }
+        if (getClass() != obj.getClass()) {
+            return false;
+        }
+        Version other = (Version) obj;
+        return major == other.major && minor == other.minor && patch == other.patch;
+    }
 
-	@Override
-	public int hashCode() {
-		final int prime = 31;
-		int result = 1;
-		result = prime * result + major;
-		result = prime * result + minor;
-		result = prime * result + patch;
-		return result;
-	}
+    @Override
+    public int hashCode() {
+        final int prime = 31;
+        int result = 1;
+        result = prime * result + major;
+        result = prime * result + minor;
+        result = prime * result + patch;
+        return result;
+    }
 }

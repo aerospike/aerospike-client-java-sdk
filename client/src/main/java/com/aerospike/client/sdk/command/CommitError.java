@@ -20,14 +20,14 @@ package com.aerospike.client.sdk.command;
  * Transaction error status.
  */
 public enum CommitError {
-	VERIFY_FAIL("Transaction verify failed. Transaction aborted."),
-	VERIFY_FAIL_CLOSE_ABANDONED("Transaction verify failed. Transaction aborted. Transaction client close abandoned. Server will eventually close the transaction."),
-	VERIFY_FAIL_ABORT_ABANDONED("Transaction verify failed. Transaction client abort abandoned. Server will eventually abort the transaction."),
-	MARK_ROLL_FORWARD_ABANDONED("Transaction client mark roll forward abandoned. Server will eventually abort the transaction.");
+    VERIFY_FAIL("Transaction verify failed. Transaction aborted."),
+    VERIFY_FAIL_CLOSE_ABANDONED("Transaction verify failed. Transaction aborted. Transaction client close abandoned. Server will eventually close the transaction."),
+    VERIFY_FAIL_ABORT_ABANDONED("Transaction verify failed. Transaction client abort abandoned. Server will eventually abort the transaction."),
+    MARK_ROLL_FORWARD_ABANDONED("Transaction client mark roll forward abandoned. Server will eventually abort the transaction.");
 
-	public final String str;
+    public final String str;
 
-	CommitError(String str) {
-		this.str = str;
-	}
+    CommitError(String str) {
+        this.str = str;
+    }
 }

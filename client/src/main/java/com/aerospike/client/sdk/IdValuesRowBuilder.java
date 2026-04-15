@@ -335,11 +335,11 @@ public class IdValuesRowBuilder {
      * @return this builder for method chaining
      */
     public IdValuesRowBuilder notInAnyTransaction() {
-    	if (transactionSet) {
+        if (transactionSet) {
             throw AerospikeException.resultCodeToException(ResultCode.PARAMETER_ERROR,
-            	"The transaction mode has already been set");
-    	}
-    	this.transactionSet = true;
+                "The transaction mode has already been set");
+        }
+        this.transactionSet = true;
         this.txnToUse = null;
         this.notInAnyTransaction = true;
         return this;
@@ -352,11 +352,11 @@ public class IdValuesRowBuilder {
      * @return this builder for method chaining
      */
     public IdValuesRowBuilder inTransaction(Txn txn) {
-    	if (transactionSet) {
+        if (transactionSet) {
             throw AerospikeException.resultCodeToException(ResultCode.PARAMETER_ERROR,
-            	"The transaction mode has already been set");
-    	}
-    	this.transactionSet = true;
+                "The transaction mode has already been set");
+        }
+        this.transactionSet = true;
         this.txnToUse = txn;
         this.notInAnyTransaction = false;
         return this;
@@ -408,7 +408,7 @@ public class IdValuesRowBuilder {
     private RecordStream executeWithDisposition(ErrorDisposition disposition) {
         List<OperationSpec> specs = materializeToSpecs();
         return OperationSpecExecutor.execute(session, specs, null, defaultExpirationInSeconds,
-        	txnToUse, notInAnyTransaction, disposition);
+            txnToUse, notInAnyTransaction, disposition);
     }
 
     /**

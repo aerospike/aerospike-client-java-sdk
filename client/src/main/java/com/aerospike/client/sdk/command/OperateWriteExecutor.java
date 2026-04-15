@@ -26,75 +26,75 @@ import com.aerospike.client.sdk.ResultCode;
 import com.aerospike.client.sdk.metrics.LatencyType;
 
 public class OperateWriteExecutor extends SyncExecutor {
-	final OperateWriteCommand operate;
-	private Record record;
+    final OperateWriteCommand operate;
+    private Record record;
 
-	public OperateWriteExecutor(Cluster cluster, OperateWriteCommand cmd) {
-		super(cluster, cmd);
-		this.operate = cmd;
-		cluster.addCommandCount();
-	}
+    public OperateWriteExecutor(Cluster cluster, OperateWriteCommand cmd) {
+        super(cluster, cmd);
+        this.operate = cmd;
+        cluster.addCommandCount();
+    }
 
-	@Override
-	protected final boolean isWrite() {
-		return true;
-	}
+    @Override
+    protected final boolean isWrite() {
+        return true;
+    }
 
-	@Override
-	protected final Node getNode() {
-		return operate.partition.getNodeWrite(cluster);
-	}
+    @Override
+    protected final Node getNode() {
+        return operate.partition.getNodeWrite(cluster);
+    }
 
-	@Override
-	protected final LatencyType getLatencyType() {
-		return LatencyType.WRITE;
-	}
+    @Override
+    protected final LatencyType getLatencyType() {
+        return LatencyType.WRITE;
+    }
 
-	@Override
-	protected CommandBuffer getCommandBuffer() {
-		CommandBuffer cb = new CommandBuffer();
-		cb.setOperateWrite(operate);
-		return cb;
-	}
+    @Override
+    protected CommandBuffer getCommandBuffer() {
+        CommandBuffer cb = new CommandBuffer();
+        cb.setOperateWrite(operate);
+        return cb;
+    }
 
-	@Override
-	protected void parseResult(Node node, Connection conn, byte[] buffer) throws IOException {
-		RecordParser rp = new RecordParser(conn, buffer);
-		rp.parseFields(cmd.txn, operate.key, true);
+    @Override
+    protected void parseResult(Node node, Connection conn, byte[] buffer) throws IOException {
+        RecordParser rp = new RecordParser(conn, buffer);
+        rp.parseFields(cmd.txn, operate.key, true);
 
-		if (node.isMetricsEnabled()) {
-			node.addBytesIn(cmd.namespace, rp.bytesIn);
-		}
+        if (node.isMetricsEnabled()) {
+            node.addBytesIn(cmd.namespace, rp.bytesIn);
+        }
 
-		if (rp.resultCode == ResultCode.OK) {
-			record = rp.parseRecord(true);
-			return;
-		}
+        if (rp.resultCode == ResultCode.OK) {
+            record = rp.parseRecord(true);
+            return;
+        }
 
-		if (rp.resultCode == ResultCode.FILTERED_OUT) {
-			if (operate.failOnFilteredOut) {
-				throw AerospikeException.resultCodeToException(rp.resultCode, null);
-			}
-			return;
-		}
+        if (rp.resultCode == ResultCode.FILTERED_OUT) {
+            if (operate.failOnFilteredOut) {
+                throw AerospikeException.resultCodeToException(rp.resultCode, null);
+            }
+            return;
+        }
 
-		throw AerospikeException.resultCodeToException(rp.resultCode, null);
-	}
+        throw AerospikeException.resultCodeToException(rp.resultCode, null);
+    }
 
-	@Override
-	protected final boolean prepareRetry(boolean timeout) {
-		operate.partition.prepareRetryWrite(timeout);
-		return true;
-	}
+    @Override
+    protected final boolean prepareRetry(boolean timeout) {
+        operate.partition.prepareRetryWrite(timeout);
+        return true;
+    }
 
-	@Override
-	protected void onInDoubt() {
-		if (cmd.txn != null) {
-			cmd.txn.onWriteInDoubt(operate.key);
-		}
-	}
+    @Override
+    protected void onInDoubt() {
+        if (cmd.txn != null) {
+            cmd.txn.onWriteInDoubt(operate.key);
+        }
+    }
 
-	public final Record getRecord() {
-		return record;
-	}
+    public final Record getRecord() {
+        return record;
+    }
 }

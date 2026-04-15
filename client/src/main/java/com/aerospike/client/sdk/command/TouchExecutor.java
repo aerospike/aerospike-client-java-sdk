@@ -25,81 +25,81 @@ import com.aerospike.client.sdk.ResultCode;
 import com.aerospike.client.sdk.metrics.LatencyType;
 
 public class TouchExecutor extends SyncExecutor {
-	private final WriteCommand touch;
-	private boolean touched;
+    private final WriteCommand touch;
+    private boolean touched;
 
-	public TouchExecutor(Cluster cluster, WriteCommand cmd) {
-		super(cluster, cmd);
-		this.touch = cmd;
-		cluster.addCommandCount();
-	}
+    public TouchExecutor(Cluster cluster, WriteCommand cmd) {
+        super(cluster, cmd);
+        this.touch = cmd;
+        cluster.addCommandCount();
+    }
 
-	@Override
-	protected final boolean isWrite() {
-		return true;
-	}
+    @Override
+    protected final boolean isWrite() {
+        return true;
+    }
 
-	@Override
-	protected final Node getNode() {
-		return touch.partition.getNodeWrite(cluster);
-	}
+    @Override
+    protected final Node getNode() {
+        return touch.partition.getNodeWrite(cluster);
+    }
 
-	@Override
-	protected final LatencyType getLatencyType() {
-		return LatencyType.WRITE;
-	}
+    @Override
+    protected final LatencyType getLatencyType() {
+        return LatencyType.WRITE;
+    }
 
-	@Override
-	protected CommandBuffer getCommandBuffer() {
-		CommandBuffer cb = new CommandBuffer();
-		cb.setTouch(touch);
-		return cb;
-	}
+    @Override
+    protected CommandBuffer getCommandBuffer() {
+        CommandBuffer cb = new CommandBuffer();
+        cb.setTouch(touch);
+        return cb;
+    }
 
-	@Override
-	protected void parseResult(Node node, Connection conn, byte[] buffer) throws IOException {
-		RecordParser rp = new RecordParser(conn, buffer);
-		rp.parseFields(cmd.txn, touch.key, true);
+    @Override
+    protected void parseResult(Node node, Connection conn, byte[] buffer) throws IOException {
+        RecordParser rp = new RecordParser(conn, buffer);
+        rp.parseFields(cmd.txn, touch.key, true);
 
-		if (node.isMetricsEnabled()) {
-			node.addBytesIn(cmd.namespace, rp.bytesIn);
-		}
+        if (node.isMetricsEnabled()) {
+            node.addBytesIn(cmd.namespace, rp.bytesIn);
+        }
 
-		if (rp.resultCode == ResultCode.OK) {
-			touched = true;
-			return;
-		}
+        if (rp.resultCode == ResultCode.OK) {
+            touched = true;
+            return;
+        }
 
-		if (rp.resultCode == ResultCode.KEY_NOT_FOUND_ERROR) {
-			touched = false;
-			return;
-		}
+        if (rp.resultCode == ResultCode.KEY_NOT_FOUND_ERROR) {
+            touched = false;
+            return;
+        }
 
-		if (rp.resultCode == ResultCode.FILTERED_OUT) {
-			if (touch.failOnFilteredOut) {
-				throw AerospikeException.resultCodeToException(rp.resultCode, null);
-			}
-			touched = false;
-			return;
-		}
+        if (rp.resultCode == ResultCode.FILTERED_OUT) {
+            if (touch.failOnFilteredOut) {
+                throw AerospikeException.resultCodeToException(rp.resultCode, null);
+            }
+            touched = false;
+            return;
+        }
 
-		throw AerospikeException.resultCodeToException(rp.resultCode, null);
-	}
+        throw AerospikeException.resultCodeToException(rp.resultCode, null);
+    }
 
-	@Override
-	protected final boolean prepareRetry(boolean timeout) {
-		touch.partition.prepareRetryWrite(timeout);
-		return true;
-	}
+    @Override
+    protected final boolean prepareRetry(boolean timeout) {
+        touch.partition.prepareRetryWrite(timeout);
+        return true;
+    }
 
-	@Override
-	protected void onInDoubt() {
-		if (cmd.txn != null) {
-			cmd.txn.onWriteInDoubt(touch.key);
-		}
-	}
+    @Override
+    protected void onInDoubt() {
+        if (cmd.txn != null) {
+            cmd.txn.onWriteInDoubt(touch.key);
+        }
+    }
 
-	public final boolean touched() {
-		return touched;
-	}
+    public final boolean touched() {
+        return touched;
+    }
 }

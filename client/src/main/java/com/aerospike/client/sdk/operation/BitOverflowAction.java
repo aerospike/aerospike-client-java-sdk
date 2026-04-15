@@ -20,26 +20,26 @@ package com.aerospike.client.sdk.operation;
  * Action to take when bitwise add/subtract results in overflow/underflow.
  */
 public enum BitOverflowAction {
-	/**
-	 * Fail operation with error.
-	 */
-	FAIL(0),
+    /**
+     * Fail operation with error.
+     */
+    FAIL(0),
 
-	/**
-	 * If add/subtract overflows/underflows, set to max/min value.
-	 * Example: MAXINT + 1 = MAXINT
-	 */
-	SATURATE(2),
+    /**
+     * If add/subtract overflows/underflows, set to max/min value.
+     * Example: MAXINT + 1 = MAXINT
+     */
+    SATURATE(2),
 
-	/**
-	 * If add/subtract overflows/underflows, wrap the value.
-	 * Example: MAXINT + 1 = -1
-	 */
-	WRAP(4);
+    /**
+     * If add/subtract overflows/underflows, wrap the value.
+     * Example: MAXINT + 1 = -1
+     */
+    WRAP(4);
 
-	public final int flags;
+    public final int flags;
 
-	private BitOverflowAction(int flags) {
-		this.flags = flags;
-	}
+    private BitOverflowAction(int flags) {
+        this.flags = flags;
+    }
 }

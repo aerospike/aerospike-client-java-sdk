@@ -23,95 +23,95 @@ import java.util.Random;
  * This class is not thread-safe.
  */
 public final class RandomShift {
-	private long seed0;
-	private long seed1;
+    private long seed0;
+    private long seed1;
 
-	/**
-	 * Generate seeds using standard Random class.
-	 */
-	public RandomShift() {
-		// Use default constructor which uses a different seed for each invocation.
-		// Do not use System.currentTimeMillis() for a seed because it is often
-		// the same across concurrent threads, thus causing hot keys.
-		Random random = new Random();
-		seed0 = random.nextLong();
-		seed1 = random.nextLong();
-	}
+    /**
+     * Generate seeds using standard Random class.
+     */
+    public RandomShift() {
+        // Use default constructor which uses a different seed for each invocation.
+        // Do not use System.currentTimeMillis() for a seed because it is often
+        // the same across concurrent threads, thus causing hot keys.
+        Random random = new Random();
+        seed0 = random.nextLong();
+        seed1 = random.nextLong();
+    }
 
-	/**
-	 * Generate a random string of given size.
-	 */
-	public String nextString(int size) {
-		char[] chars = new char[size];
-		int r;
+    /**
+     * Generate a random string of given size.
+     */
+    public String nextString(int size) {
+        char[] chars = new char[size];
+        int r;
 
-		for (int i = 0; i < size; i++) {
-			r = nextInt(62);  // Lower alpha + Upper alpha + digit
+        for (int i = 0; i < size; i++) {
+            r = nextInt(62);  // Lower alpha + Upper alpha + digit
 
-			if (r < 26) {
-				// Lower case
-				chars[i] = (char)(r + 97);
-			}
-			else if (r < 52) {
-				// Upper case
-				chars[i] = (char)(r - 26 + 65);
-			}
-			else {
-				// Digit
-				chars[i] = (char)(r - 52 + 48);
-			}
-		}
-		return new String(chars);
-	}
+            if (r < 26) {
+                // Lower case
+                chars[i] = (char)(r + 97);
+            }
+            else if (r < 52) {
+                // Upper case
+                chars[i] = (char)(r - 26 + 65);
+            }
+            else {
+                // Digit
+                chars[i] = (char)(r - 52 + 48);
+            }
+        }
+        return new String(chars);
+    }
 
-	/**
-	 * Generate random bytes.
-	 */
-	public void nextBytes(byte[] bytes) {
-		int len = bytes.length;
-		int i = 0;
+    /**
+     * Generate random bytes.
+     */
+    public void nextBytes(byte[] bytes) {
+        int len = bytes.length;
+        int i = 0;
 
-		while (i < len) {
-			long r = nextLong();
-			int n = Math.min(len - i, 8);
+        while (i < len) {
+            long r = nextLong();
+            int n = Math.min(len - i, 8);
 
-			for (int j = 0; j < n; j++) {
-				bytes[i++] = (byte)r;
-				r >>= 8;
-			}
-		}
-	}
+            for (int j = 0; j < n; j++) {
+                bytes[i++] = (byte)r;
+                r >>= 8;
+            }
+        }
+    }
 
-	/**
-	 * Generate random integer between 0 (inclusive) and the specified value (exclusive).
-	 */
-	public int nextInt(int n) {
-		return (((int)nextLong()) & Integer.MAX_VALUE) % n;
-	}
+    /**
+     * Generate random integer between 0 (inclusive) and the specified value (exclusive).
+     */
+    public int nextInt(int n) {
+        return (((int)nextLong()) & Integer.MAX_VALUE) % n;
+    }
 
-	/**
-	 * Generate random integer which can be negative.
-	 */
-	public int nextInt() {
-		return (int)nextLong();
-	}
+    /**
+     * Generate random integer which can be negative.
+     */
+    public int nextInt() {
+        return (int)nextLong();
+    }
 
-	/**
-	 * Generate random integer between 0 (inclusive) and the specified value (exclusive).
-	 */
-	public long nextLong(long n) {
-		return (nextLong() & Long.MAX_VALUE) % n;
-	}
+    /**
+     * Generate random integer between 0 (inclusive) and the specified value (exclusive).
+     */
+    public long nextLong(long n) {
+        return (nextLong() & Long.MAX_VALUE) % n;
+    }
 
-	/**
-	 * Generate random long value which can be negative.
-	 */
-	public long nextLong() {
-		long s1 = seed0;
-		final long s0 = seed1;
-		seed0 = s0;
-		s1 ^= s1 << 23;
-		seed1 = (s1 ^ s0 ^ (s1 >>> 18) ^ (s0 >>> 5));
-		return seed1 + s0;
-	}
+    /**
+     * Generate random long value which can be negative.
+     */
+    public long nextLong() {
+        long s1 = seed0;
+        final long s0 = seed1;
+        seed0 = s0;
+        s1 ^= s1 << 23;
+        seed1 = (s1 ^ s0 ^ (s1 >>> 18) ^ (s0 >>> 5));
+        return seed1 + s0;
+    }
 }

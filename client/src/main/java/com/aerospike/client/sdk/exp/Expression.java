@@ -26,83 +26,83 @@ import com.aerospike.client.sdk.util.Packer;
  * Packed expression byte instructions.
  */
 public final class Expression implements Serializable {
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private final byte[] bytes;
+    private final byte[] bytes;
 
-	/**
-	 * Expression constructor used by {@link Exp#build(Exp)}
-	 */
-	Expression(Exp exp) {
-		Packer packer = new Packer();
-		exp.pack(packer);
-		packer.createBuffer();
-		exp.pack(packer);
-		bytes = packer.getBuffer();
-	}
+    /**
+     * Expression constructor used by {@link Exp#build(Exp)}
+     */
+    Expression(Exp exp) {
+        Packer packer = new Packer();
+        exp.pack(packer);
+        packer.createBuffer();
+        exp.pack(packer);
+        bytes = packer.getBuffer();
+    }
 
-	/**
-	 * Expression constructor for packed expression instructions.
-	 */
-	Expression(byte[] bytes) {
-		this.bytes = bytes;
-	}
+    /**
+     * Expression constructor for packed expression instructions.
+     */
+    Expression(byte[] bytes) {
+        this.bytes = bytes;
+    }
 
-	/**
-	 * Return a new expression from packed expression instructions in bytes.
-	 */
-	public static Expression fromBytes(byte[] bytes) {
-		return new Expression(bytes);
-	}
+    /**
+     * Return a new expression from packed expression instructions in bytes.
+     */
+    public static Expression fromBytes(byte[] bytes) {
+        return new Expression(bytes);
+    }
 
-	/**
-	 * Return a new expression from packed expression instructions in base64 encoded bytes.
-	 */
-	public static Expression fromBase64(byte[] bytes) {
-		return Expression.fromBytes(Crypto.decodeBase64(bytes, 0, bytes.length));
-	}
+    /**
+     * Return a new expression from packed expression instructions in base64 encoded bytes.
+     */
+    public static Expression fromBase64(byte[] bytes) {
+        return Expression.fromBytes(Crypto.decodeBase64(bytes, 0, bytes.length));
+    }
 
-	/**
-	 * Return a new expression from packed expression instructions in base64 encoded string.
-	 */
-	public static Expression fromBase64(String s) {
-		return Expression.fromBase64(s.getBytes());
-	}
+    /**
+     * Return a new expression from packed expression instructions in base64 encoded string.
+     */
+    public static Expression fromBase64(String s) {
+        return Expression.fromBase64(s.getBytes());
+    }
 
-	/**
-	 * Return packed byte instructions.
-	 */
-	public byte[] getBytes() {
-		return bytes;
-	}
+    /**
+     * Return packed byte instructions.
+     */
+    public byte[] getBytes() {
+        return bytes;
+    }
 
-	/**
-	 * Return byte instructions in base64 encoding.
-	 */
-	public String getBase64() {
-		return Crypto.encodeBase64(bytes);
-	}
+    /**
+     * Return byte instructions in base64 encoding.
+     */
+    public String getBase64() {
+        return Crypto.encodeBase64(bytes);
+    }
 
-	@Override
-	public int hashCode() {
-		final int prime = 31;
-		int result = 1;
-		result = prime * result + Arrays.hashCode(bytes);
-		return result;
-	}
+    @Override
+    public int hashCode() {
+        final int prime = 31;
+        int result = 1;
+        result = prime * result + Arrays.hashCode(bytes);
+        return result;
+    }
 
-	@Override
-	public boolean equals(Object obj) {
-		if (this == obj) {
-			return true;
-		}
-		if (obj == null) {
-			return false;
-		}
-		if (getClass() != obj.getClass()) {
-			return false;
-		}
-		Expression other = (Expression) obj;
-		return Arrays.equals(bytes, other.bytes);
-	}
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj) {
+            return true;
+        }
+        if (obj == null) {
+            return false;
+        }
+        if (getClass() != obj.getClass()) {
+            return false;
+        }
+        Expression other = (Expression) obj;
+        return Arrays.equals(bytes, other.bytes);
+    }
 }

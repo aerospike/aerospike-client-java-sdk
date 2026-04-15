@@ -25,34 +25,34 @@ import com.aerospike.client.sdk.command.Info;
  * Task used to poll for UDF registration completion.
  */
 public final class RegisterTask extends Task {
-	private final String packageName;
+    private final String packageName;
 
-	/**
-	 * Initialize task with fields needed to query server nodes.
-	 */
-	public RegisterTask(Cluster cluster, String packageName, int timeout) {
-		super(cluster, timeout);
-		this.packageName = packageName;
-	}
+    /**
+     * Initialize task with fields needed to query server nodes.
+     */
+    public RegisterTask(Cluster cluster, String packageName, int timeout) {
+        super(cluster, timeout);
+        this.packageName = packageName;
+    }
 
-	/**
-	 * Query all nodes for task completion status.
-	 */
-	public int queryStatus() throws AerospikeException {
-		// All nodes must respond with package to be considered done.
-		Node[] nodes = cluster.validateNodes();
+    /**
+     * Query all nodes for task completion status.
+     */
+    public int queryStatus() throws AerospikeException {
+        // All nodes must respond with package to be considered done.
+        Node[] nodes = cluster.validateNodes();
 
-		String command = "udf-list";
+        String command = "udf-list";
 
-		for (Node node : nodes) {
-			String response = Info.request(node, command, timeout);
-			String find = "filename=" + packageName;
-			int index = response.indexOf(find);
+        for (Node node : nodes) {
+            String response = Info.request(node, command, timeout);
+            String find = "filename=" + packageName;
+            int index = response.indexOf(find);
 
-			if (index < 0) {
-				return Task.IN_PROGRESS;
-			}
-		}
-		return Task.COMPLETE;
-	}
+            if (index < 0) {
+                return Task.IN_PROGRESS;
+            }
+        }
+        return Task.COMPLETE;
+    }
 }

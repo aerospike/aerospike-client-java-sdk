@@ -27,7 +27,7 @@ public interface StringExpression extends BooleanExpression {
     BooleanExpression lt(String value);
     BooleanExpression gte(String value);
     BooleanExpression lte(String value);
-    
+
     // Comparison with other String expressions
     BooleanExpression eq(StringExpression other);
     BooleanExpression ne(StringExpression other);

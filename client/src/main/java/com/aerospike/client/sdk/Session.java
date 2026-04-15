@@ -167,33 +167,33 @@ public class Session {
      * @param beforeLastUpdate if non-null, only remove records whose last-update time is before this instant
      */
     public void truncate(DataSet set, Calendar beforeLastUpdate) {
-		// Send truncate command to one node. That node will distribute the command to other nodes.
-		StringBuilder sb = new StringBuilder(200);
+        // Send truncate command to one node. That node will distribute the command to other nodes.
+        StringBuilder sb = new StringBuilder(200);
 
-		if (set.getSet() != null) {
-			sb.append("truncate:namespace=");
-			sb.append(set.getNamespace());
-			sb.append(";set=");
-			sb.append(set.getSet());
-		}
-		else {
-			sb.append("truncate-namespace:namespace=");
-			sb.append(set.getNamespace());
-		}
+        if (set.getSet() != null) {
+            sb.append("truncate:namespace=");
+            sb.append(set.getNamespace());
+            sb.append(";set=");
+            sb.append(set.getSet());
+        }
+        else {
+            sb.append("truncate-namespace:namespace=");
+            sb.append(set.getNamespace());
+        }
 
-		if (beforeLastUpdate != null) {
-			sb.append(";lut=");
-			// Convert to nanoseconds since unix epoch (1970-01-01)
-			sb.append(beforeLastUpdate.getTimeInMillis() * 1000000L);
-		}
+        if (beforeLastUpdate != null) {
+            sb.append(";lut=");
+            // Convert to nanoseconds since unix epoch (1970-01-01)
+            sb.append(beforeLastUpdate.getTimeInMillis() * 1000000L);
+        }
 
-		Node node = cluster.getRandomNode();
+        Node node = cluster.getRandomNode();
 
-		String response = Info.request(node, sb.toString());
+        String response = Info.request(node, sb.toString());
 
-		if (! response.equalsIgnoreCase("ok")) {
-			throw new AerospikeException("Truncate failed: " + response);
-		}
+        if (! response.equalsIgnoreCase("ok")) {
+            throw new AerospikeException("Truncate failed: " + response);
+        }
     }
 
     /**
@@ -346,112 +346,112 @@ public class Session {
     // UDF execution (chainable batch operations)
     // -------------------
 
-	/**
-	 * Register package located in a file containing user defined functions with server.
-	 * This asynchronous server call will return before command is complete.
-	 * The user can optionally wait for command completion by using the returned
-	 * RegisterTask instance.
-	 *
-	 * <p>Example:
-	 * <pre>{@code
-	 * client.registerUdf("udf/record_example.lua", "record_example.lua");
-	 * }</pre>
-	 *
-	 * @param clientPath			path of client file containing user defined functions, relative to current directory
-	 * @param serverPath			path to store user defined functions on the server, relative to configured script directory.
-	 * @return task that can be used to wait for registration to finish on the cluster
-	 * @throws AerospikeException	if register fails
-	 */
-	public final RegisterTask registerUdf(String clientPath, String serverPath) {
-		File file = new File(clientPath);
-		byte[] bytes = Util.readFile(file);
-		return RegisterCommand.register(cluster, bytes, serverPath);
-	}
+    /**
+     * Register package located in a file containing user defined functions with server.
+     * This asynchronous server call will return before command is complete.
+     * The user can optionally wait for command completion by using the returned
+     * RegisterTask instance.
+     *
+     * <p>Example:
+     * <pre>{@code
+     * client.registerUdf("udf/record_example.lua", "record_example.lua");
+     * }</pre>
+     *
+     * @param clientPath            path of client file containing user defined functions, relative to current directory
+     * @param serverPath            path to store user defined functions on the server, relative to configured script directory.
+     * @return task that can be used to wait for registration to finish on the cluster
+     * @throws AerospikeException   if register fails
+     */
+    public final RegisterTask registerUdf(String clientPath, String serverPath) {
+        File file = new File(clientPath);
+        byte[] bytes = Util.readFile(file);
+        return RegisterCommand.register(cluster, bytes, serverPath);
+    }
 
-	/**
-	 * Register package located in a resource containing user defined functions with server.
-	 * This asynchronous server call will return before command is complete.
-	 * The user can optionally wait for command completion by using the returned
-	 * RegisterTask instance.
-	 *
-	 * <p>Example:
-	 * <pre>{@code
-	 * client.registerUdf(TestQueryExecute.class.getClassLoader(), "udf/record_example.lua", "record_example.lua");
-	 * }</pre>
-	 *
-	 * @param resourceLoader		class loader where resource is located.  Example: MyClass.class.getClassLoader() or Thread.currentThread().getContextClassLoader() for webapps
-	 * @param resourcePath			class path where Lua resource is located
-	 * @param serverPath			path to store user defined functions on the server, relative to configured script directory.
-	 * @return task that can be used to wait for registration to finish on the cluster
-	 * @throws AerospikeException	if register fails
-	 */
-	public final RegisterTask registerUdf(
-		ClassLoader resourceLoader, String resourcePath, String serverPath
-	) {
-		byte[] bytes = Util.readResource(resourceLoader, resourcePath);
-		return RegisterCommand.register(cluster, bytes, serverPath);
-	}
+    /**
+     * Register package located in a resource containing user defined functions with server.
+     * This asynchronous server call will return before command is complete.
+     * The user can optionally wait for command completion by using the returned
+     * RegisterTask instance.
+     *
+     * <p>Example:
+     * <pre>{@code
+     * client.registerUdf(TestQueryExecute.class.getClassLoader(), "udf/record_example.lua", "record_example.lua");
+     * }</pre>
+     *
+     * @param resourceLoader        class loader where resource is located.  Example: MyClass.class.getClassLoader() or Thread.currentThread().getContextClassLoader() for webapps
+     * @param resourcePath          class path where Lua resource is located
+     * @param serverPath            path to store user defined functions on the server, relative to configured script directory.
+     * @return task that can be used to wait for registration to finish on the cluster
+     * @throws AerospikeException   if register fails
+     */
+    public final RegisterTask registerUdf(
+        ClassLoader resourceLoader, String resourcePath, String serverPath
+    ) {
+        byte[] bytes = Util.readResource(resourceLoader, resourcePath);
+        return RegisterCommand.register(cluster, bytes, serverPath);
+    }
 
-	/**
-	 * Register UDF functions located in a code string with server.
-	 * This asynchronous server call will return before command is complete.
-	 * The user can optionally wait for command completion by using the returned
-	 * RegisterTask instance.
-	 *
-	 * <p>Example:
-	 * <pre>{@code
-	 * String code = """
-	 * function writeIfGenerationNotChanged(r,name,value,gen)
-	 *     if record.gen(r) == gen then
-	 *         r[name] = value
-	 *         aerospike:update(r)
-	 *     end
-	 * end
-	 * """;
-	 *
-	 * client.registerUdfString(code, "gen.lua");
-	 * }</pre>
-	 *
-	 * @param code					code string containing user defined functions.
-	 * @param serverPath			path to store user defined functions on the server, relative to configured script directory.
-	 * @return task that can be used to wait for registration to finish on the cluster
-	 * @throws AerospikeException	if register fails
-	 */
-	public final RegisterTask registerUdfString(String code, String serverPath) {
-		byte[] bytes = Buffer.stringToUtf8(code);
-		return RegisterCommand.register(cluster, bytes, serverPath);
-	}
+    /**
+     * Register UDF functions located in a code string with server.
+     * This asynchronous server call will return before command is complete.
+     * The user can optionally wait for command completion by using the returned
+     * RegisterTask instance.
+     *
+     * <p>Example:
+     * <pre>{@code
+     * String code = """
+     * function writeIfGenerationNotChanged(r,name,value,gen)
+     *     if record.gen(r) == gen then
+     *         r[name] = value
+     *         aerospike:update(r)
+     *     end
+     * end
+     * """;
+     *
+     * client.registerUdfString(code, "gen.lua");
+     * }</pre>
+     *
+     * @param code                  code string containing user defined functions.
+     * @param serverPath            path to store user defined functions on the server, relative to configured script directory.
+     * @return task that can be used to wait for registration to finish on the cluster
+     * @throws AerospikeException   if register fails
+     */
+    public final RegisterTask registerUdfString(String code, String serverPath) {
+        byte[] bytes = Buffer.stringToUtf8(code);
+        return RegisterCommand.register(cluster, bytes, serverPath);
+    }
 
-	/**
-	 * Remove user defined function from server nodes.
+    /**
+     * Remove user defined function from server nodes.
      *
      * <p>Example:
      * <pre>{@code
      * session.removeUdf("mylua.lua").execute();
      * }</pre>
-	 *
-	 * @param serverPath			location of UDF on server nodes.  Example: mylua.lua
-	 * @throws AerospikeException	if remove fails
-	 */
-	public final void removeUdf(String serverPath)
-		throws AerospikeException {
-		// Send UDF command to one node. That node will distribute the UDF command to other nodes.
-		String command = "udf-remove:filename=" + serverPath;
-		Node node = cluster.getRandomNode();
-		String response = Info.request(node, command);
+     *
+     * @param serverPath            location of UDF on server nodes.  Example: mylua.lua
+     * @throws AerospikeException   if remove fails
+     */
+    public final void removeUdf(String serverPath)
+        throws AerospikeException {
+        // Send UDF command to one node. That node will distribute the UDF command to other nodes.
+        String command = "udf-remove:filename=" + serverPath;
+        Node node = cluster.getRandomNode();
+        String response = Info.request(node, command);
 
-		if (response.equalsIgnoreCase("ok")) {
-			return;
-		}
+        if (response.equalsIgnoreCase("ok")) {
+            return;
+        }
 
-		if (response.startsWith("error=file_not_found")) {
-			// UDF has already been removed.
-			return;
-		}
-		throw new AerospikeException("Remove UDF failed: " + response);
-	}
+        if (response.startsWith("error=file_not_found")) {
+            // UDF has already been removed.
+            return;
+        }
+        throw new AerospikeException("Remove UDF failed: " + response);
+    }
 
-	/**
+    /**
      * Execute a UDF (User Defined Function) for the given key.
      * Supports chaining multiple heterogeneous operations.
      *
@@ -837,9 +837,9 @@ public class Session {
     }
 
     /**
-	 * Reset record time to expiration for the given key.
-	 * If the record does not exist, it can't be created because the server deletes empty records.
-	 * The command will fail if the key does not exist.
+     * Reset record time to expiration for the given key.
+     * If the record does not exist, it can't be created because the server deletes empty records.
+     * The command will fail if the key does not exist.
      *
      * <p>Example:
      * <pre>{@code
@@ -858,9 +858,9 @@ public class Session {
     }
 
     /**
-	 * Reset records time to expiration for the given keys.
-	 * If a record does not exist, it can't be created because the server deletes empty records.
-	 * The command will fail if a key does not exist.
+     * Reset records time to expiration for the given keys.
+     * If a record does not exist, it can't be created because the server deletes empty records.
+     * The command will fail if a key does not exist.
      *
      * <p>Example:
      * <pre>{@code
@@ -879,9 +879,9 @@ public class Session {
     }
 
     /**
-	 * Reset records time to expiration for the given keys.
-	 * If a record does not exist, it can't be created because the server deletes empty records.
-	 * The command will fail if a key does not exist.
+     * Reset records time to expiration for the given keys.
+     * If a record does not exist, it can't be created because the server deletes empty records.
+     * The command will fail if a key does not exist.
      *
      * <p>Example:
      * <pre>{@code
@@ -901,13 +901,13 @@ public class Session {
     }
 
     /**
-	 * Determine if a key exists.
+     * Determine if a key exists.
      *
      * <p>Example:
      * <pre>{@code
      * Key key = dataset.id("user-1");
      * RecordStream rs = session.exists(key).execute();
-	 * Record rec = rs.getFirstRecord();
+     * Record rec = rs.getFirstRecord();
      * }</pre>
      *
      * @param key key to test for existence
@@ -919,7 +919,7 @@ public class Session {
     }
 
     /**
-	 * Determine if keys exist.
+     * Determine if keys exist.
      *
      * <p>Example:
      * <pre>{@code
@@ -937,7 +937,7 @@ public class Session {
     }
 
     /**
-	 * Determine if keys exist.
+     * Determine if keys exist.
      *
      * <p>Example:
      * <pre>{@code
@@ -1033,7 +1033,7 @@ public class Session {
      * @see RecordMappingFactory
      */
     @SuppressWarnings("rawtypes")
-	public OperationObjectBuilder insert(DataSet dataSet) {
+    public OperationObjectBuilder insert(DataSet dataSet) {
         return new OperationObjectBuilder(this, dataSet, OpType.INSERT);
     }
 
@@ -1520,7 +1520,7 @@ public class Session {
      *
      * <p>This method is used internally to determine the appropriate operation
      * settings and policies based on the namespace's consistency mode.</p>
- 	 *
+     *
      * <p>Example:</p>
      * <pre>{@code
      * session.isNamespaceSC("test");
@@ -1547,58 +1547,58 @@ public class Session {
      * This asynchronous server call will return before command is complete.
      * The user can optionally wait for command completion by using the returned
      * IndexTask instance.
-	 *
+     *
      * <p>Example:</p>
      * <pre>{@code
      * session.createIndex(dataSet, indexName, binName, IndexType.STRING, IndexCollectionType.DEFAULT)
      *     .waitTillComplete();
      * }</pre>
      *
-	 * @param set					dataset containing namespace and set information
-	 * @param indexName				name of secondary index
-	 * @param binName				bin name that data is indexed on
-	 * @param indexType				underlying data type of secondary index
-	 * @param indexCollectionType	index collection type
-	 * @param ctx					optional context to index on elements within a CDT
-	 * @return task that can be polled for index build completion
-	 * @throws AerospikeException	if index create fails
+     * @param set                   dataset containing namespace and set information
+     * @param indexName             name of secondary index
+     * @param binName               bin name that data is indexed on
+     * @param indexType             underlying data type of secondary index
+     * @param indexCollectionType   index collection type
+     * @param ctx                   optional context to index on elements within a CDT
+     * @return task that can be polled for index build completion
+     * @throws AerospikeException   if index create fails
      */
     public final IndexTask createIndex(
-    	DataSet set,
+        DataSet set,
         String indexName,
         String binName,
         IndexType indexType,
-		IndexCollectionType indexCollectionType,
-		CTX... ctx
+        IndexCollectionType indexCollectionType,
+        CTX... ctx
     ) {
-		Node node = cluster.getRandomNode();
-		String command = buildCreateIndexInfoCommand(node, set.getNamespace(), set.getSet(), indexName, binName, indexType, indexCollectionType, ctx, null);
+        Node node = cluster.getRandomNode();
+        String command = buildCreateIndexInfoCommand(node, set.getNamespace(), set.getSet(), indexName, binName, indexType, indexCollectionType, ctx, null);
 
-		// Send index command to one node. That node will distribute the command to other nodes.
-		String response = sendInfoCommand(node, command);
+        // Send index command to one node. That node will distribute the command to other nodes.
+        String response = sendInfoCommand(node, command);
 
-		if (response.equalsIgnoreCase("OK")) {
-			// Return task that could optionally be polled for completion.
-			return new IndexTask(cluster, set.getNamespace(), indexName, true, 1000);
-		}
+        if (response.equalsIgnoreCase("OK")) {
+            // Return task that could optionally be polled for completion.
+            return new IndexTask(cluster, set.getNamespace(), indexName, true, 1000);
+        }
 
-		int code = parseIndexErrorCode(response);
-		throw AerospikeException.resultCodeToException(code, "Create index failed: " + response);
+        int code = parseIndexErrorCode(response);
+        throw AerospikeException.resultCodeToException(code, "Create index failed: " + response);
     }
 
-	/**
-	 * Create an expression-based secondary index with the provided index collection type
-	 * This asynchronous server call will return before command is complete.
-	 * The user can optionally wait for command completion by using the returned
-	 * IndexTask instance.
-	 *
+    /**
+     * Create an expression-based secondary index with the provided index collection type
+     * This asynchronous server call will return before command is complete.
+     * The user can optionally wait for command completion by using the returned
+     * IndexTask instance.
+     *
      * <p>Example:</p>
      * <pre>{@code
      * // IF (age >= 18 AND country IN ["Australia, "Canada", "USA"])
      * Expression exp = Exp.build(
      *     Exp.cond(
-	 *         Exp.and(
-	 *             // Is the age 18 or older?
+     *         Exp.and(
+     *             // Is the age 18 or older?
      *             Exp.ge(Exp.intBin("age"), Exp.val(18)),
      *             // Do they live in a target country?
      *             Exp.or(
@@ -1613,180 +1613,180 @@ public class Session {
      * );
      *
      * session.createIndex(dataSet, indexName, IndexType.INTEGER, IndexCollectionType.DEFAULT, exp)
-	 *     .waitTillComplete();
+     *     .waitTillComplete();
      * }</pre>
-	 *
-	 * @param set					dataSet containing namespace and set information
-	 * @param indexName				name of secondary index
-	 * @param indexType				underlying data type of secondary index
-	 * @param indexCollectionType	index collection type
-	 * @param exp					expression on which to build the index
-	 * @return task that can be polled for index build completion
-	 * @throws AerospikeException	if index create fails
-	 */
-	public final IndexTask createIndex(
-	    DataSet set,
-		String indexName,
-		IndexType indexType,
-		IndexCollectionType indexCollectionType,
-		Expression exp
-	) {
-		Node node = this.cluster.getRandomNode();
-		String command = buildCreateIndexInfoCommand(node, set.getNamespace(), set.getSet(), indexName, null, indexType, indexCollectionType, null, exp);
+     *
+     * @param set                   dataSet containing namespace and set information
+     * @param indexName             name of secondary index
+     * @param indexType             underlying data type of secondary index
+     * @param indexCollectionType   index collection type
+     * @param exp                   expression on which to build the index
+     * @return task that can be polled for index build completion
+     * @throws AerospikeException   if index create fails
+     */
+    public final IndexTask createIndex(
+        DataSet set,
+        String indexName,
+        IndexType indexType,
+        IndexCollectionType indexCollectionType,
+        Expression exp
+    ) {
+        Node node = this.cluster.getRandomNode();
+        String command = buildCreateIndexInfoCommand(node, set.getNamespace(), set.getSet(), indexName, null, indexType, indexCollectionType, null, exp);
 
-		// Send index command to one node. That node will distribute the command to other nodes.
-		String response = sendInfoCommand(node, command);
+        // Send index command to one node. That node will distribute the command to other nodes.
+        String response = sendInfoCommand(node, command);
 
-		if (response.equalsIgnoreCase("OK")) {
-			// Return task that could optionally be polled for completion.
-			return new IndexTask(cluster, set.getNamespace(), indexName, true, 1000);
-		}
+        if (response.equalsIgnoreCase("OK")) {
+            // Return task that could optionally be polled for completion.
+            return new IndexTask(cluster, set.getNamespace(), indexName, true, 1000);
+        }
 
-		int code = parseIndexErrorCode(response);
-		throw AerospikeException.resultCodeToException(code, "Create index failed: " + response);
-	}
+        int code = parseIndexErrorCode(response);
+        throw AerospikeException.resultCodeToException(code, "Create index failed: " + response);
+    }
 
-	private String buildCreateIndexInfoCommand(
-		Node node,
-		String namespace,
-		String setName,
-		String indexName,
-		String binName,
-		IndexType indexType,
-		IndexCollectionType indexCollectionType,
-		CTX[] ctx,
-		Expression exp
-	) {
-		StringBuilder sb = new StringBuilder(1024);
-		Version currentServerVersion = node.getVersion();
+    private String buildCreateIndexInfoCommand(
+        Node node,
+        String namespace,
+        String setName,
+        String indexName,
+        String binName,
+        IndexType indexType,
+        IndexCollectionType indexCollectionType,
+        CTX[] ctx,
+        Expression exp
+    ) {
+        StringBuilder sb = new StringBuilder(1024);
+        Version currentServerVersion = node.getVersion();
 
-		String createIndexCommand =
-			currentServerVersion.isGreaterOrEqual(Version.SERVER_VERSION_8_1)?
-				"sindex-create:namespace=": "sindex-create:ns=";
+        String createIndexCommand =
+            currentServerVersion.isGreaterOrEqual(Version.SERVER_VERSION_8_1)?
+                "sindex-create:namespace=": "sindex-create:ns=";
 
-		String indexTypeString = (indexType == IndexType.INTEGER &&
-			currentServerVersion.isLessThan(Version.SERVER_VERSION_8_1_3))?
-				"NUMERIC" : indexType.toString();
+        String indexTypeString = (indexType == IndexType.INTEGER &&
+            currentServerVersion.isLessThan(Version.SERVER_VERSION_8_1_3))?
+                "NUMERIC" : indexType.toString();
 
-		sb.append(createIndexCommand);
-		sb.append(namespace);
+        sb.append(createIndexCommand);
+        sb.append(namespace);
 
-		if (setName != null && setName.length() > 0) {
-			sb.append(";set=");
-			sb.append(setName);
-		}
+        if (setName != null && setName.length() > 0) {
+            sb.append(";set=");
+            sb.append(setName);
+        }
 
-		sb.append(";indexname=");
-		sb.append(indexName);
+        sb.append(";indexname=");
+        sb.append(indexName);
 
-		if (exp != null) {
-			String base64 = exp.getBase64();
+        if (exp != null) {
+            String base64 = exp.getBase64();
 
-			sb.append(";exp=");
-			sb.append(base64);
+            sb.append(";exp=");
+            sb.append(base64);
 
-			if (indexCollectionType != IndexCollectionType.DEFAULT) {
-				sb.append(";indextype=");
-				sb.append(indexCollectionType);
-			}
+            if (indexCollectionType != IndexCollectionType.DEFAULT) {
+                sb.append(";indextype=");
+                sb.append(indexCollectionType);
+            }
 
-			sb.append(";type=");
-			sb.append(indexTypeString);
-		} else {
-			if (ctx != null && ctx.length > 0) {
-				byte[] bytes = Pack.pack(ctx);
-				String base64 = Crypto.encodeBase64(bytes);
+            sb.append(";type=");
+            sb.append(indexTypeString);
+        } else {
+            if (ctx != null && ctx.length > 0) {
+                byte[] bytes = Pack.pack(ctx);
+                String base64 = Crypto.encodeBase64(bytes);
 
-				sb.append(";context=");
-				sb.append(base64);
-			}
+                sb.append(";context=");
+                sb.append(base64);
+            }
 
-			if (indexCollectionType != IndexCollectionType.DEFAULT) {
-				sb.append(";indextype=");
-				sb.append(indexCollectionType);
-			}
+            if (indexCollectionType != IndexCollectionType.DEFAULT) {
+                sb.append(";indextype=");
+                sb.append(indexCollectionType);
+            }
 
-			if (node.getVersion().isGreaterOrEqual(Version.SERVER_VERSION_8_1)) {
-				sb.append(";bin=");
-				sb.append(binName);
-				sb.append(";type=");
-				sb.append(indexTypeString);
-			} else {
-				sb.append(";indexdata=");
-				sb.append(binName);
-				sb.append(',');
-				sb.append(indexTypeString);
-			}
-		}
+            if (node.getVersion().isGreaterOrEqual(Version.SERVER_VERSION_8_1)) {
+                sb.append(";bin=");
+                sb.append(binName);
+                sb.append(";type=");
+                sb.append(indexTypeString);
+            } else {
+                sb.append(";indexdata=");
+                sb.append(binName);
+                sb.append(',');
+                sb.append(indexTypeString);
+            }
+        }
 
-		return sb.toString();
-	}
+        return sb.toString();
+    }
 
-	/**
-	 * Delete secondary index.
-	 * This asynchronous server call will return before command is complete.
-	 * The user can optionally wait for command completion by using the returned
-	 * IndexTask instance.
-	 *
+    /**
+     * Delete secondary index.
+     * This asynchronous server call will return before command is complete.
+     * The user can optionally wait for command completion by using the returned
+     * IndexTask instance.
+     *
      * <p>Example:</p>
      * <pre>{@code
      * session.dropIndex(dataSet, indexName);
      * }</pre>
      *
-	 * @param set					dataset (namespace and optional set) the index belongs to
-	 * @param indexName				name of the secondary index to drop
-	 * @return task that can be polled for drop completion
-	 * @throws AerospikeException	if index drop fails
-	 */
-	public final IndexTask dropIndex(DataSet set, String indexName) {
-		Node node = this.cluster.getRandomNode();
-		String command = buildDropIndexInfoCommand(node, set.getNamespace(), set.getSet(), indexName);
+     * @param set                   dataset (namespace and optional set) the index belongs to
+     * @param indexName             name of the secondary index to drop
+     * @return task that can be polled for drop completion
+     * @throws AerospikeException   if index drop fails
+     */
+    public final IndexTask dropIndex(DataSet set, String indexName) {
+        Node node = this.cluster.getRandomNode();
+        String command = buildDropIndexInfoCommand(node, set.getNamespace(), set.getSet(), indexName);
 
-		// Send index command to one node. That node will distribute the command to other nodes.
-		String response = sendInfoCommand(node, command);
+        // Send index command to one node. That node will distribute the command to other nodes.
+        String response = sendInfoCommand(node, command);
 
-		if (response.equalsIgnoreCase("OK")) {
-			return new IndexTask(cluster, set.getNamespace(), indexName, false, 1000);
-		}
+        if (response.equalsIgnoreCase("OK")) {
+            return new IndexTask(cluster, set.getNamespace(), indexName, false, 1000);
+        }
 
-		int code = parseIndexErrorCode(response);
-		throw AerospikeException.resultCodeToException(code, "Drop index failed: " + response);
-	}
+        int code = parseIndexErrorCode(response);
+        throw AerospikeException.resultCodeToException(code, "Drop index failed: " + response);
+    }
 
-	private String buildDropIndexInfoCommand(Node node, String namespace, String setName, String indexName) {
-		StringBuilder sb = new StringBuilder(500);
-		Version currentServerVersion = node.getVersion();
-		String deleteIndexCommand = currentServerVersion.isGreaterOrEqual(Version.SERVER_VERSION_8_1) ? "sindex-delete:namespace=": "sindex-delete:ns=";
+    private String buildDropIndexInfoCommand(Node node, String namespace, String setName, String indexName) {
+        StringBuilder sb = new StringBuilder(500);
+        Version currentServerVersion = node.getVersion();
+        String deleteIndexCommand = currentServerVersion.isGreaterOrEqual(Version.SERVER_VERSION_8_1) ? "sindex-delete:namespace=": "sindex-delete:ns=";
 
-		sb.append(deleteIndexCommand);
-		sb.append(namespace);
+        sb.append(deleteIndexCommand);
+        sb.append(namespace);
 
-		if (setName != null && setName.length() > 0) {
-			sb.append(";set=");
-			sb.append(setName);
-		}
-		sb.append(";indexname=");
-		sb.append(indexName);
-		return sb.toString();
-	}
+        if (setName != null && setName.length() > 0) {
+            sb.append(";set=");
+            sb.append(setName);
+        }
+        sb.append(";indexname=");
+        sb.append(indexName);
+        return sb.toString();
+    }
 
-	private String sendInfoCommand(Node node, String command) {
-		Connection conn = node.getConnection(1000, 1000);
-		Info info;
+    private String sendInfoCommand(Node node, String command) {
+        Connection conn = node.getConnection(1000, 1000);
+        Info info;
 
-		try {
-			info = new Info(node, conn, command);
-			node.putConnection(conn);
-		}
-		catch (Throwable e) {
-			node.closeConnection(conn);
-			throw e;
-		}
-		return info.getValue();
-	}
+        try {
+            info = new Info(node, conn, command);
+            node.putConnection(conn);
+        }
+        catch (Throwable e) {
+            node.closeConnection(conn);
+            throw e;
+        }
+        return info.getValue();
+    }
 
-	private static int parseIndexErrorCode(String response) {
-		Info.Error error = new Info.Error(response);
-		return (error.code == 0)? ResultCode.SERVER_ERROR : error.code;
-	}
+    private static int parseIndexErrorCode(String response) {
+        Info.Error error = new Info.Error(response);
+        return (error.code == 0)? ResultCode.SERVER_ERROR : error.code;
+    }
 }

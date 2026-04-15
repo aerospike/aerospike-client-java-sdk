@@ -80,12 +80,12 @@ import com.aerospike.client.sdk.util.Version;
 public class ObjectBuilder<T> {
     private final OperationObjectBuilder<T> opBuilder;
     private final List<T> elements;
-	private RecordMapper<T> recordMapper;
+    private RecordMapper<T> recordMapper;
     private long expirationInSeconds = AbstractOperationBuilder.NOT_EXPLICITLY_SET;
     private long defaultExpirationInSeconds = AbstractOperationBuilder.NOT_EXPLICITLY_SET;
     private Txn txnToUse;
     private Settings settings;
-	private int generation = 0;
+    private int generation = 0;
     private boolean notInAnyTransaction;
     private boolean transactionSet;
 
@@ -409,11 +409,11 @@ public class ObjectBuilder<T> {
      * @return This ObjectBuilder for method chaining
      */
     public ObjectBuilder<T> notInAnyTransaction() {
-    	if (transactionSet) {
+        if (transactionSet) {
             throw AerospikeException.resultCodeToException(ResultCode.PARAMETER_ERROR,
-            	"The transaction mode has already been set");
-    	}
-    	this.transactionSet = true;
+                "The transaction mode has already been set");
+        }
+        this.transactionSet = true;
         this.notInAnyTransaction = true;
         this.txnToUse = null;
         return this;
@@ -437,11 +437,11 @@ public class ObjectBuilder<T> {
      * @return This ObjectBuilder for method chaining
      */
     public ObjectBuilder<T> inTransaction(Txn txn) {
-    	if (transactionSet) {
+        if (transactionSet) {
             throw AerospikeException.resultCodeToException(ResultCode.PARAMETER_ERROR,
-            	"The transaction mode has already been set");
-    	}
-    	this.transactionSet = true;
+                "The transaction mode has already been set");
+        }
+        this.transactionSet = true;
         this.txnToUse = txn;
         this.notInAnyTransaction = false;
         return this;
@@ -470,7 +470,7 @@ public class ObjectBuilder<T> {
             RecordMappingFactory factory = opBuilder.getSession().getRecordMappingFactory();
             if (factory != null) {
                 @SuppressWarnings("unchecked")
-				RecordMapper<T> mapper = (RecordMapper<T>)factory.getMapper(element.getClass());
+                RecordMapper<T> mapper = (RecordMapper<T>)factory.getMapper(element.getClass());
                 if (mapper != null) {
                     return mapper;
                 }
@@ -862,7 +862,7 @@ public class ObjectBuilder<T> {
      * Execute operations using batch operations (10+ objects).
      */
     private RecordStream executeBatchSync(ErrorDisposition disposition) {
-    	BatchCommand parent = prepareBatch();
+        BatchCommand parent = prepareBatch();
         List<BatchRecord> records = parent.getRecords();
         Session session = opBuilder.getSession();
         Cluster cluster = session.getCluster();
@@ -880,7 +880,7 @@ public class ObjectBuilder<T> {
                 BatchWrite bw = (BatchWrite)rec;
 
                 commands[count++] = new BatchSingle.OperateRecordSync(cluster, parent, bw,
-                	status, bn.node);
+                    status, bn.node);
             }
             else {
                 commands[count++] = new Batch.OperateListSync(cluster, parent, bn, records, status);
@@ -889,19 +889,19 @@ public class ObjectBuilder<T> {
 
         if (txnToUse != null) {
             TxnMonitor.addKeysBatchWrite(txnToUse, session, records);
-	        BatchExecutor.execute(cluster, commands, status);
-		}
-		else if (!notInAnyTransaction && parent.getPartitions().scMode &&
-			cluster.allowImplicitBatchWriteTransactions()) {
-			// Create implicit transaction for the batch.
-	        session.doInTransaction(txnSession -> {
-	            TxnMonitor.addKeysBatchWrite(txnSession.getCurrentTransaction(), txnSession, records);
-		        BatchExecutor.execute(cluster, commands, status);
-	        });
-		}
-		else {
-	        BatchExecutor.execute(cluster, commands, status);
-		}
+            BatchExecutor.execute(cluster, commands, status);
+        }
+        else if (!notInAnyTransaction && parent.getPartitions().scMode &&
+            cluster.allowImplicitBatchWriteTransactions()) {
+            // Create implicit transaction for the batch.
+            session.doInTransaction(txnSession -> {
+                TxnMonitor.addKeysBatchWrite(txnSession.getCurrentTransaction(), txnSession, records);
+                BatchExecutor.execute(cluster, commands, status);
+            });
+        }
+        else {
+            BatchExecutor.execute(cluster, commands, status);
+        }
 
         AsyncRecordStream recordStream = new AsyncRecordStream(records.size());
 
@@ -939,7 +939,7 @@ public class ObjectBuilder<T> {
      * Execute operations using async batch operations (10+ objects).
      */
     private RecordStream executeBatchAsync() {
-    	BatchCommand parent = prepareBatch();
+        BatchCommand parent = prepareBatch();
         List<BatchRecord> records = parent.getRecords();
         Session session = opBuilder.getSession();
         Cluster cluster = session.getCluster();
@@ -958,11 +958,11 @@ public class ObjectBuilder<T> {
                 BatchWrite bw = (BatchWrite)rec;
 
                 commands[count++] = new BatchSingle.OperateRecordAsync(cluster, parent, bw,
-                	status, bn.node, stream, i);
+                    status, bn.node, stream, i);
             }
             else {
                 commands[count++] = new Batch.OperateListAsync(cluster, parent, bn, records,
-                	stream, status);
+                    stream, status);
             }
         }
 
@@ -987,7 +987,7 @@ public class ObjectBuilder<T> {
         Partitions partitions = getPartitions(cluster, namespace);
 
         settings = session.getBehavior()
-        	.getSettings(OpKind.WRITE_RETRYABLE, OpShape.BATCH, partitions.scMode);
+            .getSettings(OpKind.WRITE_RETRYABLE, OpShape.BATCH, partitions.scMode);
 
         long effectiveExpiration = resolveTtl(expirationInSeconds, defaultExpirationInSeconds);
         int ttl = getExpirationAsInt(effectiveExpiration);
@@ -1011,22 +1011,22 @@ public class ObjectBuilder<T> {
     }
 
     private void operateBatchAsync(
-    	Cluster cluster, IBatchCommand[] commands, BatchStatus status, AsyncRecordStream stream
+        Cluster cluster, IBatchCommand[] commands, BatchStatus status, AsyncRecordStream stream
     ) {
         AtomicInteger pending = new AtomicInteger(commands.length);
 
-		for (IBatchCommand command : commands) {
+        for (IBatchCommand command : commands) {
             cluster.startVirtualThread(() -> {
-            	try {
-    				command.run();
-            	}
-            	finally {
+                try {
+                    command.run();
+                }
+                finally {
                     if (pending.decrementAndGet() == 0) {
                         stream.complete();
                     }
-            	}
-	        });
-		}
+                }
+            });
+        }
     }
 
     /**
@@ -1034,7 +1034,7 @@ public class ObjectBuilder<T> {
      * All virtual threads are joined before returning.
      */
     @SuppressWarnings("resource")
-	private RecordStream executeIndividualSync(ErrorDisposition disposition) {
+    private RecordStream executeIndividualSync(ErrorDisposition disposition) {
         List<Key> keys = new ArrayList<>(elements.size());
 
         for (T element : elements) {
@@ -1048,20 +1048,20 @@ public class ObjectBuilder<T> {
         Key firstKey = keys.get(0);
         Partitions partitions = getPartitions(cluster, firstKey.namespace);
 
-    	// Assume all operations are puts (WRITE_RETRYABLE).
+        // Assume all operations are puts (WRITE_RETRYABLE).
         Settings settings = session.getBehavior()
-        	.getSettings(OpKind.WRITE_RETRYABLE, OpShape.POINT, partitions.scMode);
+            .getSettings(OpKind.WRITE_RETRYABLE, OpShape.POINT, partitions.scMode);
 
         // Apply where clause if present
         final Expression filterExp = getFilterExp(firstKey.namespace);
         int ttl = (int) resolveTtl(expirationInSeconds, defaultExpirationInSeconds);
 
         if (txnToUse != null) {
-        	// Assume all operations are write operations.
+            // Assume all operations are write operations.
             TxnMonitor.addKeys(txnToUse, session, keys);
         }
 
-		AsyncRecordStream stream = new AsyncRecordStream(elements.size());
+        AsyncRecordStream stream = new AsyncRecordStream(elements.size());
         final java.util.concurrent.atomic.AtomicReference<AerospikeException> firstError =
             (disposition instanceof ErrorDisposition.Throw) ? new java.util.concurrent.atomic.AtomicReference<>() : null;
 
@@ -1119,9 +1119,9 @@ public class ObjectBuilder<T> {
         Key firstKey = keys.get(0);
         Partitions partitions = getPartitions(cluster, firstKey.namespace);
 
-    	// Assume all operations are puts (WRITE_RETRYABLE).
+        // Assume all operations are puts (WRITE_RETRYABLE).
         Settings settings = session.getBehavior()
-        	.getSettings(OpKind.WRITE_RETRYABLE, OpShape.POINT, partitions.scMode);
+            .getSettings(OpKind.WRITE_RETRYABLE, OpShape.POINT, partitions.scMode);
 
         // Apply where clause if present
         final Expression filterExp = getFilterExp(firstKey.namespace);
@@ -1152,15 +1152,15 @@ public class ObjectBuilder<T> {
         Cluster cluster = session.getCluster();
         Partitions partitions = getPartitions(cluster, key.namespace);
 
-    	// Assume all operations are puts (WRITE_RETRYABLE).
+        // Assume all operations are puts (WRITE_RETRYABLE).
         Settings settings = session.getBehavior()
-        	.getSettings(OpKind.WRITE_RETRYABLE, OpShape.POINT, partitions.scMode);
+            .getSettings(OpKind.WRITE_RETRYABLE, OpShape.POINT, partitions.scMode);
 
         // Apply where clause if present
         final Expression filterExp = getFilterExp(key.namespace);
 
         if (txnToUse != null) {
-        	// Assume all operations are write operations.
+            // Assume all operations are write operations.
             TxnMonitor.addKey(txnToUse, session, key);
         }
 
@@ -1194,9 +1194,9 @@ public class ObjectBuilder<T> {
         Cluster cluster = session.getCluster();
         Partitions partitions = getPartitions(cluster, key.namespace);
 
-    	// Assume all operations are puts (WRITE_RETRYABLE).
+        // Assume all operations are puts (WRITE_RETRYABLE).
         Settings settings = session.getBehavior()
-        	.getSettings(OpKind.WRITE_RETRYABLE, OpShape.POINT, partitions.scMode);
+            .getSettings(OpKind.WRITE_RETRYABLE, OpShape.POINT, partitions.scMode);
 
         // Apply where clause if present
         final Expression filterExp = getFilterExp(key.namespace);
@@ -1220,22 +1220,22 @@ public class ObjectBuilder<T> {
     }
 
     private void operateKeysAsync(
-    	Cluster cluster, Partitions partitions, Settings settings, Expression filterExp, int ttl,
-    	AsyncRecordStream stream, List<Key> keys
+        Cluster cluster, Partitions partitions, Settings settings, Expression filterExp, int ttl,
+        AsyncRecordStream stream, List<Key> keys
     ) {
         AtomicInteger pendingOps = new AtomicInteger(elements.size());
 
         for (int i = 0; i < elements.size(); i++) {
-        	T element = elements.get(i);
+            T element = elements.get(i);
             Key key = keys.get(i);
             operateAsync(cluster, partitions, settings, filterExp, key, element, ttl, stream, i, pendingOps, true);
         }
     }
 
     private void operateAsync(
-    	Cluster cluster, Partitions partitions, Settings settings, Expression filterExp, Key key,
-    	T element, int ttl, AsyncRecordStream stream, int index, AtomicInteger pendingOps,
-    	boolean isBatch
+        Cluster cluster, Partitions partitions, Settings settings, Expression filterExp, Key key,
+        T element, int ttl, AsyncRecordStream stream, int index, AtomicInteger pendingOps,
+        boolean isBatch
     ) {
         cluster.startVirtualThread(() -> {
             try {
@@ -1258,16 +1258,16 @@ public class ObjectBuilder<T> {
     }
 
     private Record operate(
-    	Cluster cluster, Partitions partitions, Settings settings, Expression filterExp, Key key,
-    	T element, int ttl
+        Cluster cluster, Partitions partitions, Settings settings, Expression filterExp, Key key,
+        T element, int ttl
     ) {
         RecordMapper<T> recordMapper = getMapper(element);
         List<Operation> ops = operationsForElement(recordMapper, element);
 
-		OperateArgs args = new OperateArgs(ops);
+        OperateArgs args = new OperateArgs(ops);
         OperateWriteCommand cmd = new OperateWriteCommand(cluster, partitions, txnToUse, key, ops,
-        	args, opBuilder.getOpType(), generation, ttl, filterExp,
-        	opBuilder.failOnFilteredOut, settings);
+            args, opBuilder.getOpType(), generation, ttl, filterExp,
+            opBuilder.failOnFilteredOut, settings);
 
         OperateWriteExecutor exec = new OperateWriteExecutor(cluster, cmd);
         exec.execute();

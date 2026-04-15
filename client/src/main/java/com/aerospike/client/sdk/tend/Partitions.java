@@ -22,63 +22,63 @@ import com.aerospike.client.sdk.Log;
 import com.aerospike.client.sdk.Node;
 
 public final class Partitions {
-	public final AtomicReferenceArray<Node>[] replicas;
-	final int[] regimes;
-	public final boolean scMode;
+    public final AtomicReferenceArray<Node>[] replicas;
+    final int[] regimes;
+    public final boolean scMode;
 
-	@SuppressWarnings("unchecked")
-	public Partitions(int partitionCount, int replicaCount, boolean scMode) {
-		this.replicas = new AtomicReferenceArray[replicaCount];
+    @SuppressWarnings("unchecked")
+    public Partitions(int partitionCount, int replicaCount, boolean scMode) {
+        this.replicas = new AtomicReferenceArray[replicaCount];
 
-		for (int i = 0; i < replicaCount; i++) {
-			this.replicas[i] = new AtomicReferenceArray<Node>(partitionCount);
-		}
-		this.regimes = new int[partitionCount];
-		this.scMode = scMode;
-	}
+        for (int i = 0; i < replicaCount; i++) {
+            this.replicas[i] = new AtomicReferenceArray<Node>(partitionCount);
+        }
+        this.regimes = new int[partitionCount];
+        this.scMode = scMode;
+    }
 
-	/**
-	 * Copy partition map while reserving space for a new replica count.
-	 */
-	@SuppressWarnings("unchecked")
-	public Partitions(Partitions other, int replicaCount) {
-		this.replicas = new AtomicReferenceArray[replicaCount];
+    /**
+     * Copy partition map while reserving space for a new replica count.
+     */
+    @SuppressWarnings("unchecked")
+    public Partitions(Partitions other, int replicaCount) {
+        this.replicas = new AtomicReferenceArray[replicaCount];
 
-		if (other.replicas.length < replicaCount) {
-			int i = 0;
+        if (other.replicas.length < replicaCount) {
+            int i = 0;
 
-			// Copy existing entries.
-			for (; i < other.replicas.length; i++) {
-				this.replicas[i] = other.replicas[i];
-			}
+            // Copy existing entries.
+            for (; i < other.replicas.length; i++) {
+                this.replicas[i] = other.replicas[i];
+            }
 
-			// Create new entries.
-			for (; i < replicaCount; i++) {
-				this.replicas[i] = new AtomicReferenceArray<Node>(other.regimes.length);
-			}
-		}
-		else {
-			// Copy existing entries.
-			for (int i = 0; i < replicaCount; i++) {
-				this.replicas[i] = other.replicas[i];
-			}
-		}
-		this.regimes = other.regimes;
-		this.scMode = other.scMode;
-	}
+            // Create new entries.
+            for (; i < replicaCount; i++) {
+                this.replicas[i] = new AtomicReferenceArray<Node>(other.regimes.length);
+            }
+        }
+        else {
+            // Copy existing entries.
+            for (int i = 0; i < replicaCount; i++) {
+                this.replicas[i] = other.replicas[i];
+            }
+        }
+        this.regimes = other.regimes;
+        this.scMode = other.scMode;
+    }
 
-	public void log(Log.Context context, String namespace) {
-		for (int i = 0; i < replicas.length; i++) {
-			AtomicReferenceArray<Node> nodeArray = replicas[i];
-			int max = nodeArray.length();
+    public void log(Log.Context context, String namespace) {
+        for (int i = 0; i < replicas.length; i++) {
+            AtomicReferenceArray<Node> nodeArray = replicas[i];
+            int max = nodeArray.length();
 
-			for (int j = 0; j < max; j++) {
-				Node node = nodeArray.get(j);
+            for (int j = 0; j < max; j++) {
+                Node node = nodeArray.get(j);
 
-				if (node != null) {
-					Log.info(context, namespace + ',' + i + ',' + j + ',' + node);
-				}
-			}
-		}
-	}
+                if (node != null) {
+                    Log.info(context, namespace + ',' + i + ',' + j + ',' + node);
+                }
+            }
+        }
+    }
 }

@@ -150,7 +150,7 @@ public class DataSet {
             return id(((Number)object).longValue());
         }
         else if (object instanceof byte[]) {
-			return id((byte[])object);
+            return id((byte[])object);
         }
         throw new IllegalArgumentException("Cannot construct a key for object of type " + object.getClass().getSimpleName() +
                 ". Only String, int, long and byte[] are supported.");

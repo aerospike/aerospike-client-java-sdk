@@ -918,12 +918,12 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
      * @return this builder for method chaining
      */
     public ChainableQueryBuilder notInAnyTransaction() {
-    	if (transactionSet) {
+        if (transactionSet) {
             throw AerospikeException.resultCodeToException(ResultCode.PARAMETER_ERROR,
-            	"The transaction mode has already been set");
-    	}
-    	this.transactionSet = true;
-    	this.txnToUse = null;
+                "The transaction mode has already been set");
+        }
+        this.transactionSet = true;
+        this.txnToUse = null;
         this.notInAnyTransaction = true;
         return this;
     }
@@ -935,11 +935,11 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
      * @return this builder for method chaining
      */
     public ChainableQueryBuilder inTransaction(Txn txn) {
-    	if (transactionSet) {
+        if (transactionSet) {
             throw AerospikeException.resultCodeToException(ResultCode.PARAMETER_ERROR,
-            	"The transaction mode has already been set");
-    	}
-    	this.transactionSet = true;
+                "The transaction mode has already been set");
+        }
+        this.transactionSet = true;
         this.txnToUse = txn;
         this.notInAnyTransaction = false;
         return this;
@@ -997,7 +997,7 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
             return new RecordStream();
         }
         return OperationSpecExecutor.execute(session, specs, defaultWhereClause,
-        	defaultExpirationInSeconds, txnToUse, notInAnyTransaction, disposition);
+            defaultExpirationInSeconds, txnToUse, notInAnyTransaction, disposition);
     }
 
     /**

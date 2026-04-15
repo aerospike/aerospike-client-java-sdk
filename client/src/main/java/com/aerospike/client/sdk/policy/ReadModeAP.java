@@ -23,13 +23,13 @@ package com.aerospike.client.sdk.policy;
  * Only makes a difference during migrations and only applicable in AP mode.
  */
 public enum ReadModeAP {
-	/**
-	 * Involve single node in the read operation.
-	 */
-	ONE,
+    /**
+     * Involve single node in the read operation.
+     */
+    ONE,
 
-	/**
-	 * Involve all duplicates in the read operation.
-	 */
-	ALL
+    /**
+     * Involve all duplicates in the read operation.
+     */
+    ALL
 }

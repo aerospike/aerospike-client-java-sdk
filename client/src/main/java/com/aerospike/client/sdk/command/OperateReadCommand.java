@@ -26,15 +26,15 @@ import com.aerospike.client.sdk.policy.Settings;
 import com.aerospike.client.sdk.tend.Partitions;
 
 public class OperateReadCommand extends ReadCommand {
-	final List<Operation> ops;
-	final OperateArgs args;
+    final List<Operation> ops;
+    final OperateArgs args;
 
-	public OperateReadCommand(
-		Cluster cluster, Partitions partitions, Txn txn, Key key, List<Operation> ops, OperateArgs args,
-		Expression filterExp, boolean failOnFilteredOut, Settings policy, ReadAttr attr
-	) {
-		super(cluster, partitions, txn, key, null, false, filterExp, failOnFilteredOut, policy, attr);
-		this.ops = ops;
-		this.args = args;
-	}
+    public OperateReadCommand(
+        Cluster cluster, Partitions partitions, Txn txn, Key key, List<Operation> ops, OperateArgs args,
+        Expression filterExp, boolean failOnFilteredOut, Settings policy, ReadAttr attr
+    ) {
+        super(cluster, partitions, txn, key, null, false, filterExp, failOnFilteredOut, policy, attr);
+        this.ops = ops;
+        this.args = args;
+    }
 }

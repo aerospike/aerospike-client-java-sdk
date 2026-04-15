@@ -36,139 +36,139 @@ import com.aerospike.client.sdk.policy.Behavior.OpShape;
 import com.aerospike.client.sdk.tend.Partitions;
 
 public final class TxnMonitor {
-	private static final ListPolicy OrderedListPolicy = new ListPolicy(ListOrder.ORDERED,
-		ListWriteFlags.ADD_UNIQUE | ListWriteFlags.NO_FAIL | ListWriteFlags.PARTIAL);
+    private static final ListPolicy OrderedListPolicy = new ListPolicy(ListOrder.ORDERED,
+        ListWriteFlags.ADD_UNIQUE | ListWriteFlags.NO_FAIL | ListWriteFlags.PARTIAL);
 
-	private static final String BinNameId = "id";
-	private static final String BinNameDigests = "keyds";
+    private static final String BinNameId = "id";
+    private static final String BinNameDigests = "keyds";
 
-	public static void addKey(Txn txn, Session session, Key cmdKey) {
-		txn.verifyCommand();
+    public static void addKey(Txn txn, Session session, Key cmdKey) {
+        txn.verifyCommand();
 
-		if (txn.getWrites().contains(cmdKey)) {
-			// Transaction monitor already contains this key.
-			return;
-		}
+        if (txn.getWrites().contains(cmdKey)) {
+            // Transaction monitor already contains this key.
+            return;
+        }
 
-		List<Operation> ops = getTranOps(txn, cmdKey);
-		addWriteKeys(txn, session, ops);
-	}
+        List<Operation> ops = getTranOps(txn, cmdKey);
+        addWriteKeys(txn, session, ops);
+    }
 
-	public static void addKeys(Txn txn, Session session, List<Key> keys) {
-		List<Operation> ops = getTranOps(txn, keys);
-		addWriteKeys(txn, session, ops);
-	}
+    public static void addKeys(Txn txn, Session session, List<Key> keys) {
+        List<Operation> ops = getTranOps(txn, keys);
+        addWriteKeys(txn, session, ops);
+    }
 
-	public static void addKeysBatchWrite(Txn txn, Session session, List<BatchRecord> records) {
-		List<Operation> ops = getTranOpsBatchWrite(txn, records);
-		addWriteKeys(txn, session, ops);
-	}
+    public static void addKeysBatchWrite(Txn txn, Session session, List<BatchRecord> records) {
+        List<Operation> ops = getTranOpsBatchWrite(txn, records);
+        addWriteKeys(txn, session, ops);
+    }
 
-	public static void addKeysBatchReadWrite(Txn txn, Session session, List<BatchRecord> records) {
-		List<Operation> ops = getTranOpsBatchReadWrite(txn, records);
+    public static void addKeysBatchReadWrite(Txn txn, Session session, List<BatchRecord> records) {
+        List<Operation> ops = getTranOpsBatchReadWrite(txn, records);
 
-		if (ops != null) {
-			addWriteKeys(txn, session, ops);
-		}
-	}
+        if (ops != null) {
+            addWriteKeys(txn, session, ops);
+        }
+    }
 
-	public static List<Operation> getTranOps(Txn txn, Key cmdKey) {
-		txn.setNamespace(cmdKey.namespace);
+    public static List<Operation> getTranOps(Txn txn, Key cmdKey) {
+        txn.setNamespace(cmdKey.namespace);
 
-		List<Operation> ops = new ArrayList<>(2);
+        List<Operation> ops = new ArrayList<>(2);
 
-		if (!txn.monitorExists()) {
-			ops.add(Operation.put(new Bin(BinNameId, txn.getId())));
-		}
-		ops.add(ListOperation.append(OrderedListPolicy, BinNameDigests, Value.get(cmdKey.digest)));
-		return ops;
-	}
+        if (!txn.monitorExists()) {
+            ops.add(Operation.put(new Bin(BinNameId, txn.getId())));
+        }
+        ops.add(ListOperation.append(OrderedListPolicy, BinNameDigests, Value.get(cmdKey.digest)));
+        return ops;
+    }
 
-	public static List<Operation> getTranOps(Txn txn, Key[] keys) {
-		txn.verifyCommand();
+    public static List<Operation> getTranOps(Txn txn, Key[] keys) {
+        txn.verifyCommand();
 
-		ArrayList<Value> list = new ArrayList<>(keys.length);
+        ArrayList<Value> list = new ArrayList<>(keys.length);
 
-		for (Key key : keys) {
-			txn.setNamespace(key.namespace);
-			list.add(Value.get(key.digest));
-		}
-		return getTranOps(txn, list);
-	}
+        for (Key key : keys) {
+            txn.setNamespace(key.namespace);
+            list.add(Value.get(key.digest));
+        }
+        return getTranOps(txn, list);
+    }
 
-	public static List<Operation> getTranOps(Txn txn, List<Key> keys) {
-		txn.verifyCommand();
+    public static List<Operation> getTranOps(Txn txn, List<Key> keys) {
+        txn.verifyCommand();
 
-		ArrayList<Value> list = new ArrayList<>(keys.size());
+        ArrayList<Value> list = new ArrayList<>(keys.size());
 
-		for (Key key : keys) {
-			txn.setNamespace(key.namespace);
-			list.add(Value.get(key.digest));
-		}
-		return getTranOps(txn, list);
-	}
+        for (Key key : keys) {
+            txn.setNamespace(key.namespace);
+            list.add(Value.get(key.digest));
+        }
+        return getTranOps(txn, list);
+    }
 
-	private static List<Operation> getTranOpsBatchWrite(Txn txn, List<BatchRecord> records) {
-		txn.verifyCommand();
+    private static List<Operation> getTranOpsBatchWrite(Txn txn, List<BatchRecord> records) {
+        txn.verifyCommand();
 
-		ArrayList<Value> list = new ArrayList<>(records.size());
+        ArrayList<Value> list = new ArrayList<>(records.size());
 
-		for (BatchRecord br : records) {
-			txn.setNamespace(br.key.namespace);
-			list.add(Value.get(br.key.digest));
-		}
-		return getTranOps(txn, list);
-	}
+        for (BatchRecord br : records) {
+            txn.setNamespace(br.key.namespace);
+            list.add(Value.get(br.key.digest));
+        }
+        return getTranOps(txn, list);
+    }
 
-	private static List<Operation> getTranOpsBatchReadWrite(Txn txn, List<BatchRecord> records) {
-		txn.verifyCommand();
+    private static List<Operation> getTranOpsBatchReadWrite(Txn txn, List<BatchRecord> records) {
+        txn.verifyCommand();
 
-		ArrayList<Value> list = new ArrayList<>(records.size());
+        ArrayList<Value> list = new ArrayList<>(records.size());
 
-		for (BatchRecord br : records) {
-			txn.setNamespace(br.key.namespace);
+        for (BatchRecord br : records) {
+            txn.setNamespace(br.key.namespace);
 
-			if (br.hasWrite) {
-				list.add(Value.get(br.key.digest));
-			}
-		}
+            if (br.hasWrite) {
+                list.add(Value.get(br.key.digest));
+            }
+        }
 
-		if (list.size() == 0) {
-			// Readonly batch does not need to add key digests.
-			return null;
-		}
-		return getTranOps(txn, list);
-	}
+        if (list.size() == 0) {
+            // Readonly batch does not need to add key digests.
+            return null;
+        }
+        return getTranOps(txn, list);
+    }
 
-	private static List<Operation> getTranOps(Txn txn, ArrayList<Value> list) {
-		List<Operation> ops = new ArrayList<>(2);
+    private static List<Operation> getTranOps(Txn txn, ArrayList<Value> list) {
+        List<Operation> ops = new ArrayList<>(2);
 
-		if (!txn.monitorExists()) {
-			ops.add(Operation.put(new Bin(BinNameId, txn.getId())));
-		}
-		ops.add(ListOperation.appendItems(OrderedListPolicy, BinNameDigests, list));
-		return ops;
-	}
+        if (!txn.monitorExists()) {
+            ops.add(Operation.put(new Bin(BinNameId, txn.getId())));
+        }
+        ops.add(ListOperation.appendItems(OrderedListPolicy, BinNameDigests, list));
+        return ops;
+    }
 
-	private static void addWriteKeys(Txn txn, Session session, List<Operation> ops) {
-		Key txnKey = getTxnMonitorKey(txn);
+    private static void addWriteKeys(Txn txn, Session session, List<Operation> ops) {
+        Key txnKey = getTxnMonitorKey(txn);
 
-		OperateArgs args = new OperateArgs(ops);
-		Cluster cluster = session.getCluster();
+        OperateArgs args = new OperateArgs(ops);
+        Cluster cluster = session.getCluster();
         Partitions partitions = cluster.getPartitionMap().get(txn.getNamespace());
 
         Settings settings = session.getBehavior().getSettings(OpKind.WRITE_NON_RETRYABLE,
-        	OpShape.POINT, partitions.scMode);
+            OpShape.POINT, partitions.scMode);
 
         OperateWriteCommand cmd = new OperateWriteCommand(cluster, partitions, txn, txnKey, ops,
-        	args, OpType.UPSERT, 0, txn.getTimeout(), null, false, settings
-			);
+            args, OpType.UPSERT, 0, txn.getTimeout(), null, false, settings
+            );
 
         SyncTxnAddKeysExecutor exec = new SyncTxnAddKeysExecutor(cluster, cmd);
-    	exec.execute();
-	}
+        exec.execute();
+    }
 
-	public static Key getTxnMonitorKey(Txn txn) {
-		return new Key(txn.getNamespace(), "<ERO~MRT", txn.getId());
-	}
+    public static Key getTxnMonitorKey(Txn txn) {
+        return new Key(txn.getNamespace(), "<ERO~MRT", txn.getId());
+    }
 }

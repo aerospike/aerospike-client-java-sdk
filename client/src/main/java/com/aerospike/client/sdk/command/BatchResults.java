@@ -20,21 +20,21 @@ package com.aerospike.client.sdk.command;
  * Batch record results.
  */
 public final class BatchResults {
-	/**
-	 * Record results.
-	 */
-	public final BatchRecord[] records;
+    /**
+     * Record results.
+     */
+    public final BatchRecord[] records;
 
-	/**
-	 * Indicates if all records returned success.
-	 */
-	public final boolean status;
+    /**
+     * Indicates if all records returned success.
+     */
+    public final boolean status;
 
-	/**
-	 * Constructor.
-	 */
-	public BatchResults(BatchRecord[] records, boolean status) {
-		this.records = records;
-		this.status = status;
-	}
+    /**
+     * Constructor.
+     */
+    public BatchResults(BatchRecord[] records, boolean status) {
+        this.records = records;
+        this.status = status;
+    }
 }

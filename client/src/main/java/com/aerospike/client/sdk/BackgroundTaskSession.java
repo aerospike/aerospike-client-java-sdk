@@ -67,7 +67,7 @@ package com.aerospike.client.sdk;
  */
 public class BackgroundTaskSession {
     private final Session session;
-    
+
     /**
      * Package-private constructor. Use {@link Session#backgroundTask()} to obtain instances.
      * 
@@ -76,7 +76,7 @@ public class BackgroundTaskSession {
     BackgroundTaskSession(Session session) {
         this.session = session;
     }
-    
+
     /**
      * Create background update operation for a dataset.
      * Updates only existing records that match the optional where clause.
@@ -101,7 +101,7 @@ public class BackgroundTaskSession {
     public BackgroundOperationBuilder update(DataSet dataset) {
         return new BackgroundOperationBuilder(session, dataset, OpType.UPDATE);
     }
-    
+
     /**
      * Create background delete operation for a dataset.
      * Deletes only existing records that match the optional where clause.
@@ -124,7 +124,7 @@ public class BackgroundTaskSession {
     public BackgroundOperationBuilder delete(DataSet dataset) {
         return new BackgroundOperationBuilder(session, dataset, OpType.DELETE);
     }
-    
+
     /**
      * Create background touch operation for a dataset.
      * Touches only existing records that match the optional where clause.

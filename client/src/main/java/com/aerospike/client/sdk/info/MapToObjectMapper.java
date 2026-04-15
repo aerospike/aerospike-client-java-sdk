@@ -327,23 +327,23 @@ public class MapToObjectMapper {
     @SuppressWarnings("unchecked")
     private static Object convertString(String value, Class<?> targetType) {
         if (targetType == String.class) {
-			return value;
-		}
+            return value;
+        }
         if (targetType == int.class || targetType == Integer.class) {
-			return Integer.parseInt(value);
-		}
+            return Integer.parseInt(value);
+        }
         if (targetType == long.class || targetType == Long.class) {
-			return Long.parseLong(value);
-		}
+            return Long.parseLong(value);
+        }
         if (targetType == float.class || targetType == Float.class) {
-			return Float.parseFloat(value);
-		}
+            return Float.parseFloat(value);
+        }
         if (targetType == double.class || targetType == Double.class) {
-			return Double.parseDouble(value);
-		}
+            return Double.parseDouble(value);
+        }
         if (targetType == boolean.class || targetType == Boolean.class) {
-			return Boolean.parseBoolean(value);
-		}
+            return Boolean.parseBoolean(value);
+        }
 
         if (targetType.isEnum()) {
             @SuppressWarnings("rawtypes")

@@ -25,65 +25,65 @@ import com.aerospike.client.sdk.Record;
  * Container object for key identifier and record data.
  */
 public final class KeyRecord {
-	/**
-	 * Unique identifier for record.
-	 */
-	public final Key key;
+    /**
+     * Unique identifier for record.
+     */
+    public final Key key;
 
-	/**
-	 * Record header and bin data.
-	 */
-	public final Record record;
+    /**
+     * Record header and bin data.
+     */
+    public final Record record;
 
-	/**
-	 * Initialize key and record.
-	 */
-	public KeyRecord(Key key, Record record) {
-		this.key = key;
-		this.record = record;
-	}
+    /**
+     * Initialize key and record.
+     */
+    public KeyRecord(Key key, Record record) {
+        this.key = key;
+        this.record = record;
+    }
 
-	/**
-	 * Hash lookup uses key and record.
-	 */
-	@Override
-	public int hashCode() {
-		return Objects.hash(key, record);
-	}
+    /**
+     * Hash lookup uses key and record.
+     */
+    @Override
+    public int hashCode() {
+        return Objects.hash(key, record);
+    }
 
-	/**
-	 * Equality uses key and record.
-	 */
-	@Override
-	public boolean equals(Object obj)
-	{
-		if (this == obj) {
-			return true;
-		}
-		if (!(obj instanceof KeyRecord)) {
-			return false;
-		}
-		KeyRecord that = (KeyRecord) obj;
-		return Objects.equals(key, that.key) &&
-				Objects.equals(record, that.record);
-	}
+    /**
+     * Equality uses key and record.
+     */
+    @Override
+    public boolean equals(Object obj)
+    {
+        if (this == obj) {
+            return true;
+        }
+        if (!(obj instanceof KeyRecord)) {
+            return false;
+        }
+        KeyRecord that = (KeyRecord) obj;
+        return Objects.equals(key, that.key) &&
+                Objects.equals(record, that.record);
+    }
 
-	/**
-	 * Convert key and record to string.
-	 */
-	@Override
-	public String toString() {
-		StringBuilder sb = new StringBuilder(1024);
+    /**
+     * Convert key and record to string.
+     */
+    @Override
+    public String toString() {
+        StringBuilder sb = new StringBuilder(1024);
 
-		if (key != null) {
-			sb.append(key.toString());
-		}
+        if (key != null) {
+            sb.append(key.toString());
+        }
 
-		sb.append(':');
+        sb.append(':');
 
-		if (record != null) {
-			sb.append(record.toString());
-		}
-		return sb.toString();
-	}
+        if (record != null) {
+            sb.append(record.toString());
+        }
+        return sb.toString();
+    }
 }

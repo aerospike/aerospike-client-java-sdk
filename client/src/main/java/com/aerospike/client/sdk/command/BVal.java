@@ -17,5 +17,5 @@
 package com.aerospike.client.sdk.command;
 
 public final class BVal {
-	public long val;
+    public long val;
 }

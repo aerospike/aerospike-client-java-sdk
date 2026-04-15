@@ -38,7 +38,7 @@ import com.aerospike.client.sdk.cdt.ListOrder;
 public interface CdtReadContextInvertableBuilder<T> extends CdtReadActionInvertableBuilder<T> {
     // Map index
     CdtReadContextBuilder<T> onMapIndex(int index);
-    
+
     // Map index range operations
     CdtReadActionInvertableBuilder<T> onMapIndexRange(int index, int count);
     CdtReadActionInvertableBuilder<T> onMapIndexRange(int index);
@@ -88,7 +88,7 @@ public interface CdtReadContextInvertableBuilder<T> extends CdtReadActionInverta
     CdtReadContextInvertableBuilder<T> onMapValue(List<?> value);
     CdtReadContextInvertableBuilder<T> onMapValue(Map<?,?> value);
     CdtReadContextInvertableBuilder<T> onMapValue(SpecialValue value);
-    
+
     // Map value range
     CdtReadActionInvertableBuilder<T> onMapValueRange(long startIncl, long endExcl);
     CdtReadActionInvertableBuilder<T> onMapValueRange(String startIncl, String endExcl);

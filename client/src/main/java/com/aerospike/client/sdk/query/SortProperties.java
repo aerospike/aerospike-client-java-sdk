@@ -60,7 +60,7 @@ package com.aerospike.client.sdk.query;
  * @param caseInsensitive true for case-insensitive string comparison, false for case-sensitive
  */
 public record SortProperties(String name, SortDir sortDir, boolean caseInsensitive) {
-    
+
     /**
      * Creates a compact canonical constructor that validates inputs.
      */
@@ -72,7 +72,7 @@ public record SortProperties(String name, SortDir sortDir, boolean caseInsensiti
             throw new IllegalArgumentException("Sort direction cannot be null");
         }
     }
-    
+
     /**
      * Creates a SortProperties for ascending sort with case-sensitive comparison.
      * 
@@ -82,7 +82,7 @@ public record SortProperties(String name, SortDir sortDir, boolean caseInsensiti
     public static SortProperties ascending(String name) {
         return new SortProperties(name, SortDir.SORT_ASC, false);
     }
-    
+
     /**
      * Creates a SortProperties for descending sort with case-sensitive comparison.
      * 
@@ -92,7 +92,7 @@ public record SortProperties(String name, SortDir sortDir, boolean caseInsensiti
     public static SortProperties descending(String name) {
         return new SortProperties(name, SortDir.SORT_DESC, false);
     }
-    
+
     /**
      * Creates a SortProperties for ascending sort with case-insensitive comparison.
      * 
@@ -104,7 +104,7 @@ public record SortProperties(String name, SortDir sortDir, boolean caseInsensiti
     public static SortProperties ascendingIgnoreCase(String name) {
         return new SortProperties(name, SortDir.SORT_ASC, true);
     }
-    
+
     /**
      * Creates a SortProperties for descending sort with case-insensitive comparison.
      * 
@@ -116,5 +116,5 @@ public record SortProperties(String name, SortDir sortDir, boolean caseInsensiti
     public static SortProperties descendingIgnoreCase(String name) {
         return new SortProperties(name, SortDir.SORT_DESC, true);
     }
-    
+
 }

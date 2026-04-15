@@ -451,17 +451,17 @@ public class QueryBuilder extends AbstractFilterableBuilder implements
         return this;
     }
 
-	/**
-	 * Add a filter condition using an Expression.
-	 *
-	 * <p>Note: If this method is used, no secondary index can be used. </p>
-	 *
-	 * <p>Only one filter condition can be specified per query. Multiple calls
-	 * to this method or {@link #where(String)} will throw an exception.</p>
-	 *
-	 * @param expression filter expression
-	 * @return
-	 */
+    /**
+     * Add a filter condition using an Expression.
+     *
+     * <p>Note: If this method is used, no secondary index can be used. </p>
+     *
+     * <p>Only one filter condition can be specified per query. Multiple calls
+     * to this method or {@link #where(String)} will throw an exception.</p>
+     *
+     * @param expression filter expression
+     * @return
+     */
     public QueryBuilder where(Expression expression) {
         setWhereClause(WhereClauseProcessor.from(expression));
         return this;
@@ -576,11 +576,11 @@ public class QueryBuilder extends AbstractFilterableBuilder implements
      * @return this QueryBuilder for method chaining
      */
     public QueryBuilder notInAnyTransaction() {
-    	if (transactionSet) {
+        if (transactionSet) {
             throw AerospikeException.resultCodeToException(ResultCode.PARAMETER_ERROR,
-            	"The transaction mode has already been set");
-    	}
-    	this.transactionSet = true;
+                "The transaction mode has already been set");
+        }
+        this.transactionSet = true;
         this.txnToUse = null;
         return this;
     }
@@ -602,11 +602,11 @@ public class QueryBuilder extends AbstractFilterableBuilder implements
      * @param txn - the transaction to use
      */
     public QueryBuilder inTransaction(Txn txn) {
-    	if (transactionSet) {
+        if (transactionSet) {
             throw AerospikeException.resultCodeToException(ResultCode.PARAMETER_ERROR,
-            	"The transaction mode has already been set");
-    	}
-    	this.transactionSet = true;
+                "The transaction mode has already been set");
+        }
+        this.transactionSet = true;
         this.txnToUse = txn;
         return this;
     }

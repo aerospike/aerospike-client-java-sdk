@@ -26,17 +26,17 @@ import com.aerospike.client.sdk.policy.Settings;
 import com.aerospike.client.sdk.tend.Partitions;
 
 public class UdfCommand extends WriteCommand {
-	final String packageName;
-	final String functionName;
-	final Value[] args;
+    final String packageName;
+    final String functionName;
+    final Value[] args;
 
-	public UdfCommand(
-		Cluster cluster, Partitions partitions, Txn txn, Key key, OperationSpec spec,
-		int ttl, Expression where, boolean failOnFilteredOut, Settings settings
-	) {
-		super(cluster, partitions, txn, key, OpType.UDF, 0, ttl, where, failOnFilteredOut, settings);
-		this.packageName = spec.getUdfPackageName();
-		this.functionName = spec.getUdfFunctionName();
-		this.args = (spec.getUdfArguments() != null)? spec.getUdfArguments() : new Value[0];
-	}
+    public UdfCommand(
+        Cluster cluster, Partitions partitions, Txn txn, Key key, OperationSpec spec,
+        int ttl, Expression where, boolean failOnFilteredOut, Settings settings
+    ) {
+        super(cluster, partitions, txn, key, OpType.UDF, 0, ttl, where, failOnFilteredOut, settings);
+        this.packageName = spec.getUdfPackageName();
+        this.functionName = spec.getUdfFunctionName();
+        this.args = (spec.getUdfArguments() != null)? spec.getUdfArguments() : new Value[0];
+    }
 }

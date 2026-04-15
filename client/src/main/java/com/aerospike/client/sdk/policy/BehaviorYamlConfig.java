@@ -266,28 +266,28 @@ public class BehaviorYamlConfig {
 
     // System - Transactions configuration
     public static class SystemTransactionsConfig {
-		private Boolean implicitBatchWriteTransactions;
+        private Boolean implicitBatchWriteTransactions;
         private Duration sleepBetweenAttempts;
         private Integer numberOfAttempts;
 
         public Boolean getImplicitBatchWriteTransactions() {
-			return implicitBatchWriteTransactions;
-		}
-		public void setImplicitBatchWriteTransactions(Boolean implicitBatchWriteTransactions) {
-			this.implicitBatchWriteTransactions = implicitBatchWriteTransactions;
-		}
-		public Duration getSleepBetweenAttempts() {
-			return sleepBetweenAttempts;
-		}
-		public void setSleepBetweenAttempts(Duration sleepBetweenAttempts) {
-			this.sleepBetweenAttempts = sleepBetweenAttempts;
-		}
-		public Integer getNumberOfAttempts() {
-			return numberOfAttempts;
-		}
-		public void setNumberOfAttempts(Integer numberOfAttempts) {
-			this.numberOfAttempts = numberOfAttempts;
-		}
+            return implicitBatchWriteTransactions;
+        }
+        public void setImplicitBatchWriteTransactions(Boolean implicitBatchWriteTransactions) {
+            this.implicitBatchWriteTransactions = implicitBatchWriteTransactions;
+        }
+        public Duration getSleepBetweenAttempts() {
+            return sleepBetweenAttempts;
+        }
+        public void setSleepBetweenAttempts(Duration sleepBetweenAttempts) {
+            this.sleepBetweenAttempts = sleepBetweenAttempts;
+        }
+        public Integer getNumberOfAttempts() {
+            return numberOfAttempts;
+        }
+        public void setNumberOfAttempts(Integer numberOfAttempts) {
+            this.numberOfAttempts = numberOfAttempts;
+        }
     }
 
     // System settings configuration (for cluster-level settings)

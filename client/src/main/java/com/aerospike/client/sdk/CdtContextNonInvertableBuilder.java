@@ -41,7 +41,7 @@ import com.aerospike.client.sdk.cdt.MapOrder;
 public interface CdtContextNonInvertableBuilder<T extends AbstractOperationBuilder<T>> extends CdtActionNonInvertableBuilder<T> {
     // Map index
     public CdtContextNonInvertableBuilder<T> onMapIndex(int index);
-    
+
     // Map index range operations
     public CdtActionInvertableBuilder<T> onMapIndexRange(int index, int count);
     public CdtActionInvertableBuilder<T> onMapIndexRange(int index);
@@ -94,7 +94,7 @@ public interface CdtContextNonInvertableBuilder<T extends AbstractOperationBuild
     public CdtContextInvertableBuilder<T> onMapValue(List<?> value);
     public CdtContextInvertableBuilder<T> onMapValue(Map<?,?> value);
     public CdtContextInvertableBuilder<T> onMapValue(SpecialValue value);
-    
+
     // Map value range
     public CdtActionInvertableBuilder<T> onMapValueRange(long startIncl, long endExcl);
     public CdtActionInvertableBuilder<T> onMapValueRange(String startIncl, String endExcl);

@@ -42,7 +42,7 @@ import com.aerospike.client.sdk.cdt.MapReturnType;
  */
 public class CdtReadOnlyBuilder<T> implements CdtReadContextBuilder<T>, 
                                                CdtReadContextInvertableBuilder<T> {
-    
+
     private final String binName;
     private final CdtOperationAcceptor<T> acceptor;
     private final CdtOperationParams params;
@@ -772,7 +772,7 @@ public class CdtReadOnlyBuilder<T> implements CdtReadContextBuilder<T>,
     private T getWithInverted(int mapReturnType, int listReturnType, String methodName) {
         int invertedMapType = mapReturnType | MapReturnType.INVERTED;
         int invertedListType = listReturnType >= 0 ? listReturnType | ListReturnType.INVERTED : -1;
-        
+
         switch (params.getOperation()) {
         case MAP_BY_INDEX:
         case MAP_BY_KEY:

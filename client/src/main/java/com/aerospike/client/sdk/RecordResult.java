@@ -31,27 +31,27 @@ public record RecordResult(Key key, Record recordOrNull, Object udfReturnValue, 
     public RecordResult(Key key, Record rec, int index) {
         this(key, rec, null, ResultCode.OK, null, false, null, index);
     }
-    
+
     public RecordResult(Key key, int resultCode, boolean inDoubt, String message, int index) {
         this(key, null, null, resultCode, null, inDoubt, message, index);
     }
-    
+
     public RecordResult(Key key, AerospikeException ae, int index) {
         this(key, null, null, ae.getResultCode(), ae, ae.getInDoubt(), ae.getMessage(), index);
     }
-    
+
     public RecordResult(KeyRecord keyRecord, int index) {
         this(keyRecord.key, keyRecord.record, null, ResultCode.OK, null, false, null, index);
     }
-    
+
     public RecordResult(BatchRecord batchRecord, int index) {
         this(batchRecord.key, batchRecord.record, null, batchRecord.resultCode, null, batchRecord.inDoubt, ResultCode.getResultString(batchRecord.resultCode), index);
     }
-    
+
     public RecordResult(BatchRecord batchRecord, AerospikeException ae, int index) {
         this(batchRecord.key, batchRecord.record, null, batchRecord.resultCode, ae, batchRecord.inDoubt, ResultCode.getResultString(batchRecord.resultCode), index);
     }
-    
+
     // Constructor with error handling based on stackTraceOnException flag
     public RecordResult(Key key, int resultCode, boolean inDoubt, String message, boolean stackTraceOnException, int index) {
         this(key, null, null, resultCode, 
@@ -59,7 +59,7 @@ public record RecordResult(Key key, Record recordOrNull, Object udfReturnValue, 
                  createExceptionWithCleanedStackTrace(resultCode, message, inDoubt) : null,
              inDoubt, message, index);
     }
-    
+
     // Constructor for BatchRecord with error handling
     public RecordResult(BatchRecord batchRecord, boolean stackTraceOnException, int index) {
         this(batchRecord.key, batchRecord.record, null, batchRecord.resultCode,
@@ -68,7 +68,7 @@ public record RecordResult(Key key, Record recordOrNull, Object udfReturnValue, 
                      ResultCode.getResultString(batchRecord.resultCode), batchRecord.inDoubt) : null,
              batchRecord.inDoubt, ResultCode.getResultString(batchRecord.resultCode), index);
     }
-    
+
     /**
      * Constructor for UDF results.
      * 
@@ -79,7 +79,7 @@ public record RecordResult(Key key, Record recordOrNull, Object udfReturnValue, 
     public RecordResult(Key key, Object udfReturnValue, int index) {
         this(key, null, udfReturnValue, ResultCode.OK, null, false, null, index);
     }
-    
+
     /**
      * Constructor for UDF results with error.
      * 
@@ -91,7 +91,7 @@ public record RecordResult(Key key, Record recordOrNull, Object udfReturnValue, 
     public RecordResult(Key key, Object udfReturnValue, AerospikeException ae, int index) {
         this(key, null, udfReturnValue, ae.getResultCode(), ae, ae.getInDoubt(), ae.getMessage(), index);
     }
-    
+
     // Helper method to create exception and clean stack trace
     private static AerospikeException createExceptionWithCleanedStackTrace(int resultCode, String message, boolean inDoubt) {
         AerospikeException ex = AerospikeException.resultCodeToException(resultCode, message, inDoubt);
@@ -115,7 +115,7 @@ public record RecordResult(Key key, Record recordOrNull, Object udfReturnValue, 
         }
         return ex;
     }
-    
+
     /**
      * Whether the operation completed with {@link ResultCode#OK}.
      *
@@ -124,7 +124,7 @@ public record RecordResult(Key key, Record recordOrNull, Object udfReturnValue, 
     public boolean isOk() {
         return this.resultCode == ResultCode.OK;
     }
-    
+
     /**
      * If this result contains an error, then throw the appropriate exception, otherwise return this object
      */
@@ -139,7 +139,7 @@ public record RecordResult(Key key, Record recordOrNull, Object udfReturnValue, 
         }
         return this;
     }
-    
+
     /**
      * Returns the record payload after {@link #orThrow()}.
      *
@@ -150,14 +150,14 @@ public record RecordResult(Key key, Record recordOrNull, Object udfReturnValue, 
         orThrow();
         return recordOrNull;
     }
-    
+
     /**
      * Returns true if this result contains a UDF return value.
      */
     public boolean hasUdfResult() {
         return udfReturnValue != null;
     }
-    
+
     /**
      * Returns the UDF return value converted to the specified type using a RecordMapper.
      * 
@@ -185,7 +185,7 @@ public record RecordResult(Key key, Record recordOrNull, Object udfReturnValue, 
         Map<String, Object> map = (Map<String, Object>) udfReturnValue;
         return mapper.fromMap(map, key, 0);
     }
-    
+
     /**
      * Returns the UDF return value, throwing if the operation was not successful.
      * 
@@ -196,7 +196,7 @@ public record RecordResult(Key key, Record recordOrNull, Object udfReturnValue, 
         orThrow();
         return udfReturnValue;
     }
-    
+
     /**
      * Interprets the result as a boolean, for example after an {@code exists} call.
      * {@link ResultCode#OK} maps to {@code true}, {@link ResultCode#KEY_NOT_FOUND_ERROR} to {@code false};

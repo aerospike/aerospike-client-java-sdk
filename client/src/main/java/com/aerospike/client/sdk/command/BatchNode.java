@@ -20,23 +20,23 @@ import com.aerospike.client.sdk.Node;
 
 public final class BatchNode {
 
-	public final Node node;
-	public int[] offsets;
-	public int offsetsSize;
+    public final Node node;
+    public int[] offsets;
+    public int offsetsSize;
 
-	public BatchNode(Node node, int capacity, int offset) {
-		this.node = node;
-		this.offsets = new int[capacity];
-		this.offsets[0] = offset;
-		this.offsetsSize = 1;
-	}
+    public BatchNode(Node node, int capacity, int offset) {
+        this.node = node;
+        this.offsets = new int[capacity];
+        this.offsets[0] = offset;
+        this.offsetsSize = 1;
+    }
 
-	public void addKey(int offset) {
-		if (offsetsSize >= offsets.length) {
-			int[] copy = new int[offsetsSize * 2];
-			System.arraycopy(offsets, 0, copy, 0, offsetsSize);
-			offsets = copy;
-		}
-		offsets[offsetsSize++] = offset;
-	}
+    public void addKey(int offset) {
+        if (offsetsSize >= offsets.length) {
+            int[] copy = new int[offsetsSize * 2];
+            System.arraycopy(offsets, 0, copy, 0, offsetsSize);
+            offsets = copy;
+        }
+        offsets[offsetsSize++] = offset;
+    }
 }

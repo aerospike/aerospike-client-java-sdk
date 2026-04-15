@@ -33,286 +33,286 @@ import com.aerospike.client.sdk.tend.Partitions;
 import com.aerospike.client.sdk.util.Util;
 
 public final class TxnRoll {
-	private final Cluster cluster;
-	private final Partitions partitions;
-	private final Txn txn;
-	private List<BatchRecord> verifyRecords;
-	private List<BatchRecord> rollRecords;
+    private final Cluster cluster;
+    private final Partitions partitions;
+    private final Txn txn;
+    private List<BatchRecord> verifyRecords;
+    private List<BatchRecord> rollRecords;
 
-	public TxnRoll(Cluster cluster, Txn txn) {
-		this.cluster = cluster;
-		this.txn = txn;
+    public TxnRoll(Cluster cluster, Txn txn) {
+        this.cluster = cluster;
+        this.txn = txn;
 
-		HashMap<String,Partitions> partitionMap = cluster.getPartitionMap();
+        HashMap<String,Partitions> partitionMap = cluster.getPartitionMap();
 
-		this.partitions = partitionMap.get(txn.getNamespace());
+        this.partitions = partitionMap.get(txn.getNamespace());
 
-		if (partitions == null) {
-			throw new AerospikeException.InvalidNamespace(txn.getNamespace(), partitionMap.size());
-		}
-	}
+        if (partitions == null) {
+            throw new AerospikeException.InvalidNamespace(txn.getNamespace(), partitionMap.size());
+        }
+    }
 
-	public void verify(Settings verifyPolicy, Settings rollPolicy) {
-		BatchCommand parent = null;
+    public void verify(Settings verifyPolicy, Settings rollPolicy) {
+        BatchCommand parent = null;
 
-		try {
-			// Verify read versions in a batch.
-			Set<Map.Entry<Key, Long>> reads = txn.getReads();
-			int max = reads.size();
+        try {
+            // Verify read versions in a batch.
+            Set<Map.Entry<Key, Long>> reads = txn.getReads();
+            int max = reads.size();
 
-			if (max == 0) {
-				return;
-			}
+            if (max == 0) {
+                return;
+            }
 
-			BatchAttr attr = new BatchAttr();
-	        attr.setRead(rollPolicy, partitions.scMode);
+            BatchAttr attr = new BatchAttr();
+            attr.setRead(rollPolicy, partitions.scMode);
 
-	        List<BatchRecord> records = new ArrayList<BatchRecord>(max);
-			Long[] versions = new Long[max];
-			int ttl = rollPolicy.getResetTtlOnReadAtPercent();
-			int count = 0;
+            List<BatchRecord> records = new ArrayList<BatchRecord>(max);
+            Long[] versions = new Long[max];
+            int ttl = rollPolicy.getResetTtlOnReadAtPercent();
+            int count = 0;
 
-	        for (Map.Entry<Key, Long> entry : reads) {
-				Key key = entry.getKey();
-				BatchRead rec = new BatchRead(key, null, attr, ttl, false);
+            for (Map.Entry<Key, Long> entry : reads) {
+                Key key = entry.getKey();
+                BatchRead rec = new BatchRead(key, null, attr, ttl, false);
 
-				records.add(rec);
-				versions[count++] = entry.getValue();
-	        }
+                records.add(rec);
+                versions[count++] = entry.getValue();
+            }
 
-			this.verifyRecords = records;
+            this.verifyRecords = records;
 
-			parent = new BatchCommand(cluster, partitions, txn, txn.getNamespace(),
-				records, null, false, false, attr.linearize, verifyPolicy);
+            parent = new BatchCommand(cluster, partitions, txn, txn.getNamespace(),
+                records, null, false, false, attr.linearize, verifyPolicy);
 
-			BatchStatus status = new BatchStatus();
+            BatchStatus status = new BatchStatus();
 
-	        List<BatchNode> bns = BatchNodes.generate(cluster, parent, records, status);
+            List<BatchNode> bns = BatchNodes.generate(cluster, parent, records, status);
 
-	        IBatchCommand[] commands = new IBatchCommand[bns.size()];
+            IBatchCommand[] commands = new IBatchCommand[bns.size()];
 
-			count = 0;
+            count = 0;
 
-			for (BatchNode bn : bns) {
-				if (bn.offsetsSize == 1) {
-					int i = bn.offsets[0];
-					commands[count++] = new BatchSingle.TxnVerify(cluster, parent, status,
-						records.get(i), bn.node, versions[i]);
-				}
-				else {
-					commands[count++] = new Batch.TxnVerify(cluster, parent, bn, status, versions);
-				}
-			}
+            for (BatchNode bn : bns) {
+                if (bn.offsetsSize == 1) {
+                    int i = bn.offsets[0];
+                    commands[count++] = new BatchSingle.TxnVerify(cluster, parent, status,
+                        records.get(i), bn.node, versions[i]);
+                }
+                else {
+                    commands[count++] = new Batch.TxnVerify(cluster, parent, bn, status, versions);
+                }
+            }
 
-			BatchExecutor.execute(cluster, commands, status);
+            BatchExecutor.execute(cluster, commands, status);
 
-			if (!status.getStatus()) {
-				throw new RuntimeException("Failed to verify one or more record versions");
-			}
-		}
-		catch (Throwable t) {
-			// Verify failed. Abort.
-			txn.setState(Txn.State.ABORTED);
+            if (!status.getStatus()) {
+                throw new RuntimeException("Failed to verify one or more record versions");
+            }
+        }
+        catch (Throwable t) {
+            // Verify failed. Abort.
+            txn.setState(Txn.State.ABORTED);
 
-			try {
-				roll(rollPolicy, Command.INFO4_TXN_ROLL_BACK);
-			}
-			catch (Throwable t2) {
-				// Throw combination of verify and roll exceptions.
-				t.addSuppressed(t2);
-				throw createCommitException(parent, CommitError.VERIFY_FAIL_ABORT_ABANDONED, t);
-			}
+            try {
+                roll(rollPolicy, Command.INFO4_TXN_ROLL_BACK);
+            }
+            catch (Throwable t2) {
+                // Throw combination of verify and roll exceptions.
+                t.addSuppressed(t2);
+                throw createCommitException(parent, CommitError.VERIFY_FAIL_ABORT_ABANDONED, t);
+            }
 
-			if (txn.closeMonitor()) {
-				try {
-					Key txnKey = TxnMonitor.getTxnMonitorKey(txn);
-					WriteCommand cmd = new WriteCommand(cluster, partitions, txnKey, rollPolicy);
-					close(cmd);
-				}
-				catch (Throwable t3) {
-					// Throw combination of verify and close exceptions.
-					t.addSuppressed(t3);
-					throw createCommitException(parent, CommitError.VERIFY_FAIL_CLOSE_ABANDONED, t);
-				}
-			}
+            if (txn.closeMonitor()) {
+                try {
+                    Key txnKey = TxnMonitor.getTxnMonitorKey(txn);
+                    WriteCommand cmd = new WriteCommand(cluster, partitions, txnKey, rollPolicy);
+                    close(cmd);
+                }
+                catch (Throwable t3) {
+                    // Throw combination of verify and close exceptions.
+                    t.addSuppressed(t3);
+                    throw createCommitException(parent, CommitError.VERIFY_FAIL_CLOSE_ABANDONED, t);
+                }
+            }
 
-			// Throw original exception when abort succeeds.
-			throw createCommitException(parent, CommitError.VERIFY_FAIL, t);
-		}
+            // Throw original exception when abort succeeds.
+            throw createCommitException(parent, CommitError.VERIFY_FAIL, t);
+        }
 
-		txn.setState(Txn.State.VERIFIED);
-	}
+        txn.setState(Txn.State.VERIFIED);
+    }
 
-	public CommitStatus commit(Settings rollPolicy) {
-		Key txnKey = TxnMonitor.getTxnMonitorKey(txn);
-		WriteCommand cmd = new WriteCommand(cluster, partitions, txnKey, rollPolicy);
+    public CommitStatus commit(Settings rollPolicy) {
+        Key txnKey = TxnMonitor.getTxnMonitorKey(txn);
+        WriteCommand cmd = new WriteCommand(cluster, partitions, txnKey, rollPolicy);
 
-		if (txn.monitorExists()) {
-			// Tell transaction monitor that a roll-forward will commence.
-			try {
-				markRollForward(cmd);
-			}
-			catch (AerospikeException ae) {
-				AerospikeException.Commit aec = createCommitException(cmd,
-					CommitError.MARK_ROLL_FORWARD_ABANDONED, ae);
+        if (txn.monitorExists()) {
+            // Tell transaction monitor that a roll-forward will commence.
+            try {
+                markRollForward(cmd);
+            }
+            catch (AerospikeException ae) {
+                AerospikeException.Commit aec = createCommitException(cmd,
+                    CommitError.MARK_ROLL_FORWARD_ABANDONED, ae);
 
-				if (ae.getResultCode() == ResultCode.MRT_ABORTED) {
-					aec.setInDoubt(false);
-					txn.setInDoubt(false);
-					txn.setState(Txn.State.ABORTED);
-				}
-				else if (txn.getInDoubt()) {
-					// The transaction was already inDoubt and just failed again,
-					// so the new exception should also be inDoubt.
-					aec.setInDoubt(true);
-				}
-				else if (ae.getInDoubt()){
-					// The current exception is inDoubt.
-					aec.setInDoubt(true);
-					txn.setInDoubt(true);
-				}
-				throw aec;
-			}
-			catch (Throwable t) {
-				AerospikeException.Commit aec = createCommitException(cmd,
-					CommitError.MARK_ROLL_FORWARD_ABANDONED, t);
+                if (ae.getResultCode() == ResultCode.MRT_ABORTED) {
+                    aec.setInDoubt(false);
+                    txn.setInDoubt(false);
+                    txn.setState(Txn.State.ABORTED);
+                }
+                else if (txn.getInDoubt()) {
+                    // The transaction was already inDoubt and just failed again,
+                    // so the new exception should also be inDoubt.
+                    aec.setInDoubt(true);
+                }
+                else if (ae.getInDoubt()){
+                    // The current exception is inDoubt.
+                    aec.setInDoubt(true);
+                    txn.setInDoubt(true);
+                }
+                throw aec;
+            }
+            catch (Throwable t) {
+                AerospikeException.Commit aec = createCommitException(cmd,
+                    CommitError.MARK_ROLL_FORWARD_ABANDONED, t);
 
-				if (txn.getInDoubt()) {
-					aec.setInDoubt(true);
-				}
-				throw aec;
-			}
-		}
+                if (txn.getInDoubt()) {
+                    aec.setInDoubt(true);
+                }
+                throw aec;
+            }
+        }
 
-		txn.setState(Txn.State.COMMITTED);
-		txn.setInDoubt(false);
+        txn.setState(Txn.State.COMMITTED);
+        txn.setInDoubt(false);
 
-		// Roll-forward writes in batch.
-		try {
-			roll(rollPolicy, Command.INFO4_TXN_ROLL_FORWARD);
-		}
-		catch (Throwable t) {
-			if (Log.warnEnabled()) {
-				Log.warn("Transaction roll-forward failed: " + Util.getErrorMessage(t));
-			}
-			return CommitStatus.ROLL_FORWARD_ABANDONED;
-		}
+        // Roll-forward writes in batch.
+        try {
+            roll(rollPolicy, Command.INFO4_TXN_ROLL_FORWARD);
+        }
+        catch (Throwable t) {
+            if (Log.warnEnabled()) {
+                Log.warn("Transaction roll-forward failed: " + Util.getErrorMessage(t));
+            }
+            return CommitStatus.ROLL_FORWARD_ABANDONED;
+        }
 
-		if (txn.closeMonitor()) {
-			// Remove transaction monitor.
-			try {
-				close(cmd);
-			}
-			catch (Throwable t) {
-				return CommitStatus.CLOSE_ABANDONED;
-			}
-		}
-		return CommitStatus.OK;
-	}
+        if (txn.closeMonitor()) {
+            // Remove transaction monitor.
+            try {
+                close(cmd);
+            }
+            catch (Throwable t) {
+                return CommitStatus.CLOSE_ABANDONED;
+            }
+        }
+        return CommitStatus.OK;
+    }
 
-	private AerospikeException.Commit createCommitException(
-		Command cmd, CommitError error, Throwable cause
-	) {
-		AerospikeException.Commit aec = new AerospikeException.Commit(error, verifyRecords, rollRecords, cause);
+    private AerospikeException.Commit createCommitException(
+        Command cmd, CommitError error, Throwable cause
+    ) {
+        AerospikeException.Commit aec = new AerospikeException.Commit(error, verifyRecords, rollRecords, cause);
 
-		if (cause instanceof AerospikeException) {
-			AerospikeException src = (AerospikeException)cause;
-			aec.setNode(src.getNode());
-			aec.setIteration(src.getIteration());
-			aec.setInDoubt(src.getInDoubt());
+        if (cause instanceof AerospikeException) {
+            AerospikeException src = (AerospikeException)cause;
+            aec.setNode(src.getNode());
+            aec.setIteration(src.getIteration());
+            aec.setInDoubt(src.getInDoubt());
 
-			if (cmd != null) {
-				aec.setCommand(cmd);
-			}
-		}
-		return aec;
-	}
+            if (cmd != null) {
+                aec.setCommand(cmd);
+            }
+        }
+        return aec;
+    }
 
-	public AbortStatus abort(Settings rollPolicy) {
-		txn.setState(Txn.State.ABORTED);
+    public AbortStatus abort(Settings rollPolicy) {
+        txn.setState(Txn.State.ABORTED);
 
-		try {
-			roll(rollPolicy, Command.INFO4_TXN_ROLL_BACK);
-		}
-		catch (Throwable t) {
-			return AbortStatus.ROLL_BACK_ABANDONED;
-		}
+        try {
+            roll(rollPolicy, Command.INFO4_TXN_ROLL_BACK);
+        }
+        catch (Throwable t) {
+            return AbortStatus.ROLL_BACK_ABANDONED;
+        }
 
-		if (txn.closeMonitor()) {
-			try {
-				Key txnKey = TxnMonitor.getTxnMonitorKey(txn);
-				WriteCommand cmd = new WriteCommand(cluster, partitions, txnKey, rollPolicy);
-				close(cmd);
-			}
-			catch (Throwable t) {
-				return AbortStatus.CLOSE_ABANDONED;
-			}
-		}
-		return AbortStatus.OK;
-	}
+        if (txn.closeMonitor()) {
+            try {
+                Key txnKey = TxnMonitor.getTxnMonitorKey(txn);
+                WriteCommand cmd = new WriteCommand(cluster, partitions, txnKey, rollPolicy);
+                close(cmd);
+            }
+            catch (Throwable t) {
+                return AbortStatus.CLOSE_ABANDONED;
+            }
+        }
+        return AbortStatus.OK;
+    }
 
-	private void markRollForward(WriteCommand cmd) {
-		// Tell transaction monitor that a roll-forward will commence.
-		TxnMarkRollForward mark = new TxnMarkRollForward(cluster, cmd);
-		mark.execute();
-	}
+    private void markRollForward(WriteCommand cmd) {
+        // Tell transaction monitor that a roll-forward will commence.
+        TxnMarkRollForward mark = new TxnMarkRollForward(cluster, cmd);
+        mark.execute();
+    }
 
-	private void roll(Settings rollPolicy, int txnAttr) {
-		Set<Key> keySet = txn.getWrites();
-		int max = keySet.size();
+    private void roll(Settings rollPolicy, int txnAttr) {
+        Set<Key> keySet = txn.getWrites();
+        int max = keySet.size();
 
-		if (max == 0) {
-			return;
-		}
+        if (max == 0) {
+            return;
+        }
 
-		BatchAttr attr = new BatchAttr();
-		attr.setTxn(txnAttr);
+        BatchAttr attr = new BatchAttr();
+        attr.setTxn(txnAttr);
 
         List<BatchRecord> records = new ArrayList<BatchRecord>(max);
 
         for (Key key : keySet) {
-			BatchRecord br = new BatchWrite(key, null, attr, OpType.UPDATE);
-			records.add(br);
+            BatchRecord br = new BatchWrite(key, null, attr, OpType.UPDATE);
+            records.add(br);
         }
 
-		this.rollRecords = records;
+        this.rollRecords = records;
 
         BatchCommand parent = new BatchCommand(cluster, partitions, txn, txn.getNamespace(),
             records, null, false, false, attr.linearize, rollPolicy);
 
         BatchStatus status = new BatchStatus();
 
-		List<BatchNode> bns = BatchNodes.generate(cluster, parent, records, status);
+        List<BatchNode> bns = BatchNodes.generate(cluster, parent, records, status);
 
-		IBatchCommand[] commands = new IBatchCommand[bns.size()];
-		int count = 0;
+        IBatchCommand[] commands = new IBatchCommand[bns.size()];
+        int count = 0;
 
-		for (BatchNode bn : bns) {
-			if (bn.offsetsSize == 1) {
-				int i = bn.offsets[0];
-				commands[count++] = new BatchSingle.TxnRoll(
-					cluster, parent, txn, records.get(i), status, bn.node, txnAttr);
-			}
-			else {
-				commands[count++] = new Batch.TxnRoll(
-					cluster, parent, bn, status, records);
-			}
-		}
+        for (BatchNode bn : bns) {
+            if (bn.offsetsSize == 1) {
+                int i = bn.offsets[0];
+                commands[count++] = new BatchSingle.TxnRoll(
+                    cluster, parent, txn, records.get(i), status, bn.node, txnAttr);
+            }
+            else {
+                commands[count++] = new Batch.TxnRoll(
+                    cluster, parent, bn, status, records);
+            }
+        }
 
-		BatchExecutor.execute(cluster, commands, status);
+        BatchExecutor.execute(cluster, commands, status);
 
-		if (!status.getStatus()) {
-			String rollString = txnAttr == Command.INFO4_TXN_ROLL_FORWARD? "commit" : "abort";
-			throw new RuntimeException("Failed to " + rollString + " one or more records");
-		}
-	}
+        if (!status.getStatus()) {
+            String rollString = txnAttr == Command.INFO4_TXN_ROLL_FORWARD? "commit" : "abort";
+            throw new RuntimeException("Failed to " + rollString + " one or more records");
+        }
+    }
 
-	private void close(WriteCommand cmd) {
-		// Delete transaction monitor on server.
-		TxnClose close = new TxnClose(cluster, cmd);
-		close.execute();
+    private void close(WriteCommand cmd) {
+        // Delete transaction monitor on server.
+        TxnClose close = new TxnClose(cluster, cmd);
+        close.execute();
 
-		// Clear transaction fields on client.
-		txn.clear();
-	}
+        // Clear transaction fields on client.
+        txn.clear();
+    }
 }

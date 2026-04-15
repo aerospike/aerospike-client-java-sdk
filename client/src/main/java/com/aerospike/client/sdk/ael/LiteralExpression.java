@@ -45,26 +45,26 @@ public class LiteralExpression implements AelExpression {
         }
         else {
             if (value instanceof String) {
-				return Exp.val((String)value);
-			}
+                return Exp.val((String)value);
+            }
             if (value instanceof Double) {
-				return Exp.val((Double)value);
-			}
+                return Exp.val((Double)value);
+            }
             if (value instanceof Float) {
-				return Exp.val((Float)value);
-			}
+                return Exp.val((Float)value);
+            }
             if (value instanceof Integer) {
-				return Exp.val((Integer)value);
-			}
+                return Exp.val((Integer)value);
+            }
             if (value instanceof Long) {
-				return Exp.val((Long)value);
-			}
+                return Exp.val((Long)value);
+            }
             if (value instanceof byte[]) {
-				return Exp.val((byte [])value);
-			}
+                return Exp.val((byte [])value);
+            }
             if (value instanceof Boolean) {
-				return Exp.val((Boolean)value);
-			}
+                return Exp.val((Boolean)value);
+            }
         }
         throw new IllegalStateException("Unexpected value hand side type in LiteralExpression: " + value.getClass());
 

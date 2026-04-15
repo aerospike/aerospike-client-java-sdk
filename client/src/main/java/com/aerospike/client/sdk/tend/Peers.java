@@ -25,47 +25,47 @@ import com.aerospike.client.sdk.Host;
 import com.aerospike.client.sdk.Node;
 
 public final class Peers {
-	public final ArrayList<Peer> peers;
-	public final HashMap<String,Node> nodes;
-	public final HashSet<Node> removeNodes;
-	private final HashSet<Host> invalidHosts;
-	public int refreshCount;
-	public boolean genChanged;
+    public final ArrayList<Peer> peers;
+    public final HashMap<String,Node> nodes;
+    public final HashSet<Node> removeNodes;
+    private final HashSet<Host> invalidHosts;
+    public int refreshCount;
+    public boolean genChanged;
 
-	public Peers(int peerCapacity) {
-		peers = new ArrayList<Peer>(peerCapacity);
-		nodes = new HashMap<String,Node>(16);
-		removeNodes = new HashSet<Node>(8);
-		invalidHosts = new HashSet<Host>(8);
-	}
+    public Peers(int peerCapacity) {
+        peers = new ArrayList<Peer>(peerCapacity);
+        nodes = new HashMap<String,Node>(16);
+        removeNodes = new HashSet<Node>(8);
+        invalidHosts = new HashSet<Host>(8);
+    }
 
-	public boolean hasFailed(Host host) {
-		return invalidHosts.contains(host);
-	}
+    public boolean hasFailed(Host host) {
+        return invalidHosts.contains(host);
+    }
 
-	public void fail(Host host) {
-		invalidHosts.add(host);
-	}
+    public void fail(Host host) {
+        invalidHosts.add(host);
+    }
 
-	public int getInvalidCount() {
-		return invalidHosts.size();
-	}
+    public int getInvalidCount() {
+        return invalidHosts.size();
+    }
 
-	public void clusterInitError() {
-		StringBuilder sb = new StringBuilder();
-		sb.append("Peers not reachable: ");
+    public void clusterInitError() {
+        StringBuilder sb = new StringBuilder();
+        sb.append("Peers not reachable: ");
 
-		boolean comma = false;
+        boolean comma = false;
 
-		for (Host host : invalidHosts) {
-			if (comma) {
-				sb.append(", ");
-			}
-			else {
-				comma = true;
-			}
-			sb.append(host);
-		}
-		throw new AerospikeException(sb.toString());
-	}
+        for (Host host : invalidHosts) {
+            if (comma) {
+                sb.append(", ");
+            }
+            else {
+                comma = true;
+            }
+            sb.append(host);
+        }
+        throw new AerospikeException(sb.toString());
+    }
 }

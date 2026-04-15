@@ -34,7 +34,7 @@ public abstract class AbstractFilterableBuilder {
     protected WhereClauseProcessor ael = null;
     protected boolean includeMissingKeys = false;
     protected boolean failOnFilteredOut = false;
-    
+
     /**
      * Set where clause, ensuring only one is specified.
      */
@@ -48,7 +48,7 @@ public abstract class AbstractFilterableBuilder {
                 .formatted(this.ael, clause));
         }
     }
-    
+
     /**
      * Process where clause and return Expression, or null if no clause exists.
      */
@@ -59,7 +59,7 @@ public abstract class AbstractFilterableBuilder {
         ParseResult parseResult = this.ael.process(namespace, session);
         return Exp.build(parseResult.getExp());
     }
-    
+
     /**
      * Determine if a result should be included based on result code and flags.
      */
@@ -70,7 +70,7 @@ public abstract class AbstractFilterableBuilder {
             default -> true;
         };
     }
-    
+
     /**
      * Determine if an exception result should be published (single-key context).
      */
@@ -80,7 +80,7 @@ public abstract class AbstractFilterableBuilder {
             default -> true;
         };
     }
-    
+
     /**
      * Create RecordResult from BatchRecord with proper stack trace handling.
      */
@@ -97,7 +97,7 @@ public abstract class AbstractFilterableBuilder {
             return new RecordResult(br, index);
         }
     }
-    
+
     /**
      * Create WhereClauseProcessor from AEL string.
      */

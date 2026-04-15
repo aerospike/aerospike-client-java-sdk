@@ -26,40 +26,40 @@ import com.aerospike.client.sdk.tend.Partition;
 import com.aerospike.client.sdk.tend.Partitions;
 
 public final class BatchCommand extends Command {
-	final List<BatchRecord> records;
-	final Partitions partitions;
-	final Replica replicaSC;
-	final boolean includeMissingKeys;
-	final boolean failOnFilteredOut;
+    final List<BatchRecord> records;
+    final Partitions partitions;
+    final Replica replicaSC;
+    final boolean includeMissingKeys;
+    final boolean failOnFilteredOut;
     final boolean inlineMemory;
     final boolean inlineSSD;
     final boolean linearize;
 
-	public BatchCommand(
-		Cluster cluster, Partitions partitions, Txn txn, String namespace,
-		List<BatchRecord> records, Expression where, boolean includeMissingKeys,
-		boolean failOnFilteredOut, boolean linearize, Settings settings
-	) {
-		super(cluster, namespace, txn, where, settings.getReplicaOrder(), settings);
-		this.records = records;
-		this.partitions = partitions;
-		this.replicaSC = Partition.getReplicaSC(settings.getReplicaOrder(), settings.getReadModeSC());
-		this.includeMissingKeys = includeMissingKeys;
-		this.failOnFilteredOut = failOnFilteredOut;
-		this.linearize = linearize;
-		this.inlineMemory = settings.getAllowInlineMemoryAccess();
-		this.inlineSSD = settings.getAllowInlineSsdAccess();
-	}
+    public BatchCommand(
+        Cluster cluster, Partitions partitions, Txn txn, String namespace,
+        List<BatchRecord> records, Expression where, boolean includeMissingKeys,
+        boolean failOnFilteredOut, boolean linearize, Settings settings
+    ) {
+        super(cluster, namespace, txn, where, settings.getReplicaOrder(), settings);
+        this.records = records;
+        this.partitions = partitions;
+        this.replicaSC = Partition.getReplicaSC(settings.getReplicaOrder(), settings.getReadModeSC());
+        this.includeMissingKeys = includeMissingKeys;
+        this.failOnFilteredOut = failOnFilteredOut;
+        this.linearize = linearize;
+        this.inlineMemory = settings.getAllowInlineMemoryAccess();
+        this.inlineSSD = settings.getAllowInlineSsdAccess();
+    }
 
-	public static boolean inDoubt(boolean isWrite, int commandSentCounter) {
-		return isWrite && commandSentCounter > 1;
-	}
+    public static boolean inDoubt(boolean isWrite, int commandSentCounter) {
+        return isWrite && commandSentCounter > 1;
+    }
 
-	public Partitions getPartitions() {
-		return partitions;
-	}
+    public Partitions getPartitions() {
+        return partitions;
+    }
 
-	public List<BatchRecord> getRecords() {
-		return records;
-	}
+    public List<BatchRecord> getRecords() {
+        return records;
+    }
 }

@@ -24,45 +24,45 @@ import com.aerospike.client.sdk.util.Packer;
  * Expression operations.
  */
 public final class ExpOperation {
-	/**
-	 * Create operation that performs an expression that writes to a record bin.
-	 * Requires server version 5.6.0+.
-	 *
-	 * @param binName	name of bin to store expression result
-	 * @param exp		expression to evaluate
-	 * @param flags		expression write flags.  See {@link com.aerospike.client.exp.ExpWriteFlags}
-	 */
-	public static Operation write(String binName, Expression exp, int flags) {
-		return createOperation(Operation.Type.EXP_MODIFY, binName, exp, flags);
-	}
+    /**
+     * Create operation that performs an expression that writes to a record bin.
+     * Requires server version 5.6.0+.
+     *
+     * @param binName   name of bin to store expression result
+     * @param exp       expression to evaluate
+     * @param flags     expression write flags.  See {@link com.aerospike.client.exp.ExpWriteFlags}
+     */
+    public static Operation write(String binName, Expression exp, int flags) {
+        return createOperation(Operation.Type.EXP_MODIFY, binName, exp, flags);
+    }
 
-	/**
-	 * Create operation that performs a read expression.
-	 * Requires server version 5.6.0+.
-	 *
-	 * @param name		variable name of read expression result. This name can be used as the
-	 * 					bin name when retrieving bin results from the record.
-	 * @param exp		expression to evaluate
-	 * @param flags		expression read flags.  See {@link com.aerospike.client.exp.ExpReadFlags}
-	 */
-	public static Operation read(String name, Expression exp, int flags) {
-		return createOperation(Operation.Type.EXP_READ, name, exp, flags);
-	}
+    /**
+     * Create operation that performs a read expression.
+     * Requires server version 5.6.0+.
+     *
+     * @param name      variable name of read expression result. This name can be used as the
+     *                  bin name when retrieving bin results from the record.
+     * @param exp       expression to evaluate
+     * @param flags     expression read flags.  See {@link com.aerospike.client.exp.ExpReadFlags}
+     */
+    public static Operation read(String name, Expression exp, int flags) {
+        return createOperation(Operation.Type.EXP_READ, name, exp, flags);
+    }
 
-	private static Operation createOperation(Operation.Type type, String name, Expression exp, int flags) {
-		byte[] b = exp.getBytes();
-		Packer packer = new Packer();
+    private static Operation createOperation(Operation.Type type, String name, Expression exp, int flags) {
+        byte[] b = exp.getBytes();
+        Packer packer = new Packer();
 
-		packer.packArrayBegin(2);
-		packer.packByteArray(b, 0, b.length);
-		packer.packInt(flags);
+        packer.packArrayBegin(2);
+        packer.packByteArray(b, 0, b.length);
+        packer.packInt(flags);
 
-		packer.createBuffer();
+        packer.createBuffer();
 
-		packer.packArrayBegin(2);
-		packer.packByteArray(b, 0, b.length);
-		packer.packInt(flags);
+        packer.packArrayBegin(2);
+        packer.packByteArray(b, 0, b.length);
+        packer.packInt(flags);
 
-		return new Operation(type, name, Value.get(packer.getBuffer()));
-	}
+        return new Operation(type, name, Value.get(packer.getBuffer()));
+    }
 }

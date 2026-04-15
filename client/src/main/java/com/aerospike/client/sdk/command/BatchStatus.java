@@ -23,63 +23,63 @@ import com.aerospike.client.sdk.AerospikeException;
 import com.aerospike.client.sdk.Key;
 
 public final class BatchStatus implements BatchNodes.IBatchStatus {
-	private final ReentrantLock lock;
-	private ArrayList<AerospikeException> subExceptions;
-	private AerospikeException exception;
-	private boolean error;
+    private final ReentrantLock lock;
+    private ArrayList<AerospikeException> subExceptions;
+    private AerospikeException exception;
+    private boolean error;
 
-	public BatchStatus() {
-		this.lock = new ReentrantLock();
-	}
+    public BatchStatus() {
+        this.lock = new ReentrantLock();
+    }
 
-	@Override
-	public void batchKeyError(Key key, int index, AerospikeException ae, boolean inDoubt, boolean hasWrite) {
-		// Only used in async commands with a sequence listener.
-	}
+    @Override
+    public void batchKeyError(Key key, int index, AerospikeException ae, boolean inDoubt, boolean hasWrite) {
+        // Only used in async commands with a sequence listener.
+    }
 
-	@Override
-	public void batchKeyError(AerospikeException e) {
-		error = true;
-	}
+    @Override
+    public void batchKeyError(AerospikeException e) {
+        error = true;
+    }
 
-	public void setRowError() {
-		// Indicate that a key specific error occurred.
-		error = true;
-	}
+    public void setRowError() {
+        // Indicate that a key specific error occurred.
+        error = true;
+    }
 
-	public void addSubException(AerospikeException ae) {
-		// Multiple sync batch node command threads can call this method concurrently, so must lock.
-		// Use ReentrantLock since it's more compatible with virtual threads than the synchronized
-		// keyword.
-		lock.lock();
+    public void addSubException(AerospikeException ae) {
+        // Multiple sync batch node command threads can call this method concurrently, so must lock.
+        // Use ReentrantLock since it's more compatible with virtual threads than the synchronized
+        // keyword.
+        lock.lock();
 
-		try {
-			if (subExceptions == null) {
-				subExceptions = new ArrayList<AerospikeException>();
-			}
-			subExceptions.add(ae);
-		}
-		finally {
-			lock.unlock();
-		}
-	}
+        try {
+            if (subExceptions == null) {
+                subExceptions = new ArrayList<AerospikeException>();
+            }
+            subExceptions.add(ae);
+        }
+        finally {
+            lock.unlock();
+        }
+    }
 
-	public boolean getStatus() {
-		return !error;
-	}
+    public boolean getStatus() {
+        return !error;
+    }
 
-	public void setException(AerospikeException ae) {
-		error = true;
+    public void setException(AerospikeException ae) {
+        error = true;
 
-		if (exception == null) {
-			exception = ae;
-		}
-	}
+        if (exception == null) {
+            exception = ae;
+        }
+    }
 
-	public void checkException() {
-		if (exception != null) {
-			exception.setSubExceptions(subExceptions);
-			throw exception;
-		}
-	}
+    public void checkException() {
+        if (exception != null) {
+            exception.setSubExceptions(subExceptions);
+            throw exception;
+        }
+    }
 }

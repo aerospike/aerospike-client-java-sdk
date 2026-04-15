@@ -22,146 +22,146 @@ import com.aerospike.client.sdk.policy.ReadModeAP;
 import com.aerospike.client.sdk.policy.Settings;
 
 public final class BatchAttr {
-	public byte readAttr;
-	public byte writeAttr;
-	public byte infoAttr;
-	public byte txnAttr;
-	public boolean hasWrite;
+    public byte readAttr;
+    public byte writeAttr;
+    public byte infoAttr;
+    public byte txnAttr;
+    public boolean hasWrite;
     public boolean linearize;
 
-	public void setRead(Settings settings, boolean scMode) {
-		readAttr = Command.INFO1_READ;
-		writeAttr = 0;
-		txnAttr = 0;
-		hasWrite = false;
+    public void setRead(Settings settings, boolean scMode) {
+        readAttr = Command.INFO1_READ;
+        writeAttr = 0;
+        txnAttr = 0;
+        hasWrite = false;
 
-		if (scMode) {
+        if (scMode) {
             switch (settings.getReadModeSC()) {
             case SESSION:
-        		infoAttr = 0;
-            	linearize = false;
+                infoAttr = 0;
+                linearize = false;
                 break;
 
             case LINEARIZE:
-    			infoAttr = Command.INFO3_SC_READ_TYPE;
+                infoAttr = Command.INFO3_SC_READ_TYPE;
                 linearize = true;
                 break;
 
-    		case ALLOW_REPLICA:
-            	infoAttr = (byte)Command.INFO3_SC_READ_RELAX;
-            	linearize = false;
-    			break;
+            case ALLOW_REPLICA:
+                infoAttr = (byte)Command.INFO3_SC_READ_RELAX;
+                linearize = false;
+                break;
 
-    		case ALLOW_UNAVAILABLE:
-    			infoAttr = (byte)(Command.INFO3_SC_READ_TYPE | Command.INFO3_SC_READ_RELAX);
-            	linearize = false;
-    			break;
+            case ALLOW_UNAVAILABLE:
+                infoAttr = (byte)(Command.INFO3_SC_READ_TYPE | Command.INFO3_SC_READ_RELAX);
+                linearize = false;
+                break;
             }
         }
         else {
-    		if (settings.getReadModeAP() == ReadModeAP.ALL) {
-    			readAttr |= Command.INFO1_READ_MODE_AP_ALL;
-    		}
-    		infoAttr = 0;
+            if (settings.getReadModeAP() == ReadModeAP.ALL) {
+                readAttr |= Command.INFO1_READ_MODE_AP_ALL;
+            }
+            infoAttr = 0;
             linearize = false;
         }
-	}
+    }
 
-	public void setWrite(Settings settings, OpType type) {
-		readAttr = 0;
-		writeAttr = (byte)(Command.INFO2_WRITE | Command.INFO2_RESPOND_ALL_OPS);
-		infoAttr = 0;
-		txnAttr = 0;
-		hasWrite = true;
+    public void setWrite(Settings settings, OpType type) {
+        readAttr = 0;
+        writeAttr = (byte)(Command.INFO2_WRITE | Command.INFO2_RESPOND_ALL_OPS);
+        infoAttr = 0;
+        txnAttr = 0;
+        hasWrite = true;
 
-		switch (type) {
-		case INSERT:
-			writeAttr |= Command.INFO2_CREATE_ONLY;
-			break;
+        switch (type) {
+        case INSERT:
+            writeAttr |= Command.INFO2_CREATE_ONLY;
+            break;
 
-		case UPDATE:
-			infoAttr |= Command.INFO3_UPDATE_ONLY;
-			break;
+        case UPDATE:
+            infoAttr |= Command.INFO3_UPDATE_ONLY;
+            break;
 
-		case REPLACE:
-			infoAttr |= Command.INFO3_CREATE_OR_REPLACE;
-			break;
+        case REPLACE:
+            infoAttr |= Command.INFO3_CREATE_OR_REPLACE;
+            break;
 
-		case REPLACE_IF_EXISTS:
-			infoAttr |= Command.INFO3_REPLACE_ONLY;
-			break;
+        case REPLACE_IF_EXISTS:
+            infoAttr |= Command.INFO3_REPLACE_ONLY;
+            break;
 
-		default:
-			break;
-		}
+        default:
+            break;
+        }
 
-		if (settings.getUseDurableDelete()) {
-			writeAttr |= Command.INFO2_DURABLE_DELETE;
-		}
+        if (settings.getUseDurableDelete()) {
+            writeAttr |= Command.INFO2_DURABLE_DELETE;
+        }
 
-		if (settings.getCommitLevel() == CommitLevel.COMMIT_MASTER) {
-			infoAttr |= Command.INFO3_COMMIT_MASTER;
-		}
-	}
+        if (settings.getCommitLevel() == CommitLevel.COMMIT_MASTER) {
+            infoAttr |= Command.INFO3_COMMIT_MASTER;
+        }
+    }
 
-	public void setUDF(Settings settings, OpType type) {
-		readAttr = 0;
-		writeAttr = Command.INFO2_WRITE;
-		infoAttr = 0;
-		txnAttr = 0;
-		hasWrite = true;
+    public void setUDF(Settings settings, OpType type) {
+        readAttr = 0;
+        writeAttr = Command.INFO2_WRITE;
+        infoAttr = 0;
+        txnAttr = 0;
+        hasWrite = true;
 
-		switch (type) {
-		case INSERT:
-			writeAttr |= Command.INFO2_CREATE_ONLY;
-			break;
+        switch (type) {
+        case INSERT:
+            writeAttr |= Command.INFO2_CREATE_ONLY;
+            break;
 
-		case UPDATE:
-			infoAttr |= Command.INFO3_UPDATE_ONLY;
-			break;
+        case UPDATE:
+            infoAttr |= Command.INFO3_UPDATE_ONLY;
+            break;
 
-		case REPLACE:
-			infoAttr |= Command.INFO3_CREATE_OR_REPLACE;
-			break;
+        case REPLACE:
+            infoAttr |= Command.INFO3_CREATE_OR_REPLACE;
+            break;
 
-		case REPLACE_IF_EXISTS:
-			infoAttr |= Command.INFO3_REPLACE_ONLY;
-			break;
+        case REPLACE_IF_EXISTS:
+            infoAttr |= Command.INFO3_REPLACE_ONLY;
+            break;
 
-		default:
-			break;
-		}
+        default:
+            break;
+        }
 
-		if (settings.getUseDurableDelete()) {
-			writeAttr |= Command.INFO2_DURABLE_DELETE;
-		}
+        if (settings.getUseDurableDelete()) {
+            writeAttr |= Command.INFO2_DURABLE_DELETE;
+        }
 
-		if (settings.getCommitLevel() == CommitLevel.COMMIT_MASTER) {
-			infoAttr |= Command.INFO3_COMMIT_MASTER;
-		}
-	}
+        if (settings.getCommitLevel() == CommitLevel.COMMIT_MASTER) {
+            infoAttr |= Command.INFO3_COMMIT_MASTER;
+        }
+    }
 
-	public void setDelete(Settings settings) {
-		readAttr = 0;
-		writeAttr = (byte)(Command.INFO2_WRITE | Command.INFO2_RESPOND_ALL_OPS | Command.INFO2_DELETE);
-		infoAttr = 0;
-		txnAttr = 0;
-		hasWrite = true;
+    public void setDelete(Settings settings) {
+        readAttr = 0;
+        writeAttr = (byte)(Command.INFO2_WRITE | Command.INFO2_RESPOND_ALL_OPS | Command.INFO2_DELETE);
+        infoAttr = 0;
+        txnAttr = 0;
+        hasWrite = true;
 
-		if (settings.getUseDurableDelete()) {
-			writeAttr |= Command.INFO2_DURABLE_DELETE;
-		}
+        if (settings.getUseDurableDelete()) {
+            writeAttr |= Command.INFO2_DURABLE_DELETE;
+        }
 
-		if (settings.getCommitLevel() == CommitLevel.COMMIT_MASTER) {
-			infoAttr |= Command.INFO3_COMMIT_MASTER;
-		}
-	}
+        if (settings.getCommitLevel() == CommitLevel.COMMIT_MASTER) {
+            infoAttr |= Command.INFO3_COMMIT_MASTER;
+        }
+    }
 
-	public void setTxn(int attr) {
-		readAttr = 0;
-		writeAttr = (byte)(Command.INFO2_WRITE | Command.INFO2_RESPOND_ALL_OPS | Command.INFO2_DURABLE_DELETE);
-		infoAttr = 0;
-		txnAttr = (byte)attr;
-		hasWrite = true;
-	}
+    public void setTxn(int attr) {
+        readAttr = 0;
+        writeAttr = (byte)(Command.INFO2_WRITE | Command.INFO2_RESPOND_ALL_OPS | Command.INFO2_DURABLE_DELETE);
+        infoAttr = 0;
+        txnAttr = (byte)attr;
+        hasWrite = true;
+    }
 }

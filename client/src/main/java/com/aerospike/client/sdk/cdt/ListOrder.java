@@ -20,23 +20,23 @@ package com.aerospike.client.sdk.cdt;
  * List storage order.
  */
 public enum ListOrder {
-	/**
-	 * List is not ordered.  This is the default.
-	 */
-	UNORDERED(0),
+    /**
+     * List is not ordered.  This is the default.
+     */
+    UNORDERED(0),
 
-	/**
-	 * List is ordered.
-	 */
-	ORDERED(1);
+    /**
+     * List is ordered.
+     */
+    ORDERED(1);
 
-	public final int attributes;
+    public final int attributes;
 
-	private ListOrder(int attributes) {
-		this.attributes = attributes;
-	}
+    private ListOrder(int attributes) {
+        this.attributes = attributes;
+    }
 
-	int getFlag(boolean pad) {
-		return (attributes == 1)? 0xc0 : pad ? 0x80 : 0x40;
-	}
+    int getFlag(boolean pad) {
+        return (attributes == 1)? 0xc0 : pad ? 0x80 : 0x40;
+    }
 }

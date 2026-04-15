@@ -2251,8 +2251,8 @@ public class CdtGetOrRemoveBuilder<T extends AbstractOperationBuilder<T>> extend
         boolean persist = false;
         if (opts != null) {
             if (opts.isAllowFailures()) {
-				flags |= MapWriteFlags.NO_FAIL;
-			}
+                flags |= MapWriteFlags.NO_FAIL;
+            }
             if (opts instanceof MapBulkWriteOptions && ((MapBulkWriteOptions) opts).isAllowPartial()) {
                 flags |= MapWriteFlags.PARTIAL;
             }
@@ -2263,8 +2263,8 @@ public class CdtGetOrRemoveBuilder<T extends AbstractOperationBuilder<T>> extend
 
     private MapEntryWriteOptions applyOptions(Consumer<MapEntryWriteOptions> options) {
         if (options == null) {
-			return null;
-		}
+            return null;
+        }
         MapEntryWriteOptions opts = new MapEntryWriteOptions();
         options.accept(opts);
         return opts;

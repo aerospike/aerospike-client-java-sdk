@@ -28,76 +28,76 @@ import com.aerospike.client.sdk.command.Info;
  * Parse rack-ids info command.
  */
 public final class RackParser extends Info {
-	static final String RebalanceGeneration = "rebalance-generation";
-	static final String RackIds = "rack-ids";
+    static final String RebalanceGeneration = "rebalance-generation";
+    static final String RackIds = "rack-ids";
 
-	private final HashMap<String,Integer> racks;
-	private final int generation;
+    private final HashMap<String,Integer> racks;
+    private final int generation;
 
-	public RackParser(Node node, Connection conn) {
-		// Send format: rebalance-generation\nrack-ids\n
-		super(node, conn, RebalanceGeneration, RackIds);
+    public RackParser(Node node, Connection conn) {
+        // Send format: rebalance-generation\nrack-ids\n
+        super(node, conn, RebalanceGeneration, RackIds);
 
-		if (length == 0) {
-			throw new AerospikeException.Parse("rack-ids response is empty");
-		}
+        if (length == 0) {
+            throw new AerospikeException.Parse("rack-ids response is empty");
+        }
 
-		this.racks = new HashMap<String,Integer>();
-		this.generation = parseGeneration();
-		parseRacks();
-	}
+        this.racks = new HashMap<String,Integer>();
+        this.generation = parseGeneration();
+        parseRacks();
+    }
 
-	public int getGeneration() {
-		return generation;
-	}
+    public int getGeneration() {
+        return generation;
+    }
 
-	public HashMap<String,Integer> getRacks() {
-		return racks;
-	}
+    public HashMap<String,Integer> getRacks() {
+        return racks;
+    }
 
-	private int parseGeneration() {
-		parseName(RebalanceGeneration);
-		int gen = parseInt();
-		expect('\n');
-		return gen;
-	}
+    private int parseGeneration() {
+        parseName(RebalanceGeneration);
+        int gen = parseInt();
+        expect('\n');
+        return gen;
+    }
 
-	private void parseRacks() {
-		// Use low-level info methods and parse byte array directly for maximum performance.
-		// Receive format: rack-ids\t<ns1>:<rack1>;<ns2>:<rack2>...\n
-		parseName(RackIds);
+    private void parseRacks() {
+        // Use low-level info methods and parse byte array directly for maximum performance.
+        // Receive format: rack-ids\t<ns1>:<rack1>;<ns2>:<rack2>...\n
+        parseName(RackIds);
 
-		int begin = offset;
+        int begin = offset;
 
-		while (offset < length) {
-			if (buffer[offset] == ':') {
-				// Parse namespace.
-				String namespace = Buffer.utf8ToString(buffer, begin, offset - begin).trim();
+        while (offset < length) {
+            if (buffer[offset] == ':') {
+                // Parse namespace.
+                String namespace = Buffer.utf8ToString(buffer, begin, offset - begin).trim();
 
-				if (namespace.length() <= 0 || namespace.length() >= 32) {
-					String response = getTruncatedResponse();
-					throw new AerospikeException.Parse("Invalid racks namespace " +
-						namespace + ". Response=" + response);
-				}
-				begin = ++offset;
+                if (namespace.length() <= 0 || namespace.length() >= 32) {
+                    String response = getTruncatedResponse();
+                    throw new AerospikeException.Parse("Invalid racks namespace " +
+                        namespace + ". Response=" + response);
+                }
+                begin = ++offset;
 
-				// Parse rack.
-				while (offset < length) {
-					byte b = buffer[offset];
+                // Parse rack.
+                while (offset < length) {
+                    byte b = buffer[offset];
 
-					if (b == ';' || b == '\n') {
-						break;
-					}
-					offset++;
-				}
-				int rack = Integer.parseInt(new String(buffer, begin, offset - begin));
+                    if (b == ';' || b == '\n') {
+                        break;
+                    }
+                    offset++;
+                }
+                int rack = Integer.parseInt(new String(buffer, begin, offset - begin));
 
-				racks.put(namespace, rack);
-				begin = ++offset;
-			}
-			else {
-				offset++;
-			}
-		}
-	}
+                racks.put(namespace, rack);
+                begin = ++offset;
+            }
+            else {
+                offset++;
+            }
+        }
+    }
 }

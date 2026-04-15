@@ -31,7 +31,7 @@ public interface KeyBasedQueryBuilderInterface<T extends KeyBasedQueryBuilderInt
      * @return this QueryBuilder for method chaining
      */
     T failOnFilteredOut();
-    
+
     /**
      * By default, if a key is provided (or is part of a list of keys) but the key does not map to a record
      * then nothing will be returned in the stream against that key. However, if this flag is specified, {@code null} will be

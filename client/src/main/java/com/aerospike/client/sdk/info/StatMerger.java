@@ -43,8 +43,8 @@ public class StatMerger {
      */
     public static <T> T merge(List<T> statsList) throws Exception {
         if (statsList == null || statsList.isEmpty()) {
-			return null;
-		}
+            return null;
+        }
 
         // Find the first non-null element to use as the base class
         T firstNonNull = null;
@@ -61,15 +61,15 @@ public class StatMerger {
 
         Class<?> clazz = firstNonNull.getClass();
         @SuppressWarnings("unchecked")
-		T result = (T) clazz.getDeclaredConstructor().newInstance();
+        T result = (T) clazz.getDeclaredConstructor().newInstance();
 
         for (Field field : getCachedFields(clazz)) {
             List<Object> values = new ArrayList<>();
             for (T stat : statsList) {
                 Object val = field.get(stat);
                 if (val != null) {
-					values.add(val);
-				}
+                    values.add(val);
+                }
             }
 
             Object merged = mergeField(field, values);
@@ -104,10 +104,10 @@ public class StatMerger {
      * Merges a single field based on its annotation.
      */
     @SuppressWarnings("unchecked")
-	private static Object mergeField(Field field, List<Object> values) throws Exception {
+    private static Object mergeField(Field field, List<Object> values) throws Exception {
         if (values.isEmpty()) {
-			return null;
-		}
+            return null;
+        }
 
         if (field.isAnnotationPresent(Aggregate.class)) {
             return mergeAggregate(values, field.getType());
@@ -187,8 +187,8 @@ public class StatMerger {
 
     private static <T> List<T> mergeLists(List<List<T>> lists) throws Exception {
         if (lists == null || lists.isEmpty()) {
-			return List.of();
-		}
+            return List.of();
+        }
 
         // Find the maximum length of any inner list
         int maxLength = lists.stream()

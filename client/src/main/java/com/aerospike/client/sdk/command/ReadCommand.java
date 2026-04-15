@@ -33,7 +33,7 @@ public class ReadCommand extends Command {
     final String[] binNames;
     final int readTouchTtlPercent;
     final boolean withNoBins;
-	final boolean failOnFilteredOut;
+    final boolean failOnFilteredOut;
     final boolean linearize;
 
     public ReadCommand(

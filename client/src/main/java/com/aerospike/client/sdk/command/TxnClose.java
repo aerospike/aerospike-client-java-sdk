@@ -25,58 +25,58 @@ import com.aerospike.client.sdk.ResultCode;
 import com.aerospike.client.sdk.metrics.LatencyType;
 
 public final class TxnClose extends SyncExecutor {
-	private final WriteCommand write;
+    private final WriteCommand write;
 
-	public TxnClose(Cluster cluster, WriteCommand cmd) {
-		super(cluster, cmd);
-		this.write = cmd;
-	}
+    public TxnClose(Cluster cluster, WriteCommand cmd) {
+        super(cluster, cmd);
+        this.write = cmd;
+    }
 
-	@Override
-	protected final boolean isWrite() {
-		return true;
-	}
+    @Override
+    protected final boolean isWrite() {
+        return true;
+    }
 
-	@Override
-	protected final Node getNode() {
-		return write.partition.getNodeWrite(cluster);
-	}
+    @Override
+    protected final Node getNode() {
+        return write.partition.getNodeWrite(cluster);
+    }
 
-	@Override
-	protected final LatencyType getLatencyType() {
-		return LatencyType.WRITE;
-	}
+    @Override
+    protected final LatencyType getLatencyType() {
+        return LatencyType.WRITE;
+    }
 
-	@Override
-	protected CommandBuffer getCommandBuffer() {
-		CommandBuffer cb = new CommandBuffer();
-		cb.setTxnClose(write);
-		return cb;
-	}
+    @Override
+    protected CommandBuffer getCommandBuffer() {
+        CommandBuffer cb = new CommandBuffer();
+        cb.setTxnClose(write);
+        return cb;
+    }
 
-	@Override
-	protected void parseResult(Node node, Connection conn, byte[] buffer) throws IOException {
-		RecordParser rp = new RecordParser(conn, buffer);
-		rp.skipFields();
+    @Override
+    protected void parseResult(Node node, Connection conn, byte[] buffer) throws IOException {
+        RecordParser rp = new RecordParser(conn, buffer);
+        rp.skipFields();
 
-		if (node.isMetricsEnabled()) {
-			node.addBytesIn(cmd.namespace, rp.bytesIn);
-		}
+        if (node.isMetricsEnabled()) {
+            node.addBytesIn(cmd.namespace, rp.bytesIn);
+        }
 
-		if (rp.resultCode == ResultCode.OK || rp.resultCode == ResultCode.KEY_NOT_FOUND_ERROR) {
-			return;
-		}
+        if (rp.resultCode == ResultCode.OK || rp.resultCode == ResultCode.KEY_NOT_FOUND_ERROR) {
+            return;
+        }
 
-		throw AerospikeException.resultCodeToException(rp.resultCode, null);
-	}
+        throw AerospikeException.resultCodeToException(rp.resultCode, null);
+    }
 
-	@Override
-	protected final boolean prepareRetry(boolean timeout) {
-		write.partition.prepareRetryWrite(timeout);
-		return true;
-	}
+    @Override
+    protected final boolean prepareRetry(boolean timeout) {
+        write.partition.prepareRetryWrite(timeout);
+        return true;
+    }
 
-	@Override
-	protected void onInDoubt() {
-	}
+    @Override
+    protected void onInDoubt() {
+    }
 }

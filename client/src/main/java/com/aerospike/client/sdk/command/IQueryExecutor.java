@@ -17,6 +17,6 @@
 package com.aerospike.client.sdk.command;
 
 public interface IQueryExecutor {
-	void stopThreads(Throwable cause);
-	void checkForException();
+    void stopThreads(Throwable cause);
+    void checkForException();
 }

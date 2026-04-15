@@ -21,58 +21,58 @@ import com.aerospike.client.sdk.OperationSpec;
 import com.aerospike.client.sdk.exp.Expression;
 
 public final class BatchDelete extends BatchRecord {
-	public final int gen;
+    public final int gen;
 
-	public BatchDelete(Key key, Expression where, BatchAttr attr, int gen) {
-		super(key, where, attr);
-		this.gen = gen;
+    public BatchDelete(Key key, Expression where, BatchAttr attr, int gen) {
+        super(key, where, attr);
+        this.gen = gen;
 
-		if (gen > 0) {
-			writeAttr |= Command.INFO2_GENERATION;
-		}
-	}
+        if (gen > 0) {
+            writeAttr |= Command.INFO2_GENERATION;
+        }
+    }
 
-	public BatchDelete(Key key, BatchAttr attr, OperationSpec spec) {
-		super(key, spec.getWhereClause(), attr);
-		this.gen = (short)spec.getGeneration();
+    public BatchDelete(Key key, BatchAttr attr, OperationSpec spec) {
+        super(key, spec.getWhereClause(), attr);
+        this.gen = (short)spec.getGeneration();
 
-		if (gen > 0) {
-			writeAttr |= Command.INFO2_GENERATION;
-		}
-	}
+        if (gen > 0) {
+            writeAttr |= Command.INFO2_GENERATION;
+        }
+    }
 
-	@Override
-	public Type getType() {
-		return Type.BATCH_DELETE;
-	}
+    @Override
+    public Type getType() {
+        return Type.BATCH_DELETE;
+    }
 
-	@Override
-	public boolean equals(BatchRecord obj) {
-		if (getClass() != obj.getClass()) {
-			return false;
-		}
+    @Override
+    public boolean equals(BatchRecord obj) {
+        if (getClass() != obj.getClass()) {
+            return false;
+        }
 
-		BatchDelete other = (BatchDelete)obj;
+        BatchDelete other = (BatchDelete)obj;
 
-		if (where != other.where) {
-			return false;
-		}
+        if (where != other.where) {
+            return false;
+        }
 
-		return gen == other.gen;
-	}
+        return gen == other.gen;
+    }
 
-	@Override
-	public int size(Command cmd) {
-		int size = 2; // gen(2) = 2
+    @Override
+    public int size(Command cmd) {
+        int size = 2; // gen(2) = 2
 
-		if (cmd.sendKey) {
-			size += key.userKey.estimateSize() + Command.FIELD_HEADER_SIZE + 1;
-		}
+        if (cmd.sendKey) {
+            size += key.userKey.estimateSize() + Command.FIELD_HEADER_SIZE + 1;
+        }
 
-		if (where != null) {
-			size += where.getBytes().length + Command.FIELD_HEADER_SIZE;
-		}
+        if (where != null) {
+            size += where.getBytes().length + Command.FIELD_HEADER_SIZE;
+        }
 
-		return size;
-	}
+        return size;
+    }
 }

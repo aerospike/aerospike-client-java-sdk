@@ -291,11 +291,11 @@ public abstract class AbstractSessionOperationBuilder<T extends AbstractSessionO
      * transaction exists on the underlying session
      */
     public T notInAnyTransaction() {
-    	if (transactionSet) {
+        if (transactionSet) {
             throw AerospikeException.resultCodeToException(ResultCode.PARAMETER_ERROR,
-            	"The transaction mode has already been set");
-    	}
-    	this.transactionSet = true;
+                "The transaction mode has already been set");
+        }
+        this.transactionSet = true;
         this.notInAnyTransaction = true;
         this.txnToUse = null;
         return self();
@@ -307,11 +307,11 @@ public abstract class AbstractSessionOperationBuilder<T extends AbstractSessionO
      * @param txn - the transaction to use
      */
     public T inTransaction(Txn txn) {
-    	if (transactionSet) {
+        if (transactionSet) {
             throw AerospikeException.resultCodeToException(ResultCode.PARAMETER_ERROR,
-            	"The transaction mode has already been set");
-    	}
-    	this.transactionSet = true;
+                "The transaction mode has already been set");
+        }
+        this.transactionSet = true;
         this.txnToUse = txn;
         this.notInAnyTransaction = false;
         return self();

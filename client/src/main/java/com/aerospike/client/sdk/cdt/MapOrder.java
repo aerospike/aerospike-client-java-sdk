@@ -20,26 +20,26 @@ package com.aerospike.client.sdk.cdt;
  * Map storage order.
  */
 public enum MapOrder {
-	/**
-	 * Map is not ordered.  This is the default.
-	 */
-	UNORDERED(0, 0x40),
+    /**
+     * Map is not ordered.  This is the default.
+     */
+    UNORDERED(0, 0x40),
 
-	/**
-	 * Order map by key.
-	 */
-	KEY_ORDERED(1, 0x80),
+    /**
+     * Order map by key.
+     */
+    KEY_ORDERED(1, 0x80),
 
-	/**
-	 * Order map by key, then value.
-	 */
-	KEY_VALUE_ORDERED(3, 0xc0);
+    /**
+     * Order map by key, then value.
+     */
+    KEY_VALUE_ORDERED(3, 0xc0);
 
-	public final int attributes;
-	public final int flag;
+    public final int attributes;
+    public final int flag;
 
-	private MapOrder(int attributes, int flag) {
-		this.attributes = attributes;
-		this.flag = flag;
-	}
+    private MapOrder(int attributes, int flag) {
+        this.attributes = attributes;
+        this.flag = flag;
+    }
 }

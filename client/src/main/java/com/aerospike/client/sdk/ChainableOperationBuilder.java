@@ -964,7 +964,7 @@ public class ChainableOperationBuilder extends AbstractOperationBuilder<Chainabl
         }
 
         return OperationSpecExecutor.execute(session, operationSpecs, defaultWhereClause,
-        	defaultExpirationInSeconds, txnToUse, notInAnyTransaction, disposition);
+            defaultExpirationInSeconds, txnToUse, notInAnyTransaction, disposition);
     }
 
     /**
@@ -1016,7 +1016,7 @@ public class ChainableOperationBuilder extends AbstractOperationBuilder<Chainabl
         cluster.startVirtualThread(() -> {
             try {
                 RecordStream syncResult = OperationSpecExecutor.execute(session, operationSpecs,
-                	defaultWhereClause, defaultExpirationInSeconds, txnToUse, notInAnyTransaction);
+                    defaultWhereClause, defaultExpirationInSeconds, txnToUse, notInAnyTransaction);
                 syncResult.forEach(result -> dispatchResult(result, asyncStream, errorHandler));
             } finally {
                 asyncStream.complete();
@@ -1108,7 +1108,7 @@ public class ChainableOperationBuilder extends AbstractOperationBuilder<Chainabl
 
         @Override
         public boolean getNotInAnyTransaction() {
-        	return notInAnyTransaction;
+            return notInAnyTransaction;
         }
 
         @Override

@@ -24,31 +24,31 @@ package com.aerospike.client.sdk.operation;
  * }</pre>
  */
 public final class BitWriteFlags {
-	/**
-	 * Default.  Allow create or update.
-	 */
-	public static final int DEFAULT = 0;
+    /**
+     * Default.  Allow create or update.
+     */
+    public static final int DEFAULT = 0;
 
-	/**
-	 * If the bin already exists, the operation will be denied.
-	 * If the bin does not exist, a new bin will be created.
-	 */
-	public static final int CREATE_ONLY = 1;
+    /**
+     * If the bin already exists, the operation will be denied.
+     * If the bin does not exist, a new bin will be created.
+     */
+    public static final int CREATE_ONLY = 1;
 
-	/**
-	 * If the bin already exists, the bin will be overwritten.
-	 * If the bin does not exist, the operation will be denied.
-	 */
-	public static final int UPDATE_ONLY = 2;
+    /**
+     * If the bin already exists, the bin will be overwritten.
+     * If the bin does not exist, the operation will be denied.
+     */
+    public static final int UPDATE_ONLY = 2;
 
-	/**
-	 * Do not raise error if operation is denied.
-	 */
-	public static final int NO_FAIL = 4;
+    /**
+     * Do not raise error if operation is denied.
+     */
+    public static final int NO_FAIL = 4;
 
-	/**
-	 * Allow other valid operations to be committed if this operations is
-	 * denied due to flag constraints.
-	 */
-	public static final int PARTIAL = 8;
+    /**
+     * Allow other valid operations to be committed if this operations is
+     * denied due to flag constraints.
+     */
+    public static final int PARTIAL = 8;
 }

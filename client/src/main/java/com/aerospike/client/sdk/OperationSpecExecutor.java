@@ -97,7 +97,7 @@ class OperationSpecExecutor {
         long defaultExpirationInSeconds, Txn txn, boolean notInAnyTransaction
     ) {
         return execute(session, specs, defaultWhereClause, defaultExpirationInSeconds, txn,
-    		notInAnyTransaction, ErrorDisposition.IN_STREAM);
+            notInAnyTransaction, ErrorDisposition.IN_STREAM);
     }
 
     /**
@@ -141,7 +141,7 @@ class OperationSpecExecutor {
         // TODO: Put in hashmap
         BatchAttr attr = new BatchAttr();
         BatchStatus status = new BatchStatus();
-		AerospikeException except = null;
+        AerospikeException except = null;
         boolean includeMissingKeys = false;
         boolean failOnFilteredOut = false;
         Mode mode = Mode.AP;
@@ -151,33 +151,33 @@ class OperationSpecExecutor {
         for (OperationSpec spec : specs) {
             // Set isIncludeMissingKeys if any spec has isIncludeMissingKeys.
             if (spec.isIncludeMissingKeys()) {
-            	includeMissingKeys = true;
+                includeMissingKeys = true;
             }
 
             if (spec.isFailOnFilteredOut()) {
-            	failOnFilteredOut = true;
+                failOnFilteredOut = true;
             }
 
-    		// Create BatchRecord(s) for each key in this spec
+            // Create BatchRecord(s) for each key in this spec
             for (Key key : spec.getKeys()) {
-            	Partitions partitions;
+                Partitions partitions;
 
-            	try {
+                try {
                     partitions = cluster.getPartitions(key.namespace);
-            	}
-            	catch (AerospikeException ae) {
-            		// Create record and set to error state.
-            		BatchRecord rec = new BatchRecord(key, false);
-            		rec.setError(ae.getResultCode(), false);
+                }
+                catch (AerospikeException ae) {
+                    // Create record and set to error state.
+                    BatchRecord rec = new BatchRecord(key, false);
+                    rec.setError(ae.getResultCode(), false);
                     records.add(rec);
 
                     if (except == null) {
-        				except = ae;
-        			}
+                        except = ae;
+                    }
                     continue;
-            	}
+                }
 
-            	boolean scMode = partitions.scMode;
+                boolean scMode = partitions.scMode;
                 BatchRecord rec;
 
                 if (spec.isQuery()) {
@@ -188,7 +188,7 @@ class OperationSpecExecutor {
                     attr.setRead(settings, scMode);
 
                     if (attr.linearize) {
-                    	linearize = true;
+                        linearize = true;
                     }
 
                     List<Operation> ops = spec.getOperations();
@@ -217,7 +217,7 @@ class OperationSpecExecutor {
                     attr.setRead(settings, scMode);
 
                     if (attr.linearize) {
-                    	linearize = true;
+                        linearize = true;
                     }
 
                     rec = new BatchRead(key, spec.getWhereClause(), attr, ttl, false);
@@ -232,17 +232,17 @@ class OperationSpecExecutor {
                     case INSERT:
                     case REPLACE:
                     case REPLACE_IF_EXISTS:
-                    	attr.setWrite(settings, spec.getOpType());
-                    	rec = new BatchWrite(key, attr, spec);
+                        attr.setWrite(settings, spec.getOpType());
+                        rec = new BatchWrite(key, attr, spec);
                         break;
 
                     case TOUCH:
-                    	attr.setWrite(settings, spec.getOpType());
+                        attr.setWrite(settings, spec.getOpType());
                         rec = new BatchWrite(key, attr, spec, List.of(Operation.touch()), OpType.TOUCH);
                         break;
 
                      case DELETE:
-                    	attr.setDelete(settings);
+                        attr.setDelete(settings);
                         rec = new BatchDelete(key, attr, spec);
                         break;
 
@@ -261,28 +261,28 @@ class OperationSpecExecutor {
                 }
 
                 if (scMode) {
-                	mode = Mode.CP;
+                    mode = Mode.CP;
                 }
 
                 records.add(rec);
             }
         }
 
-		if (except != null) {
-			// Fatal if no key requests were generated on initialization.
-			if (records.size() == 0) {
-				throw except;
-			}
-			else {
-				status.batchKeyError(except);
-			}
-		}
+        if (except != null) {
+            // Fatal if no key requests were generated on initialization.
+            if (records.size() == 0) {
+                throw except;
+            }
+            else {
+                status.batchKeyError(except);
+            }
+        }
 
         OpKind kind = hasWrite? OpKind.WRITE_NON_RETRYABLE : OpKind.READ;
-		Settings settings = behavior.getSettings(kind, OpShape.BATCH, mode);
+        Settings settings = behavior.getSettings(kind, OpShape.BATCH, mode);
 
         BatchCommand parent = new BatchCommand(cluster, null, txn, null, records,
-        	defaultWhereClause, includeMissingKeys, failOnFilteredOut, linearize, settings);
+            defaultWhereClause, includeMissingKeys, failOnFilteredOut, linearize, settings);
 
         List<BatchNode> bns = BatchNodes.generate(cluster, parent, records, status);
 
@@ -296,24 +296,24 @@ class OperationSpecExecutor {
 
                 switch (rec.getType()) {
                 case BATCH_READ:
-					commands[count++] = new BatchSingle.ReadRecordSync(cluster, parent,
-						(BatchRead)rec, status, bn.node);
-                	break;
+                    commands[count++] = new BatchSingle.ReadRecordSync(cluster, parent,
+                        (BatchRead)rec, status, bn.node);
+                    break;
 
                 case BATCH_WRITE:
-	                commands[count++] = new BatchSingle.OperateRecordSync(cluster, parent,
-	                	(BatchWrite)rec, status, bn.node);
-	                break;
+                    commands[count++] = new BatchSingle.OperateRecordSync(cluster, parent,
+                        (BatchWrite)rec, status, bn.node);
+                    break;
 
                 case BATCH_UDF:
                     commands[count++] = new BatchSingle.Udf(cluster, parent, (BatchUDF)rec, status,
-                    	bn.node);
+                        bn.node);
                     break;
 
                 case BATCH_DELETE:
-					commands[count++] = new BatchSingle.Delete(cluster, parent,
-						(BatchDelete)rec, status, bn.node);
-                	break;
+                    commands[count++] = new BatchSingle.Delete(cluster, parent,
+                        (BatchDelete)rec, status, bn.node);
+                    break;
                }
             }
             else {
@@ -322,20 +322,20 @@ class OperationSpecExecutor {
         }
 
         if (txn != null) {
-		    TxnMonitor.addKeysBatchReadWrite(txn, session, records);
-	        BatchExecutor.execute(cluster, commands, status);
-		}
-		else if (!notInAnyTransaction && hasWrite && mode == Mode.CP &&
-			cluster.allowImplicitBatchWriteTransactions()) {
-			// Create implicit transaction for the batch.
-	        session.doInTransaction(txnSession -> {
-			    TxnMonitor.addKeysBatchReadWrite(txnSession.getCurrentTransaction(), txnSession, records);
-		        BatchExecutor.execute(cluster, commands, status);
-	        });
-		}
-		else {
-	        BatchExecutor.execute(cluster, commands, status);
-		}
+            TxnMonitor.addKeysBatchReadWrite(txn, session, records);
+            BatchExecutor.execute(cluster, commands, status);
+        }
+        else if (!notInAnyTransaction && hasWrite && mode == Mode.CP &&
+            cluster.allowImplicitBatchWriteTransactions()) {
+            // Create implicit transaction for the batch.
+            session.doInTransaction(txnSession -> {
+                TxnMonitor.addKeysBatchReadWrite(txnSession.getCurrentTransaction(), txnSession, records);
+                BatchExecutor.execute(cluster, commands, status);
+            });
+        }
+        else {
+            BatchExecutor.execute(cluster, commands, status);
+        }
 
         AsyncRecordStream recordStream = new AsyncRecordStream(records.size());
 
@@ -671,7 +671,7 @@ class OperationSpecExecutor {
         }
 
         UdfCommand cmd = new UdfCommand(cluster, partitions, txn, key, spec, (int)ttl, where,
-    		failOnFilteredOut, settings);
+            failOnFilteredOut, settings);
 
         UdfExecutor exec = new UdfExecutor(cluster, cmd);
         exec.execute();

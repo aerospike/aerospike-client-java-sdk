@@ -25,81 +25,81 @@ import com.aerospike.client.sdk.ResultCode;
 import com.aerospike.client.sdk.metrics.LatencyType;
 
 public class DeleteExecutor extends SyncExecutor {
-	private final WriteCommand delete;
-	private boolean existed;
+    private final WriteCommand delete;
+    private boolean existed;
 
-	public DeleteExecutor(Cluster cluster, WriteCommand cmd) {
-		super(cluster, cmd);
-		this.delete = cmd;
-		cluster.addCommandCount();
-	}
+    public DeleteExecutor(Cluster cluster, WriteCommand cmd) {
+        super(cluster, cmd);
+        this.delete = cmd;
+        cluster.addCommandCount();
+    }
 
-	@Override
-	protected final boolean isWrite() {
-		return true;
-	}
+    @Override
+    protected final boolean isWrite() {
+        return true;
+    }
 
-	@Override
-	protected final Node getNode() {
-		return delete.partition.getNodeWrite(cluster);
-	}
+    @Override
+    protected final Node getNode() {
+        return delete.partition.getNodeWrite(cluster);
+    }
 
-	@Override
-	protected final LatencyType getLatencyType() {
-		return LatencyType.WRITE;
-	}
+    @Override
+    protected final LatencyType getLatencyType() {
+        return LatencyType.WRITE;
+    }
 
-	@Override
-	protected CommandBuffer getCommandBuffer() {
-		CommandBuffer cb = new CommandBuffer();
-		cb.setDelete(delete);
-		return cb;
-	}
+    @Override
+    protected CommandBuffer getCommandBuffer() {
+        CommandBuffer cb = new CommandBuffer();
+        cb.setDelete(delete);
+        return cb;
+    }
 
-	@Override
-	protected void parseResult(Node node, Connection conn, byte[] buffer) throws IOException {
-		RecordParser rp = new RecordParser(conn, buffer);
-		rp.parseFields(cmd.txn, delete.key, true);
+    @Override
+    protected void parseResult(Node node, Connection conn, byte[] buffer) throws IOException {
+        RecordParser rp = new RecordParser(conn, buffer);
+        rp.parseFields(cmd.txn, delete.key, true);
 
-		if (node.isMetricsEnabled()) {
-			node.addBytesIn(cmd.namespace, rp.bytesIn);
-		}
+        if (node.isMetricsEnabled()) {
+            node.addBytesIn(cmd.namespace, rp.bytesIn);
+        }
 
-		if (rp.resultCode == ResultCode.OK) {
-			existed = true;
-			return;
-		}
+        if (rp.resultCode == ResultCode.OK) {
+            existed = true;
+            return;
+        }
 
-		if (rp.resultCode == ResultCode.KEY_NOT_FOUND_ERROR) {
-			existed = false;
-			return;
-		}
+        if (rp.resultCode == ResultCode.KEY_NOT_FOUND_ERROR) {
+            existed = false;
+            return;
+        }
 
-		if (rp.resultCode == ResultCode.FILTERED_OUT) {
-			if (delete.failOnFilteredOut) {
-				throw AerospikeException.resultCodeToException(rp.resultCode, null);
-			}
-			existed = true;
-			return;
-		}
+        if (rp.resultCode == ResultCode.FILTERED_OUT) {
+            if (delete.failOnFilteredOut) {
+                throw AerospikeException.resultCodeToException(rp.resultCode, null);
+            }
+            existed = true;
+            return;
+        }
 
-		throw AerospikeException.resultCodeToException(rp.resultCode, null);
-	}
+        throw AerospikeException.resultCodeToException(rp.resultCode, null);
+    }
 
-	@Override
-	protected final boolean prepareRetry(boolean timeout) {
-		delete.partition.prepareRetryWrite(timeout);
-		return true;
-	}
+    @Override
+    protected final boolean prepareRetry(boolean timeout) {
+        delete.partition.prepareRetryWrite(timeout);
+        return true;
+    }
 
-	@Override
-	protected void onInDoubt() {
-		if (cmd.txn != null) {
-			cmd.txn.onWriteInDoubt(delete.key);
-		}
-	}
+    @Override
+    protected void onInDoubt() {
+        if (cmd.txn != null) {
+            cmd.txn.onWriteInDoubt(delete.key);
+        }
+    }
 
-	public final boolean existed() {
-		return existed;
-	}
+    public final boolean existed() {
+        return existed;
+    }
 }

@@ -25,69 +25,69 @@ import com.aerospike.client.sdk.ResultCode;
 import com.aerospike.client.sdk.metrics.LatencyType;
 
 public final class ExistsExecutor extends SyncExecutor {
-	private final ReadCommand read;
-	private boolean exists;
+    private final ReadCommand read;
+    private boolean exists;
 
-	public ExistsExecutor(Cluster cluster, ReadCommand cmd) {
-		super(cluster, cmd);
-		this.read = cmd;
-		cluster.addCommandCount();
-	}
+    public ExistsExecutor(Cluster cluster, ReadCommand cmd) {
+        super(cluster, cmd);
+        this.read = cmd;
+        cluster.addCommandCount();
+    }
 
-	@Override
-	protected final Node getNode() {
-		return read.partition.getNodeRead(cluster);
-	}
+    @Override
+    protected final Node getNode() {
+        return read.partition.getNodeRead(cluster);
+    }
 
-	@Override
-	protected final LatencyType getLatencyType() {
-		return LatencyType.READ;
-	}
+    @Override
+    protected final LatencyType getLatencyType() {
+        return LatencyType.READ;
+    }
 
-	@Override
-	protected CommandBuffer getCommandBuffer() {
-		CommandBuffer cb = new CommandBuffer();
-		cb.setExists(read);
-		return cb;
-	}
+    @Override
+    protected CommandBuffer getCommandBuffer() {
+        CommandBuffer cb = new CommandBuffer();
+        cb.setExists(read);
+        return cb;
+    }
 
-	@Override
-	protected void parseResult(Node node, Connection conn, byte[] buffer) throws IOException {
-		RecordParser rp = new RecordParser(conn, buffer);
-		rp.parseFields(cmd.txn, read.key, false);
+    @Override
+    protected void parseResult(Node node, Connection conn, byte[] buffer) throws IOException {
+        RecordParser rp = new RecordParser(conn, buffer);
+        rp.parseFields(cmd.txn, read.key, false);
 
-		if (node.isMetricsEnabled()) {
-			node.addBytesIn(cmd.namespace, rp.bytesIn);
-		}
+        if (node.isMetricsEnabled()) {
+            node.addBytesIn(cmd.namespace, rp.bytesIn);
+        }
 
-		if (rp.resultCode == ResultCode.OK) {
-			exists = true;
-			return;
-		}
+        if (rp.resultCode == ResultCode.OK) {
+            exists = true;
+            return;
+        }
 
-		if (rp.resultCode == ResultCode.KEY_NOT_FOUND_ERROR) {
-			exists = false;
-			return;
-		}
+        if (rp.resultCode == ResultCode.KEY_NOT_FOUND_ERROR) {
+            exists = false;
+            return;
+        }
 
-		if (rp.resultCode == ResultCode.FILTERED_OUT) {
-			if (read.failOnFilteredOut) {
-				throw AerospikeException.resultCodeToException(rp.resultCode, null);
-			}
-			exists = true;
-			return;
-		}
+        if (rp.resultCode == ResultCode.FILTERED_OUT) {
+            if (read.failOnFilteredOut) {
+                throw AerospikeException.resultCodeToException(rp.resultCode, null);
+            }
+            exists = true;
+            return;
+        }
 
-		throw AerospikeException.resultCodeToException(rp.resultCode, null);
-	}
+        throw AerospikeException.resultCodeToException(rp.resultCode, null);
+    }
 
-	@Override
-	protected final boolean prepareRetry(boolean timeout) {
-		read.partition.prepareRetryRead(timeout);
-		return true;
-	}
+    @Override
+    protected final boolean prepareRetry(boolean timeout) {
+        read.partition.prepareRetryRead(timeout);
+        return true;
+    }
 
-	public boolean exists() {
-		return exists;
-	}
+    public boolean exists() {
+        return exists;
+    }
 }

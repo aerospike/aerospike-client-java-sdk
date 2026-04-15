@@ -33,7 +33,7 @@ public class DynamicConfig {
 
     // Individual behavior configuration (name is the map key)
     public static class Config {
-		private String parent;
+        private String parent;
         private Boolean sendKey;
         private Boolean useCompression;
         private Base allOperations;
@@ -105,11 +105,11 @@ public class DynamicConfig {
         public void setSystemRefresh(SystemRefresh systemRefresh) { this.systemRefresh = systemRefresh; }
 
         public SystemTransactions getSystemTransactions() {
-			return systemTransactions;
-		}
-		public void setSystemTransactions(SystemTransactions systemTransactions) {
-			this.systemTransactions = systemTransactions;
-		}
+            return systemTransactions;
+        }
+        public void setSystemTransactions(SystemTransactions systemTransactions) {
+            this.systemTransactions = systemTransactions;
+        }
     }
 
     // Base policy configuration
@@ -266,30 +266,30 @@ public class DynamicConfig {
 
     // System - Transactions configuration
     public static class SystemTransactions {
-		private Boolean implicitBatchWriteTransactions;
+        private Boolean implicitBatchWriteTransactions;
         private Duration sleepBetweenAttempts;
         private Integer numberOfAttempts;
 
         public Boolean getImplicitBatchWriteTransactions() {
-			return implicitBatchWriteTransactions;
-		}
-		public void setImplicitBatchWriteTransactions(Boolean implicitBatchWriteTransactions) {
-			this.implicitBatchWriteTransactions = implicitBatchWriteTransactions;
-		}
+            return implicitBatchWriteTransactions;
+        }
+        public void setImplicitBatchWriteTransactions(Boolean implicitBatchWriteTransactions) {
+            this.implicitBatchWriteTransactions = implicitBatchWriteTransactions;
+        }
 
-		public Duration getSleepBetweenAttempts() {
-			return sleepBetweenAttempts;
-		}
-		public void setSleepBetweenAttempts(Duration sleepBetweenAttempts) {
-			this.sleepBetweenAttempts = sleepBetweenAttempts;
-		}
+        public Duration getSleepBetweenAttempts() {
+            return sleepBetweenAttempts;
+        }
+        public void setSleepBetweenAttempts(Duration sleepBetweenAttempts) {
+            this.sleepBetweenAttempts = sleepBetweenAttempts;
+        }
 
-		public Integer getNumberOfAttempts() {
-			return numberOfAttempts;
-		}
-		public void setNumberOfAttempts(Integer numberOfAttempts) {
-			this.numberOfAttempts = numberOfAttempts;
-		}
+        public Integer getNumberOfAttempts() {
+            return numberOfAttempts;
+        }
+        public void setNumberOfAttempts(Integer numberOfAttempts) {
+            this.numberOfAttempts = numberOfAttempts;
+        }
     }
 
     // System settings configuration (for cluster-level settings)

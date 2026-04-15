@@ -894,7 +894,7 @@ public class ChainableNoBinsBuilder extends AbstractSessionOperationBuilder<Chai
     private RecordStream executeWithDisposition(ErrorDisposition disposition) {
         prepareSpecs();
         return OperationSpecExecutor.execute(session, operationSpecs, defaultWhereClause,
-        	defaultExpirationInSeconds, txnToUse, notInAnyTransaction, disposition);
+            defaultExpirationInSeconds, txnToUse, notInAnyTransaction, disposition);
     }
 
     /**

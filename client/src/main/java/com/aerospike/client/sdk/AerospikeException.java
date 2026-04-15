@@ -24,15 +24,15 @@ import com.aerospike.client.sdk.command.CommitError;
 import com.aerospike.client.sdk.tend.Partition;
 
 public class AerospikeException extends RuntimeException {
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
     protected transient Node node;
     protected List<AerospikeException> subExceptions;
     protected int resultCode = ResultCode.CLIENT_ERROR;
-	private int connectTimeout;
-	private int socketTimeout;
-	private int totalTimeout;
-	private int maxRetries;
+    private int connectTimeout;
+    private int socketTimeout;
+    private int totalTimeout;
+    private int maxRetries;
     protected int iteration = -1;
     protected boolean inDoubt;
 
@@ -45,32 +45,32 @@ public class AerospikeException extends RuntimeException {
         this.resultCode = resultCode;
     }
 
-	/**
-	 * @param resultCode {@link ResultCode} constant
-	 * @param e          cause (message typically comes from the throwable)
-	 */
-	public AerospikeException(int resultCode, Throwable e) {
-		super(e);
-		this.resultCode = resultCode;
-	}
+    /**
+     * @param resultCode {@link ResultCode} constant
+     * @param e          cause (message typically comes from the throwable)
+     */
+    public AerospikeException(int resultCode, Throwable e) {
+        super(e);
+        this.resultCode = resultCode;
+    }
 
-	/**
-	 * @param resultCode {@link ResultCode} constant; human-readable text from {@link ResultCode#getResultString(int)}
-	 */
-	public AerospikeException(int resultCode) {
-		super();
-		this.resultCode = resultCode;
-	}
+    /**
+     * @param resultCode {@link ResultCode} constant; human-readable text from {@link ResultCode#getResultString(int)}
+     */
+    public AerospikeException(int resultCode) {
+        super();
+        this.resultCode = resultCode;
+    }
 
-	/**
-	 * @param resultCode {@link ResultCode} constant
-	 * @param inDoubt    whether the operation may have succeeded on the server
-	 */
-	public AerospikeException(int resultCode, boolean inDoubt) {
-		super();
-		this.resultCode = resultCode;
-		this.inDoubt = inDoubt;
-	}
+    /**
+     * @param resultCode {@link ResultCode} constant
+     * @param inDoubt    whether the operation may have succeeded on the server
+     */
+    public AerospikeException(int resultCode, boolean inDoubt) {
+        super();
+        this.resultCode = resultCode;
+        this.inDoubt = inDoubt;
+    }
 
     /**
      * @param resultCode {@link ResultCode} constant
@@ -103,237 +103,237 @@ public class AerospikeException extends RuntimeException {
         super(message, e);
     }
 
-	/**
-	 * Client-side or generic error with default {@link ResultCode#CLIENT_ERROR} result code.
-	 *
-	 * @param message detail message
-	 */
-	public AerospikeException(String message) {
+    /**
+     * Client-side or generic error with default {@link ResultCode#CLIENT_ERROR} result code.
+     *
+     * @param message detail message
+     */
+    public AerospikeException(String message) {
         super(message);
     }
 
-	/**
-	 * Client-side or generic error with default {@link ResultCode#CLIENT_ERROR} result code.
-	 *
-	 * @param e cause
-	 */
-	public AerospikeException(Throwable e) {
-		super(e);
-	}
+    /**
+     * Client-side or generic error with default {@link ResultCode#CLIENT_ERROR} result code.
+     *
+     * @param e cause
+     */
+    public AerospikeException(Throwable e) {
+        super(e);
+    }
 
-	/**
-	 * {@inheritDoc}
-	 * <p>
-	 * Prefixes the base message with result code, retry iteration, timeout settings from {@link #setCommand},
-	 * optional {@code inDoubt} and {@link #node}, and any {@link #subExceptions}.
-	 */
-	@Override
-	public String getMessage() {
-		StringBuilder sb = new StringBuilder(512);
+    /**
+     * {@inheritDoc}
+     * <p>
+     * Prefixes the base message with result code, retry iteration, timeout settings from {@link #setCommand},
+     * optional {@code inDoubt} and {@link #node}, and any {@link #subExceptions}.
+     */
+    @Override
+    public String getMessage() {
+        StringBuilder sb = new StringBuilder(512);
 
-		sb.append("Error ");
-		sb.append(resultCode);
+        sb.append("Error ");
+        sb.append(resultCode);
 
-		if (iteration >= 0) {
-			sb.append(',');
-			sb.append(iteration);
-		}
+        if (iteration >= 0) {
+            sb.append(',');
+            sb.append(iteration);
+        }
 
-		sb.append(',');
-		sb.append(connectTimeout);
-		sb.append(',');
-		sb.append(socketTimeout);
-		sb.append(',');
-		sb.append(totalTimeout);
-		sb.append(',');
-		sb.append(maxRetries);
+        sb.append(',');
+        sb.append(connectTimeout);
+        sb.append(',');
+        sb.append(socketTimeout);
+        sb.append(',');
+        sb.append(totalTimeout);
+        sb.append(',');
+        sb.append(maxRetries);
 
-		if (inDoubt) {
-			sb.append(",inDoubt");
-		}
+        if (inDoubt) {
+            sb.append(",inDoubt");
+        }
 
-		if (node != null) {
-			sb.append(',');
-			sb.append(node.toString());
-		}
+        if (node != null) {
+            sb.append(',');
+            sb.append(node.toString());
+        }
 
-		sb.append(": ");
-		sb.append(getBaseMessage());
+        sb.append(": ");
+        sb.append(getBaseMessage());
 
-		if (subExceptions != null) {
-			sb.append(System.lineSeparator());
-			sb.append("sub-exceptions:");
+        if (subExceptions != null) {
+            sb.append(System.lineSeparator());
+            sb.append("sub-exceptions:");
 
-			for (AerospikeException ae : subExceptions) {
-				sb.append(System.lineSeparator());
-				sb.append(ae.getMessage());
-			}
-		}
-		return sb.toString();
-	}
+            for (AerospikeException ae : subExceptions) {
+                sb.append(System.lineSeparator());
+                sb.append(ae.getMessage());
+            }
+        }
+        return sb.toString();
+    }
 
-	/**
-	 * Return base message without extra metadata.
-	 */
-	public String getBaseMessage() {
-		String message = super.getMessage();
-		return (message != null)? message : ResultCode.getResultString(resultCode);
-	}
+    /**
+     * Return base message without extra metadata.
+     */
+    public String getBaseMessage() {
+        String message = super.getMessage();
+        return (message != null)? message : ResultCode.getResultString(resultCode);
+    }
 
-	/**
-	 * Should connection be put back into pool.
-	 */
-	public final boolean keepConnection() {
-		return ResultCode.keepConnection(resultCode);
-	}
+    /**
+     * Should connection be put back into pool.
+     */
+    public final boolean keepConnection() {
+        return ResultCode.keepConnection(resultCode);
+    }
 
-	/**
-	 * Get last node used.
-	 */
-	public final Node getNode() {
-		return node;
-	}
+    /**
+     * Get last node used.
+     */
+    public final Node getNode() {
+        return node;
+    }
 
-	/**
-	 * Set last node used.
-	 */
-	public final void setNode(Node node) {
-		this.node = node;
-	}
+    /**
+     * Set last node used.
+     */
+    public final void setNode(Node node) {
+        this.node = node;
+    }
 
-	/**
-	 * Set command associated with the exception.
-	 */
-	public final void setCommand(Command cmd) {
-		connectTimeout = cmd.getConnectTimeout();
-		socketTimeout = cmd.getSocketTimeout();
-		totalTimeout = cmd.getTotalTimeout();
-		maxRetries = cmd.getMaxRetries();
-	}
+    /**
+     * Set command associated with the exception.
+     */
+    public final void setCommand(Command cmd) {
+        connectTimeout = cmd.getConnectTimeout();
+        socketTimeout = cmd.getSocketTimeout();
+        totalTimeout = cmd.getTotalTimeout();
+        maxRetries = cmd.getMaxRetries();
+    }
 
-	/** Connect timeout (ms) copied from the last {@link #setCommand} call, or zero if unset. */
+    /** Connect timeout (ms) copied from the last {@link #setCommand} call, or zero if unset. */
     public int getConnectTimeout() {
-		return connectTimeout;
-	}
+        return connectTimeout;
+    }
 
-	/** Socket timeout (ms) from {@link #setCommand}, or zero if unset. */
-	public int getSocketTimeout() {
-		return socketTimeout;
-	}
+    /** Socket timeout (ms) from {@link #setCommand}, or zero if unset. */
+    public int getSocketTimeout() {
+        return socketTimeout;
+    }
 
-	/** Total timeout (ms) from {@link #setCommand}, or zero if unset. */
-	public int getTotalTimeout() {
-		return totalTimeout;
-	}
+    /** Total timeout (ms) from {@link #setCommand}, or zero if unset. */
+    public int getTotalTimeout() {
+        return totalTimeout;
+    }
 
-	/** Max retries from {@link #setCommand}, or zero if unset. */
-	public int getMaxRetries() {
-		return maxRetries;
-	}
+    /** Max retries from {@link #setCommand}, or zero if unset. */
+    public int getMaxRetries() {
+        return maxRetries;
+    }
 
-	/**
-	 * Get sub exceptions.  Will be null if a retry did not occur.
-	 */
-	public final List<AerospikeException> getSubExceptions() {
-		return subExceptions;
-	}
+    /**
+     * Get sub exceptions.  Will be null if a retry did not occur.
+     */
+    public final List<AerospikeException> getSubExceptions() {
+        return subExceptions;
+    }
 
-	/**
-	 * Set sub exceptions.
-	 */
-	public final void setSubExceptions(List<AerospikeException> subExceptions) {
-		this.subExceptions = subExceptions;
-	}
+    /**
+     * Set sub exceptions.
+     */
+    public final void setSubExceptions(List<AerospikeException> subExceptions) {
+        this.subExceptions = subExceptions;
+    }
 
-	/**
-	 * Get integer result code.
-	 */
-	public final int getResultCode() {
-		return resultCode;
-	}
+    /**
+     * Get integer result code.
+     */
+    public final int getResultCode() {
+        return resultCode;
+    }
 
-	/**
-	 * Get number of attempts before failing.
-	 */
-	public final int getIteration() {
-		return iteration;
-	}
+    /**
+     * Get number of attempts before failing.
+     */
+    public final int getIteration() {
+        return iteration;
+    }
 
-	/**
-	 * Set number of attempts before failing.
-	 */
-	public final void setIteration(int iteration) {
-		this.iteration = iteration;
-	}
+    /**
+     * Set number of attempts before failing.
+     */
+    public final void setIteration(int iteration) {
+        this.iteration = iteration;
+    }
 
-	/**
-	 * Is it possible that write command may have completed.
-	 */
-	public final boolean getInDoubt() {
-		return inDoubt;
-	}
+    /**
+     * Is it possible that write command may have completed.
+     */
+    public final boolean getInDoubt() {
+        return inDoubt;
+    }
 
-	/**
-	 * Sets the inDoubt value to inDoubt.
-	 */
-	public void setInDoubt(boolean inDoubt) {
-		this.inDoubt = inDoubt;
-	}
+    /**
+     * Sets the inDoubt value to inDoubt.
+     */
+    public void setInDoubt(boolean inDoubt) {
+        this.inDoubt = inDoubt;
+    }
 
-	/**
-	 * Set whether it is possible that the write command may have completed
-	 * even though this exception was generated.  This may be the case when a
-	 * client error occurs (like timeout) after the command was sent to the server.
-	 */
-	public final void setInDoubt(boolean isWrite, int commandSentCounter) {
-		if (isWrite && (commandSentCounter > 1 || (commandSentCounter == 1 && (resultCode == ResultCode.TIMEOUT || resultCode <= 0)))) {
-			this.inDoubt = true;
-		}
-	}
+    /**
+     * Set whether it is possible that the write command may have completed
+     * even though this exception was generated.  This may be the case when a
+     * client error occurs (like timeout) after the command was sent to the server.
+     */
+    public final void setInDoubt(boolean isWrite, int commandSentCounter) {
+        if (isWrite && (commandSentCounter > 1 || (commandSentCounter == 1 && (resultCode == ResultCode.TIMEOUT || resultCode <= 0)))) {
+            this.inDoubt = true;
+        }
+    }
 
-	/**
-	 * Exception thrown when database request expires before completing.
-	 */
-	public static final class Timeout extends AerospikeException {
-		private static final long serialVersionUID = 1L;
+    /**
+     * Exception thrown when database request expires before completing.
+     */
+    public static final class Timeout extends AerospikeException {
+        private static final long serialVersionUID = 1L;
 
-		/**
-		 * If true, client initiated timeout.  If false, server initiated timeout.
-		 */
-		public boolean client;
+        /**
+         * If true, client initiated timeout.  If false, server initiated timeout.
+         */
+        public boolean client;
 
-		public Timeout(String message, int iteration, int totalTimeout, boolean inDoubt) {
-			super(ResultCode.TIMEOUT, message);
-			super.totalTimeout = totalTimeout;
-			super.iteration = iteration;
-			super.inDoubt = inDoubt;
-			this.client = true;
-		}
+        public Timeout(String message, int iteration, int totalTimeout, boolean inDoubt) {
+            super(ResultCode.TIMEOUT, message);
+            super.totalTimeout = totalTimeout;
+            super.iteration = iteration;
+            super.inDoubt = inDoubt;
+            this.client = true;
+        }
 
-		public Timeout(Command cmd, boolean client) {
-			// Other base exception fields are set after this constructor.
-			super(ResultCode.TIMEOUT, (client ? "Client" : "Server") + " timeout");
-			super.setCommand(cmd);
-			this.client = client;
-		}
+        public Timeout(Command cmd, boolean client) {
+            // Other base exception fields are set after this constructor.
+            super(ResultCode.TIMEOUT, (client ? "Client" : "Server") + " timeout");
+            super.setCommand(cmd);
+            this.client = client;
+        }
 
-		public Timeout(Command cmd, int iteration) {
-			super(ResultCode.TIMEOUT, "Client timeout");
-			super.setCommand(cmd);
-			super.iteration = iteration;
-			this.client = true;
-		}
+        public Timeout(Command cmd, int iteration) {
+            super(ResultCode.TIMEOUT, "Client timeout");
+            super.setCommand(cmd);
+            super.iteration = iteration;
+            this.client = true;
+        }
 
-		public Timeout(Node node, int connectTimeout, int socketTimeout, int totalTimeout) {
-			super(ResultCode.TIMEOUT, "Client timeout");
-			super.node = node;
-			super.connectTimeout = connectTimeout;
-			super.socketTimeout = socketTimeout;
-			super.totalTimeout = totalTimeout;
-			super.iteration = 1;
-			this.client = true;
-		}
-	}
+        public Timeout(Node node, int connectTimeout, int socketTimeout, int totalTimeout) {
+            super(ResultCode.TIMEOUT, "Client timeout");
+            super.node = node;
+            super.connectTimeout = connectTimeout;
+            super.socketTimeout = socketTimeout;
+            super.totalTimeout = totalTimeout;
+            super.iteration = 1;
+            this.client = true;
+        }
+    }
 
     /**
      * Security-related error from the server (authentication, authorization, roles, etc.).
@@ -618,204 +618,204 @@ public class AerospikeException extends RuntimeException {
     }
 
     /**
-	 * Exception thrown when a serialization error occurs.
-	 */
-	public static final class Serialize extends AerospikeException {
-		private static final long serialVersionUID = 1L;
+     * Exception thrown when a serialization error occurs.
+     */
+    public static final class Serialize extends AerospikeException {
+        private static final long serialVersionUID = 1L;
 
-		public Serialize(Throwable e) {
-			super(ResultCode.SERIALIZE_ERROR, "Serialize error", e);
-		}
+        public Serialize(Throwable e) {
+            super(ResultCode.SERIALIZE_ERROR, "Serialize error", e);
+        }
 
-		public Serialize(String message) {
-			super(ResultCode.SERIALIZE_ERROR, message);
-		}
-	}
+        public Serialize(String message) {
+            super(ResultCode.SERIALIZE_ERROR, message);
+        }
+    }
 
-	/**
-	 * Exception thrown when client can't parse data returned from server.
-	 */
-	public static final class Parse extends AerospikeException {
-		private static final long serialVersionUID = 1L;
+    /**
+     * Exception thrown when client can't parse data returned from server.
+     */
+    public static final class Parse extends AerospikeException {
+        private static final long serialVersionUID = 1L;
 
-		public Parse(String message) {
-			super(ResultCode.PARSE_ERROR, message);
-		}
-	}
+        public Parse(String message) {
+            super(ResultCode.PARSE_ERROR, message);
+        }
+    }
 
-	/**
-	 * Cannot connect to the server or no available connections.
-	 */
-	public static final class Connection extends CapacityException {
-		private static final long serialVersionUID = 1L;
+    /**
+     * Cannot connect to the server or no available connections.
+     */
+    public static final class Connection extends CapacityException {
+        private static final long serialVersionUID = 1L;
 
-		public Connection(String message) {
-			super(ResultCode.SERVER_NOT_AVAILABLE, message);
-		}
+        public Connection(String message) {
+            super(ResultCode.SERVER_NOT_AVAILABLE, message);
+        }
 
-		public Connection(Throwable e) {
-			super(ResultCode.SERVER_NOT_AVAILABLE, "Connection failed", e);
-		}
+        public Connection(Throwable e) {
+            super(ResultCode.SERVER_NOT_AVAILABLE, "Connection failed", e);
+        }
 
-		public Connection(String message, Throwable e) {
-			super(ResultCode.SERVER_NOT_AVAILABLE, message, e);
-		}
+        public Connection(String message, Throwable e) {
+            super(ResultCode.SERVER_NOT_AVAILABLE, message, e);
+        }
 
-		public Connection(int resultCode, String message) {
-			super(resultCode, message);
-		}
-	}
+        public Connection(int resultCode, String message) {
+            super(resultCode, message);
+        }
+    }
 
-	/**
-	 * Exception thrown when chosen node is not active.
-	 */
-	public static final class InvalidNode extends AerospikeException {
-		private static final long serialVersionUID = 1L;
+    /**
+     * Exception thrown when chosen node is not active.
+     */
+    public static final class InvalidNode extends AerospikeException {
+        private static final long serialVersionUID = 1L;
 
-		public InvalidNode(int clusterSize, Partition partition) {
-			super(ResultCode.INVALID_NODE_ERROR,
-				(clusterSize == 0) ? "Cluster is empty" : "Node not found for partition " + partition);
-		}
+        public InvalidNode(int clusterSize, Partition partition) {
+            super(ResultCode.INVALID_NODE_ERROR,
+                (clusterSize == 0) ? "Cluster is empty" : "Node not found for partition " + partition);
+        }
 
-		public InvalidNode(int partitionId) {
-			super(ResultCode.INVALID_NODE_ERROR, "Node not found for partition " + partitionId);
-		}
+        public InvalidNode(int partitionId) {
+            super(ResultCode.INVALID_NODE_ERROR, "Node not found for partition " + partitionId);
+        }
 
-		public InvalidNode(String message) {
-			super(ResultCode.INVALID_NODE_ERROR, message);
-		}
-	}
+        public InvalidNode(String message) {
+            super(ResultCode.INVALID_NODE_ERROR, message);
+        }
+    }
 
-	/**
-	 * Exception thrown when namespace is invalid.
-	 */
-	public static final class InvalidNamespace extends AerospikeException {
-		private static final long serialVersionUID = 1L;
+    /**
+     * Exception thrown when namespace is invalid.
+     */
+    public static final class InvalidNamespace extends AerospikeException {
+        private static final long serialVersionUID = 1L;
 
-		public InvalidNamespace(String ns, int mapSize) {
-			super(ResultCode.INVALID_NAMESPACE,
-				(mapSize == 0) ? "Partition map empty" : "Namespace not found in partition map: " + ns);
-		}
-	}
+        public InvalidNamespace(String ns, int mapSize) {
+            super(ResultCode.INVALID_NAMESPACE,
+                (mapSize == 0) ? "Partition map empty" : "Namespace not found in partition map: " + ns);
+        }
+    }
 
-	/**
-	 * Exception thrown when query was terminated prematurely.
-	 */
-	public static final class QueryTerminated extends AerospikeException {
-		private static final long serialVersionUID = 1L;
+    /**
+     * Exception thrown when query was terminated prematurely.
+     */
+    public static final class QueryTerminated extends AerospikeException {
+        private static final long serialVersionUID = 1L;
 
-		public QueryTerminated() {
-			super(ResultCode.QUERY_TERMINATED, "Query terminated");
-		}
+        public QueryTerminated() {
+            super(ResultCode.QUERY_TERMINATED, "Query terminated");
+        }
 
-		public QueryTerminated(Throwable e) {
-			super(ResultCode.QUERY_TERMINATED, "Query terminated", e);
-		}
-	}
+        public QueryTerminated(Throwable e) {
+            super(ResultCode.QUERY_TERMINATED, "Query terminated", e);
+        }
+    }
 
-	/**
-	 * Exception thrown when node is in backoff mode due to excessive
-	 * number of errors.
-	 */
-	public static class Backoff extends AerospikeException {
-		private static final long serialVersionUID = 1L;
+    /**
+     * Exception thrown when node is in backoff mode due to excessive
+     * number of errors.
+     */
+    public static class Backoff extends AerospikeException {
+        private static final long serialVersionUID = 1L;
 
-		public Backoff(int resultCode) {
-			super(resultCode);
-		}
-	}
+        public Backoff(int resultCode) {
+            super(resultCode);
+        }
+    }
 
-	/**
-	 * Transaction commit failed. Contains verify and roll-forward/backward details.
-	 */
-	public static final class Commit extends TransactionException {
-		private static final long serialVersionUID = 1L;
+    /**
+     * Transaction commit failed. Contains verify and roll-forward/backward details.
+     */
+    public static final class Commit extends TransactionException {
+        private static final long serialVersionUID = 1L;
 
-		/**
-		 * Error status of the attempted commit.
-		 */
-		public final CommitError error;
+        /**
+         * Error status of the attempted commit.
+         */
+        public final CommitError error;
 
-		/**
-		 * Verify result for each read key in the transaction. May be null if failure occurred
-		 * before verify.
-		 */
-		public final List<BatchRecord> verifyRecords;
+        /**
+         * Verify result for each read key in the transaction. May be null if failure occurred
+         * before verify.
+         */
+        public final List<BatchRecord> verifyRecords;
 
-		/**
-		 * Roll forward/backward result for each write key in the transaction. May be null if
-		 * failure occurred before roll forward/backward.
-		 */
-		public final List<BatchRecord> rollRecords;
+        /**
+         * Roll forward/backward result for each write key in the transaction. May be null if
+         * failure occurred before roll forward/backward.
+         */
+        public final List<BatchRecord> rollRecords;
 
-		public Commit(CommitError error, List<BatchRecord> verifyRecords, List<BatchRecord> rollRecords) {
-			super(ResultCode.TXN_FAILED, error.str);
-			this.error = error;
-			this.verifyRecords = verifyRecords;
-			this.rollRecords = rollRecords;
-		}
+        public Commit(CommitError error, List<BatchRecord> verifyRecords, List<BatchRecord> rollRecords) {
+            super(ResultCode.TXN_FAILED, error.str);
+            this.error = error;
+            this.verifyRecords = verifyRecords;
+            this.rollRecords = rollRecords;
+        }
 
-		public Commit(CommitError error, List<BatchRecord> verifyRecords, List<BatchRecord> rollRecords, Throwable cause) {
-			super(ResultCode.TXN_FAILED, error.str, cause);
-			this.error = error;
-			this.verifyRecords = verifyRecords;
-			this.rollRecords = rollRecords;
-		}
+        public Commit(CommitError error, List<BatchRecord> verifyRecords, List<BatchRecord> rollRecords, Throwable cause) {
+            super(ResultCode.TXN_FAILED, error.str, cause);
+            this.error = error;
+            this.verifyRecords = verifyRecords;
+            this.rollRecords = rollRecords;
+        }
 
-		/**
-		 * {@inheritDoc}
-		 * <p>
-		 * Appends a short summary of failed {@link #verifyRecords} and {@link #rollRecords} (up to a few entries each).
-		 */
-		@Override
-		public String getMessage() {
-			String msg = super.getMessage();
-			StringBuilder sb = new StringBuilder(1024);
-			recordsToString(sb, "verify errors:", verifyRecords);
-			recordsToString(sb, "roll errors:", rollRecords);
-			return msg + sb.toString();
-		}
-	}
+        /**
+         * {@inheritDoc}
+         * <p>
+         * Appends a short summary of failed {@link #verifyRecords} and {@link #rollRecords} (up to a few entries each).
+         */
+        @Override
+        public String getMessage() {
+            String msg = super.getMessage();
+            StringBuilder sb = new StringBuilder(1024);
+            recordsToString(sb, "verify errors:", verifyRecords);
+            recordsToString(sb, "roll errors:", rollRecords);
+            return msg + sb.toString();
+        }
+    }
 
-	private static void recordsToString(StringBuilder sb, String title, List<BatchRecord> records) {
-		if (records == null) {
-			return;
-		}
+    private static void recordsToString(StringBuilder sb, String title, List<BatchRecord> records) {
+        if (records == null) {
+            return;
+        }
 
-		int count = 0;
+        int count = 0;
 
-		for (BatchRecord br : records) {
-			// Only show results with an error response.
-			if (!(br.resultCode == ResultCode.OK || br.resultCode == ResultCode.NO_RESPONSE)) {
-				// Only show first 3 errors.
-				if (count >= 3) {
-					sb.append(System.lineSeparator());
-					sb.append("...");
-					break;
-				}
+        for (BatchRecord br : records) {
+            // Only show results with an error response.
+            if (!(br.resultCode == ResultCode.OK || br.resultCode == ResultCode.NO_RESPONSE)) {
+                // Only show first 3 errors.
+                if (count >= 3) {
+                    sb.append(System.lineSeparator());
+                    sb.append("...");
+                    break;
+                }
 
-				if (count == 0) {
-					sb.append(System.lineSeparator());
-					sb.append(title);
-				}
+                if (count == 0) {
+                    sb.append(System.lineSeparator());
+                    sb.append(title);
+                }
 
-				sb.append(System.lineSeparator());
-				sb.append(br.key);
-				sb.append(',');
-				sb.append(br.resultCode);
-				sb.append(',');
-				sb.append(br.inDoubt);
-				count++;
-			}
-		}
-	}
+                sb.append(System.lineSeparator());
+                sb.append(br.key);
+                sb.append(',');
+                sb.append(br.resultCode);
+                sb.append(',');
+                sb.append(br.inDoubt);
+                count++;
+            }
+        }
+    }
 
-	/**
-	 * Same as {@link #resultCodeToException(int, String, boolean)} with {@code inDoubt == false}.
-	 *
-	 * @param resultCode {@link ResultCode} from the server or client
-	 * @param message    detail message (may be {@code null})
-	 */
+    /**
+     * Same as {@link #resultCodeToException(int, String, boolean)} with {@code inDoubt == false}.
+     *
+     * @param resultCode {@link ResultCode} from the server or client
+     * @param message    detail message (may be {@code null})
+     */
     public static AerospikeException resultCodeToException(int resultCode, String message) {
         return resultCodeToException(resultCode, message, false); 
     }
@@ -873,7 +873,7 @@ public class AerospikeException extends RuntimeException {
      * └── Backoff                         MAX_ERROR_RATE
      * </pre>
      */
-	public static AerospikeException resultCodeToException(int resultCode, String message, boolean inDoubt) {
+    public static AerospikeException resultCodeToException(int resultCode, String message, boolean inDoubt) {
         switch (resultCode) {
 
         // Record-level

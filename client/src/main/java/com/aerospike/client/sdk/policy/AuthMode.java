@@ -20,36 +20,36 @@ package com.aerospike.client.sdk.policy;
  * Authentication mode.
  */
 public enum AuthMode {
-	/**
-	 * Do not authenticate.
-	 */
-	NONE,
+    /**
+     * Do not authenticate.
+     */
+    NONE,
 
-	/**
-	 * Use internal authentication when user/password defined. Hashed password is stored
-	 * on the server. Do not send clear password. This is the default.
-	 */
-	INTERNAL,
+    /**
+     * Use internal authentication when user/password defined. Hashed password is stored
+     * on the server. Do not send clear password. This is the default.
+     */
+    INTERNAL,
 
-	/**
-	 * Use external authentication (like LDAP) when user/password defined. Specific external
-	 * authentication is configured on server. If TLS defined, send clear password on node
-	 * login via TLS. Throw exception if TLS is not defined.
-	 */
-	EXTERNAL,
+    /**
+     * Use external authentication (like LDAP) when user/password defined. Specific external
+     * authentication is configured on server. If TLS defined, send clear password on node
+     * login via TLS. Throw exception if TLS is not defined.
+     */
+    EXTERNAL,
 
-	/**
-	 * Use external authentication (like LDAP) when user/password defined. Specific external
-	 * authentication is configured on server.  Send clear password on node login whether or
-	 * not TLS is defined. This mode should only be used for testing purposes because it is
-	 * not secure authentication.
-	 */
-	EXTERNAL_INSECURE,
+    /**
+     * Use external authentication (like LDAP) when user/password defined. Specific external
+     * authentication is configured on server.  Send clear password on node login whether or
+     * not TLS is defined. This mode should only be used for testing purposes because it is
+     * not secure authentication.
+     */
+    EXTERNAL_INSECURE,
 
-	/**
-	 * Authentication and authorization based on a certificate.  No user name or
-	 * password needs to be configured. Requires TLS and a client certificate.
-	 * Requires server version 5.7.0+
-	 */
-	PKI
+    /**
+     * Authentication and authorization based on a certificate.  No user name or
+     * password needs to be configured. Requires TLS and a client certificate.
+     * Requires server version 5.7.0+
+     */
+    PKI
 }

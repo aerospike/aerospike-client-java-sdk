@@ -26,65 +26,65 @@ import com.aerospike.client.sdk.util.Version;
  * Task used to poll for long-running server execute job completion.
  */
 public class ExecuteTask extends Task {
-	private final long taskId;
+    private final long taskId;
 
-	/**
-	 * Initialize task with fields needed to query server nodes.
-	 */
-	public ExecuteTask(Cluster cluster, long taskId, int timeout) {
-		super(cluster, timeout);
-		this.taskId = taskId;
-	}
+    /**
+     * Initialize task with fields needed to query server nodes.
+     */
+    public ExecuteTask(Cluster cluster, long taskId, int timeout) {
+        super(cluster, timeout);
+        this.taskId = taskId;
+    }
 
-	/**
-	 * Return task id.
-	 */
-	public long getTaskId() {
-		return taskId;
-	}
+    /**
+     * Return task id.
+     */
+    public long getTaskId() {
+        return taskId;
+    }
 
-	/**
-	 * Query all nodes for task completion status.
-	 */
-	@Override
-	public int queryStatus() throws AerospikeException {
-		// All nodes must respond with complete to be considered done.
-		Node[] nodes = cluster.validateNodes();
-		String tid = Long.toUnsignedString(taskId);
+    /**
+     * Query all nodes for task completion status.
+     */
+    @Override
+    public int queryStatus() throws AerospikeException {
+        // All nodes must respond with complete to be considered done.
+        Node[] nodes = cluster.validateNodes();
+        String tid = Long.toUnsignedString(taskId);
 
-		for (Node node : nodes) {
-			Version serverVersion = node.getVersion();
-			String command = serverVersion.isGreaterOrEqual(Version.SERVER_VERSION_8_1) ? "query-show:id=" + tid : "query-show:trid=" + tid;
+        for (Node node : nodes) {
+            Version serverVersion = node.getVersion();
+            String command = serverVersion.isGreaterOrEqual(Version.SERVER_VERSION_8_1) ? "query-show:id=" + tid : "query-show:trid=" + tid;
 
-			String response = Info.request(node, command, timeout);
+            String response = Info.request(node, command, timeout);
 
-			if (response.startsWith("ERROR:2")) {
-				// Query not found.
-				// Server >= 6.0:  Query has completed.
-				// Continue checking other nodes.
-				continue;
-			}
+            if (response.startsWith("ERROR:2")) {
+                // Query not found.
+                // Server >= 6.0:  Query has completed.
+                // Continue checking other nodes.
+                continue;
+            }
 
-			if (response.startsWith("ERROR:")) {
-				throw new AerospikeException(command + " failed: " + response);
-			}
+            if (response.startsWith("ERROR:")) {
+                throw new AerospikeException(command + " failed: " + response);
+            }
 
-			String find = "status=";
-			int index = response.indexOf(find);
+            String find = "status=";
+            int index = response.indexOf(find);
 
-			if (index < 0) {
-				throw new AerospikeException(command + " failed: " + response);
-			}
+            if (index < 0) {
+                throw new AerospikeException(command + " failed: " + response);
+            }
 
-			int begin = index + find.length();
-			int end = response.indexOf(':', begin);
-			String status = response.substring(begin, end);
+            int begin = index + find.length();
+            int end = response.indexOf(':', begin);
+            String status = response.substring(begin, end);
 
-			// Newer servers use "done" while older servers use "DONE"
-			if (! (status.startsWith("done") || status.startsWith("DONE"))) {
-				return Task.IN_PROGRESS;
-			}
-		}
-		return Task.COMPLETE;
-	}
+            // Newer servers use "done" while older servers use "DONE"
+            if (! (status.startsWith("done") || status.startsWith("DONE"))) {
+                return Task.IN_PROGRESS;
+            }
+        }
+        return Task.COMPLETE;
+    }
 }

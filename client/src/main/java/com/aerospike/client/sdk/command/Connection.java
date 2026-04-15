@@ -48,318 +48,318 @@ import com.aerospike.client.sdk.util.Util;
  * Socket connection wrapper.
  */
 public final class Connection implements Closeable {
-	private final Socket socket;
-	private final InputStream in;
-	private final OutputStream out;
-	private final Pool pool;
-	private volatile long lastUsed;
+    private final Socket socket;
+    private final InputStream in;
+    private final OutputStream out;
+    private final Pool pool;
+    private volatile long lastUsed;
 
-	public Connection(InetSocketAddress address, int timeoutMillis)
-		throws AerospikeException.Connection {
-		this(address, timeoutMillis, null, null);
-	}
+    public Connection(InetSocketAddress address, int timeoutMillis)
+        throws AerospikeException.Connection {
+        this(address, timeoutMillis, null, null);
+    }
 
-	public Connection(InetSocketAddress address, int timeoutMillis, Node node, Pool pool)
-		throws AerospikeException.Connection {
-		this.pool = pool;
+    public Connection(InetSocketAddress address, int timeoutMillis, Node node, Pool pool)
+        throws AerospikeException.Connection {
+        this.pool = pool;
 
-		try {
-			socket = new Socket();
+        try {
+            socket = new Socket();
 
-			try {
-				socket.setTcpNoDelay(true);
+            try {
+                socket.setTcpNoDelay(true);
 
-				if (timeoutMillis > 0) {
-					socket.setSoTimeout(timeoutMillis);
-				}
-				else {
-					// Do not wait indefinitely on connection if no timeout is specified.
-					// Retry functionality will attempt to reconnect later.
-					timeoutMillis = 2000;
-				}
-				socket.connect(address, timeoutMillis);
-				in = socket.getInputStream();
-				out = socket.getOutputStream();
-				lastUsed = System.nanoTime();
-			}
-			catch (Throwable e) {
-				// socket.close() will close input/output streams according to doc.
-				socket.close();
+                if (timeoutMillis > 0) {
+                    socket.setSoTimeout(timeoutMillis);
+                }
+                else {
+                    // Do not wait indefinitely on connection if no timeout is specified.
+                    // Retry functionality will attempt to reconnect later.
+                    timeoutMillis = 2000;
+                }
+                socket.connect(address, timeoutMillis);
+                in = socket.getInputStream();
+                out = socket.getOutputStream();
+                lastUsed = System.nanoTime();
+            }
+            catch (Throwable e) {
+                // socket.close() will close input/output streams according to doc.
+                socket.close();
 
-				if (node != null) {
-					node.incrErrorRate();
-				}
-				throw e;
-			}
-		}
-		catch (AerospikeException ae) {
-			throw ae;
-		}
-		catch (Throwable e) {
-			throw new AerospikeException.Connection(e);
-		}
-	}
+                if (node != null) {
+                    node.incrErrorRate();
+                }
+                throw e;
+            }
+        }
+        catch (AerospikeException ae) {
+            throw ae;
+        }
+        catch (Throwable e) {
+            throw new AerospikeException.Connection(e);
+        }
+    }
 
-	public Connection(
-		TlsBuilder tls, String tlsName, InetSocketAddress address, int timeoutMillis
-	) throws AerospikeException.Connection {
-		this(tls, tlsName, address, timeoutMillis, null, null);
-	}
+    public Connection(
+        TlsBuilder tls, String tlsName, InetSocketAddress address, int timeoutMillis
+    ) throws AerospikeException.Connection {
+        this(tls, tlsName, address, timeoutMillis, null, null);
+    }
 
-	public Connection(
-		TlsBuilder tls, String tlsName, InetSocketAddress address, int timeoutMillis, Node node,
-		Pool pool
-	) throws AerospikeException.Connection {
-		this.pool = pool;
+    public Connection(
+        TlsBuilder tls, String tlsName, InetSocketAddress address, int timeoutMillis, Node node,
+        Pool pool
+    ) throws AerospikeException.Connection {
+        this.pool = pool;
 
-		try {
-			SSLContext context = tls.getCustomSslContext();
-			SSLSocketFactory sslsocketfactory = (context != null) ?
-				context.getSocketFactory() : (SSLSocketFactory)SSLSocketFactory.getDefault();
-			SSLSocket sslSocket = (SSLSocket)sslsocketfactory.createSocket();
-			socket = sslSocket;
+        try {
+            SSLContext context = tls.getCustomSslContext();
+            SSLSocketFactory sslsocketfactory = (context != null) ?
+                context.getSocketFactory() : (SSLSocketFactory)SSLSocketFactory.getDefault();
+            SSLSocket sslSocket = (SSLSocket)sslsocketfactory.createSocket();
+            socket = sslSocket;
 
-			try {
-				socket.setTcpNoDelay(true);
+            try {
+                socket.setTcpNoDelay(true);
 
-				if (timeoutMillis > 0) {
-					socket.setSoTimeout(timeoutMillis);
-				}
-				else {
-					// Do not wait indefinitely on connection if no timeout is specified.
-					// Retry functionality will attempt to reconnect later.
-					timeoutMillis = 2000;
-				}
+                if (timeoutMillis > 0) {
+                    socket.setSoTimeout(timeoutMillis);
+                }
+                else {
+                    // Do not wait indefinitely on connection if no timeout is specified.
+                    // Retry functionality will attempt to reconnect later.
+                    timeoutMillis = 2000;
+                }
 
-				/*
-				String[] protocols = sslSocket.getSupportedProtocols();
-				for (String protocol : protocols) {
-					Log.info("Protocol: " + protocol);
-				}
-				String[] ciphers = sslSocket.getSupportedCipherSuites();
-				for (String cipher : ciphers) {
-					Log.info("Cipher: " + cipher);
-				}
-				*/
+                /*
+                String[] protocols = sslSocket.getSupportedProtocols();
+                for (String protocol : protocols) {
+                    Log.info("Protocol: " + protocol);
+                }
+                String[] ciphers = sslSocket.getSupportedCipherSuites();
+                for (String cipher : ciphers) {
+                    Log.info("Cipher: " + cipher);
+                }
+                */
 
-				if (tls.getProtocols() != null) {
-					sslSocket.setEnabledProtocols(tls.getProtocols());
-				}
+                if (tls.getProtocols() != null) {
+                    sslSocket.setEnabledProtocols(tls.getProtocols());
+                }
 
-				if (tls.getCiphers() != null) {
-					sslSocket.setEnabledCipherSuites(tls.getCiphers());
-				}
+                if (tls.getCiphers() != null) {
+                    sslSocket.setEnabledCipherSuites(tls.getCiphers());
+                }
 
-				sslSocket.setUseClientMode(true);
-				sslSocket.connect(address, timeoutMillis);
-				sslSocket.startHandshake();
+                sslSocket.setUseClientMode(true);
+                sslSocket.connect(address, timeoutMillis);
+                sslSocket.startHandshake();
 
-				X509Certificate cert = (X509Certificate)sslSocket.getSession()
-					.getPeerCertificates()[0];
+                X509Certificate cert = (X509Certificate)sslSocket.getSession()
+                    .getPeerCertificates()[0];
 
-				validateServerCertificate(tls, tlsName, cert);
+                validateServerCertificate(tls, tlsName, cert);
 
-				in = socket.getInputStream();
-				out = socket.getOutputStream();
-				lastUsed = System.nanoTime();
-			}
-			catch (Throwable e) {
-				// socket.close() will close input/output streams according to doc.
-				socket.close();
+                in = socket.getInputStream();
+                out = socket.getOutputStream();
+                lastUsed = System.nanoTime();
+            }
+            catch (Throwable e) {
+                // socket.close() will close input/output streams according to doc.
+                socket.close();
 
-				if (node != null) {
-					node.incrErrorRate();
-				}
-				throw e;
-			}
-		}
-		catch (AerospikeException ae) {
-			throw ae;
-		}
-		catch (Throwable e) {
-			throw new AerospikeException.Connection(e);
-		}
-	}
+                if (node != null) {
+                    node.incrErrorRate();
+                }
+                throw e;
+            }
+        }
+        catch (AerospikeException ae) {
+            throw ae;
+        }
+        catch (Throwable e) {
+            throw new AerospikeException.Connection(e);
+        }
+    }
 
-	public static void validateServerCertificate(
-		TlsBuilder tls, String tlsName, X509Certificate cert
-	) throws Exception {
-		if (tlsName == null) {
-			// Do not throw AerospikeException.Connection because that exception will be retried.
-			// We don't want to retry on TLS errors. Throw standard AerospikeException instead.
-			throw new AerospikeException("Invalid TLS name: null");
-		}
+    public static void validateServerCertificate(
+        TlsBuilder tls, String tlsName, X509Certificate cert
+    ) throws Exception {
+        if (tlsName == null) {
+            // Do not throw AerospikeException.Connection because that exception will be retried.
+            // We don't want to retry on TLS errors. Throw standard AerospikeException instead.
+            throw new AerospikeException("Invalid TLS name: null");
+        }
 
-		// Exclude certificate serial numbers.
-		if (tls.getRevokeCertificates() != null) {
-			BigInteger serialNumber = cert.getSerialNumber();
+        // Exclude certificate serial numbers.
+        if (tls.getRevokeCertificates() != null) {
+            BigInteger serialNumber = cert.getSerialNumber();
 
-			for (BigInteger sn : tls.getRevokeCertificates()) {
-				if (sn.equals(serialNumber)) {
-					throw new AerospikeException("Invalid certificate serial number: " + sn);
-				}
-			}
-		}
+            for (BigInteger sn : tls.getRevokeCertificates()) {
+                if (sn.equals(serialNumber)) {
+                    throw new AerospikeException("Invalid certificate serial number: " + sn);
+                }
+            }
+        }
 
-		// Search for subject certificate name.
-		String subject = cert.getSubjectX500Principal().getName(X500Principal.RFC2253);
-		LdapName ldapName = new LdapName(subject);
+        // Search for subject certificate name.
+        String subject = cert.getSubjectX500Principal().getName(X500Principal.RFC2253);
+        LdapName ldapName = new LdapName(subject);
 
-		for (Rdn rdn : ldapName.getRdns()) {
-			Attribute cn = rdn.toAttributes().get("CN");
+        for (Rdn rdn : ldapName.getRdns()) {
+            Attribute cn = rdn.toAttributes().get("CN");
 
-			if (cn != null) {
-				String certName = (String)cn.get();
+            if (cn != null) {
+                String certName = (String)cn.get();
 
-				/*
-				if (Log.debugEnabled()) {
-					Log.debug("Cert name: " + certName);
-				}
-				*/
+                /*
+                if (Log.debugEnabled()) {
+                    Log.debug("Cert name: " + certName);
+                }
+                */
 
-				if (certName.equals(tlsName)) {
-					return;
-				}
-			}
-		}
+                if (certName.equals(tlsName)) {
+                    return;
+                }
+            }
+        }
 
-		// Search for subject alternative names.
-		Collection<List<?>> allNames = cert.getSubjectAlternativeNames();
+        // Search for subject alternative names.
+        Collection<List<?>> allNames = cert.getSubjectAlternativeNames();
 
-		if (allNames != null) {
-			for (List<?> list : allNames) {
-				int type = (Integer)list.get(0);
+        if (allNames != null) {
+            for (List<?> list : allNames) {
+                int type = (Integer)list.get(0);
 
-				/*
-				if (Log.debugEnabled()) {
-					Log.debug("SAN " + type + ": " + list.get(1));
-				}
-				*/
+                /*
+                if (Log.debugEnabled()) {
+                    Log.debug("SAN " + type + ": " + list.get(1));
+                }
+                */
 
-				if (type == 2 && list.get(1).equals(tlsName)) {
-					return;
-				}
-			}
-		}
+                if (type == 2 && list.get(1).equals(tlsName)) {
+                    return;
+                }
+            }
+        }
 
-		throw new AerospikeException("Invalid TLS name: " + tlsName);
-	}
+        throw new AerospikeException("Invalid TLS name: " + tlsName);
+    }
 
-	public void write(byte[] buffer, int length) throws IOException {
-		// Never write more than 8 KB at a time.  Apparently, the jni socket write does an extra
-		// malloc and free if buffer size > 8 KB.
-		final int max = length;
-		int pos = 0;
-		int len;
+    public void write(byte[] buffer, int length) throws IOException {
+        // Never write more than 8 KB at a time.  Apparently, the jni socket write does an extra
+        // malloc and free if buffer size > 8 KB.
+        final int max = length;
+        int pos = 0;
+        int len;
 
-		while (pos < max) {
-			len = max - pos;
+        while (pos < max) {
+            len = max - pos;
 
-			if (len > 8192) {
-				len = 8192;
-			}
+            if (len > 8192) {
+                len = 8192;
+            }
 
-			out.write(buffer, pos, len);
-			pos += len;
-		}
-	}
+            out.write(buffer, pos, len);
+            pos += len;
+        }
+    }
 
-	public void readFully(byte[] buffer, int length) throws IOException {
-		int pos = 0;
+    public void readFully(byte[] buffer, int length) throws IOException {
+        int pos = 0;
 
-		while (pos < length) {
-			int	count = in.read(buffer, pos, length - pos);
+        while (pos < length) {
+            int count = in.read(buffer, pos, length - pos);
 
-			if (count < 0) {
-				throw new EOFException();
-			}
+            if (count < 0) {
+                throw new EOFException();
+            }
 
-			pos += count;
-		}
-	}
+            pos += count;
+        }
+    }
 
-	public void readFully(byte[] buffer, int length, byte state) throws IOException {
-		int offset = 0;
-		int count = 0;
+    public void readFully(byte[] buffer, int length, byte state) throws IOException {
+        int offset = 0;
+        int count = 0;
 
-		while (offset < length) {
-			try {
-				count = in.read(buffer, offset, length - offset);
-			}
-			catch (SocketTimeoutException ste) {
-				throw new ReadTimeout(buffer, offset, length, state);
-			}
+        while (offset < length) {
+            try {
+                count = in.read(buffer, offset, length - offset);
+            }
+            catch (SocketTimeoutException ste) {
+                throw new ReadTimeout(buffer, offset, length, state);
+            }
 
-			if (count < 0) {
-				throw new EOFException();
-			}
-			offset += count;
-		}
-	}
+            if (count < 0) {
+                throw new EOFException();
+            }
+            offset += count;
+        }
+    }
 
-	public int read(byte[] buffer, int pos, int length) throws IOException {
-		return in.read(buffer, pos, length);
-	}
+    public int read(byte[] buffer, int pos, int length) throws IOException {
+        return in.read(buffer, pos, length);
+    }
 
-	public Pool getPool() {
-		return pool;
-	}
+    public Pool getPool() {
+        return pool;
+    }
 
-	/**
-	 * Is socket closed from client perspective only.
-	 */
-	public boolean isClosed() {
-		return lastUsed == 0;
-	}
+    /**
+     * Is socket closed from client perspective only.
+     */
+    public boolean isClosed() {
+        return lastUsed == 0;
+    }
 
-	public void setTimeout(int timeout) throws SocketException {
-		socket.setSoTimeout(timeout);
-	}
+    public void setTimeout(int timeout) throws SocketException {
+        socket.setSoTimeout(timeout);
+    }
 
-	public InputStream getInputStream() {
-		return in;
-	}
+    public InputStream getInputStream() {
+        return in;
+    }
 
-	public long getLastUsed() {
-		return lastUsed;
-	}
+    public long getLastUsed() {
+        return lastUsed;
+    }
 
-	public void updateLastUsed() {
-		lastUsed = System.nanoTime();
-	}
+    public void updateLastUsed() {
+        lastUsed = System.nanoTime();
+    }
 
-	/**
-	 * Close socket and associated streams.
-	 */
-	public void close() {
-		lastUsed = 0;
+    /**
+     * Close socket and associated streams.
+     */
+    public void close() {
+        lastUsed = 0;
 
-		try {
-			in.close();
-			out.close();
-			socket.close();
-		}
-		catch (Throwable e) {
-			if (Log.errorEnabled()) {
-				Log.error("Error closing socket: " + Util.getErrorMessage(e));
-			}
-		}
-	}
+        try {
+            in.close();
+            out.close();
+            socket.close();
+        }
+        catch (Throwable e) {
+            if (Log.errorEnabled()) {
+                Log.error("Error closing socket: " + Util.getErrorMessage(e));
+            }
+        }
+    }
 
-	public static final class ReadTimeout extends RuntimeException {
-		private static final long serialVersionUID = 1L;
+    public static final class ReadTimeout extends RuntimeException {
+        private static final long serialVersionUID = 1L;
 
-		public final byte[] buffer;
-		public final int offset;
-		public final int length;
-		public final byte state;
+        public final byte[] buffer;
+        public final int offset;
+        public final int length;
+        public final byte state;
 
-		public ReadTimeout(byte[] buffer, int offset, int length, byte state)  {
-			super("timeout");
-			this.buffer = buffer;
-			this.offset = offset;
-			this.length = length;
-			this.state = state;
-		}
-	}
+        public ReadTimeout(byte[] buffer, int offset, int length, byte state)  {
+            super("timeout");
+            this.buffer = buffer;
+            this.offset = offset;
+            this.length = length;
+            this.state = state;
+        }
+    }
 }

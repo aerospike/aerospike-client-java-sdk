@@ -105,9 +105,9 @@ public class SystemSettings {
             .tendInterval(Duration.ofSeconds(1))
         )
         .transactions(ops -> ops
-        	.implicitBatchWriteTransactions(true)
-        	.sleepBetweenAttempts(Duration.ofMillis(1000))
-        	.numberOfAttempts(5)
+            .implicitBatchWriteTransactions(true)
+            .sleepBetweenAttempts(Duration.ofMillis(1000))
+            .numberOfAttempts(5)
         )
         .build();
 
@@ -187,11 +187,11 @@ public class SystemSettings {
     @Override
     public boolean equals(Object o) {
         if (this == o) {
-			return true;
-		}
+            return true;
+        }
         if (o == null || getClass() != o.getClass()) {
-			return false;
-		}
+            return false;
+        }
         SystemSettings that = (SystemSettings) o;
         return Objects.equals(minimumConnectionsPerNode, that.minimumConnectionsPerNode) &&
                Objects.equals(maximumConnectionsPerNode, that.maximumConnectionsPerNode) &&
@@ -199,9 +199,9 @@ public class SystemSettings {
                Objects.equals(numTendIntervalsInErrorWindow, that.numTendIntervalsInErrorWindow) &&
                Objects.equals(maximumErrorsInErrorWindow, that.maximumErrorsInErrorWindow) &&
                Objects.equals(tendInterval, that.tendInterval) &&
-		       Objects.equals(implicitBatchWriteTransactions, that.implicitBatchWriteTransactions) &&
-		       Objects.equals(sleepBetweenAttempts, that.sleepBetweenAttempts) &&
-		       Objects.equals(numberOfAttempts, that.numberOfAttempts);
+               Objects.equals(implicitBatchWriteTransactions, that.implicitBatchWriteTransactions) &&
+               Objects.equals(sleepBetweenAttempts, that.sleepBetweenAttempts) &&
+               Objects.equals(numberOfAttempts, that.numberOfAttempts);
     }
 
     @Override
@@ -428,7 +428,7 @@ public class SystemSettings {
          *          {@code false} to disable
          * @return this tweaks instance for method chaining
          */
-    	TransactionsTweaks implicitBatchWriteTransactions(boolean b);
+        TransactionsTweaks implicitBatchWriteTransactions(boolean b);
 
         /**
          * Sets the sleep duration between transaction retry attempts.
@@ -440,7 +440,7 @@ public class SystemSettings {
          * @param duration sleep duration between retry attempts
          * @return this tweaks instance for method chaining
          */
-    	TransactionsTweaks sleepBetweenAttempts(Duration duration);
+        TransactionsTweaks sleepBetweenAttempts(Duration duration);
 
         /**
          * Sets the maximum number of transaction retry attempts.
@@ -455,7 +455,7 @@ public class SystemSettings {
          * @param n maximum number of retry attempts (1 or greater)
          * @return this tweaks instance for method chaining
          */
-    	TransactionsTweaks numberOfAttempts(int n);
+        TransactionsTweaks numberOfAttempts(int n);
     }
 
     // -----------------------------------------------------------------------------------

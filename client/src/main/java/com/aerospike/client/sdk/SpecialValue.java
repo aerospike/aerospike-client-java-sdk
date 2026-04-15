@@ -48,23 +48,23 @@ public enum SpecialValue {
      * Represents a null value boundary
      */
     NULL(Value.NULL),
-    
+
     /**
      * Represents positive infinity - useful for unbounded range end
      */
     INFINITY(Value.INFINITY),
-    
+
     /**
      * Represents wildcard matching
      */
     WILDCARD(Value.WILDCARD);
-    
+
     private final Value aerospikeValue;
-    
+
     SpecialValue(Value aerospikeValue) {
         this.aerospikeValue = aerospikeValue;
     }
-    
+
     /**
      * Gets the corresponding Aerospike Value constant
      * @return the Aerospike Value

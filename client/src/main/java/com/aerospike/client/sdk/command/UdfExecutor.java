@@ -26,104 +26,104 @@ import com.aerospike.client.sdk.ResultCode;
 import com.aerospike.client.sdk.metrics.LatencyType;
 
 public class UdfExecutor extends SyncExecutor {
-	private final UdfCommand udf;
-	private Record rec;
+    private final UdfCommand udf;
+    private Record rec;
 
-	public UdfExecutor(Cluster cluster, UdfCommand cmd) {
-		super(cluster, cmd);
-		this.udf = cmd;
-		cluster.addCommandCount();
-	}
+    public UdfExecutor(Cluster cluster, UdfCommand cmd) {
+        super(cluster, cmd);
+        this.udf = cmd;
+        cluster.addCommandCount();
+    }
 
-	@Override
-	protected final boolean isWrite() {
-		return true;
-	}
+    @Override
+    protected final boolean isWrite() {
+        return true;
+    }
 
-	@Override
-	protected final Node getNode() {
-		return udf.partition.getNodeWrite(cluster);
-	}
+    @Override
+    protected final Node getNode() {
+        return udf.partition.getNodeWrite(cluster);
+    }
 
-	@Override
-	protected final LatencyType getLatencyType() {
-		return LatencyType.WRITE;
-	}
+    @Override
+    protected final LatencyType getLatencyType() {
+        return LatencyType.WRITE;
+    }
 
-	@Override
-	protected CommandBuffer getCommandBuffer() {
-		CommandBuffer cb = new CommandBuffer();
-		cb.setUdf(udf);
-		return cb;
-	}
+    @Override
+    protected CommandBuffer getCommandBuffer() {
+        CommandBuffer cb = new CommandBuffer();
+        cb.setUdf(udf);
+        return cb;
+    }
 
-	@Override
-	protected void parseResult(Node node, Connection conn, byte[] buffer) throws IOException {
-		RecordParser rp = new RecordParser(conn, buffer);
-		rp.parseFields(cmd.txn, udf.key, true);
+    @Override
+    protected void parseResult(Node node, Connection conn, byte[] buffer) throws IOException {
+        RecordParser rp = new RecordParser(conn, buffer);
+        rp.parseFields(cmd.txn, udf.key, true);
 
-		if (node.isMetricsEnabled()) {
-			node.addBytesIn(cmd.namespace, rp.bytesIn);
-		}
+        if (node.isMetricsEnabled()) {
+            node.addBytesIn(cmd.namespace, rp.bytesIn);
+        }
 
-		if (rp.resultCode == ResultCode.OK) {
-			rec = rp.parseRecord(false);
-			return;
-		}
+        if (rp.resultCode == ResultCode.OK) {
+            rec = rp.parseRecord(false);
+            return;
+        }
 
-		if (rp.resultCode == ResultCode.UDF_BAD_RESPONSE) {
-			rec = rp.parseRecord(false);
-			handleUdfError(rp.resultCode);
-			return;
-		}
+        if (rp.resultCode == ResultCode.UDF_BAD_RESPONSE) {
+            rec = rp.parseRecord(false);
+            handleUdfError(rp.resultCode);
+            return;
+        }
 
-		if (rp.resultCode == ResultCode.FILTERED_OUT) {
-			if (udf.failOnFilteredOut) {
-				throw AerospikeException.resultCodeToException(rp.resultCode, null);
-			}
-			return;
-		}
+        if (rp.resultCode == ResultCode.FILTERED_OUT) {
+            if (udf.failOnFilteredOut) {
+                throw AerospikeException.resultCodeToException(rp.resultCode, null);
+            }
+            return;
+        }
 
-		throw AerospikeException.resultCodeToException(rp.resultCode, null);
-	}
+        throw AerospikeException.resultCodeToException(rp.resultCode, null);
+    }
 
-	@Override
-	protected final boolean prepareRetry(boolean timeout) {
-		udf.partition.prepareRetryWrite(timeout);
-		return true;
-	}
+    @Override
+    protected final boolean prepareRetry(boolean timeout) {
+        udf.partition.prepareRetryWrite(timeout);
+        return true;
+    }
 
-	@Override
-	protected void onInDoubt() {
-		if (cmd.txn != null) {
-			cmd.txn.onWriteInDoubt(udf.key);
-		}
-	}
+    @Override
+    protected void onInDoubt() {
+        if (cmd.txn != null) {
+            cmd.txn.onWriteInDoubt(udf.key);
+        }
+    }
 
-	private void handleUdfError(int resultCode) {
-		String ret = (String)rec.bins.get("FAILURE");
+    private void handleUdfError(int resultCode) {
+        String ret = (String)rec.bins.get("FAILURE");
 
-		if (ret == null) {
-			throw AerospikeException.resultCodeToException(resultCode, null);
-		}
+        if (ret == null) {
+            throw AerospikeException.resultCodeToException(resultCode, null);
+        }
 
-		String message;
-		int code;
+        String message;
+        int code;
 
-		try {
-			String[] list = ret.split(":");
-			code = Integer.parseInt(list[2].trim());
-			message = list[0] + ':' + list[1] + ' ' + list[3];
-		}
-		catch (Throwable e) {
-			// Use generic exception if parse error occurs.
-			throw AerospikeException.resultCodeToException(resultCode, ret);
-		}
+        try {
+            String[] list = ret.split(":");
+            code = Integer.parseInt(list[2].trim());
+            message = list[0] + ':' + list[1] + ' ' + list[3];
+        }
+        catch (Throwable e) {
+            // Use generic exception if parse error occurs.
+            throw AerospikeException.resultCodeToException(resultCode, ret);
+        }
 
-		throw AerospikeException.resultCodeToException(code, message);
-	}
+        throw AerospikeException.resultCodeToException(code, message);
+    }
 
-	public Record getRecord() {
-		return rec;
-	}
+    public Record getRecord() {
+        return rec;
+    }
 }

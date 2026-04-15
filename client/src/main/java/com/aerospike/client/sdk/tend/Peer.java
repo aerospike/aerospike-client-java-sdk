@@ -22,8 +22,8 @@ import com.aerospike.client.sdk.Host;
 import com.aerospike.client.sdk.Node;
 
 public final class Peer {
-	public String nodeName;
-	public String tlsName;
-	public List<Host> hosts;
-	public Node replaceNode;
+    public String nodeName;
+    public String tlsName;
+    public List<Host> hosts;
+    public Node replaceNode;
 }

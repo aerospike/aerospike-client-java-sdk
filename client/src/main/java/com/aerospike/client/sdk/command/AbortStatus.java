@@ -20,14 +20,14 @@ package com.aerospike.client.sdk.command;
  * Transaction abort status code.
  */
 public enum AbortStatus {
-	OK("Abort succeeded"),
-	ALREADY_ABORTED("Already aborted"),
-	ROLL_BACK_ABANDONED("Transaction client roll back abandoned. Server will eventually abort the transaction."),
-	CLOSE_ABANDONED("Transaction has been rolled back, but transaction client close was abandoned. Server will eventually close the transaction.");
+    OK("Abort succeeded"),
+    ALREADY_ABORTED("Already aborted"),
+    ROLL_BACK_ABANDONED("Transaction client roll back abandoned. Server will eventually abort the transaction."),
+    CLOSE_ABANDONED("Transaction has been rolled back, but transaction client close was abandoned. Server will eventually close the transaction.");
 
-	public final String str;
+    public final String str;
 
-	AbortStatus(String str) {
-		this.str = str;
-	}
+    AbortStatus(String str) {
+        this.str = str;
+    }
 }

@@ -25,60 +25,60 @@ import com.aerospike.client.sdk.ResultCode;
 import com.aerospike.client.sdk.metrics.LatencyType;
 
 public final class TxnMarkRollForward extends SyncExecutor {
-	private final WriteCommand write;
+    private final WriteCommand write;
 
-	public TxnMarkRollForward(Cluster cluster, WriteCommand cmd) {
-		super(cluster, cmd);
-		this.write = cmd;
-	}
+    public TxnMarkRollForward(Cluster cluster, WriteCommand cmd) {
+        super(cluster, cmd);
+        this.write = cmd;
+    }
 
-	@Override
-	protected final boolean isWrite() {
-		return true;
-	}
+    @Override
+    protected final boolean isWrite() {
+        return true;
+    }
 
-	@Override
-	protected final Node getNode() {
-		return write.partition.getNodeWrite(cluster);
-	}
+    @Override
+    protected final Node getNode() {
+        return write.partition.getNodeWrite(cluster);
+    }
 
-	@Override
-	protected final LatencyType getLatencyType() {
-		return LatencyType.WRITE;
-	}
+    @Override
+    protected final LatencyType getLatencyType() {
+        return LatencyType.WRITE;
+    }
 
-	@Override
-	protected CommandBuffer getCommandBuffer() {
-		CommandBuffer cb = new CommandBuffer();
-		cb.setTxnMarkRollForward(write);
-		return cb;
-	}
+    @Override
+    protected CommandBuffer getCommandBuffer() {
+        CommandBuffer cb = new CommandBuffer();
+        cb.setTxnMarkRollForward(write);
+        return cb;
+    }
 
-	@Override
-	protected void parseResult(Node node, Connection conn, byte[] buffer) throws IOException {
-		RecordParser rp = new RecordParser(conn, buffer);
-		rp.skipFields();
+    @Override
+    protected void parseResult(Node node, Connection conn, byte[] buffer) throws IOException {
+        RecordParser rp = new RecordParser(conn, buffer);
+        rp.skipFields();
 
-		if (node.isMetricsEnabled()) {
-			node.addBytesIn(cmd.namespace, rp.bytesIn);
-		}
+        if (node.isMetricsEnabled()) {
+            node.addBytesIn(cmd.namespace, rp.bytesIn);
+        }
 
-		// MRT_COMMITTED is considered a success because it means a previous attempt already
-		// succeeded in notifying the server that the transaction will be rolled forward.
-		if (rp.resultCode == ResultCode.OK || rp.resultCode == ResultCode.MRT_COMMITTED) {
-			return;
-		}
+        // MRT_COMMITTED is considered a success because it means a previous attempt already
+        // succeeded in notifying the server that the transaction will be rolled forward.
+        if (rp.resultCode == ResultCode.OK || rp.resultCode == ResultCode.MRT_COMMITTED) {
+            return;
+        }
 
-		throw AerospikeException.resultCodeToException(rp.resultCode, null);
-	}
+        throw AerospikeException.resultCodeToException(rp.resultCode, null);
+    }
 
-	@Override
-	protected final boolean prepareRetry(boolean timeout) {
-		write.partition.prepareRetryWrite(timeout);
-		return true;
-	}
+    @Override
+    protected final boolean prepareRetry(boolean timeout) {
+        write.partition.prepareRetryWrite(timeout);
+        return true;
+    }
 
-	@Override
-	protected void onInDoubt() {
-	}
+    @Override
+    protected void onInDoubt() {
+    }
 }

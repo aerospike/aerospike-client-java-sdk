@@ -182,8 +182,8 @@ public class AbstractCdtBuilder<T extends AbstractOperationBuilder<T>> {
 
     private ListEntryWriteOptions applyListOptions(Consumer<ListEntryWriteOptions> options) {
         if (options == null) {
-			return null;
-		}
+            return null;
+        }
         ListEntryWriteOptions opts = new ListEntryWriteOptions();
         options.accept(opts);
         return opts;
@@ -191,8 +191,8 @@ public class AbstractCdtBuilder<T extends AbstractOperationBuilder<T>> {
 
     private ListBulkWriteOptions applyListBulkOptions(Consumer<ListBulkWriteOptions> options) {
         if (options == null) {
-			return null;
-		}
+            return null;
+        }
         ListBulkWriteOptions opts = new ListBulkWriteOptions();
         options.accept(opts);
         return opts;
@@ -202,14 +202,14 @@ public class AbstractCdtBuilder<T extends AbstractOperationBuilder<T>> {
         int flags = ListWriteFlags.DEFAULT;
         if (opts != null) {
             if (opts.isAddUnique()) {
-				flags |= ListWriteFlags.ADD_UNIQUE;
-			}
+                flags |= ListWriteFlags.ADD_UNIQUE;
+            }
             if (opts.isInsertBounded()) {
-				flags |= ListWriteFlags.INSERT_BOUNDED;
-			}
+                flags |= ListWriteFlags.INSERT_BOUNDED;
+            }
             if (opts.isAllowFailures()) {
-				flags |= ListWriteFlags.NO_FAIL;
-			}
+                flags |= ListWriteFlags.NO_FAIL;
+            }
             if (opts instanceof ListBulkWriteOptions && ((ListBulkWriteOptions) opts).isAllowPartial()) {
                 flags |= ListWriteFlags.PARTIAL;
             }
@@ -885,8 +885,8 @@ public class AbstractCdtBuilder<T extends AbstractOperationBuilder<T>> {
 
     private MapBulkWriteOptions applyBulkOptions(Consumer<MapBulkWriteOptions> options) {
         if (options == null) {
-			return null;
-		}
+            return null;
+        }
         MapBulkWriteOptions opts = new MapBulkWriteOptions();
         options.accept(opts);
         return opts;
@@ -900,8 +900,8 @@ public class AbstractCdtBuilder<T extends AbstractOperationBuilder<T>> {
         boolean persist = false;
         if (opts != null) {
             if (opts.isAllowFailures()) {
-				flags |= MapWriteFlags.NO_FAIL;
-			}
+                flags |= MapWriteFlags.NO_FAIL;
+            }
             if (opts instanceof MapBulkWriteOptions && ((MapBulkWriteOptions) opts).isAllowPartial()) {
                 flags |= MapWriteFlags.PARTIAL;
             }

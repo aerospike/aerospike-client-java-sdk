@@ -24,7 +24,7 @@ public interface BooleanExpression extends AelExpression {
     BooleanExpression and(BooleanExpression other);
     BooleanExpression or(BooleanExpression other);
     BooleanExpression not();
-    
+
     // Comparison operations for boolean values
     BooleanExpression eq(Boolean value);
     BooleanExpression ne(Boolean value);

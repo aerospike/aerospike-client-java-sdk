@@ -98,7 +98,7 @@ public class NavigatableRecordStream implements ResettablePagination, Closeable 
     private int currentPage = -1;
     private int index = 0;
     private List<SortProperties> sortInfo = null;
-    
+
     /**
      * Creates a NavigatableRecordStream from an existing RecordStream.
      * 
@@ -110,7 +110,7 @@ public class NavigatableRecordStream implements ResettablePagination, Closeable 
     public NavigatableRecordStream(RecordStream source) {
         this(source, 0);
     }
-    
+
     /**
      * Creates a NavigatableRecordStream from an existing RecordStream with a limit.
      * 
@@ -123,7 +123,7 @@ public class NavigatableRecordStream implements ResettablePagination, Closeable 
      */
     public NavigatableRecordStream(RecordStream source, long limit) {
         List<RecordResult> recordList = new ArrayList<>();
-        
+
         try {
             int count = 0;
             while (source.hasNext() && (limit <= 0 || count < limit)) {
@@ -133,11 +133,11 @@ public class NavigatableRecordStream implements ResettablePagination, Closeable 
         } finally {
             source.close();
         }
-        
+
         this.records = recordList.toArray(new RecordResult[0]);
         recalculatePages();
     }
-    
+
     /**
      * Sets the page size for pagination.
      * 
@@ -157,7 +157,7 @@ public class NavigatableRecordStream implements ResettablePagination, Closeable 
         resetIteration();
         return this;
     }
-    
+
     /**
      * Sorts the records by a single field in ascending order with case sensitivity.
      * 
@@ -170,7 +170,7 @@ public class NavigatableRecordStream implements ResettablePagination, Closeable 
     public NavigatableRecordStream sortBy(String field) {
         return sortBy(field, SortDir.SORT_ASC, true);
     }
-    
+
     /**
      * Sorts the records by a single field in ascending order with specified case sensitivity.
      * 
@@ -183,7 +183,7 @@ public class NavigatableRecordStream implements ResettablePagination, Closeable 
     public NavigatableRecordStream sortBy(String field, boolean caseInsensitive) {
         return sortBy(field, SortDir.SORT_ASC, caseInsensitive);
     }
-    
+
     /**
      * Sorts the records by a single field with specified direction.
      * 
@@ -196,7 +196,7 @@ public class NavigatableRecordStream implements ResettablePagination, Closeable 
     public NavigatableRecordStream sortBy(String field, SortDir sortDir) {
         return sortBy(field, sortDir, true);
     }
-    
+
     /**
      * Sorts the records by a single field with specified direction and case sensitivity.
      * 
@@ -221,7 +221,7 @@ public class NavigatableRecordStream implements ResettablePagination, Closeable 
         applySort();
         return this;
     }
-    
+
     /**
      * Sorts the records by multiple sort properties.
      * 
@@ -246,7 +246,7 @@ public class NavigatableRecordStream implements ResettablePagination, Closeable 
         applySort();
         return this;
     }
-    
+
     /**
      * Sorts the records by multiple sort properties.
      * 
@@ -271,7 +271,7 @@ public class NavigatableRecordStream implements ResettablePagination, Closeable 
         applySort();
         return this;
     }
-    
+
     /**
      * Sorts the records by a single sort property.
      * 
@@ -286,7 +286,7 @@ public class NavigatableRecordStream implements ResettablePagination, Closeable 
         applySort();
         return this;
     }
-    
+
     /**
      * Applies the current sort criteria to the records.
      */
@@ -296,14 +296,14 @@ public class NavigatableRecordStream implements ResettablePagination, Closeable 
         }
         resetIteration();
     }
-    
+
     /**
      * Recalculates the number of pages based on current page size.
      */
     private void recalculatePages() {
         this.numPages = (pageSize > 0) ? ((records.length + pageSize - 1) / pageSize) : 1;
     }
-    
+
     /**
      * Resets iteration to the beginning.
      */
@@ -311,7 +311,7 @@ public class NavigatableRecordStream implements ResettablePagination, Closeable 
         this.currentPage = -1;
         this.index = 0;
     }
-    
+
     /**
      * Checks if there are more pages available.
      * 
@@ -328,7 +328,7 @@ public class NavigatableRecordStream implements ResettablePagination, Closeable 
             return (++currentPage) < numPages;
         }
     }
-    
+
     /**
      * Checks if there are more records on the current page.
      * 
@@ -342,7 +342,7 @@ public class NavigatableRecordStream implements ResettablePagination, Closeable 
         // If the current page is -1, they are not using pagination.
         return currentPage == -1 || pageOfIndex == currentPage;
     }
-    
+
     /**
      * Returns the next record in the stream.
      * 
@@ -354,7 +354,7 @@ public class NavigatableRecordStream implements ResettablePagination, Closeable 
         }
         return null;
     }
-    
+
     /**
      * Returns the current page number (1-based).
      * 
@@ -364,7 +364,7 @@ public class NavigatableRecordStream implements ResettablePagination, Closeable 
     public int currentPage() {
         return currentPage + 1;
     }
-    
+
     /**
      * Returns the maximum number of pages.
      * 
@@ -374,7 +374,7 @@ public class NavigatableRecordStream implements ResettablePagination, Closeable 
     public int maxPages() {
         return numPages;
     }
-    
+
     /**
      * Sets the current page to the specified page number.
      * 
@@ -394,7 +394,7 @@ public class NavigatableRecordStream implements ResettablePagination, Closeable 
         currentPage = newPage - 1;
         index = currentPage * pageSize;
     }
-    
+
     /**
      * Converts the records on the current page to a Java Stream.
      * 
@@ -407,13 +407,13 @@ public class NavigatableRecordStream implements ResettablePagination, Closeable 
         // Save current position
         int savedIndex = this.index;
         int savedPage = this.currentPage;
-        
+
         // Create a custom iterator for the current page
         return StreamSupport.stream(
             Spliterators.spliteratorUnknownSize(
                 new java.util.Iterator<RecordResult>() {
                     private int streamIndex = savedIndex;
-                    
+
                     @Override
                     public boolean hasNext() {
                         if (streamIndex >= records.length) {
@@ -422,7 +422,7 @@ public class NavigatableRecordStream implements ResettablePagination, Closeable 
                         long pageOfIndex = pageSize == 0 ? 0 : (streamIndex / pageSize);
                         return savedPage == -1 || pageOfIndex == savedPage;
                     }
-                    
+
                     @Override
                     public RecordResult next() {
                         if (streamIndex >= 0 && streamIndex < records.length) {
@@ -436,7 +436,7 @@ public class NavigatableRecordStream implements ResettablePagination, Closeable 
             false
         );
     }
-    
+
     /**
      * Iterates through all remaining records on the current page.
      * 
@@ -447,7 +447,7 @@ public class NavigatableRecordStream implements ResettablePagination, Closeable 
             consumer.accept(next());
         }
     }
-    
+
     /**
      * Converts the records on the current page to a list of objects using the specified mapper.
      * 
@@ -464,7 +464,7 @@ public class NavigatableRecordStream implements ResettablePagination, Closeable 
         }
         return result;
     }
-    
+
     /**
      * Gets the first record from the current page.
      * 
@@ -476,7 +476,7 @@ public class NavigatableRecordStream implements ResettablePagination, Closeable 
     public Optional<RecordResult> getFirst() throws AerospikeException {
         return getFirst(true);
     }
-    
+
     /**
      * Gets the first record from the current page.
      * 
@@ -495,7 +495,7 @@ public class NavigatableRecordStream implements ResettablePagination, Closeable 
         }
         return Optional.empty();
     }
-    
+
     /**
      * Gets the first record from the current page and maps it to an object.
      * 
@@ -513,7 +513,7 @@ public class NavigatableRecordStream implements ResettablePagination, Closeable 
         }
         return Optional.empty();
     }
-    
+
     /**
      * Gets the total number of records in this stream.
      * 
@@ -522,7 +522,7 @@ public class NavigatableRecordStream implements ResettablePagination, Closeable 
     public int size() {
         return records.length;
     }
-    
+
     /**
      * Resets the stream to the beginning, allowing re-iteration of all records.
      * 
@@ -532,7 +532,7 @@ public class NavigatableRecordStream implements ResettablePagination, Closeable 
         resetIteration();
         return this;
     }
-    
+
     @Override
     public void close() {
         // Nothing to close - all records are in memory

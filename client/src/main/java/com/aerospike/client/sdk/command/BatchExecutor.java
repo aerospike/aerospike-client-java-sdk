@@ -23,38 +23,38 @@ import com.aerospike.client.sdk.Cluster;
 
 public final class BatchExecutor {
 
-	public static void execute(Cluster cluster, IBatchCommand[] commands, BatchStatus status) {
-		cluster.addCommandCount();
+    public static void execute(Cluster cluster, IBatchCommand[] commands, BatchStatus status) {
+        cluster.addCommandCount();
 
-		if (commands.length <= 1) {
-			// Run batch request in same thread.
-			for (IBatchCommand command : commands) {
-				try {
-					command.execute();
-				}
-				catch (AerospikeException ae) {
-					if (ae.getInDoubt()) {
-						command.setInDoubt();
-					}
-					status.setException(ae);
-				}
-				catch (Throwable e) {
-					command.setInDoubt();
-					status.setException(new AerospikeException(e));
-				}
-			}
-			status.checkException();
-			return;
-		}
+        if (commands.length <= 1) {
+            // Run batch request in same thread.
+            for (IBatchCommand command : commands) {
+                try {
+                    command.execute();
+                }
+                catch (AerospikeException ae) {
+                    if (ae.getInDoubt()) {
+                        command.setInDoubt();
+                    }
+                    status.setException(ae);
+                }
+                catch (Throwable e) {
+                    command.setInDoubt();
+                    status.setException(new AerospikeException(e));
+                }
+            }
+            status.checkException();
+            return;
+        }
 
-		// Start virtual threads.
-		try (ExecutorService es = cluster.getExecutorService()) {
-			for (IBatchCommand command : commands) {
-				es.execute(command);
-			}
-		}
+        // Start virtual threads.
+        try (ExecutorService es = cluster.getExecutorService()) {
+            for (IBatchCommand command : commands) {
+                es.execute(command);
+            }
+        }
 
-		// Throw an exception if an error occurred.
-		status.checkException();
-	}
+        // Throw an exception if an error occurred.
+        status.checkException();
+    }
 }

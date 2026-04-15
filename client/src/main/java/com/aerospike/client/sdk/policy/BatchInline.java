@@ -20,29 +20,29 @@ package com.aerospike.client.sdk.policy;
  * Batch inline suggestions for the server.
  */
 public enum BatchInline {
-	/**
-	 * Do not inline. Batch will always be processed in separate server service threads.
-	 */
-	NONE,
+    /**
+     * Do not inline. Batch will always be processed in separate server service threads.
+     */
+    NONE,
 
-	/**
-	 * Allow batch to be processed immediately in the server's receiving thread for in-memory
-	 * namespaces.
-	 * <p>
-	 * For batch commands with smaller sized records (&lt;= 1K per record), inline
-	 * processing will be significantly faster on in-memory namespaces.
-	 * <p>
-	 * Inline processing can introduce the possibility of unfairness because the server
-	 * can process the entire batch before moving onto the next command.
-	 */
-	INLINE_IN_MEMORY,
+    /**
+     * Allow batch to be processed immediately in the server's receiving thread for in-memory
+     * namespaces.
+     * <p>
+     * For batch commands with smaller sized records (&lt;= 1K per record), inline
+     * processing will be significantly faster on in-memory namespaces.
+     * <p>
+     * Inline processing can introduce the possibility of unfairness because the server
+     * can process the entire batch before moving onto the next command.
+     */
+    INLINE_IN_MEMORY,
 
-	/**
-	 * Allow batch to be processed immediately in the server's receiving thread for all
-	 * namespaces.
-	 * <p>
-	 * Inline processing can introduce the possibility of unfairness because the server
-	 * can process the entire batch before moving onto the next command.
-	 */
-	INLINE_ALL
+    /**
+     * Allow batch to be processed immediately in the server's receiving thread for all
+     * namespaces.
+     * <p>
+     * Inline processing can introduce the possibility of unfairness because the server
+     * can process the entire batch before moving onto the next command.
+     */
+    INLINE_ALL
 }

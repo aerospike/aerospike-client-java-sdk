@@ -29,38 +29,38 @@ import com.aerospike.client.sdk.policy.Settings;
 import com.aerospike.client.sdk.query.Filter;
 
 public final class BackgroundQueryCommand extends Command {
-	final long taskId;
-	final String set;
-	final Filter filter;
-	final OpType type;
-	final CommitLevel commitLevel;
-	final List<Operation> ops;
-	final String packageName;
-	final String functionName;
-	final Value[] functionArgs;
-	final int recordsPerSecond;
-	final int ttl;
-	final boolean durableDelete;
+    final long taskId;
+    final String set;
+    final Filter filter;
+    final OpType type;
+    final CommitLevel commitLevel;
+    final List<Operation> ops;
+    final String packageName;
+    final String functionName;
+    final Value[] functionArgs;
+    final int recordsPerSecond;
+    final int ttl;
+    final boolean durableDelete;
 
-	public BackgroundQueryCommand(
-		Cluster cluster, DataSet set, long taskId, OpType type, List<Operation> ops, int ttl,
-		Filter filter, Expression filterExp, Settings policy, int recordsPerSecond
-	) {
-		super(cluster, set.getNamespace(), null, filterExp, policy.getReplicaOrder(), policy);
-		this.taskId = taskId;
-		this.set = set.getSet();
-		this.filter = filter;
-		this.type = type;
-		this.commitLevel = policy.getCommitLevel();
-		this.ops = ops;
-		this.packageName = null;
-		this.functionName = null;
-		this.functionArgs = null;
-		this.recordsPerSecond = recordsPerSecond;
-		this.ttl = ttl;
-		this.durableDelete = policy.getUseDurableDelete();
-	}
-	
+    public BackgroundQueryCommand(
+        Cluster cluster, DataSet set, long taskId, OpType type, List<Operation> ops, int ttl,
+        Filter filter, Expression filterExp, Settings policy, int recordsPerSecond
+    ) {
+        super(cluster, set.getNamespace(), null, filterExp, policy.getReplicaOrder(), policy);
+        this.taskId = taskId;
+        this.set = set.getSet();
+        this.filter = filter;
+        this.type = type;
+        this.commitLevel = policy.getCommitLevel();
+        this.ops = ops;
+        this.packageName = null;
+        this.functionName = null;
+        this.functionArgs = null;
+        this.recordsPerSecond = recordsPerSecond;
+        this.ttl = ttl;
+        this.durableDelete = policy.getUseDurableDelete();
+    }
+
    public BackgroundQueryCommand(
            Cluster cluster, DataSet set, long taskId, OpType type,  int ttl,
            String packageName, String functionName, Value[] functionArgs,

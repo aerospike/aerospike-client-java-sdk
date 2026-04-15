@@ -24,30 +24,30 @@ package com.aerospike.client.sdk.cdt;
  * }</pre>
  */
 public final class ListWriteFlags {
-	/**
-	 * Default.  Allow duplicate values and insertions at any index.
-	 */
-	public static final int DEFAULT = 0;
+    /**
+     * Default.  Allow duplicate values and insertions at any index.
+     */
+    public static final int DEFAULT = 0;
 
-	/**
-	 * Only add unique values.
-	 */
-	public static final int ADD_UNIQUE = 1;
+    /**
+     * Only add unique values.
+     */
+    public static final int ADD_UNIQUE = 1;
 
-	/**
-	 * Enforce list boundaries when inserting.  Do not allow values to be inserted
-	 * at index outside current list boundaries.
-	 */
-	public static final int INSERT_BOUNDED = 2;
+    /**
+     * Enforce list boundaries when inserting.  Do not allow values to be inserted
+     * at index outside current list boundaries.
+     */
+    public static final int INSERT_BOUNDED = 2;
 
-	/**
-	 * Do not raise error if a list item fails due to write flag constraints.
-	 */
-	public static final int NO_FAIL = 4;
+    /**
+     * Do not raise error if a list item fails due to write flag constraints.
+     */
+    public static final int NO_FAIL = 4;
 
-	/**
-	 * Allow other valid list items to be committed if a list item fails due to
-	 * write flag constraints.
-	 */
-	public static final int PARTIAL = 8;
+    /**
+     * Allow other valid list items to be committed if a list item fails due to
+     * write flag constraints.
+     */
+    public static final int PARTIAL = 8;
 }

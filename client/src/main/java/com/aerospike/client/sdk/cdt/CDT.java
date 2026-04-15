@@ -21,53 +21,53 @@ import com.aerospike.client.sdk.util.Pack;
 import com.aerospike.client.sdk.util.Packer;
 
 public abstract class CDT {
-	protected static byte[] packRangeOperation(int command, int returnType, Value begin, Value end, CTX[] ctx) {
-		Packer packer = new Packer();
+    protected static byte[] packRangeOperation(int command, int returnType, Value begin, Value end, CTX[] ctx) {
+        Packer packer = new Packer();
 
-		// First pass calculates buffer size.
-		// Second pass writes to buffer.
-		for (int i = 0; i < 2; i++) {
-			Pack.init(packer, ctx);
-			packer.packArrayBegin((end != null) ? 4 : 3);
-			packer.packInt(command);
-			packer.packInt(returnType);
+        // First pass calculates buffer size.
+        // Second pass writes to buffer.
+        for (int i = 0; i < 2; i++) {
+            Pack.init(packer, ctx);
+            packer.packArrayBegin((end != null) ? 4 : 3);
+            packer.packInt(command);
+            packer.packInt(returnType);
 
-			if (begin != null) {
-				begin.pack(packer);
-			} else {
-				packer.packNil();
-			}
+            if (begin != null) {
+                begin.pack(packer);
+            } else {
+                packer.packNil();
+            }
 
-			if (end != null) {
-				end.pack(packer);
-			}
+            if (end != null) {
+                end.pack(packer);
+            }
 
-			if (i == 0) {
-				packer.createBuffer();
-			}
-		}
-		return packer.getBuffer();
-	}
+            if (i == 0) {
+                packer.createBuffer();
+            }
+        }
+        return packer.getBuffer();
+    }
 
-	protected static void init(Packer packer, CTX[] ctx, int command, int count, int flag) {
-		packer.packArrayBegin(3);
-		packer.packInt(0xff);
-		packer.packArrayBegin(ctx.length * 2);
+    protected static void init(Packer packer, CTX[] ctx, int command, int count, int flag) {
+        packer.packArrayBegin(3);
+        packer.packInt(0xff);
+        packer.packArrayBegin(ctx.length * 2);
 
-		CTX c;
-		int last = ctx.length - 1;
+        CTX c;
+        int last = ctx.length - 1;
 
-		for (int i = 0; i < last; i++) {
-			c = ctx[i];
-			packer.packInt(c.id);
-			c.value.pack(packer);
-		}
+        for (int i = 0; i < last; i++) {
+            c = ctx[i];
+            packer.packInt(c.id);
+            c.value.pack(packer);
+        }
 
-		c = ctx[last];
-		packer.packInt(c.id | flag);
-		c.value.pack(packer);
+        c = ctx[last];
+        packer.packInt(c.id | flag);
+        c.value.pack(packer);
 
-		packer.packArrayBegin(count + 1);
-		packer.packInt(command);
-	}
+        packer.packArrayBegin(count + 1);
+        packer.packInt(command);
+    }
 }

@@ -20,24 +20,24 @@ package com.aerospike.client.sdk.operation;
  * HyperLogLog operation policy.
  */
 public final class HLLPolicy {
-	/**
-	 * Default HLL bin write semantics.
-	 */
-	public static final HLLPolicy Default = new HLLPolicy();
+    /**
+     * Default HLL bin write semantics.
+     */
+    public static final HLLPolicy Default = new HLLPolicy();
 
-	public final int flags;
+    public final int flags;
 
-	/**
-	 * Use default {@link HLLWriteFlags} when performing {@link HLLOperation} operations.
-	 */
-	public HLLPolicy() {
-		this(HLLWriteFlags.DEFAULT);
-	}
+    /**
+     * Use default {@link HLLWriteFlags} when performing {@link HLLOperation} operations.
+     */
+    public HLLPolicy() {
+        this(HLLWriteFlags.DEFAULT);
+    }
 
-	/**
-	 * Use specified {@link HLLWriteFlags} when performing {@link HLLOperation} operations.
-	 */
-	public HLLPolicy(int flags) {
-		this.flags = flags;
-	}
+    /**
+     * Use specified {@link HLLWriteFlags} when performing {@link HLLOperation} operations.
+     */
+    public HLLPolicy(int flags) {
+        this.flags = flags;
+    }
 }

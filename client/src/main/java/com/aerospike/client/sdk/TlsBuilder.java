@@ -659,8 +659,8 @@ public class TlsBuilder {
     private String chooseTlsProtocol(String[] requested) throws GeneralSecurityException {
         // If nothing provided, let JVM decide (often best in FIPS mode).
         if (requested == null || requested.length == 0) {
-			return null;
-		}
+            return null;
+        }
 
         // What this JVM/provider actually supports.
         SSLContext probe = SSLContext.getInstance("TLS");
@@ -681,12 +681,12 @@ public class TlsBuilder {
 
         for (String p : req) {
             if (p == null) {
-				continue;
-			}
+                continue;
+            }
             String proto = p.trim();
             if (supported.contains(proto)) {
-				return proto;
-			}
+                return proto;
+            }
         }
 
         return requested[0];
@@ -805,8 +805,8 @@ public class TlsBuilder {
         while (m.find()) {
             String type = m.group(1);
             if (!"CERTIFICATE".equals(type)) {
-				continue;
-			}
+                continue;
+            }
 
             byte[] der = Base64.getMimeDecoder().decode(m.group(2));
             try (InputStream in = new ByteArrayInputStream(der)) {

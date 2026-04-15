@@ -22,26 +22,26 @@ import com.aerospike.client.sdk.info.annotations.Alias;
  * Underlying data type of secondary index.
  */
 public enum IndexType {
-	/**
-	 * Integer index.
-	 */
+    /**
+     * Integer index.
+     */
     @Alias({"numeric"})
-	INTEGER,
+    INTEGER,
 
-	/**
-	 * String index.
-	 */
-	STRING,
+    /**
+     * String index.
+     */
+    STRING,
 
-	/**
-	 * byte[] index. Requires server version 7.0+.
-	 */
-	BLOB,
+    /**
+     * byte[] index. Requires server version 7.0+.
+     */
+    BLOB,
 
-	/**
-	 * 2-dimensional spherical geospatial index.
-	 */
-	GEO2DSPHERE;
+    /**
+     * 2-dimensional spherical geospatial index.
+     */
+    GEO2DSPHERE;
 
     public static IndexType fromString(String value) {
         return IndexType.valueOf(value.trim().toUpperCase());

@@ -51,34 +51,34 @@ import com.aerospike.client.sdk.policy.Behavior;
  * @see Session
  */
 public class ClusterDefinition {
-	private static final String CONFIG_PATH_ENV = "AEROSPIKE_CLIENT_CONFIG_URL";
+    private static final String CONFIG_PATH_ENV = "AEROSPIKE_CLIENT_CONFIG_URL";
 
-	private SystemSettings userSuppliedSystemSettings;
-	String clientVersion;
-	String appId;
+    private SystemSettings userSuppliedSystemSettings;
+    String clientVersion;
+    String appId;
     String clusterName;
     byte[] userName;
     byte[] password;
     byte[] passwordHash;
     int[] rackIds;
-	Log.Context context;
+    Log.Context context;
     private Level logLevel = Level.INFO;
     private Callback callback = null;  // TODO Handle custom log callback.
-	Map<String,String> ipMap;
+    Map<String,String> ipMap;
     TlsBuilder tlsBuilder;
-	AuthMode authMode = AuthMode.NONE;
-	long maxSocketIdleNanosTrim = TimeUnit.SECONDS.toNanos(55);
-	int minConnsPerNode;
-	int maxConnsPerNode = 100;
-	int connPoolsPerNode = 1;
-	int tendInterval = 1000;
-	int tendTimeout = 1000;
-	int loginTimeout = 5000;
-	int maxErrorRate = 100;
-	int errorRateWindow = 1;
+    AuthMode authMode = AuthMode.NONE;
+    long maxSocketIdleNanosTrim = TimeUnit.SECONDS.toNanos(55);
+    int minConnsPerNode;
+    int maxConnsPerNode = 100;
+    int connPoolsPerNode = 1;
+    int tendInterval = 1000;
+    int tendTimeout = 1000;
+    int loginTimeout = 5000;
+    int maxErrorRate = 100;
+    int errorRateWindow = 1;
     boolean failIfNotConnected = true;
     boolean useServicesAlternate;
-	boolean forceSingleNode;
+    boolean forceSingleNode;
 
     private final Host[] hosts;
 
@@ -124,42 +124,42 @@ public class ClusterDefinition {
      * @param other the ClusterDefinition to copy from
      */
     public ClusterDefinition(ClusterDefinition other) {
-    	this.userSuppliedSystemSettings = other.userSuppliedSystemSettings;
-    	this.clientVersion = other.clientVersion;
-		this.appId = other.appId;
-		this.clusterName = other.clusterName;
-		this.userName = other.userName;
-		this.password = other.password;
-		this.passwordHash = other.passwordHash;
-		this.rackIds = other.rackIds;
-		this.context = other.context;
-		this.logLevel = other.logLevel;
-		this.callback = other.callback;
-		this.ipMap = other.ipMap;
-		this.tlsBuilder = other.tlsBuilder;
-		this.authMode = other.authMode;
-		this.maxSocketIdleNanosTrim = other.maxSocketIdleNanosTrim;
-		this.minConnsPerNode = other.minConnsPerNode;
-		this.maxConnsPerNode = other.maxConnsPerNode;
-		this.connPoolsPerNode = other.connPoolsPerNode;
-		this.tendInterval = other.tendInterval;
-		this.tendTimeout = other.tendTimeout;
-		this.loginTimeout = other.loginTimeout;
-		this.maxErrorRate = other.maxErrorRate;
-		this.errorRateWindow = other.errorRateWindow;
-		this.failIfNotConnected = other.failIfNotConnected;
-		this.useServicesAlternate = other.useServicesAlternate;
-		this.forceSingleNode = other.forceSingleNode;
-		this.hosts = other.hosts;
+        this.userSuppliedSystemSettings = other.userSuppliedSystemSettings;
+        this.clientVersion = other.clientVersion;
+        this.appId = other.appId;
+        this.clusterName = other.clusterName;
+        this.userName = other.userName;
+        this.password = other.password;
+        this.passwordHash = other.passwordHash;
+        this.rackIds = other.rackIds;
+        this.context = other.context;
+        this.logLevel = other.logLevel;
+        this.callback = other.callback;
+        this.ipMap = other.ipMap;
+        this.tlsBuilder = other.tlsBuilder;
+        this.authMode = other.authMode;
+        this.maxSocketIdleNanosTrim = other.maxSocketIdleNanosTrim;
+        this.minConnsPerNode = other.minConnsPerNode;
+        this.maxConnsPerNode = other.maxConnsPerNode;
+        this.connPoolsPerNode = other.connPoolsPerNode;
+        this.tendInterval = other.tendInterval;
+        this.tendTimeout = other.tendTimeout;
+        this.loginTimeout = other.loginTimeout;
+        this.maxErrorRate = other.maxErrorRate;
+        this.errorRateWindow = other.errorRateWindow;
+        this.failIfNotConnected = other.failIfNotConnected;
+        this.useServicesAlternate = other.useServicesAlternate;
+        this.forceSingleNode = other.forceSingleNode;
+        this.hosts = other.hosts;
     }
 
     private void setup() {
         Log.setLevel(logLevel);
         Log.setCallbackStandard();
 
-		this.clientVersion = Optional.ofNullable(getClass().getPackage())
-			.map(Package::getImplementationVersion)
-			.orElse("n/a");
+        this.clientVersion = Optional.ofNullable(getClass().getPackage())
+            .map(Package::getImplementationVersion)
+            .orElse("n/a");
     }
 
     /**
@@ -173,7 +173,7 @@ public class ClusterDefinition {
      * @return this ClusterDefinition for method chaining
      */
     public ClusterDefinition withNativeCredentials(String userName, String password) {
-    	return setCredentials(AuthMode.INTERNAL, userName, password);
+        return setCredentials(AuthMode.INTERNAL, userName, password);
     }
 
     /**
@@ -188,7 +188,7 @@ public class ClusterDefinition {
      * @return this ClusterDefinition for method chaining
      */
     public ClusterDefinition withExternalCredentials(String userName, String password) {
-    	return setCredentials(AuthMode.EXTERNAL, userName, password);
+        return setCredentials(AuthMode.EXTERNAL, userName, password);
     }
 
     /**
@@ -204,32 +204,32 @@ public class ClusterDefinition {
      * @return this ClusterDefinition for method chaining
      */
     public ClusterDefinition withExternalInsecureCredentials(String userName, String password) {
-    	return setCredentials(AuthMode.EXTERNAL_INSECURE, userName, password);
+        return setCredentials(AuthMode.EXTERNAL_INSECURE, userName, password);
     }
 
     private ClusterDefinition setCredentials(AuthMode mode, String userName, String password) {
-    	if (userName == null || userName.isEmpty()) {
-    		this.authMode = AuthMode.NONE;
-    		this.userName = null;
-    		this.password = null;
-    	}
-    	else {
-    		this.authMode = mode;
-    		this.userName = Buffer.stringToUtf8(userName);
+        if (userName == null || userName.isEmpty()) {
+            this.authMode = AuthMode.NONE;
+            this.userName = null;
+            this.password = null;
+        }
+        else {
+            this.authMode = mode;
+            this.userName = Buffer.stringToUtf8(userName);
 
-			// Only store clear text password if external authentication is used.
-			if (authMode != AuthMode.INTERNAL) {
-				this.password = Buffer.stringToUtf8(password);
-			}
+            // Only store clear text password if external authentication is used.
+            if (authMode != AuthMode.INTERNAL) {
+                this.password = Buffer.stringToUtf8(password);
+            }
 
-			if (password == null) {
-				password = "";
-			}
+            if (password == null) {
+                password = "";
+            }
 
-			password = AdminCommand.hashPassword(password);
-			this.passwordHash = Buffer.stringToUtf8(password);
-    	}
-		return this;
+            password = AdminCommand.hashPassword(password);
+            this.passwordHash = Buffer.stringToUtf8(password);
+        }
+        return this;
    }
 
     /**
@@ -243,10 +243,10 @@ public class ClusterDefinition {
      * @see #withTlsConfig(Consumer)
      */
     public ClusterDefinition withCertificateCredentials() {
-    	this.userName = null;
-		this.password = null;
-		this.authMode = AuthMode.PKI;
-		return this;
+        this.userName = null;
+        this.password = null;
+        this.authMode = AuthMode.PKI;
+        return this;
     }
 
     /**
@@ -255,13 +255,13 @@ public class ClusterDefinition {
      * @return true if authentication is enabled (any mode other than NONE), false otherwise
      */
     public boolean isAuthEnabled() {
-    	return authMode != AuthMode.NONE;
+        return authMode != AuthMode.NONE;
     }
 
-	/**
-	 * Set application ID. Metrics are loosely tied to this.
-	 * Changing the appId will not reset the metric counters.
-	 */
+    /**
+     * Set application ID. Metrics are loosely tied to this.
+     * Changing the appId will not reset the metric counters.
+     */
     public ClusterDefinition appId(String appId) {
         this.appId = appId;
         return this;
@@ -460,82 +460,82 @@ public class ClusterDefinition {
     }
 
     /**
-	 * Set whether cluster instantiation should fail if the client fails to connect to a seed or
-	 * all the seed's peers.
-	 * <p>
-	 * If true, throw an exception if all seed connections fail or a seed is valid,
-	 * but all peers from that seed are not reachable.
-	 * <p>
-	 * If false, a partial cluster will be created and the client will automatically connect
-	 * to the remaining nodes when they become available.
-	 * <p>
-	 * Default: true
-	 */
+     * Set whether cluster instantiation should fail if the client fails to connect to a seed or
+     * all the seed's peers.
+     * <p>
+     * If true, throw an exception if all seed connections fail or a seed is valid,
+     * but all peers from that seed are not reachable.
+     * <p>
+     * If false, a partial cluster will be created and the client will automatically connect
+     * to the remaining nodes when they become available.
+     * <p>
+     * Default: true
+     */
     public ClusterDefinition failIfNotConnected(boolean failIfNotConnected) {
         this.failIfNotConnected = failIfNotConnected;
         return this;
     }
 
-	/**
-	 * Cluster tend info call timeout in milliseconds. The timeout when opening a connection
-	 * to the server node for the first time and when polling each node for cluster status.
-	 * <p>
-	 * Default: 1000
-	 */
+    /**
+     * Cluster tend info call timeout in milliseconds. The timeout when opening a connection
+     * to the server node for the first time and when polling each node for cluster status.
+     * <p>
+     * Default: 1000
+     */
     public ClusterDefinition tendTimeout(int tendTimeout) {
         this.tendTimeout = tendTimeout;
         return this;
     }
 
-	/**
-	 * Set login timeout in milliseconds.  The timeout is used when user authentication is enabled
-	 * and a node login is being performed.
-	 * <p>
-	 * Default: 5000
-	 */
+    /**
+     * Set login timeout in milliseconds.  The timeout is used when user authentication is enabled
+     * and a node login is being performed.
+     * <p>
+     * Default: 5000
+     */
     public ClusterDefinition loginTimeout(int loginTimeout) {
         this.loginTimeout = loginTimeout;
         return this;
     }
 
-	/**
-	 * Set IP translation table is used in cases where different clients use different server
-	 * IP addresses.  This may be necessary when using clients from both inside and outside
-	 * a local area network.  Default is no translation.
-	 * <p>
-	 * The key is the IP address returned from friend info requests to other servers.  The
-	 * value is the real IP address used to connect to the server.
-	 * <p>
-	 * Default: null (no IP address translation)
-	 */
+    /**
+     * Set IP translation table is used in cases where different clients use different server
+     * IP addresses.  This may be necessary when using clients from both inside and outside
+     * a local area network.  Default is no translation.
+     * <p>
+     * The key is the IP address returned from friend info requests to other servers.  The
+     * value is the real IP address used to connect to the server.
+     * <p>
+     * Default: null (no IP address translation)
+     */
     public ClusterDefinition ipMap(Map<String,String> ipMap) {
         this.ipMap = ipMap;
         return this;
     }
 
-	/**
-	 * Set number of synchronous connection pools used for each node.  Machines with 8 cpu cores or
-	 * less usually need just one connection pool per node.  Machines with a large number of cpu
-	 * cores may have their synchronous performance limited by contention for pooled connections.
-	 * Contention for pooled connections can be reduced by creating multiple mini connection pools
-	 * per node.
-	 * <p>
-	 * Default: 1
-	 */
+    /**
+     * Set number of synchronous connection pools used for each node.  Machines with 8 cpu cores or
+     * less usually need just one connection pool per node.  Machines with a large number of cpu
+     * cores may have their synchronous performance limited by contention for pooled connections.
+     * Contention for pooled connections can be reduced by creating multiple mini connection pools
+     * per node.
+     * <p>
+     * Default: 1
+     */
     public ClusterDefinition connPoolsPerNode(int connPoolsPerNode) {
         this.connPoolsPerNode = connPoolsPerNode;
         return this;
     }
 
-	/**
-	 * For testing purposes only.
-	 * <p>
-	 * Should the AerospikeClient instance communicate with the first seed node only
-	 * instead of using the data partition map to determine which node to send the
-	 * database command.
-	 * <p>
-	 * Default: false
-	 */
+    /**
+     * For testing purposes only.
+     * <p>
+     * Should the AerospikeClient instance communicate with the first seed node only
+     * instead of using the data partition map to determine which node to send the
+     * database command.
+     * <p>
+     * Default: false
+     */
     public ClusterDefinition forceSingleNode(boolean forceSingleNode) {
         this.forceSingleNode = forceSingleNode;
         return this;
@@ -568,21 +568,21 @@ public class ClusterDefinition {
         ClusterDefinition def = new ClusterDefinition(this);
         def.context = new Log.Context(def.clusterName);
 
-		String configPath = System.getenv(CONFIG_PATH_ENV);
+        String configPath = System.getenv(CONFIG_PATH_ENV);
 
-		if (configPath != null && !configPath.isEmpty()) {
-			try {
-				Behavior.startMonitoring(configPath);
-			}
-			catch (Throwable t) {
-				throw new AerospikeException("Failed to read " + configPath +
-					" specified in environment variable " + CONFIG_PATH_ENV, t);
-			}
-		}
+        if (configPath != null && !configPath.isEmpty()) {
+            try {
+                Behavior.startMonitoring(configPath);
+            }
+            catch (Throwable t) {
+                throw new AerospikeException("Failed to read " + configPath +
+                    " specified in environment variable " + CONFIG_PATH_ENV, t);
+            }
+        }
 
-		if (tlsBuilder != null) {
-			tlsBuilder.createSslContext();
-		}
+        if (tlsBuilder != null) {
+            tlsBuilder.createSslContext();
+        }
 
         // Apply system settings to policy (4-level hierarchy)
         SystemSettings effectiveSettings = SystemSettingsRegistry.getInstance()
@@ -592,7 +592,7 @@ public class ClusterDefinition {
             Log.debug("System Settings: " + effectiveSettings);
         }
 
-    	Cluster cluster = new Cluster(def, effectiveSettings);
+        Cluster cluster = new Cluster(def, effectiveSettings);
 
         // Register with registry for dynamic updates
         SystemSettingsRegistry.getInstance()
@@ -630,252 +630,252 @@ public class ClusterDefinition {
     }
 
     boolean isRackAware() {
-    	return rackIds != null;
+        return rackIds != null;
     }
 
-	/**
-	 * Gets the client version string.
-	 *
-	 * @return the client version, or "n/a" if not available
-	 */
-	public String getClientVersion() {
-		return clientVersion;
-	}
+    /**
+     * Gets the client version string.
+     *
+     * @return the client version, or "n/a" if not available
+     */
+    public String getClientVersion() {
+        return clientVersion;
+    }
 
-	/**
-	 * Gets the application ID.
-	 *
-	 * @return the application ID, or null if not set
-	 */
-	public String getAppId() {
-		return appId;
-	}
+    /**
+     * Gets the application ID.
+     *
+     * @return the application ID, or null if not set
+     */
+    public String getAppId() {
+        return appId;
+    }
 
-	/**
-	 * Gets the cluster name.
-	 *
-	 * @return the cluster name, or null if not set
-	 */
-	public String getClusterName() {
-		return clusterName;
-	}
+    /**
+     * Gets the cluster name.
+     *
+     * @return the cluster name, or null if not set
+     */
+    public String getClusterName() {
+        return clusterName;
+    }
 
-	/**
-	 * Gets the username for authentication as a UTF-8 byte array.
-	 *
-	 * @return the username bytes, or null if authentication is not enabled
-	 */
-	public byte[] getUserName() {
-		return userName;
-	}
+    /**
+     * Gets the username for authentication as a UTF-8 byte array.
+     *
+     * @return the username bytes, or null if authentication is not enabled
+     */
+    public byte[] getUserName() {
+        return userName;
+    }
 
-	/**
-	 * Gets the password for authentication as a UTF-8 byte array.
-	 *
-	 * <p>Note: This returns the clear text password only for external authentication modes.
-	 * For internal authentication, the password is not stored in clear text.</p>
-	 *
-	 * @return the password bytes, or null if authentication is not enabled or using internal auth
-	 */
-	public byte[] getPassword() {
-		return password;
-	}
+    /**
+     * Gets the password for authentication as a UTF-8 byte array.
+     *
+     * <p>Note: This returns the clear text password only for external authentication modes.
+     * For internal authentication, the password is not stored in clear text.</p>
+     *
+     * @return the password bytes, or null if authentication is not enabled or using internal auth
+     */
+    public byte[] getPassword() {
+        return password;
+    }
 
-	/**
-	 * Gets the hashed password for authentication as a UTF-8 byte array.
-	 *
-	 * @return the hashed password bytes, or null if authentication is not enabled
-	 */
-	public byte[] getPasswordHash() {
-		return passwordHash;
-	}
+    /**
+     * Gets the hashed password for authentication as a UTF-8 byte array.
+     *
+     * @return the hashed password bytes, or null if authentication is not enabled
+     */
+    public byte[] getPasswordHash() {
+        return passwordHash;
+    }
 
-	/**
-	 * Gets the preferred rack IDs for rack-aware operations.
-	 *
-	 * @return an array of rack IDs, or null if rack awareness is not enabled
-	 */
-	public int[] getRackIds() {
-		return rackIds;
-	}
+    /**
+     * Gets the preferred rack IDs for rack-aware operations.
+     *
+     * @return an array of rack IDs, or null if rack awareness is not enabled
+     */
+    public int[] getRackIds() {
+        return rackIds;
+    }
 
-	/**
-	 * Gets the logging context for this cluster definition.
-	 *
-	 * @return the log context, or null if not set
-	 */
-	public Log.Context getContext() {
-		return context;
-	}
+    /**
+     * Gets the logging context for this cluster definition.
+     *
+     * @return the log context, or null if not set
+     */
+    public Log.Context getContext() {
+        return context;
+    }
 
-	/**
-	 * Gets the current logging level.
-	 *
-	 * @return the logging level
-	 */
-	public Level getLogLevel() {
-		return logLevel;
-	}
+    /**
+     * Gets the current logging level.
+     *
+     * @return the logging level
+     */
+    public Level getLogLevel() {
+        return logLevel;
+    }
 
-	/**
-	 * Gets the custom log callback.
-	 *
-	 * @return the log callback, or null if using standard logging
-	 */
-	public Callback getCallback() {
-		return callback;
-	}
+    /**
+     * Gets the custom log callback.
+     *
+     * @return the log callback, or null if using standard logging
+     */
+    public Callback getCallback() {
+        return callback;
+    }
 
-	/**
-	 * Gets the IP address translation map.
-	 *
-	 * @return the IP map, or null if no IP translation is configured
-	 */
-	public Map<String, String> getIpMap() {
-		return ipMap;
-	}
+    /**
+     * Gets the IP address translation map.
+     *
+     * @return the IP map, or null if no IP translation is configured
+     */
+    public Map<String, String> getIpMap() {
+        return ipMap;
+    }
 
-	/**
-	 * Gets the TLS builder configuration.
-	 *
-	 * @return the TLS builder, or null if TLS is not configured
-	 */
-	public TlsBuilder getTlsBuilder() {
-		return tlsBuilder;
-	}
+    /**
+     * Gets the TLS builder configuration.
+     *
+     * @return the TLS builder, or null if TLS is not configured
+     */
+    public TlsBuilder getTlsBuilder() {
+        return tlsBuilder;
+    }
 
-	/**
-	 * Gets the authentication mode.
-	 *
-	 * @return the authentication mode
-	 */
-	public AuthMode getAuthMode() {
-		return authMode;
-	}
+    /**
+     * Gets the authentication mode.
+     *
+     * @return the authentication mode
+     */
+    public AuthMode getAuthMode() {
+        return authMode;
+    }
 
-	/**
-	 * Gets the maximum socket idle time before trimming connections.
-	 *
-	 * @return the maximum socket idle time as a Duration
-	 */
-	public Duration getMaximumSocketIdleTime() {
-		return Duration.ofNanos(maxSocketIdleNanosTrim);
-	}
+    /**
+     * Gets the maximum socket idle time before trimming connections.
+     *
+     * @return the maximum socket idle time as a Duration
+     */
+    public Duration getMaximumSocketIdleTime() {
+        return Duration.ofNanos(maxSocketIdleNanosTrim);
+    }
 
-	/**
-	 * Gets the maximum socket idle time in nanoseconds before trimming connections.
-	 *
-	 * @return the maximum socket idle time in nanoseconds
-	 */
-	public long getMaxSocketIdleNanosTrim() {
-		return maxSocketIdleNanosTrim;
-	}
+    /**
+     * Gets the maximum socket idle time in nanoseconds before trimming connections.
+     *
+     * @return the maximum socket idle time in nanoseconds
+     */
+    public long getMaxSocketIdleNanosTrim() {
+        return maxSocketIdleNanosTrim;
+    }
 
-	/**
-	 * Gets the minimum number of connections per node.
-	 *
-	 * @return the minimum connections per node
-	 */
-	public int getMinimumConnectionsPerNode() {
-		return minConnsPerNode;
-	}
+    /**
+     * Gets the minimum number of connections per node.
+     *
+     * @return the minimum connections per node
+     */
+    public int getMinimumConnectionsPerNode() {
+        return minConnsPerNode;
+    }
 
-	/**
-	 * Gets the maximum number of connections per node.
-	 *
-	 * @return the maximum connections per node
-	 */
-	public int getMaximumConnectionsPerNode() {
-		return maxConnsPerNode;
-	}
+    /**
+     * Gets the maximum number of connections per node.
+     *
+     * @return the maximum connections per node
+     */
+    public int getMaximumConnectionsPerNode() {
+        return maxConnsPerNode;
+    }
 
-	/**
-	 * Gets the number of connection pools per node.
-	 *
-	 * @return the number of connection pools per node
-	 */
-	public int getConnPoolsPerNode() {
-		return connPoolsPerNode;
-	}
+    /**
+     * Gets the number of connection pools per node.
+     *
+     * @return the number of connection pools per node
+     */
+    public int getConnPoolsPerNode() {
+        return connPoolsPerNode;
+    }
 
-	/**
-	 * Gets the cluster tend interval in milliseconds.
-	 *
-	 * @return the tend interval in milliseconds
-	 */
-	public int getTendInterval() {
-		return tendInterval;
-	}
+    /**
+     * Gets the cluster tend interval in milliseconds.
+     *
+     * @return the tend interval in milliseconds
+     */
+    public int getTendInterval() {
+        return tendInterval;
+    }
 
-	/**
-	 * Gets the cluster tend timeout in milliseconds.
-	 *
-	 * @return the tend timeout in milliseconds
-	 */
-	public int getTendTimeout() {
-		return tendTimeout;
-	}
+    /**
+     * Gets the cluster tend timeout in milliseconds.
+     *
+     * @return the tend timeout in milliseconds
+     */
+    public int getTendTimeout() {
+        return tendTimeout;
+    }
 
-	/**
-	 * Gets the login timeout in milliseconds.
-	 *
-	 * @return the login timeout in milliseconds
-	 */
-	public int getLoginTimeout() {
-		return loginTimeout;
-	}
+    /**
+     * Gets the login timeout in milliseconds.
+     *
+     * @return the login timeout in milliseconds
+     */
+    public int getLoginTimeout() {
+        return loginTimeout;
+    }
 
-	/**
-	 * Gets the maximum number of errors allowed in the error window.
-	 *
-	 * @return the maximum errors in the error window
-	 */
-	public int getMaximumErrorsInErrorWindow() {
-		return maxErrorRate;
-	}
+    /**
+     * Gets the maximum number of errors allowed in the error window.
+     *
+     * @return the maximum errors in the error window
+     */
+    public int getMaximumErrorsInErrorWindow() {
+        return maxErrorRate;
+    }
 
-	/**
-	 * Gets the number of tend intervals that make up the error window.
-	 *
-	 * @return the number of tend intervals in the error window
-	 */
-	public int getNumTendIntervalsInErrorWindow() {
-		return errorRateWindow;
-	}
+    /**
+     * Gets the number of tend intervals that make up the error window.
+     *
+     * @return the number of tend intervals in the error window
+     */
+    public int getNumTendIntervalsInErrorWindow() {
+        return errorRateWindow;
+    }
 
-	/**
-	 * Checks whether cluster instantiation should fail if connection fails.
-	 *
-	 * @return true if cluster creation should fail on connection failure, false otherwise
-	 */
-	public boolean isFailIfNotConnected() {
-		return failIfNotConnected;
-	}
+    /**
+     * Checks whether cluster instantiation should fail if connection fails.
+     *
+     * @return true if cluster creation should fail on connection failure, false otherwise
+     */
+    public boolean isFailIfNotConnected() {
+        return failIfNotConnected;
+    }
 
-	/**
-	 * Checks whether alternate services are enabled for cluster discovery.
-	 *
-	 * @return true if alternate services are enabled, false otherwise
-	 */
-	public boolean isUseServicesAlternate() {
-		return useServicesAlternate;
-	}
+    /**
+     * Checks whether alternate services are enabled for cluster discovery.
+     *
+     * @return true if alternate services are enabled, false otherwise
+     */
+    public boolean isUseServicesAlternate() {
+        return useServicesAlternate;
+    }
 
-	/**
-	 * Checks whether single node mode is forced (for testing purposes).
-	 *
-	 * @return true if single node mode is forced, false otherwise
-	 */
-	public boolean isForceSingleNode() {
-		return forceSingleNode;
-	}
+    /**
+     * Checks whether single node mode is forced (for testing purposes).
+     *
+     * @return true if single node mode is forced, false otherwise
+     */
+    public boolean isForceSingleNode() {
+        return forceSingleNode;
+    }
 
-	/**
-	 * Gets the array of host definitions for this cluster.
-	 *
-	 * @return the array of Host objects
-	 */
-	public Host[] getHosts() {
-		return hosts;
-	}
+    /**
+     * Gets the array of host definitions for this cluster.
+     *
+     * @return the array of Host objects
+     */
+    public Host[] getHosts() {
+        return hosts;
+    }
 }

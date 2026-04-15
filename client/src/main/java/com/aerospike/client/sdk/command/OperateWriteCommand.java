@@ -27,16 +27,16 @@ import com.aerospike.client.sdk.policy.Settings;
 import com.aerospike.client.sdk.tend.Partitions;
 
 public class OperateWriteCommand extends WriteCommand {
-	final List<Operation> ops;
-	final OperateArgs args;
+    final List<Operation> ops;
+    final OperateArgs args;
 
-	public OperateWriteCommand(
-		Cluster cluster, Partitions partitions, Txn txn, Key key, List<Operation> ops, OperateArgs args,
-		OpType type, int gen, int ttl, Expression filterExp, boolean failOnFilteredOut,
-		Settings policy
-	) {
-		super(cluster, partitions, txn, key, type, gen, ttl, filterExp, failOnFilteredOut, policy);
-		this.ops = ops;
-		this.args = args;
-	}
+    public OperateWriteCommand(
+        Cluster cluster, Partitions partitions, Txn txn, Key key, List<Operation> ops, OperateArgs args,
+        OpType type, int gen, int ttl, Expression filterExp, boolean failOnFilteredOut,
+        Settings policy
+    ) {
+        super(cluster, partitions, txn, key, type, gen, ttl, filterExp, failOnFilteredOut, policy);
+        this.ops = ops;
+        this.args = args;
+    }
 }

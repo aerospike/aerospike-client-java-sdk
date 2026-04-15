@@ -75,76 +75,76 @@ public final class Settings {
         this.readModeAP = orig.readModeAP;
         this.readModeSC = orig.readModeSC;
         this.resetTtlOnReadAtPercent = orig.resetTtlOnReadAtPercent;
-		this.stackTraceOnException = orig.stackTraceOnException;
+        this.stackTraceOnException = orig.stackTraceOnException;
     }
 
     @Override public String toString() {
         Map<String, Object> m = new LinkedHashMap<>();
         if (abandonCallAfter != null) {
-			m.put("abandonCallAfter", abandonCallAfter);
-		}
+            m.put("abandonCallAfter", abandonCallAfter);
+        }
         if (delayBetweenRetries != null) {
-			m.put("delayBetweenRetries", delayBetweenRetries);
-		}
+            m.put("delayBetweenRetries", delayBetweenRetries);
+        }
         if (maximumNumberOfCallAttempts != null) {
-			m.put("maximumNumberOfCallAttempts", maximumNumberOfCallAttempts);
-		}
+            m.put("maximumNumberOfCallAttempts", maximumNumberOfCallAttempts);
+        }
         if (replicaOrder != null) {
-			m.put("replicaOrder", replicaOrder);
-		}
+            m.put("replicaOrder", replicaOrder);
+        }
         if (sendKey != null) {
-			m.put("sendKey", sendKey);
-		}
+            m.put("sendKey", sendKey);
+        }
         if (useCompression != null) {
-			m.put("useCompression", useCompression);
-		}
+            m.put("useCompression", useCompression);
+        }
         if (waitForCallToComplete != null) {
-			m.put("waitForCallToComplete", waitForCallToComplete);
-		}
+            m.put("waitForCallToComplete", waitForCallToComplete);
+        }
         if (waitForConnectionToComplete != null) {
-			m.put("waitForConnectionToComplete", waitForConnectionToComplete);
-		}
+            m.put("waitForConnectionToComplete", waitForConnectionToComplete);
+        }
         if (waitForSocketResponseAfterCallFails != null) {
-			m.put("waitForSocketResponseAfterCallFails", waitForSocketResponseAfterCallFails);
-		}
+            m.put("waitForSocketResponseAfterCallFails", waitForSocketResponseAfterCallFails);
+        }
 
         if (recordQueueSize != null) {
-			m.put("recordQueueSize", recordQueueSize);
-		}
+            m.put("recordQueueSize", recordQueueSize);
+        }
 
         if (maxConcurrentNodes != null) {
-			m.put("maxConcurrentNodes", maxConcurrentNodes);
-		}
+            m.put("maxConcurrentNodes", maxConcurrentNodes);
+        }
         if (allowInlineMemoryAccess != null) {
-			m.put("allowInlineMemoryAccess", allowInlineMemoryAccess);
-		}
+            m.put("allowInlineMemoryAccess", allowInlineMemoryAccess);
+        }
         if (allowInlineSsdAccess != null) {
-			m.put("allowInlineSsdAccess", allowInlineSsdAccess);
-		}
+            m.put("allowInlineSsdAccess", allowInlineSsdAccess);
+        }
 
         if (useDurableDelete != null) {
-			m.put("useDurableDelete", useDurableDelete);
-		}
+            m.put("useDurableDelete", useDurableDelete);
+        }
         if (simulateXdrWrite != null) {
-			m.put("simulateXdrWrite", simulateXdrWrite);
-		}
+            m.put("simulateXdrWrite", simulateXdrWrite);
+        }
 
         if (commitLevel != null) {
-			m.put("commitLevel", commitLevel);
-		}
+            m.put("commitLevel", commitLevel);
+        }
 
         if (readModeAP != null) {
-			m.put("readModeAP", readModeAP);
-		}
+            m.put("readModeAP", readModeAP);
+        }
         if (readModeSC != null) {
-			m.put("readModeSC", readModeSC);
-		}
+            m.put("readModeSC", readModeSC);
+        }
         if (resetTtlOnReadAtPercent != null) {
-			m.put("resetTtlOnReadAtPercent", resetTtlOnReadAtPercent);
-		}
+            m.put("resetTtlOnReadAtPercent", resetTtlOnReadAtPercent);
+        }
         if (stackTraceOnException != null) {
-		    m.put("stackTraceOnException", stackTraceOnException);
-		}
+            m.put("stackTraceOnException", stackTraceOnException);
+        }
 
         return m.toString();
     }

@@ -55,53 +55,53 @@ import com.aerospike.client.sdk.util.Version;
  * @see Behavior
  */
 public class Cluster implements Closeable {
-	/**
+    /**
      * Default interval for refreshing index information from the cluster.
      */
     public static final Duration INDEX_REFRESH = Duration.ofSeconds(5);
 
     ClusterDefinition def;
     ClusterTend tend;
-	volatile Node[] nodes;
-	volatile HashMap<String,Partitions> partitionMap;
-	private final ThreadFactory threadFactory;
-	private final AtomicLong commandCount;
-	private final AtomicLong retryCount;
-	private final AtomicInteger nodeIndex;
-	private final AtomicInteger replicaIndex;
-	private final AtomicBoolean closed;
-	final Log.Context context;
-	private final IndexesMonitor indexesMonitor;
+    volatile Node[] nodes;
+    volatile HashMap<String,Partitions> partitionMap;
+    private final ThreadFactory threadFactory;
+    private final AtomicLong commandCount;
+    private final AtomicLong retryCount;
+    private final AtomicInteger nodeIndex;
+    private final AtomicInteger replicaIndex;
+    private final AtomicBoolean closed;
+    final Log.Context context;
+    private final IndexesMonitor indexesMonitor;
     private RecordMappingFactory recordMappingFactory = null;
     private volatile SystemSettings effectiveSystemSettings = SystemSettings.DEFAULT;
     private Version version;
-	private boolean versionGE8;
-	private boolean metricsEnabled;
+    private boolean versionGE8;
+    private boolean metricsEnabled;
 
     Cluster(ClusterDefinition def, SystemSettings effectiveSettings) {
         this.def = def;
-		nodes = new Node[0];
-		partitionMap = new HashMap<String,Partitions>();
-		threadFactory = Thread.ofVirtual().name("Aerospike-", 0L).factory();
-		commandCount = new AtomicLong();
-		retryCount = new AtomicLong();
-		nodeIndex = new AtomicInteger();
-		replicaIndex = new AtomicInteger();
-		closed = new AtomicBoolean();
-		context = def.context;
+        nodes = new Node[0];
+        partitionMap = new HashMap<String,Partitions>();
+        threadFactory = Thread.ofVirtual().name("Aerospike-", 0L).factory();
+        commandCount = new AtomicLong();
+        retryCount = new AtomicLong();
+        nodeIndex = new AtomicInteger();
+        replicaIndex = new AtomicInteger();
+        closed = new AtomicBoolean();
+        context = def.context;
 
-		this.applySystemSettings(effectiveSettings);
+        this.applySystemSettings(effectiveSettings);
 
         tend = new ClusterTend(this);
 
-		if (def.forceSingleNode) {
-			forceSingleNode();
-		}
-		else {
-			tend.runThread();
-		}
+        if (def.forceSingleNode) {
+            forceSingleNode();
+        }
+        else {
+            tend.runThread();
+        }
 
-		this.indexesMonitor = new IndexesMonitor();
+        this.indexesMonitor = new IndexesMonitor();
         if (!this.indexesMonitor.startMonitor(createSession(Behavior.DEFAULT), INDEX_REFRESH)) {
             Log.warn("Initial index fetch did not complete within 1 second. Index information may be incomplete.");
         }
@@ -117,7 +117,7 @@ public class Cluster implements Closeable {
      * @return an ExecutorService that creates a new virtual thread per task
      */
     public ExecutorService getExecutorService() {
-    	return Executors.newThreadPerTaskExecutor(threadFactory);
+        return Executors.newThreadPerTaskExecutor(threadFactory);
     }
 
     /**
@@ -196,20 +196,20 @@ public class Cluster implements Closeable {
      * @return true if the connection is active, false otherwise
      */
     public boolean isConnected() {
-		// Must copy array reference for copy on write semantics to work.
-		Node[] nodeArray = nodes;
+        // Must copy array reference for copy on write semantics to work.
+        Node[] nodeArray = nodes;
 
-		if (nodeArray.length > 0 && tend.isActive()) {
-			// Even though nodes exist, they may not be currently responding.  Check further.
-			for (Node node : nodeArray) {
-				// Mark connected if any node is active and cluster tend consecutive info request
-				// failures are less than 5.
-				if (node.active && node.failures < 5) {
-					return true;
-				}
-			}
-		}
-		return false;
+        if (nodeArray.length > 0 && tend.isActive()) {
+            // Even though nodes exist, they may not be currently responding.  Check further.
+            for (Node node : nodeArray) {
+                // Mark connected if any node is active and cluster tend consecutive info request
+                // failures are less than 5.
+                if (node.active && node.failures < 5) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     /**
@@ -264,11 +264,11 @@ public class Cluster implements Closeable {
         this.effectiveSystemSettings = settings;
 
         if (settings.getMinimumConnectionsPerNode() != null) {
-        	setMinConnsPerNode(settings.getMinimumConnectionsPerNode());
+            setMinConnsPerNode(settings.getMinimumConnectionsPerNode());
         }
 
         if (settings.getMaximumConnectionsPerNode() != null) {
-        	setMaxConnsPerNode(settings.getMaximumConnectionsPerNode());
+            setMaxConnsPerNode(settings.getMaximumConnectionsPerNode());
         }
 
         if (settings.getMaximumErrorsInErrorWindow() != null) {
@@ -276,7 +276,7 @@ public class Cluster implements Closeable {
         }
 
         if (settings.getNumTendIntervalsInErrorWindow() != null) {
-        	def.errorRateWindow = settings.getNumTendIntervalsInErrorWindow();
+            def.errorRateWindow = settings.getNumTendIntervalsInErrorWindow();
         }
 
         if (settings.getTendInterval() != null) {
@@ -326,166 +326,166 @@ public class Cluster implements Closeable {
      *         nodes are available
      */
     public final Node getRandomNode() throws AerospikeException.InvalidNode {
-		// Must copy array reference for copy on write semantics to work.
-		Node[] nodeArray = nodes;
+        // Must copy array reference for copy on write semantics to work.
+        Node[] nodeArray = nodes;
 
-		if (nodeArray.length > 0) {
-			int index = Math.abs(nodeIndex.getAndIncrement() % nodeArray.length);
+        if (nodeArray.length > 0) {
+            int index = Math.abs(nodeIndex.getAndIncrement() % nodeArray.length);
 
-			for (int i = 0; i < nodeArray.length; i++) {
-				Node node = nodeArray[index];
+            for (int i = 0; i < nodeArray.length; i++) {
+                Node node = nodeArray[index];
 
-				if (node.isActive()) {
-					return node;
-				}
-				index++;
-				index %= nodeArray.length;
-			}
-		}
-		throw new AerospikeException.InvalidNode("Cluster is empty");
-	}
-
-	/**
-	 * Gets a copy of the current array of nodes in the cluster.
-	 *
-	 * <p>The returned array is a snapshot of the nodes at the time of the call.
-	 * The cluster may update its node list asynchronously, so the returned array
-	 * may not reflect the current state of the cluster.</p>
-	 *
-	 * @return an array of Node objects representing the current cluster nodes
-	 */
-	public final Node[] getNodes() {
-		// Must copy array reference for copy on write semantics to work.
-		Node[] nodeArray = nodes;
-		return nodeArray;
-	}
-
-	/**
-	 * Validates that the cluster has at least one node available.
-	 *
-	 * <p>This method checks if the cluster has any nodes and throws an exception
-	 * if the cluster is empty. It returns a snapshot of the current node array
-	 * if validation succeeds.</p>
-	 *
-	 * @return an array of Node objects representing the current cluster nodes
-	 * @throws AerospikeException with ResultCode.SERVER_NOT_AVAILABLE if the
-	 *         cluster is empty
-	 */
-	public final Node[] validateNodes() {
-		// Must copy array reference for copy on write semantics to work.
-		Node[] nodeArray = nodes;
-
-		if (nodeArray.length == 0) {
-			throw AerospikeException.resultCodeToException(ResultCode.SERVER_NOT_AVAILABLE, "Cluster is empty");
-		}
-		return nodeArray;
-	}
-
-	/**
-	 * Gets a node by its name.
-	 *
-	 * <p>This method searches for a node in the cluster with the specified name
-	 * and returns it if found. If no node with the given name exists, an exception
-	 * is thrown.</p>
-	 *
-	 * @param nodeName the name of the node to retrieve
-	 * @return the Node with the specified name
-	 * @throws AerospikeException.InvalidNode if no node with the given name exists
-	 */
-	public final Node getNode(String nodeName) throws AerospikeException.InvalidNode {
-		Node node = findNode(nodeName);
-
-		if (node == null) {
-			throw new AerospikeException.InvalidNode("Invalid node name: " + nodeName);
-		}
-		return node;
-	}
-
-	protected final Node findNode(String nodeName) {
-		// Must copy array reference for copy on write semantics to work.
-		Node[] nodeArray = nodes;
-
-		for (Node node : nodeArray) {
-			if (node.getName().equals(nodeName)) {
-				return node;
-			}
-		}
-		return null;
-	}
-
-	/**
-	 * Gets the partition map for all namespaces in the cluster.
-	 *
-	 * <p>The partition map contains information about how data is partitioned
-	 * across nodes in the cluster for each namespace. This information is used
-	 * for routing operations to the correct nodes.</p>
-	 *
-	 * @return a map from namespace names to their Partitions objects
-	 * @see Partitions
-	 */
-	public final HashMap<String,Partitions> getPartitionMap() {
-		return partitionMap;
-	}
-
-	/**
-	 * Recovers a connection that has failed or become invalid.
-	 *
-	 * <p>This method is used internally to recover connections that have encountered
-	 * errors. The connection recovery process attempts to re-establish the connection
-	 * and restore it to a usable state.</p>
-	 *
-	 * @param cs the ConnectionRecover object containing connection recovery information
-	 * @see ConnectionRecover
-	 */
-	public final void recoverConnection(ConnectionRecover cs) {
-		tend.recoverConnection(cs);
-	}
-
-	private void setMinConnsPerNode(int min) {
-		def.minConnsPerNode = min;
-
- 		Node[] nodeArray = nodes;
-
-		for (Node node : nodeArray) {
-			node.setMinConnections(min);
-		}
-	}
-
-	private final void setMaxConnsPerNode(int max) {
-		def.maxConnsPerNode = max;
-
-		Node[] nodeArray = nodes;
-
-		for (Node node : nodeArray) {
-			node.setMaxConnections(max);
-		}
-	}
-
-    private void forceSingleNode() {
-		// Communicate with the first seed node only.
-		// Do not run cluster tend thread.
-    	// For testing purposes only.
-		try {
-			tend.forceSingleNode();
-		}
-		catch (Throwable e) {
-			close();
-			throw e;
-		}
+                if (node.isActive()) {
+                    return node;
+                }
+                index++;
+                index %= nodeArray.length;
+            }
+        }
+        throw new AerospikeException.InvalidNode("Cluster is empty");
     }
 
-	/**
-	 * Gets the log context for this cluster.
-	 *
-	 * <p>The log context provides logging functionality specific to this cluster
-	 * instance, allowing log messages to be associated with the cluster connection.</p>
-	 *
-	 * @return the Log.Context for this cluster
-	 * @see Log.Context
-	 */
-	public final Log.Context getLogContext() {
-		return context;
-	}
+    /**
+     * Gets a copy of the current array of nodes in the cluster.
+     *
+     * <p>The returned array is a snapshot of the nodes at the time of the call.
+     * The cluster may update its node list asynchronously, so the returned array
+     * may not reflect the current state of the cluster.</p>
+     *
+     * @return an array of Node objects representing the current cluster nodes
+     */
+    public final Node[] getNodes() {
+        // Must copy array reference for copy on write semantics to work.
+        Node[] nodeArray = nodes;
+        return nodeArray;
+    }
+
+    /**
+     * Validates that the cluster has at least one node available.
+     *
+     * <p>This method checks if the cluster has any nodes and throws an exception
+     * if the cluster is empty. It returns a snapshot of the current node array
+     * if validation succeeds.</p>
+     *
+     * @return an array of Node objects representing the current cluster nodes
+     * @throws AerospikeException with ResultCode.SERVER_NOT_AVAILABLE if the
+     *         cluster is empty
+     */
+    public final Node[] validateNodes() {
+        // Must copy array reference for copy on write semantics to work.
+        Node[] nodeArray = nodes;
+
+        if (nodeArray.length == 0) {
+            throw AerospikeException.resultCodeToException(ResultCode.SERVER_NOT_AVAILABLE, "Cluster is empty");
+        }
+        return nodeArray;
+    }
+
+    /**
+     * Gets a node by its name.
+     *
+     * <p>This method searches for a node in the cluster with the specified name
+     * and returns it if found. If no node with the given name exists, an exception
+     * is thrown.</p>
+     *
+     * @param nodeName the name of the node to retrieve
+     * @return the Node with the specified name
+     * @throws AerospikeException.InvalidNode if no node with the given name exists
+     */
+    public final Node getNode(String nodeName) throws AerospikeException.InvalidNode {
+        Node node = findNode(nodeName);
+
+        if (node == null) {
+            throw new AerospikeException.InvalidNode("Invalid node name: " + nodeName);
+        }
+        return node;
+    }
+
+    protected final Node findNode(String nodeName) {
+        // Must copy array reference for copy on write semantics to work.
+        Node[] nodeArray = nodes;
+
+        for (Node node : nodeArray) {
+            if (node.getName().equals(nodeName)) {
+                return node;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Gets the partition map for all namespaces in the cluster.
+     *
+     * <p>The partition map contains information about how data is partitioned
+     * across nodes in the cluster for each namespace. This information is used
+     * for routing operations to the correct nodes.</p>
+     *
+     * @return a map from namespace names to their Partitions objects
+     * @see Partitions
+     */
+    public final HashMap<String,Partitions> getPartitionMap() {
+        return partitionMap;
+    }
+
+    /**
+     * Recovers a connection that has failed or become invalid.
+     *
+     * <p>This method is used internally to recover connections that have encountered
+     * errors. The connection recovery process attempts to re-establish the connection
+     * and restore it to a usable state.</p>
+     *
+     * @param cs the ConnectionRecover object containing connection recovery information
+     * @see ConnectionRecover
+     */
+    public final void recoverConnection(ConnectionRecover cs) {
+        tend.recoverConnection(cs);
+    }
+
+    private void setMinConnsPerNode(int min) {
+        def.minConnsPerNode = min;
+
+        Node[] nodeArray = nodes;
+
+        for (Node node : nodeArray) {
+            node.setMinConnections(min);
+        }
+    }
+
+    private final void setMaxConnsPerNode(int max) {
+        def.maxConnsPerNode = max;
+
+        Node[] nodeArray = nodes;
+
+        for (Node node : nodeArray) {
+            node.setMaxConnections(max);
+        }
+    }
+
+    private void forceSingleNode() {
+        // Communicate with the first seed node only.
+        // Do not run cluster tend thread.
+        // For testing purposes only.
+        try {
+            tend.forceSingleNode();
+        }
+        catch (Throwable e) {
+            close();
+            throw e;
+        }
+    }
+
+    /**
+     * Gets the log context for this cluster.
+     *
+     * <p>The log context provides logging functionality specific to this cluster
+     * instance, allowing log messages to be associated with the cluster connection.</p>
+     *
+     * @return the Log.Context for this cluster
+     * @see Log.Context
+     */
+    public final Log.Context getLogContext() {
+        return context;
+    }
 
     /**
      * Increments and returns the replica index.
@@ -497,85 +497,85 @@ public class Cluster implements Closeable {
      * @return the incremented replica index value
      */
     public final int incrReplicaIndex() {
-    	return replicaIndex.getAndIncrement();
+        return replicaIndex.getAndIncrement();
     }
 
-	/**
-	 * Increment command count when metrics are enabled.
-	 */
-	public final void addCommandCount() {
-		if (metricsEnabled) {
-			commandCount.getAndIncrement();
-		}
-	}
-
-	/**
-	 * Return command count. The value is cumulative and not reset per metrics interval.
-	 */
-	public final long getCommandCount() {
-		return commandCount.get();
-	}
-
-	/**
-	 * Increment command retry count. There can be multiple retries for a single command.
-	 */
-	public final void addRetry() {
-		retryCount.getAndIncrement();
-	}
-
-	/**
-	 * Add command retry count. There can be multiple retries for a single command.
-	 */
-	public final void addRetries(int count) {
-		retryCount.getAndAdd(count);
-	}
-
-	/**
-	 * Return command retry count. The value is cumulative and not reset per metrics interval.
-	 */
-	public final long getRetryCount() {
-		return retryCount.get();
-	}
-
-	/**
-	 * Sets the array of nodes for this cluster.
-	 *
-	 * <p>This method updates the cluster's node list. It is typically called
-	 * internally by the cluster tend mechanism when nodes are discovered or
-	 * removed from the cluster.</p>
-	 *
-	 * @param nodes the new array of nodes for the cluster
-	 */
-	public final void setNodes(Node[] nodes) {
-    	this.nodes = nodes;
+    /**
+     * Increment command count when metrics are enabled.
+     */
+    public final void addCommandCount() {
+        if (metricsEnabled) {
+            commandCount.getAndIncrement();
+        }
     }
 
-	/**
-	 * Determines whether implicit batch write transactions are allowed for this cluster.
-	 *
-	 * <p>This method returns {@code true} only when both of the following conditions are met:
-	 * <ul>
-	 *   <li>The cluster version is 8.0 or higher (implicit batch write transactions
-	 *       require server version 8.0+)</li>
-	 *   <li>Implicit batch write transactions are enabled in the effective system settings</li>
-	 * </ul>
-	 * </p>
-	 *
-	 * <p>When implicit batch write transactions are allowed, batch write operations
-	 * will automatically be wrapped in transactions to ensure atomicity across all
-	 * records in the batch. This means that either all records in the batch are written
-	 * successfully, or none are written (all-or-nothing semantics).</p>
-	 *
-	 * <p>This feature is used internally by batch write operations to determine whether
-	 * to automatically create a transaction context for batch writes that are not already
-	 * part of an explicit transaction.</p>
-	 *
-	 * @return {@code true} if implicit batch write transactions are allowed,
-	 *         {@code false} otherwise
-	 */
-	public boolean allowImplicitBatchWriteTransactions() {
-		return versionGE8 && effectiveSystemSettings.getImplicitBatchWriteTransactions();
-	}
+    /**
+     * Return command count. The value is cumulative and not reset per metrics interval.
+     */
+    public final long getCommandCount() {
+        return commandCount.get();
+    }
+
+    /**
+     * Increment command retry count. There can be multiple retries for a single command.
+     */
+    public final void addRetry() {
+        retryCount.getAndIncrement();
+    }
+
+    /**
+     * Add command retry count. There can be multiple retries for a single command.
+     */
+    public final void addRetries(int count) {
+        retryCount.getAndAdd(count);
+    }
+
+    /**
+     * Return command retry count. The value is cumulative and not reset per metrics interval.
+     */
+    public final long getRetryCount() {
+        return retryCount.get();
+    }
+
+    /**
+     * Sets the array of nodes for this cluster.
+     *
+     * <p>This method updates the cluster's node list. It is typically called
+     * internally by the cluster tend mechanism when nodes are discovered or
+     * removed from the cluster.</p>
+     *
+     * @param nodes the new array of nodes for the cluster
+     */
+    public final void setNodes(Node[] nodes) {
+        this.nodes = nodes;
+    }
+
+    /**
+     * Determines whether implicit batch write transactions are allowed for this cluster.
+     *
+     * <p>This method returns {@code true} only when both of the following conditions are met:
+     * <ul>
+     *   <li>The cluster version is 8.0 or higher (implicit batch write transactions
+     *       require server version 8.0+)</li>
+     *   <li>Implicit batch write transactions are enabled in the effective system settings</li>
+     * </ul>
+     * </p>
+     *
+     * <p>When implicit batch write transactions are allowed, batch write operations
+     * will automatically be wrapped in transactions to ensure atomicity across all
+     * records in the batch. This means that either all records in the batch are written
+     * successfully, or none are written (all-or-nothing semantics).</p>
+     *
+     * <p>This feature is used internally by batch write operations to determine whether
+     * to automatically create a transaction context for batch writes that are not already
+     * part of an explicit transaction.</p>
+     *
+     * @return {@code true} if implicit batch write transactions are allowed,
+     *         {@code false} otherwise
+     */
+    public boolean allowImplicitBatchWriteTransactions() {
+        return versionGE8 && effectiveSystemSettings.getImplicitBatchWriteTransactions();
+    }
 
     /**
      * Gets the minimum server version across all nodes in the cluster.
@@ -595,30 +595,30 @@ public class Cluster implements Closeable {
      * @see #setVersion(Version)
      */
     public Version getVersion() {
-		return version;
-	}
+        return version;
+    }
 
-	/**
-	 * Sets the minimum server version for the cluster. For internal use only.
-	 *
-	 * <p>This method is typically called by the cluster tend mechanism when
-	 * nodes are added to ensure the cluster version reflects the minimum
-	 * version across all nodes. Setting a lower version than the current
-	 * cluster version will update the cluster to use the lower version,
-	 * ensuring feature compatibility across all nodes.</p>
-	 *
-	 * <p>This method should generally not be called directly by application
-	 * code, as the cluster tend mechanism automatically manages the version
-	 * based on the nodes in the cluster.</p>
-	 *
-	 * @param version the minimum server version to set for the cluster
-	 * @see Version
-	 * @see #getVersion()
-	 */
-	public void setVersion(Version version) {
-		this.version = version;
-		this.versionGE8 = version.isGreaterOrEqual(Version.SERVER_VERSION_8_0);
-	}
+    /**
+     * Sets the minimum server version for the cluster. For internal use only.
+     *
+     * <p>This method is typically called by the cluster tend mechanism when
+     * nodes are added to ensure the cluster version reflects the minimum
+     * version across all nodes. Setting a lower version than the current
+     * cluster version will update the cluster to use the lower version,
+     * ensuring feature compatibility across all nodes.</p>
+     *
+     * <p>This method should generally not be called directly by application
+     * code, as the cluster tend mechanism automatically manages the version
+     * based on the nodes in the cluster.</p>
+     *
+     * @param version the minimum server version to set for the cluster
+     * @see Version
+     * @see #getVersion()
+     */
+    public void setVersion(Version version) {
+        this.version = version;
+        this.versionGE8 = version.isGreaterOrEqual(Version.SERVER_VERSION_8_0);
+    }
 
     /**
      * Checks if the cluster tend mechanism is currently active.
@@ -631,23 +631,23 @@ public class Cluster implements Closeable {
      * @see ClusterTend
      */
     public final boolean isActive() {
-    	return tend.isActive();
+        return tend.isActive();
     }
 
-	/**
-	 * Gets the partition map for a specific namespace.
-	 *
-	 * <p>The partition map contains information about how data is partitioned
-	 * across nodes in the cluster for the specified namespace. This information
-	 * is used for routing operations to the correct nodes based on partition
-	 * assignments.</p>
-	 *
-	 * @param namespace the namespace for which to retrieve partition information
-	 * @return the Partitions object containing partition mapping for the namespace
-	 * @throws AerospikeException.InvalidNamespace if the specified namespace
-	 *         does not exist in the cluster's partition map
-	 */
-	public Partitions getPartitions(String namespace) {
+    /**
+     * Gets the partition map for a specific namespace.
+     *
+     * <p>The partition map contains information about how data is partitioned
+     * across nodes in the cluster for the specified namespace. This information
+     * is used for routing operations to the correct nodes based on partition
+     * assignments.</p>
+     *
+     * @param namespace the namespace for which to retrieve partition information
+     * @return the Partitions object containing partition mapping for the namespace
+     * @throws AerospikeException.InvalidNamespace if the specified namespace
+     *         does not exist in the cluster's partition map
+     */
+    public Partitions getPartitions(String namespace) {
         HashMap<String, Partitions> map = this.partitionMap;
         Partitions partitions = map.get(namespace);
 
@@ -657,14 +657,14 @@ public class Cluster implements Closeable {
         return partitions;
     }
 
-	final void logPartitionMap() {
-		for (Entry<String,Partitions> entry : partitionMap.entrySet()) {
-			String namespace = entry.getKey();
-			Partitions partitions = entry.getValue();
+    final void logPartitionMap() {
+        for (Entry<String,Partitions> entry : partitionMap.entrySet()) {
+            String namespace = entry.getKey();
+            Partitions partitions = entry.getValue();
 
-			partitions.log(context, namespace);
-		}
-	}
+            partitions.log(context, namespace);
+        }
+    }
 
     /**
      * Close the cluster connection and releases all associated resources.
@@ -682,29 +682,29 @@ public class Cluster implements Closeable {
      */
     @Override
     public void close() {
-    	if (! closed.compareAndSet(false, true)) {
-			// close() has already been called.
-			return;
-		}
+        if (! closed.compareAndSet(false, true)) {
+            // close() has already been called.
+            return;
+        }
 
         indexesMonitor.stopMonitor();
-    	tend.close();
+        tend.close();
 
-    	/* TODO Handle metrics close.
-		synchronized(metricsLock) {
-			try {
-				disableMetricsInternal();
-			}
-			catch (Throwable e) {
-				Log.warn("DisableMetrics failed: " + Util.getErrorMessage(e));
-			}
-		}
-		*/
+        /* TODO Handle metrics close.
+        synchronized(metricsLock) {
+            try {
+                disableMetricsInternal();
+            }
+            catch (Throwable e) {
+                Log.warn("DisableMetrics failed: " + Util.getErrorMessage(e));
+            }
+        }
+        */
 
-		Node[] nodeArray = nodes;
+        Node[] nodeArray = nodes;
 
-		for (Node node : nodeArray) {
-			node.close();
-		}
+        for (Node node : nodeArray) {
+            node.close();
+        }
     }
 }

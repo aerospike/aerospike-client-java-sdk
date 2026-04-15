@@ -20,23 +20,23 @@ package com.aerospike.client.sdk.query;
  * Secondary index collection type.
  */
 public enum IndexCollectionType {
-	/**
-	 * Normal scalar index.
-	 */
-	DEFAULT,
+    /**
+     * Normal scalar index.
+     */
+    DEFAULT,
 
-	/**
-	 * Index list elements.
-	 */
-	LIST,
+    /**
+     * Index list elements.
+     */
+    LIST,
 
-	/**
-	 * Index map keys.
-	 */
-	MAPKEYS,
+    /**
+     * Index map keys.
+     */
+    MAPKEYS,
 
-	/**
-	 * Index map values.
-	 */
-	MAPVALUES;
+    /**
+     * Index map values.
+     */
+    MAPVALUES;
 }

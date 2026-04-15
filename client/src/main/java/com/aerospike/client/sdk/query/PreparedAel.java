@@ -24,7 +24,7 @@ public class PreparedAel {
     public PreparedAel(String statement) {
         this.statement = statement;
     }
-    
+
     public String formValue(Object ...params) {
         Pattern pattern = Pattern.compile("\\$(\\d+)");
         Matcher matcher = pattern.matcher(statement);

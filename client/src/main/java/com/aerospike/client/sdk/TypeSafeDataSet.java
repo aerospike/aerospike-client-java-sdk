@@ -35,7 +35,7 @@ public class TypeSafeDataSet<T> extends DataSet {
     public static <R> TypeSafeDataSet<R> of(String namespace, String set, Class<R> clazz) {
         return new TypeSafeDataSet<>(namespace, set, clazz);
     }
-    
+
     public Class<T> getClazz() {
         return clazz;
     }

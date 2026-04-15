@@ -146,7 +146,7 @@ public class TransactionalSession extends Session{
                         result = operation.execute(this);
                     }
                     catch (AbortException abortex) {
-                    	abortTxn();
+                        abortTxn();
                         return null;
                     }
                     catch (AerospikeException ae) {
@@ -225,8 +225,8 @@ public class TransactionalSession extends Session{
                         operation.execute(this);
                     }
                     catch (AbortException abortex) {
-                    	abortTxn();
-                    	return;
+                        abortTxn();
+                        return;
                     }
                     catch (AerospikeException ae) {
                         abortTxn();
@@ -288,21 +288,21 @@ public class TransactionalSession extends Session{
      *                          and handled by the transaction framework
      */
     public void abort() {
-    	throw new AbortException();
+        throw new AbortException();
     }
 
     private boolean retryCommit(AerospikeException ae) {
-    	switch (ae.getResultCode()) {
-	        case ResultCode.MRT_BLOCKED:
-	        case ResultCode.MRT_VERSION_MISMATCH:
-	        case ResultCode.TXN_FAILED:
-	            // These can be retried from the beginning
-	        	return true;
+        switch (ae.getResultCode()) {
+            case ResultCode.MRT_BLOCKED:
+            case ResultCode.MRT_VERSION_MISMATCH:
+            case ResultCode.TXN_FAILED:
+                // These can be retried from the beginning
+                return true;
 
-	        default:
-	            // These cannot be retried
-	        	return false;
-    	}
+            default:
+                // These cannot be retried
+                return false;
+        }
     }
 
     private static void sleepBetweenRetries(Duration sleepBetweenAttempts) {
@@ -317,46 +317,46 @@ public class TransactionalSession extends Session{
     }
 
     private CommitStatus commitTxn() {
-		TxnRoll tr = new TxnRoll(getCluster(), txn);
-		Settings verifyPolicy = getBehavior().getSettings(OpKind.SYSTEM_TXN_VERIFY, OpShape.SYSTEM, Mode.ANY);
-		Settings rollPolicy = getBehavior().getSettings(OpKind.SYSTEM_TXN_ROLL, OpShape.SYSTEM, Mode.ANY);
+        TxnRoll tr = new TxnRoll(getCluster(), txn);
+        Settings verifyPolicy = getBehavior().getSettings(OpKind.SYSTEM_TXN_VERIFY, OpShape.SYSTEM, Mode.ANY);
+        Settings rollPolicy = getBehavior().getSettings(OpKind.SYSTEM_TXN_ROLL, OpShape.SYSTEM, Mode.ANY);
 
-		switch (txn.getState()) {
-			default:
-			case OPEN:
-				tr.verify(verifyPolicy, rollPolicy);
-				return tr.commit(rollPolicy);
+        switch (txn.getState()) {
+            default:
+            case OPEN:
+                tr.verify(verifyPolicy, rollPolicy);
+                return tr.commit(rollPolicy);
 
-			case VERIFIED:
-				return tr.commit(rollPolicy);
+            case VERIFIED:
+                return tr.commit(rollPolicy);
 
-			case COMMITTED:
-				return CommitStatus.ALREADY_COMMITTED;
+            case COMMITTED:
+                return CommitStatus.ALREADY_COMMITTED;
 
-			case ABORTED:
-				throw AerospikeException.resultCodeToException(ResultCode.TXN_ALREADY_ABORTED, "Transaction already aborted");
-		}
+            case ABORTED:
+                throw AerospikeException.resultCodeToException(ResultCode.TXN_ALREADY_ABORTED, "Transaction already aborted");
+        }
     }
 
-	private AbortStatus abortTxn() {
-		TxnRoll tr = new TxnRoll(getCluster(), txn);
-		Settings rollPolicy = getBehavior().getSettings(OpKind.SYSTEM_TXN_ROLL, OpShape.SYSTEM, Mode.ANY);
+    private AbortStatus abortTxn() {
+        TxnRoll tr = new TxnRoll(getCluster(), txn);
+        Settings rollPolicy = getBehavior().getSettings(OpKind.SYSTEM_TXN_ROLL, OpShape.SYSTEM, Mode.ANY);
 
-		switch (txn.getState()) {
-			default:
-			case OPEN:
-			case VERIFIED:
-				return tr.abort(rollPolicy);
+        switch (txn.getState()) {
+            default:
+            case OPEN:
+            case VERIFIED:
+                return tr.abort(rollPolicy);
 
-			case COMMITTED:
-				throw AerospikeException.resultCodeToException(ResultCode.TXN_ALREADY_COMMITTED, "Transaction already committed");
+            case COMMITTED:
+                throw AerospikeException.resultCodeToException(ResultCode.TXN_ALREADY_COMMITTED, "Transaction already committed");
 
-			case ABORTED:
-				return AbortStatus.ALREADY_ABORTED;
-		}
-	}
+            case ABORTED:
+                return AbortStatus.ALREADY_ABORTED;
+        }
+    }
 
-	private static final class AbortException extends RuntimeException {
-		private static final long serialVersionUID = 1L;
-	}
+    private static final class AbortException extends RuntimeException {
+        private static final long serialVersionUID = 1L;
+    }
 }

@@ -218,10 +218,10 @@ public class BackgroundOperationBuilder extends AbstractOperationBuilder<Backgro
      * @throws com.aerospike.client.AerospikeException if the operation fails to start
      */
     public ExecuteTask execute() {
-    	Cluster cluster = session.getCluster();
-		Node[] nodes = cluster.validateNodes();
+        Cluster cluster = session.getCluster();
+        Node[] nodes = cluster.validateNodes();
 
-		cluster.addCommandCount();
+        cluster.addCommandCount();
 
         boolean retryable = areOperationsRetryable(ops);
 
@@ -250,43 +250,43 @@ public class BackgroundOperationBuilder extends AbstractOperationBuilder<Backgro
         }
 
         if (ael != null) {
-        	ParseResult pr = ael.process(dataset.getNamespace(), session);
-        	filter = pr.getFilter();
-        	filterExp = Exp.build(pr.getExp());
+            ParseResult pr = ael.process(dataset.getNamespace(), session);
+            filter = pr.getFilter();
+            filterExp = Exp.build(pr.getExp());
 
-        	//Exp exp = pr.getExp();
-        	//System.out.println("BACKGROUND FILTEREXP: " + exp.toString());
+            //Exp exp = pr.getExp();
+            //System.out.println("BACKGROUND FILTEREXP: " + exp.toString());
         }
 
         // Add filter expression if where clause is present
         int ttl = getExpirationAsInt();
-		long taskId = new Random().nextLong();
+        long taskId = new Random().nextLong();
 
         BackgroundQueryCommand cmd = new BackgroundQueryCommand(cluster, dataset, taskId, opType,
-    		ops, ttl, filter, filterExp, settings, recordsPerSecond);
+            ops, ttl, filter, filterExp, settings, recordsPerSecond);
 
         final NodeStatus status = new NodeStatus();
 
         try (ExecutorService es = cluster.getExecutorService()) {
-    		for (Node node : nodes) {
+            for (Node node : nodes) {
                 es.submit(() -> {
                     try {
-                    	BackgroundQueryNodeExecutor exec = new BackgroundQueryNodeExecutor(cluster, cmd, node, status);
-                    	exec.execute();
+                        BackgroundQueryNodeExecutor exec = new BackgroundQueryNodeExecutor(cluster, cmd, node, status);
+                        exec.execute();
                     }
                     catch (AerospikeException ae) {
-                    	status.setException(ae);
+                        status.setException(ae);
                     }
                     catch (Throwable t) {
-                    	status.setException(new AerospikeException(t));
+                        status.setException(new AerospikeException(t));
                     }
                 });
-    		}
+            }
         }
 
         status.checkException();
 
-		return new ExecuteTask(cluster, taskId, cmd.socketTimeout);
+        return new ExecuteTask(cluster, taskId, cmd.socketTimeout);
     }
 
     // Note: areOperationsRetryable() is inherited from AbstractOperationBuilder

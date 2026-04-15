@@ -53,9 +53,9 @@ public class MapUtil {
     public static <T extends Enum<T>> T asEnum(Map<String, Object> map, String key, Class<T> clazz) {
         Object raw = map.get(key);
         if (raw == null)
-		 {
-			return null; // or throw if you prefer
-		}
+         {
+            return null; // or throw if you prefer
+        }
 
         // Already the right enum type
         if (clazz.isInstance(raw)) {
@@ -66,8 +66,8 @@ public class MapUtil {
         if (raw instanceof String) {
             String s = ((String) raw).trim();
             if (s.isEmpty()) {
-				return null;
-			}
+                return null;
+            }
 
             // Try exact name first (fast path)
             try {
@@ -131,7 +131,7 @@ public class MapUtil {
     }
 
     @SuppressWarnings("unchecked")
-	public static <T> T asObjectFromMap(Map<String, Object> map, String key, RecordMapper<T> mapper) {
+    public static <T> T asObjectFromMap(Map<String, Object> map, String key, RecordMapper<T> mapper) {
         if (map.containsKey(key)) {
             Object data = map.get(key);
             if (data != null) {

@@ -24,31 +24,31 @@ package com.aerospike.client.sdk.cdt;
  * }</pre>
  */
 public final class MapWriteFlags {
-	/**
-	 * Default.  Allow create or update.
-	 */
-	public static final int DEFAULT = 0;
+    /**
+     * Default.  Allow create or update.
+     */
+    public static final int DEFAULT = 0;
 
-	/**
-	 * If the key already exists, the item will be denied.
-	 * If the key does not exist, a new item will be created.
-	 */
-	public static final int CREATE_ONLY = 1;
+    /**
+     * If the key already exists, the item will be denied.
+     * If the key does not exist, a new item will be created.
+     */
+    public static final int CREATE_ONLY = 1;
 
-	/**
-	 * If the key already exists, the item will be overwritten.
-	 * If the key does not exist, the item will be denied.
-	 */
-	public static final int UPDATE_ONLY = 2;
+    /**
+     * If the key already exists, the item will be overwritten.
+     * If the key does not exist, the item will be denied.
+     */
+    public static final int UPDATE_ONLY = 2;
 
-	/**
-	 * Do not raise error if a map item is denied due to write flag constraints.
-	 */
-	public static final int NO_FAIL = 4;
+    /**
+     * Do not raise error if a map item is denied due to write flag constraints.
+     */
+    public static final int NO_FAIL = 4;
 
-	/**
-	 * Allow other valid map items to be committed if a map item is denied due to
-	 * write flag constraints.
-	 */
-	public static final int PARTIAL = 8;
+    /**
+     * Allow other valid map items to be committed if a map item is denied due to
+     * write flag constraints.
+     */
+    public static final int PARTIAL = 8;
 }

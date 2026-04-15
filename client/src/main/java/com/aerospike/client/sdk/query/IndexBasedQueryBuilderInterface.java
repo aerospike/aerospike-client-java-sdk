@@ -23,7 +23,7 @@ import java.util.function.Function;
  * These operations are only available when querying from a DataSet
  */
 public interface IndexBasedQueryBuilderInterface<T extends IndexBasedQueryBuilderInterface<T>> extends BaseQueryBuilder<T> {
-    
+
     /**
      * Rate limit the records per second returned from the server. Note that this will force
      * this to be a "long" query, allowing it to be tracked on the server.
@@ -31,7 +31,7 @@ public interface IndexBasedQueryBuilderInterface<T extends IndexBasedQueryBuilde
      * @return this QueryBuilder for method chaining
      */
     T recordsPerSecond(int recordsPerSecond);
-    
+
     /**
      * Provides hints to influence secondary index selection and query duration for the
      * {@code where} clause on this query.

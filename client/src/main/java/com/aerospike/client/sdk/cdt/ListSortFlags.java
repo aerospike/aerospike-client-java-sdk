@@ -20,13 +20,13 @@ package com.aerospike.client.sdk.cdt;
  * List sort flags.
  */
 public final class ListSortFlags {
-	/**
-	 * Default.  Preserve duplicate values when sorting list.
-	 */
-	public static final int DEFAULT = 0;
+    /**
+     * Default.  Preserve duplicate values when sorting list.
+     */
+    public static final int DEFAULT = 0;
 
-	/**
-	 * Drop duplicate values when sorting list.
-	 */
-	public static final int DROP_DUPLICATES = 2;
+    /**
+     * Drop duplicate values when sorting list.
+     */
+    public static final int DROP_DUPLICATES = 2;
 }
