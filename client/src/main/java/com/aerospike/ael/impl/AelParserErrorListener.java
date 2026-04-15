@@ -48,11 +48,11 @@ class AelParserErrorListener extends BaseErrorListener {
             return "[Lexer] " + firstLexerError + "; [Parser] " + firstParserError;
         }
         if (firstLexerError != null) {
-			return "[Lexer] " + firstLexerError;
-		}
+            return "[Lexer] " + firstLexerError;
+        }
         if (firstParserError != null) {
-			return "[Parser] " + firstParserError;
-		}
+            return "[Parser] " + firstParserError;
+        }
         return null;
     }
 }

@@ -120,8 +120,8 @@ public class AelParserImpl implements AelParser {
 
     private Map<String, List<Index>> buildIndexesMap(Collection<Index> indexes, String namespace) {
         if (indexes == null || indexes.isEmpty() || namespace == null) {
-			return Collections.emptyMap();
-		}
+            return Collections.emptyMap();
+        }
         return indexes.stream()
                 .filter(idx -> namespace.equals(idx.getNamespace()))
                 .collect(Collectors.groupingBy(Index::getBin));

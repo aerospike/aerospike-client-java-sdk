@@ -24,7 +24,7 @@ package com.aerospike.ael;
 public class AelParseException extends RuntimeException {
     private static final long serialVersionUID = 1L;
 
-	public AelParseException(String description) {
+    public AelParseException(String description) {
         super(description);
     }
 

@@ -217,7 +217,7 @@ public class VisitorUtils {
      * @param right The {@link AbstractPart} used as a reference for type inference
      */
     @SuppressWarnings("incomplete-switch")
-	private static void overrideTypes(AbstractPart left, AbstractPart right) {
+    private static void overrideTypes(AbstractPart left, AbstractPart right) {
         switch (left.getPartType()) {
             case BIN_PART -> overrideBinType((BinPart) left, right); // For example, in expression "$.intBin1 == 100"
             case PATH_OPERAND -> { // For example, in "$.listBin1.[0].get(return: EXISTS) == true"
@@ -936,8 +936,8 @@ public class VisitorUtils {
         } else if (operationType == MUL) {
             if (leftValue <= 0) {
                 if (leftValue == 0) {
-					throw new NoApplicableFilterException("Cannot divide by zero");
-				}
+                    throw new NoApplicableFilterException("Cannot divide by zero");
+                }
                 type = invertType(type);
             }
             float val = (float) rightValue / leftValue;
@@ -1039,8 +1039,8 @@ public class VisitorUtils {
     public static AbstractPart buildExpr(ExpressionContainer expr, PlaceholderValues placeholderValues,
                                          Map<String, List<Index>> indexes, String preferredBin) {
         if (placeholderValues != null) {
-			resolvePlaceholders(expr, placeholderValues);
-		}
+            resolvePlaceholders(expr, placeholderValues);
+        }
 
         Filter secondaryIndexFilter = null;
         try {
@@ -1069,7 +1069,7 @@ public class VisitorUtils {
      */
     private static void resolvePlaceholders(ExpressionContainer expression, PlaceholderValues placeholderValues) {
         @SuppressWarnings("incomplete-switch")
-		Consumer<AbstractPart> exprContainersCollector = part -> {
+        Consumer<AbstractPart> exprContainersCollector = part -> {
             switch (part.getPartType()) {
                 case EXPRESSION_CONTAINER -> replacePlaceholdersInExprContainer(part, placeholderValues);
                 case WHEN_STRUCTURE -> replacePlaceholdersInWhenStructure(part, placeholderValues);
@@ -1130,8 +1130,8 @@ public class VisitorUtils {
         }
 
         if (isResolved) {
-			whenStructure.setOperands(subOperands);
-		}
+            whenStructure.setOperands(subOperands);
+        }
     }
 
     /**
@@ -1362,8 +1362,8 @@ public class VisitorUtils {
     private static Exp getFilterExp(ExpressionContainer expr) {
         // Skip the expression already used in creating secondary index Filter
         if (expr.hasSecondaryIndexFilter()) {
-			return null;
-		}
+            return null;
+        }
 
         return switch (expr.getOperationType()) {
             case OR_STRUCTURE -> orStructureToExp(expr);
@@ -1478,9 +1478,9 @@ public class VisitorUtils {
         for (ExpressionContainer part : operands) {
             Exp exp = getExp(part);
             if (exp != null)
-			 {
-				expressions.add(exp); // Exp can be null if it is already used in secondary index
-			}
+             {
+                expressions.add(exp); // Exp can be null if it is already used in secondary index
+            }
         }
         if (expressions.isEmpty()) {
             return null;
@@ -1504,8 +1504,8 @@ public class VisitorUtils {
         if (expr.isUnary()) {
             Exp operandExp = processOperand(left);
             if (operandExp == null) {
-				return null;
-			}
+                return null;
+            }
 
             UnaryOperator<Exp> operator = getUnaryExpOperator(expr.getOperationType());
             return operator.apply(operandExp);
@@ -1536,11 +1536,11 @@ public class VisitorUtils {
         // Special handling for AND operation
         if (expr.getOperationType() == AND) {
             if (leftExp == null) {
-				return rightExp;
-			}
+                return rightExp;
+            }
             if (rightExp == null) {
-				return leftExp;
-			}
+                return leftExp;
+            }
         }
 
         // Validate operand type compatibility for non-BIN_PART operands.
@@ -1718,8 +1718,8 @@ public class VisitorUtils {
      */
     private static Exp processOperand(AbstractPart part) {
         if (part == null) {
-			return null;
-		}
+            return null;
+        }
 
         Exp exp;
         if (part.getPartType() == EXPRESSION_CONTAINER) {
@@ -1762,13 +1762,13 @@ public class VisitorUtils {
     private static Filter getSIFilter(ExpressionContainer expr, Map<String, List<Index>> indexes,
                                       String preferredBin) {
         if (expr.getOperationType() == OR) {
-			return null;
-		}
+            return null;
+        }
 
         ExpressionContainer chosenExpr = chooseExprForFilter(expr, indexes, preferredBin);
         if (chosenExpr == null) {
-			return null;
-		}
+            return null;
+        }
 
         return getFilterOrNull(
                 chosenExpr.getLeft(),
@@ -1811,8 +1811,8 @@ public class VisitorUtils {
                                                            Map<String, List<Index>> indexes,
                                                            String preferredBin) {
         if (indexes == null || indexes.isEmpty()) {
-			return null;
-		}
+            return null;
+        }
 
         Map<Integer, List<ExpressionContainer>> exprsPerCardinality =
                 getExpressionsPerCardinality(exprContainer, indexes);
@@ -1821,8 +1821,8 @@ public class VisitorUtils {
             Map<Integer, List<ExpressionContainer>> hintedCandidates = filterByBin(exprsPerCardinality, preferredBin);
             ExpressionContainer hinted = selectByCardinalityThenAlpha(hintedCandidates);
             if (hinted != null) {
-				return hinted;
-			}
+                return hinted;
+            }
         }
 
         return selectByCardinalityThenAlpha(exprsPerCardinality);
@@ -1855,8 +1855,8 @@ public class VisitorUtils {
     private static ExpressionContainer selectByCardinalityThenAlpha(
             Map<Integer, List<ExpressionContainer>> exprsPerCardinality) {
         if (exprsPerCardinality.isEmpty()) {
-			return null;
-		}
+            return null;
+        }
 
         List<ExpressionContainer> topExprs = exprsPerCardinality.entrySet().stream()
                 .max(Map.Entry.comparingByKey())
@@ -1864,8 +1864,8 @@ public class VisitorUtils {
                 .orElse(Collections.emptyList());
 
         if (topExprs.isEmpty()) {
-			return null;
-		}
+            return null;
+        }
 
         ExpressionContainer chosen = topExprs.size() > 1
                 ? topExprs.stream()
@@ -1899,15 +1899,15 @@ public class VisitorUtils {
                 ExpressionContainer expr = (ExpressionContainer) part;
 
                 if (expr.getOperationType() == IN) {
-					return;
-				}
+                    return;
+                }
 
                 BinPart binPart = getBinPart(expr, 2);
 
                 if (binPart == null)
-				 {
-					return; // no bin found
-				}
+                 {
+                    return; // no bin found
+                }
                 if (!binPart.equals(binPartPrev[0])) {
                     binPartPrev[0] = binPart;
                 } else {
@@ -1943,8 +1943,8 @@ public class VisitorUtils {
                                                         Map<String, List<Index>> indexes) {
         List<Index> indexesByBin = indexes.get(binPart.getBinName());
         if (indexesByBin == null || indexesByBin.isEmpty()) {
-			return;
-		}
+            return;
+        }
 
         for (Index idx : indexesByBin) {
             // Iterate over all indexes for the same bin
@@ -1993,8 +1993,8 @@ public class VisitorUtils {
                     return true;
                 }
                 if (logicalExpr.getOperationType() == AND) {
-					return true;
-				}
+                    return true;
+                }
                 if (logicalExpr.getOperationType() == OR) {
                     // Both parts of OR-combined query are excluded from secondary index Filter building
                     ((ExpressionContainer) logicalExpr.getLeft()).isExclFromSecondaryIndexFilter(true);
@@ -2035,8 +2035,8 @@ public class VisitorUtils {
     public static void traverseTree(AbstractPart part, Consumer<AbstractPart> visitor, int depth,
                                     Predicate<AbstractPart> stopCondition) {
         if (part == null) {
-			return;
-		}
+            return;
+        }
 
         // Stop if the depth limit is reached
         if (depth < 0) {

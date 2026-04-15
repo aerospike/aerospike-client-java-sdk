@@ -118,8 +118,8 @@ public class ExpressionConditionVisitor extends ConditionBaseVisitor<AbstractPar
         for (ConditionParser.ComparisonExpressionContext ec : ctx.comparisonExpression()) {
             ExpressionContainer expr = (ExpressionContainer) visit(ec);
             if (expr == null) {
-				return null;
-			}
+                return null;
+            }
 
             logicalSetBinAsBooleanExpr(expr);
             expressions.add(expr);
@@ -139,8 +139,8 @@ public class ExpressionConditionVisitor extends ConditionBaseVisitor<AbstractPar
         for (ConditionParser.LogicalAndExpressionContext ec : ctx.logicalAndExpression()) {
             ExpressionContainer expr = (ExpressionContainer) visit(ec);
             if (expr == null) {
-				return null;
-			}
+                return null;
+            }
 
             logicalSetBinAsBooleanExpr(expr);
             expressions.add(expr);
@@ -515,14 +515,14 @@ public class ExpressionConditionVisitor extends ConditionBaseVisitor<AbstractPar
     private static void validateInVariableIsListCompatible(ExpressionContainer expr,
                                                            Map<String, AbstractPart> varBindings) {
         if (expr.getOperationType() != ExpressionContainer.ExprPartsOperation.IN) {
-			return;
-		}
+            return;
+        }
         if (expr.getRight() == null) {
-			return;
-		}
+            return;
+        }
         if (expr.getRight().getPartType() != AbstractPart.PartType.VARIABLE_OPERAND) {
-			return;
-		}
+            return;
+        }
 
         String varName = ((VariableOperand) expr.getRight()).getValue();
         AbstractPart boundPart = varBindings.get(varName);
@@ -816,12 +816,12 @@ public class ExpressionConditionVisitor extends ConditionBaseVisitor<AbstractPar
                 if (paramCtx != null) {
                     String typeVal = getPathFunctionParam(paramCtx, "type");
                     if (typeVal != null) {
-						binType = Exp.Type.valueOf(typeVal);
-					}
+                        binType = Exp.Type.valueOf(typeVal);
+                    }
                     String returnVal = getPathFunctionParam(paramCtx, "return");
                     if (returnVal != null) {
-						returnParam = PathFunction.ReturnParam.valueOf(returnVal);
-					}
+                        returnParam = PathFunction.ReturnParam.valueOf(returnVal);
+                    }
                 }
             }
         }
@@ -1102,76 +1102,76 @@ public class ExpressionConditionVisitor extends ConditionBaseVisitor<AbstractPar
     @Override
     public AbstractPart visitListPart(ConditionParser.ListPartContext ctx) {
         if (ctx.LIST_TYPE_DESIGNATOR() != null) {
-			return ListTypeDesignator.from();
-		}
+            return ListTypeDesignator.from();
+        }
         if (ctx.listIndex() != null) {
-			return ListIndex.from(ctx.listIndex());
-		}
+            return ListIndex.from(ctx.listIndex());
+        }
         if (ctx.listValue() != null) {
-			return ListValue.from(ctx.listValue());
-		}
+            return ListValue.from(ctx.listValue());
+        }
         if (ctx.listRank() != null) {
-			return ListRank.from(ctx.listRank());
-		}
+            return ListRank.from(ctx.listRank());
+        }
         if (ctx.listIndexRange() != null) {
-			return ListIndexRange.from(ctx.listIndexRange());
-		}
+            return ListIndexRange.from(ctx.listIndexRange());
+        }
         if (ctx.listValueList() != null) {
-			return ListValueList.from(ctx.listValueList());
-		}
+            return ListValueList.from(ctx.listValueList());
+        }
         if (ctx.listValueRange() != null) {
-			return ListValueRange.from(ctx.listValueRange());
-		}
+            return ListValueRange.from(ctx.listValueRange());
+        }
         if (ctx.listRankRange() != null) {
-			return ListRankRange.from(ctx.listRankRange());
-		}
+            return ListRankRange.from(ctx.listRankRange());
+        }
         if (ctx.listRankRangeRelative() != null) {
-			return ListRankRangeRelative.from(ctx.listRankRangeRelative());
-		}
+            return ListRankRangeRelative.from(ctx.listRankRangeRelative());
+        }
         throw new AelParseException("Unexpected list part: %s".formatted(ctx.getText()));
     }
 
     @Override
     public AbstractPart visitMapPart(ConditionParser.MapPartContext ctx) {
         if (ctx.MAP_TYPE_DESIGNATOR() != null) {
-			return MapTypeDesignator.from();
-		}
+            return MapTypeDesignator.from();
+        }
         if (ctx.mapKey() != null) {
-			return MapKey.from(ctx.mapKey());
-		}
+            return MapKey.from(ctx.mapKey());
+        }
         if (ctx.mapIndex() != null) {
-			return MapIndex.from(ctx.mapIndex());
-		}
+            return MapIndex.from(ctx.mapIndex());
+        }
         if (ctx.mapValue() != null) {
-			return MapValue.from(ctx.mapValue());
-		}
+            return MapValue.from(ctx.mapValue());
+        }
         if (ctx.mapRank() != null) {
-			return MapRank.from(ctx.mapRank());
-		}
+            return MapRank.from(ctx.mapRank());
+        }
         if (ctx.mapKeyRange() != null) {
-			return MapKeyRange.from(ctx.mapKeyRange());
-		}
+            return MapKeyRange.from(ctx.mapKeyRange());
+        }
         if (ctx.mapKeyList() != null) {
-			return MapKeyList.from(ctx.mapKeyList());
-		}
+            return MapKeyList.from(ctx.mapKeyList());
+        }
         if (ctx.mapIndexRange() != null) {
-			return MapIndexRange.from(ctx.mapIndexRange());
-		}
+            return MapIndexRange.from(ctx.mapIndexRange());
+        }
         if (ctx.mapValueList() != null) {
-			return MapValueList.from(ctx.mapValueList());
-		}
+            return MapValueList.from(ctx.mapValueList());
+        }
         if (ctx.mapValueRange() != null) {
-			return MapValueRange.from(ctx.mapValueRange());
-		}
+            return MapValueRange.from(ctx.mapValueRange());
+        }
         if (ctx.mapRankRange() != null) {
-			return MapRankRange.from(ctx.mapRankRange());
-		}
+            return MapRankRange.from(ctx.mapRankRange());
+        }
         if (ctx.mapRankRangeRelative() != null) {
-			return MapRankRangeRelative.from(ctx.mapRankRangeRelative());
-		}
+            return MapRankRangeRelative.from(ctx.mapRankRangeRelative());
+        }
         if (ctx.mapIndexRangeRelative() != null) {
-			return MapIndexRangeRelative.from(ctx.mapIndexRangeRelative());
-		}
+            return MapIndexRangeRelative.from(ctx.mapIndexRangeRelative());
+        }
         throw new AelParseException("Unexpected map part: %s".formatted(ctx.getText()));
     }
 

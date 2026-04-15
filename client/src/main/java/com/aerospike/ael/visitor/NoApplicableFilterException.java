@@ -30,7 +30,7 @@ import com.aerospike.client.sdk.query.Filter;
 class NoApplicableFilterException extends RuntimeException {
     private static final long serialVersionUID = 1L;
 
-	NoApplicableFilterException(String description) {
+    NoApplicableFilterException(String description) {
         super(description);
     }
 }

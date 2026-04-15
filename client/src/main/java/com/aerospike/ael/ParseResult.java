@@ -44,6 +44,6 @@ public class ParseResult {
      * Return compiled expression if exp exists. Otherwise, return null.
      */
     public final Expression getExpression() {
-    	return (exp != null)? Exp.build(exp) : null;
+        return (exp != null)? Exp.build(exp) : null;
     }
 }
