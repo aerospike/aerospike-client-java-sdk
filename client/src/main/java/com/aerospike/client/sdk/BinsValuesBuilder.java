@@ -822,7 +822,7 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
         Partitions partitions = getPartitions(cluster, namespace);
         settings = session.getBehavior().getSettings(OpKind.WRITE_RETRYABLE, OpShape.BATCH,
             partitions.scMode);
-        final Expression filterExp = getFilterExp(session, namespace);
+        final Expression filterExp = getFilterExp(session, namespace, keys.get(0).setName);
 
         BatchAttr attr = new BatchAttr();
         attr.setWrite(settings, opBuilder.getOpType());
