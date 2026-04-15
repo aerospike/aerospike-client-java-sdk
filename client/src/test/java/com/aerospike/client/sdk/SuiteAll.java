@@ -21,9 +21,9 @@ import org.junit.platform.suite.api.Suite;
 
 @Suite
 @SelectClasses({
-	SuiteCore.class,
-	SuiteAel.class,
-	SuiteCluster.class
+    SuiteCore.class,
+    SuiteAel.class,
+    SuiteCluster.class
 })
 public class SuiteAll {
 }

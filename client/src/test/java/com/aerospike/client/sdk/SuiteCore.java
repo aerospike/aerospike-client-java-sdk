@@ -28,12 +28,12 @@ import com.aerospike.client.sdk.policy.SystemBehaviorTest;
 
 @Suite
 @SelectClasses({
-	AsyncRecordStreamTest.class,
-	BehaviorTest.class,
-	BehaviorYamlTest.class,
-	ApiSettingsTest.class,
-	QueryProducerCancellationTest.class,
-	SystemBehaviorTest.class,
+    AsyncRecordStreamTest.class,
+    BehaviorTest.class,
+    BehaviorYamlTest.class,
+    ApiSettingsTest.class,
+    QueryProducerCancellationTest.class,
+    SystemBehaviorTest.class,
 })
 public class SuiteCore {
 }

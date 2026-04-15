@@ -29,94 +29,94 @@ import com.aerospike.client.sdk.policy.Behavior.Selectors;
 import com.aerospike.client.sdk.util.Util;
 
 public class ExpireTest extends ClusterTest {
-	private static final String binName = "expirebin";
+    private static final String binName = "expirebin";
 
-	@Test
-	public void expire() {
-		Assumptions.assumeTrue(args.hasTtl);
+    @Test
+    public void expire() {
+        Assumptions.assumeTrue(args.hasTtl);
 
-		String key = "expire";
+        String key = "expire";
 
-		// Specify that record expires 1 second after it's written.
+        // Specify that record expires 1 second after it's written.
         session.upsert(args.set.id(key))
-        	.expireRecordAfterSeconds(1)
-	        .bin(binName).setTo("expirevalue")
-	        .execute();
+            .expireRecordAfterSeconds(1)
+            .bin(binName).setTo("expirevalue")
+            .execute();
 
-		// Read the record before it expires, showing it is there.
+        // Read the record before it expires, showing it is there.
         RecordStream rs = session.query(args.set.id(key))
-        	.readingOnlyBins(binName)
+            .readingOnlyBins(binName)
             .execute();
 
         assertTrue(rs.hasNext());
         Record rec = rs.next().recordOrThrow();
-		assertNotNull(rec);
+        assertNotNull(rec);
 
-		String val = rec.getString(binName);
-		assertEquals("expirevalue", val);
+        String val = rec.getString(binName);
+        assertEquals("expirevalue", val);
 
-		// Read the record after it expires, showing it's gone.
-		Util.sleep(3 * 1000);
+        // Read the record after it expires, showing it's gone.
+        Util.sleep(3 * 1000);
 
         rs = session.query(args.set.id(key))
-        	.readingOnlyBins(binName)
+            .readingOnlyBins(binName)
             .execute();
 
         assertFalse(rs.hasNext());
-	}
+    }
 
-	@Test
-	public void noExpire() {
-		String key = "noExpire";
+    @Test
+    public void noExpire() {
+        String key = "noExpire";
 
-		// Specify that record NEVER expires.
-		// The "Never Expire" value is -1, or 0xFFFFFFFF.
+        // Specify that record NEVER expires.
+        // The "Never Expire" value is -1, or 0xFFFFFFFF.
         session.upsert(args.set.id(key))
-	    	.expireRecordAfterSeconds(-1)
-	        .bin(binName).setTo("noexpirevalue")
-	        .execute();
+            .expireRecordAfterSeconds(-1)
+            .bin(binName).setTo("noexpirevalue")
+            .execute();
 
-		// Read the record, showing it is there.
+        // Read the record, showing it is there.
         RecordStream rs = session.query(args.set.id(key))
-        	.readingOnlyBins(binName)
+            .readingOnlyBins(binName)
             .execute();
 
         assertTrue(rs.hasNext());
         Record rec = rs.next().recordOrThrow();
-		assertNotNull(rec);
+        assertNotNull(rec);
 
-		String val = rec.getString(binName);
-		assertEquals("noexpirevalue", val);
+        String val = rec.getString(binName);
+        assertEquals("noexpirevalue", val);
 
-		// Read this Record after the Default Expiration, showing it is still there.
-		// We should have set the Namespace TTL at 5 sec.
-		Util.sleep(10 * 1000);
+        // Read this Record after the Default Expiration, showing it is still there.
+        // We should have set the Namespace TTL at 5 sec.
+        Util.sleep(10 * 1000);
 
         rs = session.query(args.set.id(key))
-        	.readingOnlyBins(binName)
+            .readingOnlyBins(binName)
             .execute();
 
         assertTrue(rs.hasNext());
         rec = rs.next().recordOrThrow();
-		assertNotNull(rec);
+        assertNotNull(rec);
 
-		val = rec.getString(binName);
-		assertEquals("noexpirevalue", val);
-	}
+        val = rec.getString(binName);
+        assertEquals("noexpirevalue", val);
+    }
 
-	@Test
-	public void resetReadTtl() {
-		Assumptions.assumeTrue(args.hasTtl);
+    @Test
+    public void resetReadTtl() {
+        Assumptions.assumeTrue(args.hasTtl);
 
-		String key = "resetReadTtl";
+        String key = "resetReadTtl";
 
         session.upsert(args.set.id(key))
-	    	.expireRecordAfterSeconds(2)
-	        .bin(binName).setTo("expirevalue")
-	        .execute();
+            .expireRecordAfterSeconds(2)
+            .bin(binName).setTo("expirevalue")
+            .execute();
 
-		// Read the record before it expires and reset read ttl.
-		Util.sleep(1000);
+        // Read the record before it expires and reset read ttl.
+        Util.sleep(1000);
 
         Behavior behavior = Behavior.DEFAULT.deriveWithChanges("readttl", builder -> builder
             .on(Selectors.all(), ops -> ops
@@ -128,18 +128,18 @@ public class ExpireTest extends ClusterTest {
         Session session = cluster.createSession(behavior);
 
         RecordStream rs = session.query(args.set.id(key))
-        	.readingOnlyBins(binName)
+            .readingOnlyBins(binName)
             .execute();
 
         assertTrue(rs.hasNext());
         Record rec = rs.next().recordOrThrow();
-		assertNotNull(rec);
+        assertNotNull(rec);
 
-		String val = rec.getString(binName);
-		assertEquals("expirevalue", val);
+        String val = rec.getString(binName);
+        assertEquals("expirevalue", val);
 
-		// Read the record again, but don't reset read ttl.
-		Util.sleep(1000);
+        // Read the record again, but don't reset read ttl.
+        Util.sleep(1000);
 
         behavior = Behavior.DEFAULT.deriveWithChanges("readttl", builder -> builder
             .on(Selectors.all(), ops -> ops
@@ -150,23 +150,23 @@ public class ExpireTest extends ClusterTest {
         session = cluster.createSession(behavior);
 
         rs = session.query(args.set.id(key))
-        	.readingOnlyBins(binName)
+            .readingOnlyBins(binName)
             .execute();
 
         assertTrue(rs.hasNext());
         rec = rs.next().recordOrThrow();
-		assertNotNull(rec);
+        assertNotNull(rec);
 
-		val = rec.getString(binName);
-		assertEquals("expirevalue", val);
+        val = rec.getString(binName);
+        assertEquals("expirevalue", val);
 
-		// Read the record after it expires, showing it's gone.
-		Util.sleep(2000);
+        // Read the record after it expires, showing it's gone.
+        Util.sleep(2000);
 
         rs = ClusterTest.session.query(args.set.id(key))
-        	.readingOnlyBins(binName)
+            .readingOnlyBins(binName)
             .execute();
 
         assertFalse(rs.hasNext());
-	}
+    }
 }

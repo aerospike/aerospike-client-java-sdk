@@ -27,13 +27,13 @@ public class CdtExpTest extends ClusterTest {
         // Skip tests for server version < 8.1.1
         Version serverVersion = session.getCluster().getRandomNode().getVersion();
         boolean condition = serverVersion.isGreaterOrEqual(8, 1, 1, 0);
-		Assumptions.assumeTrue(condition, "Tests skipped for server version < 8.1.1");
+        Assumptions.assumeTrue(condition, "Tests skipped for server version < 8.1.1");
     }
 
 /* TODO: Support CTX.addChildren() path expression
     @Test
     public void testCDTExpSelect() {
-    	String key = "testCDTExpSelect";
+        String key = "testCDTExpSelect";
 
         session.delete(args.set.id(key)).execute();
 
@@ -63,8 +63,8 @@ public class CdtExpTest extends ClusterTest {
         rootMap.put("book", booksList);
 
         session.upsert(args.set.id(key))
-	        .bin("res1").setTo(rootMap)
-	        .execute();
+            .bin("res1").setTo(rootMap)
+            .execute();
 
         CTX bookKey = CTX.mapKey(Value.get("book"));
         CTX allChildren = CTX.allChildren();

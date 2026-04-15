@@ -33,80 +33,81 @@ import com.aerospike.client.sdk.ResultCode;
 import com.aerospike.client.sdk.exp.Exp;
 
 public class QueryKeyTest extends ClusterTest {
-	private static final String setName = "querykey";
-	private static final String indexName = "skindex";
-	private static final String keyPrefix = "skkey";
-	private static final String binName = "skbin";
-	private static final int size = 10;
+    private static final String setName = "querykey";
+    private static final String indexName = "skindex";
+    private static final String keyPrefix = "skkey";
+    private static final String binName = "skbin";
+    private static final int size = 10;
 
-	private static DataSet dataSet;
+    private static DataSet dataSet;
 
-	@BeforeAll
-	public static void prepare() {
-		dataSet = DataSet.of(args.namespace, setName);
+    @BeforeAll
+    public static void prepare() {
+        dataSet = DataSet.of(args.namespace, setName);
 
-		// Clean up any existing test data
-		for (int i = 1; i <= size; i++) {
-			String key = keyPrefix + i;
-			session.delete(dataSet.ids(key));
-		}
+        // Clean up any existing test data
+        for (int i = 1; i <= size; i++) {
+            String key = keyPrefix + i;
+            session.delete(dataSet.ids(key));
+        }
 
-		try {
-			session.createIndex(dataSet, indexName, binName, IndexType.INTEGER, IndexCollectionType.DEFAULT)
-				.waitTillComplete();
-		} catch (AerospikeException ae) {
-			if (ae.getResultCode() != ResultCode.INDEX_ALREADY_EXISTS) {
-				throw ae;
-			}
-		}
+        try {
+            session.createIndex(dataSet, indexName, binName, IndexType.INTEGER,
+                IndexCollectionType.DEFAULT)
+                .waitTillComplete();
+        }
+        catch (AerospikeException ae) {
+            if (ae.getResultCode() != ResultCode.INDEX_ALREADY_EXISTS) {
+                throw ae;
+            }
+        }
 
-		for (int i = 1; i <= size; i++) {
-			String key = keyPrefix + i;
-			session.upsert(dataSet.ids(key))
-				.sendKey()
-				.bins(binName)
-				.values(i)
-				.execute();
-		}
-	}
+        for (int i = 1; i <= size; i++) {
+            String key = keyPrefix + i;
+            session.upsert(dataSet.ids(key))
+                .sendKey()
+                .bins(binName)
+                .values(i)
+                .execute();
+        }
+    }
 
-	@AfterAll
-	public static void destroy() {
-		for (int i = 1; i <= size; i++) {
-			String key = keyPrefix + i;
-			session.delete(dataSet.ids(key));
-		}
-		session.dropIndex(dataSet, indexName);
-	}
+    @AfterAll
+    public static void destroy() {
+        for (int i = 1; i <= size; i++) {
+            String key = keyPrefix + i;
+            session.delete(dataSet.ids(key));
+        }
+        session.dropIndex(dataSet, indexName);
+    }
 
-	@Test
-	public void queryKey() {
-		int begin = 2;
-		int end = 5;
+    @Test
+    public void queryKey() {
+        int begin = 2;
+        int end = 5;
 
-		RecordStream rs = session.query(dataSet)
-			.where(Exp.and(
-				Exp.ge(Exp.intBin(binName), Exp.val(begin)),
-				Exp.le(Exp.intBin(binName), Exp.val(end))
-			))
-			.execute();
+        RecordStream rs = session.query(dataSet)
+            .where(Exp.and(
+                Exp.ge(Exp.intBin(binName), Exp.val(begin)),
+                Exp.le(Exp.intBin(binName), Exp.val(end))))
+            .execute();
 
-		try {
-			int count = 0;
-			while (rs.hasNext()) {
-				RecordResult result = rs.next();
-				Key key = result.key();
-				assertNotNull(key.userKey);
+        try {
+            int count = 0;
+            while (rs.hasNext()) {
+                RecordResult result = rs.next();
+                Key key = result.key();
+                assertNotNull(key.userKey);
 
-				Object userkey = key.userKey.getObject();
-				assertNotNull(userkey);
-				count++;
-			}
+                Object userkey = key.userKey.getObject();
+                assertNotNull(userkey);
+                count++;
+            }
 
-			assertEquals(4, count);
-		}
-		finally {
-			rs.close();
-		}
-	}
+            assertEquals(4, count);
+        }
+        finally {
+            rs.close();
+        }
+    }
 }

@@ -24,37 +24,37 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.Test;
 
 public class DeleteBinTest extends ClusterTest {
-	@Test
-	public void deleteBin() {
-		String key = "deleteBin";
-		String binName1 = "bin1";
-		String binName2 = "bin2";
+    @Test
+    public void deleteBin() {
+        String key = "deleteBin";
+        String binName1 = "bin1";
+        String binName2 = "bin2";
 
         session.upsert(args.set.id(key))
-	        .bin(binName1).setTo("value1")
-	        .bin(binName2).setTo("value2")
-	        .execute();
+            .bin(binName1).setTo("value1")
+            .bin(binName2).setTo("value2")
+            .execute();
 
         // Set bin value to null to drop bin.
         session.upsert(args.set.id(key))
-	        .bin(binName1).remove()
-	        .execute();
+            .bin(binName1).remove()
+            .execute();
 
         RecordStream rs = session.query(args.set.id(key))
-        	.readingOnlyBins(binName1, binName2, "bin3")
+            .readingOnlyBins(binName1, binName2, "bin3")
             .execute();
 
         assertTrue(rs.hasNext());
         Record rec = rs.next().recordOrThrow();
-		assertNotNull(rec);
+        assertNotNull(rec);
 
-		Object v1 = rec.getValue(binName1);
-		assertNull(v1);
+        Object v1 = rec.getValue(binName1);
+        assertNull(v1);
 
-		String v2 = rec.getString(binName2);
-		assertEquals("value2", v2);
+        String v2 = rec.getString(binName2);
+        assertEquals("value2", v2);
 
-		v1 = rec.getValue("bin3");
-		assertNull(v1);
-	}
+        v1 = rec.getValue("bin3");
+        assertNull(v1);
+    }
 }

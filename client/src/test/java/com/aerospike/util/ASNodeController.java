@@ -16,7 +16,6 @@
  */
 package com.aerospike.util;
 
-
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
@@ -142,28 +141,26 @@ public final class ASNodeController {
 
     public ASNodeController(String containerNamePrefix, Integer port) throws Exception {
         this.containerNamePrefix = containerNamePrefix != null && !containerNamePrefix.isEmpty()
-                ? containerNamePrefix
-                : DEFAULT_CONTAINER_NAME_PREFIX;
+            ? containerNamePrefix
+            : DEFAULT_CONTAINER_NAME_PREFIX;
         containers = listContainersWithPrefix().toArray(new String[0]);
         this.port = Optional.ofNullable(port).orElse(3000);
     }
 
-
     private List<String> listContainersWithPrefix() throws Exception {
         // List only running containers so we never exec into a stopped one
         List<String> cmd = List.of(
-                "docker", "ps",
-                "--filter", "name=" + this.containerNamePrefix,
-                "--format", "{{.Names}}"
-        );
+            "docker", "ps",
+            "--filter", "name=" + this.containerNamePrefix,
+            "--format", "{{.Names}}");
 
         String output = runCommand(cmd, (s) -> s.contains(this.containerNamePrefix));
         List<String> nodes = new ArrayList<>();
         for (String line : output.split("\n")) {
             String name = line.trim();
             if (name.isEmpty()) {
-				continue;
-			}
+                continue;
+            }
             if (name.toLowerCase().startsWith(containerNamePrefix)) {
                 nodes.add(name);
             }
@@ -181,7 +178,7 @@ public final class ASNodeController {
         Process p = pb.start();
         StringBuilder sb = new StringBuilder();
         try (BufferedReader r = new BufferedReader(
-                new InputStreamReader(p.getInputStream(), StandardCharsets.UTF_8))) {
+            new InputStreamReader(p.getInputStream(), StandardCharsets.UTF_8))) {
             String line;
 
             while ((line = r.readLine()) != null) {
@@ -194,7 +191,8 @@ public final class ASNodeController {
         }
         String result = sb.toString();
         if (!expected.test(result)) {
-            throw new RuntimeException("Command failed - Expected result not captured: " + cmd + "\n" + sb);
+            throw new RuntimeException(
+                "Command failed - Expected result not captured: " + cmd + "\n" + sb);
         }
         return result;
     }
@@ -213,12 +211,13 @@ public final class ASNodeController {
                 env.put(envKeyValues[i], envKeyValues[i + 1]);
             }
             Process p = pb.start();
-            try (Writer stdin = new OutputStreamWriter(p.getOutputStream(), StandardCharsets.UTF_8)) {
+            try (Writer stdin =
+                new OutputStreamWriter(p.getOutputStream(), StandardCharsets.UTF_8)) {
                 stdin.write(script);
             }
             StringBuilder out = new StringBuilder();
             try (BufferedReader r = new BufferedReader(
-                    new InputStreamReader(p.getInputStream(), StandardCharsets.UTF_8))) {
+                new InputStreamReader(p.getInputStream(), StandardCharsets.UTF_8))) {
                 String line;
                 while ((line = r.readLine()) != null) {
                     System.out.println(line);
@@ -229,46 +228,48 @@ public final class ASNodeController {
             if (exit != 0) {
                 throw new RuntimeException("Script failed with exit " + exit + "\n" + out);
             }
-        } else {
+        }
+        else {
             throw new IllegalArgumentException("envKeyValues must be key, value pairs");
         }
     }
 
     private void waitForClusterFormation(int timeoutSec) throws Exception {
         if (containers.length <= 1) {
-			return;
-		}
+            return;
+        }
         String containersStr = String.join("\n", containers);
         runScript(SCRIPT_WAIT_CLUSTER_FORMATION,
-                "CONTAINERS", containersStr,
-                "TIMEOUT", String.valueOf(timeoutSec),
-                "NUM_NODES", String.valueOf(containers.length));
+            "CONTAINERS", containersStr,
+            "TIMEOUT", String.valueOf(timeoutSec),
+            "NUM_NODES", String.valueOf(containers.length));
     }
 
     private void waitForServicePort(Integer timeoutSec) throws Exception {
         if (containers.length == 0) {
-			return;
-		}
+            return;
+        }
         String containersStr = String.join("\n", containers);
         runScript(SCRIPT_WAIT_SERVICE_PORT,
-                "CONTAINERS", containersStr,
-                "TIMEOUT", String.valueOf(timeoutSec),
-                "SERVICE_PORT", String.valueOf(port));
+            "CONTAINERS", containersStr,
+            "TIMEOUT", String.valueOf(timeoutSec),
+            "SERVICE_PORT", String.valueOf(port));
     }
 
     private void waitForClusterStability(int timeoutSec) throws Exception {
         if (containers.length == 0) {
-			return;
-		}
+            return;
+        }
         String containersStr = String.join("\n", containers);
         runScript(SCRIPT_WAIT_CLUSTER_STABILITY,
-                "CONTAINERS", containersStr,
-                "TIMEOUT", String.valueOf(timeoutSec));
+            "CONTAINERS", containersStr,
+            "TIMEOUT", String.valueOf(timeoutSec));
     }
 
     public void startNode(int nodeLabel, Integer timeoutSecs) throws Exception {
         if (nodeLabel < 1 || nodeLabel > containers.length) {
-            throw new IllegalArgumentException("nodeLabel must be between 1 and " + containers.length + " (1-based)");
+            throw new IllegalArgumentException(
+                "nodeLabel must be between 1 and " + containers.length + " (1-based)");
         }
         startNode(containers[nodeLabel - 1], timeoutSecs);
     }
@@ -276,9 +277,8 @@ public final class ASNodeController {
     private void startNode(String chosenContainer, Integer timeoutSecs) throws Exception {
         int effectiveTimeOut = Optional.ofNullable(timeoutSecs).orElse(DEFAULT_SCRIPT_TIMEOUT_SEC);
         List<String> cmd = List.of(
-                "docker", "exec", chosenContainer,
-                "bash", "-c", ASD_START
-        );
+            "docker", "exec", chosenContainer,
+            "bash", "-c", ASD_START);
 
         runCommand(cmd, (s) -> s.contains("Starting"));
         waitForServicePort(effectiveTimeOut);
@@ -289,28 +289,28 @@ public final class ASNodeController {
     // Stops the Asd process within a container (nodeLabel is 1-based)
     public void stopNode(int nodeLabel) throws Exception {
         if (nodeLabel < 1 || nodeLabel > containers.length) {
-            throw new IllegalArgumentException("nodeLabel must be between 1 and " + containers.length + " (1-based)");
+            throw new IllegalArgumentException(
+                "nodeLabel must be between 1 and " + containers.length + " (1-based)");
         }
         stopNode(containers[nodeLabel - 1]);
     }
 
     private void stopNode(String chosenContainer) throws Exception {
         List<String> cmd = List.of(
-                "docker", "exec", chosenContainer,
-                "sh", "-c", ASD_STOP
-        );
-       runCommand(cmd, (s) -> s.toLowerCase().contains("stopping"));
+            "docker", "exec", chosenContainer,
+            "sh", "-c", ASD_STOP);
+        runCommand(cmd, (s) -> s.toLowerCase().contains("stopping"));
     }
 
     public boolean isNodeStopped(String chosenContainer) {
         try {
             List<String> cmd = List.of(
-                    "docker", "exec", chosenContainer,
-                    "sh", "-c", ASD_STATUS
-            );
+                "docker", "exec", chosenContainer,
+                "sh", "-c", ASD_STATUS);
             runCommand(cmd, (s) -> s.toLowerCase().contains("stopped"));
             return true;
-        } catch (Exception e) {
+        }
+        catch (Exception e) {
             return false;
         }
     }
@@ -324,5 +324,3 @@ public final class ASNodeController {
     }
 
 }
-
-

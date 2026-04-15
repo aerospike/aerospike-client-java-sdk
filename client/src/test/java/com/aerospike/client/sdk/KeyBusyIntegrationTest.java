@@ -43,67 +43,67 @@ import com.aerospike.client.sdk.policy.Behavior.Selectors;
  */
 public class KeyBusyIntegrationTest extends ClusterTest {
 
-	private static final String BIN = "k";
+    private static final String BIN = "k";
 
-	@Test
-	public void concurrentWritesOnOneKey_mayObserveKeyBusy() throws Exception {
-		Key key = args.set.id("keyBusyIntegration");
-		session.upsert(key).bins(BIN).values(0).execute();
+    @Test
+    public void concurrentWritesOnOneKey_mayObserveKeyBusy() throws Exception {
+        Key key = args.set.id("keyBusyIntegration");
+        session.upsert(key).bins(BIN).values(0).execute();
 
-		// One call attempt per write so KEY_BUSY is not masked by client retries (see SyncExecutor).
-		Behavior noRetryOnBusy = Behavior.DEFAULT.deriveWithChanges("keyBusyIntegration", b -> b
-				.on(Selectors.writes().retryable(), ops -> ops.maximumNumberOfCallAttempts(1)));
-		Session stressSession = cluster.createSession(noRetryOnBusy);
+        // One call attempt per write so KEY_BUSY is not masked by client retries (see SyncExecutor).
+        Behavior noRetryOnBusy = Behavior.DEFAULT.deriveWithChanges("keyBusyIntegration", b -> b
+                .on(Selectors.writes().retryable(), ops -> ops.maximumNumberOfCallAttempts(1)));
+        Session stressSession = cluster.createSession(noRetryOnBusy);
 
-		final int threads = Math.max(32, Runtime.getRuntime().availableProcessors() * 4);
-		final CyclicBarrier barrier = new CyclicBarrier(threads + 1);
-		final AtomicBoolean sawKeyBusy = new AtomicBoolean(false);
-		final AtomicReference<AerospikeException> firstKeyBusy = new AtomicReference<>();
-		final long runDeadlineNanos = System.nanoTime() + TimeUnit.SECONDS.toNanos(12);
+        final int threads = Math.max(32, Runtime.getRuntime().availableProcessors() * 4);
+        final CyclicBarrier barrier = new CyclicBarrier(threads + 1);
+        final AtomicBoolean sawKeyBusy = new AtomicBoolean(false);
+        final AtomicReference<AerospikeException> firstKeyBusy = new AtomicReference<>();
+        final long runDeadlineNanos = System.nanoTime() + TimeUnit.SECONDS.toNanos(12);
 
-		try (ExecutorService es = Executors.newVirtualThreadPerTaskExecutor()) {
-			for (int t = 0; t < threads; t++) {
-				final int tid = t;
-				es.submit(() -> {
-					try {
-						barrier.await();
-					} catch (InterruptedException e) {
-						Thread.currentThread().interrupt();
-						return;
-					} catch (BrokenBarrierException e) {
-						return;
-					}
-					int i = tid;
-					while (!sawKeyBusy.get() && System.nanoTime() < runDeadlineNanos) {
-						try {
-							stressSession.upsert(key)
-								.bins(BIN)
-								.values(i++)
-								.execute();
-						} catch (AerospikeException e) {
-							if (e.getResultCode() == ResultCode.KEY_BUSY) {
-								firstKeyBusy.compareAndSet(null, e);
-								sawKeyBusy.set(true);
-								return;
-							}
-							throw e;
-						}
-					}
-				});
-			}
+        try (ExecutorService es = Executors.newVirtualThreadPerTaskExecutor()) {
+            for (int t = 0; t < threads; t++) {
+                final int tid = t;
+                es.submit(() -> {
+                    try {
+                        barrier.await();
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        return;
+                    } catch (BrokenBarrierException e) {
+                        return;
+                    }
+                    int i = tid;
+                    while (!sawKeyBusy.get() && System.nanoTime() < runDeadlineNanos) {
+                        try {
+                            stressSession.upsert(key)
+                                .bins(BIN)
+                                .values(i++)
+                                .execute();
+                        } catch (AerospikeException e) {
+                            if (e.getResultCode() == ResultCode.KEY_BUSY) {
+                                firstKeyBusy.compareAndSet(null, e);
+                                sawKeyBusy.set(true);
+                                return;
+                            }
+                            throw e;
+                        }
+                    }
+                });
+            }
 
-			barrier.await();
-			es.shutdown();
-			assumeTrue(es.awaitTermination(20, TimeUnit.SECONDS),
-					"Worker threads did not finish in time");
-		}
+            barrier.await();
+            es.shutdown();
+            assumeTrue(es.awaitTermination(20, TimeUnit.SECONDS),
+                    "Worker threads did not finish in time");
+        }
 
-		assumeTrue(sawKeyBusy.get(),
-				"Server did not return KEY_BUSY (14) in this run; try more threads, a slower machine, "
-						+ "or heavier contention — hot-key is timing-dependent.");
+        assumeTrue(sawKeyBusy.get(),
+                "Server did not return KEY_BUSY (14) in this run; try more threads, a slower machine, "
+                        + "or heavier contention — hot-key is timing-dependent.");
 
-		AerospikeException ae = firstKeyBusy.get();
-		assertTrue(ae instanceof AerospikeException.KeyBusyException);
-		assertEquals(ResultCode.KEY_BUSY, ae.getResultCode());
-	}
+        AerospikeException ae = firstKeyBusy.get();
+        assertTrue(ae instanceof AerospikeException.KeyBusyException);
+        assertEquals(ResultCode.KEY_BUSY, ae.getResultCode());
+    }
 }

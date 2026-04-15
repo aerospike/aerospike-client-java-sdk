@@ -33,92 +33,92 @@ import com.aerospike.client.sdk.policy.Behavior;
  */
 @Suite
 @SelectClasses({
-	NodeChurnPartitionBehaviorTest.class,
+    NodeChurnPartitionBehaviorTest.class,
 })
 public class SuiteClusterChaos {
 
-	@BeforeSuite
-	public static void beforeSuite() {
-		System.out.println("Begin SuiteChaosCluster (Aerolab/chaos tests)");
-		Log.setCallback(null);
-		Args args = Args.Instance;
-		Host[] hosts = Host.parseHosts(args.host, args.port);
+    @BeforeSuite
+    public static void beforeSuite() {
+        System.out.println("Begin SuiteChaosCluster (Aerolab/chaos tests)");
+        Log.setCallback(null);
+        Args args = Args.Instance;
+        Host[] hosts = Host.parseHosts(args.host, args.port);
 
-		ClusterDefinition def = new ClusterDefinition(hosts)
-			.withLogLevel(Log.Level.DEBUG)
-			.clusterName(args.clusterName)
-			.withSystemSettings(SystemSettings.builder()
-				.connections(ops -> ops.maximumConnectionsPerNode(200)).build()
-				.mergeWith(SystemSettings.DEFAULT));
+        ClusterDefinition def = new ClusterDefinition(hosts)
+            .withLogLevel(Log.Level.DEBUG)
+            .clusterName(args.clusterName)
+            .withSystemSettings(SystemSettings.builder()
+                .connections(ops -> ops.maximumConnectionsPerNode(200)).build()
+                .mergeWith(SystemSettings.DEFAULT));
 
-		if (args.useServicesAlternate) {
-			def.usingServicesAlternate();
-		}
+        if (args.useServicesAlternate) {
+            def.usingServicesAlternate();
+        }
 
-		if (args.user != null && args.password != null) {
-			switch (args.authMode) {
-				case INTERNAL:
-					def.withNativeCredentials(args.user, args.password);
-					break;
-				case EXTERNAL:
-					def.withExternalCredentials(args.user, args.password);
-					break;
-				case EXTERNAL_INSECURE:
-					def.withExternalInsecureCredentials(args.user, args.password);
-					break;
-				default:
-					break;
-			}
-		}
+        if (args.user != null && args.password != null) {
+            switch (args.authMode) {
+                case INTERNAL:
+                    def.withNativeCredentials(args.user, args.password);
+                    break;
+                case EXTERNAL:
+                    def.withExternalCredentials(args.user, args.password);
+                    break;
+                case EXTERNAL_INSECURE:
+                    def.withExternalInsecureCredentials(args.user, args.password);
+                    break;
+                default:
+                    break;
+            }
+        }
 
-		if (args.tlsName != null) {
-			String certHome = System.getenv("CERT_HOME");
-			if (certHome == null) {
-				certHome = "";
-			}
-			String caFile = resolvePath(certHome, args.caFile);
-			String clientCertFile = resolvePath(certHome, args.clientCertFile);
-			String clientKeyFile = resolvePath(certHome, args.clientKeyFile);
-			def.withTlsConfig(tls -> tls
-				.tlsName(args.tlsName)
-				.caFile(caFile)
-				.clientCertFile(clientCertFile)
-				.clientKeyFile(clientKeyFile)
-			);
-		}
+        if (args.tlsName != null) {
+            String certHome = System.getenv("CERT_HOME");
+            if (certHome == null) {
+                certHome = "";
+            }
+            String caFile = resolvePath(certHome, args.caFile);
+            String clientCertFile = resolvePath(certHome, args.clientCertFile);
+            String clientKeyFile = resolvePath(certHome, args.clientKeyFile);
+            def.withTlsConfig(tls -> tls
+                .tlsName(args.tlsName)
+                .caFile(caFile)
+                .clientCertFile(clientCertFile)
+                .clientKeyFile(clientKeyFile)
+            );
+        }
 
-		Cluster cluster = def.connect();
-		Session session;
-		try {
-			session = cluster.createSession(Behavior.DEFAULT);
-			args.setServerSpecific(cluster);
-		} catch (RuntimeException re) {
-			cluster.close();
-			throw re;
-		}
+        Cluster cluster = def.connect();
+        Session session;
+        try {
+            session = cluster.createSession(Behavior.DEFAULT);
+            args.setServerSpecific(cluster);
+        } catch (RuntimeException re) {
+            cluster.close();
+            throw re;
+        }
 
-		ClusterTest.cluster = cluster;
-		ClusterTest.session = session;
-		ClusterTest.initializedBySuite = true;
-	}
+        ClusterTest.cluster = cluster;
+        ClusterTest.session = session;
+        ClusterTest.initializedBySuite = true;
+    }
 
-	private static String resolvePath(String dir, String path) {
-		File file = new File(path);
-		if (file.isAbsolute()) {
-			return path;
-		}
-		file = new File(dir, path);
-		return file.getAbsolutePath();
-	}
+    private static String resolvePath(String dir, String path) {
+        File file = new File(path);
+        if (file.isAbsolute()) {
+            return path;
+        }
+        file = new File(dir, path);
+        return file.getAbsolutePath();
+    }
 
-	@AfterSuite
-	public static void afterSuite() {
-		System.out.println("End SuiteChaosCluster");
-		if (ClusterTest.cluster != null) {
-			ClusterTest.cluster.close();
-			ClusterTest.cluster = null;
-			ClusterTest.session = null;
-		}
-		ClusterTest.initializedBySuite = false;
-	}
+    @AfterSuite
+    public static void afterSuite() {
+        System.out.println("End SuiteChaosCluster");
+        if (ClusterTest.cluster != null) {
+            ClusterTest.cluster.close();
+            ClusterTest.cluster = null;
+            ClusterTest.session = null;
+        }
+        ClusterTest.initializedBySuite = false;
+    }
 }

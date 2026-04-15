@@ -64,30 +64,94 @@ public class ApiSettingsTest {
         }
 
         // Expose fields for testing - New API methods
-        public Integer getConnectTimeout() { return connectTimeout; }
-        public Integer getSocketTimeout() { return socketTimeout; }
-        public Integer getTotalTimeout() { return totalTimeout; }
-        public Integer getTimeoutDelay() { return timeoutDelay; }
-        public Integer getMaxRetries() { return maxRetries; }
-        public Integer getSleepBetweenRetries() { return sleepBetweenRetries; }
-        public ReadModeAP getReadModeAP() { return readModeAP; }
-        public ReadModeSC getReadModeSC() { return readModeSC; }
-        public Replica getReplica() { return replica; }
-        public Integer getReadTouchTtlPercent() { return readTouchTtlPercent; }
-        public OpType getOpType() { return opType; }
-        public CommitLevel getCommitLevel() { return commitLevel; }
-        public Boolean getDurableDelete() { return durableDelete; }
-        public Boolean getOnLockingOnly() { return onLockingOnly; }
-        public Boolean getXdr() { return xdr; }
-        public Boolean getSendKey() { return sendKey; }
-        public Boolean getCompress() { return compress; }
+        public Integer getConnectTimeout() {
+            return connectTimeout;
+        }
+
+        public Integer getSocketTimeout() {
+            return socketTimeout;
+        }
+
+        public Integer getTotalTimeout() {
+            return totalTimeout;
+        }
+
+        public Integer getTimeoutDelay() {
+            return timeoutDelay;
+        }
+
+        public Integer getMaxRetries() {
+            return maxRetries;
+        }
+
+        public Integer getSleepBetweenRetries() {
+            return sleepBetweenRetries;
+        }
+
+        public ReadModeAP getReadModeAP() {
+            return readModeAP;
+        }
+
+        public ReadModeSC getReadModeSC() {
+            return readModeSC;
+        }
+
+        public Replica getReplica() {
+            return replica;
+        }
+
+        public Integer getReadTouchTtlPercent() {
+            return readTouchTtlPercent;
+        }
+
+        public OpType getOpType() {
+            return opType;
+        }
+
+        public CommitLevel getCommitLevel() {
+            return commitLevel;
+        }
+
+        public Boolean getDurableDelete() {
+            return durableDelete;
+        }
+
+        public Boolean getOnLockingOnly() {
+            return onLockingOnly;
+        }
+
+        public Boolean getXdr() {
+            return xdr;
+        }
+
+        public Boolean getSendKey() {
+            return sendKey;
+        }
+
+        public Boolean getCompress() {
+            return compress;
+        }
 
         // Expose fields for testing - Pre-existing API methods
-        public long getExpirationInSeconds() { return expirationInSeconds; }
-        public int getGeneration() { return generation; }
-        public Txn getTxnToUse() { return txnToUse; }
-        public boolean isFailOnFilteredOut() { return failOnFilteredOut; }
-        public boolean isIncludeMissingKeys() { return includeMissingKeys; }
+        public long getExpirationInSeconds() {
+            return expirationInSeconds;
+        }
+
+        public int getGeneration() {
+            return generation;
+        }
+
+        public Txn getTxnToUse() {
+            return txnToUse;
+        }
+
+        public boolean isFailOnFilteredOut() {
+            return failOnFilteredOut;
+        }
+
+        public boolean isIncludeMissingKeys() {
+            return includeMissingKeys;
+        }
 
         // Implement filtering methods for testing (from FilterableOperation interface)
         public TestOperationBuilder failOnFilteredOut() {

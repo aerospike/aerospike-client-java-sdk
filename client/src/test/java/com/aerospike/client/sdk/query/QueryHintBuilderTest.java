@@ -60,9 +60,11 @@ public class QueryHintBuilderTest extends ClusterTest {
         }
 
         try {
-            session.createIndex(dataSet, indexName, binName, IndexType.INTEGER, IndexCollectionType.DEFAULT)
+            session.createIndex(dataSet, indexName, binName, IndexType.INTEGER,
+                IndexCollectionType.DEFAULT)
                 .waitTillComplete();
-        } catch (AerospikeException ae) {
+        }
+        catch (AerospikeException ae) {
             if (ae.getResultCode() != ResultCode.INDEX_ALREADY_EXISTS) {
                 throw ae;
             }
@@ -73,7 +75,9 @@ public class QueryHintBuilderTest extends ClusterTest {
     public static void destroy() {
         try {
             session.dropIndex(dataSet, indexName);
-        } catch (AerospikeException ignored) {}
+        }
+        catch (AerospikeException ignored) {
+        }
 
         for (int i = 1; i <= size; i++) {
             session.delete(dataSet.ids(keyPrefix + i));
@@ -92,7 +96,7 @@ public class QueryHintBuilderTest extends ClusterTest {
     public void hintForIndexStoredOnBuilder() {
         QueryBuilder qb = new QueryBuilder(session, dataSet);
         qb.where("$." + binName + " > 0")
-          .withHint(hint -> hint.forIndex("my_idx"));
+            .withHint(hint -> hint.forIndex("my_idx"));
 
         QueryHint.Result hint = qb.getQueryHint();
         assertNotNull(hint);
@@ -105,7 +109,7 @@ public class QueryHintBuilderTest extends ClusterTest {
     public void hintForBinStoredOnBuilder() {
         QueryBuilder qb = new QueryBuilder(session, dataSet);
         qb.where("$." + binName + " > 0")
-          .withHint(hint -> hint.forBin("age"));
+            .withHint(hint -> hint.forBin("age"));
 
         QueryHint.Result hint = qb.getQueryHint();
         assertNotNull(hint);
@@ -117,7 +121,7 @@ public class QueryHintBuilderTest extends ClusterTest {
     public void hintWithAllOptions() {
         QueryBuilder qb = new QueryBuilder(session, dataSet);
         qb.where("$." + binName + " > 0")
-          .withHint(hint -> hint.forIndex("idx").queryDuration(QueryDuration.SHORT));
+            .withHint(hint -> hint.forIndex("idx").queryDuration(QueryDuration.SHORT));
 
         QueryHint.Result hint = qb.getQueryHint();
         assertEquals("idx", hint.getIndexName());
@@ -136,7 +140,7 @@ public class QueryHintBuilderTest extends ClusterTest {
     public void effectiveDurationFromHint() {
         QueryBuilder qb = new QueryBuilder(session, dataSet);
         qb.where("$." + binName + " > 0")
-          .withHint(hint -> hint.queryDuration(QueryDuration.SHORT));
+            .withHint(hint -> hint.queryDuration(QueryDuration.SHORT));
         assertEquals(QueryDuration.SHORT, qb.getEffectiveQueryDuration());
     }
 
@@ -144,7 +148,7 @@ public class QueryHintBuilderTest extends ClusterTest {
     public void hintWithoutDurationDefaultsToLong() {
         QueryBuilder qb = new QueryBuilder(session, dataSet);
         qb.where("$." + binName + " > 0")
-          .withHint(hint -> hint.forIndex("idx"));
+            .withHint(hint -> hint.forIndex("idx"));
 
         assertEquals(QueryDuration.LONG, qb.getEffectiveQueryDuration());
     }
@@ -155,11 +159,9 @@ public class QueryHintBuilderTest extends ClusterTest {
     public void doubleWithHintThrows() {
         QueryBuilder qb = new QueryBuilder(session, dataSet);
         qb.where("$." + binName + " > 0")
-          .withHint(hint -> hint.forIndex("idx"));
+            .withHint(hint -> hint.forIndex("idx"));
 
-        assertThrows(IllegalArgumentException.class, () ->
-            qb.withHint(hint -> hint.forBin("age"))
-        );
+        assertThrows(IllegalArgumentException.class, () -> qb.withHint(hint -> hint.forBin("age")));
     }
 
     // -- query executes with hint (smoke test) --------------------------------

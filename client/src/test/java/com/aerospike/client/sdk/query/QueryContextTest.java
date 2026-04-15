@@ -34,77 +34,77 @@ import com.aerospike.client.sdk.ResultCode;
 import com.aerospike.client.sdk.cdt.CTX;
 
 public class QueryContextTest extends ClusterTest {
-	private static final String indexName = "listrank";
-	private static final String binName = "list";
-	private static final int size = 50;
+    private static final String indexName = "listrank";
+    private static final String binName = "list";
+    private static final int size = 50;
 
-	private static DataSet dataSet;
+    private static DataSet dataSet;
 
-	@BeforeAll
-	public static void prepare() {
-		dataSet = args.set;
+    @BeforeAll
+    public static void prepare() {
+        dataSet = args.set;
 
-		try {
-			session.createIndex(
-				dataSet, indexName, binName,
-				IndexType.INTEGER, IndexCollectionType.DEFAULT,
-				CTX.listRank(-1)
-			).waitTillComplete();
-		} catch (AerospikeException ae) {
-			if (ae.getResultCode() != ResultCode.INDEX_ALREADY_EXISTS) {
-				throw ae;
-			}
-		}
+        try {
+            session.createIndex(
+                dataSet, indexName, binName,
+                IndexType.INTEGER, IndexCollectionType.DEFAULT,
+                CTX.listRank(-1)).waitTillComplete();
+        }
+        catch (AerospikeException ae) {
+            if (ae.getResultCode() != ResultCode.INDEX_ALREADY_EXISTS) {
+                throw ae;
+            }
+        }
 
-		for (int i = 1; i <= size; i++) {
-			ArrayList<Integer> list = new ArrayList<Integer>(5);
-			list.add(i);
-			list.add(i + 1);
-			list.add(i + 2);
-			list.add(i + 3);
-			list.add(i + 4);
+        for (int i = 1; i <= size; i++) {
+            ArrayList<Integer> list = new ArrayList<Integer>(5);
+            list.add(i);
+            list.add(i + 1);
+            list.add(i + 2);
+            list.add(i + 3);
+            list.add(i + 4);
 
-			session.upsert(dataSet.ids(i))
-				.bins(binName)
-				.values(list)
-				.execute();
-		}
-	}
+            session.upsert(dataSet.ids(i))
+                .bins(binName)
+                .values(list)
+                .execute();
+        }
+    }
 
-	@AfterAll
-	public static void destroy() {
-		session.dropIndex(dataSet, indexName);
-	}
+    @AfterAll
+    public static void destroy() {
+        session.dropIndex(dataSet, indexName);
+    }
 
-	@Test
-	public void queryContext() throws Exception {
-		long begin = 14;
-		long end = 18;
+    @Test
+    public void queryContext() throws Exception {
+        long begin = 14;
+        long end = 18;
 
-		// Filter filter = Filter.range(binName, begin, end, CTX.listRank(-1));
-		String where = "$." + binName + ".[#-1] >= " + begin + " and $." + binName + ".[#-1] <= " + end;
+        // Filter filter = Filter.range(binName, begin, end, CTX.listRank(-1));
+        String where = "$." + binName + ".[#-1] >= " + begin + " and $." + binName + ".[#-1] <= " + end;
 
-		RecordStream rs = session.query(dataSet)
-			.where(where)
-			.execute();
+        RecordStream rs = session.query(dataSet)
+            .where(where)
+            .execute();
 
-		try {
-			int count = 0;
+        try {
+            int count = 0;
 
-			while (rs.hasNext()) {
-				List<?> list = rs.next().recordOrThrow().getList(binName);
-				long received = (Long)list.get(list.size() - 1);
+            while (rs.hasNext()) {
+                List<?> list = rs.next().recordOrThrow().getList(binName);
+                long received = (Long) list.get(list.size() - 1);
 
-				if (received < begin || received > end) {
-					fail("Received not between: " + begin + " and " + end);
-				}
-				count++;
-			}
+                if (received < begin || received > end) {
+                    fail("Received not between: " + begin + " and " + end);
+                }
+                count++;
+            }
 
-			assertEquals(5, count);
-		}
-		finally {
-			rs.close();
-		}
-	}
+            assertEquals(5, count);
+        }
+        finally {
+            rs.close();
+        }
+    }
 }

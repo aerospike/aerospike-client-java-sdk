@@ -22,7 +22,7 @@ public class Address {
     private final String state;
     private final String country;
     private final String zipCode;
-    
+
     public Address(String line1, String city, String state, String country, String zipCode) {
         super();
         this.line1 = line1;
@@ -50,7 +50,7 @@ public class Address {
     }
     @Override
     public String toString() {
-        return "Address [line1=" + line1 + ", city=" + city + ", state=" + state + ", country=" + country + ", zipCode="
-                + zipCode + "]";
+        return "Address [line1=" + line1 + ", city=" + city + ", state=" + state + ", country="
+            + country + ", zipCode=" + zipCode + "]";
     }
 }

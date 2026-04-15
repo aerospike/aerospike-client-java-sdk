@@ -68,14 +68,14 @@ public class CdtOperateTest extends ClusterTest {
         rootMap.put("book", booksList);
 
         session.upsert(rkey)
-	    	.bin(BIN_NAME).setTo(rootMap)
-	        .execute();
+            .bin(BIN_NAME).setTo(rootMap)
+            .execute();
 
         RecordStream rs = session.query(rkey).execute();
         assertTrue(rs.hasNext());
         Record rec = rs.next().recordOrThrow();
 
-		assertNotNull(rec);
+        assertNotNull(rec);
 
         CTX ctx1 = CTX.mapKey(Value.get("book"));
         CTX ctx2 = CTX.allChildrenWithFilter(

@@ -53,17 +53,17 @@ import com.aerospike.ael.parts.operand.OperandFactoryTests;
 
 @Suite
 @SelectClasses({
-	// com.aerospike.ael.ctx
-	CtxTests.class,
-	// com.aerospike.ael.expression
-	ArithmeticExpressionsTests.class,
+    // com.aerospike.ael.ctx
+    CtxTests.class,
+    // com.aerospike.ael.expression
+    ArithmeticExpressionsTests.class,
     BareGetFunctionTests.class,
-	BinExpressionsTests.class,
+    BinExpressionsTests.class,
     BlobTests.class,
-	CastingTests.class,
-	ControlStructuresTests.class,
-	ExplicitTypesTests.class,
-	ImplicitTypesTests.class,
+    CastingTests.class,
+    ControlStructuresTests.class,
+    ExplicitTypesTests.class,
+    ImplicitTypesTests.class,
     InBinTests.class,
     InCompositeTests.class,
     InExplicitTypeTests.class,
@@ -71,21 +71,21 @@ import com.aerospike.ael.parts.operand.OperandFactoryTests;
     InLiteralTests.class,
     InNegativeTests.class,
     InPlaceholderTests.class,
-	ListExpressionsTests.class,
-	LogicalExpressionsTests.class,
-	MapAndListExpressionsTests.class,
-	MapExpressionsTests.class,
-	RecordMetadataTests.class,
+    ListExpressionsTests.class,
+    LogicalExpressionsTests.class,
+    MapAndListExpressionsTests.class,
+    MapExpressionsTests.class,
+    RecordMetadataTests.class,
     SyntaxErrorTests.class,
-	// com.aerospike.ael.filter
-	ArithmeticFiltersTests.class,
-	BinFiltersTests.class,
-	ExplicitTypesFiltersTests.class,
-	ImplicitTypesFiltersTests.class,
-	ListExpressionsTests.class,
-	// com.aerospike.ael.parsedExpression
-	LogicalParsedExpressionTests.class,
-	PlaceholdersTests.class,
+    // com.aerospike.ael.filter
+    ArithmeticFiltersTests.class,
+    BinFiltersTests.class,
+    ExplicitTypesFiltersTests.class,
+    ImplicitTypesFiltersTests.class,
+    ListExpressionsTests.class,
+    // com.aerospike.ael.parsedExpression
+    LogicalParsedExpressionTests.class,
+    PlaceholdersTests.class,
     // com.aerospike.ael.index
     IndexContextTests.class,
     IndexTests.class,

@@ -34,89 +34,91 @@ import com.aerospike.client.sdk.RecordStream;
 import com.aerospike.client.sdk.ResultCode;
 
 public class QueryCollectionTest extends ClusterTest {
-	private static final String setName = "querycoll";
-	private static final String indexName = "mapkey_index";
-	private static final String keyPrefix = "qkey";
-	private static final String mapKeyPrefix = "mkey";
-	private static final String mapValuePrefix = "qvalue";
-	private static final String binName = "map_bin";
-	private static final int size = 20;
+    private static final String setName = "querycoll";
+    private static final String indexName = "mapkey_index";
+    private static final String keyPrefix = "qkey";
+    private static final String mapKeyPrefix = "mkey";
+    private static final String mapValuePrefix = "qvalue";
+    private static final String binName = "map_bin";
+    private static final int size = 20;
 
-	private static DataSet dataSet;
+    private static DataSet dataSet;
 
-	@BeforeAll
-	public static void prepare() {
-		dataSet = DataSet.of(args.namespace, setName);
+    @BeforeAll
+    public static void prepare() {
+        dataSet = DataSet.of(args.namespace, setName);
 
-		for (int i = 1; i <= size; i++) {
-			String key = keyPrefix + i;
-			session.delete(dataSet.ids(key));
-		}
+        for (int i = 1; i <= size; i++) {
+            String key = keyPrefix + i;
+            session.delete(dataSet.ids(key));
+        }
 
-		try {
-			session.createIndex(dataSet, indexName, binName, IndexType.STRING, IndexCollectionType.MAPKEYS)
-				.waitTillComplete();
-		} catch (AerospikeException ae) {
-			if (ae.getResultCode() != ResultCode.INDEX_ALREADY_EXISTS) {
-				throw ae;
-			}
-		}
+        try {
+            session.createIndex(dataSet, indexName, binName, IndexType.STRING,
+                IndexCollectionType.MAPKEYS)
+                .waitTillComplete();
+        }
+        catch (AerospikeException ae) {
+            if (ae.getResultCode() != ResultCode.INDEX_ALREADY_EXISTS) {
+                throw ae;
+            }
+        }
 
-		for (int i = 1; i <= size; i++) {
-			String key = keyPrefix + i;
-			HashMap<String,String> map = new HashMap<String,String>();
+        for (int i = 1; i <= size; i++) {
+            String key = keyPrefix + i;
+            HashMap<String, String> map = new HashMap<String, String>();
 
-			map.put(mapKeyPrefix+1, mapValuePrefix+i);
-			if (i%2 == 0) {
-				map.put(mapKeyPrefix+2, mapValuePrefix+i);
-			}
-			if (i%3 == 0) {
-				map.put(mapKeyPrefix+3, mapValuePrefix+i);
-			}
+            map.put(mapKeyPrefix + 1, mapValuePrefix + i);
+            if (i % 2 == 0) {
+                map.put(mapKeyPrefix + 2, mapValuePrefix + i);
+            }
+            if (i % 3 == 0) {
+                map.put(mapKeyPrefix + 3, mapValuePrefix + i);
+            }
 
-			session.upsert(dataSet.ids(key))
-				.bins(binName)
-				.values(map)
-				.execute();
-		}
-	}
+            session.upsert(dataSet.ids(key))
+                .bins(binName)
+                .values(map)
+                .execute();
+        }
+    }
 
-	@AfterAll
-	public static void destroy() {
-		for (int i = 1; i <= size; i++) {
-			String key = keyPrefix + i;
-			session.delete(dataSet.ids(key));
-		}
-		session.dropIndex(dataSet, indexName);
-	}
+    @AfterAll
+    public static void destroy() {
+        for (int i = 1; i <= size; i++) {
+            String key = keyPrefix + i;
+            session.delete(dataSet.ids(key));
+        }
+        session.dropIndex(dataSet, indexName);
+    }
 
-	@Test
-	public void queryCollection() throws Exception {
-		String queryMapKey = mapKeyPrefix+2;
+    @Test
+    public void queryCollection() throws Exception {
+        String queryMapKey = mapKeyPrefix + 2;
 
-		String where = "$." + binName + "." + queryMapKey + ".get(return: EXISTS) == true";
+        String where = "$." + binName + "." + queryMapKey + ".get(return: EXISTS) == true";
 
-		RecordStream rs = session.query(dataSet)
-			.where(where)
-			.execute();
+        RecordStream rs = session.query(dataSet)
+            .where(where)
+            .execute();
 
-		try {
-			int count = 0;
+        try {
+            int count = 0;
 
-			while (rs.hasNext()) {
-				Record record = rs.next().recordOrThrow();
-				Map<?,?> result = record.getMap(binName);
+            while (rs.hasNext()) {
+                Record record = rs.next().recordOrThrow();
+                Map<?, ?> result = record.getMap(binName);
 
-				if (!result.containsKey(queryMapKey)) {
-					fail("Query mismatch: Expected mapKey " + queryMapKey + " Received " + result);
-				}
-				count++;
-			}
+                if (!result.containsKey(queryMapKey)) {
+                    fail("Query mismatch: Expected mapKey " + queryMapKey + " Received " + result);
+                }
+                count++;
+            }
 
-			assertNotEquals(0, count);
-		}
-		finally {
-			rs.close();
-		}
-	}
+            assertNotEquals(0, count);
+        }
+        finally {
+            rs.close();
+        }
+    }
 }

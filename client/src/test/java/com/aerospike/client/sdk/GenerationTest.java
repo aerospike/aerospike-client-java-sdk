@@ -23,54 +23,54 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.Test;
 
 public class GenerationTest extends ClusterTest {
-	@Test
-	public void generation() {
-		Key key = args.set.id("generation");
-		String binName = "genbin";
+    @Test
+    public void generation() {
+        Key key = args.set.id("generation");
+        String binName = "genbin";
 
-		// Delete record if it already exists.
+        // Delete record if it already exists.
         session.delete(key).execute();
 
-		// Set values for the same record.
+        // Set values for the same record.
         session.upsert(key)
-	        .bin(binName).setTo("genvalue1")
-	        .execute();
+            .bin(binName).setTo("genvalue1")
+            .execute();
 
         session.upsert(key)
-	        .bin(binName).setTo("genvalue2")
-	        .execute();
+            .bin(binName).setTo("genvalue2")
+            .execute();
 
-		// Retrieve record and its generation count.
+        // Retrieve record and its generation count.
         RecordStream rs = session.query(key).readingOnlyBins(binName).execute();
         assertTrue(rs.hasNext());
         Record rec = rs.next().recordOrThrow();
         String val = rec.getString(binName);
-		assertEquals("genvalue2", val);
+        assertEquals("genvalue2", val);
 
-		// Set record and fail if it's not the expected generation.
+        // Set record and fail if it's not the expected generation.
         session.upsert(key)
-        	.ensureGenerationIs(rec.generation)
-	        .bin(binName).setTo("genvalue3")
-	        .execute();
+            .ensureGenerationIs(rec.generation)
+            .bin(binName).setTo("genvalue3")
+            .execute();
 
-		// Set record with invalid generation and check results .
+        // Set record with invalid generation and check results .
         AerospikeException ae = assertThrows(AerospikeException.class, () -> {
-        	RecordStream rs2 = session.upsert(key)
-    	    	.ensureGenerationIs(9999)
-    	        .bin(binName).setTo("genvalue4")
-    	        .execute();
+            RecordStream rs2 = session.upsert(key)
+                .ensureGenerationIs(9999)
+                .bin(binName).setTo("genvalue4")
+                .execute();
 
             assertTrue(rs2.hasNext());
             rs2.next().recordOrThrow();
-		});
+        });
 
-		assertEquals(ResultCode.GENERATION_ERROR, ae.getResultCode());
+        assertEquals(ResultCode.GENERATION_ERROR, ae.getResultCode());
 
-		// Verify results.
+        // Verify results.
         rs = session.query(key).readingOnlyBins(binName).execute();
         assertTrue(rs.hasNext());
         rec = rs.next().recordOrThrow();
         val = rec.getString(binName);
-		assertEquals("genvalue3", val);
-	}
+        assertEquals("genvalue3", val);
+    }
 }

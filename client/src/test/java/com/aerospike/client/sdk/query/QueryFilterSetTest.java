@@ -32,258 +32,259 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 public class QueryFilterSetTest extends ClusterTest {
-	private static final String set1 = "tqps1";
-	private static final String set2 = "tqps2";
-	private static final String set3 = "tqps3";
-	private static final String binA = "a";
-	private static final String binB = "b";
+    private static final String set1 = "tqps1";
+    private static final String set2 = "tqps2";
+    private static final String set3 = "tqps3";
+    private static final String binA = "a";
+    private static final String binB = "b";
 
-	private static DataSet dataSet1;
-	private static DataSet dataSet2;
-	private static DataSet dataSet3;
+    private static DataSet dataSet1;
+    private static DataSet dataSet2;
+    private static DataSet dataSet3;
 
-	@BeforeAll
-	public static void prepare() {
-		dataSet1 = DataSet.of(args.namespace, set1);
-		dataSet2 = DataSet.of(args.namespace, set2);
-		dataSet3 = DataSet.of(args.namespace, set3);
+    @BeforeAll
+    public static void prepare() {
+        dataSet1 = DataSet.of(args.namespace, set1);
+        dataSet2 = DataSet.of(args.namespace, set2);
+        dataSet3 = DataSet.of(args.namespace, set3);
 
-		// Clean up any existing test data
-		for (int i = 1; i <= 5; i++) {
-			session.delete(dataSet1.ids(i));
-		}
-		for (int i = 20; i <= 22; i++) {
-			session.delete(dataSet2.ids(i));
-		}
-		for (int i = 31; i <= 40; i++) {
-			session.delete(dataSet3.ids(i));
-			String strKey = "key-p3-" + i;
-			session.delete(dataSet3.ids(strKey));
-		}
-		session.delete(dataSet3.ids(25));
+        // Clean up any existing test data
+        for (int i = 1; i <= 5; i++) {
+            session.delete(dataSet1.ids(i));
+        }
+        for (int i = 20; i <= 22; i++) {
+            session.delete(dataSet2.ids(i));
+        }
+        for (int i = 31; i <= 40; i++) {
+            session.delete(dataSet3.ids(i));
+            String strKey = "key-p3-" + i;
+            session.delete(dataSet3.ids(strKey));
+        }
+        session.delete(dataSet3.ids(25));
 
-		// Insert fresh test data
-		for (int i = 1; i <= 5; i++) {
-			if (args.hasTtl) {
-				session.upsert(dataSet1.ids(i))
-					.expireRecordAfterSeconds(i * 60)
-					.bins(binA)
-					.values(i)
-					.execute();
-			} else {
-				session.upsert(dataSet1.ids(i))
-					.bins(binA)
-					.values(i)
-					.execute();
-			}
-		}
+        // Insert fresh test data
+        for (int i = 1; i <= 5; i++) {
+            if (args.hasTtl) {
+                session.upsert(dataSet1.ids(i))
+                    .expireRecordAfterSeconds(i * 60)
+                    .bins(binA)
+                    .values(i)
+                    .execute();
+            }
+            else {
+                session.upsert(dataSet1.ids(i))
+                    .bins(binA)
+                    .values(i)
+                    .execute();
+            }
+        }
 
-		for (int i = 20; i <= 22; i++) {
-			session.upsert(dataSet2.ids(i))
-				.bins(binA, binB)
-				.values(i, (double)i)
-				.execute();
-		}
+        for (int i = 20; i <= 22; i++) {
+            session.upsert(dataSet2.ids(i))
+                .bins(binA, binB)
+                .values(i, (double) i)
+                .execute();
+        }
 
-		for (int i = 31; i <= 40; i++) {
-			session.upsert(dataSet3.ids(i))
-				.sendKey()
-				.bins(binA)
-				.values(i)
-				.execute();
+        for (int i = 31; i <= 40; i++) {
+            session.upsert(dataSet3.ids(i))
+                .sendKey()
+                .bins(binA)
+                .values(i)
+                .execute();
 
-			String strKey = "key-p3-" + i;
-			session.upsert(dataSet3.ids(strKey))
-				.sendKey()
-				.bins(binA)
-				.values(i)
-				.execute();
-		}
+            String strKey = "key-p3-" + i;
+            session.upsert(dataSet3.ids(strKey))
+                .sendKey()
+                .bins(binA)
+                .values(i)
+                .execute();
+        }
 
-		session.upsert(dataSet3.ids(25))
-			.bins(binA)
-			.values(25)
-			.execute();
-	}
+        session.upsert(dataSet3.ids(25))
+            .bins(binA)
+            .values(25)
+            .execute();
+    }
 
-	@AfterAll
-	public static void destroy() {
-		for (int i = 1; i <= 5; i++) {
-			session.delete(dataSet1.ids(i));
-		}
-		for (int i = 20; i <= 22; i++) {
-			session.delete(dataSet2.ids(i));
-		}
-		for (int i = 31; i <= 40; i++) {
-			session.delete(dataSet3.ids(i));
-			String strKey = "key-p3-" + i;
-			session.delete(dataSet3.ids(strKey));
-		}
-		session.delete(dataSet3.ids(25));
-	}
+    @AfterAll
+    public static void destroy() {
+        for (int i = 1; i <= 5; i++) {
+            session.delete(dataSet1.ids(i));
+        }
+        for (int i = 20; i <= 22; i++) {
+            session.delete(dataSet2.ids(i));
+        }
+        for (int i = 31; i <= 40; i++) {
+            session.delete(dataSet3.ids(i));
+            String strKey = "key-p3-" + i;
+            session.delete(dataSet3.ids(strKey));
+        }
+        session.delete(dataSet3.ids(25));
+    }
 
-	@Test
-	public void querySetName() {
-		DataSet allNamespace = DataSet.of(args.namespace, null);
-		Exp filterExp = Exp.eq(Exp.setName(), Exp.val(set2));
+    @Test
+    public void querySetName() {
+        DataSet allNamespace = DataSet.of(args.namespace, null);
+        Exp filterExp = Exp.eq(Exp.setName(), Exp.val(set2));
 
-		RecordStream rs = session.query(allNamespace)
-			.where(filterExp)
-			.execute();
+        RecordStream rs = session.query(allNamespace)
+            .where(filterExp)
+            .execute();
 
-		try {
-			int count = 0;
-			while (rs.hasNext()) {
-				rs.next();
-				count++;
-			}
+        try {
+            int count = 0;
+            while (rs.hasNext()) {
+                rs.next();
+                count++;
+            }
 
-			assertEquals(3, count);
-		}
-		finally {
-			rs.close();
-		}
-	}
+            assertEquals(3, count);
+        }
+        finally {
+            rs.close();
+        }
+    }
 
-	@Test
-	public void queryDouble() {
-		Exp filterExp = Exp.gt(Exp.floatBin(binB), Exp.val(21.5));
+    @Test
+    public void queryDouble() {
+        Exp filterExp = Exp.gt(Exp.floatBin(binB), Exp.val(21.5));
 
-		RecordStream rs = session.query(dataSet2)
-			.where(filterExp)
-			.execute();
+        RecordStream rs = session.query(dataSet2)
+            .where(filterExp)
+            .execute();
 
-		try {
-			int count = 0;
-			while (rs.hasNext()) {
-				rs.next();
-				count++;
-			}
+        try {
+            int count = 0;
+            while (rs.hasNext()) {
+                rs.next();
+                count++;
+            }
 
-			assertEquals(1, count);
-		}
-		finally {
-			rs.close();
-		}
-	}
+            assertEquals(1, count);
+        }
+        finally {
+            rs.close();
+        }
+    }
 
-	@Test
-	public void queryKeyString() {
-		Exp filterExp = Exp.regexCompare("^key-.*-35$", 0, Exp.key(Exp.Type.STRING));
+    @Test
+    public void queryKeyString() {
+        Exp filterExp = Exp.regexCompare("^key-.*-35$", 0, Exp.key(Exp.Type.STRING));
 
-		RecordStream rs = session.query(dataSet3)
-			.where(filterExp)
-			.execute();
+        RecordStream rs = session.query(dataSet3)
+            .where(filterExp)
+            .execute();
 
-		try {
-			int count = 0;
-			while (rs.hasNext()) {
-				rs.next();
-				count++;
-			}
+        try {
+            int count = 0;
+            while (rs.hasNext()) {
+                rs.next();
+                count++;
+            }
 
-			assertEquals(1, count);
-		}
-		finally {
-			rs.close();
-		}
-	}
+            assertEquals(1, count);
+        }
+        finally {
+            rs.close();
+        }
+    }
 
-	@Test
-	public void queryKeyInt() {
-		Exp filterExp = Exp.lt(Exp.key(Exp.Type.INT), Exp.val(35));
+    @Test
+    public void queryKeyInt() {
+        Exp filterExp = Exp.lt(Exp.key(Exp.Type.INT), Exp.val(35));
 
-		RecordStream rs = session.query(dataSet3)
-			.where(filterExp)
-			.execute();
+        RecordStream rs = session.query(dataSet3)
+            .where(filterExp)
+            .execute();
 
-		try {
-			int count = 0;
-			while (rs.hasNext()) {
-				rs.next();
-				count++;
-			}
+        try {
+            int count = 0;
+            while (rs.hasNext()) {
+                rs.next();
+                count++;
+            }
 
-			assertEquals(5, count);
-		}
-		finally {
-			rs.close();
-		}
-	}
+            assertEquals(5, count);
+        }
+        finally {
+            rs.close();
+        }
+    }
 
-	@Test
-	public void queryKeyExists() {
-		Exp filterExp = Exp.keyExists();
+    @Test
+    public void queryKeyExists() {
+        Exp filterExp = Exp.keyExists();
 
-		RecordStream rs = session.query(dataSet3)
-			.where(filterExp)
-			.execute();
+        RecordStream rs = session.query(dataSet3)
+            .where(filterExp)
+            .execute();
 
-		try {
-			int count = 0;
-			while (rs.hasNext()) {
-				rs.next();
-				count++;
-			}
+        try {
+            int count = 0;
+            while (rs.hasNext()) {
+                rs.next();
+                count++;
+            }
 
-			assertEquals(21, count);
-		}
-		finally {
-			rs.close();
-		}
-	}
+            assertEquals(21, count);
+        }
+        finally {
+            rs.close();
+        }
+    }
 
-	@Test
-	public void queryVoidTime() {
-		Assumptions.assumeTrue(args.hasTtl);
+    @Test
+    public void queryVoidTime() {
+        Assumptions.assumeTrue(args.hasTtl);
 
-		GregorianCalendar now = new GregorianCalendar();
-		GregorianCalendar end = new GregorianCalendar();
-		end.add(Calendar.MINUTE, 2);
+        GregorianCalendar now = new GregorianCalendar();
+        GregorianCalendar end = new GregorianCalendar();
+        end.add(Calendar.MINUTE, 2);
 
-		Exp filterExp = Exp.and(
-			Exp.ge(Exp.voidTime(), Exp.val(now)),
-			Exp.lt(Exp.voidTime(), Exp.val(end)));
+        Exp filterExp = Exp.and(
+            Exp.ge(Exp.voidTime(), Exp.val(now)),
+            Exp.lt(Exp.voidTime(), Exp.val(end)));
 
-		RecordStream rs = session.query(dataSet1)
-			.where(filterExp)
-			.execute();
+        RecordStream rs = session.query(dataSet1)
+            .where(filterExp)
+            .execute();
 
-		try {
-			int count = 0;
-			while (rs.hasNext()) {
-				rs.next();
-				count++;
-			}
+        try {
+            int count = 0;
+            while (rs.hasNext()) {
+                rs.next();
+                count++;
+            }
 
-			assertEquals(2, count);
-		}
-		finally {
-			rs.close();
-		}
-	}
+            assertEquals(2, count);
+        }
+        finally {
+            rs.close();
+        }
+    }
 
-	@Test
-	public void queryTTL() {
-		Assumptions.assumeTrue(args.hasTtl);
+    @Test
+    public void queryTTL() {
+        Assumptions.assumeTrue(args.hasTtl);
 
-		Exp filterExp = Exp.le(Exp.ttl(), Exp.val(60));
+        Exp filterExp = Exp.le(Exp.ttl(), Exp.val(60));
 
-		RecordStream rs = session.query(dataSet1)
-			.where(filterExp)
-			.execute();
+        RecordStream rs = session.query(dataSet1)
+            .where(filterExp)
+            .execute();
 
-		try {
-			int count = 0;
-			while (rs.hasNext()) {
-				rs.next();
-				count++;
-			}
+        try {
+            int count = 0;
+            while (rs.hasNext()) {
+                rs.next();
+                count++;
+            }
 
-			assertEquals(1, count);
-		}
-		finally {
-			rs.close();
-		}
-	}
+            assertEquals(1, count);
+        }
+        finally {
+            rs.close();
+        }
+    }
 }

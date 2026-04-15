@@ -26,68 +26,68 @@ import java.util.TreeMap;
 import org.junit.jupiter.api.Test;
 
 public class MapExpTest extends ClusterTest {
-	@Test
-	public void sortedMapEquality() {
-		TreeMap<String,String> map = new TreeMap<>();
-		map.put("key1", "e");
-		map.put("key2", "d");
-		map.put("key3", "c");
-		map.put("key4", "b");
-		map.put("key5", "a");
+    @Test
+    public void sortedMapEquality() {
+        TreeMap<String,String> map = new TreeMap<>();
+        map.put("key1", "e");
+        map.put("key2", "d");
+        map.put("key3", "c");
+        map.put("key4", "b");
+        map.put("key5", "a");
 
-		Key key = args.set.id("sortedMapEquality");
-		String binName = "m";
+        Key key = args.set.id("sortedMapEquality");
+        String binName = "m";
 
-		session.upsert(key)
-	        .bin(binName).setTo(map)
-	        .execute();
+        session.upsert(key)
+            .bin(binName).setTo(map)
+            .execute();
 
-		// Expression where = Exp.build(Exp.eq(Exp.mapBin(binName), Exp.val(map)));
-		String where = "$." + binName + ".get(type: MAP) == {'key1': 'e', 'key2': 'd', 'key3': 'c', 'key4': 'b', 'key5': 'a'}";
+        // Expression where = Exp.build(Exp.eq(Exp.mapBin(binName), Exp.val(map)));
+        String where = "$." + binName + ".get(type: MAP) == {'key1': 'e', 'key2': 'd', 'key3': 'c', 'key4': 'b', 'key5': 'a'}";
 
-		RecordStream rs = session.query(key)
-			.readingOnlyBins(binName)
-			.where(where)
-			.execute();
-
-		assertTrue(rs.hasNext());
-        Record rec = rs.next().recordOrThrow();
-		AerospikeMap<?,?> m = rec.getMap(binName);
-
-		// A sorted map is returned as a LinkedHashMap for performance.
-		// The response is ordered, so the LinkedHashMap insertion order
-		// will match the sort order.
-		assertEquals(AerospikeMap.Type.LINKED, m.getType());
-	}
-
-	@Test
-	public void invertedMapExp() {
-		HashMap<String,Integer> map = new HashMap<>();
-		map.put("a", 1);
-		map.put("b", 2);
-		map.put("c", 2);
-		map.put("d", 3);
-
-		Key key = args.set.id("ime");
-		String binName = "m";
-
-		session.upsert(key)
-	        .bin(binName).setTo(map)
-	        .execute();
-
-		//Expression readExp = Exp.build(
-		//	MapExp.removeByValue(MapReturnType.INVERTED, Exp.val(2), Exp.mapBin(binName)));
-		String readExp = "$." + binName + ".{=2}.get(return: ORDERED_MAP)";
-
-		RecordStream rs = session.query(key)
-	        .bin(binName).selectFrom(readExp)
-	        .execute();
+        RecordStream rs = session.query(key)
+            .readingOnlyBins(binName)
+            .where(where)
+            .execute();
 
         assertTrue(rs.hasNext());
         Record rec = rs.next().recordOrThrow();
-		Map<?,?> m = rec.getMap(binName);
-		assertEquals(2L, m.size());
-		assertEquals(2L, m.get("b"));
-		assertEquals(2L, m.get("c"));
-	}
+        AerospikeMap<?,?> m = rec.getMap(binName);
+
+        // A sorted map is returned as a LinkedHashMap for performance.
+        // The response is ordered, so the LinkedHashMap insertion order
+        // will match the sort order.
+        assertEquals(AerospikeMap.Type.LINKED, m.getType());
+    }
+
+    @Test
+    public void invertedMapExp() {
+        HashMap<String,Integer> map = new HashMap<>();
+        map.put("a", 1);
+        map.put("b", 2);
+        map.put("c", 2);
+        map.put("d", 3);
+
+        Key key = args.set.id("ime");
+        String binName = "m";
+
+        session.upsert(key)
+            .bin(binName).setTo(map)
+            .execute();
+
+        //Expression readExp = Exp.build(
+        //  MapExp.removeByValue(MapReturnType.INVERTED, Exp.val(2), Exp.mapBin(binName)));
+        String readExp = "$." + binName + ".{=2}.get(return: ORDERED_MAP)";
+
+        RecordStream rs = session.query(key)
+            .bin(binName).selectFrom(readExp)
+            .execute();
+
+        assertTrue(rs.hasNext());
+        Record rec = rs.next().recordOrThrow();
+        Map<?,?> m = rec.getMap(binName);
+        assertEquals(2L, m.size());
+        assertEquals(2L, m.get("b"));
+        assertEquals(2L, m.get("c"));
+    }
 }

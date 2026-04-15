@@ -25,109 +25,109 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 
 public class AppendTest extends ClusterTest {
-	@Test
-	public void append() {
-		String key = "append";
-		String binName = "appendbin";
+    @Test
+    public void append() {
+        String key = "append";
+        String binName = "appendbin";
 
-		// Delete record if it already exists.
+        // Delete record if it already exists.
         session.delete(args.set.id(key)).execute();
 
-		// Perform some appends and check results.
+        // Perform some appends and check results.
         session.upsert(args.set.id(key))
-	    	.bin(binName).append("Hello")
-	        .execute();
+            .bin(binName).append("Hello")
+            .execute();
 
         session.upsert(args.set.id(key))
-    		.bin(binName).append(" World")
-	        .execute();
+            .bin(binName).append(" World")
+            .execute();
 
         RecordStream rs = session.query(args.set.id(key))
-        	.readingOnlyBins(binName)
-        	.execute();
+            .readingOnlyBins(binName)
+            .execute();
 
         assertTrue(rs.hasNext());
         Record rec = rs.next().recordOrThrow();
 
-    	String val = rec.getString(binName);
-		assertEquals("Hello World", val);
+        String val = rec.getString(binName);
+        assertEquals("Hello World", val);
 
-		// Test append and get combined.
-		rs = session.upsert(args.set.id(key))
-        	.bin(binName).append("!")
-        	.get(binName)
-	        .execute();
+        // Test append and get combined.
+        rs = session.upsert(args.set.id(key))
+            .bin(binName).append("!")
+            .get(binName)
+            .execute();
 
         assertTrue(rs.hasNext());
         rec = rs.next().recordOrThrow();
 
         List<?> list = rec.getList(binName);
         val = (String)list.get(1);
-		assertEquals("Hello World!", val);
+        assertEquals("Hello World!", val);
 
-		byte[] key1 = new byte[] {1,2,3};
-		byte[] key2 = new byte[] {2,3,4};
+        byte[] key1 = new byte[] {1,2,3};
+        byte[] key2 = new byte[] {2,3,4};
 
         session.delete(args.set.ids(key1, key2)).execute();
 
-		session.insert(args.set.id(key1))
-		    .bin(binName).append("empty")
-		    .execute();
+        session.insert(args.set.id(key1))
+            .bin(binName).append("empty")
+            .execute();
 
-		session.upsert(args.set.ids(key1,key2))
+        session.upsert(args.set.ids(key1,key2))
             .bin(binName).append("full")
             .execute();
 
-		rs = session.query(args.set.ids(key1, key2))
-		        .execute();
-		for (int i = 0; i < 2; i++) {
-		    assertTrue(rs.hasNext());
-		    RecordResult item = rs.next();
-		    String str = item.recordOrThrow().getString(binName);
-		    assertEquals(item.index() == 0 ? "emptyfull" : "full",str);
-		}
+        rs = session.query(args.set.ids(key1, key2))
+            .execute();
+        for (int i = 0; i < 2; i++) {
+            assertTrue(rs.hasNext());
+            RecordResult item = rs.next();
+            String str = item.recordOrThrow().getString(binName);
+            assertEquals(item.index() == 0 ? "emptyfull" : "full",str);
+        }
         session.delete(args.set.ids(key1, key2)).execute();
         assertFalse(rs.hasNext());
-	}
+    }
 
-	@Test
-	public void prepend() {
-		String key = "prepend";
-		String binName = "appendbin";
+    @Test
+    public void prepend() {
+        String key = "prepend";
+        String binName = "appendbin";
 
-		// Delete record if it already exists.
+        // Delete record if it already exists.
         session.delete(args.set.id(key)).execute();
 
-		// Perform some appends and check results.
+        // Perform some appends and check results.
         session.upsert(args.set.id(key))
-	    	.bin(binName).prepend("!")
-	        .execute();
+            .bin(binName).prepend("!")
+            .execute();
 
         session.upsert(args.set.id(key))
-    		.bin(binName).prepend("World")
-	        .execute();
+            .bin(binName).prepend("World")
+            .execute();
 
         RecordStream rs = session.query(args.set.id(key))
-        	.readingOnlyBins(binName)
-        	.execute();
+            .readingOnlyBins(binName)
+            .execute();
 
         assertTrue(rs.hasNext());
         Record rec = rs.next().recordOrThrow();
 
-    	String val = rec.getString(binName);
-		assertEquals("World!", val);
+        String val = rec.getString(binName);
+        assertEquals("World!", val);
 
-		// Test append and get combined.
-		rs = session.upsert(args.set.id(key))
-        	.bin(binName).prepend("Hello ")
-        	.get(binName)
-	        .execute();
+        // Test append and get combined.
+        rs = session.upsert(args.set.id(key))
+            .bin(binName).prepend("Hello ")
+            .get(binName)
+            .execute();
 
         assertTrue(rs.hasNext());
         rec = rs.next().recordOrThrow();
 
         List<?> list = rec.getList(binName);
         val = (String)list.get(1);
-		assertEquals("Hello World!", val);
-	}
+        assertEquals("Hello World!", val);
+    }
 }

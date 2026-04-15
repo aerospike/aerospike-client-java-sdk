@@ -88,41 +88,41 @@ import com.aerospike.client.sdk.query.QueryStringTest;
     QueryKeyTest.class,
     QueryRPSTest.class,
     QueryStringTest.class,
-	QueryWithPartitionPaginationTest.class
+    QueryWithPartitionPaginationTest.class
 })
 public class SuiteCluster {
-	@BeforeSuite
-	public static void beforeSuite() {
-		System.out.println("Begin AerospikeClient");
-		Log.setCallback(null);
+    @BeforeSuite
+    public static void beforeSuite() {
+        System.out.println("Begin AerospikeClient");
+        Log.setCallback(null);
 
-		Args args = Args.Instance;
+        Args args = Args.Instance;
 
-		Host[] hosts = Host.parseHosts(args.host, args.port);
+        Host[] hosts = Host.parseHosts(args.host, args.port);
 
         ClusterDefinition def = new ClusterDefinition(hosts)
-        	.withLogLevel(Log.Level.DEBUG)
-        	.clusterName(args.clusterName)
-			.withSystemSettings(SystemSettings.builder()
-					.connections(ops -> ops.maximumConnectionsPerNode(200)).build()
-					.mergeWith(SystemSettings.DEFAULT));
+            .withLogLevel(Log.Level.DEBUG)
+            .clusterName(args.clusterName)
+            .withSystemSettings(SystemSettings.builder()
+                    .connections(ops -> ops.maximumConnectionsPerNode(200)).build()
+                    .mergeWith(SystemSettings.DEFAULT));
 
-		// Handle authenticated requests if provided
-		if (args.user != null && args.password != null) {
-			switch (args.authMode) {
-				case INTERNAL:
-					def.withNativeCredentials(args.user, args.password);
-					break;
-				case EXTERNAL:
-					def.withExternalCredentials(args.user, args.password);
-					break;
-				case EXTERNAL_INSECURE:
-					def.withExternalInsecureCredentials(args.user, args.password);
-					break;
-				default:
-					break;
-			}
-		}
+        // Handle authenticated requests if provided
+        if (args.user != null && args.password != null) {
+            switch (args.authMode) {
+                case INTERNAL:
+                    def.withNativeCredentials(args.user, args.password);
+                    break;
+                case EXTERNAL:
+                    def.withExternalCredentials(args.user, args.password);
+                    break;
+                case EXTERNAL_INSECURE:
+                    def.withExternalInsecureCredentials(args.user, args.password);
+                    break;
+                default:
+                    break;
+            }
+        }
 
         if (args.tlsName != null) {
             String certHome = System.getenv("CERT_HOME");
@@ -136,35 +136,35 @@ public class SuiteCluster {
             String clientKeyFile = resolvePath(certHome, args.clientKeyFile);
 
             def.withTlsConfig(tls -> tls
-            	.tlsName(args.tlsName)
-	            .caFile(caFile)
-	            .clientCertFile(clientCertFile)
-	            .clientKeyFile(clientKeyFile)
-	        );
+                .tlsName(args.tlsName)
+                .caFile(caFile)
+                .clientCertFile(clientCertFile)
+                .clientKeyFile(clientKeyFile)
+            );
         }
 
         Cluster cluster = def.connect();
         Session session;
 
-		try {
-		    session = cluster.createSession(Behavior.DEFAULT);
-			args.setServerSpecific(cluster);
-		}
-		catch (RuntimeException re) {
-			cluster.close();
-			throw re;
-		}
+        try {
+            session = cluster.createSession(Behavior.DEFAULT);
+            args.setServerSpecific(cluster);
+        }
+        catch (RuntimeException re) {
+            cluster.close();
+            throw re;
+        }
 
-		ClusterTest.cluster = cluster;
-		ClusterTest.session = session;
-		ClusterTest.initializedBySuite = true;
-	}
+        ClusterTest.cluster = cluster;
+        ClusterTest.session = session;
+        ClusterTest.initializedBySuite = true;
+    }
 
     private static String resolvePath(String dir, String path) {
         File file = new File(path);
 
         if (file.isAbsolute()) {
-        	return path;
+            return path;
         }
 
         file = new File(dir, path);
@@ -172,13 +172,13 @@ public class SuiteCluster {
     }
 
     @AfterSuite
-	public static void afterSuite() {
-		System.out.println("End AerospikeClient");
-		if (ClusterTest.cluster != null) {
-			ClusterTest.cluster.close();
-			ClusterTest.cluster = null;
-			ClusterTest.session = null;
-		}
-		ClusterTest.initializedBySuite = false;
-	}
+    public static void afterSuite() {
+        System.out.println("End AerospikeClient");
+        if (ClusterTest.cluster != null) {
+            ClusterTest.cluster.close();
+            ClusterTest.cluster = null;
+            ClusterTest.session = null;
+        }
+        ClusterTest.initializedBySuite = false;
+    }
 }

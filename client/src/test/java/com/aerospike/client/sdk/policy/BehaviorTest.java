@@ -50,7 +50,8 @@ public class BehaviorTest {
         @DisplayName("DEFAULT should have all common settings configured")
         void testDefaultCommonSettings() {
             // Test all operation types have common settings from Selectors.all()
-            Settings readPointAp = Behavior.DEFAULT.getSettings(OpKind.READ, OpShape.POINT, Mode.AP);
+            Settings readPointAp =
+                Behavior.DEFAULT.getSettings(OpKind.READ, OpShape.POINT, Mode.AP);
             assertNotNull(readPointAp, "READ:POINT:AP settings should exist");
 
             // Verify common settings are present
@@ -68,7 +69,8 @@ public class BehaviorTest {
         @Test
         @DisplayName("DEFAULT should have all READ AP settings configured")
         void testDefaultReadApSettings() {
-            Settings readPointAp = Behavior.DEFAULT.getSettings(OpKind.READ, OpShape.POINT, Mode.AP);
+            Settings readPointAp =
+                Behavior.DEFAULT.getSettings(OpKind.READ, OpShape.POINT, Mode.AP);
 
             assertEquals(ReadModeAP.ALL, readPointAp.readModeAP);
             assertEquals(0, readPointAp.resetTtlOnReadAtPercent);
@@ -77,7 +79,8 @@ public class BehaviorTest {
         @Test
         @DisplayName("DEFAULT should have all READ CP settings configured")
         void testDefaultReadCpSettings() {
-            Settings readPointCp = Behavior.DEFAULT.getSettings(OpKind.READ, OpShape.POINT, Mode.CP);
+            Settings readPointCp =
+                Behavior.DEFAULT.getSettings(OpKind.READ, OpShape.POINT, Mode.CP);
 
             assertEquals(ReadModeSC.SESSION, readPointCp.readModeSC);
             assertEquals(0, readPointCp.resetTtlOnReadAtPercent);
@@ -86,7 +89,8 @@ public class BehaviorTest {
         @Test
         @DisplayName("DEFAULT should have all BATCH READ settings configured")
         void testDefaultBatchReadSettings() {
-            Settings readBatchAp = Behavior.DEFAULT.getSettings(OpKind.READ, OpShape.BATCH, Mode.AP);
+            Settings readBatchAp =
+                Behavior.DEFAULT.getSettings(OpKind.READ, OpShape.BATCH, Mode.AP);
 
             assertEquals(1, readBatchAp.maxConcurrentNodes);
             assertTrue(readBatchAp.allowInlineMemoryAccess);
@@ -96,7 +100,8 @@ public class BehaviorTest {
         @Test
         @DisplayName("DEFAULT should have all QUERY settings configured")
         void testDefaultQuerySettings() {
-            Settings readQueryAp = Behavior.DEFAULT.getSettings(OpKind.READ, OpShape.QUERY, Mode.AP);
+            Settings readQueryAp =
+                Behavior.DEFAULT.getSettings(OpKind.READ, OpShape.QUERY, Mode.AP);
 
             assertEquals(5000, readQueryAp.recordQueueSize);
             assertEquals(6, readQueryAp.maximumNumberOfCallAttempts); // Override from query-specific
@@ -105,7 +110,8 @@ public class BehaviorTest {
         @Test
         @DisplayName("DEFAULT should have all RETRYABLE WRITE settings configured")
         void testDefaultRetryableWriteSettings() {
-            Settings writeRetryablePointAp = Behavior.DEFAULT.getSettings(OpKind.WRITE_RETRYABLE, OpShape.POINT, Mode.AP);
+            Settings writeRetryablePointAp =
+                Behavior.DEFAULT.getSettings(OpKind.WRITE_RETRYABLE, OpShape.POINT, Mode.AP);
 
             assertFalse(writeRetryablePointAp.useDurableDelete);
             assertEquals(3, writeRetryablePointAp.maximumNumberOfCallAttempts); // Override from retryable
@@ -115,7 +121,8 @@ public class BehaviorTest {
         @Test
         @DisplayName("DEFAULT should have all RETRYABLE WRITE CP settings configured")
         void testDefaultRetryableWriteCpSettings() {
-            Settings writeRetryableCp = Behavior.DEFAULT.getSettings(OpKind.WRITE_RETRYABLE, OpShape.POINT, Mode.CP);
+            Settings writeRetryableCp =
+                Behavior.DEFAULT.getSettings(OpKind.WRITE_RETRYABLE, OpShape.POINT, Mode.CP);
 
             assertTrue(writeRetryableCp.useDurableDelete); // CP override
         }
@@ -123,7 +130,8 @@ public class BehaviorTest {
         @Test
         @DisplayName("DEFAULT should have all NON-RETRYABLE WRITE settings configured")
         void testDefaultNonRetryableWriteSettings() {
-            Settings writeNonRetryablePointAp = Behavior.DEFAULT.getSettings(OpKind.WRITE_NON_RETRYABLE, OpShape.POINT, Mode.AP);
+            Settings writeNonRetryablePointAp =
+                Behavior.DEFAULT.getSettings(OpKind.WRITE_NON_RETRYABLE, OpShape.POINT, Mode.AP);
 
             assertFalse(writeNonRetryablePointAp.useDurableDelete);
             assertFalse(writeNonRetryablePointAp.simulateXdrWrite);
@@ -132,7 +140,8 @@ public class BehaviorTest {
         @Test
         @DisplayName("DEFAULT should have all BATCH WRITE settings configured")
         void testDefaultBatchWriteSettings() {
-            Settings writeRetryableBatchAp = Behavior.DEFAULT.getSettings(OpKind.WRITE_RETRYABLE, OpShape.BATCH, Mode.AP);
+            Settings writeRetryableBatchAp =
+                Behavior.DEFAULT.getSettings(OpKind.WRITE_RETRYABLE, OpShape.BATCH, Mode.AP);
 
             assertEquals(1, writeRetryableBatchAp.maxConcurrentNodes);
             assertTrue(writeRetryableBatchAp.allowInlineMemoryAccess);
@@ -142,7 +151,8 @@ public class BehaviorTest {
         @Test
         @DisplayName("DEFAULT should have all WRITE AP settings configured")
         void testDefaultWriteApSettings() {
-            Settings writePointAp = Behavior.DEFAULT.getSettings(OpKind.WRITE_RETRYABLE, OpShape.POINT, Mode.AP);
+            Settings writePointAp =
+                Behavior.DEFAULT.getSettings(OpKind.WRITE_RETRYABLE, OpShape.POINT, Mode.AP);
 
             assertEquals(CommitLevel.COMMIT_ALL, writePointAp.commitLevel);
         }
@@ -151,19 +161,21 @@ public class BehaviorTest {
         @DisplayName("All operation combinations should have settings")
         void testAllOperationCombinationsExist() {
             // Test all READ combinations
-            for (OpShape shape : new OpShape[]{OpShape.POINT, OpShape.BATCH, OpShape.QUERY}) {
-                for (Mode mode : new Mode[]{Mode.AP, Mode.CP}) {
+            for (OpShape shape : new OpShape[] { OpShape.POINT, OpShape.BATCH, OpShape.QUERY }) {
+                for (Mode mode : new Mode[] { Mode.AP, Mode.CP }) {
                     Settings settings = Behavior.DEFAULT.getSettings(OpKind.READ, shape, mode);
                     assertNotNull(settings, "READ:" + shape + ":" + mode + " should have settings");
                 }
             }
 
             // Test all WRITE combinations (no QUERY for writes)
-            for (OpKind kind : new OpKind[]{OpKind.WRITE_RETRYABLE, OpKind.WRITE_NON_RETRYABLE}) {
-                for (OpShape shape : new OpShape[]{OpShape.POINT, OpShape.BATCH}) {
-                    for (Mode mode : new Mode[]{Mode.AP, Mode.CP}) {
+            for (OpKind kind : new OpKind[] { OpKind.WRITE_RETRYABLE,
+                OpKind.WRITE_NON_RETRYABLE }) {
+                for (OpShape shape : new OpShape[] { OpShape.POINT, OpShape.BATCH }) {
+                    for (Mode mode : new Mode[] { Mode.AP, Mode.CP }) {
                         Settings settings = Behavior.DEFAULT.getSettings(kind, shape, mode);
-                        assertNotNull(settings, kind + ":" + shape + ":" + mode + " should have settings");
+                        assertNotNull(settings,
+                            kind + ":" + shape + ":" + mode + " should have settings");
                     }
                 }
             }
@@ -178,18 +190,16 @@ public class BehaviorTest {
         @DisplayName("Selectors.all() should expose all common methods")
         void testSelectorsAll() {
             Behavior behavior = Behavior.DEFAULT.deriveWithChanges("test", builder -> builder
-                    .on(Selectors.all(), ops -> ops
-                            .abandonCallAfter(Duration.ofSeconds(10))
-                            .delayBetweenRetries(Duration.ofMillis(100))
-                            .maximumNumberOfCallAttempts(5)
-                            .replicaOrder(Replica.SEQUENCE)
-                            .sendKey(false)
-                            .useCompression(true)
-                            .waitForCallToComplete(Duration.ofSeconds(2))
-                            .waitForConnectionToComplete(Duration.ofSeconds(3))
-                            .waitForSocketResponseAfterCallFails(Duration.ofSeconds(4))
-                    )
-            );
+                .on(Selectors.all(), ops -> ops
+                    .abandonCallAfter(Duration.ofSeconds(10))
+                    .delayBetweenRetries(Duration.ofMillis(100))
+                    .maximumNumberOfCallAttempts(5)
+                    .replicaOrder(Replica.SEQUENCE)
+                    .sendKey(false)
+                    .useCompression(true)
+                    .waitForCallToComplete(Duration.ofSeconds(2))
+                    .waitForConnectionToComplete(Duration.ofSeconds(3))
+                    .waitForSocketResponseAfterCallFails(Duration.ofSeconds(4))));
 
             // Verify settings applied to all operations
             Settings readPointAp = behavior.getSettings(OpKind.READ, OpShape.POINT, Mode.AP);
@@ -197,7 +207,8 @@ public class BehaviorTest {
             assertEquals(5, readPointAp.maximumNumberOfCallAttempts);
             assertFalse(readPointAp.sendKey);
 
-            Settings writePointCp = behavior.getSettings(OpKind.WRITE_RETRYABLE, OpShape.POINT, Mode.CP);
+            Settings writePointCp =
+                behavior.getSettings(OpKind.WRITE_RETRYABLE, OpShape.POINT, Mode.CP);
             assertEquals(Duration.ofSeconds(10), writePointCp.abandonCallAfter);
             assertTrue(writePointCp.useCompression);
         }
@@ -206,17 +217,15 @@ public class BehaviorTest {
         @DisplayName("Selectors.all() should allow setting all possible settings including mode-specific")
         void testSelectorsAllWithModeSpecificSettings() {
             Behavior behavior = Behavior.DEFAULT.deriveWithChanges("test", builder -> builder
-                    .on(Selectors.all(), ops -> ops
-                            .maximumNumberOfCallAttempts(5)
-                            .readMode(ReadModeAP.ONE)
-                            .consistency(ReadModeSC.LINEARIZE)
-                            .commitLevel(CommitLevel.COMMIT_MASTER)
-                            .useDurableDelete(true)
-                            .resetTtlOnReadAtPercent(50)
-                            .maxConcurrentNodes(10)
-                            .recordQueueSize(10000)
-                    )
-            );
+                .on(Selectors.all(), ops -> ops
+                    .maximumNumberOfCallAttempts(5)
+                    .readMode(ReadModeAP.ONE)
+                    .consistency(ReadModeSC.LINEARIZE)
+                    .commitLevel(CommitLevel.COMMIT_MASTER)
+                    .useDurableDelete(true)
+                    .resetTtlOnReadAtPercent(50)
+                    .maxConcurrentNodes(10)
+                    .recordQueueSize(10000)));
 
             // Verify AP read settings
             Settings readAp = behavior.getSettings(OpKind.READ, OpShape.POINT, Mode.AP);
@@ -249,11 +258,9 @@ public class BehaviorTest {
         @DisplayName("Selectors.reads() should expose resetTtlOnReadAtPercent")
         void testSelectorsReads() {
             Behavior behavior = Behavior.DEFAULT.deriveWithChanges("test", builder -> builder
-                    .on(Selectors.reads(), ops -> ops
-                            .resetTtlOnReadAtPercent(50)
-                            .maximumNumberOfCallAttempts(10)
-                    )
-            );
+                .on(Selectors.reads(), ops -> ops
+                    .resetTtlOnReadAtPercent(50)
+                    .maximumNumberOfCallAttempts(10)));
 
             Settings readPointAp = behavior.getSettings(OpKind.READ, OpShape.POINT, Mode.AP);
             assertEquals(50, readPointAp.resetTtlOnReadAtPercent);
@@ -264,11 +271,9 @@ public class BehaviorTest {
         @DisplayName("Selectors.reads().ap() should expose readMode")
         void testSelectorsReadsAp() {
             Behavior behavior = Behavior.DEFAULT.deriveWithChanges("test", builder -> builder
-                    .on(Selectors.reads().ap(), ops -> ops
-                            .readMode(ReadModeAP.ONE)
-                            .resetTtlOnReadAtPercent(25)
-                    )
-            );
+                .on(Selectors.reads().ap(), ops -> ops
+                    .readMode(ReadModeAP.ONE)
+                    .resetTtlOnReadAtPercent(25)));
 
             Settings readPointAp = behavior.getSettings(OpKind.READ, OpShape.POINT, Mode.AP);
             assertEquals(ReadModeAP.ONE, readPointAp.readModeAP);
@@ -283,11 +288,9 @@ public class BehaviorTest {
         @DisplayName("Selectors.reads().cp() should expose consistency")
         void testSelectorsReadsCp() {
             Behavior behavior = Behavior.DEFAULT.deriveWithChanges("test", builder -> builder
-                    .on(Selectors.reads().cp(), ops -> ops
-                            .consistency(ReadModeSC.LINEARIZE)
-                            .resetTtlOnReadAtPercent(75)
-                    )
-            );
+                .on(Selectors.reads().cp(), ops -> ops
+                    .consistency(ReadModeSC.LINEARIZE)
+                    .resetTtlOnReadAtPercent(75)));
 
             Settings readPointCp = behavior.getSettings(OpKind.READ, OpShape.POINT, Mode.CP);
             assertEquals(ReadModeSC.LINEARIZE, readPointCp.readModeSC);
@@ -302,10 +305,8 @@ public class BehaviorTest {
         @DisplayName("Selectors.reads().get() should configure point reads")
         void testSelectorsReadsGet() {
             Behavior behavior = Behavior.DEFAULT.deriveWithChanges("test", builder -> builder
-                    .on(Selectors.reads().get(), ops -> ops
-                            .maximumNumberOfCallAttempts(7)
-                    )
-            );
+                .on(Selectors.reads().get(), ops -> ops
+                    .maximumNumberOfCallAttempts(7)));
 
             Settings readPointAp = behavior.getSettings(OpKind.READ, OpShape.POINT, Mode.AP);
             assertEquals(7, readPointAp.maximumNumberOfCallAttempts);
@@ -319,12 +320,10 @@ public class BehaviorTest {
         @DisplayName("Selectors.reads().batch() should expose batch-specific methods")
         void testSelectorsReadsBatch() {
             Behavior behavior = Behavior.DEFAULT.deriveWithChanges("test", builder -> builder
-                    .on(Selectors.reads().batch(), ops -> ops
-                            .maxConcurrentNodes(8)
-                            .allowInlineMemoryAccess(false)
-                            .allowInlineSsdAccess(true)
-                    )
-            );
+                .on(Selectors.reads().batch(), ops -> ops
+                    .maxConcurrentNodes(8)
+                    .allowInlineMemoryAccess(false)
+                    .allowInlineSsdAccess(true)));
 
             Settings readBatchAp = behavior.getSettings(OpKind.READ, OpShape.BATCH, Mode.AP);
             assertEquals(8, readBatchAp.maxConcurrentNodes);
@@ -340,11 +339,9 @@ public class BehaviorTest {
         @DisplayName("Selectors.reads().query() should expose query-specific methods")
         void testSelectorsReadsQuery() {
             Behavior behavior = Behavior.DEFAULT.deriveWithChanges("test", builder -> builder
-                    .on(Selectors.reads().query(), ops -> ops
-                            .recordQueueSize(10000)
-                            .maximumNumberOfCallAttempts(8)
-                    )
-            );
+                .on(Selectors.reads().query(), ops -> ops
+                    .recordQueueSize(10000)
+                    .maximumNumberOfCallAttempts(8)));
 
             Settings readQueryAp = behavior.getSettings(OpKind.READ, OpShape.QUERY, Mode.AP);
             assertEquals(10000, readQueryAp.recordQueueSize);
@@ -359,12 +356,10 @@ public class BehaviorTest {
         @DisplayName("Selectors.reads().batch().ap() should expose all relevant methods")
         void testSelectorsReadsBatchAp() {
             Behavior behavior = Behavior.DEFAULT.deriveWithChanges("test", builder -> builder
-                    .on(Selectors.reads().batch().ap(), ops -> ops
-                            .maxConcurrentNodes(16)
-                            .readMode(ReadModeAP.ALL)
-                            .resetTtlOnReadAtPercent(33)
-                    )
-            );
+                .on(Selectors.reads().batch().ap(), ops -> ops
+                    .maxConcurrentNodes(16)
+                    .readMode(ReadModeAP.ALL)
+                    .resetTtlOnReadAtPercent(33)));
 
             Settings readBatchAp = behavior.getSettings(OpKind.READ, OpShape.BATCH, Mode.AP);
             assertEquals(16, readBatchAp.maxConcurrentNodes);
@@ -376,18 +371,18 @@ public class BehaviorTest {
         @DisplayName("Selectors.writes() should expose write-specific methods")
         void testSelectorsWrites() {
             Behavior behavior = Behavior.DEFAULT.deriveWithChanges("test", builder -> builder
-                    .on(Selectors.writes(), ops -> ops
-                            .useDurableDelete(true)
-                            .simulateXdrWrite(true)
-                    )
-            );
+                .on(Selectors.writes(), ops -> ops
+                    .useDurableDelete(true)
+                    .simulateXdrWrite(true)));
 
             // Should apply to both retryable and non-retryable
-            Settings writeRetryable = behavior.getSettings(OpKind.WRITE_RETRYABLE, OpShape.POINT, Mode.AP);
+            Settings writeRetryable =
+                behavior.getSettings(OpKind.WRITE_RETRYABLE, OpShape.POINT, Mode.AP);
             assertTrue(writeRetryable.useDurableDelete);
             assertTrue(writeRetryable.simulateXdrWrite);
 
-            Settings writeNonRetryable = behavior.getSettings(OpKind.WRITE_NON_RETRYABLE, OpShape.POINT, Mode.AP);
+            Settings writeNonRetryable =
+                behavior.getSettings(OpKind.WRITE_NON_RETRYABLE, OpShape.POINT, Mode.AP);
             assertTrue(writeNonRetryable.useDurableDelete);
             assertTrue(writeNonRetryable.simulateXdrWrite);
         }
@@ -396,16 +391,16 @@ public class BehaviorTest {
         @DisplayName("Selectors.writes().ap() should expose commitLevel")
         void testSelectorsWritesAp() {
             Behavior behavior = Behavior.DEFAULT.deriveWithChanges("test", builder -> builder
-                    .on(Selectors.writes().ap(), ops -> ops
-                            .commitLevel(CommitLevel.COMMIT_MASTER)
-                    )
-            );
+                .on(Selectors.writes().ap(), ops -> ops
+                    .commitLevel(CommitLevel.COMMIT_MASTER)));
 
-            Settings writePointAp = behavior.getSettings(OpKind.WRITE_RETRYABLE, OpShape.POINT, Mode.AP);
+            Settings writePointAp =
+                behavior.getSettings(OpKind.WRITE_RETRYABLE, OpShape.POINT, Mode.AP);
             assertEquals(CommitLevel.COMMIT_MASTER, writePointAp.commitLevel);
 
             // Should not affect CP
-            Settings writePointCp = behavior.getSettings(OpKind.WRITE_RETRYABLE, OpShape.POINT, Mode.CP);
+            Settings writePointCp =
+                behavior.getSettings(OpKind.WRITE_RETRYABLE, OpShape.POINT, Mode.CP);
             assertNull(writePointCp.commitLevel);
         }
 
@@ -413,16 +408,16 @@ public class BehaviorTest {
         @DisplayName("Selectors.writes().retryable() should configure only retryable writes")
         void testSelectorsWritesRetryable() {
             Behavior behavior = Behavior.DEFAULT.deriveWithChanges("test", builder -> builder
-                    .on(Selectors.writes().retryable(), ops -> ops
-                            .maximumNumberOfCallAttempts(10)
-                    )
-            );
+                .on(Selectors.writes().retryable(), ops -> ops
+                    .maximumNumberOfCallAttempts(10)));
 
-            Settings writeRetryable = behavior.getSettings(OpKind.WRITE_RETRYABLE, OpShape.POINT, Mode.AP);
+            Settings writeRetryable =
+                behavior.getSettings(OpKind.WRITE_RETRYABLE, OpShape.POINT, Mode.AP);
             assertEquals(10, writeRetryable.maximumNumberOfCallAttempts);
 
             // Should not affect non-retryable - should have DEFAULT value
-            Settings writeNonRetryable = behavior.getSettings(OpKind.WRITE_NON_RETRYABLE, OpShape.POINT, Mode.AP);
+            Settings writeNonRetryable =
+                behavior.getSettings(OpKind.WRITE_NON_RETRYABLE, OpShape.POINT, Mode.AP);
             assertEquals(1, writeNonRetryable.maximumNumberOfCallAttempts); // DEFAULT value from Selectors.all()
         }
 
@@ -430,16 +425,16 @@ public class BehaviorTest {
         @DisplayName("Selectors.writes().nonRetryable() should configure only non-retryable writes")
         void testSelectorsWritesNonRetryable() {
             Behavior behavior = Behavior.DEFAULT.deriveWithChanges("test", builder -> builder
-                    .on(Selectors.writes().nonRetryable(), ops -> ops
-                            .maximumNumberOfCallAttempts(1)
-                    )
-            );
+                .on(Selectors.writes().nonRetryable(), ops -> ops
+                    .maximumNumberOfCallAttempts(1)));
 
-            Settings writeNonRetryable = behavior.getSettings(OpKind.WRITE_NON_RETRYABLE, OpShape.POINT, Mode.AP);
+            Settings writeNonRetryable =
+                behavior.getSettings(OpKind.WRITE_NON_RETRYABLE, OpShape.POINT, Mode.AP);
             assertEquals(1, writeNonRetryable.maximumNumberOfCallAttempts);
 
             // Should not affect retryable - should have DEFAULT value
-            Settings writeRetryable = behavior.getSettings(OpKind.WRITE_RETRYABLE, OpShape.POINT, Mode.AP);
+            Settings writeRetryable =
+                behavior.getSettings(OpKind.WRITE_RETRYABLE, OpShape.POINT, Mode.AP);
             assertEquals(3, writeRetryable.maximumNumberOfCallAttempts); // DEFAULT value for retryable writes
         }
 
@@ -447,20 +442,21 @@ public class BehaviorTest {
         @DisplayName("Selectors.writes().point() should configure point writes (retryability-agnostic)")
         void testSelectorsWritesPoint() {
             Behavior behavior = Behavior.DEFAULT.deriveWithChanges("test", builder -> builder
-                    .on(Selectors.writes().point(), ops -> ops
-                            .maximumNumberOfCallAttempts(5)
-                    )
-            );
+                .on(Selectors.writes().point(), ops -> ops
+                    .maximumNumberOfCallAttempts(5)));
 
             // Should apply to both retryable and non-retryable point writes
-            Settings writeRetryablePoint = behavior.getSettings(OpKind.WRITE_RETRYABLE, OpShape.POINT, Mode.AP);
+            Settings writeRetryablePoint =
+                behavior.getSettings(OpKind.WRITE_RETRYABLE, OpShape.POINT, Mode.AP);
             assertEquals(5, writeRetryablePoint.maximumNumberOfCallAttempts);
 
-            Settings writeNonRetryablePoint = behavior.getSettings(OpKind.WRITE_NON_RETRYABLE, OpShape.POINT, Mode.AP);
+            Settings writeNonRetryablePoint =
+                behavior.getSettings(OpKind.WRITE_NON_RETRYABLE, OpShape.POINT, Mode.AP);
             assertEquals(5, writeNonRetryablePoint.maximumNumberOfCallAttempts);
 
             // Should not affect batch - should have DEFAULT value
-            Settings writeRetryableBatch = behavior.getSettings(OpKind.WRITE_RETRYABLE, OpShape.BATCH, Mode.AP);
+            Settings writeRetryableBatch =
+                behavior.getSettings(OpKind.WRITE_RETRYABLE, OpShape.BATCH, Mode.AP);
             assertEquals(3, writeRetryableBatch.maximumNumberOfCallAttempts); // DEFAULT value for retryable writes
         }
 
@@ -468,17 +464,17 @@ public class BehaviorTest {
         @DisplayName("Selectors.writes().batch() should expose batch-specific methods")
         void testSelectorsWritesBatch() {
             Behavior behavior = Behavior.DEFAULT.deriveWithChanges("test", builder -> builder
-                    .on(Selectors.writes().batch(), ops -> ops
-                            .maxConcurrentNodes(12)
-                            .allowInlineMemoryAccess(true)
-                    )
-            );
+                .on(Selectors.writes().batch(), ops -> ops
+                    .maxConcurrentNodes(12)
+                    .allowInlineMemoryAccess(true)));
 
             // Should apply to both retryable and non-retryable batch writes
-            Settings writeRetryableBatch = behavior.getSettings(OpKind.WRITE_RETRYABLE, OpShape.BATCH, Mode.AP);
+            Settings writeRetryableBatch =
+                behavior.getSettings(OpKind.WRITE_RETRYABLE, OpShape.BATCH, Mode.AP);
             assertEquals(12, writeRetryableBatch.maxConcurrentNodes);
 
-            Settings writeNonRetryableBatch = behavior.getSettings(OpKind.WRITE_NON_RETRYABLE, OpShape.BATCH, Mode.AP);
+            Settings writeNonRetryableBatch =
+                behavior.getSettings(OpKind.WRITE_NON_RETRYABLE, OpShape.BATCH, Mode.AP);
             assertEquals(12, writeNonRetryableBatch.maxConcurrentNodes);
         }
 
@@ -486,20 +482,20 @@ public class BehaviorTest {
         @DisplayName("Selectors.writes().retryable().point().ap() should expose all relevant methods")
         void testSelectorsWritesRetryablePointAp() {
             Behavior behavior = Behavior.DEFAULT.deriveWithChanges("test", builder -> builder
-                    .on(Selectors.writes().retryable().point().ap(), ops -> ops
-                            .maximumNumberOfCallAttempts(9)
-                            .commitLevel(CommitLevel.COMMIT_ALL)
-                            .useDurableDelete(false)
-                    )
-            );
+                .on(Selectors.writes().retryable().point().ap(), ops -> ops
+                    .maximumNumberOfCallAttempts(9)
+                    .commitLevel(CommitLevel.COMMIT_ALL)
+                    .useDurableDelete(false)));
 
-            Settings settings = behavior.getSettings(OpKind.WRITE_RETRYABLE, OpShape.POINT, Mode.AP);
+            Settings settings =
+                behavior.getSettings(OpKind.WRITE_RETRYABLE, OpShape.POINT, Mode.AP);
             assertEquals(9, settings.maximumNumberOfCallAttempts);
             assertEquals(CommitLevel.COMMIT_ALL, settings.commitLevel);
             assertFalse(settings.useDurableDelete);
 
             // Should not affect non-retryable - should have DEFAULT value
-            Settings nonRetryable = behavior.getSettings(OpKind.WRITE_NON_RETRYABLE, OpShape.POINT, Mode.AP);
+            Settings nonRetryable =
+                behavior.getSettings(OpKind.WRITE_NON_RETRYABLE, OpShape.POINT, Mode.AP);
             assertEquals(1, nonRetryable.maximumNumberOfCallAttempts); // DEFAULT value from Selectors.all()
         }
 
@@ -507,16 +503,16 @@ public class BehaviorTest {
         @DisplayName("Selectors.writes().point().ap() should configure both retryable and non-retryable")
         void testSelectorsWritesPointAp() {
             Behavior behavior = Behavior.DEFAULT.deriveWithChanges("test", builder -> builder
-                    .on(Selectors.writes().point().ap(), ops -> ops
-                            .commitLevel(CommitLevel.COMMIT_MASTER)
-                    )
-            );
+                .on(Selectors.writes().point().ap(), ops -> ops
+                    .commitLevel(CommitLevel.COMMIT_MASTER)));
 
             // Should apply to both retryable and non-retryable
-            Settings writeRetryable = behavior.getSettings(OpKind.WRITE_RETRYABLE, OpShape.POINT, Mode.AP);
+            Settings writeRetryable =
+                behavior.getSettings(OpKind.WRITE_RETRYABLE, OpShape.POINT, Mode.AP);
             assertEquals(CommitLevel.COMMIT_MASTER, writeRetryable.commitLevel);
 
-            Settings writeNonRetryable = behavior.getSettings(OpKind.WRITE_NON_RETRYABLE, OpShape.POINT, Mode.AP);
+            Settings writeNonRetryable =
+                behavior.getSettings(OpKind.WRITE_NON_RETRYABLE, OpShape.POINT, Mode.AP);
             assertEquals(CommitLevel.COMMIT_MASTER, writeNonRetryable.commitLevel);
         }
     }
@@ -529,19 +525,14 @@ public class BehaviorTest {
         @DisplayName("More specific selectors should override less specific ones")
         void testSpecificOverridesGeneral() {
             Behavior behavior = Behavior.DEFAULT.deriveWithChanges("test", builder -> builder
-                    .on(Selectors.all(), ops -> ops
-                            .maximumNumberOfCallAttempts(1)
-                    )
-                    .on(Selectors.reads(), ops -> ops
-                            .maximumNumberOfCallAttempts(2)
-                    )
-                    .on(Selectors.reads().batch(), ops -> ops
-                            .maximumNumberOfCallAttempts(3)
-                    )
-                    .on(Selectors.reads().batch().ap(), ops -> ops
-                            .maximumNumberOfCallAttempts(4)
-                    )
-            );
+                .on(Selectors.all(), ops -> ops
+                    .maximumNumberOfCallAttempts(1))
+                .on(Selectors.reads(), ops -> ops
+                    .maximumNumberOfCallAttempts(2))
+                .on(Selectors.reads().batch(), ops -> ops
+                    .maximumNumberOfCallAttempts(3))
+                .on(Selectors.reads().batch().ap(), ops -> ops
+                    .maximumNumberOfCallAttempts(4)));
 
             // Most specific wins
             Settings readBatchAp = behavior.getSettings(OpKind.READ, OpShape.BATCH, Mode.AP);
@@ -556,7 +547,8 @@ public class BehaviorTest {
             assertEquals(2, readPointAp.maximumNumberOfCallAttempts);
 
             // Least specific for writes
-            Settings writePointAp = behavior.getSettings(OpKind.WRITE_RETRYABLE, OpShape.POINT, Mode.AP);
+            Settings writePointAp =
+                behavior.getSettings(OpKind.WRITE_RETRYABLE, OpShape.POINT, Mode.AP);
             assertEquals(1, writePointAp.maximumNumberOfCallAttempts);
         }
 
@@ -564,13 +556,10 @@ public class BehaviorTest {
         @DisplayName("Later configurations should override earlier ones at same specificity")
         void testLaterOverridesEarlier() {
             Behavior behavior = Behavior.DEFAULT.deriveWithChanges("test", builder -> builder
-                    .on(Selectors.reads().ap(), ops -> ops
-                            .readMode(ReadModeAP.ONE)
-                    )
-                    .on(Selectors.reads().ap(), ops -> ops
-                            .readMode(ReadModeAP.ALL)
-                    )
-            );
+                .on(Selectors.reads().ap(), ops -> ops
+                    .readMode(ReadModeAP.ONE))
+                .on(Selectors.reads().ap(), ops -> ops
+                    .readMode(ReadModeAP.ALL)));
 
             Settings readPointAp = behavior.getSettings(OpKind.READ, OpShape.POINT, Mode.AP);
             assertEquals(ReadModeAP.ALL, readPointAp.readModeAP);
@@ -580,14 +569,11 @@ public class BehaviorTest {
         @DisplayName("Different attributes should merge, not replace")
         void testAttributesMerge() {
             Behavior behavior = Behavior.DEFAULT.deriveWithChanges("test", builder -> builder
-                    .on(Selectors.all(), ops -> ops
-                            .maximumNumberOfCallAttempts(5)
-                            .sendKey(true)
-                    )
-                    .on(Selectors.reads().ap(), ops -> ops
-                            .readMode(ReadModeAP.ONE)
-                    )
-            );
+                .on(Selectors.all(), ops -> ops
+                    .maximumNumberOfCallAttempts(5)
+                    .sendKey(true))
+                .on(Selectors.reads().ap(), ops -> ops
+                    .readMode(ReadModeAP.ONE)));
 
             Settings readPointAp = behavior.getSettings(OpKind.READ, OpShape.POINT, Mode.AP);
             // Should have both
@@ -600,13 +586,10 @@ public class BehaviorTest {
         @DisplayName("Mode-specific settings should not affect other modes")
         void testModeIsolation() {
             Behavior behavior = Behavior.DEFAULT.deriveWithChanges("test", builder -> builder
-                    .on(Selectors.reads().ap(), ops -> ops
-                            .readMode(ReadModeAP.ONE)
-                    )
-                    .on(Selectors.reads().cp(), ops -> ops
-                            .consistency(ReadModeSC.LINEARIZE)
-                    )
-            );
+                .on(Selectors.reads().ap(), ops -> ops
+                    .readMode(ReadModeAP.ONE))
+                .on(Selectors.reads().cp(), ops -> ops
+                    .consistency(ReadModeSC.LINEARIZE)));
 
             Settings readAp = behavior.getSettings(OpKind.READ, OpShape.POINT, Mode.AP);
             assertEquals(ReadModeAP.ONE, readAp.readModeAP);
@@ -621,10 +604,8 @@ public class BehaviorTest {
         @DisplayName("Shape-specific settings should not affect other shapes")
         void testShapeIsolation() {
             Behavior behavior = Behavior.DEFAULT.deriveWithChanges("test", builder -> builder
-                    .on(Selectors.reads().batch(), ops -> ops
-                            .maxConcurrentNodes(10)
-                    )
-            );
+                .on(Selectors.reads().batch(), ops -> ops
+                    .maxConcurrentNodes(10)));
 
             Settings readBatch = behavior.getSettings(OpKind.READ, OpShape.BATCH, Mode.AP);
             assertEquals(10, readBatch.maxConcurrentNodes);
@@ -637,18 +618,17 @@ public class BehaviorTest {
         @DisplayName("Retryability-specific settings should not cross over")
         void testRetryabilityIsolation() {
             Behavior behavior = Behavior.DEFAULT.deriveWithChanges("test", builder -> builder
-                    .on(Selectors.writes().retryable(), ops -> ops
-                            .maximumNumberOfCallAttempts(10)
-                    )
-                    .on(Selectors.writes().nonRetryable(), ops -> ops
-                            .maximumNumberOfCallAttempts(1)
-                    )
-            );
+                .on(Selectors.writes().retryable(), ops -> ops
+                    .maximumNumberOfCallAttempts(10))
+                .on(Selectors.writes().nonRetryable(), ops -> ops
+                    .maximumNumberOfCallAttempts(1)));
 
-            Settings retryable = behavior.getSettings(OpKind.WRITE_RETRYABLE, OpShape.POINT, Mode.AP);
+            Settings retryable =
+                behavior.getSettings(OpKind.WRITE_RETRYABLE, OpShape.POINT, Mode.AP);
             assertEquals(10, retryable.maximumNumberOfCallAttempts);
 
-            Settings nonRetryable = behavior.getSettings(OpKind.WRITE_NON_RETRYABLE, OpShape.POINT, Mode.AP);
+            Settings nonRetryable =
+                behavior.getSettings(OpKind.WRITE_NON_RETRYABLE, OpShape.POINT, Mode.AP);
             assertEquals(1, nonRetryable.maximumNumberOfCallAttempts);
         }
     }
@@ -661,13 +641,12 @@ public class BehaviorTest {
         @DisplayName("Child should inherit all settings from parent")
         void testChildInheritsFromParent() {
             Behavior parent = Behavior.DEFAULT.deriveWithChanges("parent", builder -> builder
-                    .on(Selectors.all(), ops -> ops
-                            .maximumNumberOfCallAttempts(5)
-                            .sendKey(false)
-                    )
-            );
+                .on(Selectors.all(), ops -> ops
+                    .maximumNumberOfCallAttempts(5)
+                    .sendKey(false)));
 
-            Behavior child = parent.deriveWithChanges("child", builder -> {});
+            Behavior child = parent.deriveWithChanges("child", builder -> {
+            });
 
             Settings childSettings = child.getSettings(OpKind.READ, OpShape.POINT, Mode.AP);
             assertEquals(5, childSettings.maximumNumberOfCallAttempts);
@@ -678,17 +657,13 @@ public class BehaviorTest {
         @DisplayName("Child should override parent settings")
         void testChildOverridesParent() {
             Behavior parent = Behavior.DEFAULT.deriveWithChanges("parent", builder -> builder
-                    .on(Selectors.all(), ops -> ops
-                            .maximumNumberOfCallAttempts(5)
-                            .sendKey(false)
-                    )
-            );
+                .on(Selectors.all(), ops -> ops
+                    .maximumNumberOfCallAttempts(5)
+                    .sendKey(false)));
 
             Behavior child = parent.deriveWithChanges("child", builder -> builder
-                    .on(Selectors.all(), ops -> ops
-                            .maximumNumberOfCallAttempts(10)
-                    )
-            );
+                .on(Selectors.all(), ops -> ops
+                    .maximumNumberOfCallAttempts(10)));
 
             Settings childSettings = child.getSettings(OpKind.READ, OpShape.POINT, Mode.AP);
             assertEquals(10, childSettings.maximumNumberOfCallAttempts); // Overridden
@@ -699,16 +674,12 @@ public class BehaviorTest {
         @DisplayName("deriveWithChanges should create proper parent-child relationship")
         void testDeriveWithChanges() {
             Behavior parent = Behavior.DEFAULT.deriveWithChanges("parent", builder -> builder
-                    .on(Selectors.all(), ops -> ops
-                            .maximumNumberOfCallAttempts(5)
-                    )
-            );
+                .on(Selectors.all(), ops -> ops
+                    .maximumNumberOfCallAttempts(5)));
 
             Behavior child = parent.deriveWithChanges("child", builder -> builder
-                    .on(Selectors.reads().ap(), ops -> ops
-                            .readMode(ReadModeAP.ONE)
-                    )
-            );
+                .on(Selectors.reads().ap(), ops -> ops
+                    .readMode(ReadModeAP.ONE)));
 
             // Should inherit from parent
             Settings childSettings = child.getSettings(OpKind.READ, OpShape.POINT, Mode.AP);
@@ -724,25 +695,20 @@ public class BehaviorTest {
         @Test
         @DisplayName("Multi-level inheritance should work correctly")
         void testMultiLevelInheritance() {
-            Behavior grandparent = Behavior.DEFAULT.deriveWithChanges("grandparent", builder -> builder
+            Behavior grandparent = Behavior.DEFAULT.deriveWithChanges("grandparent",
+                builder -> builder
                     .on(Selectors.all(), ops -> ops
-                            .maximumNumberOfCallAttempts(1)
-                            .sendKey(true)
-                            .useCompression(false)
-                    )
-            );
+                        .maximumNumberOfCallAttempts(1)
+                        .sendKey(true)
+                        .useCompression(false)));
 
             Behavior parent = grandparent.deriveWithChanges("parent", builder -> builder
-                    .on(Selectors.all(), ops -> ops
-                            .maximumNumberOfCallAttempts(2)
-                    )
-            );
+                .on(Selectors.all(), ops -> ops
+                    .maximumNumberOfCallAttempts(2)));
 
             Behavior child = parent.deriveWithChanges("child", builder -> builder
-                    .on(Selectors.all(), ops -> ops
-                            .maximumNumberOfCallAttempts(3)
-                    )
-            );
+                .on(Selectors.all(), ops -> ops
+                    .maximumNumberOfCallAttempts(3)));
 
             Settings childSettings = child.getSettings(OpKind.READ, OpShape.POINT, Mode.AP);
             assertEquals(3, childSettings.maximumNumberOfCallAttempts); // From child
@@ -753,8 +719,10 @@ public class BehaviorTest {
         @Test
         @DisplayName("getParent should return correct parent")
         void testGetParent() {
-            Behavior parent = Behavior.DEFAULT.deriveWithChanges("parent", builder -> {});
-            Behavior child = parent.deriveWithChanges("child", builder -> {});
+            Behavior parent = Behavior.DEFAULT.deriveWithChanges("parent", builder -> {
+            });
+            Behavior child = parent.deriveWithChanges("child", builder -> {
+            });
 
             assertEquals(parent, child.getParent());
             assertEquals(Behavior.DEFAULT, parent.getParent()); // Parent's parent is DEFAULT
@@ -764,9 +732,12 @@ public class BehaviorTest {
         @Test
         @DisplayName("getChildren should return all children")
         void testGetChildren() {
-            Behavior parent = Behavior.DEFAULT.deriveWithChanges("parent", builder -> {});
-            Behavior child1 = parent.deriveWithChanges("child1", builder -> builder.on(Selectors.all(), x -> x.maximumNumberOfCallAttempts(3)));
-            Behavior child2 = parent.deriveWithChanges("child2", builder -> builder.on(Selectors.all(), x -> x.maximumNumberOfCallAttempts(3)));
+            Behavior parent = Behavior.DEFAULT.deriveWithChanges("parent", builder -> {
+            });
+            Behavior child1 = parent.deriveWithChanges("child1",
+                builder -> builder.on(Selectors.all(), x -> x.maximumNumberOfCallAttempts(3)));
+            Behavior child2 = parent.deriveWithChanges("child2",
+                builder -> builder.on(Selectors.all(), x -> x.maximumNumberOfCallAttempts(3)));
 
             List<Behavior> children = parent.getChildren();
             assertEquals(2, children.size());
@@ -783,15 +754,13 @@ public class BehaviorTest {
         @DisplayName("Settings.asWritePolicy should convert correctly")
         void testAsWritePolicy() {
             Behavior.DEFAULT.deriveWithChanges("test", builder -> builder
-                    .on(Selectors.writes().retryable().point().ap(), ops -> ops
-                            .abandonCallAfter(Duration.ofSeconds(10))
-                            .commitLevel(CommitLevel.COMMIT_MASTER)
-                            .useCompression(true)
-                            .useDurableDelete(true)
-                            .maximumNumberOfCallAttempts(5)
-                            .sendKey(false)
-                    )
-            );
+                .on(Selectors.writes().retryable().point().ap(), ops -> ops
+                    .abandonCallAfter(Duration.ofSeconds(10))
+                    .commitLevel(CommitLevel.COMMIT_MASTER)
+                    .useCompression(true)
+                    .useDurableDelete(true)
+                    .maximumNumberOfCallAttempts(5)
+                    .sendKey(false)));
         }
     }
 
@@ -802,7 +771,8 @@ public class BehaviorTest {
         @Test
         @DisplayName("Empty derived behavior should inherit DEFAULT settings")
         void testEmptyBehavior() {
-            Behavior behavior = Behavior.DEFAULT.deriveWithChanges("empty", builder -> {});
+            Behavior behavior = Behavior.DEFAULT.deriveWithChanges("empty", builder -> {
+            });
 
             Settings settings = behavior.getSettings(OpKind.READ, OpShape.POINT, Mode.AP);
             assertNotNull(settings, "Should inherit from DEFAULT");
@@ -814,7 +784,8 @@ public class BehaviorTest {
         @Test
         @DisplayName("getName should return correct name")
         void testGetName() {
-            Behavior behavior = Behavior.DEFAULT.deriveWithChanges("testName", builder -> {});
+            Behavior behavior = Behavior.DEFAULT.deriveWithChanges("testName", builder -> {
+            });
             assertEquals("testName", behavior.getName());
         }
 
@@ -828,10 +799,8 @@ public class BehaviorTest {
         @DisplayName("clearCache should recompute settings")
         void testClearCache() {
             Behavior behavior = Behavior.DEFAULT.deriveWithChanges("test", builder -> builder
-                    .on(Selectors.all(), ops -> ops
-                            .maximumNumberOfCallAttempts(5)
-                    )
-            );
+                .on(Selectors.all(), ops -> ops
+                    .maximumNumberOfCallAttempts(5)));
 
             Settings before = behavior.getSettings(OpKind.READ, OpShape.POINT, Mode.AP);
             assertEquals(5, before.maximumNumberOfCallAttempts);
@@ -847,10 +816,8 @@ public class BehaviorTest {
         @DisplayName("explain should return non-empty string")
         void testExplain() {
             Behavior behavior = Behavior.DEFAULT.deriveWithChanges("test", builder -> builder
-                    .on(Selectors.all(), ops -> ops
-                            .maximumNumberOfCallAttempts(5)
-                    )
-            );
+                .on(Selectors.all(), ops -> ops
+                    .maximumNumberOfCallAttempts(5)));
 
             String explanation = behavior.explain();
             assertNotNull(explanation);
@@ -868,18 +835,16 @@ public class BehaviorTest {
         @DisplayName("All common attributes should be settable and retrievable")
         void testAllCommonAttributes() {
             Behavior behavior = Behavior.DEFAULT.deriveWithChanges("test", builder -> builder
-                    .on(Selectors.all(), ops -> ops
-                            .abandonCallAfter(Duration.ofSeconds(99))
-                            .delayBetweenRetries(Duration.ofMillis(999))
-                            .maximumNumberOfCallAttempts(99)
-                            .replicaOrder(Replica.SEQUENCE)
-                            .sendKey(true)
-                            .useCompression(true)
-                            .waitForCallToComplete(Duration.ofSeconds(88))
-                            .waitForConnectionToComplete(Duration.ofSeconds(77))
-                            .waitForSocketResponseAfterCallFails(Duration.ofSeconds(66))
-                    )
-            );
+                .on(Selectors.all(), ops -> ops
+                    .abandonCallAfter(Duration.ofSeconds(99))
+                    .delayBetweenRetries(Duration.ofMillis(999))
+                    .maximumNumberOfCallAttempts(99)
+                    .replicaOrder(Replica.SEQUENCE)
+                    .sendKey(true)
+                    .useCompression(true)
+                    .waitForCallToComplete(Duration.ofSeconds(88))
+                    .waitForConnectionToComplete(Duration.ofSeconds(77))
+                    .waitForSocketResponseAfterCallFails(Duration.ofSeconds(66))));
 
             Settings settings = behavior.getSettings(OpKind.READ, OpShape.POINT, Mode.AP);
             assertEquals(Duration.ofSeconds(99), settings.abandonCallAfter);
@@ -897,12 +862,10 @@ public class BehaviorTest {
         @DisplayName("All batch attributes should be settable and retrievable")
         void testAllBatchAttributes() {
             Behavior behavior = Behavior.DEFAULT.deriveWithChanges("test", builder -> builder
-                    .on(Selectors.reads().batch(), ops -> ops
-                            .maxConcurrentNodes(99)
-                            .allowInlineMemoryAccess(true)
-                            .allowInlineSsdAccess(true)
-                    )
-            );
+                .on(Selectors.reads().batch(), ops -> ops
+                    .maxConcurrentNodes(99)
+                    .allowInlineMemoryAccess(true)
+                    .allowInlineSsdAccess(true)));
 
             Settings settings = behavior.getSettings(OpKind.READ, OpShape.BATCH, Mode.AP);
             assertEquals(99, settings.maxConcurrentNodes);
@@ -914,10 +877,8 @@ public class BehaviorTest {
         @DisplayName("All query attributes should be settable and retrievable")
         void testAllQueryAttributes() {
             Behavior behavior = Behavior.DEFAULT.deriveWithChanges("test", builder -> builder
-                    .on(Selectors.reads().query(), ops -> ops
-                            .recordQueueSize(99999)
-                    )
-            );
+                .on(Selectors.reads().query(), ops -> ops
+                    .recordQueueSize(99999)));
 
             Settings settings = behavior.getSettings(OpKind.READ, OpShape.QUERY, Mode.AP);
             assertEquals(99999, settings.recordQueueSize);
@@ -927,10 +888,8 @@ public class BehaviorTest {
         @DisplayName("All read attributes should be settable and retrievable")
         void testAllReadAttributes() {
             Behavior behavior = Behavior.DEFAULT.deriveWithChanges("test", builder -> builder
-                    .on(Selectors.reads(), ops -> ops
-                            .resetTtlOnReadAtPercent(99)
-                    )
-            );
+                .on(Selectors.reads(), ops -> ops
+                    .resetTtlOnReadAtPercent(99)));
 
             Settings settings = behavior.getSettings(OpKind.READ, OpShape.POINT, Mode.AP);
             assertEquals(99, settings.resetTtlOnReadAtPercent);
@@ -940,11 +899,9 @@ public class BehaviorTest {
         @DisplayName("All read AP attributes should be settable and retrievable")
         void testAllReadApAttributes() {
             Behavior behavior = Behavior.DEFAULT.deriveWithChanges("test", builder -> builder
-                    .on(Selectors.reads().ap(), ops -> ops
-                            .readMode(ReadModeAP.ONE)
-                            .resetTtlOnReadAtPercent(88)
-                    )
-            );
+                .on(Selectors.reads().ap(), ops -> ops
+                    .readMode(ReadModeAP.ONE)
+                    .resetTtlOnReadAtPercent(88)));
 
             Settings settings = behavior.getSettings(OpKind.READ, OpShape.POINT, Mode.AP);
             assertEquals(ReadModeAP.ONE, settings.readModeAP);
@@ -955,11 +912,9 @@ public class BehaviorTest {
         @DisplayName("All read CP attributes should be settable and retrievable")
         void testAllReadCpAttributes() {
             Behavior behavior = Behavior.DEFAULT.deriveWithChanges("test", builder -> builder
-                    .on(Selectors.reads().cp(), ops -> ops
-                            .consistency(ReadModeSC.ALLOW_REPLICA)
-                            .resetTtlOnReadAtPercent(77)
-                    )
-            );
+                .on(Selectors.reads().cp(), ops -> ops
+                    .consistency(ReadModeSC.ALLOW_REPLICA)
+                    .resetTtlOnReadAtPercent(77)));
 
             Settings settings = behavior.getSettings(OpKind.READ, OpShape.POINT, Mode.CP);
             assertEquals(ReadModeSC.ALLOW_REPLICA, settings.readModeSC);
@@ -970,13 +925,12 @@ public class BehaviorTest {
         @DisplayName("All write attributes should be settable and retrievable")
         void testAllWriteAttributes() {
             Behavior behavior = Behavior.DEFAULT.deriveWithChanges("test", builder -> builder
-                    .on(Selectors.writes(), ops -> ops
-                            .useDurableDelete(true)
-                            .simulateXdrWrite(true)
-                    )
-            );
+                .on(Selectors.writes(), ops -> ops
+                    .useDurableDelete(true)
+                    .simulateXdrWrite(true)));
 
-            Settings settings = behavior.getSettings(OpKind.WRITE_RETRYABLE, OpShape.POINT, Mode.AP);
+            Settings settings =
+                behavior.getSettings(OpKind.WRITE_RETRYABLE, OpShape.POINT, Mode.AP);
             assertTrue(settings.useDurableDelete);
             assertTrue(settings.simulateXdrWrite);
         }
@@ -985,12 +939,11 @@ public class BehaviorTest {
         @DisplayName("All write AP attributes should be settable and retrievable")
         void testAllWriteApAttributes() {
             Behavior behavior = Behavior.DEFAULT.deriveWithChanges("test", builder -> builder
-                    .on(Selectors.writes().ap(), ops -> ops
-                            .commitLevel(CommitLevel.COMMIT_MASTER)
-                    )
-            );
+                .on(Selectors.writes().ap(), ops -> ops
+                    .commitLevel(CommitLevel.COMMIT_MASTER)));
 
-            Settings settings = behavior.getSettings(OpKind.WRITE_RETRYABLE, OpShape.POINT, Mode.AP);
+            Settings settings =
+                behavior.getSettings(OpKind.WRITE_RETRYABLE, OpShape.POINT, Mode.AP);
             assertEquals(CommitLevel.COMMIT_MASTER, settings.commitLevel);
         }
     }

@@ -41,13 +41,19 @@ public class SystemBehaviorTest {
         Behavior behavior = Behavior.DEFAULT;
 
         // Get settings for txnVerify
-        Settings settings = behavior.getSettings(OpKind.SYSTEM_TXN_VERIFY, OpShape.SYSTEM, Mode.ANY);
+        Settings settings =
+            behavior.getSettings(OpKind.SYSTEM_TXN_VERIFY, OpShape.SYSTEM, Mode.ANY);
 
         // Verify defaults as specified in the plan
-        assertEquals(6, settings.getMaximumNumberOfCallAttempts(), "Default maximumNumberOfCallAttempts should be 6");
-        assertEquals(Duration.ofSeconds(3), Duration.ofMillis(settings.getWaitForCallToCompleteMs()), "Default waitForCallToComplete should be 3 seconds");
-        assertEquals(Duration.ofSeconds(10), Duration.ofMillis(settings.getAbandonCallAfterMs()), "Default abandonCallAfter should be 10 seconds");
-        assertEquals(Duration.ofSeconds(1), Duration.ofMillis(settings.getDelayBetweenRetriesMs()), "Default delayBetweenRetries should be 1 second");
+        assertEquals(6, settings.getMaximumNumberOfCallAttempts(),
+            "Default maximumNumberOfCallAttempts should be 6");
+        assertEquals(Duration.ofSeconds(3),
+            Duration.ofMillis(settings.getWaitForCallToCompleteMs()),
+            "Default waitForCallToComplete should be 3 seconds");
+        assertEquals(Duration.ofSeconds(10), Duration.ofMillis(settings.getAbandonCallAfterMs()),
+            "Default abandonCallAfter should be 10 seconds");
+        assertEquals(Duration.ofSeconds(1), Duration.ofMillis(settings.getDelayBetweenRetriesMs()),
+            "Default delayBetweenRetries should be 1 second");
     }
 
     @Test
@@ -60,11 +66,10 @@ public class SystemBehaviorTest {
                 .maximumNumberOfCallAttempts(10)
                 .waitForCallToComplete(Duration.ofSeconds(5))
                 .abandonCallAfter(Duration.ofSeconds(15))
-                .delayBetweenRetries(Duration.ofSeconds(2))
-            )
-        );
+                .delayBetweenRetries(Duration.ofSeconds(2))));
 
-        Settings settings = behavior.getSettings(OpKind.SYSTEM_TXN_VERIFY, OpShape.SYSTEM, Mode.ANY);
+        Settings settings =
+            behavior.getSettings(OpKind.SYSTEM_TXN_VERIFY, OpShape.SYSTEM, Mode.ANY);
 
         assertEquals(ReadModeSC.LINEARIZE, settings.getReadModeSC());
         assertEquals(Replica.MASTER, settings.getReplicaOrder());
@@ -81,7 +86,8 @@ public class SystemBehaviorTest {
 
         // Verify defaults as specified in the plan
         assertEquals(6, settings.getMaximumNumberOfCallAttempts());
-        assertEquals(Duration.ofSeconds(3), Duration.ofMillis(settings.getWaitForCallToCompleteMs()));
+        assertEquals(Duration.ofSeconds(3),
+            Duration.ofMillis(settings.getWaitForCallToCompleteMs()));
         assertEquals(Duration.ofSeconds(10), Duration.ofMillis(settings.getAbandonCallAfterMs()));
         assertEquals(Duration.ofSeconds(1), Duration.ofMillis(settings.getDelayBetweenRetriesMs()));
     }
@@ -94,9 +100,7 @@ public class SystemBehaviorTest {
                 .maximumNumberOfCallAttempts(8)
                 .waitForCallToComplete(Duration.ofSeconds(4))
                 .abandonCallAfter(Duration.ofSeconds(12))
-                .delayBetweenRetries(Duration.ofMillis(500))
-            )
-        );
+                .delayBetweenRetries(Duration.ofMillis(500))));
 
         Settings settings = behavior.getSettings(OpKind.SYSTEM_TXN_ROLL, OpShape.SYSTEM, Mode.ANY);
 
@@ -124,12 +128,12 @@ public class SystemBehaviorTest {
     @Test
     public void testConnectionsCustomSettings() {
         SystemSettings settings = SystemSettings.builder()
-        	.connections(ops -> {
+            .connections(ops -> {
                 ops.minimumConnectionsPerNode(10);
                 ops.maximumConnectionsPerNode(200);
                 ops.maximumSocketIdleTime(Duration.ofSeconds(120));
-        	})
-        	.build();
+            })
+            .build();
 
         assertEquals(10, settings.getMinimumConnectionsPerNode());
         assertEquals(200, settings.getMaximumConnectionsPerNode());
@@ -142,7 +146,7 @@ public class SystemBehaviorTest {
         SystemSettings defaults = registry.getDefaultSettings();
 
         ClusterDefinition def = new ClusterDefinition("host", 3000)
-        	.withSystemSettings(defaults);
+            .withSystemSettings(defaults);
 
         // Verify defaults as specified in the plan
         assertEquals(1, def.getNumTendIntervalsInErrorWindow());
@@ -152,11 +156,11 @@ public class SystemBehaviorTest {
     @Test
     public void testCircuitBreakerCustomSettings() {
         SystemSettings settings = SystemSettings.builder()
-        	.circuitBreaker(ops -> {
+            .circuitBreaker(ops -> {
                 ops.numTendIntervalsInErrorWindow(5);
                 ops.maximumErrorsInErrorWindow(50);
-        	})
-        	.build();
+            })
+            .build();
 
         assertEquals(5, settings.getNumTendIntervalsInErrorWindow());
         assertEquals(50, settings.getMaximumErrorsInErrorWindow());
@@ -177,10 +181,10 @@ public class SystemBehaviorTest {
     @Test
     public void testRefreshCustomSettings() {
         SystemSettings settings = SystemSettings.builder()
-        	.refresh(ops -> {
+            .refresh(ops -> {
                 ops.tendInterval(Duration.ofMillis(500));
-        	})
-        	.build();
+            })
+            .build();
 
         assertEquals(Duration.ofMillis(500), settings.getTendInterval());
     }
@@ -190,11 +194,10 @@ public class SystemBehaviorTest {
         // Verify that selector chaining works correctly
         Behavior behavior = Behavior.DEFAULT.deriveWithChanges("chainTest", builder -> builder
             .on(Behavior.Selectors.transaction().txnVerify(), ops -> ops
-                .maximumNumberOfCallAttempts(12)
-            )
-        );
+                .maximumNumberOfCallAttempts(12)));
 
-        Settings settings = behavior.getSettings(OpKind.SYSTEM_TXN_VERIFY, OpShape.SYSTEM, Mode.ANY);
+        Settings settings =
+            behavior.getSettings(OpKind.SYSTEM_TXN_VERIFY, OpShape.SYSTEM, Mode.ANY);
         assertEquals(12, settings.getMaximumNumberOfCallAttempts());
     }
 
@@ -203,19 +206,17 @@ public class SystemBehaviorTest {
         // Configure system settings and verify they don't affect read/write operations
         Behavior behavior = Behavior.DEFAULT.deriveWithChanges("isolated", builder -> builder
             .on(Behavior.Selectors.reads(), ops -> ops
-                .maximumNumberOfCallAttempts(5)
-            )
+                .maximumNumberOfCallAttempts(5))
             .on(Behavior.Selectors.writes(), ops -> ops
-                .maximumNumberOfCallAttempts(7)
-            )
-        );
+                .maximumNumberOfCallAttempts(7)));
 
         // Verify read settings
         Settings readSettings = behavior.getSettings(OpKind.READ, OpShape.BATCH, Mode.ANY);
         assertEquals(5, readSettings.getMaximumNumberOfCallAttempts());
 
         // Verify write settings
-        Settings writeSettings = behavior.getSettings(OpKind.WRITE_RETRYABLE, OpShape.BATCH, Mode.ANY);
+        Settings writeSettings =
+            behavior.getSettings(OpKind.WRITE_RETRYABLE, OpShape.BATCH, Mode.ANY);
         assertEquals(7, writeSettings.getMaximumNumberOfCallAttempts());
     }
 
@@ -225,14 +226,12 @@ public class SystemBehaviorTest {
         Behavior behavior = Behavior.DEFAULT.deriveWithChanges("multiSystem", builder -> builder
             .on(Behavior.Selectors.transaction().txnVerify(), ops -> ops
                 .consistency(ReadModeSC.LINEARIZE)
-                .maximumNumberOfCallAttempts(10)
-            )
-        );
+                .maximumNumberOfCallAttempts(10)));
 
         // Verify txnVerify
-        Settings txnVerifySettings = behavior.getSettings(OpKind.SYSTEM_TXN_VERIFY, OpShape.SYSTEM, Mode.ANY);
+        Settings txnVerifySettings =
+            behavior.getSettings(OpKind.SYSTEM_TXN_VERIFY, OpShape.SYSTEM, Mode.ANY);
         assertEquals(ReadModeSC.LINEARIZE, txnVerifySettings.getReadModeSC());
         assertEquals(10, txnVerifySettings.getMaximumNumberOfCallAttempts());
     }
 }
-

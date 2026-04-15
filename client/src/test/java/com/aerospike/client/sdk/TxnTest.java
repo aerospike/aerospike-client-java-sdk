@@ -31,443 +31,443 @@ import com.aerospike.client.sdk.command.Txn;
 import com.aerospike.client.sdk.policy.Behavior;
 
 public class TxnTest extends ClusterTest {
-	private static final String binName = "bin";
+    private static final String binName = "bin";
 
-	@BeforeAll
-	public static void requireSC() {
-		assumeTrue(args.scMode, "Transactions require strong consistency namespaces");
-	}
+    @BeforeAll
+    public static void requireSC() {
+        assumeTrue(args.scMode, "Transactions require strong consistency namespaces");
+    }
 
-	@Test
-	public void txnWrite() {
-		Key key = args.set.id("txnWrite");
+    @Test
+    public void txnWrite() {
+        Key key = args.set.id("txnWrite");
 
-		session.upsert(key)
-			.bins(binName)
-			.values("val1")
-			.execute();
+        session.upsert(key)
+            .bins(binName)
+            .values("val1")
+            .execute();
 
         session.doInTransaction(txnSession -> {
-        	RecordStream rs = txnSession.upsert(key)
-				.bins(binName)
-				.values("val2")
-				.execute();
+            RecordStream rs = txnSession.upsert(key)
+                .bins(binName)
+                .values("val2")
+                .execute();
 
-     		assertTrue(rs.hasNext());
-    		rs.next().recordOrThrow();
+            assertTrue(rs.hasNext());
+            rs.next().recordOrThrow();
         });
 
-		RecordStream rs = session.query(key).execute();
-		Record rec = rs.next().recordOrThrow();
-		assertEquals("val2", rec.getString(binName));
-	}
+        RecordStream rs = session.query(key).execute();
+        Record rec = rs.next().recordOrThrow();
+        assertEquals("val2", rec.getString(binName));
+    }
 
-	@Test
-	public void txnWriteTwice() {
-		Key key = args.set.id("txnWriteTwice");
+    @Test
+    public void txnWriteTwice() {
+        Key key = args.set.id("txnWriteTwice");
 
         session.doInTransaction(txnSession -> {
-			txnSession.upsert(key)
-				.bins(binName)
-				.values("val1")
-				.execute();
+            txnSession.upsert(key)
+                .bins(binName)
+                .values("val1")
+                .execute();
 
-			txnSession.upsert(key)
-				.bins(binName)
-				.values("val2")
-				.execute();
-	    });
+            txnSession.upsert(key)
+                .bins(binName)
+                .values("val2")
+                .execute();
+        });
 
-		RecordStream rs = session.query(key).execute();
-		Record record = rs.next().recordOrThrow();
-		assertEquals("val2", record.getString(binName));
-	}
+        RecordStream rs = session.query(key).execute();
+        Record record = rs.next().recordOrThrow();
+        assertEquals("val2", record.getString(binName));
+    }
 
-	@Test
-	public void txnWriteConflict() {
-		Key key = args.set.id("txnWriteConflict");
+    @Test
+    public void txnWriteConflict() {
+        Key key = args.set.id("txnWriteConflict");
 
         session.doInTransaction(txnSession1 -> {
-    		txnSession1.upsert(key)
-			.bins(binName)
-			.values("val1")
-			.execute();
+            txnSession1.upsert(key)
+            .bins(binName)
+            .values("val1")
+            .execute();
 
-    		session.doInTransaction(txnSession2 -> {
-    			AerospikeException ae = assertThrows(AerospikeException.class, () -> {
-    		        RecordStream rs = txnSession2.upsert(key)
-						.bins(binName)
-						.values("val2")
-						.execute();
+            session.doInTransaction(txnSession2 -> {
+                AerospikeException ae = assertThrows(AerospikeException.class, () -> {
+                    RecordStream rs = txnSession2.upsert(key)
+                        .bins(binName)
+                        .values("val2")
+                        .execute();
 
-    		        assertTrue(rs.hasNext());
-    		        rs.next().recordOrThrow();
-    			});
-    			assertEquals(ResultCode.MRT_BLOCKED, ae.getResultCode());
-    		});
-	    });
+                    assertTrue(rs.hasNext());
+                    rs.next().recordOrThrow();
+                });
+                assertEquals(ResultCode.MRT_BLOCKED, ae.getResultCode());
+            });
+        });
 
-		RecordStream rs = session.query(key).execute();
-		Record record = rs.next().recordOrThrow();
-		assertEquals("val1", record.getString(binName));
-	}
+        RecordStream rs = session.query(key).execute();
+        Record record = rs.next().recordOrThrow();
+        assertEquals("val1", record.getString(binName));
+    }
 
-	@Test
-	public void txnReadFailsForAllStatesExceptOpen() {
-		Object[][] testCases = new Object[][] {
-			{ Txn.State.OPEN, null },
-			{ Txn.State.COMMITTED, "it has been committed" },
-			{ Txn.State.ABORTED, "it has been aborted" },
-			{ Txn.State.VERIFIED, "it is currently being committed" }
-		};
-		Key key = args.set.id("txnReadFailsForAllStatesExceptOpen");
+    @Test
+    public void txnReadFailsForAllStatesExceptOpen() {
+        Object[][] testCases = new Object[][] {
+            { Txn.State.OPEN, null },
+            { Txn.State.COMMITTED, "it has been committed" },
+            { Txn.State.ABORTED, "it has been aborted" },
+            { Txn.State.VERIFIED, "it is currently being committed" }
+        };
+        Key key = args.set.id("txnReadFailsForAllStatesExceptOpen");
 
-		for (Object[] testCase : testCases) {
-			Txn.State state = (Txn.State) testCase[0];
-			String expectedMessage = (String) testCase[1];
+        for (Object[] testCase : testCases) {
+            Txn.State state = (Txn.State) testCase[0];
+            String expectedMessage = (String) testCase[1];
 
-			TransactionalSession txnSession = new TransactionalSession(cluster, Behavior.DEFAULT);
-			Txn txn = txnSession.getCurrentTransaction();
-			txn.setState(state);
+            TransactionalSession txnSession = new TransactionalSession(cluster, Behavior.DEFAULT);
+            Txn txn = txnSession.getCurrentTransaction();
+            txn.setState(state);
 
-			if (expectedMessage == null) {
-				try {
-					RecordStream rs = txnSession.query(key).execute();
-					if (rs.hasNext()) {
-						rs.next();
-					}
-				} catch (AerospikeException ex) {
-					fail("Did not expect exception for state " + state + " but got " + ex);
-				}
-			} else {
-				try {
-					RecordStream rs = txnSession.query(key).execute();
-					if (rs.hasNext()) {
-						rs.next();
-					}
-					fail("Expected AerospikeException for state " + state);
-				} catch (AerospikeException ex) {
-					if (!ex.getMessage().contains(expectedMessage)) {
-						fail("Expected message containing '" + expectedMessage + "' for state " + state +
-							" but got: " + ex.getMessage());
-					}
-				}
-			}
-		}
-	}
+            if (expectedMessage == null) {
+                try {
+                    RecordStream rs = txnSession.query(key).execute();
+                    if (rs.hasNext()) {
+                        rs.next();
+                    }
+                } catch (AerospikeException ex) {
+                    fail("Did not expect exception for state " + state + " but got " + ex);
+                }
+            } else {
+                try {
+                    RecordStream rs = txnSession.query(key).execute();
+                    if (rs.hasNext()) {
+                        rs.next();
+                    }
+                    fail("Expected AerospikeException for state " + state);
+                } catch (AerospikeException ex) {
+                    if (!ex.getMessage().contains(expectedMessage)) {
+                        fail("Expected message containing '" + expectedMessage + "' for state " + state +
+                            " but got: " + ex.getMessage());
+                    }
+                }
+            }
+        }
+    }
 
-	@Test
-	public void txnWriteBlock() {
-		Key key = args.set.id("txnWriteBlock");
+    @Test
+    public void txnWriteBlock() {
+        Key key = args.set.id("txnWriteBlock");
 
-		session.upsert(key)
-			.bins(binName)
-			.values("val1")
-			.execute();
-
-        session.doInTransaction(txnSession -> {
-        	txnSession.upsert(key)
-			.bins(binName)
-			.values("val2")
-			.execute();
-
-   			AerospikeException ae = assertThrows(AerospikeException.class, () -> {
-		        RecordStream rs = session.upsert(key)
-					.bins(binName)
-					.values("val3")
-					.execute();
-
-		        assertTrue(rs.hasNext());
-		        rs.next().recordOrThrow();
-			});
-			assertEquals(ResultCode.MRT_BLOCKED, ae.getResultCode());
-	    });
-	}
-
-	@Test
-	public void txnWriteRead() {
-		Key key = args.set.id("txnWriteRead");
-
-		session.upsert(key)
-			.bins(binName)
-			.values("val1")
-			.execute();
+        session.upsert(key)
+            .bins(binName)
+            .values("val1")
+            .execute();
 
         session.doInTransaction(txnSession -> {
-			txnSession.upsert(key)
-				.bins(binName)
-				.values("val2")
-				.execute();
+            txnSession.upsert(key)
+            .bins(binName)
+            .values("val2")
+            .execute();
 
-			RecordStream rs = session.query(key).execute();
-			Record rec = rs.next().recordOrThrow();
-			assertEquals("val1", rec.getString(binName));
-	    });
+            AerospikeException ae = assertThrows(AerospikeException.class, () -> {
+                RecordStream rs = session.upsert(key)
+                    .bins(binName)
+                    .values("val3")
+                    .execute();
+
+                assertTrue(rs.hasNext());
+                rs.next().recordOrThrow();
+            });
+            assertEquals(ResultCode.MRT_BLOCKED, ae.getResultCode());
+        });
+    }
+
+    @Test
+    public void txnWriteRead() {
+        Key key = args.set.id("txnWriteRead");
+
+        session.upsert(key)
+            .bins(binName)
+            .values("val1")
+            .execute();
+
+        session.doInTransaction(txnSession -> {
+            txnSession.upsert(key)
+                .bins(binName)
+                .values("val2")
+                .execute();
+
+            RecordStream rs = session.query(key).execute();
+            Record rec = rs.next().recordOrThrow();
+            assertEquals("val1", rec.getString(binName));
+        });
 
         RecordStream rs = session.query(key).execute();
         Record rec = rs.next().recordOrThrow();
-		assertEquals("val2", rec.getString(binName));
-	}
+        assertEquals("val2", rec.getString(binName));
+    }
 
-	@Test
-	public void txnWriteAbort() {
-		Key key = args.set.id("mrtkey5");
+    @Test
+    public void txnWriteAbort() {
+        Key key = args.set.id("mrtkey5");
 
-		session.upsert(key)
-			.bins(binName)
-			.values("val1")
-			.execute();
+        session.upsert(key)
+            .bins(binName)
+            .values("val1")
+            .execute();
 
         session.doInTransaction(txnSession -> {
-			txnSession.upsert(key)
-				.bins(binName)
-				.values("val2")
-				.execute();
+            txnSession.upsert(key)
+                .bins(binName)
+                .values("val2")
+                .execute();
 
-			RecordStream rs = txnSession.query(key).execute();
-			Record record = rs.next().recordOrThrow();
-			assertEquals("val2", record.getString(binName));
+            RecordStream rs = txnSession.query(key).execute();
+            Record record = rs.next().recordOrThrow();
+            assertEquals("val2", record.getString(binName));
 
-			txnSession.abort();
-	    });
+            txnSession.abort();
+        });
 
         RecordStream rs = session.query(key).execute();
         Record rec = rs.next().recordOrThrow();
-		assertEquals("val1", rec.getString(binName));
-	}
+        assertEquals("val1", rec.getString(binName));
+    }
 
-	@Test
-	public void txnDelete() {
-		Key key = args.set.id("txnDelete");
+    @Test
+    public void txnDelete() {
+        Key key = args.set.id("txnDelete");
 
-		session.upsert(key)
-			.bins(binName)
-			.values("val1")
-			.execute();
+        session.upsert(key)
+            .bins(binName)
+            .values("val1")
+            .execute();
 
         session.doInTransaction(txnSession -> {
-    		txnSession.delete(key)
-				.withDurableDelete()
-				.execute();
-	    });
+            txnSession.delete(key)
+                .withDurableDelete()
+                .execute();
+        });
 
-		RecordStream rs = session.query(key).execute();
+        RecordStream rs = session.query(key).execute();
         assertFalse(rs.hasNext());
-	}
+    }
 
-	@Test
-	public void txnDeleteAbort() {
-		Key key = args.set.id("txnDeleteAbort");
+    @Test
+    public void txnDeleteAbort() {
+        Key key = args.set.id("txnDeleteAbort");
 
-		session.upsert(key)
-			.bins(binName)
-			.values("val1")
-			.execute();
-
-        session.doInTransaction(txnSession -> {
-			txnSession.delete(key)
-				.withDurableDelete()
-				.execute();
-
-			txnSession.abort();
-	    });
-
-		RecordStream rs = session.query(key).execute();
-		Record rec = rs.next().recordOrThrow();
-		assertEquals("val1", rec.getString(binName));
-	}
-
-	@Test
-	public void txnDeleteTwice() {
-		Key key = args.set.id("txnDeleteTwice");
-
-		session.upsert(key)
-			.bins(binName)
-			.values("val1")
-			.execute();
+        session.upsert(key)
+            .bins(binName)
+            .values("val1")
+            .execute();
 
         session.doInTransaction(txnSession -> {
-        	RecordStream rs = txnSession.delete(key)
-				.withDurableDelete()
-				.execute();
+            txnSession.delete(key)
+                .withDurableDelete()
+                .execute();
 
-    		assertTrue(rs.hasNext());
-    		rs.next().recordOrThrow();
-
-    		rs = txnSession.delete(key)
-				.withDurableDelete()
-				.execute();
-
-    		assertTrue(rs.hasNext());
-    		rs.next().recordOrNull();
+            txnSession.abort();
         });
 
-		RecordStream rs = session.query(key).execute();
-		assertFalse(rs.hasNext());
-	}
+        RecordStream rs = session.query(key).execute();
+        Record rec = rs.next().recordOrThrow();
+        assertEquals("val1", rec.getString(binName));
+    }
 
-	@Test
-	public void txnTouch() {
-		Key key = args.set.id("txnTouch");
+    @Test
+    public void txnDeleteTwice() {
+        Key key = args.set.id("txnDeleteTwice");
 
-		session.upsert(key)
-			.bins(binName)
-			.values("val1")
-			.execute();
+        session.upsert(key)
+            .bins(binName)
+            .values("val1")
+            .execute();
 
         session.doInTransaction(txnSession -> {
-        	txnSession.touch(key).execute();
+            RecordStream rs = txnSession.delete(key)
+                .withDurableDelete()
+                .execute();
+
+            assertTrue(rs.hasNext());
+            rs.next().recordOrThrow();
+
+            rs = txnSession.delete(key)
+                .withDurableDelete()
+                .execute();
+
+            assertTrue(rs.hasNext());
+            rs.next().recordOrNull();
         });
 
-		RecordStream rs = session.query(key).execute();
-		Record rec = rs.next().recordOrThrow();
-		assertEquals("val1", rec.getString(binName));
-	}
+        RecordStream rs = session.query(key).execute();
+        assertFalse(rs.hasNext());
+    }
 
-	@Test
-	public void txnTouchAbort() {
-		Key key = args.set.id("txnTouchAbort");
+    @Test
+    public void txnTouch() {
+        Key key = args.set.id("txnTouch");
 
-		session.upsert(key)
-			.bins(binName)
-			.values("val1")
-			.execute();
+        session.upsert(key)
+            .bins(binName)
+            .values("val1")
+            .execute();
 
         session.doInTransaction(txnSession -> {
-        	txnSession.touch(key).execute();
-        	txnSession.abort();
+            txnSession.touch(key).execute();
         });
 
-		RecordStream rs = session.query(key).execute();
-		Record rec = rs.next().recordOrThrow();
-		assertEquals("val1", rec.getString(binName));
-	}
+        RecordStream rs = session.query(key).execute();
+        Record rec = rs.next().recordOrThrow();
+        assertEquals("val1", rec.getString(binName));
+    }
 
-	@Test
-	public void txnOperateWrite() {
-		Key key = args.set.id("txnOperateWrite");
+    @Test
+    public void txnTouchAbort() {
+        Key key = args.set.id("txnTouchAbort");
 
-		session.upsert(key)
-			.bins(binName, "bin2")
-			.values("val1", "bal1")
-			.execute();
+        session.upsert(key)
+            .bins(binName)
+            .values("val1")
+            .execute();
 
         session.doInTransaction(txnSession -> {
-    		RecordStream rs = txnSession.upsert(key)
-				.bin(binName).setTo("val2")
-				.get("bin2")
-				.execute();
+            txnSession.touch(key).execute();
+            txnSession.abort();
+        });
 
-			Record rec = rs.next().recordOrThrow();
-			assertEquals("bal1", rec.getString("bin2"));
+        RecordStream rs = session.query(key).execute();
+        Record rec = rs.next().recordOrThrow();
+        assertEquals("val1", rec.getString(binName));
+    }
+
+    @Test
+    public void txnOperateWrite() {
+        Key key = args.set.id("txnOperateWrite");
+
+        session.upsert(key)
+            .bins(binName, "bin2")
+            .values("val1", "bal1")
+            .execute();
+
+        session.doInTransaction(txnSession -> {
+            RecordStream rs = txnSession.upsert(key)
+                .bin(binName).setTo("val2")
+                .get("bin2")
+                .execute();
+
+            Record rec = rs.next().recordOrThrow();
+            assertEquals("bal1", rec.getString("bin2"));
        });
 
         RecordStream rs = session.query(key).execute();
         Record rec = rs.next().recordOrThrow();
-		assertEquals("val2", rec.getString(binName));
-	}
+        assertEquals("val2", rec.getString(binName));
+    }
 
-	@Test
-	public void txnOperateWriteAbort() {
-		Key key = args.set.id("txnOperateWriteAbort");
+    @Test
+    public void txnOperateWriteAbort() {
+        Key key = args.set.id("txnOperateWriteAbort");
 
-		session.upsert(key)
-			.bins(binName, "bin2")
-			.values("val1", "bal1")
-			.execute();
+        session.upsert(key)
+            .bins(binName, "bin2")
+            .values("val1", "bal1")
+            .execute();
 
         session.doInTransaction(txnSession -> {
-			RecordStream rs = txnSession.upsert(key)
-				.bin(binName).setTo("val2")
-				.get("bin2")
-				.execute();
+            RecordStream rs = txnSession.upsert(key)
+                .bin(binName).setTo("val2")
+                .get("bin2")
+                .execute();
 
-			Record rec = rs.next().recordOrThrow();
-			assertEquals("bal1", rec.getString("bin2"));
+            Record rec = rs.next().recordOrThrow();
+            assertEquals("bal1", rec.getString("bin2"));
 
-			txnSession.abort();
+            txnSession.abort();
         });
 
 
         RecordStream rs = session.query(key).execute();
         Record rec = rs.next().recordOrThrow();
-		assertEquals("val1", rec.getString(binName));
-	}
+        assertEquals("val1", rec.getString(binName));
+    }
 
-	@Test
-	public void txnBatch() {
-		java.util.List<Key> keys = args.set.ids(0, 1, 2, 3, 4, 5, 6, 7, 8, 9);
+    @Test
+    public void txnBatch() {
+        java.util.List<Key> keys = args.set.ids(0, 1, 2, 3, 4, 5, 6, 7, 8, 9);
 
-		for (Key key : keys) {
-			session.upsert(key)
-				.bins(binName)
-				.values(1)
-				.execute();
-		}
+        for (Key key : keys) {
+            session.upsert(key)
+                .bins(binName)
+                .values(1)
+                .execute();
+        }
 
-		RecordStream recs = session.query(keys).execute();
-		assertBatchEqual(keys, recs, 1);
-
-        session.doInTransaction(txnSession -> {
-    		RecordStream bresults = txnSession.upsert(keys)
-				.bin(binName).setTo(2)
-				.execute();
-
-			while (bresults.hasNext()) {
-				RecordResult rr = bresults.next();
-				if (rr.resultCode() != 0) {
-					fail("Batch operation failed: " + rr.resultCode());
-				}
-			}
-        });
-
-		recs = session.query(keys).execute();
-		assertBatchEqual(keys, recs, 2);
-	}
-
-	@Test
-	public void txnBatchAbort() {
-		java.util.List<Key> keys = args.set.ids(10, 11, 12, 13, 14, 15, 16, 17, 18, 19);
-
-		for (Key key : keys) {
-			session.upsert(key)
-				.bins(binName)
-				.values(1)
-				.execute();
-		}
-
-		RecordStream recs = session.query(keys).execute();
-		assertBatchEqual(keys, recs, 1);
+        RecordStream recs = session.query(keys).execute();
+        assertBatchEqual(keys, recs, 1);
 
         session.doInTransaction(txnSession -> {
-			RecordStream bresults = txnSession.upsert(keys)
-				.bin(binName).setTo(2)
-				.execute();
+            RecordStream bresults = txnSession.upsert(keys)
+                .bin(binName).setTo(2)
+                .execute();
 
-			while (bresults.hasNext()) {
-				RecordResult rr = bresults.next();
-				if (rr.resultCode() != 0) {
-					fail("Batch operation failed: " + rr.resultCode());
-				}
-			}
-
-			txnSession.abort();
+            while (bresults.hasNext()) {
+                RecordResult rr = bresults.next();
+                if (rr.resultCode() != 0) {
+                    fail("Batch operation failed: " + rr.resultCode());
+                }
+            }
         });
 
-		recs = session.query(keys).execute();
-		assertBatchEqual(keys, recs, 1);
-	}
+        recs = session.query(keys).execute();
+        assertBatchEqual(keys, recs, 2);
+    }
 
-	@Test
-	public void txnMrtExpiredAfterDeadline() {
-		Key key = args.set.id("txnMrtExpired");
+    @Test
+    public void txnBatchAbort() {
+        java.util.List<Key> keys = args.set.ids(10, 11, 12, 13, 14, 15, 16, 17, 18, 19);
 
-		session.upsert(key)
-			.bins(binName)
-			.values("val0")
-			.execute();
+        for (Key key : keys) {
+            session.upsert(key)
+                .bins(binName)
+                .values(1)
+                .execute();
+        }
 
-		AerospikeException ae = assertThrows(AerospikeException.class, () -> session.doInTransaction(txnSession -> {
+        RecordStream recs = session.query(keys).execute();
+        assertBatchEqual(keys, recs, 1);
+
+        session.doInTransaction(txnSession -> {
+            RecordStream bresults = txnSession.upsert(keys)
+                .bin(binName).setTo(2)
+                .execute();
+
+            while (bresults.hasNext()) {
+                RecordResult rr = bresults.next();
+                if (rr.resultCode() != 0) {
+                    fail("Batch operation failed: " + rr.resultCode());
+                }
+            }
+
+            txnSession.abort();
+        });
+
+        recs = session.query(keys).execute();
+        assertBatchEqual(keys, recs, 1);
+    }
+
+    @Test
+    public void txnMrtExpiredAfterDeadline() {
+        Key key = args.set.id("txnMrtExpired");
+
+        session.upsert(key)
+            .bins(binName)
+            .values("val0")
+            .execute();
+
+        AerospikeException ae = assertThrows(AerospikeException.class, () -> session.doInTransaction(txnSession -> {
             txnSession.getCurrentTransaction().setTimeout(2);
 
             txnSession.upsert(key)
@@ -490,18 +490,18 @@ public class TxnTest extends ClusterTest {
             assertTrue(rs.hasNext());
             rs.next().recordOrThrow();
         }));
-		assertEquals(ResultCode.MRT_EXPIRED, ae.getResultCode());
-	}
+        assertEquals(ResultCode.MRT_EXPIRED, ae.getResultCode());
+    }
 
-	private void assertBatchEqual(java.util.List<Key> keys, RecordStream recs, int expected) {
-		int count = 0;
-		while (recs.hasNext()) {
-			Record rec = recs.next().recordOrThrow();
-			assertNotNull(rec);
-			int received = rec.getInt(binName);
-			assertEquals(expected, received);
-			count++;
-		}
-		assertEquals(keys.size(), count);
-	}
+    private void assertBatchEqual(java.util.List<Key> keys, RecordStream recs, int expected) {
+        int count = 0;
+        while (recs.hasNext()) {
+            Record rec = recs.next().recordOrThrow();
+            assertNotNull(rec);
+            int received = rec.getInt(binName);
+            assertEquals(expected, received);
+            count++;
+        }
+        assertEquals(keys.size(), count);
+    }
 }

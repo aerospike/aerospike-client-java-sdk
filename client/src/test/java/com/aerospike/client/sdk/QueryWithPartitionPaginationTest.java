@@ -29,59 +29,59 @@ import com.aerospike.client.sdk.tend.Partition;
  */
 public class QueryWithPartitionPaginationTest extends ClusterTest {
 
-	private static final int TARGET_PARTITION = 10;
-	private static final int CHUNK_SIZE = 18;
-	private static final int TOTAL_LIMIT = 90;
-	private static final int NUM_RECORDS = 150;
+    private static final int TARGET_PARTITION = 10;
+    private static final int CHUNK_SIZE = 18;
+    private static final int TOTAL_LIMIT = 90;
+    private static final int NUM_RECORDS = 150;
 
-	private static final String KEY_PREFIX = "pq_";
-	private static final String BIN_NAME = "bin1";
-	private long inserted = 0L;
+    private static final String KEY_PREFIX = "pq_";
+    private static final String BIN_NAME = "bin1";
+    private long inserted = 0L;
 
-	private final DataSet dataSet = DataSet.of(args.namespace, "test_pagination");
+    private final DataSet dataSet = DataSet.of(args.namespace, "test_pagination");
 
-	@BeforeEach
-	public void loadRecords() {
-		session.truncate(dataSet);
-		long candidate = 0L;
-		while(inserted < NUM_RECORDS) {
-			Key key = dataSet.id(KEY_PREFIX + candidate);
-			candidate++;
-			if (Partition.getPartitionId(key.digest) != TARGET_PARTITION) {
-				continue;
-			}
-			session.upsert(key)
-					.bin(BIN_NAME).setTo(inserted)
-					.execute();
-			inserted++;
-		}
-		assertEquals(NUM_RECORDS, inserted);
-	}
+    @BeforeEach
+    public void loadRecords() {
+        session.truncate(dataSet);
+        long candidate = 0L;
+        while(inserted < NUM_RECORDS) {
+            Key key = dataSet.id(KEY_PREFIX + candidate);
+            candidate++;
+            if (Partition.getPartitionId(key.digest) != TARGET_PARTITION) {
+                continue;
+            }
+            session.upsert(key)
+                    .bin(BIN_NAME).setTo(inserted)
+                    .execute();
+            inserted++;
+        }
+        assertEquals(NUM_RECORDS, inserted);
+    }
 
-	@AfterEach
-	public void truncateAfter() {
-		try {
-			session.truncate(dataSet);
-		}
-		catch (RuntimeException ignored) {}
-	}
+    @AfterEach
+    public void truncateAfter() {
+        try {
+            session.truncate(dataSet);
+        }
+        catch (RuntimeException ignored) {}
+    }
 
-	@Test
-	public void shouldPaginateRecordForSpecificPartition() {
-		long totalFromQuery = 0;
-		try (RecordStream rs = session.query(dataSet)
-				.onPartition(TARGET_PARTITION)
-				.readingOnlyBins(BIN_NAME)
-				.limit(TOTAL_LIMIT)
-				.chunkSize(CHUNK_SIZE)
-				.execute()) {
-			while (rs.hasMoreChunks()) {
-				while(rs.hasNext()) {
-					rs.next().recordOrThrow();
-					totalFromQuery++;
-				}
-			}
-		}
-		assertEquals(TOTAL_LIMIT, totalFromQuery);
-	}
+    @Test
+    public void shouldPaginateRecordForSpecificPartition() {
+        long totalFromQuery = 0;
+        try (RecordStream rs = session.query(dataSet)
+                .onPartition(TARGET_PARTITION)
+                .readingOnlyBins(BIN_NAME)
+                .limit(TOTAL_LIMIT)
+                .chunkSize(CHUNK_SIZE)
+                .execute()) {
+            while (rs.hasMoreChunks()) {
+                while(rs.hasNext()) {
+                    rs.next().recordOrThrow();
+                    totalFromQuery++;
+                }
+            }
+        }
+        assertEquals(TOTAL_LIMIT, totalFromQuery);
+    }
 }

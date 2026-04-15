@@ -75,13 +75,13 @@ public class QueryProducerCancellationTest {
      * @param closeComplete latch the producer waits on before resuming after the pause
      */
     private void simulateParseRowProducer(
-            AsyncRecordStream stream,
-            int totalRecords,
-            AtomicInteger published,
-            AtomicBoolean terminated,
-            int pauseAfter,
-            CountDownLatch readyToClose,
-            CountDownLatch closeComplete
+        AsyncRecordStream stream,
+        int totalRecords,
+        AtomicInteger published,
+        AtomicBoolean terminated,
+        int pauseAfter,
+        CountDownLatch readyToClose,
+        CountDownLatch closeComplete
     ) {
         for (int i = 0; i < totalRecords; i++) {
             stream.publish(createResult(i));
@@ -96,7 +96,8 @@ public class QueryProducerCancellationTest {
                 readyToClose.countDown();
                 try {
                     closeComplete.await(2, TimeUnit.SECONDS);
-                } catch (InterruptedException e) {
+                }
+                catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                     return;
                 }
@@ -155,7 +156,8 @@ public class QueryProducerCancellationTest {
             assertTrue(terminated.get(),
                 "Producer should have detected cancellation via cancelled()");
             assertTrue(published.get() < totalRecords,
-                "Producer should have stopped early; published " + published.get() + " of " + totalRecords);
+                "Producer should have stopped early; published " + published.get() + " of "
+                    + totalRecords);
             // The producer published exactly pauseAfterPublishing items, then paused.
             // After close, it resumes, publishes one more, and then cancelled() returns true.
             assertEquals(pauseAfterPublishing + 1, published.get(),
@@ -252,9 +254,11 @@ public class QueryProducerCancellationTest {
             // The producer can have published at most queueCapacity+1 items (queue fills up)
             // plus a few more after close() clears the queue, but certainly far fewer than 10,000.
             assertTrue(published.get() < totalRecords,
-                "Producer should have stopped early; published " + published.get() + " of " + totalRecords);
+                "Producer should have stopped early; published " + published.get() + " of "
+                    + totalRecords);
             assertTrue(published.get() <= queueCapacity + 10,
-                "Producer should not have published much beyond queue capacity; published " + published.get());
+                "Producer should not have published much beyond queue capacity; published "
+                    + published.get());
         });
     }
 
@@ -361,12 +365,14 @@ public class QueryProducerCancellationTest {
                         throw new RuntimeException("Stop processing");
                     }
                 });
-            } catch (RuntimeException e) {
+            }
+            catch (RuntimeException e) {
                 assertEquals("Stop processing", e.getMessage());
             }
 
             producer.join(2000);
-            assertFalse(producer.isAlive(), "Producer should have exited after forEach closed the stream");
+            assertFalse(producer.isAlive(),
+                "Producer should have exited after forEach closed the stream");
 
             assertTrue(terminated.get(),
                 "Producer should have detected cancellation after forEach's finally block closed the stream");
