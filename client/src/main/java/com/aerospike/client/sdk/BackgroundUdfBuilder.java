@@ -32,6 +32,7 @@ import com.aerospike.client.sdk.policy.Behavior.Mode;
 import com.aerospike.client.sdk.policy.Behavior.OpKind;
 import com.aerospike.client.sdk.policy.Behavior.OpShape;
 import com.aerospike.client.sdk.query.Filter;
+import com.aerospike.client.sdk.tend.Partitions;
 import com.aerospike.client.sdk.query.PreparedAel;
 import com.aerospike.client.sdk.query.WhereClauseProcessor;
 import com.aerospike.client.sdk.task.ExecuteTask;
@@ -269,6 +270,12 @@ public class BackgroundUdfBuilder extends AbstractSessionOperationBuilder<Backgr
             OpShape.QUERY,
             Mode.ANY
         );
+
+        // UDF may call aerospike:remove(); SC requires durable delete for that path (see BackgroundOperationBuilder).
+        Partitions parts = cluster.partitionMap.get(dataset.getNamespace());
+        if (parts != null && parts.scMode) {
+            settings = settings.withUseDurableDelete(true);
+        }
 
         Filter filter = null;
         Expression filterExp = null;

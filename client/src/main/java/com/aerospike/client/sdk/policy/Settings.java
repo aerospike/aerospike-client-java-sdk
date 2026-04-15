@@ -227,4 +227,14 @@ public final class Settings {
     public boolean getStackTraceOnException() {
         return stackTraceOnException;
     }
+
+    /**
+     * Shallow copy with {@code useDurableDelete} forced for a single operation
+     * (for example SC namespaces where delete requests must carry the durable flag).
+     */
+    public Settings withUseDurableDelete(boolean useDurableDelete) {
+        Settings s = new Settings(this);
+        s.useDurableDelete = useDurableDelete;
+        return s;
+    }
 }

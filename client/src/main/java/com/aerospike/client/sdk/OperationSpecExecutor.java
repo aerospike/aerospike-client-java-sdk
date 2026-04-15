@@ -32,6 +32,7 @@ import com.aerospike.client.sdk.command.BatchSingle;
 import com.aerospike.client.sdk.command.BatchStatus;
 import com.aerospike.client.sdk.command.BatchUDF;
 import com.aerospike.client.sdk.command.BatchWrite;
+import com.aerospike.client.sdk.command.Command;
 import com.aerospike.client.sdk.command.DeleteExecutor;
 import com.aerospike.client.sdk.command.ExistsExecutor;
 import com.aerospike.client.sdk.command.IBatchCommand;
@@ -233,6 +234,9 @@ class OperationSpecExecutor {
                     case REPLACE:
                     case REPLACE_IF_EXISTS:
                         attr.setWrite(settings, spec.getOpType());
+                        if (scMode && operationsContainRecordDelete(spec.getOperations())) {
+                            attr.writeAttr |= (byte) Command.INFO2_DURABLE_DELETE;
+                        }
                         rec = new BatchWrite(key, attr, spec);
                         break;
 
@@ -241,8 +245,13 @@ class OperationSpecExecutor {
                         rec = new BatchWrite(key, attr, spec, List.of(Operation.touch()), OpType.TOUCH);
                         break;
 
-                     case DELETE:
+                    case DELETE:
                         attr.setDelete(settings);
+                        mergeOperationSpecDurableDeleteIntoBatchAttr(attr, spec);
+                        // SC forbids non-durable expunge deletes unless explicitly opted out on the spec.
+                        if (scMode && !Boolean.FALSE.equals(spec.getDurablyDelete())) {
+                            attr.writeAttr |= (byte) Command.INFO2_DURABLE_DELETE;
+                        }
                         rec = new BatchDelete(key, attr, spec);
                         break;
 
@@ -559,6 +568,10 @@ class OperationSpecExecutor {
         List<Operation> ops = spec.getOperations();
         OpType opType = spec.getOpType();
 
+        if (scMode && operationsContainRecordDelete(ops)) {
+            settings = settings.withUseDurableDelete(true);
+        }
+
         if (txn != null) {
             TxnMonitor.addKey(txn, session, key);
         }
@@ -637,6 +650,14 @@ class OperationSpecExecutor {
         boolean scMode, boolean failOnFilteredOut
     ) {
         Settings settings = behavior.getSettings(OpKind.WRITE_RETRYABLE, OpShape.POINT, scMode);
+        Boolean specDd = spec.getDurablyDelete();
+        if (Boolean.TRUE.equals(specDd)) {
+            settings = settings.withUseDurableDelete(true);
+        } else if (Boolean.FALSE.equals(specDd)) {
+            settings = settings.withUseDurableDelete(false);
+        } else if (scMode) {
+            settings = settings.withUseDurableDelete(true);
+        }
         int gen = spec.getGeneration();
         int ttl = (int) spec.getExpirationInSeconds();
 
@@ -684,6 +705,32 @@ class OperationSpecExecutor {
         }
 
         return new RecordStream();
+    }
+
+    /** True if the operate list includes a whole-record delete ({@link AbstractOperationBuilder#deleteRecord()}). */
+    private static boolean operationsContainRecordDelete(List<Operation> ops) {
+        if (ops == null) {
+            return false;
+        }
+        for (Operation op : ops) {
+            if (op.type == Operation.Type.DELETE) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * {@link OperationSpec#getDurablyDelete()} overrides {@link BatchAttr#setDelete} defaults
+     * (behavior matrix alone never consulted the spec flag).
+     */
+    private static void mergeOperationSpecDurableDeleteIntoBatchAttr(BatchAttr attr, OperationSpec spec) {
+        Boolean dd = spec.getDurablyDelete();
+        if (Boolean.TRUE.equals(dd)) {
+            attr.writeAttr |= (byte) Command.INFO2_DURABLE_DELETE;
+        } else if (Boolean.FALSE.equals(dd)) {
+            attr.writeAttr = (byte) (attr.writeAttr & ~Command.INFO2_DURABLE_DELETE);
+        }
     }
 
     /**

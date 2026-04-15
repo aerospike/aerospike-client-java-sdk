@@ -376,16 +376,18 @@ public class BatchTest extends ClusterTest {
     public void batchWriteComplex() {
         DataSet ds = new DataSet("invalid", args.set.getSet());
 
-        RecordStream rs = session
+        ChainableNoBinsBuilder tail = session
             .upsert(args.set.id(KeyPrefix + 1))
                 .bin(BinName2).setTo(100)
             .upsert(ds.id(KeyPrefix + 1))
                 .bin(BinName2).setTo(100)
             .upsert(args.set.id(KeyPrefix + 6))
                 .bin(BinName3).upsertFrom("$.bbin + 1000")
-            .delete(args.set.id(10002))
-            .notInAnyTransaction()
-            .execute();
+            .delete(args.set.id(10002));
+        if (args.scMode) {
+            tail = tail.withDurableDelete();
+        }
+        RecordStream rs = tail.notInAnyTransaction().execute();
 
         assertTrue(rs.hasNext());
         RecordResult res = rs.next();
@@ -427,6 +429,18 @@ public class BatchTest extends ClusterTest {
         assertFalse(rs.hasNext());
     }
 
+    /**
+     * Strong-consistency namespaces often reject non-durable deletes; match {@link AddTest} and
+     * {@link #batchDeleteDurablyDeleteResetsRecordsForRepeatAdds}.
+     */
+    private ChainableNoBinsBuilder deleteForBatchTest(List<Key> keys) {
+        ChainableNoBinsBuilder b = session.delete(keys);
+        if (args.scMode) {
+            b = b.withDurableDelete();
+        }
+        return b;
+    }
+
     @Test
     public void batchDelete() {
         // Define keys
@@ -437,8 +451,10 @@ public class BatchTest extends ClusterTest {
             keys[i] = firstKey + i;
         }
 
+        List<Key> keyList = args.set.ids(keys);
+
         // Ensure keys exists
-        RecordStream recs = session.exists(args.set.ids(keys)).includeMissingKeys().execute();
+        RecordStream recs = session.exists(keyList).includeMissingKeys().execute();
         List<Boolean> exists = recs.stream().map(rec ->rec.asBoolean()).toList();
         assertEquals(keys.length, exists.size());
 
@@ -447,7 +463,7 @@ public class BatchTest extends ClusterTest {
         }
 
         // Delete keys
-        List<Boolean> deletes = session.delete(args.set.ids(keys))
+        List<Boolean> deletes = deleteForBatchTest(keyList)
                 .includeMissingKeys()
                 .execute()
                 .stream()
@@ -460,7 +476,7 @@ public class BatchTest extends ClusterTest {
         }
 
         // Ensure keys do not exist
-        exists = session.exists(args.set.ids(keys))
+        exists = session.exists(keyList)
                 .includeMissingKeys()
                 .execute()
                 .stream()
@@ -473,6 +489,54 @@ public class BatchTest extends ClusterTest {
         }
     }
 
+    /**
+     * Regression: {@link OperationSpec#getDurablyDelete()} must be merged into batch delete wire format.
+     * On SC without expunge, non-durable deletes can fail (or not reset state); without durable, a second
+     * round of {@code add} would stack (e.g. 45 + 15 = 60). Two identical rounds must each yield 15.
+     */
+    @Test
+    public void batchDeleteDurablyDeleteResetsRecordsForRepeatAdds() {
+        Assumptions.assumeTrue(args.scMode,
+            "Requires a strongly consistent namespace (durable batch delete vs repeat adds).");
+        Assumptions.assumeTrue(args.enterprise,
+            "Durable delete is an Enterprise server feature (see FilterExpTest#durableDelete).");
+
+        String binName = "ddbatchbin";
+        int firstKey = 10110;
+        List<Key> keys = args.set.ids(
+            firstKey, firstKey + 1, firstKey + 2, firstKey + 3, firstKey + 4,
+            firstKey + 5, firstKey + 6, firstKey + 7, firstKey + 8, firstKey + 9);
+
+        for (int round = 0; round < 2; round++) {
+            RecordStream del = round == 0
+                ? session.delete(keys).durablyDelete(true).execute()
+                : session.delete(keys).withDurableDelete().execute();
+            assertBatchDeleteStreamOk(del, keys.size());
+
+            session.upsert(keys).bin(binName).add(10).execute();
+            session.upsert(keys).bin(binName).add(5).execute();
+
+            RecordStream rs = session.query(keys).readingOnlyBins(binName).execute();
+            for (int i = 0; i < keys.size(); i++) {
+                assertTrue(rs.hasNext(), "round " + round + " key index " + i);
+                Record rec = rs.next().recordOrThrow();
+                assertEquals(15, rec.getInt(binName), "round " + round + " key index " + i);
+            }
+        }
+    }
+
+    private static void assertBatchDeleteStreamOk(RecordStream stream, int expectedCount) {
+        int count = 0;
+        while (stream.hasNext()) {
+            RecordResult rr = stream.next();
+            int rc = rr.resultCode();
+            assertTrue(rc == ResultCode.OK || rc == ResultCode.KEY_NOT_FOUND_ERROR,
+                "unexpected delete resultCode=" + rc + " key=" + rr.key());
+            count++;
+        }
+        assertEquals(expectedCount, count);
+    }
+
     @Test
     public void batchDeleteSingleNotFound() {
         int[] keys = new int[10];
@@ -482,7 +546,7 @@ public class BatchTest extends ClusterTest {
             keys[i] = firstKey + i;
         }
 
-        RecordStream rs = session.delete(args.set.ids(keys)).execute();
+        RecordStream rs = deleteForBatchTest(args.set.ids(keys)).execute();
         assertTrue(rs.hasNext());
         assertFalse(rs.next().asBoolean());
     }

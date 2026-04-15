@@ -538,6 +538,35 @@ public class ChainableNoBinsBuilder extends AbstractSessionOperationBuilder<Chai
         return this;
     }
 
+    /**
+     * {@inheritDoc}
+     * <p>For delete operations, also updates {@link OperationSpec} so the durable flag is sent on the wire
+     * (see {@link #durablyDelete(boolean)}).</p>
+     */
+    @Override
+    public ChainableNoBinsBuilder withDurableDelete() {
+        verifyState("setting durable delete");
+        if (currentSpec.getOpType() != OpType.DELETE) {
+            throw new IllegalStateException("withDurableDelete() is only valid for delete operations");
+        }
+        currentSpec.setDurablyDelete(true);
+        super.withDurableDelete();
+        return this;
+    }
+
+    /**
+     * {@inheritDoc}
+     * <p>For delete operations, clears the spec-level durable override.</p>
+     */
+    @Override
+    public ChainableNoBinsBuilder withoutDurableDelete() {
+        if (currentSpec != null && currentSpec.getOpType() == OpType.DELETE) {
+            currentSpec.setDurablyDelete(false);
+        }
+        super.withoutDurableDelete();
+        return this;
+    }
+
     // ========================================
     // Per-operation policies
     // ========================================

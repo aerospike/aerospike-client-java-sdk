@@ -24,13 +24,34 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 
 public class AddTest extends ClusterTest {
+    /**
+     * Strong-consistency namespaces often reject non-durable deletes (FAIL_FORBIDDEN / 22)
+     * unless {@code strong-consistency-allow-expunge} is enabled server-side. Use durable
+     * deletes in SC so tests can reset state the same way as on AP namespaces.
+     */
+    private void deleteForTest(Key key) {
+        ChainableNoBinsBuilder del = session.delete(key);
+        if (args.scMode) {
+            del = del.withDurableDelete();
+        }
+        del.execute();
+    }
+
+    private void deleteForTest(List<Key> keys) {
+        ChainableNoBinsBuilder del = session.delete(keys);
+        if (args.scMode) {
+            del = del.withDurableDelete();
+        }
+        del.execute();
+    }
+
     @Test
     public void add() {
         String key = "addkey";
         String binName = "addbin";
 
         // Delete record if it already exists.
-        session.delete(args.set.id(key)).execute();
+        deleteForTest(args.set.id(key));
 
         // Perform some adds and check results.
         session.upsert(args.set.id(key))
@@ -72,7 +93,7 @@ public class AddTest extends ClusterTest {
         String binName = "addbin";
 
         // Delete record if it already exists.
-        session.delete(args.set.id(key)).execute();
+        deleteForTest(args.set.id(key));
 
         // Perform some adds and check results.
         RecordStream rs = session.upsert(args.set.id(key))
@@ -119,7 +140,7 @@ public class AddTest extends ClusterTest {
         String binName = "addbin";
         List<Key> keys = args.set.ids(10, 11, 12, 13, 14, 15, 16, 17, 18, 19);
 
-        session.delete(keys).execute();
+        deleteForTest(keys);
 
         session.upsert(keys)
             .bin(binName).add(10)
@@ -163,7 +184,7 @@ public class AddTest extends ClusterTest {
         String binName = "addbin";
         List<Key> keys = args.set.ids(100, 110, 120, 130, 140, 150, 160, 170, 180, 190);
 
-        session.delete(keys).execute();
+        deleteForTest(keys);
 
         RecordStream rs = session.upsert(keys)
             .bin(binName).add(10)

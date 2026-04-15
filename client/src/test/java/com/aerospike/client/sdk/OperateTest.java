@@ -20,6 +20,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import java.util.List;
 
@@ -132,6 +133,8 @@ public class OperateTest extends ClusterTest {
 
     @Test
     public void operateTouchRecord() {
+        assumeTrue(args.hasTtl, "Server/namespace does not support TTL writes; configure nsup-period or allow-ttl-without-nsup");
+
         Key key = args.set.id("operateTouch");
         String binName1 = "optintbin1";
 
