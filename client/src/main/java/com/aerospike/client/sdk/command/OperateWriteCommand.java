@@ -38,9 +38,6 @@ public class OperateWriteCommand extends WriteCommand {
         this(cluster, partitions, txn, key, ops, args, type, gen, ttl, filterExp, failOnFilteredOut, policy, null);
     }
 
-    /**
-     * @param durableDeleteOverride see {@link WriteCommand#WriteCommand(Cluster, Partitions, Txn, Key, OpType, int, int, Expression, boolean, Settings, Boolean)}
-     */
     public OperateWriteCommand(
         Cluster cluster, Partitions partitions, Txn txn, Key key, List<Operation> ops, OperateArgs args,
         OpType type, int gen, int ttl, Expression filterExp, boolean failOnFilteredOut,

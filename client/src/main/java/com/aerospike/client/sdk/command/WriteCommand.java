@@ -43,10 +43,6 @@ public class WriteCommand extends Command {
         this(cluster, partitions, txn, key, type, gen, ttl, where, failOnFilteredOut, settings, null);
     }
 
-    /**
-     * @param durableDeleteOverride when non-null, used instead of {@link Settings#getUseDurableDelete()}
-     *        (avoids cloning {@link Settings} to flip durable delete for a single command).
-     */
     public WriteCommand(
         Cluster cluster, Partitions partitions, Txn txn, Key key, OpType type, int gen, int ttl,
         Expression where, boolean failOnFilteredOut, Settings settings, Boolean durableDeleteOverride
