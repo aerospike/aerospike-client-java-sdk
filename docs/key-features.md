@@ -13,6 +13,7 @@
 - [Expression-Based Bin Operations](#expression-based-bin-operations)
 - [CDT Operations (Lists and Maps)](#cdt-operations-lists-and-maps)
 - [Queries and Scans](#queries-and-scans)
+- [Error Handling](#error-handling)
 - [Async Operations](#async-operations)
 - [UDFs](#udfs)
 - [Background Operations](#background-operations)
@@ -79,6 +80,36 @@ Cluster cluster = new ClusterDefinition("seed1", 3000)
 partition maps. `Session` is lightweight — create as many as needed with
 different `Behavior` profiles.
 
+### Authentication
+
+| Method | Description |
+|---|---|
+| `withNativeCredentials(user, pass)` | Internal Aerospike authentication |
+| `withExternalCredentials(user, pass)` | LDAP / external auth over TLS |
+| `withExternalInsecureCredentials(user, pass)` | LDAP / external auth without TLS |
+| `withCertificateCredentials()` | Mutual TLS — identity from client certificate |
+
+### TLS
+
+```java
+Cluster cluster = new ClusterDefinition("seed1", 3000)
+    .withNativeCredentials("admin", "password")
+    .withTlsConfig(tls -> tls
+        .protocols("TLSv1.3")
+        .ciphers("TLS_AES_256_GCM_SHA384")
+    )
+    .connect();
+```
+
+### Logging
+
+```java
+new ClusterDefinition("seed1", 3000)
+    .withLogLevel(Level.INFO)
+    .useLogSink(myLogCallback)
+    .connect();
+```
+
 ---
 
 ## DataSets and Keys
@@ -132,12 +163,49 @@ session.upsert(users.id("alice"))
     .execute();
 ```
 
-### TTL and generation control
+### TTL
 
 ```java
 session.upsert(users.id("alice"))
     .bin("session").setTo("abc123")
     .expireRecordAfter(Duration.ofHours(24))
+    .execute();
+```
+
+### Optimistic locking (generation check)
+
+Use `ensureGenerationIs()` to perform a compare-and-swap. The write
+succeeds only if the record's current generation matches; otherwise a
+`GenerationException` is thrown.
+
+```java
+Record rec = session.query(users.id("alice")).execute().getFirstRecord();
+
+session.update(users.id("alice"))
+    .bin("balance").setTo(newBalance)
+    .ensureGenerationIs(rec.generation)
+    .execute();
+```
+
+### Atomic read-then-delete and read-then-touch
+
+`deleteRecord()` and `touchRecord()` can be composed with bin operations
+in a single atomic server call:
+
+```java
+// Read a bin value then delete the record atomically
+RecordStream rs = session.upsert(users.id("alice"))
+    .bin("name").get()
+    .deleteRecord()
+    .execute();
+
+String name = rs.getFirstRecord().getString("name");
+
+// Read a bin value and reset the TTL atomically
+session.upsert(users.id("alice"))
+    .bin("name").get()
+    .touchRecord()
+    .expireRecordAfterSeconds(120)
     .execute();
 ```
 
@@ -160,6 +228,18 @@ Long age = record.getLong("age");
 ```java
 // Read all bins
 RecordStream rs = session.query(users.id("alice")).execute();
+```
+
+### Record metadata
+
+Every `Record` carries `generation` (write count) and `expiration`
+(seconds since 2010-01-01 GMT). Use `getTimeToLive()` for the
+client-relative TTL in seconds (`-1` = never expires):
+
+```java
+Record rec = session.query(users.id("alice")).execute().getFirstRecord();
+int gen = rec.generation;
+int ttl = rec.getTimeToLive();
 ```
 
 ### Batch reads
@@ -203,6 +283,16 @@ while (rs.hasNext()) {
     RecordResult result = rs.next();
     System.out.println(result.getKey() + ": " + result.asBoolean());
 }
+```
+
+### Truncate
+
+Remove all records in a set, optionally only those last updated before a
+cutoff:
+
+```java
+session.truncate(users);                      // all records
+session.truncate(users, beforeLastUpdate);    // records older than Calendar
 ```
 
 ---
@@ -628,15 +718,57 @@ RecordStream rs = session.query(users)
 
 ---
 
+## Error Handling
+
+By default, all operations throw exceptions on failure. Two alternative
+modes are available that embed errors into the `RecordStream` instead of
+throwing, making per-key error handling straightforward in batch
+scenarios.
+
+| Mode | How errors are delivered |
+|---|---|
+| **Throw** (default) | Unchecked `AerospikeException` thrown immediately |
+| `ErrorStrategy.IN_STREAM` | Errors appear as `RecordResult` entries — check `result.isOk()` |
+| `ErrorHandler` (callback) | Errors dispatched to a callback; stream contains only successes |
+
+`ErrorStrategy` and `ErrorHandler` work on both synchronous `execute()`
+and asynchronous `executeAsync()`:
+
+```java
+// Synchronous with in-stream errors
+RecordStream rs = session.query(users.ids("alice", "bob"))
+    .execute(ErrorStrategy.IN_STREAM);
+
+for (RecordResult result : rs) {
+    if (result.isOk()) {
+        System.out.println(result.recordOrThrow().getString("name"));
+    } else {
+        System.err.println("Error for " + result.getKey() + ": " + result.resultCode());
+    }
+}
+```
+
+```java
+// Synchronous with callback
+RecordStream rs = session.query(users.ids("alice", "bob"))
+    .execute(err -> System.err.println("Failed: " + err.getKey()));
+```
+
+For async usage, the same strategies are passed to `executeAsync()` — see
+[Async Operations](#async-operations).
+
+---
+
 ## Async Operations
 
 All operations that return `RecordStream` support an async variant via
 `executeAsync()`. The returned `RecordStream` is populated on a background
 thread as results arrive from the server.
 
-### Error handling strategies
+### Async error handling
 
-`executeAsync()` takes either an `ErrorStrategy` or an `ErrorHandler`:
+`executeAsync()` accepts the same `ErrorStrategy` / `ErrorHandler` as
+`execute()`:
 
 ```java
 // Errors embedded in the stream — caller checks each result
