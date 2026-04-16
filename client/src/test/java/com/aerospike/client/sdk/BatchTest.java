@@ -34,7 +34,11 @@ import org.junit.jupiter.api.Test;
 import com.aerospike.client.sdk.exp.Exp;
 import com.aerospike.client.sdk.exp.Expression;
 import com.aerospike.client.sdk.policy.Behavior;
+import com.aerospike.client.sdk.policy.Behavior.Mode;
+import com.aerospike.client.sdk.policy.Behavior.OpKind;
+import com.aerospike.client.sdk.policy.Behavior.OpShape;
 import com.aerospike.client.sdk.policy.Behavior.Selectors;
+import com.aerospike.client.sdk.policy.Settings;
 import com.aerospike.client.sdk.util.Util;
 import com.aerospike.client.sdk.util.Version;
 
@@ -376,7 +380,7 @@ public class BatchTest extends ClusterTest {
     public void batchWriteComplex() {
         DataSet ds = new DataSet("invalid", args.set.getSet());
 
-        ChainableNoBinsBuilder noBinsBuilder = session
+        ChainableNoBinsBuilder tail = session
             .upsert(args.set.id(KeyPrefix + 1))
                 .bin(BinName2).setTo(100)
             .upsert(ds.id(KeyPrefix + 1))
@@ -385,9 +389,9 @@ public class BatchTest extends ClusterTest {
                 .bin(BinName3).upsertFrom("$.bbin + 1000")
             .delete(args.set.id(10002));
         if (args.scMode) {
-            noBinsBuilder = noBinsBuilder.withDurableDelete();
+            tail = tail.withDurableDelete();
         }
-        RecordStream rs = noBinsBuilder.notInAnyTransaction().execute();
+        RecordStream rs = tail.notInAnyTransaction().execute();
 
         assertTrue(rs.hasNext());
         RecordResult res = rs.next();
@@ -535,6 +539,194 @@ public class BatchTest extends ClusterTest {
             count++;
         }
         assertEquals(expectedCount, count);
+    }
+
+    /**
+     * Multi-key heterogeneous batch forces {@link BatchWrite} (not the single-key operate path).
+     * {@code withDurableDelete()} must still reach the wire when {@link Settings#getUseDurableDelete()}
+     * is false for non-retryable batch CP writes, otherwise SC may reject the delete or leave stale state
+     * (repeat adds would not reset to 15).
+     */
+    @Test
+    public void batchOperateRecordDeleteWithDurableDeleteOverridesBehaviorWhenMultiKey() {
+        Assumptions.assumeTrue(args.scMode,
+            "Requires a strongly consistent namespace (record delete inside operate).");
+        Assumptions.assumeTrue(args.enterprise,
+            "Durable delete is an Enterprise server feature.");
+
+        Behavior probeBehavior = Behavior.DEFAULT.deriveWithChanges("BatchOperateDurableDeleteProbe", b -> b
+            .on(Selectors.writes().nonRetryable().batch().cp(), ops -> ops.useDurableDelete(false)));
+        Settings batchWriteCp =
+            probeBehavior.getSettings(OpKind.WRITE_NON_RETRYABLE, OpShape.BATCH, Mode.CP);
+        assertFalse(batchWriteCp.getUseDurableDelete(),
+            "probe behavior must keep batch CP non-retryable durable-delete off in Settings");
+
+        Session probeSession = cluster.createSession(probeBehavior);
+
+        // Bin names are limited to 15 characters on the server; keep short (was 20 chars → BIN_NAME_TOO_LONG).
+        String binName = "ddOpDdBin";
+        int firstKey = 10320;
+        List<Key> keys = args.set.ids(firstKey, firstKey + 1, firstKey + 2, firstKey + 3);
+
+        probeSession.upsert(keys).bin(binName).add(10).execute();
+        probeSession.upsert(keys).bin(binName).add(5).execute();
+
+        RecordStream del = probeSession.upsert(keys)
+            .withDurableDelete()
+            .bin(binName).get()
+            .deleteRecord()
+            .execute();
+        assertBatchWriteOperateDeleteStreamAllOk(del, keys.size());
+
+        probeSession.upsert(keys).bin(binName).add(10).execute();
+        probeSession.upsert(keys).bin(binName).add(5).execute();
+
+        RecordStream rs = probeSession.query(keys).readingOnlyBins(binName).execute();
+        for (int i = 0; i < keys.size(); i++) {
+            assertTrue(rs.hasNext(), "key index " + i);
+            Record rec = rs.next().recordOrThrow();
+            assertEquals(15, rec.getInt(binName), "key index " + i);
+        }
+    }
+
+    private static void assertBatchWriteOperateDeleteStreamAllOk(RecordStream stream, int expectedCount) {
+        int count = 0;
+        while (stream.hasNext()) {
+            RecordResult rr = stream.next();
+            int rc = rr.resultCode();
+            assertEquals(ResultCode.OK, rc,
+                "unexpected operate-delete resultCode=" + rc + " (" + ResultCode.getResultString(rc) + ") key="
+                    + rr.key());
+            count++;
+        }
+        assertEquals(expectedCount, count);
+    }
+
+    /**
+     * On SC, non-durable batch delete is typically forbidden ({@link ResultCode#FAIL_FORBIDDEN}).
+     * Uses default {@link Session}; does not assert resolved {@link Settings#getUseDurableDelete()} is
+     * true — for that guarantee see {@link #batchDeleteExplicitNonDurableRejectedWhenBehaviorDurableTrue}.
+     */
+    @Test
+    public void batchDeleteExplicitNonDurableRejectedOnStrongConsistency() {
+        Assumptions.assumeTrue(args.scMode,
+            "Requires SC namespace policy that forbids non-durable deletes.");
+        Assumptions.assumeTrue(args.enterprise,
+            "Durable delete / SC delete policy is an Enterprise-relevant scenario.");
+
+        String binName = "ddNdBin";
+        int firstKey = 10430;
+        List<Key> keys = args.set.ids(firstKey, firstKey + 1);
+
+        session.upsert(keys).bin(binName).add(1).execute();
+
+        RecordStream rs = session.delete(keys).durablyDelete(false).execute();
+
+        int count = 0;
+        while (rs.hasNext()) {
+            RecordResult rr = rs.next();
+            assertEquals(ResultCode.FAIL_FORBIDDEN, rr.resultCode(),
+                "expected non-durable batch delete to be forbidden on SC; got "
+                    + rr.resultCode() + " (" + ResultCode.getResultString(rr.resultCode()) + ") key="
+                    + rr.key());
+            count++;
+        }
+        assertEquals(keys.size(), count);
+
+        RecordStream exists = session.exists(keys).includeMissingKeys().execute();
+        for (int i = 0; i < keys.size(); i++) {
+            assertTrue(exists.hasNext(), "key index " + i);
+            assertTrue(exists.next().asBoolean(), "record should still exist after forbidden delete; index " + i);
+        }
+    }
+
+    /**
+     * {@link Settings#getUseDurableDelete()} is true for batch CP non-retryable writes, but
+     * {@code durablyDelete(false)} must still clear durable delete on the wire; SC then rejects the
+     * delete ({@link ResultCode#FAIL_FORBIDDEN}) and leaves the record.
+     */
+    @Test
+    public void batchDeleteExplicitNonDurableRejectedWhenBehaviorDurableTrue() {
+        Assumptions.assumeTrue(args.scMode,
+            "Requires SC namespace policy that forbids non-durable deletes.");
+        Assumptions.assumeTrue(args.enterprise,
+            "Durable delete / SC delete policy is an Enterprise-relevant scenario.");
+
+        Behavior probeBehavior = Behavior.DEFAULT.deriveWithChanges("BatchDdFalseOvProbe", b -> b
+            .on(Selectors.writes().nonRetryable().batch().cp(), ops -> ops.useDurableDelete(true)));
+        Settings batchWriteCp =
+            probeBehavior.getSettings(OpKind.WRITE_NON_RETRYABLE, OpShape.BATCH, Mode.CP);
+        assertTrue(batchWriteCp.getUseDurableDelete(),
+            "probe: batch CP non-retryable durable-delete must be on in Settings (override false must win)");
+
+        Session probeSession = cluster.createSession(probeBehavior);
+
+        String binName = "ddFbBin";
+        int firstKey = 10460;
+        List<Key> keys = args.set.ids(firstKey, firstKey + 1);
+
+        probeSession.upsert(keys).bin(binName).add(1).execute();
+
+        RecordStream rs = probeSession.delete(keys).durablyDelete(false).execute();
+
+        int count = 0;
+        while (rs.hasNext()) {
+            RecordResult rr = rs.next();
+            assertEquals(ResultCode.FAIL_FORBIDDEN, rr.resultCode(),
+                "settings true + durablyDelete(false) must not send durable delete on SC; got "
+                    + rr.resultCode() + " (" + ResultCode.getResultString(rr.resultCode()) + ") key="
+                    + rr.key());
+            count++;
+        }
+        assertEquals(keys.size(), count);
+
+        RecordStream exists = probeSession.exists(keys).includeMissingKeys().execute();
+        for (int i = 0; i < keys.size(); i++) {
+            assertTrue(exists.hasNext(), "key index " + i);
+            assertTrue(exists.next().asBoolean(), "record should still exist after forbidden delete; index " + i);
+        }
+    }
+
+    /**
+     * Batch {@link Settings#getUseDurableDelete()} is false (probe behavior), but
+     * {@code withDurableDelete()} must still send durable delete: SC accepts the delete and repeat adds
+     * reset to 15 (same idea as {@link #batchDeleteDurablyDeleteResetsRecordsForRepeatAdds}).
+     */
+    @Test
+    public void batchDeleteDurableOverrideTrueWhenBehaviorBatchDurableDeleteFalse() {
+        Assumptions.assumeTrue(args.scMode,
+            "Requires a strongly consistent namespace (durable batch delete vs repeat adds).");
+        Assumptions.assumeTrue(args.enterprise,
+            "Durable delete is an Enterprise server feature.");
+
+        Behavior probeBehavior = Behavior.DEFAULT.deriveWithChanges("BatchDdTrueOvProbe", b -> b
+            .on(Selectors.writes().nonRetryable().batch().cp(), ops -> ops.useDurableDelete(false)));
+        Settings batchWriteCp =
+            probeBehavior.getSettings(OpKind.WRITE_NON_RETRYABLE, OpShape.BATCH, Mode.CP);
+        assertFalse(batchWriteCp.getUseDurableDelete(),
+            "probe: batch CP non-retryable durable-delete must be off in Settings (override supplies true)");
+
+        Session probeSession = cluster.createSession(probeBehavior);
+
+        String binName = "ddOvBin";
+        int firstKey = 10450;
+        List<Key> keys = args.set.ids(firstKey, firstKey + 1, firstKey + 2, firstKey + 3);
+
+        probeSession.upsert(keys).bin(binName).add(10).execute();
+        probeSession.upsert(keys).bin(binName).add(5).execute();
+
+        RecordStream del = probeSession.delete(keys).withDurableDelete().execute();
+        assertBatchDeleteStreamOk(del, keys.size());
+
+        probeSession.upsert(keys).bin(binName).add(10).execute();
+        probeSession.upsert(keys).bin(binName).add(5).execute();
+
+        RecordStream rs = probeSession.query(keys).readingOnlyBins(binName).execute();
+        for (int i = 0; i < keys.size(); i++) {
+            assertTrue(rs.hasNext(), "key index " + i);
+            Record rec = rs.next().recordOrThrow();
+            assertEquals(15, rec.getInt(binName), "key index " + i);
+        }
     }
 
     @Test

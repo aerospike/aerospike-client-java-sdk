@@ -234,22 +234,25 @@ class OperationSpecExecutor {
                     case REPLACE:
                     case REPLACE_IF_EXISTS:
                         attr.setWrite(settings, spec.getOpType());
+                        mergeOperationSpecDurableDeleteIntoBatchAttr(attr, spec, settings);
                         rec = new BatchWrite(key, attr, spec);
                         break;
 
                     case TOUCH:
                         attr.setWrite(settings, spec.getOpType());
+                        mergeOperationSpecDurableDeleteIntoBatchAttr(attr, spec, settings);
                         rec = new BatchWrite(key, attr, spec, List.of(Operation.touch()), OpType.TOUCH);
                         break;
 
                     case DELETE:
                         attr.setDelete(settings);
-                        mergeOperationSpecDurableDeleteIntoBatchAttr(attr, spec);
+                        mergeOperationSpecDurableDeleteIntoBatchAttr(attr, spec, settings);
                         rec = new BatchDelete(key, attr, spec);
                         break;
 
                     case UDF:
                         attr.setUDF(settings, spec.getOpType());
+                        mergeOperationSpecDurableDeleteIntoBatchAttr(attr, spec, settings);
                         Expression udfWhereClause = spec.getWhereClause() != null ? spec.getWhereClause() : defaultWhereClause;
                         Value[] udfArgs = spec.getUdfArguments();
                         int udfTtl = (int) resolveTtl(spec, defaultExpirationInSeconds);
@@ -689,15 +692,17 @@ class OperationSpecExecutor {
     }
 
     /**
-     * Apply {@link OperationSpec#getDurablyDelete()} onto batch delete attrs after
-     * {@link BatchAttr#setDelete(Settings)}. Durable delete is opt-in only (no SC default) due to
-     * server-side cost; callers must use {@code durablyDelete(true)} or {@code withDurableDelete()}.
+     * Apply resolved durable delete ({@link Settings#getUseDurableDelete(Boolean)} with
+     * {@link OperationSpec#getDurablyDelete()}) onto batch attrs after {@link BatchAttr#setWrite},
+     * {@link BatchAttr#setDelete}, or {@link BatchAttr#setUDF}.
      */
-    private static void mergeOperationSpecDurableDeleteIntoBatchAttr(BatchAttr attr, OperationSpec spec) {
-        Boolean dd = spec.getDurablyDelete();
-        if (Boolean.TRUE.equals(dd)) {
+    private static void mergeOperationSpecDurableDeleteIntoBatchAttr(
+        BatchAttr attr, OperationSpec spec, Settings settings
+    ) {
+        if (settings.getUseDurableDelete(spec.getDurablyDelete())) {
             attr.writeAttr |= (byte) Command.INFO2_DURABLE_DELETE;
-        } else if (Boolean.FALSE.equals(dd)) {
+        }
+        else {
             attr.writeAttr = (byte) (attr.writeAttr & ~Command.INFO2_DURABLE_DELETE);
         }
     }

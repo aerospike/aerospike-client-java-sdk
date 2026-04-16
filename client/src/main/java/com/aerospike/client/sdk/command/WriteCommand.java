@@ -55,9 +55,7 @@ public class WriteCommand extends Command {
         this.gen = gen;
         this.ttl = ttl;
         this.onLockingOnly = false;
-        this.durableDelete = durableDeleteOverride != null
-            ? durableDeleteOverride.booleanValue()
-            : settings.getUseDurableDelete();
+        this.durableDelete = settings.getUseDurableDelete(durableDeleteOverride);
         this.failOnFilteredOut = failOnFilteredOut;
     }
 

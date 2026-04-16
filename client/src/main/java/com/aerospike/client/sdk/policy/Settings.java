@@ -205,6 +205,16 @@ public final class Settings {
         return useDurableDelete;
     }
 
+    /**
+     * Effective durable delete for a call: when {@code durableDeleteOverride} is non-null it wins;
+     * otherwise the behavior-resolved value from {@link #getUseDurableDelete()}.
+     * <p>
+     * {@link #useDurableDelete} is assumed populated for resolved instances built from {@link Behavior}.
+     */
+    public boolean getUseDurableDelete(Boolean durableDeleteOverride) {
+        return durableDeleteOverride != null ? durableDeleteOverride : getUseDurableDelete();
+    }
+
     public boolean getSimulateXdrWrite() {
         return simulateXdrWrite;
     }

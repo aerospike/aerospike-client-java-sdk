@@ -49,6 +49,10 @@ public final class BackgroundQueryCommand extends Command {
         this(cluster, set, taskId, type, ops, ttl, filter, filterExp, policy, recordsPerSecond, null);
     }
 
+    /**
+     * @param durableDeleteOverride when non-null, overrides {@link Settings#getUseDurableDelete()} for
+     *        this background job (avoids copying {@link Settings}).
+     */
     public BackgroundQueryCommand(
         Cluster cluster, DataSet set, long taskId, OpType type, List<Operation> ops, int ttl,
         Filter filter, Expression filterExp, Settings policy, int recordsPerSecond,
@@ -66,9 +70,7 @@ public final class BackgroundQueryCommand extends Command {
         this.functionArgs = null;
         this.recordsPerSecond = recordsPerSecond;
         this.ttl = ttl;
-        this.durableDelete = durableDeleteOverride != null
-            ? durableDeleteOverride.booleanValue()
-            : policy.getUseDurableDelete();
+        this.durableDelete = policy.getUseDurableDelete(durableDeleteOverride);
     }
 
     public BackgroundQueryCommand(
@@ -98,9 +100,7 @@ public final class BackgroundQueryCommand extends Command {
         this.ops = null;
         this.recordsPerSecond = recordsPerSecond;
         this.ttl = ttl;
-        this.durableDelete = durableDeleteOverride != null
-            ? durableDeleteOverride.booleanValue()
-            : policy.getUseDurableDelete();
+        this.durableDelete = policy.getUseDurableDelete(durableDeleteOverride);
     }
 
 }
