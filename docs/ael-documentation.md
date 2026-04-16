@@ -58,12 +58,13 @@ Plain decimal digits, optionally preceded by a sign with no spaces:
 
 ### 2.2 Floating-Point Numbers
 
-Digits with exactly one decimal point (the decimal point must not be the last character):
+Digits with exactly one decimal point (the decimal point must not be the last character). THe decimal point may be leading:
 
 ```
 3.14
 -34.1
 0.37
+.22
 ```
 
 Note: `10.` is **not valid**; use `10.0` instead.
@@ -243,8 +244,8 @@ Selects map entries by a range of keys (begin inclusive, end exclusive):
 |--------|-------------|
 | `{a-c}` | Keys from "a" up to (but not including) "c" |
 | `{a-}` | Keys from "a" to the end |
-| `{-d}` | Keys from the start up to "d" |
-| `{!g-z}` | Keys **not** in range "g" to "z" (inverted) |
+| `{-d}` | Keys from the start up to (but not including) "d" |
+| `{!g-z}` | Keys **not** in range "g" to "z", but not including "z" (inverted) |
 
 ```
 $.m.{a-d}                    -- keys a, b, c (not d)
@@ -272,8 +273,9 @@ Selects entries by index position. Ranges use `start:end` where both are inclusi
 
 | Syntax | Description |
 |--------|-------------|
-| `{1:3}` | Index 1 through 3 (inclusive) |
-| `{-3:-1}` | Last 3 entries |
+| `{1:3}` | Index 1 through 3 (exclusive) |
+| `{-3:-1}` | Last 2 entries (exclusive of index -1) |
+| `{-3:}` | Last 3 entries  |
 | `{1:}` | From index 1 to the end |
 | `{:5}` | From start to index 5 (exclusive) |
 | `{!2:4}` | Entries **outside** index 2-4 (inverted) |
@@ -782,9 +784,9 @@ Access record-level metadata using function syntax after `$`:
 | `$.setName()` | STRING | Name of the set this record belongs to |
 | `$.keyExists()` | BOOL | Whether the user key is stored with the record |
 | `$.isTombstone()` | BOOL | Whether the record is a tombstone (deleted) |
-| `$.deviceSize()` | INT | Storage size on device in bytes |
-| `$.memorySize()` | INT | Size in memory in bytes |
-| `$.recordSize()` | INT | Total record size in bytes |
+| `$.deviceSize()` | INT | Storage size on device in bytes. For servers >= 7, this will return the `recordSize()` |
+| `$.memorySize()` | INT | Size in memory in bytes. For servers >= 7, this will return the `recordSize()` |
+| `$.recordSize()` | INT | Total record size in bytes. Not supported on servers < 7 |
 | `$.digestModulo(n)` | INT | Record digest modulo `n` |
 | `$.key(STR)` | STRING | User key stored with the record (string) |
 | `$.key(INT)` | INT | User key stored with the record (integer) |

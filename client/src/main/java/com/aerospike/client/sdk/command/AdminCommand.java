@@ -31,45 +31,14 @@ import com.aerospike.client.sdk.policy.AuthMode;
 public class AdminCommand {
     // Commands
     private static final byte AUTHENTICATE = 0;
-    /*
-    private static final byte CREATE_USER = 1;
-    private static final byte DROP_USER = 2;
-    private static final byte SET_PASSWORD = 3;
-    private static final byte CHANGE_PASSWORD = 4;
-    private static final byte GRANT_ROLES = 5;
-    private static final byte REVOKE_ROLES = 6;
-    private static final byte QUERY_USERS = 9;
-    private static final byte CREATE_ROLE = 10;
-    private static final byte DROP_ROLE = 11;
-    private static final byte GRANT_PRIVILEGES = 12;
-    private static final byte REVOKE_PRIVILEGES = 13;
-    private static final byte SET_WHITELIST = 14;
-    private static final byte SET_QUOTAS = 15;
-    private static final byte QUERY_ROLES = 16;
-    */
     private static final byte LOGIN = 20;
 
     // Field IDs
     private static final byte USER = 0;
-    /*
-    private static final byte PASSWORD = 1;
-    private static final byte OLD_PASSWORD = 2;
-    */
     private static final byte CREDENTIAL = 3;
     private static final byte CLEAR_PASSWORD = 4;
     private static final byte SESSION_TOKEN = 5;
     private static final byte SESSION_TTL = 6;
-    /*
-    private static final byte ROLES = 10;
-    private static final byte ROLE = 11;
-    private static final byte PRIVILEGES = 12;
-    private static final byte WHITELIST = 13;
-    private static final byte READ_QUOTA = 14;
-    private static final byte WRITE_QUOTA = 15;
-    private static final byte READ_INFO = 16;
-    private static final byte WRITE_INFO = 17;
-    private static final byte CONNECTIONS = 18;
-    */
 
     // Misc
     private static final long MSG_VERSION = 2L;
@@ -78,7 +47,6 @@ public class AdminCommand {
     private static final int HEADER_SIZE = 24;
     private static final int HEADER_REMAINING = 16;
     private static final int RESULT_CODE = 9;
-    //private static final int QUERY_END = 50;
 
     byte[] dataBuffer;
     int dataOffset;
@@ -237,33 +205,15 @@ public class AdminCommand {
         dataOffset += 16;
     }
 
-    /*
-    private void writeField(byte id, String str) {
-        int len = Buffer.stringToUtf8(str, dataBuffer, dataOffset + FIELD_HEADER_SIZE);
-        writeFieldHeader(id, len);
-        dataOffset += len;
-    }
-    */
-
     final void writeField(byte id, byte[] bytes) {
         System.arraycopy(bytes, 0, dataBuffer, dataOffset + FIELD_HEADER_SIZE, bytes.length);
         writeFieldHeader(id, bytes.length);
         dataOffset += bytes.length;
     }
 
-    /*
-    private void writeField(byte id, int val) {
-        writeFieldHeader(id, 4);
-        Buffer.intToBytes(val, dataBuffer, dataOffset);
-        dataOffset += 4;
-    }
-    */
-
     private void writeFieldHeader(byte id, int size) {
         Buffer.intToBytes(size + 1, dataBuffer, dataOffset);
         dataOffset += 4;
         dataBuffer[dataOffset++] = id;
     }
-
-    // TODO: Port all methods
 }
