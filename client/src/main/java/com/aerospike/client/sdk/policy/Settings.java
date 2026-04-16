@@ -205,6 +205,16 @@ public final class Settings {
         return useDurableDelete;
     }
 
+    /**
+     * Copy with {@code useDurableDelete} replaced — used when overriding behavior-matrix defaults
+     * (e.g. SC + record delete inside operate) without mutating cached {@link Behavior} settings.
+     */
+    public Settings withUseDurableDelete(boolean useDurableDelete) {
+        Settings s = new Settings(this);
+        s.useDurableDelete = useDurableDelete;
+        return s;
+    }
+
     public boolean getSimulateXdrWrite() {
         return simulateXdrWrite;
     }
@@ -226,15 +236,5 @@ public final class Settings {
     }
     public boolean getStackTraceOnException() {
         return stackTraceOnException;
-    }
-
-    /**
-     * Shallow copy with {@code useDurableDelete} forced for a single operation
-     * (for example SC namespaces where delete requests must carry the durable flag).
-     */
-    public Settings withUseDurableDelete(boolean useDurableDelete) {
-        Settings s = new Settings(this);
-        s.useDurableDelete = useDurableDelete;
-        return s;
     }
 }

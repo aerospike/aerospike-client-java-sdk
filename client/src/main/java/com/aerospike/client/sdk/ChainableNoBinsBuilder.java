@@ -538,35 +538,6 @@ public class ChainableNoBinsBuilder extends AbstractSessionOperationBuilder<Chai
         return this;
     }
 
-    /**
-     * {@inheritDoc}
-     * <p>For delete operations, also updates {@link OperationSpec} so the durable flag is sent on the wire
-     * (see {@link #durablyDelete(boolean)}).</p>
-     */
-    @Override
-    public ChainableNoBinsBuilder withDurableDelete() {
-        verifyState("setting durable delete");
-        if (currentSpec.getOpType() != OpType.DELETE) {
-            throw new IllegalStateException("withDurableDelete() is only valid for delete operations");
-        }
-        currentSpec.setDurablyDelete(true);
-        super.withDurableDelete();
-        return this;
-    }
-
-    /**
-     * {@inheritDoc}
-     * <p>For delete operations, clears the spec-level durable override.</p>
-     */
-    @Override
-    public ChainableNoBinsBuilder withoutDurableDelete() {
-        if (currentSpec != null && currentSpec.getOpType() == OpType.DELETE) {
-            currentSpec.setDurablyDelete(false);
-        }
-        super.withoutDurableDelete();
-        return this;
-    }
-
     // ========================================
     // Per-operation policies
     // ========================================
@@ -984,6 +955,23 @@ public class ChainableNoBinsBuilder extends AbstractSessionOperationBuilder<Chai
         finalizeCurrentOperation();
         if (operationSpecs.isEmpty()) {
             throw new IllegalStateException("No operations specified");
+        }
+        mergeBuilderDurableDeleteIntoDeleteSpecs();
+    }
+
+    /**
+     * {@link #withDurableDelete()} / {@link #withoutDurableDelete()} set session-builder state;
+     * {@link #durablyDelete(boolean)} sets {@link OperationSpec} directly. Batch delete wiring reads
+     * the spec — copy builder-level intent when the spec was left unset so SC durable deletes work.
+     */
+    private void mergeBuilderDurableDeleteIntoDeleteSpecs() {
+        if (durableDelete == null) {
+            return;
+        }
+        for (OperationSpec spec : operationSpecs) {
+            if (spec.getOpType() == OpType.DELETE && spec.getDurablyDelete() == null) {
+                spec.setDurablyDelete(durableDelete);
+            }
         }
     }
 

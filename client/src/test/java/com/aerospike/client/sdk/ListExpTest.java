@@ -22,6 +22,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
@@ -45,9 +46,17 @@ public class ListExpTest extends ClusterTest {
     Key keyA = args.set.id("A");
     Key keyB = args.set.id("B");
 
+    private void deleteKeys(Key... keys) {
+        ChainableNoBinsBuilder d = session.delete(Arrays.asList(keys));
+        if (args.scMode) {
+            d = d.durablyDelete(true);
+        }
+        d.execute();
+    }
+
     @BeforeEach
     public void setUp() throws Exception {
-        session.delete(keyA, keyB).execute();
+        deleteKeys(keyA, keyB);
     }
 
     @Test
@@ -131,8 +140,7 @@ public class ListExpTest extends ClusterTest {
         Key keyMatch = args.set.id("listMapFilter");
         Key keyFiltered = args.set.id("listMapFilterNoMatch");
 
-        session.delete(keyMatch).execute();
-        session.delete(keyFiltered).execute();
+        deleteKeys(keyMatch, keyFiltered);
 
         List<Map<String, Object>> listOfMaps = List.of(
                 Map.of("name", "alice", "age", 30),
@@ -181,7 +189,7 @@ public class ListExpTest extends ClusterTest {
     public void listExpressionWithReturnTypeIndex() {
         Key key = args.set.id("listRetIndex");
 
-        session.delete(key).execute();
+        deleteKeys(key);
 
         List<Integer> list = List.of(10, 20, 30, 40);
 
@@ -208,7 +216,7 @@ public class ListExpTest extends ClusterTest {
     public void relativeRankListExpressionOrder() {
         Key key = args.set.id("relRank");
 
-        session.delete(key).execute();
+        deleteKeys(key);
 
         List<Integer> list = List.of(10, 20, 30, 40);
 

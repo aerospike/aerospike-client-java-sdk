@@ -35,42 +35,33 @@ If none of these are called, the spec’s durable flag stays **`null`** (no expl
 
 ### Behavior matrix / YAML
 
-**`useDurableDelete(boolean)`** on the appropriate **write** behavior selectors sets the default **`Settings.useDurableDelete`** for matching operations. That value is the baseline for deletes and writes until the executor applies spec-level or SC logic.
+**`useDurableDelete(boolean)`** on the appropriate **write** behavior selectors sets the default **`Settings.useDurableDelete`** for matching operations. That value is the baseline until the executor applies an explicit **`OperationSpec`** override (no client-side “always on for SC” default on batch delete or operate `deleteRecord()`—those are opt-in due to server cost).
 
 ### Inherited `withDurableDelete()` / `withoutDurableDelete()` on other builders
 
-**`AbstractSessionOperationBuilder`** exposes these for all builders, but they only toggle a **parent `durableDelete` field** that is **not** wired into `OperationSpec` for bin/operate flows. For **delete chains**, **`ChainableNoBinsBuilder`** overrides them so they **also** update **`OperationSpec`**—that is the supported way to pair ergonomics with the wire flag for **`session.delete`**.
+**`AbstractSessionOperationBuilder`** exposes these for all builders; they set a **parent `durableDelete` field**. **`ChainableNoBinsBuilder.prepareSpecs()`** copies that field onto **`OperationSpec`** for **`DELETE`** specs when the spec did not already set durable delete. **`ChainableOperationBuilder.prepareSpecs()`** does the same for write specs whose operation list includes **`Operation.Type.DELETE`** (e.g. **`deleteRecord()`**), so **`withDurableDelete()`** before **`deleteRecord()`** reaches the wire on SC when you opt in.
+
+**`BackgroundOperationBuilder`** (set **`delete`**) and **`BackgroundUdfBuilder`** merge the same parent **`durableDelete`** field into a copy of **`Settings`** via **`withUseDurableDelete(...)`** when it is non-null, then pass that into **`BackgroundQueryCommand`** (no implicit SC default).
 
 ---
 
 ## Implicit (client-default) durable delete
 
-The client **turns durable delete on without the user calling** `durablyDelete` / `withDurableDelete` in these situations. Motivation is usually **SC + server policy** (e.g. `FAIL_FORBIDDEN` on non-durable expunge deletes) or **embedded record deletes** in an operate pipeline.
-
-| User-facing entry | When durable delete is applied implicitly |
-|-------------------|------------------------------------------|
-| **`session.delete(...).execute()`** (single-key path in `OperationSpecExecutor`) | Namespace **`scMode`** and spec **`durablyDelete` is `null`** → settings force **`useDurableDelete(true)`**. If the user sets **`durablyDelete(false)`** (`withoutDurableDelete()`), that **opts out**. |
-| **Heterogeneous batch: `BatchDelete`** | After `BatchAttr.setDelete(settings)` and merging **`OperationSpec.getDurablyDelete()`**, if **`scMode`** and spec is **not** explicitly **`false`**, **`INFO2_DURABLE_DELETE`** is OR’d into the batch write attrs. |
-| **`session.upsert` / … with `deleteRecord()`** (operate list contains `Operation.Type.DELETE`) | Single-key **`executeSingleKeyWrite`** and batch **`BatchWrite`**: if **`scMode`** and the op list contains a record-level delete → **`Settings.withUseDurableDelete(true)`**. There is **no** separate fluent **`durablyDelete`** on the upsert spec for this path today. |
-| **`session.backgroundTask().delete(...).execute()`** | **`OpType.DELETE`** and namespace **`scMode`** → **`Settings.withUseDurableDelete(true)`**. |
-| **`session.backgroundTask().executeUdf(...).execute()`** | Namespace **`scMode`** → **`Settings.withUseDurableDelete(true)`** for the background UDF command (broad: UDF may remove records). |
-
-**Foreground `session`-style UDF** on a single key is a separate code path and does **not** currently mirror the background UDF SC durable-default.
+**Batch `BatchDelete`**, **foreground operate `deleteRecord()`**, and **background task delete / UDF** do **not** turn on durable delete based on **`scMode` alone**—callers must opt in (**`durablyDelete(true)`**, **`withDurableDelete()`**, **`withoutDurableDelete()`**, or behavior **`useDurableDelete`**) because of **server-side cost** of durable deletes.
 
 ---
 
-## Quick matrix: who wins?
+## Quick matrix: who wins? (batch `DELETE` and `OperationSpec`)
 
-| Spec `durablyDelete` | SC namespace | Typical outcome for **plain `session.delete`** |
-|----------------------|--------------|-----------------------------------------------|
-| `null` | no | Behavior / `Settings` defaults only. |
-| `null` | yes | Client forces **durable** (unless behavior already set and not overridden—implementation forces via `Settings` for single-key delete). |
-| `true` | either | **Durable** (explicit). |
-| `false` | either | **Not** durable: you asked for a normal delete. The client does **not** add the extra “SC batch” durable-delete flag on top of that. |
+| Spec `durablyDelete` | `BatchAttr` merge after `setDelete(settings)` |
+|----------------------|-----------------------------------------------|
+| `null` | No spec override: wire flag follows **`settings.getUseDurableDelete()`** only. |
+| `true` | **`INFO2_DURABLE_DELETE`** is OR’d in. |
+| `false` | Durable bit is cleared on the batch attrs for that delete. |
 
-**Plain words for the `false` row:** If you call **`withoutDurableDelete()`** or **`durablyDelete(false)`**, the delete is a **normal** delete as far as the spec is concerned. On **batch** deletes in an SC namespace, the client normally ORs in durable delete for safety; when you set the spec to **`false`**, it **skips** that extra step so your choice is respected (the server may still reject the delete if your namespace forbids non-durable deletes).
+For **operate** / **`deleteRecord()`**, **`mergeOperateWriteDurableDeleteSettings`** only overrides **`Settings.useDurableDelete`** when **`spec.getDurablyDelete()`** is non-null (including after **`ChainableOperationBuilder`** copies **`withDurableDelete()`** into the spec in **`prepareSpecs()`**).
 
-For **embedded `deleteRecord()`** on SC, the client currently **forces** durable behavior for that write without a per-spec `false` knob on the fluent upsert builder.
+On **SC** namespaces that disallow non-durable deletes, callers must set durable delete explicitly (or via **behavior** / YAML) or the server may return **`FAIL_FORBIDDEN` (22)**.
 
 ---
 

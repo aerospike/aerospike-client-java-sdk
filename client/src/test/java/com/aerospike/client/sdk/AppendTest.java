@@ -20,18 +20,27 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.Arrays;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
 public class AppendTest extends ClusterTest {
+    private void deleteKeys(Key... keys) {
+        ChainableNoBinsBuilder d = session.delete(Arrays.asList(keys));
+        if (args.scMode) {
+            d = d.durablyDelete(true);
+        }
+        d.execute();
+    }
+
     @Test
     public void append() {
         String key = "append";
         String binName = "appendbin";
 
         // Delete record if it already exists.
-        session.delete(args.set.id(key)).execute();
+        deleteKeys(args.set.id(key));
 
         // Perform some appends and check results.
         session.upsert(args.set.id(key))
@@ -68,7 +77,7 @@ public class AppendTest extends ClusterTest {
         byte[] key1 = new byte[] {1,2,3};
         byte[] key2 = new byte[] {2,3,4};
 
-        session.delete(args.set.ids(key1, key2)).execute();
+        deleteKeys(args.set.id(key1), args.set.id(key2));
 
         session.insert(args.set.id(key1))
             .bin(binName).append("empty")
@@ -86,7 +95,7 @@ public class AppendTest extends ClusterTest {
             String str = item.recordOrThrow().getString(binName);
             assertEquals(item.index() == 0 ? "emptyfull" : "full",str);
         }
-        session.delete(args.set.ids(key1, key2)).execute();
+        deleteKeys(args.set.id(key1), args.set.id(key2));
         assertFalse(rs.hasNext());
     }
 
@@ -96,7 +105,7 @@ public class AppendTest extends ClusterTest {
         String binName = "appendbin";
 
         // Delete record if it already exists.
-        session.delete(args.set.id(key)).execute();
+        deleteKeys(args.set.id(key));
 
         // Perform some appends and check results.
         session.upsert(args.set.id(key))

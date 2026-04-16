@@ -866,7 +866,7 @@ public class FilterExpTest extends ClusterTest {
     @Test
     public void batchKeyFilter() {
         // Write/Delete records with filter.
-        RecordStream rs = session
+        ChainableNoBinsBuilder del = session
             .upsert(args.set.id(keyA))
                 .bin(binA).setTo(3)
                 .where("$.A == 1")
@@ -875,8 +875,11 @@ public class FilterExpTest extends ClusterTest {
                 .where("$.A == 1")
                 .failOnFilteredOut()
             .delete(args.set.id(keyC))
-                .where("$.A == 0")
-            .execute();
+                .where("$.A == 0");
+        if (args.scMode) {
+            del = del.durablyDelete(true);
+        }
+        RecordStream rs = del.execute();
 
         assertTrue(rs.hasNext());
         Record rec = rs.next().recordOrThrow();

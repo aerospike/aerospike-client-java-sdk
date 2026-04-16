@@ -24,6 +24,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import com.aerospike.client.sdk.AerospikeException;
+import com.aerospike.client.sdk.BackgroundUdfBuilder;
 import com.aerospike.client.sdk.ClusterTest;
 import com.aerospike.client.sdk.DataSet;
 import com.aerospike.client.sdk.Key;
@@ -75,12 +76,16 @@ public class QueryExecuteTest extends ClusterTest {
 
     @Test
     public void queryExecute() {
-        ExecuteTask task = session.backgroundTask()
+        // processRecord removes records where bin1 % 9 == 0; SC needs durable delete for remove to stick.
+        BackgroundUdfBuilder bg = session.backgroundTask()
             .executeUdf(args.set)
             .function("record_example", "processRecord")
             .passing(binName1, binName2, 100)
-            .where("$.tqebin1 >= 3 and $.tqebin1 <= 9")
-            .execute();
+            .where("$.tqebin1 >= 3 and $.tqebin1 <= 9");
+        if (args.scMode) {
+            bg = bg.withDurableDelete();
+        }
+        ExecuteTask task = bg.execute();
 
         task.waitTillComplete(3000, 3000);
         validateRecords();

@@ -234,9 +234,6 @@ class OperationSpecExecutor {
                     case REPLACE:
                     case REPLACE_IF_EXISTS:
                         attr.setWrite(settings, spec.getOpType());
-                        if (scMode && operationsContainRecordDelete(spec.getOperations())) {
-                            attr.writeAttr |= (byte) Command.INFO2_DURABLE_DELETE;
-                        }
                         rec = new BatchWrite(key, attr, spec);
                         break;
 
@@ -248,10 +245,6 @@ class OperationSpecExecutor {
                     case DELETE:
                         attr.setDelete(settings);
                         mergeOperationSpecDurableDeleteIntoBatchAttr(attr, spec);
-                        // SC forbids non-durable expunge deletes unless explicitly opted out on the spec.
-                        if (scMode && !Boolean.FALSE.equals(spec.getDurablyDelete())) {
-                            attr.writeAttr |= (byte) Command.INFO2_DURABLE_DELETE;
-                        }
                         rec = new BatchDelete(key, attr, spec);
                         break;
 
@@ -567,10 +560,7 @@ class OperationSpecExecutor {
         int gen = spec.getGeneration();
         List<Operation> ops = spec.getOperations();
         OpType opType = spec.getOpType();
-
-        if (scMode && operationsContainRecordDelete(ops)) {
-            settings = settings.withUseDurableDelete(true);
-        }
+        settings = mergeOperateWriteDurableDeleteSettings(settings, spec);
 
         if (txn != null) {
             TxnMonitor.addKey(txn, session, key);
@@ -650,14 +640,6 @@ class OperationSpecExecutor {
         boolean scMode, boolean failOnFilteredOut
     ) {
         Settings settings = behavior.getSettings(OpKind.WRITE_RETRYABLE, OpShape.POINT, scMode);
-        Boolean specDd = spec.getDurablyDelete();
-        if (Boolean.TRUE.equals(specDd)) {
-            settings = settings.withUseDurableDelete(true);
-        } else if (Boolean.FALSE.equals(specDd)) {
-            settings = settings.withUseDurableDelete(false);
-        } else if (scMode) {
-            settings = settings.withUseDurableDelete(true);
-        }
         int gen = spec.getGeneration();
         int ttl = (int) spec.getExpirationInSeconds();
 
@@ -707,22 +689,23 @@ class OperationSpecExecutor {
         return new RecordStream();
     }
 
-    /** True if the operate list includes a whole-record delete ({@link AbstractOperationBuilder#deleteRecord()}). */
-    private static boolean operationsContainRecordDelete(List<Operation> ops) {
-        if (ops == null) {
-            return false;
+    /**
+     * When {@link OperationSpec#getDurablyDelete()} is set (including via
+     * {@link ChainableOperationBuilder}'s {@code withDurableDelete()} merge into the spec), override
+     * behavior-matrix {@link Settings#getUseDurableDelete()} for operate writes. No implicit SC default.
+     */
+    private static Settings mergeOperateWriteDurableDeleteSettings(Settings base, OperationSpec spec) {
+        Boolean dd = spec.getDurablyDelete();
+        if (dd == null) {
+            return base;
         }
-        for (Operation op : ops) {
-            if (op.type == Operation.Type.DELETE) {
-                return true;
-            }
-        }
-        return false;
+        return base.withUseDurableDelete(dd.booleanValue());
     }
 
     /**
-     * {@link OperationSpec#getDurablyDelete()} overrides {@link BatchAttr#setDelete} defaults
-     * (behavior matrix alone never consulted the spec flag).
+     * Apply {@link OperationSpec#getDurablyDelete()} onto batch delete attrs after
+     * {@link BatchAttr#setDelete(Settings)}. Durable delete is opt-in only (no SC default) due to
+     * server-side cost; callers must use {@code durablyDelete(true)} or {@code withDurableDelete()}.
      */
     private static void mergeOperationSpecDurableDeleteIntoBatchAttr(BatchAttr attr, OperationSpec spec) {
         Boolean dd = spec.getDurablyDelete();
