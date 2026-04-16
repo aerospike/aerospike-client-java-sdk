@@ -205,16 +205,6 @@ public final class Settings {
         return useDurableDelete;
     }
 
-    /**
-     * Copy with {@code useDurableDelete} replaced — used when overriding behavior-matrix defaults
-     * (e.g. SC + record delete inside operate) without mutating cached {@link Behavior} settings.
-     */
-    public Settings withUseDurableDelete(boolean useDurableDelete) {
-        Settings s = new Settings(this);
-        s.useDurableDelete = useDurableDelete;
-        return s;
-    }
-
     public boolean getSimulateXdrWrite() {
         return simulateXdrWrite;
     }

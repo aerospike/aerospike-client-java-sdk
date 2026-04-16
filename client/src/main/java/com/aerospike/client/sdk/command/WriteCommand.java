@@ -40,6 +40,17 @@ public class WriteCommand extends Command {
         Cluster cluster, Partitions partitions, Txn txn, Key key, OpType type, int gen, int ttl,
         Expression where, boolean failOnFilteredOut, Settings settings
     ) {
+        this(cluster, partitions, txn, key, type, gen, ttl, where, failOnFilteredOut, settings, null);
+    }
+
+    /**
+     * @param durableDeleteOverride when non-null, used instead of {@link Settings#getUseDurableDelete()}
+     *        (avoids cloning {@link Settings} to flip durable delete for a single command).
+     */
+    public WriteCommand(
+        Cluster cluster, Partitions partitions, Txn txn, Key key, OpType type, int gen, int ttl,
+        Expression where, boolean failOnFilteredOut, Settings settings, Boolean durableDeleteOverride
+    ) {
         super(cluster, key.namespace, txn, where, settings.getReplicaOrder(), settings);
         this.key = key;
         this.partition = new Partition(partitions, key, replica, null, false);
@@ -48,20 +59,13 @@ public class WriteCommand extends Command {
         this.gen = gen;
         this.ttl = ttl;
         this.onLockingOnly = false;
-        this.durableDelete = settings.getUseDurableDelete();
+        this.durableDelete = durableDeleteOverride != null
+            ? durableDeleteOverride.booleanValue()
+            : settings.getUseDurableDelete();
         this.failOnFilteredOut = failOnFilteredOut;
     }
 
     public WriteCommand(Cluster cluster, Partitions partitions, Key key, Settings settings) {
-        super(cluster, key.namespace, null, null, settings.getReplicaOrder(), settings);
-        this.key = key;
-        this.partition = new Partition(partitions, key, replica, null, false);
-        this.type = OpType.UPSERT;
-        this.commitLevel = settings.getCommitLevel();
-        this.gen = 0;
-        this.ttl = 0;
-        this.onLockingOnly = false;
-        this.durableDelete = settings.getUseDurableDelete();
-        this.failOnFilteredOut = false;
+        this(cluster, partitions, null, key, OpType.UPSERT, 0, 0, null, false, settings, null);
     }
 }

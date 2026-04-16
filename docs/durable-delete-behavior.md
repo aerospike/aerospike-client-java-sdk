@@ -41,7 +41,7 @@ If none of these are called, the spec’s durable flag stays **`null`** (no expl
 
 **`AbstractSessionOperationBuilder`** exposes these for all builders; they set a **parent `durableDelete` field**. **`ChainableNoBinsBuilder.prepareSpecs()`** copies that field onto **`OperationSpec`** for **`DELETE`** specs when the spec did not already set durable delete. **`ChainableOperationBuilder.prepareSpecs()`** does the same for write specs whose operation list includes **`Operation.Type.DELETE`** (e.g. **`deleteRecord()`**), so **`withDurableDelete()`** before **`deleteRecord()`** reaches the wire on SC when you opt in.
 
-**`BackgroundOperationBuilder`** (set **`delete`**) and **`BackgroundUdfBuilder`** merge the same parent **`durableDelete`** field into a copy of **`Settings`** via **`withUseDurableDelete(...)`** when it is non-null, then pass that into **`BackgroundQueryCommand`** (no implicit SC default).
+**`BackgroundOperationBuilder`** (set **`delete`**) and **`BackgroundUdfBuilder`** pass the parent **`durableDelete`** field into **`BackgroundQueryCommand`** as an optional override when non-null, so **`Settings`** from the behavior matrix is not cloned (no implicit SC default).
 
 ---
 
@@ -59,7 +59,7 @@ If none of these are called, the spec’s durable flag stays **`null`** (no expl
 | `true` | **`INFO2_DURABLE_DELETE`** is OR’d in. |
 | `false` | Durable bit is cleared on the batch attrs for that delete. |
 
-For **operate** / **`deleteRecord()`**, **`mergeOperateWriteDurableDeleteSettings`** only overrides **`Settings.useDurableDelete`** when **`spec.getDurablyDelete()`** is non-null (including after **`ChainableOperationBuilder`** copies **`withDurableDelete()`** into the spec in **`prepareSpecs()`**).
+For **operate** / **`deleteRecord()`** and **single-key `WriteCommand` deletes**, **`spec.getDurablyDelete()`** is passed as a **`Boolean` override** into **`OperateWriteCommand` / `WriteCommand`** when non-null (including after **`ChainableOperationBuilder`** copies **`withDurableDelete()`** into the spec in **`prepareSpecs()`**), avoiding a **`Settings`** copy.
 
 On **SC** namespaces that disallow non-durable deletes, callers must set durable delete explicitly (or via **behavior** / YAML) or the server may return **`FAIL_FORBIDDEN` (22)**.
 
@@ -138,7 +138,7 @@ Checklist:
 | Embedded delete detection | `operationsContainRecordDelete` |
 | Delete fluent overrides | `ChainableNoBinsBuilder` (`durablyDelete`, `withDurableDelete`, `withoutDurableDelete`) |
 | Background delete / UDF | `BackgroundOperationBuilder.execute`, `BackgroundUdfBuilder.execute` |
-| Settings copy with override | `Settings.withUseDurableDelete` |
+| Operate / point delete override | `WriteCommand` / `OperateWriteCommand` `durableDeleteOverride` parameter |
 | Policy defaults | `Behavior` matrix / YAML loaders |
 
 ---

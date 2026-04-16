@@ -269,9 +269,6 @@ public class BackgroundUdfBuilder extends AbstractSessionOperationBuilder<Backgr
             OpShape.QUERY,
             Mode.ANY
         );
-        if (durableDelete != null) {
-            settings = settings.withUseDurableDelete(durableDelete.booleanValue());
-        }
 
         Filter filter = null;
         Expression filterExp = null;
@@ -286,7 +283,8 @@ public class BackgroundUdfBuilder extends AbstractSessionOperationBuilder<Backgr
         long taskId = new Random().nextLong();
 
         BackgroundQueryCommand cmd = new BackgroundQueryCommand(cluster, dataset, taskId, opType,
-            ttl, packageName, functionName, functionArgs, filter, filterExp, settings, recordsPerSecond);
+            ttl, packageName, functionName, functionArgs, filter, filterExp, settings, recordsPerSecond,
+            durableDelete);
 
         final NodeStatus status = new NodeStatus();
 

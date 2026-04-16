@@ -560,7 +560,6 @@ class OperationSpecExecutor {
         int gen = spec.getGeneration();
         List<Operation> ops = spec.getOperations();
         OpType opType = spec.getOpType();
-        settings = mergeOperateWriteDurableDeleteSettings(settings, spec);
 
         if (txn != null) {
             TxnMonitor.addKey(txn, session, key);
@@ -568,7 +567,7 @@ class OperationSpecExecutor {
 
         OperateArgs operateArgs = new OperateArgs(ops);
         OperateWriteCommand cmd = new OperateWriteCommand(cluster, partitions, txn, key, ops, operateArgs,
-            opType, gen, (int) ttl, filterExp, failOnFilteredOut, settings);
+            opType, gen, (int) ttl, filterExp, failOnFilteredOut, settings, spec.getDurablyDelete());
         OperateWriteExecutor exec = new OperateWriteExecutor(cluster, cmd);
         exec.execute();
         Record record = exec.getRecord();
@@ -648,7 +647,7 @@ class OperationSpecExecutor {
         }
 
         WriteCommand cmd = new WriteCommand(cluster, partitions, txn, key, OpType.DELETE,
-            gen, ttl, filterExp, failOnFilteredOut, settings);
+            gen, ttl, filterExp, failOnFilteredOut, settings, spec.getDurablyDelete());
         DeleteExecutor exec = new DeleteExecutor(cluster, cmd);
         exec.execute();
         boolean existed = exec.existed();
@@ -690,22 +689,9 @@ class OperationSpecExecutor {
     }
 
     /**
-     * When {@link OperationSpec#getDurablyDelete()} is set (including via
-     * {@link ChainableOperationBuilder}'s {@code withDurableDelete()} merge into the spec), override
-     * behavior-matrix {@link Settings#getUseDurableDelete()} for operate writes. No implicit SC default.
-     */
-    private static Settings mergeOperateWriteDurableDeleteSettings(Settings base, OperationSpec spec) {
-        Boolean dd = spec.getDurablyDelete();
-        if (dd == null) {
-            return base;
-        }
-        return base.withUseDurableDelete(dd.booleanValue());
-    }
-
-    /**
      * Apply {@link OperationSpec#getDurablyDelete()} onto batch delete attrs after
-     * {@link BatchAttr#setDelete(Settings)}. Callers must use {@code durablyDelete(true)}
-     * or {@code withDurableDelete()}.
+     * {@link BatchAttr#setDelete(Settings)}. Durable delete is opt-in only (no SC default) due to
+     * server-side cost; callers must use {@code durablyDelete(true)} or {@code withDurableDelete()}.
      */
     private static void mergeOperationSpecDurableDeleteIntoBatchAttr(BatchAttr attr, OperationSpec spec) {
         Boolean dd = spec.getDurablyDelete();
