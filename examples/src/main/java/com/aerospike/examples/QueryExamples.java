@@ -34,6 +34,7 @@ import com.aerospike.client.sdk.DefaultRecordMappingFactory;
 import com.aerospike.client.sdk.ErrorStrategy;
 import com.aerospike.client.sdk.Key;
 import com.aerospike.client.sdk.NavigatableRecordStream;
+import com.aerospike.client.sdk.Record;
 import com.aerospike.client.sdk.RecordMapper;
 import com.aerospike.client.sdk.RecordResult;
 import com.aerospike.client.sdk.RecordStream;
@@ -921,6 +922,24 @@ public class QueryExamples {
                         .expireRecordAfterSeconds(500)
                     .query(customerDataSet.id(7))
                     .execute();
+
+//session.update(key)
+//    .bin("status").setTo("COMPLETE")
+//    .where("$.balance > 500 and $.status == 'ACTIVE'")
+//    .execute();
+            
+
+//AEL: Clean, readable syntax
+RecordStream stream = session.query(users)
+ .where("$.status == 'active' and $.age >= 21")
+ .execute();
+stream.forEach(res -> {
+ if (res.isOk()) {
+     Record row = res.recordOrThrow();
+     // Process row
+ }
+});
+stream.close();
 
             // --------------------
             // Object mapping
