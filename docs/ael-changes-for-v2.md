@@ -77,6 +77,16 @@ P1 modify: `insert`, `overwrite`, `snip`, `replace`/`replaceAll`. P2: `toInt`/`t
 operations. Cross-type conversions: `toString`, `toBase64`, `fromBase64`. Standalone:
 `concat`, `join`.
 
+10. Base-64 enoded literals
+
+Base-64 encoded byte sequences should also supported using `b64'...'` / `B64'...'` prefixes. Eg:
+
+```
+B64_LITERAL: [bB] '64\'' [A-Za-z0-9+/=]* '\'';
+```
+
+If the literal is not a valid base-64 encoded string, a parsing exception should be thrown.
+
 ---
 
 ### Design principle: method-style for type-specific functions

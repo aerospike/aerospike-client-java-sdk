@@ -18,19 +18,17 @@ AEL-DOC takes precedence.
 | 1 | `NAME_IDENTIFIER` allows digit-start → wrong map key type | High |
 | 2 | `exists()` silently dropped by visitor | High |
 | 3 | Mutation functions are grammar stubs with no visitor | Medium |
-| 4 | `deviceSize`/`memorySize` aliased to `recordSize` | Low (server ≥ 7.0) |
-| 5 | `type()` path function missing from grammar | Medium |
-| 6 | `put()` map mutation missing from grammar | Medium |
-| 7 | Open-start ranges (`{-d}`, `{:5}`, `{#:4}`) missing | Medium |
-| 8 | Block comments (`/* */`) missing from grammar | Low |
-| 9 | `error`/`unknown` keywords treated as bin names | Medium |
-| 10 | `WILDCARD`/`NIL`/`INF` not handled as special values | Medium |
-| 11 | `$.key()` metadata function missing from grammar | Medium |
-| 12 | String escape sequences not implemented | Medium |
-| 13 | Value ranges limited to integers only | Medium |
-| 14 | Float/list values not supported in CDT value positions | Medium |
-| 15 | Bitwise operator precedence differs from PDF-SPEC | Low (matches AEL-DOC) |
-| 16 | B64 literal syntax is an undocumented extension | Low |
+| 4 | `type()` path function missing from grammar | Medium |
+| 5 | `put()` map mutation missing from grammar | Medium |
+| 6 | Open-start ranges (`{-d}`, `{:5}`, `{#:4}`) missing | Medium |
+| 7 | Block comments (`/* */`) missing from grammar | Low |
+| 8 | `error`/`unknown` keywords treated as bin names | Medium |
+| 9 | `WILDCARD`/`NIL`/`INF` not handled as special values | Medium |
+| 10 | `$.key()` metadata function missing from grammar | Medium |
+| 11 | String escape sequences not implemented | Medium |
+| 12 | Value ranges limited to integers only | Medium |
+| 13 | Float/list values not supported in CDT value positions | Medium |
+| 14 | Bitwise operator precedence differs from PDF-SPEC | Low (matches AEL-DOC) |
 
 ---
 
@@ -59,47 +57,6 @@ with left-associativity.
 
 **Impact:** `1 | 2 & 4` parses as `(1 | 2) & 4` in the implementation, whereas PDF-SPEC
 precedence would parse it as `1 | (2 & 4)`.
-
-### S2. Index/rank range end semantics (inclusive vs exclusive)
-
-**PDF-SPEC** uses inclusive end semantics in its examples:
-- `{0:1}` → `getByIndexRange(start=0, count=2)` where count = end−start+1
-- `[3:7]` → "count 5 (7−3+1)"
-
-**AEL-DOC** (§20, Rule 10) states all ranges use exclusive end:
-> "Index ranges in the AEL are also exclusive on the end."
-
-However, AEL-DOC §5.2 contains a conflicting description for map index ranges:
-`{1:3}` is described as "Index 1 through 3 (inclusive)" while `{-3:-1}` is described
-as "Last 3 entries". Both descriptions imply inclusive end, contradicting Rule 10.
-
-**Implementation** uses exclusive end throughout: `count = end − start`.
-
-### S3. Leading-dot floats
-
-**PDF-SPEC** explicitly lists `.37` as a valid float literal.
-
-**AEL-DOC** (§2.2) shows `0.37` but does not mention the leading-dot form.
-
-**Implementation** supports both — the grammar has a `LEADING_DOT_FLOAT: '.' [0-9]+`
-rule.
-
-### S4. Unicode restriction
-
-**PDF-SPEC** states: "Note that non-ASCII unicode characters are not supported."
-
-**AEL-DOC** does not mention this restriction.
-
-**Implementation** does not enforce any restriction — the `QUOTED_STRING` lexer rule
-accepts any character, including non-ASCII unicode.
-
-### S5. B64 literals
-
-Neither spec document mentions B64-encoded BLOB literals.
-
-**Implementation** supports `b64'...'` / `B64'...'` syntax via the `B64_LITERAL` lexer
-rule, with tests in `BlobTests.java` and `CtxTests.java`. This is an undocumented
-extension.
 
 ---
 
@@ -175,35 +132,14 @@ The grammar accepts the following as `pathFunction` alternatives:
 But **no visitor methods** exist for any of them. Visiting these returns `null` and
 they are silently ignored — identical to the `exists()` issue.
 
-**Note:** `put()` is also missing from the grammar entirely (see issue 6).
+**Note:** `put()` is also missing from the grammar entirely (see issue 5).
 
 **Impact:** All mutation operations via AEL expressions are no-ops. Expressions like
 `$.listBin.[=30].remove()` silently return the original data without modification.
 
 ---
 
-### 4. Metadata Functions Aliasing
-
-**AEL-DOC (§13):**
-`$.deviceSize()`, `$.memorySize()`, and `$.recordSize()` are listed as separate
-metadata functions returning different size values.
-
-**Implementation (`MetadataOperand.java` line 46):**
-
-```java
-case "deviceSize", "recordSize", "memorySize" -> Exp.recordSize();
-```
-
-All three are aliased to `Exp.recordSize()`. The upstream `Exp.java` has distinct
-(deprecated) methods `Exp.deviceSize()` and `Exp.memorySize()` for pre-7.0 servers.
-
-**Impact:** On Aerospike server < 7.0, `$.deviceSize()` and `$.memorySize()` return
-the wrong value (total record size instead of device-only or memory-only size). On
-server ≥ 7.0 all three are equivalent.
-
----
-
-### 5. `type()` Path Function — Missing from Grammar
+### 4. `type()` Path Function — Missing from Grammar
 
 **AEL-DOC (§8.5):**
 
@@ -221,7 +157,7 @@ parameter name inside `get()`: `PATH_FUNCTION_PARAM_TYPE: 'type'`.
 
 ---
 
-### 6. `put()` Map Mutation — Missing from Grammar
+### 5. `put()` Map Mutation — Missing from Grammar
 
 **AEL-DOC (§8.6):**
 `put()` is listed as a map mutation function that inserts or updates a key-value pair.
@@ -234,7 +170,7 @@ The `pathFunction` rule does not include `put()`. It includes `set()` (list-only
 
 ---
 
-### 7. Open-Start Ranges — Missing from Grammar
+### 6. Open-Start Ranges — Missing from Grammar
 
 **AEL-DOC (§5.2, §6.2):**
 
@@ -258,7 +194,7 @@ Workaround: use explicit start values (e.g. `$.m.{0:5}`).
 
 ---
 
-### 8. Block Comments — Missing from Grammar
+### 7. Block Comments — Missing from Grammar
 
 **AEL-DOC (§17):**
 
@@ -278,7 +214,7 @@ WS: [ \t\r\n]+ -> skip;
 
 ---
 
-### 9. `error`/`unknown` Keywords — Not Explicit in Grammar
+### 8. `error`/`unknown` Keywords — Not Explicit in Grammar
 
 **AEL-DOC (§14.3):**
 
@@ -298,7 +234,7 @@ raising a runtime exception.
 
 ---
 
-### 10. `WILDCARD`, `NIL`, `INF` Special Values — Not Handled
+### 9. `WILDCARD`, `NIL`, `INF` Special Values — Not Handled
 
 **AEL-DOC (§2.8):**
 
@@ -320,7 +256,7 @@ raising a runtime exception.
 
 ---
 
-### 11. `$.key()` Metadata Function — Missing from Grammar
+### 10. `$.key()` Metadata Function — Missing from Grammar
 
 **AEL-DOC (§13):**
 
@@ -340,7 +276,7 @@ The `METADATA_FUNCTION` token includes `keyExists()` but has no `key(...)` varia
 
 ---
 
-### 12. String Escape Sequences Not Implemented
+### 11. String Escape Sequences Not Implemented
 
 **AEL-DOC (§2.3):**
 Documents the following escape sequences inside quoted strings:
@@ -376,7 +312,7 @@ strips the outer quote characters — it performs no escape processing.
 
 ---
 
-### 13. Value Ranges Limited to Integers Only
+### 12. Value Ranges Limited to Integers Only
 
 **AEL-DOC (§5.2, §6.2):**
 Value ranges use `valueIdentifier` which includes strings and integers:
@@ -417,7 +353,7 @@ successfully but fail at the visitor level. Only integer value ranges work.
 
 ---
 
-### 14. Float/List Values Not Supported in CDT Value Positions
+### 13. Float/List Values Not Supported in CDT Value Positions
 
 **AEL-DOC (§5.2):**
 Relative rank range examples use list values containing floats and special values:
@@ -461,7 +397,7 @@ Additionally, `ParsingUtils.objectToExp()` only handles `String`, `Integer`, and
 
 ---
 
-### 15. Bitwise Operator Precedence Differs from PDF-SPEC
+### 14. Bitwise Operator Precedence Differs from PDF-SPEC
 
 **PDF-SPEC (p.22-23):**
 Three separate precedence levels:
@@ -494,44 +430,3 @@ noted for awareness but not considered a bug.
 left-to-right at equal precedence rather than with `&` binding tightest. Users
 relying on C/Java-style precedence (`&` > `^` > `|`) may get unexpected results.
 
----
-
-### 16. B64 Literal Syntax Is an Undocumented Extension
-
-**AEL-DOC and PDF-SPEC:**
-Neither document mentions Base64-encoded BLOB literals.
-
-**Implementation:**
-The grammar supports `b64'...'` / `B64'...'` via:
-
-```
-B64_LITERAL: [bB] '64\'' [A-Za-z0-9+/=]* '\'';
-```
-
-The visitor parses these in `visitBlobOperand` and `parseValueIdentifier`. Tests
-exist (`BlobTests.java`, `CtxTests.java`).
-
-**Impact:** None on correctness — this is a useful extension. Should be documented
-in AEL-DOC for completeness.
-
----
-
-## Internal Inconsistency in AEL-DOC
-
-### Map Index Range End Semantics
-
-AEL-DOC §5.2 describes map index ranges with inclusive end semantics:
-
-> `{1:3}` — Index 1 through 3 (inclusive)
-> `{-3:-1}` — Last 3 entries
-
-But AEL-DOC §20 (Rule 10) states:
-
-> Index ranges in the AEL are also **exclusive** on the end.
-
-The implementation uses exclusive end: `count = end − start`. List index ranges,
-list rank ranges, map rank ranges, and key ranges all consistently use exclusive end
-semantics throughout both the docs and implementation.
-
-The §5.2 map index range table descriptions should be updated to say "(exclusive)"
-for consistency with Rule 10 and the implementation.
