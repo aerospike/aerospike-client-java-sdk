@@ -1,0 +1,62 @@
+# Aerospike SDK Configuration Example
+# This file demonstrates the YAML configuration structure for the Aerospike Java SDK.
+# Set the environment variable AEROSPIKE_CLIENT_CONFIG_URL to point to this file.
+
+system:
+  # Default settings apply to all clusters unless overridden
+  DEFAULT:
+    connections:
+      minimumConnectionsPerNode: 200
+      maximumConnectionsPerNode: 500
+  # Cluster-specific settings for cluster named "bncluster"
+  bncluster:
+    connections:
+      minimumConnectionsPerNode: 400
+      maximumConnectionsPerNode: 600
+
+
+# Behavior definitions for operation policies
+behaviors:
+  # High-performance configuration with aggressive timeouts
+  fast-operations:
+    allOperations:
+      abandonCallAfter: 1s
+      maximumNumberOfCallAttempts: 2
+      delayBetweenRetries: 25ms
+      waitForCallToComplete: 3s
+    retryableWrites:
+      useDurableDelete: false
+      maximumNumberOfCallAttempts: 3
+    batchReads:
+      maxConcurrentServers: 8
+      allowInlineMemoryAccess: true
+    query:
+      recordQueueSize: 5000
+      maxConcurrentServers: 8
+
+  # Conservative configuration for critical operations
+  safe-operations:
+    allOperations:
+      abandonCallAfter: 10s
+      maximumNumberOfCallAttempts: 5
+      delayBetweenRetries: 500ms
+      waitForCallToComplete: 30s
+    retryableWrites:
+      useDurableDelete: true
+      maximumNumberOfCallAttempts: 5
+      delayBetweenRetries: 1s
+    consistencyModeReads:
+      readConsistency: SESSION
+      abandonCallAfter: 8s
+
+  # Child behavior inheriting from fast-operations with batch optimizations
+  batch-fast:
+    parent: fast-operations
+    batchReads:
+      maxConcurrentServers: 16
+      allowInlineMemoryAccess: true
+      allowInlineSsdAccess: true
+      abandonCallAfter: 3s
+    batchWrites:
+      maxConcurrentServers: 12
+      abandonCallAfter: 5s

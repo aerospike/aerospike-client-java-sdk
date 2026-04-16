@@ -1,0 +1,32 @@
+#!/bin/bash
+# Java Examples Command Line Script.
+#
+# Build with maven before running this script:
+#   mvn package
+#
+# Usage:
+#   ./run_examples <ClassName> [options]
+#   ./run_examples all [options]
+#   ./run_examples -u
+#
+# Examples:
+#   ./run_examples YamlConfigConnectionExample -h localhost -p 3000
+#   ./run_examples BehaviorYamlExample -h localhost -p 3100 -a
+#   ./run_examples all -h localhost -p 3000
+#   ./run_examples -u
+#
+
+# Get the directory where this script is located
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Find the JAR file
+JAR_FILE=$(ls "$SCRIPT_DIR"/target/aerospike-examples-*-jar-with-dependencies.jar 2>/dev/null | head -1)
+
+if [ -z "$JAR_FILE" ]; then
+    echo "Error: JAR file not found. Please build the project first:"
+    echo "  cd $SCRIPT_DIR && mvn package"
+    exit 1
+fi
+
+# Run Main with all arguments
+java -cp "$JAR_FILE" com.aerospike.examples.Main "$@"
