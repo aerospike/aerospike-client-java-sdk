@@ -8,6 +8,7 @@ on:
 permissions:
   id-token: write
   contents: read
+  actions: read  
 
 concurrency:
   group: pr-ci-${{ github.workflow }}-${{ github.event.pull_request.head.sha }}
