@@ -376,7 +376,7 @@ public class BatchTest extends ClusterTest {
     public void batchWriteComplex() {
         DataSet ds = new DataSet("invalid", args.set.getSet());
 
-        ChainableNoBinsBuilder tail = session
+        ChainableNoBinsBuilder noBinsBuilder = session
             .upsert(args.set.id(KeyPrefix + 1))
                 .bin(BinName2).setTo(100)
             .upsert(ds.id(KeyPrefix + 1))
@@ -385,9 +385,9 @@ public class BatchTest extends ClusterTest {
                 .bin(BinName3).upsertFrom("$.bbin + 1000")
             .delete(args.set.id(10002));
         if (args.scMode) {
-            tail = tail.withDurableDelete();
+            noBinsBuilder = noBinsBuilder.withDurableDelete();
         }
-        RecordStream rs = tail.notInAnyTransaction().execute();
+        RecordStream rs = noBinsBuilder.notInAnyTransaction().execute();
 
         assertTrue(rs.hasNext());
         RecordResult res = rs.next();

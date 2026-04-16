@@ -704,8 +704,8 @@ class OperationSpecExecutor {
 
     /**
      * Apply {@link OperationSpec#getDurablyDelete()} onto batch delete attrs after
-     * {@link BatchAttr#setDelete(Settings)}. Durable delete is opt-in only (no SC default) due to
-     * server-side cost; callers must use {@code durablyDelete(true)} or {@code withDurableDelete()}.
+     * {@link BatchAttr#setDelete(Settings)}. Callers must use {@code durablyDelete(true)}
+     * or {@code withDurableDelete()}.
      */
     private static void mergeOperationSpecDurableDeleteIntoBatchAttr(BatchAttr attr, OperationSpec spec) {
         Boolean dd = spec.getDurablyDelete();

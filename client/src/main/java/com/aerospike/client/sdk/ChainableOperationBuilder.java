@@ -1035,10 +1035,6 @@ public class ChainableOperationBuilder extends AbstractOperationBuilder<Chainabl
         mergeBuilderDurableDeleteIntoOperateRecordDeleteSpecs();
     }
 
-    /**
-     * Same idea as {@link ChainableNoBinsBuilder}: {@link #withDurableDelete()} sets builder state;
-     * wire format for operate + record delete reads {@link OperationSpec#getDurablyDelete()}.
-     */
     private void mergeBuilderDurableDeleteIntoOperateRecordDeleteSpecs() {
         if (durableDelete == null) {
             return;
