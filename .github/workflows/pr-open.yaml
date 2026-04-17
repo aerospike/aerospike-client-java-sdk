@@ -95,6 +95,40 @@ jobs:
           num-nodes: ${{ matrix.num-nodes }}
           oidc-provider: ${{ vars.OIDC_PROVIDER_NAME }}
           oidc-audience: ${{ vars.OIDC_AUDIENCE }}
+          config-content: |
+            service {
+                feature-key-file /etc/aerospike/features.conf
+                cluster-name docker
+                proto-fd-max 15000
+            }
+
+            logging {
+                console {
+                    context any info
+                }
+            }
+
+            network {
+                service {
+                    address any
+                    port 3000
+                }
+                heartbeat {
+                    mode mesh
+                    port 3002
+                }
+                fabric {
+                    port 3001
+                }
+            }
+
+            service { ... }
+            namespace test {
+              replication-factor 1
+              nsup-period 120
+              allow-ttl-without-nsup false
+              storage-engine memory { data-size 1G }
+            }
 
       - name: Build & run integration tests
         run: |
