@@ -88,7 +88,7 @@ jobs:
           mvn -v
 
       - name: Setup Aerospike Server (${{ matrix.num-nodes }} node)
-        uses: aerospike/shared-workflows/.github/actions/setup-aerospike-server@07c958ca4c5cea494dc8790949c08e3fb28c55e1 # v3.3.0
+        uses: aerospike/shared-workflows/.github/actions/setup-aerospike-server@a8ffee772c0fe60778e63f2688377becd8975b56 # CLIENT-4616
         with:
           server-tag: ${{ matrix.version }}
           server-container-repo: ${{ matrix.type }}
