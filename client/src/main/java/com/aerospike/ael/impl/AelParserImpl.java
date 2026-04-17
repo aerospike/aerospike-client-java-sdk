@@ -99,20 +99,20 @@ public class AelParserImpl implements AelParser {
 
     private ParsedExpression getParsedExpression(ParseTree parseTree, PlaceholderValues placeholderValues,
                                                  IndexContext indexContext) {
-        final String namespace = Optional.ofNullable(indexContext)
-                .map(IndexContext::getNamespace)
-                .orElse(null);
 
-        String querySet = Optional.ofNullable(indexContext)
-                .map(IndexContext::getQuerySet)
-                .orElse(null);
-        Map<String, List<Index>> indexesMap = buildIndexesMap(
-                Optional.ofNullable(indexContext).map(IndexContext::getIndexes).orElse(null),
-                namespace,
-                querySet);
-        String preferredBin = Optional.ofNullable(indexContext)
-                .map(IndexContext::getPreferredBin)
-                .orElse(null);
+        String namespace = null;
+        String querySet = null;
+        Collection<Index> indexes = null;
+        String preferredBin = null;
+
+        if (indexContext != null) {
+            namespace = indexContext.getNamespace();
+            querySet = indexContext.getQuerySet();
+            indexes = indexContext.getIndexes();
+            preferredBin = indexContext.getPreferredBin();
+        }
+
+        Map<String, List<Index>> indexesMap = buildIndexesMap(indexes, namespace, querySet);
 
         AbstractPart resultingPart = new ExpressionConditionVisitor().visit(parseTree);
 

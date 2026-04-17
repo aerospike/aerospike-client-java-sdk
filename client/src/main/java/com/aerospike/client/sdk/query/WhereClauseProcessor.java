@@ -178,6 +178,7 @@ public abstract class WhereClauseProcessor {
 
         @Override
         public ParseResult process(String namespace, String querySet, Session session) {
+            // namespace, querySet, session intentionally ignored - not required in this implementation
              return new ParseResult(null, ael.toAerospikeExp());
         }
     }
@@ -191,6 +192,7 @@ public abstract class WhereClauseProcessor {
 
         @Override
         public ParseResult process(String namespace, String querySet, Session session) {
+            // namespace, querySet, session intentionally ignored - not required in this implementation
             return new ParseResult(null, exp);
         }
     }
