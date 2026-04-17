@@ -240,7 +240,6 @@ class OperationSpecExecutor {
 
                     case TOUCH:
                         attr.setWrite(settings, spec.getOpType());
-                        mergeOperationSpecDurableDeleteIntoBatchAttr(attr, spec, settings);
                         rec = new BatchWrite(key, attr, spec, List.of(Operation.touch()), OpType.TOUCH);
                         break;
 
@@ -252,7 +251,6 @@ class OperationSpecExecutor {
 
                     case UDF:
                         attr.setUDF(settings, spec.getOpType());
-                        mergeOperationSpecDurableDeleteIntoBatchAttr(attr, spec, settings);
                         Expression udfWhereClause = spec.getWhereClause() != null ? spec.getWhereClause() : defaultWhereClause;
                         Value[] udfArgs = spec.getUdfArguments();
                         int udfTtl = (int) resolveTtl(spec, defaultExpirationInSeconds);
