@@ -122,10 +122,8 @@ jobs:
                 }
             }
 
-            service { ... }
             namespace test {
               replication-factor 1
-              nsup-period 120
               allow-ttl-without-nsup true
               storage-engine memory { data-size 1G }
             }
