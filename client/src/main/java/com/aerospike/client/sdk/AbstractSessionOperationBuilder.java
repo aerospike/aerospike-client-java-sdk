@@ -50,6 +50,8 @@ public abstract class AbstractSessionOperationBuilder<T extends AbstractSessionO
     protected boolean notInAnyTransaction;
     protected boolean transactionSet;
 
+    protected Boolean durableDelete = null;
+
     /**
      * TTL constant: Record never expires (TTL = -1)
      */
@@ -331,6 +333,31 @@ public abstract class AbstractSessionOperationBuilder<T extends AbstractSessionO
      */
     public T replaceOnly() {
         this.opType = OpType.REPLACE_IF_EXISTS;
+        return self();
+    }
+
+    /**
+     * Enable durable delete for this operation.
+     * <p>
+     * If the command results in a record deletion, leave a tombstone for the record.
+     * This prevents deleted records from reappearing after node failures.
+     * Valid for Aerospike Server Enterprise Edition only.
+     * </p>
+     *
+     * @return this builder for method chaining
+     */
+    public T withDurableDelete() {
+        this.durableDelete = true;
+        return self();
+    }
+
+    /**
+     * Disable durable delete for this operation (default behavior).
+     *
+     * @return this builder for method chaining
+     */
+    public T withoutDurableDelete() {
+        this.durableDelete = false;
         return self();
     }
 }
