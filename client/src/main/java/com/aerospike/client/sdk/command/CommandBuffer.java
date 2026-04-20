@@ -1628,10 +1628,6 @@ public final class CommandBuffer {
             writeAttr |= Command.INFO2_DURABLE_DELETE;
         }
 
-        if (cmd.onLockingOnly) {
-            txnAttr |= Command.INFO4_TXN_ON_LOCKING_ONLY;
-        }
-
         if (cmd.compress) {
             readAttr |= Command.INFO1_COMPRESS_RESPONSE;
         }

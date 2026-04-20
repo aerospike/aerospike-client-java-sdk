@@ -247,7 +247,6 @@ public class TxnTest extends ClusterTest {
 
         session.doInTransaction(txnSession -> {
             txnSession.delete(key)
-                .withDurableDelete()
                 .execute();
         });
 
@@ -266,7 +265,6 @@ public class TxnTest extends ClusterTest {
 
         session.doInTransaction(txnSession -> {
             txnSession.delete(key)
-                .withDurableDelete()
                 .execute();
 
             txnSession.abort();
@@ -288,14 +286,12 @@ public class TxnTest extends ClusterTest {
 
         session.doInTransaction(txnSession -> {
             RecordStream rs = txnSession.delete(key)
-                .withDurableDelete()
                 .execute();
 
             assertTrue(rs.hasNext());
             rs.next().recordOrThrow();
 
             rs = txnSession.delete(key)
-                .withDurableDelete()
                 .execute();
 
             assertTrue(rs.hasNext());
