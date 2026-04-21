@@ -17,6 +17,7 @@
 package com.aerospike.client.sdk;
 
 import java.time.Duration;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -667,6 +668,25 @@ public class ClusterDefinition {
      */
     public byte[] getUserName() {
         return userName;
+    }
+
+    /**
+     * Change user's password.
+     *
+     * @param user                  user name
+     * @param password              user password in clear-text format
+     * @param passwordHash          bcrypt hash of password.
+     * @throws AerospikeException   if command fails
+     */
+   public void changePassword(byte[] user, byte[] password, byte[] passwordHash) {
+        if (this.userName != null && Arrays.equals(user, this.userName)) {
+            this.passwordHash = passwordHash;
+
+            // Only store clear text password if external authentication is used.
+            if (authMode != AuthMode.INTERNAL) {
+                this.password = password;
+            }
+        }
     }
 
     /**
