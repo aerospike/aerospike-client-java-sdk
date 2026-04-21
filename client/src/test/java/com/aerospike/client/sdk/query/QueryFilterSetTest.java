@@ -88,14 +88,12 @@ public class QueryFilterSetTest extends ClusterTest {
 
         for (int i = 31; i <= 40; i++) {
             session.upsert(dataSet3.ids(i))
-                .sendKey()
                 .bins(binA)
                 .values(i)
                 .execute();
 
             String strKey = "key-p3-" + i;
             session.upsert(dataSet3.ids(strKey))
-                .sendKey()
                 .bins(binA)
                 .values(i)
                 .execute();

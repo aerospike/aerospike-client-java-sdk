@@ -32,7 +32,6 @@ public class WriteCommand extends Command {
     final CommitLevel commitLevel;
     final int gen;
     final int ttl;
-    final boolean onLockingOnly;
     final boolean durableDelete;
     final boolean failOnFilteredOut;
 
@@ -54,7 +53,6 @@ public class WriteCommand extends Command {
         this.commitLevel = settings.getCommitLevel();
         this.gen = gen;
         this.ttl = ttl;
-        this.onLockingOnly = false;
         this.durableDelete = settings.getUseDurableDelete(durableDeleteOverride);
         this.failOnFilteredOut = failOnFilteredOut;
     }

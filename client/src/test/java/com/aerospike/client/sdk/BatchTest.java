@@ -34,11 +34,7 @@ import org.junit.jupiter.api.Test;
 import com.aerospike.client.sdk.exp.Exp;
 import com.aerospike.client.sdk.exp.Expression;
 import com.aerospike.client.sdk.policy.Behavior;
-import com.aerospike.client.sdk.policy.Behavior.Mode;
-import com.aerospike.client.sdk.policy.Behavior.OpKind;
-import com.aerospike.client.sdk.policy.Behavior.OpShape;
 import com.aerospike.client.sdk.policy.Behavior.Selectors;
-import com.aerospike.client.sdk.policy.Settings;
 import com.aerospike.client.sdk.util.Util;
 import com.aerospike.client.sdk.util.Version;
 
