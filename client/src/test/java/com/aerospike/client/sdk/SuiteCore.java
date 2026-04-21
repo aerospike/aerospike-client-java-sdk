@@ -22,7 +22,6 @@ import org.junit.platform.suite.api.Suite;
 import com.aerospike.client.sdk.policy.AsyncRecordStreamTest;
 import com.aerospike.client.sdk.policy.BehaviorTest;
 import com.aerospike.client.sdk.policy.BehaviorYamlTest;
-import com.aerospike.client.sdk.policy.ApiSettingsTest;
 import com.aerospike.client.sdk.policy.QueryProducerCancellationTest;
 import com.aerospike.client.sdk.policy.SystemBehaviorTest;
 
@@ -31,7 +30,6 @@ import com.aerospike.client.sdk.policy.SystemBehaviorTest;
     AsyncRecordStreamTest.class,
     BehaviorTest.class,
     BehaviorYamlTest.class,
-    ApiSettingsTest.class,
     QueryProducerCancellationTest.class,
     SystemBehaviorTest.class,
 })

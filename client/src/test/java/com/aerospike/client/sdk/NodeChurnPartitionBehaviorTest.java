@@ -176,8 +176,6 @@ public class NodeChurnPartitionBehaviorTest extends ClusterTest {
                     try {
                         upsertSession.upsert(args.set.id(pk))
                                 .bin(BIN_NAME).setTo(binVal)
-                                .withTotalTimeout(3000)
-                                .sendKey()
                                 .execute();
 
                         if (validate) {
