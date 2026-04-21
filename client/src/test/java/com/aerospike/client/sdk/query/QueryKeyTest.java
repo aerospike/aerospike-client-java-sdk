@@ -65,7 +65,6 @@ public class QueryKeyTest extends ClusterTest {
         for (int i = 1; i <= size; i++) {
             String key = keyPrefix + i;
             session.upsert(dataSet.ids(key))
-                .sendKey()
                 .bins(binName)
                 .values(i)
                 .execute();

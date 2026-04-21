@@ -143,7 +143,6 @@ session.upsert(key)
     │
     ├── .notInAnyTransaction()
     ├── .inTransaction(Txn)
-    ├── .sendKey()
     │
     ├── .upsert(key) / .insert / .update / .replace / .replaceIfExists
     ├── .delete(key) / .touch / .exists   → ChainableNoBinsBuilder
