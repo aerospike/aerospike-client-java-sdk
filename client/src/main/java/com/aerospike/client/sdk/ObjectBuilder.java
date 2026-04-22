@@ -984,7 +984,8 @@ public class ObjectBuilder<T> {
         Session session = opBuilder.getSession();
         Cluster cluster = session.getCluster();
 
-        String namespace = opBuilder.getDataSet().getNamespace();
+        DataSet dataSet = opBuilder.getDataSet();
+        String namespace = dataSet.getNamespace();
         Partitions partitions = getPartitions(cluster, namespace);
 
         settings = session.getBehavior()
@@ -1005,7 +1006,7 @@ public class ObjectBuilder<T> {
             records.add(new BatchWrite(key, null, attr, opBuilder.getOpType(), ops, generation, ttl));
         }
 
-        final Expression filterExp = getFilterExp(namespace);
+        final Expression filterExp = getFilterExp(namespace, dataSet.getSet());
 
         return new BatchCommand(cluster, partitions, txnToUse, namespace,
             records, filterExp, opBuilder.includeMissingKeys, opBuilder.failOnFilteredOut, false, settings);
@@ -1054,7 +1055,7 @@ public class ObjectBuilder<T> {
             .getSettings(OpKind.WRITE_RETRYABLE, OpShape.POINT, partitions.scMode);
 
         // Apply where clause if present
-        final Expression filterExp = getFilterExp(firstKey.namespace);
+        final Expression filterExp = getFilterExp(firstKey.namespace, firstKey.setName);
         int ttl = (int) resolveTtl(expirationInSeconds, defaultExpirationInSeconds);
 
         if (txnToUse != null) {
@@ -1125,7 +1126,7 @@ public class ObjectBuilder<T> {
             .getSettings(OpKind.WRITE_RETRYABLE, OpShape.POINT, partitions.scMode);
 
         // Apply where clause if present
-        final Expression filterExp = getFilterExp(firstKey.namespace);
+        final Expression filterExp = getFilterExp(firstKey.namespace, firstKey.setName);
         int ttl = (int) resolveTtl(expirationInSeconds, defaultExpirationInSeconds);
         boolean stackTraceOnException = settings.getStackTraceOnException();
 
@@ -1158,7 +1159,7 @@ public class ObjectBuilder<T> {
             .getSettings(OpKind.WRITE_RETRYABLE, OpShape.POINT, partitions.scMode);
 
         // Apply where clause if present
-        final Expression filterExp = getFilterExp(key.namespace);
+        final Expression filterExp = getFilterExp(key.namespace, key.setName);
 
         if (txnToUse != null) {
             // Assume all operations are write operations.
@@ -1200,7 +1201,7 @@ public class ObjectBuilder<T> {
             .getSettings(OpKind.WRITE_RETRYABLE, OpShape.POINT, partitions.scMode);
 
         // Apply where clause if present
-        final Expression filterExp = getFilterExp(key.namespace);
+        final Expression filterExp = getFilterExp(key.namespace, key.setName);
 
         int ttl = (int) resolveTtl(expirationInSeconds, defaultExpirationInSeconds);
         boolean stackTraceOnException = settings.getStackTraceOnException();
@@ -1285,9 +1286,9 @@ public class ObjectBuilder<T> {
         return partitions;
     }
 
-    private Expression getFilterExp(String namespace) {
+    private Expression getFilterExp(String namespace, String querySet) {
         if (opBuilder.getAel() != null && !elements.isEmpty()) {
-            ParseResult parseResult = opBuilder.getAel().process(namespace, opBuilder.getSession());
+            ParseResult parseResult = opBuilder.getAel().process(namespace, querySet, opBuilder.getSession());
             return Exp.build(parseResult.getExp());
         }
         return null;

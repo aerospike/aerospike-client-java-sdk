@@ -818,11 +818,11 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
         Cluster cluster = session.getCluster();
 
         // Assume all keys have the same namespace.
-        String namespace = keys.get(0).namespace;
-        Partitions partitions = getPartitions(cluster, namespace);
+        Key firstKey = keys.get(0);
+        Partitions partitions = getPartitions(cluster, firstKey.namespace);
         settings = session.getBehavior().getSettings(OpKind.WRITE_RETRYABLE, OpShape.BATCH,
             partitions.scMode);
-        final Expression filterExp = getFilterExp(session, namespace);
+        final Expression filterExp = getFilterExp(session, firstKey.namespace, firstKey.setName);
 
         BatchAttr attr = new BatchAttr();
         attr.setWrite(settings, opBuilder.getOpType());
@@ -838,7 +838,7 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
                 getGeneration(valueSet), ttl));
         }
 
-        return new BatchCommand(cluster, partitions, opBuilder.getTxnToUse(), namespace,
+        return new BatchCommand(cluster, partitions, opBuilder.getTxnToUse(), firstKey.namespace,
             batchRecords, filterExp, opBuilder.isIncludeMissingKeys(), opBuilder.isFailOnFilteredOut(), false, settings);
     }
 
@@ -875,7 +875,7 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
 
         Partitions partitions = getPartitions(cluster, firstKey.namespace);
         ResolvedSettings settings = session.getBehavior().getSettings(OpKind.WRITE_RETRYABLE, OpShape.POINT, partitions.scMode);
-        final Expression filterExp = processWhereClause(keys.get(0).namespace, opBuilder.getSession());
+        final Expression filterExp = processWhereClause(firstKey.namespace, opBuilder.getSession());
 
         if (txnToUse != null) {
             TxnMonitor.addKeys(txnToUse, session, keys);
@@ -965,10 +965,10 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
         Cluster cluster = session.getCluster();
 
         // Assume all keys have the same namespace.
-        String namespace = keys.get(0).namespace;
-        Partitions partitions = getPartitions(cluster, namespace);
+        Key firstKey = keys.get(0);
+        Partitions partitions = getPartitions(cluster, firstKey.namespace);
         ResolvedSettings policy = session.getBehavior().getSettings(OpKind.WRITE_RETRYABLE, OpShape.POINT, partitions.scMode);
-        final Expression filterExp = getFilterExp(session, namespace);
+        final Expression filterExp = getFilterExp(session, firstKey.namespace, firstKey.setName);
         AsyncRecordStream asyncStream = new AsyncRecordStream(keys.size());
 
         if (txnToUse != null) {
@@ -1054,10 +1054,10 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
         return partitions;
     }
 
-    private Expression getFilterExp(Session session, String namespace) {
+    private Expression getFilterExp(Session session, String namespace, String querySet) {
         if (ael != null) {
             // Apply filter expression clause.
-            ParseResult parseResult = ael.process(namespace, session);
+            ParseResult parseResult = ael.process(namespace, querySet, session);
             return Exp.build(parseResult.getExp());
         } else {
             return null;

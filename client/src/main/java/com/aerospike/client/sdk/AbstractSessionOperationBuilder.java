@@ -49,7 +49,6 @@ public abstract class AbstractSessionOperationBuilder<T extends AbstractSessionO
     protected Txn txnToUse;
     protected boolean notInAnyTransaction;
     protected boolean transactionSet;
-
     protected Boolean durableDelete = null;
 
     /**
