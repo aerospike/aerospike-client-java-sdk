@@ -57,7 +57,7 @@ public class AsyncRecordStreamTest {
     // Helper method to create a test RecordResult
     private RecordResult createResult(int id) {
         Key key = new Key("test", "set", id);
-        Record record = new Record(null, 0, 0);
+        Record record = new Record(0, 0);
         return new RecordResult(key, record, 0);
     }
 

@@ -20,8 +20,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.util.List;
-
 import org.junit.jupiter.api.Test;
 
 public class AppendTest extends ClusterTest {
@@ -60,10 +58,7 @@ public class AppendTest extends ClusterTest {
 
         assertTrue(rs.hasNext());
         rec = rs.next().recordOrThrow();
-
-        List<?> list = rec.getList(binName);
-        val = (String)list.get(1);
-        assertEquals("Hello World!", val);
+        assertEquals("Hello World!", rec.operationResult(1).getString());
 
         byte[] key1 = new byte[] {1,2,3};
         byte[] key2 = new byte[] {2,3,4};
@@ -125,9 +120,6 @@ public class AppendTest extends ClusterTest {
 
         assertTrue(rs.hasNext());
         rec = rs.next().recordOrThrow();
-
-        List<?> list = rec.getList(binName);
-        val = (String)list.get(1);
-        assertEquals("Hello World!", val);
+        assertEquals("Hello World!", rec.operationResult(1).getString());
     }
 }
