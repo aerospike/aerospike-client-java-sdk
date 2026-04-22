@@ -106,26 +106,13 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
      * @param binNames the names of the bins to read
      * @return this builder for method chaining
      */
-    public ChainableQueryBuilder bins(String... binNames) {
+    public ChainableQueryBuilder readingOnlyBins(String... binNames) {
         verifyState("specifying bins");
         if (binNames == null || binNames.length == 0) {
             throw new IllegalArgumentException("Must specify at least one bin name");
-//            return withNoBins();
         }
         currentSpec.setProjectedBins(binNames);
         return this;
-    }
-
-    /**
-     * Specify which bins to read (bin projection).
-     * If not called, all bins will be read.
-     * This is an alias for {@link #bins(String...)} for API compatibility.
-     *
-     * @param binNames the names of the bins to read
-     * @return this builder for method chaining
-     */
-    public ChainableQueryBuilder readingOnlyBins(String... binNames) {
-        return bins(binNames);
     }
 
     /**

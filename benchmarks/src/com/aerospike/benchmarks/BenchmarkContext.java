@@ -1,3 +1,19 @@
+/*
+ * Copyright 2012-2026 Aerospike, Inc.
+ *
+ * Portions may be licensed to Aerospike, Inc. under one or more contributor
+ * license agreements WHICH ARE COMPATIBLE WITH THE APACHE LICENSE, VERSION 2.0.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy of
+ * the License at http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
+ */
 package com.aerospike.benchmarks;
 
 import java.time.Duration;
@@ -17,7 +33,6 @@ public final class BenchmarkContext implements AutoCloseable {
 
     private static final Map<Constants.OP_TYPE, LatencyManager> LATENCY_MANAGER_MAP = new HashMap<>();
 
-    private final ClusterDefinition clusterDefinition;
     private final Cluster cluster;
     private final Session session;
     private final Behavior behavior;
@@ -31,14 +46,13 @@ public final class BenchmarkContext implements AutoCloseable {
                 + latency;
 
     private BenchmarkContext(
-            ClusterDefinition clusterDefinition,
-            Cluster cluster,
-            Session session,
-            Behavior behavior,
-            DataSet dataSet,
-            boolean hasTxn, // TODO need to be applied
-            Arguments arguments) {
-        this.clusterDefinition = clusterDefinition;
+        Cluster cluster,
+        Session session,
+        Behavior behavior,
+        DataSet dataSet,
+        boolean hasTxn, // TODO need to be applied
+        Arguments arguments
+    ) {
         this.cluster = cluster;
         this.session = session;
         this.behavior = behavior;
@@ -59,12 +73,13 @@ public final class BenchmarkContext implements AutoCloseable {
         }
         Cluster cluster = def.connect();
         Session session = cluster.createSession(behavior);
+
         DataSet dataSet = DataSet.of(
                 argument.getNamespace(),
                 argument.getSetName()
         );
-        ctx = new BenchmarkContext(
-                def, cluster, session, behavior, dataSet, hasTxn, argument);
+
+        ctx = new BenchmarkContext(cluster, session, behavior, dataSet, hasTxn, argument);
 
         return ctx;
     }
@@ -141,18 +156,28 @@ public final class BenchmarkContext implements AutoCloseable {
     private static void applyRetryPolicy(Behavior.BehaviorBuilder builder, WorkloadOptions workloadOpts) {
         Integer maxRetries = workloadOpts.getMaxRetries();
         Integer sleepMs = workloadOpts.getSleepBetweenRetries();
-        if (maxRetries == null && sleepMs == null) return;
+        if (maxRetries == null && sleepMs == null) {
+            return;
+        }
         builder.on(Behavior.Selectors.all(), ops -> {
-            if (maxRetries != null) ops.maximumNumberOfCallAttempts(maxRetries + 1);
-            if (sleepMs != null) ops.delayBetweenRetries(Duration.ofMillis(sleepMs));
+            if (maxRetries != null) {
+                ops.maximumNumberOfCallAttempts(maxRetries + 1);
+            }
+            if (sleepMs != null) {
+                ops.delayBetweenRetries(Duration.ofMillis(sleepMs));
+            }
         });
     }
 
     private static void applyReplica(Behavior.BehaviorBuilder builder, WorkloadOptions workloadOpts) {
         String replica = workloadOpts.getReplica();
-        if (replica == null || replica.isEmpty()) return;
+        if (replica == null || replica.isEmpty()) {
+            return;
+        }
         Replica r = asReplica(replica);
-        if (r == null) return;
+        if (r == null) {
+            return;
+        }
         builder.on(Behavior.Selectors.reads(), ops -> ops.replicaOrder(r));
         builder.on(Behavior.Selectors.writes(), ops -> ops.replicaOrder(r));
     }
@@ -174,24 +199,32 @@ public final class BenchmarkContext implements AutoCloseable {
 
     private static void applyCommitLevel(Behavior.BehaviorBuilder builder, WorkloadOptions workloadOpts) {
         String commitLevel = workloadOpts.getCommitLevel();
-        if (commitLevel == null || commitLevel.isEmpty()) return;
+        if (commitLevel == null || commitLevel.isEmpty()) {
+            return;
+        }
         CommitLevel level = "master".equalsIgnoreCase(commitLevel.trim())
                 ? CommitLevel.COMMIT_MASTER
                 : CommitLevel.COMMIT_ALL;
         builder.on(Behavior.Selectors.writes().ap(), ops -> ops.commitLevel(level));
     }
 
+    /*
     private static Behavior applyBenchmarkOptions(Behavior behavior, BenchmarkOptions benchmarkOpts) {
-        if (benchmarkOpts == null) return behavior;
+        if (benchmarkOpts == null) {
+            return behavior;
+        }
         if (benchmarkOpts.isProleDistribution()) {
             return behavior.deriveWithChanges("prole", b ->
                     b.on(Behavior.Selectors.reads(), ops -> ops.replicaOrder(Replica.MASTER_PROLES)));
         }
         return behavior;
     }
+    */
 
     private static ReadModeSC toReadModeSc(String value) {
-        if (value == null) return null;
+        if (value == null) {
+            return null;
+        }
         return switch (value.toLowerCase()) {
             case "session" -> ReadModeSC.SESSION;
             case "linearize" -> ReadModeSC.LINEARIZE;
@@ -202,7 +235,9 @@ public final class BenchmarkContext implements AutoCloseable {
     }
 
     private static Replica asReplica(String value) {
-        if (value == null) return null;
+        if (value == null) {
+            return null;
+        }
         return switch (value.toLowerCase()) {
             case "master" -> Replica.MASTER;
             case "any" -> Replica.MASTER_PROLES;
@@ -215,7 +250,9 @@ public final class BenchmarkContext implements AutoCloseable {
 
     private static boolean isTXNWorkload(WorkloadOptions workloadOpts) {
         String w = workloadOpts.getWorkload();
-        if (w == null || w.isEmpty()) return false;
+        if (w == null || w.isEmpty()) {
+            return false;
+        }
         String upper = w.trim().toUpperCase();
         return upper.startsWith("TXN,") || "TXN".equals(upper);
     }

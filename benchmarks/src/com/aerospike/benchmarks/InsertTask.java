@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2021 Aerospike, Inc.
+ * Copyright 2012-2026 Aerospike, Inc.
  *
  * Portions may be licensed to Aerospike, Inc. under one or more contributor
  * license agreements WHICH ARE COMPATIBLE WITH THE APACHE LICENSE, VERSION 2.0.
@@ -15,7 +15,6 @@
  * the License.
  */
 package com.aerospike.benchmarks;
-
 
 import com.aerospike.client.sdk.AerospikeException;
 import com.aerospike.client.sdk.ResultCode;

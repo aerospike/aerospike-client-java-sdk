@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2025 Aerospike, Inc.
+ * Copyright 2012-2026 Aerospike, Inc.
  *
  * Portions may be licensed to Aerospike, Inc. under one or more contributor
  * license agreements WHICH ARE COMPATIBLE WITH THE APACHE LICENSE, VERSION 2.0.
@@ -73,7 +73,7 @@ public class WorkloadOptions {
 
 	@Option(
 		names = { "-bn", "-binNameBase", "--binNameBase" },
-		description = 
+		description =
 			"Set the base name for Aerospike bins (default: 'testbin').\n"
 			+ "The first bin will be <binNameBase>_1, the second will be\n"
 			+ "<binNameBase>_2, <binNameBase>_3 and so on.\n")
