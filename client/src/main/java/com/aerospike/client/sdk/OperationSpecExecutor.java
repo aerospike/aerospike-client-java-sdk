@@ -32,6 +32,7 @@ import com.aerospike.client.sdk.command.BatchSingle;
 import com.aerospike.client.sdk.command.BatchStatus;
 import com.aerospike.client.sdk.command.BatchUDF;
 import com.aerospike.client.sdk.command.BatchWrite;
+import com.aerospike.client.sdk.command.Command;
 import com.aerospike.client.sdk.command.DeleteExecutor;
 import com.aerospike.client.sdk.command.ExistsExecutor;
 import com.aerospike.client.sdk.command.IBatchCommand;
@@ -233,6 +234,7 @@ class OperationSpecExecutor {
                     case REPLACE:
                     case REPLACE_IF_EXISTS:
                         attr.setWrite(settings, spec.getOpType());
+                        mergeOperationSpecDurableDeleteIntoBatchAttr(attr, spec, settings);
                         rec = new BatchWrite(key, attr, spec);
                         break;
 
@@ -241,8 +243,9 @@ class OperationSpecExecutor {
                         rec = new BatchWrite(key, attr, spec, List.of(Operation.touch()), OpType.TOUCH);
                         break;
 
-                     case DELETE:
+                    case DELETE:
                         attr.setDelete(settings);
+                        mergeOperationSpecDurableDeleteIntoBatchAttr(attr, spec, settings);
                         rec = new BatchDelete(key, attr, spec);
                         break;
 
@@ -565,7 +568,7 @@ class OperationSpecExecutor {
 
         OperateArgs operateArgs = new OperateArgs(ops);
         OperateWriteCommand cmd = new OperateWriteCommand(cluster, partitions, txn, key, ops, operateArgs,
-            opType, gen, (int) ttl, filterExp, failOnFilteredOut, settings);
+            opType, gen, (int) ttl, filterExp, failOnFilteredOut, settings, spec.getDurablyDelete());
         OperateWriteExecutor exec = new OperateWriteExecutor(cluster, cmd);
         exec.execute();
         Record record = exec.getRecord();
@@ -645,7 +648,7 @@ class OperationSpecExecutor {
         }
 
         WriteCommand cmd = new WriteCommand(cluster, partitions, txn, key, OpType.DELETE,
-            gen, ttl, filterExp, failOnFilteredOut, settings);
+            gen, ttl, filterExp, failOnFilteredOut, settings, spec.getDurablyDelete());
         DeleteExecutor exec = new DeleteExecutor(cluster, cmd);
         exec.execute();
         boolean existed = exec.existed();
@@ -684,6 +687,22 @@ class OperationSpecExecutor {
         }
 
         return new RecordStream();
+    }
+
+    /**
+     * Apply resolved durable delete ({@link Settings#getUseDurableDelete(Boolean)} with
+     * {@link OperationSpec#getDurablyDelete()}) onto batch attrs after {@link BatchAttr#setWrite},
+     * {@link BatchAttr#setDelete}, or {@link BatchAttr#setUDF}.
+     */
+    private static void mergeOperationSpecDurableDeleteIntoBatchAttr(
+        BatchAttr attr, OperationSpec spec, ResolvedSettings settings
+    ) {
+        if (settings.getUseDurableDelete(spec.getDurablyDelete())) {
+            attr.writeAttr |= (byte) Command.INFO2_DURABLE_DELETE;
+        }
+        else {
+            attr.writeAttr = (byte) (attr.writeAttr & ~Command.INFO2_DURABLE_DELETE);
+        }
     }
 
     /**

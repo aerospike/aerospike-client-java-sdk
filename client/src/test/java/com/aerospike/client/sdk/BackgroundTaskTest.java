@@ -17,8 +17,8 @@
 package com.aerospike.client.sdk;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
@@ -141,10 +141,13 @@ public class BackgroundTaskTest extends ClusterTest {
 
     @Test
     public void backgroundDelete() {
-        ExecuteTask task = session.backgroundTask()
+        BackgroundOperationBuilder b = session.backgroundTask()
             .delete(bgSet)
-            .where("$.bgval > 8")
-            .execute();
+            .where("$.bgval > 8");
+        if (args.scMode) {
+            b = b.withDurableDelete();
+        }
+        ExecuteTask task = b.execute();
 
         task.waitTillComplete();
 
@@ -152,12 +155,11 @@ public class BackgroundTaskTest extends ClusterTest {
             RecordStream rs = session.query(bgSet.id("bg_" + i))
                 .execute();
 
-            RecordResult rr = rs.next();
             if (i > 8) {
-                assertNull(rr);
+                assertFalse(rs.hasNext(), "expected record removed for bg_" + i);
             } else {
-                assertNotNull(rr);
-                assertNotNull(rr.recordOrThrow());
+                assertTrue(rs.hasNext());
+                assertNotNull(rs.next().recordOrThrow());
             }
         }
     }

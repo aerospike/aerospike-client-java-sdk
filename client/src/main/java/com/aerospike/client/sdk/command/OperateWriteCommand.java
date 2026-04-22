@@ -31,11 +31,23 @@ public class OperateWriteCommand extends WriteCommand {
     final OperateArgs args;
 
     public OperateWriteCommand(
-        Cluster cluster, Partitions partitions, Txn txn, Key key, List<Operation> ops, OperateArgs args,
-        OpType type, int gen, int ttl, Expression filterExp, boolean failOnFilteredOut,
-        ResolvedSettings settings
+        Cluster cluster, Partitions partitions, Txn txn, Key key, List<Operation> ops,
+        OperateArgs args, OpType type, int gen, int ttl, Expression filterExp,
+        boolean failOnFilteredOut, ResolvedSettings settings
     ) {
-        super(cluster, partitions, txn, key, type, gen, ttl, filterExp, failOnFilteredOut, settings);
+        super(cluster, partitions, txn, key, type, gen, ttl, filterExp, failOnFilteredOut, settings,
+            null);
+        this.ops = ops;
+        this.args = args;
+    }
+
+    public OperateWriteCommand(
+        Cluster cluster, Partitions partitions, Txn txn, Key key, List<Operation> ops,
+        OperateArgs args, OpType type, int gen, int ttl, Expression filterExp,
+        boolean failOnFilteredOut, ResolvedSettings settings, Boolean durableDeleteOverride
+    ) {
+        super(cluster, partitions, txn, key, type, gen, ttl, filterExp, failOnFilteredOut, settings,
+            durableDeleteOverride);
         this.ops = ops;
         this.args = args;
     }

@@ -376,16 +376,18 @@ public class BatchTest extends ClusterTest {
     public void batchWriteComplex() {
         DataSet ds = new DataSet("invalid", args.set.getSet());
 
-        RecordStream rs = session
+        ChainableNoBinsBuilder noBinsBuilder = session
             .upsert(args.set.id(KeyPrefix + 1))
                 .bin(BinName2).setTo(100)
             .upsert(ds.id(KeyPrefix + 1))
                 .bin(BinName2).setTo(100)
             .upsert(args.set.id(KeyPrefix + 6))
                 .bin(BinName3).upsertFrom("$.bbin + 1000")
-            .delete(args.set.id(10002))
-            .notInAnyTransaction()
-            .execute();
+            .delete(args.set.id(10002));
+        if (args.scMode) {
+            noBinsBuilder = noBinsBuilder.withDurableDelete();
+        }
+        RecordStream rs = noBinsBuilder.notInAnyTransaction().execute();
 
         assertTrue(rs.hasNext());
         RecordResult res = rs.next();
@@ -427,6 +429,18 @@ public class BatchTest extends ClusterTest {
         assertFalse(rs.hasNext());
     }
 
+    /**
+     * Strong-consistency namespaces often reject non-durable deletes; match {@link AddTest} and
+     * {@link DurableDeleteTests#batchDeleteDurablyDeleteResetsRecordsForRepeatAdds}.
+     */
+    private ChainableNoBinsBuilder deleteForBatchTest(List<Key> keys) {
+        ChainableNoBinsBuilder b = session.delete(keys);
+        if (args.scMode) {
+            b = b.withDurableDelete();
+        }
+        return b;
+    }
+
     @Test
     public void batchDelete() {
         // Define keys
@@ -437,8 +451,10 @@ public class BatchTest extends ClusterTest {
             keys[i] = firstKey + i;
         }
 
+        List<Key> keyList = args.set.ids(keys);
+
         // Ensure keys exists
-        RecordStream recs = session.exists(args.set.ids(keys)).includeMissingKeys().execute();
+        RecordStream recs = session.exists(keyList).includeMissingKeys().execute();
         List<Boolean> exists = recs.stream().map(rec ->rec.asBoolean()).toList();
         assertEquals(keys.length, exists.size());
 
@@ -447,7 +463,7 @@ public class BatchTest extends ClusterTest {
         }
 
         // Delete keys
-        List<Boolean> deletes = session.delete(args.set.ids(keys))
+        List<Boolean> deletes = deleteForBatchTest(keyList)
                 .includeMissingKeys()
                 .execute()
                 .stream()
@@ -460,7 +476,7 @@ public class BatchTest extends ClusterTest {
         }
 
         // Ensure keys do not exist
-        exists = session.exists(args.set.ids(keys))
+        exists = session.exists(keyList)
                 .includeMissingKeys()
                 .execute()
                 .stream()
@@ -482,7 +498,7 @@ public class BatchTest extends ClusterTest {
             keys[i] = firstKey + i;
         }
 
-        RecordStream rs = session.delete(args.set.ids(keys)).execute();
+        RecordStream rs = deleteForBatchTest(args.set.ids(keys)).execute();
         assertTrue(rs.hasNext());
         assertFalse(rs.next().asBoolean());
     }

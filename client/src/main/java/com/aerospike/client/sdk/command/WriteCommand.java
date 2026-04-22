@@ -39,6 +39,18 @@ public class WriteCommand extends Command {
         Cluster cluster, Partitions partitions, Txn txn, Key key, OpType type, int gen, int ttl,
         Expression where, boolean failOnFilteredOut, ResolvedSettings settings
     ) {
+        this(cluster, partitions, txn, key, type, gen, ttl, where, failOnFilteredOut, settings, null);
+    }
+
+    public WriteCommand(Cluster cluster, Partitions partitions, Key key, ResolvedSettings settings) {
+        this(cluster, partitions, null, key, OpType.UPSERT, 0, 0, null, false, settings, null);
+    }
+
+    public WriteCommand(
+        Cluster cluster, Partitions partitions, Txn txn, Key key, OpType type, int gen, int ttl,
+        Expression where, boolean failOnFilteredOut, ResolvedSettings settings,
+        Boolean durableDeleteOverride
+    ) {
         super(cluster, key.namespace, txn, where, settings.getReplicaOrder(), settings);
         this.key = key;
         this.partition = new Partition(partitions, key, replica, null, false);
@@ -46,19 +58,7 @@ public class WriteCommand extends Command {
         this.commitLevel = settings.getCommitLevel();
         this.gen = gen;
         this.ttl = ttl;
-        this.durableDelete = settings.getUseDurableDelete();
+        this.durableDelete = settings.getUseDurableDelete(durableDeleteOverride);
         this.failOnFilteredOut = failOnFilteredOut;
-    }
-
-    public WriteCommand(Cluster cluster, Partitions partitions, Key key, ResolvedSettings settings) {
-        super(cluster, key.namespace, null, null, settings.getReplicaOrder(), settings);
-        this.key = key;
-        this.partition = new Partition(partitions, key, replica, null, false);
-        this.type = OpType.UPSERT;
-        this.commitLevel = settings.getCommitLevel();
-        this.gen = 0;
-        this.ttl = 0;
-        this.durableDelete = settings.getUseDurableDelete();
-        this.failOnFilteredOut = false;
     }
 }

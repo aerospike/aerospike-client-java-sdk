@@ -956,6 +956,23 @@ public class ChainableNoBinsBuilder extends AbstractSessionOperationBuilder<Chai
         if (operationSpecs.isEmpty()) {
             throw new IllegalStateException("No operations specified");
         }
+        mergeBuilderDurableDeleteIntoDeleteSpecs();
+    }
+
+    /**
+     * {@link #withDurableDelete()} / {@link #withoutDurableDelete()} set session-builder state;
+     * {@link #durablyDelete(boolean)} sets {@link OperationSpec} directly. Batch delete wiring reads
+     * the spec — copy builder-level intent when the spec was left unset so SC durable deletes work.
+     */
+    private void mergeBuilderDurableDeleteIntoDeleteSpecs() {
+        if (durableDelete == null) {
+            return;
+        }
+        for (OperationSpec spec : operationSpecs) {
+            if (spec.getOpType() == OpType.DELETE && spec.getDurablyDelete() == null) {
+                spec.setDurablyDelete(durableDelete);
+            }
+        }
     }
 
     // ========================================
