@@ -523,7 +523,7 @@ class OperationSpecExecutor {
         }
 
         List<Operation> ops = spec.getOperations();
-        Record record;
+        Record rec;
 
         if (ops != null && !ops.isEmpty()) {
             OperateArgs operateArgs = new OperateArgs(ops);
@@ -531,8 +531,9 @@ class OperationSpecExecutor {
                 filterExp, failOnFilteredOut, settings, attr);
             OperateReadExecutor exec = new OperateReadExecutor(cluster, cmd);
             exec.execute();
-            record = exec.getRecord();
-        } else {
+            rec = exec.getRecord();
+        }
+        else {
             String[] binNames = spec.getProjectedBins();
             // withNoBins is true ONLY if explicitly set (empty array), not if null (null = read all bins)
             boolean withNoBins = binNames != null && binNames.length == 0;
@@ -540,13 +541,10 @@ class OperationSpecExecutor {
                 filterExp, failOnFilteredOut, settings, attr);
             ReadExecutor exec = new ReadExecutor(cluster, cmd);
             exec.execute();
-            record = exec.getRecord();
+            rec = exec.getRecord();
         }
 
-        if (record != null || includeMissingKeys) {
-            return new RecordStream(key, record);
-        }
-        return new RecordStream();
+        return createRecordStream(key, rec, includeMissingKeys);
     }
 
     /**
@@ -571,10 +569,18 @@ class OperationSpecExecutor {
             opType, gen, (int) ttl, filterExp, failOnFilteredOut, settings, spec.getDurablyDelete());
         OperateWriteExecutor exec = new OperateWriteExecutor(cluster, cmd);
         exec.execute();
-        Record record = exec.getRecord();
+        Record rec = exec.getRecord();
 
-        if (record != null || includeMissingKeys) {
-            return new RecordStream(key, record);
+        return createRecordStream(key, rec, includeMissingKeys);
+    }
+
+    private static RecordStream createRecordStream(Key key, Record rec, boolean includeMissingKeys) {
+        if (rec != null) {
+            return new RecordStream(key, rec);
+        }
+        else if (includeMissingKeys) {
+            return new RecordStream(new RecordResult(key, ResultCode.KEY_NOT_FOUND_ERROR, false,
+                ResultCode.getResultString(ResultCode.KEY_NOT_FOUND_ERROR), 0));
         }
         return new RecordStream();
     }
@@ -681,9 +687,13 @@ class OperationSpecExecutor {
 
         Record rec = exec.getRecord();
 
-        if (rec != null || includeMissingKeys) {
-            Object udfResult = (rec != null)? extractUdfResult(rec) : null;
+        if (rec != null) {
+            Object udfResult = extractUdfResult(rec);
             return new RecordStream(new RecordResult(key, udfResult, 0));
+        }
+        else if (includeMissingKeys) {
+            return new RecordStream(new RecordResult(key, ResultCode.KEY_NOT_FOUND_ERROR, false,
+                ResultCode.getResultString(ResultCode.KEY_NOT_FOUND_ERROR), 0));
         }
 
         return new RecordStream();

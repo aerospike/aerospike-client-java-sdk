@@ -40,14 +40,27 @@ public class PutGetTest extends ClusterTest {
 
     @Test
     public void getNonExisting() {
-        String key = "nonexistingkey";
-
         // Delete record if it already exists.
-        Key dKey = args.set.id(key);
-        session.delete(dKey).execute();
+        Key key = args.set.id("nonexistingkey");
+        session.delete(key).execute();
 
-        RecordStream recordStream = session.query(dKey).execute();
-        assertNull(recordStream.getFirstRecord());
+        RecordStream rs = session.query(key).execute();
+        assertNull(rs.getFirstRecord());
+    }
+
+    @Test
+    public void getNonExistingWithIncludeMissingKeys() {
+        // Delete record if it already exists.
+        Key key = args.set.id("nonexistingkey2");
+        session.delete(key).execute();
+
+        session.query(key)
+            .includeMissingKeys()
+            .execute()
+            .getFirst(false)
+            .ifPresentOrElse(result ->
+                assertEquals(ResultCode.KEY_NOT_FOUND_ERROR, result.resultCode()),
+                () -> fail("Failed to retrieve record response"));
     }
 
     @Test
