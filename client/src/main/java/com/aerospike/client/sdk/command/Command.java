@@ -19,7 +19,7 @@ package com.aerospike.client.sdk.command;
 import com.aerospike.client.sdk.Cluster;
 import com.aerospike.client.sdk.exp.Expression;
 import com.aerospike.client.sdk.policy.Replica;
-import com.aerospike.client.sdk.policy.Settings;
+import com.aerospike.client.sdk.policy.ResolvedSettings;
 
 public class Command {
     public static final int INFO1_READ              = (1 << 0); // Contains a read operation.
@@ -99,7 +99,7 @@ public class Command {
 
     public Command(
         Cluster cluster, String namespace, Txn txn, Expression where, Replica replica,
-        Settings settings
+        ResolvedSettings settings
     ) {
         this.cluster = cluster;
         this.namespace = namespace;

@@ -50,111 +50,111 @@ public class BehaviorTest {
         @DisplayName("DEFAULT should have all common settings configured")
         void testDefaultCommonSettings() {
             // Test all operation types have common settings from Selectors.all()
-            Settings readPointAp =
+            ResolvedSettings readPointAp =
                 Behavior.DEFAULT.getSettings(OpKind.READ, OpShape.POINT, Mode.AP);
             assertNotNull(readPointAp, "READ:POINT:AP settings should exist");
 
             // Verify common settings are present
-            assertEquals(Duration.ofSeconds(1), readPointAp.abandonCallAfter);
-            assertEquals(Duration.ofMillis(0), readPointAp.delayBetweenRetries);
-            assertEquals(3, readPointAp.maximumNumberOfCallAttempts);
-            assertEquals(Replica.SEQUENCE, readPointAp.replicaOrder);
-            assertTrue(readPointAp.sendKey);
-            assertFalse(readPointAp.useCompression);
-            assertEquals(Duration.ofSeconds(30), readPointAp.waitForCallToComplete);
-            assertEquals(Duration.ofSeconds(0), readPointAp.waitForConnectionToComplete);
-            assertEquals(Duration.ofSeconds(0), readPointAp.waitForSocketResponseAfterCallFails);
+            assertEquals(1000, readPointAp.getAbandonCallAfterMs());
+            assertEquals(0, readPointAp.getDelayBetweenRetriesMs());
+            assertEquals(3, readPointAp.getMaximumNumberOfCallAttempts());
+            assertEquals(Replica.SEQUENCE, readPointAp.getReplicaOrder());
+            assertTrue(readPointAp.getSendKey());
+            assertFalse(readPointAp.getUseCompression());
+            assertEquals(30000, readPointAp.getWaitForCallToCompleteMs());
+            assertEquals(0, readPointAp.getWaitForConnectionToCompleteMs());
+            assertEquals(0, readPointAp.getWaitForSocketResponseAfterCallFailsMs());
         }
 
         @Test
         @DisplayName("DEFAULT should have all READ AP settings configured")
         void testDefaultReadApSettings() {
-            Settings readPointAp =
+            ResolvedSettings readPointAp =
                 Behavior.DEFAULT.getSettings(OpKind.READ, OpShape.POINT, Mode.AP);
 
-            assertEquals(ReadModeAP.ALL, readPointAp.readModeAP);
-            assertEquals(0, readPointAp.resetTtlOnReadAtPercent);
+            assertEquals(ReadModeAP.ALL, readPointAp.getReadModeAP());
+            assertEquals(0, readPointAp.getResetTtlOnReadAtPercent());
         }
 
         @Test
         @DisplayName("DEFAULT should have all READ CP settings configured")
         void testDefaultReadCpSettings() {
-            Settings readPointCp =
+            ResolvedSettings readPointCp =
                 Behavior.DEFAULT.getSettings(OpKind.READ, OpShape.POINT, Mode.CP);
 
-            assertEquals(ReadModeSC.SESSION, readPointCp.readModeSC);
-            assertEquals(0, readPointCp.resetTtlOnReadAtPercent);
+            assertEquals(ReadModeSC.SESSION, readPointCp.getReadModeSC());
+            assertEquals(0, readPointCp.getResetTtlOnReadAtPercent());
         }
 
         @Test
         @DisplayName("DEFAULT should have all BATCH READ settings configured")
         void testDefaultBatchReadSettings() {
-            Settings readBatchAp =
+            ResolvedSettings readBatchAp =
                 Behavior.DEFAULT.getSettings(OpKind.READ, OpShape.BATCH, Mode.AP);
 
-            assertEquals(1, readBatchAp.maxConcurrentNodes);
-            assertTrue(readBatchAp.allowInlineMemoryAccess);
-            assertFalse(readBatchAp.allowInlineSsdAccess);
+            assertEquals(1, readBatchAp.getMaxConcurrentNodes());
+            assertTrue(readBatchAp.getAllowInlineMemoryAccess());
+            assertFalse(readBatchAp.getAllowInlineSsdAccess());
         }
 
         @Test
         @DisplayName("DEFAULT should have all QUERY settings configured")
         void testDefaultQuerySettings() {
-            Settings readQueryAp =
+            ResolvedSettings readQueryAp =
                 Behavior.DEFAULT.getSettings(OpKind.READ, OpShape.QUERY, Mode.AP);
 
-            assertEquals(5000, readQueryAp.recordQueueSize);
-            assertEquals(6, readQueryAp.maximumNumberOfCallAttempts); // Override from query-specific
+            assertEquals(5000, readQueryAp.getRecordQueueSize());
+            assertEquals(6, readQueryAp.getMaximumNumberOfCallAttempts()); // Override from query-specific
         }
 
         @Test
         @DisplayName("DEFAULT should have all RETRYABLE WRITE settings configured")
         void testDefaultRetryableWriteSettings() {
-            Settings writeRetryablePointAp =
+            ResolvedSettings writeRetryablePointAp =
                 Behavior.DEFAULT.getSettings(OpKind.WRITE_RETRYABLE, OpShape.POINT, Mode.AP);
 
-            assertFalse(writeRetryablePointAp.useDurableDelete);
-            assertEquals(3, writeRetryablePointAp.maximumNumberOfCallAttempts); // Override from retryable
-            assertFalse(writeRetryablePointAp.simulateXdrWrite);
+            assertFalse(writeRetryablePointAp.getUseDurableDelete());
+            assertEquals(3, writeRetryablePointAp.getMaximumNumberOfCallAttempts()); // Override from retryable
+            assertFalse(writeRetryablePointAp.getSimulateXdrWrite());
         }
 
         @Test
         @DisplayName("DEFAULT should have all RETRYABLE WRITE CP settings configured")
         void testDefaultRetryableWriteCpSettings() {
-            Settings writeRetryableCp =
+            ResolvedSettings writeRetryableCp =
                 Behavior.DEFAULT.getSettings(OpKind.WRITE_RETRYABLE, OpShape.POINT, Mode.CP);
 
-            assertTrue(writeRetryableCp.useDurableDelete); // CP override
+            assertTrue(writeRetryableCp.getUseDurableDelete()); // CP override
         }
 
         @Test
         @DisplayName("DEFAULT should have all NON-RETRYABLE WRITE settings configured")
         void testDefaultNonRetryableWriteSettings() {
-            Settings writeNonRetryablePointAp =
+            ResolvedSettings writeNonRetryablePointAp =
                 Behavior.DEFAULT.getSettings(OpKind.WRITE_NON_RETRYABLE, OpShape.POINT, Mode.AP);
 
-            assertFalse(writeNonRetryablePointAp.useDurableDelete);
-            assertFalse(writeNonRetryablePointAp.simulateXdrWrite);
+            assertFalse(writeNonRetryablePointAp.getUseDurableDelete());
+            assertFalse(writeNonRetryablePointAp.getSimulateXdrWrite());
         }
 
         @Test
         @DisplayName("DEFAULT should have all BATCH WRITE settings configured")
         void testDefaultBatchWriteSettings() {
-            Settings writeRetryableBatchAp =
+            ResolvedSettings writeRetryableBatchAp =
                 Behavior.DEFAULT.getSettings(OpKind.WRITE_RETRYABLE, OpShape.BATCH, Mode.AP);
 
-            assertEquals(1, writeRetryableBatchAp.maxConcurrentNodes);
-            assertTrue(writeRetryableBatchAp.allowInlineMemoryAccess);
-            assertFalse(writeRetryableBatchAp.allowInlineSsdAccess);
+            assertEquals(1, writeRetryableBatchAp.getMaxConcurrentNodes());
+            assertTrue(writeRetryableBatchAp.getAllowInlineMemoryAccess());
+            assertFalse(writeRetryableBatchAp.getAllowInlineSsdAccess());
         }
 
         @Test
         @DisplayName("DEFAULT should have all WRITE AP settings configured")
         void testDefaultWriteApSettings() {
-            Settings writePointAp =
+            ResolvedSettings writePointAp =
                 Behavior.DEFAULT.getSettings(OpKind.WRITE_RETRYABLE, OpShape.POINT, Mode.AP);
 
-            assertEquals(CommitLevel.COMMIT_ALL, writePointAp.commitLevel);
+            assertEquals(CommitLevel.COMMIT_ALL, writePointAp.getCommitLevel());
         }
 
         @Test
@@ -163,7 +163,7 @@ public class BehaviorTest {
             // Test all READ combinations
             for (OpShape shape : new OpShape[] { OpShape.POINT, OpShape.BATCH, OpShape.QUERY }) {
                 for (Mode mode : new Mode[] { Mode.AP, Mode.CP }) {
-                    Settings settings = Behavior.DEFAULT.getSettings(OpKind.READ, shape, mode);
+                    ResolvedSettings settings = Behavior.DEFAULT.getSettings(OpKind.READ, shape, mode);
                     assertNotNull(settings, "READ:" + shape + ":" + mode + " should have settings");
                 }
             }
@@ -173,7 +173,7 @@ public class BehaviorTest {
                 OpKind.WRITE_NON_RETRYABLE }) {
                 for (OpShape shape : new OpShape[] { OpShape.POINT, OpShape.BATCH }) {
                     for (Mode mode : new Mode[] { Mode.AP, Mode.CP }) {
-                        Settings settings = Behavior.DEFAULT.getSettings(kind, shape, mode);
+                        ResolvedSettings settings = Behavior.DEFAULT.getSettings(kind, shape, mode);
                         assertNotNull(settings,
                             kind + ":" + shape + ":" + mode + " should have settings");
                     }
@@ -202,15 +202,15 @@ public class BehaviorTest {
                     .waitForSocketResponseAfterCallFails(Duration.ofSeconds(4))));
 
             // Verify settings applied to all operations
-            Settings readPointAp = behavior.getSettings(OpKind.READ, OpShape.POINT, Mode.AP);
-            assertEquals(Duration.ofSeconds(10), readPointAp.abandonCallAfter);
-            assertEquals(5, readPointAp.maximumNumberOfCallAttempts);
-            assertFalse(readPointAp.sendKey);
+            ResolvedSettings readPointAp = behavior.getSettings(OpKind.READ, OpShape.POINT, Mode.AP);
+            assertEquals(10000, readPointAp.getAbandonCallAfterMs());
+            assertEquals(5, readPointAp.getMaximumNumberOfCallAttempts());
+            assertFalse(readPointAp.getSendKey());
 
-            Settings writePointCp =
+            ResolvedSettings writePointCp =
                 behavior.getSettings(OpKind.WRITE_RETRYABLE, OpShape.POINT, Mode.CP);
-            assertEquals(Duration.ofSeconds(10), writePointCp.abandonCallAfter);
-            assertTrue(writePointCp.useCompression);
+            assertEquals(10000, writePointCp.getAbandonCallAfterMs());
+            assertTrue(writePointCp.getUseCompression());
         }
 
         @Test
@@ -228,30 +228,30 @@ public class BehaviorTest {
                     .recordQueueSize(10000)));
 
             // Verify AP read settings
-            Settings readAp = behavior.getSettings(OpKind.READ, OpShape.POINT, Mode.AP);
-            assertEquals(5, readAp.maximumNumberOfCallAttempts);
-            assertEquals(ReadModeAP.ONE, readAp.readModeAP);
-            assertEquals(50, readAp.resetTtlOnReadAtPercent);
+            ResolvedSettings readAp = behavior.getSettings(OpKind.READ, OpShape.POINT, Mode.AP);
+            assertEquals(5, readAp.getMaximumNumberOfCallAttempts());
+            assertEquals(ReadModeAP.ONE, readAp.getReadModeAP());
+            assertEquals(50, readAp.getResetTtlOnReadAtPercent());
 
             // Verify CP read settings
-            Settings readCp = behavior.getSettings(OpKind.READ, OpShape.POINT, Mode.CP);
-            assertEquals(5, readCp.maximumNumberOfCallAttempts);
-            assertEquals(ReadModeSC.LINEARIZE, readCp.readModeSC);
-            assertEquals(50, readCp.resetTtlOnReadAtPercent);
+            ResolvedSettings readCp = behavior.getSettings(OpKind.READ, OpShape.POINT, Mode.CP);
+            assertEquals(5, readCp.getMaximumNumberOfCallAttempts());
+            assertEquals(ReadModeSC.LINEARIZE, readCp.getReadModeSC());
+            assertEquals(50, readCp.getResetTtlOnReadAtPercent());
 
             // Verify AP write settings
-            Settings writeAp = behavior.getSettings(OpKind.WRITE_RETRYABLE, OpShape.POINT, Mode.AP);
-            assertEquals(5, writeAp.maximumNumberOfCallAttempts);
-            assertEquals(CommitLevel.COMMIT_MASTER, writeAp.commitLevel);
-            assertTrue(writeAp.useDurableDelete);
+            ResolvedSettings writeAp = behavior.getSettings(OpKind.WRITE_RETRYABLE, OpShape.POINT, Mode.AP);
+            assertEquals(5, writeAp.getMaximumNumberOfCallAttempts());
+            assertEquals(CommitLevel.COMMIT_MASTER, writeAp.getCommitLevel());
+            assertTrue(writeAp.getUseDurableDelete());
 
             // Verify batch settings
-            Settings batchRead = behavior.getSettings(OpKind.READ, OpShape.BATCH, Mode.AP);
-            assertEquals(10, batchRead.maxConcurrentNodes);
+            ResolvedSettings batchRead = behavior.getSettings(OpKind.READ, OpShape.BATCH, Mode.AP);
+            assertEquals(10, batchRead.getMaxConcurrentNodes());
 
             // Verify query settings
-            Settings query = behavior.getSettings(OpKind.READ, OpShape.QUERY, Mode.AP);
-            assertEquals(10000, query.recordQueueSize);
+            ResolvedSettings query = behavior.getSettings(OpKind.READ, OpShape.QUERY, Mode.AP);
+            assertEquals(10000, query.getRecordQueueSize());
         }
 
         @Test
@@ -262,9 +262,9 @@ public class BehaviorTest {
                     .resetTtlOnReadAtPercent(50)
                     .maximumNumberOfCallAttempts(10)));
 
-            Settings readPointAp = behavior.getSettings(OpKind.READ, OpShape.POINT, Mode.AP);
-            assertEquals(50, readPointAp.resetTtlOnReadAtPercent);
-            assertEquals(10, readPointAp.maximumNumberOfCallAttempts);
+            ResolvedSettings readPointAp = behavior.getSettings(OpKind.READ, OpShape.POINT, Mode.AP);
+            assertEquals(50, readPointAp.getResetTtlOnReadAtPercent());
+            assertEquals(10, readPointAp.getMaximumNumberOfCallAttempts());
         }
 
         @Test
@@ -275,13 +275,13 @@ public class BehaviorTest {
                     .readMode(ReadModeAP.ONE)
                     .resetTtlOnReadAtPercent(25)));
 
-            Settings readPointAp = behavior.getSettings(OpKind.READ, OpShape.POINT, Mode.AP);
-            assertEquals(ReadModeAP.ONE, readPointAp.readModeAP);
-            assertEquals(25, readPointAp.resetTtlOnReadAtPercent);
+            ResolvedSettings readPointAp = behavior.getSettings(OpKind.READ, OpShape.POINT, Mode.AP);
+            assertEquals(ReadModeAP.ONE, readPointAp.getReadModeAP());
+            assertEquals(25, readPointAp.getResetTtlOnReadAtPercent());
 
             // CP mode should have DEFAULT readModeAP (from Selectors.all())
-            Settings readPointCp = behavior.getSettings(OpKind.READ, OpShape.POINT, Mode.CP);
-            assertEquals(ReadModeAP.ALL, readPointCp.readModeAP); // DEFAULT value from Selectors.all()
+            ResolvedSettings readPointCp = behavior.getSettings(OpKind.READ, OpShape.POINT, Mode.CP);
+            assertEquals(ReadModeAP.ALL, readPointCp.getReadModeAP()); // DEFAULT value from Selectors.all()
         }
 
         @Test
@@ -292,13 +292,13 @@ public class BehaviorTest {
                     .consistency(ReadModeSC.LINEARIZE)
                     .resetTtlOnReadAtPercent(75)));
 
-            Settings readPointCp = behavior.getSettings(OpKind.READ, OpShape.POINT, Mode.CP);
-            assertEquals(ReadModeSC.LINEARIZE, readPointCp.readModeSC);
-            assertEquals(75, readPointCp.resetTtlOnReadAtPercent);
+            ResolvedSettings readPointCp = behavior.getSettings(OpKind.READ, OpShape.POINT, Mode.CP);
+            assertEquals(ReadModeSC.LINEARIZE, readPointCp.getReadModeSC());
+            assertEquals(75, readPointCp.getResetTtlOnReadAtPercent());
 
             // AP mode should have DEFAULT readModeSC (from Selectors.all())
-            Settings readPointAp = behavior.getSettings(OpKind.READ, OpShape.POINT, Mode.AP);
-            assertEquals(ReadModeSC.SESSION, readPointAp.readModeSC); // DEFAULT value from Selectors.all()
+            ResolvedSettings readPointAp = behavior.getSettings(OpKind.READ, OpShape.POINT, Mode.AP);
+            assertEquals(ReadModeSC.SESSION, readPointAp.getReadModeSC()); // DEFAULT value from Selectors.all()
         }
 
         @Test
@@ -308,12 +308,12 @@ public class BehaviorTest {
                 .on(Selectors.reads().get(), ops -> ops
                     .maximumNumberOfCallAttempts(7)));
 
-            Settings readPointAp = behavior.getSettings(OpKind.READ, OpShape.POINT, Mode.AP);
-            assertEquals(7, readPointAp.maximumNumberOfCallAttempts);
+            ResolvedSettings readPointAp = behavior.getSettings(OpKind.READ, OpShape.POINT, Mode.AP);
+            assertEquals(7, readPointAp.getMaximumNumberOfCallAttempts());
 
             // Should not affect batch - should have DEFAULT value
-            Settings readBatchAp = behavior.getSettings(OpKind.READ, OpShape.BATCH, Mode.AP);
-            assertEquals(3, readBatchAp.maximumNumberOfCallAttempts); // DEFAULT value, not overridden
+            ResolvedSettings readBatchAp = behavior.getSettings(OpKind.READ, OpShape.BATCH, Mode.AP);
+            assertEquals(3, readBatchAp.getMaximumNumberOfCallAttempts()); // DEFAULT value, not overridden
         }
 
         @Test
@@ -325,14 +325,14 @@ public class BehaviorTest {
                     .allowInlineMemoryAccess(false)
                     .allowInlineSsdAccess(true)));
 
-            Settings readBatchAp = behavior.getSettings(OpKind.READ, OpShape.BATCH, Mode.AP);
-            assertEquals(8, readBatchAp.maxConcurrentNodes);
-            assertFalse(readBatchAp.allowInlineMemoryAccess);
-            assertTrue(readBatchAp.allowInlineSsdAccess);
+            ResolvedSettings readBatchAp = behavior.getSettings(OpKind.READ, OpShape.BATCH, Mode.AP);
+            assertEquals(8, readBatchAp.getMaxConcurrentNodes());
+            assertFalse(readBatchAp.getAllowInlineMemoryAccess());
+            assertTrue(readBatchAp.getAllowInlineSsdAccess());
 
             // Should not affect point reads - they keep global default
-            Settings readPointAp = behavior.getSettings(OpKind.READ, OpShape.POINT, Mode.AP);
-            assertEquals(1, readPointAp.maxConcurrentNodes); // Global default from Selectors.all()
+            ResolvedSettings readPointAp = behavior.getSettings(OpKind.READ, OpShape.POINT, Mode.AP);
+            assertEquals(1, readPointAp.getMaxConcurrentNodes()); // Global default from Selectors.all()
         }
 
         @Test
@@ -343,13 +343,13 @@ public class BehaviorTest {
                     .recordQueueSize(10000)
                     .maximumNumberOfCallAttempts(8)));
 
-            Settings readQueryAp = behavior.getSettings(OpKind.READ, OpShape.QUERY, Mode.AP);
-            assertEquals(10000, readQueryAp.recordQueueSize);
-            assertEquals(8, readQueryAp.maximumNumberOfCallAttempts);
+            ResolvedSettings readQueryAp = behavior.getSettings(OpKind.READ, OpShape.QUERY, Mode.AP);
+            assertEquals(10000, readQueryAp.getRecordQueueSize());
+            assertEquals(8, readQueryAp.getMaximumNumberOfCallAttempts());
 
             // Should not affect batch
-            Settings readBatchAp = behavior.getSettings(OpKind.READ, OpShape.BATCH, Mode.AP);
-            assertNull(readBatchAp.recordQueueSize);
+            ResolvedSettings readBatchAp = behavior.getSettings(OpKind.READ, OpShape.BATCH, Mode.AP);
+            assertEquals(5000, readBatchAp.getRecordQueueSize());
         }
 
         @Test
@@ -361,10 +361,10 @@ public class BehaviorTest {
                     .readMode(ReadModeAP.ALL)
                     .resetTtlOnReadAtPercent(33)));
 
-            Settings readBatchAp = behavior.getSettings(OpKind.READ, OpShape.BATCH, Mode.AP);
-            assertEquals(16, readBatchAp.maxConcurrentNodes);
-            assertEquals(ReadModeAP.ALL, readBatchAp.readModeAP);
-            assertEquals(33, readBatchAp.resetTtlOnReadAtPercent);
+            ResolvedSettings readBatchAp = behavior.getSettings(OpKind.READ, OpShape.BATCH, Mode.AP);
+            assertEquals(16, readBatchAp.getMaxConcurrentNodes());
+            assertEquals(ReadModeAP.ALL, readBatchAp.getReadModeAP());
+            assertEquals(33, readBatchAp.getResetTtlOnReadAtPercent());
         }
 
         @Test
@@ -376,15 +376,15 @@ public class BehaviorTest {
                     .simulateXdrWrite(true)));
 
             // Should apply to both retryable and non-retryable
-            Settings writeRetryable =
+            ResolvedSettings writeRetryable =
                 behavior.getSettings(OpKind.WRITE_RETRYABLE, OpShape.POINT, Mode.AP);
-            assertTrue(writeRetryable.useDurableDelete);
-            assertTrue(writeRetryable.simulateXdrWrite);
+            assertTrue(writeRetryable.getUseDurableDelete());
+            assertTrue(writeRetryable.getSimulateXdrWrite());
 
-            Settings writeNonRetryable =
+            ResolvedSettings writeNonRetryable =
                 behavior.getSettings(OpKind.WRITE_NON_RETRYABLE, OpShape.POINT, Mode.AP);
-            assertTrue(writeNonRetryable.useDurableDelete);
-            assertTrue(writeNonRetryable.simulateXdrWrite);
+            assertTrue(writeNonRetryable.getUseDurableDelete());
+            assertTrue(writeNonRetryable.getSimulateXdrWrite());
         }
 
         @Test
@@ -394,14 +394,14 @@ public class BehaviorTest {
                 .on(Selectors.writes().ap(), ops -> ops
                     .commitLevel(CommitLevel.COMMIT_MASTER)));
 
-            Settings writePointAp =
+            ResolvedSettings writePointAp =
                 behavior.getSettings(OpKind.WRITE_RETRYABLE, OpShape.POINT, Mode.AP);
-            assertEquals(CommitLevel.COMMIT_MASTER, writePointAp.commitLevel);
+            assertEquals(CommitLevel.COMMIT_MASTER, writePointAp.getCommitLevel());
 
             // Should not affect CP
-            Settings writePointCp =
+            ResolvedSettings writePointCp =
                 behavior.getSettings(OpKind.WRITE_RETRYABLE, OpShape.POINT, Mode.CP);
-            assertNull(writePointCp.commitLevel);
+            assertEquals(CommitLevel.COMMIT_ALL, writePointCp.getCommitLevel());
         }
 
         @Test
@@ -411,14 +411,14 @@ public class BehaviorTest {
                 .on(Selectors.writes().retryable(), ops -> ops
                     .maximumNumberOfCallAttempts(10)));
 
-            Settings writeRetryable =
+            ResolvedSettings writeRetryable =
                 behavior.getSettings(OpKind.WRITE_RETRYABLE, OpShape.POINT, Mode.AP);
-            assertEquals(10, writeRetryable.maximumNumberOfCallAttempts);
+            assertEquals(10, writeRetryable.getMaximumNumberOfCallAttempts());
 
             // Should not affect non-retryable - should have DEFAULT value
-            Settings writeNonRetryable =
+            ResolvedSettings writeNonRetryable =
                 behavior.getSettings(OpKind.WRITE_NON_RETRYABLE, OpShape.POINT, Mode.AP);
-            assertEquals(1, writeNonRetryable.maximumNumberOfCallAttempts); // DEFAULT value from Selectors.all()
+            assertEquals(1, writeNonRetryable.getMaximumNumberOfCallAttempts()); // DEFAULT value from Selectors.all()
         }
 
         @Test
@@ -428,14 +428,14 @@ public class BehaviorTest {
                 .on(Selectors.writes().nonRetryable(), ops -> ops
                     .maximumNumberOfCallAttempts(1)));
 
-            Settings writeNonRetryable =
+            ResolvedSettings writeNonRetryable =
                 behavior.getSettings(OpKind.WRITE_NON_RETRYABLE, OpShape.POINT, Mode.AP);
-            assertEquals(1, writeNonRetryable.maximumNumberOfCallAttempts);
+            assertEquals(1, writeNonRetryable.getMaximumNumberOfCallAttempts());
 
             // Should not affect retryable - should have DEFAULT value
-            Settings writeRetryable =
+            ResolvedSettings writeRetryable =
                 behavior.getSettings(OpKind.WRITE_RETRYABLE, OpShape.POINT, Mode.AP);
-            assertEquals(3, writeRetryable.maximumNumberOfCallAttempts); // DEFAULT value for retryable writes
+            assertEquals(3, writeRetryable.getMaximumNumberOfCallAttempts()); // DEFAULT value for retryable writes
         }
 
         @Test
@@ -446,18 +446,18 @@ public class BehaviorTest {
                     .maximumNumberOfCallAttempts(5)));
 
             // Should apply to both retryable and non-retryable point writes
-            Settings writeRetryablePoint =
+            ResolvedSettings writeRetryablePoint =
                 behavior.getSettings(OpKind.WRITE_RETRYABLE, OpShape.POINT, Mode.AP);
-            assertEquals(5, writeRetryablePoint.maximumNumberOfCallAttempts);
+            assertEquals(5, writeRetryablePoint.getMaximumNumberOfCallAttempts());
 
-            Settings writeNonRetryablePoint =
+            ResolvedSettings writeNonRetryablePoint =
                 behavior.getSettings(OpKind.WRITE_NON_RETRYABLE, OpShape.POINT, Mode.AP);
-            assertEquals(5, writeNonRetryablePoint.maximumNumberOfCallAttempts);
+            assertEquals(5, writeNonRetryablePoint.getMaximumNumberOfCallAttempts());
 
             // Should not affect batch - should have DEFAULT value
-            Settings writeRetryableBatch =
+            ResolvedSettings writeRetryableBatch =
                 behavior.getSettings(OpKind.WRITE_RETRYABLE, OpShape.BATCH, Mode.AP);
-            assertEquals(3, writeRetryableBatch.maximumNumberOfCallAttempts); // DEFAULT value for retryable writes
+            assertEquals(3, writeRetryableBatch.getMaximumNumberOfCallAttempts()); // DEFAULT value for retryable writes
         }
 
         @Test
@@ -469,13 +469,13 @@ public class BehaviorTest {
                     .allowInlineMemoryAccess(true)));
 
             // Should apply to both retryable and non-retryable batch writes
-            Settings writeRetryableBatch =
+            ResolvedSettings writeRetryableBatch =
                 behavior.getSettings(OpKind.WRITE_RETRYABLE, OpShape.BATCH, Mode.AP);
-            assertEquals(12, writeRetryableBatch.maxConcurrentNodes);
+            assertEquals(12, writeRetryableBatch.getMaxConcurrentNodes());
 
-            Settings writeNonRetryableBatch =
+            ResolvedSettings writeNonRetryableBatch =
                 behavior.getSettings(OpKind.WRITE_NON_RETRYABLE, OpShape.BATCH, Mode.AP);
-            assertEquals(12, writeNonRetryableBatch.maxConcurrentNodes);
+            assertEquals(12, writeNonRetryableBatch.getMaxConcurrentNodes());
         }
 
         @Test
@@ -487,16 +487,16 @@ public class BehaviorTest {
                     .commitLevel(CommitLevel.COMMIT_ALL)
                     .useDurableDelete(false)));
 
-            Settings settings =
+            ResolvedSettings settings =
                 behavior.getSettings(OpKind.WRITE_RETRYABLE, OpShape.POINT, Mode.AP);
-            assertEquals(9, settings.maximumNumberOfCallAttempts);
-            assertEquals(CommitLevel.COMMIT_ALL, settings.commitLevel);
-            assertFalse(settings.useDurableDelete);
+            assertEquals(9, settings.getMaximumNumberOfCallAttempts());
+            assertEquals(CommitLevel.COMMIT_ALL, settings.getCommitLevel());
+            assertFalse(settings.getUseDurableDelete());
 
             // Should not affect non-retryable - should have DEFAULT value
-            Settings nonRetryable =
+            ResolvedSettings nonRetryable =
                 behavior.getSettings(OpKind.WRITE_NON_RETRYABLE, OpShape.POINT, Mode.AP);
-            assertEquals(1, nonRetryable.maximumNumberOfCallAttempts); // DEFAULT value from Selectors.all()
+            assertEquals(1, nonRetryable.getMaximumNumberOfCallAttempts()); // DEFAULT value from Selectors.all()
         }
 
         @Test
@@ -507,13 +507,13 @@ public class BehaviorTest {
                     .commitLevel(CommitLevel.COMMIT_MASTER)));
 
             // Should apply to both retryable and non-retryable
-            Settings writeRetryable =
+            ResolvedSettings writeRetryable =
                 behavior.getSettings(OpKind.WRITE_RETRYABLE, OpShape.POINT, Mode.AP);
-            assertEquals(CommitLevel.COMMIT_MASTER, writeRetryable.commitLevel);
+            assertEquals(CommitLevel.COMMIT_MASTER, writeRetryable.getCommitLevel());
 
-            Settings writeNonRetryable =
+            ResolvedSettings writeNonRetryable =
                 behavior.getSettings(OpKind.WRITE_NON_RETRYABLE, OpShape.POINT, Mode.AP);
-            assertEquals(CommitLevel.COMMIT_MASTER, writeNonRetryable.commitLevel);
+            assertEquals(CommitLevel.COMMIT_MASTER, writeNonRetryable.getCommitLevel());
         }
     }
 
@@ -535,21 +535,21 @@ public class BehaviorTest {
                     .maximumNumberOfCallAttempts(4)));
 
             // Most specific wins
-            Settings readBatchAp = behavior.getSettings(OpKind.READ, OpShape.BATCH, Mode.AP);
-            assertEquals(4, readBatchAp.maximumNumberOfCallAttempts);
+            ResolvedSettings readBatchAp = behavior.getSettings(OpKind.READ, OpShape.BATCH, Mode.AP);
+            assertEquals(4, readBatchAp.getMaximumNumberOfCallAttempts());
 
             // Less specific for CP
-            Settings readBatchCp = behavior.getSettings(OpKind.READ, OpShape.BATCH, Mode.CP);
-            assertEquals(3, readBatchCp.maximumNumberOfCallAttempts);
+            ResolvedSettings readBatchCp = behavior.getSettings(OpKind.READ, OpShape.BATCH, Mode.CP);
+            assertEquals(3, readBatchCp.getMaximumNumberOfCallAttempts());
 
             // Even less specific for point
-            Settings readPointAp = behavior.getSettings(OpKind.READ, OpShape.POINT, Mode.AP);
-            assertEquals(2, readPointAp.maximumNumberOfCallAttempts);
+            ResolvedSettings readPointAp = behavior.getSettings(OpKind.READ, OpShape.POINT, Mode.AP);
+            assertEquals(2, readPointAp.getMaximumNumberOfCallAttempts());
 
             // Least specific for writes
-            Settings writePointAp =
+            ResolvedSettings writePointAp =
                 behavior.getSettings(OpKind.WRITE_RETRYABLE, OpShape.POINT, Mode.AP);
-            assertEquals(1, writePointAp.maximumNumberOfCallAttempts);
+            assertEquals(1, writePointAp.getMaximumNumberOfCallAttempts());
         }
 
         @Test
@@ -561,8 +561,8 @@ public class BehaviorTest {
                 .on(Selectors.reads().ap(), ops -> ops
                     .readMode(ReadModeAP.ALL)));
 
-            Settings readPointAp = behavior.getSettings(OpKind.READ, OpShape.POINT, Mode.AP);
-            assertEquals(ReadModeAP.ALL, readPointAp.readModeAP);
+            ResolvedSettings readPointAp = behavior.getSettings(OpKind.READ, OpShape.POINT, Mode.AP);
+            assertEquals(ReadModeAP.ALL, readPointAp.getReadModeAP());
         }
 
         @Test
@@ -575,11 +575,11 @@ public class BehaviorTest {
                 .on(Selectors.reads().ap(), ops -> ops
                     .readMode(ReadModeAP.ONE)));
 
-            Settings readPointAp = behavior.getSettings(OpKind.READ, OpShape.POINT, Mode.AP);
+            ResolvedSettings readPointAp = behavior.getSettings(OpKind.READ, OpShape.POINT, Mode.AP);
             // Should have both
-            assertEquals(5, readPointAp.maximumNumberOfCallAttempts);
-            assertTrue(readPointAp.sendKey);
-            assertEquals(ReadModeAP.ONE, readPointAp.readModeAP);
+            assertEquals(5, readPointAp.getMaximumNumberOfCallAttempts());
+            assertTrue(readPointAp.getSendKey());
+            assertEquals(ReadModeAP.ONE, readPointAp.getReadModeAP());
         }
 
         @Test
@@ -591,13 +591,13 @@ public class BehaviorTest {
                 .on(Selectors.reads().cp(), ops -> ops
                     .consistency(ReadModeSC.LINEARIZE)));
 
-            Settings readAp = behavior.getSettings(OpKind.READ, OpShape.POINT, Mode.AP);
-            assertEquals(ReadModeAP.ONE, readAp.readModeAP);
-            assertEquals(ReadModeSC.SESSION, readAp.readModeSC); // DEFAULT value from Selectors.all()
+            ResolvedSettings readAp = behavior.getSettings(OpKind.READ, OpShape.POINT, Mode.AP);
+            assertEquals(ReadModeAP.ONE, readAp.getReadModeAP());
+            assertEquals(ReadModeSC.SESSION, readAp.getReadModeSC()); // DEFAULT value from Selectors.all()
 
-            Settings readCp = behavior.getSettings(OpKind.READ, OpShape.POINT, Mode.CP);
-            assertEquals(ReadModeSC.LINEARIZE, readCp.readModeSC);
-            assertEquals(ReadModeAP.ALL, readCp.readModeAP); // DEFAULT value from Selectors.all()
+            ResolvedSettings readCp = behavior.getSettings(OpKind.READ, OpShape.POINT, Mode.CP);
+            assertEquals(ReadModeSC.LINEARIZE, readCp.getReadModeSC());
+            assertEquals(ReadModeAP.ALL, readCp.getReadModeAP()); // DEFAULT value from Selectors.all()
         }
 
         @Test
@@ -607,11 +607,11 @@ public class BehaviorTest {
                 .on(Selectors.reads().batch(), ops -> ops
                     .maxConcurrentNodes(10)));
 
-            Settings readBatch = behavior.getSettings(OpKind.READ, OpShape.BATCH, Mode.AP);
-            assertEquals(10, readBatch.maxConcurrentNodes);
+            ResolvedSettings readBatch = behavior.getSettings(OpKind.READ, OpShape.BATCH, Mode.AP);
+            assertEquals(10, readBatch.getMaxConcurrentNodes());
 
-            Settings readPoint = behavior.getSettings(OpKind.READ, OpShape.POINT, Mode.AP);
-            assertEquals(1, readPoint.maxConcurrentNodes); // Global default from Selectors.all()
+            ResolvedSettings readPoint = behavior.getSettings(OpKind.READ, OpShape.POINT, Mode.AP);
+            assertEquals(1, readPoint.getMaxConcurrentNodes()); // Global default from Selectors.all()
         }
 
         @Test
@@ -623,13 +623,13 @@ public class BehaviorTest {
                 .on(Selectors.writes().nonRetryable(), ops -> ops
                     .maximumNumberOfCallAttempts(1)));
 
-            Settings retryable =
+            ResolvedSettings retryable =
                 behavior.getSettings(OpKind.WRITE_RETRYABLE, OpShape.POINT, Mode.AP);
-            assertEquals(10, retryable.maximumNumberOfCallAttempts);
+            assertEquals(10, retryable.getMaximumNumberOfCallAttempts());
 
-            Settings nonRetryable =
+            ResolvedSettings nonRetryable =
                 behavior.getSettings(OpKind.WRITE_NON_RETRYABLE, OpShape.POINT, Mode.AP);
-            assertEquals(1, nonRetryable.maximumNumberOfCallAttempts);
+            assertEquals(1, nonRetryable.getMaximumNumberOfCallAttempts());
         }
     }
 
@@ -648,9 +648,9 @@ public class BehaviorTest {
             Behavior child = parent.deriveWithChanges("child", builder -> {
             });
 
-            Settings childSettings = child.getSettings(OpKind.READ, OpShape.POINT, Mode.AP);
-            assertEquals(5, childSettings.maximumNumberOfCallAttempts);
-            assertFalse(childSettings.sendKey);
+            ResolvedSettings childSettings = child.getSettings(OpKind.READ, OpShape.POINT, Mode.AP);
+            assertEquals(5, childSettings.getMaximumNumberOfCallAttempts());
+            assertFalse(childSettings.getSendKey());
         }
 
         @Test
@@ -665,9 +665,9 @@ public class BehaviorTest {
                 .on(Selectors.all(), ops -> ops
                     .maximumNumberOfCallAttempts(10)));
 
-            Settings childSettings = child.getSettings(OpKind.READ, OpShape.POINT, Mode.AP);
-            assertEquals(10, childSettings.maximumNumberOfCallAttempts); // Overridden
-            assertFalse(childSettings.sendKey); // Inherited
+            ResolvedSettings childSettings = child.getSettings(OpKind.READ, OpShape.POINT, Mode.AP);
+            assertEquals(10, childSettings.getMaximumNumberOfCallAttempts()); // Overridden
+            assertFalse(childSettings.getSendKey()); // Inherited
         }
 
         @Test
@@ -682,14 +682,14 @@ public class BehaviorTest {
                     .readMode(ReadModeAP.ONE)));
 
             // Should inherit from parent
-            Settings childSettings = child.getSettings(OpKind.READ, OpShape.POINT, Mode.AP);
-            assertEquals(5, childSettings.maximumNumberOfCallAttempts);
-            assertEquals(ReadModeAP.ONE, childSettings.readModeAP);
+            ResolvedSettings childSettings = child.getSettings(OpKind.READ, OpShape.POINT, Mode.AP);
+            assertEquals(5, childSettings.getMaximumNumberOfCallAttempts());
+            assertEquals(ReadModeAP.ONE, childSettings.getReadModeAP());
 
             // Parent should not be affected by child changes
-            Settings parentSettings = parent.getSettings(OpKind.READ, OpShape.POINT, Mode.AP);
-            assertEquals(5, parentSettings.maximumNumberOfCallAttempts);
-            assertEquals(ReadModeAP.ALL, parentSettings.readModeAP); // DEFAULT value, not overridden by child
+            ResolvedSettings parentSettings = parent.getSettings(OpKind.READ, OpShape.POINT, Mode.AP);
+            assertEquals(5, parentSettings.getMaximumNumberOfCallAttempts());
+            assertEquals(ReadModeAP.ALL, parentSettings.getReadModeAP()); // DEFAULT value, not overridden by child
         }
 
         @Test
@@ -710,10 +710,10 @@ public class BehaviorTest {
                 .on(Selectors.all(), ops -> ops
                     .maximumNumberOfCallAttempts(3)));
 
-            Settings childSettings = child.getSettings(OpKind.READ, OpShape.POINT, Mode.AP);
-            assertEquals(3, childSettings.maximumNumberOfCallAttempts); // From child
-            assertTrue(childSettings.sendKey); // From grandparent
-            assertFalse(childSettings.useCompression); // From grandparent
+            ResolvedSettings childSettings = child.getSettings(OpKind.READ, OpShape.POINT, Mode.AP);
+            assertEquals(3, childSettings.getMaximumNumberOfCallAttempts()); // From child
+            assertTrue(childSettings.getSendKey()); // From grandparent
+            assertFalse(childSettings.getUseCompression()); // From grandparent
         }
 
         @Test
@@ -774,11 +774,11 @@ public class BehaviorTest {
             Behavior behavior = Behavior.DEFAULT.deriveWithChanges("empty", builder -> {
             });
 
-            Settings settings = behavior.getSettings(OpKind.READ, OpShape.POINT, Mode.AP);
+            ResolvedSettings settings = behavior.getSettings(OpKind.READ, OpShape.POINT, Mode.AP);
             assertNotNull(settings, "Should inherit from DEFAULT");
             // Verify it has DEFAULT settings
-            assertEquals(Duration.ofSeconds(1), settings.abandonCallAfter);
-            assertEquals(3, settings.maximumNumberOfCallAttempts);
+            assertEquals(1000, settings.getAbandonCallAfterMs());
+            assertEquals(3, settings.getMaximumNumberOfCallAttempts());
         }
 
         @Test
@@ -802,14 +802,14 @@ public class BehaviorTest {
                 .on(Selectors.all(), ops -> ops
                     .maximumNumberOfCallAttempts(5)));
 
-            Settings before = behavior.getSettings(OpKind.READ, OpShape.POINT, Mode.AP);
-            assertEquals(5, before.maximumNumberOfCallAttempts);
+            ResolvedSettings before = behavior.getSettings(OpKind.READ, OpShape.POINT, Mode.AP);
+            assertEquals(5, before.getMaximumNumberOfCallAttempts());
 
             // Clear cache and verify settings still work
             behavior.clearCache();
 
-            Settings after = behavior.getSettings(OpKind.READ, OpShape.POINT, Mode.AP);
-            assertEquals(5, after.maximumNumberOfCallAttempts);
+            ResolvedSettings after = behavior.getSettings(OpKind.READ, OpShape.POINT, Mode.AP);
+            assertEquals(5, after.getMaximumNumberOfCallAttempts());
         }
 
         @Test
@@ -846,16 +846,16 @@ public class BehaviorTest {
                     .waitForConnectionToComplete(Duration.ofSeconds(77))
                     .waitForSocketResponseAfterCallFails(Duration.ofSeconds(66))));
 
-            Settings settings = behavior.getSettings(OpKind.READ, OpShape.POINT, Mode.AP);
-            assertEquals(Duration.ofSeconds(99), settings.abandonCallAfter);
-            assertEquals(Duration.ofMillis(999), settings.delayBetweenRetries);
-            assertEquals(99, settings.maximumNumberOfCallAttempts);
-            assertEquals(Replica.SEQUENCE, settings.replicaOrder);
-            assertTrue(settings.sendKey);
-            assertTrue(settings.useCompression);
-            assertEquals(Duration.ofSeconds(88), settings.waitForCallToComplete);
-            assertEquals(Duration.ofSeconds(77), settings.waitForConnectionToComplete);
-            assertEquals(Duration.ofSeconds(66), settings.waitForSocketResponseAfterCallFails);
+            ResolvedSettings settings = behavior.getSettings(OpKind.READ, OpShape.POINT, Mode.AP);
+            assertEquals(99000, settings.getAbandonCallAfterMs());
+            assertEquals(999, settings.getDelayBetweenRetriesMs());
+            assertEquals(99, settings.getMaximumNumberOfCallAttempts());
+            assertEquals(Replica.SEQUENCE, settings.getReplicaOrder());
+            assertTrue(settings.getSendKey());
+            assertTrue(settings.getUseCompression());
+            assertEquals(88000, settings.getWaitForCallToCompleteMs());
+            assertEquals(77000, settings.getWaitForConnectionToCompleteMs());
+            assertEquals(66000, settings.getWaitForSocketResponseAfterCallFailsMs());
         }
 
         @Test
@@ -867,10 +867,10 @@ public class BehaviorTest {
                     .allowInlineMemoryAccess(true)
                     .allowInlineSsdAccess(true)));
 
-            Settings settings = behavior.getSettings(OpKind.READ, OpShape.BATCH, Mode.AP);
-            assertEquals(99, settings.maxConcurrentNodes);
-            assertTrue(settings.allowInlineMemoryAccess);
-            assertTrue(settings.allowInlineSsdAccess);
+            ResolvedSettings settings = behavior.getSettings(OpKind.READ, OpShape.BATCH, Mode.AP);
+            assertEquals(99, settings.getMaxConcurrentNodes());
+            assertTrue(settings.getAllowInlineMemoryAccess());
+            assertTrue(settings.getAllowInlineSsdAccess());
         }
 
         @Test
@@ -880,8 +880,8 @@ public class BehaviorTest {
                 .on(Selectors.reads().query(), ops -> ops
                     .recordQueueSize(99999)));
 
-            Settings settings = behavior.getSettings(OpKind.READ, OpShape.QUERY, Mode.AP);
-            assertEquals(99999, settings.recordQueueSize);
+            ResolvedSettings settings = behavior.getSettings(OpKind.READ, OpShape.QUERY, Mode.AP);
+            assertEquals(99999, settings.getRecordQueueSize());
         }
 
         @Test
@@ -891,8 +891,8 @@ public class BehaviorTest {
                 .on(Selectors.reads(), ops -> ops
                     .resetTtlOnReadAtPercent(99)));
 
-            Settings settings = behavior.getSettings(OpKind.READ, OpShape.POINT, Mode.AP);
-            assertEquals(99, settings.resetTtlOnReadAtPercent);
+            ResolvedSettings settings = behavior.getSettings(OpKind.READ, OpShape.POINT, Mode.AP);
+            assertEquals(99, settings.getResetTtlOnReadAtPercent());
         }
 
         @Test
@@ -903,9 +903,9 @@ public class BehaviorTest {
                     .readMode(ReadModeAP.ONE)
                     .resetTtlOnReadAtPercent(88)));
 
-            Settings settings = behavior.getSettings(OpKind.READ, OpShape.POINT, Mode.AP);
-            assertEquals(ReadModeAP.ONE, settings.readModeAP);
-            assertEquals(88, settings.resetTtlOnReadAtPercent);
+            ResolvedSettings settings = behavior.getSettings(OpKind.READ, OpShape.POINT, Mode.AP);
+            assertEquals(ReadModeAP.ONE, settings.getReadModeAP());
+            assertEquals(88, settings.getResetTtlOnReadAtPercent());
         }
 
         @Test
@@ -916,9 +916,9 @@ public class BehaviorTest {
                     .consistency(ReadModeSC.ALLOW_REPLICA)
                     .resetTtlOnReadAtPercent(77)));
 
-            Settings settings = behavior.getSettings(OpKind.READ, OpShape.POINT, Mode.CP);
-            assertEquals(ReadModeSC.ALLOW_REPLICA, settings.readModeSC);
-            assertEquals(77, settings.resetTtlOnReadAtPercent);
+            ResolvedSettings settings = behavior.getSettings(OpKind.READ, OpShape.POINT, Mode.CP);
+            assertEquals(ReadModeSC.ALLOW_REPLICA, settings.getReadModeSC());
+            assertEquals(77, settings.getResetTtlOnReadAtPercent());
         }
 
         @Test
@@ -929,10 +929,10 @@ public class BehaviorTest {
                     .useDurableDelete(true)
                     .simulateXdrWrite(true)));
 
-            Settings settings =
+            ResolvedSettings settings =
                 behavior.getSettings(OpKind.WRITE_RETRYABLE, OpShape.POINT, Mode.AP);
-            assertTrue(settings.useDurableDelete);
-            assertTrue(settings.simulateXdrWrite);
+            assertTrue(settings.getUseDurableDelete());
+            assertTrue(settings.getSimulateXdrWrite());
         }
 
         @Test
@@ -942,9 +942,9 @@ public class BehaviorTest {
                 .on(Selectors.writes().ap(), ops -> ops
                     .commitLevel(CommitLevel.COMMIT_MASTER)));
 
-            Settings settings =
+            ResolvedSettings settings =
                 behavior.getSettings(OpKind.WRITE_RETRYABLE, OpShape.POINT, Mode.AP);
-            assertEquals(CommitLevel.COMMIT_MASTER, settings.commitLevel);
+            assertEquals(CommitLevel.COMMIT_MASTER, settings.getCommitLevel());
         }
     }
 }

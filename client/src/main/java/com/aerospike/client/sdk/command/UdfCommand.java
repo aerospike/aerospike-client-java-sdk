@@ -22,7 +22,7 @@ import com.aerospike.client.sdk.OpType;
 import com.aerospike.client.sdk.OperationSpec;
 import com.aerospike.client.sdk.Value;
 import com.aerospike.client.sdk.exp.Expression;
-import com.aerospike.client.sdk.policy.Settings;
+import com.aerospike.client.sdk.policy.ResolvedSettings;
 import com.aerospike.client.sdk.tend.Partitions;
 
 public class UdfCommand extends WriteCommand {
@@ -32,7 +32,7 @@ public class UdfCommand extends WriteCommand {
 
     public UdfCommand(
         Cluster cluster, Partitions partitions, Txn txn, Key key, OperationSpec spec,
-        int ttl, Expression where, boolean failOnFilteredOut, Settings settings
+        int ttl, Expression where, boolean failOnFilteredOut, ResolvedSettings settings
     ) {
         super(cluster, partitions, txn, key, OpType.UDF, 0, ttl, where, failOnFilteredOut, settings);
         this.packageName = spec.getUdfPackageName();

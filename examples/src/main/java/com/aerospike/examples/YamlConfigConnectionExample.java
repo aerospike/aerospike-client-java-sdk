@@ -23,6 +23,7 @@ import com.aerospike.client.sdk.Record;
 import com.aerospike.client.sdk.RecordStream;
 import com.aerospike.client.sdk.Session;
 import com.aerospike.client.sdk.policy.Behavior;
+import com.aerospike.client.sdk.policy.ResolvedSettings;
 import com.aerospike.client.sdk.policy.Settings;
 import com.aerospike.client.sdk.util.Util;
 
@@ -155,7 +156,7 @@ public class YamlConfigConnectionExample extends Example {
                 console.write("  Found behavior: " + behaviorName);
 
                 // Show some settings from the behavior
-                Settings settings = behavior.getSettings(
+                ResolvedSettings settings = behavior.getSettings(
                     Behavior.OpKind.READ,
                     Behavior.OpShape.POINT,
                     Behavior.Mode.AP
@@ -271,13 +272,13 @@ public class YamlConfigConnectionExample extends Example {
      * Show settings from a behavior for display purposes
      */
     private void showBehaviorSettings(Behavior behavior) {
-        Settings readSettings = behavior.getSettings(
+        ResolvedSettings readSettings = behavior.getSettings(
             Behavior.OpKind.READ,
             Behavior.OpShape.POINT,
             Behavior.Mode.AP
         );
 
-        Settings writeSettings = behavior.getSettings(
+        ResolvedSettings writeSettings = behavior.getSettings(
             Behavior.OpKind.WRITE_RETRYABLE,
             Behavior.OpShape.POINT,
             Behavior.Mode.AP

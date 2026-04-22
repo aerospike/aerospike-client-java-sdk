@@ -23,7 +23,7 @@ import com.aerospike.ael.ParseResult;
 import com.aerospike.client.sdk.command.BatchRecord;
 import com.aerospike.client.sdk.exp.Exp;
 import com.aerospike.client.sdk.exp.Expression;
-import com.aerospike.client.sdk.policy.Settings;
+import com.aerospike.client.sdk.policy.ResolvedSettings;
 import com.aerospike.client.sdk.query.WhereClauseProcessor;
 
 /**
@@ -85,13 +85,14 @@ public abstract class AbstractFilterableBuilder {
      * Create RecordResult from BatchRecord with proper stack trace handling.
      */
     public static RecordResult createRecordResultFromBatchRecord(
-            BatchRecord br, 
-            Settings settings, 
-            int index) {
+        BatchRecord br,
+        ResolvedSettings settings,
+        int index
+    ) {
         if (settings.getStackTraceOnException() && isActionableError(br.resultCode)) {
             return new RecordResult(
-                br, 
-                AerospikeException.resultCodeToException(br.resultCode, null, br.inDoubt), 
+                br,
+                AerospikeException.resultCodeToException(br.resultCode, null, br.inDoubt),
                 index);
         } else {
             return new RecordResult(br, index);

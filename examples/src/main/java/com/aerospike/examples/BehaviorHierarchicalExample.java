@@ -26,6 +26,7 @@ import com.aerospike.client.sdk.policy.Behavior;
 import com.aerospike.client.sdk.policy.Settings;
 import com.aerospike.client.sdk.policy.Behavior.OpKind;
 import com.aerospike.client.sdk.policy.Behavior.OpShape;
+import com.aerospike.client.sdk.policy.ResolvedSettings;
 
 /**
  * Example demonstrating the hierarchical YAML configuration system with dynamic reloading.
@@ -129,12 +130,12 @@ public class BehaviorHierarchicalExample extends Example {
         }
 
         // Get settings for different operation types
-        Settings allOpsSettings = behavior.getSettings(OpKind.READ, OpShape.POINT, Behavior.Mode.AP);
-        Settings writeSettings = behavior.getSettings(OpKind.WRITE_RETRYABLE, OpShape.POINT, Behavior.Mode.AP);
-        Settings batchReadSettings = behavior.getSettings(OpKind.READ, OpShape.BATCH, Behavior.Mode.AP);
-        Settings batchWriteSettings = behavior.getSettings(OpKind.WRITE_RETRYABLE, OpShape.BATCH, Behavior.Mode.AP);
-        Settings querySettings = behavior.getSettings(OpKind.READ, OpShape.QUERY, Behavior.Mode.AP);
-        Settings cpReadSettings = behavior.getSettings(OpKind.READ, OpShape.POINT, Behavior.Mode.CP);
+        ResolvedSettings allOpsSettings = behavior.getSettings(OpKind.READ, OpShape.POINT, Behavior.Mode.AP);
+        ResolvedSettings writeSettings = behavior.getSettings(OpKind.WRITE_RETRYABLE, OpShape.POINT, Behavior.Mode.AP);
+        ResolvedSettings batchReadSettings = behavior.getSettings(OpKind.READ, OpShape.BATCH, Behavior.Mode.AP);
+        ResolvedSettings batchWriteSettings = behavior.getSettings(OpKind.WRITE_RETRYABLE, OpShape.BATCH, Behavior.Mode.AP);
+        ResolvedSettings querySettings = behavior.getSettings(OpKind.READ, OpShape.QUERY, Behavior.Mode.AP);
+        ResolvedSettings cpReadSettings = behavior.getSettings(OpKind.READ, OpShape.POINT, Behavior.Mode.CP);
 
         console.write("\n  " + behaviorName + ":");
 

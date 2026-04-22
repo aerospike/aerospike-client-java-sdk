@@ -32,6 +32,7 @@ import com.aerospike.client.sdk.policy.Behavior.Mode;
 import com.aerospike.client.sdk.policy.Behavior.OpKind;
 import com.aerospike.client.sdk.policy.Behavior.OpShape;
 import com.aerospike.client.sdk.policy.QueryDuration;
+import com.aerospike.client.sdk.policy.ResolvedSettings;
 import com.aerospike.client.sdk.policy.Settings;
 import com.aerospike.client.sdk.query.IndexCollectionType;
 import com.aerospike.client.sdk.query.IndexType;
@@ -273,7 +274,7 @@ public class CommonExample extends Example {
         	rs.close();
         }
 
-        Settings settings = Behavior.DEFAULT.getSettings(OpKind.READ, OpShape.QUERY, Mode.CP);
+        ResolvedSettings settings = Behavior.DEFAULT.getSettings(OpKind.READ, OpShape.QUERY, Mode.CP);
         System.out.printf("Batch mode maxConcurrentNodes = %d\n", settings.getMaxConcurrentNodes());
 
         Exp exp = Exp.or(

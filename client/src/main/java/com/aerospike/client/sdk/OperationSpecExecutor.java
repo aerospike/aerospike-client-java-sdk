@@ -51,10 +51,10 @@ import com.aerospike.client.sdk.command.UdfExecutor;
 import com.aerospike.client.sdk.command.WriteCommand;
 import com.aerospike.client.sdk.exp.Expression;
 import com.aerospike.client.sdk.policy.Behavior;
-import com.aerospike.client.sdk.policy.Settings;
 import com.aerospike.client.sdk.policy.Behavior.Mode;
 import com.aerospike.client.sdk.policy.Behavior.OpKind;
 import com.aerospike.client.sdk.policy.Behavior.OpShape;
+import com.aerospike.client.sdk.policy.ResolvedSettings;
 import com.aerospike.client.sdk.tend.Partitions;
 
 /**
@@ -182,7 +182,7 @@ class OperationSpecExecutor {
 
                 if (spec.isQuery()) {
                     // Query (read) operation
-                    Settings settings = behavior.getSettings(OpKind.READ, OpShape.BATCH, scMode);
+                    ResolvedSettings settings = behavior.getSettings(OpKind.READ, OpShape.BATCH, scMode);
                     int ttl = settings.getResetTtlOnReadAtPercent();
 
                     attr.setRead(settings, scMode);
@@ -211,7 +211,7 @@ class OperationSpecExecutor {
                     }
                 }
                 else if (spec.getOpType() == OpType.EXISTS) {
-                    Settings settings = behavior.getSettings(OpKind.READ, OpShape.BATCH, scMode);
+                    ResolvedSettings settings = behavior.getSettings(OpKind.READ, OpShape.BATCH, scMode);
                     int ttl = settings.getResetTtlOnReadAtPercent();
 
                     attr.setRead(settings, scMode);
@@ -223,7 +223,7 @@ class OperationSpecExecutor {
                     rec = new BatchRead(key, spec.getWhereClause(), attr, ttl, false);
                 }
                 else {
-                    Settings settings = behavior.getSettings(OpKind.WRITE_NON_RETRYABLE, OpShape.BATCH, scMode);
+                    ResolvedSettings settings = behavior.getSettings(OpKind.WRITE_NON_RETRYABLE, OpShape.BATCH, scMode);
                     hasWrite = true;
 
                     switch (spec.getOpType()) {
@@ -279,7 +279,7 @@ class OperationSpecExecutor {
         }
 
         OpKind kind = hasWrite? OpKind.WRITE_NON_RETRYABLE : OpKind.READ;
-        Settings settings = behavior.getSettings(kind, OpShape.BATCH, mode);
+        ResolvedSettings settings = behavior.getSettings(kind, OpShape.BATCH, mode);
 
         BatchCommand parent = new BatchCommand(cluster, null, txn, null, records,
             defaultWhereClause, includeMissingKeys, failOnFilteredOut, linearize, settings);
@@ -512,7 +512,7 @@ class OperationSpecExecutor {
         OperationSpec spec, Key key, Expression filterExp, Txn txn,
         boolean scMode, boolean includeMissingKeys, boolean failOnFilteredOut
     ) {
-        Settings settings = behavior.getSettings(OpKind.READ, OpShape.POINT, scMode);
+        ResolvedSettings settings = behavior.getSettings(OpKind.READ, OpShape.POINT, scMode);
         ReadAttr attr = new ReadAttr(partitions, settings);
 
         if (txn != null) {
@@ -554,7 +554,7 @@ class OperationSpecExecutor {
         OperationSpec spec, Key key, Expression filterExp, long ttl, Txn txn,
         boolean scMode, boolean includeMissingKeys, boolean failOnFilteredOut
     ) {
-        Settings settings = behavior.getSettings(OpKind.WRITE_NON_RETRYABLE, OpShape.POINT, scMode);
+        ResolvedSettings settings = behavior.getSettings(OpKind.WRITE_NON_RETRYABLE, OpShape.POINT, scMode);
         int gen = spec.getGeneration();
         List<Operation> ops = spec.getOperations();
         OpType opType = spec.getOpType();
@@ -584,7 +584,7 @@ class OperationSpecExecutor {
         OperationSpec spec, Key key, Expression filterExp, Txn txn,
         boolean scMode, boolean failOnFilteredOut
     ) {
-        Settings settings = behavior.getSettings(OpKind.READ, OpShape.POINT, scMode);
+        ResolvedSettings settings = behavior.getSettings(OpKind.READ, OpShape.POINT, scMode);
         ReadAttr attr = new ReadAttr(partitions, settings);
 
         if (txn != null) {
@@ -610,7 +610,7 @@ class OperationSpecExecutor {
         OperationSpec spec, Key key, Expression filterExp, long ttl, Txn txn,
         boolean scMode, boolean failOnFilteredOut
     ) {
-        Settings settings = behavior.getSettings(OpKind.WRITE_NON_RETRYABLE, OpShape.POINT, scMode);
+        ResolvedSettings settings = behavior.getSettings(OpKind.WRITE_NON_RETRYABLE, OpShape.POINT, scMode);
         int gen = spec.getGeneration();
 
         if (txn != null) {
@@ -636,7 +636,7 @@ class OperationSpecExecutor {
         OperationSpec spec, Key key, Expression filterExp, Txn txn,
         boolean scMode, boolean failOnFilteredOut
     ) {
-        Settings settings = behavior.getSettings(OpKind.WRITE_RETRYABLE, OpShape.POINT, scMode);
+        ResolvedSettings settings = behavior.getSettings(OpKind.WRITE_RETRYABLE, OpShape.POINT, scMode);
         int gen = spec.getGeneration();
         int ttl = (int) spec.getExpirationInSeconds();
 
@@ -664,7 +664,7 @@ class OperationSpecExecutor {
         OperationSpec spec, Key key, Expression where, long ttl, Txn txn,
         boolean scMode, boolean includeMissingKeys, boolean failOnFilteredOut
     ) {
-        Settings settings = behavior.getSettings(OpKind.WRITE_NON_RETRYABLE, OpShape.POINT, scMode);
+        ResolvedSettings settings = behavior.getSettings(OpKind.WRITE_NON_RETRYABLE, OpShape.POINT, scMode);
 
         if (txn != null) {
             TxnMonitor.addKey(txn, session, key);
