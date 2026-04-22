@@ -296,46 +296,6 @@ public abstract class AbstractSessionOperationBuilder<T extends AbstractSessionO
     }
 
     /**
-     * Set the write operation to only create new records (fail if exists).
-     *
-     * @return this builder for method chaining
-     */
-    public T createOnly() {
-        this.opType = OpType.INSERT;
-        return self();
-    }
-
-    /**
-     * Set the write operation to only update existing records (fail if not exists).
-     *
-     * @return this builder for method chaining
-     */
-    public T updateOnly() {
-        this.opType = OpType.UPDATE;
-        return self();
-    }
-
-    /**
-     * Set the write operation to replace the entire record (create or replace).
-     *
-     * @return this builder for method chaining
-     */
-    public T replaceRecord() {
-        this.opType = OpType.REPLACE;
-        return self();
-    }
-
-    /**
-     * Set the write operation to replace only existing records (fail if not exists).
-     *
-     * @return this builder for method chaining
-     */
-    public T replaceOnly() {
-        this.opType = OpType.REPLACE_IF_EXISTS;
-        return self();
-    }
-
-    /**
      * Enable durable delete for this operation.
      * <p>
      * If the command results in a record deletion, leave a tombstone for the record.

@@ -29,14 +29,14 @@ public class ReplaceTest extends ClusterTest {
         Key key = args.set.id("replacekey");
 
         session.upsert(key)
-                .bins("bin1", "bin2")
-                .values("value1", "value2")
-                .execute();
+            .bins("bin1", "bin2")
+            .values("value1", "value2")
+            .execute();
 
         session.replace(key)
-                .bins("bin3")
-                .values("value3")
-                .execute();
+            .bins("bin3")
+            .values("value3")
+            .execute();
 
         RecordStream rs = session.query(key).execute();
         Record record = rs.next().recordOrThrow();
@@ -54,11 +54,10 @@ public class ReplaceTest extends ClusterTest {
         session.delete(key).execute();
 
         try {
-            RecordStream rs = session.upsert(key)
-                    .replaceOnly()
-                    .bins("bin")
-                    .values("value")
-                    .execute();
+            RecordStream rs = session.replaceIfExists(key)
+                .bins("bin")
+                .values("value")
+                .execute();
 
             RecordResult rr = rs.next();
             rr.orThrow();
@@ -74,15 +73,14 @@ public class ReplaceTest extends ClusterTest {
         Key key = args.set.id("replaceonlymodifieskey");
 
         session.upsert(key)
-                .bins("bin1", "bin2")
-                .values("value1", "value2")
-                .execute();
+            .bins("bin1", "bin2")
+            .values("value1", "value2")
+            .execute();
 
-        session.upsert(key)
-                .replaceOnly()
-                .bins("bin3")
-                .values("value3")
-                .execute();
+        session.replaceIfExists(key)
+            .bins("bin3")
+            .values("value3")
+            .execute();
 
         RecordStream rs = session.query(key).execute();
         Record record = rs.next().recordOrThrow();
