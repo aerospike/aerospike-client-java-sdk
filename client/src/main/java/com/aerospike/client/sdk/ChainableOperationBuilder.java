@@ -1032,6 +1032,35 @@ public class ChainableOperationBuilder extends AbstractOperationBuilder<Chainabl
         if (operationSpecs.isEmpty()) {
             throw new IllegalStateException("No operations specified");
         }
+        mergeBuilderDurableDeleteIntoOperateRecordDeleteSpecs();
+    }
+
+    private void mergeBuilderDurableDeleteIntoOperateRecordDeleteSpecs() {
+        if (durableDelete == null) {
+            return;
+        }
+        for (OperationSpec spec : operationSpecs) {
+            if (spec.getDurablyDelete() != null) {
+                continue;
+            }
+            if (!operationSpecContainsRecordDelete(spec)) {
+                continue;
+            }
+            spec.setDurablyDelete(durableDelete);
+        }
+    }
+
+    private static boolean operationSpecContainsRecordDelete(OperationSpec spec) {
+        List<Operation> ops = spec.getOperations();
+        if (ops == null) {
+            return false;
+        }
+        for (Operation op : ops) {
+            if (op.type == Operation.Type.DELETE) {
+                return true;
+            }
+        }
+        return false;
     }
 
     // ========================================

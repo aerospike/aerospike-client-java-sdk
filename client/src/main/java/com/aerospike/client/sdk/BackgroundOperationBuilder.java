@@ -230,6 +230,7 @@ public class BackgroundOperationBuilder extends AbstractOperationBuilder<Backgro
             OpShape.QUERY,
             Mode.ANY
         );
+        Boolean durableDeleteOverride = opType == OpType.DELETE ? durableDelete : null;
 
         Filter filter = null;
         Expression filterExp = null;
@@ -263,7 +264,7 @@ public class BackgroundOperationBuilder extends AbstractOperationBuilder<Backgro
         long taskId = new Random().nextLong();
 
         BackgroundQueryCommand cmd = new BackgroundQueryCommand(cluster, dataset, taskId, opType,
-            ops, ttl, filter, filterExp, settings, recordsPerSecond);
+            ops, ttl, filter, filterExp, settings, recordsPerSecond, durableDeleteOverride);
 
         final NodeStatus status = new NodeStatus();
 

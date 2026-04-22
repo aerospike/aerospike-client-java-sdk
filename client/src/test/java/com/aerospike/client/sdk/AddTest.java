@@ -113,7 +113,11 @@ public class AddTest extends ClusterTest {
         String binName = "addbin";
         List<Key> keys = args.set.ids(10, 11, 12, 13, 14, 15, 16, 17, 18, 19);
 
-        session.delete(keys).execute();
+        ChainableNoBinsBuilder del = session.delete(keys);
+        if (args.scMode) {
+            del = del.durablyDelete(true);
+        }
+        del.execute();
 
         session.upsert(keys)
             .bin(binName).add(10)
@@ -154,7 +158,11 @@ public class AddTest extends ClusterTest {
         String binName = "addbin";
         List<Key> keys = args.set.ids(100, 110, 120, 130, 140, 150, 160, 170, 180, 190);
 
-        session.delete(keys).execute();
+        ChainableNoBinsBuilder del = session.delete(keys);
+        if (args.scMode) {
+            del = del.durablyDelete(true);
+        }
+        del.execute();
 
         RecordStream rs = session.upsert(keys)
             .bin(binName).add(10)

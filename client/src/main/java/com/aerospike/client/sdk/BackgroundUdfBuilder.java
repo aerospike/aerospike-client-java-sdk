@@ -283,7 +283,8 @@ public class BackgroundUdfBuilder extends AbstractSessionOperationBuilder<Backgr
         long taskId = new Random().nextLong();
 
         BackgroundQueryCommand cmd = new BackgroundQueryCommand(cluster, dataset, taskId, opType,
-            ttl, packageName, functionName, functionArgs, filter, filterExp, settings, recordsPerSecond);
+            ttl, packageName, functionName, functionArgs, filter, filterExp, settings, recordsPerSecond,
+            durableDelete);
 
         final NodeStatus status = new NodeStatus();
 

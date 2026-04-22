@@ -255,6 +255,10 @@ public final class ResolvedSettings {
         return useDurableDelete;
     }
 
+    public boolean getUseDurableDelete(Boolean durableDeleteOverride) {
+        return (durableDeleteOverride != null) ? durableDeleteOverride : useDurableDelete;
+    }
+
     public boolean getSimulateXdrWrite() {
         return simulateXdrWrite;
     }

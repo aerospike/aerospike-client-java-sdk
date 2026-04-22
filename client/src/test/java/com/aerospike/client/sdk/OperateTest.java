@@ -20,13 +20,19 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import java.util.List;
 
-import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 
 public class OperateTest extends ClusterTest {
+    /** SC requires durable delete for record deletes inside operate; keep opt-in on AP. */
+    private ChainableOperationBuilder upsertForScDurableRecordDelete(Key key) {
+        ChainableOperationBuilder b = session.upsert(key);
+        return args.scMode ? b.withDurableDelete() : b;
+    }
+
     @Test
     public void operate() {
         // Write initial record.
@@ -93,7 +99,7 @@ public class OperateTest extends ClusterTest {
             .execute();
 
         // Read bin1 and then delete the record atomically.
-        RecordStream rs = session.upsert(key)
+        RecordStream rs = upsertForScDurableRecordDelete(key)
             .bin(binName1).get()
             .deleteRecord()
             .execute();
@@ -114,7 +120,7 @@ public class OperateTest extends ClusterTest {
             .execute();
 
         // Read bin 1 and then delete all followed by a write of bin2.
-        rs = session.upsert(key)
+        rs = upsertForScDurableRecordDelete(key)
             .bin(binName1).get()
             .deleteRecord()
             .bin(binName2).setTo(2)
@@ -133,7 +139,8 @@ public class OperateTest extends ClusterTest {
 
     @Test
     public void operateTouchRecord() {
-        Assumptions.assumeTrue(args.hasTtl);
+        assumeTrue(args.hasTtl, "Server/namespace does not support TTL writes; configure nsup-period or allow-ttl-without-nsup");
+
         Key key = args.set.id("operateTouch");
         String binName1 = "optintbin1";
 
@@ -168,7 +175,7 @@ public class OperateTest extends ClusterTest {
             .execute();
 
         // Read bin1, delete record, rewrite bin2 -- all atomically.
-        RecordStream rs = session.upsert(key)
+        RecordStream rs = upsertForScDurableRecordDelete(key)
             .bin(binName1).get()
             .deleteRecord()
             .bin(binName2).setTo(99)

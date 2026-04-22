@@ -46,6 +46,7 @@ import com.aerospike.client.sdk.query.QueryStringTest;
     AppendTest.class,
     BackgroundTaskTest.class,
     BatchTest.class,
+    DurableDeleteTests.class,
     BitExpTest.class,
 //  CdtExpTest.class,
 //  CdtOperateTest.class,
