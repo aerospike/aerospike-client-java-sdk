@@ -22,7 +22,7 @@ import com.aerospike.client.sdk.Cluster;
 import com.aerospike.client.sdk.Key;
 import com.aerospike.client.sdk.Operation;
 import com.aerospike.client.sdk.exp.Expression;
-import com.aerospike.client.sdk.policy.Settings;
+import com.aerospike.client.sdk.policy.ResolvedSettings;
 import com.aerospike.client.sdk.tend.Partitions;
 
 public class OperateReadCommand extends ReadCommand {
@@ -31,9 +31,9 @@ public class OperateReadCommand extends ReadCommand {
 
     public OperateReadCommand(
         Cluster cluster, Partitions partitions, Txn txn, Key key, List<Operation> ops, OperateArgs args,
-        Expression filterExp, boolean failOnFilteredOut, Settings policy, ReadAttr attr
+        Expression filterExp, boolean failOnFilteredOut, ResolvedSettings settings, ReadAttr attr
     ) {
-        super(cluster, partitions, txn, key, null, false, filterExp, failOnFilteredOut, policy, attr);
+        super(cluster, partitions, txn, key, null, false, filterExp, failOnFilteredOut, settings, attr);
         this.ops = ops;
         this.args = args;
     }

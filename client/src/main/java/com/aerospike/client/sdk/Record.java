@@ -16,13 +16,13 @@
  */
 package com.aerospike.client.sdk;
 
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Objects;
 
 import com.aerospike.client.sdk.Value.GeoJSONValue;
 import com.aerospike.client.sdk.Value.HLLValue;
-
-import java.util.Objects;
 
 /**
  * Container object for records.  Records are equivalent to rows.
@@ -32,6 +32,11 @@ public final class Record {
      * Map of requested name/value bins.
      */
     public final Map<String,Object> bins;
+
+    /**
+     * Array of result values in the same operation order in the command.
+     */
+    public final OperationResult[] results;
 
     /**
      * Record modification count.
@@ -48,19 +53,63 @@ public final class Record {
      */
     public Record(
         Map<String,Object> bins,
+        OperationResult[] results,
         int generation,
         int expiration
     ) {
         this.bins = bins;
+        this.results = results;
         this.generation = generation;
         this.expiration = expiration;
+    }
+
+    /**
+     * Initialize record from generation and expiration. Bins are not populated.
+     */
+    public Record(int generation, int expiration) {
+        this.bins = new HashMap<>(0);
+        this.results = new OperationResult[0];
+        this.generation = generation;
+        this.expiration = expiration;
+    }
+
+    /**
+     * Return the command's operation results size.
+     */
+    public int operationResultCount() {
+        return results.length;
+    }
+
+    /**
+     * Return operation result for the given offset. The results are in the same order as
+     * the operations in the command. This is an alternate way to retrieve results as
+     * opposed to looking up results by bin name.
+     *
+     * <pre>{@code
+     * RecordStream rs = session.upsert(key)
+     *     .bin("name").get()    // op 0
+     *     .bin("score").get()   // op 1
+     *     .bin("score").add(10) // op 2 (no result)
+     *     .bin("score").get()   // op 3
+     *     .bin("tags").get()    // op 4
+     *     .execute();
+     *
+     * Record rec = rs.getFirstRecord();
+     * String name = rec.operationResult(0).getString();
+     * long scoreBefore = rec.operationResult(1).getLong();
+     * long scoreAfter = rec.operationResult(3).getLong();
+     * List<?> tags = rec.operationResult(4).getList();
+     * }</pre>
+     */
+    public OperationResult operationResult(int offset) {
+        return results[offset];
     }
 
     /**
      * Get bin value given bin name.
      */
     public Object getValue(String name) {
-        return (bins == null)? null : bins.get(name);
+        return bins.get(name);
     }
 
     /**
@@ -81,10 +130,8 @@ public final class Record {
      * Get bin value as double.
      */
     public double getDouble(String name) {
-        // The server may return number as double or long.
-        // Convert bits if returned as long.
         Object result = getValue(name);
-        return (result instanceof Double)? (Double)result : (result != null)? Double.longBitsToDouble((Long)result) : 0.0;
+        return (result != null)? (double)result : 0.0;
     }
 
     /**
@@ -101,7 +148,7 @@ public final class Record {
         // The server always returns numbers as longs if bin found.
         // If bin not found, the result will be null.  Convert null to zero.
         Object result = getValue(name);
-        return (result != null)? (Long)result : 0;
+        return (result != null)? (long)result : 0;
     }
 
     /**

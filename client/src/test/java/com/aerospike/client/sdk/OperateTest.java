@@ -23,6 +23,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
 
+import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 
 public class OperateTest extends ClusterTest {
@@ -132,6 +133,7 @@ public class OperateTest extends ClusterTest {
 
     @Test
     public void operateTouchRecord() {
+        Assumptions.assumeTrue(args.hasTtl);
         Key key = args.set.id("operateTouch");
         String binName1 = "optintbin1";
 

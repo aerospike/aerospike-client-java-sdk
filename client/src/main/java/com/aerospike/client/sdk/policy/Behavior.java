@@ -255,7 +255,7 @@ public final class Behavior {
     private final List<Patch> patches; // in call order
     private final Behavior base;       // defaults (may be null)
     private final List<Behavior> children;
-    private Map<OpKey, Settings> resolved; // fully-resolved matrix
+    private volatile Map<OpKey, ResolvedSettings> resolved; // fully-resolved matrix
 
     private Behavior(String name, List<Patch> patches, Behavior base) {
         this.name = name;
@@ -297,13 +297,13 @@ public final class Behavior {
         return Collections.unmodifiableList(children);
     }
 
-    private Map<OpKey, Settings> formMatrix() {
+    private Map<OpKey, ResolvedSettings> formMatrix() {
         // 1) Start with parent's resolved matrix (if any).
-        Map<OpKey, Settings> matrix = new HashMap<>();
+        Map<OpKey, ResolvedSettings> matrix = new HashMap<>();
         if (base != null && base.resolved != null) {
             // deep copy of settings
-            for (Map.Entry<OpKey, Settings> e : base.resolved.entrySet()) {
-                matrix.put(e.getKey(), copyOf(e.getValue()));
+            for (Map.Entry<OpKey, ResolvedSettings> e : base.resolved.entrySet()) {
+                matrix.put(e.getKey(), e.getValue());
             }
         }
 
@@ -313,12 +313,15 @@ public final class Behavior {
         for (Patch p : patches) {
             for (OpKey key : allKeys) {
                 if (applies(p.spec, key)) {
-                    Settings acc = matrix.get(key);
-                    if (acc == null) {
-                        acc = new Settings();
+                    ResolvedSettings resolved = matrix.get(key);
+
+                    if (resolved != null) {
+                        resolved = new ResolvedSettings(resolved, p.settings);
                     }
-                    mergeInto(acc, p.settings);
-                    matrix.put(key, acc);
+                    else {
+                        resolved = new ResolvedSettings(p.settings);
+                    }
+                    matrix.put(key, resolved);
                 }
             }
         }
@@ -347,12 +350,12 @@ public final class Behavior {
      * The settings are fully resolved, including inheritance from parent behaviors.
      * @throws IllegalArgumentException if a non-system setting is specified
      */
-    public Settings getSystemSettings(OpKind kind) {
+    public ResolvedSettings getSystemSettings(OpKind kind) {
         if (kind.isSystem()) {
             return resolved.get(new OpKey(kind, OpShape.SYSTEM, Mode.ANY));
         }
         else {
-            throw new IllegalArgumentException("Only SYSYTEM_* OpKinds are supported");
+            throw new IllegalArgumentException("Only SYSTEM_* OpKinds are supported");
         }
     }
     /**
@@ -360,7 +363,7 @@ public final class Behavior {
      * Returns null if no settings have been configured for this operation.
      * The settings are fully resolved, including inheritance from parent behaviors.
      */
-    public Settings getSettings(OpKind kind, OpShape shape, Mode mode) {
+    public ResolvedSettings getSettings(OpKind kind, OpShape shape, Mode mode) {
         if (kind.isSystem()) {
             return getSystemSettings(kind);
         }
@@ -372,7 +375,7 @@ public final class Behavior {
      * Returns null if no settings have been configured for this operation.
      * The settings are fully resolved, including inheritance from parent behaviors.
      */
-    public Settings getSettings(OpKind kind, OpShape shape, boolean isNamespaceSC) {
+    public ResolvedSettings getSettings(OpKind kind, OpShape shape, boolean isNamespaceSC) {
         if (kind.isSystem()) {
             return getSystemSettings(kind);
         }
@@ -535,7 +538,7 @@ public final class Behavior {
 
         sb.append("--- Resolved Matrix ---").append('\n');
         for (OpKey k : listAllKeys()) {
-            Settings s = resolved.get(k);
+            ResolvedSettings s = resolved.get(k);
             if (s != null) {
                 sb.append(k).append(" => ").append(s).append('\n');
             }
@@ -807,82 +810,6 @@ public final class Behavior {
         out.add(new OpKey(OpKind.SYSTEM_TXN_VERIFY, OpShape.SYSTEM, Mode.ANY));
         out.add(new OpKey(OpKind.SYSTEM_TXN_ROLL, OpShape.SYSTEM, Mode.ANY));
         return out;
-    }
-
-    static Settings copyOf(Settings s) {
-        if (s == null) {
-            return null;
-        }
-        Settings t = new Settings();
-        mergeInto(t, s);
-        return t;
-    }
-    static void mergeInto(Settings dst, Settings src) {
-        if (src.abandonCallAfter != null) {
-            dst.abandonCallAfter = src.abandonCallAfter;
-        }
-        if (src.delayBetweenRetries != null) {
-            dst.delayBetweenRetries = src.delayBetweenRetries;
-        }
-        if (src.maximumNumberOfCallAttempts != null) {
-            dst.maximumNumberOfCallAttempts = src.maximumNumberOfCallAttempts;
-        }
-        if (src.replicaOrder != null) {
-            dst.replicaOrder = src.replicaOrder;
-        }
-        if (src.sendKey != null) {
-            dst.sendKey = src.sendKey;
-        }
-        if (src.useCompression != null) {
-            dst.useCompression = src.useCompression;
-        }
-        if (src.waitForCallToComplete != null) {
-            dst.waitForCallToComplete = src.waitForCallToComplete;
-        }
-        if (src.waitForConnectionToComplete != null) {
-            dst.waitForConnectionToComplete = src.waitForConnectionToComplete;
-        }
-        if (src.waitForSocketResponseAfterCallFails != null) {
-            dst.waitForSocketResponseAfterCallFails = src.waitForSocketResponseAfterCallFails;
-        }
-        if (src.stackTraceOnException != null) {
-            dst.stackTraceOnException = src.stackTraceOnException;
-        }
-
-        if (src.recordQueueSize != null) {
-            dst.recordQueueSize = src.recordQueueSize;
-        }
-
-        if (src.maxConcurrentNodes != null) {
-            dst.maxConcurrentNodes = src.maxConcurrentNodes;
-        }
-        if (src.allowInlineMemoryAccess != null) {
-            dst.allowInlineMemoryAccess = src.allowInlineMemoryAccess;
-        }
-        if (src.allowInlineSsdAccess != null) {
-            dst.allowInlineSsdAccess = src.allowInlineSsdAccess;
-        }
-
-        if (src.useDurableDelete != null) {
-            dst.useDurableDelete = src.useDurableDelete;
-        }
-        if (src.simulateXdrWrite != null) {
-            dst.simulateXdrWrite = src.simulateXdrWrite;
-        }
-
-        if (src.commitLevel != null) {
-            dst.commitLevel = src.commitLevel;
-        }
-
-        if (src.readModeAP != null) {
-            dst.readModeAP = src.readModeAP;
-        }
-        if (src.readModeSC != null) {
-            dst.readModeSC = src.readModeSC;
-        }
-        if (src.resetTtlOnReadAtPercent != null) {
-            dst.resetTtlOnReadAtPercent = src.resetTtlOnReadAtPercent;
-        }
     }
 
     // -----------------------------------------------------------------------------------

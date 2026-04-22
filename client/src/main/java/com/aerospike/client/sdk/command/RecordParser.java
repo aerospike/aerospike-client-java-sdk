@@ -17,7 +17,7 @@
 package com.aerospike.client.sdk.command;
 
 import java.io.IOException;
-import java.util.LinkedHashMap;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.zip.DataFormatException;
 import java.util.zip.Inflater;
@@ -25,6 +25,7 @@ import java.util.zip.Inflater;
 import com.aerospike.client.sdk.AerospikeException;
 import com.aerospike.client.sdk.AerospikeList;
 import com.aerospike.client.sdk.Key;
+import com.aerospike.client.sdk.OperationResult;
 import com.aerospike.client.sdk.Record;
 
 public final class RecordParser {
@@ -216,10 +217,11 @@ public final class RecordParser {
     public Record parseRecord(boolean isOperation)  {
         if (opCount == 0) {
             // Bin data was not returned.
-            return new Record(null, generation, expiration);
+            return new Record(generation, expiration);
         }
 
-        Map<String,Object> bins = new LinkedHashMap<>();
+        Map<String,Object> bins = new HashMap<>(opCount);
+        OperationResult[] results = new OperationResult[opCount];
 
         for (int i = 0 ; i < opCount; i++) {
             int opSize = Buffer.bytesToInt(dataBuffer, dataOffset);
@@ -257,8 +259,10 @@ public final class RecordParser {
             else {
                 bins.put(name, value);
             }
+
+            results[i] = new OperationResult(value);
         }
-        return new Record(bins, generation, expiration);
+        return new Record(bins, results, generation, expiration);
     }
 
     public static class OpResults extends AerospikeList<Object> {

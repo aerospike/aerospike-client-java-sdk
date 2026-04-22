@@ -22,7 +22,7 @@ import com.aerospike.client.sdk.DataSet;
 import com.aerospike.client.sdk.Node;
 import com.aerospike.client.sdk.exp.Expression;
 import com.aerospike.client.sdk.policy.QueryDuration;
-import com.aerospike.client.sdk.policy.Settings;
+import com.aerospike.client.sdk.policy.ResolvedSettings;
 import com.aerospike.client.sdk.query.Filter;
 import com.aerospike.client.sdk.query.QueryBuilder;
 import com.aerospike.client.sdk.query.QueryHint;
@@ -40,9 +40,9 @@ public final class QueryCommand extends Command {
     final boolean withNoBins;
 
     public QueryCommand(
-        Cluster cluster, DataSet set, Filter filter, Expression filterExp, Settings policy, QueryBuilder qb
+        Cluster cluster, DataSet set, Filter filter, Expression filterExp, ResolvedSettings settings, QueryBuilder qb
     ) {
-        super(cluster, set.getNamespace(), null, filterExp, policy.getReplicaOrder(), policy);
+        super(cluster, set.getNamespace(), null, filterExp, settings.getReplicaOrder(), settings);
         this.set = set.getSet();
         this.filter = applyHintToFilter(filter, qb.getQueryHint());
 
@@ -52,8 +52,8 @@ public final class QueryCommand extends Command {
         this.recordsPerSecond = qb.getRecordsPerSecond();
         this.expectedDuration = qb.getEffectiveQueryDuration();
         this.binNames = qb.getBinNames();
-        this.maxConcurrentNodes = policy.getMaxConcurrentNodes();
-        this.readTouchTtlPercent = policy.getResetTtlOnReadAtPercent();
+        this.maxConcurrentNodes = settings.getMaxConcurrentNodes();
+        this.readTouchTtlPercent = settings.getResetTtlOnReadAtPercent();
         this.withNoBins = qb.getWithNoBins();
 
         if (qb.getChunkSize() > 0) {

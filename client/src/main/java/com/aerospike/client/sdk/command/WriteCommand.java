@@ -21,7 +21,7 @@ import com.aerospike.client.sdk.Key;
 import com.aerospike.client.sdk.OpType;
 import com.aerospike.client.sdk.exp.Expression;
 import com.aerospike.client.sdk.policy.CommitLevel;
-import com.aerospike.client.sdk.policy.Settings;
+import com.aerospike.client.sdk.policy.ResolvedSettings;
 import com.aerospike.client.sdk.tend.Partition;
 import com.aerospike.client.sdk.tend.Partitions;
 
@@ -37,7 +37,7 @@ public class WriteCommand extends Command {
 
     public WriteCommand(
         Cluster cluster, Partitions partitions, Txn txn, Key key, OpType type, int gen, int ttl,
-        Expression where, boolean failOnFilteredOut, Settings settings
+        Expression where, boolean failOnFilteredOut, ResolvedSettings settings
     ) {
         super(cluster, key.namespace, txn, where, settings.getReplicaOrder(), settings);
         this.key = key;
@@ -50,7 +50,7 @@ public class WriteCommand extends Command {
         this.failOnFilteredOut = failOnFilteredOut;
     }
 
-    public WriteCommand(Cluster cluster, Partitions partitions, Key key, Settings settings) {
+    public WriteCommand(Cluster cluster, Partitions partitions, Key key, ResolvedSettings settings) {
         super(cluster, key.namespace, null, null, settings.getReplicaOrder(), settings);
         this.key = key;
         this.partition = new Partition(partitions, key, replica, null, false);
