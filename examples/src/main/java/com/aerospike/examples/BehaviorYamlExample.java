@@ -22,6 +22,7 @@ import java.util.Set;
 
 import com.aerospike.client.sdk.Cluster;
 import com.aerospike.client.sdk.policy.Behavior;
+import com.aerospike.client.sdk.policy.ResolvedSettings;
 import com.aerospike.client.sdk.policy.Settings;
 
 /**
@@ -77,7 +78,7 @@ public class BehaviorYamlExample extends Example {
                 console.write("=== Detailed Example: high-performance Behavior ===");
 
                 // Show resolved settings for retryable writes
-                Settings writeSettings = highPerf.getSettings(
+                ResolvedSettings writeSettings = highPerf.getSettings(
                     Behavior.OpKind.WRITE_RETRYABLE,
                     Behavior.OpShape.POINT,
                     Behavior.Mode.AP
@@ -93,7 +94,7 @@ public class BehaviorYamlExample extends Example {
                 console.write("");
 
                 // Show resolved settings for query operations
-                Settings querySettings = highPerf.getSettings(
+                ResolvedSettings querySettings = highPerf.getSettings(
                     Behavior.OpKind.READ,
                     Behavior.OpShape.QUERY,
                     Behavior.Mode.AP
@@ -113,7 +114,7 @@ public class BehaviorYamlExample extends Example {
             if (batchOpt != Behavior.DEFAULT) {
                 console.write("=== Inheritance Example: batch-optimized (child of high-performance) ===");
 
-                Settings batchReadSettings = batchOpt.getSettings(
+                ResolvedSettings batchReadSettings = batchOpt.getSettings(
                     Behavior.OpKind.READ,
                     Behavior.OpShape.BATCH,
                     Behavior.Mode.AP
@@ -141,19 +142,19 @@ public class BehaviorYamlExample extends Example {
      */
     private void demonstrateSettings(Behavior behavior) {
         // Read operations
-        Settings readBatchAp = behavior.getSettings(Behavior.OpKind.READ, Behavior.OpShape.BATCH, Behavior.Mode.AP);
+        ResolvedSettings readBatchAp = behavior.getSettings(Behavior.OpKind.READ, Behavior.OpShape.BATCH, Behavior.Mode.AP);
         if (readBatchAp != null) {
             console.write("  Batch reads (AP): maxConcurrentNodes=" + readBatchAp.getMaxConcurrentNodes());
         }
 
         // Write operations
-        Settings writeRetryable = behavior.getSettings(Behavior.OpKind.WRITE_RETRYABLE, Behavior.OpShape.POINT, Behavior.Mode.AP);
+        ResolvedSettings writeRetryable = behavior.getSettings(Behavior.OpKind.WRITE_RETRYABLE, Behavior.OpShape.POINT, Behavior.Mode.AP);
         if (writeRetryable != null) {
             console.write("  Retryable writes: useDurableDelete=" + writeRetryable.getUseDurableDelete());
         }
 
         // Query operations
-        Settings query = behavior.getSettings(Behavior.OpKind.READ, Behavior.OpShape.QUERY, Behavior.Mode.AP);
+        ResolvedSettings query = behavior.getSettings(Behavior.OpKind.READ, Behavior.OpShape.QUERY, Behavior.Mode.AP);
         if (query != null) {
             console.write("  Query: recordQueueSize=" + query.getRecordQueueSize());
         }

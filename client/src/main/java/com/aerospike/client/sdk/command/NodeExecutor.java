@@ -17,7 +17,7 @@
 package com.aerospike.client.sdk.command;
 
 import java.io.IOException;
-import java.util.LinkedHashMap;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.zip.DataFormatException;
 import java.util.zip.Inflater;
@@ -25,6 +25,7 @@ import java.util.zip.Inflater;
 import com.aerospike.client.sdk.AerospikeException;
 import com.aerospike.client.sdk.Cluster;
 import com.aerospike.client.sdk.Node;
+import com.aerospike.client.sdk.OperationResult;
 import com.aerospike.client.sdk.Record;
 import com.aerospike.client.sdk.command.Connection.ReadTimeout;
 import com.aerospike.client.sdk.command.RecordParser.OpResults;
@@ -236,7 +237,7 @@ public abstract class NodeExecutor extends SyncExecutor {
 
     protected final Record parseRecord() {
         if (opCount <= 0) {
-            return new Record(null, generation, expiration);
+            return new Record(generation, expiration);
         }
 
         return parseRecord(opCount, generation, expiration, isOperation);
@@ -272,7 +273,8 @@ public abstract class NodeExecutor extends SyncExecutor {
     final Record parseRecord(
         int opCount, int generation, int expiration, boolean isOperation
     )  {
-        Map<String,Object> bins = new LinkedHashMap<>();
+        Map<String,Object> bins = new HashMap<>(opCount);
+        OperationResult[] results = new OperationResult[opCount];
 
         for (int i = 0 ; i < opCount; i++) {
             int opSize = Buffer.bytesToInt(dataBuffer, dataOffset);
@@ -310,8 +312,10 @@ public abstract class NodeExecutor extends SyncExecutor {
             else {
                 bins.put(name, value);
             }
+
+            results[i] = new OperationResult(value);
         }
-        return new Record(bins, generation, expiration);
+        return new Record(bins, results, generation, expiration);
     }
 
     public void stop() {

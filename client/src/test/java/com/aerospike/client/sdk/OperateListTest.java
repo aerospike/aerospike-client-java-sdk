@@ -52,20 +52,10 @@ public class OperateListTest extends ClusterTest {
 
         assertTrue(rs.hasNext());
         Record rec = rs.next().recordOrThrow();
-
-        List<?> list = rec.getList(binName);
-
-        long size = (Long)list.get(0);
-        assertEquals(1, size);
-
-        size = (Long)list.get(1);
-        assertEquals(2, size);
-
-        long val = (Long)list.get(2);
-        assertEquals(77, val);
-
-        size = (Long)list.get(3);
-        assertEquals(1, size);
+        assertEquals(1, rec.operationResult(0).getInt());
+        assertEquals(2, rec.operationResult(1).getInt());
+        assertEquals(77, rec.operationResult(2).getInt());
+        assertEquals(1, rec.operationResult(3).getInt());
     }
 
     @Test
@@ -97,18 +87,11 @@ public class OperateListTest extends ClusterTest {
 
         assertTrue(rs.hasNext());
         Record rec = rs.next().recordOrThrow();
+        assertEquals(4, rec.operationResult(0).getInt());
+        assertEquals("hellogoodbye", rec.operationResult(2).getString());
 
-        List<?> list = rec.getList("otherbin");
+        List<?> rangeList = rec.operationResult(3).getList();
 
-        String val = (String)list.get(1);
-        assertEquals("hellogoodbye", val);
-
-        list = rec.getList(binName);
-
-        long size = (Long)list.get(0);
-        assertEquals(4, size);
-
-        List<?> rangeList = (List<?>)list.get(1);
         long lval = (Long)rangeList.get(0);
         assertEquals(12, lval);
 
@@ -118,10 +101,10 @@ public class OperateListTest extends ClusterTest {
         lval = (Long)rangeList.get(2);
         assertEquals(8, lval);
 
-        val = (String)rangeList.get(3);
+        String val = (String)rangeList.get(3);
         assertEquals("my string", val);
 
-        rangeList = (List<?>)list.get(2);
+        rangeList = rec.operationResult(4).getList();
         val = (String)rangeList.get(0);
         assertEquals("my string", val);
     }
@@ -153,30 +136,25 @@ public class OperateListTest extends ClusterTest {
 
         assertTrue(rs.hasNext());
         Record rec = rs.next().recordOrThrow();
+        assertEquals(7, rec.operationResult(0).getInt());
+        assertEquals("str3", rec.operationResult(1).getString());
 
-        List<?> list = rec.getList(binName);
-
-        long size = (Long)list.get(0);
-        assertEquals(7, size);
-
-        assertEquals("str3", list.get(1));
-
-        List<?> rangeList = (List<?>)list.get(2);
+        List<?> rangeList = rec.operationResult(2).getList();
         assertEquals(1, rangeList.size());
         assertEquals("str7", rangeList.get(0));
 
-        rangeList = (List<?>)list.get(3);
+        rangeList = rec.operationResult(3).getList();
         assertEquals(3, rangeList.size());
         assertEquals("str1", rangeList.get(0));
         assertEquals("str2", rangeList.get(1));
         assertEquals("str3", rangeList.get(2));
 
-        rangeList = (List<?>)list.get(4);
+        rangeList = rec.operationResult(4).getList();
         assertEquals(2, rangeList.size());
         assertEquals("str1", rangeList.get(0));
         assertEquals("str2", rangeList.get(1));
 
-        rangeList = (List<?>)list.get(5);
+        rangeList = rec.operationResult(5).getList();
         assertEquals(2, rangeList.size());
         assertEquals("str6", rangeList.get(0));
         assertEquals("str7", rangeList.get(1));
@@ -224,13 +202,9 @@ public class OperateListTest extends ClusterTest {
 
         assertTrue(rs.hasNext());
         Record rec = rs.next().recordOrThrow();
+        assertEquals(7, rec.operationResult(0).getInt());
 
-        List<?> list = rec.getList(binName);
-
-        long size = (Long)list.get(0);
-        assertEquals(7, size);
-
-        List<?> rangeList = (List<?>)list.get(1);
+        List<?> rangeList = rec.operationResult(1).getList();
         assertTrue((Boolean)rangeList.get(0));
         assertEquals(55, (long)(Long)rangeList.get(1));
         assertEquals("string value", rangeList.get(2));
@@ -251,22 +225,20 @@ public class OperateListTest extends ClusterTest {
         assertEquals("data 9", subMap.get(9L));
         assertEquals("data -2", subMap.get(-2L));
 
-        assertEquals("88", list.get(3));
+        assertEquals("88", rec.operationResult(3).getString());
 
-        subList = (List<?>)list.get(4);
+        subList = rec.operationResult(4).getList();
         assertEquals(1, subList.size());
         assertEquals(99.99, (Double)subList.get(0), 0.00001);
 
-        subList = (List<?>)list.get(5);
+        subList = rec.operationResult(5).getList();
         assertEquals(1, subList.size());
         assertTrue(subList.get(0) instanceof Map);
 
-        assertEquals(1, (long)(Long)list.get(6));
-        assertEquals(1, (long)(Long)list.get(7));
-        assertEquals(1, (long)(Long)list.get(8));
-
-        size = (Long)list.get(9);
-        assertEquals(2, size);
+        assertEquals(1, rec.operationResult(6).getInt());
+        assertEquals(1, rec.operationResult(7).getInt());
+        assertEquals(1, rec.operationResult(8).getInt());
+        assertEquals(2, rec.operationResult(9).getInt());
     }
 
     @Test
@@ -293,19 +265,23 @@ public class OperateListTest extends ClusterTest {
         assertTrue(rs.hasNext());
         Record rec = rs.next().recordOrThrow();
 
-        List<?> list = rec.getList(binName);
+        assertEquals(5, rec.operationResult(0).getInt());
+        assertEquals(0, rec.operationResult(1).getInt());
+        assertEquals(1, rec.operationResult(2).getInt());
+        assertEquals(2, rec.operationResult(3).getInt());
 
-        long size = (Long)list.get(0);
-        assertEquals(5, size);
+        // Iterate through same results.
+        List<Integer> integers = new ArrayList<>();
 
-        size = (Long)list.get(1);
-        assertEquals(0, size);
+        for (OperationResult res : rec.results) {
+            integers.add(res.getInt());
+        }
 
-        size = (Long)list.get(2);
-        assertEquals(1, size);
-
-        size = (Long)list.get(3);
-        assertEquals(2, size);
+        assertEquals(4, integers.size());
+        assertEquals(5, integers.get(0));
+        assertEquals(0, integers.get(1));
+        assertEquals(1, integers.get(2));
+        assertEquals(2, integers.get(3));
     }
 
     @Test
@@ -332,22 +308,11 @@ public class OperateListTest extends ClusterTest {
 
         assertTrue(rs.hasNext());
         Record rec = rs.next().recordOrThrow();
-
-        List<?> list = rec.getList("otherbin");
-        assertEquals(2, list.size());
-        assertNull(list.get(0));
-        assertEquals(11, (long)(Long)list.get(1));
-
-        list = rec.getList(binName);
-
-        long size = (Long)list.get(0);
-        assertEquals(5, size);
-
-        // clear() does not return value by default, but we set respondAllOps, so it returns null.
-        assertNull(list.get(1));
-
-        size = (Long)list.get(2);
-        assertEquals(0, size);
+        assertNull(rec.operationResult(0).getValue());
+        assertEquals(11, rec.operationResult(1).getInt());
+        assertEquals(5, rec.operationResult(2).getInt());
+        assertNull(rec.operationResult(3).getValue());
+        assertEquals(0, rec.operationResult(4).getInt());
     }
 
     @Test

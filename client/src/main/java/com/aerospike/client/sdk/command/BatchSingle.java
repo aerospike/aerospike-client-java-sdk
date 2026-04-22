@@ -281,7 +281,7 @@ public final class BatchSingle {
             }
 
             if (rp.resultCode == ResultCode.OK) {
-                rec.setRecord(new Record(null, rp.generation, rp.expiration));
+                rec.setRecord(new Record(rp.generation, rp.expiration));
             }
             else {
                 // A KEY_NOT_FOUND_ERROR on a delete is benign, but still results in an overall

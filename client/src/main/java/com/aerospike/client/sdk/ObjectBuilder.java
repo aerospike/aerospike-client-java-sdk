@@ -55,6 +55,7 @@ import com.aerospike.client.sdk.exp.Expression;
 import com.aerospike.client.sdk.policy.Settings;
 import com.aerospike.client.sdk.policy.Behavior.OpKind;
 import com.aerospike.client.sdk.policy.Behavior.OpShape;
+import com.aerospike.client.sdk.policy.ResolvedSettings;
 import com.aerospike.client.sdk.tend.Partitions;
 import com.aerospike.client.sdk.util.Version;
 
@@ -84,7 +85,7 @@ public class ObjectBuilder<T> {
     private long expirationInSeconds = AbstractOperationBuilder.NOT_EXPLICITLY_SET;
     private long defaultExpirationInSeconds = AbstractOperationBuilder.NOT_EXPLICITLY_SET;
     private Txn txnToUse;
-    private Settings settings;
+    private ResolvedSettings settings;
     private int generation = 0;
     private boolean notInAnyTransaction;
     private boolean transactionSet;
@@ -1049,7 +1050,7 @@ public class ObjectBuilder<T> {
         Partitions partitions = getPartitions(cluster, firstKey.namespace);
 
         // Assume all operations are puts (WRITE_RETRYABLE).
-        Settings settings = session.getBehavior()
+        ResolvedSettings settings = session.getBehavior()
             .getSettings(OpKind.WRITE_RETRYABLE, OpShape.POINT, partitions.scMode);
 
         // Apply where clause if present
@@ -1120,7 +1121,7 @@ public class ObjectBuilder<T> {
         Partitions partitions = getPartitions(cluster, firstKey.namespace);
 
         // Assume all operations are puts (WRITE_RETRYABLE).
-        Settings settings = session.getBehavior()
+        ResolvedSettings settings = session.getBehavior()
             .getSettings(OpKind.WRITE_RETRYABLE, OpShape.POINT, partitions.scMode);
 
         // Apply where clause if present
@@ -1153,7 +1154,7 @@ public class ObjectBuilder<T> {
         Partitions partitions = getPartitions(cluster, key.namespace);
 
         // Assume all operations are puts (WRITE_RETRYABLE).
-        Settings settings = session.getBehavior()
+        ResolvedSettings settings = session.getBehavior()
             .getSettings(OpKind.WRITE_RETRYABLE, OpShape.POINT, partitions.scMode);
 
         // Apply where clause if present
@@ -1195,7 +1196,7 @@ public class ObjectBuilder<T> {
         Partitions partitions = getPartitions(cluster, key.namespace);
 
         // Assume all operations are puts (WRITE_RETRYABLE).
-        Settings settings = session.getBehavior()
+        ResolvedSettings settings = session.getBehavior()
             .getSettings(OpKind.WRITE_RETRYABLE, OpShape.POINT, partitions.scMode);
 
         // Apply where clause if present
@@ -1220,7 +1221,7 @@ public class ObjectBuilder<T> {
     }
 
     private void operateKeysAsync(
-        Cluster cluster, Partitions partitions, Settings settings, Expression filterExp, int ttl,
+        Cluster cluster, Partitions partitions, ResolvedSettings settings, Expression filterExp, int ttl,
         AsyncRecordStream stream, List<Key> keys
     ) {
         AtomicInteger pendingOps = new AtomicInteger(elements.size());
@@ -1233,7 +1234,7 @@ public class ObjectBuilder<T> {
     }
 
     private void operateAsync(
-        Cluster cluster, Partitions partitions, Settings settings, Expression filterExp, Key key,
+        Cluster cluster, Partitions partitions, ResolvedSettings settings, Expression filterExp, Key key,
         T element, int ttl, AsyncRecordStream stream, int index, AtomicInteger pendingOps,
         boolean isBatch
     ) {
@@ -1258,7 +1259,7 @@ public class ObjectBuilder<T> {
     }
 
     private Record operate(
-        Cluster cluster, Partitions partitions, Settings settings, Expression filterExp, Key key,
+        Cluster cluster, Partitions partitions, ResolvedSettings settings, Expression filterExp, Key key,
         T element, int ttl
     ) {
         RecordMapper<T> recordMapper = getMapper(element);

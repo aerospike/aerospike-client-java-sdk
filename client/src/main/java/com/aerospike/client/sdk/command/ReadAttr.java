@@ -19,7 +19,7 @@ package com.aerospike.client.sdk.command;
 import com.aerospike.client.sdk.policy.ReadModeAP;
 import com.aerospike.client.sdk.policy.ReadModeSC;
 import com.aerospike.client.sdk.policy.Replica;
-import com.aerospike.client.sdk.policy.Settings;
+import com.aerospike.client.sdk.policy.ResolvedSettings;
 import com.aerospike.client.sdk.tend.Partitions;
 
 public class ReadAttr {
@@ -28,10 +28,10 @@ public class ReadAttr {
     public final Replica replica;
     public final boolean linearize;
 
-    public ReadAttr(Partitions partitions, Settings policy) {
+    public ReadAttr(Partitions partitions, ResolvedSettings settings) {
         if (partitions.scMode) {
             readModeAP = ReadModeAP.ONE;
-            readModeSC = policy.getReadModeSC();
+            readModeSC = settings.getReadModeSC();
 
             switch (readModeSC) {
             case SESSION:
@@ -40,26 +40,26 @@ public class ReadAttr {
                 break;
 
             case LINEARIZE:
-                if (policy.getReplicaOrder() == Replica.PREFER_RACK) {
+                if (settings.getReplicaOrder() == Replica.PREFER_RACK) {
                     this.replica = Replica.SEQUENCE;
                 }
                 else {
-                    this.replica = policy.getReplicaOrder();
+                    this.replica = settings.getReplicaOrder();
                 }
                 this.linearize = true;
                 break;
 
             default:
-                this.replica = policy.getReplicaOrder();
+                this.replica = settings.getReplicaOrder();
                 this.linearize = false;
                 break;
             }
 
         }
         else {
-            this.readModeAP = policy.getReadModeAP();
+            this.readModeAP = settings.getReadModeAP();
             this.readModeSC = ReadModeSC.SESSION;
-            this.replica = policy.getReplicaOrder();
+            this.replica = settings.getReplicaOrder();
             this.linearize = false;
         }
     }

@@ -28,7 +28,7 @@ import com.aerospike.client.sdk.Key;
 import com.aerospike.client.sdk.Log;
 import com.aerospike.client.sdk.OpType;
 import com.aerospike.client.sdk.ResultCode;
-import com.aerospike.client.sdk.policy.Settings;
+import com.aerospike.client.sdk.policy.ResolvedSettings;
 import com.aerospike.client.sdk.tend.Partitions;
 import com.aerospike.client.sdk.util.Util;
 
@@ -52,7 +52,7 @@ public final class TxnRoll {
         }
     }
 
-    public void verify(Settings verifyPolicy, Settings rollPolicy) {
+    public void verify(ResolvedSettings verifyPolicy, ResolvedSettings rollPolicy) {
         BatchCommand parent = null;
 
         try {
@@ -143,7 +143,7 @@ public final class TxnRoll {
         txn.setState(Txn.State.VERIFIED);
     }
 
-    public CommitStatus commit(Settings rollPolicy) {
+    public CommitStatus commit(ResolvedSettings rollPolicy) {
         Key txnKey = TxnMonitor.getTxnMonitorKey(txn);
         WriteCommand cmd = new WriteCommand(cluster, partitions, txnKey, rollPolicy);
 
@@ -228,7 +228,7 @@ public final class TxnRoll {
         return aec;
     }
 
-    public AbortStatus abort(Settings rollPolicy) {
+    public AbortStatus abort(ResolvedSettings rollPolicy) {
         txn.setState(Txn.State.ABORTED);
 
         try {
@@ -257,7 +257,7 @@ public final class TxnRoll {
         mark.execute();
     }
 
-    private void roll(Settings rollPolicy, int txnAttr) {
+    private void roll(ResolvedSettings rollPolicy, int txnAttr) {
         Set<Key> keySet = txn.getWrites();
         int max = keySet.size();
 
