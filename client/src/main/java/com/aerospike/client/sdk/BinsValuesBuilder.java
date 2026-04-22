@@ -47,9 +47,9 @@ import com.aerospike.client.sdk.command.Txn;
 import com.aerospike.client.sdk.command.TxnMonitor;
 import com.aerospike.client.sdk.exp.Exp;
 import com.aerospike.client.sdk.exp.Expression;
-import com.aerospike.client.sdk.policy.Settings;
 import com.aerospike.client.sdk.policy.Behavior.OpKind;
 import com.aerospike.client.sdk.policy.Behavior.OpShape;
+import com.aerospike.client.sdk.policy.ResolvedSettings;
 import com.aerospike.client.sdk.query.PreparedAel;
 import com.aerospike.client.sdk.query.WhereClauseProcessor;
 import com.aerospike.client.sdk.tend.Partitions;
@@ -77,7 +77,7 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
     private final List<Key> keys;
     private ValueData current = null;
     private Txn txnToUse;
-    private Settings settings;
+    private ResolvedSettings settings;
     private boolean notInAnyTransaction;
     private boolean transactionSet;
 
@@ -874,7 +874,7 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
         Key firstKey = keys.get(0);
 
         Partitions partitions = getPartitions(cluster, firstKey.namespace);
-        Settings policy = session.getBehavior().getSettings(OpKind.WRITE_RETRYABLE, OpShape.POINT, partitions.scMode);
+        ResolvedSettings settings = session.getBehavior().getSettings(OpKind.WRITE_RETRYABLE, OpShape.POINT, partitions.scMode);
         final Expression filterExp = processWhereClause(keys.get(0).namespace, opBuilder.getSession());
 
         if (txnToUse != null) {
@@ -885,7 +885,7 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
 
         if (keys.size() == 1) {
             try {
-                Record rec = operate(cluster, partitions, policy, filterExp, firstKey);
+                Record rec = operate(cluster, partitions, settings, filterExp, firstKey);
                 if (isWrite || includeMissingKeys || rec != null) {
                     return new RecordStream(firstKey, rec);
                 }
@@ -919,7 +919,7 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
 
                     es.submit(() -> {
                         try {
-                            Record record = operate(cluster, partitions, policy, filterExp, key);
+                            Record record = operate(cluster, partitions, settings, filterExp, key);
                             if (isWrite || includeMissingKeys || record != null) {
                                 stream.publish(new RecordResult(key, record, idx));
                             }
@@ -967,7 +967,7 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
         // Assume all keys have the same namespace.
         String namespace = keys.get(0).namespace;
         Partitions partitions = getPartitions(cluster, namespace);
-        Settings policy = session.getBehavior().getSettings(OpKind.WRITE_RETRYABLE, OpShape.POINT, partitions.scMode);
+        ResolvedSettings policy = session.getBehavior().getSettings(OpKind.WRITE_RETRYABLE, OpShape.POINT, partitions.scMode);
         final Expression filterExp = getFilterExp(session, namespace);
         AsyncRecordStream asyncStream = new AsyncRecordStream(keys.size());
 
@@ -983,8 +983,10 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
         return new RecordStream(asyncStream);
     }
 
-    private void operateKeysAsync(Cluster cluster, Partitions partitions, Settings policy, Expression filterExp,
-            AsyncRecordStream asyncStream) {
+    private void operateKeysAsync(
+        Cluster cluster, Partitions partitions, ResolvedSettings settings, Expression filterExp,
+        AsyncRecordStream asyncStream
+    ) {
         AtomicInteger pendingOps = new AtomicInteger(keys.size());
         boolean isWrite = opBuilder.getOpType() != null;
 
@@ -993,7 +995,7 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
             final int index = i;
             cluster.startVirtualThread(() -> {
                 try {
-                    Record rec = operate(cluster, partitions, policy, filterExp, key);
+                    Record rec = operate(cluster, partitions, settings, filterExp, key);
 
                     if (isWrite || includeMissingKeys || rec != null) {
                         asyncStream.publish(new RecordResult(key, rec, index));
@@ -1015,7 +1017,10 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
         }
     }
 
-    private Record operate(Cluster cluster, Partitions partitions, Settings policy, Expression filterExp, Key key) {
+    private Record operate(
+        Cluster cluster, Partitions partitions, ResolvedSettings settings, Expression filterExp,
+        Key key
+    ) {
         ValueData valueSet = valueSets.get(key);
         List<Operation> ops = getOperationsForValueData(valueSet);
         int ttl = getExpiration(valueSet);
@@ -1023,7 +1028,7 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
         OperateArgs args = new OperateArgs(ops);
         OperateWriteCommand cmd = new OperateWriteCommand(cluster, partitions, txnToUse, key, ops,
             args, opBuilder.getOpType(), getGeneration(valueSet), ttl, filterExp,
-            opBuilder.isFailOnFilteredOut(), policy);
+            opBuilder.isFailOnFilteredOut(), settings);
 
         try {
             OperateWriteExecutor exec = new OperateWriteExecutor(cluster, cmd);

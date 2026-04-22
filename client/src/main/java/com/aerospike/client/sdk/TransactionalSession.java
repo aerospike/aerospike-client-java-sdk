@@ -23,10 +23,10 @@ import com.aerospike.client.sdk.command.CommitStatus;
 import com.aerospike.client.sdk.command.Txn;
 import com.aerospike.client.sdk.command.TxnRoll;
 import com.aerospike.client.sdk.policy.Behavior;
-import com.aerospike.client.sdk.policy.Settings;
 import com.aerospike.client.sdk.policy.Behavior.Mode;
 import com.aerospike.client.sdk.policy.Behavior.OpKind;
 import com.aerospike.client.sdk.policy.Behavior.OpShape;
+import com.aerospike.client.sdk.policy.ResolvedSettings;
 
 /**
  * A session that supports transactional operations with automatic retry logic.
@@ -318,8 +318,8 @@ public class TransactionalSession extends Session{
 
     private CommitStatus commitTxn() {
         TxnRoll tr = new TxnRoll(getCluster(), txn);
-        Settings verifyPolicy = getBehavior().getSettings(OpKind.SYSTEM_TXN_VERIFY, OpShape.SYSTEM, Mode.ANY);
-        Settings rollPolicy = getBehavior().getSettings(OpKind.SYSTEM_TXN_ROLL, OpShape.SYSTEM, Mode.ANY);
+        ResolvedSettings verifyPolicy = getBehavior().getSettings(OpKind.SYSTEM_TXN_VERIFY, OpShape.SYSTEM, Mode.ANY);
+        ResolvedSettings rollPolicy = getBehavior().getSettings(OpKind.SYSTEM_TXN_ROLL, OpShape.SYSTEM, Mode.ANY);
 
         switch (txn.getState()) {
             default:
@@ -340,7 +340,7 @@ public class TransactionalSession extends Session{
 
     private AbortStatus abortTxn() {
         TxnRoll tr = new TxnRoll(getCluster(), txn);
-        Settings rollPolicy = getBehavior().getSettings(OpKind.SYSTEM_TXN_ROLL, OpShape.SYSTEM, Mode.ANY);
+        ResolvedSettings rollPolicy = getBehavior().getSettings(OpKind.SYSTEM_TXN_ROLL, OpShape.SYSTEM, Mode.ANY);
 
         switch (txn.getState()) {
             default:

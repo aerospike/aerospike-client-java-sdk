@@ -66,12 +66,12 @@ public class BehaviorYamlTest {
             assertTrue(behaviors.containsKey("simple"));
 
             Behavior simple = behaviors.get("simple");
-            Settings settings =
+            ResolvedSettings settings =
                 simple.getSettings(Behavior.OpKind.READ, Behavior.OpShape.POINT, Behavior.Mode.AP);
 
             assertNotNull(settings);
-            assertEquals(Duration.ofSeconds(5), settings.abandonCallAfter);
-            assertEquals(3, settings.maximumNumberOfCallAttempts);
+            assertEquals(5000, settings.getAbandonCallAfterMs());
+            assertEquals(3, settings.getMaximumNumberOfCallAttempts());
         }
 
         @Test
@@ -93,19 +93,19 @@ public class BehaviorYamlTest {
             Behavior multiOp = behaviors.get("multi-op");
 
             // Test CP read settings
-            Settings readCp =
+            ResolvedSettings readCp =
                 multiOp.getSettings(Behavior.OpKind.READ, Behavior.OpShape.POINT, Behavior.Mode.CP);
             assertNotNull(readCp);
-            assertEquals(Duration.ofSeconds(2), readCp.abandonCallAfter);
-            assertEquals(ReadModeSC.SESSION, readCp.readModeSC);
+            assertEquals(2000, readCp.getAbandonCallAfterMs());
+            assertEquals(ReadModeSC.SESSION, readCp.getReadModeSC());
 
             // Test retryable write settings
-            Settings writeRetry = multiOp.getSettings(Behavior.OpKind.WRITE_RETRYABLE,
+            ResolvedSettings writeRetry = multiOp.getSettings(Behavior.OpKind.WRITE_RETRYABLE,
                 Behavior.OpShape.POINT, Behavior.Mode.AP);
             assertNotNull(writeRetry);
-            assertEquals(Duration.ofSeconds(10), writeRetry.abandonCallAfter);
-            assertTrue(writeRetry.useDurableDelete);
-            assertEquals(5, writeRetry.maximumNumberOfCallAttempts);
+            assertEquals(10000, writeRetry.getAbandonCallAfterMs());
+            assertTrue(writeRetry.getUseDurableDelete());
+            assertEquals(5, writeRetry.getMaximumNumberOfCallAttempts());
         }
     }
 
@@ -126,11 +126,11 @@ public class BehaviorYamlTest {
 
             Map<String, Behavior> behaviors = loadFromYamlString(yaml);
             Behavior behavior = behaviors.get("seconds-test");
-            Settings settings = behavior.getSettings(Behavior.OpKind.READ, Behavior.OpShape.POINT,
+            ResolvedSettings settings = behavior.getSettings(Behavior.OpKind.READ, Behavior.OpShape.POINT,
                 Behavior.Mode.AP);
 
-            assertEquals(Duration.ofSeconds(30), settings.abandonCallAfter);
-            assertEquals(Duration.ofSeconds(1), settings.delayBetweenRetries);
+            assertEquals(30000, settings.getAbandonCallAfterMs());
+            assertEquals(1000, settings.getDelayBetweenRetriesMs());
         }
 
         @Test
@@ -146,11 +146,11 @@ public class BehaviorYamlTest {
 
             Map<String, Behavior> behaviors = loadFromYamlString(yaml);
             Behavior behavior = behaviors.get("millis-test");
-            Settings settings = behavior.getSettings(Behavior.OpKind.READ, Behavior.OpShape.POINT,
+            ResolvedSettings settings = behavior.getSettings(Behavior.OpKind.READ, Behavior.OpShape.POINT,
                 Behavior.Mode.AP);
 
-            assertEquals(Duration.ofMillis(500), settings.abandonCallAfter);
-            assertEquals(Duration.ofMillis(100), settings.delayBetweenRetries);
+            assertEquals(500, settings.getAbandonCallAfterMs());
+            assertEquals(100, settings.getDelayBetweenRetriesMs());
         }
 
         @Test
@@ -166,11 +166,11 @@ public class BehaviorYamlTest {
 
             Map<String, Behavior> behaviors = loadFromYamlString(yaml);
             Behavior behavior = behaviors.get("time-test");
-            Settings settings = behavior.getSettings(Behavior.OpKind.READ, Behavior.OpShape.POINT,
+            ResolvedSettings settings = behavior.getSettings(Behavior.OpKind.READ, Behavior.OpShape.POINT,
                 Behavior.Mode.AP);
 
-            assertEquals(Duration.ofMinutes(2), settings.abandonCallAfter);
-            assertEquals(Duration.ofHours(1), settings.waitForCallToComplete);
+            assertEquals(120000, settings.getAbandonCallAfterMs());
+            assertEquals(3600000, settings.getWaitForCallToCompleteMs());
         }
     }
 
@@ -193,13 +193,13 @@ public class BehaviorYamlTest {
 
             Map<String, Behavior> behaviors = loadFromYamlString(yaml);
             Behavior behavior = behaviors.get("nanos-test");
-            Settings settings = behavior.getSettings(Behavior.OpKind.READ, Behavior.OpShape.POINT,
+            ResolvedSettings settings = behavior.getSettings(Behavior.OpKind.READ, Behavior.OpShape.POINT,
                 Behavior.Mode.AP);
 
-            assertEquals(Duration.ofNanos(1000), settings.abandonCallAfter);
-            assertEquals(Duration.ofNanos(500), settings.delayBetweenRetries);
-            assertEquals(Duration.ofNanos(2000), settings.waitForCallToComplete);
-            assertEquals(Duration.ofNanos(3000), settings.waitForConnectionToComplete);
+            assertEquals(0, settings.getAbandonCallAfterMs());
+            assertEquals(0, settings.getDelayBetweenRetriesMs());
+            assertEquals(0, settings.getWaitForCallToCompleteMs());
+            assertEquals(0, settings.getWaitForConnectionToCompleteMs());
         }
 
         @Test
@@ -217,14 +217,14 @@ public class BehaviorYamlTest {
 
             Map<String, Behavior> behaviors = loadFromYamlString(yaml);
             Behavior behavior = behaviors.get("micros-test");
-            Settings settings = behavior.getSettings(Behavior.OpKind.READ, Behavior.OpShape.POINT,
+            ResolvedSettings settings = behavior.getSettings(Behavior.OpKind.READ, Behavior.OpShape.POINT,
                 Behavior.Mode.AP);
 
             // 1 microsecond = 1000 nanoseconds
-            assertEquals(Duration.ofNanos(1000 * 1000), settings.abandonCallAfter);
-            assertEquals(Duration.ofNanos(500 * 1000), settings.delayBetweenRetries);
-            assertEquals(Duration.ofNanos(2000 * 1000), settings.waitForCallToComplete);
-            assertEquals(Duration.ofNanos(3000 * 1000), settings.waitForConnectionToComplete);
+            assertEquals(1, settings.getAbandonCallAfterMs());
+            assertEquals(0, settings.getDelayBetweenRetriesMs());
+            assertEquals(2, settings.getWaitForCallToCompleteMs());
+            assertEquals(3, settings.getWaitForConnectionToCompleteMs());
         }
 
         @Test
@@ -242,13 +242,13 @@ public class BehaviorYamlTest {
 
             Map<String, Behavior> behaviors = loadFromYamlString(yaml);
             Behavior behavior = behaviors.get("millis-test");
-            Settings settings = behavior.getSettings(Behavior.OpKind.READ, Behavior.OpShape.POINT,
+            ResolvedSettings settings = behavior.getSettings(Behavior.OpKind.READ, Behavior.OpShape.POINT,
                 Behavior.Mode.AP);
 
-            assertEquals(Duration.ofMillis(100), settings.abandonCallAfter);
-            assertEquals(Duration.ofMillis(50), settings.delayBetweenRetries);
-            assertEquals(Duration.ofMillis(200), settings.waitForCallToComplete);
-            assertEquals(Duration.ofMillis(300), settings.waitForConnectionToComplete);
+            assertEquals(100, settings.getAbandonCallAfterMs());
+            assertEquals(50, settings.getDelayBetweenRetriesMs());
+            assertEquals(200, settings.getWaitForCallToCompleteMs());
+            assertEquals(300, settings.getWaitForConnectionToCompleteMs());
         }
 
         @Test
@@ -266,13 +266,13 @@ public class BehaviorYamlTest {
 
             Map<String, Behavior> behaviors = loadFromYamlString(yaml);
             Behavior behavior = behaviors.get("seconds-test");
-            Settings settings = behavior.getSettings(Behavior.OpKind.READ, Behavior.OpShape.POINT,
+            ResolvedSettings settings = behavior.getSettings(Behavior.OpKind.READ, Behavior.OpShape.POINT,
                 Behavior.Mode.AP);
 
-            assertEquals(Duration.ofSeconds(10), settings.abandonCallAfter);
-            assertEquals(Duration.ofSeconds(5), settings.delayBetweenRetries);
-            assertEquals(Duration.ofSeconds(20), settings.waitForCallToComplete);
-            assertEquals(Duration.ofSeconds(30), settings.waitForConnectionToComplete);
+            assertEquals(10000, settings.getAbandonCallAfterMs());
+            assertEquals(5000, settings.getDelayBetweenRetriesMs());
+            assertEquals(20000, settings.getWaitForCallToCompleteMs());
+            assertEquals(30000, settings.getWaitForConnectionToCompleteMs());
         }
 
         @Test
@@ -290,13 +290,13 @@ public class BehaviorYamlTest {
 
             Map<String, Behavior> behaviors = loadFromYamlString(yaml);
             Behavior behavior = behaviors.get("minutes-test");
-            Settings settings = behavior.getSettings(Behavior.OpKind.READ, Behavior.OpShape.POINT,
+            ResolvedSettings settings = behavior.getSettings(Behavior.OpKind.READ, Behavior.OpShape.POINT,
                 Behavior.Mode.AP);
 
-            assertEquals(Duration.ofMinutes(1), settings.abandonCallAfter);
-            assertEquals(Duration.ofMinutes(2), settings.delayBetweenRetries);
-            assertEquals(Duration.ofMinutes(3), settings.waitForCallToComplete);
-            assertEquals(Duration.ofMinutes(5), settings.waitForConnectionToComplete);
+            assertEquals(60000, settings.getAbandonCallAfterMs());
+            assertEquals(120000, settings.getDelayBetweenRetriesMs());
+            assertEquals(180000, settings.getWaitForCallToCompleteMs());
+            assertEquals(300000, settings.getWaitForConnectionToCompleteMs());
         }
 
         @Test
@@ -314,13 +314,13 @@ public class BehaviorYamlTest {
 
             Map<String, Behavior> behaviors = loadFromYamlString(yaml);
             Behavior behavior = behaviors.get("hours-test");
-            Settings settings = behavior.getSettings(Behavior.OpKind.READ, Behavior.OpShape.POINT,
+            ResolvedSettings settings = behavior.getSettings(Behavior.OpKind.READ, Behavior.OpShape.POINT,
                 Behavior.Mode.AP);
 
-            assertEquals(Duration.ofHours(1), settings.abandonCallAfter);
-            assertEquals(Duration.ofHours(2), settings.delayBetweenRetries);
-            assertEquals(Duration.ofHours(3), settings.waitForCallToComplete);
-            assertEquals(Duration.ofHours(4), settings.waitForConnectionToComplete);
+            assertEquals(3600000, settings.getAbandonCallAfterMs());
+            assertEquals(7200000, settings.getDelayBetweenRetriesMs());
+            assertEquals(10800000, settings.getWaitForCallToCompleteMs());
+            assertEquals(14400000, settings.getWaitForConnectionToCompleteMs());
         }
 
         @Test
@@ -337,12 +337,12 @@ public class BehaviorYamlTest {
 
             Map<String, Behavior> behaviors = loadFromYamlString(yaml);
             Behavior behavior = behaviors.get("days-test");
-            Settings settings = behavior.getSettings(Behavior.OpKind.READ, Behavior.OpShape.POINT,
+            ResolvedSettings settings = behavior.getSettings(Behavior.OpKind.READ, Behavior.OpShape.POINT,
                 Behavior.Mode.AP);
 
-            assertEquals(Duration.ofDays(1), settings.abandonCallAfter);
-            assertEquals(Duration.ofDays(2), settings.delayBetweenRetries);
-            assertEquals(Duration.ofDays(3), settings.waitForCallToComplete);
+            assertEquals(86400000, settings.getAbandonCallAfterMs());
+            assertEquals(172800000, settings.getDelayBetweenRetriesMs());
+            assertEquals(259200000, settings.getWaitForCallToCompleteMs());
         }
 
         @Test
@@ -358,12 +358,12 @@ public class BehaviorYamlTest {
 
             Map<String, Behavior> behaviors = loadFromYamlString(yaml);
             Behavior behavior = behaviors.get("conversion-test");
-            Settings settings = behavior.getSettings(Behavior.OpKind.READ, Behavior.OpShape.POINT,
+            ResolvedSettings settings = behavior.getSettings(Behavior.OpKind.READ, Behavior.OpShape.POINT,
                 Behavior.Mode.AP);
 
             // 5000ms should equal 5s
-            assertEquals(settings.abandonCallAfter, settings.delayBetweenRetries);
-            assertEquals(Duration.ofSeconds(5), settings.abandonCallAfter);
+            assertEquals(settings.getAbandonCallAfterMs(), settings.getDelayBetweenRetriesMs());
+            assertEquals(5000, settings.getAbandonCallAfterMs());
         }
 
         @Test
@@ -379,12 +379,12 @@ public class BehaviorYamlTest {
 
             Map<String, Behavior> behaviors = loadFromYamlString(yaml);
             Behavior behavior = behaviors.get("conversion-test");
-            Settings settings = behavior.getSettings(Behavior.OpKind.READ, Behavior.OpShape.POINT,
+            ResolvedSettings settings = behavior.getSettings(Behavior.OpKind.READ, Behavior.OpShape.POINT,
                 Behavior.Mode.AP);
 
             // 120s should equal 2m
-            assertEquals(settings.abandonCallAfter, settings.delayBetweenRetries);
-            assertEquals(Duration.ofMinutes(2), settings.abandonCallAfter);
+            assertEquals(settings.getAbandonCallAfterMs(), settings.getDelayBetweenRetriesMs());
+            assertEquals(120000, settings.getAbandonCallAfterMs());
         }
 
         @Test
@@ -400,12 +400,12 @@ public class BehaviorYamlTest {
 
             Map<String, Behavior> behaviors = loadFromYamlString(yaml);
             Behavior behavior = behaviors.get("conversion-test");
-            Settings settings = behavior.getSettings(Behavior.OpKind.READ, Behavior.OpShape.POINT,
+            ResolvedSettings settings = behavior.getSettings(Behavior.OpKind.READ, Behavior.OpShape.POINT,
                 Behavior.Mode.AP);
 
             // 60m should equal 1h
-            assertEquals(settings.abandonCallAfter, settings.delayBetweenRetries);
-            assertEquals(Duration.ofHours(1), settings.abandonCallAfter);
+            assertEquals(settings.getAbandonCallAfterMs(), settings.getDelayBetweenRetriesMs());
+            assertEquals(3600000, settings.getAbandonCallAfterMs());
         }
 
         @Test
@@ -421,12 +421,12 @@ public class BehaviorYamlTest {
 
             Map<String, Behavior> behaviors = loadFromYamlString(yaml);
             Behavior behavior = behaviors.get("conversion-test");
-            Settings settings = behavior.getSettings(Behavior.OpKind.READ, Behavior.OpShape.POINT,
+            ResolvedSettings settings = behavior.getSettings(Behavior.OpKind.READ, Behavior.OpShape.POINT,
                 Behavior.Mode.AP);
 
             // 24h should equal 1d
-            assertEquals(settings.abandonCallAfter, settings.delayBetweenRetries);
-            assertEquals(Duration.ofDays(1), settings.abandonCallAfter);
+            assertEquals(settings.getAbandonCallAfterMs(), settings.getDelayBetweenRetriesMs());
+            assertEquals(86400000, settings.getAbandonCallAfterMs());
         }
 
         @Test
@@ -442,12 +442,12 @@ public class BehaviorYamlTest {
 
             Map<String, Behavior> behaviors = loadFromYamlString(yaml);
             Behavior behavior = behaviors.get("conversion-test");
-            Settings settings = behavior.getSettings(Behavior.OpKind.READ, Behavior.OpShape.POINT,
+            ResolvedSettings settings = behavior.getSettings(Behavior.OpKind.READ, Behavior.OpShape.POINT,
                 Behavior.Mode.AP);
 
             // 5000us should equal 5ms
-            assertEquals(settings.abandonCallAfter, settings.delayBetweenRetries);
-            assertEquals(Duration.ofMillis(5), settings.abandonCallAfter);
+            assertEquals(settings.getAbandonCallAfterMs(), settings.getDelayBetweenRetriesMs());
+            assertEquals(5, settings.getAbandonCallAfterMs());
         }
 
         @Test
@@ -464,12 +464,12 @@ public class BehaviorYamlTest {
 
             Map<String, Behavior> behaviors = loadFromYamlString(yaml);
             Behavior behavior = behaviors.get("large-values-test");
-            Settings settings = behavior.getSettings(Behavior.OpKind.READ, Behavior.OpShape.POINT,
+            ResolvedSettings settings = behavior.getSettings(Behavior.OpKind.READ, Behavior.OpShape.POINT,
                 Behavior.Mode.AP);
 
-            assertEquals(Duration.ofMillis(999999), settings.abandonCallAfter);
-            assertEquals(Duration.ofSeconds(86400), settings.delayBetweenRetries); // 1 day in seconds
-            assertEquals(Duration.ofMinutes(1440), settings.waitForCallToComplete); // 1 day in minutes
+            assertEquals(999999, settings.getAbandonCallAfterMs());
+            assertEquals(86400000, settings.getDelayBetweenRetriesMs()); // 1 day in seconds
+            assertEquals(86400000, settings.getWaitForCallToCompleteMs()); // 1 day in minutes
         }
 
         @Test
@@ -493,22 +493,22 @@ public class BehaviorYamlTest {
             Map<String, Behavior> behaviors = loadFromYamlString(yaml);
             Behavior behavior = behaviors.get("mixed-units");
 
-            Settings allOps = behavior.getSettings(Behavior.OpKind.READ, Behavior.OpShape.POINT,
+            ResolvedSettings allOps = behavior.getSettings(Behavior.OpKind.READ, Behavior.OpShape.POINT,
                 Behavior.Mode.AP);
-            Settings readCp = behavior.getSettings(Behavior.OpKind.READ, Behavior.OpShape.POINT,
+            ResolvedSettings readCp = behavior.getSettings(Behavior.OpKind.READ, Behavior.OpShape.POINT,
                 Behavior.Mode.CP);
-            Settings writes = behavior.getSettings(Behavior.OpKind.WRITE_RETRYABLE,
+            ResolvedSettings writes = behavior.getSettings(Behavior.OpKind.WRITE_RETRYABLE,
                 Behavior.OpShape.POINT, Behavior.Mode.AP);
-            Settings batch = behavior.getSettings(Behavior.OpKind.READ, Behavior.OpShape.BATCH,
+            ResolvedSettings batch = behavior.getSettings(Behavior.OpKind.READ, Behavior.OpShape.BATCH,
                 Behavior.Mode.AP);
-            Settings query = behavior.getSettings(Behavior.OpKind.READ, Behavior.OpShape.QUERY,
+            ResolvedSettings query = behavior.getSettings(Behavior.OpKind.READ, Behavior.OpShape.QUERY,
                 Behavior.Mode.AP);
 
-            assertEquals(Duration.ofMillis(500), allOps.abandonCallAfter);
-            assertEquals(Duration.ofSeconds(2), readCp.abandonCallAfter);
-            assertEquals(Duration.ofMinutes(1), writes.abandonCallAfter);
-            assertEquals(Duration.ofMinutes(5), batch.abandonCallAfter);
-            assertEquals(Duration.ofHours(1), query.abandonCallAfter);
+            assertEquals(500, allOps.getAbandonCallAfterMs());
+            assertEquals(2000, readCp.getAbandonCallAfterMs());
+            assertEquals(60000, writes.getAbandonCallAfterMs());
+            assertEquals(300000, batch.getAbandonCallAfterMs());
+            assertEquals(3600000, query.getAbandonCallAfterMs());
         }
 
         @Test
@@ -524,11 +524,11 @@ public class BehaviorYamlTest {
 
             Map<String, Behavior> behaviors = loadFromYamlString(yaml);
             Behavior behavior = behaviors.get("whitespace-test");
-            Settings settings = behavior.getSettings(Behavior.OpKind.READ, Behavior.OpShape.POINT,
+            ResolvedSettings settings = behavior.getSettings(Behavior.OpKind.READ, Behavior.OpShape.POINT,
                 Behavior.Mode.AP);
 
-            assertEquals(Duration.ofSeconds(10), settings.abandonCallAfter);
-            assertEquals(Duration.ofMillis(500), settings.delayBetweenRetries);
+            assertEquals(10000, settings.getAbandonCallAfterMs());
+            assertEquals(500, settings.getDelayBetweenRetriesMs());
         }
     }
 
@@ -563,15 +563,15 @@ public class BehaviorYamlTest {
             behaviors = loadFromYamlString(yaml);
 
             Behavior child = behaviors.get("child-config");
-            Settings settings =
+            ResolvedSettings settings =
                 child.getSettings(Behavior.OpKind.READ, Behavior.OpShape.POINT, Behavior.Mode.AP);
 
             // Child overrides abandonCallAfter
-            assertEquals(Duration.ofSeconds(20), settings.abandonCallAfter);
+            assertEquals(20000, settings.getAbandonCallAfterMs());
 
             // Child inherits other settings from parent
-            assertEquals(5, settings.maximumNumberOfCallAttempts);
-            assertEquals(Duration.ofMillis(500), settings.delayBetweenRetries);
+            assertEquals(5, settings.getMaximumNumberOfCallAttempts());
+            assertEquals(500, settings.getDelayBetweenRetriesMs());
         }
 
         @Test
@@ -613,14 +613,14 @@ public class BehaviorYamlTest {
             Map<String, Behavior> behaviors = loadFromYamlString(yaml);
             Behavior batchConfig = behaviors.get("batch-config");
 
-            Settings batchSettings = batchConfig.getSettings(Behavior.OpKind.READ,
+            ResolvedSettings batchSettings = batchConfig.getSettings(Behavior.OpKind.READ,
                 Behavior.OpShape.BATCH, Behavior.Mode.AP);
 
             assertNotNull(batchSettings);
-            assertEquals(Duration.ofSeconds(30), batchSettings.abandonCallAfter);
-            assertEquals(10, batchSettings.maxConcurrentNodes);
-            assertTrue(batchSettings.allowInlineMemoryAccess);
-            assertFalse(batchSettings.allowInlineSsdAccess);
+            assertEquals(30000, batchSettings.getAbandonCallAfterMs());
+            assertEquals(10, batchSettings.getMaxConcurrentNodes());
+            assertTrue(batchSettings.getAllowInlineMemoryAccess());
+            assertFalse(batchSettings.getAllowInlineSsdAccess());
         }
 
         @Test
@@ -640,15 +640,15 @@ public class BehaviorYamlTest {
             Map<String, Behavior> behaviors = loadFromYamlString(yaml);
             Behavior batchWrites = behaviors.get("batch-writes");
 
-            Settings batchSettings = batchWrites.getSettings(Behavior.OpKind.WRITE_RETRYABLE,
+            ResolvedSettings batchSettings = batchWrites.getSettings(Behavior.OpKind.WRITE_RETRYABLE,
                 Behavior.OpShape.BATCH, Behavior.Mode.AP);
 
             assertNotNull(batchSettings);
-            assertEquals(Duration.ofSeconds(45), batchSettings.abandonCallAfter);
-            assertEquals(8, batchSettings.maxConcurrentNodes);
-            assertFalse(batchSettings.allowInlineMemoryAccess);
-            assertTrue(batchSettings.allowInlineSsdAccess);
-            assertEquals(4, batchSettings.maximumNumberOfCallAttempts);
+            assertEquals(45000, batchSettings.getAbandonCallAfterMs());
+            assertEquals(8, batchSettings.getMaxConcurrentNodes());
+            assertFalse(batchSettings.getAllowInlineMemoryAccess());
+            assertTrue(batchSettings.getAllowInlineSsdAccess());
+            assertEquals(4, batchSettings.getMaximumNumberOfCallAttempts());
         }
     }
 
@@ -672,13 +672,13 @@ public class BehaviorYamlTest {
             Map<String, Behavior> behaviors = loadFromYamlString(yaml);
             Behavior queryConfig = behaviors.get("query-config");
 
-            Settings querySettings = queryConfig.getSettings(Behavior.OpKind.READ,
+            ResolvedSettings querySettings = queryConfig.getSettings(Behavior.OpKind.READ,
                 Behavior.OpShape.QUERY, Behavior.Mode.AP);
 
             assertNotNull(querySettings);
-            assertEquals(Duration.ofSeconds(60), querySettings.abandonCallAfter);
-            assertEquals(5000, querySettings.recordQueueSize);
-            assertEquals(2, querySettings.maximumNumberOfCallAttempts);
+            assertEquals(60000, querySettings.getAbandonCallAfterMs());
+            assertEquals(5000, querySettings.getRecordQueueSize());
+            assertEquals(2, querySettings.getMaximumNumberOfCallAttempts());
         }
     }
 
@@ -702,14 +702,14 @@ public class BehaviorYamlTest {
             Map<String, Behavior> behaviors = loadFromYamlString(yaml);
             Behavior retryWrites = behaviors.get("retry-writes");
 
-            Settings writeSettings = retryWrites.getSettings(Behavior.OpKind.WRITE_RETRYABLE,
+            ResolvedSettings writeSettings = retryWrites.getSettings(Behavior.OpKind.WRITE_RETRYABLE,
                 Behavior.OpShape.POINT, Behavior.Mode.AP);
 
             assertNotNull(writeSettings);
-            assertEquals(Duration.ofSeconds(8), writeSettings.abandonCallAfter);
-            assertTrue(writeSettings.useDurableDelete);
-            assertEquals(6, writeSettings.maximumNumberOfCallAttempts);
-            assertEquals(Duration.ofMillis(200), writeSettings.delayBetweenRetries);
+            assertEquals(8000, writeSettings.getAbandonCallAfterMs());
+            assertTrue(writeSettings.getUseDurableDelete());
+            assertEquals(6, writeSettings.getMaximumNumberOfCallAttempts());
+            assertEquals(200, writeSettings.getDelayBetweenRetriesMs());
         }
 
         @Test
@@ -727,13 +727,13 @@ public class BehaviorYamlTest {
             Map<String, Behavior> behaviors = loadFromYamlString(yaml);
             Behavior noRetryWrites = behaviors.get("no-retry-writes");
 
-            Settings writeSettings = noRetryWrites.getSettings(Behavior.OpKind.WRITE_NON_RETRYABLE,
+            ResolvedSettings writeSettings = noRetryWrites.getSettings(Behavior.OpKind.WRITE_NON_RETRYABLE,
                 Behavior.OpShape.POINT, Behavior.Mode.AP);
 
             assertNotNull(writeSettings);
-            assertEquals(Duration.ofSeconds(3), writeSettings.abandonCallAfter);
-            assertFalse(writeSettings.useDurableDelete);
-            assertEquals(1, writeSettings.maximumNumberOfCallAttempts);
+            assertEquals(3000, writeSettings.getAbandonCallAfterMs());
+            assertFalse(writeSettings.getUseDurableDelete());
+            assertEquals(1, writeSettings.getMaximumNumberOfCallAttempts());
         }
     }
 
@@ -756,13 +756,13 @@ public class BehaviorYamlTest {
             Map<String, Behavior> behaviors = loadFromYamlString(yaml);
             Behavior sysTxn = behaviors.get("sys-txn");
 
-            Settings txnSettings = sysTxn.getSettings(Behavior.OpKind.SYSTEM_TXN_VERIFY,
+            ResolvedSettings txnSettings = sysTxn.getSettings(Behavior.OpKind.SYSTEM_TXN_VERIFY,
                 Behavior.OpShape.POINT, Behavior.Mode.CP);
 
             assertNotNull(txnSettings);
-            assertEquals(Duration.ofSeconds(1), txnSettings.abandonCallAfter);
-            assertEquals(ReadModeSC.LINEARIZE, txnSettings.readModeSC);
-            assertEquals(2, txnSettings.maximumNumberOfCallAttempts);
+            assertEquals(1000, txnSettings.getAbandonCallAfterMs());
+            assertEquals(ReadModeSC.LINEARIZE, txnSettings.getReadModeSC());
+            assertEquals(2, txnSettings.getMaximumNumberOfCallAttempts());
         }
 
         // Note: System settings (connections, circuit breaker, refresh) are now loaded
@@ -993,10 +993,10 @@ public class BehaviorYamlTest {
             assertNotNull(behaviors);
             assertTrue(behaviors.containsKey("production"));
             Behavior production = behaviors.get("production");
-            Settings settings = production.getSettings(Behavior.OpKind.READ, Behavior.OpShape.POINT,
+            ResolvedSettings settings = production.getSettings(Behavior.OpKind.READ, Behavior.OpShape.POINT,
                 Behavior.Mode.AP);
-            assertEquals(Duration.ofSeconds(10), settings.abandonCallAfter);
-            assertEquals(5, settings.maximumNumberOfCallAttempts);
+            assertEquals(10000, settings.getAbandonCallAfterMs());
+            assertEquals(5, settings.getMaximumNumberOfCallAttempts());
 
             // Verify system settings loaded
             SystemSettingsRegistry registry = SystemSettingsRegistry.getInstance();
@@ -1153,17 +1153,17 @@ public class BehaviorYamlTest {
 
             // Test high-throughput batch configuration
             Behavior highThroughput = behaviors.get("high-throughput");
-            Settings batchSettings = highThroughput.getSettings(Behavior.OpKind.READ,
+            ResolvedSettings batchSettings = highThroughput.getSettings(Behavior.OpKind.READ,
                 Behavior.OpShape.BATCH, Behavior.Mode.AP);
-            assertEquals(16, batchSettings.maxConcurrentNodes);
-            assertTrue(batchSettings.allowInlineMemoryAccess);
+            assertEquals(16, batchSettings.getMaxConcurrentNodes());
+            assertTrue(batchSettings.getAllowInlineMemoryAccess());
 
             // Test low-latency overrides
             Behavior lowLatency = behaviors.get("low-latency");
-            Settings lowLatSettings = lowLatency.getSettings(Behavior.OpKind.READ,
+            ResolvedSettings lowLatSettings = lowLatency.getSettings(Behavior.OpKind.READ,
                 Behavior.OpShape.POINT, Behavior.Mode.CP);
-            assertEquals(Duration.ofSeconds(1), lowLatSettings.abandonCallAfter);
-            assertEquals(ReadModeSC.LINEARIZE, lowLatSettings.readModeSC);
+            assertEquals(1000, lowLatSettings.getAbandonCallAfterMs());
+            assertEquals(ReadModeSC.LINEARIZE, lowLatSettings.getReadModeSC());
         }
 
         @Test
@@ -1210,29 +1210,29 @@ public class BehaviorYamlTest {
             assertNotNull(prodConfig);
 
             // Test various operation types
-            Settings readSettings = prodConfig.getSettings(Behavior.OpKind.READ,
+            ResolvedSettings readSettings = prodConfig.getSettings(Behavior.OpKind.READ,
                 Behavior.OpShape.POINT, Behavior.Mode.CP);
             assertNotNull(readSettings);
-            assertEquals(Duration.ofSeconds(10), readSettings.abandonCallAfter);
-            assertEquals(80, readSettings.resetTtlOnReadAtPercent);
-            assertEquals(ReadModeSC.SESSION, readSettings.readModeSC);
+            assertEquals(10000, readSettings.getAbandonCallAfterMs());
+            assertEquals(80, readSettings.getResetTtlOnReadAtPercent());
+            assertEquals(ReadModeSC.SESSION, readSettings.getReadModeSC());
 
-            Settings writeSettings = prodConfig.getSettings(Behavior.OpKind.WRITE_RETRYABLE,
+            ResolvedSettings writeSettings = prodConfig.getSettings(Behavior.OpKind.WRITE_RETRYABLE,
                 Behavior.OpShape.POINT, Behavior.Mode.AP);
             assertNotNull(writeSettings);
-            assertTrue(writeSettings.useDurableDelete);
-            assertEquals(5, writeSettings.maximumNumberOfCallAttempts);
+            assertTrue(writeSettings.getUseDurableDelete());
+            assertEquals(5, writeSettings.getMaximumNumberOfCallAttempts());
 
-            Settings batchSettings = prodConfig.getSettings(Behavior.OpKind.READ,
+            ResolvedSettings batchSettings = prodConfig.getSettings(Behavior.OpKind.READ,
                 Behavior.OpShape.BATCH, Behavior.Mode.AP);
             assertNotNull(batchSettings);
-            assertEquals(12, batchSettings.maxConcurrentNodes);
-            assertTrue(batchSettings.allowInlineMemoryAccess);
+            assertEquals(12, batchSettings.getMaxConcurrentNodes());
+            assertTrue(batchSettings.getAllowInlineMemoryAccess());
 
-            Settings querySettings = prodConfig.getSettings(Behavior.OpKind.READ,
+            ResolvedSettings querySettings = prodConfig.getSettings(Behavior.OpKind.READ,
                 Behavior.OpShape.QUERY, Behavior.Mode.AP);
             assertNotNull(querySettings);
-            assertEquals(8000, querySettings.recordQueueSize);
+            assertEquals(8000, querySettings.getRecordQueueSize());
         }
     }
 

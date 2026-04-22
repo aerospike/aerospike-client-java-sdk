@@ -21,7 +21,7 @@ import com.aerospike.client.sdk.Key;
 import com.aerospike.client.sdk.OpType;
 import com.aerospike.client.sdk.exp.Expression;
 import com.aerospike.client.sdk.policy.CommitLevel;
-import com.aerospike.client.sdk.policy.Settings;
+import com.aerospike.client.sdk.policy.ResolvedSettings;
 import com.aerospike.client.sdk.tend.Partition;
 import com.aerospike.client.sdk.tend.Partitions;
 
@@ -37,14 +37,19 @@ public class WriteCommand extends Command {
 
     public WriteCommand(
         Cluster cluster, Partitions partitions, Txn txn, Key key, OpType type, int gen, int ttl,
-        Expression where, boolean failOnFilteredOut, Settings settings
+        Expression where, boolean failOnFilteredOut, ResolvedSettings settings
     ) {
         this(cluster, partitions, txn, key, type, gen, ttl, where, failOnFilteredOut, settings, null);
     }
 
+    public WriteCommand(Cluster cluster, Partitions partitions, Key key, ResolvedSettings settings) {
+        this(cluster, partitions, null, key, OpType.UPSERT, 0, 0, null, false, settings, null);
+    }
+
     public WriteCommand(
         Cluster cluster, Partitions partitions, Txn txn, Key key, OpType type, int gen, int ttl,
-        Expression where, boolean failOnFilteredOut, Settings settings, Boolean durableDeleteOverride
+        Expression where, boolean failOnFilteredOut, ResolvedSettings settings,
+        Boolean durableDeleteOverride
     ) {
         super(cluster, key.namespace, txn, where, settings.getReplicaOrder(), settings);
         this.key = key;
@@ -55,9 +60,5 @@ public class WriteCommand extends Command {
         this.ttl = ttl;
         this.durableDelete = settings.getUseDurableDelete(durableDeleteOverride);
         this.failOnFilteredOut = failOnFilteredOut;
-    }
-
-    public WriteCommand(Cluster cluster, Partitions partitions, Key key, Settings settings) {
-        this(cluster, partitions, null, key, OpType.UPSERT, 0, 0, null, false, settings, null);
     }
 }

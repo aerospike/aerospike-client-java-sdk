@@ -59,10 +59,7 @@ public class AddTest extends ClusterTest {
 
         assertTrue(rs.hasNext());
         rec = rs.next().recordOrThrow();
-
-        // TODO: Return values in op order and add Record.getValue(int offset) methods?
-        List<?> list = rec.getList(binName);
-        val = (int)(long)list.get(1);
+        val = rec.operationResult(1).getInt();
         assertEquals(45, val);
     }
 
@@ -107,10 +104,7 @@ public class AddTest extends ClusterTest {
 
         assertTrue(rs.hasNext());
         rec = rs.next().recordOrThrow();
-
-        // TODO: Return values in op order and add Record.getValue(int offset) methods?
-        List<?> list = rec.getList(binName);
-        val = (int)(long)list.get(1);
+        val = rec.operationResult(1).getInt();
         assertEquals(45, val);
     }
 
@@ -154,10 +148,7 @@ public class AddTest extends ClusterTest {
         for (int i = 10; i < 20; i++) {
             assertTrue(rs.hasNext());
             Record rec = rs.next().recordOrThrow();
-
-            // TODO: Return values in op order and add Record.getValue(int offset) methods?
-            List<?> list = rec.getList(binName);
-            int val = (int)(long)list.get(1);
+            int val = rec.operationResult(1).getInt();
             assertEquals(45, val);
         }
     }
@@ -208,10 +199,7 @@ public class AddTest extends ClusterTest {
         for (int i = 10; i < 20; i++) {
             assertTrue(rs.hasNext());
             rec = rs.next().recordOrThrow();
-
-            // TODO: Return values in op order and add Record.getValue(int offset) methods?
-            List<?> list = rec.getList(binName);
-            int val = (int)(long)list.get(1);
+            int val = rec.operationResult(1).getInt();
             assertEquals(45, val);
         }
     }

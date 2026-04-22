@@ -30,9 +30,9 @@ import com.aerospike.client.sdk.cdt.ListOperation;
 import com.aerospike.client.sdk.cdt.ListOrder;
 import com.aerospike.client.sdk.cdt.ListPolicy;
 import com.aerospike.client.sdk.cdt.ListWriteFlags;
-import com.aerospike.client.sdk.policy.Settings;
 import com.aerospike.client.sdk.policy.Behavior.OpKind;
 import com.aerospike.client.sdk.policy.Behavior.OpShape;
+import com.aerospike.client.sdk.policy.ResolvedSettings;
 import com.aerospike.client.sdk.tend.Partitions;
 
 public final class TxnMonitor {
@@ -157,7 +157,7 @@ public final class TxnMonitor {
         Cluster cluster = session.getCluster();
         Partitions partitions = cluster.getPartitionMap().get(txn.getNamespace());
 
-        Settings settings = session.getBehavior().getSettings(OpKind.WRITE_NON_RETRYABLE,
+        ResolvedSettings settings = session.getBehavior().getSettings(OpKind.WRITE_NON_RETRYABLE,
             OpShape.POINT, partitions.scMode);
 
         OperateWriteCommand cmd = new OperateWriteCommand(cluster, partitions, txn, txnKey, ops,

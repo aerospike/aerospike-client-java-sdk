@@ -30,6 +30,7 @@ import com.aerospike.client.sdk.Session;
 import com.aerospike.client.sdk.SystemSettings;
 import com.aerospike.client.sdk.SystemSettingsRegistry;
 import com.aerospike.client.sdk.policy.Behavior;
+import com.aerospike.client.sdk.policy.ResolvedSettings;
 import com.aerospike.client.sdk.policy.Settings;
 import com.aerospike.client.sdk.util.Util;
 
@@ -137,7 +138,7 @@ public class CompleteYamlConfigExample extends Example {
             console.write("  Parent: " + behavior.getParent().name());
         }
 
-        Settings readAP = behavior.getSettings(Behavior.OpKind.READ, Behavior.OpShape.POINT, Behavior.Mode.AP);
+        ResolvedSettings readAP = behavior.getSettings(Behavior.OpKind.READ, Behavior.OpShape.POINT, Behavior.Mode.AP);
         if (readAP != null) {
             console.write("  Point Reads (AP):");
             console.write("    abandonCallAfter: " + readAP.getAbandonCallAfterMs() + "ms");
@@ -146,14 +147,14 @@ public class CompleteYamlConfigExample extends Example {
             console.write("    resetTtlOnReadAtPercent: " + readAP.getResetTtlOnReadAtPercent() + "%");
         }
 
-        Settings readCP = behavior.getSettings(Behavior.OpKind.READ, Behavior.OpShape.POINT, Behavior.Mode.CP);
+        ResolvedSettings readCP = behavior.getSettings(Behavior.OpKind.READ, Behavior.OpShape.POINT, Behavior.Mode.CP);
         if (readCP != null) {
             console.write("  Point Reads (CP):");
             console.write("    abandonCallAfter: " + readCP.getAbandonCallAfterMs() + "ms");
             console.write("    readModeSC: " + readCP.getReadModeSC());
         }
 
-        Settings writeRetryable = behavior.getSettings(Behavior.OpKind.WRITE_RETRYABLE, Behavior.OpShape.POINT, Behavior.Mode.AP);
+        ResolvedSettings writeRetryable = behavior.getSettings(Behavior.OpKind.WRITE_RETRYABLE, Behavior.OpShape.POINT, Behavior.Mode.AP);
         if (writeRetryable != null) {
             console.write("  Retryable Writes:");
             console.write("    abandonCallAfter: " + writeRetryable.getAbandonCallAfterMs() + "ms");
@@ -161,14 +162,14 @@ public class CompleteYamlConfigExample extends Example {
             console.write("    useDurableDelete: " + writeRetryable.getUseDurableDelete());
         }
 
-        Settings writeNonRetryable = behavior.getSettings(Behavior.OpKind.WRITE_NON_RETRYABLE, Behavior.OpShape.POINT, Behavior.Mode.AP);
+        ResolvedSettings writeNonRetryable = behavior.getSettings(Behavior.OpKind.WRITE_NON_RETRYABLE, Behavior.OpShape.POINT, Behavior.Mode.AP);
         if (writeNonRetryable != null) {
             console.write("  Non-Retryable Writes:");
             console.write("    abandonCallAfter: " + writeNonRetryable.getAbandonCallAfterMs() + "ms");
             console.write("    useDurableDelete: " + writeNonRetryable.getUseDurableDelete());
         }
 
-        Settings batchRead = behavior.getSettings(Behavior.OpKind.READ, Behavior.OpShape.BATCH, Behavior.Mode.AP);
+        ResolvedSettings batchRead = behavior.getSettings(Behavior.OpKind.READ, Behavior.OpShape.BATCH, Behavior.Mode.AP);
         if (batchRead != null) {
             console.write("  Batch Reads:");
             console.write("    abandonCallAfter: " + batchRead.getAbandonCallAfterMs() + "ms");
@@ -177,14 +178,14 @@ public class CompleteYamlConfigExample extends Example {
             console.write("    allowInlineSsdAccess: " + batchRead.getAllowInlineSsdAccess());
         }
 
-        Settings batchWrite = behavior.getSettings(Behavior.OpKind.WRITE_RETRYABLE, Behavior.OpShape.BATCH, Behavior.Mode.AP);
+        ResolvedSettings batchWrite = behavior.getSettings(Behavior.OpKind.WRITE_RETRYABLE, Behavior.OpShape.BATCH, Behavior.Mode.AP);
         if (batchWrite != null) {
             console.write("  Batch Writes:");
             console.write("    abandonCallAfter: " + batchWrite.getAbandonCallAfterMs() + "ms");
             console.write("    maxConcurrentNodes: " + batchWrite.getMaxConcurrentNodes());
         }
 
-        Settings query = behavior.getSettings(Behavior.OpKind.READ, Behavior.OpShape.QUERY, Behavior.Mode.AP);
+        ResolvedSettings query = behavior.getSettings(Behavior.OpKind.READ, Behavior.OpShape.QUERY, Behavior.Mode.AP);
         if (query != null) {
             console.write("  Query:");
             console.write("    abandonCallAfter: " + query.getAbandonCallAfterMs() + "ms");
@@ -203,15 +204,15 @@ public class CompleteYamlConfigExample extends Example {
         if (parent != Behavior.DEFAULT && child != Behavior.DEFAULT) {
             console.write("Comparing 'batch-optimized' (child) with 'high-performance' (parent):\n");
 
-            Settings parentBatch = parent.getSettings(Behavior.OpKind.READ, Behavior.OpShape.BATCH, Behavior.Mode.AP);
-            Settings childBatch = child.getSettings(Behavior.OpKind.READ, Behavior.OpShape.BATCH, Behavior.Mode.AP);
+            ResolvedSettings parentBatch = parent.getSettings(Behavior.OpKind.READ, Behavior.OpShape.BATCH, Behavior.Mode.AP);
+            ResolvedSettings childBatch = child.getSettings(Behavior.OpKind.READ, Behavior.OpShape.BATCH, Behavior.Mode.AP);
 
             console.write("Batch Reads - maxConcurrentNodes:");
             console.write("  high-performance (parent): " + parentBatch.getMaxConcurrentNodes());
             console.write("  batch-optimized (child):   " + childBatch.getMaxConcurrentNodes() + " (overridden)");
 
-            Settings parentPoint = parent.getSettings(Behavior.OpKind.READ, Behavior.OpShape.POINT, Behavior.Mode.AP);
-            Settings childPoint = child.getSettings(Behavior.OpKind.READ, Behavior.OpShape.POINT, Behavior.Mode.AP);
+            ResolvedSettings parentPoint = parent.getSettings(Behavior.OpKind.READ, Behavior.OpShape.POINT, Behavior.Mode.AP);
+            ResolvedSettings childPoint = child.getSettings(Behavior.OpKind.READ, Behavior.OpShape.POINT, Behavior.Mode.AP);
 
             console.write("\nPoint Reads - abandonCallAfter:");
             console.write("  high-performance (parent): " + parentPoint.getAbandonCallAfterMs() + "ms");
@@ -224,8 +225,8 @@ public class CompleteYamlConfigExample extends Example {
         if (analytics != Behavior.DEFAULT && reliability != Behavior.DEFAULT) {
             console.write("\nComparing 'analytics' (child) with 'high-reliability' (parent):\n");
 
-            Settings parentQuery = reliability.getSettings(Behavior.OpKind.READ, Behavior.OpShape.QUERY, Behavior.Mode.AP);
-            Settings childQuery = analytics.getSettings(Behavior.OpKind.READ, Behavior.OpShape.QUERY, Behavior.Mode.AP);
+            ResolvedSettings parentQuery = reliability.getSettings(Behavior.OpKind.READ, Behavior.OpShape.QUERY, Behavior.Mode.AP);
+            ResolvedSettings childQuery = analytics.getSettings(Behavior.OpKind.READ, Behavior.OpShape.QUERY, Behavior.Mode.AP);
 
             console.write("Query - recordQueueSize:");
             console.write("  high-reliability (parent): " + parentQuery.getRecordQueueSize());
@@ -236,7 +237,7 @@ public class CompleteYamlConfigExample extends Example {
         if (cacheRefresh != Behavior.DEFAULT) {
             console.write("\nDemonstrating 'cache-refresh' with resetTtlOnReadAtPercent:\n");
 
-            Settings cacheRead = cacheRefresh.getSettings(Behavior.OpKind.READ, Behavior.OpShape.POINT, Behavior.Mode.AP);
+            ResolvedSettings cacheRead = cacheRefresh.getSettings(Behavior.OpKind.READ, Behavior.OpShape.POINT, Behavior.Mode.AP);
             if (cacheRead != null) {
                 console.write("  resetTtlOnReadAtPercent: " + cacheRead.getResetTtlOnReadAtPercent() + "%");
             }

@@ -34,6 +34,7 @@ import com.aerospike.client.sdk.policy.Behavior.Mode;
 import com.aerospike.client.sdk.policy.Behavior.OpKind;
 import com.aerospike.client.sdk.policy.Behavior.OpShape;
 import com.aerospike.client.sdk.policy.Behavior.Selectors;
+import com.aerospike.client.sdk.policy.ResolvedSettings;
 import com.aerospike.client.sdk.policy.Settings;
 import com.aerospike.client.sdk.query.IndexCollectionType;
 import com.aerospike.client.sdk.query.IndexType;
@@ -257,7 +258,7 @@ public class DurableDeleteTests extends ClusterTest {
 
         Behavior probeBehavior = Behavior.DEFAULT.deriveWithChanges("BatchOperateDurableDeleteProbe", b -> b
             .on(Selectors.writes().nonRetryable().batch().cp(), ops -> ops.useDurableDelete(false)));
-        Settings batchWriteCp =
+        ResolvedSettings batchWriteCp =
             probeBehavior.getSettings(OpKind.WRITE_NON_RETRYABLE, OpShape.BATCH, Mode.CP);
         assertFalse(batchWriteCp.getUseDurableDelete(),
             "probe behavior must keep batch CP non-retryable durable-delete off in Settings");
@@ -342,7 +343,7 @@ public class DurableDeleteTests extends ClusterTest {
 
         Behavior probeBehavior = Behavior.DEFAULT.deriveWithChanges("BatchDdFalseOvProbe", b -> b
             .on(Selectors.writes().nonRetryable().batch().cp(), ops -> ops.useDurableDelete(true)));
-        Settings batchWriteCp =
+        ResolvedSettings batchWriteCp =
             probeBehavior.getSettings(OpKind.WRITE_NON_RETRYABLE, OpShape.BATCH, Mode.CP);
         assertTrue(batchWriteCp.getUseDurableDelete(),
             "probe: batch CP non-retryable durable-delete must be on in Settings (override false must win)");
@@ -389,7 +390,7 @@ public class DurableDeleteTests extends ClusterTest {
 
         Behavior probeBehavior = Behavior.DEFAULT.deriveWithChanges("BatchDdTrueOvProbe", b -> b
             .on(Selectors.writes().nonRetryable().batch().cp(), ops -> ops.useDurableDelete(false)));
-        Settings batchWriteCp =
+        ResolvedSettings batchWriteCp =
             probeBehavior.getSettings(OpKind.WRITE_NON_RETRYABLE, OpShape.BATCH, Mode.CP);
         assertFalse(batchWriteCp.getUseDurableDelete(),
             "probe: batch CP non-retryable durable-delete must be off in Settings (override supplies true)");

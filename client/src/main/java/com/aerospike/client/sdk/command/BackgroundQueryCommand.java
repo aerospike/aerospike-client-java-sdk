@@ -25,7 +25,7 @@ import com.aerospike.client.sdk.Operation;
 import com.aerospike.client.sdk.Value;
 import com.aerospike.client.sdk.exp.Expression;
 import com.aerospike.client.sdk.policy.CommitLevel;
-import com.aerospike.client.sdk.policy.Settings;
+import com.aerospike.client.sdk.policy.ResolvedSettings;
 import com.aerospike.client.sdk.query.Filter;
 
 public final class BackgroundQueryCommand extends Command {
@@ -44,63 +44,42 @@ public final class BackgroundQueryCommand extends Command {
 
     public BackgroundQueryCommand(
         Cluster cluster, DataSet set, long taskId, OpType type, List<Operation> ops, int ttl,
-        Filter filter, Expression filterExp, Settings policy, int recordsPerSecond
-    ) {
-        this(cluster, set, taskId, type, ops, ttl, filter, filterExp, policy, recordsPerSecond, null);
-    }
-
-    /**
-     * @param durableDeleteOverride when non-null, overrides {@link Settings#getUseDurableDelete()} for
-     *        this background job (avoids copying {@link Settings}).
-     */
-    public BackgroundQueryCommand(
-        Cluster cluster, DataSet set, long taskId, OpType type, List<Operation> ops, int ttl,
-        Filter filter, Expression filterExp, Settings policy, int recordsPerSecond,
+        Filter filter, Expression filterExp, ResolvedSettings settings, int recordsPerSecond,
         Boolean durableDeleteOverride
     ) {
-        super(cluster, set.getNamespace(), null, filterExp, policy.getReplicaOrder(), policy);
+        super(cluster, set.getNamespace(), null, filterExp, settings.getReplicaOrder(), settings);
         this.taskId = taskId;
         this.set = set.getSet();
         this.filter = filter;
         this.type = type;
-        this.commitLevel = policy.getCommitLevel();
+        this.commitLevel = settings.getCommitLevel();
         this.ops = ops;
         this.packageName = null;
         this.functionName = null;
         this.functionArgs = null;
         this.recordsPerSecond = recordsPerSecond;
         this.ttl = ttl;
-        this.durableDelete = policy.getUseDurableDelete(durableDeleteOverride);
+        this.durableDelete = settings.getUseDurableDelete(durableDeleteOverride);
     }
 
     public BackgroundQueryCommand(
-        Cluster cluster, DataSet set, long taskId, OpType type, int ttl,
+        Cluster cluster, DataSet set, long taskId, OpType type,  int ttl,
         String packageName, String functionName, Value[] functionArgs,
-        Filter filter, Expression filterExp, Settings policy, int recordsPerSecond
-    ) {
-        this(cluster, set, taskId, type, ttl, packageName, functionName, functionArgs, filter, filterExp,
-            policy, recordsPerSecond, null);
-    }
-
-    public BackgroundQueryCommand(
-        Cluster cluster, DataSet set, long taskId, OpType type, int ttl,
-        String packageName, String functionName, Value[] functionArgs,
-        Filter filter, Expression filterExp, Settings policy, int recordsPerSecond,
+        Filter filter, Expression filterExp, ResolvedSettings settings, int recordsPerSecond,
         Boolean durableDeleteOverride
     ) {
-        super(cluster, set.getNamespace(), null, filterExp, policy.getReplicaOrder(), policy);
+        super(cluster, set.getNamespace(), null, filterExp, settings.getReplicaOrder(), settings);
         this.taskId = taskId;
         this.set = set.getSet();
         this.filter = filter;
         this.type = type;
-        this.commitLevel = policy.getCommitLevel();
+        this.commitLevel = settings.getCommitLevel();
         this.packageName = packageName;
         this.functionName = functionName;
         this.functionArgs = functionArgs;
         this.ops = null;
         this.recordsPerSecond = recordsPerSecond;
         this.ttl = ttl;
-        this.durableDelete = policy.getUseDurableDelete(durableDeleteOverride);
+        this.durableDelete = settings.getUseDurableDelete(durableDeleteOverride);
     }
-
 }

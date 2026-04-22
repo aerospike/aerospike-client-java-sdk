@@ -19,7 +19,7 @@ package com.aerospike.client.sdk.command;
 import com.aerospike.client.sdk.OpType;
 import com.aerospike.client.sdk.policy.CommitLevel;
 import com.aerospike.client.sdk.policy.ReadModeAP;
-import com.aerospike.client.sdk.policy.Settings;
+import com.aerospike.client.sdk.policy.ResolvedSettings;
 
 public final class BatchAttr {
     public byte readAttr;
@@ -29,7 +29,7 @@ public final class BatchAttr {
     public boolean hasWrite;
     public boolean linearize;
 
-    public void setRead(Settings settings, boolean scMode) {
+    public void setRead(ResolvedSettings settings, boolean scMode) {
         readAttr = Command.INFO1_READ;
         writeAttr = 0;
         txnAttr = 0;
@@ -67,7 +67,7 @@ public final class BatchAttr {
         }
     }
 
-    public void setWrite(Settings settings, OpType type) {
+    public void setWrite(ResolvedSettings settings, OpType type) {
         readAttr = 0;
         writeAttr = (byte)(Command.INFO2_WRITE | Command.INFO2_RESPOND_ALL_OPS);
         infoAttr = 0;
@@ -104,7 +104,7 @@ public final class BatchAttr {
         }
     }
 
-    public void setUDF(Settings settings, OpType type) {
+    public void setUDF(ResolvedSettings settings, OpType type) {
         readAttr = 0;
         writeAttr = Command.INFO2_WRITE;
         infoAttr = 0;
@@ -141,7 +141,7 @@ public final class BatchAttr {
         }
     }
 
-    public void setDelete(Settings settings) {
+    public void setDelete(ResolvedSettings settings) {
         readAttr = 0;
         writeAttr = (byte)(Command.INFO2_WRITE | Command.INFO2_RESPOND_ALL_OPS | Command.INFO2_DELETE);
         infoAttr = 0;

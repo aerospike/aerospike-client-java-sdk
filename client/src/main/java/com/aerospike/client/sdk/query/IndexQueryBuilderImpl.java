@@ -31,10 +31,10 @@ import com.aerospike.client.sdk.ResultCode;
 import com.aerospike.client.sdk.Session;
 import com.aerospike.client.sdk.command.QueryCommand;
 import com.aerospike.client.sdk.exp.Expression;
-import com.aerospike.client.sdk.policy.Settings;
 import com.aerospike.client.sdk.policy.Behavior.Mode;
 import com.aerospike.client.sdk.policy.Behavior.OpKind;
 import com.aerospike.client.sdk.policy.Behavior.OpShape;
+import com.aerospike.client.sdk.policy.ResolvedSettings;
 
 public class IndexQueryBuilderImpl extends QueryImpl {
     private final DataSet dataSet;
@@ -78,7 +78,7 @@ public class IndexQueryBuilderImpl extends QueryImpl {
 
         Session session = getSession();
         Cluster cluster = session.getCluster();
-        Settings policy = session.getBehavior().getSettings(OpKind.READ, OpShape.QUERY, Mode.ANY);
+        ResolvedSettings policy = session.getBehavior().getSettings(OpKind.READ, OpShape.QUERY, Mode.ANY);
         AsyncRecordStream filtered = new AsyncRecordStream(policy.getRecordQueueSize());
 
         cluster.startVirtualThread(() -> {
@@ -113,7 +113,7 @@ public class IndexQueryBuilderImpl extends QueryImpl {
                 "dataset-based queries (scans and secondary index queries). " +
                 "Use key-based queries instead: session.query(dataSet.id(key1, key2, ...))");
         }
-        Settings policy = session.getBehavior().getSettings(OpKind.READ, OpShape.QUERY, Mode.ANY);
+        ResolvedSettings policy = session.getBehavior().getSettings(OpKind.READ, OpShape.QUERY, Mode.ANY);
         WhereClauseProcessor where = getQueryBuilder().getAel();
         Filter filter = null;
         Expression filterExp = null;

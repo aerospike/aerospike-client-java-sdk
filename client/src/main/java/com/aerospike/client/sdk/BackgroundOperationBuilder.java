@@ -26,10 +26,10 @@ import com.aerospike.client.sdk.command.BackgroundQueryNodeExecutor;
 import com.aerospike.client.sdk.command.NodeStatus;
 import com.aerospike.client.sdk.exp.Exp;
 import com.aerospike.client.sdk.exp.Expression;
-import com.aerospike.client.sdk.policy.Settings;
 import com.aerospike.client.sdk.policy.Behavior.Mode;
 import com.aerospike.client.sdk.policy.Behavior.OpKind;
 import com.aerospike.client.sdk.policy.Behavior.OpShape;
+import com.aerospike.client.sdk.policy.ResolvedSettings;
 import com.aerospike.client.sdk.query.Filter;
 import com.aerospike.client.sdk.query.PreparedAel;
 import com.aerospike.client.sdk.query.WhereClauseProcessor;
@@ -225,7 +225,7 @@ public class BackgroundOperationBuilder extends AbstractOperationBuilder<Backgro
 
         boolean retryable = areOperationsRetryable(ops);
 
-        Settings settings = session.getBehavior().getSettings(
+        ResolvedSettings settings = session.getBehavior().getSettings(
             retryable ? OpKind.WRITE_RETRYABLE : OpKind.WRITE_NON_RETRYABLE,
             OpShape.QUERY,
             Mode.ANY

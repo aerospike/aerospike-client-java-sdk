@@ -21,7 +21,7 @@ import java.util.List;
 import com.aerospike.client.sdk.Cluster;
 import com.aerospike.client.sdk.exp.Expression;
 import com.aerospike.client.sdk.policy.Replica;
-import com.aerospike.client.sdk.policy.Settings;
+import com.aerospike.client.sdk.policy.ResolvedSettings;
 import com.aerospike.client.sdk.tend.Partition;
 import com.aerospike.client.sdk.tend.Partitions;
 
@@ -38,7 +38,7 @@ public final class BatchCommand extends Command {
     public BatchCommand(
         Cluster cluster, Partitions partitions, Txn txn, String namespace,
         List<BatchRecord> records, Expression where, boolean includeMissingKeys,
-        boolean failOnFilteredOut, boolean linearize, Settings settings
+        boolean failOnFilteredOut, boolean linearize, ResolvedSettings settings
     ) {
         super(cluster, namespace, txn, where, settings.getReplicaOrder(), settings);
         this.records = records;

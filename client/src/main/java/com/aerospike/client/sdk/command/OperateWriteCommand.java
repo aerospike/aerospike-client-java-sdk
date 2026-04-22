@@ -23,7 +23,7 @@ import com.aerospike.client.sdk.Key;
 import com.aerospike.client.sdk.OpType;
 import com.aerospike.client.sdk.Operation;
 import com.aerospike.client.sdk.exp.Expression;
-import com.aerospike.client.sdk.policy.Settings;
+import com.aerospike.client.sdk.policy.ResolvedSettings;
 import com.aerospike.client.sdk.tend.Partitions;
 
 public class OperateWriteCommand extends WriteCommand {
@@ -31,19 +31,22 @@ public class OperateWriteCommand extends WriteCommand {
     final OperateArgs args;
 
     public OperateWriteCommand(
-        Cluster cluster, Partitions partitions, Txn txn, Key key, List<Operation> ops, OperateArgs args,
-        OpType type, int gen, int ttl, Expression filterExp, boolean failOnFilteredOut,
-        Settings policy
+        Cluster cluster, Partitions partitions, Txn txn, Key key, List<Operation> ops,
+        OperateArgs args, OpType type, int gen, int ttl, Expression filterExp,
+        boolean failOnFilteredOut, ResolvedSettings settings
     ) {
-        this(cluster, partitions, txn, key, ops, args, type, gen, ttl, filterExp, failOnFilteredOut, policy, null);
+        super(cluster, partitions, txn, key, type, gen, ttl, filterExp, failOnFilteredOut, settings,
+            null);
+        this.ops = ops;
+        this.args = args;
     }
 
     public OperateWriteCommand(
-        Cluster cluster, Partitions partitions, Txn txn, Key key, List<Operation> ops, OperateArgs args,
-        OpType type, int gen, int ttl, Expression filterExp, boolean failOnFilteredOut,
-        Settings policy, Boolean durableDeleteOverride
+        Cluster cluster, Partitions partitions, Txn txn, Key key, List<Operation> ops,
+        OperateArgs args, OpType type, int gen, int ttl, Expression filterExp,
+        boolean failOnFilteredOut, ResolvedSettings settings, Boolean durableDeleteOverride
     ) {
-        super(cluster, partitions, txn, key, type, gen, ttl, filterExp, failOnFilteredOut, policy,
+        super(cluster, partitions, txn, key, type, gen, ttl, filterExp, failOnFilteredOut, settings,
             durableDeleteOverride);
         this.ops = ops;
         this.args = args;

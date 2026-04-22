@@ -41,7 +41,7 @@ public class SystemBehaviorTest {
         Behavior behavior = Behavior.DEFAULT;
 
         // Get settings for txnVerify
-        Settings settings =
+        ResolvedSettings settings =
             behavior.getSettings(OpKind.SYSTEM_TXN_VERIFY, OpShape.SYSTEM, Mode.ANY);
 
         // Verify defaults as specified in the plan
@@ -68,7 +68,7 @@ public class SystemBehaviorTest {
                 .abandonCallAfter(Duration.ofSeconds(15))
                 .delayBetweenRetries(Duration.ofSeconds(2))));
 
-        Settings settings =
+        ResolvedSettings settings =
             behavior.getSettings(OpKind.SYSTEM_TXN_VERIFY, OpShape.SYSTEM, Mode.ANY);
 
         assertEquals(ReadModeSC.LINEARIZE, settings.getReadModeSC());
@@ -82,7 +82,7 @@ public class SystemBehaviorTest {
     @Test
     public void testTxnRollDefaults() {
         Behavior behavior = Behavior.DEFAULT;
-        Settings settings = behavior.getSettings(OpKind.SYSTEM_TXN_ROLL, OpShape.SYSTEM, Mode.ANY);
+        ResolvedSettings settings = behavior.getSettings(OpKind.SYSTEM_TXN_ROLL, OpShape.SYSTEM, Mode.ANY);
 
         // Verify defaults as specified in the plan
         assertEquals(6, settings.getMaximumNumberOfCallAttempts());
@@ -102,7 +102,7 @@ public class SystemBehaviorTest {
                 .abandonCallAfter(Duration.ofSeconds(12))
                 .delayBetweenRetries(Duration.ofMillis(500))));
 
-        Settings settings = behavior.getSettings(OpKind.SYSTEM_TXN_ROLL, OpShape.SYSTEM, Mode.ANY);
+        ResolvedSettings settings = behavior.getSettings(OpKind.SYSTEM_TXN_ROLL, OpShape.SYSTEM, Mode.ANY);
 
         assertEquals(Replica.MASTER, settings.getReplicaOrder());
         assertEquals(8, settings.getMaximumNumberOfCallAttempts());
@@ -196,7 +196,7 @@ public class SystemBehaviorTest {
             .on(Behavior.Selectors.transaction().txnVerify(), ops -> ops
                 .maximumNumberOfCallAttempts(12)));
 
-        Settings settings =
+        ResolvedSettings settings =
             behavior.getSettings(OpKind.SYSTEM_TXN_VERIFY, OpShape.SYSTEM, Mode.ANY);
         assertEquals(12, settings.getMaximumNumberOfCallAttempts());
     }
@@ -211,11 +211,11 @@ public class SystemBehaviorTest {
                 .maximumNumberOfCallAttempts(7)));
 
         // Verify read settings
-        Settings readSettings = behavior.getSettings(OpKind.READ, OpShape.BATCH, Mode.ANY);
+        ResolvedSettings readSettings = behavior.getSettings(OpKind.READ, OpShape.BATCH, Mode.ANY);
         assertEquals(5, readSettings.getMaximumNumberOfCallAttempts());
 
         // Verify write settings
-        Settings writeSettings =
+        ResolvedSettings writeSettings =
             behavior.getSettings(OpKind.WRITE_RETRYABLE, OpShape.BATCH, Mode.ANY);
         assertEquals(7, writeSettings.getMaximumNumberOfCallAttempts());
     }
@@ -229,7 +229,7 @@ public class SystemBehaviorTest {
                 .maximumNumberOfCallAttempts(10)));
 
         // Verify txnVerify
-        Settings txnVerifySettings =
+        ResolvedSettings txnVerifySettings =
             behavior.getSettings(OpKind.SYSTEM_TXN_VERIFY, OpShape.SYSTEM, Mode.ANY);
         assertEquals(ReadModeSC.LINEARIZE, txnVerifySettings.getReadModeSC());
         assertEquals(10, txnVerifySettings.getMaximumNumberOfCallAttempts());

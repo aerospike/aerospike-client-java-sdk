@@ -338,10 +338,7 @@ public class FilterExpTest extends ClusterTest {
 
         assertTrue(rs.hasNext());
         Record rec = rs.next().recordOrThrow();
-        List<?> list = rec.getList(binA);
-        assertEquals(2, list.size());
-        int val = (int)(long)list.get(1);
-        assertEquals(3, val);
+        assertEquals(3, rec.operationResult(1).getInt());
 
         rs = session.upsert(args.set.id(keyB))
             .bin(binA).setTo(3)
@@ -363,10 +360,7 @@ public class FilterExpTest extends ClusterTest {
 
         assertTrue(rs.hasNext());
         Record rec = rs.next().recordOrThrow();
-        List<?> list = rec.getList(binA);
-        assertEquals(2, list.size());
-        int val = (int)(long)list.get(1);
-        assertEquals(3, val);
+        assertEquals(3, rec.operationResult(1).getInt());
 
         AerospikeException ae = assertThrows(AerospikeException.class, () -> {
             RecordStream rs2 = session.upsert(args.set.id(keyB))
