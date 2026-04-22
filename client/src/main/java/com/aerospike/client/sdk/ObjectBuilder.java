@@ -984,7 +984,8 @@ public class ObjectBuilder<T> {
         Session session = opBuilder.getSession();
         Cluster cluster = session.getCluster();
 
-        String namespace = opBuilder.getDataSet().getNamespace();
+        DataSet dataSet = opBuilder.getDataSet();
+        String namespace = dataSet.getNamespace();
         Partitions partitions = getPartitions(cluster, namespace);
 
         settings = session.getBehavior()
@@ -1005,7 +1006,7 @@ public class ObjectBuilder<T> {
             records.add(new BatchWrite(key, null, attr, opBuilder.getOpType(), ops, generation, ttl));
         }
 
-        final Expression filterExp = getFilterExp(namespace, opBuilder.getDataSet().getSet());
+        final Expression filterExp = getFilterExp(namespace, dataSet.getSet());
 
         return new BatchCommand(cluster, partitions, txnToUse, namespace,
             records, filterExp, opBuilder.includeMissingKeys, opBuilder.failOnFilteredOut, false, settings);
