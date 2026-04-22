@@ -154,5 +154,32 @@ public class IndexTests {
         assertThat(index.getBin()).isEqualTo(BIN);
         assertThat(index.getIndexType()).isEqualTo(IndexType.STRING);
         assertThat(index.getBinValuesRatio()).isOne();
+        assertThat(index.getSetName()).isNull();
+    }
+
+    @Test
+    void build_accepts_optional_set_name() {
+        Index index = Index.builder()
+                .namespace(NAMESPACE)
+                .setName("mySet")
+                .bin(BIN)
+                .indexType(IndexType.INTEGER)
+                .binValuesRatio(0)
+                .build();
+
+        assertThat(index.getSetName()).isEqualTo("mySet");
+    }
+
+    @Test
+    void build_blank_set_name_normalized_to_null() {
+        Index index = Index.builder()
+                .namespace(NAMESPACE)
+                .setName("   ")
+                .bin(BIN)
+                .indexType(IndexType.INTEGER)
+                .binValuesRatio(0)
+                .build();
+
+        assertThat(index.getSetName()).isNull();
     }
 }

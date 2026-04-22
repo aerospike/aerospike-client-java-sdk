@@ -124,6 +124,7 @@ class IndexesMonitor {
                                 session.info().secondaryIndexDetails(sindex, false).ifPresent(details -> {
                                    indexes.add(Index.builder()
                                                .namespace(sindex.getNamespace())
+                                               .setName(sindex.getSet())
                                                .bin(sindex.getBin())
                                                .indexType(IndexType.valueOf(sindex.getType().name()))
                                                .name(sindex.getIndexName())

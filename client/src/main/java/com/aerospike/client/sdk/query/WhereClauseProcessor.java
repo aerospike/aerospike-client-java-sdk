@@ -38,8 +38,18 @@ import com.aerospike.client.sdk.exp.Expression;
 public abstract class WhereClauseProcessor {
     protected final boolean allowsIndex;
 
-    public abstract ParseResult process(String namespace, Session session);
+    /**
+     * Parse AEL with no query-set filtering of secondary indexes (legacy behavior).
+     */
+    public final ParseResult process(String namespace, Session session) {
+        return process(namespace, null, session);
+    }
 
+    /**
+     * Parse AEL; when {@code querySet} is non-null and non-blank, only indexes whose set matches
+     * (or have no set) participate in secondary-index selection.
+     */
+    public abstract ParseResult process(String namespace, String querySet, Session session);
 
     public WhereClauseProcessor(boolean allowsIndex) {
         this.allowsIndex = allowsIndex;
@@ -77,7 +87,7 @@ public abstract class WhereClauseProcessor {
                 .append(valTypeToString(filter.getValType()))
                 .append(" ] ")
                 .append(filterCriteriaToString(filter));
-        if (indexContext != null) {
+        if (indexContext != null && indexContext.getIndexes() != null) {
             Collection<Index> indexes = indexContext.getIndexes();
             sb.append("{");
             for (Index index : indexes) {
@@ -89,7 +99,7 @@ public abstract class WhereClauseProcessor {
         return sb.toString();
     }
 
-    public ParseResult process(String ael, String namespace, Session session) {
+    protected ParseResult process(String ael, String namespace, String querySet, Session session) {
         AelParser parser = new AelParserImpl();
 
         ParsedExpression parseResult;
@@ -97,7 +107,7 @@ public abstract class WhereClauseProcessor {
         ExpressionContext context = ExpressionContext.of(ael);
         if (allowsIndex) {
             Set<Index> indexes = session.getCluster().getIndexes();
-            indexContext = IndexContext.of(namespace, indexes);
+            indexContext = IndexContext.withQuerySet(namespace, querySet, indexes);
             parseResult = parser.parseExpression(context, indexContext);
         }
         else {
@@ -137,8 +147,8 @@ public abstract class WhereClauseProcessor {
         }
 
         @Override
-        public ParseResult process(String namespace, Session session) {
-            return process(this.ael, namespace, session);
+        public ParseResult process(String namespace, String querySet, Session session) {
+            return process(this.ael, namespace, querySet, session);
         }
     }
 
@@ -152,10 +162,10 @@ public abstract class WhereClauseProcessor {
         }
 
         @Override
-        public ParseResult process(String namespace, Session session) {
+        public ParseResult process(String namespace, String querySet, Session session) {
             // TODO: For now, until AEL supports prepared statements
             String aelStr = ael.formValue(params);
-            return process(aelStr, namespace,  session);
+            return process(aelStr, namespace, querySet, session);
         }
     }
 
@@ -167,7 +177,8 @@ public abstract class WhereClauseProcessor {
         }
 
         @Override
-        public ParseResult process(String namespace, Session session) {
+        public ParseResult process(String namespace, String querySet, Session session) {
+            // namespace, querySet, session intentionally ignored - not required in this implementation
              return new ParseResult(null, ael.toAerospikeExp());
         }
     }
@@ -180,7 +191,8 @@ public abstract class WhereClauseProcessor {
         }
 
         @Override
-        public ParseResult process(String namespace, Session session) {
+        public ParseResult process(String namespace, String querySet, Session session) {
+            // namespace, querySet, session intentionally ignored - not required in this implementation
             return new ParseResult(null, exp);
         }
     }
