@@ -968,7 +968,7 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
         String namespace = keys.get(0).namespace;
         Partitions partitions = getPartitions(cluster, namespace);
         ResolvedSettings policy = session.getBehavior().getSettings(OpKind.WRITE_RETRYABLE, OpShape.POINT, partitions.scMode);
-        final Expression filterExp = getFilterExp(session, namespace);
+        final Expression filterExp = getFilterExp(session, namespace, keys.get(0).setName);
         AsyncRecordStream asyncStream = new AsyncRecordStream(keys.size());
 
         if (txnToUse != null) {
