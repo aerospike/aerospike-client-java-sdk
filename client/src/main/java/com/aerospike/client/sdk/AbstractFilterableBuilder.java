@@ -68,17 +68,6 @@ public abstract class AbstractFilterableBuilder {
     }
 
     /**
-     * Determine if a result should be included based on result code and flags.
-     */
-    public boolean shouldIncludeResult(int resultCode) {
-        return switch (resultCode) {
-            case ResultCode.KEY_NOT_FOUND_ERROR -> includeMissingKeys;
-            case ResultCode.FILTERED_OUT -> failOnFilteredOut;
-            default -> true;
-        };
-    }
-
-    /**
      * Determine if an exception result should be published (single-key context).
      */
     protected boolean shouldPublishException(AerospikeException ae) {
@@ -91,7 +80,7 @@ public abstract class AbstractFilterableBuilder {
     /**
      * Create RecordResult from BatchRecord with proper stack trace handling.
      */
-    public static RecordResult createRecordResultFromBatchRecord(
+    static RecordResult createRecordResultFromBatchRecord(
         BatchRecord br,
         ResolvedSettings settings,
         int index

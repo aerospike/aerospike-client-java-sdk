@@ -104,14 +104,14 @@ public class RecordStream implements Iterator<RecordResult>, Closeable {
      * Creates an empty RecordStream with no implementation.
      * This constructor is typically used internally or for creating an empty stream.
      */
-    public RecordStream() {impl = null;}
+    RecordStream() {impl = null;}
 
     /**
      * Creates a RecordStream containing a single RecordResult.
      *
      * @param rec the single record result to include in the stream
      */
-    public RecordStream(RecordResult rec) {
+    RecordStream(RecordResult rec) {
         impl = new SingleItemRecordStream(rec);
     }
 
@@ -121,7 +121,7 @@ public class RecordStream implements Iterator<RecordResult>, Closeable {
      * @param key the key of the record
      * @param record the record data
      */
-    public RecordStream(Key key, Record record) {
+    RecordStream(Key key, Record record) {
         RecordResult rec = new RecordResult(key, record, 0); // Single item, index = 0
         impl = new SingleItemRecordStream(rec);
     }
@@ -132,7 +132,7 @@ public class RecordStream implements Iterator<RecordResult>, Closeable {
      * @param records the list of results
      * @param limit the maximum number of records to include (0 or negative means no limit)
      */
-    public RecordStream(List<RecordResult> records, long limit) {
+    RecordStream(List<RecordResult> records, long limit) {
         AsyncRecordStream asyncStream = new AsyncRecordStream(Math.max(100, records.size()));
 
         // Filter and limit records
@@ -465,7 +465,9 @@ public class RecordStream implements Iterator<RecordResult>, Closeable {
                         while (demand.get() <= 0 && !cancelled.get()) {
                             LockSupport.park();
                         }
-                        if (cancelled.get()) return;
+                        if (cancelled.get()) {
+                            return;
+                        }
                         demand.decrementAndGet();
                         subscriber.onNext(source.next());
                     }

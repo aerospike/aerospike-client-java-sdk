@@ -33,7 +33,6 @@ import com.aerospike.client.sdk.policy.Behavior.OpKind;
 import com.aerospike.client.sdk.policy.Behavior.OpShape;
 import com.aerospike.client.sdk.policy.QueryDuration;
 import com.aerospike.client.sdk.policy.ResolvedSettings;
-import com.aerospike.client.sdk.policy.Settings;
 import com.aerospike.client.sdk.query.IndexCollectionType;
 import com.aerospike.client.sdk.query.IndexType;
 import com.aerospike.client.sdk.task.ExecuteTask;
@@ -235,7 +234,7 @@ public class CommonExample extends Example {
                 .where(Ael.stringBin("name").eq("Fred"))
                 .includeMissingKeys()
                 .execute()
-                .getFirst();
+                .getFirst(false);
 
         rec.ifPresentOrElse(
                 val -> System.out.println("Record for Fred exists, value: " + val),
@@ -390,10 +389,6 @@ public class CommonExample extends Example {
             .execute());
 
         printRecordStream("Batch read expression", session.query(set.ids(1,2,3))
-            .bin("ageIn20Years").selectFrom("$.age + 20")
-            .execute());
-
-        printRecordStream("Query read expression", session.query(set)
             .bin("ageIn20Years").selectFrom("$.age + 20")
             .execute());
     }

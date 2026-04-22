@@ -23,7 +23,6 @@ import java.util.Set;
 import com.aerospike.client.sdk.Cluster;
 import com.aerospike.client.sdk.policy.Behavior;
 import com.aerospike.client.sdk.policy.ResolvedSettings;
-import com.aerospike.client.sdk.policy.Settings;
 
 /**
  * Example demonstrating how to load Behavior configurations from YAML files

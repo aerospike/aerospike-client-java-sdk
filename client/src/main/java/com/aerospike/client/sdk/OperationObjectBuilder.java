@@ -45,23 +45,6 @@ public class OperationObjectBuilder<T> extends AbstractFilterableBuilder impleme
     }
 
     /**
-     * {@inheritDoc}
-     *
-     * <p>Overridden to ensure UPDATE and REPLACE_IF_EXISTS operations always include
-     * KEY_NOT_FOUND_ERROR results, since these operations are expected to fail if the
-     * record doesn't exist.</p>
-     */
-    @Override
-    public boolean shouldIncludeResult(int resultCode) {
-        if (resultCode == ResultCode.KEY_NOT_FOUND_ERROR) {
-            // UPDATE and REPLACE_IF_EXISTS must report KEY_NOT_FOUND_ERROR because
-            // these operations are semantically expected to fail on non-existent records.
-            return includeMissingKeys || opType == OpType.UPDATE || opType == OpType.REPLACE_IF_EXISTS;
-        }
-        return super.shouldIncludeResult(resultCode);
-    }
-
-    /**
      * Specifies a list of objects to operate on.
      *
      * @param elements the list of objects to operate on
@@ -127,7 +110,7 @@ public class OperationObjectBuilder<T> extends AbstractFilterableBuilder impleme
      *
      * @return the dataset
      */
-    public DataSet getDataSet() {
+    DataSet getDataSet() {
         return dataSet;
     }
 
@@ -136,7 +119,7 @@ public class OperationObjectBuilder<T> extends AbstractFilterableBuilder impleme
      *
      * @return the session
      */
-    public Session getSession() {
+    Session getSession() {
         return session;
     }
 
@@ -145,10 +128,9 @@ public class OperationObjectBuilder<T> extends AbstractFilterableBuilder impleme
      *
      * @return the operation type
      */
-    public OpType getOpType() {
+    OpType getOpType() {
         return opType;
     }
-
 
     /**
      * {@inheritDoc}
@@ -218,7 +200,7 @@ public class OperationObjectBuilder<T> extends AbstractFilterableBuilder impleme
      *
      * @return the where clause processor, or null if no where clause has been set
      */
-    public WhereClauseProcessor getAel() {
+    WhereClauseProcessor getAel() {
         return ael;
     }
 

@@ -93,23 +93,6 @@ public abstract class AbstractSessionOperationBuilder<T extends AbstractSessionO
     }
 
     /**
-     * {@inheritDoc}
-     *
-     * <p>Overridden to ensure UPDATE and REPLACE_IF_EXISTS operations always include
-     * KEY_NOT_FOUND_ERROR results, since these operations are expected to fail if the
-     * record doesn't exist.</p>
-     */
-    @Override
-    public boolean shouldIncludeResult(int resultCode) {
-        if (resultCode == ResultCode.KEY_NOT_FOUND_ERROR) {
-            // UPDATE and REPLACE_IF_EXISTS must report KEY_NOT_FOUND_ERROR because
-            // these operations are semantically expected to fail on non-existent records.
-            return isEffectiveIncludeMissingKeys();
-        }
-        return super.shouldIncludeResult(resultCode);
-    }
-
-    /**
      * Set the expiration for the record relative to the current time.
      *
      * @param duration The duration after which the record should expire

@@ -8,8 +8,6 @@ import com.aerospike.client.sdk.Cluster;
 import com.aerospike.client.sdk.ClusterDefinition;
 import com.aerospike.client.sdk.DataSet;
 import com.aerospike.client.sdk.Session;
-import com.aerospike.client.sdk.exp.Exp;
-import com.aerospike.client.sdk.exp.Expression;
 import com.aerospike.client.sdk.policy.Behavior;
 
 public class StudentScoresExample {
@@ -21,14 +19,14 @@ public class StudentScoresExample {
             scores.put(subject, 55 + random.nextInt(46)); // scores between 55 and 100
         }
         return scores;
-    }    
-    
+    }
+
     public static void main(String[] args) {
         // -- Connect --
         try (Cluster cluster = new ClusterDefinition("localhost", 3100)
                 .withNativeCredentials("admin", "admin123")
                 .connect()) {
-            
+
             Session session = cluster.createSession(Behavior.DEFAULT);
             DataSet class10a = DataSet.of("test", "class10a");
             // -- Write 30 student records --
@@ -38,7 +36,7 @@ public class StudentScoresExample {
                     .bin("scores").setTo(generateScores(i))
                     .execute();
             }
-            
+
             // -- Query: students with any score >= 90 --
             session.query(class10a)
                 .where("$.scores.{=90:}.count() > 0")
@@ -46,7 +44,7 @@ public class StudentScoresExample {
                 .forEach(r -> System.out.printf("%s: %s%n",
                     r.recordOrThrow().getString("name"),
                     r.recordOrThrow().getMap("scores")));
-            
+
         }
     }
 }

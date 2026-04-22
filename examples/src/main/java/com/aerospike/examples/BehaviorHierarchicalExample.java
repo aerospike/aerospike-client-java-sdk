@@ -23,7 +23,6 @@ import java.time.format.DateTimeFormatter;
 
 import com.aerospike.client.sdk.Cluster;
 import com.aerospike.client.sdk.policy.Behavior;
-import com.aerospike.client.sdk.policy.Settings;
 import com.aerospike.client.sdk.policy.Behavior.OpKind;
 import com.aerospike.client.sdk.policy.Behavior.OpShape;
 import com.aerospike.client.sdk.policy.ResolvedSettings;

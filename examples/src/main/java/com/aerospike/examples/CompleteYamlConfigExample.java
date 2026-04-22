@@ -31,7 +31,6 @@ import com.aerospike.client.sdk.SystemSettings;
 import com.aerospike.client.sdk.SystemSettingsRegistry;
 import com.aerospike.client.sdk.policy.Behavior;
 import com.aerospike.client.sdk.policy.ResolvedSettings;
-import com.aerospike.client.sdk.policy.Settings;
 import com.aerospike.client.sdk.util.Util;
 
 /**

@@ -24,7 +24,6 @@ import com.aerospike.client.sdk.RecordStream;
 import com.aerospike.client.sdk.Session;
 import com.aerospike.client.sdk.policy.Behavior;
 import com.aerospike.client.sdk.policy.ResolvedSettings;
-import com.aerospike.client.sdk.policy.Settings;
 import com.aerospike.client.sdk.util.Util;
 
 /**
