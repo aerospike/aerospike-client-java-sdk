@@ -39,17 +39,17 @@ public class WriteCommand extends Command {
         Cluster cluster, Partitions partitions, Txn txn, Key key, OpType type, int gen, int ttl,
         Expression where, boolean failOnFilteredOut, ResolvedSettings settings
     ) {
-        this(cluster, partitions, txn, key, type, gen, ttl, where, failOnFilteredOut, settings, null);
+        this(cluster, partitions, txn, key, type, gen, ttl, where, failOnFilteredOut, settings, null, null);
     }
 
     public WriteCommand(Cluster cluster, Partitions partitions, Key key, ResolvedSettings settings) {
-        this(cluster, partitions, null, key, OpType.UPSERT, 0, 0, null, false, settings, null);
+        this(cluster, partitions, null, key, OpType.UPSERT, 0, 0, null, false, settings, null, null);
     }
 
     public WriteCommand(
         Cluster cluster, Partitions partitions, Txn txn, Key key, OpType type, int gen, int ttl,
         Expression where, boolean failOnFilteredOut, ResolvedSettings settings,
-        Boolean durableDeleteOverride
+        Boolean durableDeleteDefault, Boolean durableDeleteOverride
     ) {
         super(cluster, key.namespace, txn, where, settings.getReplicaOrder(), settings);
         this.key = key;
@@ -58,7 +58,7 @@ public class WriteCommand extends Command {
         this.commitLevel = settings.getCommitLevel();
         this.gen = gen;
         this.ttl = ttl;
-        this.durableDelete = settings.getUseDurableDelete(durableDeleteOverride);
+        this.durableDelete = settings.getUseDurableDelete(durableDeleteDefault, durableDeleteOverride);
         this.failOnFilteredOut = failOnFilteredOut;
     }
 }

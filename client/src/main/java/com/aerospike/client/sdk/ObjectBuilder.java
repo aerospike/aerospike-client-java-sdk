@@ -994,8 +994,10 @@ public class ObjectBuilder<T> {
         long effectiveExpiration = resolveTtl(expirationInSeconds, defaultExpirationInSeconds);
         int ttl = getExpirationAsInt(effectiveExpiration);
 
+        // TODO There is no current durableDeleteDefault nor operation specific durableDelete
+        // override for ObjectBuilder.
         BatchAttr attr = new BatchAttr();
-        attr.setWrite(settings, opBuilder.getOpType());
+        attr.setWrite(settings, opBuilder.getOpType(), null, null);
 
         List<BatchRecord> records = new ArrayList<>(elements.size());
 

@@ -940,7 +940,7 @@ public class ChainableUdfBuilder extends AbstractSessionOperationBuilder<Chainab
 
         return OperationSpecExecutor.execute(session, operationSpecs, defaultWhereClause,
             defaultExpirationInSeconds, txnToUse, notInAnyTransaction,
-            AbstractFilterableBuilder.defaultDisposition(operationSpecs));
+            AbstractFilterableBuilder.defaultDisposition(operationSpecs), durableDeleteDefault);
     }
 
     /**
@@ -977,7 +977,7 @@ public class ChainableUdfBuilder extends AbstractSessionOperationBuilder<Chainab
         }
 
         return OperationSpecExecutor.execute(session, operationSpecs, defaultWhereClause,
-            defaultExpirationInSeconds, txnToUse, notInAnyTransaction, disposition);
+            defaultExpirationInSeconds, txnToUse, notInAnyTransaction, disposition, durableDeleteDefault);
     }
 
     /**
@@ -1029,7 +1029,8 @@ public class ChainableUdfBuilder extends AbstractSessionOperationBuilder<Chainab
         cluster.startVirtualThread(() -> {
             try {
                 RecordStream syncResult = OperationSpecExecutor.execute(session, operationSpecs,
-                    defaultWhereClause, defaultExpirationInSeconds, txnToUse, notInAnyTransaction);
+                    defaultWhereClause, defaultExpirationInSeconds, txnToUse, notInAnyTransaction,
+                    durableDeleteDefault);
                 syncResult.forEach(result -> dispatchResult(result, asyncStream, errorHandler));
             } finally {
                 asyncStream.complete();

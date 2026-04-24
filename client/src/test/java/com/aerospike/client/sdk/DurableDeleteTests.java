@@ -94,7 +94,7 @@ public class DurableDeleteTests extends ClusterTest {
             .function("record_example", "processRecord")
             .passing(ddUdfBin1, ddUdfBin2, 100)
             .where("$." + ddUdfBin1 + " >= 3 and $." + ddUdfBin1 + " <= 9")
-            .withDurableDelete();
+            .defaultWithDurableDelete();
 
         ExecuteTask task = bg.execute();
         task.waitTillComplete(3000, 3000);
@@ -155,9 +155,9 @@ public class DurableDeleteTests extends ClusterTest {
         session.insert(key).bin(binName).setTo(1).execute();
 
         RecordStream rs = session.update(key)
-            .withDurableDelete()
             .bin(binName).get()
             .deleteRecord()
+            .defaultWithDurableDelete()
             .execute();
 
         assertTrue(rs.hasNext());
@@ -170,7 +170,7 @@ public class DurableDeleteTests extends ClusterTest {
     }
 
     /**
-     * Regression: {@link OperationSpec#getDurablyDelete()} must be merged into batch delete wire format.
+     * Regression: {@link OperationSpec#getDurableDelete()} must be merged into batch delete wire format.
      * On SC without expunge, non-durable deletes can fail (or not reset state); without durable, a second
      * round of {@code add} would stack (e.g. 45 + 15 = 60). Two identical rounds must each yield 15.
      * <p>
@@ -178,7 +178,7 @@ public class DurableDeleteTests extends ClusterTest {
      * {@link #durableDeleteTombstoneAdvancesGenerationAfterReinsert} for a generation-based check.
      */
     @Test
-    public void batchDeleteDurablyDeleteResetsRecordsForRepeatAdds() {
+    public void batchDeleteDurableDeleteResetsRecordsForRepeatAdds() {
         Assumptions.assumeTrue(args.scMode,
             "Requires a strongly consistent namespace (durable batch delete vs repeat adds).");
         Assumptions.assumeTrue(args.enterprise,
@@ -190,21 +190,17 @@ public class DurableDeleteTests extends ClusterTest {
             firstKey, firstKey + 1, firstKey + 2, firstKey + 3, firstKey + 4,
             firstKey + 5, firstKey + 6, firstKey + 7, firstKey + 8, firstKey + 9);
 
-        for (int round = 0; round < 2; round++) {
-            RecordStream del = round == 0
-                ? session.delete(keys).durablyDelete(true).execute()
-                : session.delete(keys).withDurableDelete().execute();
-            assertBatchDeleteStreamOk(del, keys.size());
+        RecordStream del = session.delete(keys).withDurableDelete().execute();
+        assertBatchDeleteStreamOk(del, keys.size());
 
-            session.upsert(keys).bin(binName).add(10).execute();
-            session.upsert(keys).bin(binName).add(5).execute();
+        session.upsert(keys).bin(binName).add(10).execute();
+        session.upsert(keys).bin(binName).add(5).execute();
 
-            RecordStream rs = session.query(keys).readingOnlyBins(binName).execute();
-            for (int i = 0; i < keys.size(); i++) {
-                assertTrue(rs.hasNext(), "round " + round + " key index " + i);
-                Record rec = rs.next().recordOrThrow();
-                assertEquals(15, rec.getInt(binName), "round " + round + " key index " + i);
-            }
+        RecordStream rs = session.query(keys).readingOnlyBins(binName).execute();
+        for (int i = 0; i < keys.size(); i++) {
+            assertTrue(rs.hasNext(), "key index " + i);
+            Record rec = rs.next().recordOrThrow();
+            assertEquals(15, rec.getInt(binName), "key index " + i);
         }
     }
 
@@ -274,7 +270,7 @@ public class DurableDeleteTests extends ClusterTest {
         probeSession.upsert(keys).bin(binName).add(5).execute();
 
         RecordStream del = probeSession.upsert(keys)
-            .withDurableDelete()
+            .defaultWithDurableDelete()
             .bin(binName).get()
             .deleteRecord()
             .execute();
@@ -309,7 +305,7 @@ public class DurableDeleteTests extends ClusterTest {
 
         session.upsert(keys).bin(binName).add(1).execute();
 
-        RecordStream rs = session.delete(keys).durablyDelete(false).execute();
+        RecordStream rs = session.delete(keys).withoutDurableDelete().execute();
 
         int count = 0;
         while (rs.hasNext()) {
@@ -330,9 +326,8 @@ public class DurableDeleteTests extends ClusterTest {
     }
 
     /**
-     * {@link Settings#getUseDurableDelete()} is true for batch CP non-retryable writes, but
-     * {@code durablyDelete(false)} must still clear durable delete on the wire; SC then rejects the
-     * delete ({@link ResultCode#FAIL_FORBIDDEN}) and leaves the record.
+     * {@link ResolvedSettings#getUseDurableDelete()} is true for batch CP non-retryable writes, but
+     * SC then rejects the delete ({@link ResultCode#FAIL_FORBIDDEN}).
      */
     @Test
     public void batchDeleteExplicitNonDurableRejectedWhenBehaviorDurableTrue() {
@@ -356,13 +351,13 @@ public class DurableDeleteTests extends ClusterTest {
 
         probeSession.upsert(keys).bin(binName).add(1).execute();
 
-        RecordStream rs = probeSession.delete(keys).durablyDelete(false).execute();
+        RecordStream rs = probeSession.delete(keys).withoutDurableDelete().execute();
 
         int count = 0;
         while (rs.hasNext()) {
             RecordResult rr = rs.next();
             assertEquals(ResultCode.FAIL_FORBIDDEN, rr.resultCode(),
-                "settings true + durablyDelete(false) must not send durable delete on SC; got "
+                "settings true + durableDelete(false) must not send durable delete on SC; got "
                     + rr.resultCode() + " (" + ResultCode.getResultString(rr.resultCode()) + ") key="
                     + rr.key());
             count++;
@@ -418,11 +413,6 @@ public class DurableDeleteTests extends ClusterTest {
         }
     }
 
-    /**
-     * Baseline on SC: {@link Session} uses {@link Behavior#DEFAULT} and the caller does not use
-     * {@code withDurableDelete()} / {@code durablyDelete(...)} — resolved {@link Settings} for the
-     * point-delete path still enable durable delete, so the delete completes and the key is gone.
-     */
     @Test
     public void defaultSessionPointDeleteOnStrongConsistencyWithoutExplicitDurableOptIn() {
         Assumptions.assumeTrue(args.scMode,

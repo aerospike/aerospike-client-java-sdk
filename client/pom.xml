@@ -141,13 +141,13 @@
         <configuration>
           <doclint>none</doclint>
           <reportOutputDirectory>${basedir}</reportOutputDirectory>
-          <doctitle>Aerospike Java Client</doctitle>
+          <doctitle>Aerospike Java Client SDK</doctitle>
           <show>public</show>
           <splitindex>true</splitindex>
           <bottom>Copyright &#169; 2012&#x2013;{currentYear} Aerospike, Inc. All rights reserved.</bottom>
-          <sourcepath>${basedir}/src</sourcepath>
+          <sourcepath>${basedir}/src/main/java</sourcepath>
           <sourceFileIncludes>
-            <include>com/aerospike/client/*</include>
+            <include>com/aerospike/*</include>
           </sourceFileIncludes>
         </configuration>
       </plugin>

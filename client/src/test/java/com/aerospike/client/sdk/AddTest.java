@@ -115,7 +115,7 @@ public class AddTest extends ClusterTest {
 
         ChainableNoBinsBuilder del = session.delete(keys);
         if (args.scMode) {
-            del = del.durablyDelete(true);
+            del = del.withDurableDelete();
         }
         del.execute();
 
@@ -160,7 +160,7 @@ public class AddTest extends ClusterTest {
 
         ChainableNoBinsBuilder del = session.delete(keys);
         if (args.scMode) {
-            del = del.durablyDelete(true);
+            del = del.withDurableDelete();
         }
         del.execute();
 

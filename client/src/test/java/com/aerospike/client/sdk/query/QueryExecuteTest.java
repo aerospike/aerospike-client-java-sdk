@@ -83,7 +83,7 @@ public class QueryExecuteTest extends ClusterTest {
             .passing(binName1, binName2, 100)
             .where("$.tqebin1 >= 3 and $.tqebin1 <= 9");
         if (args.scMode) {
-            bg = bg.withDurableDelete();
+            bg = bg.defaultWithDurableDelete();
         }
         ExecuteTask task = bg.execute();
 

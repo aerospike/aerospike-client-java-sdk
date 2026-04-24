@@ -926,7 +926,8 @@ public class ChainableOperationBuilder extends AbstractOperationBuilder<Chainabl
 
         return OperationSpecExecutor.execute(session, operationSpecs, defaultWhereClause,
             defaultExpirationInSeconds, txnToUse, notInAnyTransaction,
-            AbstractFilterableBuilder.defaultDisposition(operationSpecs));
+            AbstractFilterableBuilder.defaultDisposition(operationSpecs),
+            durableDeleteDefault);
     }
 
     /**
@@ -964,7 +965,7 @@ public class ChainableOperationBuilder extends AbstractOperationBuilder<Chainabl
         }
 
         return OperationSpecExecutor.execute(session, operationSpecs, defaultWhereClause,
-            defaultExpirationInSeconds, txnToUse, notInAnyTransaction, disposition);
+            defaultExpirationInSeconds, txnToUse, notInAnyTransaction, disposition, durableDeleteDefault);
     }
 
     /**
@@ -1016,7 +1017,8 @@ public class ChainableOperationBuilder extends AbstractOperationBuilder<Chainabl
         cluster.startVirtualThread(() -> {
             try {
                 RecordStream syncResult = OperationSpecExecutor.execute(session, operationSpecs,
-                    defaultWhereClause, defaultExpirationInSeconds, txnToUse, notInAnyTransaction);
+                    defaultWhereClause, defaultExpirationInSeconds, txnToUse, notInAnyTransaction,
+                    durableDeleteDefault);
                 syncResult.forEach(result -> dispatchResult(result, asyncStream, errorHandler));
             } finally {
                 asyncStream.complete();
@@ -1032,35 +1034,6 @@ public class ChainableOperationBuilder extends AbstractOperationBuilder<Chainabl
         if (operationSpecs.isEmpty()) {
             throw new IllegalStateException("No operations specified");
         }
-        mergeBuilderDurableDeleteIntoOperateRecordDeleteSpecs();
-    }
-
-    private void mergeBuilderDurableDeleteIntoOperateRecordDeleteSpecs() {
-        if (durableDelete == null) {
-            return;
-        }
-        for (OperationSpec spec : operationSpecs) {
-            if (spec.getDurablyDelete() != null) {
-                continue;
-            }
-            if (!operationSpecContainsRecordDelete(spec)) {
-                continue;
-            }
-            spec.setDurablyDelete(durableDelete);
-        }
-    }
-
-    private static boolean operationSpecContainsRecordDelete(OperationSpec spec) {
-        List<Operation> ops = spec.getOperations();
-        if (ops == null) {
-            return false;
-        }
-        for (Operation op : ops) {
-            if (op.type == Operation.Type.DELETE) {
-                return true;
-            }
-        }
-        return false;
     }
 
     // ========================================
@@ -1175,6 +1148,11 @@ public class ChainableOperationBuilder extends AbstractOperationBuilder<Chainabl
         @Override
         public boolean isFailOnFilteredOut() {
             return currentSpec != null && currentSpec.isFailOnFilteredOut();
+        }
+
+        @Override
+        public Boolean getDurableDelete() {
+            return (currentSpec != null)? currentSpec.getDurableDelete() : null;
         }
 
 //        @Override

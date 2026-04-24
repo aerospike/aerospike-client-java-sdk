@@ -49,7 +49,7 @@ public abstract class AbstractSessionOperationBuilder<T extends AbstractSessionO
     protected Txn txnToUse;
     protected boolean notInAnyTransaction;
     protected boolean transactionSet;
-    protected Boolean durableDelete = null;
+    protected Boolean durableDeleteDefault;
 
     /**
      * TTL constant: Record never expires (TTL = -1)
@@ -288,8 +288,8 @@ public abstract class AbstractSessionOperationBuilder<T extends AbstractSessionO
      *
      * @return this builder for method chaining
      */
-    public T withDurableDelete() {
-        this.durableDelete = true;
+    public T defaultWithDurableDelete() {
+        this.durableDeleteDefault = true;
         return self();
     }
 
@@ -298,8 +298,8 @@ public abstract class AbstractSessionOperationBuilder<T extends AbstractSessionO
      *
      * @return this builder for method chaining
      */
-    public T withoutDurableDelete() {
-        this.durableDelete = false;
+    public T defaultWithoutDurableDelete() {
+        this.durableDeleteDefault = false;
         return self();
     }
 }

@@ -57,6 +57,8 @@ interface BinsValuesOperations {
 
     boolean isFailOnFilteredOut();
 
+    Boolean getDurableDelete();
+
     /**
      * Convert expiration in seconds to int, capping at Integer.MAX_VALUE.
      */

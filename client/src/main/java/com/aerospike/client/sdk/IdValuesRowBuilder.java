@@ -377,9 +377,11 @@ public class IdValuesRowBuilder {
      */
     public RecordStream execute() {
         List<OperationSpec> specs = materializeToSpecs();
+
+        // TODO There is no durableDeleteDefault for IdValuesRowBuilder.
         return OperationSpecExecutor.execute(session, specs, null,
             defaultExpirationInSeconds, txnToUse, notInAnyTransaction,
-            AbstractFilterableBuilder.defaultDisposition(specs));
+            AbstractFilterableBuilder.defaultDisposition(specs), null);
     }
 
     /**
@@ -407,8 +409,10 @@ public class IdValuesRowBuilder {
 
     private RecordStream executeWithDisposition(ErrorDisposition disposition) {
         List<OperationSpec> specs = materializeToSpecs();
+
+        // TODO There is no durableDeleteDefault for IdValuesRowBuilder.
         return OperationSpecExecutor.execute(session, specs, null, defaultExpirationInSeconds,
-            txnToUse, notInAnyTransaction, disposition);
+            txnToUse, notInAnyTransaction, disposition, null);
     }
 
     /**
@@ -454,8 +458,10 @@ public class IdValuesRowBuilder {
         Cluster cluster = session.getCluster();
         cluster.startVirtualThread(() -> {
             try {
+                // TODO There is no durableDeleteDefault for IdValuesRowBuilder.
                 RecordStream syncResult = OperationSpecExecutor.execute(
-                    session, specs, null, defaultExpirationInSeconds, txnToUse, notInAnyTransaction);
+                    session, specs, null, defaultExpirationInSeconds, txnToUse, notInAnyTransaction,
+                    null);
                 syncResult.forEach(result -> AbstractFilterableBuilder.dispatchResult(result, asyncStream, errorHandler));
             } finally {
                 asyncStream.complete();

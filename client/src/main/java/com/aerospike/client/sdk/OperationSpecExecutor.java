@@ -32,7 +32,6 @@ import com.aerospike.client.sdk.command.BatchSingle;
 import com.aerospike.client.sdk.command.BatchStatus;
 import com.aerospike.client.sdk.command.BatchUDF;
 import com.aerospike.client.sdk.command.BatchWrite;
-import com.aerospike.client.sdk.command.Command;
 import com.aerospike.client.sdk.command.DeleteExecutor;
 import com.aerospike.client.sdk.command.ExistsExecutor;
 import com.aerospike.client.sdk.command.IBatchCommand;
@@ -95,10 +94,11 @@ class OperationSpecExecutor {
      */
     public static RecordStream execute(
         Session session, List<OperationSpec> specs, Expression defaultWhereClause,
-        long defaultExpirationInSeconds, Txn txn, boolean notInAnyTransaction
+        long defaultExpirationInSeconds, Txn txn, boolean notInAnyTransaction,
+        Boolean durableDeleteDefault
     ) {
         return execute(session, specs, defaultWhereClause, defaultExpirationInSeconds, txn,
-            notInAnyTransaction, ErrorDisposition.IN_STREAM);
+            notInAnyTransaction, ErrorDisposition.IN_STREAM, durableDeleteDefault);
     }
 
     /**
@@ -116,7 +116,7 @@ class OperationSpecExecutor {
     public static RecordStream execute(
         Session session, List<OperationSpec> specs, Expression defaultWhereClause,
         long defaultExpirationInSeconds, Txn txn, boolean notInAnyTransaction,
-        ErrorDisposition disposition
+        ErrorDisposition disposition, Boolean durableDeleteDefault
     ) {
         if (specs.isEmpty()) {
             return new RecordStream();
@@ -129,9 +129,11 @@ class OperationSpecExecutor {
 
             if (keys.size() == 1) {
                 Key key = keys.get(0);
-                Expression filterExp = spec.getWhereClause() != null ? spec.getWhereClause() : defaultWhereClause;
+                Expression filterExp = spec.getWhereClause() != null ?
+                    spec.getWhereClause() : defaultWhereClause;
 
-                return executeSingleKey(session, spec, key, filterExp, defaultExpirationInSeconds, txn, disposition);
+                return executeSingleKey(session, spec, key, filterExp, defaultExpirationInSeconds,
+                    txn, disposition, durableDeleteDefault);
             }
         }
 
@@ -233,24 +235,22 @@ class OperationSpecExecutor {
                     case INSERT:
                     case REPLACE:
                     case REPLACE_IF_EXISTS:
-                        attr.setWrite(settings, spec.getOpType());
-                        mergeOperationSpecDurableDeleteIntoBatchAttr(attr, spec, settings);
+                        attr.setWrite(settings, spec.getOpType(), durableDeleteDefault, spec.getDurableDelete());
                         rec = new BatchWrite(key, attr, spec);
                         break;
 
                     case TOUCH:
-                        attr.setWrite(settings, spec.getOpType());
+                        attr.setTouch(settings);
                         rec = new BatchWrite(key, attr, spec, List.of(Operation.touch()), OpType.TOUCH);
                         break;
 
                     case DELETE:
-                        attr.setDelete(settings);
-                        mergeOperationSpecDurableDeleteIntoBatchAttr(attr, spec, settings);
+                        attr.setDelete(settings, durableDeleteDefault, spec.getDurableDelete());
                         rec = new BatchDelete(key, attr, spec);
                         break;
 
                     case UDF:
-                        attr.setUDF(settings, spec.getOpType());
+                        attr.setUDF(settings, spec.getOpType(), durableDeleteDefault, spec.getDurableDelete());
                         Expression udfWhereClause = spec.getWhereClause() != null ? spec.getWhereClause() : defaultWhereClause;
                         Value[] udfArgs = spec.getUdfArguments();
                         int udfTtl = (int) resolveTtl(spec, defaultExpirationInSeconds);
@@ -453,7 +453,8 @@ class OperationSpecExecutor {
      */
     private static RecordStream executeSingleKey(
         Session session, OperationSpec spec, Key key, Expression filterExp,
-        long defaultExpirationInSeconds, Txn txn, ErrorDisposition disposition
+        long defaultExpirationInSeconds, Txn txn, ErrorDisposition disposition,
+        Boolean durableDeleteDefault
     ) {
         Cluster cluster = session.getCluster();
         Behavior behavior = session.getBehavior();
@@ -461,7 +462,8 @@ class OperationSpecExecutor {
 
         try {
             partitions = cluster.getPartitions(key.namespace);
-        } catch (AerospikeException ae) {
+        }
+        catch (AerospikeException ae) {
             return handleSingleKeyError(key, ae, spec, disposition);
         }
 
@@ -472,19 +474,33 @@ class OperationSpecExecutor {
 
         try {
             if (spec.isQuery()) {
-                return executeSingleKeyRead(session, cluster, behavior, partitions, spec, key, filterExp, txn, scMode, includeMissingKeys, failOnFilteredOut);
-            } else if (spec.getOpType() == OpType.EXISTS) {
-                return executeSingleKeyExists(session, cluster, behavior, partitions, spec, key, filterExp, txn, scMode, failOnFilteredOut);
-            } else if (spec.getOpType() == OpType.TOUCH) {
-                return executeSingleKeyTouch(session, cluster, behavior, partitions, spec, key, filterExp, ttl, txn, scMode, failOnFilteredOut);
-            } else if (spec.getOpType() == OpType.DELETE) {
-                return executeSingleKeyDelete(session, cluster, behavior, partitions, spec, key, filterExp, txn, scMode, failOnFilteredOut);
-            } else if (spec.getOpType() == OpType.UDF) {
-                return executeSingleKeyUdf(session, cluster, behavior, partitions, spec, key, filterExp, ttl, txn, scMode, includeMissingKeys, failOnFilteredOut);
-            } else {
-                return executeSingleKeyWrite(session, cluster, behavior, partitions, spec, key, filterExp, ttl, txn, scMode, includeMissingKeys, failOnFilteredOut);
+                return executeSingleKeyRead(session, cluster, behavior, partitions, spec, key,
+                    filterExp, txn, scMode, includeMissingKeys, failOnFilteredOut);
             }
-        } catch (AerospikeException ae) {
+            else if (spec.getOpType() == OpType.EXISTS) {
+                return executeSingleKeyExists(session, cluster, behavior, partitions, spec, key,
+                    filterExp, txn, scMode, failOnFilteredOut);
+            }
+            else if (spec.getOpType() == OpType.TOUCH) {
+                return executeSingleKeyTouch(session, cluster, behavior, partitions, spec, key,
+                    filterExp, ttl, txn, scMode, failOnFilteredOut);
+            }
+            else if (spec.getOpType() == OpType.DELETE) {
+                return executeSingleKeyDelete(session, cluster, behavior, partitions, spec, key,
+                    filterExp, txn, scMode, failOnFilteredOut, durableDeleteDefault);
+            }
+            else if (spec.getOpType() == OpType.UDF) {
+                return executeSingleKeyUdf(session, cluster, behavior, partitions, spec, key,
+                    filterExp, ttl, txn, scMode, includeMissingKeys, failOnFilteredOut,
+                    durableDeleteDefault);
+            }
+            else {
+                return executeSingleKeyWrite(session, cluster, behavior, partitions, spec, key,
+                    filterExp, ttl, txn, scMode, includeMissingKeys, failOnFilteredOut,
+                    durableDeleteDefault);
+            }
+        }
+        catch (AerospikeException ae) {
             return handleSingleKeyError(key, ae, spec, disposition);
         }
     }
@@ -553,7 +569,8 @@ class OperationSpecExecutor {
     private static RecordStream executeSingleKeyWrite(
         Session session, Cluster cluster, Behavior behavior, Partitions partitions,
         OperationSpec spec, Key key, Expression filterExp, long ttl, Txn txn,
-        boolean scMode, boolean includeMissingKeys, boolean failOnFilteredOut
+        boolean scMode, boolean includeMissingKeys, boolean failOnFilteredOut,
+        Boolean durableDeleteDefault
     ) {
         ResolvedSettings settings = behavior.getSettings(OpKind.WRITE_NON_RETRYABLE, OpShape.POINT, scMode);
         int gen = spec.getGeneration();
@@ -566,7 +583,8 @@ class OperationSpecExecutor {
 
         OperateArgs operateArgs = new OperateArgs(ops);
         OperateWriteCommand cmd = new OperateWriteCommand(cluster, partitions, txn, key, ops, operateArgs,
-            opType, gen, (int) ttl, filterExp, failOnFilteredOut, settings, spec.getDurablyDelete());
+            opType, gen, (int) ttl, filterExp, failOnFilteredOut, settings, durableDeleteDefault,
+            spec.getDurableDelete());
         OperateWriteExecutor exec = new OperateWriteExecutor(cluster, cmd);
         exec.execute();
         Record rec = exec.getRecord();
@@ -643,7 +661,7 @@ class OperationSpecExecutor {
     private static RecordStream executeSingleKeyDelete(
         Session session, Cluster cluster, Behavior behavior, Partitions partitions,
         OperationSpec spec, Key key, Expression filterExp, Txn txn,
-        boolean scMode, boolean failOnFilteredOut
+        boolean scMode, boolean failOnFilteredOut, Boolean durableDeleteDefault
     ) {
         ResolvedSettings settings = behavior.getSettings(OpKind.WRITE_RETRYABLE, OpShape.POINT, scMode);
         int gen = spec.getGeneration();
@@ -654,7 +672,7 @@ class OperationSpecExecutor {
         }
 
         WriteCommand cmd = new WriteCommand(cluster, partitions, txn, key, OpType.DELETE,
-            gen, ttl, filterExp, failOnFilteredOut, settings, spec.getDurablyDelete());
+            gen, ttl, filterExp, failOnFilteredOut, settings, durableDeleteDefault, spec.getDurableDelete());
         DeleteExecutor exec = new DeleteExecutor(cluster, cmd);
         exec.execute();
         boolean existed = exec.existed();
@@ -671,7 +689,8 @@ class OperationSpecExecutor {
     private static RecordStream executeSingleKeyUdf(
         Session session, Cluster cluster, Behavior behavior, Partitions partitions,
         OperationSpec spec, Key key, Expression where, long ttl, Txn txn,
-        boolean scMode, boolean includeMissingKeys, boolean failOnFilteredOut
+        boolean scMode, boolean includeMissingKeys, boolean failOnFilteredOut,
+        Boolean durableDeleteDefault
     ) {
         ResolvedSettings settings = behavior.getSettings(OpKind.WRITE_NON_RETRYABLE, OpShape.POINT, scMode);
 
@@ -680,7 +699,7 @@ class OperationSpecExecutor {
         }
 
         UdfCommand cmd = new UdfCommand(cluster, partitions, txn, key, spec, (int)ttl, where,
-            failOnFilteredOut, settings);
+            failOnFilteredOut, settings, durableDeleteDefault, spec.getDurableDelete());
 
         UdfExecutor exec = new UdfExecutor(cluster, cmd);
         exec.execute();
@@ -697,22 +716,6 @@ class OperationSpecExecutor {
         }
 
         return new RecordStream();
-    }
-
-    /**
-     * Apply resolved durable delete ({@link Settings#getUseDurableDelete(Boolean)} with
-     * {@link OperationSpec#getDurablyDelete()}) onto batch attrs after {@link BatchAttr#setWrite},
-     * {@link BatchAttr#setDelete}, or {@link BatchAttr#setUDF}.
-     */
-    private static void mergeOperationSpecDurableDeleteIntoBatchAttr(
-        BatchAttr attr, OperationSpec spec, ResolvedSettings settings
-    ) {
-        if (settings.getUseDurableDelete(spec.getDurablyDelete())) {
-            attr.writeAttr |= (byte) Command.INFO2_DURABLE_DELETE;
-        }
-        else {
-            attr.writeAttr = (byte) (attr.writeAttr & ~Command.INFO2_DURABLE_DELETE);
-        }
     }
 
     /**

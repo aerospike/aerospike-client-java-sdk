@@ -67,7 +67,10 @@ public final class BatchAttr {
         }
     }
 
-    public void setWrite(ResolvedSettings settings, OpType type) {
+    public void setWrite(
+        ResolvedSettings settings, OpType type, Boolean durableDeleteDefault,
+        Boolean durableDeleteOverride
+    ) {
         readAttr = 0;
         writeAttr = (byte)(Command.INFO2_WRITE | Command.INFO2_RESPOND_ALL_OPS);
         infoAttr = 0;
@@ -95,7 +98,7 @@ public final class BatchAttr {
             break;
         }
 
-        if (settings.getUseDurableDelete()) {
+        if (settings.getUseDurableDelete(durableDeleteDefault, durableDeleteOverride)) {
             writeAttr |= Command.INFO2_DURABLE_DELETE;
         }
 
@@ -104,7 +107,22 @@ public final class BatchAttr {
         }
     }
 
-    public void setUDF(ResolvedSettings settings, OpType type) {
+    public void setTouch(ResolvedSettings settings) {
+        readAttr = 0;
+        writeAttr = (byte)(Command.INFO2_WRITE | Command.INFO2_RESPOND_ALL_OPS);
+        infoAttr = 0;
+        txnAttr = 0;
+        hasWrite = true;
+
+        if (settings.getCommitLevel() == CommitLevel.COMMIT_MASTER) {
+            infoAttr |= Command.INFO3_COMMIT_MASTER;
+        }
+    }
+
+    public void setUDF(
+        ResolvedSettings settings, OpType type, Boolean durableDeleteDefault,
+        Boolean durableDeleteOverride
+    ) {
         readAttr = 0;
         writeAttr = Command.INFO2_WRITE;
         infoAttr = 0;
@@ -132,7 +150,7 @@ public final class BatchAttr {
             break;
         }
 
-        if (settings.getUseDurableDelete()) {
+        if (settings.getUseDurableDelete(durableDeleteDefault, durableDeleteOverride)) {
             writeAttr |= Command.INFO2_DURABLE_DELETE;
         }
 
@@ -141,14 +159,16 @@ public final class BatchAttr {
         }
     }
 
-    public void setDelete(ResolvedSettings settings) {
+    public void setDelete(
+        ResolvedSettings settings, Boolean durableDeleteDefault, Boolean durableDeleteOverride
+    ) {
         readAttr = 0;
         writeAttr = (byte)(Command.INFO2_WRITE | Command.INFO2_RESPOND_ALL_OPS | Command.INFO2_DELETE);
         infoAttr = 0;
         txnAttr = 0;
         hasWrite = true;
 
-        if (settings.getUseDurableDelete()) {
+        if (settings.getUseDurableDelete(durableDeleteDefault, durableDeleteOverride)) {
             writeAttr |= Command.INFO2_DURABLE_DELETE;
         }
 

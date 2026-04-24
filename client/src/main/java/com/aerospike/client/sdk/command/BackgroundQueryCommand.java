@@ -45,7 +45,7 @@ public final class BackgroundQueryCommand extends Command {
     public BackgroundQueryCommand(
         Cluster cluster, DataSet set, long taskId, OpType type, List<Operation> ops, int ttl,
         Filter filter, Expression filterExp, ResolvedSettings settings, int recordsPerSecond,
-        Boolean durableDeleteOverride
+        Boolean durableDeleteDefault
     ) {
         super(cluster, set.getNamespace(), null, filterExp, settings.getReplicaOrder(), settings);
         this.taskId = taskId;
@@ -59,14 +59,14 @@ public final class BackgroundQueryCommand extends Command {
         this.functionArgs = null;
         this.recordsPerSecond = recordsPerSecond;
         this.ttl = ttl;
-        this.durableDelete = settings.getUseDurableDelete(durableDeleteOverride);
+        this.durableDelete = settings.getUseDurableDelete(durableDeleteDefault);
     }
 
     public BackgroundQueryCommand(
         Cluster cluster, DataSet set, long taskId, OpType type,  int ttl,
         String packageName, String functionName, Value[] functionArgs,
         Filter filter, Expression filterExp, ResolvedSettings settings, int recordsPerSecond,
-        Boolean durableDeleteOverride
+        Boolean durableDeleteDefault
     ) {
         super(cluster, set.getNamespace(), null, filterExp, settings.getReplicaOrder(), settings);
         this.taskId = taskId;
@@ -80,6 +80,6 @@ public final class BackgroundQueryCommand extends Command {
         this.ops = null;
         this.recordsPerSecond = recordsPerSecond;
         this.ttl = ttl;
-        this.durableDelete = settings.getUseDurableDelete(durableDeleteOverride);
+        this.durableDelete = settings.getUseDurableDelete(durableDeleteDefault);
     }
 }

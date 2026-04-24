@@ -251,12 +251,29 @@ public final class ResolvedSettings {
         return allowInlineSsdAccess;
     }
 
+    /**
+     * Return settings durable delete.
+     */
     public boolean getUseDurableDelete() {
         return useDurableDelete;
     }
 
-    public boolean getUseDurableDelete(Boolean durableDeleteOverride) {
-        return (durableDeleteOverride != null) ? durableDeleteOverride : useDurableDelete;
+    /**
+     * Return command default durable delete if specified.
+     * Otherwise. return settings durable delete.
+     */
+    public boolean getUseDurableDelete(Boolean durableDeleteDefault) {
+        return (durableDeleteDefault != null)? durableDeleteDefault : useDurableDelete;
+    }
+
+    /**
+     * Return operation spec durable delete if specified.
+     * Otherwise, return command default durable delete if specified.
+     * Otherwise. return settings durable delete.
+     */
+    public boolean getUseDurableDelete(Boolean durableDeleteDefault, Boolean durableDeleteOverride) {
+        return (durableDeleteOverride != null) ? durableDeleteOverride :
+            (durableDeleteDefault != null)? durableDeleteDefault : useDurableDelete;
     }
 
     public boolean getSimulateXdrWrite() {

@@ -952,7 +952,7 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
         }
         return OperationSpecExecutor.execute(session, specs, defaultWhereClause,
             defaultExpirationInSeconds, txnToUse, notInAnyTransaction,
-            AbstractFilterableBuilder.defaultDisposition(specs));
+            AbstractFilterableBuilder.defaultDisposition(specs), null);
     }
 
     /**
@@ -984,7 +984,7 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
             return new RecordStream();
         }
         return OperationSpecExecutor.execute(session, specs, defaultWhereClause,
-            defaultExpirationInSeconds, txnToUse, notInAnyTransaction, disposition);
+            defaultExpirationInSeconds, txnToUse, notInAnyTransaction, disposition, null);
     }
 
     /**
@@ -1033,7 +1033,7 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
             try {
                 RecordStream syncResult = OperationSpecExecutor.execute(
                     session, specs, defaultWhereClause, defaultExpirationInSeconds, txnToUse,
-                    notInAnyTransaction);
+                    notInAnyTransaction, null);
                 syncResult.forEach(result -> dispatchResult(result, asyncStream, errorHandler));
             } finally {
                 asyncStream.complete();
@@ -1123,7 +1123,7 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
         newSpec.setExpirationInSeconds(original.getExpirationInSeconds());
         newSpec.setFailOnFilteredOut(original.isFailOnFilteredOut());
         newSpec.setIncludeMissingKeys(original.isIncludeMissingKeys());
-        newSpec.setDurablyDelete(original.getDurablyDelete());
+        newSpec.setDurableDelete(original.getDurableDelete());
         newSpec.setProjectedBins(original.getProjectedBins());
         newSpec.getOperations().addAll(original.getOperations());
         return newSpec;

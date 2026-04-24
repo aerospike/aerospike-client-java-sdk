@@ -56,7 +56,7 @@ public class OperationSpec {
     private boolean includeMissingKeys = false;
 
     /** For DELETE operations: whether to use durable delete */
-    private Boolean durablyDelete = null;
+    private Boolean durableDelete = null;
 
     /** For QUERY operations: specific bins to read (null means all bins) */
     private String[] projectedBins = null;
@@ -208,15 +208,15 @@ public class OperationSpec {
      *
      * @return durable-delete preference, or {@code null}
      */
-    public Boolean getDurablyDelete() {
-        return durablyDelete;
+    public Boolean getDurableDelete() {
+        return durableDelete;
     }
 
     /**
-     * @param durablyDelete durable delete flag, or {@code null} to leave server/default behavior
+     * @param durableDelete durable delete flag, or {@code null} to leave server/default behavior
      */
-    public void setDurablyDelete(Boolean durablyDelete) {
-        this.durablyDelete = durablyDelete;
+    public void setDurableDelete(Boolean durableDelete) {
+        this.durableDelete = durableDelete;
     }
 
     /**

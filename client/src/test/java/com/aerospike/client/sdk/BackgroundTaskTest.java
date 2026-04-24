@@ -145,7 +145,7 @@ public class BackgroundTaskTest extends ClusterTest {
             .delete(bgSet)
             .where("$.bgval > 8");
         if (args.scMode) {
-            b = b.withDurableDelete();
+            b = b.defaultWithDurableDelete();
         }
         ExecuteTask task = b.execute();
 

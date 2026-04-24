@@ -237,7 +237,7 @@ public class FilterExpTest extends ClusterTest {
         Assumptions.assumeTrue(args.enterprise);
 
         session.delete(args.set.id(keyA))
-            .durablyDelete(true)
+            .withDurableDelete()
             .where("$.A == 1") // Exp.build(Exp.eq(Exp.intBin(binA), Exp.val(1)));
             .execute();
 
@@ -245,7 +245,7 @@ public class FilterExpTest extends ClusterTest {
         assertFalse(rs.hasNext());
 
         session.delete(args.set.id(keyB))
-            .durablyDelete(true)
+            .withDurableDelete()
             .where("$.A == 1") // Exp.build(Exp.eq(Exp.intBin(binA), Exp.val(1)));
             .execute();
 
@@ -261,14 +261,14 @@ public class FilterExpTest extends ClusterTest {
         Assumptions.assumeTrue(args.enterprise);
 
         session.delete(args.set.id(keyA))
-            .durablyDelete(true)
+            .withDurableDelete()
             .where("$.A == 1") // Exp.build(Exp.eq(Exp.intBin(binA), Exp.val(1)));
             .failOnFilteredOut()
             .execute();
 
         AerospikeException ae = assertThrows(AerospikeException.class, () -> {
             RecordStream rs = session.delete(args.set.id(keyB))
-                .durablyDelete(true)
+                .withDurableDelete()
                 .where("$.A == 1") // Exp.build(Exp.eq(Exp.intBin(binA), Exp.val(1)));
                 .failOnFilteredOut()
                 .execute();
@@ -871,7 +871,7 @@ public class FilterExpTest extends ClusterTest {
             .delete(args.set.id(keyC))
                 .where("$.A == 0");
         if (args.scMode) {
-            del = del.durablyDelete(true);
+            del = del.withDurableDelete();
         }
         RecordStream rs = del.execute();
 

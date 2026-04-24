@@ -356,7 +356,7 @@ public class QueryExamples {
                     .execute();
 
             System.out.printf("id(2) exists: %b\n", session.exists(customerDataSet.ids(2)).execute().getFirst());
-            session.delete(customerDataSet.ids(2)).durablyDelete(false).execute();
+            session.delete(customerDataSet.ids(2)).withoutDurableDelete().execute();
 //            System.out.printf("id(2) exists: %b\n", session.exists(customerDataSet.ids(2)).execute().getFirst());
 
             DataSet users = DataSet.of("test", "users");
@@ -923,23 +923,17 @@ public class QueryExamples {
                     .query(customerDataSet.id(7))
                     .execute();
 
-//session.update(key)
-//    .bin("status").setTo("COMPLETE")
-//    .where("$.balance > 500 and $.status == 'ACTIVE'")
-//    .execute();
-            
-
-//AEL: Clean, readable syntax
-RecordStream stream = session.query(users)
- .where("$.status == 'active' and $.age >= 21")
- .execute();
-stream.forEach(res -> {
- if (res.isOk()) {
-     Record row = res.recordOrThrow();
-     // Process row
- }
-});
-stream.close();
+            //AEL: Clean, readable syntax
+            RecordStream stream = session.query(users)
+             .where("$.status == 'active' and $.age >= 21")
+             .execute();
+            stream.forEach(res -> {
+             if (res.isOk()) {
+                 Record row = res.recordOrThrow();
+                 // Process row
+             }
+            });
+            stream.close();
 
             // --------------------
             // Object mapping
@@ -1200,7 +1194,7 @@ stream.close();
             System.out.println("Final state: " +
                 session.query(customerDataSet.id(500)).execute().getFirst());
             System.out.println("--- End Complex CDT operations ---");
-            
+
             session.upsert(customerDataSet.id(1))
                 .bin("test").onMapKeyRange(5, SpecialValue.INFINITY).getKeys()
                 .execute();

@@ -30,7 +30,7 @@ public class OperateTest extends ClusterTest {
     /** SC requires durable delete for record deletes inside operate; keep opt-in on AP. */
     private ChainableOperationBuilder upsertForScDurableRecordDelete(Key key) {
         ChainableOperationBuilder b = session.upsert(key);
-        return args.scMode ? b.withDurableDelete() : b;
+        return args.scMode ? b.defaultWithDurableDelete() : b;
     }
 
     @Test

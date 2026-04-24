@@ -28,7 +28,7 @@ public class AppendTest extends ClusterTest {
     private void deleteKeys(Key... keys) {
         ChainableNoBinsBuilder d = session.delete(Arrays.asList(keys));
         if (args.scMode) {
-            d = d.durablyDelete(true);
+            d = d.withDurableDelete();
         }
         d.execute();
     }

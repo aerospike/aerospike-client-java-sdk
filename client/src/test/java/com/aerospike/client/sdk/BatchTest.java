@@ -431,7 +431,7 @@ public class BatchTest extends ClusterTest {
 
     /**
      * Strong-consistency namespaces often reject non-durable deletes; match {@link AddTest} and
-     * {@link DurableDeleteTests#batchDeleteDurablyDeleteResetsRecordsForRepeatAdds}.
+     * {@link DurableDeleteTests#batchDeleteDurableDeleteResetsRecordsForRepeatAdds}.
      */
     private ChainableNoBinsBuilder deleteForBatchTest(List<Key> keys) {
         ChainableNoBinsBuilder b = session.delete(keys);

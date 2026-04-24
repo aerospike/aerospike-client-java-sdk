@@ -824,8 +824,9 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
             partitions.scMode);
         final Expression filterExp = getFilterExp(session, firstKey.namespace, firstKey.setName);
 
+        // TODO There is no current durableDeleteDefault for BinsValuesBuilder.
         BatchAttr attr = new BatchAttr();
-        attr.setWrite(settings, opBuilder.getOpType());
+        attr.setWrite(settings, opBuilder.getOpType(), null, opBuilder.getDurableDelete());
 
         List<BatchRecord> batchRecords = new ArrayList<>(keys.size());
 
@@ -1026,9 +1027,11 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
         int ttl = getExpiration(valueSet);
 
         OperateArgs args = new OperateArgs(ops);
+
+        // TODO There is no current durableDeleteDefault for BinsValuesBuilder.
         OperateWriteCommand cmd = new OperateWriteCommand(cluster, partitions, txnToUse, key, ops,
             args, opBuilder.getOpType(), getGeneration(valueSet), ttl, filterExp,
-            opBuilder.isFailOnFilteredOut(), settings);
+            opBuilder.isFailOnFilteredOut(), settings, null, opBuilder.getDurableDelete());
 
         try {
             OperateWriteExecutor exec = new OperateWriteExecutor(cluster, cmd);
