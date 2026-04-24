@@ -18,7 +18,6 @@ jobs:
     runs-on: ${{ vars.BUILD_CONTAINER_DISTRO_VERSION }}
     outputs:
       input-matrix: ${{ steps.create-server-matrix.outputs.input-matrix }}
-      java-version: ${{ steps.get-java-version.outputs.java-version }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -28,12 +27,7 @@ jobs:
         uses: ./.github/actions/make-server-matrix
         with:
           default_json: ${{ vars.DEFAULT_SERVER_VERSIONS }}
-          test_servers_file_path: .github/nightly_test_servers.json
-
-      - name: Get java version
-        id: get-java-version
-        run: |
-          echo java-version="$(grep '<java.version>' pom.xml | sed -e 's/<[^>]*>//g' | awk '{$1=$1};1' | sed 's/^1\.8$/8/')"  >> $GITHUB_OUTPUT
+          test_servers_file_path: .github/test_servers.json
 
   build-and-test:
     needs: make-matrix
