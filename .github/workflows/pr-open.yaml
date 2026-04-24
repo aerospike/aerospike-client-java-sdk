@@ -7,15 +7,36 @@ on:
 
 permissions:
   contents: read
+  id-token: write
 
 concurrency:
   group: pr-ci-${{ github.workflow }}-${{ github.event.pull_request.head.sha }}
   cancel-in-progress: true
 
 jobs:
-  build-and-test:
-    name: Build & Test
+  make-matrix:
     runs-on: ${{ vars.BUILD_CONTAINER_DISTRO_VERSION }}
+    outputs:
+      input-matrix: ${{ steps.create-server-matrix.outputs.input-matrix }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+
+      - id: create-server-matrix
+        uses: ./.github/actions/make-server-matrix
+        with:
+          default_json: ${{ vars.DEFAULT_SERVER_VERSIONS }}
+          test_servers_file_path: .github/test_servers.json
+
+  build-and-test:
+    needs: make-matrix
+    name: Build & Test (server ${{ matrix.server }})
+    runs-on: ${{ vars.BUILD_CONTAINER_DISTRO_VERSION }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJson(needs.make-matrix.outputs.input-matrix) }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -44,6 +65,14 @@ jobs:
           java -version
           mvn -v
 
+      - name: Start Aerospike server ${{ matrix.server }}
+        uses: aerospike/shared-workflows/.github/actions/setup-aerospike-server@ee86f09360c3e6f8ca302891c971d4d7716582d2
+        with:
+          oidc-provider: ${{ vars.OIDC_PROVIDER_NAME }}
+          oidc-audience: ${{ vars.OIDC_AUDIENCE }}
+          server-tag: ${{ matrix.version }}
+          server-container-repo: ${{ matrix.type }}
+
       - name: Build & run all tests
         run: |
           mvn \
@@ -52,6 +81,7 @@ jobs:
            --update-snapshots \
            --fail-at-end \
            --errors \
+           -DskipTests=false \
            verify
         env:
           MAVEN_OPTS: ${{ vars.MAVEN_OPTS }}
@@ -60,7 +90,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: test-reports-jdk-${{ steps.extract_java.outputs.java_version }}
+          name: test-reports-jdk-${{ steps.extract_java.outputs.java_version }}-server-${{ matrix.server }}
           path: |
             **/target/surefire-reports/**
             **/target/failsafe-reports/**
