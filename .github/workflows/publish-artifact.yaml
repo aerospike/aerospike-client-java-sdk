@@ -15,12 +15,10 @@ on:
       build_number:
         description: JFrog build number to promote (e.g. 363)
         required: true
-        default: "363"
         type: string
       bundle_name:
         description: Bundle name
         required: true
-        default: aerospike-client-java-sdk
         type: string
       bundle_version:
         description: Bundle version
