@@ -24,7 +24,7 @@ import com.aerospike.client.sdk.util.Pack;
 import com.aerospike.client.sdk.util.Packer;
 
 /**
- * List expression generator. See {@link com.aerospike.client.exp.Exp}.
+ * List expression generator. See {@link com.aerospike.client.sdk.exp.Exp}.
  * <p>
  * The bin expression argument in these methods can be a reference to a bin or the
  * result of another expression. Expressions that modify bin values are only used
@@ -155,8 +155,8 @@ public final class ListExp {
 
     /**
      * Create expression that removes list items identified by value.
-     * Valid returnType values are {@link com.aerospike.client.cdt.ListReturnType#NONE} or
-     * {@link com.aerospike.client.cdt.ListReturnType#INVERTED}.
+     * Valid returnType values are {@link com.aerospike.client.sdk.cdt.ListReturnType#NONE} or
+     * {@link com.aerospike.client.sdk.cdt.ListReturnType#INVERTED}.
      */
     public static Exp removeByValue(int returnType, Exp value, Exp bin, CTX... ctx) {
         byte[] bytes = Pack.pack(REMOVE_BY_VALUE, returnType, value, ctx);
@@ -165,8 +165,8 @@ public final class ListExp {
 
     /**
      * Create expression that removes list items identified by values.
-     * Valid returnType values are {@link com.aerospike.client.cdt.ListReturnType#NONE} or
-     * {@link com.aerospike.client.cdt.ListReturnType#INVERTED}.
+     * Valid returnType values are {@link com.aerospike.client.sdk.cdt.ListReturnType#NONE} or
+     * {@link com.aerospike.client.sdk.cdt.ListReturnType#INVERTED}.
      */
     public static Exp removeByValueList(int returnType, Exp values, Exp bin, CTX... ctx) {
         byte[] bytes = Pack.pack(REMOVE_BY_VALUE_LIST, returnType, values, ctx);
@@ -177,8 +177,8 @@ public final class ListExp {
      * Create expression that removes list items identified by value range (valueBegin inclusive, valueEnd exclusive).
      * If valueBegin is null, the range is less than valueEnd. If valueEnd is null, the range is
      * greater than equal to valueBegin.
-     * Valid returnType values are {@link com.aerospike.client.cdt.ListReturnType#NONE} or
-     * {@link com.aerospike.client.cdt.ListReturnType#INVERTED}.
+     * Valid returnType values are {@link com.aerospike.client.sdk.cdt.ListReturnType#NONE} or
+     * {@link com.aerospike.client.sdk.cdt.ListReturnType#INVERTED}.
      */
     public static Exp removeByValueRange(int returnType, Exp valueBegin, Exp valueEnd, Exp bin, CTX... ctx) {
         byte[] bytes = ListExp.packRangeOperation(REMOVE_BY_VALUE_INTERVAL, returnType, valueBegin, valueEnd, ctx);
@@ -187,8 +187,8 @@ public final class ListExp {
 
     /**
      * Create expression that removes list items nearest to value and greater by relative rank.
-     * Valid returnType values are {@link com.aerospike.client.cdt.ListReturnType#NONE} or
-     * {@link com.aerospike.client.cdt.ListReturnType#INVERTED}.
+     * Valid returnType values are {@link com.aerospike.client.sdk.cdt.ListReturnType#NONE} or
+     * {@link com.aerospike.client.sdk.cdt.ListReturnType#INVERTED}.
      * <p>
      * Examples for ordered list [0,4,5,9,11,15]:
      * <ul>
@@ -208,8 +208,8 @@ public final class ListExp {
 
     /**
      * Create expression that removes list items nearest to value and greater by relative rank with a count limit.
-     * Valid returnType values are {@link com.aerospike.client.cdt.ListReturnType#NONE} or
-     * {@link com.aerospike.client.cdt.ListReturnType#INVERTED}.
+     * Valid returnType values are {@link com.aerospike.client.sdk.cdt.ListReturnType#NONE} or
+     * {@link com.aerospike.client.sdk.cdt.ListReturnType#INVERTED}.
      * <p>
      * Examples for ordered list [0,4,5,9,11,15]:
      * <ul>
@@ -237,8 +237,8 @@ public final class ListExp {
 
     /**
      * Create expression that removes list items starting at specified index to the end of list.
-     * Valid returnType values are {@link com.aerospike.client.cdt.ListReturnType#NONE} or
-     * {@link com.aerospike.client.cdt.ListReturnType#INVERTED}.
+     * Valid returnType values are {@link com.aerospike.client.sdk.cdt.ListReturnType#NONE} or
+     * {@link com.aerospike.client.sdk.cdt.ListReturnType#INVERTED}.
      */
     public static Exp removeByIndexRange(int returnType, Exp index, Exp bin, CTX... ctx) {
         byte[] bytes = Pack.pack(REMOVE_BY_INDEX_RANGE, returnType, index, ctx);
@@ -247,8 +247,8 @@ public final class ListExp {
 
     /**
      * Create expression that removes "count" list items starting at specified index.
-     * Valid returnType values are {@link com.aerospike.client.cdt.ListReturnType#NONE} or
-     * {@link com.aerospike.client.cdt.ListReturnType#INVERTED}.
+     * Valid returnType values are {@link com.aerospike.client.sdk.cdt.ListReturnType#NONE} or
+     * {@link com.aerospike.client.sdk.cdt.ListReturnType#INVERTED}.
      */
     public static Exp removeByIndexRange(int returnType, Exp index, Exp count, Exp bin, CTX... ctx) {
         byte[] bytes = Pack.pack(REMOVE_BY_INDEX_RANGE, returnType, index, count, ctx);
@@ -265,8 +265,8 @@ public final class ListExp {
 
     /**
      * Create expression that removes list items starting at specified rank to the last ranked item.
-     * Valid returnType values are {@link com.aerospike.client.cdt.ListReturnType#NONE} or
-     * {@link com.aerospike.client.cdt.ListReturnType#INVERTED}.
+     * Valid returnType values are {@link com.aerospike.client.sdk.cdt.ListReturnType#NONE} or
+     * {@link com.aerospike.client.sdk.cdt.ListReturnType#INVERTED}.
      */
     public static Exp removeByRankRange(int returnType, Exp rank, Exp bin, CTX... ctx) {
         byte[] bytes = Pack.pack(REMOVE_BY_RANK_RANGE, returnType, rank, ctx);
@@ -275,8 +275,8 @@ public final class ListExp {
 
     /**
      * Create expression that removes "count" list items starting at specified rank.
-     * Valid returnType values are {@link com.aerospike.client.cdt.ListReturnType#NONE} or
-     * {@link com.aerospike.client.cdt.ListReturnType#INVERTED}.
+     * Valid returnType values are {@link com.aerospike.client.sdk.cdt.ListReturnType#NONE} or
+     * {@link com.aerospike.client.sdk.cdt.ListReturnType#INVERTED}.
      */
     public static Exp removeByRankRange(int returnType, Exp rank, Exp count, Exp bin, CTX... ctx) {
         byte[] bytes = Pack.pack(REMOVE_BY_RANK_RANGE, returnType, rank, count, ctx);

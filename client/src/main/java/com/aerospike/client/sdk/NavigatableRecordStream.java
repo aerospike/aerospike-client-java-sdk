@@ -35,23 +35,23 @@ import com.aerospike.client.sdk.query.SortProperties;
 /**
  * A navigatable record stream that loads all records into memory and provides
  * sorting and pagination capabilities.
- * 
+ *
  * <p>This class is useful when you need to sort and paginate through results
  * after they have been fetched from the database. It provides a builder-style
  * API for configuring sort order and page size.</p>
- * 
+ *
  * <h2>Sorting Behavior</h2>
- * 
+ *
  * <p>Each call to any {@code sortBy()} method replaces the entire sort criteria.
  * This keeps the API simple and predictable.</p>
- * 
+ *
  * <h3>Single-Column Sorting</h3>
  * <pre>{@code
  * navigatable.sortBy("name");                           // Sort by name (ascending)
  * navigatable.sortBy("age", SortDir.SORT_DESC);        // Sort by age (descending)
  * navigatable.sortBy("name", SortDir.SORT_ASC, false); // Case-insensitive
  * }</pre>
- * 
+ *
  * <h3>Multi-Column Sorting</h3>
  * <p>For multi-column sorting, use the method that accepts a list with static factory methods:</p>
  * <pre>{@code
@@ -60,7 +60,7 @@ import com.aerospike.client.sdk.query.SortProperties;
  *     SortProperties.descending("age")       // Secondary sort
  * ));
  * }</pre>
- * 
+ *
  * <h3>Dynamic Re-sorting</h3>
  * <p>Change sort order without re-querying the database:</p>
  * <pre>{@code
@@ -69,14 +69,14 @@ import com.aerospike.client.sdk.query.SortProperties;
  * navigatable.sortBy("name");  // Re-sort by name (replaces age sort)
  * navigatable.reset();  // Reset to beginning with new sort
  * }</pre>
- * 
+ *
  * <h2>Example Usage</h2>
  * <pre>{@code
  * RecordStream results = session.query(customerDataSet).execute();
  * NavigatableRecordStream navigatable = results.asNavigatableStream()
  *     .pageSize(20)
  *     .sortBy("age", SortDir.SORT_DESC);
- * 
+ *
  * // Iterate through pages
  * while (navigatable.hasMorePages()) {
  *     while (navigatable.hasNext()) {
@@ -84,7 +84,7 @@ import com.aerospike.client.sdk.query.SortProperties;
  *         // Process record
  *     }
  * }
- * 
+ *
  * // Change sort without re-querying database
  * navigatable.sortBy("name");  // Replaces previous sort
  * navigatable.reset();
@@ -101,10 +101,10 @@ public class NavigatableRecordStream implements ResettablePagination, Closeable 
 
     /**
      * Creates a NavigatableRecordStream from an existing RecordStream.
-     * 
+     *
      * <p>This constructor reads all records from the source stream into memory.
      * Once created, the original stream is closed.</p>
-     * 
+     *
      * @param source the source RecordStream to read from
      */
     public NavigatableRecordStream(RecordStream source) {
@@ -113,11 +113,11 @@ public class NavigatableRecordStream implements ResettablePagination, Closeable 
 
     /**
      * Creates a NavigatableRecordStream from an existing RecordStream with a limit.
-     * 
+     *
      * <p>This constructor reads records from the source stream into memory up to
      * the specified limit. Once the limit is reached or the stream is exhausted,
      * the original stream is closed.</p>
-     * 
+     *
      * @param source the source RecordStream to read from
      * @param limit the maximum number of records to read (0 or negative means no limit)
      */
@@ -140,10 +140,10 @@ public class NavigatableRecordStream implements ResettablePagination, Closeable 
 
     /**
      * Sets the page size for pagination.
-     * 
+     *
      * <p>This method configures how many records are returned per page.
      * If set to 0 or not called, all records are considered a single page.</p>
-     * 
+     *
      * @param pageSize the number of records per page (must be > 0, or 0 for no pagination)
      * @return this NavigatableRecordStream for method chaining
      * @throws IllegalArgumentException if pageSize is negative
@@ -160,10 +160,10 @@ public class NavigatableRecordStream implements ResettablePagination, Closeable 
 
     /**
      * Sorts the records by a single field in ascending order with case sensitivity.
-     * 
+     *
      * <p>This method <b>replaces</b> any existing sort criteria. For multi-column
      * sorting, use {@link #sortBy(List)}.</p>
-     * 
+     *
      * @param field the field name to sort by
      * @return this NavigatableRecordStream for method chaining
      */
@@ -173,9 +173,9 @@ public class NavigatableRecordStream implements ResettablePagination, Closeable 
 
     /**
      * Sorts the records by a single field in ascending order with specified case sensitivity.
-     * 
+     *
      * <p>This method <b>replaces</b> any existing sort criteria.</p>
-     * 
+     *
      * @param field the field name to sort by
      * @param caseInsensitive true for case-insensitive sorting, false for case-sensitive
      * @return this NavigatableRecordStream for method chaining
@@ -186,9 +186,9 @@ public class NavigatableRecordStream implements ResettablePagination, Closeable 
 
     /**
      * Sorts the records by a single field with specified direction.
-     * 
+     *
      * <p>This method <b>replaces</b> any existing sort criteria.</p>
-     * 
+     *
      * @param field the field name to sort by
      * @param sortDir the sort direction (ascending or descending)
      * @return this NavigatableRecordStream for method chaining
@@ -199,15 +199,15 @@ public class NavigatableRecordStream implements ResettablePagination, Closeable 
 
     /**
      * Sorts the records by a single field with specified direction and case sensitivity.
-     * 
+     *
      * <p>This method <b>replaces</b> any existing sort criteria. For multi-column
      * sorting, use {@link #sortBy(List)}.</p>
-     * 
+     *
      * <p>Example:</p>
      * <pre>{@code
      * navigatable.sortBy("age", SortDir.SORT_DESC, true);
      * }</pre>
-     * 
+     *
      * @param field the field name to sort by
      * @param sortDir the sort direction (ascending or descending)
      * @param caseSensitive true for case-sensitive sorting, false for case-insensitive
@@ -224,11 +224,11 @@ public class NavigatableRecordStream implements ResettablePagination, Closeable 
 
     /**
      * Sorts the records by multiple sort properties.
-     * 
+     *
      * <p>This method <b>replaces</b> any existing sort criteria with the new list.
      * The records are immediately re-sorted and iteration is reset. This is the
      * recommended way to sort by multiple columns.</p>
-     * 
+     *
      * <p>Example:</p>
      * <pre>{@code
      * navigatable.sortBy(List.of(
@@ -237,7 +237,7 @@ public class NavigatableRecordStream implements ResettablePagination, Closeable 
      *     new SortProperties("age", SortDir.SORT_DESC, true)        // Tertiary sort
      * ));
      * }</pre>
-     * 
+     *
      * @param sortPropertyList the list of sort properties to apply
      * @return this NavigatableRecordStream for method chaining
      */
@@ -249,11 +249,11 @@ public class NavigatableRecordStream implements ResettablePagination, Closeable 
 
     /**
      * Sorts the records by multiple sort properties.
-     * 
+     *
      * <p>This method <b>replaces</b> any existing sort criteria with the new list.
      * The records are immediately re-sorted and iteration is reset. This is the
      * recommended way to sort by multiple columns.</p>
-     * 
+     *
      * <p>Example:</p>
      * <pre>{@code
      * navigatable.sortBy(
@@ -262,7 +262,7 @@ public class NavigatableRecordStream implements ResettablePagination, Closeable 
      *     SortProperties.descending("age")                   // Tertiary sort
      * );
      * }</pre>
-     * 
+     *
      * @param sortPropertyList the list of sort properties to apply
      * @return this NavigatableRecordStream for method chaining
      */
@@ -274,10 +274,10 @@ public class NavigatableRecordStream implements ResettablePagination, Closeable 
 
     /**
      * Sorts the records by a single sort property.
-     * 
+     *
      * <p>This method <b>replaces</b> any existing sort criteria with the new property.
      * The records are immediately re-sorted and iteration is reset.</p>
-     * 
+     *
      * @param sortProperty the sort property to apply
      * @return this NavigatableRecordStream for method chaining
      */
@@ -314,10 +314,10 @@ public class NavigatableRecordStream implements ResettablePagination, Closeable 
 
     /**
      * Checks if there are more pages available.
-     * 
+     *
      * <p>Calling this method advances to the next page if there are more pages.
      * This is typically used in a loop to iterate through all pages.</p>
-     * 
+     *
      * @return true if there are more pages, false otherwise
      */
     public boolean hasMorePages() {
@@ -331,7 +331,7 @@ public class NavigatableRecordStream implements ResettablePagination, Closeable 
 
     /**
      * Checks if there are more records on the current page.
-     * 
+     *
      * @return true if there are more records, false otherwise
      */
     public boolean hasNext() {
@@ -345,7 +345,7 @@ public class NavigatableRecordStream implements ResettablePagination, Closeable 
 
     /**
      * Returns the next record in the stream.
-     * 
+     *
      * @return the next RecordResult, or null if no more records
      */
     public RecordResult next() {
@@ -357,7 +357,7 @@ public class NavigatableRecordStream implements ResettablePagination, Closeable 
 
     /**
      * Returns the current page number (1-based).
-     * 
+     *
      * @return the current page number, or 0 if pagination hasn't started
      */
     @Override
@@ -367,7 +367,7 @@ public class NavigatableRecordStream implements ResettablePagination, Closeable 
 
     /**
      * Returns the maximum number of pages.
-     * 
+     *
      * @return the total number of pages
      */
     @Override
@@ -377,10 +377,10 @@ public class NavigatableRecordStream implements ResettablePagination, Closeable 
 
     /**
      * Sets the current page to the specified page number.
-     * 
+     *
      * <p>This allows you to jump to any page in the result set.
      * Page numbers are 1-based.</p>
-     * 
+     *
      * @param newPage the page number to jump to (1-based, must be between 1 and maxPages())
      * @throws IllegalArgumentException if newPage is out of range
      */
@@ -388,7 +388,7 @@ public class NavigatableRecordStream implements ResettablePagination, Closeable 
     public void setPageTo(int newPage) {
         if (newPage < 1 || newPage > numPages) {
             throw new IllegalArgumentException(String.format(
-                    "setPageTo must take page number in the range of 1 to %,d, not %,d", 
+                    "setPageTo must take page number in the range of 1 to %,d, not %,d",
                     numPages, newPage));
         }
         currentPage = newPage - 1;
@@ -397,10 +397,10 @@ public class NavigatableRecordStream implements ResettablePagination, Closeable 
 
     /**
      * Converts the records on the current page to a Java Stream.
-     * 
+     *
      * <p>This method creates a stream of the records on the current page in the
      * current sort order. It does not advance pages.</p>
-     * 
+     *
      * @return a Stream of RecordResult for the current page
      */
     public Stream<RecordResult> stream() {
@@ -430,16 +430,16 @@ public class NavigatableRecordStream implements ResettablePagination, Closeable 
                         }
                         return null;
                     }
-                }, 
+                },
                 Spliterator.NONNULL | Spliterator.IMMUTABLE
-            ), 
+            ),
             false
         );
     }
 
     /**
      * Iterates through all remaining records on the current page.
-     * 
+     *
      * @param consumer the consumer to accept each record
      */
     public void forEach(Consumer<RecordResult> consumer) {
@@ -450,7 +450,7 @@ public class NavigatableRecordStream implements ResettablePagination, Closeable 
 
     /**
      * Converts the records on the current page to a list of objects using the specified mapper.
-     * 
+     *
      * @param <T> the type of objects to create
      * @param mapper the mapper to convert records to objects
      * @return a list of mapped objects
@@ -467,9 +467,9 @@ public class NavigatableRecordStream implements ResettablePagination, Closeable 
 
     /**
      * Gets the first record from the current page.
-     * 
+     *
      * <p>If the record failed for any reason, an exception is thrown.</p>
-     * 
+     *
      * @return an Optional containing the first record, or empty if no records
      * @throws AerospikeException if the first record has an error
      */
@@ -479,10 +479,10 @@ public class NavigatableRecordStream implements ResettablePagination, Closeable 
 
     /**
      * Gets the first record from the current page.
-     * 
+     *
      * @param throwException if true and the record has an error, throws an exception
      * @return an Optional containing the first record, or empty if no records
-     * @throws AeroException if throwException is true and the first record has an error
+     * @throws AerospikeException if throwException is true and the first record has an error
      */
     public Optional<RecordResult> getFirst(boolean throwException) {
         if (hasNext()) {
@@ -498,9 +498,9 @@ public class NavigatableRecordStream implements ResettablePagination, Closeable 
 
     /**
      * Gets the first record from the current page and maps it to an object.
-     * 
+     *
      * <p>If the record failed for any reason, an exception is thrown.</p>
-     * 
+     *
      * @param <T> the type of object to create
      * @param mapper the mapper to convert the record to an object
      * @return an Optional containing the mapped object, or empty if no records
@@ -516,7 +516,7 @@ public class NavigatableRecordStream implements ResettablePagination, Closeable 
 
     /**
      * Gets the total number of records in this stream.
-     * 
+     *
      * @return the total number of records
      */
     public int size() {
@@ -525,7 +525,7 @@ public class NavigatableRecordStream implements ResettablePagination, Closeable 
 
     /**
      * Resets the stream to the beginning, allowing re-iteration of all records.
-     * 
+     *
      * @return this NavigatableRecordStream for method chaining
      */
     public NavigatableRecordStream reset() {

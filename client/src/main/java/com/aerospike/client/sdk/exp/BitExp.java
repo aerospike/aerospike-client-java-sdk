@@ -22,7 +22,7 @@ import com.aerospike.client.sdk.util.Pack;
 import com.aerospike.client.sdk.util.Packer;
 
 /**
- * Bit expression generator. See {@link com.aerospike.client.exp.Exp}.
+ * Bit expression generator. See {@link com.aerospike.client.sdk.exp.Exp}.
  * <p>
  * The bin expression argument in these methods can be a reference to a bin or the
  * result of another expression. Expressions that modify bin values are only used

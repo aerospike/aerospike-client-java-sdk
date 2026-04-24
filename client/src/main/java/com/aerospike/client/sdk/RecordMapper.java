@@ -102,7 +102,7 @@ public interface RecordMapper<T> {
      *
      * <p>This method should return the unique identifier for the object that will
      * be used as part of the Aerospike key. The returned value should be of a type
-     * that can be used with {@link DataSet#id(Object)}.</p>
+     * that can be used with {@link DataSet#idForObject(Object)}.</p>
      *
      * @param element the Java object
      * @return the ID of the object

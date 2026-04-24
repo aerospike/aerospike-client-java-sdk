@@ -828,7 +828,7 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
      *
      * @param limit the maximum number of records to return (must be > 0)
      * @return this builder for method chaining
-     * @throws IllegalArgumentException if limit is <= 0
+     * @throws IllegalArgumentException if limit is &lt;= 0
      */
     public ChainableQueryBuilder limit(long limit) {
         if (limit <= 0) {

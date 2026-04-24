@@ -166,7 +166,7 @@ public final class AsyncRecordStream implements AutoCloseable, Iterable<RecordRe
     /** A lightweight cancellation token for producers. */
     public BooleanSupplier cancelled() { return cancelled; }
 
-    /** Cancel consumption & production early. Idempotent. */
+    /** Cancel consumption and production early. Idempotent. */
     @Override
     public void close() {
         if (closed.compareAndSet(false, true)) {

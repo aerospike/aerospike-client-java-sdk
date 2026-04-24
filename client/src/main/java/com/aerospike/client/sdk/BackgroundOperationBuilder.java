@@ -215,7 +215,7 @@ public class BackgroundOperationBuilder extends AbstractOperationBuilder<Backgro
      * and completion.</p>
      *
      * @return ExecuteTask for monitoring the background operation
-     * @throws com.aerospike.client.AerospikeException if the operation fails to start
+     * @throws com.aerospike.client.sdk.AerospikeException if the operation fails to start
      */
     public ExecuteTask execute() {
         Cluster cluster = session.getCluster();

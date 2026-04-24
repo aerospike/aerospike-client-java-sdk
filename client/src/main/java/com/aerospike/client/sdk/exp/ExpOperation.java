@@ -30,7 +30,7 @@ public final class ExpOperation {
      *
      * @param binName   name of bin to store expression result
      * @param exp       expression to evaluate
-     * @param flags     expression write flags.  See {@link com.aerospike.client.exp.ExpWriteFlags}
+     * @param flags     expression write flags.  See {@link com.aerospike.client.sdk.exp.ExpWriteFlags}
      */
     public static Operation write(String binName, Expression exp, int flags) {
         return createOperation(Operation.Type.EXP_MODIFY, binName, exp, flags);
@@ -43,7 +43,7 @@ public final class ExpOperation {
      * @param name      variable name of read expression result. This name can be used as the
      *                  bin name when retrieving bin results from the record.
      * @param exp       expression to evaluate
-     * @param flags     expression read flags.  See {@link com.aerospike.client.exp.ExpReadFlags}
+     * @param flags     expression read flags.  See {@link com.aerospike.client.sdk.exp.ExpReadFlags}
      */
     public static Operation read(String name, Expression exp, int flags) {
         return createOperation(Operation.Type.EXP_READ, name, exp, flags);

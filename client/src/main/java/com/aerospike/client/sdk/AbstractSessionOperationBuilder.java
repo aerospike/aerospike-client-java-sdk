@@ -218,7 +218,7 @@ public abstract class AbstractSessionOperationBuilder<T extends AbstractSessionO
      *
      * @param generation the expected generation value
      * @return this builder for method chaining
-     * @throws IllegalArgumentException if generation is <= 0
+     * @throws IllegalArgumentException if generation is &lt;= 0
      */
     public T ensureGenerationIs(int generation) {
         if (generation <= 0) {

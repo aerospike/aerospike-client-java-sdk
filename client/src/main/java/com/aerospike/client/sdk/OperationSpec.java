@@ -186,7 +186,7 @@ public class OperationSpec {
     /**
      * Whether missing keys (or similar) should still produce a stream entry.
      * For {@link OpType#UPDATE} and {@link OpType#REPLACE_IF_EXISTS} this always behaves as {@code true}
-     * so callers see {@link com.aerospike.client.ResultCode#KEY_NOT_FOUND_ERROR} when the record does not exist.
+     * so callers see {@link com.aerospike.client.sdk.ResultCode#KEY_NOT_FOUND_ERROR} when the record does not exist.
      *
      * @return effective include-missing-keys flag
      */

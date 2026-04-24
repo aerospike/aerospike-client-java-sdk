@@ -154,7 +154,7 @@ public class ObjectBuilder<T> {
      *
      * @param generation the expected generation value
      * @return This ObjectBuilder for method chaining
-     * @throws IllegalArgumentException if generation is <= 0
+     * @throws IllegalArgumentException if generation is &lt;= 0
      */
     public ObjectBuilder<T> ensureGenerationIs(int generation) {
         if (generation <= 0) {

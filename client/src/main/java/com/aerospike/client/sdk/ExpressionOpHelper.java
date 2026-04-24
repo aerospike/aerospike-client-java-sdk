@@ -53,7 +53,7 @@ public final class ExpressionOpHelper {
      *
      * @param binName target bin
      * @param ael AEL text parsed to an {@link Expression}
-     * @param flags {@link com.aerospike.client.exp.ExpReadFlags} bitmask
+     * @param flags {@link com.aerospike.client.sdk.exp.ExpReadFlags} bitmask
      * @return Aerospike {@link Operation} for expression read
      */
     public static Operation createReadOp(String binName, String ael, int flags) {
@@ -66,7 +66,7 @@ public final class ExpressionOpHelper {
      * @param binName target bin
      * @param ael AEL template
      * @param params values substituted for {@code ?} in order
-     * @param flags {@link com.aerospike.client.exp.ExpReadFlags} bitmask
+     * @param flags {@link com.aerospike.client.sdk.exp.ExpReadFlags} bitmask
      * @return Aerospike {@link Operation} for expression read
      */
     public static Operation createReadOp(String binName, String ael, Object[] params, int flags) {
@@ -82,7 +82,7 @@ public final class ExpressionOpHelper {
      *
      * @param binName target bin
      * @param ael programmatic boolean expression
-     * @param flags {@link com.aerospike.client.exp.ExpReadFlags} bitmask
+     * @param flags {@link com.aerospike.client.sdk.exp.ExpReadFlags} bitmask
      * @return Aerospike {@link Operation} for expression read
      */
     public static Operation createReadOp(String binName, BooleanExpression ael, int flags) {
@@ -95,7 +95,7 @@ public final class ExpressionOpHelper {
      * @param binName target bin
      * @param ael prepared AEL
      * @param params bound parameter values
-     * @param flags {@link com.aerospike.client.exp.ExpReadFlags} bitmask
+     * @param flags {@link com.aerospike.client.sdk.exp.ExpReadFlags} bitmask
      * @return Aerospike {@link Operation} for expression read
      */
     public static Operation createReadOp(String binName, PreparedAel ael, Object[] params, int flags) {
@@ -107,7 +107,7 @@ public final class ExpressionOpHelper {
      *
      * @param binName target bin
      * @param exp expression builder (compiled via {@link Exp#build(Exp)})
-     * @param flags {@link com.aerospike.client.exp.ExpReadFlags} bitmask
+     * @param flags {@link com.aerospike.client.sdk.exp.ExpReadFlags} bitmask
      * @return Aerospike {@link Operation} for expression read
      */
     public static Operation createReadOp(String binName, Exp exp, int flags) {
@@ -119,7 +119,7 @@ public final class ExpressionOpHelper {
      *
      * @param binName target bin
      * @param exp compiled expression
-     * @param flags {@link com.aerospike.client.exp.ExpReadFlags} bitmask
+     * @param flags {@link com.aerospike.client.sdk.exp.ExpReadFlags} bitmask
      * @return Aerospike {@link Operation} for expression read
      */
     public static Operation createReadOp(String binName, Expression exp, int flags) {
@@ -135,7 +135,7 @@ public final class ExpressionOpHelper {
      *
      * @param binName target bin
      * @param ael AEL text parsed to an {@link Expression}
-     * @param flags {@link com.aerospike.client.exp.ExpWriteFlags} bitmask
+     * @param flags {@link com.aerospike.client.sdk.exp.ExpWriteFlags} bitmask
      * @return Aerospike {@link Operation} for expression write
      */
     public static Operation createWriteOp(String binName, String ael, int flags) {
@@ -148,7 +148,7 @@ public final class ExpressionOpHelper {
      * @param binName target bin
      * @param ael AEL template
      * @param params values substituted for {@code ?} in order
-     * @param flags {@link com.aerospike.client.exp.ExpWriteFlags} bitmask
+     * @param flags {@link com.aerospike.client.sdk.exp.ExpWriteFlags} bitmask
      * @return Aerospike {@link Operation} for expression write
      */
     public static Operation createWriteOp(String binName, String ael, Object[] params, int flags) {
@@ -164,7 +164,7 @@ public final class ExpressionOpHelper {
      *
      * @param binName target bin
      * @param ael programmatic boolean expression
-     * @param flags {@link com.aerospike.client.exp.ExpWriteFlags} bitmask
+     * @param flags {@link com.aerospike.client.sdk.exp.ExpWriteFlags} bitmask
      * @return Aerospike {@link Operation} for expression write
      */
     public static Operation createWriteOp(String binName, BooleanExpression ael, int flags) {
@@ -177,7 +177,7 @@ public final class ExpressionOpHelper {
      * @param binName target bin
      * @param ael prepared AEL
      * @param params bound parameter values
-     * @param flags {@link com.aerospike.client.exp.ExpWriteFlags} bitmask
+     * @param flags {@link com.aerospike.client.sdk.exp.ExpWriteFlags} bitmask
      * @return Aerospike {@link Operation} for expression write
      */
     public static Operation createWriteOp(String binName, PreparedAel ael, Object[] params, int flags) {
@@ -189,7 +189,7 @@ public final class ExpressionOpHelper {
      *
      * @param binName target bin
      * @param exp expression builder (compiled via {@link Exp#build(Exp)})
-     * @param flags {@link com.aerospike.client.exp.ExpWriteFlags} bitmask
+     * @param flags {@link com.aerospike.client.sdk.exp.ExpWriteFlags} bitmask
      * @return Aerospike {@link Operation} for expression write
      */
     public static Operation createWriteOp(String binName, Exp exp, int flags) {
@@ -201,7 +201,7 @@ public final class ExpressionOpHelper {
      *
      * @param binName target bin
      * @param exp compiled expression
-     * @param flags {@link com.aerospike.client.exp.ExpWriteFlags} bitmask
+     * @param flags {@link com.aerospike.client.sdk.exp.ExpWriteFlags} bitmask
      * @return Aerospike {@link Operation} for expression write
      */
     public static Operation createWriteOp(String binName, Expression exp, int flags) {
@@ -218,7 +218,7 @@ public final class ExpressionOpHelper {
      * @param opBuilder operation list builder
      * @param binName target bin
      * @param ael AEL text
-     * @param flags {@link com.aerospike.client.exp.ExpReadFlags} bitmask
+     * @param flags {@link com.aerospike.client.sdk.exp.ExpReadFlags} bitmask
      * @return {@code opBuilder} for chaining
      */
     public static <T extends AbstractOperationBuilder<T>> T addReadOp(T opBuilder, String binName, String ael, int flags) {
@@ -231,7 +231,7 @@ public final class ExpressionOpHelper {
      * @param opBuilder operation list builder
      * @param binName target bin
      * @param ael AEL text
-     * @param flags {@link com.aerospike.client.exp.ExpWriteFlags} bitmask
+     * @param flags {@link com.aerospike.client.sdk.exp.ExpWriteFlags} bitmask
      * @return {@code opBuilder} for chaining
      */
     public static <T extends AbstractOperationBuilder<T>> T addWriteOp(T opBuilder, String binName, String ael, int flags) {

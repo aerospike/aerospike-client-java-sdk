@@ -192,7 +192,7 @@ public class MapOperation {
      * <p>
      * The required map policy dictates the type of map to create when it does not exist.
      * The map policy also specifies the flags used when writing items to the map.
-     * See policy {@link com.aerospike.client.cdt.MapPolicy}.
+     * See policy {@link com.aerospike.client.sdk.cdt.MapPolicy}.
      */
     public static Operation put(MapPolicy policy, String binName, Value key, Value value, CTX... ctx) {
         byte[] bytes;
@@ -218,7 +218,7 @@ public class MapOperation {
      * <p>
      * The required map policy dictates the type of map to create when it does not exist.
      * The map policy also specifies the flags used when writing items to the map.
-     * See policy {@link com.aerospike.client.cdt.MapPolicy}.
+     * See policy {@link com.aerospike.client.sdk.cdt.MapPolicy}.
      */
     public static Operation putItems(MapPolicy policy, String binName, Map<Value,Value> map, CTX... ctx) {
         Packer packer = new Packer();
@@ -264,8 +264,8 @@ public class MapOperation {
      * <p>
      * The required map policy dictates the type of map to create when it does not exist.
      * The map policy also specifies the mode used when writing items to the map.
-     * See policy {@link com.aerospike.client.cdt.MapPolicy} and write flags
-     * {@link com.aerospike.client.cdt.MapWriteFlags}.
+     * See policy {@link com.aerospike.client.sdk.cdt.MapPolicy} and write flags
+     * {@link com.aerospike.client.sdk.cdt.MapWriteFlags}.
      */
     public static Operation increment(MapPolicy policy, String binName, Value key, Value incr, CTX... ctx) {
         byte[] bytes = Pack.pack(MapOperation.INCREMENT, key, incr, policy.attributes, ctx);
@@ -282,8 +282,8 @@ public class MapOperation {
      * <p>
      * The required map policy dictates the type of map to create when it does not exist.
      * The map policy also specifies the mode used when writing items to the map.
-     * See policy {@link com.aerospike.client.cdt.MapPolicy} and write flags
-     * {@link com.aerospike.client.cdt.MapWriteFlags}.
+     * See policy {@link com.aerospike.client.sdk.cdt.MapPolicy} and write flags
+     * {@link com.aerospike.client.sdk.cdt.MapWriteFlags}.
      */
     @Deprecated
     public static Operation decrement(MapPolicy policy, String binName, Value key, Value decr, CTX... ctx) {

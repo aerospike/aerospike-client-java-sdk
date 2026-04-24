@@ -1140,8 +1140,8 @@ public abstract class Exp {
 
     /**
      * Create unknown value. Used to intentionally fail an expression.
-     * The failure can be ignored with {@link com.aerospike.client.exp.ExpWriteFlags#EVAL_NO_FAIL}
-     * or {@link com.aerospike.client.exp.ExpReadFlags#EVAL_NO_FAIL}.
+     * The failure can be ignored with {@link com.aerospike.client.sdk.exp.ExpWriteFlags#EVAL_NO_FAIL}
+     * or {@link com.aerospike.client.sdk.exp.ExpReadFlags#EVAL_NO_FAIL}.
      * Requires server version 5.6.0+.
      *
      * <pre>{@code

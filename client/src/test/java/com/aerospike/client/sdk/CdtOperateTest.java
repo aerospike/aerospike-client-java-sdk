@@ -1549,7 +1549,7 @@ public class CdtOperateTest extends ClusterTest {
             client.operate(null, rkey);
             assertTrue("Should throw AerospikeException with PARAMETER_ERROR", false);
         } catch (com.aerospike.client.AerospikeException e) {
-            assertEquals("Should be PARAMETER_ERROR", com.aerospike.client.ResultCode.PARAMETER_ERROR, e.getResultCode());
+            assertEquals("Should be PARAMETER_ERROR", com.aerospike.client.sdk.ResultCode.PARAMETER_ERROR, e.getResultCode());
         }
     }
 
@@ -1579,7 +1579,7 @@ public class CdtOperateTest extends ClusterTest {
             client.operate(null, rkey, selectOp);
             assertTrue("Should throw AerospikeException with PARAMETER_ERROR", false);
         } catch (com.aerospike.client.AerospikeException e) {
-            assertEquals("Should be PARAMETER_ERROR", com.aerospike.client.ResultCode.PARAMETER_ERROR, e.getResultCode());
+            assertEquals("Should be PARAMETER_ERROR", com.aerospike.client.sdk.ResultCode.PARAMETER_ERROR, e.getResultCode());
         }
     }
 
@@ -1609,7 +1609,7 @@ public class CdtOperateTest extends ClusterTest {
             client.operate(null, rkey, selectOp);
             assertTrue("Should throw AerospikeException with PARAMETER_ERROR", false);
         } catch (com.aerospike.client.AerospikeException e) {
-            assertEquals("Should be PARAMETER_ERROR", com.aerospike.client.ResultCode.PARAMETER_ERROR, e.getResultCode());
+            assertEquals("Should be PARAMETER_ERROR", com.aerospike.client.sdk.ResultCode.PARAMETER_ERROR, e.getResultCode());
         }
     }
 
@@ -1640,7 +1640,7 @@ public class CdtOperateTest extends ClusterTest {
             client.operate(null, rkey, selectOp);
             assertTrue("Should throw AerospikeException with PARAMETER_ERROR", false);
         } catch (com.aerospike.client.AerospikeException e) {
-            assertEquals("Should be PARAMETER_ERROR", com.aerospike.client.ResultCode.PARAMETER_ERROR, e.getResultCode());
+            assertEquals("Should be PARAMETER_ERROR", com.aerospike.client.sdk.ResultCode.PARAMETER_ERROR, e.getResultCode());
         }
     }
 
@@ -1671,7 +1671,7 @@ public class CdtOperateTest extends ClusterTest {
             client.operate(null, rkey, modifyOp);
             assertTrue("Should throw AerospikeException with PARAMETER_ERROR", false);
         } catch (com.aerospike.client.AerospikeException e) {
-            assertEquals("Should be PARAMETER_ERROR", com.aerospike.client.ResultCode.PARAMETER_ERROR, e.getResultCode());
+            assertEquals("Should be PARAMETER_ERROR", com.aerospike.client.sdk.ResultCode.PARAMETER_ERROR, e.getResultCode());
         }
     }
 
@@ -1702,7 +1702,7 @@ public class CdtOperateTest extends ClusterTest {
             client.operate(null, rkey, modifyOp);
             assertTrue("Should throw AerospikeException with PARAMETER_ERROR", false);
         } catch (com.aerospike.client.AerospikeException e) {
-            assertEquals("Should be PARAMETER_ERROR", com.aerospike.client.ResultCode.PARAMETER_ERROR, e.getResultCode());
+            assertEquals("Should be PARAMETER_ERROR", com.aerospike.client.sdk.ResultCode.PARAMETER_ERROR, e.getResultCode());
         }
     }
 
@@ -1732,7 +1732,7 @@ public class CdtOperateTest extends ClusterTest {
             client.operate(null, rkey, modifyOp);
             assertTrue("Should throw AerospikeException with PARAMETER_ERROR", false);
         } catch (com.aerospike.client.AerospikeException e) {
-            assertEquals("Should be PARAMETER_ERROR", com.aerospike.client.ResultCode.PARAMETER_ERROR, e.getResultCode());
+            assertEquals("Should be PARAMETER_ERROR", com.aerospike.client.sdk.ResultCode.PARAMETER_ERROR, e.getResultCode());
         }
     }
 
@@ -1982,7 +1982,7 @@ public class CdtOperateTest extends ClusterTest {
 
         CTX ctx1 = CTX.mapKey(Value.get("locations"));
         CTX ctx2 = CTX.allChildrenWithFilter(
-            com.aerospike.client.exp.Exp.geoCompare(
+            com.aerospike.client.sdk.exp.Exp.geoCompare(
                 Exp.geoJsonLoopVar(LoopVarPart.VALUE),
                 Exp.geo(californiaRegion)
             )

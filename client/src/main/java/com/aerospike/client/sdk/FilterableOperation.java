@@ -117,7 +117,7 @@ public interface FilterableOperation<T extends FilterableOperation<T>> {
     /**
      * If the operation has a `where` clause and is provided either a single key or a list of keys,
      * any records which are filtered out will appear in the result stream with an exception code of
-     * {@link com.aerospike.client.ResultCode#FILTERED_OUT} rather than just not appearing in the result stream.
+     * {@link com.aerospike.client.sdk.ResultCode#FILTERED_OUT} rather than just not appearing in the result stream.
      *
      * <p>This is only applicable to key-based operations (operations with specific keys, not dataset scans).</p>
      *

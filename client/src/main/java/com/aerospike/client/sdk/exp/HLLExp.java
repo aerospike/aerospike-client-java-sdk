@@ -20,7 +20,7 @@ import com.aerospike.client.sdk.operation.HLLPolicy;
 import com.aerospike.client.sdk.util.Pack;
 
 /**
- * HyperLogLog (HLL) expression generator. See {@link com.aerospike.client.exp.Exp}.
+ * HyperLogLog (HLL) expression generator. See {@link com.aerospike.client.sdk.exp.Exp}.
  * <p>
  * The bin expression argument in these methods can be a reference to a bin or the
  * result of another expression. Expressions that modify bin values are only used

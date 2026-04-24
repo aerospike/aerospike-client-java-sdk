@@ -163,7 +163,7 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
      *
      * @param generation the expected generation value
      * @return this builder for method chaining
-     * @throws IllegalArgumentException if generation is <= 0 or if values() has not been called
+     * @throws IllegalArgumentException if generation is &lt;= 0 or if values() has not been called
      */
     public BinsValuesBuilder ensureGenerationIs(int generation) {
         if (generation <= 0) {

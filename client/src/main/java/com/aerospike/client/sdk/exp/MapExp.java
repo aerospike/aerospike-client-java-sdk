@@ -23,7 +23,7 @@ import com.aerospike.client.sdk.cdt.MapReturnType;
 import com.aerospike.client.sdk.util.Pack;
 
 /**
- * Map expression generator. See {@link com.aerospike.client.exp.Exp}.
+ * Map expression generator. See {@link com.aerospike.client.sdk.exp.Exp}.
  * <p>
  * The bin expression argument in these methods can be a reference to a bin or the
  * result of another expression. Expressions that modify bin values are only used
@@ -193,8 +193,8 @@ public final class MapExp {
 
     /**
      * Create expression that removes map items identified by keys.
-     * Valid returnType values are {@link com.aerospike.client.cdt.MapReturnType#NONE} or
-     * {@link com.aerospike.client.cdt.MapReturnType#INVERTED}.
+     * Valid returnType values are {@link com.aerospike.client.sdk.cdt.MapReturnType#NONE} or
+     * {@link com.aerospike.client.sdk.cdt.MapReturnType#INVERTED}.
      */
     public static Exp removeByKeyList(int returnType, Exp keys, Exp bin, CTX... ctx) {
         byte[] bytes = Pack.pack(REMOVE_BY_KEY_LIST, returnType, keys, ctx);
@@ -205,8 +205,8 @@ public final class MapExp {
      * Create expression that removes map items identified by key range (keyBegin inclusive, keyEnd exclusive).
      * If keyBegin is null, the range is less than keyEnd.
      * If keyEnd is null, the range is greater than equal to keyBegin.
-     * Valid returnType values are {@link com.aerospike.client.cdt.MapReturnType#NONE} or
-     * {@link com.aerospike.client.cdt.MapReturnType#INVERTED}.
+     * Valid returnType values are {@link com.aerospike.client.sdk.cdt.MapReturnType#NONE} or
+     * {@link com.aerospike.client.sdk.cdt.MapReturnType#INVERTED}.
      */
     public static Exp removeByKeyRange(int returnType, Exp keyBegin, Exp keyEnd, Exp bin, CTX... ctx) {
         byte[] bytes = ListExp.packRangeOperation(REMOVE_BY_KEY_INTERVAL, returnType, keyBegin, keyEnd, ctx);
@@ -215,8 +215,8 @@ public final class MapExp {
 
     /**
      * Create expression that removes map items nearest to key and greater by index.
-     * Valid returnType values are {@link com.aerospike.client.cdt.MapReturnType#NONE} or
-     * {@link com.aerospike.client.cdt.MapReturnType#INVERTED}.
+     * Valid returnType values are {@link com.aerospike.client.sdk.cdt.MapReturnType#NONE} or
+     * {@link com.aerospike.client.sdk.cdt.MapReturnType#INVERTED}.
      * <p>
      * Examples for map [{0=17},{4=2},{5=15},{9=10}]:
      * <ul>
@@ -235,8 +235,8 @@ public final class MapExp {
 
     /**
      * Create expression that removes map items nearest to key and greater by index with a count limit.
-     * Valid returnType values are {@link com.aerospike.client.cdt.MapReturnType#NONE} or
-     * {@link com.aerospike.client.cdt.MapReturnType#INVERTED}.
+     * Valid returnType values are {@link com.aerospike.client.sdk.cdt.MapReturnType#NONE} or
+     * {@link com.aerospike.client.sdk.cdt.MapReturnType#INVERTED}.
      * <p>
      * Examples for map [{0=17},{4=2},{5=15},{9=10}]:
      * <ul>
@@ -255,8 +255,8 @@ public final class MapExp {
 
     /**
      * Create expression that removes map items identified by value.
-     * Valid returnType values are {@link com.aerospike.client.cdt.MapReturnType#NONE} or
-     * {@link com.aerospike.client.cdt.MapReturnType#INVERTED}.
+     * Valid returnType values are {@link com.aerospike.client.sdk.cdt.MapReturnType#NONE} or
+     * {@link com.aerospike.client.sdk.cdt.MapReturnType#INVERTED}.
      */
     public static Exp removeByValue(int returnType, Exp value, Exp bin, CTX... ctx) {
         byte[] bytes = Pack.pack(REMOVE_BY_VALUE, returnType, value, ctx);
@@ -265,8 +265,8 @@ public final class MapExp {
 
     /**
      * Create expression that removes map items identified by values.
-     * Valid returnType values are {@link com.aerospike.client.cdt.MapReturnType#NONE} or
-     * {@link com.aerospike.client.cdt.MapReturnType#INVERTED}.
+     * Valid returnType values are {@link com.aerospike.client.sdk.cdt.MapReturnType#NONE} or
+     * {@link com.aerospike.client.sdk.cdt.MapReturnType#INVERTED}.
      */
     public static Exp removeByValueList(int returnType, Exp values, Exp bin, CTX... ctx) {
         byte[] bytes = Pack.pack(REMOVE_BY_VALUE_LIST, returnType, values, ctx);
@@ -277,8 +277,8 @@ public final class MapExp {
      * Create expression that removes map items identified by value range (valueBegin inclusive, valueEnd exclusive).
      * If valueBegin is null, the range is less than valueEnd.
      * If valueEnd is null, the range is greater than equal to valueBegin.
-     * Valid returnType values are {@link com.aerospike.client.cdt.MapReturnType#NONE} or
-     * {@link com.aerospike.client.cdt.MapReturnType#INVERTED}.
+     * Valid returnType values are {@link com.aerospike.client.sdk.cdt.MapReturnType#NONE} or
+     * {@link com.aerospike.client.sdk.cdt.MapReturnType#INVERTED}.
      */
     public static Exp removeByValueRange(int returnType, Exp valueBegin, Exp valueEnd, Exp bin, CTX... ctx) {
         byte[] bytes = ListExp.packRangeOperation(REMOVE_BY_VALUE_INTERVAL, returnType, valueBegin, valueEnd, ctx);
@@ -287,8 +287,8 @@ public final class MapExp {
 
     /**
      * Create expression that removes map items nearest to value and greater by relative rank.
-     * Valid returnType values are {@link com.aerospike.client.cdt.MapReturnType#NONE} or
-     * {@link com.aerospike.client.cdt.MapReturnType#INVERTED}.
+     * Valid returnType values are {@link com.aerospike.client.sdk.cdt.MapReturnType#NONE} or
+     * {@link com.aerospike.client.sdk.cdt.MapReturnType#INVERTED}.
      * <p>
      * Examples for map [{4=2},{9=10},{5=15},{0=17}]:
      * <ul>
@@ -304,8 +304,8 @@ public final class MapExp {
 
     /**
      * Create expression that removes map items nearest to value and greater by relative rank with a count limit.
-     * Valid returnType values are {@link com.aerospike.client.cdt.MapReturnType#NONE} or
-     * {@link com.aerospike.client.cdt.MapReturnType#INVERTED}.
+     * Valid returnType values are {@link com.aerospike.client.sdk.cdt.MapReturnType#NONE} or
+     * {@link com.aerospike.client.sdk.cdt.MapReturnType#INVERTED}.
      * <p>
      * Examples for map [{4=2},{9=10},{5=15},{0=17}]:
      * <ul>
@@ -329,8 +329,8 @@ public final class MapExp {
 
     /**
      * Create expression that removes map items starting at specified index to the end of map.
-     * Valid returnType values are {@link com.aerospike.client.cdt.MapReturnType#NONE} or
-     * {@link com.aerospike.client.cdt.MapReturnType#INVERTED}.
+     * Valid returnType values are {@link com.aerospike.client.sdk.cdt.MapReturnType#NONE} or
+     * {@link com.aerospike.client.sdk.cdt.MapReturnType#INVERTED}.
      */
     public static Exp removeByIndexRange(int returnType, Exp index, Exp bin, CTX... ctx) {
         byte[] bytes = Pack.pack(REMOVE_BY_INDEX_RANGE, returnType, index, ctx);
@@ -339,8 +339,8 @@ public final class MapExp {
 
     /**
      * Create expression that removes "count" map items starting at specified index.
-     * Valid returnType values are {@link com.aerospike.client.cdt.MapReturnType#NONE} or
-     * {@link com.aerospike.client.cdt.MapReturnType#INVERTED}.
+     * Valid returnType values are {@link com.aerospike.client.sdk.cdt.MapReturnType#NONE} or
+     * {@link com.aerospike.client.sdk.cdt.MapReturnType#INVERTED}.
      */
     public static Exp removeByIndexRange(int returnType, Exp index, Exp count, Exp bin, CTX... ctx) {
         byte[] bytes = Pack.pack(REMOVE_BY_INDEX_RANGE, returnType, index, count, ctx);
@@ -357,8 +357,8 @@ public final class MapExp {
 
     /**
      * Create expression that removes map items starting at specified rank to the last ranked item.
-     * Valid returnType values are {@link com.aerospike.client.cdt.MapReturnType#NONE} or
-     * {@link com.aerospike.client.cdt.MapReturnType#INVERTED}.
+     * Valid returnType values are {@link com.aerospike.client.sdk.cdt.MapReturnType#NONE} or
+     * {@link com.aerospike.client.sdk.cdt.MapReturnType#INVERTED}.
      */
     public static Exp removeByRankRange(int returnType, Exp rank, Exp bin, CTX... ctx) {
         byte[] bytes = Pack.pack(REMOVE_BY_RANK_RANGE, returnType, rank, ctx);
@@ -367,8 +367,8 @@ public final class MapExp {
 
     /**
      * Create expression that removes "count" map items starting at specified rank.
-     * Valid returnType values are {@link com.aerospike.client.cdt.MapReturnType#NONE} or
-     * {@link com.aerospike.client.cdt.MapReturnType#INVERTED}.
+     * Valid returnType values are {@link com.aerospike.client.sdk.cdt.MapReturnType#NONE} or
+     * {@link com.aerospike.client.sdk.cdt.MapReturnType#INVERTED}.
      */
     public static Exp removeByRankRange(int returnType, Exp rank, Exp count, Exp bin, CTX... ctx) {
         byte[] bytes = Pack.pack(REMOVE_BY_RANK_RANGE, returnType, rank, count, ctx);

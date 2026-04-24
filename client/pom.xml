@@ -145,9 +145,9 @@
           <show>public</show>
           <splitindex>true</splitindex>
           <bottom>Copyright &#169; 2012&#x2013;{currentYear} Aerospike, Inc. All rights reserved.</bottom>
-          <sourcepath>${basedir}/src/main/java</sourcepath>
+          <sourcepath>${basedir}/src/main/java${path.separator}${project.build.directory}/generated-sources/antlr4</sourcepath>
           <sourceFileIncludes>
-            <include>com/aerospike/*</include>
+            <include>com/aerospike/client/sdk/*</include>
           </sourceFileIncludes>
         </configuration>
       </plugin>

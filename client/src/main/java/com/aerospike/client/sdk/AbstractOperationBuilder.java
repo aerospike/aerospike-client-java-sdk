@@ -67,14 +67,14 @@ public abstract class AbstractOperationBuilder<T extends AbstractOperationBuilde
     /**
      * The threshold for determining when to use batch operations vs individual operations.
      * Operations with item counts >= this threshold will use batch mode.
-     * Operations with item counts < this threshold will use individual parallel execution.
+     * Operations with item counts &lt; this threshold will use individual parallel execution.
      */
     public static final int BATCH_OPERATION_THRESHOLD = 10;
 
     /**
      * Returns the threshold for determining when to use batch operations vs individual operations.
      * Operations with item counts >= this threshold will use batch mode.
-     * Operations with item counts < this threshold will use individual parallel execution.
+     * Operations with item counts &lt; this threshold will use individual parallel execution.
      *
      * @return the batch operation threshold
      */
