@@ -1,0 +1,83 @@
+name: Promote to Prod
+
+permissions:
+  id-token: write
+  contents: read
+
+on:
+  # checkov:skip=CKV_GHA_7:inputs validated by validate-payload action; webhook + manual trigger
+  workflow_dispatch:
+    inputs:
+      repository:
+        description: JFrog repo name (e.g. myproject-release-bundles-v2; project key is myproject)
+        required: true
+        type: string
+      bundle_name:
+        description: Bundle name
+        required: true
+        type: string
+      bundle_version:
+        description: Bundle version
+        required: true
+        type: string
+      dry_run:
+        description: Dry run (true/false)
+        required: false
+        default: "false"
+        type: string
+
+jobs:
+    promote-to-prod:
+        runs-on: ${{ vars.BUILD_CONTAINER_DISTRO_VERSION }}
+        steps:
+          # Needed since we are using actions which are part of the repository - name: Checkout
+          - uses: actions/checkout@v4
+            with:
+              # Fetch the whole history to prevent unrelated history errors
+              fetch-depth: "0"
+              ref: ${{ inputs.target-branch }}
+              token: ${{ secrets.CLIENT_BOT_PAT }}
+
+          # Getting build info which will allows us to get information about the build we are promoting
+          - name: Get info
+            id: get-build-info
+            run: |
+              API_PATH="/api/build/${{ inputs.jf-target-build }}/${{ inputs.build-number }}?project=clients"
+              status_code=$(jf rt curl "${API_PATH}" -o /dev/null -s -w "%{http_code}")
+
+              # Exit with 1 unless the request succeeded (HTTP 200)
+              if [[ "$status_code" -ne 200 ]]; then
+                echo "ERROR: could not fetch build for build number ${{ inputs.build-number }} (HTTP $status_code)" >&2
+
+                exit 1
+              fi
+
+              echo build-info=$(jf rt curl "${API_PATH}" ) >> $GITHUB_OUTPUT
+
+          # Snapshot builds are not promoted to production. We consider a snapshot build if the version in pom has been updated/changed as part of changes
+          # we are promoting in the build
+          - name: Check if snapshot build
+            run: |
+              IS_SNAPSHOT=$(echo '${{ steps.get-build-info.outputs.build-info }}' | jq -cr '.buildInfo.properties."buildInfo.env.IS_SNAPSHOT"')
+              if [ $IS_SNAPSHOT == 'true' ];then
+                echo "Error build ${{ inputs.jf-target-build }} with build number ${{ inputs.build-number }} is a SNAPSHOT build. Snapshots are not promoted to production."
+
+                exit 1
+              fi
+
+          # Fetching commit hash from the build info. The commit has is used for SNAPSHOT builds
+          - name: Get commit hash from repo
+            id: get-commit-hash
+            run: |
+              echo commit-hash=$(echo '${{ steps.get-build-info.outputs.build-info }}' | jq -r '.buildInfo.vcs[].revision') >> $GITHUB_OUTPUT
+
+          # Fetching build name for build promotion process. The build name will contain build numbers. This command parses json and pulls out the build name
+          - name: Get build name
+            id: get-build-name
+            run: |
+              echo build-names=$(echo '${{ steps.get-build-info.outputs.build-info }}' | jq -r '.buildInfo.modules[].id | sub("/[0-9]+$"; "")') >> $GITHUB_OUTPUT
+
+          - name: Debug
+            run: |
+              echo "commit-hash: '${{ steps.get-commit-hash.outputs.commit-hash }}'"
+              echo "build-names: '${{ steps.get-build-name.outputs.build-names }}'"
