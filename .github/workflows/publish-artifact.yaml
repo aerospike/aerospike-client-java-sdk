@@ -78,8 +78,8 @@ jobs:
 
       - name: Fetch parent buildinfo
         run: |
-          # API="/api/build/${{ inputs.bundle_name }}/${{ inputs.build_number }}?project=${{ env.JF_PROJECT }}"
-          API="/api/build/${{ env.BUNDLE_NAME }}/${{ env.BUILD_NUMBER }}?project=${{ env.JF_PROJECT }}"
+          API="/api/build/${{ inputs.bundle_name }}/${{ inputs.build_number }}?project=${{ env.JF_PROJECT }}"
+          # API="/api/build/${{ env.BUNDLE_NAME }}/${{ env.BUILD_NUMBER }}?project=${{ env.JF_PROJECT }}"
           if [[ "${{ inputs.dry_run }}" == "true" ]]; then
             echo "[dry-run] GET ${API}"
           fi
@@ -123,27 +123,27 @@ jobs:
             echo "[dry-run] buildinfo_id=${BUILDINFO_ID}"
           fi
 
-      #- name: Snapshot guard
-      #  run: |
-      #    IS_SNAPSHOT=$(jq -cr '.buildInfo.properties."buildInfo.env.IS_SNAPSHOT" // "false"' /tmp/parent.json)
-      #    if [[ "${{ inputs.dry_run }}" == "true" ]]; then
-      #      echo "[dry-run] IS_SNAPSHOT='${IS_SNAPSHOT}'"
-      #      echo "[dry-run] buildinfo_id='${{ steps.extract.outputs.buildinfo_id }}'"
-      #    fi
-      #    if [[ "$IS_SNAPSHOT" == "true" ]]; then
-      #      echo "ERROR: build ${{ inputs.build_number }} is a SNAPSHOT build; snapshots are not promoted to prod" >&2
-      #      exit 1
-      #    fi
-      #    if [[ "${{ steps.extract.outputs.buildinfo_id }}" == *SNAPSHOT* ]]; then
-      #      echo "ERROR: buildinfo module id contains SNAPSHOT: ${{ steps.extract.outputs.buildinfo_id }}" >&2
-      #      exit 1
-      #    fi
+      - name: Snapshot guard
+        run: |
+          IS_SNAPSHOT=$(jq -cr '.buildInfo.properties."buildInfo.env.IS_SNAPSHOT" // "false"' /tmp/parent.json)
+          if [[ "${{ inputs.dry_run }}" == "true" ]]; then
+            echo "[dry-run] IS_SNAPSHOT='${IS_SNAPSHOT}'"
+            echo "[dry-run] buildinfo_id='${{ steps.extract.outputs.buildinfo_id }}'"
+          fi
+          if [[ "$IS_SNAPSHOT" == "true" ]]; then
+            echo "ERROR: build ${{ inputs.build_number }} is a SNAPSHOT build; snapshots are not promoted to prod" >&2
+            exit 1
+          fi
+          if [[ "${{ steps.extract.outputs.buildinfo_id }}" == *SNAPSHOT* ]]; then
+            echo "ERROR: buildinfo module id contains SNAPSHOT: ${{ steps.extract.outputs.buildinfo_id }}" >&2
+            exit 1
+          fi
 
       - name: Fetch buildinfo build for commit SHA
         id: commit
         run: |
           BUILDINFO_ID="${{ steps.extract.outputs.buildinfo_id }}"
-          API="/api/build/${{ env.BUNDLE_NAME }}/${BUILDINFO_ID}?project=${{ env.JF_PROJECT }}"
+          API="/api/build/${{ inputs.bundle_name }}/${BUILDINFO_ID}?project=${{ env.JF_PROJECT }}"
           if [[ "${{ inputs.dry_run }}" == "true" ]]; then
             echo "[dry-run] GET ${API}"
           fi
