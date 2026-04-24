@@ -14,13 +14,35 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  make-matrix:
+    runs-on: ${{ vars.BUILD_CONTAINER_DISTRO_VERSION }}
+    outputs:
+      input-matrix: ${{ steps.create-server-matrix.outputs.input-matrix }}
+      java-version: ${{ steps.get-java-version.outputs.java-version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+
+      - id: create-server-matrix
+        uses: ./.github/actions/make-server-matrix
+        with:
+          default_json: ${{ vars.DEFAULT_SERVER_VERSIONS }}
+          test_servers_file_path: .github/nightly_test_servers.json
+
+      - name: Get java version
+        id: get-java-version
+        run: |
+          echo java-version="$(grep '<java.version>' pom.xml | sed -e 's/<[^>]*>//g' | awk '{$1=$1};1' | sed 's/^1\.8$/8/')"  >> $GITHUB_OUTPUT
+
   build-and-test:
+    needs: make-matrix
     name: Build & Test (server ${{ matrix.server-tag }})
     runs-on: ${{ vars.BUILD_CONTAINER_DISTRO_VERSION }}
     strategy:
       fail-fast: false
       matrix:
-        server-tag: ["8.1.0", "8.1.1", "8.1.2"]
+        server-tag: ${{ fromJson(needs.make-matrix.outputs.input-matrix) }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
