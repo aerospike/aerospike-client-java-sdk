@@ -81,6 +81,7 @@ jobs:
            --update-snapshots \
            --fail-at-end \
            --errors \
+           -DskipTests=false \
            verify
         env:
           MAVEN_OPTS: ${{ vars.MAVEN_OPTS }}
