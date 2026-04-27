@@ -2,14 +2,18 @@ name: Promote to Prod
 
 permissions:
   id-token: write
-  contents: read
+  contents: write
 
 on:
+  push:
+    branches:
+      - dev/ci-workflow-stage
+
   # checkov:skip=CKV_GHA_7:inputs validated by validate-payload action; webhook + manual trigger
   workflow_dispatch:
     inputs:
-      repository:
-        description: JFrog repo name (e.g. myproject-release-bundles-v2; project key is myproject)
+      build_number:
+        description: JFrog build number to promote (e.g. 363)
         required: true
         type: string
       bundle_name:
@@ -21,63 +25,277 @@ on:
         required: true
         type: string
       dry_run:
-        description: Dry run (true/false)
+        description: Dry-run mode. Defaults to "true" — pass "false" explicitly to perform real promotion, tagging, draft release, and publisher dispatch.
         required: false
-        default: "false"
+        default: "true"
         type: string
 
+env:
+  BUNDLE_NAME: aerospike-client-java-sdk
+  JF_PROJECT: database
+  PUBLISHER_REPO: database-release-bundles-v2
+  BUILD_NUMBER: 363
+
 jobs:
-    promote-to-prod:
-        runs-on: ${{ vars.BUILD_CONTAINER_DISTRO_VERSION }}
-        steps:
-          # Needed since we are using actions which are part of the repository - name: Checkout
-          - uses: actions/checkout@v4
-            with:
-              # Fetch the whole history to prevent unrelated history errors
-              fetch-depth: "0"
-              ref: ${{ inputs.target-branch }}
-              token: ${{ secrets.CLIENT_BOT_PAT }}
+  promote:
+    runs-on: ${{ vars.BUILD_CONTAINER_DISTRO_VERSION }}
+    outputs:
+      commit: ${{ steps.commit.outputs.commit }}
+      tag: ${{ steps.tag.outputs.tag }}
+    steps:
+      - name: Debug workflow inputs
+        run: |
+          echo "=== inputs ==="
+          echo "build_number:    '${{ inputs.build_number }}'"
+          echo "bundle_name:     '${{ inputs.bundle_name }}'"
+          echo "bundle_version:  '${{ inputs.bundle_version }}'"
+          echo "dry_run:         '${{ inputs.dry_run }}'"
+          echo "=== env constants ==="
+          echo "jf_project:      '${{ env.JF_PROJECT }}'"
+          echo "publisher_repo:  '${{ env.PUBLISHER_REPO }}'"
+          echo "=== github context ==="
+          echo "event_name:      '${{ github.event_name }}'"
+          echo "actor:           '${{ github.actor }}'"
+          echo "ref:             '${{ github.ref }}'"
 
-          # Getting build info which will allows us to get information about the build we are promoting
-          - name: Get info
-            id: get-build-info
-            run: |
-              API_PATH="/api/build/${{ inputs.jf-target-build }}/${{ inputs.build-number }}?project=clients"
-              status_code=$(jf rt curl "${API_PATH}" -o /dev/null -s -w "%{http_code}")
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: "0"
+          ref: main
+          token: ${{ secrets.CLIENT_BOT_PAT }}
 
-              # Exit with 1 unless the request succeeded (HTTP 200)
-              if [[ "$status_code" -ne 200 ]]; then
-                echo "ERROR: could not fetch build for build number ${{ inputs.build-number }} (HTTP $status_code)" >&2
+      - name: Set up JFrog credentials
+        uses: jfrog/setup-jfrog-cli@v4
+        env:
+          JF_URL: ${{ vars.JFROG_PLATFORM_URL }}
+          JF_PROJECT: ${{ env.JF_PROJECT }}
+        with:
+          version: 2.72.2
+          oidc-provider-name: ${{ vars.OIDC_PROVIDER_NAME }}
+          oidc-audience: ${{ vars.OIDC_AUDIENCE }}
 
-                exit 1
-              fi
+      - name: Fetch parent buildinfo
+        run: |
+          API="/api/build/${{ inputs.bundle_name }}/${{ inputs.build_number }}?project=${{ env.JF_PROJECT }}"
+          # API="/api/build/${{ env.BUNDLE_NAME }}/${{ env.BUILD_NUMBER }}?project=${{ env.JF_PROJECT }}"
+          if [[ "${{ inputs.dry_run }}" == "true" ]]; then
+            echo "[dry-run] GET ${API}"
+          fi
+          status_code=$(jf rt curl "$API" -o /tmp/parent.json -s -w "%{http_code}")
+          if [[ "${{ inputs.dry_run }}" == "true" ]]; then
+            echo "[dry-run] HTTP ${status_code}"
+          fi
+          if [[ "$status_code" -ne 200 ]]; then
+            echo "ERROR: could not fetch build ${{ inputs.build_number }} (HTTP $status_code)" >&2
+            cat /tmp/parent.json >&2 || true
+            exit 1
+          fi
+          jq . /tmp/parent.json
 
-              echo build-info=$(jf rt curl "${API_PATH}" ) >> $GITHUB_OUTPUT
+      - name: Extract buildinfo module id and verify version
+        id: extract
+        run: |
+          if [[ "${{ inputs.dry_run }}" == "true" ]]; then
+            echo "[dry-run] all module ids in parent buildinfo:"
+            jq -r '.buildInfo.modules[].id' /tmp/parent.json | sed 's/^/  - /'
+          fi
 
-          # Snapshot builds are not promoted to production. We consider a snapshot build if the version in pom has been updated/changed as part of changes
-          # we are promoting in the build
-          - name: Check if snapshot build
-            run: |
-              IS_SNAPSHOT=$(echo '${{ steps.get-build-info.outputs.build-info }}' | jq -cr '.buildInfo.properties."buildInfo.env.IS_SNAPSHOT"')
-              if [ $IS_SNAPSHOT == 'true' ];then
-                echo "Error build ${{ inputs.jf-target-build }} with build number ${{ inputs.build-number }} is a SNAPSHOT build. Snapshots are not promoted to production."
+          JFROG_VERSION=$(jq -r '.buildInfo.version' /tmp/parent.json)
+          BUILDINFO_ID=$(jq -r '.buildInfo.modules[].id | select(contains("buildinfo"))' /tmp/parent.json | cut -d/ -f2-)
 
-                exit 1
-              fi
+          if [[ -z "$BUILDINFO_ID" ]]; then
+            echo "ERROR: no module with id containing 'buildinfo' found" >&2
+            exit 1
+          fi
 
-          # Fetching commit hash from the build info. The commit has is used for SNAPSHOT builds
-          - name: Get commit hash from repo
-            id: get-commit-hash
-            run: |
-              echo commit-hash=$(echo '${{ steps.get-build-info.outputs.build-info }}' | jq -r '.buildInfo.vcs[].revision') >> $GITHUB_OUTPUT
+          if [[ "$JFROG_VERSION" != "${{ inputs.bundle_version }}" ]]; then
+            echo "WARNING: input bundle_version='${{ inputs.bundle_version }}' does not match buildInfo.version='$JFROG_VERSION'" >&2
+          fi
 
-          # Fetching build name for build promotion process. The build name will contain build numbers. This command parses json and pulls out the build name
-          - name: Get build name
-            id: get-build-name
-            run: |
-              echo build-names=$(echo '${{ steps.get-build-info.outputs.build-info }}' | jq -r '.buildInfo.modules[].id | sub("/[0-9]+$"; "")') >> $GITHUB_OUTPUT
+          echo "buildinfo_id=$BUILDINFO_ID" >> "$GITHUB_OUTPUT"
+          echo "Resolved buildinfo_id=$BUILDINFO_ID (buildInfo.version=$JFROG_VERSION, input bundle_version=${{ inputs.bundle_version }})"
+          if [[ "${{ inputs.dry_run }}" == "true" ]]; then
+            echo "[dry-run] bundle_name=${{ inputs.bundle_name }}"
+            echo "[dry-run] bundle_version=${{ inputs.bundle_version }}"
+            echo "[dry-run] jfrog buildInfo.version=$JFROG_VERSION"
+            echo "[dry-run] buildinfo_id=${BUILDINFO_ID}"
+          fi
 
-          - name: Debug
-            run: |
-              echo "commit-hash: '${{ steps.get-commit-hash.outputs.commit-hash }}'"
-              echo "build-names: '${{ steps.get-build-name.outputs.build-names }}'"
+      - name: Snapshot guard
+        run: |
+          IS_SNAPSHOT=$(jq -cr '.buildInfo.properties."buildInfo.env.IS_SNAPSHOT" // "false"' /tmp/parent.json)
+          if [[ "${{ inputs.dry_run }}" == "true" ]]; then
+            echo "[dry-run] IS_SNAPSHOT='${IS_SNAPSHOT}'"
+            echo "[dry-run] buildinfo_id='${{ steps.extract.outputs.buildinfo_id }}'"
+          fi
+          if [[ "$IS_SNAPSHOT" == "true" ]]; then
+            echo "ERROR: build ${{ inputs.build_number }} is a SNAPSHOT build; snapshots are not promoted to prod" >&2
+            exit 1
+          fi
+          if [[ "${{ steps.extract.outputs.buildinfo_id }}" == *SNAPSHOT* ]]; then
+            echo "ERROR: buildinfo module id contains SNAPSHOT: ${{ steps.extract.outputs.buildinfo_id }}" >&2
+            exit 1
+          fi
+
+      - name: Fetch buildinfo build for commit SHA
+        id: commit
+        run: |
+          BUILDINFO_ID="${{ steps.extract.outputs.buildinfo_id }}"
+          API="/api/build/${{ inputs.bundle_name }}/${BUILDINFO_ID}?project=${{ env.JF_PROJECT }}"
+          if [[ "${{ inputs.dry_run }}" == "true" ]]; then
+            echo "[dry-run] GET ${API}"
+          fi
+          status_code=$(jf rt curl "$API" -o /tmp/buildinfo.json -s -w "%{http_code}")
+          if [[ "${{ inputs.dry_run }}" == "true" ]]; then
+            echo "[dry-run] HTTP ${status_code}"
+          fi
+          if [[ "$status_code" -ne 200 ]]; then
+            echo "ERROR: could not fetch buildinfo build $BUILDINFO_ID (HTTP $status_code)" >&2
+            cat /tmp/buildinfo.json >&2 || true
+            exit 1
+          fi
+          if [[ "${{ inputs.dry_run }}" == "true" ]]; then
+            echo "[dry-run] vcs entries:"
+            jq '.buildInfo.vcs' /tmp/buildinfo.json
+          fi
+          COMMIT=$(jq -r '.buildInfo.vcs[0].revision' /tmp/buildinfo.json)
+          if [[ -z "$COMMIT" || "$COMMIT" == "null" ]]; then
+            echo "ERROR: vcs[0].revision missing in buildinfo" >&2
+            exit 1
+          fi
+          echo "commit=$COMMIT" >> "$GITHUB_OUTPUT"
+          echo "Resolved commit: $COMMIT"
+
+      - name: Sanity-check commit topology
+        run: |
+          COMMIT="${{ steps.commit.outputs.commit }}"
+          git fetch origin stage main --tags
+          if [[ "${{ inputs.dry_run }}" == "true" ]]; then
+            echo "[dry-run] origin/main tip:   $(git rev-parse origin/main)"
+            echo "[dry-run] origin/stage tip:  $(git rev-parse origin/stage)"
+            echo "[dry-run] target commit:     $COMMIT"
+            echo "[dry-run] target commit metadata:"
+            git show --no-patch --pretty=format:'  %h%n  author: %an <%ae>%n  date:   %ai%n  subject: %s' "$COMMIT" || true
+            echo
+            echo "[dry-run] commits between origin/main and target (will be promoted):"
+            git log --oneline "origin/main..$COMMIT" | sed 's/^/  /'
+            echo "[dry-run] commits between target and origin/stage (NOT promoted, stay on stage):"
+            git log --oneline "$COMMIT..origin/stage" | sed 's/^/  /'
+          fi
+          if ! git merge-base --is-ancestor "$COMMIT" origin/stage; then
+            echo "ERROR: $COMMIT is not reachable from origin/stage" >&2
+            exit 1
+          fi
+          if ! git merge-base --is-ancestor origin/main "$COMMIT"; then
+            echo "ERROR: $COMMIT is not a descendant of origin/main" >&2
+            exit 1
+          fi
+          echo "OK: $COMMIT is on stage and a descendant of main"
+
+      - name: Fast-forward main
+        run: |
+          COMMIT="${{ steps.commit.outputs.commit }}"
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch main
+          git pull --ff-only origin main
+          if [[ "${{ inputs.dry_run }}" == "true" ]]; then
+            echo "[dry-run] local main before merge: $(git rev-parse HEAD)"
+          fi
+          git merge --ff-only "$COMMIT"
+          if [[ "${{ inputs.dry_run }}" == "true" ]]; then
+            echo "[dry-run] local main after merge:  $(git rev-parse HEAD)"
+            echo "[dry-run] would: git push origin main (now at $COMMIT)"
+          else
+            git push origin main
+          fi
+
+      - name: Tag main
+        id: tag
+        run: |
+          TAG="v${{ inputs.bundle_version }}"
+          if [[ "${{ inputs.dry_run }}" == "true" ]]; then
+            echo "[dry-run] existing v* tags on origin:"
+            git ls-remote --tags origin 'v*' | awk '{print "  " $2}' | sed 's|refs/tags/||' | sort -V | tail -10
+            if git rev-parse -q --verify "refs/tags/${TAG}" >/dev/null; then
+              echo "[dry-run] WARNING: tag ${TAG} already exists locally"
+            fi
+            if git ls-remote --exit-code --tags origin "${TAG}" >/dev/null 2>&1; then
+              echo "[dry-run] WARNING: tag ${TAG} already exists on origin — real run would fail to push"
+            fi
+          fi
+          git tag -a "$TAG" -m "Promote to PROD (build ${{ inputs.build_number }})"
+          if [[ "${{ inputs.dry_run }}" == "true" ]]; then
+            echo "[dry-run] would: git push origin $TAG"
+          else
+            git push origin "$TAG"
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Dry-run summary of skipped downstream jobs
+        if: inputs.dry_run == 'true'
+        run: |
+          echo "=== [dry-run] downstream jobs skipped ==="
+          echo "github-release would:"
+          echo "  - checkout main at tag ${{ steps.tag.outputs.tag }}"
+          echo "  - generate notes from git log <prev-tag>..${{ steps.tag.outputs.tag }}"
+          echo "  - create draft GitHub release named '${{ steps.tag.outputs.tag }}'"
+          echo
+          echo "maven-central would:"
+          echo "  gh workflow run publish-artifact.yaml \\"
+          echo "    --repo citrusleaf/artifact-publisher \\"
+          echo "    --ref main \\"
+          echo "    -f repository=${{ env.PUBLISHER_REPO }} \\"
+          echo "    -f bundle_name=${{ inputs.bundle_name }} \\"
+          echo "    -f bundle_version=${{ inputs.bundle_version }} \\"
+          echo "    -f dry_run=false"
+
+  github-release:
+    needs: promote
+    if: inputs.dry_run != 'true'
+    runs-on: ${{ vars.BUILD_CONTAINER_DISTRO_VERSION }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.promote.outputs.tag }}
+          fetch-depth: "0"
+          token: ${{ secrets.CLIENT_BOT_PAT }}
+
+      - name: Generate release notes
+        id: notes
+        run: |
+          TAG="${{ needs.promote.outputs.tag }}"
+          PREV=$(git describe --tags --abbrev=0 "${TAG}^" 2>/dev/null || git rev-list --max-parents=0 HEAD | tail -1)
+          NOTES=$(git log "$PREV..$TAG" --pretty=format:"- %s")
+          {
+            echo "notes<<EOF"
+            echo "$NOTES"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Create draft GitHub release
+        uses: softprops/action-gh-release@72f2c25fcb47643c292f7107632f7a47c1df5cd8 # v2.3.2
+        with:
+          tag_name: ${{ needs.promote.outputs.tag }}
+          name: ${{ needs.promote.outputs.tag }}
+          body: ${{ steps.notes.outputs.notes }}
+          draft: true
+          token: ${{ secrets.CLIENT_BOT_PAT }}
+
+  maven-central:
+    needs: promote
+    if: inputs.dry_run != 'true'
+    runs-on: ${{ vars.BUILD_CONTAINER_DISTRO_VERSION }}
+    steps:
+      - name: Dispatch citrusleaf/artifact-publisher
+        env:
+          GH_TOKEN: ${{ secrets.CLIENT_BOT_PAT }}
+        run: |
+          gh workflow run publish-artifact.yaml \
+            --repo citrusleaf/artifact-publisher \
+            --ref main \
+            -f repository="${{ env.PUBLISHER_REPO }}" \
+            -f bundle_name="${{ inputs.bundle_name }}" \
+            -f bundle_version="${{ inputs.bundle_version }}" \
+            -f dry_run=false
+          echo "Dispatched citrusleaf/artifact-publisher (bundle_name=${{ inputs.bundle_name }} bundle_version=${{ inputs.bundle_version }})"

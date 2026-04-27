@@ -1,6 +1,5 @@
 name: Build and release
 
-
 permissions:
   id-token: write
   packages: write
@@ -34,11 +33,11 @@ jobs:
     with:
       runs-on: ${{ vars.BUILD_CONTAINER_DISTRO_VERSION }}
       jf-project: ${{ vars.JFROG_PROJECT }}
-      jf-build-name: aerospike-client-java-fluent
+      jf-build-name: aerospike-client-java-sdk
       jf-build-id: ${{ github.run_number }}-buildinfo-${{ needs.extract-version.outputs.version }}
       gh-checkout-path: shared-workflows
-      gh-source-path: aerospike-client-java-fluent
-      working-directory: aerospike-client-java-fluent
+      gh-source-path: aerospike-client-java-sdk
+      working-directory: aerospike-client-java-sdk
       setup-java: true
       java-version: "${{ vars.JAVA_VERSION }}"
       java-distribution: ${{ vars.JAVA_DISTRIBUTION }}
@@ -98,7 +97,7 @@ jobs:
     with:
       gh-workflows-ref: 9e3f2287b82d96d4283e9268d684d7320b2f98f9
       jf-project: ${{ vars.JFROG_PROJECT }}
-      jf-build-name: aerospike-client-java-fluent
+      jf-build-name: aerospike-client-java-sdk
       jf-metadata-build-id: ${{ github.run_number }}-buildinfo
       jf-build-id: ${{ github.run_number }}
       gh-artifact-name: ${{ needs.sign-artifacts.outputs.gh-artifact-name }}
@@ -112,10 +111,31 @@ jobs:
     needs: [extract-version, deploy-artifacts]
     uses: aerospike/shared-workflows/.github/workflows/reusable_create-release-bundle.yaml@37581d0437fe0b76315dafc402882c875789b1af
     with:
+      gh-workflows-ref: 37581d0437fe0b76315dafc402882c875789b1af
       jf-project: ${{ vars.JFROG_PROJECT }}
-      jf-build-names: aerospike-client-java-fluent:${{ github.run_number }}
-      jf-bundle-name: aerospike-client-java-fluent
+      jf-build-names: aerospike-client-java-sdk:${{ github.run_number }}
+      jf-bundle-name: aerospike-client-java-sdk
       version: ${{ needs.extract-version.outputs.version }}
       oidc-provider-name: ${{ vars.OIDC_PROVIDER_NAME }}
       oidc-audience: ${{ vars.OIDC_AUDIENCE }}
       dry-run: false
+
+  promote-release-bundle:
+    needs: [extract-version, create-release-bundle]
+    runs-on: ${{ vars.BUILD_CONTAINER_DISTRO_VERSION }}
+    steps:
+      - name: Setup JFrog CLI
+        uses: step-security/setup-jfrog-cli@893a92f96c7727242adf0e603c77b1f2a22390e1 # v4.9.1
+        env:
+          JF_URL: https://artifact.aerospike.io
+          JF_PROJECT: ${{ vars.JFROG_PROJECT }}
+        with:
+          oidc-provider-name: ${{ vars.OIDC_PROVIDER_NAME }}
+          oidc-audience: ${{ vars.OIDC_AUDIENCE }}
+      - name: Promote release bundle to DEV
+        uses: aerospike/shared-workflows/.github/actions/promote-release-bundle@07c958ca4c5cea494dc8790949c08e3fb28c55e1 # v3.3.0
+        with:
+          bundle-name: aerospike-client-java-sdk
+          version: ${{ needs.extract-version.outputs.version }}
+          environment: DEV
+          jf-project: ${{ vars.JFROG_PROJECT }}
