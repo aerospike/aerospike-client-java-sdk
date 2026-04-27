@@ -19,12 +19,12 @@ runs:
           exit 0
         fi
 
-        # Getting previous version
+        # Getting previous version (first <version> in root pom = project version)
         OLD_VERSIONS=$(git show "${COMMIT_REF}:pom.xml" |
-          sed -n '/<revision>/ { s/.*<revision>\([^<]*\)<\/revision>.*/\1/p; q }')
+          sed -n '/<version>/ { s/.*<version>\([^<]*\)<\/version>.*/\1/p; q }')
 
-        # Getting current version
-        NEW_VERSIONS=$(sed -n 's/.*<revision>\([^<]*\)<\/revision>.*/\1/p' pom.xml)
+        # Getting current version (first <version> in root pom = project version)
+        NEW_VERSIONS=$(sed -n '/<version>/ { s/.*<version>\([^<]*\)<\/version>.*/\1/p; q }' pom.xml)
 
         echo "old versions: ${OLD_VERSIONS}, new versions: ${NEW_VERSIONS}"
         # Compare the extracted versions. CI will not commit snapshot version.
