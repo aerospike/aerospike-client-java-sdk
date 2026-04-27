@@ -13,4 +13,5 @@ apidocs
 *.iml
 .idea/
 .vscode
+client/.flattened-pom.xml
 dependency-reduced-pom.xml
