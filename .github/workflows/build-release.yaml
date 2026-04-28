@@ -21,6 +21,8 @@ jobs:
     runs-on: ${{ vars.BUILD_CONTAINER_DISTRO_VERSION }}
     steps:
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: 2
       - name: Extract Version
         id: extract
         uses: ./.github/actions/get-version
