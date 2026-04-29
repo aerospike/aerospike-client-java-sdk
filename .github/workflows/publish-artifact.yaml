@@ -242,13 +242,13 @@ jobs:
           echo "  - create draft GitHub release named '${{ steps.tag.outputs.tag }}'"
           echo
           echo "maven-central would:"
-          echo "  gh workflow run publish-artifact.yaml \\"
-          echo "    --repo citrusleaf/artifact-publisher \\"
-          echo "    --ref main \\"
-          echo "    -f repository=${{ env.PUBLISHER_REPO }} \\"
-          echo "    -f bundle_name=${{ inputs.bundle_name }} \\"
-          echo "    -f bundle_version=${{ inputs.bundle_version }} \\"
-          echo "    -f dry_run=false"
+          echo "  - download artifacts from database-maven-dev-local"
+          echo "    path: com/aerospike/aerospike-client-sdk/${{ inputs.bundle_version }}/"
+          echo "  - regenerate .md5/.sha1/.sha256 sidecar files from build-info checksums"
+          echo "  - zip the artifacts into ${{ inputs.bundle_name }}_${{ inputs.build_number }}.zip"
+          echo "  - POST the bundle to \${{ vars.SONATYPE_DOMAIN_NAME }}/api/v1/publisher/upload"
+          echo "    (publishingType=AUTOMATIC — Sonatype publishes to Maven Central without manual intervention)"
+          echo "  - poll /api/v1/publisher/status until deploymentState=PUBLISHED"
 
   github-release:
     needs: promote
@@ -287,15 +287,35 @@ jobs:
     if: inputs.dry_run != 'true'
     runs-on: ${{ vars.BUILD_CONTAINER_DISTRO_VERSION }}
     steps:
-      - name: Dispatch citrusleaf/artifact-publisher
-        env:
-          GH_TOKEN: ${{ secrets.CLIENT_BOT_PAT }}
+      - name: Checkout (need local actions)
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.promote.outputs.tag }}
+          token: ${{ secrets.CLIENT_BOT_PAT }}
+
+      - name: Stage release artifacts from JFrog
+        uses: ./.github/actions/stage-release-artifacts
+        with:
+          jfrog-platform-url: ${{ vars.JFROG_PLATFORM_URL }}
+          jf-project: ${{ env.JF_PROJECT }}
+          oidc-provider: ${{ vars.OIDC_PROVIDER_NAME }}
+          oidc-audience: ${{ vars.OIDC_AUDIENCE }}
+          target-repository: database-maven-dev-local
+          artifact-version: ${{ inputs.bundle_version }}
+
+      - name: Publish to Sonatype Central
+        id: publish-to-sonatype
+        uses: ./.github/actions/publish-to-sonatype
+        with:
+          build-name-number: ${{ inputs.bundle_name }}/${{ inputs.build_number }}
+          publish-user: ${{ secrets.AEROSPIKE_SA_CICD_USERNAME }}
+          publish-password: ${{ secrets.AEROSPIKE_SA_CICD_PASSWORD }}
+          validation-max-number-checks: ${{ vars.VALIDATION_MAX_NUMBER_CHECKS }}
+          sonatype-domain-name: ${{ vars.SONATYPE_DOMAIN_NAME }}
+
+      - name: Summarize Sonatype release
         run: |
-          gh workflow run publish-artifact.yaml \
-            --repo citrusleaf/artifact-publisher \
-            --ref main \
-            -f repository="${{ env.PUBLISHER_REPO }}" \
-            -f bundle_name="${{ inputs.bundle_name }}" \
-            -f bundle_version="${{ inputs.bundle_version }}" \
-            -f dry_run=false
-          echo "Dispatched citrusleaf/artifact-publisher (bundle_name=${{ inputs.bundle_name }} bundle_version=${{ inputs.bundle_version }})"
+          echo "Sonatype release id: ${{ steps.publish-to-sonatype.outputs.maven-central-release-id }}"
+          echo "Bundle: ${{ inputs.bundle_name }} version: ${{ inputs.bundle_version }} build: ${{ inputs.build_number }}"
+          echo "Deployment was uploaded with publishingType=AUTOMATIC and reached PUBLISHED."
+          echo "Artifacts are live on Maven Central."

@@ -5,9 +5,10 @@
   <groupId>com.aerospike</groupId>
   <artifactId>aerospike-parent</artifactId>
   <name>aerospike-parent</name>
-  <version>0.0.1</version>
+  <version>0.9.0-alpha.1</version>
   <packaging>pom</packaging>
-  <url>https://github.com/aerospike/aerospike-client-java-sdk</url>
+  <description>Aerospike Java client SDK interface to Aerospike database server</description>
+  <url child.project.url.inherit.append.path="false">https://github.com/aerospike/aerospike-client-java-sdk</url>
 
   <organization>
     <name>Aerospike Inc.</name>
@@ -20,6 +21,35 @@
       <url>https://www.apache.org/licenses/LICENSE-2.0.txt</url>
     </license>
   </licenses>
+
+  <scm child.scm.connection.inherit.append.path="false"
+       child.scm.developerConnection.inherit.append.path="false"
+       child.scm.url.inherit.append.path="false">
+    <connection>scm:git:git@github.com:aerospike/aerospike-client-java-sdk.git</connection>
+    <developerConnection>scm:git:git@github.com:aerospike/aerospike-client-java-sdk.git</developerConnection>
+    <url>https://github.com/aerospike/aerospike-client-java-sdk</url>
+  </scm>
+
+  <developers>
+    <developer>
+      <name>Brian Nichols</name>
+      <email>bnichols@aerospike.com</email>
+      <organization>Aerospike</organization>
+      <organizationUrl>https://aerospike.com/</organizationUrl>
+      <roles>
+        <role>developer</role>
+      </roles>
+    </developer>
+    <developer>
+      <name>Mirza Karacic</name>
+      <email>mkaracic@aerospike.com</email>
+      <organization>Aerospike</organization>
+      <organizationUrl>https://aerospike.com/</organizationUrl>
+      <roles>
+        <role>developer</role>
+      </roles>
+    </developer>
+  </developers>
 
   <modules>
     <module>client</module>

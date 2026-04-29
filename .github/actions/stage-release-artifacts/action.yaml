@@ -1,0 +1,115 @@
+name: Stage artifacts for release
+description: |
+  Pulls a published Maven build from JFrog into local staging folders so a
+  downstream action (e.g. publish-to-sonatype) can package them for an
+  external portal. Mirrors the legacy aerospike-client-java action of the
+  same name, adapted to this repo's JFrog project (database) and host
+  (artifact.aerospike.io). Also fetches .md5/.sha1/.sha256 sidecar files
+  from JFrog's auto-served sibling URLs because Artifactory absorbs those
+  uploads as parent metadata rather than storing them as separate files;
+  downstream consumers (Sonatype) require them as real files in the bundle.
+
+inputs:
+  jfrog-platform-url:
+    description: JFrog platform URL
+    required: false
+    default: https://artifact.aerospike.io
+  jf-project:
+    description: JFrog Artifactory project key
+    required: false
+    default: database
+  oidc-provider:
+    description: OIDC provider name
+    required: true
+  oidc-audience:
+    description: OIDC audience
+    required: true
+  staging-folder:
+    description: |
+      JSON array of folder names to create under the workspace. Element [0]
+      is the canonical staging folder JFrog artifacts are downloaded into.
+    required: false
+    default: '["staging","sonatype"]'
+  target-repository:
+    description: Source repository in JFrog to download artifacts from
+    required: true
+  artifact-version:
+    description: Artifact version (path component under com/aerospike/<artifact>/<version>/)
+    required: true
+  artifact-id:
+    description: |
+      Maven artifact id to download (path component under com/aerospike/).
+      Defaults to aerospike-client-sdk; override if the build publishes a
+      different artifact id.
+    required: false
+    default: aerospike-client-sdk
+
+runs:
+  using: composite
+  steps:
+    - name: Setup JFrog CLI
+      uses: jfrog/setup-jfrog-cli@v4
+      env:
+        JF_URL: ${{ inputs.jfrog-platform-url }}
+        JF_PROJECT: ${{ inputs.jf-project }}
+      with:
+        oidc-provider-name: ${{ inputs.oidc-provider }}
+        oidc-audience: ${{ inputs.oidc-audience }}
+
+    - name: Create staging folders
+      shell: bash
+      run: |
+        echo '${{ inputs.staging-folder }}' | jq -r '.[]' | while read -r folder; do
+          mkdir -p "$folder"
+        done
+
+    - name: Download artifacts from JFrog
+      shell: bash
+      working-directory: ${{ fromJson(inputs.staging-folder)[0] }}
+      run: |
+        jf rt dl \
+          "${{ inputs.target-repository }}/com/aerospike/${{ inputs.artifact-id }}/${{ inputs.artifact-version }}/*" \
+          --project ${{ inputs.jf-project }} .
+
+    - name: Debug list downloaded content
+      shell: bash
+      working-directory: ${{ fromJson(inputs.staging-folder)[0] }}
+      run: |
+        pwd
+        ls -laR
+
+    - name: Fetch .md5 / .sha1 / .sha256 sidecars from JFrog
+      shell: bash
+      working-directory: ${{ fromJson(inputs.staging-folder)[0] }}
+      run: |
+        # Artifactory absorbs .md5/.sha1 uploads as parent metadata rather than
+        # storing them as separate files, so they don't come back through
+        # `jf rt dl`. Sonatype Central requires them as real files in the
+        # bundle. JFrog auto-serves the checksums at the canonical sibling URL
+        # (e.g. <file>.md5) — fetch each one directly and write the response
+        # body to a local sidecar file.
+        STAGE_DIR=$(find . -type d -path '*/com/aerospike/*/[0-9]*' | head -n1 || true)
+        if [[ -z "$STAGE_DIR" ]]; then
+          echo "ERROR: artifact directory not found under staging" >&2
+          ls -laR
+          exit 1
+        fi
+        REPO_PATH="${STAGE_DIR#./}"
+        cd "$STAGE_DIR"
+        for f in *.jar *.pom; do
+          [[ -f "$f" ]] || continue
+          case "$f" in
+            *.md5|*.sha1|*.sha256) continue ;;
+          esac
+          for ext in md5 sha1 sha256; do
+            url="/${{ inputs.target-repository }}/${REPO_PATH}/${f}.${ext}"
+            echo "  GET ${url}"
+            jf rt curl "${url}" > "${f}.${ext}"
+            if [[ ! -s "${f}.${ext}" ]]; then
+              echo "ERROR: ${f}.${ext} empty after fetch" >&2
+              exit 1
+            fi
+          done
+        done
+        echo "After sidecar fetch:"
+        ls -la

@@ -6,12 +6,17 @@
   <parent>
     <groupId>com.aerospike</groupId>
     <artifactId>aerospike-parent</artifactId>
-    <version>0.0.1</version>
+    <version>0.9.0-alpha.1</version>
   </parent>
   <artifactId>aerospike-client-sdk</artifactId>
   <packaging>jar</packaging>
 
   <name>aerospike-client-sdk</name>
+  <!-- Override inherited <url> explicitly. Maven's default child-pom URL
+       inheritance appends the module's artifactId, and the
+       child.project.url.inherit.append.path attribute on the parent is
+       ignored by Maven 3.9.x for the project-level URL. -->
+  <url>https://github.com/aerospike/aerospike-client-java-sdk</url>
 
   <properties>
     <skipTests>true</skipTests>

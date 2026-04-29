@@ -1,4 +1,5 @@
 name: Build and release
+# 
 
 permissions:
   id-token: write
@@ -30,9 +31,10 @@ jobs:
       version: ${{ steps.extract.outputs.release-version }}
 
   build-packages:
-    uses: aerospike/shared-workflows/.github/workflows/reusable_execute-build.yaml@e9d98e77b7895f22a3a45393f8461d44901df7be
+    uses: aerospike/shared-workflows/.github/workflows/reusable_execute-build.yaml@7b61b675476430553f09b94419ca18802d697e98 # v3.4.0
     needs: extract-version
     with:
+      gh-workflows-ref: 7b61b675476430553f09b94419ca18802d697e98 # v3.4.0
       runs-on: ${{ vars.BUILD_CONTAINER_DISTRO_VERSION }}
       jf-project: ${{ vars.JFROG_PROJECT }}
       jf-build-name: aerospike-client-java-sdk
@@ -44,16 +46,23 @@ jobs:
       java-version: "${{ vars.JAVA_VERSION }}"
       java-distribution: ${{ vars.JAVA_DISTRIBUTION }}
       build-script: |
+        mvn versions:set \
+          --batch-mode \
+          --no-transfer-progress \
+          -DnewVersion=${{ needs.extract-version.outputs.version }} \
+          -DprocessAllModules \
+          -DgenerateBackupPoms=false
+
+        cd client
+
         mvn \
           --batch-mode \
           --no-transfer-progress \
           --update-snapshots \
           --fail-at-end \
           --errors \
-          clean install \
+          clean source:jar javadoc:jar install \
           -DskipTests
-
-        cd client
 
         LOCAL_REPO=$(mvn help:evaluate -Dexpression=settings.localRepository -q -DforceStdout)
         GROUP_ID=$(mvn help:evaluate -Dexpression=project.groupId -q -DforceStdout)
@@ -63,6 +72,20 @@ jobs:
         GROUP_PATH=$(echo "$GROUP_ID" | tr '.' '/')
         ARTIFACT_PATH="$LOCAL_REPO/$GROUP_PATH/$ARTIFACT_ID/$VERSION"
 
+        # Generate .md5 and .sha1 sidecars for each primary artifact so they
+        # ship as real stored files in JFrog. The shared-workflows deploy step
+        # (pinned to maven-include-hashfiles-on-deploy) routes them into the
+        # maven repo alongside the .jar/.pom and skips build-info entries so
+        # the JFrog checksum-deploy interception accepts them and the release
+        # bundle stays clean.
+        for file in "$ARTIFACT_PATH"/*; do
+          case "$file" in
+            *.md5|*.sha1|*.sha256|*.sha512|*-jar-with-dependencies.jar|*_remote.repositories) continue ;;
+          esac
+          md5sum  "$file" > "$file.md5"
+          sha1sum "$file" > "$file.sha1"
+        done
+
         cd -
 
         echo "Copying artifacts to ./build/"
@@ -70,7 +93,7 @@ jobs:
           if [[ "$file" == *"-jar-with-dependencies.jar" ]] || [[ "$file" == *"_remote.repositories" ]]; then
             continue
           fi
-          cp "$file" build/
+          cp "$file" ./build/
         done
 
       gh-artifact-directory: build
@@ -83,8 +106,9 @@ jobs:
 
   sign-artifacts:
     needs: [build-packages, extract-version]
-    uses: aerospike/shared-workflows/.github/workflows/reusable_sign-artifacts.yaml@37581d0437fe0b76315dafc402882c875789b1af
+    uses: aerospike/shared-workflows/.github/workflows/reusable_sign-artifacts.yaml@7b61b675476430553f09b94419ca18802d697e98 # v3.4.0
     with:
+      gh-workflows-ref: 7b61b675476430553f09b94419ca18802d697e98 # v3.4.0
       gh-retention-days: 1
       gh-artifact-name: signed_build-artifacts-${{ needs.extract-version.outputs.version }}
       gh-unsigned-artifacts: build-artifacts-${{ needs.extract-version.outputs.version }}
@@ -95,9 +119,9 @@ jobs:
 
   deploy-artifacts:
     needs: [sign-artifacts, extract-version]
-    uses: aerospike/shared-workflows/.github/workflows/reusable_deploy-artifacts.yaml@52354f739fde07de513266b2060c07b08f0c7a79
+    uses: aerospike/shared-workflows/.github/workflows/reusable_deploy-artifacts.yaml@3015720ec043d55b09bbc158c70c21304e021ea5 # maven-include-hashfiles-on-deploy: jar+pom+md5+sha1 fix on top of v3.4.0
     with:
-      gh-workflows-ref: 9e3f2287b82d96d4283e9268d684d7320b2f98f9
+      gh-workflows-ref: 3015720ec043d55b09bbc158c70c21304e021ea5 # maven-include-hashfiles-on-deploy
       jf-project: ${{ vars.JFROG_PROJECT }}
       jf-build-name: aerospike-client-java-sdk
       jf-metadata-build-id: ${{ github.run_number }}-buildinfo
@@ -111,9 +135,9 @@ jobs:
 
   create-release-bundle:
     needs: [extract-version, deploy-artifacts]
-    uses: aerospike/shared-workflows/.github/workflows/reusable_create-release-bundle.yaml@37581d0437fe0b76315dafc402882c875789b1af
+    uses: aerospike/shared-workflows/.github/workflows/reusable_create-release-bundle.yaml@7b61b675476430553f09b94419ca18802d697e98 # v3.4.0
     with:
-      gh-workflows-ref: 37581d0437fe0b76315dafc402882c875789b1af
+      gh-workflows-ref: 7b61b675476430553f09b94419ca18802d697e98 # v3.4.0
       jf-project: ${{ vars.JFROG_PROJECT }}
       jf-build-names: aerospike-client-java-sdk:${{ github.run_number }}
       jf-bundle-name: aerospike-client-java-sdk
@@ -135,7 +159,7 @@ jobs:
           oidc-provider-name: ${{ vars.OIDC_PROVIDER_NAME }}
           oidc-audience: ${{ vars.OIDC_AUDIENCE }}
       - name: Promote release bundle to DEV
-        uses: aerospike/shared-workflows/.github/actions/promote-release-bundle@07c958ca4c5cea494dc8790949c08e3fb28c55e1 # v3.3.0
+        uses: aerospike/shared-workflows/.github/actions/promote-release-bundle@7b61b675476430553f09b94419ca18802d697e98 # v3.4.0
         with:
           bundle-name: aerospike-client-java-sdk
           version: ${{ needs.extract-version.outputs.version }}

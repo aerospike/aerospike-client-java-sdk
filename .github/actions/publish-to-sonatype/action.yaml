@@ -1,0 +1,133 @@
+name: Publish artifacts to Sonatype
+description: |
+  Packages the staged artifacts into a Sonatype Central Publishing bundle and
+  uploads it to the Sonatype Central Publisher API. Uses publishingType=
+  AUTOMATIC: once Sonatype's validation passes, the deployment is published
+  to Maven Central without further interaction.
+
+inputs:
+  staging-folder:
+    description: Folder the artifacts were downloaded into by stage-release-artifacts
+    required: false
+    default: staging
+  target-folder:
+    description: Sub-folder used to assemble the upload bundle
+    required: false
+    default: sonatype
+  publish-user:
+    description: Sonatype Central Publisher username (token name)
+    required: true
+  publish-password:
+    description: Sonatype Central Publisher password (token value)
+    required: true
+  validation-max-number-checks:
+    description: Maximum number of validation polls before failing
+    required: true
+  sonatype-domain-name:
+    description: Sonatype Central Publisher base URL (e.g. https://central.sonatype.com)
+    required: true
+  build-name-number:
+    description: Build name and number ("<name>/<number>"), used to compose the bundle filename
+    required: true
+
+outputs:
+  maven-central-release-id:
+    description: Sonatype Central Publishing release id (returned by the upload endpoint)
+    value: ${{ steps.get-maven-central-release-id.outputs.maven-central-release-id }}
+
+runs:
+  using: composite
+  steps:
+    - name: Copy artifacts (excluding fat jars) into the bundle folder
+      shell: bash
+      working-directory: ${{ inputs.staging-folder }}
+      run: |
+        # Maven Central rejects -jar-with-dependencies artifacts; filter them
+        # out defensively even if the upstream build no longer produces them.
+        src="./"
+        dest="../${{ inputs.target-folder }}"
+        find "$src" -type f \
+          \! \( -name "*jar-with-dependencies*" \) \
+          -exec cp --parents {} "$dest" \;
+
+    - name: Create upload archive
+      id: create-artifact
+      shell: bash
+      working-directory: ${{ inputs.target-folder }}
+      run: |
+        # Naming convention: <bundle-name>_<bundle-number>.zip — derived from
+        # the slash-delimited build-name-number input.
+        RELEASE="${{ inputs.build-name-number }}"
+        RELEASE_NAME="${RELEASE%/*}"
+        RELEASE_NUMBER="${RELEASE##*/}"
+        ARTIFACT_NAME="${RELEASE_NAME}_${RELEASE_NUMBER}"
+        echo "artifact-name=${ARTIFACT_NAME}" >> "$GITHUB_OUTPUT"
+        zip -r "${ARTIFACT_NAME}.zip" .
+
+    - name: Show bundle contents
+      shell: bash
+      working-directory: ${{ inputs.target-folder }}
+      run: |
+        ARTIFACT_NAME='${{ steps.create-artifact.outputs.artifact-name }}'
+        unzip -l "${ARTIFACT_NAME}.zip" | tail -n +4 | sort -k4,4
+
+    - name: Upload bundle to Sonatype
+      id: stage-release
+      shell: bash
+      working-directory: ${{ inputs.target-folder }}
+      run: |
+        TOKEN=$(printf "${{ inputs.publish-user }}:${{ inputs.publish-password }}" | base64)
+        ARTIFACT_NAME='${{ steps.create-artifact.outputs.artifact-name }}'
+        # Sonatype responds with a deployment id (UUID-ish string) as the body.
+        RELEASE_ID=$(curl --request POST --silent \
+          --header "Authorization: Bearer ${TOKEN}" \
+          --form "bundle=@${ARTIFACT_NAME}.zip" \
+          "${{ inputs.sonatype-domain-name }}/api/v1/publisher/upload?publishingType=AUTOMATIC")
+        echo "stage-release-id=${RELEASE_ID}" >> "$GITHUB_OUTPUT"
+        echo "Sonatype upload response: ${RELEASE_ID}"
+
+    - name: Poll deployment status until published
+      shell: bash
+      working-directory: ${{ inputs.target-folder }}
+      run: |
+        # publishingType=AUTOMATIC progresses through PENDING → VALIDATING →
+        # VALIDATED → PUBLISHING → PUBLISHED. The terminal success state is
+        # PUBLISHED (the artifact is live on Maven Central). VALIDATED is just
+        # an intermediate state under AUTOMATIC, so don't exit on it.
+        TOKEN=$(printf "${{ inputs.publish-user }}:${{ inputs.publish-password }}" | base64)
+        RELEASE_ID='${{ steps.stage-release.outputs.stage-release-id }}'
+        MAX=${{ inputs.validation-max-number-checks }}
+        for ((i = 1; i <= MAX; i++)); do
+          RESPONSE=$(curl --request POST --silent \
+            --header "Authorization: Bearer ${TOKEN}" \
+            "${{ inputs.sonatype-domain-name }}/api/v1/publisher/status?id=${RELEASE_ID}" \
+            | jq -cr .)
+          STATE=$(echo "${RESPONSE}" | jq -cr '.deploymentState')
+          case "${STATE}" in
+            FAILED)
+              echo "Sonatype deployment FAILED."
+              echo "Errors: $(echo "${RESPONSE}" | jq '.errors')"
+              exit 1
+              ;;
+            PENDING|VALIDATING|VALIDATED|PUBLISHING)
+              wait=$((2 ** (i - 1)))
+              echo "Status=${STATE}; retrying in ${wait}s ($i/$MAX)"
+              sleep "${wait}"
+              ;;
+            PUBLISHED)
+              echo "Deployment PUBLISHED to Maven Central."
+              exit 0
+              ;;
+            *)
+              echo "Unexpected deploymentState=${STATE}; full response: ${RESPONSE}"
+              ;;
+          esac
+        done
+        echo "Deployment did not reach PUBLISHED within ${MAX} polls."
+        exit 1
+
+    - name: Surface release id as output
+      id: get-maven-central-release-id
+      shell: bash
+      run: |
+        echo "maven-central-release-id=${{ steps.stage-release.outputs.stage-release-id }}" >> "$GITHUB_OUTPUT"
