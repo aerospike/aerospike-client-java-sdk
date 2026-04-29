@@ -10,6 +10,8 @@ The Aerospike Expression AEL is a text-based domain-specific language that compi
 
 A AEL expression is a string that is parsed, compiled to an `Exp` tree, and then evaluated by the Aerospike server against each record.
 
+**Scope:** Filter-syntax details below are aligned with **`client/src/main/antlr4/com/aerospike/ael/Condition.g4`** and the fluent client’s **`where`** / **`PreparedAel`** wiring in this repository. If your checkout’s grammar differs, prefer the grammar file as source of truth.
+
 ---
 
 ## Quick Reference
@@ -58,7 +60,7 @@ Plain decimal digits, optionally preceded by a sign with no spaces:
 
 ### 2.2 Floating-Point Numbers
 
-Digits with exactly one decimal point (the decimal point must not be the last character). THe decimal point may be leading:
+Digits with exactly one decimal point (the decimal point must not be the last character). The decimal point may be leading:
 
 ```
 3.14
@@ -269,11 +271,11 @@ $.m.{!temp,internal}          -- everything except these keys
 
 #### Index Range
 
-Selects entries by index position. Ranges use `start:end` where both are inclusive. Negative indices count from the end.
+Selects entries by index position. Ranges use `start:end`: **start inclusive, end exclusive** (see [Rule 10](#rule-10-range-semantics)). Negative indices count from the end.
 
-| Syntax | Description |
-|--------|-------------|
-| `{1:3}` | Index 1 through 3 (exclusive) |
+| Syntax | Description                               |
+|--------|-------------------------------------------|
+| `{1:3}` | Indices 1 and 2 only (end 3 is exclusive) |
 | `{-3:-1}` | Last 2 entries (exclusive of index -1) |
 | `{-3:}` | Last 3 entries  |
 | `{1:}` | From index 1 to the end |
@@ -281,8 +283,8 @@ Selects entries by index position. Ranges use `start:end` where both are inclusi
 | `{!2:4}` | Entries **outside** index 2-4 (inverted) |
 
 ```
-$.m.{0:2}                    -- first 3 entries
-$.m.{-3:}                    -- last 3 entries
+$.m.{0:3}                    -- indices 0, 1, and 2 (first 3 entries)
+$.m.{-3:}                    -- last 3 entries (from index -3 onward)
 ```
 
 #### Value List
@@ -365,6 +367,8 @@ Negative indices count from the end: `[-1]` is the last element, `[-3]` is third
 ### 6.2 Plural List Elements (Leaf Only)
 
 #### Index Range
+
+Ranges use **`start:end`**: **start inclusive, end exclusive** (same as map index ranges; see [Rule 10](#rule-10-range-semantics)).
 
 | Syntax | Description |
 |--------|-------------|
@@ -526,47 +530,24 @@ $.intBin.asFloat()            -- read an integer bin as a float
 $.intBin.get(type: INT) > $.floatBin.asInt()
 ```
 
-### 8.5 `type()`
+### 8.5 `type()` (not in current filter grammar)
 
-Returns the data type of the element as one of: `INT`, `STR`, `HLL`, `BLOB`, `FLOAT`, `BOOL`, `LIST`, `MAP`, `GEO`.
+A **`type()`** path suffix like `$.binA.type() == INT` is **not** part of the current `Condition.g4` **`pathFunction`** set (which covers `get()`, `exists()`, `count()`, `asInt()`, `asFloat()`, and the empty-paren mutation names listed in §8.6). Use **`get(type: …)`** when you need an explicit type on a path.
 
-```
-$.binA.type() == INT
-```
+### 8.6 CDT mutation path suffixes (current parser)
 
-### 8.6 CDT Mutation Functions
+The filter grammar recognizes these **only with empty parentheses** after a list/map path (no `return:` / parameter list in this revision of `Condition.g4`):
 
-These functions perform mutations on list or map data within write expressions.
+`remove()`, `insert()`, `set()`, `append()`, `increment()`, `clear()`, `sort()`
 
-**List mutation functions:**
-
-| Function | Description |
-|----------|-------------|
-| `remove()` | Remove matched elements. Default return type: `COUNT` |
-| `insert()` | Insert an element at the given position |
-| `set()` | Set an element at the given position |
-| `append()` | Append an element to the list |
-| `increment()` | Increment a numeric element |
-| `clear()` | Remove all items from the list |
-| `sort()` | Sort the list |
-
-**Map mutation functions:**
-
-| Function | Description |
-|----------|-------------|
-| `remove()` | Remove matched entries. Default return type: `COUNT` |
-| `put()` | Insert or update a key-value pair |
-| `increment()` | Increment a numeric value by key |
-| `clear()` | Remove all items from the map |
-
-**Remove examples:**
+**Examples (syntax the parser accepts today):**
 
 ```
-$.listbin.[=a:z].remove(return: NONE)
-$.listbin.[=4].remove()                  -- removes elements with value 4, returns count
+$.listBin.[=4].remove()
+$.mapBin.{a,b}.remove()
 ```
 
-If no `return` parameter is specified for `remove`, the default is `COUNT`.
+**Not accepted today:** forms like `remove(return: NONE)` or `put(key, value)` with arguments—the lexer/parser do not include those productions yet. If write-side AEL gains richer mutations, update **`Condition.g4`** first, then extend this section.
 
 ---
 
@@ -788,9 +769,8 @@ Access record-level metadata using function syntax after `$`:
 | `$.memorySize()` | INT | Size in memory in bytes. For servers >= 7, this will return the `recordSize()` |
 | `$.recordSize()` | INT | Total record size in bytes. Not supported on servers < 7 |
 | `$.digestModulo(n)` | INT | Record digest modulo `n` |
-| `$.key(STR)` | STRING | User key stored with the record (string) |
-| `$.key(INT)` | INT | User key stored with the record (integer) |
-| `$.key(BLOB)` | BLOB | User key stored with the record (blob) |
+
+The **`$.key(...)`** forms are **not** in the current `METADATA_FUNCTION` lexer rule in `Condition.g4`. Accessing the user key from AEL may be added later; until then, rely on bins or non-AEL APIs for key material.
 
 ### Examples
 
@@ -880,17 +860,9 @@ $.a.get(type: STRING) == (when (
 ))
 ```
 
-### 14.3 Error / Unknown
+### 14.3 Dedicated `error` / `unknown` keywords
 
-The `error` keyword (also available as `unknown`) evaluates to an exception when reached. Its primary use is in a `when` branch to force a runtime error when an unexpected condition is met.
-
-`error` and `unknown` are interchangeable — `error` is syntactic sugar over `unknown`.
-
-```
-when ($.status in ["GOLD", "PLATINUM"] => true, default => error)
-```
-
-Although it can appear anywhere an expression is accepted, in practice it is only useful inside conditional branches.
+The current `Condition.g4` grammar does **not** define `error` or `unknown` as standalone expression keywords (and `when` only supports `default => <expression>` for the fallback arm). To represent “must not happen” cases today, use a **`when`** branch that returns a value your application treats as invalid, or enforce the check outside AEL.
 
 ### Nesting Control Structures
 
@@ -905,9 +877,13 @@ $.result == (when (
 
 ---
 
-## 15. Prepared Statements (Placeholders)
+## 15. Parameters and placeholders
 
-AEL expressions can be pre-compiled with parameter placeholders for reuse. Placeholders use the syntax `?N` where N is a zero-based index.
+This section matches **`client/src/main/antlr4/com/aerospike/ael/Condition.g4`** and the fluent **`where`** helpers (`AbstractFilterableBuilder`, `WhereClauseProcessor`, `PreparedAel`).
+
+### 15.1 `?N` placeholders in the AEL string (grammar)
+
+The lexer defines **`?` + digits** as a placeholder (e.g. `?0`, `?1`). The visitor treats the number after `?` as a **zero-based index** into `PlaceholderValues` when you build expressions through **`AelParser`** with **`ExpressionContext.of(ael, PlaceholderValues.of(...))`**.
 
 ```
 $.bin > ?0
@@ -915,13 +891,44 @@ $.name == ?0 and $.age > ?1
 ($.apples + ?0) > ?1
 ```
 
-At execution time, concrete values are bound to each placeholder:
+Binding those values is **not** automatic from `where(String ael, Object... params)` (see §15.2).
+
+### 15.2 `where(String ael, Object... params)` — `String.format`
+
+For fluent `where("...", arg0, arg1, …)`, the SDK currently does:
+
+```text
+String.format(ael, params)
+```
+
+So use **`%s`, `%d`, …`** placeholders in the AEL string—**not** `?0`—unless your format string leaves `?` tokens untouched and you supply values some other way.
+
+Example:
 
 ```java
-PreparedAel prepared = PreparedAel.prepare("$.age > ?0 and $.name == ?1");
-// Bind values at execution time:
-session.query(set).where(prepared, 21, "Tim").execute();
+session.query(dataSet).where("$.age > %d and $.name == %s", 21, "Tim").execute();
 ```
+
+### 15.3 `PreparedAel` — `$1`, `$2`, … substitution
+
+`com.aerospike.client.sdk.query.PreparedAel` holds a template string and substitutes **`$1` → first argument**, **`$2` → second**, … (see `PreparedAel.formValue` — **`$` is one-based** in the template, stored as `params[0]`, …).
+
+There is **no** `PreparedAel.prepare(...)` factory; construct with **`new PreparedAel(...)`**.
+
+```java
+PreparedAel ael = new PreparedAel("$.age > $1 and $.name == $2");
+session.query(dataSet).where(ael, 21, "Tim").execute();
+```
+
+`where(PreparedAel, …)` expands the template via **`formValue`**, then parses the resulting AEL string like any other literal filter.
+
+### 15.4 Summary
+
+| Mechanism | Placeholder style | How values are supplied |
+|-----------|-------------------|-------------------------|
+| `where(String, Object...)` | `String.format` (`%s`, `%d`, …) | Varargs after the format string |
+| `where(PreparedAel, Object...)` | `$1`, `$2`, … in the template | Varargs to `formValue` |
+| `AelParser` + `ExpressionContext` | `?0`, `?1`, … in AEL | `PlaceholderValues.of(...)` on the context |
 
 ---
 
@@ -1141,9 +1148,11 @@ Place `!` immediately after the opening bracket/brace:
 
 ### Rule 10: Range semantics
 
-- Key ranges and value ranges are **begin-inclusive, end-exclusive**: `{a-d}` includes a, b, c but not d.
-- Index ranges in the AEL are also **exclusive** on the end.
-- Rank ranges follow the same pattern.
+This matches **`MapIndexRange` / `ListIndexRange`** (and rank-range parts): parsed `start` and `end` yield **`count = end - start`**, which is how **`MapExp.getByIndexRange` / `ListExp.getByIndexRange`** interpret the range (**`count`** elements from **`start`**).
+
+- **Key ranges** and **value ranges** on maps/lists: **begin-inclusive, end-exclusive** (e.g. `{a-d}` → keys a, b, c; not d).
+- **Index ranges** `{start:end}` and **`[start:end]`**: **begin-inclusive, end-exclusive** (e.g. `{0:2}` → indices **0** and **1**; `{0:3}` → **0, 1, 2**).
+- **Rank ranges** `{#start:end}` / `[#start:end]`: same **begin-inclusive, end-exclusive** convention (compiled with the same `end - start` → count pattern).
 
 ### Rule 11: Use `get()` to override defaults
 

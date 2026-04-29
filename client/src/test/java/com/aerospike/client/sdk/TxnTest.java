@@ -29,6 +29,7 @@ import org.junit.jupiter.api.Test;
 
 import com.aerospike.client.sdk.command.Txn;
 import com.aerospike.client.sdk.policy.Behavior;
+import com.aerospike.client.sdk.policy.Behavior.Selectors;
 
 public class TxnTest extends ClusterTest {
     private static final String binName = "bin";
@@ -491,6 +492,32 @@ public class TxnTest extends ClusterTest {
             rs.next().recordOrThrow();
         }));
         assertEquals(ResultCode.MRT_EXPIRED, ae.getResultCode());
+    }
+
+    /**
+     * When turbospike is started with {@code --key-busy-fault} (plus {@code --upstream ...}), write
+     * AS_MSG frames get {@code AS_ERR_KEY_BUSY} instead of reaching Aerospike. A single-write upsert must
+     * surface {@link ResultCode#KEY_BUSY}. Requires {@code TURBOSPIKE_KEY_BUSY_FAULT=true} so CI against a
+     * real server skips this case.
+     */
+    @Test
+    public void upsertReportsKeyBusy_whenTurbospikeFaultInjected() {
+        assumeTrue(
+                Boolean.parseBoolean(System.getenv().getOrDefault("TURBOSPIKE_KEY_BUSY_FAULT", "false")),
+                "Set env TURBOSPIKE_KEY_BUSY_FAULT=true when testing turbospike KEY_BUSY injection");
+
+        Behavior noRetryOnBusy = Behavior.DEFAULT.deriveWithChanges("upsertKeyBusyFault", b -> b
+                .on(Selectors.writes().retryable(), ops -> ops.maximumNumberOfCallAttempts(1)));
+        Session faultSession = cluster.createSession(noRetryOnBusy);
+
+        Key key = args.set.id("upsertKeyBusyFault");
+
+        AerospikeException ae = assertThrows(AerospikeException.class,
+                () -> faultSession.upsert(key).bins(binName).values("val1").execute());
+
+        assertEquals(ResultCode.KEY_BUSY, ae.getResultCode());
+        assertTrue(ae instanceof AerospikeException.KeyBusyException,
+                "expected KeyBusyException, got " + ae.getClass());
     }
 
     private void assertBatchEqual(java.util.List<Key> keys, RecordStream recs, int expected) {
