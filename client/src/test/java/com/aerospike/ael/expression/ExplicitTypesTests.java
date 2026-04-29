@@ -58,6 +58,22 @@ public class ExplicitTypesTests {
     }
 
     @Test
+    void quotedStringBackslashIsLiteralNotAnEscape() {
+        // Backslash is not an escape prefix: "\n" and '\n' are two-character string values (\ then n).
+        TestUtils.parseFilterExpressionAndCompare(
+                ExpressionContext.of("$.stringBin1.get(type: STRING) == \"\\n\""),
+                Exp.eq(Exp.stringBin("stringBin1"), Exp.val("\\n")));
+
+        TestUtils.parseFilterExpressionAndCompare(
+                ExpressionContext.of("$.stringBin1.get(type: STRING) == '\\n'"),
+                Exp.eq(Exp.stringBin("stringBin1"), Exp.val("\\n")));
+
+        TestUtils.parseFilterExpressionAndCompare(
+                ExpressionContext.of("$.stringBin1.get(type: STRING) == \"\\\\\""),
+                Exp.eq(Exp.stringBin("stringBin1"), Exp.val("\\\\")));
+    }
+
+    @Test
     void stringComparisonNegativeTest() {
         // A String constant must be quoted
         assertThatThrownBy(() ->

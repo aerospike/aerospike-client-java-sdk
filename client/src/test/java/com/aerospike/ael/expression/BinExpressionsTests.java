@@ -18,7 +18,9 @@ package com.aerospike.ael.expression;
 
 import com.aerospike.ael.AelParseException;
 import com.aerospike.ael.ExpressionContext;
+import com.aerospike.client.sdk.cdt.MapReturnType;
 import com.aerospike.client.sdk.exp.Exp;
+import com.aerospike.client.sdk.exp.MapExp;
 
 import org.junit.jupiter.api.Test;
 
@@ -87,4 +89,19 @@ public class BinExpressionsTests {
                 .hasMessageContaining("[Parser] mismatched input '<EOF>'")
                 .hasMessageContaining("at character 15");
     }
+
+    @Test
+    void existsPathSuffixIsIgnoredCompilesAsPlainPath() {
+        // exists() is not compiled; visitor drops the suffix (same Exp as without .exists()).
+        Exp scalar = Exp.eq(Exp.intBin("intBin1"), Exp.val(100));
+        parseFilterExpressionAndCompare(ExpressionContext.of("$.intBin1 == 100"), scalar);
+        parseFilterExpressionAndCompare(ExpressionContext.of("$.intBin1.exists() == 100"), scalar);
+
+        Exp mapEq = Exp.eq(
+                MapExp.getByKey(MapReturnType.VALUE, Exp.Type.INT, Exp.val("a"), Exp.mapBin("mapBin1")),
+                Exp.val(200));
+        parseFilterExpressionAndCompare(ExpressionContext.of("$.mapBin1.a == 200"), mapEq);
+        parseFilterExpressionAndCompare(ExpressionContext.of("$.mapBin1.a.exists() == 200"), mapEq);
+    }
+
 }

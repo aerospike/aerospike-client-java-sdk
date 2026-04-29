@@ -1,34 +1,31 @@
-# AEL Spec vs Implementation — Current Differences
+# AEL — Specification gaps vs this repository
 
-This document catalogues current incongruities between the two specification documents
-and the implementation in the `ael` package:
+This document tracks **remaining gaps** between long-form / PDF AEL design material, **`Condition.g4`**, and the Java compiler (**`ExpressionConditionVisitor`** and related `ael` classes). It is aimed at engineers extending the parser or visitor.
 
-- **`ael-documentation.md`** — the golden-standard specification (referred to as **AEL-DOC**)
-- **CORE-Expression DSL PDF** — the original design document (referred to as **PDF-SPEC**)
+**Primary reference (aligned to implementation):** **`ael-documentation.md`** — revised so normative text matches this repo’s grammar and visitor unless explicitly labeled otherwise.
 
-Where the two spec documents differ from each other, those differences are noted.
-AEL-DOC takes precedence.
+**Legacy labels in sections below:** **AEL-DOC** refers to historical `ael-documentation.md`–style prose or external AEL reference; **PDF-SPEC** is the CORE Expression DSL PDF. Where those two differ, the note is still useful for product direction even though user-facing docs now follow code.
 
 ---
 
 ## Summary
 
-| # | Issue | Severity |
-|---|---|---|
-| 1 | `NAME_IDENTIFIER` allows digit-start → wrong map key type | High |
-| 2 | `exists()` silently dropped by visitor | High |
-| 3 | Mutation functions are grammar stubs with no visitor | Medium |
-| 4 | `type()` path function missing from grammar | Medium |
-| 5 | `put()` map mutation missing from grammar | Medium |
-| 6 | Open-start ranges (`{-d}`, `{:5}`, `{#:4}`) missing | Medium |
-| 7 | Block comments (`/* */`) missing from grammar | Low |
-| 8 | `error`/`unknown` keywords treated as bin names | Medium |
-| 9 | `WILDCARD`/`NIL`/`INF` not handled as special values | Medium |
-| 10 | `$.key()` metadata function missing from grammar | Medium |
-| 11 | String escape sequences not implemented | Medium |
-| 12 | Value ranges limited to integers only | Medium |
-| 13 | Float/list values not supported in CDT value positions | Medium |
-| 14 | Bitwise operator precedence differs from PDF-SPEC | Low (matches AEL-DOC) |
+| # | Issue | Severity | User doc |
+|---|--------|----------|----------|
+| 1 | `NAME_IDENTIFIER` allows digit-start → digit-only map segments resolve as **string** keys | High | Documented in **§5.1** |
+| 2 | `exists()` parses but **no visitor** → suffix dropped / wrong semantics | High | — (omitted from user doc); see `BinExpressionsTests#existsPathSuffixIsIgnoredCompilesAsPlainPath` |
+| 3 | Mutation path suffixes parse; **no visitor** → not compiled | Medium | **§8.4** — not executable |
+| 4 | `type()` path function missing from grammar | Medium | Not advertised as supported |
+| 5 | `put()` map mutation missing from grammar | Medium | **§8.4** |
+| 6 | Open-start ranges (`{-d}`, `{:5}`, `{#:4}`, `[:5]`) missing from grammar | Medium | Called out as unsupported |
+| 7 | Block comments (`/* */`) missing from grammar | Low | **§17** — not supported |
+| 8 | `error`/`unknown` keywords treated as bin names | Medium | **§14.3** |
+| 9 | `WILDCARD`/`NIL`/`INF` not handled as special values | Medium | — (omitted from user doc) |
+| 10 | `$.key()` metadata function missing from grammar | Medium | **§13** |
+| 11 | String escape sequences not implemented | Medium | **§2.3** |
+| 12 | Value ranges limited to integers only (semantic layer) | Medium | **§5.2** value range note |
+| 13 | Float/list/map/boolean not in `valueIdentifier` for CDT selectors | Medium | Examples adjusted in **§19** |
+| 14 | Bitwise operator precedence differs from PDF-SPEC | Low (matches current grammar) | **§16** |
 
 ---
 
@@ -64,9 +61,8 @@ precedence would parse it as `1 | (2 & 4)`.
 
 ### 1. `NAME_IDENTIFIER` Accepts Digit-Starting Tokens
 
-**AEL-DOC (§5.1):**
-Bare integer `1` in a path position is an **integer** map key. To access string key
-`"1"`, use quotes: `$.m."1"`.
+**Historical spec:** bare integer `1` in a path position was described as an **integer** map key; string key
+`"1"` used quotes: `$.m."1"`.
 
 **Implementation (`Condition.g4` line 554):**
 
@@ -89,14 +85,7 @@ than **integer** key `1`.
 
 ### 2. `exists()` Path Function Silently Ignored
 
-**AEL-DOC (§8.3):**
-
-```
-$.binA.exists() and $.binB.exists()
-$.mapbin.a.exists()
-```
-
-Should check whether a bin or element exists, returning a boolean.
+**Historical spec:** described `exists()` as returning a boolean for bins or nested elements.
 
 **Implementation:**
 The grammar defines `pathFunctionExists`, but `ExpressionConditionVisitor` never
@@ -117,12 +106,13 @@ which causes:
 | `$.binB.exists()` (binB missing) | `false` (boolean) | Error — reads non-existent bin |
 | `$.mapbin.a.exists()` | `true`/`false` | Map key lookup (exists() dropped) |
 
+**Documentation:** `exists()` is not described in `ael-documentation.md`; regression coverage is `BinExpressionsTests#existsPathSuffixIsIgnoredCompilesAsPlainPath`.
+
 ---
 
 ### 3. Mutation Path Functions — Grammar Stubs, No Visitor
 
-**AEL-DOC (§8.6):**
-Defines CDT mutation functions: `remove()`, `insert()`, `set()`, `append()`,
+**Historical spec:** defined CDT mutation functions: `remove()`, `insert()`, `set()`, `append()`,
 `increment()`, `clear()`, `sort()` (list), and `put()` (map).
 
 **Implementation (`Condition.g4` lines 514–525):**
@@ -130,18 +120,19 @@ The grammar accepts the following as `pathFunction` alternatives:
 `remove()`, `insert()`, `set()`, `append()`, `increment()`, `clear()`, `sort()`.
 
 But **no visitor methods** exist for any of them. Visiting these returns `null` and
-they are silently ignored — identical to the `exists()` issue.
+they are silently ignored (suffix has no effect on the compiled expression).
 
 **Note:** `put()` is also missing from the grammar entirely (see issue 5).
 
-**Impact:** All mutation operations via AEL expressions are no-ops. Expressions like
-`$.listBin.[=30].remove()` silently return the original data without modification.
+**Impact:** Mutation suffixes are **not** compiled to `Exp` / CDT modify operations; treating parsed input as executable writes would be incorrect.
+
+**Documentation:** `ael-documentation.md` §8.4 — parser vs compiler distinction.
 
 ---
 
 ### 4. `type()` Path Function — Missing from Grammar
 
-**AEL-DOC (§8.5):**
+**Historical spec (`type()` as path function):**
 
 ```
 $.binA.type() == INT
@@ -192,6 +183,8 @@ $.l.[:5]          list index from start to 5
 **Impact:** Expressions like `$.m.{-d}`, `$.m.{:5}`, `$.l.[:3]` fail to parse.
 Workaround: use explicit start values (e.g. `$.m.{0:5}`).
 
+**Documentation:** `ael-documentation.md` §5.2 / §6.2 — open-start forms listed as not in `Condition.g4`.
+
 ---
 
 ### 7. Block Comments — Missing from Grammar
@@ -211,6 +204,8 @@ WS: [ \t\r\n]+ -> skip;
 ```
 
 **Impact:** Expressions containing `/* ... */` fail to parse.
+
+**Documentation:** `ael-documentation.md` §17 states that block comments are not supported.
 
 ---
 
@@ -236,9 +231,9 @@ raising a runtime exception.
 
 ### 9. `WILDCARD`, `NIL`, `INF` Special Values — Not Handled
 
-**AEL-DOC (§2.8):**
+**Historical spec** described special list/map sentinels:
 
-| Value | Description |
+| Value | Description (not in this client) |
 |---|---|
 | `*` (WILDCARD) | Matches any value from that point |
 | `NIL` | Lowest possible CDT comparison value |
@@ -309,6 +304,8 @@ strips the outer quote characters — it performs no escape processing.
   a string with an actual newline.
 - `"path\\to\\file"` produces `path\\to\\file` (literal backslashes preserved, not
   collapsed).
+
+**Documentation:** `ael-documentation.md` §2.3 describes the actual quoting behavior (no escape processing).
 
 ---
 
@@ -429,4 +426,11 @@ noted for awareness but not considered a bug.
 **Impact:** Expressions mixing `&`, `|`, `^` without parentheses evaluate
 left-to-right at equal precedence rather than with `&` binding tightest. Users
 relying on C/Java-style precedence (`&` > `^` > `|`) may get unexpected results.
+
+---
+
+## Maintainer notes
+
+- **`docs/ael-documentation.md`** — user-facing reference; **must** track **`Condition.g4`** + **`ExpressionConditionVisitor`** (and related `ael` Java) as the source of truth.
+- **`docs/ael-spec-vs-implementation.md`** (this file) — engineering backlog: PDF/legacy spec features that are still missing from grammar or visitor, or differ by design. Update the summary table when fixing or intentionally deferring an item.
 

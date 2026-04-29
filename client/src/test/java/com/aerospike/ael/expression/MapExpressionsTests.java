@@ -36,6 +36,106 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 public class MapExpressionsTests {
 
     @Test
+    void nameIdentifierResemblingSpecSentinelIsOrdinaryMapKey() {
+        // INF, NIL, WILDCARD, WLD are NAME_IDENTIFIER map keys, not special CDT sentinels.
+        Exp expectedNil = Exp.eq(
+                MapExp.getByKey(
+                        MapReturnType.VALUE,
+                        Exp.Type.INT,
+                        Exp.val("NIL"),
+                        Exp.mapBin("mapBin1")),
+                Exp.val(1));
+        TestUtils.parseFilterExpressionAndCompare(
+                ExpressionContext.of("$.mapBin1.NIL.get(type: INT) == 1"),
+                expectedNil);
+
+        Exp expectedInf = Exp.eq(
+                MapExp.getByKey(
+                        MapReturnType.VALUE,
+                        Exp.Type.INT,
+                        Exp.val("INF"),
+                        Exp.mapBin("mapBin1")),
+                Exp.val(2));
+        TestUtils.parseFilterExpressionAndCompare(
+                ExpressionContext.of("$.mapBin1.INF.get(type: INT) == 2"),
+                expectedInf);
+
+        Exp expectedWildcard = Exp.eq(
+                MapExp.getByKey(
+                        MapReturnType.VALUE,
+                        Exp.Type.STRING,
+                        Exp.val("WILDCARD"),
+                        Exp.mapBin("mapBin1")),
+                Exp.val("x"));
+        TestUtils.parseFilterExpressionAndCompare(
+                ExpressionContext.of("$.mapBin1.WILDCARD.get(type: STRING) == 'x'"),
+                expectedWildcard);
+
+        Exp expectedWld = Exp.eq(
+                MapExp.getByKey(
+                        MapReturnType.VALUE,
+                        Exp.Type.STRING,
+                        Exp.val("WLD"),
+                        Exp.mapBin("mapBin1")),
+                Exp.val("y"));
+        TestUtils.parseFilterExpressionAndCompare(
+                ExpressionContext.of("$.mapBin1.WLD.get(type: STRING) == 'y'"),
+                expectedWld);
+    }
+
+    @Test
+    void asteriskInListLiteralIsNotWildcardValue() {
+        // `*` inside `[1, *]` is not a wildcard list element; expression does not parse as a list literal.
+        assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of("\"gold\" in [1, *]")))
+                .isInstanceOf(AelParseException.class);
+    }
+
+    @Test
+    void openStartMapKeyRangeDoesNotParse() {
+        // Grammar: keyRangeIdentifier = mapKey '-' mapKey | mapKey '-' only (no '-mapKey' open-start).
+        assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of("$.mapBin1.{-d}.count() > 0")))
+                .isInstanceOf(AelParseException.class)
+                .hasMessageContaining("Could not parse given AEL expression input");
+    }
+
+    @Test
+    void openStartMapIndexRangeDoesNotParse() {
+        // Grammar: indexRangeIdentifier = start ':' end | start ':' only (no ':end' open-start).
+        assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of("$.mapBin1.{:5}.count() > 0")))
+                .isInstanceOf(AelParseException.class)
+                .hasMessageContaining("Could not parse given AEL expression input");
+    }
+
+    @Test
+    void openStartMapRankRangeDoesNotParse() {
+        // rankRangeIdentifier = start ':' end | start ':' only (no ':end' open-start before rank).
+        assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of("$.mapBin1.{#:4}.count() > 0")))
+                .isInstanceOf(AelParseException.class)
+                .hasMessageContaining("Could not parse given AEL expression input");
+    }
+
+    @Test
+    void digitOnlyMapKeyUnquotedSameAsQuotedStringKey() {
+        // `.1` is NAME_IDENTIFIER "1", not integer key or index; same MapExp as explicit quoted key "1".
+        Exp expected = Exp.eq(
+                MapExp.getByKey(
+                        MapReturnType.VALUE,
+                        Exp.Type.INT,
+                        Exp.val("1"),
+                        Exp.mapBin("mapBin1")),
+                Exp.val(100));
+        TestUtils.parseFilterExpressionAndCompare(
+                ExpressionContext.of("$.mapBin1.1.get(type: INT) == 100"),
+                expected);
+        TestUtils.parseFilterExpressionAndCompare(
+                ExpressionContext.of("$.mapBin1.\"1\".get(type: INT) == 100"),
+                expected);
+        TestUtils.parseFilterExpressionAndCompare(
+                ExpressionContext.of("$.mapBin1.'1'.get(type: INT) == 100"),
+                expected);
+    }
+
+    @Test
     void mapOneLevelExpressions() {
         // Int
         Exp expected = Exp.eq(
@@ -578,6 +678,17 @@ public class MapExpressionsTests {
                 null,
                 Exp.mapBin("mapBin1"));
         TestUtils.parseFilterExpressionAndCompare(ExpressionContext.of("$.mapBin1.{=111:}"), expected);
+    }
+
+    @Test
+    void mapValueRangeStringEndpointsRejectedAtCompileTime() {
+        // valueRangeIdentifier allows valueIdentifier (incl. names), but MapValueRange requires ints.
+        assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of("$.mapBin1.{=a:b}.count() > 0")))
+                .isInstanceOf(AelParseException.class)
+                .hasMessageContaining("Value range requires integer operands");
+        assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of("$.mapBin1.{=\"x\":\"y\"}.count() > 0")))
+                .isInstanceOf(AelParseException.class)
+                .hasMessageContaining("Value range requires integer operands");
     }
 
     @Test
