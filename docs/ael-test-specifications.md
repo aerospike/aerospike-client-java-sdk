@@ -273,7 +273,7 @@ cannot infer type or when operand types differ.
 |----|-------------|--------|----------------|---------|----------|--------|
 | M01 | String key (unquoted) | 2 | `$.m.alpha.get(type: INT)` | Read | `10` | ✓ |
 | M02 | String key (quoted) | 2 | `$.m.'alpha'.get(type: INT)` | Read | `10` | ✓ |
-| M03 | Integer key lookup | 5 | `$.m.1.get(type: STRING)` | Read | `"one"` | ✗ 2b |
+| M03 | String key `"1"` (quoted) | 5 | `$.m."1".get(type: STRING)` | Read | `"one"` | ✓ |
 | M04 | Map by index {0} | 2 | `$.m.{0}.get(type: INT)` | Read | `10` (first entry by key order) | ✓ |
 | M05 | Map by value {=20} | 2 | `$.m.{=20}.get(type: STRING)` | Read | `"beta"` (key of value 20) | ✓ |
 | M06 | Map by rank {#0} | 9 | `$.scores.{#0}.get(type: STRING)` | Read | `"english"` (lowest value 78) | ✓ |

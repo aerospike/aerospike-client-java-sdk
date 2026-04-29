@@ -12,7 +12,7 @@ This document tracks **remaining gaps** between long-form / PDF AEL design mater
 
 | # | Issue | Severity | User doc |
 |---|--------|----------|----------|
-| 1 | `NAME_IDENTIFIER` allows digit-start → digit-only map segments resolve as **string** keys | High | Documented in **§5.1** |
+| 1 | Digit-only **string** map keys need quotes (`$.m."1"`) — `$.m.1` hits **leading-dot float** lexer token | High | **§5.1** |
 | 2 | `exists()` parses but **no visitor** → suffix dropped / wrong semantics | High | — (omitted from user doc); see `BinExpressionsTests#existsPathSuffixIsIgnoredCompilesAsPlainPath` |
 | 3 | Mutation path suffixes parse; **no visitor** → not compiled | Medium | **§8.4** — not executable |
 | 4 | `type()` path function missing from grammar | Medium | Not advertised as supported |
@@ -59,27 +59,20 @@ precedence would parse it as `1 | (2 & 4)`.
 
 ## Implementation Issues
 
-### 1. `NAME_IDENTIFIER` Accepts Digit-Starting Tokens
+### 1. Digit-Only String Map Keys — Quote Them (`$.m."1"`)
 
-**Historical spec:** bare integer `1` in a path position was described as an **integer** map key; string key
-`"1"` used quotes: `$.m."1"`.
+**Historical / informal spec:** `$.m.1` was sometimes described as map access with key `"1"` or as an integer key.
 
-**Implementation (`Condition.g4` line 554):**
+**Lexer (`Condition.g4`):** `LEADING_DOT_FLOAT` is `'.' [0-9]+`, so after `$.m` the next token starting at `.1` is **one** float-shaped token (`.1`), not `.` plus a `NAME_IDENTIFIER` map key. The parser then rejects it in this context (`Invalid float literal`).
 
-```
-NAME_IDENTIFIER: [a-zA-Z0-9_]+;
-```
-
-Identifiers can start with digits (e.g. `1`, `123abc`). When a map has integer keys,
-`$.m.1` parses `1` as `NAME_IDENTIFIER` which resolves to **string** key `"1"` rather
-than **integer** key `1`.
+**What works:** `$.m."1"`, `$.m.'1'` for string key `"1"`. Map **index** still uses braces: `$.m.{1}`.
 
 **Impact:**
 
-| Expression | Spec Expects | Actual Behaviour |
+| Expression | You might expect | Actual behaviour |
 |---|---|---|
-| `$.m.1` (map has int key 1) | Integer key → found | String key → `null` |
-| `$.m.1` (map has both int 1 and string "1") | Integer key value | String key value |
+| `$.m.1`… | Key `"1"` or index | **Parse error** (`Invalid float literal`) |
+| `$.m."1".get(…)` | String key `"1"` | Parses; compiles to `getByKey` with string key |
 
 ---
 

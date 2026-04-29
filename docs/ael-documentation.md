@@ -207,13 +207,15 @@ These select a single element. They can appear anywhere in the path.
 |--------|--------------------------------------|---------|
 | `key` | Map key (unquoted string identifier) | `$.m.name` |
 | `'key'` or `"key"` | Map key (quoted string)              | `$.m.'special-key'` |
-| `1` | Map key (String 1)                   | `$.m.1` |
+| `"1"` / `'1'` | Map key string **"1"** (quoted; required for digit-only keys) | `$.m."1"` (see **Dot + digits** below) |
 | `{1}` | Map by **index** 1                   | `$.m.{1}` |
 | `{=1}` | Map by **value** 1                   | `$.m.{=1}` |
 | `{=bb}` | Map by **value** "bb"                | `$.m.{=bb}` |
 | `{#1}` | Map by **rank** 1                    | `$.m.{#1}` |
 
-**String key notes**: Unquoted identifiers work for simple names (`name`, `user_id`). Use quotes for keys containing special characters (`'127.0.0.1'`, `"special-key"`), keys that are purely numeric strings (`"66"`), or reserved words.
+**String key notes**: Unquoted identifiers work for simple names (`name`, `user_id`). Use quotes for keys containing special characters (`'127.0.0.1'`, `"special-key"`), keys that are purely numeric strings (`"66"`, `"1"`), or reserved words.
+
+**Digit-only keys:** If you write something like `$.m.1`, AEL reads the part after the second dot as a **decimal number** (similar to `0.1` elsewhere), not as the map key named `"1"`. For a key that is only digits, put it in **quotes**: `$.m."1"` or `$.m.'1'`. To pick an entry by **position** in the map, use braces instead: `$.m.{1}`. To match by **stored value**, use `$.m.{=1}`.
 
 ### 5.2 Plural Map Elements (Leaf Only)
 
@@ -1010,15 +1012,17 @@ then (${tier})
 $.listBin.[] == [1, 2, 3]
 ```
 
-### Integer map key access
+### String map key `"1"` vs map index `{1}`
 
 ```
-$.m."1"                        -- string map key "1"
-$.m.1                          -- same as key "1" (unquoted digits count as that string key)
+$.m."1"                        -- string map key "1" (use quotes when the key is only digits)
+$.m.'1'                        -- same
 $.m.{1}                        -- map index 1 (by position in the map)
 $.m.{1,2}                      -- key list: keys "1" and "2" as strings
 $.m.{1-3}                      -- key range: string keys "1" .. up to (exclusive) "3"
 ```
+
+Avoid `$.m.1` for the string key `"1"` — it is read as a decimal number, not a key name (see **Digit-only keys** in **§5.1**).
 
 ### Relative rank range
 

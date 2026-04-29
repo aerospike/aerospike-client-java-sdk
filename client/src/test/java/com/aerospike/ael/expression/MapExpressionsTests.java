@@ -115,8 +115,8 @@ public class MapExpressionsTests {
     }
 
     @Test
-    void digitOnlyMapKeyUnquotedSameAsQuotedStringKey() {
-        // `.1` is NAME_IDENTIFIER "1", not integer key or index; same MapExp as explicit quoted key "1".
+    void digitOnlyMapKeyRequiresQuotes_bareDotDigitsLexAsLeadingDotFloat() {
+        // After `mapBin1`, the lexer sees `.1` as LEADING_DOT_FLOAT (invalid in a path), not `.` + map key "1".
         Exp expected = Exp.eq(
                 MapExp.getByKey(
                         MapReturnType.VALUE,
@@ -124,9 +124,9 @@ public class MapExpressionsTests {
                         Exp.val("1"),
                         Exp.mapBin("mapBin1")),
                 Exp.val(100));
-        TestUtils.parseFilterExpressionAndCompare(
-                ExpressionContext.of("$.mapBin1.1.get(type: INT) == 100"),
-                expected);
+        assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of("$.mapBin1.1.get(type: INT) == 100")))
+                .isInstanceOf(AelParseException.class)
+                .hasMessageContaining("Invalid float literal");
         TestUtils.parseFilterExpressionAndCompare(
                 ExpressionContext.of("$.mapBin1.\"1\".get(type: INT) == 100"),
                 expected);
