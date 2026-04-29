@@ -61,8 +61,7 @@ jobs:
           --fail-at-end \
           --errors \
           clean source:jar javadoc:jar install \
-          -DskipTests \
-          -DcreateChecksum=true
+          -DskipTests
 
         LOCAL_REPO=$(mvn help:evaluate -Dexpression=settings.localRepository -q -DforceStdout)
         GROUP_ID=$(mvn help:evaluate -Dexpression=project.groupId -q -DforceStdout)
@@ -71,6 +70,16 @@ jobs:
 
         GROUP_PATH=$(echo "$GROUP_ID" | tr '.' '/')
         ARTIFACT_PATH="$LOCAL_REPO/$GROUP_PATH/$ARTIFACT_ID/$VERSION"
+
+        # Generate .md5 and .sha1 sidecars for each primary artifact.
+        # maven-install-plugin 3.x removed -DcreateChecksum, so generate manually.
+        for file in "$ARTIFACT_PATH"/*; do
+          case "$file" in
+            *.md5|*.sha1|*.sha256|*.sha512|*-jar-with-dependencies.jar|*_remote.repositories) continue ;;
+          esac
+          md5sum  "$file" > "$file.md5"
+          sha1sum "$file" > "$file.sha1"
+        done
 
         cd -
 
