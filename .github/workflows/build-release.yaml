@@ -72,9 +72,8 @@ jobs:
         GROUP_PATH=$(echo "$GROUP_ID" | tr '.' '/')
         ARTIFACT_PATH="$LOCAL_REPO/$GROUP_PATH/$ARTIFACT_ID/$VERSION"
 
-        # Generate sha256 and sha512 checksums for each primary artifact.
-        # maven-install-plugin only produces md5/sha1; sha256/sha512 are required
-        # by modern repositories and must be generated separately.
+        # Maven generates .md5 and .sha1 (-DcreateChecksum=true above).
+        # Add .sha256 and .sha512 for each primary artifact.
         for file in "$ARTIFACT_PATH"/*; do
           case "$file" in
             *.md5|*.sha1|*.sha256|*.sha512|*-jar-with-dependencies.jar|*_remote.repositories) continue ;;
