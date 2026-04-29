@@ -79,8 +79,8 @@ jobs:
           case "$file" in
             *.md5|*.sha1|*.sha256|*.sha512|*-jar-with-dependencies.jar|*_remote.repositories) continue ;;
           esac
-          sha256sum "$file" | awk '{print $1}' > "$file.sha256"
-          sha512sum "$file" | awk '{print $1}' > "$file.sha512"
+          sha256sum "$file" > "$file.sha256"
+          sha512sum "$file" > "$file.sha512"
         done
 
         cd -
