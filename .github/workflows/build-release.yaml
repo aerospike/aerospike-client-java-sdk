@@ -61,7 +61,8 @@ jobs:
           --fail-at-end \
           --errors \
           clean source:jar javadoc:jar install \
-          -DskipTests
+          -DskipTests \
+          -DcreateChecksum=true
 
         LOCAL_REPO=$(mvn help:evaluate -Dexpression=settings.localRepository -q -DforceStdout)
         GROUP_ID=$(mvn help:evaluate -Dexpression=project.groupId -q -DforceStdout)
@@ -70,6 +71,17 @@ jobs:
 
         GROUP_PATH=$(echo "$GROUP_ID" | tr '.' '/')
         ARTIFACT_PATH="$LOCAL_REPO/$GROUP_PATH/$ARTIFACT_ID/$VERSION"
+
+        # Generate sha256 and sha512 checksums for each primary artifact.
+        # maven-install-plugin only produces md5/sha1; sha256/sha512 are required
+        # by modern repositories and must be generated separately.
+        for file in "$ARTIFACT_PATH"/*; do
+          case "$file" in
+            *.md5|*.sha1|*.sha256|*.sha512|*-jar-with-dependencies.jar|*_remote.repositories) continue ;;
+          esac
+          sha256sum "$file" | awk '{print $1}' > "$file.sha256"
+          sha512sum "$file" | awk '{print $1}' > "$file.sha512"
+        done
 
         cd -
 
