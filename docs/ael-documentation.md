@@ -10,8 +10,6 @@ The Aerospike Expression AEL is a text-based domain-specific language that compi
 
 A AEL expression is a string that is parsed, compiled to an `Exp` tree, and then evaluated by the Aerospike server against each record.
 
-**Scope:** Filter-syntax details below are aligned with **`client/src/main/antlr4/com/aerospike/ael/Condition.g4`** and the SDK’s **`where`** / **`PreparedAel`** wiring in this repository. If your checkout’s grammar differs, prefer the grammar file as source of truth.
-
 ---
 
 ## Quick Reference
@@ -41,7 +39,7 @@ $.binName          -- read a bin on the record (examples: $.age, $.profile)
 $.ttl()            -- read this record’s remaining TTL in seconds (expiration)
 ```
 
-The `$` symbol is the current record. After `$.`, you either follow a **bin path** (`$.myBin…`) or use a **built-in record function** such as `$.ttl()`, `$.setName()`, or `$.lastUpdate()`—each one returns something about the **record itself** (lifetime, set name, last update time, size, and so on), not data stored under a bin with that name. There is no single `$.metadata()` call; each attribute has its own function (see [§13](#13-record-metadata)).
+The `$` symbol represents the current record. After `$.`, you either follow a **bin path** (`$.myBin…`) or use a **built-in record function** such as `$.ttl()`, `$.setName()`, or `$.lastUpdate()`.
 
 ---
 
@@ -139,7 +137,7 @@ $.<bin>.<context1>.<context2>...<leaf>.<function>
 - **Bin**: The top-level bin name (first element after `$.`).
 - **Context elements**: Intermediate navigation into nested CDTs.
 - **Leaf element**: The final element being targeted.
-- **Function**: An optional terminal operation: `get()`, `count()`, `asInt()`, `asFloat()`. Mutation-style suffixes such as `remove()` are described in [§8.4](#84-mutation-style-path-suffixes-not-supported-here); they do not change data in this client.
+- **Function**: An optional terminal operation: `get()`, `count()`, `asInt()`, `asFloat()`. Suffixes that look like map or list **writes** (for example `remove()`) are **not supported** in AEL today—see [§8.5](#85-mutation-style-path-suffixes-not-supported).
 
 ### How the AEL determines bin type
 
@@ -204,22 +202,19 @@ Maps are key-value structures. The AEL navigates into maps using dot-separated p
 
 These select a single element. They can appear anywhere in the path.
 
-| Syntax | Description                          | Example |
-|--------|--------------------------------------|---------|
-| `key` | Map key (unquoted string identifier) | `$.m.name` |
-| `'key'` or `"key"` | Map key (quoted string)              | `$.m.'special-key'` |
-| `1`, `55`, `0xff`, … | Map key (**integer**): digits after `.` use the `INT` token | `$.m.1`, `$.m.55` |
-| `"1"` / `'1'` | Map key (**string**): digit characters as text | `$.m."1"` (contrast with integer `$.m.1`) |
-| `{1}` | Map by **index** 1                   | `$.m.{1}` |
-| `{=1}` | Map by **value** 1                   | `$.m.{=1}` |
-| `{=bb}` | Map by **value** "bb"                | `$.m.{=bb}` |
-| `{#1}` | Map by **rank** 1                    | `$.m.{#1}` |
+| Syntax             | Description                                    | Example |
+|--------------------|------------------------------------------------|---------|
+| `key`              | Map key (unquoted string identifier)           | `$.m.name` |
+| `'key'` or `"key"` | Map key (quoted string)                        | `$.m.'special-key'` |
+| `1`                | Map key (integer 1)                            | `$.m.1` |
+| `{1}`              | Map by **index** 1                             | `$.m.{1}` |
+| `{=1}`             | Map by **value** 1                             | `$.m.{=1}` |
+| `{=bb}`            | Map by **value** "bb"                          | `$.m.{=bb}` |
+| `{#1}`             | Map by **rank** 1                              | `$.m.{#1}` |
 
-**String key notes**: Unquoted identifiers work for simple names (`name`, `user_id`). Use quotes for keys containing special characters (`'127.0.0.1'`, `"special-key"`), reserved words, or when the key must be a **string** that looks like a number (`"66"`, `"1"`).
+**String key notes**: Unquoted identifiers work for simple names (`name`, `user_id`). Use quotes for keys containing special characters (`'127.0.0.1'`, `"special-key"`), reserved words etc.
 
-**Integer vs string digit keys:** `$.m.1` accesses the entry whose key is the **integer** `1`. `$.m."1"` accesses the entry whose key is the **string** `"1"`. These are different keys in Aerospike maps. For **positional** access in unordered maps, use `$.m.{1}` (index).
-
-Signed or hex integer keys can also use a **leading-dot** path segment (grammar `pathIntMapKey`), e.g. `$.m.-2` for key `-2`—see `MapKeyTypingTests` in this repo.
+**Integer key notes**: A bare integer like `1` in a path position is an integer map key. To access a string key `"1"`, use quotes: `$.m."1"`.
 
 ### 5.2 Plural Map Elements (Leaf Only)
 
@@ -252,6 +247,7 @@ Selects entries by an explicit set of keys:
 
 ```
 $.m.{name,age,email}
+$.m.{1,2}                     -- integer keys 1 and 2
 $.m.{!temp,internal}          -- everything except these keys
 ```
 
@@ -367,7 +363,7 @@ Ranges use **`start:end`**: **start inclusive, end exclusive** (same as map inde
 | `[1:]` | From index 1 to the end |
 | `[!2:4]` | Entries **outside** index 2-4 (inverted) |
 
-**Note:** The same applies to lists: **`[:5]`** is not valid—use **`[0:5]`**, **`[1:]`**, **`[-3:]`**, etc. (Same rule as map index ranges in [§5.2](#52-plural-map-elements-leaf-only).)
+**Note:** A list index range must include a **starting index** before the first **`:`**—open-start forms such as **`[:5]`** are not valid. Use **`[0:5]`**, **`[1:]`**, **`[-3:]`**, etc. Map index ranges follow the same requirement; see [§5.2](#52-plural-map-elements-leaf-only).
 
 #### Value List
 
@@ -506,7 +502,7 @@ When used on a full bin (`[]` or `{}`), this maps to the efficient `size()` oper
 
 ### 8.3 `exists()`
 
-Returns whether a scalar bin or a single CDT slot exists (`Exp.binExists` / CDT `*ReturnType.EXISTS`), as a boolean.
+Returns a boolean: whether the path names an existing **bin**, or—when it addresses exactly one map or list element—whether that **element** is present.
 
 ```
 $.binA.exists() and $.binB.exists()
@@ -524,20 +520,17 @@ $.intBin.asFloat()            -- read an integer bin as a float
 $.intBin.get(type: INT) > $.floatBin.asInt()
 ```
 
-### 8.5 Mutation-style path suffixes (not supported here)
+### 8.5 Mutation-style path suffixes (not supported)
 
-You may see paths that end with empty parentheses such as:
+Some path spellings **look like** map or list **write** operations—for example a final segment **`remove()`**, **`insert()`**, **`set()`**, **`append()`**, **`increment()`**, **`clear()`**, or **`sort()`** with empty parentheses. The same style with **`put(...)`**, or **with arguments** inside the parentheses (such as options after the name), is likewise not supported AEL path syntax.
 
-`remove()`, `insert()`, `set()`, `append()`, `increment()`, `clear()`, `sort()`
-
-**They do not perform writes or deletes in this client.** A filter string like the examples below does **not** change data on the server when used through the fluent AEL helpers—do not rely on it to remove, insert, or update elements.
+**None of this is supported in the current release.** Do not use AEL conditions or filters to delete, insert, or update elements that way—to change map or list contents, use the SDK’s write APIs. **Support for mutation-style path syntax may be added in a future release.** Until then, rely only on the path functions described in this chapter (**`get()`**, **`count()`**, **`exists()`**, **`asInt()`**, **`asFloat()`**, and related options).
 
 ```
+-- Examples of styles that are not supported for mutations via AEL:
 $.listBin.[=4].remove()
 $.mapBin.{a,b}.remove()
 ```
-
-**Also unsupported in AEL strings here:** a `put(...)` suffix, or any of the above **with arguments** (e.g. `remove(return: NONE)`). Use other APIs for map/list mutations.
 
 ---
 
@@ -760,7 +753,8 @@ Access record-level metadata using function syntax after `$`:
 | `$.recordSize()` | INT | Total record size in bytes. Not supported on servers < 7 |
 | `$.digestModulo(n)` | INT | Record digest modulo `n` |
 
-The **`$.key(...)`** forms are **not** in the current `METADATA_FUNCTION` lexer rule in `Condition.g4`. Accessing the user key from AEL may be added later; until then, rely on bins or non-AEL APIs for key material.
+The **`$.key(...)`** forms (the user key with a type such as **`INT`** or **`STRING`**) are **not supported** in AEL today. 
+They **may be supported in a future release**. To match on key-like data in a filter, store it in a bin, or use the client APIs that work with keys directly.
 
 ### Examples
 
@@ -850,17 +844,17 @@ $.a.get(type: STRING) == (when (
 ))
 ```
 
-### 14.3 `error` and `unknown` keywords
+### 14.3 Error / Unknown
 
-**Supported:** You may write **`error`** or **`unknown`** as an expression by itself. When that expression is evaluated, the filter or read **fails** (it does not return a normal value). That is useful in a **`when`** clause to signal “this case should not happen,” for example:
+The `error` keyword (also available as `unknown`) evaluates to an exception when reached. Its primary use is in a `when` branch to force a runtime error when an unexpected condition is met.
+
+`error` and `unknown` are interchangeable — `error` is syntactic sugar over `unknown`.
 
 ```
 when ($.status in ["GOLD", "PLATINUM"] => true, default => error)
 ```
 
-You can use **`error`** / **`unknown`** in other expression positions too, but **`when`** (and similar conditionals) is the usual place.
-
-**Not supported:** There is no way to attach a custom error message or error code in the AEL text itself—only this built-in failure behaviour.
+Although it can appear anywhere an expression is accepted, in practice it is only useful inside conditional branches.
 
 ### Nesting Control Structures
 
@@ -875,13 +869,9 @@ $.result == (when (
 
 ---
 
-## 15. Parameters and placeholders
+## 15. Prepared Statements (Placeholders)
 
-This section matches **`client/src/main/antlr4/com/aerospike/ael/Condition.g4`** and the fluent **`where`** helpers (`AbstractFilterableBuilder`, `WhereClauseProcessor`, `PreparedAel`).
-
-### 15.1 `?N` placeholders in the AEL string (grammar)
-
-The lexer defines **`?` + digits** as a placeholder (e.g. `?0`, `?1`). The visitor treats the number after `?` as a **zero-based index** into `PlaceholderValues` when you build expressions through **`AelParser`** with **`ExpressionContext.of(ael, PlaceholderValues.of(...))`**.
+AEL expressions can be pre-compiled with parameter placeholders for reuse. Placeholders use the syntax `?N` where N is a zero-based index.
 
 ```
 $.bin > ?0
@@ -889,44 +879,13 @@ $.name == ?0 and $.age > ?1
 ($.apples + ?0) > ?1
 ```
 
-Binding those values is **not** automatic from `where(String ael, Object... params)` (see §15.2).
-
-### 15.2 `where(String ael, Object... params)` — `String.format`
-
-For fluent `where("...", arg0, arg1, …)`, the SDK currently does:
-
-```text
-String.format(ael, params)
-```
-
-So use **`%s`, `%d`, …`** placeholders in the AEL string—**not** `?0`—unless your format string leaves `?` tokens untouched and you supply values some other way.
-
-Example:
+At execution time, concrete values are bound to each placeholder:
 
 ```java
-session.query(dataSet).where("$.age > %d and $.name == %s", 21, "Tim").execute();
+PreparedAel prepared = PreparedAel.prepare("$.age > ?0 and $.name == ?1");
+// Bind values at execution time:
+session.query(set).where(prepared, 21, "Tim").execute();
 ```
-
-### 15.3 `PreparedAel` — `$1`, `$2`, … substitution
-
-`com.aerospike.client.sdk.query.PreparedAel` holds a template string and substitutes **`$1` → first argument**, **`$2` → second**, … (see `PreparedAel.formValue` — **`$` is one-based** in the template, stored as `params[0]`, …).
-
-There is **no** `PreparedAel.prepare(...)` factory; construct with **`new PreparedAel(...)`**.
-
-```java
-PreparedAel ael = new PreparedAel("$.age > $1 and $.name == $2");
-session.query(dataSet).where(ael, 21, "Tim").execute();
-```
-
-`where(PreparedAel, …)` expands the template via **`formValue`**, then parses the resulting AEL string like any other literal filter.
-
-### 15.4 Summary
-
-| Mechanism | Placeholder style | How values are supplied |
-|-----------|-------------------|-------------------------|
-| `where(String, Object...)` | `String.format` (`%s`, `%d`, …) | Varargs after the format string |
-| `where(PreparedAel, Object...)` | `$1`, `$2`, … in the template | Varargs to `formValue` |
-| `AelParser` + `ExpressionContext` | `?0`, `?1`, … in AEL | `PlaceholderValues.of(...)` on the context |
 
 ---
 
@@ -1034,17 +993,14 @@ then (${tier})
 $.listBin.[] == [1, 2, 3]
 ```
 
-### String map key `"1"` vs map index `{1}`
+### Integer map key access
 
 ```
-$.m."1"                        -- string map key "1" (use quotes when the key is only digits)
-$.m.'1'                        -- same
-$.m.{1}                        -- map index 1 (by position in the map)
-$.m.{1,2}                      -- key list: integer keys 1 and 2
-$.m.{1-3}                      -- key range: string keys "1" .. up to (exclusive) "3"
+$.m.1                          -- access integer key 1
+$.m."1"                        -- access string key "1"
+$.m.{1,2}                      -- key list with integer keys 1 and 2
+$.m.{1-3}                      -- key range: integer keys [1, 3)
 ```
-
-For the **string** key whose text is `"1"`, use `$.m."1"` or `$.m.'1'`. Bare `$.m.1` selects the **integer** key `1`, not the string key (see **§5.1**).
 
 ### Relative rank range
 
@@ -1144,11 +1100,9 @@ Place `!` immediately after the opening bracket/brace:
 
 ### Rule 10: Range semantics
 
-This matches **`MapIndexRange` / `ListIndexRange`** (and rank-range parts): parsed `start` and `end` yield **`count = end - start`**, which is how **`MapExp.getByIndexRange` / `ListExp.getByIndexRange`** interpret the range (**`count`** elements from **`start`**).
-
-- **Key ranges** and **value ranges** on maps/lists: **begin-inclusive, end-exclusive** (e.g. `{a-d}` → keys a, b, c; not d).
-- **Index ranges** `{start:end}` and **`[start:end]`**: **begin-inclusive, end-exclusive** (e.g. `{0:2}` → indices **0** and **1**; `{0:3}` → **0, 1, 2**).
-- **Rank ranges** `{#start:end}` / `[#start:end]`: same **begin-inclusive, end-exclusive** convention (compiled with the same `end - start` → count pattern).
+- Key ranges and value ranges are **begin-inclusive, end-exclusive**: `{a-d}` includes a, b, c but not d.
+- Index ranges in the AEL are also **exclusive** on the end.
+- Rank ranges follow the same pattern.
 
 ### Rule 11: Use `get()` to override defaults
 
