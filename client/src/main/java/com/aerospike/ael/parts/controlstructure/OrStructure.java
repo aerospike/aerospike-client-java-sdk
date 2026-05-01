@@ -26,9 +26,9 @@ import com.aerospike.ael.parts.ExpressionContainer;
 @Getter
 public class OrStructure extends AbstractPart {
 
-    private final List<ExpressionContainer> operands;
+    private final List<AbstractPart> operands;
 
-    public OrStructure(List<ExpressionContainer> operands) {
+    public OrStructure(List<AbstractPart> operands) {
         super(PartType.OR_STRUCTURE);
         this.operands = operands;
     }

@@ -60,6 +60,7 @@ import com.aerospike.ael.parts.operand.OperandFactoryTests;
     MapKeyTypingTests.class,
     RecordMetadataTests.class,
     SyntaxErrorTests.class,
+    UnknownExpressionTests.class,
     // com.aerospike.ael.filter
     ArithmeticFiltersTests.class,
     BinFiltersTests.class,
