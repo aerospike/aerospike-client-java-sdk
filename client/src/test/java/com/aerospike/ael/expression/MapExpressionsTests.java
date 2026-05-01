@@ -115,27 +115,6 @@ public class MapExpressionsTests {
     }
 
     @Test
-    void digitOnlyMapKeyRequiresQuotes_bareDotDigitsLexAsLeadingDotFloat() {
-        // After `mapBin1`, the lexer sees `.1` as LEADING_DOT_FLOAT (invalid in a path), not `.` + map key "1".
-        Exp expected = Exp.eq(
-                MapExp.getByKey(
-                        MapReturnType.VALUE,
-                        Exp.Type.INT,
-                        Exp.val("1"),
-                        Exp.mapBin("mapBin1")),
-                Exp.val(100));
-        assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of("$.mapBin1.1.get(type: INT) == 100")))
-                .isInstanceOf(AelParseException.class)
-                .hasMessageContaining("Invalid float literal");
-        TestUtils.parseFilterExpressionAndCompare(
-                ExpressionContext.of("$.mapBin1.\"1\".get(type: INT) == 100"),
-                expected);
-        TestUtils.parseFilterExpressionAndCompare(
-                ExpressionContext.of("$.mapBin1.'1'.get(type: INT) == 100"),
-                expected);
-    }
-
-    @Test
     void mapOneLevelExpressions() {
         // Int
         Exp expected = Exp.eq(

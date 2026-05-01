@@ -508,8 +508,8 @@ cannot infer type or when operand types differ.
 | PF08 | get(return: EXISTS) on missing key | 2 | `$.m.zzz.get(return: EXISTS)` | Read | `false` | ✓ |
 | PF09 | count() on whole list | 2 | `$.l.[].count()` | Read | `7` | ✓ |
 | PF10 | count() on value match | 2 | `$.l.[=50].count()` | Read | `1` | ✓ |
-| PF11 | exists() on present bin | 1 | `$.intBin.exists()` | Read | `true` | ✗ 2d |
-| PF12 | exists() on missing bin | 1 | `$.missingBin.exists()` | Read | `false` | ✗ 2d |
+| PF11 | exists() on present bin | 1 | `$.intBin.exists()` | Read | `true` | ✓ |
+| PF12 | exists() on missing bin | 1 | `$.missingBin.exists()` | Read | `false` | ✓ |
 
 ---
 
@@ -735,7 +735,7 @@ Using Record 2 with expression `$.m.{alpha,beta,gamma}`:
 | 9. Logical | 13 | 13 | 0 | 0 |
 | 10. Control Structures | 17 | 15 | 1 (CS01s) | 1 (CS17) |
 | 11. Metadata | 10 | 10 | 0 | 0 |
-| 12. Path Functions | 12 | 10 | 2 (PF11, PF12) | 0 |
+| 12. Path Functions | 12 | 12 | 0 | 0 |
 | 13. Special Values | 5 | 0 | 0 | 5 |
 | 14. Edge Cases | 19 | 11 | 0 | 8 |
 | 15. Transaction Scenario | 20 | 15 | 0 | 5 |
@@ -743,4 +743,4 @@ Using Record 2 with expression `$.m.{alpha,beta,gamma}`:
 | 17. Prepared Statements | 4 | 4 | 0 | 0 |
 | 18. Return Types | 10 | 10 | 0 | 0 |
 | 19. Mutations | 5 | 0 | 5 | 0 |
-| **Total** | **251** | **210** | **11** | **30** |
+| **Total** | **251** | **212** | **9** | **30** |

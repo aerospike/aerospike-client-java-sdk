@@ -28,6 +28,7 @@ A AEL expression is a string that is parsed, compiled to an `Exp` tree, and then
 | Metadata | `$.ttl() < 3600` |
 | Conditional | `when ($.tier == 1 => 'gold', $.tier == 2 => 'silver', default => 'bronze')` |
 | Variable binding | `let (total = $.price * $.qty) then (${total} > 1000)` |
+| Bin / CDT exists | `$.flags.exists() and $.meta.version.exists()` |
 
 ---
 
@@ -207,15 +208,18 @@ These select a single element. They can appear anywhere in the path.
 |--------|--------------------------------------|---------|
 | `key` | Map key (unquoted string identifier) | `$.m.name` |
 | `'key'` or `"key"` | Map key (quoted string)              | `$.m.'special-key'` |
-| `"1"` / `'1'` | Map key string **"1"** (quoted; required for digit-only keys) | `$.m."1"` (see **Dot + digits** below) |
+| `1`, `55`, `0xff`, … | Map key (**integer**): digits after `.` use the `INT` token | `$.m.1`, `$.m.55` |
+| `"1"` / `'1'` | Map key (**string**): digit characters as text | `$.m."1"` (contrast with integer `$.m.1`) |
 | `{1}` | Map by **index** 1                   | `$.m.{1}` |
 | `{=1}` | Map by **value** 1                   | `$.m.{=1}` |
 | `{=bb}` | Map by **value** "bb"                | `$.m.{=bb}` |
 | `{#1}` | Map by **rank** 1                    | `$.m.{#1}` |
 
-**String key notes**: Unquoted identifiers work for simple names (`name`, `user_id`). Use quotes for keys containing special characters (`'127.0.0.1'`, `"special-key"`), keys that are purely numeric strings (`"66"`, `"1"`), or reserved words.
+**String key notes**: Unquoted identifiers work for simple names (`name`, `user_id`). Use quotes for keys containing special characters (`'127.0.0.1'`, `"special-key"`), reserved words, or when the key must be a **string** that looks like a number (`"66"`, `"1"`).
 
-**Digit-only keys:** If you write something like `$.m.1`, AEL reads the part after the second dot as a **decimal number** (similar to `0.1` elsewhere), not as the map key named `"1"`. For a key that is only digits, put it in **quotes**: `$.m."1"` or `$.m.'1'`. To pick an entry by **position** in the map, use braces instead: `$.m.{1}`. To match by **stored value**, use `$.m.{=1}`.
+**Integer vs string digit keys:** `$.m.1` accesses the entry whose key is the **integer** `1`. `$.m."1"` accesses the entry whose key is the **string** `"1"`. These are different keys in Aerospike maps. For **positional** access in unordered maps, use `$.m.{1}` (index).
+
+Signed or hex integer keys can also use a **leading-dot** path segment (grammar `pathIntMapKey`), e.g. `$.m.-2` for key `-2`—see `MapKeyTypingTests` in this repo.
 
 ### 5.2 Plural Map Elements (Leaf Only)
 
@@ -500,7 +504,17 @@ $.mapBin.a.{}.count() == 5    -- size of nested map at key 'a'
 
 When used on a full bin (`[]` or `{}`), this maps to the efficient `size()` operation. When used on a subset (e.g., `[=4]`), it maps to a `get` with `return: COUNT`.
 
-### 8.3 `asInt()` and `asFloat()`
+### 8.3 `exists()`
+
+Returns whether a scalar bin or a single CDT slot exists (`Exp.binExists` / CDT `*ReturnType.EXISTS`), as a boolean.
+
+```
+$.binA.exists() and $.binB.exists()
+$.mapbin.a.exists()
+$.listbin.[0].exists()
+```
+
+### 8.4 `asInt()` and `asFloat()`
 
 Cast between integer and float types:
 
@@ -510,7 +524,7 @@ $.intBin.asFloat()            -- read an integer bin as a float
 $.intBin.get(type: INT) > $.floatBin.asInt()
 ```
 
-### 8.4 Mutation-style path suffixes (not supported here)
+### 8.5 Mutation-style path suffixes (not supported here)
 
 You may see paths that end with empty parentheses such as:
 
@@ -836,9 +850,17 @@ $.a.get(type: STRING) == (when (
 ))
 ```
 
-### 14.3 Dedicated `error` / `unknown` keywords
+### 14.3 `error` and `unknown` keywords
 
-The current `Condition.g4` grammar does **not** define `error` or `unknown` as standalone expression keywords (and `when` only supports `default => <expression>` for the fallback arm). To represent “must not happen” cases today, use a **`when`** branch that returns a value your application treats as invalid, or enforce the check outside AEL.
+**Supported:** You may write **`error`** or **`unknown`** as an expression by itself. When that expression is evaluated, the filter or read **fails** (it does not return a normal value). That is useful in a **`when`** clause to signal “this case should not happen,” for example:
+
+```
+when ($.status in ["GOLD", "PLATINUM"] => true, default => error)
+```
+
+You can use **`error`** / **`unknown`** in other expression positions too, but **`when`** (and similar conditionals) is the usual place.
+
+**Not supported:** There is no way to attach a custom error message or error code in the AEL text itself—only this built-in failure behaviour.
 
 ### Nesting Control Structures
 
@@ -1018,11 +1040,11 @@ $.listBin.[] == [1, 2, 3]
 $.m."1"                        -- string map key "1" (use quotes when the key is only digits)
 $.m.'1'                        -- same
 $.m.{1}                        -- map index 1 (by position in the map)
-$.m.{1,2}                      -- key list: keys "1" and "2" as strings
+$.m.{1,2}                      -- key list: integer keys 1 and 2
 $.m.{1-3}                      -- key range: string keys "1" .. up to (exclusive) "3"
 ```
 
-Avoid `$.m.1` for the string key `"1"` — it is read as a decimal number, not a key name (see **Digit-only keys** in **§5.1**).
+For the **string** key whose text is `"1"`, use `$.m."1"` or `$.m.'1'`. Bare `$.m.1` selects the **integer** key `1`, not the string key (see **§5.1**).
 
 ### Relative rank range
 

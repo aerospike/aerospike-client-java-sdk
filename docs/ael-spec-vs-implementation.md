@@ -4,426 +4,130 @@ This document tracks **remaining gaps** between long-form / PDF AEL design mater
 
 **Primary reference (aligned to implementation):** **`ael-documentation.md`** — revised so normative text matches this repo’s grammar and visitor unless explicitly labeled otherwise.
 
-**Legacy labels in sections below:** **AEL-DOC** refers to historical `ael-documentation.md`–style prose or external AEL reference; **PDF-SPEC** is the CORE Expression DSL PDF. Where those two differ, the note is still useful for product direction even though user-facing docs now follow code.
+**Legacy labels:** **AEL-DOC** / **PDF-SPEC** refer to historical prose or the CORE Expression DSL PDF. Where those two differ, the note is still useful for product direction.
 
 ---
 
-## Summary
+## Recently addressed (no longer gaps here)
+
+| Topic | Status in this tree |
+|-------|---------------------|
+| **Integer digit map keys** | After `$.m`, the pattern `'.' (mapPart \| listPart)` consumes `.` then `mapKey`; all-digit keys use the **`INT`** lexer rule (defined before `NAME_IDENTIFIER`), so `$.m.1` compiles to an **integer** key. Quoted `$.m."1"` is a **string** key. Coverage: `MapKeyTypingTests`, `MapExpressionsTests` (duplicate “leading-dot float” test removed). |
+| **`exists()` path function** | `pathFunctionExists`, `PathFunction.PathFunctionType.EXISTS`, `visitPathFunctionExists`, and `visitPath` emit `Exp.binExists` / CDT `*ReturnType.EXISTS`. Coverage: `ExistsFunctionTests`. |
+| **`error` / `unknown` keywords** | `unknownExpression: 'unknown' \| 'error'`; `UnknownOperand` → `Exp.unknown()`. |
+
+---
+
+## Summary — open gaps
 
 | # | Issue | Severity | User doc |
 |---|--------|----------|----------|
-| 1 | Digit-only **string** map keys need quotes (`$.m."1"`) — `$.m.1` hits **leading-dot float** lexer token | High | **§5.1** |
-| 2 | `exists()` parses but **no visitor** → suffix dropped / wrong semantics | High | — (omitted from user doc); see `BinExpressionsTests#existsPathSuffixIsIgnoredCompilesAsPlainPath` |
-| 3 | Mutation path suffixes parse; **no visitor** → not compiled | Medium | **§8.4** — not executable |
-| 4 | `type()` path function missing from grammar | Medium | Not advertised as supported |
-| 5 | `put()` map mutation missing from grammar | Medium | **§8.4** |
-| 6 | Open-start ranges (`{-d}`, `{:5}`, `{#:4}`, `[:5]`) missing from grammar | Medium | Called out as unsupported |
-| 7 | Block comments (`/* */`) missing from grammar | Low | **§17** — not supported |
-| 8 | `error`/`unknown` keywords treated as bin names | Medium | **§14.3** |
-| 9 | `WILDCARD`/`NIL`/`INF` not handled as special values | Medium | — (omitted from user doc) |
-| 10 | `$.key()` metadata function missing from grammar | Medium | **§13** |
-| 11 | String escape sequences not implemented | Medium | **§2.3** |
-| 12 | Value ranges limited to integers only (semantic layer) | Medium | **§5.2** value range note |
-| 13 | Float/list/map/boolean not in `valueIdentifier` for CDT selectors | Medium | Examples adjusted in **§19** |
-| 14 | Bitwise operator precedence differs from PDF-SPEC | Low (matches current grammar) | **§16** |
+| 1 | Mutation path suffixes parse; **no visitor** → not compiled | Medium | **§8.5** |
+| 2 | `type()` path function missing from grammar | Medium | Not advertised as supported |
+| 3 | `put()` map mutation missing from grammar | Medium | **§8.5** |
+| 4 | Open-start ranges (`{-d}`, `{:5}`, `{#:4}`, `[:5]`) missing from grammar | Medium | **§5.2** / **§6.2** |
+| 5 | Block comments (`/* */`) missing from grammar | Low | **§17** |
+| 6 | `WILDCARD` / `NIL` / `INF` not handled as special values | Medium | — |
+| 7 | `$.key(STR)` / `$.key(INT)` / `$.key(BLOB)` metadata missing | Medium | **§13** |
+| 8 | String escape sequences not implemented | Medium | **§2.3** |
+| 9 | Value ranges limited to integers only (semantic layer) | Medium | **§5.2** value range |
+| 10 | Float/list/map/boolean not in `valueIdentifier` for CDT selectors | Medium | **§19** / relative-value examples |
+| 11 | Purely **numeric bin names** may fail (digits lex as `INT`, not `binPart`) | Low | **§5.1** |
+| 12 | Bitwise operator precedence differs from PDF-SPEC | Low (matches current grammar) | **§16** |
 
 ---
 
 ## Spec-vs-Spec Differences
 
-The following are differences between the **AEL-DOC** and the **PDF-SPEC** themselves.
-
 ### S1. Bitwise operator precedence
 
-**PDF-SPEC** defines three separate precedence levels for bitwise operators:
+**PDF-SPEC** uses three levels (`&` tightest, then `^`, then `|`).
 
-| Level | Operator | Description |
-|---|---|---|
-| 7 | `&` | Bitwise AND (most binding) |
-| 8 | `^` | Bitwise XOR |
-| 9 | `\|` | Bitwise OR (least binding) |
+**AEL-DOC** (§16) and **this implementation** use one `bitwiseExpression` rule for `&`, `|`, `^` with left associativity.
 
-**AEL-DOC** (§16) groups all three at a single level:
-
-| Level | Operators |
-|---|---|
-| 4 | `&`, `\|`, `^` |
-
-**Implementation** matches AEL-DOC — all three are in one `bitwiseExpression` rule
-with left-associativity.
-
-**Impact:** `1 | 2 & 4` parses as `(1 | 2) & 4` in the implementation, whereas PDF-SPEC
-precedence would parse it as `1 | (2 & 4)`.
+**Impact:** `1 | 2 & 4` parses as `(1 | 2) & 4` here, not `1 | (2 & 4)`.
 
 ---
 
-## Implementation Issues
+## Implementation issues (detail)
 
-### 1. Digit-Only String Map Keys — Quote Them (`$.m."1"`)
+### 1. Mutation path functions — grammar only
 
-**Historical / informal spec:** `$.m.1` was sometimes described as map access with key `"1"` or as an integer key.
+`remove()`, `insert()`, `set()`, `append()`, `increment()`, `clear()`, `sort()` appear in `pathFunction` but have **no** visitor implementations; compiled output ignores them as path functions.
 
-**Lexer (`Condition.g4`):** `LEADING_DOT_FLOAT` is `'.' [0-9]+`, so after `$.m` the next token starting at `.1` is **one** float-shaped token (`.1`), not `.` plus a `NAME_IDENTIFIER` map key. The parser then rejects it in this context (`Invalid float literal`).
+`put()` is **absent** from the grammar.
 
-**What works:** `$.m."1"`, `$.m.'1'` for string key `"1"`. Map **index** still uses braces: `$.m.{1}`.
-
-**Impact:**
-
-| Expression | You might expect | Actual behaviour |
-|---|---|---|
-| `$.m.1`… | Key `"1"` or index | **Parse error** (`Invalid float literal`) |
-| `$.m."1".get(…)` | String key `"1"` | Parses; compiles to `getByKey` with string key |
+**Documentation:** `ael-documentation.md` §8.5.
 
 ---
 
-### 2. `exists()` Path Function Silently Ignored
+### 2. `type()` path function — missing
 
-**Historical spec:** described `exists()` as returning a boolean for bins or nested elements.
-
-**Implementation:**
-The grammar defines `pathFunctionExists`, but `ExpressionConditionVisitor` never
-overrides `visitPathFunctionExists`. The `PathFunction.PathFunctionType` enum has no
-`EXISTS` value — only `GET`, `COUNT`, `SIZE`, `CAST`. The default visitor returns `null`,
-which causes:
-
-1. `visitPathFunctionIfPresent` returns `null`.
-2. `visitPath` falls through to `return basePath.getBinPart()`.
-3. The `exists()` call is silently dropped — the expression degrades to reading the
-   bin value directly.
-
-**Impact:**
-
-| Expression | Spec Expects | Actual Behaviour |
-|---|---|---|
-| `$.binA.exists()` (binA=42) | `true` (boolean) | `42` (raw value — exists() dropped) |
-| `$.binB.exists()` (binB missing) | `false` (boolean) | Error — reads non-existent bin |
-| `$.mapbin.a.exists()` | `true`/`false` | Map key lookup (exists() dropped) |
-
-**Documentation:** `exists()` is not described in `ael-documentation.md`; regression coverage is `BinExpressionsTests#existsPathSuffixIsIgnoredCompilesAsPlainPath`.
+No `type()` production under `pathFunction`; `type` is only the `get()` parameter name.
 
 ---
 
-### 3. Mutation Path Functions — Grammar Stubs, No Visitor
+### 3. Open-start ranges — missing
 
-**Historical spec:** defined CDT mutation functions: `remove()`, `insert()`, `set()`, `append()`,
-`increment()`, `clear()`, `sort()` (list), and `put()` (map).
+`keyRangeIdentifier`, `indexRangeIdentifier`, and `rankRangeIdentifier` have no open-start (`-key`, `:end`, …) forms.
 
-**Implementation (`Condition.g4` lines 514–525):**
-The grammar accepts the following as `pathFunction` alternatives:
-`remove()`, `insert()`, `set()`, `append()`, `increment()`, `clear()`, `sort()`.
-
-But **no visitor methods** exist for any of them. Visiting these returns `null` and
-they are silently ignored (suffix has no effect on the compiled expression).
-
-**Note:** `put()` is also missing from the grammar entirely (see issue 5).
-
-**Impact:** Mutation suffixes are **not** compiled to `Exp` / CDT modify operations; treating parsed input as executable writes would be incorrect.
-
-**Documentation:** `ael-documentation.md` §8.4 — parser vs compiler distinction.
+**Workaround:** explicit starts (e.g. `{0:5}`).
 
 ---
 
-### 4. `type()` Path Function — Missing from Grammar
+### 4. Block comments — missing
 
-**Historical spec (`type()` as path function):**
-
-```
-$.binA.type() == INT
-```
-
-Returns the data type of the element as one of `INT`, `STR`, etc.
-
-**Implementation:**
-There is no `type()` path function in the grammar. The word `type` only appears as a
-parameter name inside `get()`: `PATH_FUNCTION_PARAM_TYPE: 'type'`.
-
-**Impact:** `$.binA.type() == INT` fails to parse.
+Only `WS` is skipped; `/* */` fails to lex/parse.
 
 ---
 
-### 5. `put()` Map Mutation — Missing from Grammar
+### 5. `WILDCARD`, `NIL`, `INF`
 
-**AEL-DOC (§8.6):**
-`put()` is listed as a map mutation function that inserts or updates a key-value pair.
+No lexer/visitor mapping to CDT sentinels; `NIL`/`INF` behave as ordinary identifiers where allowed. `*` is not a general wildcard token in value positions.
 
-**Implementation:**
-The `pathFunction` rule does not include `put()`. It includes `set()` (list-only), but
-`put()` (map write) is absent.
-
-**Impact:** Map write operations cannot be expressed in AEL.
+**Regression-style coverage:** `MapExpressionsTests#nameIdentifierResemblingSpecSentinelIsOrdinaryMapKey`, `asteriskInListLiteralIsNotWildcardValue`.
 
 ---
 
-### 6. Open-Start Ranges — Missing from Grammar
+### 6. `$.key(...)` metadata — missing
 
-**AEL-DOC (§5.2, §6.2):**
-
-```
-$.m.{-d}          keys from the start up to "d"
-$.m.{:5}          index from start to 5
-$.m.{#:4}         rank from start to 4
-$.l.[:5]          list index from start to 5
-```
-
-**Implementation:**
-
-- `keyRangeIdentifier`: only `mapKey '-' mapKey` and `mapKey '-'` (open end). No
-  `'-' mapKey` form for open start.
-- `indexRangeIdentifier`: only `start ':' end` and `start ':'` (open end). No
-  `':' end` form for open start.
-- `rankRangeIdentifier`: same — no open-start form.
-
-**Impact:** Expressions like `$.m.{-d}`, `$.m.{:5}`, `$.l.[:3]` fail to parse.
-Workaround: use explicit start values (e.g. `$.m.{0:5}`).
-
-**Documentation:** `ael-documentation.md` §5.2 / §6.2 — open-start forms listed as not in `Condition.g4`.
+`METADATA_FUNCTION` has no `key(...)`; `MetadataOperand` has no `key` case.
 
 ---
 
-### 7. Block Comments — Missing from Grammar
+### 7. String escape sequences — not implemented
 
-**AEL-DOC (§17):**
+`QUOTED_STRING` is raw; `unquote` strips delimiters only.
 
-```
-/* This is a comment */
-$.age > 21 /* filter adults */
-```
-
-**Implementation:**
-No comment-skip rule. Only whitespace is skipped:
-
-```
-WS: [ \t\r\n]+ -> skip;
-```
-
-**Impact:** Expressions containing `/* ... */` fail to parse.
-
-**Documentation:** `ael-documentation.md` §17 states that block comments are not supported.
+**Documentation:** `ael-documentation.md` §2.3.
 
 ---
 
-### 8. `error`/`unknown` Keywords — Not Explicit in Grammar
+### 8. Value ranges — integers only
 
-**AEL-DOC (§14.3):**
-
-```
-when ($.status in ["GOLD", "PLATINUM"] => true, default => error)
-```
-
-`error` and `unknown` are interchangeable keywords that produce a runtime exception.
-
-**Implementation:**
-These keywords are not defined as grammar tokens. They match `NAME_IDENTIFIER` and
-are treated as ordinary identifiers (bin names or string map keys) — no special
-handling exists in the visitor.
-
-**Impact:** `default => error` silently treats `error` as a bin reference rather than
-raising a runtime exception.
+`MapValueRange` / `ListValueRange` use `requireIntValueIdentifier()`; string endpoints parse but fail in the visitor.
 
 ---
 
-### 9. `WILDCARD`, `NIL`, `INF` Special Values — Not Handled
+### 9. Rich `valueIdentifier` / `objectToExp`
 
-**Historical spec** described special list/map sentinels:
-
-| Value | Description (not in this client) |
-|---|---|
-| `*` (WILDCARD) | Matches any value from that point |
-| `NIL` | Lowest possible CDT comparison value |
-| `INF` | Highest possible CDT comparison value |
-
-**Implementation:**
-- `NIL` and `INF` match `NAME_IDENTIFIER` but are treated as ordinary string
-  identifiers — no visitor logic maps them to `Value.getAsNull()` or `Value.INFINITY`.
-- `*` (WILDCARD) is not a `NAME_IDENTIFIER` match and has no lexer token.
-
-**Impact:**
-- `$.m.{NIL-d}` treats `NIL` as string key `"NIL"` instead of lowest CDT value.
-- `$.m.{a-INF}` treats `INF` as string key `"INF"` instead of highest CDT value.
-- `*` fails to parse in value contexts.
+`relativeValue` / lists of values do not admit float literals, nested list/map literals, or booleans. `ParsingUtils.objectToExp` supports `String`, `Long`, `Integer`, `byte[]` only — not `Double`, `Boolean`, `List`, or `Map`.
 
 ---
 
-### 10. `$.key()` Metadata Function — Missing from Grammar
+### 10. Numeric-only bin names
 
-**AEL-DOC (§13):**
-
-```
-$.key(STR)       user key stored with the record (string)
-$.key(INT)       user key stored with the record (integer)
-$.key(BLOB)      user key stored with the record (blob)
-```
-
-**PDF-SPEC** also specifies `$.key(<STR, INT, BLOB>)`.
-
-**Implementation:**
-The `METADATA_FUNCTION` token includes `keyExists()` but has no `key(...)` variant.
-`MetadataOperand.constructMetadataExp` has no `key` case.
-
-**Impact:** `$.key(STR)` and similar expressions fail to parse.
+`binPart` does not accept `INT`; an all-digit bin name may tokenize as `INT` and fail the parser.
 
 ---
 
-### 11. String Escape Sequences Not Implemented
+### 11. Bitwise precedence vs PDF
 
-**AEL-DOC (§2.3):**
-Documents the following escape sequences inside quoted strings:
-
-| Escape | Meaning |
-|---|---|
-| `\\` | Literal backslash |
-| `\n` | Newline |
-| `\t` | Tab |
-| `\"` | Double quote (inside double-quoted strings) |
-| `\'` | Single quote (inside single-quoted strings) |
-
-**PDF-SPEC** documents the same escapes.
-
-**Implementation:**
-The `QUOTED_STRING` lexer rule matches any characters between quotes except the
-closing quote character:
-
-```
-QUOTED_STRING: ('\'' (~'\'')* '\'') | ('"' (~'"')* '"');
-```
-
-This means `\'` inside a single-quoted string terminates the string early (the `\`
-is a literal character, and `'` ends the string). The `unquote()` utility simply
-strips the outer quote characters — it performs no escape processing.
-
-**Impact:**
-- `'it\'s'` fails to parse (string ends at `'it\'`, leaving `s'` dangling).
-- `"line1\nline2"` produces the literal string `line1\nline2` (8 characters), not
-  a string with an actual newline.
-- `"path\\to\\file"` produces `path\\to\\file` (literal backslashes preserved, not
-  collapsed).
-
-**Documentation:** `ael-documentation.md` §2.3 describes the actual quoting behavior (no escape processing).
-
----
-
-### 12. Value Ranges Limited to Integers Only
-
-**AEL-DOC (§5.2, §6.2):**
-Value ranges use `valueIdentifier` which includes strings and integers:
-
-```
-{=111:334}      Map value range from 111 to 334
-[=5:8]          List value range from 5 to 8
-```
-
-**PDF-SPEC** shows string value ranges:
-
-```
-{=d:f}  → getByValueRange(MapReturnType.ORDERED_MAP, "d", "f", "m")
-```
-
-**Implementation:**
-`MapValueRange.java` and `ListValueRange.java` both call
-`requireIntValueIdentifier()`, which throws an `AelParseException` if the parsed
-value is not an `Integer`:
-
-```java
-public static Integer requireIntValueIdentifier(ValueIdentifierContext ctx) {
-    Object result = parseValueIdentifier(ctx);
-    if (result instanceof Integer intValue) {
-        return intValue;
-    }
-    throw new AelParseException(
-            "Value range requires integer operands, got: %s".formatted(ctx.getText()));
-}
-```
-
-The grammar's `valueRangeIdentifier` rule accepts `valueIdentifier` (which includes
-`NAME_IDENTIFIER` and `QUOTED_STRING`), so the parser will accept string value
-ranges, but the semantic layer rejects them.
-
-**Impact:** String value ranges like `{=d:f}` or `{="apple":"mango"}` parse
-successfully but fail at the visitor level. Only integer value ranges work.
-
----
-
-### 13. Float/List Values Not Supported in CDT Value Positions
-
-**AEL-DOC (§5.2):**
-Relative rank range examples use list values containing floats and special values:
-
-```
-{#-1:1~10}                    relative to integer value 10
-```
-
-```
-$.scores.[#-1:1~[10.0, NIL]]  relative to list value [10.0, NIL]
-```
-
-**Implementation:**
-The `relativeValue` grammar rule is:
-
-```
-relativeValue: '~' valueIdentifier;
-```
-
-And `valueIdentifier` only supports: `NAME_IDENTIFIER`, `QUOTED_STRING`, `signedInt`,
-`IN`, `BLOB_LITERAL`, `B64_LITERAL`.
-
-It does **not** include:
-- Float literals (`FLOAT`, `LEADING_DOT_FLOAT`)
-- List constants (`listConstant`)
-- Map constants (`orderedMapConstant`)
-- Boolean literals
-
-The same limitation applies to value lists (`{=...,...}`, `[=...,...]`) and
-value range endpoints.
-
-Additionally, `ParsingUtils.objectToExp()` only handles `String`, `Integer`, and
-`byte[]` — not `Double`, `Boolean`, `List`, or `Map`.
-
-**Impact:**
-- `[#-1:1~[10.0, NIL]]` (from AEL-DOC §19) cannot be parsed.
-- `{=3.14,2.71}` (float value list) cannot be parsed.
-- `[=true,false]` (boolean value list) cannot be parsed.
-- Float, list, map, and boolean values cannot appear in any CDT selector position
-  that uses `valueIdentifier`.
-
----
-
-### 14. Bitwise Operator Precedence Differs from PDF-SPEC
-
-**PDF-SPEC (p.22-23):**
-Three separate precedence levels:
-
-| Level | Operator |
-|---|---|
-| 7 | `&` (most binding) |
-| 8 | `^` |
-| 9 | `\|` (least binding) |
-
-**AEL-DOC (§16):**
-Single level: `&`, `\|`, `^` at level 4.
-
-**Implementation (`Condition.g4`):**
-All three are alternatives in one `bitwiseExpression` rule:
-
-```
-bitwiseExpression
-    : shiftExpression
-    | bitwiseExpression '&' shiftExpression
-    | bitwiseExpression '|' shiftExpression
-    | bitwiseExpression '^' shiftExpression
-    ;
-```
-
-The implementation matches AEL-DOC. Since AEL-DOC is the golden standard, this is
-noted for awareness but not considered a bug.
-
-**Impact:** Expressions mixing `&`, `|`, `^` without parentheses evaluate
-left-to-right at equal precedence rather than with `&` binding tightest. Users
-relying on C/Java-style precedence (`&` > `^` > `|`) may get unexpected results.
+Same as **S1** above.
 
 ---
 
 ## Maintainer notes
 
-- **`docs/ael-documentation.md`** — user-facing reference; **must** track **`Condition.g4`** + **`ExpressionConditionVisitor`** (and related `ael` Java) as the source of truth.
-- **`docs/ael-spec-vs-implementation.md`** (this file) — engineering backlog: PDF/legacy spec features that are still missing from grammar or visitor, or differ by design. Update the summary table when fixing or intentionally deferring an item.
-
+- **`docs/ael-documentation.md`** — user-facing reference; track **`Condition.g4`** + **`ExpressionConditionVisitor`** as source of truth.
+- **`docs/ael-spec-vs-implementation.md`** (this file) — engineering backlog. Update the summary table when fixing or deferring an item.
