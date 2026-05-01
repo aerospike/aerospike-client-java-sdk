@@ -216,7 +216,6 @@ public class VisitorUtils {
      * @param left  The {@link AbstractPart} whose type might be overridden
      * @param right The {@link AbstractPart} used as a reference for type inference
      */
-    @SuppressWarnings("incomplete-switch")
     private static void overrideTypes(AbstractPart left, AbstractPart right) {
         switch (left.getPartType()) {
             case BIN_PART -> overrideBinType((BinPart) left, right); // For example, in expression "$.intBin1 == 100"
@@ -935,9 +934,7 @@ public class VisitorUtils {
             return getFilterForDivOrFail(binName, valueForDiv, type);
         } else if (operationType == MUL) {
             if (leftValue <= 0) {
-                if (leftValue == 0) {
-                    throw new NoApplicableFilterException("Cannot divide by zero");
-                }
+                if (leftValue == 0) throw new NoApplicableFilterException("Cannot divide by zero");
                 type = invertType(type);
             }
             float val = (float) rightValue / leftValue;
@@ -1038,9 +1035,7 @@ public class VisitorUtils {
      */
     public static AbstractPart buildExpr(ExpressionContainer expr, PlaceholderValues placeholderValues,
                                          Map<String, List<Index>> indexes, String preferredBin) {
-        if (placeholderValues != null) {
-            resolvePlaceholders(expr, placeholderValues);
-        }
+        if (placeholderValues != null) resolvePlaceholders(expr, placeholderValues);
 
         Filter secondaryIndexFilter = null;
         try {
@@ -1068,7 +1063,6 @@ public class VisitorUtils {
      * @param placeholderValues An object storing placeholder indexes and their resolved values
      */
     private static void resolvePlaceholders(ExpressionContainer expression, PlaceholderValues placeholderValues) {
-        @SuppressWarnings("incomplete-switch")
         Consumer<AbstractPart> exprContainersCollector = part -> {
             switch (part.getPartType()) {
                 case EXPRESSION_CONTAINER -> replacePlaceholdersInExprContainer(part, placeholderValues);
@@ -1129,9 +1123,7 @@ public class VisitorUtils {
             }
         }
 
-        if (isResolved) {
-            whenStructure.setOperands(subOperands);
-        }
+        if (isResolved) whenStructure.setOperands(subOperands);
     }
 
     /**
@@ -1361,9 +1353,7 @@ public class VisitorUtils {
      */
     private static Exp getFilterExp(ExpressionContainer expr) {
         // Skip the expression already used in creating secondary index Filter
-        if (expr.hasSecondaryIndexFilter()) {
-            return null;
-        }
+        if (expr.hasSecondaryIndexFilter()) return null;
 
         return switch (expr.getOperationType()) {
             case OR_STRUCTURE -> orStructureToExp(expr);
@@ -1477,10 +1467,7 @@ public class VisitorUtils {
         List<ExpressionContainer> operands = ((AndStructure) expr.getLeft()).getOperands();
         for (ExpressionContainer part : operands) {
             Exp exp = getExp(part);
-            if (exp != null)
-             {
-                expressions.add(exp); // Exp can be null if it is already used in secondary index
-            }
+            if (exp != null) expressions.add(exp); // Exp can be null if it is already used in secondary index
         }
         if (expressions.isEmpty()) {
             return null;
@@ -1500,12 +1487,17 @@ public class VisitorUtils {
     private static Exp processExpression(ExpressionContainer expr) {
         AbstractPart left = getExistingPart(expr.getLeft(), "Unable to parse left operand");
 
+        if (expr.getOperationType() == EXISTS) {
+            if (left.getPartType() == BIN_PART) {
+                return Exp.binExists(((BinPart) left).getBinName());
+            }
+            return processOperand(left);
+        }
+
         // For unary expressions
         if (expr.isUnary()) {
             Exp operandExp = processOperand(left);
-            if (operandExp == null) {
-                return null;
-            }
+            if (operandExp == null) return null;
 
             UnaryOperator<Exp> operator = getUnaryExpOperator(expr.getOperationType());
             return operator.apply(operandExp);
@@ -1535,12 +1527,8 @@ public class VisitorUtils {
 
         // Special handling for AND operation
         if (expr.getOperationType() == AND) {
-            if (leftExp == null) {
-                return rightExp;
-            }
-            if (rightExp == null) {
-                return leftExp;
-            }
+            if (leftExp == null) return rightExp;
+            if (rightExp == null) return leftExp;
         }
 
         // Validate operand type compatibility for non-BIN_PART operands.
@@ -1717,9 +1705,7 @@ public class VisitorUtils {
      * an expression container that resulted in a null Exp
      */
     private static Exp processOperand(AbstractPart part) {
-        if (part == null) {
-            return null;
-        }
+        if (part == null) return null;
 
         Exp exp;
         if (part.getPartType() == EXPRESSION_CONTAINER) {
@@ -1761,14 +1747,10 @@ public class VisitorUtils {
      */
     private static Filter getSIFilter(ExpressionContainer expr, Map<String, List<Index>> indexes,
                                       String preferredBin) {
-        if (expr.getOperationType() == OR) {
-            return null;
-        }
+        if (expr.getOperationType() == OR) return null;
 
         ExpressionContainer chosenExpr = chooseExprForFilter(expr, indexes, preferredBin);
-        if (chosenExpr == null) {
-            return null;
-        }
+        if (chosenExpr == null) return null;
 
         return getFilterOrNull(
                 chosenExpr.getLeft(),
@@ -1810,9 +1792,7 @@ public class VisitorUtils {
     private static ExpressionContainer chooseExprForFilter(ExpressionContainer exprContainer,
                                                            Map<String, List<Index>> indexes,
                                                            String preferredBin) {
-        if (indexes == null || indexes.isEmpty()) {
-            return null;
-        }
+        if (indexes == null || indexes.isEmpty()) return null;
 
         Map<Integer, List<ExpressionContainer>> exprsPerCardinality =
                 getExpressionsPerCardinality(exprContainer, indexes);
@@ -1820,9 +1800,7 @@ public class VisitorUtils {
         if (preferredBin != null) {
             Map<Integer, List<ExpressionContainer>> hintedCandidates = filterByBin(exprsPerCardinality, preferredBin);
             ExpressionContainer hinted = selectByCardinalityThenAlpha(hintedCandidates);
-            if (hinted != null) {
-                return hinted;
-            }
+            if (hinted != null) return hinted;
         }
 
         return selectByCardinalityThenAlpha(exprsPerCardinality);
@@ -1854,18 +1832,14 @@ public class VisitorUtils {
      */
     private static ExpressionContainer selectByCardinalityThenAlpha(
             Map<Integer, List<ExpressionContainer>> exprsPerCardinality) {
-        if (exprsPerCardinality.isEmpty()) {
-            return null;
-        }
+        if (exprsPerCardinality.isEmpty()) return null;
 
         List<ExpressionContainer> topExprs = exprsPerCardinality.entrySet().stream()
                 .max(Map.Entry.comparingByKey())
                 .map(Map.Entry::getValue)
                 .orElse(Collections.emptyList());
 
-        if (topExprs.isEmpty()) {
-            return null;
-        }
+        if (topExprs.isEmpty()) return null;
 
         ExpressionContainer chosen = topExprs.size() > 1
                 ? topExprs.stream()
@@ -1898,16 +1872,11 @@ public class VisitorUtils {
             if (part.getPartType() == EXPRESSION_CONTAINER) {
                 ExpressionContainer expr = (ExpressionContainer) part;
 
-                if (expr.getOperationType() == IN) {
-                    return;
-                }
+                if (expr.getOperationType() == IN) return;
 
                 BinPart binPart = getBinPart(expr, 2);
 
-                if (binPart == null)
-                 {
-                    return; // no bin found
-                }
+                if (binPart == null) return; // no bin found
                 if (!binPart.equals(binPartPrev[0])) {
                     binPartPrev[0] = binPart;
                 } else {
@@ -1942,9 +1911,7 @@ public class VisitorUtils {
                                                         ExpressionContainer expr, BinPart binPart,
                                                         Map<String, List<Index>> indexes) {
         List<Index> indexesByBin = indexes.get(binPart.getBinName());
-        if (indexesByBin == null || indexesByBin.isEmpty()) {
-            return;
-        }
+        if (indexesByBin == null || indexesByBin.isEmpty()) return;
 
         for (Index idx : indexesByBin) {
             // Iterate over all indexes for the same bin
@@ -1983,22 +1950,14 @@ public class VisitorUtils {
             if (part.getPartType() == EXPRESSION_CONTAINER) {
                 ExpressionContainer logicalExpr = (ExpressionContainer) part;
                 if (logicalExpr.isExclFromSecondaryIndexFilter()) {
-                    // All parts of the tree branch excluded from secondary index Filter building are flagged
-                    if (logicalExpr.getLeft().getPartType() == EXPRESSION_CONTAINER) {
-                        ((ExpressionContainer) logicalExpr.getLeft()).isExclFromSecondaryIndexFilter(true);
-                    }
-                    if (logicalExpr.getRight().getPartType() == EXPRESSION_CONTAINER) {
-                        ((ExpressionContainer) logicalExpr.getRight()).isExclFromSecondaryIndexFilter(true);
-                    }
+                    propagateExclFlag(logicalExpr.getLeft());
+                    propagateExclFlag(logicalExpr.getRight());
                     return true;
                 }
-                if (logicalExpr.getOperationType() == AND) {
-                    return true;
-                }
+                if (logicalExpr.getOperationType() == AND) return true;
                 if (logicalExpr.getOperationType() == OR) {
-                    // Both parts of OR-combined query are excluded from secondary index Filter building
-                    ((ExpressionContainer) logicalExpr.getLeft()).isExclFromSecondaryIndexFilter(true);
-                    ((ExpressionContainer) logicalExpr.getRight()).isExclFromSecondaryIndexFilter(true);
+                    propagateExclFlag(logicalExpr.getLeft());
+                    propagateExclFlag(logicalExpr.getRight());
                     return true;
                 }
             }
@@ -2007,6 +1966,12 @@ public class VisitorUtils {
 
         traverseTree(expr, binPartRetriever, depth, stopOnLogicalExpr);
         return singleBinPartArray[0];
+    }
+
+    private static void propagateExclFlag(AbstractPart part) {
+        if (part != null && part.getPartType() == EXPRESSION_CONTAINER) {
+            ((ExpressionContainer) part).isExclFromSecondaryIndexFilter(true);
+        }
     }
 
     /**
@@ -2034,9 +1999,7 @@ public class VisitorUtils {
      */
     public static void traverseTree(AbstractPart part, Consumer<AbstractPart> visitor, int depth,
                                     Predicate<AbstractPart> stopCondition) {
-        if (part == null) {
-            return;
-        }
+        if (part == null) return;
 
         // Stop if the depth limit is reached
         if (depth < 0) {

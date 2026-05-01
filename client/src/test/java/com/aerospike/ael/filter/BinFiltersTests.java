@@ -19,6 +19,7 @@ package com.aerospike.ael.filter;
 import com.aerospike.ael.ExpressionContext;
 import com.aerospike.ael.Index;
 import com.aerospike.ael.IndexContext;
+import com.aerospike.client.sdk.exp.Exp;
 import com.aerospike.client.sdk.query.Filter;
 import com.aerospike.client.sdk.query.IndexType;
 
@@ -134,5 +135,17 @@ public class BinFiltersTests {
         IndexContext indexCtx = IndexContext.of(NAMESPACE, indexes);
         parseFilterAndCompare(ExpressionContext.of("$.and == 1"), indexCtx,
                 Filter.equal("and", 1));
+    }
+
+    @Test
+    void existsWithSIFilter() {
+        // exists() combined with an indexed comparison: SI filter should apply to the comparison,
+        // exists() becomes a residual Exp
+        Exp expectedExp = Exp.binExists("a");
+        com.aerospike.ael.util.TestUtils.parseAelExpressionAndCompare(
+                ExpressionContext.of("$.a.exists() and $.intBin1 > 100"),
+                Filter.range("intBin1", 101, Long.MAX_VALUE),
+                expectedExp,
+                INDEX_FILTER_INPUT);
     }
 }
