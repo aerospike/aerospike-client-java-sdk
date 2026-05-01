@@ -43,6 +43,7 @@ import com.aerospike.ael.parts.operand.OperandFactoryTests;
     BlobTests.class,
     CastingTests.class,
     ControlStructuresTests.class,
+    ExistsFunctionTests.class,
     ExplicitTypesTests.class,
     ImplicitTypesTests.class,
     InBinTests.class,

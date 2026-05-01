@@ -80,7 +80,8 @@ public class PathFunction extends AbstractPart {
         GET,
         COUNT,
         SIZE,
-        CAST
+        CAST,
+        EXISTS
     }
 
     public enum CastType {
