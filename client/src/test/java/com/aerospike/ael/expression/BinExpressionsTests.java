@@ -87,5 +87,4 @@ public class BinExpressionsTests {
                 .hasMessageContaining("[Parser] mismatched input '<EOF>'")
                 .hasMessageContaining("at character 15");
     }
-
 }

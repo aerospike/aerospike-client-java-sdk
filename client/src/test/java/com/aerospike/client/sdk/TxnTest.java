@@ -29,7 +29,6 @@ import org.junit.jupiter.api.Test;
 
 import com.aerospike.client.sdk.command.Txn;
 import com.aerospike.client.sdk.policy.Behavior;
-import com.aerospike.client.sdk.policy.Behavior.Selectors;
 
 public class TxnTest extends ClusterTest {
     private static final String binName = "bin";
