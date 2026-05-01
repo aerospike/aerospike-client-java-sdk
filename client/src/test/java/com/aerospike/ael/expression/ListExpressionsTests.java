@@ -97,19 +97,15 @@ public class ListExpressionsTests {
     }
 
     @Test
-    void listByValueHexAndBinarySelectorsAreUnsupported() {
-        assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of("$.listBin1.[=0xff] == 100")))
-                .isInstanceOf(AelParseException.class)
-                .hasMessageContaining("Only decimal integer literals are supported in this element");
-        assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of("$.listBin1.[=0b10] == 100")))
-                .isInstanceOf(AelParseException.class)
-                .hasMessageContaining("Only decimal integer literals are supported in this element");
-        assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of("$.listBin1.[=-0xff] == 100")))
-                .isInstanceOf(AelParseException.class)
-                .hasMessageContaining("Only decimal integer literals are supported in this element");
-        assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of("$.listBin1.[=-0b10] == 100")))
-                .isInstanceOf(AelParseException.class)
-                .hasMessageContaining("Only decimal integer literals are supported in this element");
+    void listByValueHexAndBinarySelectors() {
+        TestUtils.parseFilterExpressionAndCompare(ExpressionContext.of("$.listBin1.[=0xff] == 100"),
+                Exp.eq(ListExp.getByValue(ListReturnType.VALUE, Exp.val(255), Exp.listBin("listBin1")), Exp.val(100)));
+        TestUtils.parseFilterExpressionAndCompare(ExpressionContext.of("$.listBin1.[=0b10] == 100"),
+                Exp.eq(ListExp.getByValue(ListReturnType.VALUE, Exp.val(2), Exp.listBin("listBin1")), Exp.val(100)));
+        TestUtils.parseFilterExpressionAndCompare(ExpressionContext.of("$.listBin1.[=-0xff] == 100"),
+                Exp.eq(ListExp.getByValue(ListReturnType.VALUE, Exp.val(-255), Exp.listBin("listBin1")), Exp.val(100)));
+        TestUtils.parseFilterExpressionAndCompare(ExpressionContext.of("$.listBin1.[=-0b10] == 100"),
+                Exp.eq(ListExp.getByValue(ListReturnType.VALUE, Exp.val(-2), Exp.listBin("listBin1")), Exp.val(100)));
     }
 
     @Test
@@ -153,19 +149,53 @@ public class ListExpressionsTests {
     }
 
     @Test
-    void listByRankHexAndBinarySelectorsAreUnsupported() {
-        assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of("$.listBin1.[#0xff] == 100")))
-                .isInstanceOf(AelParseException.class)
-                .hasMessageContaining("Only decimal integer literals are supported in this element");
-        assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of("$.listBin1.[#0b10] == 100")))
-                .isInstanceOf(AelParseException.class)
-                .hasMessageContaining("Only decimal integer literals are supported in this element");
-        assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of("$.listBin1.[#-0xff] == 100")))
-                .isInstanceOf(AelParseException.class)
-                .hasMessageContaining("Only decimal integer literals are supported in this element");
-        assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of("$.listBin1.[#-0b10] == 100")))
-                .isInstanceOf(AelParseException.class)
-                .hasMessageContaining("Only decimal integer literals are supported in this element");
+    void listByRankHexAndBinarySelectors() {
+        TestUtils.parseFilterExpressionAndCompare(ExpressionContext.of("$.listBin1.[#0xff] == 100"),
+                Exp.eq(ListExp.getByRank(ListReturnType.VALUE, Exp.Type.INT, Exp.val(255), Exp.listBin("listBin1")),
+                        Exp.val(100)));
+        TestUtils.parseFilterExpressionAndCompare(ExpressionContext.of("$.listBin1.[#0b10] == 100"),
+                Exp.eq(ListExp.getByRank(ListReturnType.VALUE, Exp.Type.INT, Exp.val(2), Exp.listBin("listBin1")),
+                        Exp.val(100)));
+        TestUtils.parseFilterExpressionAndCompare(ExpressionContext.of("$.listBin1.[#-0xff] == 100"),
+                Exp.eq(ListExp.getByRank(ListReturnType.VALUE, Exp.Type.INT, Exp.val(-255), Exp.listBin("listBin1")),
+                        Exp.val(100)));
+        TestUtils.parseFilterExpressionAndCompare(ExpressionContext.of("$.listBin1.[#-0b10] == 100"),
+                Exp.eq(ListExp.getByRank(ListReturnType.VALUE, Exp.Type.INT, Exp.val(-2), Exp.listBin("listBin1")),
+                        Exp.val(100)));
+    }
+
+    @Test
+    void listIndexHexAndBinary() {
+        TestUtils.parseFilterExpressionAndCompare(ExpressionContext.of("$.listBin1.[0xff] == 100"),
+                Exp.eq(ListExp.getByIndex(ListReturnType.VALUE, Exp.Type.INT, Exp.val(255),
+                        Exp.listBin("listBin1")), Exp.val(100)));
+        TestUtils.parseFilterExpressionAndCompare(ExpressionContext.of("$.listBin1.[-0b10] == 100"),
+                Exp.eq(ListExp.getByIndex(ListReturnType.VALUE, Exp.Type.INT, Exp.val(-2),
+                        Exp.listBin("listBin1")), Exp.val(100)));
+    }
+
+    @Test
+    void listIndexRangeHex() {
+        Exp expected = ListExp.getByIndexRange(
+                ListReturnType.VALUE, Exp.val(1), Exp.val(2), Exp.listBin("listBin1"));
+        TestUtils.parseFilterExpressionAndCompare(
+                ExpressionContext.of("$.listBin1.[0x01:0x03]"), expected);
+    }
+
+    @Test
+    void listRankRangeHex() {
+        Exp expected = ListExp.getByRankRange(
+                ListReturnType.VALUE, Exp.val(1), Exp.val(2), Exp.listBin("listBin1"));
+        TestUtils.parseFilterExpressionAndCompare(
+                ExpressionContext.of("$.listBin1.[#0x01:0x03]"), expected);
+    }
+
+    @Test
+    void listValueRangeHex() {
+        Exp expected = ListExp.getByValueRange(
+                ListReturnType.VALUE, Exp.val(255), Exp.val(512), Exp.listBin("listBin1"));
+        TestUtils.parseFilterExpressionAndCompare(
+                ExpressionContext.of("$.listBin1.[=0xff:0x200]"), expected);
     }
 
     @Test
@@ -184,6 +214,30 @@ public class ListExpressionsTests {
     @Test
     void listByRankOutOfRangeSignedLiteral() {
         assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of("$.listBin1.[#-2147483649] == 100")))
+                .isInstanceOf(AelParseException.class)
+                .hasMessageContaining("out of range");
+    }
+
+    @Test
+    void listIndexHexMaxInt() {
+        Exp expected = Exp.eq(
+                ListExp.getByIndex(ListReturnType.VALUE, Exp.Type.INT,
+                        Exp.val(Integer.MAX_VALUE), Exp.listBin("listBin1")),
+                Exp.val(100));
+        TestUtils.parseFilterExpressionAndCompare(
+                ExpressionContext.of("$.listBin1.[0x7FFFFFFF] == 100"), expected);
+    }
+
+    @Test
+    void listIndexHexIntOverflow() {
+        assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of("$.listBin1.[0x80000000] == 100")))
+                .isInstanceOf(AelParseException.class)
+                .hasMessageContaining("out of range");
+    }
+
+    @Test
+    void listRankHexIntOverflow() {
+        assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of("$.listBin1.[#0x80000000] == 100")))
                 .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("out of range");
     }
@@ -511,5 +565,29 @@ public class ListExpressionsTests {
                 Exp.val(1));
         // Implicit detect as INT
         TestUtils.parseFilterExpressionAndCompare(ExpressionContext.of("$.listBin1.[0].get(return: INDEX) == 1"), expected);
+    }
+
+    // ---- List value type contrast ----
+
+    @Test
+    void listValueQuotedIntIsString() {
+        Exp expectedDQ = Exp.eq(
+                ListExp.getByValue(ListReturnType.VALUE,
+                        Exp.val("1"), Exp.listBin("listBin")),
+                Exp.val("x"));
+        TestUtils.parseFilterExpressionAndCompare(
+                ExpressionContext.of("$.listBin.[=\"1\"].get(type: STRING) == \"x\""), expectedDQ);
+        TestUtils.parseFilterExpressionAndCompare(
+                ExpressionContext.of("$.listBin.[='1'].get(type: STRING) == 'x'"), expectedDQ);
+    }
+
+    @Test
+    void listValueUnquotedIntIsInt() {
+        Exp expected = Exp.eq(
+                ListExp.getByValue(ListReturnType.VALUE,
+                        Exp.val(1), Exp.listBin("listBin")),
+                Exp.val(10));
+        TestUtils.parseFilterExpressionAndCompare(
+                ExpressionContext.of("$.listBin.[=1] == 10"), expected);
     }
 }

@@ -15,7 +15,7 @@ public class SyntaxErrorTests {
     // --- General syntax errors ---
 
     @Test
-    void negNonsensePathFunction() {
+    void negativeNonsensePathFunction() {
         assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of("1.0 == $.f1.nonsense()")))
                 .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("Could not parse given AEL expression input")
@@ -24,7 +24,7 @@ public class SyntaxErrorTests {
     }
 
     @Test
-    void negNonsensePathFunctionOnLeft() {
+    void negativeNonsensePathFunctionOnLeft() {
         assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of("$.f1.nonsense() == 1.0")))
                 .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("Could not parse given AEL expression input")
@@ -33,7 +33,7 @@ public class SyntaxErrorTests {
     }
 
     @Test
-    void negTrailingGarbageTokens() {
+    void negativeTrailingGarbageTokens() {
         assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of("$.intBin1 > 100 garbage")))
                 .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("Could not parse given AEL expression input")
@@ -56,7 +56,7 @@ public class SyntaxErrorTests {
     // --- Malformed variable references ---
 
     @Test
-    void negVarBareNameInThenBody() {
+    void negativeVarBareNameInThenBody() {
         assertThatThrownBy(() -> parseFilterExp(
                 ExpressionContext.of(
                         "let(x = 5, y = ($.bin.get(type: INT) in ${x})) then (y == true)")))
@@ -67,7 +67,7 @@ public class SyntaxErrorTests {
     }
 
     @Test
-    void negVarDollarNoInThenBody() {
+    void negativeVarDollarNoInThenBody() {
         assertThatThrownBy(() -> parseFilterExp(
                 ExpressionContext.of(
                         "let(x = 5, y = ($.bin.get(type: INT) in ${x})) then ($y == true)")))
@@ -80,7 +80,7 @@ public class SyntaxErrorTests {
     }
 
     @Test
-    void negVarMissingCloseBrace() {
+    void negativeVarMissingCloseBrace() {
         assertThatThrownBy(() -> parseFilterExp(
                 ExpressionContext.of(
                         "let(x = 5, y = ($.bin.get(type: INT) in ${x)) then (${y} == true)")))
@@ -93,7 +93,7 @@ public class SyntaxErrorTests {
     }
 
     @Test
-    void negVarMissingDollarAndOpen() {
+    void negativeVarMissingDollarAndOpen() {
         assertThatThrownBy(() -> parseFilterExp(
                 ExpressionContext.of(
                         "let(x = 5, y = ($.bin.get(type: INT) in x})) then (${y} == true)")))
@@ -104,7 +104,7 @@ public class SyntaxErrorTests {
     }
 
     @Test
-    void negVarBareNameInLetExpr() {
+    void negativeVarBareNameInLetExpr() {
         assertThatThrownBy(() -> parseFilterExp(
                 ExpressionContext.of(
                         "let(x = 5, y = ($.bin.get(type: INT) in x)) then (${y} == true)")))
@@ -115,7 +115,7 @@ public class SyntaxErrorTests {
     }
 
     @Test
-    void negVarDoubleOpenBrace() {
+    void negativeVarDoubleOpenBrace() {
         assertThatThrownBy(() -> parseFilterExp(
                 ExpressionContext.of(
                         "let(x = 5, y = ($.bin.get(type: INT) in ${{x})) then (${y} == true)")))
@@ -128,7 +128,7 @@ public class SyntaxErrorTests {
     }
 
     @Test
-    void negVarDoubleCloseBrace() {
+    void negativeVarDoubleCloseBrace() {
         assertThatThrownBy(() -> parseFilterExp(
                 ExpressionContext.of(
                         "let(x = 5, y = ($.bin.get(type: INT) in ${x}})) then (${y} == true)")))
@@ -225,5 +225,57 @@ public class SyntaxErrorTests {
                 .hasMessageContaining("Could not parse given AEL expression input")
                 .hasMessageContaining("[Parser] no viable alternative at input")
                 .hasMessageContaining("at character 14");
+    }
+
+    // ---- Let variable name validation ----
+
+    @Test
+    void letVarStartsWithUnderscore() {
+        Exp expected = Exp.let(
+                Exp.def("_x", Exp.val(5)),
+                Exp.add(Exp.var("_x"), Exp.val(1)));
+        parseFilterExpressionAndCompare(
+                ExpressionContext.of("let(_x = 5) then (${_x} + 1)"), expected);
+    }
+
+    @Test
+    void letVarAllUnderscores() {
+        Exp expected = Exp.let(
+                Exp.def("__", Exp.val(5)),
+                Exp.add(Exp.var("__"), Exp.val(1)));
+        parseFilterExpressionAndCompare(
+                ExpressionContext.of("let(__ = 5) then (${__} + 1)"), expected);
+    }
+
+    @Test
+    void negLetVarStartsWithDigit() {
+        assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of("let(1abc = 5) then (1)")))
+                .isInstanceOf(AelParseException.class)
+                .hasMessageContaining("variable")
+                .hasMessageContaining("start with a letter or underscore");
+    }
+
+    @Test
+    void negLetVarOnlyDigits() {
+        assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of("let(123 = 5) then (${123} + 1)")))
+                .isInstanceOf(AelParseException.class)
+                .hasMessageContaining("at character");
+    }
+
+    @Test
+    void negLetVarKeyword() {
+        assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of("let(true = 5) then (${true} + 1)")))
+                .isInstanceOf(AelParseException.class)
+                .hasMessageContaining("at character");
+    }
+
+    // ---- Function name validation ----
+
+    @Test
+    void negFuncNameWithUnderscore() {
+        assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of("my_func($.bin) == 5")))
+                .isInstanceOf(AelParseException.class)
+                .hasMessageContaining("function name")
+                .hasMessageContaining("letters and digits");
     }
 }
