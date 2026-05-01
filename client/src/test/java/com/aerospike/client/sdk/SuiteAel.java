@@ -16,31 +16,11 @@
  */
 package com.aerospike.client.sdk;
 
+import com.aerospike.ael.expression.*;
 import org.junit.platform.suite.api.SelectClasses;
 import org.junit.platform.suite.api.Suite;
 
 import com.aerospike.ael.ctx.CtxTests;
-import com.aerospike.ael.expression.ArithmeticExpressionsTests;
-import com.aerospike.ael.expression.BareGetFunctionTests;
-import com.aerospike.ael.expression.BinExpressionsTests;
-import com.aerospike.ael.expression.BlobTests;
-import com.aerospike.ael.expression.CastingTests;
-import com.aerospike.ael.expression.ControlStructuresTests;
-import com.aerospike.ael.expression.ExplicitTypesTests;
-import com.aerospike.ael.expression.ImplicitTypesTests;
-import com.aerospike.ael.expression.InBinTests;
-import com.aerospike.ael.expression.InCompositeTests;
-import com.aerospike.ael.expression.InExplicitTypeTests;
-import com.aerospike.ael.expression.InGrammarConflictTests;
-import com.aerospike.ael.expression.InLiteralTests;
-import com.aerospike.ael.expression.InNegativeTests;
-import com.aerospike.ael.expression.InPlaceholderTests;
-import com.aerospike.ael.expression.ListExpressionsTests;
-import com.aerospike.ael.expression.LogicalExpressionsTests;
-import com.aerospike.ael.expression.MapAndListExpressionsTests;
-import com.aerospike.ael.expression.MapExpressionsTests;
-import com.aerospike.ael.expression.RecordMetadataTests;
-import com.aerospike.ael.expression.SyntaxErrorTests;
 import com.aerospike.ael.filter.ArithmeticFiltersTests;
 import com.aerospike.ael.filter.BinFiltersTests;
 import com.aerospike.ael.filter.ExplicitTypesFiltersTests;
@@ -59,6 +39,7 @@ import com.aerospike.ael.parts.operand.OperandFactoryTests;
     ArithmeticExpressionsTests.class,
     BareGetFunctionTests.class,
     BinExpressionsTests.class,
+    BinNamingTests.class,
     BlobTests.class,
     CastingTests.class,
     ControlStructuresTests.class,
@@ -75,6 +56,7 @@ import com.aerospike.ael.parts.operand.OperandFactoryTests;
     LogicalExpressionsTests.class,
     MapAndListExpressionsTests.class,
     MapExpressionsTests.class,
+    MapKeyTypingTests.class,
     RecordMetadataTests.class,
     SyntaxErrorTests.class,
     // com.aerospike.ael.filter

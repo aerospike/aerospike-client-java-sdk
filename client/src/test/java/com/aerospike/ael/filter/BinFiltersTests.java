@@ -123,4 +123,16 @@ public class BinFiltersTests {
         assertThat(parseFilter(ExpressionContext.of("100 != 'text'"), INDEX_FILTER_INPUT)).isNull();
         assertThat(parseFilter(ExpressionContext.of("100 != \"text\""), INDEX_FILTER_INPUT)).isNull();
     }
+
+    // ---- SI filter with keyword bin name ----
+
+    @Test
+    void keywordBinNameWithSIFilter() {
+        List<Index> indexes = List.of(
+                Index.builder().namespace(NAMESPACE).bin("and").indexType(IndexType.INTEGER).binValuesRatio(1).build()
+        );
+        IndexContext indexCtx = IndexContext.of(NAMESPACE, indexes);
+        parseFilterAndCompare(ExpressionContext.of("$.and == 1"), indexCtx,
+                Filter.equal("and", 1));
+    }
 }

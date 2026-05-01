@@ -25,6 +25,7 @@ import static com.aerospike.ael.visitor.VisitorUtils.shouldVisitListElement;
 import static com.aerospike.ael.visitor.VisitorUtils.shouldVisitMapElement;
 
 import java.util.*;
+import java.util.regex.Pattern;
 
 import org.antlr.v4.runtime.tree.ParseTree;
 import org.antlr.v4.runtime.tree.RuleNode;
@@ -69,16 +70,20 @@ public class ExpressionConditionVisitor extends ConditionBaseVisitor<AbstractPar
 
     private int letNestingDepth = 0;
 
+    private static final Pattern VARIABLE_NAME_PATTERN = Pattern.compile("[A-Za-z_][A-Za-z0-9_]*");
+    private static final Pattern FUNCTION_NAME_PATTERN = Pattern.compile("[a-zA-Z][a-zA-Z0-9]*");
+
     @Override
     public AbstractPart visitLetExpression(ConditionParser.LetExpressionContext ctx) {
         letNestingDepth++;
         try {
             List<LetOperand> expressions = new ArrayList<>();
 
-            // iterate through each definition
             for (ConditionParser.VariableDefinitionContext vdc : ctx.variableDefinition()) {
+                String varName = vdc.NAME_IDENTIFIER().getText();
+                validateVariableName(varName);
                 AbstractPart part = visit(vdc.expression());
-                LetOperand letOperand = new LetOperand(part, vdc.NAME_IDENTIFIER().getText());
+                LetOperand letOperand = new LetOperand(part, varName);
                 expressions.add(letOperand);
             }
             // last expression is the action (described after "then")
@@ -117,9 +122,7 @@ public class ExpressionConditionVisitor extends ConditionBaseVisitor<AbstractPar
         List<ExpressionContainer> expressions = new ArrayList<>();
         for (ConditionParser.ComparisonExpressionContext ec : ctx.comparisonExpression()) {
             ExpressionContainer expr = (ExpressionContainer) visit(ec);
-            if (expr == null) {
-                return null;
-            }
+            if (expr == null) return null;
 
             logicalSetBinAsBooleanExpr(expr);
             expressions.add(expr);
@@ -138,9 +141,7 @@ public class ExpressionConditionVisitor extends ConditionBaseVisitor<AbstractPar
         // iterate through each sub-expression
         for (ConditionParser.LogicalAndExpressionContext ec : ctx.logicalAndExpression()) {
             ExpressionContainer expr = (ExpressionContainer) visit(ec);
-            if (expr == null) {
-                return null;
-            }
+            if (expr == null) return null;
 
             logicalSetBinAsBooleanExpr(expr);
             expressions.add(expr);
@@ -514,15 +515,9 @@ public class ExpressionConditionVisitor extends ConditionBaseVisitor<AbstractPar
 
     private static void validateInVariableIsListCompatible(ExpressionContainer expr,
                                                            Map<String, AbstractPart> varBindings) {
-        if (expr.getOperationType() != ExpressionContainer.ExprPartsOperation.IN) {
-            return;
-        }
-        if (expr.getRight() == null) {
-            return;
-        }
-        if (expr.getRight().getPartType() != AbstractPart.PartType.VARIABLE_OPERAND) {
-            return;
-        }
+        if (expr.getOperationType() != ExpressionContainer.ExprPartsOperation.IN) return;
+        if (expr.getRight() == null) return;
+        if (expr.getRight().getPartType() != AbstractPart.PartType.VARIABLE_OPERAND) return;
 
         String varName = ((VariableOperand) expr.getRight()).getValue();
         AbstractPart boundPart = varBindings.get(varName);
@@ -682,6 +677,7 @@ public class ExpressionConditionVisitor extends ConditionBaseVisitor<AbstractPar
         }
 
         String funcName = ctx.NAME_IDENTIFIER().getText();
+        validateFunctionName(funcName);
         List<AbstractPart> args = new ArrayList<>();
         for (ConditionParser.ExpressionContext ec : ctx.expression()) {
             args.add(visit(ec));
@@ -815,13 +811,9 @@ public class ExpressionConditionVisitor extends ConditionBaseVisitor<AbstractPar
             for (ConditionParser.PathFunctionParamContext paramCtx : ctx.pathFunctionParams().pathFunctionParam()) {
                 if (paramCtx != null) {
                     String typeVal = getPathFunctionParam(paramCtx, "type");
-                    if (typeVal != null) {
-                        binType = Exp.Type.valueOf(typeVal);
-                    }
+                    if (typeVal != null) binType = Exp.Type.valueOf(typeVal);
                     String returnVal = getPathFunctionParam(paramCtx, "return");
-                    if (returnVal != null) {
-                        returnParam = PathFunction.ReturnParam.valueOf(returnVal);
-                    }
+                    if (returnVal != null) returnParam = PathFunction.ReturnParam.valueOf(returnVal);
                 }
             }
         }
@@ -874,13 +866,46 @@ public class ExpressionConditionVisitor extends ConditionBaseVisitor<AbstractPar
 
     @Override
     public AbstractPart visitBinPart(ConditionParser.BinPartContext ctx) {
-        if (ctx.NAME_IDENTIFIER() != null) {
-            return new BinPart(ctx.NAME_IDENTIFIER().getText());
+        if (ctx.BIN_IDENTIFIER() != null) {
+            String binName = ctx.BIN_IDENTIFIER().getText();
+            rejectBinNameContainingNull(binName);
+            return new BinPart(binName);
         }
-        if (ctx.IN() != null) {
-            return new BinPart(ctx.IN().getText());
+        if (ctx.QUOTED_STRING() != null) {
+            String quoted = ctx.QUOTED_STRING().getText();
+            if (quoted.length() <= 2) {
+                throw new AelParseException("Bin name must not be empty");
+            }
+            String binName = unquote(quoted);
+            rejectBinNameContainingNull(binName);
+            return new BinPart(binName);
         }
-        throw new AelParseException("Could not parse binPart from ctx: %s".formatted(ctx.getText()));
+        // Fallthrough: NAME_IDENTIFIER, IN, TRUE, FALSE, and all keyword literals ('and', 'or',
+        // 'not', etc.). ctx.getText() returns the matched text preserving original case.
+        String binName = ctx.getText();
+        rejectBinNameContainingNull(binName);
+        return new BinPart(binName);
+    }
+
+    private static void validateVariableName(String name) {
+        if (!VARIABLE_NAME_PATTERN.matcher(name).matches()) {
+            throw new AelParseException(
+                    "Invalid variable name '%s': must start with a letter or underscore".formatted(name));
+        }
+    }
+
+    private static void validateFunctionName(String name) {
+        if (!FUNCTION_NAME_PATTERN.matcher(name).matches()) {
+            throw new AelParseException(
+                    "Invalid function name '%s': must start with a letter and contain only letters and digits".formatted(name));
+        }
+    }
+
+    private static void rejectBinNameContainingNull(String binName) {
+        if (binName.toLowerCase(Locale.ROOT).contains("null")) {
+            throw new AelParseException(
+                    "Bin name must not contain the reserved word 'null': " + binName);
+        }
     }
 
     @Override
@@ -1033,6 +1058,8 @@ public class ExpressionConditionVisitor extends ConditionBaseVisitor<AbstractPar
     public AbstractPart visitBasePath(ConditionParser.BasePathContext ctx) {
         BinPart binPart = null;
         List<AbstractPart> cdtParts = new ArrayList<>();
+        // Filter out standalone '.' separator tokens. Embedded-dot tokens (pathIntMapKey,
+        // pathHexBinaryMapKey) have multi-char text (e.g. ".55", ".0xff") and pass through.
         List<ParseTree> ctxChildrenExclDots = ctx.children.stream()
                 .filter(tree -> !tree.getText().equals("."))
                 .toList();
@@ -1101,77 +1128,48 @@ public class ExpressionConditionVisitor extends ConditionBaseVisitor<AbstractPar
 
     @Override
     public AbstractPart visitListPart(ConditionParser.ListPartContext ctx) {
-        if (ctx.LIST_TYPE_DESIGNATOR() != null) {
-            return ListTypeDesignator.from();
-        }
-        if (ctx.listIndex() != null) {
-            return ListIndex.from(ctx.listIndex());
-        }
-        if (ctx.listValue() != null) {
-            return ListValue.from(ctx.listValue());
-        }
-        if (ctx.listRank() != null) {
-            return ListRank.from(ctx.listRank());
-        }
-        if (ctx.listIndexRange() != null) {
-            return ListIndexRange.from(ctx.listIndexRange());
-        }
-        if (ctx.listValueList() != null) {
-            return ListValueList.from(ctx.listValueList());
-        }
-        if (ctx.listValueRange() != null) {
-            return ListValueRange.from(ctx.listValueRange());
-        }
-        if (ctx.listRankRange() != null) {
-            return ListRankRange.from(ctx.listRankRange());
-        }
-        if (ctx.listRankRangeRelative() != null) {
+        if (ctx.LIST_TYPE_DESIGNATOR() != null) return ListTypeDesignator.from();
+        if (ctx.listIndex() != null) return ListIndex.from(ctx.listIndex());
+        if (ctx.listValue() != null) return ListValue.from(ctx.listValue());
+        if (ctx.listRank() != null) return ListRank.from(ctx.listRank());
+        if (ctx.listIndexRange() != null) return ListIndexRange.from(ctx.listIndexRange());
+        if (ctx.listValueList() != null) return ListValueList.from(ctx.listValueList());
+        if (ctx.listValueRange() != null) return ListValueRange.from(ctx.listValueRange());
+        if (ctx.listRankRange() != null) return ListRankRange.from(ctx.listRankRange());
+        if (ctx.listRankRangeRelative() != null)
             return ListRankRangeRelative.from(ctx.listRankRangeRelative());
-        }
         throw new AelParseException("Unexpected list part: %s".formatted(ctx.getText()));
     }
 
     @Override
+    public AbstractPart visitPathIntMapKey(ConditionParser.PathIntMapKeyContext ctx) {
+        String keyText = ctx.getText().substring(1); // strip leading dot
+        return new MapKey(parseLongMapKey(keyText));
+    }
+
+    @Override
+    public AbstractPart visitPathHexBinaryMapKey(ConditionParser.PathHexBinaryMapKeyContext ctx) {
+        String tokenText = ctx.LEADING_DOT_FLOAT_HEX_OR_BINARY().getText();
+        return new MapKey(parseUnsignedLongLiteral(tokenText.substring(1)));
+    }
+
+    @Override
     public AbstractPart visitMapPart(ConditionParser.MapPartContext ctx) {
-        if (ctx.MAP_TYPE_DESIGNATOR() != null) {
-            return MapTypeDesignator.from();
-        }
-        if (ctx.mapKey() != null) {
-            return MapKey.from(ctx.mapKey());
-        }
-        if (ctx.mapIndex() != null) {
-            return MapIndex.from(ctx.mapIndex());
-        }
-        if (ctx.mapValue() != null) {
-            return MapValue.from(ctx.mapValue());
-        }
-        if (ctx.mapRank() != null) {
-            return MapRank.from(ctx.mapRank());
-        }
-        if (ctx.mapKeyRange() != null) {
-            return MapKeyRange.from(ctx.mapKeyRange());
-        }
-        if (ctx.mapKeyList() != null) {
-            return MapKeyList.from(ctx.mapKeyList());
-        }
-        if (ctx.mapIndexRange() != null) {
-            return MapIndexRange.from(ctx.mapIndexRange());
-        }
-        if (ctx.mapValueList() != null) {
-            return MapValueList.from(ctx.mapValueList());
-        }
-        if (ctx.mapValueRange() != null) {
-            return MapValueRange.from(ctx.mapValueRange());
-        }
-        if (ctx.mapRankRange() != null) {
-            return MapRankRange.from(ctx.mapRankRange());
-        }
-        if (ctx.mapRankRangeRelative() != null) {
+        if (ctx.MAP_TYPE_DESIGNATOR() != null) return MapTypeDesignator.from();
+        if (ctx.mapKey() != null) return MapKey.from(ctx.mapKey());
+        if (ctx.mapIndex() != null) return MapIndex.from(ctx.mapIndex());
+        if (ctx.mapValue() != null) return MapValue.from(ctx.mapValue());
+        if (ctx.mapRank() != null) return MapRank.from(ctx.mapRank());
+        if (ctx.mapKeyRange() != null) return MapKeyRange.from(ctx.mapKeyRange());
+        if (ctx.mapKeyList() != null) return MapKeyList.from(ctx.mapKeyList());
+        if (ctx.mapIndexRange() != null) return MapIndexRange.from(ctx.mapIndexRange());
+        if (ctx.mapValueList() != null) return MapValueList.from(ctx.mapValueList());
+        if (ctx.mapValueRange() != null) return MapValueRange.from(ctx.mapValueRange());
+        if (ctx.mapRankRange() != null) return MapRankRange.from(ctx.mapRankRange());
+        if (ctx.mapRankRangeRelative() != null)
             return MapRankRangeRelative.from(ctx.mapRankRangeRelative());
-        }
-        if (ctx.mapIndexRangeRelative() != null) {
+        if (ctx.mapIndexRangeRelative() != null)
             return MapIndexRangeRelative.from(ctx.mapIndexRangeRelative());
-        }
         throw new AelParseException("Unexpected map part: %s".formatted(ctx.getText()));
     }
 
