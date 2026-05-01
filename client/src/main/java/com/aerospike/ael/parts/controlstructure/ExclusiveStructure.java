@@ -26,9 +26,9 @@ import com.aerospike.ael.parts.ExpressionContainer;
 @Getter
 public class ExclusiveStructure extends AbstractPart {
 
-    private final List<ExpressionContainer> operands;
+    private final List<AbstractPart> operands;
 
-    public ExclusiveStructure(List<ExpressionContainer> operands) {
+    public ExclusiveStructure(List<AbstractPart> operands) {
         super(PartType.EXCLUSIVE_STRUCTURE);
         this.operands = operands;
     }

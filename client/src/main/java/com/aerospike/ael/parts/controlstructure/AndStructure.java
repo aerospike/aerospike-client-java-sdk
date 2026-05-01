@@ -26,9 +26,9 @@ import com.aerospike.ael.parts.ExpressionContainer;
 @Getter
 public class AndStructure extends AbstractPart {
 
-    private final List<ExpressionContainer> operands;
+    private final List<AbstractPart> operands;
 
-    public AndStructure(List<ExpressionContainer> operands) {
+    public AndStructure(List<AbstractPart> operands) {
         super(PartType.AND_STRUCTURE);
         this.operands = operands;
     }
