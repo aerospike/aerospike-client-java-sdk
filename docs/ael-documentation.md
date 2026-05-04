@@ -524,7 +524,7 @@ $.intBin.get(type: INT) > $.floatBin.asInt()
 
 Some path spellings **look like** map or list **write** operations—for example a final segment **`remove()`**, **`insert()`**, **`set()`**, **`append()`**, **`increment()`**, **`clear()`**, or **`sort()`** with empty parentheses. The same style with **`put(...)`**, or **with arguments** inside the parentheses (such as options after the name), is likewise not supported AEL path syntax.
 
-**None of this is supported in the current release.** Do not use AEL conditions or filters to delete, insert, or update elements that way—to change map or list contents, use the SDK’s write APIs. **Support for mutation-style path syntax may be added in a future release.** Until then, rely only on the path functions described in this chapter (**`get()`**, **`count()`**, **`exists()`**, **`asInt()`**, **`asFloat()`**, and related options).
+**None of this is supported in the current release.** Do not use AEL conditions or filters to delete, insert, or update elements that way—to change map or list contents, use the SDK’s write APIs or `Exp` operations directly. **Support for mutation-style path syntax may be added in a future release.** Until then, rely only on the path functions described in this section (**`get()`**, **`count()`**, **`exists()`**, **`asInt()`**, **`asFloat()`**, and related options).
 
 ```
 -- Examples of styles that are not supported for mutations via AEL:

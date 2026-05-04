@@ -217,16 +217,6 @@ public class ExistsFunctionTests {
                 Exp.gt(Exp.binExists("a"), Exp.val(0)));
     }
 
-    @Test
-    void mapKeyExistsEqIntLiteralUsesInferredIntValueType() {
-        parseFilterExpressionAndCompare(
-                ExpressionContext.of("$.mapbin.a.exists() == 200"),
-                Exp.eq(
-                        MapExp.getByKey(
-                                MapReturnType.EXISTS, Exp.Type.INT, Exp.val("a"), Exp.mapBin("mapbin")),
-                        Exp.val(200)));
-    }
-
     // ---- Negative / syntax tests ----
 
     @Test

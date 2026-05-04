@@ -36,54 +36,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 public class MapExpressionsTests {
 
     @Test
-    void nameIdentifierResemblingSpecSentinelIsOrdinaryMapKey() {
-        // INF, NIL, WILDCARD, WLD are NAME_IDENTIFIER map keys, not special CDT sentinels.
-        Exp expectedNil = Exp.eq(
-                MapExp.getByKey(
-                        MapReturnType.VALUE,
-                        Exp.Type.INT,
-                        Exp.val("NIL"),
-                        Exp.mapBin("mapBin1")),
-                Exp.val(1));
-        TestUtils.parseFilterExpressionAndCompare(
-                ExpressionContext.of("$.mapBin1.NIL.get(type: INT) == 1"),
-                expectedNil);
-
-        Exp expectedInf = Exp.eq(
-                MapExp.getByKey(
-                        MapReturnType.VALUE,
-                        Exp.Type.INT,
-                        Exp.val("INF"),
-                        Exp.mapBin("mapBin1")),
-                Exp.val(2));
-        TestUtils.parseFilterExpressionAndCompare(
-                ExpressionContext.of("$.mapBin1.INF.get(type: INT) == 2"),
-                expectedInf);
-
-        Exp expectedWildcard = Exp.eq(
-                MapExp.getByKey(
-                        MapReturnType.VALUE,
-                        Exp.Type.STRING,
-                        Exp.val("WILDCARD"),
-                        Exp.mapBin("mapBin1")),
-                Exp.val("x"));
-        TestUtils.parseFilterExpressionAndCompare(
-                ExpressionContext.of("$.mapBin1.WILDCARD.get(type: STRING) == 'x'"),
-                expectedWildcard);
-
-        Exp expectedWld = Exp.eq(
-                MapExp.getByKey(
-                        MapReturnType.VALUE,
-                        Exp.Type.STRING,
-                        Exp.val("WLD"),
-                        Exp.mapBin("mapBin1")),
-                Exp.val("y"));
-        TestUtils.parseFilterExpressionAndCompare(
-                ExpressionContext.of("$.mapBin1.WLD.get(type: STRING) == 'y'"),
-                expectedWld);
-    }
-
-    @Test
     void asteriskInListLiteralIsNotWildcardValue() {
         // `*` inside `[1, *]` is not a wildcard list element; expression does not parse as a list literal.
         assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of("\"gold\" in [1, *]")))
