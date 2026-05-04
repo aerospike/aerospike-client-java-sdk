@@ -1,18 +1,14 @@
-name: PR CI
+name: Nightly Integration Tests
 
 on:
-  pull_request:
-    types: [opened, synchronize, reopened, ready_for_review]
-    branches: [dev/*, stage, init]
+  schedule:
+    - cron: '0 6 * * *' # Daily at 6:00 AM UTC
+  workflow_dispatch:
 
 permissions:
   id-token: write
   contents: read
   actions: read  
-
-concurrency:
-  group: pr-ci-${{ github.workflow }}-${{ github.event.pull_request.head.sha }}
-  cancel-in-progress: true
 
 jobs:
   make-matrix:
@@ -22,23 +18,22 @@ jobs:
       java-version: ${{ steps.extract-java.outputs.java_version }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: stage
 
       - id: create-server-matrix
         shell: bash
-        env:
-          DEFAULT_JSON: ${{ vars.DEFAULT_SERVER_VERSIONS }}
-          TEST_SERVERS_FILE_PATH: ${{ vars.TEST_SERVERS_FILE_PATH }}
         run: |
           set -euo pipefail
 
-          FILE="${TEST_SERVERS_FILE_PATH:-}"
+          FILE=".github/test_servers_nightly.json"
 
-          if [[ -n "${FILE}" && -s "${FILE}" ]]; then
+          if [[ -s "${FILE}" ]]; then
             echo "Using ${FILE} from repository"
             JSON="$(cat "${FILE}")"
           else
-            echo "${FILE:-<unset>} missing or empty – using default_json input"
-            JSON="${DEFAULT_JSON}"
+            echo "${FILE} missing or empty"
+            exit 1
           fi
 
           echo "${JSON}" | jq . >/dev/null
@@ -74,6 +69,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: stage
 
       - name: Set up JDK ${{ vars.JAVA_DISTRIBUTION }} ${{ needs.make-matrix.outputs.java-version }}
         uses: actions/setup-java@v4
@@ -95,40 +92,6 @@ jobs:
           num-nodes: ${{ matrix.num-nodes }}
           oidc-provider: ${{ vars.OIDC_PROVIDER_NAME }}
           oidc-audience: ${{ vars.OIDC_AUDIENCE }}
-          config-content: |
-            service {
-                feature-key-file /etc/aerospike/features.conf
-                cluster-name docker
-                proto-fd-max 15000
-            }
-
-            logging {
-                console {
-                    context any info
-                }
-            }
-
-            network {
-                service {
-                    address any
-                    port 3000
-                }
-                heartbeat {
-                    mode mesh
-                    port 3002
-                }
-                fabric {
-                    port 3001
-                }
-            }
-
-            namespace test {
-              replication-factor 1
-              allow-ttl-without-nsup true
-              storage-engine memory { 
-                data-size 4G 
-              }
-            }
 
       - name: Build & run integration tests
         run: |
@@ -147,7 +110,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: test-reports-${{ matrix.server }}-${{ matrix.num-nodes }}node-jdk-${{ needs.make-matrix.outputs.java-version }}
+          name: test-reports-nightly-${{ matrix.server }}-${{ matrix.num-nodes }}node-jdk-${{ needs.make-matrix.outputs.java-version }}
           path: |
             **/target/surefire-reports/**
             **/target/failsafe-reports/**
