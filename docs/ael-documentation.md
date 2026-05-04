@@ -79,8 +79,19 @@ Simple identifiers matching `^[A-Za-z]\w*$` do not require quoting in value posi
 'hello world'
 ```
 
-**Backslash escapes are not supported** (no `\n`, `\t`, `\\`, `\"`, …). A `\` in a quoted string is only a literal backslash; 
-the next character is not interpreted as an escape code.
+> **Java SDK (this release):** The following is **not implemented** in the fluent client yet. It is **planned for GA**; the text below describes the intended behavior.
+
+Escape sequences inside quoted strings:
+
+| Escape | Meaning |
+|--------|---------|
+| `\\` | Literal backslash |
+| `\n` | Newline |
+| `\t` | Tab |
+| `\"` | Double quote (only needed inside double-quoted strings) |
+| `\'` | Single quote (only needed inside single-quoted strings) |
+
+A double quote inside single quotes needs no escaping and vice versa: `'"'` equals `"\""`.
 
 ### 2.4 Booleans
 
@@ -122,6 +133,16 @@ Curly braces with `key: value` pairs:
 
 Map keys can be strings, integers, or BLOBs. Map values can be any supported type.
 
+### 2.8 Special Values
+
+> **Java SDK (this release):** These language constructs are **not implemented** in the fluent client yet. They are **planned for GA**; the table below describes the intended behavior.
+
+| Value | Description | Use Case |
+|-------|-------------|----------|
+| `*` (WILDCARD) | Matches any value from that point | `[1, *]` matches `[1]`, `[1, 2, 34]` |
+| `NIL` | Lowest possible CDT comparison value | Range start: `[#-1:1~[10.0, NIL]]` |
+| `INF` | Highest possible CDT comparison value | Range end marker |
+
 ---
 
 ## 3. Path Expressions
@@ -137,7 +158,7 @@ $.<bin>.<context1>.<context2>...<leaf>.<function>
 - **Bin**: The top-level bin name (first element after `$.`).
 - **Context elements**: Intermediate navigation into nested CDTs.
 - **Leaf element**: The final element being targeted.
-- **Function**: An optional terminal operation: `get()`, `count()`, `asInt()`, `asFloat()`. Suffixes that look like map or list **writes** (for example `remove()`) are **not supported** in AEL today—see [§8.5](#85-mutation-style-path-suffixes-not-supported).
+- **Function**: An optional terminal operation: `get()`, `count()`, `exists()`, `asInt()`, `asFloat()`, `type()`, and the other path functions in **§8**. Suffixes that look like map or list **writes** (for example `remove()`) are **not supported** in AEL today—see [§8.7](#87-mutation-style-path-suffixes-not-supported).
 
 ### How the AEL determines bin type
 
@@ -520,11 +541,57 @@ $.intBin.asFloat()            -- read an integer bin as a float
 $.intBin.get(type: INT) > $.floatBin.asInt()
 ```
 
-### 8.5 Mutation-style path suffixes (not supported)
+### 8.5 `type()`
+
+> **Java SDK (this release):** The `type()` path function is **not implemented** in the fluent client yet. It is **planned for GA**; the text below describes the intended behavior.
+
+Returns the data type of the element as one of: `INT`, `STR`, `HLL`, `BLOB`, `FLOAT`, `BOOL`, `LIST`, `MAP`, `GEO`.
+
+```
+$.binA.type() == INT
+```
+
+### 8.6 CDT Mutation Functions
+
+> **Java SDK (this release):** Mutation-style path functions in AEL strings (as described below) are **not implemented** in the fluent client yet. They are **planned for GA**; this section documents the intended behavior for write-oriented expressions.
+
+These functions perform mutations on list or map data within write expressions.
+
+**List mutation functions:**
+
+| Function | Description |
+|----------|-------------|
+| `remove()` | Remove matched elements. Default return type: `COUNT` |
+| `insert()` | Insert an element at the given position |
+| `set()` | Set an element at the given position |
+| `append()` | Append an element to the list |
+| `increment()` | Increment a numeric element |
+| `clear()` | Remove all items from the list |
+| `sort()` | Sort the list |
+
+**Map mutation functions:**
+
+| Function | Description |
+|----------|-------------|
+| `remove()` | Remove matched entries. Default return type: `COUNT` |
+| `put()` | Insert or update a key-value pair |
+| `increment()` | Increment a numeric value by key |
+| `clear()` | Remove all items from the map |
+
+**Remove examples:**
+
+```
+$.listbin.[=a:z].remove(return: NONE)
+$.listbin.[=4].remove()                  -- removes elements with value 4, returns count
+```
+
+If no `return` parameter is specified for `remove`, the default is `COUNT`.
+
+### 8.7 Mutation-style path suffixes (not supported)
 
 Some path spellings **look like** map or list **write** operations—for example a final segment **`remove()`**, **`insert()`**, **`set()`**, **`append()`**, **`increment()`**, **`clear()`**, or **`sort()`** with empty parentheses. The same style with **`put(...)`**, or **with arguments** inside the parentheses (such as options after the name), is likewise not supported AEL path syntax.
 
-**None of this is supported in the current release.** Do not use AEL conditions or filters to delete, insert, or update elements that way—to change map or list contents, use the SDK’s write APIs or `Exp` operations directly. **Support for mutation-style path syntax may be added in a future release.** Until then, rely only on the path functions described in this section (**`get()`**, **`count()`**, **`exists()`**, **`asInt()`**, **`asFloat()`**, and related options).
+**None of this is supported in the current release.** Do not use AEL conditions or filters to delete, insert, or update elements that way—to change map or list contents, use the SDK’s write APIs or `Exp` operations directly. **Support for mutation-style path syntax may be added in a future release.** Until then, rely only on the path functions described in this section (**`get()`**, **`count()`**, **`exists()`**, **`type()`**, **`asInt()`**, **`asFloat()`**, and related options).
 
 ```
 -- Examples of styles that are not supported for mutations via AEL:
@@ -915,9 +982,16 @@ $.a > 1 and ($.b > 2 or $.c > 3)       -- a>1 AND (b>2 OR c>3)
 
 ## 17. Comments
 
-C-style block comments (`/* … */`) and line comments (`// …`) are **not** supported.
+> **Java SDK (this release):** Comment syntax in AEL source text is **not implemented** in the fluent client yet. It is **planned for GA**; the text below describes the intended behavior.
 
-For readability, rely on **whitespace** (see [§18](#18-whitespace)), **clear names** in your data model, or build the expression in your app so explanations stay in your own code (outside the AEL string).
+**C-style block comments** (`/* … */`) can be added in the expression wherever whitespace is allowed—for example:
+
+```
+/* This is a comment */
+$.age > 21 /* filter adults */
+```
+
+Nested comments are **not** allowed.
 
 ---
 
