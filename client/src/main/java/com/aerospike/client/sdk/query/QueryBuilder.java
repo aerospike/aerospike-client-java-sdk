@@ -513,6 +513,25 @@ public class QueryBuilder extends AbstractFilterableBuilder implements
     }
 
     /**
+     * {@inheritDoc}
+     */
+    @Override
+    public QueryBuilder whereCompiledOnServer(String ael, Object... params) {
+        setWhereClause(createCompiledOnServerWhenSupported(this.implementation.allowsSecondaryIndexQuery(), ael, params));
+        return this;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public QueryBuilder whereCompiledOnServer(PreparedAel ael, Object... params) {
+        setWhereClause(
+            WhereClauseProcessor.fromCompiledOnServerWhenSupported(this.implementation.allowsSecondaryIndexQuery(), ael, params));
+        return this;
+    }
+
+    /**
      * Gets the bin names to read.
      *
      * @return the array of bin names, or null if not specified
