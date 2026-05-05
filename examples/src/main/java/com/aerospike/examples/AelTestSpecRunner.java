@@ -389,8 +389,7 @@ public class AelTestSpecRunner {
 
         readCheck("M01", session, set, 2, "$.m.alpha.get(type: INT)", 10L);
         readCheck("M02", session, set, 2, "$.m.'alpha'.get(type: INT)", 10L);
-        readPrint("M03", session, set, 5, "$.m.1.get(type: STRING)",
-                "Integer key lookup (known issue 2b)");
+        readCheck("M03", session, set, 5, "$.m.\"1\".get(type: STRING)", "one");
         readPrint("M04", session, set, 2, "$.m.{0}.get(type: INT)",
                 "Map by index 0 (first by key order)");
         readCheck("M09", session, set, 2, "$.m.{}.count()", 5L);

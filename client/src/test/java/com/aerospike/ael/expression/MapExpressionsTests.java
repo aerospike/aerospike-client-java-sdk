@@ -36,6 +36,37 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 public class MapExpressionsTests {
 
     @Test
+    void asteriskInListLiteralIsNotWildcardValue() {
+        // `*` inside `[1, *]` is not a wildcard list element; expression does not parse as a list literal.
+        assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of("\"gold\" in [1, *]")))
+                .isInstanceOf(AelParseException.class);
+    }
+
+    @Test
+    void openStartMapKeyRangeDoesNotParse() {
+        // Grammar: keyRangeIdentifier = mapKey '-' mapKey | mapKey '-' only (no '-mapKey' open-start).
+        assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of("$.mapBin1.{-d}.count() > 0")))
+                .isInstanceOf(AelParseException.class)
+                .hasMessageContaining("Could not parse given AEL expression input");
+    }
+
+    @Test
+    void openStartMapIndexRangeDoesNotParse() {
+        // Grammar: indexRangeIdentifier = start ':' end | start ':' only (no ':end' open-start).
+        assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of("$.mapBin1.{:5}.count() > 0")))
+                .isInstanceOf(AelParseException.class)
+                .hasMessageContaining("Could not parse given AEL expression input");
+    }
+
+    @Test
+    void openStartMapRankRangeDoesNotParse() {
+        // rankRangeIdentifier = start ':' end | start ':' only (no ':end' open-start before rank).
+        assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of("$.mapBin1.{#:4}.count() > 0")))
+                .isInstanceOf(AelParseException.class)
+                .hasMessageContaining("Could not parse given AEL expression input");
+    }
+
+    @Test
     void mapOneLevelExpressions() {
         // Int
         Exp expected = Exp.eq(
@@ -578,6 +609,17 @@ public class MapExpressionsTests {
                 null,
                 Exp.mapBin("mapBin1"));
         TestUtils.parseFilterExpressionAndCompare(ExpressionContext.of("$.mapBin1.{=111:}"), expected);
+    }
+
+    @Test
+    void mapValueRangeStringEndpointsRejectedAtCompileTime() {
+        // valueRangeIdentifier allows valueIdentifier (incl. names), but MapValueRange requires ints.
+        assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of("$.mapBin1.{=a:b}.count() > 0")))
+                .isInstanceOf(AelParseException.class)
+                .hasMessageContaining("Value range requires integer operands");
+        assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of("$.mapBin1.{=\"x\":\"y\"}.count() > 0")))
+                .isInstanceOf(AelParseException.class)
+                .hasMessageContaining("Value range requires integer operands");
     }
 
     @Test

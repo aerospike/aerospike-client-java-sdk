@@ -33,6 +33,21 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 public class ListExpressionsTests {
 
     @Test
+    void openStartListIndexRangeDoesNotParse() {
+        // Same indexRangeIdentifier rule as maps: no ':end' without start (e.g. [:5]).
+        assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of("$.listBin1.[:5].count() > 0")))
+                .isInstanceOf(AelParseException.class)
+                .hasMessageContaining("Could not parse given AEL expression input");
+    }
+
+    @Test
+    void openStartListRankRangeDoesNotParse() {
+        assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of("$.listBin1.[#:4].count() > 0")))
+                .isInstanceOf(AelParseException.class)
+                .hasMessageContaining("Could not parse given AEL expression input");
+    }
+
+    @Test
     void listByIndexInteger() {
         Exp expected = Exp.eq(
                 ListExp.getByIndex(
@@ -469,6 +484,16 @@ public class ListExpressionsTests {
                 null,
                 Exp.listBin("listBin1"));
         TestUtils.parseFilterExpressionAndCompare(ExpressionContext.of("$.listBin1.[=111:]"), expected);
+    }
+
+    @Test
+    void listValueRangeStringEndpointsRejectedAtCompileTime() {
+        assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of("$.listBin1.[=a:b].count() > 0")))
+                .isInstanceOf(AelParseException.class)
+                .hasMessageContaining("Value range requires integer operands");
+        assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of("$.listBin1.[=\"x\":\"y\"].count() > 0")))
+                .isInstanceOf(AelParseException.class)
+                .hasMessageContaining("Value range requires integer operands");
     }
 
     @Test

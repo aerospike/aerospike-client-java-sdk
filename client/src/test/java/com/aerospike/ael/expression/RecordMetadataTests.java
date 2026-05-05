@@ -80,6 +80,20 @@ public class RecordMetadataTests {
         TestUtils.parseFilterExpressionAndCompare(input, expected);
     }
 
+    @Test
+    void userKeyValueFunctionNotInAel() {
+        // User-key value ($.key(type: ...)) is not supported AEL metadata (see supported list on $.ttl etc.).
+        assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of("$.key(type: INT) == 1")))
+                .isInstanceOf(AelParseException.class)
+                .hasMessageContaining("Could not parse given AEL expression input");
+        assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of("$.key(type: STRING) == \"x\"")))
+                .isInstanceOf(AelParseException.class)
+                .hasMessageContaining("Could not parse given AEL expression input");
+        assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of("$.key() == 1")))
+                .isInstanceOf(AelParseException.class)
+                .hasMessageContaining("Could not parse given AEL expression input");
+    }
+
     // Comparing Metadata to a Bin
     @Test
     void lastUpdate() {

@@ -26,6 +26,7 @@ A AEL expression is a string that is parsed, compiled to an `Exp` tree, and then
 | Metadata | `$.ttl() < 3600` |
 | Conditional | `when ($.tier == 1 => 'gold', $.tier == 2 => 'silver', default => 'bronze')` |
 | Variable binding | `let (total = $.price * $.qty) then (${total} > 1000)` |
+| Bin / CDT exists | `$.flags.exists() and $.meta.version.exists()` |
 
 ---
 
@@ -34,11 +35,11 @@ A AEL expression is a string that is parsed, compiled to an `Exp` tree, and then
 Every expression path starts with `$` followed by `.` to reference the current record.
 
 ```
-$.binName          -- access a bin
-$.metadata()       -- access record metadata
+$.binName          -- read a bin on the record (examples: $.age, $.profile)
+$.ttl()            -- read this record’s remaining TTL in seconds (expiration)
 ```
 
-The `$` symbol represents the record. Everything after `$.` is a path into the record's data.
+The `$` symbol represents the current record. After `$.`, you either follow a **bin path** (`$.myBin…`) or use a **built-in record function** such as `$.ttl()`, `$.setName()`, or `$.lastUpdate()`.
 
 ---
 
@@ -58,7 +59,7 @@ Plain decimal digits, optionally preceded by a sign with no spaces:
 
 ### 2.2 Floating-Point Numbers
 
-Digits with exactly one decimal point (the decimal point must not be the last character). THe decimal point may be leading:
+Digits with exactly one decimal point (the decimal point must not be the last character). The decimal point may be leading:
 
 ```
 3.14
@@ -77,6 +78,8 @@ Simple identifiers matching `^[A-Za-z]\w*$` do not require quoting in value posi
 "hello world"
 'hello world'
 ```
+
+> **Java SDK (this release):** The following is **not implemented** in the fluent client yet. It is **planned for GA**; the text below describes the intended behavior.
 
 Escape sequences inside quoted strings:
 
@@ -132,6 +135,8 @@ Map keys can be strings, integers, or BLOBs. Map values can be any supported typ
 
 ### 2.8 Special Values
 
+> **Java SDK (this release):** These language constructs are **not implemented** in the fluent client yet. They are **planned for GA**; the table below describes the intended behavior.
+
 | Value | Description | Use Case |
 |-------|-------------|----------|
 | `*` (WILDCARD) | Matches any value from that point | `[1, *]` matches `[1]`, `[1, 2, 34]` |
@@ -153,7 +158,7 @@ $.<bin>.<context1>.<context2>...<leaf>.<function>
 - **Bin**: The top-level bin name (first element after `$.`).
 - **Context elements**: Intermediate navigation into nested CDTs.
 - **Leaf element**: The final element being targeted.
-- **Function**: An optional terminal operation (`get()`, `count()`, `exists()`, `asInt()`, `asFloat()`).
+- **Function**: An optional terminal operation: `get()`, `count()`, `exists()`, `asInt()`, `asFloat()`, `type()`, and the other path functions in **§8**. Suffixes that look like map or list **writes** (for example `remove()`) are **not supported** in AEL today—see [§8.7](#87-mutation-style-path-suffixes-not-supported).
 
 ### How the AEL determines bin type
 
@@ -218,17 +223,17 @@ Maps are key-value structures. The AEL navigates into maps using dot-separated p
 
 These select a single element. They can appear anywhere in the path.
 
-| Syntax | Description | Example |
-|--------|-------------|---------|
-| `key` | Map key (unquoted string identifier) | `$.m.name` |
-| `'key'` or `"key"` | Map key (quoted string) | `$.m.'special-key'` |
-| `1` | Map key (integer 1) | `$.m.1` |
-| `{1}` | Map by **index** 1 | `$.m.{1}` |
-| `{=1}` | Map by **value** 1 | `$.m.{=1}` |
-| `{=bb}` | Map by **value** "bb" | `$.m.{=bb}` |
-| `{#1}` | Map by **rank** 1 | `$.m.{#1}` |
+| Syntax             | Description                                    | Example |
+|--------------------|------------------------------------------------|---------|
+| `key`              | Map key (unquoted string identifier)           | `$.m.name` |
+| `'key'` or `"key"` | Map key (quoted string)                        | `$.m.'special-key'` |
+| `1`                | Map key (integer 1)                            | `$.m.1` |
+| `{1}`              | Map by **index** 1                             | `$.m.{1}` |
+| `{=1}`             | Map by **value** 1                             | `$.m.{=1}` |
+| `{=bb}`            | Map by **value** "bb"                          | `$.m.{=bb}` |
+| `{#1}`             | Map by **rank** 1                              | `$.m.{#1}` |
 
-**String key notes**: Unquoted identifiers work for simple names (`name`, `user_id`). Use quotes for keys containing special characters (`'127.0.0.1'`, `"special-key"`), keys that are purely numeric strings (`"66"`), or reserved words.
+**String key notes**: Unquoted identifiers work for simple names (`name`, `user_id`). Use quotes for keys containing special characters (`'127.0.0.1'`, `"special-key"`), reserved words etc.
 
 **Integer key notes**: A bare integer like `1` in a path position is an integer map key. To access a string key `"1"`, use quotes: `$.m."1"`.
 
@@ -244,7 +249,6 @@ Selects map entries by a range of keys (begin inclusive, end exclusive):
 |--------|-------------|
 | `{a-c}` | Keys from "a" up to (but not including) "c" |
 | `{a-}` | Keys from "a" to the end |
-| `{-d}` | Keys from the start up to (but not including) "d" |
 | `{!g-z}` | Keys **not** in range "g" to "z", but not including "z" (inverted) |
 
 ```
@@ -264,25 +268,27 @@ Selects entries by an explicit set of keys:
 
 ```
 $.m.{name,age,email}
+$.m.{1,2}                     -- integer keys 1 and 2
 $.m.{!temp,internal}          -- everything except these keys
 ```
 
 #### Index Range
 
-Selects entries by index position. Ranges use `start:end` where both are inclusive. Negative indices count from the end.
+Selects entries by index position. Ranges use `start:end`: **start inclusive, end exclusive** (see [Rule 10](#rule-10-range-semantics)). Negative indices count from the end.
 
-| Syntax | Description |
-|--------|-------------|
-| `{1:3}` | Index 1 through 3 (exclusive) |
+| Syntax | Description                               |
+|--------|-------------------------------------------|
+| `{1:3}` | Indices 1 and 2 only (end 3 is exclusive) |
 | `{-3:-1}` | Last 2 entries (exclusive of index -1) |
 | `{-3:}` | Last 3 entries  |
 | `{1:}` | From index 1 to the end |
-| `{:5}` | From start to index 5 (exclusive) |
 | `{!2:4}` | Entries **outside** index 2-4 (inverted) |
 
+**Note:** An index range must include a **starting index** before the first **`:`**. Forms like **`{:5}`** are not valid.
+
 ```
-$.m.{0:2}                    -- first 3 entries
-$.m.{-3:}                    -- last 3 entries
+$.m.{0:3}                    -- indices 0, 1, and 2 (first 3 entries)
+$.m.{-3:}                    -- last 3 entries (from index -3 onward)
 ```
 
 #### Value List
@@ -304,6 +310,8 @@ Selects entries by a range of values (begin inclusive, end exclusive):
 | `{=111:}` | Values from 111 to the end |
 | `{!=10:20}` | Values **outside** 10-20 (inverted) |
 
+**Note:** Value ranges (`{=…:…}` here, and `[=…:…]` on lists in [§6.2](#62-plural-list-elements-leaf-only)) must use **integer** endpoints (e.g. `{=111:334}`). Endpoints written as plain names or quoted text (such as `{=a:b}`) are not supported.
+
 #### Rank Range
 
 Selects entries by rank (the sorted position of the value). Rank 0 is the lowest value.
@@ -312,8 +320,9 @@ Selects entries by rank (the sorted position of the value). Rank 0 is the lowest
 |--------|-------------|
 | `{#0:3}` | Rank 0 through 3 (exclusive) |
 | `{#-3:}` | Top 3 ranked entries |
-| `{#:4}` | From lowest to rank 4 (exclusive) |
 | `{!#0:3}` | Entries **outside** rank 0-3 (inverted) |
+
+**Note:** A rank range must include a **starting rank** before the first **`:`**. Forms like **`{#:4}`** are not valid.
 
 #### Relative Rank Range
 
@@ -366,13 +375,16 @@ Negative indices count from the end: `[-1]` is the last element, `[-3]` is third
 
 #### Index Range
 
+Ranges use **`start:end`**: **start inclusive, end exclusive** (same as map index ranges; see [Rule 10](#rule-10-range-semantics)).
+
 | Syntax | Description |
 |--------|-------------|
 | `[1:3]` | Index 1 through 3 (exclusive) |
 | `[-3:-1]` | From third-to-last to last (exclusive) |
 | `[1:]` | From index 1 to the end |
-| `[:5]` | From start to index 5 (exclusive) |
 | `[!2:4]` | Entries **outside** index 2-4 (inverted) |
+
+**Note:** A list index range must include a **starting index** before the first **`:`**—open-start forms such as **`[:5]`** are not valid. Use **`[0:5]`**, **`[1:]`**, **`[-3:]`**, etc. Map index ranges follow the same requirement; see [§5.2](#52-plural-map-elements-leaf-only).
 
 #### Value List
 
@@ -389,6 +401,8 @@ Negative indices count from the end: `[-1]` is the last element, `[-3]` is third
 | `[=5:8]` | Values from 5 up to 8 (exclusive) |
 | `[=111:]` | Values from 111 to the end |
 | `[!=10:20]` | Values **outside** 10-20 (inverted) |
+
+**Note:** Like map value ranges in [§5.2](#52-plural-map-elements-leaf-only), `[=…:…]` here must use **integer** endpoints only (e.g. `[=5:8]`). String or name endpoints are not supported.
 
 #### Rank Range
 
@@ -509,11 +523,12 @@ When used on a full bin (`[]` or `{}`), this maps to the efficient `size()` oper
 
 ### 8.3 `exists()`
 
-Checks whether a bin or element exists, returning a boolean:
+Returns a boolean: whether the path names an existing **bin**, or—when it addresses exactly one map or list element—whether that **element** is present.
 
 ```
 $.binA.exists() and $.binB.exists()
 $.mapbin.a.exists()
+$.listbin.[0].exists()
 ```
 
 ### 8.4 `asInt()` and `asFloat()`
@@ -528,6 +543,8 @@ $.intBin.get(type: INT) > $.floatBin.asInt()
 
 ### 8.5 `type()`
 
+> **Java SDK (this release):** The `type()` path function is **not implemented** in the fluent client yet. It is **planned for GA**; the text below describes the intended behavior.
+
 Returns the data type of the element as one of: `INT`, `STR`, `HLL`, `BLOB`, `FLOAT`, `BOOL`, `LIST`, `MAP`, `GEO`.
 
 ```
@@ -535,6 +552,8 @@ $.binA.type() == INT
 ```
 
 ### 8.6 CDT Mutation Functions
+
+> **Java SDK (this release):** Mutation-style path functions in AEL strings (as described below) are **not implemented** in the fluent client yet. They are **planned for GA**; this section documents the intended behavior for write-oriented expressions.
 
 These functions perform mutations on list or map data within write expressions.
 
@@ -567,6 +586,18 @@ $.listbin.[=4].remove()                  -- removes elements with value 4, retur
 ```
 
 If no `return` parameter is specified for `remove`, the default is `COUNT`.
+
+### 8.7 Mutation-style path suffixes (not supported)
+
+Some path spellings **look like** map or list **write** operations—for example a final segment **`remove()`**, **`insert()`**, **`set()`**, **`append()`**, **`increment()`**, **`clear()`**, or **`sort()`** with empty parentheses. The same style with **`put(...)`**, or **with arguments** inside the parentheses (such as options after the name), is likewise not supported AEL path syntax.
+
+**None of this is supported in the current release.** Do not use AEL conditions or filters to delete, insert, or update elements that way—to change map or list contents, use the SDK’s write APIs or `Exp` operations directly. **Support for mutation-style path syntax may be added in a future release.** Until then, rely only on the path functions described in this section (**`get()`**, **`count()`**, **`exists()`**, **`type()`**, **`asInt()`**, **`asFloat()`**, and related options).
+
+```
+-- Examples of styles that are not supported for mutations via AEL:
+$.listBin.[=4].remove()
+$.mapBin.{a,b}.remove()
+```
 
 ---
 
@@ -788,9 +819,9 @@ Access record-level metadata using function syntax after `$`:
 | `$.memorySize()` | INT | Size in memory in bytes. For servers >= 7, this will return the `recordSize()` |
 | `$.recordSize()` | INT | Total record size in bytes. Not supported on servers < 7 |
 | `$.digestModulo(n)` | INT | Record digest modulo `n` |
-| `$.key(STR)` | STRING | User key stored with the record (string) |
-| `$.key(INT)` | INT | User key stored with the record (integer) |
-| `$.key(BLOB)` | BLOB | User key stored with the record (blob) |
+
+The **`$.key(...)`** forms (the user key with a type such as **`INT`** or **`STRING`**) are **not supported** in AEL today. 
+They **may be supported in a future release**. To match on key-like data in a filter, store it in a bin, or use the client APIs that work with keys directly.
 
 ### Examples
 
@@ -951,7 +982,9 @@ $.a > 1 and ($.b > 2 or $.c > 3)       -- a>1 AND (b>2 OR c>3)
 
 ## 17. Comments
 
-C-style block comments are supported:
+> **Java SDK (this release):** Comment syntax in AEL source text is **not implemented** in the fluent client yet. It is **planned for GA**; the text below describes the intended behavior.
+
+**C-style block comments** (`/* … */`) can be added in the expression wherever whitespace is allowed—for example:
 
 ```
 /* This is a comment */
@@ -1046,10 +1079,10 @@ $.m.{1-3}                      -- key range: integer keys [1, 3)
 ### Relative rank range
 
 ```
-$.scores.[#-1:1~[10.0, NIL]]
+$.scores.[#-1:1~10]
 ```
 
-Finds the 2 closest-ranked elements to the value `[10.0, NIL]`.
+Finds the two ranks around the **integer** reference value `10` (`relativeValue` is `~` plus a `valueIdentifier`; list and map literals are not valid in that position).
 
 ### Multi-step path with explicit return type
 

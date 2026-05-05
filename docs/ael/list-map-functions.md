@@ -10,7 +10,7 @@ The AEL path element syntax maps to `getBy*` methods. The current coverage is
 
 | MapExp method | AEL path syntax | Status |
 |---|---|---|
-| `getByKey` | `$.m.key`, `$.m.'key'`, `$.m.1` | ✓ Covered |
+| `getByKey` | `$.m.key`, `$.m.'key'`, `$.m."1"` (digit-only keys quoted) | ✓ Covered |
 | `getByKeyRange` | `$.m.{a-c}`, `$.m.{a-}`, `$.m.{-c}` | ✓ Covered |
 | `getByKeyList` | `$.m.{a,b,c}` | ✓ Covered |
 | `getByKeyRelativeIndexRange` (open) | `$.m.{0:~key}` | ✓ Covered |
