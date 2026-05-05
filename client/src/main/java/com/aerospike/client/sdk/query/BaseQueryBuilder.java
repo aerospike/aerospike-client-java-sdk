@@ -166,6 +166,18 @@ public interface BaseQueryBuilder<T extends BaseQueryBuilder<T>> {
     T where(String ael, Object ... params);
 
     /**
+     * Prefer server-side DSL/AEL compilation on filter field 43 when the cluster minimum version supports it;
+     * otherwise behaves like {@link #where(String, Object[])} ({@linkplain com.aerospike.client.sdk.util.Version#SERVER_VERSION_8_4} gate).
+     * When server compile is used, no secondary-index slice is inferred from parsing the string locally.
+     */
+    T whereCompiledOnServer(String ael, Object... params);
+
+    /**
+     * {@linkplain #whereCompiledOnServer(String, Object...)} with a {@link PreparedAel} source.
+     */
+    T whereCompiledOnServer(PreparedAel ael, Object... params);
+
+    /**
      * Adds a filter condition using a BooleanExpression.
      *
      * <p>This method allows you to specify a filter condition using the programmatic

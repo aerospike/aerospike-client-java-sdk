@@ -599,6 +599,14 @@ public class Cluster implements Closeable {
     }
 
     /**
+     * Whether the cluster minimum version allows the server-side DSL/AEL compile wire shape for filter field 43
+     * ({@code [128, source]} MessagePack root).
+     */
+    public boolean supportsServerCompiledFilterExpression() {
+        return version != null && version.isGreaterOrEqual(Version.SERVER_VERSION_8_4);
+    }
+
+    /**
      * Sets the minimum server version for the cluster. For internal use only.
      *
      * <p>This method is typically called by the cluster tend mechanism when

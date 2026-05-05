@@ -21,7 +21,6 @@ import java.util.List;
 
 import com.aerospike.ael.ParseResult;
 import com.aerospike.client.sdk.command.BatchRecord;
-import com.aerospike.client.sdk.exp.Exp;
 import com.aerospike.client.sdk.exp.Expression;
 import com.aerospike.client.sdk.policy.ResolvedSettings;
 import com.aerospike.client.sdk.query.WhereClauseProcessor;
@@ -64,7 +63,24 @@ public abstract class AbstractFilterableBuilder {
             return null;
         }
         ParseResult parseResult = this.ael.process(namespace, querySet, session);
-        return Exp.build(parseResult.getExp());
+        return parseResult.getExpression();
+    }
+
+    /**
+     * Create WhereClauseProcessor for server-side DSL wire when cluster version allows; falls back to client-side parsing otherwise.
+     *
+     * @see WhereClauseProcessor#fromCompiledOnServerWhenSupported(boolean, String)
+     */
+    protected WhereClauseProcessor createCompiledOnServerWhenSupported(boolean allowSecondaryIndex, String ael, Object... params) {
+        if (ael == null || ael.isEmpty()) {
+            return null;
+        }
+        else if (params.length == 0) {
+            return WhereClauseProcessor.fromCompiledOnServerWhenSupported(allowSecondaryIndex, ael);
+        }
+        else {
+            return WhereClauseProcessor.fromCompiledOnServerWhenSupported(allowSecondaryIndex, String.format(ael, params));
+        }
     }
 
     /**
