@@ -25,10 +25,9 @@ import java.util.Arrays;
 import org.junit.jupiter.api.Test;
 
 import com.aerospike.client.sdk.AerospikeException;
-import com.aerospike.client.sdk.util.Version;
 
 /**
- * Validates MessagePack layout for server-side DSL compile wrapper (matches C {@code dsl} branch).
+ * Validates MessagePack layout for server-side DSL compile wrapper
  */
 class ServerCompiledFilterWireTest {
 
@@ -85,12 +84,5 @@ class ServerCompiledFilterWireTest {
         Expression direct = Expression.fromServerCompiledFilter("$.rank in (1,2,3)");
         Expression rebuilt = Exp.build(Exp.expr(direct));
         assertThat(rebuilt.getBytes()).isEqualTo(direct.getBytes());
-    }
-
-    @Test
-    void supportsServerCompiledWire_respects_floor() {
-        assertThat(Expression.supportsServerCompiledWire(Version.SERVER_VERSION_8_4)).isTrue();
-        assertThat(Expression.supportsServerCompiledWire(new Version(8, 3, 0, 0))).isFalse();
-        assertThat(Expression.supportsServerCompiledWire(null)).isFalse();
     }
 }

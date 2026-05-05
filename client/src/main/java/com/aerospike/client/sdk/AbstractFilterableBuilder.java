@@ -67,23 +67,6 @@ public abstract class AbstractFilterableBuilder {
     }
 
     /**
-     * Create WhereClauseProcessor for server-side DSL wire when cluster version allows; falls back to client-side parsing otherwise.
-     *
-     * @see WhereClauseProcessor#fromCompiledOnServerWhenSupported(boolean, String)
-     */
-    protected WhereClauseProcessor createCompiledOnServerWhenSupported(boolean allowSecondaryIndex, String ael, Object... params) {
-        if (ael == null || ael.isEmpty()) {
-            return null;
-        }
-        else if (params.length == 0) {
-            return WhereClauseProcessor.fromCompiledOnServerWhenSupported(allowSecondaryIndex, ael);
-        }
-        else {
-            return WhereClauseProcessor.fromCompiledOnServerWhenSupported(allowSecondaryIndex, String.format(ael, params));
-        }
-    }
-
-    /**
      * Determine if an exception result should be published (single-key context).
      */
     protected boolean shouldPublishException(AerospikeException ae) {

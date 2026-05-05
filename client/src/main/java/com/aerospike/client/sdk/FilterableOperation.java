@@ -48,6 +48,10 @@ public interface FilterableOperation<T extends FilterableOperation<T>> {
      * <p>Only one filter condition can be specified per operation. Multiple calls
      * to this method or other where variants will throw an exception.</p>
      *
+     * <p>For cluster versions that support server-side AEL wire compilation, string and prepared
+     * {@code where} clauses may be compiled on the server whenever parsing does not produce a
+     * secondary-index slice (client parsing still runs first when index selection applies).</p>
+     *
      * @param ael the AEL filter expression
      * @param params The params used to replace arguments in the AEL string (used by {@code String.format(ael, params)})
      * @return this builder for method chaining
@@ -76,6 +80,8 @@ public interface FilterableOperation<T extends FilterableOperation<T>> {
      *
      * <p>Only one filter condition can be specified per operation. Multiple calls
      * to this method or other where variants will throw an exception.</p>
+     *
+     * <p>Uses the same string-based resolution as {@link #where(String, Object...)} after binding parameters.</p>
      *
      * @param ael the PreparedAel filter
      * @param params parameters to bind to the prepared AEL
