@@ -16,16 +16,24 @@
  */
 package com.aerospike.client.sdk;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.util.ArrayList;
+import java.util.List;
+
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+
 public class OperateHllTest extends ClusterTest {
-    /* TODO Wait till HyperLogLog is implemented in new client.
     private static boolean debug = false;
 
     private static final String binName = "ophbin";
-    private static final Key key = new Key(args.namespace, args.set, "ophkey");
+    private static final Key key = args.set.id("ophkey");
     private static final Key[] keys = new Key[] {
-            new Key(args.namespace, args.set, "ophkey0"),
-            new Key(args.namespace, args.set, "ophkey1"),
-            new Key(args.namespace, args.set, "ophkey2")};
+        args.set.id("ophkey0"),
+        args.set.id("ophkey1"),
+        args.set.id("ophkey2")};
     private static final int nEntries = 1 << 18;
 
     private static final int minNIndexBits = 4;
@@ -33,15 +41,15 @@ public class OperateHllTest extends ClusterTest {
     private static final int minNMinhashBits = 4;
     private static final int maxNMinhashBits = 51;
 
-    private static final ArrayList<Value> entries = new ArrayList<Value>();
+    private static final ArrayList<String> entries = new ArrayList<String>();
     private static final ArrayList<Integer> legalNIndexBits = new ArrayList<Integer>();
     private static final ArrayList<ArrayList<Integer>> legalDescriptions = new ArrayList<ArrayList<Integer>>();
     private static final ArrayList<ArrayList<Integer>> illegalDescriptions = new ArrayList<ArrayList<Integer>>();
 
-    @BeforeClass
+    @BeforeAll
     public static void createData() {
         for (int i = 0; i < nEntries; i++) {
-            entries.add(new StringValue("key " + i));
+            entries.add("key " + i);
         }
 
         for (int nIndexBits = minNIndexBits; nIndexBits <= maxNIndexBits; nIndexBits += 4) {
@@ -123,33 +131,38 @@ public class OperateHllTest extends ClusterTest {
         }
     }
 
-    public void assertThrows(String msg, Key key, Class<?> eclass, int eresult, Operation... ops) {
+    public void assertThrows(
+        String msg, Key key, Class<?> eclass, int eresult, ChainableOperationBuilder builder
+    ) {
         try {
-            client.operate(null, key, ops);
-            assertTrue(msg + " succeeded?", false);
+            RecordStream rs = builder.execute();
+            assertTrue(rs.hasNext());
+            rs.next().recordOrThrow();
+            assertTrue(false, msg + " succeeded?");
         }
         catch (AerospikeException e) {
             if (eclass != e.getClass() || eresult != e.getResultCode()) {
-                assertEquals(msg + " " + e.getClass() + " " + e, eclass, e.getClass());
-                assertEquals(msg + " " + e.getResultCode() + " " + e, eresult, e.getResultCode());
+                assertEquals(eclass, e.getClass(), msg + " " + e.getClass() + " " + e);
+                assertEquals(eresult, e.getResultCode(), msg + " " + e.getResultCode() + " " + e);
             }
         }
     }
 
-    public Record assertSuccess(String msg, Key key, Operation... ops) {
-        Record record;
+    public Record assertSuccess(String msg, Key key, ChainableOperationBuilder builder) {
+        Record rec;
 
         try {
-            record = client.operate(null, key, ops);
+            RecordStream rs = builder.execute();
+
+            assertTrue(rs.hasNext());
+            rec = rs.next().recordOrThrow();
         }
         catch (Exception e) {
-            assertEquals(msg + " " + e, null, e);
+            assertEquals(null, e, msg + " " + e);
             return null;
         }
 
-        assertRecordFound(key, record);
-
-        return record;
+        return rec;
     }
 
     public boolean checkBits(int nIndexBits, int nMinhashBits) {
@@ -163,25 +176,25 @@ public class OperateHllTest extends ClusterTest {
     }
 
     public void assertDescription(String msg, List<?>description, int nIndexBits, int nMinhashBits) {
-        assertEquals(msg, nIndexBits, (long)(Long) description.get(0));
-        assertEquals(msg, nMinhashBits, (long)(Long) description.get(1));
+        assertEquals(nIndexBits, (long)(Long) description.get(0), msg);
+        assertEquals(nMinhashBits, (long)(Long) description.get(1), msg);
     }
 
     public void assertInit(int nIndexBits, int nMinhashBits, boolean shouldPass) {
         String msg = "Fail - nIndexBits " + nIndexBits + " nMinhashBits " + nMinhashBits;
-        HLLPolicy p = HLLPolicy.Default;
-        Operation[] ops = new Operation[] {
-                HLLOperation.init(p, binName, nIndexBits, nMinhashBits),
-                HLLOperation.getCount(binName),
-                HLLOperation.refreshCount(binName),
-                HLLOperation.describe(binName)};
+
+        ChainableOperationBuilder builder = session.upsert(key)
+            .bin(binName).hllInit(HllConfig.of(nIndexBits, nMinhashBits))
+            .bin(binName).hllGetCount()
+            .bin(binName).hllRefreshCount()
+            .bin(binName).hllDescribe();
 
         if (! shouldPass) {
-            assertThrows(msg, key, AerospikeException.class, ResultCode.PARAMETER_ERROR, ops);
+            assertThrows(msg, key, AerospikeException.class, ResultCode.PARAMETER_ERROR, builder);
             return;
         }
 
-        Record record = assertSuccess(msg, key, ops);
+        Record record = assertSuccess(msg, key, builder);
         List<?> resultList = record.getList(binName);
         long count = (Long)resultList.get(1);
         long count1 = (Long)resultList.get(2);
@@ -194,7 +207,7 @@ public class OperateHllTest extends ClusterTest {
 
     @Test
     public void operateHLLInit() {
-        client.delete(null, key);
+        session.delete(key).execute();
 
         for (ArrayList<Integer> desc : legalDescriptions) {
             assertInit(desc.get(0), desc.get(1), true);
@@ -210,54 +223,94 @@ public class OperateHllTest extends ClusterTest {
         int nIndexBits = 4;
 
         // Keep record around win binName is removed.
-        assertSuccess("other bin", key,
-                Operation.delete(),
-                HLLOperation.init(HLLPolicy.Default, binName + "other", nIndexBits));
+        ChainableOperationBuilder builder = session.upsert(key)
+            .deleteRecord()
+            .bin(binName + "other").hllInit(HllConfig.of(nIndexBits));
+
+        assertSuccess("other bin", key, builder);
 
         // create_only
-        HLLPolicy c = new HLLPolicy(HLLWriteFlags.CREATE_ONLY);
+        builder = session.upsert(key)
+            .bin(binName).hllInit(HllConfig.of(nIndexBits), opt -> opt.createOnly());
 
-        assertSuccess("create_only", key, HLLOperation.init(c, binName, nIndexBits));
-        assertThrows("create_only - error", key, AerospikeException.class, ResultCode.BIN_EXISTS_ERROR,
-                HLLOperation.init(c, binName, nIndexBits));
+        assertSuccess("create_only", key, builder);
+
+        builder = session.upsert(key)
+            .bin(binName).hllInit(HllConfig.of(nIndexBits), opt -> opt.createOnly());
+
+        assertThrows("create_only - error", key, AerospikeException.BinExistsException.class,
+            ResultCode.BIN_EXISTS_ERROR, builder);
 
         // update_only
-        HLLPolicy u = new HLLPolicy(HLLWriteFlags.UPDATE_ONLY);
+        builder = session.upsert(key)
+            .bin(binName).hllInit(HllConfig.of(nIndexBits), opt -> opt.updateOnly());
 
-        assertSuccess("update_only", key, HLLOperation.init(u, binName, nIndexBits));
-        assertSuccess("remove bin", key, Operation.put(Bin.asNull(binName)));
-        assertThrows("update_only - error", key, AerospikeException.class, ResultCode.BIN_NOT_FOUND,
-                HLLOperation.init(u, binName, nIndexBits));
+        assertSuccess("update_only", key, builder);
+
+        builder = session.upsert(key)
+            .bin(binName).remove();
+
+        assertSuccess("remove bin", key, builder);
+
+        builder = session.upsert(key)
+            .bin(binName).hllInit(HllConfig.of(nIndexBits), opt -> opt.updateOnly());
+
+        assertThrows("update_only - error", key, AerospikeException.BinNotFoundException.class,
+            ResultCode.BIN_NOT_FOUND, builder);
 
         // create_only no_fail
-        HLLPolicy cn = new HLLPolicy(HLLWriteFlags.CREATE_ONLY | HLLWriteFlags.NO_FAIL);
+        builder = session.upsert(key)
+            .bin(binName).hllInit(HllConfig.of(nIndexBits), opt -> opt.createOnly().noFail());
 
-        assertSuccess("create_only nofail", key, HLLOperation.init(cn, binName, nIndexBits));
-        assertSuccess("create_only nofail - no error", key, HLLOperation.init(cn, binName, nIndexBits));
+        assertSuccess("create_only nofail", key, builder);
+
+        builder = session.upsert(key)
+            .bin(binName).hllInit(HllConfig.of(nIndexBits), opt -> opt.createOnly().noFail());
+
+        assertSuccess("create_only nofail - no error", key, builder);
 
         // update_only no_fail
-        HLLPolicy un = new HLLPolicy(HLLWriteFlags.UPDATE_ONLY | HLLWriteFlags.NO_FAIL);
+        builder = session.upsert(key)
+            .bin(binName).hllInit(HllConfig.of(nIndexBits), opt -> opt.updateOnly().noFail());
 
-        assertSuccess("update_only nofail", key, HLLOperation.init(un, binName, nIndexBits));
-        assertSuccess("remove bin", key, Operation.put(Bin.asNull(binName)));
-        assertSuccess("update_only nofail - no error", key, HLLOperation.init(un, binName, nIndexBits));
+        assertSuccess("update_only nofail", key, builder);
+
+        builder = session.upsert(key)
+            .bin(binName).remove();
+
+        assertSuccess("remove bin", key, builder);
+
+        builder = session.upsert(key)
+            .bin(binName).hllInit(HllConfig.of(nIndexBits), opt -> opt.updateOnly().noFail());
+
+        assertSuccess("update_only nofail - no error", key, builder);
 
         // fold
-        assertSuccess("create_only", key, HLLOperation.init(c, binName, nIndexBits));
+        builder = session.upsert(key)
+            .bin(binName).hllInit(HllConfig.of(nIndexBits), opt -> opt.createOnly());
 
-        HLLPolicy f = new HLLPolicy(HLLWriteFlags.ALLOW_FOLD);
+        assertSuccess("create_only", key, builder);
+
+        builder = session.upsert(key)
+            .bin(binName).hllInit(HllConfig.of(nIndexBits), opt -> opt.allowFold());
 
         assertThrows("fold", key, AerospikeException.class, ResultCode.PARAMETER_ERROR,
-                HLLOperation.init(f, binName, nIndexBits));
+            builder);
     }
 
     @Test
     public void badReInit() {
-        HLLPolicy p = HLLPolicy.Default;
+        ChainableOperationBuilder builder = session.upsert(key)
+            .deleteRecord()
+            .bin(binName).hllInit(HllConfig.of(maxNIndexBits, 0));
 
-        assertSuccess("create min max", key, Operation.delete(), HLLOperation.init(p, binName, maxNIndexBits, 0));
-        assertThrows("create_only", key, AerospikeException.class, ResultCode.OP_NOT_APPLICABLE,
-                HLLOperation.init(p, binName, -1, maxNMinhashBits));
+        assertSuccess("create min max", key, builder);
+
+        builder = session.upsert(key)
+            .bin(binName).hllInit(HllConfig.of(-1, maxNMinhashBits));
+
+        assertThrows("create_only", key, AerospikeException.BinOpInvalidException.class, ResultCode.OP_NOT_APPLICABLE,
+            builder);
     }
 
     public boolean isWithinRelativeError(long expected, long estimate, double relativeError) {
@@ -271,28 +324,27 @@ public class OperateHllTest extends ClusterTest {
                 nIndexBits;
 
         printDebug(msg);
-        assertTrue(msg, isWithinRelativeError(expected, hllCount, countErr6Sigma));
+        assertTrue(isWithinRelativeError(expected, hllCount, countErr6Sigma), msg);
     }
 
     public void assertAddInit(int nIndexBits, int nMinhashBits) {
-        client.delete(null, key);
+        session.delete(key).execute();
 
         String msg = "Fail - nIdexBits " + nIndexBits + " nMinhashBits " + nMinhashBits;
-        HLLPolicy p = HLLPolicy.Default;
-        Operation[] ops = new Operation[] {
-                HLLOperation.add(p, binName, entries, nIndexBits, nMinhashBits),
-                HLLOperation.getCount(binName),
-                HLLOperation.refreshCount(binName),
-                HLLOperation.describe(binName),
-                HLLOperation.add(p, binName, entries),
-        };
+
+        ChainableOperationBuilder builder = session.upsert(key)
+            .bin(binName).hllAdd(entries, HllConfig.of(nIndexBits, nMinhashBits))
+            .bin(binName).hllGetCount()
+            .bin(binName).hllRefreshCount()
+            .bin(binName).hllDescribe()
+            .bin(binName).hllAdd(entries);
 
         if (!checkBits(nIndexBits, nMinhashBits)) {
-            assertThrows(msg, key, AerospikeException.class, ResultCode.PARAMETER_ERROR, ops);
+            assertThrows(msg, key, AerospikeException.class, ResultCode.PARAMETER_ERROR, builder);
             return;
         }
 
-        Record record = assertSuccess(msg, key, ops);
+        Record record = assertSuccess(msg, key, builder);
         List<?> resultList = record.getList(binName);
         long count = (Long) resultList.get(1);
         long count1 = (Long) resultList.get(2);
@@ -317,38 +369,51 @@ public class OperateHllTest extends ClusterTest {
         int nIndexBits = 4;
 
         // Keep record around win binName is removed.
-        assertSuccess("other bin", key,
-                Operation.delete(),
-                HLLOperation.init(HLLPolicy.Default, binName + "other", nIndexBits));
+        ChainableOperationBuilder builder = session.upsert(key)
+            .deleteRecord()
+            .bin(binName + "other").hllInit(HllConfig.of(nIndexBits, 0));
+
+        assertSuccess("other bin", key, builder);
 
         // create_only
-        HLLPolicy c = new HLLPolicy(HLLWriteFlags.CREATE_ONLY);
+        builder = session.upsert(key)
+            .bin(binName).hllAdd(entries, HllConfig.of(nIndexBits), opt -> opt.createOnly());
 
-        assertSuccess("create_only", key, HLLOperation.add(c, binName, entries, nIndexBits));
-        assertThrows("create_only - error", key, AerospikeException.class, ResultCode.BIN_EXISTS_ERROR,
-                HLLOperation.add(c, binName, entries, nIndexBits));
+        assertSuccess("create_only", key, builder);
+        assertThrows("create_only - error", key, AerospikeException.BinExistsException.class,
+            ResultCode.BIN_EXISTS_ERROR, builder);
 
         // update_only
-        HLLPolicy u = new HLLPolicy(HLLWriteFlags.UPDATE_ONLY);
+        builder = session.upsert(key)
+            .bin(binName).hllAdd(entries, HllConfig.of(nIndexBits), opt -> opt.updateOnly());
 
-        assertThrows("update_only - error", key, AerospikeException.class, ResultCode.PARAMETER_ERROR,
-                HLLOperation.add(u, binName, entries, nIndexBits));
+        assertThrows("update_only - error", key, AerospikeException.class,
+            ResultCode.PARAMETER_ERROR, builder);
 
         // create_only no_fail
-        HLLPolicy cn = new HLLPolicy(HLLWriteFlags.CREATE_ONLY | HLLWriteFlags.NO_FAIL);
+        builder = session.upsert(key)
+            .bin(binName).hllAdd(entries, HllConfig.of(nIndexBits), opt -> opt.createOnly().noFail());
 
-        assertSuccess("create_only nofail", key, HLLOperation.add(cn, binName, entries, nIndexBits));
-        assertSuccess("create_only nofail - no error", key, HLLOperation.add(cn, binName, entries, nIndexBits));
+        assertSuccess("create_only nofail", key, builder);
+
+        builder = session.upsert(key)
+            .bin(binName).hllAdd(entries, HllConfig.of(nIndexBits), opt -> opt.createOnly().noFail());
+
+        assertSuccess("create_only nofail - no error", key, builder);
 
         // fold
-        assertSuccess("init", key, HLLOperation.init(HLLPolicy.Default, binName, nIndexBits));
+        builder = session.upsert(key)
+            .bin(binName).hllInit(HllConfig.of(nIndexBits));
 
-        HLLPolicy f = new HLLPolicy(HLLWriteFlags.ALLOW_FOLD);
+        assertSuccess("init", key, builder);
+
+        builder = session.upsert(key)
+            .bin(binName).hllAdd(entries, HllConfig.of(nIndexBits), opt -> opt.allowFold());
 
         assertThrows("fold", key, AerospikeException.class, ResultCode.PARAMETER_ERROR,
-                HLLOperation.add(f, binName, entries, nIndexBits));
+            builder);
     }
-
+/*
     public void assertFold(List<Value> vals0, List<Value> vals1, int nIndexBits) {
         String msg = "Fail - nIndexBits " + nIndexBits;
         HLLPolicy p = HLLPolicy.Default;

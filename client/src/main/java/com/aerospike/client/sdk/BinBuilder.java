@@ -23,6 +23,7 @@ import java.util.SortedMap;
 import java.util.function.Consumer;
 
 import com.aerospike.client.sdk.CdtGetOrRemoveBuilder.CdtOperation;
+import com.aerospike.client.sdk.Value.HLLValue;
 import com.aerospike.client.sdk.ael.BooleanExpression;
 import com.aerospike.client.sdk.cdt.ListOrder;
 import com.aerospike.client.sdk.cdt.MapOrder;
@@ -30,6 +31,8 @@ import com.aerospike.client.sdk.exp.Exp;
 import com.aerospike.client.sdk.exp.ExpReadFlags;
 import com.aerospike.client.sdk.exp.ExpWriteFlags;
 import com.aerospike.client.sdk.exp.Expression;
+import com.aerospike.client.sdk.operation.HLLOperation;
+import com.aerospike.client.sdk.operation.HLLWriteFlags;
 import com.aerospike.client.sdk.query.PreparedAel;
 
 /**
@@ -2405,4 +2408,263 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
         return new CdtGetOrRemoveBuilder<>(this.binName, this.opBuilder, params);
     }
 
+    // ----------------------------------------
+    // HyperLogLog (HLL)
+    // ----------------------------------------
+
+    /**
+     * Initialize the HLL bin (write).
+     *
+     * <p>Creates a new HyperLogLog bin or resets an existing one using the index
+     * bit count (and optional minhash bit count) from {@code config}. Uses the
+     * default write mode; the server returns no value.</p>
+     *
+     * @param config HLL bin configuration (index/minhash bit counts)
+     * @return builder for continued chaining
+     * @see HllConfig
+     */
+    public T hllInit(HllConfig config) {
+        Operation op = HLLOperation.init(HLLWriteFlags.DEFAULT, binName, config.indexBitCount(),
+            config.minHashBitCount());
+        return opBuilder.addOp(op);
+    }
+
+    /**
+     * Initialize the HLL bin with caller-supplied write options (write).
+     *
+     * <p>Creates a new HyperLogLog bin or resets an existing one using
+     * {@code config}. The {@code options} lambda configures write semantics
+     * such as {@code createOnly}, {@code updateOnly}, {@code noFail}, and
+     * {@code allowFold}.</p>
+     *
+     * @param config  HLL bin configuration (index/minhash bit counts)
+     * @param options consumer that configures the {@link HllWriteOptions}
+     * @return builder for continued chaining
+     * @see HllConfig
+     * @see HllWriteOptions
+     */
+    public T hllInit(HllConfig config, Consumer<HllWriteOptions> options) {
+        HllWriteOptions opts = new HllWriteOptions();
+        options.accept(opts);
+
+        Operation op = HLLOperation.init(opts.toFlags(), binName, config.indexBitCount(),
+            config.minHashBitCount());
+        return opBuilder.addOp(op);
+    }
+
+    /**
+     * Add values to an existing HLL bin (write).
+     *
+     * <p>Assumes the HLL bin already exists. The server returns the number of
+     * entries that caused the HLL to update a register.</p>
+     *
+     * @param values values to add to the HLL set
+     * @return builder for continued chaining
+     */
+    public T hllAdd(List<?> values) {
+        Operation op = HLLOperation.add(HLLWriteFlags.DEFAULT, binName, values);
+        return opBuilder.addOp(op);
+    }
+
+    /**
+     * Add values to the HLL bin, creating it if it does not exist (write).
+     *
+     * <p>If the bin does not yet exist it is created using {@code config}.
+     * The server returns the number of entries that caused the HLL to update
+     * a register.</p>
+     *
+     * @param values values to add to the HLL set
+     * @param config HLL bin configuration used to create the bin if missing
+     * @return builder for continued chaining
+     * @see HllConfig
+     */
+    public T hllAdd(List<?> values, HllConfig config) {
+        Operation op = HLLOperation.add(HLLWriteFlags.DEFAULT, binName, values, config.indexBitCount(),
+            config.minHashBitCount());
+        return opBuilder.addOp(op);
+    }
+
+    /**
+     * Add values to the HLL bin with caller-supplied write options, creating it
+     * if it does not exist (write).
+     *
+     * <p>If the bin does not yet exist it is created using {@code config}. The
+     * {@code options} lambda configures write semantics such as
+     * {@code createOnly}, {@code updateOnly}, {@code noFail}, and
+     * {@code allowFold}. The server returns the number of entries that caused
+     * the HLL to update a register.</p>
+     *
+     * @param values  values to add to the HLL set
+     * @param config  HLL bin configuration used to create the bin if missing
+     * @param options consumer that configures the {@link HllWriteOptions}
+     * @return builder for continued chaining
+     * @see HllConfig
+     * @see HllWriteOptions
+     */
+    public T hllAdd(List<?> values, HllConfig config, Consumer<HllWriteOptions> options) {
+        HllWriteOptions opts = new HllWriteOptions();
+        options.accept(opts);
+
+        Operation op = HLLOperation.add(opts.toFlags(), binName, values, config.indexBitCount(),
+            config.minHashBitCount());
+        return opBuilder.addOp(op);
+    }
+
+    /**
+     * Replace the HLL bin with the union of the supplied HLL values (write).
+     *
+     * <p>Server sets the bin to the union of {@code hlls} merged with the
+     * existing bin contents. Uses the default write mode; the server returns
+     * no value.</p>
+     *
+     * @param hlls HLL values to union into the bin
+     * @return builder for continued chaining
+     */
+    public T hllSetUnion(List<HLLValue> hlls) {
+        Operation op = HLLOperation.setUnion(HLLWriteFlags.DEFAULT, binName, hlls);
+        return opBuilder.addOp(op);
+    }
+
+    /**
+     * Replace the HLL bin with the union of the supplied HLL values, with
+     * caller-supplied write options (write).
+     *
+     * <p>The {@code options} lambda configures write semantics such as
+     * {@code createOnly}, {@code updateOnly}, {@code noFail}, and
+     * {@code allowFold}.</p>
+     *
+     * @param hlls    HLL values to union into the bin
+     * @param options consumer that configures the {@link HllWriteOptions}
+     * @return builder for continued chaining
+     * @see HllWriteOptions
+     */
+    public T hllSetUnion(List<HLLValue> hlls, Consumer<HllWriteOptions> options) {
+        HllWriteOptions opts = new HllWriteOptions();
+        options.accept(opts);
+
+        Operation op = HLLOperation.setUnion(opts.toFlags(), binName, hlls);
+        return opBuilder.addOp(op);
+    }
+
+    /**
+     * Fold the HLL bin to a smaller index bit count (write).
+     *
+     * <p>Reduces the precision of the HLL bin to {@code indexBitCount} index
+     * bits. Can only be applied when the bin's minhash bit count is 0. The
+     * server returns no value.</p>
+     *
+     * @param indexBitCount target number of index bits (4–16 inclusive); must
+     *                      be less than or equal to the current index bit count
+     * @return builder for continued chaining
+     */
+    public T hllFold(int indexBitCount) {
+        Operation op = HLLOperation.fold(binName, indexBitCount);
+        return opBuilder.addOp(op);
+    }
+
+    /**
+     * Refresh the cached element count on the HLL bin (write).
+     *
+     * <p>Server updates the cached count if it is stale and returns the
+     * refreshed count.</p>
+     *
+     * @return builder for continued chaining
+     */
+    public T hllRefreshCount() {
+        Operation op = HLLOperation.refreshCount(binName);
+        return opBuilder.addOp(op);
+    }
+
+    /**
+     * Read the estimated cardinality of the HLL bin (read).
+     *
+     * <p>Server returns the estimated number of unique elements in the bin
+     * as a long.</p>
+     *
+     * @return builder for continued chaining
+     */
+    public T hllGetCount() {
+        Operation op = HLLOperation.getCount(binName);
+        return opBuilder.addOp(op);
+    }
+
+    /**
+     * Describe the HLL bin's configuration (read).
+     *
+     * <p>Server returns a list of two longs containing the {@code indexBitCount}
+     * and {@code minHashBitCount} that were used to create the bin. See
+     * {@link HllConfig} and {@code Record#getHllConfig(String)} for a typed view
+     * of the result.</p>
+     *
+     * @return builder for continued chaining
+     * @see HllConfig
+     */
+    public T hllDescribe() {
+        Operation op = HLLOperation.describe(binName);
+        return opBuilder.addOp(op);
+    }
+
+    /**
+     * Read the union of the HLL bin with the supplied HLL values (read).
+     *
+     * <p>Server returns an HLL value that is the union of {@code hlls} together
+     * with the bin's current contents. The bin itself is not modified.</p>
+     *
+     * @param hlls HLL values to union with the bin
+     * @return builder for continued chaining
+     */
+    public T hllGetUnion(List<HLLValue> hlls) {
+        Operation op = HLLOperation.getUnion(binName, hlls);
+        return opBuilder.addOp(op);
+    }
+
+    /**
+     * Read the estimated count of the union of the HLL bin with the supplied
+     * HLL values (read).
+     *
+     * <p>Server returns the estimated number of unique elements in the union
+     * of {@code hlls} with the bin's current contents. The bin itself is not
+     * modified.</p>
+     *
+     * @param hlls HLL values to union with the bin
+     * @return builder for continued chaining
+     */
+    public T hllGetUnionCount(List<HLLValue> hlls) {
+        Operation op = HLLOperation.getUnionCount(binName, hlls);
+        return opBuilder.addOp(op);
+    }
+
+    /**
+     * Read the estimated count of the intersection of the HLL bin with the
+     * supplied HLL values (read).
+     *
+     * <p>Server returns the estimated number of elements contained in the
+     * intersection of {@code hlls} with the bin. The {@code hlls} list may
+     * contain at most two values when minhash bits are 0; more are allowed
+     * when minhash bits are nonzero.</p>
+     *
+     * @param hlls HLL values to intersect with the bin
+     * @return builder for continued chaining
+     */
+    public T hllGetIntersectCount(List<HLLValue> hlls) {
+        Operation op = HLLOperation.getIntersectCount(binName, hlls);
+        return opBuilder.addOp(op);
+    }
+
+    /**
+     * Read the estimated Jaccard similarity of the HLL bin with the supplied
+     * HLL values (read).
+     *
+     * <p>Server returns a double in {@code [0.0, 1.0]} estimating the
+     * similarity of the bin to {@code hlls}. The {@code hlls} list may
+     * contain at most two values when minhash bits are 0; more are allowed
+     * when minhash bits are nonzero.</p>
+     *
+     * @param hlls HLL values to compare against the bin
+     * @return builder for continued chaining
+     */
+    public T hllGetSimilarity(List<HLLValue> hlls) {
+        Operation op = HLLOperation.getSimilarity(binName, hlls);
+        return opBuilder.addOp(op);
+    }
 }

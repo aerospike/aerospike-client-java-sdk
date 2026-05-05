@@ -47,12 +47,12 @@ public final class HLLOperation {
      * Server creates a new HLL or resets an existing HLL.
      * Server does not return a value.
      *
-     * @param policy            write policy, use {@link HLLPolicy#Default} for default
-     * @param binName           name of bin
-     * @param indexBitCount     number of index bits. Must be between 4 and 16 inclusive.
+     * @param flags         write flags. See {@link com.aerospike.client.sdk.operation.HLLWriteFlags}
+     * @param binName       name of bin
+     * @param indexBitCount number of index bits. Must be between 4 and 16 inclusive.
      */
-    public static Operation init(HLLPolicy policy, String binName, int indexBitCount) {
-        return init(policy, binName, indexBitCount, -1);
+    public static Operation init(int flags, String binName, int indexBitCount) {
+        return init(flags, binName, indexBitCount, -1);
     }
 
     /**
@@ -60,14 +60,14 @@ public final class HLLOperation {
      * Server creates a new HLL or resets an existing HLL.
      * Server does not return a value.
      *
-     * @param policy            write policy, use {@link HLLPolicy#Default} for default
+     * @param flags             write flags. See {@link com.aerospike.client.sdk.operation.HLLWriteFlags}
      * @param binName           name of bin
      * @param indexBitCount     number of index bits. Must be between 4 and 16 inclusive.
      * @param minHashBitCount   number of min hash bits. Must be between 4 and 51 inclusive.
      *                          Also, indexBitCount + minHashBitCount must be &lt;= 64.
      */
-    public static Operation init(HLLPolicy policy, String binName, int indexBitCount, int minHashBitCount) {
-        byte[] bytes = Pack.pack(HLLOperation.INIT, indexBitCount, minHashBitCount, policy.flags);
+    public static Operation init(int flags, String binName, int indexBitCount, int minHashBitCount) {
+        byte[] bytes = Pack.pack(HLLOperation.INIT, indexBitCount, minHashBitCount, flags);
         return new Operation(Operation.Type.HLL_MODIFY, binName, Value.get(bytes));
     }
 
@@ -76,12 +76,12 @@ public final class HLLOperation {
      * Server adds values to the HLL set.
      * Server returns number of entries that caused HLL to update a register.
      *
-     * @param policy            write policy, use {@link HLLPolicy#Default} for default
-     * @param binName           name of bin
-     * @param list              list of values to be added
+     * @param flags     write flags. See {@link com.aerospike.client.sdk.operation.HLLWriteFlags}
+     * @param binName   name of bin
+     * @param list      list of values to be added
      */
-    public static Operation add(HLLPolicy policy, String binName, List<Value> list) {
-        return add(policy, binName, list, -1, -1);
+    public static Operation add(int flags, String binName, List<?> list) {
+        return add(flags, binName, list, -1, -1);
     }
 
     /**
@@ -89,13 +89,13 @@ public final class HLLOperation {
      * Server adds values to HLL set. If HLL bin does not exist, use indexBitCount to create HLL bin.
      * Server returns number of entries that caused HLL to update a register.
      *
-     * @param policy            write policy, use {@link HLLPolicy#Default} for default
-     * @param binName           name of bin
-     * @param list              list of values to be added
-     * @param indexBitCount     number of index bits. Must be between 4 and 16 inclusive.
+     * @param flags         write flags. See {@link com.aerospike.client.sdk.operation.HLLWriteFlags}
+     * @param binName       name of bin
+     * @param list          list of values to be added
+     * @param indexBitCount number of index bits. Must be between 4 and 16 inclusive.
      */
-    public static Operation add(HLLPolicy policy, String binName, List<Value> list, int indexBitCount) {
-        return add(policy, binName, list, indexBitCount, -1);
+    public static Operation add(int flags, String binName, List<?> list, int indexBitCount) {
+        return add(flags, binName, list, indexBitCount, -1);
     }
 
     /**
@@ -103,15 +103,15 @@ public final class HLLOperation {
      * Server adds values to HLL set. If HLL bin does not exist, use indexBitCount and minHashBitCount
      * to create HLL bin. Server returns number of entries that caused HLL to update a register.
      *
-     * @param policy            write policy, use {@link HLLPolicy#Default} for default
+     * @param flags             write flags. See {@link com.aerospike.client.sdk.operation.HLLWriteFlags}
      * @param binName           name of bin
      * @param list              list of values to be added
      * @param indexBitCount     number of index bits. Must be between 4 and 16 inclusive.
      * @param minHashBitCount   number of min hash bits. Must be between 4 and 51 inclusive.
      *                          Also, indexBitCount + minHashBitCount must be &lt;= 64.
      */
-    public static Operation add(HLLPolicy policy, String binName, List<Value> list, int indexBitCount, int minHashBitCount) {
-        byte[] bytes = Pack.pack(HLLOperation.ADD, list, indexBitCount, minHashBitCount, policy.flags);
+    public static Operation add(int flags, String binName, List<?> list, int indexBitCount, int minHashBitCount) {
+        byte[] bytes = Pack.pack(HLLOperation.ADD, list, indexBitCount, minHashBitCount, flags);
         return new Operation(Operation.Type.HLL_MODIFY, binName, Value.get(bytes));
     }
 
@@ -120,12 +120,12 @@ public final class HLLOperation {
      * Server sets union of specified HLL objects with HLL bin.
      * Server does not return a value.
      *
-     * @param policy            write policy, use {@link HLLPolicy#Default} for default
-     * @param binName           name of bin
-     * @param list              list of HLL objects
+     * @param flags     write flags. See {@link com.aerospike.client.sdk.operation.HLLWriteFlags}
+     * @param binName   name of bin
+     * @param list      list of HLL objects
      */
-    public static Operation setUnion(HLLPolicy policy, String binName, List<HLLValue> list) {
-        byte[] bytes = Pack.pack(HLLOperation.SET_UNION, list, policy.flags);
+    public static Operation setUnion(int flags, String binName, List<HLLValue> list) {
+        byte[] bytes = Pack.pack(HLLOperation.SET_UNION, list, flags);
         return new Operation(Operation.Type.HLL_MODIFY, binName, Value.get(bytes));
     }
 

@@ -21,6 +21,7 @@ import java.util.List;
 import java.util.function.Consumer;
 
 import com.aerospike.client.sdk.CdtGetOrRemoveBuilder.CdtOperation;
+import com.aerospike.client.sdk.Value.HLLValue;
 import com.aerospike.client.sdk.ael.BooleanExpression;
 import com.aerospike.client.sdk.cdt.ListOperation;
 import com.aerospike.client.sdk.cdt.ListOrder;
@@ -28,6 +29,7 @@ import com.aerospike.client.sdk.cdt.MapOperation;
 import com.aerospike.client.sdk.exp.Exp;
 import com.aerospike.client.sdk.exp.ExpReadFlags;
 import com.aerospike.client.sdk.exp.Expression;
+import com.aerospike.client.sdk.operation.HLLOperation;
 import com.aerospike.client.sdk.query.PreparedAel;
 
 /**
@@ -748,5 +750,105 @@ public class QueryBinBuilder implements CdtOperationAcceptor<ChainableQueryBuild
     /** Navigate to list elements by value relative to rank range with count limit. */
     public CdtReadActionInvertableBuilder<ChainableQueryBuilder> onListValueRelativeRankRange(SpecialValue value, int rank, int count) {
         return new CdtReadOnlyBuilder<>(binName, this, new CdtOperationParams(CdtOperation.LIST_BY_VALUE_REL_RANK_RANGE, value.toAerospikeValue(), rank, count));
+    }
+
+    // ----------------------------------------
+    // HyperLogLog (HLL)
+    // ----------------------------------------
+
+    /**
+     * Read the estimated cardinality of the HLL bin.
+     *
+     * <p>Server returns the estimated number of unique elements in the bin
+     * as a long.</p>
+     *
+     * @return the query builder for method chaining
+     */
+    public ChainableQueryBuilder hllGetCount() {
+        Operation op = HLLOperation.getCount(binName);
+        queryBuilder.addOperation(op);
+        return queryBuilder;
+    }
+
+    /**
+     * Describe the HLL bin's configuration.
+     *
+     * <p>Server returns a list of two longs containing the {@code indexBitCount}
+     * and {@code minHashBitCount} that were used to create the bin.</p>
+     *
+     * @return the query builder for method chaining
+     */
+    public ChainableQueryBuilder hllDescribe() {
+        Operation op = HLLOperation.describe(binName);
+        queryBuilder.addOperation(op);
+        return queryBuilder;
+    }
+
+    /**
+     * Read the union of the HLL bin with the supplied HLL values.
+     *
+     * <p>Server returns an HLL value that is the union of {@code hlls} together
+     * with the bin's current contents. The bin itself is not modified.</p>
+     *
+     * @param hlls HLL values to union with the bin
+     * @return the query builder for method chaining
+     */
+    public ChainableQueryBuilder hllGetUnion(List<HLLValue> hlls) {
+        Operation op = HLLOperation.getUnion(binName, hlls);
+        queryBuilder.addOperation(op);
+        return queryBuilder;
+    }
+
+    /**
+     * Read the estimated count of the union of the HLL bin with the supplied
+     * HLL values.
+     *
+     * <p>Server returns the estimated number of unique elements in the union
+     * of {@code hlls} with the bin's current contents. The bin itself is not
+     * modified.</p>
+     *
+     * @param hlls HLL values to union with the bin
+     * @return the query builder for method chaining
+     */
+    public ChainableQueryBuilder hllGetUnionCount(List<HLLValue> hlls) {
+        Operation op = HLLOperation.getUnionCount(binName, hlls);
+        queryBuilder.addOperation(op);
+        return queryBuilder;
+    }
+
+    /**
+     * Read the estimated count of the intersection of the HLL bin with the
+     * supplied HLL values.
+     *
+     * <p>Server returns the estimated number of elements contained in the
+     * intersection of {@code hlls} with the bin. The {@code hlls} list may
+     * contain at most two values when minhash bits are 0; more are allowed
+     * when minhash bits are nonzero.</p>
+     *
+     * @param hlls HLL values to intersect with the bin
+     * @return the query builder for method chaining
+     */
+    public ChainableQueryBuilder hllGetIntersectCount(List<HLLValue> hlls) {
+        Operation op = HLLOperation.getIntersectCount(binName, hlls);
+        queryBuilder.addOperation(op);
+        return queryBuilder;
+    }
+
+    /**
+     * Read the estimated Jaccard similarity of the HLL bin with the supplied
+     * HLL values.
+     *
+     * <p>Server returns a double in {@code [0.0, 1.0]} estimating the
+     * similarity of the bin to {@code hlls}. The {@code hlls} list may
+     * contain at most two values when minhash bits are 0; more are allowed
+     * when minhash bits are nonzero.</p>
+     *
+     * @param hlls HLL values to compare against the bin
+     * @return the query builder for method chaining
+     */
+    public ChainableQueryBuilder hllGetSimilarity(List<HLLValue> hlls) {
+        Operation op = HLLOperation.getSimilarity(binName, hlls);
+        queryBuilder.addOperation(op);
+        return queryBuilder;
     }
 }

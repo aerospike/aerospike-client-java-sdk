@@ -16,7 +16,6 @@
  */
 package com.aerospike.client.sdk.exp;
 
-import com.aerospike.client.sdk.operation.HLLPolicy;
 import com.aerospike.client.sdk.util.Pack;
 
 /**
@@ -42,25 +41,25 @@ public final class HLLExp {
     /**
      * Create expression that creates a new HLL or resets an existing HLL.
      *
-     * @param policy            write policy, use {@link HLLPolicy#Default} for default
-     * @param indexBitCount     number of index bits. Must be between 4 and 16 inclusive.
-     * @param bin               HLL bin or value expression
+     * @param flags         write flags. See {@link com.aerospike.client.sdk.operation.HLLWriteFlags}
+     * @param indexBitCount number of index bits. Must be between 4 and 16 inclusive.
+     * @param bin           HLL bin or value expression
      */
-    public static Exp init(HLLPolicy policy, Exp indexBitCount, Exp bin) {
-        return init(policy, indexBitCount, Exp.val(-1), bin);
+    public static Exp init(int flags, Exp indexBitCount, Exp bin) {
+        return init(flags, indexBitCount, Exp.val(-1), bin);
     }
 
     /**
      * Create expression that creates a new HLL or resets an existing HLL with minhash bits.
      *
-     * @param policy            write policy, use {@link HLLPolicy#Default} for default
+     * @param flags             write flags. See {@link com.aerospike.client.sdk.operation.HLLWriteFlags}
      * @param indexBitCount     number of index bits. Must be between 4 and 16 inclusive.
      * @param minHashBitCount   number of min hash bits. Must be between 4 and 51 inclusive.
      *                          Also, indexBitCount + minHashBitCount must be &lt;= 64.
      * @param bin               HLL bin or value expression
      */
-    public static Exp init(HLLPolicy policy, Exp indexBitCount, Exp minHashBitCount, Exp bin) {
-        byte[] bytes = Pack.pack(INIT, indexBitCount, minHashBitCount, policy.flags);
+    public static Exp init(int flags, Exp indexBitCount, Exp minHashBitCount, Exp bin) {
+        byte[] bytes = Pack.pack(INIT, indexBitCount, minHashBitCount, flags);
         return addWrite(bin, bytes);
     }
 
@@ -76,12 +75,12 @@ public final class HLLExp {
      *   Exp.val(7))
      * }</pre>
      *
-     * @param policy    write policy, use {@link HLLPolicy#Default} for default
+     * @param flags     write flags. See {@link com.aerospike.client.sdk.operation.HLLWriteFlags}
      * @param list      list bin or value expression of values to be added
      * @param bin       HLL bin or value expression
      */
-    public static Exp add(HLLPolicy policy, Exp list, Exp bin) {
-        return add(policy, list, Exp.val(-1), Exp.val(-1), bin);
+    public static Exp add(int flags, Exp list, Exp bin) {
+        return add(flags, list, Exp.val(-1), Exp.val(-1), bin);
     }
 
     /**
@@ -96,13 +95,13 @@ public final class HLLExp {
      *   Exp.val(7))
      * }</pre>
      *
-     * @param policy            write policy, use {@link HLLPolicy#Default} for default
-     * @param list              list bin or value expression of values to be added
-     * @param indexBitCount     number of index bits expression. Must be between 4 and 16 inclusive.
-     * @param bin               HLL bin or value expression
+     * @param flags         write flags. See {@link com.aerospike.client.sdk.operation.HLLWriteFlags}
+     * @param list          list bin or value expression of values to be added
+     * @param indexBitCount number of index bits expression. Must be between 4 and 16 inclusive.
+     * @param bin           HLL bin or value expression
      */
-    public static Exp add(HLLPolicy policy, Exp list, Exp indexBitCount, Exp bin) {
-        return add(policy, list, indexBitCount, Exp.val(-1), bin);
+    public static Exp add(int flags, Exp list, Exp indexBitCount, Exp bin) {
+        return add(flags, list, indexBitCount, Exp.val(-1), bin);
     }
 
     /**
@@ -117,15 +116,15 @@ public final class HLLExp {
      *   Exp.val(7))
      * }</pre>
      *
-     * @param policy            write policy, use {@link HLLPolicy#Default} for default
+     * @param flags             write flags. See {@link com.aerospike.client.sdk.operation.HLLWriteFlags}
      * @param list              list bin or value expression of values to be added
      * @param indexBitCount     number of index bits expression. Must be between 4 and 16 inclusive.
      * @param minHashBitCount   number of min hash bits expression. Must be between 4 and 51 inclusive.
      *                          Also, indexBitCount + minHashBitCount must be &lt;= 64.
      * @param bin               HLL bin or value expression
      */
-    public static Exp add(HLLPolicy policy, Exp list, Exp indexBitCount, Exp minHashBitCount, Exp bin) {
-        byte[] bytes = Pack.pack(ADD, list, indexBitCount, minHashBitCount, policy.flags);
+    public static Exp add(int flags, Exp list, Exp indexBitCount, Exp minHashBitCount, Exp bin) {
+        byte[] bytes = Pack.pack(ADD, list, indexBitCount, minHashBitCount, flags);
         return addWrite(bin, bytes);
     }
 
