@@ -19,14 +19,19 @@ package com.aerospike.client.sdk.exp;
 import java.io.Serializable;
 import java.util.Arrays;
 
+import com.aerospike.client.sdk.AerospikeException;
 import com.aerospike.client.sdk.util.Crypto;
 import com.aerospike.client.sdk.util.Packer;
+import com.aerospike.client.sdk.util.Version;
 
 /**
  * Packed expression byte instructions.
  */
 public final class Expression implements Serializable {
     private static final long serialVersionUID = 1L;
+
+    /** Wire opcode {@code _AS_EXP_CODE_DSL_COMPILE} — root MessagePack list {@code [128, dslSource]}. */
+    public static final int SERVER_COMPILED_DSL_EXPRESSION_OP = 128;
 
     private final byte[] bytes;
 
@@ -67,6 +72,47 @@ public final class Expression implements Serializable {
      */
     public static Expression fromBase64(String s) {
         return Expression.fromBase64(s.getBytes());
+    }
+
+    /**
+     * Build filter-expression bytes for {@linkplain com.aerospike.client.sdk.command.FieldType#FILTER_EXP field 43} when the server
+     * should parse/compile textual DSL/AEL. Layout matches the C client ({@code dsl} branch): MessagePack array of length
+     * {@code 2} — integer {@code 128} ({@link #SERVER_COMPILED_DSL_EXPRESSION_OP}) and UTF-8 source string.
+     *
+     * @param dslSourceUtf8 DSL/AEL source (UTF-8)
+     */
+    public static Expression fromServerCompiledFilter(String dslSourceUtf8) {
+        if (dslSourceUtf8 == null) {
+            throw new AerospikeException("Server-compiled DSL/AEL source must not be null");
+        }
+        return new Expression(encodeServerCompiledFilterPayload(dslSourceUtf8));
+    }
+
+    /**
+     * Feature gate aligned with compatibility matrix minimum cluster {@linkplain Version}: server-side DSL compile wrapper on field 43.
+     */
+    public static boolean supportsServerCompiledWire(Version clusterMinVersion) {
+        return clusterMinVersion != null
+            && clusterMinVersion.isGreaterOrEqual(Version.SERVER_VERSION_8_4);
+    }
+
+    private static byte[] encodeServerCompiledFilterPayload(String dslSourceUtf8) {
+        try {
+            Packer packer = new Packer();
+            packPayload(packer, dslSourceUtf8);
+            packer.createBuffer();
+            packPayload(packer, dslSourceUtf8);
+            return packer.getBuffer();
+        }
+        catch (Throwable t) {
+            throw new AerospikeException.Serialize(t);
+        }
+    }
+
+    private static void packPayload(Packer packer, String dslSourceUtf8) {
+        packer.packArrayBegin(2);
+        packer.packInt(SERVER_COMPILED_DSL_EXPRESSION_OP);
+        packer.packString(dslSourceUtf8);
     }
 
     /**
