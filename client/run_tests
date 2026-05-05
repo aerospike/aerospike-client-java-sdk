@@ -1,6 +1,7 @@
 #!/bin/bash
 
 hastest=false
+mvn_extra=
 
 for i in $*
 do
@@ -12,6 +13,9 @@ do
   if [[ $i == -D* ]]
   then
     def="$def $i"
+  elif [[ $i == -P* ]]
+  then
+    mvn_extra="$mvn_extra $i"
   else
     arg="$arg $i"
   fi
@@ -23,6 +27,10 @@ then
     def="$def -Dtest=SuiteAll"
 fi
 
+# Fail after the first failed test (cuts cascade errors). Example:
+#   ./run_tests -Pfail-fast-tests
+# Print each server-compiled where DSL to stderr (match with server exp.c logs). Example:
+#   ./run_tests -Dcom.aerospike.sdk.traceServerCompiledDsl=true
 # TxnTest (and txnMrtExpiredAfterDeadline) require a strong-consistency namespace. If scMode is false,
 # @BeforeAll skips the entire class — Maven exits 0 and your assertions never run.
 #
@@ -30,4 +38,4 @@ fi
 #   ./run_tests -Dtest=TxnTest
 #   ./run_tests -Dtest=TxnTest#txnMrtExpiredAfterDeadline
 #
-mvn test -DskipTests=false $def -Dargs="$arg"
+mvn test -DskipTests=false $def $mvn_extra -Dargs="$arg"

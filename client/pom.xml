@@ -189,4 +189,23 @@
       </plugin>
     </plugins>
   </build>
+
+  <profiles>
+    <!-- Stops the fork after the first failed test (failure or error), so you see one root cause
+         instead of hundreds of follow-on connection/backoff errors. Enable: mvn test -Pfail-fast-tests ... -->
+    <profile>
+      <id>fail-fast-tests</id>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-surefire-plugin</artifactId>
+            <configuration>
+              <skipAfterFailureCount>1</skipAfterFailureCount>
+            </configuration>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+  </profiles>
 </project>

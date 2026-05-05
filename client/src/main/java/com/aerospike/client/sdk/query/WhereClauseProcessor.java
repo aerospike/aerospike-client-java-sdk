@@ -99,7 +99,7 @@ public abstract class WhereClauseProcessor {
         return sb.toString();
     }
 
-    protected ParseResult parseClientSide(String ael, String namespace, String querySet, Session session) {
+    protected ParseResult process(String ael, String namespace, String querySet, Session session) {
         AelParser parser = new AelParserImpl();
 
         ParsedExpression parseResult;
@@ -139,6 +139,26 @@ public abstract class WhereClauseProcessor {
         return result;
     }
 
+    private static ParseResult serverCompiledFilterResult(String dslSource) {
+        return new ParseResult(null, Exp.expr(Expression.fromServerCompiledFilter(dslSource)));
+    }
+
+    /**
+     * Without {@code allowsIndex} and with server AEL wire support, skip client parsing and use
+     * {@link Expression#fromServerCompiledFilter}. With {@code allowsIndex}, client-parse first for SI;
+     */
+    protected final ParseResult processAel(
+        String dslSource,
+        String namespace,
+        String querySet,
+        Session session
+    ) {
+        if (!allowsIndex && session.getCluster().supportsServerCompiledFilterExpression()) {
+            return serverCompiledFilterResult(dslSource);
+        }
+        return process(dslSource, namespace, querySet, session);
+    }
+
     private static class WhereStringImpl extends WhereClauseProcessor {
         private final String ael;
         public WhereStringImpl(boolean allowsIndex, String ael) {
@@ -148,44 +168,7 @@ public abstract class WhereClauseProcessor {
 
         @Override
         public ParseResult process(String namespace, String querySet, Session session) {
-            return parseClientSide(this.ael, namespace, querySet, session);
-        }
-    }
-
-    private static class WhereCompiledOnServerString extends WhereClauseProcessor {
-        private final String dslSource;
-
-        WhereCompiledOnServerString(boolean allowsIndex, String dslSource) {
-            super(allowsIndex);
-            this.dslSource = dslSource;
-        }
-
-        @Override
-        public ParseResult process(String namespace, String querySet, Session session) {
-            if (Expression.supportsServerCompiledWire(session.getCluster().getVersion())) {
-                return new ParseResult(null, Exp.expr(Expression.fromServerCompiledFilter(dslSource)));
-            }
-            return parseClientSide(dslSource, namespace, querySet, session);
-        }
-    }
-
-    private static class WhereCompiledOnServerPrepared extends WhereClauseProcessor {
-        private final PreparedAel ael;
-        private final Object[] params;
-
-        WhereCompiledOnServerPrepared(boolean allowsIndex, PreparedAel ael, Object... params) {
-            super(allowsIndex);
-            this.ael = ael;
-            this.params = params;
-        }
-
-        @Override
-        public ParseResult process(String namespace, String querySet, Session session) {
-            String dslSource = ael.formValue(params);
-            if (Expression.supportsServerCompiledWire(session.getCluster().getVersion())) {
-                return new ParseResult(null, Exp.expr(Expression.fromServerCompiledFilter(dslSource)));
-            }
-            return parseClientSide(dslSource, namespace, querySet, session);
+            return processAel(this.ael, namespace, querySet, session);
         }
     }
 
@@ -202,7 +185,7 @@ public abstract class WhereClauseProcessor {
         public ParseResult process(String namespace, String querySet, Session session) {
             // TODO: For now, until AEL supports prepared statements
             String aelStr = ael.formValue(params);
-            return parseClientSide(aelStr, namespace, querySet, session);
+            return processAel(aelStr, namespace, querySet, session);
         }
     }
 
@@ -248,18 +231,5 @@ public abstract class WhereClauseProcessor {
     }
     public static WhereClauseProcessor from(Expression exp) {
         return from(Exp.expr(exp));
-    }
-
-    /**
-     * When {@linkplain com.aerospike.client.sdk.Cluster#getVersion()} is at least {@link com.aerospike.client.sdk.util.Version#SERVER_VERSION_8_4},
-     * emits server-side DSL compile wire ({@code [128, source]} in field 43). Otherwise parses client-side like {@link #from(boolean, String)}.
-     */
-    public static WhereClauseProcessor fromCompiledOnServerWhenSupported(boolean allowsIndex, String formattedAelSource) {
-        return new WhereCompiledOnServerString(allowsIndex, formattedAelSource);
-    }
-
-    /** @see #fromCompiledOnServerWhenSupported(boolean, String) */
-    public static WhereClauseProcessor fromCompiledOnServerWhenSupported(boolean allowsIndex, PreparedAel ael, Object... params) {
-        return new WhereCompiledOnServerPrepared(allowsIndex, ael, params);
     }
 }

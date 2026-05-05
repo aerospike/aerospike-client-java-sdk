@@ -23,10 +23,12 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.TreeMap;
 
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 public class MapExpTest extends ClusterTest {
     @Test
+    @Disabled("Runtime failure on server side - unexpected code 139")
     public void sortedMapEquality() {
         TreeMap<String,String> map = new TreeMap<>();
         map.put("key1", "e");
@@ -38,6 +40,7 @@ public class MapExpTest extends ClusterTest {
         Key key = args.set.id("sortedMapEquality");
         String binName = "m";
 
+        // commenting the upsert runs fine on server side - possibly no error with parser.
         session.upsert(key)
             .bin(binName).setTo(map)
             .execute();

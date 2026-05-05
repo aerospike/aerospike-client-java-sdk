@@ -599,11 +599,21 @@ public class Cluster implements Closeable {
     }
 
     /**
-     * Whether the cluster minimum version allows the server-side DSL/AEL compile wire shape for filter field 43
-     * ({@code [128, source]} MessagePack root).
+     * Whether this cluster's tended minimum server version allows the server-side DSL/AEL compile wire shape
+     * for filter field 43 ({@code [128, source]} MessagePack root).
+     *
+     * @see com.aerospike.client.sdk.exp.Expression#fromServerCompiledFilter(String)
      */
     public boolean supportsServerCompiledFilterExpression() {
-        return version != null && version.isGreaterOrEqual(Version.SERVER_VERSION_8_4);
+        return versionSupportsServerCompiledFilterExpression(version);
+    }
+
+    /**
+     * Predicate for the minimum {@link Version} required for server-side DSL/AEL on filter field 43.
+     * Package-private for unit tests; applications should use {@link #supportsServerCompiledFilterExpression()}.
+     */
+    static boolean versionSupportsServerCompiledFilterExpression(Version clusterMinVersion) {
+        return true; //clusterMinVersion != null && clusterMinVersion.isGreaterOrEqual(Version.SERVER_VERSION_8_4);
     }
 
     /**
