@@ -43,6 +43,11 @@ jobs:
       commit: ${{ steps.commit.outputs.commit }}
       tag: ${{ steps.tag.outputs.tag }}
     steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@a5ad31d6a139d249332a2605b85202e8c0b78450 # v2.19.1
+        with:
+          egress-policy: audit
+
       - name: Debug workflow inputs
         run: |
           echo "=== inputs ==="
@@ -58,14 +63,14 @@ jobs:
           echo "actor:           '${{ github.actor }}'"
           echo "ref:             '${{ github.ref }}'"
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
           fetch-depth: "0"
           ref: main
           token: ${{ secrets.CLIENT_BOT_PAT }}
 
       - name: Set up JFrog credentials
-        uses: jfrog/setup-jfrog-cli@v4
+        uses: step-security/setup-jfrog-cli@3054b554c0fb4915b3d58847fb7730c593dbb934 # v5.0.0
         env:
           JF_URL: ${{ vars.JFROG_PLATFORM_URL }}
           JF_PROJECT: ${{ env.JF_PROJECT }}
@@ -255,7 +260,12 @@ jobs:
     if: inputs.dry_run != 'true'
     runs-on: ${{ vars.BUILD_CONTAINER_DISTRO_VERSION }}
     steps:
-      - uses: actions/checkout@v4
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@a5ad31d6a139d249332a2605b85202e8c0b78450 # v2.19.1
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
           ref: ${{ needs.promote.outputs.tag }}
           fetch-depth: "0"
@@ -274,7 +284,7 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
       - name: Create draft GitHub release
-        uses: softprops/action-gh-release@72f2c25fcb47643c292f7107632f7a47c1df5cd8 # v2.3.2
+        uses: step-security/action-gh-release@dc29ef0d1f6f9a032a97ec797d9cb7ea788dde41 # v2.6.1
         with:
           tag_name: ${{ needs.promote.outputs.tag }}
           name: ${{ needs.promote.outputs.tag }}
@@ -287,8 +297,13 @@ jobs:
     if: inputs.dry_run != 'true'
     runs-on: ${{ vars.BUILD_CONTAINER_DISTRO_VERSION }}
     steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@a5ad31d6a139d249332a2605b85202e8c0b78450 # v2.19.1
+        with:
+          egress-policy: audit
+
       - name: Checkout (need local actions)
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
           ref: ${{ needs.promote.outputs.tag }}
           token: ${{ secrets.CLIENT_BOT_PAT }}
