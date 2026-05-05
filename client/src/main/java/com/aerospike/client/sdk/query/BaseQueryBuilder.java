@@ -158,24 +158,16 @@ public interface BaseQueryBuilder<T extends BaseQueryBuilder<T>> {
      * <p>Only one filter condition can be specified per query. Multiple calls
      * to this method or {@link #where(BooleanExpression)} will throw an exception.</p>
      *
+     * <p>When parsing does not select a secondary-index slice and the cluster minimum version supports
+     * server-side AEL on the wire ({@linkplain com.aerospike.client.sdk.util.Version#SERVER_VERSION_8_4}),
+     * the DSL may be compiled on the server; parsing still runs locally first whenever secondary-index selection applies.</p>
+     *
      * @param ael the AEL filter expression
      * @param params The params used to replace arguments in the AEL string (used by {@code String.format(ael, params)}
      * @return this QueryBuilder for method chaining
      * @throws IllegalArgumentException if multiple filter conditions are specified
      */
     T where(String ael, Object ... params);
-
-    /**
-     * Prefer server-side DSL/AEL compilation on filter field 43 when the cluster minimum version supports it;
-     * otherwise behaves like {@link #where(String, Object[])} ({@linkplain com.aerospike.client.sdk.util.Version#SERVER_VERSION_8_4} gate).
-     * When server compile is used, no secondary-index slice is inferred from parsing the string locally.
-     */
-    T whereCompiledOnServer(String ael, Object... params);
-
-    /**
-     * {@linkplain #whereCompiledOnServer(String, Object...)} with a {@link PreparedAel} source.
-     */
-    T whereCompiledOnServer(PreparedAel ael, Object... params);
 
     /**
      * Adds a filter condition using a BooleanExpression.

@@ -26,7 +26,7 @@ public final class Version implements Comparable<Version> {
     public static final Version SERVER_VERSION_8_1 = new Version(8, 1, 0, 0);
     public static final Version SERVER_VERSION_8_1_3 = new Version(8, 1, 3, 0);
     /**
-     * Floor for sending server-side DSL / AEL compile wrapper ({@code [128, source]}) inside filter field 43.
+     * Tentative
      */
     public static final Version SERVER_VERSION_8_4 = new Version(8, 4, 0, 0);
 
