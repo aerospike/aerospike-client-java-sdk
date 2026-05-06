@@ -174,6 +174,16 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
     }
 
     /**
+     * Queues a write that sets this bin to a Value.
+     *
+     * @param value map to store
+     * @return the parent operation builder for chaining
+     */
+    public T setTo(Value value) {
+        return opBuilder.setTo(new Bin(binName, value));
+    }
+
+    /**
      * Queues a write that removes this bin from the record (null bin).
      *
      * @return the parent operation builder for chaining

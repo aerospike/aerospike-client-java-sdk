@@ -17,6 +17,7 @@
 package com.aerospike.client.sdk;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
@@ -24,6 +25,8 @@ import java.util.List;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+
+import com.aerospike.client.sdk.Value.HLLValue;
 
 public class OperateHllTest extends ClusterTest {
     private static boolean debug = false;
@@ -413,22 +416,23 @@ public class OperateHllTest extends ClusterTest {
         assertThrows("fold", key, AerospikeException.class, ResultCode.PARAMETER_ERROR,
             builder);
     }
-/*
-    public void assertFold(List<Value> vals0, List<Value> vals1, int nIndexBits) {
+
+    public void assertFold(List<String> vals0, List<String> vals1, int nIndexBits) {
         String msg = "Fail - nIndexBits " + nIndexBits;
-        HLLPolicy p = HLLPolicy.Default;
 
         for (int ix = minNIndexBits; ix <= nIndexBits; ix++) {
             if (!checkBits(nIndexBits, 0) || ! checkBits(ix, 0)) {
-                assertTrue("Expected valid inputs: " + msg, false);
+                assertTrue(false, "Expected valid inputs: " + msg);
             }
 
-            Record recorda = assertSuccess(msg, key,
-                    Operation.delete(),
-                    HLLOperation.add(p, binName, vals0, nIndexBits),
-                    HLLOperation.getCount(binName),
-                    HLLOperation.refreshCount(binName),
-                    HLLOperation.describe(binName));
+            ChainableOperationBuilder builder = session.upsert(key)
+                .deleteRecord()
+                .bin(binName).hllAdd(vals0, HllConfig.of(nIndexBits))
+                .bin(binName).hllGetCount()
+                .bin(binName).hllRefreshCount()
+                .bin(binName).hllDescribe();
+
+            Record recorda = assertSuccess(msg, key, builder);
 
             List<?> resultAList = recorda.getList(binName);
             long counta = (Long) resultAList.get(1);
@@ -439,13 +443,15 @@ public class OperateHllTest extends ClusterTest {
             assertHLLCount(msg, nIndexBits, counta, vals0.size());
             assertEquals(counta, counta1);
 
-            Record recordb = assertSuccess(msg, key,
-                    HLLOperation.fold(binName, ix),
-                    HLLOperation.getCount(binName),
-                    HLLOperation.add(p, binName, vals0),
-                    HLLOperation.add(p, binName, vals1),
-                    HLLOperation.getCount(binName),
-                    HLLOperation.describe(binName));
+            builder = session.upsert(key)
+                .bin(binName).hllFold(ix)
+                .bin(binName).hllGetCount()
+                .bin(binName).hllAdd(vals0)
+                .bin(binName).hllAdd(vals1)
+                .bin(binName).hllGetCount()
+                .bin(binName).hllDescribe();
+
+            Record recordb = assertSuccess(msg, key, builder);
 
             List<?> resultBList = recordb.getList(binName);
             long countb = (Long) resultBList.get(1);
@@ -462,15 +468,15 @@ public class OperateHllTest extends ClusterTest {
 
     @Test
     public void operateFold() {
-        List<Value> vals0 = new ArrayList<Value>();
-        List<Value> vals1 = new ArrayList<Value>();
+        List<String> vals0 = new ArrayList<>();
+        List<String> vals1 = new ArrayList<>();
 
         for (int i = 0; i < nEntries / 2; i++) {
-            vals0.add(new StringValue("key " + i));
+            vals0.add("key " + i);
         }
 
         for (int i = nEntries / 2; i < nEntries; i++) {
-            vals1.add(new StringValue("key " + i));
+            vals1.add("key " + i);
         }
 
         for (int nIndexBits = 4; nIndexBits < maxNIndexBits; nIndexBits++) {
@@ -485,32 +491,40 @@ public class OperateHllTest extends ClusterTest {
         int foldUp = 16;
 
         // Keep record around win binName is removed.
-        assertSuccess("other bin", key,
-                Operation.delete(),
-                HLLOperation.init(HLLPolicy.Default, binName + "other", nIndexBits),
-                HLLOperation.init(HLLPolicy.Default, binName, nIndexBits));
+        ChainableOperationBuilder builder = session.upsert(key)
+            .deleteRecord()
+            .bin(binName + "other").hllInit(HllConfig.of(nIndexBits))
+            .bin(binName).hllInit(HllConfig.of(nIndexBits));
+
+        assertSuccess("other bin", key, builder);
 
         // Exists.
-        assertSuccess("exists fold down", key, HLLOperation.fold(binName, foldDown));
-        assertThrows("exists fold up", key, AerospikeException.class, ResultCode.OP_NOT_APPLICABLE,
-                HLLOperation.fold(binName, foldUp));
+        builder = session.upsert(key)
+            .bin(binName).hllFold(foldDown);
+
+        assertSuccess("exists fold down", key, builder);
+
+        builder = session.upsert(key)
+            .bin(binName).hllFold(foldUp);
+
+        assertThrows("exists fold up", key, AerospikeException.BinOpInvalidException.class,
+            ResultCode.OP_NOT_APPLICABLE, builder);
 
         // Does not exist.
-        assertSuccess("remove bin", key, Operation.put(Bin.asNull(binName)));
+        builder = session.upsert(key)
+            .bin(binName).remove();
 
-        assertThrows("create_only - error", key, AerospikeException.class, ResultCode.BIN_NOT_FOUND,
-                HLLOperation.fold(binName, foldDown));
+        assertSuccess("remove bin", key, builder);
+
+        builder = session.upsert(key)
+            .bin(binName).hllFold(foldDown);
+
+        assertThrows("create_only - error", key, AerospikeException.BinNotFoundException.class,
+            ResultCode.BIN_NOT_FOUND, builder);
     }
 
-    public void assertSetUnion(List<List<Value>> vals, int nIndexBits, boolean folding, boolean allowFolding) {
+    public void assertSetUnion(List<List<String>> vals, int nIndexBits, boolean folding, boolean allowFolding) {
         String msg = "Fail - nIndexBits " + nIndexBits;
-        HLLPolicy p = HLLPolicy.Default;
-        HLLPolicy u = HLLPolicy.Default;
-
-        if (allowFolding) {
-            u = new HLLPolicy(HLLWriteFlags.ALLOW_FOLD);
-        }
-
         long unionExpected = 0;
         boolean folded = false;
 
@@ -529,25 +543,30 @@ public class OperateHllTest extends ClusterTest {
                 }
             }
 
-            List<Value> subVals = vals.get(i);
+            List<String> subVals = vals.get(i);
 
             unionExpected += subVals.size();
 
-            Record record = assertSuccess(msg, keys[i],
-                    Operation.delete(),
-                    HLLOperation.add(p, binName, subVals, ix),
-                    HLLOperation.getCount(binName));
+            ChainableOperationBuilder builder = session.upsert(keys[i])
+                .deleteRecord()
+                .bin(binName).hllAdd(subVals, HllConfig.of(ix))
+                .bin(binName).hllGetCount();
+
+            Record record = assertSuccess(msg, keys[i], builder);
             List<?> resultList = record.getList(binName);
             long count = (Long) resultList.get(1);
 
             assertHLLCount(msg, ix, count, subVals.size());
         }
 
-        ArrayList<HLLValue> hlls = new ArrayList<HLLValue>();
+        ArrayList<HLLValue> hlls = new ArrayList<>();
 
         for (int i = 0; i < keys.length; i++) {
-            Record record = assertSuccess(msg, keys[i],
-                    Operation.get(binName), HLLOperation.getCount(binName));
+            ChainableOperationBuilder builder = session.upsert(keys[i])
+                .bin(binName).get()
+                .bin(binName).hllGetCount();
+
+            Record record = assertSuccess(msg, keys[i], builder);
             List<?> resultList = record.getList(binName);
             HLLValue hll = (HLLValue)resultList.get(0);
 
@@ -555,53 +574,64 @@ public class OperateHllTest extends ClusterTest {
             hlls.add(hll);
         }
 
-        Operation[] ops = new Operation[] {
-                Operation.delete(),
-                HLLOperation.init(p, binName, nIndexBits),
-                HLLOperation.setUnion(u, binName, hlls),
-                HLLOperation.getCount(binName),
-                Operation.delete(), // And recreate it to test creating empty.
-                HLLOperation.setUnion(p, binName, hlls),
-                HLLOperation.getCount(binName)
-        };
+        ChainableOperationBuilder builder = session.upsert(key)
+            .deleteRecord()
+            .bin(binName).hllInit(HllConfig.of(nIndexBits));
+
+        if (allowFolding) {
+            builder = builder.bin(binName).hllSetUnion(hlls, opt -> opt.allowFold());
+        }
+        else {
+            builder = builder.bin(binName).hllSetUnion(hlls);
+        }
+
+        builder = builder
+            .bin(binName).hllGetCount()
+            .deleteRecord() // And recreate it to test creating empty.
+            .bin(binName).hllSetUnion(hlls)
+            .bin(binName).hllGetCount();
 
         if (folded && ! allowFolding) {
-            assertThrows(msg, key, AerospikeException.class, ResultCode.OP_NOT_APPLICABLE, ops);
+            assertThrows(msg, key, AerospikeException.BinOpInvalidException.class,
+                ResultCode.OP_NOT_APPLICABLE, builder);
             return;
         }
 
-        Record recordUnion = assertSuccess(msg, key, ops);
+        Record recordUnion = assertSuccess(msg, key, builder);
         List<?> unionResultList = recordUnion.getList(binName);
         long unionCount = (Long) unionResultList.get(2);
         long unionCount2 = (Long) unionResultList.get(4);
 
         assertHLLCount(msg, nIndexBits, unionCount, unionExpected);
-        assertEquals(msg, unionCount, unionCount2);
+        assertEquals(unionCount, unionCount2, msg);
 
         for (int i = 0; i < keys.length; i++) {
-            List<Value> subVals = vals.get(i);
-            Record record = assertSuccess(msg, key,
-                    HLLOperation.add(p, binName, subVals, nIndexBits),
-                    HLLOperation.getCount(binName));
+            List<String> subVals = vals.get(i);
+
+            builder = session.upsert(key)
+                .bin(binName).hllAdd(subVals, HllConfig.of(nIndexBits))
+                .bin(binName).hllGetCount();
+
+            Record record = assertSuccess(msg, key, builder);
             List<?> resultList = record.getList(binName);
             long nAdded = (Long) resultList.get(0);
             long count = (Long) resultList.get(1);
 
-            assertEquals(msg, 0, nAdded);
-            assertEquals(msg, unionCount, count);
+            assertEquals(0, nAdded, msg);
+            assertEquals(unionCount, count, msg);
             assertHLLCount(msg, nIndexBits, count, unionExpected);
         }
     }
 
     @Test
     public void operateSetUnion() {
-        ArrayList<List<Value>> vals = new ArrayList<List<Value>>();
+        ArrayList<List<String>> vals = new ArrayList<List<String>>();
 
         for (int i = 0; i < keys.length; i++) {
-            ArrayList<Value> subVals = new ArrayList<Value>();
+            ArrayList<String> subVals = new ArrayList<>();
 
             for (int j = 0; j < nEntries / 3; j++) {
-                subVals.add(new StringValue("key" + i + " " + j));
+                subVals.add("key" + i + " " + j);
             }
 
             vals.add(subVals);
@@ -624,53 +654,95 @@ public class OperateHllTest extends ClusterTest {
 
         // Keep record around win binName is removed.
         ArrayList<HLLValue> hlls = new ArrayList<HLLValue>();
-        Record record = assertSuccess("other bin", key,
-                Operation.delete(),
-                HLLOperation.add(HLLPolicy.Default, otherName, entries, nIndexBits),
-                Operation.get(otherName));
+
+        ChainableOperationBuilder builder = session.upsert(key)
+            .deleteRecord()
+            .bin(otherName).hllAdd(entries, HllConfig.of(nIndexBits))
+            .bin(otherName).get();
+
+        Record record = assertSuccess("other bin", key, builder);
         List<?> resultList = record.getList(otherName);
         HLLValue hll = (HLLValue) resultList.get(1);
 
         hlls.add(hll);
 
         // create_only
-        HLLPolicy c = new HLLPolicy(HLLWriteFlags.CREATE_ONLY);
+        builder = session.upsert(key)
+            .bin(binName).hllSetUnion(hlls, opt -> opt.createOnly());
 
-        assertSuccess("create_only", key, HLLOperation.setUnion(c, binName, hlls));
-        assertThrows("create_only - error", key, AerospikeException.class, ResultCode.BIN_EXISTS_ERROR,
-                HLLOperation.setUnion(c, binName, hlls));
+        assertSuccess("create_only", key, builder);
+
+        builder = session.upsert(key)
+            .bin(binName).hllSetUnion(hlls, opt -> opt.createOnly());
+
+        assertThrows("create_only - error", key, AerospikeException.BinExistsException.class,
+            ResultCode.BIN_EXISTS_ERROR, builder);
 
         // update_only
-        HLLPolicy u = new HLLPolicy(HLLWriteFlags.UPDATE_ONLY);
+        builder = session.upsert(key)
+            .bin(binName).hllSetUnion(hlls, opt -> opt.updateOnly());
 
-        assertSuccess("update_only", key, HLLOperation.setUnion(u, binName, hlls));
-        assertSuccess("remove bin", key, Operation.put(Bin.asNull(binName)));
-        assertThrows("update_only - error", key, AerospikeException.class, ResultCode.BIN_NOT_FOUND,
-                HLLOperation.setUnion(u, binName, hlls));
+        assertSuccess("update_only", key, builder);
+
+        builder = session.upsert(key)
+            .bin(binName).remove();
+
+        assertSuccess("remove bin", key, builder);
+
+        builder = session.upsert(key)
+            .bin(binName).hllSetUnion(hlls, opt -> opt.updateOnly());
+
+        assertThrows("update_only - error", key, AerospikeException.BinNotFoundException.class,
+            ResultCode.BIN_NOT_FOUND, builder);
 
         // create_only no_fail
-        HLLPolicy cn = new HLLPolicy(HLLWriteFlags.CREATE_ONLY | HLLWriteFlags.NO_FAIL);
+        builder = session.upsert(key)
+            .bin(binName).hllSetUnion(hlls, opt -> opt.createOnly().noFail());
 
-        assertSuccess("create_only nofail", key, HLLOperation.setUnion(cn, binName, hlls));
-        assertSuccess("create_only nofail - no error", key, HLLOperation.setUnion(cn, binName, hlls));
+        assertSuccess("create_only nofail", key, builder);
+
+        builder = session.upsert(key)
+            .bin(binName).hllSetUnion(hlls, opt -> opt.createOnly().noFail());
+
+        assertSuccess("create_only nofail - no error", key, builder);
 
         // update_only no_fail
-        HLLPolicy un = new HLLPolicy(HLLWriteFlags.UPDATE_ONLY | HLLWriteFlags.NO_FAIL);
+        builder = session.upsert(key)
+            .bin(binName).hllSetUnion(hlls, opt -> opt.updateOnly().noFail());
 
-        assertSuccess("update_only nofail", key, HLLOperation.setUnion(un, binName, hlls));
-        assertSuccess("remove bin", key, Operation.put(Bin.asNull(binName)));
-        assertSuccess("update_only nofail - no error", key, HLLOperation.setUnion(un, binName, hlls));
+        assertSuccess("update_only nofail", key, builder);
 
-        // fold
-        HLLPolicy f = new HLLPolicy(HLLWriteFlags.ALLOW_FOLD);
+        builder = session.upsert(key)
+            .bin(binName).remove();
+
+        assertSuccess("remove bin", key, builder);
+
+        builder = session.upsert(key)
+            .bin(binName).hllSetUnion(hlls, opt -> opt.updateOnly().noFail());
+
+        assertSuccess("update_only nofail - no error", key, builder);
 
         // fold down
-        assertSuccess("size up", key, HLLOperation.init(HLLPolicy.Default, binName, highNBits));
-        assertSuccess("fold down to index_bits", key, HLLOperation.setUnion(f, binName, hlls));
+        builder = session.upsert(key)
+            .bin(binName).hllInit(HllConfig.of(highNBits));
+
+        assertSuccess("size up", key, builder);
+
+        builder = session.upsert(key)
+            .bin(binName).hllSetUnion(hlls, opt -> opt.allowFold());
+
+        assertSuccess("fold down to index_bits", key, builder);
 
         // fold up
-        assertSuccess("size down", key, HLLOperation.init(HLLPolicy.Default, binName, lowNBits));
-        assertSuccess("fold down to low_n_bits", key, HLLOperation.setUnion(f, binName, hlls));
+        builder = session.upsert(key)
+            .bin(binName).hllInit(HllConfig.of(lowNBits));
+
+        assertSuccess("size down", key, builder);
+
+        builder = session.upsert(key)
+            .bin(binName).hllSetUnion(hlls, opt -> opt.allowFold());
+
+        assertSuccess("fold down to low_n_bits", key, builder);
     }
 
     @Test
@@ -678,22 +750,42 @@ public class OperateHllTest extends ClusterTest {
         int nIndexBits = 6;
 
         // Keep record around win binName is removed.
-        assertSuccess("other bin", key,
-                Operation.delete(),
-                HLLOperation.init(HLLPolicy.Default, binName + "other", nIndexBits),
-                HLLOperation.init(HLLPolicy.Default, binName, nIndexBits));
+        ChainableOperationBuilder builder = session.upsert(key)
+            .deleteRecord()
+            .bin(binName + "other").hllInit(HllConfig.of(nIndexBits))
+            .bin(binName).hllInit(HllConfig.of(nIndexBits));
+
+        assertSuccess("other bin", key, builder);
 
         // Exists.
-        assertSuccess("refresh zero count", key, HLLOperation.refreshCount(binName),
-                HLLOperation.refreshCount(binName));
-        assertSuccess("add items", key, HLLOperation.add(HLLPolicy.Default, binName, entries));
-        assertSuccess("refresh count", key, HLLOperation.refreshCount(binName),
-                HLLOperation.refreshCount(binName));
+        builder = session.upsert(key)
+            .bin(binName).hllRefreshCount()
+            .bin(binName).hllRefreshCount();
+
+        assertSuccess("refresh zero count", key, builder);
+
+        builder = session.upsert(key)
+            .bin(binName).hllAdd(entries, HllConfig.of(nIndexBits));
+
+        assertSuccess("add items", key, builder);
+
+        builder = session.upsert(key)
+            .bin(binName).hllRefreshCount()
+            .bin(binName).hllRefreshCount();
+
+        assertSuccess("refresh count", key, builder);
 
         // Does not exist.
-        assertSuccess("remove bin", key, Operation.put(Bin.asNull(binName)));
-        assertThrows("refresh nonexistant count", key, AerospikeException.class, ResultCode.BIN_NOT_FOUND,
-                HLLOperation.refreshCount(binName));
+        builder = session.upsert(key)
+            .bin(binName).remove();
+
+        assertSuccess("remove bin", key, builder);
+
+        builder = session.upsert(key)
+            .bin(binName).hllRefreshCount();
+
+        assertThrows("refresh nonexistant count", key, AerospikeException.BinNotFoundException.class,
+            ResultCode.BIN_NOT_FOUND, builder);
     }
 
     @Test
@@ -701,19 +793,31 @@ public class OperateHllTest extends ClusterTest {
         int nIndexBits = 6;
 
         // Keep record around win binName is removed.
-        assertSuccess("other bin", key,
-                Operation.delete(),
-                HLLOperation.init(HLLPolicy.Default, binName + "other", nIndexBits),
-                HLLOperation.add(HLLPolicy.Default, binName, entries, nIndexBits));
+        ChainableOperationBuilder builder = session.upsert(key)
+            .deleteRecord()
+            .bin(binName + "other").hllInit(HllConfig.of(nIndexBits))
+            .bin(binName).hllAdd(entries, HllConfig.of(nIndexBits));
+
+        assertSuccess("other bin", key, builder);
 
         // Exists.
-        Record record = assertSuccess("exists count", key, HLLOperation.getCount(binName));
+        builder = session.upsert(key)
+            .bin(binName).hllGetCount();
+
+        Record record = assertSuccess("exists count", key, builder);
         long count = record.getLong(binName);
         assertHLLCount("check count", nIndexBits, count, entries.size());
 
         // Does not exist.
-        assertSuccess("remove bin", key, Operation.put(Bin.asNull(binName)));
-        record = assertSuccess("exists count", key, HLLOperation.getCount(binName));
+        builder = session.upsert(key)
+            .bin(binName).remove();
+
+        assertSuccess("remove bin", key, builder);
+
+        builder = session.upsert(key)
+            .bin(binName).hllGetCount();
+
+        record = assertSuccess("exists count", key, builder);
         assertEquals(null, record.getValue(binName));
     }
 
@@ -721,20 +825,22 @@ public class OperateHllTest extends ClusterTest {
     public void operateGetUnion() {
         int nIndexBits = 14;
         long expectedUnionCount = 0;
-        ArrayList<List<Value>> vals = new ArrayList<List<Value>>();
+        ArrayList<List<String>> vals = new ArrayList<List<String>>();
         List<HLLValue> hlls = new ArrayList<HLLValue>();
 
         for (int i = 0; i < keys.length; i++) {
-            ArrayList<Value> subVals = new ArrayList<Value>();
+            ArrayList<String> subVals = new ArrayList<>();
 
             for (int j = 0; j < nEntries / 3; j++) {
-                subVals.add(new StringValue("key" + i + " " + j));
+                subVals.add("key" + i + " " + j);
             }
 
-            Record record = assertSuccess("init other keys", keys[i],
-                    Operation.delete(),
-                    HLLOperation.add(HLLPolicy.Default, binName, subVals, nIndexBits),
-                    Operation.get(binName));
+            ChainableOperationBuilder builder = session.upsert(keys[i])
+                .deleteRecord()
+                .bin(binName).hllAdd(subVals, HllConfig.of(nIndexBits))
+                .bin(binName).get();
+
+            Record record = assertSuccess("init other keys", keys[i], builder);
 
             List<?> resultList = record.getList(binName);
             hlls.add((HLLValue)resultList.get(1));
@@ -743,14 +849,18 @@ public class OperateHllTest extends ClusterTest {
         }
 
         // Keep record around win binName is removed.
-        assertSuccess("other bin", key,
-                Operation.delete(),
-                HLLOperation.init(HLLPolicy.Default, binName + "other", nIndexBits),
-                HLLOperation.add(HLLPolicy.Default, binName, vals.get(0), nIndexBits));
+        ChainableOperationBuilder builder = session.upsert(key)
+            .deleteRecord()
+            .bin(binName + "other").hllInit(HllConfig.of(nIndexBits))
+            .bin(binName).hllAdd(vals.get(0), HllConfig.of(nIndexBits));
 
-        Record record = assertSuccess("union and unionCount", key,
-                HLLOperation.getUnion(binName, hlls),
-                HLLOperation.getUnionCount(binName, hlls));
+        assertSuccess("other bin", key, builder);
+
+        builder = session.upsert(key)
+            .bin(binName).hllGetUnion(hlls)
+            .bin(binName).hllGetUnionCount(hlls);
+
+        Record record = assertSuccess("union and unionCount", key, builder);
         List<?> resultList = record.getList(binName);
         long unionCount = (Long)resultList.get(1);
 
@@ -758,13 +868,15 @@ public class OperateHllTest extends ClusterTest {
 
         HLLValue unionHll = (HLLValue)resultList.get(0);
 
-        record = assertSuccess("", key,
-                Operation.put(new Bin(binName, unionHll)),
-                HLLOperation.getCount(binName));
+        builder = session.upsert(key)
+            .bin(binName).setTo(unionHll)
+            .bin(binName).hllGetCount();
+
+        record = assertSuccess("", key, builder);
         resultList = record.getList(binName);
         long unionCount2 = (Long)resultList.get(1);
 
-        assertEquals("unions equal", unionCount, unionCount2);
+        assertEquals(unionCount, unionCount2, "unions equal");
     }
 
     @Test
@@ -773,20 +885,31 @@ public class OperateHllTest extends ClusterTest {
             int nIndexBits = desc.get(0);
             int nMinhashBits = desc.get(1);
 
-            assertSuccess("init record", key,
-                    Operation.delete(), HLLOperation.init(HLLPolicy.Default, binName, nIndexBits, nMinhashBits));
+            ChainableOperationBuilder builder = session.upsert(key)
+                .deleteRecord()
+                .bin(binName).hllInit(HllConfig.of(nIndexBits, nMinhashBits));
 
-            Record record = client.get(null, key);
-            HLLValue hll = record.getHLLValue(binName);
+            assertSuccess("init record", key, builder);
 
-            client.delete(null, key);
-            client.put(null, key, new Bin(binName, hll));
+            RecordStream rs = session.query(key).execute();
+            assertTrue(rs.hasNext());
 
-            record = assertSuccess("describe", key,
-                    HLLOperation.getCount(binName),
-                    HLLOperation.describe(binName));
+            Record rec = rs.next().recordOrThrow();
+            HLLValue hll = rec.getHLLValue(binName);
 
-            List<?> resultList = record.getList(binName);
+            session.delete(key).execute();
+
+            session.upsert(key)
+                .bin(binName).setTo(hll)
+                .execute();
+
+            builder = session.upsert(key)
+                .bin(binName).hllGetCount()
+                .bin(binName).hllDescribe();
+
+            rec = assertSuccess("describe", key, builder);
+
+            List<?> resultList = rec.getList(binName);
             long count = (Long)resultList.get(0);
             List<?> description = (List<?>)resultList.get(1);
 
@@ -823,40 +946,46 @@ public class OperateHllTest extends ClusterTest {
             return;
         }
 
-        assertTrue(msg, simErr6Sigma > Math.abs(expectedSimilarity - similarity));
-        assertTrue(msg, isWithinRelativeError(expectedIntersectCount, intersectCount, simErr6Sigma));
+        assertTrue(simErr6Sigma > Math.abs(expectedSimilarity - similarity), msg);
+        assertTrue(isWithinRelativeError(expectedIntersectCount, intersectCount, simErr6Sigma), msg);
     }
 
-    public void assertSimilarityOp(double overlap, List<Value> common, List<List<Value>> vals, int nIndexBits,
+    public void assertSimilarityOp(double overlap, List<String> common, List<List<String>> vals, int nIndexBits,
             int nMinhashBits) {
         List<HLLValue> hlls = new ArrayList<HLLValue>();
 
         for (int i = 0; i < keys.length; i++) {
-            Record record = assertSuccess("init other keys", keys[i],
-                    Operation.delete(),
-                    HLLOperation.add(HLLPolicy.Default, binName, vals.get(i), nIndexBits, nMinhashBits),
-                    HLLOperation.add(HLLPolicy.Default, binName, common, nIndexBits, nMinhashBits),
-                    Operation.get(binName));
+            ChainableOperationBuilder builder = session.upsert(keys[i])
+                .deleteRecord()
+                .bin(binName).hllAdd(vals.get(i), HllConfig.of(nIndexBits, nMinhashBits))
+                .bin(binName).hllAdd(common, HllConfig.of(nIndexBits, nMinhashBits))
+                .bin(binName).get();
+
+            Record record = assertSuccess("init other keys", keys[i], builder);
 
             List<?> resultList = record.getList(binName);
             hlls.add((HLLValue)resultList.get(2));
         }
 
         // Keep record around win binName is removed.
-        Record record = assertSuccess("other bin", key,
-                Operation.delete(),
-                HLLOperation.init(HLLPolicy.Default, binName + "other", nIndexBits, nMinhashBits),
-                HLLOperation.setUnion(HLLPolicy.Default, binName, hlls),
-                HLLOperation.describe(binName));
-        List<?> resultList = record.getList(binName);
+        ChainableOperationBuilder builder = session.upsert(key)
+            .deleteRecord()
+            .bin(binName + "other").hllInit(HllConfig.of(nIndexBits, nMinhashBits))
+            .bin(binName).hllSetUnion(hlls)
+            .bin(binName).hllDescribe();
+
+        Record rec = assertSuccess("other bin", key, builder);
+        List<?> resultList = rec.getList(binName);
         List<?> description = (List<?>)resultList.get(1);
 
         assertDescription("check desc", description, nIndexBits, nMinhashBits);
 
-        record = assertSuccess("similarity and intersectCount", key,
-                HLLOperation.getSimilarity(binName, hlls),
-                HLLOperation.getIntersectCount(binName, hlls));
-        resultList = record.getList(binName);
+        builder = session.upsert(key)
+            .bin(binName).hllGetSimilarity(hlls)
+            .bin(binName).hllGetIntersectCount(hlls);
+
+        rec = assertSuccess("similarity and intersectCount", key, builder);
+        resultList = rec.getList(binName);
         double sim = (Double)resultList.get(0);
         long intersectCount = (Long)resultList.get(1);
         double expectedSimilarity = overlap;
@@ -872,20 +1001,20 @@ public class OperateHllTest extends ClusterTest {
 
         for (double overlap : overlaps) {
             long expectedIntersectCount = (long)(nEntries * overlap);
-            ArrayList<Value> common = new ArrayList<Value>();
+            ArrayList<String> common = new ArrayList<>();
 
             for (int i = 0; i < expectedIntersectCount; i++) {
-                common.add(new StringValue("common" + i));
+                common.add("common" + i);
             }
 
-            ArrayList<List<Value>> vals = new ArrayList<List<Value>>();
+            ArrayList<List<String>> vals = new ArrayList<List<String>>();
             long uniqueEntriesPerNode = (nEntries - expectedIntersectCount) / 3;
 
             for (int i = 0; i < keys.length; i++) {
-                ArrayList<Value> subVals = new ArrayList<Value>();
+                ArrayList<String> subVals = new ArrayList<>();
 
                 for (int j = 0; j < uniqueEntriesPerNode; j++) {
-                    subVals.add(new StringValue("key" + i + " " + j));
+                    subVals.add("key" + i + " " + j);
                 }
 
                 vals.add(subVals);
@@ -910,29 +1039,33 @@ public class OperateHllTest extends ClusterTest {
             int nIndexBits = desc.get(0);
             int nMinhashBits = desc.get(1);
 
-            Record record = assertSuccess("init", key,
-                    Operation.delete(),
-                    HLLOperation.init(HLLPolicy.Default, binName, nIndexBits, nMinhashBits),
-                    Operation.get(binName));
+            ChainableOperationBuilder builder = session.upsert(key)
+                .deleteRecord()
+                .bin(binName).hllInit(HllConfig.of(nIndexBits, nMinhashBits))
+                .bin(binName).get();
 
-            List<?> resultList = record.getList(binName);
+            Record rec = assertSuccess("init", key, builder);
+
+            List<?> resultList = rec.getList(binName);
             List<HLLValue> hlls = new ArrayList<HLLValue>();
 
             hlls.add((HLLValue)resultList.get(1));
 
-            record = assertSuccess("test", key,
-                    HLLOperation.getSimilarity(binName, hlls),
-                    HLLOperation.getIntersectCount(binName, hlls));
+            builder = session.upsert(key)
+                .bin(binName).hllGetSimilarity(hlls)
+                .bin(binName).hllGetIntersectCount(hlls);
 
-            resultList = record.getList(binName);
+            rec = assertSuccess("test", key, builder);
+
+            resultList = rec.getList(binName);
 
             double sim = (Double)resultList.get(0);
             long intersectCount = (Long)resultList.get(1);
 
             String msg = "(" + nIndexBits + ", " + nMinhashBits + ")";
 
-            assertEquals(msg, 0, intersectCount);
-            assertEquals(msg, Double.NaN, sim, 0.0);
+            assertEquals(0, intersectCount, msg);
+            assertEquals(Double.NaN, sim, 0.0, msg);
         }
     }
 
@@ -948,12 +1081,14 @@ public class OperateHllTest extends ClusterTest {
                 break;
             }
 
-            Record record = assertSuccess("init", key,
-                    Operation.delete(),
-                    HLLOperation.add(HLLPolicy.Default, binName, entries, indexBits, minhashBits),
-                    Operation.get(binName),
-                    HLLOperation.add(HLLPolicy.Default, otherBinName, entries, indexBits, 4),
-                    Operation.get(otherBinName));
+            ChainableOperationBuilder builder = session.upsert(key)
+                .deleteRecord()
+                .bin(binName).hllAdd(entries, HllConfig.of(indexBits, minhashBits))
+                .bin(binName).get()
+                .bin(otherBinName).hllAdd(entries, HllConfig.of(indexBits, 4))
+                .bin(otherBinName).get();
+
+            Record record = assertSuccess("init", key, builder);
 
             List<HLLValue> hlls = new ArrayList<HLLValue>();
             List<HLLValue> hmhs = new ArrayList<HLLValue>();
@@ -966,37 +1101,54 @@ public class OperateHllTest extends ClusterTest {
             hmhs.add((HLLValue)resultList.get(1));
             hmhs.add(hmhs.get(0));
 
-            record = assertSuccess("intersect", key,
-                    HLLOperation.getIntersectCount(binName, hlls),
-                    HLLOperation.getSimilarity(binName, hlls));
+            builder = session.upsert(key)
+                .bin(binName).hllGetIntersectCount(hlls)
+                .bin(binName).hllGetSimilarity(hlls);
+
+            record = assertSuccess("intersect", key, builder);
             resultList = record.getList(binName);
 
             long intersectCount = (Long)resultList.get(0);
 
-            assertTrue("intersect value too high", intersectCount < 1.8 * entries.size());
+            assertTrue(intersectCount < 1.8 * entries.size(), "intersect value too high");
 
             hlls.add(hlls.get(0));
 
-            assertThrows("Expect parameter error", key, AerospikeException.class, ResultCode.PARAMETER_ERROR,
-                    HLLOperation.getIntersectCount(binName, hlls));
-            assertThrows("Expect parameter error", key, AerospikeException.class, ResultCode.PARAMETER_ERROR,
-                    HLLOperation.getSimilarity(binName, hlls));
+            builder = session.upsert(key)
+                .bin(binName).hllGetIntersectCount(hlls);
 
-            record = assertSuccess("intersect", key,
-                    HLLOperation.getIntersectCount(binName, hmhs),
-                    HLLOperation.getSimilarity(binName, hmhs));
+            assertThrows("Expect parameter error", key, AerospikeException.class,
+                ResultCode.PARAMETER_ERROR, builder);
+
+            builder = session.upsert(key)
+                .bin(binName).hllGetSimilarity(hlls);
+
+            assertThrows("Expect parameter error", key, AerospikeException.class,
+                ResultCode.PARAMETER_ERROR, builder);
+
+            builder = session.upsert(key)
+                .bin(binName).hllGetIntersectCount(hmhs)
+                .bin(binName).hllGetSimilarity(hmhs);
+
+            record = assertSuccess("intersect", key, builder);
             resultList = record.getList(binName);
             intersectCount = (Long)resultList.get(0);
 
-            assertTrue("intersect value too high", intersectCount < 1.8 * entries.size());
+            assertTrue(intersectCount < 1.8 * entries.size(), "intersect value too high");
 
             hmhs.add(hmhs.get(0));
 
-            assertThrows("Expect parameter error", key, AerospikeException.class, ResultCode.OP_NOT_APPLICABLE,
-                    HLLOperation.getIntersectCount(binName, hmhs));
-            assertThrows("Expect parameter error", key, AerospikeException.class, ResultCode.OP_NOT_APPLICABLE,
-                    HLLOperation.getSimilarity(binName, hmhs));
+            builder = session.upsert(key)
+                .bin(binName).hllGetIntersectCount(hmhs);
+
+            assertThrows("Expect parameter error", key, AerospikeException.BinOpInvalidException.class,
+                ResultCode.OP_NOT_APPLICABLE, builder);
+
+            builder = session.upsert(key)
+                .bin(binName).hllGetSimilarity(hmhs);
+
+            assertThrows("Expect parameter error", key, AerospikeException.BinOpInvalidException.class,
+                ResultCode.OP_NOT_APPLICABLE, builder);
         }
     }
-    */
 }

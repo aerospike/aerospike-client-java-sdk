@@ -71,7 +71,7 @@ public final class HLLExp {
      * // Add values to HLL bin "a" and check count > 7
      * Exp.gt(
      *   HLLExp.getCount(
-     *     HLLExp.add(HLLPolicy.Default, Exp.val(list), Exp.hllBin("a"))),
+     *     HLLExp.add(HLLWriteFlags.DEFAULT, Exp.val(list), Exp.hllBin("a"))),
      *   Exp.val(7))
      * }</pre>
      *
@@ -91,7 +91,7 @@ public final class HLLExp {
      * // Add values to HLL bin "a" and check count > 7
      * Exp.gt(
      *   HLLExp.getCount(
-     *     HLLExp.add(HLLPolicy.Default, Exp.val(list), Exp.val(10), Exp.hllBin("a"))),
+     *     HLLExp.add(HLLWriteFlags.DEFAULT, Exp.val(list), Exp.val(10), Exp.hllBin("a"))),
      *   Exp.val(7))
      * }</pre>
      *
@@ -112,7 +112,7 @@ public final class HLLExp {
      * // Add values to HLL bin "a" and check count > 7
      * Exp.gt(
      *   HLLExp.getCount(
-     *     HLLExp.add(HLLPolicy.Default, Exp.val(list), Exp.val(10), Exp.val(20), Exp.hllBin("a"))),
+     *     HLLExp.add(HLLWriteFlags.DEFAULT, Exp.val(list), Exp.val(10), Exp.val(20), Exp.hllBin("a"))),
      *   Exp.val(7))
      * }</pre>
      *
