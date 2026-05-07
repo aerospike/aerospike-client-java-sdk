@@ -174,16 +174,6 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
     }
 
     /**
-     * Queues a write that sets this bin to a HLLValue.
-     *
-     * @param value map to store
-     * @return the parent operation builder for chaining
-     */
-    public T setTo(HLLValue value) {
-        return opBuilder.setTo(new Bin(binName, value));
-    }
-
-    /**
      * Queues a write that removes this bin from the record (null bin).
      *
      * @return the parent operation builder for chaining
@@ -2423,6 +2413,16 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
     // ----------------------------------------
 
     /**
+     * Queues a write that sets this bin to a HLLValue.
+     *
+     * @param value HLL value to store
+     * @return the parent operation builder for chaining
+     */
+    public T setTo(Value.HLLValue value) {
+        return opBuilder.setTo(new Bin(binName, value));
+    }
+
+    /**
      * Initialize the HLL bin (write).
      *
      * <p>Creates a new HyperLogLog bin or resets an existing one using the index
@@ -2676,5 +2676,29 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
     public T hllGetSimilarity(List<HLLValue> hlls) {
         Operation op = HLLOperation.getSimilarity(binName, hlls);
         return opBuilder.addOp(op);
+    }
+
+    // ----------------------------------------
+    // GeoJSON
+    // ----------------------------------------
+
+    /**
+     * Queues a write that sets this bin to a GeoJSONValue.
+     *
+     * @param value GeoJSON value to store
+     * @return the parent operation builder for chaining
+     */
+    public T setTo(Value.GeoJSONValue value) {
+        return opBuilder.setTo(new Bin(binName, value));
+    }
+
+    /**
+     * Queues a write that sets this bin to a GeoJSONValue.
+     *
+     * @param value GeoJSON string to store
+     * @return the parent operation builder for chaining
+     */
+    public T setToGeoJson(String value) {
+        return opBuilder.setTo(Bin.asGeoJSON(binName, value));
     }
 }
