@@ -17,6 +17,7 @@
 package com.aerospike.client.sdk;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Objects;
@@ -253,6 +254,24 @@ public final class Record {
      */
     public HLLValue getHLLValue(String name) {
         return (HLLValue)getValue(name);
+    }
+
+    /**
+     * Get the HLL configuration from a bin populated by {@code hllDescribe()}.
+     * Returns an {@link HllConfig} with indexBitCount and minHashBitCount.
+     *
+     * @param binName name of the bin
+     * @return HllConfig, or null if the bin is not present
+     * @throws ClassCastException if the bin value is not a list
+     */
+    public HllConfig getHllConfig(String binName) {
+        List<?> list = getList(binName);
+        if (list == null) {
+            return null;
+        }
+        int indexBitCount = ((Number)list.get(0)).intValue();
+        int minHashBitCount = ((Number)list.get(1)).intValue();
+        return new HllConfig(indexBitCount, minHashBitCount);
     }
 
     /**

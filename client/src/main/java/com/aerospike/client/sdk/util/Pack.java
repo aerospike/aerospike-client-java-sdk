@@ -489,13 +489,13 @@ public final class Pack {
         return packer.getBuffer();
     }
 
-    public static byte[] pack(int command, List<Value> list, int v1, int v2, int v3, CTX... ctx) {
+    public static byte[] pack(int command, List<?> list, int v1, int v2, int v3, CTX... ctx) {
         Packer packer = new Packer();
 
         init(packer, ctx);
         packer.packArrayBegin(5);
         packer.packInt(command);
-        packer.packValueList(list);
+        packer.packList(list);
         packer.packInt(v1);
         packer.packInt(v2);
         packer.packInt(v3);
@@ -505,7 +505,7 @@ public final class Pack {
         init(packer, ctx);
         packer.packArrayBegin(5);
         packer.packInt(command);
-        packer.packValueList(list);
+        packer.packList(list);
         packer.packInt(v1);
         packer.packInt(v2);
         packer.packInt(v3);
