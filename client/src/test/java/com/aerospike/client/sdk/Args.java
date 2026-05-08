@@ -58,7 +58,7 @@ public class Args {
 
     public Args() {
         host = "127.0.0.1";
-        port = 3000;
+        port = 3100;
         namespace = "test";
         set = DataSet.of(namespace, "test");
 
