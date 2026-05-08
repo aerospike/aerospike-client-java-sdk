@@ -183,7 +183,7 @@ public class TxnTest extends ClusterTest {
             assertEquals(ResultCode.MRT_BLOCKED, ae.getResultCode());
         });
     }
-    
+
     @Test
     public void txnWriteRead() {
         Key key = args.set.id("txnWriteRead");

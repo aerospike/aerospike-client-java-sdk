@@ -45,39 +45,11 @@ public final class TxnRoll {
 
         HashMap<String,Partitions> partitionMap = cluster.getPartitionMap();
 
-        String ns = txn.getNamespace();
-        if (ns == null) {
-            ns = deriveNamespaceFromTxnKeys(txn);
-            if (ns != null) {
-                txn.setNamespace(ns);
-            }
-        }
+        this.partitions = partitionMap.get(txn.getNamespace());
 
-        this.partitions = ns == null ? null : partitionMap.get(ns);
-
-        if (ns != null && partitions == null) {
-            throw new AerospikeException.InvalidNamespace(ns, partitionMap.size());
+        if (partitions == null) {
+            throw new AerospikeException.InvalidNamespace(txn.getNamespace(), partitionMap.size());
         }
-    }
-
-    /**
-     * When {@link Txn#setNamespace(String)} has not run yet (e.g. failure before txn monitor write),
-     * recover namespace from keys already tracked on the transaction so {@link #abort} /
-     * {@link #verify} can resolve {@link Partitions}.
-     */
-    private static String deriveNamespaceFromTxnKeys(Txn txn) {
-        for (Key key : txn.getWrites()) {
-            if (key.namespace != null) {
-                return key.namespace;
-            }
-        }
-        for (Map.Entry<Key, Long> e : txn.getReads()) {
-            Key key = e.getKey();
-            if (key.namespace != null) {
-                return key.namespace;
-            }
-        }
-        return null;
     }
 
     public void verify(ResolvedSettings verifyPolicy, ResolvedSettings rollPolicy) {
