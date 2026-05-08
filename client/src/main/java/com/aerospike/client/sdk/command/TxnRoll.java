@@ -34,7 +34,6 @@ import com.aerospike.client.sdk.util.Util;
 
 public final class TxnRoll {
     private final Cluster cluster;
-    /** Null only when {@link Txn#getNamespace()} is unset and no key supplied a namespace to derive. */
     private final Partitions partitions;
     private final Txn txn;
     private List<BatchRecord> verifyRecords;
@@ -91,10 +90,6 @@ public final class TxnRoll {
 
             if (max == 0) {
                 return;
-            }
-
-            if (partitions == null) {
-                throw new AerospikeException.InvalidNamespace(txn.getNamespace(), cluster.getPartitionMap().size());
             }
 
             BatchAttr attr = new BatchAttr();
@@ -156,7 +151,7 @@ public final class TxnRoll {
                 throw createCommitException(parent, CommitError.VERIFY_FAIL_ABORT_ABANDONED, t);
             }
 
-            if (txn.closeMonitor() && partitions != null) {
+            if (txn.closeMonitor()) {
                 try {
                     Key txnKey = TxnMonitor.getTxnMonitorKey(txn);
                     WriteCommand cmd = new WriteCommand(cluster, partitions, txnKey, rollPolicy);
@@ -177,10 +172,6 @@ public final class TxnRoll {
     }
 
     public CommitStatus commit(ResolvedSettings rollPolicy) {
-        if (partitions == null) {
-            throw new AerospikeException.InvalidNamespace(txn.getNamespace(), cluster.getPartitionMap().size());
-        }
-
         Key txnKey = TxnMonitor.getTxnMonitorKey(txn);
         WriteCommand cmd = new WriteCommand(cluster, partitions, txnKey, rollPolicy);
 
@@ -275,7 +266,7 @@ public final class TxnRoll {
             return AbortStatus.ROLL_BACK_ABANDONED;
         }
 
-        if (txn.closeMonitor() && partitions != null) {
+        if (txn.closeMonitor()) {
             try {
                 Key txnKey = TxnMonitor.getTxnMonitorKey(txn);
                 WriteCommand cmd = new WriteCommand(cluster, partitions, txnKey, rollPolicy);
@@ -300,10 +291,6 @@ public final class TxnRoll {
 
         if (max == 0) {
             return;
-        }
-
-        if (partitions == null) {
-            throw new AerospikeException.InvalidNamespace(txn.getNamespace(), cluster.getPartitionMap().size());
         }
 
         BatchAttr attr = new BatchAttr();

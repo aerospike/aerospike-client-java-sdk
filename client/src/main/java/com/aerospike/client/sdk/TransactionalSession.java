@@ -64,7 +64,6 @@ import com.aerospike.client.sdk.policy.ResolvedSettings;
  * @since 1.0
  */
 public class TransactionalSession extends Session{
-    /** Replaced with a new {@link Txn} after each aborted attempt when the outermost transaction retries. */
     private Txn txn;
     private int count = 0;
 
