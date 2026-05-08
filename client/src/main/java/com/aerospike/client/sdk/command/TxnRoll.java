@@ -34,6 +34,7 @@ import com.aerospike.client.sdk.util.Util;
 
 public final class TxnRoll {
     private final Cluster cluster;
+    /** Null only when {@link Txn#getNamespace()} is unset and no key supplied a namespace to derive. */
     private final Partitions partitions;
     private final Txn txn;
     private List<BatchRecord> verifyRecords;
@@ -45,11 +46,39 @@ public final class TxnRoll {
 
         HashMap<String,Partitions> partitionMap = cluster.getPartitionMap();
 
-        this.partitions = partitionMap.get(txn.getNamespace());
-
-        if (partitions == null) {
-            throw new AerospikeException.InvalidNamespace(txn.getNamespace(), partitionMap.size());
+        String ns = txn.getNamespace();
+        if (ns == null) {
+            ns = deriveNamespaceFromTxnKeys(txn);
+            if (ns != null) {
+                txn.setNamespace(ns);
+            }
         }
+
+        this.partitions = ns == null ? null : partitionMap.get(ns);
+
+        if (ns != null && partitions == null) {
+            throw new AerospikeException.InvalidNamespace(ns, partitionMap.size());
+        }
+    }
+
+    /**
+     * When {@link Txn#setNamespace(String)} has not run yet (e.g. failure before txn monitor write),
+     * recover namespace from keys already tracked on the transaction so {@link #abort} /
+     * {@link #verify} can resolve {@link Partitions}.
+     */
+    private static String deriveNamespaceFromTxnKeys(Txn txn) {
+        for (Key key : txn.getWrites()) {
+            if (key.namespace != null) {
+                return key.namespace;
+            }
+        }
+        for (Map.Entry<Key, Long> e : txn.getReads()) {
+            Key key = e.getKey();
+            if (key.namespace != null) {
+                return key.namespace;
+            }
+        }
+        return null;
     }
 
     public void verify(ResolvedSettings verifyPolicy, ResolvedSettings rollPolicy) {
@@ -62,6 +91,10 @@ public final class TxnRoll {
 
             if (max == 0) {
                 return;
+            }
+
+            if (partitions == null) {
+                throw new AerospikeException.InvalidNamespace(txn.getNamespace(), cluster.getPartitionMap().size());
             }
 
             BatchAttr attr = new BatchAttr();
@@ -123,7 +156,7 @@ public final class TxnRoll {
                 throw createCommitException(parent, CommitError.VERIFY_FAIL_ABORT_ABANDONED, t);
             }
 
-            if (txn.closeMonitor()) {
+            if (txn.closeMonitor() && partitions != null) {
                 try {
                     Key txnKey = TxnMonitor.getTxnMonitorKey(txn);
                     WriteCommand cmd = new WriteCommand(cluster, partitions, txnKey, rollPolicy);
@@ -144,6 +177,10 @@ public final class TxnRoll {
     }
 
     public CommitStatus commit(ResolvedSettings rollPolicy) {
+        if (partitions == null) {
+            throw new AerospikeException.InvalidNamespace(txn.getNamespace(), cluster.getPartitionMap().size());
+        }
+
         Key txnKey = TxnMonitor.getTxnMonitorKey(txn);
         WriteCommand cmd = new WriteCommand(cluster, partitions, txnKey, rollPolicy);
 
@@ -238,7 +275,7 @@ public final class TxnRoll {
             return AbortStatus.ROLL_BACK_ABANDONED;
         }
 
-        if (txn.closeMonitor()) {
+        if (txn.closeMonitor() && partitions != null) {
             try {
                 Key txnKey = TxnMonitor.getTxnMonitorKey(txn);
                 WriteCommand cmd = new WriteCommand(cluster, partitions, txnKey, rollPolicy);
@@ -263,6 +300,10 @@ public final class TxnRoll {
 
         if (max == 0) {
             return;
+        }
+
+        if (partitions == null) {
+            throw new AerospikeException.InvalidNamespace(txn.getNamespace(), cluster.getPartitionMap().size());
         }
 
         BatchAttr attr = new BatchAttr();
