@@ -50,6 +50,7 @@ import com.aerospike.client.sdk.query.QueryStringTest;
     BitExpTest.class,
 //  CdtExpTest.class,
 //  CdtOperateTest.class,
+    ConnectionPoolSettingsIntegrationTest.class,
     DeleteBinTest.class,
     ExpireTest.class,
     ExpOperationTest.class,
