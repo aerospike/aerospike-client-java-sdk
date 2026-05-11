@@ -958,7 +958,6 @@ public class AerospikeException extends RuntimeException {
         case ResultCode.SERVER_MEM_ERROR:
         case ResultCode.DEVICE_OVERLOAD:
         case ResultCode.NO_MORE_CONNECTIONS:
-        case ResultCode.ASYNC_QUEUE_FULL:
         case ResultCode.BATCH_QUEUES_FULL:
         case ResultCode.BATCH_MAX_REQUESTS_EXCEEDED:
             return new CapacityException(resultCode, message, inDoubt);
