@@ -64,7 +64,7 @@ import com.aerospike.client.sdk.policy.ResolvedSettings;
  * @since 1.0
  */
 public class TransactionalSession extends Session{
-    private final Txn txn;
+    private Txn txn;
     private int count = 0;
 
     /**
@@ -154,6 +154,7 @@ public class TransactionalSession extends Session{
 
                         if (retryCommit(ae) && attempt < maxAttempts) {
                             sleepBetweenRetries(sleepBetweenAttempts);
+                            txn = new Txn();
                             continue;
                         }
                         throw ae;
@@ -233,6 +234,7 @@ public class TransactionalSession extends Session{
 
                         if (retryCommit(ae) && attempt < maxAttempts) {
                             sleepBetweenRetries(sleepBetweenAttempts);
+                            txn = new Txn();
                             continue;
                         }
                         throw ae;
