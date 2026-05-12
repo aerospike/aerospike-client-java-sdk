@@ -123,7 +123,7 @@ public abstract class Unpacker<T> {
 
     public final T unpackMap() {
         if (length <= 0) {
-            return getMap(new AerospikeMap<T,T>(AerospikeMap.Type.UNORDERED, 0));
+            return getMap(AerospikeMap.of(AerospikeMap.Type.HASH, 0));
         }
 
         try {
@@ -142,7 +142,7 @@ public abstract class Unpacker<T> {
                 offset += 4;
             }
             else {
-                return getMap(new AerospikeMap<T,T>(AerospikeMap.Type.UNORDERED, 0));
+                return getMap(AerospikeMap.of(AerospikeMap.Type.HASH, 0));
             }
             return unpackMap(count);
         }
@@ -153,7 +153,7 @@ public abstract class Unpacker<T> {
 
     private T unpackMap(int count) throws IOException, ClassNotFoundException {
         if (count <= 0) {
-            return getMap(new AerospikeMap<T,T>(AerospikeMap.Type.UNORDERED, 0));
+            return getMap(AerospikeMap.of(AerospikeMap.Type.HASH, 0));
         }
 
         // Peek at buffer to determine map type, but do not advance.
@@ -179,11 +179,11 @@ public abstract class Unpacker<T> {
                 }
             }
         }
-        return unpackMap(AerospikeMap.Type.UNORDERED, count);
+        return unpackMap(AerospikeMap.Type.HASH, count);
     }
 
     private T unpackMap(AerospikeMap.Type type, int count) throws IOException, ClassNotFoundException {
-        AerospikeMap<T,T> map = new AerospikeMap<T,T>(type, count);
+        AerospikeMap<T,T> map = AerospikeMap.of(type, count);
 
         for (int i = 0; i < count; i++) {
             T key = unpackObject();

@@ -108,7 +108,7 @@ public class ListMapTest extends ClusterTest {
 
         session.delete(key).execute();
 
-        AerospikeMap<String,Integer> map = new AerospikeMap<>(AerospikeMap.Type.UNORDERED, 16);
+        AerospikeMap<String,Integer> map = AerospikeMap.of(AerospikeMap.Type.HASH, 16);
         map.put("joe", 90);
         map.put("jim", 76);
         map.put("charlie", 78);
@@ -129,7 +129,7 @@ public class ListMapTest extends ClusterTest {
         assertEquals(90L, receivedMap.get("joe"));
         assertEquals(76L, receivedMap.get("jim"));
         assertEquals(78L, receivedMap.get("charlie"));
-        assertEquals(AerospikeMap.Type.UNORDERED, receivedMap.getType());
+        assertEquals(AerospikeMap.Type.HASH, receivedMap.getType());
     }
 
     @Test
@@ -139,7 +139,7 @@ public class ListMapTest extends ClusterTest {
 
         session.delete(key).execute();
 
-        AerospikeMap<String,Integer> map = new AerospikeMap<>(AerospikeMap.Type.LINKED, 16);
+        AerospikeMap<String,Integer> map = AerospikeMap.of(AerospikeMap.Type.LINKED, 16);
         map.put("charlie", 78);
         map.put("jim", 76);
         map.put("joe", 90);
@@ -432,7 +432,7 @@ public class ListMapTest extends ClusterTest {
 
         session.delete(key).execute();
 
-        AerospikeMap<Integer,String> map = new AerospikeMap<>(AerospikeMap.Type.LINKED, 10);
+        AerospikeMap<Integer,String> map = AerospikeMap.of(AerospikeMap.Type.LINKED, 10);
         map.put(1, "s1");
         map.put(2, "s2");
         map.put(3, "s3");

@@ -188,12 +188,12 @@ public final class Packer {
     }
 
     public void packMap(AerospikeMap<?,?> map) {
-        if (map.getType() == AerospikeMap.Type.UNORDERED) {
+        if (map.getType() == AerospikeMap.Type.HASH) {
             // TODO Sort unordered maps here?
             packMap(map.getMap(), MapOrder.UNORDERED);
         }
         else {
-            packMapBegin(map.size(), MapOrder.KEY_ORDERED, map.isPersistIndex());
+            packMapBegin(map.size(), map.getOrder(), map.isPersistIndex());
 
             for (Entry<?,?> entry : map.entrySet()) {
                 packObject(entry.getKey());
