@@ -60,6 +60,17 @@ public class Cluster implements Closeable {
      */
     public static final Duration INDEX_REFRESH = Duration.ofSeconds(5);
 
+    /**
+     * System property for {@link #versionSupportsServerCompiledFilterExpression(Version)} override
+     * (use with Maven {@code -Daerospike.serverCompiledFilterExpression=false}).
+     */
+    public static final String SERVER_COMPILED_FILTER_EXPRESSION_PROPERTY = "aerospike.serverCompiledFilterExpression";
+
+    /**
+     * Environment variable for the same override (e.g. {@code export AEROSPIKE_SERVER_COMPILED_FILTER_EXPRESSION=false}).
+     */
+    public static final String SERVER_COMPILED_FILTER_EXPRESSION_ENV = "AEROSPIKE_SERVER_COMPILED_FILTER_EXPRESSION";
+
     ClusterDefinition def;
     ClusterTend tend;
     volatile Node[] nodes;
@@ -602,6 +613,12 @@ public class Cluster implements Closeable {
      * Whether this cluster's tended minimum server version allows the server-side DSL/AEL compile wire shape
      * for filter field 43 ({@code [128, source]} MessagePack root).
      *
+     * <p>Override (ignores tended version): set system property {@value #SERVER_COMPILED_FILTER_EXPRESSION_PROPERTY}
+     * or environment variable {@value #SERVER_COMPILED_FILTER_EXPRESSION_ENV} to {@code true}/{@code false}
+     * (also {@code 1}/{@code 0}, {@code yes}/{@code no}, {@code on}/{@code off}). Resolution order is
+     * system property first, then environment variable. When neither is set, requires cluster
+     * minimum version {@link Version#SERVER_VERSION_8_4} or newer.</p>
+     *
      * @see com.aerospike.client.sdk.exp.Expression#fromServerCompiledFilter(String)
      */
     public boolean supportsServerCompiledFilterExpression() {
@@ -611,9 +628,41 @@ public class Cluster implements Closeable {
     /**
      * Predicate for the minimum {@link Version} required for server-side DSL/AEL on filter field 43.
      * Package-private for unit tests; applications should use {@link #supportsServerCompiledFilterExpression()}.
+     *
+     * @see #SERVER_COMPILED_FILTER_EXPRESSION_PROPERTY
+     * @see #SERVER_COMPILED_FILTER_EXPRESSION_ENV
      */
     static boolean versionSupportsServerCompiledFilterExpression(Version clusterMinVersion) {
-        return true; //clusterMinVersion != null && clusterMinVersion.isGreaterOrEqual(Version.SERVER_VERSION_8_4);
+        Boolean override = parseServerCompiledFilterExpressionOverride();
+        if (override != null) {
+            return override;
+        }
+        return clusterMinVersion != null && clusterMinVersion.isGreaterOrEqual(Version.SERVER_VERSION_8_4);
+    }
+
+    /**
+     * Optional {@code true}/{@code false} from {@value #SERVER_COMPILED_FILTER_EXPRESSION_PROPERTY} then
+     * {@value #SERVER_COMPILED_FILTER_EXPRESSION_ENV}; unrecognized values are ignored (fall back to version).
+     */
+    private static Boolean parseServerCompiledFilterExpressionOverride() {
+        String raw = System.getProperty(SERVER_COMPILED_FILTER_EXPRESSION_PROPERTY);
+        if (raw == null || raw.isBlank()) {
+            raw = System.getenv(SERVER_COMPILED_FILTER_EXPRESSION_ENV);
+        }
+        if (raw == null) {
+            return null;
+        }
+        raw = raw.trim();
+        if (raw.isEmpty()) {
+            return null;
+        }
+        if (raw.equalsIgnoreCase("true") || raw.equals("1") || raw.equalsIgnoreCase("yes") || raw.equalsIgnoreCase("on")) {
+            return Boolean.TRUE;
+        }
+        if (raw.equalsIgnoreCase("false") || raw.equals("0") || raw.equalsIgnoreCase("no") || raw.equalsIgnoreCase("off")) {
+            return Boolean.FALSE;
+        }
+        return null;
     }
 
     /**

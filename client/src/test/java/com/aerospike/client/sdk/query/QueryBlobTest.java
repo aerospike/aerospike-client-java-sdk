@@ -37,7 +37,7 @@ import com.aerospike.client.sdk.RecordStream;
 import com.aerospike.client.sdk.ResultCode;
 import com.aerospike.client.sdk.command.Buffer;
 
-@Disabled("Server parse failure for blobs")
+//@Disabled("Server parse failure for blobs")
 public class QueryBlobTest extends ClusterTest {
     private static final String setName = "queryblob";
     private static final String indexName = "qbindex";
