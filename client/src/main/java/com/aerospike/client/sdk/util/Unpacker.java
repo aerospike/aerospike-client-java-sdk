@@ -18,6 +18,7 @@ package com.aerospike.client.sdk.util;
 
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -26,6 +27,7 @@ import com.aerospike.client.sdk.AerospikeList;
 import com.aerospike.client.sdk.AerospikeMap;
 import com.aerospike.client.sdk.Value;
 import com.aerospike.client.sdk.cdt.ListOrder;
+import com.aerospike.client.sdk.cdt.MapOrder;
 import com.aerospike.client.sdk.command.Buffer;
 import com.aerospike.client.sdk.command.ParticleType;
 
@@ -123,7 +125,7 @@ public abstract class Unpacker<T> {
 
     public final T unpackMap() {
         if (length <= 0) {
-            return getMap(AerospikeMap.of(AerospikeMap.Type.HASH, 0));
+            return getMap(AerospikeMap.of(MapOrder.UNORDERED, 0));
         }
 
         try {
@@ -142,7 +144,7 @@ public abstract class Unpacker<T> {
                 offset += 4;
             }
             else {
-                return getMap(AerospikeMap.of(AerospikeMap.Type.HASH, 0));
+                return getMap(AerospikeMap.of(MapOrder.UNORDERED, 0));
             }
             return unpackMap(count);
         }
@@ -153,7 +155,7 @@ public abstract class Unpacker<T> {
 
     private T unpackMap(int count) throws IOException, ClassNotFoundException {
         if (count <= 0) {
-            return getMap(AerospikeMap.of(AerospikeMap.Type.HASH, 0));
+            return getMap(AerospikeMap.of(MapOrder.UNORDERED, 0));
         }
 
         // Peek at buffer to determine map type, but do not advance.
@@ -165,25 +167,32 @@ public abstract class Unpacker<T> {
 
             if (extensionType == 0) {
                 int mapBits = buffer[offset + 2] & 0xff;
+                System.out.println("READ attr=" +  mapBits);
 
                 // Extension is a map type.  Determine which one.
-                if ((mapBits & 0x08) != 0 && !Value.ReturnMapForKeyValue) {
-                    // Index/rank range result where order needs to be preserved.
-                    // Use LinkedHashMap since it preserves insertion order.
-                    return unpackMap(AerospikeMap.Type.LINKED, count);
-                }
-                else if ((mapBits & 0x01) != 0) {
-                    // Sorted map. Use LinkedHashMap since the wire entries are
-                    // already sorted and LinkedHashMap preserves insertion order.
-                    return unpackMap(AerospikeMap.Type.LINKED, count);
+                int orderBits = mapBits & 0x03;
+
+                if (orderBits != 0) {
+                    // Map is ordered.
+                    MapOrder order = (orderBits == 3) ?
+                        MapOrder.KEY_VALUE_ORDERED : MapOrder.KEY_ORDERED;
+
+                    boolean persistIndex = (mapBits & 0x10) != 0;
+
+                    // Use LinkedHashMap since the wire entries are already sorted
+                    // and LinkedHashMap preserves insertion order.
+                    return unpackLinkedHashMap(order, persistIndex, count);
                 }
             }
         }
-        return unpackMap(AerospikeMap.Type.HASH, count);
+
+        return unpackHashMap(count);
     }
 
-    private T unpackMap(AerospikeMap.Type type, int count) throws IOException, ClassNotFoundException {
-        AerospikeMap<T,T> map = AerospikeMap.of(type, count);
+    private T unpackHashMap(int count)
+        throws IOException, ClassNotFoundException {
+
+        AerospikeMap<T,T> map = AerospikeMap.of(MapOrder.UNORDERED, count);
 
         for (int i = 0; i < count; i++) {
             T key = unpackObject();
@@ -193,6 +202,25 @@ public abstract class Unpacker<T> {
                 map.put(key, val);
             }
         }
+
+        return getMap(map);
+    }
+
+    private T unpackLinkedHashMap(MapOrder order, boolean persistIndex, int count)
+        throws IOException, ClassNotFoundException {
+
+        LinkedHashMap<T,T> linked = new LinkedHashMap<>(count);
+
+        for (int i = 0; i < count; i++) {
+            T key = unpackObject();
+            T val = unpackObject();
+
+            if (key != null) {
+                linked.put(key, val);
+            }
+        }
+
+        AerospikeMap<T,T> map = AerospikeMap.forInternalUnpack(linked, order, persistIndex);
         return getMap(map);
     }
 

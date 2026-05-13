@@ -188,7 +188,7 @@ public final class Packer {
     }
 
     public void packMap(AerospikeMap<?,?> map) {
-        if (map.getType() == AerospikeMap.Type.HASH) {
+        if (map.getOrder() == MapOrder.UNORDERED) {
             // TODO Sort unordered maps here?
             packMap(map.getMap(), MapOrder.UNORDERED);
         }
@@ -232,6 +232,7 @@ public final class Packer {
         else {
             // Map is sorted.
             int attr = persistIndex ? order.attributes | 0x10 : order.attributes;
+            System.out.println("WRITE persistIndex=" + persistIndex + " attr=" + attr);
 
             packMapBegin(size + 1);
             // Pack key field.

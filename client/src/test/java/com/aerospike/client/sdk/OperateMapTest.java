@@ -1186,7 +1186,7 @@ public class OperateMapTest extends ClusterTest {
         m1.put(3, "order");
         m1.put(2, "key");
 
-        AerospikeMap<String,Map<Integer,String>> inputMap = AerospikeMap.of(AerospikeMap.Type.TREE, 10);
+        AerospikeMap<String,Map<Integer,String>> inputMap = AerospikeMap.of(MapOrder.KEY_ORDERED, 10);
         inputMap.put("first", m1);
 
         // Create nested maps that are all sorted and lookup by map value.
