@@ -25,6 +25,8 @@ import java.util.TreeMap;
 
 import org.junit.jupiter.api.Test;
 
+import com.aerospike.client.sdk.cdt.MapOrder;
+
 public class MapExpTest extends ClusterTest {
     @Test
     public void sortedMapEquality() {
@@ -57,7 +59,7 @@ public class MapExpTest extends ClusterTest {
         // A sorted map is returned as a LinkedHashMap for performance.
         // The response is ordered, so the LinkedHashMap insertion order
         // will match the sort order.
-        assertEquals(AerospikeMap.Type.LINKED, m.getType());
+        assertEquals(MapOrder.KEY_ORDERED, m.getOrder());
     }
 
     @Test

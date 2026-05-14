@@ -31,6 +31,8 @@ import java.util.TreeMap;
 
 import org.junit.jupiter.api.Test;
 
+import com.aerospike.client.sdk.cdt.MapOrder;
+
 public class ListMapTest extends ClusterTest {
     @Test
     public void aerospikeListBinsValues() {
@@ -108,7 +110,7 @@ public class ListMapTest extends ClusterTest {
 
         session.delete(key).execute();
 
-        AerospikeMap<String,Integer> map = new AerospikeMap<>(AerospikeMap.Type.UNORDERED, 16);
+        AerospikeMap<String,Integer> map = AerospikeMap.of(MapOrder.UNORDERED, 16);
         map.put("joe", 90);
         map.put("jim", 76);
         map.put("charlie", 78);
@@ -129,7 +131,7 @@ public class ListMapTest extends ClusterTest {
         assertEquals(90L, receivedMap.get("joe"));
         assertEquals(76L, receivedMap.get("jim"));
         assertEquals(78L, receivedMap.get("charlie"));
-        assertEquals(AerospikeMap.Type.UNORDERED, receivedMap.getType());
+        assertEquals(MapOrder.UNORDERED, receivedMap.getOrder());
     }
 
     @Test
@@ -139,7 +141,7 @@ public class ListMapTest extends ClusterTest {
 
         session.delete(key).execute();
 
-        AerospikeMap<String,Integer> map = new AerospikeMap<>(AerospikeMap.Type.LINKED, 16);
+        AerospikeMap<String,Integer> map = AerospikeMap.of(MapOrder.KEY_ORDERED, 16);
         map.put("charlie", 78);
         map.put("jim", 76);
         map.put("joe", 90);
@@ -159,7 +161,7 @@ public class ListMapTest extends ClusterTest {
         assertEquals(90L, receivedMap.get("joe"));
         assertEquals(76L, receivedMap.get("jim"));
         assertEquals(78L, receivedMap.get("charlie"));
-        assertEquals(AerospikeMap.Type.LINKED, receivedMap.getType());
+        assertEquals(MapOrder.KEY_ORDERED, receivedMap.getOrder());
     }
 
     @Test
@@ -432,7 +434,8 @@ public class ListMapTest extends ClusterTest {
 
         session.delete(key).execute();
 
-        AerospikeMap<Integer,String> map = new AerospikeMap<>(AerospikeMap.Type.LINKED, 10);
+        AerospikeMap<Integer,String> map = AerospikeMap.of(MapOrder.KEY_VALUE_ORDERED, 10);
+        map.persistIndex();
         map.put(1, "s1");
         map.put(2, "s2");
         map.put(3, "s3");
@@ -457,5 +460,9 @@ public class ListMapTest extends ClusterTest {
         assertEquals("s1", receivedMap.get((long)1));
         assertEquals("s2", receivedMap.get((long)2));
         assertEquals("s3", receivedMap.get((long)3));
+        assertEquals(MapOrder.KEY_VALUE_ORDERED, receivedMap.getOrder());
+
+        // persistIndex is not currently returned by the server.
+        // assertTrue(receivedMap.isPersistIndex());
     }
 }

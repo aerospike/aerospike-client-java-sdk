@@ -21,7 +21,7 @@ package com.aerospike.client.sdk.cdt;
  */
 public enum MapOrder {
     /**
-     * Map is not ordered.  This is the default.
+     * Map is not ordered.
      */
     UNORDERED(0, 0x40),
 
@@ -31,7 +31,8 @@ public enum MapOrder {
     KEY_ORDERED(1, 0x80),
 
     /**
-     * Order map by key, then value.
+     * Order map by key and create a separate value index for use in map operations
+     * that lookup by value.
      */
     KEY_VALUE_ORDERED(3, 0xc0);
 
