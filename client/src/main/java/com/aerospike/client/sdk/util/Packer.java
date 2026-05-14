@@ -232,7 +232,6 @@ public final class Packer {
         else {
             // Map is sorted.
             int attr = persistIndex ? order.attributes | 0x10 : order.attributes;
-            System.out.println("WRITE persistIndex=" + persistIndex + " attr=" + attr);
 
             packMapBegin(size + 1);
             // Pack key field.

@@ -167,7 +167,6 @@ public abstract class Unpacker<T> {
 
             if (extensionType == 0) {
                 int mapBits = buffer[offset + 2] & 0xff;
-                System.out.println("READ attr=" +  mapBits);
 
                 // Extension is a map type.  Determine which one.
                 int orderBits = mapBits & 0x03;
@@ -177,6 +176,9 @@ public abstract class Unpacker<T> {
                     MapOrder order = (orderBits == 3) ?
                         MapOrder.KEY_VALUE_ORDERED : MapOrder.KEY_ORDERED;
 
+                    // persistIndex bit is not currently returned by the server.
+                    // Leave this code in place in case the server returns it
+                    // in the future.
                     boolean persistIndex = (mapBits & 0x10) != 0;
 
                     // Use LinkedHashMap since the wire entries are already sorted

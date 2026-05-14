@@ -162,7 +162,6 @@ public final class AerospikeMap<K,V> implements Map<K,V> {
     }
 
     private AerospikeMap(LinkedHashMap<K,V> map, MapOrder order, boolean persistIndex) {
-        System.out.println("ORDER=" + order + " PERSIST=" + persistIndex);
         this.map = map;
         this.backing = Backing.LINKED;
         this.order = order;
@@ -205,9 +204,8 @@ public final class AerospikeMap<K,V> implements Map<K,V> {
     }
 
     /**
-     * Request that a map index be persisted when encoding non-{@link Backing#HASH} maps. A persisted
-     * index can improve lookup performance on the server at the cost of extra storage. Hash maps
-     * ignore this flag when packed.
+     * Request that a map index be persisted when encoding {@link MapOrder#KEY_VALUE_ORDERED}
+     * maps. A persisted index can improve lookup performance on the server at the cost of extra storage.
      *
      * @return this instance for chaining
      */
