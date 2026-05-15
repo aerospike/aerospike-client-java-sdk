@@ -24,6 +24,7 @@ import java.util.concurrent.TimeUnit;
 
 import com.aerospike.ael.Index;
 import com.aerospike.client.sdk.query.IndexType;
+import com.aerospike.client.sdk.util.Util;
 
 /**
  * Monitors secondary indexes in an Aerospike cluster and maintains an up-to-date
@@ -142,7 +143,7 @@ class IndexesMonitor {
                         break;
                     }
                     catch (Throwable th) {
-                        Log.error("Error updating index information: " + th.getMessage());
+                        Log.error("Error updating index information: " + Util.getErrorMessage(th));
                         initialFetchLatch.countDown();
                         try {
                             Thread.sleep(frequency.toMillis());
