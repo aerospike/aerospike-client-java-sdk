@@ -29,6 +29,11 @@ import java.util.SortedMap;
  */
 public final class Bin {
     /**
+     * Maximum bin name length.
+     */
+    public static final int MAX_BIN_NAME_LENGTH = 15;
+
+    /**
      * Bin name. Current limit is 15 characters.
      */
     public final String name;
