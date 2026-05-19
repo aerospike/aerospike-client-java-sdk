@@ -32,7 +32,7 @@ import com.aerospike.client.sdk.cdt.MapOrder;
  * hence returns a CdtSetter* method.
  * <p/>
  * Note that some methods are invertable (ie can support the INVERTED flag) and others aren't.
- * For example, onMapIndex returns a single value, hence cannot support the INVERTED flag. 
+ * For example, onMapIndex returns a single value, hence cannot support the INVERTED flag.
  * onMapValue returns a list of values and hence can be inverted.
  * <p/>
  * Note that this is a paired interface with {@link CdtContextInvertableBuilder} and they have exactly
@@ -230,6 +230,13 @@ public interface CdtContextInvertableBuilder<T extends AbstractOperationBuilder<
     public T listAppend(byte[] value, Consumer<ListEntryWriteOptions> options);
     public T listAppend(List<?> value, Consumer<ListEntryWriteOptions> options);
     public T listAppend(Map<?,?> value, Consumer<ListEntryWriteOptions> options);
+    public T listAppend(long value, ListEntryWriteOptions options);
+    public T listAppend(String value, ListEntryWriteOptions options);
+    public T listAppend(double value, ListEntryWriteOptions options);
+    public T listAppend(boolean value, ListEntryWriteOptions options);
+    public T listAppend(byte[] value, ListEntryWriteOptions options);
+    public T listAppend(List<?> value, ListEntryWriteOptions options);
+    public T listAppend(Map<?,?> value, ListEntryWriteOptions options);
 
     // listAdd -- ordered list
     public T listAdd(long value);
@@ -246,12 +253,21 @@ public interface CdtContextInvertableBuilder<T extends AbstractOperationBuilder<
     public T listAdd(byte[] value, Consumer<ListEntryWriteOptions> options);
     public T listAdd(List<?> value, Consumer<ListEntryWriteOptions> options);
     public T listAdd(Map<?,?> value, Consumer<ListEntryWriteOptions> options);
+    public T listAdd(long value, ListEntryWriteOptions options);
+    public T listAdd(String value, ListEntryWriteOptions options);
+    public T listAdd(double value, ListEntryWriteOptions options);
+    public T listAdd(boolean value, ListEntryWriteOptions options);
+    public T listAdd(byte[] value, ListEntryWriteOptions options);
+    public T listAdd(List<?> value, ListEntryWriteOptions options);
+    public T listAdd(Map<?,?> value, ListEntryWriteOptions options);
 
     // listAppendItems / listAddItems -- bulk list operations
     public T listAppendItems(List<?> items);
     public T listAppendItems(List<?> items, Consumer<ListBulkWriteOptions> options);
+    public T listAppendItems(List<?> items, ListBulkWriteOptions options);
     public T listAddItems(List<?> items);
     public T listAddItems(List<?> items, Consumer<ListBulkWriteOptions> options);
+    public T listAddItems(List<?> items, ListBulkWriteOptions options);
 
     // list structural operations
     public T listClear();
@@ -259,6 +275,7 @@ public interface CdtContextInvertableBuilder<T extends AbstractOperationBuilder<
     public T listSort(int sortFlags);
     public T listCreate(ListOrder order);
     public T listCreate(ListOrder order, Consumer<ListCreateOptions> options);
+    public T listCreate(ListOrder order, ListCreateOptions options);
     public T listSetOrder(ListOrder order);
     public T listSetOrder(ListOrder order, boolean persistIndex);
 
@@ -272,6 +289,7 @@ public interface CdtContextInvertableBuilder<T extends AbstractOperationBuilder<
     public T listInsert(int index, Map<?,?> value);
     public T listInsertItems(int index, List<?> items);
     public T listInsertItems(int index, List<?> items, Consumer<ListBulkWriteOptions> options);
+    public T listInsertItems(int index, List<?> items, ListBulkWriteOptions options);
     public T listSet(int index, long value);
     public T listSet(int index, String value);
     public T listSet(int index, double value);
@@ -301,9 +319,11 @@ public interface CdtContextInvertableBuilder<T extends AbstractOperationBuilder<
     // bulk map write operations
     public T mapUpsertItems(Map<?, ?> items);
     public T mapUpsertItems(Map<?, ?> items, Consumer<MapBulkWriteOptions> options);
+    public T mapUpsertItems(Map<?, ?> items, MapBulkWriteOptions options);
     public T mapInsertItems(Map<?, ?> items);
     public T mapInsertItems(Map<?, ?> items, Consumer<MapBulkWriteOptions> options);
+    public T mapInsertItems(Map<?, ?> items, MapBulkWriteOptions options);
     public T mapUpdateItems(Map<?, ?> items);
     public T mapUpdateItems(Map<?, ?> items, Consumer<MapBulkWriteOptions> options);
-
+    public T mapUpdateItems(Map<?, ?> items, MapBulkWriteOptions options);
 }
