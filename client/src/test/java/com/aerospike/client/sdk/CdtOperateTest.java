@@ -1545,7 +1545,6 @@ public class CdtOperateTest extends ClusterTest {
         assertEquals(1, finalEngList.size(), "Should keep Alice only");
     }
 
-    /*
     @Test
     public void testOperateWithNoOperations() {
         Key rkey = args.set.id("testOperateWithNoOperations");
@@ -1566,7 +1565,9 @@ public class CdtOperateTest extends ClusterTest {
         assertTrue(record != null, "Record should exist");
 
         try {
-            session.upsert(null, rkey);
+            // TODO: BN: Why is the "null" here? 
+            // session.upsert(null, rkey).execute();
+            session.upsert(rkey).execute();
             assertTrue(false, "Should throw AerospikeException with PARAMETER_ERROR");
         }
         catch (AerospikeException e) {
@@ -1574,6 +1575,8 @@ public class CdtOperateTest extends ClusterTest {
         }
     }
 
+    /*
+    // This test has no equivalent in the SDK because a NULL context cannot be specified
     @Test
     public void testSelectByPathWithNullContext() {
         Key rkey = args.set.id("testSelectByPathWithNullContext");
@@ -1603,7 +1606,7 @@ public class CdtOperateTest extends ClusterTest {
             assertEquals(com.aerospike.client.sdk.ResultCode.PARAMETER_ERROR, e.getResultCode(), "Should be PARAMETER_ERROR");
         }
     }
-
+    // This test has no equivalent in the SDK because an empty context cannot be specified
     @Test
     public void testSelectByPathWithNoContexts() {
         Key rkey = args.set.id("testSelectByPathWithNoContexts");
@@ -1634,6 +1637,7 @@ public class CdtOperateTest extends ClusterTest {
         }
     }
 
+    // This test has no equivalent in the SDK because an empty context array cannot be specified
     @Test
     public void testSelectByPathWithEmptyContextArray() {
         Key rkey = args.set.id("testSelectByPathWithEmptyContextArray");
