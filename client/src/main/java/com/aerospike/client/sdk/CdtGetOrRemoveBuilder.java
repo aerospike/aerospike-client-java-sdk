@@ -505,8 +505,17 @@ public class CdtGetOrRemoveBuilder<T extends AbstractOperationBuilder<T>> extend
     public T collectValues(Consumer<CdtCollectOptions> options) {
         CdtCollectOptions o = new CdtCollectOptions();
         options.accept(o);
+        return collectValues(o);
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * @see CdtContextNonInvertableBuilder#collectValues(CdtCollectOptions)
+     */
+    public T collectValues(CdtCollectOptions options) {
         CTX[] ctx = params.finishContextPathForPathExpression();
-        int flags = o.mergeSelectFlags(SelectFlags.VALUE);
+        int flags = options.mergeSelectFlags(SelectFlags.VALUE);
         return opBuilder.addOp(com.aerospike.client.sdk.cdt.CdtOperation.selectByPath(binName, flags, ctx));
     }
 
@@ -527,11 +536,20 @@ public class CdtGetOrRemoveBuilder<T extends AbstractOperationBuilder<T>> extend
      * @see CdtContextNonInvertableBuilder#collectKeys(Consumer)
      */
     public T collectKeys(Consumer<CdtCollectOptions> options) {
-        validateMapOnly("collectKeys");
         CdtCollectOptions o = new CdtCollectOptions();
         options.accept(o);
+        return collectKeys(o);
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * @see CdtContextNonInvertableBuilder#collectKeys(CdtCollectOptions)
+     */
+    public T collectKeys(CdtCollectOptions options) {
+        validateMapOnly("collectKeys");
         CTX[] ctx = params.finishContextPathForPathExpression();
-        int flags = o.mergeSelectFlags(SelectFlags.MAP_KEY);
+        int flags = options.mergeSelectFlags(SelectFlags.MAP_KEY);
         return opBuilder.addOp(com.aerospike.client.sdk.cdt.CdtOperation.selectByPath(binName, flags, ctx));
     }
 
@@ -552,11 +570,20 @@ public class CdtGetOrRemoveBuilder<T extends AbstractOperationBuilder<T>> extend
      * @see CdtContextNonInvertableBuilder#collectKeyValues(Consumer)
      */
     public T collectKeyValues(Consumer<CdtCollectOptions> options) {
-        validateMapOnly("collectKeyValues");
         CdtCollectOptions o = new CdtCollectOptions();
         options.accept(o);
+        return collectKeyValues(o);
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * @see CdtContextNonInvertableBuilder#collectKeyValues(CdtCollectOptions)
+     */
+    public T collectKeyValues(CdtCollectOptions options) {
+        validateMapOnly("collectKeyValues");
         CTX[] ctx = params.finishContextPathForPathExpression();
-        int flags = o.mergeSelectFlags(SelectFlags.MAP_KEY_VALUE);
+        int flags = options.mergeSelectFlags(SelectFlags.MAP_KEY_VALUE);
         return opBuilder.addOp(com.aerospike.client.sdk.cdt.CdtOperation.selectByPath(binName, flags, ctx));
     }
 
@@ -578,8 +605,17 @@ public class CdtGetOrRemoveBuilder<T extends AbstractOperationBuilder<T>> extend
     public T collectTree(Consumer<CdtCollectOptions> options) {
         CdtCollectOptions o = new CdtCollectOptions();
         options.accept(o);
+        return collectTree(o);
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * @see CdtContextNonInvertableBuilder#collectTree(CdtCollectOptions)
+     */
+    public T collectTree(CdtCollectOptions options) {
         CTX[] ctx = params.finishContextPathForPathExpression();
-        int flags = o.mergeSelectFlags(SelectFlags.MATCHING_TREE);
+        int flags = options.mergeSelectFlags(SelectFlags.MATCHING_TREE);
         return opBuilder.addOp(com.aerospike.client.sdk.cdt.CdtOperation.selectByPath(binName, flags, ctx));
     }
 
@@ -602,9 +638,18 @@ public class CdtGetOrRemoveBuilder<T extends AbstractOperationBuilder<T>> extend
     public T modifyBy(Exp modifyExp, Consumer<CdtModifyOptions> options) {
         CdtModifyOptions o = new CdtModifyOptions();
         options.accept(o);
+        return modifyBy(modifyExp, o);
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * @see CdtContextNonInvertableBuilder#modifyBy(Exp, CdtModifyOptions)
+     */
+    public T modifyBy(Exp modifyExp, CdtModifyOptions options) {
         Expression built = Exp.build(modifyExp);
         CTX[] ctx = params.finishContextPathForPathExpression();
-        int flags = o.mergeModifyFlags(ModifyFlags.DEFAULT);
+        int flags = options.mergeModifyFlags(ModifyFlags.DEFAULT);
         return opBuilder.addOp(com.aerospike.client.sdk.cdt.CdtOperation.modifyByPath(binName, flags, built, ctx));
     }
 
@@ -624,6 +669,17 @@ public class CdtGetOrRemoveBuilder<T extends AbstractOperationBuilder<T>> extend
      * @see CdtContextNonInvertableBuilder#modifyBy(String, Consumer)
      */
     public T modifyBy(String ael, Consumer<CdtModifyOptions> options) {
+        CdtModifyOptions o = new CdtModifyOptions();
+        options.accept(o);
+        return modifyBy(ael, o);
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * @see CdtContextNonInvertableBuilder#modifyBy(String, CdtModifyOptions)
+     */
+    public T modifyBy(String ael, CdtModifyOptions options) {
         CdtPathExpressionAel.throwAelNotSupported();
         throw new AssertionError("unreachable");
     }
@@ -644,6 +700,17 @@ public class CdtGetOrRemoveBuilder<T extends AbstractOperationBuilder<T>> extend
      * @see CdtContextNonInvertableBuilder#modifyBy(PreparedAel, Consumer, Object...)
      */
     public T modifyBy(PreparedAel ael, Consumer<CdtModifyOptions> options, Object... bindParams) {
+        CdtModifyOptions o = new CdtModifyOptions();
+        options.accept(o);
+        return modifyBy(ael, o, bindParams);
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * @see CdtContextNonInvertableBuilder#modifyBy(PreparedAel, CdtModifyOptions, Object...)
+     */
+    public T modifyBy(PreparedAel ael, CdtModifyOptions options, Object... bindParams) {
         CdtPathExpressionAel.throwPreparedAelNotSupported(ael, bindParams);
         throw new AssertionError("unreachable");
     }
@@ -667,9 +734,18 @@ public class CdtGetOrRemoveBuilder<T extends AbstractOperationBuilder<T>> extend
     public T removeMatches(Consumer<CdtModifyOptions> options) {
         CdtModifyOptions o = new CdtModifyOptions();
         options.accept(o);
+        return removeMatches(o);
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * @see CdtContextNonInvertableBuilder#removeMatches(CdtModifyOptions)
+     */
+    public T removeMatches(CdtModifyOptions options) {
         Expression built = Exp.build(Exp.removeResult());
         CTX[] ctx = params.finishContextPathForPathExpression();
-        int flags = o.mergeModifyFlags(ModifyFlags.DEFAULT);
+        int flags = options.mergeModifyFlags(ModifyFlags.DEFAULT);
         return opBuilder.addOp(com.aerospike.client.sdk.cdt.CdtOperation.modifyByPath(binName, flags, built, ctx));
     }
 
@@ -704,7 +780,17 @@ public class CdtGetOrRemoveBuilder<T extends AbstractOperationBuilder<T>> extend
             Consumer<ExpressionReadOptions> options) {
         ExpressionReadOptions opts = new ExpressionReadOptions();
         options.accept(opts);
-        return collectValuesAsExpressionRead(binValueType, resultType, SelectFlags.VALUE, opts.getFlags());
+        return collectValuesAsExpressionRead(binValueType, resultType, opts);
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * @see CdtContextNonInvertableBuilder#collectValuesAsExpressionRead(Exp.Type, Exp.Type, ExpressionReadOptions)
+     */
+    public T collectValuesAsExpressionRead(Exp.Type binValueType, Exp.Type resultType,
+            ExpressionReadOptions options) {
+        return collectValuesAsExpressionRead(binValueType, resultType, SelectFlags.VALUE, options.getFlags());
     }
 
     private Exp typedBinExp(Exp.Type binValueType) {
