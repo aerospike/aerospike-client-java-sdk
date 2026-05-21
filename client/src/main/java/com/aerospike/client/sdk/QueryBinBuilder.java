@@ -26,6 +26,7 @@ import com.aerospike.client.sdk.ael.BooleanExpression;
 import com.aerospike.client.sdk.cdt.ListOperation;
 import com.aerospike.client.sdk.cdt.ListOrder;
 import com.aerospike.client.sdk.cdt.MapOperation;
+import com.aerospike.client.sdk.cdt.path.CdtPathExpressionAel;
 import com.aerospike.client.sdk.exp.Exp;
 import com.aerospike.client.sdk.exp.ExpReadFlags;
 import com.aerospike.client.sdk.exp.Expression;
@@ -333,6 +334,63 @@ public class QueryBinBuilder implements CdtOperationAcceptor<ChainableQueryBuild
     // ========================================
     // CDT Navigation Methods (Read-Only)
     // ========================================
+
+    /**
+     * Begin path iteration at this query projection bin's root ({@link com.aerospike.client.sdk.cdt.CTX#allChildren()}).
+     *
+     * <p>Same semantics as {@link BinBuilder#onEachChild()} but returns a read-only path builder for
+     * {@code session.query(...)} chains.</p>
+     *
+     * <p><b>Example</b>:</p>
+     * <pre>{@code
+     * session.query(key).bin("nums").onEachChild().collectValues().execute();
+     * }</pre>
+     *
+     * @return read-only CDT path builder rooted at this bin
+     * @see CdtReadContextBuilder#onEachChild()
+     */
+    public CdtReadContextBuilder<ChainableQueryBuilder> onEachChild() {
+        return new CdtReadOnlyBuilder<>(binName, this, CdtOperationParams.forEachChildAtBinRoot());
+    }
+
+    /**
+     * Same as {@link #onEachChild()} with a per-child filter
+     * ({@link com.aerospike.client.sdk.cdt.CTX#allChildrenWithFilter(com.aerospike.client.sdk.exp.Exp)}).
+     *
+     * @param filter server-side predicate for each child at the bin root
+     * @return read-only CDT path builder for this bin
+     * @see CdtReadContextBuilder#onEachChild(Exp)
+     */
+    public CdtReadContextBuilder<ChainableQueryBuilder> onEachChild(Exp filter) {
+        return new CdtReadOnlyBuilder<>(binName, this, CdtOperationParams.forEachChildAtBinRootWithFilter(filter));
+    }
+
+    /**
+     * Same as {@link #onEachChild(Exp)} with AEL filter text (not yet supported for path fragments).
+     *
+     * @param ael AEL predicate
+     * @return read-only path builder (unreachable until supported)
+     * @throws UnsupportedOperationException until path-scoped AEL compiles
+     * @see CdtReadContextBuilder#onEachChild(String)
+     */
+    public CdtReadContextBuilder<ChainableQueryBuilder> onEachChild(String ael) {
+        CdtPathExpressionAel.throwAelNotSupported();
+        throw new AssertionError("unreachable");
+    }
+
+    /**
+     * Same as {@link #onEachChild(String)} with {@link PreparedAel} bind parameters.
+     *
+     * @param ael prepared AEL template
+     * @param bindParams bind values
+     * @return read-only path builder (unreachable until supported)
+     * @throws UnsupportedOperationException until path-scoped AEL compiles
+     * @see CdtReadContextBuilder#onEachChild(PreparedAel, Object...)
+     */
+    public CdtReadContextBuilder<ChainableQueryBuilder> onEachChild(PreparedAel ael, Object... bindParams) {
+        CdtPathExpressionAel.throwPreparedAelNotSupported(ael, bindParams);
+        throw new AssertionError("unreachable");
+    }
 
     /**
      * Navigate to a map element by index.

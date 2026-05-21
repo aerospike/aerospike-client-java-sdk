@@ -27,6 +27,7 @@ import com.aerospike.client.sdk.Value.HLLValue;
 import com.aerospike.client.sdk.ael.BooleanExpression;
 import com.aerospike.client.sdk.cdt.ListOrder;
 import com.aerospike.client.sdk.cdt.MapOrder;
+import com.aerospike.client.sdk.cdt.path.CdtPathExpressionAel;
 import com.aerospike.client.sdk.exp.Exp;
 import com.aerospike.client.sdk.exp.ExpReadFlags;
 import com.aerospike.client.sdk.exp.ExpWriteFlags;
@@ -1036,6 +1037,66 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
     // CDT Operations. Note: make sure to mirror these operations to
     // CdtContextNonInvertableBuilder and CdtContextInvertableBuilder
     // ==================================================================
+
+    /**
+     * Begin path iteration at the <strong>bin root</strong>: every direct child of this bin is visited
+     * ({@link com.aerospike.client.sdk.cdt.CTX#allChildren()}), then continue with {@code onMapKey},
+     * {@code onEachChild}, or a terminal such as {@link CdtContextNonInvertableBuilder#collectValues()}.
+     *
+     * <p>Requires server <strong>8.1.1+</strong> for path expressions. Equivalent to starting a
+     * {@link CdtGetOrRemoveBuilder} with {@link CdtOperationParams#forEachChildAtBinRoot()}.</p>
+     *
+     * <p><b>Example</b>:</p>
+     * <pre>{@code
+     * session.upsert(key).bin("nums").onEachChild().modifyBy(Exp.add(Exp.intLoopVar(LoopVarPart.VALUE), Exp.val(1)))
+     *     .execute();
+     * }</pre>
+     *
+     * @return nested CDT path builder rooted at this bin name
+     * @see CdtContextNonInvertableBuilder#onEachChild()
+     */
+    public CdtContextNonInvertableBuilder<T> onEachChild() {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, CdtOperationParams.forEachChildAtBinRoot());
+    }
+
+    /**
+     * Same as {@link #onEachChild()} but only children matching {@code filter} are visited
+     * ({@link com.aerospike.client.sdk.cdt.CTX#allChildrenWithFilter(com.aerospike.client.sdk.exp.Exp)}).
+     *
+     * @param filter predicate evaluated for each child at the bin root
+     * @return nested CDT path builder for this bin
+     * @see CdtContextNonInvertableBuilder#onEachChild(Exp)
+     */
+    public CdtContextNonInvertableBuilder<T> onEachChild(Exp filter) {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, CdtOperationParams.forEachChildAtBinRootWithFilter(filter));
+    }
+
+    /**
+     * Same as {@link #onEachChild(Exp)} with the filter expressed as AEL.
+     *
+     * @param ael AEL predicate for filtered iteration
+     * @return nested CDT path builder (unreachable until supported)
+     * @throws UnsupportedOperationException until path-scoped AEL is implemented
+     * @see CdtContextNonInvertableBuilder#onEachChild(String)
+     */
+    public CdtContextNonInvertableBuilder<T> onEachChild(String ael) {
+        CdtPathExpressionAel.throwAelNotSupported();
+        throw new AssertionError("unreachable");
+    }
+
+    /**
+     * Same as {@link #onEachChild(String)} using {@link PreparedAel} and bind parameters.
+     *
+     * @param ael prepared AEL template
+     * @param bindParams bind values for {@code ael}
+     * @return nested CDT path builder (unreachable until supported)
+     * @throws UnsupportedOperationException until path-scoped AEL is implemented
+     * @see CdtContextNonInvertableBuilder#onEachChild(PreparedAel, Object...)
+     */
+    public CdtContextNonInvertableBuilder<T> onEachChild(PreparedAel ael, Object... bindParams) {
+        CdtPathExpressionAel.throwPreparedAelNotSupported(ael, bindParams);
+        throw new AssertionError("unreachable");
+    }
 
     /**
      * Select a map entry by sort index for nested CDT ops on this bin's map.

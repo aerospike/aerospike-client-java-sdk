@@ -49,6 +49,18 @@ public abstract class Exp {
         }
     }
 
+    /**
+     * @hidden
+     * Internal context type flag for expression-based contexts.
+     */
+    public static final int CTX_EXP = 0x04;
+
+    /**
+     * @hidden
+     * Internal context type flag for AND filter contexts.
+     */
+    public static final int CTX_AND = 0x200;
+
     //--------------------------------------------------
     // Build
     //--------------------------------------------------
@@ -58,6 +70,47 @@ public abstract class Exp {
      */
     public static Expression build(Exp exp) {
         return new Expression(exp);
+    }
+
+    /**
+     * Helper method to create Exp objects from unpacked objects
+     */
+    public static Exp get(Object obj) {
+        if (obj == null) {
+            return nil();
+        } else if (obj instanceof Boolean) {
+            return new Bool((Boolean)obj);
+        } else if (obj instanceof Long) {
+            return new Int((Long)obj);
+        } else if (obj instanceof Double) {
+            return new Float((Double)obj);
+        } else if (obj instanceof String) {
+            return new Str((String)obj);
+        } else if (obj instanceof byte[]) {
+            return new Blob((byte[])obj);
+        } else if (obj instanceof List) {
+            List<?> list = (List<?>)obj;
+            if (!list.isEmpty() && list.get(0) instanceof Number) {
+                // This might be a command array, try to reconstruct it
+                // For complex expressions, return as ExpBytes
+                Packer packer = new Packer();
+                packer.packObject(obj);
+                packer.createBuffer();
+                packer.packObject(obj);
+                return new ExpBytes(new Expression(packer.getBuffer()));
+            }
+            return new ListVal(list);
+        } else if (obj instanceof Map) {
+            Map<?,?> map = (Map<?,?>)obj;
+            return new MapVal(map);
+        } else {
+            // For unknown types, wrap as ExpBytes
+            Packer packer = new Packer();
+            packer.packObject(obj);
+            packer.createBuffer();
+            packer.packObject(obj);
+            return new ExpBytes(new Expression(packer.getBuffer()));
+        }
     }
 
     //--------------------------------------------------
@@ -1134,6 +1187,172 @@ public abstract class Exp {
         return new CmdStr(VAR, name);
     }
 
+    /**
+     * Create expression that references a built-in variable.
+     * Requires server version 8.1.1
+     *
+     * <pre>{@code
+     * Exp.stringLoopVar(LoopVarPart.MAP_KEY)
+     * }</pre>
+     */
+    public static Exp stringLoopVar(LoopVarPart part) {
+        return new Var(Type.STRING.code, part.id);
+    }
+
+    /**
+     * Create expression that references a built-in variable.
+     * Requires server version 8.1.1
+     *
+     * <pre>{@code
+     * Exp.boolLoopVar(LoopVarPart.MAP_KEY)
+     * }</pre>
+     */
+    public static Exp boolLoopVar(LoopVarPart part) {
+        return new Var(Type.BOOL.code, part.id);
+    }
+
+    /**
+     * Create expression that references a built-in variable.
+     * Requires server version 8.1.1
+     *
+     * <pre>{@code
+     * Exp.hllLoopVar(LoopVarPart.MAP_KEY)
+     * }</pre>
+     */
+    public static Exp hllLoopVar(LoopVarPart part) {
+        return new Var(Type.HLL.code, part.id);
+    }
+
+    /**
+     * Create expression that references a built-in variable.
+     * Requires server version 8.1.1
+     *
+     * <pre>{@code
+     * Exp.intLoopVar(LoopVarPart.MAP_KEY)
+     * }</pre>
+     */
+    public static Exp intLoopVar(LoopVarPart part) {
+        return new Var(Type.INT.code, part.id);
+    }
+
+    /**
+     * Create expression that references a built-in variable.
+     * Requires server version 8.1.1
+     *
+     * <pre>{@code
+     * Exp.floatLoopVar(LoopVarPart.MAP_KEY)
+     * }</pre>
+     */
+    public static Exp floatLoopVar(LoopVarPart part) {
+        return new Var(Type.FLOAT.code, part.id);
+    }
+
+    /**
+     * Create expression that references a built-in variable.
+     * Requires server version 8.1.1
+     *
+     * <pre>{@code
+     * Exp.listLoopVar(LoopVarPart.MAP_KEY)
+     * }</pre>
+     */
+    public static Exp listLoopVar(LoopVarPart part) {
+        return new Var(Type.LIST.code, part.id);
+    }
+
+    /**
+     * Create expression that references a built-in variable.
+     * Requires server version 8.1.1
+     *
+     * <pre>{@code
+     * Exp.mapLoopVar(LoopVarPart.MAP_KEY)
+     * }</pre>
+     */
+    public static Exp mapLoopVar(LoopVarPart part)  {
+        return new Var(Type.MAP.code, part.id);
+    }
+
+    /**
+     * Create expression that references a built-in variable.
+     * Requires server version 8.1.1
+     *
+     * <pre>{@code
+     * Exp.blobLoopVar(LoopVarPart.MAP_KEY)
+     * }</pre>
+     */
+    public static Exp blobLoopVar(LoopVarPart part) {
+        return new Var(Type.BLOB.code, part.id);
+    }
+
+    /**
+     * Create expression that references a built-in variable.
+     * Requires server version 8.1.1
+     *
+     * <pre>{@code
+     * Exp.nilLoopVar(LoopVarPart.MAP_KEY)
+     * }</pre>
+     */
+    public static Exp nilLoopVar(LoopVarPart part)  {
+        return new Var(Type.NIL.code, part.id);
+    }
+
+    /**
+     * Create expression that references a built-in variable.
+     * Requires server version 8.1.1
+     *
+     * <pre>{@code
+     * Exp.geoJsonLoopVar(LoopVarPart.MAP_KEY)
+     * }</pre>
+     */
+    public static Exp geoJsonLoopVar(LoopVarPart part)  {
+        return new Var(Type.GEO.code, part.id);
+    }
+
+    /**
+     * Create expression that checks if a value is contained in a list.
+     *
+     * <pre>{@code
+     * // Check if bin "color" value is in the list ["red", "blue", "green"]
+     * Exp.inList(Exp.stringBin("color"), Exp.val(List.of("red", "blue", "green")))
+     * }</pre>
+     */
+    public static Exp inList(Exp value, Exp list) {
+        return new CmdExp(IN_LIST, value, list);
+    }
+
+    /**
+     * Create expression that extracts all keys from a map as a list.
+     *
+     * <pre>{@code
+     * Exp.mapKeysIn(Exp.mapBin("myMap"))
+     * }</pre>
+     */
+    public static Exp mapKeysIn(Exp map) {
+        return new CmdExp(MAP_KEYS, map);
+    }
+
+    /**
+     * Create expression that extracts all values from a map as a list.
+     *
+     * <pre>{@code
+     * Exp.mapValues(Exp.mapBin("myMap"))
+     * }</pre>
+     */
+    public static Exp mapValuesIn(Exp map) {
+        return new CmdExp(MAP_VALUES, map);
+    }
+
+    /**
+     * Creates a remove result expression.
+     * Requires server version 8.1.1+.
+     *
+     * <pre>{@code
+     * Exp.removeResult()
+     * }</pre>
+     */
+    public static Exp removeResult() {
+        return new Cmd(RESULT_REMOVE);
+    }
+
     //--------------------------------------------------
     // Miscellaneous
     //--------------------------------------------------
@@ -1186,6 +1405,7 @@ public abstract class Exp {
     private static final int LE = 6;
     private static final int REGEX = 7;
     private static final int GEO = 8;
+    private static final int IN_LIST = 9;
     private static final int AND = 16;
     private static final int OR = 17;
     private static final int NOT = 18;
@@ -1228,6 +1448,10 @@ public abstract class Exp {
     private static final int KEY = 80;
     private static final int BIN = 81;
     private static final int BIN_TYPE = 82;
+    private static final int RESULT_REMOVE = 100;
+    private static final int MAP_KEYS = 101;
+    private static final int MAP_VALUES = 102;
+    private static final int VAR_BUILTIN = 122;
     private static final int COND = 123;
     private static final int VAR = 124;
     private static final int LET = 125;
@@ -1248,6 +1472,7 @@ public abstract class Exp {
         case LE: return "LE";
         case REGEX: return "REGEX";
         case GEO: return "GEO";
+        case IN_LIST: return "IN_LIST";
         case AND: return "AND";
         case OR: return "OR";
         case NOT: return "NOT";
@@ -1290,6 +1515,10 @@ public abstract class Exp {
         case KEY: return "KEY";
         case BIN: return "BIN";
         case BIN_TYPE: return "BIN_TYPE";
+        case RESULT_REMOVE: return "RESULT_REMOVE";
+        case MAP_KEYS: return "MAP_KEYS";
+        case MAP_VALUES: return "MAP_VALUES";
+        case VAR_BUILTIN: return "VAR_BUILTIN";
         case COND: return "COND";
         case VAR: return "VAR";
         case LET: return "LET";
@@ -1807,6 +2036,24 @@ public abstract class Exp {
         @Override
         public void pack(Packer packer) {
             packer.packWildcard();
+        }
+    }
+
+    private static final class Var extends Exp {
+        private final int type;
+        private final int varId;
+
+        private Var(int type, int varId) {
+            this.type = type;
+            this.varId = varId;
+        }
+
+        @Override
+        public void pack(Packer packer) {
+            packer.packArrayBegin(3);
+            packer.packInt(Exp.VAR_BUILTIN);
+            packer.packInt(type);
+            packer.packInt(varId);
         }
     }
 

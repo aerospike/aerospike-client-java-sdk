@@ -1543,6 +1543,23 @@ public class Session {
     //---------------------
 
     /**
+     * Create a set index for the given set.
+     * A set index is a secondary index specialized for record presence per set;
+     * no bin, type, context, or expression parameters are used.
+     * This asynchronous server call will return before command is complete.
+     * The user can optionally wait for command completion by using the returned
+     * IndexTask instance.
+     * Requires server version 8.1.2+.
+     *
+     * @param set                   dataset containing namespace and set information
+     * @param indexName             name of set index
+     * @throws AerospikeException   if index create fails
+     */
+    public final IndexTask createIndex(DataSet set, String indexName) {
+        return createIndex(set, indexName, null, null, IndexCollectionType.SET);
+    }
+
+    /**
      * Create scalar secondary index.
      * This asynchronous server call will return before command is complete.
      * The user can optionally wait for command completion by using the returned
@@ -1664,10 +1681,6 @@ public class Session {
             currentServerVersion.isGreaterOrEqual(Version.SERVER_VERSION_8_1)?
                 "sindex-create:namespace=": "sindex-create:ns=";
 
-        String indexTypeString = (indexType == IndexType.INTEGER &&
-            currentServerVersion.isLessThan(Version.SERVER_VERSION_8_1_3))?
-                "NUMERIC" : indexType.toString();
-
         sb.append(createIndexCommand);
         sb.append(namespace);
 
@@ -1679,43 +1692,53 @@ public class Session {
         sb.append(";indexname=");
         sb.append(indexName);
 
-        if (exp != null) {
-            String base64 = exp.getBase64();
+        if (indexCollectionType == IndexCollectionType.SET) {
+            sb.append(";indextype=set");
+        }
+        else {
+            String indexTypeString = (indexType == IndexType.INTEGER &&
+                currentServerVersion.isLessThan(Version.SERVER_VERSION_8_1_3))?
+                    "NUMERIC" : indexType.toString();
 
-            sb.append(";exp=");
-            sb.append(base64);
+            if (exp != null) {
+                String base64 = exp.getBase64();
 
-            if (indexCollectionType != IndexCollectionType.DEFAULT) {
-                sb.append(";indextype=");
-                sb.append(indexCollectionType);
-            }
-
-            sb.append(";type=");
-            sb.append(indexTypeString);
-        } else {
-            if (ctx != null && ctx.length > 0) {
-                byte[] bytes = Pack.pack(ctx);
-                String base64 = Crypto.encodeBase64(bytes);
-
-                sb.append(";context=");
+                sb.append(";exp=");
                 sb.append(base64);
-            }
 
-            if (indexCollectionType != IndexCollectionType.DEFAULT) {
-                sb.append(";indextype=");
-                sb.append(indexCollectionType);
-            }
+                if (indexCollectionType != IndexCollectionType.DEFAULT) {
+                    sb.append(";indextype=");
+                    sb.append(indexCollectionType);
+                }
 
-            if (node.getVersion().isGreaterOrEqual(Version.SERVER_VERSION_8_1)) {
-                sb.append(";bin=");
-                sb.append(binName);
                 sb.append(";type=");
                 sb.append(indexTypeString);
-            } else {
-                sb.append(";indexdata=");
-                sb.append(binName);
-                sb.append(',');
-                sb.append(indexTypeString);
+            }
+            else {
+                if (ctx != null && ctx.length > 0) {
+                    byte[] bytes = Pack.pack(ctx);
+                    String base64 = Crypto.encodeBase64(bytes);
+
+                    sb.append(";context=");
+                    sb.append(base64);
+                }
+
+                if (indexCollectionType != IndexCollectionType.DEFAULT) {
+                    sb.append(";indextype=");
+                    sb.append(indexCollectionType);
+                }
+
+                if (node.getVersion().isGreaterOrEqual(Version.SERVER_VERSION_8_1)) {
+                    sb.append(";bin=");
+                    sb.append(binName);
+                    sb.append(";type=");
+                    sb.append(indexTypeString);
+                } else {
+                    sb.append(";indexdata=");
+                    sb.append(binName);
+                    sb.append(',');
+                    sb.append(indexTypeString);
+                }
             }
         }
 
