@@ -21,6 +21,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 
+import com.aerospike.client.sdk.cdt.CTX;
 import com.aerospike.client.sdk.cdt.ListOperation;
 import com.aerospike.client.sdk.cdt.ListOrder;
 import com.aerospike.client.sdk.cdt.ListReturnType;
@@ -29,6 +30,16 @@ import com.aerospike.client.sdk.cdt.MapOrder;
 import com.aerospike.client.sdk.cdt.MapPolicy;
 import com.aerospike.client.sdk.cdt.MapReturnType;
 import com.aerospike.client.sdk.cdt.MapWriteFlags;
+import com.aerospike.client.sdk.cdt.ModifyFlags;
+import com.aerospike.client.sdk.cdt.SelectFlags;
+import com.aerospike.client.sdk.cdt.path.CdtCollectOptions;
+import com.aerospike.client.sdk.cdt.path.CdtModifyOptions;
+import com.aerospike.client.sdk.cdt.path.CdtPathExpressionAel;
+import com.aerospike.client.sdk.exp.CdtExp;
+import com.aerospike.client.sdk.exp.Exp;
+import com.aerospike.client.sdk.exp.ExpReadFlags;
+import com.aerospike.client.sdk.exp.Expression;
+import com.aerospike.client.sdk.query.PreparedAel;
 
 /**
  * Builder for map and list (CDT) read, remove, existence checks, and nested path operations on a bin.
@@ -66,7 +77,11 @@ public class CdtGetOrRemoveBuilder<T extends AbstractOperationBuilder<T>> extend
         LIST_BY_VALUE,
         LIST_BY_VALUE_LIST,
         LIST_BY_VALUE_RANGE,
-        LIST_BY_VALUE_REL_RANK_RANGE
+        LIST_BY_VALUE_REL_RANK_RANGE,
+        /** Iterate all children at the current path ({@link com.aerospike.client.sdk.cdt.CTX#allChildren()}). */
+        ALL_CHILDREN,
+        /** Iterate children matching a filter ({@link com.aerospike.client.sdk.cdt.CTX#allChildrenWithFilter}). */
+        ALL_CHILDREN_WITH_FILTER
     }
 
     /**
@@ -422,6 +437,282 @@ public class CdtGetOrRemoveBuilder<T extends AbstractOperationBuilder<T>> extend
     public T getKeysAndValues() {
         validateMapOnly("getKeysAndValues");
         return dispatchGet(MapReturnType.KEY_VALUE, 0);
+    }
+
+    // ==================================================================
+    // Path expressions: CTX.allChildren / selectByPath / modifyByPath (server 8.1.1+)
+    // ==================================================================
+
+    /**
+     * {@inheritDoc}
+     *
+     * @see CdtContextNonInvertableBuilder#onEachChild()
+     */
+    @Override
+    public CdtContextNonInvertableBuilder<T> onEachChild() {
+        params.pushCurrentToContextAndReplaceWithAllChildren();
+        return this;
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * @see CdtContextNonInvertableBuilder#onEachChild(Exp)
+     */
+    @Override
+    public CdtContextNonInvertableBuilder<T> onEachChild(Exp filter) {
+        params.pushCurrentToContextAndReplaceWithAllChildrenWithFilter(filter);
+        return this;
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * @see CdtContextNonInvertableBuilder#onEachChild(String)
+     */
+    @Override
+    public CdtContextNonInvertableBuilder<T> onEachChild(String ael) {
+        CdtPathExpressionAel.throwAelNotSupported();
+        throw new AssertionError("unreachable");
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * @see CdtContextNonInvertableBuilder#onEachChild(PreparedAel, Object...)
+     */
+    @Override
+    public CdtContextNonInvertableBuilder<T> onEachChild(PreparedAel ael, Object... bindParams) {
+        CdtPathExpressionAel.throwPreparedAelNotSupported(ael, bindParams);
+        throw new AssertionError("unreachable");
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * @see CdtContextNonInvertableBuilder#collectValues()
+     */
+    public T collectValues() {
+        CTX[] ctx = params.finishContextPathForPathExpression();
+        return opBuilder.addOp(com.aerospike.client.sdk.cdt.CdtOperation.selectByPath(binName, SelectFlags.VALUE, ctx));
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * @see CdtContextNonInvertableBuilder#collectValues(Consumer)
+     */
+    public T collectValues(Consumer<CdtCollectOptions> options) {
+        CdtCollectOptions o = new CdtCollectOptions();
+        options.accept(o);
+        CTX[] ctx = params.finishContextPathForPathExpression();
+        int flags = o.mergeSelectFlags(SelectFlags.VALUE);
+        return opBuilder.addOp(com.aerospike.client.sdk.cdt.CdtOperation.selectByPath(binName, flags, ctx));
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * @see CdtContextNonInvertableBuilder#collectKeys()
+     */
+    public T collectKeys() {
+        validateMapOnly("collectKeys");
+        CTX[] ctx = params.finishContextPathForPathExpression();
+        return opBuilder.addOp(com.aerospike.client.sdk.cdt.CdtOperation.selectByPath(binName, SelectFlags.MAP_KEY, ctx));
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * @see CdtContextNonInvertableBuilder#collectKeys(Consumer)
+     */
+    public T collectKeys(Consumer<CdtCollectOptions> options) {
+        validateMapOnly("collectKeys");
+        CdtCollectOptions o = new CdtCollectOptions();
+        options.accept(o);
+        CTX[] ctx = params.finishContextPathForPathExpression();
+        int flags = o.mergeSelectFlags(SelectFlags.MAP_KEY);
+        return opBuilder.addOp(com.aerospike.client.sdk.cdt.CdtOperation.selectByPath(binName, flags, ctx));
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * @see CdtContextNonInvertableBuilder#collectKeyValues()
+     */
+    public T collectKeyValues() {
+        validateMapOnly("collectKeyValues");
+        CTX[] ctx = params.finishContextPathForPathExpression();
+        return opBuilder.addOp(com.aerospike.client.sdk.cdt.CdtOperation.selectByPath(binName, SelectFlags.MAP_KEY_VALUE, ctx));
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * @see CdtContextNonInvertableBuilder#collectKeyValues(Consumer)
+     */
+    public T collectKeyValues(Consumer<CdtCollectOptions> options) {
+        validateMapOnly("collectKeyValues");
+        CdtCollectOptions o = new CdtCollectOptions();
+        options.accept(o);
+        CTX[] ctx = params.finishContextPathForPathExpression();
+        int flags = o.mergeSelectFlags(SelectFlags.MAP_KEY_VALUE);
+        return opBuilder.addOp(com.aerospike.client.sdk.cdt.CdtOperation.selectByPath(binName, flags, ctx));
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * @see CdtContextNonInvertableBuilder#collectTree()
+     */
+    public T collectTree() {
+        CTX[] ctx = params.finishContextPathForPathExpression();
+        return opBuilder.addOp(com.aerospike.client.sdk.cdt.CdtOperation.selectByPath(binName, SelectFlags.MATCHING_TREE, ctx));
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * @see CdtContextNonInvertableBuilder#collectTree(Consumer)
+     */
+    public T collectTree(Consumer<CdtCollectOptions> options) {
+        CdtCollectOptions o = new CdtCollectOptions();
+        options.accept(o);
+        CTX[] ctx = params.finishContextPathForPathExpression();
+        int flags = o.mergeSelectFlags(SelectFlags.MATCHING_TREE);
+        return opBuilder.addOp(com.aerospike.client.sdk.cdt.CdtOperation.selectByPath(binName, flags, ctx));
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * @see CdtContextNonInvertableBuilder#modifyBy(Exp)
+     */
+    public T modifyBy(Exp modifyExp) {
+        Expression built = Exp.build(modifyExp);
+        CTX[] ctx = params.finishContextPathForPathExpression();
+        return opBuilder.addOp(com.aerospike.client.sdk.cdt.CdtOperation.modifyByPath(binName, ModifyFlags.DEFAULT, built, ctx));
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * @see CdtContextNonInvertableBuilder#modifyBy(Exp, Consumer)
+     */
+    public T modifyBy(Exp modifyExp, Consumer<CdtModifyOptions> options) {
+        CdtModifyOptions o = new CdtModifyOptions();
+        options.accept(o);
+        Expression built = Exp.build(modifyExp);
+        CTX[] ctx = params.finishContextPathForPathExpression();
+        int flags = o.mergeModifyFlags(ModifyFlags.DEFAULT);
+        return opBuilder.addOp(com.aerospike.client.sdk.cdt.CdtOperation.modifyByPath(binName, flags, built, ctx));
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * @see CdtContextNonInvertableBuilder#modifyBy(String)
+     */
+    public T modifyBy(String ael) {
+        CdtPathExpressionAel.throwAelNotSupported();
+        throw new AssertionError("unreachable");
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * @see CdtContextNonInvertableBuilder#modifyBy(String, Consumer)
+     */
+    public T modifyBy(String ael, Consumer<CdtModifyOptions> options) {
+        CdtPathExpressionAel.throwAelNotSupported();
+        throw new AssertionError("unreachable");
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * @see CdtContextNonInvertableBuilder#modifyBy(PreparedAel, Object...)
+     */
+    public T modifyBy(PreparedAel ael, Object... bindParams) {
+        CdtPathExpressionAel.throwPreparedAelNotSupported(ael, bindParams);
+        throw new AssertionError("unreachable");
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * @see CdtContextNonInvertableBuilder#modifyBy(PreparedAel, Consumer, Object...)
+     */
+    public T modifyBy(PreparedAel ael, Consumer<CdtModifyOptions> options, Object... bindParams) {
+        CdtPathExpressionAel.throwPreparedAelNotSupported(ael, bindParams);
+        throw new AssertionError("unreachable");
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * @see CdtContextNonInvertableBuilder#removeMatches()
+     */
+    public T removeMatches() {
+        Expression built = Exp.build(Exp.removeResult());
+        CTX[] ctx = params.finishContextPathForPathExpression();
+        return opBuilder.addOp(com.aerospike.client.sdk.cdt.CdtOperation.modifyByPath(binName, ModifyFlags.DEFAULT, built, ctx));
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * @see CdtContextNonInvertableBuilder#removeMatches(Consumer)
+     */
+    public T removeMatches(Consumer<CdtModifyOptions> options) {
+        CdtModifyOptions o = new CdtModifyOptions();
+        options.accept(o);
+        Expression built = Exp.build(Exp.removeResult());
+        CTX[] ctx = params.finishContextPathForPathExpression();
+        int flags = o.mergeModifyFlags(ModifyFlags.DEFAULT);
+        return opBuilder.addOp(com.aerospike.client.sdk.cdt.CdtOperation.modifyByPath(binName, flags, built, ctx));
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * @see CdtContextNonInvertableBuilder#collectValuesAsExpressionRead(Exp.Type, Exp.Type)
+     */
+    public T collectValuesAsExpressionRead(Exp.Type binValueType, Exp.Type resultType) {
+        return collectValuesAsExpressionRead(binValueType, resultType, SelectFlags.VALUE, ExpReadFlags.DEFAULT);
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * @see CdtContextNonInvertableBuilder#collectValuesAsExpressionRead(Exp.Type, Exp.Type, int, int)
+     */
+    public T collectValuesAsExpressionRead(Exp.Type binValueType, Exp.Type resultType, int selectFlags,
+            int readFlags) {
+        CTX[] ctx = params.finishContextPathForPathExpression();
+        Exp inner = CdtExp.selectByPath(resultType, selectFlags, typedBinExp(binValueType), ctx);
+        Expression expression = Exp.build(inner);
+        return opBuilder.addOp(ExpressionOpHelper.createReadOp(binName, expression, readFlags));
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * @see CdtContextNonInvertableBuilder#collectValuesAsExpressionRead(Exp.Type, Exp.Type, Consumer)
+     */
+    public T collectValuesAsExpressionRead(Exp.Type binValueType, Exp.Type resultType,
+            Consumer<ExpressionReadOptions> options) {
+        ExpressionReadOptions opts = new ExpressionReadOptions();
+        options.accept(opts);
+        return collectValuesAsExpressionRead(binValueType, resultType, SelectFlags.VALUE, opts.getFlags());
+    }
+
+    private Exp typedBinExp(Exp.Type binValueType) {
+        return switch (binValueType) {
+            case MAP -> Exp.mapBin(binName);
+            case LIST -> Exp.listBin(binName);
+            default -> Exp.bin(binName, binValueType);
+        };
     }
 
     /**

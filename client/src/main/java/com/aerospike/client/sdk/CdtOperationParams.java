@@ -23,6 +23,7 @@ import com.aerospike.client.sdk.CdtGetOrRemoveBuilder.CdtOperation;
 import com.aerospike.client.sdk.cdt.CTX;
 import com.aerospike.client.sdk.cdt.ListOrder;
 import com.aerospike.client.sdk.cdt.MapOrder;
+import com.aerospike.client.sdk.exp.Exp;
 
 public class CdtOperationParams {
     private CdtOperation operation;
@@ -36,6 +37,42 @@ public class CdtOperationParams {
     private MapOrder mapCreateType;
     private ListOrder listCreateType;
     private boolean pad;
+
+    /** Filter expression for {@link CdtOperation#ALL_CHILDREN_WITH_FILTER}; cleared after push. */
+    private Exp pathChildFilterExp;
+
+    /**
+     * Number of {@code onEachChild} segments along this path (including an initial segment at the bin root when
+     * created via {@link #forEachChildAtBinRoot()}).
+     */
+    private int eachChildSegmentCount;
+
+    private CdtOperationParams() {
+    }
+
+    /**
+     * Begin a nested path at the top-level bin with {@link CTX#allChildren()} (iterate every child of the bin value).
+     */
+    public static CdtOperationParams forEachChildAtBinRoot() {
+        CdtOperationParams p = new CdtOperationParams();
+        p.operation = CdtOperation.ALL_CHILDREN;
+        p.eachChildSegmentCount = 1;
+        return p;
+    }
+
+    /**
+     * Same as {@link #forEachChildAtBinRoot()} with a predicate on each child.
+     */
+    public static CdtOperationParams forEachChildAtBinRootWithFilter(Exp filter) {
+        if (filter == null) {
+            throw new NullPointerException("filter");
+        }
+        CdtOperationParams p = new CdtOperationParams();
+        p.operation = CdtOperation.ALL_CHILDREN_WITH_FILTER;
+        p.pathChildFilterExp = filter;
+        p.eachChildSegmentCount = 1;
+        return p;
+    }
 
     public CdtOperationParams(CdtOperation operation, int int1) {
         this.int1 = int1;
@@ -134,8 +171,56 @@ public class CdtOperationParams {
         return mapCreateType;
     }
 
+    public int getEachChildSegmentCount() {
+        return eachChildSegmentCount;
+    }
+
+    /**
+     * Pushes the current selection, then sets {@link CdtOperation#ALL_CHILDREN} for the next path segment.
+     */
+    public void pushCurrentToContextAndReplaceWithAllChildren() {
+        pushCurrentToContext();
+        this.operation = CdtOperation.ALL_CHILDREN;
+        this.pathChildFilterExp = null;
+        eachChildSegmentCount++;
+    }
+
+    /**
+     * Pushes the current selection, then sets {@link CdtOperation#ALL_CHILDREN_WITH_FILTER} for the next path segment.
+     */
+    public void pushCurrentToContextAndReplaceWithAllChildrenWithFilter(Exp filter) {
+        if (filter == null) {
+            throw new NullPointerException("filter");
+        }
+        pushCurrentToContext();
+        this.operation = CdtOperation.ALL_CHILDREN_WITH_FILTER;
+        this.pathChildFilterExp = filter;
+        eachChildSegmentCount++;
+    }
+
+    /**
+     * Flushes the final path segment and returns the full {@link CTX} array for {@code selectByPath} /
+     * {@code modifyByPath}. Requires at least one {@code onEachChild} segment ({@link #getEachChildSegmentCount()}).
+     */
+    public CTX[] finishContextPathForPathExpression() {
+        if (eachChildSegmentCount < 1) {
+            throw new IllegalStateException(
+                    "Path selection (collect*), modifyBy, or removeMatches requires at least one onEachChild() in the path.");
+        }
+        pushCurrentToContext();
+        CTX[] out = context();
+        return out != null ? out : new CTX[0];
+    }
+
     private CTX currentToCtx() {
         switch (operation) {
+        case ALL_CHILDREN:
+            return CTX.allChildren();
+        case ALL_CHILDREN_WITH_FILTER:
+            if (pathChildFilterExp == null) {
+                throw new IllegalStateException("ALL_CHILDREN_WITH_FILTER requires a filter expression");
+            }
+            return CTX.allChildrenWithFilter(pathChildFilterExp);
         case MAP_BY_INDEX:
             return CTX.mapIndex(int1);
         case MAP_BY_KEY:
@@ -300,6 +385,9 @@ public class CdtOperationParams {
             ctx = new ArrayList<>();
         }
         ctx.add(currentToCtx());
+        if (operation == CdtOperation.ALL_CHILDREN_WITH_FILTER) {
+            pathChildFilterExp = null;
+        }
         mapCreateType = null;
         listCreateType = null;
     }

@@ -14,36 +14,36 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.aerospike.client.sdk.query;
+package com.aerospike.client.sdk.exp;
 
 /**
- * Secondary index collection type.
+ * Loop variable parts for expression loop variables.
+ * Used to specify which part of a loop variable to access during iteration.
  */
-public enum IndexCollectionType {
-    /**
-     * Normal scalar index.
-     */
-    DEFAULT,
+public enum LoopVarPart {
+	/**
+	 * Access the key part of the loop variable.
+	 * For maps, this refers to the map key.
+	 * For lists, this refers to the list index.
+	 */
+	MAP_KEY(0),
 
-    /**
-     * Index list elements.
-     */
-    LIST,
+	/**
+	 * Access the value part of the loop variable.
+	 * For maps, this refers to the map value.
+	 * For lists, this refers to the list item value.
+	 */
+	VALUE(1),
 
-    /**
-     * Index map keys.
-     */
-    MAPKEYS,
+	/**
+	 * Returns a list of indexes.
+	 */
+	INDEX(2);
 
-    /**
-     * Index map values.
-     */
-    MAPVALUES,
 
-    /**
-     * Set index.
-     * No bin, type, context, or expression parameters are used.
-     * Requires server version 8.1.2+.
-     */
-    SET;
+	public final int id;
+
+	private LoopVarPart(int id) {
+		this.id = id;
+	}
 }

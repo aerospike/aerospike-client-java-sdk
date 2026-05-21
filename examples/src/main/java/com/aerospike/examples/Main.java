@@ -42,6 +42,7 @@ import org.apache.commons.cli.Options;
  *   <li>{@code BehaviorHierarchicalExample} - Demonstrates hierarchical YAML configuration with dynamic reloading</li>
  *   <li>{@code BehaviorYamlExample} - Demonstrates loading behaviors from YAML files</li>
  *   <li>{@code YamlConfigConnectionExample} - Demonstrates connecting to a cluster with YAML configuration</li>
+ *   <li>{@code CdtPathExpressionExample} - Fluent CDT path iteration ({@code onEachChild}), collect, modify, and remove (server 8.1.1+)</li>
  * </ul>
  */
 public class Main {
@@ -49,6 +50,7 @@ public class Main {
     private static final String[] EXAMPLE_NAMES = new String[] {
         "CommonExample",
         "BatchExample",
+        "CdtPathExpressionExample",
         "BehaviorHierarchicalExample",
         "BehaviorYamlExample",
         "CompleteYamlConfigExample",

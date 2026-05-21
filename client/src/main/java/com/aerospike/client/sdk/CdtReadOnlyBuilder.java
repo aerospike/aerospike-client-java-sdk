@@ -19,13 +19,23 @@ package com.aerospike.client.sdk;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Consumer;
 
 import com.aerospike.client.sdk.CdtGetOrRemoveBuilder.CdtOperation;
+import com.aerospike.client.sdk.cdt.CTX;
 import com.aerospike.client.sdk.cdt.ListOperation;
 import com.aerospike.client.sdk.cdt.ListOrder;
 import com.aerospike.client.sdk.cdt.ListReturnType;
 import com.aerospike.client.sdk.cdt.MapOperation;
 import com.aerospike.client.sdk.cdt.MapReturnType;
+import com.aerospike.client.sdk.cdt.SelectFlags;
+import com.aerospike.client.sdk.cdt.path.CdtCollectOptions;
+import com.aerospike.client.sdk.cdt.path.CdtPathExpressionAel;
+import com.aerospike.client.sdk.exp.CdtExp;
+import com.aerospike.client.sdk.exp.Exp;
+import com.aerospike.client.sdk.exp.ExpReadFlags;
+import com.aerospike.client.sdk.exp.Expression;
+import com.aerospike.client.sdk.query.PreparedAel;
 
 /**
  * Read-only CDT builder for query operations.
@@ -891,6 +901,219 @@ public class CdtReadOnlyBuilder<T> implements CdtReadContextBuilder<T>,
     public T listGetRange(int index, int count) {
         params.pushCurrentToContext();
         return addOpAndReturn(ListOperation.getRange(binName, index, count, params.context()));
+    }
+
+    // ========================================
+    // Path expressions (read): selectByPath, server 8.1.1+
+    // ========================================
+
+    private void validateMapOnlyForPathCollect(String methodName) {
+        switch (params.getOperation()) {
+        case LIST_BY_INDEX:
+        case LIST_BY_INDEX_RANGE:
+        case LIST_BY_RANK:
+        case LIST_BY_RANK_RANGE:
+        case LIST_BY_VALUE:
+        case LIST_BY_VALUE_LIST:
+        case LIST_BY_VALUE_RANGE:
+        case LIST_BY_VALUE_REL_RANK_RANGE:
+            throw new IllegalArgumentException(
+                    methodName + "() is only valid for map operations, not " + params.getOperation());
+        default:
+            break;
+        }
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * @see CdtReadContextBuilder#onEachChild()
+     */
+    @Override
+    public CdtReadContextBuilder<T> onEachChild() {
+        params.pushCurrentToContextAndReplaceWithAllChildren();
+        return this;
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * @see CdtReadContextBuilder#onEachChild(Exp)
+     */
+    @Override
+    public CdtReadContextBuilder<T> onEachChild(Exp filter) {
+        params.pushCurrentToContextAndReplaceWithAllChildrenWithFilter(filter);
+        return this;
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * @see CdtReadContextBuilder#onEachChild(String)
+     */
+    @Override
+    public CdtReadContextBuilder<T> onEachChild(String ael) {
+        CdtPathExpressionAel.throwAelNotSupported();
+        throw new AssertionError("unreachable");
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * @see CdtReadContextBuilder#onEachChild(PreparedAel, Object...)
+     */
+    @Override
+    public CdtReadContextBuilder<T> onEachChild(PreparedAel ael, Object... bindParams) {
+        CdtPathExpressionAel.throwPreparedAelNotSupported(ael, bindParams);
+        throw new AssertionError("unreachable");
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * @see CdtReadContextBuilder#collectValues()
+     */
+    @Override
+    public T collectValues() {
+        CTX[] ctx = params.finishContextPathForPathExpression();
+        return addOpAndReturn(com.aerospike.client.sdk.cdt.CdtOperation.selectByPath(binName, SelectFlags.VALUE, ctx));
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * @see CdtReadContextBuilder#collectValues(Consumer)
+     */
+    @Override
+    public T collectValues(Consumer<CdtCollectOptions> options) {
+        CdtCollectOptions o = new CdtCollectOptions();
+        options.accept(o);
+        CTX[] ctx = params.finishContextPathForPathExpression();
+        int flags = o.mergeSelectFlags(SelectFlags.VALUE);
+        return addOpAndReturn(com.aerospike.client.sdk.cdt.CdtOperation.selectByPath(binName, flags, ctx));
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * @see CdtReadContextBuilder#collectKeys()
+     */
+    @Override
+    public T collectKeys() {
+        validateMapOnlyForPathCollect("collectKeys");
+        CTX[] ctx = params.finishContextPathForPathExpression();
+        return addOpAndReturn(com.aerospike.client.sdk.cdt.CdtOperation.selectByPath(binName, SelectFlags.MAP_KEY, ctx));
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * @see CdtReadContextBuilder#collectKeys(Consumer)
+     */
+    @Override
+    public T collectKeys(Consumer<CdtCollectOptions> options) {
+        validateMapOnlyForPathCollect("collectKeys");
+        CdtCollectOptions o = new CdtCollectOptions();
+        options.accept(o);
+        CTX[] ctx = params.finishContextPathForPathExpression();
+        int flags = o.mergeSelectFlags(SelectFlags.MAP_KEY);
+        return addOpAndReturn(com.aerospike.client.sdk.cdt.CdtOperation.selectByPath(binName, flags, ctx));
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * @see CdtReadContextBuilder#collectKeyValues()
+     */
+    @Override
+    public T collectKeyValues() {
+        validateMapOnlyForPathCollect("collectKeyValues");
+        CTX[] ctx = params.finishContextPathForPathExpression();
+        return addOpAndReturn(com.aerospike.client.sdk.cdt.CdtOperation.selectByPath(binName, SelectFlags.MAP_KEY_VALUE, ctx));
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * @see CdtReadContextBuilder#collectKeyValues(Consumer)
+     */
+    @Override
+    public T collectKeyValues(Consumer<CdtCollectOptions> options) {
+        validateMapOnlyForPathCollect("collectKeyValues");
+        CdtCollectOptions o = new CdtCollectOptions();
+        options.accept(o);
+        CTX[] ctx = params.finishContextPathForPathExpression();
+        int flags = o.mergeSelectFlags(SelectFlags.MAP_KEY_VALUE);
+        return addOpAndReturn(com.aerospike.client.sdk.cdt.CdtOperation.selectByPath(binName, flags, ctx));
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * @see CdtReadContextBuilder#collectTree()
+     */
+    @Override
+    public T collectTree() {
+        CTX[] ctx = params.finishContextPathForPathExpression();
+        return addOpAndReturn(com.aerospike.client.sdk.cdt.CdtOperation.selectByPath(binName, SelectFlags.MATCHING_TREE, ctx));
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * @see CdtReadContextBuilder#collectTree(Consumer)
+     */
+    @Override
+    public T collectTree(Consumer<CdtCollectOptions> options) {
+        CdtCollectOptions o = new CdtCollectOptions();
+        options.accept(o);
+        CTX[] ctx = params.finishContextPathForPathExpression();
+        int flags = o.mergeSelectFlags(SelectFlags.MATCHING_TREE);
+        return addOpAndReturn(com.aerospike.client.sdk.cdt.CdtOperation.selectByPath(binName, flags, ctx));
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * @see CdtReadContextBuilder#collectValuesAsExpressionRead(Exp.Type, Exp.Type)
+     */
+    @Override
+    public T collectValuesAsExpressionRead(Exp.Type binValueType, Exp.Type resultType) {
+        return collectValuesAsExpressionRead(binValueType, resultType, SelectFlags.VALUE, ExpReadFlags.DEFAULT);
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * @see CdtReadContextBuilder#collectValuesAsExpressionRead(Exp.Type, Exp.Type, int, int)
+     */
+    @Override
+    public T collectValuesAsExpressionRead(Exp.Type binValueType, Exp.Type resultType, int selectFlags, int readFlags) {
+        CTX[] ctx = params.finishContextPathForPathExpression();
+        Exp inner = CdtExp.selectByPath(resultType, selectFlags, typedBinExpForRead(binValueType), ctx);
+        Expression expression = Exp.build(inner);
+        return addOpAndReturn(ExpressionOpHelper.createReadOp(binName, expression, readFlags));
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * @see CdtReadContextBuilder#collectValuesAsExpressionRead(Exp.Type, Exp.Type, Consumer)
+     */
+    @Override
+    public T collectValuesAsExpressionRead(Exp.Type binValueType, Exp.Type resultType,
+            Consumer<ExpressionReadOptions> options) {
+        ExpressionReadOptions opts = new ExpressionReadOptions();
+        options.accept(opts);
+        return collectValuesAsExpressionRead(binValueType, resultType, SelectFlags.VALUE, opts.getFlags());
+    }
+
+    private Exp typedBinExpForRead(Exp.Type binValueType) {
+        return switch (binValueType) {
+            case MAP -> Exp.mapBin(binName);
+            case LIST -> Exp.listBin(binName);
+            default -> Exp.bin(binName, binValueType);
+        };
     }
 
     // ========================================
