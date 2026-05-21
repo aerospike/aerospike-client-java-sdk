@@ -988,8 +988,21 @@ public class CdtReadOnlyBuilder<T> implements CdtReadContextBuilder<T>,
     public T collectValues(Consumer<CdtCollectOptions> options) {
         CdtCollectOptions o = new CdtCollectOptions();
         options.accept(o);
+        return collectValues(o);
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Direct-options implementation: applies the supplied {@link CdtCollectOptions} as-is,
+     * merging the {@link SelectFlags#VALUE} default flag.</p>
+     *
+     * @see CdtReadContextBuilder#collectValues(CdtCollectOptions)
+     */
+    @Override
+    public T collectValues(CdtCollectOptions options) {
         CTX[] ctx = params.finishContextPathForPathExpression();
-        int flags = o.mergeSelectFlags(SelectFlags.VALUE);
+        int flags = options.mergeSelectFlags(SelectFlags.VALUE);
         return addOpAndReturn(com.aerospike.client.sdk.cdt.CdtOperation.selectByPath(binName, flags, ctx));
     }
 
@@ -1012,11 +1025,25 @@ public class CdtReadOnlyBuilder<T> implements CdtReadContextBuilder<T>,
      */
     @Override
     public T collectKeys(Consumer<CdtCollectOptions> options) {
-        validateMapOnlyForPathCollect("collectKeys");
         CdtCollectOptions o = new CdtCollectOptions();
         options.accept(o);
+        return collectKeys(o);
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Direct-options implementation: applies the supplied {@link CdtCollectOptions} as-is,
+     * merging the {@link SelectFlags#MAP_KEY} default flag. Validates that the current selection
+     * targets a map.</p>
+     *
+     * @see CdtReadContextBuilder#collectKeys(CdtCollectOptions)
+     */
+    @Override
+    public T collectKeys(CdtCollectOptions options) {
+        validateMapOnlyForPathCollect("collectKeys");
         CTX[] ctx = params.finishContextPathForPathExpression();
-        int flags = o.mergeSelectFlags(SelectFlags.MAP_KEY);
+        int flags = options.mergeSelectFlags(SelectFlags.MAP_KEY);
         return addOpAndReturn(com.aerospike.client.sdk.cdt.CdtOperation.selectByPath(binName, flags, ctx));
     }
 
@@ -1039,11 +1066,25 @@ public class CdtReadOnlyBuilder<T> implements CdtReadContextBuilder<T>,
      */
     @Override
     public T collectKeyValues(Consumer<CdtCollectOptions> options) {
-        validateMapOnlyForPathCollect("collectKeyValues");
         CdtCollectOptions o = new CdtCollectOptions();
         options.accept(o);
+        return collectKeyValues(o);
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Direct-options implementation: applies the supplied {@link CdtCollectOptions} as-is,
+     * merging the {@link SelectFlags#MAP_KEY_VALUE} default flag. Validates that the current
+     * selection targets a map.</p>
+     *
+     * @see CdtReadContextBuilder#collectKeyValues(CdtCollectOptions)
+     */
+    @Override
+    public T collectKeyValues(CdtCollectOptions options) {
+        validateMapOnlyForPathCollect("collectKeyValues");
         CTX[] ctx = params.finishContextPathForPathExpression();
-        int flags = o.mergeSelectFlags(SelectFlags.MAP_KEY_VALUE);
+        int flags = options.mergeSelectFlags(SelectFlags.MAP_KEY_VALUE);
         return addOpAndReturn(com.aerospike.client.sdk.cdt.CdtOperation.selectByPath(binName, flags, ctx));
     }
 
@@ -1067,8 +1108,21 @@ public class CdtReadOnlyBuilder<T> implements CdtReadContextBuilder<T>,
     public T collectTree(Consumer<CdtCollectOptions> options) {
         CdtCollectOptions o = new CdtCollectOptions();
         options.accept(o);
+        return collectTree(o);
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Direct-options implementation: applies the supplied {@link CdtCollectOptions} as-is,
+     * merging the {@link SelectFlags#MATCHING_TREE} default flag.</p>
+     *
+     * @see CdtReadContextBuilder#collectTree(CdtCollectOptions)
+     */
+    @Override
+    public T collectTree(CdtCollectOptions options) {
         CTX[] ctx = params.finishContextPathForPathExpression();
-        int flags = o.mergeSelectFlags(SelectFlags.MATCHING_TREE);
+        int flags = options.mergeSelectFlags(SelectFlags.MATCHING_TREE);
         return addOpAndReturn(com.aerospike.client.sdk.cdt.CdtOperation.selectByPath(binName, flags, ctx));
     }
 
@@ -1105,7 +1159,22 @@ public class CdtReadOnlyBuilder<T> implements CdtReadContextBuilder<T>,
             Consumer<ExpressionReadOptions> options) {
         ExpressionReadOptions opts = new ExpressionReadOptions();
         options.accept(opts);
-        return collectValuesAsExpressionRead(binValueType, resultType, SelectFlags.VALUE, opts.getFlags());
+        return collectValuesAsExpressionRead(binValueType, resultType, opts);
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Direct-options implementation: applies the supplied {@link ExpressionReadOptions} as-is
+     * (their {@code getFlags()} value drives the expression read op), with the embedded
+     * {@code selectByPath} still using {@link SelectFlags#VALUE}.</p>
+     *
+     * @see CdtReadContextBuilder#collectValuesAsExpressionRead(Exp.Type, Exp.Type, ExpressionReadOptions)
+     */
+    @Override
+    public T collectValuesAsExpressionRead(Exp.Type binValueType, Exp.Type resultType,
+            ExpressionReadOptions options) {
+        return collectValuesAsExpressionRead(binValueType, resultType, SelectFlags.VALUE, options.getFlags());
     }
 
     private Exp typedBinExpForRead(Exp.Type binValueType) {
