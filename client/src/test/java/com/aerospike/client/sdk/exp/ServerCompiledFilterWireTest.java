@@ -27,7 +27,7 @@ import org.junit.jupiter.api.Test;
 import com.aerospike.client.sdk.AerospikeException;
 
 /**
- * Validates MessagePack layout for server-side DSL compile wrapper
+ * Validates MessagePack layout for server-side AEL compile wrapper
  */
 class ServerCompiledFilterWireTest {
 
@@ -38,7 +38,7 @@ class ServerCompiledFilterWireTest {
         assertThat(b.length).isGreaterThan(4);
         assertThat(b[0]).isEqualTo((byte) 0x92);
         assertThat(b[1]).isEqualTo((byte) 0xcc);
-        assertThat(b[2]).isEqualTo((byte) Expression.SERVER_COMPILED_DSL_EXPRESSION_OP);
+        assertThat(b[2]).isEqualTo((byte) Expression.SERVER_COMPILED_AEL_EXPRESSION_OP);
         assertThat(b[3]).isEqualTo((byte) (0xa0 + "$.bin==1".length()));
     }
 
@@ -53,7 +53,7 @@ class ServerCompiledFilterWireTest {
         byte[] b = e.getBytes();
         assertThat(b[0]).isEqualTo((byte) 0x92);
         assertThat(b[1]).isEqualTo((byte) 0xcc);
-        assertThat(b[2]).isEqualTo((byte) Expression.SERVER_COMPILED_DSL_EXPRESSION_OP);
+        assertThat(b[2]).isEqualTo((byte) Expression.SERVER_COMPILED_AEL_EXPRESSION_OP);
         assertThat(b[3]).isEqualTo((byte) 0xa0);
     }
 
@@ -73,7 +73,7 @@ class ServerCompiledFilterWireTest {
         byte[] b = Expression.fromServerCompiledFilter(padded).getBytes();
         assertThat(b[0]).isEqualTo((byte) 0x92);
         assertThat(b[1]).isEqualTo((byte) 0xcc);
-        assertThat(b[2]).isEqualTo((byte) Expression.SERVER_COMPILED_DSL_EXPRESSION_OP);
+        assertThat(b[2]).isEqualTo((byte) Expression.SERVER_COMPILED_AEL_EXPRESSION_OP);
         assertThat(Byte.toUnsignedInt(b[3])).isEqualTo(0xd9);
         assertThat(Byte.toUnsignedInt(b[4])).isEqualTo(32);
         assertThat(Arrays.copyOfRange(b, 5, 37)).isEqualTo(padded.getBytes(StandardCharsets.UTF_8));
