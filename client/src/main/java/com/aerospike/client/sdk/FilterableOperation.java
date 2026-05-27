@@ -81,8 +81,6 @@ public interface FilterableOperation<T extends FilterableOperation<T>> {
      * <p>Only one filter condition can be specified per operation. Multiple calls
      * to this method or other where variants will throw an exception.</p>
      *
-     * <p>Uses the same string-based resolution as {@link #where(String, Object...)} after binding parameters.</p>
-     *
      * @param ael the PreparedAel filter
      * @param params parameters to bind to the prepared AEL
      * @return this builder for method chaining

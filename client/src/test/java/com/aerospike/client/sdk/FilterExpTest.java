@@ -21,28 +21,18 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.time.Duration;
 import java.util.List;
 
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import com.aerospike.client.sdk.exp.Exp;
 import com.aerospike.client.sdk.exp.Expression;
-import com.aerospike.client.sdk.policy.Behavior;
 import com.aerospike.client.sdk.task.RegisterTask;
 
 public class FilterExpTest extends ClusterTest {
-    /**
-     * Long deadlines for slow servers and IDE-hosted runners (e.g. Turbospike) where default
-     * {@link Behavior#DEFAULT} ({@code abandonCallAfter} 1s) and UDF {@link RegisterTask} (1s) are too tight.
-     */
-    private static final Duration FILTER_EXP_TEST_CALL_DEADLINE = Duration.ofMinutes(30);
-    private static final int FILTER_EXP_UDF_REGISTER_WAIT_MS = (int) FILTER_EXP_TEST_CALL_DEADLINE.toMillis();
-
     String binA = "A";
     String binB = "B";
     String binC = "C";
@@ -56,11 +46,7 @@ public class FilterExpTest extends ClusterTest {
     @BeforeAll
     public static void register() {
         RegisterTask task = session.registerUdfString(UdfTest.lua, "record_example.lua");
-        task.waitTillComplete(1_000, FILTER_EXP_UDF_REGISTER_WAIT_MS);
-        session = cluster.createSession(Behavior.DEFAULT.deriveWithChanges(
-                "FilterExpTestSlowCalls",
-                b -> b.on(Behavior.Selectors.all(),
-                        ops -> ops.abandonCallAfter(FILTER_EXP_TEST_CALL_DEADLINE))));
+        task.waitTillComplete();
     }
 
     @BeforeEach
@@ -594,7 +580,6 @@ public class FilterExpTest extends ClusterTest {
     }
 
     @Test
-    @Disabled("Server returns parameter error")
     public void filterToInt() {
         Exp exp =
             Exp.eq(
@@ -606,7 +591,6 @@ public class FilterExpTest extends ClusterTest {
     }
 
     @Test
-    @Disabled("Server returns parameter error")
     public void filterToFloat() {
         Exp exp =
             Exp.eq(
@@ -778,7 +762,6 @@ public class FilterExpTest extends ClusterTest {
     }
 
     @Test
-    @Disabled("Server returns parameter error")
     public void filterLscan() {
         Exp exp1 =
             Exp.not(
@@ -796,7 +779,6 @@ public class FilterExpTest extends ClusterTest {
     }
 
     @Test
-    @Disabled("Server returns parameter error")
     public void filterRscan() {
         Exp exp1 =
             Exp.not(
@@ -848,7 +830,6 @@ public class FilterExpTest extends ClusterTest {
     }
 
     @Test
-    @Disabled("Server returns parameter error")
     public void filterCond() {
         Exp exp1 =
             Exp.not(

@@ -599,23 +599,14 @@ public class Cluster implements Closeable {
     }
 
     /**
-     * Whether this cluster's tended minimum server version allows the server-side DSL/AEL.
+     * Whether this cluster's minimum server version allows the server-side AEL.
      *
      * <p>Requires cluster minimum version {@link Version#SERVER_VERSION_8_1_3} or newer.</p>
      *
      * @see com.aerospike.client.sdk.exp.Expression#fromServerCompiledFilter(String)
      */
     public boolean supportsServerCompiledFilterExpression() {
-        return versionSupportsServerCompiledFilterExpression(version);
-    }
-
-    /**
-     * Predicate for the minimum {@link Version} required for server-side DSL/AEL on filter field 43.
-     * Package-private for unit tests; applications should use {@link #supportsServerCompiledFilterExpression()}.
-     */
-    static boolean versionSupportsServerCompiledFilterExpression(Version clusterMinVersion) {
-        return clusterMinVersion != null
-                && clusterMinVersion.isGreaterOrEqual(Version.SERVER_VERSION_8_1_3);
+        return version.isGreaterOrEqual(Version.SERVER_VERSION_8_1_3);
     }
 
     /**

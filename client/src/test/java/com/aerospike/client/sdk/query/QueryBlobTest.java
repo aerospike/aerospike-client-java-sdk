@@ -26,7 +26,6 @@ import java.util.List;
 
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import com.aerospike.client.sdk.AerospikeException;
@@ -37,7 +36,6 @@ import com.aerospike.client.sdk.RecordStream;
 import com.aerospike.client.sdk.ResultCode;
 import com.aerospike.client.sdk.command.Buffer;
 
-//@Disabled("Server parse failure for blobs")
 public class QueryBlobTest extends ClusterTest {
     private static final String setName = "queryblob";
     private static final String indexName = "qbindex";
@@ -107,10 +105,9 @@ public class QueryBlobTest extends ClusterTest {
         Buffer.longToBytes(50003, bytes, 0);
         String str = Buffer.bytesToHexString(bytes);
 
-        String where = "$." + binName + " == x'" + str + "'";
         RecordStream rs = session.query(dataSet)
             .readingOnlyBins(binName)
-            .where(where)
+            .where("$." + binName + " == x'" + str + "'")
             .execute();
 
         try {
