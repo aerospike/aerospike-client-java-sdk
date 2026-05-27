@@ -413,7 +413,7 @@ public class QueryBuilder extends AbstractFilterableBuilder implements
      * to this method or {@link #where(BooleanExpression)} will throw an exception.</p>
      *
      * <p>When parsing does not select a secondary-index slice and the cluster minimum version supports
-     * server-side AEL on the wire ({@linkplain com.aerospike.client.sdk.util.Version#SERVER_VERSION_8_4}),
+     * server-side AEL on the wire ({@linkplain com.aerospike.client.sdk.util.Version#SERVER_VERSION_8_1_3}),
      * the DSL may be compiled on the server; parsing still runs locally first whenever secondary-index selection applies.</p>
      *
      * @param ael the AEL filter expression

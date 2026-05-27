@@ -26,9 +26,9 @@ import com.aerospike.client.sdk.util.Version;
 class ClusterServerCompiledFilterPredicateTest {
 
     @Test
-    void versionSupportsServerCompiledFilterExpression_respects_8_4_floor() {
-        assertThat(Cluster.versionSupportsServerCompiledFilterExpression(Version.SERVER_VERSION_8_4)).isTrue();
-        assertThat(Cluster.versionSupportsServerCompiledFilterExpression(new Version(8, 3, 0, 0))).isFalse();
+    void versionSupportsServerCompiledFilterExpression_respects_8_1_3_floor() {
+        assertThat(Cluster.versionSupportsServerCompiledFilterExpression(Version.SERVER_VERSION_8_1_3)).isTrue();
+        assertThat(Cluster.versionSupportsServerCompiledFilterExpression(Version.SERVER_VERSION_8_1_2)).isFalse();
         assertThat(Cluster.versionSupportsServerCompiledFilterExpression(null)).isFalse();
     }
 }
