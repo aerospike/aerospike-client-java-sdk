@@ -76,6 +76,7 @@ public class Cluster implements Closeable {
     private volatile SystemSettings effectiveSystemSettings = SystemSettings.DEFAULT;
     private Version version;
     private boolean versionGE8;
+    private boolean versionGE813;
     private boolean metricsEnabled;
 
     Cluster(ClusterDefinition def, SystemSettings effectiveSettings) {
@@ -599,6 +600,17 @@ public class Cluster implements Closeable {
     }
 
     /**
+     * Whether this cluster's minimum server version allows the server-side AEL.
+     *
+     * <p>Requires cluster minimum version {@link Version#SERVER_VERSION_8_1_3} or newer.</p>
+     *
+     * @see com.aerospike.client.sdk.exp.Expression#fromServerCompiledFilter(String)
+     */
+    public boolean supportsServerCompiledFilterExpression() {
+        return versionGE813;
+    }
+
+    /**
      * Sets the minimum server version for the cluster. For internal use only.
      *
      * <p>This method is typically called by the cluster tend mechanism when
@@ -618,6 +630,7 @@ public class Cluster implements Closeable {
     public void setVersion(Version version) {
         this.version = version;
         this.versionGE8 = version.isGreaterOrEqual(Version.SERVER_VERSION_8_0);
+        this.versionGE813 = version.isGreaterOrEqual(Version.SERVER_VERSION_8_1_3);
     }
 
     /**

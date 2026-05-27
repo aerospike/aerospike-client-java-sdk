@@ -49,6 +49,7 @@ public class MapExpTest extends ClusterTest {
 
         RecordStream rs = session.query(key)
             .readingOnlyBins(binName)
+            .failOnFilteredOut()
             .where(where)
             .execute();
 

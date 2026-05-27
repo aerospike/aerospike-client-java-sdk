@@ -139,6 +139,26 @@ public abstract class WhereClauseProcessor {
         return result;
     }
 
+    private static ParseResult serverCompiledFilterResult(String dslSource) {
+        return new ParseResult(null, Exp.expr(Expression.fromServerCompiledFilter(dslSource)));
+    }
+
+    /**
+     * Without {@code allowsIndex} and with server AEL wire support, skip client parsing and use
+     * {@link Expression#fromServerCompiledFilter}. With {@code allowsIndex}, client-parse first for SI;
+     */
+    protected final ParseResult processAel(
+        String dslSource,
+        String namespace,
+        String querySet,
+        Session session
+    ) {
+        if (!allowsIndex && session.getCluster().supportsServerCompiledFilterExpression()) {
+            return serverCompiledFilterResult(dslSource);
+        }
+        return process(dslSource, namespace, querySet, session);
+    }
+
     private static class WhereStringImpl extends WhereClauseProcessor {
         private final String ael;
         public WhereStringImpl(boolean allowsIndex, String ael) {
@@ -148,7 +168,7 @@ public abstract class WhereClauseProcessor {
 
         @Override
         public ParseResult process(String namespace, String querySet, Session session) {
-            return process(this.ael, namespace, querySet, session);
+            return processAel(this.ael, namespace, querySet, session);
         }
     }
 
@@ -165,7 +185,7 @@ public abstract class WhereClauseProcessor {
         public ParseResult process(String namespace, String querySet, Session session) {
             // TODO: For now, until AEL supports prepared statements
             String aelStr = ael.formValue(params);
-            return process(aelStr, namespace, querySet, session);
+            return processAel(aelStr, namespace, querySet, session);
         }
     }
 
