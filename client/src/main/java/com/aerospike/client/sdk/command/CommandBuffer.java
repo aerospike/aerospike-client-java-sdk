@@ -22,6 +22,7 @@ import java.util.zip.Deflater;
 import com.aerospike.client.sdk.AerospikeException;
 import com.aerospike.client.sdk.Bin;
 import com.aerospike.client.sdk.Key;
+import com.aerospike.client.sdk.Log;
 import com.aerospike.client.sdk.Operation;
 import com.aerospike.client.sdk.ResultCode;
 import com.aerospike.client.sdk.Value;
@@ -878,7 +879,21 @@ public final class CommandBuffer {
         // Operations (used in query execute) and bin names (used in scan/query) are mutually exclusive.
         int operationCount = 0;
 
-        if (binNames != null) {
+        if (cmd.ops != null) {
+            if (binNames != null) {
+                Log.warn("Operations and bin names are mutually exclusive.");
+            }
+
+            for (Operation op : cmd.ops) {
+                if (op.type.isWrite) {
+                    throw new AerospikeException(ResultCode.PARAMETER_ERROR,
+                        "Query operations must be read-only. Use background query for write-only operations");
+                }
+                estimateOperationSize(op);
+            }
+            operationCount = cmd.ops.size();
+        }
+        else if (binNames != null) {
             // Estimate size for selected bin names (query bin names already handled for old servers).
             for (String binName : binNames) {
                 estimateOperationSize(binName);
@@ -1006,7 +1021,12 @@ public final class CommandBuffer {
             writeField(maxRecords, FieldType.MAX_RECORDS);
         }
 
-        if (binNames != null) {
+        if (cmd.ops != null) {
+            for (Operation op : cmd.ops) {
+                writeOperation(op);
+            }
+        }
+        else if (binNames != null) {
             for (String binName : binNames) {
                 writeOperation(binName, Operation.Type.READ);
             }
@@ -1118,7 +1138,8 @@ public final class CommandBuffer {
             // Estimate size for background operations.
             for (Operation operation : operations) {
                 if (! operation.type.isWrite) {
-                    throw AerospikeException.resultCodeToException(ResultCode.PARAMETER_ERROR, "Read operations not allowed in background query");
+                    throw AerospikeException.resultCodeToException(ResultCode.PARAMETER_ERROR,
+                        "Background query operations must be write-only. Use query for read-only operations");
                 }
                 estimateOperationSize(operation);
             }
