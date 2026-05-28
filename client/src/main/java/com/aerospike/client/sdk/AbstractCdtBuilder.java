@@ -263,8 +263,18 @@ public class AbstractCdtBuilder<T extends AbstractOperationBuilder<T>> {
      */
     public T listAppend(Value value, Consumer<ListEntryWriteOptions> options) {
         ListEntryWriteOptions opts = applyListOptions(options);
-        if (opts != null && (opts.isAddUnique() || opts.isInsertBounded() || opts.isAllowFailures())) {
-            ListPolicy policy = resolveListPolicy(ListOrder.UNORDERED, opts);
+        return listAppend(value, opts);
+    }
+
+    /**
+     * Append an item to the end of an unordered list with optional write flags.
+     *
+     * @param value   value to append
+     * @param options optional write flags, or {@code null}
+     */
+    public T listAppend(Value value, ListEntryWriteOptions options) {
+        if (options != null && (options.isAddUnique() || options.isInsertBounded() || options.isAllowFailures())) {
+            ListPolicy policy = resolveListPolicy(ListOrder.UNORDERED, options);
             if (params != null) {
                 params.pushCurrentToContext();
                 return this.opBuilder.addOp(ListOperation.append(policy, binName, value, params.context()));
@@ -297,6 +307,21 @@ public class AbstractCdtBuilder<T extends AbstractOperationBuilder<T>> {
     /** @see #listAppend(Value, Consumer) */
     public T listAppend(Map<?,?> value, Consumer<ListEntryWriteOptions> options) { return listAppend(Value.get(value), options); }
 
+    /** @see #listAppend(Value, ListEntryWriteOptions) */
+    public T listAppend(long value, ListEntryWriteOptions options) { return listAppend(Value.get(value), options); }
+    /** @see #listAppend(Value, ListEntryWriteOptions) */
+    public T listAppend(String value, ListEntryWriteOptions options) { return listAppend(Value.get(value), options); }
+    /** @see #listAppend(Value, ListEntryWriteOptions) */
+    public T listAppend(double value, ListEntryWriteOptions options) { return listAppend(Value.get(value), options); }
+    /** @see #listAppend(Value, ListEntryWriteOptions) */
+    public T listAppend(boolean value, ListEntryWriteOptions options) { return listAppend(Value.get(value), options); }
+    /** @see #listAppend(Value, ListEntryWriteOptions) */
+    public T listAppend(byte[] value, ListEntryWriteOptions options) { return listAppend(Value.get(value), options); }
+    /** @see #listAppend(Value, ListEntryWriteOptions) */
+    public T listAppend(List<?> value, ListEntryWriteOptions options) { return listAppend(Value.get(value), options); }
+    /** @see #listAppend(Value, ListEntryWriteOptions) */
+    public T listAppend(Map<?,?> value, ListEntryWriteOptions options) { return listAppend(Value.get(value), options); }
+
     // =================================
     // listAdd -- add to ordered list
     // =================================
@@ -307,7 +332,7 @@ public class AbstractCdtBuilder<T extends AbstractOperationBuilder<T>> {
      * @param value value to add
      */
     public T listAdd(Value value) {
-        return listAdd(value, (Consumer<ListEntryWriteOptions>) null);
+        return listAdd(value, (ListEntryWriteOptions)null);
     }
 
     /** @see #listAdd(Value) */
@@ -335,7 +360,17 @@ public class AbstractCdtBuilder<T extends AbstractOperationBuilder<T>> {
      */
     public T listAdd(Value value, Consumer<ListEntryWriteOptions> options) {
         ListEntryWriteOptions opts = applyListOptions(options);
-        ListPolicy policy = resolveListPolicy(ListOrder.ORDERED, opts);
+        return listAdd(value, opts);
+    }
+
+    /**
+     * Add an item to an ordered list with optional write flags.
+     *
+     * @param value   value to add
+     * @param options optional write flags, or {@code null}
+     */
+    public T listAdd(Value value, ListEntryWriteOptions options) {
+        ListPolicy policy = resolveListPolicy(ListOrder.ORDERED, options);
         if (params != null) {
             params.pushCurrentToContext();
             return this.opBuilder.addOp(ListOperation.append(policy, binName, value, params.context()));
@@ -360,6 +395,21 @@ public class AbstractCdtBuilder<T extends AbstractOperationBuilder<T>> {
     /** @see #listAdd(Value, Consumer) */
     public T listAdd(Map<?,?> value, Consumer<ListEntryWriteOptions> options) { return listAdd(Value.get(value), options); }
 
+    /** @see #listAdd(Value, Consumer) */
+    public T listAdd(long value, ListEntryWriteOptions options) { return listAdd(Value.get(value), options); }
+    /** @see #listAdd(Value, Consumer) */
+    public T listAdd(String value, ListEntryWriteOptions options) { return listAdd(Value.get(value), options); }
+    /** @see #listAdd(Value, Consumer) */
+    public T listAdd(double value, ListEntryWriteOptions options) { return listAdd(Value.get(value), options); }
+    /** @see #listAdd(Value, Consumer) */
+    public T listAdd(boolean value, ListEntryWriteOptions options) { return listAdd(Value.get(value), options); }
+    /** @see #listAdd(Value, Consumer) */
+    public T listAdd(byte[] value, ListEntryWriteOptions options) { return listAdd(Value.get(value), options); }
+    /** @see #listAdd(Value, Consumer) */
+    public T listAdd(List<?> value, ListEntryWriteOptions options) { return listAdd(Value.get(value), options); }
+    /** @see #listAdd(Value, Consumer) */
+    public T listAdd(Map<?,?> value, ListEntryWriteOptions options) { return listAdd(Value.get(value), options); }
+
     // =================================
     // Bulk list append/add
     // =================================
@@ -370,7 +420,7 @@ public class AbstractCdtBuilder<T extends AbstractOperationBuilder<T>> {
      * @param items values to append, in order
      */
     public T listAppendItems(List<?> items) {
-        return listAppendItems(items, null);
+        return listAppendItems(items, (ListBulkWriteOptions)null);
     }
 
     /**
@@ -382,9 +432,19 @@ public class AbstractCdtBuilder<T extends AbstractOperationBuilder<T>> {
      */
     public T listAppendItems(List<?> items, Consumer<ListBulkWriteOptions> options) {
         ListBulkWriteOptions opts = applyListBulkOptions(options);
+        return listAppendItems(items, opts);
+    }
+
+    /**
+     * Append multiple items to the end of an unordered list with optional bulk write flags.
+     *
+     * @param items   values to append, in order
+     * @param options optional configuration (addUnique, insertBounded, allowFailures, allowPartial)
+     */
+    public T listAppendItems(List<?> items, ListBulkWriteOptions options) {
         java.util.List<Value> valueList = toValueList(items);
-        if (opts != null && (opts.isAddUnique() || opts.isInsertBounded() || opts.isAllowFailures() || opts.isAllowPartial())) {
-            ListPolicy policy = resolveListPolicy(ListOrder.UNORDERED, opts);
+        if (options != null && (options.isAddUnique() || options.isInsertBounded() || options.isAllowFailures() || options.isAllowPartial())) {
+            ListPolicy policy = resolveListPolicy(ListOrder.UNORDERED, options);
             if (params != null) {
                 params.pushCurrentToContext();
                 return this.opBuilder.addOp(ListOperation.appendItems(policy, binName, valueList, params.context()));
@@ -408,7 +468,7 @@ public class AbstractCdtBuilder<T extends AbstractOperationBuilder<T>> {
      * @param items values to add
      */
     public T listAddItems(List<?> items) {
-        return listAddItems(items, null);
+        return listAddItems(items, (ListBulkWriteOptions)null);
     }
 
     /**
@@ -419,7 +479,17 @@ public class AbstractCdtBuilder<T extends AbstractOperationBuilder<T>> {
      */
     public T listAddItems(List<?> items, Consumer<ListBulkWriteOptions> options) {
         ListBulkWriteOptions opts = applyListBulkOptions(options);
-        ListPolicy policy = resolveListPolicy(ListOrder.ORDERED, opts);
+        return listAddItems(items, opts);
+    }
+
+    /**
+     * Add multiple items to an ordered list with optional bulk write flags.
+     *
+     * @param items   values to add
+     * @param options optional configuration (addUnique, insertBounded, allowFailures, allowPartial)
+     */
+    public T listAddItems(List<?> items, ListBulkWriteOptions options) {
+        ListPolicy policy = resolveListPolicy(ListOrder.ORDERED, options);
         java.util.List<Value> valueList = toValueList(items);
         if (params != null) {
             params.pushCurrentToContext();
@@ -494,7 +564,7 @@ public class AbstractCdtBuilder<T extends AbstractOperationBuilder<T>> {
      * @see #listCreate(ListOrder, Consumer) for non-default pad/persistIndex options
      */
     public T listCreate(ListOrder order) {
-        return listCreate(order, (Consumer<ListCreateOptions>) null);
+        return listCreate(order, (ListCreateOptions)null);
     }
 
     /**
@@ -508,13 +578,28 @@ public class AbstractCdtBuilder<T extends AbstractOperationBuilder<T>> {
      * @param options optional configuration (noPad, persistIndex); defaults are pad=true, persistIndex=false
      */
     public T listCreate(ListOrder order, Consumer<ListCreateOptions> options) {
-        boolean pad = true;
-        boolean persistIndex = false;
         if (options != null) {
             ListCreateOptions opts = new ListCreateOptions();
             options.accept(opts);
-            pad = opts.isPad();
-            persistIndex = opts.isPersistIndex();
+            return listCreate(order, opts);
+        }
+        else {
+            return listCreate(order, (ListCreateOptions)null);
+        }
+    }
+
+    /**
+     * Create a list with the specified ordering and options.
+     *
+     * @param order the list ordering
+     * @param options optional configuration (noPad, persistIndex); defaults are pad=true, persistIndex=false
+     */
+    public T listCreate(ListOrder order, ListCreateOptions options) {
+        boolean pad = true;
+        boolean persistIndex = false;
+        if (options != null) {
+            pad = options.isPad();
+            persistIndex = options.isPersistIndex();
         }
         if (persistIndex) {
             if (params != null) {
@@ -607,7 +692,7 @@ public class AbstractCdtBuilder<T extends AbstractOperationBuilder<T>> {
      * @param items values to insert
      */
     public T listInsertItems(int index, List<?> items) {
-        return listInsertItems(index, items, null);
+        return listInsertItems(index, items, (ListBulkWriteOptions)null);
     }
 
     /**
@@ -619,9 +704,20 @@ public class AbstractCdtBuilder<T extends AbstractOperationBuilder<T>> {
      */
     public T listInsertItems(int index, List<?> items, Consumer<ListBulkWriteOptions> options) {
         ListBulkWriteOptions opts = applyListBulkOptions(options);
+        return listInsertItems(index, items, opts);
+    }
+
+    /**
+     * Insert multiple values at {@code index} with optional bulk write flags ({@link ListBulkWriteOptions}).
+     *
+     * @param index   insertion position
+     * @param items   values to insert
+     * @param options optional configuration (addUnique, insertBounded, allowFailures, allowPartial)
+     */
+    public T listInsertItems(int index, List<?> items, ListBulkWriteOptions options) {
         java.util.List<Value> valueList = toValueList(items);
-        if (opts != null && (opts.isAddUnique() || opts.isInsertBounded() || opts.isAllowFailures() || opts.isAllowPartial())) {
-            ListPolicy policy = resolveListPolicy(ListOrder.UNORDERED, opts);
+        if (options != null && (options.isAddUnique() || options.isInsertBounded() || options.isAllowFailures() || options.isAllowPartial())) {
+            ListPolicy policy = resolveListPolicy(ListOrder.UNORDERED, options);
             if (params != null) {
                 params.pushCurrentToContext();
                 return this.opBuilder.addOp(ListOperation.insertItems(policy, binName, index, valueList, params.context()));
@@ -925,7 +1021,7 @@ public class AbstractCdtBuilder<T extends AbstractOperationBuilder<T>> {
      * @param items the key-value pairs to upsert
      */
     public T mapUpsertItems(Map<?, ?> items) {
-        return mapUpsertItems(items, null);
+        return mapUpsertItems(items, (MapBulkWriteOptions)null);
     }
 
     /**
@@ -936,7 +1032,17 @@ public class AbstractCdtBuilder<T extends AbstractOperationBuilder<T>> {
      */
     public T mapUpsertItems(Map<?, ?> items, Consumer<MapBulkWriteOptions> options) {
         MapBulkWriteOptions opts = applyBulkOptions(options);
-        MapPolicy mp = resolveBulkMapPolicy(MapWriteFlags.DEFAULT, opts);
+        return mapUpsertItems(items, opts);
+    }
+
+    /**
+     * Upsert (create or update) multiple map entries with options.
+     *
+     * @param items   the key-value pairs to upsert
+     * @param options optional configuration (mapOrder, persistIndex, allowFailures, allowPartial)
+     */
+    public T mapUpsertItems(Map<?, ?> items, MapBulkWriteOptions options) {
+        MapPolicy mp = resolveBulkMapPolicy(MapWriteFlags.DEFAULT, options);
         if (params != null) {
             params.pushCurrentToContext();
             return this.opBuilder.addOp(MapOperation.putItems(mp, binName, toValueMap(items), params.context()));
@@ -954,7 +1060,7 @@ public class AbstractCdtBuilder<T extends AbstractOperationBuilder<T>> {
      * @param items the key-value pairs to insert
      */
     public T mapInsertItems(Map<?, ?> items) {
-        return mapInsertItems(items, null);
+        return mapInsertItems(items, (MapBulkWriteOptions)null);
     }
 
     /**
@@ -965,7 +1071,17 @@ public class AbstractCdtBuilder<T extends AbstractOperationBuilder<T>> {
      */
     public T mapInsertItems(Map<?, ?> items, Consumer<MapBulkWriteOptions> options) {
         MapBulkWriteOptions opts = applyBulkOptions(options);
-        MapPolicy mp = resolveBulkMapPolicy(MapWriteFlags.CREATE_ONLY, opts);
+        return mapInsertItems(items, opts);
+    }
+
+    /**
+     * Insert (create only) multiple map entries with options.
+     *
+     * @param items   the key-value pairs to insert
+     * @param options optional configuration (mapOrder, persistIndex, allowFailures, allowPartial)
+     */
+    public T mapInsertItems(Map<?, ?> items, MapBulkWriteOptions options) {
+        MapPolicy mp = resolveBulkMapPolicy(MapWriteFlags.CREATE_ONLY, options);
         if (params != null) {
             params.pushCurrentToContext();
             return this.opBuilder.addOp(MapOperation.putItems(mp, binName, toValueMap(items), params.context()));
@@ -983,7 +1099,7 @@ public class AbstractCdtBuilder<T extends AbstractOperationBuilder<T>> {
      * @param items the key-value pairs to update
      */
     public T mapUpdateItems(Map<?, ?> items) {
-        return mapUpdateItems(items, null);
+        return mapUpdateItems(items, (MapBulkWriteOptions)null);
     }
 
     /**
@@ -994,7 +1110,17 @@ public class AbstractCdtBuilder<T extends AbstractOperationBuilder<T>> {
      */
     public T mapUpdateItems(Map<?, ?> items, Consumer<MapBulkWriteOptions> options) {
         MapBulkWriteOptions opts = applyBulkOptions(options);
-        MapPolicy mp = resolveBulkMapPolicy(MapWriteFlags.UPDATE_ONLY, opts);
+        return mapUpdateItems(items, opts);
+    }
+
+    /**
+     * Update (update only) multiple map entries with options.
+     *
+     * @param items   the key-value pairs to update
+     * @param options optional configuration (mapOrder, persistIndex, allowFailures, allowPartial)
+     */
+    public T mapUpdateItems(Map<?, ?> items, MapBulkWriteOptions options) {
+        MapPolicy mp = resolveBulkMapPolicy(MapWriteFlags.UPDATE_ONLY, options);
         if (params != null) {
             params.pushCurrentToContext();
             return this.opBuilder.addOp(MapOperation.putItems(mp, binName, toValueMap(items), params.context()));

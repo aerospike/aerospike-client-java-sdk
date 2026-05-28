@@ -305,7 +305,23 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
     public T selectFrom(String ael, Consumer<ExpressionReadOptions> options) {
         ExpressionReadOptions opts = new ExpressionReadOptions();
         options.accept(opts);
-        return opBuilder.addOp(ExpressionOpHelper.createReadOp(binName, ael, opts.getFlags()));
+        return selectFrom(ael, opts);
+    }
+
+    /**
+     * Read a computed value with pre-built options.
+     *
+     * <p>This is the direct-options overload of {@link #selectFrom(String, Consumer)}. Use it when
+     * read options have already been built (for example shared across many bins) rather than
+     * configured via a lambda.</p>
+     *
+     * @param ael     the AEL expression string
+     * @param options the read options to apply (e.g. configured via
+     *                {@link ExpressionReadOptions#ignoreEvalFailure()})
+     * @return the parent operation builder for chaining
+     */
+    public T selectFrom(String ael, ExpressionReadOptions options) {
+        return opBuilder.addOp(ExpressionOpHelper.createReadOp(binName, ael, options.getFlags()));
     }
 
     /**
@@ -340,7 +356,20 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
     public T selectFrom(BooleanExpression ael, Consumer<ExpressionReadOptions> options) {
         ExpressionReadOptions opts = new ExpressionReadOptions();
         options.accept(opts);
-        return opBuilder.addOp(ExpressionOpHelper.createReadOp(binName, ael, opts.getFlags()));
+        return selectFrom(ael, opts);
+    }
+
+    /**
+     * Read a computed value using a {@link BooleanExpression} with pre-built options.
+     *
+     * <p>This is the direct-options overload of {@link #selectFrom(BooleanExpression, Consumer)}.</p>
+     *
+     * @param ael     the boolean expression to evaluate
+     * @param options the read options to apply
+     * @return the parent operation builder for chaining
+     */
+    public T selectFrom(BooleanExpression ael, ExpressionReadOptions options) {
+        return opBuilder.addOp(ExpressionOpHelper.createReadOp(binName, ael, options.getFlags()));
     }
 
     /**
@@ -379,7 +408,21 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
     public T selectFrom(PreparedAel ael, Consumer<ExpressionReadOptions> options, Object... params) {
         ExpressionReadOptions opts = new ExpressionReadOptions();
         options.accept(opts);
-        return opBuilder.addOp(ExpressionOpHelper.createReadOp(binName, ael, params, opts.getFlags()));
+        return selectFrom(ael, opts, params);
+    }
+
+    /**
+     * Read a computed value using a {@link PreparedAel} with pre-built options and bound parameters.
+     *
+     * <p>This is the direct-options overload of {@link #selectFrom(PreparedAel, Consumer, Object...)}.</p>
+     *
+     * @param ael     the prepared AEL statement
+     * @param options the read options to apply
+     * @param params  parameter values to bind to the prepared statement
+     * @return the parent operation builder for chaining
+     */
+    public T selectFrom(PreparedAel ael, ExpressionReadOptions options, Object... params) {
+        return opBuilder.addOp(ExpressionOpHelper.createReadOp(binName, ael, params, options.getFlags()));
     }
 
     /**
@@ -415,7 +458,20 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
     public T selectFrom(Exp exp, Consumer<ExpressionReadOptions> options) {
         ExpressionReadOptions opts = new ExpressionReadOptions();
         options.accept(opts);
-        return opBuilder.addOp(ExpressionOpHelper.createReadOp(binName, exp, opts.getFlags()));
+        return selectFrom(exp, opts);
+    }
+
+    /**
+     * Read a computed value using a low-level {@link Exp} expression with pre-built options.
+     *
+     * <p>This is the direct-options overload of {@link #selectFrom(Exp, Consumer)}.</p>
+     *
+     * @param exp     the Exp expression to evaluate
+     * @param options the read options to apply
+     * @return the parent operation builder for chaining
+     */
+    public T selectFrom(Exp exp, ExpressionReadOptions options) {
+        return opBuilder.addOp(ExpressionOpHelper.createReadOp(binName, exp, options.getFlags()));
     }
 
     /**
@@ -451,7 +507,20 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
     public T selectFrom(Expression exp, Consumer<ExpressionReadOptions> options) {
         ExpressionReadOptions opts = new ExpressionReadOptions();
         options.accept(opts);
-        return opBuilder.addOp(ExpressionOpHelper.createReadOp(binName, exp, opts.getFlags()));
+        return selectFrom(exp, opts);
+    }
+
+    /**
+     * Read a computed value using a pre-compiled {@link Expression} with pre-built options.
+     *
+     * <p>This is the direct-options overload of {@link #selectFrom(Expression, Consumer)}.</p>
+     *
+     * @param exp     the compiled expression to evaluate
+     * @param options the read options to apply
+     * @return the parent operation builder for chaining
+     */
+    public T selectFrom(Expression exp, ExpressionReadOptions options) {
+        return opBuilder.addOp(ExpressionOpHelper.createReadOp(binName, exp, options.getFlags()));
     }
 
     // ----------------------------------------
@@ -494,7 +563,23 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
     public T insertFrom(String ael, Consumer<ExpressionWriteOptions> options) {
         ExpressionWriteOptions opts = new ExpressionWriteOptions(ExpWriteFlags.CREATE_ONLY);
         options.accept(opts);
-        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, ael, opts.getFlags()));
+        return insertFrom(ael, opts);
+    }
+
+    /**
+     * Write expression result only if the bin does not exist, with pre-built options.
+     *
+     * <p>This is the direct-options overload of {@link #insertFrom(String, Consumer)}. The caller
+     * is responsible for constructing the options &mdash; typically with
+     * {@code new ExpressionWriteOptions(ExpWriteFlags.CREATE_ONLY)} &mdash; so the
+     * {@code CREATE_ONLY} semantics implied by {@code insertFrom} are preserved.</p>
+     *
+     * @param ael     the AEL expression string
+     * @param options the write options to apply
+     * @return the parent operation builder for chaining
+     */
+    public T insertFrom(String ael, ExpressionWriteOptions options) {
+        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, ael, options.getFlags()));
     }
 
     /**
@@ -530,7 +615,23 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
     public T insertFrom(BooleanExpression ael, Consumer<ExpressionWriteOptions> options) {
         ExpressionWriteOptions opts = new ExpressionWriteOptions(ExpWriteFlags.CREATE_ONLY);
         options.accept(opts);
-        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, ael, opts.getFlags()));
+        return insertFrom(ael, opts);
+    }
+
+    /**
+     * Write expression result only if the bin does not exist, using a {@link BooleanExpression}
+     * with pre-built options.
+     *
+     * <p>This is the direct-options overload of {@link #insertFrom(BooleanExpression, Consumer)}.
+     * The caller is responsible for ensuring the options carry the desired write flags (the
+     * Consumer overload pre-seeds {@code CREATE_ONLY}).</p>
+     *
+     * @param ael     the boolean expression to evaluate
+     * @param options the write options to apply
+     * @return the parent operation builder for chaining
+     */
+    public T insertFrom(BooleanExpression ael, ExpressionWriteOptions options) {
+        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, ael, options.getFlags()));
     }
 
     /**
@@ -570,7 +671,24 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
     public T insertFrom(PreparedAel ael, Consumer<ExpressionWriteOptions> options, Object... params) {
         ExpressionWriteOptions opts = new ExpressionWriteOptions(ExpWriteFlags.CREATE_ONLY);
         options.accept(opts);
-        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, ael, params, opts.getFlags()));
+        return insertFrom(ael, opts, params);
+    }
+
+    /**
+     * Write expression result only if the bin does not exist, using a {@link PreparedAel} with
+     * pre-built options and bound parameters.
+     *
+     * <p>This is the direct-options overload of {@link #insertFrom(PreparedAel, Consumer, Object...)}.
+     * The caller is responsible for ensuring the options carry the desired write flags (the
+     * Consumer overload pre-seeds {@code CREATE_ONLY}).</p>
+     *
+     * @param ael     the prepared AEL statement
+     * @param options the write options to apply
+     * @param params  parameter values to bind to the prepared statement
+     * @return the parent operation builder for chaining
+     */
+    public T insertFrom(PreparedAel ael, ExpressionWriteOptions options, Object... params) {
+        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, ael, params, options.getFlags()));
     }
 
     /**
@@ -607,7 +725,23 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
     public T insertFrom(Exp exp, Consumer<ExpressionWriteOptions> options) {
         ExpressionWriteOptions opts = new ExpressionWriteOptions(ExpWriteFlags.CREATE_ONLY);
         options.accept(opts);
-        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, exp, opts.getFlags()));
+        return insertFrom(exp, opts);
+    }
+
+    /**
+     * Write expression result only if the bin does not exist, using a low-level {@link Exp} with
+     * pre-built options.
+     *
+     * <p>This is the direct-options overload of {@link #insertFrom(Exp, Consumer)}. The caller is
+     * responsible for ensuring the options carry the desired write flags (the Consumer overload
+     * pre-seeds {@code CREATE_ONLY}).</p>
+     *
+     * @param exp     the Exp expression to evaluate
+     * @param options the write options to apply
+     * @return the parent operation builder for chaining
+     */
+    public T insertFrom(Exp exp, ExpressionWriteOptions options) {
+        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, exp, options.getFlags()));
     }
 
     /**
@@ -644,7 +778,23 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
     public T insertFrom(Expression exp, Consumer<ExpressionWriteOptions> options) {
         ExpressionWriteOptions opts = new ExpressionWriteOptions(ExpWriteFlags.CREATE_ONLY);
         options.accept(opts);
-        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, exp, opts.getFlags()));
+        return insertFrom(exp, opts);
+    }
+
+    /**
+     * Write expression result only if the bin does not exist, using a pre-compiled
+     * {@link Expression} with pre-built options.
+     *
+     * <p>This is the direct-options overload of {@link #insertFrom(Expression, Consumer)}. The
+     * caller is responsible for ensuring the options carry the desired write flags (the Consumer
+     * overload pre-seeds {@code CREATE_ONLY}).</p>
+     *
+     * @param exp     the compiled expression to evaluate
+     * @param options the write options to apply
+     * @return the parent operation builder for chaining
+     */
+    public T insertFrom(Expression exp, ExpressionWriteOptions options) {
+        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, exp, options.getFlags()));
     }
 
     // ----------------------------------------
@@ -687,7 +837,23 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
     public T updateFrom(String ael, Consumer<ExpressionWriteOptions> options) {
         ExpressionWriteOptions opts = new ExpressionWriteOptions(ExpWriteFlags.UPDATE_ONLY);
         options.accept(opts);
-        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, ael, opts.getFlags()));
+        return updateFrom(ael, opts);
+    }
+
+    /**
+     * Write expression result only if the bin already exists, with pre-built options.
+     *
+     * <p>This is the direct-options overload of {@link #updateFrom(String, Consumer)}. The caller
+     * is responsible for constructing the options &mdash; typically with
+     * {@code new ExpressionWriteOptions(ExpWriteFlags.UPDATE_ONLY)} &mdash; so the
+     * {@code UPDATE_ONLY} semantics implied by {@code updateFrom} are preserved.</p>
+     *
+     * @param ael     the AEL expression string
+     * @param options the write options to apply
+     * @return the parent operation builder for chaining
+     */
+    public T updateFrom(String ael, ExpressionWriteOptions options) {
+        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, ael, options.getFlags()));
     }
 
     /**
@@ -723,7 +889,23 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
     public T updateFrom(BooleanExpression ael, Consumer<ExpressionWriteOptions> options) {
         ExpressionWriteOptions opts = new ExpressionWriteOptions(ExpWriteFlags.UPDATE_ONLY);
         options.accept(opts);
-        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, ael, opts.getFlags()));
+        return updateFrom(ael, opts);
+    }
+
+    /**
+     * Write expression result only if the bin already exists, using a {@link BooleanExpression}
+     * with pre-built options.
+     *
+     * <p>This is the direct-options overload of {@link #updateFrom(BooleanExpression, Consumer)}.
+     * The caller is responsible for ensuring the options carry the desired write flags (the
+     * Consumer overload pre-seeds {@code UPDATE_ONLY}).</p>
+     *
+     * @param ael     the boolean expression to evaluate
+     * @param options the write options to apply
+     * @return the parent operation builder for chaining
+     */
+    public T updateFrom(BooleanExpression ael, ExpressionWriteOptions options) {
+        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, ael, options.getFlags()));
     }
 
     /**
@@ -763,7 +945,24 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
     public T updateFrom(PreparedAel ael, Consumer<ExpressionWriteOptions> options, Object... params) {
         ExpressionWriteOptions opts = new ExpressionWriteOptions(ExpWriteFlags.UPDATE_ONLY);
         options.accept(opts);
-        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, ael, params, opts.getFlags()));
+        return updateFrom(ael, opts, params);
+    }
+
+    /**
+     * Write expression result only if the bin already exists, using a {@link PreparedAel} with
+     * pre-built options and bound parameters.
+     *
+     * <p>This is the direct-options overload of {@link #updateFrom(PreparedAel, Consumer, Object...)}.
+     * The caller is responsible for ensuring the options carry the desired write flags (the
+     * Consumer overload pre-seeds {@code UPDATE_ONLY}).</p>
+     *
+     * @param ael     the prepared AEL statement
+     * @param options the write options to apply
+     * @param params  parameter values to bind to the prepared statement
+     * @return the parent operation builder for chaining
+     */
+    public T updateFrom(PreparedAel ael, ExpressionWriteOptions options, Object... params) {
+        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, ael, params, options.getFlags()));
     }
 
     /**
@@ -800,7 +999,23 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
     public T updateFrom(Exp exp, Consumer<ExpressionWriteOptions> options) {
         ExpressionWriteOptions opts = new ExpressionWriteOptions(ExpWriteFlags.UPDATE_ONLY);
         options.accept(opts);
-        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, exp, opts.getFlags()));
+        return updateFrom(exp, opts);
+    }
+
+    /**
+     * Write expression result only if the bin already exists, using a low-level {@link Exp} with
+     * pre-built options.
+     *
+     * <p>This is the direct-options overload of {@link #updateFrom(Exp, Consumer)}. The caller is
+     * responsible for ensuring the options carry the desired write flags (the Consumer overload
+     * pre-seeds {@code UPDATE_ONLY}).</p>
+     *
+     * @param exp     the Exp expression to evaluate
+     * @param options the write options to apply
+     * @return the parent operation builder for chaining
+     */
+    public T updateFrom(Exp exp, ExpressionWriteOptions options) {
+        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, exp, options.getFlags()));
     }
 
     /**
@@ -837,7 +1052,23 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
     public T updateFrom(Expression exp, Consumer<ExpressionWriteOptions> options) {
         ExpressionWriteOptions opts = new ExpressionWriteOptions(ExpWriteFlags.UPDATE_ONLY);
         options.accept(opts);
-        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, exp, opts.getFlags()));
+        return updateFrom(exp, opts);
+    }
+
+    /**
+     * Write expression result only if the bin already exists, using a pre-compiled
+     * {@link Expression} with pre-built options.
+     *
+     * <p>This is the direct-options overload of {@link #updateFrom(Expression, Consumer)}. The
+     * caller is responsible for ensuring the options carry the desired write flags (the Consumer
+     * overload pre-seeds {@code UPDATE_ONLY}).</p>
+     *
+     * @param exp     the compiled expression to evaluate
+     * @param options the write options to apply
+     * @return the parent operation builder for chaining
+     */
+    public T updateFrom(Expression exp, ExpressionWriteOptions options) {
+        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, exp, options.getFlags()));
     }
 
     // ----------------------------------------
@@ -880,7 +1111,22 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
     public T upsertFrom(String ael, Consumer<ExpressionWriteOptions> options) {
         ExpressionWriteOptions opts = new ExpressionWriteOptions(ExpWriteFlags.DEFAULT);
         options.accept(opts);
-        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, ael, opts.getFlags()));
+        return upsertFrom(ael, opts);
+    }
+
+    /**
+     * Write expression result, creating or overwriting the bin as needed, with pre-built options.
+     *
+     * <p>This is the direct-options overload of {@link #upsertFrom(String, Consumer)}. Caller-built
+     * options replace the lambda-based form. The Consumer overload initializes with
+     * {@code ExpWriteFlags.DEFAULT}; the direct overload uses the supplied flags as-is.</p>
+     *
+     * @param ael     the AEL expression string
+     * @param options the write options to apply
+     * @return the parent operation builder for chaining
+     */
+    public T upsertFrom(String ael, ExpressionWriteOptions options) {
+        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, ael, options.getFlags()));
     }
 
     /**
@@ -916,7 +1162,21 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
     public T upsertFrom(BooleanExpression ael, Consumer<ExpressionWriteOptions> options) {
         ExpressionWriteOptions opts = new ExpressionWriteOptions(ExpWriteFlags.DEFAULT);
         options.accept(opts);
-        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, ael, opts.getFlags()));
+        return upsertFrom(ael, opts);
+    }
+
+    /**
+     * Write expression result, creating or updating the bin, using a {@link BooleanExpression}
+     * with pre-built options.
+     *
+     * <p>This is the direct-options overload of {@link #upsertFrom(BooleanExpression, Consumer)}.</p>
+     *
+     * @param ael     the boolean expression to evaluate
+     * @param options the write options to apply
+     * @return the parent operation builder for chaining
+     */
+    public T upsertFrom(BooleanExpression ael, ExpressionWriteOptions options) {
+        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, ael, options.getFlags()));
     }
 
     /**
@@ -956,7 +1216,22 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
     public T upsertFrom(PreparedAel ael, Consumer<ExpressionWriteOptions> options, Object... params) {
         ExpressionWriteOptions opts = new ExpressionWriteOptions(ExpWriteFlags.DEFAULT);
         options.accept(opts);
-        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, ael, params, opts.getFlags()));
+        return upsertFrom(ael, opts, params);
+    }
+
+    /**
+     * Write expression result, creating or updating the bin, using a {@link PreparedAel} with
+     * pre-built options and bound parameters.
+     *
+     * <p>This is the direct-options overload of {@link #upsertFrom(PreparedAel, Consumer, Object...)}.</p>
+     *
+     * @param ael     the prepared AEL statement
+     * @param options the write options to apply
+     * @param params  parameter values to bind to the prepared statement
+     * @return the parent operation builder for chaining
+     */
+    public T upsertFrom(PreparedAel ael, ExpressionWriteOptions options, Object... params) {
+        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, ael, params, options.getFlags()));
     }
 
     /**
@@ -993,7 +1268,21 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
     public T upsertFrom(Exp exp, Consumer<ExpressionWriteOptions> options) {
         ExpressionWriteOptions opts = new ExpressionWriteOptions(ExpWriteFlags.DEFAULT);
         options.accept(opts);
-        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, exp, opts.getFlags()));
+        return upsertFrom(exp, opts);
+    }
+
+    /**
+     * Write expression result, creating or updating the bin, using a low-level {@link Exp} with
+     * pre-built options.
+     *
+     * <p>This is the direct-options overload of {@link #upsertFrom(Exp, Consumer)}.</p>
+     *
+     * @param exp     the Exp expression to evaluate
+     * @param options the write options to apply
+     * @return the parent operation builder for chaining
+     */
+    public T upsertFrom(Exp exp, ExpressionWriteOptions options) {
+        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, exp, options.getFlags()));
     }
 
     /**
@@ -1030,7 +1319,21 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
     public T upsertFrom(Expression exp, Consumer<ExpressionWriteOptions> options) {
         ExpressionWriteOptions opts = new ExpressionWriteOptions(ExpWriteFlags.DEFAULT);
         options.accept(opts);
-        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, exp, opts.getFlags()));
+        return upsertFrom(exp, opts);
+    }
+
+    /**
+     * Write expression result, creating or updating the bin, using a pre-compiled
+     * {@link Expression} with pre-built options.
+     *
+     * <p>This is the direct-options overload of {@link #upsertFrom(Expression, Consumer)}.</p>
+     *
+     * @param exp     the compiled expression to evaluate
+     * @param options the write options to apply
+     * @return the parent operation builder for chaining
+     */
+    public T upsertFrom(Expression exp, ExpressionWriteOptions options) {
+        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, exp, options.getFlags()));
     }
 
     // ==================================================================
@@ -2517,8 +2820,25 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
     public T hllInit(HllConfig config, Consumer<HllWriteOptions> options) {
         HllWriteOptions opts = new HllWriteOptions();
         options.accept(opts);
+        return hllInit(config, opts);
+    }
 
-        Operation op = HLLOperation.init(opts.toFlags(), binName, config.indexBitCount(),
+    /**
+     * Initialize the HLL bin with pre-built write options (write).
+     *
+     * <p>This is the direct-options overload of {@link #hllInit(HllConfig, Consumer)}. Use it
+     * when {@link HllWriteOptions} have already been built (for example shared across multiple
+     * operations) rather than configured via a lambda.</p>
+     *
+     * @param config  HLL bin configuration (index/minhash bit counts)
+     * @param options pre-built write options controlling semantics such as {@code createOnly},
+     *                {@code updateOnly}, {@code noFail}, and {@code allowFold}
+     * @return builder for continued chaining
+     * @see HllConfig
+     * @see HllWriteOptions
+     */
+    public T hllInit(HllConfig config, HllWriteOptions options) {
+        Operation op = HLLOperation.init(options.toFlags(), binName, config.indexBitCount(),
             config.minHashBitCount());
         return opBuilder.addOp(op);
     }
@@ -2575,8 +2895,28 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
     public T hllAdd(List<?> values, HllConfig config, Consumer<HllWriteOptions> options) {
         HllWriteOptions opts = new HllWriteOptions();
         options.accept(opts);
+        return hllAdd(values, config, opts);
+    }
 
-        Operation op = HLLOperation.add(opts.toFlags(), binName, values, config.indexBitCount(),
+    /**
+     * Add values to the HLL bin with pre-built write options, creating it if it does not exist
+     * (write).
+     *
+     * <p>This is the direct-options overload of
+     * {@link #hllAdd(List, HllConfig, Consumer)}. If the bin does not yet exist it is created
+     * using {@code config}. The server returns the number of entries that caused the HLL to
+     * update a register.</p>
+     *
+     * @param values  values to add to the HLL set
+     * @param config  HLL bin configuration used to create the bin if missing
+     * @param options pre-built write options controlling semantics such as {@code createOnly},
+     *                {@code updateOnly}, {@code noFail}, and {@code allowFold}
+     * @return builder for continued chaining
+     * @see HllConfig
+     * @see HllWriteOptions
+     */
+    public T hllAdd(List<?> values, HllConfig config, HllWriteOptions options) {
+        Operation op = HLLOperation.add(options.toFlags(), binName, values, config.indexBitCount(),
             config.minHashBitCount());
         return opBuilder.addOp(op);
     }
@@ -2612,8 +2952,24 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
     public T hllSetUnion(List<HLLValue> hlls, Consumer<HllWriteOptions> options) {
         HllWriteOptions opts = new HllWriteOptions();
         options.accept(opts);
+        return hllSetUnion(hlls, opts);
+    }
 
-        Operation op = HLLOperation.setUnion(opts.toFlags(), binName, hlls);
+    /**
+     * Replace the HLL bin with the union of the supplied HLL values, with pre-built write options
+     * (write).
+     *
+     * <p>This is the direct-options overload of {@link #hllSetUnion(List, Consumer)}. The
+     * caller-built options replace the lambda-based form.</p>
+     *
+     * @param hlls    HLL values to union into the bin
+     * @param options pre-built write options controlling semantics such as {@code createOnly},
+     *                {@code updateOnly}, {@code noFail}, and {@code allowFold}
+     * @return builder for continued chaining
+     * @see HllWriteOptions
+     */
+    public T hllSetUnion(List<HLLValue> hlls, HllWriteOptions options) {
+        Operation op = HLLOperation.setUnion(options.toFlags(), binName, hlls);
         return opBuilder.addOp(op);
     }
 

@@ -170,7 +170,23 @@ public class QueryBuilderBinBuilder implements CdtOperationAcceptor<QueryBuilder
     public QueryBuilder selectFrom(String ael, Consumer<ExpressionReadOptions> options) {
         ExpressionReadOptions opts = new ExpressionReadOptions();
         options.accept(opts);
-        queryBuilder.addOperation(ExpressionOpHelper.createReadOp(binName, ael, opts.getFlags()));
+        return selectFrom(ael, opts);
+    }
+
+    /**
+     * Create a read expression from an AEL string with pre-built options.
+     *
+     * <p>This is the direct-options overload of {@link #selectFrom(String, Consumer)}. Use it
+     * when read options have already been built (for example shared across many bins) rather
+     * than configured via a lambda.</p>
+     *
+     * @param ael     the AEL expression string
+     * @param options the read options to apply (e.g. configured via
+     *                {@link ExpressionReadOptions#ignoreEvalFailure()})
+     * @return the parent query builder for continued chaining
+     */
+    public QueryBuilder selectFrom(String ael, ExpressionReadOptions options) {
+        queryBuilder.addOperation(ExpressionOpHelper.createReadOp(binName, ael, options.getFlags()));
         return queryBuilder;
     }
 
@@ -184,7 +200,20 @@ public class QueryBuilderBinBuilder implements CdtOperationAcceptor<QueryBuilder
     public QueryBuilder selectFrom(BooleanExpression ael, Consumer<ExpressionReadOptions> options) {
         ExpressionReadOptions opts = new ExpressionReadOptions();
         options.accept(opts);
-        queryBuilder.addOperation(ExpressionOpHelper.createReadOp(binName, ael, opts.getFlags()));
+        return selectFrom(ael, opts);
+    }
+
+    /**
+     * Create a read expression from a {@link BooleanExpression} with pre-built options.
+     *
+     * <p>This is the direct-options overload of {@link #selectFrom(BooleanExpression, Consumer)}.</p>
+     *
+     * @param ael     the boolean expression to evaluate
+     * @param options the read options to apply
+     * @return the parent query builder for continued chaining
+     */
+    public QueryBuilder selectFrom(BooleanExpression ael, ExpressionReadOptions options) {
+        queryBuilder.addOperation(ExpressionOpHelper.createReadOp(binName, ael, options.getFlags()));
         return queryBuilder;
     }
 
@@ -198,7 +227,23 @@ public class QueryBuilderBinBuilder implements CdtOperationAcceptor<QueryBuilder
     public QueryBuilder selectFrom(PreparedAel ael, Consumer<ExpressionReadOptions> options, Object... params) {
         ExpressionReadOptions opts = new ExpressionReadOptions();
         options.accept(opts);
-        queryBuilder.addOperation(ExpressionOpHelper.createReadOp(binName, ael, params, opts.getFlags()));
+        return selectFrom(ael, opts, params);
+    }
+
+    /**
+     * Create a read expression from a {@link PreparedAel} with pre-built options and bound
+     * parameters.
+     *
+     * <p>This is the direct-options overload of
+     * {@link #selectFrom(PreparedAel, Consumer, Object...)}.</p>
+     *
+     * @param ael     the prepared AEL statement
+     * @param options the read options to apply
+     * @param params  parameter values to bind to the prepared statement
+     * @return the parent query builder for continued chaining
+     */
+    public QueryBuilder selectFrom(PreparedAel ael, ExpressionReadOptions options, Object... params) {
+        queryBuilder.addOperation(ExpressionOpHelper.createReadOp(binName, ael, params, options.getFlags()));
         return queryBuilder;
     }
 
@@ -212,7 +257,20 @@ public class QueryBuilderBinBuilder implements CdtOperationAcceptor<QueryBuilder
     public QueryBuilder selectFrom(Exp exp, Consumer<ExpressionReadOptions> options) {
         ExpressionReadOptions opts = new ExpressionReadOptions();
         options.accept(opts);
-        queryBuilder.addOperation(ExpressionOpHelper.createReadOp(binName, exp, opts.getFlags()));
+        return selectFrom(exp, opts);
+    }
+
+    /**
+     * Create a read expression from a low-level {@link Exp} expression with pre-built options.
+     *
+     * <p>This is the direct-options overload of {@link #selectFrom(Exp, Consumer)}.</p>
+     *
+     * @param exp     the Exp expression to evaluate
+     * @param options the read options to apply
+     * @return the parent query builder for continued chaining
+     */
+    public QueryBuilder selectFrom(Exp exp, ExpressionReadOptions options) {
+        queryBuilder.addOperation(ExpressionOpHelper.createReadOp(binName, exp, options.getFlags()));
         return queryBuilder;
     }
 
@@ -226,7 +284,20 @@ public class QueryBuilderBinBuilder implements CdtOperationAcceptor<QueryBuilder
     public QueryBuilder selectFrom(Expression exp, Consumer<ExpressionReadOptions> options) {
         ExpressionReadOptions opts = new ExpressionReadOptions();
         options.accept(opts);
-        queryBuilder.addOperation(ExpressionOpHelper.createReadOp(binName, exp, opts.getFlags()));
+        return selectFrom(exp, opts);
+    }
+
+    /**
+     * Create a read expression from a pre-compiled {@link Expression} with pre-built options.
+     *
+     * <p>This is the direct-options overload of {@link #selectFrom(Expression, Consumer)}.</p>
+     *
+     * @param exp     the compiled expression to evaluate
+     * @param options the read options to apply
+     * @return the parent query builder for continued chaining
+     */
+    public QueryBuilder selectFrom(Expression exp, ExpressionReadOptions options) {
+        queryBuilder.addOperation(ExpressionOpHelper.createReadOp(binName, exp, options.getFlags()));
         return queryBuilder;
     }
 

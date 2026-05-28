@@ -276,6 +276,18 @@ public interface CdtReadContextInvertableBuilder<T> extends CdtReadActionInverta
     T collectValues(Consumer<CdtCollectOptions> options);
 
     /**
+     * Same as {@link #collectValues()} with pre-built {@link CdtCollectOptions}.
+     *
+     * <p>This is the direct-options overload of {@link #collectValues(Consumer)}. Use it when
+     * the options object has already been built (for example shared across many calls) rather
+     * than configured via a lambda.</p>
+     *
+     * @param options pre-built collect options (e.g. {@code NO_FAIL}, return-type customization)
+     * @return the query builder after appending the CDT read op
+     */
+    T collectValues(CdtCollectOptions options);
+
+    /**
      * Read terminal: matched map keys ({@link com.aerospike.client.sdk.cdt.SelectFlags#MAP_KEY}).
      *
      * <p><b>Example</b>:</p>
@@ -294,6 +306,16 @@ public interface CdtReadContextInvertableBuilder<T> extends CdtReadActionInverta
      * @return the query builder after appending the CDT read op
      */
     T collectKeys(Consumer<CdtCollectOptions> options);
+
+    /**
+     * Same as {@link #collectKeys()} with pre-built {@link CdtCollectOptions}.
+     *
+     * <p>This is the direct-options overload of {@link #collectKeys(Consumer)}.</p>
+     *
+     * @param options pre-built collect options (select flag customization)
+     * @return the query builder after appending the CDT read op
+     */
+    T collectKeys(CdtCollectOptions options);
 
     /**
      * Read terminal: matched map key/value pairs
@@ -317,6 +339,16 @@ public interface CdtReadContextInvertableBuilder<T> extends CdtReadActionInverta
     T collectKeyValues(Consumer<CdtCollectOptions> options);
 
     /**
+     * Same as {@link #collectKeyValues()} with pre-built {@link CdtCollectOptions}.
+     *
+     * <p>This is the direct-options overload of {@link #collectKeyValues(Consumer)}.</p>
+     *
+     * @param options pre-built collect options (select flag customization)
+     * @return the query builder after appending the CDT read op
+     */
+    T collectKeyValues(CdtCollectOptions options);
+
+    /**
      * Read terminal: structure-preserving matching tree
      * ({@link com.aerospike.client.sdk.cdt.SelectFlags#MATCHING_TREE}).
      *
@@ -336,6 +368,16 @@ public interface CdtReadContextInvertableBuilder<T> extends CdtReadActionInverta
      * @return the query builder after appending the CDT read op
      */
     T collectTree(Consumer<CdtCollectOptions> options);
+
+    /**
+     * Same as {@link #collectTree()} with pre-built {@link CdtCollectOptions}.
+     *
+     * <p>This is the direct-options overload of {@link #collectTree(Consumer)}.</p>
+     *
+     * @param options pre-built collect options (select flag customization)
+     * @return the query builder after appending the CDT read op
+     */
+    T collectTree(CdtCollectOptions options);
 
     /**
      * Read terminal: same selection as {@link #collectValues()} but delivered as an expression read
@@ -395,6 +437,21 @@ public interface CdtReadContextInvertableBuilder<T> extends CdtReadActionInverta
      * @return the query builder after appending the expression read op
      */
     T collectValuesAsExpressionRead(Exp.Type binValueType, Exp.Type resultType, Consumer<ExpressionReadOptions> options);
+
+    /**
+     * Same as {@link #collectValuesAsExpressionRead(Exp.Type, Exp.Type)} with pre-built
+     * {@link ExpressionReadOptions}.
+     *
+     * <p>This is the direct-options overload of
+     * {@link #collectValuesAsExpressionRead(Exp.Type, Exp.Type, Consumer)}.</p>
+     *
+     * @param binValueType top-level bin type for the inner bin expression
+     * @param resultType   expected result type of {@code selectByPath}
+     * @param options      pre-built read options (e.g. configured via
+     *                     {@link ExpressionReadOptions#ignoreEvalFailure()})
+     * @return the query builder after appending the expression read op
+     */
+    T collectValuesAsExpressionRead(Exp.Type binValueType, Exp.Type resultType, ExpressionReadOptions options);
 
 
     // Read-only terminal operations
