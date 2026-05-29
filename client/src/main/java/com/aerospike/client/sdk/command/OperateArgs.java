@@ -42,6 +42,8 @@ public final class OperateArgs {
             case MAP_READ:
             case CDT_READ:
             case READ:
+            case STRING_READ:
+            case TO_STRING:
                 rattr |= Command.INFO1_READ;
 
                 // Read all bins if no bin is specified.
