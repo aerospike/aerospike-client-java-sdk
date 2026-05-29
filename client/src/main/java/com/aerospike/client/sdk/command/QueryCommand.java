@@ -16,10 +16,13 @@
  */
 package com.aerospike.client.sdk.command;
 
+import java.util.List;
+
 import com.aerospike.client.sdk.AsyncRecordStream;
 import com.aerospike.client.sdk.Cluster;
 import com.aerospike.client.sdk.DataSet;
 import com.aerospike.client.sdk.Node;
+import com.aerospike.client.sdk.Operation;
 import com.aerospike.client.sdk.exp.Expression;
 import com.aerospike.client.sdk.policy.QueryDuration;
 import com.aerospike.client.sdk.policy.ResolvedSettings;
@@ -34,13 +37,15 @@ public final class QueryCommand extends Command {
     final QueryDuration expectedDuration;
     final long maxRecords;
     final String[] binNames;
+    final List<Operation> ops;
     final int maxConcurrentNodes;
     final int recordsPerSecond;
     final int readTouchTtlPercent;
     final boolean withNoBins;
 
     public QueryCommand(
-        Cluster cluster, DataSet set, Filter filter, Expression filterExp, ResolvedSettings settings, QueryBuilder qb
+        Cluster cluster, DataSet set, Filter filter, Expression filterExp,
+        ResolvedSettings settings, QueryBuilder qb
     ) {
         super(cluster, set.getNamespace(), null, filterExp, settings.getReplicaOrder(), settings);
         this.set = set.getSet();
@@ -52,6 +57,7 @@ public final class QueryCommand extends Command {
         this.recordsPerSecond = qb.getRecordsPerSecond();
         this.expectedDuration = qb.getEffectiveQueryDuration();
         this.binNames = qb.getBinNames();
+        this.ops = qb.getOperations();
         this.maxConcurrentNodes = settings.getMaxConcurrentNodes();
         this.readTouchTtlPercent = settings.getResetTtlOnReadAtPercent();
         this.withNoBins = qb.getWithNoBins();

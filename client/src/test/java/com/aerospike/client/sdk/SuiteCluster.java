@@ -37,6 +37,7 @@ import com.aerospike.client.sdk.query.QueryHintBuilderTest;
 import com.aerospike.client.sdk.query.QueryIndexTest;
 import com.aerospike.client.sdk.query.QueryIntegerTest;
 import com.aerospike.client.sdk.query.QueryKeyTest;
+import com.aerospike.client.sdk.query.QueryOperationsTest;
 import com.aerospike.client.sdk.query.QueryRPSTest;
 import com.aerospike.client.sdk.query.QueryStringTest;
 
@@ -72,7 +73,7 @@ import com.aerospike.client.sdk.query.QueryStringTest;
     OperateTest.class,
     OpTypeTest.class,
     PutGetTest.class,
-    QueryOperationsTest.class,
+    ReadOperationsTest.class,
     RecordStreamAdapterTest.class,
     ReplaceTest.class,
     ServerInfoTest.class,
@@ -93,6 +94,7 @@ import com.aerospike.client.sdk.query.QueryStringTest;
     QueryIndexTest.class,
     QueryIntegerTest.class,
     QueryKeyTest.class,
+    QueryOperationsTest.class,
     QueryRPSTest.class,
     QueryStringTest.class,
     QueryWithPartitionPaginationTest.class
