@@ -1,5 +1,7 @@
 # String library functions
 
+For Java SDK wiring (`BinBuilder`, `StringExp`, `FIND` vs occurrence, `substr` half-open ranges, `NO_FAIL` + nested `CTX`), see [String operations in the Java SDK](../string-operations.md).
+
 The Aerospike server is adding a comprehensive string operations API [(SERVER-97)](https://aerospike.atlassian.net/browse/SERVER-97). String
 functions in the AEL use the method-style pattern — the string bin or expression is the
 path receiver, and parameters are named where they aid readability. This is consistent
@@ -16,13 +18,18 @@ $.name.length()                                    number of characters → INT
 ```
 
 **Substrings:**
+
+Optional `to` may be omitted — the slice runs from `from` through the **end** of the string.
+
 ```
 $.str.substr(from: 1, to: 3)                      "Aerospike" → "er"
 $.str.substr(from: 3, to: -1)                      "Aerospike" → "ospik"
 $.str.substr(from: 4, to: 1000)                    "Aerospike" → "spike"
+$.str.substr(from: 4)                             "Aerospike" → "spike"   (omit `to`: suffix from index 4)
+$.str.substr(from: -3)                            "Aerospike" → "ike"     (omit `to`: last 3 codepoints)
 ```
 
-`from` is inclusive, `to` is exclusive. Both support negative values (from end of string).
+`from` is inclusive, `to` is exclusive when present. Both support negative values (from end of string).
 If the range is invalid (backwards), returns empty string.
 
 **Case conversion:**
@@ -40,14 +47,20 @@ $.str.trimStart()                                  remove leading whitespace
 $.str.trimEnd()                                    remove trailing whitespace
 ```
 
-**Search:**
+**Search (`indexOf` / substring find):**
+
+Optional `occurrence` may be omitted — it defaults to **1** (first match).
+
 ```
+$.str.indexOf(needle: ':')                         first ':' → INT position (default occurrence)
 $.str.indexOf(needle: ':', occurrence: 1)          first ':' → INT position
 $.str.indexOf(needle: ':', occurrence: 2)          second ':' → INT position
 $.str.indexOf(needle: ':', occurrence: -1)         last ':' → INT position
 ```
 
 Returns -1 if not found. `occurrence` of 0 returns PARAM_ERROR.
+
+The second parameter is the **1-based occurrence** (and negatives count from the last match), **not** a codepoint offset to start searching from. Older implementation drafts sometimes labeled a second `FIND` argument as “start”; the shipped server and AEL use **occurrence** semantics. The Java SDK exposes the same behavior as `find(…, occurrence)` / `StringExp.find`.
 
 **Padding:**
 ```
@@ -79,11 +92,15 @@ $.str.replace(find: ':', replace: '-')             first occurrence
 $.str.replaceAll(find: ':', replace: '-')          all occurrences
 ```
 
-Exp equivalents (example for concat, length, substr):
+Exp equivalents (optional arguments omitted where supported):
 ```java
-StringExp.concat(Exp.stringBin("first"), Exp.val(" "), Exp.stringBin("last"))
-StringExp.length(Exp.stringBin("name"))
-StringExp.substr(Exp.stringBin("str"), Exp.val(1), Exp.val(3))
+Exp s = Exp.stringBin("str");
+StringExp.concat(Exp.stringBin("first"), Exp.val(" "), Exp.stringBin("last"));
+StringExp.strlen(s);
+StringExp.substr(Exp.val(4), s);                    // suffix from index 4 (no end)
+StringExp.substr(Exp.val(1), Exp.val(3), s);        // half-open [1, 3)
+StringExp.find(Exp.val(":"), s);                     // first ":" (default occurrence)
+StringExp.split(s);                                 // per-codepoint split (no separator)
 ```
 
 ### String functions (P2)
@@ -113,7 +130,11 @@ $.str.endsWith('.json')                            → BOOLEAN
 ```
 
 **Split and repeat:**
+
+Optional separator for `split` may be omitted — each **codepoint** becomes its own list element.
+
 ```
+$.str.split()                                      per-codepoint → LIST of one-codepoint strings
 $.str.split(',')                                   "a,c,v" → ["a","c","v"] (LIST)
 $.str.repeat(3)                                    "abc" → "abcabcabc"
 ```
@@ -166,10 +187,11 @@ $.listBin.join('-')                                ["a","b","c"] → "a-b-c" →
 ```
 $.name.length() > 0 and $.name.length() <= 50         length bounds check
 $.name.lowercase() == 'alice'                          case-insensitive comparison
-$.email.indexOf(needle: '@', occurrence: 1) > 0        has @ sign
+$.email.indexOf(needle: '@') > 0                       has @ sign (occurrence omitted → first)
 $.key.padStart(length: 10, pad: '0')                   normalize key width
 $.desc.replaceAll(find: '  ', replace: ' ')            collapse double spaces
 $.csv.split(',').count() > 3                           at least 4 fields
+$.tail.substr(from: 5)                                suffix from index 5 (`to` omitted)
 $.amount.toString().padStart(length: 8, pad: '0')      format number as padded string
 $.name.startsWith('Dr.') or $.name.startsWith('Prof.') title check
 ```
@@ -181,7 +203,7 @@ $.name.startsWith('Dr.') or $.name.startsWith('Prof.') title check
 | AEL | Parameters | Return type |
 |---|---|---|
 | `$.s.length()` | — | INT |
-| `$.s.substr(from:, to:)` | INT, INT | STRING |
+| `$.s.substr(from: [, to:])` | INT [, INT] | STRING |
 | `$.s.uppercase()` | — | STRING |
 | `$.s.lowercase()` | — | STRING |
 | `$.s.normalize()` | — | STRING |
@@ -189,7 +211,7 @@ $.name.startsWith('Dr.') or $.name.startsWith('Prof.') title check
 | `$.s.trim()` | — | STRING |
 | `$.s.trimStart()` | — | STRING |
 | `$.s.trimEnd()` | — | STRING |
-| `$.s.indexOf(needle:, occurrence:)` | STRING, INT | INT |
+| `$.s.indexOf(needle: [, occurrence:])` | STRING [, INT] | INT |
 | `$.s.padStart(length:, pad:)` | INT, STRING | STRING |
 | `$.s.padEnd(length:, pad:)` | INT, STRING | STRING |
 
@@ -212,7 +234,7 @@ $.name.startsWith('Dr.') or $.name.startsWith('Prof.') title check
 | `$.s.regexReplace(pattern:, replace:)` | REGEX, STRING | STRING |
 | `$.s.startsWith(prefix)` | STRING | BOOLEAN |
 | `$.s.endsWith(suffix)` | STRING | BOOLEAN |
-| `$.s.split(separator)` | STRING | LIST |
+| `$.s.split([separator])` | [STRING] | LIST |
 | `$.s.repeat(count)` | INT | STRING |
 
 **P3:**

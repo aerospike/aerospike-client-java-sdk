@@ -158,6 +158,22 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
         currentSpec.getOperations().add(op);
     }
 
+    /**
+     * Appends one or more pre-built {@link Operation}s to the current query step.
+     * Prefer {@link #bin(String)} with {@code get()} or {@code selectFrom(...)} when possible.
+     *
+     * @param operations operations to append (non-null elements)
+     * @return this builder for chaining
+     */
+    public ChainableQueryBuilder appendOperations(Operation... operations) {
+        verifyState("appending operations");
+        Objects.requireNonNull(operations, "operations");
+        for (Operation op : operations) {
+            addOperation(Objects.requireNonNull(op, "operation"));
+        }
+        return this;
+    }
+
     // ========================================
     // Chainable operation methods
     // ========================================
