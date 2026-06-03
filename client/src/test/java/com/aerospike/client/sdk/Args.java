@@ -52,6 +52,8 @@ public class Args {
     public boolean enterprise;
     public boolean hasTtl;
     public boolean scMode;
+
+    public boolean strongConsistencyAllowExpunge;
     public boolean useServicesAlternate;
     public Version serverVersion;
     public String containerNamePrefix;
@@ -217,6 +219,9 @@ public class Args {
         else {
             hasTtl = true;
         }
+
+        String allowExpunge = parseStringOptional(namespaceTokens, "strong-consistency-allow-expunge");
+        strongConsistencyAllowExpunge = Boolean.valueOf(allowExpunge);
     }
 
     private static int parseInt(String namespaceTokens, String name) {
@@ -235,6 +240,24 @@ public class Args {
 
         if (begin < 0) {
             throw new RuntimeException("Failed to find server config: " + name);
+        }
+
+        begin += search.length();
+        int end = namespaceTokens.indexOf(';', begin);
+
+        if (end < 0) {
+            end = namespaceTokens.length();
+        }
+
+        return namespaceTokens.substring(begin, end);
+    }
+
+    private static String parseStringOptional(String namespaceTokens, String name) {
+        String search = name + '=';
+        int begin = namespaceTokens.indexOf(search);
+
+        if (begin < 0) {
+            return null;
         }
 
         begin += search.length();
