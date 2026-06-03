@@ -1696,8 +1696,8 @@ public class Session {
             sb.append(";indextype=set");
         }
         else {
-            String indexTypeString = (indexType == IndexType.INTEGER &&
-                currentServerVersion.isLessThan(Version.SERVER_VERSION_8_1_3))?
+            String indexTypeString = (indexType == IndexType.INTEGER) ?
+                // && currentServerVersion.isLessThan(Version.SERVER_VERSION_8_1_3))?
                     "NUMERIC" : indexType.toString();
 
             if (exp != null) {
