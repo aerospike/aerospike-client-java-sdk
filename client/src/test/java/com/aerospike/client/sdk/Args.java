@@ -52,6 +52,12 @@ public class Args {
     public boolean enterprise;
     public boolean hasTtl;
     public boolean scMode;
+    /**
+     * From namespace {@code strong-consistency-allow-expunge} in {@code namespace/...} info when present.
+     * {@code true} means non-durable deletes are allowed on SC; {@code null} if absent (tests treat like
+     * {@code false}). See {@code docs/durable-delete-behavior.md}.
+     */
+    public Boolean strongConsistencyAllowExpunge;
     public boolean useServicesAlternate;
     public Version serverVersion;
     public String containerNamePrefix;
@@ -217,6 +223,10 @@ public class Args {
         else {
             hasTtl = true;
         }
+
+        String allowExpunge = parseStringOptional(namespaceTokens, "strong-consistency-allow-expunge");
+        strongConsistencyAllowExpunge =
+            allowExpunge != null ? Boolean.valueOf(allowExpunge) : null;
     }
 
     private static int parseInt(String namespaceTokens, String name) {
@@ -235,6 +245,24 @@ public class Args {
 
         if (begin < 0) {
             throw new RuntimeException("Failed to find server config: " + name);
+        }
+
+        begin += search.length();
+        int end = namespaceTokens.indexOf(';', begin);
+
+        if (end < 0) {
+            end = namespaceTokens.length();
+        }
+
+        return namespaceTokens.substring(begin, end);
+    }
+
+    private static String parseStringOptional(String namespaceTokens, String name) {
+        String search = name + '=';
+        int begin = namespaceTokens.indexOf(search);
+
+        if (begin < 0) {
+            return null;
         }
 
         begin += search.length();
