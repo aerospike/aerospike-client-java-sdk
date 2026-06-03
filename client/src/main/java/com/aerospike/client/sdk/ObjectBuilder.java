@@ -467,19 +467,10 @@ public class ObjectBuilder<T> {
         if (this.recordMapper != null) {
             return this.recordMapper;
         }
-        else {
-            RecordMappingFactory factory = opBuilder.getSession().getRecordMappingFactory();
-            if (factory != null) {
-                @SuppressWarnings("unchecked")
-                RecordMapper<T> mapper = (RecordMapper<T>)factory.getMapper(element.getClass());
-                if (mapper != null) {
-                    return mapper;
-                }
-            }
-        }
-        throw new UnsupportedOperationException(String.format(
-                "Could not find a mapper to convert objects of type %s. Did you specify a RcordMappingFactory on the connection?",
-                element.getClass().getName()));
+        RecordMappingFactory factory = opBuilder.getSession().getRecordMappingFactory();
+        @SuppressWarnings("unchecked")
+        Class<T> clazz = (Class<T>) element.getClass();
+        return MappingSupport.requireMapper(factory, clazz);
     }
 
     private List<Operation> operationsForElement(RecordMapper<T> mapper, T element) {
@@ -539,6 +530,10 @@ public class ObjectBuilder<T> {
                 .init(key, OpType.INSERT);
     }
 
+    public ChainableOperationBuilder insert(TypedKey<?> typedKey) {
+        return insert(typedKey.getKey());
+    }
+
     /**
      * Chain an insert operation on multiple keys after this object operation.
      *
@@ -561,6 +556,10 @@ public class ObjectBuilder<T> {
         List<OperationSpec> specs = materializeToSpecs();
         return new ChainableOperationBuilder(opBuilder.getSession(), OpType.UPDATE, specs, null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, txnToUse)
                 .init(key, OpType.UPDATE);
+    }
+
+    public ChainableOperationBuilder update(TypedKey<?> typedKey) {
+        return update(typedKey.getKey());
     }
 
     /**
@@ -587,6 +586,10 @@ public class ObjectBuilder<T> {
                 .init(key, OpType.UPSERT);
     }
 
+    public ChainableOperationBuilder upsert(TypedKey<?> typedKey) {
+        return upsert(typedKey.getKey());
+    }
+
     /**
      * Chain an upsert operation on multiple keys after this object operation.
      *
@@ -609,6 +612,10 @@ public class ObjectBuilder<T> {
         List<OperationSpec> specs = materializeToSpecs();
         return new ChainableOperationBuilder(opBuilder.getSession(), OpType.REPLACE, specs, null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, txnToUse)
                 .init(key, OpType.REPLACE);
+    }
+
+    public ChainableOperationBuilder replace(TypedKey<?> typedKey) {
+        return replace(typedKey.getKey());
     }
 
     /**
@@ -635,6 +642,10 @@ public class ObjectBuilder<T> {
                 .initDelete(key);
     }
 
+    public ChainableNoBinsBuilder delete(TypedKey<?> typedKey) {
+        return delete(typedKey.getKey());
+    }
+
     /**
      * Chain a delete operation on multiple keys after this object operation.
      *
@@ -657,6 +668,10 @@ public class ObjectBuilder<T> {
         List<OperationSpec> specs = materializeToSpecs();
         return new ChainableNoBinsBuilder(opBuilder.getSession(), specs, null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, txnToUse)
                 .initExists(key);
+    }
+
+    public ChainableNoBinsBuilder exists(TypedKey<?> typedKey) {
+        return exists(typedKey.getKey());
     }
 
     /**
@@ -693,6 +708,26 @@ public class ObjectBuilder<T> {
         List<OperationSpec> specs = materializeToSpecs();
         return new ChainableQueryBuilder(opBuilder.getSession(), specs, null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, txnToUse)
                 .initQuery(keys);
+    }
+
+    public <T> ChainableQueryBuilder query(TypedKey<T> typedKey) {
+        List<OperationSpec> specs = materializeToSpecs();
+        return new ChainableQueryBuilder(opBuilder.getSession(), specs, null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, txnToUse)
+                .initQueryTyped(typedKey);
+    }
+
+    public ChainableQueryBuilder query(TypedKey<?> k1, TypedKey<?> k2, TypedKey<?>... more) {
+        List<TypedKey<?>> list = new ArrayList<>();
+        list.add(k1);
+        list.add(k2);
+        list.addAll(Arrays.asList(more));
+        return queryTypedKeys(list);
+    }
+
+    public ChainableQueryBuilder queryTypedKeys(List<? extends TypedKey<?>> typedKeys) {
+        List<OperationSpec> specs = materializeToSpecs();
+        return new ChainableQueryBuilder(opBuilder.getSession(), specs, null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, txnToUse)
+                .initQueryTyped(typedKeys);
     }
 
     /**

@@ -19,7 +19,7 @@ package com.aerospike.examples.ecommerce;
 import java.util.List;
 
 import com.aerospike.client.sdk.Session;
-import com.aerospike.client.sdk.TypeSafeDataSet;
+import com.aerospike.client.sdk.TypedDataSet;
 
 /**
  * Seeds the Aerospike database with 20 customers, 100 products, and a realistic
@@ -261,9 +261,9 @@ public class SeedData {
     // Bulk-insert all seed data
     // -----------------------------------------------------------------
     static void seed(Session session,
-                     TypeSafeDataSet<Customer> customers,
-                     TypeSafeDataSet<Product> products,
-                     TypeSafeDataSet<Order> orders) {
+                     TypedDataSet<Customer> customers,
+                     TypedDataSet<Product> products,
+                     TypedDataSet<Order> orders) {
 
         System.out.println("Seeding " + CUSTOMERS.size() + " customers, "
                 + PRODUCTS.size() + " products, "

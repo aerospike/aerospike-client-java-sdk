@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.Map;
 
 import com.aerospike.client.sdk.RecordMapper;
+import com.aerospike.client.sdk.RecordReadContext;
 
 public class MapUtil {
     /**
@@ -136,6 +137,24 @@ public class MapUtil {
             Object data = map.get(key);
             if (data != null) {
                 return mapper.fromMap((Map<String, Object>)data, null, 0);
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Like {@link #asObjectFromMap(Map, String, RecordMapper)} but passes {@link RecordReadContext}
+     * into {@link RecordMapper#fromMap(Map, Key, int, RecordReadContext)} so nested mappers can load
+     * related entities via {@link RecordReadContext#getSession()} / {@link RecordReadContext#getRecordMappingFactory()}.
+     * Use {@code new RecordReadContext<>(parentCtx.getSession(), Child.class)} for a nested type {@code Child}.
+     */
+    @SuppressWarnings("unchecked")
+    public static <T> T asObjectFromMap(
+            Map<String, Object> map, String key, RecordMapper<T> mapper, RecordReadContext<T> ctx) {
+        if (map.containsKey(key)) {
+            Object data = map.get(key);
+            if (data != null) {
+                return mapper.fromMap((Map<String, Object>)data, null, 0, ctx);
             }
         }
         return null;

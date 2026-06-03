@@ -226,6 +226,10 @@ public class ChainableOperationBuilder extends AbstractOperationBuilder<Chainabl
         return init(key, OpType.UPSERT);
     }
 
+    public ChainableOperationBuilder upsert(TypedKey<?> typedKey) {
+        return upsert(typedKey.getKey());
+    }
+
     /**
      * Chain an upsert operation on multiple keys.
      *
@@ -260,6 +264,10 @@ public class ChainableOperationBuilder extends AbstractOperationBuilder<Chainabl
      */
     public ChainableOperationBuilder update(Key key) {
         return init(key, OpType.UPDATE);
+    }
+
+    public ChainableOperationBuilder update(TypedKey<?> typedKey) {
+        return update(typedKey.getKey());
     }
 
     /**
@@ -298,6 +306,10 @@ public class ChainableOperationBuilder extends AbstractOperationBuilder<Chainabl
         return init(key, OpType.INSERT);
     }
 
+    public ChainableOperationBuilder insert(TypedKey<?> typedKey) {
+        return insert(typedKey.getKey());
+    }
+
     /**
      * Chain an insert operation on multiple keys.
      *
@@ -332,6 +344,10 @@ public class ChainableOperationBuilder extends AbstractOperationBuilder<Chainabl
      */
     public ChainableOperationBuilder replace(Key key) {
         return init(key, OpType.REPLACE);
+    }
+
+    public ChainableOperationBuilder replace(TypedKey<?> typedKey) {
+        return replace(typedKey.getKey());
     }
 
     /**
@@ -369,6 +385,10 @@ public class ChainableOperationBuilder extends AbstractOperationBuilder<Chainabl
      */
     public ChainableOperationBuilder replaceIfExists(Key key) {
         return init(key, OpType.REPLACE_IF_EXISTS);
+    }
+
+    public ChainableOperationBuilder replaceIfExists(TypedKey<?> typedKey) {
+        return replaceIfExists(typedKey.getKey());
     }
 
     /**
@@ -412,6 +432,10 @@ public class ChainableOperationBuilder extends AbstractOperationBuilder<Chainabl
                 .initDelete(key);
     }
 
+    public ChainableNoBinsBuilder delete(TypedKey<?> typedKey) {
+        return delete(typedKey.getKey());
+    }
+
     /**
      * Chain a delete operation on multiple keys.
      *
@@ -453,6 +477,10 @@ public class ChainableOperationBuilder extends AbstractOperationBuilder<Chainabl
                 .initTouch(key);
     }
 
+    public ChainableNoBinsBuilder touch(TypedKey<?> typedKey) {
+        return touch(typedKey.getKey());
+    }
+
     /**
      * Chain a touch operation on multiple keys.
      *
@@ -492,6 +520,10 @@ public class ChainableOperationBuilder extends AbstractOperationBuilder<Chainabl
         finalizeCurrentOperation();
         return new ChainableNoBinsBuilder(session, operationSpecs, defaultWhereClause, defaultExpirationInSeconds, txnToUse)
                 .initExists(key);
+    }
+
+    public ChainableNoBinsBuilder exists(TypedKey<?> typedKey) {
+        return exists(typedKey.getKey());
     }
 
     /**
@@ -561,6 +593,58 @@ public class ChainableOperationBuilder extends AbstractOperationBuilder<Chainabl
         keys.add(key2);
         keys.addAll(Arrays.asList(moreKeys));
         return query(keys);
+    }
+
+    public <T> ChainableQueryBuilder query(TypedKey<T> typedKey) {
+        finalizeCurrentOperation();
+        return new ChainableQueryBuilder(session, operationSpecs, defaultWhereClause, defaultExpirationInSeconds, txnToUse)
+                .initQueryTyped(typedKey);
+    }
+
+    public ChainableQueryBuilder query(TypedKey<?> k1, TypedKey<?> k2, TypedKey<?>... more) {
+        List<TypedKey<?>> list = new ArrayList<>();
+        list.add(k1);
+        list.add(k2);
+        list.addAll(Arrays.asList(more));
+        return queryTypedKeys(list);
+    }
+
+    public ChainableQueryBuilder queryTypedKeys(List<? extends TypedKey<?>> typedKeys) {
+        finalizeCurrentOperation();
+        return new ChainableQueryBuilder(session, operationSpecs, defaultWhereClause, defaultExpirationInSeconds, txnToUse)
+                .initQueryTyped(typedKeys);
+    }
+
+    public ChainableOperationBuilder upsertTypedKeys(List<? extends TypedKey<?>> typedKeys) {
+        return upsert(TypedKey.nativeKeys(typedKeys));
+    }
+
+    public ChainableOperationBuilder updateTypedKeys(List<? extends TypedKey<?>> typedKeys) {
+        return update(TypedKey.nativeKeys(typedKeys));
+    }
+
+    public ChainableOperationBuilder insertTypedKeys(List<? extends TypedKey<?>> typedKeys) {
+        return insert(TypedKey.nativeKeys(typedKeys));
+    }
+
+    public ChainableOperationBuilder replaceTypedKeys(List<? extends TypedKey<?>> typedKeys) {
+        return replace(TypedKey.nativeKeys(typedKeys));
+    }
+
+    public ChainableOperationBuilder replaceIfExistsTypedKeys(List<? extends TypedKey<?>> typedKeys) {
+        return replaceIfExists(TypedKey.nativeKeys(typedKeys));
+    }
+
+    public ChainableNoBinsBuilder deleteTypedKeys(List<? extends TypedKey<?>> typedKeys) {
+        return delete(TypedKey.nativeKeys(typedKeys));
+    }
+
+    public ChainableNoBinsBuilder touchTypedKeys(List<? extends TypedKey<?>> typedKeys) {
+        return touch(TypedKey.nativeKeys(typedKeys));
+    }
+
+    public ChainableNoBinsBuilder existsTypedKeys(List<? extends TypedKey<?>> typedKeys) {
+        return exists(TypedKey.nativeKeys(typedKeys));
     }
 
     /**

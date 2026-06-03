@@ -61,6 +61,12 @@ public class OperationSpec {
     /** For QUERY operations: specific bins to read (null means all bins) */
     private String[] projectedBins = null;
 
+    /**
+     * For QUERY operations started from {@link TypedKey}: domain class for
+     * {@link RecordResult#toObject(Session)} on batch results.
+     */
+    private Class<?> readMappingClass = null;
+
     /** For UDF operations: the package name containing the UDF */
     private String udfPackageName = null;
 
@@ -233,6 +239,20 @@ public class OperationSpec {
      */
     public void setProjectedBins(String[] projectedBins) {
         this.projectedBins = projectedBins;
+    }
+
+    /**
+     * Domain class for factory-backed mapping of query results from this spec, or {@code null}.
+     */
+    public Class<?> getReadMappingClass() {
+        return readMappingClass;
+    }
+
+    /**
+     * @param readMappingClass entity class for typed reads, or {@code null} for untyped reads
+     */
+    public void setReadMappingClass(Class<?> readMappingClass) {
+        this.readMappingClass = readMappingClass;
     }
 
     /**

@@ -20,6 +20,7 @@
 - [Transactions](#transactions)
 - [Behavior (Policy Configuration)](#behavior-policy-configuration)
 - [Object Mapping](#object-mapping)
+  - [Typed reads (`TypedRecordStream`, `TypedKey`)](#typed-reads-typedrecordstream-typedkey)
 - [Secondary Indexes](#secondary-indexes)
 - [Info Commands](#info-commands)
 - [Exception Hierarchy](#exception-hierarchy)
@@ -395,6 +396,27 @@ session
     .upsert(users.id("bob"))
         .bin("status").setTo("active")
     .execute();
+```
+
+Typed read legs carry the entity class so each `RecordResult` can call
+`toObject(session)` (no per-row `RecordMapper` argument) when a
+`RecordMappingFactory` is configured:
+
+```java
+TypedDataSet<Customer> customers = TypedDataSet.of("test", "customers", Customer.class);
+TypedDataSet<Order> orders = TypedDataSet.of("test", "orders", Order.class);
+
+RecordStream rs = session
+    .query(customers.id(1001))
+        .readingOnlyBins("name", "tier")
+    .query(orders.id(500))
+        .readingOnlyBins("total")
+    .execute();
+
+try (rs) {
+    Customer c = rs.next().toObject(session);
+    Order o = rs.next().toObject(session);
+}
 ```
 
 UDFs can be chained with other operations:
@@ -1079,7 +1101,7 @@ Behavior highLoad = production.deriveWithChanges("highLoad", b -> b
 ## Object Mapping
 
 Map Java objects to/from Aerospike records using `RecordMapper`,
-`RecordMappingFactory`, and `TypeSafeDataSet`.
+`RecordMappingFactory`, and `TypedDataSet`.
 
 ### Setup
 
@@ -1108,15 +1130,18 @@ RecordMappingFactory factory = DefaultRecordMappingFactory.of(Customer.class, cu
 cluster.setRecordMappingFactory(factory);
 ```
 
-### TypeSafeDataSet
+### TypedDataSet
 
-A `TypeSafeDataSet<T>` binds a class to a namespace/set. It extends
+A `TypedDataSet<T>` binds a class to a namespace/set. It extends
 `DataSet`, so it can be used anywhere a `DataSet` is accepted (queries,
 writes, index creation, background tasks, etc.):
 
 ```java
-TypeSafeDataSet<Customer> customers = TypeSafeDataSet.of("test", "customers", Customer.class);
+TypedDataSet<Customer> customers = TypedDataSet.of("test", "customers", Customer.class);
 ```
+
+The type was previously named `TypeSafeDataSet`; it was renamed to `TypedDataSet`
+for consistency with `TypedKey` and `TypedQueryBuilder`.
 
 ### Writing objects
 
@@ -1150,20 +1175,51 @@ session.insert(customers)
     .execute();
 ```
 
+### Typed reads (`TypedRecordStream`, `TypedKey`)
+
+When a `RecordMappingFactory` is installed on the cluster, reads can resolve
+`RecordMapper<T>` from the entity class the same way writes do. Use typed
+entry points so the SDK knows `Class<T>`.
+
+| Read path | Builder / stream | Mapper-free reads |
+|---|---|---|
+| `session.query(DataSet)` | `QueryBuilder` → `RecordStream` | No — pass `RecordMapper` to `toObjectList(mapper)`, `getFirst(mapper)`, etc. |
+| `session.query(TypedDataSet<T>)` | `TypedQueryBuilder<T>` → `TypedRecordStream<T>` | Yes — `toObjectList()`, `getFirstObject()`, … use the factory for `T`. |
+| `session.query(Key)` / varargs `Key` | `ChainableQueryBuilder` → `RecordStream` | Per row: use `RecordMapper` or raw bins. |
+| `session.query(TypedKey<T>)` / varargs `TypedKey<?>` | Same chain builder | Per row: `RecordResult.toObject(session)` on results from typed legs (see [heterogeneous chains](#heterogeneous-batch-chains)). |
+
+**List overloads and erasure:** `query(List<Key>)` and `query(List<TypedKey<?>>)` have the same erasure, so the typed list entry point is named **`queryTypedKeys(List<? extends TypedKey<?>>)`** (and the same idea exists on `ChainableQueryBuilder`). On write chains, wherever **`operation(List<Key>)`** would collide with a list of typed keys, use the corresponding **`*TypedKeys(List<? extends TypedKey<?>>)`** helper (for example `upsertTypedKeys`, `deleteTypedKeys`).
+
+**`TypedKey`:** `TypedDataSet` exposes `id(...)`, `ids(...)`, and digest helpers returning `TypedKey` / `List<TypedKey<T>>` (with `Class<T>` attached) for batch chains and `queryTypedKeys`.
+
+**`Iterable` semantics:** `TypedRecordStream` implements `Iterable<RecordResult>` with `iterator()` returning the stream itself — **one pass**. An enhanced `for` loop consumes the stream the same way as iterating a `RecordStream`.
+
 ### Reading objects
 
 ```java
-// Single record — Optional<Customer>
+// Single record — Optional<Customer> (explicit mapper on untyped stream)
 Optional<Customer> alice = session.query(customers.id("alice@example.com"))
     .execute()
     .getFirst(customerMapper);
 
-// Query — List<Customer>
+// Dataset query — List<Customer> without passing a mapper (factory must know Customer.class)
 List<Customer> activeCustomers = session.query(customers)
+    .where("$.age > 25")
+    .execute()
+    .toObjectList();
+
+// Same query with an explicit mapper (still supported)
+List<Customer> activeCustomers2 = session.query(customers)
     .where("$.age > 25")
     .execute()
     .toObjectList(customerMapper);
 ```
+
+On **`TypedRecordStream`** / **`TypedNavigatableRecordStream`**, `toObjectList(RecordMapper<T>)`, `getFirst(RecordMapper<T>)`, `forEach(RecordMapper<T>, …)`, and related overloads invoke **`RecordMapper.fromMap(..., RecordReadContext<T>)`** with the same **`Session`** and **`Class<T>`** as mapper-less reads, so overrides of the four-argument `fromMap` can issue dependent reads. Plain **`RecordStream`** / **`NavigatableRecordStream`** paths that take an explicit mapper still use the three-argument `fromMap` unless you map rows yourself (e.g. loop `RecordResult` and call **`toObject(session)`** on typed legs). For nested bins deserialized with **`MapUtil.asObjectFromMap`**, use **`asObjectFromMap(..., RecordReadContext<U>)`** and build a child context such as `new RecordReadContext<>(parentCtx.getSession(), Child.class)`.
+
+`RecordResult.toObject(session)` applies to **typed read legs** in a chain (keys
+from `TypedKey` / `queryTypedKeys`). For plain `Key` reads, the result carries no
+read hint — use `RecordMapper` APIs or raw `Record` data instead.
 
 ---
 

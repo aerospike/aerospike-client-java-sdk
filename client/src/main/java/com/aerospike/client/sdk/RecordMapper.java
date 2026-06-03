@@ -85,6 +85,24 @@ public interface RecordMapper<T> {
     T fromMap(Map<String, Object> map, Key recordKey, int generation);
 
     /**
+     * Converts an Aerospike record to a Java object with read context.
+     *
+     * <p>Default implementation delegates to {@link #fromMap(Map, Key, int)}. Override when
+     * deserialization needs the session or mapping factory (e.g. lazy-loaded references). The
+     * context exposes {@link RecordReadContext#getSession()}, {@link RecordReadContext#getEntityClass()}
+     * / {@link RecordReadContext#getEntityType()}, and {@link RecordReadContext#getRecordMappingFactory()}.</p>
+     *
+     * @param map the map of bin names to values from the Aerospike record
+     * @param recordKey the key of the record
+     * @param generation the generation of the record
+     * @param ctx session and entity type for factory-backed mapping
+     * @return the Java object created from the record
+     */
+    default T fromMap(Map<String, Object> map, Key recordKey, int generation, RecordReadContext<T> ctx) {
+        return fromMap(map, recordKey, generation);
+    }
+
+    /**
      * Converts a Java object to a map of bin names and values for storage.
      *
      * <p>This method takes a Java object and converts it to a map where the keys

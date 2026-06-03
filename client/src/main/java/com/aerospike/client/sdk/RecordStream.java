@@ -122,7 +122,18 @@ public class RecordStream implements Iterator<RecordResult>, Closeable {
      * @param record the record data
      */
     RecordStream(Key key, Record record) {
-        RecordResult rec = new RecordResult(key, record, 0); // Single item, index = 0
+        this(key, record, null);
+    }
+
+    /**
+     * Creates a RecordStream containing a single record from a key and record pair.
+     *
+     * @param key the key of the record
+     * @param record the record data
+     * @param readMappingClass optional hint for {@link RecordResult#toObject(Session)}
+     */
+    RecordStream(Key key, Record record, Class<?> readMappingClass) {
+        RecordResult rec = new RecordResult(key, record, 0, readMappingClass);
         impl = new SingleItemRecordStream(rec);
     }
     /**

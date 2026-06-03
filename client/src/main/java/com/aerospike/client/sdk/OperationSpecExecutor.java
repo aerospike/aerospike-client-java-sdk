@@ -139,6 +139,7 @@ class OperationSpecExecutor {
 
         // TODO Track count of keys in builders, so it can be used here.
         List<BatchRecord> records = new ArrayList<>(512);
+        List<Class<?>> readMappingPerRecord = new ArrayList<>(512);
         Cluster cluster = session.getCluster();
         Behavior behavior = session.getBehavior();
         // TODO: Put in hashmap
@@ -173,6 +174,7 @@ class OperationSpecExecutor {
                     BatchRecord rec = new BatchRecord(key, false);
                     rec.setError(ae.getResultCode(), false);
                     records.add(rec);
+                    readMappingPerRecord.add(null);
 
                     if (except == null) {
                         except = ae;
@@ -268,6 +270,8 @@ class OperationSpecExecutor {
                 }
 
                 records.add(rec);
+                Class<?> readHint = spec.isQuery() ? spec.getReadMappingClass() : null;
+                readMappingPerRecord.add(readHint);
             }
         }
 
@@ -350,7 +354,8 @@ class OperationSpecExecutor {
                     continue;
                 }
 
-                RecordResult result = AbstractFilterableBuilder.createRecordResultFromBatchRecord(br, settings, i);
+                Class<?> readHint = i < readMappingPerRecord.size() ? readMappingPerRecord.get(i) : null;
+                RecordResult result = AbstractFilterableBuilder.createRecordResultFromBatchRecord(br, settings, i, readHint);
 
                 if (AbstractFilterableBuilder.isActionableError(br.resultCode)) {
                     switch (disposition) {
@@ -560,7 +565,7 @@ class OperationSpecExecutor {
             rec = exec.getRecord();
         }
 
-        return createRecordStream(key, rec, includeMissingKeys);
+        return createRecordStream(key, rec, includeMissingKeys, spec.getReadMappingClass());
     }
 
     /**
@@ -589,12 +594,16 @@ class OperationSpecExecutor {
         exec.execute();
         Record rec = exec.getRecord();
 
-        return createRecordStream(key, rec, includeMissingKeys);
+        return createRecordStream(key, rec, includeMissingKeys, spec.getReadMappingClass());
     }
 
     private static RecordStream createRecordStream(Key key, Record rec, boolean includeMissingKeys) {
+        return createRecordStream(key, rec, includeMissingKeys, null);
+    }
+
+    private static RecordStream createRecordStream(Key key, Record rec, boolean includeMissingKeys, Class<?> readMappingClass) {
         if (rec != null) {
-            return new RecordStream(key, rec);
+            return new RecordStream(key, rec, readMappingClass);
         }
         else if (includeMissingKeys) {
             return new RecordStream(new RecordResult(key, ResultCode.KEY_NOT_FOUND_ERROR, false,

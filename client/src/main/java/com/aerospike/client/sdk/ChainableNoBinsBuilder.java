@@ -477,6 +477,58 @@ public class ChainableNoBinsBuilder extends AbstractSessionOperationBuilder<Chai
         return query(keys);
     }
 
+    public <T> ChainableQueryBuilder query(TypedKey<T> typedKey) {
+        finalizeCurrentOperation();
+        return new ChainableQueryBuilder(session, operationSpecs, defaultWhereClause, defaultExpirationInSeconds, txnToUse)
+                .initQueryTyped(typedKey);
+    }
+
+    public ChainableQueryBuilder query(TypedKey<?> k1, TypedKey<?> k2, TypedKey<?>... more) {
+        List<TypedKey<?>> list = new ArrayList<>();
+        list.add(k1);
+        list.add(k2);
+        list.addAll(Arrays.asList(more));
+        return queryTypedKeys(list);
+    }
+
+    public ChainableQueryBuilder queryTypedKeys(List<? extends TypedKey<?>> typedKeys) {
+        finalizeCurrentOperation();
+        return new ChainableQueryBuilder(session, operationSpecs, defaultWhereClause, defaultExpirationInSeconds, txnToUse)
+                .initQueryTyped(typedKeys);
+    }
+
+    public ChainableOperationBuilder upsertTypedKeys(List<? extends TypedKey<?>> typedKeys) {
+        return upsert(TypedKey.nativeKeys(typedKeys));
+    }
+
+    public ChainableOperationBuilder updateTypedKeys(List<? extends TypedKey<?>> typedKeys) {
+        return update(TypedKey.nativeKeys(typedKeys));
+    }
+
+    public ChainableOperationBuilder insertTypedKeys(List<? extends TypedKey<?>> typedKeys) {
+        return insert(TypedKey.nativeKeys(typedKeys));
+    }
+
+    public ChainableOperationBuilder replaceTypedKeys(List<? extends TypedKey<?>> typedKeys) {
+        return replace(TypedKey.nativeKeys(typedKeys));
+    }
+
+    public ChainableOperationBuilder replaceIfExistsTypedKeys(List<? extends TypedKey<?>> typedKeys) {
+        return replaceIfExists(TypedKey.nativeKeys(typedKeys));
+    }
+
+    public ChainableNoBinsBuilder deleteTypedKeys(List<? extends TypedKey<?>> typedKeys) {
+        return delete(TypedKey.nativeKeys(typedKeys));
+    }
+
+    public ChainableNoBinsBuilder touchTypedKeys(List<? extends TypedKey<?>> typedKeys) {
+        return touch(TypedKey.nativeKeys(typedKeys));
+    }
+
+    public ChainableNoBinsBuilder existsTypedKeys(List<? extends TypedKey<?>> typedKeys) {
+        return exists(TypedKey.nativeKeys(typedKeys));
+    }
+
     /**
      * Chain a UDF execution on a single key.
      * Returns a {@link UdfFunctionBuilder} requiring the UDF function to be specified.

@@ -23,7 +23,7 @@ import com.aerospike.client.sdk.ClusterDefinition;
 import com.aerospike.client.sdk.Key;
 import com.aerospike.client.sdk.RecordMapper;
 import com.aerospike.client.sdk.Session;
-import com.aerospike.client.sdk.TypeSafeDataSet;
+import com.aerospike.client.sdk.TypedDataSet;
 import com.aerospike.client.sdk.policy.Behavior;
 import com.aerospike.client.sdk.util.MapUtil;
 
@@ -186,9 +186,9 @@ public class TransactionProcessingExample {
         try (Cluster cluster = new ClusterDefinition("localhost", 3100).connect()) {
             Session session = cluster.createSession(Behavior.DEFAULT);
 
-            TypeSafeDataSet<Customer> customerDataSet = TypeSafeDataSet.of("test", "customers", Customer.class);
-            TypeSafeDataSet<Account> accountDataSet = TypeSafeDataSet.of("test", "accounts", Account.class);
-            TypeSafeDataSet<Transaction> txnDataSet = TypeSafeDataSet.of("test", "txns", Transaction.class);
+            TypedDataSet<Customer> customerDataSet = TypedDataSet.of("test", "customers", Customer.class);
+            TypedDataSet<Account> accountDataSet = TypedDataSet.of("test", "accounts", Account.class);
+            TypedDataSet<Transaction> txnDataSet = TypedDataSet.of("test", "txns", Transaction.class);
 
             CustomerMapper customerMapper = new CustomerMapper();
             AccountMapper accountMapper = new AccountMapper();

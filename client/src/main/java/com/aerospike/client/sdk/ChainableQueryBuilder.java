@@ -95,6 +95,30 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
         return this;
     }
 
+    ChainableQueryBuilder initQueryTyped(List<? extends TypedKey<?>> typedKeys) {
+        finalizeCurrentOperation();
+        List<TypedKey<?>> list = new ArrayList<>(typedKeys);
+        if (list.isEmpty()) {
+            throw new IllegalArgumentException("typedKeys must not be empty");
+        }
+        Class<?> entity = list.get(0).getEntityClass();
+        for (int i = 1; i < list.size(); i++) {
+            if (!list.get(i).getEntityClass().equals(entity)) {
+                throw new IllegalArgumentException(
+                    "All TypedKey entries in one query leg must share the same entity class; found "
+                        + entity.getName() + " and " + list.get(i).getEntityClass().getName());
+            }
+        }
+        List<Key> keys = TypedKey.nativeKeys(list);
+        currentSpec = new OperationSpec(keys);
+        currentSpec.setReadMappingClass(entity);
+        return this;
+    }
+
+    ChainableQueryBuilder initQueryTyped(TypedKey<?> typedKey) {
+        return initQueryTyped(List.of(typedKey));
+    }
+
     // ========================================
     // Query-specific methods
     // ========================================
@@ -383,6 +407,10 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
                 .initDelete(key);
     }
 
+    public ChainableNoBinsBuilder delete(TypedKey<?> typedKey) {
+        return delete(typedKey.getKey());
+    }
+
     /**
      * Chain a delete operation on multiple keys.
      *
@@ -424,6 +452,10 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
                 .initTouch(key);
     }
 
+    public ChainableNoBinsBuilder touch(TypedKey<?> typedKey) {
+        return touch(typedKey.getKey());
+    }
+
     /**
      * Chain a touch operation on multiple keys.
      *
@@ -463,6 +495,10 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
         finalizeCurrentOperation();
         return new ChainableNoBinsBuilder(session, operationSpecs, defaultWhereClause, defaultExpirationInSeconds, txnToUse)
                 .initExists(key);
+    }
+
+    public ChainableNoBinsBuilder exists(TypedKey<?> typedKey) {
+        return exists(typedKey.getKey());
     }
 
     /**
@@ -527,6 +563,63 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
         keys.add(key2);
         keys.addAll(Arrays.asList(moreKeys));
         return query(keys);
+    }
+
+    /**
+     * Chain a typed read so results can use {@link RecordResult#toObject(Session)}.
+     */
+    public <T> ChainableQueryBuilder query(TypedKey<T> typedKey) {
+        return initQueryTyped(typedKey);
+    }
+
+    /**
+     * Chain a typed multi-key read; all keys must share the same entity class.
+     */
+    public ChainableQueryBuilder query(TypedKey<?> k1, TypedKey<?> k2, TypedKey<?>... more) {
+        List<TypedKey<?>> list = new ArrayList<>();
+        list.add(k1);
+        list.add(k2);
+        list.addAll(Arrays.asList(more));
+        return queryTypedKeys(list);
+    }
+
+    /**
+     * Typed list read (cannot overload {@link #query(List)} due to erasure).
+     */
+    public ChainableQueryBuilder queryTypedKeys(List<? extends TypedKey<?>> typedKeys) {
+        return initQueryTyped(typedKeys);
+    }
+
+    public ChainableOperationBuilder upsertTypedKeys(List<? extends TypedKey<?>> typedKeys) {
+        return upsert(TypedKey.nativeKeys(typedKeys));
+    }
+
+    public ChainableOperationBuilder updateTypedKeys(List<? extends TypedKey<?>> typedKeys) {
+        return update(TypedKey.nativeKeys(typedKeys));
+    }
+
+    public ChainableOperationBuilder insertTypedKeys(List<? extends TypedKey<?>> typedKeys) {
+        return insert(TypedKey.nativeKeys(typedKeys));
+    }
+
+    public ChainableOperationBuilder replaceTypedKeys(List<? extends TypedKey<?>> typedKeys) {
+        return replace(TypedKey.nativeKeys(typedKeys));
+    }
+
+    public ChainableOperationBuilder replaceIfExistsTypedKeys(List<? extends TypedKey<?>> typedKeys) {
+        return replaceIfExists(TypedKey.nativeKeys(typedKeys));
+    }
+
+    public ChainableNoBinsBuilder deleteTypedKeys(List<? extends TypedKey<?>> typedKeys) {
+        return delete(TypedKey.nativeKeys(typedKeys));
+    }
+
+    public ChainableNoBinsBuilder touchTypedKeys(List<? extends TypedKey<?>> typedKeys) {
+        return touch(TypedKey.nativeKeys(typedKeys));
+    }
+
+    public ChainableNoBinsBuilder existsTypedKeys(List<? extends TypedKey<?>> typedKeys) {
+        return exists(TypedKey.nativeKeys(typedKeys));
     }
 
     /**
@@ -1125,6 +1218,7 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
         newSpec.setIncludeMissingKeys(original.isIncludeMissingKeys());
         newSpec.setDurableDelete(original.getDurableDelete());
         newSpec.setProjectedBins(original.getProjectedBins());
+        newSpec.setReadMappingClass(original.getReadMappingClass());
         newSpec.getOperations().addAll(original.getOperations());
         return newSpec;
     }
