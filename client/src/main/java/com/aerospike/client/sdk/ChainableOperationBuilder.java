@@ -198,6 +198,23 @@ public class ChainableOperationBuilder extends AbstractOperationBuilder<Chainabl
         return this;
     }
 
+    /**
+     * Appends one or more pre-built {@link Operation}s to the current write step (for example
+     * string reads from {@link com.aerospike.client.sdk.operation.StringOperation} factories).
+     * Prefer {@link #bin(String)} fluent methods when they cover your case.
+     *
+     * @param operations operations to append (non-null elements)
+     * @return this builder for chaining
+     */
+    public ChainableOperationBuilder appendOperations(Operation... operations) {
+        verifyState("appending operations");
+        Objects.requireNonNull(operations, "operations");
+        for (Operation op : operations) {
+            currentSpec.getOperations().add(Objects.requireNonNull(op, "operation"));
+        }
+        return this;
+    }
+
     @Override
     public ChainableOperationBuilder deleteRecord() {
         verifyState("deleting record");

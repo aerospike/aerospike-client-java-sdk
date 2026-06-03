@@ -48,6 +48,11 @@ public final class StringRegexFlags {
 	public static final int UNIX_LINES = 1 << 3;
 
 	/**
+	 * Alias for {@link #UNIX_LINES} — ICU {@code (?d)} / Unix line-terminator mode.
+	 */
+	public static final int UNIX_LINES_ONLY = UNIX_LINES;
+
+	/**
 	 * Replace all matches in the input. Only applicable to
 	 * {@link StringOperation#regexReplace}.
 	 */

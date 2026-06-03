@@ -34,10 +34,16 @@ import com.aerospike.client.sdk.exp.ExpWriteFlags;
 import com.aerospike.client.sdk.exp.Expression;
 import com.aerospike.client.sdk.operation.HLLOperation;
 import com.aerospike.client.sdk.operation.HLLWriteFlags;
+import com.aerospike.client.sdk.operation.StringOperation;
+import com.aerospike.client.sdk.operation.StringRegexFlags;
+import com.aerospike.client.sdk.operation.StringWriteFlags;
 import com.aerospike.client.sdk.query.PreparedAel;
 
 /**
- * Operations for one bin: scalar writes ({@link #setTo}), reads ({@link #get}), string ops, numeric {@link #add},
+ * Operations for one bin: scalar writes ({@link #setTo}), reads ({@link #get}),
+ * server string read/modify ops (server 8.1.3+; fluent methods such as {@link #strlen},
+ * {@link #substr}, {@link #find} delegate to {@link com.aerospike.client.sdk.operation.StringOperation};
+ * see also {@code docs/string-operations.md} in the SDK repo for AEL cross-reference), numeric {@link #add},
  * expression-backed {@link #selectFrom}, {@link #insertFrom}, {@link #updateFrom}, {@link #upsertFrom}, and nested
  * list/map CDT paths via {@code onMap*} / {@code onList*} (see {@link AbstractCdtBuilder} for list/map commands once
  * context is selected).
@@ -2770,6 +2776,604 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
         }
         CdtOperationParams params = new CdtOperationParams(CdtOperation.MAP_BY_VALUE_LIST, valueList);
         return new CdtGetOrRemoveBuilder<>(this.binName, this.opBuilder, params);
+    }
+
+    // ----------------------------------------
+    // String server operations (server 8.1.3+)
+    // ----------------------------------------
+
+    /**
+     * Queues a string {@code strlen} read: Unicode codepoint count of this bin.
+     *
+     * @return the parent operation builder for chaining
+     * @see StringOperation#strlen(String, com.aerospike.client.sdk.cdt.CTX...)
+     */
+    public T strlen() {
+        return opBuilder.addOp(StringOperation.strlen(binName));
+    }
+
+    /**
+     * Queues a string {@code substr} read from {@code start} through the end of the string.
+     * Negative {@code start} counts from the end.
+     *
+     * @param start starting codepoint index (inclusive; negative counts from end)
+     * @return the parent operation builder for chaining
+     * @see StringOperation#substr(String, int, com.aerospike.client.sdk.cdt.CTX...)
+     */
+    public T substr(int start) {
+        return opBuilder.addOp(StringOperation.substr(binName, start));
+    }
+
+    /**
+     * Queues a string {@code substr} read for the half-open codepoint range {@code [start, end)}.
+     *
+     * @param start first codepoint index (inclusive; negative counts from end)
+     * @param end   one past the last codepoint (exclusive)
+     * @return the parent operation builder for chaining
+     * @see StringOperation#substr(String, int, int, com.aerospike.client.sdk.cdt.CTX...)
+     */
+    public T substr(int start, int end) {
+        return opBuilder.addOp(StringOperation.substr(binName, start, end));
+    }
+
+    /**
+     * Queues a string {@code charAt} read: single codepoint at {@code index}.
+     *
+     * @param index codepoint index (negative counts from end)
+     * @return the parent operation builder for chaining
+     * @see StringOperation#charAt(String, int, com.aerospike.client.sdk.cdt.CTX...)
+     */
+    public T charAt(int index) {
+        return opBuilder.addOp(StringOperation.charAt(binName, index));
+    }
+
+    /**
+     * Queues a string {@code find} read: index of the first occurrence of {@code needle}, or -1.
+     *
+     * @param needle substring to search for
+     * @return the parent operation builder for chaining
+     * @see StringOperation#find(String, String, com.aerospike.client.sdk.cdt.CTX...)
+     */
+    public T find(String needle) {
+        return opBuilder.addOp(StringOperation.find(binName, needle));
+    }
+
+    /**
+     * Queues a string {@code find} read for the {@code occurrence}-th match of {@code needle}
+     * ({@code 1} = first, {@code -1} = last), or -1 if not found.
+     *
+     * @param needle       substring to search for
+     * @param occurrence   1-based occurrence index (negative counts from the last match)
+     * @return the parent operation builder for chaining
+     * @see StringOperation#find(String, String, int, com.aerospike.client.sdk.cdt.CTX...)
+     */
+    public T find(String needle, int occurrence) {
+        return opBuilder.addOp(StringOperation.find(binName, needle, occurrence));
+    }
+
+    /**
+     * Queues a string {@code contains} read.
+     *
+     * @param needle substring to test for
+     * @return the parent operation builder for chaining
+     * @see StringOperation#contains(String, String, com.aerospike.client.sdk.cdt.CTX...)
+     */
+    public T contains(String needle) {
+        return opBuilder.addOp(StringOperation.contains(binName, needle));
+    }
+
+    /**
+     * Queues a string {@code startsWith} read.
+     *
+     * @param prefix prefix to test
+     * @return the parent operation builder for chaining
+     * @see StringOperation#startsWith(String, String, com.aerospike.client.sdk.cdt.CTX...)
+     */
+    public T startsWith(String prefix) {
+        return opBuilder.addOp(StringOperation.startsWith(binName, prefix));
+    }
+
+    /**
+     * Queues a string {@code endsWith} read.
+     *
+     * @param suffix suffix to test
+     * @return the parent operation builder for chaining
+     * @see StringOperation#endsWith(String, String, com.aerospike.client.sdk.cdt.CTX...)
+     */
+    public T endsWith(String suffix) {
+        return opBuilder.addOp(StringOperation.endsWith(binName, suffix));
+    }
+
+    /**
+     * Queues a string {@code toInteger} read: parse bin as int64.
+     *
+     * @return the parent operation builder for chaining
+     * @see StringOperation#toInteger(String, com.aerospike.client.sdk.cdt.CTX...)
+     */
+    public T stringToInteger() {
+        return opBuilder.addOp(StringOperation.toInteger(binName));
+    }
+
+    /**
+     * Queues a string {@code toDouble} read: parse bin as float64.
+     *
+     * @return the parent operation builder for chaining
+     * @see StringOperation#toDouble(String, com.aerospike.client.sdk.cdt.CTX...)
+     */
+    public T stringToDouble() {
+        return opBuilder.addOp(StringOperation.toDouble(binName));
+    }
+
+    /**
+     * Queues a string {@code byteLength} read: UTF-8 byte length.
+     *
+     * @return the parent operation builder for chaining
+     * @see StringOperation#byteLength(String, com.aerospike.client.sdk.cdt.CTX...)
+     */
+    public T byteLength() {
+        return opBuilder.addOp(StringOperation.byteLength(binName));
+    }
+
+    /**
+     * Queues a string {@code isNumeric} read.
+     *
+     * @return the parent operation builder for chaining
+     * @see StringOperation#isNumeric(String, com.aerospike.client.sdk.cdt.CTX...)
+     */
+    public T isNumeric() {
+        return opBuilder.addOp(StringOperation.isNumeric(binName));
+    }
+
+    /**
+     * Queues a string {@code isNumeric} read filtered by {@code numericType}
+     * ({@link com.aerospike.client.sdk.operation.StringNumericType} constants).
+     *
+     * @param numericType {@code ANY}, {@code INT}, or {@code FLOAT}
+     * @return the parent operation builder for chaining
+     * @see StringOperation#isNumeric(String, int, com.aerospike.client.sdk.cdt.CTX...)
+     */
+    public T isNumeric(int numericType) {
+        return opBuilder.addOp(StringOperation.isNumeric(binName, numericType));
+    }
+
+    /**
+     * Queues a string {@code isUpper} read.
+     *
+     * @return the parent operation builder for chaining
+     * @see StringOperation#isUpper(String, com.aerospike.client.sdk.cdt.CTX...)
+     */
+    public T isUpper() {
+        return opBuilder.addOp(StringOperation.isUpper(binName));
+    }
+
+    /**
+     * Queues a string {@code isLower} read.
+     *
+     * @return the parent operation builder for chaining
+     * @see StringOperation#isLower(String, com.aerospike.client.sdk.cdt.CTX...)
+     */
+    public T isLower() {
+        return opBuilder.addOp(StringOperation.isLower(binName));
+    }
+
+    /**
+     * Queues a string {@code toBlob} read: UTF-8 bytes as blob.
+     *
+     * @return the parent operation builder for chaining
+     * @see StringOperation#toBlob(String, com.aerospike.client.sdk.cdt.CTX...)
+     */
+    public T stringToBlob() {
+        return opBuilder.addOp(StringOperation.toBlob(binName));
+    }
+
+    /**
+     * Queues a string {@code split} read with default separator (server-defined).
+     *
+     * @return the parent operation builder for chaining
+     * @see StringOperation#split(String, com.aerospike.client.sdk.cdt.CTX...)
+     */
+    public T split() {
+        return opBuilder.addOp(StringOperation.split(binName));
+    }
+
+    /**
+     * Queues a string {@code split} read using {@code separator}.
+     *
+     * @param separator delimiter (empty splits per codepoint, per server rules)
+     * @return the parent operation builder for chaining
+     * @see StringOperation#split(String, String, com.aerospike.client.sdk.cdt.CTX...)
+     */
+    public T split(String separator) {
+        return opBuilder.addOp(StringOperation.split(binName, separator));
+    }
+
+    /**
+     * Queues a string {@code b64Decode} read: base64 string to blob.
+     *
+     * @return the parent operation builder for chaining
+     * @see StringOperation#b64Decode(String, com.aerospike.client.sdk.cdt.CTX...)
+     */
+    public T b64Decode() {
+        return opBuilder.addOp(StringOperation.b64Decode(binName));
+    }
+
+    /**
+     * Queues a string {@code regexCompare} read with default regex flags.
+     *
+     * @param pattern ICU-syntax regex pattern
+     * @return the parent operation builder for chaining
+     * @see StringOperation#regexCompare(String, String, com.aerospike.client.sdk.cdt.CTX...)
+     */
+    public T regexCompare(String pattern) {
+        return opBuilder.addOp(StringOperation.regexCompare(binName, pattern));
+    }
+
+    /**
+     * Queues a string {@code regexCompare} read with {@link StringRegexFlags}.
+     *
+     * @param pattern    ICU-syntax regex pattern
+     * @param regexFlags bitwise-OR of {@link StringRegexFlags}
+     * @return the parent operation builder for chaining
+     * @see StringOperation#regexCompare(String, String, int, com.aerospike.client.sdk.cdt.CTX...)
+     */
+    public T regexCompare(String pattern, int regexFlags) {
+        return opBuilder.addOp(StringOperation.regexCompare(binName, pattern, regexFlags));
+    }
+
+    /**
+     * Queues {@link StringOperation#toString(String)}: string representation of this bin's
+     * value (int, float, string, bool, or valid UTF-8 blob). Not a string sub-op; no nested CTX.
+     *
+     * @return the parent operation builder for chaining
+     */
+    public T readAsString() {
+        return opBuilder.addOp(StringOperation.toString(binName));
+    }
+
+    private T addStringModifyOp(Operation op) {
+        return opBuilder.addOp(op);
+    }
+
+    /**
+     * Queues string {@code insert} modify at {@code index}.
+     *
+     * @param index codepoint index (negative counts from end)
+     * @param value text to insert
+     * @return the parent operation builder for chaining
+     * @see StringOperation#insert(int, String, int, String, com.aerospike.client.sdk.cdt.CTX...)
+     */
+    public T insert(int index, String value) {
+        return addStringModifyOp(StringOperation.insert(StringWriteFlags.DEFAULT, binName, index, value));
+    }
+
+    /**
+     * Queues string {@code insert} with {@link StringWriteOptions}.
+     */
+    public T insert(int index, String value, Consumer<StringWriteOptions> options) {
+        StringWriteOptions o = new StringWriteOptions();
+        options.accept(o);
+        return insert(index, value, o);
+    }
+
+    /**
+     * Queues string {@code insert} with pre-built {@link StringWriteOptions}.
+     */
+    public T insert(int index, String value, StringWriteOptions options) {
+        return addStringModifyOp(StringOperation.insert(options.toFlags(), binName, index, value));
+    }
+
+    /**
+     * Queues string {@code overwrite} modify at {@code index}.
+     */
+    public T overwrite(int index, String value) {
+        return addStringModifyOp(StringOperation.overwrite(StringWriteFlags.DEFAULT, binName, index, value));
+    }
+
+    public T overwrite(int index, String value, Consumer<StringWriteOptions> options) {
+        StringWriteOptions o = new StringWriteOptions();
+        options.accept(o);
+        return overwrite(index, value, o);
+    }
+
+    public T overwrite(int index, String value, StringWriteOptions options) {
+        return addStringModifyOp(StringOperation.overwrite(options.toFlags(), binName, index, value));
+    }
+
+    /**
+     * Queues string {@code concat} modify: append {@code fragment}.
+     */
+    public T stringConcat(String fragment) {
+        return addStringModifyOp(StringOperation.concat(StringWriteFlags.DEFAULT, binName, fragment));
+    }
+
+    public T stringConcat(String fragment, Consumer<StringWriteOptions> options) {
+        StringWriteOptions o = new StringWriteOptions();
+        options.accept(o);
+        return stringConcat(fragment, o);
+    }
+
+    public T stringConcat(String fragment, StringWriteOptions options) {
+        return addStringModifyOp(StringOperation.concat(options.toFlags(), binName, fragment));
+    }
+
+    /**
+     * Queues string {@code concat} modify: append all strings in order.
+     */
+    public T stringConcat(List<String> fragments) {
+        return addStringModifyOp(StringOperation.concat(StringWriteFlags.DEFAULT, binName, fragments));
+    }
+
+    public T stringConcat(List<String> fragments, Consumer<StringWriteOptions> options) {
+        StringWriteOptions o = new StringWriteOptions();
+        options.accept(o);
+        return stringConcat(fragments, o);
+    }
+
+    public T stringConcat(List<String> fragments, StringWriteOptions options) {
+        return addStringModifyOp(StringOperation.concat(options.toFlags(), binName, fragments));
+    }
+
+    /**
+     * Queues string {@code snip} modify: remove from {@code start} through end of string.
+     */
+    public T snip(int start) {
+        return addStringModifyOp(StringOperation.snip(StringWriteFlags.DEFAULT, binName, start));
+    }
+
+    public T snip(int start, Consumer<StringWriteOptions> options) {
+        StringWriteOptions o = new StringWriteOptions();
+        options.accept(o);
+        return snip(start, o);
+    }
+
+    public T snip(int start, StringWriteOptions options) {
+        return addStringModifyOp(StringOperation.snip(options.toFlags(), binName, start));
+    }
+
+    /**
+     * Queues string {@code snip} modify: remove half-open range {@code [start, end)}.
+     */
+    public T snip(int start, int end) {
+        return addStringModifyOp(StringOperation.snip(StringWriteFlags.DEFAULT, binName, start, end));
+    }
+
+    public T snip(int start, int end, Consumer<StringWriteOptions> options) {
+        StringWriteOptions o = new StringWriteOptions();
+        options.accept(o);
+        return snip(start, end, o);
+    }
+
+    public T snip(int start, int end, StringWriteOptions options) {
+        return addStringModifyOp(StringOperation.snip(options.toFlags(), binName, start, end));
+    }
+
+    /**
+     * Queues string {@code replace} modify (first occurrence only).
+     */
+    public T replace(String needle, String replacement) {
+        return addStringModifyOp(StringOperation.replace(StringWriteFlags.DEFAULT, binName, needle, replacement));
+    }
+
+    public T replace(String needle, String replacement, Consumer<StringWriteOptions> options) {
+        StringWriteOptions o = new StringWriteOptions();
+        options.accept(o);
+        return replace(needle, replacement, o);
+    }
+
+    public T replace(String needle, String replacement, StringWriteOptions options) {
+        return addStringModifyOp(StringOperation.replace(options.toFlags(), binName, needle, replacement));
+    }
+
+    /**
+     * Queues string {@code replaceAll} modify.
+     */
+    public T replaceAll(String needle, String replacement) {
+        return addStringModifyOp(StringOperation.replaceAll(StringWriteFlags.DEFAULT, binName, needle, replacement));
+    }
+
+    public T replaceAll(String needle, String replacement, Consumer<StringWriteOptions> options) {
+        StringWriteOptions o = new StringWriteOptions();
+        options.accept(o);
+        return replaceAll(needle, replacement, o);
+    }
+
+    public T replaceAll(String needle, String replacement, StringWriteOptions options) {
+        return addStringModifyOp(StringOperation.replaceAll(options.toFlags(), binName, needle, replacement));
+    }
+
+    /** Queues string {@code upper} modify. */
+    public T upper() {
+        return addStringModifyOp(StringOperation.upper(StringWriteFlags.DEFAULT, binName));
+    }
+
+    public T upper(Consumer<StringWriteOptions> options) {
+        StringWriteOptions o = new StringWriteOptions();
+        options.accept(o);
+        return upper(o);
+    }
+
+    public T upper(StringWriteOptions options) {
+        return addStringModifyOp(StringOperation.upper(options.toFlags(), binName));
+    }
+
+    /** Queues string {@code lower} modify. */
+    public T lower() {
+        return addStringModifyOp(StringOperation.lower(StringWriteFlags.DEFAULT, binName));
+    }
+
+    public T lower(Consumer<StringWriteOptions> options) {
+        StringWriteOptions o = new StringWriteOptions();
+        options.accept(o);
+        return lower(o);
+    }
+
+    public T lower(StringWriteOptions options) {
+        return addStringModifyOp(StringOperation.lower(options.toFlags(), binName));
+    }
+
+    /** Queues string {@code caseFold} modify. */
+    public T caseFold() {
+        return addStringModifyOp(StringOperation.caseFold(StringWriteFlags.DEFAULT, binName));
+    }
+
+    public T caseFold(Consumer<StringWriteOptions> options) {
+        StringWriteOptions o = new StringWriteOptions();
+        options.accept(o);
+        return caseFold(o);
+    }
+
+    public T caseFold(StringWriteOptions options) {
+        return addStringModifyOp(StringOperation.caseFold(options.toFlags(), binName));
+    }
+
+    /** Queues string {@code normalizeNFC} modify. */
+    public T normalizeNfc() {
+        return addStringModifyOp(StringOperation.normalizeNFC(StringWriteFlags.DEFAULT, binName));
+    }
+
+    public T normalizeNfc(Consumer<StringWriteOptions> options) {
+        StringWriteOptions o = new StringWriteOptions();
+        options.accept(o);
+        return normalizeNfc(o);
+    }
+
+    public T normalizeNfc(StringWriteOptions options) {
+        return addStringModifyOp(StringOperation.normalizeNFC(options.toFlags(), binName));
+    }
+
+    /** Queues string {@code trimStart} modify. */
+    public T trimStart() {
+        return addStringModifyOp(StringOperation.trimStart(StringWriteFlags.DEFAULT, binName));
+    }
+
+    public T trimStart(Consumer<StringWriteOptions> options) {
+        StringWriteOptions o = new StringWriteOptions();
+        options.accept(o);
+        return trimStart(o);
+    }
+
+    public T trimStart(StringWriteOptions options) {
+        return addStringModifyOp(StringOperation.trimStart(options.toFlags(), binName));
+    }
+
+    /** Queues string {@code trimEnd} modify. */
+    public T trimEnd() {
+        return addStringModifyOp(StringOperation.trimEnd(StringWriteFlags.DEFAULT, binName));
+    }
+
+    public T trimEnd(Consumer<StringWriteOptions> options) {
+        StringWriteOptions o = new StringWriteOptions();
+        options.accept(o);
+        return trimEnd(o);
+    }
+
+    public T trimEnd(StringWriteOptions options) {
+        return addStringModifyOp(StringOperation.trimEnd(options.toFlags(), binName));
+    }
+
+    /** Queues string {@code trim} modify (both ends). */
+    public T trim() {
+        return addStringModifyOp(StringOperation.trim(StringWriteFlags.DEFAULT, binName));
+    }
+
+    public T trim(Consumer<StringWriteOptions> options) {
+        StringWriteOptions o = new StringWriteOptions();
+        options.accept(o);
+        return trim(o);
+    }
+
+    public T trim(StringWriteOptions options) {
+        return addStringModifyOp(StringOperation.trim(options.toFlags(), binName));
+    }
+
+    /**
+     * Queues string {@code padStart} modify: pad to at least {@code targetLength} codepoints.
+     */
+    public T padStart(int targetLength, String padString) {
+        return addStringModifyOp(StringOperation.padStart(StringWriteFlags.DEFAULT, binName, targetLength, padString));
+    }
+
+    public T padStart(int targetLength, String padString, Consumer<StringWriteOptions> options) {
+        StringWriteOptions o = new StringWriteOptions();
+        options.accept(o);
+        return padStart(targetLength, padString, o);
+    }
+
+    public T padStart(int targetLength, String padString, StringWriteOptions options) {
+        return addStringModifyOp(StringOperation.padStart(options.toFlags(), binName, targetLength, padString));
+    }
+
+    /**
+     * Queues string {@code padEnd} modify.
+     */
+    public T padEnd(int targetLength, String padString) {
+        return addStringModifyOp(StringOperation.padEnd(StringWriteFlags.DEFAULT, binName, targetLength, padString));
+    }
+
+    public T padEnd(int targetLength, String padString, Consumer<StringWriteOptions> options) {
+        StringWriteOptions o = new StringWriteOptions();
+        options.accept(o);
+        return padEnd(targetLength, padString, o);
+    }
+
+    public T padEnd(int targetLength, String padString, StringWriteOptions options) {
+        return addStringModifyOp(StringOperation.padEnd(options.toFlags(), binName, targetLength, padString));
+    }
+
+    /** Queues string {@code repeat} modify. */
+    public T repeat(int count) {
+        return addStringModifyOp(StringOperation.repeat(StringWriteFlags.DEFAULT, binName, count));
+    }
+
+    public T repeat(int count, Consumer<StringWriteOptions> options) {
+        StringWriteOptions o = new StringWriteOptions();
+        options.accept(o);
+        return repeat(count, o);
+    }
+
+    public T repeat(int count, StringWriteOptions options) {
+        return addStringModifyOp(StringOperation.repeat(options.toFlags(), binName, count));
+    }
+
+    /**
+     * Queues string {@code regexReplace} modify with default regex flags.
+     */
+    public T regexReplace(String pattern, String replacement) {
+        return addStringModifyOp(StringOperation.regexReplace(StringWriteFlags.DEFAULT, binName, pattern,
+            replacement, StringRegexFlags.DEFAULT));
+    }
+
+    public T regexReplace(String pattern, String replacement, Consumer<StringWriteOptions> options) {
+        StringWriteOptions o = new StringWriteOptions();
+        options.accept(o);
+        return regexReplace(pattern, replacement, StringRegexFlags.DEFAULT, o);
+    }
+
+    /**
+     * Queues string {@code regexReplace} with default regex flags and {@link StringWriteOptions}.
+     */
+    public T regexReplace(String pattern, String replacement, StringWriteOptions options) {
+        return regexReplace(pattern, replacement, StringRegexFlags.DEFAULT, options);
+    }
+
+    /**
+     * Queues string {@code regexReplace} with {@link StringRegexFlags}.
+     */
+    public T regexReplace(String pattern, String replacement, int regexFlags) {
+        return addStringModifyOp(StringOperation.regexReplace(StringWriteFlags.DEFAULT, binName, pattern,
+            replacement, regexFlags));
+    }
+
+    public T regexReplace(String pattern, String replacement, int regexFlags,
+        Consumer<StringWriteOptions> options) {
+        StringWriteOptions o = new StringWriteOptions();
+        options.accept(o);
+        return regexReplace(pattern, replacement, regexFlags, o);
+    }
+
+    public T regexReplace(String pattern, String replacement, int regexFlags, StringWriteOptions options) {
+        return addStringModifyOp(StringOperation.regexReplace(options.toFlags(), binName, pattern,
+            replacement, regexFlags));
     }
 
     // ----------------------------------------

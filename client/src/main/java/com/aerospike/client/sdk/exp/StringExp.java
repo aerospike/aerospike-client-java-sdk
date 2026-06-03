@@ -23,7 +23,7 @@ import com.aerospike.client.sdk.util.Packer;
 /**
  * String expression generator. Produces {@link Exp} nodes that read or transform
  * string values inside an Aerospike {@link Expression}. Mirrors the operations
- * exposed by {@link com.aerospike.client.operation.StringOperation}, but composes
+ * exposed by {@link com.aerospike.client.sdk.operation.StringOperation}, but composes
  * inside expressions instead of being sent as standalone operate ops.
  * <p>
  * Each builder takes an {@code Exp src} that produces the string to operate on.
@@ -38,13 +38,13 @@ import com.aerospike.client.sdk.util.Packer;
  * <strong>modified string value</strong>; they do not mutate the underlying bin.
  * To persist a change, write the returned value back via
  * {@link com.aerospike.client.exp.Exp.Build} or use
- * {@link com.aerospike.client.operation.StringOperation} for direct ops.
+ * {@link com.aerospike.client.sdk.operation.StringOperation} for direct ops.
  * <p>
  * Index orientation is left-to-right with codepoint addressing. Negative indexes
  * count from the end of the string ({@code -1} = last codepoint). Out-of-bounds
  * indexes are clamped to the valid range; no error is returned.
  * <p>
- * Unlike {@link com.aerospike.client.operation.StringOperation}, these builders
+ * Unlike {@link com.aerospike.client.sdk.operation.StringOperation}, these builders
  * do <strong>not</strong> accept a {@link com.aerospike.client.cdt.CTX}. To apply
  * a string expression to a value nested inside a list or map, compose with
  * {@link com.aerospike.client.exp.ListExp#getByIndex} or
@@ -106,7 +106,7 @@ public final class StringExp {
      * The returned value is the codepoint count — <strong>not</strong> the count of
      * user-perceived characters (grapheme clusters). They agree for ASCII / simple
      * Latin text but diverge for combining marks, emoji modifiers, and ZWJ sequences
-     * (see {@link com.aerospike.client.operation.StringOperation#strlen} for examples).
+     * (see {@link com.aerospike.client.sdk.operation.StringOperation#strlen} for examples).
      * For UTF-8 byte length, use {@link #byteLength(Exp)}.
      *
      * @param src   source string expression
@@ -132,16 +132,16 @@ public final class StringExp {
     }
 
     /**
-     * Create expression that returns {@code length} codepoints of {@code src} starting
-     * at codepoint {@code start}. Negative indexes count from the end.
+     * Create expression that reads the half-open codepoint range {@code [start, end)}
+     * of {@code src}. Negative indexes count from the end of the string.
      *
      * @param start     starting codepoint index (negative counts from end)
-     * @param length    number of codepoints to read (clamped to remaining length)
+     * @param end       one past the last codepoint (exclusive)
      * @param src       source string expression
      * @return          string-typed expression yielding the substring
      */
-    public static Exp substr(Exp start, Exp length, Exp src) {
-        byte[] bytes = Pack.pack(SUBSTR, start, length);
+    public static Exp substr(Exp start, Exp end, Exp src) {
+        byte[] bytes = Pack.pack(SUBSTR, start, end);
         return addRead(src, bytes, Exp.Type.STRING);
     }
 
@@ -226,8 +226,9 @@ public final class StringExp {
     }
 
     /**
-     * Create expression that parses {@code src} as an int64. The expression returns
-     * an error if the source cannot be parsed as an integer.
+     * Create expression that parses {@code src} as an int64. Yields
+     * {@link com.aerospike.client.sdk.ResultCode#OP_NOT_APPLICABLE} when the value is not
+     * a parseable integer string.
      *
      * @param src   source string expression
      * @return      integer-typed expression yielding the parsed int64
@@ -238,8 +239,9 @@ public final class StringExp {
     }
 
     /**
-     * Create expression that parses {@code src} as a 64-bit float. The expression
-     * returns an error if the source cannot be parsed as a double.
+     * Create expression that parses {@code src} as a 64-bit float. Yields
+     * {@link com.aerospike.client.sdk.ResultCode#OP_NOT_APPLICABLE} when the value is not
+     * a parseable floating-point string.
      *
      * @param src   source string expression
      * @return      float-typed expression yielding the parsed double
@@ -276,10 +278,10 @@ public final class StringExp {
 
     /**
      * Create expression that tests whether {@code src} parses as a number of the
-     * requested {@link com.aerospike.client.operation.StringNumericType}. Returns an
+     * requested {@link com.aerospike.client.sdk.operation.StringNumericType}. Returns an
      * integer flag: {@code 1} on match, {@code 0} otherwise.
      *
-     * @param numericType   one of the {@link com.aerospike.client.operation.StringNumericType} constants
+     * @param numericType   one of the {@link com.aerospike.client.sdk.operation.StringNumericType} constants
      * @param src           source string expression
      * @return              integer-typed expression: 1 if numeric of the given type, 0 otherwise
      */
@@ -291,6 +293,7 @@ public final class StringExp {
     /**
      * Create expression that tests whether every cased codepoint in {@code src} is
      * uppercase. Returns an integer flag: {@code 1} on match, {@code 0} otherwise.
+     * The empty string matches (no cased codepoint violates the predicate).
      *
      * @param src   source string expression
      * @return      integer-typed expression: 1 if all-uppercase, 0 otherwise
@@ -303,6 +306,7 @@ public final class StringExp {
     /**
      * Create expression that tests whether every cased codepoint in {@code src} is
      * lowercase. Returns an integer flag: {@code 1} on match, {@code 0} otherwise.
+     * The empty string matches (no cased codepoint violates the predicate).
      *
      * @param src   source string expression
      * @return      integer-typed expression: 1 if all-lowercase, 0 otherwise

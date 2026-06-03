@@ -49,6 +49,15 @@
         <role>developer</role>
       </roles>
     </developer>
+    <developer>
+      <name>Tim Faulkes</name>
+      <email>tim@aerospike.com</email>
+      <organization>Aerospike</organization>
+      <organizationUrl>https://aerospike.com/</organizationUrl>
+      <roles>
+        <role>developer</role>
+      </roles>
+    </developer>
   </developers>
 
   <modules>
