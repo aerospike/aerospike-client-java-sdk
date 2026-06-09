@@ -19,6 +19,7 @@ package com.aerospike.client.sdk;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 import com.aerospike.client.sdk.CdtGetOrRemoveBuilder.CdtOperation;
 import com.aerospike.client.sdk.ael.BooleanExpression;
@@ -51,13 +52,28 @@ import com.aerospike.client.sdk.query.PreparedAel;
  *     .execute();
  * }</pre>
  */
-public class QueryBinBuilder implements CdtOperationAcceptor<ChainableQueryBuilder> {
+public final class QueryBinBuilder<P> implements CdtOperationAcceptor<P> {
     private final ChainableQueryBuilder queryBuilder;
     private final String binName;
+    private final Function<ChainableQueryBuilder, P> wrapParent;
 
     QueryBinBuilder(ChainableQueryBuilder queryBuilder, String binName) {
+        this(queryBuilder, binName, identityParent());
+    }
+
+    QueryBinBuilder(ChainableQueryBuilder queryBuilder, String binName, Function<ChainableQueryBuilder, P> wrapParent) {
         this.queryBuilder = queryBuilder;
         this.binName = binName;
+        this.wrapParent = wrapParent;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static <P> Function<ChainableQueryBuilder, P> identityParent() {
+        return (Function<ChainableQueryBuilder, P>) Function.<ChainableQueryBuilder>identity();
+    }
+
+    private P wrapResult() {
+        return wrapParent.apply(queryBuilder);
     }
 
     // ========================================
@@ -70,8 +86,8 @@ public class QueryBinBuilder implements CdtOperationAcceptor<ChainableQueryBuild
     }
 
     @Override
-    public ChainableQueryBuilder getParentBuilder() {
-        return queryBuilder;
+    public P getParentBuilder() {
+        return wrapResult();
     }
 
     /**
@@ -79,9 +95,9 @@ public class QueryBinBuilder implements CdtOperationAcceptor<ChainableQueryBuild
      *
      * @return the query builder for method chaining
      */
-    public ChainableQueryBuilder get() {
+    public P get() {
         queryBuilder.addOperation(Operation.get(binName));
-        return queryBuilder;
+        return wrapResult();
     }
 
     /**
@@ -89,9 +105,9 @@ public class QueryBinBuilder implements CdtOperationAcceptor<ChainableQueryBuild
      *
      * @return the query builder for method chaining
      */
-    public ChainableQueryBuilder mapSize() {
+    public P mapSize() {
         queryBuilder.addOperation(MapOperation.size(binName));
-        return queryBuilder;
+        return wrapResult();
     }
 
     /**
@@ -99,9 +115,9 @@ public class QueryBinBuilder implements CdtOperationAcceptor<ChainableQueryBuild
      *
      * @return the query builder for method chaining
      */
-    public ChainableQueryBuilder listSize() {
+    public P listSize() {
         queryBuilder.addOperation(ListOperation.size(binName));
-        return queryBuilder;
+        return wrapResult();
     }
 
     /**
@@ -110,9 +126,9 @@ public class QueryBinBuilder implements CdtOperationAcceptor<ChainableQueryBuild
      * @param index list index (0-based)
      * @return the query builder for method chaining
      */
-    public ChainableQueryBuilder listGet(int index) {
+    public P listGet(int index) {
         queryBuilder.addOperation(ListOperation.get(binName, index));
-        return queryBuilder;
+        return wrapResult();
     }
 
     /**
@@ -121,9 +137,9 @@ public class QueryBinBuilder implements CdtOperationAcceptor<ChainableQueryBuild
      * @param index start index (0-based)
      * @return the query builder for method chaining
      */
-    public ChainableQueryBuilder listGetRange(int index) {
+    public P listGetRange(int index) {
         queryBuilder.addOperation(ListOperation.getRange(binName, index));
-        return queryBuilder;
+        return wrapResult();
     }
 
     /**
@@ -133,9 +149,9 @@ public class QueryBinBuilder implements CdtOperationAcceptor<ChainableQueryBuild
      * @param count number of elements
      * @return the query builder for method chaining
      */
-    public ChainableQueryBuilder listGetRange(int index, int count) {
+    public P listGetRange(int index, int count) {
         queryBuilder.addOperation(ListOperation.getRange(binName, index, count));
-        return queryBuilder;
+        return wrapResult();
     }
 
     // ----------------------------------------
@@ -157,9 +173,9 @@ public class QueryBinBuilder implements CdtOperationAcceptor<ChainableQueryBuild
      * @param ael the AEL expression string
      * @see #selectFrom(String, Consumer) for options like ignoreEvalFailure()
      */
-    public ChainableQueryBuilder selectFrom(String ael) {
+    public P selectFrom(String ael) {
         queryBuilder.addOperation(ExpressionOpHelper.createReadOp(binName, ael, ExpReadFlags.DEFAULT));
-        return queryBuilder;
+        return wrapResult();
     }
 
     /**
@@ -175,11 +191,11 @@ public class QueryBinBuilder implements CdtOperationAcceptor<ChainableQueryBuild
      * @param ael the AEL expression string
      * @param options configure via {@code ignoreEvalFailure()}
      */
-    public ChainableQueryBuilder selectFrom(String ael, Consumer<ExpressionReadOptions> options) {
+    public P selectFrom(String ael, Consumer<ExpressionReadOptions> options) {
         ExpressionReadOptions opts = new ExpressionReadOptions();
         options.accept(opts);
         queryBuilder.addOperation(ExpressionOpHelper.createReadOp(binName, ael, opts.getFlags()));
-        return queryBuilder;
+        return wrapResult();
     }
 
     /**
@@ -193,9 +209,9 @@ public class QueryBinBuilder implements CdtOperationAcceptor<ChainableQueryBuild
      *
      * @param ael the boolean expression to evaluate
      */
-    public ChainableQueryBuilder selectFrom(BooleanExpression ael) {
+    public P selectFrom(BooleanExpression ael) {
         queryBuilder.addOperation(ExpressionOpHelper.createReadOp(binName, ael, ExpReadFlags.DEFAULT));
-        return queryBuilder;
+        return wrapResult();
     }
 
     /**
@@ -210,11 +226,11 @@ public class QueryBinBuilder implements CdtOperationAcceptor<ChainableQueryBuild
      * @param ael the boolean expression to evaluate
      * @param options configure via {@code ignoreEvalFailure()}
      */
-    public ChainableQueryBuilder selectFrom(BooleanExpression ael, Consumer<ExpressionReadOptions> options) {
+    public P selectFrom(BooleanExpression ael, Consumer<ExpressionReadOptions> options) {
         ExpressionReadOptions opts = new ExpressionReadOptions();
         options.accept(opts);
         queryBuilder.addOperation(ExpressionOpHelper.createReadOp(binName, ael, opts.getFlags()));
-        return queryBuilder;
+        return wrapResult();
     }
 
     /**
@@ -230,9 +246,9 @@ public class QueryBinBuilder implements CdtOperationAcceptor<ChainableQueryBuild
      * @param ael the prepared AEL statement
      * @param params parameter values to bind
      */
-    public ChainableQueryBuilder selectFrom(PreparedAel ael, Object... params) {
+    public P selectFrom(PreparedAel ael, Object... params) {
         queryBuilder.addOperation(ExpressionOpHelper.createReadOp(binName, ael, params, ExpReadFlags.DEFAULT));
-        return queryBuilder;
+        return wrapResult();
     }
 
     /**
@@ -249,11 +265,11 @@ public class QueryBinBuilder implements CdtOperationAcceptor<ChainableQueryBuild
      * @param options configure via {@code ignoreEvalFailure()}
      * @param params parameter values to bind
      */
-    public ChainableQueryBuilder selectFrom(PreparedAel ael, Consumer<ExpressionReadOptions> options, Object... params) {
+    public P selectFrom(PreparedAel ael, Consumer<ExpressionReadOptions> options, Object... params) {
         ExpressionReadOptions opts = new ExpressionReadOptions();
         options.accept(opts);
         queryBuilder.addOperation(ExpressionOpHelper.createReadOp(binName, ael, params, opts.getFlags()));
-        return queryBuilder;
+        return wrapResult();
     }
 
     /**
@@ -268,9 +284,9 @@ public class QueryBinBuilder implements CdtOperationAcceptor<ChainableQueryBuild
      *
      * @param exp the Exp expression to evaluate
      */
-    public ChainableQueryBuilder selectFrom(Exp exp) {
+    public P selectFrom(Exp exp) {
         queryBuilder.addOperation(ExpressionOpHelper.createReadOp(binName, exp, ExpReadFlags.DEFAULT));
-        return queryBuilder;
+        return wrapResult();
     }
 
     /**
@@ -285,11 +301,11 @@ public class QueryBinBuilder implements CdtOperationAcceptor<ChainableQueryBuild
      * @param exp the Exp expression to evaluate
      * @param options configure via {@code ignoreEvalFailure()}
      */
-    public ChainableQueryBuilder selectFrom(Exp exp, Consumer<ExpressionReadOptions> options) {
+    public P selectFrom(Exp exp, Consumer<ExpressionReadOptions> options) {
         ExpressionReadOptions opts = new ExpressionReadOptions();
         options.accept(opts);
         queryBuilder.addOperation(ExpressionOpHelper.createReadOp(binName, exp, opts.getFlags()));
-        return queryBuilder;
+        return wrapResult();
     }
 
     /**
@@ -304,9 +320,9 @@ public class QueryBinBuilder implements CdtOperationAcceptor<ChainableQueryBuild
      *
      * @param exp the compiled expression to evaluate
      */
-    public ChainableQueryBuilder selectFrom(Expression exp) {
+    public P selectFrom(Expression exp) {
         queryBuilder.addOperation(ExpressionOpHelper.createReadOp(binName, exp, ExpReadFlags.DEFAULT));
-        return queryBuilder;
+        return wrapResult();
     }
 
     /**
@@ -321,11 +337,11 @@ public class QueryBinBuilder implements CdtOperationAcceptor<ChainableQueryBuild
      * @param exp the compiled expression to evaluate
      * @param options configure via {@code ignoreEvalFailure()}
      */
-    public ChainableQueryBuilder selectFrom(Expression exp, Consumer<ExpressionReadOptions> options) {
+    public P selectFrom(Expression exp, Consumer<ExpressionReadOptions> options) {
         ExpressionReadOptions opts = new ExpressionReadOptions();
         options.accept(opts);
         queryBuilder.addOperation(ExpressionOpHelper.createReadOp(binName, exp, opts.getFlags()));
-        return queryBuilder;
+        return wrapResult();
     }
 
     // ========================================
@@ -345,7 +361,7 @@ public class QueryBinBuilder implements CdtOperationAcceptor<ChainableQueryBuild
      * @param index the index to access
      * @return read-only CDT builder for further navigation or terminal operations
      */
-    public CdtReadContextBuilder<ChainableQueryBuilder> onMapIndex(int index) {
+    public CdtReadContextBuilder<P> onMapIndex(int index) {
         return new CdtReadOnlyBuilder<>(binName, this, new CdtOperationParams(CdtOperation.MAP_BY_INDEX, index));
     }
 
@@ -362,17 +378,17 @@ public class QueryBinBuilder implements CdtOperationAcceptor<ChainableQueryBuild
      * @param key the key to access
      * @return read-only CDT builder for further navigation or terminal operations
      */
-    public CdtReadContextBuilder<ChainableQueryBuilder> onMapKey(long key) {
+    public CdtReadContextBuilder<P> onMapKey(long key) {
         return new CdtReadOnlyBuilder<>(binName, this, new CdtOperationParams(CdtOperation.MAP_BY_KEY, Value.get(key)));
     }
 
     /** Navigate to a map element by key. */
-    public CdtReadContextBuilder<ChainableQueryBuilder> onMapKey(String key) {
+    public CdtReadContextBuilder<P> onMapKey(String key) {
         return new CdtReadOnlyBuilder<>(binName, this, new CdtOperationParams(CdtOperation.MAP_BY_KEY, Value.get(key)));
     }
 
     /** Navigate to a map element by key. */
-    public CdtReadContextBuilder<ChainableQueryBuilder> onMapKey(byte[] key) {
+    public CdtReadContextBuilder<P> onMapKey(byte[] key) {
         return new CdtReadOnlyBuilder<>(binName, this, new CdtOperationParams(CdtOperation.MAP_BY_KEY, Value.get(key)));
     }
 
@@ -382,7 +398,7 @@ public class QueryBinBuilder implements CdtOperationAcceptor<ChainableQueryBuild
      * @param rank the rank to access (0 = lowest value)
      * @return read-only CDT builder for further navigation or terminal operations
      */
-    public CdtReadContextBuilder<ChainableQueryBuilder> onMapRank(int rank) {
+    public CdtReadContextBuilder<P> onMapRank(int rank) {
         return new CdtReadOnlyBuilder<>(binName, this, new CdtOperationParams(CdtOperation.MAP_BY_RANK, rank));
     }
 
@@ -392,27 +408,27 @@ public class QueryBinBuilder implements CdtOperationAcceptor<ChainableQueryBuild
      * @param value the value to match
      * @return read-only CDT builder for further navigation or terminal operations
      */
-    public CdtReadContextInvertableBuilder<ChainableQueryBuilder> onMapValue(long value) {
+    public CdtReadContextInvertableBuilder<P> onMapValue(long value) {
         return new CdtReadOnlyBuilder<>(binName, this, new CdtOperationParams(CdtOperation.MAP_BY_VALUE, Value.get(value)));
     }
 
     /** Navigate to map elements by value. */
-    public CdtReadContextInvertableBuilder<ChainableQueryBuilder> onMapValue(String value) {
+    public CdtReadContextInvertableBuilder<P> onMapValue(String value) {
         return new CdtReadOnlyBuilder<>(binName, this, new CdtOperationParams(CdtOperation.MAP_BY_VALUE, Value.get(value)));
     }
 
     /** Navigate to map elements by value. */
-    public CdtReadContextInvertableBuilder<ChainableQueryBuilder> onMapValue(byte[] value) {
+    public CdtReadContextInvertableBuilder<P> onMapValue(byte[] value) {
         return new CdtReadOnlyBuilder<>(binName, this, new CdtOperationParams(CdtOperation.MAP_BY_VALUE, Value.get(value)));
     }
 
     /** Navigate to map elements by value. */
-    public CdtReadContextInvertableBuilder<ChainableQueryBuilder> onMapValue(double value) {
+    public CdtReadContextInvertableBuilder<P> onMapValue(double value) {
         return new CdtReadOnlyBuilder<>(binName, this, new CdtOperationParams(CdtOperation.MAP_BY_VALUE, Value.get(value)));
     }
 
     /** Navigate to map elements by value. */
-    public CdtReadContextInvertableBuilder<ChainableQueryBuilder> onMapValue(boolean value) {
+    public CdtReadContextInvertableBuilder<P> onMapValue(boolean value) {
         return new CdtReadOnlyBuilder<>(binName, this, new CdtOperationParams(CdtOperation.MAP_BY_VALUE, Value.get(value)));
     }
 
@@ -423,12 +439,12 @@ public class QueryBinBuilder implements CdtOperationAcceptor<ChainableQueryBuild
      * @param count the number of elements
      * @return read-only CDT builder for terminal operations
      */
-    public CdtReadActionInvertableBuilder<ChainableQueryBuilder> onMapIndexRange(int index, int count) {
+    public CdtReadActionInvertableBuilder<P> onMapIndexRange(int index, int count) {
         return new CdtReadOnlyBuilder<>(binName, this, new CdtOperationParams(CdtOperation.MAP_BY_INDEX_RANGE, index, count));
     }
 
     /** Navigate to map elements by index range (from index to end). */
-    public CdtReadActionInvertableBuilder<ChainableQueryBuilder> onMapIndexRange(int index) {
+    public CdtReadActionInvertableBuilder<P> onMapIndexRange(int index) {
         return new CdtReadOnlyBuilder<>(binName, this, new CdtOperationParams(CdtOperation.MAP_BY_INDEX_RANGE, index));
     }
 
@@ -439,12 +455,12 @@ public class QueryBinBuilder implements CdtOperationAcceptor<ChainableQueryBuild
      * @param endExcl exclusive end key
      * @return read-only CDT builder for terminal operations
      */
-    public CdtReadActionInvertableBuilder<ChainableQueryBuilder> onMapKeyRange(long startIncl, long endExcl) {
+    public CdtReadActionInvertableBuilder<P> onMapKeyRange(long startIncl, long endExcl) {
         return new CdtReadOnlyBuilder<>(binName, this, new CdtOperationParams(CdtOperation.MAP_BY_KEY_RANGE, Value.get(startIncl), Value.get(endExcl)));
     }
 
     /** Navigate to map elements by key range. */
-    public CdtReadActionInvertableBuilder<ChainableQueryBuilder> onMapKeyRange(String startIncl, String endExcl) {
+    public CdtReadActionInvertableBuilder<P> onMapKeyRange(String startIncl, String endExcl) {
         return new CdtReadOnlyBuilder<>(binName, this, new CdtOperationParams(CdtOperation.MAP_BY_KEY_RANGE, Value.get(startIncl), Value.get(endExcl)));
     }
 
@@ -455,12 +471,12 @@ public class QueryBinBuilder implements CdtOperationAcceptor<ChainableQueryBuild
      * @param count the number of elements
      * @return read-only CDT builder for terminal operations
      */
-    public CdtReadActionInvertableBuilder<ChainableQueryBuilder> onMapRankRange(int rank, int count) {
+    public CdtReadActionInvertableBuilder<P> onMapRankRange(int rank, int count) {
         return new CdtReadOnlyBuilder<>(binName, this, new CdtOperationParams(CdtOperation.MAP_BY_RANK_RANGE, rank, count));
     }
 
     /** Navigate to map elements by rank range (from rank to end). */
-    public CdtReadActionInvertableBuilder<ChainableQueryBuilder> onMapRankRange(int rank) {
+    public CdtReadActionInvertableBuilder<P> onMapRankRange(int rank) {
         return new CdtReadOnlyBuilder<>(binName, this, new CdtOperationParams(CdtOperation.MAP_BY_RANK_RANGE, rank));
     }
 
@@ -471,12 +487,12 @@ public class QueryBinBuilder implements CdtOperationAcceptor<ChainableQueryBuild
      * @param endExcl exclusive end value
      * @return read-only CDT builder for terminal operations
      */
-    public CdtReadActionInvertableBuilder<ChainableQueryBuilder> onMapValueRange(long startIncl, long endExcl) {
+    public CdtReadActionInvertableBuilder<P> onMapValueRange(long startIncl, long endExcl) {
         return new CdtReadOnlyBuilder<>(binName, this, new CdtOperationParams(CdtOperation.MAP_BY_VALUE_RANGE, Value.get(startIncl), Value.get(endExcl)));
     }
 
     /** Navigate to map elements by value range. */
-    public CdtReadActionInvertableBuilder<ChainableQueryBuilder> onMapValueRange(String startIncl, String endExcl) {
+    public CdtReadActionInvertableBuilder<P> onMapValueRange(String startIncl, String endExcl) {
         return new CdtReadOnlyBuilder<>(binName, this, new CdtOperationParams(CdtOperation.MAP_BY_VALUE_RANGE, Value.get(startIncl), Value.get(endExcl)));
     }
 
@@ -486,7 +502,7 @@ public class QueryBinBuilder implements CdtOperationAcceptor<ChainableQueryBuild
      * @param keys the keys to match
      * @return read-only CDT builder for terminal operations
      */
-    public CdtReadContextInvertableBuilder<ChainableQueryBuilder> onMapKeyList(List<?> keys) {
+    public CdtReadContextInvertableBuilder<P> onMapKeyList(List<?> keys) {
         List<Value> values = new ArrayList<>(keys.size());
         for (Object key : keys) {
             values.add(Value.get(key));
@@ -500,7 +516,7 @@ public class QueryBinBuilder implements CdtOperationAcceptor<ChainableQueryBuild
      * @param valueList the values to match
      * @return read-only CDT builder for terminal operations
      */
-    public CdtReadContextInvertableBuilder<ChainableQueryBuilder> onMapValueList(List<?> valueList) {
+    public CdtReadContextInvertableBuilder<P> onMapValueList(List<?> valueList) {
         List<Value> values = new ArrayList<>(valueList.size());
         for (Object v : valueList) {
             values.add(Value.get(v));
@@ -521,12 +537,12 @@ public class QueryBinBuilder implements CdtOperationAcceptor<ChainableQueryBuild
      * @param index the index to access
      * @return read-only CDT builder for further navigation or terminal operations
      */
-    public CdtReadContextBuilder<ChainableQueryBuilder> onListIndex(int index) {
+    public CdtReadContextBuilder<P> onListIndex(int index) {
         return new CdtReadOnlyBuilder<>(binName, this, new CdtOperationParams(CdtOperation.LIST_BY_INDEX, index));
     }
 
     /** Navigate to a list element by index with create options. */
-    public CdtReadContextBuilder<ChainableQueryBuilder> onListIndex(int index, ListOrder order, boolean pad) {
+    public CdtReadContextBuilder<P> onListIndex(int index, ListOrder order, boolean pad) {
         return new CdtReadOnlyBuilder<>(binName, this, new CdtOperationParams(CdtOperation.LIST_BY_INDEX, index, order, pad));
     }
 
@@ -536,7 +552,7 @@ public class QueryBinBuilder implements CdtOperationAcceptor<ChainableQueryBuild
      * @param rank the rank to access (0 = lowest value)
      * @return read-only CDT builder for further navigation or terminal operations
      */
-    public CdtReadContextBuilder<ChainableQueryBuilder> onListRank(int rank) {
+    public CdtReadContextBuilder<P> onListRank(int rank) {
         return new CdtReadOnlyBuilder<>(binName, this, new CdtOperationParams(CdtOperation.LIST_BY_RANK, rank));
     }
 
@@ -546,17 +562,17 @@ public class QueryBinBuilder implements CdtOperationAcceptor<ChainableQueryBuild
      * @param value the value to match
      * @return read-only CDT builder for terminal operations
      */
-    public CdtReadContextInvertableBuilder<ChainableQueryBuilder> onListValue(long value) {
+    public CdtReadContextInvertableBuilder<P> onListValue(long value) {
         return new CdtReadOnlyBuilder<>(binName, this, new CdtOperationParams(CdtOperation.LIST_BY_VALUE, Value.get(value)));
     }
 
     /** Navigate to list elements by value. */
-    public CdtReadContextInvertableBuilder<ChainableQueryBuilder> onListValue(String value) {
+    public CdtReadContextInvertableBuilder<P> onListValue(String value) {
         return new CdtReadOnlyBuilder<>(binName, this, new CdtOperationParams(CdtOperation.LIST_BY_VALUE, Value.get(value)));
     }
 
     /** Navigate to list elements by value. */
-    public CdtReadContextInvertableBuilder<ChainableQueryBuilder> onListValue(byte[] value) {
+    public CdtReadContextInvertableBuilder<P> onListValue(byte[] value) {
         return new CdtReadOnlyBuilder<>(binName, this, new CdtOperationParams(CdtOperation.LIST_BY_VALUE, Value.get(value)));
     }
 
@@ -566,7 +582,7 @@ public class QueryBinBuilder implements CdtOperationAcceptor<ChainableQueryBuild
      * @param index the starting index
      * @return read-only CDT builder for terminal operations
      */
-    public CdtReadActionInvertableBuilder<ChainableQueryBuilder> onListIndexRange(int index) {
+    public CdtReadActionInvertableBuilder<P> onListIndexRange(int index) {
         return new CdtReadOnlyBuilder<>(binName, this, new CdtOperationParams(CdtOperation.LIST_BY_INDEX_RANGE, index));
     }
 
@@ -577,7 +593,7 @@ public class QueryBinBuilder implements CdtOperationAcceptor<ChainableQueryBuild
      * @param count the number of elements
      * @return read-only CDT builder for terminal operations
      */
-    public CdtReadActionInvertableBuilder<ChainableQueryBuilder> onListIndexRange(int index, int count) {
+    public CdtReadActionInvertableBuilder<P> onListIndexRange(int index, int count) {
         return new CdtReadOnlyBuilder<>(binName, this, new CdtOperationParams(CdtOperation.LIST_BY_INDEX_RANGE, index, count));
     }
 
@@ -587,7 +603,7 @@ public class QueryBinBuilder implements CdtOperationAcceptor<ChainableQueryBuild
      * @param rank the starting rank (0 = lowest value)
      * @return read-only CDT builder for terminal operations
      */
-    public CdtReadActionInvertableBuilder<ChainableQueryBuilder> onListRankRange(int rank) {
+    public CdtReadActionInvertableBuilder<P> onListRankRange(int rank) {
         return new CdtReadOnlyBuilder<>(binName, this, new CdtOperationParams(CdtOperation.LIST_BY_RANK_RANGE, rank));
     }
 
@@ -598,7 +614,7 @@ public class QueryBinBuilder implements CdtOperationAcceptor<ChainableQueryBuild
      * @param count the number of elements
      * @return read-only CDT builder for terminal operations
      */
-    public CdtReadActionInvertableBuilder<ChainableQueryBuilder> onListRankRange(int rank, int count) {
+    public CdtReadActionInvertableBuilder<P> onListRankRange(int rank, int count) {
         return new CdtReadOnlyBuilder<>(binName, this, new CdtOperationParams(CdtOperation.LIST_BY_RANK_RANGE, rank, count));
     }
 
@@ -609,67 +625,67 @@ public class QueryBinBuilder implements CdtOperationAcceptor<ChainableQueryBuild
      * @param endExcl exclusive end value
      * @return read-only CDT builder for terminal operations
      */
-    public CdtReadActionInvertableBuilder<ChainableQueryBuilder> onListValueRange(long startIncl, long endExcl) {
+    public CdtReadActionInvertableBuilder<P> onListValueRange(long startIncl, long endExcl) {
         return new CdtReadOnlyBuilder<>(binName, this, new CdtOperationParams(CdtOperation.LIST_BY_VALUE_RANGE, Value.get(startIncl), Value.get(endExcl)));
     }
 
     /** Navigate to list elements by value range. */
-    public CdtReadActionInvertableBuilder<ChainableQueryBuilder> onListValueRange(String startIncl, String endExcl) {
+    public CdtReadActionInvertableBuilder<P> onListValueRange(String startIncl, String endExcl) {
         return new CdtReadOnlyBuilder<>(binName, this, new CdtOperationParams(CdtOperation.LIST_BY_VALUE_RANGE, Value.get(startIncl), Value.get(endExcl)));
     }
 
     /** Navigate to list elements by value range. */
-    public CdtReadActionInvertableBuilder<ChainableQueryBuilder> onListValueRange(byte[] startIncl, byte[] endExcl) {
+    public CdtReadActionInvertableBuilder<P> onListValueRange(byte[] startIncl, byte[] endExcl) {
         return new CdtReadOnlyBuilder<>(binName, this, new CdtOperationParams(CdtOperation.LIST_BY_VALUE_RANGE, Value.get(startIncl), Value.get(endExcl)));
     }
 
     /** Navigate to list elements by value range. */
-    public CdtReadActionInvertableBuilder<ChainableQueryBuilder> onListValueRange(double startIncl, double endExcl) {
+    public CdtReadActionInvertableBuilder<P> onListValueRange(double startIncl, double endExcl) {
         return new CdtReadOnlyBuilder<>(binName, this, new CdtOperationParams(CdtOperation.LIST_BY_VALUE_RANGE, Value.get(startIncl), Value.get(endExcl)));
     }
 
     /** Navigate to list elements by value range (SpecialValue combinations). */
-    public CdtReadActionInvertableBuilder<ChainableQueryBuilder> onListValueRange(SpecialValue startIncl, SpecialValue endExcl) {
+    public CdtReadActionInvertableBuilder<P> onListValueRange(SpecialValue startIncl, SpecialValue endExcl) {
         return new CdtReadOnlyBuilder<>(binName, this, new CdtOperationParams(CdtOperation.LIST_BY_VALUE_RANGE, startIncl.toAerospikeValue(), endExcl.toAerospikeValue()));
     }
 
     /** Navigate to list elements by value range. */
-    public CdtReadActionInvertableBuilder<ChainableQueryBuilder> onListValueRange(SpecialValue startIncl, long endExcl) {
+    public CdtReadActionInvertableBuilder<P> onListValueRange(SpecialValue startIncl, long endExcl) {
         return new CdtReadOnlyBuilder<>(binName, this, new CdtOperationParams(CdtOperation.LIST_BY_VALUE_RANGE, startIncl.toAerospikeValue(), Value.get(endExcl)));
     }
 
     /** Navigate to list elements by value range. */
-    public CdtReadActionInvertableBuilder<ChainableQueryBuilder> onListValueRange(SpecialValue startIncl, String endExcl) {
+    public CdtReadActionInvertableBuilder<P> onListValueRange(SpecialValue startIncl, String endExcl) {
         return new CdtReadOnlyBuilder<>(binName, this, new CdtOperationParams(CdtOperation.LIST_BY_VALUE_RANGE, startIncl.toAerospikeValue(), Value.get(endExcl)));
     }
 
     /** Navigate to list elements by value range. */
-    public CdtReadActionInvertableBuilder<ChainableQueryBuilder> onListValueRange(SpecialValue startIncl, byte[] endExcl) {
+    public CdtReadActionInvertableBuilder<P> onListValueRange(SpecialValue startIncl, byte[] endExcl) {
         return new CdtReadOnlyBuilder<>(binName, this, new CdtOperationParams(CdtOperation.LIST_BY_VALUE_RANGE, startIncl.toAerospikeValue(), Value.get(endExcl)));
     }
 
     /** Navigate to list elements by value range. */
-    public CdtReadActionInvertableBuilder<ChainableQueryBuilder> onListValueRange(SpecialValue startIncl, double endExcl) {
+    public CdtReadActionInvertableBuilder<P> onListValueRange(SpecialValue startIncl, double endExcl) {
         return new CdtReadOnlyBuilder<>(binName, this, new CdtOperationParams(CdtOperation.LIST_BY_VALUE_RANGE, startIncl.toAerospikeValue(), Value.get(endExcl)));
     }
 
     /** Navigate to list elements by value range. */
-    public CdtReadActionInvertableBuilder<ChainableQueryBuilder> onListValueRange(long startIncl, SpecialValue endExcl) {
+    public CdtReadActionInvertableBuilder<P> onListValueRange(long startIncl, SpecialValue endExcl) {
         return new CdtReadOnlyBuilder<>(binName, this, new CdtOperationParams(CdtOperation.LIST_BY_VALUE_RANGE, Value.get(startIncl), endExcl.toAerospikeValue()));
     }
 
     /** Navigate to list elements by value range. */
-    public CdtReadActionInvertableBuilder<ChainableQueryBuilder> onListValueRange(String startIncl, SpecialValue endExcl) {
+    public CdtReadActionInvertableBuilder<P> onListValueRange(String startIncl, SpecialValue endExcl) {
         return new CdtReadOnlyBuilder<>(binName, this, new CdtOperationParams(CdtOperation.LIST_BY_VALUE_RANGE, Value.get(startIncl), endExcl.toAerospikeValue()));
     }
 
     /** Navigate to list elements by value range. */
-    public CdtReadActionInvertableBuilder<ChainableQueryBuilder> onListValueRange(byte[] startIncl, SpecialValue endExcl) {
+    public CdtReadActionInvertableBuilder<P> onListValueRange(byte[] startIncl, SpecialValue endExcl) {
         return new CdtReadOnlyBuilder<>(binName, this, new CdtOperationParams(CdtOperation.LIST_BY_VALUE_RANGE, Value.get(startIncl), endExcl.toAerospikeValue()));
     }
 
     /** Navigate to list elements by value range. */
-    public CdtReadActionInvertableBuilder<ChainableQueryBuilder> onListValueRange(double startIncl, SpecialValue endExcl) {
+    public CdtReadActionInvertableBuilder<P> onListValueRange(double startIncl, SpecialValue endExcl) {
         return new CdtReadOnlyBuilder<>(binName, this, new CdtOperationParams(CdtOperation.LIST_BY_VALUE_RANGE, Value.get(startIncl), endExcl.toAerospikeValue()));
     }
 
@@ -679,7 +695,7 @@ public class QueryBinBuilder implements CdtOperationAcceptor<ChainableQueryBuild
      * @param valueList the values to match
      * @return read-only CDT builder for terminal operations
      */
-    public CdtReadContextInvertableBuilder<ChainableQueryBuilder> onListValueList(List<?> valueList) {
+    public CdtReadContextInvertableBuilder<P> onListValueList(List<?> valueList) {
         List<Value> values = new ArrayList<>(valueList.size());
         for (Object v : valueList) {
             values.add(Value.get(v));
@@ -694,27 +710,27 @@ public class QueryBinBuilder implements CdtOperationAcceptor<ChainableQueryBuild
      * @param rank the relative rank offset
      * @return read-only CDT builder for terminal operations
      */
-    public CdtReadActionInvertableBuilder<ChainableQueryBuilder> onListValueRelativeRankRange(long value, int rank) {
+    public CdtReadActionInvertableBuilder<P> onListValueRelativeRankRange(long value, int rank) {
         return new CdtReadOnlyBuilder<>(binName, this, new CdtOperationParams(CdtOperation.LIST_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank));
     }
 
     /** Navigate to list elements by value relative to rank range. */
-    public CdtReadActionInvertableBuilder<ChainableQueryBuilder> onListValueRelativeRankRange(String value, int rank) {
+    public CdtReadActionInvertableBuilder<P> onListValueRelativeRankRange(String value, int rank) {
         return new CdtReadOnlyBuilder<>(binName, this, new CdtOperationParams(CdtOperation.LIST_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank));
     }
 
     /** Navigate to list elements by value relative to rank range. */
-    public CdtReadActionInvertableBuilder<ChainableQueryBuilder> onListValueRelativeRankRange(byte[] value, int rank) {
+    public CdtReadActionInvertableBuilder<P> onListValueRelativeRankRange(byte[] value, int rank) {
         return new CdtReadOnlyBuilder<>(binName, this, new CdtOperationParams(CdtOperation.LIST_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank));
     }
 
     /** Navigate to list elements by value relative to rank range. */
-    public CdtReadActionInvertableBuilder<ChainableQueryBuilder> onListValueRelativeRankRange(double value, int rank) {
+    public CdtReadActionInvertableBuilder<P> onListValueRelativeRankRange(double value, int rank) {
         return new CdtReadOnlyBuilder<>(binName, this, new CdtOperationParams(CdtOperation.LIST_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank));
     }
 
     /** Navigate to list elements by value relative to rank range. */
-    public CdtReadActionInvertableBuilder<ChainableQueryBuilder> onListValueRelativeRankRange(SpecialValue value, int rank) {
+    public CdtReadActionInvertableBuilder<P> onListValueRelativeRankRange(SpecialValue value, int rank) {
         return new CdtReadOnlyBuilder<>(binName, this, new CdtOperationParams(CdtOperation.LIST_BY_VALUE_REL_RANK_RANGE, value.toAerospikeValue(), rank));
     }
 
@@ -726,27 +742,27 @@ public class QueryBinBuilder implements CdtOperationAcceptor<ChainableQueryBuild
      * @param count the maximum number of elements to select
      * @return read-only CDT builder for terminal operations
      */
-    public CdtReadActionInvertableBuilder<ChainableQueryBuilder> onListValueRelativeRankRange(long value, int rank, int count) {
+    public CdtReadActionInvertableBuilder<P> onListValueRelativeRankRange(long value, int rank, int count) {
         return new CdtReadOnlyBuilder<>(binName, this, new CdtOperationParams(CdtOperation.LIST_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank, count));
     }
 
     /** Navigate to list elements by value relative to rank range with count limit. */
-    public CdtReadActionInvertableBuilder<ChainableQueryBuilder> onListValueRelativeRankRange(String value, int rank, int count) {
+    public CdtReadActionInvertableBuilder<P> onListValueRelativeRankRange(String value, int rank, int count) {
         return new CdtReadOnlyBuilder<>(binName, this, new CdtOperationParams(CdtOperation.LIST_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank, count));
     }
 
     /** Navigate to list elements by value relative to rank range with count limit. */
-    public CdtReadActionInvertableBuilder<ChainableQueryBuilder> onListValueRelativeRankRange(byte[] value, int rank, int count) {
+    public CdtReadActionInvertableBuilder<P> onListValueRelativeRankRange(byte[] value, int rank, int count) {
         return new CdtReadOnlyBuilder<>(binName, this, new CdtOperationParams(CdtOperation.LIST_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank, count));
     }
 
     /** Navigate to list elements by value relative to rank range with count limit. */
-    public CdtReadActionInvertableBuilder<ChainableQueryBuilder> onListValueRelativeRankRange(double value, int rank, int count) {
+    public CdtReadActionInvertableBuilder<P> onListValueRelativeRankRange(double value, int rank, int count) {
         return new CdtReadOnlyBuilder<>(binName, this, new CdtOperationParams(CdtOperation.LIST_BY_VALUE_REL_RANK_RANGE, Value.get(value), rank, count));
     }
 
     /** Navigate to list elements by value relative to rank range with count limit. */
-    public CdtReadActionInvertableBuilder<ChainableQueryBuilder> onListValueRelativeRankRange(SpecialValue value, int rank, int count) {
+    public CdtReadActionInvertableBuilder<P> onListValueRelativeRankRange(SpecialValue value, int rank, int count) {
         return new CdtReadOnlyBuilder<>(binName, this, new CdtOperationParams(CdtOperation.LIST_BY_VALUE_REL_RANK_RANGE, value.toAerospikeValue(), rank, count));
     }
 }

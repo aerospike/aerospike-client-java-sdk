@@ -107,10 +107,23 @@ public class ChainableUdfBuilder extends AbstractSessionOperationBuilder<Chainab
      * @return this builder for method chaining
      */
     ChainableUdfBuilder initUdfWithFunction(List<Key> keys, String packageName, String functionName) {
+        return initUdfWithFunction(keys, packageName, functionName, null);
+    }
+
+    /**
+     * Like {@link #initUdfWithFunction(List, String, String)} but sets {@link OperationSpec#setReadMappingClass}
+     * when non-null (typed UDF leg from {@link TypedKey}).
+     */
+    ChainableUdfBuilder initUdfWithFunction(
+        List<Key> keys, String packageName, String functionName, Class<?> readMappingClass
+    ) {
         finalizeCurrentOperation();
         currentSpec = new OperationSpec(keys, OpType.UDF);
         currentSpec.setUdfPackageName(packageName);
         currentSpec.setUdfFunctionName(functionName);
+        if (readMappingClass != null) {
+            currentSpec.setReadMappingClass(readMappingClass);
+        }
         return this;
     }
 
@@ -216,7 +229,7 @@ public class ChainableUdfBuilder extends AbstractSessionOperationBuilder<Chainab
     public UdfFunctionBuilder executeUdf(Key key) {
         finalizeCurrentOperation();
         return new UdfFunctionBuilder(session, List.of(key), operationSpecs,
-                defaultWhereClause, defaultExpirationInSeconds, txnToUse);
+                defaultWhereClause, defaultExpirationInSeconds, txnToUse, null);
     }
 
     /**
@@ -229,7 +242,7 @@ public class ChainableUdfBuilder extends AbstractSessionOperationBuilder<Chainab
     public UdfFunctionBuilder executeUdf(List<Key> keys) {
         finalizeCurrentOperation();
         return new UdfFunctionBuilder(session, keys, operationSpecs,
-                defaultWhereClause, defaultExpirationInSeconds, txnToUse);
+                defaultWhereClause, defaultExpirationInSeconds, txnToUse, null);
     }
 
     /**

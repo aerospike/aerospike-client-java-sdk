@@ -38,7 +38,7 @@ import com.aerospike.client.sdk.util.MapUtil;
  * Minimal end-to-end example of {@link TypedDataSet}, {@link RecordMapper},
  * {@link DefaultRecordMappingFactory}, and mapper-less reads on
  * {@link TypedRecordStream}, plus a heterogeneous batch read using
- * {@link com.aerospike.client.sdk.TypedKey} and {@link RecordResult#toObject(Session)}.
+ * {@link com.aerospike.client.sdk.TypedKey} and {@link RecordResult#toObject()}.
  *
  * <p>{@link WidgetMapper} overrides {@link RecordMapper#fromMap(Map, Key, int, RecordReadContext)}
  * to load a related {@link Gadget} through {@link RecordReadContext#getSession()} when the
@@ -189,7 +189,7 @@ public final class TypedMappingExamples {
                     .limit(1)
                     .execute()
                     .getFirst()
-                    .map(rr -> rr.toObject(session));
+                    .map(RecordResult::toObject);
             if (peer.isPresent()) {
                 Gadget g = peer.get();
                 System.out.println("  [WidgetMapper 4-arg fromMap] Session read of related gadget id="
@@ -294,7 +294,7 @@ public final class TypedMappingExamples {
                     .getFirstObject();
             System.out.println("Typed query first (factory): " + firstTyped.orElseThrow());
 
-            // Heterogeneous batch: each leg carries Class<?>; map per row with toObject(session).
+            // Heterogeneous batch: each leg carries Class<?>; map per row with toObject() (embedded session).
             RecordStream batch = session
                     .query(widgets.id(2))
                         .readingOnlyBins("label", "qty")
@@ -302,8 +302,8 @@ public final class TypedMappingExamples {
                         .readingOnlyBins("name", "enabled")
                     .execute();
             try (batch) {
-                Widget w = batch.next().toObject(session);
-                Gadget g = batch.next().toObject(session);
+                Widget w = batch.next().toObject();
+                Gadget g = batch.next().toObject();
                 System.out.println("Batch widget: " + w);
                 System.out.println("Batch gadget: " + g);
             }

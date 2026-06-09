@@ -63,7 +63,9 @@ public class OperationSpec {
 
     /**
      * For QUERY operations started from {@link TypedKey}: domain class for
-     * {@link RecordResult#toObject(Session)} on batch results.
+     * {@link RecordResult#toObject()} / {@link RecordResult#udfResultAsObject()} on batch results
+     * (paired with embedded session on each result). For UDF legs started from {@link TypedKey},
+     * the same field supplies the UDF map mapping type.
      */
     private Class<?> readMappingClass = null;
 

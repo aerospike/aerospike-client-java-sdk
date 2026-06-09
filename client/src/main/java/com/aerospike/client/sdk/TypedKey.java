@@ -55,4 +55,27 @@ public final class TypedKey<T> {
         }
         return out;
     }
+
+    /**
+     * Validates that every typed key uses the same entity class (same rule as
+     * {@link ChainableQueryBuilder#initQueryTyped(List)} for typed batch reads).
+     *
+     * @param typedKeys non-empty list
+     * @return the shared entity class
+     * @throws IllegalArgumentException if the list is empty or entity classes differ
+     */
+    public static Class<?> requireSharedEntityClass(List<? extends TypedKey<?>> typedKeys) {
+        if (typedKeys == null || typedKeys.isEmpty()) {
+            throw new IllegalArgumentException("typedKeys must not be empty");
+        }
+        Class<?> entity = typedKeys.get(0).getEntityClass();
+        for (int i = 1; i < typedKeys.size(); i++) {
+            if (!typedKeys.get(i).getEntityClass().equals(entity)) {
+                throw new IllegalArgumentException(
+                    "All TypedKey entries must share the same entity class; found "
+                        + entity.getName() + " and " + typedKeys.get(i).getEntityClass().getName());
+            }
+        }
+        return entity;
+    }
 }

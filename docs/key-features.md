@@ -19,7 +19,7 @@
 - [Background Operations](#background-operations)
 - [Transactions](#transactions)
 - [Behavior (Policy Configuration)](#behavior-policy-configuration)
-- [Object Mapping](#object-mapping)
+- [Object mapping (RecordMapper guide)](object-mapping.md)
   - [Typed reads (`TypedRecordStream`, `TypedKey`)](#typed-reads-typedrecordstream-typedkey)
 - [Secondary Indexes](#secondary-indexes)
 - [Info Commands](#info-commands)
@@ -399,7 +399,7 @@ session
 ```
 
 Typed read legs carry the entity class so each `RecordResult` can call
-`toObject(session)` (no per-row `RecordMapper` argument) when a
+`toObject()` (no per-row `RecordMapper` argument) when a
 `RecordMappingFactory` is configured:
 
 ```java
@@ -414,8 +414,33 @@ RecordStream rs = session
     .execute();
 
 try (rs) {
-    Customer c = rs.next().toObject(session);
-    Order o = rs.next().toObject(session);
+    Customer c = rs.next().toObject();
+    Order o = rs.next().toObject();
+}
+```
+
+**Ordering:** `RecordStream` yields rows in **the order operations were chained**, matching the batch request index order. The server may complete sub-requests in any order; the client **re-associates** each response with its batch index before publishing, so wire timing does not reorder the stream relative to your chain.
+
+**Omitted rows:** If a leg is **not** included in the stream (for example `KEY_NOT_FOUND` when `includeMissingKeys` is off, or `FILTERED_OUT` depending on `failOnFilteredOut`), the stream has **fewer elements** than chained read legs. Blind positional `next(); next()` can then mis-pair types with your variables — check `RecordResult#key()`, `RecordResult#index()`, or `RecordResult#isOk()` before calling `toObject()`, enable `includeMissingKeys()` when you need placeholders for missing keys, or drive logic from key correlation.
+
+```java
+// Safer heterogeneous consumption: branch on key or result code before mapping
+RecordStream rs = session
+    .query(customers.id(1001))
+    .query(orders.id(500))
+    .includeMissingKeys()
+    .execute();
+for (RecordResult rr : rs) {
+    if (!rr.isOk()) {
+        continue;
+    }
+    if (rr.key().equals(customers.id(1001).getKey())) {
+        Customer c = rr.toObject();
+        // ...
+    } else if (rr.key().equals(orders.id(500).getKey())) {
+        Order o = rr.toObject();
+        // ...
+    }
 }
 ```
 
@@ -952,6 +977,23 @@ session.executeUdf(users.id("alice"))
 session.removeUdf("udf.lua");
 ```
 
+### Typed UDF results (`TypedKey`, `udfResultAsObject()`)
+
+When you start a UDF from **`executeUdf(TypedKey)`**, **`executeUdf(TypedKey…)`**, or **`executeUdfTypedKeys`**, the SDK carries the key’s entity **`Class<?>`** on the operation spec (same **homogeneous** rule as typed batch query: every `TypedKey` in that leg must share one entity type). Each **`RecordResult`** then gets **`readMappingSession`** / **`readMappingClass`** like typed reads, so you can map the Lua return value with **`udfResultAsObject()`** without passing a mapper on the call.
+
+```java
+TypedDataSet<MyDto> dtos = TypedDataSet.of(ns, set, MyDto.class);
+cluster.setRecordMappingFactory(DefaultRecordMappingFactory.of(MyDto.class, new MyDtoMapper()));
+
+Optional<MyDto> out = session.executeUdf(dtos.id("k1"))
+    .function("myPackage", "returnsMap")
+    .execute()
+    .getFirst()
+    .flatMap(RecordResult::udfResultAsObject);
+```
+
+Untyped **`executeUdf(Key)`** / **`executeUdf(List<Key>)`** behavior is unchanged (no mapping hint on results).
+
 ---
 
 ## Background Operations
@@ -1100,34 +1142,23 @@ Behavior highLoad = production.deriveWithChanges("highLoad", b -> b
 
 ## Object Mapping
 
+**Full guide:** [Object mapping — `RecordMapper`, factories, typed vs heterogeneous batches](object-mapping.md) (overload matrix, compile-time vs runtime examples, and batch caveats).
+
 Map Java objects to/from Aerospike records using `RecordMapper`,
 `RecordMappingFactory`, and `TypedDataSet`.
 
 ### Setup
 
 A `RecordMapper<T>` converts between Java objects and `Map<String, Object>`
-(the bin representation). Register mappers via a `RecordMappingFactory` on
-the cluster:
+(the bin representation). You **must** implement **`fromMap(Map, Key, int)`**,
+plus **`toMap`** and **`id`**; optionally override **`fromMap(..., RecordReadContext)`**
+for session-aware deserialization (see the [object mapping guide](object-mapping.md)).
+
+Register mappers on the cluster:
 
 ```java
-RecordMapper<Customer> customerMapper = new RecordMapper<>() {
-    public Map<String, Object> toMap(Customer c) {
-        return Map.of("name", c.name(), "email", c.email(), "age", c.age());
-    }
-    public Customer fromMap(Map<String, Object> bins) {
-        return new Customer(
-            (String) bins.get("name"),
-            (String) bins.get("email"),
-            ((Number) bins.get("age")).intValue()
-        );
-    }
-    public Key id(Customer c, DataSet ds) {
-        return ds.id(c.email());
-    }
-};
-
-RecordMappingFactory factory = DefaultRecordMappingFactory.of(Customer.class, customerMapper);
-cluster.setRecordMappingFactory(factory);
+RecordMapper<Customer> customerMapper = new CustomerMapper(); // your implementation
+cluster.setRecordMappingFactory(DefaultRecordMappingFactory.of(Customer.class, customerMapper));
 ```
 
 ### TypedDataSet
@@ -1186,7 +1217,8 @@ entry points so the SDK knows `Class<T>`.
 | `session.query(DataSet)` | `QueryBuilder` → `RecordStream` | No — pass `RecordMapper` to `toObjectList(mapper)`, `getFirst(mapper)`, etc. |
 | `session.query(TypedDataSet<T>)` | `TypedQueryBuilder<T>` → `TypedRecordStream<T>` | Yes — `toObjectList()`, `getFirstObject()`, … use the factory for `T`. |
 | `session.query(Key)` / varargs `Key` | `ChainableQueryBuilder` → `RecordStream` | Per row: use `RecordMapper` or raw bins. |
-| `session.query(TypedKey<T>)` / varargs `TypedKey<?>` | Same chain builder | Per row: `RecordResult.toObject(session)` on results from typed legs (see [heterogeneous chains](#heterogeneous-batch-chains)). |
+| `session.query(TypedKey<T>)` (one argument) | `TypedKeyQueryBuilder<T>` → `TypedRecordStream<T>` | Yes — `getFirstObject()`, `toObjectList()`, … until the chain widens (second `query`, write, `executeUdf`, …), then `ChainableQueryBuilder` / `RecordStream` with per-row `toObject()` on typed legs. |
+| `session.query(TypedKey<?>, TypedKey<?>, …)` / `queryTypedKeys` | `ChainableQueryBuilder` → `RecordStream` | Per row: `RecordResult.toObject()` when legs use `TypedKey` (same entity class per multi-key leg). |
 
 **List overloads and erasure:** `query(List<Key>)` and `query(List<TypedKey<?>>)` have the same erasure, so the typed list entry point is named **`queryTypedKeys(List<? extends TypedKey<?>>)`** (and the same idea exists on `ChainableQueryBuilder`). On write chains, wherever **`operation(List<Key>)`** would collide with a list of typed keys, use the corresponding **`*TypedKeys(List<? extends TypedKey<?>>)`** helper (for example `upsertTypedKeys`, `deleteTypedKeys`).
 
@@ -1215,9 +1247,9 @@ List<Customer> activeCustomers2 = session.query(customers)
     .toObjectList(customerMapper);
 ```
 
-On **`TypedRecordStream`** / **`TypedNavigatableRecordStream`**, `toObjectList(RecordMapper<T>)`, `getFirst(RecordMapper<T>)`, `forEach(RecordMapper<T>, …)`, and related overloads invoke **`RecordMapper.fromMap(..., RecordReadContext<T>)`** with the same **`Session`** and **`Class<T>`** as mapper-less reads, so overrides of the four-argument `fromMap` can issue dependent reads. Plain **`RecordStream`** / **`NavigatableRecordStream`** paths that take an explicit mapper still use the three-argument `fromMap` unless you map rows yourself (e.g. loop `RecordResult` and call **`toObject(session)`** on typed legs). For nested bins deserialized with **`MapUtil.asObjectFromMap`**, use **`asObjectFromMap(..., RecordReadContext<U>)`** and build a child context such as `new RecordReadContext<>(parentCtx.getSession(), Child.class)`.
+On **`TypedRecordStream`** / **`TypedNavigatableRecordStream`**, `toObjectList(RecordMapper<T>)`, `getFirst(RecordMapper<T>)`, `forEach(RecordMapper<T>, …)`, and related overloads invoke **`RecordMapper.fromMap(..., RecordReadContext<T>)`** with the same **`Session`** and **`Class<T>`** as mapper-less reads, so overrides of the four-argument `fromMap` can issue dependent reads. Plain **`RecordStream`** / **`NavigatableRecordStream`** paths that take an explicit mapper still use the three-argument `fromMap` unless you map rows yourself (e.g. loop `RecordResult` and call **`toObject()`** on typed legs). For nested bins deserialized with **`MapUtil.asObjectFromMap`**, use **`asObjectFromMap(..., RecordReadContext<U>)`** and build a child context such as `new RecordReadContext<>(parentCtx.getSession(), Child.class)`. A tabular summary of **which operations call which `fromMap` overload** is in [Object mapping](object-mapping.md#which-apis-call-which-frommap-overload).
 
-`RecordResult.toObject(session)` applies to **typed read legs** in a chain (keys
+`RecordResult.toObject()` applies to **typed read legs** in a chain (keys
 from `TypedKey` / `queryTypedKeys`). For plain `Key` reads, the result carries no
 read hint — use `RecordMapper` APIs or raw `Record` data instead.
 

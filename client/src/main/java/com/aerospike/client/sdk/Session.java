@@ -377,11 +377,17 @@ public class Session {
     }
 
     /**
-     * Query using a single {@link TypedKey} so batch results can use {@link RecordResult#toObject(Session)}.
+     * Query using a single {@link TypedKey} so {@link TypedKeyQueryBuilder#execute()} can return a
+     * {@link TypedRecordStream} for mapper-less {@code getFirstObject()} / {@code toObjectList()} when a
+     * {@link RecordMappingFactory} is configured. Chaining another verb (second {@code query}, writes, UDF, …)
+     * widens to {@link ChainableQueryBuilder} / {@link ChainableOperationBuilder} and yields a plain
+     * {@link RecordStream} from {@code execute()}.
      */
-    public <T> ChainableQueryBuilder query(TypedKey<T> typedKey) {
-        return new ChainableQueryBuilder(this, new ArrayList<>(), null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, getCurrentTransaction())
-                .initQueryTyped(typedKey);
+    public <T> TypedKeyQueryBuilder<T> query(TypedKey<T> typedKey) {
+        ChainableQueryBuilder inner = new ChainableQueryBuilder(this, new ArrayList<>(), null,
+            AbstractOperationBuilder.NOT_EXPLICITLY_SET, getCurrentTransaction())
+            .initQueryTyped(typedKey);
+        return new TypedKeyQueryBuilder<>(this, typedKey.getEntityClass(), inner);
     }
 
     /**
@@ -549,7 +555,7 @@ public class Session {
      */
     public UdfFunctionBuilder executeUdf(Key key) {
         return new UdfFunctionBuilder(this, List.of(key), new ArrayList<>(),
-                null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, getCurrentTransaction());
+                null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, getCurrentTransaction(), null);
     }
 
     /**
@@ -572,7 +578,7 @@ public class Session {
      */
     public UdfFunctionBuilder executeUdf(List<Key> keyList) {
         return new UdfFunctionBuilder(this, keyList, new ArrayList<>(),
-                null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, getCurrentTransaction());
+                null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, getCurrentTransaction(), null);
     }
 
     /**
@@ -596,25 +602,38 @@ public class Session {
      */
     public UdfFunctionBuilder executeUdf(Key key1, Key key2, Key... keys) {
         return new UdfFunctionBuilder(this, buildKeyList(key1, key2, keys), new ArrayList<>(),
-                null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, getCurrentTransaction());
+                null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, getCurrentTransaction(), null);
     }
 
+    /**
+     * Execute a UDF on a {@link TypedKey} so results carry the entity type for
+     * {@link RecordResult#udfResultAsObject()} (map UDF return) when a factory is configured.
+     */
     public UdfFunctionBuilder executeUdf(TypedKey<?> typedKey) {
-        return executeUdf(typedKey.getKey());
+        return new UdfFunctionBuilder(this, List.of(typedKey.getKey()), new ArrayList<>(),
+            null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, getCurrentTransaction(),
+            typedKey.getEntityClass());
     }
 
+    /**
+     * Execute a UDF on multiple typed keys; all keys must share the same entity class
+     * (same rule as {@link #queryTypedKeys(List)}).
+     */
     public UdfFunctionBuilder executeUdf(TypedKey<?> k1, TypedKey<?> k2, TypedKey<?>... more) {
-        List<Key> keys = new ArrayList<>();
-        keys.add(k1.getKey());
-        keys.add(k2.getKey());
-        for (TypedKey<?> tk : more) {
-            keys.add(tk.getKey());
-        }
-        return executeUdf(keys);
+        List<TypedKey<?>> list = new ArrayList<>();
+        list.add(k1);
+        list.add(k2);
+        list.addAll(Arrays.asList(more));
+        Class<?> entity = TypedKey.requireSharedEntityClass(list);
+        return new UdfFunctionBuilder(this, TypedKey.nativeKeys(list), new ArrayList<>(),
+            null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, getCurrentTransaction(), entity);
     }
 
     public UdfFunctionBuilder executeUdfTypedKeys(List<? extends TypedKey<?>> typedKeys) {
-        return executeUdf(TypedKey.nativeKeys(typedKeys));
+        List<TypedKey<?>> list = new ArrayList<>(typedKeys);
+        Class<?> entity = TypedKey.requireSharedEntityClass(list);
+        return new UdfFunctionBuilder(this, TypedKey.nativeKeys(list), new ArrayList<>(),
+            null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, getCurrentTransaction(), entity);
     }
 
     // -------------------

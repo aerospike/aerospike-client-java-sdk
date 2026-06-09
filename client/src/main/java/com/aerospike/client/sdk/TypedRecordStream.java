@@ -291,13 +291,24 @@ public final class TypedRecordStream<T> implements Iterator<RecordResult>, Itera
         return delegate.popBoolean();
     }
 
-    public Optional<Object> popUdfResult() {
-        return delegate.popUdfResult();
+    public Optional<Object> popUdfResultObject() {
+        return delegate.popUdfResultObject();
     }
 
-    public Optional<T> popUdfResult(RecordMapper<T> mapper) {
+    public Optional<T> popUdfResultObject(RecordMapper<T> mapper) {
         if (hasNext()) {
-            return Optional.ofNullable(next().udfResultAs(mapper, mappingContext()));
+            return next().udfResultAsObject(mapper, mappingContext());
+        }
+        return Optional.empty();
+    }
+
+    /**
+     * Like {@link RecordStream#popUdfResultObject()} but maps the UDF map to {@code T} using
+     * {@link RecordResult#udfResultAsObject()} (embedded session and read-mapping class on the result).
+     */
+    public Optional<T> popUdfResultMapped() {
+        if (hasNext()) {
+            return next().udfResultAsObject();
         }
         return Optional.empty();
     }
@@ -377,13 +388,24 @@ public final class TypedRecordStream<T> implements Iterator<RecordResult>, Itera
         return delegate.getFirstBoolean();
     }
 
-    public Optional<Object> getFirstUdfResult() {
-        return delegate.getFirstUdfResult();
+    public Optional<Object> getFirstUdfResultObject() {
+        return delegate.getFirstUdfResultObject();
     }
 
-    public Optional<T> getFirstUdfResult(RecordMapper<T> mapper) {
+    public Optional<T> getFirstUdfResultObject(RecordMapper<T> mapper) {
         try {
-            return popUdfResult(mapper);
+            return popUdfResultObject(mapper);
+        } finally {
+            close();
+        }
+    }
+
+    /**
+     * Terminal variant of {@link #popUdfResultMapped()}.
+     */
+    public Optional<T> getFirstUdfResultMapped() {
+        try {
+            return popUdfResultMapped();
         } finally {
             close();
         }

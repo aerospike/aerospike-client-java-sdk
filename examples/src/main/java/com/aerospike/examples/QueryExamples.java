@@ -775,7 +775,7 @@ public class QueryExamples {
             // -------------
             // UDF Calls
             // -------------
-//            Object udfResult = session.executeUdf(customerDataSet.id(1)).function("pkg", "myFunc").execute().getFirstUdfResult();
+//            Object udfResult = session.executeUdf(customerDataSet.id(1)).function("pkg", "myFunc").execute().getFirstUdfResultObject();
 //            System.out.println("UDF Result = " + udfResult);
 
             // ---------------------------

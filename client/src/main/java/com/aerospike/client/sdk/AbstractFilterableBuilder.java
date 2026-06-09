@@ -85,13 +85,14 @@ public abstract class AbstractFilterableBuilder {
         ResolvedSettings settings,
         int index
     ) {
-        return createRecordResultFromBatchRecord(br, settings, index, null);
+        return createRecordResultFromBatchRecord(br, settings, index, null, null);
     }
 
     static RecordResult createRecordResultFromBatchRecord(
         BatchRecord br,
         ResolvedSettings settings,
         int index,
+        Session readMappingSession,
         Class<?> readMappingClass
     ) {
         if (settings.getStackTraceOnException() && isActionableError(br.resultCode)) {
@@ -99,9 +100,10 @@ public abstract class AbstractFilterableBuilder {
                 br,
                 AerospikeException.resultCodeToException(br.resultCode, null, br.inDoubt),
                 index,
+                readMappingSession,
                 readMappingClass);
         }
-        return new RecordResult(br, index, readMappingClass);
+        return new RecordResult(br, index, readMappingSession, readMappingClass);
     }
 
     /**

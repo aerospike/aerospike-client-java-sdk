@@ -21,6 +21,12 @@ import java.util.Objects;
 /**
  * Context for deserializing a record into a Java domain type using a {@link RecordMappingFactory}.
  *
+ * <p>Pass {@code RecordReadContext} into the four-argument
+ * {@link RecordMapper#fromMap(java.util.Map, Key, int, RecordReadContext)} when mapping needs the
+ * {@link Session} or factory (dependent reads, nested objects). Use the three-argument
+ * {@link RecordMapper#fromMap(java.util.Map, Key, int)} for pure bin/key/gen mapping (for example
+ * explicit {@link RecordMapper} arguments on an untyped {@link RecordStream}).</p>
+ *
  * @param <T> entity type
  * @see RecordMapper#fromMap(java.util.Map, Key, int, RecordReadContext)
  */
@@ -38,13 +44,6 @@ public final class RecordReadContext<T> {
     }
 
     public Class<T> getEntityClass() {
-        return entityClass;
-    }
-
-    /**
-     * Same as {@link #getEntityClass()}; matches common naming in mapping APIs.
-     */
-    public Class<T> getEntityType() {
         return entityClass;
     }
 

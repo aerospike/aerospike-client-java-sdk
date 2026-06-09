@@ -270,7 +270,7 @@ class OperationSpecExecutor {
                 }
 
                 records.add(rec);
-                Class<?> readHint = spec.isQuery() ? spec.getReadMappingClass() : null;
+                Class<?> readHint = (spec.isQuery() || spec.isUdf()) ? spec.getReadMappingClass() : null;
                 readMappingPerRecord.add(readHint);
             }
         }
@@ -355,7 +355,9 @@ class OperationSpecExecutor {
                 }
 
                 Class<?> readHint = i < readMappingPerRecord.size() ? readMappingPerRecord.get(i) : null;
-                RecordResult result = AbstractFilterableBuilder.createRecordResultFromBatchRecord(br, settings, i, readHint);
+                Session mappingSession = readHint == null ? null : session;
+                RecordResult result = AbstractFilterableBuilder.createRecordResultFromBatchRecord(
+                    br, settings, i, mappingSession, readHint);
 
                 if (AbstractFilterableBuilder.isActionableError(br.resultCode)) {
                     switch (disposition) {
@@ -565,7 +567,7 @@ class OperationSpecExecutor {
             rec = exec.getRecord();
         }
 
-        return createRecordStream(key, rec, includeMissingKeys, spec.getReadMappingClass());
+        return createRecordStream(session, key, rec, includeMissingKeys, spec.getReadMappingClass());
     }
 
     /**
@@ -594,16 +596,15 @@ class OperationSpecExecutor {
         exec.execute();
         Record rec = exec.getRecord();
 
-        return createRecordStream(key, rec, includeMissingKeys, spec.getReadMappingClass());
+        return createRecordStream(session, key, rec, includeMissingKeys, spec.getReadMappingClass());
     }
 
-    private static RecordStream createRecordStream(Key key, Record rec, boolean includeMissingKeys) {
-        return createRecordStream(key, rec, includeMissingKeys, null);
-    }
-
-    private static RecordStream createRecordStream(Key key, Record rec, boolean includeMissingKeys, Class<?> readMappingClass) {
+    private static RecordStream createRecordStream(
+        Session session, Key key, Record rec, boolean includeMissingKeys, Class<?> readMappingClass
+    ) {
         if (rec != null) {
-            return new RecordStream(key, rec, readMappingClass);
+            Session mappingSession = readMappingClass == null ? null : session;
+            return new RecordStream(key, rec, mappingSession, readMappingClass);
         }
         else if (includeMissingKeys) {
             return new RecordStream(new RecordResult(key, ResultCode.KEY_NOT_FOUND_ERROR, false,
@@ -717,7 +718,9 @@ class OperationSpecExecutor {
 
         if (rec != null) {
             Object udfResult = extractUdfResult(rec);
-            return new RecordStream(new RecordResult(key, udfResult, 0));
+            Class<?> readMappingClass = spec.getReadMappingClass();
+            Session mappingSession = readMappingClass == null ? null : session;
+            return new RecordStream(new RecordResult(key, udfResult, 0, mappingSession, readMappingClass));
         }
         else if (includeMissingKeys) {
             return new RecordStream(new RecordResult(key, ResultCode.KEY_NOT_FOUND_ERROR, false,

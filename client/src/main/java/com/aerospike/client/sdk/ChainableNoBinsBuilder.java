@@ -539,7 +539,7 @@ public class ChainableNoBinsBuilder extends AbstractSessionOperationBuilder<Chai
     public UdfFunctionBuilder executeUdf(Key key) {
         finalizeCurrentOperation();
         return new UdfFunctionBuilder(session, List.of(key), operationSpecs,
-                defaultWhereClause, defaultExpirationInSeconds, txnToUse);
+                defaultWhereClause, defaultExpirationInSeconds, txnToUse, null);
     }
 
     /**
@@ -551,7 +551,7 @@ public class ChainableNoBinsBuilder extends AbstractSessionOperationBuilder<Chai
     public UdfFunctionBuilder executeUdf(List<Key> keys) {
         finalizeCurrentOperation();
         return new UdfFunctionBuilder(session, keys, operationSpecs,
-                defaultWhereClause, defaultExpirationInSeconds, txnToUse);
+                defaultWhereClause, defaultExpirationInSeconds, txnToUse, null);
     }
 
     /**

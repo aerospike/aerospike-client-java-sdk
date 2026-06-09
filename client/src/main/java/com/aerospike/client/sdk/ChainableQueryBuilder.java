@@ -98,17 +98,7 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
     ChainableQueryBuilder initQueryTyped(List<? extends TypedKey<?>> typedKeys) {
         finalizeCurrentOperation();
         List<TypedKey<?>> list = new ArrayList<>(typedKeys);
-        if (list.isEmpty()) {
-            throw new IllegalArgumentException("typedKeys must not be empty");
-        }
-        Class<?> entity = list.get(0).getEntityClass();
-        for (int i = 1; i < list.size(); i++) {
-            if (!list.get(i).getEntityClass().equals(entity)) {
-                throw new IllegalArgumentException(
-                    "All TypedKey entries in one query leg must share the same entity class; found "
-                        + entity.getName() + " and " + list.get(i).getEntityClass().getName());
-            }
-        }
+        Class<?> entity = TypedKey.requireSharedEntityClass(list);
         List<Key> keys = TypedKey.nativeKeys(list);
         currentSpec = new OperationSpec(keys);
         currentSpec.setReadMappingClass(entity);
@@ -168,9 +158,9 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
      * @param binName the name of the bin
      * @return QueryBinBuilder for constructing bin read operations
      */
-    public QueryBinBuilder bin(String binName) {
+    public QueryBinBuilder<ChainableQueryBuilder> bin(String binName) {
         verifyState("adding bin operation");
-        return new QueryBinBuilder(this, binName);
+        return new QueryBinBuilder<>(this, binName);
     }
 
     /**
@@ -566,7 +556,7 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
     }
 
     /**
-     * Chain a typed read so results can use {@link RecordResult#toObject(Session)}.
+     * Chain a typed read so results can use {@link RecordResult#toObject()}.
      */
     public <T> ChainableQueryBuilder query(TypedKey<T> typedKey) {
         return initQueryTyped(typedKey);
@@ -632,7 +622,7 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
     public UdfFunctionBuilder executeUdf(Key key) {
         finalizeCurrentOperation();
         return new UdfFunctionBuilder(session, List.of(key), operationSpecs,
-                defaultWhereClause, defaultExpirationInSeconds, txnToUse);
+                defaultWhereClause, defaultExpirationInSeconds, txnToUse, null);
     }
 
     /**
@@ -644,7 +634,7 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
     public UdfFunctionBuilder executeUdf(List<Key> keys) {
         finalizeCurrentOperation();
         return new UdfFunctionBuilder(session, keys, operationSpecs,
-                defaultWhereClause, defaultExpirationInSeconds, txnToUse);
+                defaultWhereClause, defaultExpirationInSeconds, txnToUse, null);
     }
 
     /**
@@ -1039,13 +1029,11 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
      * @see #execute(ErrorHandler)
      */
     public RecordStream execute() {
-        List<OperationSpec> specs = prepareSpecs();
+        List<OperationSpec> specs = prepareSpecsForExecute();
         if (specs.isEmpty()) {
             return new RecordStream();
         }
-        return OperationSpecExecutor.execute(session, specs, defaultWhereClause,
-            defaultExpirationInSeconds, txnToUse, notInAnyTransaction,
-            AbstractFilterableBuilder.defaultDisposition(specs), null);
+        return executeWithPreparedSpecs(specs, AbstractFilterableBuilder.defaultDisposition(specs));
     }
 
     /**
@@ -1072,12 +1060,11 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
     }
 
     private RecordStream executeWithDisposition(ErrorDisposition disposition) {
-        List<OperationSpec> specs = prepareSpecs();
+        List<OperationSpec> specs = prepareSpecsForExecute();
         if (specs.isEmpty()) {
             return new RecordStream();
         }
-        return OperationSpecExecutor.execute(session, specs, defaultWhereClause,
-            defaultExpirationInSeconds, txnToUse, notInAnyTransaction, disposition, null);
+        return executeWithPreparedSpecs(specs, disposition);
     }
 
     /**
@@ -1104,7 +1091,14 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
     }
 
     private RecordStream executeAsyncInternal(ErrorHandler errorHandler) {
-        List<OperationSpec> specs = prepareSpecs();
+        List<OperationSpec> specs = prepareSpecsForExecute();
+        if (specs.isEmpty()) {
+            return new RecordStream();
+        }
+        return executeAsyncWithPreparedSpecs(specs, errorHandler);
+    }
+
+    RecordStream executeAsyncWithPreparedSpecs(List<OperationSpec> specs, ErrorHandler errorHandler) {
         if (specs.isEmpty()) {
             return new RecordStream();
         }
@@ -1137,13 +1131,21 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
     }
 
 
-    private List<OperationSpec> prepareSpecs() {
+    List<OperationSpec> prepareSpecsForExecute() {
         finalizeCurrentOperation();
         if (operationSpecs.isEmpty()) {
             throw new IllegalStateException("No operations specified");
         }
         List<OperationSpec> filteredSpecs = applyPartitionFilter(operationSpecs);
         return applyKeyLimit(filteredSpecs);
+    }
+
+    RecordStream executeWithPreparedSpecs(List<OperationSpec> specs, ErrorDisposition disposition) {
+        if (specs.isEmpty()) {
+            return new RecordStream();
+        }
+        return OperationSpecExecutor.execute(session, specs, defaultWhereClause,
+            defaultExpirationInSeconds, txnToUse, notInAnyTransaction, disposition, null);
     }
 
     /**
@@ -1259,6 +1261,10 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
         if (currentSpec == null) {
             throw new IllegalStateException("Must call query() before " + operationContext);
         }
+    }
+
+    void verifyBinChainState(String operationContext) {
+        verifyState(operationContext);
     }
 
     private void finalizeCurrentOperation() {

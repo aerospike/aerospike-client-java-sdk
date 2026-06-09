@@ -739,7 +739,7 @@ public class ObjectBuilder<T> {
     public UdfFunctionBuilder executeUdf(Key key) {
         List<OperationSpec> specs = materializeToSpecs();
         return new UdfFunctionBuilder(opBuilder.getSession(), List.of(key), specs,
-                null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, txnToUse);
+                null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, txnToUse, null);
     }
 
     /**
@@ -751,7 +751,7 @@ public class ObjectBuilder<T> {
     public UdfFunctionBuilder executeUdf(List<Key> keys) {
         List<OperationSpec> specs = materializeToSpecs();
         return new UdfFunctionBuilder(opBuilder.getSession(), keys, specs,
-                null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, txnToUse);
+                null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, txnToUse, null);
     }
 
     // ========================================

@@ -26,6 +26,14 @@ import java.util.Map;
 import com.aerospike.client.sdk.RecordMapper;
 import com.aerospike.client.sdk.RecordReadContext;
 
+/**
+ * Map/bin extraction helpers.
+ *
+ * <p>For nested object deserialization, {@link #asObjectFromMap(Map, String, RecordMapper)} uses the
+ * three-argument {@link RecordMapper#fromMap}; the overload with {@link RecordReadContext} delegates to
+ * the four-argument {@link RecordMapper#fromMap(java.util.Map, Key, int, RecordReadContext)} when you
+ * need session or factory access.</p>
+ */
 public class MapUtil {
     /**
      * Safely extract a String value from a map
