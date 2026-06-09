@@ -29,14 +29,16 @@ import com.aerospike.client.sdk.exp.Expression;
 import com.aerospike.client.sdk.query.PreparedAel;
 
 /**
- * Fluent builder for a <strong>single-leg</strong> key read started from {@link Session#query(TypedKey)}.
+ * Fluent builder for a <strong>single-leg</strong> typed point read started from {@link Session#query(TypedKey)},
+ * {@link Session#query(TypedKey, TypedKey, TypedKey[])}, or {@link Session#queryTypedKeys(List)}.
  * Configures the underlying {@link ChainableQueryBuilder}; {@link #execute()} returns a
- * {@link TypedRecordStream} when the chain is still exactly one typed point read (one key, one query spec).
+ * {@link TypedRecordStream} when the chain is still exactly one typed point-read spec (one query spec with
+ * one or more keys of type {@code T}).
  * Chaining another verb (for example a second {@code query}, {@code upsert}, or {@code executeUdf}) widens
  * to {@link ChainableQueryBuilder} / {@link ChainableOperationBuilder} and yields a plain {@link RecordStream}
  * from those builders' {@code execute()}.
  *
- * @param <T> entity type carried by the initial {@link TypedKey}
+ * @param <T> entity type carried by the initial typed keys
  */
 public final class TypedKeyQueryBuilder<T> implements FilterableOperation<TypedKeyQueryBuilder<T>> {
 
@@ -67,7 +69,7 @@ public final class TypedKeyQueryBuilder<T> implements FilterableOperation<TypedK
                 return wrap(new RecordStream());
             }
             throw new IllegalStateException(
-                "This chain is not a single typed key read (one query spec, one key). "
+                "This chain is not a single typed point read (one query spec of typed keys for one entity). "
                     + "Use the ChainableQueryBuilder returned from .query(...), .upsert(...), etc., "
                     + "or asChainableQueryBuilder().execute() for a RecordStream.");
         }
@@ -76,7 +78,7 @@ public final class TypedKeyQueryBuilder<T> implements FilterableOperation<TypedK
 
     /**
      * True when {@code specs} is empty (no keys matched partition/limit filters) or exactly one query spec
-     * for one key with a read-mapping class matching {@code entityClass}.
+     * for a typed point read (any number of keys) with a read-mapping class matching {@code entityClass}.
      */
     static <T> boolean isSingleHomogeneousTypedKeyQueryLeg(List<OperationSpec> specs, Class<T> entityClass) {
         if (specs.isEmpty()) {
@@ -87,9 +89,6 @@ public final class TypedKeyQueryBuilder<T> implements FilterableOperation<TypedK
         }
         OperationSpec s = specs.get(0);
         if (!s.isQuery()) {
-            return false;
-        }
-        if (s.getKeys().size() != 1) {
             return false;
         }
         Class<?> hint = s.getReadMappingClass();
@@ -459,7 +458,7 @@ public final class TypedKeyQueryBuilder<T> implements FilterableOperation<TypedK
                 return wrap(new RecordStream());
             }
             throw new IllegalStateException(
-                "This chain is not a single typed key read (one query spec, one key). "
+                "This chain is not a single typed point read (one query spec of typed keys for one entity). "
                     + "Use the ChainableQueryBuilder returned from .query(...), .upsert(...), etc., "
                     + "or asChainableQueryBuilder().executeAsync(...) for a RecordStream.");
         }
@@ -474,7 +473,7 @@ public final class TypedKeyQueryBuilder<T> implements FilterableOperation<TypedK
                 return wrap(new RecordStream());
             }
             throw new IllegalStateException(
-                "This chain is not a single typed key read (one query spec, one key). "
+                "This chain is not a single typed point read (one query spec of typed keys for one entity). "
                     + "Use the ChainableQueryBuilder returned from .query(...), .upsert(...), etc., "
                     + "or asChainableQueryBuilder().executeAsync(...) for a RecordStream.");
         }

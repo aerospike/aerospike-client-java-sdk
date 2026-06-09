@@ -210,7 +210,7 @@ public record RecordResult(
             throw new IllegalStateException(
                 "No read mapping context on this result. Use RecordMapper explicitly "
                     + "(e.g. RecordStream#getFirst(RecordMapper)) or perform the read via "
-                    + "Session#query(TypedKey) / Session#queryTypedKeys so the SDK records the entity type.");
+                    + "Session#query(TypedKey) / Session#queryTypedKeys / Session#queryTypedKeysAny so the SDK records the entity type.");
         }
         RecordMapper<T> mapper = MappingSupport.requireMapper(
             readMappingSession.getRecordMappingFactory(), (Class<T>) readMappingClass);

@@ -64,7 +64,7 @@ try (TypedRecordStream<Customer> rs = session.query(users.id("alice@example.com"
 |------|-----------|
 | **Centralize** bin ↔ Java conversion | Implement **`RecordMapper<T>`** and register **`RecordMappingFactory`** on **`Cluster`**. |
 | **Tell the SDK which `T` a read is for** | Use **`TypedDataSet<T>`** (set-level queries) or **`TypedKey<T>`** (point reads / typed batch legs) so results carry a type hint. |
-| **Get `List<T>` / `Optional<T>` from a stream** | **`TypedRecordStream<T>`** (from **`query(TypedDataSet)`**, or **`query(TypedKey)`** while the chain stays a single typed point read). |
+| **Get `List<T>` / `Optional<T>` from a stream** | **`TypedRecordStream<T>`** (from **`query(TypedDataSet)`**, **`query(TypedKey)`** / **`query(TypedKey, TypedKey, …)`** / **`queryTypedKeys(List<TypedKey<T>>)`** while the chain stays a single typed point read). |
 | **Mix multiple types in one batch** | **`ChainableQueryBuilder`** → **`RecordStream`**; each **`RecordResult.toObject()`** uses **per-row** hints (runtime typing). |
 
 ---
@@ -221,18 +221,22 @@ This is the same **`CustomerMapper`**; the difference is **who supplies** it (fa
 When the API returns **`TypedRecordStream<T>`**, methods are typed on **`T`** — e.g. **`Optional<T> getFirstObject()`**, **`List<T> toObjectList()`**:
 
 - **`session.query(TypedDataSet<T>)`** → **`TypedQueryBuilder<T>`** → **`TypedRecordStream<T>`**.
-- **`session.query(TypedKey<T>)`** with **exactly one argument** (one key) → **`TypedKeyQueryBuilder<T>`** → **`TypedRecordStream<T>`**. If you then chain another **`query`**, a write, **`executeUdf`**, etc., the builder **widens** to **`ChainableQueryBuilder`** and **`execute()`** returns **`RecordStream`** (see *Key Features*).
+- **`session.query(TypedKey<T>)`** (single key) → **`TypedKeyQueryBuilder<T>`** → **`TypedRecordStream<T>`**.
+- **`session.query(TypedKey<T>, TypedKey<T>, TypedKey<T>...)`** or **`session.queryTypedKeys(List<TypedKey<T>>)`** (same **`T`**) → **`TypedKeyQueryBuilder<T>`** → **`TypedRecordStream<T>`** for that single typed read spec (any number of keys in the spec). If you then chain another **`query`**, a write, **`executeUdf`**, etc., the builder **widens** to **`ChainableQueryBuilder`** and **`execute()`** returns **`RecordStream`** (see *Key Features*).
 - **Typed writes** such as **`session.insert(TypedDataSet<T>).object(T)`** bind the payload to **`T`** at compile time.
 
 Here, “this stream is **`Customer`**” is expressed in **generics** on **`TypedRecordStream<T>`**.
 
 ### Homogeneous multi-key reads (`queryTypedKeys`, `query(TypedKey, TypedKey, …)`)
 
-This path is **not** the same overload as **`session.query(TypedKey<T>)`** (single argument).
+Use these when you have **several keys for the same entity** and want **`TypedRecordStream<T>`** (mapper-free **`toObjectList()`**, **`getFirstObject()`**, …) for that **single** read spec:
 
-- **`session.query(TypedKey<?> k1, TypedKey<?> k2, TypedKey<?>... more)`** and **`session.queryTypedKeys(...)`** return **`ChainableQueryBuilder`** immediately — **`execute()`** is **`RecordStream`** even when you **only** perform that one read leg and every key shares **`Customer.class`**. The SDK does not return **`TypedRecordStream<Customer>`** here; that is a limitation of the **Java overload**, not “widening after a second query.”
-- **Homogeneous** still matters: all typed keys in that leg must share one entity class, or you get **`IllegalArgumentException`** when building the leg.
-- **Per-row mapping** is still correct: each **`RecordResult`** from that leg carries a read hint, so **`Customer c = rs.next().toObject()`** uses the factory for **`Customer`**. What you **lose** versus **`TypedRecordStream<Customer>`** is compile-time **`T`** on the **stream** itself (e.g. no **`getFirstObject()`** returning **`Optional<Customer>`** without going through **`RecordResult`**).
+- **`session.queryTypedKeys(List<TypedKey<T>>)`** — e.g. **`session.queryTypedKeys(users.ids(1, 2, 3))`** — **`List<TypedKey<Customer>>`** fixes **`T`** at compile time.
+- **`session.query(TypedKey<T> k1, TypedKey<T> k2, TypedKey<T>... more)`** — same **`T`** enforced by the varargs signature.
+
+**When the list is only known as a wildcard** (`List<? extends TypedKey<?>>`, e.g. mixing key types at compile time), **`Session`** cannot overload the same erased `List` type; use **`session.queryTypedKeysAny(List<? extends TypedKey<?>>)`** → **`ChainableQueryBuilder`** → **`RecordStream`**. Runtime still requires one entity class **per read leg** (`IllegalArgumentException` if classes differ).
+
+**Per-row mapping** on **`RecordStream`** typed legs is unchanged: **`RecordResult.toObject()`** uses the row hint. **`queryTypedKeysAny`** is for the type-erasure escape hatch, not for skipping the one-class-per-leg rule.
 
 ### Heterogeneous batch chains (runtime only)
 
@@ -316,9 +320,8 @@ Used when you pass a **`RecordMapper`** but the SDK does **not** thread **`Recor
 TypedKey<Customer> k1 = users.id("a@example.com");
 TypedKey<Customer> k2 = users.id("b@example.com");
 
-try (RecordStream rs = session.query(k1, k2).execute()) {
-    Customer a = rs.next().toObject();
-    Customer b = rs.next().toObject();
+try (TypedRecordStream<Customer> rs = session.query(k1, k2).execute()) {
+    List<Customer> both = rs.toObjectList();
 }
 ```
 
@@ -336,7 +339,7 @@ TypedDataSet<Order> orders = TypedDataSet.of("test", "users", Order.class);
 TypedKey<Customer> ck = users.id("a@example.com");
 TypedKey<Order> ok = orders.id("order-1");
 
-session.query(ck, ok).execute(); // IllegalArgumentException — one class per typed-key leg
+session.queryTypedKeysAny(List.of(ck, ok)).execute(); // IllegalArgumentException — one class per typed-key leg
 ```
 
 **Fix:** use **two** **`query(...)`** legs (heterogeneous batch), or untyped **`Key`** reads with explicit mappers.

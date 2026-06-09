@@ -26,7 +26,6 @@ import com.aerospike.client.sdk.Cluster;
 import com.aerospike.client.sdk.ClusterDefinition;
 import com.aerospike.client.sdk.ErrorStrategy;
 import com.aerospike.client.sdk.RecordResult;
-import com.aerospike.client.sdk.RecordStream;
 import com.aerospike.client.sdk.Session;
 import com.aerospike.client.sdk.TypedDataSet;
 import com.aerospike.client.sdk.policy.Behavior;
@@ -201,7 +200,7 @@ public class EcommerceExample {
 
         // Option B: ErrorHandler callback -- errors go to the lambda, successes to the stream
         System.out.println("\nUsing ErrorHandler callback:");
-        RecordStream rs = session.queryTypedKeys(
+        var rs = session.queryTypedKeys(
                 customers.ids("C-100", "C-MISSING", "C-ALSO-MISSING"))
                 .includeMissingKeys()
                 .execute((key, index, ex) ->
@@ -211,7 +210,7 @@ public class EcommerceExample {
 
         // Option C: IN_STREAM strategy -- check each result individually
         System.out.println("\nUsing ErrorStrategy.IN_STREAM:");
-        RecordStream inStream = session.queryTypedKeys(
+        var inStream = session.queryTypedKeys(
                 customers.ids("C-100", "C-MISSING"))
                 .includeMissingKeys()
                 .execute(ErrorStrategy.IN_STREAM);

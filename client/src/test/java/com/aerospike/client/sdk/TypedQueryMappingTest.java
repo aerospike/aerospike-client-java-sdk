@@ -82,13 +82,18 @@ public class TypedQueryMappingTest extends ClusterTest {
         session.insert(ds).object(new Customer(k2, "b", 2, new Date(),
             new Address("x", "y", "CO", "US", "2"))).execute();
 
-        RecordStream rs = session.query(ds.id(k1), ds.id(k2)).execute();
-
-        Customer c1 = rs.next().toObject();
-        Customer c2 = rs.next().toObject();
-        assertEquals(k1, c1.getId());
-        assertEquals(k2, c2.getId());
-        rs.close();
+        try (TypedRecordStream<Customer> rs = session.query(ds.id(k1), ds.id(k2)).execute()) {
+            Customer c1 = rs.next().toObject();
+            Customer c2 = rs.next().toObject();
+            assertEquals(k1, c1.getId());
+            assertEquals(k2, c2.getId());
+        }
+        try (TypedRecordStream<Customer> rs2 = session.queryTypedKeys(List.of(ds.id(k1), ds.id(k2))).execute()) {
+            List<Customer> list = rs2.toObjectList();
+            assertEquals(2, list.size());
+            assertEquals(k1, list.get(0).getId());
+            assertEquals(k2, list.get(1).getId());
+        }
     }
 
     @Test

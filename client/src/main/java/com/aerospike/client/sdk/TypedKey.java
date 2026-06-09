@@ -27,6 +27,7 @@ import java.util.Objects;
  * @param <T> domain type
  * @see Session#query(TypedKey)
  * @see Session#queryTypedKeys(List)
+ * @see Session#queryTypedKeysAny(List)
  */
 public final class TypedKey<T> {
     private final Key key;

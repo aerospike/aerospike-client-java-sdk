@@ -1218,9 +1218,10 @@ entry points so the SDK knows `Class<T>`.
 | `session.query(TypedDataSet<T>)` | `TypedQueryBuilder<T>` → `TypedRecordStream<T>` | Yes — `toObjectList()`, `getFirstObject()`, … use the factory for `T`. |
 | `session.query(Key)` / varargs `Key` | `ChainableQueryBuilder` → `RecordStream` | Per row: use `RecordMapper` or raw bins. |
 | `session.query(TypedKey<T>)` (one argument) | `TypedKeyQueryBuilder<T>` → `TypedRecordStream<T>` | Yes — `getFirstObject()`, `toObjectList()`, … until the chain widens (second `query`, write, `executeUdf`, …), then `ChainableQueryBuilder` / `RecordStream` with per-row `toObject()` on typed legs. |
-| `session.query(TypedKey<?>, TypedKey<?>, …)` / `queryTypedKeys` | `ChainableQueryBuilder` → `RecordStream` | Per row: `RecordResult.toObject()` when legs use `TypedKey` (same entity class per multi-key leg). |
+| `session.query(TypedKey<T>, TypedKey<T>, …)` / `session.queryTypedKeys(List<TypedKey<T>>)` | `TypedKeyQueryBuilder<T>` → `TypedRecordStream<T>` | Same as single-key typed path: one read spec, any number of keys sharing `T`. |
+| `session.queryTypedKeysAny(List<? extends TypedKey<?>>)` | `ChainableQueryBuilder` → `RecordStream` | Wildcard list (erasure escape hatch). Per row: `RecordResult.toObject()` on typed legs. |
 
-**List overloads and erasure:** `query(List<Key>)` and `query(List<TypedKey<?>>)` have the same erasure, so the typed list entry point is named **`queryTypedKeys(List<? extends TypedKey<?>>)`** (and the same idea exists on `ChainableQueryBuilder`). On write chains, wherever **`operation(List<Key>)`** would collide with a list of typed keys, use the corresponding **`*TypedKeys(List<? extends TypedKey<?>>)`** helper (for example `upsertTypedKeys`, `deleteTypedKeys`).
+**List overloads and erasure:** `query(List<Key>)` cannot share a name with a typed-key list overload after erasure. **`Session`** therefore uses **`queryTypedKeys(List<TypedKey<T>>)`** for a compile-time-homogeneous read (returns **`TypedKeyQueryBuilder<T>`**) and **`queryTypedKeysAny(List<? extends TypedKey<?>>)`** when the list is only known as a wildcard. The same **`queryTypedKeys(List<? extends TypedKey<?>>)`** name still exists on **`ChainableQueryBuilder`** / **`ObjectBuilder`** (mid-chain). On write chains, wherever **`operation(List<Key>)`** would collide with a list of typed keys, use the corresponding **`*TypedKeys(List<? extends TypedKey<?>>)`** helper (for example `upsertTypedKeys`, `deleteTypedKeys`).
 
 **`TypedKey`:** `TypedDataSet` exposes `id(...)`, `ids(...)`, and digest helpers returning `TypedKey` / `List<TypedKey<T>>` (with `Class<T>` attached) for batch chains and `queryTypedKeys`.
 
@@ -1250,7 +1251,7 @@ List<Customer> activeCustomers2 = session.query(customers)
 On **`TypedRecordStream`** / **`TypedNavigatableRecordStream`**, `toObjectList(RecordMapper<T>)`, `getFirst(RecordMapper<T>)`, `forEach(RecordMapper<T>, …)`, and related overloads invoke **`RecordMapper.fromMap(..., RecordReadContext<T>)`** with the same **`Session`** and **`Class<T>`** as mapper-less reads, so overrides of the four-argument `fromMap` can issue dependent reads. Plain **`RecordStream`** / **`NavigatableRecordStream`** paths that take an explicit mapper still use the three-argument `fromMap` unless you map rows yourself (e.g. loop `RecordResult` and call **`toObject()`** on typed legs). For nested bins deserialized with **`MapUtil.asObjectFromMap`**, use **`asObjectFromMap(..., RecordReadContext<U>)`** and build a child context such as `new RecordReadContext<>(parentCtx.getSession(), Child.class)`. A tabular summary of **which operations call which `fromMap` overload** is in [Object mapping](object-mapping.md#which-apis-call-which-frommap-overload).
 
 `RecordResult.toObject()` applies to **typed read legs** in a chain (keys
-from `TypedKey` / `queryTypedKeys`). For plain `Key` reads, the result carries no
+from `TypedKey` / `queryTypedKeys` / `queryTypedKeysAny`). For plain `Key` reads, the result carries no
 read hint — use `RecordMapper` APIs or raw `Record` data instead.
 
 ---

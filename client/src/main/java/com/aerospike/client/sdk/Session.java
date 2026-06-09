@@ -21,6 +21,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Calendar;
 import java.util.List;
+import java.util.Objects;
 
 import com.aerospike.client.sdk.cdt.CTX;
 import com.aerospike.client.sdk.command.Buffer;
@@ -391,10 +392,13 @@ public class Session {
     }
 
     /**
-     * Query multiple typed keys (varargs). All keys must share the same entity class.
+     * Varargs typed key read. All keys share one compile-time entity type {@code T}, so
+     * {@link TypedKeyQueryBuilder#execute()} can return {@link TypedRecordStream}{@code <T>} for a single
+     * typed read leg (see {@link #queryTypedKeys(List)}).
      */
-    public ChainableQueryBuilder query(TypedKey<?> k1, TypedKey<?> k2, TypedKey<?>... more) {
-        List<TypedKey<?>> list = new ArrayList<>();
+    @SafeVarargs
+    public final <T> TypedKeyQueryBuilder<T> query(TypedKey<T> k1, TypedKey<T> k2, TypedKey<T>... more) {
+        List<TypedKey<T>> list = new ArrayList<>(2 + more.length);
         list.add(k1);
         list.add(k2);
         list.addAll(Arrays.asList(more));
@@ -402,10 +406,34 @@ public class Session {
     }
 
     /**
-     * Query multiple typed keys from a list. Cannot overload {@link #query(List)} because of type erasure;
-     * use this method for {@code List<TypedKey<?>>}.
+     * Query multiple typed keys for one entity type {@code T}. Returns {@link TypedKeyQueryBuilder} so
+     * {@link TypedKeyQueryBuilder#execute()} yields {@link TypedRecordStream}{@code <T>} while the chain
+     * stays a single typed point-read spec (one or more keys in that spec).
+     *
+     * <p>When the list is not homogeneous at compile time (for example mixing {@code TypedKey<Customer>}
+     * and {@code TypedKey<Order>}), use {@link #queryTypedKeysAny(List)} with
+     * {@code List<? extends TypedKey<?>>} instead.</p>
+     *
+     * @param typedKeys non-empty list; all keys must share the same entity class (also enforced at runtime)
      */
-    public ChainableQueryBuilder queryTypedKeys(List<? extends TypedKey<?>> typedKeys) {
+    public <T> TypedKeyQueryBuilder<T> queryTypedKeys(List<TypedKey<T>> typedKeys) {
+        Objects.requireNonNull(typedKeys, "typedKeys");
+        TypedKey.requireSharedEntityClass(typedKeys);
+        Class<T> entityClass = typedKeys.get(0).getEntityClass();
+        ChainableQueryBuilder inner = new ChainableQueryBuilder(this, new ArrayList<>(), null,
+            AbstractOperationBuilder.NOT_EXPLICITLY_SET, getCurrentTransaction())
+            .initQueryTyped(typedKeys);
+        return new TypedKeyQueryBuilder<>(this, entityClass, inner);
+    }
+
+    /**
+     * Typed batch read when the key list is only known as {@code List<? extends TypedKey<?>>} at compile time.
+     * Each read leg must still use one entity class at runtime (see {@link TypedKey#requireSharedEntityClass}).
+     *
+     * <p>Cannot overload {@link #queryTypedKeys(List)} with this signature because of type erasure on
+     * {@code List}; use {@link #queryTypedKeys(List)} when all keys share one type {@code T}.</p>
+     */
+    public ChainableQueryBuilder queryTypedKeysAny(List<? extends TypedKey<?>> typedKeys) {
         return new ChainableQueryBuilder(this, new ArrayList<>(), null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, getCurrentTransaction())
                 .initQueryTyped(typedKeys);
     }
@@ -617,7 +645,7 @@ public class Session {
 
     /**
      * Execute a UDF on multiple typed keys; all keys must share the same entity class
-     * (same rule as {@link #queryTypedKeys(List)}).
+     * (same rule as {@link #queryTypedKeys(List)} / {@link #queryTypedKeysAny(List)}).
      */
     public UdfFunctionBuilder executeUdf(TypedKey<?> k1, TypedKey<?> k2, TypedKey<?>... more) {
         List<TypedKey<?>> list = new ArrayList<>();

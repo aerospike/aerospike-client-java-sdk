@@ -283,6 +283,8 @@ public class QueryExamples {
                 builder.on(Selectors.all(), ops -> ops.stackTraceOnException(false)));
 
             TypedDataSet<Customer> customerDataSet = TypedDataSet.of("test", "person", Customer.class);
+            // Untyped view of the same ns/set: Key-based reads return RecordStream (CDT / raw-bin demos).
+            DataSet cdtDemoRecords = customerDataSet.asDataSet();
 //            DataSet customerDataSet = DataSet.of("test", "person");
 
             Session session = cluster.createSession(newBehavior);
@@ -349,7 +351,8 @@ public class QueryExamples {
             session.upsert(customerDataSet.id("bob")).bin("A").setTo(2).bin("B").setTo(2.2).execute();
             RecordStream rs1 = session.query(customerDataSet.id("bob"))
                     .readingOnlyBins("name")
-                    .execute();
+                    .execute()
+                    .asUntypedRecordStream();
             System.out.println(rs1.getFirst());
 
             session.upsertTypedKeys(customerDataSet.ids(1,2,3,4,5)).bin("holdings").add(1).execute();
@@ -817,10 +820,9 @@ public class QueryExamples {
                 .execute());
             System.out.println("Using a read expression");
 
-            rs = session.queryTypedKeys(customerDataSet.ids(223))
+            print(session.queryTypedKeys(customerDataSet.ids(223))
                 .bin("bob").selectFrom("$.age + $.value", arg -> arg.ignoreEvalFailure())
-                .execute();
-            print(rs);
+                .execute());
 
             System.out.println("Using a write expression");
             session.upsert(customerDataSet.id(1))
@@ -976,7 +978,7 @@ public class QueryExamples {
             // ----------------
             System.out.println("\n--- Generation check test ----");
 
-            RecordStream data = session.query(customerDataSet.id(999)).execute();
+            RecordStream data = session.query(customerDataSet.id(999)).execute().asUntypedRecordStream();
             data.getFirst().ifPresent(keyRecord -> {
                 int generation = keyRecord.recordOrThrow().generation;
                 System.out.println("   Read record with generation of " + generation);
@@ -1002,12 +1004,11 @@ public class QueryExamples {
             });
 
             // ----------------------------
-            // Complex CDT operations
+            // Complex CDT operations (Key 500 via untyped DataSet → RecordStream)
             // ----------------------------
             System.out.println("\n--- Complex CDT operations ---");
-
-            session.delete(customerDataSet.id(500)).execute();
-            session.upsert(customerDataSet.id(500))
+            session.delete(cdtDemoRecords.id(500)).execute();
+            session.upsert(cdtDemoRecords.id(500))
                 .bin("name").setTo("CDT-Test")
                 .bin("scores").setTo(List.of(95, 82, 73, 88, 91))
                 .bin("tags").setTo(List.of("java", "python", "rust"))
@@ -1024,171 +1025,171 @@ public class QueryExamples {
 
             // --- Read-only operations via query path (top-level) ---
 
-            RecordStream cdtResults = session.query(customerDataSet.id(500))
+            RecordStream cdtResults = session.query(cdtDemoRecords.id(500))
                 .bin("scores").listSize()
                 .execute();
             System.out.println("List size of 'scores': " + cdtResults.getFirst());
 
-            cdtResults = session.query(customerDataSet.id(500))
+            cdtResults = session.query(cdtDemoRecords.id(500))
                 .bin("inventory").mapSize()
                 .execute();
             System.out.println("Map size of 'inventory': " + cdtResults.getFirst());
 
-            cdtResults = session.query(customerDataSet.id(500))
+            cdtResults = session.query(cdtDemoRecords.id(500))
                 .bin("scores").listGet(0)
                 .execute();
             System.out.println("First score: " + cdtResults.getFirst());
 
-            cdtResults = session.query(customerDataSet.id(500))
+            cdtResults = session.query(cdtDemoRecords.id(500))
                 .bin("scores").listGetRange(1, 3)
                 .execute();
             System.out.println("Scores [1..3]: " + cdtResults.getFirst());
 
-            cdtResults = session.query(customerDataSet.id(500))
+            cdtResults = session.query(cdtDemoRecords.id(500))
                 .bin("scores").listGetRange(3)
                 .execute();
             System.out.println("Scores from index 3 onward: " + cdtResults.getFirst());
 
             // --- Read-only operations via query path with CDT navigation ---
 
-            cdtResults = session.query(customerDataSet.id(500))
+            cdtResults = session.query(cdtDemoRecords.id(500))
                 .bin("nested").onMapKey("team1").onMapKey("members").listSize()
                 .execute();
             System.out.println("Team1 member count: " + cdtResults.getFirst());
 
-            cdtResults = session.query(customerDataSet.id(500))
+            cdtResults = session.query(cdtDemoRecords.id(500))
                 .bin("nested").onMapKey("team1").onMapKey("members").listGet(1)
                 .execute();
             System.out.println("Team1 second member: " + cdtResults.getFirst());
 
-            cdtResults = session.query(customerDataSet.id(500))
+            cdtResults = session.query(cdtDemoRecords.id(500))
                 .bin("nested").onMapKey("team2").onMapKey("members").listGetRange(0, 2)
                 .execute();
             System.out.println("Team2 members [0..1]: " + cdtResults.getFirst());
 
             // --- Write operations: list mutations ---
 
-            session.update(customerDataSet.id(500))
+            session.update(cdtDemoRecords.id(500))
                 .bin("scores").listAppendItems(List.of(77, 65, 99))
                 .execute();
             System.out.println("After listAppendItems: " +
-                session.query(customerDataSet.id(500)).bin("scores").get().execute().getFirst());
+                session.query(cdtDemoRecords.id(500)).bin("scores").get().execute().getFirst());
 
-            session.update(customerDataSet.id(500))
+            session.update(cdtDemoRecords.id(500))
                 .bin("tags").listInsert(1, "go")
                 .execute();
             System.out.println("After listInsert(1, 'go'): " +
-                session.query(customerDataSet.id(500)).bin("tags").get().execute().getFirst());
+                session.query(cdtDemoRecords.id(500)).bin("tags").get().execute().getFirst());
 
-            session.update(customerDataSet.id(500))
+            session.update(cdtDemoRecords.id(500))
                 .bin("tags").listSet(0, "kotlin")
                 .execute();
             System.out.println("After listSet(0, 'kotlin'): " +
-                session.query(customerDataSet.id(500)).bin("tags").get().execute().getFirst());
+                session.query(cdtDemoRecords.id(500)).bin("tags").get().execute().getFirst());
 
-            session.update(customerDataSet.id(500))
+            session.update(cdtDemoRecords.id(500))
                 .bin("scores").listInsertItems(2, List.of(100, 200))
                 .execute();
             System.out.println("After listInsertItems(2, [100, 200]): " +
-                session.query(customerDataSet.id(500)).bin("scores").get().execute().getFirst());
+                session.query(cdtDemoRecords.id(500)).bin("scores").get().execute().getFirst());
 
-            session.update(customerDataSet.id(500))
+            session.update(cdtDemoRecords.id(500))
                 .bin("scores").listIncrement(0, 5)
                 .execute();
             System.out.println("After listIncrement(0, 5): " +
-                session.query(customerDataSet.id(500)).bin("scores").get().execute().getFirst());
+                session.query(cdtDemoRecords.id(500)).bin("scores").get().execute().getFirst());
 
-            session.update(customerDataSet.id(500))
+            session.update(cdtDemoRecords.id(500))
                 .bin("scores").listSort()
                 .execute();
             System.out.println("After listSort: " +
-                session.query(customerDataSet.id(500)).bin("scores").get().execute().getFirst());
+                session.query(cdtDemoRecords.id(500)).bin("scores").get().execute().getFirst());
 
-            session.update(customerDataSet.id(500))
+            session.update(cdtDemoRecords.id(500))
                 .bin("scores").listRemove(0)
                 .execute();
             System.out.println("After listRemove(0): " +
-                session.query(customerDataSet.id(500)).bin("scores").get().execute().getFirst());
+                session.query(cdtDemoRecords.id(500)).bin("scores").get().execute().getFirst());
 
-            session.update(customerDataSet.id(500))
+            session.update(cdtDemoRecords.id(500))
                 .bin("scores").listRemoveRange(4, 2)
                 .execute();
             System.out.println("After listRemoveRange(4, 2): " +
-                session.query(customerDataSet.id(500)).bin("scores").get().execute().getFirst());
+                session.query(cdtDemoRecords.id(500)).bin("scores").get().execute().getFirst());
 
-            cdtResults = session.update(customerDataSet.id(500))
+            cdtResults = session.update(cdtDemoRecords.id(500))
                 .bin("scores").listPop(0)
                 .execute();
             System.out.println("Popped element: " + cdtResults.getFirst());
 
-            session.update(customerDataSet.id(500))
+            session.update(cdtDemoRecords.id(500))
                 .bin("scores").listTrim(0, 3)
                 .execute();
             System.out.println("After listTrim(0, 3): " +
-                session.query(customerDataSet.id(500)).bin("scores").get().execute().getFirst());
+                session.query(cdtDemoRecords.id(500)).bin("scores").get().execute().getFirst());
 
-            session.update(customerDataSet.id(500))
+            session.update(cdtDemoRecords.id(500))
                 .bin("tags").listClear()
                 .execute();
             System.out.println("After listClear on tags: " +
-                session.query(customerDataSet.id(500)).bin("tags").get().execute().getFirst());
+                session.query(cdtDemoRecords.id(500)).bin("tags").get().execute().getFirst());
 
             // --- Write operations: map mutations ---
 
-            session.update(customerDataSet.id(500))
+            session.update(cdtDemoRecords.id(500))
                 .bin("inventory").mapUpsertItems(Map.of("dates", 15, "elderberries", 8))
                 .execute();
             System.out.println("After mapUpsertItems: " +
-                session.query(customerDataSet.id(500)).bin("inventory").get().execute().getFirst());
+                session.query(cdtDemoRecords.id(500)).bin("inventory").get().execute().getFirst());
 
-            session.update(customerDataSet.id(500))
+            session.update(cdtDemoRecords.id(500))
                 .bin("inventory").mapSetPolicy(MapOrder.KEY_ORDERED)
                 .execute();
             System.out.println("After mapSetPolicy(KEY_ORDERED): " +
-                session.query(customerDataSet.id(500)).bin("inventory").get().execute().getFirst());
+                session.query(cdtDemoRecords.id(500)).bin("inventory").get().execute().getFirst());
 
             // --- Write operations: CDT navigation with new methods ---
 
-            session.update(customerDataSet.id(500))
+            session.update(cdtDemoRecords.id(500))
                 .bin("nested").onMapKey("team1").onMapKey("members").listAppend("Diana")
                 .execute();
             System.out.println("After nested listAppend('Diana') to team1: " +
-                session.query(customerDataSet.id(500))
+                session.query(cdtDemoRecords.id(500))
                     .bin("nested").onMapKey("team1").onMapKey("members").listSize()
                     .execute().getFirst());
 
-            session.update(customerDataSet.id(500))
+            session.update(cdtDemoRecords.id(500))
                 .bin("nested").onMapKey("team2").onMapKey("members").listInsert(0, "Zara")
                 .execute();
             System.out.println("After nested listInsert to team2: " +
-                session.query(customerDataSet.id(500))
+                session.query(cdtDemoRecords.id(500))
                     .bin("nested").onMapKey("team2").onMapKey("members").listGetRange(0)
                     .execute().getFirst());
 
-            session.update(customerDataSet.id(500))
+            session.update(cdtDemoRecords.id(500))
                 .bin("nested").onMapKey("team1").onMapKey("members").listSort()
                 .execute();
             System.out.println("After sorting team1 members: " +
-                session.query(customerDataSet.id(500))
+                session.query(cdtDemoRecords.id(500))
                     .bin("nested").onMapKey("team1").onMapKey("members").listGetRange(0)
                     .execute().getFirst());
 
             // Create a new ordered list sub-element via CDT navigation
-            session.update(customerDataSet.id(500))
+            session.update(cdtDemoRecords.id(500))
                 .bin("nested").onMapKey("team3", MapOrder.KEY_ORDERED)
                     .onMapKey("members").listCreate(ListOrder.ORDERED)
                 .execute();
-            session.update(customerDataSet.id(500))
+            session.update(cdtDemoRecords.id(500))
                 .bin("nested").onMapKey("team3").onMapKey("members").listAddItems(List.of("Ivy", "Frank", "Grace"))
                 .execute();
             System.out.println("Team3 members (ordered): " +
-                session.query(customerDataSet.id(500))
+                session.query(cdtDemoRecords.id(500))
                     .bin("nested").onMapKey("team3").onMapKey("members").listGetRange(0)
                     .execute().getFirst());
 
             // --- Combined multi-bin CDT operations in one call ---
 
-            cdtResults = session.update(customerDataSet.id(500))
+            cdtResults = session.update(cdtDemoRecords.id(500))
                 .bin("scores").listAppendItems(List.of(50, 60, 70))
                 .bin("inventory").mapUpsertItems(Map.of("figs", 12))
                 .bin("nested").onMapKey("team2").onMapKey("members").listAppend("Quinn")
@@ -1197,7 +1198,7 @@ public class QueryExamples {
             System.out.println("Combined CDT result: " + cdtResults.getFirst());
 
             System.out.println("Final state: " +
-                session.query(customerDataSet.id(500)).execute().getFirst());
+                session.query(cdtDemoRecords.id(500)).execute().getFirst());
             System.out.println("--- End Complex CDT operations ---");
 
             session.upsert(customerDataSet.id(1))
