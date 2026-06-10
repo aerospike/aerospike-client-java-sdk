@@ -23,17 +23,27 @@ import java.util.SortedMap;
 import java.util.function.Consumer;
 
 import com.aerospike.client.sdk.CdtGetOrRemoveBuilder.CdtOperation;
+import com.aerospike.client.sdk.Value.HLLValue;
 import com.aerospike.client.sdk.ael.BooleanExpression;
 import com.aerospike.client.sdk.cdt.ListOrder;
 import com.aerospike.client.sdk.cdt.MapOrder;
+import com.aerospike.client.sdk.cdt.path.CdtPathExpressionAel;
 import com.aerospike.client.sdk.exp.Exp;
 import com.aerospike.client.sdk.exp.ExpReadFlags;
 import com.aerospike.client.sdk.exp.ExpWriteFlags;
 import com.aerospike.client.sdk.exp.Expression;
+import com.aerospike.client.sdk.operation.HLLOperation;
+import com.aerospike.client.sdk.operation.HLLWriteFlags;
+import com.aerospike.client.sdk.operation.StringOperation;
+import com.aerospike.client.sdk.operation.StringRegexFlags;
+import com.aerospike.client.sdk.operation.StringWriteFlags;
 import com.aerospike.client.sdk.query.PreparedAel;
 
 /**
- * Operations for one bin: scalar writes ({@link #setTo}), reads ({@link #get}), string ops, numeric {@link #add},
+ * Operations for one bin: scalar writes ({@link #setTo}), reads ({@link #get}),
+ * server string read/modify ops (server 8.1.3+; fluent methods such as {@link #strlen},
+ * {@link #substr}, {@link #find} delegate to {@link com.aerospike.client.sdk.operation.StringOperation};
+ * see also {@code docs/string-operations.md} in the SDK repo for AEL cross-reference), numeric {@link #add},
  * expression-backed {@link #selectFrom}, {@link #insertFrom}, {@link #updateFrom}, {@link #upsertFrom}, and nested
  * list/map CDT paths via {@code onMap*} / {@code onList*} (see {@link AbstractCdtBuilder} for list/map commands once
  * context is selected).
@@ -301,7 +311,23 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
     public T selectFrom(String ael, Consumer<ExpressionReadOptions> options) {
         ExpressionReadOptions opts = new ExpressionReadOptions();
         options.accept(opts);
-        return opBuilder.addOp(ExpressionOpHelper.createReadOp(binName, ael, opts.getFlags()));
+        return selectFrom(ael, opts);
+    }
+
+    /**
+     * Read a computed value with pre-built options.
+     *
+     * <p>This is the direct-options overload of {@link #selectFrom(String, Consumer)}. Use it when
+     * read options have already been built (for example shared across many bins) rather than
+     * configured via a lambda.</p>
+     *
+     * @param ael     the AEL expression string
+     * @param options the read options to apply (e.g. configured via
+     *                {@link ExpressionReadOptions#ignoreEvalFailure()})
+     * @return the parent operation builder for chaining
+     */
+    public T selectFrom(String ael, ExpressionReadOptions options) {
+        return opBuilder.addOp(ExpressionOpHelper.createReadOp(binName, ael, options.getFlags()));
     }
 
     /**
@@ -336,7 +362,20 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
     public T selectFrom(BooleanExpression ael, Consumer<ExpressionReadOptions> options) {
         ExpressionReadOptions opts = new ExpressionReadOptions();
         options.accept(opts);
-        return opBuilder.addOp(ExpressionOpHelper.createReadOp(binName, ael, opts.getFlags()));
+        return selectFrom(ael, opts);
+    }
+
+    /**
+     * Read a computed value using a {@link BooleanExpression} with pre-built options.
+     *
+     * <p>This is the direct-options overload of {@link #selectFrom(BooleanExpression, Consumer)}.</p>
+     *
+     * @param ael     the boolean expression to evaluate
+     * @param options the read options to apply
+     * @return the parent operation builder for chaining
+     */
+    public T selectFrom(BooleanExpression ael, ExpressionReadOptions options) {
+        return opBuilder.addOp(ExpressionOpHelper.createReadOp(binName, ael, options.getFlags()));
     }
 
     /**
@@ -375,7 +414,21 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
     public T selectFrom(PreparedAel ael, Consumer<ExpressionReadOptions> options, Object... params) {
         ExpressionReadOptions opts = new ExpressionReadOptions();
         options.accept(opts);
-        return opBuilder.addOp(ExpressionOpHelper.createReadOp(binName, ael, params, opts.getFlags()));
+        return selectFrom(ael, opts, params);
+    }
+
+    /**
+     * Read a computed value using a {@link PreparedAel} with pre-built options and bound parameters.
+     *
+     * <p>This is the direct-options overload of {@link #selectFrom(PreparedAel, Consumer, Object...)}.</p>
+     *
+     * @param ael     the prepared AEL statement
+     * @param options the read options to apply
+     * @param params  parameter values to bind to the prepared statement
+     * @return the parent operation builder for chaining
+     */
+    public T selectFrom(PreparedAel ael, ExpressionReadOptions options, Object... params) {
+        return opBuilder.addOp(ExpressionOpHelper.createReadOp(binName, ael, params, options.getFlags()));
     }
 
     /**
@@ -411,7 +464,20 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
     public T selectFrom(Exp exp, Consumer<ExpressionReadOptions> options) {
         ExpressionReadOptions opts = new ExpressionReadOptions();
         options.accept(opts);
-        return opBuilder.addOp(ExpressionOpHelper.createReadOp(binName, exp, opts.getFlags()));
+        return selectFrom(exp, opts);
+    }
+
+    /**
+     * Read a computed value using a low-level {@link Exp} expression with pre-built options.
+     *
+     * <p>This is the direct-options overload of {@link #selectFrom(Exp, Consumer)}.</p>
+     *
+     * @param exp     the Exp expression to evaluate
+     * @param options the read options to apply
+     * @return the parent operation builder for chaining
+     */
+    public T selectFrom(Exp exp, ExpressionReadOptions options) {
+        return opBuilder.addOp(ExpressionOpHelper.createReadOp(binName, exp, options.getFlags()));
     }
 
     /**
@@ -447,7 +513,20 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
     public T selectFrom(Expression exp, Consumer<ExpressionReadOptions> options) {
         ExpressionReadOptions opts = new ExpressionReadOptions();
         options.accept(opts);
-        return opBuilder.addOp(ExpressionOpHelper.createReadOp(binName, exp, opts.getFlags()));
+        return selectFrom(exp, opts);
+    }
+
+    /**
+     * Read a computed value using a pre-compiled {@link Expression} with pre-built options.
+     *
+     * <p>This is the direct-options overload of {@link #selectFrom(Expression, Consumer)}.</p>
+     *
+     * @param exp     the compiled expression to evaluate
+     * @param options the read options to apply
+     * @return the parent operation builder for chaining
+     */
+    public T selectFrom(Expression exp, ExpressionReadOptions options) {
+        return opBuilder.addOp(ExpressionOpHelper.createReadOp(binName, exp, options.getFlags()));
     }
 
     // ----------------------------------------
@@ -490,7 +569,23 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
     public T insertFrom(String ael, Consumer<ExpressionWriteOptions> options) {
         ExpressionWriteOptions opts = new ExpressionWriteOptions(ExpWriteFlags.CREATE_ONLY);
         options.accept(opts);
-        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, ael, opts.getFlags()));
+        return insertFrom(ael, opts);
+    }
+
+    /**
+     * Write expression result only if the bin does not exist, with pre-built options.
+     *
+     * <p>This is the direct-options overload of {@link #insertFrom(String, Consumer)}. The caller
+     * is responsible for constructing the options &mdash; typically with
+     * {@code new ExpressionWriteOptions(ExpWriteFlags.CREATE_ONLY)} &mdash; so the
+     * {@code CREATE_ONLY} semantics implied by {@code insertFrom} are preserved.</p>
+     *
+     * @param ael     the AEL expression string
+     * @param options the write options to apply
+     * @return the parent operation builder for chaining
+     */
+    public T insertFrom(String ael, ExpressionWriteOptions options) {
+        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, ael, options.getFlags()));
     }
 
     /**
@@ -526,7 +621,23 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
     public T insertFrom(BooleanExpression ael, Consumer<ExpressionWriteOptions> options) {
         ExpressionWriteOptions opts = new ExpressionWriteOptions(ExpWriteFlags.CREATE_ONLY);
         options.accept(opts);
-        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, ael, opts.getFlags()));
+        return insertFrom(ael, opts);
+    }
+
+    /**
+     * Write expression result only if the bin does not exist, using a {@link BooleanExpression}
+     * with pre-built options.
+     *
+     * <p>This is the direct-options overload of {@link #insertFrom(BooleanExpression, Consumer)}.
+     * The caller is responsible for ensuring the options carry the desired write flags (the
+     * Consumer overload pre-seeds {@code CREATE_ONLY}).</p>
+     *
+     * @param ael     the boolean expression to evaluate
+     * @param options the write options to apply
+     * @return the parent operation builder for chaining
+     */
+    public T insertFrom(BooleanExpression ael, ExpressionWriteOptions options) {
+        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, ael, options.getFlags()));
     }
 
     /**
@@ -566,7 +677,24 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
     public T insertFrom(PreparedAel ael, Consumer<ExpressionWriteOptions> options, Object... params) {
         ExpressionWriteOptions opts = new ExpressionWriteOptions(ExpWriteFlags.CREATE_ONLY);
         options.accept(opts);
-        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, ael, params, opts.getFlags()));
+        return insertFrom(ael, opts, params);
+    }
+
+    /**
+     * Write expression result only if the bin does not exist, using a {@link PreparedAel} with
+     * pre-built options and bound parameters.
+     *
+     * <p>This is the direct-options overload of {@link #insertFrom(PreparedAel, Consumer, Object...)}.
+     * The caller is responsible for ensuring the options carry the desired write flags (the
+     * Consumer overload pre-seeds {@code CREATE_ONLY}).</p>
+     *
+     * @param ael     the prepared AEL statement
+     * @param options the write options to apply
+     * @param params  parameter values to bind to the prepared statement
+     * @return the parent operation builder for chaining
+     */
+    public T insertFrom(PreparedAel ael, ExpressionWriteOptions options, Object... params) {
+        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, ael, params, options.getFlags()));
     }
 
     /**
@@ -603,7 +731,23 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
     public T insertFrom(Exp exp, Consumer<ExpressionWriteOptions> options) {
         ExpressionWriteOptions opts = new ExpressionWriteOptions(ExpWriteFlags.CREATE_ONLY);
         options.accept(opts);
-        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, exp, opts.getFlags()));
+        return insertFrom(exp, opts);
+    }
+
+    /**
+     * Write expression result only if the bin does not exist, using a low-level {@link Exp} with
+     * pre-built options.
+     *
+     * <p>This is the direct-options overload of {@link #insertFrom(Exp, Consumer)}. The caller is
+     * responsible for ensuring the options carry the desired write flags (the Consumer overload
+     * pre-seeds {@code CREATE_ONLY}).</p>
+     *
+     * @param exp     the Exp expression to evaluate
+     * @param options the write options to apply
+     * @return the parent operation builder for chaining
+     */
+    public T insertFrom(Exp exp, ExpressionWriteOptions options) {
+        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, exp, options.getFlags()));
     }
 
     /**
@@ -640,7 +784,23 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
     public T insertFrom(Expression exp, Consumer<ExpressionWriteOptions> options) {
         ExpressionWriteOptions opts = new ExpressionWriteOptions(ExpWriteFlags.CREATE_ONLY);
         options.accept(opts);
-        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, exp, opts.getFlags()));
+        return insertFrom(exp, opts);
+    }
+
+    /**
+     * Write expression result only if the bin does not exist, using a pre-compiled
+     * {@link Expression} with pre-built options.
+     *
+     * <p>This is the direct-options overload of {@link #insertFrom(Expression, Consumer)}. The
+     * caller is responsible for ensuring the options carry the desired write flags (the Consumer
+     * overload pre-seeds {@code CREATE_ONLY}).</p>
+     *
+     * @param exp     the compiled expression to evaluate
+     * @param options the write options to apply
+     * @return the parent operation builder for chaining
+     */
+    public T insertFrom(Expression exp, ExpressionWriteOptions options) {
+        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, exp, options.getFlags()));
     }
 
     // ----------------------------------------
@@ -683,7 +843,23 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
     public T updateFrom(String ael, Consumer<ExpressionWriteOptions> options) {
         ExpressionWriteOptions opts = new ExpressionWriteOptions(ExpWriteFlags.UPDATE_ONLY);
         options.accept(opts);
-        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, ael, opts.getFlags()));
+        return updateFrom(ael, opts);
+    }
+
+    /**
+     * Write expression result only if the bin already exists, with pre-built options.
+     *
+     * <p>This is the direct-options overload of {@link #updateFrom(String, Consumer)}. The caller
+     * is responsible for constructing the options &mdash; typically with
+     * {@code new ExpressionWriteOptions(ExpWriteFlags.UPDATE_ONLY)} &mdash; so the
+     * {@code UPDATE_ONLY} semantics implied by {@code updateFrom} are preserved.</p>
+     *
+     * @param ael     the AEL expression string
+     * @param options the write options to apply
+     * @return the parent operation builder for chaining
+     */
+    public T updateFrom(String ael, ExpressionWriteOptions options) {
+        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, ael, options.getFlags()));
     }
 
     /**
@@ -719,7 +895,23 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
     public T updateFrom(BooleanExpression ael, Consumer<ExpressionWriteOptions> options) {
         ExpressionWriteOptions opts = new ExpressionWriteOptions(ExpWriteFlags.UPDATE_ONLY);
         options.accept(opts);
-        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, ael, opts.getFlags()));
+        return updateFrom(ael, opts);
+    }
+
+    /**
+     * Write expression result only if the bin already exists, using a {@link BooleanExpression}
+     * with pre-built options.
+     *
+     * <p>This is the direct-options overload of {@link #updateFrom(BooleanExpression, Consumer)}.
+     * The caller is responsible for ensuring the options carry the desired write flags (the
+     * Consumer overload pre-seeds {@code UPDATE_ONLY}).</p>
+     *
+     * @param ael     the boolean expression to evaluate
+     * @param options the write options to apply
+     * @return the parent operation builder for chaining
+     */
+    public T updateFrom(BooleanExpression ael, ExpressionWriteOptions options) {
+        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, ael, options.getFlags()));
     }
 
     /**
@@ -759,7 +951,24 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
     public T updateFrom(PreparedAel ael, Consumer<ExpressionWriteOptions> options, Object... params) {
         ExpressionWriteOptions opts = new ExpressionWriteOptions(ExpWriteFlags.UPDATE_ONLY);
         options.accept(opts);
-        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, ael, params, opts.getFlags()));
+        return updateFrom(ael, opts, params);
+    }
+
+    /**
+     * Write expression result only if the bin already exists, using a {@link PreparedAel} with
+     * pre-built options and bound parameters.
+     *
+     * <p>This is the direct-options overload of {@link #updateFrom(PreparedAel, Consumer, Object...)}.
+     * The caller is responsible for ensuring the options carry the desired write flags (the
+     * Consumer overload pre-seeds {@code UPDATE_ONLY}).</p>
+     *
+     * @param ael     the prepared AEL statement
+     * @param options the write options to apply
+     * @param params  parameter values to bind to the prepared statement
+     * @return the parent operation builder for chaining
+     */
+    public T updateFrom(PreparedAel ael, ExpressionWriteOptions options, Object... params) {
+        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, ael, params, options.getFlags()));
     }
 
     /**
@@ -796,7 +1005,23 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
     public T updateFrom(Exp exp, Consumer<ExpressionWriteOptions> options) {
         ExpressionWriteOptions opts = new ExpressionWriteOptions(ExpWriteFlags.UPDATE_ONLY);
         options.accept(opts);
-        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, exp, opts.getFlags()));
+        return updateFrom(exp, opts);
+    }
+
+    /**
+     * Write expression result only if the bin already exists, using a low-level {@link Exp} with
+     * pre-built options.
+     *
+     * <p>This is the direct-options overload of {@link #updateFrom(Exp, Consumer)}. The caller is
+     * responsible for ensuring the options carry the desired write flags (the Consumer overload
+     * pre-seeds {@code UPDATE_ONLY}).</p>
+     *
+     * @param exp     the Exp expression to evaluate
+     * @param options the write options to apply
+     * @return the parent operation builder for chaining
+     */
+    public T updateFrom(Exp exp, ExpressionWriteOptions options) {
+        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, exp, options.getFlags()));
     }
 
     /**
@@ -833,7 +1058,23 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
     public T updateFrom(Expression exp, Consumer<ExpressionWriteOptions> options) {
         ExpressionWriteOptions opts = new ExpressionWriteOptions(ExpWriteFlags.UPDATE_ONLY);
         options.accept(opts);
-        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, exp, opts.getFlags()));
+        return updateFrom(exp, opts);
+    }
+
+    /**
+     * Write expression result only if the bin already exists, using a pre-compiled
+     * {@link Expression} with pre-built options.
+     *
+     * <p>This is the direct-options overload of {@link #updateFrom(Expression, Consumer)}. The
+     * caller is responsible for ensuring the options carry the desired write flags (the Consumer
+     * overload pre-seeds {@code UPDATE_ONLY}).</p>
+     *
+     * @param exp     the compiled expression to evaluate
+     * @param options the write options to apply
+     * @return the parent operation builder for chaining
+     */
+    public T updateFrom(Expression exp, ExpressionWriteOptions options) {
+        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, exp, options.getFlags()));
     }
 
     // ----------------------------------------
@@ -876,7 +1117,22 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
     public T upsertFrom(String ael, Consumer<ExpressionWriteOptions> options) {
         ExpressionWriteOptions opts = new ExpressionWriteOptions(ExpWriteFlags.DEFAULT);
         options.accept(opts);
-        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, ael, opts.getFlags()));
+        return upsertFrom(ael, opts);
+    }
+
+    /**
+     * Write expression result, creating or overwriting the bin as needed, with pre-built options.
+     *
+     * <p>This is the direct-options overload of {@link #upsertFrom(String, Consumer)}. Caller-built
+     * options replace the lambda-based form. The Consumer overload initializes with
+     * {@code ExpWriteFlags.DEFAULT}; the direct overload uses the supplied flags as-is.</p>
+     *
+     * @param ael     the AEL expression string
+     * @param options the write options to apply
+     * @return the parent operation builder for chaining
+     */
+    public T upsertFrom(String ael, ExpressionWriteOptions options) {
+        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, ael, options.getFlags()));
     }
 
     /**
@@ -912,7 +1168,21 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
     public T upsertFrom(BooleanExpression ael, Consumer<ExpressionWriteOptions> options) {
         ExpressionWriteOptions opts = new ExpressionWriteOptions(ExpWriteFlags.DEFAULT);
         options.accept(opts);
-        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, ael, opts.getFlags()));
+        return upsertFrom(ael, opts);
+    }
+
+    /**
+     * Write expression result, creating or updating the bin, using a {@link BooleanExpression}
+     * with pre-built options.
+     *
+     * <p>This is the direct-options overload of {@link #upsertFrom(BooleanExpression, Consumer)}.</p>
+     *
+     * @param ael     the boolean expression to evaluate
+     * @param options the write options to apply
+     * @return the parent operation builder for chaining
+     */
+    public T upsertFrom(BooleanExpression ael, ExpressionWriteOptions options) {
+        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, ael, options.getFlags()));
     }
 
     /**
@@ -952,7 +1222,22 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
     public T upsertFrom(PreparedAel ael, Consumer<ExpressionWriteOptions> options, Object... params) {
         ExpressionWriteOptions opts = new ExpressionWriteOptions(ExpWriteFlags.DEFAULT);
         options.accept(opts);
-        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, ael, params, opts.getFlags()));
+        return upsertFrom(ael, opts, params);
+    }
+
+    /**
+     * Write expression result, creating or updating the bin, using a {@link PreparedAel} with
+     * pre-built options and bound parameters.
+     *
+     * <p>This is the direct-options overload of {@link #upsertFrom(PreparedAel, Consumer, Object...)}.</p>
+     *
+     * @param ael     the prepared AEL statement
+     * @param options the write options to apply
+     * @param params  parameter values to bind to the prepared statement
+     * @return the parent operation builder for chaining
+     */
+    public T upsertFrom(PreparedAel ael, ExpressionWriteOptions options, Object... params) {
+        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, ael, params, options.getFlags()));
     }
 
     /**
@@ -989,7 +1274,21 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
     public T upsertFrom(Exp exp, Consumer<ExpressionWriteOptions> options) {
         ExpressionWriteOptions opts = new ExpressionWriteOptions(ExpWriteFlags.DEFAULT);
         options.accept(opts);
-        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, exp, opts.getFlags()));
+        return upsertFrom(exp, opts);
+    }
+
+    /**
+     * Write expression result, creating or updating the bin, using a low-level {@link Exp} with
+     * pre-built options.
+     *
+     * <p>This is the direct-options overload of {@link #upsertFrom(Exp, Consumer)}.</p>
+     *
+     * @param exp     the Exp expression to evaluate
+     * @param options the write options to apply
+     * @return the parent operation builder for chaining
+     */
+    public T upsertFrom(Exp exp, ExpressionWriteOptions options) {
+        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, exp, options.getFlags()));
     }
 
     /**
@@ -1026,13 +1325,87 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
     public T upsertFrom(Expression exp, Consumer<ExpressionWriteOptions> options) {
         ExpressionWriteOptions opts = new ExpressionWriteOptions(ExpWriteFlags.DEFAULT);
         options.accept(opts);
-        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, exp, opts.getFlags()));
+        return upsertFrom(exp, opts);
+    }
+
+    /**
+     * Write expression result, creating or updating the bin, using a pre-compiled
+     * {@link Expression} with pre-built options.
+     *
+     * <p>This is the direct-options overload of {@link #upsertFrom(Expression, Consumer)}.</p>
+     *
+     * @param exp     the compiled expression to evaluate
+     * @param options the write options to apply
+     * @return the parent operation builder for chaining
+     */
+    public T upsertFrom(Expression exp, ExpressionWriteOptions options) {
+        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, exp, options.getFlags()));
     }
 
     // ==================================================================
     // CDT Operations. Note: make sure to mirror these operations to
     // CdtContextNonInvertableBuilder and CdtContextInvertableBuilder
     // ==================================================================
+
+    /**
+     * Begin path iteration at the <strong>bin root</strong>: every direct child of this bin is visited
+     * ({@link com.aerospike.client.sdk.cdt.CTX#allChildren()}), then continue with {@code onMapKey},
+     * {@code onEachChild}, or a terminal such as {@link CdtContextNonInvertableBuilder#collectValues()}.
+     *
+     * <p>Requires server <strong>8.1.1+</strong> for path expressions. Equivalent to starting a
+     * {@link CdtGetOrRemoveBuilder} with {@link CdtOperationParams#forEachChildAtBinRoot()}.</p>
+     *
+     * <p><b>Example</b>:</p>
+     * <pre>{@code
+     * session.upsert(key).bin("nums").onEachChild().modifyBy(Exp.add(Exp.intLoopVar(LoopVarPart.VALUE), Exp.val(1)))
+     *     .execute();
+     * }</pre>
+     *
+     * @return nested CDT path builder rooted at this bin name
+     * @see CdtContextNonInvertableBuilder#onEachChild()
+     */
+    public CdtContextNonInvertableBuilder<T> onEachChild() {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, CdtOperationParams.forEachChildAtBinRoot());
+    }
+
+    /**
+     * Same as {@link #onEachChild()} but only children matching {@code filter} are visited
+     * ({@link com.aerospike.client.sdk.cdt.CTX#allChildrenWithFilter(com.aerospike.client.sdk.exp.Exp)}).
+     *
+     * @param filter predicate evaluated for each child at the bin root
+     * @return nested CDT path builder for this bin
+     * @see CdtContextNonInvertableBuilder#onEachChild(Exp)
+     */
+    public CdtContextNonInvertableBuilder<T> onEachChild(Exp filter) {
+        return new CdtGetOrRemoveBuilder<>(binName, opBuilder, CdtOperationParams.forEachChildAtBinRootWithFilter(filter));
+    }
+
+    /**
+     * Same as {@link #onEachChild(Exp)} with the filter expressed as AEL.
+     *
+     * @param ael AEL predicate for filtered iteration
+     * @return nested CDT path builder (unreachable until supported)
+     * @throws UnsupportedOperationException until path-scoped AEL is implemented
+     * @see CdtContextNonInvertableBuilder#onEachChild(String)
+     */
+    public CdtContextNonInvertableBuilder<T> onEachChild(String ael) {
+        CdtPathExpressionAel.throwAelNotSupported();
+        throw new AssertionError("unreachable");
+    }
+
+    /**
+     * Same as {@link #onEachChild(String)} using {@link PreparedAel} and bind parameters.
+     *
+     * @param ael prepared AEL template
+     * @param bindParams bind values for {@code ael}
+     * @return nested CDT path builder (unreachable until supported)
+     * @throws UnsupportedOperationException until path-scoped AEL is implemented
+     * @see CdtContextNonInvertableBuilder#onEachChild(PreparedAel, Object...)
+     */
+    public CdtContextNonInvertableBuilder<T> onEachChild(PreparedAel ael, Object... bindParams) {
+        CdtPathExpressionAel.throwPreparedAelNotSupported(ael, bindParams);
+        throw new AssertionError("unreachable");
+    }
 
     /**
      * Select a map entry by sort index for nested CDT ops on this bin's map.
@@ -2405,4 +2778,948 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
         return new CdtGetOrRemoveBuilder<>(this.binName, this.opBuilder, params);
     }
 
+    // ----------------------------------------
+    // String server operations (server 8.1.3+)
+    // ----------------------------------------
+
+    /**
+     * Queues a string {@code strlen} read: Unicode codepoint count of this bin.
+     *
+     * @return the parent operation builder for chaining
+     * @see StringOperation#strlen(String, com.aerospike.client.sdk.cdt.CTX...)
+     */
+    public T strlen() {
+        return opBuilder.addOp(StringOperation.strlen(binName));
+    }
+
+    /**
+     * Queues a string {@code substr} read from {@code start} through the end of the string.
+     * Negative {@code start} counts from the end.
+     *
+     * @param start starting codepoint index (inclusive; negative counts from end)
+     * @return the parent operation builder for chaining
+     * @see StringOperation#substr(String, int, com.aerospike.client.sdk.cdt.CTX...)
+     */
+    public T substr(int start) {
+        return opBuilder.addOp(StringOperation.substr(binName, start));
+    }
+
+    /**
+     * Queues a string {@code substr} read for the half-open codepoint range {@code [start, end)}.
+     *
+     * @param start first codepoint index (inclusive; negative counts from end)
+     * @param end   one past the last codepoint (exclusive)
+     * @return the parent operation builder for chaining
+     * @see StringOperation#substr(String, int, int, com.aerospike.client.sdk.cdt.CTX...)
+     */
+    public T substr(int start, int end) {
+        return opBuilder.addOp(StringOperation.substr(binName, start, end));
+    }
+
+    /**
+     * Queues a string {@code charAt} read: single codepoint at {@code index}.
+     *
+     * @param index codepoint index (negative counts from end)
+     * @return the parent operation builder for chaining
+     * @see StringOperation#charAt(String, int, com.aerospike.client.sdk.cdt.CTX...)
+     */
+    public T charAt(int index) {
+        return opBuilder.addOp(StringOperation.charAt(binName, index));
+    }
+
+    /**
+     * Queues a string {@code find} read: index of the first occurrence of {@code needle}, or -1.
+     *
+     * @param needle substring to search for
+     * @return the parent operation builder for chaining
+     * @see StringOperation#find(String, String, com.aerospike.client.sdk.cdt.CTX...)
+     */
+    public T find(String needle) {
+        return opBuilder.addOp(StringOperation.find(binName, needle));
+    }
+
+    /**
+     * Queues a string {@code find} read for the {@code occurrence}-th match of {@code needle}
+     * ({@code 1} = first, {@code -1} = last), or -1 if not found.
+     *
+     * @param needle       substring to search for
+     * @param occurrence   1-based occurrence index (negative counts from the last match)
+     * @return the parent operation builder for chaining
+     * @see StringOperation#find(String, String, int, com.aerospike.client.sdk.cdt.CTX...)
+     */
+    public T find(String needle, int occurrence) {
+        return opBuilder.addOp(StringOperation.find(binName, needle, occurrence));
+    }
+
+    /**
+     * Queues a string {@code contains} read.
+     *
+     * @param needle substring to test for
+     * @return the parent operation builder for chaining
+     * @see StringOperation#contains(String, String, com.aerospike.client.sdk.cdt.CTX...)
+     */
+    public T contains(String needle) {
+        return opBuilder.addOp(StringOperation.contains(binName, needle));
+    }
+
+    /**
+     * Queues a string {@code startsWith} read.
+     *
+     * @param prefix prefix to test
+     * @return the parent operation builder for chaining
+     * @see StringOperation#startsWith(String, String, com.aerospike.client.sdk.cdt.CTX...)
+     */
+    public T startsWith(String prefix) {
+        return opBuilder.addOp(StringOperation.startsWith(binName, prefix));
+    }
+
+    /**
+     * Queues a string {@code endsWith} read.
+     *
+     * @param suffix suffix to test
+     * @return the parent operation builder for chaining
+     * @see StringOperation#endsWith(String, String, com.aerospike.client.sdk.cdt.CTX...)
+     */
+    public T endsWith(String suffix) {
+        return opBuilder.addOp(StringOperation.endsWith(binName, suffix));
+    }
+
+    /**
+     * Queues a string {@code toInteger} read: parse bin as int64.
+     *
+     * @return the parent operation builder for chaining
+     * @see StringOperation#toInteger(String, com.aerospike.client.sdk.cdt.CTX...)
+     */
+    public T stringToInteger() {
+        return opBuilder.addOp(StringOperation.toInteger(binName));
+    }
+
+    /**
+     * Queues a string {@code toDouble} read: parse bin as float64.
+     *
+     * @return the parent operation builder for chaining
+     * @see StringOperation#toDouble(String, com.aerospike.client.sdk.cdt.CTX...)
+     */
+    public T stringToDouble() {
+        return opBuilder.addOp(StringOperation.toDouble(binName));
+    }
+
+    /**
+     * Queues a string {@code byteLength} read: UTF-8 byte length.
+     *
+     * @return the parent operation builder for chaining
+     * @see StringOperation#byteLength(String, com.aerospike.client.sdk.cdt.CTX...)
+     */
+    public T byteLength() {
+        return opBuilder.addOp(StringOperation.byteLength(binName));
+    }
+
+    /**
+     * Queues a string {@code isNumeric} read.
+     *
+     * @return the parent operation builder for chaining
+     * @see StringOperation#isNumeric(String, com.aerospike.client.sdk.cdt.CTX...)
+     */
+    public T isNumeric() {
+        return opBuilder.addOp(StringOperation.isNumeric(binName));
+    }
+
+    /**
+     * Queues a string {@code isNumeric} read filtered by {@code numericType}
+     * ({@link com.aerospike.client.sdk.operation.StringNumericType} constants).
+     *
+     * @param numericType {@code ANY}, {@code INT}, or {@code FLOAT}
+     * @return the parent operation builder for chaining
+     * @see StringOperation#isNumeric(String, int, com.aerospike.client.sdk.cdt.CTX...)
+     */
+    public T isNumeric(int numericType) {
+        return opBuilder.addOp(StringOperation.isNumeric(binName, numericType));
+    }
+
+    /**
+     * Queues a string {@code isUpper} read.
+     *
+     * @return the parent operation builder for chaining
+     * @see StringOperation#isUpper(String, com.aerospike.client.sdk.cdt.CTX...)
+     */
+    public T isUpper() {
+        return opBuilder.addOp(StringOperation.isUpper(binName));
+    }
+
+    /**
+     * Queues a string {@code isLower} read.
+     *
+     * @return the parent operation builder for chaining
+     * @see StringOperation#isLower(String, com.aerospike.client.sdk.cdt.CTX...)
+     */
+    public T isLower() {
+        return opBuilder.addOp(StringOperation.isLower(binName));
+    }
+
+    /**
+     * Queues a string {@code toBlob} read: UTF-8 bytes as blob.
+     *
+     * @return the parent operation builder for chaining
+     * @see StringOperation#toBlob(String, com.aerospike.client.sdk.cdt.CTX...)
+     */
+    public T stringToBlob() {
+        return opBuilder.addOp(StringOperation.toBlob(binName));
+    }
+
+    /**
+     * Queues a string {@code split} read with default separator (server-defined).
+     *
+     * @return the parent operation builder for chaining
+     * @see StringOperation#split(String, com.aerospike.client.sdk.cdt.CTX...)
+     */
+    public T split() {
+        return opBuilder.addOp(StringOperation.split(binName));
+    }
+
+    /**
+     * Queues a string {@code split} read using {@code separator}.
+     *
+     * @param separator delimiter (empty splits per codepoint, per server rules)
+     * @return the parent operation builder for chaining
+     * @see StringOperation#split(String, String, com.aerospike.client.sdk.cdt.CTX...)
+     */
+    public T split(String separator) {
+        return opBuilder.addOp(StringOperation.split(binName, separator));
+    }
+
+    /**
+     * Queues a string {@code b64Decode} read: base64 string to blob.
+     *
+     * @return the parent operation builder for chaining
+     * @see StringOperation#b64Decode(String, com.aerospike.client.sdk.cdt.CTX...)
+     */
+    public T b64Decode() {
+        return opBuilder.addOp(StringOperation.b64Decode(binName));
+    }
+
+    /**
+     * Queues a string {@code regexCompare} read with default regex flags.
+     *
+     * @param pattern ICU-syntax regex pattern
+     * @return the parent operation builder for chaining
+     * @see StringOperation#regexCompare(String, String, com.aerospike.client.sdk.cdt.CTX...)
+     */
+    public T regexCompare(String pattern) {
+        return opBuilder.addOp(StringOperation.regexCompare(binName, pattern));
+    }
+
+    /**
+     * Queues a string {@code regexCompare} read with {@link StringRegexFlags}.
+     *
+     * @param pattern    ICU-syntax regex pattern
+     * @param regexFlags bitwise-OR of {@link StringRegexFlags}
+     * @return the parent operation builder for chaining
+     * @see StringOperation#regexCompare(String, String, int, com.aerospike.client.sdk.cdt.CTX...)
+     */
+    public T regexCompare(String pattern, int regexFlags) {
+        return opBuilder.addOp(StringOperation.regexCompare(binName, pattern, regexFlags));
+    }
+
+    /**
+     * Queues {@link StringOperation#toString(String)}: string representation of this bin's
+     * value (int, float, string, bool, or valid UTF-8 blob). Not a string sub-op; no nested CTX.
+     *
+     * @return the parent operation builder for chaining
+     */
+    public T readAsString() {
+        return opBuilder.addOp(StringOperation.toString(binName));
+    }
+
+    private T addStringModifyOp(Operation op) {
+        return opBuilder.addOp(op);
+    }
+
+    /**
+     * Queues string {@code insert} modify at {@code index}.
+     *
+     * @param index codepoint index (negative counts from end)
+     * @param value text to insert
+     * @return the parent operation builder for chaining
+     * @see StringOperation#insert(int, String, int, String, com.aerospike.client.sdk.cdt.CTX...)
+     */
+    public T insert(int index, String value) {
+        return addStringModifyOp(StringOperation.insert(StringWriteFlags.DEFAULT, binName, index, value));
+    }
+
+    /**
+     * Queues string {@code insert} with {@link StringWriteOptions}.
+     */
+    public T insert(int index, String value, Consumer<StringWriteOptions> options) {
+        StringWriteOptions o = new StringWriteOptions();
+        options.accept(o);
+        return insert(index, value, o);
+    }
+
+    /**
+     * Queues string {@code insert} with pre-built {@link StringWriteOptions}.
+     */
+    public T insert(int index, String value, StringWriteOptions options) {
+        return addStringModifyOp(StringOperation.insert(options.toFlags(), binName, index, value));
+    }
+
+    /**
+     * Queues string {@code overwrite} modify at {@code index}.
+     */
+    public T overwrite(int index, String value) {
+        return addStringModifyOp(StringOperation.overwrite(StringWriteFlags.DEFAULT, binName, index, value));
+    }
+
+    public T overwrite(int index, String value, Consumer<StringWriteOptions> options) {
+        StringWriteOptions o = new StringWriteOptions();
+        options.accept(o);
+        return overwrite(index, value, o);
+    }
+
+    public T overwrite(int index, String value, StringWriteOptions options) {
+        return addStringModifyOp(StringOperation.overwrite(options.toFlags(), binName, index, value));
+    }
+
+    /**
+     * Queues string {@code concat} modify: append {@code fragment}.
+     */
+    public T stringConcat(String fragment) {
+        return addStringModifyOp(StringOperation.concat(StringWriteFlags.DEFAULT, binName, fragment));
+    }
+
+    public T stringConcat(String fragment, Consumer<StringWriteOptions> options) {
+        StringWriteOptions o = new StringWriteOptions();
+        options.accept(o);
+        return stringConcat(fragment, o);
+    }
+
+    public T stringConcat(String fragment, StringWriteOptions options) {
+        return addStringModifyOp(StringOperation.concat(options.toFlags(), binName, fragment));
+    }
+
+    /**
+     * Queues string {@code concat} modify: append all strings in order.
+     */
+    public T stringConcat(List<String> fragments) {
+        return addStringModifyOp(StringOperation.concat(StringWriteFlags.DEFAULT, binName, fragments));
+    }
+
+    public T stringConcat(List<String> fragments, Consumer<StringWriteOptions> options) {
+        StringWriteOptions o = new StringWriteOptions();
+        options.accept(o);
+        return stringConcat(fragments, o);
+    }
+
+    public T stringConcat(List<String> fragments, StringWriteOptions options) {
+        return addStringModifyOp(StringOperation.concat(options.toFlags(), binName, fragments));
+    }
+
+    /**
+     * Queues string {@code snip} modify: remove from {@code start} through end of string.
+     */
+    public T snip(int start) {
+        return addStringModifyOp(StringOperation.snip(StringWriteFlags.DEFAULT, binName, start));
+    }
+
+    public T snip(int start, Consumer<StringWriteOptions> options) {
+        StringWriteOptions o = new StringWriteOptions();
+        options.accept(o);
+        return snip(start, o);
+    }
+
+    public T snip(int start, StringWriteOptions options) {
+        return addStringModifyOp(StringOperation.snip(options.toFlags(), binName, start));
+    }
+
+    /**
+     * Queues string {@code snip} modify: remove half-open range {@code [start, end)}.
+     */
+    public T snip(int start, int end) {
+        return addStringModifyOp(StringOperation.snip(StringWriteFlags.DEFAULT, binName, start, end));
+    }
+
+    public T snip(int start, int end, Consumer<StringWriteOptions> options) {
+        StringWriteOptions o = new StringWriteOptions();
+        options.accept(o);
+        return snip(start, end, o);
+    }
+
+    public T snip(int start, int end, StringWriteOptions options) {
+        return addStringModifyOp(StringOperation.snip(options.toFlags(), binName, start, end));
+    }
+
+    /**
+     * Queues string {@code replace} modify (first occurrence only).
+     */
+    public T replace(String needle, String replacement) {
+        return addStringModifyOp(StringOperation.replace(StringWriteFlags.DEFAULT, binName, needle, replacement));
+    }
+
+    public T replace(String needle, String replacement, Consumer<StringWriteOptions> options) {
+        StringWriteOptions o = new StringWriteOptions();
+        options.accept(o);
+        return replace(needle, replacement, o);
+    }
+
+    public T replace(String needle, String replacement, StringWriteOptions options) {
+        return addStringModifyOp(StringOperation.replace(options.toFlags(), binName, needle, replacement));
+    }
+
+    /**
+     * Queues string {@code replaceAll} modify.
+     */
+    public T replaceAll(String needle, String replacement) {
+        return addStringModifyOp(StringOperation.replaceAll(StringWriteFlags.DEFAULT, binName, needle, replacement));
+    }
+
+    public T replaceAll(String needle, String replacement, Consumer<StringWriteOptions> options) {
+        StringWriteOptions o = new StringWriteOptions();
+        options.accept(o);
+        return replaceAll(needle, replacement, o);
+    }
+
+    public T replaceAll(String needle, String replacement, StringWriteOptions options) {
+        return addStringModifyOp(StringOperation.replaceAll(options.toFlags(), binName, needle, replacement));
+    }
+
+    /** Queues string {@code upper} modify. */
+    public T upper() {
+        return addStringModifyOp(StringOperation.upper(StringWriteFlags.DEFAULT, binName));
+    }
+
+    public T upper(Consumer<StringWriteOptions> options) {
+        StringWriteOptions o = new StringWriteOptions();
+        options.accept(o);
+        return upper(o);
+    }
+
+    public T upper(StringWriteOptions options) {
+        return addStringModifyOp(StringOperation.upper(options.toFlags(), binName));
+    }
+
+    /** Queues string {@code lower} modify. */
+    public T lower() {
+        return addStringModifyOp(StringOperation.lower(StringWriteFlags.DEFAULT, binName));
+    }
+
+    public T lower(Consumer<StringWriteOptions> options) {
+        StringWriteOptions o = new StringWriteOptions();
+        options.accept(o);
+        return lower(o);
+    }
+
+    public T lower(StringWriteOptions options) {
+        return addStringModifyOp(StringOperation.lower(options.toFlags(), binName));
+    }
+
+    /** Queues string {@code caseFold} modify. */
+    public T caseFold() {
+        return addStringModifyOp(StringOperation.caseFold(StringWriteFlags.DEFAULT, binName));
+    }
+
+    public T caseFold(Consumer<StringWriteOptions> options) {
+        StringWriteOptions o = new StringWriteOptions();
+        options.accept(o);
+        return caseFold(o);
+    }
+
+    public T caseFold(StringWriteOptions options) {
+        return addStringModifyOp(StringOperation.caseFold(options.toFlags(), binName));
+    }
+
+    /** Queues string {@code normalizeNFC} modify. */
+    public T normalizeNfc() {
+        return addStringModifyOp(StringOperation.normalizeNFC(StringWriteFlags.DEFAULT, binName));
+    }
+
+    public T normalizeNfc(Consumer<StringWriteOptions> options) {
+        StringWriteOptions o = new StringWriteOptions();
+        options.accept(o);
+        return normalizeNfc(o);
+    }
+
+    public T normalizeNfc(StringWriteOptions options) {
+        return addStringModifyOp(StringOperation.normalizeNFC(options.toFlags(), binName));
+    }
+
+    /** Queues string {@code trimStart} modify. */
+    public T trimStart() {
+        return addStringModifyOp(StringOperation.trimStart(StringWriteFlags.DEFAULT, binName));
+    }
+
+    public T trimStart(Consumer<StringWriteOptions> options) {
+        StringWriteOptions o = new StringWriteOptions();
+        options.accept(o);
+        return trimStart(o);
+    }
+
+    public T trimStart(StringWriteOptions options) {
+        return addStringModifyOp(StringOperation.trimStart(options.toFlags(), binName));
+    }
+
+    /** Queues string {@code trimEnd} modify. */
+    public T trimEnd() {
+        return addStringModifyOp(StringOperation.trimEnd(StringWriteFlags.DEFAULT, binName));
+    }
+
+    public T trimEnd(Consumer<StringWriteOptions> options) {
+        StringWriteOptions o = new StringWriteOptions();
+        options.accept(o);
+        return trimEnd(o);
+    }
+
+    public T trimEnd(StringWriteOptions options) {
+        return addStringModifyOp(StringOperation.trimEnd(options.toFlags(), binName));
+    }
+
+    /** Queues string {@code trim} modify (both ends). */
+    public T trim() {
+        return addStringModifyOp(StringOperation.trim(StringWriteFlags.DEFAULT, binName));
+    }
+
+    public T trim(Consumer<StringWriteOptions> options) {
+        StringWriteOptions o = new StringWriteOptions();
+        options.accept(o);
+        return trim(o);
+    }
+
+    public T trim(StringWriteOptions options) {
+        return addStringModifyOp(StringOperation.trim(options.toFlags(), binName));
+    }
+
+    /**
+     * Queues string {@code padStart} modify: pad to at least {@code targetLength} codepoints.
+     */
+    public T padStart(int targetLength, String padString) {
+        return addStringModifyOp(StringOperation.padStart(StringWriteFlags.DEFAULT, binName, targetLength, padString));
+    }
+
+    public T padStart(int targetLength, String padString, Consumer<StringWriteOptions> options) {
+        StringWriteOptions o = new StringWriteOptions();
+        options.accept(o);
+        return padStart(targetLength, padString, o);
+    }
+
+    public T padStart(int targetLength, String padString, StringWriteOptions options) {
+        return addStringModifyOp(StringOperation.padStart(options.toFlags(), binName, targetLength, padString));
+    }
+
+    /**
+     * Queues string {@code padEnd} modify.
+     */
+    public T padEnd(int targetLength, String padString) {
+        return addStringModifyOp(StringOperation.padEnd(StringWriteFlags.DEFAULT, binName, targetLength, padString));
+    }
+
+    public T padEnd(int targetLength, String padString, Consumer<StringWriteOptions> options) {
+        StringWriteOptions o = new StringWriteOptions();
+        options.accept(o);
+        return padEnd(targetLength, padString, o);
+    }
+
+    public T padEnd(int targetLength, String padString, StringWriteOptions options) {
+        return addStringModifyOp(StringOperation.padEnd(options.toFlags(), binName, targetLength, padString));
+    }
+
+    /** Queues string {@code repeat} modify. */
+    public T repeat(int count) {
+        return addStringModifyOp(StringOperation.repeat(StringWriteFlags.DEFAULT, binName, count));
+    }
+
+    public T repeat(int count, Consumer<StringWriteOptions> options) {
+        StringWriteOptions o = new StringWriteOptions();
+        options.accept(o);
+        return repeat(count, o);
+    }
+
+    public T repeat(int count, StringWriteOptions options) {
+        return addStringModifyOp(StringOperation.repeat(options.toFlags(), binName, count));
+    }
+
+    /**
+     * Queues string {@code regexReplace} modify with default regex flags.
+     */
+    public T regexReplace(String pattern, String replacement) {
+        return addStringModifyOp(StringOperation.regexReplace(StringWriteFlags.DEFAULT, binName, pattern,
+            replacement, StringRegexFlags.DEFAULT));
+    }
+
+    public T regexReplace(String pattern, String replacement, Consumer<StringWriteOptions> options) {
+        StringWriteOptions o = new StringWriteOptions();
+        options.accept(o);
+        return regexReplace(pattern, replacement, StringRegexFlags.DEFAULT, o);
+    }
+
+    /**
+     * Queues string {@code regexReplace} with default regex flags and {@link StringWriteOptions}.
+     */
+    public T regexReplace(String pattern, String replacement, StringWriteOptions options) {
+        return regexReplace(pattern, replacement, StringRegexFlags.DEFAULT, options);
+    }
+
+    /**
+     * Queues string {@code regexReplace} with {@link StringRegexFlags}.
+     */
+    public T regexReplace(String pattern, String replacement, int regexFlags) {
+        return addStringModifyOp(StringOperation.regexReplace(StringWriteFlags.DEFAULT, binName, pattern,
+            replacement, regexFlags));
+    }
+
+    public T regexReplace(String pattern, String replacement, int regexFlags,
+        Consumer<StringWriteOptions> options) {
+        StringWriteOptions o = new StringWriteOptions();
+        options.accept(o);
+        return regexReplace(pattern, replacement, regexFlags, o);
+    }
+
+    public T regexReplace(String pattern, String replacement, int regexFlags, StringWriteOptions options) {
+        return addStringModifyOp(StringOperation.regexReplace(options.toFlags(), binName, pattern,
+            replacement, regexFlags));
+    }
+
+    // ----------------------------------------
+    // HyperLogLog (HLL)
+    // ----------------------------------------
+
+    /**
+     * Queues a write that sets this bin to a HLLValue.
+     *
+     * @param value HLL value to store
+     * @return the parent operation builder for chaining
+     */
+    public T setTo(Value.HLLValue value) {
+        return opBuilder.setTo(new Bin(binName, value));
+    }
+
+    /**
+     * Initialize the HLL bin (write).
+     *
+     * <p>Creates a new HyperLogLog bin or resets an existing one using the index
+     * bit count (and optional minhash bit count) from {@code config}. Uses the
+     * default write mode; the server returns no value.</p>
+     *
+     * @param config HLL bin configuration (index/minhash bit counts)
+     * @return builder for continued chaining
+     * @see HllConfig
+     */
+    public T hllInit(HllConfig config) {
+        Operation op = HLLOperation.init(HLLWriteFlags.DEFAULT, binName, config.indexBitCount(),
+            config.minHashBitCount());
+        return opBuilder.addOp(op);
+    }
+
+    /**
+     * Initialize the HLL bin with caller-supplied write options (write).
+     *
+     * <p>Creates a new HyperLogLog bin or resets an existing one using
+     * {@code config}. The {@code options} lambda configures write semantics
+     * such as {@code createOnly}, {@code updateOnly}, {@code noFail}, and
+     * {@code allowFold}.</p>
+     *
+     * @param config  HLL bin configuration (index/minhash bit counts)
+     * @param options consumer that configures the {@link HllWriteOptions}
+     * @return builder for continued chaining
+     * @see HllConfig
+     * @see HllWriteOptions
+     */
+    public T hllInit(HllConfig config, Consumer<HllWriteOptions> options) {
+        HllWriteOptions opts = new HllWriteOptions();
+        options.accept(opts);
+        return hllInit(config, opts);
+    }
+
+    /**
+     * Initialize the HLL bin with pre-built write options (write).
+     *
+     * <p>This is the direct-options overload of {@link #hllInit(HllConfig, Consumer)}. Use it
+     * when {@link HllWriteOptions} have already been built (for example shared across multiple
+     * operations) rather than configured via a lambda.</p>
+     *
+     * @param config  HLL bin configuration (index/minhash bit counts)
+     * @param options pre-built write options controlling semantics such as {@code createOnly},
+     *                {@code updateOnly}, {@code noFail}, and {@code allowFold}
+     * @return builder for continued chaining
+     * @see HllConfig
+     * @see HllWriteOptions
+     */
+    public T hllInit(HllConfig config, HllWriteOptions options) {
+        Operation op = HLLOperation.init(options.toFlags(), binName, config.indexBitCount(),
+            config.minHashBitCount());
+        return opBuilder.addOp(op);
+    }
+
+    /**
+     * Add values to an existing HLL bin (write).
+     *
+     * <p>Assumes the HLL bin already exists. The server returns the number of
+     * entries that caused the HLL to update a register.</p>
+     *
+     * @param values values to add to the HLL set
+     * @return builder for continued chaining
+     */
+    public T hllAdd(List<?> values) {
+        Operation op = HLLOperation.add(HLLWriteFlags.DEFAULT, binName, values);
+        return opBuilder.addOp(op);
+    }
+
+    /**
+     * Add values to the HLL bin, creating it if it does not exist (write).
+     *
+     * <p>If the bin does not yet exist it is created using {@code config}.
+     * The server returns the number of entries that caused the HLL to update
+     * a register.</p>
+     *
+     * @param values values to add to the HLL set
+     * @param config HLL bin configuration used to create the bin if missing
+     * @return builder for continued chaining
+     * @see HllConfig
+     */
+    public T hllAdd(List<?> values, HllConfig config) {
+        Operation op = HLLOperation.add(HLLWriteFlags.DEFAULT, binName, values, config.indexBitCount(),
+            config.minHashBitCount());
+        return opBuilder.addOp(op);
+    }
+
+    /**
+     * Add values to the HLL bin with caller-supplied write options, creating it
+     * if it does not exist (write).
+     *
+     * <p>If the bin does not yet exist it is created using {@code config}. The
+     * {@code options} lambda configures write semantics such as
+     * {@code createOnly}, {@code updateOnly}, {@code noFail}, and
+     * {@code allowFold}. The server returns the number of entries that caused
+     * the HLL to update a register.</p>
+     *
+     * @param values  values to add to the HLL set
+     * @param config  HLL bin configuration used to create the bin if missing
+     * @param options consumer that configures the {@link HllWriteOptions}
+     * @return builder for continued chaining
+     * @see HllConfig
+     * @see HllWriteOptions
+     */
+    public T hllAdd(List<?> values, HllConfig config, Consumer<HllWriteOptions> options) {
+        HllWriteOptions opts = new HllWriteOptions();
+        options.accept(opts);
+        return hllAdd(values, config, opts);
+    }
+
+    /**
+     * Add values to the HLL bin with pre-built write options, creating it if it does not exist
+     * (write).
+     *
+     * <p>This is the direct-options overload of
+     * {@link #hllAdd(List, HllConfig, Consumer)}. If the bin does not yet exist it is created
+     * using {@code config}. The server returns the number of entries that caused the HLL to
+     * update a register.</p>
+     *
+     * @param values  values to add to the HLL set
+     * @param config  HLL bin configuration used to create the bin if missing
+     * @param options pre-built write options controlling semantics such as {@code createOnly},
+     *                {@code updateOnly}, {@code noFail}, and {@code allowFold}
+     * @return builder for continued chaining
+     * @see HllConfig
+     * @see HllWriteOptions
+     */
+    public T hllAdd(List<?> values, HllConfig config, HllWriteOptions options) {
+        Operation op = HLLOperation.add(options.toFlags(), binName, values, config.indexBitCount(),
+            config.minHashBitCount());
+        return opBuilder.addOp(op);
+    }
+
+    /**
+     * Replace the HLL bin with the union of the supplied HLL values (write).
+     *
+     * <p>Server sets the bin to the union of {@code hlls} merged with the
+     * existing bin contents. Uses the default write mode; the server returns
+     * no value.</p>
+     *
+     * @param hlls HLL values to union into the bin
+     * @return builder for continued chaining
+     */
+    public T hllSetUnion(List<HLLValue> hlls) {
+        Operation op = HLLOperation.setUnion(HLLWriteFlags.DEFAULT, binName, hlls);
+        return opBuilder.addOp(op);
+    }
+
+    /**
+     * Replace the HLL bin with the union of the supplied HLL values, with
+     * caller-supplied write options (write).
+     *
+     * <p>The {@code options} lambda configures write semantics such as
+     * {@code createOnly}, {@code updateOnly}, {@code noFail}, and
+     * {@code allowFold}.</p>
+     *
+     * @param hlls    HLL values to union into the bin
+     * @param options consumer that configures the {@link HllWriteOptions}
+     * @return builder for continued chaining
+     * @see HllWriteOptions
+     */
+    public T hllSetUnion(List<HLLValue> hlls, Consumer<HllWriteOptions> options) {
+        HllWriteOptions opts = new HllWriteOptions();
+        options.accept(opts);
+        return hllSetUnion(hlls, opts);
+    }
+
+    /**
+     * Replace the HLL bin with the union of the supplied HLL values, with pre-built write options
+     * (write).
+     *
+     * <p>This is the direct-options overload of {@link #hllSetUnion(List, Consumer)}. The
+     * caller-built options replace the lambda-based form.</p>
+     *
+     * @param hlls    HLL values to union into the bin
+     * @param options pre-built write options controlling semantics such as {@code createOnly},
+     *                {@code updateOnly}, {@code noFail}, and {@code allowFold}
+     * @return builder for continued chaining
+     * @see HllWriteOptions
+     */
+    public T hllSetUnion(List<HLLValue> hlls, HllWriteOptions options) {
+        Operation op = HLLOperation.setUnion(options.toFlags(), binName, hlls);
+        return opBuilder.addOp(op);
+    }
+
+    /**
+     * Fold the HLL bin to a smaller index bit count (write).
+     *
+     * <p>Reduces the precision of the HLL bin to {@code indexBitCount} index
+     * bits. Can only be applied when the bin's minhash bit count is 0. The
+     * server returns no value.</p>
+     *
+     * @param indexBitCount target number of index bits (4–16 inclusive); must
+     *                      be less than or equal to the current index bit count
+     * @return builder for continued chaining
+     */
+    public T hllFold(int indexBitCount) {
+        Operation op = HLLOperation.fold(binName, indexBitCount);
+        return opBuilder.addOp(op);
+    }
+
+    /**
+     * Refresh the cached element count on the HLL bin (write).
+     *
+     * <p>Server updates the cached count if it is stale and returns the
+     * refreshed count.</p>
+     *
+     * @return builder for continued chaining
+     */
+    public T hllRefreshCount() {
+        Operation op = HLLOperation.refreshCount(binName);
+        return opBuilder.addOp(op);
+    }
+
+    /**
+     * Read the estimated cardinality of the HLL bin (read).
+     *
+     * <p>Server returns the estimated number of unique elements in the bin
+     * as a long.</p>
+     *
+     * @return builder for continued chaining
+     */
+    public T hllGetCount() {
+        Operation op = HLLOperation.getCount(binName);
+        return opBuilder.addOp(op);
+    }
+
+    /**
+     * Describe the HLL bin's configuration (read).
+     *
+     * <p>Server returns a list of two longs containing the {@code indexBitCount}
+     * and {@code minHashBitCount} that were used to create the bin. See
+     * {@link HllConfig} and {@code Record#getHllConfig(String)} for a typed view
+     * of the result.</p>
+     *
+     * @return builder for continued chaining
+     * @see HllConfig
+     */
+    public T hllDescribe() {
+        Operation op = HLLOperation.describe(binName);
+        return opBuilder.addOp(op);
+    }
+
+    /**
+     * Read the union of the HLL bin with the supplied HLL values (read).
+     *
+     * <p>Server returns an HLL value that is the union of {@code hlls} together
+     * with the bin's current contents. The bin itself is not modified.</p>
+     *
+     * @param hlls HLL values to union with the bin
+     * @return builder for continued chaining
+     */
+    public T hllGetUnion(List<HLLValue> hlls) {
+        Operation op = HLLOperation.getUnion(binName, hlls);
+        return opBuilder.addOp(op);
+    }
+
+    /**
+     * Read the estimated count of the union of the HLL bin with the supplied
+     * HLL values (read).
+     *
+     * <p>Server returns the estimated number of unique elements in the union
+     * of {@code hlls} with the bin's current contents. The bin itself is not
+     * modified.</p>
+     *
+     * @param hlls HLL values to union with the bin
+     * @return builder for continued chaining
+     */
+    public T hllGetUnionCount(List<HLLValue> hlls) {
+        Operation op = HLLOperation.getUnionCount(binName, hlls);
+        return opBuilder.addOp(op);
+    }
+
+    /**
+     * Read the estimated count of the intersection of the HLL bin with the
+     * supplied HLL values (read).
+     *
+     * <p>Server returns the estimated number of elements contained in the
+     * intersection of {@code hlls} with the bin. The {@code hlls} list may
+     * contain at most two values when minhash bits are 0; more are allowed
+     * when minhash bits are nonzero.</p>
+     *
+     * @param hlls HLL values to intersect with the bin
+     * @return builder for continued chaining
+     */
+    public T hllGetIntersectCount(List<HLLValue> hlls) {
+        Operation op = HLLOperation.getIntersectCount(binName, hlls);
+        return opBuilder.addOp(op);
+    }
+
+    /**
+     * Read the estimated Jaccard similarity of the HLL bin with the supplied
+     * HLL values (read).
+     *
+     * <p>Server returns a double in {@code [0.0, 1.0]} estimating the
+     * similarity of the bin to {@code hlls}. The {@code hlls} list may
+     * contain at most two values when minhash bits are 0; more are allowed
+     * when minhash bits are nonzero.</p>
+     *
+     * @param hlls HLL values to compare against the bin
+     * @return builder for continued chaining
+     */
+    public T hllGetSimilarity(List<HLLValue> hlls) {
+        Operation op = HLLOperation.getSimilarity(binName, hlls);
+        return opBuilder.addOp(op);
+    }
+
+    // ----------------------------------------
+    // GeoJSON
+    // ----------------------------------------
+
+    /**
+     * Queues a write that sets this bin to a GeoJSONValue.
+     *
+     * @param value GeoJSON value to store
+     * @return the parent operation builder for chaining
+     */
+    public T setTo(Value.GeoJSONValue value) {
+        return opBuilder.setTo(new Bin(binName, value));
+    }
+
+    /**
+     * Queues a write that sets this bin to a GeoJSONValue.
+     *
+     * @param value GeoJSON string to store
+     * @return the parent operation builder for chaining
+     */
+    public T setToGeoJson(String value) {
+        return opBuilder.setTo(Bin.asGeoJSON(binName, value));
+    }
 }

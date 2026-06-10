@@ -21,6 +21,7 @@ import java.util.List;
 import com.aerospike.client.sdk.Value;
 import com.aerospike.client.sdk.cdt.CTX;
 import com.aerospike.client.sdk.exp.Exp;
+import com.aerospike.client.sdk.exp.Expression;
 
 public final class Pack {
     public static byte[] pack(int command, CTX... ctx) {
@@ -489,13 +490,13 @@ public final class Pack {
         return packer.getBuffer();
     }
 
-    public static byte[] pack(int command, List<Value> list, int v1, int v2, int v3, CTX... ctx) {
+    public static byte[] pack(int command, List<?> list, int v1, int v2, int v3, CTX... ctx) {
         Packer packer = new Packer();
 
         init(packer, ctx);
         packer.packArrayBegin(5);
         packer.packInt(command);
-        packer.packValueList(list);
+        packer.packList(list);
         packer.packInt(v1);
         packer.packInt(v2);
         packer.packInt(v3);
@@ -505,7 +506,7 @@ public final class Pack {
         init(packer, ctx);
         packer.packArrayBegin(5);
         packer.packInt(command);
-        packer.packValueList(list);
+        packer.packList(list);
         packer.packInt(v1);
         packer.packInt(v2);
         packer.packInt(v3);
@@ -575,6 +576,16 @@ public final class Pack {
         v2.pack(packer);
         v3.pack(packer);
         v4.pack(packer);
+
+        return packer.getBuffer();
+    }
+
+    public static byte[] pack(int command, int v1, Expression expression) {
+        Packer packer = new Packer();
+        packer.packArrayBegin(3);
+        packer.packInt(command);
+        packer.packInt(v1);
+        packer.packByteArray(expression.getBytes(), 0, expression.getBytes().length);
 
         return packer.getBuffer();
     }
@@ -775,7 +786,12 @@ public final class Pack {
 
             for (CTX c : ctx) {
                 packer.packInt(c.id);
-                c.value.pack(packer);
+                if (c.value != null) {
+                    c.value.pack(packer);
+                }
+                else {
+                    packer.packByteArray(c.exp.getBytes(), 0, c.exp.getBytes().length);
+                }
             }
         }
     }
@@ -787,7 +803,13 @@ public final class Pack {
 
         for (CTX c : ctx) {
             packer.packInt(c.id);
-            c.value.pack(packer);
+
+            if (c.value != null) {
+                c.value.pack(packer);
+            }
+            else {
+                packer.packByteArray(c.exp.getBytes(), 0, c.exp.getBytes().length);
+            }
         }
 
         packer.createBuffer();
@@ -796,7 +818,13 @@ public final class Pack {
 
         for (CTX c : ctx) {
             packer.packInt(c.id);
-            c.value.pack(packer);
+
+            if (c.value != null) {
+                c.value.pack(packer);
+            }
+            else {
+                packer.packByteArray(c.exp.getBytes(), 0, c.exp.getBytes().length);
+            }
         }
 
         return packer.getBuffer();

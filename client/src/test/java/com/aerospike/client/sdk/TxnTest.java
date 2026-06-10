@@ -30,6 +30,11 @@ import org.junit.jupiter.api.Test;
 import com.aerospike.client.sdk.command.Txn;
 import com.aerospike.client.sdk.policy.Behavior;
 
+import java.time.Duration;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+
 public class TxnTest extends ClusterTest {
     private static final String binName = "bin";
 
@@ -110,6 +115,72 @@ public class TxnTest extends ClusterTest {
         RecordStream rs = session.query(key).execute();
         Record record = rs.next().recordOrThrow();
         assertEquals("val1", record.getString(binName));
+    }
+
+    @Test
+    public void txnTransactionLevelRetryRunsLambdaOncePerAttempt() throws Exception {
+        Key key = args.set.id("txnTxnRetryLambdaCount");
+        final int expectedTxnAttempts = 3;
+
+        SystemSettings txnTuned = SystemSettings.builder()
+            .transactions(ops -> ops.numberOfAttempts(expectedTxnAttempts).sleepBetweenAttempts(Duration.ZERO))
+            .build()
+            .mergeWith(SystemSettings.DEFAULT);
+
+        Cluster contentionCluster = new ClusterDefinition(Host.parseHosts(args.host, args.port))
+            .clusterName(args.clusterName)
+            .withLogLevel(Log.Level.DEBUG)
+            .withSystemSettings(txnTuned)
+            .connect();
+
+        try {
+            Session setup = contentionCluster.createSession(Behavior.DEFAULT);
+            setup.upsert(key).bins(binName).values("seed").execute();
+
+            CountDownLatch holderReady = new CountDownLatch(1);
+            CountDownLatch releaseHolder = new CountDownLatch(1);
+
+            Thread holder = new Thread(() -> {
+                TransactionalSession ts = new TransactionalSession(contentionCluster, Behavior.DEFAULT);
+                ts.doInTransaction(txn -> {
+                    txn.upsert(key).bins(binName).values("holder").execute();
+                    holderReady.countDown();
+                    try {
+                        assertTrue(releaseHolder.await(60, TimeUnit.SECONDS));
+                    }
+                    catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        throw new AerospikeException("holder interrupted");
+                    }
+                });
+            }, "txn-holder");
+            holder.start();
+
+            assertTrue(holderReady.await(60, TimeUnit.SECONDS));
+
+            AtomicInteger lambdaEntries = new AtomicInteger();
+            TransactionalSession contender = new TransactionalSession(contentionCluster, Behavior.DEFAULT);
+
+            AerospikeException thrown = assertThrows(AerospikeException.class, () ->
+                contender.doInTransaction(txn -> {
+                    lambdaEntries.incrementAndGet();
+                    RecordStream rs = txn.upsert(key).bins(binName).values("contender").execute();
+                    rs.next().recordOrThrow();
+                })
+            );
+
+            assertEquals(ResultCode.MRT_BLOCKED, thrown.getResultCode());
+            assertEquals(
+                expectedTxnAttempts,
+                lambdaEntries.get(),
+                "lambda should run once per transaction-level attempt when MRT_BLOCKED propagates");
+
+            releaseHolder.countDown();
+            holder.join(60_000);
+        }
+        finally {
+            contentionCluster.close();
+        }
     }
 
     @Test

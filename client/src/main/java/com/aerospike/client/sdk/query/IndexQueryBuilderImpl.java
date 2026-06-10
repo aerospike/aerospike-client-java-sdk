@@ -106,13 +106,14 @@ public class IndexQueryBuilderImpl extends QueryImpl {
         Cluster cluster = session.getCluster();
         QueryBuilder qb = getQueryBuilder();
 
-        // Check for operations - not supported on index/scan queries
-        if (qb.getOperations() != null && !qb.getOperations().isEmpty()) {
+        // Check for operations - not supported on servers < 8.1.2
+        if (!cluster.supportsQueryOperations() && qb.getOperations() != null &&
+            !qb.getOperations().isEmpty()) {
             throw AerospikeException.resultCodeToException(ResultCode.OP_NOT_APPLICABLE,
-                "CDT read operations and expression operations are not currently supported on " +
-                "dataset-based queries (scans and secondary index queries). " +
-                "Use key-based queries instead: session.query(dataSet.id(key1, key2, ...))");
+                "Index query with read operations requires server version 8.1.2+. Server version is " +
+                cluster.getVersion());
         }
+
         ResolvedSettings policy = session.getBehavior().getSettings(OpKind.READ, OpShape.QUERY, Mode.ANY);
         WhereClauseProcessor where = getQueryBuilder().getAel();
         Filter filter = null;

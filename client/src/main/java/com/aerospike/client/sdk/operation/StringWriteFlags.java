@@ -17,27 +17,22 @@
 package com.aerospike.client.sdk.operation;
 
 /**
- * HyperLogLog operation policy.
+ * String operation policy write bit flags. Use BITWISE OR to combine flags. Example:
+ *
+ * <pre>{@code
+ * int flags = StringWriteFlags.NO_FAIL;
+ * }</pre>
  */
-public final class HLLPolicy {
-    /**
-     * Default HLL bin write semantics.
-     */
-    public static final HLLPolicy Default = new HLLPolicy();
+public final class StringWriteFlags {
+	/**
+	 * Default. Allow create or update.
+	 */
+	public static final int DEFAULT = 0;
 
-    public final int flags;
-
-    /**
-     * Use default {@link HLLWriteFlags} when performing {@link HLLOperation} operations.
-     */
-    public HLLPolicy() {
-        this(HLLWriteFlags.DEFAULT);
-    }
-
-    /**
-     * Use specified {@link HLLWriteFlags} when performing {@link HLLOperation} operations.
-     */
-    public HLLPolicy(int flags) {
-        this.flags = flags;
-    }
+	/**
+	 * Do not raise error if operation cannot be applied to the bin
+	 * (e.g. wrong bin type). The bin is left unchanged and a null
+	 * result is returned for that operation.
+	 */
+	public static final int NO_FAIL = 4;
 }

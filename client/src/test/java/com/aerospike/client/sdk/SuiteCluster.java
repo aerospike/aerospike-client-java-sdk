@@ -33,9 +33,11 @@ import com.aerospike.client.sdk.query.QueryExecuteTest;
 import com.aerospike.client.sdk.query.QueryFilterExpTest;
 import com.aerospike.client.sdk.query.QueryFilterSetTest;
 import com.aerospike.client.sdk.query.QueryGeoTest;
+import com.aerospike.client.sdk.query.QueryHintBuilderTest;
 import com.aerospike.client.sdk.query.QueryIndexTest;
 import com.aerospike.client.sdk.query.QueryIntegerTest;
 import com.aerospike.client.sdk.query.QueryKeyTest;
+import com.aerospike.client.sdk.query.QueryOperationsTest;
 import com.aerospike.client.sdk.query.QueryRPSTest;
 import com.aerospike.client.sdk.query.QueryStringTest;
 
@@ -46,28 +48,31 @@ import com.aerospike.client.sdk.query.QueryStringTest;
     AppendTest.class,
     BackgroundTaskTest.class,
     BatchTest.class,
-    DurableDeleteTests.class,
     BitExpTest.class,
-//  CdtExpTest.class,
-//  CdtOperateTest.class,
+    CdtExpTest.class,
+    CdtOperateComplexTest.class,
+    CdtOperateTest.class,
+    ConnectionPoolSettingsIntegrationTest.class,
     DeleteBinTest.class,
+    DurableDeleteTests.class,
     ExpireTest.class,
     ExpOperationTest.class,
     FilterExpTest.class,
     GenerationTest.class,
-//  HLLExpTest.class,
+    HLLExpTest.class,
+    KeyBusyIntegrationTest.class,
     ListExpTest.class,
     ListMapTest.class,
     MapExpTest.class,
     NodeChurnPartitionBehaviorTest.class,
-//  OperateBitTest.class,
-//  OperateHllTest.class,
-//  OperateListTest.class,
-//  OperateMapTest.class,
+//  OperateBitTest.class, // TODO Needs external api.
+    OperateHllTest.class,
+    OperateListTest.class,
+    OperateMapTest.class,
     OperateTest.class,
     OpTypeTest.class,
     PutGetTest.class,
-    QueryOperationsTest.class,
+    ReadOperationsTest.class,
     RecordStreamAdapterTest.class,
     ReplaceTest.class,
     ServerInfoTest.class,
@@ -84,9 +89,11 @@ import com.aerospike.client.sdk.query.QueryStringTest;
     QueryFilterExpTest.class,
     QueryFilterSetTest.class,
     QueryGeoTest.class,
+    QueryHintBuilderTest.class,
     QueryIndexTest.class,
     QueryIntegerTest.class,
     QueryKeyTest.class,
+    QueryOperationsTest.class,
     QueryRPSTest.class,
     QueryStringTest.class,
     QueryWithPartitionPaginationTest.class

@@ -16,9 +16,23 @@
  */
 package com.aerospike.client.sdk;
 
-import com.aerospike.client.sdk.Value.HLLValue;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-// TODO: These test require HLL support which does not exist yet.
+import java.util.ArrayList;
+import java.util.List;
+
+import org.junit.jupiter.api.Test;
+
+import com.aerospike.client.sdk.Value.HLLValue;
+import com.aerospike.client.sdk.cdt.ListReturnType;
+import com.aerospike.client.sdk.exp.Exp;
+import com.aerospike.client.sdk.exp.Expression;
+import com.aerospike.client.sdk.exp.HLLExp;
+import com.aerospike.client.sdk.exp.ListExp;
+import com.aerospike.client.sdk.operation.HLLWriteFlags;
+
 public class HLLExpTest extends ClusterTest {
     String bin1 = "hllbin_1";
     String bin2 = "hllbin_2";
@@ -26,55 +40,54 @@ public class HLLExpTest extends ClusterTest {
     HLLValue hll1;
     HLLValue hll2;
     HLLValue hll3;
-/*
+
     @Test
     public void hllExp() {
         Key key = args.set.id(5200);
 
         session.delete(key).execute();
 
-        ArrayList<Value> list1 = new ArrayList<Value>();
-        list1.add(Value.get("Akey1"));
-        list1.add(Value.get("Akey2"));
-        list1.add(Value.get("Akey3"));
+        ArrayList<String> list1 = new ArrayList<>();
+        list1.add("Akey1");
+        list1.add("Akey2");
+        list1.add("Akey3");
 
-        ArrayList<Value> list2 = new ArrayList<Value>();
-        list2.add(Value.get("Bkey1"));
-        list2.add(Value.get("Bkey2"));
-        list2.add(Value.get("Bkey3"));
+        ArrayList<String> list2 = new ArrayList<>();
+        list2.add("Bkey1");
+        list2.add("Bkey2");
+        list2.add("Bkey3");
 
-        ArrayList<Value> list3 = new ArrayList<Value>();
-        list3.add(Value.get("Akey1"));
-        list3.add(Value.get("Akey2"));
-        list3.add(Value.get("Bkey1"));
-        list3.add(Value.get("Bkey2"));
-        list3.add(Value.get("Ckey1"));
-        list3.add(Value.get("Ckey2"));
+        ArrayList<String> list3 = new ArrayList<>();
+        list3.add("Akey1");
+        list3.add("Akey2");
+        list3.add("Bkey1");
+        list3.add("Bkey2");
+        list3.add("Ckey1");
+        list3.add("Ckey2");
 
-        session.upsert(key)
-            .bin(bin1).add("genvalue2")
+        RecordStream rs = session.upsert(key)
+            .bin(bin1).hllAdd(list1, HllConfig.of(8))
+            .bin(bin2).hllAdd(list2, HllConfig.of(8))
+            .bin(bin3).hllAdd(list3, HllConfig.of(8))
+            .bin(bin1).get()
+            .bin(bin2).get()
+            .bin(bin3).get()
             .execute();
 
-        Record rec = client.operate(null, key,
-            HLLOperation.add(HLLPolicy.Default, bin1, list1, 8),
-            HLLOperation.add(HLLPolicy.Default, bin2, list2, 8),
-            HLLOperation.add(HLLPolicy.Default, bin3, list3, 8),
-            Operation.get(bin1),
-            Operation.get(bin2),
-            Operation.get(bin3)
-            );
+        assertTrue(rs.hasNext());
+        Record rec = rs.getFirstRecord();
 
         List<?> results = rec.getList(bin1);
         hll1 = (HLLValue)results.get(1);
-        assertNotEquals(null, hll1);
+        assertNotNull(hll1);
 
         results = rec.getList(bin2);
         hll2 = (HLLValue)results.get(1);
-        assertNotEquals(null, hll2);
+        assertNotNull(hll2);
 
         results = rec.getList(bin3);
         hll3 = (HLLValue)results.get(1);
-        assertNotEquals(null, hll3);
+        assertNotNull(hll3);
 
         count(key);
         union(key);
@@ -86,13 +99,24 @@ public class HLLExpTest extends ClusterTest {
     }
 
     private void count(Key key) {
-        policy.filterExp = Exp.build(Exp.eq(HLLExp.getCount(Exp.hllBin(bin1)), Exp.val(0)));
-        Record r = client.get(policy, key);
-        assertEquals(null, r);
+        // TODO: Test AEL string in addition to Expression.
+        Expression exp  = Exp.build(Exp.eq(HLLExp.getCount(Exp.hllBin(bin1)), Exp.val(0)));
 
-        policy.filterExp = Exp.build(Exp.gt(HLLExp.getCount(Exp.hllBin(bin1)), Exp.val(0)));
-        r = client.get(policy, key);
-        assertRecordFound(key, r);
+        RecordStream rs = session.query(key)
+            .where(exp)
+            .execute();
+
+        assertFalse(rs.hasNext());
+
+        exp  = Exp.build(Exp.gt(HLLExp.getCount(Exp.hllBin(bin1)), Exp.val(0)));
+
+        rs = session.query(key)
+            .where(exp)
+            .execute();
+
+        assertTrue(rs.hasNext());
+        Record r = rs.getFirstRecord();
+        assertNotNull(r);
     }
 
     private void union(Key key) {
@@ -101,21 +125,29 @@ public class HLLExpTest extends ClusterTest {
         hlls.add(hll2);
         hlls.add(hll3);
 
-        policy.filterExp = Exp.build(
+        Expression exp  = Exp.build(
             Exp.ne(
                 HLLExp.getCount(HLLExp.getUnion(Exp.val(hlls), Exp.hllBin(bin1))),
                 HLLExp.getUnionCount(Exp.val(hlls), Exp.hllBin(bin1))));
 
-        Record r = client.get(policy, key);
-        assertEquals(null, r);
+        RecordStream rs = session.query(key)
+            .where(exp)
+            .execute();
 
-        policy.filterExp = Exp.build(
+        assertFalse(rs.hasNext());
+
+        exp  = Exp.build(
             Exp.eq(
                 HLLExp.getCount(HLLExp.getUnion(Exp.val(hlls), Exp.hllBin(bin1))),
                 HLLExp.getUnionCount(Exp.val(hlls), Exp.hllBin(bin1))));
 
-        r = client.get(policy, key);
-        assertRecordFound(key, r);
+        rs = session.query(key)
+            .where(exp)
+            .execute();
+
+        assertTrue(rs.hasNext());
+        Record r = rs.getFirstRecord();
+        assertNotNull(r);
     }
 
     private void intersect(Key key) {
@@ -125,21 +157,29 @@ public class HLLExpTest extends ClusterTest {
         ArrayList<HLLValue> hlls3 = new ArrayList<HLLValue>();
         hlls3.add(hll3);
 
-        policy.filterExp = Exp.build(
+        Expression exp  = Exp.build(
             Exp.ge(
                 HLLExp.getIntersectCount(Exp.val(hlls2), Exp.hllBin(bin1)),
                 HLLExp.getIntersectCount(Exp.val(hlls3), Exp.hllBin(bin1))));
 
-        Record r = client.get(policy, key);
-        assertEquals(null, r);
+        RecordStream rs = session.query(key)
+            .where(exp)
+            .execute();
 
-        policy.filterExp = Exp.build(
+        assertFalse(rs.hasNext());
+
+        exp  = Exp.build(
             Exp.le(
                 HLLExp.getIntersectCount(Exp.val(hlls2), Exp.hllBin(bin1)),
                 HLLExp.getIntersectCount(Exp.val(hlls3), Exp.hllBin(bin1))));
 
-        r = client.get(policy, key);
-        assertRecordFound(key, r);
+        rs = session.query(key)
+            .where(exp)
+            .execute();
+
+        assertTrue(rs.hasNext());
+        Record r = rs.getFirstRecord();
+        assertNotNull(r);
     }
 
     private void similarity(Key key) {
@@ -149,85 +189,116 @@ public class HLLExpTest extends ClusterTest {
         ArrayList<HLLValue> hlls3 = new ArrayList<HLLValue>();
         hlls3.add(hll3);
 
-        policy.filterExp = Exp.build(
+        Expression exp  = Exp.build(
             Exp.ge(
                 HLLExp.getSimilarity(Exp.val(hlls2), Exp.hllBin(bin1)),
                 HLLExp.getSimilarity(Exp.val(hlls3), Exp.hllBin(bin1))));
 
-        Record r = client.get(policy, key);
-        assertEquals(null, r);
+        RecordStream rs = session.query(key)
+            .where(exp)
+            .execute();
 
-        policy.filterExp = Exp.build(
+        assertFalse(rs.hasNext());
+
+        exp  = Exp.build(
             Exp.le(
                 HLLExp.getSimilarity(Exp.val(hlls2), Exp.hllBin(bin1)),
                 HLLExp.getSimilarity(Exp.val(hlls3), Exp.hllBin(bin1))));
 
-        r = client.get(policy, key);
-        assertRecordFound(key, r);
+        rs = session.query(key)
+            .where(exp)
+            .execute();
+
+        assertTrue(rs.hasNext());
+        Record r = rs.getFirstRecord();
+        assertNotNull(r);
     }
 
     private void describe(Key key) {
         Exp index = Exp.val(0);
 
-        policy.filterExp = Exp.build(
+        Expression exp  = Exp.build(
             Exp.ne(
                 ListExp.getByIndex(ListReturnType.VALUE, Exp.Type.INT, index,
                     HLLExp.describe(Exp.hllBin(bin1))),
                 ListExp.getByIndex(ListReturnType.VALUE, Exp.Type.INT, index,
                     HLLExp.describe(Exp.hllBin(bin2)))));
 
-        Record r = client.get(policy, key);
-        assertEquals(null, r);
+        RecordStream rs = session.query(key)
+            .where(exp)
+            .execute();
 
-        policy.filterExp = Exp.build(
+        assertFalse(rs.hasNext());
+
+        exp  = Exp.build(
             Exp.eq(
                 ListExp.getByIndex(ListReturnType.VALUE, Exp.Type.INT, index,
                     HLLExp.describe(Exp.hllBin(bin1))),
                 ListExp.getByIndex(ListReturnType.VALUE, Exp.Type.INT, index,
                     HLLExp.describe(Exp.hllBin(bin2)))));
 
-        r = client.get(policy, key);
-        assertRecordFound(key, r);
+        rs = session.query(key)
+            .where(exp)
+            .execute();
+
+        assertTrue(rs.hasNext());
+        Record r = rs.getFirstRecord();
+        assertNotNull(r);
     }
 
     private void mayContain(Key key) {
         ArrayList<Value> values = new ArrayList<Value>();
         values.add(Value.get("new_val"));
 
-        policy.filterExp = Exp.build(
+        Expression exp = Exp.build(
             Exp.eq(HLLExp.mayContain(Exp.val(values), Exp.hllBin(bin2)), Exp.val(1))
             );
 
-        Record r = client.get(policy, key);
-        assertEquals(null, r);
+        RecordStream rs = session.query(key)
+            .where(exp)
+            .execute();
 
-        policy.filterExp = Exp.build(
+        assertFalse(rs.hasNext());
+
+        exp = Exp.build(
             Exp.ne(HLLExp.mayContain(Exp.val(values), Exp.hllBin(bin2)), Exp.val(1))
             );
 
-        r = client.get(policy, key);
-        assertRecordFound(key, r);
+        rs = session.query(key)
+            .where(exp)
+            .execute();
+
+        assertTrue(rs.hasNext());
+        Record r = rs.getFirstRecord();
+        assertNotNull(r);
     }
 
     private void add(Key key) {
         ArrayList<Value> values = new ArrayList<Value>();
         values.add(Value.get("new_val"));
 
-        policy.filterExp = Exp.build(
+        Expression exp = Exp.build(
             Exp.eq(
                 HLLExp.getCount(Exp.hllBin(bin1)),
-                HLLExp.getCount(HLLExp.add(HLLPolicy.Default, Exp.val(values), Exp.hllBin(bin2)))));
+                HLLExp.getCount(HLLExp.add(HLLWriteFlags.DEFAULT, Exp.val(values), Exp.hllBin(bin2)))));
 
-        Record r = client.get(policy, key);
-        assertEquals(null, r);
+        RecordStream rs = session.query(key)
+            .where(exp)
+            .execute();
 
-        policy.filterExp = Exp.build(
+        assertFalse(rs.hasNext());
+
+        exp = Exp.build(
             Exp.lt(
                 HLLExp.getCount(Exp.hllBin(bin1)),
-                HLLExp.getCount(HLLExp.add(HLLPolicy.Default, Exp.val(values), Exp.hllBin(bin2)))));
+                HLLExp.getCount(HLLExp.add(HLLWriteFlags.DEFAULT, Exp.val(values), Exp.hllBin(bin2)))));
 
-        r = client.get(policy, key);
-        assertRecordFound(key, r);
+        rs = session.query(key)
+            .where(exp)
+            .execute();
+
+        assertTrue(rs.hasNext());
+        Record r = rs.getFirstRecord();
+        assertNotNull(r);
     }
-    */
 }

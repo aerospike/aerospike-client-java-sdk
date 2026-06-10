@@ -17,6 +17,21 @@ It is aimed at maintainers and advanced users. Implementation details live in `O
 
 ---
 
+## Namespace: strong-consistency-allow-expunge (SC, Enterprise)
+
+This is a **server** namespace setting. It does **not** change how the Java client sets `INFO2_DURABLE_DELETE`; it changes whether the server accepts a delete **without** that bit (an **expunge**-style delete on SC).
+
+| Value | Server expectation for non-durable deletes on SC |
+|--------|---------------------------------------------------|
+| **`false`** | Non-durable deletes are **not** allowed for that namespace policy; the server may return **`FAIL_FORBIDDEN` (22)** (see [error codes](https://aerospike.com/docs/database/reference/error-codes)). Callers should use **durable delete** when they need deletes to succeed. |
+| **`true`** | Non-durable deletes are **explicitly allowed** as a supported configuration when operators accept expunge semantics on SC (see [Strong consistency](https://aerospike.com/docs/database/learn/strong-consistency/) and [Retention / durable vs expunge](https://aerospike.com/docs/database/manage/namespace/retention/)). |
+
+If the key is **missing** from `namespace/<name>` info (older builds or tooling), tests in this repo treat it like **`false`** when branching (`Boolean.TRUE.equals(...)` only treats literal **`true`** as permissive).
+
+**Integration tests:** `Args.setServerSpecific` stores the parsed value in **`Args.strongConsistencyAllowExpunge`**. `DurableDeleteTests` uses it to assert **`FAIL_FORBIDDEN` + record still present** vs **`OK` + record removed** for the same fluent **`withoutDurableDelete()`** batch path—no duplicate “policy” assumptions beyond SC + Enterprise.
+
+---
+
 ## Explicit user (or policy) control
 
 These are the knobs that express **intention** before any SC-specific overrides are applied.
@@ -61,7 +76,7 @@ If none of these are called, the spec’s durable flag stays **`null`** (no expl
 
 For **operate** / **`deleteRecord()`** and **single-key `WriteCommand` deletes**, **`spec.getDurablyDelete()`** is passed as a **`Boolean` override** into **`OperateWriteCommand` / `WriteCommand`** when non-null (including after **`ChainableOperationBuilder`** copies **`withDurableDelete()`** into the spec in **`prepareSpecs()`**), avoiding a **`Settings`** copy.
 
-On **SC** namespaces that disallow non-durable deletes, callers must set durable delete explicitly (or via **behavior** / YAML) or the server may return **`FAIL_FORBIDDEN` (22)**.
+On **SC** namespaces with **`strong-consistency-allow-expunge false`**, callers must set durable delete explicitly (or via **behavior** / YAML) or the server may return **`FAIL_FORBIDDEN` (22)**. See [Namespace: strong-consistency-allow-expunge (SC, Enterprise)](#namespace-strong-consistency-allow-expunge-sc-enterprise) above.
 
 ---
 

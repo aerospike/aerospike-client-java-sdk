@@ -24,6 +24,7 @@ import java.util.concurrent.TimeUnit;
 
 import com.aerospike.ael.Index;
 import com.aerospike.client.sdk.query.IndexType;
+import com.aerospike.client.sdk.util.Util;
 
 /**
  * Monitors secondary indexes in an Aerospike cluster and maintains an up-to-date
@@ -121,16 +122,21 @@ class IndexesMonitor {
                         Set<Index> indexes = new HashSet<>();
                         session.info().secondaryIndexes(false).stream()
                             .forEach(sindex -> {
-                                session.info().secondaryIndexDetails(sindex, false).ifPresent(details -> {
-                                   indexes.add(Index.builder()
-                                               .namespace(sindex.getNamespace())
-                                               .setName(sindex.getSet())
-                                               .bin(sindex.getBin())
-                                               .indexType(IndexType.valueOf(sindex.getType().name()))
-                                               .name(sindex.getIndexName())
-                                               .binValuesRatio((int)details.getEntriesPerBval())
-                                           .build());
-                                });
+                                // TODO What should be done with set indexes that have a null IndexType.
+                                IndexType type = sindex.getType();
+
+                                if (type != null) {
+                                    session.info().secondaryIndexDetails(sindex, false).ifPresent(details -> {
+                                       indexes.add(Index.builder()
+                                                   .namespace(sindex.getNamespace())
+                                                   .setName(sindex.getSet())
+                                                   .bin(sindex.getBin())
+                                                   .indexType(IndexType.valueOf(type.name()))
+                                                   .name(sindex.getIndexName())
+                                                   .binValuesRatio((int)details.getEntriesPerBval())
+                                               .build());
+                                    });
+                                }
                             });
 
                         this.setIndexes(indexes);
@@ -142,7 +148,7 @@ class IndexesMonitor {
                         break;
                     }
                     catch (Throwable th) {
-                        Log.error("Error updating index information: " + th.getMessage());
+                        Log.error("Error updating index information: " + Util.getErrorMessage(th));
                         initialFetchLatch.countDown();
                         try {
                             Thread.sleep(frequency.toMillis());

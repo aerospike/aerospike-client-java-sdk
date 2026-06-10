@@ -20,6 +20,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
 
+import com.aerospike.client.sdk.CdtGetOrRemoveBuilder.CdtOperation;
 import com.aerospike.client.sdk.CdtOperationAcceptor;
 import com.aerospike.client.sdk.CdtOperationParams;
 import com.aerospike.client.sdk.CdtReadActionInvertableBuilder;
@@ -29,15 +30,18 @@ import com.aerospike.client.sdk.CdtReadOnlyBuilder;
 import com.aerospike.client.sdk.ExpressionOpHelper;
 import com.aerospike.client.sdk.ExpressionReadOptions;
 import com.aerospike.client.sdk.Operation;
+import com.aerospike.client.sdk.QueryBinBuilder;
 import com.aerospike.client.sdk.Value;
-import com.aerospike.client.sdk.CdtGetOrRemoveBuilder.CdtOperation;
+import com.aerospike.client.sdk.Value.HLLValue;
 import com.aerospike.client.sdk.ael.BooleanExpression;
 import com.aerospike.client.sdk.cdt.ListOperation;
 import com.aerospike.client.sdk.cdt.ListOrder;
 import com.aerospike.client.sdk.cdt.MapOperation;
+import com.aerospike.client.sdk.cdt.path.CdtPathExpressionAel;
 import com.aerospike.client.sdk.exp.Exp;
 import com.aerospike.client.sdk.exp.ExpReadFlags;
 import com.aerospike.client.sdk.exp.Expression;
+import com.aerospike.client.sdk.operation.HLLOperation;
 
 /**
  * Builder for bin-level read operations in QueryBuilder contexts.
@@ -166,7 +170,23 @@ public class QueryBuilderBinBuilder implements CdtOperationAcceptor<QueryBuilder
     public QueryBuilder selectFrom(String ael, Consumer<ExpressionReadOptions> options) {
         ExpressionReadOptions opts = new ExpressionReadOptions();
         options.accept(opts);
-        queryBuilder.addOperation(ExpressionOpHelper.createReadOp(binName, ael, opts.getFlags()));
+        return selectFrom(ael, opts);
+    }
+
+    /**
+     * Create a read expression from an AEL string with pre-built options.
+     *
+     * <p>This is the direct-options overload of {@link #selectFrom(String, Consumer)}. Use it
+     * when read options have already been built (for example shared across many bins) rather
+     * than configured via a lambda.</p>
+     *
+     * @param ael     the AEL expression string
+     * @param options the read options to apply (e.g. configured via
+     *                {@link ExpressionReadOptions#ignoreEvalFailure()})
+     * @return the parent query builder for continued chaining
+     */
+    public QueryBuilder selectFrom(String ael, ExpressionReadOptions options) {
+        queryBuilder.addOperation(ExpressionOpHelper.createReadOp(binName, ael, options.getFlags()));
         return queryBuilder;
     }
 
@@ -180,7 +200,20 @@ public class QueryBuilderBinBuilder implements CdtOperationAcceptor<QueryBuilder
     public QueryBuilder selectFrom(BooleanExpression ael, Consumer<ExpressionReadOptions> options) {
         ExpressionReadOptions opts = new ExpressionReadOptions();
         options.accept(opts);
-        queryBuilder.addOperation(ExpressionOpHelper.createReadOp(binName, ael, opts.getFlags()));
+        return selectFrom(ael, opts);
+    }
+
+    /**
+     * Create a read expression from a {@link BooleanExpression} with pre-built options.
+     *
+     * <p>This is the direct-options overload of {@link #selectFrom(BooleanExpression, Consumer)}.</p>
+     *
+     * @param ael     the boolean expression to evaluate
+     * @param options the read options to apply
+     * @return the parent query builder for continued chaining
+     */
+    public QueryBuilder selectFrom(BooleanExpression ael, ExpressionReadOptions options) {
+        queryBuilder.addOperation(ExpressionOpHelper.createReadOp(binName, ael, options.getFlags()));
         return queryBuilder;
     }
 
@@ -194,7 +227,23 @@ public class QueryBuilderBinBuilder implements CdtOperationAcceptor<QueryBuilder
     public QueryBuilder selectFrom(PreparedAel ael, Consumer<ExpressionReadOptions> options, Object... params) {
         ExpressionReadOptions opts = new ExpressionReadOptions();
         options.accept(opts);
-        queryBuilder.addOperation(ExpressionOpHelper.createReadOp(binName, ael, params, opts.getFlags()));
+        return selectFrom(ael, opts, params);
+    }
+
+    /**
+     * Create a read expression from a {@link PreparedAel} with pre-built options and bound
+     * parameters.
+     *
+     * <p>This is the direct-options overload of
+     * {@link #selectFrom(PreparedAel, Consumer, Object...)}.</p>
+     *
+     * @param ael     the prepared AEL statement
+     * @param options the read options to apply
+     * @param params  parameter values to bind to the prepared statement
+     * @return the parent query builder for continued chaining
+     */
+    public QueryBuilder selectFrom(PreparedAel ael, ExpressionReadOptions options, Object... params) {
+        queryBuilder.addOperation(ExpressionOpHelper.createReadOp(binName, ael, params, options.getFlags()));
         return queryBuilder;
     }
 
@@ -208,7 +257,20 @@ public class QueryBuilderBinBuilder implements CdtOperationAcceptor<QueryBuilder
     public QueryBuilder selectFrom(Exp exp, Consumer<ExpressionReadOptions> options) {
         ExpressionReadOptions opts = new ExpressionReadOptions();
         options.accept(opts);
-        queryBuilder.addOperation(ExpressionOpHelper.createReadOp(binName, exp, opts.getFlags()));
+        return selectFrom(exp, opts);
+    }
+
+    /**
+     * Create a read expression from a low-level {@link Exp} expression with pre-built options.
+     *
+     * <p>This is the direct-options overload of {@link #selectFrom(Exp, Consumer)}.</p>
+     *
+     * @param exp     the Exp expression to evaluate
+     * @param options the read options to apply
+     * @return the parent query builder for continued chaining
+     */
+    public QueryBuilder selectFrom(Exp exp, ExpressionReadOptions options) {
+        queryBuilder.addOperation(ExpressionOpHelper.createReadOp(binName, exp, options.getFlags()));
         return queryBuilder;
     }
 
@@ -222,7 +284,20 @@ public class QueryBuilderBinBuilder implements CdtOperationAcceptor<QueryBuilder
     public QueryBuilder selectFrom(Expression exp, Consumer<ExpressionReadOptions> options) {
         ExpressionReadOptions opts = new ExpressionReadOptions();
         options.accept(opts);
-        queryBuilder.addOperation(ExpressionOpHelper.createReadOp(binName, exp, opts.getFlags()));
+        return selectFrom(exp, opts);
+    }
+
+    /**
+     * Create a read expression from a pre-compiled {@link Expression} with pre-built options.
+     *
+     * <p>This is the direct-options overload of {@link #selectFrom(Expression, Consumer)}.</p>
+     *
+     * @param exp     the compiled expression to evaluate
+     * @param options the read options to apply
+     * @return the parent query builder for continued chaining
+     */
+    public QueryBuilder selectFrom(Expression exp, ExpressionReadOptions options) {
+        queryBuilder.addOperation(ExpressionOpHelper.createReadOp(binName, exp, options.getFlags()));
         return queryBuilder;
     }
 
@@ -231,6 +306,61 @@ public class QueryBuilderBinBuilder implements CdtOperationAcceptor<QueryBuilder
     // Note: Not currently supported by server for dataset queries (scan/index).
     // API included for future support. Will throw at execution time if used.
     // ========================================
+
+    /**
+     * Begin path iteration at this query projection bin's root ({@link com.aerospike.client.sdk.cdt.CTX#allChildren()}).
+     *
+     * <p><b>Server note:</b> dataset queries (scan / secondary-index) may not support nested CDT reads yet;
+     * unsupported combinations fail at execution time. Same API shape as {@link QueryBinBuilder#onEachChild()}.</p>
+     *
+     * <p><b>Example</b>:</p>
+     * <pre>{@code
+     * session.query(key).bin("nums").onEachChild().collectValues().execute();
+     * }</pre>
+     *
+     * @return read-only CDT path builder rooted at this bin
+     * @see CdtReadContextBuilder#onEachChild()
+     */
+    public CdtReadContextBuilder<QueryBuilder> onEachChild() {
+        return new CdtReadOnlyBuilder<>(binName, this, CdtOperationParams.forEachChildAtBinRoot());
+    }
+
+    /**
+     * Same as {@link #onEachChild()} with a per-child filter
+     * ({@link com.aerospike.client.sdk.cdt.CTX#allChildrenWithFilter(com.aerospike.client.sdk.exp.Exp)}).
+     *
+     * @param filter server-side predicate for each child at the bin root
+     * @return read-only CDT path builder for this bin
+     * @see CdtReadContextBuilder#onEachChild(Exp)
+     */
+    public CdtReadContextBuilder<QueryBuilder> onEachChild(Exp filter) {
+        return new CdtReadOnlyBuilder<>(binName, this, CdtOperationParams.forEachChildAtBinRootWithFilter(filter));
+    }
+
+    /**
+     * Same as {@link #onEachChild(Exp)} with AEL filter text (not yet supported for path fragments).
+     *
+     * @param ael AEL predicate
+     * @return read-only path builder (unreachable until supported)
+     * @throws UnsupportedOperationException until path-scoped AEL compiles
+     */
+    public CdtReadContextBuilder<QueryBuilder> onEachChild(String ael) {
+        CdtPathExpressionAel.throwAelNotSupported();
+        throw new AssertionError("unreachable");
+    }
+
+    /**
+     * Same as {@link #onEachChild(String)} with {@link PreparedAel} bind parameters.
+     *
+     * @param ael prepared AEL template
+     * @param bindParams bind values
+     * @return read-only path builder (unreachable until supported)
+     * @throws UnsupportedOperationException until path-scoped AEL compiles
+     */
+    public CdtReadContextBuilder<QueryBuilder> onEachChild(PreparedAel ael, Object... bindParams) {
+        CdtPathExpressionAel.throwPreparedAelNotSupported(ael, bindParams);
+        throw new AssertionError("unreachable");
+    }
 
     /**
      * Navigate to a map element by index.
@@ -437,5 +567,105 @@ public class QueryBuilderBinBuilder implements CdtOperationAcceptor<QueryBuilder
     /** Navigate to list elements by value. */
     public CdtReadContextInvertableBuilder<QueryBuilder> onListValue(byte[] value) {
         return new CdtReadOnlyBuilder<>(binName, this, new CdtOperationParams(CdtOperation.LIST_BY_VALUE, Value.get(value)));
+    }
+
+    // ----------------------------------------
+    // HyperLogLog (HLL)
+    // ----------------------------------------
+
+    /**
+     * Read the estimated cardinality of the HLL bin.
+     *
+     * <p>Server returns the estimated number of unique elements in the bin
+     * as a long.</p>
+     *
+     * @return the query builder for method chaining
+     */
+    public QueryBuilder hllGetCount() {
+        Operation op = HLLOperation.getCount(binName);
+        queryBuilder.addOperation(op);
+        return queryBuilder;
+    }
+
+    /**
+     * Describe the HLL bin's configuration.
+     *
+     * <p>Server returns a list of two longs containing the {@code indexBitCount}
+     * and {@code minHashBitCount} that were used to create the bin.</p>
+     *
+     * @return the query builder for method chaining
+     */
+    public QueryBuilder hllDescribe() {
+        Operation op = HLLOperation.describe(binName);
+        queryBuilder.addOperation(op);
+        return queryBuilder;
+    }
+
+    /**
+     * Read the union of the HLL bin with the supplied HLL values.
+     *
+     * <p>Server returns an HLL value that is the union of {@code hlls} together
+     * with the bin's current contents. The bin itself is not modified.</p>
+     *
+     * @param hlls HLL values to union with the bin
+     * @return the query builder for method chaining
+     */
+    public QueryBuilder hllGetUnion(List<HLLValue> hlls) {
+        Operation op = HLLOperation.getUnion(binName, hlls);
+        queryBuilder.addOperation(op);
+        return queryBuilder;
+    }
+
+    /**
+     * Read the estimated count of the union of the HLL bin with the supplied
+     * HLL values.
+     *
+     * <p>Server returns the estimated number of unique elements in the union
+     * of {@code hlls} with the bin's current contents. The bin itself is not
+     * modified.</p>
+     *
+     * @param hlls HLL values to union with the bin
+     * @return the query builder for method chaining
+     */
+    public QueryBuilder hllGetUnionCount(List<HLLValue> hlls) {
+        Operation op = HLLOperation.getUnionCount(binName, hlls);
+        queryBuilder.addOperation(op);
+        return queryBuilder;
+    }
+
+    /**
+     * Read the estimated count of the intersection of the HLL bin with the
+     * supplied HLL values.
+     *
+     * <p>Server returns the estimated number of elements contained in the
+     * intersection of {@code hlls} with the bin. The {@code hlls} list may
+     * contain at most two values when minhash bits are 0; more are allowed
+     * when minhash bits are nonzero.</p>
+     *
+     * @param hlls HLL values to intersect with the bin
+     * @return the query builder for method chaining
+     */
+    public QueryBuilder hllGetIntersectCount(List<HLLValue> hlls) {
+        Operation op = HLLOperation.getIntersectCount(binName, hlls);
+        queryBuilder.addOperation(op);
+        return queryBuilder;
+    }
+
+    /**
+     * Read the estimated Jaccard similarity of the HLL bin with the supplied
+     * HLL values.
+     *
+     * <p>Server returns a double in {@code [0.0, 1.0]} estimating the
+     * similarity of the bin to {@code hlls}. The {@code hlls} list may
+     * contain at most two values when minhash bits are 0; more are allowed
+     * when minhash bits are nonzero.</p>
+     *
+     * @param hlls HLL values to compare against the bin
+     * @return the query builder for method chaining
+     */
+    public QueryBuilder hllGetSimilarity(List<HLLValue> hlls) {
+        Operation op = HLLOperation.getSimilarity(binName, hlls);
+        queryBuilder.addOperation(op);
+        return queryBuilder;
     }
 }

@@ -62,11 +62,6 @@ public final class ResultCode {
     public static final int SERIALIZE_ERROR = -10;
 
     /**
-     * Async delay queue is full.
-     */
-    public static final int ASYNC_QUEUE_FULL = -9;
-
-    /**
      * Connection to server failed.
      */
     public static final int SERVER_NOT_AVAILABLE = -8;
@@ -539,9 +534,6 @@ public final class ResultCode {
 
         case SERIALIZE_ERROR:
             return "Serialize error";
-
-        case ASYNC_QUEUE_FULL:
-            return "Async delay queue is full";
 
         case SERVER_NOT_AVAILABLE:
             return "Connection to server failed";

@@ -21,7 +21,6 @@ import java.util.List;
 
 import com.aerospike.ael.ParseResult;
 import com.aerospike.client.sdk.command.BatchRecord;
-import com.aerospike.client.sdk.exp.Exp;
 import com.aerospike.client.sdk.exp.Expression;
 import com.aerospike.client.sdk.policy.ResolvedSettings;
 import com.aerospike.client.sdk.query.WhereClauseProcessor;
@@ -64,7 +63,7 @@ public abstract class AbstractFilterableBuilder {
             return null;
         }
         ParseResult parseResult = this.ael.process(namespace, querySet, session);
-        return Exp.build(parseResult.getExp());
+        return parseResult.getExpression();
     }
 
     /**
