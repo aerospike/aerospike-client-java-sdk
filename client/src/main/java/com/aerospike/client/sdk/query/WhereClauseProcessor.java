@@ -153,7 +153,7 @@ public abstract class WhereClauseProcessor {
         String querySet,
         Session session
     ) {
-        if (!allowsIndex && session.getCluster().supportsServerCompiledFilterExpression()) {
+        if (!allowsIndex && session.getCluster().supportsAel()) {
             return serverCompiledFilterResult(dslSource);
         }
         return process(dslSource, namespace, querySet, session);

@@ -76,7 +76,7 @@ public final class Expression implements Serializable {
      * Build filter-expression bytes for {@linkplain com.aerospike.client.sdk.command.FieldType#FILTER_EXP field 43} when the server
      * should parse/compile textual AEL.
      *
-     * @see com.aerospike.client.sdk.Cluster#supportsServerCompiledFilterExpression()
+     * @see com.aerospike.client.sdk.Cluster#supportsAel()
      *
      * @param aelString AEL string (UTF-8)
      */

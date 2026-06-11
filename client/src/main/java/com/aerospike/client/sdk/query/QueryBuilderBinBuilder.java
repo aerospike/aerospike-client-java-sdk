@@ -77,6 +77,10 @@ public class QueryBuilderBinBuilder implements CdtOperationAcceptor<QueryBuilder
         this.binName = binName;
     }
 
+    private boolean serverCompiledAel() {
+        return queryBuilder.getSession().getCluster().supportsAel();
+    }
+
     // ========================================
     // CdtOperationAcceptor implementation
     // ========================================
@@ -162,7 +166,7 @@ public class QueryBuilderBinBuilder implements CdtOperationAcceptor<QueryBuilder
 
     /** Create a read expression from a AEL string. */
     public QueryBuilder selectFrom(String ael) {
-        queryBuilder.addOperation(ExpressionOpHelper.createReadOp(binName, ael, ExpReadFlags.DEFAULT));
+        queryBuilder.addOperation(ExpressionOpHelper.createReadOp(binName, ael, ExpReadFlags.DEFAULT, serverCompiledAel()));
         return queryBuilder;
     }
 
@@ -186,7 +190,7 @@ public class QueryBuilderBinBuilder implements CdtOperationAcceptor<QueryBuilder
      * @return the parent query builder for continued chaining
      */
     public QueryBuilder selectFrom(String ael, ExpressionReadOptions options) {
-        queryBuilder.addOperation(ExpressionOpHelper.createReadOp(binName, ael, options.getFlags()));
+        queryBuilder.addOperation(ExpressionOpHelper.createReadOp(binName, ael, options.getFlags(), serverCompiledAel()));
         return queryBuilder;
     }
 
@@ -219,7 +223,7 @@ public class QueryBuilderBinBuilder implements CdtOperationAcceptor<QueryBuilder
 
     /** Create a read expression from a PreparedAel. */
     public QueryBuilder selectFrom(PreparedAel ael, Object... params) {
-        queryBuilder.addOperation(ExpressionOpHelper.createReadOp(binName, ael, params, ExpReadFlags.DEFAULT));
+        queryBuilder.addOperation(ExpressionOpHelper.createReadOp(binName, ael, params, ExpReadFlags.DEFAULT, serverCompiledAel()));
         return queryBuilder;
     }
 
@@ -243,7 +247,7 @@ public class QueryBuilderBinBuilder implements CdtOperationAcceptor<QueryBuilder
      * @return the parent query builder for continued chaining
      */
     public QueryBuilder selectFrom(PreparedAel ael, ExpressionReadOptions options, Object... params) {
-        queryBuilder.addOperation(ExpressionOpHelper.createReadOp(binName, ael, params, options.getFlags()));
+        queryBuilder.addOperation(ExpressionOpHelper.createReadOp(binName, ael, params, options.getFlags(), serverCompiledAel()));
         return queryBuilder;
     }
 

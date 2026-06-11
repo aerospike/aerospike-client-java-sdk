@@ -102,6 +102,9 @@ public class QueryBuilder extends AbstractFilterableBuilder implements
         this.txnToUse = session.getCurrentTransaction();
     }
 
+    Session getSession() {
+        return implementation.getSession();
+    }
 
     /**
      * Checks if a key falls within the current partition range.

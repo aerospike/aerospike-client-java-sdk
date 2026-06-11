@@ -45,7 +45,7 @@ public class MapExpTest extends ClusterTest {
             .execute();
 
         // Expression where = Exp.build(Exp.eq(Exp.mapBin(binName), Exp.val(map)));
-        String where = "$." + binName + ".get(type: MAP) == {'key1': 'e', 'key2': 'd', 'key3': 'c', 'key4': 'b', 'key5': 'a'}";
+        String where = "$." + binName + ":MAP == {'key1': 'e', 'key2': 'd', 'key3': 'c', 'key4': 'b', 'key5': 'a'}";
 
         RecordStream rs = session.query(key)
             .readingOnlyBins(binName)
