@@ -471,7 +471,7 @@ public class FilterExpTest extends ClusterTest {
                     Exp.le(Exp.var(name), Exp.val(3.3001))));
 
         testExp(exp);
-        testAel("let(x = $.B.get(type: FLOAT) + 1.1) then(${x} >= 3.2999 and ${x} <= 3.3001)");
+        testAel("let(x = $.B:FLOAT + 1.1) then(${x} >= 3.2999 and ${x} <= 3.3001)");
     }
 
     @Test
@@ -518,7 +518,7 @@ public class FilterExpTest extends ClusterTest {
                     Exp.le(Exp.var(name), Exp.val(4.8401))));
 
         testExp(exp);
-        testAel("let (x = $." + binB + ".get(type: FLOAT) ** 2.0) then (${x} >= 4.8399 and ${x} <= 4.8401)");
+        testAel("let (x = $." + binB + ":FLOAT ** 2.0) then (${x} >= 4.8399 and ${x} <= 4.8401)");
     }
 
     @Test
@@ -532,7 +532,7 @@ public class FilterExpTest extends ClusterTest {
                     Exp.le(Exp.var(name), Exp.val(1.1376))));
 
         testExp(exp);
-        testAel("let (x = log($." + binB + ".get(type: FLOAT), 2.0)) then (${x} >= 1.1374 and ${x} <= 1.1376)");
+        testAel("let (x = log($." + binB + ":FLOAT, 2.0)) then (${x} >= 1.1374 and ${x} <= 1.1376)");
     }
 
     @Test
@@ -565,7 +565,7 @@ public class FilterExpTest extends ClusterTest {
                 Exp.val(2.0));
 
         testExp(exp);
-        testAel("floor($." + binB + ".get(type: FLOAT)) == 2.0");
+        testAel("floor($." + binB + ":FLOAT) == 2.0");
     }
 
     @Test
@@ -576,7 +576,7 @@ public class FilterExpTest extends ClusterTest {
                 Exp.val(3.0));
 
         testExp(exp);
-        testAel("ceil($." + binB + ".get(type: FLOAT)) == 3.0");
+        testAel("ceil($." + binB + ":FLOAT) == 3.0");
     }
 
     @Test
@@ -851,9 +851,9 @@ public class FilterExpTest extends ClusterTest {
                 Exp.val(2));
 
         testExps(exp1, exp2);
-        testAels("when($." + binA + " == 0 => $." + binD + " + $." + binE +
-                    ", $." + binA + " == 1 => $." + binD + " - $." + binE +
-                    ", $." + binA + " == 2 => $." + binD + " * $." + binE +
+        testAels("when($." + binA + ":INT == 0 => $." + binD + ":INT + $." + binE + ":INT" +
+                    ", $." + binA + ":INT == 1 => $." + binD + ":INT - $." + binE + ":INT" +
+                    ", $." + binA + ":INT == 2 => $." + binD + ":INT * $." + binE + ":INT" +
                     ", default => -1) == 2");
     }
 
