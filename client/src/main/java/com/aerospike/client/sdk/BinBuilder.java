@@ -60,10 +60,6 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
         super(opBuilder, binName, null);
     }
 
-    private boolean serverCompiledAel() {
-        return opBuilder.getSession().getCluster().supportsAel();
-    }
-
     /**
      * Queues a write that sets this bin to a string value.
      *
@@ -295,7 +291,7 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      * @see #selectFrom(String, Consumer) for options like ignoreEvalFailure()
      */
     public T selectFrom(String ael) {
-        return opBuilder.addOp(ExpressionOpHelper.createReadOp(binName, ael, ExpReadFlags.DEFAULT, serverCompiledAel()));
+        return opBuilder.addOp(ExpressionOpHelper.createReadOp(binName, ael, ExpReadFlags.DEFAULT, opBuilder.getSession().getCluster()));
     }
 
     /**
@@ -331,7 +327,7 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      * @return the parent operation builder for chaining
      */
     public T selectFrom(String ael, ExpressionReadOptions options) {
-        return opBuilder.addOp(ExpressionOpHelper.createReadOp(binName, ael, options.getFlags(), serverCompiledAel()));
+        return opBuilder.addOp(ExpressionOpHelper.createReadOp(binName, ael, options.getFlags(), opBuilder.getSession().getCluster()));
     }
 
     /**
@@ -397,7 +393,7 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      * @return the parent operation builder for chaining
      */
     public T selectFrom(PreparedAel ael, Object... params) {
-        return opBuilder.addOp(ExpressionOpHelper.createReadOp(binName, ael, params, ExpReadFlags.DEFAULT, serverCompiledAel()));
+        return opBuilder.addOp(ExpressionOpHelper.createReadOp(binName, ael, params, ExpReadFlags.DEFAULT, opBuilder.getSession().getCluster()));
     }
 
     /**
@@ -432,7 +428,7 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      * @return the parent operation builder for chaining
      */
     public T selectFrom(PreparedAel ael, ExpressionReadOptions options, Object... params) {
-        return opBuilder.addOp(ExpressionOpHelper.createReadOp(binName, ael, params, options.getFlags(), serverCompiledAel()));
+        return opBuilder.addOp(ExpressionOpHelper.createReadOp(binName, ael, params, options.getFlags(), opBuilder.getSession().getCluster()));
     }
 
     /**
@@ -553,7 +549,7 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      * @see #insertFrom(String, Consumer) to suppress failure if bin exists
      */
     public T insertFrom(String ael) {
-        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, ael, ExpWriteFlags.CREATE_ONLY, serverCompiledAel()));
+        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, ael, ExpWriteFlags.CREATE_ONLY, opBuilder.getSession().getCluster()));
     }
 
     /**
@@ -589,7 +585,7 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      * @return the parent operation builder for chaining
      */
     public T insertFrom(String ael, ExpressionWriteOptions options) {
-        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, ael, options.getFlags(), serverCompiledAel()));
+        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, ael, options.getFlags(), opBuilder.getSession().getCluster()));
     }
 
     /**
@@ -660,7 +656,7 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      * @return the parent operation builder for chaining
      */
     public T insertFrom(PreparedAel ael, Object... params) {
-        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, ael, params, ExpWriteFlags.CREATE_ONLY, serverCompiledAel()));
+        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, ael, params, ExpWriteFlags.CREATE_ONLY, opBuilder.getSession().getCluster()));
     }
 
     /**
@@ -698,7 +694,7 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      * @return the parent operation builder for chaining
      */
     public T insertFrom(PreparedAel ael, ExpressionWriteOptions options, Object... params) {
-        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, ael, params, options.getFlags(), serverCompiledAel()));
+        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, ael, params, options.getFlags(), opBuilder.getSession().getCluster()));
     }
 
     /**
@@ -827,7 +823,7 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      * @see #updateFrom(String, Consumer) to suppress failure if bin is missing
      */
     public T updateFrom(String ael) {
-        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, ael, ExpWriteFlags.UPDATE_ONLY, serverCompiledAel()));
+        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, ael, ExpWriteFlags.UPDATE_ONLY, opBuilder.getSession().getCluster()));
     }
 
     /**
@@ -863,7 +859,7 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      * @return the parent operation builder for chaining
      */
     public T updateFrom(String ael, ExpressionWriteOptions options) {
-        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, ael, options.getFlags(), serverCompiledAel()));
+        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, ael, options.getFlags(), opBuilder.getSession().getCluster()));
     }
 
     /**
@@ -934,7 +930,7 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      * @return the parent operation builder for chaining
      */
     public T updateFrom(PreparedAel ael, Object... params) {
-        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, ael, params, ExpWriteFlags.UPDATE_ONLY, serverCompiledAel()));
+        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, ael, params, ExpWriteFlags.UPDATE_ONLY, opBuilder.getSession().getCluster()));
     }
 
     /**
@@ -972,7 +968,7 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      * @return the parent operation builder for chaining
      */
     public T updateFrom(PreparedAel ael, ExpressionWriteOptions options, Object... params) {
-        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, ael, params, options.getFlags(), serverCompiledAel()));
+        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, ael, params, options.getFlags(), opBuilder.getSession().getCluster()));
     }
 
     /**
@@ -1101,7 +1097,7 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      * @see #upsertFrom(String, Consumer) for options like deleteIfNull()
      */
     public T upsertFrom(String ael) {
-        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, ael, ExpWriteFlags.DEFAULT, serverCompiledAel()));
+        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, ael, ExpWriteFlags.DEFAULT, opBuilder.getSession().getCluster()));
     }
 
     /**
@@ -1136,7 +1132,7 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      * @return the parent operation builder for chaining
      */
     public T upsertFrom(String ael, ExpressionWriteOptions options) {
-        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, ael, options.getFlags(), serverCompiledAel()));
+        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, ael, options.getFlags(), opBuilder.getSession().getCluster()));
     }
 
     /**
@@ -1205,7 +1201,7 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      * @return the parent operation builder for chaining
      */
     public T upsertFrom(PreparedAel ael, Object... params) {
-        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, ael, params, ExpWriteFlags.DEFAULT, serverCompiledAel()));
+        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, ael, params, ExpWriteFlags.DEFAULT, opBuilder.getSession().getCluster()));
     }
 
     /**
@@ -1241,7 +1237,7 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      * @return the parent operation builder for chaining
      */
     public T upsertFrom(PreparedAel ael, ExpressionWriteOptions options, Object... params) {
-        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, ael, params, options.getFlags(), serverCompiledAel()));
+        return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, ael, params, options.getFlags(), opBuilder.getSession().getCluster()));
     }
 
     /**

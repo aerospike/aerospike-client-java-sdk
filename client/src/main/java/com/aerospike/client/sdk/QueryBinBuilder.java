@@ -63,10 +63,6 @@ public class QueryBinBuilder implements CdtOperationAcceptor<ChainableQueryBuild
         this.binName = binName;
     }
 
-    private boolean serverCompiledAel() {
-        return queryBuilder.getSession().getCluster().supportsAel();
-    }
-
     // ========================================
     // CdtOperationAcceptor implementation
     // ========================================
@@ -165,7 +161,7 @@ public class QueryBinBuilder implements CdtOperationAcceptor<ChainableQueryBuild
      * @see #selectFrom(String, Consumer) for options like ignoreEvalFailure()
      */
     public ChainableQueryBuilder selectFrom(String ael) {
-        queryBuilder.addOperation(ExpressionOpHelper.createReadOp(binName, ael, ExpReadFlags.DEFAULT, serverCompiledAel()));
+        queryBuilder.addOperation(ExpressionOpHelper.createReadOp(binName, ael, ExpReadFlags.DEFAULT, queryBuilder.getSession().getCluster()));
         return queryBuilder;
     }
 
@@ -201,7 +197,7 @@ public class QueryBinBuilder implements CdtOperationAcceptor<ChainableQueryBuild
      * @return the parent query builder for continued chaining
      */
     public ChainableQueryBuilder selectFrom(String ael, ExpressionReadOptions options) {
-        queryBuilder.addOperation(ExpressionOpHelper.createReadOp(binName, ael, options.getFlags(), serverCompiledAel()));
+        queryBuilder.addOperation(ExpressionOpHelper.createReadOp(binName, ael, options.getFlags(), queryBuilder.getSession().getCluster()));
         return queryBuilder;
     }
 
@@ -267,7 +263,7 @@ public class QueryBinBuilder implements CdtOperationAcceptor<ChainableQueryBuild
      * @param params parameter values to bind
      */
     public ChainableQueryBuilder selectFrom(PreparedAel ael, Object... params) {
-        queryBuilder.addOperation(ExpressionOpHelper.createReadOp(binName, ael, params, ExpReadFlags.DEFAULT, serverCompiledAel()));
+        queryBuilder.addOperation(ExpressionOpHelper.createReadOp(binName, ael, params, ExpReadFlags.DEFAULT, queryBuilder.getSession().getCluster()));
         return queryBuilder;
     }
 
@@ -304,7 +300,7 @@ public class QueryBinBuilder implements CdtOperationAcceptor<ChainableQueryBuild
      * @return the parent query builder for continued chaining
      */
     public ChainableQueryBuilder selectFrom(PreparedAel ael, ExpressionReadOptions options, Object... params) {
-        queryBuilder.addOperation(ExpressionOpHelper.createReadOp(binName, ael, params, options.getFlags(), serverCompiledAel()));
+        queryBuilder.addOperation(ExpressionOpHelper.createReadOp(binName, ael, params, options.getFlags(), queryBuilder.getSession().getCluster()));
         return queryBuilder;
     }
 

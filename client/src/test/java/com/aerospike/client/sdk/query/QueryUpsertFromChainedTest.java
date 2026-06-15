@@ -53,7 +53,7 @@ public class QueryUpsertFromChainedTest extends ClusterTest {
         try (RecordStream rs = session.query(key)
             .upsert(key)
             .bin("computed")
-            .upsertFrom("$.value + 1000")
+            .upsertFrom("$.\"vaLue\" + 1000")
             .execute()) {
             while (rs.hasNext()) {
                 RecordResult rr = rs.next();

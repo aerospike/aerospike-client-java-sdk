@@ -604,14 +604,13 @@ public class Cluster implements Closeable {
      * Whether this cluster allows server-side parsing of textual AEL for filters, expression reads,
      * and expression writes (wire form {@code [128, utf8]}).
      *
-     * <p>Requires cluster minimum version {@link Version#SERVER_VERSION_8_1_3} or newer (when enforced).</p>
+     * <p>True when the cluster's {@linkplain #getVersion() minimum server version} is
+     * {@link Version#SERVER_VERSION_8_1_3} or newer.</p>
      *
      * @see com.aerospike.client.sdk.exp.Expression#fromServerCompiledFilter(String)
      */
     public boolean supportsAel() {
-        // TODO Change to version check when server main branch supports it.
-        //return versionGE813;
-        return true;
+        return versionGE813;
     }
 
     /**

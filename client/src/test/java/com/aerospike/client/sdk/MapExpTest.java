@@ -26,6 +26,8 @@ import java.util.TreeMap;
 import org.junit.jupiter.api.Test;
 
 import com.aerospike.client.sdk.cdt.MapOrder;
+import com.aerospike.client.sdk.exp.Exp;
+import com.aerospike.client.sdk.exp.Expression;
 
 public class MapExpTest extends ClusterTest {
     @Test
@@ -60,6 +62,49 @@ public class MapExpTest extends ClusterTest {
         // A sorted map is returned as a LinkedHashMap for performance.
         // The response is ordered, so the LinkedHashMap insertion order
         // will match the sort order.
+        assertEquals(MapOrder.KEY_ORDERED, m.getOrder());
+    }
+
+    /**
+     * Same data as {@link #sortedMapEquality}, but the filter uses packed wire
+     * {@link Exp#eq} on {@link Exp#mapBin} vs {@link Exp#val} so both operands are
+     * Aerospike packed-map msgpack (unlike an AEL {@code { ... }} literal compared
+     * to {@code $.m:MAP}, which the server treats as unordered for {@code ==}).
+     */
+    @Test
+    public void sortedMapWholeBinEqViaPackedExp() {
+        TreeMap<String,String> map = new TreeMap<>();
+        map.put("key1", "e");
+        map.put("key2", "d");
+        map.put("key3", "c");
+        map.put("key4", "b");
+        map.put("key5", "a");
+
+        Key key = args.set.id("sortedMapWholeBinEqViaPackedExp");
+        String binName = "m";
+
+        session.upsert(key)
+            .bin(binName).setTo(map)
+            .execute();
+
+        Map<String,String> map1 = new HashMap<>();
+        map1.put("key1", "e");
+        map1.put("key2", "d");
+        map1.put("key3", "c");
+        map1.put("key4", "b");
+        map1.put("key5", "a");
+
+        Expression where = Exp.build(Exp.eq(Exp.mapBin(binName), Exp.val(map1)));
+
+        RecordStream rs = session.query(key)
+            .readingOnlyBins(binName)
+            .failOnFilteredOut()
+            .where(where)
+            .execute();
+
+        assertTrue(rs.hasNext());
+        Record rec = rs.next().recordOrThrow();
+        AerospikeMap<?,?> m = rec.getMap(binName);
         assertEquals(MapOrder.KEY_ORDERED, m.getOrder());
     }
 
