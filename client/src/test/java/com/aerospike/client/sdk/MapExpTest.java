@@ -18,6 +18,7 @@ package com.aerospike.client.sdk;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assumptions.assumeFalse;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -28,8 +29,11 @@ import org.junit.jupiter.api.Test;
 import com.aerospike.client.sdk.cdt.MapOrder;
 
 public class MapExpTest extends ClusterTest {
+
     @Test
     public void sortedMapEquality() {
+        assumeFalse(cluster.supportsAel(), "AEL cannot send the map ordering to server side.");
+
         TreeMap<String,String> map = new TreeMap<>();
         map.put("key1", "e");
         map.put("key2", "d");
@@ -45,7 +49,7 @@ public class MapExpTest extends ClusterTest {
             .execute();
 
         // Expression where = Exp.build(Exp.eq(Exp.mapBin(binName), Exp.val(map)));
-        String where = "$." + binName + ":MAP == {'key1': 'e', 'key2': 'd', 'key3': 'c', 'key4': 'b', 'key5': 'a'}";
+        String where = "$." + binName + ".get(type: MAP) == {'key1': 'e', 'key2': 'd', 'key3': 'c', 'key4': 'b', 'key5': 'a'}";
 
         RecordStream rs = session.query(key)
             .readingOnlyBins(binName)
@@ -65,6 +69,7 @@ public class MapExpTest extends ClusterTest {
 
     @Test
     public void invertedMapExp() {
+        assumeFalse(cluster.supportsAel(), "Server side AEL doesn't support map type fetch");
         HashMap<String,Integer> map = new HashMap<>();
         map.put("a", 1);
         map.put("b", 2);

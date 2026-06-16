@@ -28,12 +28,6 @@ import com.aerospike.client.sdk.Record;
 import com.aerospike.client.sdk.RecordResult;
 import com.aerospike.client.sdk.RecordStream;
 
-/**
- * Mirrors the Python SDK intent: seed {@code value}, then in one fluent chain
- * {@code query(key).upsert(key).bin("computed").upsertFrom("$.value:INT + 1000")}
- * so the write sees the record read in the same multi-spec execution, and
- * {@code computed} should be {@code 1006} on a subsequent read.
- */
 public class QueryUpsertFromChainedTest extends ClusterTest {
 
     private static final String TEST_KEY = "fluent_cb_exp_1";
@@ -53,7 +47,7 @@ public class QueryUpsertFromChainedTest extends ClusterTest {
         try (RecordStream rs = session.query(key)
             .upsert(key)
             .bin("computed")
-            .upsertFrom("$.\"vaLue\" + 1000")
+            .upsertFrom("$.\"value\" + 1000")
             .execute()) {
             while (rs.hasNext()) {
                 RecordResult rr = rs.next();

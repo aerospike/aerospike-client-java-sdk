@@ -151,11 +151,13 @@ public class QueryOperationsTest extends ClusterTest {
 
     @Test
     public void queryProjectBinsViaExpressionRead() {
+        String typeSuffix = cluster.supportsAel() ? ":INT" : "";
+
         RecordStream rs = session.query(args.set)
-            .bin("result1").selectFrom("$." + binName1)
-            .bin("result2").selectFrom("$." + binName2)
-            .bin("result3").selectFrom("$." + binName3)
-            .execute();
+                .bin("result1").selectFrom("$." + binName1 + typeSuffix)
+                .bin("result2").selectFrom("$." + binName2 + typeSuffix)
+                .bin("result3").selectFrom("$." + binName3 + typeSuffix)
+                .execute();
 
         try {
             int count = 0;
@@ -181,10 +183,12 @@ public class QueryOperationsTest extends ClusterTest {
         int begin = 1;
         int end = 10;
 
+        String typeSuffix = cluster.supportsAel() ? ":INT" : "";
+
         RecordStream rs = session.query(args.set)
-            .bin("result1").selectFrom("$." + binName1)
-            .bin("result2").selectFrom("$." + binName2)
-            .bin("result3").selectFrom("$." + binName3)
+            .bin("result1").selectFrom("$." + binName1 + typeSuffix)
+            .bin("result2").selectFrom("$." + binName2 + typeSuffix)
+            .bin("result3").selectFrom("$." + binName3 + typeSuffix)
             .where("$." + binName1 + " >= " + begin + " and $." + binName1 + " <= " + end)
             .execute();
 
@@ -213,9 +217,13 @@ public class QueryOperationsTest extends ClusterTest {
         int begin = 1;
         int end = 10;
 
+        String typeSuffix = cluster.supportsAel() ? ":INT" : "";
+
         RecordStream rs = session.query(args.set)
             .bin(binName1).get()
-            .bin("sum").selectFrom("$." + binName1 + " + $." + binName2)
+            .bin("sum").selectFrom("$." + binName1 + typeSuffix + " + $." + binName2 + typeSuffix)
+            // TODO where queries go through client side parsing due to index selection - and hence no type annotation
+            // this will be cleaned up when index selection is moved to server side
             .where("$." + binName1 + " >= " + begin + " and $." + binName1 + " <= " + end)
             .execute();
 
@@ -272,11 +280,14 @@ public class QueryOperationsTest extends ClusterTest {
         int begin = 5;
         int end = 15;
 
+        String typeSuffix = cluster.supportsAel() ? ":INT" : "";
+
         RecordStream rs = session.query(args.set)
             .bin(binName1).get()
             .bin(binName2).get()
-            .bin("sum").selectFrom("$." + binName1 + " + $." + binName2)
-            .bin("diff").selectFrom("$." + binName2 + " - $." + binName1)
+            .bin("sum").selectFrom("$." + binName1 + typeSuffix + " + $." + binName2 + typeSuffix)
+            .bin("diff").selectFrom("$." + binName2 + typeSuffix + " - $." + binName1 + typeSuffix)
+            // TODO where queries go through client side parsing due to index selection - and hence no type annotation
             .where("$." + binName1 + " >= " + begin + " and $." + binName1 + " <= " + end)
             .execute();
 
@@ -413,10 +424,11 @@ public class QueryOperationsTest extends ClusterTest {
         // is the new-API replacement for ExpReadFlags.EVAL_NO_FAIL.
         int begin = 1;
         int end = 5;
+        String typeSuffix = cluster.supportsAel() ? ":INT" : "";
 
         RecordStream rs = session.query(args.set)
             .bin(binName1).get()
-            .bin("result").selectFrom("$.nonexistent", arg -> arg.ignoreEvalFailure())
+            .bin("result").selectFrom("$.nonexistent" + typeSuffix, arg -> arg.ignoreEvalFailure())
             .where("$." + binName1 + " >= " + begin + " and $." + binName1 + " <= " + end)
             .execute();
 
