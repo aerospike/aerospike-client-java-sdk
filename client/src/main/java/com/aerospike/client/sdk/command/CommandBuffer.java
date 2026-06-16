@@ -54,7 +54,7 @@ public final class CommandBuffer {
     public void setOperateWrite(OperateWriteCommand cmd) {
         begin();
         OperateArgs args = cmd.args;
-        int fieldCount = estimateKeySize(cmd, cmd.key, args.hasWrite);
+        int fieldCount = estimateKeySize(cmd, cmd.key, true, cmd.sendKey);
 
         if (cmd.where != null) {
             sizeFieldExpression(cmd.where);
@@ -65,7 +65,7 @@ public final class CommandBuffer {
 
         writeHeaderWrite(cmd, args.readAttr, args.writeAttr, fieldCount, cmd.ops.size());
 
-        writeKey(cmd, cmd.key, args.hasWrite);
+        writeKey(cmd, cmd.key, true, cmd.sendKey);
 
         if (cmd.where != null) {
             writeFieldExpression(cmd.where);
@@ -81,7 +81,7 @@ public final class CommandBuffer {
     public void setOperateRead(OperateReadCommand cmd) {
         begin();
         OperateArgs args = cmd.args;
-        int fieldCount = estimateKeySize(cmd, cmd.key, args.hasWrite);
+        int fieldCount = estimateKeySize(cmd, cmd.key, false, false);
 
         if (cmd.where != null) {
             sizeFieldExpression(cmd.where);
@@ -92,7 +92,7 @@ public final class CommandBuffer {
 
         writeHeaderRead(cmd, args.readAttr, args.writeAttr, 0, fieldCount, cmd.ops.size());
 
-        writeKey(cmd, cmd.key, args.hasWrite);
+        writeKey(cmd, cmd.key, false, false);
 
         if (cmd.where != null) {
             writeFieldExpression(cmd.where);
@@ -108,14 +108,15 @@ public final class CommandBuffer {
     public void setOperate(BatchCommand cmd, BatchWrite rec) {
         begin();
         Expression where = (rec.where != null)? rec.where : cmd.where;
-        int fieldCount = estimateKeyAttrSize(cmd, rec, where);
+        boolean sendKey = cmd.sendKey && rec.hasWrite;
+        int fieldCount = estimateKeyAttrSize(cmd, rec, where, sendKey);
 
         for (Operation op : rec.ops) {
             estimateOperationSize(op);
         }
 
         sizeBuffer();
-        writeKeyAttr(cmd, rec, where, rec.gen, rec.ttl, fieldCount, rec.ops.size());
+        writeKeyAttr(cmd, rec, where, rec.gen, rec.ttl, fieldCount, rec.ops.size(), sendKey);
 
         for (Operation op : rec.ops) {
             writeOperation(op);
@@ -130,7 +131,7 @@ public final class CommandBuffer {
 
     public final void setExists(ReadCommand cmd) {
         begin();
-        int fieldCount = estimateKeySize(cmd, cmd.key, false);
+        int fieldCount = estimateKeySize(cmd, cmd.key, false, false);
 
         if (cmd.where != null) {
             sizeFieldExpression(cmd.where);
@@ -140,7 +141,7 @@ public final class CommandBuffer {
         sizeBuffer();
 
         writeHeaderRead(cmd, Command.INFO1_READ | Command.INFO1_NOBINDATA, 0, 0, fieldCount, 0);
-        writeKey(cmd, cmd.key, false);
+        writeKey(cmd, cmd.key, false, false);
 
         if (cmd.where != null) {
             writeFieldExpression(cmd.where);
@@ -151,10 +152,10 @@ public final class CommandBuffer {
     public void setExists(BatchCommand cmd, BatchRead rec) {
         begin();
         Expression where = (rec.where != null)? rec.where : cmd.where;
-        int fieldCount = estimateKeyAttrSize(cmd, rec, where);
+        int fieldCount = estimateKeyAttrSize(cmd, rec, where, false);
 
         sizeBuffer();
-        writeKeyAttr(cmd, rec, where, 0, rec.ttl, fieldCount, 0);
+        writeKeyAttr(cmd, rec, where, 0, rec.ttl, fieldCount, 0, false);
         end();
     }
 
@@ -177,7 +178,7 @@ public final class CommandBuffer {
         }
 
         begin();
-        int fieldCount = estimateKeySize(cmd, cmd.key, false);
+        int fieldCount = estimateKeySize(cmd, cmd.key, false, false);
 
         if (cmd.where != null) {
             sizeFieldExpression(cmd.where);
@@ -192,7 +193,7 @@ public final class CommandBuffer {
 
         sizeBuffer();
         writeHeaderRead(cmd, readAttr, 0, 0, fieldCount, opCount);
-        writeKey(cmd, cmd.key, false);
+        writeKey(cmd, cmd.key, false, false);
 
         if (cmd.where != null) {
             writeFieldExpression(cmd.where);
@@ -233,10 +234,10 @@ public final class CommandBuffer {
         }
 
         Expression where = (rec.where != null)? rec.where : cmd.where;
-        int fieldCount = estimateKeyAttrSize(cmd, rec, where);
+        int fieldCount = estimateKeyAttrSize(cmd, rec, where, false);
 
         sizeBuffer();
-        writeKeyAttr(cmd, rec, where, 0, rec.ttl, fieldCount, opCount);
+        writeKeyAttr(cmd, rec, where, 0, rec.ttl, fieldCount, opCount, false);
 
         if (rec.binNames != null) {
             for (String binName : rec.binNames) {
@@ -257,7 +258,7 @@ public final class CommandBuffer {
 
     public final void setUdf(UdfCommand cmd) {
         begin();
-        int fieldCount = estimateKeySize(cmd, cmd.key, true);
+        int fieldCount = estimateKeySize(cmd, cmd.key, true, cmd.sendKey);
 
         if (cmd.where != null) {
             sizeFieldExpression(cmd.where);
@@ -269,7 +270,7 @@ public final class CommandBuffer {
 
         sizeBuffer();
         writeHeaderWrite(cmd, 0, Command.INFO2_WRITE, fieldCount, 0);
-        writeKey(cmd, cmd.key, true);
+        writeKey(cmd, cmd.key, true, cmd.sendKey);
 
         if (cmd.where != null) {
             writeFieldExpression(cmd.where);
@@ -285,13 +286,13 @@ public final class CommandBuffer {
     public final void setUdf(BatchCommand cmd, BatchUDF rec) {
         begin();
         Expression where = (rec.where != null)? rec.where : cmd.where;
-        int fieldCount = estimateKeyAttrSize(cmd, rec, where);
+        int fieldCount = estimateKeyAttrSize(cmd, rec, where, cmd.sendKey);
 
         byte[] argBytes = Packer.pack(rec.functionArgs);
         fieldCount += estimateUdfSize(rec.packageName, rec.functionName, argBytes);
 
         sizeBuffer();
-        writeKeyAttr(cmd, rec, where, 0, rec.ttl, fieldCount, 0);
+        writeKeyAttr(cmd, rec, where, 0, rec.ttl, fieldCount, 0, cmd.sendKey);
         writeField(rec.packageName, FieldType.UDF_PACKAGE_NAME);
         writeField(rec.functionName, FieldType.UDF_FUNCTION);
         writeField(argBytes, FieldType.UDF_ARGLIST);
@@ -312,7 +313,7 @@ public final class CommandBuffer {
 
     public final void setTouch(WriteCommand cmd) {
         begin();
-        int fieldCount = estimateKeySize(cmd, cmd.key, true);
+        int fieldCount = estimateKeySize(cmd, cmd.key, true, cmd.sendKey);
 
         if (cmd.where != null) {
             sizeFieldExpression(cmd.where);
@@ -324,7 +325,7 @@ public final class CommandBuffer {
         sizeBuffer();
 
         writeHeaderWrite(cmd, 0, Command.INFO2_WRITE, fieldCount, 1);
-        writeKey(cmd, cmd.key, true);
+        writeKey(cmd, cmd.key, true, cmd.sendKey);
 
         if (cmd.where != null) {
             writeFieldExpression(cmd.where);
@@ -339,7 +340,7 @@ public final class CommandBuffer {
 
     public void setDelete(WriteCommand cmd) {
         begin();
-        int fieldCount = estimateKeySize(cmd, cmd.key, true);
+        int fieldCount = estimateKeySize(cmd, cmd.key, true, cmd.sendKey);
 
         if (cmd.where != null) {
             sizeFieldExpression(cmd.where);
@@ -349,7 +350,7 @@ public final class CommandBuffer {
         sizeBuffer();
 
         writeHeaderWrite(cmd, 0, Command.INFO2_WRITE | Command.INFO2_DELETE, fieldCount, 0);
-        writeKey(cmd, cmd.key, true);
+        writeKey(cmd, cmd.key, true, cmd.sendKey);
 
         if (cmd.where != null) {
             writeFieldExpression(cmd.where);
@@ -359,7 +360,7 @@ public final class CommandBuffer {
 
     public void setDelete(BatchCommand cmd, BatchDelete bd) {
         begin();
-        int fieldCount = estimateKeySize(cmd, bd.key, true);
+        int fieldCount = estimateKeySize(cmd, bd.key, true, cmd.sendKey);
 
         if (cmd.where != null) {
             sizeFieldExpression(cmd.where);
@@ -382,7 +383,7 @@ public final class CommandBuffer {
         Buffer.shortToBytes(0, dataBuffer, 28);
         dataOffset = Command.MSG_TOTAL_HEADER_SIZE;
 
-        writeKey(cmd, bd.key, true);
+        writeKey(cmd, bd.key, true, cmd.sendKey);
 
         if (cmd.where != null) {
             writeFieldExpression(cmd.where);
@@ -424,13 +425,13 @@ public final class CommandBuffer {
 
         for (int i = 0; i < max; i++) {
             int offset = batch.offsets[i];
-            BatchRecord record = cmd.records.get(offset);
-            Key key = record.key;
+            BatchRecord rec = cmd.records.get(offset);
+            Key key = rec.key;
             Long ver = (versions != null)? versions[i] : null;
 
             dataOffset += key.digest.length + 4;
 
-            if (canRepeat(cmd, key, record, prev, ver, verPrev)) {
+            if (canRepeat(cmd, key, rec, prev, ver, verPrev)) {
                 // Can set repeat previous namespace/bin names to save space.
                 dataOffset++;
             }
@@ -440,12 +441,12 @@ public final class CommandBuffer {
                 dataOffset += Buffer.estimateSizeUtf8(key.namespace) + Command.FIELD_HEADER_SIZE;
                 dataOffset += Buffer.estimateSizeUtf8(key.setName) + Command.FIELD_HEADER_SIZE;
 
-                if (cmd.sendKey) {
+                if (cmd.sendKey && rec.hasWrite) {
                     dataOffset += key.userKey.estimateSize() + Command.FIELD_HEADER_SIZE + 1;
                 }
-                sizeTxnBatch(txn, ver, record.hasWrite);
-                dataOffset += record.size(cmd);
-                prev = record;
+                sizeTxnBatch(txn, ver, rec.hasWrite);
+                dataOffset += rec.size(cmd);
+                prev = rec;
                 verPrev = ver;
             }
         }
@@ -518,7 +519,7 @@ public final class CommandBuffer {
                     case BATCH_WRITE: {
                         BatchWrite bw = (BatchWrite)record;
 
-                        writeBatchWrite(cmd, bw, bw.gen, bw.ttl, ver, 0, bw.ops.size());
+                        writeBatchWrite(cmd, bw, bw.gen, bw.ttl, ver, 0, bw.ops.size(), cmd.sendKey);
 
                         for (Operation op : bw.ops) {
                             writeOperation(op);
@@ -529,7 +530,7 @@ public final class CommandBuffer {
                     case BATCH_UDF: {
                         BatchUDF bu = (BatchUDF)record;
 
-                        writeBatchWrite(cmd, bu, 0, bu.ttl, ver, 3, 0);
+                        writeBatchWrite(cmd, bu, 0, bu.ttl, ver, 3, 0, cmd.sendKey);
                         writeField(bu.packageName, FieldType.UDF_PACKAGE_NAME);
                         writeField(bu.functionName, FieldType.UDF_FUNCTION);
                         writeField(bu.argBytes, FieldType.UDF_ARGLIST);
@@ -539,7 +540,7 @@ public final class CommandBuffer {
                     case BATCH_DELETE: {
                         BatchDelete bd = (BatchDelete)record;
 
-                        writeBatchWrite(cmd, bd, bd.gen, 0, ver, 0, 0);
+                        writeBatchWrite(cmd, bd, bd.gen, 0, ver, 0, 0, cmd.sendKey);
                         break;
                     }
                 }
@@ -571,7 +572,7 @@ public final class CommandBuffer {
     private static boolean canRepeat(
         Command cmd,
         Key key,
-        BatchRecord record,
+        BatchRecord rec,
         BatchRecord prev,
         Long ver,
         Long verPrev
@@ -586,11 +587,11 @@ public final class CommandBuffer {
             return false;
         }
 
-        if (cmd.sendKey) {
+        if (cmd.sendKey && rec.hasWrite) {
             return false;
         }
 
-        return record.equals(prev);
+        return rec.equals(prev);
     }
 
     private void sizeTxnBatch(Txn txn, Long ver, boolean hasWrite) {
@@ -639,7 +640,7 @@ public final class CommandBuffer {
             dataBuffer[dataOffset++] = rec.txnAttr;
             Buffer.intToBytes(rec.ttl, dataBuffer, dataOffset);
             dataOffset += 4;
-            writeBatchFieldsTxn(cmd, rec, ver, 0, opCount);
+            writeBatchFieldsTxn(cmd, rec, ver, 0, opCount, false);
         }
         else {
             dataBuffer[dataOffset++] = (byte)(BATCH_MSG_INFO | BATCH_MSG_TTL);
@@ -648,12 +649,13 @@ public final class CommandBuffer {
             dataBuffer[dataOffset++] = rec.infoAttr;
             Buffer.intToBytes(rec.ttl, dataBuffer, dataOffset);
             dataOffset += 4;
-            writeBatchFieldsReg(cmd, rec, 0, opCount);
+            writeBatchFieldsReg(cmd, rec, 0, opCount, false);
         }
     }
 
     private void writeBatchWrite(
-        BatchCommand cmd, BatchRecord rec, int gen, int ttl, Long ver, int fieldCount, int opCount
+        BatchCommand cmd, BatchRecord rec, int gen, int ttl, Long ver, int fieldCount, int opCount,
+        boolean sendKey
     ) {
         if (cmd.txn != null) {
             dataBuffer[dataOffset++] = (byte)(BATCH_MSG_INFO | BATCH_MSG_INFO4 | BATCH_MSG_GEN | BATCH_MSG_TTL);
@@ -665,7 +667,7 @@ public final class CommandBuffer {
             dataOffset += 2;
             Buffer.intToBytes(ttl, dataBuffer, dataOffset);
             dataOffset += 4;
-            writeBatchFieldsTxn(cmd, rec, ver, fieldCount, opCount);
+            writeBatchFieldsTxn(cmd, rec, ver, fieldCount, opCount, sendKey);
         }
         else {
             dataBuffer[dataOffset++] = (byte)(BATCH_MSG_INFO | BATCH_MSG_GEN | BATCH_MSG_TTL);
@@ -676,12 +678,12 @@ public final class CommandBuffer {
             dataOffset += 2;
             Buffer.intToBytes(ttl, dataBuffer, dataOffset);
             dataOffset += 4;
-            writeBatchFieldsReg(cmd, rec, fieldCount, opCount);
+            writeBatchFieldsReg(cmd, rec, fieldCount, opCount, sendKey);
         }
     }
 
     private void writeBatchFieldsTxn(
-        BatchCommand cmd, BatchRecord rec, Long ver, int fieldCount, int opCount
+        BatchCommand cmd, BatchRecord rec, Long ver, int fieldCount, int opCount, boolean sendKey
     ) {
         fieldCount++;
 
@@ -697,7 +699,7 @@ public final class CommandBuffer {
             fieldCount++;
         }
 
-        if (cmd.sendKey) {
+        if (sendKey) {
             fieldCount++;
         }
 
@@ -717,19 +719,19 @@ public final class CommandBuffer {
             writeFieldExpression(rec.where);
         }
 
-        if (cmd.sendKey) {
+        if (sendKey) {
             writeField(rec.key.userKey, FieldType.KEY);
         }
     }
 
     private void writeBatchFieldsReg(
-        BatchCommand cmd, BatchRecord rec, int fieldCount, int opCount
+        BatchCommand cmd, BatchRecord rec, int fieldCount, int opCount, boolean sendKey
     ) {
         if (rec.where != null) {
             fieldCount++;
         }
 
-        if (cmd.sendKey) {
+        if (sendKey) {
             fieldCount++;
         }
 
@@ -739,7 +741,7 @@ public final class CommandBuffer {
             writeFieldExpression(rec.where);
         }
 
-        if (cmd.sendKey) {
+        if (sendKey) {
             writeField(rec.key.userKey, FieldType.KEY);
         }
     }
@@ -1402,13 +1404,6 @@ public final class CommandBuffer {
                 dataOffset += 14;
                 dataOffset += Buffer.estimateSizeUtf8(key.namespace) + Command.FIELD_HEADER_SIZE;
                 dataOffset += Buffer.estimateSizeUtf8(key.setName) + Command.FIELD_HEADER_SIZE;
-
-                // This check must be added because it's possible for the user to override
-                // default SYSTEM_TXN_ROLL settings and change sendKey to true. This should
-                // never be done, but we must account for it.
-                if (cmd.sendKey) {
-                    dataOffset += key.userKey.estimateSize() + Command.FIELD_HEADER_SIZE + 1;
-                }
                 sizeTxnBatch(txn, ver, true);
                 keyPrev = key;
                 verPrev = ver;
@@ -1447,7 +1442,7 @@ public final class CommandBuffer {
             }
             else {
                 // Write full message.
-                writeBatchWrite(cmd, br, 0, 0, ver, 0, 0);
+                writeBatchWrite(cmd, br, 0, 0, ver, 0, 0, false);
                 keyPrev = key;
                 verPrev = ver;
             }
@@ -1498,7 +1493,7 @@ public final class CommandBuffer {
         return fieldCount;
     }
 
-    private void writeTxn(Txn txn, boolean sendDeadline) {
+    private void writeTxn(Txn txn, boolean hasWrite) {
         if (txn != null) {
             writeFieldLE(txn.getId(), FieldType.TXN_ID);
 
@@ -1506,7 +1501,7 @@ public final class CommandBuffer {
                 writeFieldVersion(version);
             }
 
-            if (sendDeadline && txn.getDeadline() != 0) {
+            if (hasWrite && txn.getDeadline() != 0) {
                 writeFieldLE(txn.getDeadline(), FieldType.TXN_DEADLINE);
             }
         }
@@ -1537,8 +1532,10 @@ public final class CommandBuffer {
     // Command Sizing
     //--------------------------------------------------
 
-    private int estimateKeyAttrSize(Command cmd, BatchRecord rec, Expression where) {
-        int fieldCount = estimateKeySize(cmd, rec.key, rec.hasWrite);
+    private int estimateKeyAttrSize(
+        Command cmd, BatchRecord rec, Expression where, boolean sendKey
+    ) {
+        int fieldCount = estimateKeySize(cmd, rec.key, rec.hasWrite, sendKey);
 
         if (where != null) {
             dataOffset += where.getBytes().length + Command.FIELD_HEADER_SIZE;
@@ -1547,12 +1544,12 @@ public final class CommandBuffer {
         return fieldCount;
     }
 
-    private int estimateKeySize(Command cmd, Key key, boolean hasWrite) {
+    private int estimateKeySize(Command cmd, Key key, boolean hasWrite, boolean sendKey) {
         int fieldCount = estimateKeySize(key);
 
         fieldCount += sizeTxn(key, cmd.txn, hasWrite);
 
-        if (cmd.sendKey) {
+        if (sendKey) {
             dataOffset += key.userKey.estimateSize() + Command.FIELD_HEADER_SIZE + 1;
             fieldCount++;
         }
@@ -1712,7 +1709,7 @@ public final class CommandBuffer {
 
     private void writeKeyAttr(
         Command cmd, BatchRecord rec, Expression filterExp, int gen, int ttl, int fieldCount,
-        int operationCount
+        int operationCount, boolean sendKey
     ) {
         // Write all header data except total size which must be written last.
         dataBuffer[8]  = Command.MSG_REMAINING_HEADER_SIZE; // Message header length.
@@ -1728,18 +1725,18 @@ public final class CommandBuffer {
         Buffer.shortToBytes(operationCount, dataBuffer, 28);
         dataOffset = Command.MSG_TOTAL_HEADER_SIZE;
 
-        writeKey(cmd, rec.key, rec.hasWrite);
+        writeKey(cmd, rec.key, rec.hasWrite, sendKey);
 
         if (filterExp != null) {
             writeFieldExpression(filterExp);
         }
     }
 
-    private void writeKey(Command cmd, Key key, boolean sendDeadline) {
+    private void writeKey(Command cmd, Key key, boolean hasWrite, boolean sendKey) {
         writeKey(key);
-        writeTxn(cmd.txn, sendDeadline);
+        writeTxn(cmd.txn, hasWrite);
 
-        if (cmd.sendKey) {
+        if (sendKey) {
             writeField(key.userKey, FieldType.KEY);
         }
     }
