@@ -33,12 +33,6 @@ import com.aerospike.client.sdk.query.Filter;
 import com.aerospike.client.sdk.query.PreparedAel;
 import com.aerospike.client.sdk.command.ParticleType;
 
-/**
- * Centralizes how textual AEL is turned into wire-ready {@link Expression} material and query
- * {@link ParseResult} for the connected cluster: server-side textual AEL when
- * {@link Cluster#supportsAel()} is true (cluster minimum version ≥ 8.1.3), otherwise client-side
- * parse to packed expression bytes. Not a user-facing API.
- */
 public final class AelMaterializer {
 
     private AelMaterializer() {

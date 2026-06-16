@@ -610,7 +610,9 @@ public class Cluster implements Closeable {
      * @see com.aerospike.client.sdk.exp.Expression#fromServerCompiledFilter(String)
      */
     public boolean supportsAel() {
+        // TODO Change to version check when server main branch supports it.
         return versionGE813;
+        // return false;
     }
 
     /**
