@@ -154,10 +154,10 @@ public class QueryOperationsTest extends ClusterTest {
         String typeSuffix = cluster.supportsAel() ? ":INT" : "";
 
         RecordStream rs = session.query(args.set)
-                .bin("result1").selectFrom("$." + binName1 + typeSuffix)
-                .bin("result2").selectFrom("$." + binName2 + typeSuffix)
-                .bin("result3").selectFrom("$." + binName3 + typeSuffix)
-                .execute();
+            .bin("result1").selectFrom("$." + binName1 + typeSuffix)
+            .bin("result2").selectFrom("$." + binName2 + typeSuffix)
+            .bin("result3").selectFrom("$." + binName3 + typeSuffix)
+            .execute();
 
         try {
             int count = 0;
