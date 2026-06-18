@@ -61,7 +61,10 @@ public class BehaviorYamlConfig {
         public void setParent(String parent) { this.parent = parent; }
 
         public Boolean getSendKey() { return sendKey; }
-        public void setSendKey(Boolean sendKey) { this.sendKey = sendKey; }
+        public void setSendKey(Boolean sendKey) {
+            System.out.println("BehaviorYamlConfig.BehaviorConfig.setSendKey = " + sendKey);
+            this.sendKey = sendKey;
+        }
 
         public Boolean getUseCompression() { return useCompression; }
         public void setUseCompression(Boolean useCompression) { this.useCompression = useCompression; }
@@ -142,7 +145,10 @@ public class BehaviorYamlConfig {
         public void setResetTtlOnReadAtPercent(Integer resetTtlOnReadAtPercent) { this.resetTtlOnReadAtPercent = resetTtlOnReadAtPercent; }
 
         public Boolean getSendKey() { return sendKey; }
-        public void setSendKey(Boolean sendKey) { this.sendKey = sendKey; }
+        public void setSendKey(Boolean sendKey) {
+            System.out.println("BehaviorYamlConfig.PolicyConfig.setSendKey = " + sendKey);
+            this.sendKey = sendKey;
+        }
 
         public Boolean getUseCompression() { return useCompression; }
         public void setUseCompression(Boolean useCompression) { this.useCompression = useCompression; }

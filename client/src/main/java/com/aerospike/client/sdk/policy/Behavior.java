@@ -162,7 +162,7 @@ public final class Behavior {
                     .readMode(ReadModeAP.ALL)
                     .consistency(ReadModeSC.SESSION)
                     .resetTtlOnReadAtPercent(0)
-                    .sendKey(true)
+                    .sendKey(false)
                     .stackTraceOnException(true)
                     .useCompression(false)
                     .waitForCallToComplete(Duration.ofSeconds(30))

@@ -30,6 +30,7 @@ import com.aerospike.client.sdk.command.AdminCommand;
 import com.aerospike.client.sdk.command.Buffer;
 import com.aerospike.client.sdk.policy.AuthMode;
 import com.aerospike.client.sdk.policy.Behavior;
+import com.aerospike.client.sdk.util.Util;
 
 /**
  * Builder class for configuring and creating Aerospike cluster connections.
@@ -573,7 +574,10 @@ public class ClusterDefinition {
 
         if (configPath != null && !configPath.isEmpty()) {
             try {
+                System.out.println("CALL Behavior.startMonitoringBehavior");
                 Behavior.startMonitoring(configPath);
+                System.out.println("SLEEP 1 second");
+                Util.sleep(1000);
             }
             catch (Throwable t) {
                 throw new AerospikeException("Failed to read " + configPath +

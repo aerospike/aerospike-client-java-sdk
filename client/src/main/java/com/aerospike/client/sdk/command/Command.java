@@ -125,6 +125,7 @@ public class Command {
         maxRetries = settings.getMaximumNumberOfCallAttempts() - 1;
         sleepBetweenRetries = settings.getDelayBetweenRetriesMs();
         sendKey = settings.getSendKey();
+        System.out.println("RESOLVED sendKey: " + sendKey);
         compress = settings.getUseCompression();
     }
 

@@ -101,6 +101,7 @@ class BehaviorFileMonitor implements Closeable {
         this.lastModified = Files.getLastModifiedTime(this.yamlFilePath).toMillis();
 
         // Load initial behaviors
+        System.out.println("CALL loadBehaviors");
         loadBehaviors();
 
         // Set up file watching

@@ -57,7 +57,10 @@ public class DynamicConfig {
         public void setParent(String parent) { this.parent = parent; }
 
         public Boolean getSendKey() { return sendKey; }
-        public void setSendKey(Boolean sendKey) { this.sendKey = sendKey; }
+        public void setSendKey(Boolean sendKey) {
+            System.out.println("DynamicConfig.Config.setSendKey = " + sendKey);
+            this.sendKey = sendKey;
+        }
 
         public Boolean getUseCompression() { return useCompression; }
         public void setUseCompression(Boolean useCompression) { this.useCompression = useCompression; }
@@ -142,7 +145,10 @@ public class DynamicConfig {
         public void setResetTtlOnReadAtPercent(Integer resetTtlOnReadAtPercent) { this.resetTtlOnReadAtPercent = resetTtlOnReadAtPercent; }
 
         public Boolean getSendKey() { return sendKey; }
-        public void setSendKey(Boolean sendKey) { this.sendKey = sendKey; }
+        public void setSendKey(Boolean sendKey) {
+            System.out.println("DynamicConfig.Base.setSendKey = " + sendKey);
+            this.sendKey = sendKey;
+        }
 
         public Boolean getUseCompression() { return useCompression; }
         public void setUseCompression(Boolean useCompression) { this.useCompression = useCompression; }
