@@ -35,6 +35,7 @@ import java.util.Objects;
  *
  * @param <T> domain type shared by keys in this list (by convention)
  * @see TypedDataSet#ids(int...)
+ * @see Session#query(TypedKeyList)
  * @see Session#upsert(TypedKeyList)
  */
 public final class TypedKeyList<T> extends ArrayList<TypedKey<T>> {

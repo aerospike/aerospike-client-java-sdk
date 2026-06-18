@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.IntStream;
 
 import com.aerospike.client.sdk.AerospikeException;
@@ -65,14 +66,16 @@ import com.aerospike.client.sdk.util.MapUtil;
  */
 public class QueryExamples {
     public static class Address {
+        private final long id;
         private final String line1;
         private final String city;
         private final String state;
         private final String country;
         private final String zipCode;
 
-        public Address(String line1, String city, String state, String country, String zipCode) {
+        public Address(long id, String line1, String city, String state, String country, String zipCode) {
             super();
+            this.id = id;
             this.line1 = line1;
             this.city = city;
             this.state = state;
@@ -80,6 +83,9 @@ public class QueryExamples {
             this.zipCode = zipCode;
         }
 
+        public long getId() {
+            return id;
+        }
         public String getLine1() {
             return line1;
         }
@@ -168,6 +174,7 @@ public class QueryExamples {
         @Override
         public Address fromMap(Map<String, Object> map, Key recordKey, int generation) {
             Address result = new Address(
+                    MapUtil.asLong(map, "id"),
                     MapUtil.asString(map, "line1"),
                     MapUtil.asString(map, "city"),
                     MapUtil.asString(map, "state"),
@@ -189,7 +196,7 @@ public class QueryExamples {
 
         @Override
         public Object id(Address element) {
-            return null;
+            return element.getId();
         }
 
     }
@@ -281,6 +288,7 @@ public class QueryExamples {
                 builder.on(Selectors.all(), ops -> ops.stackTraceOnException(false)));
 
             TypedDataSet<Customer> customerDataSet = TypedDataSet.of("test", "person", Customer.class);
+            TypedDataSet<Address> addressDataSet = TypedDataSet.of("test", "address", Address.class);
             // Untyped view of the same ns/set: Key-based reads return RecordStream (CDT / raw-bin demos).
             DataSet cdtDemoRecords = customerDataSet.asDataSet();
 //            DataSet customerDataSet = DataSet.of("test", "person");
@@ -943,7 +951,7 @@ public class QueryExamples {
             // --------------------
             // Insert then read back a customer with an address
             System.out.println("\n--- Object mapping test ----");
-            Customer sampleCust = new Customer(999, "sample", 456, new Date(), new Address("123 Main St", "Denver", "CO", "USA", "80112"));
+            Customer sampleCust = new Customer(999, "sample", 456, new Date(), new Address(3, "123 Main St", "Denver", "CO", "USA", "80112"));
             System.out.println("Reference customer: " + sampleCust);
 
             session.delete(customerDataSet.id(999)).execute();
@@ -964,7 +972,7 @@ public class QueryExamples {
             // -----------------------
             // Object mapping (nested)
             // -----------------------
-            Address address1 = new Address("123 Main St", "Denver", "CO", "USA", "80000");
+            Address address1 = new Address(5, "123 Main St", "Denver", "CO", "USA", "80000");
             Customer customer = new Customer(1, "Bob", 37, new Date(), null);
             session.replace(customerDataSet).object(customer).execute();
             session.upsert(customerDataSet.id(customer.getId())).bin("addrs").onMapKey("home").upsert(address1, new AddressMapper());
@@ -1200,6 +1208,21 @@ public class QueryExamples {
             session.upsert(customerDataSet.id(1))
                 .bin("test").onMapKeyRange(5, SpecialValue.INFINITY).getKeys()
                 .execute();
+            
+            // --- hetrogeneous batch call with object reads ---
+            session.upsert(addressDataSet).object(new Address(1, "123 Main St", "Denver", "CO", "USA", "80000")).execute();
+            
+            rs = session.query(customerDataSet.ids(21,22,23))
+                    .query(addressDataSet.id(1))
+                    .execute();
+            System.out.println("\n--- Hetrogeneous batch example ---\n");
+            while (rs.hasNext()) {
+                RecordResult rr = rs.next();
+                System.out.println((Object)rr.toObject());
+            }
+            
+            CompletableFuture<List<Customer>> myCust = session.query(customerDataSet.ids(1,2,3)).execute().asCompletableFutureMapped();
+            CompletableFuture<List<Customer>> myCust1 = session.query(customerDataSet.id(1)).execute().asCompletableFutureMapped();
         }
     }
 }

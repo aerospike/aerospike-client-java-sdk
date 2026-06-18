@@ -406,6 +406,20 @@ public class Session {
     }
 
     /**
+     * Typed multi-key read using a {@link TypedKeyList} (for example from {@link TypedDataSet#ids(int...)}).
+     * Same semantics as {@link #queryTypedKeys(List)}; this overload exists so {@code query(TypedKeyList)}
+     * does not collide with {@link #query(List)} of {@link Key} at type erasure.
+     *
+     * @param typedKeys non-empty list; one entity class for all keys
+     * @param <T> shared entity type
+     * @return typed query builder for that read leg
+     */
+    public <T> TypedKeyQueryBuilder<T> query(TypedKeyList<T> typedKeys) {
+        Objects.requireNonNull(typedKeys, "typedKeys");
+        return queryTypedKeys(typedKeys);
+    }
+
+    /**
      * Query multiple typed keys for one entity type {@code T}. Returns {@link TypedKeyQueryBuilder} so
      * {@link TypedKeyQueryBuilder#execute()} yields {@link TypedRecordStream}{@code <T>} while the chain
      * stays a single typed point-read spec (one or more keys in that spec).
