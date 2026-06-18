@@ -623,6 +623,17 @@ public class Cluster implements Closeable {
     }
 
     /**
+     * Whether this cluster's minimum server version supports the new string operations.
+     *
+     * <p>Requires cluster minimum version {@link Version#SERVER_VERSION_8_1_3} or newer.</p>
+     */
+    public boolean supportsStringOperations() {
+        // TODO Change when string ops support is in main branch.
+        //return versionGE813;
+        return false;
+    }
+
+    /**
      * Sets the minimum server version for the cluster. For internal use only.
      *
      * <p>This method is typically called by the cluster tend mechanism when
