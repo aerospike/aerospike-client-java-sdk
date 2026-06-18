@@ -410,9 +410,14 @@ public class Session {
      * {@link TypedKeyQueryBuilder#execute()} yields {@link TypedRecordStream}{@code <T>} while the chain
      * stays a single typed point-read spec (one or more keys in that spec).
      *
-     * <p>When the list is not homogeneous at compile time (for example mixing {@code TypedKey<Customer>}
-     * and {@code TypedKey<Order>}), use {@link #queryTypedKeysAny(List)} with
-     * {@code List<? extends TypedKey<?>>} instead.</p>
+     * <p><strong>Common case:</strong> use this when you have {@code List<TypedKey<T>>} (or values from
+     * {@code TypedDataSet#ids} inferred as that type) so the compiler knows {@code T}; you get
+     * {@link TypedKeyQueryBuilder}{@code <T>} and {@link TypedRecordStream}{@code <T>} on {@code execute()}.</p>
+     *
+     * <p><strong>Unusual case:</strong> if the keys are only available as {@code List<? extends TypedKey<?>>}
+     * (wildcard at an API boundary — not mixing entity types), the compiler cannot call this overload;
+     * use {@link #queryTypedKeysAny(List)} instead. Heterogeneous entity classes in one leg still fail at
+     * runtime ({@link TypedKey#requireSharedEntityClass}).</p>
      *
      * @param typedKeys non-empty list; all keys must share the same entity class (also enforced at runtime)
      */
@@ -430,8 +435,20 @@ public class Session {
      * Typed batch read when the key list is only known as {@code List<? extends TypedKey<?>>} at compile time.
      * Each read leg must still use one entity class at runtime (see {@link TypedKey#requireSharedEntityClass}).
      *
+     * <p><strong>Common case:</strong> prefer {@link #queryTypedKeys(List)} or
+     * {@link #query(TypedKey, TypedKey, TypedKey[])} when you have {@code List<TypedKey<T>>} or fixed
+     * {@code TypedKey<T>} arguments — you keep {@link TypedKeyQueryBuilder}{@code <T>} and
+     * {@link TypedRecordStream}{@code <T>}. This method exists for the <em>unusual</em> wildcard-shaped
+     * list (e.g. a helper returns {@code List<? extends TypedKey<?>>}, or a generic method only declares
+     * the wildcard) where {@link #queryTypedKeys(List)} does not compile because of Java generics, not
+     * because you want mixed entity types in one leg.</p>
+     *
+     * <p>Returns {@link ChainableQueryBuilder} (not {@link TypedKeyQueryBuilder}) because {@code T} is
+     * not part of the method signature. Per-row {@link RecordResult#toObject()} still works when the
+     * batch is homogeneous.</p>
+     *
      * <p>Cannot overload {@link #queryTypedKeys(List)} with this signature because of type erasure on
-     * {@code List}; use {@link #queryTypedKeys(List)} when all keys share one type {@code T}.</p>
+     * {@code List}.</p>
      */
     public ChainableQueryBuilder queryTypedKeysAny(List<? extends TypedKey<?>> typedKeys) {
         return new ChainableQueryBuilder(this, new ArrayList<>(), null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, getCurrentTransaction())
@@ -657,7 +674,13 @@ public class Session {
             null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, getCurrentTransaction(), entity);
     }
 
-    public UdfFunctionBuilder executeUdfTypedKeys(List<? extends TypedKey<?>> typedKeys) {
+    /**
+     * Execute a UDF on a homogeneous typed key batch.
+     *
+     * @param typedKeys non-empty; all keys must share the same entity class
+     */
+    public <T> UdfFunctionBuilder executeUdf(TypedKeyList<T> typedKeys) {
+        Objects.requireNonNull(typedKeys, "typedKeys");
         List<TypedKey<?>> list = new ArrayList<>(typedKeys);
         Class<?> entity = TypedKey.requireSharedEntityClass(list);
         return new UdfFunctionBuilder(this, TypedKey.nativeKeys(list), new ArrayList<>(),
@@ -741,8 +764,10 @@ public class Session {
         return insert(keys);
     }
 
-    /** @see #insert(List) — cannot overload {@code insert(List)} because of erasure */
-    public ChainableOperationBuilder insertTypedKeys(List<? extends TypedKey<?>> typedKeys) {
+    /**
+     * @see #insert(List) — typed batch overload; cannot use {@code insert(List)} with typed keys because of erasure.
+     */
+    public <T> ChainableOperationBuilder insert(TypedKeyList<T> typedKeys) {
         return insert(TypedKey.nativeKeys(typedKeys));
     }
 
@@ -819,7 +844,10 @@ public class Session {
         return update(keys);
     }
 
-    public ChainableOperationBuilder updateTypedKeys(List<? extends TypedKey<?>> typedKeys) {
+    /**
+     * @see #update(List) — typed batch overload; cannot use {@code update(List)} with typed keys because of erasure.
+     */
+    public <T> ChainableOperationBuilder update(TypedKeyList<T> typedKeys) {
         return update(TypedKey.nativeKeys(typedKeys));
     }
 
@@ -893,7 +921,10 @@ public class Session {
         return upsert(keys);
     }
 
-    public ChainableOperationBuilder upsertTypedKeys(List<? extends TypedKey<?>> typedKeys) {
+    /**
+     * @see #upsert(List) — typed batch overload; cannot use {@code upsert(List)} with typed keys because of erasure.
+     */
+    public <T> ChainableOperationBuilder upsert(TypedKeyList<T> typedKeys) {
         return upsert(TypedKey.nativeKeys(typedKeys));
     }
 
@@ -970,7 +1001,10 @@ public class Session {
         return replace(keys);
     }
 
-    public ChainableOperationBuilder replaceTypedKeys(List<? extends TypedKey<?>> typedKeys) {
+    /**
+     * @see #replace(List) — typed batch overload.
+     */
+    public <T> ChainableOperationBuilder replace(TypedKeyList<T> typedKeys) {
         return replace(TypedKey.nativeKeys(typedKeys));
     }
 
@@ -1050,7 +1084,10 @@ public class Session {
         return replaceIfExists(keys);
     }
 
-    public ChainableOperationBuilder replaceIfExistsTypedKeys(List<? extends TypedKey<?>> typedKeys) {
+    /**
+     * @see #replaceIfExists(List) — typed batch overload.
+     */
+    public <T> ChainableOperationBuilder replaceIfExists(TypedKeyList<T> typedKeys) {
         return replaceIfExists(TypedKey.nativeKeys(typedKeys));
     }
 
@@ -1132,7 +1169,10 @@ public class Session {
         return touch(keys);
     }
 
-    public ChainableNoBinsBuilder touchTypedKeys(List<? extends TypedKey<?>> typedKeys) {
+    /**
+     * @see #touch(List) — typed batch overload.
+     */
+    public <T> ChainableNoBinsBuilder touch(TypedKeyList<T> typedKeys) {
         return touch(TypedKey.nativeKeys(typedKeys));
     }
 
@@ -1206,7 +1246,10 @@ public class Session {
         return exists(keys);
     }
 
-    public ChainableNoBinsBuilder existsTypedKeys(List<? extends TypedKey<?>> typedKeys) {
+    /**
+     * @see #exists(List) — typed batch overload.
+     */
+    public <T> ChainableNoBinsBuilder exists(TypedKeyList<T> typedKeys) {
         return exists(TypedKey.nativeKeys(typedKeys));
     }
 
@@ -1277,7 +1320,10 @@ public class Session {
         return delete(keys);
     }
 
-    public ChainableNoBinsBuilder deleteTypedKeys(List<? extends TypedKey<?>> typedKeys) {
+    /**
+     * @see #delete(List) — typed batch overload.
+     */
+    public <T> ChainableNoBinsBuilder delete(TypedKeyList<T> typedKeys) {
         return delete(TypedKey.nativeKeys(typedKeys));
     }
 

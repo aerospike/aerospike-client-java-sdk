@@ -23,13 +23,16 @@ import java.util.concurrent.Flow;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import com.aerospike.client.sdk.Cluster;
-import com.aerospike.client.sdk.ClusterDefinition;
+import com.aerospike.client.sdk.DefaultRecordMappingFactory;
 import com.aerospike.client.sdk.ErrorStrategy;
 import com.aerospike.client.sdk.RecordResult;
 import com.aerospike.client.sdk.Session;
 import com.aerospike.client.sdk.TypedDataSet;
 import com.aerospike.client.sdk.policy.Behavior;
 import com.aerospike.client.sdk.task.ExecuteTask;
+
+import com.aerospike.examples.Args;
+import com.aerospike.examples.Example;
 
 /**
  * E-commerce order fulfillment example demonstrating CompletableFuture chaining,
@@ -38,6 +41,9 @@ import com.aerospike.client.sdk.task.ExecuteTask;
  * <p>Scenario: A customer places an order. We verify the customer exists, check
  * product stock, create the order, and decrement inventory -- all composed with
  * CompletableFuture. Then we scan products using Flow.Publisher with backpressure.</p>
+ *
+ * <p>Run with the same host/port flags as other examples ({@link Args} via {@link Example#parseStandaloneArgs}):
+ * default {@code localhost:3000}; {@code -h} / {@code -p} override.</p>
  */
 public class EcommerceExample {
 
@@ -46,7 +52,13 @@ public class EcommerceExample {
     static final OrderMapper    ORDER_MAPPER    = new OrderMapper();
 
     public static void main(String[] args) throws Exception {
-        try (Cluster cluster = new ClusterDefinition("localhost", 3100).connect()) {
+        Args arguments = Example.parseStandaloneArgs(args);
+        try (Cluster cluster = Example.clusterDefinition(arguments).connect()) {
+            cluster.setRecordMappingFactory(DefaultRecordMappingFactory.of(
+                    Customer.class, CUSTOMER_MAPPER,
+                    Product.class, PRODUCT_MAPPER,
+                    Order.class, ORDER_MAPPER));
+
             Session session = cluster.createSession(Behavior.DEFAULT);
 
             TypedDataSet<Customer> customers = TypedDataSet.of("test", "customers", Customer.class);
@@ -124,14 +136,14 @@ public class EcommerceExample {
         CompletableFuture<Customer> customerFuture = session
                 .query(customers.id(customerId))
                 .executeAsync(ErrorStrategy.IN_STREAM)
-                .asCompletableFuture(CUSTOMER_MAPPER)
+                .asCompletableFutureMapped()
                 .thenApply(List::getFirst);
 
         // Step B: Fetch the product asynchronously (runs in parallel with Step A)
         CompletableFuture<Product> productFuture = session
                 .query(products.id(sku))
                 .executeAsync(ErrorStrategy.IN_STREAM)
-                .asCompletableFuture(PRODUCT_MAPPER)
+                .asCompletableFutureMapped()
                 .thenApply(List::getFirst);
 
         // Step C: When both complete, validate and create the order
@@ -149,7 +161,7 @@ public class EcommerceExample {
                 // Step D: Persist the order and decrement stock in a single batch
                 .thenCompose(ord -> {
                     session.insert(orders)
-                            .object(ord).using(ORDER_MAPPER)
+                            .object(ord)
                         .update(products.id(ord.getSku()))
                             .bin("stock").add(-ord.getQty())
                         .update(customers.id(ord.getCustomerId()))
@@ -164,7 +176,7 @@ public class EcommerceExample {
         // Verify updated stock
         Product updated = session.query(products.id(sku))
                 .executeAsync(ErrorStrategy.IN_STREAM)
-                .asCompletableFuture(PRODUCT_MAPPER).join().getFirst();
+                .asCompletableFutureMapped().join().getFirst();
         System.out.println("Updated product: " + updated);
         System.out.println();
     }
@@ -184,7 +196,7 @@ public class EcommerceExample {
         // Option A: Async CompletableFuture with exceptionally()
         session.query(customers.id(customerId))
                 .executeAsync(ErrorStrategy.IN_STREAM)
-                .asCompletableFuture(CUSTOMER_MAPPER)
+                .asCompletableFutureMapped()
                 .thenApply(list -> {
                     if (list.isEmpty()) {
                         throw new IllegalStateException("Customer not found: " + customerId);
@@ -254,9 +266,7 @@ public class EcommerceExample {
             @Override
             public void onNext(RecordResult item) {
                 if (item.isOk()) {
-                    Order o = ORDER_MAPPER.fromMap(
-                            item.recordOrThrow().bins, item.key(),
-                            item.recordOrThrow().generation);
+                    Order o = item.toObject();
                     System.out.println("  Received: " + o);
                 } else {
                     System.out.println("  Error: " + item.message());
@@ -298,7 +308,7 @@ public class EcommerceExample {
                         customers.id("C-110"), customers.id("C-112"),
                         customers.id("C-117")))
                 .executeAsync(ErrorStrategy.IN_STREAM)
-                .asCompletableFuture(CUSTOMER_MAPPER)
+                .asCompletableFutureMapped()
                 .join();
 
         // For each customer, query the orders set using a where clause
@@ -307,7 +317,7 @@ public class EcommerceExample {
                 .map(c -> session.query(orders)
                         .where("$.customerId == '" + c.getId() + "'")
                         .executeAsync(ErrorStrategy.IN_STREAM)
-                        .asCompletableFuture(ORDER_MAPPER))
+                        .asCompletableFutureMapped())
                 .toList();
 
         // Wait for all order queries to complete
@@ -448,9 +458,7 @@ public class EcommerceExample {
             @Override
             public void onNext(RecordResult item) {
                 if (item.isOk()) {
-                    Product p = PRODUCT_MAPPER.fromMap(
-                            item.recordOrThrow().bins, item.key(),
-                            item.recordOrThrow().generation);
+                    Product p = item.toObject();
                     String sale = p.isOnSale()
                             ? String.format("SALE $%.2f", p.getSalePriceCents() / 100.0)
                             : "";

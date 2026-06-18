@@ -277,8 +277,8 @@ public final class TypedKeyQueryBuilder<T> implements FilterableOperation<TypedK
         return inner.upsert(typedKey.getKey());
     }
 
-    public ChainableOperationBuilder upsertTypedKeys(List<? extends TypedKey<?>> typedKeys) {
-        return inner.upsertTypedKeys(typedKeys);
+    public <U> ChainableOperationBuilder upsert(TypedKeyList<U> typedKeys) {
+        return inner.upsert(typedKeys);
     }
 
     public ChainableOperationBuilder update(Key key) {
@@ -297,8 +297,8 @@ public final class TypedKeyQueryBuilder<T> implements FilterableOperation<TypedK
         return inner.update(typedKey.getKey());
     }
 
-    public ChainableOperationBuilder updateTypedKeys(List<? extends TypedKey<?>> typedKeys) {
-        return inner.updateTypedKeys(typedKeys);
+    public <U> ChainableOperationBuilder update(TypedKeyList<U> typedKeys) {
+        return inner.update(typedKeys);
     }
 
     public ChainableOperationBuilder insert(Key key) {
@@ -317,8 +317,8 @@ public final class TypedKeyQueryBuilder<T> implements FilterableOperation<TypedK
         return inner.insert(typedKey.getKey());
     }
 
-    public ChainableOperationBuilder insertTypedKeys(List<? extends TypedKey<?>> typedKeys) {
-        return inner.insertTypedKeys(typedKeys);
+    public <U> ChainableOperationBuilder insert(TypedKeyList<U> typedKeys) {
+        return inner.insert(typedKeys);
     }
 
     public ChainableOperationBuilder replace(Key key) {
@@ -337,8 +337,8 @@ public final class TypedKeyQueryBuilder<T> implements FilterableOperation<TypedK
         return inner.replace(typedKey.getKey());
     }
 
-    public ChainableOperationBuilder replaceTypedKeys(List<? extends TypedKey<?>> typedKeys) {
-        return inner.replaceTypedKeys(typedKeys);
+    public <U> ChainableOperationBuilder replace(TypedKeyList<U> typedKeys) {
+        return inner.replace(typedKeys);
     }
 
     public ChainableOperationBuilder replaceIfExists(Key key) {
@@ -357,8 +357,8 @@ public final class TypedKeyQueryBuilder<T> implements FilterableOperation<TypedK
         return inner.replaceIfExists(typedKey.getKey());
     }
 
-    public ChainableOperationBuilder replaceIfExistsTypedKeys(List<? extends TypedKey<?>> typedKeys) {
-        return inner.replaceIfExistsTypedKeys(typedKeys);
+    public <U> ChainableOperationBuilder replaceIfExists(TypedKeyList<U> typedKeys) {
+        return inner.replaceIfExists(typedKeys);
     }
 
     public ChainableNoBinsBuilder delete(Key key) {
@@ -377,8 +377,8 @@ public final class TypedKeyQueryBuilder<T> implements FilterableOperation<TypedK
         return inner.delete(key1, key2, moreKeys);
     }
 
-    public ChainableNoBinsBuilder deleteTypedKeys(List<? extends TypedKey<?>> typedKeys) {
-        return inner.deleteTypedKeys(typedKeys);
+    public <U> ChainableNoBinsBuilder delete(TypedKeyList<U> typedKeys) {
+        return inner.delete(typedKeys);
     }
 
     public ChainableNoBinsBuilder touch(Key key) {
@@ -397,8 +397,8 @@ public final class TypedKeyQueryBuilder<T> implements FilterableOperation<TypedK
         return inner.touch(key1, key2, moreKeys);
     }
 
-    public ChainableNoBinsBuilder touchTypedKeys(List<? extends TypedKey<?>> typedKeys) {
-        return inner.touchTypedKeys(typedKeys);
+    public <U> ChainableNoBinsBuilder touch(TypedKeyList<U> typedKeys) {
+        return inner.touch(typedKeys);
     }
 
     public ChainableNoBinsBuilder exists(Key key) {
@@ -417,8 +417,8 @@ public final class TypedKeyQueryBuilder<T> implements FilterableOperation<TypedK
         return inner.exists(key1, key2, moreKeys);
     }
 
-    public ChainableNoBinsBuilder existsTypedKeys(List<? extends TypedKey<?>> typedKeys) {
-        return inner.existsTypedKeys(typedKeys);
+    public <U> ChainableNoBinsBuilder exists(TypedKeyList<U> typedKeys) {
+        return inner.exists(typedKeys);
     }
 
     public UdfFunctionBuilder executeUdf(Key key) {

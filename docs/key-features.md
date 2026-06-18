@@ -979,7 +979,7 @@ session.removeUdf("udf.lua");
 
 ### Typed UDF results (`TypedKey`, `udfResultAsObject()`)
 
-When you start a UDF from **`executeUdf(TypedKey)`**, **`executeUdf(TypedKey…)`**, or **`executeUdfTypedKeys`**, the SDK carries the key’s entity **`Class<?>`** on the operation spec (same **homogeneous** rule as typed batch query: every `TypedKey` in that leg must share one entity type). Each **`RecordResult`** then gets **`readMappingSession`** / **`readMappingClass`** like typed reads, so you can map the Lua return value with **`udfResultAsObject()`** without passing a mapper on the call.
+When you start a UDF from **`executeUdf(TypedKey)`**, **`executeUdf(TypedKey…)`**, or **`executeUdf(TypedKeyList)`**, the SDK carries the key’s entity **`Class<?>`** on the operation spec (same **homogeneous** rule as typed batch query: every `TypedKey` in that leg must share one entity type). Each **`RecordResult`** then gets **`readMappingSession`** / **`readMappingClass`** like typed reads, so you can map the Lua return value with **`udfResultAsObject()`** without passing a mapper on the call.
 
 ```java
 TypedDataSet<MyDto> dtos = TypedDataSet.of(ns, set, MyDto.class);
@@ -1218,12 +1218,14 @@ entry points so the SDK knows `Class<T>`.
 | `session.query(TypedDataSet<T>)` | `TypedQueryBuilder<T>` → `TypedRecordStream<T>` | Yes — `toObjectList()`, `getFirstObject()`, … use the factory for `T`. |
 | `session.query(Key)` / varargs `Key` | `ChainableQueryBuilder` → `RecordStream` | Per row: use `RecordMapper` or raw bins. |
 | `session.query(TypedKey<T>)` (one argument) | `TypedKeyQueryBuilder<T>` → `TypedRecordStream<T>` | Yes — `getFirstObject()`, `toObjectList()`, … until the chain widens (second `query`, write, `executeUdf`, …), then `ChainableQueryBuilder` / `RecordStream` with per-row `toObject()` on typed legs. |
-| `session.query(TypedKey<T>, TypedKey<T>, …)` / `session.queryTypedKeys(List<TypedKey<T>>)` | `TypedKeyQueryBuilder<T>` → `TypedRecordStream<T>` | Same as single-key typed path: one read spec, any number of keys sharing `T`. |
-| `session.queryTypedKeysAny(List<? extends TypedKey<?>>)` | `ChainableQueryBuilder` → `RecordStream` | Wildcard list (erasure escape hatch). Per row: `RecordResult.toObject()` on typed legs. |
+| `session.query(TypedKey<T>, TypedKey<T>, …)` / `session.queryTypedKeys(List<TypedKey<T>>)` | `TypedKeyQueryBuilder<T>` → `TypedRecordStream<T>` | **Usual** multi-key typed read: one read spec, any number of keys sharing `T`; compiler knows `T`. |
+| `session.queryTypedKeysAny(List<? extends TypedKey<?>>)` | `ChainableQueryBuilder` → `RecordStream` | **Unusual:** list is only `List<? extends TypedKey<?>>` at compile time (API / generics boundary). Same runtime rule: one entity class per leg. Per row: `RecordResult.toObject()` on typed legs. |
 
-**List overloads and erasure:** `query(List<Key>)` cannot share a name with a typed-key list overload after erasure. **`Session`** therefore uses **`queryTypedKeys(List<TypedKey<T>>)`** for a compile-time-homogeneous read (returns **`TypedKeyQueryBuilder<T>`**) and **`queryTypedKeysAny(List<? extends TypedKey<?>>)`** when the list is only known as a wildcard. The same **`queryTypedKeys(List<? extends TypedKey<?>>)`** name still exists on **`ChainableQueryBuilder`** / **`ObjectBuilder`** (mid-chain). On write chains, wherever **`operation(List<Key>)`** would collide with a list of typed keys, use the corresponding **`*TypedKeys(List<? extends TypedKey<?>>)`** helper (for example `upsertTypedKeys`, `deleteTypedKeys`).
+**Common vs unusual:** Prefer **`queryTypedKeys`** / **`query(TypedKey, TypedKey, …)`** whenever you have **`List<TypedKey<T>>`** or fixed typed key arguments — that path is typed end-to-end on **`execute()`**. Reserve **`queryTypedKeysAny`** for wildcard-only lists where **`queryTypedKeys`** cannot compile; it is not for mixing **`Customer`** and **`Order`** keys in one leg (that still throws at batch init).
 
-**`TypedKey`:** `TypedDataSet` exposes `id(...)`, `ids(...)`, and digest helpers returning `TypedKey` / `List<TypedKey<T>>` (with `Class<T>` attached) for batch chains and `queryTypedKeys`.
+**List overloads and erasure:** `query(List<Key>)` cannot share a name with a typed-key list overload after erasure. **`Session`** therefore uses **`queryTypedKeys(List<TypedKey<T>>)`** for a compile-time-homogeneous read (returns **`TypedKeyQueryBuilder<T>`**) and **`queryTypedKeysAny(List<? extends TypedKey<?>>)`** when the list is only known as a wildcard. The same **`queryTypedKeys(List<? extends TypedKey<?>>)`** name still exists on **`ChainableQueryBuilder`** / **`ObjectBuilder`** (mid-chain). For writes, **`operation(List<Key>)`** collides with a homogeneous typed batch at erasure, so use **`operation(TypedKeyList<T>)`** (for example **`session.upsert(TypedDataSet#ids(...))`**, **`session.delete(customerDataSet.ids(1, 2))`**, or **`TypedKeyList.of(listFromStream)`** when keys were built as a plain **`List<TypedKey<T>>`**).
+
+**`TypedKey` / `TypedKeyList`:** `TypedDataSet` exposes `id(...)`, **`ids(...)`** returning **`TypedKeyList<T>`** (also a **`List<TypedKey<T>>`**), and digest helpers for batch chains and **`queryTypedKeys`**.
 
 **`Iterable` semantics:** `TypedRecordStream` implements `Iterable<RecordResult>` with `iterator()` returning the stream itself — **one pass**. An enhanced `for` loop consumes the stream the same way as iterating a `RecordStream`.
 

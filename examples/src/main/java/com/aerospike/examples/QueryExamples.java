@@ -43,7 +43,6 @@ import com.aerospike.client.sdk.SpecialValue;
 import com.aerospike.client.sdk.TypedDataSet;
 import com.aerospike.client.sdk.TypedNavigatableRecordStream;
 import com.aerospike.client.sdk.TypedRecordStream;
-import com.aerospike.client.sdk.Log.Level;
 import com.aerospike.client.sdk.ael.Ael;
 import com.aerospike.client.sdk.cdt.ListOrder;
 import com.aerospike.client.sdk.cdt.MapOrder;
@@ -57,6 +56,13 @@ import com.aerospike.client.sdk.query.SortProperties;
 import com.aerospike.client.sdk.task.ExecuteTask;
 import com.aerospike.client.sdk.util.MapUtil;
 
+/**
+ * Large runnable example suite for queries, batch, object mapping, and policies.
+ *
+ * <p>Run with the same host/port flags as other examples ({@link Args} via {@link Example#parseStandaloneArgs}):
+ * default seed {@code localhost:3000}; {@code -h} / {@code -p} override host and port. Optional {@code -a}
+ * enables services alternate (see {@link ClusterDefinition#usingServicesAlternate()}).</p>
+ */
 public class QueryExamples {
     public static class Address {
         private final String line1;
@@ -229,19 +235,11 @@ public class QueryExamples {
     }
 
     @SuppressWarnings("unused")
-	public static void main(String[] args) {
-        try (Cluster cluster = new ClusterDefinition("localhost", 3100)
-                .usingServicesAlternate()
-                .withNativeCredentials("admin", "password123")
-                .preferringRacks(1)
-                .withLogLevel(Level.DEBUG)
-                .withSystemSettings(builder -> builder
-                    .circuitBreaker(ops -> ops.maximumErrorsInErrorWindow(200))
-                    .connections(conn -> conn
-                            .minimumConnectionsPerNode(200)
-                            .maximumConnectionsPerNode(200)
-                    )
-                )
+	public static void main(String[] args) throws Exception {
+        Args arguments = Example.parseStandaloneArgs(args);
+        try (Cluster cluster = Example.clusterDefinition(arguments)
+//                .withNativeCredentials("admin", "password123")
+//                .preferringRacks(1)
                 .connect()) {
 
             CustomerMapper customerMapper = new CustomerMapper();
@@ -355,7 +353,7 @@ public class QueryExamples {
                     .asUntypedRecordStream();
             System.out.println(rs1.getFirst());
 
-            session.upsertTypedKeys(customerDataSet.ids(1,2,3,4,5)).bin("holdings").add(1).execute();
+            session.upsert(customerDataSet.ids(1,2,3,4,5)).bin("holdings").add(1).execute();
             session.upsert(customerDataSet)
                     .bins("name", "age")
                     .id(1).values("Tim", 312)
@@ -363,9 +361,9 @@ public class QueryExamples {
                     .id(3).values("Jane", 46)
                     .execute();
 
-            System.out.printf("id(2) exists: %b\n", session.existsTypedKeys(customerDataSet.ids(2)).execute().getFirst());
-            session.deleteTypedKeys(customerDataSet.ids(2)).withoutDurableDelete().execute();
-//            System.out.printf("id(2) exists: %b\n", session.existsTypedKeys(customerDataSet.ids(2)).execute().getFirst());
+            System.out.printf("id(2) exists: %b\n", session.exists(customerDataSet.ids(2)).execute().getFirst());
+            session.delete(customerDataSet.ids(2)).withoutDurableDelete().execute();
+//            System.out.printf("id(2) exists: %b\n", session.exists(customerDataSet.ids(2)).execute().getFirst());
 
             DataSet users = DataSet.of("test", "users");
 
@@ -375,7 +373,7 @@ public class QueryExamples {
                     .execute();
             System.out.println(result.getFirst());
 
-            session.upsertTypedKeys(customerDataSet.ids(81, 82))
+            session.upsert(customerDataSet.ids(81, 82))
                     .bin("name").setTo("Tim")
                     .bin("age").setTo(343)
                     .execute();
@@ -402,7 +400,7 @@ public class QueryExamples {
                     .expireRecordAt(LocalDateTime.of(2030, 1, 1, 0, 0))
                     .execute();
 
-            session.deleteTypedKeys(customerDataSet.ids(900, 901, 902, 903, 904, 905)).execute();
+            session.delete(customerDataSet.ids(900, 901, 902, 903, 904, 905)).execute();
 
             session.insert(customerDataSet)
                     .bins("name", "age", "hair", "dob")
@@ -436,7 +434,7 @@ public class QueryExamples {
 //              .values("Jane", 28, "blonde", new Date().getTime())
             }
 
-            session.deleteTypedKeys(customerDataSet.ids(1,2,3,5,7,11,13,17)).execute();
+            session.delete(customerDataSet.ids(1,2,3,5,7,11,13,17)).execute();
 
             session.delete(customerDataSet.id(102)).execute();
 
@@ -539,14 +537,12 @@ public class QueryExamples {
 
             session.insert(customerDataSet)
                 .objects(customers)
-                .using(customerMapper)
                 .execute();
 
             System.out.println("Updating all customers called Tim");
             print(session.update(customerDataSet)
                 .where("$.name == 'Tim'")
                 .objects(customers)
-                .using(customerMapper)
                 .execute());
 
             System.out.printf("Customer 46 age before scan: %d\n",
@@ -663,7 +659,7 @@ public class QueryExamples {
             System.out.println("Read with select bins, set read");
             print(session.query(customerDataSet).readingOnlyBins("name", "age").execute());
 
-//            session.updateTypedKeys(customerDataSet.ids(1,2,3,4))
+//            session.update(customerDataSet.ids(1,2,3,4))
 //                    .bin
 
             // Throw an exception
@@ -889,12 +885,12 @@ public class QueryExamples {
             // Multi operation batches
             // ------------------------
             RecordStream rsStream = session
-                .updateTypedKeys(customerDataSet.ids(1000, 1001))
+                .update(customerDataSet.ids(1000, 1001))
                     .bin("age").add(1)
                     .bin("dob").setTo(new Date().getTime())
 //                    .where("$.age > 100")
                     .expireRecordAfter(Duration.ofMinutes(5))
-                .existsTypedKeys(customerDataSet.ids(1000,1001))
+                .exists(customerDataSet.ids(1000,1001))
                 .queryTypedKeys(customerDataSet.ids(10,12))
                 .delete(customerDataSet.id(1003))
                 .notInAnyTransaction()
@@ -907,24 +903,24 @@ public class QueryExamples {
             rsStream = session.queryTypedKeys(customerDataSet.ids(1,2,3))
                         .bin("name").get()
                         .bin("map").onMapKeyRange(5, 10).getKeysAndValues()
-                    .updateTypedKeys(customerDataSet.ids(1))
+                    .update(customerDataSet.ids(1))
                         .bin("age").add(1)
                     .execute();
 
             rsStream = session
-                    .updateTypedKeys(customerDataSet.ids(1,2,3))
+                    .update(customerDataSet.ids(1,2,3))
                         .bin("age").add(1)
                         .bin("updated").setTo(true)
                         .where("$.age < 21")
-                    .deleteTypedKeys(customerDataSet.ids(11,12,13,14,15))
-                    .updateTypedKeys(customerDataSet.ids(5,6,7))
+                    .delete(customerDataSet.ids(11,12,13,14,15))
+                    .update(customerDataSet.ids(5,6,7))
                         .bin("luckyWinner").setTo("true")
                     .defaultWhere("$.updated == false")
                     .execute();
 
             rsStream = session.queryTypedKeys(customerDataSet.ids(1,2,3))
                             .limit(2)
-                    .updateTypedKeys(customerDataSet.ids(4,5,6))
+                    .update(customerDataSet.ids(4,5,6))
                         .bin("name").setTo("bob")
                         .expireRecordAfterSeconds(500)
                     .query(customerDataSet.id(7))
@@ -952,7 +948,7 @@ public class QueryExamples {
 
             session.delete(customerDataSet.id(999)).execute();
             session.insert(customerDataSet).object(sampleCust).execute();
-            Customer readCustomer = session.query(customerDataSet.id(999)).execute().toObjectList(customerMapper).get(0);
+            Customer readCustomer = session.query(customerDataSet.id(999)).execute().toObjectList().get(0);
             System.out.println("Customer read back: " + readCustomer);
             System.out.println("--- End object mapping test ----");
 
@@ -970,7 +966,7 @@ public class QueryExamples {
             // -----------------------
             Address address1 = new Address("123 Main St", "Denver", "CO", "USA", "80000");
             Customer customer = new Customer(1, "Bob", 37, new Date(), null);
-            session.replace(customerDataSet).object(customer).using(customerMapper).execute();
+            session.replace(customerDataSet).object(customer).execute();
             session.upsert(customerDataSet.id(customer.getId())).bin("addrs").onMapKey("home").upsert(address1, new AddressMapper());
 
             // ----------------

@@ -27,7 +27,13 @@ import java.util.Objects;
  * @param <T> domain type
  * @see Session#query(TypedKey)
  * @see Session#queryTypedKeys(List)
+ * @see TypedKeyList
  * @see Session#queryTypedKeysAny(List)
+ *
+ * <p>For multi-key reads, {@link Session#queryTypedKeys(List)} is the usual entry point when the compiler
+ * knows {@code List<TypedKey<T>>}. {@link Session#queryTypedKeysAny(List)} is only for the uncommon case
+ * where keys appear as {@code List<? extends TypedKey<?>>}; it is not for mixing different entity classes
+ * in one leg (that still fails {@link TypedKey#requireSharedEntityClass}).</p>
  */
 public final class TypedKey<T> {
     private final Key key;

@@ -64,7 +64,7 @@ try (TypedRecordStream<Customer> rs = session.query(users.id("alice@example.com"
 |------|-----------|
 | **Centralize** bin ↔ Java conversion | Implement **`RecordMapper<T>`** and register **`RecordMappingFactory`** on **`Cluster`**. |
 | **Tell the SDK which `T` a read is for** | Use **`TypedDataSet<T>`** (set-level queries) or **`TypedKey<T>`** (point reads / typed batch legs) so results carry a type hint. |
-| **Get `List<T>` / `Optional<T>` from a stream** | **`TypedRecordStream<T>`** (from **`query(TypedDataSet)`**, **`query(TypedKey)`** / **`query(TypedKey, TypedKey, …)`** / **`queryTypedKeys(List<TypedKey<T>>)`** while the chain stays a single typed point read). |
+| **Get `List<T>` / `Optional<T>` from a stream** | **`TypedRecordStream<T>`** (from **`query(TypedDataSet)`**, **`query(TypedKey)`** / **`query(TypedKey, TypedKey, …)`** / **`queryTypedKeys(List<TypedKey<T>>)`** with keys from **`TypedDataSet#ids`** (`TypedKeyList<T>`) while the chain stays a single typed point read). |
 | **Mix multiple types in one batch** | **`ChainableQueryBuilder`** → **`RecordStream`**; each **`RecordResult.toObject()`** uses **per-row** hints (runtime typing). |
 
 ---
@@ -227,20 +227,110 @@ When the API returns **`TypedRecordStream<T>`**, methods are typed on **`T`** �
 
 Here, “this stream is **`Customer`**” is expressed in **generics** on **`TypedRecordStream<T>`**.
 
+```java
+import java.util.List;
+import java.util.Optional;
+
+import com.aerospike.client.sdk.TypedKey;
+import com.aerospike.client.sdk.TypedRecordStream;
+
+// Example: Customer, TypedDataSet<Customer> users, Session session
+
+TypedKey<Customer> alice = users.id("alice@example.com");
+
+try (TypedRecordStream<Customer> stream = session.query(alice).bin("name").get().execute()) {
+    Optional<Customer> row = stream.getFirstObject(); // Optional<Customer> — no cast
+}
+```
+
+Chaining **another** read/write/UDF step on the same builder **widens** it (see *Key Features*): **`execute()`** then returns **`RecordStream`**, not **`TypedRecordStream<Customer>`**.
+
+```java
+import com.aerospike.client.sdk.RecordStream;
+
+try (RecordStream rs = session.query(alice).bin("name").get()
+        .query(users.id("bob@example.com")).bin("name").get()
+        .execute()) {
+    Customer first = rs.next().toObject();
+    Customer second = rs.next().toObject(); // still Customer rows, but the stream type is not generic on Customer
+}
+```
+
 ### Homogeneous multi-key reads (`queryTypedKeys`, `query(TypedKey, TypedKey, …)`)
 
-Use these when you have **several keys for the same entity** and want **`TypedRecordStream<T>`** (mapper-free **`toObjectList()`**, **`getFirstObject()`**, …) for that **single** read spec:
+**Common case (preferred):** you have **several keys for the same entity** and the compiler sees **`List<TypedKey<T>>`** (or **`TypedDataSet#ids`** inferred that way). Use these so you get **`TypedKeyQueryBuilder<T>`** → **`TypedRecordStream<T>`** (mapper-free **`toObjectList()`**, **`getFirstObject()`**, …) for that **single** read spec:
 
-- **`session.queryTypedKeys(List<TypedKey<T>>)`** — e.g. **`session.queryTypedKeys(users.ids(1, 2, 3))`** — **`List<TypedKey<Customer>>`** fixes **`T`** at compile time.
+- **`session.queryTypedKeys(List<TypedKey<T>>)`** — e.g. **`session.queryTypedKeys(users.ids(1, 2, 3))`** — fixes **`T`** at compile time (`ids` returns **`TypedKeyList<T>`**, which is a **`List<TypedKey<T>>`**).
 - **`session.query(TypedKey<T> k1, TypedKey<T> k2, TypedKey<T>... more)`** — same **`T`** enforced by the varargs signature.
 
-**When the list is only known as a wildcard** (`List<? extends TypedKey<?>>`, e.g. mixing key types at compile time), **`Session`** cannot overload the same erased `List` type; use **`session.queryTypedKeysAny(List<? extends TypedKey<?>>)`** → **`ChainableQueryBuilder`** → **`RecordStream`**. Runtime still requires one entity class **per read leg** (`IllegalArgumentException` if classes differ).
+```java
+import java.util.List;
 
-**Per-row mapping** on **`RecordStream`** typed legs is unchanged: **`RecordResult.toObject()`** uses the row hint. **`queryTypedKeysAny`** is for the type-erasure escape hatch, not for skipping the one-class-per-leg rule.
+import com.aerospike.client.sdk.TypedKeyList;
+import com.aerospike.client.sdk.TypedRecordStream;
+
+TypedKeyList<Customer> keys = users.ids(1, 2, 3); // or users.ids("a", "b")
+
+try (TypedRecordStream<Customer> stream = session.queryTypedKeys(keys).bin("email").get().execute()) {
+    List<Customer> rows = stream.toObjectList(); // List<Customer>
+}
+
+// Varargs overload keeps a single T on the whole call:
+try (TypedRecordStream<Customer> stream2 =
+        session.query(users.id(1), users.id(2), users.id(3)).bin("email").get().execute()) {
+    stream2.forEachObject(c -> { /* Consumer<Customer> */ });
+}
+```
+
+#### `queryTypedKeysAny` (unusual — wildcard list only)
+
+Use **`session.queryTypedKeysAny(List<? extends TypedKey<?>>)`** only when the key list is **stuck at a wildcard type** at compile time — for example a library method returns **`List<? extends TypedKey<?>>`**, or a generic helper is declared with that wildcard so **`queryTypedKeys(List<TypedKey<T>>)`** does not compile. **`Session`** cannot add a second overload that differs only by generic type arguments on **`List`** (they erase to the same raw **`List`**), so this separate method name is the escape hatch.
+
+You still get a **homogeneous** batch at **runtime** (one entity class per leg); mixing **`TypedKey<Customer>`** and **`TypedKey<Order>`** in one list throws **`IllegalArgumentException`** from **`TypedKey.requireSharedEntityClass`** — **`queryTypedKeysAny`** is **not** for that scenario.
+
+**Trade-off:** **`queryTypedKeysAny`** returns **`ChainableQueryBuilder`** → **`RecordStream`** (not **`TypedKeyQueryBuilder<T>`** / **`TypedRecordStream<T>`**) because **`T`** is not in the method signature. Per-row **`RecordResult.toObject()`** still works on successful typed legs when the batch is homogeneous.
+
+**Per-row mapping** on **`RecordStream`** typed legs is unchanged: **`RecordResult.toObject()`** uses the row hint.
+
+```java
+import java.util.List;
+
+import com.aerospike.client.sdk.RecordResult;
+import com.aerospike.client.sdk.RecordStream;
+import com.aerospike.client.sdk.TypedKey;
+
+List<? extends TypedKey<?>> keys = fetchKeysSomehow(); // library returns wildcard-typed list
+
+try (RecordStream rs = session.queryTypedKeysAny(keys).bin("name").get().execute()) {
+    while (rs.hasNext()) {
+        RecordResult rr = rs.next();
+        Customer c = rr.toObject(); // row carries readMappingClass from the typed keys
+    }
+}
+```
 
 ### Heterogeneous batch chains (runtime only)
 
 When you chain **different** read legs (e.g. customers then orders) or mix reads and writes on **`ChainableQueryBuilder`**, **`execute()`** returns **`RecordStream`**. Each **`RecordResult.toObject()`** uses that row’s hint. The compiler cannot prove **`Customer c = rs.next().toObject()`** matches the next row — you rely on **order** and **row metadata** (see *Key Features*).
+
+```java
+import com.aerospike.client.sdk.TypedDataSet;
+// Example: TypedDataSet<Customer> users; TypedDataSet<Order> orders;
+
+// First leg is typed; chaining a second query with a different entity widens to RecordStream:
+try (RecordStream rs = session.query(users.id("a@example.com"))
+        .bin("name").get()
+        .query(orders.id(100L))
+        .bin("total").get()
+        .execute()) {
+
+    RecordResult rCustomer = rs.next();
+    RecordResult rOrder = rs.next();
+
+    Customer c = rCustomer.toObject(); // per-row read hint; stream itself is untyped RecordStream
+    Order o = rOrder.toObject();
+}
+```
 
 ---
 

@@ -21,7 +21,6 @@ import java.util.Map;
 import java.util.Optional;
 
 import com.aerospike.client.sdk.Cluster;
-import com.aerospike.client.sdk.ClusterDefinition;
 import com.aerospike.client.sdk.DefaultRecordMappingFactory;
 import com.aerospike.client.sdk.Key;
 import com.aerospike.client.sdk.RecordMapper;
@@ -44,8 +43,9 @@ import com.aerospike.client.sdk.util.MapUtil;
  * to load a related {@link Gadget} through {@link RecordReadContext#getSession()} when the
  * {@code related_gadget_id} bin is set.</p>
  *
- * <p>Defaults match {@link QueryExamples}: {@code localhost:3100}, services alternate,
- * and the same sample credentials. Requires namespace {@code test}.</p>
+ * <p>Connection flags match other standalone examples ({@link Args} via {@link Example#parseStandaloneArgs}):
+ * default {@code localhost:3000}; {@code -h} / {@code -p} to override; optional {@code -a} for services
+ * alternate. Requires namespace {@code test}.</p>
  */
 public final class TypedMappingExamples {
 
@@ -242,9 +242,9 @@ public final class TypedMappingExamples {
         }
     }
 
-    public static void main(String[] args) {
-        try (Cluster cluster = new ClusterDefinition("localhost", 3100)
-                .connect()) {
+    public static void main(String[] args) throws Exception {
+        Args arguments = Example.parseStandaloneArgs(args);
+        try (Cluster cluster = Example.clusterDefinition(arguments).connect()) {
 
             WidgetMapper widgetMapper = new WidgetMapper();
             GadgetMapper gadgetMapper = new GadgetMapper();

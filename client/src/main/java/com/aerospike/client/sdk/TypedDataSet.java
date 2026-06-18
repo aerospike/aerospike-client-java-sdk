@@ -16,7 +16,6 @@
  */
 package com.aerospike.client.sdk;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
@@ -29,6 +28,10 @@ import java.util.Objects;
  * explicit {@link RecordMapper}. For APIs that require a plain {@link Key} or
  * {@code List<Key>} (for example {@link Session#query(java.util.List)}), use
  * {@link #asKey(int)} / {@link #asKeys(int...)} or {@link #asDataSet()}.</p>
+ *
+ * <p>Batch-typed key methods {@link #ids(int...)} (and other {@code ids} / {@code idsFromDigests} overloads)
+ * return {@link TypedKeyList} so {@link Session} overload resolution can distinguish typed batches from
+ * {@code List<Key>} without erasure clashes.</p>
  *
  * @param <T> domain type stored in this set
  * @see Session#query(TypedDataSet)
@@ -94,40 +97,40 @@ public final class TypedDataSet<T> {
         return new TypedKey<>(backing.idForObject(object), clazz);
     }
 
-    public List<TypedKey<T>> ids(List<? extends Object> ids) {
-        List<TypedKey<T>> out = new ArrayList<>();
+    public TypedKeyList<T> ids(List<? extends Object> ids) {
+        TypedKeyList<T> out = new TypedKeyList<>();
         for (Object id : ids) {
             out.add(idForObject(id));
         }
         return out;
     }
 
-    public List<TypedKey<T>> ids(int... ids) {
-        List<TypedKey<T>> out = new ArrayList<>();
+    public TypedKeyList<T> ids(int... ids) {
+        TypedKeyList<T> out = new TypedKeyList<>(ids.length);
         for (int thisId : ids) {
             out.add(id(thisId));
         }
         return out;
     }
 
-    public List<TypedKey<T>> ids(long... ids) {
-        List<TypedKey<T>> out = new ArrayList<>();
+    public TypedKeyList<T> ids(long... ids) {
+        TypedKeyList<T> out = new TypedKeyList<>(ids.length);
         for (long thisId : ids) {
             out.add(id(thisId));
         }
         return out;
     }
 
-    public List<TypedKey<T>> ids(String... ids) {
-        List<TypedKey<T>> out = new ArrayList<>();
+    public TypedKeyList<T> ids(String... ids) {
+        TypedKeyList<T> out = new TypedKeyList<>(ids.length);
         for (String thisId : ids) {
             out.add(id(thisId));
         }
         return out;
     }
 
-    public List<TypedKey<T>> ids(byte[]... ids) {
-        List<TypedKey<T>> out = new ArrayList<>();
+    public TypedKeyList<T> ids(byte[]... ids) {
+        TypedKeyList<T> out = new TypedKeyList<>(ids.length);
         for (byte[] thisId : ids) {
             out.add(id(thisId));
         }
@@ -138,8 +141,8 @@ public final class TypedDataSet<T> {
         return new TypedKey<>(backing.idFromDigest(digest), clazz);
     }
 
-    public List<TypedKey<T>> idsFromDigests(byte[]... digests) {
-        List<TypedKey<T>> out = new ArrayList<>();
+    public TypedKeyList<T> idsFromDigests(byte[]... digests) {
+        TypedKeyList<T> out = new TypedKeyList<>(digests.length);
         for (byte[] digest : digests) {
             out.add(idFromDigest(digest));
         }
