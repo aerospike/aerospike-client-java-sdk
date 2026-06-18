@@ -356,25 +356,11 @@ class OperationSpecExecutor {
 
                 Class<?> readHint = i < readMappingPerRecord.size() ? readMappingPerRecord.get(i) : null;
                 Session mappingSession = readHint == null ? null : session;
-                RecordResult result = AbstractFilterableBuilder.createRecordResultFromBatchRecord(
+                RecordResult result = createBatchRecordResult(
                     br, settings, i, mappingSession, readHint);
 
-                if (AbstractFilterableBuilder.isActionableError(br.resultCode)) {
-                    switch (disposition) {
-                        case ErrorDisposition.Throw ignored -> {
-                            AerospikeException ex = result.exception() != null
-                                ? result.exception()
-                                : AerospikeException.resultCodeToException(br.resultCode, null, br.inDoubt);
-                            throw ex;
-                        }
-                        case ErrorDisposition.Handler h ->
-                            AbstractFilterableBuilder.dispatchError(result, h.errorHandler());
-                        case ErrorDisposition.InStream ignored ->
-                            recordStream.publish(result);
-                    }
-                } else {
-                    recordStream.publish(result);
-                }
+                AbstractFilterableBuilder.routeBatchResult(
+                    result, br.resultCode, disposition, recordStream);
             }
             return new RecordStream(recordStream);
         }
@@ -728,6 +714,28 @@ class OperationSpecExecutor {
         }
 
         return new RecordStream();
+    }
+
+    /**
+     * Build a {@link RecordResult} from a {@link BatchRecord}, handling the special case for
+     * typed batch UDF results. Successful UDF records with a read-mapping class need the
+     * return value extracted from {@code record.bins["SUCCESS"]} so that
+     * {@link RecordResult#udfResultAsObject()} can map it. The generic BatchRecord constructor
+     * does not do this, so we use the UDF-specific RecordResult constructor for that case.
+     * All other records (non-UDF, non-typed, or errors) go through the standard path which
+     * preserves resultCode and exception info.
+     */
+    private static RecordResult createBatchRecordResult(
+        BatchRecord br, ResolvedSettings settings, int index,
+        Session mappingSession, Class<?> readMappingClass
+    ) {
+        if (br.getType() == BatchRecord.Type.BATCH_UDF && readMappingClass != null
+                && br.resultCode == ResultCode.OK) {
+            Object udfResult = extractUdfResult(br.record);
+            return new RecordResult(br.key, udfResult, index, mappingSession, readMappingClass);
+        }
+        return AbstractFilterableBuilder.createRecordResultFromBatchRecord(
+            br, settings, index, mappingSession, readMappingClass);
     }
 
     /**

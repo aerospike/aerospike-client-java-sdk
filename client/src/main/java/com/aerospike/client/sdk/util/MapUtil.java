@@ -121,7 +121,11 @@ public class MapUtil {
         return value instanceof Map ? (Map<K, V>) value : null;
     }
     public static int asInt(Map<String, Object> map, String key) {
-        return (int)(long)map.get(key);
+        Object value = map.get(key);
+        if (value instanceof Number) {
+            return ((Number) value).intValue();
+        }
+        return 0;
     }
     public static Date asDateFromLong(Map<String, Object> map, String key) {
         if (map.containsKey(key)) {

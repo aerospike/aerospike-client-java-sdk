@@ -947,22 +947,8 @@ public class ObjectBuilder<T> {
 
                 RecordResult result = AbstractFilterableBuilder.createRecordResultFromBatchRecord(br, settings, i);
 
-                if (AbstractFilterableBuilder.isActionableError(br.resultCode)) {
-                    switch (disposition) {
-                        case ErrorDisposition.Throw ignored -> {
-                            AerospikeException ex = result.exception() != null
-                                ? result.exception()
-                                : AerospikeException.resultCodeToException(br.resultCode, null, br.inDoubt);
-                            throw ex;
-                        }
-                        case ErrorDisposition.Handler h ->
-                            AbstractFilterableBuilder.dispatchError(result, h.errorHandler());
-                        case ErrorDisposition.InStream ignored ->
-                            recordStream.publish(result);
-                    }
-                } else {
-                    recordStream.publish(result);
-                }
+                AbstractFilterableBuilder.routeBatchResult(
+                    result, br.resultCode, disposition, recordStream);
             }
             return new RecordStream(recordStream);
         }
