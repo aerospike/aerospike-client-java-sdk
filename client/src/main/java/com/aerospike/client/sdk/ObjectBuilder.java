@@ -26,8 +26,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Arrays;
-import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -38,7 +36,6 @@ import com.aerospike.client.sdk.command.BatchCommand;
 import com.aerospike.client.sdk.command.BatchExecutor;
 import com.aerospike.client.sdk.command.BatchNode;
 import com.aerospike.client.sdk.command.BatchNodes;
-import com.aerospike.client.sdk.command.BatchRead;
 import com.aerospike.client.sdk.command.BatchRecord;
 import com.aerospike.client.sdk.command.BatchSingle;
 import com.aerospike.client.sdk.command.BatchStatus;
@@ -47,17 +44,14 @@ import com.aerospike.client.sdk.command.IBatchCommand;
 import com.aerospike.client.sdk.command.OperateArgs;
 import com.aerospike.client.sdk.command.OperateWriteCommand;
 import com.aerospike.client.sdk.command.OperateWriteExecutor;
-import com.aerospike.client.sdk.command.ReadAttr;
 import com.aerospike.client.sdk.command.Txn;
 import com.aerospike.client.sdk.command.TxnMonitor;
 import com.aerospike.client.sdk.exp.Exp;
 import com.aerospike.client.sdk.exp.Expression;
-import com.aerospike.client.sdk.policy.Settings;
 import com.aerospike.client.sdk.policy.Behavior.OpKind;
 import com.aerospike.client.sdk.policy.Behavior.OpShape;
 import com.aerospike.client.sdk.policy.ResolvedSettings;
 import com.aerospike.client.sdk.tend.Partitions;
-import com.aerospike.client.sdk.util.Version;
 
 /**
  * Builder for applying a dataset operation (insert, update, upsert, replace, etc.) to one or more
@@ -947,8 +941,22 @@ public class ObjectBuilder<T> {
 
                 RecordResult result = AbstractFilterableBuilder.createRecordResultFromBatchRecord(br, settings, i);
 
-                AbstractFilterableBuilder.routeBatchResult(
-                    result, br.resultCode, disposition, recordStream);
+                if (AbstractFilterableBuilder.isActionableError(br.resultCode)) {
+                    switch (disposition) {
+                        case ErrorDisposition.Throw ignored -> {
+                            AerospikeException ex = result.exception() != null
+                                ? result.exception()
+                                : AerospikeException.resultCodeToException(br.resultCode, null, br.inDoubt);
+                            throw ex;
+                        }
+                        case ErrorDisposition.Handler h ->
+                            AbstractFilterableBuilder.dispatchError(result, h.errorHandler());
+                        case ErrorDisposition.InStream ignored ->
+                            recordStream.publish(result);
+                    }
+                } else {
+                    recordStream.publish(result);
+                }
             }
             return new RecordStream(recordStream);
         }
