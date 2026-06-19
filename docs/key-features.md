@@ -1074,6 +1074,14 @@ Behavior highLoad = production.deriveWithChanges("highLoad", b -> b
 );
 ```
 
+### YAML layout (`BehaviorYamlLoader`)
+
+YAML under `behaviors:` mirrors the selector model: put policy fields (`sendKey`, `useCompression`, timeouts, retries, and so on) **inside** a named block such as `allOperations` (maps to `Selectors.all()`), `retryableWrites`, `consistencyModeReads`, `batchReads`, `query`, etc. Use `parent:` for inheritance. Do **not** place those policy keys directly under the behavior name beside `parent`; they are not part of the supported schema and will not load.
+
+**YAML file reload:** When a behavior file is reloaded (for example via `Behavior.startMonitoring` / `ClusterDefinition` config path), existing **registered** profiles are updated **in place** on the same `Behavior` instance. Sessions and other code that already hold a reference to that profile therefore pick up new settings without creating a new session.
+
+**Changing `parent:`** for an existing behavior name is different: a behavior’s parent link is fixed after construction, so if YAML reload resolves a **different** parent than before, the loader replaces that profile with a **new** `Behavior` object and registers it under the same name. Code that still holds the **previous** instance (for example an old session) will not see the update; create a new session (or obtain the profile again from the registry) if you rely on the new parent chain.
+
 ---
 
 ## Object Mapping

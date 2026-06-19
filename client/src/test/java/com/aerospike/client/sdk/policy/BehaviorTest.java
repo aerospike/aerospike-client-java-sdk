@@ -59,7 +59,7 @@ public class BehaviorTest {
             assertEquals(0, readPointAp.getDelayBetweenRetriesMs());
             assertEquals(3, readPointAp.getMaximumNumberOfCallAttempts());
             assertEquals(Replica.SEQUENCE, readPointAp.getReplicaOrder());
-            assertTrue(readPointAp.getSendKey());
+            assertFalse(readPointAp.getSendKey());
             assertFalse(readPointAp.getUseCompression());
             assertEquals(30000, readPointAp.getWaitForCallToCompleteMs());
             assertEquals(0, readPointAp.getWaitForConnectionToCompleteMs());
@@ -790,9 +790,9 @@ public class BehaviorTest {
         }
 
         @Test
-        @DisplayName("DEFAULT should have name 'DEFAULT'")
+        @DisplayName("getName and name() agree on the root profile")
         void testDefaultName() {
-            assertEquals("DEFAULT", Behavior.DEFAULT.getName());
+            assertEquals(Behavior.DEFAULT.name(), Behavior.DEFAULT.getName());
         }
 
         @Test

@@ -136,10 +136,13 @@ import java.util.stream.Collectors;
  * );
  * }</pre>
  *
- * <h2>Thread Safety</h2>
- * Behavior instances are immutable and thread-safe once built. The builder is not thread-safe.
+ * <h2>Thread safety</h2>
+ * <p>Resolved settings are exposed through a volatile matrix, so concurrent {@link #getSettings} reads are safe.
+ * For profiles updated from YAML, the patch list is replaced in place under lock, then the matrix is rebuilt
+ * so policy queries observe a consistent snapshot.</p>
+ * <p>The {@link BehaviorBuilder} is not thread-safe.</p>
  *
- * @see #builder(String)
+ * @see #deriveWithChanges(String, java.util.function.Consumer)
  * @see #getSettings(OpKind, OpShape, Mode)
  * @see Selectors
  */
@@ -148,11 +151,29 @@ public final class Behavior {
     // -----------------------------------------------------------------------------------
     // Internal factory (package-private for DEFAULT initialization only)
     // -----------------------------------------------------------------------------------
+    /** Starts a root {@link BehaviorBuilder} for the given profile name (internal and {@link #example()} use). */
     private static BehaviorBuilder builder(String name) { return new BehaviorBuilderImpl(name, null); }
 
-    public static final Behavior DEFAULT = Behavior.builder("DEFAULT")
-            // Global defaults for all operations
-            .on(Selectors.all(), ops -> ops
+    /**
+     * Deep copy of the built-in root patches, used to restore {@link #DEFAULT} after {@link #restoreBehaviorRegistry()}.
+     */
+    private static final List<Patch> DEFAULT_PATCH_TEMPLATE;
+
+    /**
+     * Root behavior profile (single JVM instance). YAML reloads mutate this object's patch list in place so
+     * sessions and other holders keep a stable reference.
+     */
+    public static final Behavior DEFAULT;
+
+    /**
+     * Canonical name of {@link #DEFAULT}. Used only during class initialization where
+     * {@code Behavior.DEFAULT.name()} is not yet available; afterward use {@link #name()} on {@link #DEFAULT}.
+     */
+    private static final String DEFAULT_ROOT_NAME = "DEFAULT";
+
+    static {
+        BehaviorBuilderImpl db = (BehaviorBuilderImpl) builder(DEFAULT_ROOT_NAME);
+        db.on(Selectors.all(), ops -> ops
                     .abandonCallAfter(Duration.ofSeconds(1))
                     .delayBetweenRetries(Duration.ofMillis(0))
                     .useDurableDelete(false)
@@ -245,21 +266,44 @@ public final class Behavior {
                     .allowInlineMemoryAccess(false)
                     .allowInlineSsdAccess(true)
                     .sendKey(false)
-            )
-            .build();
+            );
+        DEFAULT = new Behavior(DEFAULT_ROOT_NAME, db.patches, null);
+        DEFAULT_PATCH_TEMPLATE = List.copyOf(deepCopyPatchList(DEFAULT.patches));
+    }
+
+    /**
+     * Resets {@link #DEFAULT} to the built-in policy defaults (as shipped), discarding any YAML overlays
+     * that were merged into the root profile.
+     */
+    public static void restoreDefaultRootPatches() {
+        DEFAULT.reloadDefaultRootFromTemplateOnly();
+    }
 
     // -----------------------------------------------------------------------------------
     // Behavior representation (patch list + resolved matrix)
     // -----------------------------------------------------------------------------------
     private final String name;
-    private final List<Patch> patches; // in call order
+    private final ArrayList<Patch> patches; // in call order; mutated on YAML reload for registry entries
     private final Behavior base;       // defaults (may be null)
     private final List<Behavior> children;
     private volatile Map<OpKey, ResolvedSettings> resolved; // fully-resolved matrix
 
+    /** Returns an independent copy of each patch so builders or reload logic do not share mutable {@link Settings} state. */
+    private static ArrayList<Patch> deepCopyPatchList(List<Patch> src) {
+        ArrayList<Patch> out = new ArrayList<>(src.size());
+        for (Patch p : src) {
+            out.add(p.duplicate());
+        }
+        return out;
+    }
+
+    /**
+     * Creates a named profile with the supplied patch list and optional parent; registers the parent/child
+     * link for inheritance resolution.
+     */
     private Behavior(String name, List<Patch> patches, Behavior base) {
         this.name = name;
-        this.patches = List.copyOf(patches);
+        this.patches = deepCopyPatchList(patches);
         this.base = base;
         this.resolved = formMatrix();
         this.children = new ArrayList<>();
@@ -269,6 +313,10 @@ public final class Behavior {
         }
     }
 
+    /**
+     * Recomputes this profile’s fully resolved policy matrix from the parent chain and local patches, then
+     * propagates the same refresh to every descendant behavior.
+     */
     public void clearCache() {
         this.resolved = formMatrix();
         // Notify all children
@@ -278,11 +326,60 @@ public final class Behavior {
     }
 
     /**
-     * Invoke this method whenever the behavior is changed after construction. It will reform
-     * its values from its parent and then notify children of the change.
+     * Signals that this profile’s configuration changed after construction; refreshes resolved settings for
+     * this node and its subtree.
      */
     void changed() {
         clearCache();
+    }
+
+    /**
+     * Replaces the root {@link #DEFAULT} patch list with the built-in template only (no YAML overlay),
+     * for example when resetting the registry in tests.
+     */
+    void reloadDefaultRootFromTemplateOnly() {
+        synchronized (patches) {
+            patches.clear();
+            for (Patch p : DEFAULT_PATCH_TEMPLATE) {
+                patches.add(p.duplicate());
+            }
+        }
+        changed();
+    }
+
+    /**
+     * Merges YAML-driven overrides into the root {@link #DEFAULT} profile: restores factory defaults, then
+     * appends patches derived from the given YAML block so file reload updates the shared {@code DEFAULT}
+     * instance without breaking existing references.
+     */
+    void reloadDefaultRootFromYaml(BehaviorYamlConfig.BehaviorConfig config) {
+        BehaviorBuilderImpl builder = new BehaviorBuilderImpl(name, null);
+        BehaviorYamlLoader.applyBehaviorConfigToBuilder(builder, config);
+        ArrayList<Patch> yamlPatches = builder.snapshotPatchesForReload();
+        synchronized (patches) {
+            patches.clear();
+            for (Patch p : DEFAULT_PATCH_TEMPLATE) {
+                patches.add(p.duplicate());
+            }
+            patches.addAll(yamlPatches);
+        }
+        changed();
+    }
+
+    /**
+     * Replaces this (non-root) profile’s YAML-derived patches while keeping the same {@link Behavior} object
+     * and parent link, so sessions and other code holding this reference pick up new file configuration when
+     * the parent in YAML has not changed.
+     */
+    void reloadDerivedProfileFromYaml(Behavior parent, String profileName, BehaviorYamlConfig.BehaviorConfig config) {
+        BehaviorBuilderImpl builder = new BehaviorBuilderImpl(profileName, parent);
+        BehaviorYamlLoader.applyBehaviorConfigToBuilder(builder, config);
+        ArrayList<Patch> next = builder.snapshotPatchesForReload();
+        synchronized (patches) {
+            patches.clear();
+            patches.addAll(next);
+        }
+        changed();
     }
 
     public String getName() {
@@ -297,6 +394,10 @@ public final class Behavior {
         return Collections.unmodifiableList(children);
     }
 
+    /**
+     * Materializes the effective {@link ResolvedSettings} for every concrete operation key by inheriting from
+     * the parent matrix (if any) and applying this profile’s patches in declaration order (later wins).
+     */
     private Map<OpKey, ResolvedSettings> formMatrix() {
         // 1) Start with parent's resolved matrix (if any).
         Map<OpKey, ResolvedSettings> matrix = new HashMap<>();
@@ -346,9 +447,10 @@ public final class Behavior {
     }
 
     /**
-     * Get the resolved settings for a specific system operation.
-     * The settings are fully resolved, including inheritance from parent behaviors.
-     * @throws IllegalArgumentException if a non-system setting is specified
+     * Returns merged policy for transaction system operations ({@link OpKind#SYSTEM_TXN_VERIFY} or
+     * {@link OpKind#SYSTEM_TXN_ROLL}).
+     *
+     * @throws IllegalArgumentException if {@code kind} is not a system operation kind
      */
     public ResolvedSettings getSystemSettings(OpKind kind) {
         if (kind.isSystem()) {
@@ -359,9 +461,8 @@ public final class Behavior {
         }
     }
     /**
-     * Get the resolved settings for a specific operation.
-     * Returns null if no settings have been configured for this operation.
-     * The settings are fully resolved, including inheritance from parent behaviors.
+     * Returns merged client policy for the given operation kind, shape, and AP/CP mode, or {@code null}
+     * when the matrix has no row for that key.
      */
     public ResolvedSettings getSettings(OpKind kind, OpShape shape, Mode mode) {
         if (kind.isSystem()) {
@@ -371,9 +472,8 @@ public final class Behavior {
     }
 
     /**
-     * Get the resolved settings for a specific operation.
-     * Returns null if no settings have been configured for this operation.
-     * The settings are fully resolved, including inheritance from parent behaviors.
+     * Returns merged client policy for the given operation dimensions, choosing AP vs CP mode from whether
+     * the target namespace is strong-consistency, or {@code null} when the matrix has no row for that key.
      */
     public ResolvedSettings getSettings(OpKind kind, OpShape shape, boolean isNamespaceSC) {
         if (kind.isSystem()) {
@@ -401,6 +501,8 @@ public final class Behavior {
      * @param name the name for the derived behavior
      * @param configurator a consumer that configures additional settings on the builder
      * @return a new Behavior with settings inherited from this one plus the configured changes
+     * @apiNote The returned profile is registered under {@code name} so it can be resolved via
+     * {@link #getBehavior(String)} and updated from YAML like other named profiles.
      */
     public Behavior deriveWithChanges(String name, java.util.function.Consumer<BehaviorBuilder> configurator) {
         BehaviorBuilder builder = new BehaviorBuilderImpl(name, this);
@@ -414,29 +516,22 @@ public final class Behavior {
     }
 
     /**
-     * Find a behavior by name in the tree starting from this behavior
-     *
-     * @param name The name of the behavior to find
-     * @return Optional containing the behavior if found, or empty if not found
+     * Searches the subtree rooted at this behavior (including descendants) for a profile with the given name.
      */
     public Optional<Behavior> findBehavior(String name) {
         return BehaviorRegistry.getInstance().findInTree(this, name);
     }
 
     /**
-     * Get a behavior by name from the registry
-     *
-     * @param name The name of the behavior to get
-     * @return The behavior, or DEFAULT if not found
+     * Returns the named profile from the global registry, or {@link #DEFAULT} when no such profile exists.
      */
     public static Behavior getBehavior(String name) {
         return BehaviorRegistry.getInstance().getBehaviorOrDefault(name);
     }
 
     /**
-     * Get all registered behaviors
-     *
-     * @return Set of all behaviors
+     * Returns every behavior currently registered by name (including {@link #DEFAULT} and any derived
+     * profiles loaded from YAML or created through {@link #deriveWithChanges}).
      */
     public static Set<Behavior> getAllBehaviors() {
         return BehaviorRegistry.getInstance().getAllBehaviors().entrySet().stream()
@@ -445,7 +540,15 @@ public final class Behavior {
     }
 
     /**
-     * Start monitoring a YAML file for behavior changes
+     * Drops every custom-registered profile and restores {@link #DEFAULT} to its built-in patch set, leaving
+     * only the root profile in the registry.
+     */
+    public static void restoreBehaviorRegistry() {
+        BehaviorRegistry.getInstance().clear();
+    }
+
+    /**
+     * Watches the given behavior YAML file and reapplies its contents whenever the file changes on disk.
      *
      * @param yamlFilePath The path to the YAML file to monitor
      * @throws IOException if there's an error setting up the file monitoring
@@ -493,7 +596,8 @@ public final class Behavior {
     }
 
     /**
-     * Stop monitoring the YAML file
+     * Stops the YAML file watcher started by {@link #startMonitoring(String)} (or overloads) and releases
+     * its watch service resources.
      */
     public static void stopMonitoring() {
         BehaviorFileMonitor.getInstance().stopMonitoring();
@@ -509,20 +613,21 @@ public final class Behavior {
     }
 
     /**
-     * Manually reload behaviors from the monitored YAML file
+     * Re-reads the monitored YAML file immediately and applies behavior (and related) updates, without waiting
+     * for the file watcher delay.
      */
     public static void reloadBehaviors() {
         BehaviorFileMonitor.getInstance().reloadBehaviors();
     }
 
     /**
-     * Shutdown the file monitor
+     * Shuts down the background executor used for YAML monitoring and reload scheduling.
      */
     public static void shutdownMonitor() {
         BehaviorFileMonitor.getInstance().shutdown();
     }
 
-    /** Debug helper: prints patches (in call order) and the resolved matrix. */
+    /** Produces a human-readable dump of this profile’s patch stack and resolved matrix for diagnostics. */
     public String explain() {
         StringBuilder sb = new StringBuilder();
         sb.append("Behavior: ").append(name).append('\n');
@@ -593,7 +698,6 @@ public final class Behavior {
      * }</pre>
      * Returns the tweaks view directly. Useful for single operations.
      *
-     * @see Behavior#builder(String)
      * @see Behavior#deriveWithChanges(String, java.util.function.Consumer)
      * @see Selectors
      */
@@ -655,9 +759,7 @@ public final class Behavior {
         <T extends TweaksView> BehaviorBuilder on(Selector<T> selector, java.util.function.Consumer<T> apply);
 
         /**
-         * Builds the final immutable Behavior instance with all configured settings.
-         *
-         * @return the constructed Behavior
+         * Returns a new {@link Behavior} that captures the configured patches and parent link.
          */
         Behavior build();
     }
@@ -694,6 +796,17 @@ public final class Behavior {
 
         @Override public Behavior build() {
             return new Behavior(name, patches, base);
+        }
+
+        /**
+         * Produces a detached deep copy of the patches accumulated on this builder for YAML reload handling.
+         */
+        ArrayList<Patch> snapshotPatchesForReload() {
+            ArrayList<Patch> out = new ArrayList<>(patches.size());
+            for (Patch p : patches) {
+                out.add(p.duplicate());
+            }
+            return out;
         }
     }
 
@@ -764,6 +877,10 @@ public final class Behavior {
         @Override public String toString(){ return kind + ":" + shape + ":" + mode; }
     }
 
+    /**
+     * Reports whether a concrete operation key lies within the selector scope described by {@code s}
+     * (kind, shape, mode, and write-only wildcard semantics).
+     */
     static boolean applies(SelectionSpec s, OpKey k) {
         if (s.kind == null) {
             if (s.isWriteOnlyWildcard) {
@@ -786,6 +903,7 @@ public final class Behavior {
         return true;
     }
 
+    /** Enumerates every concrete {@link OpKey} used when flattening selector patches into the resolved matrix. */
     static List<OpKey> listAllKeys() {
         List<OpKey> out = new ArrayList<>();
         // READS
@@ -816,10 +934,21 @@ public final class Behavior {
     // Settings captured by each patch (extend with your SettablePolicy knobs)
     // -----------------------------------------------------------------------------------
 
+    /** One selector-sized overlay on the policy matrix, holding the knob values applied for that scope. */
     static final class Patch {
         final SelectionSpec spec;
         final Settings settings = new Settings();
-        Patch(SelectionSpec spec) { this.spec = spec; }
+
+        Patch(SelectionSpec spec) {
+            this.spec = spec;
+        }
+
+        /** Returns an independent patch with the same scope and knob values. */
+        Patch duplicate() {
+            Patch q = new Patch(spec);
+            q.settings.assignFrom(this.settings);
+            return q;
+        }
     }
 
     // -----------------------------------------------------------------------------------
