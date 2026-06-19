@@ -181,5 +181,25 @@ public class BackgroundTaskSession {
     public BackgroundUdfFunctionBuilder executeUdf(DataSet dataset) {
         return new BackgroundUdfFunctionBuilder(session, dataset);
     }
+
+    /** @see #update(DataSet) */
+    public BackgroundOperationBuilder update(TypedDataSet<?> dataset) {
+        return update(dataset.asDataSet());
+    }
+
+    /** @see #delete(DataSet) */
+    public BackgroundOperationBuilder delete(TypedDataSet<?> dataset) {
+        return delete(dataset.asDataSet());
+    }
+
+    /** @see #touch(DataSet) */
+    public BackgroundOperationBuilder touch(TypedDataSet<?> dataset) {
+        return touch(dataset.asDataSet());
+    }
+
+    /** @see #executeUdf(DataSet) */
+    public BackgroundUdfFunctionBuilder executeUdf(TypedDataSet<?> dataset) {
+        return executeUdf(dataset.asDataSet());
+    }
 }
 

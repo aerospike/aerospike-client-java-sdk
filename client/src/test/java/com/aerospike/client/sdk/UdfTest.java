@@ -34,6 +34,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import org.junit.jupiter.api.BeforeAll;
@@ -127,6 +128,15 @@ public class UdfTest extends ClusterTest {
           list.append(l, value)
           r[binname] = l
           aerospike:update(r)
+        end
+
+        -- Return a Lua map for Java RecordMapper / udfResultAsObject tests
+        function returnMap(r)
+          return map { a = 1, b = "hello" }
+        end
+
+        function returnNilMap(r)
+          return nil
         end
 
         -- Busy-wait
@@ -253,7 +263,7 @@ public class UdfTest extends ClusterTest {
             .execute();
 
         assertTrue(rs.hasNext());
-        Optional<Object> obj = rs.getFirstUdfResult();
+        Optional<Object> obj = rs.getFirstUdfResultObject();
         int gen = (int)(long)obj.orElseThrow();
 
         // Write record if generation has not changed.
@@ -263,7 +273,7 @@ public class UdfTest extends ClusterTest {
             .execute();
 
         assertTrue(rs.hasNext());
-        obj = rs.getFirstUdfResult();
+        obj = rs.getFirstUdfResultObject();
         assertTrue(obj.isEmpty());
     }
 
@@ -372,7 +382,7 @@ public class UdfTest extends ClusterTest {
             .execute();
 
         assertTrue(rs.hasNext());
-        Optional<Object> obj = rs.getFirstUdfResult();
+        Optional<Object> obj = rs.getFirstUdfResultObject();
         List<?> received = (List<?>)obj.orElseThrow();
         assertEquals(list, received);
 
@@ -384,7 +394,7 @@ public class UdfTest extends ClusterTest {
             .execute();
 
         assertTrue(rs.hasNext());
-        rs.getFirstUdfResult();
+        rs.getFirstUdfResultObject();
 
         rs = session.query(key)
             .readingOnlyBins(binName)
@@ -425,7 +435,7 @@ public class UdfTest extends ClusterTest {
             .execute();
 
         assertTrue(rs.hasNext());
-        rs.getFirstUdfResult();
+        rs.getFirstUdfResultObject();
 
         rs = session.executeUdf(key)
             .function("record_example", "readBin")
@@ -433,7 +443,7 @@ public class UdfTest extends ClusterTest {
             .execute();
 
         assertTrue(rs.hasNext());
-        Optional<Object> obj = rs.getFirstUdfResult();
+        Optional<Object> obj = rs.getFirstUdfResultObject();
         byte[] received = (byte[])obj.orElseThrow();
         assertArrayEquals(blob, received);
     }
@@ -454,7 +464,7 @@ public class UdfTest extends ClusterTest {
             .execute();
 
         assertTrue(rs.hasNext());
-        rs.getFirstUdfResult();
+        rs.getFirstUdfResultObject();
 
         rs = session.query(keys)
             .readingOnlyBins(binName)
@@ -588,5 +598,116 @@ public class UdfTest extends ClusterTest {
         assertEquals(ResultCode.TIMEOUT, ae.resultCode, "expected TIMEOUT, got " + ae + ": " + ae.getMessage());
     }
 
+    @Test
+    public void typedUdfSingleKeyCarriesReadMappingForUdfResultAsObject() {
+        RecordMappingFactory prior = cluster.getRecordMappingFactory();
+        try {
+            cluster.setRecordMappingFactory(DefaultRecordMappingFactory.of(UdfMapVal.class, new UdfMapValMapper()));
 
+            TypedDataSet<UdfMapVal> ds = TypedDataSet.of(args.namespace, args.set.getSet(), UdfMapVal.class);
+            TypedKey<UdfMapVal> typedKey = ds.id("typedUdfMapKey");
+            Key key = typedKey.getKey();
+
+            session.delete(key).execute();
+            session.upsert(key).bin("marker").setTo(1).execute();
+
+            Optional<UdfMapVal> mapped = session.executeUdf(typedKey)
+                .function("record_example", "returnMap")
+                .execute()
+                .getFirst()
+                .flatMap(RecordResult::udfResultAsObject);
+
+            assertTrue(mapped.isPresent());
+            assertEquals(1, mapped.get().a());
+            assertEquals("hello", mapped.get().b());
+        } finally {
+            cluster.setRecordMappingFactory(prior);
+        }
+    }
+
+    @Test
+    public void typedUdfNullReturnYieldsEmptyOptional() {
+        RecordMappingFactory prior = cluster.getRecordMappingFactory();
+        try {
+            cluster.setRecordMappingFactory(DefaultRecordMappingFactory.of(UdfMapVal.class, new UdfMapValMapper()));
+
+            TypedDataSet<UdfMapVal> ds = TypedDataSet.of(args.namespace, args.set.getSet(), UdfMapVal.class);
+            TypedKey<UdfMapVal> typedKey = ds.id("typedUdfNullKey");
+            Key key = typedKey.getKey();
+
+            session.delete(key).execute();
+            session.upsert(key).bin("marker").setTo(1).execute();
+
+            Optional<UdfMapVal> mapped = session.executeUdf(typedKey)
+                .function("record_example", "returnNilMap")
+                .execute()
+                .getFirst()
+                .flatMap(RecordResult::udfResultAsObject);
+
+            assertTrue(mapped.isEmpty());
+        } finally {
+            cluster.setRecordMappingFactory(prior);
+        }
+    }
+
+    @Test
+    public void typedUdfVarargsRequiresHomogeneousEntityClass() {
+        TypedDataSet<UdfMapVal> ds1 = TypedDataSet.of(args.namespace, args.set.getSet(), UdfMapVal.class);
+        TypedDataSet<UdfOtherType> ds2 = TypedDataSet.of(args.namespace, args.set.getSet(), UdfOtherType.class);
+        assertThrows(IllegalArgumentException.class, () -> session.executeUdf(ds1.id("hetA"), ds2.id("hetB")));
+    }
+
+    @Test
+    public void typedUdfBatchHomogeneousPropagatesMappingPerRow() {
+        RecordMappingFactory prior = cluster.getRecordMappingFactory();
+        try {
+            cluster.setRecordMappingFactory(DefaultRecordMappingFactory.of(UdfMapVal.class, new UdfMapValMapper()));
+
+            TypedDataSet<UdfMapVal> ds = TypedDataSet.of(args.namespace, args.set.getSet(), UdfMapVal.class);
+            TypedKey<UdfMapVal> t1 = ds.id("typedUdfBatchA");
+            TypedKey<UdfMapVal> t2 = ds.id("typedUdfBatchB");
+            session.delete(t1.getKey(), t2.getKey()).execute();
+            session.upsert(t1.getKey()).bin("marker").setTo(1).execute();
+            session.upsert(t2.getKey()).bin("marker").setTo(1).execute();
+
+            try (RecordStream rs = session.executeUdf(t1, t2)
+                .function("record_example", "returnMap")
+                .execute()) {
+                List<Optional<UdfMapVal>> opts = rs.stream()
+                    .map(r -> r.<UdfMapVal>udfResultAsObject())
+                    .toList();
+                assertEquals(2, opts.size());
+                assertTrue(opts.get(0).isPresent());
+                assertTrue(opts.get(1).isPresent());
+                assertEquals(1, opts.get(0).get().a());
+                assertEquals("hello", opts.get(1).get().b());
+            }
+        } finally {
+            cluster.setRecordMappingFactory(prior);
+        }
+    }
+
+    public record UdfMapVal(int a, String b) {
+    }
+
+    private static final class UdfOtherType {
+    }
+
+    public static final class UdfMapValMapper implements RecordMapper<UdfMapVal> {
+        @Override
+        public UdfMapVal fromMap(Map<String, Object> map, Key recordKey, int generation) {
+            long a = ((Number) map.get("a")).longValue();
+            return new UdfMapVal((int) a, (String) map.get("b"));
+        }
+
+        @Override
+        public Map<String, Object> toMap(UdfMapVal element) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public Object id(UdfMapVal element) {
+            throw new UnsupportedOperationException();
+        }
+    }
 }

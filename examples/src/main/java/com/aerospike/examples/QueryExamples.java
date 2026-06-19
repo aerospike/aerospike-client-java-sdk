@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.IntStream;
 
 import com.aerospike.client.sdk.AerospikeException;
@@ -33,7 +34,6 @@ import com.aerospike.client.sdk.DataSet;
 import com.aerospike.client.sdk.DefaultRecordMappingFactory;
 import com.aerospike.client.sdk.ErrorStrategy;
 import com.aerospike.client.sdk.Key;
-import com.aerospike.client.sdk.NavigatableRecordStream;
 import com.aerospike.client.sdk.Record;
 import com.aerospike.client.sdk.RecordMapper;
 import com.aerospike.client.sdk.RecordResult;
@@ -41,8 +41,9 @@ import com.aerospike.client.sdk.RecordStream;
 import com.aerospike.client.sdk.ResultCode;
 import com.aerospike.client.sdk.Session;
 import com.aerospike.client.sdk.SpecialValue;
-import com.aerospike.client.sdk.TypeSafeDataSet;
-import com.aerospike.client.sdk.Log.Level;
+import com.aerospike.client.sdk.TypedDataSet;
+import com.aerospike.client.sdk.TypedNavigatableRecordStream;
+import com.aerospike.client.sdk.TypedRecordStream;
 import com.aerospike.client.sdk.ael.Ael;
 import com.aerospike.client.sdk.cdt.ListOrder;
 import com.aerospike.client.sdk.cdt.MapOrder;
@@ -56,16 +57,25 @@ import com.aerospike.client.sdk.query.SortProperties;
 import com.aerospike.client.sdk.task.ExecuteTask;
 import com.aerospike.client.sdk.util.MapUtil;
 
+/**
+ * Large runnable example suite for queries, batch, object mapping, and policies.
+ *
+ * <p>Run with the same host/port flags as other examples ({@link Args} via {@link Example#parseStandaloneArgs}):
+ * default seed {@code localhost:3000}; {@code -h} / {@code -p} override host and port. Optional {@code -a}
+ * enables services alternate (see {@link ClusterDefinition#usingServicesAlternate()}).</p>
+ */
 public class QueryExamples {
     public static class Address {
+        private final long id;
         private final String line1;
         private final String city;
         private final String state;
         private final String country;
         private final String zipCode;
 
-        public Address(String line1, String city, String state, String country, String zipCode) {
+        public Address(long id, String line1, String city, String state, String country, String zipCode) {
             super();
+            this.id = id;
             this.line1 = line1;
             this.city = city;
             this.state = state;
@@ -73,6 +83,9 @@ public class QueryExamples {
             this.zipCode = zipCode;
         }
 
+        public long getId() {
+            return id;
+        }
         public String getLine1() {
             return line1;
         }
@@ -161,6 +174,7 @@ public class QueryExamples {
         @Override
         public Address fromMap(Map<String, Object> map, Key recordKey, int generation) {
             Address result = new Address(
+                    MapUtil.asLong(map, "id"),
                     MapUtil.asString(map, "line1"),
                     MapUtil.asString(map, "city"),
                     MapUtil.asString(map, "state"),
@@ -182,7 +196,7 @@ public class QueryExamples {
 
         @Override
         public Object id(Address element) {
-            return null;
+            return element.getId();
         }
 
     }
@@ -223,20 +237,16 @@ public class QueryExamples {
         }
     }
 
+    public static void print(TypedRecordStream<?> typedStream) {
+        print(typedStream.asUntypedRecordStream());
+    }
+
     @SuppressWarnings("unused")
-	public static void main(String[] args) {
-        try (Cluster cluster = new ClusterDefinition("localhost", 3100)
-                .usingServicesAlternate()
-                .withNativeCredentials("admin", "password123")
-                .preferringRacks(1)
-                .withLogLevel(Level.DEBUG)
-                .withSystemSettings(builder -> builder
-                    .circuitBreaker(ops -> ops.maximumErrorsInErrorWindow(200))
-                    .connections(conn -> conn
-                            .minimumConnectionsPerNode(200)
-                            .maximumConnectionsPerNode(200)
-                    )
-                )
+	public static void main(String[] args) throws Exception {
+        Args arguments = Example.parseStandaloneArgs(args);
+        try (Cluster cluster = Example.clusterDefinition(arguments)
+//                .withNativeCredentials("admin", "password123")
+//                .preferringRacks(1)
                 .connect()) {
 
             CustomerMapper customerMapper = new CustomerMapper();
@@ -277,7 +287,10 @@ public class QueryExamples {
             Behavior nonExceptionBehvaior = Behavior.DEFAULT.deriveWithChanges("nonException", builder ->
                 builder.on(Selectors.all(), ops -> ops.stackTraceOnException(false)));
 
-            TypeSafeDataSet<Customer> customerDataSet = TypeSafeDataSet.of("test", "person", Customer.class);
+            TypedDataSet<Customer> customerDataSet = TypedDataSet.of("test", "person", Customer.class);
+            TypedDataSet<Address> addressDataSet = TypedDataSet.of("test", "address", Address.class);
+            // Untyped view of the same ns/set: Key-based reads return RecordStream (CDT / raw-bin demos).
+            DataSet cdtDemoRecords = customerDataSet.asDataSet();
 //            DataSet customerDataSet = DataSet.of("test", "person");
 
             Session session = cluster.createSession(newBehavior);
@@ -344,7 +357,8 @@ public class QueryExamples {
             session.upsert(customerDataSet.id("bob")).bin("A").setTo(2).bin("B").setTo(2.2).execute();
             RecordStream rs1 = session.query(customerDataSet.id("bob"))
                     .readingOnlyBins("name")
-                    .execute();
+                    .execute()
+                    .asUntypedRecordStream();
             System.out.println(rs1.getFirst());
 
             session.upsert(customerDataSet.ids(1,2,3,4,5)).bin("holdings").add(1).execute();
@@ -531,14 +545,12 @@ public class QueryExamples {
 
             session.insert(customerDataSet)
                 .objects(customers)
-                .using(customerMapper)
                 .execute();
 
             System.out.println("Updating all customers called Tim");
             print(session.update(customerDataSet)
                 .where("$.name == 'Tim'")
                 .objects(customers)
-                .using(customerMapper)
                 .execute());
 
             System.out.printf("Customer 46 age before scan: %d\n",
@@ -554,7 +566,7 @@ public class QueryExamples {
                     session.query(customerDataSet.id(46)).execute().getFirstRecord().getInt("age"));
 
             // Batch partition filter test
-            List<Key> keys = customerDataSet.ids(IntStream.rangeClosed(20, 48).toArray());
+            List<Key> keys = customerDataSet.asKeys(IntStream.rangeClosed(20, 48).toArray());
             System.out.println("Read 25 records, but only those in partitions 0->2047");
             print(session.query(keys)
                     .onPartitionRange(0, 2048)
@@ -580,7 +592,7 @@ public class QueryExamples {
             System.out.println("Read the set, limit 6");
             print(session.query(customerDataSet).limit(6).execute());
 
-            List<Key> keyList2 = customerDataSet.ids(20,21,22,23,24,25,26,27);
+            List<Key> keyList2 = customerDataSet.asKeys(20,21,22,23,24,25,26,27);
             RecordStream thisStream = session.update(keyList2)
                    .bin("age").add(1)
                    .execute();
@@ -630,10 +642,10 @@ public class QueryExamples {
 //                    .execute();
 
             System.out.println("\nRead point records - in the same order as the keys, limit to 3");
-            print(session.query(customerDataSet.ids(1,3,5,7)).limit(3).execute());
+            print(session.queryTypedKeys(customerDataSet.ids(1,3,5,7)).limit(3).execute());
 
             System.out.println("\nSingle point record");
-            print(session.query(customerDataSet.ids(6)).execute());
+            print(session.queryTypedKeys(customerDataSet.ids(6)).execute());
 
             System.out.println("Read the set, output as stream, limit of 5");
             session.query(customerDataSet).limit(5).execute()
@@ -644,14 +656,14 @@ public class QueryExamples {
             System.out.println("Read header, point read");
             print(session.query(customerDataSet.id(6)).withNoBins().execute());
             System.out.println("Read header, batch read");
-            print(session.query(customerDataSet.ids(6,7,8)).withNoBins().execute());
+            print(session.queryTypedKeys(customerDataSet.ids(6,7,8)).withNoBins().execute());
             System.out.println("Read header, set read");
             print(session.query(customerDataSet).withNoBins().execute());
 
             System.out.println("Read with select bins, point read");
-            print(session.query(customerDataSet.ids(6)).readingOnlyBins("name", "age").execute());
+            print(session.queryTypedKeys(customerDataSet.ids(6)).readingOnlyBins("name", "age").execute());
             System.out.println("Read with select bins, batch read");
-            print(session.query(customerDataSet.ids(6,7,8)).readingOnlyBins("name", "age").execute());
+            print(session.queryTypedKeys(customerDataSet.ids(6,7,8)).readingOnlyBins("name", "age").execute());
             System.out.println("Read with select bins, set read");
             print(session.query(customerDataSet).readingOnlyBins("name", "age").execute());
 
@@ -660,7 +672,7 @@ public class QueryExamples {
 
             // Throw an exception
             try {
-                print(session.query(customerDataSet.ids(6,7,8)).readingOnlyBins("name", "age").withNoBins().execute());
+                print(session.queryTypedKeys(customerDataSet.ids(6,7,8)).readingOnlyBins("name", "age").withNoBins().execute());
             }
             catch (Exception e) {
                 e.printStackTrace();
@@ -676,11 +688,11 @@ public class QueryExamples {
 //                txnSession.insert(customerDataSet.id(3)).notInAnyTransaction().execute();
 //            });
 
-            customers = session.query(customerDataSet.ids(20, 21)).execute().toObjectList(customerMapper);
+            customers = session.queryTypedKeys(customerDataSet.ids(20, 21)).execute().toObjectList(customerMapper);
             System.out.println(customers);
 
             // Records-per-second check
-            RecordStream queryResults = session.query(customerDataSet).recordsPerSecond(1).execute();
+            RecordStream queryResults = session.query(customerDataSet).recordsPerSecond(1).execute().asUntypedRecordStream();
             queryResults.forEach(rr -> System.out.println(rr.recordOrThrow()));
             // session.query(customerDataSet.id(1)).recordsPerSecond(100).execute();
 
@@ -689,7 +701,7 @@ public class QueryExamples {
             System.out.println(customers);
 
             // Server-side chunking example - process records in chunks of 10
-            RecordStream rs = session.query(customerDataSet).chunkSize(10).execute();
+            RecordStream rs = session.query(customerDataSet).chunkSize(10).execute().asUntypedRecordStream();
             int chunk = 0;
             while (rs.hasMoreChunks()) {
                 System.out.println("Chunk: " + (++chunk));
@@ -731,7 +743,7 @@ public class QueryExamples {
 
 
             System.out.println("\n\nSorting customers by Age (desc) then name (asc), using NavigatableRecordStream for client-side pagination");
-            try (NavigatableRecordStream navStream = session.query(customerDataSet)
+            try (TypedNavigatableRecordStream<Customer> navStream = session.query(customerDataSet)
                     .limit(13)
                     .execute()
                     .asNavigatableStream()
@@ -770,7 +782,7 @@ public class QueryExamples {
             // -------------
             // UDF Calls
             // -------------
-//            Object udfResult = session.executeUdf(customerDataSet.id(1)).function("pkg", "myFunc").execute().getFirstUdfResult();
+//            Object udfResult = session.executeUdf(customerDataSet.id(1)).function("pkg", "myFunc").execute().getFirstUdfResultObject();
 //            System.out.println("UDF Result = " + udfResult);
 
             // ---------------------------
@@ -812,10 +824,9 @@ public class QueryExamples {
                 .execute());
             System.out.println("Using a read expression");
 
-            rs = session.query(customerDataSet.ids(223))
+            print(session.queryTypedKeys(customerDataSet.ids(223))
                 .bin("bob").selectFrom("$.age + $.value", arg -> arg.ignoreEvalFailure())
-                .execute();
-            print(rs);
+                .execute());
 
             System.out.println("Using a write expression");
             session.upsert(customerDataSet.id(1))
@@ -888,7 +899,7 @@ public class QueryExamples {
 //                    .where("$.age > 100")
                     .expireRecordAfter(Duration.ofMinutes(5))
                 .exists(customerDataSet.ids(1000,1001))
-                .query(customerDataSet.ids(10,12))
+                .queryTypedKeys(customerDataSet.ids(10,12))
                 .delete(customerDataSet.id(1003))
                 .notInAnyTransaction()
 //                .defaultWhere("$.value > 200")
@@ -897,7 +908,7 @@ public class QueryExamples {
             System.out.println("Multi operations:");
             print(rsStream);
 
-            rsStream = session.query(customerDataSet.ids(1,2,3))
+            rsStream = session.queryTypedKeys(customerDataSet.ids(1,2,3))
                         .bin("name").get()
                         .bin("map").onMapKeyRange(5, 10).getKeysAndValues()
                     .update(customerDataSet.ids(1))
@@ -915,7 +926,7 @@ public class QueryExamples {
                     .defaultWhere("$.updated == false")
                     .execute();
 
-            rsStream = session.query(customerDataSet.ids(1,2,3))
+            rsStream = session.queryTypedKeys(customerDataSet.ids(1,2,3))
                             .limit(2)
                     .update(customerDataSet.ids(4,5,6))
                         .bin("name").setTo("bob")
@@ -940,12 +951,12 @@ public class QueryExamples {
             // --------------------
             // Insert then read back a customer with an address
             System.out.println("\n--- Object mapping test ----");
-            Customer sampleCust = new Customer(999, "sample", 456, new Date(), new Address("123 Main St", "Denver", "CO", "USA", "80112"));
+            Customer sampleCust = new Customer(999, "sample", 456, new Date(), new Address(3, "123 Main St", "Denver", "CO", "USA", "80112"));
             System.out.println("Reference customer: " + sampleCust);
 
             session.delete(customerDataSet.id(999)).execute();
             session.insert(customerDataSet).object(sampleCust).execute();
-            Customer readCustomer = session.query(customerDataSet.id(999)).execute().toObjectList(customerMapper).get(0);
+            Customer readCustomer = session.query(customerDataSet.id(999)).execute().toObjectList().get(0);
             System.out.println("Customer read back: " + readCustomer);
             System.out.println("--- End object mapping test ----");
 
@@ -961,9 +972,9 @@ public class QueryExamples {
             // -----------------------
             // Object mapping (nested)
             // -----------------------
-            Address address1 = new Address("123 Main St", "Denver", "CO", "USA", "80000");
+            Address address1 = new Address(5, "123 Main St", "Denver", "CO", "USA", "80000");
             Customer customer = new Customer(1, "Bob", 37, new Date(), null);
-            session.replace(customerDataSet).object(customer).using(customerMapper).execute();
+            session.replace(customerDataSet).object(customer).execute();
             session.upsert(customerDataSet.id(customer.getId())).bin("addrs").onMapKey("home").upsert(address1, new AddressMapper());
 
             // ----------------
@@ -971,7 +982,7 @@ public class QueryExamples {
             // ----------------
             System.out.println("\n--- Generation check test ----");
 
-            RecordStream data = session.query(customerDataSet.id(999)).execute();
+            RecordStream data = session.query(customerDataSet.id(999)).execute().asUntypedRecordStream();
             data.getFirst().ifPresent(keyRecord -> {
                 int generation = keyRecord.recordOrThrow().generation;
                 System.out.println("   Read record with generation of " + generation);
@@ -997,12 +1008,11 @@ public class QueryExamples {
             });
 
             // ----------------------------
-            // Complex CDT operations
+            // Complex CDT operations (Key 500 via untyped DataSet → RecordStream)
             // ----------------------------
             System.out.println("\n--- Complex CDT operations ---");
-
-            session.delete(customerDataSet.id(500)).execute();
-            session.upsert(customerDataSet.id(500))
+            session.delete(cdtDemoRecords.id(500)).execute();
+            session.upsert(cdtDemoRecords.id(500))
                 .bin("name").setTo("CDT-Test")
                 .bin("scores").setTo(List.of(95, 82, 73, 88, 91))
                 .bin("tags").setTo(List.of("java", "python", "rust"))
@@ -1019,171 +1029,171 @@ public class QueryExamples {
 
             // --- Read-only operations via query path (top-level) ---
 
-            RecordStream cdtResults = session.query(customerDataSet.id(500))
+            RecordStream cdtResults = session.query(cdtDemoRecords.id(500))
                 .bin("scores").listSize()
                 .execute();
             System.out.println("List size of 'scores': " + cdtResults.getFirst());
 
-            cdtResults = session.query(customerDataSet.id(500))
+            cdtResults = session.query(cdtDemoRecords.id(500))
                 .bin("inventory").mapSize()
                 .execute();
             System.out.println("Map size of 'inventory': " + cdtResults.getFirst());
 
-            cdtResults = session.query(customerDataSet.id(500))
+            cdtResults = session.query(cdtDemoRecords.id(500))
                 .bin("scores").listGet(0)
                 .execute();
             System.out.println("First score: " + cdtResults.getFirst());
 
-            cdtResults = session.query(customerDataSet.id(500))
+            cdtResults = session.query(cdtDemoRecords.id(500))
                 .bin("scores").listGetRange(1, 3)
                 .execute();
             System.out.println("Scores [1..3]: " + cdtResults.getFirst());
 
-            cdtResults = session.query(customerDataSet.id(500))
+            cdtResults = session.query(cdtDemoRecords.id(500))
                 .bin("scores").listGetRange(3)
                 .execute();
             System.out.println("Scores from index 3 onward: " + cdtResults.getFirst());
 
             // --- Read-only operations via query path with CDT navigation ---
 
-            cdtResults = session.query(customerDataSet.id(500))
+            cdtResults = session.query(cdtDemoRecords.id(500))
                 .bin("nested").onMapKey("team1").onMapKey("members").listSize()
                 .execute();
             System.out.println("Team1 member count: " + cdtResults.getFirst());
 
-            cdtResults = session.query(customerDataSet.id(500))
+            cdtResults = session.query(cdtDemoRecords.id(500))
                 .bin("nested").onMapKey("team1").onMapKey("members").listGet(1)
                 .execute();
             System.out.println("Team1 second member: " + cdtResults.getFirst());
 
-            cdtResults = session.query(customerDataSet.id(500))
+            cdtResults = session.query(cdtDemoRecords.id(500))
                 .bin("nested").onMapKey("team2").onMapKey("members").listGetRange(0, 2)
                 .execute();
             System.out.println("Team2 members [0..1]: " + cdtResults.getFirst());
 
             // --- Write operations: list mutations ---
 
-            session.update(customerDataSet.id(500))
+            session.update(cdtDemoRecords.id(500))
                 .bin("scores").listAppendItems(List.of(77, 65, 99))
                 .execute();
             System.out.println("After listAppendItems: " +
-                session.query(customerDataSet.id(500)).bin("scores").get().execute().getFirst());
+                session.query(cdtDemoRecords.id(500)).bin("scores").get().execute().getFirst());
 
-            session.update(customerDataSet.id(500))
+            session.update(cdtDemoRecords.id(500))
                 .bin("tags").listInsert(1, "go")
                 .execute();
             System.out.println("After listInsert(1, 'go'): " +
-                session.query(customerDataSet.id(500)).bin("tags").get().execute().getFirst());
+                session.query(cdtDemoRecords.id(500)).bin("tags").get().execute().getFirst());
 
-            session.update(customerDataSet.id(500))
+            session.update(cdtDemoRecords.id(500))
                 .bin("tags").listSet(0, "kotlin")
                 .execute();
             System.out.println("After listSet(0, 'kotlin'): " +
-                session.query(customerDataSet.id(500)).bin("tags").get().execute().getFirst());
+                session.query(cdtDemoRecords.id(500)).bin("tags").get().execute().getFirst());
 
-            session.update(customerDataSet.id(500))
+            session.update(cdtDemoRecords.id(500))
                 .bin("scores").listInsertItems(2, List.of(100, 200))
                 .execute();
             System.out.println("After listInsertItems(2, [100, 200]): " +
-                session.query(customerDataSet.id(500)).bin("scores").get().execute().getFirst());
+                session.query(cdtDemoRecords.id(500)).bin("scores").get().execute().getFirst());
 
-            session.update(customerDataSet.id(500))
+            session.update(cdtDemoRecords.id(500))
                 .bin("scores").listIncrement(0, 5)
                 .execute();
             System.out.println("After listIncrement(0, 5): " +
-                session.query(customerDataSet.id(500)).bin("scores").get().execute().getFirst());
+                session.query(cdtDemoRecords.id(500)).bin("scores").get().execute().getFirst());
 
-            session.update(customerDataSet.id(500))
+            session.update(cdtDemoRecords.id(500))
                 .bin("scores").listSort()
                 .execute();
             System.out.println("After listSort: " +
-                session.query(customerDataSet.id(500)).bin("scores").get().execute().getFirst());
+                session.query(cdtDemoRecords.id(500)).bin("scores").get().execute().getFirst());
 
-            session.update(customerDataSet.id(500))
+            session.update(cdtDemoRecords.id(500))
                 .bin("scores").listRemove(0)
                 .execute();
             System.out.println("After listRemove(0): " +
-                session.query(customerDataSet.id(500)).bin("scores").get().execute().getFirst());
+                session.query(cdtDemoRecords.id(500)).bin("scores").get().execute().getFirst());
 
-            session.update(customerDataSet.id(500))
+            session.update(cdtDemoRecords.id(500))
                 .bin("scores").listRemoveRange(4, 2)
                 .execute();
             System.out.println("After listRemoveRange(4, 2): " +
-                session.query(customerDataSet.id(500)).bin("scores").get().execute().getFirst());
+                session.query(cdtDemoRecords.id(500)).bin("scores").get().execute().getFirst());
 
-            cdtResults = session.update(customerDataSet.id(500))
+            cdtResults = session.update(cdtDemoRecords.id(500))
                 .bin("scores").listPop(0)
                 .execute();
             System.out.println("Popped element: " + cdtResults.getFirst());
 
-            session.update(customerDataSet.id(500))
+            session.update(cdtDemoRecords.id(500))
                 .bin("scores").listTrim(0, 3)
                 .execute();
             System.out.println("After listTrim(0, 3): " +
-                session.query(customerDataSet.id(500)).bin("scores").get().execute().getFirst());
+                session.query(cdtDemoRecords.id(500)).bin("scores").get().execute().getFirst());
 
-            session.update(customerDataSet.id(500))
+            session.update(cdtDemoRecords.id(500))
                 .bin("tags").listClear()
                 .execute();
             System.out.println("After listClear on tags: " +
-                session.query(customerDataSet.id(500)).bin("tags").get().execute().getFirst());
+                session.query(cdtDemoRecords.id(500)).bin("tags").get().execute().getFirst());
 
             // --- Write operations: map mutations ---
 
-            session.update(customerDataSet.id(500))
+            session.update(cdtDemoRecords.id(500))
                 .bin("inventory").mapUpsertItems(Map.of("dates", 15, "elderberries", 8))
                 .execute();
             System.out.println("After mapUpsertItems: " +
-                session.query(customerDataSet.id(500)).bin("inventory").get().execute().getFirst());
+                session.query(cdtDemoRecords.id(500)).bin("inventory").get().execute().getFirst());
 
-            session.update(customerDataSet.id(500))
+            session.update(cdtDemoRecords.id(500))
                 .bin("inventory").mapSetPolicy(MapOrder.KEY_ORDERED)
                 .execute();
             System.out.println("After mapSetPolicy(KEY_ORDERED): " +
-                session.query(customerDataSet.id(500)).bin("inventory").get().execute().getFirst());
+                session.query(cdtDemoRecords.id(500)).bin("inventory").get().execute().getFirst());
 
             // --- Write operations: CDT navigation with new methods ---
 
-            session.update(customerDataSet.id(500))
+            session.update(cdtDemoRecords.id(500))
                 .bin("nested").onMapKey("team1").onMapKey("members").listAppend("Diana")
                 .execute();
             System.out.println("After nested listAppend('Diana') to team1: " +
-                session.query(customerDataSet.id(500))
+                session.query(cdtDemoRecords.id(500))
                     .bin("nested").onMapKey("team1").onMapKey("members").listSize()
                     .execute().getFirst());
 
-            session.update(customerDataSet.id(500))
+            session.update(cdtDemoRecords.id(500))
                 .bin("nested").onMapKey("team2").onMapKey("members").listInsert(0, "Zara")
                 .execute();
             System.out.println("After nested listInsert to team2: " +
-                session.query(customerDataSet.id(500))
+                session.query(cdtDemoRecords.id(500))
                     .bin("nested").onMapKey("team2").onMapKey("members").listGetRange(0)
                     .execute().getFirst());
 
-            session.update(customerDataSet.id(500))
+            session.update(cdtDemoRecords.id(500))
                 .bin("nested").onMapKey("team1").onMapKey("members").listSort()
                 .execute();
             System.out.println("After sorting team1 members: " +
-                session.query(customerDataSet.id(500))
+                session.query(cdtDemoRecords.id(500))
                     .bin("nested").onMapKey("team1").onMapKey("members").listGetRange(0)
                     .execute().getFirst());
 
             // Create a new ordered list sub-element via CDT navigation
-            session.update(customerDataSet.id(500))
+            session.update(cdtDemoRecords.id(500))
                 .bin("nested").onMapKey("team3", MapOrder.KEY_ORDERED)
                     .onMapKey("members").listCreate(ListOrder.ORDERED)
                 .execute();
-            session.update(customerDataSet.id(500))
+            session.update(cdtDemoRecords.id(500))
                 .bin("nested").onMapKey("team3").onMapKey("members").listAddItems(List.of("Ivy", "Frank", "Grace"))
                 .execute();
             System.out.println("Team3 members (ordered): " +
-                session.query(customerDataSet.id(500))
+                session.query(cdtDemoRecords.id(500))
                     .bin("nested").onMapKey("team3").onMapKey("members").listGetRange(0)
                     .execute().getFirst());
 
             // --- Combined multi-bin CDT operations in one call ---
 
-            cdtResults = session.update(customerDataSet.id(500))
+            cdtResults = session.update(cdtDemoRecords.id(500))
                 .bin("scores").listAppendItems(List.of(50, 60, 70))
                 .bin("inventory").mapUpsertItems(Map.of("figs", 12))
                 .bin("nested").onMapKey("team2").onMapKey("members").listAppend("Quinn")
@@ -1192,12 +1202,27 @@ public class QueryExamples {
             System.out.println("Combined CDT result: " + cdtResults.getFirst());
 
             System.out.println("Final state: " +
-                session.query(customerDataSet.id(500)).execute().getFirst());
+                session.query(cdtDemoRecords.id(500)).execute().getFirst());
             System.out.println("--- End Complex CDT operations ---");
 
             session.upsert(customerDataSet.id(1))
                 .bin("test").onMapKeyRange(5, SpecialValue.INFINITY).getKeys()
                 .execute();
+            
+            // --- hetrogeneous batch call with object reads ---
+            session.upsert(addressDataSet).object(new Address(1, "123 Main St", "Denver", "CO", "USA", "80000")).execute();
+            
+            rs = session.query(customerDataSet.ids(21,22,23))
+                    .query(addressDataSet.id(1))
+                    .execute();
+            System.out.println("\n--- Hetrogeneous batch example ---\n");
+            while (rs.hasNext()) {
+                RecordResult rr = rs.next();
+                System.out.println((Object)rr.toObject());
+            }
+            
+            CompletableFuture<List<Customer>> myCust = session.query(customerDataSet.ids(1,2,3)).execute().asCompletableFutureMapped();
+            CompletableFuture<List<Customer>> myCust1 = session.query(customerDataSet.id(1)).execute().asCompletableFutureMapped();
         }
     }
 }

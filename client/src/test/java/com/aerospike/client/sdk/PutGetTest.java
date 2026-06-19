@@ -196,8 +196,8 @@ public class PutGetTest extends ClusterTest {
         Customer customer = new Customer(key, "sample", 456, new Date(),
             new Address("123 Main St", "Denver", "CO", "USA", "80112"));
 
-        TypeSafeDataSet<Customer> customerDataSet =
-            new TypeSafeDataSet<Customer>(args.namespace, args.set.getSet(), Customer.class);
+        TypedDataSet<Customer> customerDataSet =
+            new TypedDataSet<Customer>(args.namespace, args.set.getSet(), Customer.class);
 
         session.insert(customerDataSet)
             .object(customer)
@@ -229,8 +229,8 @@ public class PutGetTest extends ClusterTest {
         Customer customer = new Customer(key, "sample", 456, new Date(),
             new Address("123 Main St", "Denver", "CO", "USA", "80112"));
 
-        TypeSafeDataSet<Customer> customerDataSet =
-            new TypeSafeDataSet<Customer>(args.namespace, args.set.getSet(), Customer.class);
+        TypedDataSet<Customer> customerDataSet =
+            new TypedDataSet<Customer>(args.namespace, args.set.getSet(), Customer.class);
 
         RecordStream rs = session.insert(customerDataSet)
             .object(customer)
@@ -270,15 +270,15 @@ public class PutGetTest extends ClusterTest {
         Customer customer3 = new Customer(key + 2, "sample3", age + 2, new Date(),
             new Address("145 Main St", "Denver", "CO", "USA", "80112"));
 
-        TypeSafeDataSet<Customer> customerDataSet =
-            new TypeSafeDataSet<Customer>(args.namespace, args.set.getSet(), Customer.class);
+        TypedDataSet<Customer> customerDataSet =
+            new TypedDataSet<Customer>(args.namespace, args.set.getSet(), Customer.class);
 
         session.upsert(customerDataSet)
             .objects(customer1, customer2, customer3)
             .using(customerMapper)
             .execute();
 
-        List<Customer> readCustomers = session.query(customerDataSet.ids(key, key + 1, key + 2))
+        List<Customer> readCustomers = session.queryTypedKeys(customerDataSet.ids(key, key + 1, key + 2))
             .execute()
             .toObjectList(customerMapper);
 
@@ -311,8 +311,8 @@ public class PutGetTest extends ClusterTest {
         Customer customer3 = new Customer(key + 2, "sample3", age + 2, new Date(),
             new Address("145 Main St", "Denver", "CO", "USA", "80112"));
 
-        TypeSafeDataSet<Customer> customerDataSet =
-            new TypeSafeDataSet<Customer>(args.namespace, args.set.getSet(), Customer.class);
+        TypedDataSet<Customer> customerDataSet =
+            new TypedDataSet<Customer>(args.namespace, args.set.getSet(), Customer.class);
 
         CustomerMapper customerMapper = new CustomerMapper();
 
@@ -324,7 +324,7 @@ public class PutGetTest extends ClusterTest {
         assertTrue(rs.hasNext());
         rs.next().recordOrThrow();
 
-        List<Customer> readCustomers = session.query(customerDataSet.ids(key, key + 1, key + 2))
+        List<Customer> readCustomers = session.queryTypedKeys(customerDataSet.ids(key, key + 1, key + 2))
             .execute()
             .toObjectList(customerMapper);
 
@@ -359,8 +359,8 @@ public class PutGetTest extends ClusterTest {
             customers.add(customer);
         }
 
-        TypeSafeDataSet<Customer> customerDataSet =
-            new TypeSafeDataSet<Customer>(args.namespace, args.set.getSet(), Customer.class);
+        TypedDataSet<Customer> customerDataSet =
+            new TypedDataSet<Customer>(args.namespace, args.set.getSet(), Customer.class);
 
         CustomerMapper customerMapper = new CustomerMapper();
 
@@ -425,8 +425,8 @@ public class PutGetTest extends ClusterTest {
             customers.add(customer);
         }
 
-        TypeSafeDataSet<Customer> customerDataSet =
-            new TypeSafeDataSet<Customer>(args.namespace, args.set.getSet(), Customer.class);
+        TypedDataSet<Customer> customerDataSet =
+            new TypedDataSet<Customer>(args.namespace, args.set.getSet(), Customer.class);
 
         CustomerMapper customerMapper = new CustomerMapper();
 

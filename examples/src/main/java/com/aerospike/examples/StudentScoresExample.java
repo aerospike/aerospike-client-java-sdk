@@ -5,7 +5,6 @@ import java.util.Map;
 import java.util.Random;
 
 import com.aerospike.client.sdk.Cluster;
-import com.aerospike.client.sdk.ClusterDefinition;
 import com.aerospike.client.sdk.DataSet;
 import com.aerospike.client.sdk.Session;
 import com.aerospike.client.sdk.policy.Behavior;
@@ -21,9 +20,9 @@ public class StudentScoresExample {
         return scores;
     }
 
-    public static void main(String[] args) {
-        // -- Connect --
-        try (Cluster cluster = new ClusterDefinition("localhost", 3100)
+    public static void main(String[] args) throws Exception {
+        Args arguments = Example.parseStandaloneArgs(args);
+        try (Cluster cluster = Example.clusterDefinition(arguments)
                 .withNativeCredentials("admin", "admin123")
                 .connect()) {
 
