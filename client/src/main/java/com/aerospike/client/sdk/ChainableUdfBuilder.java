@@ -107,10 +107,23 @@ public class ChainableUdfBuilder extends AbstractSessionOperationBuilder<Chainab
      * @return this builder for method chaining
      */
     ChainableUdfBuilder initUdfWithFunction(List<Key> keys, String packageName, String functionName) {
+        return initUdfWithFunction(keys, packageName, functionName, null);
+    }
+
+    /**
+     * Like {@link #initUdfWithFunction(List, String, String)} but sets {@link OperationSpec#setReadMappingClass}
+     * when non-null (typed UDF leg from {@link TypedKey}).
+     */
+    ChainableUdfBuilder initUdfWithFunction(
+        List<Key> keys, String packageName, String functionName, Class<?> readMappingClass
+    ) {
         finalizeCurrentOperation();
         currentSpec = new OperationSpec(keys, OpType.UDF);
         currentSpec.setUdfPackageName(packageName);
         currentSpec.setUdfFunctionName(functionName);
+        if (readMappingClass != null) {
+            currentSpec.setReadMappingClass(readMappingClass);
+        }
         return this;
     }
 
@@ -216,7 +229,7 @@ public class ChainableUdfBuilder extends AbstractSessionOperationBuilder<Chainab
     public UdfFunctionBuilder executeUdf(Key key) {
         finalizeCurrentOperation();
         return new UdfFunctionBuilder(session, List.of(key), operationSpecs,
-                defaultWhereClause, defaultExpirationInSeconds, txnToUse);
+                defaultWhereClause, defaultExpirationInSeconds, txnToUse, null);
     }
 
     /**
@@ -229,7 +242,7 @@ public class ChainableUdfBuilder extends AbstractSessionOperationBuilder<Chainab
     public UdfFunctionBuilder executeUdf(List<Key> keys) {
         finalizeCurrentOperation();
         return new UdfFunctionBuilder(session, keys, operationSpecs,
-                defaultWhereClause, defaultExpirationInSeconds, txnToUse);
+                defaultWhereClause, defaultExpirationInSeconds, txnToUse, null);
     }
 
     /**
@@ -619,6 +632,140 @@ public class ChainableUdfBuilder extends AbstractSessionOperationBuilder<Chainab
         keys.add(key2);
         keys.addAll(Arrays.asList(moreKeys));
         return query(keys);
+    }
+
+    /**
+     * Chain a typed point read on one key so results can use {@link RecordResult#toObject()} with the
+     * key’s entity class.
+     *
+     * @param typedKey key plus domain type
+     * @param <T> entity type carried by the key
+     * @return builder for specifying bins and executing the read leg
+     */
+    public <T> ChainableQueryBuilder query(TypedKey<T> typedKey) {
+        finalizeCurrentOperation();
+        return new ChainableQueryBuilder(session, operationSpecs, defaultWhereClause, defaultExpirationInSeconds, txnToUse)
+                .initQueryTyped(typedKey);
+    }
+
+    /**
+     * Chain a typed multi-key read; all keys must share the same entity class at runtime
+     * ({@link TypedKey#requireSharedEntityClass}).
+     *
+     * @param k1 first typed key
+     * @param k2 second typed key
+     * @param more additional typed keys (same entity class)
+     * @return builder for specifying bins and executing the read leg
+     */
+    public ChainableQueryBuilder query(TypedKey<?> k1, TypedKey<?> k2, TypedKey<?>... more) {
+        List<TypedKey<?>> list = new ArrayList<>();
+        list.add(k1);
+        list.add(k2);
+        list.addAll(Arrays.asList(more));
+        return queryTypedKeys(list);
+    }
+
+    /**
+     * Chain a typed multi-key read. Same semantics as {@link Session#queryTypedKeys(java.util.List)}
+     * but appended after this UDF leg. Cannot overload {@link #query(List)} with a second {@code List}-typed
+     * parameter at the same erasure, so this method name is used for {@code List<? extends TypedKey<?>>}.
+     *
+     * @param typedKeys non-empty list; one entity class for all keys
+     * @return builder for specifying bins and executing the read leg
+     */
+    public ChainableQueryBuilder queryTypedKeys(List<? extends TypedKey<?>> typedKeys) {
+        finalizeCurrentOperation();
+        return new ChainableQueryBuilder(session, operationSpecs, defaultWhereClause, defaultExpirationInSeconds, txnToUse)
+                .initQueryTyped(typedKeys);
+    }
+
+    /**
+     * Typed batch variant of {@link #upsert(List)}: uses {@link TypedKey#nativeKeys(TypedKeyList)}.
+     * {@link TypedKeyList} avoids clashing with {@code upsert(List<Key>)} at erasure.
+     *
+     * @param typedKeys non-empty homogeneous typed keys
+     * @param <T> shared entity type
+     * @return builder for further bin operations on this write leg
+     */
+    public <T> ChainableOperationBuilder upsert(TypedKeyList<T> typedKeys) {
+        return upsert(TypedKey.nativeKeys(typedKeys));
+    }
+
+    /**
+     * Typed batch variant of {@link #update(List)}.
+     *
+     * @param typedKeys non-empty homogeneous typed keys
+     * @param <T> shared entity type
+     * @return builder for further bin operations
+     */
+    public <T> ChainableOperationBuilder update(TypedKeyList<T> typedKeys) {
+        return update(TypedKey.nativeKeys(typedKeys));
+    }
+
+    /**
+     * Typed batch variant of {@link #insert(List)}.
+     *
+     * @param typedKeys non-empty homogeneous typed keys
+     * @param <T> shared entity type
+     * @return builder for further bin operations
+     */
+    public <T> ChainableOperationBuilder insert(TypedKeyList<T> typedKeys) {
+        return insert(TypedKey.nativeKeys(typedKeys));
+    }
+
+    /**
+     * Typed batch variant of {@link #replace(List)}.
+     *
+     * @param typedKeys non-empty homogeneous typed keys
+     * @param <T> shared entity type
+     * @return builder for further bin operations
+     */
+    public <T> ChainableOperationBuilder replace(TypedKeyList<T> typedKeys) {
+        return replace(TypedKey.nativeKeys(typedKeys));
+    }
+
+    /**
+     * Typed batch variant of {@link #replaceIfExists(List)}.
+     *
+     * @param typedKeys non-empty homogeneous typed keys
+     * @param <T> shared entity type
+     * @return builder for further bin operations
+     */
+    public <T> ChainableOperationBuilder replaceIfExists(TypedKeyList<T> typedKeys) {
+        return replaceIfExists(TypedKey.nativeKeys(typedKeys));
+    }
+
+    /**
+     * Typed batch variant of {@link #delete(List)}.
+     *
+     * @param typedKeys non-empty homogeneous typed keys
+     * @param <T> shared entity type
+     * @return builder for further no-bin operations
+     */
+    public <T> ChainableNoBinsBuilder delete(TypedKeyList<T> typedKeys) {
+        return delete(TypedKey.nativeKeys(typedKeys));
+    }
+
+    /**
+     * Typed batch variant of {@link #touch(List)}.
+     *
+     * @param typedKeys non-empty homogeneous typed keys
+     * @param <T> shared entity type
+     * @return builder for further no-bin operations
+     */
+    public <T> ChainableNoBinsBuilder touch(TypedKeyList<T> typedKeys) {
+        return touch(TypedKey.nativeKeys(typedKeys));
+    }
+
+    /**
+     * Typed batch variant of {@link #exists(List)}.
+     *
+     * @param typedKeys non-empty homogeneous typed keys
+     * @param <T> shared entity type
+     * @return builder for further no-bin operations
+     */
+    public <T> ChainableNoBinsBuilder exists(TypedKeyList<T> typedKeys) {
+        return exists(TypedKey.nativeKeys(typedKeys));
     }
 
     // ========================================

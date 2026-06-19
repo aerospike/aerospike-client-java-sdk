@@ -49,6 +49,8 @@ public class UdfFunctionBuilder {
     private final Expression defaultWhereClause;
     private final long defaultExpirationInSeconds;
     private final Txn txnToUse;
+    /** When non-null, UDF leg carries read mapping for {@link RecordResult#udfResultAsObject()}. */
+    private final Class<?> readMappingClass;
 
     /**
      * Package-private constructor for creating a new UDF function builder.
@@ -59,15 +61,18 @@ public class UdfFunctionBuilder {
      * @param defaultWhereClause default where clause for the chain
      * @param defaultExpirationInSeconds default expiration for the chain
      * @param txnToUse transaction to use (may be null)
+     * @param readMappingClass entity class for typed UDF entry points, or {@code null}
      */
     UdfFunctionBuilder(Session session, List<Key> keys, List<OperationSpec> existingSpecs,
-                       Expression defaultWhereClause, long defaultExpirationInSeconds, Txn txnToUse) {
+                       Expression defaultWhereClause, long defaultExpirationInSeconds, Txn txnToUse,
+                       Class<?> readMappingClass) {
         this.session = session;
         this.keys = keys;
         this.existingSpecs = existingSpecs;
         this.defaultWhereClause = defaultWhereClause;
         this.defaultExpirationInSeconds = defaultExpirationInSeconds;
         this.txnToUse = txnToUse;
+        this.readMappingClass = readMappingClass;
     }
 
     /**
@@ -92,6 +97,6 @@ public class UdfFunctionBuilder {
 
         ChainableUdfBuilder builder = new ChainableUdfBuilder(
                 session, existingSpecs, defaultWhereClause, defaultExpirationInSeconds, txnToUse);
-        return builder.initUdfWithFunction(keys, packageName, functionName);
+        return builder.initUdfWithFunction(keys, packageName, functionName, readMappingClass);
     }
 }

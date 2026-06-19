@@ -24,7 +24,16 @@ import java.util.List;
 import java.util.Map;
 
 import com.aerospike.client.sdk.RecordMapper;
+import com.aerospike.client.sdk.RecordReadContext;
 
+/**
+ * Map/bin extraction helpers.
+ *
+ * <p>For nested object deserialization, {@link #asObjectFromMap(Map, String, RecordMapper)} uses the
+ * three-argument {@link RecordMapper#fromMap}; the overload with {@link RecordReadContext} delegates to
+ * the four-argument {@link RecordMapper#fromMap(java.util.Map, Key, int, RecordReadContext)} when you
+ * need session or factory access.</p>
+ */
 public class MapUtil {
     /**
      * Safely extract a String value from a map
@@ -112,7 +121,11 @@ public class MapUtil {
         return value instanceof Map ? (Map<K, V>) value : null;
     }
     public static int asInt(Map<String, Object> map, String key) {
-        return (int)(long)map.get(key);
+        Object value = map.get(key);
+        if (value instanceof Number) {
+            return ((Number) value).intValue();
+        }
+        return 0;
     }
     public static Date asDateFromLong(Map<String, Object> map, String key) {
         if (map.containsKey(key)) {
@@ -136,6 +149,24 @@ public class MapUtil {
             Object data = map.get(key);
             if (data != null) {
                 return mapper.fromMap((Map<String, Object>)data, null, 0);
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Like {@link #asObjectFromMap(Map, String, RecordMapper)} but passes {@link RecordReadContext}
+     * into {@link RecordMapper#fromMap(Map, Key, int, RecordReadContext)} so nested mappers can load
+     * related entities via {@link RecordReadContext#getSession()} / {@link RecordReadContext#getRecordMappingFactory()}.
+     * Use {@code new RecordReadContext<>(parentCtx.getSession(), Child.class)} for a nested type {@code Child}.
+     */
+    @SuppressWarnings("unchecked")
+    public static <T> T asObjectFromMap(
+            Map<String, Object> map, String key, RecordMapper<T> mapper, RecordReadContext<T> ctx) {
+        if (map.containsKey(key)) {
+            Object data = map.get(key);
+            if (data != null) {
+                return mapper.fromMap((Map<String, Object>)data, null, 0, ctx);
             }
         }
         return null;

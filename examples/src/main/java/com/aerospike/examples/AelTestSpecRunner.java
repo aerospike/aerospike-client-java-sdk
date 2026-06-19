@@ -22,7 +22,6 @@ import java.util.Map;
 import java.util.TreeMap;
 
 import com.aerospike.client.sdk.Cluster;
-import com.aerospike.client.sdk.ClusterDefinition;
 import com.aerospike.client.sdk.DataSet;
 import com.aerospike.client.sdk.Record;
 import com.aerospike.client.sdk.RecordStream;
@@ -47,7 +46,8 @@ public class AelTestSpecRunner {
     private static int errorTests = 0;
 
     public static void main(String[] args) throws Exception {
-        try (Cluster cluster = new ClusterDefinition("localhost", 3100).connect()) {
+        Args arguments = Example.parseStandaloneArgs(args);
+        try (Cluster cluster = Example.clusterDefinition(arguments).connect()) {
             Session session = cluster.createSession(Behavior.DEFAULT);
             DataSet set = DataSet.of("test", "ael_test_spec");
 
