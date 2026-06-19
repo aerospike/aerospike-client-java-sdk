@@ -122,7 +122,19 @@ public class RecordStream implements Iterator<RecordResult>, Closeable {
      * @param record the record data
      */
     RecordStream(Key key, Record record) {
-        RecordResult rec = new RecordResult(key, record, 0); // Single item, index = 0
+        this(key, record, null, null);
+    }
+
+    /**
+     * Creates a RecordStream containing a single record from a key and record pair.
+     *
+     * @param key the key of the record
+     * @param record the record data
+     * @param readMappingSession when {@code readMappingClass} is non-null, the session for typed mapping
+     * @param readMappingClass optional hint for {@link RecordResult#toObject()}
+     */
+    RecordStream(Key key, Record record, Session readMappingSession, Class<?> readMappingClass) {
+        RecordResult rec = new RecordResult(key, record, 0, readMappingSession, readMappingClass);
         impl = new SingleItemRecordStream(rec);
     }
     /**
@@ -806,12 +818,12 @@ public class RecordStream implements Iterator<RecordResult>, Closeable {
      *
      * <p>This method does <b>not</b> close the stream. The caller is responsible for closing
      * the stream when done, or for fully consuming it. For a terminal variant that automatically
-     * closes the stream, use {@link #getFirstUdfResult()}.</p>
+     * closes the stream, use {@link #getFirstUdfResultObject()}.</p>
      *
      * @return an Optional containing the UDF result, or empty if the stream is exhausted
      * @throws AerospikeException if the UDF invocation failed
      */
-    public Optional<Object> popUdfResult() {
+    public Optional<Object> popUdfResultObject() {
         if (hasNext()) {
             return Optional.ofNullable(next().udfResultOrThrow());
         }
@@ -824,16 +836,17 @@ public class RecordStream implements Iterator<RecordResult>, Closeable {
      *
      * <p>This method does <b>not</b> close the stream. The caller is responsible for closing
      * the stream when done, or for fully consuming it. For a terminal variant that automatically
-     * closes the stream, use {@link #getFirstUdfResult(RecordMapper)}.</p>
+     * closes the stream, use {@link #getFirstUdfResultObject(RecordMapper)}.</p>
      *
      * @param <T> the target type
      * @param mapper the mapper to convert the UDF result map to the target type
      * @return an Optional containing the mapped UDF result, or empty if the stream is exhausted
+     *         or the UDF returned null
      * @throws AerospikeException with ResultCode = OP_NOT_APPLICABLE if the UDF return value is not a map
      */
-    public <T> Optional<T> popUdfResult(RecordMapper<T> mapper) {
+    public <T> Optional<T> popUdfResultObject(RecordMapper<T> mapper) {
         if (hasNext()) {
-            return Optional.ofNullable(next().udfResultAs(mapper));
+            return next().udfResultAsObject(mapper);
         }
         return Optional.empty();
     }
@@ -961,14 +974,14 @@ public class RecordStream implements Iterator<RecordResult>, Closeable {
      *
      * <p>This is a <b>terminal operation</b> that closes the stream after retrieving the
      * first element. For a non-closing variant that allows continued iteration, use
-     * {@link #popUdfResult()}.</p>
+     * {@link #popUdfResultObject()}.</p>
      *
      * @return an Optional containing the UDF result, or empty if the stream is empty
      * @throws AerospikeException if the UDF invocation failed
      */
-    public Optional<Object> getFirstUdfResult() {
+    public Optional<Object> getFirstUdfResultObject() {
         try {
-            return popUdfResult();
+            return popUdfResultObject();
         } finally {
             close();
         }
@@ -980,16 +993,17 @@ public class RecordStream implements Iterator<RecordResult>, Closeable {
      *
      * <p>This is a <b>terminal operation</b> that closes the stream after retrieving the
      * first element. For a non-closing variant that allows continued iteration, use
-     * {@link #popUdfResult(RecordMapper)}.</p>
+     * {@link #popUdfResultObject(RecordMapper)}.</p>
      *
      * @param <T> the target type
      * @param mapper the mapper to convert the UDF result map to the target type
      * @return an Optional containing the mapped UDF result, or empty if the stream is empty
+     *         or the UDF returned null
      * @throws AerospikeException with ResultCode = OP_NOT_APPLICABLE if the UDF return value is not a map
      */
-    public <T> Optional<T> getFirstUdfResult(RecordMapper<T> mapper) {
+    public <T> Optional<T> getFirstUdfResultObject(RecordMapper<T> mapper) {
         try {
-            return popUdfResult(mapper);
+            return popUdfResultObject(mapper);
         } finally {
             close();
         }

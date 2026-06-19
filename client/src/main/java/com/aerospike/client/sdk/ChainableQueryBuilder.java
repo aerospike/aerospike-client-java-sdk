@@ -95,6 +95,20 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
         return this;
     }
 
+    ChainableQueryBuilder initQueryTyped(List<? extends TypedKey<?>> typedKeys) {
+        finalizeCurrentOperation();
+        List<TypedKey<?>> list = new ArrayList<>(typedKeys);
+        Class<?> entity = TypedKey.requireSharedEntityClass(list);
+        List<Key> keys = TypedKey.nativeKeys(list);
+        currentSpec = new OperationSpec(keys);
+        currentSpec.setReadMappingClass(entity);
+        return this;
+    }
+
+    ChainableQueryBuilder initQueryTyped(TypedKey<?> typedKey) {
+        return initQueryTyped(List.of(typedKey));
+    }
+
     // ========================================
     // Query-specific methods
     // ========================================
@@ -144,9 +158,9 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
      * @param binName the name of the bin
      * @return QueryBinBuilder for constructing bin read operations
      */
-    public QueryBinBuilder bin(String binName) {
+    public QueryBinBuilder<ChainableQueryBuilder> bin(String binName) {
         verifyState("adding bin operation");
-        return new QueryBinBuilder(this, binName);
+        return new QueryBinBuilder<>(this, binName);
     }
 
     /**
@@ -400,6 +414,16 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
     }
 
     /**
+     * Like {@link #delete(Key)} using the native key from {@link TypedKey#getKey()}.
+     *
+     * @param typedKey typed key whose record is deleted
+     * @return builder for further no-bin operations
+     */
+    public ChainableNoBinsBuilder delete(TypedKey<?> typedKey) {
+        return delete(typedKey.getKey());
+    }
+
+    /**
      * Chain a delete operation on multiple keys.
      *
      * @param keys the keys to delete
@@ -441,6 +465,16 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
     }
 
     /**
+     * Like {@link #touch(Key)} using the native key from {@link TypedKey#getKey()}.
+     *
+     * @param typedKey typed key whose record TTL is touched
+     * @return builder for further no-bin operations
+     */
+    public ChainableNoBinsBuilder touch(TypedKey<?> typedKey) {
+        return touch(typedKey.getKey());
+    }
+
+    /**
      * Chain a touch operation on multiple keys.
      *
      * @param keys the keys to touch
@@ -479,6 +513,16 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
         finalizeCurrentOperation();
         return new ChainableNoBinsBuilder(session, operationSpecs, defaultWhereClause, defaultExpirationInSeconds, txnToUse)
                 .initExists(key);
+    }
+
+    /**
+     * Like {@link #exists(Key)} using the native key from {@link TypedKey#getKey()}.
+     *
+     * @param typedKey typed key to test for existence
+     * @return builder for further no-bin operations
+     */
+    public ChainableNoBinsBuilder exists(TypedKey<?> typedKey) {
+        return exists(typedKey.getKey());
     }
 
     /**
@@ -546,6 +590,136 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
     }
 
     /**
+     * Chain a typed point read on one key so results can use {@link RecordResult#toObject()} with the
+     * key’s entity class.
+     *
+     * @param typedKey key plus domain type
+     * @param <T> entity type carried by the key
+     * @return this builder for method chaining
+     */
+    public <T> ChainableQueryBuilder query(TypedKey<T> typedKey) {
+        return initQueryTyped(typedKey);
+    }
+
+    /**
+     * Chain a typed multi-key read; all keys must share the same entity class at runtime
+     * ({@link TypedKey#requireSharedEntityClass}).
+     *
+     * @param k1 first typed key
+     * @param k2 second typed key
+     * @param more additional typed keys (same entity class)
+     * @return this builder for method chaining
+     */
+    public ChainableQueryBuilder query(TypedKey<?> k1, TypedKey<?> k2, TypedKey<?>... more) {
+        List<TypedKey<?>> list = new ArrayList<>();
+        list.add(k1);
+        list.add(k2);
+        list.addAll(Arrays.asList(more));
+        return queryTypedKeys(list);
+    }
+
+    /**
+     * Chain a typed multi-key read. Same semantics as {@link Session#queryTypedKeys(java.util.List)}
+     * but appended to this batch chain. Cannot overload {@link #query(List)} with a second {@code List}-typed
+     * parameter at the same erasure, so this method name is used for {@code List<? extends TypedKey<?>>}.
+     *
+     * @param typedKeys non-empty list; one entity class for all keys
+     * @return this builder for method chaining
+     */
+    public ChainableQueryBuilder queryTypedKeys(List<? extends TypedKey<?>> typedKeys) {
+        return initQueryTyped(typedKeys);
+    }
+
+    /**
+     * Typed batch variant of {@link #upsert(List)}: uses {@link TypedKey#nativeKeys(TypedKeyList)}.
+     * {@link TypedKeyList} avoids clashing with {@code upsert(List<Key>)} at erasure.
+     *
+     * @param typedKeys non-empty homogeneous typed keys
+     * @param <T> shared entity type
+     * @return builder for further bin operations on this write leg
+     */
+    public <T> ChainableOperationBuilder upsert(TypedKeyList<T> typedKeys) {
+        return upsert(TypedKey.nativeKeys(typedKeys));
+    }
+
+    /**
+     * Typed batch variant of {@link #update(List)}.
+     *
+     * @param typedKeys non-empty homogeneous typed keys
+     * @param <T> shared entity type
+     * @return builder for further bin operations
+     */
+    public <T> ChainableOperationBuilder update(TypedKeyList<T> typedKeys) {
+        return update(TypedKey.nativeKeys(typedKeys));
+    }
+
+    /**
+     * Typed batch variant of {@link #insert(List)}.
+     *
+     * @param typedKeys non-empty homogeneous typed keys
+     * @param <T> shared entity type
+     * @return builder for further bin operations
+     */
+    public <T> ChainableOperationBuilder insert(TypedKeyList<T> typedKeys) {
+        return insert(TypedKey.nativeKeys(typedKeys));
+    }
+
+    /**
+     * Typed batch variant of {@link #replace(List)}.
+     *
+     * @param typedKeys non-empty homogeneous typed keys
+     * @param <T> shared entity type
+     * @return builder for further bin operations
+     */
+    public <T> ChainableOperationBuilder replace(TypedKeyList<T> typedKeys) {
+        return replace(TypedKey.nativeKeys(typedKeys));
+    }
+
+    /**
+     * Typed batch variant of {@link #replaceIfExists(List)}.
+     *
+     * @param typedKeys non-empty homogeneous typed keys
+     * @param <T> shared entity type
+     * @return builder for further bin operations
+     */
+    public <T> ChainableOperationBuilder replaceIfExists(TypedKeyList<T> typedKeys) {
+        return replaceIfExists(TypedKey.nativeKeys(typedKeys));
+    }
+
+    /**
+     * Typed batch variant of {@link #delete(List)}.
+     *
+     * @param typedKeys non-empty homogeneous typed keys
+     * @param <T> shared entity type
+     * @return builder for further no-bin operations
+     */
+    public <T> ChainableNoBinsBuilder delete(TypedKeyList<T> typedKeys) {
+        return delete(TypedKey.nativeKeys(typedKeys));
+    }
+
+    /**
+     * Typed batch variant of {@link #touch(List)}.
+     *
+     * @param typedKeys non-empty homogeneous typed keys
+     * @param <T> shared entity type
+     * @return builder for further no-bin operations
+     */
+    public <T> ChainableNoBinsBuilder touch(TypedKeyList<T> typedKeys) {
+        return touch(TypedKey.nativeKeys(typedKeys));
+    }
+
+    /**
+     * Typed batch variant of {@link #exists(List)}.
+     *
+     * @param typedKeys non-empty homogeneous typed keys
+     * @param <T> shared entity type
+     * @return builder for further no-bin operations
+     */
+    public <T> ChainableNoBinsBuilder exists(TypedKeyList<T> typedKeys) {
+        return exists(TypedKey.nativeKeys(typedKeys));
+    }
+
+    /**
      * Chain a UDF execution on a single key.
      * Returns a {@link UdfFunctionBuilder} requiring the UDF function to be specified.
      *
@@ -555,7 +729,7 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
     public UdfFunctionBuilder executeUdf(Key key) {
         finalizeCurrentOperation();
         return new UdfFunctionBuilder(session, List.of(key), operationSpecs,
-                defaultWhereClause, defaultExpirationInSeconds, txnToUse);
+                defaultWhereClause, defaultExpirationInSeconds, txnToUse, null);
     }
 
     /**
@@ -567,7 +741,7 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
     public UdfFunctionBuilder executeUdf(List<Key> keys) {
         finalizeCurrentOperation();
         return new UdfFunctionBuilder(session, keys, operationSpecs,
-                defaultWhereClause, defaultExpirationInSeconds, txnToUse);
+                defaultWhereClause, defaultExpirationInSeconds, txnToUse, null);
     }
 
     /**
@@ -962,13 +1136,11 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
      * @see #execute(ErrorHandler)
      */
     public RecordStream execute() {
-        List<OperationSpec> specs = prepareSpecs();
+        List<OperationSpec> specs = prepareSpecsForExecute();
         if (specs.isEmpty()) {
             return new RecordStream();
         }
-        return OperationSpecExecutor.execute(session, specs, defaultWhereClause,
-            defaultExpirationInSeconds, txnToUse, notInAnyTransaction,
-            AbstractFilterableBuilder.defaultDisposition(specs), null);
+        return executeWithPreparedSpecs(specs, AbstractFilterableBuilder.defaultDisposition(specs));
     }
 
     /**
@@ -995,12 +1167,11 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
     }
 
     private RecordStream executeWithDisposition(ErrorDisposition disposition) {
-        List<OperationSpec> specs = prepareSpecs();
+        List<OperationSpec> specs = prepareSpecsForExecute();
         if (specs.isEmpty()) {
             return new RecordStream();
         }
-        return OperationSpecExecutor.execute(session, specs, defaultWhereClause,
-            defaultExpirationInSeconds, txnToUse, notInAnyTransaction, disposition, null);
+        return executeWithPreparedSpecs(specs, disposition);
     }
 
     /**
@@ -1027,7 +1198,14 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
     }
 
     private RecordStream executeAsyncInternal(ErrorHandler errorHandler) {
-        List<OperationSpec> specs = prepareSpecs();
+        List<OperationSpec> specs = prepareSpecsForExecute();
+        if (specs.isEmpty()) {
+            return new RecordStream();
+        }
+        return executeAsyncWithPreparedSpecs(specs, errorHandler);
+    }
+
+    RecordStream executeAsyncWithPreparedSpecs(List<OperationSpec> specs, ErrorHandler errorHandler) {
         if (specs.isEmpty()) {
             return new RecordStream();
         }
@@ -1060,13 +1238,21 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
     }
 
 
-    private List<OperationSpec> prepareSpecs() {
+    List<OperationSpec> prepareSpecsForExecute() {
         finalizeCurrentOperation();
         if (operationSpecs.isEmpty()) {
             throw new IllegalStateException("No operations specified");
         }
         List<OperationSpec> filteredSpecs = applyPartitionFilter(operationSpecs);
         return applyKeyLimit(filteredSpecs);
+    }
+
+    RecordStream executeWithPreparedSpecs(List<OperationSpec> specs, ErrorDisposition disposition) {
+        if (specs.isEmpty()) {
+            return new RecordStream();
+        }
+        return OperationSpecExecutor.execute(session, specs, defaultWhereClause,
+            defaultExpirationInSeconds, txnToUse, notInAnyTransaction, disposition, null);
     }
 
     /**
@@ -1141,6 +1327,7 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
         newSpec.setIncludeMissingKeys(original.isIncludeMissingKeys());
         newSpec.setDurableDelete(original.getDurableDelete());
         newSpec.setProjectedBins(original.getProjectedBins());
+        newSpec.setReadMappingClass(original.getReadMappingClass());
         newSpec.getOperations().addAll(original.getOperations());
         return newSpec;
     }
@@ -1181,6 +1368,10 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
         if (currentSpec == null) {
             throw new IllegalStateException("Must call query() before " + operationContext);
         }
+    }
+
+    void verifyBinChainState(String operationContext) {
+        verifyState(operationContext);
     }
 
     private void finalizeCurrentOperation() {

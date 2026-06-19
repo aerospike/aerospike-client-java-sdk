@@ -19,21 +19,16 @@ package com.aerospike.examples.ecommerce;
 import java.util.List;
 
 import com.aerospike.client.sdk.Session;
-import com.aerospike.client.sdk.TypeSafeDataSet;
+import com.aerospike.client.sdk.TypedDataSet;
 
 /**
  * Seeds the Aerospike database with 20 customers, 100 products, and a realistic
  * spread of orders across customers.
  */
-public class SeedData {
+public final class SeedData {
 
     private SeedData() {}
 
-    static final CustomerMapper CUSTOMER_MAPPER = new CustomerMapper();
-    static final ProductMapper  PRODUCT_MAPPER  = new ProductMapper();
-    static final OrderMapper    ORDER_MAPPER    = new OrderMapper();
-
-    // -----------------------------------------------------------------
     // Customers
     // -----------------------------------------------------------------
     private static final List<Customer> CUSTOMERS = List.of(
@@ -261,18 +256,18 @@ public class SeedData {
     // Bulk-insert all seed data
     // -----------------------------------------------------------------
     static void seed(Session session,
-                     TypeSafeDataSet<Customer> customers,
-                     TypeSafeDataSet<Product> products,
-                     TypeSafeDataSet<Order> orders) {
+                     TypedDataSet<Customer> customers,
+                     TypedDataSet<Product> products,
+                     TypedDataSet<Order> orders) {
 
         System.out.println("Seeding " + CUSTOMERS.size() + " customers, "
                 + PRODUCTS.size() + " products, "
                 + ORDERS.size() + " orders ...");
 
         long now = System.nanoTime();
-        session.replace(customers).objects(CUSTOMERS).using(CUSTOMER_MAPPER).execute();
-        session.replace(products).objects(PRODUCTS).using(PRODUCT_MAPPER).execute();
-        session.replace(orders).objects(ORDERS).using(ORDER_MAPPER).execute();
+        session.replace(customers).objects(CUSTOMERS).execute();
+        session.replace(products).objects(PRODUCTS).execute();
+        session.replace(orders).objects(ORDERS).execute();
         long totalTime = (System.nanoTime() - now) / 1_000;
 
         System.out.printf("Seed data loaded (%,d records) in %,dus.\n", CUSTOMERS.size() + PRODUCTS.size() + ORDERS.size(), totalTime);

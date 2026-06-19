@@ -139,6 +139,7 @@ class OperationSpecExecutor {
 
         // TODO Track count of keys in builders, so it can be used here.
         List<BatchRecord> records = new ArrayList<>(512);
+        List<Class<?>> readMappingPerRecord = new ArrayList<>(512);
         Cluster cluster = session.getCluster();
         Behavior behavior = session.getBehavior();
         // TODO: Put in hashmap
@@ -173,6 +174,7 @@ class OperationSpecExecutor {
                     BatchRecord rec = new BatchRecord(key, false);
                     rec.setError(ae.getResultCode(), false);
                     records.add(rec);
+                    readMappingPerRecord.add(null);
 
                     if (except == null) {
                         except = ae;
@@ -268,6 +270,8 @@ class OperationSpecExecutor {
                 }
 
                 records.add(rec);
+                Class<?> readHint = (spec.isQuery() || spec.isUdf()) ? spec.getReadMappingClass() : null;
+                readMappingPerRecord.add(readHint);
             }
         }
 
@@ -350,24 +354,13 @@ class OperationSpecExecutor {
                     continue;
                 }
 
-                RecordResult result = AbstractFilterableBuilder.createRecordResultFromBatchRecord(br, settings, i);
+                Class<?> readHint = i < readMappingPerRecord.size() ? readMappingPerRecord.get(i) : null;
+                Session mappingSession = readHint == null ? null : session;
+                RecordResult result = createBatchRecordResult(
+                    br, settings, i, mappingSession, readHint);
 
-                if (AbstractFilterableBuilder.isActionableError(br.resultCode)) {
-                    switch (disposition) {
-                        case ErrorDisposition.Throw ignored -> {
-                            AerospikeException ex = result.exception() != null
-                                ? result.exception()
-                                : AerospikeException.resultCodeToException(br.resultCode, null, br.inDoubt);
-                            throw ex;
-                        }
-                        case ErrorDisposition.Handler h ->
-                            AbstractFilterableBuilder.dispatchError(result, h.errorHandler());
-                        case ErrorDisposition.InStream ignored ->
-                            recordStream.publish(result);
-                    }
-                } else {
-                    recordStream.publish(result);
-                }
+                AbstractFilterableBuilder.routeBatchResult(
+                    result, br.resultCode, disposition, recordStream);
             }
             return new RecordStream(recordStream);
         }
@@ -560,7 +553,7 @@ class OperationSpecExecutor {
             rec = exec.getRecord();
         }
 
-        return createRecordStream(key, rec, includeMissingKeys);
+        return createRecordStream(session, key, rec, includeMissingKeys, spec.getReadMappingClass());
     }
 
     /**
@@ -589,12 +582,15 @@ class OperationSpecExecutor {
         exec.execute();
         Record rec = exec.getRecord();
 
-        return createRecordStream(key, rec, includeMissingKeys);
+        return createRecordStream(session, key, rec, includeMissingKeys, spec.getReadMappingClass());
     }
 
-    private static RecordStream createRecordStream(Key key, Record rec, boolean includeMissingKeys) {
+    private static RecordStream createRecordStream(
+        Session session, Key key, Record rec, boolean includeMissingKeys, Class<?> readMappingClass
+    ) {
         if (rec != null) {
-            return new RecordStream(key, rec);
+            Session mappingSession = readMappingClass == null ? null : session;
+            return new RecordStream(key, rec, mappingSession, readMappingClass);
         }
         else if (includeMissingKeys) {
             return new RecordStream(new RecordResult(key, ResultCode.KEY_NOT_FOUND_ERROR, false,
@@ -708,7 +704,9 @@ class OperationSpecExecutor {
 
         if (rec != null) {
             Object udfResult = extractUdfResult(rec);
-            return new RecordStream(new RecordResult(key, udfResult, 0));
+            Class<?> readMappingClass = spec.getReadMappingClass();
+            Session mappingSession = readMappingClass == null ? null : session;
+            return new RecordStream(new RecordResult(key, udfResult, 0, mappingSession, readMappingClass));
         }
         else if (includeMissingKeys) {
             return new RecordStream(new RecordResult(key, ResultCode.KEY_NOT_FOUND_ERROR, false,
@@ -716,6 +714,28 @@ class OperationSpecExecutor {
         }
 
         return new RecordStream();
+    }
+
+    /**
+     * Build a {@link RecordResult} from a {@link BatchRecord}, handling the special case for
+     * typed batch UDF results. Successful UDF records with a read-mapping class need the
+     * return value extracted from {@code record.bins["SUCCESS"]} so that
+     * {@link RecordResult#udfResultAsObject()} can map it. The generic BatchRecord constructor
+     * does not do this, so we use the UDF-specific RecordResult constructor for that case.
+     * All other records (non-UDF, non-typed, or errors) go through the standard path which
+     * preserves resultCode and exception info.
+     */
+    private static RecordResult createBatchRecordResult(
+        BatchRecord br, ResolvedSettings settings, int index,
+        Session mappingSession, Class<?> readMappingClass
+    ) {
+        if (br.getType() == BatchRecord.Type.BATCH_UDF && readMappingClass != null
+                && br.resultCode == ResultCode.OK) {
+            Object udfResult = extractUdfResult(br.record);
+            return new RecordResult(br.key, udfResult, index, mappingSession, readMappingClass);
+        }
+        return AbstractFilterableBuilder.createRecordResultFromBatchRecord(
+            br, settings, index, mappingSession, readMappingClass);
     }
 
     /**
