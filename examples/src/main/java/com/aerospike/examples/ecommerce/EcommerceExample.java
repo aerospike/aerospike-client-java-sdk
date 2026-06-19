@@ -23,15 +23,16 @@ import java.util.concurrent.Flow;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import com.aerospike.client.sdk.Cluster;
-import com.aerospike.client.sdk.ClusterDefinition;
+import com.aerospike.client.sdk.DefaultRecordMappingFactory;
 import com.aerospike.client.sdk.ErrorStrategy;
-import com.aerospike.client.sdk.Key;
 import com.aerospike.client.sdk.RecordResult;
-import com.aerospike.client.sdk.RecordStream;
 import com.aerospike.client.sdk.Session;
-import com.aerospike.client.sdk.TypeSafeDataSet;
+import com.aerospike.client.sdk.TypedDataSet;
 import com.aerospike.client.sdk.policy.Behavior;
 import com.aerospike.client.sdk.task.ExecuteTask;
+
+import com.aerospike.examples.Args;
+import com.aerospike.examples.Example;
 
 /**
  * E-commerce order fulfillment example demonstrating CompletableFuture chaining,
@@ -40,6 +41,9 @@ import com.aerospike.client.sdk.task.ExecuteTask;
  * <p>Scenario: A customer places an order. We verify the customer exists, check
  * product stock, create the order, and decrement inventory -- all composed with
  * CompletableFuture. Then we scan products using Flow.Publisher with backpressure.</p>
+ *
+ * <p>Run with the same host/port flags as other examples ({@link Args} via {@link Example#parseStandaloneArgs}):
+ * default {@code localhost:3000}; {@code -h} / {@code -p} override.</p>
  */
 public class EcommerceExample {
 
@@ -48,12 +52,18 @@ public class EcommerceExample {
     static final OrderMapper    ORDER_MAPPER    = new OrderMapper();
 
     public static void main(String[] args) throws Exception {
-        try (Cluster cluster = new ClusterDefinition("localhost", 3100).connect()) {
+        Args arguments = Example.parseStandaloneArgs(args);
+        try (Cluster cluster = Example.clusterDefinition(arguments).connect()) {
+            cluster.setRecordMappingFactory(DefaultRecordMappingFactory.of(
+                    Customer.class, CUSTOMER_MAPPER,
+                    Product.class, PRODUCT_MAPPER,
+                    Order.class, ORDER_MAPPER));
+
             Session session = cluster.createSession(Behavior.DEFAULT);
 
-            TypeSafeDataSet<Customer> customers = TypeSafeDataSet.of("test", "customers", Customer.class);
-            TypeSafeDataSet<Product>  products  = TypeSafeDataSet.of("test", "products",  Product.class);
-            TypeSafeDataSet<Order>    orders    = TypeSafeDataSet.of("test", "orders",    Order.class);
+            TypedDataSet<Customer> customers = TypedDataSet.of("test", "customers", Customer.class);
+            TypedDataSet<Product>  products  = TypedDataSet.of("test", "products",  Product.class);
+            TypedDataSet<Order>    orders    = TypedDataSet.of("test", "orders",    Order.class);
 
             // ==========================================
             // 1. Seed 20 customers, 100 products, and
@@ -114,9 +124,9 @@ public class EcommerceExample {
     //   lookup customer -> lookup product -> create order + decrement stock
     // ------------------------------------------------------------------
     static void placeOrder(Session session,
-                           TypeSafeDataSet<Customer> customers,
-                           TypeSafeDataSet<Product> products,
-                           TypeSafeDataSet<Order> orders,
+                           TypedDataSet<Customer> customers,
+                           TypedDataSet<Product> products,
+                           TypedDataSet<Order> orders,
                            String customerId, String sku, int qty) throws Exception {
 
         System.out.println("--- Placing order: customer=" + customerId
@@ -126,14 +136,14 @@ public class EcommerceExample {
         CompletableFuture<Customer> customerFuture = session
                 .query(customers.id(customerId))
                 .executeAsync(ErrorStrategy.IN_STREAM)
-                .asCompletableFuture(CUSTOMER_MAPPER)
+                .asCompletableFutureMapped()
                 .thenApply(List::getFirst);
 
         // Step B: Fetch the product asynchronously (runs in parallel with Step A)
         CompletableFuture<Product> productFuture = session
                 .query(products.id(sku))
                 .executeAsync(ErrorStrategy.IN_STREAM)
-                .asCompletableFuture(PRODUCT_MAPPER)
+                .asCompletableFutureMapped()
                 .thenApply(List::getFirst);
 
         // Step C: When both complete, validate and create the order
@@ -151,7 +161,7 @@ public class EcommerceExample {
                 // Step D: Persist the order and decrement stock in a single batch
                 .thenCompose(ord -> {
                     session.insert(orders)
-                            .object(ord).using(ORDER_MAPPER)
+                            .object(ord)
                         .update(products.id(ord.getSku()))
                             .bin("stock").add(-ord.getQty())
                         .update(customers.id(ord.getCustomerId()))
@@ -166,7 +176,7 @@ public class EcommerceExample {
         // Verify updated stock
         Product updated = session.query(products.id(sku))
                 .executeAsync(ErrorStrategy.IN_STREAM)
-                .asCompletableFuture(PRODUCT_MAPPER).join().getFirst();
+                .asCompletableFutureMapped().join().getFirst();
         System.out.println("Updated product: " + updated);
         System.out.println();
     }
@@ -175,9 +185,9 @@ public class EcommerceExample {
     // Demonstrate error handling: querying a non-existent customer
     // ------------------------------------------------------------------
     static void placeOrderWithErrorHandling(Session session,
-                                            TypeSafeDataSet<Customer> customers,
-                                            TypeSafeDataSet<Product> products,
-                                            TypeSafeDataSet<Order> orders,
+                                            TypedDataSet<Customer> customers,
+                                            TypedDataSet<Product> products,
+                                            TypedDataSet<Order> orders,
                                             String customerId, String sku, int qty) {
 
         System.out.println("--- Attempting order for non-existent customer: "
@@ -186,7 +196,7 @@ public class EcommerceExample {
         // Option A: Async CompletableFuture with exceptionally()
         session.query(customers.id(customerId))
                 .executeAsync(ErrorStrategy.IN_STREAM)
-                .asCompletableFuture(CUSTOMER_MAPPER)
+                .asCompletableFutureMapped()
                 .thenApply(list -> {
                     if (list.isEmpty()) {
                         throw new IllegalStateException("Customer not found: " + customerId);
@@ -202,7 +212,7 @@ public class EcommerceExample {
 
         // Option B: ErrorHandler callback -- errors go to the lambda, successes to the stream
         System.out.println("\nUsing ErrorHandler callback:");
-        RecordStream rs = session.query(
+        var rs = session.queryTypedKeys(
                 customers.ids("C-100", "C-MISSING", "C-ALSO-MISSING"))
                 .includeMissingKeys()
                 .execute((key, index, ex) ->
@@ -212,7 +222,7 @@ public class EcommerceExample {
 
         // Option C: IN_STREAM strategy -- check each result individually
         System.out.println("\nUsing ErrorStrategy.IN_STREAM:");
-        RecordStream inStream = session.query(
+        var inStream = session.queryTypedKeys(
                 customers.ids("C-100", "C-MISSING"))
                 .includeMissingKeys()
                 .execute(ErrorStrategy.IN_STREAM);
@@ -230,7 +240,7 @@ public class EcommerceExample {
     // Stream all orders for a given customer using Flow.Publisher
     // ------------------------------------------------------------------
     static void streamOrders(Session session,
-                             TypeSafeDataSet<Order> orders,
+                             TypedDataSet<Order> orders,
                              String customerId) throws InterruptedException {
 
         System.out.println("--- Streaming orders for customer " + customerId
@@ -256,9 +266,7 @@ public class EcommerceExample {
             @Override
             public void onNext(RecordResult item) {
                 if (item.isOk()) {
-                    Order o = ORDER_MAPPER.fromMap(
-                            item.recordOrThrow().bins, item.key(),
-                            item.recordOrThrow().generation);
+                    Order o = item.toObject();
                     System.out.println("  Received: " + o);
                 } else {
                     System.out.println("  Error: " + item.message());
@@ -288,21 +296,19 @@ public class EcommerceExample {
     // one query the orders set to find their orders -- all async.
     // ------------------------------------------------------------------
     static void topSpenderDashboard(Session session,
-                                    TypeSafeDataSet<Customer> customers,
-                                    TypeSafeDataSet<Order> orders) throws Exception {
+                                    TypedDataSet<Customer> customers,
+                                    TypedDataSet<Order> orders) throws Exception {
 
         System.out.println("--- Top-spender dashboard (batch query + where clause) ---");
 
         // Batch-fetch 5 customers in a single async round-trip
-        List<Key> topKeys = List.of(
-                customers.id("C-103"), customers.id("C-107"),
-                customers.id("C-110"), customers.id("C-112"),
-                customers.id("C-117"));
-
         List<Customer> topCustomers = session
-                .query(topKeys)
+                .queryTypedKeys(List.of(
+                        customers.id("C-103"), customers.id("C-107"),
+                        customers.id("C-110"), customers.id("C-112"),
+                        customers.id("C-117")))
                 .executeAsync(ErrorStrategy.IN_STREAM)
-                .asCompletableFuture(CUSTOMER_MAPPER)
+                .asCompletableFutureMapped()
                 .join();
 
         // For each customer, query the orders set using a where clause
@@ -311,7 +317,7 @@ public class EcommerceExample {
                 .map(c -> session.query(orders)
                         .where("$.customerId == '" + c.getId() + "'")
                         .executeAsync(ErrorStrategy.IN_STREAM)
-                        .asCompletableFuture(ORDER_MAPPER))
+                        .asCompletableFutureMapped())
                 .toList();
 
         // Wait for all order queries to complete
@@ -335,10 +341,10 @@ public class EcommerceExample {
     //   ratings bin = { "C-100": 5, "C-103": 4, "C-107": 3, ... }
     // ------------------------------------------------------------------
     static void productRatings(Session session,
-                               TypeSafeDataSet<Product> products) {
+                               TypedDataSet<Product> products) {
 
         System.out.println("--- Map operations: product ratings for SKU-TV55 ---");
-        Key tvKey = products.id("SKU-TV55");
+        var tvKey = products.id("SKU-TV55");
 
         // 1. Add ratings from several customers in one atomic operation
         session.upsert(tvKey)
@@ -405,7 +411,7 @@ public class EcommerceExample {
     //     - price <  $10              -> sale = 90% of price
     // ------------------------------------------------------------------
     static void applySalePrices(Session session,
-                                TypeSafeDataSet<Product> products) {
+                                TypedDataSet<Product> products) {
 
         System.out.println("--- Background scan: applying sale prices "
                 + "(stock > 250, price <= $50) ---");
@@ -426,7 +432,7 @@ public class EcommerceExample {
     // streaming results through a Flow.Publisher with backpressure.
     // ------------------------------------------------------------------
     static void scanAffordableProducts(Session session,
-                                       TypeSafeDataSet<Product> products)
+                                       TypedDataSet<Product> products)
             throws InterruptedException {
 
         System.out.println("--- Scanning for products: stock > 100 AND price < $100 ---");
@@ -452,9 +458,7 @@ public class EcommerceExample {
             @Override
             public void onNext(RecordResult item) {
                 if (item.isOk()) {
-                    Product p = PRODUCT_MAPPER.fromMap(
-                            item.recordOrThrow().bins, item.key(),
-                            item.recordOrThrow().generation);
+                    Product p = item.toObject();
                     String sale = p.isOnSale()
                             ? String.format("SALE $%.2f", p.getSalePriceCents() / 100.0)
                             : "";

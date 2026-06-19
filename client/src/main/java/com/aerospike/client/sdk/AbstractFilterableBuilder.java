@@ -84,14 +84,25 @@ public abstract class AbstractFilterableBuilder {
         ResolvedSettings settings,
         int index
     ) {
+        return createRecordResultFromBatchRecord(br, settings, index, null, null);
+    }
+
+    static RecordResult createRecordResultFromBatchRecord(
+        BatchRecord br,
+        ResolvedSettings settings,
+        int index,
+        Session readMappingSession,
+        Class<?> readMappingClass
+    ) {
         if (settings.getStackTraceOnException() && isActionableError(br.resultCode)) {
             return new RecordResult(
                 br,
                 AerospikeException.resultCodeToException(br.resultCode, null, br.inDoubt),
-                index);
-        } else {
-            return new RecordResult(br, index);
+                index,
+                readMappingSession,
+                readMappingClass);
         }
+        return new RecordResult(br, index, readMappingSession, readMappingClass);
     }
 
     /**
@@ -162,6 +173,36 @@ public abstract class AbstractFilterableBuilder {
             ? result.exception()
             : AerospikeException.resultCodeToException(result.resultCode(), result.message(), result.inDoubt());
         handler.handle(result.key(), result.index(), ex);
+    }
+
+    /**
+     * Route a batch {@link RecordResult} according to the {@link ErrorDisposition}: throw on
+     * actionable errors, dispatch to an error handler, or publish to the stream. Non-error
+     * results are always published to the stream.
+     *
+     * @param result     the result to route
+     * @param resultCode the batch record's result code
+     * @param disposition how to handle per-record errors
+     * @param stream     the target stream for publishable results
+     */
+    static void routeBatchResult(RecordResult result, int resultCode,
+                                 ErrorDisposition disposition, AsyncRecordStream stream) {
+        if (isActionableError(resultCode)) {
+            switch (disposition) {
+                case ErrorDisposition.Throw ignored -> {
+                    AerospikeException ex = result.exception() != null
+                        ? result.exception()
+                        : AerospikeException.resultCodeToException(resultCode, null, result.inDoubt());
+                    throw ex;
+                }
+                case ErrorDisposition.Handler h ->
+                    dispatchError(result, h.errorHandler());
+                case ErrorDisposition.InStream ignored ->
+                    stream.publish(result);
+            }
+        } else {
+            stream.publish(result);
+        }
     }
 }
 
