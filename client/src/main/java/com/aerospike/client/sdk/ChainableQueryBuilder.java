@@ -79,6 +79,10 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
         this.txnToUse = txnToUse;
     }
 
+    Session getSession() {
+        return session;
+    }
+
     // ========================================
     // Initialization methods
     // ========================================

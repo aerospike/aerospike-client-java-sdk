@@ -876,7 +876,7 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
 
         Partitions partitions = getPartitions(cluster, firstKey.namespace);
         ResolvedSettings settings = session.getBehavior().getSettings(OpKind.WRITE_RETRYABLE, OpShape.POINT, partitions.scMode);
-        final Expression filterExp = processWhereClause(firstKey.namespace, opBuilder.getSession());
+        final Expression filterExp = processWhereClause(firstKey.namespace, session);
 
         if (txnToUse != null) {
             TxnMonitor.addKeys(txnToUse, session, keys);

@@ -97,8 +97,8 @@ public class ExpOperationTest extends ClusterTest {
 
     @Test
     public void expReadOnWriteEvalError() {
-        String wael = "$.D";
-        String rael = "$.A";
+        String wael = cluster.supportsAel() ? "$.D:INT" : "$.D";
+        String rael = cluster.supportsAel() ? "$.A:INT" : "$.A";;
 
         RecordStream rs = session.update(args.set.id(keyA))
             .bin(binD).upsertFrom(wael)
