@@ -25,6 +25,7 @@ import com.aerospike.client.sdk.ClusterTest;
 import com.aerospike.client.sdk.DataSet;
 import com.aerospike.client.sdk.RecordStream;
 import com.aerospike.client.sdk.exp.Exp;
+import com.aerospike.client.sdk.exp.StringExp;
 
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Assumptions;
@@ -168,7 +169,7 @@ public class QueryFilterSetTest extends ClusterTest {
 
     @Test
     public void queryKeyString() {
-        Exp filterExp = Exp.regexCompare("^key-.*-35$", 0, Exp.key(Exp.Type.STRING));
+        Exp filterExp = StringExp.regexCompare(Exp.val("^key-.*-35$"), 0, Exp.key(Exp.Type.STRING));
 
         RecordStream rs = session.query(dataSet3)
             .where(filterExp)

@@ -199,26 +199,6 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
     }
 
     /**
-     * Queues a string append on this bin (bin must hold a string).
-     *
-     * @param fragment text to append
-     * @return the parent operation builder for chaining
-     */
-    public T append(String fragment) {
-        return opBuilder.append(new Bin(binName, fragment));
-    }
-
-    /**
-     * Queues a string prepend on this bin (bin must hold a string).
-     *
-     * @param fragment text to prepend
-     * @return the parent operation builder for chaining
-     */
-    public T prepend(String fragment) {
-        return opBuilder.prepend(new Bin(binName, fragment));
-    }
-
-    /**
      * Queues a numeric add on this bin. If the record or bin is missing, it is created with {@code amount} as the value.
      *
      * @param amount delta to add
@@ -3114,20 +3094,53 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
     }
 
     /**
-     * Queues string {@code snip} modify: remove from {@code start} through end of string.
+     * Queues a string append on this bin (bin must hold a string).
+     *
+     * @param fragment text to append
+     * @return the parent operation builder for chaining
      */
-    public T snip(int start) {
-        return addStringModifyOp(StringOperation.snip(StringWriteFlags.DEFAULT, binName, start));
+    public T append(String fragment) {
+        if (opBuilder.session.getCluster().supportsStringOperations()) {
+            return addStringModifyOp(StringOperation.append(StringWriteFlags.DEFAULT, binName, fragment));
+        }
+        else {
+            return opBuilder.append(new Bin(binName, fragment));
+        }
     }
 
-    public T snip(int start, Consumer<StringWriteOptions> options) {
+    public T append(String fragment, Consumer<StringWriteOptions> options) {
         StringWriteOptions o = new StringWriteOptions();
         options.accept(o);
-        return snip(start, o);
+        return append(fragment, o);
     }
 
-    public T snip(int start, StringWriteOptions options) {
-        return addStringModifyOp(StringOperation.snip(options.toFlags(), binName, start));
+    public T append(String fragment, StringWriteOptions options) {
+        return addStringModifyOp(StringOperation.append(options.toFlags(), binName, fragment));
+    }
+
+    /**
+     * Queues a string prepend on this bin (bin must hold a string).
+     *
+     * @param fragment text to prepend
+     * @return the parent operation builder for chaining
+     */
+    public T prepend(String fragment) {
+        if (opBuilder.session.getCluster().supportsStringOperations()) {
+            return addStringModifyOp(StringOperation.prepend(StringWriteFlags.DEFAULT, binName, fragment));
+        }
+        else {
+            return opBuilder.prepend(new Bin(binName, fragment));
+        }
+    }
+
+    public T prepend(String fragment, Consumer<StringWriteOptions> options) {
+        StringWriteOptions o = new StringWriteOptions();
+        options.accept(o);
+        return prepend(fragment, o);
+    }
+
+    public T prepend(String fragment, StringWriteOptions options) {
+        return addStringModifyOp(StringOperation.prepend(options.toFlags(), binName, fragment));
     }
 
     /**

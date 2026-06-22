@@ -447,23 +447,6 @@ public abstract class Exp {
         return new CmdInt(DIGEST_MODULO, mod);
     }
 
-    /**
-     * Create expression that performs a regex match on a string bin or string value expression.
-     *
-     * <pre>{@code
-     * // Select string bin "a" that starts with "prefix" and ends with "suffix".
-     * // Ignore case and do not match newline.
-     * Exp.regexCompare("prefix.*suffix", RegexFlag.ICASE | RegexFlag.NEWLINE, Exp.stringBin("a"))
-     * }</pre>
-     *
-     * @param regex     regular expression string
-     * @param flags     regular expression bit flags. See {@link com.aerospike.client.query.RegexFlag}
-     * @param bin       string bin or string value expression
-     */
-    public static Exp regexCompare(String regex, int flags, Exp bin) {
-        return new Regex(bin, regex, flags);
-    }
-
     //--------------------------------------------------
     // GEO Spatial
     //--------------------------------------------------
@@ -1403,7 +1386,6 @@ public abstract class Exp {
     private static final int GE = 4;
     private static final int LT = 5;
     private static final int LE = 6;
-    private static final int REGEX = 7;
     private static final int GEO = 8;
     private static final int IN_LIST = 9;
     private static final int AND = 16;
@@ -1470,7 +1452,6 @@ public abstract class Exp {
         case GE: return "GE";
         case LT: return "LT";
         case LE: return "LE";
-        case REGEX: return "REGEX";
         case GEO: return "GEO";
         case IN_LIST: return "IN_LIST";
         case AND: return "AND";
@@ -1592,30 +1573,6 @@ public abstract class Exp {
             packer.packInt(BIN);
             packer.packInt(type.code);
             packer.packString(name);
-        }
-    }
-
-    private static final class Regex extends Exp {
-        private final Exp bin;
-        private final String regex;
-        private final int flags;
-
-        private Regex(Exp bin, String regex, int flags) {
-            this.bin = bin;
-            this.regex = regex;
-            this.flags = flags;
-        }
-
-        public String toString() {
-            return "Regex [bin=" + bin + ", regex=" + regex + ", flags=" + flags + "]";
-        }
-        @Override
-        public void pack(Packer packer) {
-            packer.packArrayBegin(4);
-            packer.packInt(REGEX);
-            packer.packInt(flags);
-            packer.packString(regex);
-            bin.pack(packer);
         }
     }
 

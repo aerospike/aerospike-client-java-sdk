@@ -38,12 +38,6 @@ import com.aerospike.client.sdk.util.Packer;
  * the operation targets the bin itself. The CTX-navigated leaf must already be an
  * Aerospike string — operations on non-string leaves return
  * {@code AEROSPIKE_ERR_INCOMPATIBLE_TYPE}.
- * <p>
- * For {@code STRING_MODIFY} operations, {@link StringWriteFlags#NO_FAIL} (via
- * {@link com.aerospike.client.sdk.StringWriteOptions} on {@link com.aerospike.client.sdk.BinBuilder} overloads)
- * suppresses errors when the string sub-op cannot apply to the resolved value; it does
- * <strong>not</strong> bypass CDT path resolution failures when {@code CTX} navigates into a
- * nested structure (those still surface as CDT errors).
  */
 public final class StringOperation {
     // Read ops
@@ -83,6 +77,8 @@ public final class StringOperation {
     private static final int PAD_END = 64;
     private static final int REPEAT = 65;
     private static final int REGEX_REPLACE = 66;
+    private static final int APPEND = 67;
+    private static final int PREPEND = 68;
 
     //-----------------------------------------------------------------
     // Read operations
@@ -137,12 +133,14 @@ public final class StringOperation {
     }
 
     /**
-     * Create string {@code substr} operation that reads the half-open codepoint range
-     * {@code [start, end)}. Negative indexes count from the end of the string.
+     * Create string {@code substr} operation that returns the codepoints of the bin
+     * from {@code start} (inclusive) to {@code end} (exclusive). Negative indexes
+     * count from the end of the string. If, after negative-index normalization,
+     * {@code start >= end}, the result is the empty string.
      *
      * @param binName   name of the string bin
      * @param start     starting codepoint index, inclusive (negative counts from end)
-     * @param end       one past the last codepoint (exclusive), same semantics as AEL {@code to}
+     * @param end       end codepoint index, exclusive (negative counts from end)
      * @param ctx       optional path into a string nested inside a list or map
      * @return          read operation returning the substring
      */
@@ -239,8 +237,7 @@ public final class StringOperation {
 
     /**
      * Create string {@code toInteger} operation. Parses the string as an int64.
-     * Returns {@link com.aerospike.client.sdk.ResultCode#OP_NOT_APPLICABLE} when the value
-     * is not a parseable integer string (or the bin is not a string at the resolved path).
+     * Returns {@code AEROSPIKE_ERR_PARAMETER} if the bin cannot be parsed as an integer.
      *
      * @param binName   name of the string bin
      * @param ctx       optional path into a string nested inside a list or map
@@ -253,8 +250,7 @@ public final class StringOperation {
 
     /**
      * Create string {@code toDouble} operation. Parses the string as a 64-bit float.
-     * Returns {@link com.aerospike.client.sdk.ResultCode#OP_NOT_APPLICABLE} when the value
-     * is not a parseable floating-point string (or the bin is not a string at the resolved path).
+     * Returns {@code AEROSPIKE_ERR_PARAMETER} if the bin cannot be parsed as a double.
      *
      * @param binName   name of the string bin
      * @param ctx       optional path into a string nested inside a list or map
@@ -309,8 +305,7 @@ public final class StringOperation {
 
     /**
      * Create string {@code isUpper} operation. Returns {@code true} if every cased
-     * codepoint in the bin is uppercase, {@code false} otherwise. The empty string
-     * is considered uppercase (no cased codepoint violates the predicate).
+     * codepoint in the bin is uppercase, {@code false} otherwise.
      *
      * @param binName   name of the string bin
      * @param ctx       optional path into a string nested inside a list or map
@@ -323,8 +318,7 @@ public final class StringOperation {
 
     /**
      * Create string {@code isLower} operation. Returns {@code true} if every cased
-     * codepoint in the bin is lowercase, {@code false} otherwise. The empty string
-     * is considered lowercase (no cased codepoint violates the predicate).
+     * codepoint in the bin is lowercase, {@code false} otherwise.
      *
      * @param binName   name of the string bin
      * @param ctx       optional path into a string nested inside a list or map
@@ -489,17 +483,30 @@ public final class StringOperation {
     }
 
     /**
-     * Create string {@code snip} operation that removes codepoints starting at
-     * codepoint {@code start} through the end of the string.
+     * Create string {@code append} operation that appends {@code value} to the end of the bin.
      *
      * @param flags     write flags. See {@link com.aerospike.client.sdk.operation.StringWriteFlags}
      * @param binName   name of the string bin
-     * @param start     first codepoint to remove (inclusive)
+     * @param value     text to append to the end of the string
      * @param ctx       optional path into a string nested inside a list or map
      * @return          modify operation
      */
-    public static Operation snip(int flags, String binName, int start, CTX... ctx) {
-        byte[] bytes = packStringOp(SNIP, start, flags, ctx);
+    public static Operation append(int flags, String binName, String value, CTX... ctx) {
+        byte[] bytes = packStringOp(APPEND, Value.get(value), flags, ctx);
+        return new Operation(Operation.Type.STRING_MODIFY, binName, new Value.BytesValue(bytes, ParticleType.STRING));
+    }
+
+    /**
+     * Create string {@code prepend} operation that prepends {@code value} to the start of the bin.
+     *
+     * @param flags     write flags. See {@link com.aerospike.client.sdk.operation.StringWriteFlags}
+     * @param binName   name of the string bin
+     * @param value     text to prepend to the start of the string
+     * @param ctx       optional path into a string nested inside a list or map
+     * @return          modify operation
+     */
+    public static Operation prepend(int flags, String binName, String value, CTX... ctx) {
+        byte[] bytes = packStringOp(PREPEND, Value.get(value), flags, ctx);
         return new Operation(Operation.Type.STRING_MODIFY, binName, new Value.BytesValue(bytes, ParticleType.STRING));
     }
 
@@ -704,8 +711,7 @@ public final class StringOperation {
      * to replace every match. Flag values from {@link StringRegexFlags} may be combined
      * with bitwise OR.
      *
-     * @param policy        (unused; the regex_replace server op does not accept policy
-     *                      flags — see implementation note)
+     * @param flags         write flags. See {@link com.aerospike.client.sdk.operation.StringWriteFlags}
      * @param binName       name of the string bin
      * @param pattern       ICU-syntax regex pattern (must be valid UTF-8)
      * @param replacement   replacement text (must be valid UTF-8)

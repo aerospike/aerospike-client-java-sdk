@@ -94,6 +94,8 @@ public final class StringExp {
     private static final int PAD_END = 64;
     private static final int REPEAT = 65;
     private static final int REGEX_REPLACE = 66;
+    private static final int APPEND = 67;
+    private static final int PREPEND = 68;
 
     //-----------------------------------------------------------------
     // Read expressions
@@ -442,6 +444,34 @@ public final class StringExp {
      */
     public static Exp concat(int flags, Exp values, Exp src) {
         byte[] bytes = Pack.pack(CONCAT, values, flags);
+        return addModify(src, bytes);
+    }
+
+    /**
+     * Create expression that appends {@code value} (a single string) to the end of {@code src},
+     * returning the resulting string. Does not modify the underlying bin.
+     *
+     * @param flags     write flags. See {@link com.aerospike.client.sdk.operation.StringWriteFlags}
+     * @param value     expression yielding the string to append to the end
+     * @param src       source string expression
+     * @return          string-typed expression yielding the modified string
+     */
+    public static Exp append(int flags, Exp value, Exp src) {
+        byte[] bytes = Pack.pack(APPEND, value, flags);
+        return addModify(src, bytes);
+    }
+
+    /**
+     * Create expression that prepends {@code value} (a single string) to the start of {@code src},
+     * returning the resulting string. Does not modify the underlying bin.
+     *
+     * @param flags     write flags. See {@link com.aerospike.client.sdk.operation.StringWriteFlags}
+     * @param value     expression yielding the string to prepend to the start
+     * @param src       source string expression
+     * @return          string-typed expression yielding the modified string
+     */
+    public static Exp prepend(int flags, Exp value, Exp src) {
+        byte[] bytes = Pack.pack(PREPEND, value, flags);
         return addModify(src, bytes);
     }
 
