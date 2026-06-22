@@ -55,7 +55,10 @@ public final class Settings {
 
     Settings() {}
 
-    public Settings(Settings orig) {
+    /**
+     * Overwrites this instance with the same field values as {@code orig} (package use for behavior reload).
+     */
+    void assignFrom(Settings orig) {
         this.abandonCallAfter = orig.abandonCallAfter;
         this.delayBetweenRetries = orig.delayBetweenRetries;
         this.maximumNumberOfCallAttempts = orig.maximumNumberOfCallAttempts;
@@ -76,6 +79,10 @@ public final class Settings {
         this.readModeSC = orig.readModeSC;
         this.resetTtlOnReadAtPercent = orig.resetTtlOnReadAtPercent;
         this.stackTraceOnException = orig.stackTraceOnException;
+    }
+
+    public Settings(Settings orig) {
+        assignFrom(orig);
     }
 
     @Override public String toString() {
