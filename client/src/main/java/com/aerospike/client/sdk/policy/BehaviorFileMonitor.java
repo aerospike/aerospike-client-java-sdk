@@ -112,7 +112,7 @@ class BehaviorFileMonitor implements Closeable {
         isMonitoring = true;
         executor.submit(this::monitorFile);
 
-        Log.debug("Started monitoring YAML file: " + yamlFilePath);
+        Log.debug("Started monitoring YAML file: %s checking every %,dms".formatted(yamlFilePath, reloadDelayMs));
     }
 
     /**
@@ -244,7 +244,7 @@ class BehaviorFileMonitor implements Closeable {
             }
             Behavior.DEFAULT.clearCache();
 
-            Log.info("Updated " + updatedBehaviors.size() + " behaviors from: " + yamlFilePath);
+            Log.info("Updated " + updatedBehaviors.size() + " behaviors from: " + yamlFilePath + ": " + updatedBehaviors.keySet());
 
         } catch (IOException e) {
             Log.error("Error reading or parsing YAML file: " + e.getMessage());

@@ -17,6 +17,7 @@
 package com.aerospike.client.sdk.policy;
 
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
@@ -33,8 +34,9 @@ class BehaviorRegistry {
     private final Map<String, Behavior> behaviorsByParent = new ConcurrentHashMap<>();
 
     private BehaviorRegistry() {
-        // Initialize with DEFAULT behavior
-        behaviorsByName.put("default", Behavior.DEFAULT);
+        // Canonical root plus lowercase alias (YAML map keys / clients) derived from the same name.
+        behaviorsByName.put(Behavior.DEFAULT.name(), Behavior.DEFAULT);
+        behaviorsByName.put(Behavior.DEFAULT.name().toLowerCase(Locale.ROOT), Behavior.DEFAULT);
     }
 
     /**
@@ -72,14 +74,15 @@ class BehaviorRegistry {
     }
 
     /**
-     * Look up a behavior by name, returning DEFAULT if not found
-     *
-     * @param name The name of the behavior to find
-     * @return The behavior, or DEFAULT if not found
+     * Returns the behavior registered under {@code name}, or the root {@link Behavior#DEFAULT} when no
+     * entry exists (including unknown names and case variants of the root name that are not map keys).
      */
     public Behavior getBehaviorOrDefault(String name) {
         Behavior behavior = behaviorsByName.get(name);
-        return behavior != null ? behavior : Behavior.DEFAULT;
+        if (behavior != null) {
+            return behavior;
+        }
+        return Behavior.DEFAULT;
     }
 
     /**
@@ -122,8 +125,9 @@ class BehaviorRegistry {
     void clear() {
         behaviorsByName.clear();
         behaviorsByParent.clear();
-        // Re-add DEFAULT
-        behaviorsByName.put("default", Behavior.DEFAULT);
+        Behavior.restoreDefaultRootPatches();
+        behaviorsByName.put(Behavior.DEFAULT.name(), Behavior.DEFAULT);
+        behaviorsByName.put(Behavior.DEFAULT.name().toLowerCase(Locale.ROOT), Behavior.DEFAULT);
     }
 
     /**

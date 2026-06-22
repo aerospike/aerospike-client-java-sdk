@@ -177,7 +177,8 @@ public final class QueryBinBuilder<P> implements CdtOperationAcceptor<P> {
      * @see #selectFrom(String, Consumer) for options like ignoreEvalFailure()
      */
     public P selectFrom(String ael) {
-        queryBuilder.addOperation(ExpressionOpHelper.createReadOp(binName, ael, ExpReadFlags.DEFAULT));
+        queryBuilder.addOperation(ExpressionOpHelper.createReadOp(binName, ael, ExpReadFlags.DEFAULT,
+            queryBuilder.getSession().getCluster()));
         return wrapResult();
     }
 
@@ -197,7 +198,8 @@ public final class QueryBinBuilder<P> implements CdtOperationAcceptor<P> {
     public P selectFrom(String ael, Consumer<ExpressionReadOptions> options) {
         ExpressionReadOptions opts = new ExpressionReadOptions();
         options.accept(opts);
-        queryBuilder.addOperation(ExpressionOpHelper.createReadOp(binName, ael, opts.getFlags()));
+        queryBuilder.addOperation(ExpressionOpHelper.createReadOp(binName, ael, opts.getFlags(),
+            queryBuilder.getSession().getCluster()));
         return wrapResult();
     }
 
@@ -214,7 +216,8 @@ public final class QueryBinBuilder<P> implements CdtOperationAcceptor<P> {
      * @return the parent query builder for continued chaining
      */
     public P selectFrom(String ael, ExpressionReadOptions options) {
-        queryBuilder.addOperation(ExpressionOpHelper.createReadOp(binName, ael, options.getFlags()));
+        queryBuilder.addOperation(ExpressionOpHelper.createReadOp(binName, ael, options.getFlags(),
+            queryBuilder.getSession().getCluster()));
         return wrapResult();
     }
 
@@ -281,7 +284,8 @@ public final class QueryBinBuilder<P> implements CdtOperationAcceptor<P> {
      * @param params parameter values to bind
      */
     public P selectFrom(PreparedAel ael, Object... params) {
-        queryBuilder.addOperation(ExpressionOpHelper.createReadOp(binName, ael, params, ExpReadFlags.DEFAULT));
+        queryBuilder.addOperation(ExpressionOpHelper.createReadOp(binName, ael, params, ExpReadFlags.DEFAULT,
+            queryBuilder.getSession().getCluster()));
         return wrapResult();
     }
 
@@ -302,7 +306,8 @@ public final class QueryBinBuilder<P> implements CdtOperationAcceptor<P> {
     public P selectFrom(PreparedAel ael, Consumer<ExpressionReadOptions> options, Object... params) {
         ExpressionReadOptions opts = new ExpressionReadOptions();
         options.accept(opts);
-        queryBuilder.addOperation(ExpressionOpHelper.createReadOp(binName, ael, params, opts.getFlags()));
+        queryBuilder.addOperation(ExpressionOpHelper.createReadOp(binName, ael, params, opts.getFlags(),
+            queryBuilder.getSession().getCluster()));
         return wrapResult();
     }
 
@@ -319,7 +324,8 @@ public final class QueryBinBuilder<P> implements CdtOperationAcceptor<P> {
      * @return the parent query builder for continued chaining
      */
     public P selectFrom(PreparedAel ael, ExpressionReadOptions options, Object... params) {
-        queryBuilder.addOperation(ExpressionOpHelper.createReadOp(binName, ael, params, options.getFlags()));
+        queryBuilder.addOperation(ExpressionOpHelper.createReadOp(binName, ael, params, options.getFlags(),
+            queryBuilder.getSession().getCluster()));
         return wrapResult();
     }
 

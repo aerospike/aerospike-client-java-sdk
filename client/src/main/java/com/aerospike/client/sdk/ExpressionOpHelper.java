@@ -16,10 +16,6 @@
  */
 package com.aerospike.client.sdk;
 
-import com.aerospike.ael.ExpressionContext;
-import com.aerospike.ael.ParsedExpression;
-import com.aerospike.ael.api.AelParser;
-import com.aerospike.ael.impl.AelParserImpl;
 import com.aerospike.client.sdk.ael.BooleanExpression;
 import com.aerospike.client.sdk.exp.Exp;
 import com.aerospike.client.sdk.exp.ExpOperation;
@@ -52,12 +48,13 @@ public final class ExpressionOpHelper {
      * Builds a read expression operation from a AEL string.
      *
      * @param binName target bin
-     * @param ael AEL text parsed to an {@link Expression}
+     * @param ael AEL text (encoding follows {@link Cluster#supportsAel()} for this cluster)
      * @param flags {@link com.aerospike.client.sdk.exp.ExpReadFlags} bitmask
+     * @param cluster cluster whose minimum server version determines client vs server AEL wire form
      * @return Aerospike {@link Operation} for expression read
      */
-    public static Operation createReadOp(String binName, String ael, int flags) {
-        return ExpOperation.read(binName, parseStringAel(ael), flags);
+    public static Operation createReadOp(String binName, String ael, int flags, Cluster cluster) {
+        return ExpOperation.read(binName, AelMaterializer.expressionFromString(cluster, ael), flags);
     }
 
     /**
@@ -67,10 +64,11 @@ public final class ExpressionOpHelper {
      * @param ael AEL template
      * @param params values substituted for {@code ?} in order
      * @param flags {@link com.aerospike.client.sdk.exp.ExpReadFlags} bitmask
+     * @param cluster cluster whose minimum server version determines client vs server AEL wire form
      * @return Aerospike {@link Operation} for expression read
      */
-    public static Operation createReadOp(String binName, String ael, Object[] params, int flags) {
-        return ExpOperation.read(binName, parseStringAel(ael, params), flags);
+    public static Operation createReadOp(String binName, String ael, Object[] params, int flags, Cluster cluster) {
+        return ExpOperation.read(binName, AelMaterializer.expressionFromString(cluster, ael, params), flags);
     }
 
     // ========================================
@@ -96,10 +94,11 @@ public final class ExpressionOpHelper {
      * @param ael prepared AEL
      * @param params bound parameter values
      * @param flags {@link com.aerospike.client.sdk.exp.ExpReadFlags} bitmask
+     * @param cluster cluster whose minimum server version determines client vs server AEL wire form
      * @return Aerospike {@link Operation} for expression read
      */
-    public static Operation createReadOp(String binName, PreparedAel ael, Object[] params, int flags) {
-        return ExpOperation.read(binName, fromPreparedAel(ael, params), flags);
+    public static Operation createReadOp(String binName, PreparedAel ael, Object[] params, int flags, Cluster cluster) {
+        return ExpOperation.read(binName, AelMaterializer.expressionFromPrepared(cluster, ael, params), flags);
     }
 
     /**
@@ -134,12 +133,13 @@ public final class ExpressionOpHelper {
      * Builds a write expression operation from a AEL string.
      *
      * @param binName target bin
-     * @param ael AEL text parsed to an {@link Expression}
+     * @param ael AEL text (encoding follows {@link Cluster#supportsAel()} for this cluster)
      * @param flags {@link com.aerospike.client.sdk.exp.ExpWriteFlags} bitmask
+     * @param cluster cluster whose minimum server version determines client vs server AEL wire form
      * @return Aerospike {@link Operation} for expression write
      */
-    public static Operation createWriteOp(String binName, String ael, int flags) {
-        return ExpOperation.write(binName, parseStringAel(ael), flags);
+    public static Operation createWriteOp(String binName, String ael, int flags, Cluster cluster) {
+        return ExpOperation.write(binName, AelMaterializer.expressionFromString(cluster, ael), flags);
     }
 
     /**
@@ -149,10 +149,11 @@ public final class ExpressionOpHelper {
      * @param ael AEL template
      * @param params values substituted for {@code ?} in order
      * @param flags {@link com.aerospike.client.sdk.exp.ExpWriteFlags} bitmask
+     * @param cluster cluster whose minimum server version determines client vs server AEL wire form
      * @return Aerospike {@link Operation} for expression write
      */
-    public static Operation createWriteOp(String binName, String ael, Object[] params, int flags) {
-        return ExpOperation.write(binName, parseStringAel(ael, params), flags);
+    public static Operation createWriteOp(String binName, String ael, Object[] params, int flags, Cluster cluster) {
+        return ExpOperation.write(binName, AelMaterializer.expressionFromString(cluster, ael, params), flags);
     }
 
     // ========================================
@@ -178,10 +179,11 @@ public final class ExpressionOpHelper {
      * @param ael prepared AEL
      * @param params bound parameter values
      * @param flags {@link com.aerospike.client.sdk.exp.ExpWriteFlags} bitmask
+     * @param cluster cluster whose minimum server version determines client vs server AEL wire form
      * @return Aerospike {@link Operation} for expression write
      */
-    public static Operation createWriteOp(String binName, PreparedAel ael, Object[] params, int flags) {
-        return ExpOperation.write(binName, fromPreparedAel(ael, params), flags);
+    public static Operation createWriteOp(String binName, PreparedAel ael, Object[] params, int flags, Cluster cluster) {
+        return ExpOperation.write(binName, AelMaterializer.expressionFromPrepared(cluster, ael, params), flags);
     }
 
     /**
@@ -222,7 +224,7 @@ public final class ExpressionOpHelper {
      * @return {@code opBuilder} for chaining
      */
     public static <T extends AbstractOperationBuilder<T>> T addReadOp(T opBuilder, String binName, String ael, int flags) {
-        return opBuilder.addOp(createReadOp(binName, ael, flags));
+        return opBuilder.addOp(createReadOp(binName, ael, flags, opBuilder.getSession().getCluster()));
     }
 
     /**
@@ -235,74 +237,10 @@ public final class ExpressionOpHelper {
      * @return {@code opBuilder} for chaining
      */
     public static <T extends AbstractOperationBuilder<T>> T addWriteOp(T opBuilder, String binName, String ael, int flags) {
-        return opBuilder.addOp(createWriteOp(binName, ael, flags));
-    }
-
-    // ========================================
-    // AEL parsing methods
-    // ========================================
-
-    private static Expression parseStringAel(String ael) {
-        AelParser parser = new AelParserImpl();
-        ExpressionContext context = ExpressionContext.of(ael);
-        ParsedExpression parseResult = parser.parseExpression(context);
-        Exp exp = parseResult.getResult().getExp();
-
-        if (Log.debugEnabled()) {
-                Log.debug(String.format("Ael(\"%s\") => (Exp: %s)",
-                        ael,
-                        exp));
-        }
-
-        return Exp.build(exp);
-    }
-
-    private static Expression parseStringAel(String ael, Object[] params) {
-        // For now, format the AEL string with params
-        // TODO: Use proper prepared statement support when AEL supports it
-        String formattedAel = formatAel(ael, params);
-        return parseStringAel(formattedAel);
+        return opBuilder.addOp(createWriteOp(binName, ael, flags, opBuilder.getSession().getCluster()));
     }
 
     private static Expression fromBooleanExpression(BooleanExpression ael) {
         return Exp.build(ael.toAerospikeExp());
-    }
-
-    private static Expression fromPreparedAel(PreparedAel ael, Object[] params) {
-        String formattedAel = ael.formValue(params);
-        return parseStringAel(formattedAel);
-    }
-
-    /**
-     * Format a AEL string with parameters.
-     * Uses simple positional replacement for ? placeholders.
-     */
-    private static String formatAel(String ael, Object[] params) {
-        if (params == null || params.length == 0) {
-            return ael;
-        }
-        StringBuilder result = new StringBuilder();
-        int paramIndex = 0;
-        for (int i = 0; i < ael.length(); i++) {
-            char c = ael.charAt(i);
-            if (c == '?' && paramIndex < params.length) {
-                result.append(formatParam(params[paramIndex++]));
-            } else {
-                result.append(c);
-            }
-        }
-        return result.toString();
-    }
-
-    private static String formatParam(Object param) {
-        if (param == null) {
-            return "null";
-        } else if (param instanceof String) {
-            return "\"" + param + "\"";
-        } else if (param instanceof Number || param instanceof Boolean) {
-            return param.toString();
-        } else {
-            return "\"" + param.toString() + "\"";
-        }
     }
 }

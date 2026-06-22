@@ -34,8 +34,10 @@ import com.aerospike.client.sdk.policy.ResolvedSettings;
 import com.aerospike.client.sdk.util.Util;
 
 /**
- * Demonstrates all available YAML configuration options including system settings,
- * behaviors, and inheritance.
+ * Demonstrates YAML configuration for system settings and behaviors (including inheritance).
+ *
+ * <p>Behavior policy fields in the YAML file are grouped under selector blocks such as
+ * {@code allOperations} and {@code retryableWrites}; see {@code complete-config-example.yml}.</p>
  *
  * <p>Usage: {@code ./run_examples CompleteYamlConfigExample -h localhost -p 3000}</p>
  */
