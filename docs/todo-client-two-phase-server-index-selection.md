@@ -2,7 +2,7 @@
 
 Implementation checklist for the fluent Java client.
 
-**Progress:** Phase 0 done (constants, `QueryPlan`, `MsgFieldParser` + unit tests). Next: `setQueryPlanProbe` encoder.
+**Progress:** Phase 0 done. `IndexProbeCommand` / `IndexProbeExecutor` + `CommandBuffer.setIndexProbe` + unit tests done. Next: integration test + API wiring (`Session.planQuery`).
 
 **Sources of truth**
 
@@ -80,7 +80,7 @@ Both shapes are accepted by the server execute handler. New-client work follows 
 ## Client gaps (what we still need to build)
 
 1. **Opaque replay of field `22`** — `Filter.write()` only builds structured ranges. Add passthrough for probe response bytes (e.g. `Filter.fromWireRange(indexName, rangeBytes)` or `CommandBuffer` hook).
-2. **Probe encoder** — new path; must **not** call `chooseExprForFilter` or emit field `22`.
+2. ~~**Probe encoder**~~ — `CommandBuffer.setIndexProbe(IndexProbeCommand)` (no `chooseExprForFilter`, no field `22`).
 3. ~~**Predicate bytes lifecycle**~~ — **`QueryPlan` stores `predicateBytes`**; still need probe encoder + execute replay wiring.
 4. **Capability gate** — `Cluster.supportsQuerySelection()` (version check until server advertises a feature bit); fallback to legacy path when unsupported.
 5. **Hint rules** — new path: `QueryHint.forIndex(...)` → field `21` on **probe only**. Do **not** send `QueryHint.forBin(...)` on probe (Slack: index name only). Legacy `forBin` / `forIndex` behavior unchanged when gate is off.
@@ -111,25 +111,18 @@ Both shapes are accepted by the server execute handler. New-client work follows 
 
 ## Phase 1 — probe
 
-### Encoder: `CommandBuffer.setQueryPlanProbe(...)`
+### Encoder + command: `IndexProbeCommand` / `IndexProbeExecutor` ✅
 
-- [ ] Set `dataBuffer[12] |= INFO4_QUERY_SELECTION`; `n_ops = 0`.
-- [ ] No `PID_ARRAY` / digest / bval partition fields.
-- [ ] Fields: `0` namespace, `1` set, `7` task id, `9` socket timeout, `43` predicate.
-- [ ] Field `43`: packed expression bytes (`Expression.getBytes()` after AEL compile).
-- [ ] Optional field `21`: index-name hint when `QueryHint.forIndex(...)` is set.
-- [ ] Unit tests: header info4 bit, field order, no `22`, no partitions.
+- [x] `IndexProbeCommand extends Command` — namespace, set, predicate (`where`), optional index-name hint, task id, policies via `ResolvedSettings`.
+- [x] `IndexProbeCommand.execute()` → `IndexProbeExecutor` → `QueryPlan`.
+- [x] `CommandBuffer.setIndexProbe(IndexProbeCommand)` — `INFO4_QUERY_SELECTION`, fields `0`/`1`/`9`/`7`/optional `21`/`43`, no partitions.
+- [x] `IndexProbeExecutor` — sync single-node probe, rotate nodes on retry, decode via `MsgFieldParser` + `QueryPlan.fromProbeResponse`.
+- [x] Unit tests: wire layout (`IndexProbeCommandTest`).
 
-### Command: `QueryPlanCommand` (sync, single node)
-
-- [ ] Send probe to one live node; retry on another node if connection fails.
-- [ ] Decode reply: `result_code` + optional fields `21`/`22` via `MsgFieldParser`.
-- [ ] Build `QueryPlan` via `QueryPlan.fromProbeResponse(...)` (predicate bytes copy on plan).
-
-### API
+### API (remaining)
 
 - [ ] `Cluster.supportsQuerySelection()`.
-- [ ] `Session.planQuery(...)` / `QueryBuilder.plan()` — probe only, returns `QueryPlan`.
+- [ ] `Session.planQuery(...)` / `QueryBuilder.plan()` — build `IndexProbeCommand`, return `QueryPlan`.
 - [ ] Parse AEL → expression bytes for `43` only; no client index selection on probe.
 
 ---
@@ -173,7 +166,7 @@ Both shapes are accepted by the server execute handler. New-client work follows 
 
 ### Unit
 
-- [ ] Probe buffer layout (golden bytes).
+- [x] Probe buffer layout (`IndexProbeCommandTest`).
 - [x] `MsgFieldParser`: field TLV parsing + `RecordParser` integration (`MsgFieldParserTest`).
 - [x] `QueryPlan.fromProbeResponse`: PI / SI / FILTERED_OUT / inconsistent response (`QueryPlanTest`).
 - [x] `QueryPlan.predicateBytes` defensive copy (`QueryPlanTest`).
@@ -193,8 +186,8 @@ Both shapes are accepted by the server execute handler. New-client work follows 
 ## Implementation order
 
 1. ~~Constants + `QueryPlan` + `MsgFieldParser`~~ ✅
-2. **`setQueryPlanProbe` + unit tests** ← current
-3. `QueryPlanCommand` + integration test against server
+2. ~~`IndexProbeCommand` / `IndexProbeExecutor` + `setIndexProbe` + unit tests~~ ✅
+3. **Integration test + `Session.planQuery` API** ← current
 4. Opaque `22` replay in `Filter` / `CommandBuffer`
 5. `IndexQueryBuilderImpl` wiring (plan → execute, full `43` replay)
 6. `supportsQuerySelection` + auto probe in `execute()`
@@ -206,11 +199,11 @@ Both shapes are accepted by the server execute handler. New-client work follows 
 
 | Area | Files | Status |
 |------|--------|--------|
-| Protocol | `Command.java`, `CommandBuffer.java`, `QueryPlanCommand.java`, `MsgFieldParser.java` | `Command.java`, `MsgFieldParser.java` done |
+| Protocol | `Command.java`, `CommandBuffer.java`, `IndexProbeCommand.java`, `IndexProbeExecutor.java`, `MsgFieldParser.java` | done |
 | API | `Session.java`, `QueryBuilder.java`, `IndexQueryBuilderImpl.java`, `QueryPlan.java` | `QueryPlan.java`, `QuerySelection.java` done |
 | Query wire | `Filter.java`, `QueryCommand.java` | |
 | AEL compile | `AelMaterializer.java` | |
 | Cluster | `Cluster.java`, `Version.java` | |
-| Tests | `MsgFieldParserTest.java`, `QueryPlanTest.java`, `QueryPlanProbeTest.java`, `QueryPlanIntegrationTest.java` | `MsgFieldParserTest`, `QueryPlanTest` done |
+| Tests | `MsgFieldParserTest.java`, `QueryPlanTest.java`, `IndexProbeCommandTest.java`, integration TBD | unit tests done |
 
 **Not required on new path:** changes to `VisitorUtils.getFilterExp` / residual split / `IndexContext` for server-led selection.

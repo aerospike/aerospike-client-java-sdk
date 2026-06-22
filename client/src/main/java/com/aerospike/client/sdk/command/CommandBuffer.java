@@ -1035,6 +1035,80 @@ public final class CommandBuffer {
         end();
     }
 
+    /**
+     * Encode an index probe ({@link IndexProbeCommand}).
+     */
+    public void setIndexProbe(IndexProbeCommand cmd) {
+        byte[] predicateBytes = cmd.where.getBytes();
+        if (predicateBytes.length == 0) {
+            throw new AerospikeException("Index probe requires predicate bytes");
+        }
+
+        int fieldCount = 0;
+        boolean hasHint = cmd.indexNameHint != null && !cmd.indexNameHint.isEmpty();
+
+        begin();
+
+        dataOffset += Buffer.estimateSizeUtf8(cmd.namespace) + Command.FIELD_HEADER_SIZE;
+        fieldCount++;
+
+        if (cmd.set != null && !cmd.set.isEmpty()) {
+            dataOffset += Buffer.estimateSizeUtf8(cmd.set) + Command.FIELD_HEADER_SIZE;
+            fieldCount++;
+        }
+
+        dataOffset += 4 + Command.FIELD_HEADER_SIZE;
+        fieldCount++;
+
+        dataOffset += 8 + Command.FIELD_HEADER_SIZE;
+        fieldCount++;
+
+        if (hasHint) {
+            dataOffset += Buffer.estimateSizeUtf8(cmd.indexNameHint) + Command.FIELD_HEADER_SIZE;
+            fieldCount++;
+        }
+
+        dataOffset += predicateBytes.length + Command.FIELD_HEADER_SIZE;
+        fieldCount++;
+
+        sizeBuffer();
+
+        dataBuffer[8] = Command.MSG_REMAINING_HEADER_SIZE;
+        dataBuffer[9] = (byte) Command.INFO1_READ;
+        dataBuffer[10] = 0;
+        dataBuffer[11] = 0;
+
+        for (int i = 12; i < 18; i++) {
+            dataBuffer[i] = 0;
+        }
+        dataBuffer[12] = (byte) Command.INFO4_QUERY_SELECTION;
+
+        Buffer.intToBytes(0, dataBuffer, 18);
+        Buffer.intToBytes(cmd.totalTimeout, dataBuffer, 22);
+        Buffer.shortToBytes(fieldCount, dataBuffer, 26);
+        Buffer.shortToBytes(0, dataBuffer, 28);
+        dataOffset = Command.MSG_TOTAL_HEADER_SIZE;
+
+        writeField(cmd.namespace, FieldType.NAMESPACE);
+
+        if (cmd.set != null && !cmd.set.isEmpty()) {
+            writeField(cmd.set, FieldType.TABLE);
+        }
+
+        writeField(cmd.socketTimeout, FieldType.SOCKET_TIMEOUT);
+        writeField(cmd.taskId, FieldType.QUERY_ID);
+
+        if (hasHint) {
+            writeField(cmd.indexNameHint, FieldType.INDEX_NAME);
+        }
+
+        writeFieldHeader(predicateBytes.length, FieldType.FILTER_EXP);
+        System.arraycopy(predicateBytes, 0, dataBuffer, dataOffset, predicateBytes.length);
+        dataOffset += predicateBytes.length;
+
+        end();
+    }
+
     public void setBackgroundQuery(BackgroundQueryCommand cmd) {
         byte[] functionArgBuffer = null;
         int fieldCount = 0;
