@@ -68,6 +68,7 @@ public class Command {
     public static final int INFO4_TXN_ROLL_FORWARD      = (1 << 1); // Roll forward transaction.
     public static final int INFO4_TXN_ROLL_BACK         = (1 << 2); // Roll back transaction.
     public static final int INFO4_TXN_ON_LOCKING_ONLY   = (1 << 4); // Must be able to lock record in transaction.
+    public static final int INFO4_QUERY_SELECTION       = (1 << 7); // Probe: server selects index/range and returns plan; does not execute.
 
     public static final byte STATE_READ_AUTH_HEADER = 1;
     public static final byte STATE_READ_HEADER = 2;

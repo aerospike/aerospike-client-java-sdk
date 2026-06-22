@@ -1,0 +1,216 @@
+# Client TODO: two-phase server index selection
+
+Implementation checklist for the fluent Java client.
+
+**Progress:** Phase 0 done (constants, `QueryPlan`, `MsgFieldParser` + unit tests). Next: `setQueryPlanProbe` encoder.
+
+**Sources of truth**
+
+- **Product / wire contract:** Slack thread (May 2026) — Suresh, Tim, Ronen, Gagan aligned on new vs legacy behavior.
+- **Server implementation:** `aerospike-server` — `as_query_plan`, `AS_MSG_INFO4_QUERY_SELECTION`, `query_plan.c`, `query.c`.
+
+---
+
+## Agreed behavior (Slack)
+
+### Legacy clients (unchanged)
+
+- Client chooses the secondary index locally.
+- SI execute sends a **client-built index filter** (field `22`, plus field `21` when needed) and a **row filter** in field `43` (`FILTER_EXP`).
+- Server uses the existing execute path; no probe.
+
+### New clients (two-phase)
+
+| Phase | Purpose | Wire |
+|-------|---------|------|
+| **Probe** | Server selects SI vs PI scan | `INFO4` query-selection bit set; **no partitions**; **no client-built index filter** |
+| **Execute** | Normal partitioned query | `INFO4` bit clear; replay server pins + full AEL |
+
+**Probe request**
+
+- Field `43` — full packed predicate (AEL compiled to expression bytes; not raw AEL string).
+- Field `21` — optional **index-name hint only** (probe only; no `binName` hint on new path).
+- No field `22` — server performs auto-selection from `43`.
+
+**Probe response**
+
+| Outcome | `result_code` | Response fields |
+|---------|---------------|-----------------|
+| PI scan | `AS_OK` | none |
+| SI query | `AS_OK` | `21` INDEX_NAME + `22` INDEX_RANGE (opaque bytes) |
+| Filtered out | `AS_ERR_FILTERED_OUT` | — |
+
+**Execute request (after probe)**
+
+- Field `43` — **same full AEL / packed predicate bytes as probe** (store on `QueryPlan`, replay verbatim).
+- **SI path:** replay probe `21` + `22` (server-authored; client does not build index filter locally).
+- **PI path:** field `43` only; no `21`/`22`.
+- Partitions, timeouts, etc. — same as today's `CommandBuffer.setQuery`.
+
+**Backward compatibility (Ronen):** legacy clients always send an index filter on SI queries. New clients do not send a client-chosen index filter on probe; on execute they send **server-identified** `21`/`22` from the probe response, not locally derived filter material.
+
+---
+
+## Server status (verified in code)
+
+| Item | Status |
+|------|--------|
+| Probe entry | `basic_query_job_start` → `as_query_plan` when `INFO4` bit 7 set |
+| Probe parses | `0` ns, `1` set, optional `21` hint, required `43` |
+| Probe does not execute | Returns plan reply; no partition fan-out |
+| SI response | Fields `21` + `22` via `plan_build_range_payload` |
+| PI response | `AS_OK`, zero fields |
+| Execute | Existing basic query path (`INFO4` bit 7 clear); reads `21`/`22`/`43` independently |
+
+Server does **not** validate that execute `43` matches probe `43`. It applies whatever is in the current message.
+
+---
+
+## Legacy vs new — field `43` on SI execute
+
+| Path | Field `22` | Field `43` on SI execute |
+|------|------------|--------------------------|
+| **Legacy** | Client-built from `chooseExprForFilter` | **Residual** row filter (`VisitorUtils.getFilterExp` skips SI subtree) |
+| **New (two-phase)** | Opaque replay from probe | **Full** predicate (same bytes as probe) |
+
+Both shapes are accepted by the server execute handler. New-client work follows the **full `43`** contract from Slack, not the legacy residual split.
+
+---
+
+## Client gaps (what we still need to build)
+
+1. **Opaque replay of field `22`** — `Filter.write()` only builds structured ranges. Add passthrough for probe response bytes (e.g. `Filter.fromWireRange(indexName, rangeBytes)` or `CommandBuffer` hook).
+2. **Probe encoder** — new path; must **not** call `chooseExprForFilter` or emit field `22`.
+3. ~~**Predicate bytes lifecycle**~~ — **`QueryPlan` stores `predicateBytes`**; still need probe encoder + execute replay wiring.
+4. **Capability gate** — `Cluster.supportsQuerySelection()` (version check until server advertises a feature bit); fallback to legacy path when unsupported.
+5. **Hint rules** — new path: `QueryHint.forIndex(...)` → field `21` on **probe only**. Do **not** send `QueryHint.forBin(...)` on probe (Slack: index name only). Legacy `forBin` / `forIndex` behavior unchanged when gate is off.
+
+---
+
+## Out of scope (v1)
+
+- Raw AEL string in field `43` (`[128, "<ael>"]`) — server `as_exp_filter_build` does not accept it today.
+- `binName` hint on probe for new clients.
+- `INDEX_TYPE` / `INDEX_CONTEXT` / `INDEX_EXPRESSION` in probe response (CDT / list / map / geo may need follow-on).
+- Background query / UDF query with server selection.
+- Pagination / continuation policy (re-probe vs pin plan across chunks).
+- Brainstorm `INFO5` / fields `44`/`45` — server uses `INFO4` bit 7 + `21`/`22`.
+
+---
+
+## Phase 0 — types and constants ✅
+
+- [x] `Command.INFO4_QUERY_SELECTION = 1 << 7` in `Command.java` (mirror `proto.h`).
+- [x] `QueryPlan` immutable type (`com.aerospike.client.sdk.query.plan`):
+  - `QuerySelection` enum: `PRIMARY_INDEX`, `SECONDARY_INDEX`, `FILTERED_OUT`
+  - `selection`, `namespace`, `set`, `predicateBytes` (field `43` payload), `indexName` (nullable), `indexRangeBytes` (nullable)
+  - `QueryPlan.fromProbeResponse(...)` factory
+- [x] `MsgFieldParser` — parse reply `AS_MSG` fields by `FieldType` id (`MsgFieldParser.from(RecordParser)`).
+
+---
+
+## Phase 1 — probe
+
+### Encoder: `CommandBuffer.setQueryPlanProbe(...)`
+
+- [ ] Set `dataBuffer[12] |= INFO4_QUERY_SELECTION`; `n_ops = 0`.
+- [ ] No `PID_ARRAY` / digest / bval partition fields.
+- [ ] Fields: `0` namespace, `1` set, `7` task id, `9` socket timeout, `43` predicate.
+- [ ] Field `43`: packed expression bytes (`Expression.getBytes()` after AEL compile).
+- [ ] Optional field `21`: index-name hint when `QueryHint.forIndex(...)` is set.
+- [ ] Unit tests: header info4 bit, field order, no `22`, no partitions.
+
+### Command: `QueryPlanCommand` (sync, single node)
+
+- [ ] Send probe to one live node; retry on another node if connection fails.
+- [ ] Decode reply: `result_code` + optional fields `21`/`22` via `MsgFieldParser`.
+- [ ] Build `QueryPlan` via `QueryPlan.fromProbeResponse(...)` (predicate bytes copy on plan).
+
+### API
+
+- [ ] `Cluster.supportsQuerySelection()`.
+- [ ] `Session.planQuery(...)` / `QueryBuilder.plan()` — probe only, returns `QueryPlan`.
+- [ ] Parse AEL → expression bytes for `43` only; no client index selection on probe.
+
+---
+
+## Phase 2 — execute with plan
+
+- [ ] Wire `IndexQueryBuilderImpl` / `QueryCommand` to accept optional `QueryPlan`.
+- [ ] Guess-path `execute()`: if gate on and no explicit legacy override → probe then execute.
+- [ ] **PI plan:** `filter = null`; `filterExp` = `predicateBytes` from plan; normal `setQuery`.
+- [ ] **SI plan:**
+  - `filter` = opaque replay of `indexRangeBytes` + `indexName` from plan (not client-built).
+  - `filterExp` = same `predicateBytes` as probe (full AEL).
+  - `setQuery` with `INFO4` bit 7 clear (default).
+- [ ] Do **not** run `chooseExprForFilter` on the new path.
+- [ ] `QueryCommand.applyHintToFilter` — not used when plan pins index; plan wins.
+
+---
+
+## When to use which path
+
+| Condition | Path |
+|-----------|------|
+| `!supportsQuerySelection()` | Legacy: client index selection + residual `43` on SI |
+| Explicit legacy-style query with client-built filter | Legacy (unchanged) |
+| Guess-path WHERE, gate on | New: probe → execute with plan |
+| `QueryHint.forIndex` on new path | Field `21` on probe only |
+| `QueryHint.forBin` | Legacy only; not on new probe path |
+| No WHERE / index not allowed | No probe; existing behavior |
+
+---
+
+## Orchestration and UX
+
+- [ ] `execute()` runs probe + execute transparently on guess path when supported.
+- [ ] Optional `plan()` / `explain()` for visibility (selection, index name).
+- [ ] Probe is sync; execute stays async via `QueryExecutor`.
+
+---
+
+## Tests
+
+### Unit
+
+- [ ] Probe buffer layout (golden bytes).
+- [x] `MsgFieldParser`: field TLV parsing + `RecordParser` integration (`MsgFieldParserTest`).
+- [x] `QueryPlan.fromProbeResponse`: PI / SI / FILTERED_OUT / inconsistent response (`QueryPlanTest`).
+- [x] `QueryPlan.predicateBytes` defensive copy (`QueryPlanTest`).
+- [ ] Opaque `22` replay: probe bytes → `setQuery` field `22` matches input.
+
+### Integration (server with `as_query_plan`)
+
+- [ ] Probe → SI execute: correct records for compound predicate (e.g. `age > 30 && country = "US"`).
+- [ ] Probe → PI execute: scan + filter.
+- [ ] `FILTERED_OUT` from probe surfaced to caller.
+- [ ] Optional field `21` hint on probe when index name provided.
+- [ ] Gate off / old server: legacy path unchanged, same results as today.
+- [ ] New path vs legacy path: same query, both return equivalent results (where both apply).
+
+---
+
+## Implementation order
+
+1. ~~Constants + `QueryPlan` + `MsgFieldParser`~~ ✅
+2. **`setQueryPlanProbe` + unit tests** ← current
+3. `QueryPlanCommand` + integration test against server
+4. Opaque `22` replay in `Filter` / `CommandBuffer`
+5. `IndexQueryBuilderImpl` wiring (plan → execute, full `43` replay)
+6. `supportsQuerySelection` + auto probe in `execute()`
+7. `planQuery` / explain API + legacy fallback
+
+---
+
+## Files likely touched
+
+| Area | Files | Status |
+|------|--------|--------|
+| Protocol | `Command.java`, `CommandBuffer.java`, `QueryPlanCommand.java`, `MsgFieldParser.java` | `Command.java`, `MsgFieldParser.java` done |
+| API | `Session.java`, `QueryBuilder.java`, `IndexQueryBuilderImpl.java`, `QueryPlan.java` | `QueryPlan.java`, `QuerySelection.java` done |
+| Query wire | `Filter.java`, `QueryCommand.java` | |
+| AEL compile | `AelMaterializer.java` | |
+| Cluster | `Cluster.java`, `Version.java` | |
+| Tests | `MsgFieldParserTest.java`, `QueryPlanTest.java`, `QueryPlanProbeTest.java`, `QueryPlanIntegrationTest.java` | `MsgFieldParserTest`, `QueryPlanTest` done |
+
+**Not required on new path:** changes to `VisitorUtils.getFilterExp` / residual split / `IndexContext` for server-led selection.
