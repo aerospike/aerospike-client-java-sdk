@@ -1045,7 +1045,7 @@ public final class CommandBuffer {
         }
 
         int fieldCount = 0;
-        boolean hasHint = cmd.indexNameHint != null && !cmd.indexNameHint.isEmpty();
+        boolean hasHint = cmd.indexNameHint != null && !cmd.indexNameHint.isBlank();
 
         begin();
 

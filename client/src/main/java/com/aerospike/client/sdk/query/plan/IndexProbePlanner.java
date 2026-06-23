@@ -92,6 +92,10 @@ public final class IndexProbePlanner {
         if (hint == null) {
             return null;
         }
-        return hint.getIndexName();
+        String indexName = hint.getIndexName();
+        if (indexName == null || indexName.isBlank()) {
+            return null;
+        }
+        return indexName;
     }
 }

@@ -48,11 +48,13 @@ class MsgFieldParserTest {
     @Test
     void fromRecordParserUsesParserOffsets() {
         byte[] name = "idx".getBytes(StandardCharsets.UTF_8);
-        byte[] buffer = buildMessage(name, FieldType.INDEX_NAME);
+        byte[] fields = buildMessage(name, FieldType.INDEX_NAME);
 
         int headerSize = Command.MSG_REMAINING_HEADER_SIZE;
-        byte[] message = new byte[headerSize + buffer.length];
-        System.arraycopy(buffer, 0, message, headerSize, buffer.length);
+        byte[] message = new byte[headerSize + fields.length];
+        System.arraycopy(fields, 0, message, headerSize, fields.length);
+        Buffer.shortToBytes(1, message, 18);
+        Buffer.shortToBytes(0, message, 20);
 
         RecordParser rp = new RecordParser(message, 0, message.length);
         MsgFieldParser parser = MsgFieldParser.from(rp);

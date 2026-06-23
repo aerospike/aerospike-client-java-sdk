@@ -128,6 +128,12 @@ public class QueryHintTest {
     }
 
     @Test
+    public void probeIndexNameHintIgnoresBlankForIndex() {
+        QueryHint.Result result = apply(hint -> hint.forIndex("  "));
+        assertNull(IndexProbePlanner.indexNameHintForProbe(result));
+    }
+
+    @Test
     public void probeIndexNameHintNullWhenNoHint() {
         assertNull(IndexProbePlanner.indexNameHintForProbe(null));
     }

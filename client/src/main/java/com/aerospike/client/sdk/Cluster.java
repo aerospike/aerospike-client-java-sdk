@@ -640,7 +640,8 @@ public class Cluster implements Closeable {
      * <p>Requires cluster minimum version {@link Version#SERVER_VERSION_8_1_3} or newer.</p>
      */
     public boolean supportsQuerySelection() {
-        return versionGE813;
+        return false;
+        //return versionGE813;
     }
 
     /**
