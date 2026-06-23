@@ -74,6 +74,8 @@ public final class MsgFieldParser {
             int size = len - 1;
 
             if (size > 0) {
+                // TODO: Revisit — copy out of the receive buffer for each field. If RecordParser
+                // buffer lifetime is scoped to probe decode, slice or retain buffer instead.
                 byte[] value = new byte[size];
                 System.arraycopy(buffer, pos, value, 0, size);
                 fields.put(type, value);

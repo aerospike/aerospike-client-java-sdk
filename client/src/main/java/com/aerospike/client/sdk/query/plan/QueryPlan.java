@@ -16,16 +16,13 @@
  */
 package com.aerospike.client.sdk.query.plan;
 
-import java.util.Arrays;
-import java.util.Objects;
-
 import com.aerospike.client.sdk.AerospikeException;
 import com.aerospike.client.sdk.ResultCode;
 import com.aerospike.client.sdk.command.FieldType;
 import com.aerospike.client.sdk.command.MsgFieldParser;
 
 /**
- * Immutable result of a server query-plan probe. Holds the packed predicate bytes
+ * Result of a server query-plan probe. Holds the packed predicate bytes
  * to replay on execute (field {@code 43}) and, for secondary-index plans, opaque
  * server pins ({@code INDEX_NAME} / {@code INDEX_RANGE}).
  */
@@ -69,14 +66,8 @@ public final class QueryPlan {
         byte[] predicateBytes,
         MsgFieldParser fields
     ) {
-        Objects.requireNonNull(namespace, "namespace must not be null");
-        Objects.requireNonNull(predicateBytes, "predicateBytes must not be null");
-        Objects.requireNonNull(fields, "fields must not be null");
-
-        byte[] predCopy = Arrays.copyOf(predicateBytes, predicateBytes.length);
-
         if (resultCode == ResultCode.FILTERED_OUT) {
-            return new QueryPlan(QuerySelection.FILTERED_OUT, namespace, set, predCopy, null, null);
+            return new QueryPlan(QuerySelection.FILTERED_OUT, namespace, set, predicateBytes, null, null);
         }
 
         if (resultCode != ResultCode.OK) {
@@ -91,14 +82,14 @@ public final class QueryPlan {
                 QuerySelection.SECONDARY_INDEX,
                 namespace,
                 set,
-                predCopy,
+                predicateBytes,
                 indexName,
-                Arrays.copyOf(range, range.length)
+                range
             );
         }
 
         if (indexName == null && range == null) {
-            return new QueryPlan(QuerySelection.PRIMARY_INDEX, namespace, set, predCopy, null, null);
+            return new QueryPlan(QuerySelection.PRIMARY_INDEX, namespace, set, predicateBytes, null, null);
         }
 
         throw new AerospikeException.Parse(

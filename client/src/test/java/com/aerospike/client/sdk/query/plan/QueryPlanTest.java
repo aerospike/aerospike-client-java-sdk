@@ -94,15 +94,6 @@ class QueryPlanTest {
     }
 
     @Test
-    void predicateBytesAreCopied() {
-        byte[] pred = new byte[] {9, 8, 7};
-        QueryPlan plan = QueryPlan.fromProbeResponse(
-            ResultCode.OK, "ns", null, pred, fieldsOf());
-        pred[0] = 0;
-        assertEquals(9, plan.getPredicateBytes()[0]);
-    }
-
-    @Test
     void querySelectionConstantMatchesProto() {
         assertEquals(1 << 7, Command.INFO4_QUERY_SELECTION);
     }
