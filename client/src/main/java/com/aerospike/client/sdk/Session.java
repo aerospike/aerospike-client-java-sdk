@@ -38,6 +38,7 @@ import com.aerospike.client.sdk.query.IndexCollectionType;
 import com.aerospike.client.sdk.query.IndexType;
 import com.aerospike.client.sdk.query.QueryBuilder;
 import com.aerospike.client.sdk.query.TypedQueryBuilder;
+import com.aerospike.client.sdk.query.plan.QueryPlan;
 import com.aerospike.client.sdk.task.IndexTask;
 import com.aerospike.client.sdk.task.RegisterTask;
 import com.aerospike.client.sdk.tend.Partitions;
@@ -268,6 +269,21 @@ public class Session {
      */
     public IndexBasedQueryBuilderInterface<QueryBuilder> query(DataSet dataSet) {
         return new QueryBuilder(this, dataSet);
+    }
+
+    /**
+     * Runs a server query-plan probe for a dataset WHERE clause.
+     *
+     * <p>Equivalent to {@code query(dataSet).where(ael, params).plan()}.</p>
+     *
+     * @param dataSet namespace and set to query
+     * @param ael     WHERE AEL expression
+     * @param params  optional format parameters for {@code ael}
+     * @return server query plan
+     * @see QueryBuilder#plan()
+     */
+    public QueryPlan planQuery(DataSet dataSet, String ael, Object... params) {
+        return query(dataSet).where(ael, params).plan();
     }
 
     /**

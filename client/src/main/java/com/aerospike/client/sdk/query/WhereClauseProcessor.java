@@ -16,9 +16,12 @@
  */
 package com.aerospike.client.sdk.query;
 
+import java.util.Objects;
+
 import com.aerospike.ael.ParseResult;
 import com.aerospike.client.sdk.AelMaterializer;
 import com.aerospike.client.sdk.Session;
+import com.aerospike.client.sdk.exp.Exp;
 import com.aerospike.client.sdk.ael.BooleanExpression;
 import com.aerospike.client.sdk.exp.Exp;
 import com.aerospike.client.sdk.exp.Expression;
@@ -38,6 +41,26 @@ public abstract class WhereClauseProcessor {
      * (or have no set) participate in secondary-index selection.
      */
     public abstract ParseResult process(String namespace, String querySet, Session session);
+
+    /**
+     * Full WHERE as wire {@link Expression} for index-probe field {@code 43} (no client index selection).
+     */
+    public final Expression toProbeExpression(Session session) {
+        Objects.requireNonNull(session, "session must not be null");
+        if (this instanceof WhereStringImpl s) {
+            return AelMaterializer.expressionForQueryProbe(s.ael);
+        }
+        if (this instanceof WherePreparedImpl p) {
+            return AelMaterializer.expressionForQueryProbe(p.ael.formValue(p.params));
+        }
+        if (this instanceof WhereBoolExprImpl b) {
+            return Exp.build(b.ael.toAerospikeExp());
+        }
+        if (this instanceof WhereExpImpl e) {
+            return Exp.build(e.exp);
+        }
+        throw new IllegalStateException("Unsupported WHERE clause type");
+    }
 
     public WhereClauseProcessor(boolean allowsIndex) {
         this.allowsIndex = allowsIndex;

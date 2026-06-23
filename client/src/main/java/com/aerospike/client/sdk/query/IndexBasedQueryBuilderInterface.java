@@ -18,6 +18,8 @@ package com.aerospike.client.sdk.query;
 
 import java.util.function.Function;
 
+import com.aerospike.client.sdk.query.plan.QueryPlan;
+
 /**
  * Interface for query builders that support index (primary or secondary) based operations.
  * These operations are only available when querying from a DataSet
@@ -60,4 +62,13 @@ public interface IndexBasedQueryBuilderInterface<T extends IndexBasedQueryBuilde
      * @throws IllegalArgumentException if called more than once
      */
     T withHint(Function<QueryHint.Start, ? extends QueryHint.Result> configurator);
+
+    /**
+     * Runs a server query-plan probe for this query's WHERE clause.
+     *
+     * <p>See {@link QueryBuilder#plan()}.</p>
+     *
+     * @return immutable server query plan
+     */
+    QueryPlan plan();
 }

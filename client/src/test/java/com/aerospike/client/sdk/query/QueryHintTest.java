@@ -24,6 +24,7 @@ import java.util.function.Function;
 import org.junit.jupiter.api.Test;
 
 import com.aerospike.client.sdk.policy.QueryDuration;
+import com.aerospike.client.sdk.query.plan.IndexProbePlanner;
 
 /**
  * Tests for the {@link QueryHint} type-state API.
@@ -110,6 +111,25 @@ public class QueryHintTest {
         assertNull(result.getIndexName());
         assertNull(result.getBinName());
         assertNull(result.getQueryDuration());
+    }
+
+    // -- probe path index-name hint -------------------------------------------
+
+    @Test
+    public void probeIndexNameHintUsesForIndex() {
+        QueryHint.Result result = apply(hint -> hint.forIndex("age_idx"));
+        assertEquals("age_idx", IndexProbePlanner.indexNameHintForProbe(result));
+    }
+
+    @Test
+    public void probeIndexNameHintIgnoresForBin() {
+        QueryHint.Result result = apply(hint -> hint.forBin("age"));
+        assertNull(IndexProbePlanner.indexNameHintForProbe(result));
+    }
+
+    @Test
+    public void probeIndexNameHintNullWhenNoHint() {
+        assertNull(IndexProbePlanner.indexNameHintForProbe(null));
     }
 
     // -- helper ---------------------------------------------------------------

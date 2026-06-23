@@ -2,12 +2,32 @@
 
 Implementation checklist for the fluent Java client.
 
-**Progress:** Phase 0 done. `IndexProbeCommand` / `IndexProbeExecutor` + `CommandBuffer.setIndexProbe` + unit tests done. Next: integration test + API wiring (`Session.planQuery`).
+**Progress:** Phase 0 + Phase 1 (encoder + API) done. Next: opaque `22` replay + execute wiring + integration tests.
 
 **Sources of truth**
 
 - **Product / wire contract:** Slack thread (May 2026) — Suresh, Tim, Ronen, Gagan aligned on new vs legacy behavior.
 - **Server implementation:** `aerospike-server` — `as_query_plan`, `AS_MSG_INFO4_QUERY_SELECTION`, `query_plan.c`, `query.c`.
+- **Server roadmap:** index-selection and server-side AEL live in separate trees today; they will merge. **Any server that supports index selection is expected to also support server AEL** (ignore AEL gaps in the index-selection-only tree).
+
+---
+
+## Field `43` encoding — interim vs merged server
+
+Both encodings use the **same field type** (`FILTER_EXP` / `43`). Only the **payload bytes** differ. `QueryPlan.predicateBytes` is always opaque field-`43` material to replay on execute.
+
+| Encoding | Field `43` payload | When |
+|----------|-------------------|------|
+| **Client-compiled expression** | Packed predexp bytes from local AEL parse (`Expression.getBytes()` after `AelMaterializer` / visitor compile) | **Now** — index-selection server tree (`as_exp_filter_build` on packed exp; no AEL `[128, "…"]` yet) |
+| **Server AEL** | `Expression.fromServerCompiledFilter(ael)` → MessagePack `[128, "<ael text>"]` | **After merge** — when product enables it on servers with selection + AEL |
+
+**Client plan**
+
+1. **Ship now:** new path sends **client-compiled expression bytes** on probe and execute (no `chooseExprForFilter`, no field `22` on probe). Integrate against the index-selection-only server.
+2. **After server merge + product input:** switch (or gate) field `43` to **server-AEL bytes**; **may** drop local compile on the new path if product agrees. Keep capability-driven choice so both formats can coexist during rollout.
+3. **Dual support is feasible:** probe/execute wiring (`IndexProbeCommand`, `QueryPlan`, `setIndexProbe`, `setQuery`) stays the same — only the **factory that fills `where` / `predicateBytes`** changes by capability. No second field type.
+
+**Server note:** merged server must accept the chosen encoding in `43` (detect `[128, …]` vs packed predexp, or rely on capability / tend flag so client sends only what the node expects).
 
 ---
 
@@ -24,12 +44,12 @@ Implementation checklist for the fluent Java client.
 | Phase | Purpose | Wire |
 |-------|---------|------|
 | **Probe** | Server selects SI vs PI scan | `INFO4` query-selection bit set; **no partitions**; **no client-built index filter** |
-| **Execute** | Normal partitioned query | `INFO4` bit clear; replay server pins + full AEL |
+| **Execute** | Normal partitioned query | `INFO4` bit clear; replay server pins + same field-`43` bytes as probe |
 
 **Probe request**
 
-- Field `43` — full packed predicate (AEL compiled to expression bytes; not raw AEL string).
-- Field `21` — optional **index-name hint only** (probe only; no `binName` hint on new path).
+- Field `43` — full WHERE material for field `43` (see **Field `43` encoding** above). **Interim:** client-compiled expression bytes. **Post-merge (TBD):** server-AEL bytes `[128, "<text>"]`.
+- Field `21` — optional **index-name hint only** (probe only; no `binName` hint on new path). Omitted on auto-select.
 - No field `22` — server performs auto-selection from `43`.
 
 **Probe response**
@@ -42,7 +62,7 @@ Implementation checklist for the fluent Java client.
 
 **Execute request (after probe)**
 
-- Field `43` — **same full AEL / packed predicate bytes as probe** (store on `QueryPlan`, replay verbatim).
+- Field `43` — **same bytes as probe** (store on `QueryPlan`, replay verbatim). Encoding tracks capability (packed exp now; server AEL later if product enables).
 - **SI path:** replay probe `21` + `22` (server-authored; client does not build index filter locally).
 - **PI path:** field `43` only; no `21`/`22`.
 - Partitions, timeouts, etc. — same as today's `CommandBuffer.setQuery`.
@@ -71,7 +91,7 @@ Server does **not** validate that execute `43` matches probe `43`. It applies wh
 | Path | Field `22` | Field `43` on SI execute |
 |------|------------|--------------------------|
 | **Legacy** | Client-built from `chooseExprForFilter` | **Residual** row filter (`VisitorUtils.getFilterExp` skips SI subtree) |
-| **New (two-phase)** | Opaque replay from probe | **Full** predicate (same bytes as probe) |
+| **New (two-phase)** | Opaque replay from probe | **Full** field-`43` payload (same bytes as probe; not legacy residual split) |
 
 Both shapes are accepted by the server execute handler. New-client work follows the **full `43`** contract from Slack, not the legacy residual split.
 
@@ -82,14 +102,15 @@ Both shapes are accepted by the server execute handler. New-client work follows 
 1. **Opaque replay of field `22`** — `Filter.write()` only builds structured ranges. Add passthrough for probe response bytes (e.g. `Filter.fromWireRange(indexName, rangeBytes)` or `CommandBuffer` hook).
 2. ~~**Probe encoder**~~ — `CommandBuffer.setIndexProbe(IndexProbeCommand)` (no `chooseExprForFilter`, no field `22`).
 3. ~~**Predicate bytes lifecycle**~~ — **`QueryPlan` stores `predicateBytes`**; still need probe encoder + execute replay wiring.
-4. **Capability gate** — `Cluster.supportsQuerySelection()` (version check until server advertises a feature bit); fallback to legacy path when unsupported.
+4. **Capability gate** — `Cluster.supportsQuerySelection()` (version/feature check until tend advertises it). On merged servers, selection + server AEL ship together; gate may imply AEL-on-wire. Fallback to legacy path when unsupported.
 5. **Hint rules** — new path: `QueryHint.forIndex(...)` → field `21` on **probe only**. Do **not** send `QueryHint.forBin(...)` on probe (Slack: index name only). Legacy `forBin` / `forIndex` behavior unchanged when gate is off.
+6. **Field `43` factory** — interim: compile AEL → packed exp for probe/execute. Post-merge: add capability branch for `fromServerCompiledFilter(ael)`; keep both paths until product drops client compile.
 
 ---
 
 ## Out of scope (v1)
 
-- Raw AEL string in field `43` (`[128, "<ael>"]`) — server `as_exp_filter_build` does not accept it today.
+- **Defaulting to server-AEL `[128, "…"]` in field `43`** before merged server + product sign-off (interim uses client-compiled exp bytes).
 - `binName` hint on probe for new clients.
 - `INDEX_TYPE` / `INDEX_CONTEXT` / `INDEX_EXPRESSION` in probe response (CDT / list / map / geo may need follow-on).
 - Background query / UDF query with server selection.
@@ -119,11 +140,11 @@ Both shapes are accepted by the server execute handler. New-client work follows 
 - [x] `IndexProbeExecutor` — sync single-node probe, rotate nodes on retry, decode via `MsgFieldParser` + `QueryPlan.fromProbeResponse`.
 - [x] Unit tests: wire layout (`IndexProbeCommandTest`).
 
-### API (remaining)
+### API ✅
 
-- [ ] `Cluster.supportsQuerySelection()`.
-- [ ] `Session.planQuery(...)` / `QueryBuilder.plan()` — build `IndexProbeCommand`, return `QueryPlan`.
-- [ ] Parse AEL → expression bytes for `43` only; no client index selection on probe.
+- [x] `Cluster.supportsQuerySelection()`.
+- [x] `Session.planQuery(...)` / `QueryBuilder.plan()` — build `IndexProbeCommand`, return `QueryPlan`.
+- [x] Field `43` material for probe: **interim** — compile AEL → packed expression bytes (`AelMaterializer.expressionForQueryProbe` / `WhereClauseProcessor.toProbeExpression`); no client index selection. **Later** — capability branch for `fromServerCompiledFilter(ael)`.
 
 ---
 
@@ -134,7 +155,7 @@ Both shapes are accepted by the server execute handler. New-client work follows 
 - [ ] **PI plan:** `filter = null`; `filterExp` = `predicateBytes` from plan; normal `setQuery`.
 - [ ] **SI plan:**
   - `filter` = opaque replay of `indexRangeBytes` + `indexName` from plan (not client-built).
-  - `filterExp` = same `predicateBytes` as probe (full AEL).
+  - `filterExp` = same `predicateBytes` as probe (full field-`43` replay).
   - `setQuery` with `INFO4` bit 7 clear (default).
 - [ ] Do **not** run `chooseExprForFilter` on the new path.
 - [ ] `QueryCommand.applyHintToFilter` — not used when plan pins index; plan wins.
@@ -172,14 +193,15 @@ Both shapes are accepted by the server execute handler. New-client work follows 
 - [x] `QueryPlan.predicateBytes` defensive copy (`QueryPlanTest`).
 - [ ] Opaque `22` replay: probe bytes → `setQuery` field `22` matches input.
 
-### Integration (server with `as_query_plan`)
+### Integration (index-selection server today; merged server + AEL later)
 
-- [ ] Probe → SI execute: correct records for compound predicate (e.g. `age > 30 && country = "US"`).
+- [ ] Probe → SI execute: correct records for compound predicate (e.g. `age > 30 && country = "US"`) — **packed exp in `43`** against current tree.
 - [ ] Probe → PI execute: scan + filter.
 - [ ] `FILTERED_OUT` from probe surfaced to caller.
 - [ ] Optional field `21` hint on probe when index name provided.
 - [ ] Gate off / old server: legacy path unchanged, same results as today.
 - [ ] New path vs legacy path: same query, both return equivalent results (where both apply).
+- [ ] **Post-merge:** probe + execute with server-AEL bytes in `43` when capability enabled.
 
 ---
 
@@ -187,11 +209,10 @@ Both shapes are accepted by the server execute handler. New-client work follows 
 
 1. ~~Constants + `QueryPlan` + `MsgFieldParser`~~ ✅
 2. ~~`IndexProbeCommand` / `IndexProbeExecutor` + `setIndexProbe` + unit tests~~ ✅
-3. **Integration test + `Session.planQuery` API** ← current
-4. Opaque `22` replay in `Filter` / `CommandBuffer`
-5. `IndexQueryBuilderImpl` wiring (plan → execute, full `43` replay)
-6. `supportsQuerySelection` + auto probe in `execute()`
-7. `planQuery` / explain API + legacy fallback
+4. [ ] Capability gate wired into execute — `supportsQuerySelection` + auto probe in `execute()`
+5. Opaque `22` replay in `Filter` / `CommandBuffer`
+6. `IndexQueryBuilderImpl` wiring (plan → execute, full `43` replay)
+7. Integration tests
 
 ---
 
@@ -200,10 +221,10 @@ Both shapes are accepted by the server execute handler. New-client work follows 
 | Area | Files | Status |
 |------|--------|--------|
 | Protocol | `Command.java`, `CommandBuffer.java`, `IndexProbeCommand.java`, `IndexProbeExecutor.java`, `MsgFieldParser.java` | done |
-| API | `Session.java`, `QueryBuilder.java`, `IndexQueryBuilderImpl.java`, `QueryPlan.java` | `QueryPlan.java`, `QuerySelection.java` done |
+| API | `Session.java`, `QueryBuilder.java`, `IndexQueryBuilderImpl.java`, `IndexProbePlanner.java`, `WhereClauseProcessor.java`, `QueryPlan.java` | done |
 | Query wire | `Filter.java`, `QueryCommand.java` | |
-| AEL compile | `AelMaterializer.java` | |
-| Cluster | `Cluster.java`, `Version.java` | |
+| AEL compile | `AelMaterializer.java` — `expressionForQueryProbe` done; optional `fromServerCompiledFilter` after merge | partial |
+| Cluster | `Cluster.java`, `Version.java` | done |
 | Tests | `MsgFieldParserTest.java`, `QueryPlanTest.java`, `IndexProbeCommandTest.java`, integration TBD | unit tests done |
 
 **Not required on new path:** changes to `VisitorUtils.getFilterExp` / residual split / `IndexContext` for server-led selection.

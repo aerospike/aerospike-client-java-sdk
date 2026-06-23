@@ -28,6 +28,7 @@ import com.aerospike.client.sdk.ael.BooleanExpression;
 import com.aerospike.client.sdk.command.Txn;
 import com.aerospike.client.sdk.exp.Exp;
 import com.aerospike.client.sdk.exp.Expression;
+import com.aerospike.client.sdk.query.plan.QueryPlan;
 import com.aerospike.client.sdk.policy.QueryDuration;
 
 /**
@@ -179,6 +180,10 @@ public final class TypedQueryBuilder<T> {
 
     public java.util.List<com.aerospike.client.sdk.Operation> getOperations() {
         return delegate.getOperations();
+    }
+
+    public QueryPlan plan() {
+        return delegate.plan();
     }
 
     public TypedRecordStream<T> execute() {
