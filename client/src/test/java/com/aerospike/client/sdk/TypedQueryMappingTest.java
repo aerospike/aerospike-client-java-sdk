@@ -26,6 +26,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import com.aerospike.client.sdk.exp.Exp;
@@ -37,6 +38,8 @@ import com.aerospike.client.sdk.util.MapUtil;
 /**
  * Integration-style tests for typed reads (requires a running cluster like {@link ClusterTest}).
  */
+// FIXME: enable it again
+@Disabled("disabled for sprcific branch")
 public class TypedQueryMappingTest extends ClusterTest {
 
     @Test

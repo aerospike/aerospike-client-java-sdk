@@ -30,7 +30,7 @@ class WhereClauseProcessorProbeTest extends ClusterTest {
 
     @Test
     void toProbeExpressionUsesFullClientCompileWithoutIndexSelection() {
-        String ael = "$.age > 30 && $.country == \"US\"";
+        String ael = "$.age > 30 and $.country == \"US\"";
         WhereClauseProcessor where = WhereClauseProcessor.from(true, ael);
 
         ParseResult executeParse = where.process(args.namespace, args.set.getSet(), session);

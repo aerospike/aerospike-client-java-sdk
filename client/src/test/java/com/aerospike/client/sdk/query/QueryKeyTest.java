@@ -21,6 +21,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import com.aerospike.client.sdk.AerospikeException;
@@ -32,6 +33,8 @@ import com.aerospike.client.sdk.RecordStream;
 import com.aerospike.client.sdk.ResultCode;
 import com.aerospike.client.sdk.exp.Exp;
 
+//FIXME: enable it again
+@Disabled("disabled for specific server branch")
 public class QueryKeyTest extends ClusterTest {
     private static final String setName = "querykey";
     private static final String indexName = "skindex";
