@@ -241,15 +241,15 @@ Validates server selection + client decode without execute.
 | 1.2 | PI plan — no matching SI | Predicate on non-indexed bin, or shape server returns as PI | `PRIMARY_INDEX`; `indexName` / `indexRangeBytes` null |
 | 1.3 | `forIndex` hint on probe | Same as 1.1 + `forIndex("age_idx")` | Plan uses hinted index (or document server reject/fallback) |
 | 1.4 | Probe bytes stable | Call `plan()` twice on same WHERE | Same `predicateBytes`; SI plan stable (or document if server may vary) |
-| 1.5 | `Session.planQuery()` smoke | `session.planQuery(dataSet, "$.age >= 14 and $.age <= 18")` | Same as 1.1 |
-| 1.6 | FILTERED_OUT *(optional)* | Predicate server rejects | `isFilteredOut()` / exception — skip if not reproducible |
+| 1.5 | `IndexProbePlanner` smoke | Direct `IndexProbePlanner.plan(...)` (same path as `execute()`) | Same as 1.1; matches `QueryBuilder.plan()` |
+| 1.6 | FILTERED_OUT | Contradiction: `$.age > 100 and $.age < 10` | `FILTERED_OUT`; null `21`/`22`; `predicateBytes` present |
 
-- [ ] 1.1 SI plan — simple range
-- [ ] 1.2 PI plan — no matching SI
-- [ ] 1.3 `forIndex` hint on probe
-- [ ] 1.4 Probe bytes stable
-- [ ] 1.5 `Session.planQuery()` smoke
-- [ ] 1.6 FILTERED_OUT *(optional)*
+- [x] 1.1 SI plan — simple range
+- [x] 1.2 PI plan — no matching SI
+- [x] 1.3 `forIndex` hint on probe
+- [x] 1.4 Probe bytes stable
+- [x] 1.5 `IndexProbePlanner` smoke
+- [x] 1.6 FILTERED_OUT — contradiction probe (`planContradictionPredicate`)
 
 #### Tier 2 — Probe → execute (core E2E)
 
@@ -310,10 +310,12 @@ Proves gate logic; legacy paths must not be accidentally probed.
 | 4.1 | FILTERED_OUT on execute | `execute()` throws `FILTERED_OUT` (not empty stream) |
 | 4.2 | `plan()` without WHERE | `AerospikeException` |
 | 4.3 | Empty result vs error | Valid SI query with no matching data → 0 records, not exception |
+| 4.4 | `forIndex` non-existent index | Probe succeeds; bogus hint ignored; auto-selects `qsel_age_idx` *(observed; product may want error)* |
 
 - [ ] 4.1 FILTERED_OUT on execute
 - [ ] 4.2 `plan()` without WHERE
 - [ ] 4.3 Empty result vs error
+- [x] 4.4 `forIndex` non-existent index *(observed: hint ignored, auto-select; confirm with product)*
 
 #### Pass / fail interpretation
 

@@ -14,7 +14,7 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.aerospike.client.sdk.query.plan;
+package com.aerospike.client.sdk.query;
 
 import com.aerospike.client.sdk.AerospikeException;
 import com.aerospike.client.sdk.Cluster;
@@ -25,28 +25,18 @@ import com.aerospike.client.sdk.policy.Behavior.Mode;
 import com.aerospike.client.sdk.policy.Behavior.OpKind;
 import com.aerospike.client.sdk.policy.Behavior.OpShape;
 import com.aerospike.client.sdk.policy.ResolvedSettings;
-import com.aerospike.client.sdk.query.QueryHint;
-import com.aerospike.client.sdk.query.WhereClauseProcessor;
+import com.aerospike.client.sdk.query.plan.QueryPlan;
 import com.aerospike.client.sdk.util.Version;
 
 /**
- * Runs a server query-plan probe and returns an immutable {@link QueryPlan}.
+ * Package-private probe orchestration for two-phase server index selection.
  */
-public final class IndexProbePlanner {
+final class IndexProbePlanner {
 
     private IndexProbePlanner() {
     }
 
-    /**
-     * Probe the server for index selection on a dataset WHERE clause.
-     *
-     * @param session  session supplying cluster and policies
-     * @param dataSet  namespace and set to query
-     * @param where    WHERE clause (required)
-     * @param hint     optional query hint; only {@link QueryHint.Result#getIndexName()} is sent on probe
-     * @return server query plan
-     */
-    public static QueryPlan plan(
+    static QueryPlan plan(
         Session session,
         DataSet dataSet,
         WhereClauseProcessor where,
@@ -78,7 +68,7 @@ public final class IndexProbePlanner {
     /**
      * Whether index-query {@code execute()} should probe the server and replay the returned plan.
      */
-    public static boolean useServerQuerySelection(
+    static boolean useServerQuerySelection(
         Cluster cluster,
         WhereClauseProcessor where,
         QueryHint.Result hint
@@ -99,7 +89,7 @@ public final class IndexProbePlanner {
      * On the new probe path only an explicit index name hint is sent (field {@code 21}).
      * {@code forBin} hints apply to the legacy execute path only.
      */
-    public static String indexNameHintForProbe(QueryHint.Result hint) {
+    static String indexNameHintForProbe(QueryHint.Result hint) {
         if (hint == null) {
             return null;
         }

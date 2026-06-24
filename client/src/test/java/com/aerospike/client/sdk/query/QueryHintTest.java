@@ -24,7 +24,6 @@ import java.util.function.Function;
 import org.junit.jupiter.api.Test;
 
 import com.aerospike.client.sdk.policy.QueryDuration;
-import com.aerospike.client.sdk.query.plan.IndexProbePlanner;
 
 /**
  * Tests for the {@link QueryHint} type-state API.

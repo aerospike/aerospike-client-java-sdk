@@ -35,7 +35,6 @@ import com.aerospike.client.sdk.policy.Behavior.Mode;
 import com.aerospike.client.sdk.policy.Behavior.OpKind;
 import com.aerospike.client.sdk.policy.Behavior.OpShape;
 import com.aerospike.client.sdk.policy.ResolvedSettings;
-import com.aerospike.client.sdk.query.plan.IndexProbePlanner;
 import com.aerospike.client.sdk.query.plan.QueryPlan;
 
 public class IndexQueryBuilderImpl extends QueryImpl {

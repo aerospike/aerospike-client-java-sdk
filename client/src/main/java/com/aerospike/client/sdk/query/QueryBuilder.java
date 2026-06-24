@@ -36,7 +36,6 @@ import com.aerospike.client.sdk.command.Txn;
 import com.aerospike.client.sdk.exp.Exp;
 import com.aerospike.client.sdk.exp.Expression;
 import com.aerospike.client.sdk.policy.QueryDuration;
-import com.aerospike.client.sdk.query.plan.IndexProbePlanner;
 import com.aerospike.client.sdk.query.plan.QueryPlan;
 import com.aerospike.client.sdk.tend.Partition;
 
@@ -402,15 +401,10 @@ public class QueryBuilder extends AbstractFilterableBuilder implements
     /**
      * Runs a server query-plan probe for this dataset query's WHERE clause.
      *
-     * <p>Requires {@link com.aerospike.client.sdk.Cluster#supportsQuerySelection()} and a
-     * {@code where} clause. Optional {@link #withHint} {@code forIndex} is sent as field
-     * {@code 21} on the probe; {@code forBin} is not used on the probe path.</p>
-     *
-     * @return immutable server query plan (PI, SI, or filtered out)
-     * @throws AerospikeException if the cluster does not support query selection, no WHERE
-     *         clause was set, or the probe fails
+     * <p>Package-private for integration tests. Application code should use {@link #execute()},
+     * which probes and executes in one step when server query selection is enabled.</p>
      */
-    public QueryPlan plan() {
+    QueryPlan plan() {
         if (!implementation.allowsSecondaryIndexQuery()) {
             throw new AerospikeException("Query plan is only supported for dataset queries");
         }

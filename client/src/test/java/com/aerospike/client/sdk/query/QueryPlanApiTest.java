@@ -47,7 +47,7 @@ class QueryPlanApiTest extends ClusterTest {
     @Test
     void planRequiresWhereClause() {
         AerospikeException ex = assertThrows(AerospikeException.class, () ->
-            session.query(dataSet).plan());
+            ((QueryBuilder) session.query(dataSet)).plan());
         assertTrue(ex.getMessage().contains("where"));
     }
 
@@ -57,7 +57,7 @@ class QueryPlanApiTest extends ClusterTest {
         try {
             cluster.setVersion(Version.SERVER_VERSION_8_1_2);
             AerospikeException ex = assertThrows(AerospikeException.class, () ->
-                session.query(dataSet).where("$.age > 30").plan());
+                ((QueryBuilder) session.query(dataSet)).where("$.age > 30").plan());
             assertTrue(ex.getMessage().contains("query selection"));
         } finally {
             cluster.setVersion(saved);
