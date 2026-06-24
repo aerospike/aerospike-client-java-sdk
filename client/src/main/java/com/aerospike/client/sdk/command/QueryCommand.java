@@ -29,6 +29,7 @@ import com.aerospike.client.sdk.policy.ResolvedSettings;
 import com.aerospike.client.sdk.query.Filter;
 import com.aerospike.client.sdk.query.QueryBuilder;
 import com.aerospike.client.sdk.query.QueryHint;
+import com.aerospike.client.sdk.query.plan.QueryPlan;
 
 public final class QueryCommand extends Command {
     final String set;
@@ -42,14 +43,50 @@ public final class QueryCommand extends Command {
     final int recordsPerSecond;
     final int readTouchTtlPercent;
     final boolean withNoBins;
+    final boolean planDriven;
 
     public QueryCommand(
         Cluster cluster, DataSet set, Filter filter, Expression filterExp,
         ResolvedSettings settings, QueryBuilder qb
     ) {
+        this(cluster, set, filter, filterExp, settings, qb, null);
+    }
+
+    /**
+     * Build an execute command from a server {@link QueryPlan} (probe result).
+     * Plan pins win over query hints; field {@code 43} is replayed verbatim from the plan.
+     */
+    public static QueryCommand forPlan(
+        Cluster cluster,
+        DataSet set,
+        QueryPlan plan,
+        ResolvedSettings settings,
+        QueryBuilder qb
+    ) {
+        if (plan.isFilteredOut()) {
+            throw com.aerospike.client.sdk.AerospikeException.resultCodeToException(
+                com.aerospike.client.sdk.ResultCode.FILTERED_OUT,
+                "Query plan filtered out by server",
+                false
+            );
+        }
+
+        Filter filter = null;
+        if (plan.isSecondaryIndex()) {
+            filter = Filter.fromWireRange(plan.getIndexName(), plan.getIndexRangeBytes());
+        }
+        Expression filterExp = Expression.fromBytes(plan.getPredicateBytes());
+        return new QueryCommand(cluster, set, filter, filterExp, settings, qb, plan);
+    }
+
+    private QueryCommand(
+        Cluster cluster, DataSet set, Filter filter, Expression filterExp,
+        ResolvedSettings settings, QueryBuilder qb, QueryPlan plan
+    ) {
         super(cluster, set.getNamespace(), null, filterExp, settings.getReplicaOrder(), settings);
         this.set = set.getSet();
-        this.filter = applyHintToFilter(filter, qb.getQueryHint());
+        this.planDriven = plan != null;
+        this.filter = planDriven ? filter : applyHintToFilter(filter, qb.getQueryHint());
 
         this.pf = PartitionFilter.range(qb.getStartPartition(),
             qb.getEndPartition() - qb.getStartPartition());
@@ -71,6 +108,10 @@ public final class QueryCommand extends Command {
         else {
             this.maxRecords = 0;
         }
+    }
+
+    public boolean isPlanDriven() {
+        return planDriven;
     }
 
     public void execute(AsyncRecordStream stream) {

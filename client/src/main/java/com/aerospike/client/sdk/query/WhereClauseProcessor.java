@@ -16,8 +16,6 @@
  */
 package com.aerospike.client.sdk.query;
 
-import java.util.Objects;
-
 import com.aerospike.ael.ParseResult;
 import com.aerospike.client.sdk.AelMaterializer;
 import com.aerospike.client.sdk.Session;
@@ -46,7 +44,6 @@ public abstract class WhereClauseProcessor {
      * Full WHERE as wire {@link Expression} for index-probe field {@code 43} (no client index selection).
      */
     public final Expression toProbeExpression(Session session) {
-        Objects.requireNonNull(session, "session must not be null");
         if (this instanceof WhereStringImpl s) {
             return AelMaterializer.expressionForQueryProbe(s.ael);
         }
@@ -64,6 +61,13 @@ public abstract class WhereClauseProcessor {
 
     public WhereClauseProcessor(boolean allowsIndex) {
         this.allowsIndex = allowsIndex;
+    }
+
+    /**
+     * Whether this WHERE may participate in secondary-index query planning (AEL string / prepared).
+     */
+    public final boolean allowsIndex() {
+        return allowsIndex;
     }
 
     private static class WhereStringImpl extends WhereClauseProcessor {

@@ -809,8 +809,7 @@ public final class CommandBuffer {
 
             // Estimate INDEX_RANGE field.
             dataOffset += Command.FIELD_HEADER_SIZE;
-            filterSize++;  // num filters
-            filterSize += filter.estimateSize();
+            filterSize += indexRangeBodySize(filter);
 
             dataOffset += filterSize;
             fieldCount++;
@@ -966,8 +965,7 @@ public final class CommandBuffer {
             }
 
             writeFieldHeader(filterSize, FieldType.INDEX_RANGE);
-            dataBuffer[dataOffset++] = (byte)1;
-            dataOffset = filter.write(dataBuffer, dataOffset);
+            dataOffset = writeIndexRangeBody(filter, dataOffset);
 
             if (packedCtx != null) {
                 writeFieldHeader(packedCtx.length, FieldType.INDEX_CONTEXT);
@@ -1158,8 +1156,7 @@ public final class CommandBuffer {
 
             // Estimate INDEX_RANGE field.
             dataOffset += Command.FIELD_HEADER_SIZE;
-            filterSize++;  // num filters
-            filterSize += filter.estimateSize();
+            filterSize += indexRangeBodySize(filter);
 
             dataOffset += filterSize;
             fieldCount++;
@@ -1298,8 +1295,7 @@ public final class CommandBuffer {
             }
 
             writeFieldHeader(filterSize, FieldType.INDEX_RANGE);
-            dataBuffer[dataOffset++] = (byte)1;
-            dataOffset = filter.write(dataBuffer, dataOffset);
+            dataOffset = writeIndexRangeBody(filter, dataOffset);
 
             if (packedCtx != null) {
                 writeFieldHeader(packedCtx.length, FieldType.INDEX_CONTEXT);
@@ -1979,6 +1975,21 @@ public final class CommandBuffer {
                 def.end();
             }
         }
+    }
+
+    private static int indexRangeBodySize(Filter filter) {
+        if (filter.hasWireRange()) {
+            return filter.estimateSize();
+        }
+        return 1 + filter.estimateSize();
+    }
+
+    private int writeIndexRangeBody(Filter filter, int offset) {
+        if (filter.hasWireRange()) {
+            return filter.write(dataBuffer, offset);
+        }
+        dataBuffer[offset++] = (byte)1;
+        return filter.write(dataBuffer, offset);
     }
 
     //--------------------------------------------------

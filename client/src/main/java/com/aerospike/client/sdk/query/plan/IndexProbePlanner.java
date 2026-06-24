@@ -16,14 +16,11 @@
  */
 package com.aerospike.client.sdk.query.plan;
 
-import java.util.Objects;
-
 import com.aerospike.client.sdk.AerospikeException;
 import com.aerospike.client.sdk.Cluster;
 import com.aerospike.client.sdk.DataSet;
 import com.aerospike.client.sdk.Session;
 import com.aerospike.client.sdk.command.IndexProbeCommand;
-import com.aerospike.client.sdk.exp.Expression;
 import com.aerospike.client.sdk.policy.Behavior.Mode;
 import com.aerospike.client.sdk.policy.Behavior.OpKind;
 import com.aerospike.client.sdk.policy.Behavior.OpShape;
@@ -55,10 +52,6 @@ public final class IndexProbePlanner {
         WhereClauseProcessor where,
         QueryHint.Result hint
     ) {
-        Objects.requireNonNull(session, "session must not be null");
-        Objects.requireNonNull(dataSet, "dataSet must not be null");
-        Objects.requireNonNull(where, "Query plan requires a where clause");
-
         Cluster cluster = session.getCluster();
         if (!cluster.supportsQuerySelection()) {
             Version version = cluster.getVersion();
@@ -69,19 +62,37 @@ public final class IndexProbePlanner {
             );
         }
 
-        Expression predicate = where.toProbeExpression(session);
-        String indexNameHint = indexNameHintForProbe(hint);
         ResolvedSettings settings = session.getBehavior().getSettings(OpKind.READ, OpShape.QUERY, Mode.ANY);
 
         IndexProbeCommand cmd = new IndexProbeCommand(
             cluster,
             dataSet.getNamespace(),
             dataSet.getSet(),
-            predicate,
-            indexNameHint,
+            where.toProbeExpression(session),
+            indexNameHintForProbe(hint),
             settings
         );
         return cmd.execute();
+    }
+
+    /**
+     * Whether index-query {@code execute()} should probe the server and replay the returned plan.
+     */
+    public static boolean useServerQuerySelection(
+        Cluster cluster,
+        WhereClauseProcessor where,
+        QueryHint.Result hint
+    ) {
+        if (!cluster.supportsQuerySelection()) {
+            return false;
+        }
+        if (where == null || !where.allowsIndex()) {
+            return false;
+        }
+        if (hint != null && hint.getBinName() != null) {
+            return false;
+        }
+        return true;
     }
 
     /**

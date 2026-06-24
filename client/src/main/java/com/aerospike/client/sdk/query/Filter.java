@@ -639,8 +639,26 @@ public final class Filter {
             indexName != null ? indexName : source.indexName,
             source.colType, source.valType,
             source.begin, source.end,
-            source.packedCtx, source.packedExp
+            source.packedCtx, source.packedExp,
+            source.wireRangeBytes
         );
+    }
+
+    /**
+     * Replay opaque {@code INDEX_RANGE} field body from a server query-plan probe (field {@code 22}).
+     * The bytes are written verbatim on execute; they include the filter count and wire bodies.
+     *
+     * @param indexName   secondary-index registry name from probe field {@code 21}
+     * @param rangeBytes  opaque {@code INDEX_RANGE} payload from probe field {@code 22}
+     */
+    public static Filter fromWireRange(String indexName, byte[] rangeBytes) {
+        if (indexName == null || indexName.isEmpty()) {
+            throw new IllegalArgumentException("indexName must not be null or empty");
+        }
+        if (rangeBytes == null || rangeBytes.length == 0) {
+            throw new IllegalArgumentException("rangeBytes must not be null or empty");
+        }
+        return new Filter(indexName, rangeBytes);
     }
 
     private final String name;
@@ -651,17 +669,22 @@ public final class Filter {
     private final Value begin;
     private final Value end;
     private final byte[] packedExp;
+    private final byte[] wireRangeBytes;
 
     private Filter(String name, IndexCollectionType colType, int valType, Value begin, Value end, CTX[] ctx) {
-        this(name, null, colType, valType, begin, end, (ctx != null && ctx.length > 0) ? Pack.pack(ctx) : null, null);
+        this(name, null, colType, valType, begin, end, (ctx != null && ctx.length > 0) ? Pack.pack(ctx) : null, null, null);
     }
 
     private Filter(String indexName, byte[] exp, IndexCollectionType colType, int valType, Value begin, Value end) {
-        this(null, indexName, colType, valType, begin, end, null, exp);
+        this(null, indexName, colType, valType, begin, end, null, exp, null);
+    }
+
+    private Filter(String indexName, byte[] wireRangeBytes) {
+        this(null, indexName, IndexCollectionType.DEFAULT, 0, null, null, null, null, wireRangeBytes);
     }
 
     Filter(String name, String indexName, IndexCollectionType colType, int valType, Value begin, Value end,
-           byte[] packedCtx, byte[] packedExp) {
+           byte[] packedCtx, byte[] packedExp, byte[] wireRangeBytes) {
         this.name = name;
         this.indexName = indexName;
         this.colType = colType;
@@ -670,6 +693,7 @@ public final class Filter {
         this.end = end;
         this.packedCtx = packedCtx;
         this.packedExp = packedExp;
+        this.wireRangeBytes = wireRangeBytes;
     }
 
     /**
@@ -677,8 +701,19 @@ public final class Filter {
      * For internal use only.
      */
     public int estimateSize() {
+        if (wireRangeBytes != null) {
+            return wireRangeBytes.length;
+        }
         // bin name size(1) + particle type size(1) + begin particle size(4) + end particle size(4) = 10
         return Buffer.estimateSizeUtf8(name) + begin.estimateSize() + end.estimateSize() + 10;
+    }
+
+    /**
+     * Whether this filter replays opaque server {@code INDEX_RANGE} bytes instead of a structured range.
+     * For internal use only.
+     */
+    public boolean hasWireRange() {
+        return wireRangeBytes != null;
     }
 
     /**
@@ -686,6 +721,11 @@ public final class Filter {
      * For internal use only.
      */
     public int write(byte[] buf, int offset) {
+        if (wireRangeBytes != null) {
+            System.arraycopy(wireRangeBytes, 0, buf, offset, wireRangeBytes.length);
+            return offset + wireRangeBytes.length;
+        }
+
         // Write name.
         int len = Buffer.stringToUtf8(name, buf, offset + 1);
         buf[offset] = (byte)len;

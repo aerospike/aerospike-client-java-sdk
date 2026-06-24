@@ -35,6 +35,8 @@ import com.aerospike.client.sdk.policy.Behavior.Mode;
 import com.aerospike.client.sdk.policy.Behavior.OpKind;
 import com.aerospike.client.sdk.policy.Behavior.OpShape;
 import com.aerospike.client.sdk.policy.ResolvedSettings;
+import com.aerospike.client.sdk.query.plan.IndexProbePlanner;
+import com.aerospike.client.sdk.query.plan.QueryPlan;
 
 public class IndexQueryBuilderImpl extends QueryImpl {
     private final DataSet dataSet;
@@ -121,17 +123,26 @@ public class IndexQueryBuilderImpl extends QueryImpl {
 
         ResolvedSettings policy = session.getBehavior().getSettings(OpKind.READ, OpShape.QUERY, Mode.ANY);
         WhereClauseProcessor where = getQueryBuilder().getAel();
-        Filter filter = null;
-        Expression filterExp = null;
+        QueryCommand cmd;
 
-        if (where != null) {
-            ParseResult pr = where.process(dataSet.getNamespace(), getSession());
-            filter = pr.getFilter();
-            filterExp = pr.getExpression();
+        if (IndexProbePlanner.useServerQuerySelection(cluster, where, qb.getQueryHint())) {
+            QueryPlan plan = IndexProbePlanner.plan(session, dataSet, where, qb.getQueryHint());
+            cmd = QueryCommand.forPlan(cluster, dataSet, plan, policy, qb);
+        }
+        else {
+            Filter filter = null;
+            Expression filterExp = null;
+
+            if (where != null) {
+                ParseResult pr = where.process(dataSet.getNamespace(), dataSet.getSet(), session);
+                filter = pr.getFilter();
+                filterExp = pr.getExpression();
+            }
+
+            cmd = new QueryCommand(cluster, dataSet, filter, filterExp, policy, qb);
         }
 
         AsyncRecordStream stream = new AsyncRecordStream(policy.getRecordQueueSize());
-        QueryCommand cmd = new QueryCommand(cluster, dataSet, filter, filterExp, policy, qb);
         cmd.execute(stream);
 
         if (qb.getChunkSize() == 0) {

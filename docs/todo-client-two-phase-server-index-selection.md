@@ -2,7 +2,7 @@
 
 Implementation checklist for the fluent Java client.
 
-**Progress:** Phase 0 + Phase 1 (encoder + API) done. Next: opaque `22` replay + execute wiring + integration tests.
+**Progress:** Phase 0 + Phase 1 + Phase 2 **code** done (unit tests). **Next: dedicated integration tests** on query-selection server (`suresh/dsl-query-optimizer`). Real version gate in `supportsQuerySelection()` after E2E is green (gate is stubbed `true` for dev only).
 
 **Sources of truth**
 
@@ -99,12 +99,13 @@ Both shapes are accepted by the server execute handler. New-client work follows 
 
 ## Client gaps (what we still need to build)
 
-1. **Opaque replay of field `22`** — `Filter.write()` only builds structured ranges. Add passthrough for probe response bytes (e.g. `Filter.fromWireRange(indexName, rangeBytes)` or `CommandBuffer` hook).
+1. ~~**Opaque replay of field `22`**~~ — `Filter.fromWireRange(indexName, rangeBytes)` + `CommandBuffer` opaque body write. ✅
 2. ~~**Probe encoder**~~ — `CommandBuffer.setIndexProbe(IndexProbeCommand)` (no `chooseExprForFilter`, no field `22`).
-3. ~~**Predicate bytes lifecycle**~~ — **`QueryPlan` stores `predicateBytes`**; still need probe encoder + execute replay wiring.
-4. **Capability gate** — `Cluster.supportsQuerySelection()` (version/feature check until tend advertises it). On merged servers, selection + server AEL ship together; gate may imply AEL-on-wire. Fallback to legacy path when unsupported.
-5. **Hint rules** — new path: `QueryHint.forIndex(...)` → field `21` on **probe only**. Do **not** send `QueryHint.forBin(...)` on probe (Slack: index name only). Legacy `forBin` / `forIndex` behavior unchanged when gate is off.
+3. ~~**Predicate bytes lifecycle**~~ — **`QueryPlan` stores `predicateBytes`**; probe encoder + execute replay wiring done.
+4. **Capability gate (partial)** — routing via `IndexProbePlanner.useServerQuerySelection()` + `execute()` branch. `Cluster.supportsQuerySelection()` **stubbed `true` for dev** (`versionGE813` commented out). Wire real version/tend check **after** integration tests pass; until then gate-off = legacy fallback.
+5. **Hint rules (partial)** — new path: `QueryHint.forIndex(...)` → field `21` on probe only; `forBin` forces legacy execute. Unit-tested on probe; not integration-tested on full probe→execute.
 6. **Field `43` factory** — interim: compile AEL → packed exp for probe/execute. Post-merge: add capability branch for `fromServerCompiledFilter(ael)`; keep both paths until product drops client compile.
+7. **Integration tests** — probe → execute against `suresh/dsl-query-optimizer` (or equivalent) server; see Tests section.
 
 ---
 
@@ -142,23 +143,48 @@ Both shapes are accepted by the server execute handler. New-client work follows 
 
 ### API ✅
 
-- [x] `Cluster.supportsQuerySelection()`.
+- [x] `Cluster.supportsQuerySelection()` — method exists; **version check stubbed** (`return true`) until tend advertises capability.
 - [x] `Session.planQuery(...)` / `QueryBuilder.plan()` — build `IndexProbeCommand`, return `QueryPlan`.
 - [x] Field `43` material for probe: **interim** — compile AEL → packed expression bytes (`AelMaterializer.expressionForQueryProbe` / `WhereClauseProcessor.toProbeExpression`); no client index selection. **Later** — capability branch for `fromServerCompiledFilter(ael)`.
 
 ---
 
-## Phase 2 — execute with plan
+## Phase 2 — execute with plan (code ✅, E2E not validated)
 
-- [ ] Wire `IndexQueryBuilderImpl` / `QueryCommand` to accept optional `QueryPlan`.
-- [ ] Guess-path `execute()`: if gate on and no explicit legacy override → probe then execute.
-- [ ] **PI plan:** `filter = null`; `filterExp` = `predicateBytes` from plan; normal `setQuery`.
-- [ ] **SI plan:**
-  - `filter` = opaque replay of `indexRangeBytes` + `indexName` from plan (not client-built).
+**Scope:** `IndexQueryBuilderImpl` guess-path `execute()` only (`allowsIndex` WHERE, no `QueryHint.forBin`). Pagination re-probe, background query, and other entry points remain out of scope (see Out of scope).
+
+### Wiring ✅
+
+- [x] `QueryCommand.forPlan(...)` — build execute from `QueryPlan` (PI / SI / `FILTERED_OUT` → exception).
+- [x] Guess-path `execute()`: when `IndexProbePlanner.useServerQuerySelection()` → sync probe, then async execute with plan.
+- [x] **PI plan:** `filter = null`; `filterExp` = `predicateBytes` from plan; normal `setQuery`.
+- [x] **SI plan:**
+  - `filter` = opaque replay of `indexRangeBytes` + `indexName` from plan (`Filter.fromWireRange`, not client-built).
   - `filterExp` = same `predicateBytes` as probe (full field-`43` replay).
   - `setQuery` with `INFO4` bit 7 clear (default).
-- [ ] Do **not** run `chooseExprForFilter` on the new path.
-- [ ] `QueryCommand.applyHintToFilter` — not used when plan pins index; plan wins.
+- [x] No `chooseExprForFilter` / client index selection on the new path.
+- [x] `QueryCommand.applyHintToFilter` skipped when plan-driven; plan pins win.
+
+### Still open
+
+- [ ] **Integration tests** (primary next step — see Tests section).
+- [ ] Real `supportsQuerySelection()` version gate (after E2E green; stub OK for dev).
+- [ ] Broader “explicit legacy override” beyond `forBin` / `!allowsIndex` (if product needs it).
+
+### E2E triage notes (existing suite, gate stubbed `true`)
+
+Running the full query integration suite against a query-selection server commit may show **0 records** on many tests. That pattern is **expected until probe→execute E2E is validated** — not evidence of unrelated client regressions.
+
+| Symptom | Likely cause |
+|---------|----------------|
+| String-AEL `where(...).execute()` → 0 rows | New path: probe + `forPlan` execute (field `43` full replay + opaque `22`) |
+| Same tests pass with gate `false` | Legacy path still works; routing is the delta |
+| `where(Exp)` tests pass (`QueryIntegerTest`, `QueryFilterExpTest`) | Non-probe path (`allowsIndex=false`); PI scan + field `43` only |
+| `QueryHintBuilderTest.queryWithBinHintExecutes` passes | `forBin` forces legacy SI (client `Filter` + residual `43`) |
+| String-AEL tests fail | **Expected for now** on selection-server branch until dedicated integ tests pass; AEL-on-wire gaps on server are a separate issue |
+| `QueryPlanApiTest` version-gate tests fail | Stub gate — ignore until `versionGE813` is wired |
+
+**Quick triage** (no new tests): `QueryIntegerTest.queryInteger` (no probe) → `queryWithBinHintExecutes` (legacy SI) → `QueryBuilder.plan()` (probe only) → string-AEL `execute()` (probe + execute).
 
 ---
 
@@ -173,13 +199,18 @@ Both shapes are accepted by the server execute handler. New-client work follows 
 | `QueryHint.forBin` | Legacy only; not on new probe path |
 | No WHERE / index not allowed | No probe; existing behavior |
 
+*Today `supportsQuerySelection()` is stubbed `true` for dev — all string-AEL dataset queries probe. Set to `false` locally to run legacy suite against selection server without probe routing.*
+
+**Note:** There is no public `where(Filter)` API. True legacy SI (field `22` + residual `43`) in integration tests today = string AEL + `forBin` hint, or reflection (see `MIGRATION.md`). `where(Exp)` never uses SI on the wire (PI scan only).
+
 ---
 
 ## Orchestration and UX
 
-- [ ] `execute()` runs probe + execute transparently on guess path when supported.
-- [ ] Optional `plan()` / `explain()` for visibility (selection, index name).
-- [ ] Probe is sync; execute stays async via `QueryExecutor`.
+- [x] `execute()` runs probe + execute transparently on guess path when `useServerQuerySelection()` (`IndexQueryBuilderImpl`).
+- [x] `plan()` for visibility (`QueryBuilder.plan()` / `Session.planQuery()` — Phase 1).
+- [ ] `explain()` (optional; not implemented).
+- [x] Probe is sync (`IndexProbeExecutor`); execute stays async via `QueryExecutor` (unchanged).
 
 ---
 
@@ -190,18 +221,32 @@ Both shapes are accepted by the server execute handler. New-client work follows 
 - [x] Probe buffer layout (`IndexProbeCommandTest`).
 - [x] `MsgFieldParser`: field TLV parsing + `RecordParser` integration (`MsgFieldParserTest`).
 - [x] `QueryPlan.fromProbeResponse`: PI / SI / FILTERED_OUT / inconsistent response (`QueryPlanTest`).
-- [x] `QueryPlan.predicateBytes` defensive copy (`QueryPlanTest`).
-- [ ] Opaque `22` replay: probe bytes → `setQuery` field `22` matches input.
+- [x] Opaque `22` replay: probe bytes → `setQuery` field `22` matches input (`FilterWireRangeTest`, `QueryPlanExecuteWireTest`).
 
-### Integration (index-selection server today; merged server + AEL later)
+### Integration (index-selection server: `suresh/dsl-query-optimizer`)
 
-- [ ] Probe → SI execute: correct records for compound predicate (e.g. `age > 30 && country = "US"`) — **packed exp in `43`** against current tree.
-- [ ] Probe → PI execute: scan + filter.
-- [ ] `FILTERED_OUT` from probe surfaced to caller.
-- [ ] Optional field `21` hint on probe when index name provided.
-- [ ] Gate off / old server: legacy path unchanged, same results as today.
-- [ ] New path vs legacy path: same query, both return equivalent results (where both apply).
-- [ ] **Post-merge:** probe + execute with server-AEL bytes in `43` when capability enabled.
+**Goal:** Prove probe → execute on **packed predexp in field `43`** (interim encoding). Dedicated tests first; then decide if existing string-AEL suite should pass or stay legacy-gated.
+
+#### New tests (add first)
+
+- [ ] **`QueryPlanIntegrationTest`** (or similar) — minimal dataset + index; `plan()` asserts `QuerySelection`, `indexName`, `indexRangeBytes` non-null on SI predicate.
+- [ ] Probe → SI execute — simple range on one indexed integer bin; expect correct record count (packed predexp in field `43`).
+- [ ] Probe → PI execute — predicate with no usable SI; field `43` only, no `21`/`22`.
+- [ ] `FILTERED_OUT` from probe → exception on `execute()` (and/or empty `plan()` contract).
+- [ ] `forIndex` hint on probe — field `21` sent; plan pins index.
+- [ ] `forBin` hint — **legacy path only** (`execute()` must not probe); same results as pre-selection client.
+
+#### Regression / routing (reuse existing tests where possible)
+
+- [ ] Gate off (`supportsQuerySelection() == false`) — string-AEL queries use legacy; spot-check `QueryStringTest` or equivalent.
+- [ ] `where(Exp)` with index present — still PI scan, no probe (`QueryIntegerTest`).
+- [ ] Legacy SI smoke — `QueryHintBuilderTest.queryWithBinHintExecutes`.
+
+#### Later / post-merge
+
+- [ ] New path vs legacy path: same string-AEL query, equivalent results (where product says they should match).
+- [ ] Probe + execute with server-AEL bytes in `43` when capability enabled.
+- [ ] Do **not** block v1 on full existing AEL string suite passing on selection-only server — AEL wire gaps are expected on that branch.
 
 ---
 
@@ -209,10 +254,10 @@ Both shapes are accepted by the server execute handler. New-client work follows 
 
 1. ~~Constants + `QueryPlan` + `MsgFieldParser`~~ ✅
 2. ~~`IndexProbeCommand` / `IndexProbeExecutor` + `setIndexProbe` + unit tests~~ ✅
-4. [ ] Capability gate wired into execute — `supportsQuerySelection` + auto probe in `execute()`
-5. Opaque `22` replay in `Filter` / `CommandBuffer`
-6. `IndexQueryBuilderImpl` wiring (plan → execute, full `43` replay)
-7. Integration tests
+3. ~~Opaque `22` replay in `Filter` / `CommandBuffer`~~ ✅
+4. ~~`IndexQueryBuilderImpl` + `QueryCommand.forPlan` wiring~~ ✅ (guess-path `execute()` only)
+5. **Integration tests** — dedicated probe→execute tests on `suresh/dsl-query-optimizer`; triage table above.
+6. **Real capability gate** — `versionGE813` (or tend flag) once step 5 passes.
 
 ---
 
@@ -222,9 +267,9 @@ Both shapes are accepted by the server execute handler. New-client work follows 
 |------|--------|--------|
 | Protocol | `Command.java`, `CommandBuffer.java`, `IndexProbeCommand.java`, `IndexProbeExecutor.java`, `MsgFieldParser.java` | done |
 | API | `Session.java`, `QueryBuilder.java`, `IndexQueryBuilderImpl.java`, `IndexProbePlanner.java`, `WhereClauseProcessor.java`, `QueryPlan.java` | done |
-| Query wire | `Filter.java`, `QueryCommand.java` | |
-| AEL compile | `AelMaterializer.java` — `expressionForQueryProbe` done; optional `fromServerCompiledFilter` after merge | partial |
-| Cluster | `Cluster.java`, `Version.java` | done |
-| Tests | `MsgFieldParserTest.java`, `QueryPlanTest.java`, `IndexProbeCommandTest.java`, integration TBD | unit tests done |
+| Query wire | `Filter.java`, `QueryCommand.java` | done (unit-tested wire layout) |
+| AEL compile | `AelMaterializer.java` — `expressionForQueryProbe` done; `fromServerCompiledFilter` after merge | partial |
+| Cluster | `Cluster.java`, `Version.java` | partial — `supportsQuerySelection()` stubbed `true` |
+| Tests | unit tests done; integration TBD | partial |
 
 **Not required on new path:** changes to `VisitorUtils.getFilterExp` / residual split / `IndexContext` for server-led selection.
