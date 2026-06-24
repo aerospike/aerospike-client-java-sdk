@@ -2,7 +2,7 @@
 
 Implementation checklist for the fluent Java client.
 
-**Progress:** Phase 0 + Phase 1 + Phase 2 **code** done (unit tests). **Next: dedicated integration tests** on query-selection server (`suresh/dsl-query-optimizer`). Real version gate in `supportsQuerySelection()` after E2E is green (gate is stubbed `true` for dev only).
+**Progress:** Phase 0 + Phase 1 + Phase 2 **code** done; **Tier 1 integration tests** done. **Next:** Tier 2 probe→execute E2E, then docs/examples, then real version gate (`supportsQuerySelection()` stubbed `true` for dev).
 
 **Sources of truth**
 
@@ -105,7 +105,8 @@ Both shapes are accepted by the server execute handler. New-client work follows 
 4. **Capability gate (partial)** — routing via `IndexProbePlanner.useServerQuerySelection()` + `execute()` branch. `Cluster.supportsQuerySelection()` **stubbed `true` for dev** (`versionGE813` commented out). Wire real version/tend check **after** integration tests pass; until then gate-off = legacy fallback.
 5. **Hint rules (partial)** — new path: `QueryHint.forIndex(...)` → field `21` on probe only; `forBin` forces legacy execute. Unit-tested on probe; not integration-tested on full probe→execute.
 6. **Field `43` factory** — interim: compile AEL → packed exp for probe/execute. Post-merge: add capability branch for `fromServerCompiledFilter(ael)`; keep both paths until product drops client compile.
-7. **Integration tests** — probe → execute against `suresh/dsl-query-optimizer` (or equivalent) server; see Tests section.
+7. **Integration tests** — Tier 1 probe tests done (`QuerySelectionIntegrationTest`); Tier 2 execute E2E in progress; see Tests section.
+8. **Documentation & examples** — user-facing guide for server-led selection and hint overrides; see Documentation section.
 
 ---
 
@@ -144,7 +145,7 @@ Both shapes are accepted by the server execute handler. New-client work follows 
 ### API ✅
 
 - [x] `Cluster.supportsQuerySelection()` — method exists; **version check stubbed** (`return true`) until tend advertises capability.
-- [x] `Session.planQuery(...)` / `QueryBuilder.plan()` — build `IndexProbeCommand`, return `QueryPlan`.
+- [x] Probe orchestration — package-private `IndexProbePlanner`; **no public `plan()` / `planQuery()`** (transparent `execute()` only).
 - [x] Field `43` material for probe: **interim** — compile AEL → packed expression bytes (`AelMaterializer.expressionForQueryProbe` / `WhereClauseProcessor.toProbeExpression`); no client index selection. **Later** — capability branch for `fromServerCompiledFilter(ael)`.
 
 ---
@@ -167,7 +168,8 @@ Both shapes are accepted by the server execute handler. New-client work follows 
 
 ### Still open
 
-- [ ] **Integration tests** (primary next step — see Tests section).
+- [ ] **Integration tests** — Tier 2+ (execute E2E); see Tests section.
+- [ ] **Documentation & examples** — see Documentation section.
 - [ ] Real `supportsQuerySelection()` version gate (after E2E green; stub OK for dev).
 - [ ] Broader “explicit legacy override” beyond `forBin` / `!allowsIndex` (if product needs it).
 
@@ -208,7 +210,7 @@ Running the full query integration suite against a query-selection server commit
 ## Orchestration and UX
 
 - [x] `execute()` runs probe + execute transparently on guess path when `useServerQuerySelection()` (`IndexQueryBuilderImpl`).
-- [x] `plan()` for visibility (`QueryBuilder.plan()` / `Session.planQuery()` — Phase 1).
+- [x] No public probe/plan API — selection is internal; users call `.where(...).execute()` only.
 - [ ] `explain()` (optional; not implemented).
 - [x] Probe is sync (`IndexProbeExecutor`); execute stays async via `QueryExecutor` (unchanged).
 
@@ -350,14 +352,63 @@ Proves gate logic; legacy paths must not be accidentally probed.
 
 ---
 
+## Documentation & examples
+
+User-facing material for **server-led index selection** (two-phase probe → execute) and **overriding** selection via `QueryHint`. No public `plan()` API — examples show `execute()` only.
+
+**Prerequisites to state in all docs:** server build with query selection (e.g. 8.1.3+ / feature branch); secondary index created before querying; string-AEL `where(...)` on dataset queries (not `where(Exp)` for SI path).
+
+### Examples (`examples/`)
+
+| Item | File | Show |
+|------|------|------|
+| E1 | **`ServerQuerySelectionExample.java`** *(new)* | End-to-end: create index, seed data, **default** `where("$.age …").execute()` — server auto-selects SI vs PI; print record count. No `plan()` call. |
+| E2 | same or section in E1 | **`forIndex("age_idx")`** — pin index name on probe (field `21`); when to use vs auto-select; note bogus name may be ignored (observed server behavior). |
+| E3 | same or section in E1 | **`forBin("age")`** — **legacy** client index selection (forces pre-selection path); contrast with E2 on same WHERE. |
+| E4 | same | Optional: `queryDuration(SHORT)` combined with `forIndex`; unsatisfiable WHERE → `FilteredException` on execute. |
+| E5 | `QueryExamples.java` | Refresh **Query hints** section: label **new path** (`forIndex`) vs **legacy override** (`forBin`); link to `ServerQuerySelectionExample`. |
+| E6 | `Main.java` | Register `ServerQuerySelectionExample` in `EXAMPLE_NAMES` and usage list. |
+| E7 | `examples/README` or run script | One-liner how to run: `./run_examples ServerQuerySelectionExample -h host -p port` |
+
+- [ ] E1 Default server-led query (`execute()` only)
+- [ ] E2 Override with `forIndex`
+- [ ] E3 Legacy override with `forBin`
+- [ ] E4 Duration + filtered-out *(optional)*
+- [ ] E5 Update `QueryExamples` hints commentary
+- [ ] E6 Register in `Main.java`
+- [ ] E7 Run instructions in examples docs
+
+### README & docs
+
+| Doc | Update |
+|-----|--------|
+| **`README.md`** | Quick Start / Features: note that on supported servers, string-AEL dataset queries use **server index selection** (probe + execute under the hood). Link to user guide. Mention `withHint(forIndex)` / `withHint(forBin)` briefly. |
+| **`docs/key-features.md`** | **Queries & scans** / AEL: replace “automatic secondary index selection” (client-only) with **server-led** when `supportsQuerySelection()`; table row for **Query hints** (`forIndex` vs `forBin` vs `queryDuration`). |
+| **`docs/api-builder-reference.md`** | Expand `.withHint(...)` — type-state API, routing table (`forIndex` → probe field `21`; `forBin` → legacy path), code snippets. |
+| **`docs/query-selection-user-guide.md`** *(new, recommended)* | Short user guide: how it works (transparent `execute()`), when PI vs SI, hints, legacy `forBin`, server version gate, link to `docs/todo-client-two-phase-server-index-selection.md` for implementers. |
+| **`docs/ael-documentation.md`** or cross-link | One paragraph: index selection interaction with AEL `where` on dataset queries. |
+| **`docs/query-selection-and-ael-roadmap-overview.md`** | Add pointer at top: “For **using** the feature in the fluent client, see `query-selection-user-guide.md`.” |
+
+- [ ] `README.md` — server selection + hints summary
+- [ ] `docs/key-features.md` — server-led selection + hints
+- [ ] `docs/api-builder-reference.md` — `withHint` detail
+- [ ] `docs/query-selection-user-guide.md` — new user guide
+- [ ] `docs/ael-documentation.md` — cross-link *(if applicable)*
+- [ ] `docs/query-selection-and-ael-roadmap-overview.md` — link to user guide
+
+**Suggested order:** Tier 2.1 green → E1–E3 example → user guide → README / key-features → api-builder-reference.
+
+---
+
 ## Implementation order
 
 1. ~~Constants + `QueryPlan` + `MsgFieldParser`~~ ✅
 2. ~~`IndexProbeCommand` / `IndexProbeExecutor` + `setIndexProbe` + unit tests~~ ✅
 3. ~~Opaque `22` replay in `Filter` / `CommandBuffer`~~ ✅
 4. ~~`IndexQueryBuilderImpl` + `QueryCommand.forPlan` wiring~~ ✅ (guess-path `execute()` only)
-5. **Integration tests** — dedicated probe→execute tests on `suresh/dsl-query-optimizer`; triage table above.
-6. **Real capability gate** — `versionGE813` (or tend flag) once step 5 passes.
+5. ~~Integration tests Tier 1~~ ✅ — `QuerySelectionIntegrationTest`; Tier 2 execute E2E in progress.
+6. **Documentation & examples** — `ServerQuerySelectionExample` + README / key-features / user guide (see Documentation section).
+7. **Real capability gate** — `versionGE813` (or tend flag) once Tier 2 passes.
 
 ---
 
@@ -370,6 +421,7 @@ Proves gate logic; legacy paths must not be accidentally probed.
 | Query wire | `Filter.java`, `QueryCommand.java` | done (unit-tested wire layout) |
 | AEL compile | `AelMaterializer.java` — `expressionForQueryProbe` done; `fromServerCompiledFilter` after merge | partial |
 | Cluster | `Cluster.java`, `Version.java` | partial — `supportsQuerySelection()` stubbed `true` |
-| Tests | unit tests done; integration TBD | partial |
+| Tests | unit tests done; Tier 1 integration done; Tier 2 in progress | partial |
+| Docs / examples | `ServerQuerySelectionExample`, README, user guide — see Documentation section | not started |
 
 **Not required on new path:** changes to `VisitorUtils.getFilterExp` / residual split / `IndexContext` for server-led selection.
