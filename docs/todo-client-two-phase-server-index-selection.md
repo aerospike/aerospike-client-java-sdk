@@ -227,26 +227,124 @@ Running the full query integration suite against a query-selection server commit
 
 **Goal:** Prove probe → execute on **packed predexp in field `43`** (interim encoding). Dedicated tests first; then decide if existing string-AEL suite should pass or stay legacy-gated.
 
-#### New tests (add first)
+**Prerequisites:** query-selection server running; client gate on (`supportsQuerySelection() == true`); dedicated set with indexed integer bin (e.g. `age` 1–50) and predictable record distribution.
 
-- [ ] **`QueryPlanIntegrationTest`** (or similar) — minimal dataset + index; `plan()` asserts `QuerySelection`, `indexName`, `indexRangeBytes` non-null on SI predicate.
-- [ ] Probe → SI execute — simple range on one indexed integer bin; expect correct record count (packed predexp in field `43`).
-- [ ] Probe → PI execute — predicate with no usable SI; field `43` only, no `21`/`22`.
-- [ ] `FILTERED_OUT` from probe → exception on `execute()` (and/or empty `plan()` contract).
-- [ ] `forIndex` hint on probe — field `21` sent; plan pins index.
-- [ ] `forBin` hint — **legacy path only** (`execute()` must not probe); same results as pre-selection client.
+**Suggested implementation order:** Tier 1 → Tier 2 (SI first) → Tier 3 → Tier 4 → Tier 2b stretch.
 
-#### Regression / routing (reuse existing tests where possible)
+#### Tier 1 — Probe only (`plan()`)
 
-- [ ] Gate off (`supportsQuerySelection() == false`) — string-AEL queries use legacy; spot-check `QueryStringTest` or equivalent.
-- [ ] `where(Exp)` with index present — still PI scan, no probe (`QueryIntegerTest`).
-- [ ] Legacy SI smoke — `QueryHintBuilderTest.queryWithBinHintExecutes`.
+Validates server selection + client decode without execute.
+
+| # | Scenario | WHERE / hint | Assert |
+|---|----------|--------------|--------|
+| 1.1 | SI plan — simple range | `$.age >= 14 and $.age <= 18` | `SECONDARY_INDEX`; `indexName` + `indexRangeBytes` + `predicateBytes` non-null |
+| 1.2 | PI plan — no matching SI | Predicate on non-indexed bin, or shape server returns as PI | `PRIMARY_INDEX`; `indexName` / `indexRangeBytes` null |
+| 1.3 | `forIndex` hint on probe | Same as 1.1 + `forIndex("age_idx")` | Plan uses hinted index (or document server reject/fallback) |
+| 1.4 | Probe bytes stable | Call `plan()` twice on same WHERE | Same `predicateBytes`; SI plan stable (or document if server may vary) |
+| 1.5 | `Session.planQuery()` smoke | `session.planQuery(dataSet, "$.age >= 14 and $.age <= 18")` | Same as 1.1 |
+| 1.6 | FILTERED_OUT *(optional)* | Predicate server rejects | `isFilteredOut()` / exception — skip if not reproducible |
+
+- [ ] 1.1 SI plan — simple range
+- [ ] 1.2 PI plan — no matching SI
+- [ ] 1.3 `forIndex` hint on probe
+- [ ] 1.4 Probe bytes stable
+- [ ] 1.5 `Session.planQuery()` smoke
+- [ ] 1.6 FILTERED_OUT *(optional)*
+
+#### Tier 2 — Probe → execute (core E2E)
+
+Validates full two-phase flow; primary gap today (0 records on string-AEL `execute()`).
+
+| # | Scenario | Flow | Assert |
+|---|----------|------|--------|
+| 2.1 | SI execute — range | `where("$.age >= 14 and $.age <= 18").execute()` | 5 records; each `age` in [14, 18] |
+| 2.2 | SI execute — equality | `where("$.age == 25").execute()` | 1 record; `age == 25` |
+| 2.3 | PI execute | Predicate that probe returns as PI (from 1.2) | Correct filtered records; not silent empty stream |
+| 2.4 | Plan then execute consistency | `plan()` → assert SI → same `execute()` | Record count matches plan expectation |
+| 2.5 | Predicate replay | Probe then execute on same query | Execute sends same field `43` bytes as probe |
+
+**Tier 2b — after 2.1 passes:**
+
+| # | Scenario | Notes |
+|---|----------|-------|
+| 2.6 | Compound predicate | `$.age > 30 and $.country == "US"` — full `43` replay vs legacy residual |
+| 2.7 | Reading bins | `.readingOnlyBins("age").where(...).execute()` | Records + bin projection on new path |
+
+- [ ] 2.1 SI execute — range
+- [ ] 2.2 SI execute — equality
+- [ ] 2.3 PI execute
+- [ ] 2.4 Plan then execute consistency
+- [ ] 2.5 Predicate replay
+- [ ] 2.6 Compound predicate *(stretch)*
+- [ ] 2.7 Reading bins *(stretch)*
+
+#### Tier 3 — Hints & routing
+
+Proves gate logic; legacy paths must not be accidentally probed.
+
+| # | Scenario | Expected path | Assert |
+|---|----------|---------------|--------|
+| 3.1 | `forBin` → legacy | `where(...).withHint(forBin("age")).execute()` | Same count as gate-off / pre-selection; must not depend on probe |
+| 3.2 | `forIndex` → probe | `withHint(forIndex("age_idx")).execute()` | Records match; hint on probe (field `21`) |
+| 3.3 | Duration-only hint | `withHint(queryDuration(SHORT))` only | Still probes; execute returns records |
+| 3.4 | `where(Exp)` — no probe | `Exp.ge/le` on indexed bin | Correct records; non-probe path unaffected |
+| 3.5 | No WHERE | `session.query(dataSet).execute()` | Scan returns data |
+
+**Gate-off regression** *(when gate is configurable or real):*
+
+| # | Scenario | Assert |
+|---|----------|--------|
+| 3.6 | Gate off + string AEL | String-AEL query uses legacy client SI; records returned |
+
+- [ ] 3.1 `forBin` → legacy
+- [ ] 3.2 `forIndex` → probe
+- [ ] 3.3 Duration-only hint
+- [ ] 3.4 `where(Exp)` — no probe
+- [ ] 3.5 No WHERE
+- [ ] 3.6 Gate off + string AEL *(when gate wired)*
+
+#### Tier 4 — Errors & edge cases
+
+| # | Scenario | Assert |
+|---|----------|--------|
+| 4.1 | FILTERED_OUT on execute | `execute()` throws `FILTERED_OUT` (not empty stream) |
+| 4.2 | `plan()` without WHERE | `AerospikeException` |
+| 4.3 | Empty result vs error | Valid SI query with no matching data → 0 records, not exception |
+
+- [ ] 4.1 FILTERED_OUT on execute
+- [ ] 4.2 `plan()` without WHERE
+- [ ] 4.3 Empty result vs error
+
+#### Pass / fail interpretation
+
+| Result | Meaning |
+|--------|---------|
+| Tier 1 fails | Probe wire / server selection / response decode |
+| Tier 1 passes, Tier 2 fails | Execute replay (opaque `22`, full `43`) or server execute handler |
+| Tier 2 passes, existing AEL suite fails | Expected; not a v1 blocker |
+| Tier 3.4 fails | Broke non-probe path — real client bug |
+| Tier 3.1 fails | Broke legacy SI path — real client bug |
+
+#### Explicit non-goals (do not block v1)
+
+| Area | Why skip |
+|------|----------|
+| Full existing AEL suite (`QueryStringTest`, `QueryOperationsTest`, …) | Many fail on probe path today; AEL-on-wire gaps on selection-only server |
+| CDT / map / geo / blob hex literals | `INDEX_TYPE` / `INDEX_CONTEXT` not in probe response v1 |
+| Background query / UDF with selection | Out of scope v1 |
+| Pagination / chunk re-probe | Out of scope v1 |
+| Server-AEL `[128,"…"]` in field `43` | Post-merge |
+| New vs legacy equivalent results on same query | Product may differ (full `43` vs residual); separate comparison later |
+
+#### Regression smoke (reuse existing tests — optional, not blockers)
+
+- [ ] `QueryIntegerTest.queryInteger` — non-probe baseline
+- [ ] `QueryHintBuilderTest.queryWithBinHintExecutes` — legacy SI baseline
 
 #### Later / post-merge
 
 - [ ] New path vs legacy path: same string-AEL query, equivalent results (where product says they should match).
 - [ ] Probe + execute with server-AEL bytes in `43` when capability enabled.
-- [ ] Do **not** block v1 on full existing AEL string suite passing on selection-only server — AEL wire gaps are expected on that branch.
 
 ---
 
