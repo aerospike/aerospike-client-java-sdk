@@ -16,6 +16,7 @@
  */
 package com.aerospike.client.sdk.query;
 
+import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
@@ -98,13 +99,14 @@ public class QuerySelectionIntegrationTest extends ClusterTest {
             .where("$.age >= 14 and $.age <= 18")
             .plan();
 
-        assertEquals(QuerySelection.SECONDARY_INDEX, plan.getSelection());
-        assertEquals(args.namespace, plan.getNamespace());
-        assertEquals(setName, plan.getSet());
-        assertNotNull(plan.getIndexName());
-        assertNotNull(plan.getIndexRangeBytes());
-        assertNotNull(plan.getPredicateBytes());
-        assertEquals(indexName, plan.getIndexName());
+        assertAll("probeResponse",
+            () -> assertEquals(QuerySelection.SECONDARY_INDEX, plan.getSelection()),
+            () -> assertEquals(args.namespace, plan.getNamespace()),
+            () -> assertEquals(setName, plan.getSet()),
+            () -> assertNotNull(plan.getIndexName()),
+            () -> assertNotNull(plan.getIndexRangeBytes()),
+            () -> assertNotNull(plan.getPredicateBytes()),
+            () -> assertEquals(indexName, plan.getIndexName()));
     }
 
     @Test
@@ -113,12 +115,13 @@ public class QuerySelectionIntegrationTest extends ClusterTest {
             .where("$.country == 'US'")
             .plan();
 
-        assertEquals(QuerySelection.PRIMARY_INDEX, plan.getSelection());
-        assertEquals(args.namespace, plan.getNamespace());
-        assertEquals(setName, plan.getSet());
-        assertNull(plan.getIndexName());
-        assertNull(plan.getIndexRangeBytes());
-        assertNotNull(plan.getPredicateBytes());
+        assertAll("probeResponse",
+            () -> assertEquals(QuerySelection.PRIMARY_INDEX, plan.getSelection()),
+            () -> assertEquals(args.namespace, plan.getNamespace()),
+            () -> assertEquals(setName, plan.getSet()),
+            () -> assertNull(plan.getIndexName()),
+            () -> assertNull(plan.getIndexRangeBytes()),
+            () -> assertNotNull(plan.getPredicateBytes()));
     }
 
     @Test
@@ -128,10 +131,11 @@ public class QuerySelectionIntegrationTest extends ClusterTest {
             .withHint(hint -> hint.forIndex(indexName))
             .plan();
 
-        assertEquals(QuerySelection.SECONDARY_INDEX, plan.getSelection());
-        assertEquals(indexName, plan.getIndexName());
-        assertNotNull(plan.getIndexRangeBytes());
-        assertNotNull(plan.getPredicateBytes());
+        assertAll("probeResponse",
+            () -> assertEquals(QuerySelection.SECONDARY_INDEX, plan.getSelection()),
+            () -> assertEquals(indexName, plan.getIndexName()),
+            () -> assertNotNull(plan.getIndexRangeBytes()),
+            () -> assertNotNull(plan.getPredicateBytes()));
     }
 
     @Test
@@ -141,12 +145,14 @@ public class QuerySelectionIntegrationTest extends ClusterTest {
         QueryPlan first = session.query(dataSet).where(where).plan();
         QueryPlan second = session.query(dataSet).where(where).plan();
 
-        assertEquals(QuerySelection.SECONDARY_INDEX, first.getSelection());
-        assertEquals(first.getSelection(), second.getSelection());
-        assertEquals(indexName, first.getIndexName());
-        assertEquals(first.getIndexName(), second.getIndexName());
-        assertArrayEquals(first.getPredicateBytes(), second.getPredicateBytes());
-        assertArrayEquals(first.getIndexRangeBytes(), second.getIndexRangeBytes());
+        assertAll("firstProbeResponse",
+            () -> assertEquals(QuerySelection.SECONDARY_INDEX, first.getSelection()),
+            () -> assertEquals(indexName, first.getIndexName()));
+        assertAll("repeatedProbeStability",
+            () -> assertEquals(first.getSelection(), second.getSelection()),
+            () -> assertEquals(first.getIndexName(), second.getIndexName()),
+            () -> assertArrayEquals(first.getPredicateBytes(), second.getPredicateBytes()),
+            () -> assertArrayEquals(first.getIndexRangeBytes(), second.getIndexRangeBytes()));
     }
 
     @Test
@@ -157,15 +163,16 @@ public class QuerySelectionIntegrationTest extends ClusterTest {
         QueryPlan viaPlanner = IndexProbePlanner.plan(session, dataSet, whereClause, null);
         QueryPlan viaBuilder = session.query(dataSet).where(where).plan();
 
-        assertEquals(QuerySelection.SECONDARY_INDEX, viaPlanner.getSelection());
-        assertEquals(indexName, viaPlanner.getIndexName());
-        assertNotNull(viaPlanner.getIndexRangeBytes());
-        assertNotNull(viaPlanner.getPredicateBytes());
-
-        assertEquals(viaPlanner.getSelection(), viaBuilder.getSelection());
-        assertEquals(viaPlanner.getIndexName(), viaBuilder.getIndexName());
-        assertArrayEquals(viaPlanner.getPredicateBytes(), viaBuilder.getPredicateBytes());
-        assertArrayEquals(viaPlanner.getIndexRangeBytes(), viaBuilder.getIndexRangeBytes());
+        assertAll("probeResponse",
+            () -> assertEquals(QuerySelection.SECONDARY_INDEX, viaPlanner.getSelection()),
+            () -> assertEquals(indexName, viaPlanner.getIndexName()),
+            () -> assertNotNull(viaPlanner.getIndexRangeBytes()),
+            () -> assertNotNull(viaPlanner.getPredicateBytes()));
+        assertAll("plannerMatchesBuilder",
+            () -> assertEquals(viaPlanner.getSelection(), viaBuilder.getSelection()),
+            () -> assertEquals(viaPlanner.getIndexName(), viaBuilder.getIndexName()),
+            () -> assertArrayEquals(viaPlanner.getPredicateBytes(), viaBuilder.getPredicateBytes()),
+            () -> assertArrayEquals(viaPlanner.getIndexRangeBytes(), viaBuilder.getIndexRangeBytes()));
     }
 
     /**
@@ -182,11 +189,12 @@ public class QuerySelectionIntegrationTest extends ClusterTest {
             .withHint(hint -> hint.forIndex(bogusIndexName))
             .plan();
 
-        assertEquals(QuerySelection.SECONDARY_INDEX, plan.getSelection());
-        assertNotEquals(bogusIndexName, plan.getIndexName());
-        assertEquals(indexName, plan.getIndexName());
-        assertNotNull(plan.getIndexRangeBytes());
-        assertNotNull(plan.getPredicateBytes());
+        assertAll("probeResponse",
+            () -> assertEquals(QuerySelection.SECONDARY_INDEX, plan.getSelection()),
+            () -> assertNotEquals(bogusIndexName, plan.getIndexName()),
+            () -> assertEquals(indexName, plan.getIndexName()),
+            () -> assertNotNull(plan.getIndexRangeBytes()),
+            () -> assertNotNull(plan.getPredicateBytes()));
     }
 
     /**
@@ -200,9 +208,10 @@ public class QuerySelectionIntegrationTest extends ClusterTest {
             .where("$.age > 100 and $.age < 10")
             .plan();
 
-        assertEquals(QuerySelection.FILTERED_OUT, plan.getSelection());
-        assertNotNull(plan.getPredicateBytes());
-        assertNull(plan.getIndexName());
-        assertNull(plan.getIndexRangeBytes());
+        assertAll("probeResponse",
+            () -> assertEquals(QuerySelection.FILTERED_OUT, plan.getSelection()),
+            () -> assertNotNull(plan.getPredicateBytes()),
+            () -> assertNull(plan.getIndexName()),
+            () -> assertNull(plan.getIndexRangeBytes()));
     }
 }
