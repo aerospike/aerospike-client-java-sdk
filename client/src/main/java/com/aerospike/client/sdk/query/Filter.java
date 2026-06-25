@@ -645,11 +645,11 @@ public final class Filter {
     }
 
     /**
-     * Replay opaque {@code INDEX_RANGE} field body from a server query-plan probe (field {@code 22}).
-     * The bytes are written verbatim on execute; they include the filter count and wire bodies.
+     * Replay opaque {@code INDEX_RANGE} field body on execute (field {@code 22}).
+     * Bytes must already be in execute shape ({@code bin_name_len = 0} when paired with field {@code 21}).
      *
      * @param indexName   secondary-index registry name from probe field {@code 21}
-     * @param rangeBytes  opaque {@code INDEX_RANGE} payload from probe field {@code 22}
+     * @param rangeBytes  execute {@code INDEX_RANGE} payload (not raw probe bytes when field {@code 21} is used)
      */
     public static Filter fromWireRange(String indexName, byte[] rangeBytes) {
         if (indexName == null || indexName.isEmpty()) {

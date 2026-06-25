@@ -41,6 +41,7 @@ import com.aerospike.client.sdk.policy.Behavior;
 import com.aerospike.client.sdk.policy.ResolvedSettings;
 import com.aerospike.client.sdk.query.Filter;
 import com.aerospike.client.sdk.query.QueryBuilder;
+import com.aerospike.client.sdk.query.plan.IndexRangeWire;
 import com.aerospike.client.sdk.query.plan.QueryPlan;
 import com.aerospike.client.sdk.query.plan.QuerySelection;
 
@@ -50,14 +51,15 @@ class QueryPlanExecuteWireTest {
 
     @Test
     void secondaryIndexPlanReplaysOpaqueIndexRangeAndPredicate() {
-        byte[] rangeBytes = probeIndexRangeBytes();
-        QueryPlan plan = secondaryIndexPlan(rangeBytes);
+        byte[] probeRangeBytes = probeIndexRangeBytes();
+        QueryPlan plan = secondaryIndexPlan(probeRangeBytes);
+        byte[] executeRangeBytes = IndexRangeWire.forExecuteWithIndexName(probeRangeBytes);
 
         QueryCommand cmd = queryCommandForPlan(plan);
         CommandBuffer cb = encodeQuery(cmd);
 
         assertEquals("age_idx", fieldUtf8(cb, FieldType.INDEX_NAME));
-        assertArrayEquals(rangeBytes, fieldBytes(cb, FieldType.INDEX_RANGE));
+        assertArrayEquals(executeRangeBytes, fieldBytes(cb, FieldType.INDEX_RANGE));
         assertArrayEquals(PREDICATE.getBytes(), fieldBytes(cb, FieldType.FILTER_EXP));
         assertEquals(0, cb.getBuffer()[12] & Command.INFO4_QUERY_SELECTION);
         assertTrue(cmd.isPlanDriven());

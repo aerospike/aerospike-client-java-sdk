@@ -29,6 +29,7 @@ import com.aerospike.client.sdk.policy.ResolvedSettings;
 import com.aerospike.client.sdk.query.Filter;
 import com.aerospike.client.sdk.query.QueryBuilder;
 import com.aerospike.client.sdk.query.QueryHint;
+import com.aerospike.client.sdk.query.plan.IndexRangeWire;
 import com.aerospike.client.sdk.query.plan.QueryPlan;
 
 public final class QueryCommand extends Command {
@@ -55,6 +56,7 @@ public final class QueryCommand extends Command {
     /**
      * Build an execute command from a server {@link QueryPlan} (probe result).
      * Plan pins win over query hints; field {@code 43} is replayed verbatim from the plan.
+     * Field {@code 22} is normalized for execute ({@code bin_name_len = 0}) when field {@code 21} is sent.
      */
     public static QueryCommand forPlan(
         Cluster cluster,
@@ -73,7 +75,8 @@ public final class QueryCommand extends Command {
 
         Filter filter = null;
         if (plan.isSecondaryIndex()) {
-            filter = Filter.fromWireRange(plan.getIndexName(), plan.getIndexRangeBytes());
+            byte[] executeRange = IndexRangeWire.forExecuteWithIndexName(plan.getIndexRangeBytes());
+            filter = Filter.fromWireRange(plan.getIndexName(), executeRange);
         }
         Expression filterExp = Expression.fromBytes(plan.getPredicateBytes());
         return new QueryCommand(cluster, set, filter, filterExp, settings, qb, plan);

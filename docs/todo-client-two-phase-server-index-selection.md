@@ -6,6 +6,7 @@ Implementation checklist for the fluent Java client.
 
 **Sources of truth**
 
+- **Wire contract (normative, all clients):** [query-selection-wire-protocol.md](./query-selection-wire-protocol.md)
 - **Product / wire contract:** Slack thread (May 2026) — Suresh, Tim, Ronen, Gagan aligned on new vs legacy behavior.
 - **Server implementation:** `aerospike-server` — `as_query_plan`, `AS_MSG_INFO4_QUERY_SELECTION`, `query_plan.c`, `query.c`.
 - **Server roadmap:** index-selection and server-side AEL live in separate trees today; they will merge. **Any server that supports index selection is expected to also support server AEL** (ignore AEL gaps in the index-selection-only tree).
@@ -41,33 +42,38 @@ Both encodings use the **same field type** (`FILTER_EXP` / `43`). Only the **pay
 
 ### New clients (two-phase)
 
+See **[query-selection-wire-protocol.md](./query-selection-wire-protocol.md)** for the full normative spec (field `22` probe vs execute layout, transform algorithm, cross-client reference).
+
 | Phase | Purpose | Wire |
 |-------|---------|------|
-| **Probe** | Server selects SI vs PI scan | `INFO4` query-selection bit set; **no partitions**; **no client-built index filter** |
-| **Execute** | Normal partitioned query | `INFO4` bit clear; replay server pins + same field-`43` bytes as probe |
+| **Probe** | Server selects SI vs PI scan | `INFO4` query-selection bit set; **no partitions**; **no field `22`** |
+| **Execute** | Normal partitioned query | `INFO4` bit clear; server pins + field `43` |
 
 **Probe request**
 
-- Field `43` — full WHERE material for field `43` (see **Field `43` encoding** above). **Interim:** client-compiled expression bytes. **Post-merge (TBD):** server-AEL bytes `[128, "<text>"]`.
-- Field `21` — optional **index-name hint only** (probe only; no `binName` hint on new path). Omitted on auto-select.
-- No field `22` — server performs auto-selection from `43`.
+- Field `43` — full WHERE (see **Field `43` encoding** above). **Interim:** client-compiled expression bytes.
+- Field `21` — optional **index-name hint only** (probe only; no `binName` hint on new path).
+- No field `22`.
 
-**Probe response**
+**Probe response (SI)**
 
-| Outcome | `result_code` | Response fields |
-|---------|---------------|-----------------|
-| PI scan | `AS_OK` | none |
-| SI query | `AS_OK` | `21` INDEX_NAME + `22` INDEX_RANGE (opaque bytes) |
-| Filtered out | `AS_ERR_FILTERED_OUT` | — |
+| Field | Content |
+|-------|---------|
+| `21` | Secondary-index registry name |
+| `22` | Range body **with bin name** (`bin_name_len > 0`) — built by server `plan_build_range_payload` |
 
 **Execute request (after probe)**
 
-- Field `43` — **same bytes as probe** (store on `QueryPlan`, replay verbatim). Encoding tracks capability (packed exp now; server AEL later if product enables).
-- **SI path:** replay probe `21` + `22` (server-authored; client does not build index filter locally).
-- **PI path:** field `43` only; no `21`/`22`.
-- Partitions, timeouts, etc. — same as today's `CommandBuffer.setQuery`.
+| Field | SI path | PI path |
+|-------|---------|---------|
+| `43` | **Same bytes as probe** (store on plan; replay verbatim) | Same |
+| `21` | Index name from probe | Absent |
+| `22` | **Execute shape:** `bin_name_len = 0` + ktype/range tail from probe (strip bin name; see wire-protocol doc) | Absent |
+| Partitions, timeouts, … | Normal `setQuery` | Normal `setQuery` |
 
-**Backward compatibility (Ronen):** legacy clients always send an index filter on SI queries. New clients do not send a client-chosen index filter on probe; on execute they send **server-identified** `21`/`22` from the probe response, not locally derived filter material.
+**Server execute rule:** field `21` and a bin name inside field `22` are **mutually exclusive** (`query.c` `get_range_field`). Verbatim probe `22` + `21` → `PARAMETER_ERROR`.
+
+**Backward compatibility (Ronen):** legacy clients choose the index locally and send client-built `22` (bin in range, typically no `21`). New clients probe first; on execute they send server-authored **`21` + transformed `22`**, not locally derived filter material.
 
 ---
 
@@ -78,9 +84,9 @@ Both encodings use the **same field type** (`FILTER_EXP` / `43`). Only the **pay
 | Probe entry | `basic_query_job_start` → `as_query_plan` when `INFO4` bit 7 set |
 | Probe parses | `0` ns, `1` set, optional `21` hint, required `43` |
 | Probe does not execute | Returns plan reply; no partition fan-out |
-| SI response | Fields `21` + `22` via `plan_build_range_payload` |
+| SI response | Fields `21` + `22` via `plan_build_range_payload` (**`22` includes bin name**) |
 | PI response | `AS_OK`, zero fields |
-| Execute | Existing basic query path (`INFO4` bit 7 clear); reads `21`/`22`/`43` independently |
+| Execute | `get_range_field`: rejects `21` + bin in `22`; accepts `21` + `22` with `bin_name_len=0` |
 
 Server does **not** validate that execute `43` matches probe `43`. It applies whatever is in the current message.
 
@@ -91,7 +97,7 @@ Server does **not** validate that execute `43` matches probe `43`. It applies wh
 | Path | Field `22` | Field `43` on SI execute |
 |------|------------|--------------------------|
 | **Legacy** | Client-built from `chooseExprForFilter` | **Residual** row filter (`VisitorUtils.getFilterExp` skips SI subtree) |
-| **New (two-phase)** | Opaque replay from probe | **Full** field-`43` payload (same bytes as probe; not legacy residual split) |
+| **New (two-phase)** | Probe bytes stored; execute sends `bin_name_len=0` body with field `21` | **Full** field-`43` payload (same bytes as probe; not legacy residual split) |
 
 Both shapes are accepted by the server execute handler. New-client work follows the **full `43`** contract from Slack, not the legacy residual split.
 
@@ -99,14 +105,15 @@ Both shapes are accepted by the server execute handler. New-client work follows 
 
 ## Client gaps (what we still need to build)
 
-1. ~~**Opaque replay of field `22`**~~ — `Filter.fromWireRange(indexName, rangeBytes)` + `CommandBuffer` opaque body write. ✅
+1. ~~**Execute field `22` from probe**~~ — `IndexRangeWire.forExecuteWithIndexName` strips bin name when field `21` is sent; `Filter.fromWireRange` + `CommandBuffer` write execute-shaped body. ✅
 2. ~~**Probe encoder**~~ — `CommandBuffer.setIndexProbe(IndexProbeCommand)` (no `chooseExprForFilter`, no field `22`).
 3. ~~**Predicate bytes lifecycle**~~ — **`QueryPlan` stores `predicateBytes`**; probe encoder + execute replay wiring done.
 4. **Capability gate (partial)** — routing via `IndexProbePlanner.useServerQuerySelection()` + `execute()` branch. `Cluster.supportsQuerySelection()` **stubbed `true` for dev** (`versionGE813` commented out). Wire real version/tend check **after** integration tests pass; until then gate-off = legacy fallback.
 5. **Hint rules (partial)** — new path: `QueryHint.forIndex(...)` → field `21` on probe only; `forBin` forces legacy execute. Unit-tested on probe; not integration-tested on full probe→execute.
 6. **Field `43` factory** — interim: compile AEL → packed exp for probe/execute. Post-merge: add capability branch for `fromServerCompiledFilter(ael)`; keep both paths until product drops client compile.
-7. **Integration tests** — Tier 1 probe tests done (`QuerySelectionIntegrationTest`); Tier 2 execute E2E in progress; see Tests section.
-8. **Documentation & examples** — user-facing guide for server-led selection and hint overrides; see Documentation section.
+7. **Integration tests** — Tier 1 probe tests done; Tier 2 execute E2E in progress; see Tests section.
+8. ~~**Wire protocol doc**~~ — [query-selection-wire-protocol.md](./query-selection-wire-protocol.md) for cross-client implementers. ✅
+9. **Documentation & examples** — user-facing guide for server-led selection and hint overrides; see Documentation section.
 
 ---
 
@@ -160,7 +167,7 @@ Both shapes are accepted by the server execute handler. New-client work follows 
 - [x] Guess-path `execute()`: when `IndexProbePlanner.useServerQuerySelection()` → sync probe, then async execute with plan.
 - [x] **PI plan:** `filter = null`; `filterExp` = `predicateBytes` from plan; normal `setQuery`.
 - [x] **SI plan:**
-  - `filter` = opaque replay of `indexRangeBytes` + `indexName` from plan (`Filter.fromWireRange`, not client-built).
+  - `filter` = `IndexRangeWire.forExecuteWithIndexName(indexRangeBytes)` + `indexName` (`Filter.fromWireRange`).
   - `filterExp` = same `predicateBytes` as probe (full field-`43` replay).
   - `setQuery` with `INFO4` bit 7 clear (default).
 - [x] No `chooseExprForFilter` / client index selection on the new path.
@@ -179,7 +186,7 @@ Running the full query integration suite against a query-selection server commit
 
 | Symptom | Likely cause |
 |---------|----------------|
-| String-AEL `where(...).execute()` → 0 rows | New path: probe + `forPlan` execute (field `43` full replay + opaque `22`) |
+| String-AEL `where(...).execute()` → 0 rows | Was: field `22` included bin name with field `21` (server `PARAMETER_ERROR`). Fixed: `IndexRangeWire` strips bin on execute. If still failing, check field `43`. |
 | Same tests pass with gate `false` | Legacy path still works; routing is the delta |
 | `where(Exp)` tests pass (`QueryIntegerTest`, `QueryFilterExpTest`) | Non-probe path (`allowsIndex=false`); PI scan + field `43` only |
 | `QueryHintBuilderTest.queryWithBinHintExecutes` passes | `forBin` forces legacy SI (client `Filter` + residual `43`) |
@@ -223,7 +230,7 @@ Running the full query integration suite against a query-selection server commit
 - [x] Probe buffer layout (`IndexProbeCommandTest`).
 - [x] `MsgFieldParser`: field TLV parsing + `RecordParser` integration (`MsgFieldParserTest`).
 - [x] `QueryPlan.fromProbeResponse`: PI / SI / FILTERED_OUT / inconsistent response (`QueryPlanTest`).
-- [x] Opaque `22` replay: probe bytes → `setQuery` field `22` matches input (`FilterWireRangeTest`, `QueryPlanExecuteWireTest`).
+- [x] Execute field `22` transform: probe bytes stored; execute sends `bin_name_len=0` body (`IndexRangeWireTest`, `QueryPlanExecuteWireTest`).
 
 ### Integration (index-selection server: `suresh/dsl-query-optimizer`)
 
@@ -272,13 +279,13 @@ Validates full two-phase flow; primary gap today (0 records on string-AEL `execu
 | 2.6 | Compound predicate | `$.age > 30 and $.country == "US"` — full `43` replay vs legacy residual |
 | 2.7 | Reading bins | `.readingOnlyBins("age").where(...).execute()` | Records + bin projection on new path |
 
-- [ ] 2.1 SI execute — range
-- [ ] 2.2 SI execute — equality
-- [ ] 2.3 PI execute
-- [ ] 2.4 Plan then execute consistency
-- [ ] 2.5 Predicate replay
-- [ ] 2.6 Compound predicate *(stretch)*
-- [ ] 2.7 Reading bins *(stretch)*
+- [x] 2.1 SI execute — range
+- [x] 2.2 SI execute — equality
+- [x] 2.3 PI execute
+- [x] 2.4 Plan then execute consistency
+- [x] 2.5 Predicate replay
+- [x] 2.6 Compound predicate *(stretch)*
+- [x] 2.7 Reading bins *(stretch)*
 
 #### Tier 3 — Hints & routing
 
@@ -298,12 +305,12 @@ Proves gate logic; legacy paths must not be accidentally probed.
 |---|----------|--------|
 | 3.6 | Gate off + string AEL | String-AEL query uses legacy client SI; records returned |
 
-- [ ] 3.1 `forBin` → legacy
-- [ ] 3.2 `forIndex` → probe
-- [ ] 3.3 Duration-only hint
-- [ ] 3.4 `where(Exp)` — no probe
-- [ ] 3.5 No WHERE
-- [ ] 3.6 Gate off + string AEL *(when gate wired)*
+- [x] 3.1 `forBin` → legacy
+- [x] 3.2 `forIndex` → probe
+- [x] 3.3 Duration-only hint
+- [x] 3.4 `where(Exp)` — no probe
+- [x] 3.5 No WHERE
+- [x] 3.6 Gate off + string AEL *(skipped until gate wired; test in place)*
 
 #### Tier 4 — Errors & edge cases
 
@@ -313,18 +320,22 @@ Proves gate logic; legacy paths must not be accidentally probed.
 | 4.2 | `plan()` without WHERE | `AerospikeException` |
 | 4.3 | Empty result vs error | Valid SI query with no matching data → 0 records, not exception |
 | 4.4 | `forIndex` non-existent index | Probe succeeds; bogus hint ignored; auto-selects `qsel_age_idx` *(observed; product may want error)* |
+| 4.5 | Multiple indexes — server auto-select | Fixture with 2+ real indexes; WHERE unambiguous; probe + execute pick correct `indexName` and row set |
+| 4.6 | `forIndex` existing but wrong index | Second real index on another bin; hint names it while WHERE fits first bin; document observed server behavior *(product rule TBD)* |
 
-- [ ] 4.1 FILTERED_OUT on execute
-- [ ] 4.2 `plan()` without WHERE
-- [ ] 4.3 Empty result vs error
+- [x] 4.1 FILTERED_OUT on execute
+- [x] 4.2 `plan()` without WHERE
+- [x] 4.3 Empty result vs error
 - [x] 4.4 `forIndex` non-existent index *(observed: hint ignored, auto-select; confirm with product)*
+- [x] 4.5 Multiple indexes — server auto-select
+- [x] 4.6 `forIndex` existing but wrong index *(observed: hint ignored, auto-select; product rule TBD)*
 
 #### Pass / fail interpretation
 
 | Result | Meaning |
 |--------|---------|
 | Tier 1 fails | Probe wire / server selection / response decode |
-| Tier 1 passes, Tier 2 fails | Execute replay (opaque `22`, full `43`) or server execute handler |
+| Tier 1 passes, Tier 2 fails | Execute field `22` shape (bin + `21`) or field `43` / server execute handler |
 | Tier 2 passes, existing AEL suite fails | Expected; not a v1 blocker |
 | Tier 3.4 fails | Broke non-probe path — real client bug |
 | Tier 3.1 fails | Broke legacy SI path — real client bug |
@@ -348,6 +359,7 @@ Proves gate logic; legacy paths must not be accidentally probed.
 #### Later / post-merge
 
 - [ ] New path vs legacy path: same string-AEL query, equivalent results (where product says they should match).
+  - [x] Compound SI WHERE: `compoundPredicateServerLedMatchesLegacyForBin` (ages match; field `43` differs on wire)
 - [ ] Probe + execute with server-AEL bytes in `43` when capability enabled.
 
 ---
@@ -385,7 +397,9 @@ User-facing material for **server-led index selection** (two-phase probe → exe
 | **`README.md`** | Quick Start / Features: note that on supported servers, string-AEL dataset queries use **server index selection** (probe + execute under the hood). Link to user guide. Mention `withHint(forIndex)` / `withHint(forBin)` briefly. |
 | **`docs/key-features.md`** | **Queries & scans** / AEL: replace “automatic secondary index selection” (client-only) with **server-led** when `supportsQuerySelection()`; table row for **Query hints** (`forIndex` vs `forBin` vs `queryDuration`). |
 | **`docs/api-builder-reference.md`** | Expand `.withHint(...)` — type-state API, routing table (`forIndex` → probe field `21`; `forBin` → legacy path), code snippets. |
-| **`docs/query-selection-user-guide.md`** *(new, recommended)* | Short user guide: how it works (transparent `execute()`), when PI vs SI, hints, legacy `forBin`, server version gate, link to `docs/todo-client-two-phase-server-index-selection.md` for implementers. |
+| **`docs/query-selection-user-guide.md`** *(new, recommended)* | Short user guide: how it works (transparent `execute()`), when PI vs SI, hints, legacy `forBin`, server version gate. |
+| **`docs/query-selection-wire-protocol.md`** | Normative probe/execute wire spec for all clients (field `21`/`22`/`43`). |
+| **`docs/todo-client-two-phase-server-index-selection.md`** | Java implementer checklist (this file). |
 | **`docs/ael-documentation.md`** or cross-link | One paragraph: index selection interaction with AEL `where` on dataset queries. |
 | **`docs/query-selection-and-ael-roadmap-overview.md`** | Add pointer at top: “For **using** the feature in the fluent client, see `query-selection-user-guide.md`.” |
 
@@ -425,3 +439,76 @@ User-facing material for **server-led index selection** (two-phase probe → exe
 | Docs / examples | `ServerQuerySelectionExample`, README, user guide — see Documentation section | not started |
 
 **Not required on new path:** changes to `VisitorUtils.getFilterExp` / residual split / `IndexContext` for server-led selection.
+
+---
+
+## Appendix — Product / behavior questions
+
+Open product decisions not blocking v1 client wiring; pin answers here when settled.
+
+### 1. Retry behavior on probe
+
+**Current client behavior (concise):** Probe uses the standard `SyncExecutor` loop with **READ + QUERY** `Behavior` settings (default **6 attempts**, **0 ms** between retries, **1 s** total `abandonCallAfter`). Each attempt is a single `INFO4_QUERY_SELECTION` RPC to **one cluster node** (random start; **round-robin** to the next node on retry in multi-node clusters). Transport/transient failures retry; `OK` and `FILTERED_OUT` succeed; other server result codes fail immediately. Probe is **not** re-run on execute failure, and there is no partition/replica routing.
+
+**Questions for product:**
+
+- **Fewer retries?** Probe is a cheap planner RPC prepended to every selection-enabled query — should we use fewer than query execute attempts (e.g. 1–2) to avoid adding latency on a failing cluster?
+- **Node stickiness?** Retries currently rotate nodes (`IndexProbeExecutor.prepareRetry`). Should retries **stick to the same node** (plan may be node-local / cache-sensitive) or keep rotating (resilience to a bad node)?
+
+### 2. `forIndex` hint when index is wrong or missing
+
+**Current observed behavior (concise):** Client sends field `21` on probe only; no client-side validation. Server **ignores** hints that name a **non-existent** index (Tier 4.4) or an **existing index on the wrong bin** for the WHERE (Tier 4.6) and **auto-selects** the index that fits the predicate. Execute then uses the plan the server returned, not the hint.
+
+**Questions for product:**
+
+- **Fail vs ignore?** Should a bad `forIndex` hint return `INDEX_NOTFOUND` / parameter error instead of silent auto-select?
+- **Honor wrong hint?** Should the server ever use a hinted index even when the WHERE “fits” a different bin (force index even if suboptimal)?
+- **User-facing contract:** Document `forIndex` as a **soft suggestion** (today) or a **hard pin** (future)?
+
+### 3. `FILTERED_OUT` vs empty result
+
+**Current observed behavior (concise):** **Contradictory / unsatisfiable** predicate (e.g. `$.age > 100 and $.age < 10`) → probe returns `FILTERED_OUT`; client throws on `execute()` (Tier 4.1). **Valid SI plan with no matching rows** (e.g. `$.age == 999`) → probe succeeds, execute returns **0 records** (Tier 4.3).
+
+**Questions for product:**
+
+- Is that split correct for all predicate shapes (including PI and compound WHERE)?
+- Should any “empty but valid” cases be `FILTERED_OUT` instead (or vice versa)?
+
+### 4. Plan freshness between probe and execute
+
+**Current client behavior (concise):** One probe per `execute()`; plan bytes (`21`, `22`, `43`) are replayed on execute immediately. Server does **not** verify that execute `43` matches what was probed. Client does **not** re-probe on execute failure, partition-map change, or pagination chunks (v1 out of scope).
+
+**Questions for product:**
+
+- If cluster state changes between probe and execute (migrations, index drop/create, partition map), should the client **re-probe**, **fail**, or **best-effort execute** with a stale plan?
+- Pagination / chunked queries: **re-probe per chunk** or **pin plan** for the whole scan?
+
+### 5. New path field `43` vs legacy residual filter
+
+**Current behavior (concise):** **Legacy** SI execute sends a **residual** row filter in `43` (SI subtree stripped client-side). **New** two-phase path replays the **full** WHERE bytes from probe on execute. Compound predicates (e.g. `age` + `country`) can therefore **differ in field `43` on the wire** between paths even when the same index is used.
+
+**Client test:** `compoundPredicateServerLedMatchesLegacyForBin` — `$.age > 30 and $.country == 'US'`; asserts **same ages** on server-led vs `forBin` legacy, and **different field `43` bytes** on execute wire.
+
+**Questions for product:**
+
+- Must new and legacy paths return **equivalent row sets** for the same string-AEL query, or is “full `43` on new path only” intentional?
+- When should docs/examples warn users migrating from `forBin` (legacy) to default server selection?
+
+### 6. Multi-index selection and ambiguous WHERE
+
+**Current observed behavior (concise):** With indexes on `age` and `score`, unambiguous WHERE on one bin → server picks the matching index (Tier 4.5). No v1 test for **ambiguous** cases (multiple viable indexes, optimizer tie-break).
+
+**Questions for product:**
+
+- Tie-break rules when several indexes could serve the same WHERE?
+- **Cardinality / stats differ per node** — deferred for v1; needed for correct auto-select in production?
+
+### 7. Which node answers the probe?
+
+**Current client behavior (concise):** Probe goes to a **random** cluster node (then round-robin on retry); not partition- or master-aware.
+
+**Questions for product:**
+
+- Must all nodes return the **same** plan for the same WHERE + catalog snapshot?
+- Should the client prefer **master**, a **query coordinator**, or any node?
+
