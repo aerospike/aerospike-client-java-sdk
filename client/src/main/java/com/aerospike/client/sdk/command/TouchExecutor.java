@@ -18,7 +18,6 @@ package com.aerospike.client.sdk.command;
 
 import java.io.IOException;
 
-import com.aerospike.client.sdk.AerospikeException;
 import com.aerospike.client.sdk.Cluster;
 import com.aerospike.client.sdk.Node;
 import com.aerospike.client.sdk.ResultCode;
@@ -77,13 +76,13 @@ public class TouchExecutor extends SyncExecutor {
 
         if (rp.resultCode == ResultCode.FILTERED_OUT) {
             if (touch.failOnFilteredOut) {
-                throw AerospikeException.resultCodeToException(rp.resultCode, null);
+                throw rp.toException();
             }
             touched = false;
             return;
         }
 
-        throw AerospikeException.resultCodeToException(rp.resultCode, null);
+        throw rp.toException();
     }
 
     @Override

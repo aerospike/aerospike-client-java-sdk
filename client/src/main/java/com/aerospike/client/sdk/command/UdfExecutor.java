@@ -79,12 +79,12 @@ public class UdfExecutor extends SyncExecutor {
 
         if (rp.resultCode == ResultCode.FILTERED_OUT) {
             if (udf.failOnFilteredOut) {
-                throw AerospikeException.resultCodeToException(rp.resultCode, null);
+                throw rp.toException();
             }
             return;
         }
 
-        throw AerospikeException.resultCodeToException(rp.resultCode, null);
+        throw rp.toException();
     }
 
     @Override

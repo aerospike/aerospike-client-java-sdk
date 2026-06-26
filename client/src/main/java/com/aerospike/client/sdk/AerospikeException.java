@@ -29,6 +29,7 @@ public class AerospikeException extends RuntimeException {
     protected transient Node node;
     protected List<AerospikeException> subExceptions;
     protected int resultCode = ResultCode.CLIENT_ERROR;
+    protected int subCode = SubCode.NONE;
     private int connectTimeout;
     private int socketTimeout;
     private int totalTimeout;
@@ -43,6 +44,17 @@ public class AerospikeException extends RuntimeException {
     public AerospikeException(int resultCode, String message) {
         super(message);
         this.resultCode = resultCode;
+    }
+
+    /**
+     * @param resultCode {@link ResultCode} constant
+     * @param message    detail message
+     * @param subCode    sub code
+     */
+    public AerospikeException(int resultCode, String message, int subCode) {
+        super(message);
+        this.resultCode = resultCode;
+        this.subCode = subCode;
     }
 
     /**
@@ -250,6 +262,27 @@ public class AerospikeException extends RuntimeException {
      */
     public final int getResultCode() {
         return resultCode;
+    }
+
+    /**
+     * Get the server-supplied error subcode, or {@link SubCode#NONE} (0) when the
+     * server did not return one (verbosity disabled, or the failing branch had no
+     * dispatchable subcode).
+     * <p>
+     * A subcode is only meaningful when interpreted together with
+     * {@link #getResultCode()}: subcode integer values are scoped to their parent
+     * result code and are NOT globally unique. Dispatch on the
+     * {@code (resultCode, subcode)} pair. See {@link SubCode}.
+     */
+    public final int getSubCode() {
+        return subCode;
+    }
+
+    /**
+     * Set the server-supplied error sub-code.
+     */
+    public final void setSubCode(int subCode) {
+        this.subCode = subCode;
     }
 
     /**
@@ -817,7 +850,20 @@ public class AerospikeException extends RuntimeException {
      * @param message    detail message (may be {@code null})
      */
     public static AerospikeException resultCodeToException(int resultCode, String message) {
-        return resultCodeToException(resultCode, message, false); 
+        return resultCodeToException(resultCode, message, false);
+    }
+
+    /**
+     * Same as {@link #resultCodeToException(int, String, boolean)} with {@code inDoubt == false}.
+     *
+     * @param resultCode {@link ResultCode} from the server or client
+     * @param subCode    sub-code
+     * @param message    detail message (may be {@code null})
+     */
+    public static AerospikeException resultCodeToException(int resultCode, int subCode, String message) {
+        AerospikeException ae = resultCodeToException(resultCode, message, false);
+        ae.setSubCode(subCode);
+        return ae;
     }
 
     /**
