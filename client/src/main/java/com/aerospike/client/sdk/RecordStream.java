@@ -255,8 +255,7 @@ public class RecordStream implements Iterator<RecordResult>, Closeable {
 
     /**
      * Drains this stream into a {@link CompletableFuture} that completes with all results
-     * as a list. For async streams backed by {@link AsyncRecordStream}, collection is passive
-     * (no extra consumer virtual thread). Otherwise draining uses a virtual thread.
+     * as a list. The draining happens on a virtual thread, so this method returns immediately.
      *
      * <p>This is a <b>terminal operation</b> that closes the stream when draining completes
      * or an exception occurs.</p>
@@ -276,59 +275,12 @@ public class RecordStream implements Iterator<RecordResult>, Closeable {
      * @return a CompletableFuture that completes with all results from this stream
      */
     public CompletableFuture<List<RecordResult>> asCompletableFuture() {
-        return asCompletableFuture((ErrorHandler) null);
-    }
-
-    /**
-     * Drains this stream into a {@link CompletableFuture}. When {@code handler} is non-null,
-     * actionable errors are dispatched to the handler and omitted from the completed list.
-     *
-     * @param handler optional error handler (null for IN_STREAM semantics)
-     * @return a CompletableFuture that completes with collected results
-     */
-    public CompletableFuture<List<RecordResult>> asCompletableFuture(ErrorHandler handler) {
-        if (impl instanceof AsyncRecordStream async) {
-            if (handler != null) {
-                async.withErrorHandler(handler);
-            }
-            CompletableFuture<List<RecordResult>> future = async.asCompletableFuture();
-            future.whenComplete((ignored, t) -> close());
-            return future;
-        }
-        return drainViaVirtualThread(handler);
-    }
-
-    /**
-     * Drains a stream expected to hold zero or one result into a {@link CompletableFuture}.
-     *
-     * @return future completing with an optional result (empty if the stream had no records)
-     */
-    public CompletableFuture<Optional<RecordResult>> asCompletableFutureSingle() {
-        return asCompletableFutureSingle((ErrorHandler) null);
-    }
-
-    /**
-     * Drains a stream expected to hold zero or one successful result into a {@link CompletableFuture}.
-     *
-     * @param handler optional error handler
-     * @return future completing with an optional result
-     */
-    public CompletableFuture<Optional<RecordResult>> asCompletableFutureSingle(ErrorHandler handler) {
-        return asCompletableFuture(handler).thenApply(AsyncExecutionSupport::singleAsOptional);
-    }
-
-    private CompletableFuture<List<RecordResult>> drainViaVirtualThread(ErrorHandler handler) {
         CompletableFuture<List<RecordResult>> future = new CompletableFuture<>();
         Thread.startVirtualThread(() -> {
             try {
                 List<RecordResult> results = new ArrayList<>();
                 while (hasNext()) {
-                    RecordResult rr = next();
-                    if (handler != null && AbstractFilterableBuilder.isActionableError(rr.resultCode())) {
-                        AbstractFilterableBuilder.dispatchError(rr, handler);
-                    } else {
-                        results.add(rr);
-                    }
+                    results.add(next());
                 }
                 future.complete(results);
             } catch (Throwable t) {
@@ -359,38 +311,23 @@ public class RecordStream implements Iterator<RecordResult>, Closeable {
      * @return a CompletableFuture that completes with the mapped results
      */
     public <T> CompletableFuture<List<T>> asCompletableFuture(RecordMapper<T> mapper) {
-        return asCompletableFuture().thenApply(list -> {
-            List<T> results = new ArrayList<>(list.size());
-            for (RecordResult rr : list) {
-                Record rec = rr.recordOrThrow();
-                results.add(mapper.fromMap(rec.bins, rr.key(), rec.generation));
+        CompletableFuture<List<T>> future = new CompletableFuture<>();
+        Thread.startVirtualThread(() -> {
+            try {
+                List<T> results = new ArrayList<>();
+                while (hasNext()) {
+                    RecordResult rr = next();
+                    Record rec = rr.recordOrThrow();
+                    results.add(mapper.fromMap(rec.bins, rr.key(), rec.generation));
+                }
+                future.complete(results);
+            } catch (Throwable t) {
+                future.completeExceptionally(t);
+            } finally {
+                close();
             }
-            return results;
         });
-    }
-
-    /**
-     * Drains a stream expected to hold zero or one successful result, maps it with {@code mapper},
-     * and completes the returned {@link CompletableFuture} with an {@link Optional}.
-     *
-     * <p>Same semantics as {@link #asCompletableFutureSingle()}: empty if no records;
-     * {@link IllegalStateException} if more than one result is present.</p>
-     *
-     * <p>This is a <b>terminal operation</b> that closes the stream when draining completes
-     * or an exception occurs.</p>
-     *
-     * <pre>
-     * CompletableFuture&lt;Optional&lt;Customer&gt;&gt; future =
-     *     session.query(customerDataSet.id("C001")).executeAsync(ErrorStrategy.IN_STREAM)
-     *            .asCompletableFutureSingle(customerMapper);
-     * </pre>
-     *
-     * @param <T> the target type
-     * @param mapper the mapper to convert the record
-     * @return future completing with an optional mapped result
-     */
-    public <T> CompletableFuture<Optional<T>> asCompletableFutureSingle(RecordMapper<T> mapper) {
-        return asCompletableFuture(mapper).thenApply(AsyncExecutionSupport::singleMappedAsOptional);
+        return future;
     }
 
     // ========================================

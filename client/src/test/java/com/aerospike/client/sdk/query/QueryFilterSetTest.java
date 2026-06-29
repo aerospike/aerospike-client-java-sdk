@@ -21,16 +21,16 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import java.util.Calendar;
 import java.util.GregorianCalendar;
 
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.Assumptions;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-
 import com.aerospike.client.sdk.ClusterTest;
 import com.aerospike.client.sdk.DataSet;
 import com.aerospike.client.sdk.RecordStream;
 import com.aerospike.client.sdk.exp.Exp;
 import com.aerospike.client.sdk.exp.StringExp;
+
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.Assumptions;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
 
 public class QueryFilterSetTest extends ClusterTest {
     private static final String set1 = "tqps1";
@@ -43,8 +43,8 @@ public class QueryFilterSetTest extends ClusterTest {
     private static DataSet dataSet2;
     private static DataSet dataSet3;
 
-    @BeforeEach
-    public void prepare() {
+    @BeforeAll
+    public static void prepare() {
         dataSet1 = DataSet.of(args.namespace, set1);
         dataSet2 = DataSet.of(args.namespace, set2);
         dataSet3 = DataSet.of(args.namespace, set3);
@@ -66,14 +66,14 @@ public class QueryFilterSetTest extends ClusterTest {
         // Insert fresh test data
         for (int i = 1; i <= 5; i++) {
             if (args.hasTtl) {
-                sessionWithSendKey.upsert(dataSet1.ids(i))
+                session.upsert(dataSet1.ids(i))
                     .expireRecordAfterSeconds(i * 60)
                     .bins(binA)
                     .values(i)
                     .execute();
             }
             else {
-                sessionWithSendKey.upsert(dataSet1.ids(i))
+                session.upsert(dataSet1.ids(i))
                     .bins(binA)
                     .values(i)
                     .execute();
@@ -81,26 +81,26 @@ public class QueryFilterSetTest extends ClusterTest {
         }
 
         for (int i = 20; i <= 22; i++) {
-            sessionWithSendKey.upsert(dataSet2.ids(i))
+            session.upsert(dataSet2.ids(i))
                 .bins(binA, binB)
                 .values(i, (double) i)
                 .execute();
         }
 
         for (int i = 31; i <= 40; i++) {
-            sessionWithSendKey.upsert(dataSet3.ids(i))
+            session.upsert(dataSet3.ids(i))
                 .bins(binA)
                 .values(i)
                 .execute();
 
             String strKey = "key-p3-" + i;
-            sessionWithSendKey.upsert(dataSet3.ids(strKey))
+            session.upsert(dataSet3.ids(strKey))
                 .bins(binA)
                 .values(i)
                 .execute();
         }
 
-        sessionWithSendKey.upsert(dataSet3.ids(25))
+        session.upsert(dataSet3.ids(25))
             .bins(binA)
             .values(25)
             .execute();

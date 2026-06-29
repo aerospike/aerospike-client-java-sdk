@@ -16,9 +16,9 @@
  */
 package com.aerospike.client.sdk.query;
 
-import java.util.List;
 import java.util.Objects;
 import java.util.function.Function;
+
 import com.aerospike.client.sdk.ErrorHandler;
 import com.aerospike.client.sdk.ErrorStrategy;
 import com.aerospike.client.sdk.Session;

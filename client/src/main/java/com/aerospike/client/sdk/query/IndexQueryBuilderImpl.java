@@ -50,34 +50,58 @@ public class IndexQueryBuilderImpl extends QueryImpl {
     }
     @Override
     public RecordStream execute() {
-        return executeInternal(null);
+        return executeInternal();
     }
 
     @Override
     public RecordStream execute(ErrorStrategy strategy) {
         Objects.requireNonNull(strategy, "ErrorStrategy must not be null");
-        return executeInternal(null);
+        return executeInternal();
     }
 
     @Override
     public RecordStream execute(ErrorHandler handler) {
         Objects.requireNonNull(handler, "ErrorHandler must not be null");
-        return AbstractFilterableBuilder.filterStreamErrors(executeInternal(null), handler);
+        return AbstractFilterableBuilder.filterStreamErrors(executeInternal(), handler);
     }
 
     @Override
     public RecordStream executeAsync(ErrorStrategy strategy) {
         Objects.requireNonNull(strategy, "ErrorStrategy must not be null");
-        return executeInternal(null);
+        return executeInternal();
     }
 
     @Override
     public RecordStream executeAsync(ErrorHandler handler) {
         Objects.requireNonNull(handler, "ErrorHandler must not be null");
-        return executeInternal(handler);
+        RecordStream source = executeInternal();
+
+        Session session = getSession();
+        Cluster cluster = session.getCluster();
+        ResolvedSettings policy = session.getBehavior().getSettings(OpKind.READ, OpShape.QUERY, Mode.ANY);
+        AsyncRecordStream filtered = new AsyncRecordStream(policy.getRecordQueueSize());
+
+        cluster.startVirtualThread(() -> {
+            try {
+                source.forEach(result -> {
+                    if (!result.isOk()) {
+                        AerospikeException ex = result.exception() != null
+                            ? result.exception()
+                            : AerospikeException.resultCodeToException(result.resultCode(), result.message(), result.inDoubt());
+                        handler.handle(result.key(), result.index(), ex);
+                    } else {
+                        filtered.publish(result);
+                    }
+                });
+            } finally {
+                filtered.complete();
+            }
+        });
+
+        return new RecordStream(filtered);
     }
 
-    private RecordStream executeInternal(ErrorHandler handler) {
+    private RecordStream executeInternal() {
         Session session = getSession();
         Cluster cluster = session.getCluster();
         QueryBuilder qb = getQueryBuilder();
@@ -102,9 +126,6 @@ public class IndexQueryBuilderImpl extends QueryImpl {
         }
 
         AsyncRecordStream stream = new AsyncRecordStream(policy.getRecordQueueSize());
-        if (handler != null) {
-            stream.withErrorHandler(handler);
-        }
         QueryCommand cmd = new QueryCommand(cluster, dataSet, filter, filterExp, policy, qb);
         cmd.execute(stream);
 

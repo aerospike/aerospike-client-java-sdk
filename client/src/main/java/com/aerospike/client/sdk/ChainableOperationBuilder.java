@@ -1194,37 +1194,41 @@ public class ChainableOperationBuilder extends AbstractOperationBuilder<Chainabl
 
     private RecordStream executeAsyncInternal(ErrorHandler errorHandler) {
         prepareSpecs();
-        int totalKeys = operationSpecs.stream().mapToInt(spec -> spec.getKeys().size()).sum();
-        warnAsyncInTransaction();
 
-        AsyncRecordStream asyncStream = AsyncExecutionSupport.newStream(totalKeys, errorHandler);
-        startAsyncWork(asyncStream, errorHandler);
-        return new RecordStream(asyncStream);
-    }
+        if (Log.debugEnabled()) {
+            int totalKeys = operationSpecs.stream().mapToInt(spec -> spec.getKeys().size()).sum();
+            Log.debug("ChainableOperationBuilder.executeAsync() called for " + operationSpecs.size() +
+                     " operation(s), " + totalKeys + " key(s), transaction: " +
+                     (txnToUse != null ? "yes" : "no"));
+        }
 
-    private void warnAsyncInTransaction() {
         if (txnToUse != null && Log.warnEnabled()) {
             Log.warn(
-                "executeAsync() called within a transaction. "
-                    + "Async operations may still be in flight when commit() is called, "
-                    + "which could lead to inconsistent state. "
-                    + "Consider using execute() for transactional safety.");
+                "executeAsync() called within a transaction. " +
+                "Async operations may still be in flight when commit() is called, " +
+                "which could lead to inconsistent state. " +
+                "Consider using execute() for transactional safety."
+            );
         }
-    }
 
-    private void startAsyncWork(AsyncRecordStream asyncStream, ErrorHandler errorHandler) {
+        int totalKeys = operationSpecs.stream().mapToInt(spec -> spec.getKeys().size()).sum();
+        AsyncRecordStream asyncStream = new AsyncRecordStream(totalKeys);
+
         Cluster cluster = session.getCluster();
         cluster.startVirtualThread(() -> {
             try {
                 RecordStream syncResult = OperationSpecExecutor.execute(session, operationSpecs,
                     defaultWhereClause, defaultExpirationInSeconds, txnToUse, notInAnyTransaction,
                     durableDeleteDefault);
-                syncResult.forEach(result -> AbstractFilterableBuilder.dispatchResult(result, asyncStream, errorHandler));
+                syncResult.forEach(result -> dispatchResult(result, asyncStream, errorHandler));
             } finally {
                 asyncStream.complete();
             }
         });
+
+        return new RecordStream(asyncStream);
     }
+
 
     private void prepareSpecs() {
         finalizeCurrentOperation();

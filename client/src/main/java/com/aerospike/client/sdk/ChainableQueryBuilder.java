@@ -23,7 +23,6 @@ import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
 import java.util.Objects;
-import java.util.concurrent.CompletableFuture;
 
 import com.aerospike.ael.ParseResult;
 import com.aerospike.client.sdk.ael.BooleanExpression;
@@ -1225,7 +1224,7 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
         }
 
         int totalKeys = specs.stream().mapToInt(spec -> spec.getKeys().size()).sum();
-        AsyncRecordStream asyncStream = AsyncExecutionSupport.newStream(totalKeys, errorHandler);
+        AsyncRecordStream asyncStream = new AsyncRecordStream(totalKeys);
 
         Cluster cluster = session.getCluster();
         cluster.startVirtualThread(() -> {
@@ -1233,7 +1232,7 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
                 RecordStream syncResult = OperationSpecExecutor.execute(
                     session, specs, defaultWhereClause, defaultExpirationInSeconds, txnToUse,
                     notInAnyTransaction, null);
-                syncResult.forEach(result -> AbstractFilterableBuilder.dispatchResult(result, asyncStream, errorHandler));
+                syncResult.forEach(result -> dispatchResult(result, asyncStream, errorHandler));
             } finally {
                 asyncStream.complete();
             }

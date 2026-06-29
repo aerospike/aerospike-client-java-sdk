@@ -20,12 +20,12 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Arrays;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -820,7 +820,7 @@ public class ObjectBuilder<T> {
      */
     public RecordStream executeAsync(ErrorStrategy strategy) {
         Objects.requireNonNull(strategy, "ErrorStrategy must not be null");
-        return executeAsyncInStream(null);
+        return executeAsyncInStream();
     }
 
     /**
@@ -832,10 +832,11 @@ public class ObjectBuilder<T> {
      */
     public RecordStream executeAsync(ErrorHandler handler) {
         Objects.requireNonNull(handler, "ErrorHandler must not be null");
-        return executeAsyncInStream(handler);
+        RecordStream source = executeAsyncInStream();
+        return filterErrors(source, handler);
     }
 
-    private RecordStream executeAsyncInStream(ErrorHandler errorHandler) {
+    private RecordStream executeAsyncInStream() {
         if (Log.debugEnabled()) {
             Log.debug("ObjectBuilder.executeAsync() called for " + elements.size() + " element(s), transaction: " +
                      (txnToUse != null ? "yes" : "no"));
@@ -855,18 +856,36 @@ public class ObjectBuilder<T> {
         }
 
         if (elements.size() == 1) {
-            return executeSingleAsync(elements.get(0), errorHandler);
+            return executeSingleAsync(elements.get(0));
         }
 
         if (elements.size() < AbstractOperationBuilder.getBatchOperationThreshold()) {
-            return executeIndividualAsync(errorHandler);
+            return executeIndividualAsync();
         }
 
-        return executeBatchAsync(errorHandler);
+        return executeBatchAsync();
     }
 
-    private AsyncRecordStream newAsyncStream(int capacity, ErrorHandler errorHandler) {
-        return AsyncExecutionSupport.newStream(capacity, errorHandler);
+    private RecordStream filterErrors(RecordStream source, ErrorHandler handler) {
+        AsyncRecordStream filtered = new AsyncRecordStream(Math.max(elements.size(), 1));
+        Session session = opBuilder.getSession();
+        session.getCluster().startVirtualThread(() -> {
+            try {
+                source.forEach(result -> {
+                    if (!result.isOk()) {
+                        AerospikeException ex = result.exception() != null
+                            ? result.exception()
+                            : AerospikeException.resultCodeToException(result.resultCode(), result.message(), result.inDoubt());
+                        handler.handle(result.key(), result.index(), ex);
+                    } else {
+                        filtered.publish(result);
+                    }
+                });
+            } finally {
+                filtered.complete();
+            }
+        });
+        return new RecordStream(filtered);
     }
 
     /**
@@ -949,7 +968,7 @@ public class ObjectBuilder<T> {
     /**
      * Execute operations using async batch operations (10+ objects).
      */
-    private RecordStream executeBatchAsync(ErrorHandler errorHandler) {
+    private RecordStream executeBatchAsync() {
         BatchCommand parent = prepareBatch();
         List<BatchRecord> records = parent.getRecords();
         Session session = opBuilder.getSession();
@@ -958,7 +977,7 @@ public class ObjectBuilder<T> {
 
         List<BatchNode> bns = BatchNodes.generate(cluster, parent, records, status);
 
-        AsyncRecordStream stream = newAsyncStream(elements.size(), errorHandler);
+        AsyncRecordStream stream = new AsyncRecordStream(elements.size());
         IBatchCommand[] commands = new IBatchCommand[bns.size()];
         int count = 0;
 
@@ -1119,7 +1138,7 @@ public class ObjectBuilder<T> {
      * Execute operations asynchronously for individual objects (< batch threshold).
      * Returns immediately; virtual threads complete in background.
      */
-    private RecordStream executeIndividualAsync(ErrorHandler errorHandler) {
+    private RecordStream executeIndividualAsync() {
         List<Key> keys = new ArrayList<>(elements.size());
 
         for (T element : elements) {
@@ -1140,8 +1159,9 @@ public class ObjectBuilder<T> {
         // Apply where clause if present
         final Expression filterExp = getFilterExp(firstKey.namespace, firstKey.setName);
         int ttl = (int) resolveTtl(expirationInSeconds, defaultExpirationInSeconds);
+        boolean stackTraceOnException = settings.getStackTraceOnException();
 
-        AsyncRecordStream stream = newAsyncStream(elements.size(), errorHandler);
+        AsyncRecordStream stream = new AsyncRecordStream(elements.size());
         AtomicInteger pendingOps = new AtomicInteger(elements.size());
 
         if (txnToUse != null) {
@@ -1199,7 +1219,7 @@ public class ObjectBuilder<T> {
         return new RecordStream();
     }
 
-    private RecordStream executeSingleAsync(T element, ErrorHandler errorHandler) {
+    private RecordStream executeSingleAsync(T element) {
         RecordMapper<T> recordMapper = getMapper(element);
         Key key = getKeyForElement(recordMapper, element);
 
@@ -1215,7 +1235,8 @@ public class ObjectBuilder<T> {
         final Expression filterExp = getFilterExp(key.namespace, key.setName);
 
         int ttl = (int) resolveTtl(expirationInSeconds, defaultExpirationInSeconds);
-        AsyncRecordStream stream = newAsyncStream(1, errorHandler);
+        boolean stackTraceOnException = settings.getStackTraceOnException();
+        AsyncRecordStream stream = new AsyncRecordStream(1);
         AtomicInteger pendingOps = new AtomicInteger(1);
 
         if (txnToUse != null) {

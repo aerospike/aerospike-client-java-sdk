@@ -453,7 +453,7 @@ public class IdValuesRowBuilder {
         }
 
         int totalKeys = specs.stream().mapToInt(spec -> spec.getKeys().size()).sum();
-        AsyncRecordStream asyncStream = AsyncExecutionSupport.newStream(totalKeys, errorHandler);
+        AsyncRecordStream asyncStream = new AsyncRecordStream(totalKeys);
 
         Cluster cluster = session.getCluster();
         cluster.startVirtualThread(() -> {

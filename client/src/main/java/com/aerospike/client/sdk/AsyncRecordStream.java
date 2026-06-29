@@ -16,20 +16,14 @@
  */
 package com.aerospike.client.sdk;
 
-import java.util.ArrayList;
 import java.util.Iterator;
-import java.util.List;
 import java.util.NoSuchElementException;
-import java.util.Optional;
 import java.util.Spliterator;
 import java.util.Spliterators;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.CancellationException;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BooleanSupplier;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
@@ -38,32 +32,16 @@ import com.aerospike.client.sdk.query.RecordStreamImpl;
 
 /**
  * A push-driven stream that supports backpressure and cancellation.
- *
- * <p>Supports passive drain into a {@link CompletableFuture} via {@link #asCompletableFuture()}
- * without starting a consumer virtual thread. Use {@link #withErrorHandler(ErrorHandler)} before
- * draining or publishing so actionable errors are routed at publish time. Drain registration is
- * single-pass: once registered, iteration and drain modes are mutually exclusive.</p>
  */
 public final class AsyncRecordStream implements AutoCloseable, Iterable<RecordResult>, RecordStreamImpl {
     private static final Object END = new Object();
     private static final class Err { final Throwable t; Err(Throwable t){ this.t = t; } }
 
-    private enum ConsumerMode { NONE, QUEUE, DRAIN }
-
     private final BlockingQueue<Object> queue;
     private final AtomicBoolean completed = new AtomicBoolean(false);
     private final AtomicBoolean closed = new AtomicBoolean(false);
     private final AtomicBoolean isFirstPage = new AtomicBoolean(true);
-    private final AtomicReference<ConsumerMode> consumerMode = new AtomicReference<>(ConsumerMode.NONE);
-    private final AtomicReference<DrainState> drainState = new AtomicReference<>();
-    private volatile ErrorHandler streamErrorHandler;
     private Iterator<RecordResult> internalIterator = null;
-
-    private static final class DrainState {
-        final List<RecordResult> results = new ArrayList<>();
-        final CompletableFuture<List<RecordResult>> future = new CompletableFuture<>();
-        volatile boolean finalized;
-    }
 
     // Optional: give producers a way to see if they should stop.
     private final BooleanSupplier cancelled = () -> closed.get() || completed.get();
@@ -82,96 +60,11 @@ public final class AsyncRecordStream implements AutoCloseable, Iterable<RecordRe
         this.queue = new ArrayBlockingQueue<>(capacity + 1);
     }
 
-    /**
-     * Routes actionable errors to the handler at publish time instead of enqueueing them.
-     * Used by async query paths with {@link ErrorHandler} semantics.
-     *
-     * @param errorHandler handler for non-OK results (must not be null)
-     * @return this stream for chaining
-     */
-    public AsyncRecordStream withErrorHandler(ErrorHandler errorHandler) {
-        this.streamErrorHandler = errorHandler;
-        return this;
-    }
-
-    /**
-     * Registers passive collection into a {@link CompletableFuture}. Must be called before
-     * iteration starts. When drain mode is active, published items are appended to an internal
-     * list and are not enqueued (no backpressure blocking for CF-only consumption).
-     *
-     * <p>Publish-time error routing is controlled by {@link #withErrorHandler(ErrorHandler)}.
-     * Completes when {@link #complete()} or {@link #error(Throwable)} is called.</p>
-     *
-     * @return future that completes with collected results
-     * @throws IllegalStateException if iteration has already started or drain is already registered
-     */
-    public CompletableFuture<List<RecordResult>> asCompletableFuture() {
-        if (!consumerMode.compareAndSet(ConsumerMode.NONE, ConsumerMode.DRAIN)) {
-            if (consumerMode.get() == ConsumerMode.DRAIN) {
-                DrainState existing = drainState.get();
-                if (existing != null) {
-                    return existing.future;
-                }
-            }
-            throw new IllegalStateException(
-                "Stream already consumed; drain and iteration are mutually exclusive");
-        }
-        DrainState state = new DrainState();
-        drainState.set(state);
-        drainQueuedResultsInto(state);
-        if (completed.get()) {
-            finalizeDrain(state, null);
-        }
-        return state.future;
-    }
-
-    /**
-     * Convenience for single-result streams after key-count validation at the builder.
-     *
-     * @return future completing with zero or one result
-     */
-    public CompletableFuture<Optional<RecordResult>> asCompletableFutureSingle() {
-        return asCompletableFuture().thenApply(AsyncExecutionSupport::singleAsOptional);
-    }
-
-    private void drainQueuedResultsInto(DrainState state) {
-        Object item;
-        while ((item = queue.poll()) != null) {
-            if (item instanceof RecordResult rr) {
-                if (routePublish(rr)) {
-                    synchronized (state.results) {
-                        state.results.add(rr);
-                    }
-                }
-            } else if (item instanceof Err e) {
-                finalizeDrainExceptionally(state, e.t);
-                return;
-            } else if (item == END) {
-                completed.set(true);
-                break;
-            }
-        }
-    }
-
     private Iterator<RecordResult> getIterator() {
-        if (!consumerMode.compareAndSet(ConsumerMode.NONE, ConsumerMode.QUEUE)) {
-            if (consumerMode.get() != ConsumerMode.QUEUE) {
-                throw new IllegalStateException(
-                    "Stream already consumed; drain and iteration are mutually exclusive");
-            }
-        }
         if (internalIterator == null) {
             internalIterator = iterator();
         }
         return internalIterator;
-    }
-
-    private boolean routePublish(RecordResult result) {
-        if (streamErrorHandler != null && AbstractFilterableBuilder.isActionableError(result.resultCode())) {
-            AbstractFilterableBuilder.dispatchError(result, streamErrorHandler);
-            return false;
-        }
-        return true;
     }
 
     /** For producers: push a result if we are still open. Blocks when backpressure applies. */
@@ -179,22 +72,9 @@ public final class AsyncRecordStream implements AutoCloseable, Iterable<RecordRe
         if (result == null) {
             return;
         }
-        if (cancelled.getAsBoolean()) {
-            return;
-        }
-
-        DrainState drain = drainState.get();
-        if (drain != null) {
-            if (routePublish(result)) {
-                synchronized (drain.results) {
-                    drain.results.add(result);
-                }
-            }
-            return;
-        }
-
-        if (!routePublish(result)) {
-            return;
+        if (cancelled.getAsBoolean())
+         {
+            return; // best effort
         }
         // Block with backpressure, but wake up promptly if closed/completed
         while (true) {
@@ -202,6 +82,7 @@ public final class AsyncRecordStream implements AutoCloseable, Iterable<RecordRe
                 return;
             }
             try {
+                // TODO: Should this value be substantially larger?
                 if (queue.offer(result, 50, TimeUnit.MILLISECONDS)) {
                     return;
                 }
@@ -231,11 +112,6 @@ public final class AsyncRecordStream implements AutoCloseable, Iterable<RecordRe
         }
         if (completed.compareAndSet(false, true)) {
             // Stop publishers first (they check completed via cancelled())
-            DrainState drain = drainState.get();
-            if (drain != null) {
-                finalizeDrainExceptionally(drain, t);
-                return;
-            }
             Err err = new Err(t);
             // Keep trying until error is added - consumer will eventually drain
             // since publish() stops adding items when completed=true
@@ -268,11 +144,6 @@ public final class AsyncRecordStream implements AutoCloseable, Iterable<RecordRe
         if (completed.compareAndSet(false, true)) {
             // Keep trying until END is added - consumer will eventually drain
             // since publish() stops adding items when completed=true
-            DrainState drain = drainState.get();
-            if (drain != null) {
-                finalizeDrain(drain, null);
-                return this;
-            }
             while (!closed.get()) {
                 try {
                     if (queue.offer(END, 50, TimeUnit.MILLISECONDS)) {
@@ -283,41 +154,8 @@ public final class AsyncRecordStream implements AutoCloseable, Iterable<RecordRe
                     break;
                 }
             }
-        } else {
-            DrainState drain = drainState.get();
-            if (drain != null) {
-                finalizeDrain(drain, null);
-            }
         }
         return this;
-    }
-
-    private void finalizeDrain(DrainState drain, Throwable terminalError) {
-        if (drain.finalized) {
-            return;
-        }
-        drain.finalized = true;
-        if (closed.get()) {
-            drain.future.completeExceptionally(new CancellationException("RecordStream was closed"));
-            return;
-        }
-        if (terminalError != null) {
-            drain.future.completeExceptionally(terminalError);
-            return;
-        }
-        List<RecordResult> snapshot;
-        synchronized (drain.results) {
-            snapshot = List.copyOf(drain.results);
-        }
-        drain.future.complete(snapshot);
-    }
-
-    private void finalizeDrainExceptionally(DrainState drain, Throwable t) {
-        if (drain.finalized) {
-            return;
-        }
-        drain.finalized = true;
-        drain.future.completeExceptionally(t);
     }
 
     /** For consumers: a standard Java Stream view. Closing the stream cancels producers. */
@@ -333,10 +171,6 @@ public final class AsyncRecordStream implements AutoCloseable, Iterable<RecordRe
     public void close() {
         if (closed.compareAndSet(false, true)) {
             // Drain quickly to keep memory bounded, then unblock consumer.
-            DrainState drain = drainState.get();
-            if (drain != null) {
-                finalizeDrainExceptionally(drain, new CancellationException("RecordStream was closed"));
-            }
             queue.clear();
             queue.offer(END);
         }

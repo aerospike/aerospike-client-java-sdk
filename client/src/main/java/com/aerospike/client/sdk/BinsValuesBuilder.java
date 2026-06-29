@@ -58,8 +58,7 @@ import com.aerospike.client.sdk.tend.Partitions;
  * Builder for the bins+values pattern in OperationBuilder. This allows setting
  * multiple bin names and then providing values for each record.
  */
-public class BinsValuesBuilder extends AbstractFilterableBuilder
-        implements FilterableOperation<BinsValuesBuilder> {
+public class BinsValuesBuilder extends AbstractFilterableBuilder implements FilterableOperation<BinsValuesBuilder> {
     private static class ValueData {
         private Object[] values;
         private int generation = 0;
@@ -619,7 +618,7 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder
      */
     public RecordStream executeAsync(ErrorStrategy strategy) {
         Objects.requireNonNull(strategy, "ErrorStrategy must not be null");
-        return executeAsyncInStream(null);
+        return executeAsyncInStream();
     }
 
     /**
@@ -631,10 +630,11 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder
      */
     public RecordStream executeAsync(ErrorHandler handler) {
         Objects.requireNonNull(handler, "ErrorHandler must not be null");
-        return executeAsyncInStream(handler);
+        RecordStream source = executeAsyncInStream();
+        return filterErrors(source, handler);
     }
 
-    private RecordStream executeAsyncInStream(ErrorHandler errorHandler) {
+    private RecordStream executeAsyncInStream() {
         if (Log.debugEnabled()) {
             Log.debug("BinsValuesBuilder.executeAsync() called for " + keys.size() + " key(s), transaction: "
                     + (txnToUse != null ? "yes" : "no"));
@@ -658,14 +658,32 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder
         }
 
         if (keys.size() >= AbstractOperationBuilder.getBatchOperationThreshold()) {
-            return executeBatchAsync(errorHandler);
+            return executeBatchAsync();
         } else {
-            return executeIndividualAsync(errorHandler);
+            return executeIndividualAsync();
         }
     }
 
-    private AsyncRecordStream newAsyncStream(int capacity, ErrorHandler errorHandler) {
-        return AsyncExecutionSupport.newStream(capacity, errorHandler);
+    private RecordStream filterErrors(RecordStream source, ErrorHandler handler) {
+        AsyncRecordStream filtered = new AsyncRecordStream(Math.max(keys.size(), 1));
+        Session session = opBuilder.getSession();
+        session.getCluster().startVirtualThread(() -> {
+            try {
+                source.forEach(result -> {
+                    if (!result.isOk()) {
+                        AerospikeException ex = result.exception() != null
+                            ? result.exception()
+                            : AerospikeException.resultCodeToException(result.resultCode(), result.message(), result.inDoubt());
+                        handler.handle(result.key(), result.index(), ex);
+                    } else {
+                        filtered.publish(result);
+                    }
+                });
+            } finally {
+                filtered.complete();
+            }
+        });
+        return new RecordStream(filtered);
     }
 
     private RecordStream executeBatchSync(ErrorDisposition disposition) {
@@ -752,7 +770,7 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder
         return new RecordStream(results, 0);
     }
 
-    private RecordStream executeBatchAsync(ErrorHandler errorHandler) {
+    private RecordStream executeBatchAsync() {
         BatchCommand parent = prepareBatch();
         List<BatchRecord> records = parent.getRecords();
         Session session = opBuilder.getSession();
@@ -761,7 +779,7 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder
         BatchStatus status = new BatchStatus();
         List<BatchNode> bns = BatchNodes.generate(cluster, parent, records, status);
 
-        AsyncRecordStream stream = newAsyncStream(keys.size(), errorHandler);
+        AsyncRecordStream stream = new AsyncRecordStream(keys.size());
         IBatchCommand[] commands = new IBatchCommand[bns.size()];
         int count = 0;
 
@@ -939,7 +957,7 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder
      * Execute operations asynchronously for individual keys (< batch threshold).
      * Returns immediately; virtual threads complete in background.
      */
-    private RecordStream executeIndividualAsync(ErrorHandler errorHandler) {
+    private RecordStream executeIndividualAsync() {
         if (keys.size() == 0) {
             return new RecordStream();
         }
@@ -952,7 +970,7 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder
         Partitions partitions = getPartitions(cluster, firstKey.namespace);
         ResolvedSettings policy = session.getBehavior().getSettings(OpKind.WRITE_RETRYABLE, OpShape.POINT, partitions.scMode);
         final Expression filterExp = getFilterExp(session, firstKey.namespace, firstKey.setName);
-        AsyncRecordStream asyncStream = newAsyncStream(keys.size(), errorHandler);
+        AsyncRecordStream asyncStream = new AsyncRecordStream(keys.size());
 
         if (txnToUse != null) {
             cluster.startVirtualThread(() -> {
