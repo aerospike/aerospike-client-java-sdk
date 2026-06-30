@@ -24,6 +24,7 @@ import org.junit.platform.suite.api.SelectClasses;
 import org.junit.platform.suite.api.Suite;
 
 import com.aerospike.client.sdk.policy.Behavior;
+import com.aerospike.client.sdk.policy.Behavior.Selectors;
 import com.aerospike.client.sdk.query.ExpSecondaryIndexTest;
 import com.aerospike.client.sdk.query.QueryBlobTest;
 import com.aerospike.client.sdk.query.QueryChildrenTest;
@@ -152,10 +153,14 @@ public class SuiteCluster {
         }
 
         Cluster cluster = def.connect();
-        Session session;
+        Session session, sessionWithSendKey;
 
         try {
             session = cluster.createSession(Behavior.DEFAULT);
+            sessionWithSendKey = cluster.createSession(Behavior.DEFAULT.deriveWithChanges(
+                    "sendKey", 
+                    opt -> opt.on(Selectors.all(), s -> s.sendKey(true)))
+            );
             args.setServerSpecific(cluster);
         }
         catch (RuntimeException re) {
@@ -165,6 +170,7 @@ public class SuiteCluster {
 
         ClusterTest.cluster = cluster;
         ClusterTest.session = session;
+        ClusterTest.sessionWithSendKey = sessionWithSendKey;
         ClusterTest.initializedBySuite = true;
     }
 
@@ -186,6 +192,7 @@ public class SuiteCluster {
             ClusterTest.cluster.close();
             ClusterTest.cluster = null;
             ClusterTest.session = null;
+            ClusterTest.sessionWithSendKey = null;
         }
         ClusterTest.initializedBySuite = false;
     }

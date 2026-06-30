@@ -113,6 +113,7 @@ public class ClusterTest {
 
         // Session doesn't need explicit cleanup - it's just a wrapper
         session = null;
+        sessionWithSendKey = null;
 
         if (cluster != null) {
             cluster.close();
