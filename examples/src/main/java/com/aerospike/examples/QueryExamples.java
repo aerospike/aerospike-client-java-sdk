@@ -23,7 +23,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.CompletableFuture;
 import java.util.stream.IntStream;
 
 import com.aerospike.client.sdk.AerospikeException;
@@ -1220,9 +1219,21 @@ public class QueryExamples {
                 RecordResult rr = rs.next();
                 System.out.println((Object)rr.toObject());
             }
-            
-            CompletableFuture<List<Customer>> myCust = session.query(customerDataSet.ids(1,2,3)).execute().asCompletableFutureMapped();
-            CompletableFuture<List<Customer>> myCust1 = session.query(customerDataSet.id(1)).execute().asCompletableFutureMapped();
+
+            System.out.println("\n--- Async CompletableFuture examples ---\n");
+            List<Customer> customersAsync = session.query(customerDataSet.ids(1, 2, 3))
+                .executeAsync(ErrorStrategy.IN_STREAM)
+                .asCompletableFutureMapped()
+                .join();
+            customersAsync.forEach(c -> System.out.println(c));
+
+            Optional<Customer> customerAsync = session.query(customerDataSet.id(1))
+                .executeAsync(ErrorStrategy.IN_STREAM)
+                .asCompletableFutureMappedSingle()
+                .join();
+            customerAsync.ifPresentOrElse(
+                c -> System.out.println("Single customer: " + c),
+                () -> System.out.println("Customer id=1 not found"));
         }
     }
 }

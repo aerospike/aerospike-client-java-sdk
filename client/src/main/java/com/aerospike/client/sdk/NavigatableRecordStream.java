@@ -386,7 +386,8 @@ public class NavigatableRecordStream implements ResettablePagination, Closeable 
      */
     @Override
     public void setPageTo(int newPage) {
-        if (newPage < 1 || newPage > numPages) {
+        // Num pages is 0-based, but the page number will be 1-based.
+        if (newPage < 1 || newPage > (1+numPages)) {
             throw new IllegalArgumentException(String.format(
                     "setPageTo must take page number in the range of 1 to %,d, not %,d",
                     numPages, newPage));
