@@ -24,6 +24,7 @@ import com.aerospike.client.sdk.Node;
 import com.aerospike.client.sdk.ResultCode;
 import com.aerospike.client.sdk.metrics.LatencyType;
 import com.aerospike.client.sdk.query.plan.QueryPlan;
+import com.aerospike.client.sdk.query.plan.QueryWhereWire;
 import com.aerospike.client.sdk.util.RandomShift;
 
 public final class IndexProbeExecutor extends SyncExecutor {
@@ -53,7 +54,7 @@ public final class IndexProbeExecutor extends SyncExecutor {
     @Override
     protected CommandBuffer getCommandBuffer() {
         CommandBuffer cb = new CommandBuffer();
-        cb.setIndexProbe(probe);
+        cb.setQueryExplain(probe);
         return cb;
     }
 
@@ -69,12 +70,12 @@ public final class IndexProbeExecutor extends SyncExecutor {
             throw AerospikeException.resultCodeToException(rp.resultCode, null);
         }
 
-        byte[] predicateBytes = probe.where.getBytes();
-        plan = QueryPlan.fromProbeResponse(
+        byte[] whereBytes = QueryWhereWire.forExplain(probe.ael);
+        plan = QueryPlan.fromExplainResponse(
             rp.resultCode,
             probe.namespace,
             probe.set,
-            predicateBytes,
+            whereBytes,
             MsgFieldParser.from(rp)
         );
     }

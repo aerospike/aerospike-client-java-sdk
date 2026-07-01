@@ -18,16 +18,16 @@ package com.aerospike.client.sdk.command;
 
 import com.aerospike.client.sdk.AerospikeException;
 import com.aerospike.client.sdk.Cluster;
-import com.aerospike.client.sdk.exp.Expression;
 import com.aerospike.client.sdk.policy.ResolvedSettings;
 import com.aerospike.client.sdk.query.plan.QueryPlan;
 import com.aerospike.client.sdk.util.RandomShift;
 
 /**
- * Server-side index selection probe ({@code INFO4_QUERY_SELECTION}).
+ * Server query explain (phase 1): field {@code 44} WHERE with {@code EXPLAIN} flag.
  */
 public final class IndexProbeCommand extends Command {
     final String set;
+    final String ael;
     final String indexNameHint;
     final long taskId;
 
@@ -35,36 +35,37 @@ public final class IndexProbeCommand extends Command {
         Cluster cluster,
         String namespace,
         String set,
-        Expression predicate,
+        String ael,
         String indexNameHint,
         ResolvedSettings settings
     ) {
-        this(cluster, namespace, set, predicate, indexNameHint, new RandomShift().nextLong(), settings);
+        this(cluster, namespace, set, ael, indexNameHint, new RandomShift().nextLong(), settings);
     }
 
     public IndexProbeCommand(
         Cluster cluster,
         String namespace,
         String set,
-        Expression predicate,
+        String ael,
         String indexNameHint,
         long taskId,
         ResolvedSettings settings
     ) {
-        super(cluster, namespace, null, predicate, settings.getReplicaOrder(), settings);
+        super(cluster, namespace, null, null, settings.getReplicaOrder(), settings);
         if (namespace == null || namespace.isEmpty()) {
-            throw new AerospikeException("Index probe requires namespace");
+            throw new AerospikeException("Query explain requires namespace");
         }
-        if (predicate == null) {
-            throw new AerospikeException("Index probe requires predicate expression");
+        if (ael == null || ael.isEmpty()) {
+            throw new AerospikeException("Query explain requires AEL WHERE clause");
         }
         this.set = set;
+        this.ael = ael;
         this.indexNameHint = indexNameHint;
         this.taskId = taskId;
     }
 
     /**
-     * Run the probe against the cluster and return the server query plan.
+     * Run explain against the cluster and return the server query plan.
      */
     public QueryPlan execute() {
         IndexProbeExecutor exec = new IndexProbeExecutor(cluster, this);

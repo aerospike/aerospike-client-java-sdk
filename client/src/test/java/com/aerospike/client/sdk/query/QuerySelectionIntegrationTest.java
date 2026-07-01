@@ -59,9 +59,10 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Integration tests for two-phase server query selection (probe → execute).
+ * Integration tests for two-phase server query selection (explain → execute).
  *
- * <p>Requires a server build with {@code INFO4_QUERY_SELECTION} support.</p>
+ * <p>Requires cluster minimum version {@link Version#SERVER_VERSION_8_1_3}
+ * ({@link com.aerospike.client.sdk.Cluster#supportsQuerySelection()}).</p>
  */
 public class QuerySelectionIntegrationTest extends ClusterTest {
     private static final String setName = "qselint";
@@ -146,7 +147,7 @@ public class QuerySelectionIntegrationTest extends ClusterTest {
             () -> assertEquals(setName, plan.getSet()),
             () -> assertNotNull(plan.getIndexName()),
             () -> assertNotNull(plan.getIndexRangeBytes()),
-            () -> assertNotNull(plan.getPredicateBytes()),
+            () -> assertNotNull(plan.getExplainWhereBytes()),
             () -> assertEquals(indexName, plan.getIndexName()));
     }
 
@@ -166,7 +167,7 @@ public class QuerySelectionIntegrationTest extends ClusterTest {
             () -> assertEquals(setName, plan.getSet()),
             () -> assertNull(plan.getIndexName()),
             () -> assertNull(plan.getIndexRangeBytes()),
-            () -> assertNotNull(plan.getPredicateBytes()));
+            () -> assertNotNull(plan.getExplainWhereBytes()));
     }
 
     /**
@@ -184,7 +185,7 @@ public class QuerySelectionIntegrationTest extends ClusterTest {
             () -> assertEquals(QuerySelection.SECONDARY_INDEX, plan.getSelection()),
             () -> assertEquals(indexName, plan.getIndexName()),
             () -> assertNotNull(plan.getIndexRangeBytes()),
-            () -> assertNotNull(plan.getPredicateBytes()));
+            () -> assertNotNull(plan.getExplainWhereBytes()));
     }
 
     @Test
@@ -200,7 +201,7 @@ public class QuerySelectionIntegrationTest extends ClusterTest {
         assertAll("repeatedProbeStability",
             () -> assertEquals(first.getSelection(), second.getSelection()),
             () -> assertEquals(first.getIndexName(), second.getIndexName()),
-            () -> assertArrayEquals(first.getPredicateBytes(), second.getPredicateBytes()),
+            () -> assertArrayEquals(first.getExplainWhereBytes(), second.getExplainWhereBytes()),
             () -> assertArrayEquals(first.getIndexRangeBytes(), second.getIndexRangeBytes()));
     }
 
@@ -216,11 +217,11 @@ public class QuerySelectionIntegrationTest extends ClusterTest {
             () -> assertEquals(QuerySelection.SECONDARY_INDEX, viaPlanner.getSelection()),
             () -> assertEquals(indexName, viaPlanner.getIndexName()),
             () -> assertNotNull(viaPlanner.getIndexRangeBytes()),
-            () -> assertNotNull(viaPlanner.getPredicateBytes()));
+            () -> assertNotNull(viaPlanner.getExplainWhereBytes()));
         assertAll("plannerMatchesBuilder",
             () -> assertEquals(viaPlanner.getSelection(), viaBuilder.getSelection()),
             () -> assertEquals(viaPlanner.getIndexName(), viaBuilder.getIndexName()),
-            () -> assertArrayEquals(viaPlanner.getPredicateBytes(), viaBuilder.getPredicateBytes()),
+            () -> assertArrayEquals(viaPlanner.getExplainWhereBytes(), viaBuilder.getExplainWhereBytes()),
             () -> assertArrayEquals(viaPlanner.getIndexRangeBytes(), viaBuilder.getIndexRangeBytes()));
     }
 
@@ -240,7 +241,7 @@ public class QuerySelectionIntegrationTest extends ClusterTest {
             () -> assertNotEquals(bogusIndexName, plan.getIndexName()),
             () -> assertEquals(indexName, plan.getIndexName()),
             () -> assertNotNull(plan.getIndexRangeBytes()),
-            () -> assertNotNull(plan.getPredicateBytes()));
+            () -> assertNotNull(plan.getExplainWhereBytes()));
     }
 
     /**
@@ -255,7 +256,7 @@ public class QuerySelectionIntegrationTest extends ClusterTest {
 
         assertAll("probeResponse",
             () -> assertEquals(QuerySelection.FILTERED_OUT, plan.getSelection()),
-            () -> assertNotNull(plan.getPredicateBytes()),
+            () -> assertNotNull(plan.getExplainWhereBytes()),
             () -> assertNull(plan.getIndexName()),
             () -> assertNull(plan.getIndexRangeBytes()));
     }
@@ -385,13 +386,13 @@ public class QuerySelectionIntegrationTest extends ClusterTest {
     }
 
     /**
-     * Field {@code 43} on execute must match the predicate bytes returned by probe (stored on {@link QueryPlan}).
+     * Field {@code 44} on execute must match the plan execute WHERE bytes (EXPLAIN cleared).
      */
     @Test
-    void executeReplaysProbePredicateBytesOnWire() {
-        assertAll("predicateReplay",
-            () -> assertExecuteWirePredicateMatchesProbe("$.age >= 14 and $.age <= 18"),
-            () -> assertExecuteWirePredicateMatchesProbe("$.country == 'US'"));
+    void executeReplaysPlanWhereBytesOnWire() {
+        assertAll("whereReplay",
+            () -> assertExecuteWireWhereMatchesPlan("$.age >= 14 and $.age <= 18"),
+            () -> assertExecuteWireWhereMatchesPlan("$.country == 'US'"));
     }
 
     /**
@@ -407,7 +408,7 @@ public class QuerySelectionIntegrationTest extends ClusterTest {
         assertAll("probeResponse",
             () -> assertEquals(QuerySelection.SECONDARY_INDEX, plan.getSelection()),
             () -> assertEquals(indexName, plan.getIndexName()),
-            () -> assertNotNull(plan.getPredicateBytes()));
+            () -> assertNotNull(plan.getExplainWhereBytes()));
 
         RecordStream rs = session.query(dataSet)
             .readingOnlyBins(binName, countryBinName)
@@ -436,7 +437,7 @@ public class QuerySelectionIntegrationTest extends ClusterTest {
 
     /**
      * Index on bin age.
-     * Compound WHERE (age + country): server-led (full field 43) vs forBin legacy (residual 43)
+     * Compound WHERE (age + country): server-led (field 44) vs forBin legacy (residual field 43)
      * -> same matching row set.
      */
     @Test
@@ -457,7 +458,7 @@ public class QuerySelectionIntegrationTest extends ClusterTest {
         assertAll("compoundLegacyVsServerLed",
             () -> assertEquals(serverLedAges, legacyAges),
             () -> assertEquals(List.of(32, 34, 36, 38, 40, 42, 44, 46, 48, 50), serverLedAges),
-            () -> assertCompoundPredicateField43DiffersOnWire(where));
+            () -> assertCompoundPredicateField44DiffersFromLegacyField43(where));
     }
 
     /**
@@ -604,7 +605,6 @@ public class QuerySelectionIntegrationTest extends ClusterTest {
     /**
      * Server below query-selection version.
      * String-AEL range on age -> legacy path; matching records returned.
-     * Skipped while version gate is stubbed on.
      */
     @Test
     void gateOffStringAelUsesLegacySelection() {
@@ -614,7 +614,7 @@ public class QuerySelectionIntegrationTest extends ClusterTest {
         try {
             cluster.setVersion(Version.SERVER_VERSION_8_1_2);
             assumeFalse(cluster.supportsQuerySelection(),
-                "supportsQuerySelection stubbed true; wire versionGE813 in Cluster for 3.6");
+                "server version below 8.1.3 should not use query selection");
 
             List<Integer> ages = collectAges(session.query(dataSet)
                 .readingOnlyBins(binName)
@@ -777,32 +777,34 @@ public class QuerySelectionIntegrationTest extends ClusterTest {
         }
     }
 
-    private void assertExecuteWirePredicateMatchesProbe(String where) {
+    private void assertExecuteWireWhereMatchesPlan(String where) {
         QueryBuilder qb = session.query(dataSet).where(where);
         QueryPlan plan = qb.plan();
 
-        assertNotNull(plan.getPredicateBytes());
+        assertNotNull(plan.getExplainWhereBytes());
 
         ResolvedSettings settings = session.getBehavior().getSettings(
             Behavior.OpKind.READ, Behavior.OpShape.QUERY, Behavior.Mode.ANY);
         QueryCommand cmd = QueryCommand.forPlan(cluster, dataSet, plan, settings, qb);
         CommandBuffer cb = encodeExecuteQuery(cmd);
 
-        assertArrayEquals(plan.getPredicateBytes(), fieldBytes(cb, FieldType.FILTER_EXP));
+        assertArrayEquals(plan.getExecuteWhereBytes(), fieldBytes(cb, FieldType.WHERE));
+        assertEquals(0, com.aerospike.client.sdk.query.plan.QueryWhereWire.flags(
+            fieldBytes(cb, FieldType.WHERE)));
     }
 
-    private void assertCompoundPredicateField43DiffersOnWire(String where) {
+    private void assertCompoundPredicateField44DiffersFromLegacyField43(String where) {
         QueryBuilder serverLedQb = session.query(dataSet).where(where);
         QueryPlan plan = serverLedQb.plan();
 
-        assertNotNull(plan.getPredicateBytes());
+        assertNotNull(plan.getExplainWhereBytes());
 
         ResolvedSettings settings = session.getBehavior().getSettings(
             Behavior.OpKind.READ, Behavior.OpShape.QUERY, Behavior.Mode.ANY);
 
-        byte[] serverLed43 = fieldBytes(
+        byte[] serverLed44 = fieldBytes(
             encodeExecuteQuery(QueryCommand.forPlan(cluster, dataSet, plan, settings, serverLedQb)),
-            FieldType.FILTER_EXP);
+            FieldType.WHERE);
 
         QueryBuilder legacyQb = session.query(dataSet)
             .where(where)
@@ -812,9 +814,9 @@ public class QuerySelectionIntegrationTest extends ClusterTest {
             cluster, dataSet, pr.getFilter(), pr.getExpression(), settings, legacyQb);
         byte[] legacy43 = fieldBytes(encodeExecuteQuery(legacyCmd), FieldType.FILTER_EXP);
 
-        assertArrayEquals(plan.getPredicateBytes(), serverLed43);
-        assertNotEquals(legacy43, serverLed43,
-            "legacy residual field 43 should differ from full probe replay on compound WHERE");
+        assertArrayEquals(plan.getExecuteWhereBytes(), serverLed44);
+        assertNotEquals(legacy43, serverLed44,
+            "legacy residual field 43 should differ from server-led field 44 on compound WHERE");
     }
 
     private static CommandBuffer encodeExecuteQuery(QueryCommand cmd) {

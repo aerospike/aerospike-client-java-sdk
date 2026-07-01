@@ -19,7 +19,6 @@ package com.aerospike.client.sdk.query;
 import com.aerospike.ael.ParseResult;
 import com.aerospike.client.sdk.AelMaterializer;
 import com.aerospike.client.sdk.Session;
-import com.aerospike.client.sdk.exp.Exp;
 import com.aerospike.client.sdk.ael.BooleanExpression;
 import com.aerospike.client.sdk.exp.Exp;
 import com.aerospike.client.sdk.exp.Expression;
@@ -41,8 +40,23 @@ public abstract class WhereClauseProcessor {
     public abstract ParseResult process(String namespace, String querySet, Session session);
 
     /**
-     * Full WHERE as wire {@link Expression} for index-probe field {@code 43} (no client index selection).
+     * Raw AEL source text for field {@code 44} explain (server parses AEL on the server).
      */
+    public final String toExplainAel(Session session) {
+        if (this instanceof WhereStringImpl s) {
+            return s.ael;
+        }
+        if (this instanceof WherePreparedImpl p) {
+            return p.ael.formValue(p.params);
+        }
+        throw new IllegalStateException("Server query explain requires string AEL WHERE");
+    }
+
+    /**
+     * Full WHERE as wire {@link Expression} for legacy index-probe field {@code 43} (no client index selection).
+     * @deprecated Server explain uses field {@code 44} via {@link #toExplainAel(Session)}.
+     */
+    @Deprecated
     public final Expression toProbeExpression(Session session) {
         if (this instanceof WhereStringImpl s) {
             return AelMaterializer.expressionForQueryProbe(s.ael);
@@ -68,6 +82,13 @@ public abstract class WhereClauseProcessor {
      */
     public final boolean allowsIndex() {
         return allowsIndex;
+    }
+
+    /**
+     * Whether this WHERE carries textual AEL for field {@code 44} (string or prepared).
+     */
+    public final boolean hasStringAel() {
+        return this instanceof WhereStringImpl || this instanceof WherePreparedImpl;
     }
 
     private static class WhereStringImpl extends WhereClauseProcessor {

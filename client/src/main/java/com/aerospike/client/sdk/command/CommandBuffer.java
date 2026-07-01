@@ -33,6 +33,7 @@ import com.aerospike.client.sdk.policy.QueryDuration;
 import com.aerospike.client.sdk.policy.ReadModeAP;
 import com.aerospike.client.sdk.query.Filter;
 import com.aerospike.client.sdk.query.IndexCollectionType;
+import com.aerospike.client.sdk.query.plan.QueryWhereWire;
 import com.aerospike.client.sdk.util.Packer;
 
 public final class CommandBuffer {
@@ -833,7 +834,11 @@ public final class CommandBuffer {
             }
         }
 
-        if (cmd.where != null) {
+        if (cmd.executeWhereBytes != null) {
+            dataOffset += Command.FIELD_HEADER_SIZE + cmd.executeWhereBytes.length;
+            fieldCount++;
+        }
+        else if (cmd.where != null) {
             sizeFieldExpression(cmd.where);
             fieldCount++;
         }
@@ -984,7 +989,12 @@ public final class CommandBuffer {
             }
         }
 
-        if (cmd.where != null) {
+        if (cmd.executeWhereBytes != null) {
+            writeFieldHeader(cmd.executeWhereBytes.length, FieldType.WHERE);
+            System.arraycopy(cmd.executeWhereBytes, 0, dataBuffer, dataOffset, cmd.executeWhereBytes.length);
+            dataOffset += cmd.executeWhereBytes.length;
+        }
+        else if (cmd.where != null) {
             writeFieldExpression(cmd.where);
         }
 
@@ -1034,13 +1044,10 @@ public final class CommandBuffer {
     }
 
     /**
-     * Encode an index probe ({@link IndexProbeCommand}).
+     * Encode a query explain ({@link IndexProbeCommand}): field {@code 44} WHERE with EXPLAIN flag.
      */
-    public void setIndexProbe(IndexProbeCommand cmd) {
-        byte[] predicateBytes = cmd.where.getBytes();
-        if (predicateBytes.length == 0) {
-            throw new AerospikeException("Index probe requires predicate bytes");
-        }
+    public void setQueryExplain(IndexProbeCommand cmd) {
+        byte[] whereBytes = QueryWhereWire.forExplain(cmd.ael);
 
         int fieldCount = 0;
         boolean hasHint = cmd.indexNameHint != null && !cmd.indexNameHint.isBlank();
@@ -1066,7 +1073,7 @@ public final class CommandBuffer {
             fieldCount++;
         }
 
-        dataOffset += predicateBytes.length + Command.FIELD_HEADER_SIZE;
+        dataOffset += whereBytes.length + Command.FIELD_HEADER_SIZE;
         fieldCount++;
 
         sizeBuffer();
@@ -1079,7 +1086,6 @@ public final class CommandBuffer {
         for (int i = 12; i < 18; i++) {
             dataBuffer[i] = 0;
         }
-        dataBuffer[12] = (byte) Command.INFO4_QUERY_SELECTION;
 
         Buffer.intToBytes(0, dataBuffer, 18);
         Buffer.intToBytes(cmd.totalTimeout, dataBuffer, 22);
@@ -1100,9 +1106,9 @@ public final class CommandBuffer {
             writeField(cmd.indexNameHint, FieldType.INDEX_NAME);
         }
 
-        writeFieldHeader(predicateBytes.length, FieldType.FILTER_EXP);
-        System.arraycopy(predicateBytes, 0, dataBuffer, dataOffset, predicateBytes.length);
-        dataOffset += predicateBytes.length;
+        writeFieldHeader(whereBytes.length, FieldType.WHERE);
+        System.arraycopy(whereBytes, 0, dataBuffer, dataOffset, whereBytes.length);
+        dataOffset += whereBytes.length;
 
         end();
     }

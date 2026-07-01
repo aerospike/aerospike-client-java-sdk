@@ -67,8 +67,10 @@ public final class AelMaterializer {
     }
 
     /**
-     * Query WHERE from string AEL: server path when SI-aware parse is not required and cluster
-     * supports server AEL; otherwise full client parse (including secondary index {@link Filter}).
+     * Query WHERE from string AEL: client parse for legacy execute paths (packed predexp on field
+     * {@code 43}). String-AEL queries on {@link com.aerospike.client.sdk.Cluster#supportsQuerySelection()}
+     * clusters use field {@code 44} via {@link com.aerospike.client.sdk.query.IndexProbePlanner}
+     * instead of this method.
      */
     public static ParseResult parseWhereFromString(
         Session session,
@@ -77,14 +79,7 @@ public final class AelMaterializer {
         String querySet,
         String ael
     ) {
-        if (!allowsIndex && session.getCluster().supportsAel()) {
-            return serverCompiledFilterResult(ael);
-        }
         return clientParseWhere(session, allowsIndex, namespace, querySet, ael);
-    }
-
-    private static ParseResult serverCompiledFilterResult(String dslSource) {
-        return new ParseResult(null, Exp.expr(Expression.fromServerCompiledFilter(dslSource)));
     }
 
     private static ParseResult clientParseWhere(

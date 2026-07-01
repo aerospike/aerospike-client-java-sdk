@@ -19,6 +19,9 @@ package com.aerospike.client.sdk.command;
 import java.util.HashMap;
 import java.util.Map;
 
+import com.aerospike.client.sdk.AerospikeException;
+import com.aerospike.client.sdk.query.IndexCollectionType;
+
 /**
  * Parses {@code AS_MSG} field TLVs from a {@link RecordParser} buffer.
  * For internal use decoding query-plan probe replies and similar single-message responses.
@@ -57,6 +60,23 @@ public final class MsgFieldParser {
             return null;
         }
         return Buffer.utf8ToString(data, 0, data.length);
+    }
+
+    /**
+     * Returns {@code INDEX_TYPE} (field {@code 26}) as {@link IndexCollectionType}, or
+     * {@link IndexCollectionType#DEFAULT} when the field is absent.
+     */
+    public IndexCollectionType getIndexCollectionType() {
+        byte[] data = getField(FieldType.INDEX_TYPE);
+        if (data == null || data.length == 0) {
+            return IndexCollectionType.DEFAULT;
+        }
+        int ordinal = data[0] & 0xFF;
+        IndexCollectionType[] values = IndexCollectionType.values();
+        if (ordinal >= values.length) {
+            throw new AerospikeException.Parse("Invalid INDEX_TYPE ordinal " + ordinal);
+        }
+        return values[ordinal];
     }
 
     private void ensureParsed() {

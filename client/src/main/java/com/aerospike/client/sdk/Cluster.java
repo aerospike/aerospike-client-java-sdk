@@ -612,7 +612,7 @@ public class Cluster implements Closeable {
     public boolean supportsAel() {
         // TODO Change to version check when server main branch supports it.
         // return versionGE813;
-        return false;
+        return true;
     }
 
     /**
@@ -635,13 +635,13 @@ public class Cluster implements Closeable {
 
     /**
      * Whether this cluster's minimum server version supports two-phase server query selection
-     * ({@code INFO4_QUERY_SELECTION} probe).
+     * (field {@code 44} WHERE explain → execute).
      *
      * <p>Requires cluster minimum version {@link Version#SERVER_VERSION_8_1_3} or newer.</p>
      */
     public boolean supportsQuerySelection() {
-        return true;
         //return versionGE813;
+        return true;
     }
 
     /**

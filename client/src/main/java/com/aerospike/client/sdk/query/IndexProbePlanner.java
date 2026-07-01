@@ -58,7 +58,7 @@ final class IndexProbePlanner {
             cluster,
             dataSet.getNamespace(),
             dataSet.getSet(),
-            where.toProbeExpression(session),
+            where.toExplainAel(session),
             indexNameHintForProbe(hint),
             settings
         );
@@ -67,6 +67,9 @@ final class IndexProbePlanner {
 
     /**
      * Whether index-query {@code execute()} should probe the server and replay the returned plan.
+     *
+     * <p>String or prepared AEL uses field {@code 44} (SI or PI). Non-textual WHERE ({@code Exp},
+     * {@code BooleanExpression}) stays on the legacy field {@code 43} path.</p>
      */
     static boolean useServerQuerySelection(
         Cluster cluster,
@@ -76,7 +79,7 @@ final class IndexProbePlanner {
         if (!cluster.supportsQuerySelection()) {
             return false;
         }
-        if (where == null || !where.allowsIndex()) {
+        if (where == null || !where.hasStringAel()) {
             return false;
         }
         if (hint != null && hint.getBinName() != null) {

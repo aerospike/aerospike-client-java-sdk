@@ -35,24 +35,25 @@ import com.aerospike.client.sdk.command.MsgFieldParser;
 import com.aerospike.client.sdk.command.PartitionFilter;
 import com.aerospike.client.sdk.command.PartitionTracker;
 import com.aerospike.client.sdk.command.QueryCommand;
-import com.aerospike.client.sdk.exp.Exp;
-import com.aerospike.client.sdk.exp.Expression;
 import com.aerospike.client.sdk.policy.Behavior;
 import com.aerospike.client.sdk.policy.ResolvedSettings;
 import com.aerospike.client.sdk.query.Filter;
+import com.aerospike.client.sdk.query.IndexCollectionType;
 import com.aerospike.client.sdk.query.QueryBuilder;
 import com.aerospike.client.sdk.query.plan.IndexRangeWire;
 import com.aerospike.client.sdk.query.plan.QueryPlan;
 import com.aerospike.client.sdk.query.plan.QuerySelection;
+import com.aerospike.client.sdk.query.plan.QueryWhereWire;
 
 class QueryPlanExecuteWireTest {
 
-    private static final Expression PREDICATE = Exp.build(Exp.val(1));
+    private static final String AEL = "$.age > 30";
+    private static final byte[] EXPLAIN_WHERE = QueryWhereWire.forExplain(AEL);
 
     @Test
-    void secondaryIndexPlanReplaysOpaqueIndexRangeAndPredicate() {
+    void secondaryIndexPlanSendsWhereIndexNameRangeAndType() {
         byte[] probeRangeBytes = probeIndexRangeBytes();
-        QueryPlan plan = secondaryIndexPlan(probeRangeBytes);
+        QueryPlan plan = secondaryIndexPlan(probeRangeBytes, IndexCollectionType.LIST);
         byte[] executeRangeBytes = IndexRangeWire.forExecuteWithIndexName(probeRangeBytes);
 
         QueryCommand cmd = queryCommandForPlan(plan);
@@ -60,15 +61,19 @@ class QueryPlanExecuteWireTest {
 
         assertEquals("age_idx", fieldUtf8(cb, FieldType.INDEX_NAME));
         assertArrayEquals(executeRangeBytes, fieldBytes(cb, FieldType.INDEX_RANGE));
-        assertArrayEquals(PREDICATE.getBytes(), fieldBytes(cb, FieldType.FILTER_EXP));
+        assertArrayEquals(plan.getExecuteWhereBytes(), fieldBytes(cb, FieldType.WHERE));
+        assertEquals(0, QueryWhereWire.flags(fieldBytes(cb, FieldType.WHERE)));
+        assertEquals((byte) IndexCollectionType.LIST.ordinal(),
+            fieldBytes(cb, FieldType.INDEX_TYPE)[0]);
+        assertFalse(fieldTypes(cb).contains(FieldType.FILTER_EXP));
         assertEquals(0, cb.getBuffer()[12] & Command.INFO4_QUERY_SELECTION);
         assertTrue(cmd.isPlanDriven());
     }
 
     @Test
-    void primaryIndexPlanSendsPredicateOnly() {
-        QueryPlan plan = QueryPlan.fromProbeResponse(
-            ResultCode.OK, "test", "users", PREDICATE.getBytes(), fieldsOf());
+    void primaryIndexPlanSendsWhereOnly() {
+        QueryPlan plan = QueryPlan.fromExplainResponse(
+            ResultCode.OK, "test", "users", EXPLAIN_WHERE, fieldsOf());
 
         QueryCommand cmd = queryCommandForPlan(plan);
         CommandBuffer cb = encodeQuery(cmd);
@@ -77,7 +82,8 @@ class QueryPlanExecuteWireTest {
         assertEquals(QuerySelection.PRIMARY_INDEX, plan.getSelection());
         assertFalse(types.contains(FieldType.INDEX_RANGE));
         assertFalse(types.contains(FieldType.INDEX_NAME));
-        assertArrayEquals(PREDICATE.getBytes(), fieldBytes(cb, FieldType.FILTER_EXP));
+        assertFalse(types.contains(FieldType.FILTER_EXP));
+        assertArrayEquals(plan.getExecuteWhereBytes(), fieldBytes(cb, FieldType.WHERE));
     }
 
     private static byte[] probeIndexRangeBytes() {
@@ -88,14 +94,15 @@ class QueryPlanExecuteWireTest {
         return wireBody;
     }
 
-    private static QueryPlan secondaryIndexPlan(byte[] rangeBytes) {
-        return QueryPlan.fromProbeResponse(
+    private static QueryPlan secondaryIndexPlan(byte[] rangeBytes, IndexCollectionType indexType) {
+        return QueryPlan.fromExplainResponse(
             ResultCode.OK,
             "test",
             "users",
-            PREDICATE.getBytes(),
+            EXPLAIN_WHERE,
             fieldsOf(
                 field(FieldType.INDEX_NAME, "age_idx"),
+                field(FieldType.INDEX_TYPE, new byte[] {(byte) indexType.ordinal()}),
                 field(FieldType.INDEX_RANGE, rangeBytes)
             )
         );

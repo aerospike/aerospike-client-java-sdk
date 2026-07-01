@@ -28,31 +28,30 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 
 import com.aerospike.client.sdk.AerospikeException;
-import com.aerospike.client.sdk.exp.Exp;
-import com.aerospike.client.sdk.exp.Expression;
 import com.aerospike.client.sdk.policy.Behavior;
 import com.aerospike.client.sdk.policy.ResolvedSettings;
+import com.aerospike.client.sdk.query.plan.QueryWhereWire;
 
 class IndexProbeCommandTest {
 
-    private static final Expression PREDICATE = Exp.build(Exp.val(1));
+    private static final String AEL = "$.age > 30";
 
     @Test
-    void setsInfo4QuerySelectionBit() {
-        CommandBuffer cb = encodeProbe(null);
-        assertEquals(Command.INFO4_QUERY_SELECTION, cb.getBuffer()[12] & Command.INFO4_QUERY_SELECTION);
+    void info4IsZero() {
+        CommandBuffer cb = encodeExplain(null);
+        assertEquals(0, cb.getBuffer()[12] & 0xFF);
     }
 
     @Test
     void operationCountIsZero() {
-        CommandBuffer cb = encodeProbe(null);
+        CommandBuffer cb = encodeExplain(null);
         int opCount = Buffer.bytesToShort(cb.getBuffer(), 28);
         assertEquals(0, opCount);
     }
 
     @Test
     void fieldOrderWithoutHint() {
-        CommandBuffer cb = encodeProbe(null);
+        CommandBuffer cb = encodeExplain(null);
         List<Integer> types = fieldTypes(cb);
 
         assertEquals(
@@ -61,7 +60,7 @@ class IndexProbeCommandTest {
                 FieldType.TABLE,
                 FieldType.SOCKET_TIMEOUT,
                 FieldType.QUERY_ID,
-                FieldType.FILTER_EXP
+                FieldType.WHERE
             ),
             types
         );
@@ -69,7 +68,7 @@ class IndexProbeCommandTest {
 
     @Test
     void fieldOrderWithIndexNameHint() {
-        CommandBuffer cb = encodeProbe("age_idx");
+        CommandBuffer cb = encodeExplain("age_idx");
         List<Integer> types = fieldTypes(cb);
 
         assertEquals(
@@ -79,7 +78,7 @@ class IndexProbeCommandTest {
                 FieldType.SOCKET_TIMEOUT,
                 FieldType.QUERY_ID,
                 FieldType.INDEX_NAME,
-                FieldType.FILTER_EXP
+                FieldType.WHERE
             ),
             types
         );
@@ -88,33 +87,37 @@ class IndexProbeCommandTest {
 
     @Test
     void noPartitionOrIndexRangeFields() {
-        CommandBuffer cb = encodeProbe("age_idx");
+        CommandBuffer cb = encodeExplain("age_idx");
         List<Integer> types = fieldTypes(cb);
 
         assertFalse(types.contains(FieldType.PID_ARRAY));
         assertFalse(types.contains(FieldType.DIGEST_ARRAY));
         assertFalse(types.contains(FieldType.BVAL_ARRAY));
         assertFalse(types.contains(FieldType.INDEX_RANGE));
+        assertFalse(types.contains(FieldType.FILTER_EXP));
     }
 
     @Test
-    void predicateBytesWrittenInFilterExp() {
-        CommandBuffer cb = encodeProbe(null);
-        assertArrayEquals(PREDICATE.getBytes(), fieldBytes(cb, FieldType.FILTER_EXP));
+    void wherePayloadWrittenInField44() {
+        CommandBuffer cb = encodeExplain(null);
+        assertArrayEquals(QueryWhereWire.forExplain(AEL), fieldBytes(cb, FieldType.WHERE));
+        assertEquals(AEL, QueryWhereWire.ael(fieldBytes(cb, FieldType.WHERE)));
+        assertEquals(QueryWhereWire.FLAG_EXPLAIN,
+            QueryWhereWire.flags(fieldBytes(cb, FieldType.WHERE)));
     }
 
     @Test
     void namespaceAndSetValues() {
-        CommandBuffer cb = encodeProbe(null);
+        CommandBuffer cb = encodeExplain(null);
         assertEquals("test", fieldUtf8(cb, FieldType.NAMESPACE));
         assertEquals("users", fieldUtf8(cb, FieldType.TABLE));
     }
 
     @Test
     void socketTimeoutAndTaskId() {
-        IndexProbeCommand cmd = probeCommand(42L, null);
+        IndexProbeCommand cmd = explainCommand(42L, null);
         CommandBuffer cb = new CommandBuffer();
-        cb.setIndexProbe(cmd);
+        cb.setQueryExplain(cmd);
 
         assertEquals(cmd.socketTimeout, Buffer.bytesToInt(fieldBytes(cb, FieldType.SOCKET_TIMEOUT), 0));
         assertEquals(42L, Buffer.bytesToLong(fieldBytes(cb, FieldType.QUERY_ID), 0));
@@ -123,37 +126,37 @@ class IndexProbeCommandTest {
     @Test
     void missingNamespaceThrows() {
         assertThrows(AerospikeException.class, () ->
-            new IndexProbeCommand(null, "", "users", PREDICATE, null, 1L, settings()));
+            new IndexProbeCommand(null, "", "users", AEL, null, 1L, settings()));
     }
 
     @Test
-    void missingPredicateThrows() {
+    void missingAelThrows() {
         assertThrows(AerospikeException.class, () ->
             new IndexProbeCommand(null, "test", "users", null, null, 1L, settings()));
     }
 
     @Test
     void blankIndexHintOmitsField21() {
-        CommandBuffer cb = encodeProbe("  ");
+        CommandBuffer cb = encodeExplain("  ");
         assertFalse(fieldTypes(cb).contains(FieldType.INDEX_NAME));
     }
 
     @Test
     void protoHeaderMarksAsMsg() {
-        CommandBuffer cb = encodeProbe(null);
+        CommandBuffer cb = encodeExplain(null);
         long proto = Buffer.bytesToLong(cb.getBuffer(), 0);
         long type = (proto >> 48) & 0xff;
         assertEquals(Command.AS_MSG_TYPE, type);
     }
 
-    private static CommandBuffer encodeProbe(String indexHint) {
+    private static CommandBuffer encodeExplain(String indexHint) {
         CommandBuffer cb = new CommandBuffer();
-        cb.setIndexProbe(probeCommand(7L, indexHint));
+        cb.setQueryExplain(explainCommand(7L, indexHint));
         return cb;
     }
 
-    private static IndexProbeCommand probeCommand(long taskId, String indexHint) {
-        return new IndexProbeCommand(null, "test", "users", PREDICATE, indexHint, taskId, settings());
+    private static IndexProbeCommand explainCommand(long taskId, String indexHint) {
+        return new IndexProbeCommand(null, "test", "users", AEL, indexHint, taskId, settings());
     }
 
     private static ResolvedSettings settings() {

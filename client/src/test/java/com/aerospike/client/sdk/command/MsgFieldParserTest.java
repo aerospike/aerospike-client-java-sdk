@@ -24,6 +24,8 @@ import java.nio.charset.StandardCharsets;
 
 import org.junit.jupiter.api.Test;
 
+import com.aerospike.client.sdk.query.IndexCollectionType;
+
 class MsgFieldParserTest {
 
     @Test
@@ -37,6 +39,16 @@ class MsgFieldParserTest {
         assertEquals("age_idx", parser.getUtf8Field(FieldType.INDEX_NAME));
         assertArrayEquals(range, parser.getField(FieldType.INDEX_RANGE));
         assertNull(parser.getUtf8Field(FieldType.NAMESPACE));
+    }
+
+    @Test
+    void parsesIndexTypeField() {
+        byte[] buffer = buildMessage(
+            new byte[] {(byte) IndexCollectionType.LIST.ordinal()},
+            FieldType.INDEX_TYPE);
+        MsgFieldParser parser = new MsgFieldParser(buffer, 0, 1);
+
+        assertEquals(IndexCollectionType.LIST, parser.getIndexCollectionType());
     }
 
     @Test

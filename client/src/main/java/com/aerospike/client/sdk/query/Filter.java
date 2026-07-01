@@ -652,13 +652,25 @@ public final class Filter {
      * @param rangeBytes  execute {@code INDEX_RANGE} payload (not raw probe bytes when field {@code 21} is used)
      */
     public static Filter fromWireRange(String indexName, byte[] rangeBytes) {
+        return fromWireRange(indexName, rangeBytes, IndexCollectionType.DEFAULT);
+    }
+
+    /**
+     * Replay opaque {@code INDEX_RANGE} field body on execute with index collection type from explain.
+     */
+    public static Filter fromWireRange(
+        String indexName, byte[] rangeBytes, IndexCollectionType collectionType
+    ) {
         if (indexName == null || indexName.isEmpty()) {
             throw new IllegalArgumentException("indexName must not be null or empty");
         }
         if (rangeBytes == null || rangeBytes.length == 0) {
             throw new IllegalArgumentException("rangeBytes must not be null or empty");
         }
-        return new Filter(indexName, rangeBytes);
+        IndexCollectionType colType = collectionType != null
+            ? collectionType
+            : IndexCollectionType.DEFAULT;
+        return new Filter(null, indexName, colType, 0, null, null, null, null, rangeBytes);
     }
 
     private final String name;

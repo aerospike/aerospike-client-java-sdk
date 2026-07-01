@@ -28,50 +28,55 @@ import org.junit.jupiter.api.Test;
 
 import com.aerospike.client.sdk.AerospikeException;
 import com.aerospike.client.sdk.ResultCode;
-import com.aerospike.client.sdk.command.Command;
 import com.aerospike.client.sdk.command.FieldType;
 import com.aerospike.client.sdk.command.MsgFieldParser;
+import com.aerospike.client.sdk.query.IndexCollectionType;
 
 class QueryPlanTest {
 
-    private static final byte[] PREDICATE = new byte[] {0x01, 0x02, 0x03};
+    private static final String AEL = "$.age > 30";
+    private static final byte[] EXPLAIN_WHERE = QueryWhereWire.forExplain(AEL);
     private static final byte[] RANGE = new byte[] {1, 3, 'a', 'g', 'e'};
 
     @Test
     void primaryIndexPlanWhenNoIndexFields() {
         MsgFieldParser fields = fieldsOf();
-        QueryPlan plan = QueryPlan.fromProbeResponse(
-            ResultCode.OK, "test", "users", PREDICATE, fields);
+        QueryPlan plan = QueryPlan.fromExplainResponse(
+            ResultCode.OK, "test", "users", EXPLAIN_WHERE, fields);
 
         assertEquals(QuerySelection.PRIMARY_INDEX, plan.getSelection());
         assertTrue(plan.isPrimaryIndex());
         assertEquals("test", plan.getNamespace());
         assertEquals("users", plan.getSet());
-        assertArrayEquals(PREDICATE, plan.getPredicateBytes());
+        assertEquals(AEL, plan.getAel());
+        assertArrayEquals(EXPLAIN_WHERE, plan.getExplainWhereBytes());
+        assertArrayEquals(QueryWhereWire.forExecute(AEL), plan.getExecuteWhereBytes());
         assertNull(plan.getIndexName());
         assertNull(plan.getIndexRangeBytes());
+        assertEquals(IndexCollectionType.DEFAULT, plan.getIndexType());
     }
 
     @Test
-    void secondaryIndexPlanWhenNameAndRangePresent() {
+    void secondaryIndexPlanWhenNameRangeAndTypePresent() {
         MsgFieldParser fields = fieldsOf(
             field(FieldType.INDEX_NAME, "age_idx"),
+            field(FieldType.INDEX_TYPE, new byte[] {(byte) IndexCollectionType.LIST.ordinal()}),
             field(FieldType.INDEX_RANGE, RANGE)
         );
-        QueryPlan plan = QueryPlan.fromProbeResponse(
-            ResultCode.OK, "test", null, PREDICATE, fields);
+        QueryPlan plan = QueryPlan.fromExplainResponse(
+            ResultCode.OK, "test", null, EXPLAIN_WHERE, fields);
 
         assertEquals(QuerySelection.SECONDARY_INDEX, plan.getSelection());
         assertTrue(plan.isSecondaryIndex());
         assertEquals("age_idx", plan.getIndexName());
         assertArrayEquals(RANGE, plan.getIndexRangeBytes());
-        assertArrayEquals(PREDICATE, plan.getPredicateBytes());
+        assertEquals(IndexCollectionType.LIST, plan.getIndexType());
     }
 
     @Test
     void filteredOutPlan() {
-        QueryPlan plan = QueryPlan.fromProbeResponse(
-            ResultCode.FILTERED_OUT, "test", "users", PREDICATE, fieldsOf());
+        QueryPlan plan = QueryPlan.fromExplainResponse(
+            ResultCode.FILTERED_OUT, "test", "users", EXPLAIN_WHERE, fieldsOf());
 
         assertEquals(QuerySelection.FILTERED_OUT, plan.getSelection());
         assertTrue(plan.isFilteredOut());
@@ -84,18 +89,14 @@ class QueryPlanTest {
         MsgFieldParser fields = fieldsOf(field(FieldType.INDEX_NAME, "age_idx"));
 
         assertThrows(AerospikeException.Parse.class, () ->
-            QueryPlan.fromProbeResponse(ResultCode.OK, "test", "users", PREDICATE, fields));
+            QueryPlan.fromExplainResponse(ResultCode.OK, "test", "users", EXPLAIN_WHERE, fields));
     }
 
     @Test
     void nonOkNonFilteredResultThrows() {
         assertThrows(AerospikeException.class, () ->
-            QueryPlan.fromProbeResponse(ResultCode.PARAMETER_ERROR, "test", "users", PREDICATE, fieldsOf()));
-    }
-
-    @Test
-    void querySelectionConstantMatchesProto() {
-        assertEquals(1 << 7, Command.INFO4_QUERY_SELECTION);
+            QueryPlan.fromExplainResponse(
+                ResultCode.PARAMETER_ERROR, "test", "users", EXPLAIN_WHERE, fieldsOf()));
     }
 
     private static MsgFieldParser fieldsOf(Field... entries) {

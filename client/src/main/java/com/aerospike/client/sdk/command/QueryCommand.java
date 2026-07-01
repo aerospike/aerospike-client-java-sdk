@@ -45,6 +45,8 @@ public final class QueryCommand extends Command {
     final int readTouchTtlPercent;
     final boolean withNoBins;
     final boolean planDriven;
+    /** Field {@code 44} execute payload when plan-driven; {@code null} on legacy path. */
+    final byte[] executeWhereBytes;
 
     public QueryCommand(
         Cluster cluster, DataSet set, Filter filter, Expression filterExp,
@@ -54,8 +56,8 @@ public final class QueryCommand extends Command {
     }
 
     /**
-     * Build an execute command from a server {@link QueryPlan} (probe result).
-     * Plan pins win over query hints; field {@code 43} is replayed verbatim from the plan.
+     * Build an execute command from a server {@link QueryPlan} (explain result).
+     * Plan pins win over query hints; field {@code 44} is sent without EXPLAIN.
      * Field {@code 22} is normalized for execute ({@code bin_name_len = 0}) when field {@code 21} is sent.
      */
     public static QueryCommand forPlan(
@@ -76,10 +78,9 @@ public final class QueryCommand extends Command {
         Filter filter = null;
         if (plan.isSecondaryIndex()) {
             byte[] executeRange = IndexRangeWire.forExecuteWithIndexName(plan.getIndexRangeBytes());
-            filter = Filter.fromWireRange(plan.getIndexName(), executeRange);
+            filter = Filter.fromWireRange(plan.getIndexName(), executeRange, plan.getIndexType());
         }
-        Expression filterExp = Expression.fromBytes(plan.getPredicateBytes());
-        return new QueryCommand(cluster, set, filter, filterExp, settings, qb, plan);
+        return new QueryCommand(cluster, set, filter, null, settings, qb, plan);
     }
 
     private QueryCommand(
@@ -89,6 +90,7 @@ public final class QueryCommand extends Command {
         super(cluster, set.getNamespace(), null, filterExp, settings.getReplicaOrder(), settings);
         this.set = set.getSet();
         this.planDriven = plan != null;
+        this.executeWhereBytes = plan != null ? plan.getExecuteWhereBytes() : null;
         this.filter = planDriven ? filter : applyHintToFilter(filter, qb.getQueryHint());
 
         this.pf = PartitionFilter.range(qb.getStartPartition(),
