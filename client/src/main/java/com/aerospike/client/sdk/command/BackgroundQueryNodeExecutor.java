@@ -53,20 +53,20 @@ public final class BackgroundQueryNodeExecutor extends NodeExecutor {
 
     @Override
     protected boolean parseRow() {
-        skipKey(fieldCount);
+        parser.parseFieldsError();
 
         // Server commands (Query/Execute UDF) should only send back a return code.
-        if (resultCode != 0) {
+        if (parser.resultCode != 0) {
             // Background scans (with null query filter) return KEY_NOT_FOUND_ERROR
             // when the set does not exist on the target node.
-            if (resultCode == ResultCode.KEY_NOT_FOUND_ERROR) {
+            if (parser.resultCode == ResultCode.KEY_NOT_FOUND_ERROR) {
                 // Non-fatal error.
                 return false;
             }
-            throw AerospikeException.resultCodeToException(resultCode, null);
+            throw AerospikeException.resultCodeToException(parser.resultCode, null);
         }
 
-        if (opCount > 0) {
+        if (parser.opCount > 0) {
             throw new AerospikeException.Parse("Unexpectedly received bins on background query!");
         }
 

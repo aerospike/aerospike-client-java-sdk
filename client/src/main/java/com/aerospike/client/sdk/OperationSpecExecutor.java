@@ -172,7 +172,7 @@ class OperationSpecExecutor {
                 catch (AerospikeException ae) {
                     // Create record and set to error state.
                     BatchRecord rec = new BatchRecord(key, false);
-                    rec.setError(ae.getResultCode(), false);
+                    rec.setError(ae, false);
                     records.add(rec);
                     readMappingPerRecord.add(null);
 

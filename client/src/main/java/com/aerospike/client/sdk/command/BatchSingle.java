@@ -95,7 +95,7 @@ public final class BatchSingle {
                 rec.setRecord(rp.parseRecord(true));
             }
             else {
-                rec.setError(rp.resultCode, false);
+                rec.setError(rp, false);
                 status.setRowError();
             }
         }
@@ -148,7 +148,7 @@ public final class BatchSingle {
                 rec.setRecord(rp.parseRecord(false));
             }
             else {
-                rec.setError(rp.resultCode, false);
+                rec.setError(rp, false);
                 status.setRowError();
             }
         }
@@ -224,7 +224,7 @@ public final class BatchSingle {
                 rec.setRecord(rp.parseRecord(true));
             }
             else {
-                rec.setError(rp.resultCode, BatchCommand.inDoubt(rec.hasWrite, commandSentCounter));
+                rec.setError(rp, BatchCommand.inDoubt(rec.hasWrite, commandSentCounter));
                 status.setRowError();
             }
         }
@@ -286,7 +286,7 @@ public final class BatchSingle {
             else {
                 // A KEY_NOT_FOUND_ERROR on a delete is benign, but still results in an overall
                 // batch status of false to be consistent with the original batch code.
-                rec.setError(rp.resultCode, BatchCommand.inDoubt(true, commandSentCounter));
+                rec.setError(rp, BatchCommand.inDoubt(true, commandSentCounter));
                 status.setRowError();
             }
         }
@@ -346,19 +346,11 @@ public final class BatchSingle {
                 rec.setRecord(rp.parseRecord(false));
             }
             else if (rp.resultCode == ResultCode.UDF_BAD_RESPONSE) {
-                Record r = rp.parseRecord(false);
-                String m = r.getString("FAILURE");
-
-                if (m != null) {
-                    // Need to store record because failure bin contains an error message.
-                    rec.record = r;
-                    rec.resultCode = rp.resultCode;
-                    rec.inDoubt = BatchCommand.inDoubt(true, commandSentCounter);
-                    status.setRowError();
-                }
+                rec.setErrorUDF(rp, BatchCommand.inDoubt(rec.hasWrite, commandSentCounter));
+                status.setRowError();
             }
             else {
-                rec.setError(rp.resultCode, BatchCommand.inDoubt(rec.hasWrite, commandSentCounter));
+                rec.setError(rp, BatchCommand.inDoubt(rec.hasWrite, commandSentCounter));
                 status.setRowError();
             }
         }
@@ -415,6 +407,7 @@ public final class BatchSingle {
         @Override
         protected void parseResult(Node node, Connection conn, byte[] buffer) throws IOException {
             RecordParser rp = new RecordParser(conn, buffer);
+            rp.parseFieldsError();
 
             if (node.isMetricsEnabled()) {
                 node.addBytesIn(br.key.namespace, rp.bytesIn);
@@ -424,7 +417,7 @@ public final class BatchSingle {
                 br.resultCode = rp.resultCode;
             }
             else {
-                br.setError(rp.resultCode, false);
+                br.setError(rp, false);
                 status.setRowError();
             }
         }
@@ -471,6 +464,7 @@ public final class BatchSingle {
         @Override
         protected void parseResult(Node node, Connection conn, byte[] buffer) throws IOException {
             RecordParser rp = new RecordParser(conn, buffer);
+            rp.parseFieldsError();
 
             if (node.isMetricsEnabled()) {
                 node.addBytesIn(br.key.namespace, rp.bytesIn);
@@ -480,7 +474,7 @@ public final class BatchSingle {
                 br.resultCode = rp.resultCode;
             }
             else {
-                br.setError(rp.resultCode, BatchCommand.inDoubt(true, commandSentCounter));
+                br.setError(rp, BatchCommand.inDoubt(true, commandSentCounter));
                 status.setRowError();
             }
         }

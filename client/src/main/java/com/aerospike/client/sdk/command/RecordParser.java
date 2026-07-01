@@ -28,21 +28,30 @@ import com.aerospike.client.sdk.Key;
 import com.aerospike.client.sdk.OperationResult;
 import com.aerospike.client.sdk.Record;
 import com.aerospike.client.sdk.SubCode;
+import com.aerospike.client.sdk.Value;
 
 public final class RecordParser {
-    public final byte[] dataBuffer;
-    public final int resultCode;
-    public final int generation;
-    public final int expiration;
-    public final int fieldCount;
-    public final int opCount;
+    public byte[] dataBuffer;
+    public int resultCode;
+    public int info3;
+    public int generation;
+    public int expiration;
+    public int batchIndex;
+    public int fieldCount;
+    public int opCount;
     public int dataOffset;
     public long bytesIn;
     public String message;
     public int subCode = SubCode.NONE;
 
     /**
-     * Sync record parser.
+     * Multi-record constructor.
+     */
+    public RecordParser() {
+    }
+
+    /**
+     * Sync single record parser constructor.
      */
     public RecordParser(Connection conn, byte[] buffer) throws IOException {
         bytesIn = 0;
@@ -136,6 +145,46 @@ public final class RecordParser {
         dataBuffer = buffer;
     }
 
+    /**
+     * Multi-record initialize dataBuffer.
+     */
+    public void setDataBuffer(byte[] buffer, int offset) {
+        dataBuffer = buffer;
+        dataOffset = offset;
+    }
+
+    /**
+     * Multi-record parse header.
+     */
+    public boolean parseHeader() {
+        dataOffset += 3;
+        info3 = dataBuffer[dataOffset] & 0xFF;
+        dataOffset += 2;
+        resultCode = dataBuffer[dataOffset] & 0xFF;
+
+        // If this is the end marker of the response, do not proceed further.
+        if ((info3 & Command.INFO3_LAST) != 0) {
+            if (resultCode != 0) {
+                // The server returned a fatal error.
+                throw AerospikeException.resultCodeToException(resultCode, null);
+            }
+            return false;
+        }
+
+        dataOffset++;
+        generation = Buffer.bytesToInt(dataBuffer, dataOffset);
+        dataOffset += 4;
+        expiration = Buffer.bytesToInt(dataBuffer, dataOffset);
+        dataOffset += 4;
+        batchIndex = Buffer.bytesToInt(dataBuffer, dataOffset);
+        dataOffset += 4;
+        fieldCount = Buffer.bytesToShort(dataBuffer, dataOffset);
+        dataOffset += 2;
+        opCount = Buffer.bytesToShort(dataBuffer, dataOffset);
+        dataOffset += 2;
+        return true;
+    }
+
     public void parseFields(Txn txn, Key key, boolean hasWrite) {
         if (txn == null) {
             parseFieldsError();
@@ -167,7 +216,8 @@ public final class RecordParser {
 
         if (hasWrite) {
             txn.onWrite(key, version, resultCode);
-        } else {
+        }
+        else {
             txn.onRead(key, version);
         }
     }
@@ -184,11 +234,60 @@ public final class RecordParser {
                 int deadline = Buffer.littleBytesToInt(dataBuffer, dataOffset);
                 txn.setDeadline(deadline);
             }
+            else if (type == FieldType.ERROR_MESSAGE && size > 0) {
+                message = parseErrorDetails(dataOffset, size);
+            }
             dataOffset += size;
         }
     }
 
-    private void parseFieldsError() {
+    public Key parseFieldsQuery(BVal bval) {
+        byte[] digest = null;
+        String namespace = null;
+        String setName = null;
+        Value userKey = null;
+
+        for (int i = 0; i < fieldCount; i++) {
+            int fieldlen = Buffer.bytesToInt(dataBuffer, dataOffset);
+            dataOffset += 4;
+
+            int fieldtype = dataBuffer[dataOffset++];
+            int size = fieldlen - 1;
+
+            switch (fieldtype) {
+            case FieldType.DIGEST_RIPE:
+                digest = new byte[size];
+                System.arraycopy(dataBuffer, dataOffset, digest, 0, size);
+                break;
+
+            case FieldType.NAMESPACE:
+                namespace = Buffer.utf8ToString(dataBuffer, dataOffset, size);
+                break;
+
+            case FieldType.TABLE:
+                setName = Buffer.utf8ToString(dataBuffer, dataOffset, size);
+                break;
+
+            case FieldType.KEY:
+                int type = dataBuffer[dataOffset++];
+                size--;
+                userKey = Buffer.bytesToKeyValue(type, dataBuffer, dataOffset, size);
+                break;
+
+            case FieldType.BVAL_ARRAY:
+                bval.val = Buffer.littleBytesToLong(dataBuffer, dataOffset);
+                break;
+
+            case FieldType.ERROR_MESSAGE:
+                message = parseErrorDetails(dataOffset, size);
+                break;
+            }
+            dataOffset += size;
+        }
+        return new Key(namespace, digest, setName, userKey);
+    }
+
+    public void parseFieldsError() {
         for (int i = 0; i < fieldCount; i++) {
             int len = Buffer.bytesToInt(dataBuffer, dataOffset);
             dataOffset += 4;
@@ -473,7 +572,7 @@ public final class RecordParser {
     }
 
     public Record parseRecord(boolean isOperation)  {
-        if (opCount == 0) {
+        if (opCount <= 0) {
             // Bin data was not returned.
             return new Record(generation, expiration);
         }

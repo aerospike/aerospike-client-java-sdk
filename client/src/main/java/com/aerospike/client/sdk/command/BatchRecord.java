@@ -16,6 +16,7 @@
  */
 package com.aerospike.client.sdk.command;
 
+import com.aerospike.client.sdk.AerospikeException;
 import com.aerospike.client.sdk.Key;
 import com.aerospike.client.sdk.Node;
 import com.aerospike.client.sdk.Record;
@@ -31,6 +32,8 @@ public class BatchRecord {
     public Node node;
     public Record record;
     public int resultCode;
+    public int subCode;
+    public String message;
     public byte readAttr;
     public byte writeAttr;
     public final byte infoAttr;
@@ -90,9 +93,40 @@ public class BatchRecord {
     /**
      * Set error result. For internal use only.
      */
-    public final void setError(int resultCode, boolean inDoubt) {
-        this.resultCode = resultCode;
+    public final void setError(AerospikeException ae, boolean inDoubt) {
+        this.resultCode = ae.getResultCode();
+        this.subCode = ae.getSubCode();
+        this.message = ae.getMessage();
         this.inDoubt = inDoubt;
+    }
+
+    /**
+     * Set error result. For internal use only.
+     */
+    public final void setError(RecordParser rp, boolean inDoubt) {
+        this.resultCode = rp.resultCode;
+        this.subCode = rp.subCode;
+        this.message = rp.message;
+        this.inDoubt = inDoubt;
+    }
+
+    /**
+     * Set error result. For internal use only.
+     */
+    public final void setErrorUDF(RecordParser rp, boolean inDoubt) {
+        this.resultCode = rp.resultCode;
+        this.subCode = rp.subCode;
+        this.inDoubt = inDoubt;
+
+        Record r = rp.parseRecord(false);
+        String m = r.getString("FAILURE");
+
+        if (m != null) {
+            this.message = m;
+        }
+        else {
+            this.message = rp.message;
+        }
     }
 
     /**
