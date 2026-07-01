@@ -77,6 +77,7 @@ import com.aerospike.client.sdk.query.QueryStringTest;
     RecordStreamAdapterTest.class,
     ReplaceTest.class,
     ServerInfoTest.class,
+    SessionExtensionTest.class,
     TouchTest.class,
     TxnTest.class,
     UdfTest.class,

@@ -183,6 +183,27 @@ public class Cluster implements Closeable {
     }
 
     /**
+     * Creates a new session of a custom type using the provided {@link SessionExtension}.
+     *
+     * <p>The extension is responsible for constructing the session subtype. The return type
+     * is inferred from the extension's type parameter, providing compile-time safety.</p>
+     *
+     * <p>Example:</p>
+     * <pre>{@code
+     * MappingSession session = cluster.createSession(behavior, mappingExtension);
+     * }</pre>
+     *
+     * @param <S>       the concrete session type
+     * @param behavior  the behavior configuration for the session
+     * @param extension the session extension that creates the session subtype
+     * @return a new session instance of type {@code S}
+     * @see SessionExtension
+     */
+    public <S extends Session> S createSession(Behavior behavior, SessionExtension<S> extension) {
+        return extension.create(this, behavior);
+    }
+
+    /**
      * Gets the current record mapping factory.
      *
      * @return the current record mapping factory, or null if none is set
