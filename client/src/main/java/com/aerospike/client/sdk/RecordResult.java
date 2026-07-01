@@ -42,6 +42,7 @@ public record RecordResult(
     Record recordOrNull,
     Object udfReturnValue,
     int resultCode,
+    int subCode,
     AerospikeException exception,
     boolean inDoubt,
     String message,
@@ -57,48 +58,63 @@ public record RecordResult(
     }
 
     public RecordResult(Key key, Record rec, int index) {
-        this(key, rec, null, ResultCode.OK, null, false, null, index, null, null);
+        this(key, rec, null, ResultCode.OK, SubCode.NONE, null, false, null, index, null, null);
     }
 
-    public RecordResult(Key key, Record rec, int index, Session readMappingSession, Class<?> readMappingClass) {
-        this(key, rec, null, ResultCode.OK, null, false, null, index, readMappingSession, readMappingClass);
+    public RecordResult(
+        Key key, Record rec, int index, Session readMappingSession, Class<?> readMappingClass
+    ) {
+        this(key, rec, null, ResultCode.OK, SubCode.NONE, null, false, null, index,
+            readMappingSession, readMappingClass);
     }
 
     RecordResult(Key key, int resultCode, boolean inDoubt, String message, int index) {
-        this(key, null, null, resultCode, null, inDoubt, message, index, null, null);
+        this(key, null, null, resultCode, SubCode.NONE, null, inDoubt, message, index, null, null);
     }
 
     RecordResult(Key key, AerospikeException ae, int index) {
-        this(key, null, null, ae.getResultCode(), ae, ae.getInDoubt(), ae.getMessage(), index, null, null);
+        this(key, null, null, ae.getResultCode(), ae.getSubCode(), ae, ae.getInDoubt(),
+            ae.getMessage(), index, null, null);
     }
 
     public RecordResult(KeyRecord keyRecord, int index) {
-        this(keyRecord.key, keyRecord.record, null, ResultCode.OK, null, false, null, index, null, null);
+        this(keyRecord.key, keyRecord.record, null, ResultCode.OK, SubCode.NONE, null, false, null,
+            index, null, null);
     }
 
     public RecordResult(BatchRecord batchRecord, int index) {
-        this(batchRecord.key, batchRecord.record, null, batchRecord.resultCode, null, batchRecord.inDoubt,
-            ResultCode.getResultString(batchRecord.resultCode), index, null, null);
+        this(batchRecord.key, batchRecord.record, null, batchRecord.resultCode, batchRecord.subCode,
+            null, batchRecord.inDoubt, getMessage(batchRecord), index, null, null);
     }
 
-    public RecordResult(BatchRecord batchRecord, int index, Session readMappingSession, Class<?> readMappingClass) {
-        this(batchRecord.key, batchRecord.record, null, batchRecord.resultCode, null, batchRecord.inDoubt,
-            ResultCode.getResultString(batchRecord.resultCode), index, readMappingSession, readMappingClass);
+    public RecordResult(
+        BatchRecord batchRecord, int index, Session readMappingSession, Class<?> readMappingClass
+    ) {
+        this(batchRecord.key, batchRecord.record, null, batchRecord.resultCode, batchRecord.subCode,
+            null, batchRecord.inDoubt, getMessage(batchRecord), index, readMappingSession,
+            readMappingClass);
     }
 
     public RecordResult(BatchRecord batchRecord, AerospikeException ae, int index) {
         this(batchRecord, ae, index, null, null);
     }
 
-    public RecordResult(BatchRecord batchRecord, AerospikeException ae, int index,
-        Session readMappingSession, Class<?> readMappingClass) {
-        this(batchRecord.key, batchRecord.record, null, batchRecord.resultCode, ae, batchRecord.inDoubt,
-            ResultCode.getResultString(batchRecord.resultCode), index, readMappingSession, readMappingClass);
+    public RecordResult(
+        BatchRecord batchRecord, AerospikeException ae, int index, Session readMappingSession,
+        Class<?> readMappingClass
+    ) {
+        this(batchRecord.key, batchRecord.record, null, batchRecord.resultCode, batchRecord.subCode,
+            ae, batchRecord.inDoubt, getMessage(batchRecord), index, readMappingSession,
+            readMappingClass);
     }
 
+    // TODO This constructor is not called. Should remove?
     // Constructor with error handling based on stackTraceOnException flag
-    RecordResult(Key key, int resultCode, boolean inDoubt, String message, boolean stackTraceOnException, int index) {
-        this(key, null, null, resultCode,
+    RecordResult(
+        Key key, int resultCode, boolean inDoubt, String message, boolean stackTraceOnException,
+        int index
+    ) {
+        this(key, null, null, resultCode, SubCode.NONE,
              stackTraceOnException && AbstractFilterableBuilder.isActionableError(resultCode) ?
                  createExceptionWithCleanedStackTrace(resultCode, message, inDoubt) : null,
              inDoubt, message, index, null, null);
@@ -109,8 +125,12 @@ public record RecordResult(
      *
      * @param readMappingSession session when {@code readMappingClass} is non-null
      */
-    public RecordResult(Key key, Object udfReturnValue, int index, Session readMappingSession, Class<?> readMappingClass) {
-        this(key, null, udfReturnValue, ResultCode.OK, null, false, null, index, readMappingSession, readMappingClass);
+    public RecordResult(
+        Key key, Object udfReturnValue, int index, Session readMappingSession,
+        Class<?> readMappingClass
+    ) {
+        this(key, null, udfReturnValue, ResultCode.OK, SubCode.NONE, null, false, null, index,
+            readMappingSession, readMappingClass);
     }
 
     /**
@@ -121,7 +141,7 @@ public record RecordResult(
      * @param index the index in the batch operation
      */
     RecordResult(Key key, Object udfReturnValue, int index) {
-        this(key, null, udfReturnValue, ResultCode.OK, null, false, null, index, null, null);
+        this(key, null, udfReturnValue, ResultCode.OK, SubCode.NONE, null, false, null, index, null, null);
     }
 
     /**
@@ -133,11 +153,14 @@ public record RecordResult(
      * @param index the index in the batch operation
      */
     RecordResult(Key key, Object udfReturnValue, AerospikeException ae, int index) {
-        this(key, null, udfReturnValue, ae.getResultCode(), ae, ae.getInDoubt(), ae.getMessage(), index, null, null);
+        this(key, null, udfReturnValue, ae.getResultCode(), ae.getSubCode(), ae, ae.getInDoubt(),
+            ae.getMessage(), index, null, null);
     }
 
     // Helper method to create exception and clean stack trace
-    private static AerospikeException createExceptionWithCleanedStackTrace(int resultCode, String message, boolean inDoubt) {
+    private static AerospikeException createExceptionWithCleanedStackTrace(
+        int resultCode, String message, boolean inDoubt
+    ) {
         AerospikeException ex = AerospikeException.resultCodeToException(resultCode, message, inDoubt);
         // Remove RecordResult constructor and resultCodeToException from stack trace
         StackTraceElement[] stack = ex.getStackTrace();
@@ -343,4 +366,7 @@ public record RecordResult(
         return false;
     }
 
+    private static String getMessage(BatchRecord br) {
+        return (br.message != null)?  br.message : ResultCode.getResultString(br.resultCode);
+    }
 }
