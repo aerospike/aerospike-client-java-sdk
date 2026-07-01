@@ -4,7 +4,7 @@ Implementation checklist for the fluent Java client.
 
 **Progress:** M1–M11 complete (including M10 wire-protocol doc). **Next:** user docs / examples (E1–E7).
 
-**North star:** No client-side AEL parsing and no client-side index selection on queries. String AEL → field **44** only; non-AEL / explicit index material → legacy field **43** + Filter fields.
+**North star:** No client-side AEL parsing and no client-side index selection on **queries**. String AEL on **dataset queries** → field **44** only; string AEL on **read/write/batch** → field **43** `[128, ael]` until server unifies (see [String AEL — query vs non-query](#string-ael--query-vs-non-query-server-paths)); non-AEL / explicit index material → legacy field **43** packed predexp + Filter fields.
 
 **Sources of truth**
 
@@ -49,7 +49,7 @@ Implementation checklist for the fluent Java client.
 
 **Not** MessagePack `[128, "<ael>"]` and **not** `Expression.fromServerCompiledFilter()` on the **query** path. Field **44** carries plain AEL text after the flags byte.
 
-**Drop for queries:** field **43** + `[128, ael]` (`EXP_AEL_COMPILE` / op 128) is **not** supported on the merged server query optimizer branch (`build_ael_compile` is stubbed). Client must not use it for query WHERE — use field **44** instead. Op 128 on field **43** may remain temporarily for **read/write** string-AEL filter ops until server wires it there (field **44** is query-only on the server).
+**Drop for queries:** field **43** + `[128, ael]` must not be used for **dataset query** WHERE — use field **44**. The same encoding remains in use for **read/write/batch** string AEL via `expressionFromString()` until server unifies on field **44** (see [String AEL — query vs non-query](#string-ael--query-vs-non-query-server-paths)). On integration branch, field **43** op **128** is currently broken (fast-path removed); field **44** query path works via `as_exp_filter_build_ael()`.
 
 **Mutual exclusion:** server rejects requests that send both field **44** (WHERE) and field **43** (PREDEXP).
 
@@ -149,7 +149,7 @@ On `WhereClauseProcessor` — **not sent on the wire**. Answers: “should this 
 |------|-----------------|--------|
 | **Legacy** (`forBin`, gate off, `where(Exp)`, non-AEL + explicit Filter) | **43** `FILTER_EXP` | Client-compiled **packed predexp** (not `[128, ael]`); SI execute uses **residual** row filter |
 | **New** (string AEL, explain → execute) | **44** `WHERE` | `[flags: u8][AEL UTF-8]` on both phases (EXPLAIN set on explain, cleared on execute); **not** field `43` |
-| **Path A (drop for queries)** | **43** `[128, ael]` | `Expression.fromServerCompiledFilter()` — **broken** on merged server for queries; remove from `AelMaterializer.parseWhereFromString` |
+| **Path A (dropped for queries, M11)** | **43** `[128, ael]` | Still used for **read/write/batch** via `expressionFromString()`; dropped from `parseWhereFromString` only |
 
 Do **not** send field `43` on the new two-phase path. Do **not** send field `44` on legacy non-AEL paths or background query / agg (server `UNSUPPORTED_FEATURE`).
 
@@ -159,6 +159,74 @@ Do **not** send field `43` on the new two-phase path. Do **not** send field `44`
 - [x] Route string-AEL **query** WHERE through field **44** via `hasStringAel()` in `useServerQuerySelection()` (including `allowsIndex=false` / PI).
 - [x] Keep `Expression.fromServerCompiledFilter()` / `expressionFromString()` for **read/write** `ExpOperation` until server implements op 128 on field **43** for those ops (or product defines another wire).
 - [ ] Remove or repurpose `supportsAel()` gate for query routing once read/write op 128 is wired (`supportsQuerySelection()` gates queries today).
+
+---
+
+## String AEL — query vs non-query (server paths)
+
+String AEL uses **two different wires** today. M11 dropped field **43** `[128, ael]` for **queries only**; `AelMaterializer.expressionFromString()` → `Expression.fromServerCompiledFilter()` is **unchanged** for read/write/batch.
+
+### Where each wire is used (client)
+
+| Use case | Example API | Field | Wire |
+|----------|-------------|-------|------|
+| **Dataset query** | `session.query(dataSet).where("$.age > 30")` | **44** | `[flags: u8][AEL UTF-8]` |
+| **Expression write** | `session.update(key).bin("c").updateFrom("$.A + 4")` | **43** | msgpack `[128, "<ael>"]` |
+| **Expression read** | `session.read(key).bin("x").selectFrom("$.price + $.tax")` | **43** | `[128, ael]` |
+| **Batch filter** | `session.read(keys).where("$.status == 'active'")` | **43** | `[128, ael]` |
+| **Non-AEL** | `where(Exp)`, `where(BooleanExpression)` | **43** | packed predexp (not AEL) |
+
+Field **44** is **not** sent on single-key operate or batch messages in the current server — only the query path consumes it (`query.c` / `get_query_filter_exp`).
+
+### Observed server regression (`dsl` vs integration branch)
+
+Compared `aerospike-server` branch `dsl` (passes `CLIENT-5012-ael-testing` + client tests) vs `suresh/dsl-queryOptimization-integration` (fails many non-query tests):
+
+| Branch | Field **43** `[128, ael]` on operate/batch | Field **44** on queries |
+|--------|---------------------------------------------|-------------------------|
+| **`dsl`** | `build_internal()` detects top-level `[EXP_AEL_COMPILE, <ael_string>]` → `build_internal_ael()` | N/A (pre–field-44) |
+| **`suresh/dsl-queryOptimization-integration`** | Fast-path **removed**; payload hits stubbed `build_ael_compile()` → `PARAMETER` (4) | `as_exp_filter_build_ael()` via field **44** ✓ |
+
+**Example failure:** `ExpOperationTest.expWritePolicyError` — expects `BIN_NOT_FOUND` (17) on `updateFrom("$.A + 4")`; integration server returns `PARAMETER` (4) before write-policy runs. **Client wire is identical** on `CLIENT-5012-ael-testing` and `CLIENT-4800-index-selection-server-side` for this test; failure is **server-side**, not M11 / field-44 query migration.
+
+**Removed hunk (restoration target):** ~25 lines in `as/src/exp/exp.c` `build_internal()` — cherry-pick from `dsl`. No changes needed in `rw_utils.c` or `batch.c` (they already call `as_exp_filter_build()` → `build_internal()`).
+
+### Two server roadmap options
+
+**Path 2 — Split by message type (near-term; matches current client)**
+
+| Message | String AEL wire |
+|---------|-----------------|
+| Query | Field **44** `[flags][AEL UTF-8]` |
+| Operate / batch filter | Field **43** `[128, ael]` |
+| Packed `Exp` / non-AEL | Field **43** packed predexp |
+
+**Server ask:** Restore field **43** op **128** handling **in addition to** field **44** for queries. `build_ael_compile` stub can remain — fast-path bypasses it.
+
+**Restoration effort (server):** **Small** — revert one `build_internal()` block in `exp.c` (~25 lines) + rerun client `ExpOperationTest`, batch filter, `AppendTest`, etc. Hours, not days.
+
+---
+
+**Path 1 — Unify string AEL on field 44 (long-term)**
+
+| Message | String AEL wire |
+|---------|-----------------|
+| Query | Field **44** (with `EXPLAIN` / index flags as today) |
+| Operate / batch | Field **44** `flags=0` only |
+| Packed `Exp` / non-AEL | Field **43** packed predexp (unchanged) |
+
+**Server work:** Teach `rw_utils.c`, `batch.c`, etc. to read field **44** and call `as_exp_filter_build_ael()`; background query/agg (today rejects field **44**); 43 XOR 44 validation on operate messages. **Client work:** one encoder (`QueryWhereWire`-style) from `expressionFromString()`; drop `[128, ael]` everywhere.
+
+**Effort:** **Larger** — days/weeks across server entry points + full client rollout. Not a cherry-pick.
+
+**Not possible:** Moving **packed predexp** / `Exp` / `BooleanExpression` to field **44** — those are not AEL source text.
+
+### Blurb for server team (path 2 + optional path 1 roadmap)
+
+- **Queries:** client uses field **44** only for string AEL (not field **43** `[128, ael]`).
+- **Read/write/batch:** client still uses field **43** `[128, ael]` via `expressionFromString()`.
+- **Bug:** integration branch removed `build_internal()` op-128 fast-path while adding field **44** for queries — please restore (~25 lines from `dsl`).
+- **Future (optional):** field **44** as the single string-AEL wire for all message types; field **43** stays for packed predexp only.
 
 ---
 
@@ -194,7 +262,8 @@ Verified on `aerospike-server` branch `suresh/dsl-queryOptimization-integration`
 | PI explain response | empty fields, `OK` | Same |
 | `FILTERED_OUT` | `AS_ERR_FILTERED_OUT` | Same |
 | `REQUIRE_INDEX` + PI plan | — | `AS_ERR_SINDEX_NOT_FOUND` on explain |
-| Execute filter | field `43` predexp | field **44** AEL via `get_query_filter_exp` |
+| Execute filter (query) | field `43` predexp | field **44** AEL via `get_query_filter_exp` |
+| Execute filter (operate/batch string AEL) | field **43** `[128, ael]` via `build_internal()` fast-path | Fast-path **removed** → `PARAMETER`; needs restoration (see [String AEL — query vs non-query](#string-ael--query-vs-non-query-server-paths)) |
 | Execute range | `get_range_field`: `21` XOR bin in `22` | Same |
 | Agg / bg queries | — | Field **44** rejected (`UNSUPPORTED_FEATURE`) |
 
