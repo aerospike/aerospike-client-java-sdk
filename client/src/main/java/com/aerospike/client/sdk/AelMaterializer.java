@@ -67,10 +67,15 @@ public final class AelMaterializer {
     }
 
     /**
-     * Query WHERE from string AEL: client parse for legacy execute paths (packed predexp on field
-     * {@code 43}). String-AEL queries on {@link com.aerospike.client.sdk.Cluster#supportsQuerySelection()}
-     * clusters use field {@code 44} via {@link com.aerospike.client.sdk.query.IndexProbePlanner}
-     * instead of this method.
+     * WHERE from string AEL for paths that still use field {@code 43} (keyed query, batch filter,
+     * legacy dataset query with client SI).
+     *
+     * <p>When {@code allowsIndex} is {@code false} and {@link Cluster#supportsAel()}, returns
+     * server-compiled filter bytes ({@code [128, ael]}). Otherwise full client parse (including
+     * secondary index {@link Filter} when {@code allowsIndex} is {@code true}).</p>
+     *
+     * <p>String-AEL dataset queries on {@link Cluster#supportsQuerySelection()} clusters use field
+     * {@code 44} via {@link com.aerospike.client.sdk.query.IndexProbePlanner} instead.</p>
      */
     public static ParseResult parseWhereFromString(
         Session session,
@@ -79,7 +84,14 @@ public final class AelMaterializer {
         String querySet,
         String ael
     ) {
+        if (!allowsIndex && session.getCluster().supportsAel()) {
+            return serverCompiledFilterResult(ael);
+        }
         return clientParseWhere(session, allowsIndex, namespace, querySet, ael);
+    }
+
+    private static ParseResult serverCompiledFilterResult(String ael) {
+        return new ParseResult(null, Exp.expr(Expression.fromServerCompiledFilter(ael)));
     }
 
     private static ParseResult clientParseWhere(

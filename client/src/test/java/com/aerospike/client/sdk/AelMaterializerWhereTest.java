@@ -24,12 +24,12 @@ import com.aerospike.ael.ParseResult;
 import com.aerospike.client.sdk.exp.Expression;
 
 /**
- * Query WHERE materialization — field {@code 43} op {@code 128} must not be used for query parse.
+ * WHERE materialization for field {@code 43} paths ({@code parseWhereFromString}).
  */
 class AelMaterializerWhereTest extends ClusterTest {
 
     @Test
-    void parseWhereFromString_allowsIndexFalse_usesClientPackedPredexpNotOp128() {
+    void parseWhereFromString_allowsIndexFalse_usesServerCompiledOp128WhenSupportsAel() {
         ParseResult result = AelMaterializer.parseWhereFromString(
             session,
             false,
@@ -40,7 +40,12 @@ class AelMaterializerWhereTest extends ClusterTest {
 
         assertThat(result.getFilter()).isNull();
         assertThat(result.getExpression()).isNotNull();
-        assertThat(isServerCompiledAelWire(result.getExpression())).isFalse();
+        if (cluster.supportsAel()) {
+            assertThat(isServerCompiledAelWire(result.getExpression())).isTrue();
+        }
+        else {
+            assertThat(isServerCompiledAelWire(result.getExpression())).isFalse();
+        }
     }
 
     @Test
