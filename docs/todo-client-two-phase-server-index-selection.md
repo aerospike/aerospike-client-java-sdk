@@ -37,13 +37,14 @@ Implementation checklist for the fluent Java client.
 [flags: u8][AEL source string...]
 ```
 
-**Flags** (single byte; unknown bits → server `PARAMETER`):
+**Flags** (single byte; bit 0 = encoding selector — must be `0` for v1; unknown semantic bits → server `PARAMETER`):
 
 | Flag | Value | Phase 1 (explain) | Phase 2 (execute) |
 |------|-------|-------------------|-------------------|
-| `EXPLAIN` | `1 << 0` | **Set** (`0x01`) | **Clear** (required — leaving EXPLAIN set re-runs explain, never executes) |
-| `REQUIRE_INDEX` | `1 << 1` | Optional (product TBD) | Ignored on execute today |
-| `HARD_HINT` | `1 << 2` | Reserved — **not used by server** | Do not send |
+| `ENC_VARINT` | `1 << 0` | **Clear** | **Clear** |
+| `EXPLAIN` | `1 << 1` | **Set** (`0x02`) | **Clear** (required — leaving EXPLAIN set re-runs explain, never executes) |
+| `REQUIRE_INDEX` | `1 << 2` | Optional — reject PI fallback | **Clear** — server rejects if set |
+| `HARD_HINT` | `1 << 3` | Optional — require field `21` hint | **Clear** — server rejects if set |
 
 **AEL body (v1):** raw UTF-8 AEL source text (e.g. `"$.age > 30 and $.country == 'US'"`). Server parses via `as_exp_filter_build_ael()` → `ael_parse()`.
 
@@ -63,7 +64,7 @@ Client should restrict to one AEL expression per WHERE until server allows more.
 |-------|---------|
 | `0` namespace | required |
 | `1` set | optional |
-| `44` WHERE | `[0x01][<AEL UTF-8>]` |
+| `44` WHERE | `[0x02][<AEL UTF-8>]` |
 | `21` INDEX_NAME | optional soft hint (`forIndex`) |
 
 Server: parse WHERE, run planner → `result_code` + on SI: `21`, `22`, `26` (INDEX_TYPE). No field `43` in response.
@@ -87,7 +88,7 @@ Explain response carries **server pins only**. Field **44** (AEL) is **not** ech
 |-----------------------|---------|---------|--------|
 | `0` namespace | required | required | Explain request / `QueryPlan` context |
 | `1` set | optional | optional | Explain request / `QueryPlan` context |
-| `44` WHERE | `[0x00][same AEL UTF-8]` | same | **Explain request** (client-stored `aelString`; rebuild — do not replay `0x01` bytes) |
+| `44` WHERE | `[0x00][same AEL UTF-8]` | same | **Explain request** (client-stored `aelString`; rebuild — do not replay `0x02` explain bytes) |
 | `21` INDEX_NAME | from explain | absent | **Explain response** field `21` |
 | `26` INDEX_TYPE | from explain when non-`DEFAULT` | absent | **Explain response** field `26` *(optional on execute today — server defaults if absent; required for LIST/MAPCDT later)* |
 | `22` INDEX_RANGE | execute shape (`bin_name_len=0`) | absent | **Explain response** field `22` after `IndexRangeWire.forExecuteWithIndexName` |
@@ -275,7 +276,7 @@ Server does **not** verify that execute WHERE matches explain WHERE. Client must
 |---------|---------------|
 | Explain still uses INFO4 + field `43`, no partitions | Broken basic query — missing partitions / `UNSUPPORTED_FEATURE` |
 | Field `44` with msgpack `[128,"…"]` or packed predexp | `bad AEL filter` → `PARAMETER` |
-| Execute replays explain bytes (`flags=0x01`) | Explain runs again — no records returned |
+| Execute replays explain bytes (`flags=0x02`) | Explain runs again — no records returned |
 | Both field `44` and field `43` on same message | `cannot specify both WHERE and PREDEXP` → `PARAMETER` |
 
 ---
@@ -325,7 +326,7 @@ Server does **not** verify that execute WHERE matches explain WHERE. Client must
 - [x] ~~`setIndexProbe` + INFO4 bit 7 + field `43`~~ — **replaced** with `setQueryExplain` + field `44` + EXPLAIN flag.
 - [x] ~~`toProbeExpression` / packed predexp for probe~~ — **replaced** with `toExplainAel()` raw AEL string in field `44`.
 - [x] Explain response decode includes **INDEX_TYPE** (`MsgFieldParser.getIndexCollectionType()`).
-- [x] Unit tests: explain wire layout (field `44`, `flags=0x01` + AEL bytes, no INFO4).
+- [x] Unit tests: explain wire layout (field `44`, `flags=0x02` + AEL bytes, no INFO4).
 
 ### API (mostly unchanged)
 
@@ -384,7 +385,7 @@ Server does **not** verify that execute WHERE matches explain WHERE. Client must
 ### Unit
 
 - [x] `IndexRangeWireTest`, `QueryPlanTest`, `MsgFieldParserTest` *(still valid)*.
-- [x] Explain wire layout — field **44**, `flags=0x01` + raw AEL UTF-8 (`IndexProbeCommandTest`).
+- [x] Explain wire layout — field **44**, `flags=0x02` + raw AEL UTF-8 (`IndexProbeCommandTest`).
 - [x] Execute wire — field **44** on plan path, EXPLAIN cleared (`QueryPlanExecuteWireTest`).
 - [ ] WHERE flags — unknown flag bits rejected by server; client must only send known bits.
 

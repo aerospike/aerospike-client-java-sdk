@@ -79,7 +79,13 @@ class QueryWhereWireTest {
     @Test
     void rejectsUnknownFlags() {
         assertThrows(IllegalArgumentException.class,
-            () -> QueryWhereWire.encode(1 << 3, SIMPLE_AEL));
+            () -> QueryWhereWire.encode(1 << 4, SIMPLE_AEL));
+    }
+
+    @Test
+    void rejectsVarIntEncodingFlag() {
+        assertThrows(IllegalArgumentException.class,
+            () -> QueryWhereWire.encode(QueryWhereWire.FLAG_ENC_VARINT, SIMPLE_AEL));
     }
 
     @Test

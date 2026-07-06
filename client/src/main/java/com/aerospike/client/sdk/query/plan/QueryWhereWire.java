@@ -26,17 +26,23 @@ import java.nio.charset.StandardCharsets;
  */
 public final class QueryWhereWire {
 
+    /**
+     * Bit 0 encoding selector — {@code 0} = single-byte flags (v1); {@code 1} = varInt (future).
+     * Must remain clear until varInt encoding is supported.
+     */
+    public static final int FLAG_ENC_VARINT = 1 << 0;
+
     /** Explain phase — server runs index planner only. */
-    public static final int FLAG_EXPLAIN = 1 << 0;
+    public static final int FLAG_EXPLAIN = 1 << 1;
 
     /** Optional: reject PI fallback on explain when set with {@link #FLAG_EXPLAIN}. */
-    public static final int FLAG_REQUIRE_INDEX = 1 << 1;
+    public static final int FLAG_REQUIRE_INDEX = 1 << 2;
 
-    /** Reserved — not used by server; do not send. */
-    public static final int FLAG_HARD_HINT = 1 << 2;
+    /** Explain-only: require field {@code 21} index name hint; fail if hint missing or not selected. */
+    public static final int FLAG_HARD_HINT = 1 << 3;
 
     public static final int FLAG_KNOWN =
-        FLAG_EXPLAIN | FLAG_REQUIRE_INDEX | FLAG_HARD_HINT;
+        FLAG_ENC_VARINT | FLAG_EXPLAIN | FLAG_REQUIRE_INDEX | FLAG_HARD_HINT;
 
     private QueryWhereWire() {
     }
@@ -108,6 +114,9 @@ public final class QueryWhereWire {
     private static void validateFlags(int flags) {
         if ((flags & ~FLAG_KNOWN) != 0) {
             throw new IllegalArgumentException("unknown WHERE flags 0x" + Integer.toHexString(flags));
+        }
+        if ((flags & FLAG_ENC_VARINT) != 0) {
+            throw new IllegalArgumentException("varInt WHERE flags encoding is not supported");
         }
     }
 

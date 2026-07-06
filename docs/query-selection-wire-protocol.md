@@ -33,25 +33,28 @@ Field types (AS_MSG): `21` = `INDEX_NAME`, `22` = `INDEX_RANGE`, `26` = `INDEX_T
 
 - **Not** MessagePack `[128, "<ael>"]`.
 - **Not** client-compiled packed predexp bytes.
-- **Not** a varint flags field — exactly **one** flags byte, then raw UTF-8 AEL text.
+- **Not** a varint flags field — exactly **one** flags byte (bit 0 selects encoding; v1 uses single-byte semantics with bit 0 clear), then raw UTF-8 AEL text.
 
 Server parses the AEL body via `as_exp_filter_build_ael()` → `ael_parse()`.
 
 ### Flags (`query_where.h`)
 
-Unknown flag bits → server `PARAMETER`.
+Unknown flag bits → server `PARAMETER`. Bit 0 set (`ENC_VARINT`) → server `PARAMETER` (varInt encoding not supported yet).
 
 | Flag | Value | Explain request | Execute request |
 |------|-------|-----------------|-----------------|
-| `EXPLAIN` | `1 << 0` (`0x01`) | **Set** | **Clear** (required — leaving `EXPLAIN` set re-runs explain, never returns records) |
-| `REQUIRE_INDEX` | `1 << 1` (`0x02`) | Optional — reject PI fallback | Ignored on execute today |
-| `HARD_HINT` | `1 << 2` (`0x04`) | Reserved — **not used by server** | Do not send |
+| `ENC_VARINT` | `1 << 0` (`0x01`) | **Clear** (required for v1) | **Clear** |
+| `EXPLAIN` | `1 << 1` (`0x02`) | **Set** | **Clear** (required — leaving `EXPLAIN` set re-runs explain, never returns records) |
+| `REQUIRE_INDEX` | `1 << 2` (`0x04`) | Optional — reject PI fallback (`SINDEX_NOT_FOUND`) | **Clear** — server rejects if set (`PARAMETER`) |
+| `HARD_HINT` | `1 << 3` (`0x08`) | Optional — require field `21` index name hint | **Clear** — server rejects if set (`PARAMETER`) |
+
+Index hint source: field **`21` INDEX_NAME** (separate from WHERE flags). `HARD_HINT` without a valid hint → `SINDEX_NOT_FOUND` on explain.
 
 **Examples:**
 
 | Phase | Flags byte | AEL (UTF-8) | Full field `44` value |
 |-------|------------|-------------|------------------------|
-| Explain | `0x01` | `$.age > 30` | `[0x01]['$','.','a','g','e',' ',...]` |
+| Explain | `0x02` | `$.age > 30` | `[0x02]['$','.','a','g','e',' ',...]` |
 | Execute | `0x00` | same text | `[0x00]['$','.','a','g','e',' ',...]` |
 
 ### Mutual exclusion
@@ -162,7 +165,7 @@ Clients should store `INDEX_TYPE` from explain and forward it on SI execute when
 
 | Field / bit | Required | Notes |
 |-------------|----------|-------|
-| Field **44** WHERE | Yes | `[0x01][<AEL UTF-8>]` — `EXPLAIN` flag set |
+| Field **44** WHERE | Yes | `[0x02][<AEL UTF-8>]` — `EXPLAIN` flag set (`1 << 1`) |
 | `0` namespace | Yes | |
 | `1` set | If query has set | |
 | `7` socket timeout | Yes | |
@@ -216,7 +219,7 @@ Do not execute; surface `FILTERED_OUT` to the application.
 |---------------|---------|---------|--------|
 | `0` namespace | required | required | Explain request / plan context |
 | `1` set | optional | optional | Explain request / plan context |
-| `44` WHERE | `[0x00][same AEL UTF-8]` | same | **Explain request** (client-stored AEL; rebuild — do not replay `0x01` bytes) |
+| `44` WHERE | `[0x00][same AEL UTF-8]` | same | **Explain request** (client-stored AEL; rebuild — do not replay `0x02` explain bytes) |
 | `21` INDEX_NAME | from explain | absent | Explain response |
 | `26` INDEX_TYPE | from explain when non-`DEFAULT` | absent | Explain response |
 | `22` INDEX_RANGE | execute shape (`bin_name_len=0`) | absent | Explain response after bin-name strip |
@@ -259,7 +262,7 @@ Do not execute; surface `FILTERED_OUT` to the application.
 |---------|---------------|
 | Explain uses `INFO4` bit 7 + field **43**, no partitions | Broken basic query — missing partitions / `UNSUPPORTED_FEATURE` |
 | Field **44** with msgpack `[128,"…"]` or packed predexp | `bad AEL filter` → `PARAMETER` |
-| Execute replays explain bytes (`flags=0x01`) | Explain runs again — no records returned |
+| Execute replays explain bytes (`flags=0x02`) | Explain runs again — no records returned |
 | Both field **44** and field **43** on same message | `cannot specify both WHERE and PREDEXP` → `PARAMETER` |
 
 ---
