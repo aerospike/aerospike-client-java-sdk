@@ -23,7 +23,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.CompletableFuture;
 import java.util.stream.IntStream;
 
 import com.aerospike.client.sdk.AerospikeException;
@@ -49,6 +48,7 @@ import com.aerospike.client.sdk.cdt.ListOrder;
 import com.aerospike.client.sdk.cdt.MapOrder;
 import com.aerospike.client.sdk.info.classes.NamespaceDetail;
 import com.aerospike.client.sdk.info.classes.Sindex;
+import com.aerospike.client.sdk.operation.BitOverflowAction;
 import com.aerospike.client.sdk.policy.Behavior;
 import com.aerospike.client.sdk.policy.QueryDuration;
 import com.aerospike.client.sdk.policy.Behavior.Selectors;
@@ -1205,6 +1205,63 @@ public class QueryExamples {
                 session.query(cdtDemoRecords.id(500)).execute().getFirst());
             System.out.println("--- End Complex CDT operations ---");
 
+            // ---------------------------
+            // Bit (BLOB) operations
+            // ---------------------------
+            System.out.println("\n--- Bit (BLOB) operations ---");
+
+            Key bitKey = cdtDemoRecords.id(501);
+            session.delete(bitKey).execute();
+
+            session.upsert(bitKey)
+                .bin("flags").setTo(new byte[] {0x01, 0x42})
+                .execute();
+
+            session.update(bitKey)
+                .bin("flags").bitResize(4)
+                .bin("flags").bitSet(8, 8, new byte[] {(byte) 0xFF})
+                .bin("flags").bitOr(0, 16, new byte[] {(byte) 0x0F, (byte) 0xF0})
+                .execute();
+
+            RecordStream bitRead = session.query(bitKey)
+                .bin("flags").bitGet(0, 8)
+                .bin("flags").bitCount(0, 32)
+                .execute();
+            System.out.println("First byte + set-bit count: " + bitRead.getFirst());
+
+            RecordStream intRead = session.query(bitKey)
+                .bin("flags").bitGetInt(0, 16, false)
+                .execute();
+            System.out.println("UInt16 at bit 0: " + intRead.getFirst());
+
+            session.query(bitKey)
+                .bin("flags").bitLscan(0, 32, true)
+                .bin("flags").bitRscan(0, 32, true)
+                .execute()
+                .forEach(rr -> System.out.println("Scan result: " + rr));
+
+            session.update(bitKey)
+                .bin("flags").bitSetInt(16, 16, 100)
+                .bin("flags").bitAdd(16, 16, 1, false, BitOverflowAction.WRAP)
+                .execute();
+
+            System.out.println("After bitSetInt/bitAdd: " +
+                session.query(bitKey).bin("flags").bitGetInt(16, 16, false).execute().getFirst());
+
+            session.update(bitKey)
+                .bin("flags").bitLshift(0, 8, 1)
+                .bin("flags").bitNot(8, 8)
+                .execute();
+
+            session.update(bitKey)
+                .bin("flags").bitInsert(1, new byte[] {0x11, 0x22})
+                .bin("flags").bitRemove(3, 1)
+                .execute();
+
+            System.out.println("Final flags blob: " +
+                session.query(bitKey).bin("flags").get().execute().getFirst());
+            System.out.println("--- End Bit (BLOB) operations ---");
+
             session.upsert(customerDataSet.id(1))
                 .bin("test").onMapKeyRange(5, SpecialValue.INFINITY).getKeys()
                 .execute();
@@ -1220,9 +1277,21 @@ public class QueryExamples {
                 RecordResult rr = rs.next();
                 System.out.println((Object)rr.toObject());
             }
-            
-            CompletableFuture<List<Customer>> myCust = session.query(customerDataSet.ids(1,2,3)).execute().asCompletableFutureMapped();
-            CompletableFuture<List<Customer>> myCust1 = session.query(customerDataSet.id(1)).execute().asCompletableFutureMapped();
+
+            System.out.println("\n--- Async CompletableFuture examples ---\n");
+            List<Customer> customersAsync = session.query(customerDataSet.ids(1, 2, 3))
+                .executeAsync(ErrorStrategy.IN_STREAM)
+                .asCompletableFutureMapped()
+                .join();
+            customersAsync.forEach(c -> System.out.println(c));
+
+            Optional<Customer> customerAsync = session.query(customerDataSet.id(1))
+                .executeAsync(ErrorStrategy.IN_STREAM)
+                .asCompletableFutureMappedSingle()
+                .join();
+            customerAsync.ifPresentOrElse(
+                c -> System.out.println("Single customer: " + c),
+                () -> System.out.println("Customer id=1 not found"));
         }
     }
 }

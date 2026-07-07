@@ -11,6 +11,7 @@ apidocs
 *.out
 *.jar
 *.iml
+*.log
 .idea/
 .vscode
 client/.flattened-pom.xml

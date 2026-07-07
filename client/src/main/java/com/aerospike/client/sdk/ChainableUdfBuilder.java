@@ -1170,7 +1170,7 @@ public class ChainableUdfBuilder extends AbstractSessionOperationBuilder<Chainab
         }
 
         int totalKeys = operationSpecs.stream().mapToInt(spec -> spec.getKeys().size()).sum();
-        AsyncRecordStream asyncStream = new AsyncRecordStream(totalKeys);
+        AsyncRecordStream asyncStream = AsyncExecutionSupport.newStream(totalKeys, errorHandler);
 
         Cluster cluster = session.getCluster();
         cluster.startVirtualThread(() -> {
@@ -1178,7 +1178,7 @@ public class ChainableUdfBuilder extends AbstractSessionOperationBuilder<Chainab
                 RecordStream syncResult = OperationSpecExecutor.execute(session, operationSpecs,
                     defaultWhereClause, defaultExpirationInSeconds, txnToUse, notInAnyTransaction,
                     durableDeleteDefault);
-                syncResult.forEach(result -> dispatchResult(result, asyncStream, errorHandler));
+                syncResult.forEach(result -> AbstractFilterableBuilder.dispatchResult(result, asyncStream, errorHandler));
             } finally {
                 asyncStream.complete();
             }
