@@ -296,6 +296,11 @@ session.update(key)
     .bin("items").listInsert(0, "first")   // Insert at beginning
     .bin("items").listInsert(2, 42)        // Insert at index 2
     .execute();
+
+// With options
+session.update(key)
+    .bin("items").listInsert(10, 5, opt -> opt.insertBounded())
+    .execute();
 ```
 
 ### listSet
@@ -306,6 +311,11 @@ Replace the value at a specific index.
 session.update(key)
     .bin("items").listSet(0, "updated")
     .bin("scores").listSet(3, 100)
+    .execute();
+
+// With options
+session.update(key)
+    .bin("items").listSet(0, "updated", opt -> opt.allowFailures())
     .execute();
 ```
 
@@ -323,6 +333,11 @@ session.update(key)
 session.update(key)
     .bin("counters").listIncrement(0, 5)
     .bin("ratios").listIncrement(1, 0.5)
+    .execute();
+
+// With options
+session.update(key)
+    .bin("counters").listIncrement(0, 5, opt -> opt.allowFailures())
     .execute();
 ```
 
