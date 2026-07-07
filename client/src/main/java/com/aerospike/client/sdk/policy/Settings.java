@@ -32,6 +32,7 @@ public final class Settings {
     Duration waitForCallToComplete;
     Duration waitForConnectionToComplete;
     Duration waitForSocketResponseAfterCallFails;
+    Integer errorDetailVerbosity;
 
     // Query-only
     Integer recordQueueSize;
@@ -68,6 +69,7 @@ public final class Settings {
         this.waitForCallToComplete = orig.waitForCallToComplete;
         this.waitForConnectionToComplete = orig.waitForConnectionToComplete;
         this.waitForSocketResponseAfterCallFails = orig.waitForSocketResponseAfterCallFails;
+        this.errorDetailVerbosity = orig.errorDetailVerbosity;
         this.recordQueueSize = orig.recordQueueSize;
         this.maxConcurrentNodes = orig.maxConcurrentNodes;
         this.allowInlineMemoryAccess = orig.allowInlineMemoryAccess;
@@ -113,6 +115,9 @@ public final class Settings {
         }
         if (waitForSocketResponseAfterCallFails != null) {
             m.put("waitForSocketResponseAfterCallFails", waitForSocketResponseAfterCallFails);
+        }
+        if (errorDetailVerbosity != null) {
+            m.put("errorDetailVerbosity", errorDetailVerbosity);
         }
 
         if (recordQueueSize != null) {

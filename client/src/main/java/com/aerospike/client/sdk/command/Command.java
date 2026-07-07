@@ -130,14 +130,8 @@ public class Command {
         sendKey = settings.getSendKey();
         compress = settings.getUseCompression();
 
-        // TODO: Add errorDetailVerbosity to Settings.
-        // 0 - disabled (no error details)
-        // 1 - subcode only
-        // 2 - subcode + message
-        int errorDetailVerbosity = 2;
-
-        errorDetailBits = (byte)((errorDetailVerbosity << Command.INFO4_ERROR_VERBOSITY_SHIFT) &
-            Command.INFO4_ERROR_VERBOSITY_MASK);
+        errorDetailBits = (byte)((settings.getErrorDetailVerbosity()
+            << Command.INFO4_ERROR_VERBOSITY_SHIFT) & Command.INFO4_ERROR_VERBOSITY_MASK);
     }
 
     public int getConnectTimeout() {

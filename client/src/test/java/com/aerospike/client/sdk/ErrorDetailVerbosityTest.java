@@ -19,24 +19,24 @@ package com.aerospike.client.sdk;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.fail;
-import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import java.util.ArrayList;
-import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
-import com.aerospike.client.sdk.mapper.Address;
-import com.aerospike.client.sdk.mapper.Customer;
-import com.aerospike.client.sdk.mapper.CustomerMapper;
+import com.aerospike.client.sdk.exp.Exp;
 import com.aerospike.client.sdk.policy.Behavior;
+import com.aerospike.client.sdk.policy.Behavior.OpKind;
+import com.aerospike.client.sdk.policy.Behavior.OpShape;
 import com.aerospike.client.sdk.policy.Behavior.Selectors;
+import com.aerospike.client.sdk.policy.ResolvedSettings;
 
 public class ErrorDetailVerbosityTest extends ClusterTest {
     private static final String binName = "edv-bin";
@@ -79,83 +79,98 @@ public class ErrorDetailVerbosityTest extends ClusterTest {
     // Verbosity level semantics.
     // ---------------------------------------------------------------------
 
-    // TODO Implement tests.
-/*
     @Test
     public void testDefaultVerbosityIsZero() {
-        Policy p = new Policy();
-        assertEquals(0, p.errorDetailVerbosity);
+        ResolvedSettings settings = session.getBehavior().getSettings(OpKind.READ, OpShape.POINT, Behavior.Mode.AP);
+        assertEquals(0, settings.getErrorDetailVerbosity());
 
-        WritePolicy wp = new WritePolicy();
-        assertEquals(0, wp.errorDetailVerbosity);
+        settings = session.getBehavior().getSettings(OpKind.WRITE_RETRYABLE, OpShape.POINT, Behavior.Mode.AP);
+        assertEquals(0, settings.getErrorDetailVerbosity());
     }
 
     @Test
     public void testVerbosityDisabled() {
-        WritePolicy wp = new WritePolicy();
-        wp.errorDetailVerbosity = 0;
+        Behavior behavior1 = Behavior.DEFAULT.deriveWithChanges("errorDetail", builder -> builder
+            .on(Selectors.all(), ops -> ops
+                .errorDetailVerbosity(ErrorDetailVerbosity.NONE)
+            )
+        );
 
-        try {
-            client.operate(wp, intKey, Operation.append(new Bin(binName, "bad")));
-        }
-        catch (AerospikeException ae) {
-            assertEquals(ResultCode.BIN_TYPE_ERROR, ae.getResultCode());
-            // With verbosity 0, the message should be the default ResultCode string.
-            String msg = ae.getBaseMessage();
-            assertEquals(ResultCode.getResultString(ResultCode.BIN_TYPE_ERROR), msg);
-            return;
-        }
-        assertTrue("Expected AerospikeException", false);
+        Session session1 = cluster.createSession(behavior1);
+
+        AerospikeException ae = assertThrows(AerospikeException.class, () -> {
+            session1.upsert(intKey)
+                .bin(binName).append("bad")
+                .execute()
+                .getFirstRecord();
+        });
+
+        assertEquals(ResultCode.BIN_TYPE_ERROR, ae.getResultCode());
+
+        // With verbosity 0, the message should be the default ResultCode string.
+        String msg = ae.getBaseMessage();
+        assertEquals(ResultCode.getResultString(ResultCode.BIN_TYPE_ERROR), msg);
     }
 
     @Test
     public void testVerbositySubcodeOnly() {
-        // Verbosity 1: server sends the subcode but not the message. A subcode
-        // that resolves to a value (BIN_NOT_FOUND from an HLL count op on a
-        // missing bin -> subcode 1) surfaces as the bare "error subcode=N" form.
-        WritePolicy wp = new WritePolicy();
-        wp.errorDetailVerbosity = 1;
+        Behavior behavior1 = Behavior.DEFAULT.deriveWithChanges("errorDetail", builder -> builder
+            .on(Selectors.all(), ops -> ops
+                .errorDetailVerbosity(ErrorDetailVerbosity.SUBCODE)
+            )
+        );
 
-        Key key = new Key(args.namespace, args.set, "edv-subonly-key");
-        client.put(new WritePolicy(), key, new Bin("other-bin", 1));
+        Session session1 = cluster.createSession(behavior1);
 
-        try {
-            client.operate(wp, key, HLLOperation.refreshCount("no-hll-bin"));
-        }
-        catch (AerospikeException ae) {
-            assertEquals(ResultCode.BIN_NOT_FOUND, ae.getResultCode());
-            assertEquals(SubCode.BIN_NOT_FOUND_HLL_CANNOT_CREATE_WITH_OP, ae.getSubcode());
-            String msg = ae.getBaseMessage();
-            assertNotNull(msg);
-            assertTrue("Expected subcode in: " + msg, msg.contains("subcode=1"));
-            return;
-        }
-        assertTrue("Expected AerospikeException", false);
+        Key key = args.set.id("edv-subonly-key");
+
+        session1.upsert(key)
+            .bin("other-bin").setTo(1)
+            .execute();
+
+        AerospikeException ae = assertThrows(AerospikeException.class, () -> {
+            session1.upsert(key)
+                .bin("no-hll-bin").hllRefreshCount()
+                .execute()
+                .getFirstRecord();
+        });
+
+        assertEquals(ResultCode.BIN_NOT_FOUND, ae.getResultCode());
+        assertEquals(SubCode.BIN_NOT_FOUND_HLL_CANNOT_CREATE_WITH_OP, ae.getSubCode());
+        String msg = ae.getBaseMessage();
+        assertNotNull(msg);
+        assertTrue(msg.contains("subcode=1"), "Expected subcode in: " + msg);
     }
 
     @Test
     public void testVerbositySubcodeAndMessage() {
-        // Verbosity 2: server sends both message and subcode, formatted as
-        // "<message> (subcode=<n>)".
-        WritePolicy wp = new WritePolicy();
-        wp.errorDetailVerbosity = 2;
+        Behavior behavior1 = Behavior.DEFAULT.deriveWithChanges("errorDetail", builder -> builder
+            .on(Selectors.all(), ops -> ops
+                .errorDetailVerbosity(ErrorDetailVerbosity.MESSAGE)
+            )
+        );
 
-        Key key = new Key(args.namespace, args.set, "edv-submsg-key");
-        client.put(new WritePolicy(), key, new Bin("other-bin", 1));
+        Session session1 = cluster.createSession(behavior1);
 
-        try {
-            client.operate(wp, key, HLLOperation.refreshCount("no-hll-bin"));
-        }
-        catch (AerospikeException ae) {
-            assertEquals(ResultCode.BIN_NOT_FOUND, ae.getResultCode());
-            assertEquals(SubCode.BIN_NOT_FOUND_HLL_CANNOT_CREATE_WITH_OP, ae.getSubcode());
-            String msg = ae.getBaseMessage();
-            assertNotNull(msg);
-            assertTrue("Expected message text in: " + msg, msg.contains("count op"));
-            assertTrue("Expected subcode in: " + msg, msg.contains("(subcode=1)"));
-            return;
-        }
-        assertTrue("Expected AerospikeException", false);
+        Key key = args.set.id("edv-submsg-key");
+
+        session1.upsert(key)
+            .bin("other-bin").setTo(1)
+            .execute();
+
+        AerospikeException ae = assertThrows(AerospikeException.class, () -> {
+            session1.upsert(key)
+                .bin("no-hll-bin").hllRefreshCount()
+                .execute()
+                .getFirstRecord();
+        });
+
+        assertEquals(ResultCode.BIN_NOT_FOUND, ae.getResultCode());
+        assertEquals(SubCode.BIN_NOT_FOUND_HLL_CANNOT_CREATE_WITH_OP, ae.getSubCode());
+        String msg = ae.getBaseMessage();
+        assertNotNull(msg);
+        assertTrue(msg.contains("count op"), "Expected message text in: " + msg);
+        assertTrue(msg.contains("(subcode=1)"), "Expected subcode in: " + msg);
     }
 
     // ---------------------------------------------------------------------
@@ -166,68 +181,85 @@ public class ErrorDetailVerbosityTest extends ClusterTest {
 
     @Test
     public void testAppendToIntegerBin() {
-        WritePolicy wp = new WritePolicy();
-        wp.errorDetailVerbosity = 2;
+        Behavior behavior1 = Behavior.DEFAULT.deriveWithChanges("errorDetail", builder -> builder
+            .on(Selectors.all(), ops -> ops
+                .errorDetailVerbosity(ErrorDetailVerbosity.MESSAGE)
+            )
+        );
 
-        try {
-            client.operate(wp, intKey, Operation.append(new Bin(binName, "bad-append")));
-        }
-        catch (AerospikeException ae) {
-            assertSubcodeAbsent(ae, ResultCode.BIN_TYPE_ERROR, "cannot append");
-            return;
-        }
-        assertTrue("Expected AerospikeException", false);
+        Session session1 = cluster.createSession(behavior1);
+
+        AerospikeException ae = assertThrows(AerospikeException.class, () -> {
+            session1.upsert(intKey)
+                .bin(binName).append("bad-append")
+                .execute()
+                .getFirstRecord();
+        });
+
+        assertSubcodeAbsent(ae, ResultCode.BIN_TYPE_ERROR, "string_append requires string bin");
     }
 
     @Test
     public void testIncrementStringBin() {
-        WritePolicy wp = new WritePolicy();
-        wp.errorDetailVerbosity = 2;
+        Behavior behavior1 = Behavior.DEFAULT.deriveWithChanges("errorDetail", builder -> builder
+            .on(Selectors.all(), ops -> ops
+                .errorDetailVerbosity(ErrorDetailVerbosity.MESSAGE)
+            )
+        );
 
-        try {
-            client.operate(wp, strKey, Operation.add(new Bin(binName, 1)));
-        }
-        catch (AerospikeException ae) {
-            assertSubcodeAbsent(ae, ResultCode.BIN_TYPE_ERROR, "cannot increment");
-            return;
-        }
-        assertTrue("Expected AerospikeException", false);
+        Session session1 = cluster.createSession(behavior1);
+
+        AerospikeException ae = assertThrows(AerospikeException.class, () -> {
+            session1.upsert(strKey)
+                .bin(binName).add(1)
+                .execute()
+                .getFirstRecord();
+        });
+
+        assertSubcodeAbsent(ae, ResultCode.BIN_TYPE_ERROR, "cannot increment");
     }
 
     @Test
     public void testHllAddOnIntegerBin() {
-        WritePolicy wp = new WritePolicy();
-        wp.errorDetailVerbosity = 2;
+        Behavior behavior1 = Behavior.DEFAULT.deriveWithChanges("errorDetail", builder -> builder
+            .on(Selectors.all(), ops -> ops
+                .errorDetailVerbosity(ErrorDetailVerbosity.MESSAGE)
+            )
+        );
+
+        Session session1 = cluster.createSession(behavior1);
 
         List<Value> hllList = new ArrayList<>();
         hllList.add(Value.get("element1"));
 
-        try {
-            client.operate(wp, intKey,
-                HLLOperation.add(HLLPolicy.Default, binName, hllList, 8));
-        }
-        catch (AerospikeException ae) {
-            assertSubcodeAbsent(ae, ResultCode.BIN_TYPE_ERROR, "bin is not hll type");
-            return;
-        }
-        assertTrue("Expected AerospikeException", false);
+        AerospikeException ae = assertThrows(AerospikeException.class, () -> {
+            session1.upsert(intKey)
+                .bin(binName).hllAdd(hllList, HllConfig.of(8))
+                .execute()
+                .getFirstRecord();
+        });
+
+        assertSubcodeAbsent(ae, ResultCode.BIN_TYPE_ERROR, "bin is not hll type");
     }
 
     @Test
     public void testDeleteGenerationMismatch() {
-        WritePolicy wp = new WritePolicy();
-        wp.errorDetailVerbosity = 2;
-        wp.generationPolicy = GenerationPolicy.EXPECT_GEN_EQUAL;
-        wp.generation = 777;
+        Behavior behavior1 = Behavior.DEFAULT.deriveWithChanges("errorDetail", builder -> builder
+            .on(Selectors.all(), ops -> ops
+                .errorDetailVerbosity(ErrorDetailVerbosity.MESSAGE)
+            )
+        );
 
-        try {
-            client.delete(wp, intKey);
-        }
-        catch (AerospikeException ae) {
-            assertSubcodeAbsent(ae, ResultCode.GENERATION_ERROR, "generation");
-            return;
-        }
-        assertTrue("Expected AerospikeException", false);
+        Session session1 = cluster.createSession(behavior1);
+
+        AerospikeException ae = assertThrows(AerospikeException.class, () -> {
+            session1.delete(intKey)
+                .ensureGenerationIs(777)
+                .execute()
+                .getFirstRecord();
+        });
+
+        assertSubcodeAbsent(ae, ResultCode.GENERATION_ERROR, "Generation");
     }
 
     // ---------------------------------------------------------------------
@@ -236,148 +268,194 @@ public class ErrorDetailVerbosityTest extends ClusterTest {
 
     @Test
     public void testHllRefreshCountMissingBin() {
-        WritePolicy wp = new WritePolicy();
-        wp.errorDetailVerbosity = 2;
+        Behavior behavior1 = Behavior.DEFAULT.deriveWithChanges("errorDetail", builder -> builder
+            .on(Selectors.all(), ops -> ops
+                .errorDetailVerbosity(ErrorDetailVerbosity.MESSAGE)
+            )
+        );
 
-        Key key = new Key(args.namespace, args.set, "edv-no-hll-key");
-        client.put(new WritePolicy(), key, new Bin("other-bin", 1));
+        Session session1 = cluster.createSession(behavior1);
 
-        try {
-            client.operate(wp, key, HLLOperation.refreshCount("no-hll-bin"));
-        }
-        catch (AerospikeException ae) {
-            // AS_SUB_BIN_NOT_FOUND_HLL_CANNOT_CREATE_WITH_OP = 1
-            assertSubcode(ae, ResultCode.BIN_NOT_FOUND, SubCode.BIN_NOT_FOUND_HLL_CANNOT_CREATE_WITH_OP);
-            return;
-        }
-        assertTrue("Expected AerospikeException", false);
+        Key key = args.set.id("edv-no-hll-key");
+
+        session1.upsert(key)
+            .bin("other-bin").setTo(1)
+            .execute();
+
+        AerospikeException ae = assertThrows(AerospikeException.class, () -> {
+            session1.upsert(key)
+                .bin("no-hll-bin").hllRefreshCount()
+                .execute()
+                .getFirstRecord();
+        });
+
+        // AS_SUB_BIN_NOT_FOUND_HLL_CANNOT_CREATE_WITH_OP = 1
+        assertSubcode(ae, ResultCode.BIN_NOT_FOUND, SubCode.BIN_NOT_FOUND_HLL_CANNOT_CREATE_WITH_OP);
     }
 
     @Test
     public void testListGetIndexOutOfBounds() {
-        WritePolicy wp = new WritePolicy();
-        wp.errorDetailVerbosity = 2;
+        Behavior behavior1 = Behavior.DEFAULT.deriveWithChanges("errorDetail", builder -> builder
+            .on(Selectors.all(), ops -> ops
+                .errorDetailVerbosity(ErrorDetailVerbosity.MESSAGE)
+            )
+        );
 
-        try {
-            client.operate(wp, listKey, ListOperation.get(binName, 99));
-        }
-        catch (AerospikeException ae) {
-            // AS_SUB_OPNOT_CDT_INDEX_OUT_OF_BOUNDS = 1
-            assertSubcode(ae, ResultCode.OP_NOT_APPLICABLE, SubCode.OPNOT_CDT_INDEX_OUT_OF_BOUNDS);
-            return;
-        }
-        assertTrue("Expected AerospikeException", false);
+        Session session1 = cluster.createSession(behavior1);
+
+        AerospikeException ae = assertThrows(AerospikeException.class, () -> {
+            session1.upsert(listKey)
+                .bin(binName).listGet(99)
+                .execute()
+                .getFirstRecord();
+        });
+
+        // AS_SUB_OPNOT_CDT_INDEX_OUT_OF_BOUNDS = 1
+        assertSubcode(ae, ResultCode.OP_NOT_APPLICABLE, SubCode.OPNOT_CDT_INDEX_OUT_OF_BOUNDS);
     }
 
     @Test
     public void testListGetByRankOutOfBounds() {
-        WritePolicy wp = new WritePolicy();
-        wp.errorDetailVerbosity = 2;
+        Behavior behavior1 = Behavior.DEFAULT.deriveWithChanges("errorDetail", builder -> builder
+            .on(Selectors.all(), ops -> ops
+                .errorDetailVerbosity(ErrorDetailVerbosity.MESSAGE)
+            )
+        );
 
-        try {
-            client.operate(wp, listKey, ListOperation.getByRank(binName, 99, ListReturnType.VALUE));
-        }
-        catch (AerospikeException ae) {
-            // AS_SUB_OPNOT_CDT_RANK_OUT_OF_BOUNDS = 2
-            assertSubcode(ae, ResultCode.OP_NOT_APPLICABLE, SubCode.OPNOT_CDT_RANK_OUT_OF_BOUNDS);
-            return;
-        }
-        assertTrue("Expected AerospikeException", false);
+        Session session1 = cluster.createSession(behavior1);
+
+        AerospikeException ae = assertThrows(AerospikeException.class, () -> {
+            session1.upsert(listKey)
+                .bin(binName).onListRank(99).getValues()
+                .execute()
+                .getFirstRecord();
+        });
+
+        // AS_SUB_OPNOT_CDT_RANK_OUT_OF_BOUNDS = 2
+        assertSubcode(ae, ResultCode.OP_NOT_APPLICABLE, SubCode.OPNOT_CDT_RANK_OUT_OF_BOUNDS);
     }
 
     @Test
     public void testListBoundedOverflow() {
-        WritePolicy wp = new WritePolicy();
-        wp.errorDetailVerbosity = 2;
+        Behavior behavior1 = Behavior.DEFAULT.deriveWithChanges("errorDetail", builder -> builder
+            .on(Selectors.all(), ops -> ops
+                .errorDetailVerbosity(ErrorDetailVerbosity.MESSAGE)
+            )
+        );
 
-        ListPolicy bounded = new ListPolicy(ListOrder.ORDERED, ListWriteFlags.INSERT_BOUNDED);
+        Session session1 = cluster.createSession(behavior1);
 
-        try {
-            client.operate(wp, listKey, ListOperation.insert(bounded, binName, 10, Value.get(5)));
-        }
-        catch (AerospikeException ae) {
-            // AS_SUB_OPNOT_CDT_BOUNDED_LIST_OVERFLOW = 3
-            assertSubcode(ae, ResultCode.OP_NOT_APPLICABLE, SubCode.OPNOT_CDT_BOUNDED_LIST_OVERFLOW);
-            return;
-        }
-        assertTrue("Expected AerospikeException", false);
+        AerospikeException ae = assertThrows(AerospikeException.class, () -> {
+            session1.upsert(listKey)
+                .bin(binName).listInsert(10, 5, opts -> opts .insertBounded())
+                .execute()
+                .getFirstRecord();
+        });
+
+        // AS_SUB_OPNOT_CDT_BOUNDED_LIST_OVERFLOW = 3
+        assertSubcode(ae, ResultCode.OP_NOT_APPLICABLE, SubCode.OPNOT_CDT_BOUNDED_LIST_OVERFLOW);
     }
 
     @Test
     public void testHllFoldTargetTooLarge() {
-        WritePolicy wp = new WritePolicy();
-        wp.errorDetailVerbosity = 2;
+        Behavior behavior1 = Behavior.DEFAULT.deriveWithChanges("errorDetail", builder -> builder
+            .on(Selectors.all(), ops -> ops
+                .errorDetailVerbosity(ErrorDetailVerbosity.MESSAGE)
+            )
+        );
 
-        Key key = new Key(args.namespace, args.set, "edv-hll-fold-key");
-        client.delete(new WritePolicy(), key);
-        client.operate(new WritePolicy(), key, HLLOperation.init(HLLPolicy.Default, binName, 8));
+        Session session1 = cluster.createSession(behavior1);
 
-        try {
-            client.operate(wp, key, HLLOperation.fold(binName, 14));
-        }
-        catch (AerospikeException ae) {
-            // AS_SUB_OPNOT_HLL_FOLD_INDEX_BITS_TOO_LARGE = 8
-            assertSubcode(ae, ResultCode.OP_NOT_APPLICABLE, SubCode.OPNOT_HLL_FOLD_INDEX_BITS_TOO_LARGE);
-            return;
-        }
-        assertTrue("Expected AerospikeException", false);
+        Key key = args.set.id("edv-hll-fold-key");
+
+        session1.delete(key)
+            .execute();
+
+        session1.upsert(key)
+            .bin(binName).hllInit(HllConfig.of(8))
+            .execute();
+
+        AerospikeException ae = assertThrows(AerospikeException.class, () -> {
+            session1.upsert(key)
+                .bin(binName).hllFold(14)
+                .execute();
+        });
+
+        // AS_SUB_OPNOT_HLL_FOLD_INDEX_BITS_TOO_LARGE = 8
+        assertSubcode(ae, ResultCode.OP_NOT_APPLICABLE, SubCode.OPNOT_HLL_FOLD_INDEX_BITS_TOO_LARGE);
     }
 
+    /* TODO Port when bit operations are supported.
     @Test
     public void testBitGetOffsetOutOfRange() {
-        WritePolicy wp = new WritePolicy();
-        wp.errorDetailVerbosity = 2;
+        Behavior behavior1 = Behavior.DEFAULT.deriveWithChanges("errorDetail", builder -> builder
+            .on(Selectors.all(), ops -> ops
+                .errorDetailVerbosity(ErrorDetailVerbosity.MESSAGE)
+            )
+        );
 
-        Key key = new Key(args.namespace, args.set, "edv-bits-key");
-        client.put(new WritePolicy(), key, new Bin(binName, new byte[]{(byte)0xAA, (byte)0xBB, (byte)0xCC, (byte)0xDD}));
+        Session session1 = cluster.createSession(behavior1);
 
-        try {
+        Key key = args.set.id("edv-bits-key");
+
+        session1.upsert(key)
+            .bin(binName).setTo(new byte[] {(byte)0xAA, (byte)0xBB, (byte)0xCC, (byte)0xDD})
+            .execute();
+
+        AerospikeException ae = assertThrows(AerospikeException.class, () -> {
+            session1.upsert(key)
+                .bin(binName).by g(new byte[] {(byte)0xAA, (byte)0xBB, (byte)0xCC, (byte)0xDD})
+                .execute();
             client.operate(wp, key, BitOperation.get(binName, 2000000000, 8));
-        }
-        catch (AerospikeException ae) {
-            // AS_SUB_PARAM_BITS_OFFSET_OUT_OF_RANGE = 2
-            assertSubcode(ae, ResultCode.PARAMETER_ERROR, SubCode.PARAM_BITS_OFFSET_OUT_OF_RANGE);
-            return;
-        }
-        assertTrue("Expected AerospikeException", false);
+        });
+
+        // AS_SUB_PARAM_BITS_OFFSET_OUT_OF_RANGE = 2
+        assertSubcode(ae, ResultCode.PARAMETER_ERROR, SubCode.PARAM_BITS_OFFSET_OUT_OF_RANGE);
     }
 
     @Test
     public void testBitGetSizeZero() {
-        WritePolicy wp = new WritePolicy();
-        wp.errorDetailVerbosity = 2;
+        Behavior behavior1 = Behavior.DEFAULT.deriveWithChanges("errorDetail", builder -> builder
+            .on(Selectors.all(), ops -> ops
+                .errorDetailVerbosity(ErrorDetailVerbosity.MESSAGE)
+            )
+        );
+
+        Session session1 = cluster.createSession(behavior1);
 
         Key key = new Key(args.namespace, args.set, "edv-bits-key2");
         client.put(new WritePolicy(), key, new Bin(binName, new byte[]{(byte)0xAA, (byte)0xBB, (byte)0xCC, (byte)0xDD}));
 
-        try {
+        AerospikeException ae = assertThrows(AerospikeException.class, () -> {
             client.operate(wp, key, BitOperation.get(binName, 0, 0));
-        }
-        catch (AerospikeException ae) {
-            // AS_SUB_PARAM_BITS_SIZE_OUT_OF_RANGE = 3
-            assertSubcode(ae, ResultCode.PARAMETER_ERROR, SubCode.PARAM_BITS_SIZE_OUT_OF_RANGE);
-            return;
-        }
-        assertTrue("Expected AerospikeException", false);
+        });
+
+        // AS_SUB_PARAM_BITS_SIZE_OUT_OF_RANGE = 3
+        assertSubcode(ae, ResultCode.PARAMETER_ERROR, SubCode.PARAM_BITS_SIZE_OUT_OF_RANGE);
     }
+     */
 
     @Test
     public void testReadFilteredOut() {
         // FILTERED_OUT carries no subcode (AS_SUB_NONE) and a contextual message;
         // the server's as_sub_filtered_t enum was removed, so there is no version gate.
-        Policy p = new Policy();
-        p.errorDetailVerbosity = 2;
-        p.filterExp = Exp.build(Exp.eq(Exp.intBin(binName), Exp.val(99)));
-        p.failOnFilteredOut = true;
+        Behavior behavior1 = Behavior.DEFAULT.deriveWithChanges("errorDetail", builder -> builder
+            .on(Selectors.all(), ops -> ops
+                .errorDetailVerbosity(ErrorDetailVerbosity.MESSAGE)
+            )
+        );
 
-        try {
-            client.get(p, intKey);
-        }
-        catch (AerospikeException ae) {
-            assertSubcodeAbsent(ae, ResultCode.FILTERED_OUT, "filtered out");
-            return;
-        }
-        assertTrue("Expected AerospikeException", false);
+        Session session1 = cluster.createSession(behavior1);
+
+        AerospikeException ae = assertThrows(AerospikeException.class, () -> {
+            session1.query(intKey)
+                .where(Exp.eq(Exp.intBin(binName), Exp.val(99)))
+                .failOnFilteredOut()
+                .execute()
+                .getFirstRecord();
+        });
+
+        assertSubcodeAbsent(ae, ResultCode.FILTERED_OUT, "filtered out");
     }
 
     // ---------------------------------------------------------------------
@@ -386,32 +464,40 @@ public class ErrorDetailVerbosityTest extends ClusterTest {
 
     @Test
     public void testPrependToIntegerBin() {
-        WritePolicy wp = new WritePolicy();
-        wp.errorDetailVerbosity = 2;
+        Behavior behavior1 = Behavior.DEFAULT.deriveWithChanges("errorDetail", builder -> builder
+            .on(Selectors.all(), ops -> ops
+                .errorDetailVerbosity(ErrorDetailVerbosity.MESSAGE)
+            )
+        );
 
-        try {
-            client.operate(wp, intKey, Operation.prepend(new Bin(binName, "bad-prepend")));
-        }
-        catch (AerospikeException ae) {
-            assertSubcodeAbsent(ae, ResultCode.BIN_TYPE_ERROR, "prepend");
-            return;
-        }
-        assertTrue("Expected AerospikeException", false);
+        Session session1 = cluster.createSession(behavior1);
+
+        AerospikeException ae = assertThrows(AerospikeException.class, () -> {
+            session1.upsert(intKey)
+                .bin(binName).prepend("bad-prepend")
+                .execute();
+        });
+
+        assertSubcodeAbsent(ae, ResultCode.BIN_TYPE_ERROR, "prepend");
     }
 
     @Test
     public void testIncrementDoubleOnIntegerBin() {
-        WritePolicy wp = new WritePolicy();
-        wp.errorDetailVerbosity = 2;
+        Behavior behavior1 = Behavior.DEFAULT.deriveWithChanges("errorDetail", builder -> builder
+            .on(Selectors.all(), ops -> ops
+                .errorDetailVerbosity(ErrorDetailVerbosity.MESSAGE)
+            )
+        );
 
-        try {
-            client.operate(wp, strKey, Operation.add(new Bin(binName, 1.5)));
-        }
-        catch (AerospikeException ae) {
-            assertSubcodeAbsent(ae, ResultCode.BIN_TYPE_ERROR);
-            return;
-        }
-        assertTrue("Expected AerospikeException", false);
+        Session session1 = cluster.createSession(behavior1);
+
+        AerospikeException ae = assertThrows(AerospikeException.class, () -> {
+            session1.upsert(strKey)
+                .bin(binName).add(1.5)
+                .execute();
+        });
+
+        assertSubcodeAbsent(ae, ResultCode.BIN_TYPE_ERROR);
     }
 
     // ---------------------------------------------------------------------
@@ -420,55 +506,67 @@ public class ErrorDetailVerbosityTest extends ClusterTest {
 
     @Test
     public void testListPopIndexOutOfBounds() {
-        WritePolicy wp = new WritePolicy();
-        wp.errorDetailVerbosity = 2;
+        Behavior behavior1 = Behavior.DEFAULT.deriveWithChanges("errorDetail", builder -> builder
+            .on(Selectors.all(), ops -> ops
+                .errorDetailVerbosity(ErrorDetailVerbosity.MESSAGE)
+            )
+        );
 
-        try {
-            client.operate(wp, listKey, ListOperation.pop(binName, 99));
-        }
-        catch (AerospikeException ae) {
-            // AS_SUB_OPNOT_CDT_INDEX_OUT_OF_BOUNDS = 1
-            assertSubcode(ae, ResultCode.OP_NOT_APPLICABLE, SubCode.OPNOT_CDT_INDEX_OUT_OF_BOUNDS);
-            return;
-        }
-        assertTrue("Expected AerospikeException", false);
+        Session session1 = cluster.createSession(behavior1);
+
+        AerospikeException ae = assertThrows(AerospikeException.class, () -> {
+            session1.upsert(listKey)
+                .bin(binName).listPop(99)
+                .execute();
+        });
+
+        // AS_SUB_OPNOT_CDT_INDEX_OUT_OF_BOUNDS = 1
+        assertSubcode(ae, ResultCode.OP_NOT_APPLICABLE, SubCode.OPNOT_CDT_INDEX_OUT_OF_BOUNDS);
     }
 
     @Test
     public void testListAddUniqueViolation() {
-        WritePolicy wp = new WritePolicy();
-        wp.errorDetailVerbosity = 2;
+        Behavior behavior1 = Behavior.DEFAULT.deriveWithChanges("errorDetail", builder -> builder
+            .on(Selectors.all(), ops -> ops
+                .errorDetailVerbosity(ErrorDetailVerbosity.MESSAGE)
+            )
+        );
 
-        // Seed [10,20,30]; appending an existing value with ADD_UNIQUE fails.
-        ListPolicy unique = new ListPolicy(ListOrder.UNORDERED, ListWriteFlags.ADD_UNIQUE);
+        Session session1 = cluster.createSession(behavior1);
 
-        try {
-            client.operate(wp, listKey, ListOperation.append(unique, binName, Value.get(20)));
-        }
-        catch (AerospikeException ae) {
-            assertSubcodeAbsent(ae, ResultCode.ELEMENT_EXISTS);
-            return;
-        }
-        assertTrue("Expected AerospikeException", false);
+        AerospikeException ae = assertThrows(AerospikeException.class, () -> {
+            session1.upsert(listKey)
+                .bin(binName).listAppend(20, ops -> ops .addUnique())
+                .execute();
+        });
+
+        assertSubcodeAbsent(ae, ResultCode.ELEMENT_EXISTS);
     }
 
     @Test
     public void testListOpOnRawBytesBin() {
-        WritePolicy wp = new WritePolicy();
-        wp.errorDetailVerbosity = 2;
+        Behavior behavior1 = Behavior.DEFAULT.deriveWithChanges("errorDetail", builder -> builder
+            .on(Selectors.all(), ops -> ops
+                .errorDetailVerbosity(ErrorDetailVerbosity.MESSAGE)
+            )
+        );
+
+        Session session1 = cluster.createSession(behavior1);
 
         // A raw-bytes bin is not a list -> list_get triggers the wrong-type path.
-        Key key = new Key(args.namespace, args.set, "edv-list-raw-key");
-        client.put(new WritePolicy(), key, new Bin(binName, new byte[]{(byte)0xDE, (byte)0xAD, (byte)0xBE, (byte)0xEF}));
+        Key key = args.set.id("edv-list-raw-key");
 
-        try {
-            client.operate(wp, key, ListOperation.get(binName, 0));
-        }
-        catch (AerospikeException ae) {
-            assertSubcodeAbsent(ae, ResultCode.BIN_TYPE_ERROR);
-            return;
-        }
-        assertTrue("Expected AerospikeException", false);
+        session1.upsert(key)
+            .bin(binName).setTo(new byte[]{(byte)0xDE, (byte)0xAD, (byte)0xBE, (byte)0xEF})
+            .execute();
+
+        AerospikeException ae = assertThrows(AerospikeException.class, () -> {
+            session1.upsert(key)
+                .bin(binName).listGet(0)
+                .execute();
+        });
+
+        assertSubcodeAbsent(ae, ResultCode.BIN_TYPE_ERROR);
     }
 
     // ---------------------------------------------------------------------
@@ -477,102 +575,131 @@ public class ErrorDetailVerbosityTest extends ClusterTest {
 
     @Test
     public void testMapCreateOnlyExistingKey() {
-        WritePolicy wp = new WritePolicy();
-        wp.errorDetailVerbosity = 2;
+        Behavior behavior1 = Behavior.DEFAULT.deriveWithChanges("errorDetail", builder -> builder
+            .on(Selectors.all(), ops -> ops
+                .errorDetailVerbosity(ErrorDetailVerbosity.MESSAGE)
+            )
+        );
 
-        Key key = new Key(args.namespace, args.set, "edv-map-create-key");
+        Session session1 = cluster.createSession(behavior1);
+
+        Key key = args.set.id("edv-map-create-key");
+
         Map<Integer,String> seed = new HashMap<>();
         seed.put(1, "a");
-        client.put(new WritePolicy(), key, new Bin(binName, seed));
 
-        MapPolicy mp = new MapPolicy(MapOrder.UNORDERED, MapWriteFlags.CREATE_ONLY);
+        session1.upsert(key)
+            .bin(binName).setTo(seed)
+            .execute();
 
-        try {
-            client.operate(wp, key, MapOperation.put(mp, binName, Value.get(1), Value.get("b")));
-        }
-        catch (AerospikeException ae) {
-            assertSubcodeAbsent(ae, ResultCode.ELEMENT_EXISTS);
-            return;
-        }
-        assertTrue("Expected AerospikeException", false);
+        AerospikeException ae = assertThrows(AerospikeException.class, () -> {
+            session1.upsert(key)
+                .bin(binName).onMapKey(1).insert("b")
+                .execute();
+        });
+
+        assertSubcodeAbsent(ae, ResultCode.ELEMENT_EXISTS);
     }
 
     @Test
     public void testMapUpdateOnlyMissingKey() {
-        WritePolicy wp = new WritePolicy();
-        wp.errorDetailVerbosity = 2;
+        Behavior behavior1 = Behavior.DEFAULT.deriveWithChanges("errorDetail", builder -> builder
+            .on(Selectors.all(), ops -> ops
+                .errorDetailVerbosity(ErrorDetailVerbosity.MESSAGE)
+            )
+        );
 
-        Key key = new Key(args.namespace, args.set, "edv-map-update-key");
+        Session session1 = cluster.createSession(behavior1);
+
+        Key key = args.set.id("edv-map-update-key");
         Map<Integer,String> seed = new HashMap<>();
         seed.put(1, "a");
-        client.put(new WritePolicy(), key, new Bin(binName, seed));
 
-        MapPolicy mp = new MapPolicy(MapOrder.UNORDERED, MapWriteFlags.UPDATE_ONLY);
+        session1.upsert(key)
+            .bin(binName).setTo(seed)
+            .execute();
 
-        try {
-            client.operate(wp, key, MapOperation.put(mp, binName, Value.get(99), Value.get("b")));
-        }
-        catch (AerospikeException ae) {
-            assertSubcodeAbsent(ae, ResultCode.ELEMENT_NOT_FOUND);
-            return;
-        }
-        assertTrue("Expected AerospikeException", false);
+        AerospikeException ae = assertThrows(AerospikeException.class, () -> {
+            session1.upsert(key)
+                .bin(binName).onMapKey(99).update("b")
+                .execute();
+        });
+
+        assertSubcodeAbsent(ae, ResultCode.ELEMENT_NOT_FOUND);
     }
 
     @Test
     public void testMapOpOnListBin() {
-        WritePolicy wp = new WritePolicy();
-        wp.errorDetailVerbosity = 2;
+        Behavior behavior1 = Behavior.DEFAULT.deriveWithChanges("errorDetail", builder -> builder
+            .on(Selectors.all(), ops -> ops
+                .errorDetailVerbosity(ErrorDetailVerbosity.MESSAGE)
+            )
+        );
+
+        Session session1 = cluster.createSession(behavior1);
 
         // listKey holds a list; a map op against it triggers the wrong-type path.
-        try {
-            client.operate(wp, listKey, MapOperation.getByKey(binName, Value.get(1), MapReturnType.VALUE));
-        }
-        catch (AerospikeException ae) {
-            assertSubcodeAbsent(ae, ResultCode.BIN_TYPE_ERROR);
-            return;
-        }
-        assertTrue("Expected AerospikeException", false);
+        AerospikeException ae = assertThrows(AerospikeException.class, () -> {
+            session1.upsert(listKey)
+                .bin(binName).onMapKey(1).getAsMap()
+                .execute();
+        });
+
+        assertSubcodeAbsent(ae, ResultCode.BIN_TYPE_ERROR);
     }
 
     @Test
     public void testMapOpOnRawBytesBin() {
-        WritePolicy wp = new WritePolicy();
-        wp.errorDetailVerbosity = 2;
+        Behavior behavior1 = Behavior.DEFAULT.deriveWithChanges("errorDetail", builder -> builder
+            .on(Selectors.all(), ops -> ops
+                .errorDetailVerbosity(ErrorDetailVerbosity.MESSAGE)
+            )
+        );
 
-        Key key = new Key(args.namespace, args.set, "edv-map-raw-key");
-        client.put(new WritePolicy(), key, new Bin(binName, new byte[]{0x42, 0x42}));
+        Session session1 = cluster.createSession(behavior1);
 
-        try {
-            client.operate(wp, key, MapOperation.getByKey(binName, Value.get(1), MapReturnType.VALUE));
-        }
-        catch (AerospikeException ae) {
-            assertSubcodeAbsent(ae, ResultCode.BIN_TYPE_ERROR);
-            return;
-        }
-        assertTrue("Expected AerospikeException", false);
+        Key key = args.set.id("edv-map-raw-key");
+
+        session1.upsert(key)
+            .bin(binName).setTo(new byte[]{0x42, 0x42})
+            .execute();
+
+        AerospikeException ae = assertThrows(AerospikeException.class, () -> {
+            session1.upsert(key)
+                .bin(binName).onMapKey(1).getAsMap()
+                .execute();
+        });
+
+        assertSubcodeAbsent(ae, ResultCode.BIN_TYPE_ERROR);
     }
 
     @Test
     public void testListCtxIntoStringMapValue() {
-        WritePolicy wp = new WritePolicy();
-        wp.errorDetailVerbosity = 2;
+        Behavior behavior1 = Behavior.DEFAULT.deriveWithChanges("errorDetail", builder -> builder
+            .on(Selectors.all(), ops -> ops
+                .errorDetailVerbosity(ErrorDetailVerbosity.MESSAGE)
+            )
+        );
+
+        Session session1 = cluster.createSession(behavior1);
 
         // Map value at key 1 is a string; descending into it with a list op and
         // a map-key context is a type mismatch.
-        Key key = new Key(args.namespace, args.set, "edv-map-ctx-key");
+        Key key = args.set.id("edv-map-ctx-key");
         Map<Integer,String> seed = new HashMap<>();
         seed.put(1, "leaf-string");
-        client.put(new WritePolicy(), key, new Bin(binName, seed));
 
-        try {
-            client.operate(wp, key, ListOperation.get(binName, 0, CTX.mapKey(Value.get(1))));
-        }
-        catch (AerospikeException ae) {
-            assertSubcodeAbsent(ae, ResultCode.BIN_TYPE_ERROR);
-            return;
-        }
-        assertTrue("Expected AerospikeException", false);
+        session1.upsert(key)
+            .bin(binName).setTo(seed)
+            .execute();
+
+        AerospikeException ae = assertThrows(AerospikeException.class, () -> {
+            session1.upsert(key)
+                .bin(binName).onMapKey(1).onListIndex(0).getValues()
+                .execute();
+        });
+
+        assertSubcodeAbsent(ae, ResultCode.BIN_TYPE_ERROR);
     }
 
     // ---------------------------------------------------------------------
@@ -581,38 +708,49 @@ public class ErrorDetailVerbosityTest extends ClusterTest {
 
     @Test
     public void testHllInitInvalidIndexBits() {
-        WritePolicy wp = new WritePolicy();
-        wp.errorDetailVerbosity = 2;
+        Behavior behavior1 = Behavior.DEFAULT.deriveWithChanges("errorDetail", builder -> builder
+            .on(Selectors.all(), ops -> ops
+                .errorDetailVerbosity(ErrorDetailVerbosity.MESSAGE)
+            )
+        );
 
-        Key key = new Key(args.namespace, args.set, "edv-hll-bad-bits-key");
+        Session session1 = cluster.createSession(behavior1);
 
-        try {
+        Key key = args.set.id("edv-hll-bad-bits-key");
+
+        AerospikeException ae = assertThrows(AerospikeException.class, () -> {
             // Index bit count out of the legal [4,16] range -> server-side reject.
-            client.operate(wp, key, HLLOperation.init(HLLPolicy.Default, binName, 30));
-        }
-        catch (AerospikeException ae) {
-            assertSubcodeAbsent(ae, ResultCode.PARAMETER_ERROR);
-            return;
-        }
-        assertTrue("Expected AerospikeException", false);
+            session1.upsert(key)
+                .bin(binName).hllInit(HllConfig.of(30))
+                .execute();
+        });
+
+        assertSubcodeAbsent(ae, ResultCode.PARAMETER_ERROR);
     }
 
     @Test
     public void testHllOpOnRawBytesBin() {
-        WritePolicy wp = new WritePolicy();
-        wp.errorDetailVerbosity = 2;
+        Behavior behavior1 = Behavior.DEFAULT.deriveWithChanges("errorDetail", builder -> builder
+            .on(Selectors.all(), ops -> ops
+                .errorDetailVerbosity(ErrorDetailVerbosity.MESSAGE)
+            )
+        );
 
-        Key key = new Key(args.namespace, args.set, "edv-hll-raw-key");
-        client.put(new WritePolicy(), key, new Bin(binName, new byte[]{0x01, 0x02, 0x03}));
+        Session session1 = cluster.createSession(behavior1);
 
-        try {
-            client.operate(wp, key, HLLOperation.getCount(binName));
-        }
-        catch (AerospikeException ae) {
-            assertSubcodeAbsent(ae, ResultCode.BIN_TYPE_ERROR);
-            return;
-        }
-        assertTrue("Expected AerospikeException", false);
+        Key key = args.set.id("edv-hll-raw-key");
+
+        session1.upsert(key)
+            .bin(binName).setTo(new byte[]{0x01, 0x02, 0x03})
+            .execute();
+
+        AerospikeException ae = assertThrows(AerospikeException.class, () -> {
+            session1.upsert(key)
+                .bin(binName).hllGetCount()
+                .execute();
+        });
+
+        assertSubcodeAbsent(ae, ResultCode.BIN_TYPE_ERROR);
     }
 
     // ---------------------------------------------------------------------
@@ -621,74 +759,88 @@ public class ErrorDetailVerbosityTest extends ClusterTest {
 
     @Test
     public void testWriteCreateOnlyExistingRecord() {
-        WritePolicy wp = new WritePolicy();
-        wp.errorDetailVerbosity = 2;
-        wp.recordExistsAction = RecordExistsAction.CREATE_ONLY;
+        Behavior behavior1 = Behavior.DEFAULT.deriveWithChanges("errorDetail", builder -> builder
+            .on(Selectors.all(), ops -> ops
+                .errorDetailVerbosity(ErrorDetailVerbosity.MESSAGE)
+            )
+        );
 
-        try {
+        Session session1 = cluster.createSession(behavior1);
+
+        AerospikeException ae = assertThrows(AerospikeException.class, () -> {
             // intKey already exists.
-            client.put(wp, intKey, new Bin(binName, 2));
-        }
-        catch (AerospikeException ae) {
-            assertSubcodeAbsent(ae, ResultCode.KEY_EXISTS_ERROR);
-            return;
-        }
-        assertTrue("Expected AerospikeException", false);
+            session1.insert(intKey)
+                .bin(binName).setTo(2)
+                .execute();
+        });
+
+        assertSubcodeAbsent(ae, ResultCode.KEY_EXISTS_ERROR);
     }
 
     @Test
     public void testWriteReplaceOnlyMissingRecord() {
-        WritePolicy wp = new WritePolicy();
-        wp.errorDetailVerbosity = 2;
-        wp.recordExistsAction = RecordExistsAction.REPLACE_ONLY;
+        Behavior behavior1 = Behavior.DEFAULT.deriveWithChanges("errorDetail", builder -> builder
+            .on(Selectors.all(), ops -> ops
+                .errorDetailVerbosity(ErrorDetailVerbosity.MESSAGE)
+            )
+        );
 
-        Key key = new Key(args.namespace, args.set, "edv-replace-missing-key");
-        client.delete(new WritePolicy(), key);
+        Session session1 = cluster.createSession(behavior1);
 
-        try {
-            client.put(wp, key, new Bin(binName, 1));
-        }
-        catch (AerospikeException ae) {
-            assertSubcodeAbsent(ae, ResultCode.KEY_NOT_FOUND_ERROR);
-            return;
-        }
-        assertTrue("Expected AerospikeException", false);
+        Key key = args.set.id("edv-replace-missing-key");
+
+        session1.delete(key).execute();
+
+        AerospikeException ae = assertThrows(AerospikeException.class, () -> {
+            session1.replaceIfExists(key)
+                .bin(binName).setTo(1)
+                .execute();
+        });
+
+        assertSubcodeAbsent(ae, ResultCode.KEY_NOT_FOUND_ERROR);
     }
 
     @Test
     public void testWriteGenerationMismatch() {
-        WritePolicy wp = new WritePolicy();
-        wp.errorDetailVerbosity = 2;
-        wp.generationPolicy = GenerationPolicy.EXPECT_GEN_EQUAL;
-        wp.generation = 999;
+        Behavior behavior1 = Behavior.DEFAULT.deriveWithChanges("errorDetail", builder -> builder
+            .on(Selectors.all(), ops -> ops
+                .errorDetailVerbosity(ErrorDetailVerbosity.MESSAGE)
+            )
+        );
 
-        try {
-            client.put(wp, intKey, new Bin(binName, 2));
-        }
-        catch (AerospikeException ae) {
-            assertSubcodeAbsent(ae, ResultCode.GENERATION_ERROR, "generation");
-            return;
-        }
-        assertTrue("Expected AerospikeException", false);
+        Session session1 = cluster.createSession(behavior1);
+
+        AerospikeException ae = assertThrows(AerospikeException.class, () -> {
+            session1.upsert(intKey)
+                .ensureGenerationIs(999)
+                .bin(binName).setTo(2)
+                .execute();
+        });
+
+        assertSubcodeAbsent(ae, ResultCode.GENERATION_ERROR, "generation");
     }
 
     @Test
     public void testOperateFilteredOut() {
         // FILTERED_OUT carries no subcode (AS_SUB_NONE) and a contextual message;
         // the server's as_sub_filtered_t enum was removed, so there is no version gate.
-        WritePolicy wp = new WritePolicy();
-        wp.errorDetailVerbosity = 2;
-        wp.filterExp = Exp.build(Exp.eq(Exp.intBin(binName), Exp.val(99)));
-        wp.failOnFilteredOut = true;
+        Behavior behavior1 = Behavior.DEFAULT.deriveWithChanges("errorDetail", builder -> builder
+            .on(Selectors.all(), ops -> ops
+                .errorDetailVerbosity(ErrorDetailVerbosity.MESSAGE)
+            )
+        );
 
-        try {
-            client.operate(wp, intKey, Operation.get(binName));
-        }
-        catch (AerospikeException ae) {
-            assertSubcodeAbsent(ae, ResultCode.FILTERED_OUT, "filtered out");
-            return;
-        }
-        assertTrue("Expected AerospikeException", false);
+        Session session1 = cluster.createSession(behavior1);
+        Exp exp = Exp.eq(Exp.intBin(binName), Exp.val(99));
+
+        AerospikeException ae = assertThrows(AerospikeException.class, () -> {
+            session1.query(intKey)
+                .where(exp)
+                .failOnFilteredOut()
+                .execute();
+        });
+
+        assertSubcodeAbsent(ae, ResultCode.FILTERED_OUT, "filtered out");
     }
 
     // ---------------------------------------------------------------------
@@ -697,18 +849,26 @@ public class ErrorDetailVerbosityTest extends ClusterTest {
 
     @Test
     public void testSuccessNoErrorDetails() {
-        WritePolicy wp = new WritePolicy();
-        wp.errorDetailVerbosity = 2;
+        Behavior behavior1 = Behavior.DEFAULT.deriveWithChanges("errorDetail", builder -> builder
+            .on(Selectors.all(), ops -> ops
+                .errorDetailVerbosity(ErrorDetailVerbosity.MESSAGE)
+            )
+        );
 
-        Key key = new Key(args.namespace, args.set, "edv-success-key");
-        client.put(wp, key, new Bin(binName, 42));
+        Session session1 = cluster.createSession(behavior1);
 
-        Policy rp = new Policy();
-        rp.errorDetailVerbosity = 2;
-        Record record = client.get(rp, key);
+        Key key = args.set.id("edv-success-key");
 
-        assertNotNull(record);
-        assertEquals(42, record.getInt(binName));
+        session1.upsert(key)
+            .bin(binName).setTo(42)
+            .execute();
+
+        Record rec = session1.query(key)
+            .execute()
+            .getFirstRecord();
+
+        assertNotNull(rec);
+        assertEquals(42, rec.getInt(binName));
     }
 
     // ---------------------------------------------------------------------
@@ -721,35 +881,41 @@ public class ErrorDetailVerbosityTest extends ClusterTest {
     // Assert trace PRESENCE and SHAPE, not exact byte_offset/snippet bytes.
     // ---------------------------------------------------------------------
 
-    // Expression whose operands are type-mismatched (int vs float), so the server build fails.
+    /** Expression whose operands are type-mismatched (int vs float), so the server build fails. */
+/*
     private static Exp badExp() {
         return Exp.eq(Exp.val(5), Exp.val(6.0));
     }
 
     @Test
     public void testFilterExpBuildFailureTrace() {
-        Policy p = new Policy();
-        p.errorDetailVerbosity = 3;
-        p.filterExp = Exp.build(badExp());
+        Behavior behavior1 = Behavior.DEFAULT.deriveWithChanges("errorDetail", builder -> builder
+            .on(Selectors.all(), ops -> ops
+                .errorDetailVerbosity(ErrorDetailVerbosity.EXPRESSION_TRACE)
+            )
+        );
 
-        try {
-            client.get(p, intKey);
-        }
-        catch (AerospikeException ae) {
-            assertEquals(ResultCode.PARAMETER_ERROR, ae.getResultCode());
-            assertEquals(SubCode.NONE, ae.getSubcode());
+        Session session1 = cluster.createSession(behavior1);
 
-            String msg = ae.getBaseMessage();
-            assertNotNull(msg);
-            assertTrue("Expected filter-build message in: " + msg,
-                msg.contains("invalid metadata expression in request"));
+        Exp exp = badExp();
 
-            ExpressionTrace t = ae.getExpressionTrace();
-            assertNotNull("Expected a non-null expression trace at verbosity 3", t);
-            assertEquals("Expected a build-phase trace", ExpressionTrace.PHASE_BUILD, t.getPhase());
-            return;
-        }
-        assertTrue("Expected AerospikeException", false);
+        AerospikeException ae = assertThrows(AerospikeException.class, () -> {
+            session1.query(intKey)
+                .where(exp)
+                .execute();
+        });
+
+        assertEquals(ResultCode.PARAMETER_ERROR, ae.getResultCode());
+        assertEquals(SubCode.NONE, ae.getSubCode());
+
+        String msg = ae.getBaseMessage();
+        assertNotNull(msg);
+        assertTrue(msg.contains("invalid metadata expression in request"),
+            "Expected filter-build message in: " + msg);
+
+        ExpressionTrace t = ae.getExpressionTrace();
+        assertNotNull("Expected a non-null expression trace at verbosity 3", t);
+        assertEquals("Expected a build-phase trace", ExpressionTrace.PHASE_BUILD, t.getPhase());
     }
 
     @Test
@@ -757,25 +923,22 @@ public class ErrorDetailVerbosityTest extends ClusterTest {
         WritePolicy wp = new WritePolicy();
         wp.errorDetailVerbosity = 3;
 
-        try {
+        AerospikeException ae = assertThrows(AerospikeException.class, () -> {
             client.operate(wp, intKey,
                 ExpOperation.write(binName, Exp.build(badExp()), ExpWriteFlags.DEFAULT));
-        }
-        catch (AerospikeException ae) {
-            assertEquals(ResultCode.PARAMETER_ERROR, ae.getResultCode());
-            assertEquals(SubCode.NONE, ae.getSubcode());
+        });
 
-            String msg = ae.getBaseMessage();
-            assertNotNull(msg);
-            assertTrue("Expected exp-op build message in: " + msg,
-                msg.contains("invalid expression in operation request"));
+        assertEquals(ResultCode.PARAMETER_ERROR, ae.getResultCode());
+        assertEquals(SubCode.NONE, ae.getSubcode());
 
-            ExpressionTrace t = ae.getExpressionTrace();
-            assertNotNull("Expected a non-null expression trace at verbosity 3", t);
-            assertEquals("Expected a build-phase trace", ExpressionTrace.PHASE_BUILD, t.getPhase());
-            return;
-        }
-        assertTrue("Expected AerospikeException", false);
+        String msg = ae.getBaseMessage();
+        assertNotNull(msg);
+        assertTrue(msg.contains("invalid expression in operation request"),
+            "Expected exp-op build message in: " + msg);
+
+        ExpressionTrace t = ae.getExpressionTrace();
+        assertNotNull("Expected a non-null expression trace at verbosity 3", t);
+        assertEquals("Expected a build-phase trace", ExpressionTrace.PHASE_BUILD, t.getPhase());
     }
 
     @Test
@@ -786,44 +949,54 @@ public class ErrorDetailVerbosityTest extends ClusterTest {
         p.errorDetailVerbosity = 2;
         p.filterExp = Exp.build(badExp());
 
-        try {
+        AerospikeException ae = assertThrows(AerospikeException.class, () -> {
             client.get(p, intKey);
-        }
-        catch (AerospikeException ae) {
-            assertEquals(ResultCode.PARAMETER_ERROR, ae.getResultCode());
-            assertEquals(SubCode.NONE, ae.getSubcode());
+        });
 
-            String msg = ae.getBaseMessage();
-            assertNotNull(msg);
-            assertTrue("Expected filter-build message in: " + msg,
-                msg.contains("invalid metadata expression in request"));
+        assertEquals(ResultCode.PARAMETER_ERROR, ae.getResultCode());
+        assertEquals(SubCode.NONE, ae.getSubcode());
 
-            assertNull("Verbosity 2 must surface NO expression trace", ae.getExpressionTrace());
-            return;
-        }
-        assertTrue("Expected AerospikeException", false);
+        String msg = ae.getBaseMessage();
+        assertNotNull(msg);
+        assertTrue(msg.contains("invalid metadata expression in request"),
+            "Expected filter-build message in: " + msg);
+
+        assertNull("Verbosity 2 must surface NO expression trace", ae.getExpressionTrace());
     }
-
+*/
+    /**
+     * Assert the server-supplied {@code (resultCode, subcode)} pair. The numeric
+     * subcode must be exposed first-class via {@link AerospikeException#getSubcode()}
+     * (not merely embedded in the message string), and the "subcode=N" suffix must
+     * still appear in the message for parity with the C client.
+     */
     private void assertSubcode(AerospikeException ae, int expectedResultCode, int expectedSubcode) {
-        assertEquals("Unexpected result code", expectedResultCode, ae.getResultCode());
-        assertEquals("Unexpected subcode", expectedSubcode, ae.getSubcode());
+        assertEquals(expectedResultCode, ae.getResultCode(), "Unexpected result code");
+        assertEquals(expectedSubcode, ae.getSubCode(), "Unexpected subcode");
 
         String msg = ae.getBaseMessage();
         assertNotNull("Expected server error message", msg);
-        assertTrue("Expected 'subcode=" + expectedSubcode + "' in: " + msg,
-            msg.contains("subcode=" + expectedSubcode));
+        assertTrue(msg.contains("subcode=" + expectedSubcode),
+            "Expected 'subcode=" + expectedSubcode + "' in: " + msg);
     }
 
+    /**
+     * Assert that the server surfaced a contextual message but NO subcode
+     * (AS_SUB_NONE): {@link AerospikeException#getSubcode()} is {@link SubCode#NONE}
+     * and the "(subcode=...)" suffix must never appear. Any expectedSubstrings are
+     * required in the message; pass none to skip the message-text check (mirrors a
+     * NULL expected_msg_substr in the C example).
+     */
     private void assertSubcodeAbsent(AerospikeException ae, int expectedResultCode, String... expectedSubstrings) {
-        assertEquals("Unexpected result code", expectedResultCode, ae.getResultCode());
-        assertEquals("Expected no subcode", SubCode.NONE, ae.getSubcode());
+        assertEquals(expectedResultCode, ae.getResultCode(), "Unexpected result code");
+        assertEquals(SubCode.NONE, ae.getSubCode(), "Expected no subcode");
 
         String msg = ae.getBaseMessage();
         assertNotNull("Expected server error message", msg);
 
         for (String expected : expectedSubstrings) {
-            assertTrue("Expected '" + expected + "' in: " + msg, msg.contains(expected));
+            assertTrue(msg.contains(expected), "Expected '" + expected + "' in: " + msg);
         }
-        assertFalse("Expected NO subcode suffix in: " + msg, msg.contains("subcode="));
-    }*/
+        assertFalse(msg.contains("subcode="), "Expected NO subcode suffix in: " + msg);
+    }
 }
