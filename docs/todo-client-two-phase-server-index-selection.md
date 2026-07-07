@@ -382,6 +382,9 @@ Server does **not** verify that execute WHERE matches explain WHERE. Client must
 
 ## Tests
 
+**Cross-client integration test plan (reference impl + Python port gaps):**
+[todo-query-selection-integration-tests.md](./todo-query-selection-integration-tests.md)
+
 ### Unit
 
 - [x] `IndexRangeWireTest`, `QueryPlanTest`, `MsgFieldParserTest` *(still valid)*.
