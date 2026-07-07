@@ -28,6 +28,7 @@ public class AerospikeException extends RuntimeException {
 
     protected transient Node node;
     protected List<AerospikeException> subExceptions;
+    private ExpressionTrace expTrace;
     protected int resultCode = ResultCode.CLIENT_ERROR;
     protected int subCode = SubCode.NONE;
     private int connectTimeout;
@@ -283,6 +284,21 @@ public class AerospikeException extends RuntimeException {
      */
     public final void setSubCode(int subCode) {
         this.subCode = subCode;
+    }
+
+    /**
+     * Get the server-supplied expression build trace, or {@code null} when absent.
+     * Populated only at error-detail verbosity {@link ErrorDetailVerbosity#EXPRESSION_TRACE}.
+     */
+    public final ExpressionTrace getExpressionTrace() {
+        return expTrace;
+    }
+
+    /**
+     * Set the server-supplied expression build trace.
+     */
+    public final void setExpressionTrace(ExpressionTrace expTrace) {
+        this.expTrace = expTrace;
     }
 
     /**
@@ -859,10 +875,14 @@ public class AerospikeException extends RuntimeException {
      * @param resultCode {@link ResultCode} from the server or client
      * @param subCode    sub-code
      * @param message    detail message (may be {@code null})
+     * @param expTrace   expression trace
      */
-    public static AerospikeException resultCodeToException(int resultCode, int subCode, String message) {
+    public static AerospikeException resultCodeToException(
+        int resultCode, int subCode, String message, ExpressionTrace expTrace
+    ) {
         AerospikeException ae = resultCodeToException(resultCode, message, false);
         ae.setSubCode(subCode);
+        ae.setExpressionTrace(expTrace);
         return ae;
     }
 

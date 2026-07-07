@@ -24,6 +24,7 @@ import java.util.zip.Inflater;
 
 import com.aerospike.client.sdk.AerospikeException;
 import com.aerospike.client.sdk.AerospikeList;
+import com.aerospike.client.sdk.ExpressionTrace;
 import com.aerospike.client.sdk.Key;
 import com.aerospike.client.sdk.OperationResult;
 import com.aerospike.client.sdk.Record;
@@ -40,9 +41,10 @@ public final class RecordParser {
     public int fieldCount;
     public int opCount;
     public int dataOffset;
+    public int subCode = SubCode.NONE;
     public long bytesIn;
     public String message;
-    public int subCode = SubCode.NONE;
+    public ExpressionTrace expTrace;
 
     /**
      * Multi-record constructor.
@@ -372,6 +374,11 @@ public final class RecordParser {
                 }
                 break;
 
+            case ExpressionTrace.AS_ERROR_DETAIL_KEY_EXP_TRACE:
+                expTrace = parseExpTrace(offset, end);
+                offset = skipMsgpackValue(offset, end);
+                break;
+
             default:
                 offset = skipMsgpackValue(offset, end);
                 break;
@@ -395,6 +402,153 @@ public final class RecordParser {
             return message;
         }
         return null;
+    }
+
+    private ExpressionTrace parseExpTrace(int offset, int end) {
+        if (offset >= end) {
+            return null;
+        }
+
+        // Read nested map header (fixmap, map16, map32).
+        int b = dataBuffer[offset++] & 0xFF;
+        int count;
+
+        if ((b & 0xF0) == 0x80) {
+            count = b & 0x0F;
+        }
+        else if (b == 0xDE && offset + 2 <= end) {
+            count = Buffer.bytesToShort(dataBuffer, offset) & 0xFFFF;
+            offset += 2;
+        }
+        else if (b == 0xDF && offset + 4 <= end) {
+            count = Buffer.bytesToInt(dataBuffer, offset);
+            offset += 4;
+        }
+        else {
+            return null;
+        }
+
+        if (count <= 0) {
+            return null;
+        }
+
+        int phase = -1;
+        int byteOffset = -1;
+        String op = null;
+        int depth = -1;
+        String[] path = null;
+        String snippet = null;
+        int lang = -1;
+        int aelOffset = -1;
+        int aelSpan = -1;
+
+        for (int i = 0; i < count && offset < end; i++) {
+            // Read key (positive fixint or uint8).
+            int key;
+            b = dataBuffer[offset++] & 0xFF;
+
+            if (b <= 0x7F) {
+                key = b;
+            }
+            else if (b == 0xCC && offset < end) {
+                key = dataBuffer[offset++] & 0xFF;
+            }
+            else {
+                break;
+            }
+
+            switch (key) {
+            case ExpressionTrace.KEY_PHASE:
+                phase = (int)unpackUint(offset, end);
+                break;
+            case ExpressionTrace.KEY_BYTE_OFFSET:
+                byteOffset = (int)unpackUint(offset, end);
+                break;
+            case ExpressionTrace.KEY_OP:
+                op = unpackStrValue(offset, end);
+                break;
+            case ExpressionTrace.KEY_DEPTH:
+                depth = (int)unpackUint(offset, end);
+                break;
+            case ExpressionTrace.KEY_PATH:
+                path = unpackStrArray(offset, end);
+                break;
+            case ExpressionTrace.KEY_SNIPPET:
+                snippet = unpackStrValue(offset, end);
+                break;
+            case ExpressionTrace.KEY_LANG:
+                lang = (int)unpackUint(offset, end);
+                break;
+            case ExpressionTrace.KEY_AEL_OFFSET:
+                aelOffset = (int)unpackUint(offset, end);
+                break;
+            case ExpressionTrace.KEY_AEL_SPAN:
+                aelSpan = (int)unpackUint(offset, end);
+                break;
+            default:
+                // Unknown / reserved trace key (outcome, ael_line, ael_col, etc.) — skip.
+                break;
+            }
+
+            // Advance past the value regardless of whether the key was recognized.
+            offset = skipMsgpackValue(offset, end);
+        }
+
+        return new ExpressionTrace(phase, byteOffset, op, depth, path, snippet, lang, aelOffset, aelSpan);
+    }
+
+    /**
+     * Unpack a msgpack string value to a Java String, or null if the value at the
+     * offset is not a readable string.
+     */
+    private String unpackStrValue(int offset, int end) {
+        int[] r = unpackStr(offset, end);
+        if (r == null) {
+            return null;
+        }
+        return new String(dataBuffer, r[0], r[1], java.nio.charset.StandardCharsets.UTF_8);
+    }
+
+    /**
+     * Unpack a msgpack array of strings (the expression-trace path). Preserves element
+     * order, keeps the "..." truncation sentinel as an ordinary element, and leaves a
+     * null slot for any element that is not a readable string. Returns null when the
+     * value is not a readable array.
+     */
+    private String[] unpackStrArray(int offset, int end) {
+        if (offset >= end) {
+            return null;
+        }
+
+        int b = dataBuffer[offset++] & 0xFF;
+        int len;
+
+        if ((b & 0xF0) == 0x90) {
+            len = b & 0x0F;
+        }
+        else if (b == 0xDC && offset + 2 <= end) {
+            len = Buffer.bytesToShort(dataBuffer, offset) & 0xFFFF;
+            offset += 2;
+        }
+        else if (b == 0xDD && offset + 4 <= end) {
+            len = Buffer.bytesToInt(dataBuffer, offset);
+            offset += 4;
+        }
+        else {
+            return null;
+        }
+
+        if (len < 0) {
+            return null;
+        }
+
+        String[] result = new String[len];
+
+        for (int i = 0; i < len && offset < end; i++) {
+            result[i] = unpackStrValue(offset, end);
+            offset = skipMsgpackValue(offset, end);
+        }
+        return result;
     }
 
     /**
@@ -627,7 +781,7 @@ public final class RecordParser {
      * the human-readable message and the numeric subcode — when present.
      */
     public AerospikeException toException() {
-        return AerospikeException.resultCodeToException(resultCode, subCode, message);
+        return AerospikeException.resultCodeToException(resultCode, subCode, message, expTrace);
     }
 
     public static class OpResults extends AerospikeList<Object> {

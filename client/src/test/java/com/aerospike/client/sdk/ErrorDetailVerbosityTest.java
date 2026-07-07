@@ -19,6 +19,7 @@ package com.aerospike.client.sdk;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -882,7 +883,7 @@ public class ErrorDetailVerbosityTest extends ClusterTest {
     // ---------------------------------------------------------------------
 
     /** Expression whose operands are type-mismatched (int vs float), so the server build fails. */
-/*
+
     private static Exp badExp() {
         return Exp.eq(Exp.val(5), Exp.val(6.0));
     }
@@ -914,22 +915,29 @@ public class ErrorDetailVerbosityTest extends ClusterTest {
             "Expected filter-build message in: " + msg);
 
         ExpressionTrace t = ae.getExpressionTrace();
-        assertNotNull("Expected a non-null expression trace at verbosity 3", t);
-        assertEquals("Expected a build-phase trace", ExpressionTrace.PHASE_BUILD, t.getPhase());
+        assertNotNull(t, "Expected a non-null expression trace at verbosity 3");
+        assertEquals(ExpressionTrace.PHASE_BUILD, t.getPhase(), "Expected a build-phase trace");
     }
 
     @Test
     public void testExpWriteBuildFailureTrace() {
-        WritePolicy wp = new WritePolicy();
-        wp.errorDetailVerbosity = 3;
+        Behavior behavior1 = Behavior.DEFAULT.deriveWithChanges("errorDetail", builder -> builder
+            .on(Selectors.all(), ops -> ops
+                .errorDetailVerbosity(ErrorDetailVerbosity.EXPRESSION_TRACE)
+            )
+        );
+
+        Session session1 = cluster.createSession(behavior1);
+        Exp exp = badExp();
 
         AerospikeException ae = assertThrows(AerospikeException.class, () -> {
-            client.operate(wp, intKey,
-                ExpOperation.write(binName, Exp.build(badExp()), ExpWriteFlags.DEFAULT));
+            session1.upsert(intKey)
+                .bin(binName).upsertFrom(exp)
+                .execute();
         });
 
         assertEquals(ResultCode.PARAMETER_ERROR, ae.getResultCode());
-        assertEquals(SubCode.NONE, ae.getSubcode());
+        assertEquals(SubCode.NONE, ae.getSubCode());
 
         String msg = ae.getBaseMessage();
         assertNotNull(msg);
@@ -937,33 +945,40 @@ public class ErrorDetailVerbosityTest extends ClusterTest {
             "Expected exp-op build message in: " + msg);
 
         ExpressionTrace t = ae.getExpressionTrace();
-        assertNotNull("Expected a non-null expression trace at verbosity 3", t);
-        assertEquals("Expected a build-phase trace", ExpressionTrace.PHASE_BUILD, t.getPhase());
+        assertNotNull(t, "Expected a non-null expression trace at verbosity 3");
+        assertEquals(ExpressionTrace.PHASE_BUILD, t.getPhase(), "Expected a build-phase trace");
     }
 
     @Test
     public void testFilterExpBuildFailureVerbosity2HasNoTrace() {
         // Additive-superset check: the SAME inducer at verbosity 2 surfaces the same
         // message but NO trace. Verbosity 3 = verbosity 2 + trace.
-        Policy p = new Policy();
-        p.errorDetailVerbosity = 2;
-        p.filterExp = Exp.build(badExp());
+        Behavior behavior1 = Behavior.DEFAULT.deriveWithChanges("errorDetail", builder -> builder
+            .on(Selectors.all(), ops -> ops
+                .errorDetailVerbosity(ErrorDetailVerbosity.MESSAGE)
+            )
+        );
+
+        Session session1 = cluster.createSession(behavior1);
+        Exp exp = badExp();
 
         AerospikeException ae = assertThrows(AerospikeException.class, () -> {
-            client.get(p, intKey);
+            session1.query(intKey)
+                .where(exp)
+                .execute();
         });
 
         assertEquals(ResultCode.PARAMETER_ERROR, ae.getResultCode());
-        assertEquals(SubCode.NONE, ae.getSubcode());
+        assertEquals(SubCode.NONE, ae.getSubCode());
 
         String msg = ae.getBaseMessage();
         assertNotNull(msg);
         assertTrue(msg.contains("invalid metadata expression in request"),
             "Expected filter-build message in: " + msg);
 
-        assertNull("Verbosity 2 must surface NO expression trace", ae.getExpressionTrace());
+        assertNull(ae.getExpressionTrace(), "Verbosity 2 must surface NO expression trace");
     }
-*/
+
     /**
      * Assert the server-supplied {@code (resultCode, subcode)} pair. The numeric
      * subcode must be exposed first-class via {@link AerospikeException#getSubcode()}
