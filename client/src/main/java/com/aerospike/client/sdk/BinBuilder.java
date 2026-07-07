@@ -32,6 +32,10 @@ import com.aerospike.client.sdk.exp.Exp;
 import com.aerospike.client.sdk.exp.ExpReadFlags;
 import com.aerospike.client.sdk.exp.ExpWriteFlags;
 import com.aerospike.client.sdk.exp.Expression;
+import com.aerospike.client.sdk.operation.BitOperation;
+import com.aerospike.client.sdk.operation.BitOverflowAction;
+import com.aerospike.client.sdk.operation.BitPolicy;
+import com.aerospike.client.sdk.operation.BitResizeFlags;
 import com.aerospike.client.sdk.operation.HLLOperation;
 import com.aerospike.client.sdk.operation.HLLWriteFlags;
 import com.aerospike.client.sdk.operation.StringOperation;
@@ -3710,6 +3714,526 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
     public T hllGetSimilarity(List<HLLValue> hlls) {
         Operation op = HLLOperation.getSimilarity(binName, hlls);
         return opBuilder.addOp(op);
+    }
+
+    // ----------------------------------------
+    // Bit (BLOB)
+    // ----------------------------------------
+
+    /**
+     * Resize the BLOB bin to {@code byteSize} bytes (write).
+     *
+     * <p>Uses {@link BitResizeFlags#DEFAULT} resize semantics and default write policy.</p>
+     *
+     * @param byteSize target size of the blob in bytes
+     * @return builder for continued chaining
+     */
+    public T bitResize(int byteSize) {
+        return bitResize(byteSize, BitResizeFlags.DEFAULT);
+    }
+
+    /**
+     * Resize the BLOB bin to {@code byteSize} bytes with caller-supplied resize flags (write).
+     *
+     * @param byteSize    target size of the blob in bytes
+     * @param resizeFlags bitwise-OR of {@link BitResizeFlags}
+     * @return builder for continued chaining
+     */
+    public T bitResize(int byteSize, int resizeFlags) {
+        Operation op = BitOperation.resize(BitPolicy.Default, binName, byteSize, resizeFlags);
+        return opBuilder.addOp(op);
+    }
+
+    /**
+     * Resize the BLOB bin with caller-supplied resize flags and write options (write).
+     *
+     * @param byteSize    target size of the blob in bytes
+     * @param resizeFlags bitwise-OR of {@link BitResizeFlags}
+     * @param options     consumer that configures {@link BitWriteOptions}
+     * @return builder for continued chaining
+     */
+    public T bitResize(int byteSize, int resizeFlags, Consumer<BitWriteOptions> options) {
+        BitWriteOptions opts = new BitWriteOptions();
+        options.accept(opts);
+        return bitResize(byteSize, resizeFlags, opts);
+    }
+
+    /**
+     * Resize the BLOB bin with caller-supplied resize flags and pre-built write options (write).
+     *
+     * @param byteSize    target size of the blob in bytes
+     * @param resizeFlags bitwise-OR of {@link BitResizeFlags}
+     * @param options     pre-built write options
+     * @return builder for continued chaining
+     */
+    public T bitResize(int byteSize, int resizeFlags, BitWriteOptions options) {
+        Operation op = BitOperation.resize(bitPolicy(options), binName, byteSize, resizeFlags);
+        return opBuilder.addOp(op);
+    }
+
+    /**
+     * Insert {@code value} bytes at {@code byteOffset} in the BLOB bin (write).
+     *
+     * @param byteOffset byte position at which to insert
+     * @param value      bytes to insert
+     * @return builder for continued chaining
+     */
+    public T bitInsert(int byteOffset, byte[] value) {
+        Operation op = BitOperation.insert(BitPolicy.Default, binName, byteOffset, value);
+        return opBuilder.addOp(op);
+    }
+
+    /**
+     * Insert bytes at {@code byteOffset} with caller-supplied write options (write).
+     *
+     * @param byteOffset byte position at which to insert
+     * @param value      bytes to insert
+     * @param options    consumer that configures {@link BitWriteOptions}
+     * @return builder for continued chaining
+     */
+    public T bitInsert(int byteOffset, byte[] value, Consumer<BitWriteOptions> options) {
+        BitWriteOptions opts = new BitWriteOptions();
+        options.accept(opts);
+        return bitInsert(byteOffset, value, opts);
+    }
+
+    /**
+     * Insert bytes at {@code byteOffset} with pre-built write options (write).
+     *
+     * @param byteOffset byte position at which to insert
+     * @param value      bytes to insert
+     * @param options    pre-built write options
+     * @return builder for continued chaining
+     */
+    public T bitInsert(int byteOffset, byte[] value, BitWriteOptions options) {
+        Operation op = BitOperation.insert(bitPolicy(options), binName, byteOffset, value);
+        return opBuilder.addOp(op);
+    }
+
+    /**
+     * Remove {@code byteSize} bytes starting at {@code byteOffset} from the BLOB bin (write).
+     *
+     * @param byteOffset start of the range to remove
+     * @param byteSize   number of bytes to remove
+     * @return builder for continued chaining
+     */
+    public T bitRemove(int byteOffset, int byteSize) {
+        Operation op = BitOperation.remove(BitPolicy.Default, binName, byteOffset, byteSize);
+        return opBuilder.addOp(op);
+    }
+
+    /**
+     * Remove bytes with caller-supplied write options (write).
+     *
+     * @param byteOffset start of the range to remove
+     * @param byteSize   number of bytes to remove
+     * @param options    consumer that configures {@link BitWriteOptions}
+     * @return builder for continued chaining
+     */
+    public T bitRemove(int byteOffset, int byteSize, Consumer<BitWriteOptions> options) {
+        BitWriteOptions opts = new BitWriteOptions();
+        options.accept(opts);
+        return bitRemove(byteOffset, byteSize, opts);
+    }
+
+    /**
+     * Remove bytes with pre-built write options (write).
+     *
+     * @param byteOffset start of the range to remove
+     * @param byteSize   number of bytes to remove
+     * @param options    pre-built write options
+     * @return builder for continued chaining
+     */
+    public T bitRemove(int byteOffset, int byteSize, BitWriteOptions options) {
+        Operation op = BitOperation.remove(bitPolicy(options), binName, byteOffset, byteSize);
+        return opBuilder.addOp(op);
+    }
+
+    /**
+     * Overwrite {@code bitSize} bits at {@code bitOffset} with {@code value} (write).
+     *
+     * @param bitOffset starting bit index within the blob
+     * @param bitSize   width of the field in bits
+     * @param value     bits to write
+     * @return builder for continued chaining
+     */
+    public T bitSet(int bitOffset, int bitSize, byte[] value) {
+        Operation op = BitOperation.set(BitPolicy.Default, binName, bitOffset, bitSize, value);
+        return opBuilder.addOp(op);
+    }
+
+    /**
+     * Overwrite bits with caller-supplied write options (write).
+     *
+     * @param bitOffset starting bit index within the blob
+     * @param bitSize   width of the field in bits
+     * @param value     bits to write
+     * @param options   consumer that configures {@link BitWriteOptions}
+     * @return builder for continued chaining
+     */
+    public T bitSet(int bitOffset, int bitSize, byte[] value, Consumer<BitWriteOptions> options) {
+        BitWriteOptions opts = new BitWriteOptions();
+        options.accept(opts);
+        return bitSet(bitOffset, bitSize, value, opts);
+    }
+
+    /**
+     * Overwrite bits with pre-built write options (write).
+     *
+     * @param bitOffset starting bit index within the blob
+     * @param bitSize   width of the field in bits
+     * @param value     bits to write
+     * @param options   pre-built write options
+     * @return builder for continued chaining
+     */
+    public T bitSet(int bitOffset, int bitSize, byte[] value, BitWriteOptions options) {
+        Operation op = BitOperation.set(bitPolicy(options), binName, bitOffset, bitSize, value);
+        return opBuilder.addOp(op);
+    }
+
+    /**
+     * Bitwise OR {@code value} into {@code bitSize} bits at {@code bitOffset} (write).
+     *
+     * @param bitOffset starting bit index
+     * @param bitSize   field width in bits
+     * @param value     right-hand side of the OR
+     * @return builder for continued chaining
+     */
+    public T bitOr(int bitOffset, int bitSize, byte[] value) {
+        Operation op = BitOperation.or(BitPolicy.Default, binName, bitOffset, bitSize, value);
+        return opBuilder.addOp(op);
+    }
+
+    /**
+     * Bitwise OR with caller-supplied write options (write).
+     */
+    public T bitOr(int bitOffset, int bitSize, byte[] value, Consumer<BitWriteOptions> options) {
+        BitWriteOptions opts = new BitWriteOptions();
+        options.accept(opts);
+        return bitOr(bitOffset, bitSize, value, opts);
+    }
+
+    /**
+     * Bitwise OR with pre-built write options (write).
+     */
+    public T bitOr(int bitOffset, int bitSize, byte[] value, BitWriteOptions options) {
+        Operation op = BitOperation.or(bitPolicy(options), binName, bitOffset, bitSize, value);
+        return opBuilder.addOp(op);
+    }
+
+    /**
+     * Bitwise XOR {@code value} into {@code bitSize} bits at {@code bitOffset} (write).
+     */
+    public T bitXor(int bitOffset, int bitSize, byte[] value) {
+        Operation op = BitOperation.xor(BitPolicy.Default, binName, bitOffset, bitSize, value);
+        return opBuilder.addOp(op);
+    }
+
+    /**
+     * Bitwise XOR with caller-supplied write options (write).
+     */
+    public T bitXor(int bitOffset, int bitSize, byte[] value, Consumer<BitWriteOptions> options) {
+        BitWriteOptions opts = new BitWriteOptions();
+        options.accept(opts);
+        return bitXor(bitOffset, bitSize, value, opts);
+    }
+
+    /**
+     * Bitwise XOR with pre-built write options (write).
+     */
+    public T bitXor(int bitOffset, int bitSize, byte[] value, BitWriteOptions options) {
+        Operation op = BitOperation.xor(bitPolicy(options), binName, bitOffset, bitSize, value);
+        return opBuilder.addOp(op);
+    }
+
+    /**
+     * Bitwise AND {@code value} into {@code bitSize} bits at {@code bitOffset} (write).
+     */
+    public T bitAnd(int bitOffset, int bitSize, byte[] value) {
+        Operation op = BitOperation.and(BitPolicy.Default, binName, bitOffset, bitSize, value);
+        return opBuilder.addOp(op);
+    }
+
+    /**
+     * Bitwise AND with caller-supplied write options (write).
+     */
+    public T bitAnd(int bitOffset, int bitSize, byte[] value, Consumer<BitWriteOptions> options) {
+        BitWriteOptions opts = new BitWriteOptions();
+        options.accept(opts);
+        return bitAnd(bitOffset, bitSize, value, opts);
+    }
+
+    /**
+     * Bitwise AND with pre-built write options (write).
+     */
+    public T bitAnd(int bitOffset, int bitSize, byte[] value, BitWriteOptions options) {
+        Operation op = BitOperation.and(bitPolicy(options), binName, bitOffset, bitSize, value);
+        return opBuilder.addOp(op);
+    }
+
+    /**
+     * Invert every bit in the range {@code [bitOffset, bitOffset + bitSize)} (write).
+     */
+    public T bitNot(int bitOffset, int bitSize) {
+        Operation op = BitOperation.not(BitPolicy.Default, binName, bitOffset, bitSize);
+        return opBuilder.addOp(op);
+    }
+
+    /**
+     * Bitwise NOT with caller-supplied write options (write).
+     */
+    public T bitNot(int bitOffset, int bitSize, Consumer<BitWriteOptions> options) {
+        BitWriteOptions opts = new BitWriteOptions();
+        options.accept(opts);
+        return bitNot(bitOffset, bitSize, opts);
+    }
+
+    /**
+     * Bitwise NOT with pre-built write options (write).
+     */
+    public T bitNot(int bitOffset, int bitSize, BitWriteOptions options) {
+        Operation op = BitOperation.not(bitPolicy(options), binName, bitOffset, bitSize);
+        return opBuilder.addOp(op);
+    }
+
+    /**
+     * Left-shift {@code bitSize} bits at {@code bitOffset} by {@code shift} bits (write).
+     */
+    public T bitLshift(int bitOffset, int bitSize, int shift) {
+        Operation op = BitOperation.lshift(BitPolicy.Default, binName, bitOffset, bitSize, shift);
+        return opBuilder.addOp(op);
+    }
+
+    /**
+     * Left-shift with caller-supplied write options (write).
+     */
+    public T bitLshift(int bitOffset, int bitSize, int shift, Consumer<BitWriteOptions> options) {
+        BitWriteOptions opts = new BitWriteOptions();
+        options.accept(opts);
+        return bitLshift(bitOffset, bitSize, shift, opts);
+    }
+
+    /**
+     * Left-shift with pre-built write options (write).
+     */
+    public T bitLshift(int bitOffset, int bitSize, int shift, BitWriteOptions options) {
+        Operation op = BitOperation.lshift(bitPolicy(options), binName, bitOffset, bitSize, shift);
+        return opBuilder.addOp(op);
+    }
+
+    /**
+     * Right-shift {@code bitSize} bits at {@code bitOffset} by {@code shift} bits (write).
+     */
+    public T bitRshift(int bitOffset, int bitSize, int shift) {
+        Operation op = BitOperation.rshift(BitPolicy.Default, binName, bitOffset, bitSize, shift);
+        return opBuilder.addOp(op);
+    }
+
+    /**
+     * Right-shift with caller-supplied write options (write).
+     */
+    public T bitRshift(int bitOffset, int bitSize, int shift, Consumer<BitWriteOptions> options) {
+        BitWriteOptions opts = new BitWriteOptions();
+        options.accept(opts);
+        return bitRshift(bitOffset, bitSize, shift, opts);
+    }
+
+    /**
+     * Right-shift with pre-built write options (write).
+     */
+    public T bitRshift(int bitOffset, int bitSize, int shift, BitWriteOptions options) {
+        Operation op = BitOperation.rshift(bitPolicy(options), binName, bitOffset, bitSize, shift);
+        return opBuilder.addOp(op);
+    }
+
+    /**
+     * Write integer {@code value} into {@code bitSize} bits at {@code bitOffset} (write).
+     */
+    public T bitSetInt(int bitOffset, int bitSize, long value) {
+        Operation op = BitOperation.setInt(BitPolicy.Default, binName, bitOffset, bitSize, value);
+        return opBuilder.addOp(op);
+    }
+
+    /**
+     * Write integer with caller-supplied write options (write).
+     */
+    public T bitSetInt(int bitOffset, int bitSize, long value, Consumer<BitWriteOptions> options) {
+        BitWriteOptions opts = new BitWriteOptions();
+        options.accept(opts);
+        return bitSetInt(bitOffset, bitSize, value, opts);
+    }
+
+    /**
+     * Write integer with pre-built write options (write).
+     */
+    public T bitSetInt(int bitOffset, int bitSize, long value, BitWriteOptions options) {
+        Operation op = BitOperation.setInt(bitPolicy(options), binName, bitOffset, bitSize, value);
+        return opBuilder.addOp(op);
+    }
+
+    /**
+     * Add {@code value} to the unsigned integer in {@code bitSize} bits at {@code bitOffset} (write).
+     *
+     * <p>Overflow/underflow fails the operation. See {@link #bitAdd(int, int, long, boolean, BitOverflowAction)}
+     * for signed and overflow control.</p>
+     */
+    public T bitAdd(int bitOffset, int bitSize, long value) {
+        return bitAdd(bitOffset, bitSize, value, false, BitOverflowAction.FAIL);
+    }
+
+    /**
+     * Add {@code value} to the integer in {@code bitSize} bits at {@code bitOffset} (write).
+     */
+    public T bitAdd(int bitOffset, int bitSize, long value, boolean signed, BitOverflowAction action) {
+        Operation op = BitOperation.add(BitPolicy.Default, binName, bitOffset, bitSize, value, signed, action);
+        return opBuilder.addOp(op);
+    }
+
+    /**
+     * Add with caller-supplied write options (write).
+     */
+    public T bitAdd(
+        int bitOffset,
+        int bitSize,
+        long value,
+        boolean signed,
+        BitOverflowAction action,
+        Consumer<BitWriteOptions> options
+    ) {
+        BitWriteOptions opts = new BitWriteOptions();
+        options.accept(opts);
+        return bitAdd(bitOffset, bitSize, value, signed, action, opts);
+    }
+
+    /**
+     * Add with pre-built write options (write).
+     */
+    public T bitAdd(
+        int bitOffset,
+        int bitSize,
+        long value,
+        boolean signed,
+        BitOverflowAction action,
+        BitWriteOptions options
+    ) {
+        Operation op = BitOperation.add(bitPolicy(options), binName, bitOffset, bitSize, value, signed, action);
+        return opBuilder.addOp(op);
+    }
+
+    /**
+     * Subtract {@code value} from the unsigned integer in {@code bitSize} bits at {@code bitOffset} (write).
+     *
+     * <p>Overflow/underflow fails the operation. See
+     * {@link #bitSubtract(int, int, long, boolean, BitOverflowAction)} for signed and overflow control.</p>
+     */
+    public T bitSubtract(int bitOffset, int bitSize, long value) {
+        return bitSubtract(bitOffset, bitSize, value, false, BitOverflowAction.FAIL);
+    }
+
+    /**
+     * Subtract {@code value} from the integer in {@code bitSize} bits at {@code bitOffset} (write).
+     */
+    public T bitSubtract(int bitOffset, int bitSize, long value, boolean signed, BitOverflowAction action) {
+        Operation op = BitOperation.subtract(BitPolicy.Default, binName, bitOffset, bitSize, value, signed, action);
+        return opBuilder.addOp(op);
+    }
+
+    /**
+     * Subtract with caller-supplied write options (write).
+     */
+    public T bitSubtract(
+        int bitOffset,
+        int bitSize,
+        long value,
+        boolean signed,
+        BitOverflowAction action,
+        Consumer<BitWriteOptions> options
+    ) {
+        BitWriteOptions opts = new BitWriteOptions();
+        options.accept(opts);
+        return bitSubtract(bitOffset, bitSize, value, signed, action, opts);
+    }
+
+    /**
+     * Subtract with pre-built write options (write).
+     */
+    public T bitSubtract(
+        int bitOffset,
+        int bitSize,
+        long value,
+        boolean signed,
+        BitOverflowAction action,
+        BitWriteOptions options
+    ) {
+        Operation op = BitOperation.subtract(bitPolicy(options), binName, bitOffset, bitSize, value, signed, action);
+        return opBuilder.addOp(op);
+    }
+
+    /**
+     * Read {@code bitSize} bits at {@code bitOffset} as raw bytes (read).
+     *
+     * @param bitOffset starting bit index
+     * @param bitSize   number of bits to read
+     * @return builder for continued chaining
+     */
+    public T bitGet(int bitOffset, int bitSize) {
+        Operation op = BitOperation.get(binName, bitOffset, bitSize);
+        return opBuilder.addOp(op);
+    }
+
+    /**
+     * Count bits set to {@code 1} in the given range (read).
+     *
+     * @param bitOffset starting bit index
+     * @param bitSize   number of bits to scan
+     * @return builder for continued chaining
+     */
+    public T bitCount(int bitOffset, int bitSize) {
+        Operation op = BitOperation.count(binName, bitOffset, bitSize);
+        return opBuilder.addOp(op);
+    }
+
+    /**
+     * Scan from the left for the first bit matching {@code value} (read).
+     *
+     * @param bitOffset starting bit index
+     * @param bitSize   number of bits to scan
+     * @param value     {@code true} to find a set bit, {@code false} for unset
+     * @return builder for continued chaining
+     */
+    public T bitLscan(int bitOffset, int bitSize, boolean value) {
+        Operation op = BitOperation.lscan(binName, bitOffset, bitSize, value);
+        return opBuilder.addOp(op);
+    }
+
+    /**
+     * Scan from the right for the first bit matching {@code value} (read).
+     *
+     * @param bitOffset starting bit index
+     * @param bitSize   number of bits to scan
+     * @param value     {@code true} to find a set bit, {@code false} for unset
+     * @return builder for continued chaining
+     */
+    public T bitRscan(int bitOffset, int bitSize, boolean value) {
+        Operation op = BitOperation.rscan(binName, bitOffset, bitSize, value);
+        return opBuilder.addOp(op);
+    }
+
+    /**
+     * Decode an integer from {@code bitSize} bits at {@code bitOffset} (read).
+     *
+     * @param bitOffset starting bit index
+     * @param bitSize   width of the integer in bits
+     * @param signed    {@code true} to interpret as two's-complement signed
+     * @return builder for continued chaining
+     */
+    public T bitGetInt(int bitOffset, int bitSize, boolean signed) {
+        Operation op = BitOperation.getInt(binName, bitOffset, bitSize, signed);
+        return opBuilder.addOp(op);
+    }
+
+    private static BitPolicy bitPolicy(BitWriteOptions options) {
+        return new BitPolicy(options.toFlags());
     }
 
     // ----------------------------------------
