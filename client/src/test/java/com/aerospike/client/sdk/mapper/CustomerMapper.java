@@ -26,7 +26,7 @@ public class CustomerMapper implements RecordMapper<Customer> {
     @Override
     public Customer fromMap(Map<String, Object> map, Key recordKey, int generation) {
         Customer result = new Customer();
-        result.setId(recordKey.userKey.toLong());
+        result.setId(MapUtil.asLong(map, "id"));
         result.setAge(MapUtil.asInt(map, "age"));
         result.setDob(MapUtil.asDateFromLong(map, "dob"));
         result.setName(MapUtil.asString(map, "name"));
