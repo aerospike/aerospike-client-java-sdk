@@ -38,8 +38,6 @@ import com.aerospike.client.sdk.util.MapUtil;
 /**
  * Integration-style tests for typed reads (requires a running cluster like {@link ClusterTest}).
  */
-// FIXME: enable it again
-@Disabled("disabled for sprcific branch")
 public class TypedQueryMappingTest extends ClusterTest {
 
     @Test
