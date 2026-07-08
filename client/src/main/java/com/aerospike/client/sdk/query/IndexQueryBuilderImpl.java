@@ -95,7 +95,7 @@ public class IndexQueryBuilderImpl extends QueryImpl {
         WhereClauseProcessor where = getQueryBuilder().getAel();
         QueryCommand cmd;
 
-        if (IndexProbePlanner.useServerQuerySelection(cluster, where, qb.getQueryHint())) {
+        if (IndexProbePlanner.useServerQuerySelection(cluster, session, dataSet, where, qb.getQueryHint())) {
             QueryPlan plan = IndexProbePlanner.plan(session, dataSet, where, qb.getQueryHint());
             cmd = QueryCommand.forPlan(cluster, dataSet, plan, policy, qb);
         }

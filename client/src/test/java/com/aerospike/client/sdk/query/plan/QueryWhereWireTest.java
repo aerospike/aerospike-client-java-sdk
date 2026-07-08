@@ -67,13 +67,33 @@ class QueryWhereWireTest {
     }
 
     @Test
-    void rejectsNullAel() {
-        assertThrows(IllegalArgumentException.class, () -> QueryWhereWire.forExplain(null));
+    void clearExplainClearsExplainBit() {
+        byte[] explain = QueryWhereWire.forExplain(SIMPLE_AEL);
+        byte[] execute = QueryWhereWire.clearExplain(explain);
+
+        assertEquals(0, QueryWhereWire.flags(execute) & QueryWhereWire.FLAG_EXPLAIN);
+        assertArrayEquals(QueryWhereWire.forExecute(SIMPLE_AEL), execute);
     }
 
     @Test
-    void rejectsEmptyAel() {
-        assertThrows(IllegalArgumentException.class, () -> QueryWhereWire.forExplain(""));
+    void clearExplainIdempotentOnExecuteShape() {
+        byte[] execute = QueryWhereWire.forExecute(SIMPLE_AEL);
+        assertArrayEquals(execute, QueryWhereWire.clearExplain(execute));
+    }
+
+    @Test
+    void requireAelRejectsNull() {
+        assertThrows(IllegalArgumentException.class, () -> QueryWhereWire.requireAel(null));
+    }
+
+    @Test
+    void requireAelRejectsEmpty() {
+        assertThrows(IllegalArgumentException.class, () -> QueryWhereWire.requireAel(""));
+    }
+
+    @Test
+    void requireAelRejectsBlank() {
+        assertThrows(IllegalArgumentException.class, () -> QueryWhereWire.requireAel("   "));
     }
 
     @Test
@@ -96,12 +116,6 @@ class QueryWhereWireTest {
         );
         assertEquals(QueryWhereWire.FLAG_EXPLAIN | QueryWhereWire.FLAG_HARD_HINT,
             QueryWhereWire.flags(payload));
-    }
-
-    @Test
-    void clearExplainRequiresExplainFlag() {
-        byte[] executeShape = QueryWhereWire.forExecute(SIMPLE_AEL);
-        assertThrows(IllegalArgumentException.class, () -> QueryWhereWire.clearExplain(executeShape));
     }
 
     private static byte[] expectedPayload(int flags, String ael) {

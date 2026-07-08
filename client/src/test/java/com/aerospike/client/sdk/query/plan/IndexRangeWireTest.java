@@ -18,7 +18,6 @@ package com.aerospike.client.sdk.query.plan;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import org.junit.jupiter.api.Test;
 
@@ -40,20 +39,6 @@ class IndexRangeWireTest {
         byte[] probe = new byte[] {1, 0, 3, 0, 0, 0, 0, 4};
         byte[] execute = IndexRangeWire.forExecuteWithIndexName(probe);
         assertSame(probe, execute);
-    }
-
-    @Test
-    void rejectsMultipleRanges() {
-        byte[] probe = new byte[] {2, 3, 'a', 'g', 'e'};
-        assertThrows(IllegalArgumentException.class,
-            () -> IndexRangeWire.forExecuteWithIndexName(probe));
-    }
-
-    @Test
-    void rejectsTruncatedBinName() {
-        byte[] probe = new byte[] {1, 3, 'a', 'g'};
-        assertThrows(IllegalArgumentException.class,
-            () -> IndexRangeWire.forExecuteWithIndexName(probe));
     }
 
     private static byte[] probeRangeWithBinName(String binName, long value) {

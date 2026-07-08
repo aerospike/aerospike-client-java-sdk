@@ -23,6 +23,12 @@ import java.nio.charset.StandardCharsets;
  *
  * <p>Wire shape: {@code [flags: u8][AEL source UTF-8...]}. Flags match server
  * {@code AS_QUERY_WHERE_FLAG_*} in {@code query_where.h}.</p>
+ *
+ * <p>Non-blank AEL is validated at the explain probe entry
+ * ({@link com.aerospike.client.sdk.query.IndexProbePlanner} /
+ * {@link com.aerospike.client.sdk.command.IndexProbeCommand}) and in {@link #encode}.
+ * {@link #clearExplain}, {@link #flags}, and {@link #ael} operate on client-authored
+ * explain payloads stored on {@link QueryPlan}.</p>
  */
 public final class QueryWhereWire {
 
@@ -62,14 +68,24 @@ public final class QueryWhereWire {
     }
 
     /**
+     * Validates AEL before field {@code 44} encoding.
+     */
+    public static void requireAel(String ael) {
+        if (ael == null || ael.isBlank()) {
+            throw new IllegalArgumentException("WHERE AEL must not be null or blank");
+        }
+    }
+
+    /**
      * Encodes a WHERE field value: {@code [flags][AEL UTF-8]}.
      *
      * @param flags bit mask of {@link #FLAG_EXPLAIN}, {@link #FLAG_REQUIRE_INDEX}, etc.
      * @param ael   raw AEL source text (not packed predexp, not msgpack {@code [128,"…"]})
      */
     public static byte[] encode(int flags, String ael) {
+        requireAel(ael);
         validateFlags(flags);
-        byte[] aelBytes = aelBytes(ael);
+        byte[] aelBytes = ael.getBytes(StandardCharsets.UTF_8);
         byte[] payload = new byte[1 + aelBytes.length];
         payload[0] = (byte) flags;
         System.arraycopy(aelBytes, 0, payload, 1, aelBytes.length);
@@ -80,34 +96,18 @@ public final class QueryWhereWire {
      * Rebuilds execute payload from an explain payload (clears {@link #FLAG_EXPLAIN}).
      */
     public static byte[] clearExplain(byte[] explainPayload) {
-        if (explainPayload == null || explainPayload.length < 2) {
-            throw new IllegalArgumentException("explain WHERE payload must include flags and AEL");
-        }
-        int flags = explainPayload[0] & 0xFF;
-        validateFlags(flags);
-        if ((flags & FLAG_EXPLAIN) == 0) {
-            throw new IllegalArgumentException("explain WHERE payload must have EXPLAIN flag set");
-        }
-        int executeFlags = flags & ~FLAG_EXPLAIN;
-        byte[] aelBytes = new byte[explainPayload.length - 1];
-        System.arraycopy(explainPayload, 1, aelBytes, 0, aelBytes.length);
+        int executeFlags = (explainPayload[0] & 0xFF) & ~FLAG_EXPLAIN;
         byte[] payload = new byte[explainPayload.length];
         payload[0] = (byte) executeFlags;
-        System.arraycopy(aelBytes, 0, payload, 1, aelBytes.length);
+        System.arraycopy(explainPayload, 1, payload, 1, explainPayload.length - 1);
         return payload;
     }
 
     public static int flags(byte[] payload) {
-        if (payload == null || payload.length == 0) {
-            throw new IllegalArgumentException("WHERE payload must not be null or empty");
-        }
         return payload[0] & 0xFF;
     }
 
     public static String ael(byte[] payload) {
-        if (payload == null || payload.length < 2) {
-            throw new IllegalArgumentException("WHERE payload must include flags and AEL");
-        }
         return new String(payload, 1, payload.length - 1, StandardCharsets.UTF_8);
     }
 
@@ -118,16 +118,5 @@ public final class QueryWhereWire {
         if ((flags & FLAG_ENC_VARINT) != 0) {
             throw new IllegalArgumentException("varInt WHERE flags encoding is not supported");
         }
-    }
-
-    private static byte[] aelBytes(String ael) {
-        if (ael == null) {
-            throw new IllegalArgumentException("WHERE AEL must not be null");
-        }
-        byte[] bytes = ael.getBytes(StandardCharsets.UTF_8);
-        if (bytes.length == 0) {
-            throw new IllegalArgumentException("WHERE AEL must not be empty");
-        }
-        return bytes;
     }
 }

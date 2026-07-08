@@ -36,7 +36,7 @@ class QueryPlanTest {
 
     private static final String AEL = "$.age > 30";
     private static final byte[] EXPLAIN_WHERE = QueryWhereWire.forExplain(AEL);
-    private static final byte[] RANGE = new byte[] {1, 3, 'a', 'g', 'e'};
+    private static final byte[] RANGE = new byte[] {1, 3, 'a', 'g', 'e', 3};
 
     @Test
     void primaryIndexPlanWhenNoIndexFields() {
@@ -119,6 +119,28 @@ class QueryPlanTest {
         assertThrows(AerospikeException.class, () ->
             QueryPlan.fromExplainResponse(
                 ResultCode.PARAMETER_ERROR, "test", "users", EXPLAIN_WHERE, fieldsOf()));
+    }
+
+    @Test
+    void multipleRangesOnSiExplainThrows() {
+        MsgFieldParser fields = fieldsOf(
+            field(FieldType.INDEX_NAME, "age_idx"),
+            field(FieldType.INDEX_RANGE, new byte[] {2, 3, 'a', 'g', 'e', 3})
+        );
+
+        assertThrows(AerospikeException.Parse.class, () ->
+            QueryPlan.fromExplainResponse(ResultCode.OK, "test", "users", EXPLAIN_WHERE, fields));
+    }
+
+    @Test
+    void truncatedIndexRangeOnSiExplainThrows() {
+        MsgFieldParser fields = fieldsOf(
+            field(FieldType.INDEX_NAME, "age_idx"),
+            field(FieldType.INDEX_RANGE, new byte[] {1, 3, 'a', 'g'})
+        );
+
+        assertThrows(AerospikeException.Parse.class, () ->
+            QueryPlan.fromExplainResponse(ResultCode.OK, "test", "users", EXPLAIN_WHERE, fields));
     }
 
     private static MsgFieldParser fieldsOf(Field... entries) {

@@ -16,6 +16,7 @@
  */
 package com.aerospike.client.sdk.query;
 
+import com.aerospike.client.sdk.AelMaterializer;
 import com.aerospike.client.sdk.Cluster;
 import com.aerospike.client.sdk.DataSet;
 import com.aerospike.client.sdk.Session;
@@ -25,6 +26,7 @@ import com.aerospike.client.sdk.policy.Behavior.OpKind;
 import com.aerospike.client.sdk.policy.Behavior.OpShape;
 import com.aerospike.client.sdk.policy.ResolvedSettings;
 import com.aerospike.client.sdk.query.plan.QueryPlan;
+import com.aerospike.client.sdk.query.plan.QueryWhereWire;
 
 /**
  * Package-private probe orchestration for two-phase server index selection.
@@ -40,6 +42,9 @@ final class IndexProbePlanner {
         WhereClauseProcessor where,
         QueryHint.Result hint
     ) {
+        String ael = where.getAelString();
+        QueryWhereWire.requireAel(ael);
+
         Cluster cluster = session.getCluster();
         ResolvedSettings settings = session.getBehavior().getSettings(OpKind.READ, OpShape.QUERY, Mode.ANY);
 
@@ -47,7 +52,7 @@ final class IndexProbePlanner {
             cluster,
             dataSet.getNamespace(),
             dataSet.getSet(),
-            where.getAelString(),
+            ael,
             indexNameHintForProbe(hint),
             settings
         );
@@ -57,11 +62,16 @@ final class IndexProbePlanner {
     /**
      * Whether index-query {@code execute()} should probe the server and replay the returned plan.
      *
-     * <p>String or prepared AEL uses field {@code 44} (SI or PI). Non-textual WHERE ({@code Exp},
-     * {@code BooleanExpression}) stays on the legacy field {@code 43} path.</p>
+     * <p>String or prepared AEL uses field {@code 44} (SI or PI) when server explain supports the
+     * index shape (scalar INTEGER/STRING, {@link com.aerospike.client.sdk.query.IndexCollectionType#DEFAULT}).
+     * BLOB and collection indexes (LIST, MAPKEYS, …) stay on the legacy field {@code 43} path until
+     * server explain handles them. Non-textual WHERE ({@code Exp}, {@code BooleanExpression}) always
+     * uses legacy.</p>
      */
     static boolean useServerQuerySelection(
         Cluster cluster,
+        Session session,
+        DataSet dataSet,
         WhereClauseProcessor where,
         QueryHint.Result hint
     ) {
@@ -72,6 +82,15 @@ final class IndexProbePlanner {
             return false;
         }
         if (hint != null && hint.getBinName() != null) {
+            return false;
+        }
+        if (AelMaterializer.requiresLegacyClientIndexSelection(
+            session,
+            where.allowsIndex(),
+            dataSet.getNamespace(),
+            dataSet.getSet(),
+            where.getAelString()
+        )) {
             return false;
         }
         return true;

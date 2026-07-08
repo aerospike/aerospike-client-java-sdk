@@ -19,6 +19,7 @@ package com.aerospike.client.sdk.command;
 import com.aerospike.client.sdk.Cluster;
 import com.aerospike.client.sdk.policy.ResolvedSettings;
 import com.aerospike.client.sdk.query.plan.QueryPlan;
+import com.aerospike.client.sdk.query.plan.QueryWhereWire;
 import com.aerospike.client.sdk.util.RandomShift;
 
 /**
@@ -51,6 +52,7 @@ public final class IndexProbeCommand extends Command {
         ResolvedSettings settings
     ) {
         super(cluster, namespace, null, null, settings.getReplicaOrder(), settings);
+        QueryWhereWire.requireAel(ael);
         this.set = set;
         this.ael = ael;
         this.indexNameHint = indexNameHint;

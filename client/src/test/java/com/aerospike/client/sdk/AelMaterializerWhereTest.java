@@ -62,6 +62,34 @@ class AelMaterializerWhereTest extends ClusterTest {
         assertThat(isServerCompiledAelWire(result.getExpression())).isFalse();
     }
 
+    @Test
+    void requiresLegacyClientIndexSelection_scalarInteger_false() {
+        assertThat(AelMaterializer.requiresLegacyClientIndexSelection(
+            session, true, args.namespace, "users", "$.age > 30")).isFalse();
+    }
+
+    @Test
+    void requiresLegacyClientIndexSelection_primaryIndexPredicate_false() {
+        assertThat(AelMaterializer.requiresLegacyClientIndexSelection(
+            session, true, args.namespace, "qselint", "$.country == 'US'")).isFalse();
+    }
+
+    @Test
+    void requiresLegacyClientIndexSelection_mapKeys_true() {
+        assertThat(AelMaterializer.requiresLegacyClientIndexSelection(
+            session,
+            true,
+            args.namespace,
+            "querycoll",
+            "$.map_bin.mkey2.get(return: EXISTS) == true")).isTrue();
+    }
+
+    @Test
+    void requiresLegacyClientIndexSelection_blob_true() {
+        assertThat(AelMaterializer.requiresLegacyClientIndexSelection(
+            session, true, args.namespace, "queryblob", "$.bb == x'000000000000c350'")).isTrue();
+    }
+
     private static boolean isServerCompiledAelWire(Expression expression) {
         byte[] bytes = expression.getBytes();
         return bytes.length >= 3

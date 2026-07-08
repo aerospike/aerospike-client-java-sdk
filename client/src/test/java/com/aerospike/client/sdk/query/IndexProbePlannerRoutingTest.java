@@ -17,15 +17,19 @@
 package com.aerospike.client.sdk.query;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
 
 import com.aerospike.client.sdk.ClusterTest;
+import com.aerospike.client.sdk.DataSet;
 import com.aerospike.client.sdk.exp.Exp;
 import com.aerospike.client.sdk.util.Version;
 
 class IndexProbePlannerRoutingTest extends ClusterTest {
+
+    private static final DataSet ROUTING_SET = DataSet.of("test", "routing");
 
     @Test
     void useServerQuerySelection_stringAel_ignoresAllowsIndexFalse() {
@@ -36,7 +40,8 @@ class IndexProbePlannerRoutingTest extends ClusterTest {
 
             assertTrue(where.hasStringAel());
             assertFalse(where.allowsIndex());
-            assertTrue(IndexProbePlanner.useServerQuerySelection(cluster, where, null));
+            assertTrue(IndexProbePlanner.useServerQuerySelection(
+                cluster, session, ROUTING_SET, where, null));
         } finally {
             restoreClusterVersion(saved);
         }
@@ -50,7 +55,8 @@ class IndexProbePlannerRoutingTest extends ClusterTest {
             WhereClauseProcessor where = WhereClauseProcessor.from(Exp.eq(Exp.intBin("age"), Exp.val(30)));
 
             assertFalse(where.hasStringAel());
-            assertFalse(IndexProbePlanner.useServerQuerySelection(cluster, where, null));
+            assertFalse(IndexProbePlanner.useServerQuerySelection(
+                cluster, session, ROUTING_SET, where, null));
         } finally {
             restoreClusterVersion(saved);
         }
@@ -64,7 +70,8 @@ class IndexProbePlannerRoutingTest extends ClusterTest {
             WhereClauseProcessor where = WhereClauseProcessor.from(true, "$.age > 30");
             QueryHint.Result hint = QueryHint.create().forBin("age");
 
-            assertFalse(IndexProbePlanner.useServerQuerySelection(cluster, where, hint));
+            assertFalse(IndexProbePlanner.useServerQuerySelection(
+                cluster, session, ROUTING_SET, where, hint));
         } finally {
             restoreClusterVersion(saved);
         }
@@ -76,10 +83,91 @@ class IndexProbePlannerRoutingTest extends ClusterTest {
         setQuerySelectionGate(false);
         try {
             WhereClauseProcessor where = WhereClauseProcessor.from(true, "$.age > 30");
-            assertFalse(IndexProbePlanner.useServerQuerySelection(cluster, where, null));
+            assertFalse(IndexProbePlanner.useServerQuerySelection(
+                cluster, session, ROUTING_SET, where, null));
         } finally {
             restoreClusterVersion(saved);
         }
+    }
+
+    @Test
+    void useServerQuerySelection_mapKeysCollection_staysLegacy() {
+        Version saved = cluster.getVersion();
+        setQuerySelectionGate(true);
+        try {
+            WhereClauseProcessor where = WhereClauseProcessor.from(true,
+                "$.map_bin.mkey2.get(return: EXISTS) == true");
+
+            assertFalse(IndexProbePlanner.useServerQuerySelection(
+                cluster, session, ROUTING_SET, where, null));
+        } finally {
+            restoreClusterVersion(saved);
+        }
+    }
+
+    @Test
+    void useServerQuerySelection_blobEquality_staysLegacy() {
+        Version saved = cluster.getVersion();
+        setQuerySelectionGate(true);
+        try {
+            WhereClauseProcessor where = WhereClauseProcessor.from(true,
+                "$.bb == x'000000000000c350'");
+
+            assertFalse(IndexProbePlanner.useServerQuerySelection(
+                cluster, session, ROUTING_SET, where, null));
+        } finally {
+            restoreClusterVersion(saved);
+        }
+    }
+
+    @Test
+    void useServerQuerySelection_blobInList_staysLegacy() {
+        Version saved = cluster.getVersion();
+        setQuerySelectionGate(true);
+        try {
+            WhereClauseProcessor where = WhereClauseProcessor.from(true,
+                "$.bblist.[=X'000000000000c350'].get(return: EXISTS) == true");
+
+            assertFalse(IndexProbePlanner.useServerQuerySelection(
+                cluster, session, ROUTING_SET, where, null));
+        } finally {
+            restoreClusterVersion(saved);
+        }
+    }
+
+    @Test
+    void useServerQuerySelection_primaryIndexPredicate_usesServer() {
+        Version saved = cluster.getVersion();
+        setQuerySelectionGate(true);
+        try {
+            WhereClauseProcessor where = WhereClauseProcessor.from(true, "$.country == 'US'");
+
+            assertTrue(IndexProbePlanner.useServerQuerySelection(
+                cluster, session, ROUTING_SET, where, null));
+        } finally {
+            restoreClusterVersion(saved);
+        }
+    }
+
+    @Test
+    void useServerQuerySelection_integerRange_usesServer() {
+        Version saved = cluster.getVersion();
+        setQuerySelectionGate(true);
+        try {
+            WhereClauseProcessor where = WhereClauseProcessor.from(true, "$.age >= 14 and $.age <= 18");
+
+            assertTrue(IndexProbePlanner.useServerQuerySelection(
+                cluster, session, ROUTING_SET, where, null));
+        } finally {
+            restoreClusterVersion(saved);
+        }
+    }
+
+    @Test
+    void planRejectsBlankAel() {
+        WhereClauseProcessor where = WhereClauseProcessor.from(false, "   ");
+        assertThrows(IllegalArgumentException.class,
+            () -> IndexProbePlanner.plan(session, args.set, where, null));
     }
 
     private void setQuerySelectionGate(boolean enabled) {

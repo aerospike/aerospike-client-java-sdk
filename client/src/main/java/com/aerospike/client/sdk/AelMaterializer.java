@@ -30,6 +30,7 @@ import com.aerospike.ael.impl.AelParserImpl;
 import com.aerospike.client.sdk.exp.Exp;
 import com.aerospike.client.sdk.exp.Expression;
 import com.aerospike.client.sdk.query.Filter;
+import com.aerospike.client.sdk.query.IndexCollectionType;
 import com.aerospike.client.sdk.query.PreparedAel;
 import com.aerospike.client.sdk.command.ParticleType;
 
@@ -78,6 +79,64 @@ public final class AelMaterializer {
             return serverCompiledFilterResult(ael);
         }
         return clientParseWhere(session, allowsIndex, namespace, querySet, ael);
+    }
+
+    /**
+     * Whether a dataset query must keep legacy client index selection (field {@code 43}) instead
+     * of server explain (field {@code 44}).
+     *
+     * <p>Server query explain currently supports scalar INTEGER/STRING indexes with
+     * {@link IndexCollectionType#DEFAULT} only. BLOB indexes and collection indexes (LIST,
+     * MAPKEYS, etc.) stay on the legacy path until server explain handles them.</p>
+     */
+    public static boolean requiresLegacyClientIndexSelection(
+        Session session,
+        boolean allowsIndex,
+        String namespace,
+        String querySet,
+        String ael
+    ) {
+        if (!allowsIndex) {
+            return false;
+        }
+        ParseResult result = clientParseWhere(session, allowsIndex, namespace, querySet, ael);
+        Filter filter = result.getFilter();
+        if (filter == null) {
+            return aelNeedsLegacyWhenNoClientFilter(ael);
+        }
+        return !serverExplainSupportsFilter(filter);
+    }
+
+    /**
+     * Heuristic for AEL that does not yield a client {@link Filter} but still needs a collection/blob
+     * index or CDT path on the legacy execute path (e.g. map-key EXISTS).
+     */
+    private static boolean aelNeedsLegacyWhenNoClientFilter(String ael) {
+        return ael.contains(".get(return: EXISTS)")
+            || ael.contains(".exists()")
+            || containsBlobLiteral(ael)
+            || ael.contains(".[")
+            || ael.contains(".{");
+    }
+
+    private static boolean containsBlobLiteral(String ael) {
+        return ael.contains("x'") || ael.contains("X'")
+            || ael.contains("b64'") || ael.contains("B64'");
+    }
+
+    private static boolean serverExplainSupportsFilter(Filter filter) {
+        if (filter.getColType() != IndexCollectionType.DEFAULT) {
+            return false;
+        }
+        byte[] packedCtx = filter.getPackedCtx();
+        if (packedCtx != null && packedCtx.length > 0) {
+            return false;
+        }
+        if (filter.getPackedExp() != null) {
+            return false;
+        }
+        return filter.getValType() == ParticleType.INTEGER
+            || filter.getValType() == ParticleType.STRING;
     }
 
     private static ParseResult serverCompiledFilterResult(String ael) {

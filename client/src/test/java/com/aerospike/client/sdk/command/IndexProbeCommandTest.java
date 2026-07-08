@@ -19,6 +19,7 @@ package com.aerospike.client.sdk.command;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -133,6 +134,18 @@ class IndexProbeCommandTest {
         long proto = Buffer.bytesToLong(cb.getBuffer(), 0);
         long type = (proto >> 48) & 0xff;
         assertEquals(Command.AS_MSG_TYPE, type);
+    }
+
+    @Test
+    void rejectsNullAel() {
+        assertThrows(IllegalArgumentException.class,
+            () -> new IndexProbeCommand(null, "test", "users", null, null, 7L, settings()));
+    }
+
+    @Test
+    void rejectsBlankAel() {
+        assertThrows(IllegalArgumentException.class,
+            () -> new IndexProbeCommand(null, "test", "users", "  ", null, 7L, settings()));
     }
 
     private static CommandBuffer encodeExplain(String indexHint) {

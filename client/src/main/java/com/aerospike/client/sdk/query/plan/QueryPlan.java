@@ -99,6 +99,7 @@ public final class QueryPlan {
                     "Inconsistent query plan response: INDEX_NAME and INDEX_RANGE must be non-empty on SI explain"
                 );
             }
+            validateSiExplainRange(range);
             return new QueryPlan(
                 QuerySelection.SECONDARY_INDEX,
                 namespace,
@@ -179,5 +180,18 @@ public final class QueryPlan {
 
     public boolean isFilteredOut() {
         return selection == QuerySelection.FILTERED_OUT;
+    }
+
+    private static void validateSiExplainRange(byte[] range) {
+        if (range.length < 2 || (range[0] & 0xFF) != 1) {
+            throw new AerospikeException.Parse(
+                "Inconsistent query plan response: INDEX_RANGE must start with n_ranges=1");
+        }
+
+        int binNameLen = range[1] & 0xFF;
+        if (binNameLen > 0 && range.length < 2 + binNameLen + 1) {
+            throw new AerospikeException.Parse(
+                "Inconsistent query plan response: INDEX_RANGE truncated");
+        }
     }
 }
