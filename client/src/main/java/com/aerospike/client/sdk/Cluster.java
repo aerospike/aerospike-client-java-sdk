@@ -612,7 +612,7 @@ public class Cluster implements Closeable {
     public boolean supportsAel() {
         // TODO Change to version check when server main branch supports it.
         // return versionGE813;
-        return true;
+        return false;
     }
 
     /**

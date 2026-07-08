@@ -38,19 +38,10 @@ import com.aerospike.client.sdk.RecordStream;
 import com.aerospike.client.sdk.ResultCode;
 
 /**
- * Server-backed AEL integration tests for record metadata and {@code $.key()}
- * (ael-server-spec-test-gaps-todo.md §2.4).
+ * Server-backed AEL integration tests for record metadata and {@code $.key()}.
  *
  * <p>Uses {@code sessionWithSendKey} so user keys are stored on records — required
- * for {@code $.key()} / {@code $.keyExists()}. Key-scoped queries use server-compiled
- * AEL ({@code allowsIndex=false}); avoid {@code :INT} bin pins in filters (untyped
- * bins match {@code FilterExpTest} / {@code QueryOperationsTest} where style).</p>
- *
- * <p>{@code $.key():T} value compare and {@code selectFrom("$.key():T")} are probe-gated:
- * at {@code aerospike-server} @ {@code 93301ab26}, {@code ael_build_node} leaves
- * {@code op_rec_key.type} at {@code RT_NIL}, so key comparisons evaluate unknown; read
- * projection fails {@code build_set_expected_particle_type} ({@code EXP_RTYPE_END}).
- * {@code $.keyExists()} is always asserted.</p>
+ * for {@code $.key()} / {@code $.keyExists()}.
  */
 public class AelMetadataTest extends ClusterTest {
     private static final String STRING_KEY = "ael_meta_alice";
