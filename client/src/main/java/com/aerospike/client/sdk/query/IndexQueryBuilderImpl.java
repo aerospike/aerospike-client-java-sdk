@@ -18,7 +18,6 @@ package com.aerospike.client.sdk.query;
 
 import java.util.Objects;
 
-import com.aerospike.ael.ParseResult;
 import com.aerospike.client.sdk.AbstractFilterableBuilder;
 import com.aerospike.client.sdk.AerospikeException;
 import com.aerospike.client.sdk.AsyncRecordStream;
@@ -30,12 +29,10 @@ import com.aerospike.client.sdk.RecordStream;
 import com.aerospike.client.sdk.ResultCode;
 import com.aerospike.client.sdk.Session;
 import com.aerospike.client.sdk.command.QueryCommand;
-import com.aerospike.client.sdk.exp.Expression;
 import com.aerospike.client.sdk.policy.Behavior.Mode;
 import com.aerospike.client.sdk.policy.Behavior.OpKind;
 import com.aerospike.client.sdk.policy.Behavior.OpShape;
 import com.aerospike.client.sdk.policy.ResolvedSettings;
-import com.aerospike.client.sdk.query.plan.QueryPlan;
 
 public class IndexQueryBuilderImpl extends QueryImpl {
     private final DataSet dataSet;
@@ -95,22 +92,8 @@ public class IndexQueryBuilderImpl extends QueryImpl {
         WhereClauseProcessor where = getQueryBuilder().getAel();
         QueryCommand cmd;
 
-        if (IndexProbePlanner.useServerQuerySelection(cluster, session, dataSet, where, qb.getQueryHint())) {
-            QueryPlan plan = IndexProbePlanner.plan(session, dataSet, where, qb.getQueryHint());
-            cmd = QueryCommand.forPlan(cluster, dataSet, plan, policy, qb);
-        }
-        else {
-            Filter filter = null;
-            Expression filterExp = null;
-
-            if (where != null) {
-                ParseResult pr = where.process(dataSet.getNamespace(), dataSet.getSet(), session);
-                filter = pr.getFilter();
-                filterExp = pr.getExpression();
-            }
-
-            cmd = new QueryCommand(cluster, dataSet, filter, filterExp, policy, qb);
-        }
+        cmd = IndexProbePlanner.buildCommand(
+            session, dataSet, where, qb.getQueryHint(), policy, qb);
 
         AsyncRecordStream stream = new AsyncRecordStream(policy.getRecordQueueSize());
         if (handler != null) {

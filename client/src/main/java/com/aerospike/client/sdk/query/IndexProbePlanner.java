@@ -16,11 +16,15 @@
  */
 package com.aerospike.client.sdk.query;
 
-import com.aerospike.client.sdk.AelMaterializer;
+import com.aerospike.ael.ParseResult;
+import com.aerospike.client.sdk.AerospikeException;
 import com.aerospike.client.sdk.Cluster;
 import com.aerospike.client.sdk.DataSet;
+import com.aerospike.client.sdk.ResultCode;
 import com.aerospike.client.sdk.Session;
 import com.aerospike.client.sdk.command.IndexProbeCommand;
+import com.aerospike.client.sdk.command.QueryCommand;
+import com.aerospike.client.sdk.exp.Expression;
 import com.aerospike.client.sdk.policy.Behavior.Mode;
 import com.aerospike.client.sdk.policy.Behavior.OpKind;
 import com.aerospike.client.sdk.policy.Behavior.OpShape;
@@ -60,18 +64,45 @@ final class IndexProbePlanner {
     }
 
     /**
-     * Whether index-query {@code execute()} should probe the server and replay the returned plan.
+     * Builds a dataset {@link QueryCommand}: server explain → execute when eligible, else legacy
+     * field {@code 43}. When explain returns {@link ResultCode#PARAMETER_ERROR}, falls back to
+     * legacy execute so unsupported index shapes still work until the server explain planner
+     * handles them.
+     */
+    static QueryCommand buildCommand(
+        Session session,
+        DataSet dataSet,
+        WhereClauseProcessor where,
+        QueryHint.Result hint,
+        ResolvedSettings policy,
+        QueryBuilder qb
+    ) {
+        Cluster cluster = session.getCluster();
+        if (!useServerQuerySelection(cluster, where, hint)) {
+            return legacyCommand(session, cluster, dataSet, where, policy, qb);
+        }
+        try {
+            QueryPlan plan = plan(session, dataSet, where, hint);
+            return QueryCommand.forPlan(cluster, dataSet, plan, policy, qb);
+        }
+        catch (AerospikeException e) {
+            if (e.getResultCode() == ResultCode.PARAMETER_ERROR) {
+                return legacyCommand(session, cluster, dataSet, where, policy, qb);
+            }
+            throw e;
+        }
+    }
+
+    /**
+     * Whether index-query {@code execute()} should attempt server explain (field {@code 44}).
      *
-     * <p>String or prepared AEL uses field {@code 44} (SI or PI) when server explain supports the
-     * index shape (scalar INTEGER/STRING, {@link com.aerospike.client.sdk.query.IndexCollectionType#DEFAULT}).
-     * BLOB and collection indexes (LIST, MAPKEYS, …) stay on the legacy field {@code 43} path until
-     * server explain handles them. Non-textual WHERE ({@code Exp}, {@code BooleanExpression}) always
-     * uses legacy.</p>
+     * <p>String or prepared AEL uses field {@code 44} when the cluster supports query selection.
+     * The client does not parse AEL or inspect index shape to decide routing. Non-textual WHERE
+     * ({@code Exp}, {@code BooleanExpression}) and {@code forBin} hints use legacy field
+     * {@code 43}.</p>
      */
     static boolean useServerQuerySelection(
         Cluster cluster,
-        Session session,
-        DataSet dataSet,
         WhereClauseProcessor where,
         QueryHint.Result hint
     ) {
@@ -81,19 +112,7 @@ final class IndexProbePlanner {
         if (where == null || !where.hasStringAel()) {
             return false;
         }
-        if (hint != null && hint.getBinName() != null) {
-            return false;
-        }
-        if (AelMaterializer.requiresLegacyClientIndexSelection(
-            session,
-            where.allowsIndex(),
-            dataSet.getNamespace(),
-            dataSet.getSet(),
-            where.getAelString()
-        )) {
-            return false;
-        }
-        return true;
+        return hint == null || hint.getBinName() == null;
     }
 
     /**
@@ -109,5 +128,25 @@ final class IndexProbePlanner {
             return null;
         }
         return indexName;
+    }
+
+    private static QueryCommand legacyCommand(
+        Session session,
+        Cluster cluster,
+        DataSet dataSet,
+        WhereClauseProcessor where,
+        ResolvedSettings policy,
+        QueryBuilder qb
+    ) {
+        Filter filter = null;
+        Expression filterExp = null;
+
+        if (where != null) {
+            ParseResult pr = where.process(dataSet.getNamespace(), dataSet.getSet(), session);
+            filter = pr.getFilter();
+            filterExp = pr.getExpression();
+        }
+
+        return new QueryCommand(cluster, dataSet, filter, filterExp, policy, qb);
     }
 }

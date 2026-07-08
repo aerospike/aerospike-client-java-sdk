@@ -40,8 +40,7 @@ class IndexProbePlannerRoutingTest extends ClusterTest {
 
             assertTrue(where.hasStringAel());
             assertFalse(where.allowsIndex());
-            assertTrue(IndexProbePlanner.useServerQuerySelection(
-                cluster, session, ROUTING_SET, where, null));
+            assertTrue(IndexProbePlanner.useServerQuerySelection(cluster, where, null));
         } finally {
             restoreClusterVersion(saved);
         }
@@ -55,8 +54,7 @@ class IndexProbePlannerRoutingTest extends ClusterTest {
             WhereClauseProcessor where = WhereClauseProcessor.from(Exp.eq(Exp.intBin("age"), Exp.val(30)));
 
             assertFalse(where.hasStringAel());
-            assertFalse(IndexProbePlanner.useServerQuerySelection(
-                cluster, session, ROUTING_SET, where, null));
+            assertFalse(IndexProbePlanner.useServerQuerySelection(cluster, where, null));
         } finally {
             restoreClusterVersion(saved);
         }
@@ -70,8 +68,7 @@ class IndexProbePlannerRoutingTest extends ClusterTest {
             WhereClauseProcessor where = WhereClauseProcessor.from(true, "$.age > 30");
             QueryHint.Result hint = QueryHint.create().forBin("age");
 
-            assertFalse(IndexProbePlanner.useServerQuerySelection(
-                cluster, session, ROUTING_SET, where, hint));
+            assertFalse(IndexProbePlanner.useServerQuerySelection(cluster, where, hint));
         } finally {
             restoreClusterVersion(saved);
         }
@@ -83,53 +80,35 @@ class IndexProbePlannerRoutingTest extends ClusterTest {
         setQuerySelectionGate(false);
         try {
             WhereClauseProcessor where = WhereClauseProcessor.from(true, "$.age > 30");
-            assertFalse(IndexProbePlanner.useServerQuerySelection(
-                cluster, session, ROUTING_SET, where, null));
+            assertFalse(IndexProbePlanner.useServerQuerySelection(cluster, where, null));
         } finally {
             restoreClusterVersion(saved);
         }
     }
 
     @Test
-    void useServerQuerySelection_mapKeysCollection_staysLegacy() {
+    void useServerQuerySelection_mapKeysCollection_usesServerExplain() {
         Version saved = cluster.getVersion();
         setQuerySelectionGate(true);
         try {
             WhereClauseProcessor where = WhereClauseProcessor.from(true,
                 "$.map_bin.mkey2.get(return: EXISTS) == true");
 
-            assertFalse(IndexProbePlanner.useServerQuerySelection(
-                cluster, session, ROUTING_SET, where, null));
+            assertTrue(IndexProbePlanner.useServerQuerySelection(cluster, where, null));
         } finally {
             restoreClusterVersion(saved);
         }
     }
 
     @Test
-    void useServerQuerySelection_blobEquality_staysLegacy() {
+    void useServerQuerySelection_blobEquality_usesServerExplain() {
         Version saved = cluster.getVersion();
         setQuerySelectionGate(true);
         try {
             WhereClauseProcessor where = WhereClauseProcessor.from(true,
                 "$.bb == x'000000000000c350'");
 
-            assertFalse(IndexProbePlanner.useServerQuerySelection(
-                cluster, session, ROUTING_SET, where, null));
-        } finally {
-            restoreClusterVersion(saved);
-        }
-    }
-
-    @Test
-    void useServerQuerySelection_blobInList_staysLegacy() {
-        Version saved = cluster.getVersion();
-        setQuerySelectionGate(true);
-        try {
-            WhereClauseProcessor where = WhereClauseProcessor.from(true,
-                "$.bblist.[=X'000000000000c350'].get(return: EXISTS) == true");
-
-            assertFalse(IndexProbePlanner.useServerQuerySelection(
-                cluster, session, ROUTING_SET, where, null));
+            assertTrue(IndexProbePlanner.useServerQuerySelection(cluster, where, null));
         } finally {
             restoreClusterVersion(saved);
         }
@@ -142,8 +121,7 @@ class IndexProbePlannerRoutingTest extends ClusterTest {
         try {
             WhereClauseProcessor where = WhereClauseProcessor.from(true, "$.country == 'US'");
 
-            assertTrue(IndexProbePlanner.useServerQuerySelection(
-                cluster, session, ROUTING_SET, where, null));
+            assertTrue(IndexProbePlanner.useServerQuerySelection(cluster, where, null));
         } finally {
             restoreClusterVersion(saved);
         }
@@ -156,8 +134,7 @@ class IndexProbePlannerRoutingTest extends ClusterTest {
         try {
             WhereClauseProcessor where = WhereClauseProcessor.from(true, "$.age >= 14 and $.age <= 18");
 
-            assertTrue(IndexProbePlanner.useServerQuerySelection(
-                cluster, session, ROUTING_SET, where, null));
+            assertTrue(IndexProbePlanner.useServerQuerySelection(cluster, where, null));
         } finally {
             restoreClusterVersion(saved);
         }
