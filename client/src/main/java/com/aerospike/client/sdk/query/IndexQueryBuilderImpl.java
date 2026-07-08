@@ -45,15 +45,10 @@ public class IndexQueryBuilderImpl extends QueryImpl {
         this.dataSet = dataSet;
     }
 
-    DataSet getDataSet() {
-        return dataSet;
-    }
-
     @Override
     public boolean allowsSecondaryIndexQuery() {
         return true;
     }
-
     @Override
     public RecordStream execute() {
         return executeInternal(null);

@@ -197,6 +197,71 @@ Reference impl stays authoritative; keep these green on field `44` server.
 
 ---
 
+## TODO — Client code review: data-plane bloat (per file, flow order)
+
+Review **two-phase server query selection** client code file-by-file in execution order.
+Focus: allocations, duplicate encodes, unnecessary copies, object churn on the hot path.
+Phase 2 (partition fan-out) dominates cost; phase 1 is one sync RTT per `execute()`.
+
+**Gate / entry**
+
+- [ ] `Cluster.java` — `supportsQuerySelection()` version check (no stub in prod)
+- [ ] `Session.java` — `query(DataSet)` entry only; no extra indirection
+- [ ] `QueryBuilder.java` — `where()`, `hint()`, package `plan()`; WHERE stored once
+- [ ] `IndexQueryBuilderImpl.java` — fork: two-phase vs legacy in `executeInternal`
+- [ ] `AbstractFilterableBuilder.java` — `createWhereClauseProcessor`
+- [ ] `WhereClauseProcessor.java` — `toExplainAel()` / `hasStringAel()`; no client parse on field `44` path
+- [ ] `QueryHint.java` — probe-only `forIndex`; `forBin` must stay off two-phase path
+
+**Orchestration**
+
+- [ ] `IndexProbePlanner.java` — `useServerQuerySelection()`, `plan()`; avoid duplicate probe on plan+execute
+
+**Phase 1 — explain request**
+
+- [ ] `QueryWhereWire.java` — `forExplain` / `clearExplain`; single encode, no redundant UTF-8 passes
+- [ ] `IndexProbeCommand.java` — DTO size; fields needed on wire only
+- [ ] `IndexProbeExecutor.java` — `setQueryExplain`; **rebuilds** `forExplain(ael)` in `parseResult` (dup?)
+- [ ] `CommandBuffer.setQueryExplain()` — sizing pass vs write pass; share with `setQuery` where possible
+
+**Phase 1 — explain response**
+
+- [ ] `RecordParser.java` — probe reply parse (shared infra)
+- [ ] `MsgFieldParser.java` — fields `21` / `22` / `26` extraction
+- [ ] `QueryPlan.java` — holds explain bytes only to derive execute bytes; trim fat?
+- [ ] `QuerySelection.java` — enum only (trivial)
+
+**Phase 1 → 2 bridge**
+
+- [ ] `IndexRangeWire.java` — probe `22` → execute `22` transform; alloc on every execute
+- [ ] `QueryCommand.forPlan()` — plan → `Filter` + `executeWhereBytes`
+- [ ] `Filter.java` — `fromWireRange` for SI pins
+
+**Phase 2 — execute request (hot path)**
+
+- [ ] `QueryCommand.java` — `planDriven` vs legacy; `executeWhereBytes` vs field `43`
+- [ ] `QueryExecutor.java` — partition fan-out, thread pool
+- [ ] `PartitionTracker.java` — partition assignment (shared query infra)
+- [ ] `QueryNodeExecutor.java` — per-node `setQuery`
+- [ ] `CommandBuffer.setQuery()` — field `44` execute + `21`/`22`; overlap with `setQueryExplain`
+
+**Phase 2 — execute response**
+
+- [ ] `QueryNodeExecutor.parseResult()` — record parse loop
+- [ ] `AsyncRecordStream.java` / `RecordStream.java` — streaming wrapper overhead
+
+**Off two-phase path (confirm no accidental coupling)**
+
+- [ ] `AelMaterializer.java` — legacy field `43` / client parse; must not run on field `44` dataset queries
+- [ ] `ChainableQueryBuilder.java` — keyed reads; field `43` op `128`, not selection
+
+**Unit tests (wire/layout, not cluster)**
+
+- [ ] `QueryPlanTest.java`, `QueryPlanExecuteWireTest.java`, `IndexProbeCommandTest.java`
+- [ ] `IndexProbePlannerRoutingTest.java`
+
+---
+
 ## Priority order
 
 1. **Python catch-up** — close gaps in table § "Python SDK catch-up" (1.7, 1.8, 3.3, 3.7 highest user value).

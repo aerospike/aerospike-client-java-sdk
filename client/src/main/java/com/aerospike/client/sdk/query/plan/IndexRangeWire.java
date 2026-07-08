@@ -30,16 +30,16 @@ public final class IndexRangeWire {
     }
 
     /**
-     * Converts probe field-{@code 22} bytes to the execute shape used with field {@code 21}.
+     * Converts explain field-{@code 22} bytes to the execute shape used with field {@code 21}.
      *
-     * @param probeRangeBytes opaque {@code INDEX_RANGE} body from a probe response
-     * @return execute field-{@code 22} body ({@code bin_name_len = 0})
+     * <p>Internal to the server-led two-phase query path ({@code QueryCommand.forPlan} only).
+     * Non-empty {@code INDEX_RANGE} on SI explain is validated in
+     * {@link QueryPlan#fromExplainResponse}.</p>
+     *
+     * @param probeRangeBytes opaque {@code INDEX_RANGE} body from explain field {@code 22}
+     * @return execute field-{@code 22} body ({@code bin_name_len = 0} when bin name was stripped)
      */
     public static byte[] forExecuteWithIndexName(byte[] probeRangeBytes) {
-        if (probeRangeBytes == null || probeRangeBytes.length == 0) {
-            throw new IllegalArgumentException("probeRangeBytes must not be null or empty");
-        }
-
         int offset = 0;
         int nRanges = probeRangeBytes[offset++] & 0xFF;
         if (nRanges != 1) {

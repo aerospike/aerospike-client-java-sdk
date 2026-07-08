@@ -84,7 +84,21 @@ public final class QueryPlan {
         byte[] range = fields.getField(FieldType.INDEX_RANGE);
         IndexCollectionType indexType = fields.getIndexCollectionType();
 
-        if (indexName != null && range != null) {
+        boolean hasIndexName = indexName != null;
+        boolean hasIndexRange = range != null;
+
+        if (hasIndexName != hasIndexRange) {
+            throw new AerospikeException.Parse(
+                "Inconsistent query plan response: INDEX_NAME and INDEX_RANGE must both be present or both absent"
+            );
+        }
+
+        if (hasIndexName) {
+            if (indexName.isEmpty() || range.length == 0) {
+                throw new AerospikeException.Parse(
+                    "Inconsistent query plan response: INDEX_NAME and INDEX_RANGE must be non-empty on SI explain"
+                );
+            }
             return new QueryPlan(
                 QuerySelection.SECONDARY_INDEX,
                 namespace,
@@ -96,29 +110,9 @@ public final class QueryPlan {
             );
         }
 
-        if (indexName == null && range == null) {
-            return new QueryPlan(
-                QuerySelection.PRIMARY_INDEX, namespace, set, explainWhereBytes,
-                null, null, IndexCollectionType.DEFAULT);
-        }
-
-        throw new AerospikeException.Parse(
-            "Inconsistent query plan response: INDEX_NAME and INDEX_RANGE must both be present or both absent"
-        );
-    }
-
-    /**
-     * @deprecated Use {@link #fromExplainResponse(int, String, String, byte[], MsgFieldParser)}.
-     */
-    @Deprecated
-    public static QueryPlan fromProbeResponse(
-        int resultCode,
-        String namespace,
-        String set,
-        byte[] explainWhereBytes,
-        MsgFieldParser fields
-    ) {
-        return fromExplainResponse(resultCode, namespace, set, explainWhereBytes, fields);
+        return new QueryPlan(
+            QuerySelection.PRIMARY_INDEX, namespace, set, explainWhereBytes,
+            null, null, IndexCollectionType.DEFAULT);
     }
 
     public QuerySelection getSelection() {
@@ -152,14 +146,6 @@ public final class QueryPlan {
      */
     public byte[] getExecuteWhereBytes() {
         return QueryWhereWire.clearExplain(explainWhereBytes);
-    }
-
-    /**
-     * @deprecated Use {@link #getExplainWhereBytes()}.
-     */
-    @Deprecated
-    public byte[] getPredicateBytes() {
-        return getExplainWhereBytes();
     }
 
     /**

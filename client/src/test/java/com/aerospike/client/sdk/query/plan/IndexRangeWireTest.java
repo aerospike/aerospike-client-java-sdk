@@ -43,12 +43,6 @@ class IndexRangeWireTest {
     }
 
     @Test
-    void rejectsEmptyPayload() {
-        assertThrows(IllegalArgumentException.class,
-            () -> IndexRangeWire.forExecuteWithIndexName(new byte[0]));
-    }
-
-    @Test
     void rejectsMultipleRanges() {
         byte[] probe = new byte[] {2, 3, 'a', 'g', 'e'};
         assertThrows(IllegalArgumentException.class,

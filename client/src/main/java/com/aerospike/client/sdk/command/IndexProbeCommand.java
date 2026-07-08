@@ -16,7 +16,6 @@
  */
 package com.aerospike.client.sdk.command;
 
-import com.aerospike.client.sdk.AerospikeException;
 import com.aerospike.client.sdk.Cluster;
 import com.aerospike.client.sdk.policy.ResolvedSettings;
 import com.aerospike.client.sdk.query.plan.QueryPlan;
@@ -52,12 +51,6 @@ public final class IndexProbeCommand extends Command {
         ResolvedSettings settings
     ) {
         super(cluster, namespace, null, null, settings.getReplicaOrder(), settings);
-        if (namespace == null || namespace.isEmpty()) {
-            throw new AerospikeException("Query explain requires namespace");
-        }
-        if (ael == null || ael.isEmpty()) {
-            throw new AerospikeException("Query explain requires AEL WHERE clause");
-        }
         this.set = set;
         this.ael = ael;
         this.indexNameHint = indexNameHint;

@@ -19,7 +19,6 @@ package com.aerospike.client.sdk.command;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -27,7 +26,6 @@ import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
-import com.aerospike.client.sdk.AerospikeException;
 import com.aerospike.client.sdk.policy.Behavior;
 import com.aerospike.client.sdk.policy.ResolvedSettings;
 import com.aerospike.client.sdk.query.plan.QueryWhereWire;
@@ -121,18 +119,6 @@ class IndexProbeCommandTest {
 
         assertEquals(cmd.socketTimeout, Buffer.bytesToInt(fieldBytes(cb, FieldType.SOCKET_TIMEOUT), 0));
         assertEquals(42L, Buffer.bytesToLong(fieldBytes(cb, FieldType.QUERY_ID), 0));
-    }
-
-    @Test
-    void missingNamespaceThrows() {
-        assertThrows(AerospikeException.class, () ->
-            new IndexProbeCommand(null, "", "users", AEL, null, 1L, settings()));
-    }
-
-    @Test
-    void missingAelThrows() {
-        assertThrows(AerospikeException.class, () ->
-            new IndexProbeCommand(null, "test", "users", null, null, 1L, settings()));
     }
 
     @Test

@@ -104,7 +104,7 @@ Explain response carries **server pins only**. Field **44** (AEL) is **not** ech
 
 - [x] **M1** Add `FieldType.WHERE = 44`; WHERE flag constants; `QueryWhereWire` encoder (`[flags: u8][AEL UTF-8]`) + unit tests.
 - [x] **M2** Replace `CommandBuffer.setIndexProbe` → explain encoder: field **44** + EXPLAIN flag; **remove** `INFO4_QUERY_SELECTION` from explain path.
-- [x] **M3** `WhereClauseProcessor` / planner: materialize **AEL string** for field `44` via `toExplainAel()` *(remove deprecated `toProbeExpression` when safe)*.
+- [x] **M3** `WhereClauseProcessor` / planner: materialize **AEL string** for field `44` via `toExplainAel()` (removed deprecated `toProbeExpression`).
 - [x] **M4** `QueryPlan`: store `explainWhereBytes` + `indexType`; `fromExplainResponse`; `getExecuteWhereBytes()` rebuilds with EXPLAIN cleared.
 - [x] **M5** `MsgFieldParser` / plan decode: parse **INDEX_TYPE** on SI explain response (`getIndexCollectionType()`).
 - [x] **M6** `QueryCommand.forPlan` + `setQuery`: plan-driven execute uses field **44**, not **43**; forward **21** + transformed **22**; send **26** when `indexType` non-`DEFAULT`.
@@ -293,6 +293,61 @@ Server does **not** verify that execute WHERE matches explain WHERE. Client must
 ### Open
 
 - [ ] **Documentation & examples** — E1–E7 (wire-protocol doc: M10 done).
+- [ ] **MRT + dataset query** — product decision; see [MRT / transactions (dataset query)](#mrt--transactions-dataset-query).
+
+---
+
+## MRT / transactions (dataset query)
+
+Code review question: does `txn = null` on `IndexProbeCommand` break transaction paths when `execute()` runs inside `doInTransaction`?
+
+**Conclusion:** Not a two-phase regression. Probe and execute are aligned — both omit txn on the **dataset query** wire path. Keyed txn queries use a different command stack and are unaffected.
+
+### Two query paths (different txn behavior)
+
+| Path | API | Command | `TXN_ID` on wire? |
+|------|-----|---------|-------------------|
+| **Keyed** | `session.query(key).where(...).execute()` | `ReadCommand` / `OperateReadCommand` via `OperationSpecExecutor` | **Yes** — `writeTxn()` in `setRead` / `setOperateRead` |
+| **Dataset** | `session.query(dataSet).where(...).execute()` | `QueryCommand` (+ `IndexProbeCommand` for phase 1) | **No** — `setQuery` / `setQueryExplain` never call `writeTxn()` |
+
+`TxnTest` exercises **keyed** `session.query(key)` inside `doInTransaction` only. No integration test covers `session.query(dataSet)` in a transaction.
+
+### Probe `txn = null` vs execute
+
+Both pass `null` to `Command` super:
+
+- `IndexProbeCommand` — `super(cluster, namespace, null, null, …)`
+- `QueryCommand` — `super(cluster, set.getNamespace(), null, filterExp, …)`
+
+`CommandBuffer.setQueryExplain()` and `setQuery()` encode namespace / set / WHERE / partitions — **no txn field**. Two-phase adds one extra non-txn round trip (explain) before execute; it does not change txn semantics relative to legacy dataset `QueryCommand`.
+
+### `QueryBuilder.txnToUse` captured but not passed through
+
+`QueryBuilder` stores `session.getCurrentTransaction()` at construction and supports `inTransaction()` / `notInAnyTransaction()`, but `IndexQueryBuilderImpl` → `QueryCommand.forPlan` / `new QueryCommand` **never reads `qb.getTxnToUse()`**. Today `getTxnToUse()` is only used for debug logging and the async-in-txn warning in `warnIfInTransaction()`.
+
+If a user runs:
+
+```java
+session.doInTransaction(txnSession ->
+    txnSession.query(dataSet).where("$.age > 30").execute());
+```
+
+…debug may log `transaction: yes`, but **no txn fields go on the query wire** (legacy or server-selection path). `QueryBuilder.inTransaction()` javadoc examples use **keyed** `query(dataSet.id(1))`, not dataset scan.
+
+### If MRT + dataset query is in scope (client work, separate from index selection)
+
+- Pass `txn` into `QueryCommand` and `IndexProbeCommand`; call `writeTxn()` in `setQuery` / `setQueryExplain` if server accepts `TXN_ID` on query messages.
+- Track read versions on query result rows (query executors do not mirror keyed `ReadExecutor` txn handling).
+- Possibly `TxnMonitor.addKey` for keys returned by the query.
+
+**Plan / execute consistency:** if txn is added only on execute, index selection on explain could see a different view than execute inside the same transaction. Probe and execute should use the same txn per server semantics.
+
+### Product questions (see also appendix §10)
+
+1. Is `session.query(dataSet).where(ael).execute()` inside `doInTransaction` a **supported** use case?
+2. If yes, should **both** explain and execute carry `TXN_ID`? Currently neither does on the dataset path.
+3. If explain is optimizer-only (no transactional read), is probe outside txn acceptable while execute gets txn later?
+4. Does the server require explain and execute under the **same transactional snapshot** for correct index selection?
 
 ---
 
@@ -529,3 +584,16 @@ Server does **not** verify that execute WHERE matches explain WHERE. Client must
 ### 9. INDEX_TYPE on explain response
 
 **Questions:** Required on client for execute encoding, or opaque passthrough for future CDT/geo?
+
+### 10. MRT + dataset query (txn on explain / execute)
+
+**Review finding:** `IndexProbeCommand` and `QueryCommand` both pass `txn = null`; `setQueryExplain` / `setQuery` do not write `TXN_ID`. Pre-existing on legacy dataset queries — not introduced by field `44` two-phase. Keyed `session.query(key)` in txn uses `ReadCommand` and is unaffected.
+
+**`QueryBuilder.txnToUse`:** captured from session but not forwarded to query commands (logging / async warning only).
+
+**Questions:**
+
+- Is dataset SI/PI query inside `doInTransaction` in scope for v1?
+- If yes: must explain and execute both carry txn? Does server accept `TXN_ID` on query messages?
+- Is explain a pure planner call (txn optional) or must it share the transactional snapshot with execute?
+- If txn is added later: probe and execute must stay consistent within one transaction.

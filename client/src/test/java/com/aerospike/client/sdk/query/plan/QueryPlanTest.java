@@ -93,6 +93,28 @@ class QueryPlanTest {
     }
 
     @Test
+    void emptyIndexNameOnSiExplainThrows() {
+        MsgFieldParser fields = fieldsOf(
+            field(FieldType.INDEX_NAME, ""),
+            field(FieldType.INDEX_RANGE, RANGE)
+        );
+
+        assertThrows(AerospikeException.Parse.class, () ->
+            QueryPlan.fromExplainResponse(ResultCode.OK, "test", "users", EXPLAIN_WHERE, fields));
+    }
+
+    @Test
+    void emptyIndexRangeOnSiExplainThrows() {
+        MsgFieldParser fields = fieldsOf(
+            field(FieldType.INDEX_NAME, "age_idx"),
+            field(FieldType.INDEX_RANGE, new byte[0])
+        );
+
+        assertThrows(AerospikeException.Parse.class, () ->
+            QueryPlan.fromExplainResponse(ResultCode.OK, "test", "users", EXPLAIN_WHERE, fields));
+    }
+
+    @Test
     void nonOkNonFilteredResultThrows() {
         assertThrows(AerospikeException.class, () ->
             QueryPlan.fromExplainResponse(

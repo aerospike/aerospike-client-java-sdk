@@ -17,19 +17,14 @@
 package com.aerospike.client.sdk.query;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
 
-import com.aerospike.client.sdk.AerospikeException;
 import com.aerospike.client.sdk.ClusterTest;
-import com.aerospike.client.sdk.DataSet;
 import com.aerospike.client.sdk.util.Version;
 
 class QueryPlanApiTest extends ClusterTest {
-
-    private final DataSet dataSet = DataSet.of(args.namespace, "planapitest");
 
     @Test
     void supportsQuerySelectionVersionGate() {
@@ -39,26 +34,6 @@ class QueryPlanApiTest extends ClusterTest {
             assertFalse(cluster.supportsQuerySelection());
             cluster.setVersion(Version.SERVER_VERSION_8_1_3);
             assertTrue(cluster.supportsQuerySelection());
-        } finally {
-            cluster.setVersion(saved);
-        }
-    }
-
-    @Test
-    void planRequiresWhereClause() {
-        AerospikeException ex = assertThrows(AerospikeException.class, () ->
-            ((QueryBuilder) session.query(dataSet)).plan());
-        assertTrue(ex.getMessage().contains("where"));
-    }
-
-    @Test
-    void planRequiresSupportsQuerySelection() {
-        Version saved = cluster.getVersion();
-        try {
-            cluster.setVersion(Version.SERVER_VERSION_8_1_2);
-            AerospikeException ex = assertThrows(AerospikeException.class, () ->
-                ((QueryBuilder) session.query(dataSet)).where("$.age > 30").plan());
-            assertTrue(ex.getMessage().contains("query selection"));
         } finally {
             cluster.setVersion(saved);
         }

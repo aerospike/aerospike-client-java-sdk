@@ -18,7 +18,6 @@ package com.aerospike.client.sdk.query;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
@@ -46,10 +45,5 @@ class FilterWireRangeTest {
     void structuredFilterDoesNotUseWireRange() {
         Filter structured = Filter.equal("age", 30L);
         assertTrue(!structured.hasWireRange());
-    }
-
-    @Test
-    void fromWireRangeRejectsEmptyPayload() {
-        assertThrows(IllegalArgumentException.class, () -> Filter.fromWireRange("idx", new byte[0]));
     }
 }

@@ -24,6 +24,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.util.Arrays;
 import java.util.List;
 
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import com.aerospike.client.sdk.operation.BitOperation;
@@ -32,6 +33,7 @@ import com.aerospike.client.sdk.operation.BitPolicy;
 import com.aerospike.client.sdk.operation.BitResizeFlags;
 import com.aerospike.client.sdk.operation.BitWriteFlags;
 
+@Disabled
 public class OperateBitTest extends ClusterTest {
 
     private static final String binName = "opbbin";

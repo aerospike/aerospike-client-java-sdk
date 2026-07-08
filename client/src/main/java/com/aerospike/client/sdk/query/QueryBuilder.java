@@ -36,7 +36,6 @@ import com.aerospike.client.sdk.command.Txn;
 import com.aerospike.client.sdk.exp.Exp;
 import com.aerospike.client.sdk.exp.Expression;
 import com.aerospike.client.sdk.policy.QueryDuration;
-import com.aerospike.client.sdk.query.plan.QueryPlan;
 import com.aerospike.client.sdk.tend.Partition;
 
 /**
@@ -396,24 +395,6 @@ public class QueryBuilder extends AbstractFilterableBuilder implements
             return queryHint.getQueryDuration();
         }
         return QueryDuration.LONG;
-    }
-
-    /**
-     * Runs a server query-plan probe for this dataset query's WHERE clause.
-     *
-     * <p>Package-private for integration tests. Application code should use {@link #execute()},
-     * which probes and executes in one step when server query selection is enabled.</p>
-     */
-    QueryPlan plan() {
-        if (!implementation.allowsSecondaryIndexQuery()) {
-            throw new AerospikeException("Query plan is only supported for dataset queries");
-        }
-        WhereClauseProcessor where = getAel();
-        if (where == null) {
-            throw new AerospikeException("Query plan requires a where clause");
-        }
-        IndexQueryBuilderImpl indexQuery = (IndexQueryBuilderImpl) implementation;
-        return IndexProbePlanner.plan(getSession(), indexQuery.getDataSet(), where, queryHint);
     }
 
     /**

@@ -66,7 +66,6 @@ class QueryPlanExecuteWireTest {
         assertEquals((byte) IndexCollectionType.LIST.ordinal(),
             fieldBytes(cb, FieldType.INDEX_TYPE)[0]);
         assertFalse(fieldTypes(cb).contains(FieldType.FILTER_EXP));
-        assertEquals(0, cb.getBuffer()[12] & Command.INFO4_QUERY_SELECTION);
         assertTrue(cmd.isPlanDriven());
     }
 

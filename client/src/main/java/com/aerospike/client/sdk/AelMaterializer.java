@@ -57,16 +57,6 @@ public final class AelMaterializer {
     }
 
     /**
-     * Full WHERE expression for query-plan probe field {@code 43}. Uses client-compiled packed
-     * expression bytes (no secondary-index selection). Post-merge server AEL encoding may be
-     * selected by capability when product enables it.
-     */
-    public static Expression expressionForQueryProbe(String ael) {
-        // TODO: capability branch for Expression.fromServerCompiledFilter(ael) after server merge.
-        return clientParseStringToExpression(ael);
-    }
-
-    /**
      * WHERE from string AEL for paths that still use field {@code 43} (keyed query, batch filter,
      * legacy dataset query with client SI).
      *

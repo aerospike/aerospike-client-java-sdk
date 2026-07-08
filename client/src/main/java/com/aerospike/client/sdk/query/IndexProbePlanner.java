@@ -16,7 +16,6 @@
  */
 package com.aerospike.client.sdk.query;
 
-import com.aerospike.client.sdk.AerospikeException;
 import com.aerospike.client.sdk.Cluster;
 import com.aerospike.client.sdk.DataSet;
 import com.aerospike.client.sdk.Session;
@@ -26,7 +25,6 @@ import com.aerospike.client.sdk.policy.Behavior.OpKind;
 import com.aerospike.client.sdk.policy.Behavior.OpShape;
 import com.aerospike.client.sdk.policy.ResolvedSettings;
 import com.aerospike.client.sdk.query.plan.QueryPlan;
-import com.aerospike.client.sdk.util.Version;
 
 /**
  * Package-private probe orchestration for two-phase server index selection.
@@ -43,22 +41,13 @@ final class IndexProbePlanner {
         QueryHint.Result hint
     ) {
         Cluster cluster = session.getCluster();
-        if (!cluster.supportsQuerySelection()) {
-            Version version = cluster.getVersion();
-            String versionText = version != null ? version.toString() : "unknown";
-            throw new AerospikeException(
-                "Server query selection requires cluster minimum version "
-                    + Version.SERVER_VERSION_8_1_3 + ". Current version is " + versionText
-            );
-        }
-
         ResolvedSettings settings = session.getBehavior().getSettings(OpKind.READ, OpShape.QUERY, Mode.ANY);
 
         IndexProbeCommand cmd = new IndexProbeCommand(
             cluster,
             dataSet.getNamespace(),
             dataSet.getSet(),
-            where.toExplainAel(session),
+            where.getAelString(),
             indexNameHintForProbe(hint),
             settings
         );

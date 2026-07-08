@@ -648,25 +648,23 @@ public final class Filter {
      * Replay opaque {@code INDEX_RANGE} field body on execute (field {@code 22}).
      * Bytes must already be in execute shape ({@code bin_name_len = 0} when paired with field {@code 21}).
      *
-     * @param indexName   secondary-index registry name from probe field {@code 21}
-     * @param rangeBytes  execute {@code INDEX_RANGE} payload (not raw probe bytes when field {@code 21} is used)
+     * <p>Internal to the server-led two-phase query path ({@code QueryCommand.forPlan} only).
+     * Explain response validation ({@code QueryPlan.fromExplainResponse}) is the single gate for
+     * non-empty {@code INDEX_NAME} / {@code INDEX_RANGE} pairing.</p>
+     *
+     * @param indexName   secondary-index registry name from explain field {@code 21}
+     * @param rangeBytes  execute {@code INDEX_RANGE} payload (after {@code IndexRangeWire} transform)
      */
     public static Filter fromWireRange(String indexName, byte[] rangeBytes) {
         return fromWireRange(indexName, rangeBytes, IndexCollectionType.DEFAULT);
     }
 
     /**
-     * Replay opaque {@code INDEX_RANGE} field body on execute with index collection type from explain.
+     * @see #fromWireRange(String, byte[])
      */
     public static Filter fromWireRange(
         String indexName, byte[] rangeBytes, IndexCollectionType collectionType
     ) {
-        if (indexName == null || indexName.isEmpty()) {
-            throw new IllegalArgumentException("indexName must not be null or empty");
-        }
-        if (rangeBytes == null || rangeBytes.length == 0) {
-            throw new IllegalArgumentException("rangeBytes must not be null or empty");
-        }
         IndexCollectionType colType = collectionType != null
             ? collectionType
             : IndexCollectionType.DEFAULT;

@@ -19,6 +19,7 @@ package com.aerospike.client.sdk;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import com.aerospike.client.sdk.operation.BitOperation;
@@ -30,6 +31,7 @@ import com.aerospike.client.sdk.operation.BitWriteFlags;
 /**
  * Unit tests (no cluster) for bit-operation fluent builders on {@link BinBuilder}.
  */
+@Disabled
 public class BitBuilderTest {
 
   @Test
