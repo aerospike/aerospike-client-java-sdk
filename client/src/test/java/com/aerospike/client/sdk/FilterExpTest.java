@@ -26,7 +26,6 @@ import java.util.List;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import com.aerospike.client.sdk.exp.Exp;
@@ -462,7 +461,6 @@ public class FilterExpTest extends ClusterTest {
     }
 
     @Test
-    @Disabled("Pending fix on server side")
     public void filterAddFloat() {
         String name = "x";
         Exp exp =
@@ -480,7 +478,7 @@ public class FilterExpTest extends ClusterTest {
     }
 
     @Test
-    @Disabled("Pending fix on server side")
+    //@Disabled("Pending fix on server side")
     public void filterSub() {
         Exp exp =
             Exp.eq(
@@ -503,7 +501,6 @@ public class FilterExpTest extends ClusterTest {
     }
 
     @Test
-    @Disabled("Pending fix on server side")
     public void filterDiv() {
         Exp exp =
             Exp.eq(
@@ -515,7 +512,6 @@ public class FilterExpTest extends ClusterTest {
     }
 
     @Test
-    @Disabled("Pending fix on server side")
     public void filterPow() {
         String name = "x";
         Exp exp =
@@ -533,7 +529,6 @@ public class FilterExpTest extends ClusterTest {
     }
 
     @Test
-    @Disabled("Pending fix on server side")
     public void filterLog() {
         String name = "x";
         Exp exp =
