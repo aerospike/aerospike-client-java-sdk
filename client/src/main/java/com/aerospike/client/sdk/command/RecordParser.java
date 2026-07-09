@@ -168,7 +168,7 @@ public final class RecordParser {
         if ((info3 & Command.INFO3_LAST) != 0) {
             if (resultCode != 0) {
                 // The server returned a fatal error.
-                throw AerospikeException.resultCodeToException(resultCode, null);
+                throw AerospikeException.toException(resultCode, null);
             }
             return false;
         }
@@ -781,7 +781,7 @@ public final class RecordParser {
      * the human-readable message and the numeric subcode — when present.
      */
     public AerospikeException toException() {
-        return AerospikeException.resultCodeToException(resultCode, subCode, message, expTrace);
+        return AerospikeException.toException(resultCode, subCode, message, expTrace, false);
     }
 
     public static class OpResults extends AerospikeList<Object> {

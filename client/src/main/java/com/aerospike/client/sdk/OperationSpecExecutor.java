@@ -752,7 +752,7 @@ class OperationSpecExecutor {
         }
         Object failure = record.bins.get("FAILURE");
         if (failure != null) {
-            throw AerospikeException.resultCodeToException(ResultCode.UDF_BAD_RESPONSE, "UDF execution failed: " + failure);
+            throw AerospikeException.toException(ResultCode.UDF_BAD_RESPONSE, "UDF execution failed: " + failure);
         }
         if (record.bins.size() == 1) {
             return record.bins.values().iterator().next();

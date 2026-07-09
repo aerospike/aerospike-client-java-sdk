@@ -158,7 +158,7 @@ public class BatchTest extends ClusterTest {
 
         List<RecordResult> resExcludingMissingKeys = rs.stream().toList();
         assertEquals(1, resExcludingMissingKeys.size());
-        assertEquals(ResultCode.OK, resExcludingMissingKeys.getFirst().resultCode());
+        assertEquals(ResultCode.OK, resExcludingMissingKeys.getFirst().getResultCode());
         assertEquals(ValuePrefix + "1", resExcludingMissingKeys.getFirst().recordOrThrow().getString(BinName));
 
         // includeMissingKeys: each missing key produces a RecordResult with KEY_NOT_FOUND_ERROR.
@@ -172,8 +172,8 @@ public class BatchTest extends ClusterTest {
 
         List<RecordResult> resWithMissingKey = rs.stream().toList();
         assertEquals(2, resWithMissingKey.size());
-        assertEquals(ResultCode.OK, resWithMissingKey.get(0).resultCode());
-        assertEquals(ResultCode.KEY_NOT_FOUND_ERROR, resWithMissingKey.get(1).resultCode());
+        assertEquals(ResultCode.OK, resWithMissingKey.get(0).getResultCode());
+        assertEquals(ResultCode.KEY_NOT_FOUND_ERROR, resWithMissingKey.get(1).getResultCode());
     }
 
     @Test
@@ -391,19 +391,19 @@ public class BatchTest extends ClusterTest {
 
         assertTrue(rs.hasNext());
         RecordResult res = rs.next();
-        assertEquals(ResultCode.OK, res.resultCode());
+        assertEquals(ResultCode.OK, res.getResultCode());
 
         assertTrue(rs.hasNext());
         res = rs.next();
-        assertEquals(ResultCode.INVALID_NAMESPACE, res.resultCode());
+        assertEquals(ResultCode.INVALID_NAMESPACE, res.getResultCode());
 
         assertTrue(rs.hasNext());
         res = rs.next();
-        assertEquals(ResultCode.OK, res.resultCode());
+        assertEquals(ResultCode.OK, res.getResultCode());
 
         assertTrue(rs.hasNext());
         res = rs.next();
-        assertEquals(ResultCode.OK, res.resultCode());
+        assertEquals(ResultCode.OK, res.getResultCode());
 
         assertFalse(rs.hasNext());
 
@@ -608,11 +608,11 @@ public class BatchTest extends ClusterTest {
 
         assertTrue(rs.hasNext());
         RecordResult res1 = rs.next();
-        assertEquals(ResultCode.OK, res1.resultCode());
+        assertEquals(ResultCode.OK, res1.getResultCode());
 
         assertTrue(rs.hasNext());
         RecordResult res2 = rs.next();
-        assertEquals(ResultCode.PARAMETER_ERROR, res2.resultCode());
+        assertEquals(ResultCode.PARAMETER_ERROR, res2.getResultCode());
     }
 
     @Test
@@ -632,7 +632,7 @@ public class BatchTest extends ClusterTest {
             boolean foundParamError = false;
             while (rs.hasNext()) {
                 RecordResult res = rs.next();
-                if (res.resultCode() == ResultCode.PARAMETER_ERROR) {
+                if (res.getResultCode() == ResultCode.PARAMETER_ERROR) {
                     foundParamError = true;
                 }
             }

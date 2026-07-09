@@ -148,13 +148,13 @@ public final class Batch {
 
             parser.parseFields(parent.txn, br.key, br.hasWrite);
 
-            if (parser.resultCode == 0) {
+            if (parser.resultCode == ResultCode.OK) {
                 Record rec = parser.parseRecord(isOperation);
 
                 br.setRecord(rec);
 
                 if (br.hasWrite || parent.includeMissingKeys || rec != null) {
-                    stream.publish(new RecordResult(br, parser.batchIndex));
+                    stream.publish(RecordResult.batchRecord(br, parser.batchIndex));
                 }
                 return true;
             }
@@ -162,7 +162,7 @@ public final class Batch {
             if (parser.resultCode == ResultCode.UDF_BAD_RESPONSE) {
                 br.setErrorUDF(parser, BatchCommand.inDoubt(br.hasWrite, commandSentCounter));
                 status.setRowError();
-                stream.publish(new RecordResult(br, parser.batchIndex));
+                stream.publish(RecordResult.batchError(br, parser.batchIndex));
                 return true;
             }
 
@@ -176,7 +176,7 @@ public final class Batch {
             };
 
             if (shouldPublish) {
-                stream.publish(new RecordResult(br, parser.batchIndex));
+                stream.publish(RecordResult.batchError(br, parser.batchIndex));
             }
             return true;
         }
@@ -194,7 +194,7 @@ public final class Batch {
                         parent.txn.onWriteInDoubt(br.key);
                     }
 
-                    stream.publish(new RecordResult(br, ae, parser.batchIndex));
+                    stream.publish(RecordResult.batchError(br, parser.batchIndex, ae));
                 }
             }
         }

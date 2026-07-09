@@ -17,6 +17,7 @@
 package com.aerospike.client.sdk.command;
 
 import com.aerospike.client.sdk.AerospikeException;
+import com.aerospike.client.sdk.ExpressionTrace;
 import com.aerospike.client.sdk.Key;
 import com.aerospike.client.sdk.Node;
 import com.aerospike.client.sdk.Record;
@@ -31,9 +32,10 @@ public class BatchRecord {
     public final Expression where;
     public Node node;
     public Record record;
+    public String message;
+    public ExpressionTrace expTrace;
     public int resultCode;
     public int subCode;
-    public String message;
     public byte readAttr;
     public byte writeAttr;
     public final byte infoAttr;
@@ -127,6 +129,13 @@ public class BatchRecord {
         else {
             this.message = rp.message;
         }
+    }
+
+    /**
+     * Convert batch response to an exception.
+     */
+    public AerospikeException toException() {
+        return AerospikeException.toException(resultCode, subCode, message, expTrace, inDoubt);
     }
 
     /**

@@ -1562,6 +1562,7 @@ public class CdtOperateTest extends ClusterTest {
         Record record = session.query(rkey)
             .execute()
             .getFirstRecord();
+
         assertTrue(record != null, "Record should exist");
 
         try {

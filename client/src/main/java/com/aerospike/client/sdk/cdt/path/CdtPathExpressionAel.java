@@ -50,7 +50,6 @@ public final class CdtPathExpressionAel {
      * @param params optional bind parameters (ignored)
      * @throws UnsupportedOperationException always
      */
-    @SuppressWarnings("unused")
     public static void throwPreparedAelNotSupported(PreparedAel ael, Object... params) {
         throw new UnsupportedOperationException(MSG);
     }

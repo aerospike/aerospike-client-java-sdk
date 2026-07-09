@@ -244,7 +244,7 @@ public class BackgroundOperationBuilder extends AbstractOperationBuilder<Backgro
                 ops.add(Operation.touch());
                 break;
             default:
-                throw AerospikeException.resultCodeToException(
+                throw AerospikeException.toException(
                         ResultCode.PARAMETER_ERROR, "No operations were passed to an update() running as a background task.");
             }
         }

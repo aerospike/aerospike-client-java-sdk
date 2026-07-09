@@ -108,7 +108,7 @@ public final class IndexTask extends Task {
                 }
                 else {
                     // Throw exception immediately.
-                    throw AerospikeException.resultCodeToException(error.code, command + " failed: " + error.message);
+                    throw AerospikeException.toException(error.code, command + " failed: " + error.message);
                 }
             }
 

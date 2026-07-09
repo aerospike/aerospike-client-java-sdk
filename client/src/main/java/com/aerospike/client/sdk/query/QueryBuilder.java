@@ -580,7 +580,7 @@ public class QueryBuilder extends AbstractFilterableBuilder implements
      */
     public QueryBuilder notInAnyTransaction() {
         if (transactionSet) {
-            throw AerospikeException.resultCodeToException(ResultCode.PARAMETER_ERROR,
+            throw AerospikeException.toException(ResultCode.PARAMETER_ERROR,
                 "The transaction mode has already been set");
         }
         this.transactionSet = true;
@@ -606,7 +606,7 @@ public class QueryBuilder extends AbstractFilterableBuilder implements
      */
     public QueryBuilder inTransaction(Txn txn) {
         if (transactionSet) {
-            throw AerospikeException.resultCodeToException(ResultCode.PARAMETER_ERROR,
+            throw AerospikeException.toException(ResultCode.PARAMETER_ERROR,
                 "The transaction mode has already been set");
         }
         this.transactionSet = true;

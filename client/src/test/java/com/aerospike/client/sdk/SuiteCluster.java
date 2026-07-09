@@ -56,6 +56,7 @@ import com.aerospike.client.sdk.query.QueryStringTest;
     ConnectionPoolSettingsIntegrationTest.class,
     DeleteBinTest.class,
     DurableDeleteTests.class,
+    ErrorDetailVerbosityTest.class,
     ExpireTest.class,
     ExpOperationTest.class,
     FilterExpTest.class,
@@ -66,7 +67,7 @@ import com.aerospike.client.sdk.query.QueryStringTest;
     ListMapTest.class,
     MapExpTest.class,
     NodeChurnPartitionBehaviorTest.class,
-//  OperateBitTest.class, // TODO Needs external api.
+    OperateBitTest.class,
     OperateHllTest.class,
     OperateListTest.class,
     OperateMapTest.class,
@@ -158,7 +159,7 @@ public class SuiteCluster {
         try {
             session = cluster.createSession(Behavior.DEFAULT);
             sessionWithSendKey = cluster.createSession(Behavior.DEFAULT.deriveWithChanges(
-                    "sendKey", 
+                    "sendKey",
                     opt -> opt.on(Selectors.all(), s -> s.sendKey(true)))
             );
             args.setServerSpecific(cluster);

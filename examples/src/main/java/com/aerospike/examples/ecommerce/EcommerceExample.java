@@ -218,7 +218,7 @@ public class EcommerceExample {
                 .execute((key, index, ex) ->
                         System.out.println("  Error at index " + index + " for key "
                                 + key + ": " + ex.getMessage()));
-        rs.forEach(rr -> System.out.println("  OK: " + rr.key()));
+        rs.forEach(rr -> System.out.println("  OK: " + rr.getKey()));
 
         // Option C: IN_STREAM strategy -- check each result individually
         System.out.println("\nUsing ErrorStrategy.IN_STREAM:");
@@ -228,9 +228,9 @@ public class EcommerceExample {
                 .execute(ErrorStrategy.IN_STREAM);
         inStream.forEach(rr -> {
             if (rr.isOk()) {
-                System.out.println("  OK:    " + rr.key());
+                System.out.println("  OK:    " + rr.getKey());
             } else {
-                System.out.println("  Error: " + rr.key() + " -> " + rr.message());
+                System.out.println("  Error: " + rr.getKey() + " -> " + rr.getMessage());
             }
         });
         System.out.println();
@@ -269,7 +269,7 @@ public class EcommerceExample {
                     Order o = item.toObject();
                     System.out.println("  Received: " + o);
                 } else {
-                    System.out.println("  Error: " + item.message());
+                    System.out.println("  Error: " + item.getMessage());
                 }
                 subscription.request(1);
             }

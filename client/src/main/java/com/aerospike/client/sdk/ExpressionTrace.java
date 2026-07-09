@@ -193,6 +193,11 @@ public class ExpressionTrace implements Serializable {
     @Override
     public String toString() {
         StringBuilder sb = new StringBuilder(128);
+        toString(sb);
+        return sb.toString();
+    }
+
+    public void toString(StringBuilder sb) {
         sb.append("ExpressionTrace[phase=").append(phase);
         sb.append(", byteOffset=").append(byteOffset);
         if (op != null) {
@@ -213,6 +218,5 @@ public class ExpressionTrace implements Serializable {
             sb.append(", aelSpan=").append(aelSpan);
         }
         sb.append(']');
-        return sb.toString();
     }
 }

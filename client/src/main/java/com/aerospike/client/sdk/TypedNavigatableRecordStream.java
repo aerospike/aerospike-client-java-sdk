@@ -57,7 +57,7 @@ public final class TypedNavigatableRecordStream<T> implements Iterator<RecordRes
 
     private T mapOk(RecordResult rr) {
         Record rec = rr.recordOrThrow();
-        return requireMapper().fromMap(rec.bins, rr.key(), rec.generation, mappingContext());
+        return requireMapper().fromMap(rec.bins, rr.getKey(), rec.generation, mappingContext());
     }
 
     public NavigatableRecordStream asUntypedNavigatableStream() {
@@ -158,7 +158,7 @@ public final class TypedNavigatableRecordStream<T> implements Iterator<RecordRes
         while (hasNext()) {
             RecordResult rr = next();
             Record rec = rr.recordOrThrow();
-            result.add(mapper.fromMap(rec.bins, rr.key(), rec.generation, ctx));
+            result.add(mapper.fromMap(rec.bins, rr.getKey(), rec.generation, ctx));
         }
         return result;
     }
@@ -191,7 +191,7 @@ public final class TypedNavigatableRecordStream<T> implements Iterator<RecordRes
         }
         RecordResult item = next();
         Record rec = item.recordOrThrow();
-        return Optional.of(mapper.fromMap(rec.bins, item.key(), rec.generation, mappingContext()));
+        return Optional.of(mapper.fromMap(rec.bins, item.getKey(), rec.generation, mappingContext()));
     }
 
     public int size() {

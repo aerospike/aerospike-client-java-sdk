@@ -54,7 +54,7 @@ public final class BatchSingle {
             super.run();
 
             if (parent.includeMissingKeys || super.rec.record != null) {
-                stream.publish(new RecordResult(super.rec, index));
+                stream.publish(RecordResult.batchRecord(super.rec, index));
             }
         }
     }
@@ -186,7 +186,7 @@ public final class BatchSingle {
         @Override
         public void run() {
             super.run();
-            stream.publish(new RecordResult(super.rec, index));
+            stream.publish(RecordResult.batchRecord(super.rec, index));
         }
     }
 

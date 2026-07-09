@@ -111,7 +111,7 @@ public class ExecuteCompletableFutureTest extends ClusterTest {
         Optional<RecordResult> second = chain.join();
         assertTrue(second.isPresent());
         assertTrue(second.get().isOk());
-        assertEquals(key1, second.get().key());
+        assertEquals(key1, second.get().getKey());
     }
 
     @Test
@@ -165,7 +165,7 @@ public class ExecuteCompletableFutureTest extends ClusterTest {
 
         assertEquals(viaStream.size(), viaBuilder.size());
         for (int i = 0; i < viaStream.size(); i++) {
-            assertEquals(viaStream.get(i).key(), viaBuilder.get(i).key());
+            assertEquals(viaStream.get(i).getKey(), viaBuilder.get(i).getKey());
         }
     }
 }

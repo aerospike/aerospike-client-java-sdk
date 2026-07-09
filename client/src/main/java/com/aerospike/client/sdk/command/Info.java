@@ -195,7 +195,7 @@ public class Info {
         }
         else {
             // Client errors result in a exception.
-            throw AerospikeException.resultCodeToException(error.code, "Unrecognized info response: " + response);
+            throw AerospikeException.toException(error.code, "Unrecognized info response: " + response);
         }
     }
 
@@ -537,7 +537,7 @@ public class Info {
 
         String message = parseString('\n');
 
-        throw AerospikeException.resultCodeToException(code, message);
+        throw AerospikeException.toException(code, message);
     }
 
     /**

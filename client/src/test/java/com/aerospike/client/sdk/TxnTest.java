@@ -370,7 +370,7 @@ public class TxnTest extends ClusterTest {
                 .execute();
 
             assertTrue(rs.hasNext());
-            rs.next().recordOrNull();
+            rs.next().getRecord();
         });
 
         RecordStream rs = session.query(key).execute();
@@ -486,8 +486,8 @@ public class TxnTest extends ClusterTest {
 
             while (bresults.hasNext()) {
                 RecordResult rr = bresults.next();
-                if (rr.resultCode() != 0) {
-                    fail("Batch operation failed: " + rr.resultCode());
+                if (rr.getResultCode() != 0) {
+                    fail("Batch operation failed: " + rr.getResultCode());
                 }
             }
         });
@@ -517,8 +517,8 @@ public class TxnTest extends ClusterTest {
 
             while (bresults.hasNext()) {
                 RecordResult rr = bresults.next();
-                if (rr.resultCode() != 0) {
-                    fail("Batch operation failed: " + rr.resultCode());
+                if (rr.getResultCode() != 0) {
+                    fail("Batch operation failed: " + rr.getResultCode());
                 }
             }
 

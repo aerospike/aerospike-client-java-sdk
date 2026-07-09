@@ -104,7 +104,7 @@ public class UdfExecutor extends SyncExecutor {
         String ret = (String)rec.bins.get("FAILURE");
 
         if (ret == null) {
-            throw AerospikeException.resultCodeToException(resultCode, null);
+            throw AerospikeException.toException(resultCode, null);
         }
 
         String message;
@@ -117,10 +117,10 @@ public class UdfExecutor extends SyncExecutor {
         }
         catch (Throwable e) {
             // Use generic exception if parse error occurs.
-            throw AerospikeException.resultCodeToException(resultCode, ret);
+            throw AerospikeException.toException(resultCode, ret);
         }
 
-        throw AerospikeException.resultCodeToException(code, message);
+        throw AerospikeException.toException(code, message);
     }
 
     public Record getRecord() {

@@ -52,7 +52,7 @@ public class QueryUpsertFromChainedTest extends ClusterTest {
             while (rs.hasNext()) {
                 RecordResult rr = rs.next();
                 assertTrue(rr.isOk(),
-                    () -> "unexpected resultCode=" + rr.resultCode() + " index=" + rr.index());
+                    () -> "unexpected resultCode=" + rr.getResultCode() + " index=" + rr.getIndex());
                 batchResults++;
             }
         }

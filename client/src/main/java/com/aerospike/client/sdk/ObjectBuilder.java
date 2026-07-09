@@ -405,7 +405,7 @@ public class ObjectBuilder<T> {
      */
     public ObjectBuilder<T> notInAnyTransaction() {
         if (transactionSet) {
-            throw AerospikeException.resultCodeToException(ResultCode.PARAMETER_ERROR,
+            throw AerospikeException.toException(ResultCode.PARAMETER_ERROR,
                 "The transaction mode has already been set");
         }
         this.transactionSet = true;
@@ -433,7 +433,7 @@ public class ObjectBuilder<T> {
      */
     public ObjectBuilder<T> inTransaction(Txn txn) {
         if (transactionSet) {
-            throw AerospikeException.resultCodeToException(ResultCode.PARAMETER_ERROR,
+            throw AerospikeException.toException(ResultCode.PARAMETER_ERROR,
                 "The transaction mode has already been set");
         }
         this.transactionSet = true;
@@ -704,7 +704,7 @@ public class ObjectBuilder<T> {
                 .initQuery(keys);
     }
 
-    public <T> ChainableQueryBuilder query(TypedKey<T> typedKey) {
+    public ChainableQueryBuilder query(TypedKey<T> typedKey) {
         List<OperationSpec> specs = materializeToSpecs();
         return new ChainableQueryBuilder(opBuilder.getSession(), specs, null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, txnToUse)
                 .initQueryTyped(typedKey);
@@ -925,17 +925,19 @@ public class ObjectBuilder<T> {
                 if (AbstractFilterableBuilder.isActionableError(br.resultCode)) {
                     switch (disposition) {
                         case ErrorDisposition.Throw ignored -> {
-                            AerospikeException ex = result.exception() != null
-                                ? result.exception()
-                                : AerospikeException.resultCodeToException(br.resultCode, null, br.inDoubt);
-                            throw ex;
+                            throw result.toException();
                         }
-                        case ErrorDisposition.Handler h ->
+
+                        case ErrorDisposition.Handler h -> {
                             AbstractFilterableBuilder.dispatchError(result, h.errorHandler());
-                        case ErrorDisposition.InStream ignored ->
+                        }
+
+                        case ErrorDisposition.InStream ignored -> {
                             recordStream.publish(result);
+                        }
                     }
-                } else {
+                }
+                else {
                     recordStream.publish(result);
                 }
             }
