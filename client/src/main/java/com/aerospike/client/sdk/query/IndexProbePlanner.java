@@ -17,10 +17,8 @@
 package com.aerospike.client.sdk.query;
 
 import com.aerospike.ael.ParseResult;
-import com.aerospike.client.sdk.AerospikeException;
 import com.aerospike.client.sdk.Cluster;
 import com.aerospike.client.sdk.DataSet;
-import com.aerospike.client.sdk.ResultCode;
 import com.aerospike.client.sdk.Session;
 import com.aerospike.client.sdk.command.IndexProbeCommand;
 import com.aerospike.client.sdk.command.QueryCommand;
@@ -65,9 +63,7 @@ final class IndexProbePlanner {
 
     /**
      * Builds a dataset {@link QueryCommand}: server explain → execute when eligible, else legacy
-     * field {@code 43}. When explain returns {@link ResultCode#PARAMETER_ERROR}, falls back to
-     * legacy execute so unsupported index shapes still work until the server explain planner
-     * handles them.
+     * field {@code 43}. Explain failures (including {@code PARAMETER}) propagate to the caller.
      */
     static QueryCommand buildCommand(
         Session session,
@@ -81,16 +77,8 @@ final class IndexProbePlanner {
         if (!useServerQuerySelection(cluster, where, hint)) {
             return legacyCommand(session, cluster, dataSet, where, policy, qb);
         }
-        try {
-            QueryPlan plan = plan(session, dataSet, where, hint);
-            return QueryCommand.forPlan(cluster, dataSet, plan, policy, qb);
-        }
-        catch (AerospikeException e) {
-            if (e.getResultCode() == ResultCode.PARAMETER_ERROR) {
-                return legacyCommand(session, cluster, dataSet, where, policy, qb);
-            }
-            throw e;
-        }
+        QueryPlan plan = plan(session, dataSet, where, hint);
+        return QueryCommand.forPlan(cluster, dataSet, plan, policy, qb);
     }
 
     /**

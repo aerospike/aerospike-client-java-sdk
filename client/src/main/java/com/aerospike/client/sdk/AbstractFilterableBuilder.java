@@ -109,7 +109,7 @@ public abstract class AbstractFilterableBuilder {
      * Create WhereClauseProcessor from AEL string.
      */
     protected WhereClauseProcessor createWhereClauseProcessor(boolean allowSecondaryIndex, String ael, Object... params) {
-        if (ael == null || ael.isBlank()) {
+        if (ael == null || ael.isEmpty()) {
             return null;
         } else if (params.length == 0) {
             return WhereClauseProcessor.from(allowSecondaryIndex, ael);

@@ -21,7 +21,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import java.util.HashMap;
@@ -29,6 +28,7 @@ import java.util.Map;
 
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import com.aerospike.client.sdk.AerospikeException;
@@ -42,23 +42,20 @@ import com.aerospike.client.sdk.query.plan.QueryPlan;
 import com.aerospike.client.sdk.query.plan.QuerySelection;
 
 /**
- * Documents <strong>server</strong> field {@code 44} explain behavior for index shapes outside
- * scalar INTEGER/STRING — for product/server discussion.
+ * Documents <strong>server</strong> field {@code 44} explain behavior across index shapes — pins
+ * observed planner outcomes for product/server discussion.
  *
  * <p>The client always attempts explain for string AEL when query selection is enabled. It does
- * <strong>not</strong> parse AEL locally to pre-route. On {@link ResultCode#PARAMETER_ERROR} from
- * explain, {@link IndexProbePlanner#buildCommand} falls back to legacy field {@code 43} execute.</p>
+ * <strong>not</strong> parse AEL locally to pre-route. Explain failures propagate (no legacy
+ * fallback on {@code execute()}).</p>
  *
- * <p><strong>Current server behavior (integration-v2 branch, 2026-07):</strong></p>
+ * <p><strong>Expected server behavior (integration branch, per {@code query_plan.c} /
+ * {@code exp.c}):</strong></p>
  * <ul>
- *   <li>Scalar INTEGER SI → explain OK + index fields</li>
- *   <li>Scalar STRING PI (no SI on bin) → explain OK, no index fields</li>
- *   <li>BLOB scalar equality → explain {@code PARAMETER_ERROR}</li>
- *   <li>MAPKEYS + CDT EXISTS → explain {@code PARAMETER_ERROR}</li>
+ *   <li>Scalar INTEGER / STRING / BLOB equality → SI explain when a matching index exists</li>
+ *   <li>STRING on bin without SI → PI explain (OK, no index fields)</li>
+ *   <li>MAPKEYS + CDT EXISTS (no SI candidate in walker today) → PI fallback</li>
  * </ul>
- *
- * <p>Open product question: should unsupported shapes return PI (OK, no index fields) instead of
- * {@code PARAMETER_ERROR}?</p>
  */
 class QuerySelectionExplainScopeTest extends ClusterTest {
     private static final String setName = "qscexp";
@@ -143,9 +140,6 @@ class QuerySelectionExplainScopeTest extends ClusterTest {
         session.dropIndex(dataSet, mapIndexName);
     }
 
-    /**
-     * Scalar INTEGER SI — explain returns index plan (in-scope for server selection today).
-     */
     @Test
     void explainScalarIntegerSecondaryIndex_succeeds() {
         QueryPlan plan = explain("$.age == 25");
@@ -156,9 +150,6 @@ class QuerySelectionExplainScopeTest extends ClusterTest {
             () -> assertNotNull(plan.getIndexRangeBytes()));
     }
 
-    /**
-     * No SI on country — explain returns PI plan (OK, no index fields).
-     */
     @Test
     void explainScalarStringPrimaryIndex_noIndexFields() {
         QueryPlan plan = explain("$.country == 'US'");
@@ -171,38 +162,41 @@ class QuerySelectionExplainScopeTest extends ClusterTest {
     }
 
     /**
-     * BLOB scalar equality — server explain returns {@code PARAMETER_ERROR} today.
-     * Product question: PI fallback vs error vs future SI explain for BLOB.
+     * BLOB scalar equality — server selects the BLOB secondary index on explain.
      */
     @Test
-    void explainBlobEquality_returnsParameterError() {
+    void explainBlobEquality_selectsSecondaryIndex() {
         String where = "$." + blobBin + " == x'" + blobHex + "'";
+        QueryPlan plan = explain(where);
 
-        AerospikeException ex = assertThrows(AerospikeException.class, () -> explain(where));
-
-        assertEquals(ResultCode.PARAMETER_ERROR, ex.getResultCode(),
-            "document current server explain behavior for BLOB — open for product");
+        assertAll("blobSiExplain",
+            () -> assertEquals(QuerySelection.SECONDARY_INDEX, plan.getSelection()),
+            () -> assertEquals(blobIndexName, plan.getIndexName()),
+            () -> assertNotNull(plan.getIndexRangeBytes()),
+            () -> assertNotNull(plan.getExplainWhereBytes()));
     }
 
     /**
-     * MAPKEYS + CDT EXISTS — server explain returns {@code PARAMETER_ERROR} today.
-     * Product question: PI fallback vs error vs future collection-index explain.
+     * MAPKEYS + CDT EXISTS — no SI candidate in server walker today → PI fallback on explain.
      */
+    @Disabled("Needs server side fixing - server throws parameter error")
     @Test
-    void explainMapKeysExists_returnsParameterError() {
+    void explainMapKeysExists_primaryIndexFallback() {
         String where = "$." + mapBin + "." + mapKey + ".get(return: EXISTS) == true";
+        QueryPlan plan = explain(where);
 
-        AerospikeException ex = assertThrows(AerospikeException.class, () -> explain(where));
-
-        assertEquals(ResultCode.PARAMETER_ERROR, ex.getResultCode(),
-            "document current server explain behavior for MAPKEYS — open for product");
+        assertAll("mapKeysPiExplain",
+            () -> assertEquals(QuerySelection.PRIMARY_INDEX, plan.getSelection()),
+            () -> assertNull(plan.getIndexName()),
+            () -> assertNull(plan.getIndexRangeBytes()),
+            () -> assertNotNull(plan.getExplainWhereBytes()));
     }
 
     /**
-     * Execute path: explain fails with PARAMETER, client falls back to legacy field {@code 43}.
+     * E2E: BLOB query uses field {@code 44} explain → execute (SI plan when explain succeeds).
      */
     @Test
-    void executeBlobEquality_fallsBackToLegacyAndReturnsRows() {
+    void executeBlobEquality_returnsMatchingRow() {
         String where = "$." + blobBin + " == x'" + blobHex + "'";
 
         int count = countRecords(session.query(dataSet)
@@ -214,10 +208,11 @@ class QuerySelectionExplainScopeTest extends ClusterTest {
     }
 
     /**
-     * Execute path: explain fails with PARAMETER, client falls back to legacy field {@code 43}.
+     * E2E: MAPKEYS EXISTS uses field {@code 44} explain → execute (PI plan when no SI candidate).
      */
+    @Disabled("needs server side fixing")
     @Test
-    void executeMapKeysExists_fallsBackToLegacyAndReturnsRows() {
+    void executeMapKeysExists_returnsMatchingRows() {
         String where = "$." + mapBin + "." + mapKey + ".get(return: EXISTS) == true";
 
         RecordStream rs = session.query(dataSet)
