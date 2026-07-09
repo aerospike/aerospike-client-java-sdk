@@ -28,7 +28,6 @@ import java.util.Map;
 
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import com.aerospike.client.sdk.AerospikeException;
@@ -54,8 +53,12 @@ import com.aerospike.client.sdk.query.plan.QuerySelection;
  * <ul>
  *   <li>Scalar INTEGER / STRING / BLOB equality → SI explain when a matching index exists</li>
  *   <li>STRING on bin without SI → PI explain (OK, no index fields)</li>
- *   <li>MAPKEYS + CDT EXISTS (no SI candidate in walker today) → PI fallback</li>
+ *   <li>MAPKEYS + CDT {@code .exists()} (no SI candidate in walker today) → PI fallback</li>
  * </ul>
+ *
+ * <p>Field {@code 44} uses <strong>server AEL</strong> ({@code .exists()}). Legacy client syntax
+ * {@code .get(return: EXISTS)} fails explain with {@code PARAMETER} — see
+ * {@link QueryPlannerCollectionCdtTest} for the supported shapes.</p>
  */
 class QuerySelectionExplainScopeTest extends ClusterTest {
     private static final String setName = "qscexp";
@@ -178,11 +181,11 @@ class QuerySelectionExplainScopeTest extends ClusterTest {
 
     /**
      * MAPKEYS + CDT EXISTS — no SI candidate in server walker today → PI fallback on explain.
+     * Uses server AEL {@code .exists()}, not legacy {@code .get(return: EXISTS)}.
      */
-    @Disabled("Needs server side fixing - server throws parameter error")
     @Test
     void explainMapKeysExists_primaryIndexFallback() {
-        String where = "$." + mapBin + "." + mapKey + ".get(return: EXISTS) == true";
+        String where = "$." + mapBin + "." + mapKey + ".exists() == true";
         QueryPlan plan = explain(where);
 
         assertAll("mapKeysPiExplain",
@@ -210,10 +213,9 @@ class QuerySelectionExplainScopeTest extends ClusterTest {
     /**
      * E2E: MAPKEYS EXISTS uses field {@code 44} explain → execute (PI plan when no SI candidate).
      */
-    @Disabled("needs server side fixing")
     @Test
     void executeMapKeysExists_returnsMatchingRows() {
-        String where = "$." + mapBin + "." + mapKey + ".get(return: EXISTS) == true";
+        String where = "$." + mapBin + "." + mapKey + ".exists() == true";
 
         RecordStream rs = session.query(dataSet)
             .readingOnlyBins(mapBin)
