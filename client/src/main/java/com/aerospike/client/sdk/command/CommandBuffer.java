@@ -1047,7 +1047,7 @@ public final class CommandBuffer {
      * Encode a query explain ({@link IndexProbeCommand}): field {@code 44} WHERE with EXPLAIN flag.
      */
     public void setQueryExplain(IndexProbeCommand cmd) {
-        byte[] whereBytes = QueryWhereWire.forExplain(cmd.ael);
+        byte[] whereBytes = QueryWhereWire.forExplain(cmd.whereFlags, cmd.ael);
 
         int fieldCount = 0;
         boolean hasHint = cmd.indexNameHint != null && !cmd.indexNameHint.isBlank();

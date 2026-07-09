@@ -56,6 +56,7 @@ final class IndexProbePlanner {
             dataSet.getSet(),
             ael,
             indexNameHintForProbe(hint),
+            explainWhereFlags(hint),
             settings
         );
         return cmd.execute();
@@ -116,6 +117,23 @@ final class IndexProbePlanner {
             return null;
         }
         return indexName;
+    }
+
+    /**
+     * Field {@code 44} WHERE flag byte for explain from hint policy flags.
+     */
+    static int explainWhereFlags(QueryHint.Result hint) {
+        int flags = QueryWhereWire.FLAG_EXPLAIN;
+        if (hint == null) {
+            return flags;
+        }
+        if (hint.isRequireIndex()) {
+            flags |= QueryWhereWire.FLAG_REQUIRE_INDEX;
+        }
+        if (hint.isHardHint()) {
+            flags |= QueryWhereWire.FLAG_HARD_HINT;
+        }
+        return flags;
     }
 
     private static QueryCommand legacyCommand(

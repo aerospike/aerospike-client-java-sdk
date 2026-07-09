@@ -70,7 +70,7 @@ public final class IndexProbeExecutor extends SyncExecutor {
             throw AerospikeException.resultCodeToException(rp.resultCode, null);
         }
 
-        byte[] whereBytes = QueryWhereWire.forExplain(probe.ael);
+        byte[] whereBytes = QueryWhereWire.forExplain(probe.whereFlags, probe.ael);
         plan = QueryPlan.fromExplainResponse(
             rp.resultCode,
             probe.namespace,

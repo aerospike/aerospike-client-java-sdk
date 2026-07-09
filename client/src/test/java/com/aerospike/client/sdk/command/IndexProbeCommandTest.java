@@ -106,6 +106,20 @@ class IndexProbeCommandTest {
     }
 
     @Test
+    void wherePayloadIncludesRequireIndexFlag() {
+        int flags = QueryWhereWire.FLAG_EXPLAIN | QueryWhereWire.FLAG_REQUIRE_INDEX;
+        CommandBuffer cb = encodeExplain(null, flags);
+        assertEquals(flags, QueryWhereWire.flags(fieldBytes(cb, FieldType.WHERE)));
+    }
+
+    @Test
+    void wherePayloadIncludesHardHintFlag() {
+        int flags = QueryWhereWire.FLAG_EXPLAIN | QueryWhereWire.FLAG_HARD_HINT;
+        CommandBuffer cb = encodeExplain("age_idx", flags);
+        assertEquals(flags, QueryWhereWire.flags(fieldBytes(cb, FieldType.WHERE)));
+    }
+
+    @Test
     void namespaceAndSetValues() {
         CommandBuffer cb = encodeExplain(null);
         assertEquals("test", fieldUtf8(cb, FieldType.NAMESPACE));
@@ -149,13 +163,21 @@ class IndexProbeCommandTest {
     }
 
     private static CommandBuffer encodeExplain(String indexHint) {
+        return encodeExplain(indexHint, QueryWhereWire.FLAG_EXPLAIN);
+    }
+
+    private static CommandBuffer encodeExplain(String indexHint, int whereFlags) {
         CommandBuffer cb = new CommandBuffer();
-        cb.setQueryExplain(explainCommand(7L, indexHint));
+        cb.setQueryExplain(explainCommand(7L, indexHint, whereFlags));
         return cb;
     }
 
     private static IndexProbeCommand explainCommand(long taskId, String indexHint) {
-        return new IndexProbeCommand(null, "test", "users", AEL, indexHint, taskId, settings());
+        return explainCommand(taskId, indexHint, QueryWhereWire.FLAG_EXPLAIN);
+    }
+
+    private static IndexProbeCommand explainCommand(long taskId, String indexHint, int whereFlags) {
+        return new IndexProbeCommand(null, "test", "users", AEL, indexHint, whereFlags, taskId, settings());
     }
 
     private static ResolvedSettings settings() {

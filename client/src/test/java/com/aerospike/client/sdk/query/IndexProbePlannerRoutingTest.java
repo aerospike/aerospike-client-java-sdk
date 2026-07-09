@@ -19,125 +19,78 @@ package com.aerospike.client.sdk.query;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import com.aerospike.client.sdk.ClusterTest;
-import com.aerospike.client.sdk.DataSet;
 import com.aerospike.client.sdk.exp.Exp;
-import com.aerospike.client.sdk.util.Version;
 
+/**
+ * Routing unit tests for {@link IndexProbePlanner#useServerQuerySelection()}.
+ * Skipped when {@link com.aerospike.client.sdk.Cluster#supportsQuerySelection()} is false.
+ */
 class IndexProbePlannerRoutingTest extends ClusterTest {
 
-    private static final DataSet ROUTING_SET = DataSet.of("test", "routing");
+    @BeforeAll
+    static void requireQuerySelection() {
+        assumeTrue(cluster.supportsQuerySelection(), "server does not support query selection");
+    }
 
     @Test
     void useServerQuerySelection_stringAel_ignoresAllowsIndexFalse() {
-        Version saved = cluster.getVersion();
-        setQuerySelectionGate(true);
-        try {
-            WhereClauseProcessor where = WhereClauseProcessor.from(false, "$.age > 30");
+        WhereClauseProcessor where = WhereClauseProcessor.from(false, "$.age > 30");
 
-            assertTrue(where.hasStringAel());
-            assertFalse(where.allowsIndex());
-            assertTrue(IndexProbePlanner.useServerQuerySelection(cluster, where, null));
-        } finally {
-            restoreClusterVersion(saved);
-        }
+        assertTrue(where.hasStringAel());
+        assertFalse(where.allowsIndex());
+        assertTrue(IndexProbePlanner.useServerQuerySelection(cluster, where, null));
     }
 
     @Test
     void useServerQuerySelection_expWhere_staysLegacy() {
-        Version saved = cluster.getVersion();
-        setQuerySelectionGate(true);
-        try {
-            WhereClauseProcessor where = WhereClauseProcessor.from(Exp.eq(Exp.intBin("age"), Exp.val(30)));
+        WhereClauseProcessor where = WhereClauseProcessor.from(Exp.eq(Exp.intBin("age"), Exp.val(30)));
 
-            assertFalse(where.hasStringAel());
-            assertFalse(IndexProbePlanner.useServerQuerySelection(cluster, where, null));
-        } finally {
-            restoreClusterVersion(saved);
-        }
+        assertFalse(where.hasStringAel());
+        assertFalse(IndexProbePlanner.useServerQuerySelection(cluster, where, null));
     }
 
     @Test
     void useServerQuerySelection_forBinHint_staysLegacy() {
-        Version saved = cluster.getVersion();
-        setQuerySelectionGate(true);
-        try {
-            WhereClauseProcessor where = WhereClauseProcessor.from(true, "$.age > 30");
-            QueryHint.Result hint = QueryHint.create().forBin("age");
+        WhereClauseProcessor where = WhereClauseProcessor.from(true, "$.age > 30");
+        QueryHint.Result hint = QueryHint.create().forBin("age");
 
-            assertFalse(IndexProbePlanner.useServerQuerySelection(cluster, where, hint));
-        } finally {
-            restoreClusterVersion(saved);
-        }
-    }
-
-    @Test
-    void useServerQuerySelection_gateOff_staysLegacy() {
-        Version saved = cluster.getVersion();
-        setQuerySelectionGate(false);
-        try {
-            WhereClauseProcessor where = WhereClauseProcessor.from(true, "$.age > 30");
-            assertFalse(IndexProbePlanner.useServerQuerySelection(cluster, where, null));
-        } finally {
-            restoreClusterVersion(saved);
-        }
+        assertFalse(IndexProbePlanner.useServerQuerySelection(cluster, where, hint));
     }
 
     @Test
     void useServerQuerySelection_mapKeysCollection_usesServerExplain() {
-        Version saved = cluster.getVersion();
-        setQuerySelectionGate(true);
-        try {
-            WhereClauseProcessor where = WhereClauseProcessor.from(true,
-                "$.map_bin.mkey2.get(return: EXISTS) == true");
+        WhereClauseProcessor where = WhereClauseProcessor.from(true,
+            "$.map_bin.mkey2.get(return: EXISTS) == true");
 
-            assertTrue(IndexProbePlanner.useServerQuerySelection(cluster, where, null));
-        } finally {
-            restoreClusterVersion(saved);
-        }
+        assertTrue(IndexProbePlanner.useServerQuerySelection(cluster, where, null));
     }
 
     @Test
     void useServerQuerySelection_blobEquality_usesServerExplain() {
-        Version saved = cluster.getVersion();
-        setQuerySelectionGate(true);
-        try {
-            WhereClauseProcessor where = WhereClauseProcessor.from(true,
-                "$.bb == x'000000000000c350'");
+        WhereClauseProcessor where = WhereClauseProcessor.from(true,
+            "$.bb == x'000000000000c350'");
 
-            assertTrue(IndexProbePlanner.useServerQuerySelection(cluster, where, null));
-        } finally {
-            restoreClusterVersion(saved);
-        }
+        assertTrue(IndexProbePlanner.useServerQuerySelection(cluster, where, null));
     }
 
     @Test
     void useServerQuerySelection_primaryIndexPredicate_usesServer() {
-        Version saved = cluster.getVersion();
-        setQuerySelectionGate(true);
-        try {
-            WhereClauseProcessor where = WhereClauseProcessor.from(true, "$.country == 'US'");
+        WhereClauseProcessor where = WhereClauseProcessor.from(true, "$.country == 'US'");
 
-            assertTrue(IndexProbePlanner.useServerQuerySelection(cluster, where, null));
-        } finally {
-            restoreClusterVersion(saved);
-        }
+        assertTrue(IndexProbePlanner.useServerQuerySelection(cluster, where, null));
     }
 
     @Test
     void useServerQuerySelection_integerRange_usesServer() {
-        Version saved = cluster.getVersion();
-        setQuerySelectionGate(true);
-        try {
-            WhereClauseProcessor where = WhereClauseProcessor.from(true, "$.age >= 14 and $.age <= 18");
+        WhereClauseProcessor where = WhereClauseProcessor.from(true, "$.age >= 14 and $.age <= 18");
 
-            assertTrue(IndexProbePlanner.useServerQuerySelection(cluster, where, null));
-        } finally {
-            restoreClusterVersion(saved);
-        }
+        assertTrue(IndexProbePlanner.useServerQuerySelection(cluster, where, null));
     }
 
     @Test
@@ -145,13 +98,5 @@ class IndexProbePlannerRoutingTest extends ClusterTest {
         WhereClauseProcessor where = WhereClauseProcessor.from(false, "   ");
         assertThrows(IllegalArgumentException.class,
             () -> IndexProbePlanner.plan(session, args.set, where, null));
-    }
-
-    private void setQuerySelectionGate(boolean enabled) {
-        cluster.setVersion(enabled ? Version.SERVER_VERSION_8_1_3 : Version.SERVER_VERSION_8_1_2);
-    }
-
-    private void restoreClusterVersion(Version saved) {
-        cluster.setVersion(saved);
     }
 }

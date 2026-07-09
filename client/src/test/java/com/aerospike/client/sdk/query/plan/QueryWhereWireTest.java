@@ -62,7 +62,7 @@ class QueryWhereWireTest {
         );
         byte[] execute = QueryWhereWire.clearExplain(explain);
 
-        assertEquals(QueryWhereWire.FLAG_REQUIRE_INDEX, QueryWhereWire.flags(execute));
+        assertEquals(0, QueryWhereWire.flags(execute));
         assertEquals(COMPOUND_AEL, QueryWhereWire.ael(execute));
     }
 

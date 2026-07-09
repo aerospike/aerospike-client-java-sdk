@@ -29,6 +29,7 @@ public final class IndexProbeCommand extends Command {
     final String set;
     final String ael;
     final String indexNameHint;
+    final int whereFlags;
     final long taskId;
 
     public IndexProbeCommand(
@@ -39,7 +40,21 @@ public final class IndexProbeCommand extends Command {
         String indexNameHint,
         ResolvedSettings settings
     ) {
-        this(cluster, namespace, set, ael, indexNameHint, new RandomShift().nextLong(), settings);
+        this(cluster, namespace, set, ael, indexNameHint,
+            QueryWhereWire.FLAG_EXPLAIN, settings);
+    }
+
+    public IndexProbeCommand(
+        Cluster cluster,
+        String namespace,
+        String set,
+        String ael,
+        String indexNameHint,
+        int whereFlags,
+        ResolvedSettings settings
+    ) {
+        this(cluster, namespace, set, ael, indexNameHint, whereFlags,
+            new RandomShift().nextLong(), settings);
     }
 
     public IndexProbeCommand(
@@ -51,11 +66,26 @@ public final class IndexProbeCommand extends Command {
         long taskId,
         ResolvedSettings settings
     ) {
+        this(cluster, namespace, set, ael, indexNameHint,
+            QueryWhereWire.FLAG_EXPLAIN, taskId, settings);
+    }
+
+    public IndexProbeCommand(
+        Cluster cluster,
+        String namespace,
+        String set,
+        String ael,
+        String indexNameHint,
+        int whereFlags,
+        long taskId,
+        ResolvedSettings settings
+    ) {
         super(cluster, namespace, null, null, settings.getReplicaOrder(), settings);
         QueryWhereWire.requireAel(ael);
         this.set = set;
         this.ael = ael;
         this.indexNameHint = indexNameHint;
+        this.whereFlags = whereFlags;
         this.taskId = taskId;
     }
 

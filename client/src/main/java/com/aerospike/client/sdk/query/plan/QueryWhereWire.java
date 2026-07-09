@@ -50,14 +50,25 @@ public final class QueryWhereWire {
     public static final int FLAG_KNOWN =
         FLAG_ENC_VARINT | FLAG_EXPLAIN | FLAG_REQUIRE_INDEX | FLAG_HARD_HINT;
 
+    /** Explain-only flags cleared when building field {@code 44} for execute. */
+    static final int EXPLAIN_ONLY_FLAGS = FLAG_EXPLAIN | FLAG_REQUIRE_INDEX | FLAG_HARD_HINT;
+
     private QueryWhereWire() {
     }
 
     /**
-     * Field {@code 44} body for phase 1 (explain).
+     * Field {@code 44} body for phase 1 (explain) with default flags ({@link #FLAG_EXPLAIN} only).
      */
     public static byte[] forExplain(String ael) {
         return encode(FLAG_EXPLAIN, ael);
+    }
+
+    /**
+     * Field {@code 44} body for phase 1 (explain) with the given flag mask (must include
+     * {@link #FLAG_EXPLAIN}).
+     */
+    public static byte[] forExplain(int flags, String ael) {
+        return encode(flags, ael);
     }
 
     /**
@@ -96,7 +107,7 @@ public final class QueryWhereWire {
      * Rebuilds execute payload from an explain payload (clears {@link #FLAG_EXPLAIN}).
      */
     public static byte[] clearExplain(byte[] explainPayload) {
-        int executeFlags = (explainPayload[0] & 0xFF) & ~FLAG_EXPLAIN;
+        int executeFlags = (explainPayload[0] & 0xFF) & ~EXPLAIN_ONLY_FLAGS;
         byte[] payload = new byte[explainPayload.length];
         payload[0] = (byte) executeFlags;
         System.arraycopy(explainPayload, 1, payload, 1, explainPayload.length - 1);
