@@ -134,6 +134,7 @@ public class QueryBlobTest extends ClusterTest {
         String where = "$." + binNameList + ".[=X'" + str + "'].get(return: EXISTS) == true";
 
         RecordStream rs = session.query(dataSet)
+            .withHint(hint -> hint.forBin(binNameList))
             .readingOnlyBins(binName, binNameList)
             .where(where)
             .execute();

@@ -33,8 +33,6 @@ import com.aerospike.client.sdk.RecordStream;
 import com.aerospike.client.sdk.exp.Exp;
 import com.aerospike.client.sdk.exp.StringExp;
 
-// FIXME: failing tests
-@Disabled("Needs fixing")
 public class QueryFilterSetTest extends ClusterTest {
     private static final String set1 = "tqps1";
     private static final String set2 = "tqps2";

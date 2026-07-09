@@ -99,6 +99,7 @@ public class QueryCollectionTest extends ClusterTest {
         String where = "$." + binName + "." + queryMapKey + ".get(return: EXISTS) == true";
 
         RecordStream rs = session.query(dataSet)
+            .withHint(hint -> hint.forBin(binName))
             .where(where)
             .execute();
 
