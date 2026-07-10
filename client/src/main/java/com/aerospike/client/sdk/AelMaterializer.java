@@ -29,6 +29,7 @@ import com.aerospike.ael.api.AelParser;
 import com.aerospike.ael.impl.AelParserImpl;
 import com.aerospike.client.sdk.exp.Exp;
 import com.aerospike.client.sdk.exp.Expression;
+import com.aerospike.client.sdk.query.AelPlaceholderBinder;
 import com.aerospike.client.sdk.query.Filter;
 import com.aerospike.client.sdk.query.PreparedAel;
 import com.aerospike.client.sdk.command.ParticleType;
@@ -49,7 +50,7 @@ public final class AelMaterializer {
     }
 
     public static Expression expressionFromString(Cluster cluster, String ael, Object[] params) {
-        return expressionFromString(cluster, formatAel(ael, params));
+        return expressionFromString(cluster, AelPlaceholderBinder.bind(ael, params));
     }
 
     public static Expression expressionFromPrepared(Cluster cluster, PreparedAel ael, Object[] params) {
@@ -186,38 +187,5 @@ public final class AelMaterializer {
             sb.append("}");
         }
         return sb.toString();
-    }
-
-    private static String formatAel(String ael, Object[] params) {
-        if (params == null || params.length == 0) {
-            return ael;
-        }
-        StringBuilder result = new StringBuilder();
-        int paramIndex = 0;
-        for (int i = 0; i < ael.length(); i++) {
-            char c = ael.charAt(i);
-            if (c == '?' && paramIndex < params.length) {
-                result.append(formatParam(params[paramIndex++]));
-            }
-            else {
-                result.append(c);
-            }
-        }
-        return result.toString();
-    }
-
-    private static String formatParam(Object param) {
-        if (param == null) {
-            return "null";
-        }
-        else if (param instanceof String) {
-            return "\"" + param + "\"";
-        }
-        else if (param instanceof Number || param instanceof Boolean) {
-            return param.toString();
-        }
-        else {
-            return "\"" + param.toString() + "\"";
-        }
     }
 }

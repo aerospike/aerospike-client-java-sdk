@@ -67,7 +67,6 @@ public abstract class WhereClauseProcessor {
 
         @Override
         public ParseResult process(String namespace, String querySet, Session session) {
-            // TODO: For now, until AEL supports prepared statements
             String aelStr = ael.formValue(params);
             return AelMaterializer.parseWhereFromString(session, allowsIndex, namespace, querySet, aelStr);
         }

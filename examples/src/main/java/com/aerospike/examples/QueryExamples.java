@@ -52,6 +52,7 @@ import com.aerospike.client.sdk.operation.BitOverflowAction;
 import com.aerospike.client.sdk.policy.Behavior;
 import com.aerospike.client.sdk.policy.QueryDuration;
 import com.aerospike.client.sdk.policy.Behavior.Selectors;
+import com.aerospike.client.sdk.query.PreparedAel;
 import com.aerospike.client.sdk.query.SortDir;
 import com.aerospike.client.sdk.query.SortProperties;
 import com.aerospike.client.sdk.task.ExecuteTask;
@@ -260,6 +261,7 @@ public class QueryExamples {
             Behavior newBehavior = Behavior.DEFAULT.deriveWithChanges("newBehavior", builder ->
                 builder.on(Selectors.all(), ops -> ops
                         .waitForSocketResponseAfterCallFails(Duration.ofSeconds(3))
+                        .sendKey(true)
                 )
                 .on(Selectors.reads().ap(), ops -> ops
                         .waitForCallToComplete(Duration.ofMillis(25))
@@ -738,6 +740,25 @@ public class QueryExamples {
             for (Customer customer : customers) {
                 System.out.println(customer);
             }
+
+            // PreparedAel: reuse a template with ?0, ?1 placeholders (zero-based).
+            // Bound values are substituted client-side as AEL literals; types are inferred
+            // from the literals (e.g. 'Tim' -> STRING, 30 -> INT).
+            PreparedAel nameAndAgeFilter = PreparedAel.prepare("$.name == ?0 and $.age > ?1");
+            System.out.println("\nPreparedAel filter (Tim, age > 30):");
+            customers = session.query(customerDataSet)
+                    .where(nameAndAgeFilter, "Tim", 30)
+                    .execute()
+                    .toObjectList(customerMapper);
+            customers.forEach(System.out::println);
+
+            System.out.println("PreparedAel filter (Jane, age > 21) — same template, different params:");
+            customers = session.query(customerDataSet)
+                    .where(nameAndAgeFilter, "Jane", 21)
+                    .execute()
+                    .toObjectList(customerMapper);
+            customers.forEach(System.out::println);
+            System.out.println("End PreparedAel examples\n");
 
             System.out.println("---- End sort ---");
 
