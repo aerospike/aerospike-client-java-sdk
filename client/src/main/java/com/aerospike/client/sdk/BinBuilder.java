@@ -366,7 +366,7 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      * Read a computed value using a PreparedAel with bound parameters.
      *
      * <pre>{@code
-     * PreparedAel calc = PreparedAel.prepare("$.price * ?");
+     * PreparedAel calc = PreparedAel.prepare("$.price * ?0");
      * session.query(key)
      *     .bin("total").selectFrom(calc, quantity)
      *     .execute();
@@ -384,7 +384,7 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      * Read a computed value using a PreparedAel with options and bound parameters.
      *
      * <pre>{@code
-     * PreparedAel calc = PreparedAel.prepare("$.a / ?");
+     * PreparedAel calc = PreparedAel.prepare("$.a / ?0");
      * session.query(key)
      *     .bin("ratio").selectFrom(calc, opt -> opt.ignoreEvalFailure(), divisor)
      *     .execute();
@@ -629,7 +629,7 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      * Fails with BIN_EXISTS_ERROR if the bin already exists.
      *
      * <pre>{@code
-     * PreparedAel calc = PreparedAel.prepare("$.price * ?");
+     * PreparedAel calc = PreparedAel.prepare("$.price * ?0");
      * session.upsert(key)
      *     .bin("total").insertFrom(calc, quantity)
      *     .execute();
@@ -647,7 +647,7 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      * Write expression result only if bin doesn't exist, using a PreparedAel with options.
      *
      * <pre>{@code
-     * PreparedAel calc = PreparedAel.prepare("$.price * ?");
+     * PreparedAel calc = PreparedAel.prepare("$.price * ?0");
      * session.upsert(key)
      *     .bin("total").insertFrom(calc, opt -> opt.ignoreOpFailure(), quantity)
      *     .execute();
@@ -903,7 +903,7 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      * Fails with BIN_NOT_FOUND if the bin doesn't exist.
      *
      * <pre>{@code
-     * PreparedAel calc = PreparedAel.prepare("$.price * ?");
+     * PreparedAel calc = PreparedAel.prepare("$.price * ?0");
      * session.upsert(key)
      *     .bin("total").updateFrom(calc, quantity)
      *     .execute();
@@ -921,7 +921,7 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      * Write expression result only if bin already exists, using a PreparedAel with options.
      *
      * <pre>{@code
-     * PreparedAel calc = PreparedAel.prepare("$.price * ?");
+     * PreparedAel calc = PreparedAel.prepare("$.price * ?0");
      * session.upsert(key)
      *     .bin("total").updateFrom(calc, opt -> opt.ignoreOpFailure(), quantity)
      *     .execute();
@@ -1174,7 +1174,7 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      * Never fails due to bin existence.
      *
      * <pre>{@code
-     * PreparedAel calc = PreparedAel.prepare("$.price * ?");
+     * PreparedAel calc = PreparedAel.prepare("$.price * ?0");
      * session.upsert(key)
      *     .bin("total").upsertFrom(calc, quantity)
      *     .execute();
@@ -1192,7 +1192,7 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      * Write expression result, creating or updating the bin, using a PreparedAel with options.
      *
      * <pre>{@code
-     * PreparedAel calc = PreparedAel.prepare("$.price * ?");
+     * PreparedAel calc = PreparedAel.prepare("$.price * ?0");
      * session.upsert(key)
      *     .bin("total").upsertFrom(calc, opt -> opt.deleteIfNull(), quantity)
      *     .execute();

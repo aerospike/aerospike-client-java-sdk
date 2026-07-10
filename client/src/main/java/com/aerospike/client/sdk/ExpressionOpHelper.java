@@ -58,11 +58,11 @@ public final class ExpressionOpHelper {
     }
 
     /**
-     * Builds a read expression operation from a AEL string with {@code ?} placeholders replaced by {@code params}.
+     * Builds a read expression operation from a AEL string with {@code ?0}, {@code ?1}, ... placeholders.
      *
      * @param binName target bin
      * @param ael AEL template
-     * @param params values substituted for {@code ?} in order
+     * @param params values substituted for {@code ?0}, {@code ?1}, ... in order
      * @param flags {@link com.aerospike.client.sdk.exp.ExpReadFlags} bitmask
      * @param cluster cluster whose minimum server version determines client vs server AEL wire form
      * @return Aerospike {@link Operation} for expression read
@@ -143,11 +143,11 @@ public final class ExpressionOpHelper {
     }
 
     /**
-     * Builds a write expression operation from a AEL string with {@code ?} placeholders replaced by {@code params}.
+     * Builds a write expression operation from a AEL string with {@code ?0}, {@code ?1}, ... placeholders.
      *
      * @param binName target bin
      * @param ael AEL template
-     * @param params values substituted for {@code ?} in order
+     * @param params values substituted for {@code ?0}, {@code ?1}, ... in order
      * @param flags {@link com.aerospike.client.sdk.exp.ExpWriteFlags} bitmask
      * @param cluster cluster whose minimum server version determines client vs server AEL wire form
      * @return Aerospike {@link Operation} for expression write
