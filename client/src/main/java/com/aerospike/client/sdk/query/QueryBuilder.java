@@ -496,7 +496,7 @@ public class QueryBuilder extends AbstractFilterableBuilder implements
      *
      * <p>Example usage:</p>
      * <pre>{@code
-     * PreparedAel preparedFilter = session.prepareAel("$.name == ? and $.age > ?");
+     * PreparedAel preparedFilter = PreparedAel.prepare("$.name == ?0 and $.age > ?1");
      * RecordStream results = session.query(customerDataSet)
      *     .where(preparedFilter, "Tim", 30)
      *     .execute();

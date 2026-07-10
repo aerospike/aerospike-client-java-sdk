@@ -275,7 +275,7 @@ public final class QueryBinBuilder<P> implements CdtOperationAcceptor<P> {
      * Read a computed value using a PreparedAel with bound parameters.
      *
      * <pre>{@code
-     * PreparedAel calc = PreparedAel.prepare("$.price * ?");
+     * PreparedAel calc = PreparedAel.prepare("$.price * ?0");
      * session.query(key)
      *     .bin("total").selectFrom(calc, quantity)
      *     .execute();
@@ -294,7 +294,7 @@ public final class QueryBinBuilder<P> implements CdtOperationAcceptor<P> {
      * Read a computed value using a PreparedAel with options and bound parameters.
      *
      * <pre>{@code
-     * PreparedAel calc = PreparedAel.prepare("$.a / ?");
+     * PreparedAel calc = PreparedAel.prepare("$.a / ?0");
      * session.query(key)
      *     .bin("ratio").selectFrom(calc, opt -> opt.ignoreEvalFailure(), divisor)
      *     .execute();
