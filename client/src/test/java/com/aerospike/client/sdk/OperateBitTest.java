@@ -70,7 +70,15 @@ public class OperateBitTest extends ClusterTest {
         }
     }
 
-    /* TODO This test is flawed. Fix.
+    public static String bytesToString(byte[] bytes) {
+        StringBuilder sb = new StringBuilder(bytes.length * 3);
+        for (byte b : bytes) {
+            sb.append(String.format("%02X ", b));
+        }
+        return sb.toString();
+    }
+
+    /* TODO This test is flawed. Fix. */
     @Test
     public void operateBitBinFluent() {
         byte[] bit0 = new byte[] {(byte) 0x80};
@@ -79,32 +87,35 @@ public class OperateBitTest extends ClusterTest {
         session.delete(key).execute();
 
         session.upsert(key)
+            .bin(binName).setTo(new byte[] {0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08})
+            .execute();
+
+        session.upsert(key)
             .bin(binName).bitSet(1, 1, bit0)
             .bin(binName).bitSet(3, 1, bit0, opt -> opt.updateOnly())
             .bin(binName).bitRemove(6, 2, opt -> opt.updateOnly())
             .execute();
 
-        Record record = session.query(key).bin(binName).get().execute().next().recordOrThrow();
+        Record record = session.query(key).bin(binName).get().execute().getFirstRecord();
         assertArrayEquals(
             new byte[] {0x51, 0x02, 0x03, 0x04, 0x05, 0x06},
             record.getBytes(binName));
 
         session.delete(key).execute();
 
-        session.update(key)
+        session.upsert(key)
             .bin(binName).bitInsert(1, bytes1, opt -> opt.createOnly())
             .execute();
 
         record = session.query(key).bin(binName).get().execute().next().recordOrThrow();
         assertArrayEquals(new byte[] {0x00, 0x0A}, record.getBytes(binName));
 
-        assertThrows(AerospikeException.BinOpInvalidException.class, 17,
+        assertThrows(AerospikeException.BinNotFoundException.class, 17,
             BitOperation.set(BitPolicy.Default, "b", 1, 1, bit0));
 
-        assertThrows(AerospikeException.BinOpInvalidException.class, 4,
+        assertThrows(AerospikeException.class, 4,
             BitOperation.set(new BitPolicy(BitWriteFlags.CREATE_ONLY), binName, 1, 1, bit0));
     }
-    */
 
     @Test
     public void operateBitBin() {
