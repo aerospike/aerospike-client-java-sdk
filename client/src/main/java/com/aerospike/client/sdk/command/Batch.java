@@ -154,7 +154,7 @@ public final class Batch {
                 br.setRecord(rec);
 
                 if (br.hasWrite || parent.includeMissingKeys || rec != null) {
-                    stream.publish(RecordResult.batchRecord(br, parser.batchIndex));
+                    stream.publish(RecordResult.batchSuccess(br, parser.batchIndex));
                 }
                 return true;
             }

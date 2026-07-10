@@ -78,7 +78,6 @@ public class OperateBitTest extends ClusterTest {
         return sb.toString();
     }
 
-    /* TODO This test is flawed. Fix. */
     @Test
     public void operateBitBinFluent() {
         byte[] bit0 = new byte[] {(byte) 0x80};

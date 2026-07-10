@@ -27,6 +27,10 @@ import com.aerospike.client.sdk.query.KeyRecord;
  * Contains the key, record data (for record operations), UDF return value (for UDF operations),
  * result code, and error information if the operation failed.
  *
+ * Errors are stored with either an AerospikeException (when available) or individual error
+ * fields (resultCode, subCode, message, exoTrace, inDoubt). The error field getters will
+ * use the exception error fields when the exception exists.
+ *
  * <p>When {@link #readMappingClass()} is non-null after a typed read, {@link #readMappingSession()}
  * is also set so {@link #toObject()} and {@link #udfResultAsObject()} can resolve mappers from the
  * session's {@link RecordMappingFactory}. Those references are typically short-lived compared to
@@ -52,7 +56,25 @@ public final class RecordResult {
     private final boolean inDoubt;
 
     /**
-     * Single record result.
+     * Single record success with no returned record (for exists, touch, delete).
+     */
+    public RecordResult(Key key, int index) {
+        this.key = key;
+        this.rec = null;
+        this.udfReturnValue = null;
+        this.exception = null;
+        this.message = null;
+        this.expTrace = null;
+        this.readMappingSession = null;
+        this.readMappingClass = null;
+        this.resultCode = ResultCode.OK;
+        this.subCode = SubCode.NONE;
+        this.index = index;
+        this.inDoubt = false;
+    }
+
+    /**
+     * Single record success with record result.
      */
     public RecordResult(Key key, Record rec, int index) {
         this.key = key;
@@ -75,6 +97,7 @@ public final class RecordResult {
     public RecordResult(
         Key key, Record rec, int index, Session readMappingSession, Class<?> readMappingClass
     ) {
+        verifyMapper(readMappingSession, readMappingClass);
         this.key = key;
         this.rec = rec;
         this.udfReturnValue = null;
@@ -92,7 +115,7 @@ public final class RecordResult {
     /**
      * Single record server returned error.
      */
-    public RecordResult(Key key, int resultCode, boolean inDoubt, String message, int index) {
+    public RecordResult(Key key, int resultCode, int subCode, String message, int index, boolean inDoubt) {
         this.key = key;
         this.rec = null;
         this.udfReturnValue = null;
@@ -102,7 +125,7 @@ public final class RecordResult {
         this.readMappingSession = null;
         this.readMappingClass = null;
         this.resultCode = resultCode;
-        this.subCode = SubCode.NONE;
+        this.subCode = subCode;
         this.index = index;
         this.inDoubt = inDoubt;
     }
@@ -119,7 +142,7 @@ public final class RecordResult {
         this.expTrace = null;
         this.readMappingSession = null;
         this.readMappingClass = null;
-        this.resultCode = ResultCode.OK;
+        this.resultCode = ae.getResultCode();
         this.subCode = SubCode.NONE;
         this.index = index;
         this.inDoubt = false;
@@ -150,6 +173,7 @@ public final class RecordResult {
         Key key, Object udfReturnValue, int index, Session readMappingSession,
         Class<?> readMappingClass
     ) {
+        verifyMapper(readMappingSession, readMappingClass);
         this.key = key;
         this.rec = null;
         this.udfReturnValue = udfReturnValue;
@@ -165,7 +189,7 @@ public final class RecordResult {
     }
 
     /**
-     * Batch record result.
+     * Batch success.
      */
     private RecordResult(
         BatchRecord br, int index, Session readMappingSession, Class<?> readMappingClass
@@ -224,18 +248,19 @@ public final class RecordResult {
     }
 
     /**
-     * Batch record result.
+     * Batch success.
      */
-    public static RecordResult batchRecord(BatchRecord br, int index) {
+    public static RecordResult batchSuccess(BatchRecord br, int index) {
         return new RecordResult(br, index, null, null);
     }
 
     /**
-     * Batch record object mapper result.
+     * Batch success with object mapper.
      */
-    public static RecordResult batchRecord(
+    public static RecordResult batchSuccess(
         BatchRecord br, int index, Session readMappingSession, Class<?> readMappingClass
     ) {
+        verifyMapper(readMappingSession, readMappingClass);
         return new RecordResult(br, index, readMappingSession, readMappingClass);
     }
 
@@ -252,6 +277,7 @@ public final class RecordResult {
     public static RecordResult batchError(
         BatchRecord br, int index, Session readMappingSession, Class<?> readMappingClass
     ) {
+        verifyMapper(readMappingSession, readMappingClass);
         return new RecordResult(br, index, readMappingSession, readMappingClass, true);
     }
 
@@ -264,13 +290,20 @@ public final class RecordResult {
         return new RecordResult(br, index, ae);
     }
 
+    private static void verifyMapper(Session readMappingSession, Class<?> readMappingClass) {
+        if ((readMappingSession == null) != (readMappingClass == null)) {
+            throw new IllegalArgumentException(
+                "readMappingSession and readMappingClass must both be null or both non-null");
+        }
+    }
+
     /**
      * Whether the operation completed with {@link ResultCode#OK}.
      *
      * @return {@code true} if successful; {@code false} if any other result code
      */
     public boolean isOk() {
-        return this.resultCode == ResultCode.OK;
+        return getResultCode() == ResultCode.OK;
     }
 
     /**
@@ -309,20 +342,23 @@ public final class RecordResult {
      */
     @SuppressWarnings("unchecked")
     public <T> T toObject() {
+        orThrow();
+
         if (readMappingClass == null || readMappingSession == null) {
             throw new IllegalStateException(
                 "No read mapping context on this result. Use RecordMapper explicitly "
                     + "(e.g. RecordStream#getFirst(RecordMapper)) or perform the read via "
                     + "Session#query(TypedKey) / Session#queryTypedKeys / Session#queryTypedKeysAny / TypedKeyList so the SDK records the entity type.");
         }
+
         RecordMapper<T> mapper = MappingSupport.requireMapper(
             readMappingSession.getRecordMappingFactory(), (Class<T>) readMappingClass);
-        orThrow();
 
         if (rec == null) {
             throw AerospikeException.toException(ResultCode.KEY_NOT_FOUND_ERROR, SubCode.NONE,
                 "No record bins to map for key " + key, null, false);
         }
+
         RecordReadContext<T> ctx = new RecordReadContext<>(readMappingSession, (Class<T>) readMappingClass);
         return mapper.fromMap(rec.bins, key, rec.generation, ctx);
     }
@@ -347,21 +383,25 @@ public final class RecordResult {
      */
     @SuppressWarnings("unchecked")
     public <T> Optional<T> udfResultAsObject() {
+        orThrow();
+
         if (readMappingSession == null || readMappingClass == null) {
             throw new IllegalStateException(
                 "No read mapping context on this result for mapper-less UDF mapping. "
                     + "Use udfResultAsObject(RecordMapper) or udfResultAsObject(RecordMapper, RecordReadContext), "
                     + "or perform the operation via a typed key path once hints are propagated.");
         }
-        orThrow();
+
         if (udfReturnValue == null) {
             return Optional.empty();
         }
+
         if (!(udfReturnValue instanceof Map)) {
             throw AerospikeException.toException(ResultCode.OP_NOT_APPLICABLE,
                 "UDF result is not a Map, cannot use RecordMapper. Actual type: "
                     + udfReturnValue.getClass().getName());
         }
+
         Map<String, Object> map = (Map<String, Object>) udfReturnValue;
         RecordMapper<T> mapper = MappingSupport.requireMapper(
             readMappingSession.getRecordMappingFactory(), (Class<T>) readMappingClass);
@@ -383,14 +423,17 @@ public final class RecordResult {
     @SuppressWarnings("unchecked")
     public <T> Optional<T> udfResultAsObject(RecordMapper<T> mapper) {
         orThrow();
+
         if (udfReturnValue == null) {
             return Optional.empty();
         }
+
         if (!(udfReturnValue instanceof Map)) {
             throw AerospikeException.toException(ResultCode.OP_NOT_APPLICABLE,
                 "UDF result is not a Map, cannot use RecordMapper. Actual type: "
                     + udfReturnValue.getClass().getName());
         }
+
         Map<String, Object> map = (Map<String, Object>) udfReturnValue;
         return Optional.of(mapper.fromMap(map, key, 0));
     }
@@ -403,14 +446,17 @@ public final class RecordResult {
     @SuppressWarnings("unchecked")
     public <T> Optional<T> udfResultAsObject(RecordMapper<T> mapper, RecordReadContext<T> ctx) {
         orThrow();
+
         if (udfReturnValue == null) {
             return Optional.empty();
         }
+
         if (!(udfReturnValue instanceof Map)) {
             throw AerospikeException.toException(ResultCode.OP_NOT_APPLICABLE,
                 "UDF result is not a Map, cannot use RecordMapper. Actual type: "
                     + udfReturnValue.getClass().getName());
         }
+
         Map<String, Object> map = (Map<String, Object>) udfReturnValue;
         return Optional.of(mapper.fromMap(map, key, 0, ctx));
     }
@@ -435,12 +481,15 @@ public final class RecordResult {
      * @throws AerospikeException for other failure codes
      */
     public boolean asBoolean() {
-        if (isOk()) {
+        int resultCode = getResultCode();
+
+        if (resultCode == ResultCode.OK) {
             return true;
         }
-        else if (this.resultCode == ResultCode.KEY_NOT_FOUND_ERROR) {
+        else if (resultCode == ResultCode.KEY_NOT_FOUND_ERROR) {
             return false;
         }
+
         orThrow();
         // Just to keep the compiler happy
         return false;

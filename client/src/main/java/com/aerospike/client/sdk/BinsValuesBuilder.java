@@ -733,31 +733,22 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder
                     }
 
                     case ErrorDisposition.Handler h -> {
-                        RecordResult result = getBatchError(br, i);
+                        RecordResult result = RecordResult.batchError(br, i);
                         AbstractFilterableBuilder.dispatchError(result, h.errorHandler());
                     }
 
                     case ErrorDisposition.InStream ignored -> {
-                        RecordResult result = getBatchError(br, i);
+                        RecordResult result = RecordResult.batchError(br, i);
                         results.add(result);
                     }
                 }
             }
             else {
-                RecordResult result = RecordResult.batchRecord(br, i);
+                RecordResult result = RecordResult.batchSuccess(br, i);
                 results.add(result);
             }
         }
         return new RecordStream(results, 0);
-    }
-
-    private RecordResult getBatchError(BatchRecord br, int index) {
-        if (settings.getStackTraceOnException()) {
-            return RecordResult.batchError(br, index);
-        }
-        else {
-            return RecordResult.batchRecord(br, index);
-        }
     }
 
     private RecordStream executeBatchAsync(ErrorHandler errorHandler) {

@@ -114,7 +114,7 @@ public class ErrorDetailVerbosityTest extends ClusterTest {
     }
 
     @Test
-    public void testVerbositySubcodeOnly() {
+    public void testVerbositySubCodeOnly() {
         Behavior behavior1 = Behavior.DEFAULT.deriveWithChanges("errorDetail", builder -> builder
             .on(Selectors.all(), ops -> ops
                 .errorDetailVerbosity(ErrorDetailVerbosity.SUBCODE)
@@ -144,7 +144,7 @@ public class ErrorDetailVerbosityTest extends ClusterTest {
     }
 
     @Test
-    public void testVerbositySubcodeAndMessage() {
+    public void testVerbositySubCodeAndMessage() {
         Behavior behavior1 = Behavior.DEFAULT.deriveWithChanges("errorDetail", builder -> builder
             .on(Selectors.all(), ops -> ops
                 .errorDetailVerbosity(ErrorDetailVerbosity.MESSAGE)
@@ -175,7 +175,7 @@ public class ErrorDetailVerbosityTest extends ClusterTest {
     }
 
     // ---------------------------------------------------------------------
-    // Subcode-absent cases (AS_SUB_NONE): the status is already maximally
+    // SubCode-absent cases (AS_SUB_NONE): the status is already maximally
     // specific, so the server omits the subcode map key and the client must
     // never format a "(subcode=...)" suffix. The message carries the context.
     // ---------------------------------------------------------------------
@@ -197,7 +197,7 @@ public class ErrorDetailVerbosityTest extends ClusterTest {
                 .getFirstRecord();
         });
 
-        assertSubcodeAbsent(ae, ResultCode.BIN_TYPE_ERROR, "string_append requires string bin");
+        assertSubCodeAbsent(ae, ResultCode.BIN_TYPE_ERROR, "string_append requires string bin");
     }
 
     @Test
@@ -217,7 +217,7 @@ public class ErrorDetailVerbosityTest extends ClusterTest {
                 .getFirstRecord();
         });
 
-        assertSubcodeAbsent(ae, ResultCode.BIN_TYPE_ERROR, "cannot increment");
+        assertSubCodeAbsent(ae, ResultCode.BIN_TYPE_ERROR, "cannot increment");
     }
 
     @Test
@@ -240,7 +240,7 @@ public class ErrorDetailVerbosityTest extends ClusterTest {
                 .getFirstRecord();
         });
 
-        assertSubcodeAbsent(ae, ResultCode.BIN_TYPE_ERROR, "bin is not hll type");
+        assertSubCodeAbsent(ae, ResultCode.BIN_TYPE_ERROR, "bin is not hll type");
     }
 
     @Test
@@ -260,11 +260,11 @@ public class ErrorDetailVerbosityTest extends ClusterTest {
                 .getFirstRecord();
         });
 
-        assertSubcodeAbsent(ae, ResultCode.GENERATION_ERROR, "Generation");
+        assertSubCodeAbsent(ae, ResultCode.GENERATION_ERROR, "Generation");
     }
 
     // ---------------------------------------------------------------------
-    // Subcode-present cases: per-status enum subcode numbering.
+    // SubCode-present cases: per-status enum subcode numbering.
     // ---------------------------------------------------------------------
 
     @Test
@@ -291,7 +291,7 @@ public class ErrorDetailVerbosityTest extends ClusterTest {
         });
 
         // AS_SUB_BIN_NOT_FOUND_HLL_CANNOT_CREATE_WITH_OP = 1
-        assertSubcode(ae, ResultCode.BIN_NOT_FOUND, SubCode.BIN_NOT_FOUND_HLL_CANNOT_CREATE_WITH_OP);
+        assertSubCode(ae, ResultCode.BIN_NOT_FOUND, SubCode.BIN_NOT_FOUND_HLL_CANNOT_CREATE_WITH_OP);
     }
 
     @Test
@@ -312,7 +312,7 @@ public class ErrorDetailVerbosityTest extends ClusterTest {
         });
 
         // AS_SUB_OPNOT_CDT_INDEX_OUT_OF_BOUNDS = 1
-        assertSubcode(ae, ResultCode.OP_NOT_APPLICABLE, SubCode.OPNOT_CDT_INDEX_OUT_OF_BOUNDS);
+        assertSubCode(ae, ResultCode.OP_NOT_APPLICABLE, SubCode.OPNOT_CDT_INDEX_OUT_OF_BOUNDS);
     }
 
     @Test
@@ -333,7 +333,7 @@ public class ErrorDetailVerbosityTest extends ClusterTest {
         });
 
         // AS_SUB_OPNOT_CDT_RANK_OUT_OF_BOUNDS = 2
-        assertSubcode(ae, ResultCode.OP_NOT_APPLICABLE, SubCode.OPNOT_CDT_RANK_OUT_OF_BOUNDS);
+        assertSubCode(ae, ResultCode.OP_NOT_APPLICABLE, SubCode.OPNOT_CDT_RANK_OUT_OF_BOUNDS);
     }
 
     @Test
@@ -354,7 +354,7 @@ public class ErrorDetailVerbosityTest extends ClusterTest {
         });
 
         // AS_SUB_OPNOT_CDT_BOUNDED_LIST_OVERFLOW = 3
-        assertSubcode(ae, ResultCode.OP_NOT_APPLICABLE, SubCode.OPNOT_CDT_BOUNDED_LIST_OVERFLOW);
+        assertSubCode(ae, ResultCode.OP_NOT_APPLICABLE, SubCode.OPNOT_CDT_BOUNDED_LIST_OVERFLOW);
     }
 
     @Test
@@ -383,7 +383,7 @@ public class ErrorDetailVerbosityTest extends ClusterTest {
         });
 
         // AS_SUB_OPNOT_HLL_FOLD_INDEX_BITS_TOO_LARGE = 8
-        assertSubcode(ae, ResultCode.OP_NOT_APPLICABLE, SubCode.OPNOT_HLL_FOLD_INDEX_BITS_TOO_LARGE);
+        assertSubCode(ae, ResultCode.OP_NOT_APPLICABLE, SubCode.OPNOT_HLL_FOLD_INDEX_BITS_TOO_LARGE);
     }
 
     /* TODO Port when bit operations are supported.
@@ -411,7 +411,7 @@ public class ErrorDetailVerbosityTest extends ClusterTest {
         });
 
         // AS_SUB_PARAM_BITS_OFFSET_OUT_OF_RANGE = 2
-        assertSubcode(ae, ResultCode.PARAMETER_ERROR, SubCode.PARAM_BITS_OFFSET_OUT_OF_RANGE);
+        assertSubCode(ae, ResultCode.PARAMETER_ERROR, SubCode.PARAM_BITS_OFFSET_OUT_OF_RANGE);
     }
 
     @Test
@@ -432,7 +432,7 @@ public class ErrorDetailVerbosityTest extends ClusterTest {
         });
 
         // AS_SUB_PARAM_BITS_SIZE_OUT_OF_RANGE = 3
-        assertSubcode(ae, ResultCode.PARAMETER_ERROR, SubCode.PARAM_BITS_SIZE_OUT_OF_RANGE);
+        assertSubCode(ae, ResultCode.PARAMETER_ERROR, SubCode.PARAM_BITS_SIZE_OUT_OF_RANGE);
     }
      */
 
@@ -456,7 +456,7 @@ public class ErrorDetailVerbosityTest extends ClusterTest {
                 .getFirstRecord();
         });
 
-        assertSubcodeAbsent(ae, ResultCode.FILTERED_OUT, "filtered out");
+        assertSubCodeAbsent(ae, ResultCode.FILTERED_OUT, "filtered out");
     }
 
     // ---------------------------------------------------------------------
@@ -479,7 +479,7 @@ public class ErrorDetailVerbosityTest extends ClusterTest {
                 .execute();
         });
 
-        assertSubcodeAbsent(ae, ResultCode.BIN_TYPE_ERROR, "prepend");
+        assertSubCodeAbsent(ae, ResultCode.BIN_TYPE_ERROR, "prepend");
     }
 
     @Test
@@ -498,7 +498,7 @@ public class ErrorDetailVerbosityTest extends ClusterTest {
                 .execute();
         });
 
-        assertSubcodeAbsent(ae, ResultCode.BIN_TYPE_ERROR);
+        assertSubCodeAbsent(ae, ResultCode.BIN_TYPE_ERROR);
     }
 
     // ---------------------------------------------------------------------
@@ -522,7 +522,7 @@ public class ErrorDetailVerbosityTest extends ClusterTest {
         });
 
         // AS_SUB_OPNOT_CDT_INDEX_OUT_OF_BOUNDS = 1
-        assertSubcode(ae, ResultCode.OP_NOT_APPLICABLE, SubCode.OPNOT_CDT_INDEX_OUT_OF_BOUNDS);
+        assertSubCode(ae, ResultCode.OP_NOT_APPLICABLE, SubCode.OPNOT_CDT_INDEX_OUT_OF_BOUNDS);
     }
 
     @Test
@@ -541,7 +541,7 @@ public class ErrorDetailVerbosityTest extends ClusterTest {
                 .execute();
         });
 
-        assertSubcodeAbsent(ae, ResultCode.ELEMENT_EXISTS);
+        assertSubCodeAbsent(ae, ResultCode.ELEMENT_EXISTS);
     }
 
     @Test
@@ -567,7 +567,7 @@ public class ErrorDetailVerbosityTest extends ClusterTest {
                 .execute();
         });
 
-        assertSubcodeAbsent(ae, ResultCode.BIN_TYPE_ERROR);
+        assertSubCodeAbsent(ae, ResultCode.BIN_TYPE_ERROR);
     }
 
     // ---------------------------------------------------------------------
@@ -599,7 +599,7 @@ public class ErrorDetailVerbosityTest extends ClusterTest {
                 .execute();
         });
 
-        assertSubcodeAbsent(ae, ResultCode.ELEMENT_EXISTS);
+        assertSubCodeAbsent(ae, ResultCode.ELEMENT_EXISTS);
     }
 
     @Test
@@ -626,7 +626,7 @@ public class ErrorDetailVerbosityTest extends ClusterTest {
                 .execute();
         });
 
-        assertSubcodeAbsent(ae, ResultCode.ELEMENT_NOT_FOUND);
+        assertSubCodeAbsent(ae, ResultCode.ELEMENT_NOT_FOUND);
     }
 
     @Test
@@ -646,7 +646,7 @@ public class ErrorDetailVerbosityTest extends ClusterTest {
                 .execute();
         });
 
-        assertSubcodeAbsent(ae, ResultCode.BIN_TYPE_ERROR);
+        assertSubCodeAbsent(ae, ResultCode.BIN_TYPE_ERROR);
     }
 
     @Test
@@ -671,7 +671,7 @@ public class ErrorDetailVerbosityTest extends ClusterTest {
                 .execute();
         });
 
-        assertSubcodeAbsent(ae, ResultCode.BIN_TYPE_ERROR);
+        assertSubCodeAbsent(ae, ResultCode.BIN_TYPE_ERROR);
     }
 
     @Test
@@ -700,7 +700,7 @@ public class ErrorDetailVerbosityTest extends ClusterTest {
                 .execute();
         });
 
-        assertSubcodeAbsent(ae, ResultCode.BIN_TYPE_ERROR);
+        assertSubCodeAbsent(ae, ResultCode.BIN_TYPE_ERROR);
     }
 
     // ---------------------------------------------------------------------
@@ -726,7 +726,7 @@ public class ErrorDetailVerbosityTest extends ClusterTest {
                 .execute();
         });
 
-        assertSubcodeAbsent(ae, ResultCode.PARAMETER_ERROR);
+        assertSubCodeAbsent(ae, ResultCode.PARAMETER_ERROR);
     }
 
     @Test
@@ -751,7 +751,7 @@ public class ErrorDetailVerbosityTest extends ClusterTest {
                 .execute();
         });
 
-        assertSubcodeAbsent(ae, ResultCode.BIN_TYPE_ERROR);
+        assertSubCodeAbsent(ae, ResultCode.BIN_TYPE_ERROR);
     }
 
     // ---------------------------------------------------------------------
@@ -775,7 +775,7 @@ public class ErrorDetailVerbosityTest extends ClusterTest {
                 .execute();
         });
 
-        assertSubcodeAbsent(ae, ResultCode.KEY_EXISTS_ERROR);
+        assertSubCodeAbsent(ae, ResultCode.KEY_EXISTS_ERROR);
     }
 
     @Test
@@ -798,7 +798,7 @@ public class ErrorDetailVerbosityTest extends ClusterTest {
                 .execute();
         });
 
-        assertSubcodeAbsent(ae, ResultCode.KEY_NOT_FOUND_ERROR);
+        assertSubCodeAbsent(ae, ResultCode.KEY_NOT_FOUND_ERROR);
     }
 
     @Test
@@ -818,7 +818,7 @@ public class ErrorDetailVerbosityTest extends ClusterTest {
                 .execute();
         });
 
-        assertSubcodeAbsent(ae, ResultCode.GENERATION_ERROR, "generation");
+        assertSubCodeAbsent(ae, ResultCode.GENERATION_ERROR, "generation");
     }
 
     @Test
@@ -841,7 +841,7 @@ public class ErrorDetailVerbosityTest extends ClusterTest {
                 .execute();
         });
 
-        assertSubcodeAbsent(ae, ResultCode.FILTERED_OUT, "filtered out");
+        assertSubCodeAbsent(ae, ResultCode.FILTERED_OUT, "filtered out");
     }
 
     // ---------------------------------------------------------------------
@@ -981,28 +981,28 @@ public class ErrorDetailVerbosityTest extends ClusterTest {
 
     /**
      * Assert the server-supplied {@code (resultCode, subcode)} pair. The numeric
-     * subcode must be exposed first-class via {@link AerospikeException#getSubcode()}
+     * subcode must be exposed first-class via {@link AerospikeException#getSubCode()}
      * (not merely embedded in the message string), and the "subcode=N" suffix must
      * still appear in the message for parity with the C client.
      */
-    private void assertSubcode(AerospikeException ae, int expectedResultCode, int expectedSubcode) {
+    private void assertSubCode(AerospikeException ae, int expectedResultCode, int expectedSubCode) {
         assertEquals(expectedResultCode, ae.getResultCode(), "Unexpected result code");
-        assertEquals(expectedSubcode, ae.getSubCode(), "Unexpected subcode");
+        assertEquals(expectedSubCode, ae.getSubCode(), "Unexpected subcode");
 
         String msg = ae.getBaseMessage();
         assertNotNull("Expected server error message", msg);
-        assertTrue(msg.contains("subcode=" + expectedSubcode),
-            "Expected 'subcode=" + expectedSubcode + "' in: " + msg);
+        assertTrue(msg.contains("subcode=" + expectedSubCode),
+            "Expected 'subcode=" + expectedSubCode + "' in: " + msg);
     }
 
     /**
      * Assert that the server surfaced a contextual message but NO subcode
-     * (AS_SUB_NONE): {@link AerospikeException#getSubcode()} is {@link SubCode#NONE}
+     * (AS_SUB_NONE): {@link AerospikeException#getSubCode()} is {@link SubCode#NONE}
      * and the "(subcode=...)" suffix must never appear. Any expectedSubstrings are
      * required in the message; pass none to skip the message-text check (mirrors a
      * NULL expected_msg_substr in the C example).
      */
-    private void assertSubcodeAbsent(AerospikeException ae, int expectedResultCode, String... expectedSubstrings) {
+    private void assertSubCodeAbsent(AerospikeException ae, int expectedResultCode, String... expectedSubstrings) {
         assertEquals(expectedResultCode, ae.getResultCode(), "Unexpected result code");
         assertEquals(SubCode.NONE, ae.getSubCode(), "Expected no subcode");
 

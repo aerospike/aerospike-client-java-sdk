@@ -30,35 +30,6 @@ import com.aerospike.client.sdk.metrics.LatencyType;
 import com.aerospike.client.sdk.tend.Partition;
 
 public final class BatchSingle {
-
-    public static class ReadRecordAsync extends ReadRecordSync {
-        private final AsyncRecordStream stream;
-        private final int index;
-
-        public ReadRecordAsync(
-            Cluster cluster,
-            BatchCommand cmd,
-            BatchRead rec,
-            BatchStatus status,
-            Node node,
-            AsyncRecordStream stream,
-            int index
-        ) {
-            super(cluster, cmd, rec, status, node);
-            this.stream = stream;
-            this.index = index;
-        }
-
-        @Override
-        public void run() {
-            super.run();
-
-            if (parent.includeMissingKeys || super.rec.record != null) {
-                stream.publish(RecordResult.batchRecord(super.rec, index));
-            }
-        }
-    }
-
     public static class ReadRecordSync extends BatchSingleExecutor {
         private final BatchCommand cmd;
         private final BatchRead rec;
@@ -112,59 +83,6 @@ public final class BatchSingle {
         }
     }
 
-    public static final class Exists extends BatchSingleExecutor {
-        private final BatchCommand cmd;
-        private final BatchRead rec;
-
-        public Exists(
-            Cluster cluster,
-            BatchCommand cmd,
-            BatchRead record,
-            BatchStatus status,
-            Node node
-        ) {
-            super(cluster, cmd, status, record.key, node, false);
-            this.cmd = cmd;
-            this.rec = record;
-        }
-
-        @Override
-        protected CommandBuffer getCommandBuffer() {
-            CommandBuffer cb = new CommandBuffer();
-            cb.setExists(cmd, rec);
-            return cb;
-        }
-
-        @Override
-        protected void parseResult(Node node, Connection conn, byte[] buffer) throws IOException {
-            RecordParser rp = new RecordParser(conn, buffer);
-            rp.parseFields(cmd.txn, key, false);
-
-            if (node.isMetricsEnabled()) {
-                node.addBytesIn(rec.key.namespace, rp.bytesIn);
-            }
-
-            if (rp.resultCode == ResultCode.OK) {
-                rec.setRecord(rp.parseRecord(false));
-            }
-            else {
-                rec.setError(rp, false);
-                status.setRowError();
-            }
-        }
-
-        @Override
-        protected boolean prepareRetry(boolean timeout) {
-            Partition p = new Partition(parent.partitions, key, parent.replica, null, rec.linearize);
-            p.sequence = sequence;
-            p.prevNode = node;
-            p.prepareRetryRead(timeout);
-            node = p.getNodeRead(cluster);
-            sequence = p.sequence;
-            return true;
-        }
-    }
-
     public static final class OperateRecordAsync extends OperateRecordSync {
         private final AsyncRecordStream stream;
         private final int index;
@@ -186,7 +104,16 @@ public final class BatchSingle {
         @Override
         public void run() {
             super.run();
-            stream.publish(RecordResult.batchRecord(super.rec, index));
+
+            RecordResult result;
+
+            if (super.rec.resultCode == ResultCode.OK) {
+                result = RecordResult.batchSuccess(super.rec, index);
+            }
+            else {
+                result = RecordResult.batchError(super.rec, index);
+            }
+            stream.publish(result);
         }
     }
 

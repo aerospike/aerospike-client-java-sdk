@@ -94,10 +94,10 @@ public abstract class AbstractFilterableBuilder {
         Session readMappingSession,
         Class<?> readMappingClass
     ) {
-        if (settings.getStackTraceOnException() && isActionableError(br.resultCode)) {
+        if (isActionableError(br.resultCode)) {
             return RecordResult.batchError(br, index, readMappingSession, readMappingClass);
         }
-        return RecordResult.batchRecord(br, index, readMappingSession, readMappingClass);
+        return RecordResult.batchSuccess(br, index, readMappingSession, readMappingClass);
     }
 
     /**

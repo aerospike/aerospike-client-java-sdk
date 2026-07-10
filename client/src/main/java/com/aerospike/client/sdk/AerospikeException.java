@@ -326,7 +326,7 @@ public class AerospikeException extends RuntimeException {
         /**
          * If true, client initiated timeout.  If false, server initiated timeout.
          */
-        public boolean client;
+        public final boolean client;
 
         public Timeout(String message, int iteration, int totalTimeout, boolean inDoubt) {
             super(ResultCode.TIMEOUT, message);

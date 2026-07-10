@@ -593,8 +593,7 @@ class OperationSpecExecutor {
             return new RecordStream(key, rec, mappingSession, readMappingClass);
         }
         else if (includeMissingKeys) {
-            return new RecordStream(new RecordResult(key, ResultCode.KEY_NOT_FOUND_ERROR, false,
-                ResultCode.getResultString(ResultCode.KEY_NOT_FOUND_ERROR), 0));
+            return streamNotFound(key);
         }
         return new RecordStream();
     }
@@ -618,11 +617,8 @@ class OperationSpecExecutor {
             filterExp, failOnFilteredOut, settings, attr);
         ExistsExecutor exec = new ExistsExecutor(cluster, cmd);
         exec.execute();
-        boolean exists = exec.exists();
 
-        int resultCode = exists ? ResultCode.OK : ResultCode.KEY_NOT_FOUND_ERROR;
-        return new RecordStream(new RecordResult(key, resultCode, false,
-            ResultCode.getResultString(resultCode), 0));
+        return streamExisted(key, exec.exists());
     }
 
     /**
@@ -644,11 +640,8 @@ class OperationSpecExecutor {
             gen, (int) ttl, filterExp, failOnFilteredOut, settings);
         TouchExecutor exec = new TouchExecutor(cluster, cmd);
         exec.execute();
-        boolean touched = exec.touched();
 
-        int resultCode = touched ? ResultCode.OK : ResultCode.KEY_NOT_FOUND_ERROR;
-        return new RecordStream(new RecordResult(key, resultCode, false,
-            ResultCode.getResultString(resultCode), 0));
+        return streamExisted(key, exec.touched());
     }
 
     /**
@@ -671,12 +664,9 @@ class OperationSpecExecutor {
             gen, ttl, filterExp, failOnFilteredOut, settings, durableDeleteDefault, spec.getDurableDelete());
         DeleteExecutor exec = new DeleteExecutor(cluster, cmd);
         exec.execute();
-        boolean existed = exec.existed();
 
-        int resultCode = existed ? ResultCode.OK : ResultCode.KEY_NOT_FOUND_ERROR;
-        return new RecordStream(new RecordResult(key, resultCode, false,
-            ResultCode.getResultString(resultCode), 0));
-    }
+        return streamExisted(key, exec.existed());
+     }
 
     /**
      * Execute a single-key UDF operation.
@@ -709,11 +699,24 @@ class OperationSpecExecutor {
             return new RecordStream(new RecordResult(key, udfResult, 0, mappingSession, readMappingClass));
         }
         else if (includeMissingKeys) {
-            return new RecordStream(new RecordResult(key, ResultCode.KEY_NOT_FOUND_ERROR, false,
-                ResultCode.getResultString(ResultCode.KEY_NOT_FOUND_ERROR), 0));
+            return streamNotFound(key);
         }
 
         return new RecordStream();
+    }
+
+    private static RecordStream streamExisted(Key key, boolean existed) {
+        if (existed) {
+            return new RecordStream(new RecordResult(key, 0));
+        }
+        else {
+            return streamNotFound(key);
+        }
+    }
+
+    private static RecordStream streamNotFound(Key key) {
+        return new RecordStream(new RecordResult(key, ResultCode.KEY_NOT_FOUND_ERROR, SubCode.NONE,
+            ResultCode.getResultString(ResultCode.KEY_NOT_FOUND_ERROR), 0, false));
     }
 
     /**
