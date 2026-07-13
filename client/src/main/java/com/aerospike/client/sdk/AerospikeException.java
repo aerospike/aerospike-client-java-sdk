@@ -28,7 +28,9 @@ public class AerospikeException extends RuntimeException {
 
     protected transient Node node;
     protected List<AerospikeException> subExceptions;
+    private ExpressionTrace expTrace;
     protected int resultCode = ResultCode.CLIENT_ERROR;
+    protected int subCode = SubCode.NONE;
     private int connectTimeout;
     private int socketTimeout;
     private int totalTimeout;
@@ -36,21 +38,22 @@ public class AerospikeException extends RuntimeException {
     protected int iteration = -1;
     protected boolean inDoubt;
 
+    public AerospikeException(
+        int resultCode, int subCode, String message, ExpressionTrace expTrace, boolean inDoubt
+    ) {
+        super(message);
+        this.resultCode = resultCode;
+        this.subCode = subCode;
+        this.expTrace = expTrace;
+        this.inDoubt = inDoubt;
+    }
+
     /**
      * @param resultCode {@link ResultCode} constant
      * @param message    detail message
      */
     public AerospikeException(int resultCode, String message) {
         super(message);
-        this.resultCode = resultCode;
-    }
-
-    /**
-     * @param resultCode {@link ResultCode} constant
-     * @param e          cause (message typically comes from the throwable)
-     */
-    public AerospikeException(int resultCode, Throwable e) {
-        super(e);
         this.resultCode = resultCode;
     }
 
@@ -64,33 +67,12 @@ public class AerospikeException extends RuntimeException {
 
     /**
      * @param resultCode {@link ResultCode} constant
-     * @param inDoubt    whether the operation may have succeeded on the server
-     */
-    public AerospikeException(int resultCode, boolean inDoubt) {
-        super();
-        this.resultCode = resultCode;
-        this.inDoubt = inDoubt;
-    }
-
-    /**
-     * @param resultCode {@link ResultCode} constant
      * @param message    detail message
      * @param e          cause
      */
     public AerospikeException(int resultCode, String message, Throwable e) {
         super(message, e);
         this.resultCode = resultCode;
-    }
-
-    /**
-     * @param resultCode {@link ResultCode} constant
-     * @param message    detail message
-     * @param inDoubt    whether the operation may have succeeded on the server
-     */
-    public AerospikeException(int resultCode, String message, boolean inDoubt) {
-        super(message);
-        this.resultCode = resultCode;
-        this.inDoubt = inDoubt;
     }
 
     /**
@@ -133,6 +115,8 @@ public class AerospikeException extends RuntimeException {
 
         sb.append("Error ");
         sb.append(resultCode);
+        sb.append(',');
+        sb.append(subCode);
 
         if (iteration >= 0) {
             sb.append(',');
@@ -159,6 +143,11 @@ public class AerospikeException extends RuntimeException {
 
         sb.append(": ");
         sb.append(getBaseMessage());
+
+        if (expTrace != null) {
+            sb.append(System.lineSeparator());
+            sb.append(expTrace.toString());
+        }
 
         if (subExceptions != null) {
             sb.append(System.lineSeparator());
@@ -253,6 +242,42 @@ public class AerospikeException extends RuntimeException {
     }
 
     /**
+     * Get the server-supplied error subcode, or {@link SubCode#NONE} (0) when the
+     * server did not return one (verbosity disabled, or the failing branch had no
+     * dispatchable subcode).
+     * <p>
+     * A subcode is only meaningful when interpreted together with
+     * {@link #getResultCode()}: subcode integer values are scoped to their parent
+     * result code and are NOT globally unique. Dispatch on the
+     * {@code (resultCode, subcode)} pair. See {@link SubCode}.
+     */
+    public final int getSubCode() {
+        return subCode;
+    }
+
+    /**
+     * Set the server-supplied error sub-code.
+     */
+    public final void setSubCode(int subCode) {
+        this.subCode = subCode;
+    }
+
+    /**
+     * Get the server-supplied expression build trace, or {@code null} when absent.
+     * Populated only at error-detail verbosity {@link ErrorDetailVerbosity#EXPRESSION_TRACE}.
+     */
+    public final ExpressionTrace getExpressionTrace() {
+        return expTrace;
+    }
+
+    /**
+     * Set the server-supplied expression build trace.
+     */
+    public final void setExpressionTrace(ExpressionTrace expTrace) {
+        this.expTrace = expTrace;
+    }
+
+    /**
      * Get number of attempts before failing.
      */
     public final int getIteration() {
@@ -286,7 +311,8 @@ public class AerospikeException extends RuntimeException {
      * client error occurs (like timeout) after the command was sent to the server.
      */
     public final void setInDoubt(boolean isWrite, int commandSentCounter) {
-        if (isWrite && (commandSentCounter > 1 || (commandSentCounter == 1 && (resultCode == ResultCode.TIMEOUT || resultCode <= 0)))) {
+        if (isWrite && (commandSentCounter > 1 || (commandSentCounter == 1 &&
+           (resultCode == ResultCode.TIMEOUT || resultCode <= 0)))) {
             this.inDoubt = true;
         }
     }
@@ -300,7 +326,7 @@ public class AerospikeException extends RuntimeException {
         /**
          * If true, client initiated timeout.  If false, server initiated timeout.
          */
-        public boolean client;
+        public final boolean client;
 
         public Timeout(String message, int iteration, int totalTimeout, boolean inDoubt) {
             super(ResultCode.TIMEOUT, message);
@@ -333,6 +359,13 @@ public class AerospikeException extends RuntimeException {
             super.iteration = 1;
             this.client = true;
         }
+
+        public Timeout(
+            int resultCode, int subCode, String message, ExpressionTrace expTrace, boolean inDoubt
+        ) {
+            super(resultCode, subCode, message, expTrace, inDoubt);
+            this.client = false;
+        }
     }
 
     /**
@@ -341,8 +374,10 @@ public class AerospikeException extends RuntimeException {
     public static class SecurityException extends AerospikeException {
         private static final long serialVersionUID = 1L;
 
-        public SecurityException(int resultCode, String message, boolean inDoubt) {
-            super(resultCode, message, inDoubt);
+        public SecurityException(
+            int resultCode, int subCode, String message, ExpressionTrace expTrace, boolean inDoubt
+        ) {
+            super(resultCode, subCode, message, expTrace, inDoubt);
         }
     }
 
@@ -352,8 +387,10 @@ public class AerospikeException extends RuntimeException {
     public static class AuthenticationException extends SecurityException {
         private static final long serialVersionUID = 1L;
 
-        public AuthenticationException(int resultCode, String message, boolean inDoubt) {
-            super(resultCode, message, inDoubt);
+        public AuthenticationException(
+            int resultCode, int subCode, String message, ExpressionTrace expTrace, boolean inDoubt
+        ) {
+            super(resultCode, subCode, message, expTrace, inDoubt);
         }
     }
 
@@ -363,8 +400,10 @@ public class AerospikeException extends RuntimeException {
     public static class AuthorizationException extends SecurityException {
         private static final long serialVersionUID = 1L;
 
-        public AuthorizationException(int resultCode, String message, boolean inDoubt) {
-            super(resultCode, message, inDoubt);
+        public AuthorizationException(
+            int resultCode, int subCode, String message, ExpressionTrace expTrace, boolean inDoubt
+        ) {
+            super(resultCode, subCode, message, expTrace, inDoubt);
         }
     }
 
@@ -375,8 +414,10 @@ public class AerospikeException extends RuntimeException {
     public static class GenerationException extends AerospikeException {
         private static final long serialVersionUID = 1L;
 
-        public GenerationException(int resultCode, String message, boolean inDoubt) {
-            super(resultCode, message, inDoubt);
+        public GenerationException(
+            int resultCode, int subCode, String message, ExpressionTrace expTrace, boolean inDoubt
+        ) {
+            super(resultCode, subCode, message, expTrace, inDoubt);
         }
     }
 
@@ -386,8 +427,10 @@ public class AerospikeException extends RuntimeException {
     public static class QuotaException extends AerospikeException {
         private static final long serialVersionUID = 1L;
 
-        public QuotaException(int resultCode, String message, boolean inDoubt) {
-            super(resultCode, message, inDoubt);
+        public QuotaException(
+            int resultCode, int subCode, String message, ExpressionTrace expTrace, boolean inDoubt
+        ) {
+            super(resultCode, subCode, message, expTrace, inDoubt);
         }
     }
 
@@ -398,7 +441,7 @@ public class AerospikeException extends RuntimeException {
         private static final long serialVersionUID = 1L;
 
         public RecordNotFoundException(int resultCode, String message, boolean inDoubt) {
-            super(resultCode, message, inDoubt);
+            super(resultCode, SubCode.NONE, message, null, inDoubt);
         }
     }
 
@@ -408,8 +451,10 @@ public class AerospikeException extends RuntimeException {
     public static class RecordExistsException extends AerospikeException {
         private static final long serialVersionUID = 1L;
 
-        public RecordExistsException(int resultCode, String message, boolean inDoubt) {
-            super(resultCode, message, inDoubt);
+        public RecordExistsException(
+            int resultCode, int subCode, String message, ExpressionTrace expTrace, boolean inDoubt
+        ) {
+            super(resultCode, subCode, message, expTrace, inDoubt);
         }
     }
 
@@ -419,8 +464,10 @@ public class AerospikeException extends RuntimeException {
     public static class FilteredException extends AerospikeException {
         private static final long serialVersionUID = 1L;
 
-        public FilteredException(int resultCode, String message, boolean inDoubt) {
-            super(resultCode, message, inDoubt);
+        public FilteredException(
+            int resultCode, int subCode, String message, ExpressionTrace expTrace, boolean inDoubt
+        ) {
+            super(resultCode, subCode, message, expTrace, inDoubt);
         }
     }
 
@@ -430,8 +477,10 @@ public class AerospikeException extends RuntimeException {
     public static class RecordTooBigException extends AerospikeException {
         private static final long serialVersionUID = 1L;
 
-        public RecordTooBigException(int resultCode, String message, boolean inDoubt) {
-            super(resultCode, message, inDoubt);
+        public RecordTooBigException(
+            int resultCode, int subCode, String message, ExpressionTrace expTrace, boolean inDoubt
+        ) {
+            super(resultCode, subCode, message, expTrace, inDoubt);
         }
     }
 
@@ -441,8 +490,10 @@ public class AerospikeException extends RuntimeException {
     public static class BinException extends AerospikeException {
         private static final long serialVersionUID = 1L;
 
-        public BinException(int resultCode, String message, boolean inDoubt) {
-            super(resultCode, message, inDoubt);
+        public BinException(
+            int resultCode, int subCode, String message, ExpressionTrace expTrace, boolean inDoubt
+        ) {
+            super(resultCode, subCode, message, expTrace, inDoubt);
         }
     }
 
@@ -452,8 +503,10 @@ public class AerospikeException extends RuntimeException {
     public static class BinExistsException extends BinException {
         private static final long serialVersionUID = 1L;
 
-        public BinExistsException(int resultCode, String message, boolean inDoubt) {
-            super(resultCode, message, inDoubt);
+        public BinExistsException(
+            int resultCode, int subCode, String message, ExpressionTrace expTrace, boolean inDoubt
+        ) {
+            super(resultCode, subCode, message, expTrace, inDoubt);
         }
     }
 
@@ -463,8 +516,10 @@ public class AerospikeException extends RuntimeException {
     public static class BinNotFoundException extends BinException {
         private static final long serialVersionUID = 1L;
 
-        public BinNotFoundException(int resultCode, String message, boolean inDoubt) {
-            super(resultCode, message, inDoubt);
+        public BinNotFoundException(
+            int resultCode, int subCode, String message, ExpressionTrace expTrace, boolean inDoubt
+        ) {
+            super(resultCode, subCode, message, expTrace, inDoubt);
         }
     }
 
@@ -474,8 +529,10 @@ public class AerospikeException extends RuntimeException {
     public static class BinTypeException extends BinException {
         private static final long serialVersionUID = 1L;
 
-        public BinTypeException(int resultCode, String message, boolean inDoubt) {
-            super(resultCode, message, inDoubt);
+        public BinTypeException(
+            int resultCode, int subCode, String message, ExpressionTrace expTrace, boolean inDoubt
+        ) {
+            super(resultCode, subCode, message, expTrace, inDoubt);
         }
     }
 
@@ -485,8 +542,10 @@ public class AerospikeException extends RuntimeException {
     public static class BinOpInvalidException extends BinException {
         private static final long serialVersionUID = 1L;
 
-        public BinOpInvalidException(int resultCode, String message, boolean inDoubt) {
-            super(resultCode, message, inDoubt);
+        public BinOpInvalidException(
+            int resultCode, int subCode, String message, ExpressionTrace expTrace, boolean inDoubt
+        ) {
+            super(resultCode, subCode, message, expTrace, inDoubt);
         }
     }
 
@@ -496,8 +555,10 @@ public class AerospikeException extends RuntimeException {
     public static class ElementException extends AerospikeException {
         private static final long serialVersionUID = 1L;
 
-        public ElementException(int resultCode, String message, boolean inDoubt) {
-            super(resultCode, message, inDoubt);
+        public ElementException(
+            int resultCode, int subCode, String message, ExpressionTrace expTrace, boolean inDoubt
+        ) {
+            super(resultCode, subCode, message, expTrace, inDoubt);
         }
     }
 
@@ -507,8 +568,10 @@ public class AerospikeException extends RuntimeException {
     public static class ElementNotFoundException extends ElementException {
         private static final long serialVersionUID = 1L;
 
-        public ElementNotFoundException(int resultCode, String message, boolean inDoubt) {
-            super(resultCode, message, inDoubt);
+        public ElementNotFoundException(
+            int resultCode, int subCode, String message, ExpressionTrace expTrace, boolean inDoubt
+        ) {
+            super(resultCode, subCode, message, expTrace, inDoubt);
         }
     }
 
@@ -518,8 +581,10 @@ public class AerospikeException extends RuntimeException {
     public static class ElementExistsException extends ElementException {
         private static final long serialVersionUID = 1L;
 
-        public ElementExistsException(int resultCode, String message, boolean inDoubt) {
-            super(resultCode, message, inDoubt);
+        public ElementExistsException(
+            int resultCode, int subCode, String message, ExpressionTrace expTrace, boolean inDoubt
+        ) {
+            super(resultCode, subCode, message, expTrace, inDoubt);
         }
     }
 
@@ -530,8 +595,10 @@ public class AerospikeException extends RuntimeException {
     public static class TransactionException extends AerospikeException {
         private static final long serialVersionUID = 1L;
 
-        public TransactionException(int resultCode, String message, boolean inDoubt) {
-            super(resultCode, message, inDoubt);
+        public TransactionException(
+            int resultCode, int subCode, String message, ExpressionTrace expTrace, boolean inDoubt
+        ) {
+            super(resultCode, subCode, message, expTrace, inDoubt);
         }
 
         public TransactionException(int resultCode, String message) {
@@ -549,8 +616,10 @@ public class AerospikeException extends RuntimeException {
     public static class CapacityException extends AerospikeException {
         private static final long serialVersionUID = 1L;
 
-        public CapacityException(int resultCode, String message, boolean inDoubt) {
-            super(resultCode, message, inDoubt);
+        public CapacityException(
+            int resultCode, int subCode, String message, ExpressionTrace expTrace, boolean inDoubt
+        ) {
+            super(resultCode, subCode, message, expTrace, inDoubt);
         }
 
         public CapacityException(int resultCode, String message) {
@@ -568,8 +637,10 @@ public class AerospikeException extends RuntimeException {
     public static class KeyBusyException extends CapacityException {
         private static final long serialVersionUID = 1L;
 
-        public KeyBusyException(int resultCode, String message, boolean inDoubt) {
-            super(resultCode, message, inDoubt);
+        public KeyBusyException(
+            int resultCode, int subCode, String message, ExpressionTrace expTrace, boolean inDoubt
+        ) {
+            super(resultCode, subCode, message, expTrace, inDoubt);
         }
     }
 
@@ -579,8 +650,10 @@ public class AerospikeException extends RuntimeException {
     public static class IndexException extends AerospikeException {
         private static final long serialVersionUID = 1L;
 
-        public IndexException(int resultCode, String message, boolean inDoubt) {
-            super(resultCode, message, inDoubt);
+        public IndexException(
+            int resultCode, int subCode, String message, ExpressionTrace expTrace, boolean inDoubt
+        ) {
+            super(resultCode, subCode, message, expTrace, inDoubt);
         }
     }
 
@@ -590,8 +663,10 @@ public class AerospikeException extends RuntimeException {
     public static class QueryException extends AerospikeException {
         private static final long serialVersionUID = 1L;
 
-        public QueryException(int resultCode, String message, boolean inDoubt) {
-            super(resultCode, message, inDoubt);
+        public QueryException(
+            int resultCode, int subCode, String message, ExpressionTrace expTrace, boolean inDoubt
+        ) {
+            super(resultCode, subCode, message, expTrace, inDoubt);
         }
     }
 
@@ -601,8 +676,10 @@ public class AerospikeException extends RuntimeException {
     public static class BatchException extends AerospikeException {
         private static final long serialVersionUID = 1L;
 
-        public BatchException(int resultCode, String message, boolean inDoubt) {
-            super(resultCode, message, inDoubt);
+        public BatchException(
+            int resultCode, int subCode, String message, ExpressionTrace expTrace, boolean inDoubt
+        ) {
+            super(resultCode, subCode, message, expTrace, inDoubt);
         }
     }
 
@@ -612,8 +689,10 @@ public class AerospikeException extends RuntimeException {
     public static class UdfException extends AerospikeException {
         private static final long serialVersionUID = 1L;
 
-        public UdfException(int resultCode, String message, boolean inDoubt) {
-            super(resultCode, message, inDoubt);
+        public UdfException(
+            int resultCode, int subCode, String message, ExpressionTrace expTrace, boolean inDoubt
+        ) {
+            super(resultCode, subCode, message, expTrace, inDoubt);
         }
     }
 
@@ -673,8 +752,8 @@ public class AerospikeException extends RuntimeException {
         private static final long serialVersionUID = 1L;
 
         public InvalidNode(int clusterSize, Partition partition) {
-            super(ResultCode.INVALID_NODE_ERROR,
-                (clusterSize == 0) ? "Cluster is empty" : "Node not found for partition " + partition);
+            super(ResultCode.INVALID_NODE_ERROR, (clusterSize == 0) ?
+                "Cluster is empty" : "Node not found for partition " + partition);
         }
 
         public InvalidNode(int partitionId) {
@@ -693,8 +772,8 @@ public class AerospikeException extends RuntimeException {
         private static final long serialVersionUID = 1L;
 
         public InvalidNamespace(String ns, int mapSize) {
-            super(ResultCode.INVALID_NAMESPACE,
-                (mapSize == 0) ? "Partition map empty" : "Namespace not found in partition map: " + ns);
+            super(ResultCode.INVALID_NAMESPACE, (mapSize == 0) ?
+                "Partition map empty" : "Namespace not found in partition map: " + ns);
         }
     }
 
@@ -748,14 +827,18 @@ public class AerospikeException extends RuntimeException {
          */
         public final List<BatchRecord> rollRecords;
 
-        public Commit(CommitError error, List<BatchRecord> verifyRecords, List<BatchRecord> rollRecords) {
+        public Commit(
+            CommitError error, List<BatchRecord> verifyRecords, List<BatchRecord> rollRecords
+        ) {
             super(ResultCode.TXN_FAILED, error.str);
             this.error = error;
             this.verifyRecords = verifyRecords;
             this.rollRecords = rollRecords;
         }
 
-        public Commit(CommitError error, List<BatchRecord> verifyRecords, List<BatchRecord> rollRecords, Throwable cause) {
+        public Commit(
+            CommitError error, List<BatchRecord> verifyRecords, List<BatchRecord> rollRecords, Throwable cause
+        ) {
             super(ResultCode.TXN_FAILED, error.str, cause);
             this.error = error;
             this.verifyRecords = verifyRecords;
@@ -765,7 +848,8 @@ public class AerospikeException extends RuntimeException {
         /**
          * {@inheritDoc}
          * <p>
-         * Appends a short summary of failed {@link #verifyRecords} and {@link #rollRecords} (up to a few entries each).
+         * Appends a short summary of failed {@link #verifyRecords} and {@link #rollRecords}
+         * (up to a few entries each).
          */
         @Override
         public String getMessage() {
@@ -804,6 +888,12 @@ public class AerospikeException extends RuntimeException {
                 sb.append(',');
                 sb.append(br.resultCode);
                 sb.append(',');
+                sb.append(br.subCode);
+                sb.append(',');
+                sb.append(br.message);
+                sb.append(',');
+                sb.append(br.expTrace);
+                sb.append(',');
                 sb.append(br.inDoubt);
                 count++;
             }
@@ -811,13 +901,10 @@ public class AerospikeException extends RuntimeException {
     }
 
     /**
-     * Same as {@link #resultCodeToException(int, String, boolean)} with {@code inDoubt == false}.
-     *
-     * @param resultCode {@link ResultCode} from the server or client
-     * @param message    detail message (may be {@code null})
+     * Map a server result code to the appropriate exception subclass.
      */
-    public static AerospikeException resultCodeToException(int resultCode, String message) {
-        return resultCodeToException(resultCode, message, false); 
+    public static AerospikeException toException(int resultCode, String message) {
+        return toException(resultCode, SubCode.NONE, message, null, false);
     }
 
     /**
@@ -873,38 +960,43 @@ public class AerospikeException extends RuntimeException {
      * └── Backoff                         MAX_ERROR_RATE
      * </pre>
      */
-    public static AerospikeException resultCodeToException(int resultCode, String message, boolean inDoubt) {
+    public static AerospikeException toException(
+        int resultCode, int subCode, String message, ExpressionTrace expTrace, boolean inDoubt
+    ) {
         switch (resultCode) {
+        // Timeout
+        case ResultCode.TIMEOUT:
+            return new Timeout(resultCode, subCode, message, expTrace, inDoubt);
 
         // Record-level
         case ResultCode.KEY_NOT_FOUND_ERROR:
             return new RecordNotFoundException(resultCode, message, inDoubt);
         case ResultCode.KEY_EXISTS_ERROR:
-            return new RecordExistsException(resultCode, message, inDoubt);
+            return new RecordExistsException(resultCode, subCode, message, expTrace, inDoubt);
         case ResultCode.GENERATION_ERROR:
-            return new GenerationException(resultCode, message, inDoubt);
+            return new GenerationException(resultCode, subCode, message, expTrace, inDoubt);
         case ResultCode.FILTERED_OUT:
-            return new FilteredException(resultCode, message, inDoubt);
+            return new FilteredException(resultCode, subCode, message, expTrace, inDoubt);
         case ResultCode.RECORD_TOO_BIG:
-            return new RecordTooBigException(resultCode, message, inDoubt);
+            return new RecordTooBigException(resultCode, subCode, message, expTrace, inDoubt);
 
         // Bin-level
         case ResultCode.BIN_EXISTS_ERROR:
-            return new BinExistsException(resultCode, message, inDoubt);
+            return new BinExistsException(resultCode, subCode, message, expTrace, inDoubt);
         case ResultCode.BIN_NOT_FOUND:
-            return new BinNotFoundException(resultCode, message, inDoubt);
+            return new BinNotFoundException(resultCode, subCode, message, expTrace, inDoubt);
         case ResultCode.BIN_TYPE_ERROR:
-            return new BinTypeException(resultCode, message, inDoubt);
+            return new BinTypeException(resultCode, subCode, message, expTrace, inDoubt);
         case ResultCode.OP_NOT_APPLICABLE:
-            return new BinOpInvalidException(resultCode, message, inDoubt);
+            return new BinOpInvalidException(resultCode, subCode, message, expTrace, inDoubt);
         case ResultCode.BIN_NAME_TOO_LONG:
-            return new BinException(resultCode, message, inDoubt);
+            return new BinException(resultCode, subCode, message, expTrace, inDoubt);
 
         // CDT element-level
         case ResultCode.ELEMENT_NOT_FOUND:
-            return new ElementNotFoundException(resultCode, message, inDoubt);
+            return new ElementNotFoundException(resultCode, subCode, message, expTrace, inDoubt);
         case ResultCode.ELEMENT_EXISTS:
-            return new ElementExistsException(resultCode, message, inDoubt);
+            return new ElementExistsException(resultCode, subCode, message, expTrace, inDoubt);
 
         // Transaction / MRT
         case ResultCode.TXN_ALREADY_ABORTED:
@@ -917,7 +1009,7 @@ public class AerospikeException extends RuntimeException {
         case ResultCode.MRT_ABORTED:
         case ResultCode.MRT_ALREADY_LOCKED:
         case ResultCode.MRT_MONITOR_EXISTS:
-            return new TransactionException(resultCode, message, inDoubt);
+            return new TransactionException(resultCode, subCode, message, expTrace, inDoubt);
 
         // Security
         case ResultCode.INVALID_USER:
@@ -925,11 +1017,11 @@ public class AerospikeException extends RuntimeException {
         case ResultCode.INVALID_CREDENTIAL:
         case ResultCode.EXPIRED_PASSWORD:
         case ResultCode.NOT_AUTHENTICATED:
-            return new AuthenticationException(resultCode, message, inDoubt);
+            return new AuthenticationException(resultCode, subCode, message, expTrace, inDoubt);
 
         case ResultCode.ROLE_VIOLATION:
         case ResultCode.NOT_WHITELISTED:
-            return new AuthorizationException(resultCode, message, inDoubt);
+            return new AuthorizationException(resultCode, subCode, message, expTrace, inDoubt);
 
         case ResultCode.ILLEGAL_STATE:
         case ResultCode.USER_ALREADY_EXISTS:
@@ -942,17 +1034,17 @@ public class AerospikeException extends RuntimeException {
         case ResultCode.ROLE_ALREADY_EXISTS:
         case ResultCode.INVALID_PRIVILEGE:
         case ResultCode.INVALID_WHITELIST:
-            return new SecurityException(resultCode, message, inDoubt);
+            return new SecurityException(resultCode, subCode, message, expTrace, inDoubt);
 
         // Quota
         case ResultCode.QUOTA_EXCEEDED:
         case ResultCode.QUOTAS_NOT_ENABLED:
         case ResultCode.INVALID_QUOTA:
-            return new QuotaException(resultCode, message, inDoubt);
+            return new QuotaException(resultCode, subCode, message, expTrace, inDoubt);
 
         // Capacity
         case ResultCode.KEY_BUSY:
-            return new KeyBusyException(resultCode, message, inDoubt);
+            return new KeyBusyException(resultCode, subCode, message, expTrace, inDoubt);
         case ResultCode.SERVER_NOT_AVAILABLE:
             return new Connection(message != null ? message : "Connection failed");
         case ResultCode.SERVER_MEM_ERROR:
@@ -960,7 +1052,7 @@ public class AerospikeException extends RuntimeException {
         case ResultCode.NO_MORE_CONNECTIONS:
         case ResultCode.BATCH_QUEUES_FULL:
         case ResultCode.BATCH_MAX_REQUESTS_EXCEEDED:
-            return new CapacityException(resultCode, message, inDoubt);
+            return new CapacityException(resultCode, subCode, message, expTrace, inDoubt);
 
         // Index
         case ResultCode.INDEX_ALREADY_EXISTS:
@@ -970,7 +1062,7 @@ public class AerospikeException extends RuntimeException {
         case ResultCode.INDEX_GENERIC:
         case ResultCode.INDEX_NAME_MAXLEN:
         case ResultCode.INDEX_MAXCOUNT:
-            return new IndexException(resultCode, message, inDoubt);
+            return new IndexException(resultCode, subCode, message, expTrace, inDoubt);
 
         // Query / Scan
         case ResultCode.QUERY_ABORTED:
@@ -978,19 +1070,19 @@ public class AerospikeException extends RuntimeException {
         case ResultCode.QUERY_TIMEOUT:
         case ResultCode.QUERY_GENERIC:
         case ResultCode.SCAN_ABORT:
-            return new QueryException(resultCode, message, inDoubt);
+            return new QueryException(resultCode, subCode, message, expTrace, inDoubt);
 
         // Batch
         case ResultCode.BATCH_FAILED:
         case ResultCode.BATCH_DISABLED:
-            return new BatchException(resultCode, message, inDoubt);
+            return new BatchException(resultCode, subCode, message, expTrace, inDoubt);
 
         // UDF
         case ResultCode.UDF_BAD_RESPONSE:
-            return new UdfException(resultCode, message, inDoubt);
+            return new UdfException(resultCode, subCode, message, expTrace, inDoubt);
 
         default:
-            return new AerospikeException(resultCode, message, inDoubt);
+            return new AerospikeException(resultCode, subCode, message, expTrace, inDoubt);
         }
     }
 }

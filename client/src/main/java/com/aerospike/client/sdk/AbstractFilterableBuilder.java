@@ -94,15 +94,10 @@ public abstract class AbstractFilterableBuilder {
         Session readMappingSession,
         Class<?> readMappingClass
     ) {
-        if (settings.getStackTraceOnException() && isActionableError(br.resultCode)) {
-            return new RecordResult(
-                br,
-                AerospikeException.resultCodeToException(br.resultCode, null, br.inDoubt),
-                index,
-                readMappingSession,
-                readMappingClass);
+        if (isActionableError(br.resultCode)) {
+            return RecordResult.batchError(br, index, readMappingSession, readMappingClass);
         }
-        return new RecordResult(br, index, readMappingSession, readMappingClass);
+        return RecordResult.batchSuccess(br, index, readMappingSession, readMappingClass);
     }
 
     /**
@@ -145,7 +140,7 @@ public abstract class AbstractFilterableBuilder {
      * route to the handler; otherwise publish to the stream.
      */
     static void dispatchResult(RecordResult result, AsyncRecordStream stream, ErrorHandler handler) {
-        if (handler != null && isActionableError(result.resultCode())) {
+        if (handler != null && isActionableError(result.getResultCode())) {
             dispatchError(result, handler);
         } else {
             stream.publish(result);
@@ -159,7 +154,7 @@ public abstract class AbstractFilterableBuilder {
     public static RecordStream filterStreamErrors(RecordStream source, ErrorHandler handler) {
         List<RecordResult> filtered = new ArrayList<>();
         source.forEach(result -> {
-            if (isActionableError(result.resultCode())) {
+            if (isActionableError(result.getResultCode())) {
                 dispatchError(result, handler);
             } else {
                 filtered.add(result);
@@ -169,10 +164,8 @@ public abstract class AbstractFilterableBuilder {
     }
 
     static void dispatchError(RecordResult result, ErrorHandler handler) {
-        AerospikeException ex = result.exception() != null
-            ? result.exception()
-            : AerospikeException.resultCodeToException(result.resultCode(), result.message(), result.inDoubt());
-        handler.handle(result.key(), result.index(), ex);
+        AerospikeException ex = result.toException();
+        handler.handle(result.getKey(), result.getIndex(), ex);
     }
 
     /**
@@ -190,17 +183,19 @@ public abstract class AbstractFilterableBuilder {
         if (isActionableError(resultCode)) {
             switch (disposition) {
                 case ErrorDisposition.Throw ignored -> {
-                    AerospikeException ex = result.exception() != null
-                        ? result.exception()
-                        : AerospikeException.resultCodeToException(resultCode, null, result.inDoubt());
-                    throw ex;
+                     throw result.toException();
                 }
-                case ErrorDisposition.Handler h ->
+
+                case ErrorDisposition.Handler h -> {
                     dispatchError(result, h.errorHandler());
-                case ErrorDisposition.InStream ignored ->
+                }
+
+                case ErrorDisposition.InStream ignored -> {
                     stream.publish(result);
+                }
             }
-        } else {
+        }
+        else {
             stream.publish(result);
         }
     }

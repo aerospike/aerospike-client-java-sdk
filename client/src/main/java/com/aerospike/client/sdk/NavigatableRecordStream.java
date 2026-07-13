@@ -461,7 +461,7 @@ public class NavigatableRecordStream implements ResettablePagination, Closeable 
         while (hasNext()) {
             RecordResult keyRecord = next();
             Record rec = keyRecord.recordOrThrow();
-            result.add(mapper.fromMap(rec.bins, keyRecord.key(), rec.generation));
+            result.add(mapper.fromMap(rec.bins, keyRecord.getKey(), rec.generation));
         }
         return result;
     }
@@ -510,7 +510,7 @@ public class NavigatableRecordStream implements ResettablePagination, Closeable 
         if (hasNext()) {
             RecordResult item = next();
             Record rec = item.recordOrThrow();
-            return Optional.of(mapper.fromMap(rec.bins, item.key(), rec.generation));
+            return Optional.of(mapper.fromMap(rec.bins, item.getKey(), rec.generation));
         }
         return Optional.empty();
     }

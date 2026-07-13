@@ -174,14 +174,14 @@ public class ListExpTest extends ClusterTest {
 
         assertTrue(rs.hasNext());
         RecordResult match = rs.next();
-        assertEquals(ResultCode.OK, match.resultCode());
+        assertEquals(ResultCode.OK, match.getResultCode());
         Record rec = match.recordOrThrow();
         List<?> result = rec.getList(binA);
         assertNotNull(result);
         assertEquals(2, result.size());
 
         assertTrue(rs.hasNext());
-        assertEquals(ResultCode.FILTERED_OUT, rs.next().resultCode());
+        assertEquals(ResultCode.FILTERED_OUT, rs.next().getResultCode());
         assertFalse(rs.hasNext());
     }
 

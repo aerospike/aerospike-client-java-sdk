@@ -223,7 +223,7 @@ public final class CommandBuffer {
 
             for (Operation op : rec.ops) {
                 if (op.type.isWrite) {
-                    throw AerospikeException.resultCodeToException(ResultCode.PARAMETER_ERROR, "Write operations not allowed in read");
+                    throw AerospikeException.toException(ResultCode.PARAMETER_ERROR, "Write operations not allowed in read");
                 }
                 estimateOperationSize(op);
             }
@@ -1138,7 +1138,7 @@ public final class CommandBuffer {
             // Estimate size for background operations.
             for (Operation operation : operations) {
                 if (! operation.type.isWrite) {
-                    throw AerospikeException.resultCodeToException(ResultCode.PARAMETER_ERROR,
+                    throw AerospikeException.toException(ResultCode.PARAMETER_ERROR,
                         "Background query operations must be write-only. Use query for read-only operations");
                 }
                 estimateOperationSize(operation);
@@ -1521,7 +1521,7 @@ public final class CommandBuffer {
         dataBuffer[9]  = (byte)readAttr;
         dataBuffer[10] = (byte)writeAttr;
         dataBuffer[11] = (byte)0;
-        dataBuffer[12] = 0;
+        dataBuffer[12] = cmd.getErrorDetailBits();
         dataBuffer[13] = 0;
         Buffer.intToBytes(0, dataBuffer, 14);
         Buffer.intToBytes(0, dataBuffer, 18);
@@ -1613,7 +1613,6 @@ public final class CommandBuffer {
     ) {
         // Set flags.
         int infoAttr = 0;
-        int txnAttr = 0;
 
         switch (cmd.type) {
         default:
@@ -1658,7 +1657,7 @@ public final class CommandBuffer {
         dataBuffer[9]  = (byte)readAttr;
         dataBuffer[10] = (byte)writeAttr;
         dataBuffer[11] = (byte)infoAttr;
-        dataBuffer[12] = (byte)txnAttr;
+        dataBuffer[12] = cmd.getErrorDetailBits();
         dataBuffer[13] = 0; // clear the result code
         Buffer.intToBytes(cmd.gen, dataBuffer, 14);
         Buffer.intToBytes(cmd.ttl, dataBuffer, 18);
@@ -1699,8 +1698,9 @@ public final class CommandBuffer {
         dataBuffer[9] = (byte)readAttr;
         dataBuffer[10] = (byte)writeAttr;
         dataBuffer[11] = (byte)infoAttr;
+        dataBuffer[12] = cmd.getErrorDetailBits();
 
-        for (int i = 12; i < 18; i++) {
+        for (int i = 13; i < 18; i++) {
             dataBuffer[i] = 0;
         }
         Buffer.intToBytes(cmd.readTouchTtlPercent, dataBuffer, 18);

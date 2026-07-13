@@ -95,7 +95,7 @@ public class QueryKeyTest extends ClusterTest {
             int count = 0;
             while (rs.hasNext()) {
                 RecordResult result = rs.next();
-                Key key = result.key();
+                Key key = result.getKey();
                 assertNotNull(key.userKey);
 
                 Object userkey = key.userKey.getObject();

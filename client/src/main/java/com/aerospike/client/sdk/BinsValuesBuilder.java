@@ -278,7 +278,7 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder
      */
     public BinsValuesBuilder notInAnyTransaction() {
         if (transactionSet) {
-            throw AerospikeException.resultCodeToException(ResultCode.PARAMETER_ERROR,
+            throw AerospikeException.toException(ResultCode.PARAMETER_ERROR,
                 "The transaction mode has already been set");
         }
         this.transactionSet = true;
@@ -307,7 +307,7 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder
      */
     public BinsValuesBuilder inTransaction(Txn txn) {
         if (transactionSet) {
-            throw AerospikeException.resultCodeToException(ResultCode.PARAMETER_ERROR,
+            throw AerospikeException.toException(ResultCode.PARAMETER_ERROR,
                 "The transaction mode has already been set");
         }
         this.transactionSet = true;
@@ -715,37 +715,36 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder
 
         for (int i = 0; i < keys.size(); i++) {
             BatchRecord br = records.get(i);
+
             boolean include = switch (br.resultCode) {
                 case ResultCode.FILTERED_OUT -> isWrite || failOnFilteredOut;
                 case ResultCode.KEY_NOT_FOUND_ERROR -> isWrite || includeMissingKeys;
                 default -> true;
             };
+
             if (!include) {
                 continue;
-            }
-
-            RecordResult result;
-            if (settings.getStackTraceOnException() && AbstractFilterableBuilder.isActionableError(br.resultCode)) {
-                result = new RecordResult(br,
-                        AerospikeException.resultCodeToException(br.resultCode, null, br.inDoubt), i);
-            } else {
-                result = new RecordResult(br, i);
             }
 
             if (AbstractFilterableBuilder.isActionableError(br.resultCode)) {
                 switch (disposition) {
                     case ErrorDisposition.Throw ignored -> {
-                        AerospikeException ex = result.exception() != null
-                            ? result.exception()
-                            : AerospikeException.resultCodeToException(br.resultCode, null, br.inDoubt);
-                        throw ex;
+                        throw br.toException();
                     }
-                    case ErrorDisposition.Handler h ->
+
+                    case ErrorDisposition.Handler h -> {
+                        RecordResult result = RecordResult.batchError(br, i);
                         AbstractFilterableBuilder.dispatchError(result, h.errorHandler());
-                    case ErrorDisposition.InStream ignored ->
+                    }
+
+                    case ErrorDisposition.InStream ignored -> {
+                        RecordResult result = RecordResult.batchError(br, i);
                         results.add(result);
+                    }
                 }
-            } else {
+            }
+            else {
+                RecordResult result = RecordResult.batchSuccess(br, i);
                 results.add(result);
             }
         }

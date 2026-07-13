@@ -17,11 +17,27 @@
 package com.aerospike.client.sdk;
 
 /**
- * Concrete {@link ListWriteOptions} for single-item list write operations
- * (listAppend, listAdd, listInsert, listSet, listIncrement).
- *
- * <p>Inherits {@code addUnique()}, {@code insertBounded()}, and {@code allowFailures()}
- * from the base class with correct return types thanks to the self-referencing generic.</p>
+ * Detail level for server returned errors.
+ * Requires server versions 8.1.3+.
  */
-public class ListEntryWriteOptions extends ListWriteOptions<ListEntryWriteOptions> {
+public final class ErrorDetailVerbosity {
+    /**
+     * Default. Do not include additional error details.
+     */
+    public static final int NONE = 0;
+
+    /**
+     * Include server sub-code.
+     */
+    public static final int SUBCODE = 1;
+
+    /**
+     * Include server sub-code and error message.
+     */
+    public static final int MESSAGE = 2;
+
+    /**
+     * Include server sub-code, error message and expression trace.
+     */
+    public static final int EXPRESSION_TRACE = 3;
 }

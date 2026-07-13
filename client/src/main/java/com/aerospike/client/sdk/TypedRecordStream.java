@@ -77,7 +77,7 @@ public final class TypedRecordStream<T> implements Iterator<RecordResult>, Itera
 
     private T mapOk(RecordResult rr) {
         Record rec = rr.recordOrThrow();
-        return requireMapper().fromMap(rec.bins, rr.key(), rec.generation, mappingContext());
+        return requireMapper().fromMap(rec.bins, rr.getKey(), rec.generation, mappingContext());
     }
 
     /**
@@ -157,7 +157,7 @@ public final class TypedRecordStream<T> implements Iterator<RecordResult>, Itera
      *
      * <pre>
      * try (Stream&lt;RecordResult&gt; s = typedStream.stream()) {
-     *     s.forEach(rr -&gt; System.out.println(rr.key()));
+     *     s.forEach(rr -&gt; System.out.println(rr.getKey()));
      * }
      * </pre>
      *
@@ -230,7 +230,7 @@ public final class TypedRecordStream<T> implements Iterator<RecordResult>, Itera
             List<T> results = new ArrayList<>(list.size());
             for (RecordResult rr : list) {
                 Record rec = rr.recordOrThrow();
-                results.add(mapper.fromMap(rec.bins, rr.key(), rec.generation, ctx));
+                results.add(mapper.fromMap(rec.bins, rr.getKey(), rec.generation, ctx));
             }
             return results;
         });
@@ -354,7 +354,7 @@ public final class TypedRecordStream<T> implements Iterator<RecordResult>, Itera
             while (hasNext()) {
                 RecordResult keyRecord = next();
                 Record rec = keyRecord.recordOrThrow();
-                result.add(mapper.fromMap(rec.bins, keyRecord.key(), rec.generation, ctx));
+                result.add(mapper.fromMap(rec.bins, keyRecord.getKey(), rec.generation, ctx));
             }
             return result;
         } finally {
@@ -447,7 +447,7 @@ public final class TypedRecordStream<T> implements Iterator<RecordResult>, Itera
             while (hasNext()) {
                 RecordResult rr = next();
                 Record rec = rr.recordOrThrow();
-                consumer.accept(mapper.fromMap(rec.bins, rr.key(), rec.generation, ctx));
+                consumer.accept(mapper.fromMap(rec.bins, rr.getKey(), rec.generation, ctx));
             }
         } finally {
             close();
@@ -491,7 +491,7 @@ public final class TypedRecordStream<T> implements Iterator<RecordResult>, Itera
         try {
             while (hasNext()) {
                 RecordResult thisRecord = next();
-                if (thisRecord.key().equals(key)) {
+                if (thisRecord.getKey().equals(key)) {
                     return Optional.of(mapOk(thisRecord));
                 }
             }
@@ -520,9 +520,9 @@ public final class TypedRecordStream<T> implements Iterator<RecordResult>, Itera
             RecordReadContext<T> ctx = mappingContext();
             while (hasNext()) {
                 RecordResult thisRecord = next();
-                if (thisRecord.key().equals(key)) {
+                if (thisRecord.getKey().equals(key)) {
                     Record rec = thisRecord.recordOrThrow();
-                    return Optional.of(mapper.fromMap(rec.bins, thisRecord.key(), rec.generation, ctx));
+                    return Optional.of(mapper.fromMap(rec.bins, thisRecord.getKey(), rec.generation, ctx));
                 }
             }
             return Optional.empty();
@@ -554,7 +554,7 @@ public final class TypedRecordStream<T> implements Iterator<RecordResult>, Itera
      * For a terminal first-element read, use {@link #getFirst(boolean)}.</p>
      *
      * @param throwException if {@code true}, non-OK result codes throw; if {@code false}, inspect
-     *        {@link RecordResult#resultCode()} on the returned value
+     *        {@link RecordResult#getResultCode()} on the returned value
      * @return an {@link Optional} containing the next result, or empty if the stream is exhausted
      */
     public Optional<RecordResult> pop(boolean throwException) {
@@ -591,7 +591,7 @@ public final class TypedRecordStream<T> implements Iterator<RecordResult>, Itera
         if (hasNext()) {
             RecordResult item = next();
             Record rec = item.recordOrThrow();
-            return Optional.of(mapper.fromMap(rec.bins, item.key(), rec.generation, mappingContext()));
+            return Optional.of(mapper.fromMap(rec.bins, item.getKey(), rec.generation, mappingContext()));
         }
         return Optional.empty();
     }
@@ -681,7 +681,7 @@ public final class TypedRecordStream<T> implements Iterator<RecordResult>, Itera
         if (hasNext()) {
             RecordResult item = next();
             Record rec = item.recordOrThrow();
-            T object = mapper.fromMap(rec.bins, item.key(), rec.generation, mappingContext());
+            T object = mapper.fromMap(rec.bins, item.getKey(), rec.generation, mappingContext());
             return Optional.of(new RecordStream.ObjectWithMetadata<>(object, rec));
         }
         return Optional.empty();
@@ -707,7 +707,7 @@ public final class TypedRecordStream<T> implements Iterator<RecordResult>, Itera
         }
         RecordResult item = rr.get();
         Record rec = item.recordOrThrow();
-        T object = requireMapper().fromMap(rec.bins, item.key(), rec.generation, mappingContext());
+        T object = requireMapper().fromMap(rec.bins, item.getKey(), rec.generation, mappingContext());
         return Optional.of(new RecordStream.ObjectWithMetadata<>(object, rec));
     }
 
@@ -734,7 +734,7 @@ public final class TypedRecordStream<T> implements Iterator<RecordResult>, Itera
      * that closes the stream.</p>
      *
      * @param throwException if {@code true}, non-OK result codes throw; if {@code false}, inspect
-     *        {@link RecordResult#resultCode()} on the returned value
+     *        {@link RecordResult#getResultCode()} on the returned value
      * @return an {@link Optional} containing the first result, or empty if the stream is empty
      */
     public Optional<RecordResult> getFirst(boolean throwException) {

@@ -38,7 +38,7 @@ public class OperateBitTest extends ClusterTest {
     private static final Key key = args.set.id("opbkey1");
 
     private Record executeOperations(Operation... operations) {
-        ChainableOperationBuilder builder = session.update(key).appendOperations(operations);
+        ChainableOperationBuilder builder = session.upsert(key).appendOperations(operations);
         RecordStream rs = builder.execute();
         assertTrue(rs.hasNext());
         return rs.next().recordOrThrow();
@@ -70,6 +70,14 @@ public class OperateBitTest extends ClusterTest {
         }
     }
 
+    public static String bytesToString(byte[] bytes) {
+        StringBuilder sb = new StringBuilder(bytes.length * 3);
+        for (byte b : bytes) {
+            sb.append(String.format("%02X ", b));
+        }
+        return sb.toString();
+    }
+
     @Test
     public void operateBitBinFluent() {
         byte[] bit0 = new byte[] {(byte) 0x80};
@@ -77,27 +85,31 @@ public class OperateBitTest extends ClusterTest {
 
         session.delete(key).execute();
 
-        session.update(key)
+        session.upsert(key)
+            .bin(binName).setTo(new byte[] {0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08})
+            .execute();
+
+        session.upsert(key)
             .bin(binName).bitSet(1, 1, bit0)
             .bin(binName).bitSet(3, 1, bit0, opt -> opt.updateOnly())
             .bin(binName).bitRemove(6, 2, opt -> opt.updateOnly())
             .execute();
 
-        Record record = session.query(key).bin(binName).get().execute().next().recordOrThrow();
+        Record record = session.query(key).bin(binName).get().execute().getFirstRecord();
         assertArrayEquals(
             new byte[] {0x51, 0x02, 0x03, 0x04, 0x05, 0x06},
             record.getBytes(binName));
 
         session.delete(key).execute();
 
-        session.update(key)
+        session.upsert(key)
             .bin(binName).bitInsert(1, bytes1, opt -> opt.createOnly())
             .execute();
 
         record = session.query(key).bin(binName).get().execute().next().recordOrThrow();
         assertArrayEquals(new byte[] {0x00, 0x0A}, record.getBytes(binName));
 
-        assertThrows(AerospikeException.class, 17,
+        assertThrows(AerospikeException.BinNotFoundException.class, 17,
             BitOperation.set(BitPolicy.Default, "b", 1, 1, bit0));
 
         assertThrows(AerospikeException.class, 4,
@@ -126,7 +138,7 @@ public class OperateBitTest extends ClusterTest {
             BitOperation.insert(addMode, binName, 1, bytes1)
         );
 
-        assertThrows(AerospikeException.class, 17,
+        assertThrows(AerospikeException.BinNotFoundException.class, 17,
             BitOperation.set(putMode, "b", 1, 1, bit0));
 
         assertThrows(AerospikeException.class, 4,
@@ -349,17 +361,17 @@ public class OperateBitTest extends ClusterTest {
             .bin(binName).setTo(initial)
             .execute();
 
-        assertThrows(AerospikeException.class, 26,
+        assertThrows(AerospikeException.BinOpInvalidException.class, 26,
             BitOperation.add(putMode, binName, 0, 8, 0xFF, false, BitOverflowAction.FAIL),
             BitOperation.add(putMode, binName, 0, 8, 0xFF, false, BitOverflowAction.FAIL)
         );
 
-        assertThrows(AerospikeException.class, 26,
+        assertThrows(AerospikeException.BinOpInvalidException.class, 26,
             BitOperation.add(putMode, binName, 0, 8, 0x7F, true, BitOverflowAction.FAIL),
             BitOperation.add(putMode, binName, 0, 8, 0x02, true, BitOverflowAction.FAIL)
         );
 
-        assertThrows(AerospikeException.class, 26,
+        assertThrows(AerospikeException.BinOpInvalidException.class, 26,
             BitOperation.add(putMode, binName, 0, 8, 0x81, true, BitOverflowAction.FAIL),
             BitOperation.add(putMode, binName, 0, 8, 0xFE, true, BitOverflowAction.FAIL)
         );
@@ -426,16 +438,16 @@ public class OperateBitTest extends ClusterTest {
             .bin(binName).setTo(initial)
             .execute();
 
-        assertThrows(AerospikeException.class, 26,
+        assertThrows(AerospikeException.BinOpInvalidException.class, 26,
             BitOperation.subtract(putMode, binName, 0, 8, 1, false, BitOverflowAction.FAIL)
         );
 
-        assertThrows(AerospikeException.class, 26,
+        assertThrows(AerospikeException.BinOpInvalidException.class, 26,
             BitOperation.subtract(putMode, binName, 0, 8, 0x7F, true, BitOverflowAction.FAIL),
             BitOperation.subtract(putMode, binName, 0, 8, 0x02, true, BitOverflowAction.FAIL)
         );
 
-        assertThrows(AerospikeException.class, 26,
+        assertThrows(AerospikeException.BinOpInvalidException.class, 26,
             BitOperation.subtract(putMode, binName, 0, 8, 0x81, true, BitOverflowAction.FAIL),
             BitOperation.subtract(putMode, binName, 0, 8, 0xFE, true, BitOverflowAction.FAIL)
         );
@@ -934,39 +946,39 @@ public class OperateBitTest extends ClusterTest {
         session.delete(key).execute();
         session.upsert(key).bin(binName).setTo(initial).execute();
 
-        assertThrows(AerospikeException.class, 26,
+        assertThrows(AerospikeException.BinOpInvalidException.class, 26,
             BitOperation.set(policy, binName, 0, 1, buf));
-        assertThrows(AerospikeException.class, 26,
+        assertThrows(AerospikeException.BinOpInvalidException.class, 26,
             BitOperation.or(policy, binName, 0, 1, buf));
-        assertThrows(AerospikeException.class, 26,
+        assertThrows(AerospikeException.BinOpInvalidException.class, 26,
             BitOperation.xor(policy, binName, 0, 1, buf));
-        assertThrows(AerospikeException.class, 26,
+        assertThrows(AerospikeException.BinOpInvalidException.class, 26,
             BitOperation.and(policy, binName, 0, 1, buf));
-        assertThrows(AerospikeException.class, 26,
+        assertThrows(AerospikeException.BinOpInvalidException.class, 26,
             BitOperation.not(policy, binName, 0, 1));
-        assertThrows(AerospikeException.class, 26,
+        assertThrows(AerospikeException.BinOpInvalidException.class, 26,
             BitOperation.lshift(policy, binName, 0, 1, 1));
-        assertThrows(AerospikeException.class, 26,
+        assertThrows(AerospikeException.BinOpInvalidException.class, 26,
             BitOperation.rshift(policy, binName, 0, 1, 1));
         // OK for insert.
         assertThrows(AerospikeException.class, 4,
             BitOperation.remove(policy, binName, 0, 1));
-        assertThrows(AerospikeException.class, 26,
+        assertThrows(AerospikeException.BinOpInvalidException.class, 26,
             BitOperation.add(policy, binName, 0, 1, 1, false, BitOverflowAction.FAIL));
-        assertThrows(AerospikeException.class, 26,
+        assertThrows(AerospikeException.BinOpInvalidException.class, 26,
             BitOperation.subtract(policy, binName, 0, 1, 1, false, BitOverflowAction.FAIL));
-        assertThrows(AerospikeException.class, 26,
+        assertThrows(AerospikeException.BinOpInvalidException.class, 26,
             BitOperation.setInt(policy, binName, 0, 1, 1));
 
-        assertThrows(AerospikeException.class, 26,
+        assertThrows(AerospikeException.BinOpInvalidException.class, 26,
             BitOperation.get(binName, 0, 1));
-        assertThrows(AerospikeException.class, 26,
+        assertThrows(AerospikeException.BinOpInvalidException.class, 26,
             BitOperation.count(binName, 0, 1));
-        assertThrows(AerospikeException.class, 26,
+        assertThrows(AerospikeException.BinOpInvalidException.class, 26,
             BitOperation.lscan(binName, 0, 1, true));
-        assertThrows(AerospikeException.class, 26,
+        assertThrows(AerospikeException.BinOpInvalidException.class, 26,
             BitOperation.rscan(binName, 0, 1, true));
-        assertThrows(AerospikeException.class, 26,
+        assertThrows(AerospikeException.BinOpInvalidException.class, 26,
             BitOperation.getInt(binName, 0, 1, false));
     }
 

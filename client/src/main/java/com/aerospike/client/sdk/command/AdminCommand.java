@@ -110,7 +110,7 @@ public class AdminCommand {
                             "Please authenticate using your certificate.";
                 }
 
-                throw AerospikeException.resultCodeToException(result, msg);
+                throw AerospikeException.toException(result, msg);
             }
 
             // Read session token.
@@ -119,7 +119,7 @@ public class AdminCommand {
             int fieldCount = dataBuffer[11] & 0xFF;
 
             if (receiveSize <= 0 || receiveSize > dataBuffer.length || fieldCount <= 0) {
-                throw AerospikeException.resultCodeToException(result, "Failed to retrieve session token");
+                throw AerospikeException.toException(result, "Failed to retrieve session token");
             }
 
             conn.readFully(dataBuffer, receiveSize);
@@ -151,7 +151,7 @@ public class AdminCommand {
             }
 
             if (sessionToken == null) {
-                throw AerospikeException.resultCodeToException(result, "Failed to retrieve session token");
+                throw AerospikeException.toException(result, "Failed to retrieve session token");
             }
         }
     }

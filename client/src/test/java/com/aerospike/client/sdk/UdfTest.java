@@ -501,11 +501,11 @@ public class UdfTest extends ClusterTest {
 
         assertTrue(rs.hasNext());
         RecordResult res = rs.next();
-        assertEquals(ResultCode.UDF_BAD_RESPONSE, res.resultCode());
+        assertEquals(ResultCode.UDF_BAD_RESPONSE, res.getResultCode());
 
         assertTrue(rs.hasNext());
         res = rs.next();
-        assertEquals(ResultCode.UDF_BAD_RESPONSE, res.resultCode());
+        assertEquals(ResultCode.UDF_BAD_RESPONSE, res.getResultCode());
 
         assertFalse(rs.hasNext());
     }
@@ -530,15 +530,15 @@ public class UdfTest extends ClusterTest {
 
         assertTrue(rs.hasNext());
         RecordResult res = rs.next();
-        assertEquals(ResultCode.OK, res.resultCode());
+        assertEquals(ResultCode.OK, res.getResultCode());
 
         assertTrue(rs.hasNext());
         res = rs.next();
-        assertEquals(ResultCode.OK, res.resultCode());
+        assertEquals(ResultCode.OK, res.getResultCode());
 
         assertTrue(rs.hasNext());
         res = rs.next();
-        assertEquals(ResultCode.UDF_BAD_RESPONSE, res.resultCode());
+        assertEquals(ResultCode.UDF_BAD_RESPONSE, res.getResultCode());
 
         assertFalse(rs.hasNext());
 
