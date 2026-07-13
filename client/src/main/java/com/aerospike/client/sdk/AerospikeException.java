@@ -359,6 +359,13 @@ public class AerospikeException extends RuntimeException {
             super.iteration = 1;
             this.client = true;
         }
+
+        public Timeout(
+            int resultCode, int subCode, String message, ExpressionTrace expTrace, boolean inDoubt
+        ) {
+            super(resultCode, subCode, message, expTrace, inDoubt);
+            this.client = false;
+        }
     }
 
     /**
@@ -457,8 +464,10 @@ public class AerospikeException extends RuntimeException {
     public static class FilteredException extends AerospikeException {
         private static final long serialVersionUID = 1L;
 
-        public FilteredException(int resultCode, String message, boolean inDoubt) {
-            super(resultCode, SubCode.NONE, message, null, inDoubt);
+        public FilteredException(
+            int resultCode, int subCode, String message, ExpressionTrace expTrace, boolean inDoubt
+        ) {
+            super(resultCode, subCode, message, expTrace, inDoubt);
         }
     }
 
@@ -955,6 +964,10 @@ public class AerospikeException extends RuntimeException {
         int resultCode, int subCode, String message, ExpressionTrace expTrace, boolean inDoubt
     ) {
         switch (resultCode) {
+        // Timeout
+        case ResultCode.TIMEOUT:
+            return new Timeout(resultCode, subCode, message, expTrace, inDoubt);
+
         // Record-level
         case ResultCode.KEY_NOT_FOUND_ERROR:
             return new RecordNotFoundException(resultCode, message, inDoubt);
@@ -963,7 +976,7 @@ public class AerospikeException extends RuntimeException {
         case ResultCode.GENERATION_ERROR:
             return new GenerationException(resultCode, subCode, message, expTrace, inDoubt);
         case ResultCode.FILTERED_OUT:
-            return new FilteredException(resultCode, message, inDoubt);
+            return new FilteredException(resultCode, subCode, message, expTrace, inDoubt);
         case ResultCode.RECORD_TOO_BIG:
             return new RecordTooBigException(resultCode, subCode, message, expTrace, inDoubt);
 
