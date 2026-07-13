@@ -33,6 +33,7 @@ import com.aerospike.client.sdk.policy.QueryDuration;
 import com.aerospike.client.sdk.policy.ReadModeAP;
 import com.aerospike.client.sdk.query.Filter;
 import com.aerospike.client.sdk.query.IndexCollectionType;
+import com.aerospike.client.sdk.query.plan.QueryWhereWire;
 import com.aerospike.client.sdk.util.Packer;
 
 public final class CommandBuffer {
@@ -809,8 +810,7 @@ public final class CommandBuffer {
 
             // Estimate INDEX_RANGE field.
             dataOffset += Command.FIELD_HEADER_SIZE;
-            filterSize++;  // num filters
-            filterSize += filter.estimateSize();
+            filterSize += indexRangeBodySize(filter);
 
             dataOffset += filterSize;
             fieldCount++;
@@ -834,7 +834,11 @@ public final class CommandBuffer {
             }
         }
 
-        if (cmd.where != null) {
+        if (cmd.executeWhereBytes != null) {
+            dataOffset += Command.FIELD_HEADER_SIZE + cmd.executeWhereBytes.length;
+            fieldCount++;
+        }
+        else if (cmd.where != null) {
             sizeFieldExpression(cmd.where);
             fieldCount++;
         }
@@ -966,8 +970,7 @@ public final class CommandBuffer {
             }
 
             writeFieldHeader(filterSize, FieldType.INDEX_RANGE);
-            dataBuffer[dataOffset++] = (byte)1;
-            dataOffset = filter.write(dataBuffer, dataOffset);
+            dataOffset = writeIndexRangeBody(filter, dataOffset);
 
             if (packedCtx != null) {
                 writeFieldHeader(packedCtx.length, FieldType.INDEX_CONTEXT);
@@ -986,7 +989,12 @@ public final class CommandBuffer {
             }
         }
 
-        if (cmd.where != null) {
+        if (cmd.executeWhereBytes != null) {
+            writeFieldHeader(cmd.executeWhereBytes.length, FieldType.WHERE);
+            System.arraycopy(cmd.executeWhereBytes, 0, dataBuffer, dataOffset, cmd.executeWhereBytes.length);
+            dataOffset += cmd.executeWhereBytes.length;
+        }
+        else if (cmd.where != null) {
             writeFieldExpression(cmd.where);
         }
 
@@ -1031,6 +1039,76 @@ public final class CommandBuffer {
                 writeOperation(binName, Operation.Type.READ);
             }
         }
+
+        end();
+    }
+
+    /**
+     * Encode a query explain ({@link IndexProbeCommand}): field {@code 44} WHERE with EXPLAIN flag.
+     */
+    public void setQueryExplain(IndexProbeCommand cmd) {
+        byte[] whereBytes = QueryWhereWire.forExplain(cmd.whereFlags, cmd.ael);
+
+        int fieldCount = 0;
+        boolean hasHint = cmd.indexNameHint != null && !cmd.indexNameHint.isBlank();
+
+        begin();
+
+        dataOffset += Buffer.estimateSizeUtf8(cmd.namespace) + Command.FIELD_HEADER_SIZE;
+        fieldCount++;
+
+        if (cmd.set != null && !cmd.set.isEmpty()) {
+            dataOffset += Buffer.estimateSizeUtf8(cmd.set) + Command.FIELD_HEADER_SIZE;
+            fieldCount++;
+        }
+
+        dataOffset += 4 + Command.FIELD_HEADER_SIZE;
+        fieldCount++;
+
+        dataOffset += 8 + Command.FIELD_HEADER_SIZE;
+        fieldCount++;
+
+        if (hasHint) {
+            dataOffset += Buffer.estimateSizeUtf8(cmd.indexNameHint) + Command.FIELD_HEADER_SIZE;
+            fieldCount++;
+        }
+
+        dataOffset += whereBytes.length + Command.FIELD_HEADER_SIZE;
+        fieldCount++;
+
+        sizeBuffer();
+
+        dataBuffer[8] = Command.MSG_REMAINING_HEADER_SIZE;
+        dataBuffer[9] = (byte) Command.INFO1_READ;
+        dataBuffer[10] = 0;
+        dataBuffer[11] = 0;
+
+        for (int i = 12; i < 18; i++) {
+            dataBuffer[i] = 0;
+        }
+
+        Buffer.intToBytes(0, dataBuffer, 18);
+        Buffer.intToBytes(cmd.totalTimeout, dataBuffer, 22);
+        Buffer.shortToBytes(fieldCount, dataBuffer, 26);
+        Buffer.shortToBytes(0, dataBuffer, 28);
+        dataOffset = Command.MSG_TOTAL_HEADER_SIZE;
+
+        writeField(cmd.namespace, FieldType.NAMESPACE);
+
+        if (cmd.set != null && !cmd.set.isEmpty()) {
+            writeField(cmd.set, FieldType.TABLE);
+        }
+
+        writeField(cmd.socketTimeout, FieldType.SOCKET_TIMEOUT);
+        writeField(cmd.taskId, FieldType.QUERY_ID);
+
+        if (hasHint) {
+            writeField(cmd.indexNameHint, FieldType.INDEX_NAME);
+        }
+
+        writeFieldHeader(whereBytes.length, FieldType.WHERE);
+        System.arraycopy(whereBytes, 0, dataBuffer, dataOffset, whereBytes.length);
+        dataOffset += whereBytes.length;
 
         end();
     }
@@ -1084,8 +1162,7 @@ public final class CommandBuffer {
 
             // Estimate INDEX_RANGE field.
             dataOffset += Command.FIELD_HEADER_SIZE;
-            filterSize++;  // num filters
-            filterSize += filter.estimateSize();
+            filterSize += indexRangeBodySize(filter);
 
             dataOffset += filterSize;
             fieldCount++;
@@ -1224,8 +1301,7 @@ public final class CommandBuffer {
             }
 
             writeFieldHeader(filterSize, FieldType.INDEX_RANGE);
-            dataBuffer[dataOffset++] = (byte)1;
-            dataOffset = filter.write(dataBuffer, dataOffset);
+            dataOffset = writeIndexRangeBody(filter, dataOffset);
 
             if (packedCtx != null) {
                 writeFieldHeader(packedCtx.length, FieldType.INDEX_CONTEXT);
@@ -1905,6 +1981,21 @@ public final class CommandBuffer {
                 def.end();
             }
         }
+    }
+
+    private static int indexRangeBodySize(Filter filter) {
+        if (filter.hasWireRange()) {
+            return filter.estimateSize();
+        }
+        return 1 + filter.estimateSize();
+    }
+
+    private int writeIndexRangeBody(Filter filter, int offset) {
+        if (filter.hasWireRange()) {
+            return filter.write(dataBuffer, offset);
+        }
+        dataBuffer[offset++] = (byte)1;
+        return filter.write(dataBuffer, offset);
     }
 
     //--------------------------------------------------

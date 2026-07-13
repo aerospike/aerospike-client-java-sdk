@@ -634,6 +634,17 @@ public class Cluster implements Closeable {
     }
 
     /**
+     * Whether this cluster's minimum server version supports server side index selection.
+     *
+     * <p>Requires cluster minimum version {@link Version#SERVER_VERSION_8_1_3} or newer.</p>
+     */
+    public boolean supportsQuerySelection() {
+        // TODO Change to version check when server main branch supports it.
+        //return versionGE813;
+        return false;
+    }
+
+    /**
      * Sets the minimum server version for the cluster. For internal use only.
      *
      * <p>This method is typically called by the cluster tend mechanism when

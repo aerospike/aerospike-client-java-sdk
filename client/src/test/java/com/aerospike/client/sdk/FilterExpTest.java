@@ -478,6 +478,7 @@ public class FilterExpTest extends ClusterTest {
     }
 
     @Test
+    //@Disabled("Pending fix on server side")
     public void filterSub() {
         Exp exp =
             Exp.eq(
