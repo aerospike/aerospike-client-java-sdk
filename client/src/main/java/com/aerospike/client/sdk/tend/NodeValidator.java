@@ -282,7 +282,7 @@ public final class NodeValidator {
             }
         }
 
-        String userAgent = "1,java-" + def.getClientVersion() + "," + appIdValue;
+        String userAgent = "1,java-sdk-" + def.getClientVersion() + "," + appIdValue;
 
         return Crypto.encodeBase64(userAgent.getBytes());
     }

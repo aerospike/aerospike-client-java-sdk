@@ -270,7 +270,7 @@ public class RecordStream implements Iterator<RecordResult>, Closeable {
      *     session.query(dataSet.id("k1", "k2")).executeAsync(ErrorStrategy.IN_STREAM)
      *            .asCompletableFuture();
      *
-     * future.thenAccept(results -&gt; results.forEach(r -&gt; System.out.println(r.key())));
+     * future.thenAccept(results -&gt; results.forEach(r -&gt; System.out.println(r.getKey())));
      * </pre>
      *
      * @return a CompletableFuture that completes with all results from this stream
@@ -324,7 +324,7 @@ public class RecordStream implements Iterator<RecordResult>, Closeable {
                 List<RecordResult> results = new ArrayList<>();
                 while (hasNext()) {
                     RecordResult rr = next();
-                    if (handler != null && AbstractFilterableBuilder.isActionableError(rr.resultCode())) {
+                    if (handler != null && AbstractFilterableBuilder.isActionableError(rr.getResultCode())) {
                         AbstractFilterableBuilder.dispatchError(rr, handler);
                     } else {
                         results.add(rr);
@@ -363,7 +363,7 @@ public class RecordStream implements Iterator<RecordResult>, Closeable {
             List<T> results = new ArrayList<>(list.size());
             for (RecordResult rr : list) {
                 Record rec = rr.recordOrThrow();
-                results.add(mapper.fromMap(rec.bins, rr.key(), rec.generation));
+                results.add(mapper.fromMap(rec.bins, rr.getKey(), rec.generation));
             }
             return results;
         });
@@ -569,8 +569,8 @@ public class RecordStream implements Iterator<RecordResult>, Closeable {
      * RecordStream results = session.update(keys).bin("name").setTo("value").execute();
      * RecordStream failures = results.failures();
      * failures.forEach(failure -&gt; {
-     *     System.err.println("Failed for key: " + failure.key() +
-     *                        ", reason: " + failure.message());
+     *     System.err.println("Failed for key: " + failure.getKey() +
+     *                        ", reason: " + failure.getMessage());
      * });
      * </pre>
      *
@@ -584,7 +584,7 @@ public class RecordStream implements Iterator<RecordResult>, Closeable {
 
             while (this.hasNext()) {
                 RecordResult result = this.next();
-                if (result.resultCode() != ResultCode.OK) {
+                if (result.getResultCode() != ResultCode.OK) {
                     failedRecords.add(result);
                 }
             }
@@ -612,7 +612,7 @@ public class RecordStream implements Iterator<RecordResult>, Closeable {
             while (hasNext()) {
                 RecordResult keyRecord = next();
                 Record rec = keyRecord.recordOrThrow();
-                result.add(mapper.fromMap(rec.bins, keyRecord.key(), rec.generation));
+                result.add(mapper.fromMap(rec.bins, keyRecord.getKey(), rec.generation));
             }
             return result;
         } finally {
@@ -722,7 +722,7 @@ public class RecordStream implements Iterator<RecordResult>, Closeable {
             while (hasNext()) {
                 RecordResult rr = next();
                 Record rec = rr.recordOrThrow();
-                consumer.accept(mapper.fromMap(rec.bins, rr.key(), rec.generation));
+                consumer.accept(mapper.fromMap(rec.bins, rr.getKey(), rec.generation));
             }
         } finally {
             close();
@@ -744,7 +744,7 @@ public class RecordStream implements Iterator<RecordResult>, Closeable {
         try {
             while (hasNext()) {
                 RecordResult kr = next();
-                if (kr.key().equals(key)) {
+                if (kr.getKey().equals(key)) {
                     return Optional.of(kr.recordOrThrow());
                 }
             }
@@ -772,9 +772,9 @@ public class RecordStream implements Iterator<RecordResult>, Closeable {
         try {
             while (hasNext()) {
                 RecordResult thisRecord = next();
-                if (thisRecord.key().equals(key)) {
+                if (thisRecord.getKey().equals(key)) {
                     Record rec = thisRecord.recordOrThrow();
-                    return Optional.of(mapper.fromMap(rec.bins, thisRecord.key(), rec.generation));
+                    return Optional.of(mapper.fromMap(rec.bins, thisRecord.getKey(), rec.generation));
                 }
             }
             return Optional.empty();
@@ -810,7 +810,7 @@ public class RecordStream implements Iterator<RecordResult>, Closeable {
      * closes the stream after retrieving the first element, use {@link #getFirst(boolean)}.</p>
      *
      * @param throwException if true and the element has a non-OK result code, an exception is thrown;
-     *        if false, the caller must inspect {@link RecordResult#resultCode()} to check for errors
+     *        if false, the caller must inspect {@link RecordResult#getResultCode()} to check for errors
      * @return an Optional containing the next element, or empty if the stream is exhausted
      * @throws AerospikeException if throwException is true and the element has a non-OK result code
      */
@@ -840,7 +840,7 @@ public class RecordStream implements Iterator<RecordResult>, Closeable {
         if (hasNext()) {
             RecordResult item = next();
             Record rec = item.recordOrThrow();
-            return Optional.of(mapper.fromMap(rec.bins, item.key(), rec.generation));
+            return Optional.of(mapper.fromMap(rec.bins, item.getKey(), rec.generation));
         }
         return Optional.empty();
     }
@@ -931,7 +931,7 @@ public class RecordStream implements Iterator<RecordResult>, Closeable {
         if (hasNext()) {
             RecordResult item = next();
             Record rec = item.recordOrThrow();
-            T object = mapper.fromMap(rec.bins, item.key(), rec.generation);
+            T object = mapper.fromMap(rec.bins, item.getKey(), rec.generation);
             return Optional.of(new ObjectWithMetadata<>(object, rec));
         }
         return Optional.empty();
@@ -964,7 +964,7 @@ public class RecordStream implements Iterator<RecordResult>, Closeable {
      * {@link #pop(boolean)}.</p>
      *
      * @param throwException if true and the element has a non-OK result code, an exception is thrown;
-     *        if false, the caller must inspect {@link RecordResult#resultCode()} to check for errors
+     *        if false, the caller must inspect {@link RecordResult#getResultCode()} to check for errors
      * @return an Optional containing the first element, or empty if the stream is empty
      * @throws AerospikeException if throwException is true and the element has a non-OK result code
      */

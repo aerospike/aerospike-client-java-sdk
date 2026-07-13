@@ -423,10 +423,10 @@ public class DurableDeleteTests extends ClusterTest {
             int count = 0;
             while (rs.hasNext()) {
                 RecordResult rr = rs.next();
-                assertEquals(ResultCode.FAIL_FORBIDDEN, rr.resultCode(),
+                assertEquals(ResultCode.FAIL_FORBIDDEN, rr.getResultCode(),
                     "strong-consistency-allow-expunge=false: expect FORBIDDEN for non-durable batch delete; got "
-                        + rr.resultCode() + " (" + ResultCode.getResultString(rr.resultCode()) + ") key="
-                        + rr.key());
+                        + rr.getResultCode() + " (" + ResultCode.getResultString(rr.getResultCode()) + ") key="
+                        + rr.getKey());
                 count++;
             }
             assertEquals(keys.size(), count);
@@ -453,9 +453,9 @@ public class DurableDeleteTests extends ClusterTest {
         int count = 0;
         while (stream.hasNext()) {
             RecordResult rr = stream.next();
-            int rc = rr.resultCode();
+            int rc = rr.getResultCode();
             assertTrue(rc == ResultCode.OK || rc == ResultCode.KEY_NOT_FOUND_ERROR,
-                "unexpected delete resultCode=" + rc + " key=" + rr.key());
+                "unexpected delete resultCode=" + rc + " key=" + rr.getKey());
             count++;
         }
         assertEquals(expectedCount, count);
@@ -465,10 +465,10 @@ public class DurableDeleteTests extends ClusterTest {
         int count = 0;
         while (stream.hasNext()) {
             RecordResult rr = stream.next();
-            int rc = rr.resultCode();
+            int rc = rr.getResultCode();
             assertEquals(ResultCode.OK, rc,
                 "unexpected operate-delete resultCode=" + rc + " (" + ResultCode.getResultString(rc) + ") key="
-                    + rr.key());
+                    + rr.getKey());
             count++;
         }
         assertEquals(expectedCount, count);

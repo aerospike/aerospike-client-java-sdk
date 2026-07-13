@@ -68,10 +68,9 @@ public final class QueryCommand extends Command {
         QueryBuilder qb
     ) {
         if (plan.isFilteredOut()) {
-            throw com.aerospike.client.sdk.AerospikeException.resultCodeToException(
+            throw com.aerospike.client.sdk.AerospikeException.toException(
                 com.aerospike.client.sdk.ResultCode.FILTERED_OUT,
-                "Query plan filtered out by server",
-                false
+                "Query plan filtered out by server"
             );
         }
 

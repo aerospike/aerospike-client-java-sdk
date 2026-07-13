@@ -67,7 +67,7 @@ public final class IndexProbeExecutor extends SyncExecutor {
         }
 
         if (rp.resultCode != ResultCode.OK && rp.resultCode != ResultCode.FILTERED_OUT) {
-            throw AerospikeException.resultCodeToException(rp.resultCode, null);
+            throw rp.toException();
         }
 
         byte[] whereBytes = QueryWhereWire.forExplain(probe.whereFlags, probe.ael);

@@ -234,7 +234,7 @@ public class QueryExamples {
         int count = 0;
         while (recordStream.hasNext()) {
             RecordResult key = recordStream.next();
-            System.out.printf("%5d - Key: %s, Value: %s\n", (++count), key.key(), key);
+            System.out.printf("%5d - Key: %s, Value: %s\n", (++count), key.getKey(), key);
         }
     }
 
@@ -426,7 +426,7 @@ public class QueryExamples {
                     .id(905).values("Sam", 24, "brown", new Date().getTime())
                     .defaultExpireRecordAfter(Duration.ofDays(30))
                     .execute();
-            values.forEach(kr -> System.out.printf("%s -> %s\n", kr.key(), kr.recordOrThrow()));
+            values.forEach(kr -> System.out.printf("%s -> %s\n", kr.getKey(), kr.recordOrThrow()));
 
             for (int i = 0; i < 15; i++) {
                 session.upsert(customerDataSet.id(i))

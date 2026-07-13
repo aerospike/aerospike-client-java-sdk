@@ -57,23 +57,6 @@ class MsgFieldParserTest {
         assertNull(parser.getField(FieldType.INDEX_NAME));
     }
 
-    @Test
-    void fromRecordParserUsesParserOffsets() {
-        byte[] name = "idx".getBytes(StandardCharsets.UTF_8);
-        byte[] fields = buildMessage(name, FieldType.INDEX_NAME);
-
-        int headerSize = Command.MSG_REMAINING_HEADER_SIZE;
-        byte[] message = new byte[headerSize + fields.length];
-        System.arraycopy(fields, 0, message, headerSize, fields.length);
-        Buffer.shortToBytes(1, message, 18);
-        Buffer.shortToBytes(0, message, 20);
-
-        RecordParser rp = new RecordParser(message, 0, message.length);
-        MsgFieldParser parser = MsgFieldParser.from(rp);
-
-        assertEquals("idx", parser.getUtf8Field(FieldType.INDEX_NAME));
-    }
-
     private static byte[] buildMessage(byte[] value1, int type1) {
         return buildMessage(value1, type1, null, -1);
     }

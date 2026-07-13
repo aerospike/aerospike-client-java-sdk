@@ -23,7 +23,6 @@ import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
 import java.util.Objects;
-import java.util.concurrent.CompletableFuture;
 
 import com.aerospike.ael.ParseResult;
 import com.aerospike.client.sdk.ael.BooleanExpression;
@@ -1101,7 +1100,7 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
      */
     public ChainableQueryBuilder notInAnyTransaction() {
         if (transactionSet) {
-            throw AerospikeException.resultCodeToException(ResultCode.PARAMETER_ERROR,
+            throw AerospikeException.toException(ResultCode.PARAMETER_ERROR,
                 "The transaction mode has already been set");
         }
         this.transactionSet = true;
@@ -1118,7 +1117,7 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
      */
     public ChainableQueryBuilder inTransaction(Txn txn) {
         if (transactionSet) {
-            throw AerospikeException.resultCodeToException(ResultCode.PARAMETER_ERROR,
+            throw AerospikeException.toException(ResultCode.PARAMETER_ERROR,
                 "The transaction mode has already been set");
         }
         this.transactionSet = true;

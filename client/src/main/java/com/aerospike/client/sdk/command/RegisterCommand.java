@@ -81,7 +81,7 @@ public final class RegisterCommand {
             }
 
             if (errorCode != 0) {
-                throw AerospikeException.resultCodeToException(errorCode, "Registration failed: " + System.lineSeparator() +
+                throw AerospikeException.toException(errorCode, "Registration failed: " + System.lineSeparator() +
                     "File: " + file + System.lineSeparator() +
                     "Line: " + line + System.lineSeparator() +
                     "Message: " + messageNew + ". " + message

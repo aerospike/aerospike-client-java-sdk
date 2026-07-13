@@ -336,7 +336,7 @@ public class IdValuesRowBuilder {
      */
     public IdValuesRowBuilder notInAnyTransaction() {
         if (transactionSet) {
-            throw AerospikeException.resultCodeToException(ResultCode.PARAMETER_ERROR,
+            throw AerospikeException.toException(ResultCode.PARAMETER_ERROR,
                 "The transaction mode has already been set");
         }
         this.transactionSet = true;
@@ -353,7 +353,7 @@ public class IdValuesRowBuilder {
      */
     public IdValuesRowBuilder inTransaction(Txn txn) {
         if (transactionSet) {
-            throw AerospikeException.resultCodeToException(ResultCode.PARAMETER_ERROR,
+            throw AerospikeException.toException(ResultCode.PARAMETER_ERROR,
                 "The transaction mode has already been set");
         }
         this.transactionSet = true;

@@ -30,6 +30,8 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import com.aerospike.client.sdk.ErrorDetailVerbosity;
+
 /**
  * Aerospike Policy Behavior Builder — Typed Selectors (non-generic bases)
  *
@@ -189,6 +191,7 @@ public final class Behavior {
                     .waitForCallToComplete(Duration.ofSeconds(30))
                     .waitForConnectionToComplete(Duration.ofSeconds(0))
                     .waitForSocketResponseAfterCallFails(Duration.ofSeconds(0))
+                    .errorDetailVerbosity(ErrorDetailVerbosity.NONE)
             )
             // Batch read defaults
             .on(Selectors.reads().batch(), ops -> ops
@@ -967,19 +970,23 @@ public final class Behavior {
         CommonTweaks waitForCallToComplete(Duration d);
         CommonTweaks waitForConnectionToComplete(Duration d);
         CommonTweaks waitForSocketResponseAfterCallFails(Duration d);
+        CommonTweaks errorDetailVerbosity(int e);
         CommonTweaks stackTraceOnException(boolean enabled);
     }
     public interface QueryTweaks extends CommonTweaks {
+        @Override QueryTweaks errorDetailVerbosity(int e);
         @Override QueryTweaks stackTraceOnException(boolean enabled);
         QueryTweaks recordQueueSize(int n);
     }
     public interface BatchTweaks extends CommonTweaks {
+        @Override BatchTweaks errorDetailVerbosity(int e);
         @Override BatchTweaks stackTraceOnException(boolean enabled);
         BatchTweaks maxConcurrentNodes(int n);
         BatchTweaks allowInlineMemoryAccess(boolean v);
         BatchTweaks allowInlineSsdAccess(boolean v);
     }
     public interface WriteTweaks extends CommonTweaks {
+        @Override WriteTweaks errorDetailVerbosity(int e);
         @Override WriteTweaks stackTraceOnException(boolean enabled);
         WriteTweaks useDurableDelete(boolean b);
         WriteTweaks simulateXdrWrite(boolean b);
@@ -988,6 +995,7 @@ public final class Behavior {
         WriteApTweaks commitLevel(CommitLevel level);
     }
     public interface ReadTweaks extends CommonTweaks {
+        @Override ReadTweaks errorDetailVerbosity(int e);
         @Override ReadTweaks stackTraceOnException(boolean enabled);
         ReadTweaks resetTtlOnReadAtPercent(int percent);
     }
@@ -1012,6 +1020,7 @@ public final class Behavior {
         @Override AllAnyModeTweaks waitForCallToComplete(Duration d);
         @Override AllAnyModeTweaks waitForConnectionToComplete(Duration d);
         @Override AllAnyModeTweaks waitForSocketResponseAfterCallFails(Duration d);
+        @Override AllAnyModeTweaks errorDetailVerbosity(int e);
         @Override AllAnyModeTweaks stackTraceOnException(boolean enabled);
 
         // Read-specific settings
@@ -1042,6 +1051,7 @@ public final class Behavior {
         @Override ReadAnyAnyModeTweaks waitForCallToComplete(Duration d);
         @Override ReadAnyAnyModeTweaks waitForConnectionToComplete(Duration d);
         @Override ReadAnyAnyModeTweaks waitForSocketResponseAfterCallFails(Duration d);
+        @Override ReadAnyAnyModeTweaks errorDetailVerbosity(int e);
         @Override ReadAnyAnyModeTweaks stackTraceOnException(boolean enabled);
         @Override ReadAnyAnyModeTweaks resetTtlOnReadAtPercent(int percent);
     }
@@ -1055,6 +1065,7 @@ public final class Behavior {
         @Override ReadAnyApTweaks waitForCallToComplete(Duration d);
         @Override ReadAnyApTweaks waitForConnectionToComplete(Duration d);
         @Override ReadAnyApTweaks waitForSocketResponseAfterCallFails(Duration d);
+        @Override ReadAnyApTweaks errorDetailVerbosity(int e);
         @Override ReadAnyApTweaks stackTraceOnException(boolean enabled);
         @Override ReadAnyApTweaks readMode(ReadModeAP mode);
         @Override ReadAnyApTweaks resetTtlOnReadAtPercent(int percent);
@@ -1069,6 +1080,7 @@ public final class Behavior {
         @Override ReadAnyCpTweaks waitForCallToComplete(Duration d);
         @Override ReadAnyCpTweaks waitForConnectionToComplete(Duration d);
         @Override ReadAnyCpTweaks waitForSocketResponseAfterCallFails(Duration d);
+        @Override ReadAnyCpTweaks errorDetailVerbosity(int e);
         @Override ReadAnyCpTweaks stackTraceOnException(boolean enabled);
         @Override ReadAnyCpTweaks consistency(ReadModeSC c);
         @Override ReadAnyCpTweaks resetTtlOnReadAtPercent(int percent);
@@ -1083,6 +1095,7 @@ public final class Behavior {
         @Override WriteRootAnyModeTweaks waitForCallToComplete(Duration d);
         @Override WriteRootAnyModeTweaks waitForConnectionToComplete(Duration d);
         @Override WriteRootAnyModeTweaks waitForSocketResponseAfterCallFails(Duration d);
+        @Override WriteRootAnyModeTweaks errorDetailVerbosity(int e);
         @Override WriteRootAnyModeTweaks stackTraceOnException(boolean enabled);
         @Override WriteRootAnyModeTweaks useDurableDelete(boolean b);
         @Override WriteRootAnyModeTweaks simulateXdrWrite(boolean b);
@@ -1097,6 +1110,7 @@ public final class Behavior {
         @Override WriteRootApTweaks waitForCallToComplete(Duration d);
         @Override WriteRootApTweaks waitForConnectionToComplete(Duration d);
         @Override WriteRootApTweaks waitForSocketResponseAfterCallFails(Duration d);
+        @Override WriteRootApTweaks errorDetailVerbosity(int e);
         @Override WriteRootApTweaks stackTraceOnException(boolean enabled);
         @Override WriteRootApTweaks useDurableDelete(boolean b);
         @Override WriteRootApTweaks simulateXdrWrite(boolean b);
@@ -1112,6 +1126,7 @@ public final class Behavior {
         @Override WriteRootCpTweaks waitForCallToComplete(Duration d);
         @Override WriteRootCpTweaks waitForConnectionToComplete(Duration d);
         @Override WriteRootCpTweaks waitForSocketResponseAfterCallFails(Duration d);
+        @Override WriteRootCpTweaks errorDetailVerbosity(int e);
         @Override WriteRootCpTweaks stackTraceOnException(boolean enabled);
         @Override WriteRootCpTweaks useDurableDelete(boolean b);
         @Override WriteRootCpTweaks simulateXdrWrite(boolean b);
@@ -1128,6 +1143,7 @@ public final class Behavior {
         @Override ReadPointAnyModeTweaks waitForCallToComplete(Duration d);
         @Override ReadPointAnyModeTweaks waitForConnectionToComplete(Duration d);
         @Override ReadPointAnyModeTweaks waitForSocketResponseAfterCallFails(Duration d);
+        @Override ReadPointAnyModeTweaks errorDetailVerbosity(int e);
         @Override ReadPointAnyModeTweaks stackTraceOnException(boolean enabled);
     }
     public interface ReadBatchAnyModeTweaks extends BatchTweaks {
@@ -1140,6 +1156,7 @@ public final class Behavior {
         @Override ReadBatchAnyModeTweaks waitForCallToComplete(Duration d);
         @Override ReadBatchAnyModeTweaks waitForConnectionToComplete(Duration d);
         @Override ReadBatchAnyModeTweaks waitForSocketResponseAfterCallFails(Duration d);
+        @Override ReadBatchAnyModeTweaks errorDetailVerbosity(int e);
         @Override ReadBatchAnyModeTweaks stackTraceOnException(boolean enabled);
         @Override ReadBatchAnyModeTweaks maxConcurrentNodes(int n);
         @Override ReadBatchAnyModeTweaks allowInlineMemoryAccess(boolean v);
@@ -1155,6 +1172,7 @@ public final class Behavior {
         @Override ReadQueryAnyModeTweaks waitForCallToComplete(Duration d);
         @Override ReadQueryAnyModeTweaks waitForConnectionToComplete(Duration d);
         @Override ReadQueryAnyModeTweaks waitForSocketResponseAfterCallFails(Duration d);
+        @Override ReadQueryAnyModeTweaks errorDetailVerbosity(int e);
         @Override ReadQueryAnyModeTweaks stackTraceOnException(boolean enabled);
         @Override ReadQueryAnyModeTweaks recordQueueSize(int n);
     }
@@ -1168,6 +1186,7 @@ public final class Behavior {
         @Override ReadPointApTweaks waitForCallToComplete(Duration d);
         @Override ReadPointApTweaks waitForConnectionToComplete(Duration d);
         @Override ReadPointApTweaks waitForSocketResponseAfterCallFails(Duration d);
+        @Override ReadPointApTweaks errorDetailVerbosity(int e);
         @Override ReadPointApTweaks stackTraceOnException(boolean enabled);
         @Override ReadPointApTweaks readMode(ReadModeAP mode);
         @Override ReadPointApTweaks resetTtlOnReadAtPercent(int percent);
@@ -1182,6 +1201,7 @@ public final class Behavior {
         @Override ReadPointCpTweaks waitForCallToComplete(Duration d);
         @Override ReadPointCpTweaks waitForConnectionToComplete(Duration d);
         @Override ReadPointCpTweaks waitForSocketResponseAfterCallFails(Duration d);
+        @Override ReadPointCpTweaks errorDetailVerbosity(int e);
         @Override ReadPointCpTweaks stackTraceOnException(boolean enabled);
         @Override ReadPointCpTweaks consistency(ReadModeSC c);
         @Override ReadPointCpTweaks resetTtlOnReadAtPercent(int percent);
@@ -1196,6 +1216,7 @@ public final class Behavior {
         @Override ReadBatchApTweaks waitForCallToComplete(Duration d);
         @Override ReadBatchApTweaks waitForConnectionToComplete(Duration d);
         @Override ReadBatchApTweaks waitForSocketResponseAfterCallFails(Duration d);
+        @Override ReadBatchApTweaks errorDetailVerbosity(int e);
         @Override ReadBatchApTweaks stackTraceOnException(boolean enabled);
         @Override ReadBatchApTweaks maxConcurrentNodes(int n);
         @Override ReadBatchApTweaks allowInlineMemoryAccess(boolean v);
@@ -1213,6 +1234,7 @@ public final class Behavior {
         @Override ReadBatchCpTweaks waitForCallToComplete(Duration d);
         @Override ReadBatchCpTweaks waitForConnectionToComplete(Duration d);
         @Override ReadBatchCpTweaks waitForSocketResponseAfterCallFails(Duration d);
+        @Override ReadBatchCpTweaks errorDetailVerbosity(int e);
         @Override ReadBatchCpTweaks stackTraceOnException(boolean enabled);
         @Override ReadBatchCpTweaks maxConcurrentNodes(int n);
         @Override ReadBatchCpTweaks allowInlineMemoryAccess(boolean v);
@@ -1230,6 +1252,7 @@ public final class Behavior {
         @Override ReadQueryApTweaks waitForCallToComplete(Duration d);
         @Override ReadQueryApTweaks waitForConnectionToComplete(Duration d);
         @Override ReadQueryApTweaks waitForSocketResponseAfterCallFails(Duration d);
+        @Override ReadQueryApTweaks errorDetailVerbosity(int e);
         @Override ReadQueryApTweaks stackTraceOnException(boolean enabled);
         @Override ReadQueryApTweaks readMode(ReadModeAP mode);
         @Override ReadQueryApTweaks resetTtlOnReadAtPercent(int percent);
@@ -1245,6 +1268,7 @@ public final class Behavior {
         @Override ReadQueryCpTweaks waitForCallToComplete(Duration d);
         @Override ReadQueryCpTweaks waitForConnectionToComplete(Duration d);
         @Override ReadQueryCpTweaks waitForSocketResponseAfterCallFails(Duration d);
+        @Override ReadQueryCpTweaks errorDetailVerbosity(int e);
         @Override ReadQueryCpTweaks stackTraceOnException(boolean enabled);
         @Override ReadQueryCpTweaks consistency(ReadModeSC c);
         @Override ReadQueryCpTweaks resetTtlOnReadAtPercent(int percent);
@@ -1262,6 +1286,7 @@ public final class Behavior {
         @Override WritePointAnyModeTweaks waitForCallToComplete(Duration d);
         @Override WritePointAnyModeTweaks waitForConnectionToComplete(Duration d);
         @Override WritePointAnyModeTweaks waitForSocketResponseAfterCallFails(Duration d);
+        @Override WritePointAnyModeTweaks errorDetailVerbosity(int e);
         @Override WritePointAnyModeTweaks stackTraceOnException(boolean enabled);
         @Override WritePointAnyModeTweaks useDurableDelete(boolean b);
         @Override WritePointAnyModeTweaks simulateXdrWrite(boolean b);
@@ -1276,6 +1301,7 @@ public final class Behavior {
         @Override WritePointApTweaks waitForCallToComplete(Duration d);
         @Override WritePointApTweaks waitForConnectionToComplete(Duration d);
         @Override WritePointApTweaks waitForSocketResponseAfterCallFails(Duration d);
+        @Override WritePointApTweaks errorDetailVerbosity(int e);
         @Override WritePointApTweaks stackTraceOnException(boolean enabled);
         @Override WritePointApTweaks useDurableDelete(boolean b);
         @Override WritePointApTweaks simulateXdrWrite(boolean b);
@@ -1291,6 +1317,7 @@ public final class Behavior {
         @Override WritePointCpTweaks waitForCallToComplete(Duration d);
         @Override WritePointCpTweaks waitForConnectionToComplete(Duration d);
         @Override WritePointCpTweaks waitForSocketResponseAfterCallFails(Duration d);
+        @Override WritePointCpTweaks errorDetailVerbosity(int e);
         @Override WritePointCpTweaks stackTraceOnException(boolean enabled);
         @Override WritePointCpTweaks useDurableDelete(boolean b);
         @Override WritePointCpTweaks simulateXdrWrite(boolean b);
@@ -1305,6 +1332,7 @@ public final class Behavior {
         @Override WriteBatchAnyModeTweaks waitForCallToComplete(Duration d);
         @Override WriteBatchAnyModeTweaks waitForConnectionToComplete(Duration d);
         @Override WriteBatchAnyModeTweaks waitForSocketResponseAfterCallFails(Duration d);
+        @Override WriteBatchAnyModeTweaks errorDetailVerbosity(int e);
         @Override WriteBatchAnyModeTweaks stackTraceOnException(boolean enabled);
         @Override WriteBatchAnyModeTweaks maxConcurrentNodes(int n);
         @Override WriteBatchAnyModeTweaks allowInlineMemoryAccess(boolean v);
@@ -1322,6 +1350,7 @@ public final class Behavior {
         @Override WriteBatchApTweaks waitForCallToComplete(Duration d);
         @Override WriteBatchApTweaks waitForConnectionToComplete(Duration d);
         @Override WriteBatchApTweaks waitForSocketResponseAfterCallFails(Duration d);
+        @Override WriteBatchApTweaks errorDetailVerbosity(int e);
         @Override WriteBatchApTweaks stackTraceOnException(boolean enabled);
         @Override WriteBatchApTweaks maxConcurrentNodes(int n);
         @Override WriteBatchApTweaks allowInlineMemoryAccess(boolean v);
@@ -1340,6 +1369,7 @@ public final class Behavior {
         @Override WriteBatchCpTweaks waitForCallToComplete(Duration d);
         @Override WriteBatchCpTweaks waitForConnectionToComplete(Duration d);
         @Override WriteBatchCpTweaks waitForSocketResponseAfterCallFails(Duration d);
+        @Override WriteBatchCpTweaks errorDetailVerbosity(int e);
         @Override WriteBatchCpTweaks stackTraceOnException(boolean enabled);
         @Override WriteBatchCpTweaks maxConcurrentNodes(int n);
         @Override WriteBatchCpTweaks allowInlineMemoryAccess(boolean v);
@@ -1359,6 +1389,7 @@ public final class Behavior {
         @Override RetryableWriteAnyModeTweaks waitForCallToComplete(Duration d);
         @Override RetryableWriteAnyModeTweaks waitForConnectionToComplete(Duration d);
         @Override RetryableWriteAnyModeTweaks waitForSocketResponseAfterCallFails(Duration d);
+        @Override RetryableWriteAnyModeTweaks errorDetailVerbosity(int e);
         @Override RetryableWriteAnyModeTweaks stackTraceOnException(boolean enabled);
         @Override RetryableWriteAnyModeTweaks useDurableDelete(boolean b);
         @Override RetryableWriteAnyModeTweaks simulateXdrWrite(boolean b);
@@ -1373,6 +1404,7 @@ public final class Behavior {
         @Override RetryableWritePointAnyModeTweaks waitForCallToComplete(Duration d);
         @Override RetryableWritePointAnyModeTweaks waitForConnectionToComplete(Duration d);
         @Override RetryableWritePointAnyModeTweaks waitForSocketResponseAfterCallFails(Duration d);
+        @Override RetryableWritePointAnyModeTweaks errorDetailVerbosity(int e);
         @Override RetryableWritePointAnyModeTweaks stackTraceOnException(boolean enabled);
         @Override RetryableWritePointAnyModeTweaks useDurableDelete(boolean b);
         @Override RetryableWritePointAnyModeTweaks simulateXdrWrite(boolean b);
@@ -1387,6 +1419,7 @@ public final class Behavior {
         @Override RetryableWritePointApTweaks waitForCallToComplete(Duration d);
         @Override RetryableWritePointApTweaks waitForConnectionToComplete(Duration d);
         @Override RetryableWritePointApTweaks waitForSocketResponseAfterCallFails(Duration d);
+        @Override RetryableWritePointApTweaks errorDetailVerbosity(int e);
         @Override RetryableWritePointApTweaks stackTraceOnException(boolean enabled);
         @Override RetryableWritePointApTweaks useDurableDelete(boolean b);
         @Override RetryableWritePointApTweaks simulateXdrWrite(boolean b);
@@ -1402,6 +1435,7 @@ public final class Behavior {
         @Override RetryableWritePointCpTweaks waitForCallToComplete(Duration d);
         @Override RetryableWritePointCpTweaks waitForConnectionToComplete(Duration d);
         @Override RetryableWritePointCpTweaks waitForSocketResponseAfterCallFails(Duration d);
+        @Override RetryableWritePointCpTweaks errorDetailVerbosity(int e);
         @Override RetryableWritePointCpTweaks stackTraceOnException(boolean enabled);
         @Override RetryableWritePointCpTweaks useDurableDelete(boolean b);
         @Override RetryableWritePointCpTweaks simulateXdrWrite(boolean b);
@@ -1416,6 +1450,7 @@ public final class Behavior {
         @Override RetryableWriteBatchAnyModeTweaks waitForCallToComplete(Duration d);
         @Override RetryableWriteBatchAnyModeTweaks waitForConnectionToComplete(Duration d);
         @Override RetryableWriteBatchAnyModeTweaks waitForSocketResponseAfterCallFails(Duration d);
+        @Override RetryableWriteBatchAnyModeTweaks errorDetailVerbosity(int e);
         @Override RetryableWriteBatchAnyModeTweaks stackTraceOnException(boolean enabled);
         @Override RetryableWriteBatchAnyModeTweaks maxConcurrentNodes(int n);
         @Override RetryableWriteBatchAnyModeTweaks allowInlineMemoryAccess(boolean v);
@@ -1433,6 +1468,7 @@ public final class Behavior {
         @Override RetryableWriteBatchApTweaks waitForCallToComplete(Duration d);
         @Override RetryableWriteBatchApTweaks waitForConnectionToComplete(Duration d);
         @Override RetryableWriteBatchApTweaks waitForSocketResponseAfterCallFails(Duration d);
+        @Override RetryableWriteBatchApTweaks errorDetailVerbosity(int e);
         @Override RetryableWriteBatchApTweaks stackTraceOnException(boolean enabled);
         @Override RetryableWriteBatchApTweaks maxConcurrentNodes(int n);
         @Override RetryableWriteBatchApTweaks allowInlineMemoryAccess(boolean v);
@@ -1451,6 +1487,7 @@ public final class Behavior {
         @Override RetryableWriteBatchCpTweaks waitForCallToComplete(Duration d);
         @Override RetryableWriteBatchCpTweaks waitForConnectionToComplete(Duration d);
         @Override RetryableWriteBatchCpTweaks waitForSocketResponseAfterCallFails(Duration d);
+        @Override RetryableWriteBatchCpTweaks errorDetailVerbosity(int e);
         @Override RetryableWriteBatchCpTweaks stackTraceOnException(boolean enabled);
         @Override RetryableWriteBatchCpTweaks maxConcurrentNodes(int n);
         @Override RetryableWriteBatchCpTweaks allowInlineMemoryAccess(boolean v);
@@ -1469,6 +1506,7 @@ public final class Behavior {
         @Override NonRetryableWriteAnyModeTweaks waitForCallToComplete(Duration d);
         @Override NonRetryableWriteAnyModeTweaks waitForConnectionToComplete(Duration d);
         @Override NonRetryableWriteAnyModeTweaks waitForSocketResponseAfterCallFails(Duration d);
+        @Override NonRetryableWriteAnyModeTweaks errorDetailVerbosity(int e);
         @Override NonRetryableWriteAnyModeTweaks stackTraceOnException(boolean enabled);
         @Override NonRetryableWriteAnyModeTweaks useDurableDelete(boolean b);
         @Override NonRetryableWriteAnyModeTweaks simulateXdrWrite(boolean b);
@@ -1483,6 +1521,7 @@ public final class Behavior {
         @Override NonRetryableWritePointAnyModeTweaks waitForCallToComplete(Duration d);
         @Override NonRetryableWritePointAnyModeTweaks waitForConnectionToComplete(Duration d);
         @Override NonRetryableWritePointAnyModeTweaks waitForSocketResponseAfterCallFails(Duration d);
+        @Override NonRetryableWritePointAnyModeTweaks errorDetailVerbosity(int e);
         @Override NonRetryableWritePointAnyModeTweaks stackTraceOnException(boolean enabled);
         @Override NonRetryableWritePointAnyModeTweaks useDurableDelete(boolean b);
         @Override NonRetryableWritePointAnyModeTweaks simulateXdrWrite(boolean b);
@@ -1497,6 +1536,7 @@ public final class Behavior {
         @Override NonRetryableWritePointApTweaks waitForCallToComplete(Duration d);
         @Override NonRetryableWritePointApTweaks waitForConnectionToComplete(Duration d);
         @Override NonRetryableWritePointApTweaks waitForSocketResponseAfterCallFails(Duration d);
+        @Override NonRetryableWritePointApTweaks errorDetailVerbosity(int e);
         @Override NonRetryableWritePointApTweaks stackTraceOnException(boolean enabled);
         @Override NonRetryableWritePointApTweaks useDurableDelete(boolean b);
         @Override NonRetryableWritePointApTweaks simulateXdrWrite(boolean b);
@@ -1512,6 +1552,7 @@ public final class Behavior {
         @Override NonRetryableWritePointCpTweaks waitForCallToComplete(Duration d);
         @Override NonRetryableWritePointCpTweaks waitForConnectionToComplete(Duration d);
         @Override NonRetryableWritePointCpTweaks waitForSocketResponseAfterCallFails(Duration d);
+        @Override NonRetryableWritePointCpTweaks errorDetailVerbosity(int e);
         @Override NonRetryableWritePointCpTweaks stackTraceOnException(boolean enabled);
         @Override NonRetryableWritePointCpTweaks useDurableDelete(boolean b);
         @Override NonRetryableWritePointCpTweaks simulateXdrWrite(boolean b);
@@ -1526,6 +1567,7 @@ public final class Behavior {
         @Override NonRetryableWriteBatchAnyModeTweaks waitForCallToComplete(Duration d);
         @Override NonRetryableWriteBatchAnyModeTweaks waitForConnectionToComplete(Duration d);
         @Override NonRetryableWriteBatchAnyModeTweaks waitForSocketResponseAfterCallFails(Duration d);
+        @Override NonRetryableWriteBatchAnyModeTweaks errorDetailVerbosity(int e);
         @Override NonRetryableWriteBatchAnyModeTweaks stackTraceOnException(boolean enabled);
         @Override NonRetryableWriteBatchAnyModeTweaks maxConcurrentNodes(int n);
         @Override NonRetryableWriteBatchAnyModeTweaks allowInlineMemoryAccess(boolean v);
@@ -1543,6 +1585,7 @@ public final class Behavior {
         @Override NonRetryableWriteBatchApTweaks waitForCallToComplete(Duration d);
         @Override NonRetryableWriteBatchApTweaks waitForConnectionToComplete(Duration d);
         @Override NonRetryableWriteBatchApTweaks waitForSocketResponseAfterCallFails(Duration d);
+        @Override NonRetryableWriteBatchApTweaks errorDetailVerbosity(int e);
         @Override NonRetryableWriteBatchApTweaks stackTraceOnException(boolean enabled);
         @Override NonRetryableWriteBatchApTweaks maxConcurrentNodes(int n);
         @Override NonRetryableWriteBatchApTweaks allowInlineMemoryAccess(boolean v);
@@ -1561,6 +1604,7 @@ public final class Behavior {
         @Override NonRetryableWriteBatchCpTweaks waitForCallToComplete(Duration d);
         @Override NonRetryableWriteBatchCpTweaks waitForConnectionToComplete(Duration d);
         @Override NonRetryableWriteBatchCpTweaks waitForSocketResponseAfterCallFails(Duration d);
+        @Override NonRetryableWriteBatchCpTweaks errorDetailVerbosity(int e);
         @Override NonRetryableWriteBatchCpTweaks stackTraceOnException(boolean enabled);
         @Override NonRetryableWriteBatchCpTweaks maxConcurrentNodes(int n);
         @Override NonRetryableWriteBatchCpTweaks allowInlineMemoryAccess(boolean v);
@@ -1580,6 +1624,7 @@ public final class Behavior {
         @Override RetryableWriteQueryAnyModeTweaks waitForCallToComplete(Duration d);
         @Override RetryableWriteQueryAnyModeTweaks waitForConnectionToComplete(Duration d);
         @Override RetryableWriteQueryAnyModeTweaks waitForSocketResponseAfterCallFails(Duration d);
+        @Override RetryableWriteQueryAnyModeTweaks errorDetailVerbosity(int e);
         @Override RetryableWriteQueryAnyModeTweaks stackTraceOnException(boolean enabled);
         @Override RetryableWriteQueryAnyModeTweaks useDurableDelete(boolean b);
         @Override RetryableWriteQueryAnyModeTweaks simulateXdrWrite(boolean b);
@@ -1594,6 +1639,7 @@ public final class Behavior {
         @Override RetryableWriteQueryApTweaks waitForCallToComplete(Duration d);
         @Override RetryableWriteQueryApTweaks waitForConnectionToComplete(Duration d);
         @Override RetryableWriteQueryApTweaks waitForSocketResponseAfterCallFails(Duration d);
+        @Override RetryableWriteQueryApTweaks errorDetailVerbosity(int e);
         @Override RetryableWriteQueryApTweaks stackTraceOnException(boolean enabled);
         @Override RetryableWriteQueryApTweaks useDurableDelete(boolean b);
         @Override RetryableWriteQueryApTweaks simulateXdrWrite(boolean b);
@@ -1609,6 +1655,7 @@ public final class Behavior {
         @Override RetryableWriteQueryCpTweaks waitForCallToComplete(Duration d);
         @Override RetryableWriteQueryCpTweaks waitForConnectionToComplete(Duration d);
         @Override RetryableWriteQueryCpTweaks waitForSocketResponseAfterCallFails(Duration d);
+        @Override RetryableWriteQueryCpTweaks errorDetailVerbosity(int e);
         @Override RetryableWriteQueryCpTweaks stackTraceOnException(boolean enabled);
         @Override RetryableWriteQueryCpTweaks useDurableDelete(boolean b);
         @Override RetryableWriteQueryCpTweaks simulateXdrWrite(boolean b);
@@ -1623,6 +1670,7 @@ public final class Behavior {
         @Override NonRetryableWriteQueryAnyModeTweaks waitForCallToComplete(Duration d);
         @Override NonRetryableWriteQueryAnyModeTweaks waitForConnectionToComplete(Duration d);
         @Override NonRetryableWriteQueryAnyModeTweaks waitForSocketResponseAfterCallFails(Duration d);
+        @Override NonRetryableWriteQueryAnyModeTweaks errorDetailVerbosity(int e);
         @Override NonRetryableWriteQueryAnyModeTweaks stackTraceOnException(boolean enabled);
         @Override NonRetryableWriteQueryAnyModeTweaks useDurableDelete(boolean b);
         @Override NonRetryableWriteQueryAnyModeTweaks simulateXdrWrite(boolean b);
@@ -1637,6 +1685,7 @@ public final class Behavior {
         @Override NonRetryableWriteQueryApTweaks waitForCallToComplete(Duration d);
         @Override NonRetryableWriteQueryApTweaks waitForConnectionToComplete(Duration d);
         @Override NonRetryableWriteQueryApTweaks waitForSocketResponseAfterCallFails(Duration d);
+        @Override NonRetryableWriteQueryApTweaks errorDetailVerbosity(int e);
         @Override NonRetryableWriteQueryApTweaks stackTraceOnException(boolean enabled);
         @Override NonRetryableWriteQueryApTweaks useDurableDelete(boolean b);
         @Override NonRetryableWriteQueryApTweaks simulateXdrWrite(boolean b);
@@ -1652,6 +1701,7 @@ public final class Behavior {
         @Override NonRetryableWriteQueryCpTweaks waitForCallToComplete(Duration d);
         @Override NonRetryableWriteQueryCpTweaks waitForConnectionToComplete(Duration d);
         @Override NonRetryableWriteQueryCpTweaks waitForSocketResponseAfterCallFails(Duration d);
+        @Override NonRetryableWriteQueryCpTweaks errorDetailVerbosity(int e);
         @Override NonRetryableWriteQueryCpTweaks stackTraceOnException(boolean enabled);
         @Override NonRetryableWriteQueryCpTweaks useDurableDelete(boolean b);
         @Override NonRetryableWriteQueryCpTweaks simulateXdrWrite(boolean b);
@@ -1676,6 +1726,7 @@ public final class Behavior {
         @Override SystemTxnVerifyTweaks waitForConnectionToComplete(Duration d);
         @Override SystemTxnVerifyTweaks waitForSocketResponseAfterCallFails(Duration d);
         @Override SystemTxnVerifyTweaks useCompression(boolean compress);
+        @Override SystemTxnVerifyTweaks errorDetailVerbosity(int e);
         @Override SystemTxnVerifyTweaks stackTraceOnException(boolean enabled);
         @Override SystemTxnVerifyTweaks maxConcurrentNodes(int n);
         @Override SystemTxnVerifyTweaks allowInlineMemoryAccess(boolean v);
@@ -1699,6 +1750,7 @@ public final class Behavior {
         @Override SystemTxnRollTweaks waitForConnectionToComplete(Duration d);
         @Override SystemTxnRollTweaks waitForSocketResponseAfterCallFails(Duration d);
         @Override SystemTxnRollTweaks useCompression(boolean compress);
+        @Override SystemTxnRollTweaks errorDetailVerbosity(int e);
         @Override SystemTxnRollTweaks stackTraceOnException(boolean enabled);
         @Override SystemTxnRollTweaks maxConcurrentNodes(int n);
         @Override SystemTxnRollTweaks allowInlineMemoryAccess(boolean v);
@@ -2302,6 +2354,7 @@ public final class Behavior {
         @Override public TweaksProxy waitForCallToComplete(Duration d) { patch.settings.waitForCallToComplete = d; return this; }
         @Override public TweaksProxy waitForConnectionToComplete(Duration d) { patch.settings.waitForConnectionToComplete = d; return this; }
         @Override public TweaksProxy waitForSocketResponseAfterCallFails(Duration d) { patch.settings.waitForSocketResponseAfterCallFails = d; return this; }
+        @Override public TweaksProxy errorDetailVerbosity(int e) { patch.settings.errorDetailVerbosity = e; return this; }
         @Override public TweaksProxy stackTraceOnException(boolean enabled) { patch.settings.stackTraceOnException = enabled; return this; }
 
         // Query

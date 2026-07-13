@@ -16,14 +16,14 @@
  */
 package com.aerospike.client.sdk.query;
 
-import java.util.List;
 import java.util.Objects;
 import java.util.function.Function;
+
 import com.aerospike.client.sdk.ErrorHandler;
 import com.aerospike.client.sdk.ErrorStrategy;
 import com.aerospike.client.sdk.Session;
-import com.aerospike.client.sdk.TypedRecordStream;
 import com.aerospike.client.sdk.TypedDataSet;
+import com.aerospike.client.sdk.TypedRecordStream;
 import com.aerospike.client.sdk.ael.BooleanExpression;
 import com.aerospike.client.sdk.command.Txn;
 import com.aerospike.client.sdk.exp.Exp;

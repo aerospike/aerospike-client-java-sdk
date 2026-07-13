@@ -33,7 +33,6 @@ public final class MappingSupport {
      * @param <T> domain type
      * @return non-null mapper
      */
-    @SuppressWarnings("unchecked")
     public static <T> RecordMapper<T> requireMapper(RecordMappingFactory factory, Class<T> clazz) {
         if (factory == null) {
             throw new IllegalStateException(

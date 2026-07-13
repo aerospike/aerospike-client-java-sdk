@@ -661,6 +661,41 @@ public class AbstractCdtBuilder<T extends AbstractOperationBuilder<T>> {
      * @param value value to insert
      */
     public T listInsert(int index, Value value) {
+        return listInsert(index, value, (ListEntryWriteOptions)null);
+    }
+
+    /**
+     * Insert a value at {@code index} with optional write flags
+     * ({@link ListWriteOptions#addUnique()}, {@link ListWriteOptions#insertBounded()},
+     * {@link ListWriteOptions#allowFailures()}).
+     *
+     * @param index   list index (0-based)
+     * @param value   value to insert
+     * @param options optional write flags, or {@code null}
+     */
+    public T listInsert(int index, Value value, Consumer<ListEntryWriteOptions> options) {
+        ListEntryWriteOptions opts = applyListOptions(options);
+        return listInsert(index, value, opts);
+    }
+
+    /**
+     * Insert a value at {@code index} with optional write flags.
+     *
+     * @param index   list index (0-based)
+     * @param value   value to insert
+     * @param options optional write flags, or {@code null}
+     */
+    public T listInsert(int index, Value value, ListEntryWriteOptions options) {
+        if (options != null && (options.isAddUnique() || options.isInsertBounded() || options.isAllowFailures())) {
+            ListPolicy policy = resolveListPolicy(ListOrder.UNORDERED, options);
+            if (params != null) {
+                params.pushCurrentToContext();
+                return this.opBuilder.addOp(ListOperation.insert(policy, binName, index, value, params.context()));
+            }
+            else {
+                return this.opBuilder.addOp(ListOperation.insert(policy, binName, index, value));
+            }
+        }
         if (params != null) {
             params.pushCurrentToContext();
             return this.opBuilder.addOp(ListOperation.insert(binName, index, value, params.context()));
@@ -684,6 +719,36 @@ public class AbstractCdtBuilder<T extends AbstractOperationBuilder<T>> {
     public T listInsert(int index, List<?> value) { return listInsert(index, Value.get(value)); }
     /** @see #listInsert(int, Value) */
     public T listInsert(int index, Map<?,?> value) { return listInsert(index, Value.get(value)); }
+
+    /** @see #listInsert(int, Value, Consumer) */
+    public T listInsert(int index, long value, Consumer<ListEntryWriteOptions> options) { return listInsert(index, Value.get(value), options); }
+    /** @see #listInsert(int, Value, Consumer) */
+    public T listInsert(int index, String value, Consumer<ListEntryWriteOptions> options) { return listInsert(index, Value.get(value), options); }
+    /** @see #listInsert(int, Value, Consumer) */
+    public T listInsert(int index, double value, Consumer<ListEntryWriteOptions> options) { return listInsert(index, Value.get(value), options); }
+    /** @see #listInsert(int, Value, Consumer) */
+    public T listInsert(int index, boolean value, Consumer<ListEntryWriteOptions> options) { return listInsert(index, Value.get(value), options); }
+    /** @see #listInsert(int, Value, Consumer) */
+    public T listInsert(int index, byte[] value, Consumer<ListEntryWriteOptions> options) { return listInsert(index, Value.get(value), options); }
+    /** @see #listInsert(int, Value, Consumer) */
+    public T listInsert(int index, List<?> value, Consumer<ListEntryWriteOptions> options) { return listInsert(index, Value.get(value), options); }
+    /** @see #listInsert(int, Value, Consumer) */
+    public T listInsert(int index, Map<?,?> value, Consumer<ListEntryWriteOptions> options) { return listInsert(index, Value.get(value), options); }
+
+    /** @see #listInsert(int, Value, ListEntryWriteOptions) */
+    public T listInsert(int index, long value, ListEntryWriteOptions options) { return listInsert(index, Value.get(value), options); }
+    /** @see #listInsert(int, Value, ListEntryWriteOptions) */
+    public T listInsert(int index, String value, ListEntryWriteOptions options) { return listInsert(index, Value.get(value), options); }
+    /** @see #listInsert(int, Value, ListEntryWriteOptions) */
+    public T listInsert(int index, double value, ListEntryWriteOptions options) { return listInsert(index, Value.get(value), options); }
+    /** @see #listInsert(int, Value, ListEntryWriteOptions) */
+    public T listInsert(int index, boolean value, ListEntryWriteOptions options) { return listInsert(index, Value.get(value), options); }
+    /** @see #listInsert(int, Value, ListEntryWriteOptions) */
+    public T listInsert(int index, byte[] value, ListEntryWriteOptions options) { return listInsert(index, Value.get(value), options); }
+    /** @see #listInsert(int, Value, ListEntryWriteOptions) */
+    public T listInsert(int index, List<?> value, ListEntryWriteOptions options) { return listInsert(index, Value.get(value), options); }
+    /** @see #listInsert(int, Value, ListEntryWriteOptions) */
+    public T listInsert(int index, Map<?,?> value, ListEntryWriteOptions options) { return listInsert(index, Value.get(value), options); }
 
     /**
      * Insert multiple values at {@code index}, in order.
@@ -742,6 +807,41 @@ public class AbstractCdtBuilder<T extends AbstractOperationBuilder<T>> {
      * @param value new value
      */
     public T listSet(int index, Value value) {
+        return listSet(index, value, (ListEntryWriteOptions)null);
+    }
+
+    /**
+     * Replace the element at {@code index} with optional write flags
+     * ({@link ListWriteOptions#addUnique()}, {@link ListWriteOptions#insertBounded()},
+     * {@link ListWriteOptions#allowFailures()}).
+     *
+     * @param index   list index (0-based)
+     * @param value   new value
+     * @param options optional write flags, or {@code null}
+     */
+    public T listSet(int index, Value value, Consumer<ListEntryWriteOptions> options) {
+        ListEntryWriteOptions opts = applyListOptions(options);
+        return listSet(index, value, opts);
+    }
+
+    /**
+     * Replace the element at {@code index} with optional write flags.
+     *
+     * @param index   list index (0-based)
+     * @param value   new value
+     * @param options optional write flags, or {@code null}
+     */
+    public T listSet(int index, Value value, ListEntryWriteOptions options) {
+        if (options != null && (options.isAddUnique() || options.isInsertBounded() || options.isAllowFailures())) {
+            ListPolicy policy = resolveListPolicy(ListOrder.UNORDERED, options);
+            if (params != null) {
+                params.pushCurrentToContext();
+                return this.opBuilder.addOp(ListOperation.set(policy, binName, index, value, params.context()));
+            }
+            else {
+                return this.opBuilder.addOp(ListOperation.set(policy, binName, index, value));
+            }
+        }
         if (params != null) {
             params.pushCurrentToContext();
             return this.opBuilder.addOp(ListOperation.set(binName, index, value, params.context()));
@@ -766,12 +866,75 @@ public class AbstractCdtBuilder<T extends AbstractOperationBuilder<T>> {
     /** @see #listSet(int, Value) */
     public T listSet(int index, Map<?,?> value) { return listSet(index, Value.get(value)); }
 
+    /** @see #listSet(int, Value, Consumer) */
+    public T listSet(int index, long value, Consumer<ListEntryWriteOptions> options) { return listSet(index, Value.get(value), options); }
+    /** @see #listSet(int, Value, Consumer) */
+    public T listSet(int index, String value, Consumer<ListEntryWriteOptions> options) { return listSet(index, Value.get(value), options); }
+    /** @see #listSet(int, Value, Consumer) */
+    public T listSet(int index, double value, Consumer<ListEntryWriteOptions> options) { return listSet(index, Value.get(value), options); }
+    /** @see #listSet(int, Value, Consumer) */
+    public T listSet(int index, boolean value, Consumer<ListEntryWriteOptions> options) { return listSet(index, Value.get(value), options); }
+    /** @see #listSet(int, Value, Consumer) */
+    public T listSet(int index, byte[] value, Consumer<ListEntryWriteOptions> options) { return listSet(index, Value.get(value), options); }
+    /** @see #listSet(int, Value, Consumer) */
+    public T listSet(int index, List<?> value, Consumer<ListEntryWriteOptions> options) { return listSet(index, Value.get(value), options); }
+    /** @see #listSet(int, Value, Consumer) */
+    public T listSet(int index, Map<?,?> value, Consumer<ListEntryWriteOptions> options) { return listSet(index, Value.get(value), options); }
+
+    /** @see #listSet(int, Value, ListEntryWriteOptions) */
+    public T listSet(int index, long value, ListEntryWriteOptions options) { return listSet(index, Value.get(value), options); }
+    /** @see #listSet(int, Value, ListEntryWriteOptions) */
+    public T listSet(int index, String value, ListEntryWriteOptions options) { return listSet(index, Value.get(value), options); }
+    /** @see #listSet(int, Value, ListEntryWriteOptions) */
+    public T listSet(int index, double value, ListEntryWriteOptions options) { return listSet(index, Value.get(value), options); }
+    /** @see #listSet(int, Value, ListEntryWriteOptions) */
+    public T listSet(int index, boolean value, ListEntryWriteOptions options) { return listSet(index, Value.get(value), options); }
+    /** @see #listSet(int, Value, ListEntryWriteOptions) */
+    public T listSet(int index, byte[] value, ListEntryWriteOptions options) { return listSet(index, Value.get(value), options); }
+    /** @see #listSet(int, Value, ListEntryWriteOptions) */
+    public T listSet(int index, List<?> value, ListEntryWriteOptions options) { return listSet(index, Value.get(value), options); }
+    /** @see #listSet(int, Value, ListEntryWriteOptions) */
+    public T listSet(int index, Map<?,?> value, ListEntryWriteOptions options) { return listSet(index, Value.get(value), options); }
+
     /**
      * Increment the numeric element at {@code index} by one.
      *
      * @param index list index (0-based)
      */
     public T listIncrement(int index) {
+        return listIncrement(index, (ListEntryWriteOptions)null);
+    }
+
+    /**
+     * Increment the numeric element at {@code index} by one with optional write flags
+     * ({@link ListWriteOptions#addUnique()}, {@link ListWriteOptions#insertBounded()},
+     * {@link ListWriteOptions#allowFailures()}).
+     *
+     * @param index   list index (0-based)
+     * @param options optional write flags, or {@code null}
+     */
+    public T listIncrement(int index, Consumer<ListEntryWriteOptions> options) {
+        ListEntryWriteOptions opts = applyListOptions(options);
+        return listIncrement(index, opts);
+    }
+
+    /**
+     * Increment the numeric element at {@code index} by one with optional write flags.
+     *
+     * @param index   list index (0-based)
+     * @param options optional write flags, or {@code null}
+     */
+    public T listIncrement(int index, ListEntryWriteOptions options) {
+        if (options != null && (options.isAddUnique() || options.isInsertBounded() || options.isAllowFailures())) {
+            ListPolicy policy = resolveListPolicy(ListOrder.UNORDERED, options);
+            if (params != null) {
+                params.pushCurrentToContext();
+                return this.opBuilder.addOp(ListOperation.increment(policy, binName, index, params.context()));
+            }
+            else {
+                return this.opBuilder.addOp(ListOperation.increment(policy, binName, index));
+            }
+        }
         if (params != null) {
             params.pushCurrentToContext();
             return this.opBuilder.addOp(ListOperation.increment(binName, index, params.context()));
@@ -788,6 +951,39 @@ public class AbstractCdtBuilder<T extends AbstractOperationBuilder<T>> {
      * @param value delta to add
      */
     public T listIncrement(int index, long value) {
+        return listIncrement(index, value, (ListEntryWriteOptions)null);
+    }
+
+    /**
+     * Increment the numeric element at {@code index} by {@code value} (integer) with optional write flags.
+     *
+     * @param index   list index (0-based)
+     * @param value   delta to add
+     * @param options optional write flags, or {@code null}
+     */
+    public T listIncrement(int index, long value, Consumer<ListEntryWriteOptions> options) {
+        ListEntryWriteOptions opts = applyListOptions(options);
+        return listIncrement(index, value, opts);
+    }
+
+    /**
+     * Increment the numeric element at {@code index} by {@code value} (integer) with optional write flags.
+     *
+     * @param index   list index (0-based)
+     * @param value   delta to add
+     * @param options optional write flags, or {@code null}
+     */
+    public T listIncrement(int index, long value, ListEntryWriteOptions options) {
+        if (options != null && (options.isAddUnique() || options.isInsertBounded() || options.isAllowFailures())) {
+            ListPolicy policy = resolveListPolicy(ListOrder.UNORDERED, options);
+            if (params != null) {
+                params.pushCurrentToContext();
+                return this.opBuilder.addOp(ListOperation.increment(policy, binName, index, Value.get(value), params.context()));
+            }
+            else {
+                return this.opBuilder.addOp(ListOperation.increment(policy, binName, index, Value.get(value)));
+            }
+        }
         if (params != null) {
             params.pushCurrentToContext();
             return this.opBuilder.addOp(ListOperation.increment(binName, index, Value.get(value), params.context()));
@@ -804,6 +1000,39 @@ public class AbstractCdtBuilder<T extends AbstractOperationBuilder<T>> {
      * @param value delta to add
      */
     public T listIncrement(int index, double value) {
+        return listIncrement(index, value, (ListEntryWriteOptions)null);
+    }
+
+    /**
+     * Increment the numeric element at {@code index} by {@code value} (floating-point) with optional write flags.
+     *
+     * @param index   list index (0-based)
+     * @param value   delta to add
+     * @param options optional write flags, or {@code null}
+     */
+    public T listIncrement(int index, double value, Consumer<ListEntryWriteOptions> options) {
+        ListEntryWriteOptions opts = applyListOptions(options);
+        return listIncrement(index, value, opts);
+    }
+
+    /**
+     * Increment the numeric element at {@code index} by {@code value} (floating-point) with optional write flags.
+     *
+     * @param index   list index (0-based)
+     * @param value   delta to add
+     * @param options optional write flags, or {@code null}
+     */
+    public T listIncrement(int index, double value, ListEntryWriteOptions options) {
+        if (options != null && (options.isAddUnique() || options.isInsertBounded() || options.isAllowFailures())) {
+            ListPolicy policy = resolveListPolicy(ListOrder.UNORDERED, options);
+            if (params != null) {
+                params.pushCurrentToContext();
+                return this.opBuilder.addOp(ListOperation.increment(policy, binName, index, Value.get(value), params.context()));
+            }
+            else {
+                return this.opBuilder.addOp(ListOperation.increment(policy, binName, index, Value.get(value)));
+            }
+        }
         if (params != null) {
             params.pushCurrentToContext();
             return this.opBuilder.addOp(ListOperation.increment(binName, index, Value.get(value), params.context()));

@@ -83,7 +83,7 @@ public class IndexQueryBuilderImpl extends QueryImpl {
         // Check for operations - not supported on servers < 8.1.2
         if (!cluster.supportsQueryOperations() && qb.getOperations() != null &&
             !qb.getOperations().isEmpty()) {
-            throw AerospikeException.resultCodeToException(ResultCode.OP_NOT_APPLICABLE,
+            throw AerospikeException.toException(ResultCode.OP_NOT_APPLICABLE,
                 "Index query with read operations requires server version 8.1.2+. Server version is " +
                 cluster.getVersion());
         }

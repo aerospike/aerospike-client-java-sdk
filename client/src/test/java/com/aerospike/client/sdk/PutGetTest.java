@@ -59,7 +59,7 @@ public class PutGetTest extends ClusterTest {
             .execute()
             .getFirst(false)
             .ifPresentOrElse(result ->
-                assertEquals(ResultCode.KEY_NOT_FOUND_ERROR, result.resultCode()),
+                assertEquals(ResultCode.KEY_NOT_FOUND_ERROR, result.getResultCode()),
                 () -> fail("Failed to retrieve record response"));
     }
 
