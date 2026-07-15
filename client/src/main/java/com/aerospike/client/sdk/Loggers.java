@@ -21,9 +21,29 @@ package com.aerospike.client.sdk;
  */
 public final class Loggers {
     /**
+     * AEL language parser.
+     */
+    public static final String AEL = "ael";
+
+    /**
      * YAML / BehaviorRegistry and client option resolution.
      */
     public static final String BEHAVIOR = "behavior";
+
+    /**
+     * Connections.
+     */
+    public static final String CONNECTION = "connection";
+
+    /**
+     * Commands.
+     */
+    public static final String COMMAND = "command";
+
+    /**
+     * Info Commands.
+     */
+    public static final String INFO = "info";
 
     /**
      * All high-volume encode/decode diagnostics.

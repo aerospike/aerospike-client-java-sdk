@@ -19,6 +19,9 @@ package com.aerospike.client.sdk;
 import java.util.Collection;
 import java.util.Set;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.aerospike.ael.AelParseException;
 import com.aerospike.ael.ExpressionContext;
 import com.aerospike.ael.Index;
@@ -35,6 +38,7 @@ import com.aerospike.client.sdk.query.Filter;
 import com.aerospike.client.sdk.query.PreparedAel;
 
 public final class AelMaterializer {
+    private static final Logger log = LoggerFactory.getLogger(Loggers.AEL);
 
     private AelMaterializer() {
     }
@@ -110,18 +114,18 @@ public final class AelMaterializer {
             throw new AelParseException("Unknown error parsing AEL: '" + ael + "'");
         }
 
-        if (Log.debugEnabled()) {
+        if (log.isDebugEnabled()) {
             if (allowsIndex && result.getFilter() != null) {
                 Filter filter = result.getFilter();
 
-                Log.debug(String.format("Ael('%s', '%s') => (Exp: %s, Filter: %s)",
+                log.debug(String.format("Ael('%s', '%s') => (Exp: %s, Filter: %s)",
                         ael,
                         namespace,
                         result.getExp(),
                         formStringOfFilter(filter, indexContext)));
             }
             else {
-                Log.debug(String.format("Ael('%s', '%s') => (Exp: %s)",
+                log.debug(String.format("Ael('%s', '%s') => (Exp: %s)",
                         ael,
                         namespace,
                         result.getExp()));
@@ -137,8 +141,8 @@ public final class AelMaterializer {
         ParsedExpression parseResult = parser.parseExpression(context);
         Exp exp = parseResult.getResult().getExp();
 
-        if (Log.debugEnabled()) {
-            Log.debug(String.format("Ael(\"%s\") => (Exp: %s)",
+        if (log.isDebugEnabled()) {
+            log.debug(String.format("Ael(\"%s\") => (Exp: %s)",
                     ael,
                     exp));
         }

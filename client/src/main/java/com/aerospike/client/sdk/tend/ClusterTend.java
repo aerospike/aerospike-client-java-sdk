@@ -32,7 +32,6 @@ import com.aerospike.client.sdk.ClusterDefinition;
 import com.aerospike.client.sdk.Host;
 import com.aerospike.client.sdk.Loggers;
 import com.aerospike.client.sdk.Node;
-import com.aerospike.client.sdk.util.ThreadLocalData;
 import com.aerospike.client.sdk.util.Util;
 
 /**
@@ -649,7 +648,7 @@ public class ClusterTend implements Runnable {
 
         // Thread local can be used here because this method
         // is only called from the cluster tend thread.
-        byte[] buf = ThreadLocalData.getBuffer();
+        byte[] buf = new byte[8192];
         ConnectionRecover cs;
 
         while ((cs = recoverQueue.pollFirst()) != null) {

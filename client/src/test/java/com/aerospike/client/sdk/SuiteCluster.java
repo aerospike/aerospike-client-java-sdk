@@ -104,7 +104,6 @@ public class SuiteCluster {
     @BeforeSuite
     public static void beforeSuite() {
         System.out.println("Begin AerospikeClient");
-        Log.setCallback(null);
 
         Args args = Args.Instance;
 

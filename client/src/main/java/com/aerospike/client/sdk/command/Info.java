@@ -544,7 +544,7 @@ public class Info {
      * Return single value from response buffer.
      */
     public String getValue() {
-        //Log.debug("Response=" + Buffer.utf8ToString(buffer, offset, length) + " length=" + length + " offset=" + offset);
+        //log.debug("Response=" + Buffer.utf8ToString(buffer, offset, length) + " length=" + length + " offset=" + offset);
         skipToValue();
         return Buffer.utf8ToString(buffer, offset, length - offset - 1);
     }

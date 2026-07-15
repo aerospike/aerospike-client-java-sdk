@@ -689,10 +689,6 @@ public final class Filter {
         this(null, indexName, colType, valType, begin, end, null, exp, null);
     }
 
-    private Filter(String indexName, byte[] wireRangeBytes) {
-        this(null, indexName, IndexCollectionType.DEFAULT, 0, null, null, null, null, wireRangeBytes);
-    }
-
     Filter(String name, String indexName, IndexCollectionType colType, int valType, Value begin, Value end,
            byte[] packedCtx, byte[] packedExp, byte[] wireRangeBytes) {
         this.name = name;

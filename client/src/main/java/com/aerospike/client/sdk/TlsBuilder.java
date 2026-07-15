@@ -58,6 +58,9 @@ import javax.net.ssl.SSLParameters;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.TrustManagerFactory;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 /**
  * Builder class for configuring TLS settings for Aerospike cluster connections.
  *
@@ -144,6 +147,8 @@ import javax.net.ssl.TrustManagerFactory;
  * }</pre>
  */
 public class TlsBuilder {
+    private static final Logger log = LoggerFactory.getLogger(Loggers.BEHAVIOR);
+
     private String tlsName;
     private String caFile;
     private String[] protocols;
@@ -491,8 +496,8 @@ public class TlsBuilder {
 
         // Handle trust-all-certificates mode (for testing only)
         if (enableTrustAllCertificates) {
-            if (Log.warnEnabled()) {
-                Log.warn("TLS configured to trust all certificates - THIS IS INSECURE and should only be used for testing!");
+            if (log.isWarnEnabled()) {
+                log.warn("TLS configured to trust all certificates - THIS IS INSECURE and should only be used for testing!");
             }
             return buildTrustAllContext();
         }
@@ -517,8 +522,8 @@ public class TlsBuilder {
 
             // Configure trust store (CA certificates)
             if (trustStorePath != null) {
-                if (Log.debugEnabled()) {
-                    Log.debug("Using trust store: " + trustStorePath + " (type: " + trustStoreType + ")");
+                if (log.isDebugEnabled()) {
+                    log.debug("Using trust store: " + trustStorePath + " (type: " + trustStoreType + ")");
                 }
                 Path trustPath = java.nio.file.Paths.get(trustStorePath);
                 if (!Files.exists(trustPath)) {
@@ -537,8 +542,8 @@ public class TlsBuilder {
 
             // Configure key store (client certificate and key for mutual TLS)
             if (keyStorePath != null) {
-                if (Log.debugEnabled()) {
-                    Log.debug("Using key store: " + keyStorePath + " (type: " + keyStoreType + ")");
+                if (log.isDebugEnabled()) {
+                    log.debug("Using key store: " + keyStorePath + " (type: " + keyStoreType + ")");
                 }
                 Path keyPath = java.nio.file.Paths.get(keyStorePath);
                 if (!Files.exists(keyPath)) {
@@ -926,8 +931,8 @@ public class TlsBuilder {
     private InputStream streamFromFile(String filename, String logPrefix) {
         if (filename != null) {
             try {
-                if (Log.debugEnabled()) {
-                    Log.debug("Using %s file: %s".formatted(logPrefix, filename));
+                if (log.isDebugEnabled()) {
+                    log.debug("Using %s file: %s".formatted(logPrefix, filename));
                 }
                 return new FileInputStream(new File(filename));
             } catch (FileNotFoundException e) {

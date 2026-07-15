@@ -38,8 +38,11 @@ import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLSocketFactory;
 import javax.security.auth.x500.X500Principal;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.aerospike.client.sdk.AerospikeException;
-import com.aerospike.client.sdk.Log;
+import com.aerospike.client.sdk.Loggers;
 import com.aerospike.client.sdk.Node;
 import com.aerospike.client.sdk.TlsBuilder;
 import com.aerospike.client.sdk.util.Util;
@@ -48,6 +51,8 @@ import com.aerospike.client.sdk.util.Util;
  * Socket connection wrapper.
  */
 public final class Connection implements Closeable {
+    private static final Logger log = LoggerFactory.getLogger(Loggers.CONNECTION);
+
     private final Socket socket;
     private final InputStream in;
     private final OutputStream out;
@@ -212,8 +217,8 @@ public final class Connection implements Closeable {
                 String certName = (String)cn.get();
 
                 /*
-                if (Log.debugEnabled()) {
-                    Log.debug("Cert name: " + certName);
+                if (log.isDebugEnabled()) {
+                    log.debug("Cert name: " + certName);
                 }
                 */
 
@@ -231,8 +236,8 @@ public final class Connection implements Closeable {
                 int type = (Integer)list.get(0);
 
                 /*
-                if (Log.debugEnabled()) {
-                    Log.debug("SAN " + type + ": " + list.get(1));
+                if (log.isDebugEnabled()) {
+                    log.debug("SAN " + type + ": " + list.get(1));
                 }
                 */
 
@@ -340,8 +345,8 @@ public final class Connection implements Closeable {
             socket.close();
         }
         catch (Throwable e) {
-            if (Log.errorEnabled()) {
-                Log.error("Error closing socket: " + Util.getErrorMessage(e));
+            if (log.isErrorEnabled()) {
+                log.error("Error closing socket: " + Util.getErrorMessage(e));
             }
         }
     }

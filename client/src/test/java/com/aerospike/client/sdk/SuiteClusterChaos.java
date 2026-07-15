@@ -41,7 +41,6 @@ public class SuiteClusterChaos {
     @BeforeSuite
     public static void beforeSuite() {
         System.out.println("Begin SuiteChaosCluster (Aerolab/chaos tests)");
-        Log.setCallback(null);
         Args args = Args.Instance;
         Host[] hosts = Host.parseHosts(args.host, args.port);
 

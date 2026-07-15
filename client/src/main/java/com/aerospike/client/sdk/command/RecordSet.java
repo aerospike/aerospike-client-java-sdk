@@ -78,8 +78,8 @@ public class RecordSet implements Iterable<KeyRecord>, Closeable {
             valid = false;
 
             /*
-            if (Log.debugEnabled()) {
-                Log.debug("RecordSet " + executor.statement.taskId + " take interrupted");
+            if (log.isDebugEnabled()) {
+                log.debug("RecordSet " + executor.statement.taskId + " take interrupted");
             }
             */
             return false;
@@ -158,8 +158,8 @@ public class RecordSet implements Iterable<KeyRecord>, Closeable {
         }
         catch (InterruptedException ie) {
             /*
-            if (Log.debugEnabled()) {
-                Log.debug("RecordSet " + executor.statement.taskId + " put interrupted");
+            if (log.isDebugEnabled()) {
+                log.debug("RecordSet " + executor.statement.taskId + " put interrupted");
             }
             */
 
@@ -185,8 +185,8 @@ public class RecordSet implements Iterable<KeyRecord>, Closeable {
             if (queue.poll() == null) {
                 // Can't offer or poll.  Nothing further can be done.
                 /*
-                if (Log.debugEnabled()) {
-                    Log.debug("RecordSet " + executor.statement.taskId + " both offer and poll failed on abort");
+                if (log.isDebugEnabled()) {
+                    log.debug("RecordSet " + executor.statement.taskId + " both offer and poll failed on abort");
                 }
                 */
                 break;

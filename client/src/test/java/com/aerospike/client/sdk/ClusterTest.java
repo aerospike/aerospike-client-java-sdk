@@ -37,8 +37,6 @@ public class ClusterTest {
             return; // Already initialized by suite
         }
 
-        Log.setCallback(null);
-
         Host[] hosts = Host.parseHosts(args.host, args.port);
 
         ClusterDefinition def = new ClusterDefinition(hosts)

@@ -24,7 +24,6 @@ import org.slf4j.LoggerFactory;
 
 import com.aerospike.client.sdk.AerospikeException;
 import com.aerospike.client.sdk.Cluster;
-import com.aerospike.client.sdk.Log;
 import com.aerospike.client.sdk.Loggers;
 import com.aerospike.client.sdk.Node;
 import com.aerospike.client.sdk.command.Buffer;
@@ -213,7 +212,7 @@ public final class PartitionParser extends Info {
                 }
                 else {
                     if (!regimeError) {
-                        if (Log.infoEnabled()) {
+                        if (log.isInfoEnabled()) {
                             log.atInfo()
                                 .addKeyValue(Cluster.CONTEXT, node.cluster.getClusterDefinition().getClusterName())
                                 .log(node.toString() + " regime(" + regime + ") < old regime(" + regimeOld + ")");

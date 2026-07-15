@@ -22,10 +22,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import org.slf4j.Logger;
+
 import com.aerospike.client.sdk.AerospikeException;
 import com.aerospike.client.sdk.Cluster;
 import com.aerospike.client.sdk.Key;
-import com.aerospike.client.sdk.Log;
 import com.aerospike.client.sdk.OpType;
 import com.aerospike.client.sdk.ResultCode;
 import com.aerospike.client.sdk.policy.ResolvedSettings;
@@ -33,6 +34,8 @@ import com.aerospike.client.sdk.tend.Partitions;
 import com.aerospike.client.sdk.util.Util;
 
 public final class TxnRoll {
+    private static final Logger log = Command.log;
+
     private final Cluster cluster;
     private final Partitions partitions;
     private final Txn txn;
@@ -192,8 +195,8 @@ public final class TxnRoll {
             roll(rollPolicy, Command.INFO4_TXN_ROLL_FORWARD);
         }
         catch (Throwable t) {
-            if (Log.warnEnabled()) {
-                Log.warn("Transaction roll-forward failed: " + Util.getErrorMessage(t));
+            if (log.isWarnEnabled()) {
+                log.warn("Transaction roll-forward failed: " + Util.getErrorMessage(t));
             }
             return CommitStatus.ROLL_FORWARD_ABANDONED;
         }
