@@ -23,23 +23,28 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.aerospike.client.sdk.AerospikeException;
 import com.aerospike.client.sdk.Cluster;
 import com.aerospike.client.sdk.ClusterDefinition;
 import com.aerospike.client.sdk.Host;
-import com.aerospike.client.sdk.Log;
+import com.aerospike.client.sdk.Loggers;
 import com.aerospike.client.sdk.Node;
 import com.aerospike.client.sdk.TlsBuilder;
 import com.aerospike.client.sdk.command.AdminCommand;
+import com.aerospike.client.sdk.command.AdminCommand.LoginCommand;
 import com.aerospike.client.sdk.command.Buffer;
 import com.aerospike.client.sdk.command.Connection;
 import com.aerospike.client.sdk.command.Info;
-import com.aerospike.client.sdk.command.AdminCommand.LoginCommand;
 import com.aerospike.client.sdk.util.Crypto;
 import com.aerospike.client.sdk.util.Util;
 import com.aerospike.client.sdk.util.Version;
 
 public final class NodeValidator {
+    private static final Logger log = LoggerFactory.getLogger(Loggers.TEND);
+
     public Node fallback;
     public String name;
     public Host primaryHost;
@@ -68,20 +73,24 @@ public final class NodeValidator {
         Throwable exception = null;
 
         for (InetAddress address : addresses) {
+            ClusterDefinition def = cluster.getClusterDefinition();
+
             try {
-                validateAddress(cluster.getClusterDefinition(), address, host.tlsName, host.port, true);
+                validateAddress(def, address, host.tlsName, host.port, true);
 
                 Node node = new Node(cluster, this);
 
-                if (validatePeers(peers, node)) {
+                if (validatePeers(def, peers, node)) {
                     return node;
                 }
             }
             catch (Throwable e) {
                 // Log exception and continue to next alias.
-                if (Log.debugEnabled()) {
-                    Log.debug(cluster.getLogContext(), "Address " + address + ' ' + host.port + " failed: " +
-                        Util.getErrorMessage(e));
+                if (log.isDebugEnabled()) {
+                    log.atDebug()
+                        .addKeyValue(Cluster.CONTEXT, def.getClusterName())
+                        .log("Address " + address + ' ' + host.port + " failed: " +
+                            Util.getErrorMessage(e));
                 }
 
                 if (exception == null) {
@@ -101,7 +110,7 @@ public final class NodeValidator {
         throw exception;
     }
 
-    private boolean validatePeers(Peers peers, Node node) {
+    private boolean validatePeers(ClusterDefinition def, Peers peers, Node node) {
         if (peers == null) {
             return true;
         }
@@ -128,8 +137,10 @@ public final class NodeValidator {
 
         // Node is valid. Drop fallback if it exists.
         if (fallback != null) {
-            if (Log.infoEnabled()) {
-                Log.info(node.getLogContext(), "Skip orphan node: " + fallback);
+            if (log.isInfoEnabled()) {
+                log.atInfo()
+                    .addKeyValue(Cluster.CONTEXT, def.getClusterName())
+                    .log("Skip orphan node: " + fallback);
             }
             fallback.close();
             fallback = null;
@@ -151,9 +162,11 @@ public final class NodeValidator {
             }
             catch (Throwable e) {
                 // Log exception and continue to next alias.
-                if (Log.debugEnabled()) {
-                    Log.debug(def.getContext(), "Address " + address + ' ' + host.port + " failed: " +
-                        Util.getErrorMessage(e));
+                if (log.isDebugEnabled()) {
+                    log.atDebug()
+                        .addKeyValue(Cluster.CONTEXT, def.getClusterName())
+                        .log("Address " + address + ' ' + host.port + " failed: " +
+                            Util.getErrorMessage(e));
                 }
 
                 if (exception == null) {
@@ -425,8 +438,10 @@ public final class NodeValidator {
         // Failed to find a valid address. IP Address is probably internal on the cloud
         // because the server access-address is not configured.  Log warning and continue
         // with original seed.
-        if (Log.infoEnabled()) {
-            Log.info(def.getContext(), "Invalid address " + result + ". access-address is probably not configured on server.");
+        if (log.isInfoEnabled()) {
+            log.atInfo()
+                .addKeyValue(Cluster.CONTEXT, def.getClusterName())
+                .log("Invalid address " + result + ". access-address is probably not configured on server.");
         }
     }
 

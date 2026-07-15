@@ -37,7 +37,7 @@ class ConnectionPoolSettingsIntegrationTest {
 
     private static final Duration SOCKET_IDLE_TRIM = Duration.ofMillis(50);
     private static final int TIGHT_MAX_CONNS_PER_NODE = 8;
-    
+
     @BeforeEach
     void resetSystemSettingsRegistry() {
         SystemSettingsRegistry.getInstance().updateDefaultSettings(SystemSettings.DEFAULT);
@@ -148,7 +148,6 @@ class ConnectionPoolSettingsIntegrationTest {
         Host[] hosts = Host.parseHosts(args.host, args.port);
 
         ClusterDefinition def = new ClusterDefinition(hosts)
-            .withLogLevel(Log.Level.DEBUG)
             .clusterName(args.clusterName)
             .withSystemSettings(poolTuned);
 

@@ -25,6 +25,9 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.aerospike.client.sdk.command.AdminCommand;
 import com.aerospike.client.sdk.command.Connection;
 import com.aerospike.client.sdk.command.Info;
@@ -58,6 +61,7 @@ public class Node implements Closeable {
 
     private static final String[] INFO_PERIODIC = new String[] {"node", "peers-generation", "partition-generation"};
     private static final String[] INFO_PERIODIC_REB = new String[] {"node", "peers-generation", "partition-generation", "rebalance-generation"};
+    private static final Logger log = LoggerFactory.getLogger(Loggers.TEND);
 
     public final Cluster cluster;
     private String name;
@@ -258,8 +262,10 @@ public class Node implements Closeable {
     }
 
     private void login() throws IOException {
-        if (Log.infoEnabled()) {
-            Log.info(cluster.context, "Login to " + this);
+        if (log.isInfoEnabled()) {
+            log.atInfo()
+                .addKeyValue(Cluster.CONTEXT, cluster.def.getClusterName())
+                .log("Login to " + this);
         }
 
         try {
@@ -313,8 +319,11 @@ public class Node implements Closeable {
             peers.genChanged = true;
 
             if (peersGeneration > gen) {
-                if (Log.infoEnabled()) {
-                    Log.info(cluster.context, "Quick node restart detected: node=" + this + " oldgen=" + peersGeneration + " newgen=" + gen);
+                if (log.isInfoEnabled()) {
+                    log.atInfo()
+                        .addKeyValue(Cluster.CONTEXT, cluster.def.getClusterName())
+                        .log("Quick node restart detected: node=" + this + " oldgen=" +
+                            peersGeneration + " newgen=" + gen);
                 }
                 restart();
             }
@@ -335,8 +344,10 @@ public class Node implements Closeable {
             balanceConnections();
         }
         catch (Throwable e) {
-            if (Log.warnEnabled()) {
-                Log.warn(cluster.context, "Node restart failed: " + this + ' ' + Util.getErrorMessage(e));
+            if (log.isWarnEnabled()) {
+                log.atWarn()
+                    .addKeyValue(Cluster.CONTEXT, cluster.def.getClusterName())
+                    .log("Node restart failed: " + this + ' ' + Util.getErrorMessage(e));
             }
         }
     }
@@ -376,8 +387,10 @@ public class Node implements Closeable {
         }
 
         try {
-            if (Log.debugEnabled()) {
-                Log.debug(cluster.context, "Update peers for node " + this);
+            if (log.isDebugEnabled()) {
+                log.atDebug()
+                    .addKeyValue(Cluster.CONTEXT, cluster.def.getClusterName())
+                    .log("Update peers for node " + this);
             }
             PeerParser parser = new PeerParser(cluster.def, this, tendConnection, peers.peers);
             peersCount = peers.peers.size();
@@ -406,8 +419,12 @@ public class Node implements Closeable {
 
                         if (! peer.nodeName.equals(nv.name)) {
                             // Must look for new node name in the unlikely event that node names do not agree.
-                            if (Log.warnEnabled()) {
-                                Log.warn(cluster.context, "Peer node " + peer.nodeName + " is different than actual node " + nv.name + " for host " + host);
+                            if (log.isWarnEnabled()) {
+                                log.atWarn()
+                                    .addKeyValue(Cluster.CONTEXT, cluster.def.getClusterName())
+                                    .log("Peer node " + peer.nodeName +
+                                        " is different than actual node " + nv.name + " for host " +
+                                        host);
                             }
                         }
 
@@ -417,8 +434,10 @@ public class Node implements Closeable {
                         nodeValidated = true;
 
                         if (peer.replaceNode != null) {
-                            if (Log.infoEnabled()) {
-                                Log.info(cluster.context, "Replace node: " + peer.replaceNode);
+                            if (log.isInfoEnabled()) {
+                                log.atInfo()
+                                    .addKeyValue(Cluster.CONTEXT, cluster.def.getClusterName())
+                                    .log("Replace node: " + peer.replaceNode);
                             }
                             peers.removeNodes.add(peer.replaceNode);
                         }
@@ -427,8 +446,10 @@ public class Node implements Closeable {
                     catch (Throwable e) {
                         peers.fail(host);
 
-                        if (Log.warnEnabled()) {
-                            Log.warn(cluster.context, "Add node " + host + " failed: " + Util.getErrorMessage(e));
+                        if (log.isWarnEnabled()) {
+                            log.atWarn()
+                                .addKeyValue(Cluster.CONTEXT, cluster.def.getClusterName())
+                                .log("Add node " + host + " failed: " + Util.getErrorMessage(e));
                         }
                     }
                 }
@@ -490,7 +511,11 @@ public class Node implements Closeable {
                     catch (Throwable t) {
                         // Peer name is invalid. replaceNode may be set, but that node will
                         // not be replaced because NodeValidator will reject it.
-                        Log.error(cluster.context, "Invalid peer received by cluster tend: " + h.name);
+                        if (log.isErrorEnabled()) {
+                            log.atError()
+                                .addKeyValue(Cluster.CONTEXT, cluster.def.getClusterName())
+                                .log("Invalid peer received by cluster tend: " + h.name);
+                        }
                     }
                 }
             }
@@ -518,8 +543,10 @@ public class Node implements Closeable {
         }
 
         try {
-            if (Log.debugEnabled()) {
-                Log.debug(cluster.context, "Update partition map for node " + this);
+            if (log.isDebugEnabled()) {
+                log.atDebug()
+                    .addKeyValue(Cluster.CONTEXT, cluster.def.getClusterName())
+                    .log("Update partition map for node " + this);
             }
             PartitionParser parser = new PartitionParser(tendConnection, this, cluster.partitionMap, Node.PARTITIONS);
 
@@ -540,8 +567,10 @@ public class Node implements Closeable {
         }
 
         try {
-            if (Log.debugEnabled()) {
-                Log.debug(cluster.context, "Update racks for node " + this);
+            if (log.isDebugEnabled()) {
+                log.atDebug()
+                    .addKeyValue(Cluster.CONTEXT, cluster.def.getClusterName())
+                    .log("Update racks for node " + this);
             }
             RackParser parser = new RackParser(this, tendConnection);
 
@@ -561,8 +590,10 @@ public class Node implements Closeable {
         }
 
         // Only log message if cluster is still active.
-        if (cluster.tend.isActive() && Log.warnEnabled()) {
-            Log.warn(cluster.context, "Node " + this + " refresh failed: " + Util.getErrorMessage(e));
+        if (cluster.tend.isActive() && log.isWarnEnabled()) {
+            log.atWarn()
+                .addKeyValue(Cluster.CONTEXT, cluster.def.getClusterName())
+                .log("Node " + this + " refresh failed: " + Util.getErrorMessage(e));
         }
     }
 
@@ -577,8 +608,10 @@ public class Node implements Closeable {
             catch (Throwable e) {
                 // Failing to create min connections is not considered fatal.
                 // Log failure and return.
-                if (Log.debugEnabled()) {
-                    Log.debug(cluster.context, "Failed to create connection: " + e.getMessage());
+                if (log.isDebugEnabled()) {
+                    log.atDebug()
+                        .addKeyValue(Cluster.CONTEXT, cluster.def.getClusterName())
+                        .log("Failed to create connection: " + e.getMessage());
                 }
                 return;
             }
@@ -991,13 +1024,6 @@ public class Node implements Closeable {
 
     private boolean isErrorRateValid() {
         return this.errorRateCount.get() <= this.maxErrorRate;
-    }
-
-    /**
-     * Return log context.
-     */
-    public final Log.Context getLogContext() {
-        return cluster.context;
     }
 
     /**

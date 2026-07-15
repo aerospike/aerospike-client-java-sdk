@@ -129,7 +129,6 @@ public class TxnTest extends ClusterTest {
 
         Cluster contentionCluster = new ClusterDefinition(Host.parseHosts(args.host, args.port))
             .clusterName(args.clusterName)
-            .withLogLevel(Log.Level.DEBUG)
             .withSystemSettings(txnTuned)
             .connect();
 

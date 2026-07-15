@@ -23,11 +23,14 @@ import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReferenceArray;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.aerospike.client.sdk.AerospikeException;
 import com.aerospike.client.sdk.Cluster;
 import com.aerospike.client.sdk.ClusterDefinition;
 import com.aerospike.client.sdk.Host;
-import com.aerospike.client.sdk.Log;
+import com.aerospike.client.sdk.Loggers;
 import com.aerospike.client.sdk.Node;
 import com.aerospike.client.sdk.util.ThreadLocalData;
 import com.aerospike.client.sdk.util.Util;
@@ -36,6 +39,8 @@ import com.aerospike.client.sdk.util.Util;
  * Cluster tend thread.
  */
 public class ClusterTend implements Runnable {
+    private static final Logger log = LoggerFactory.getLogger(Loggers.TEND);
+
     private final Cluster cluster;
     private final ClusterDefinition def;
     private Thread tendThread;
@@ -61,9 +66,11 @@ public class ClusterTend implements Runnable {
         // Tend cluster until all nodes identified.
         waitTillStabilized(def.isFailIfNotConnected());
 
-        if (Log.debugEnabled()) {
+        if (log.isDebugEnabled()) {
             for (Host host : seeds) {
-                Log.debug(cluster.getLogContext(), "Add seed " + host);
+                log.atDebug()
+                    .addKeyValue(Cluster.CONTEXT, def.getClusterName())
+                    .log("Add seed " + host);
             }
         }
 
@@ -96,8 +103,10 @@ public class ClusterTend implements Runnable {
                 tend(false, false);
             }
             catch (Throwable e) {
-                if (Log.warnEnabled()) {
-                    Log.warn(cluster.getLogContext(), "Cluster tend failed: " + Util.getErrorMessage(e));
+                if (log.isWarnEnabled()) {
+                    log.atWarn()
+                        .addKeyValue(Cluster.CONTEXT, def.getClusterName())
+                        .log("Cluster tend failed: " + Util.getErrorMessage(e));
                 }
             }
             // Sleep between polling intervals.
@@ -163,7 +172,11 @@ public class ClusterTend implements Runnable {
                 throw new AerospikeException(message);
             }
             else {
-                Log.warn(cluster.getLogContext(), message);
+                if (log.isWarnEnabled()) {
+                    log.atWarn()
+                        .addKeyValue(Cluster.CONTEXT, def.getClusterName())
+                        .log(message);
+                }
             }
         }
     }
@@ -298,8 +311,10 @@ public class ClusterTend implements Runnable {
                     exceptions[i] = e;
                 }
                 else {
-                    if (Log.warnEnabled()) {
-                        Log.warn(cluster.getLogContext(), "Seed " + seed + " failed: " + Util.getErrorMessage(e));
+                    if (log.isWarnEnabled()) {
+                        log.atWarn()
+                            .addKeyValue(Cluster.CONTEXT, def.getClusterName())
+                            .log("Seed " + seed + " failed: " + Util.getErrorMessage(e));
                     }
                 }
             }
@@ -389,8 +404,10 @@ public class ClusterTend implements Runnable {
 
         // Add new seeds
         for (Host host : hosts) {
-            if (Log.debugEnabled()) {
-                Log.debug(cluster.getLogContext(), "Add seed " + host);
+            if (log.isDebugEnabled()) {
+                log.atDebug()
+                    .addKeyValue(Cluster.CONTEXT, def.getClusterName())
+                    .log("Add seed " + host);
             }
             seedArray[count++] = host;
         }
@@ -515,8 +532,10 @@ public class ClusterTend implements Runnable {
             cluster.setVersion(node.getVersion());
         }
 
-        if (Log.infoEnabled()) {
-            Log.info(cluster.getLogContext(), "Add node " + node);
+        if (log.isInfoEnabled()) {
+            log.atInfo()
+                .addKeyValue(Cluster.CONTEXT, def.getClusterName())
+                .log("Add node " + node);
         }
 
         nodesMap.put(node.getName(), node);
@@ -541,7 +560,11 @@ public class ClusterTend implements Runnable {
                         metricsListener.onNodeClose(node);
                     }
                     catch (Throwable e) {
-                        Log.warn("Write metrics failed on " + node + ": " + Util.getErrorMessage(e));
+                        if (log.isWarnEnabled()) {
+                            log.atWarn()
+                                .addKeyValue(Cluster.CONTEXT, def.getClusterName())
+                                .log("Write metrics failed on " + node + ": " + Util.getErrorMessage(e));
+                        }
                     }
                 }
             }
@@ -568,8 +591,10 @@ public class ClusterTend implements Runnable {
         // Add nodes that are not in remove list.
         for (Node node : nodes) {
             if (nodesToRemove.contains(node)) {
-                if (Log.infoEnabled()) {
-                    Log.info(cluster.getLogContext(), "Remove node " + node);
+                if (log.isInfoEnabled()) {
+                    log.atInfo()
+                        .addKeyValue(Cluster.CONTEXT, def.getClusterName())
+                        .log("Remove node " + node);
                 }
             }
             else {
@@ -579,8 +604,10 @@ public class ClusterTend implements Runnable {
 
         // Do sanity check to make sure assumptions are correct.
         if (count < nodeArray.length) {
-            if (Log.warnEnabled()) {
-                Log.warn(cluster.getLogContext(), "Node remove mismatch. Expected " + nodeArray.length + " Received " + count);
+            if (log.isWarnEnabled()) {
+                log.atWarn()
+                    .addKeyValue(Cluster.CONTEXT, def.getClusterName())
+                    .log("Node remove mismatch. Expected " + nodeArray.length + " Received " + count);
             }
             // Resize array.
             Node[] nodeArray2 = new Node[count];

@@ -42,7 +42,6 @@ public class ClusterTest {
         Host[] hosts = Host.parseHosts(args.host, args.port);
 
         ClusterDefinition def = new ClusterDefinition(hosts)
-            .withLogLevel(Log.Level.DEBUG)
             .clusterName(args.clusterName)
             .withSystemSettings(SystemSettings.builder()
                     .connections(ops -> ops.maximumConnectionsPerNode(200)).build()
@@ -92,7 +91,7 @@ public class ClusterTest {
         try {
             session = cluster.createSession(Behavior.DEFAULT);
             sessionWithSendKey = cluster.createSession(Behavior.DEFAULT.deriveWithChanges(
-                    "sendKey", 
+                    "sendKey",
                     opt -> opt.on(Selectors.all(), s -> s.sendKey(true)))
             );
             args.setServerSpecific(cluster);
