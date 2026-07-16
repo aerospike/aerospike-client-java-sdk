@@ -71,20 +71,20 @@ public final class RecordParser {
         /*
         byte version = (byte) (((int)(sz >> 56)) & 0xff);
         if (version != MSG_VERSION) {
-            if (Log.debugEnabled()) {
-                Log.debug("read header: incorrect version.");
+            if (log.isDebugEnabled()) {
+                log.debug("read header: incorrect version.");
             }
         }
 
         if (type != MSG_TYPE) {
-            if (Log.debugEnabled()) {
-                Log.debug("read header: incorrect message type, aborting receive");
+            if (log.isDebugEnabled()) {
+                log.debug("read header: incorrect message type, aborting receive");
             }
         }
 
         if (headerLength != MSG_REMAINING_HEADER_SIZE) {
-            if (Log.debugEnabled()) {
-                Log.debug("read header: unexpected header size, aborting");
+            if (log.isDebugEnabled()) {
+                log.debug("read header: unexpected header size, aborting");
             }
         }*/
 

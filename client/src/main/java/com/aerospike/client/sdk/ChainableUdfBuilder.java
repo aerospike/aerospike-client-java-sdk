@@ -24,6 +24,9 @@ import java.util.Date;
 import java.util.List;
 import java.util.Objects;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.aerospike.ael.ParseResult;
 import com.aerospike.client.sdk.ael.BooleanExpression;
 import com.aerospike.client.sdk.command.Txn;
@@ -67,6 +70,8 @@ import com.aerospike.client.sdk.query.WhereClauseProcessor;
  */
 public class ChainableUdfBuilder extends AbstractSessionOperationBuilder<ChainableUdfBuilder>
         implements FilterableOperation<ChainableUdfBuilder> {
+
+    private static final Logger log = LoggerFactory.getLogger(Loggers.COMMAND);
 
     private final List<OperationSpec> operationSpecs;
     private OperationSpec currentSpec = null;
@@ -1078,9 +1083,9 @@ public class ChainableUdfBuilder extends AbstractSessionOperationBuilder<Chainab
     public RecordStream execute() {
         prepareSpecs();
 
-        if (Log.debugEnabled()) {
+        if (log.isDebugEnabled()) {
             int totalKeys = operationSpecs.stream().mapToInt(spec -> spec.getKeys().size()).sum();
-            Log.debug("ChainableUdfBuilder.execute() called for " + operationSpecs.size() +
+            log.debug("ChainableUdfBuilder.execute() called for " + operationSpecs.size() +
                      " operation(s), " + totalKeys + " key(s), transaction: " +
                      (txnToUse != null ? "yes" : "no"));
         }
@@ -1116,9 +1121,9 @@ public class ChainableUdfBuilder extends AbstractSessionOperationBuilder<Chainab
     private RecordStream executeWithDisposition(ErrorDisposition disposition) {
         prepareSpecs();
 
-        if (Log.debugEnabled()) {
+        if (log.isDebugEnabled()) {
             int totalKeys = operationSpecs.stream().mapToInt(spec -> spec.getKeys().size()).sum();
-            Log.debug("ChainableUdfBuilder.execute() called for " + operationSpecs.size() +
+            log.debug("ChainableUdfBuilder.execute() called for " + operationSpecs.size() +
                      " operation(s), " + totalKeys + " key(s), transaction: " +
                      (txnToUse != null ? "yes" : "no"));
         }
@@ -1153,15 +1158,15 @@ public class ChainableUdfBuilder extends AbstractSessionOperationBuilder<Chainab
     private RecordStream executeAsyncInternal(ErrorHandler errorHandler) {
         prepareSpecs();
 
-        if (Log.debugEnabled()) {
+        if (log.isDebugEnabled()) {
             int totalKeys = operationSpecs.stream().mapToInt(spec -> spec.getKeys().size()).sum();
-            Log.debug("ChainableUdfBuilder.executeAsync() called for " + operationSpecs.size() +
+            log.debug("ChainableUdfBuilder.executeAsync() called for " + operationSpecs.size() +
                      " operation(s), " + totalKeys + " key(s), transaction: " +
                      (txnToUse != null ? "yes" : "no"));
         }
 
-        if (txnToUse != null && Log.warnEnabled()) {
-            Log.warn(
+        if (txnToUse != null && log.isWarnEnabled()) {
+            log.warn(
                 "executeAsync() called within a transaction. " +
                 "Async operations may still be in flight when commit() is called, " +
                 "which could lead to inconsistent state. " +

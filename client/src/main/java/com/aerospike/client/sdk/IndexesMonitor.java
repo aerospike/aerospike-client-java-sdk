@@ -22,6 +22,9 @@ import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.aerospike.ael.Index;
 import com.aerospike.client.sdk.query.IndexType;
 import com.aerospike.client.sdk.util.Util;
@@ -61,6 +64,8 @@ import com.aerospike.client.sdk.util.Util;
  */
 // Package level visibility
 class IndexesMonitor {
+    private static final Logger log = LoggerFactory.getLogger(Loggers.TEND);
+
     private Set<Index> indexes = new HashSet<>();
     private Thread monitorThread = null;
 
@@ -148,7 +153,9 @@ class IndexesMonitor {
                         break;
                     }
                     catch (Throwable th) {
-                        Log.error("Error updating index information: " + Util.getErrorMessage(th));
+                        if (log.isErrorEnabled()) {
+                            log.error("Error updating index information: " + Util.getErrorMessage(th));
+                        }
                         initialFetchLatch.countDown();
                         try {
                             Thread.sleep(frequency.toMillis());

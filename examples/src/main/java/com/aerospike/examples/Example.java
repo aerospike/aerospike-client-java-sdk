@@ -28,7 +28,6 @@ import org.apache.commons.cli.ParseException;
 
 import com.aerospike.client.sdk.Cluster;
 import com.aerospike.client.sdk.ClusterDefinition;
-import com.aerospike.client.sdk.Log;
 
 /**
  * Abstract base class for all examples.
@@ -106,7 +105,6 @@ public abstract class Example {
      */
     public static ClusterDefinition clusterDefinition(Args args) {
         ClusterDefinition def = new ClusterDefinition(args.host, args.port)
-                .withLogLevel(Log.Level.DEBUG)
                 .clusterName(args.clusterName)
                 .withSystemSettings(builder -> builder
                         .circuitBreaker(ops -> ops.maximumErrorsInErrorWindow(200))

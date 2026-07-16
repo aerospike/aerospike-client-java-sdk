@@ -33,8 +33,6 @@ import java.util.concurrent.Executors;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 
-import com.aerospike.client.sdk.Log;
-
 @Command(
         name = Constants.RUN_BENCHMARKS,
         mixinStandardHelpOptions = false,
@@ -46,7 +44,7 @@ import com.aerospike.client.sdk.Log;
         subcommands = {AutoComplete.GenerateCompletion.class},
         usageHelpAutoWidth = true
 )
-public class AerospikeBenchmark implements Callable<Integer>, Log.Callback {
+public class AerospikeBenchmark implements Callable<Integer> {
 
     private static final DateTimeFormatter TimeFormatter =
             DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS");
@@ -111,7 +109,6 @@ public class AerospikeBenchmark implements Callable<Integer>, Log.Callback {
         } else {
             doRwTask(benchmarkContext);
         }
-
     }
 
     private void doRwTask(BenchmarkContext benchmarkContext) throws InterruptedException {
@@ -313,16 +310,4 @@ public class AerospikeBenchmark implements Callable<Integer>, Log.Callback {
             }
         }
     }
-
-
-    @Override
-    public void log(Log.Context context, Log.Level level, String message) {
-        System.out.println(
-                LocalDateTime.now().format(TimeFormatter)
-                        + ' '
-                        + level.toString()
-                        + ' '
-                        + message);
-    }
-
 }

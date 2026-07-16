@@ -18,10 +18,17 @@ package com.aerospike.client.sdk.tend;
 
 import java.util.concurrent.atomic.AtomicReferenceArray;
 
-import com.aerospike.client.sdk.Log;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.aerospike.client.sdk.Cluster;
+import com.aerospike.client.sdk.ClusterDefinition;
+import com.aerospike.client.sdk.Loggers;
 import com.aerospike.client.sdk.Node;
 
 public final class Partitions {
+    private static final Logger log = LoggerFactory.getLogger(Loggers.TEND);
+
     public final AtomicReferenceArray<Node>[] replicas;
     final int[] regimes;
     public final boolean scMode;
@@ -67,7 +74,7 @@ public final class Partitions {
         this.scMode = other.scMode;
     }
 
-    public void log(Log.Context context, String namespace) {
+    public void log(ClusterDefinition def, String namespace) {
         for (int i = 0; i < replicas.length; i++) {
             AtomicReferenceArray<Node> nodeArray = replicas[i];
             int max = nodeArray.length();
@@ -76,7 +83,9 @@ public final class Partitions {
                 Node node = nodeArray.get(j);
 
                 if (node != null) {
-                    Log.info(context, namespace + ',' + i + ',' + j + ',' + node);
+                    log.atInfo()
+                        .addKeyValue(Cluster.CONTEXT, def.getClusterName())
+                        .log(namespace + ',' + i + ',' + j + ',' + node);
                 }
             }
         }

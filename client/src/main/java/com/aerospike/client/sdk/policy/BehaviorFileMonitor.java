@@ -32,15 +32,18 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
-import com.aerospike.client.sdk.Log;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.aerospike.client.sdk.Loggers;
 
 /**
  * Monitors a YAML file for changes and dynamically reloads behaviors
  */
 class BehaviorFileMonitor implements Closeable {
-
     private static final BehaviorFileMonitor INSTANCE = new BehaviorFileMonitor();
     private static final long DEFAULT_RELOAD_DELAY_MS = 1000; // 1 second delay to avoid multiple reloads
+    private static final Logger log = LoggerFactory.getLogger(Loggers.BEHAVIOR);
 
     private final BehaviorRegistry registry = BehaviorRegistry.getInstance();
     // Use a scheduled executor with 2 threads: one for monitoring, one for reload tasks
@@ -112,7 +115,9 @@ class BehaviorFileMonitor implements Closeable {
         isMonitoring = true;
         executor.submit(this::monitorFile);
 
-        Log.debug("Started monitoring YAML file: %s checking every %,dms".formatted(yamlFilePath, reloadDelayMs));
+        if (log.isDebugEnabled()) {
+            log.debug("Started monitoring YAML file: %s checking every %,dms".formatted(yamlFilePath, reloadDelayMs));
+        }
     }
 
     /**
@@ -125,12 +130,16 @@ class BehaviorFileMonitor implements Closeable {
             try {
                 watchService.close();
             } catch (IOException e) {
-                Log.error("Error closing watch service: " + e.getMessage());
+                if (log.isErrorEnabled()) {
+                    log.error("Error closing watch service: " + e.getMessage());
+                }
             }
             watchService = null;
         }
 
-        Log.info("Stopped monitoring YAML file");
+        if (log.isInfoEnabled()) {
+            log.info("Stopped monitoring YAML file");
+        }
     }
 
     /**
@@ -153,9 +162,14 @@ class BehaviorFileMonitor implements Closeable {
     void reloadBehaviors() {
         try {
             loadBehaviors();
-            Log.info("Manually reloaded behaviors from: " + yamlFilePath);
+
+            if (log.isInfoEnabled()) {
+                log.info("Manually reloaded behaviors from: " + yamlFilePath);
+            }
         } catch (Exception e) {
-            Log.error("Error reloading behaviors: " + e.getMessage());
+            if (log.isErrorEnabled()) {
+                log.error("Error reloading behaviors: " + e.getMessage());
+            }
         }
     }
 
@@ -187,7 +201,9 @@ class BehaviorFileMonitor implements Closeable {
 
                 boolean resetValid = key.reset();
                 if (!resetValid) {
-                    Log.warn("WatchKey is no longer valid, stopping file monitoring");
+                    if (log.isWarnEnabled()) {
+                        log.warn("WatchKey is no longer valid, stopping file monitoring");
+                    }
                     break;
                 }
 
@@ -197,10 +213,14 @@ class BehaviorFileMonitor implements Closeable {
             } catch (ClosedWatchServiceException e) {
                 // There is not a isClsoed method which would allow us to check if the watch service is closed, so we have to catch this exception to know that the watch service is closed.
                 // Within this context this is considered normal
-                Log.info("Watch service is closed.");
+                if (log.isInfoEnabled()) {
+                    log.info("Watch service is closed.");
+                }
                 break;
             } catch (Exception e) {
-                Log.error("Error in file monitoring: " + e.getMessage());
+                if (log.isErrorEnabled()) {
+                    log.error("Error in file monitoring: " + e.getMessage());
+                }
             }
         }
     }
@@ -223,7 +243,9 @@ class BehaviorFileMonitor implements Closeable {
             executor.schedule(this::loadBehaviors, reloadDelayMs, TimeUnit.MILLISECONDS);
 
         } catch (Exception e) {
-            Log.error("Error handling file change: " + e.getMessage());
+            if (log.isErrorEnabled()) {
+                log.error("Error handling file change: " + e.getMessage());
+            }
         }
     }
 
@@ -244,12 +266,17 @@ class BehaviorFileMonitor implements Closeable {
             }
             Behavior.DEFAULT.clearCache();
 
-            Log.info("Updated " + updatedBehaviors.size() + " behaviors from: " + yamlFilePath + ": " + updatedBehaviors.keySet());
-
+            if (log.isInfoEnabled()) {
+                log.info("Updated " + updatedBehaviors.size() + " behaviors from: " + yamlFilePath + ": " + updatedBehaviors.keySet());
+            }
         } catch (IOException e) {
-            Log.error("Error reading or parsing YAML file: " + e.getMessage());
+            if (log.isErrorEnabled()) {
+                log.error("Error reading or parsing YAML file: " + e.getMessage());
+            }
         } catch (Exception e) {
-            Log.error("Unexpected error loading behaviors: " + e.getMessage());
+            if (log.isErrorEnabled()) {
+                log.error("Unexpected error loading behaviors: " + e.getMessage());
+            }
         }
     }
 

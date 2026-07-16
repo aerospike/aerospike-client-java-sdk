@@ -19,13 +19,16 @@ package com.aerospike.client.sdk.query;
 import java.util.Objects;
 import java.util.function.Function;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.aerospike.client.sdk.AbstractFilterableBuilder;
 import com.aerospike.client.sdk.AerospikeException;
 import com.aerospike.client.sdk.DataSet;
 import com.aerospike.client.sdk.ErrorHandler;
 import com.aerospike.client.sdk.ErrorStrategy;
 import com.aerospike.client.sdk.Key;
-import com.aerospike.client.sdk.Log;
+import com.aerospike.client.sdk.Loggers;
 import com.aerospike.client.sdk.NavigatableRecordStream;
 import com.aerospike.client.sdk.RecordMapper;
 import com.aerospike.client.sdk.RecordStream;
@@ -75,6 +78,9 @@ import com.aerospike.client.sdk.tend.Partition;
 public class QueryBuilder extends AbstractFilterableBuilder implements
             KeyBasedQueryBuilderInterface<QueryBuilder>,
             IndexBasedQueryBuilderInterface<QueryBuilder> {
+
+    private static final Logger log = LoggerFactory.getLogger(Loggers.COMMAND);
+
     private final QueryImpl implementation;
     private String[] binNames = null;
     private long limit = 0;
@@ -642,8 +648,8 @@ public class QueryBuilder extends AbstractFilterableBuilder implements
      */
     @Override
     public RecordStream execute() {
-        if (Log.debugEnabled()) {
-            Log.debug("QueryBuilder.execute() called, transaction: " + (txnToUse != null ? "yes" : "no"));
+        if (log.isDebugEnabled()) {
+            log.debug("QueryBuilder.execute() called, transaction: " + (txnToUse != null ? "yes" : "no"));
         }
         return this.implementation.execute();
     }
@@ -729,8 +735,8 @@ public class QueryBuilder extends AbstractFilterableBuilder implements
     }
 
     private void warnIfInTransaction() {
-        if (txnToUse != null && Log.warnEnabled()) {
-            Log.warn(
+        if (txnToUse != null && log.isWarnEnabled()) {
+            log.warn(
                 "executeAsync() called within a transaction. " +
                 "Async operations may still be in flight when commit() is called, " +
                 "which could lead to inconsistent state. " +

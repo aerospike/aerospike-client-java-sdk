@@ -104,14 +104,12 @@ public class SuiteCluster {
     @BeforeSuite
     public static void beforeSuite() {
         System.out.println("Begin AerospikeClient");
-        Log.setCallback(null);
 
         Args args = Args.Instance;
 
         Host[] hosts = Host.parseHosts(args.host, args.port);
 
         ClusterDefinition def = new ClusterDefinition(hosts)
-            .withLogLevel(Log.Level.DEBUG)
             .clusterName(args.clusterName)
             .withSystemSettings(SystemSettings.builder()
                     .connections(ops -> ops.maximumConnectionsPerNode(200)).build()

@@ -29,11 +29,15 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import com.aerospike.client.sdk.Log;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.aerospike.client.sdk.Loggers;
 import com.aerospike.client.sdk.info.annotations.Alias;
 import com.aerospike.client.sdk.info.annotations.Mapping;
 import com.aerospike.client.sdk.info.annotations.Mappings;
 import com.aerospike.client.sdk.info.annotations.Named;
+import com.aerospike.client.sdk.util.Util;
 
 /**
  * Rather than explicitly mapping a key / value from a map that is returned from an info
@@ -71,6 +75,8 @@ import com.aerospike.client.sdk.info.annotations.Named;
  * </ul>
  */
 public class MapToObjectMapper {
+    private static final Logger log = LoggerFactory.getLogger(Loggers.COMMAND);
+
     private static class ClassCacheEntry {
         private Map<String, Field> fieldMapping = new HashMap<>();
         private Map<Pattern, String> keyMapping = new HashMap<>();
@@ -229,13 +235,14 @@ public class MapToObjectMapper {
         } catch (InstantiationException | IllegalAccessException | IllegalArgumentException | InvocationTargetException
                 | NoSuchMethodException e) {
 
-            if (Log.warnEnabled()) {
-                Log.warn(String.format("Error mapping data from object to a class of type %s: %s (%s)",
+            if (log.isWarnEnabled()) {
+                log.warn(String.format("Error mapping data from object to a class of type %s: %s (%s)",
                         clazz.getName(),
                         e.getMessage(),
                         e.getClass().getName()));
-                if (Log.debugEnabled()) {
-                    e.printStackTrace();
+
+                if (log.isDebugEnabled()) {
+                    log.debug(Util.getErrorMessage(e));
                 }
             }
             throw new RuntimeException(e);
@@ -304,8 +311,8 @@ public class MapToObjectMapper {
 
 
     private static void handleUnknownKey(Object target, String key, String value) {
-        if (Log.infoEnabled()) {
-            Log.info(String.format("Unknown key encountered: %s = %s (target class: %s)",
+        if (log.isInfoEnabled()) {
+            log.info(String.format("Unknown key encountered: %s = %s (target class: %s)",
                     key, value, target.getClass().getSimpleName()));
         }
     }

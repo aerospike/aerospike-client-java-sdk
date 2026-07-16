@@ -18,7 +18,6 @@ package com.aerospike.client.sdk.command;
 
 import java.io.IOException;
 
-import com.aerospike.client.sdk.AerospikeException;
 import com.aerospike.client.sdk.Cluster;
 import com.aerospike.client.sdk.Node;
 import com.aerospike.client.sdk.ResultCode;
