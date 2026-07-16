@@ -16,18 +16,12 @@
  */
 package com.aerospike.client.sdk.command;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.aerospike.client.sdk.Cluster;
-import com.aerospike.client.sdk.Loggers;
 import com.aerospike.client.sdk.exp.Expression;
 import com.aerospike.client.sdk.policy.Replica;
 import com.aerospike.client.sdk.policy.ResolvedSettings;
 
 public class Command {
-    static final Logger log = LoggerFactory.getLogger(Loggers.COMMAND);
-
     public static final int INFO1_READ              = (1 << 0); // Contains a read operation.
     public static final int INFO1_GET_ALL           = (1 << 1); // Get all bins.
     public static final int INFO1_SHORT_QUERY       = (1 << 2); // Short query.

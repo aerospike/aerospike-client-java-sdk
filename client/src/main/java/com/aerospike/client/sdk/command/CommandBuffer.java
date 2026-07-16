@@ -20,10 +20,12 @@ import java.util.List;
 import java.util.zip.Deflater;
 
 import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.aerospike.client.sdk.AerospikeException;
 import com.aerospike.client.sdk.Bin;
 import com.aerospike.client.sdk.Key;
+import com.aerospike.client.sdk.Loggers;
 import com.aerospike.client.sdk.Operation;
 import com.aerospike.client.sdk.ResultCode;
 import com.aerospike.client.sdk.Value;
@@ -38,8 +40,7 @@ import com.aerospike.client.sdk.query.plan.QueryWhereWire;
 import com.aerospike.client.sdk.util.Packer;
 
 public final class CommandBuffer {
-    private static final Logger log = Command.log;
-
+    private static final Logger log = LoggerFactory.getLogger(Loggers.COMMAND);
     public static final byte BATCH_MSG_READ = 0x0;
     public static final byte BATCH_MSG_REPEAT = 0x1;
     public static final byte BATCH_MSG_INFO = 0x2;

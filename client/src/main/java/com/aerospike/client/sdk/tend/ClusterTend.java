@@ -646,8 +646,6 @@ public class ClusterTend implements Runnable {
             return;
         }
 
-        // Thread local can be used here because this method
-        // is only called from the cluster tend thread.
         byte[] buf = new byte[8192];
         ConnectionRecover cs;
 

@@ -137,13 +137,16 @@ public final class Connection implements Closeable {
                 }
 
                 /*
-                String[] protocols = sslSocket.getSupportedProtocols();
-                for (String protocol : protocols) {
-                    Log.info("Protocol: " + protocol);
-                }
-                String[] ciphers = sslSocket.getSupportedCipherSuites();
-                for (String cipher : ciphers) {
-                    Log.info("Cipher: " + cipher);
+                if (log.isTraceEnabled()) {
+                    String[] protocols = sslSocket.getSupportedProtocols();
+                    for (String protocol : protocols) {
+                        log.trace("Protocol: " + protocol);
+                    }
+
+                    String[] ciphers = sslSocket.getSupportedCipherSuites();
+                    for (String cipher : ciphers) {
+                        log.trace("Cipher: " + cipher);
+                    }
                 }
                 */
 
