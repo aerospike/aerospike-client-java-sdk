@@ -39,15 +39,42 @@ public abstract class WhereClauseProcessor {
      */
     public abstract ParseResult process(String namespace, String querySet, Session session);
 
-    public WhereClauseProcessor(boolean allowsIndex) {
+    /**
+     * AEL source text when this WHERE was built from a string or {@link PreparedAel}.
+     */
+    abstract String getAelString();
+
+    protected WhereClauseProcessor(boolean allowsIndex, boolean hasStringAel) {
         this.allowsIndex = allowsIndex;
+        this.hasStringAel = hasStringAel;
+    }
+
+    private final boolean hasStringAel;
+
+    /**
+     * Whether this WHERE may participate in secondary-index query planning (AEL string / prepared).
+     */
+    public final boolean allowsIndex() {
+        return allowsIndex;
+    }
+
+    /**
+     * Whether this WHERE was built from an AEL string or {@link PreparedAel}.
+     */
+    public final boolean hasStringAel() {
+        return hasStringAel;
     }
 
     private static class WhereStringImpl extends WhereClauseProcessor {
         private final String ael;
         public WhereStringImpl(boolean allowsIndex, String ael) {
-            super(allowsIndex);
+            super(allowsIndex, true);
             this.ael = ael;
+        }
+
+        @Override
+        String getAelString() {
+            return ael;
         }
 
         @Override
@@ -60,15 +87,19 @@ public abstract class WhereClauseProcessor {
         private final PreparedAel ael;
         private final Object[] params;
         public WherePreparedImpl(boolean allowsIndex, PreparedAel ael, Object... params) {
-            super(allowsIndex);
+            super(allowsIndex, true);
             this.ael = ael;
             this.params = params;
         }
 
         @Override
+        String getAelString() {
+            return ael.formValue(params);
+        }
+
+        @Override
         public ParseResult process(String namespace, String querySet, Session session) {
-            // TODO: For now, until AEL supports prepared statements
-            String aelStr = ael.formValue(params);
+            String aelStr = getAelString();
             return AelMaterializer.parseWhereFromString(session, allowsIndex, namespace, querySet, aelStr);
         }
     }
@@ -76,8 +107,13 @@ public abstract class WhereClauseProcessor {
     private static class WhereBoolExprImpl extends WhereClauseProcessor {
         private final BooleanExpression ael;
         public WhereBoolExprImpl(boolean allowsIndex, BooleanExpression ael) {
-            super(allowsIndex);
+            super(allowsIndex, false);
             this.ael = ael;
+        }
+
+        @Override
+        String getAelString() {
+            throw new IllegalStateException("WHERE clause does not provide an AEL string");
         }
 
         @Override
@@ -90,8 +126,13 @@ public abstract class WhereClauseProcessor {
     private static class WhereExpImpl extends WhereClauseProcessor {
         private final Exp exp;
         public WhereExpImpl(boolean allowsIndex, Exp exp) {
-            super(allowsIndex);
+            super(allowsIndex, false);
             this.exp = exp;
+        }
+
+        @Override
+        String getAelString() {
+            throw new IllegalStateException("WHERE clause does not provide an AEL string");
         }
 
         @Override

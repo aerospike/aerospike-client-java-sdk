@@ -23,7 +23,9 @@ import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
 import java.util.Objects;
-import java.util.concurrent.CompletableFuture;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.aerospike.ael.ParseResult;
 import com.aerospike.client.sdk.ael.BooleanExpression;
@@ -55,6 +57,8 @@ import com.aerospike.client.sdk.query.WhereClauseProcessor;
  */
 public class ChainableQueryBuilder extends AbstractFilterableBuilder
         implements FilterableOperation<ChainableQueryBuilder> {
+
+    private static final Logger log = LoggerFactory.getLogger(Loggers.COMMAND);
 
     private final Session session;
     private final List<OperationSpec> operationSpecs;
@@ -1101,7 +1105,7 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
      */
     public ChainableQueryBuilder notInAnyTransaction() {
         if (transactionSet) {
-            throw AerospikeException.resultCodeToException(ResultCode.PARAMETER_ERROR,
+            throw AerospikeException.toException(ResultCode.PARAMETER_ERROR,
                 "The transaction mode has already been set");
         }
         this.transactionSet = true;
@@ -1118,7 +1122,7 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
      */
     public ChainableQueryBuilder inTransaction(Txn txn) {
         if (transactionSet) {
-            throw AerospikeException.resultCodeToException(ResultCode.PARAMETER_ERROR,
+            throw AerospikeException.toException(ResultCode.PARAMETER_ERROR,
                 "The transaction mode has already been set");
         }
         this.transactionSet = true;
@@ -1215,8 +1219,8 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
             return new RecordStream();
         }
 
-        if (txnToUse != null && Log.warnEnabled()) {
-            Log.warn(
+        if (txnToUse != null && log.isWarnEnabled()) {
+            log.warn(
                 "executeAsync() called within a transaction. " +
                 "Async operations may still be in flight when commit() is called, " +
                 "which could lead to inconsistent state. " +

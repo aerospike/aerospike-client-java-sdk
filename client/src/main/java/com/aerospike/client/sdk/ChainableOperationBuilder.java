@@ -24,6 +24,9 @@ import java.util.Date;
 import java.util.List;
 import java.util.Objects;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.aerospike.ael.ParseResult;
 import com.aerospike.client.sdk.ael.BooleanExpression;
 import com.aerospike.client.sdk.command.Txn;
@@ -56,6 +59,8 @@ import com.aerospike.client.sdk.query.WhereClauseProcessor;
  */
 public class ChainableOperationBuilder extends AbstractOperationBuilder<ChainableOperationBuilder>
         implements FilterableOperation<ChainableOperationBuilder> {
+
+    private static final Logger log = LoggerFactory.getLogger(Loggers.COMMAND);
 
     private final List<OperationSpec> operationSpecs;
     private OperationSpec currentSpec = null;
@@ -1118,9 +1123,9 @@ public class ChainableOperationBuilder extends AbstractOperationBuilder<Chainabl
     public RecordStream execute() {
         prepareSpecs();
 
-        if (Log.debugEnabled()) {
+        if (log.isDebugEnabled()) {
             int totalKeys = operationSpecs.stream().mapToInt(spec -> spec.getKeys().size()).sum();
-            Log.debug("ChainableOperationBuilder.execute() called for " + operationSpecs.size() +
+            log.debug("ChainableOperationBuilder.execute() called for " + operationSpecs.size() +
                      " operation(s), " + totalKeys + " key(s), transaction: " +
                      (txnToUse != null ? "yes" : "no"));
         }
@@ -1158,9 +1163,9 @@ public class ChainableOperationBuilder extends AbstractOperationBuilder<Chainabl
     private RecordStream executeWithDisposition(ErrorDisposition disposition) {
         prepareSpecs();
 
-        if (Log.debugEnabled()) {
+        if (log.isDebugEnabled()) {
             int totalKeys = operationSpecs.stream().mapToInt(spec -> spec.getKeys().size()).sum();
-            Log.debug("ChainableOperationBuilder.execute() called for " + operationSpecs.size() +
+            log.debug("ChainableOperationBuilder.execute() called for " + operationSpecs.size() +
                      " operation(s), " + totalKeys + " key(s), transaction: " +
                      (txnToUse != null ? "yes" : "no"));
         }
@@ -1203,8 +1208,8 @@ public class ChainableOperationBuilder extends AbstractOperationBuilder<Chainabl
     }
 
     private void warnAsyncInTransaction() {
-        if (txnToUse != null && Log.warnEnabled()) {
-            Log.warn(
+        if (txnToUse != null && log.isWarnEnabled()) {
+            log.warn(
                 "executeAsync() called within a transaction. "
                     + "Async operations may still be in flight when commit() is called, "
                     + "which could lead to inconsistent state. "
@@ -1327,15 +1332,15 @@ public class ChainableOperationBuilder extends AbstractOperationBuilder<Chainabl
 
         @Override
         public void showWarningsOnException(AerospikeException ae, Txn txn, Key key, int expiration) {
-            if (Log.warnEnabled()) {
+            if (log.isWarnEnabled()) {
                 if (ae.getResultCode() == ResultCode.FAIL_FORBIDDEN && expiration > 0) {
-                    Log.warn("Operation failed on server with FAIL_FORBIDDEN (22) and the record had "
+                    log.warn("Operation failed on server with FAIL_FORBIDDEN (22) and the record had "
                             + "an expiry set in the operation. This is possibly caused by nsup being disabled. "
                             + "See https://aerospike.com/docs/database/reference/error-codes for more information");
                 }
                 if (ae.getResultCode() == ResultCode.UNSUPPORTED_FEATURE) {
                     if (txn != null && !session.isNamespaceSC(key.namespace)) {
-                        Log.warn(String.format("Namespace '%s' is involved in transaction, but it is not an SC namespace. "
+                        log.warn(String.format("Namespace '%s' is involved in transaction, but it is not an SC namespace. "
                                 + "This will throw an Unsupported Server Feature exception", key.namespace));
                     }
                 }

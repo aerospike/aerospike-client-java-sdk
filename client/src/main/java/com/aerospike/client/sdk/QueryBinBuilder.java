@@ -31,6 +31,7 @@ import com.aerospike.client.sdk.cdt.path.CdtPathExpressionAel;
 import com.aerospike.client.sdk.exp.Exp;
 import com.aerospike.client.sdk.exp.ExpReadFlags;
 import com.aerospike.client.sdk.exp.Expression;
+import com.aerospike.client.sdk.operation.BitOperation;
 import com.aerospike.client.sdk.operation.HLLOperation;
 import com.aerospike.client.sdk.query.PreparedAel;
 
@@ -274,7 +275,7 @@ public final class QueryBinBuilder<P> implements CdtOperationAcceptor<P> {
      * Read a computed value using a PreparedAel with bound parameters.
      *
      * <pre>{@code
-     * PreparedAel calc = PreparedAel.prepare("$.price * ?");
+     * PreparedAel calc = PreparedAel.prepare("$.price * ?0");
      * session.query(key)
      *     .bin("total").selectFrom(calc, quantity)
      *     .execute();
@@ -293,7 +294,7 @@ public final class QueryBinBuilder<P> implements CdtOperationAcceptor<P> {
      * Read a computed value using a PreparedAel with options and bound parameters.
      *
      * <pre>{@code
-     * PreparedAel calc = PreparedAel.prepare("$.a / ?");
+     * PreparedAel calc = PreparedAel.prepare("$.a / ?0");
      * session.query(key)
      *     .bin("ratio").selectFrom(calc, opt -> opt.ignoreEvalFailure(), divisor)
      *     .execute();
@@ -1004,6 +1005,78 @@ public final class QueryBinBuilder<P> implements CdtOperationAcceptor<P> {
      */
     public P hllGetSimilarity(List<HLLValue> hlls) {
         Operation op = HLLOperation.getSimilarity(binName, hlls);
+        queryBuilder.addOperation(op);
+        return wrapResult();
+    }
+
+    // ----------------------------------------
+    // Bit (BLOB)
+    // ----------------------------------------
+
+    /**
+     * Read {@code bitSize} bits at {@code bitOffset} as raw bytes.
+     *
+     * @param bitOffset starting bit index
+     * @param bitSize   number of bits to read
+     * @return the query builder for method chaining
+     */
+    public P bitGet(int bitOffset, int bitSize) {
+        Operation op = BitOperation.get(binName, bitOffset, bitSize);
+        queryBuilder.addOperation(op);
+        return wrapResult();
+    }
+
+    /**
+     * Count bits set to {@code 1} in the given range.
+     *
+     * @param bitOffset starting bit index
+     * @param bitSize   number of bits to scan
+     * @return the query builder for method chaining
+     */
+    public P bitCount(int bitOffset, int bitSize) {
+        Operation op = BitOperation.count(binName, bitOffset, bitSize);
+        queryBuilder.addOperation(op);
+        return wrapResult();
+    }
+
+    /**
+     * Scan from the left for the first bit matching {@code value}.
+     *
+     * @param bitOffset starting bit index
+     * @param bitSize   number of bits to scan
+     * @param value     {@code true} to find a set bit, {@code false} for unset
+     * @return the query builder for method chaining
+     */
+    public P bitLscan(int bitOffset, int bitSize, boolean value) {
+        Operation op = BitOperation.lscan(binName, bitOffset, bitSize, value);
+        queryBuilder.addOperation(op);
+        return wrapResult();
+    }
+
+    /**
+     * Scan from the right for the first bit matching {@code value}.
+     *
+     * @param bitOffset starting bit index
+     * @param bitSize   number of bits to scan
+     * @param value     {@code true} to find a set bit, {@code false} for unset
+     * @return the query builder for method chaining
+     */
+    public P bitRscan(int bitOffset, int bitSize, boolean value) {
+        Operation op = BitOperation.rscan(binName, bitOffset, bitSize, value);
+        queryBuilder.addOperation(op);
+        return wrapResult();
+    }
+
+    /**
+     * Decode an integer from {@code bitSize} bits at {@code bitOffset}.
+     *
+     * @param bitOffset starting bit index
+     * @param bitSize   width of the integer in bits
+     * @param signed    {@code true} to interpret as two's-complement signed
+     * @return the query builder for method chaining
+     */
+    public P bitGetInt(int bitOffset, int bitSize, boolean signed) {
+        Operation op = BitOperation.getInt(binName, bitOffset, bitSize, signed);
         queryBuilder.addOperation(op);
         return wrapResult();
     }

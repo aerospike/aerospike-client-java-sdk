@@ -19,6 +19,9 @@ package com.aerospike.client.sdk;
 import java.util.Collection;
 import java.util.Set;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.aerospike.ael.AelParseException;
 import com.aerospike.ael.ExpressionContext;
 import com.aerospike.ael.Index;
@@ -27,13 +30,15 @@ import com.aerospike.ael.ParseResult;
 import com.aerospike.ael.ParsedExpression;
 import com.aerospike.ael.api.AelParser;
 import com.aerospike.ael.impl.AelParserImpl;
+import com.aerospike.client.sdk.command.ParticleType;
 import com.aerospike.client.sdk.exp.Exp;
 import com.aerospike.client.sdk.exp.Expression;
+import com.aerospike.client.sdk.query.AelPlaceholderBinder;
 import com.aerospike.client.sdk.query.Filter;
 import com.aerospike.client.sdk.query.PreparedAel;
-import com.aerospike.client.sdk.command.ParticleType;
 
 public final class AelMaterializer {
+    private static final Logger log = LoggerFactory.getLogger(Loggers.AEL);
 
     private AelMaterializer() {
     }
@@ -49,7 +54,7 @@ public final class AelMaterializer {
     }
 
     public static Expression expressionFromString(Cluster cluster, String ael, Object[] params) {
-        return expressionFromString(cluster, formatAel(ael, params));
+        return expressionFromString(cluster, AelPlaceholderBinder.bind(ael, params));
     }
 
     public static Expression expressionFromPrepared(Cluster cluster, PreparedAel ael, Object[] params) {
@@ -57,8 +62,15 @@ public final class AelMaterializer {
     }
 
     /**
-     * Query WHERE from string AEL: server path when SI-aware parse is not required and cluster
-     * supports server AEL; otherwise full client parse (including secondary index {@link Filter}).
+     * WHERE from string AEL for paths that still use field {@code 43} (keyed query, batch filter,
+     * legacy dataset query with client SI).
+     *
+     * <p>When {@code allowsIndex} is {@code false} and {@link Cluster#supportsAel()}, returns
+     * server-compiled filter bytes ({@code [128, ael]}). Otherwise full client parse (including
+     * secondary index {@link Filter} when {@code allowsIndex} is {@code true}).</p>
+     *
+     * <p>String-AEL dataset queries on {@link Cluster#supportsQuerySelection()} clusters use field
+     * {@code 44} via {@link com.aerospike.client.sdk.query.IndexProbePlanner} instead.</p>
      */
     public static ParseResult parseWhereFromString(
         Session session,
@@ -73,8 +85,8 @@ public final class AelMaterializer {
         return clientParseWhere(session, allowsIndex, namespace, querySet, ael);
     }
 
-    private static ParseResult serverCompiledFilterResult(String dslSource) {
-        return new ParseResult(null, Exp.expr(Expression.fromServerCompiledFilter(dslSource)));
+    private static ParseResult serverCompiledFilterResult(String ael) {
+        return new ParseResult(null, Exp.expr(Expression.fromServerCompiledFilter(ael)));
     }
 
     private static ParseResult clientParseWhere(
@@ -102,18 +114,18 @@ public final class AelMaterializer {
             throw new AelParseException("Unknown error parsing AEL: '" + ael + "'");
         }
 
-        if (Log.debugEnabled()) {
+        if (log.isDebugEnabled()) {
             if (allowsIndex && result.getFilter() != null) {
                 Filter filter = result.getFilter();
 
-                Log.debug(String.format("Ael('%s', '%s') => (Exp: %s, Filter: %s)",
+                log.debug(String.format("Ael('%s', '%s') => (Exp: %s, Filter: %s)",
                         ael,
                         namespace,
                         result.getExp(),
                         formStringOfFilter(filter, indexContext)));
             }
             else {
-                Log.debug(String.format("Ael('%s', '%s') => (Exp: %s)",
+                log.debug(String.format("Ael('%s', '%s') => (Exp: %s)",
                         ael,
                         namespace,
                         result.getExp()));
@@ -129,8 +141,8 @@ public final class AelMaterializer {
         ParsedExpression parseResult = parser.parseExpression(context);
         Exp exp = parseResult.getResult().getExp();
 
-        if (Log.debugEnabled()) {
-            Log.debug(String.format("Ael(\"%s\") => (Exp: %s)",
+        if (log.isDebugEnabled()) {
+            log.debug(String.format("Ael(\"%s\") => (Exp: %s)",
                     ael,
                     exp));
         }
@@ -186,38 +198,5 @@ public final class AelMaterializer {
             sb.append("}");
         }
         return sb.toString();
-    }
-
-    private static String formatAel(String ael, Object[] params) {
-        if (params == null || params.length == 0) {
-            return ael;
-        }
-        StringBuilder result = new StringBuilder();
-        int paramIndex = 0;
-        for (int i = 0; i < ael.length(); i++) {
-            char c = ael.charAt(i);
-            if (c == '?' && paramIndex < params.length) {
-                result.append(formatParam(params[paramIndex++]));
-            }
-            else {
-                result.append(c);
-            }
-        }
-        return result.toString();
-    }
-
-    private static String formatParam(Object param) {
-        if (param == null) {
-            return "null";
-        }
-        else if (param instanceof String) {
-            return "\"" + param + "\"";
-        }
-        else if (param instanceof Number || param instanceof Boolean) {
-            return param.toString();
-        }
-        else {
-            return "\"" + param.toString() + "\"";
-        }
     }
 }

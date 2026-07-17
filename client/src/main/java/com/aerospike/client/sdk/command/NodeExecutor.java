@@ -17,32 +17,19 @@
 package com.aerospike.client.sdk.command;
 
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.zip.DataFormatException;
 import java.util.zip.Inflater;
 
 import com.aerospike.client.sdk.AerospikeException;
 import com.aerospike.client.sdk.Cluster;
 import com.aerospike.client.sdk.Node;
-import com.aerospike.client.sdk.OperationResult;
-import com.aerospike.client.sdk.Record;
 import com.aerospike.client.sdk.command.Connection.ReadTimeout;
-import com.aerospike.client.sdk.command.RecordParser.OpResults;
 
 public abstract class NodeExecutor extends SyncExecutor {
     private static final int MAX_BUFFER_SIZE = 1024 * 1024 * 128;  // 128 MB
 
     private final Node node;
-    protected byte[] dataBuffer;
-    protected int dataOffset;
-    protected int info3;
-    protected int resultCode;
-    protected int generation;
-    protected int expiration;
-    protected int batchIndex;
-    protected int fieldCount;
-    protected int opCount;
+    protected final RecordParser parser;
     protected final boolean isOperation;
     protected volatile boolean valid = true;
 
@@ -53,6 +40,7 @@ public abstract class NodeExecutor extends SyncExecutor {
         super(cluster, cmd);
         this.node = node;
         this.isOperation = isOperation;
+        this.parser = new RecordParser();
     }
 
     /**
@@ -62,7 +50,8 @@ public abstract class NodeExecutor extends SyncExecutor {
         super(cluster, cmd);
         this.node = node;
         this.isOperation = false;
-    }
+        this.parser = new RecordParser();
+   }
 
     @Override
     protected boolean isSingle() {
@@ -87,6 +76,8 @@ public abstract class NodeExecutor extends SyncExecutor {
         // Instead, use separate heap allocated buffers.
         byte[] buf = null;
         byte[] ubuf = null;
+        byte[] dataBuffer;
+        int dataOffset;
         int receiveSize;
         int bytesIn = 0;
 
@@ -191,6 +182,8 @@ public abstract class NodeExecutor extends SyncExecutor {
                 throw new AerospikeException("Invalid proto type: " + type + " Expected: " + Command.AS_MSG_TYPE);
             }
 
+            parser.setDataBuffer(dataBuffer, dataOffset);
+
             if (! parseGroup(receiveSize)) {
                 break;
             }
@@ -198,32 +191,10 @@ public abstract class NodeExecutor extends SyncExecutor {
     }
 
     private boolean parseGroup(int receiveSize) {
-        while (dataOffset < receiveSize) {
-            dataOffset += 3;
-            info3 = dataBuffer[dataOffset] & 0xFF;
-            dataOffset += 2;
-            resultCode = dataBuffer[dataOffset] & 0xFF;
-
-            // If this is the end marker of the response, do not proceed further.
-            if ((info3 & Command.INFO3_LAST) != 0) {
-                if (resultCode != 0) {
-                    // The server returned a fatal error.
-                    throw AerospikeException.resultCodeToException(resultCode, null);
-                }
+        while (parser.dataOffset < receiveSize) {
+            if (! parser.parseHeader()) {
                 return false;
             }
-
-            dataOffset++;
-            generation = Buffer.bytesToInt(dataBuffer, dataOffset);
-            dataOffset += 4;
-            expiration = Buffer.bytesToInt(dataBuffer, dataOffset);
-            dataOffset += 4;
-            batchIndex = Buffer.bytesToInt(dataBuffer, dataOffset);
-            dataOffset += 4;
-            fieldCount = Buffer.bytesToShort(dataBuffer, dataOffset);
-            dataOffset += 2;
-            opCount = Buffer.bytesToShort(dataBuffer, dataOffset);
-            dataOffset += 2;
 
             // Note: parseRow() also handles sync error responses.
             if (! parseRow()) {
@@ -234,89 +205,6 @@ public abstract class NodeExecutor extends SyncExecutor {
     }
 
     protected abstract boolean parseRow();
-
-    protected final Record parseRecord() {
-        if (opCount <= 0) {
-            return new Record(generation, expiration);
-        }
-
-        return parseRecord(opCount, generation, expiration, isOperation);
-    }
-
-    final void skipKey(int fieldCount) {
-        // There can be fields in the response (setname etc).
-        // But for now, ignore them. Expose them to the API if needed in the future.
-        for (int i = 0; i < fieldCount; i++) {
-            int fieldlen = Buffer.bytesToInt(dataBuffer, dataOffset);
-            dataOffset += 4 + fieldlen;
-        }
-    }
-
-    public Long parseVersion(int fieldCount) {
-        Long version = null;
-
-        for (int i = 0; i < fieldCount; i++) {
-            int len = Buffer.bytesToInt(dataBuffer, dataOffset);
-            dataOffset += 4;
-
-            int type = dataBuffer[dataOffset++];
-            int size = len - 1;
-
-            if (type == FieldType.RECORD_VERSION && size == 7) {
-                version = Buffer.versionBytesToLong(dataBuffer, dataOffset);
-            }
-            dataOffset += size;
-        }
-        return version;
-    }
-
-    final Record parseRecord(
-        int opCount, int generation, int expiration, boolean isOperation
-    )  {
-        Map<String,Object> bins = new HashMap<>(opCount);
-        OperationResult[] results = new OperationResult[opCount];
-
-        for (int i = 0 ; i < opCount; i++) {
-            int opSize = Buffer.bytesToInt(dataBuffer, dataOffset);
-            byte particleType = dataBuffer[dataOffset + 5];
-            byte nameSize = dataBuffer[dataOffset + 7];
-            String name = Buffer.utf8ToString(dataBuffer, dataOffset + 8, nameSize);
-            dataOffset += 4 + 4 + nameSize;
-
-            int particleBytesSize = opSize - (4 + nameSize);
-            Object value = Buffer.bytesToParticle(particleType, dataBuffer, dataOffset, particleBytesSize);
-            dataOffset += particleBytesSize;
-
-            if (isOperation) {
-                if (bins.containsKey(name)) {
-                    // Multiple values returned for the same bin.
-                    Object prev = bins.get(name);
-
-                    if (prev instanceof OpResults) {
-                        // List already exists.  Add to it.
-                        OpResults list = (OpResults)prev;
-                        list.add(value);
-                    }
-                    else {
-                        // Make a list to store all values.
-                        OpResults list = new OpResults();
-                        list.add(prev);
-                        list.add(value);
-                        bins.put(name, list);
-                    }
-                }
-                else {
-                    bins.put(name, value);
-                }
-            }
-            else {
-                bins.put(name, value);
-            }
-
-            results[i] = new OperationResult(value);
-        }
-        return new Record(bins, results, generation, expiration);
-    }
 
     public void stop() {
         valid = false;

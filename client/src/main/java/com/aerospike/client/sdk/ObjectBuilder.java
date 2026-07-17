@@ -29,6 +29,9 @@ import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.aerospike.ael.ParseResult;
 import com.aerospike.client.sdk.command.Batch;
 import com.aerospike.client.sdk.command.BatchAttr;
@@ -73,6 +76,8 @@ import com.aerospike.client.sdk.tend.Partitions;
  */
 @SuppressWarnings("unused")
 public class ObjectBuilder<T> {
+    private static final Logger log = LoggerFactory.getLogger(Loggers.COMMAND);
+
     private final OperationObjectBuilder<T> opBuilder;
     private final List<T> elements;
     private RecordMapper<T> recordMapper;
@@ -405,7 +410,7 @@ public class ObjectBuilder<T> {
      */
     public ObjectBuilder<T> notInAnyTransaction() {
         if (transactionSet) {
-            throw AerospikeException.resultCodeToException(ResultCode.PARAMETER_ERROR,
+            throw AerospikeException.toException(ResultCode.PARAMETER_ERROR,
                 "The transaction mode has already been set");
         }
         this.transactionSet = true;
@@ -433,7 +438,7 @@ public class ObjectBuilder<T> {
      */
     public ObjectBuilder<T> inTransaction(Txn txn) {
         if (transactionSet) {
-            throw AerospikeException.resultCodeToException(ResultCode.PARAMETER_ERROR,
+            throw AerospikeException.toException(ResultCode.PARAMETER_ERROR,
                 "The transaction mode has already been set");
         }
         this.transactionSet = true;
@@ -704,7 +709,7 @@ public class ObjectBuilder<T> {
                 .initQuery(keys);
     }
 
-    public <T> ChainableQueryBuilder query(TypedKey<T> typedKey) {
+    public ChainableQueryBuilder query(TypedKey<T> typedKey) {
         List<OperationSpec> specs = materializeToSpecs();
         return new ChainableQueryBuilder(opBuilder.getSession(), specs, null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, txnToUse)
                 .initQueryTyped(typedKey);
@@ -792,8 +797,8 @@ public class ObjectBuilder<T> {
     }
 
     private RecordStream executeWithDisposition(ErrorDisposition disposition) {
-        if (Log.debugEnabled()) {
-            Log.debug("ObjectBuilder.execute() called for " + elements.size() + " element(s), transaction: " +
+        if (log.isDebugEnabled()) {
+            log.debug("ObjectBuilder.execute() called for " + elements.size() + " element(s), transaction: " +
                      (txnToUse != null ? "yes" : "no"));
         }
 
@@ -836,13 +841,13 @@ public class ObjectBuilder<T> {
     }
 
     private RecordStream executeAsyncInStream(ErrorHandler errorHandler) {
-        if (Log.debugEnabled()) {
-            Log.debug("ObjectBuilder.executeAsync() called for " + elements.size() + " element(s), transaction: " +
+        if (log.isDebugEnabled()) {
+            log.debug("ObjectBuilder.executeAsync() called for " + elements.size() + " element(s), transaction: " +
                      (txnToUse != null ? "yes" : "no"));
         }
 
-        if (this.txnToUse != null && Log.warnEnabled()) {
-            Log.warn(
+        if (this.txnToUse != null && log.isWarnEnabled()) {
+            log.warn(
                 "executeAsync() called within a transaction. " +
                 "Async operations may still be in flight when commit() is called, " +
                 "which could lead to inconsistent state. " +
@@ -925,17 +930,19 @@ public class ObjectBuilder<T> {
                 if (AbstractFilterableBuilder.isActionableError(br.resultCode)) {
                     switch (disposition) {
                         case ErrorDisposition.Throw ignored -> {
-                            AerospikeException ex = result.exception() != null
-                                ? result.exception()
-                                : AerospikeException.resultCodeToException(br.resultCode, null, br.inDoubt);
-                            throw ex;
+                            throw result.toException();
                         }
-                        case ErrorDisposition.Handler h ->
+
+                        case ErrorDisposition.Handler h -> {
                             AbstractFilterableBuilder.dispatchError(result, h.errorHandler());
-                        case ErrorDisposition.InStream ignored ->
+                        }
+
+                        case ErrorDisposition.InStream ignored -> {
                             recordStream.publish(result);
+                        }
                     }
-                } else {
+                }
+                else {
                     recordStream.publish(result);
                 }
             }

@@ -56,6 +56,7 @@ import com.aerospike.client.sdk.query.QueryStringTest;
     ConnectionPoolSettingsIntegrationTest.class,
     DeleteBinTest.class,
     DurableDeleteTests.class,
+    ErrorDetailVerbosityTest.class,
     ExpireTest.class,
     ExpOperationTest.class,
     FilterExpTest.class,
@@ -66,7 +67,7 @@ import com.aerospike.client.sdk.query.QueryStringTest;
     ListMapTest.class,
     MapExpTest.class,
     NodeChurnPartitionBehaviorTest.class,
-//  OperateBitTest.class, // TODO Needs external api.
+    OperateBitTest.class,
     OperateHllTest.class,
     OperateListTest.class,
     OperateMapTest.class,
@@ -104,14 +105,12 @@ public class SuiteCluster {
     @BeforeSuite
     public static void beforeSuite() {
         System.out.println("Begin AerospikeClient");
-        Log.setCallback(null);
 
         Args args = Args.Instance;
 
         Host[] hosts = Host.parseHosts(args.host, args.port);
 
         ClusterDefinition def = new ClusterDefinition(hosts)
-            .withLogLevel(Log.Level.DEBUG)
             .clusterName(args.clusterName)
             .withSystemSettings(SystemSettings.builder()
                     .connections(ops -> ops.maximumConnectionsPerNode(200)).build()
@@ -159,7 +158,7 @@ public class SuiteCluster {
         try {
             session = cluster.createSession(Behavior.DEFAULT);
             sessionWithSendKey = cluster.createSession(Behavior.DEFAULT.deriveWithChanges(
-                    "sendKey", 
+                    "sendKey",
                     opt -> opt.on(Selectors.all(), s -> s.sendKey(true)))
             );
             args.setServerSpecific(cluster);

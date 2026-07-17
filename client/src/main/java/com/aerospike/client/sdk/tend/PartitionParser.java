@@ -19,8 +19,12 @@ package com.aerospike.client.sdk.tend;
 import java.util.HashMap;
 import java.util.concurrent.atomic.AtomicReferenceArray;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.aerospike.client.sdk.AerospikeException;
-import com.aerospike.client.sdk.Log;
+import com.aerospike.client.sdk.Cluster;
+import com.aerospike.client.sdk.Loggers;
 import com.aerospike.client.sdk.Node;
 import com.aerospike.client.sdk.command.Buffer;
 import com.aerospike.client.sdk.command.Connection;
@@ -31,6 +35,7 @@ import com.aerospike.client.sdk.util.Crypto;
  * Parse node's master (and optionally prole) partitions.
  */
 public final class PartitionParser extends Info {
+    private static final Logger log = LoggerFactory.getLogger(Loggers.TEND);
     static final String PartitionGeneration = "partition-generation";
     static final String Replicas = "replicas";
 
@@ -130,8 +135,11 @@ public final class PartitionParser extends Info {
                     map.put(namespace, partitions);
                 }
                 else if (partitions.replicas.length != replicaCount) {
-                    if (Log.infoEnabled()) {
-                        Log.info(node.getLogContext(), "Namespace " + namespace + " replication factor changed from " + partitions.replicas.length + " to " + replicaCount);
+                    if (log.isInfoEnabled()) {
+                        log.atInfo()
+                            .addKeyValue(Cluster.CONTEXT, node.cluster.getClusterDefinition().getClusterName())
+                            .log("Namespace " + namespace + " replication factor changed from " +
+                                partitions.replicas.length + " to " + replicaCount);
                     }
 
                     // Resize partition map.
@@ -204,8 +212,10 @@ public final class PartitionParser extends Info {
                 }
                 else {
                     if (!regimeError) {
-                        if (Log.infoEnabled()) {
-                            Log.info(node.getLogContext(), node.toString() + " regime(" + regime + ") < old regime(" + regimeOld + ")");
+                        if (log.isInfoEnabled()) {
+                            log.atInfo()
+                                .addKeyValue(Cluster.CONTEXT, node.cluster.getClusterDefinition().getClusterName())
+                                .log(node.toString() + " regime(" + regime + ") < old regime(" + regimeOld + ")");
                         }
                         regimeError = true;
                     }

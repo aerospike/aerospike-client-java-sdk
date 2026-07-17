@@ -181,7 +181,7 @@ public class FilterExpTest extends ClusterTest {
         // Since "failOnFilteredOut" was specified, we expect there to be 2 record, as the second one was filtered out
         assertTrue(rs.hasNext());
         RecordResult recResult = rs.next();
-        assertEquals(recResult.resultCode(), ResultCode.FILTERED_OUT);
+        assertEquals(recResult.getResultCode(), ResultCode.FILTERED_OUT);
 
         assertFalse(rs.hasNext());
     }
@@ -478,6 +478,7 @@ public class FilterExpTest extends ClusterTest {
     }
 
     @Test
+    //@Disabled("Pending fix on server side")
     public void filterSub() {
         Exp exp =
             Exp.eq(
@@ -903,7 +904,7 @@ public class FilterExpTest extends ClusterTest {
 
         assertTrue(rs.hasNext());
         RecordResult recResult = rs.next();
-        assertEquals(recResult.resultCode(), ResultCode.FILTERED_OUT);
+        assertEquals(recResult.getResultCode(), ResultCode.FILTERED_OUT);
 
         assertTrue(rs.hasNext());
         rs.next().recordOrThrow();

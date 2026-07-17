@@ -17,13 +17,17 @@
 package com.aerospike.client.sdk.query;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.function.Function;
 
 import org.junit.jupiter.api.Test;
 
 import com.aerospike.client.sdk.policy.QueryDuration;
+import com.aerospike.client.sdk.query.plan.QueryWhereWire;
 
 /**
  * Tests for the {@link QueryHint} type-state API.
@@ -110,6 +114,87 @@ public class QueryHintTest {
         assertNull(result.getIndexName());
         assertNull(result.getBinName());
         assertNull(result.getQueryDuration());
+    }
+
+    // -- probe path index-name hint -------------------------------------------
+
+    @Test
+    public void probeIndexNameHintUsesForIndex() {
+        QueryHint.Result result = apply(hint -> hint.forIndex("age_idx"));
+        assertEquals("age_idx", IndexProbePlanner.indexNameHintForProbe(result));
+    }
+
+    @Test
+    public void probeIndexNameHintIgnoresForBin() {
+        QueryHint.Result result = apply(hint -> hint.forBin("age"));
+        assertNull(IndexProbePlanner.indexNameHintForProbe(result));
+    }
+
+    @Test
+    public void probeIndexNameHintIgnoresBlankForIndex() {
+        QueryHint.Result result = apply(hint -> hint.forIndex("  "));
+        assertNull(IndexProbePlanner.indexNameHintForProbe(result));
+    }
+
+    @Test
+    public void probeIndexNameHintNullWhenNoHint() {
+        assertNull(IndexProbePlanner.indexNameHintForProbe(null));
+    }
+
+    @Test
+    public void requireIndexOnly() {
+        QueryHint.Result result = apply(hint -> hint.requireIndex());
+        assertTrue(result.isRequireIndex());
+        assertFalse(result.isHardHint());
+    }
+
+    @Test
+    public void forIndexThenHardHint() {
+        QueryHint.Result result = apply(hint -> hint.forIndex("my_idx").hardHint());
+        assertEquals("my_idx", result.getIndexName());
+        assertTrue(result.isHardHint());
+        assertFalse(result.isRequireIndex());
+    }
+
+    @Test
+    public void requireIndexForIndexHardHint() {
+        QueryHint.Result result = apply(hint ->
+            hint.requireIndex().forIndex("my_idx").hardHint());
+        assertTrue(result.isRequireIndex());
+        assertTrue(result.isHardHint());
+        assertEquals("my_idx", result.getIndexName());
+    }
+
+    @Test
+    public void hardHintWithoutForIndexThrows() {
+        org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class,
+            () -> apply(hint -> hint.queryDuration(QueryDuration.SHORT).forIndex("  ").hardHint()));
+    }
+
+    @Test
+    public void explainWhereFlagsRequireIndex() {
+        QueryHint.Result result = apply(hint -> hint.requireIndex());
+        assertEquals(
+            QueryWhereWire.FLAG_EXPLAIN | QueryWhereWire.FLAG_REQUIRE_INDEX,
+            IndexProbePlanner.explainWhereFlags(result));
+    }
+
+    @Test
+    public void explainWhereFlagsHardHint() {
+        QueryHint.Result result = apply(hint -> hint.forIndex("age_idx").hardHint());
+        assertEquals(
+            QueryWhereWire.FLAG_EXPLAIN | QueryWhereWire.FLAG_HARD_HINT,
+            IndexProbePlanner.explainWhereFlags(result));
+    }
+
+    @Test
+    public void explainWhereFlagsRequireIndexAndHardHint() {
+        QueryHint.Result result = apply(hint ->
+            hint.forIndex("age_idx").requireIndex().hardHint());
+        assertEquals(
+            QueryWhereWire.FLAG_EXPLAIN | QueryWhereWire.FLAG_REQUIRE_INDEX
+                | QueryWhereWire.FLAG_HARD_HINT,
+            IndexProbePlanner.explainWhereFlags(result));
     }
 
     // -- helper ---------------------------------------------------------------

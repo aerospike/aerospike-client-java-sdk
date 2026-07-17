@@ -24,8 +24,9 @@ import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
-import com.aerospike.client.sdk.Log.Callback;
-import com.aerospike.client.sdk.Log.Level;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.aerospike.client.sdk.command.AdminCommand;
 import com.aerospike.client.sdk.command.Buffer;
 import com.aerospike.client.sdk.policy.AuthMode;
@@ -53,6 +54,7 @@ import com.aerospike.client.sdk.policy.Behavior;
  */
 public class ClusterDefinition {
     private static final String CONFIG_PATH_ENV = "AEROSPIKE_CLIENT_CONFIG_URL";
+    private static final Logger log = LoggerFactory.getLogger(Loggers.BEHAVIOR);
 
     private SystemSettings userSuppliedSystemSettings;
     String clientVersion;
@@ -62,9 +64,6 @@ public class ClusterDefinition {
     byte[] password;
     byte[] passwordHash;
     int[] rackIds;
-    Log.Context context;
-    private Level logLevel = Level.INFO;
-    private Callback callback = null;  // TODO Handle custom log callback.
     Map<String,String> ipMap;
     TlsBuilder tlsBuilder;
     AuthMode authMode = AuthMode.NONE;
@@ -133,9 +132,6 @@ public class ClusterDefinition {
         this.password = other.password;
         this.passwordHash = other.passwordHash;
         this.rackIds = other.rackIds;
-        this.context = other.context;
-        this.logLevel = other.logLevel;
-        this.callback = other.callback;
         this.ipMap = other.ipMap;
         this.tlsBuilder = other.tlsBuilder;
         this.authMode = other.authMode;
@@ -155,9 +151,6 @@ public class ClusterDefinition {
     }
 
     private void setup() {
-        Log.setLevel(logLevel);
-        Log.setCallbackStandard();
-
         this.clientVersion = Optional.ofNullable(getClass().getPackage())
             .map(Package::getImplementationVersion)
             .orElse("n/a");
@@ -308,49 +301,6 @@ public class ClusterDefinition {
      */
     public ClusterDefinition usingServicesAlternate() {
         this.useServicesAlternate = true;
-        return this;
-    }
-
-    /**
-     * Sets the logging level for the Aerospike client.
-     *
-     * <p>This controls the verbosity of client-side logging. Available levels
-     * include DEBUG, INFO, WARN, and ERROR. Setting to null disables logging.</p>
-     *
-     * @param logLevel the desired logging level, or null to disable logging
-     * @return this ClusterDefinition for method chaining
-     */
-    public ClusterDefinition withLogLevel(Level logLevel) {
-        // TODO: Need a new log level of NONE, so the callback is not over written by changing the log evel
-        if (logLevel == null) {
-            Log.setCallback(null);
-            Log.debug("Setting log level to " + logLevel);
-        }
-        else {
-            this.logLevel = logLevel;
-            Log.setLevel(logLevel);
-            Log.debug("Setting log level to " + logLevel);
-        }
-        return this;
-    }
-
-    /**
-     * Sets a custom log callback for handling log messages.
-     *
-     * <p>This allows you to provide a custom implementation for handling
-     * log messages from the Aerospike client. Pass null to use the standard
-     * logging callback.</p>
-     *
-     * @param callback the custom log callback, or null for standard logging
-     * @return this ClusterDefinition for method chaining
-     */
-    public ClusterDefinition useLogSink(Callback callback) {
-        if (callback == null) {
-            Log.setCallbackStandard();
-        }
-        else {
-            Log.setCallback(callback);
-        }
         return this;
     }
 
@@ -567,7 +517,6 @@ public class ClusterDefinition {
      */
     public Cluster connect() {
         ClusterDefinition def = new ClusterDefinition(this);
-        def.context = new Log.Context(def.clusterName);
 
         String configPath = System.getenv(CONFIG_PATH_ENV);
 
@@ -589,8 +538,10 @@ public class ClusterDefinition {
         SystemSettings effectiveSettings = SystemSettingsRegistry.getInstance()
             .getEffectiveSettings(clusterName, userSuppliedSystemSettings);
 
-        if (Log.debugEnabled()) {
-            Log.debug("System Settings: " + effectiveSettings);
+        if (log.isDebugEnabled()) {
+            log.atDebug()
+                .addKeyValue(Cluster.CONTEXT, def.clusterName)
+                .log("System Settings: " + effectiveSettings);
         }
 
         Cluster cluster = new Cluster(def, effectiveSettings);
@@ -717,33 +668,6 @@ public class ClusterDefinition {
      */
     public int[] getRackIds() {
         return rackIds;
-    }
-
-    /**
-     * Gets the logging context for this cluster definition.
-     *
-     * @return the log context, or null if not set
-     */
-    public Log.Context getContext() {
-        return context;
-    }
-
-    /**
-     * Gets the current logging level.
-     *
-     * @return the logging level
-     */
-    public Level getLogLevel() {
-        return logLevel;
-    }
-
-    /**
-     * Gets the custom log callback.
-     *
-     * @return the log callback, or null if using standard logging
-     */
-    public Callback getCallback() {
-        return callback;
     }
 
     /**

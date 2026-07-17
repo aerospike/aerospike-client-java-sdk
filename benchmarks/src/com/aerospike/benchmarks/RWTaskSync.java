@@ -121,13 +121,13 @@ public class RWTaskSync extends RWTask implements Runnable {
             elasped = System.nanoTime() - begin;
 
             RecordResult errRecord = records.stream()
-                    .filter(record -> record.exception() != null)
+                    .filter(record -> record.getException() != null)
                     .findAny()
                     .orElse(null);
 
             if (errRecord != null) {
                 // batch with partial failure are not accounted to successful reads
-                readFailure(errRecord.exception());
+                readFailure(errRecord.getException());
             } else {
                 if (useLatency) {
                     counters.read.latency.add(elasped);
@@ -152,13 +152,13 @@ public class RWTaskSync extends RWTask implements Runnable {
             elasped = System.nanoTime() - begin;
 
             RecordResult errRecord = records.stream()
-                    .filter(record -> record.exception() != null)
+                    .filter(record -> record.getException() != null)
                     .findAny()
                     .orElse(null);
 
             if (errRecord != null) {
                 // batch with partial failure are not accounted to successful reads
-                readFailure(errRecord.exception());
+                readFailure(errRecord.getException());
             } else {
                 if (useLatency) {
                     counters.read.latency.add(elasped);

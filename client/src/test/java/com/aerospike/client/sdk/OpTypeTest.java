@@ -342,7 +342,7 @@ public class OpTypeTest extends ClusterTest {
         assertTrue(rs.hasNext());
         RecordResult result = rs.next();
         assertFalse(result.isOk());
-        assertEquals(ResultCode.KEY_NOT_FOUND_ERROR, result.resultCode());
+        assertEquals(ResultCode.KEY_NOT_FOUND_ERROR, result.getResultCode());
     }
 
     // ========== Batch Operations Tests ==========
@@ -404,7 +404,7 @@ public class OpTypeTest extends ClusterTest {
                 successCount++;
             } else {
                 failCount++;
-                assertEquals(ResultCode.KEY_NOT_FOUND_ERROR, result.resultCode());
+                assertEquals(ResultCode.KEY_NOT_FOUND_ERROR, result.getResultCode());
             }
         }
 
@@ -449,7 +449,7 @@ public class OpTypeTest extends ClusterTest {
         int count = 0;
         while (rs.hasNext()) {
             RecordResult result = rs.next();
-            assertTrue(result.isOk(), "Operation " + count + " failed with " + result.resultCode());
+            assertTrue(result.isOk(), "Operation " + count + " failed with " + result.getResultCode());
             count++;
         }
         assertEquals(3, count);

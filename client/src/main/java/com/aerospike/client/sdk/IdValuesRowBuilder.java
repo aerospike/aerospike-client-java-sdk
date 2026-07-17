@@ -24,6 +24,9 @@ import java.util.Date;
 import java.util.List;
 import java.util.Objects;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.aerospike.client.sdk.command.Txn;
 
 /**
@@ -45,6 +48,8 @@ import com.aerospike.client.sdk.command.Txn;
  * @see IdValuesBuilder
  */
 public class IdValuesRowBuilder {
+    private static final Logger log = LoggerFactory.getLogger(Loggers.COMMAND);
+
     private static class RowData {
         final Key key;
         Object[] values;
@@ -336,7 +341,7 @@ public class IdValuesRowBuilder {
      */
     public IdValuesRowBuilder notInAnyTransaction() {
         if (transactionSet) {
-            throw AerospikeException.resultCodeToException(ResultCode.PARAMETER_ERROR,
+            throw AerospikeException.toException(ResultCode.PARAMETER_ERROR,
                 "The transaction mode has already been set");
         }
         this.transactionSet = true;
@@ -353,7 +358,7 @@ public class IdValuesRowBuilder {
      */
     public IdValuesRowBuilder inTransaction(Txn txn) {
         if (transactionSet) {
-            throw AerospikeException.resultCodeToException(ResultCode.PARAMETER_ERROR,
+            throw AerospikeException.toException(ResultCode.PARAMETER_ERROR,
                 "The transaction mode has already been set");
         }
         this.transactionSet = true;
@@ -443,8 +448,8 @@ public class IdValuesRowBuilder {
     private RecordStream executeAsyncInternal(ErrorHandler errorHandler) {
         List<OperationSpec> specs = materializeToSpecs();
 
-        if (txnToUse != null && Log.warnEnabled()) {
-            Log.warn(
+        if (txnToUse != null && log.isWarnEnabled()) {
+            log.warn(
                 "executeAsync() called within a transaction. " +
                 "Async operations may still be in flight when commit() is called, " +
                 "which could lead to inconsistent state. " +

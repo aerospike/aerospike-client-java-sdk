@@ -167,7 +167,7 @@ public final class AsyncRecordStream implements AutoCloseable, Iterable<RecordRe
     }
 
     private boolean routePublish(RecordResult result) {
-        if (streamErrorHandler != null && AbstractFilterableBuilder.isActionableError(result.resultCode())) {
+        if (streamErrorHandler != null && AbstractFilterableBuilder.isActionableError(result.getResultCode())) {
             AbstractFilterableBuilder.dispatchError(result, streamErrorHandler);
             return false;
         }

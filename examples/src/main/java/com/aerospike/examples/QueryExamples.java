@@ -48,9 +48,11 @@ import com.aerospike.client.sdk.cdt.ListOrder;
 import com.aerospike.client.sdk.cdt.MapOrder;
 import com.aerospike.client.sdk.info.classes.NamespaceDetail;
 import com.aerospike.client.sdk.info.classes.Sindex;
+import com.aerospike.client.sdk.operation.BitOverflowAction;
 import com.aerospike.client.sdk.policy.Behavior;
 import com.aerospike.client.sdk.policy.QueryDuration;
 import com.aerospike.client.sdk.policy.Behavior.Selectors;
+import com.aerospike.client.sdk.query.PreparedAel;
 import com.aerospike.client.sdk.query.SortDir;
 import com.aerospike.client.sdk.query.SortProperties;
 import com.aerospike.client.sdk.task.ExecuteTask;
@@ -232,7 +234,7 @@ public class QueryExamples {
         int count = 0;
         while (recordStream.hasNext()) {
             RecordResult key = recordStream.next();
-            System.out.printf("%5d - Key: %s, Value: %s\n", (++count), key.key(), key);
+            System.out.printf("%5d - Key: %s, Value: %s\n", (++count), key.getKey(), key);
         }
     }
 
@@ -259,6 +261,7 @@ public class QueryExamples {
             Behavior newBehavior = Behavior.DEFAULT.deriveWithChanges("newBehavior", builder ->
                 builder.on(Selectors.all(), ops -> ops
                         .waitForSocketResponseAfterCallFails(Duration.ofSeconds(3))
+                        .sendKey(true)
                 )
                 .on(Selectors.reads().ap(), ops -> ops
                         .waitForCallToComplete(Duration.ofMillis(25))
@@ -423,7 +426,7 @@ public class QueryExamples {
                     .id(905).values("Sam", 24, "brown", new Date().getTime())
                     .defaultExpireRecordAfter(Duration.ofDays(30))
                     .execute();
-            values.forEach(kr -> System.out.printf("%s -> %s\n", kr.key(), kr.recordOrThrow()));
+            values.forEach(kr -> System.out.printf("%s -> %s\n", kr.getKey(), kr.recordOrThrow()));
 
             for (int i = 0; i < 15; i++) {
                 session.upsert(customerDataSet.id(i))
@@ -737,6 +740,25 @@ public class QueryExamples {
             for (Customer customer : customers) {
                 System.out.println(customer);
             }
+
+            // PreparedAel: reuse a template with ?0, ?1 placeholders (zero-based).
+            // Bound values are substituted client-side as AEL literals; types are inferred
+            // from the literals (e.g. 'Tim' -> STRING, 30 -> INT).
+            PreparedAel nameAndAgeFilter = PreparedAel.prepare("$.name == ?0 and $.age > ?1");
+            System.out.println("\nPreparedAel filter (Tim, age > 30):");
+            customers = session.query(customerDataSet)
+                    .where(nameAndAgeFilter, "Tim", 30)
+                    .execute()
+                    .toObjectList(customerMapper);
+            customers.forEach(System.out::println);
+
+            System.out.println("PreparedAel filter (Jane, age > 21) — same template, different params:");
+            customers = session.query(customerDataSet)
+                    .where(nameAndAgeFilter, "Jane", 21)
+                    .execute()
+                    .toObjectList(customerMapper);
+            customers.forEach(System.out::println);
+            System.out.println("End PreparedAel examples\n");
 
             System.out.println("---- End sort ---");
 
@@ -1203,6 +1225,63 @@ public class QueryExamples {
             System.out.println("Final state: " +
                 session.query(cdtDemoRecords.id(500)).execute().getFirst());
             System.out.println("--- End Complex CDT operations ---");
+
+            // ---------------------------
+            // Bit (BLOB) operations
+            // ---------------------------
+            System.out.println("\n--- Bit (BLOB) operations ---");
+
+            Key bitKey = cdtDemoRecords.id(501);
+            session.delete(bitKey).execute();
+
+            session.upsert(bitKey)
+                .bin("flags").setTo(new byte[] {0x01, 0x42})
+                .execute();
+
+            session.update(bitKey)
+                .bin("flags").bitResize(4)
+                .bin("flags").bitSet(8, 8, new byte[] {(byte) 0xFF})
+                .bin("flags").bitOr(0, 16, new byte[] {(byte) 0x0F, (byte) 0xF0})
+                .execute();
+
+            RecordStream bitRead = session.query(bitKey)
+                .bin("flags").bitGet(0, 8)
+                .bin("flags").bitCount(0, 32)
+                .execute();
+            System.out.println("First byte + set-bit count: " + bitRead.getFirst());
+
+            RecordStream intRead = session.query(bitKey)
+                .bin("flags").bitGetInt(0, 16, false)
+                .execute();
+            System.out.println("UInt16 at bit 0: " + intRead.getFirst());
+
+            session.query(bitKey)
+                .bin("flags").bitLscan(0, 32, true)
+                .bin("flags").bitRscan(0, 32, true)
+                .execute()
+                .forEach(rr -> System.out.println("Scan result: " + rr));
+
+            session.update(bitKey)
+                .bin("flags").bitSetInt(16, 16, 100)
+                .bin("flags").bitAdd(16, 16, 1, false, BitOverflowAction.WRAP)
+                .execute();
+
+            System.out.println("After bitSetInt/bitAdd: " +
+                session.query(bitKey).bin("flags").bitGetInt(16, 16, false).execute().getFirst());
+
+            session.update(bitKey)
+                .bin("flags").bitLshift(0, 8, 1)
+                .bin("flags").bitNot(8, 8)
+                .execute();
+
+            session.update(bitKey)
+                .bin("flags").bitInsert(1, new byte[] {0x11, 0x22})
+                .bin("flags").bitRemove(3, 1)
+                .execute();
+
+            System.out.println("Final flags blob: " +
+                session.query(bitKey).bin("flags").get().execute().getFirst());
+            System.out.println("--- End Bit (BLOB) operations ---");
 
             session.upsert(customerDataSet.id(1))
                 .bin("test").onMapKeyRange(5, SpecialValue.INFINITY).getKeys()

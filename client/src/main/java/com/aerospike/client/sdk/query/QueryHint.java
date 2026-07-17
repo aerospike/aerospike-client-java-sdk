@@ -22,10 +22,12 @@ import com.aerospike.client.sdk.policy.QueryDuration;
  * Type-state configuration for query where-clause hints.
  *
  * <p>A hint allows the caller to influence secondary index selection and query duration
- * for dataset queries that use a {@code where} clause. The three optional properties are:</p>
+ * for dataset queries that use a {@code where} clause. Optional properties:</p>
  * <ul>
- *   <li>{@code forIndex(name)} &ndash; use a specific secondary index by name</li>
- *   <li>{@code forBin(name)} &ndash; prefer the secondary index on a specific bin</li>
+ *   <li>{@code forIndex(name)} &ndash; soft index name hint (field {@code 21} on explain)</li>
+ *   <li>{@code forBin(name)} &ndash; prefer the secondary index on a specific bin (legacy path)</li>
+ *   <li>{@code requireIndex()} &ndash; reject primary-index fallback on explain ({@code REQUIRE_INDEX})</li>
+ *   <li>{@code hardHint()} &ndash; after {@code forIndex}, require that index only ({@code HARD_HINT})</li>
  *   <li>{@code queryDuration(duration)} &ndash; override the expected query duration</li>
  * </ul>
  *
@@ -33,18 +35,11 @@ import com.aerospike.client.sdk.policy.QueryDuration;
  * These constraints are enforced at <em>compile time</em> via a type-state pattern: each method
  * returns a different interface that exposes only the methods still valid at that point.</p>
  *
- * <!-- The codebase typically uses Consumer<T> lambdas for inline configuration.
- *      Here we use Function<Start, ? extends Result> instead, because the valid
- *      permutations are small (7 paths) and compile-time safety that mirrors the
- *      mutual-exclusivity semantics to the user is more important than strict
- *      adherence to the Consumer<T> convention. The user-facing lambda syntax is
- *      virtually identical:  hint -> hint.forIndex("x").queryDuration(SHORT)  -->
- *
  * <p>Example usage:</p>
  * <pre>{@code
  * session.query(dataSet)
  *     .where("$.age > 30")
- *     .withHint(hint -> hint.forIndex("age_idx").queryDuration(QueryDuration.SHORT))
+ *     .withHint(hint -> hint.forIndex("age_idx").hardHint().queryDuration(QueryDuration.SHORT))
  *     .execute();
  * }</pre>
  */
@@ -64,22 +59,38 @@ public final class QueryHint {
         String getBinName();
         /** @return the query duration override, or {@code null} if not set */
         QueryDuration getQueryDuration();
+        /** @return whether explain must select a secondary index ({@code REQUIRE_INDEX}) */
+        boolean isRequireIndex();
+        /** @return whether the index name hint is strict ({@code HARD_HINT}) */
+        boolean isHardHint();
     }
 
     /**
-     * Entry-point state &ndash; all three configuration methods are available.
+     * Entry-point state &ndash; all configuration methods are available.
      */
     public interface Start extends Result {
-        /** Specify a secondary index by name. */
-        AfterTarget forIndex(String indexName);
+        /** Specify a secondary index by name (soft hint). */
+        AfterIndex forIndex(String indexName);
         /** Prefer the secondary index on the given bin. */
         AfterTarget forBin(String binName);
         /** Override the expected query duration. */
         AfterDuration queryDuration(QueryDuration duration);
+        /** Reject primary-index fallback on server explain. */
+        Start requireIndex();
     }
 
     /**
-     * State after {@code forIndex()} or {@code forBin()} &ndash; only {@code queryDuration()} remains.
+     * State after {@code forIndex()} &ndash; strict hint and duration remain.
+     */
+    public interface AfterIndex extends AfterTarget {
+        /** Require the hinted index name on explain (no soft fallback). */
+        Result hardHint();
+        /** Reject primary-index fallback on server explain. */
+        AfterIndex requireIndex();
+    }
+
+    /**
+     * State after {@code forBin()} &ndash; only {@code queryDuration()} remains.
      */
     public interface AfterTarget extends Result {
         /** Override the expected query duration. */
@@ -90,29 +101,28 @@ public final class QueryHint {
      * State after {@code queryDuration()} &ndash; only {@code forIndex()} or {@code forBin()} remains.
      */
     public interface AfterDuration extends Result {
-        /** Specify a secondary index by name. */
-        Result forIndex(String indexName);
+        /** Specify a secondary index by name (soft hint). */
+        AfterIndex forIndex(String indexName);
         /** Prefer the secondary index on the given bin. */
-        Result forBin(String binName);
+        AfterTarget forBin(String binName);
+        /** Reject primary-index fallback on server explain. */
+        AfterDuration requireIndex();
     }
 
-    // ---- package-private implementation ------------------------------------------------
+  // ---- package-private implementation ------------------------------------------------
 
     /**
      * Single mutable implementation of all type-state interfaces.
-     * Covariant return types allow one class to satisfy every interface contract:
-     * e.g. {@code Start.forIndex()} returns {@code AfterTarget} while
-     * {@code AfterDuration.forIndex()} returns {@code Result}; since
-     * {@code AfterTarget extends Result}, declaring the return type as
-     * {@code AfterTarget} satisfies both.
      */
-    static final class Impl implements Start, AfterTarget, AfterDuration {
+    static final class Impl implements Start, AfterIndex, AfterDuration {
         private String indexName;
         private String binName;
         private QueryDuration queryDuration;
+        private boolean requireIndex;
+        private boolean hardHint;
 
         @Override
-        public AfterTarget forIndex(String indexName) {
+        public AfterIndex forIndex(String indexName) {
             this.indexName = indexName;
             return this;
         }
@@ -129,9 +139,27 @@ public final class QueryHint {
             return this;
         }
 
+        @Override
+        public Impl requireIndex() {
+            this.requireIndex = true;
+            return this;
+        }
+
+        @Override
+        public Result hardHint() {
+            if (indexName == null || indexName.isBlank()) {
+                throw new IllegalArgumentException(
+                    "hardHint requires forIndex with a non-blank index name");
+            }
+            this.hardHint = true;
+            return this;
+        }
+
         @Override public String getIndexName()            { return indexName; }
         @Override public String getBinName()              { return binName; }
         @Override public QueryDuration getQueryDuration() { return queryDuration; }
+        @Override public boolean isRequireIndex()         { return requireIndex; }
+        @Override public boolean isHardHint()             { return hardHint; }
     }
 
     /**
