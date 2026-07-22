@@ -36,6 +36,8 @@ import org.yaml.snakeyaml.nodes.Node;
 import org.yaml.snakeyaml.nodes.ScalarNode;
 import org.yaml.snakeyaml.nodes.Tag;
 
+import com.aerospike.client.sdk.MetricsSettings;
+import com.aerospike.client.sdk.MetricsSettingsRegistry;
 import com.aerospike.client.sdk.SystemSettings;
 import com.aerospike.client.sdk.SystemSettingsRegistry;
 
@@ -199,6 +201,9 @@ public class BehaviorYamlLoader {
         // Load system settings
         loadSystemSettings(config);
 
+        // Load metrics settings
+        loadMetricsSettings(config);
+
         return updatedBehaviors;
     }
 
@@ -271,6 +276,9 @@ public class BehaviorYamlLoader {
 
         // Load system settings
         loadSystemSettings(config);
+
+        // Load metrics settings
+        loadMetricsSettings(config);
 
         return behaviors;
     }
@@ -516,6 +524,58 @@ public class BehaviorYamlLoader {
                 }
                 if (transactionsConfig.getNumberOfAttempts() != null) {
                     ops.numberOfAttempts(transactionsConfig.getNumberOfAttempts());
+                }
+            });
+        }
+
+        return builder.build();
+    }
+
+    private static void loadMetricsSettings(BehaviorYamlConfig config) {
+        if (config.getMetrics() == null) {
+            return;
+        }
+
+        MetricsSettingsRegistry registry = MetricsSettingsRegistry.getInstance();
+
+        for (Map.Entry<String, BehaviorYamlConfig.MetricsSettingsConfig> entry : config.getMetrics().entrySet()) {
+            String name = entry.getKey();
+            BehaviorYamlConfig.MetricsSettingsConfig settingsConfig = entry.getValue();
+            MetricsSettings settings = convertToMetricsSettings(settingsConfig);
+
+            if (Behavior.DEFAULT.name().equalsIgnoreCase(name)) {
+                // Update default settings
+                registry.updateDefaultSettings(settings);
+            } else {
+                // Update cluster-specific settings
+                registry.updateClusterSettings(name, settings);
+            }
+        }
+    }
+
+    private static MetricsSettings convertToMetricsSettings(BehaviorYamlConfig.MetricsSettingsConfig config) {
+        MetricsSettings.Builder builder = MetricsSettings.builder();
+
+        if (config.getSignals() != null) {
+            BehaviorYamlConfig.MetricsSignalsConfig metricsConfig = config.getSignals();
+            builder.signals(ops -> {
+                if (metricsConfig.getLatencyWarn() != null) {
+                    ops.latencyWarn(metricsConfig.getLatencyWarn());
+                }
+                if (metricsConfig.getConnectCreateWarn() != null) {
+                    ops.connectCreateWarn(metricsConfig.getConnectCreateWarn());
+                }
+                if (metricsConfig.getBatchSizeWarn() != null) {
+                    ops.batchSizeWarn(metricsConfig.getBatchSizeWarn());
+                }
+                if (metricsConfig.getShortQueryRecordsMax() != null) {
+                    ops.shortQueryRecordsMax(metricsConfig.getShortQueryRecordsMax());
+                }
+                if (metricsConfig.getLongQueryRecordsMin() != null) {
+                    ops.longQueryRecordsMin(metricsConfig.getLongQueryRecordsMin());
+                }
+                if (metricsConfig.getEnabled() != null) {
+                    ops.enabled(metricsConfig.getEnabled());
                 }
             });
         }

@@ -78,13 +78,14 @@ public class Cluster implements Closeable {
     private final IndexesMonitor indexesMonitor;
     private RecordMappingFactory recordMappingFactory = null;
     private volatile SystemSettings effectiveSystemSettings = SystemSettings.DEFAULT;
+    private volatile MetricsSettings effectiveMetricsSettings = MetricsSettings.DEFAULT;
     private Version version;
     private boolean versionGE8;
     private boolean versionGE812;
     private boolean versionGE813;
     private boolean metricsEnabled;
 
-    Cluster(ClusterDefinition def, SystemSettings effectiveSettings) {
+    Cluster(ClusterDefinition def, SystemSettings effectiveSettings, MetricsSettings metricsSettings) {
         this.def = def;
         nodes = new Node[0];
         partitionMap = new HashMap<String,Partitions>();
@@ -96,6 +97,7 @@ public class Cluster implements Closeable {
         closed = new AtomicBoolean();
 
         this.applySystemSettings(effectiveSettings);
+        this.applyMetricsSettings(metricsSettings);
 
         tend = new ClusterTend(this);
 
@@ -330,6 +332,73 @@ public class Cluster implements Closeable {
                     this.def.maxSocketIdleNanosTrim
             );
         }
+    }
+
+    /**
+     * Applies metrics settings dynamically to this cluster.
+     * Called by {@link MetricsSettingsRegistry} when settings are updated.
+     *
+     * <p><b>Note:</b> This is an internal method and should not be called directly.
+     * Metrics settings are automatically managed by the registry.</p>
+     *
+     * @param settings the system settings to apply
+     */
+    void applyMetricsSettings(MetricsSettings settings) {
+        if (settings == null) {
+            return;
+        }
+
+        this.effectiveMetricsSettings = settings;
+
+        /* TODO Apply metrics settings.
+        if (settings.getLatencyWarn() != null) {
+            def.latencyWarn = settings.getLatencyWarn();
+        }
+
+        if (settings.getConnectCreateWarn() != null) {
+            def.connectCreateWarn = settings.getConnectCreateWarn();
+        }
+
+        if (settings.getBatchSizeWarn() != null) {
+            def.batchSizeWarn = settings.getBatchSizeWarn();
+        }
+
+        if (settings.getShortQueryRecordsMax() != null) {
+            def.shortQueryRecordsMax = settings.getShortQueryRecordsMax();
+        }
+
+        if (settings.getLongQueryRecordsMin() != null) {
+            def.longQueryRecordsMin = settings.getLongQueryRecordsMin();
+        }
+
+        if (settings.getEnabled() != null) {
+            def.enabled = settings.getEnabled();
+        }
+        */
+
+        if (log.isInfoEnabled()) {
+            log.atInfo()
+                .addKeyValue(Cluster.CONTEXT, def.clusterName)
+                .log("Metrics settings updated for cluster '" +
+                    (def.clusterName != null ? def.clusterName : "(unnamed)") +
+                    "'.");
+        }
+
+        /* TODO Log metrics settings.
+        if (log.isDebugEnabled()) {
+            log.atDebug()
+                .addKeyValue(Cluster.CONTEXT, def.getClusterName())
+                .log(
+                    "\tlatencyWarn={}ms;connectCreateWarn={}ms;batchSizeWarn={};shortQueryRecordsMax={};longQueryRecordsMin={}ms;enabled={}",
+                    this.def.latencyWarn,
+                    this.def.connectCreateWarn,
+                    this.def.batchSizeWarn,
+                    this.def.shortQueryRecordsMax,
+                    this.def.longQueryRecordsMin,
+                    this.def.enabled
+            );
+        }
+        */
     }
 
     /**

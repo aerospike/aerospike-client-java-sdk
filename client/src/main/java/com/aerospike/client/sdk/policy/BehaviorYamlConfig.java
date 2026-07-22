@@ -23,6 +23,7 @@ public class BehaviorYamlConfig {
 
     private Map<String, BehaviorConfig> behaviors;
     private Map<String, SystemSettingsConfig> system;
+    private Map<String, MetricsSettingsConfig> metrics;
 
     // Getters and setters
     public Map<String, BehaviorConfig> getBehaviors() { return behaviors; }
@@ -30,6 +31,9 @@ public class BehaviorYamlConfig {
 
     public Map<String, SystemSettingsConfig> getSystem() { return system; }
     public void setSystem(Map<String, SystemSettingsConfig> system) { this.system = system; }
+
+    public Map<String, MetricsSettingsConfig> getMetrics() { return metrics; }
+    public void setMetrics(Map<String, MetricsSettingsConfig> metrics) { this.metrics = metrics; }
 
     // Individual behavior configuration (name is the map key)
     public static class BehaviorConfig {
@@ -52,6 +56,7 @@ public class BehaviorYamlConfig {
         private SystemCircuitBreakerConfig systemCircuitBreaker;
         private SystemRefreshConfig systemRefresh;
         private SystemTransactionsConfig systemTransactions;
+        private MetricsSignalsConfig metricsSignals;
 
         // Getters and setters
         public String getName() { return name; }
@@ -110,6 +115,9 @@ public class BehaviorYamlConfig {
 
         public SystemTransactionsConfig getSystemTransactions() { return systemTransactions; }
         public void setSystemTransactions(SystemTransactionsConfig systemTransactions) { this.systemTransactions = systemTransactions; }
+
+        public MetricsSignalsConfig getMetricsSignals() { return metricsSignals; }
+        public void setSystemTransactions(MetricsSignalsConfig metricsSignals) { this.metricsSignals = metricsSignals; }
     }
 
     // Base policy configuration
@@ -308,5 +316,70 @@ public class BehaviorYamlConfig {
 
         public SystemTransactionsConfig getTransactions() { return transactions; }
         public void setTransactions(SystemTransactionsConfig transactions) { this.transactions = transactions; }
+    }
+
+    // Metrics settings configuration (for cluster-level settings)
+    public static class MetricsSettingsConfig {
+        private MetricsSignalsConfig signals;
+
+        public MetricsSignalsConfig getSignals() {
+            return signals;
+        }
+
+        public void setSignals(MetricsSignalsConfig signals) {
+            this.signals = signals;
+        }
+    }
+
+    // Metrics - Signals
+    public static class MetricsSignalsConfig {
+        private Duration latencyWarn;
+        private Duration connectCreateWarn;
+        private Integer batchSizeWarn;
+        private Integer shortQueryRecordsMax;
+        private Integer longQueryRecordsMin;
+        private Boolean enabled;
+
+        public Duration getLatencyWarn() {
+            return latencyWarn;
+        }
+        public void setLatencyWarn(Duration latencyWarn) {
+            this.latencyWarn = latencyWarn;
+        }
+
+        public Duration getConnectCreateWarn() {
+            return connectCreateWarn;
+        }
+        public void setConnectCreateWarn(Duration connectCreateWarn) {
+            this.connectCreateWarn = connectCreateWarn;
+        }
+
+        public Integer getBatchSizeWarn() {
+            return batchSizeWarn;
+        }
+        public void setBatchSizeWarn(Integer batchSizeWarn) {
+            this.batchSizeWarn = batchSizeWarn;
+        }
+
+        public Integer getShortQueryRecordsMax() {
+            return shortQueryRecordsMax;
+        }
+        public void setShortQueryRecordsMax(Integer shortQueryRecordsMax) {
+            this.shortQueryRecordsMax = shortQueryRecordsMax;
+        }
+
+        public Integer getLongQueryRecordsMin() {
+            return longQueryRecordsMin;
+        }
+        public void setLongQueryRecordsMin(Integer longQueryRecordsMin) {
+            this.longQueryRecordsMin = longQueryRecordsMin;
+        }
+
+        public Boolean getEnabled() {
+            return enabled;
+        }
+        public void setEnabled(Boolean enabled) {
+            this.enabled = enabled;
+        }
     }
 }
