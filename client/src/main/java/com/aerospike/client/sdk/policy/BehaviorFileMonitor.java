@@ -46,12 +46,11 @@ class BehaviorFileMonitor implements Closeable {
     private static final Logger log = LoggerFactory.getLogger(Loggers.BEHAVIOR);
 
     private final BehaviorRegistry registry = BehaviorRegistry.getInstance();
-    // Use a scheduled executor with 2 threads: one for monitoring, one for reload tasks
-    private final ScheduledExecutorService executor = Executors.newScheduledThreadPool(2, r -> {
-        Thread t = new Thread(r, "BehaviorFileMonitor");
-        t.setDaemon(true);
-        return t;
-    });
+    // Scheduled executor with 2 threads: one for monitoring, one for reload tasks.
+    // Created lazily and recreated after shutdown so that monitoring can be
+    // started, stopped, and started again within the same process (this is a
+    // singleton, so a single shut-down executor must not permanently disable it).
+    private ScheduledExecutorService executor;
 
     private Path yamlFilePath;
     private WatchService watchService;
@@ -113,11 +112,29 @@ class BehaviorFileMonitor implements Closeable {
 
         // Start monitoring thread
         isMonitoring = true;
-        executor.submit(this::monitorFile);
+        ensureExecutor().submit(this::monitorFile);
 
         if (log.isDebugEnabled()) {
             log.debug("Started monitoring YAML file: %s checking every %,dms".formatted(yamlFilePath, reloadDelayMs));
         }
+    }
+
+    /**
+     * Return the executor, (re)creating it if it has never been started or was
+     * previously shut down. Because this class is a process-wide singleton, a
+     * prior {@link #shutdown()} (for example via try-with-resources on the
+     * {@code Closeable} returned by {@code Behavior.startMonitoringWithResource})
+     * must not permanently prevent monitoring from being started again.
+     */
+    private synchronized ScheduledExecutorService ensureExecutor() {
+        if (executor == null || executor.isShutdown()) {
+            executor = Executors.newScheduledThreadPool(2, r -> {
+                Thread t = new Thread(r, "BehaviorFileMonitor");
+                t.setDaemon(true);
+                return t;
+            });
+        }
+        return executor;
     }
 
     /**
@@ -240,7 +257,7 @@ class BehaviorFileMonitor implements Closeable {
             lastModified = currentModified;
 
             // Schedule reload with delay to avoid multiple reloads
-            executor.schedule(this::loadBehaviors, reloadDelayMs, TimeUnit.MILLISECONDS);
+            ensureExecutor().schedule(this::loadBehaviors, reloadDelayMs, TimeUnit.MILLISECONDS);
 
         } catch (Exception e) {
             if (log.isErrorEnabled()) {
@@ -285,13 +302,25 @@ class BehaviorFileMonitor implements Closeable {
      */
     public void shutdown() {
         stopMonitoring();
-        executor.shutdown();
+
+        ScheduledExecutorService exec;
+        synchronized (this) {
+            exec = executor;
+            // Clear the reference so a subsequent startMonitoring() recreates it.
+            executor = null;
+        }
+
+        if (exec == null) {
+            return;
+        }
+
+        exec.shutdown();
         try {
-            if (!executor.awaitTermination(5, TimeUnit.SECONDS)) {
-                executor.shutdownNow();
+            if (!exec.awaitTermination(5, TimeUnit.SECONDS)) {
+                exec.shutdownNow();
             }
         } catch (InterruptedException e) {
-            executor.shutdownNow();
+            exec.shutdownNow();
             Thread.currentThread().interrupt();
         }
     }

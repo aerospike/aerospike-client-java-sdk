@@ -14,26 +14,25 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.aerospike.client.sdk;
+package com.aerospike.examples;
 
-import org.junit.platform.suite.api.SelectClasses;
-import org.junit.platform.suite.api.Suite;
+import java.util.Set;
 
-import com.aerospike.client.sdk.policy.AsyncRecordStreamTest;
-import com.aerospike.client.sdk.policy.BehaviorFileMonitorRestartTest;
-import com.aerospike.client.sdk.policy.BehaviorTest;
-import com.aerospike.client.sdk.policy.BehaviorYamlTest;
-import com.aerospike.client.sdk.policy.QueryProducerCancellationTest;
-import com.aerospike.client.sdk.policy.SystemBehaviorTest;
+/**
+ * Registry metadata for one runnable example.
+ */
+public record ExampleDefinition(
+    String name,
+    Class<? extends Example> exampleClass,
+    ExampleFixture fixture,
+    Set<String> tags
+) {
+    public ExampleDefinition {
+        fixture = fixture == null ? ExampleFixture.NONE : fixture;
+        tags = tags == null ? Set.of() : Set.copyOf(tags);
+    }
 
-@Suite
-@SelectClasses({
-    AsyncRecordStreamTest.class,
-    BehaviorFileMonitorRestartTest.class,
-    BehaviorTest.class,
-    BehaviorYamlTest.class,
-    QueryProducerCancellationTest.class,
-    SystemBehaviorTest.class,
-})
-public class SuiteCore {
+    public boolean hasTag(String tag) {
+        return tags.contains(tag);
+    }
 }

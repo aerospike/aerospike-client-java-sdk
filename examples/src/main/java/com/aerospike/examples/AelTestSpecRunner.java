@@ -21,7 +21,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
-import com.aerospike.client.sdk.Cluster;
 import com.aerospike.client.sdk.DataSet;
 import com.aerospike.client.sdk.Record;
 import com.aerospike.client.sdk.RecordStream;
@@ -37,50 +36,65 @@ import com.aerospike.client.sdk.policy.Behavior;
  * path functions, transactions, rank-based access, return type variations,
  * and edge cases.
  */
-public class AelTestSpecRunner {
+public class AelTestSpecRunner extends Example {
 
     private static final String SEP = "=".repeat(70);
-    private static int totalTests = 0;
-    private static int passedTests = 0;
-    private static int failedTests = 0;
-    private static int errorTests = 0;
+    private int totalTests = 0;
+    private int passedTests = 0;
+    private int failedTests = 0;
+    private int errorTests = 0;
 
     public static void main(String[] args) throws Exception {
         Args arguments = Example.parseStandaloneArgs(args);
-        try (Cluster cluster = Example.clusterDefinition(arguments).connect()) {
-            Session session = cluster.createSession(Behavior.DEFAULT);
-            DataSet set = DataSet.of("test", "ael_test_spec");
+        int exitCode = Main.runExamples(
+            new Console(),
+            arguments,
+            new String[] {"AelTestSpecRunner"});
 
-            session.truncate(set);
-            Thread.sleep(200);
-            setupTestData(session, set);
-
-            testScalarBinAccess(session, set);
-            testTypeCasting(session, set);
-            testTypeDerivation(session, set);
-            testMapAccess(session, set);
-            testListAccess(session, set);
-            testNestedCDT(session, set);
-            testArithmetic(session, set);
-            testBitwise(session, set);
-            testComparison(session, set);
-            testLogical(session, set);
-            testControlStructures(session, set);
-            testMetadata(session, set);
-            testPathFunctions(session, set);
-            testTransactionScenario(session, set);
-            testRankBased(session, set);
-            testReturnTypes(session, set);
-            testEdgeCases(session, set);
-
-            printSummary();
+        if (exitCode != 0) {
+            throw new IllegalStateException("AelTestSpecRunner failed");
         }
+    }
+
+    @Override
+    public void runExample() throws Exception {
+        Session session = cluster().createSession(Behavior.DEFAULT);
+        DataSet set = dataSet("ael_test_spec");
+
+        // The runner's fixture truncates ael_test_spec before this example runs.
+        setupTestData(session, set);
+
+        testScalarBinAccess(session, set);
+        testTypeCasting(session, set);
+        testTypeDerivation(session, set);
+        testMapAccess(session, set);
+        testListAccess(session, set);
+        testNestedCDT(session, set);
+        testArithmetic(session, set);
+        testBitwise(session, set);
+        testComparison(session, set);
+        testLogical(session, set);
+        testControlStructures(session, set);
+        testMetadata(session, set);
+        testPathFunctions(session, set);
+        testTransactionScenario(session, set);
+        testRankBased(session, set);
+        testReturnTypes(session, set);
+        testEdgeCases(session, set);
+
+        printSummary();
+
+        // This is a diagnostic spec-coverage tool, not a pass/fail conformance
+        // gate. The failures and errors above are largely documented AEL
+        // limitations (see the "Known issue" notes and OperationDifferences), so
+        // the example does not fail CI on them. Inspect the summary to track how
+        // much of the spec the implementation currently supports.
     }
 
     // =====================================================================
     // Test Data Setup
     // =====================================================================
-    static void setupTestData(Session session, DataSet set) {
+    void setupTestData(Session session, DataSet set) {
         // Record 1: scalar bins
         session.upsert(set.id(1))
                 .bin("intBin").setTo(42)
@@ -221,7 +235,7 @@ public class AelTestSpecRunner {
     // =====================================================================
     // 1. Scalar Bin Access
     // =====================================================================
-    static void testScalarBinAccess(Session session, DataSet set) {
+    void testScalarBinAccess(Session session, DataSet set) {
         section("1. SCALAR BIN ACCESS");
 
         readCheck("S01", session, set, 1, "$.intBin", 42L);
@@ -239,7 +253,7 @@ public class AelTestSpecRunner {
     // =====================================================================
     // 2. Type Inference and Casting
     // =====================================================================
-    static void testTypeCasting(Session session, DataSet set) {
+    void testTypeCasting(Session session, DataSet set) {
         section("2. TYPE INFERENCE AND CASTING");
 
         readCheck("T01", session, set, 1, "$.intBin.asFloat()", 42.0);
@@ -260,7 +274,7 @@ public class AelTestSpecRunner {
     // =====================================================================
     // 2b. Type Derivation (no explicit get(type:) annotations)
     // =====================================================================
-    static void testTypeDerivation(Session session, DataSet set) {
+    void testTypeDerivation(Session session, DataSet set) {
         section("2b. TYPE DERIVATION");
         System.out.println("  Record 11: a=10(INT), b=10(INT), c=true(BOOL), d=11(INT),");
         System.out.println("             e=3.14(FLOAT), f=\"hello\"(STRING), g=false(BOOL)");
@@ -384,7 +398,7 @@ public class AelTestSpecRunner {
     // =====================================================================
     // 3. Map Access
     // =====================================================================
-    static void testMapAccess(Session session, DataSet set) {
+    void testMapAccess(Session session, DataSet set) {
         section("3. MAP ACCESS");
 
         readCheck("M01", session, set, 2, "$.m.alpha.get(type: INT)", 10L);
@@ -430,7 +444,7 @@ public class AelTestSpecRunner {
     // =====================================================================
     // 4. List Access
     // =====================================================================
-    static void testListAccess(Session session, DataSet set) {
+    void testListAccess(Session session, DataSet set) {
         section("4. LIST ACCESS");
 
         readCheck("L01", session, set, 2, "$.l.[0].get(type: INT)", 50L);
@@ -457,7 +471,7 @@ public class AelTestSpecRunner {
     // =====================================================================
     // 5. Nested CDT Navigation
     // =====================================================================
-    static void testNestedCDT(Session session, DataSet set) {
+    void testNestedCDT(Session session, DataSet set) {
         section("5. NESTED CDT NAVIGATION");
 
         readCheck("N01", session, set, 3, "$.profile.address.city.get(type: STRING)", "Austin");
@@ -480,7 +494,7 @@ public class AelTestSpecRunner {
     // =====================================================================
     // 6. Arithmetic
     // =====================================================================
-    static void testArithmetic(Session session, DataSet set) {
+    void testArithmetic(Session session, DataSet set) {
         section("6. ARITHMETIC");
 
         readCheck("A01", session, set, 7, "$.price + $.qty", 105L);
@@ -500,7 +514,7 @@ public class AelTestSpecRunner {
     // =====================================================================
     // 7. Bitwise Operations
     // =====================================================================
-    static void testBitwise(Session session, DataSet set) {
+    void testBitwise(Session session, DataSet set) {
         section("7. BITWISE OPERATIONS");
 
         readCheck("B01", session, set, 1, "$.intBin & 15", 10L);
@@ -522,7 +536,7 @@ public class AelTestSpecRunner {
     // =====================================================================
     // 8. Comparison Operators
     // =====================================================================
-    static void testComparison(Session session, DataSet set) {
+    void testComparison(Session session, DataSet set) {
         section("8. COMPARISON OPERATORS");
 
         filterCheck("C01", session, set, 1, "$.intBin == 42", true);
@@ -545,7 +559,7 @@ public class AelTestSpecRunner {
     // =====================================================================
     // 9. Logical Operators
     // =====================================================================
-    static void testLogical(Session session, DataSet set) {
+    void testLogical(Session session, DataSet set) {
         section("9. LOGICAL OPERATORS");
 
         filterCheck("LG01", session, set, 1, "$.intBin > 40 and $.strBin == 'hello'", true);
@@ -567,7 +581,7 @@ public class AelTestSpecRunner {
     // =====================================================================
     // 10. Control Structures
     // =====================================================================
-    static void testControlStructures(Session session, DataSet set) {
+    void testControlStructures(Session session, DataSet set) {
         section("10. CONTROL STRUCTURES");
 
         // 10.1 Variable binding (with...do — current implementation)
@@ -622,7 +636,7 @@ public class AelTestSpecRunner {
     // =====================================================================
     // 11. Metadata
     // =====================================================================
-    static void testMetadata(Session session, DataSet set) {
+    void testMetadata(Session session, DataSet set) {
         section("11. METADATA");
 
         readPrint("MD01", session, set, 1, "$.ttl()", "TTL in seconds");
@@ -640,7 +654,7 @@ public class AelTestSpecRunner {
     // =====================================================================
     // 12. Path Functions
     // =====================================================================
-    static void testPathFunctions(Session session, DataSet set) {
+    void testPathFunctions(Session session, DataSet set) {
         section("12. PATH FUNCTIONS");
 
         readCheck("PF01", session, set, 2, "$.m.alpha.get(type: INT)", 10L);
@@ -670,7 +684,7 @@ public class AelTestSpecRunner {
     // =====================================================================
     // 13. Transaction Scenario
     // =====================================================================
-    static void testTransactionScenario(Session session, DataSet set) {
+    void testTransactionScenario(Session session, DataSet set) {
         section("13. TRANSACTION SCENARIO");
 
         readCheck("TX01", session, set, 8, "$.txns.{}.count()", 12L);
@@ -723,7 +737,7 @@ public class AelTestSpecRunner {
     // =====================================================================
     // 14. Rank-Based Access (Record 9)
     // =====================================================================
-    static void testRankBased(Session session, DataSet set) {
+    void testRankBased(Session session, DataSet set) {
         section("14. RANK-BASED ACCESS");
         System.out.println("  scores rank order: english(78) < math(85) < history(88) < science(92) < art(95)");
         System.out.println();
@@ -751,7 +765,7 @@ public class AelTestSpecRunner {
     // =====================================================================
     // 15. Return Type Variations
     // =====================================================================
-    static void testReturnTypes(Session session, DataSet set) {
+    void testReturnTypes(Session session, DataSet set) {
         section("15. RETURN TYPE VARIATIONS");
         System.out.println("  Using $.m.{alpha,beta,gamma} on Record 2");
         System.out.println();
@@ -781,7 +795,7 @@ public class AelTestSpecRunner {
     // =====================================================================
     // 16. Edge Cases
     // =====================================================================
-    static void testEdgeCases(Session session, DataSet set) {
+    void testEdgeCases(Session session, DataSet set) {
         section("16. EDGE CASES");
 
         readCheck("E01", session, set, 2, "$.l.[0].get(type: INT)", 50L);
@@ -811,7 +825,7 @@ public class AelTestSpecRunner {
     // =====================================================================
     // Helper Methods
     // =====================================================================
-    static void section(String title) {
+    void section(String title) {
         System.out.println();
         System.out.println(SEP);
         System.out.println(title);
@@ -822,7 +836,7 @@ public class AelTestSpecRunner {
     /**
      * Execute a read expression and compare to an expected value.
      */
-    static void readCheck(String id, Session session, DataSet set, int pk,
+    void readCheck(String id, Session session, DataSet set, int pk,
                           String ael, Object expected) {
         totalTests++;
         System.out.printf("  [%s] %s%n", id, ael);
@@ -859,7 +873,7 @@ public class AelTestSpecRunner {
     /**
      * Execute a read expression, print the result without checking.
      */
-    static void readPrint(String id, Session session, DataSet set, int pk,
+    void readPrint(String id, Session session, DataSet set, int pk,
                           String ael, String description) {
         totalTests++;
         System.out.printf("  [%s] %s%n", id, ael);
@@ -882,7 +896,7 @@ public class AelTestSpecRunner {
     /**
      * Execute a read expression where we expect an error.
      */
-    static void readExpectError(String id, Session session, DataSet set, int pk,
+    void readExpectError(String id, Session session, DataSet set, int pk,
                                 String ael, String description) {
         totalTests++;
         System.out.printf("  [%s] %s%n", id, ael);
@@ -906,7 +920,7 @@ public class AelTestSpecRunner {
     /**
      * Execute a filter expression and check whether the record is returned.
      */
-    static void filterCheck(String id, Session session, DataSet set, int pk,
+    void filterCheck(String id, Session session, DataSet set, int pk,
                             String ael, boolean expectFound) {
         totalTests++;
         System.out.printf("  [%s] %s%n", id, ael);
@@ -936,7 +950,7 @@ public class AelTestSpecRunner {
     /**
      * Execute a filter expression and print the result without checking.
      */
-    static void filterPrint(String id, Session session, DataSet set, int pk,
+    void filterPrint(String id, Session session, DataSet set, int pk,
                             String ael, String description) {
         totalTests++;
         System.out.printf("  [%s] %s%n", id, ael);
@@ -960,7 +974,7 @@ public class AelTestSpecRunner {
         return obj == null ? "null" : obj.getClass().getSimpleName();
     }
 
-    static void printSummary() {
+    void printSummary() {
         System.out.println();
         System.out.println(SEP);
         System.out.printf("SUMMARY: %d total | %d passed | %d failed | %d errors%n",

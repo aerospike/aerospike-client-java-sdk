@@ -29,7 +29,6 @@ import com.aerospike.client.sdk.RecordResult;
 import com.aerospike.client.sdk.RecordStream;
 import com.aerospike.client.sdk.Session;
 import com.aerospike.client.sdk.TypedDataSet;
-import com.aerospike.client.sdk.exp.Exp;
 import com.aerospike.client.sdk.policy.Behavior;
 import com.aerospike.client.sdk.util.MapUtil;
 
@@ -43,11 +42,9 @@ import com.aerospike.client.sdk.util.MapUtil;
  * to load a related {@link Gadget} through {@link RecordReadContext#getSession()} when the
  * {@code related_gadget_id} bin is set.</p>
  *
- * <p>Connection flags match other standalone examples ({@link Args} via {@link Example#parseStandaloneArgs}):
- * default {@code localhost:3000}; {@code -h} / {@code -p} to override; optional {@code -a} for services
- * alternate. Requires namespace {@code test}.</p>
+ * <p>The example uses the runner-managed cluster and configured namespace.</p>
  */
-public final class TypedMappingExamples {
+public final class TypedMappingExamples extends Example {
 
     /** Simple inventory row stored under an integer user key. */
     public static final class Widget {
@@ -157,6 +154,14 @@ public final class TypedMappingExamples {
     }
 
     public static final class WidgetMapper implements RecordMapper<Widget> {
+        private final TypedDataSet<Gadget> gadgets;
+        private final Console console;
+
+        public WidgetMapper(TypedDataSet<Gadget> gadgets, Console console) {
+            this.gadgets = gadgets;
+            this.console = console;
+        }
+
         private static Widget mapBins(Map<String, Object> map, Key recordKey) {
             Widget w = new Widget();
             w.setId(recordKey.userKey.toLong());
@@ -183,7 +188,6 @@ public final class TypedMappingExamples {
                 return w;
             }
             Session session = ctx.getSession();
-            TypedDataSet<Gadget> gadgets = TypedDataSet.of("test", "typed_demo_gadgets", Gadget.class);
             Optional<Gadget> peer = session.query(gadgets.id(relatedId))
                     .readingOnlyBins("name", "enabled")
                     .limit(1)
@@ -192,10 +196,10 @@ public final class TypedMappingExamples {
                     .map(RecordResult::toObject);
             if (peer.isPresent()) {
                 Gadget g = peer.get();
-                System.out.println("  [WidgetMapper 4-arg fromMap] Session read of related gadget id="
+                console.info("  [WidgetMapper 4-arg fromMap] Session read of related gadget id="
                     + relatedId + " -> name='" + g.getName() + "', enabled=" + g.isEnabled());
             } else {
-                System.out.println("  [WidgetMapper 4-arg fromMap] No gadget found for rel_gadget_id="
+                console.info("  [WidgetMapper 4-arg fromMap] No gadget found for rel_gadget_id="
                     + relatedId);
             }
             return w;
@@ -242,74 +246,66 @@ public final class TypedMappingExamples {
         }
     }
 
-    public static void main(String[] args) throws Exception {
-        Args arguments = Example.parseStandaloneArgs(args);
-        try (Cluster cluster = Example.clusterDefinition(arguments).connect()) {
+    @Override
+    public void runExample() throws Exception {
+        Cluster cluster = cluster();
+        TypedDataSet<Widget> widgets = TypedDataSet.of(namespace(), "typed_demo_widgets", Widget.class);
+        TypedDataSet<Gadget> gadgets = TypedDataSet.of(namespace(), "typed_demo_gadgets", Gadget.class);
 
-            WidgetMapper widgetMapper = new WidgetMapper();
-            GadgetMapper gadgetMapper = new GadgetMapper();
-            cluster.setRecordMappingFactory(DefaultRecordMappingFactory.of(
-                    Widget.class, widgetMapper,
-                    Gadget.class, gadgetMapper));
+        WidgetMapper widgetMapper = new WidgetMapper(gadgets, console);
+        GadgetMapper gadgetMapper = new GadgetMapper();
+        cluster.setRecordMappingFactory(DefaultRecordMappingFactory.of(
+                Widget.class, widgetMapper,
+                Gadget.class, gadgetMapper));
 
-            Session session = cluster.createSession(Behavior.DEFAULT);
+        Session session = cluster.createSession(Behavior.DEFAULT);
 
-            TypedDataSet<Widget> widgets = TypedDataSet.of("test", "typed_demo_widgets", Widget.class);
-            TypedDataSet<Gadget> gadgets = TypedDataSet.of("test", "typed_demo_gadgets", Gadget.class);
+        // Writes: factory resolves mapper from object class (no .using()).
+        // Insert gadget first so widget mapper's 4-arg fromMap can resolve it via session.query.
+        session.insert(gadgets).object(new Gadget(1, "notifications", true)).execute();
+        session.insert(widgets).object(new Widget(1, "alpha", 10, 1L)).execute();
+        session.insert(widgets).object(new Widget(2, "beta", 20)).execute();
 
-            session.truncate(widgets);
-            session.truncate(gadgets);
+        // Single-row read via typed query stream: factory only (no .using() / no mapper arg).
+        // Widget id=1 has related_gadget_id=1; WidgetMapper 4-arg fromMap loads that gadget via session.
+        console.info("Typed query getFirstObject — watch for [WidgetMapper 4-arg fromMap] line:");
+        Widget one = session.query(widgets)
+                .where("$.qty == 10")
+                .limit(1)
+                .execute()
+                .getFirstObject()
+                .orElseThrow();
+        console.info("Typed query getFirstObject (factory): " + one);
 
-            // Writes: factory resolves mapper from object class (no .using()).
-            // Insert gadget first so widget mapper's 4-arg fromMap can resolve it via session.query.
-            session.insert(gadgets).object(new Gadget(1, "notifications", true)).execute();
-            session.insert(widgets).object(new Widget(1, "alpha", 10, 1L)).execute();
-            session.insert(widgets).object(new Widget(2, "beta", 20)).execute();
+        // Typed dataset query → TypedRecordStream: mapper-less toObjectList() (4-arg fromMap per row).
+        List<Widget> fromScan = session.query(widgets)
+                .where("$.qty == 20")
+                .execute()
+                .toObjectList();
+        console.info("Typed query (factory, qty=20 only): " + fromScan);
 
-            // Single-row read via typed query stream: factory only (no .using() / no mapper arg).
-            // Widget id=1 has related_gadget_id=1; WidgetMapper 4-arg fromMap loads that gadget via session.
-            System.out.println("Typed query getFirstObject — watch for [WidgetMapper 4-arg fromMap] line:");
-            Widget one = session.query(widgets)
-                    .where("$.qty == 10")
-                    .limit(1)
-                    .execute()
-                    .getFirstObject()
-                    .orElseThrow();
-            System.out.println("Typed query getFirstObject (factory): " + one);
+        console.info("Typed query toObjectList(all widgets) — id=1 triggers session read again:");
+        List<Widget> allWidgets = session.query(widgets).limit(10).execute().toObjectList();
+        console.info("  " + allWidgets);
 
-            // Typed dataset query → TypedRecordStream: mapper-less toObjectList() (4-arg fromMap per row).
-            List<Widget> fromScan = session.query(widgets)
-                    .where("$.qty == 20")
-                    .execute()
-                    .toObjectList();
-            System.out.println("Typed query (factory, qty=20 only): " + fromScan);
+        Optional<Widget> firstTyped = session.query(widgets)
+                .where("$.label == 'alpha'")
+                .execute()
+                .getFirstObject();
+        console.info("Typed query first (factory): " + firstTyped.orElseThrow());
 
-            System.out.println("Typed query toObjectList(all widgets) — id=1 triggers session read again:");
-            List<Widget> allWidgets = session.query(widgets).limit(10).execute().toObjectList();
-            System.out.println("  " + allWidgets);
-
-            Optional<Widget> firstTyped = session.query(widgets)
-                    .where("$.label == 'alpha'")
-                    .execute()
-                    .getFirstObject();
-            System.out.println("Typed query first (factory): " + firstTyped.orElseThrow());
-
-            // Heterogeneous batch: each leg carries Class<?>; map per row with toObject() (embedded session).
-            RecordStream batch = session
-                    .query(widgets.id(2))
-                        .readingOnlyBins("label", "qty")
-                    .query(gadgets.id(1))
-                        .readingOnlyBins("name", "enabled")
-                    .execute();
-            try (batch) {
-                Widget w = batch.next().toObject();
-                Gadget g = batch.next().toObject();
-                System.out.println("Batch widget: " + w);
-                System.out.println("Batch gadget: " + g);
-            }
+        // Heterogeneous batch: each leg carries Class<?>; map per row with toObject() (embedded session).
+        RecordStream batch = session
+                .query(widgets.id(2))
+                    .readingOnlyBins("label", "qty")
+                .query(gadgets.id(1))
+                    .readingOnlyBins("name", "enabled")
+                .execute();
+        try (batch) {
+            Widget w = batch.next().toObject();
+            Gadget g = batch.next().toObject();
+            console.info("Batch widget: " + w);
+            console.info("Batch gadget: " + g);
         }
-    }
-
-    private TypedMappingExamples() {
     }
 }

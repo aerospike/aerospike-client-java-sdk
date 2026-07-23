@@ -47,12 +47,8 @@ public class ErrorDetailVerbosityTest extends ClusterTest {
 
     @BeforeAll
     public static void setup() {
-        // Extended error-detail (subcode/message) plus the verbosity-3 expression
-        // build trace (SERVER-1137). The SERVER-1137 feature branch is cut from the
-        // 8.1.1 line and reports its base version as 8.1.1.0-start-*, so gate at
-        // 8.1.1 rather than the 8.1.3 release that first shipped the base tier.
-        Assumptions.assumeTrue(args.serverVersion.isGreaterOrEqual(8, 1, 1, 0),
-            "Extended error-detail requires server version 8.1.1 or later");
+        Assumptions.assumeTrue(args.serverVersion.isGreaterOrEqual(8, 1, 3, 0),
+            "Extended error-detail requires server version 8.1.3 or later");
 
         intKey = args.set.id("edv-int-key");
         strKey = args.set.id("edv-str-key");

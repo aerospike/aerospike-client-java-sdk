@@ -44,18 +44,20 @@ import com.aerospike.client.sdk.command.Info;
  * </ul>
  *
  */
-public class RosterExample extends Example{
-
-    public RosterExample(Console console) {
-        super(console);
-    }
+public class RosterExample extends Example {
 
     @Override
-    public void runExample(Cluster cluster, Args args) throws Exception {
+    public void runExample() throws Exception {
+        Cluster cluster = cluster();
         Node[] nodes = cluster.getNodes();
 
-        String response = Info.request(nodes[0], format("roster:namespace=%s", args.namespace));
+        String response = Info.request(nodes[0], format("roster:namespace=%s", namespace()));
         System.out.printf("Current roster: %s\n", response);
+
+        if (response == null || response.toLowerCase().contains("error") || !response.contains("observed_nodes=")) {
+            throw new ExampleSkipException(
+                "Roster commands require a strong-consistency namespace with observed_nodes; response: " + response);
+        }
 
         // Parse observed nodes from response
         String observedNodes = parseObservedNodes(response);
@@ -63,7 +65,7 @@ public class RosterExample extends Example{
 
         for (Node node : nodes) {
             String setResponse = Info.request(node,
-                    format("roster-set:namespace=%s;nodes=%s", args.namespace, observedNodes));
+                    format("roster-set:namespace=%s;nodes=%s", namespace(), observedNodes));
             System.out.printf("roster-set on %s: %s\n", node.getHost(), setResponse);
         }
 
