@@ -223,11 +223,6 @@ public class MetricsSettingsRegistry {
                 // Only apply if something actually changed
                 if (!oldEffective.equals(newEffective)) {
                     cluster.applyMetricsSettings(newEffective);
-                    if (log.isInfoEnabled()) {
-                        String name = info.clusterName != null ? info.clusterName : "(unnamed)";
-
-                        log.info("Applied updated default settings to cluster: " + name);
-                    }
                 }
             }
         }
@@ -261,10 +256,6 @@ public class MetricsSettingsRegistry {
                     Cluster cluster = entry.getKey();
                     MetricsSettings effectiveSettings = getEffectiveSettings(info);
                     cluster.applyMetricsSettings(effectiveSettings);
-
-                    if (log.isInfoEnabled()) {
-                        log.info("Applied cluster-specific settings to: " + clusterName);
-                    }
                 }
             }
         }
@@ -293,14 +284,11 @@ public class MetricsSettingsRegistry {
         synchronized (activeClusters) {
             for (Map.Entry<Cluster, ClusterInfo> entry : activeClusters.entrySet()) {
                 ClusterInfo info = entry.getValue();
+
                 if (clusterName.equals(info.clusterName)) {
                     Cluster cluster = entry.getKey();
                     MetricsSettings effectiveSettings = getEffectiveSettings(info);
                     cluster.applyMetricsSettings(effectiveSettings);
-
-                    if (log.isInfoEnabled()) {
-                        log.info("Reverted to default settings for cluster: " + clusterName);
-                    }
                 }
             }
         }

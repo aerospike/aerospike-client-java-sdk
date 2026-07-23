@@ -79,6 +79,7 @@ public class ClusterDefinition {
     int errorRateWindow = 1;
     boolean failIfNotConnected = true;
     boolean useServicesAlternate;
+    boolean isDynamicConfigEnabled;
     boolean forceSingleNode;
 
     private final Host[] hosts;
@@ -148,6 +149,7 @@ public class ClusterDefinition {
         this.errorRateWindow = other.errorRateWindow;
         this.failIfNotConnected = other.failIfNotConnected;
         this.useServicesAlternate = other.useServicesAlternate;
+        this.isDynamicConfigEnabled = other.isDynamicConfigEnabled;
         this.forceSingleNode = other.forceSingleNode;
         this.hosts = other.hosts;
     }
@@ -585,6 +587,8 @@ public class ClusterDefinition {
         String configPath = System.getenv(CONFIG_PATH_ENV);
 
         if (configPath != null && !configPath.isEmpty()) {
+            this.isDynamicConfigEnabled = true;
+
             try {
                 Behavior.startMonitoring(configPath);
             }
@@ -880,6 +884,15 @@ public class ClusterDefinition {
      */
     public boolean isUseServicesAlternate() {
         return useServicesAlternate;
+    }
+
+    /**
+     * Checks whether dynamic file configuration is enabled.
+     *
+     * @return true if dynamic config is enabled, false otherwise
+     */
+    public boolean isDynamicConfigEnabled() {
+        return isDynamicConfigEnabled;
     }
 
     /**

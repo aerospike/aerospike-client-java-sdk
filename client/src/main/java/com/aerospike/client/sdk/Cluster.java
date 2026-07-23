@@ -29,6 +29,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
 import com.aerospike.ael.Index;
+import com.aerospike.client.sdk.metrics.MetricsListener;
+import com.aerospike.client.sdk.metrics.MetricsWriter;
 import com.aerospike.client.sdk.policy.Behavior;
 import com.aerospike.client.sdk.tend.ClusterTend;
 import com.aerospike.client.sdk.tend.ConnectionRecover;
@@ -64,6 +66,7 @@ public class Cluster implements Closeable {
     public static final Duration INDEX_REFRESH = Duration.ofSeconds(5);
     public static final String CONTEXT = "aerospike.cluster";
     private static final Logger log = LoggerFactory.getLogger(Loggers.TEND);
+    private static final Logger logMetrics = LoggerFactory.getLogger(Loggers.METRICS);
 
     ClusterDefinition def;
     ClusterTend tend;
@@ -79,6 +82,8 @@ public class Cluster implements Closeable {
     private RecordMappingFactory recordMappingFactory = null;
     private volatile SystemSettings effectiveSystemSettings = SystemSettings.DEFAULT;
     private volatile MetricsSettings effectiveMetricsSettings = MetricsSettings.DEFAULT;
+    private final Object metricsLock = new Object();
+    private MetricsListener metricsListener;
     private Version version;
     private boolean versionGE8;
     private boolean versionGE812;
@@ -369,7 +374,23 @@ public class Cluster implements Closeable {
             return;
         }
 
-        this.effectiveMetricsSettings = settings;
+        boolean isUpdate = effectiveMetricsSettings != null;
+
+        if (isUpdate && log.isInfoEnabled()) {
+            log.atInfo()
+                .addKeyValue(Cluster.CONTEXT, def.clusterName)
+                .log("Metrics settings updated for cluster '" +
+                    (def.clusterName != null ? def.clusterName : "(unnamed)") +
+                    "'.");
+        }
+
+        // TODO enable metric when the code is ready.
+        if (settings.getEnabled()) {
+            enableMetricsInternal(settings);
+        }
+        else {
+            disableMetricsInternal();
+        }
 
         /* TODO Apply metrics settings.
         if (settings.getLatencyWarn() != null) {
@@ -420,6 +441,85 @@ public class Cluster implements Closeable {
             );
         }
         */
+    }
+
+    public final void enableMetrics(MetricsSettings settings) {
+        if (def.isDynamicConfigEnabled && !metricsEnabled) {
+            throw AerospikeException.toException(ResultCode.PARAMETER_ERROR,
+                "Metrics can not be enabled via enableMetrics() when they are disabled by dynamic config.");
+        }
+
+        synchronized(metricsLock) {
+            enableMetricsInternal(settings);
+        }
+    }
+
+    private void enableMetricsInternal(MetricsSettings settings) {
+        // TODO Get listener from where?  settings?
+        //MetricsListener listener = settings.listener;
+        MetricsListener listener = null;
+
+        if (listener == null) {
+            listener = new MetricsWriter(settings.getReportDir());
+        }
+
+        this.metricsListener = listener;
+        this.effectiveMetricsSettings = settings;
+
+        if (metricsEnabled) {
+            this.metricsListener.onDisable(this);
+        }
+
+        Node[] nodeArray = nodes;
+
+        for (Node node : nodeArray) {
+            node.enableMetrics(settings);
+        }
+
+        this.metricsListener.onEnable(this, settings);
+        metricsEnabled = true;
+
+        if (logMetrics.isInfoEnabled()) {
+            logMetrics.info("Metrics enabled.");
+        }
+    }
+
+    public final void disableMetrics() {
+        if (def.isDynamicConfigEnabled && metricsEnabled) {
+            throw AerospikeException.toException(ResultCode.PARAMETER_ERROR,
+                "Metrics can not be disabled via disableMetrics() when they are enabled by dynamic config.");
+        }
+
+        synchronized(metricsLock) {
+            disableMetricsInternal();
+        }
+    }
+
+    private void disableMetricsInternal() {
+        if (metricsEnabled) {
+            metricsEnabled = false;
+            //metricsListener.onDisable(this);
+
+            if (log.isInfoEnabled()) {
+                log.atInfo()
+                    .addKeyValue(Cluster.CONTEXT, def.clusterName)
+                    .log("Metrics disabled");
+            }
+        }
+    }
+
+    /**
+     * Get current metrics settings.
+     */
+    public MetricsSettings getMetricsSettings() {
+        return effectiveMetricsSettings;
+    }
+
+    /**
+     * Return if metrics is enabled.
+     */
+    public boolean isMetricsEnabled() {
+        return metricsEnabled;
     }
 
     /**

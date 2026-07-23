@@ -34,6 +34,7 @@ import com.aerospike.client.sdk.command.Info;
 import com.aerospike.client.sdk.command.Pool;
 import com.aerospike.client.sdk.command.SyncExecutor;
 import com.aerospike.client.sdk.command.AdminCommand.LoginCommand;
+import com.aerospike.client.sdk.metrics.NodeMetrics;
 import com.aerospike.client.sdk.tend.ConnectionRecover;
 import com.aerospike.client.sdk.tend.NodeValidator;
 import com.aerospike.client.sdk.tend.PartitionParser;
@@ -73,7 +74,7 @@ public class Node implements Closeable {
     private byte[] sessionToken;
     private long sessionExpiration;
     protected volatile Map<String,Integer> racks;
-    //private volatile NodeMetrics metrics;
+    private volatile NodeMetrics metrics;
     final AtomicInteger connsOpened;
     final AtomicInteger connsClosed;
     private AtomicInteger errorRateCount;
@@ -128,12 +129,9 @@ public class Node implements Closeable {
         this.racks = this.rebalanceChanged ? new HashMap<String,Integer>() : null;
         this.active = true;
 
-        // TODO: Handle metrics.
-        /*
-        if (cluster.metricsEnabled) {
-            this.metrics = new NodeMetrics(cluster.metricsPolicy);
+        if (cluster.isMetricsEnabled()) {
+            this.metrics = new NodeMetrics(cluster.getMetricsSettings());
         }
-        */
 
         // Create sync connection pools.
         connectionPools = new Pool[def.connPoolsPerNode];
@@ -1004,22 +1002,22 @@ public class Node implements Closeable {
      * Add to the count of bytes sent to the node.
      */
     public void addBytesOut(String namespace, long count) {
-        // TODO: Implement
-        //metrics.bytesOutCounter.increment(namespace, count);
+        metrics.bytesOutCounter.increment(namespace, count);
     }
 
     /**
      * Add to the count of bytes received from the node.
      */
     public void addBytesIn(String namespace, long count) {
-        // TODO: Implement
-        //metrics.bytesInCounter.increment(namespace, count);
+        metrics.bytesInCounter.increment(namespace, count);
+    }
+
+    public final void enableMetrics(MetricsSettings settings) {
+        metrics = new NodeMetrics(settings);
     }
 
     public boolean isMetricsEnabled() {
-        // TODO: Implement
-        //return cluster.metricsEnabled;
-        return false;
+        return cluster.isMetricsEnabled();
     }
 
     private boolean isErrorRateValid() {
