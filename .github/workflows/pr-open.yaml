@@ -130,6 +130,19 @@ jobs:
               }
             }
 
+      - name: Build & run integration tests
+        run: |
+          mvn \
+           --batch-mode \
+           --no-transfer-progress \
+           --update-snapshots \
+           --fail-at-end \
+           --errors \
+           verify \
+           -DskipTests=false
+        env:
+          MAVEN_OPTS: ${{ vars.MAVEN_OPTS }}
+
       - name: Build & run examples
         run: |
           mvn \
@@ -151,19 +164,6 @@ jobs:
            -p 3000 \
            -n test \
            --report target/example-reports/TEST-examples.xml
-        env:
-          MAVEN_OPTS: ${{ vars.MAVEN_OPTS }}
-
-      - name: Build & run integration tests
-        run: |
-          mvn \
-           --batch-mode \
-           --no-transfer-progress \
-           --update-snapshots \
-           --fail-at-end \
-           --errors \
-           verify \
-           -DskipTests=false
         env:
           MAVEN_OPTS: ${{ vars.MAVEN_OPTS }}
 

@@ -33,19 +33,26 @@ import com.aerospike.client.sdk.exp.Exp;
 import com.aerospike.client.sdk.exp.LoopVarPart;
 import com.aerospike.client.sdk.exp.MapExp;
 import com.aerospike.client.sdk.policy.Behavior;
+import com.aerospike.client.sdk.util.Version;
 
 /**
  * Demonstrates fluent CDT path helpers: {@code onEachChild}, {@code collectValues},
  * {@code modifyBy}, {@code removeMatches}, and {@code collectValuesAsExpressionRead}.
  *
  * <p>These features require Aerospike Server 8.1.1 or later ({@code selectByPath} /
- * {@code modifyByPath}). If the cluster is older, operations may fail with a server error.</p>
+ * {@code modifyByPath}). If the cluster is older, this example is skipped.</p>
  */
 public class CdtPathExpressionExample extends Example {
 
     @Override
     public void runExample() throws Exception {
         Cluster cluster = cluster();
+        Version version = cluster.getRandomNode().getVersion();
+        if (!version.isGreaterOrEqual(8, 1, 1, 0)) {
+            throw new ExampleSkipException(
+                "server is " + version + "; CDT path expressions require 8.1.1+");
+        }
+
         Session session = cluster.createSession(Behavior.DEFAULT);
         DataSet set = dataSet("cdt-path-demo");
 
