@@ -44,6 +44,18 @@ public class AelTestSpecRunner extends Example {
     private int failedTests = 0;
     private int errorTests = 0;
 
+    public static void main(String[] args) throws Exception {
+        Args arguments = Example.parseStandaloneArgs(args);
+        int exitCode = Main.runExamples(
+            new Console(),
+            arguments,
+            new String[] {"AelTestSpecRunner"});
+
+        if (exitCode != 0) {
+            throw new IllegalStateException("AelTestSpecRunner failed");
+        }
+    }
+
     @Override
     public void runExample() throws Exception {
         Session session = cluster().createSession(Behavior.DEFAULT);

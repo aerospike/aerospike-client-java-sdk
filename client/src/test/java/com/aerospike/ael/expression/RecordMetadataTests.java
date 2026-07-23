@@ -89,7 +89,7 @@ public class RecordMetadataTests {
         assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of("$.key(type: STRING) == \"x\"")))
                 .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("Could not parse given AEL expression input");
-        assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of("$.key() == 1")))
+        assertThatThrownBy(() -> parseFilterExp(ExpressionContext.of("$.getKey() == 1")))
                 .isInstanceOf(AelParseException.class)
                 .hasMessageContaining("Could not parse given AEL expression input");
     }

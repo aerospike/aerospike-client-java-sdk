@@ -18,13 +18,17 @@ package com.aerospike.client.sdk;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Flow;
 import java.util.concurrent.TimeUnit;
@@ -98,22 +102,7 @@ public class RecordStreamAdapterTest extends ClusterTest {
 
     @Test
     public void completableFutureWithMapper() throws Exception {
-        RecordMapper<String> nameMapper = new RecordMapper<>() {
-            @Override
-            public String fromMap(Map<String, Object> map, Key key, int generation) {
-                return (String) map.get("name");
-            }
-
-            @Override
-            public Map<String, Object> toMap(String obj) {
-                return Map.of("name", obj);
-            }
-
-            @Override
-            public Key id(String obj) {
-                return null;
-            }
-        };
+        RecordMapper<String> nameMapper = nameMapper();
 
         RecordStream rs = session.query(testKeys()).execute();
         CompletableFuture<List<String>> future = rs.asCompletableFuture(nameMapper);
@@ -123,6 +112,43 @@ public class RecordStreamAdapterTest extends ClusterTest {
         for (int i = 0; i < RECORD_COUNT; i++) {
             assertTrue(names.contains("user_" + i));
         }
+    }
+
+    @Test
+    public void completableFutureSingleWithMapper() throws Exception {
+        RecordMapper<String> nameMapper = nameMapper();
+
+        Optional<String> name = session.query(args.set.id(KEY_PREFIX + "0"))
+            .executeAsync(ErrorStrategy.IN_STREAM)
+            .asCompletableFutureSingle(nameMapper)
+            .get(5, TimeUnit.SECONDS);
+
+        assertTrue(name.isPresent());
+        assertEquals("user_0", name.get());
+    }
+
+    @Test
+    public void completableFutureSingleWithMapperEmpty() throws Exception {
+        RecordMapper<String> nameMapper = nameMapper();
+
+        Optional<String> name = session.query(args.set.id(KEY_PREFIX + "no_such_key"))
+            .executeAsync(ErrorStrategy.IN_STREAM)
+            .asCompletableFutureSingle(nameMapper)
+            .get(5, TimeUnit.SECONDS);
+
+        assertTrue(name.isEmpty());
+    }
+
+    @Test
+    public void completableFutureSingleWithMapperRejectsMultiKey() {
+        RecordMapper<String> nameMapper = nameMapper();
+
+        CompletionException ex = assertThrows(CompletionException.class, () ->
+            session.query(testKeys())
+                .executeAsync(ErrorStrategy.IN_STREAM)
+                .asCompletableFutureSingle(nameMapper)
+                .join());
+        assertInstanceOf(IllegalStateException.class, ex.getCause());
     }
 
     @Test
@@ -553,5 +579,24 @@ public class RecordStreamAdapterTest extends ClusterTest {
         if (t != null) {
             throw new AssertionError("Unexpected error in subscriber", t);
         }
+    }
+
+    private static RecordMapper<String> nameMapper() {
+        return new RecordMapper<>() {
+            @Override
+            public String fromMap(Map<String, Object> map, Key key, int generation) {
+                return (String) map.get("name");
+            }
+
+            @Override
+            public Map<String, Object> toMap(String obj) {
+                return Map.of("name", obj);
+            }
+
+            @Override
+            public Key id(String obj) {
+                return null;
+            }
+        };
     }
 }

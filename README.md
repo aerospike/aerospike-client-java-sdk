@@ -117,7 +117,7 @@ For comprehensive documentation with code examples for every feature, see the
 | **Async & reactive** | `executeAsync()` with `CompletableFuture` and `Flow.Publisher` (backpressure) | [Async Operations](docs/key-features.md#async-operations) |
 | **Transactions** | Multi-record ACID transactions with automatic retry on transient failures | [Transactions](docs/key-features.md#transactions) |
 | **Behavior (policy config)** | Cascading, selector-based configuration — separate dev concerns from ops concerns | [Behavior](docs/key-features.md#behavior-policy-configuration) |
-| **Object mapping** | `RecordMapper` and `TypeSafeDataSet` for mapping Java objects to/from records | [Object Mapping](docs/key-features.md#object-mapping) |
+| **Object mapping** | `RecordMapper` and `TypedDataSet` for mapping Java objects to/from records | [Object Mapping](docs/key-features.md#object-mapping) |
 | **Queries & scans** | Dataset-level queries with pagination, sorting, partition targeting, and throttling | [Queries](docs/key-features.md#queries-and-scans) |
 | **Background operations** | Server-side bulk updates, deletes, and UDF execution across entire sets | [Background Ops](docs/key-features.md#background-operations) |
 | **UDFs** | Register, execute, and chain Lua User Defined Functions | [UDFs](docs/key-features.md#udfs) |

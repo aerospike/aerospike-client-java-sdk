@@ -144,7 +144,7 @@ public final class BatchWrite extends BatchRecord {
             }
 
             if (! hasWrite) {
-                throw AerospikeException.resultCodeToException(ResultCode.PARAMETER_ERROR, "Batch write operations do not contain a write");
+                throw AerospikeException.toException(ResultCode.PARAMETER_ERROR, "Batch write operations do not contain a write");
             }
         }
 

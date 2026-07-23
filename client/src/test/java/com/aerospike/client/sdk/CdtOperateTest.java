@@ -16,16 +16,28 @@
  */
 package com.aerospike.client.sdk;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
 
+import com.aerospike.client.sdk.cdt.MapReturnType;
+import com.aerospike.client.sdk.exp.Exp;
+import com.aerospike.client.sdk.exp.ListExp;
+import com.aerospike.client.sdk.exp.LoopVarPart;
+import com.aerospike.client.sdk.exp.MapExp;
 import com.aerospike.client.sdk.util.Version;
 
 public class CdtOperateTest extends ClusterTest {
-
-    //private static final String NAMESPACE = "test";
-    //private static final String SET = "testset";
-    //private static final String BIN_NAME = "testbin";
+    private static final String BIN_NAME = "testbin";
 
     @BeforeAll
     public static void checkServerVersion() {
@@ -35,7 +47,6 @@ public class CdtOperateTest extends ClusterTest {
         Assumptions.assumeTrue(condition, "Tests skipped for server version < 8.1.1");
     }
 
-/* TODO Wait till CDT Select is implemented in new client.
     @Test
     public void testCDTOperateWithExpressions() {
         Key rkey = args.set.id("testCDTOperateWithExpressions");
@@ -71,53 +82,53 @@ public class CdtOperateTest extends ClusterTest {
             .bin(BIN_NAME).setTo(rootMap)
             .execute();
 
-        RecordStream rs = session.query(rkey).execute();
-        assertTrue(rs.hasNext());
-        Record rec = rs.next().recordOrThrow();
+        Record rec = session.query(rkey)
+            .execute()
+            .getFirstRecord();
 
         assertNotNull(rec);
 
-        CTX ctx1 = CTX.mapKey(Value.get("book"));
-        CTX ctx2 = CTX.allChildrenWithFilter(
+        Exp exp1 =
             Exp.le(
                 MapExp.getByKey(MapReturnType.VALUE, Exp.Type.FLOAT,
                     Exp.val("price"), Exp.mapLoopVar(LoopVarPart.VALUE)),
                 Exp.val(10.0)
-            )
-        );
-        CTX ctx3 = CTX.allChildrenWithFilter(
-            Exp.eq(Exp.stringLoopVar(LoopVarPart.MAP_KEY), Exp.val("title"))
-        );
+            );
 
-        Operation selectOp = CdtOperation.selectByPath(BIN_NAME, Exp.SELECT_VALUE, ctx1, ctx2, ctx3);
+        Exp exp2 = Exp.eq(Exp.stringLoopVar(LoopVarPart.MAP_KEY), Exp.val("title"));
 
-        Record result = client.operate(null, rkey, selectOp);
-        assertTrue("CDT select operation should succeed", result != null);
+        Record result = session.query(rkey)
+            .bin(BIN_NAME)
+                .onMapKey("book")
+                .onEachChild(exp1)
+                .onEachChild(exp2)
+                .collectValues()
+            .execute()
+            .getFirstRecord();
+
+        assertTrue(result != null, "CDT select operation should succeed");
 
         List<?> results = result.getList(BIN_NAME);
-        assertNotNull("Results should not be null", results);
-        assertEquals("Should have 2 books with price <= 10.0", 2, results.size());
+        assertNotNull(results, "Results should not be null");
+        assertEquals(2, results.size(), "Should have 2 books with price <= 10.0");
 
         // Verify the titles (order may vary)
         List<String> titles = new ArrayList<>();
         for (Object item : results) {
-            assertTrue("Each result should be a string title", item instanceof String);
+            assertTrue(item instanceof String, "Each result should be a string title");
             titles.add((String) item);
         }
 
         // Check that we got the expected titles
-        assertTrue("Should contain 'Sayings of the Century'", titles.contains("Sayings of the Century"));
-        assertTrue("Should contain 'Moby Dick'", titles.contains("Moby Dick"));
+        assertTrue(titles.contains("Sayings of the Century"), "Should contain 'Sayings of the Century'");
+        assertTrue(titles.contains("Moby Dick"), "Should contain 'Moby Dick'");
     }
 
     @Test
     public void testCDTApplyWithExpressions() {
-        Key rkey = new Key(NAMESPACE, SET, 216);
+        Key rkey = args.set.id("testCDTApplyWithExpressions");
 
-        try {
-            client.delete(null, rkey);
-        } catch (Exception e) {
-        }
+        session.delete(rkey).execute();
 
         List<Map<String, Object>> booksList = new ArrayList<>();
 
@@ -144,74 +155,77 @@ public class CdtOperateTest extends ClusterTest {
         Map<String, Object> rootMap = new HashMap<>();
         rootMap.put("book", booksList);
 
-        Bin bin = new Bin(BIN_NAME, rootMap);
-        client.put(null, rkey, bin);
+        session.upsert(rkey)
+            .bin(BIN_NAME).setTo(rootMap)
+            .execute();
 
-        Record record = client.get(null, rkey);
-        assertTrue("Record should exist", record != null);
+        Record record = session.query(rkey)
+            .execute()
+            .getFirstRecord();
+        assertTrue(record != null, "Record should exist");
 
-        CTX bookKey = CTX.mapKey(Value.get("book"));
-        CTX allChildren = CTX.allChildren();
-        CTX priceKey = CTX.mapKey(Value.get("price"));
-
-        Expression modifyExp = Exp.build(
+        Exp exp =
             Exp.mul(
                 Exp.floatLoopVar(LoopVarPart.VALUE),  // Current price value
                 Exp.val(1.10)                         // Multiply by 1.10
-            )
-        );
+            );
 
-        Operation applyOp = CdtOperation.modifyByPath(BIN_NAME, Exp.MODIFY_DEFAULT, modifyExp, bookKey, allChildren, priceKey);
+        Record result = session.upsert(rkey)
+            .bin(BIN_NAME)
+                .onMapKey("book")
+                .onEachChild()
+                .onMapKey("price")
+                .modifyBy(exp)
+            .execute()
+            .getFirstRecord();
 
-        Record result = client.operate(null, rkey, applyOp);
-        assertTrue("CDT apply operation should succeed", result != null);
+        assertTrue(result != null, "CDT apply operation should succeed");
 
-        Record finalRecord = client.get(null, rkey);
-        assertTrue("Final record should exist", finalRecord != null);
+        Record finalRecord = session.query(rkey)
+            .execute()
+            .getFirstRecord();
+        assertTrue(finalRecord != null, "Final record should exist");
 
         Map<?, ?> finalRootMap = (Map<?, ?>) finalRecord.getValue(BIN_NAME);
-        assertTrue("Root map should exist", finalRootMap != null);
+        assertTrue(finalRootMap != null, "Root map should exist");
 
         List<?> finalBooksList = (List<?>) finalRootMap.get("book");
-        assertTrue("Books list should exist", finalBooksList != null && !finalBooksList.isEmpty());
+        assertTrue(finalBooksList != null && !finalBooksList.isEmpty(), "Books list should exist");
 
         Map<?, ?> firstBook = (Map<?, ?>) finalBooksList.get(0);
-        assertTrue("First book should exist", firstBook != null);
+        assertTrue(firstBook != null, "First book should exist");
 
         Object priceObj = firstBook.get("price");
-        assertTrue("Price should exist", priceObj != null);
+        assertTrue(priceObj != null, "Price should exist");
 
         double finalPrice = ((Number) priceObj).doubleValue();
-        assertTrue("Price should be increased (> 9)", finalPrice > 9.0);
+        assertTrue(finalPrice > 9.0, "Price should be increased (> 9)");
 
         double expectedPrice = 8.95 * 1.10;
-        assertTrue("Price should be approximately " + expectedPrice,
-                   Math.abs(finalPrice - expectedPrice) < 0.01);
+        assertTrue(Math.abs(finalPrice - expectedPrice) < 0.01,
+                   "Price should be approximately " + expectedPrice);
 
         // Verify all books have increased prices
         double[] originalPrices = {8.95, 12.99, 8.99, 22.99};
         for (int i = 0; i < finalBooksList.size(); i++) {
             Map<?, ?> book = (Map<?, ?>) finalBooksList.get(i);
-            assertTrue("Book " + i + " should be a map", book != null);
+            assertTrue(book != null, "Book " + i + " should be a map");
 
             Object price = book.get("price");
-            assertTrue("Book " + i + " should have a price", price != null);
+            assertTrue(price != null, "Book " + i + " should have a price");
 
             double priceFloat = ((Number) price).doubleValue();
             double expected = originalPrices[i] * 1.10;
-            assertTrue("Book " + i + " price should be approximately " + expected + ", got " + priceFloat,
-                      Math.abs(priceFloat - expected) < 0.01);
+            assertTrue(Math.abs(priceFloat - expected) < 0.01,
+                      "Book " + i + " price should be approximately " + expected + ", got " + priceFloat);
         }
     }
 
     @Test
     public void testNestedContextsAndComplexFilters() {
-        Key rkey = new Key(NAMESPACE, SET, 217);
+        Key rkey = args.set.id("testNestedContextsAndComplexFilters");
 
-        try {
-            client.delete(null, rkey);
-        } catch (Exception e) {
-        }
+        session.delete(rkey).execute();
 
         Map<String, Object> data = new HashMap<>();
         Map<String, Object> store = new HashMap<>();
@@ -241,12 +255,11 @@ public class CdtOperateTest extends ClusterTest {
         store.put("books", booksList);
         data.put("store", store);
 
-        Bin bin = new Bin(BIN_NAME, data);
-        client.put(null, rkey, bin);
+        session.upsert(rkey)
+            .bin(BIN_NAME).setTo(data)
+            .execute();
 
-        CTX ctx1 = CTX.mapKey(Value.get("store"));
-        CTX ctx2 = CTX.mapKey(Value.get("books"));
-        CTX ctx3 = CTX.allChildrenWithFilter(
+        Exp exp1 =
             Exp.and(
                 Exp.eq(
                     MapExp.getByKey(MapReturnType.VALUE, Exp.Type.STRING,
@@ -258,31 +271,31 @@ public class CdtOperateTest extends ClusterTest {
                         Exp.val("price"), Exp.mapLoopVar(LoopVarPart.VALUE)),
                     Exp.val(10.0)
                 )
-            )
-        );
-        CTX ctx4 = CTX.allChildrenWithFilter(
-            Exp.eq(Exp.stringLoopVar(LoopVarPart.MAP_KEY), Exp.val("title"))
-        );
+            );
+        Exp exp2 = Exp.eq(Exp.stringLoopVar(LoopVarPart.MAP_KEY), Exp.val("title"));
 
-        Operation selectOp = CdtOperation.selectByPath(BIN_NAME, Exp.SELECT_VALUE, ctx1, ctx2, ctx3, ctx4);
-
-        Record result = client.operate(null, rkey, selectOp);
-        assertTrue("CDT select operation should succeed", result != null);
+        Record result = session.query(rkey)
+            .bin(BIN_NAME)
+                .onMapKey("store")
+                .onMapKey("books")
+                .onEachChild(exp1)
+                .onEachChild(exp2)
+                .collectValues()
+            .execute()
+            .getFirstRecord();
+        assertTrue(result != null, "CDT select operation should succeed");
 
         List<?> results = result.getList(BIN_NAME);
-        assertNotNull("Results should not be null", results);
-        assertEquals("Should have 1 fiction book with price < 10.0", 1, results.size());
-        assertEquals("Should get 'Moby Dick'", "Moby Dick", results.get(0));
+        assertNotNull(results, "Results should not be null");
+        assertEquals(1, results.size(), "Should have 1 fiction book with price < 10.0");
+        assertEquals("Moby Dick", results.get(0), "Should get 'Moby Dick'");
     }
 
     @Test
     public void testEmptyResultsWhenNoItemsMatch() {
-        Key rkey = new Key(NAMESPACE, SET, 218);
+        Key rkey = args.set.id("testEmptyResultsWhenNoItemsMatch");
 
-        try {
-            client.delete(null, rkey);
-        } catch (Exception e) {
-        }
+        session.delete(rkey).execute();
 
         List<Map<String, Object>> booksList = new ArrayList<>();
 
@@ -299,43 +312,42 @@ public class CdtOperateTest extends ClusterTest {
         Map<String, Object> rootMap = new HashMap<>();
         rootMap.put("book", booksList);
 
-        Bin bin = new Bin(BIN_NAME, rootMap);
-        client.put(null, rkey, bin);
+        session.upsert(rkey)
+            .bin(BIN_NAME).setTo(rootMap)
+            .execute();
 
         // Try to select books with price <= 10.0 (should return empty)
-        CTX ctx1 = CTX.mapKey(Value.get("book"));
-        CTX ctx2 = CTX.allChildrenWithFilter(
+        Exp exp1 =
             Exp.le(
                 MapExp.getByKey(MapReturnType.VALUE, Exp.Type.FLOAT,
                     Exp.val("price"), Exp.mapLoopVar(LoopVarPart.VALUE)),
                 Exp.val(10.0)
-            )
-        );
-        CTX ctx3 = CTX.allChildrenWithFilter(
-            Exp.eq(Exp.stringLoopVar(LoopVarPart.MAP_KEY), Exp.val("title"))
-        );
+            );
+        Exp exp2 = Exp.eq(Exp.stringLoopVar(LoopVarPart.MAP_KEY), Exp.val("title"));
 
-        Operation selectOp = CdtOperation.selectByPath(BIN_NAME, Exp.SELECT_VALUE, ctx1, ctx2, ctx3);
-
-        Record result = client.operate(null, rkey, selectOp);
-        assertTrue("CDT select operation should succeed", result != null);
+        Record result = session.query(rkey)
+            .bin(BIN_NAME)
+                .onMapKey("book")
+                .onEachChild(exp1)
+                .onEachChild(exp2)
+                .collectValues()
+            .execute()
+            .getFirstRecord();
+        assertTrue(result != null, "CDT select operation should succeed");
 
         // Verify empty results
         Object results = result.getValue(BIN_NAME);
         if (results instanceof List) {
             List<?> resultList = (List<?>) results;
-            assertEquals("Should have 0 books matching the filter", 0, resultList.size());
+            assertEquals(0, resultList.size(), "Should have 0 books matching the filter");
         }
     }
 
     @Test
     public void testMatchingTreeFlag() {
-        Key rkey = new Key(NAMESPACE, SET, 219);
+        Key rkey = args.set.id("testMatchingTreeFlag");
 
-        try {
-            client.delete(null, rkey);
-        } catch (Exception e) {
-        }
+        session.delete(rkey).execute();
 
         List<Map<String, Object>> booksList = new ArrayList<>();
 
@@ -352,36 +364,36 @@ public class CdtOperateTest extends ClusterTest {
         Map<String, Object> rootMap = new HashMap<>();
         rootMap.put("book", booksList);
 
-        Bin bin = new Bin(BIN_NAME, rootMap);
-        client.put(null, rkey, bin);
+        session.upsert(rkey)
+            .bin(BIN_NAME).setTo(rootMap)
+            .execute();
 
-        CTX ctx1 = CTX.mapKey(Value.get("book"));
-        CTX ctx2 = CTX.allChildrenWithFilter(
+        Exp exp1 =
             Exp.le(
                 MapExp.getByKey(MapReturnType.VALUE, Exp.Type.FLOAT,
                     Exp.val("price"), Exp.mapLoopVar(LoopVarPart.VALUE)),
                 Exp.val(10.0)
-            )
-        );
+            );
 
-        Operation selectOp = CdtOperation.selectByPath(BIN_NAME, Exp.SELECT_MATCHING_TREE, ctx1, ctx2);
-
-        Record result = client.operate(null, rkey, selectOp);
-        assertTrue("CDT select operation should succeed", result != null);
+        Record result = session.query(rkey)
+            .bin(BIN_NAME)
+                .onMapKey("book")
+                .onEachChild(exp1)
+                .collectTree()
+            .execute()
+            .getFirstRecord();
+        assertTrue(result != null, "CDT select operation should succeed");
 
         // With MatchingTree, we should get back the full matching structure
         Object results = result.getValue(BIN_NAME);
-        assertNotNull("Results should not be null", results);
+        assertNotNull(results, "Results should not be null");
     }
 
     @Test
     public void testMapKeysFlag() {
-        Key rkey = new Key(NAMESPACE, SET, 220);
+        Key rkey = args.set.id("testMapKeysFlag");
 
-        try {
-            client.delete(null, rkey);
-        } catch (Exception e) {
-        }
+        session.delete(rkey).execute();
 
         Map<String, Object> data = new HashMap<>();
         Map<String, Object> items = new HashMap<>();
@@ -390,33 +402,32 @@ public class CdtOperateTest extends ClusterTest {
         items.put("item3", 50);
         data.put("items", items);
 
-        Bin bin = new Bin(BIN_NAME, data);
-        client.put(null, rkey, bin);
+        session.upsert(rkey)
+            .bin(BIN_NAME).setTo(data)
+            .execute();
 
         // Select with MapKeys flag - should return only keys, not values
-        CTX ctx1 = CTX.mapKey(Value.get("items"));
-        CTX ctx2 = CTX.allChildrenWithFilter(
-            Exp.gt(Exp.intLoopVar(LoopVarPart.VALUE), Exp.val(75))
-        );
+        Exp exp1 = Exp.gt(Exp.intLoopVar(LoopVarPart.VALUE), Exp.val(75));
 
-        Operation selectOp = CdtOperation.selectByPath(BIN_NAME, Exp.SELECT_MAP_KEY, ctx1, ctx2);
-
-        Record result = client.operate(null, rkey, selectOp);
-        assertTrue("CDT select operation should succeed", result != null);
+        Record result = session.query(rkey)
+            .bin(BIN_NAME)
+                .onMapKey("items")
+                .onEachChild(exp1)
+                .collectKeys()
+            .execute()
+            .getFirstRecord();
+        assertTrue(result != null, "CDT select operation should succeed");
 
         // Should get keys where value > 75
         Object results = result.getValue(BIN_NAME);
-        assertNotNull("Results should not be null", results);
+        assertNotNull(results, "Results should not be null");
     }
 
     @Test
     public void testSelectNoFailFlag() {
-        Key rkey = new Key(NAMESPACE, SET, 221);
+        Key rkey = args.set.id("testSelectNoFailFlag");
 
-        try {
-            client.delete(null, rkey);
-        } catch (Exception e) {
-        }
+        session.delete(rkey).execute();
 
         Map<String, Object> data = new HashMap<>();
         List<Integer> existing = new ArrayList<>();
@@ -425,27 +436,26 @@ public class CdtOperateTest extends ClusterTest {
         existing.add(3);
         data.put("existing", existing);
 
-        Bin bin = new Bin(BIN_NAME, data);
-        client.put(null, rkey, bin);
+        session.upsert(rkey)
+            .bin(BIN_NAME).setTo(data)
+            .execute();
 
         // Try to select from existing path with SelectNoFail
-        CTX ctx1 = CTX.mapKey(Value.get("existing"));
-        CTX ctx2 = CTX.allChildren();
-
-        Operation selectOp = CdtOperation.selectByPath(BIN_NAME, Exp.SELECT_NO_FAIL, ctx1, ctx2);
-
-        Record result = client.operate(null, rkey, selectOp);
-        assertTrue("CDT select operation should succeed", result != null);
+        Record result = session.query(rkey)
+            .bin(BIN_NAME)
+                .onMapKey("existing")
+                .onEachChild()
+                .collectValues(o -> o.noFail(true))
+            .execute()
+            .getFirstRecord();
+        assertTrue(result != null, "CDT select operation should succeed");
     }
 
     @Test
     public void testLoopVariableIndex() {
-        Key rkey = new Key(NAMESPACE, SET, 222);
+        Key rkey = args.set.id("testLoopVariableIndex");
 
-        try {
-            client.delete(null, rkey);
-        } catch (Exception e) {
-        }
+        session.delete(rkey).execute();
 
         Map<String, Object> data = new HashMap<>();
         List<Integer> numbers = new ArrayList<>();
@@ -456,35 +466,34 @@ public class CdtOperateTest extends ClusterTest {
         numbers.add(50);
         data.put("numbers", numbers);
 
-        Bin bin = new Bin(BIN_NAME, data);
-        client.put(null, rkey, bin);
+        session.upsert(rkey)
+            .bin(BIN_NAME).setTo(data)
+            .execute();
 
         // Select items where index < 3
-        CTX ctx1 = CTX.mapKey(Value.get("numbers"));
-        CTX ctx2 = CTX.allChildrenWithFilter(
-            Exp.lt(Exp.intLoopVar(LoopVarPart.INDEX), Exp.val(3))
-        );
+        Exp exp1 = Exp.lt(Exp.intLoopVar(LoopVarPart.INDEX), Exp.val(3));
 
-        Operation selectOp = CdtOperation.selectByPath(BIN_NAME, Exp.SELECT_VALUE, ctx1, ctx2);
-
-        Record result = client.operate(null, rkey, selectOp);
-        assertTrue("CDT select operation should succeed", result != null);
+        Record result = session.query(rkey)
+            .bin(BIN_NAME)
+                .onMapKey("numbers")
+                .onEachChild(exp1)
+                .collectValues()
+            .execute()
+            .getFirstRecord();
+        assertTrue(result != null, "CDT select operation should succeed");
 
         // Should get first 3 items (indices 0, 1, 2)
         List<?> results = result.getList(BIN_NAME);
         if (results != null) {
-            assertEquals("Should have 3 items with index < 3", 3, results.size());
+            assertEquals(3, results.size(), "Should have 3 items with index < 3");
         }
     }
 
     @Test
     public void testLoopVariableMapKey() {
-        Key rkey = new Key(NAMESPACE, SET, 223);
+        Key rkey = args.set.id("testLoopVariableMapKey");
 
-        try {
-            client.delete(null, rkey);
-        } catch (Exception e) {
-        }
+        session.delete(rkey).execute();
 
         Map<String, Object> data = new HashMap<>();
         Map<String, Object> products = new HashMap<>();
@@ -493,35 +502,34 @@ public class CdtOperateTest extends ClusterTest {
         products.put("cherry", 2.25);
         data.put("products", products);
 
-        Bin bin = new Bin(BIN_NAME, data);
-        client.put(null, rkey, bin);
+        session.upsert(rkey)
+            .bin(BIN_NAME).setTo(data)
+            .execute();
 
         // Select items where key starts with 'a' or 'b' (lexicographically < "c")
-        CTX ctx1 = CTX.mapKey(Value.get("products"));
-        CTX ctx2 = CTX.allChildrenWithFilter(
-            Exp.lt(Exp.stringLoopVar(LoopVarPart.MAP_KEY), Exp.val("c"))
-        );
+        Exp exp1 = Exp.lt(Exp.stringLoopVar(LoopVarPart.MAP_KEY), Exp.val("c"));
 
-        Operation selectOp = CdtOperation.selectByPath(BIN_NAME, Exp.SELECT_VALUE, ctx1, ctx2);
-
-        Record result = client.operate(null, rkey, selectOp);
-        assertTrue("CDT select operation should succeed", result != null);
+        Record result = session.query(rkey)
+            .bin(BIN_NAME)
+                .onMapKey("products")
+                .onEachChild(exp1)
+                .collectValues()
+            .execute()
+            .getFirstRecord();
+        assertTrue(result != null, "CDT select operation should succeed");
 
         // Should get apple and banana (keys < "c")
         List<?> results = result.getList(BIN_NAME);
         if (results != null) {
-            assertEquals("Should have 2 items with keys < 'c'", 2, results.size());
+            assertEquals(2, results.size(), "Should have 2 items with keys < 'c'");
         }
     }
 
     @Test
     public void testModifyWithAddition() {
-        Key rkey = new Key(NAMESPACE, SET, 224);
+        Key rkey = args.set.id("testModifyWithAddition");
 
-        try {
-            client.delete(null, rkey);
-        } catch (Exception e) {
-        }
+        session.delete(rkey).execute();
 
         Map<String, Object> data = new HashMap<>();
         List<Integer> scores = new ArrayList<>();
@@ -532,44 +540,44 @@ public class CdtOperateTest extends ClusterTest {
         scores.add(50);
         data.put("scores", scores);
 
-        Bin bin = new Bin(BIN_NAME, data);
-        client.put(null, rkey, bin);
+        session.upsert(rkey)
+            .bin(BIN_NAME).setTo(data)
+            .execute();
 
         // Add 5 to each score
-        CTX ctx1 = CTX.mapKey(Value.get("scores"));
-        CTX ctx2 = CTX.allChildrenWithFilter(Exp.val(true));
+        Exp exp1 = Exp.val(true);
+        Exp modifyExp = Exp.add(Exp.intLoopVar(LoopVarPart.VALUE), Exp.val(5));
 
-        Expression modifyExp = Exp.build(
-            Exp.add(Exp.intLoopVar(LoopVarPart.VALUE), Exp.val(5))
-        );
+        Record result = session.update(rkey)
+            .bin(BIN_NAME)
+                .onMapKey("scores")
+                .onEachChild(exp1)
+                .modifyBy(modifyExp)
+            .execute()
+            .getFirstRecord();
+        assertTrue(result != null, "CDT apply operation should succeed");
 
-        Operation applyOp = CdtOperation.modifyByPath(BIN_NAME, Exp.MODIFY_DEFAULT, modifyExp, ctx1, ctx2);
-
-        Record result = client.operate(null, rkey, applyOp);
-        assertTrue("CDT apply operation should succeed", result != null);
-
-        Record finalRecord = client.get(null, rkey);
-        assertTrue("Final record should exist", finalRecord != null);
+        Record finalRecord = session.query(rkey)
+            .execute()
+            .getFirstRecord();
+        assertTrue(finalRecord != null, "Final record should exist");
 
         Map<?, ?> finalRootMap = (Map<?, ?>) finalRecord.getValue(BIN_NAME);
-        assertTrue("Root map should exist", finalRootMap != null);
+        assertTrue(finalRootMap != null, "Root map should exist");
 
         List<?> finalScores = (List<?>) finalRootMap.get("scores");
-        assertTrue("Scores list should exist", finalScores != null);
-        assertEquals("Should have 5 scores", 5, finalScores.size());
+        assertTrue(finalScores != null, "Scores list should exist");
+        assertEquals(5, finalScores.size(), "Should have 5 scores");
 
         int firstScore = ((Number) finalScores.get(0)).intValue();
-        assertEquals("10 + 5 = 15", 15, firstScore);
+        assertEquals(15, firstScore, "10 + 5 = 15");
     }
 
     @Test
     public void testModifyWithSubtraction() {
-        Key rkey = new Key(NAMESPACE, SET, 225);
+        Key rkey = args.set.id("testModifyWithSubtraction");
 
-        try {
-            client.delete(null, rkey);
-        } catch (Exception e) {
-        }
+        session.delete(rkey).execute();
 
         Map<String, Object> data = new HashMap<>();
         Map<String, Object> balances = new HashMap<>();
@@ -578,44 +586,44 @@ public class CdtOperateTest extends ClusterTest {
         balances.put("account3", 1500);
         data.put("balances", balances);
 
-        Bin bin = new Bin(BIN_NAME, data);
-        client.put(null, rkey, bin);
+        session.upsert(rkey)
+            .bin(BIN_NAME).setTo(data)
+            .execute();
 
         // Subtract 100 from each balance
-        CTX ctx1 = CTX.mapKey(Value.get("balances"));
-        CTX ctx2 = CTX.allChildrenWithFilter(Exp.val(true));
+        Exp exp1 = Exp.val(true);
+        Exp modifyExp = Exp.sub(Exp.intLoopVar(LoopVarPart.VALUE), Exp.val(100));
 
-        Expression modifyExp = Exp.build(
-            Exp.sub(Exp.intLoopVar(LoopVarPart.VALUE), Exp.val(100))
-        );
+        Record result = session.update(rkey)
+            .bin(BIN_NAME)
+                .onMapKey("balances")
+                .onEachChild(exp1)
+                .modifyBy(modifyExp)
+            .execute()
+            .getFirstRecord();
+        assertTrue(result != null, "CDT apply operation should succeed");
 
-        Operation applyOp = CdtOperation.modifyByPath(BIN_NAME, Exp.MODIFY_DEFAULT, modifyExp, ctx1, ctx2);
-
-        Record result = client.operate(null, rkey, applyOp);
-        assertTrue("CDT apply operation should succeed", result != null);
-
-        Record finalRecord = client.get(null, rkey);
-        assertTrue("Final record should exist", finalRecord != null);
+        Record finalRecord = session.query(rkey)
+            .execute()
+            .getFirstRecord();
+        assertTrue(finalRecord != null, "Final record should exist");
 
         Map<?, ?> finalRootMap = (Map<?, ?>) finalRecord.getValue(BIN_NAME);
-        assertTrue("Root map should exist", finalRootMap != null);
+        assertTrue(finalRootMap != null, "Root map should exist");
 
         Map<?, ?> finalBalances = (Map<?, ?>) finalRootMap.get("balances");
-        assertTrue("Balances map should exist", finalBalances != null);
+        assertTrue(finalBalances != null, "Balances map should exist");
 
         // Verify account1 balance was decreased by 100
         int balance1 = ((Number) finalBalances.get("account1")).intValue();
-        assertEquals("1000 - 100 = 900", 900, balance1);
+        assertEquals(900, balance1, "1000 - 100 = 900");
     }
 
     @Test
     public void testNestedListsAndComplexFilters() {
-        Key rkey = new Key(NAMESPACE, SET, 226);
+        Key rkey = args.set.id("testNestedListsAndComplexFilters");
 
-        try {
-            client.delete(null, rkey);
-        } catch (Exception e) {
-        }
+        session.delete(rkey).execute();
 
         Map<String, Object> data = new HashMap<>();
         List<List<Integer>> matrix = new ArrayList<>();
@@ -636,32 +644,31 @@ public class CdtOperateTest extends ClusterTest {
         matrix.add(row3);
         data.put("matrix", matrix);
 
-        Bin bin = new Bin(BIN_NAME, data);
-        client.put(null, rkey, bin);
+        session.upsert(rkey)
+            .bin(BIN_NAME).setTo(data)
+            .execute();
 
-        CTX ctx1 = CTX.mapKey(Value.get("matrix"));
-        CTX ctx2 = CTX.allChildren();
-
-        Operation selectOp = CdtOperation.selectByPath(BIN_NAME, Exp.SELECT_VALUE, ctx1, ctx2);
-
-        Record result = client.operate(null, rkey, selectOp);
-        assertTrue("CDT select operation should succeed", result != null);
+        Record result = session.query(rkey)
+            .bin(BIN_NAME)
+                .onMapKey("matrix")
+                .onEachChild()
+                .collectValues()
+            .execute()
+            .getFirstRecord();
+        assertTrue(result != null, "CDT select operation should succeed");
 
         // Should get all 3 rows
         List<?> results = result.getList(BIN_NAME);
         if (results != null) {
-            assertEquals("Should have 3 rows", 3, results.size());
+            assertEquals(3, results.size(), "Should have 3 rows");
         }
     }
 
     @Test
     public void testBooleanExpressionsInFilters() {
-        Key rkey = new Key(NAMESPACE, SET, 227);
+        Key rkey = args.set.id("testBooleanExpressionsInFilters");
 
-        try {
-            client.delete(null, rkey);
-        } catch (Exception e) {
-        }
+        session.delete(rkey).execute();
 
         Map<String, Object> data = new HashMap<>();
         List<Map<String, Object>> users = new ArrayList<>();
@@ -686,44 +693,43 @@ public class CdtOperateTest extends ClusterTest {
 
         data.put("users", users);
 
-        Bin bin = new Bin(BIN_NAME, data);
-        client.put(null, rkey, bin);
+        session.upsert(rkey)
+            .bin(BIN_NAME).setTo(data)
+            .execute();
 
         // Select active users
-        CTX ctx1 = CTX.mapKey(Value.get("users"));
-        CTX ctx2 = CTX.allChildrenWithFilter(
+        Exp exp1 =
             Exp.eq(
                 MapExp.getByKey(MapReturnType.VALUE, Exp.Type.BOOL,
                     Exp.val("active"), Exp.mapLoopVar(LoopVarPart.VALUE)),
                 Exp.val(true)
-            )
-        );
-        CTX ctx3 = CTX.allChildrenWithFilter(
-            Exp.eq(Exp.stringLoopVar(LoopVarPart.MAP_KEY), Exp.val("name"))
-        );
+            );
+        Exp exp2 = Exp.eq(Exp.stringLoopVar(LoopVarPart.MAP_KEY), Exp.val("name"));
 
-        Operation selectOp = CdtOperation.selectByPath(BIN_NAME, Exp.SELECT_VALUE, ctx1, ctx2, ctx3);
-
-        Record result = client.operate(null, rkey, selectOp);
-        assertTrue("CDT select operation should succeed", result != null);
+        Record result = session.query(rkey)
+            .bin(BIN_NAME)
+                .onMapKey("users")
+                .onEachChild(exp1)
+                .onEachChild(exp2)
+                .collectValues()
+            .execute()
+            .getFirstRecord();
+        assertTrue(result != null, "CDT select operation should succeed");
 
         // Should get Alice and Charlie (active users)
         List<?> results = result.getList(BIN_NAME);
         if (results != null) {
-            assertEquals("Should have 2 active users", 2, results.size());
-            assertTrue("Should contain 'Alice'", results.contains("Alice"));
-            assertTrue("Should contain 'Charlie'", results.contains("Charlie"));
+            assertEquals(2, results.size(), "Should have 2 active users");
+            assertTrue(results.contains("Alice"), "Should contain 'Alice'");
+            assertTrue(results.contains("Charlie"), "Should contain 'Charlie'");
         }
     }
 
     @Test
     public void testComplexAndOrFilterCombinations() {
-        Key rkey = new Key(NAMESPACE, SET, 228);
+        Key rkey = args.set.id("testComplexAndOrFilterCombinations");
 
-        try {
-            client.delete(null, rkey);
-        } catch (Exception e) {
-        }
+        session.delete(rkey).execute();
 
         Map<String, Object> data = new HashMap<>();
         List<Map<String, Object>> products = new ArrayList<>();
@@ -754,12 +760,12 @@ public class CdtOperateTest extends ClusterTest {
 
         data.put("products", products);
 
-        Bin bin = new Bin(BIN_NAME, data);
-        client.put(null, rkey, bin);
+        session.upsert(rkey)
+            .bin(BIN_NAME).setTo(data)
+            .execute();
 
         // Select products that are (inStock AND price < 20) OR (price > 25)
-        CTX ctx1 = CTX.mapKey(Value.get("products"));
-        CTX ctx2 = CTX.allChildrenWithFilter(
+        Exp exp1 =
             Exp.or(
                 Exp.and(
                     Exp.eq(
@@ -778,32 +784,31 @@ public class CdtOperateTest extends ClusterTest {
                         Exp.val("price"), Exp.mapLoopVar(LoopVarPart.VALUE)),
                     Exp.val(25.0)
                 )
-            )
-        );
-        CTX ctx3 = CTX.allChildrenWithFilter(
-            Exp.eq(Exp.stringLoopVar(LoopVarPart.MAP_KEY), Exp.val("name"))
-        );
+            );
+        Exp exp2 = Exp.eq(Exp.stringLoopVar(LoopVarPart.MAP_KEY), Exp.val("name"));
 
-        Operation selectOp = CdtOperation.selectByPath(BIN_NAME, Exp.SELECT_VALUE, ctx1, ctx2, ctx3);
-
-        Record result = client.operate(null, rkey, selectOp);
-        assertTrue("CDT select operation should succeed", result != null);
+        Record result = session.query(rkey)
+            .bin(BIN_NAME)
+                .onMapKey("products")
+                .onEachChild(exp1)
+                .onEachChild(exp2)
+                .collectValues()
+            .execute()
+            .getFirstRecord();
+        assertTrue(result != null, "CDT select operation should succeed");
 
         // Should get Widget (inStock, price 10), Gizmo (inStock, price 15), and Doohickey (price 30)
         List<?> results = result.getList(BIN_NAME);
         if (results != null) {
-            assertTrue("Should have at least 1 matching product", results.size() >= 1);
+            assertTrue(results.size() >= 1, "Should have at least 1 matching product");
         }
     }
 
     @Test
     public void testDeeplyNestedStructures() {
-        Key rkey = new Key(NAMESPACE, SET, 229);
+        Key rkey = args.set.id("testDeeplyNestedStructures");
 
-        try {
-            client.delete(null, rkey);
-        } catch (Exception e) {
-        }
+        session.delete(rkey).execute();
 
         Map<String, Object> data = new HashMap<>();
         Map<String, Object> level1 = new HashMap<>();
@@ -826,71 +831,70 @@ public class CdtOperateTest extends ClusterTest {
         level1.put("level2", level2);
         data.put("level1", level1);
 
-        Bin bin = new Bin(BIN_NAME, data);
-        client.put(null, rkey, bin);
+        session.upsert(rkey)
+            .bin(BIN_NAME).setTo(data)
+            .execute();
 
         // Navigate deep and select values
-        CTX ctx1 = CTX.mapKey(Value.get("level1"));
-        CTX ctx2 = CTX.mapKey(Value.get("level2"));
-        CTX ctx3 = CTX.mapKey(Value.get("level3"));
-        CTX ctx4 = CTX.allChildrenWithFilter(
+        Exp exp1 =
             Exp.gt(
                 MapExp.getByKey(MapReturnType.VALUE, Exp.Type.INT,
                     Exp.val("value"), Exp.mapLoopVar(LoopVarPart.VALUE)),
                 Exp.val(150)
-            )
-        );
-        CTX ctx5 = CTX.allChildrenWithFilter(
-            Exp.eq(Exp.stringLoopVar(LoopVarPart.MAP_KEY), Exp.val("value"))
-        );
+            );
+        Exp exp2 = Exp.eq(Exp.stringLoopVar(LoopVarPart.MAP_KEY), Exp.val("value"));
 
-        Operation selectOp = CdtOperation.selectByPath(BIN_NAME, Exp.SELECT_VALUE, ctx1, ctx2, ctx3, ctx4, ctx5);
-
-        Record result = client.operate(null, rkey, selectOp);
-        assertTrue("CDT select operation should succeed", result != null);
+        Record result = session.query(rkey)
+            .bin(BIN_NAME)
+                .onMapKey("level1")
+                .onMapKey("level2")
+                .onMapKey("level3")
+                .onEachChild(exp1)
+                .onEachChild(exp2)
+                .collectValues()
+            .execute()
+            .getFirstRecord();
+        assertTrue(result != null, "CDT select operation should succeed");
 
         // Should get values > 150 (200 and 300)
         List<?> results = result.getList(BIN_NAME);
         if (results != null) {
-            assertEquals("Should have 2 values > 150", 2, results.size());
+            assertEquals(2, results.size(), "Should have 2 values > 150");
         }
     }
 
     @Test
     public void testSingleContextElement() {
-        Key rkey = new Key(NAMESPACE, SET, 230);
+        Key rkey = args.set.id("testSingleContextElement");
 
-        try {
-            client.delete(null, rkey);
-        } catch (Exception e) {
-        }
+        session.delete(rkey).execute();
 
         Map<String, Object> data = new HashMap<>();
         data.put("value", 123);
 
-        Bin bin = new Bin(BIN_NAME, data);
-        client.put(null, rkey, bin);
+        session.upsert(rkey)
+            .bin(BIN_NAME).setTo(data)
+            .execute();
 
         // Select with single context
-        CTX ctx1 = CTX.mapKey(Value.get("value"));
-
-        Operation selectOp = CdtOperation.selectByPath(BIN_NAME, Exp.SELECT_VALUE, ctx1);
-
-        Record result = client.operate(null, rkey, selectOp);
-        assertTrue("CDT select operation should succeed", result != null);
+        Record result = session.query(rkey)
+            .bin(BIN_NAME)
+                .onMapKey("value")
+                .onEachChild()
+                .collectValues()
+            .execute()
+            .getFirstRecord();
+        assertTrue(result != null, "CDT select operation should succeed");
 
         Object results = result.getValue(BIN_NAME);
-        assertNotNull("Results should not be null", results);
+        assertNotNull(results, "Results should not be null");
     }
 
     @Test
     public void testEmptyLists() {
-        Key rkey = new Key(NAMESPACE, SET, 231);
+        Key rkey = args.set.id("testEmptyLists");
 
-        try {
-            client.delete(null, rkey);
-        } catch (Exception e) {
-        }
+        session.delete(rkey).execute();
 
         Map<String, Object> data = new HashMap<>();
         List<Object> emptyList = new ArrayList<>();
@@ -901,27 +905,26 @@ public class CdtOperateTest extends ClusterTest {
         data.put("emptyList", emptyList);
         data.put("items", items);
 
-        Bin bin = new Bin(BIN_NAME, data);
-        client.put(null, rkey, bin);
+        session.upsert(rkey)
+            .bin(BIN_NAME).setTo(data)
+            .execute();
 
         // Try to select from empty list
-        CTX ctx1 = CTX.mapKey(Value.get("emptyList"));
-        CTX ctx2 = CTX.allChildren();
-
-        Operation selectOp = CdtOperation.selectByPath(BIN_NAME, Exp.SELECT_NO_FAIL, ctx1, ctx2);
-
-        Record result = client.operate(null, rkey, selectOp);
-        assertTrue("CDT select operation should succeed", result != null);
+        Record result = session.query(rkey)
+            .bin(BIN_NAME)
+                .onMapKey("emptyList")
+                .onEachChild()
+                .collectValues(o -> o.noFail(true))
+            .execute()
+            .getFirstRecord();
+        assertTrue(result != null, "CDT select operation should succeed");
     }
 
     @Test
     public void testEmptyMaps() {
-        Key rkey = new Key(NAMESPACE, SET, 232);
+        Key rkey = args.set.id("testEmptyMaps");
 
-        try {
-            client.delete(null, rkey);
-        } catch (Exception e) {
-        }
+        session.delete(rkey).execute();
 
         Map<String, Object> data = new HashMap<>();
         Map<String, Object> emptyMap = new HashMap<>();
@@ -931,27 +934,26 @@ public class CdtOperateTest extends ClusterTest {
         data.put("emptyMap", emptyMap);
         data.put("items", items);
 
-        Bin bin = new Bin(BIN_NAME, data);
-        client.put(null, rkey, bin);
+        session.upsert(rkey)
+            .bin(BIN_NAME).setTo(data)
+            .execute();
 
         // Try to select from empty map
-        CTX ctx1 = CTX.mapKey(Value.get("emptyMap"));
-        CTX ctx2 = CTX.allChildren();
-
-        Operation selectOp = CdtOperation.selectByPath(BIN_NAME, Exp.SELECT_NO_FAIL, ctx1, ctx2);
-
-        Record result = client.operate(null, rkey, selectOp);
-        assertTrue("CDT select operation should succeed", result != null);
+        Record result = session.query(rkey)
+            .bin(BIN_NAME)
+                .onMapKey("emptyMap")
+                .onEachChild()
+                .collectValues(o -> o.noFail(true))
+            .execute()
+            .getFirstRecord();
+        assertTrue(result != null, "CDT select operation should succeed");
     }
 
     @Test
     public void testListIndexContext() {
-        Key rkey = new Key(NAMESPACE, SET, 233);
+        Key rkey = args.set.id("testListIndexContext");
 
-        try {
-            client.delete(null, rkey);
-        } catch (Exception e) {
-        }
+        session.delete(rkey).execute();
 
         Map<String, Object> data = new HashMap<>();
         List<Map<String, Object>> items = new ArrayList<>();
@@ -973,36 +975,36 @@ public class CdtOperateTest extends ClusterTest {
 
         data.put("items", items);
 
-        Bin bin = new Bin(BIN_NAME, data);
-        client.put(null, rkey, bin);
+        session.upsert(rkey)
+            .bin(BIN_NAME).setTo(data)
+            .execute();
 
         // Select value from second item
-        CTX ctx1 = CTX.mapKey(Value.get("items"));
-        CTX ctx2 = CTX.listIndex(1); // Select second item (index 1)
-        CTX ctx3 = CTX.mapKey(Value.get("value"));
-
-        Operation selectOp = CdtOperation.selectByPath(BIN_NAME, Exp.SELECT_VALUE, ctx1, ctx2, ctx3);
-
-        Record result = client.operate(null, rkey, selectOp);
-        assertTrue("CDT select operation should succeed", result != null);
+        Record result = session.query(rkey)
+            .bin(BIN_NAME)
+                .onMapKey("items")
+                .onListIndex(1)
+                .onMapKey("value")
+                .onEachChild()
+                .collectValues()
+            .execute()
+            .getFirstRecord();
+        assertTrue(result != null, "CDT select operation should succeed");
 
         Object resultBin = result.getValue(BIN_NAME);
         if (resultBin instanceof List) {
             List<?> resultList = (List<?>) resultBin;
             if (resultList.size() == 1) {
-                assertEquals("Should get value 20", 20L, resultList.get(0));
+                assertEquals(20L, resultList.get(0), "Should get value 20");
             }
         }
     }
 
     @Test
     public void testModifyWithIndex() {
-        Key rkey = new Key(NAMESPACE, SET, 234);
+        Key rkey = args.set.id("testModifyWithIndex");
 
-        try {
-            client.delete(null, rkey);
-        } catch (Exception e) {
-        }
+        session.delete(rkey).execute();
 
         Map<String, Object> data = new HashMap<>();
         List<Integer> values = new ArrayList<>();
@@ -1012,48 +1014,49 @@ public class CdtOperateTest extends ClusterTest {
         values.add(400);
         data.put("values", values);
 
-        Bin bin = new Bin(BIN_NAME, data);
-        client.put(null, rkey, bin);
+        session.upsert(rkey)
+            .bin(BIN_NAME).setTo(data)
+            .execute();
 
         // Multiply each value by its index + 1
-        CTX ctx1 = CTX.mapKey(Value.get("values"));
-        CTX ctx2 = CTX.allChildrenWithFilter(Exp.val(true));
-
-        Expression modifyExp = Exp.build(
+        Exp exp1 = Exp.val(true);
+        Exp modifyExp =
             Exp.mul(
                 Exp.intLoopVar(LoopVarPart.VALUE),
                 Exp.add(Exp.intLoopVar(LoopVarPart.INDEX), Exp.val(1))
-            )
-        );
+            );
 
-        Operation applyOp = CdtOperation.modifyByPath(BIN_NAME, Exp.MODIFY_DEFAULT, modifyExp, ctx1, ctx2);
+        Record result = session.update(rkey)
+            .bin(BIN_NAME)
+                .onMapKey("values")
+                .onEachChild(exp1)
+                .modifyBy(modifyExp)
+            .execute()
+            .getFirstRecord();
+        assertTrue(result != null, "CDT apply operation should succeed");
 
-        Record result = client.operate(null, rkey, applyOp);
-        assertTrue("CDT apply operation should succeed", result != null);
-
-        Record finalRecord = client.get(null, rkey);
-        assertTrue("Final record should exist", finalRecord != null);
+        Record finalRecord = session.query(rkey)
+            .execute()
+            .getFirstRecord();
+        assertTrue(finalRecord != null, "Final record should exist");
 
         Map<?, ?> finalData = (Map<?, ?>) finalRecord.getValue(BIN_NAME);
-        assertTrue("Data map should exist", finalData != null);
+        assertTrue(finalData != null, "Data map should exist");
 
         List<?> finalValues = (List<?>) finalData.get("values");
-        assertTrue("Values list should exist", finalValues != null);
+        assertTrue(finalValues != null, "Values list should exist");
 
-        assertEquals("First value should be 100", 100, ((Number) finalValues.get(0)).intValue());
-        assertEquals("Second value should be 400", 400, ((Number) finalValues.get(1)).intValue());
-        assertEquals("Third value should be 900", 900, ((Number) finalValues.get(2)).intValue());
-        assertEquals("Fourth value should be 1600", 1600, ((Number) finalValues.get(3)).intValue());
+        assertEquals(100, ((Number) finalValues.get(0)).intValue(), "First value should be 100");
+        assertEquals(400, ((Number) finalValues.get(1)).intValue(), "Second value should be 400");
+        assertEquals(900, ((Number) finalValues.get(2)).intValue(), "Third value should be 900");
+        assertEquals(1600, ((Number) finalValues.get(3)).intValue(), "Fourth value should be 1600");
     }
 
     @Test
     public void testModifyWithComplexArithmetic() {
-        Key rkey = new Key(NAMESPACE, SET, 235);
+        Key rkey = args.set.id("testModifyWithComplexArithmetic");
 
-        try {
-            client.delete(null, rkey);
-        } catch (Exception e) {
-        }
+        session.delete(rkey).execute();
 
         Map<String, Object> data = new HashMap<>();
         List<Map<String, Object>> metrics = new ArrayList<>();
@@ -1075,49 +1078,48 @@ public class CdtOperateTest extends ClusterTest {
 
         data.put("metrics", metrics);
 
-        Bin bin = new Bin(BIN_NAME, data);
-        client.put(null, rkey, bin);
+        session.upsert(rkey)
+            .bin(BIN_NAME).setTo(data)
+            .execute();
 
         // Add 100 to each value field in the metrics
-        CTX ctx1 = CTX.mapKey(Value.get("metrics"));
-        CTX ctx2 = CTX.allChildrenWithFilter(Exp.val(true));
-        CTX ctx3 = CTX.allChildrenWithFilter(
-            Exp.eq(Exp.stringLoopVar(LoopVarPart.MAP_KEY), Exp.val("value"))
-        );
+        Exp exp1 = Exp.val(true);
+        Exp exp2 = Exp.eq(Exp.stringLoopVar(LoopVarPart.MAP_KEY), Exp.val("value"));
+        Exp modifyExp = Exp.add(Exp.intLoopVar(LoopVarPart.VALUE), Exp.val(100));
 
-        Expression modifyExp = Exp.build(
-            Exp.add(Exp.intLoopVar(LoopVarPart.VALUE), Exp.val(100))
-        );
+        Record result = session.update(rkey)
+            .bin(BIN_NAME)
+                .onMapKey("metrics")
+                .onEachChild(exp1)
+                .onEachChild(exp2)
+                .modifyBy(modifyExp)
+            .execute()
+            .getFirstRecord();
+        assertTrue(result != null, "CDT apply operation should succeed");
 
-        Operation applyOp = CdtOperation.modifyByPath(BIN_NAME, Exp.MODIFY_DEFAULT, modifyExp, ctx1, ctx2, ctx3);
-
-        Record result = client.operate(null, rkey, applyOp);
-        assertTrue("CDT apply operation should succeed", result != null);
-
-        Record finalRecord = client.get(null, rkey);
-        assertTrue("Final record should exist", finalRecord != null);
+        Record finalRecord = session.query(rkey)
+            .execute()
+            .getFirstRecord();
+        assertTrue(finalRecord != null, "Final record should exist");
 
         Map<?, ?> finalData = (Map<?, ?>) finalRecord.getValue(BIN_NAME);
-        assertTrue("Data map should exist", finalData != null);
+        assertTrue(finalData != null, "Data map should exist");
 
         List<?> finalMetrics = (List<?>) finalData.get("metrics");
-        assertTrue("Metrics list should exist", finalMetrics != null);
+        assertTrue(finalMetrics != null, "Metrics list should exist");
 
         Map<?, ?> firstMetric = (Map<?, ?>) finalMetrics.get(0);
-        assertTrue("First metric should exist", firstMetric != null);
+        assertTrue(firstMetric != null, "First metric should exist");
 
         int value = ((Number) firstMetric.get("value")).intValue();
-        assertEquals("10 + 100 = 110", 110, value);
+        assertEquals(110, value, "10 + 100 = 110");
     }
 
     @Test
     public void testRemoveAllItemsFromList() {
-        Key rkey = new Key(NAMESPACE, SET, 236);
+        Key rkey = args.set.id("testRemoveAllItemsFromList");
 
-        try {
-            client.delete(null, rkey);
-        } catch (Exception e) {
-        }
+        session.delete(rkey).execute();
 
         Map<String, Object> data = new HashMap<>();
         List<Integer> items = new ArrayList<>();
@@ -1128,37 +1130,40 @@ public class CdtOperateTest extends ClusterTest {
         items.add(5);
         data.put("items", items);
 
-        Bin bin = new Bin(BIN_NAME, data);
-        client.put(null, rkey, bin);
+        session.upsert(rkey)
+            .bin(BIN_NAME).setTo(data)
+            .execute();
 
-        CTX ctx1 = CTX.mapKey(Value.get("items"));
-        CTX ctx2 = CTX.allChildrenWithFilter(Exp.val(true));
+        Exp exp1 = Exp.val(true);
+        Exp removeExp = Exp.removeResult();
 
-        Expression removeExp = Exp.build(Exp.removeResults());
-        Operation applyOp = CdtOperation.modifyByPath(BIN_NAME, Exp.MODIFY_DEFAULT, removeExp, ctx1, ctx2);
+        Record result = session.update(rkey)
+            .bin(BIN_NAME)
+                .onMapKey("items")
+                .onEachChild(exp1)
+                .modifyBy(removeExp)
+            .execute()
+            .getFirstRecord();
+        assertTrue(result != null, "CDT remove operation should succeed");
 
-        Record result = client.operate(null, rkey, applyOp);
-        assertTrue("CDT remove operation should succeed", result != null);
-
-        Record finalRecord = client.get(null, rkey);
-        assertTrue("Final record should exist", finalRecord != null);
+        Record finalRecord = session.query(rkey)
+            .execute()
+            .getFirstRecord();
+        assertTrue(finalRecord != null, "Final record should exist");
 
         Map<?, ?> finalData = (Map<?, ?>) finalRecord.getValue(BIN_NAME);
-        assertTrue("Data map should exist", finalData != null);
+        assertTrue(finalData != null, "Data map should exist");
 
         List<?> finalItems = (List<?>) finalData.get("items");
-        assertTrue("Items list should exist", finalItems != null);
-        assertEquals("All items should be removed", 0, finalItems.size());
+        assertTrue(finalItems != null, "Items list should exist");
+        assertEquals(0, finalItems.size(), "All items should be removed");
     }
 
     @Test
     public void testRemoveFilteredItemsFromList() {
-        Key rkey = new Key(NAMESPACE, SET, 237);
+        Key rkey = args.set.id("testRemoveFilteredItemsFromList");
 
-        try {
-            client.delete(null, rkey);
-        } catch (Exception e) {
-        }
+        session.delete(rkey).execute();
 
         Map<String, Object> data = new HashMap<>();
         List<Integer> numbers = new ArrayList<>();
@@ -1171,42 +1176,43 @@ public class CdtOperateTest extends ClusterTest {
         numbers.add(30);
         data.put("numbers", numbers);
 
-        Bin bin = new Bin(BIN_NAME, data);
-        client.put(null, rkey, bin);
+        session.upsert(rkey)
+            .bin(BIN_NAME).setTo(data)
+            .execute();
 
-        CTX ctx1 = CTX.mapKey(Value.get("numbers"));
-        CTX ctx2 = CTX.allChildrenWithFilter(
-            Exp.gt(Exp.intLoopVar(LoopVarPart.VALUE), Exp.val(10))
-        );
+        Exp exp1 = Exp.gt(Exp.intLoopVar(LoopVarPart.VALUE), Exp.val(10));
+        Exp removeExp = Exp.removeResult();
 
-        Expression removeExp = Exp.build(Exp.removeResults());
-        Operation applyOp = CdtOperation.modifyByPath(BIN_NAME, Exp.MODIFY_DEFAULT, removeExp, ctx1, ctx2);
+        Record result = session.update(rkey)
+            .bin(BIN_NAME)
+                .onMapKey("numbers")
+                .onEachChild(exp1)
+                .modifyBy(removeExp)
+            .execute()
+            .getFirstRecord();
+        assertTrue(result != null, "CDT remove operation should succeed");
 
-        Record result = client.operate(null, rkey, applyOp);
-        assertTrue("CDT remove operation should succeed", result != null);
-
-        Record finalRecord = client.get(null, rkey);
-        assertTrue("Final record should exist", finalRecord != null);
+        Record finalRecord = session.query(rkey)
+            .execute()
+            .getFirstRecord();
+        assertTrue(finalRecord != null, "Final record should exist");
 
         Map<?, ?> finalData = (Map<?, ?>) finalRecord.getValue(BIN_NAME);
-        assertTrue("Data map should exist", finalData != null);
+        assertTrue(finalData != null, "Data map should exist");
 
         List<?> finalNumbers = (List<?>) finalData.get("numbers");
-        assertTrue("Numbers list should exist", finalNumbers != null);
-        assertEquals("Should keep items <= 10", 3, finalNumbers.size());
-        assertTrue("Should contain 1", finalNumbers.contains(1L));
-        assertTrue("Should contain 5", finalNumbers.contains(5L));
-        assertTrue("Should contain 10", finalNumbers.contains(10L));
+        assertTrue(finalNumbers != null, "Numbers list should exist");
+        assertEquals(3, finalNumbers.size(), "Should keep items <= 10");
+        assertTrue(finalNumbers.contains(1L), "Should contain 1");
+        assertTrue(finalNumbers.contains(5L), "Should contain 5");
+        assertTrue(finalNumbers.contains(10L), "Should contain 10");
     }
 
     @Test
     public void testRemoveAllItemsFromMap() {
-        Key rkey = new Key(NAMESPACE, SET, 238);
+        Key rkey = args.set.id("testRemoveAllItemsFromMap");
 
-        try {
-            client.delete(null, rkey);
-        } catch (Exception e) {
-        }
+        session.delete(rkey).execute();
 
         Map<String, Object> data = new HashMap<>();
         Map<String, Object> config = new HashMap<>();
@@ -1215,37 +1221,40 @@ public class CdtOperateTest extends ClusterTest {
         config.put("option3", "value3");
         data.put("config", config);
 
-        Bin bin = new Bin(BIN_NAME, data);
-        client.put(null, rkey, bin);
+        session.upsert(rkey)
+            .bin(BIN_NAME).setTo(data)
+            .execute();
 
-        CTX ctx1 = CTX.mapKey(Value.get("config"));
-        CTX ctx2 = CTX.allChildrenWithFilter(Exp.val(true));
+        Exp exp1 = Exp.val(true);
+        Exp removeExp = Exp.removeResult();
 
-        Expression removeExp = Exp.build(Exp.removeResults());
-        Operation applyOp = CdtOperation.modifyByPath(BIN_NAME, Exp.MODIFY_DEFAULT, removeExp, ctx1, ctx2);
+        Record result = session.update(rkey)
+            .bin(BIN_NAME)
+                .onMapKey("config")
+                .onEachChild(exp1)
+                .modifyBy(removeExp)
+            .execute()
+            .getFirstRecord();
+        assertTrue(result != null, "CDT remove operation should succeed");
 
-        Record result = client.operate(null, rkey, applyOp);
-        assertTrue("CDT remove operation should succeed", result != null);
-
-        Record finalRecord = client.get(null, rkey);
-        assertTrue("Final record should exist", finalRecord != null);
+        Record finalRecord = session.query(rkey)
+            .execute()
+            .getFirstRecord();
+        assertTrue(finalRecord != null, "Final record should exist");
 
         Map<?, ?> finalData = (Map<?, ?>) finalRecord.getValue(BIN_NAME);
-        assertTrue("Data map should exist", finalData != null);
+        assertTrue(finalData != null, "Data map should exist");
 
         Map<?, ?> finalConfig = (Map<?, ?>) finalData.get("config");
-        assertTrue("Config map should exist", finalConfig != null);
-        assertEquals("All map entries should be removed", 0, finalConfig.size());
+        assertTrue(finalConfig != null, "Config map should exist");
+        assertEquals(0, finalConfig.size(), "All map entries should be removed");
     }
 
     @Test
     public void testRemoveFilteredMapEntries() {
-        Key rkey = new Key(NAMESPACE, SET, 239);
+        Key rkey = args.set.id("testRemoveFilteredMapEntries");
 
-        try {
-            client.delete(null, rkey);
-        } catch (Exception e) {
-        }
+        session.delete(rkey).execute();
 
         Map<String, Object> data = new HashMap<>();
         Map<String, Object> scores = new HashMap<>();
@@ -1255,45 +1264,46 @@ public class CdtOperateTest extends ClusterTest {
         scores.put("dave", 30);
         data.put("scores", scores);
 
-        Bin bin = new Bin(BIN_NAME, data);
-        client.put(null, rkey, bin);
+        session.upsert(rkey)
+            .bin(BIN_NAME).setTo(data)
+            .execute();
 
-        CTX ctx1 = CTX.mapKey(Value.get("scores"));
-        CTX ctx2 = CTX.allChildrenWithFilter(
-            Exp.lt(Exp.intLoopVar(LoopVarPart.VALUE), Exp.val(50))
-        );
+        Exp exp1 = Exp.lt(Exp.intLoopVar(LoopVarPart.VALUE), Exp.val(50));
+        Exp removeExp = Exp.removeResult();
 
-        Expression removeExp = Exp.build(Exp.removeResults());
-        Operation applyOp = CdtOperation.modifyByPath(BIN_NAME, Exp.MODIFY_DEFAULT, removeExp, ctx1, ctx2);
+        Record result = session.update(rkey)
+            .bin(BIN_NAME)
+                .onMapKey("scores")
+                .onEachChild(exp1)
+                .modifyBy(removeExp)
+            .execute()
+            .getFirstRecord();
+        assertTrue(result != null, "CDT remove operation should succeed");
 
-        Record result = client.operate(null, rkey, applyOp);
-        assertTrue("CDT remove operation should succeed", result != null);
-
-        Record finalRecord = client.get(null, rkey);
-        assertTrue("Final record should exist", finalRecord != null);
+        Record finalRecord = session.query(rkey)
+            .execute()
+            .getFirstRecord();
+        assertTrue(finalRecord != null, "Final record should exist");
 
         Map<?, ?> finalData = (Map<?, ?>) finalRecord.getValue(BIN_NAME);
-        assertTrue("Data map should exist", finalData != null);
+        assertTrue(finalData != null, "Data map should exist");
 
         Map<?, ?> finalScores = (Map<?, ?>) finalData.get("scores");
-        assertTrue("Scores map should exist", finalScores != null);
-        assertEquals("Should keep scores >= 50", 2, finalScores.size());
+        assertTrue(finalScores != null, "Scores map should exist");
+        assertEquals(2, finalScores.size(), "Should keep scores >= 50");
 
-        assertTrue("Should not contain bob", !finalScores.containsKey("bob"));
-        assertTrue("Should not contain dave", !finalScores.containsKey("dave"));
+        assertTrue(!finalScores.containsKey("bob"), "Should not contain bob");
+        assertTrue(!finalScores.containsKey("dave"), "Should not contain dave");
 
-        assertTrue("Should contain alice", finalScores.containsKey("alice"));
-        assertEquals("Alice score should be 95", 95L, ((Number) finalScores.get("alice")).longValue());
+        assertTrue(finalScores.containsKey("alice"), "Should contain alice");
+        assertEquals(95L, ((Number) finalScores.get("alice")).longValue(), "Alice score should be 95");
     }
 
     @Test
     public void testRemoveBooksWithLowPrices() {
-        Key rkey = new Key(NAMESPACE, SET, 240);
+        Key rkey = args.set.id("testRemoveBooksWithLowPrices");
 
-        try {
-            client.delete(null, rkey);
-        } catch (Exception e) {
-        }
+        session.delete(rkey).execute();
 
         List<Map<String, Object>> booksList = new ArrayList<>();
 
@@ -1320,55 +1330,57 @@ public class CdtOperateTest extends ClusterTest {
         Map<String, Object> rootMap = new HashMap<>();
         rootMap.put("books", booksList);
 
-        Bin bin = new Bin(BIN_NAME, rootMap);
-        client.put(null, rkey, bin);
+        session.upsert(rkey)
+            .bin(BIN_NAME).setTo(rootMap)
+            .execute();
 
-        CTX ctx1 = CTX.mapKey(Value.get("books"));
-        CTX ctx2 = CTX.allChildrenWithFilter(
+        Exp exp1 =
             Exp.le(
                 MapExp.getByKey(MapReturnType.VALUE, Exp.Type.FLOAT,
                     Exp.val("price"), Exp.mapLoopVar(LoopVarPart.VALUE)),
                 Exp.val(10.0)
-            )
-        );
+            );
+        Exp removeExp = Exp.removeResult();
 
-        Expression removeExp = Exp.build(Exp.removeResults());
-        Operation applyOp = CdtOperation.modifyByPath(BIN_NAME, Exp.MODIFY_DEFAULT, removeExp, ctx1, ctx2);
+        Record result = session.update(rkey)
+            .bin(BIN_NAME)
+                .onMapKey("books")
+                .onEachChild(exp1)
+                .modifyBy(removeExp)
+            .execute()
+            .getFirstRecord();
+        assertTrue(result != null, "CDT remove operation should succeed");
 
-        Record result = client.operate(null, rkey, applyOp);
-        assertTrue("CDT remove operation should succeed", result != null);
-
-        Record finalRecord = client.get(null, rkey);
-        assertTrue("Final record should exist", finalRecord != null);
+        Record finalRecord = session.query(rkey)
+            .execute()
+            .getFirstRecord();
+        assertTrue(finalRecord != null, "Final record should exist");
 
         Map<?, ?> finalRootMap = (Map<?, ?>) finalRecord.getValue(BIN_NAME);
-        assertTrue("Root map should exist", finalRootMap != null);
+        assertTrue(finalRootMap != null, "Root map should exist");
 
         List<?> finalBooks = (List<?>) finalRootMap.get("books");
-        assertTrue("Books list should exist", finalBooks != null);
-        assertEquals("Should keep 2 expensive books", 2, finalBooks.size());
+        assertTrue(finalBooks != null, "Books list should exist");
+        assertEquals(2, finalBooks.size(), "Should keep 2 expensive books");
 
         // Verify all remaining books have price > 10.0
         for (Object bookRaw : finalBooks) {
             Map<?, ?> book = (Map<?, ?>) bookRaw;
-            assertTrue("Book should be a map", book != null);
+            assertTrue(book != null, "Book should be a map");
 
             Object price = book.get("price");
-            assertTrue("Book should have a price", price != null);
+            assertTrue(price != null, "Book should have a price");
 
             double priceFloat = ((Number) price).doubleValue();
-            assertTrue("Price should be > 10.0, got " + priceFloat, priceFloat > 10.0);
+            assertTrue(priceFloat > 10.0, "Price should be > 10.0, got " + priceFloat);
         }
     }
 
     @Test
     public void testRemoveItemsByIndexFilter() {
-        Key rkey = new Key(NAMESPACE, SET, 241);
+        Key rkey = args.set.id("testRemoveItemsByIndexFilter");
 
-        try {
-            client.delete(null, rkey);
-        } catch (Exception e) {
-        }
+        session.delete(rkey).execute();
 
         Map<String, Object> data = new HashMap<>();
         List<Integer> values = new ArrayList<>();
@@ -1379,42 +1391,43 @@ public class CdtOperateTest extends ClusterTest {
         values.add(500);
         data.put("values", values);
 
-        Bin bin = new Bin(BIN_NAME, data);
-        client.put(null, rkey, bin);
+        session.upsert(rkey)
+            .bin(BIN_NAME).setTo(data)
+            .execute();
 
-        CTX ctx1 = CTX.mapKey(Value.get("values"));
-        CTX ctx2 = CTX.allChildrenWithFilter(
-            Exp.ge(Exp.intLoopVar(LoopVarPart.INDEX), Exp.val(3))
-        );
+        Exp exp1 = Exp.ge(Exp.intLoopVar(LoopVarPart.INDEX), Exp.val(3));
+        Exp removeExp = Exp.removeResult();
 
-        Expression removeExp = Exp.build(Exp.removeResults());
-        Operation applyOp = CdtOperation.modifyByPath(BIN_NAME, Exp.MODIFY_DEFAULT, removeExp, ctx1, ctx2);
+        Record result = session.update(rkey)
+            .bin(BIN_NAME)
+                .onMapKey("values")
+                .onEachChild(exp1)
+                .modifyBy(removeExp)
+            .execute()
+            .getFirstRecord();
+        assertTrue(result != null, "CDT remove operation should succeed");
 
-        Record result = client.operate(null, rkey, applyOp);
-        assertTrue("CDT remove operation should succeed", result != null);
-
-        Record finalRecord = client.get(null, rkey);
-        assertTrue("Final record should exist", finalRecord != null);
+        Record finalRecord = session.query(rkey)
+            .execute()
+            .getFirstRecord();
+        assertTrue(finalRecord != null, "Final record should exist");
 
         Map<?, ?> finalData = (Map<?, ?>) finalRecord.getValue(BIN_NAME);
-        assertTrue("Data map should exist", finalData != null);
+        assertTrue(finalData != null, "Data map should exist");
 
         List<?> finalValues = (List<?>) finalData.get("values");
-        assertTrue("Values list should exist", finalValues != null);
-        assertEquals("Should keep first 3 items", 3, finalValues.size());
-        assertEquals("First value should be 100", 100L, ((Number) finalValues.get(0)).longValue());
-        assertEquals("Second value should be 200", 200L, ((Number) finalValues.get(1)).longValue());
-        assertEquals("Third value should be 300", 300L, ((Number) finalValues.get(2)).longValue());
+        assertTrue(finalValues != null, "Values list should exist");
+        assertEquals(3, finalValues.size(), "Should keep first 3 items");
+        assertEquals(100L, ((Number) finalValues.get(0)).longValue(), "First value should be 100");
+        assertEquals(200L, ((Number) finalValues.get(1)).longValue(), "Second value should be 200");
+        assertEquals(300L, ((Number) finalValues.get(2)).longValue(), "Third value should be 300");
     }
 
     @Test
     public void testRemoveMapEntriesByKeyFilter() {
-        Key rkey = new Key(NAMESPACE, SET, 242);
+        Key rkey = args.set.id("testRemoveMapEntriesByKeyFilter");
 
-        try {
-            client.delete(null, rkey);
-        } catch (Exception e) {
-        }
+        session.delete(rkey).execute();
 
         Map<String, Object> data = new HashMap<>();
         Map<String, Object> inventory = new HashMap<>();
@@ -1424,42 +1437,43 @@ public class CdtOperateTest extends ClusterTest {
         inventory.put("date", 3);
         data.put("inventory", inventory);
 
-        Bin bin = new Bin(BIN_NAME, data);
-        client.put(null, rkey, bin);
+        session.upsert(rkey)
+            .bin(BIN_NAME).setTo(data)
+            .execute();
 
-        CTX ctx1 = CTX.mapKey(Value.get("inventory"));
-        CTX ctx2 = CTX.allChildrenWithFilter(
-            Exp.ge(Exp.stringLoopVar(LoopVarPart.MAP_KEY), Exp.val("c"))
-        );
+        Exp exp1 = Exp.ge(Exp.stringLoopVar(LoopVarPart.MAP_KEY), Exp.val("c"));
+        Exp removeExp = Exp.removeResult();
 
-        Expression removeExp = Exp.build(Exp.removeResults());
-        Operation applyOp = CdtOperation.modifyByPath(BIN_NAME, Exp.MODIFY_DEFAULT, removeExp, ctx1, ctx2);
+        Record result = session.update(rkey)
+            .bin(BIN_NAME)
+                .onMapKey("inventory")
+                .onEachChild(exp1)
+                .modifyBy(removeExp)
+            .execute()
+            .getFirstRecord();
+        assertTrue(result != null, "CDT remove operation should succeed");
 
-        Record result = client.operate(null, rkey, applyOp);
-        assertTrue("CDT remove operation should succeed", result != null);
-
-        Record finalRecord = client.get(null, rkey);
-        assertTrue("Final record should exist", finalRecord != null);
+        Record finalRecord = session.query(rkey)
+            .execute()
+            .getFirstRecord();
+        assertTrue(finalRecord != null, "Final record should exist");
 
         Map<?, ?> finalData = (Map<?, ?>) finalRecord.getValue(BIN_NAME);
-        assertTrue("Data map should exist", finalData != null);
+        assertTrue(finalData != null, "Data map should exist");
 
         Map<?, ?> finalInventory = (Map<?, ?>) finalData.get("inventory");
-        assertTrue("Inventory map should exist", finalInventory != null);
-        assertEquals("Should keep 2 items", 2, finalInventory.size());
+        assertTrue(finalInventory != null, "Inventory map should exist");
+        assertEquals(2, finalInventory.size(), "Should keep 2 items");
 
-        assertTrue("Should contain apple", finalInventory.containsKey("apple"));
-        assertTrue("Should contain banana", finalInventory.containsKey("banana"));
+        assertTrue(finalInventory.containsKey("apple"), "Should contain apple");
+        assertTrue(finalInventory.containsKey("banana"), "Should contain banana");
     }
 
     @Test
     public void testRemoveNestedItemsWithComplexPath() {
-        Key rkey = new Key(NAMESPACE, SET, 243);
+        Key rkey = args.set.id("testRemoveNestedItemsWithComplexPath");
 
-        try {
-            client.delete(null, rkey);
-        } catch (Exception e) {
-        }
+        session.delete(rkey).execute();
 
         Map<String, Object> data = new HashMap<>();
         Map<String, Object> departments = new HashMap<>();
@@ -1488,262 +1502,83 @@ public class CdtOperateTest extends ClusterTest {
         departments.put("engineering", engList);
         data.put("departments", departments);
 
-        Bin bin = new Bin(BIN_NAME, data);
-        client.put(null, rkey, bin);
+        session.upsert(rkey)
+            .bin(BIN_NAME).setTo(data)
+            .execute();
 
-        CTX ctx1 = CTX.mapKey(Value.get("departments"));
-        CTX ctx2 = CTX.allChildrenWithFilter(Exp.val(true));
-        CTX ctx3 = CTX.allChildrenWithFilter(
+        Exp exp1 = Exp.val(true);
+        Exp exp2 =
             Exp.lt(
                 MapExp.getByKey(MapReturnType.VALUE, Exp.Type.INT,
                     Exp.val("sales"), Exp.mapLoopVar(LoopVarPart.VALUE)),
                 Exp.val(2000)
-            )
-        );
+            );
+        Exp removeExp = Exp.removeResult();
 
+        Record result = session.update(rkey)
+            .bin(BIN_NAME)
+                .onMapKey("departments")
+                .onEachChild(exp1)
+                .onEachChild(exp2)
+                .modifyBy(removeExp)
+            .execute()
+            .getFirstRecord();
+        assertTrue(result != null, "CDT remove operation should succeed");
 
-        Expression removeExp = Exp.build(Exp.removeResults());
-        Operation applyOp = CdtOperation.modifyByPath(BIN_NAME, Exp.MODIFY_DEFAULT, removeExp, ctx1, ctx2, ctx3);
-
-        Record result = client.operate(null, rkey, applyOp);
-        assertTrue("CDT remove operation should succeed", result != null);
-
-        Record finalRecord = client.get(null, rkey);
-        assertTrue("Final record should exist", finalRecord != null);
+        Record finalRecord = session.query(rkey)
+            .execute()
+            .getFirstRecord();
+        assertTrue(finalRecord != null, "Final record should exist");
 
         Map<?, ?> finalData = (Map<?, ?>) finalRecord.getValue(BIN_NAME);
-        assertTrue("Data map should exist", finalData != null);
+        assertTrue(finalData != null, "Data map should exist");
 
         Map<?, ?> finalDepartments = (Map<?, ?>) finalData.get("departments");
-        assertTrue("Departments map should exist", finalDepartments != null);
+        assertTrue(finalDepartments != null, "Departments map should exist");
 
         List<?> finalSalesList = (List<?>) finalDepartments.get("sales");
-        assertTrue("Sales list should exist", finalSalesList != null);
-        assertEquals("Should keep Jane only", 1, finalSalesList.size());
+        assertTrue(finalSalesList != null, "Sales list should exist");
+        assertEquals(1, finalSalesList.size(), "Should keep Jane only");
 
         List<?> finalEngList = (List<?>) finalDepartments.get("engineering");
-        assertTrue("Engineering list should exist", finalEngList != null);
-        assertEquals("Should keep Alice only", 1, finalEngList.size());
+        assertTrue(finalEngList != null, "Engineering list should exist");
+        assertEquals(1, finalEngList.size(), "Should keep Alice only");
     }
 
     @Test
     public void testOperateWithNoOperations() {
-        Key rkey = new Key(NAMESPACE, SET, 244);
+        Key rkey = args.set.id("testOperateWithNoOperations");
 
         // Make sure the record does not exist
-        try {
-            client.delete(null, rkey);
-        } catch (Exception e) {
-        }
+        session.delete(rkey).execute();
 
         Map<String, Object> data = new HashMap<>();
         data.put("value", 123);
 
-        Bin bin = new Bin(BIN_NAME, data);
-        client.put(null, rkey, bin);
+        session.upsert(rkey)
+            .bin(BIN_NAME).setTo(data)
+            .execute();
 
-        Record record = client.get(null, rkey);
-        assertTrue("Record should exist", record != null);
+        Record record = session.query(rkey)
+            .execute()
+            .getFirstRecord();
+
+        assertTrue(record != null, "Record should exist");
 
         try {
-            client.operate(null, rkey);
-            assertTrue("Should throw AerospikeException with PARAMETER_ERROR", false);
-        } catch (com.aerospike.client.AerospikeException e) {
-            assertEquals("Should be PARAMETER_ERROR", com.aerospike.client.sdk.ResultCode.PARAMETER_ERROR, e.getResultCode());
+            session.upsert(rkey).execute();
+            assertTrue(false, "Should throw AerospikeException with PARAMETER_ERROR");
         }
-    }
-
-    @Test
-    public void testSelectByPathWithNullContext() {
-        Key rkey = new Key(NAMESPACE, SET, 245);
-
-        try {
-            client.delete(null, rkey);
-        } catch (Exception e) {
-        }
-
-        List<Integer> numbers = new ArrayList<>();
-        numbers.add(10);
-        numbers.add(20);
-        numbers.add(30);
-
-        Bin bin = new Bin(BIN_NAME, numbers);
-        client.put(null, rkey, bin);
-
-        Record record = client.get(null, rkey);
-        assertTrue("Record should exist", record != null);
-
-        Operation selectOp = CdtOperation.selectByPath(BIN_NAME, Exp.SELECT_VALUE, (CTX[])null);
-
-        try {
-            client.operate(null, rkey, selectOp);
-            assertTrue("Should throw AerospikeException with PARAMETER_ERROR", false);
-        } catch (com.aerospike.client.AerospikeException e) {
-            assertEquals("Should be PARAMETER_ERROR", com.aerospike.client.sdk.ResultCode.PARAMETER_ERROR, e.getResultCode());
-        }
-    }
-
-    @Test
-    public void testSelectByPathWithNoContexts() {
-        Key rkey = new Key(NAMESPACE, SET, 246);
-
-        try {
-            client.delete(null, rkey);
-        } catch (Exception e) {
-        }
-
-        List<Integer> numbers = new ArrayList<>();
-        numbers.add(10);
-        numbers.add(20);
-        numbers.add(30);
-
-        Bin bin = new Bin(BIN_NAME, numbers);
-        client.put(null, rkey, bin);
-
-        Record record = client.get(null, rkey);
-        assertTrue("Record should exist", record != null);
-
-        Operation selectOp = CdtOperation.selectByPath(BIN_NAME, Exp.SELECT_VALUE);
-
-        try {
-            client.operate(null, rkey, selectOp);
-            assertTrue("Should throw AerospikeException with PARAMETER_ERROR", false);
-        } catch (com.aerospike.client.AerospikeException e) {
-            assertEquals("Should be PARAMETER_ERROR", com.aerospike.client.sdk.ResultCode.PARAMETER_ERROR, e.getResultCode());
-        }
-    }
-
-    @Test
-    public void testSelectByPathWithEmptyContextArray() {
-        Key rkey = new Key(NAMESPACE, SET, 247);
-
-        try {
-            client.delete(null, rkey);
-        } catch (Exception e) {
-        }
-
-        Map<String, Object> data = new HashMap<>();
-        data.put("value1", 100);
-        data.put("value2", 200);
-        data.put("value3", 300);
-
-        Bin bin = new Bin(BIN_NAME, data);
-        client.put(null, rkey, bin);
-
-        Record record = client.get(null, rkey);
-        assertTrue("Record should exist", record != null);
-
-        CTX[] emptyCtx = new CTX[0];
-        Operation selectOp = CdtOperation.selectByPath(BIN_NAME, Exp.SELECT_VALUE, emptyCtx);
-
-        try {
-            client.operate(null, rkey, selectOp);
-            assertTrue("Should throw AerospikeException with PARAMETER_ERROR", false);
-        } catch (com.aerospike.client.AerospikeException e) {
-            assertEquals("Should be PARAMETER_ERROR", com.aerospike.client.sdk.ResultCode.PARAMETER_ERROR, e.getResultCode());
-        }
-    }
-
-    @Test
-    public void testModifyByPathWithNullContext() {
-        Key rkey = new Key(NAMESPACE, SET, 248);
-
-        try {
-            client.delete(null, rkey);
-        } catch (Exception e) {
-        }
-
-        List<Integer> numbers = new ArrayList<>();
-        numbers.add(10);
-        numbers.add(20);
-        numbers.add(30);
-
-        Bin bin = new Bin(BIN_NAME, numbers);
-        client.put(null, rkey, bin);
-
-        Record record = client.get(null, rkey);
-        assertTrue("Record should exist", record != null);
-
-        Expression modifyExp = Exp.build(Exp.val(100));
-        Operation modifyOp = CdtOperation.modifyByPath(BIN_NAME, Exp.MODIFY_DEFAULT, modifyExp, (CTX[])null);
-
-        try {
-            client.operate(null, rkey, modifyOp);
-            assertTrue("Should throw AerospikeException with PARAMETER_ERROR", false);
-        } catch (com.aerospike.client.AerospikeException e) {
-            assertEquals("Should be PARAMETER_ERROR", com.aerospike.client.sdk.ResultCode.PARAMETER_ERROR, e.getResultCode());
-        }
-    }
-
-    @Test
-    public void testModifyByPathWithNoContexts() {
-        Key rkey = new Key(NAMESPACE, SET, 249);
-
-        try {
-            client.delete(null, rkey);
-        } catch (Exception e) {
-        }
-
-        List<Integer> numbers = new ArrayList<>();
-        numbers.add(10);
-        numbers.add(20);
-        numbers.add(30);
-
-        Bin bin = new Bin(BIN_NAME, numbers);
-        client.put(null, rkey, bin);
-
-        Record record = client.get(null, rkey);
-        assertTrue("Record should exist", record != null);
-
-        Expression modifyExp = Exp.build(Exp.val(100));
-        Operation modifyOp = CdtOperation.modifyByPath(BIN_NAME, Exp.MODIFY_DEFAULT, modifyExp);
-
-        try {
-            client.operate(null, rkey, modifyOp);
-            assertTrue("Should throw AerospikeException with PARAMETER_ERROR", false);
-        } catch (com.aerospike.client.AerospikeException e) {
-            assertEquals("Should be PARAMETER_ERROR", com.aerospike.client.sdk.ResultCode.PARAMETER_ERROR, e.getResultCode());
-        }
-    }
-
-    @Test
-    public void testModifyByPathWithEmptyContextArray() {
-        Key rkey = new Key(NAMESPACE, SET, 250);
-
-        try {
-            client.delete(null, rkey);
-        } catch (Exception e) {
-        }
-
-        Map<String, Object> data = new HashMap<>();
-        data.put("count", 50);
-
-        Bin bin = new Bin(BIN_NAME, data);
-        client.put(null, rkey, bin);
-
-        Record record = client.get(null, rkey);
-        assertTrue("Record should exist", record != null);
-
-        CTX[] emptyCtx = new CTX[0];
-        Expression modifyExp = Exp.build(Exp.val(200));
-        Operation modifyOp = CdtOperation.modifyByPath(BIN_NAME, Exp.MODIFY_DEFAULT, modifyExp, emptyCtx);
-
-        try {
-            client.operate(null, rkey, modifyOp);
-            assertTrue("Should throw AerospikeException with PARAMETER_ERROR", false);
-        } catch (com.aerospike.client.AerospikeException e) {
-            assertEquals("Should be PARAMETER_ERROR", com.aerospike.client.sdk.ResultCode.PARAMETER_ERROR, e.getResultCode());
+        catch (AerospikeException e) {
+            assertEquals(ResultCode.PARAMETER_ERROR, e.getResultCode(), "Should be PARAMETER_ERROR");
         }
     }
 
     @Test
     public void testLoopVarListWithNestedLists() {
-        Key rkey = new Key(NAMESPACE, SET, 251);
+        Key rkey = args.set.id("testLoopVarListWithNestedLists");
 
-        try {
-            client.delete(null, rkey);
-        } catch (Exception e) {
-        }
+        session.delete(rkey).execute();
 
         Map<String, Object> data = new HashMap<>();
         List<List<Integer>> matrix = new ArrayList<>();
@@ -1764,31 +1599,30 @@ public class CdtOperateTest extends ClusterTest {
         matrix.add(row3);
         data.put("matrix", matrix);
 
-        Bin bin = new Bin(BIN_NAME, data);
-        client.put(null, rkey, bin);
+        session.upsert(rkey)
+            .bin(BIN_NAME).setTo(data)
+            .execute();
 
-        CTX ctx1 = CTX.mapKey(Value.get("matrix"));
-        CTX ctx2 = CTX.allChildren();
-
-        Operation selectOp = CdtOperation.selectByPath(BIN_NAME, Exp.SELECT_VALUE, ctx1, ctx2);
-
-        Record result = client.operate(null, rkey, selectOp);
-        assertTrue("CDT select operation should succeed", result != null);
+        Record result = session.query(rkey)
+            .bin(BIN_NAME)
+                .onMapKey("matrix")
+                .onEachChild()
+                .collectValues()
+            .execute()
+            .getFirstRecord();
+        assertTrue(result != null, "CDT select operation should succeed");
 
         List<?> results = result.getList(BIN_NAME);
         if (results != null) {
-            assertEquals("Should have 3 rows", 3, results.size());
+            assertEquals(3, results.size(), "Should have 3 rows");
         }
     }
 
     @Test
     public void testModifyWithDivision() {
-        Key rkey = new Key(NAMESPACE, SET, 252);
+        Key rkey = args.set.id("testModifyWithDivision");
 
-        try {
-            client.delete(null, rkey);
-        } catch (Exception e) {
-        }
+        session.delete(rkey).execute();
 
         Map<String, Object> data = new HashMap<>();
         List<Integer> values = new ArrayList<>();
@@ -1797,42 +1631,42 @@ public class CdtOperateTest extends ClusterTest {
         values.add(300);
         data.put("values", values);
 
-        Bin bin = new Bin(BIN_NAME, data);
-        client.put(null, rkey, bin);
+        session.upsert(rkey)
+            .bin(BIN_NAME).setTo(data)
+            .execute();
 
-        CTX ctx1 = CTX.mapKey(Value.get("values"));
-        CTX ctx2 = CTX.allChildrenWithFilter(Exp.val(true));
+        Exp exp1 = Exp.val(true);
+        Exp modifyExp = Exp.div(Exp.intLoopVar(LoopVarPart.VALUE), Exp.val(10));
 
-        Expression modifyExp = Exp.build(
-            Exp.div(Exp.intLoopVar(LoopVarPart.VALUE), Exp.val(10))
-        );
+        Record result = session.update(rkey)
+            .bin(BIN_NAME)
+                .onMapKey("values")
+                .onEachChild(exp1)
+                .modifyBy(modifyExp)
+            .execute()
+            .getFirstRecord();
+        assertTrue(result != null, "CDT modify operation should succeed");
 
-        Operation applyOp = CdtOperation.modifyByPath(BIN_NAME, Exp.MODIFY_DEFAULT, modifyExp, ctx1, ctx2);
-
-        Record result = client.operate(null, rkey, applyOp);
-        assertTrue("CDT modify operation should succeed", result != null);
-
-        Record finalRecord = client.get(null, rkey);
-        assertTrue("Final record should exist", finalRecord != null);
+        Record finalRecord = session.query(rkey)
+            .execute()
+            .getFirstRecord();
+        assertTrue(finalRecord != null, "Final record should exist");
 
         Map<?, ?> finalData = (Map<?, ?>) finalRecord.getValue(BIN_NAME);
-        assertTrue("Data map should exist", finalData != null);
+        assertTrue(finalData != null, "Data map should exist");
 
         List<?> finalValues = (List<?>) finalData.get("values");
-        assertTrue("Values list should exist", finalValues != null);
+        assertTrue(finalValues != null, "Values list should exist");
 
         int firstValue = ((Number) finalValues.get(0)).intValue();
-        assertEquals("100 / 10 = 10", 10, firstValue);
+        assertEquals(10, firstValue, "100 / 10 = 10");
     }
 
     @Test
     public void testLoopVarListAccessNestedListSize() {
-        Key rkey = new Key(NAMESPACE, SET, 253);
+        Key rkey = args.set.id("testLoopVarListAccessNestedListSize");
 
-        try {
-            client.delete(null, rkey);
-        } catch (Exception e) {
-        }
+        session.delete(rkey).execute();
 
         Map<String, Object> data = new HashMap<>();
         List<List<Integer>> matrix = new ArrayList<>();
@@ -1856,36 +1690,36 @@ public class CdtOperateTest extends ClusterTest {
 
         data.put("matrix", matrix);
 
-        Bin bin = new Bin(BIN_NAME, data);
-        client.put(null, rkey, bin);
+        session.upsert(rkey)
+            .bin(BIN_NAME).setTo(data)
+            .execute();
 
-        CTX ctx1 = CTX.mapKey(Value.get("matrix"));
-        CTX ctx2 = CTX.allChildrenWithFilter(
+        Exp exp1 =
             Exp.eq(
                 ListExp.size(Exp.listLoopVar(LoopVarPart.VALUE)),
                 Exp.val(3)
-            )
-        );
+            );
 
-        Operation selectOp = CdtOperation.selectByPath(BIN_NAME, Exp.SELECT_VALUE, ctx1, ctx2);
-
-        Record result = client.operate(null, rkey, selectOp);
-        assertTrue("CDT select operation should succeed", result != null);
+        Record result = session.query(rkey)
+            .bin(BIN_NAME)
+                .onMapKey("matrix")
+                .onEachChild(exp1)
+                .collectValues()
+            .execute()
+            .getFirstRecord();
+        assertTrue(result != null, "CDT select operation should succeed");
 
         List<?> results = result.getList(BIN_NAME);
         if (results != null) {
-            assertEquals("Should have 2 rows with size 3", 2, results.size());
+            assertEquals(2, results.size(), "Should have 2 rows with size 3");
         }
     }
 
     @Test
     public void testLoopVarBlobAccessBlobValues() {
-        Key rkey = new Key(NAMESPACE, SET, 254);
+        Key rkey = args.set.id("testLoopVarBlobAccessBlobValues");
 
-        try {
-            client.delete(null, rkey);
-        } catch (Exception e) {
-        }
+        session.delete(rkey).execute();
 
         Map<String, Object> data = new HashMap<>();
         List<byte[]> blobs = new ArrayList<>();
@@ -1896,38 +1730,38 @@ public class CdtOperateTest extends ClusterTest {
 
         data.put("blobs", blobs);
 
-        Bin bin = new Bin(BIN_NAME, data);
-        client.put(null, rkey, bin);
+        session.upsert(rkey)
+            .bin(BIN_NAME).setTo(data)
+            .execute();
 
-        CTX ctx1 = CTX.mapKey(Value.get("blobs"));
-        CTX ctx2 = CTX.allChildrenWithFilter(
+        Exp exp1 =
             Exp.eq(
                 Exp.blobLoopVar(LoopVarPart.VALUE),
                 Exp.val("Target blob".getBytes())
-            )
-        );
+            );
 
-        Operation selectOp = CdtOperation.selectByPath(BIN_NAME, Exp.SELECT_VALUE, ctx1, ctx2);
-
-        Record result = client.operate(null, rkey, selectOp);
-        assertTrue("CDT select operation should succeed", result != null);
+        Record result = session.query(rkey)
+            .bin(BIN_NAME)
+                .onMapKey("blobs")
+                .onEachChild(exp1)
+                .collectValues()
+            .execute()
+            .getFirstRecord();
+        assertTrue(result != null, "CDT select operation should succeed");
 
         List<?> results = result.getList(BIN_NAME);
         if (results != null) {
-            assertEquals("Should have 1 blob matching target", 1, results.size());
+            assertEquals(1, results.size(), "Should have 1 blob matching target");
             byte[] resultBlob = (byte[]) results.get(0);
-            assertEquals("Should match target blob", "Target blob", new String(resultBlob));
+            assertEquals("Target blob", new String(resultBlob), "Should match target blob");
         }
     }
 
     @Test
     public void testLoopVarNilWithNilValues() {
-        Key rkey = new Key(NAMESPACE, SET, 255);
+        Key rkey = args.set.id("testLoopVarNilWithNilValues");
 
-        try {
-            client.delete(null, rkey);
-        } catch (Exception e) {
-        }
+        session.delete(rkey).execute();
 
         Map<String, Object> data = new HashMap<>();
         data.put("a", 1);
@@ -1936,35 +1770,35 @@ public class CdtOperateTest extends ClusterTest {
         data.put("d", "test".getBytes());
         data.put("e", null);
 
-        Bin bin = new Bin(BIN_NAME, data);
-        client.put(null, rkey, bin);
+        session.upsert(rkey)
+            .bin(BIN_NAME).setTo(data)
+            .execute();
 
-        CTX ctx1 = CTX.allChildrenWithFilter(
+        Exp exp1 =
             Exp.eq(
                 Exp.nilLoopVar(LoopVarPart.VALUE),
                 Exp.nil()
-            )
-        );
+            );
 
-        Operation selectOp = CdtOperation.selectByPath(BIN_NAME, Exp.SELECT_VALUE | Exp.SELECT_NO_FAIL, ctx1);
-
-        Record result = client.operate(null, rkey, selectOp);
-        assertTrue("CDT select operation should succeed", result != null);
+        Record result = session.query(rkey)
+            .bin(BIN_NAME)
+                .onEachChild(exp1)
+                .collectValues(o -> o.noFail(true))
+            .execute()
+            .getFirstRecord();
+        assertTrue(result != null, "CDT select operation should succeed");
 
         List<?> results = result.getList(BIN_NAME);
         if (results != null) {
-            assertEquals("Should have 1 nil value", 1, results.size());
+            assertEquals(1, results.size(), "Should have 1 nil value");
         }
     }
 
     @Test
     public void testLoopVarGeoJSONFilterLocations() {
-        Key rkey = new Key(NAMESPACE, SET, 256);
+        Key rkey = args.set.id("testLoopVarGeoJSONFilterLocations");
 
-        try {
-            client.delete(null, rkey);
-        } catch (Exception e) {
-        }
+        session.delete(rkey).execute();
 
         Map<String, Object> data = new HashMap<>();
         List<Value.GeoJSONValue> locations = new ArrayList<>();
@@ -1975,41 +1809,41 @@ public class CdtOperateTest extends ClusterTest {
 
         data.put("locations", locations);
 
-        Bin bin = new Bin(BIN_NAME, data);
-        client.put(null, rkey, bin);
+        session.upsert(rkey)
+            .bin(BIN_NAME).setTo(data)
+            .execute();
 
         String californiaRegion = "{\"type\":\"Polygon\",\"coordinates\":[[[-124.5,32.5],[-114.0,32.5],[-114.0,42.0],[-124.5,42.0],[-124.5,32.5]]]}";
 
-        CTX ctx1 = CTX.mapKey(Value.get("locations"));
-        CTX ctx2 = CTX.allChildrenWithFilter(
+        Exp exp1 =
             com.aerospike.client.sdk.exp.Exp.geoCompare(
                 Exp.geoJsonLoopVar(LoopVarPart.VALUE),
                 Exp.geo(californiaRegion)
-            )
-        );
+            );
 
-        Operation selectOp = CdtOperation.selectByPath(BIN_NAME, Exp.SELECT_VALUE, ctx1, ctx2);
-
-        Record result = client.operate(null, rkey, selectOp);
-        assertTrue("CDT select operation should succeed", result != null);
+        Record result = session.query(rkey)
+            .bin(BIN_NAME)
+                .onMapKey("locations")
+                .onEachChild(exp1)
+                .collectValues()
+            .execute()
+            .getFirstRecord();
+        assertTrue(result != null, "CDT select operation should succeed");
 
         List<?> results = result.getList(BIN_NAME);
         if (results != null) {
-            assertTrue("Should have filtered GeoJSON locations", results.size() >= 0);
+            assertTrue(results.size() >= 0, "Should have filtered GeoJSON locations");
             for (Object item : results) {
-                assertNotNull("Location should not be null", item);
+                assertNotNull(item, "Location should not be null");
             }
         }
     }
 
     @Test
     public void testBoolLoopVarFilterActive() {
-        Key rkey = new Key(NAMESPACE, SET, 257);
+        Key rkey = args.set.id("testBoolLoopVarFilterActive");
 
-        try {
-            client.delete(null, rkey);
-        } catch (Exception e) {
-        }
+        session.delete(rkey).execute();
 
         Map<String, Object> data = new HashMap<>();
         List<Map<String, Object>> users = new ArrayList<>();
@@ -2040,43 +1874,42 @@ public class CdtOperateTest extends ClusterTest {
 
         data.put("users", users);
 
-        Bin bin = new Bin(BIN_NAME, data);
-        client.put(null, rkey, bin);
+        session.upsert(rkey)
+            .bin(BIN_NAME).setTo(data)
+            .execute();
 
         // Select names where active is true using boolLoopVar
-        CTX ctx1 = CTX.mapKey(Value.get("users"));
-        CTX ctx2 = CTX.allChildrenWithFilter(
+        Exp exp1 =
             Exp.eq(
                 MapExp.getByKey(MapReturnType.VALUE, Exp.Type.BOOL,
                     Exp.val("active"), Exp.mapLoopVar(LoopVarPart.VALUE)),
                 Exp.val(true)
-            )
-        );
-        CTX ctx3 = CTX.allChildrenWithFilter(
-            Exp.eq(Exp.stringLoopVar(LoopVarPart.MAP_KEY), Exp.val("name"))
-        );
+            );
+        Exp exp2 = Exp.eq(Exp.stringLoopVar(LoopVarPart.MAP_KEY), Exp.val("name"));
 
-        Operation selectOp = CdtOperation.selectByPath(BIN_NAME, Exp.SELECT_VALUE, ctx1, ctx2, ctx3);
-
-        Record result = client.operate(null, rkey, selectOp);
-        assertTrue("CDT select operation should succeed", result != null);
+        Record result = session.query(rkey)
+            .bin(BIN_NAME)
+                .onMapKey("users")
+                .onEachChild(exp1)
+                .onEachChild(exp2)
+                .collectValues()
+            .execute()
+            .getFirstRecord();
+        assertTrue(result != null, "CDT select operation should succeed");
 
         List<?> results = result.getList(BIN_NAME);
         if (results != null) {
-            assertEquals("Should have 2 active users", 2, results.size());
-            assertTrue("Should contain Alice", results.contains("Alice"));
-            assertTrue("Should contain Charlie", results.contains("Charlie"));
+            assertEquals(2, results.size(), "Should have 2 active users");
+            assertTrue(results.contains("Alice"), "Should contain Alice");
+            assertTrue(results.contains("Charlie"), "Should contain Charlie");
         }
     }
 
     @Test
     public void testBoolLoopVarModifyFlags() {
-        Key rkey = new Key(NAMESPACE, SET, 258);
+        Key rkey = args.set.id("testBoolLoopVarModifyFlags");
 
-        try {
-            client.delete(null, rkey);
-        } catch (Exception e) {
-        }
+        session.delete(rkey).execute();
 
         Map<String, Object> data = new HashMap<>();
         Map<String, Object> settings = new HashMap<>();
@@ -2086,45 +1919,45 @@ public class CdtOperateTest extends ClusterTest {
         settings.put("enableFeatureD", false);
         data.put("settings", settings);
 
-        Bin bin = new Bin(BIN_NAME, data);
-        client.put(null, rkey, bin);
+        session.upsert(rkey)
+            .bin(BIN_NAME).setTo(data)
+            .execute();
 
         // Negate all boolean settings using boolLoopVar
-        CTX ctx1 = CTX.mapKey(Value.get("settings"));
-        CTX ctx2 = CTX.allChildrenWithFilter(Exp.val(true));
+        Exp exp1 = Exp.val(true);
+        Exp modifyExp = Exp.not(Exp.boolLoopVar(LoopVarPart.VALUE));
 
-        Expression modifyExp = Exp.build(
-            Exp.not(Exp.boolLoopVar(LoopVarPart.VALUE))
-        );
+        Record result = session.update(rkey)
+            .bin(BIN_NAME)
+                .onMapKey("settings")
+                .onEachChild(exp1)
+                .modifyBy(modifyExp)
+            .execute()
+            .getFirstRecord();
+        assertTrue(result != null, "CDT modify operation should succeed");
 
-        Operation applyOp = CdtOperation.modifyByPath(BIN_NAME, Exp.MODIFY_DEFAULT, modifyExp, ctx1, ctx2);
-
-        Record result = client.operate(null, rkey, applyOp);
-        assertTrue("CDT modify operation should succeed", result != null);
-
-        Record finalRecord = client.get(null, rkey);
-        assertTrue("Final record should exist", finalRecord != null);
+        Record finalRecord = session.query(rkey)
+            .execute()
+            .getFirstRecord();
+        assertTrue(finalRecord != null, "Final record should exist");
 
         Map<?, ?> finalData = (Map<?, ?>) finalRecord.getValue(BIN_NAME);
-        assertTrue("Data map should exist", finalData != null);
+        assertTrue(finalData != null, "Data map should exist");
 
         Map<?, ?> finalSettings = (Map<?, ?>) finalData.get("settings");
-        assertTrue("Settings map should exist", finalSettings != null);
+        assertTrue(finalSettings != null, "Settings map should exist");
 
-        assertEquals("enableFeatureA should be false", false, finalSettings.get("enableFeatureA"));
-        assertEquals("enableFeatureB should be true", true, finalSettings.get("enableFeatureB"));
-        assertEquals("enableFeatureC should be false", false, finalSettings.get("enableFeatureC"));
-        assertEquals("enableFeatureD should be true", true, finalSettings.get("enableFeatureD"));
+        assertEquals(false, finalSettings.get("enableFeatureA"), "enableFeatureA should be false");
+        assertEquals(true, finalSettings.get("enableFeatureB"), "enableFeatureB should be true");
+        assertEquals(false, finalSettings.get("enableFeatureC"), "enableFeatureC should be false");
+        assertEquals(true, finalSettings.get("enableFeatureD"), "enableFeatureD should be true");
     }
 
     @Test
     public void testBoolLoopVarInListFilter() {
-        Key rkey = new Key(NAMESPACE, SET, 259);
+        Key rkey = args.set.id("testBoolLoopVarInListFilter");
 
-        try {
-            client.delete(null, rkey);
-        } catch (Exception e) {
-        }
+        session.delete(rkey).execute();
 
         Map<String, Object> data = new HashMap<>();
         List<Boolean> flags = new ArrayList<>();
@@ -2135,25 +1968,27 @@ public class CdtOperateTest extends ClusterTest {
         flags.add(false);
         data.put("flags", flags);
 
-        Bin bin = new Bin(BIN_NAME, data);
-        client.put(null, rkey, bin);
+        session.upsert(rkey)
+            .bin(BIN_NAME).setTo(data)
+            .execute();
 
         // Select indices where flag is true using boolLoopVar
-        CTX ctx1 = CTX.mapKey(Value.get("flags"));
-        CTX ctx2 = CTX.allChildrenWithFilter(
-            Exp.eq(Exp.boolLoopVar(LoopVarPart.VALUE), Exp.val(true))
-        );
+        Exp exp1 = Exp.eq(Exp.boolLoopVar(LoopVarPart.VALUE), Exp.val(true));
 
-        Operation selectOp = CdtOperation.selectByPath(BIN_NAME, Exp.SELECT_VALUE, ctx1, ctx2);
-
-        Record result = client.operate(null, rkey, selectOp);
-        assertTrue("CDT select operation should succeed", result != null);
+        Record result = session.query(rkey)
+            .bin(BIN_NAME)
+                .onMapKey("flags")
+                .onEachChild(exp1)
+                .collectValues()
+            .execute()
+            .getFirstRecord();
+        assertTrue(result != null, "CDT select operation should succeed");
 
         List<?> results = result.getList(BIN_NAME);
         if (results != null) {
-            assertEquals("Should have 3 true flags", 3, results.size());
+            assertEquals(3, results.size(), "Should have 3 true flags");
             for (Object item : results) {
-                assertEquals("All results should be true", true, item);
+                assertEquals(true, item, "All results should be true");
             }
         }
     }
@@ -2162,12 +1997,9 @@ public class CdtOperateTest extends ClusterTest {
     public void testHllLoopVarWithHllExpressions() {
         // Demonstrates hllLoopVar usage pattern with selectByPath.
         // Creates a metadata structure and shows the expression pattern for HLL filtering.
-        Key rkey = new Key(NAMESPACE, SET, 260);
+        Key rkey = args.set.id("testHllLoopVarWithHllExpressions");
 
-        try {
-            client.delete(null, rkey);
-        } catch (Exception e) {
-        }
+        session.delete(rkey).execute();
 
         // Create HLL values in separate bins
         List<Value> entries1 = new ArrayList<>();
@@ -2185,16 +2017,17 @@ public class CdtOperateTest extends ClusterTest {
             entries3.add(Value.get("item" + i));
         }
 
-        Record rec = client.operate(null, rkey,
-            HLLOperation.add(HLLPolicy.Default, "hll1", entries1, 8),
-            HLLOperation.add(HLLPolicy.Default, "hll2", entries2, 8),
-            HLLOperation.add(HLLPolicy.Default, "hll3", entries3, 8),
-            Operation.get("hll1"),
-            Operation.get("hll2"),
-            Operation.get("hll3")
-        );
+        Record rec = session.upsert(rkey)
+            .bin("hll1").hllAdd(entries1, HllConfig.of(8))
+            .bin("hll2").hllAdd(entries2, HllConfig.of(8))
+            .bin("hll3").hllAdd(entries3, HllConfig.of(8))
+            .bin("hll1").get()
+            .bin("hll2").get()
+            .bin("hll3").get()
+            .execute()
+            .getFirstRecord();
 
-        assertNotNull("Record should exist", rec);
+        assertNotNull(rec, "Record should exist");
 
         // Create a metadata structure to demonstrate selectByPath pattern
         Map<String, Object> hllMetadata = new HashMap<>();
@@ -2220,32 +2053,35 @@ public class CdtOperateTest extends ClusterTest {
 
         hllMetadata.put("hlls", hllInfo);
 
-        Bin metaBin = new Bin(BIN_NAME, hllMetadata);
-        client.put(null, rkey, metaBin);
+        rec = session.upsert(rkey)
+            .bin(BIN_NAME).setTo(hllMetadata)
+            .execute()
+            .getFirstRecord();
 
         // Use selectByPath to filter HLL metadata where expectedCount > 10
-        CTX ctx1 = CTX.mapKey(Value.get("hlls"));
-        CTX ctx2 = CTX.allChildrenWithFilter(
+        Exp exp1 =
             Exp.gt(
                 MapExp.getByKey(MapReturnType.VALUE, Exp.Type.INT,
                     Exp.val("expectedCount"), Exp.mapLoopVar(LoopVarPart.VALUE)),
                 Exp.val(10)
-            )
-        );
-        CTX ctx3 = CTX.allChildrenWithFilter(
-            Exp.eq(Exp.stringLoopVar(LoopVarPart.MAP_KEY), Exp.val("name"))
-        );
+            );
+        Exp exp2 = Exp.eq(Exp.stringLoopVar(LoopVarPart.MAP_KEY), Exp.val("name"));
 
-        Operation selectOp = CdtOperation.selectByPath(BIN_NAME, Exp.SELECT_VALUE, ctx1, ctx2, ctx3);
-
-        Record result = client.operate(null, rkey, selectOp);
-        assertNotNull("Result should exist", result);
+        Record result = session.query(rkey)
+            .bin(BIN_NAME)
+                .onMapKey("hlls")
+                .onEachChild(exp1)
+                .onEachChild(exp2)
+                .collectValues()
+            .execute()
+            .getFirstRecord();
+        assertNotNull(result, "Result should exist");
 
         List<?> selectedNames = result.getList(BIN_NAME);
-        assertNotNull("Selected names should exist", selectedNames);
-        assertEquals("Should have 2 HLLs with count > 10", 2, selectedNames.size());
-        assertTrue("Should contain 'medium'", selectedNames.contains("medium"));
-        assertTrue("Should contain 'large'", selectedNames.contains("large"));
+        assertNotNull(selectedNames, "Selected names should exist");
+        assertEquals(2, selectedNames.size(), "Should have 2 HLLs with count > 10");
+        assertTrue(selectedNames.contains("medium"), "Should contain 'medium'");
+        assertTrue(selectedNames.contains("large"), "Should contain 'large'");
 
         // Demonstrate hllLoopVar expression construction
         // This pattern would be used if HLLs were in nested structures:
@@ -2253,17 +2089,14 @@ public class CdtOperateTest extends ClusterTest {
         //     Exp.gt(HLLExp.getCount(Exp.hllLoopVar(LoopVarPart.VALUE)), Exp.val(10))
         // )
         Exp hllLoopVarExp = Exp.hllLoopVar(LoopVarPart.VALUE);
-        assertNotNull("hllLoopVar expression should be created", hllLoopVarExp);
+        assertNotNull(hllLoopVarExp, "hllLoopVar expression should be created");
     }
 
     @Test
     public void testHllLoopVarInExpressionContext() {
-        Key rkey = new Key(NAMESPACE, SET, 261);
+        Key rkey = args.set.id("testHllLoopVarInExpressionContext");
 
-        try {
-            client.delete(null, rkey);
-        } catch (Exception e) {
-        }
+        session.delete(rkey).execute();
 
         // Create a simple HLL
         List<Value> entries = new ArrayList<>();
@@ -2271,19 +2104,19 @@ public class CdtOperateTest extends ClusterTest {
             entries.add(Value.get("value" + i));
         }
 
-        Record rec = client.operate(null, rkey,
-            HLLOperation.add(HLLPolicy.Default, "testHll", entries, 8),
-            HLLOperation.getCount("testHll")
-        );
+        Record rec = session.upsert(rkey)
+            .bin("testHll").hllAdd(entries, HllConfig.of(8))
+            .bin("testHll").hllGetCount()
+            .execute()
+            .getFirstRecord();
 
-        assertNotNull("Record should exist", rec);
+        assertNotNull(rec, "Record should exist");
 
         List<?> resultList = rec.getList("testHll");
         long count = (Long) resultList.get(1); // getCount is the second operation
-        assertTrue("HLL count should be around 15", count >= 10 && count <= 20);
+        assertTrue(count >= 10 && count <= 20, "HLL count should be around 15");
 
         Exp hllLoopExp = Exp.hllLoopVar(LoopVarPart.VALUE);
-        assertNotNull("hllLoopVar expression should be created", hllLoopExp);
+        assertNotNull(hllLoopExp, "hllLoopVar expression should be created");
     }
-    */
 }

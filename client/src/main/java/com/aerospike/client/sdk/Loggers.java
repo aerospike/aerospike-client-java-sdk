@@ -17,26 +17,41 @@
 package com.aerospike.client.sdk;
 
 /**
- * The TypeSafeDataSet allows object mapping functionality without warnings.
- * eg 
- *     session.insert(customerDataSet).object(sampleCust).execute();
- * gives an usafe type compiler warning if just using a DataSet.
- * 
- * TODO: See if this class can be removed and still eliminate the warnings.
- * @param <T>
+ * Log category string IDs.
  */
-public class TypeSafeDataSet<T> extends DataSet {
-    private final Class<T> clazz;
-    public TypeSafeDataSet(String namespace, String set, Class<T> clazz) {
-        super(namespace, set);
-        this.clazz = clazz;
-    }
+public final class Loggers {
+    /**
+     * AEL language parser.
+     */
+    public static final String AEL = "ael";
 
-    public static <R> TypeSafeDataSet<R> of(String namespace, String set, Class<R> clazz) {
-        return new TypeSafeDataSet<>(namespace, set, clazz);
-    }
+    /**
+     * YAML / BehaviorRegistry and client option resolution.
+     */
+    public static final String BEHAVIOR = "behavior";
 
-    public Class<T> getClazz() {
-        return clazz;
-    }
+    /**
+     * Connections.
+     */
+    public static final String CONNECTION = "connection";
+
+    /**
+     * Commands.
+     */
+    public static final String COMMAND = "command";
+
+    /**
+     * Info Commands.
+     */
+    public static final String INFO = "info";
+
+    /**
+     * All high-volume encode/decode diagnostics.
+     */
+    public static final String SERDE = "serde";
+
+    /**
+     * Cluster tend.
+     */
+    public static final String TEND = "tend";
 }

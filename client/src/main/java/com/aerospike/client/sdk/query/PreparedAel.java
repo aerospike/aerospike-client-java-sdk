@@ -16,31 +16,37 @@
  */
 package com.aerospike.client.sdk.query;
 
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-
+/**
+ * A reusable AEL template with {@code ?0}, {@code ?1}, ... placeholders (zero-based).
+ * Parameter values are substituted client-side into valid AEL literals at execution time.
+ */
 public class PreparedAel {
     private final String statement;
+
     public PreparedAel(String statement) {
         this.statement = statement;
     }
 
-    public String formValue(Object ...params) {
-        Pattern pattern = Pattern.compile("\\$(\\d+)");
-        Matcher matcher = pattern.matcher(statement);
-        StringBuffer sb = new StringBuffer();
+    /**
+     * Create a prepared AEL template.
+     *
+     * @param statement AEL template with {@code ?0}, {@code ?1}, ... placeholders
+     */
+    public static PreparedAel prepare(String statement) {
+        return new PreparedAel(statement);
+    }
 
-        while (matcher.find()) {
-            int index = Integer.parseInt(matcher.group(1)) - 1;
-            String replacement = (index >= 0 && index < params.length && params[index] != null)
-                    ? params[index].toString()
-                    : matcher.group(); // leave unchanged if no param
+    public String getStatement() {
+        return statement;
+    }
 
-            // quote to avoid treating $ or \ in replacement specially
-            matcher.appendReplacement(sb, Matcher.quoteReplacement(replacement));
-        }
-
-        matcher.appendTail(sb);
-        return sb.toString();
+    /**
+     * Substitute bound parameters into the template and return the resulting AEL string.
+     *
+     * @param params values for {@code ?0}, {@code ?1}, ...
+     * @return AEL with placeholders replaced by formatted literals
+     */
+    public String formValue(Object... params) {
+        return AelPlaceholderBinder.bind(statement, params);
     }
 }

@@ -23,7 +23,6 @@ import java.util.List;
 
 import com.aerospike.client.sdk.Cluster;
 import com.aerospike.client.sdk.ClusterDefinition;
-import com.aerospike.client.sdk.Log;
 
 public class ExampleRunner {
     private final Console console;
@@ -129,7 +128,6 @@ public class ExampleRunner {
 
     private Cluster createCluster() {
         ClusterDefinition def = new ClusterDefinition(args.host, args.port)
-            .withLogLevel(Log.Level.DEBUG)
             .clusterName(args.clusterName)
             .withSystemSettings(builder -> builder
                 .circuitBreaker(ops -> ops.maximumErrorsInErrorWindow(200))

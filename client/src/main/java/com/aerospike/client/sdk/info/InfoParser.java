@@ -27,10 +27,14 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import com.aerospike.client.sdk.Log;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.aerospike.client.sdk.Loggers;
 import com.aerospike.client.sdk.Node;
 import com.aerospike.client.sdk.Session;
 import com.aerospike.client.sdk.command.Info;
+import com.aerospike.client.sdk.util.Util;
 
 /**
  * Parser for Aerospike info commands that converts raw info strings into structured data.
@@ -63,6 +67,7 @@ import com.aerospike.client.sdk.command.Info;
  * @since 1.0
  */
 public class InfoParser {
+    private static final Logger log = LoggerFactory.getLogger(Loggers.INFO);
 
     /**
      * Parses a single-item info string into a key-value map.
@@ -126,11 +131,15 @@ public class InfoParser {
     private static <T> Optional<T> mergeNodeValuesSingleItem(List<T> nodeValues) {
         try {
             return Optional.of(StatMerger.merge(nodeValues));
-        } catch (Exception e) {
-            Log.warn(String.format("mergeNodeValuesSingleItem threw a %s exception: %s. Stack trace shown if DEBUG is set.",
-                    e.getClass().getName(), e.getMessage()));
-            if (Log.debugEnabled()) {
-                e.printStackTrace();
+        }
+        catch (Exception e) {
+            if (log.isWarnEnabled()) {
+                log.warn(String.format("mergeNodeValuesSingleItem threw a %s exception: %s. Stack trace shown if DEBUG is set.",
+                        e.getClass().getName(), e.getMessage()));
+
+                if (log.isDebugEnabled()) {
+                    log.debug(Util.getErrorMessage(e));
+                }
             }
             throw new RuntimeException(e);
         }
@@ -168,11 +177,15 @@ public class InfoParser {
             }
             try {
                 results.add(StatMerger.merge(itemsToMerge));
-            } catch (Exception e) {
-                Log.warn(String.format("mergeNodeValuesMultipleItems threw a %s exception: %s. Stack trace shown if DEBUG is set.",
-                        e.getClass().getName(), e.getMessage()));
-                if (Log.debugEnabled()) {
-                    e.printStackTrace();
+            }
+            catch (Exception e) {
+                if (log.isWarnEnabled()) {
+                    log.warn(String.format("mergeNodeValuesMultipleItems threw a %s exception: %s. Stack trace shown if DEBUG is set.",
+                            e.getClass().getName(), e.getMessage()));
+
+                    if (log.isDebugEnabled()) {
+                        log.debug(Util.getErrorMessage(e));
+                    }
                 }
                 // ignore this error
             }
@@ -218,8 +231,8 @@ public class InfoParser {
             List<T> results = new ArrayList<>();
             allResults.put(node, results);
             String result = Info.request(node, infoCall);
-            if (Log.debugEnabled()) {
-                Log.debug(String.format("Node: %s, info call: %s, result: %s", node, infoCall, result));
+            if (log.isDebugEnabled()) {
+                log.debug(String.format("Node: %s, info call: %s, result: %s", node, infoCall, result));
             }
             List<Map<String, String>> infoData = parseInfoWithMultipleItems(result);
             for (Map<String, String>item : infoData) {
@@ -245,8 +258,8 @@ public class InfoParser {
             List<T> results = new ArrayList<>();
             allResults.add(results);
             String result = Info.request(node, infoCall);
-            if (Log.debugEnabled() && allowLogging) {
-                Log.debug(String.format("Node: %s, info call: %s, result: %s", node, infoCall, result));
+            if (log.isDebugEnabled() && allowLogging) {
+                log.debug(String.format("Node: %s, info call: %s, result: %s", node, infoCall, result));
             }
             List<Map<String, String>> infoData = parseInfoWithMultipleItems(result);
             for (Map<String, String>item : infoData) {
@@ -270,8 +283,8 @@ public class InfoParser {
         Map<Node, Optional<T>> allResults = new HashMap<>();
         for (Node node : nodes) {
             String result = Info.request(node, infoCall);
-            if (Log.debugEnabled()) {
-                Log.debug(String.format("Node: %s, info call: %s, result: %s", node, infoCall, result));
+            if (log.isDebugEnabled()) {
+                log.debug(String.format("Node: %s, info call: %s, result: %s", node, infoCall, result));
             }
             Map<String, String> infoData = parseInfoSingleItem(result);
             allResults.put(node, Optional.of(MapToObjectMapper.mapToObject(infoData, clazz)));
@@ -293,8 +306,8 @@ public class InfoParser {
         List<T> allResults = new ArrayList<>();
         for (Node node : nodes) {
             String result = Info.request(node, infoCall);
-            if (Log.debugEnabled() && allowLogging) {
-                Log.debug(String.format("Node: %s, info call: %s, result: %s", node, infoCall, result));
+            if (log.isDebugEnabled() && allowLogging) {
+                log.debug(String.format("Node: %s, info call: %s, result: %s", node, infoCall, result));
             }
             Map<String, String> infoData = parseInfoSingleItem(result);
             allResults.add(MapToObjectMapper.mapToObject(infoData, clazz));

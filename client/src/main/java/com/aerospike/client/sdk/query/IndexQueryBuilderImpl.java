@@ -18,7 +18,6 @@ package com.aerospike.client.sdk.query;
 
 import java.util.Objects;
 
-import com.aerospike.ael.ParseResult;
 import com.aerospike.client.sdk.AbstractFilterableBuilder;
 import com.aerospike.client.sdk.AerospikeException;
 import com.aerospike.client.sdk.AsyncRecordStream;
@@ -30,7 +29,6 @@ import com.aerospike.client.sdk.RecordStream;
 import com.aerospike.client.sdk.ResultCode;
 import com.aerospike.client.sdk.Session;
 import com.aerospike.client.sdk.command.QueryCommand;
-import com.aerospike.client.sdk.exp.Expression;
 import com.aerospike.client.sdk.policy.Behavior.Mode;
 import com.aerospike.client.sdk.policy.Behavior.OpKind;
 import com.aerospike.client.sdk.policy.Behavior.OpShape;
@@ -50,82 +48,57 @@ public class IndexQueryBuilderImpl extends QueryImpl {
     }
     @Override
     public RecordStream execute() {
-        return executeInternal();
+        return executeInternal(null);
     }
 
     @Override
     public RecordStream execute(ErrorStrategy strategy) {
         Objects.requireNonNull(strategy, "ErrorStrategy must not be null");
-        return executeInternal();
+        return executeInternal(null);
     }
 
     @Override
     public RecordStream execute(ErrorHandler handler) {
         Objects.requireNonNull(handler, "ErrorHandler must not be null");
-        return AbstractFilterableBuilder.filterStreamErrors(executeInternal(), handler);
+        return AbstractFilterableBuilder.filterStreamErrors(executeInternal(null), handler);
     }
 
     @Override
     public RecordStream executeAsync(ErrorStrategy strategy) {
         Objects.requireNonNull(strategy, "ErrorStrategy must not be null");
-        return executeInternal();
+        return executeInternal(null);
     }
 
     @Override
     public RecordStream executeAsync(ErrorHandler handler) {
         Objects.requireNonNull(handler, "ErrorHandler must not be null");
-        RecordStream source = executeInternal();
-
-        Session session = getSession();
-        Cluster cluster = session.getCluster();
-        ResolvedSettings policy = session.getBehavior().getSettings(OpKind.READ, OpShape.QUERY, Mode.ANY);
-        AsyncRecordStream filtered = new AsyncRecordStream(policy.getRecordQueueSize());
-
-        cluster.startVirtualThread(() -> {
-            try {
-                source.forEach(result -> {
-                    if (!result.isOk()) {
-                        AerospikeException ex = result.exception() != null
-                            ? result.exception()
-                            : AerospikeException.resultCodeToException(result.resultCode(), result.message(), result.inDoubt());
-                        handler.handle(result.key(), result.index(), ex);
-                    } else {
-                        filtered.publish(result);
-                    }
-                });
-            } finally {
-                filtered.complete();
-            }
-        });
-
-        return new RecordStream(filtered);
+        return executeInternal(handler);
     }
 
-    private RecordStream executeInternal() {
+    private RecordStream executeInternal(ErrorHandler handler) {
         Session session = getSession();
         Cluster cluster = session.getCluster();
         QueryBuilder qb = getQueryBuilder();
 
-        // Check for operations - not supported on index/scan queries
-        if (qb.getOperations() != null && !qb.getOperations().isEmpty()) {
-            throw AerospikeException.resultCodeToException(ResultCode.OP_NOT_APPLICABLE,
-                "CDT read operations and expression operations are not currently supported on " +
-                "dataset-based queries (scans and secondary index queries). " +
-                "Use key-based queries instead: session.query(dataSet.id(key1, key2, ...))");
+        // Check for operations - not supported on servers < 8.1.2
+        if (!cluster.supportsQueryOperations() && qb.getOperations() != null &&
+            !qb.getOperations().isEmpty()) {
+            throw AerospikeException.toException(ResultCode.OP_NOT_APPLICABLE,
+                "Index query with read operations requires server version 8.1.2+. Server version is " +
+                cluster.getVersion());
         }
+
         ResolvedSettings policy = session.getBehavior().getSettings(OpKind.READ, OpShape.QUERY, Mode.ANY);
         WhereClauseProcessor where = getQueryBuilder().getAel();
-        Filter filter = null;
-        Expression filterExp = null;
+        QueryCommand cmd;
 
-        if (where != null) {
-            ParseResult pr = where.process(dataSet.getNamespace(), getSession());
-            filter = pr.getFilter();
-            filterExp = pr.getExpression();
-        }
+        cmd = IndexProbePlanner.buildCommand(
+            session, dataSet, where, qb.getQueryHint(), policy, qb);
 
         AsyncRecordStream stream = new AsyncRecordStream(policy.getRecordQueueSize());
-        QueryCommand cmd = new QueryCommand(cluster, dataSet, filter, filterExp, policy, qb);
+        if (handler != null) {
+            stream.withErrorHandler(handler);
+        }
         cmd.execute(stream);
 
         if (qb.getChunkSize() == 0) {

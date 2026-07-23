@@ -20,6 +20,9 @@ import java.util.Map;
 import java.util.WeakHashMap;
 import java.util.concurrent.ConcurrentHashMap;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 /**
  * Global registry for system settings that manages default and cluster-specific configurations.
  *
@@ -68,8 +71,8 @@ import java.util.concurrent.ConcurrentHashMap;
  * @see Cluster
  */
 public class SystemSettingsRegistry {
-
     private static final SystemSettingsRegistry INSTANCE = new SystemSettingsRegistry();
+    private static final Logger log = LoggerFactory.getLogger(Loggers.BEHAVIOR);
 
     /**
      * Default settings loaded from YAML or code.
@@ -116,13 +119,14 @@ public class SystemSettingsRegistry {
             ClusterInfo info = new ClusterInfo(clusterName, codeProvidedSettings);
             activeClusters.put(cluster, info);
 
-            if (Log.infoEnabled()) {
+            if (log.isInfoEnabled()) {
                 if (clusterName != null) {
                     boolean hasClusterSpecific = clusterSettings.containsKey(clusterName);
-                    Log.info("Registered cluster '" + clusterName + "' with " +
-                            (hasClusterSpecific ? "cluster-specific" : "default") + " system settings");
+
+                    log.info("Registered cluster '" + clusterName + "' with " +
+                        (hasClusterSpecific ? "cluster-specific" : "default") + " system settings");
                 } else {
-                    Log.info("Registered unnamed cluster with default system settings");
+                    log.info("Registered unnamed cluster with default system settings");
                 }
             }
         }
@@ -140,7 +144,9 @@ public class SystemSettingsRegistry {
         synchronized (activeClusters) {
             ClusterInfo info = activeClusters.get(cluster);
             if (info == null) {
-                Log.warn("Attempted to update name for unregistered cluster: " + discoveredName);
+                if (log.isWarnEnabled()) {
+                    log.warn("Attempted to update name for unregistered cluster: " + discoveredName);
+                }
                 return;
             }
 
@@ -158,12 +164,13 @@ public class SystemSettingsRegistry {
                 SystemSettings effectiveSettings = getEffectiveSettings(info);
                 cluster.applySystemSettings(effectiveSettings);
 
-                if (Log.infoEnabled()) {
-                    Log.info("Discovered cluster name '" + discoveredName +
+                if (log.isInfoEnabled()) {
+                    log.info("Discovered cluster name '" + discoveredName +
                             "', upgraded to cluster-specific system settings");
                 }
-            } else if (Log.infoEnabled()) {
-                Log.info("Discovered cluster name '" + discoveredName +
+            }
+            else if (log.isInfoEnabled()) {
+                log.info("Discovered cluster name '" + discoveredName +
                         "', continuing with default system settings");
             }
         }
@@ -221,8 +228,8 @@ public class SystemSettingsRegistry {
         SystemSettings oldDefaults = this.defaultSettings;
         this.defaultSettings = newSettings;
 
-        if (Log.infoEnabled()) {
-            Log.info("Updated default system settings");
+        if (log.isInfoEnabled()) {
+            log.info("Updated default system settings");
         }
 
         // Apply to all affected clusters
@@ -238,9 +245,10 @@ public class SystemSettingsRegistry {
                 // Only apply if something actually changed
                 if (!oldEffective.equals(newEffective)) {
                     cluster.applySystemSettings(newEffective);
-                    if (Log.infoEnabled()) {
+                    if (log.isInfoEnabled()) {
                         String name = info.clusterName != null ? info.clusterName : "(unnamed)";
-                        Log.info("Applied updated default settings to cluster: " + name);
+
+                        log.info("Applied updated default settings to cluster: " + name);
                     }
                 }
             }
@@ -263,8 +271,8 @@ public class SystemSettingsRegistry {
 
         clusterSettings.put(clusterName, newSettings);
 
-        if (Log.infoEnabled()) {
-            Log.info("Updated system settings for cluster: " + clusterName);
+        if (log.isInfoEnabled()) {
+            log.info("Updated system settings for cluster: " + clusterName);
         }
 
         // Apply to all clusters with this name
@@ -276,8 +284,8 @@ public class SystemSettingsRegistry {
                     SystemSettings effectiveSettings = getEffectiveSettings(info);
                     cluster.applySystemSettings(effectiveSettings);
 
-                    if (Log.infoEnabled()) {
-                        Log.info("Applied cluster-specific settings to: " + clusterName);
+                    if (log.isInfoEnabled()) {
+                        log.info("Applied cluster-specific settings to: " + clusterName);
                     }
                 }
             }
@@ -299,8 +307,8 @@ public class SystemSettingsRegistry {
             return;  // Nothing to do
         }
 
-        if (Log.infoEnabled()) {
-            Log.info("Removed system settings for cluster: " + clusterName);
+        if (log.isInfoEnabled()) {
+            log.info("Removed system settings for cluster: " + clusterName);
         }
 
         // Apply default settings to affected clusters
@@ -312,8 +320,8 @@ public class SystemSettingsRegistry {
                     SystemSettings effectiveSettings = getEffectiveSettings(info);
                     cluster.applySystemSettings(effectiveSettings);
 
-                    if (Log.infoEnabled()) {
-                        Log.info("Reverted to default settings for cluster: " + clusterName);
+                    if (log.isInfoEnabled()) {
+                        log.info("Reverted to default settings for cluster: " + clusterName);
                     }
                 }
             }

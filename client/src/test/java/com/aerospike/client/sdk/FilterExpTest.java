@@ -181,7 +181,7 @@ public class FilterExpTest extends ClusterTest {
         // Since "failOnFilteredOut" was specified, we expect there to be 2 record, as the second one was filtered out
         assertTrue(rs.hasNext());
         RecordResult recResult = rs.next();
-        assertEquals(recResult.resultCode(), ResultCode.FILTERED_OUT);
+        assertEquals(recResult.getResultCode(), ResultCode.FILTERED_OUT);
 
         assertFalse(rs.hasNext());
     }
@@ -471,10 +471,14 @@ public class FilterExpTest extends ClusterTest {
                     Exp.le(Exp.var(name), Exp.val(3.3001))));
 
         testExp(exp);
-        testAel("let(x = $.B.get(type: FLOAT) + 1.1) then(${x} >= 3.2999 and ${x} <= 3.3001)");
+        String ael = cluster.supportsAel() ?
+                "let(x = $.B:FLOAT + 1.1) then(${x} >= 3.2999 and ${x} <= 3.3001)" :
+                "let(x = $.B.get(type: FLOAT) + 1.1) then(${x} >= 3.2999 and ${x} <= 3.3001)";
+        testAel(ael);
     }
 
     @Test
+    //@Disabled("Pending fix on server side")
     public void filterSub() {
         Exp exp =
             Exp.eq(
@@ -518,7 +522,10 @@ public class FilterExpTest extends ClusterTest {
                     Exp.le(Exp.var(name), Exp.val(4.8401))));
 
         testExp(exp);
-        testAel("let (x = $." + binB + ".get(type: FLOAT) ** 2.0) then (${x} >= 4.8399 and ${x} <= 4.8401)");
+        String ael = cluster.supportsAel() ?
+                "let (x = $." + binB + ":FLOAT ** 2.0) then (${x} >= 4.8399 and ${x} <= 4.8401)" :
+                "let (x = $." + binB + ".get(type: FLOAT) ** 2.0) then (${x} >= 4.8399 and ${x} <= 4.8401)";
+        testAel(ael);
     }
 
     @Test
@@ -532,7 +539,10 @@ public class FilterExpTest extends ClusterTest {
                     Exp.le(Exp.var(name), Exp.val(1.1376))));
 
         testExp(exp);
-        testAel("let (x = log($." + binB + ".get(type: FLOAT), 2.0)) then (${x} >= 1.1374 and ${x} <= 1.1376)");
+        String ael = cluster.supportsAel() ?
+                "let (x = log($." + binB + ":FLOAT, 2.0)) then (${x} >= 1.1374 and ${x} <= 1.1376)" :
+                "let (x = log($." + binB + ".get(type: FLOAT), 2.0)) then (${x} >= 1.1374 and ${x} <= 1.1376)";
+        testAel(ael);
     }
 
     @Test
@@ -565,7 +575,10 @@ public class FilterExpTest extends ClusterTest {
                 Exp.val(2.0));
 
         testExp(exp);
-        testAel("floor($." + binB + ".get(type: FLOAT)) == 2.0");
+        String ael = cluster.supportsAel() ?
+                "floor($." + binB + ":FLOAT) == 2.0" :
+                "floor($." + binB + ".get(type: FLOAT)) == 2.0";
+        testAel(ael);
     }
 
     @Test
@@ -576,7 +589,11 @@ public class FilterExpTest extends ClusterTest {
                 Exp.val(3.0));
 
         testExp(exp);
-        testAel("ceil($." + binB + ".get(type: FLOAT)) == 3.0");
+
+        String ael = cluster.supportsAel() ?
+                "ceil($." + binB + ":FLOAT) == 3.0" :
+                "ceil($." + binB + ".get(type: FLOAT)) == 3.0";
+        testAel(ael);
     }
 
     @Test
@@ -851,10 +868,17 @@ public class FilterExpTest extends ClusterTest {
                 Exp.val(2));
 
         testExps(exp1, exp2);
-        testAels("when($." + binA + " == 0 => $." + binD + " + $." + binE +
-                    ", $." + binA + " == 1 => $." + binD + " - $." + binE +
-                    ", $." + binA + " == 2 => $." + binD + " * $." + binE +
-                    ", default => -1) == 2");
+
+        String ael = cluster.supportsAel() ?
+                "when($." + binA + ":INT == 0 => $." + binD + ":INT + $." + binE + ":INT" +
+                        ", $." + binA + ":INT == 1 => $." + binD + ":INT - $." + binE + ":INT" +
+                        ", $." + binA + ":INT == 2 => $." + binD + ":INT * $." + binE + ":INT" +
+                        ", default => -1) == 2" :
+                "when($." + binA + " == 0 => $." + binD + " + $." + binE +
+                        ", $." + binA + " == 1 => $." + binD + " - $." + binE +
+                        ", $." + binA + " == 2 => $." + binD + " * $." + binE +
+                        ", default => -1) == 2";
+        testAels(ael);
     }
 
     @Test
@@ -880,7 +904,7 @@ public class FilterExpTest extends ClusterTest {
 
         assertTrue(rs.hasNext());
         RecordResult recResult = rs.next();
-        assertEquals(recResult.resultCode(), ResultCode.FILTERED_OUT);
+        assertEquals(recResult.getResultCode(), ResultCode.FILTERED_OUT);
 
         assertTrue(rs.hasNext());
         rs.next().recordOrThrow();

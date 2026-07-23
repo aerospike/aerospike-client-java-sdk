@@ -32,22 +32,25 @@ import com.aerospike.client.sdk.DataSet;
 import com.aerospike.client.sdk.DefaultRecordMappingFactory;
 import com.aerospike.client.sdk.ErrorStrategy;
 import com.aerospike.client.sdk.Key;
-import com.aerospike.client.sdk.NavigatableRecordStream;
 import com.aerospike.client.sdk.Record;
 import com.aerospike.client.sdk.RecordResult;
 import com.aerospike.client.sdk.RecordStream;
 import com.aerospike.client.sdk.ResultCode;
 import com.aerospike.client.sdk.Session;
 import com.aerospike.client.sdk.SpecialValue;
-import com.aerospike.client.sdk.TypeSafeDataSet;
+import com.aerospike.client.sdk.TypedDataSet;
+import com.aerospike.client.sdk.TypedNavigatableRecordStream;
+import com.aerospike.client.sdk.TypedRecordStream;
 import com.aerospike.client.sdk.ael.Ael;
 import com.aerospike.client.sdk.cdt.ListOrder;
 import com.aerospike.client.sdk.cdt.MapOrder;
 import com.aerospike.client.sdk.info.classes.NamespaceDetail;
 import com.aerospike.client.sdk.info.classes.Sindex;
+import com.aerospike.client.sdk.operation.BitOverflowAction;
 import com.aerospike.client.sdk.policy.Behavior;
 import com.aerospike.client.sdk.policy.QueryDuration;
 import com.aerospike.client.sdk.policy.Behavior.Selectors;
+import com.aerospike.client.sdk.query.PreparedAel;
 import com.aerospike.client.sdk.query.SortDir;
 import com.aerospike.client.sdk.query.SortProperties;
 import com.aerospike.client.sdk.task.ExecuteTask;
@@ -61,7 +64,7 @@ import com.aerospike.examples.query.CustomerMapper;
  *
  * <p>The example intentionally exercises a wide range of operations end-to-end. To keep the
  * narrative readable, each logical area is factored into its own {@code demonstrate...} method
- * that shares the same {@link Session} and {@link TypeSafeDataSet}. The data model
+ * that shares the same {@link Session} and {@link TypedDataSet}. The data model
  * ({@link Customer}, {@link Address} and their mappers) lives in the
  * {@code com.aerospike.examples.query} package.
  */
@@ -72,8 +75,12 @@ public class QueryExamples extends Example {
         int count = 0;
         while (recordStream.hasNext()) {
             RecordResult key = recordStream.next();
-            System.out.printf("%5d - Key: %s, Value: %s\n", (++count), key.key(), key);
+            System.out.printf("%5d - Key: %s, Value: %s\n", (++count), key.getKey(), key);
         }
+    }
+
+    public static void print(TypedRecordStream<?> typedStream) {
+        print(typedStream.asUntypedRecordStream());
     }
 
     @Override
@@ -91,6 +98,7 @@ public class QueryExamples extends Example {
         Behavior newBehavior = Behavior.DEFAULT.deriveWithChanges("newBehavior", builder ->
             builder.on(Selectors.all(), ops -> ops
                     .waitForSocketResponseAfterCallFails(Duration.ofSeconds(3))
+                    .sendKey(true)
             )
             .on(Selectors.reads().ap(), ops -> ops
                     .waitForCallToComplete(Duration.ofMillis(25))
@@ -118,7 +126,9 @@ public class QueryExamples extends Example {
         Behavior nonExceptionBehvaior = Behavior.DEFAULT.deriveWithChanges("nonException", builder ->
             builder.on(Selectors.all(), ops -> ops.stackTraceOnException(false)));
 
-        TypeSafeDataSet<Customer> customerDataSet = TypeSafeDataSet.of(namespace(), "person", Customer.class);
+        TypedDataSet<Customer> customerDataSet = TypedDataSet.of(namespace(), "person", Customer.class);
+        TypedDataSet<Address> addressDataSet = TypedDataSet.of(namespace(), "address", Address.class);
+        DataSet cdtDemoRecords = customerDataSet.asDataSet();
 //            DataSet customerDataSet = dataSet("person");
 
         Session session = cluster.createSession(newBehavior);
@@ -138,6 +148,7 @@ public class QueryExamples extends Example {
         demonstratePointAndHeaderReads(session, customerDataSet);
         demonstrateObjectListAndChunking(session, customerDataSet, customerMapper);
         demonstrateSortingAndPagination(session, customerDataSet, customerMapper);
+        demonstratePreparedAel(session, customerDataSet, customerMapper);
         demonstrateTtl(session, customerDataSet);
         demonstrateReadWriteExpressions(session, customerDataSet);
         demonstrateQueryHints(session, customerDataSet);
@@ -145,7 +156,10 @@ public class QueryExamples extends Example {
         demonstrateMultiOperationBatches(session, customerDataSet, users);
         Customer readCustomer = demonstrateObjectMapping(session, customerDataSet, customerMapper);
         demonstrateGenerationCheck(session, customerDataSet, readCustomer);
-        demonstrateComplexCdt(session, customerDataSet);
+        demonstrateComplexCdt(session, cdtDemoRecords);
+        demonstrateBitOperations(session, cdtDemoRecords);
+        demonstrateHeterogeneousBatch(session, customerDataSet, addressDataSet);
+        demonstrateAsyncMapping(session, customerDataSet);
     }
 
     private void printClusterInfo(Session session) {
@@ -163,7 +177,7 @@ public class QueryExamples extends Example {
         });
     }
 
-    private void demonstrateBasicWritesAndErrors(Session session, TypeSafeDataSet<Customer> customerDataSet) {
+    private void demonstrateBasicWritesAndErrors(Session session, TypedDataSet<Customer> customerDataSet) {
         session.truncate(customerDataSet);
 
         try {
@@ -212,11 +226,12 @@ public class QueryExamples extends Example {
         session.upsert(customerDataSet.id("bob")).bin("A").setTo(2).bin("B").setTo(2.2).execute();
         RecordStream rs1 = session.query(customerDataSet.id("bob"))
                 .readingOnlyBins("name")
-                .execute();
+                .execute()
+                .asUntypedRecordStream();
         System.out.println(rs1.getFirst());
     }
 
-    private void seedData(Session session, TypeSafeDataSet<Customer> customerDataSet, CustomerMapper customerMapper,
+    private void seedData(Session session, TypedDataSet<Customer> customerDataSet, CustomerMapper customerMapper,
             List<Customer> customers) {
         session.upsert(customerDataSet.ids(1,2,3,4,5)).bin("holdings").add(1).execute();
         session.upsert(customerDataSet)
@@ -279,7 +294,7 @@ public class QueryExamples extends Example {
                 .id(905).values("Sam", 24, "brown", new Date().getTime())
                 .defaultExpireRecordAfter(Duration.ofDays(30))
                 .execute();
-        values.forEach(kr -> System.out.printf("%s -> %s\n", kr.key(), kr.recordOrThrow()));
+        values.forEach(kr -> System.out.printf("%s -> %s\n", kr.getKey(), kr.recordOrThrow()));
 
         for (int i = 0; i < 15; i++) {
             session.upsert(customerDataSet.id(i))
@@ -410,7 +425,7 @@ public class QueryExamples extends Example {
             );
     }
 
-    private void demonstrateConditionalUpdates(Session session, TypeSafeDataSet<Customer> customerDataSet,
+    private void demonstrateConditionalUpdates(Session session, TypedDataSet<Customer> customerDataSet,
             CustomerMapper customerMapper, List<Customer> customers) {
         System.out.println("Updating all customers called Tim");
         print(session.update(customerDataSet)
@@ -432,9 +447,9 @@ public class QueryExamples extends Example {
                 session.query(customerDataSet.id(46)).execute().getFirstRecord().getInt("age"));
     }
 
-    private void demonstrateBatchReads(Session session, TypeSafeDataSet<Customer> customerDataSet) {
+    private void demonstrateBatchReads(Session session, TypedDataSet<Customer> customerDataSet) {
         // Batch partition filter test
-        List<Key> keys = customerDataSet.ids(IntStream.rangeClosed(20, 48).toArray());
+        List<Key> keys = customerDataSet.asKeys(IntStream.rangeClosed(20, 48).toArray());
         System.out.println("Read 25 records, but only those in partitions 0->2047");
         print(session.query(keys)
                 .onPartitionRange(0, 2048)
@@ -461,8 +476,8 @@ public class QueryExamples extends Example {
         print(session.query(customerDataSet).limit(6).execute());
     }
 
-    private void demonstrateAsyncFilteredUpdates(Session session, TypeSafeDataSet<Customer> customerDataSet) {
-        List<Key> keyList2 = customerDataSet.ids(20,21,22,23,24,25,26,27);
+    private void demonstrateAsyncFilteredUpdates(Session session, TypedDataSet<Customer> customerDataSet) {
+        List<Key> keyList2 = customerDataSet.asKeys(20,21,22,23,24,25,26,27);
         RecordStream thisStream = session.update(keyList2)
                .bin("age").add(1)
                .execute();
@@ -490,7 +505,7 @@ public class QueryExamples extends Example {
          print(session.query(keyList2).execute());
     }
 
-    private void demonstratePointAndHeaderReads(Session session, TypeSafeDataSet<Customer> customerDataSet) {
+    private void demonstratePointAndHeaderReads(Session session, TypedDataSet<Customer> customerDataSet) {
         // Query contract:
         // - If a list of ids is provided and there is not "sort" clause, the records in the stream are returned in the order which the ids are specified
         // - If we're processing the records with notifiers, we cannot also get them back in a stream
@@ -514,10 +529,10 @@ public class QueryExamples extends Example {
 //                    .execute();
 
         System.out.println("\nRead point records - in the same order as the keys, limit to 3");
-        print(session.query(customerDataSet.ids(1,3,5,7)).limit(3).execute());
+        print(session.queryTypedKeys(customerDataSet.ids(1,3,5,7)).limit(3).execute());
 
         System.out.println("\nSingle point record");
-        print(session.query(customerDataSet.ids(6)).execute());
+        print(session.queryTypedKeys(customerDataSet.ids(6)).execute());
 
         System.out.println("Read the set, output as stream, limit of 5");
         session.query(customerDataSet).limit(5).execute()
@@ -528,14 +543,14 @@ public class QueryExamples extends Example {
         System.out.println("Read header, point read");
         print(session.query(customerDataSet.id(6)).withNoBins().execute());
         System.out.println("Read header, batch read");
-        print(session.query(customerDataSet.ids(6,7,8)).withNoBins().execute());
+        print(session.queryTypedKeys(customerDataSet.ids(6,7,8)).withNoBins().execute());
         System.out.println("Read header, set read");
         print(session.query(customerDataSet).withNoBins().execute());
 
         System.out.println("Read with select bins, point read");
-        print(session.query(customerDataSet.ids(6)).readingOnlyBins("name", "age").execute());
+        print(session.queryTypedKeys(customerDataSet.ids(6)).readingOnlyBins("name", "age").execute());
         System.out.println("Read with select bins, batch read");
-        print(session.query(customerDataSet.ids(6,7,8)).readingOnlyBins("name", "age").execute());
+        print(session.queryTypedKeys(customerDataSet.ids(6,7,8)).readingOnlyBins("name", "age").execute());
         System.out.println("Read with select bins, set read");
         print(session.query(customerDataSet).readingOnlyBins("name", "age").execute());
 
@@ -544,14 +559,14 @@ public class QueryExamples extends Example {
 
         // Throw an exception
         try {
-            print(session.query(customerDataSet.ids(6,7,8)).readingOnlyBins("name", "age").withNoBins().execute());
+            print(session.queryTypedKeys(customerDataSet.ids(6,7,8)).readingOnlyBins("name", "age").withNoBins().execute());
         }
         catch (Exception e) {
             e.printStackTrace();
         }
     }
 
-    private void demonstrateObjectListAndChunking(Session session, TypeSafeDataSet<Customer> customerDataSet,
+    private void demonstrateObjectListAndChunking(Session session, TypedDataSet<Customer> customerDataSet,
             CustomerMapper customerMapper) {
         // TODO: Put transaction control into policies
 //            session.doInTransaction(txnSession -> {
@@ -563,11 +578,11 @@ public class QueryExamples extends Example {
 //                txnSession.insert(customerDataSet.id(3)).notInAnyTransaction().execute();
 //            });
 
-        List<Customer> customers = session.query(customerDataSet.ids(20, 21)).execute().toObjectList(customerMapper);
+        List<Customer> customers = session.queryTypedKeys(customerDataSet.ids(20, 21)).execute().toObjectList(customerMapper);
         System.out.println(customers);
 
         // Records-per-second check
-        RecordStream queryResults = session.query(customerDataSet).recordsPerSecond(1).execute();
+        RecordStream queryResults = session.query(customerDataSet).recordsPerSecond(1).execute().asUntypedRecordStream();
         queryResults.forEach(rr -> System.out.println(rr.recordOrThrow()));
         // session.query(customerDataSet.id(1)).recordsPerSecond(100).execute();
 
@@ -576,7 +591,7 @@ public class QueryExamples extends Example {
         System.out.println(customers);
 
         // Server-side chunking example - process records in chunks of 10
-        RecordStream rs = session.query(customerDataSet).chunkSize(10).execute();
+        RecordStream rs = session.query(customerDataSet).chunkSize(10).execute().asUntypedRecordStream();
         int chunk = 0;
         while (rs.hasMoreChunks()) {
             System.out.println("Chunk: " + (++chunk));
@@ -590,7 +605,7 @@ public class QueryExamples extends Example {
             .sum();
     }
 
-    private void demonstrateSortingAndPagination(Session session, TypeSafeDataSet<Customer> customerDataSet,
+    private void demonstrateSortingAndPagination(Session session, TypedDataSet<Customer> customerDataSet,
             CustomerMapper customerMapper) {
         System.out.println("\n\nSorting customers by Name with a where clause using NavigatableRecordStream");
         List<Customer> customers = session.query(customerDataSet)
@@ -622,7 +637,7 @@ public class QueryExamples extends Example {
 
 
         System.out.println("\n\nSorting customers by Age (desc) then name (asc), using NavigatableRecordStream for client-side pagination");
-        try (NavigatableRecordStream navStream = session.query(customerDataSet)
+        try (TypedNavigatableRecordStream<Customer> navStream = session.query(customerDataSet)
                 .limit(13)
                 .execute()
                 .asNavigatableStream()
@@ -659,11 +674,30 @@ public class QueryExamples extends Example {
         }
     }
 
-    private void demonstrateTtl(Session session, TypeSafeDataSet<Customer> customerDataSet) {
+    private void demonstratePreparedAel(Session session, TypedDataSet<Customer> customerDataSet,
+            CustomerMapper customerMapper) {
+        PreparedAel nameAndAgeFilter = PreparedAel.prepare("$.name == ?0 and $.age > ?1");
+
+        System.out.println("\nPreparedAel filter (Tim, age > 30):");
+        session.query(customerDataSet)
+            .where(nameAndAgeFilter, "Tim", 30)
+            .execute()
+            .toObjectList(customerMapper)
+            .forEach(System.out::println);
+
+        System.out.println("PreparedAel filter (Jane, age > 21):");
+        session.query(customerDataSet)
+            .where(nameAndAgeFilter, "Jane", 21)
+            .execute()
+            .toObjectList(customerMapper)
+            .forEach(System.out::println);
+    }
+
+    private void demonstrateTtl(Session session, TypedDataSet<Customer> customerDataSet) {
         // -------------
         // UDF Calls
         // -------------
-//            Object udfResult = session.executeUdf(customerDataSet.id(1)).function("pkg", "myFunc").execute().getFirstUdfResult();
+//            Object udfResult = session.executeUdf(customerDataSet.id(1)).function("pkg", "myFunc").execute().getFirstUdfResultObject();
 //            System.out.println("UDF Result = " + udfResult);
 
         // ---------------------------
@@ -689,7 +723,7 @@ public class QueryExamples extends Example {
         System.out.println(session.query(customerDataSet.id(1)).execute().getFirst());
     }
 
-    private void demonstrateReadWriteExpressions(Session session, TypeSafeDataSet<Customer> customerDataSet) {
+    private void demonstrateReadWriteExpressions(Session session, TypedDataSet<Customer> customerDataSet) {
         // ---------------------------
         // Read and write expressions
         // ---------------------------
@@ -707,7 +741,7 @@ public class QueryExamples extends Example {
             .execute());
         System.out.println("Using a read expression");
 
-        RecordStream rs = session.query(customerDataSet.ids(223))
+        TypedRecordStream<Customer> rs = session.queryTypedKeys(customerDataSet.ids(223))
             .bin("bob").selectFrom("$.age + $.value", arg -> arg.ignoreEvalFailure())
             .execute();
         print(rs);
@@ -730,7 +764,7 @@ public class QueryExamples extends Example {
             .execute();
     }
 
-    private void demonstrateQueryHints(Session session, TypeSafeDataSet<Customer> customerDataSet) {
+    private void demonstrateQueryHints(Session session, TypedDataSet<Customer> customerDataSet) {
         // ---------------------------
         // Query hints
         // ---------------------------
@@ -767,7 +801,7 @@ public class QueryExamples extends Example {
             .execute();
     }
 
-    private void demonstrateBackgroundQuery(Session session, TypeSafeDataSet<Customer> customerDataSet) {
+    private void demonstrateBackgroundQuery(Session session, TypedDataSet<Customer> customerDataSet) {
         // ---------------------------
         // Background query operations
         // ---------------------------
@@ -779,7 +813,7 @@ public class QueryExamples extends Example {
             .waitTillComplete();
     }
 
-    private void demonstrateMultiOperationBatches(Session session, TypeSafeDataSet<Customer> customerDataSet, DataSet users) {
+    private void demonstrateMultiOperationBatches(Session session, TypedDataSet<Customer> customerDataSet, DataSet users) {
         // ------------------------
         // Multi operation batches
         // ------------------------
@@ -790,7 +824,7 @@ public class QueryExamples extends Example {
 //                    .where("$.age > 100")
                 .expireRecordAfter(Duration.ofMinutes(5))
             .exists(customerDataSet.ids(1000,1001))
-            .query(customerDataSet.ids(10,12))
+            .queryTypedKeys(customerDataSet.ids(10,12))
             .delete(customerDataSet.id(1003))
             .notInAnyTransaction()
 //                .defaultWhere("$.value > 200")
@@ -799,7 +833,7 @@ public class QueryExamples extends Example {
         System.out.println("Multi operations:");
         print(rsStream);
 
-        rsStream = session.query(customerDataSet.ids(1,2,3))
+        rsStream = session.queryTypedKeys(customerDataSet.ids(1,2,3))
                     .bin("name").get()
                     .bin("map").onMapKeyRange(5, 10).getKeysAndValues()
                 .update(customerDataSet.ids(1))
@@ -817,7 +851,7 @@ public class QueryExamples extends Example {
                 .defaultWhere("$.updated == false")
                 .execute();
 
-        rsStream = session.query(customerDataSet.ids(1,2,3))
+        rsStream = session.queryTypedKeys(customerDataSet.ids(1,2,3))
                         .limit(2)
                 .update(customerDataSet.ids(4,5,6))
                     .bin("name").setTo("bob")
@@ -838,7 +872,7 @@ public class QueryExamples extends Example {
         stream.close();
     }
 
-    private Customer demonstrateObjectMapping(Session session, TypeSafeDataSet<Customer> customerDataSet,
+    private Customer demonstrateObjectMapping(Session session, TypedDataSet<Customer> customerDataSet,
             CustomerMapper customerMapper) {
         // --------------------
         // Object mapping
@@ -874,13 +908,13 @@ public class QueryExamples extends Example {
         return readCustomer;
     }
 
-    private void demonstrateGenerationCheck(Session session, TypeSafeDataSet<Customer> customerDataSet, Customer readCustomer) {
+    private void demonstrateGenerationCheck(Session session, TypedDataSet<Customer> customerDataSet, Customer readCustomer) {
         // ----------------
         // Generation check
         // ----------------
         System.out.println("\n--- Generation check test ----");
 
-        RecordStream data = session.query(customerDataSet.id(999)).execute();
+        RecordStream data = session.query(customerDataSet.id(999)).execute().asUntypedRecordStream();
         data.getFirst().ifPresent(keyRecord -> {
             int generation = keyRecord.recordOrThrow().generation;
             System.out.println("   Read record with generation of " + generation);
@@ -906,7 +940,7 @@ public class QueryExamples extends Example {
         });
     }
 
-    private void demonstrateComplexCdt(Session session, TypeSafeDataSet<Customer> customerDataSet) {
+    private void demonstrateComplexCdt(Session session, DataSet customerDataSet) {
         // ----------------------------
         // Complex CDT operations
         // ----------------------------
@@ -1109,5 +1143,92 @@ public class QueryExamples extends Example {
         session.upsert(customerDataSet.id(1))
             .bin("test").onMapKeyRange(5, SpecialValue.INFINITY).getKeys()
             .execute();
+    }
+
+    private void demonstrateBitOperations(Session session, DataSet records) {
+        System.out.println("\n--- Bit (BLOB) operations ---");
+        Key bitKey = records.id(501);
+        session.delete(bitKey).execute();
+        session.upsert(bitKey)
+            .bin("flags").setTo(new byte[] {0x01, 0x42})
+            .execute();
+
+        session.update(bitKey)
+            .bin("flags").bitResize(4)
+            .bin("flags").bitSet(8, 8, new byte[] {(byte) 0xFF})
+            .bin("flags").bitOr(0, 16, new byte[] {(byte) 0x0F, (byte) 0xF0})
+            .execute();
+
+        RecordStream bitRead = session.query(bitKey)
+            .bin("flags").bitGet(0, 8)
+            .bin("flags").bitCount(0, 32)
+            .execute();
+        System.out.println("First byte + set-bit count: " + bitRead.getFirst());
+
+        RecordStream intRead = session.query(bitKey)
+            .bin("flags").bitGetInt(0, 16, false)
+            .execute();
+        System.out.println("UInt16 at bit 0: " + intRead.getFirst());
+
+        session.query(bitKey)
+            .bin("flags").bitLscan(0, 32, true)
+            .bin("flags").bitRscan(0, 32, true)
+            .execute()
+            .forEach(rr -> System.out.println("Scan result: " + rr));
+
+        session.update(bitKey)
+            .bin("flags").bitSetInt(16, 16, 100)
+            .bin("flags").bitAdd(16, 16, 1, false, BitOverflowAction.WRAP)
+            .execute();
+
+        System.out.println("After bitSetInt/bitAdd: " +
+            session.query(bitKey).bin("flags").bitGetInt(16, 16, false).execute().getFirst());
+
+        session.update(bitKey)
+            .bin("flags").bitLshift(0, 8, 1)
+            .bin("flags").bitNot(8, 8)
+            .execute();
+
+        session.update(bitKey)
+            .bin("flags").bitInsert(1, new byte[] {0x11, 0x22})
+            .bin("flags").bitRemove(3, 1)
+            .execute();
+        System.out.println("Final flags blob: " +
+            session.query(bitKey).bin("flags").get().execute().getFirst());
+        System.out.println("--- End Bit (BLOB) operations ---");
+    }
+
+    private void demonstrateHeterogeneousBatch(Session session, TypedDataSet<Customer> customerDataSet,
+            TypedDataSet<Address> addressDataSet) {
+        session.upsert(addressDataSet.id(1))
+            .bin("line1").setTo("123 Main St")
+            .bin("city").setTo("Denver")
+            .bin("state").setTo("CO")
+            .bin("country").setTo("USA")
+            .bin("zip").setTo("80000")
+            .execute();
+
+        RecordStream results = session.queryTypedKeys(customerDataSet.ids(21, 22, 23))
+            .query(addressDataSet.id(1))
+            .execute();
+        System.out.println("\n--- Heterogeneous batch example ---");
+        results.forEach(rr -> System.out.println((Object) rr.toObject()));
+    }
+
+    private void demonstrateAsyncMapping(Session session, TypedDataSet<Customer> customerDataSet) {
+        System.out.println("\n--- Async CompletableFuture examples ---");
+        List<Customer> customers = session.queryTypedKeys(customerDataSet.ids(1, 2, 3))
+            .executeAsync(ErrorStrategy.IN_STREAM)
+            .asCompletableFutureMapped()
+            .join();
+        customers.forEach(System.out::println);
+
+        Optional<Customer> customer = session.query(customerDataSet.id(1))
+            .executeAsync(ErrorStrategy.IN_STREAM)
+            .asCompletableFutureMappedSingle()
+            .join();
+        customer.ifPresentOrElse(
+            value -> System.out.println("Single customer: " + value),
+            () -> System.out.println("Customer id=1 not found"));
     }
 }

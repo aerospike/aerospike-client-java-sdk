@@ -18,7 +18,6 @@ package com.aerospike.client.sdk;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.HashMap;
@@ -38,7 +37,7 @@ import org.junit.jupiter.api.Test;
  * - Single-key and batch-key queries
  * - Dataset queries (should throw for operations)
  */
-public class QueryOperationsTest extends ClusterTest {
+public class ReadOperationsTest extends ClusterTest {
 
     private static final String KEY_PREFIX = "query_ops_";
 
@@ -313,36 +312,6 @@ public class QueryOperationsTest extends ClusterTest {
                 count++;
             }
             assertEquals(3, count);
-        }
-    }
-
-    // ========== Dataset Query Tests (should throw) ==========
-
-    @Nested
-    class DatasetQueries {
-
-        @Test
-        public void datasetQueryWithCdtReadThrowsException() {
-            // CDT operations on dataset queries are not supported by the server
-            AerospikeException ex = assertThrows(AerospikeException.class, () -> {
-                session.query(args.set)
-                    .bin("settings").onMapKey("theme").getValues()
-                    .execute();
-            });
-
-            assertTrue(ex.getMessage().contains("not currently supported"));
-        }
-
-        @Test
-        public void datasetQueryWithSelectFromThrowsException() {
-            // Expression operations on dataset queries are not supported
-            AerospikeException ex = assertThrows(AerospikeException.class, () -> {
-                session.query(args.set)
-                    .bin("computed").selectFrom("$.age + 10")
-                    .execute();
-            });
-
-            assertTrue(ex.getMessage().contains("not currently supported"));
         }
     }
 

@@ -180,7 +180,7 @@ public class CommonExample extends Example {
         RecordStream results = session.exists(set.ids(113,114,999)).includeMissingKeys().execute();
 
         results.forEach(rr -> {
-            System.out.printf("   Key: %s -> %b\n", rr.key(), rr.asBoolean());
+            System.out.printf("   Key: %s -> %b\n", rr.getKey(), rr.asBoolean());
         });
 
         System.out.println("Batch touch");
@@ -188,7 +188,7 @@ public class CommonExample extends Example {
         results = session.touch(set.ids(113,114,999)).includeMissingKeys().execute();
 
         results.forEach(rr -> {
-            System.out.printf("   Key: %s -> %b\n", rr.key(), rr.asBoolean());
+            System.out.printf("   Key: %s -> %b\n", rr.getKey(), rr.asBoolean());
         });
 
         System.out.println("Batch delete");
@@ -196,7 +196,7 @@ public class CommonExample extends Example {
         results = session.delete(set.ids(113,114,999)).includeMissingKeys().execute();
 
         results.forEach(rr -> {
-            System.out.printf("   Key: %s -> %b\n", rr.key(), rr.asBoolean());
+            System.out.printf("   Key: %s -> %b\n", rr.getKey(), rr.asBoolean());
         });
 
         // Test filtering out

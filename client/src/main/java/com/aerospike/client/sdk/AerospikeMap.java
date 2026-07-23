@@ -23,166 +23,213 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 
+import com.aerospike.client.sdk.cdt.MapOrder;
+
 /**
- * {@link Map} implementation that records how entries should be encoded as an Aerospike map
- * (unordered, insertion-ordered / linked, or key-sorted). The backing collection matches the
- * {@link Type}: {@link HashMap}, {@link LinkedHashMap}, or {@link TreeMap} ordered by
- * {@link AerospikeComparator} for {@link Type#ORDERED}.
+ * {@link Map} implementation that records how entries should be encoded as an Aerospike map. The
+ * backing collection is chosen from the {@link MapOrder}: a {@link HashMap} for
+ * {@link MapOrder#UNORDERED}, or a {@link TreeMap} keyed by {@link AerospikeComparator} for
+ * {@link MapOrder#KEY_ORDERED} and {@link MapOrder#KEY_VALUE_ORDERED}.
  * <p>
- * Use {@link #setType(Type)} before writes when you need to change encoding without rebuilding
- * the map manually. {@link Type#LINKED} and {@link Type#ORDERED} are packed as key-ordered maps
- * on the wire; {@link #setPersistIndex(boolean)} applies only to those modes.
+ * Use {@link #withOrder(MapOrder)} before writes when you need to change encoding without
+ * rebuilding the map manually. {@link #persistIndex()} applies only to non-unordered maps.
  * <p>
  * Ordinary {@link Map} operations delegate to the backing map.
  *
  * @param <K> key type
  * @param <V> value type
  */
-public final class AerospikeMap<K,V> implements Map<K,V>{
+public final class AerospikeMap<K,V> implements Map<K,V> {
+    private static final AerospikeComparator Comparator = new AerospikeComparator();
+    private enum Backing {HASH, TREE, LINKED}
 
     /**
-     * Aerospike map wire layout: unordered map, insertion-ordered (linked) map, or map sorted by
-     * Aerospike value ordering on keys.
+     * Create an empty map with the given {@link MapOrder} and initial capacity. {@link MapOrder#UNORDERED}
+     * produces a {@link HashMap} backing; ordered variants produce a {@link TreeMap} keyed by
+     * {@link AerospikeComparator}.
+     *
+     * @param order    map encoding order
+     * @param capacity initial capacity hint for the backing map (used only for hash backing)
+     * @return a new empty {@code AerospikeMap}
      */
-    public enum Type {
-        /** Unordered map ({@link HashMap} backing). */
-        UNORDERED,
-        /** Insertion-ordered map ({@link LinkedHashMap} backing). */
-        LINKED,
-        /** Key-sorted map ({@link TreeMap} with {@link AerospikeComparator}). */
-        ORDERED
+    public static <K,V> AerospikeMap<K,V> of(MapOrder order, int capacity) {
+        return new AerospikeMap<>(order, capacity);
+    }
+
+    /**
+     * Create a map with the given {@link MapOrder} pre-populated from {@code src}. Entries are copied
+     * into the backing map appropriate for the chosen order.
+     *
+     * @param order map encoding order
+     * @param src   source map whose entries are copied
+     * @return a new {@code AerospikeMap} containing the entries of {@code src}
+     */
+    public static <K,V> AerospikeMap<K,V> of(MapOrder order, Map<? extends K,? extends V> src) {
+        return new AerospikeMap<>(order, src);
+    }
+
+    /**
+     * Wrap an existing {@link HashMap} and tag it as {@link MapOrder#UNORDERED}. The map is stored
+     * by reference; subsequent mutations through either reference are visible to both.
+     *
+     * @param map backing map (stored by reference)
+     * @return a new {@code AerospikeMap} delegating to {@code map}
+     */
+    public static <K,V> AerospikeMap<K,V> of(HashMap<K,V> map) {
+        return new AerospikeMap<>(map);
+    }
+
+    /**
+     * Wrap an existing {@link TreeMap} and tag it as {@link MapOrder#KEY_ORDERED}. Prefer a
+     * {@link TreeMap} constructed with {@link AerospikeComparator} so key order matches the server.
+     * The map is stored by reference.
+     *
+     * @param map backing map (stored by reference)
+     * @return a new {@code AerospikeMap} delegating to {@code map}
+     */
+    public static <K,V> AerospikeMap<K,V> of(TreeMap<K,V> map) {
+        return new AerospikeMap<>(map);
+    }
+
+    /**
+     * Wrap an existing {@link LinkedHashMap} and tag it as {@link MapOrder#KEY_ORDERED}. The map is
+     * stored by reference. Note that subsequent mutating {@link Map} operations may convert the
+     * backing collection to a {@link TreeMap} to maintain key order.
+     *
+     * @param map backing map (stored by reference)
+     * @return a new {@code AerospikeMap} delegating to {@code map}
+     */
+    public static <K,V> AerospikeMap<K,V> of(LinkedHashMap<K,V> map) {
+        return new AerospikeMap<>(map);
+    }
+
+    /**
+     * Store LinkedHashMap directly without implicit TreeMap conversion.
+     * For internal use only.
+     */
+    public static <K,V> AerospikeMap<K,V> forInternalUnpack(
+        LinkedHashMap<K,V> map, MapOrder order, boolean persistIndex
+    ) {
+        return new AerospikeMap<>(map, order, persistIndex);
     }
 
     private Map<K,V> map;
-    private Type type;
+    private Backing backing;
+    private MapOrder order;
     private boolean persistIndex;
 
-    /**
-     * Creates an empty map of the given {@link Type} and initial capacity.
-     *
-     * @param type     map encoding kind
-     * @param capacity initial capacity hint for the backing map
-     */
-    public AerospikeMap(Type type, int capacity) {
-        this.type = type;
+    private AerospikeMap(MapOrder order, Map<? extends K,? extends V> src) {
+        this(order, src.size());
+        putAll(src);
+    }
+
+    private AerospikeMap(MapOrder order, int capacity) {
+        this.order = order;
         this.persistIndex = false;
 
-        switch (type) {
-        default:
-        case UNORDERED:
-            map = new HashMap<>(capacity);
-            break;
-        case LINKED:
-            map = new LinkedHashMap<>(capacity);
-            break;
-        case ORDERED:
-            map = new TreeMap<>(new AerospikeComparator());
-            break;
+        switch (order) {
+            case UNORDERED -> {
+                backing = Backing.HASH;
+                map = new HashMap<>(capacity);
+            }
+            case KEY_ORDERED, KEY_VALUE_ORDERED -> {
+                backing = Backing.TREE;
+                map = new TreeMap<>(Comparator);
+            }
+            default -> throw new AssertionError(order);
         }
     }
 
-    /**
-     * Wraps an existing {@link HashMap} as {@link Type#UNORDERED}.
-     *
-     * @param map backing map (stored by reference)
-     */
-    public AerospikeMap(HashMap<K,V> map) {
+    private AerospikeMap(HashMap<K,V> map) {
         this.map = map;
-        this.type = Type.UNORDERED;
+        this.backing = Backing.HASH;
+        this.order = MapOrder.UNORDERED;
         this.persistIndex = false;
     }
 
-    /**
-     * Wraps an existing {@link LinkedHashMap} as {@link Type#LINKED}.
-     *
-     * @param map backing map (stored by reference)
-     */
-    public AerospikeMap(LinkedHashMap<K,V> map) {
+    private AerospikeMap(TreeMap<K,V> map) {
         this.map = map;
-        this.type = Type.LINKED;
+        this.backing = Backing.TREE;
+        this.order = MapOrder.KEY_ORDERED;
         this.persistIndex = false;
     }
 
-    /**
-     * Wraps an existing {@link TreeMap} as {@link Type#ORDERED}. Prefer a {@link TreeMap} constructed
-     * with {@link AerospikeComparator} so key order matches the server.
-     *
-     * @param map backing map (stored by reference)
-     */
-    public AerospikeMap(TreeMap<K,V> map) {
+    private AerospikeMap(LinkedHashMap<K,V> map) {
         this.map = map;
-        this.type = Type.ORDERED;
+        this.backing = Backing.LINKED;
+        this.order = MapOrder.KEY_ORDERED;
         this.persistIndex = false;
     }
 
+    private AerospikeMap(LinkedHashMap<K,V> map, MapOrder order, boolean persistIndex) {
+        this.map = map;
+        this.backing = Backing.LINKED;
+        this.order = order;
+        this.persistIndex = persistIndex;
+    }
+
     /**
-     * Returns the backing {@link Map} instance.
+     * Change the {@link MapOrder} and rebuild the backing collection if needed. Switching to
+     * {@link MapOrder#UNORDERED} moves entries into a {@link HashMap}; switching to
+     * {@link MapOrder#KEY_ORDERED} or {@link MapOrder#KEY_VALUE_ORDERED} moves them into a
+     * {@link TreeMap} keyed by {@link AerospikeComparator}. A no-op when {@code newOrder} matches
+     * the current order.
      *
-     * @return the delegate map
+     * @param newOrder target encoding order
+     * @return this instance for chaining
+     */
+    public AerospikeMap<K,V> withOrder(MapOrder newOrder) {
+        if (this.order == newOrder) {
+            return this;
+        }
+
+        this.order = newOrder;
+
+        if (newOrder == MapOrder.UNORDERED) {
+            if (backing != Backing.HASH) {
+                this.map = new HashMap<>(this.map);
+                this.backing = Backing.HASH;
+            }
+        }
+        else {
+            // KEY_ORDERED or KEY_VALUE_ORDERED
+            if (backing != Backing.TREE) {
+                TreeMap<K,V> t = new TreeMap<>(Comparator);
+                t.putAll(this.map);
+                this.map = t;
+                this.backing = Backing.TREE;
+            }
+        }
+        return this;
+    }
+
+    /**
+     * Request that a map index be persisted when encoding {@link MapOrder#KEY_VALUE_ORDERED}
+     * maps. A persisted index can improve lookup performance on the server at the cost of extra storage.
+     *
+     * @return this instance for chaining
+     */
+    public AerospikeMap<K,V> persistIndex() {
+        this.persistIndex = true;
+        return this;
+    }
+
+    /**
+     * Return the backing {@link Map} instance.
      */
     public Map<K,V> getMap() {
         return map;
     }
 
     /**
-     * Changes {@link Type} and replaces the backing map when needed. Moving to {@link Type#LINKED}
-     * from {@link Type#UNORDERED} copies entries sorted by {@link AerospikeComparator}; from
-     * {@link Type#ORDERED} it preserves iteration order in a new {@link LinkedHashMap}. Moving to
-     * {@link Type#ORDERED} rebuilds a {@link TreeMap} with {@link AerospikeComparator}.
-     *
-     * @param newType target encoding; no-op if equal to the current type
+     * Return the Aerospike map order used when packing this value.
      */
-    public void setType(Type newType) {
-        if (this.type == newType) {
-            return;
-        }
-
-        if (newType == Type.LINKED) {
-            if (this.type == Type.UNORDERED) {
-                LinkedHashMap<K,V> tmp = new LinkedHashMap<>();
-
-                map.entrySet()
-                  .stream()
-                  .sorted(new AerospikeComparator())
-                  .forEachOrdered(entry -> tmp.put(entry.getKey(), entry.getValue()));
-
-                map = tmp;
-            }
-            else if (this.type == Type.ORDERED) {
-                map = new LinkedHashMap<>(map);
-            }
-        }
-        else if (newType == Type.ORDERED) {
-            TreeMap<K,V> tmp = new TreeMap<>(new AerospikeComparator());
-            tmp.putAll(map);
-            map = tmp;
-        }
-
-        this.type = newType;
+    public MapOrder getOrder() {
+        return order;
     }
 
     /**
-     * Returns the Aerospike map type used when packing this value.
-     *
-     * @return current {@link Type}
-     */
-    public Type getType() {
-        return type;
-    }
-
-    /**
-     * Whether to persist a map index when encoding non-{@link Type#UNORDERED} maps. A persisted
-     * index can improve lookup performance on the server at the cost of extra storage. Unordered
-     * maps ignore this flag when packed.
-     *
-     * @param persistIndex {@code true} to set the persisted-index attribute on wire encoding
-     */
-    public void setPersistIndex(boolean persistIndex) {
-        this.persistIndex = persistIndex;
-    }
-
-    /**
-     * @return whether persisted map index is requested for linked / ordered encoding
+     * Return whether persisted map index is requested for linked / ordered encoding
      */
     public boolean isPersistIndex() {
         return persistIndex;
@@ -221,6 +268,7 @@ public final class AerospikeMap<K,V> implements Map<K,V>{
     /** {@inheritDoc} */
     @Override
     public V put(K key, V value) {
+        ensureTreeForOrderedMutation();
         return map.put(key, value);
     }
 
@@ -233,6 +281,7 @@ public final class AerospikeMap<K,V> implements Map<K,V>{
     /** {@inheritDoc} */
     @Override
     public void putAll(Map<? extends K, ? extends V> m) {
+        ensureTreeForOrderedMutation();
         map.putAll(m);
     }
 
@@ -276,5 +325,14 @@ public final class AerospikeMap<K,V> implements Map<K,V>{
     @Override
     public int hashCode() {
         return map.hashCode();
+    }
+
+    private void ensureTreeForOrderedMutation() {
+        if (backing == Backing.LINKED) {
+            TreeMap<K,V> t = new TreeMap<>(Comparator);
+            t.putAll(map);
+            map = t;
+            backing = Backing.TREE;
+        }
     }
 }

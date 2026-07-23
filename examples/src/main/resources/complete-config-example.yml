@@ -55,12 +55,11 @@ system:
 # =============================================================================
 # BEHAVIOR DEFINITIONS
 # =============================================================================
+# Policy settings (sendKey, useCompression, timeouts, etc.) must live under a
+# selector block (e.g. allOperations, retryableWrites, batchReads). Only `parent`
+# and optional `name` are valid alongside those blocks at this indentation.
 behaviors:
   high-performance:
-    # Top-level behavior settings (apply to all operations in this behavior)
-    sendKey: false
-    useCompression: false
-
     allOperations:
       abandonCallAfter: 1s
       maximumNumberOfCallAttempts: 2
@@ -125,10 +124,6 @@ behaviors:
 
 
   high-reliability:
-    # Top-level behavior settings
-    sendKey: true
-    useCompression: true
-
     allOperations:
       abandonCallAfter: 10s
       maximumNumberOfCallAttempts: 5
@@ -249,9 +244,6 @@ behaviors:
 
 
   real-time:
-    sendKey: false
-    useCompression: false
-
     allOperations:
       abandonCallAfter: 500ms
       maximumNumberOfCallAttempts: 1

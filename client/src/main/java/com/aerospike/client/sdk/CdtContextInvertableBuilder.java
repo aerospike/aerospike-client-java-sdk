@@ -22,6 +22,10 @@ import java.util.function.Consumer;
 
 import com.aerospike.client.sdk.cdt.ListOrder;
 import com.aerospike.client.sdk.cdt.MapOrder;
+import com.aerospike.client.sdk.cdt.path.CdtCollectOptions;
+import com.aerospike.client.sdk.cdt.path.CdtModifyOptions;
+import com.aerospike.client.sdk.exp.Exp;
+import com.aerospike.client.sdk.query.PreparedAel;
 
 /**
  * This interface handles operations at the end of contexts. Note that some of these methods
@@ -32,7 +36,7 @@ import com.aerospike.client.sdk.cdt.MapOrder;
  * hence returns a CdtSetter* method.
  * <p/>
  * Note that some methods are invertable (ie can support the INVERTED flag) and others aren't.
- * For example, onMapIndex returns a single value, hence cannot support the INVERTED flag. 
+ * For example, onMapIndex returns a single value, hence cannot support the INVERTED flag.
  * onMapValue returns a list of values and hence can be inverted.
  * <p/>
  * Note that this is a paired interface with {@link CdtContextInvertableBuilder} and they have exactly
@@ -207,6 +211,350 @@ public interface CdtContextInvertableBuilder<T extends AbstractOperationBuilder<
     public CdtActionInvertableBuilder<T> onListValueRelativeRankRange(List<?> value, int rank, int count);
     public CdtActionInvertableBuilder<T> onListValueRelativeRankRange(Map<?,?> value, int rank, int count);
 
+    // --- Path iteration (CTX.allChildren / selectByPath / modifyByPath), server 8.1.1+ ---
+    // (Behavior matches {@link CdtContextNonInvertableBuilder}; see that interface for narrative docs.)
+
+    /**
+     * Descend into every child at the current path using {@link com.aerospike.client.sdk.cdt.CTX#allChildren()}.
+     *
+     * <p>At least one {@code onEachChild()} (or filtered variant) is required before {@code collect*},
+     * {@code modifyBy}, or {@code removeMatches}; it records the path used by
+     * {@link com.aerospike.client.sdk.cdt.CdtOperation#selectByPath} /
+     * {@link com.aerospike.client.sdk.cdt.CdtOperation#modifyByPath}.</p>
+     *
+     * <p><b>Example</b> — bump every integer in a top-level list bin {@code nums}:</p>
+     * <pre>{@code
+     * session.upsert(key)
+     *     .bin("nums").onEachChild()
+     *     .modifyBy(Exp.add(Exp.intLoopVar(LoopVarPart.VALUE), Exp.val(1)))
+     *     .execute();
+     * }</pre>
+     *
+     * @return this path builder for further {@code onMapKey}, {@code onEachChild}, or a terminal
+     * @see CdtContextNonInvertableBuilder#onEachChild()
+     */
+    CdtContextNonInvertableBuilder<T> onEachChild();
+
+    /**
+     * Descend into children at the current path that match {@code filter}
+     * ({@link com.aerospike.client.sdk.cdt.CTX#allChildrenWithFilter(com.aerospike.client.sdk.exp.Exp)}).
+     *
+     * <p>The filter is evaluated in the server's path-expression context (loop variables such as
+     * {@link com.aerospike.client.sdk.exp.LoopVarPart#VALUE} refer to the candidate child).</p>
+     *
+     * <p><b>Example</b> — remove list elements greater than 5:</p>
+     * <pre>{@code
+     * session.upsert(key)
+     *     .bin("nums").onEachChild(Exp.gt(Exp.intLoopVar(LoopVarPart.VALUE), Exp.val(5)))
+     *     .removeMatches()
+     *     .execute();
+     * }</pre>
+     *
+     * @param filter server-side {@link Exp} predicate; children where it is false are skipped
+     * @return this path builder for further navigation or a terminal
+     * @see CdtContextNonInvertableBuilder#onEachChild(Exp)
+     */
+    CdtContextNonInvertableBuilder<T> onEachChild(Exp filter);
+
+    /**
+     * Same as {@link #onEachChild(Exp)} with the filter expressed as AEL text.
+     *
+     * <p><b>Status:</b> not implemented yet — throws {@link UnsupportedOperationException} until the
+     * AEL compiler supports path-scoped fragments (see {@code docs/ael/path-expressions.md}).</p>
+     *
+     * @param ael AEL predicate for {@code allChildrenWithFilter}
+     * @return this path builder (unreachable until supported)
+     * @throws UnsupportedOperationException always, until AEL path support ships
+     */
+    CdtContextNonInvertableBuilder<T> onEachChild(String ael);
+
+    /**
+     * Same as {@link #onEachChild(String)} with bound parameters for a {@link PreparedAel} template.
+     *
+     * @param ael prepared AEL template
+     * @param bindParams values bound to placeholders in {@code ael}
+     * @return this path builder (unreachable until supported)
+     * @throws UnsupportedOperationException always, until AEL path support ships
+     */
+    CdtContextNonInvertableBuilder<T> onEachChild(PreparedAel ael, Object... bindParams);
+
+    /**
+     * Terminal read: return matched leaf <strong>values</strong> as a flat list via CDT
+     * {@code selectByPath} with {@link com.aerospike.client.sdk.cdt.SelectFlags#VALUE}.
+     *
+     * <p>Requires at least one {@link #onEachChild()} segment on the path. Does not use the expression
+     * read opcode; see {@link #collectValuesAsExpressionRead} for {@code EXP_READ}.</p>
+     *
+     * <p><b>Example</b>:</p>
+     * <pre>{@code
+     * session.query(key)
+     *     .bin("catalog").onMapKey("book").onEachChild().onMapKey("title").collectValues()
+     *     .execute();
+     * }</pre>
+     *
+     * @return the outer operation builder (e.g. upsert/query chain) after appending the CDT read op
+     */
+    T collectValues();
+
+    /**
+     * Same as {@link #collectValues()} with extra select flags (for example {@link com.aerospike.client.sdk.cdt.SelectFlags#NO_FAIL})
+     * supplied through {@link CdtCollectOptions}.
+     *
+     * <p><b>Example</b>:</p>
+     * <pre>{@code
+     * session.query(key)
+     *     .bin("catalog").onMapKey("items").onEachChild().collectValues(o -> o.noFail(true))
+     *     .execute();
+     * }</pre>
+     *
+     * @param options consumer that configures {@link CdtCollectOptions} (e.g. {@code noFail(true)})
+     * @return the outer operation builder after appending the CDT read op
+     */
+    T collectValues(Consumer<CdtCollectOptions> options);
+
+    /**
+     * Terminal read: return matched <strong>map keys</strong> (map contexts only) via
+     * {@link com.aerospike.client.sdk.cdt.SelectFlags#MAP_KEY}.
+     *
+     * <p><b>Example</b>:</p>
+     * <pre>{@code
+     * session.query(key).bin("catalog").onMapKey("book").onEachChild().collectKeys().execute();
+     * }</pre>
+     *
+     * @return the outer operation builder after appending the CDT read op
+     * @throws IllegalArgumentException if the current path is not map-typed where keys apply
+     */
+    T collectKeys();
+
+    /**
+     * Same as {@link #collectKeys()} with {@link CdtCollectOptions}.
+     *
+     * <p><b>Example</b>:</p>
+     * <pre>{@code
+     * session.query(key).bin("catalog").onMapKey("book").onEachChild().collectKeys(o -> o.noFail(true)).execute();
+     * }</pre>
+     *
+     * @param options select flag customization
+     * @return the outer operation builder after appending the CDT read op
+     */
+    T collectKeys(Consumer<CdtCollectOptions> options);
+
+    /**
+     * Terminal read: return matched map entries as {@code (key, value)} pairs via
+     * {@link com.aerospike.client.sdk.cdt.SelectFlags#MAP_KEY_VALUE}.
+     *
+     * <p><b>Example</b>:</p>
+     * <pre>{@code
+     * session.query(key).bin("catalog").onMapKey("book").onEachChild().collectKeyValues().execute();
+     * }</pre>
+     *
+     * @return the outer operation builder after appending the CDT read op
+     */
+    T collectKeyValues();
+
+    /**
+     * Same as {@link #collectKeyValues()} with {@link CdtCollectOptions}.
+     *
+     * @param options select flag customization
+     * @return the outer operation builder after appending the CDT read op
+     */
+    T collectKeyValues(Consumer<CdtCollectOptions> options);
+
+    /**
+     * Terminal read: return a structure-preserving <strong>tree</strong> of matches via
+     * {@link com.aerospike.client.sdk.cdt.SelectFlags#MATCHING_TREE}.
+     *
+     * <p><b>Example</b>:</p>
+     * <pre>{@code
+     * session.query(key).bin("catalog").onMapKey("book").onEachChild().collectTree().execute();
+     * }</pre>
+     *
+     * @return the outer operation builder after appending the CDT read op
+     */
+    T collectTree();
+
+    /**
+     * Same as {@link #collectTree()} with {@link CdtCollectOptions}.
+     *
+     * @param options select flag customization
+     * @return the outer operation builder after appending the CDT read op
+     */
+    T collectTree(Consumer<CdtCollectOptions> options);
+
+    /**
+     * Terminal write: apply {@code modifyExp} at each path match via CDT {@code modifyByPath}.
+     *
+     * <p>Use loop-variable {@link Exp} forms (e.g. {@code floatLoopVar(LoopVarPart.VALUE)}) inside
+     * {@code modifyExp} to read the leaf being modified.</p>
+     *
+     * <p><b>Example</b> — scale every matched price by 1.1:</p>
+     * <pre>{@code
+     * session.upsert(key)
+     *     .bin("catalog").onMapKey("book").onEachChild().onMapKey("price")
+     *     .modifyBy(Exp.mul(Exp.floatLoopVar(LoopVarPart.VALUE), Exp.val(1.1)))
+     *     .execute();
+     * }</pre>
+     *
+     * @param modifyExp modification sub-expression; compiled with {@link Exp#build(Exp)}
+     * @return the outer operation builder after appending the CDT modify op
+     */
+    T modifyBy(Exp modifyExp);
+
+    /**
+     * Same as {@link #modifyBy(Exp)} with {@link CdtModifyOptions} (for example {@link com.aerospike.client.sdk.cdt.ModifyFlags#NO_FAIL}).
+     *
+     * <p><b>Example</b>:</p>
+     * <pre>{@code
+     * session.upsert(key)
+     *     .bin("catalog").onMapKey("book").onEachChild().onMapKey("price")
+     *     .modifyBy(Exp.mul(Exp.floatLoopVar(LoopVarPart.VALUE), Exp.val(1.05)), o -> o.noFail(true))
+     *     .execute();
+     * }</pre>
+     *
+     * @param modifyExp modification sub-expression
+     * @param options consumer that configures {@link CdtModifyOptions}
+     * @return the outer operation builder after appending the CDT modify op
+     */
+    T modifyBy(Exp modifyExp, Consumer<CdtModifyOptions> options);
+
+    /**
+     * Same as {@link #modifyBy(Exp)} with the body expressed as AEL.
+     *
+     * @param ael AEL text compiled to the modify expression once path-scoped AEL is supported
+     * @return the outer operation builder (unreachable until supported)
+     * @throws UnsupportedOperationException always, until AEL path support ships
+     * @see #onEachChild(String)
+     */
+    T modifyBy(String ael);
+
+    /**
+     * Same as {@link #modifyBy(String)} with {@link CdtModifyOptions}.
+     *
+     * @param ael AEL modify body
+     * @param options modify options consumer
+     * @return the outer operation builder (unreachable until supported)
+     * @throws UnsupportedOperationException always, until AEL path support ships
+     */
+    T modifyBy(String ael, Consumer<CdtModifyOptions> options);
+
+    /**
+     * Same as {@link #modifyBy(Exp)} using a prepared AEL template and bind parameters.
+     *
+     * @param ael prepared AEL template
+     * @param bindParams bind values for {@code ael}
+     * @return the outer operation builder (unreachable until supported)
+     * @throws UnsupportedOperationException always, until AEL path support ships
+     */
+    T modifyBy(PreparedAel ael, Object... bindParams);
+
+    /**
+     * Same as {@link #modifyBy(PreparedAel, Object...)} with {@link CdtModifyOptions}.
+     *
+     * @param ael prepared AEL template
+     * @param options modify options consumer
+     * @param bindParams bind values for {@code ael}
+     * @return the outer operation builder (unreachable until supported)
+     * @throws UnsupportedOperationException always, until AEL path support ships
+     */
+    T modifyBy(PreparedAel ael, Consumer<CdtModifyOptions> options, Object... bindParams);
+
+    /**
+     * Terminal write: remove every path match, equivalent to {@code modifyByPath} with
+     * {@link Exp#removeResult()}.
+     *
+     * <p><b>Example</b> — delete list elements matching a filter:</p>
+     * <pre>{@code
+     * session.upsert(key)
+     *     .bin("nums").onEachChild(Exp.gt(Exp.intLoopVar(LoopVarPart.VALUE), Exp.val(5)))
+     *     .removeMatches()
+     *     .execute();
+     * }</pre>
+     *
+     * @return the outer operation builder after appending the CDT modify op
+     */
+    T removeMatches();
+
+    /**
+     * Same as {@link #removeMatches()} with {@link CdtModifyOptions}.
+     *
+     * <p><b>Example</b>:</p>
+     * <pre>{@code
+     * session.upsert(key)
+     *     .bin("nums").onEachChild(Exp.lt(Exp.intLoopVar(LoopVarPart.VALUE), Exp.val(0)))
+     *     .removeMatches(o -> o.noFail(true))
+     *     .execute();
+     * }</pre>
+     *
+     * @param options modify flag customization
+     * @return the outer operation builder after appending the CDT modify op
+     */
+    T removeMatches(Consumer<CdtModifyOptions> options);
+
+    /**
+     * Terminal read: evaluate the same selection as {@link #collectValues()} inside an
+     * <strong>expression read</strong> ({@code EXP_READ}) and store the result under this chain's bin name.
+     *
+     * <p>Equivalent to
+     * {@code selectFrom(Exp.build(CdtExp.selectByPath(resultType, SelectFlags.VALUE, typedBin(bin), ctx…)))}
+     * with {@code ctx…} taken from the fluent path. Use this when you need expression-read semantics
+     * or to align with other {@code selectFrom} projections; use {@link #collectValues()} for a direct
+     * CDT {@code selectByPath} operation.</p>
+     *
+     * <p><b>Example</b>:</p>
+     * <pre>{@code
+     * session.query(key)
+     *     .bin("catalog").onMapKey("book").onEachChild().onMapKey("title")
+     *     .collectValuesAsExpressionRead(Exp.Type.MAP, Exp.Type.LIST)
+     *     .execute();
+     * }</pre>
+     *
+     * @param binValueType type of the <strong>source</strong> bin at the top level (e.g. {@link com.aerospike.client.sdk.exp.Exp.Type#MAP})
+     * @param resultType expected result type of the select expression (often {@link com.aerospike.client.sdk.exp.Exp.Type#LIST})
+     * @return the outer operation builder after appending the expression read op
+     */
+    T collectValuesAsExpressionRead(Exp.Type binValueType, Exp.Type resultType);
+
+    /**
+     * Same as {@link #collectValuesAsExpressionRead(Exp.Type, Exp.Type)} with explicit select and read flag bitmasks.
+     *
+     * <p><b>Example</b>:</p>
+     * <pre>{@code
+     * session.query(key)
+     *     .bin("catalog").onMapKey("book").onEachChild().onMapKey("sku")
+     *     .collectValuesAsExpressionRead(
+     *         Exp.Type.MAP, Exp.Type.LIST,
+     *         SelectFlags.VALUE | SelectFlags.NO_FAIL,
+     *         ExpReadFlags.DEFAULT)
+     *     .execute();
+     * }</pre>
+     *
+     * @param binValueType top-level bin type for the inner bin expression
+     * @param resultType expected result type of {@code selectByPath}
+     * @param selectFlags {@link com.aerospike.client.sdk.cdt.SelectFlags} bitmask passed to {@link com.aerospike.client.sdk.exp.CdtExp#selectByPath}
+     * @param readFlags {@link com.aerospike.client.sdk.exp.ExpReadFlags} bitmask for the expression read op
+     * @return the outer operation builder after appending the expression read op
+     */
+    T collectValuesAsExpressionRead(Exp.Type binValueType, Exp.Type resultType, int selectFlags, int readFlags);
+
+    /**
+     * Same as {@link #collectValuesAsExpressionRead(Exp.Type, Exp.Type)} with {@link ExpressionReadOptions}
+     * controlling read flags.
+     *
+     * <p><b>Example</b>:</p>
+     * <pre>{@code
+     * session.query(key)
+     *     .bin("catalog").onMapKey("book").onEachChild().onMapKey("title")
+     *     .collectValuesAsExpressionRead(Exp.Type.MAP, Exp.Type.LIST, o -> o.ignoreEvalFailure())
+     *     .execute();
+     * }</pre>
+     *
+     * @param binValueType top-level bin type for the inner bin expression
+     * @param resultType expected result type of {@code selectByPath}
+     * @param options consumer that configures {@link ExpressionReadOptions}
+     * @return the outer operation builder after appending the expression read op
+     */
+    T collectValuesAsExpressionRead(Exp.Type binValueType, Exp.Type resultType, Consumer<ExpressionReadOptions> options);
+
     public T mapClear();
     public T mapSize();
 
@@ -230,6 +578,13 @@ public interface CdtContextInvertableBuilder<T extends AbstractOperationBuilder<
     public T listAppend(byte[] value, Consumer<ListEntryWriteOptions> options);
     public T listAppend(List<?> value, Consumer<ListEntryWriteOptions> options);
     public T listAppend(Map<?,?> value, Consumer<ListEntryWriteOptions> options);
+    public T listAppend(long value, ListEntryWriteOptions options);
+    public T listAppend(String value, ListEntryWriteOptions options);
+    public T listAppend(double value, ListEntryWriteOptions options);
+    public T listAppend(boolean value, ListEntryWriteOptions options);
+    public T listAppend(byte[] value, ListEntryWriteOptions options);
+    public T listAppend(List<?> value, ListEntryWriteOptions options);
+    public T listAppend(Map<?,?> value, ListEntryWriteOptions options);
 
     // listAdd -- ordered list
     public T listAdd(long value);
@@ -246,12 +601,21 @@ public interface CdtContextInvertableBuilder<T extends AbstractOperationBuilder<
     public T listAdd(byte[] value, Consumer<ListEntryWriteOptions> options);
     public T listAdd(List<?> value, Consumer<ListEntryWriteOptions> options);
     public T listAdd(Map<?,?> value, Consumer<ListEntryWriteOptions> options);
+    public T listAdd(long value, ListEntryWriteOptions options);
+    public T listAdd(String value, ListEntryWriteOptions options);
+    public T listAdd(double value, ListEntryWriteOptions options);
+    public T listAdd(boolean value, ListEntryWriteOptions options);
+    public T listAdd(byte[] value, ListEntryWriteOptions options);
+    public T listAdd(List<?> value, ListEntryWriteOptions options);
+    public T listAdd(Map<?,?> value, ListEntryWriteOptions options);
 
     // listAppendItems / listAddItems -- bulk list operations
     public T listAppendItems(List<?> items);
     public T listAppendItems(List<?> items, Consumer<ListBulkWriteOptions> options);
+    public T listAppendItems(List<?> items, ListBulkWriteOptions options);
     public T listAddItems(List<?> items);
     public T listAddItems(List<?> items, Consumer<ListBulkWriteOptions> options);
+    public T listAddItems(List<?> items, ListBulkWriteOptions options);
 
     // list structural operations
     public T listClear();
@@ -259,6 +623,7 @@ public interface CdtContextInvertableBuilder<T extends AbstractOperationBuilder<
     public T listSort(int sortFlags);
     public T listCreate(ListOrder order);
     public T listCreate(ListOrder order, Consumer<ListCreateOptions> options);
+    public T listCreate(ListOrder order, ListCreateOptions options);
     public T listSetOrder(ListOrder order);
     public T listSetOrder(ListOrder order, boolean persistIndex);
 
@@ -270,8 +635,23 @@ public interface CdtContextInvertableBuilder<T extends AbstractOperationBuilder<
     public T listInsert(int index, byte[] value);
     public T listInsert(int index, List<?> value);
     public T listInsert(int index, Map<?,?> value);
+    public T listInsert(int index, long value, Consumer<ListEntryWriteOptions> options);
+    public T listInsert(int index, String value, Consumer<ListEntryWriteOptions> options);
+    public T listInsert(int index, double value, Consumer<ListEntryWriteOptions> options);
+    public T listInsert(int index, boolean value, Consumer<ListEntryWriteOptions> options);
+    public T listInsert(int index, byte[] value, Consumer<ListEntryWriteOptions> options);
+    public T listInsert(int index, List<?> value, Consumer<ListEntryWriteOptions> options);
+    public T listInsert(int index, Map<?,?> value, Consumer<ListEntryWriteOptions> options);
+    public T listInsert(int index, long value, ListEntryWriteOptions options);
+    public T listInsert(int index, String value, ListEntryWriteOptions options);
+    public T listInsert(int index, double value, ListEntryWriteOptions options);
+    public T listInsert(int index, boolean value, ListEntryWriteOptions options);
+    public T listInsert(int index, byte[] value, ListEntryWriteOptions options);
+    public T listInsert(int index, List<?> value, ListEntryWriteOptions options);
+    public T listInsert(int index, Map<?,?> value, ListEntryWriteOptions options);
     public T listInsertItems(int index, List<?> items);
     public T listInsertItems(int index, List<?> items, Consumer<ListBulkWriteOptions> options);
+    public T listInsertItems(int index, List<?> items, ListBulkWriteOptions options);
     public T listSet(int index, long value);
     public T listSet(int index, String value);
     public T listSet(int index, double value);
@@ -279,9 +659,29 @@ public interface CdtContextInvertableBuilder<T extends AbstractOperationBuilder<
     public T listSet(int index, byte[] value);
     public T listSet(int index, List<?> value);
     public T listSet(int index, Map<?,?> value);
+    public T listSet(int index, long value, Consumer<ListEntryWriteOptions> options);
+    public T listSet(int index, String value, Consumer<ListEntryWriteOptions> options);
+    public T listSet(int index, double value, Consumer<ListEntryWriteOptions> options);
+    public T listSet(int index, boolean value, Consumer<ListEntryWriteOptions> options);
+    public T listSet(int index, byte[] value, Consumer<ListEntryWriteOptions> options);
+    public T listSet(int index, List<?> value, Consumer<ListEntryWriteOptions> options);
+    public T listSet(int index, Map<?,?> value, Consumer<ListEntryWriteOptions> options);
+    public T listSet(int index, long value, ListEntryWriteOptions options);
+    public T listSet(int index, String value, ListEntryWriteOptions options);
+    public T listSet(int index, double value, ListEntryWriteOptions options);
+    public T listSet(int index, boolean value, ListEntryWriteOptions options);
+    public T listSet(int index, byte[] value, ListEntryWriteOptions options);
+    public T listSet(int index, List<?> value, ListEntryWriteOptions options);
+    public T listSet(int index, Map<?,?> value, ListEntryWriteOptions options);
     public T listIncrement(int index);
+    public T listIncrement(int index, Consumer<ListEntryWriteOptions> options);
+    public T listIncrement(int index, ListEntryWriteOptions options);
     public T listIncrement(int index, long value);
+    public T listIncrement(int index, long value, Consumer<ListEntryWriteOptions> options);
+    public T listIncrement(int index, long value, ListEntryWriteOptions options);
     public T listIncrement(int index, double value);
+    public T listIncrement(int index, double value, Consumer<ListEntryWriteOptions> options);
+    public T listIncrement(int index, double value, ListEntryWriteOptions options);
 
     // list index-based remove operations
     public T listRemove(int index);
@@ -301,9 +701,11 @@ public interface CdtContextInvertableBuilder<T extends AbstractOperationBuilder<
     // bulk map write operations
     public T mapUpsertItems(Map<?, ?> items);
     public T mapUpsertItems(Map<?, ?> items, Consumer<MapBulkWriteOptions> options);
+    public T mapUpsertItems(Map<?, ?> items, MapBulkWriteOptions options);
     public T mapInsertItems(Map<?, ?> items);
     public T mapInsertItems(Map<?, ?> items, Consumer<MapBulkWriteOptions> options);
+    public T mapInsertItems(Map<?, ?> items, MapBulkWriteOptions options);
     public T mapUpdateItems(Map<?, ?> items);
     public T mapUpdateItems(Map<?, ?> items, Consumer<MapBulkWriteOptions> options);
-
+    public T mapUpdateItems(Map<?, ?> items, MapBulkWriteOptions options);
 }

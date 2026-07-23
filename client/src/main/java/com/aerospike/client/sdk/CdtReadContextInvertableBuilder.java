@@ -18,8 +18,12 @@ package com.aerospike.client.sdk;
 
 import java.util.List;
 import java.util.Map;
+import java.util.function.Consumer;
 
 import com.aerospike.client.sdk.cdt.ListOrder;
+import com.aerospike.client.sdk.cdt.path.CdtCollectOptions;
+import com.aerospike.client.sdk.exp.Exp;
+import com.aerospike.client.sdk.query.PreparedAel;
 
 /**
  * Read-only CDT context navigation interface with invertable operations.
@@ -193,6 +197,262 @@ public interface CdtReadContextInvertableBuilder<T> extends CdtReadActionInverta
     CdtReadActionInvertableBuilder<T> onListValueRelativeRankRange(boolean value, int rank, int count);
     CdtReadActionInvertableBuilder<T> onListValueRelativeRankRange(List<?> value, int rank, int count);
     CdtReadActionInvertableBuilder<T> onListValueRelativeRankRange(Map<?,?> value, int rank, int count);
+
+    // --- Path iteration (read), server 8.1.1+ ---
+
+    /**
+     * Descend into every child at the current path using {@link com.aerospike.client.sdk.cdt.CTX#allChildren()}.
+     *
+     * <p>Requires at least one {@code onEachChild()} (or filtered variant) before a {@code collect*}
+     * terminal on this path. Intended for {@code session.query(...)} read chains.</p>
+     *
+     * <p><b>Example</b> — read every title under {@code catalog.book[*].title}:</p>
+     * <pre>{@code
+     * session.query(key)
+     *     .bin("catalog").onMapKey("book").onEachChild().onMapKey("title").collectValues()
+     *     .execute();
+     * }</pre>
+     *
+     * @return this read path builder for further navigation or a read terminal
+     * @see CdtContextNonInvertableBuilder#onEachChild()
+     */
+    CdtReadContextBuilder<T> onEachChild();
+
+    /**
+     * Descend into children at the current path that match {@code filter}
+     * ({@link com.aerospike.client.sdk.cdt.CTX#allChildrenWithFilter(com.aerospike.client.sdk.exp.Exp)}).
+     *
+     * @param filter server-side {@link Exp} predicate evaluated for each candidate child
+     * @return this read path builder for further navigation or a read terminal
+     * @see CdtContextNonInvertableBuilder#onEachChild(Exp)
+     */
+    CdtReadContextBuilder<T> onEachChild(Exp filter);
+
+    /**
+     * Same as {@link #onEachChild(Exp)} with the filter expressed as AEL text.
+     *
+     * @param ael AEL predicate for {@code allChildrenWithFilter}
+     * @return this read path builder (unreachable until supported)
+     * @throws UnsupportedOperationException always, until AEL path support ships
+     */
+    CdtReadContextBuilder<T> onEachChild(String ael);
+
+    /**
+     * Same as {@link #onEachChild(String)} with bound parameters for a {@link PreparedAel} template.
+     *
+     * @param ael prepared AEL template
+     * @param bindParams values bound to placeholders in {@code ael}
+     * @return this read path builder (unreachable until supported)
+     * @throws UnsupportedOperationException always, until AEL path support ships
+     */
+    CdtReadContextBuilder<T> onEachChild(PreparedAel ael, Object... bindParams);
+
+    /**
+     * Read terminal: flat list of matched leaf values via CDT {@code selectByPath}
+     * ({@link com.aerospike.client.sdk.cdt.SelectFlags#VALUE}).
+     *
+     * <p><b>Example</b>:</p>
+     * <pre>{@code
+     * session.query(key).bin("catalog").onMapKey("book").onEachChild().onMapKey("price").collectValues()
+     *     .execute();
+     * }</pre>
+     *
+     * @return the query builder after appending the CDT read op
+     */
+    T collectValues();
+
+    /**
+     * Same as {@link #collectValues()} with {@link CdtCollectOptions} (e.g. {@code NO_FAIL}).
+     *
+     * <p><b>Example</b>:</p>
+     * <pre>{@code
+     * session.query(key).bin("catalog").onMapKey("items").onEachChild().collectValues(o -> o.noFail(true))
+     *     .execute();
+     * }</pre>
+     *
+     * @param options consumer that configures {@link CdtCollectOptions}
+     * @return the query builder after appending the CDT read op
+     */
+    T collectValues(Consumer<CdtCollectOptions> options);
+
+    /**
+     * Same as {@link #collectValues()} with pre-built {@link CdtCollectOptions}.
+     *
+     * <p>This is the direct-options overload of {@link #collectValues(Consumer)}. Use it when
+     * the options object has already been built (for example shared across many calls) rather
+     * than configured via a lambda.</p>
+     *
+     * @param options pre-built collect options (e.g. {@code NO_FAIL}, return-type customization)
+     * @return the query builder after appending the CDT read op
+     */
+    T collectValues(CdtCollectOptions options);
+
+    /**
+     * Read terminal: matched map keys ({@link com.aerospike.client.sdk.cdt.SelectFlags#MAP_KEY}).
+     *
+     * <p><b>Example</b>:</p>
+     * <pre>{@code
+     * session.query(key).bin("catalog").onMapKey("book").onEachChild().collectKeys().execute();
+     * }</pre>
+     *
+     * @return the query builder after appending the CDT read op
+     */
+    T collectKeys();
+
+    /**
+     * Same as {@link #collectKeys()} with {@link CdtCollectOptions}.
+     *
+     * @param options select flag customization
+     * @return the query builder after appending the CDT read op
+     */
+    T collectKeys(Consumer<CdtCollectOptions> options);
+
+    /**
+     * Same as {@link #collectKeys()} with pre-built {@link CdtCollectOptions}.
+     *
+     * <p>This is the direct-options overload of {@link #collectKeys(Consumer)}.</p>
+     *
+     * @param options pre-built collect options (select flag customization)
+     * @return the query builder after appending the CDT read op
+     */
+    T collectKeys(CdtCollectOptions options);
+
+    /**
+     * Read terminal: matched map key/value pairs
+     * ({@link com.aerospike.client.sdk.cdt.SelectFlags#MAP_KEY_VALUE}).
+     *
+     * <p><b>Example</b>:</p>
+     * <pre>{@code
+     * session.query(key).bin("catalog").onMapKey("book").onEachChild().collectKeyValues().execute();
+     * }</pre>
+     *
+     * @return the query builder after appending the CDT read op
+     */
+    T collectKeyValues();
+
+    /**
+     * Same as {@link #collectKeyValues()} with {@link CdtCollectOptions}.
+     *
+     * @param options select flag customization
+     * @return the query builder after appending the CDT read op
+     */
+    T collectKeyValues(Consumer<CdtCollectOptions> options);
+
+    /**
+     * Same as {@link #collectKeyValues()} with pre-built {@link CdtCollectOptions}.
+     *
+     * <p>This is the direct-options overload of {@link #collectKeyValues(Consumer)}.</p>
+     *
+     * @param options pre-built collect options (select flag customization)
+     * @return the query builder after appending the CDT read op
+     */
+    T collectKeyValues(CdtCollectOptions options);
+
+    /**
+     * Read terminal: structure-preserving matching tree
+     * ({@link com.aerospike.client.sdk.cdt.SelectFlags#MATCHING_TREE}).
+     *
+     * <p><b>Example</b>:</p>
+     * <pre>{@code
+     * session.query(key).bin("catalog").onMapKey("book").onEachChild().collectTree().execute();
+     * }</pre>
+     *
+     * @return the query builder after appending the CDT read op
+     */
+    T collectTree();
+
+    /**
+     * Same as {@link #collectTree()} with {@link CdtCollectOptions}.
+     *
+     * @param options select flag customization
+     * @return the query builder after appending the CDT read op
+     */
+    T collectTree(Consumer<CdtCollectOptions> options);
+
+    /**
+     * Same as {@link #collectTree()} with pre-built {@link CdtCollectOptions}.
+     *
+     * <p>This is the direct-options overload of {@link #collectTree(Consumer)}.</p>
+     *
+     * @param options pre-built collect options (select flag customization)
+     * @return the query builder after appending the CDT read op
+     */
+    T collectTree(CdtCollectOptions options);
+
+    /**
+     * Read terminal: same selection as {@link #collectValues()} but delivered as an expression read
+     * ({@code EXP_READ}) on the query projection bin.
+     *
+     * <p><b>Example</b>:</p>
+     * <pre>{@code
+     * session.query(key)
+     *     .bin("catalog").onMapKey("book").onEachChild().onMapKey("title")
+     *     .collectValuesAsExpressionRead(Exp.Type.MAP, Exp.Type.LIST)
+     *     .execute();
+     * }</pre>
+     *
+     * @param binValueType top-level type of the source bin (e.g. {@link com.aerospike.client.sdk.exp.Exp.Type#MAP})
+     * @param resultType expected result type of the embedded {@code selectByPath}
+     * @return the query builder after appending the expression read op
+     * @see CdtContextNonInvertableBuilder#collectValuesAsExpressionRead(Exp.Type, Exp.Type)
+     */
+    T collectValuesAsExpressionRead(Exp.Type binValueType, Exp.Type resultType);
+
+    /**
+     * Same as {@link #collectValuesAsExpressionRead(Exp.Type, Exp.Type)} with explicit select and read flags.
+     *
+     * <p><b>Example</b> — honor {@code NO_FAIL} on both select and read:</p>
+     * <pre>{@code
+     * session.query(key)
+     *     .bin("catalog").onMapKey("book").onEachChild().onMapKey("sku")
+     *     .collectValuesAsExpressionRead(
+     *         Exp.Type.MAP, Exp.Type.LIST,
+     *         SelectFlags.VALUE | SelectFlags.NO_FAIL,
+     *         ExpReadFlags.DEFAULT)
+     *     .execute();
+     * }</pre>
+     *
+     * @param binValueType top-level bin type for the inner bin expression
+     * @param resultType expected result type of {@code selectByPath}
+     * @param selectFlags {@link com.aerospike.client.sdk.cdt.SelectFlags} bitmask for {@link com.aerospike.client.sdk.exp.CdtExp#selectByPath}
+     * @param readFlags {@link com.aerospike.client.sdk.exp.ExpReadFlags} bitmask for the expression read op
+     * @return the query builder after appending the expression read op
+     */
+    T collectValuesAsExpressionRead(Exp.Type binValueType, Exp.Type resultType, int selectFlags, int readFlags);
+
+    /**
+     * Same as {@link #collectValuesAsExpressionRead(Exp.Type, Exp.Type)} with {@link ExpressionReadOptions}.
+     *
+     * <p><b>Example</b>:</p>
+     * <pre>{@code
+     * session.query(key)
+     *     .bin("catalog").onMapKey("book").onEachChild().onMapKey("title")
+     *     .collectValuesAsExpressionRead(Exp.Type.MAP, Exp.Type.LIST, o -> o.ignoreEvalFailure())
+     *     .execute();
+     * }</pre>
+     *
+     * @param binValueType top-level bin type for the inner bin expression
+     * @param resultType expected result type of {@code selectByPath}
+     * @param options consumer that configures {@link ExpressionReadOptions}
+     * @return the query builder after appending the expression read op
+     */
+    T collectValuesAsExpressionRead(Exp.Type binValueType, Exp.Type resultType, Consumer<ExpressionReadOptions> options);
+
+    /**
+     * Same as {@link #collectValuesAsExpressionRead(Exp.Type, Exp.Type)} with pre-built
+     * {@link ExpressionReadOptions}.
+     *
+     * <p>This is the direct-options overload of
+     * {@link #collectValuesAsExpressionRead(Exp.Type, Exp.Type, Consumer)}.</p>
+     *
+     * @param binValueType top-level bin type for the inner bin expression
+     * @param resultType   expected result type of {@code selectByPath}
+     * @param options      pre-built read options (e.g. configured via
+     *                     {@link ExpressionReadOptions#ignoreEvalFailure()})
+     * @return the query builder after appending the expression read op
+     */
+    T collectValuesAsExpressionRead(Exp.Type binValueType, Exp.Type resultType, ExpressionReadOptions options);
+
 
     // Read-only terminal operations
 

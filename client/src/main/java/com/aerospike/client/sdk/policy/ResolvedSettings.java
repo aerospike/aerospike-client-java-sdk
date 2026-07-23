@@ -29,6 +29,7 @@ public final class ResolvedSettings {
     private final int waitForCallToCompleteMs;
     private final int waitForConnectionToCompleteMs;
     private final int waitForSocketResponseAfterCallFailsMs;
+    private final int errorDetailVerbosity;
     private final int maximumNumberOfCallAttempts;
     private final int recordQueueSize;
     private final int maxConcurrentNodes;
@@ -61,6 +62,9 @@ public final class ResolvedSettings {
 
         waitForSocketResponseAfterCallFailsMs = (src.waitForSocketResponseAfterCallFails != null) ?
             (int)src.waitForSocketResponseAfterCallFails.toMillis() : 30000;
+
+        errorDetailVerbosity = (src.errorDetailVerbosity != null) ?
+            src.errorDetailVerbosity : 0;
 
         maximumNumberOfCallAttempts = (src.maximumNumberOfCallAttempts != null) ?
             src.maximumNumberOfCallAttempts : 3;
@@ -121,6 +125,9 @@ public final class ResolvedSettings {
         maximumNumberOfCallAttempts = (src.maximumNumberOfCallAttempts != null) ?
             src.maximumNumberOfCallAttempts : res.maximumNumberOfCallAttempts;
 
+        errorDetailVerbosity = (src.errorDetailVerbosity != null) ?
+            src.errorDetailVerbosity : res.errorDetailVerbosity;
+
         recordQueueSize = (src.recordQueueSize != null) ?
             src.recordQueueSize : res.recordQueueSize;
 
@@ -164,6 +171,7 @@ public final class ResolvedSettings {
         m.put("waitForCallToCompleteMs", waitForCallToCompleteMs);
         m.put("waitForConnectionToCompleteMs", waitForConnectionToCompleteMs);
         m.put("waitForSocketResponseAfterCallFailsMs", waitForSocketResponseAfterCallFailsMs);
+        m.put("errorDetailVerbosity", errorDetailVerbosity);
         m.put("maximumNumberOfCallAttempts", maximumNumberOfCallAttempts);
         m.put("recordQueueSize", recordQueueSize);
         m.put("maxConcurrentNodes", maxConcurrentNodes);
@@ -213,6 +221,10 @@ public final class ResolvedSettings {
 
     public int getWaitForSocketResponseAfterCallFailsMs() {
         return waitForSocketResponseAfterCallFailsMs;
+    }
+
+    public int getErrorDetailVerbosity() {
+        return errorDetailVerbosity;
     }
 
     public int getMaximumNumberOfCallAttempts() {

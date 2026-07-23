@@ -18,6 +18,7 @@ package com.aerospike.client.sdk;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assumptions.assumeFalse;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -25,9 +26,14 @@ import java.util.TreeMap;
 
 import org.junit.jupiter.api.Test;
 
+import com.aerospike.client.sdk.cdt.MapOrder;
+
 public class MapExpTest extends ClusterTest {
+
     @Test
     public void sortedMapEquality() {
+        assumeFalse(cluster.supportsAel(), "AEL cannot send the map ordering to server side.");
+
         TreeMap<String,String> map = new TreeMap<>();
         map.put("key1", "e");
         map.put("key2", "d");
@@ -47,6 +53,7 @@ public class MapExpTest extends ClusterTest {
 
         RecordStream rs = session.query(key)
             .readingOnlyBins(binName)
+            .failOnFilteredOut()
             .where(where)
             .execute();
 
@@ -57,11 +64,12 @@ public class MapExpTest extends ClusterTest {
         // A sorted map is returned as a LinkedHashMap for performance.
         // The response is ordered, so the LinkedHashMap insertion order
         // will match the sort order.
-        assertEquals(AerospikeMap.Type.LINKED, m.getType());
+        assertEquals(MapOrder.KEY_ORDERED, m.getOrder());
     }
 
     @Test
     public void invertedMapExp() {
+        assumeFalse(cluster.supportsAel(), "Server side AEL doesn't support map type fetch");
         HashMap<String,Integer> map = new HashMap<>();
         map.put("a", 1);
         map.put("b", 2);

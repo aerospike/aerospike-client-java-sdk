@@ -18,10 +18,11 @@ package com.aerospike.examples;
 
 import java.util.Map;
 
+import com.aerospike.client.sdk.DefaultRecordMappingFactory;
 import com.aerospike.client.sdk.Key;
 import com.aerospike.client.sdk.RecordMapper;
 import com.aerospike.client.sdk.Session;
-import com.aerospike.client.sdk.TypeSafeDataSet;
+import com.aerospike.client.sdk.TypedDataSet;
 import com.aerospike.client.sdk.policy.Behavior;
 import com.aerospike.client.sdk.util.MapUtil;
 
@@ -182,15 +183,20 @@ public class TransactionProcessingExample extends Example {
 
     @Override
     public void runExample() {
-        Session session = cluster().createSession(Behavior.DEFAULT);
-
-        TypeSafeDataSet<Customer> customerDataSet = TypeSafeDataSet.of(namespace(), "customers", Customer.class);
-        TypeSafeDataSet<Account> accountDataSet = TypeSafeDataSet.of(namespace(), "accounts", Account.class);
-        TypeSafeDataSet<Transaction> txnDataSet = TypeSafeDataSet.of(namespace(), "txns", Transaction.class);
-
         CustomerMapper customerMapper = new CustomerMapper();
         AccountMapper accountMapper = new AccountMapper();
         TransactionMapper txnMapper = new TransactionMapper();
+
+        cluster().setRecordMappingFactory(DefaultRecordMappingFactory.of(
+                Customer.class, customerMapper,
+                Account.class, accountMapper,
+                Transaction.class, txnMapper));
+
+        Session session = cluster().createSession(Behavior.DEFAULT);
+
+        TypedDataSet<Customer> customerDataSet = TypedDataSet.of(namespace(), "customers", Customer.class);
+        TypedDataSet<Account> accountDataSet = TypedDataSet.of(namespace(), "accounts", Account.class);
+        TypedDataSet<Transaction> txnDataSet = TypedDataSet.of(namespace(), "txns", Transaction.class);
 
         Customer customer = new Customer();
         customer.setCustomerId("CUST-10042");
@@ -203,7 +209,6 @@ public class TransactionProcessingExample extends Example {
 
         session.insert(customerDataSet)
             .object(customer)
-            .using(customerMapper)
             .execute();
 
         Account account = new Account();
@@ -216,7 +221,6 @@ public class TransactionProcessingExample extends Example {
 
         session.insert(accountDataSet)
             .object(account)
-            .using(accountMapper)
             .execute();
 
         Transaction txn = new Transaction();
@@ -277,7 +281,6 @@ public class TransactionProcessingExample extends Example {
         session
             .insert(txnDataSet)
                 .object(txn)
-                .using(txnMapper)
             .update(accountDataSet.id(account.getPan()))
                 .bin("balanceCents").add(txn.getAmountInCents())
             .update(customerDataSet.id(customer.getCustomerId()))

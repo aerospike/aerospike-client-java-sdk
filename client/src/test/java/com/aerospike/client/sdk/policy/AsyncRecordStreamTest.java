@@ -295,7 +295,10 @@ public class AsyncRecordStreamTest {
 
                 // Consume first element
                 assertTrue(stream.hasNext());
-                assertEquals(createResult(1), stream.next());
+
+                RecordResult result = stream.next();
+                int val = result.getKey().userKey.toInteger();
+                assertEquals(1, val);
 
                 // Next call should throw the error
                 try {
@@ -570,7 +573,10 @@ public class AsyncRecordStreamTest {
 
                 List<RecordResult> results = stream.stream().toList();
                 assertEquals(1, results.size());
-                assertEquals(createResult(1), results.get(0));
+
+                RecordResult result = results.get(0);
+                int val = result.getKey().userKey.toInteger();
+                assertEquals(1, val);
             }
         });
     }

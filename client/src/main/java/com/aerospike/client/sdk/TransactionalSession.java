@@ -64,7 +64,7 @@ import com.aerospike.client.sdk.policy.ResolvedSettings;
  * @since 1.0
  */
 public class TransactionalSession extends Session{
-    private final Txn txn;
+    private Txn txn;
     private int count = 0;
 
     /**
@@ -154,6 +154,7 @@ public class TransactionalSession extends Session{
 
                         if (retryCommit(ae) && attempt < maxAttempts) {
                             sleepBetweenRetries(sleepBetweenAttempts);
+                            txn = new Txn();
                             continue;
                         }
                         throw ae;
@@ -233,6 +234,7 @@ public class TransactionalSession extends Session{
 
                         if (retryCommit(ae) && attempt < maxAttempts) {
                             sleepBetweenRetries(sleepBetweenAttempts);
+                            txn = new Txn();
                             continue;
                         }
                         throw ae;
@@ -334,7 +336,7 @@ public class TransactionalSession extends Session{
                 return CommitStatus.ALREADY_COMMITTED;
 
             case ABORTED:
-                throw AerospikeException.resultCodeToException(ResultCode.TXN_ALREADY_ABORTED, "Transaction already aborted");
+                throw AerospikeException.toException(ResultCode.TXN_ALREADY_ABORTED, "Transaction already aborted");
         }
     }
 
@@ -349,7 +351,7 @@ public class TransactionalSession extends Session{
                 return tr.abort(rollPolicy);
 
             case COMMITTED:
-                throw AerospikeException.resultCodeToException(ResultCode.TXN_ALREADY_COMMITTED, "Transaction already committed");
+                throw AerospikeException.toException(ResultCode.TXN_ALREADY_COMMITTED, "Transaction already committed");
 
             case ABORTED:
                 return AbortStatus.ALREADY_ABORTED;

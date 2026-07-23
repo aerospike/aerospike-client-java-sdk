@@ -18,7 +18,7 @@ package com.aerospike.client.sdk;
 
 /**
  * Concrete {@link ListWriteOptions} for single-item list write operations
- * (listAppend, listAdd, listInsert, listSet).
+ * (listAppend, listAdd, listInsert, listSet, listIncrement).
  *
  * <p>Inherits {@code addUnique()}, {@code insertBounded()}, and {@code allowFailures()}
  * from the base class with correct return types thanks to the self-referencing generic.</p>

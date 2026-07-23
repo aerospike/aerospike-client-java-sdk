@@ -75,11 +75,11 @@ public class RecordComparator implements Comparator<RecordResult>{
         }
     }
 
-    private Map<String, Object> getBins(RecordResult kr) {
-        if (kr == null || kr.recordOrNull() == null) {
+    private Map<String, Object> getBins(RecordResult rr) {
+        if (rr == null || rr.getRecord() == null) {
             return null;
         }
-        return kr.recordOrNull().bins;
+        return rr.getRecord().bins;
     }
 
     @Override

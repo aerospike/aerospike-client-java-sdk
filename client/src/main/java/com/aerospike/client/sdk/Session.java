@@ -18,8 +18,10 @@ package com.aerospike.client.sdk;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Calendar;
 import java.util.List;
+import java.util.Objects;
 
 import com.aerospike.client.sdk.cdt.CTX;
 import com.aerospike.client.sdk.command.Buffer;
@@ -35,6 +37,7 @@ import com.aerospike.client.sdk.query.IndexBasedQueryBuilderInterface;
 import com.aerospike.client.sdk.query.IndexCollectionType;
 import com.aerospike.client.sdk.query.IndexType;
 import com.aerospike.client.sdk.query.QueryBuilder;
+import com.aerospike.client.sdk.query.TypedQueryBuilder;
 import com.aerospike.client.sdk.task.IndexTask;
 import com.aerospike.client.sdk.task.RegisterTask;
 import com.aerospike.client.sdk.tend.Partitions;
@@ -197,6 +200,20 @@ public class Session {
     }
 
     /**
+     * Truncate namespace/set from a {@link TypedDataSet} (same as {@link #truncate(DataSet)}).
+     */
+    public void truncate(TypedDataSet<?> set) {
+        truncate(set.asDataSet());
+    }
+
+    /**
+     * @see #truncate(DataSet, Calendar)
+     */
+    public void truncate(TypedDataSet<?> set, Calendar beforeLastUpdate) {
+        truncate(set.asDataSet(), beforeLastUpdate);
+    }
+
+    /**
      * Gets the record mapping factory associated with this session's cluster.
      *
      * <p>The record mapping factory provides mappers that convert between Aerospike
@@ -251,6 +268,24 @@ public class Session {
      */
     public IndexBasedQueryBuilderInterface<QueryBuilder> query(DataSet dataSet) {
         return new QueryBuilder(this, dataSet);
+    }
+
+    /**
+     * Creates a typed query builder for a {@link TypedDataSet}.
+     *
+     * @param dataSet typed dataset (namespace, set, and entity class)
+     * @param <T> entity type
+     * @return builder whose {@link TypedQueryBuilder#execute()} returns a {@link TypedRecordStream}
+     */
+    public <T> TypedQueryBuilder<T> query(TypedDataSet<T> dataSet) {
+        return new TypedQueryBuilder<>(this, dataSet.getClazz(), new QueryBuilder(this, dataSet.asDataSet()));
+    }
+
+    /**
+     * Converts typed keys to native {@link Key} instances (same order).
+     */
+    public static List<Key> nativeKeysFromTyped(List<? extends TypedKey<?>> typedKeys) {
+        return TypedKey.nativeKeys(typedKeys);
     }
 
     /**
@@ -340,6 +375,98 @@ public class Session {
     public ChainableQueryBuilder query(List<Key> keyList) {
         return new ChainableQueryBuilder(this, new ArrayList<>(), null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, getCurrentTransaction())
                 .initQuery(keyList);
+    }
+
+    /**
+     * Query using a single {@link TypedKey} so {@link TypedKeyQueryBuilder#execute()} can return a
+     * {@link TypedRecordStream} for mapper-less {@code getFirstObject()} / {@code toObjectList()} when a
+     * {@link RecordMappingFactory} is configured. Chaining another verb (second {@code query}, writes, UDF, …)
+     * widens to {@link ChainableQueryBuilder} / {@link ChainableOperationBuilder} and yields a plain
+     * {@link RecordStream} from {@code execute()}.
+     */
+    public <T> TypedKeyQueryBuilder<T> query(TypedKey<T> typedKey) {
+        ChainableQueryBuilder inner = new ChainableQueryBuilder(this, new ArrayList<>(), null,
+            AbstractOperationBuilder.NOT_EXPLICITLY_SET, getCurrentTransaction())
+            .initQueryTyped(typedKey);
+        return new TypedKeyQueryBuilder<>(this, typedKey.getEntityClass(), inner);
+    }
+
+    /**
+     * Varargs typed key read. All keys share one compile-time entity type {@code T}, so
+     * {@link TypedKeyQueryBuilder#execute()} can return {@link TypedRecordStream}{@code <T>} for a single
+     * typed read leg (see {@link #queryTypedKeys(List)}).
+     */
+    @SafeVarargs
+    public final <T> TypedKeyQueryBuilder<T> query(TypedKey<T> k1, TypedKey<T> k2, TypedKey<T>... more) {
+        List<TypedKey<T>> list = new ArrayList<>(2 + more.length);
+        list.add(k1);
+        list.add(k2);
+        list.addAll(Arrays.asList(more));
+        return queryTypedKeys(list);
+    }
+
+    /**
+     * Typed multi-key read using a {@link TypedKeyList} (for example from {@link TypedDataSet#ids(int...)}).
+     * Same semantics as {@link #queryTypedKeys(List)}; this overload exists so {@code query(TypedKeyList)}
+     * does not collide with {@link #query(List)} of {@link Key} at type erasure.
+     *
+     * @param typedKeys non-empty list; one entity class for all keys
+     * @param <T> shared entity type
+     * @return typed query builder for that read leg
+     */
+    public <T> TypedKeyQueryBuilder<T> query(TypedKeyList<T> typedKeys) {
+        Objects.requireNonNull(typedKeys, "typedKeys");
+        return queryTypedKeys(typedKeys);
+    }
+
+    /**
+     * Query multiple typed keys for one entity type {@code T}. Returns {@link TypedKeyQueryBuilder} so
+     * {@link TypedKeyQueryBuilder#execute()} yields {@link TypedRecordStream}{@code <T>} while the chain
+     * stays a single typed point-read spec (one or more keys in that spec).
+     *
+     * <p><strong>Common case:</strong> use this when you have {@code List<TypedKey<T>>} (or values from
+     * {@code TypedDataSet#ids} inferred as that type) so the compiler knows {@code T}; you get
+     * {@link TypedKeyQueryBuilder}{@code <T>} and {@link TypedRecordStream}{@code <T>} on {@code execute()}.</p>
+     *
+     * <p><strong>Unusual case:</strong> if the keys are only available as {@code List<? extends TypedKey<?>>}
+     * (wildcard at an API boundary — not mixing entity types), the compiler cannot call this overload;
+     * use {@link #queryTypedKeysAny(List)} instead. Heterogeneous entity classes in one leg still fail at
+     * runtime ({@link TypedKey#requireSharedEntityClass}).</p>
+     *
+     * @param typedKeys non-empty list; all keys must share the same entity class (also enforced at runtime)
+     */
+    public <T> TypedKeyQueryBuilder<T> queryTypedKeys(List<TypedKey<T>> typedKeys) {
+        Objects.requireNonNull(typedKeys, "typedKeys");
+        TypedKey.requireSharedEntityClass(typedKeys);
+        Class<T> entityClass = typedKeys.get(0).getEntityClass();
+        ChainableQueryBuilder inner = new ChainableQueryBuilder(this, new ArrayList<>(), null,
+            AbstractOperationBuilder.NOT_EXPLICITLY_SET, getCurrentTransaction())
+            .initQueryTyped(typedKeys);
+        return new TypedKeyQueryBuilder<>(this, entityClass, inner);
+    }
+
+    /**
+     * Typed batch read when the key list is only known as {@code List<? extends TypedKey<?>>} at compile time.
+     * Each read leg must still use one entity class at runtime (see {@link TypedKey#requireSharedEntityClass}).
+     *
+     * <p><strong>Common case:</strong> prefer {@link #queryTypedKeys(List)} or
+     * {@link #query(TypedKey, TypedKey, TypedKey[])} when you have {@code List<TypedKey<T>>} or fixed
+     * {@code TypedKey<T>} arguments — you keep {@link TypedKeyQueryBuilder}{@code <T>} and
+     * {@link TypedRecordStream}{@code <T>}. This method exists for the <em>unusual</em> wildcard-shaped
+     * list (e.g. a helper returns {@code List<? extends TypedKey<?>>}, or a generic method only declares
+     * the wildcard) where {@link #queryTypedKeys(List)} does not compile because of Java generics, not
+     * because you want mixed entity types in one leg.</p>
+     *
+     * <p>Returns {@link ChainableQueryBuilder} (not {@link TypedKeyQueryBuilder}) because {@code T} is
+     * not part of the method signature. Per-row {@link RecordResult#toObject()} still works when the
+     * batch is homogeneous.</p>
+     *
+     * <p>Cannot overload {@link #queryTypedKeys(List)} with this signature because of type erasure on
+     * {@code List}.</p>
+     */
+    public ChainableQueryBuilder queryTypedKeysAny(List<? extends TypedKey<?>> typedKeys) {
+        return new ChainableQueryBuilder(this, new ArrayList<>(), null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, getCurrentTransaction())
+                .initQueryTyped(typedKeys);
     }
 
     // -------------------
@@ -487,7 +614,7 @@ public class Session {
      */
     public UdfFunctionBuilder executeUdf(Key key) {
         return new UdfFunctionBuilder(this, List.of(key), new ArrayList<>(),
-                null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, getCurrentTransaction());
+                null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, getCurrentTransaction(), null);
     }
 
     /**
@@ -510,7 +637,7 @@ public class Session {
      */
     public UdfFunctionBuilder executeUdf(List<Key> keyList) {
         return new UdfFunctionBuilder(this, keyList, new ArrayList<>(),
-                null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, getCurrentTransaction());
+                null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, getCurrentTransaction(), null);
     }
 
     /**
@@ -534,7 +661,44 @@ public class Session {
      */
     public UdfFunctionBuilder executeUdf(Key key1, Key key2, Key... keys) {
         return new UdfFunctionBuilder(this, buildKeyList(key1, key2, keys), new ArrayList<>(),
-                null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, getCurrentTransaction());
+                null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, getCurrentTransaction(), null);
+    }
+
+    /**
+     * Execute a UDF on a {@link TypedKey} so results carry the entity type for
+     * {@link RecordResult#udfResultAsObject()} (map UDF return) when a factory is configured.
+     */
+    public UdfFunctionBuilder executeUdf(TypedKey<?> typedKey) {
+        return new UdfFunctionBuilder(this, List.of(typedKey.getKey()), new ArrayList<>(),
+            null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, getCurrentTransaction(),
+            typedKey.getEntityClass());
+    }
+
+    /**
+     * Execute a UDF on multiple typed keys; all keys must share the same entity class
+     * (same rule as {@link #queryTypedKeys(List)} / {@link #queryTypedKeysAny(List)}).
+     */
+    public UdfFunctionBuilder executeUdf(TypedKey<?> k1, TypedKey<?> k2, TypedKey<?>... more) {
+        List<TypedKey<?>> list = new ArrayList<>();
+        list.add(k1);
+        list.add(k2);
+        list.addAll(Arrays.asList(more));
+        Class<?> entity = TypedKey.requireSharedEntityClass(list);
+        return new UdfFunctionBuilder(this, TypedKey.nativeKeys(list), new ArrayList<>(),
+            null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, getCurrentTransaction(), entity);
+    }
+
+    /**
+     * Execute a UDF on a homogeneous typed key batch.
+     *
+     * @param typedKeys non-empty; all keys must share the same entity class
+     */
+    public <T> UdfFunctionBuilder executeUdf(TypedKeyList<T> typedKeys) {
+        Objects.requireNonNull(typedKeys, "typedKeys");
+        List<TypedKey<?>> list = new ArrayList<>(typedKeys);
+        Class<?> entity = TypedKey.requireSharedEntityClass(list);
+        return new UdfFunctionBuilder(this, TypedKey.nativeKeys(list), new ArrayList<>(),
+            null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, getCurrentTransaction(), entity);
     }
 
     // -------------------
@@ -600,6 +764,27 @@ public class Session {
         return new ChainableOperationBuilder(this, OpType.INSERT).init(buildKeyList(key1, key2, keys), OpType.INSERT);
     }
 
+    public ChainableOperationBuilder insert(TypedKey<?> typedKey) {
+        return insert(typedKey.getKey());
+    }
+
+    public ChainableOperationBuilder insert(TypedKey<?> k1, TypedKey<?> k2, TypedKey<?>... more) {
+        List<Key> keys = new ArrayList<>();
+        keys.add(k1.getKey());
+        keys.add(k2.getKey());
+        for (TypedKey<?> tk : more) {
+            keys.add(tk.getKey());
+        }
+        return insert(keys);
+    }
+
+    /**
+     * @see #insert(List) — typed batch overload; cannot use {@code insert(List)} with typed keys because of erasure.
+     */
+    public <T> ChainableOperationBuilder insert(TypedKeyList<T> typedKeys) {
+        return insert(TypedKey.nativeKeys(typedKeys));
+    }
+
     /**
      * Update record for the given key if it exists.
      * The command will fail if the key does not exist.
@@ -659,6 +844,27 @@ public class Session {
         return new ChainableOperationBuilder(this, OpType.UPDATE).init(buildKeyList(key1, key2, keys), OpType.UPDATE);
     }
 
+    public ChainableOperationBuilder update(TypedKey<?> typedKey) {
+        return update(typedKey.getKey());
+    }
+
+    public ChainableOperationBuilder update(TypedKey<?> k1, TypedKey<?> k2, TypedKey<?>... more) {
+        List<Key> keys = new ArrayList<>();
+        keys.add(k1.getKey());
+        keys.add(k2.getKey());
+        for (TypedKey<?> tk : more) {
+            keys.add(tk.getKey());
+        }
+        return update(keys);
+    }
+
+    /**
+     * @see #update(List) — typed batch overload; cannot use {@code update(List)} with typed keys because of erasure.
+     */
+    public <T> ChainableOperationBuilder update(TypedKeyList<T> typedKeys) {
+        return update(TypedKey.nativeKeys(typedKeys));
+    }
+
     /**
      * Write record for the given key.
      *
@@ -713,6 +919,27 @@ public class Session {
      */
     public ChainableOperationBuilder upsert(Key key1, Key key2, Key... keys) {
         return new ChainableOperationBuilder(this, OpType.UPSERT).init(buildKeyList(key1, key2, keys), OpType.UPSERT);
+    }
+
+    public ChainableOperationBuilder upsert(TypedKey<?> typedKey) {
+        return upsert(typedKey.getKey());
+    }
+
+    public ChainableOperationBuilder upsert(TypedKey<?> k1, TypedKey<?> k2, TypedKey<?>... more) {
+        List<Key> keys = new ArrayList<>();
+        keys.add(k1.getKey());
+        keys.add(k2.getKey());
+        for (TypedKey<?> tk : more) {
+            keys.add(tk.getKey());
+        }
+        return upsert(keys);
+    }
+
+    /**
+     * @see #upsert(List) — typed batch overload; cannot use {@code upsert(List)} with typed keys because of erasure.
+     */
+    public <T> ChainableOperationBuilder upsert(TypedKeyList<T> typedKeys) {
+        return upsert(TypedKey.nativeKeys(typedKeys));
     }
 
     /**
@@ -772,6 +999,27 @@ public class Session {
      */
     public ChainableOperationBuilder replace(Key key1, Key key2, Key... keys) {
         return new ChainableOperationBuilder(this, OpType.REPLACE).init(buildKeyList(key1, key2, keys), OpType.REPLACE);
+    }
+
+    public ChainableOperationBuilder replace(TypedKey<?> typedKey) {
+        return replace(typedKey.getKey());
+    }
+
+    public ChainableOperationBuilder replace(TypedKey<?> k1, TypedKey<?> k2, TypedKey<?>... more) {
+        List<Key> keys = new ArrayList<>();
+        keys.add(k1.getKey());
+        keys.add(k2.getKey());
+        for (TypedKey<?> tk : more) {
+            keys.add(tk.getKey());
+        }
+        return replace(keys);
+    }
+
+    /**
+     * @see #replace(List) — typed batch overload.
+     */
+    public <T> ChainableOperationBuilder replace(TypedKeyList<T> typedKeys) {
+        return replace(TypedKey.nativeKeys(typedKeys));
     }
 
     /**
@@ -834,6 +1082,27 @@ public class Session {
      */
     public ChainableOperationBuilder replaceIfExists(Key key1, Key key2, Key... keys) {
         return new ChainableOperationBuilder(this, OpType.REPLACE_IF_EXISTS).init(buildKeyList(key1, key2, keys), OpType.REPLACE_IF_EXISTS);
+    }
+
+    public ChainableOperationBuilder replaceIfExists(TypedKey<?> typedKey) {
+        return replaceIfExists(typedKey.getKey());
+    }
+
+    public ChainableOperationBuilder replaceIfExists(TypedKey<?> k1, TypedKey<?> k2, TypedKey<?>... more) {
+        List<Key> keys = new ArrayList<>();
+        keys.add(k1.getKey());
+        keys.add(k2.getKey());
+        for (TypedKey<?> tk : more) {
+            keys.add(tk.getKey());
+        }
+        return replaceIfExists(keys);
+    }
+
+    /**
+     * @see #replaceIfExists(List) — typed batch overload.
+     */
+    public <T> ChainableOperationBuilder replaceIfExists(TypedKeyList<T> typedKeys) {
+        return replaceIfExists(TypedKey.nativeKeys(typedKeys));
     }
 
     /**
@@ -900,6 +1169,27 @@ public class Session {
                 .touch(buildKeyList(key1, key2, keys));
     }
 
+    public ChainableNoBinsBuilder touch(TypedKey<?> typedKey) {
+        return touch(typedKey.getKey());
+    }
+
+    public ChainableNoBinsBuilder touch(TypedKey<?> k1, TypedKey<?> k2, TypedKey<?>... more) {
+        List<Key> keys = new ArrayList<>();
+        keys.add(k1.getKey());
+        keys.add(k2.getKey());
+        for (TypedKey<?> tk : more) {
+            keys.add(tk.getKey());
+        }
+        return touch(keys);
+    }
+
+    /**
+     * @see #touch(List) — typed batch overload.
+     */
+    public <T> ChainableNoBinsBuilder touch(TypedKeyList<T> typedKeys) {
+        return touch(TypedKey.nativeKeys(typedKeys));
+    }
+
     /**
      * Determine if a key exists.
      *
@@ -956,6 +1246,27 @@ public class Session {
                 .exists(buildKeyList(key1, key2, keys));
     }
 
+    public ChainableNoBinsBuilder exists(TypedKey<?> typedKey) {
+        return exists(typedKey.getKey());
+    }
+
+    public ChainableNoBinsBuilder exists(TypedKey<?> k1, TypedKey<?> k2, TypedKey<?>... more) {
+        List<Key> keys = new ArrayList<>();
+        keys.add(k1.getKey());
+        keys.add(k2.getKey());
+        for (TypedKey<?> tk : more) {
+            keys.add(tk.getKey());
+        }
+        return exists(keys);
+    }
+
+    /**
+     * @see #exists(List) — typed batch overload.
+     */
+    public <T> ChainableNoBinsBuilder exists(TypedKeyList<T> typedKeys) {
+        return exists(TypedKey.nativeKeys(typedKeys));
+    }
+
     /**
      * Delete record for the given key.
      *
@@ -1009,6 +1320,27 @@ public class Session {
                 .delete(buildKeyList(key1, key2, keys));
     }
 
+    public ChainableNoBinsBuilder delete(TypedKey<?> typedKey) {
+        return delete(typedKey.getKey());
+    }
+
+    public ChainableNoBinsBuilder delete(TypedKey<?> k1, TypedKey<?> k2, TypedKey<?>... more) {
+        List<Key> keys = new ArrayList<>();
+        keys.add(k1.getKey());
+        keys.add(k2.getKey());
+        for (TypedKey<?> tk : more) {
+            keys.add(tk.getKey());
+        }
+        return delete(keys);
+    }
+
+    /**
+     * @see #delete(List) — typed batch overload.
+     */
+    public <T> ChainableNoBinsBuilder delete(TypedKeyList<T> typedKeys) {
+        return delete(TypedKey.nativeKeys(typedKeys));
+    }
+
     // --------------------------------
     // Object mapping functionality
     // --------------------------------
@@ -1040,12 +1372,12 @@ public class Session {
     /**
      * Begins an insert operation using type-safe object mapping for a typed dataset.
      *
-     * <p>This method provides type-safe object insertion using a {@link TypeSafeDataSet}.
+     * <p>This method provides type-safe object insertion using a {@link TypedDataSet}.
      * The type parameter ensures compile-time type safety when working with objects.</p>
      *
      * <p>Example usage:</p>
      * <pre>{@code
-     * TypeSafeDataSet<Customer> customers = ...;
+     * TypedDataSet<Customer> customers = ...;
      * session.insert(customers)
      *     .object(new Customer("John", "Doe"))
      *     .execute();
@@ -1055,11 +1387,11 @@ public class Session {
      * @param dataSet the typed dataset to insert into
      * @return a type-safe OperationObjectBuilder for configuring and executing the insert
      * @see OperationObjectBuilder
-     * @see TypeSafeDataSet
+     * @see TypedDataSet
      * @see RecordMappingFactory
      */
-    public <T> OperationObjectBuilder<T> insert(TypeSafeDataSet<T> dataSet) {
-        return new OperationObjectBuilder<T>(this, dataSet, OpType.INSERT);
+    public <T> OperationObjectBuilder<T> insert(TypedDataSet<T> dataSet) {
+        return new OperationObjectBuilder<T>(this, dataSet.asDataSet(), OpType.INSERT);
     }
 
     /**
@@ -1089,12 +1421,12 @@ public class Session {
     /**
      * Begins an upsert operation using type-safe object mapping for a typed dataset.
      *
-     * <p>This method provides type-safe object upsertion using a {@link TypeSafeDataSet}.
+     * <p>This method provides type-safe object upsertion using a {@link TypedDataSet}.
      * The type parameter ensures compile-time type safety when working with objects.</p>
      *
      * <p>Example usage:</p>
      * <pre>{@code
-     * TypeSafeDataSet<Customer> customers = ...;
+     * TypedDataSet<Customer> customers = ...;
      * session.upsert(customers)
      *     .object(new Customer("John", "Doe"))
      *     .execute();
@@ -1104,11 +1436,11 @@ public class Session {
      * @param dataSet the typed dataset to upsert into
      * @return a type-safe OperationObjectBuilder for configuring and executing the upsert
      * @see OperationObjectBuilder
-     * @see TypeSafeDataSet
+     * @see TypedDataSet
      * @see RecordMappingFactory
      */
-    public <T> OperationObjectBuilder<T> upsert(TypeSafeDataSet<T> dataSet) {
-        return new OperationObjectBuilder<T>(this, dataSet, OpType.UPSERT);
+    public <T> OperationObjectBuilder<T> upsert(TypedDataSet<T> dataSet) {
+        return new OperationObjectBuilder<T>(this, dataSet.asDataSet(), OpType.UPSERT);
     }
 
     /**
@@ -1138,12 +1470,12 @@ public class Session {
     /**
      * Begins an update operation using type-safe object mapping for a typed dataset.
      *
-     * <p>This method provides type-safe object updates using a {@link TypeSafeDataSet}.
+     * <p>This method provides type-safe object updates using a {@link TypedDataSet}.
      * The type parameter ensures compile-time type safety when working with objects.</p>
      *
      * <p>Example:</p>
      * <pre>{@code
-     * TypeSafeDataSet<Customer> customers = ...;
+     * TypedDataSet<Customer> customers = ...;
      * session.update(customers)
      *     .object(existingCustomer)
      *     .execute();
@@ -1153,11 +1485,11 @@ public class Session {
      * @param dataSet the typed dataset to update
      * @return a type-safe OperationObjectBuilder for configuring and executing the update
      * @see OperationObjectBuilder
-     * @see TypeSafeDataSet
+     * @see TypedDataSet
      * @see RecordMappingFactory
      */
-    public <T> OperationObjectBuilder<T> update(TypeSafeDataSet<T> dataSet) {
-        return new OperationObjectBuilder<T>(this, dataSet, OpType.UPDATE);
+    public <T> OperationObjectBuilder<T> update(TypedDataSet<T> dataSet) {
+        return new OperationObjectBuilder<T>(this, dataSet.asDataSet(), OpType.UPDATE);
     }
 
     /**
@@ -1187,12 +1519,12 @@ public class Session {
     /**
      * Begins a replace operation using type-safe object mapping for a typed dataset.
      *
-     * <p>This method provides type-safe object replacement using a {@link TypeSafeDataSet}.
+     * <p>This method provides type-safe object replacement using a {@link TypedDataSet}.
      * The type parameter ensures compile-time type safety when working with objects.</p>
      *
      * <p>Example:</p>
      * <pre>{@code
-     * TypeSafeDataSet<Customer> customers = ...;
+     * TypedDataSet<Customer> customers = ...;
      * session.replace(customers)
      *     .object(new Customer("John", "Doe"))
      *     .execute();
@@ -1202,11 +1534,11 @@ public class Session {
      * @param dataSet the typed dataset to replace into
      * @return a type-safe OperationObjectBuilder for configuring and executing the replace
      * @see OperationObjectBuilder
-     * @see TypeSafeDataSet
+     * @see TypedDataSet
      * @see RecordMappingFactory
      */
-    public <T> OperationObjectBuilder<T> replace(TypeSafeDataSet<T> dataSet) {
-        return new OperationObjectBuilder<T>(this, dataSet, OpType.REPLACE);
+    public <T> OperationObjectBuilder<T> replace(TypedDataSet<T> dataSet) {
+        return new OperationObjectBuilder<T>(this, dataSet.asDataSet(), OpType.REPLACE);
     }
 
     /**
@@ -1235,12 +1567,12 @@ public class Session {
     /**
      * Begins a replaceIfExists operation using type-safe object mapping for a typed dataset.
      *
-     * <p>This method provides type-safe object replacement using a {@link TypeSafeDataSet},
+     * <p>This method provides type-safe object replacement using a {@link TypedDataSet},
      * only if the record already exists. If the record does not exist, the operation will fail.</p>
      *
      * <p>Example:</p>
      * <pre>{@code
-     * TypeSafeDataSet<Customer> customers = ...;
+     * TypedDataSet<Customer> customers = ...;
      * session.replaceIfExists(customers)
      *     .object(existingCustomer)
      *     .execute();
@@ -1250,11 +1582,11 @@ public class Session {
      * @param dataSet the typed dataset to replace into
      * @return a type-safe OperationObjectBuilder for configuring and executing the replace
      * @see OperationObjectBuilder
-     * @see TypeSafeDataSet
+     * @see TypedDataSet
      * @see RecordMappingFactory
      */
-    public <T> OperationObjectBuilder<T> replaceIfExists(TypeSafeDataSet<T> dataSet) {
-        return new OperationObjectBuilder<T>(this, dataSet, OpType.REPLACE_IF_EXISTS);
+    public <T> OperationObjectBuilder<T> replaceIfExists(TypedDataSet<T> dataSet) {
+        return new OperationObjectBuilder<T>(this, dataSet.asDataSet(), OpType.REPLACE_IF_EXISTS);
     }
 
     // ---------------------------
@@ -1543,6 +1875,23 @@ public class Session {
     //---------------------
 
     /**
+     * Create a set index for the given set.
+     * A set index is a secondary index specialized for record presence per set;
+     * no bin, type, context, or expression parameters are used.
+     * This asynchronous server call will return before command is complete.
+     * The user can optionally wait for command completion by using the returned
+     * IndexTask instance.
+     * Requires server version 8.1.2+.
+     *
+     * @param set                   dataset containing namespace and set information
+     * @param indexName             name of set index
+     * @throws AerospikeException   if index create fails
+     */
+    public final IndexTask createIndex(DataSet set, String indexName) {
+        return createIndex(set, indexName, null, null, IndexCollectionType.SET);
+    }
+
+    /**
      * Create scalar secondary index.
      * This asynchronous server call will return before command is complete.
      * The user can optionally wait for command completion by using the returned
@@ -1583,7 +1932,7 @@ public class Session {
         }
 
         int code = parseIndexErrorCode(response);
-        throw AerospikeException.resultCodeToException(code, "Create index failed: " + response);
+        throw AerospikeException.toException(code, "Create index failed: " + response);
     }
 
     /**
@@ -1643,7 +1992,7 @@ public class Session {
         }
 
         int code = parseIndexErrorCode(response);
-        throw AerospikeException.resultCodeToException(code, "Create index failed: " + response);
+        throw AerospikeException.toException(code, "Create index failed: " + response);
     }
 
     private String buildCreateIndexInfoCommand(
@@ -1664,10 +2013,6 @@ public class Session {
             currentServerVersion.isGreaterOrEqual(Version.SERVER_VERSION_8_1)?
                 "sindex-create:namespace=": "sindex-create:ns=";
 
-        String indexTypeString = (indexType == IndexType.INTEGER &&
-            currentServerVersion.isLessThan(Version.SERVER_VERSION_8_1_3))?
-                "NUMERIC" : indexType.toString();
-
         sb.append(createIndexCommand);
         sb.append(namespace);
 
@@ -1679,43 +2024,53 @@ public class Session {
         sb.append(";indexname=");
         sb.append(indexName);
 
-        if (exp != null) {
-            String base64 = exp.getBase64();
+        if (indexCollectionType == IndexCollectionType.SET) {
+            sb.append(";indextype=set");
+        }
+        else {
+            String indexTypeString = (indexType == IndexType.INTEGER) ?
+                // && currentServerVersion.isLessThan(Version.SERVER_VERSION_8_1_3))?
+                    "NUMERIC" : indexType.toString();
 
-            sb.append(";exp=");
-            sb.append(base64);
+            if (exp != null) {
+                String base64 = exp.getBase64();
 
-            if (indexCollectionType != IndexCollectionType.DEFAULT) {
-                sb.append(";indextype=");
-                sb.append(indexCollectionType);
-            }
-
-            sb.append(";type=");
-            sb.append(indexTypeString);
-        } else {
-            if (ctx != null && ctx.length > 0) {
-                byte[] bytes = Pack.pack(ctx);
-                String base64 = Crypto.encodeBase64(bytes);
-
-                sb.append(";context=");
+                sb.append(";exp=");
                 sb.append(base64);
-            }
 
-            if (indexCollectionType != IndexCollectionType.DEFAULT) {
-                sb.append(";indextype=");
-                sb.append(indexCollectionType);
-            }
+                if (indexCollectionType != IndexCollectionType.DEFAULT) {
+                    sb.append(";indextype=");
+                    sb.append(indexCollectionType);
+                }
 
-            if (node.getVersion().isGreaterOrEqual(Version.SERVER_VERSION_8_1)) {
-                sb.append(";bin=");
-                sb.append(binName);
                 sb.append(";type=");
                 sb.append(indexTypeString);
-            } else {
-                sb.append(";indexdata=");
-                sb.append(binName);
-                sb.append(',');
-                sb.append(indexTypeString);
+            }
+            else {
+                if (ctx != null && ctx.length > 0) {
+                    byte[] bytes = Pack.pack(ctx);
+                    String base64 = Crypto.encodeBase64(bytes);
+
+                    sb.append(";context=");
+                    sb.append(base64);
+                }
+
+                if (indexCollectionType != IndexCollectionType.DEFAULT) {
+                    sb.append(";indextype=");
+                    sb.append(indexCollectionType);
+                }
+
+                if (node.getVersion().isGreaterOrEqual(Version.SERVER_VERSION_8_1)) {
+                    sb.append(";bin=");
+                    sb.append(binName);
+                    sb.append(";type=");
+                    sb.append(indexTypeString);
+                } else {
+                    sb.append(";indexdata=");
+                    sb.append(binName);
+                    sb.append(',');
+                    sb.append(indexTypeString);
+                }
             }
         }
 
@@ -1750,7 +2105,41 @@ public class Session {
         }
 
         int code = parseIndexErrorCode(response);
-        throw AerospikeException.resultCodeToException(code, "Drop index failed: " + response);
+        throw AerospikeException.toException(code, "Drop index failed: " + response);
+    }
+
+    /**
+     * @see #createIndex(DataSet, String, String, IndexType, IndexCollectionType, CTX...)
+     */
+    public final IndexTask createIndex(
+        TypedDataSet<?> set,
+        String indexName,
+        String binName,
+        IndexType indexType,
+        IndexCollectionType indexCollectionType,
+        CTX... ctx
+    ) {
+        return createIndex(set.asDataSet(), indexName, binName, indexType, indexCollectionType, ctx);
+    }
+
+    /**
+     * @see #createIndex(DataSet, String, IndexType, IndexCollectionType, Expression)
+     */
+    public final IndexTask createIndex(
+        TypedDataSet<?> set,
+        String indexName,
+        IndexType indexType,
+        IndexCollectionType indexCollectionType,
+        Expression exp
+    ) {
+        return createIndex(set.asDataSet(), indexName, indexType, indexCollectionType, exp);
+    }
+
+    /**
+     * @see #dropIndex(DataSet, String)
+     */
+    public final IndexTask dropIndex(TypedDataSet<?> set, String indexName) {
+        return dropIndex(set.asDataSet(), indexName);
     }
 
     private String buildDropIndexInfoCommand(Node node, String namespace, String setName, String indexName) {

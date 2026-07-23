@@ -24,6 +24,9 @@ import java.util.Date;
 import java.util.List;
 import java.util.Objects;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.aerospike.ael.ParseResult;
 import com.aerospike.client.sdk.ael.BooleanExpression;
 import com.aerospike.client.sdk.command.Txn;
@@ -56,6 +59,8 @@ import com.aerospike.client.sdk.query.WhereClauseProcessor;
  */
 public class ChainableOperationBuilder extends AbstractOperationBuilder<ChainableOperationBuilder>
         implements FilterableOperation<ChainableOperationBuilder> {
+
+    private static final Logger log = LoggerFactory.getLogger(Loggers.COMMAND);
 
     private final List<OperationSpec> operationSpecs;
     private OperationSpec currentSpec = null;
@@ -198,6 +203,23 @@ public class ChainableOperationBuilder extends AbstractOperationBuilder<Chainabl
         return this;
     }
 
+    /**
+     * Appends one or more pre-built {@link Operation}s to the current write step (for example
+     * string reads from {@link com.aerospike.client.sdk.operation.StringOperation} factories).
+     * Prefer {@link #bin(String)} fluent methods when they cover your case.
+     *
+     * @param operations operations to append (non-null elements)
+     * @return this builder for chaining
+     */
+    public ChainableOperationBuilder appendOperations(Operation... operations) {
+        verifyState("appending operations");
+        Objects.requireNonNull(operations, "operations");
+        for (Operation op : operations) {
+            currentSpec.getOperations().add(Objects.requireNonNull(op, "operation"));
+        }
+        return this;
+    }
+
     @Override
     public ChainableOperationBuilder deleteRecord() {
         verifyState("deleting record");
@@ -224,6 +246,10 @@ public class ChainableOperationBuilder extends AbstractOperationBuilder<Chainabl
      */
     public ChainableOperationBuilder upsert(Key key) {
         return init(key, OpType.UPSERT);
+    }
+
+    public ChainableOperationBuilder upsert(TypedKey<?> typedKey) {
+        return upsert(typedKey.getKey());
     }
 
     /**
@@ -262,6 +288,10 @@ public class ChainableOperationBuilder extends AbstractOperationBuilder<Chainabl
         return init(key, OpType.UPDATE);
     }
 
+    public ChainableOperationBuilder update(TypedKey<?> typedKey) {
+        return update(typedKey.getKey());
+    }
+
     /**
      * Chain an update operation on multiple keys.
      *
@@ -296,6 +326,10 @@ public class ChainableOperationBuilder extends AbstractOperationBuilder<Chainabl
      */
     public ChainableOperationBuilder insert(Key key) {
         return init(key, OpType.INSERT);
+    }
+
+    public ChainableOperationBuilder insert(TypedKey<?> typedKey) {
+        return insert(typedKey.getKey());
     }
 
     /**
@@ -334,6 +368,10 @@ public class ChainableOperationBuilder extends AbstractOperationBuilder<Chainabl
         return init(key, OpType.REPLACE);
     }
 
+    public ChainableOperationBuilder replace(TypedKey<?> typedKey) {
+        return replace(typedKey.getKey());
+    }
+
     /**
      * Chain a replace operation on multiple keys.
      *
@@ -369,6 +407,10 @@ public class ChainableOperationBuilder extends AbstractOperationBuilder<Chainabl
      */
     public ChainableOperationBuilder replaceIfExists(Key key) {
         return init(key, OpType.REPLACE_IF_EXISTS);
+    }
+
+    public ChainableOperationBuilder replaceIfExists(TypedKey<?> typedKey) {
+        return replaceIfExists(typedKey.getKey());
     }
 
     /**
@@ -413,6 +455,16 @@ public class ChainableOperationBuilder extends AbstractOperationBuilder<Chainabl
     }
 
     /**
+     * Like {@link #delete(Key)} using the native key from {@link TypedKey#getKey()}.
+     *
+     * @param typedKey typed key whose record is deleted
+     * @return builder for further no-bin operations
+     */
+    public ChainableNoBinsBuilder delete(TypedKey<?> typedKey) {
+        return delete(typedKey.getKey());
+    }
+
+    /**
      * Chain a delete operation on multiple keys.
      *
      * @param keys the keys to delete
@@ -454,6 +506,16 @@ public class ChainableOperationBuilder extends AbstractOperationBuilder<Chainabl
     }
 
     /**
+     * Like {@link #touch(Key)} using the native key from {@link TypedKey#getKey()}.
+     *
+     * @param typedKey typed key whose record TTL is touched
+     * @return builder for further no-bin operations
+     */
+    public ChainableNoBinsBuilder touch(TypedKey<?> typedKey) {
+        return touch(typedKey.getKey());
+    }
+
+    /**
      * Chain a touch operation on multiple keys.
      *
      * @param keys the keys to touch
@@ -492,6 +554,16 @@ public class ChainableOperationBuilder extends AbstractOperationBuilder<Chainabl
         finalizeCurrentOperation();
         return new ChainableNoBinsBuilder(session, operationSpecs, defaultWhereClause, defaultExpirationInSeconds, txnToUse)
                 .initExists(key);
+    }
+
+    /**
+     * Like {@link #exists(Key)} using the native key from {@link TypedKey#getKey()}.
+     *
+     * @param typedKey typed key to test for existence
+     * @return builder for further no-bin operations
+     */
+    public ChainableNoBinsBuilder exists(TypedKey<?> typedKey) {
+        return exists(typedKey.getKey());
     }
 
     /**
@@ -564,6 +636,140 @@ public class ChainableOperationBuilder extends AbstractOperationBuilder<Chainabl
     }
 
     /**
+     * Chain a typed point read on one key so results can use {@link RecordResult#toObject()} with the
+     * key’s entity class.
+     *
+     * @param typedKey key plus domain type
+     * @param <T> entity type carried by the key
+     * @return builder for specifying bins and executing the read leg
+     */
+    public <T> ChainableQueryBuilder query(TypedKey<T> typedKey) {
+        finalizeCurrentOperation();
+        return new ChainableQueryBuilder(session, operationSpecs, defaultWhereClause, defaultExpirationInSeconds, txnToUse)
+                .initQueryTyped(typedKey);
+    }
+
+    /**
+     * Chain a typed multi-key read; all keys must share the same entity class at runtime
+     * ({@link TypedKey#requireSharedEntityClass}).
+     *
+     * @param k1 first typed key
+     * @param k2 second typed key
+     * @param more additional typed keys (same entity class)
+     * @return builder for specifying bins and executing the read leg
+     */
+    public ChainableQueryBuilder query(TypedKey<?> k1, TypedKey<?> k2, TypedKey<?>... more) {
+        List<TypedKey<?>> list = new ArrayList<>();
+        list.add(k1);
+        list.add(k2);
+        list.addAll(Arrays.asList(more));
+        return queryTypedKeys(list);
+    }
+
+    /**
+     * Chain a typed multi-key read. Same semantics as {@link Session#queryTypedKeys(java.util.List)}
+     * but appended to this batch chain. Cannot overload {@link #query(List)} with a second {@code List}-typed
+     * parameter at the same erasure, so this method name is used for {@code List<? extends TypedKey<?>>}.
+     *
+     * @param typedKeys non-empty list; one entity class for all keys
+     * @return builder for specifying bins and executing the read leg
+     */
+    public ChainableQueryBuilder queryTypedKeys(List<? extends TypedKey<?>> typedKeys) {
+        finalizeCurrentOperation();
+        return new ChainableQueryBuilder(session, operationSpecs, defaultWhereClause, defaultExpirationInSeconds, txnToUse)
+                .initQueryTyped(typedKeys);
+    }
+
+    /**
+     * Typed batch variant of {@link #upsert(List)}: uses {@link TypedKey#nativeKeys(TypedKeyList)}.
+     * {@link TypedKeyList} avoids clashing with {@code upsert(List<Key>)} at erasure.
+     *
+     * @param typedKeys non-empty homogeneous typed keys
+     * @param <T> shared entity type
+     * @return builder for further bin operations on this write leg
+     */
+    public <T> ChainableOperationBuilder upsert(TypedKeyList<T> typedKeys) {
+        return upsert(TypedKey.nativeKeys(typedKeys));
+    }
+
+    /**
+     * Typed batch variant of {@link #update(List)}.
+     *
+     * @param typedKeys non-empty homogeneous typed keys
+     * @param <T> shared entity type
+     * @return builder for further bin operations
+     */
+    public <T> ChainableOperationBuilder update(TypedKeyList<T> typedKeys) {
+        return update(TypedKey.nativeKeys(typedKeys));
+    }
+
+    /**
+     * Typed batch variant of {@link #insert(List)}.
+     *
+     * @param typedKeys non-empty homogeneous typed keys
+     * @param <T> shared entity type
+     * @return builder for further bin operations
+     */
+    public <T> ChainableOperationBuilder insert(TypedKeyList<T> typedKeys) {
+        return insert(TypedKey.nativeKeys(typedKeys));
+    }
+
+    /**
+     * Typed batch variant of {@link #replace(List)}.
+     *
+     * @param typedKeys non-empty homogeneous typed keys
+     * @param <T> shared entity type
+     * @return builder for further bin operations
+     */
+    public <T> ChainableOperationBuilder replace(TypedKeyList<T> typedKeys) {
+        return replace(TypedKey.nativeKeys(typedKeys));
+    }
+
+    /**
+     * Typed batch variant of {@link #replaceIfExists(List)}.
+     *
+     * @param typedKeys non-empty homogeneous typed keys
+     * @param <T> shared entity type
+     * @return builder for further bin operations
+     */
+    public <T> ChainableOperationBuilder replaceIfExists(TypedKeyList<T> typedKeys) {
+        return replaceIfExists(TypedKey.nativeKeys(typedKeys));
+    }
+
+    /**
+     * Typed batch variant of {@link #delete(List)}.
+     *
+     * @param typedKeys non-empty homogeneous typed keys
+     * @param <T> shared entity type
+     * @return builder for further no-bin operations
+     */
+    public <T> ChainableNoBinsBuilder delete(TypedKeyList<T> typedKeys) {
+        return delete(TypedKey.nativeKeys(typedKeys));
+    }
+
+    /**
+     * Typed batch variant of {@link #touch(List)}.
+     *
+     * @param typedKeys non-empty homogeneous typed keys
+     * @param <T> shared entity type
+     * @return builder for further no-bin operations
+     */
+    public <T> ChainableNoBinsBuilder touch(TypedKeyList<T> typedKeys) {
+        return touch(TypedKey.nativeKeys(typedKeys));
+    }
+
+    /**
+     * Typed batch variant of {@link #exists(List)}.
+     *
+     * @param typedKeys non-empty homogeneous typed keys
+     * @param <T> shared entity type
+     * @return builder for further no-bin operations
+     */
+    public <T> ChainableNoBinsBuilder exists(TypedKeyList<T> typedKeys) {
+        return exists(TypedKey.nativeKeys(typedKeys));
+    }
+
+    /**
      * Chain a UDF execution on a single key.
      * Returns a {@link UdfFunctionBuilder} requiring the UDF function to be specified.
      *
@@ -573,7 +779,7 @@ public class ChainableOperationBuilder extends AbstractOperationBuilder<Chainabl
     public UdfFunctionBuilder executeUdf(Key key) {
         finalizeCurrentOperation();
         return new UdfFunctionBuilder(session, List.of(key), operationSpecs,
-                defaultWhereClause, defaultExpirationInSeconds, txnToUse);
+                defaultWhereClause, defaultExpirationInSeconds, txnToUse, null);
     }
 
     /**
@@ -585,7 +791,7 @@ public class ChainableOperationBuilder extends AbstractOperationBuilder<Chainabl
     public UdfFunctionBuilder executeUdf(List<Key> keys) {
         finalizeCurrentOperation();
         return new UdfFunctionBuilder(session, keys, operationSpecs,
-                defaultWhereClause, defaultExpirationInSeconds, txnToUse);
+                defaultWhereClause, defaultExpirationInSeconds, txnToUse, null);
     }
 
     /**
@@ -917,9 +1123,9 @@ public class ChainableOperationBuilder extends AbstractOperationBuilder<Chainabl
     public RecordStream execute() {
         prepareSpecs();
 
-        if (Log.debugEnabled()) {
+        if (log.isDebugEnabled()) {
             int totalKeys = operationSpecs.stream().mapToInt(spec -> spec.getKeys().size()).sum();
-            Log.debug("ChainableOperationBuilder.execute() called for " + operationSpecs.size() +
+            log.debug("ChainableOperationBuilder.execute() called for " + operationSpecs.size() +
                      " operation(s), " + totalKeys + " key(s), transaction: " +
                      (txnToUse != null ? "yes" : "no"));
         }
@@ -957,9 +1163,9 @@ public class ChainableOperationBuilder extends AbstractOperationBuilder<Chainabl
     private RecordStream executeWithDisposition(ErrorDisposition disposition) {
         prepareSpecs();
 
-        if (Log.debugEnabled()) {
+        if (log.isDebugEnabled()) {
             int totalKeys = operationSpecs.stream().mapToInt(spec -> spec.getKeys().size()).sum();
-            Log.debug("ChainableOperationBuilder.execute() called for " + operationSpecs.size() +
+            log.debug("ChainableOperationBuilder.execute() called for " + operationSpecs.size() +
                      " operation(s), " + totalKeys + " key(s), transaction: " +
                      (txnToUse != null ? "yes" : "no"));
         }
@@ -993,41 +1199,37 @@ public class ChainableOperationBuilder extends AbstractOperationBuilder<Chainabl
 
     private RecordStream executeAsyncInternal(ErrorHandler errorHandler) {
         prepareSpecs();
-
-        if (Log.debugEnabled()) {
-            int totalKeys = operationSpecs.stream().mapToInt(spec -> spec.getKeys().size()).sum();
-            Log.debug("ChainableOperationBuilder.executeAsync() called for " + operationSpecs.size() +
-                     " operation(s), " + totalKeys + " key(s), transaction: " +
-                     (txnToUse != null ? "yes" : "no"));
-        }
-
-        if (txnToUse != null && Log.warnEnabled()) {
-            Log.warn(
-                "executeAsync() called within a transaction. " +
-                "Async operations may still be in flight when commit() is called, " +
-                "which could lead to inconsistent state. " +
-                "Consider using execute() for transactional safety."
-            );
-        }
-
         int totalKeys = operationSpecs.stream().mapToInt(spec -> spec.getKeys().size()).sum();
-        AsyncRecordStream asyncStream = new AsyncRecordStream(totalKeys);
+        warnAsyncInTransaction();
 
+        AsyncRecordStream asyncStream = AsyncExecutionSupport.newStream(totalKeys, errorHandler);
+        startAsyncWork(asyncStream, errorHandler);
+        return new RecordStream(asyncStream);
+    }
+
+    private void warnAsyncInTransaction() {
+        if (txnToUse != null && log.isWarnEnabled()) {
+            log.warn(
+                "executeAsync() called within a transaction. "
+                    + "Async operations may still be in flight when commit() is called, "
+                    + "which could lead to inconsistent state. "
+                    + "Consider using execute() for transactional safety.");
+        }
+    }
+
+    private void startAsyncWork(AsyncRecordStream asyncStream, ErrorHandler errorHandler) {
         Cluster cluster = session.getCluster();
         cluster.startVirtualThread(() -> {
             try {
                 RecordStream syncResult = OperationSpecExecutor.execute(session, operationSpecs,
                     defaultWhereClause, defaultExpirationInSeconds, txnToUse, notInAnyTransaction,
                     durableDeleteDefault);
-                syncResult.forEach(result -> dispatchResult(result, asyncStream, errorHandler));
+                syncResult.forEach(result -> AbstractFilterableBuilder.dispatchResult(result, asyncStream, errorHandler));
             } finally {
                 asyncStream.complete();
             }
         });
-
-        return new RecordStream(asyncStream);
     }
-
 
     private void prepareSpecs() {
         finalizeCurrentOperation();
@@ -1130,15 +1332,15 @@ public class ChainableOperationBuilder extends AbstractOperationBuilder<Chainabl
 
         @Override
         public void showWarningsOnException(AerospikeException ae, Txn txn, Key key, int expiration) {
-            if (Log.warnEnabled()) {
+            if (log.isWarnEnabled()) {
                 if (ae.getResultCode() == ResultCode.FAIL_FORBIDDEN && expiration > 0) {
-                    Log.warn("Operation failed on server with FAIL_FORBIDDEN (22) and the record had "
+                    log.warn("Operation failed on server with FAIL_FORBIDDEN (22) and the record had "
                             + "an expiry set in the operation. This is possibly caused by nsup being disabled. "
                             + "See https://aerospike.com/docs/database/reference/error-codes for more information");
                 }
                 if (ae.getResultCode() == ResultCode.UNSUPPORTED_FEATURE) {
                     if (txn != null && !session.isNamespaceSC(key.namespace)) {
-                        Log.warn(String.format("Namespace '%s' is involved in transaction, but it is not an SC namespace. "
+                        log.warn(String.format("Namespace '%s' is involved in transaction, but it is not an SC namespace. "
                                 + "This will throw an Unsupported Server Feature exception", key.namespace));
                     }
                 }

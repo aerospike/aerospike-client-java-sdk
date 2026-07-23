@@ -64,7 +64,7 @@ public class QueryKeyTest extends ClusterTest {
 
         for (int i = 1; i <= size; i++) {
             String key = keyPrefix + i;
-            session.upsert(dataSet.ids(key))
+            sessionWithSendKey.upsert(dataSet.ids(key))
                 .bins(binName)
                 .values(i)
                 .execute();
@@ -95,7 +95,7 @@ public class QueryKeyTest extends ClusterTest {
             int count = 0;
             while (rs.hasNext()) {
                 RecordResult result = rs.next();
-                Key key = result.key();
+                Key key = result.getKey();
                 assertNotNull(key.userKey);
 
                 Object userkey = key.userKey.getObject();

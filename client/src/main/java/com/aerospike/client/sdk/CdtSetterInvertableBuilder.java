@@ -35,10 +35,10 @@ import java.util.function.Consumer;
  * <li>{@code upsert} methods which will create or update a map entry unconditionally</li>
  * <li>{@code add} methods which atomically increment a numeric map value</li>
  * </ul>
- * 
+ *
  * <p>When no {@link MapEntryWriteOptions} are specified, write operations that may create a new map
  * will default to {@code MapOrder.KEY_ORDERED}.</p>
- * 
+ *
  * Note that this is a paired interface with {@link CdtSetterNonInvertableBuilder} and they have exactly
  * the same methods, differing only in the interface they extend.
  */
@@ -70,6 +70,15 @@ public interface CdtSetterInvertableBuilder<T extends AbstractOperationBuilder<T
     public T insert(Map<?,?> value, Consumer<MapEntryWriteOptions> options);
     public <U> T insert(U value, RecordMapper<U> mapper, Consumer<MapEntryWriteOptions> options);
 
+    public T insert(long value, MapEntryWriteOptions options);
+    public T insert(String value, MapEntryWriteOptions options);
+    public T insert(byte[] value, MapEntryWriteOptions options);
+    public T insert(boolean value, MapEntryWriteOptions options);
+    public T insert(double value, MapEntryWriteOptions options);
+    public T insert(List<?> value, MapEntryWriteOptions options);
+    public T insert(Map<?,?> value, MapEntryWriteOptions options);
+    public <U> T insert(U value, RecordMapper<U> mapper, MapEntryWriteOptions options);
+
     public T update(long value);
     public T update(String value);
     public T update(byte[] value);
@@ -87,6 +96,15 @@ public interface CdtSetterInvertableBuilder<T extends AbstractOperationBuilder<T
     public T update(List<?> value, Consumer<MapEntryWriteOptions> options);
     public T update(Map<?,?> value, Consumer<MapEntryWriteOptions> options);
     public <U> T update(U value, RecordMapper<U> mapper, Consumer<MapEntryWriteOptions> options);
+
+    public T update(long value, MapEntryWriteOptions options);
+    public T update(String value, MapEntryWriteOptions options);
+    public T update(byte[] value, MapEntryWriteOptions options);
+    public T update(boolean value, MapEntryWriteOptions options);
+    public T update(double value, MapEntryWriteOptions options);
+    public T update(List<?> value, MapEntryWriteOptions options);
+    public T update(Map<?,?> value, MapEntryWriteOptions options);
+    public <U> T update(U value, RecordMapper<U> mapper, MapEntryWriteOptions options);
 
     public T upsert(long value);
     public T upsert(String value);
@@ -106,8 +124,20 @@ public interface CdtSetterInvertableBuilder<T extends AbstractOperationBuilder<T
     public T upsert(Map<?,?> value, Consumer<MapEntryWriteOptions> options);
     public <U> T upsert(U value, RecordMapper<U> mapper, Consumer<MapEntryWriteOptions> options);
 
+    public T upsert(long value, MapEntryWriteOptions options);
+    public T upsert(String value, MapEntryWriteOptions options);
+    public T upsert(byte[] value, MapEntryWriteOptions options);
+    public T upsert(boolean value, MapEntryWriteOptions options);
+    public T upsert(double value, MapEntryWriteOptions options);
+    public T upsert(List<?> value, MapEntryWriteOptions options);
+    public T upsert(Map<?,?> value, MapEntryWriteOptions options);
+    public <U> T upsert(U value, RecordMapper<U> mapper, MapEntryWriteOptions options);
+
     public T add(long value);
     public T add(double value);
     public T add(long value, Consumer<MapEntryWriteOptions> options);
     public T add(double value, Consumer<MapEntryWriteOptions> options);
+
+    public T add(long value, MapEntryWriteOptions options);
+    public T add(double value, MapEntryWriteOptions options);
 }

@@ -22,8 +22,12 @@ import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.aerospike.ael.Index;
 import com.aerospike.client.sdk.query.IndexType;
+import com.aerospike.client.sdk.util.Util;
 
 /**
  * Monitors secondary indexes in an Aerospike cluster and maintains an up-to-date
@@ -60,6 +64,8 @@ import com.aerospike.client.sdk.query.IndexType;
  */
 // Package level visibility
 class IndexesMonitor {
+    private static final Logger log = LoggerFactory.getLogger(Loggers.TEND);
+
     private Set<Index> indexes = new HashSet<>();
     private Thread monitorThread = null;
 
@@ -121,16 +127,21 @@ class IndexesMonitor {
                         Set<Index> indexes = new HashSet<>();
                         session.info().secondaryIndexes(false).stream()
                             .forEach(sindex -> {
-                                session.info().secondaryIndexDetails(sindex, false).ifPresent(details -> {
-                                   indexes.add(Index.builder()
-                                               .namespace(sindex.getNamespace())
-                                               .setName(sindex.getSet())
-                                               .bin(sindex.getBin())
-                                               .indexType(IndexType.valueOf(sindex.getType().name()))
-                                               .name(sindex.getIndexName())
-                                               .binValuesRatio((int)details.getEntriesPerBval())
-                                           .build());
-                                });
+                                // TODO What should be done with set indexes that have a null IndexType.
+                                IndexType type = sindex.getType();
+
+                                if (type != null) {
+                                    session.info().secondaryIndexDetails(sindex, false).ifPresent(details -> {
+                                       indexes.add(Index.builder()
+                                                   .namespace(sindex.getNamespace())
+                                                   .setName(sindex.getSet())
+                                                   .bin(sindex.getBin())
+                                                   .indexType(IndexType.valueOf(type.name()))
+                                                   .name(sindex.getIndexName())
+                                                   .binValuesRatio((int)details.getEntriesPerBval())
+                                               .build());
+                                    });
+                                }
                             });
 
                         this.setIndexes(indexes);
@@ -142,7 +153,9 @@ class IndexesMonitor {
                         break;
                     }
                     catch (Throwable th) {
-                        Log.error("Error updating index information: " + th.getMessage());
+                        if (log.isErrorEnabled()) {
+                            log.error("Error updating index information: " + Util.getErrorMessage(th));
+                        }
                         initialFetchLatch.countDown();
                         try {
                             Thread.sleep(frequency.toMillis());

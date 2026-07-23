@@ -32,6 +32,7 @@ public final class Settings {
     Duration waitForCallToComplete;
     Duration waitForConnectionToComplete;
     Duration waitForSocketResponseAfterCallFails;
+    Integer errorDetailVerbosity;
 
     // Query-only
     Integer recordQueueSize;
@@ -55,7 +56,10 @@ public final class Settings {
 
     Settings() {}
 
-    public Settings(Settings orig) {
+    /**
+     * Overwrites this instance with the same field values as {@code orig} (package use for behavior reload).
+     */
+    void assignFrom(Settings orig) {
         this.abandonCallAfter = orig.abandonCallAfter;
         this.delayBetweenRetries = orig.delayBetweenRetries;
         this.maximumNumberOfCallAttempts = orig.maximumNumberOfCallAttempts;
@@ -65,6 +69,7 @@ public final class Settings {
         this.waitForCallToComplete = orig.waitForCallToComplete;
         this.waitForConnectionToComplete = orig.waitForConnectionToComplete;
         this.waitForSocketResponseAfterCallFails = orig.waitForSocketResponseAfterCallFails;
+        this.errorDetailVerbosity = orig.errorDetailVerbosity;
         this.recordQueueSize = orig.recordQueueSize;
         this.maxConcurrentNodes = orig.maxConcurrentNodes;
         this.allowInlineMemoryAccess = orig.allowInlineMemoryAccess;
@@ -76,6 +81,10 @@ public final class Settings {
         this.readModeSC = orig.readModeSC;
         this.resetTtlOnReadAtPercent = orig.resetTtlOnReadAtPercent;
         this.stackTraceOnException = orig.stackTraceOnException;
+    }
+
+    public Settings(Settings orig) {
+        assignFrom(orig);
     }
 
     @Override public String toString() {
@@ -106,6 +115,9 @@ public final class Settings {
         }
         if (waitForSocketResponseAfterCallFails != null) {
             m.put("waitForSocketResponseAfterCallFails", waitForSocketResponseAfterCallFails);
+        }
+        if (errorDetailVerbosity != null) {
+            m.put("errorDetailVerbosity", errorDetailVerbosity);
         }
 
         if (recordQueueSize != null) {

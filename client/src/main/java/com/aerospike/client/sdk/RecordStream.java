@@ -122,7 +122,19 @@ public class RecordStream implements Iterator<RecordResult>, Closeable {
      * @param record the record data
      */
     RecordStream(Key key, Record record) {
-        RecordResult rec = new RecordResult(key, record, 0); // Single item, index = 0
+        this(key, record, null, null);
+    }
+
+    /**
+     * Creates a RecordStream containing a single record from a key and record pair.
+     *
+     * @param key the key of the record
+     * @param record the record data
+     * @param readMappingSession when {@code readMappingClass} is non-null, the session for typed mapping
+     * @param readMappingClass optional hint for {@link RecordResult#toObject()}
+     */
+    RecordStream(Key key, Record record, Session readMappingSession, Class<?> readMappingClass) {
+        RecordResult rec = new RecordResult(key, record, 0, readMappingSession, readMappingClass);
         impl = new SingleItemRecordStream(rec);
     }
     /**
@@ -243,7 +255,8 @@ public class RecordStream implements Iterator<RecordResult>, Closeable {
 
     /**
      * Drains this stream into a {@link CompletableFuture} that completes with all results
-     * as a list. The draining happens on a virtual thread, so this method returns immediately.
+     * as a list. For async streams backed by {@link AsyncRecordStream}, collection is passive
+     * (no extra consumer virtual thread). Otherwise draining uses a virtual thread.
      *
      * <p>This is a <b>terminal operation</b> that closes the stream when draining completes
      * or an exception occurs.</p>
@@ -257,18 +270,65 @@ public class RecordStream implements Iterator<RecordResult>, Closeable {
      *     session.query(dataSet.id("k1", "k2")).executeAsync(ErrorStrategy.IN_STREAM)
      *            .asCompletableFuture();
      *
-     * future.thenAccept(results -&gt; results.forEach(r -&gt; System.out.println(r.key())));
+     * future.thenAccept(results -&gt; results.forEach(r -&gt; System.out.println(r.getKey())));
      * </pre>
      *
      * @return a CompletableFuture that completes with all results from this stream
      */
     public CompletableFuture<List<RecordResult>> asCompletableFuture() {
+        return asCompletableFuture((ErrorHandler) null);
+    }
+
+    /**
+     * Drains this stream into a {@link CompletableFuture}. When {@code handler} is non-null,
+     * actionable errors are dispatched to the handler and omitted from the completed list.
+     *
+     * @param handler optional error handler (null for IN_STREAM semantics)
+     * @return a CompletableFuture that completes with collected results
+     */
+    public CompletableFuture<List<RecordResult>> asCompletableFuture(ErrorHandler handler) {
+        if (impl instanceof AsyncRecordStream async) {
+            if (handler != null) {
+                async.withErrorHandler(handler);
+            }
+            CompletableFuture<List<RecordResult>> future = async.asCompletableFuture();
+            future.whenComplete((ignored, t) -> close());
+            return future;
+        }
+        return drainViaVirtualThread(handler);
+    }
+
+    /**
+     * Drains a stream expected to hold zero or one result into a {@link CompletableFuture}.
+     *
+     * @return future completing with an optional result (empty if the stream had no records)
+     */
+    public CompletableFuture<Optional<RecordResult>> asCompletableFutureSingle() {
+        return asCompletableFutureSingle((ErrorHandler) null);
+    }
+
+    /**
+     * Drains a stream expected to hold zero or one successful result into a {@link CompletableFuture}.
+     *
+     * @param handler optional error handler
+     * @return future completing with an optional result
+     */
+    public CompletableFuture<Optional<RecordResult>> asCompletableFutureSingle(ErrorHandler handler) {
+        return asCompletableFuture(handler).thenApply(AsyncExecutionSupport::singleAsOptional);
+    }
+
+    private CompletableFuture<List<RecordResult>> drainViaVirtualThread(ErrorHandler handler) {
         CompletableFuture<List<RecordResult>> future = new CompletableFuture<>();
         Thread.startVirtualThread(() -> {
             try {
                 List<RecordResult> results = new ArrayList<>();
                 while (hasNext()) {
-                    results.add(next());
+                    RecordResult rr = next();
+                    if (handler != null && AbstractFilterableBuilder.isActionableError(rr.getResultCode())) {
+                        AbstractFilterableBuilder.dispatchError(rr, handler);
+                    } else {
+                        results.add(rr);
+                    }
                 }
                 future.complete(results);
             } catch (Throwable t) {
@@ -299,23 +359,38 @@ public class RecordStream implements Iterator<RecordResult>, Closeable {
      * @return a CompletableFuture that completes with the mapped results
      */
     public <T> CompletableFuture<List<T>> asCompletableFuture(RecordMapper<T> mapper) {
-        CompletableFuture<List<T>> future = new CompletableFuture<>();
-        Thread.startVirtualThread(() -> {
-            try {
-                List<T> results = new ArrayList<>();
-                while (hasNext()) {
-                    RecordResult rr = next();
-                    Record rec = rr.recordOrThrow();
-                    results.add(mapper.fromMap(rec.bins, rr.key(), rec.generation));
-                }
-                future.complete(results);
-            } catch (Throwable t) {
-                future.completeExceptionally(t);
-            } finally {
-                close();
+        return asCompletableFuture().thenApply(list -> {
+            List<T> results = new ArrayList<>(list.size());
+            for (RecordResult rr : list) {
+                Record rec = rr.recordOrThrow();
+                results.add(mapper.fromMap(rec.bins, rr.getKey(), rec.generation));
             }
+            return results;
         });
-        return future;
+    }
+
+    /**
+     * Drains a stream expected to hold zero or one successful result, maps it with {@code mapper},
+     * and completes the returned {@link CompletableFuture} with an {@link Optional}.
+     *
+     * <p>Same semantics as {@link #asCompletableFutureSingle()}: empty if no records;
+     * {@link IllegalStateException} if more than one result is present.</p>
+     *
+     * <p>This is a <b>terminal operation</b> that closes the stream when draining completes
+     * or an exception occurs.</p>
+     *
+     * <pre>
+     * CompletableFuture&lt;Optional&lt;Customer&gt;&gt; future =
+     *     session.query(customerDataSet.id("C001")).executeAsync(ErrorStrategy.IN_STREAM)
+     *            .asCompletableFutureSingle(customerMapper);
+     * </pre>
+     *
+     * @param <T> the target type
+     * @param mapper the mapper to convert the record
+     * @return future completing with an optional mapped result
+     */
+    public <T> CompletableFuture<Optional<T>> asCompletableFutureSingle(RecordMapper<T> mapper) {
+        return asCompletableFuture(mapper).thenApply(AsyncExecutionSupport::singleMappedAsOptional);
     }
 
     // ========================================
@@ -494,8 +569,8 @@ public class RecordStream implements Iterator<RecordResult>, Closeable {
      * RecordStream results = session.update(keys).bin("name").setTo("value").execute();
      * RecordStream failures = results.failures();
      * failures.forEach(failure -&gt; {
-     *     System.err.println("Failed for key: " + failure.key() +
-     *                        ", reason: " + failure.message());
+     *     System.err.println("Failed for key: " + failure.getKey() +
+     *                        ", reason: " + failure.getMessage());
      * });
      * </pre>
      *
@@ -509,7 +584,7 @@ public class RecordStream implements Iterator<RecordResult>, Closeable {
 
             while (this.hasNext()) {
                 RecordResult result = this.next();
-                if (result.resultCode() != ResultCode.OK) {
+                if (result.getResultCode() != ResultCode.OK) {
                     failedRecords.add(result);
                 }
             }
@@ -537,7 +612,7 @@ public class RecordStream implements Iterator<RecordResult>, Closeable {
             while (hasNext()) {
                 RecordResult keyRecord = next();
                 Record rec = keyRecord.recordOrThrow();
-                result.add(mapper.fromMap(rec.bins, keyRecord.key(), rec.generation));
+                result.add(mapper.fromMap(rec.bins, keyRecord.getKey(), rec.generation));
             }
             return result;
         } finally {
@@ -647,7 +722,7 @@ public class RecordStream implements Iterator<RecordResult>, Closeable {
             while (hasNext()) {
                 RecordResult rr = next();
                 Record rec = rr.recordOrThrow();
-                consumer.accept(mapper.fromMap(rec.bins, rr.key(), rec.generation));
+                consumer.accept(mapper.fromMap(rec.bins, rr.getKey(), rec.generation));
             }
         } finally {
             close();
@@ -669,7 +744,7 @@ public class RecordStream implements Iterator<RecordResult>, Closeable {
         try {
             while (hasNext()) {
                 RecordResult kr = next();
-                if (kr.key().equals(key)) {
+                if (kr.getKey().equals(key)) {
                     return Optional.of(kr.recordOrThrow());
                 }
             }
@@ -697,9 +772,9 @@ public class RecordStream implements Iterator<RecordResult>, Closeable {
         try {
             while (hasNext()) {
                 RecordResult thisRecord = next();
-                if (thisRecord.key().equals(key)) {
+                if (thisRecord.getKey().equals(key)) {
                     Record rec = thisRecord.recordOrThrow();
-                    return Optional.of(mapper.fromMap(rec.bins, thisRecord.key(), rec.generation));
+                    return Optional.of(mapper.fromMap(rec.bins, thisRecord.getKey(), rec.generation));
                 }
             }
             return Optional.empty();
@@ -735,7 +810,7 @@ public class RecordStream implements Iterator<RecordResult>, Closeable {
      * closes the stream after retrieving the first element, use {@link #getFirst(boolean)}.</p>
      *
      * @param throwException if true and the element has a non-OK result code, an exception is thrown;
-     *        if false, the caller must inspect {@link RecordResult#resultCode()} to check for errors
+     *        if false, the caller must inspect {@link RecordResult#getResultCode()} to check for errors
      * @return an Optional containing the next element, or empty if the stream is exhausted
      * @throws AerospikeException if throwException is true and the element has a non-OK result code
      */
@@ -765,7 +840,7 @@ public class RecordStream implements Iterator<RecordResult>, Closeable {
         if (hasNext()) {
             RecordResult item = next();
             Record rec = item.recordOrThrow();
-            return Optional.of(mapper.fromMap(rec.bins, item.key(), rec.generation));
+            return Optional.of(mapper.fromMap(rec.bins, item.getKey(), rec.generation));
         }
         return Optional.empty();
     }
@@ -806,12 +881,12 @@ public class RecordStream implements Iterator<RecordResult>, Closeable {
      *
      * <p>This method does <b>not</b> close the stream. The caller is responsible for closing
      * the stream when done, or for fully consuming it. For a terminal variant that automatically
-     * closes the stream, use {@link #getFirstUdfResult()}.</p>
+     * closes the stream, use {@link #getFirstUdfResultObject()}.</p>
      *
      * @return an Optional containing the UDF result, or empty if the stream is exhausted
      * @throws AerospikeException if the UDF invocation failed
      */
-    public Optional<Object> popUdfResult() {
+    public Optional<Object> popUdfResultObject() {
         if (hasNext()) {
             return Optional.ofNullable(next().udfResultOrThrow());
         }
@@ -824,16 +899,17 @@ public class RecordStream implements Iterator<RecordResult>, Closeable {
      *
      * <p>This method does <b>not</b> close the stream. The caller is responsible for closing
      * the stream when done, or for fully consuming it. For a terminal variant that automatically
-     * closes the stream, use {@link #getFirstUdfResult(RecordMapper)}.</p>
+     * closes the stream, use {@link #getFirstUdfResultObject(RecordMapper)}.</p>
      *
      * @param <T> the target type
      * @param mapper the mapper to convert the UDF result map to the target type
      * @return an Optional containing the mapped UDF result, or empty if the stream is exhausted
+     *         or the UDF returned null
      * @throws AerospikeException with ResultCode = OP_NOT_APPLICABLE if the UDF return value is not a map
      */
-    public <T> Optional<T> popUdfResult(RecordMapper<T> mapper) {
+    public <T> Optional<T> popUdfResultObject(RecordMapper<T> mapper) {
         if (hasNext()) {
-            return Optional.ofNullable(next().udfResultAs(mapper));
+            return next().udfResultAsObject(mapper);
         }
         return Optional.empty();
     }
@@ -855,7 +931,7 @@ public class RecordStream implements Iterator<RecordResult>, Closeable {
         if (hasNext()) {
             RecordResult item = next();
             Record rec = item.recordOrThrow();
-            T object = mapper.fromMap(rec.bins, item.key(), rec.generation);
+            T object = mapper.fromMap(rec.bins, item.getKey(), rec.generation);
             return Optional.of(new ObjectWithMetadata<>(object, rec));
         }
         return Optional.empty();
@@ -888,7 +964,7 @@ public class RecordStream implements Iterator<RecordResult>, Closeable {
      * {@link #pop(boolean)}.</p>
      *
      * @param throwException if true and the element has a non-OK result code, an exception is thrown;
-     *        if false, the caller must inspect {@link RecordResult#resultCode()} to check for errors
+     *        if false, the caller must inspect {@link RecordResult#getResultCode()} to check for errors
      * @return an Optional containing the first element, or empty if the stream is empty
      * @throws AerospikeException if throwException is true and the element has a non-OK result code
      */
@@ -961,14 +1037,14 @@ public class RecordStream implements Iterator<RecordResult>, Closeable {
      *
      * <p>This is a <b>terminal operation</b> that closes the stream after retrieving the
      * first element. For a non-closing variant that allows continued iteration, use
-     * {@link #popUdfResult()}.</p>
+     * {@link #popUdfResultObject()}.</p>
      *
      * @return an Optional containing the UDF result, or empty if the stream is empty
      * @throws AerospikeException if the UDF invocation failed
      */
-    public Optional<Object> getFirstUdfResult() {
+    public Optional<Object> getFirstUdfResultObject() {
         try {
-            return popUdfResult();
+            return popUdfResultObject();
         } finally {
             close();
         }
@@ -980,16 +1056,17 @@ public class RecordStream implements Iterator<RecordResult>, Closeable {
      *
      * <p>This is a <b>terminal operation</b> that closes the stream after retrieving the
      * first element. For a non-closing variant that allows continued iteration, use
-     * {@link #popUdfResult(RecordMapper)}.</p>
+     * {@link #popUdfResultObject(RecordMapper)}.</p>
      *
      * @param <T> the target type
      * @param mapper the mapper to convert the UDF result map to the target type
      * @return an Optional containing the mapped UDF result, or empty if the stream is empty
+     *         or the UDF returned null
      * @throws AerospikeException with ResultCode = OP_NOT_APPLICABLE if the UDF return value is not a map
      */
-    public <T> Optional<T> getFirstUdfResult(RecordMapper<T> mapper) {
+    public <T> Optional<T> getFirstUdfResultObject(RecordMapper<T> mapper) {
         try {
-            return popUdfResult(mapper);
+            return popUdfResultObject(mapper);
         } finally {
             close();
         }

@@ -22,11 +22,13 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 
 import com.aerospike.client.sdk.policy.Behavior;
+import com.aerospike.client.sdk.policy.Behavior.Selectors;
 
 public class ClusterTest {
     public static Args args = Args.Instance;
     public static Cluster cluster;
     public static Session session;
+    public static Session sessionWithSendKey;
     static boolean initializedBySuite = false;
 
     @BeforeAll
@@ -35,12 +37,9 @@ public class ClusterTest {
             return; // Already initialized by suite
         }
 
-        Log.setCallback(null);
-
         Host[] hosts = Host.parseHosts(args.host, args.port);
 
         ClusterDefinition def = new ClusterDefinition(hosts)
-            .withLogLevel(Log.Level.DEBUG)
             .clusterName(args.clusterName)
             .withSystemSettings(SystemSettings.builder()
                     .connections(ops -> ops.maximumConnectionsPerNode(200)).build()
@@ -89,6 +88,10 @@ public class ClusterTest {
 
         try {
             session = cluster.createSession(Behavior.DEFAULT);
+            sessionWithSendKey = cluster.createSession(Behavior.DEFAULT.deriveWithChanges(
+                    "sendKey",
+                    opt -> opt.on(Selectors.all(), s -> s.sendKey(true)))
+            );
             args.setServerSpecific(cluster);
         }
         catch (RuntimeException re) {
@@ -107,6 +110,7 @@ public class ClusterTest {
 
         // Session doesn't need explicit cleanup - it's just a wrapper
         session = null;
+        sessionWithSendKey = null;
 
         if (cluster != null) {
             cluster.close();

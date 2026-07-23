@@ -19,6 +19,7 @@ package com.aerospike.examples;
 import java.util.TreeMap;
 
 import com.aerospike.client.sdk.DataSet;
+import com.aerospike.client.sdk.Record;
 import com.aerospike.client.sdk.RecordStream;
 import com.aerospike.client.sdk.Session;
 import com.aerospike.client.sdk.cdt.MapReturnType;
@@ -186,5 +187,11 @@ public class MapRemoveByKeyRangeTest extends Example {
             System.out.println("ERROR:    " + e.getClass().getSimpleName() + ": " + e.getMessage());
         }
         System.out.println();
+
+        // Verify original record is unchanged (read expressions don't mutate)
+        System.out.println("=== Verify original map is unchanged ===");
+        RecordStream rs = session.query(set.id(1)).execute();
+        Record rec = rs.getFirst().orElseThrow().recordOrThrow();
+        System.out.println("Original map after all tests: " + rec.bins.get("m"));
     }
 }
