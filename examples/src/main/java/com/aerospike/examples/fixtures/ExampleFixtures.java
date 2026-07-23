@@ -252,6 +252,49 @@ public final class ExampleFixtures {
             });
     }
 
+    public static ExampleFixture cdtPathExpressionExample() {
+        return truncating(
+            "cdt-path-demo",
+            context -> {
+                Session session = context.session();
+                DataSet dataSet = context.dataSet("cdt-path-demo");
+
+                ExampleAssertions.assertCount(session, dataSet, 5);
+                ExampleAssertions.assertBinEquals(session, dataSet, 1, "nums", List.of(11L, 12L, 13L));
+                ExampleAssertions.assertBinEquals(session, dataSet, 2, "nums", List.of(3L, 2L));
+            });
+    }
+
+    public static ExampleFixture stringOperationsExample() {
+        return truncating(
+            "string-ops-demo",
+            context -> {
+                Session session = context.session();
+                DataSet dataSet = context.dataSet("string-ops-demo");
+
+                ExampleAssertions.assertCount(session, dataSet, 1);
+                ExampleAssertions.assertBinEquals(session, dataSet, "row1", "message", "hello");
+            });
+    }
+
+    public static ExampleFixture typedMappingExamples() {
+        return truncating(
+            context -> List.of(
+                context.dataSet("typed_demo_widgets"),
+                context.dataSet("typed_demo_gadgets")),
+            context -> {
+                Session session = context.session();
+                DataSet widgets = context.dataSet("typed_demo_widgets");
+                DataSet gadgets = context.dataSet("typed_demo_gadgets");
+
+                ExampleAssertions.assertCount(session, widgets, 2);
+                ExampleAssertions.assertCount(session, gadgets, 1);
+                ExampleAssertions.assertBinEquals(session, widgets, 1, "label", "alpha");
+                ExampleAssertions.assertBinEquals(session, widgets, 2, "qty", 20L);
+                ExampleAssertions.assertBinEquals(session, gadgets, 1, "name", "notifications");
+            });
+    }
+
     private static void dropIndexIfExists(Session session, DataSet dataSet, String indexName) {
         try {
             session.dropIndex(dataSet, indexName).waitTillComplete();

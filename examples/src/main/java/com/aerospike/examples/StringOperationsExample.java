@@ -44,14 +44,12 @@ public class StringOperationsExample extends Example {
         Cluster cluster = cluster();
         Version v = cluster.getRandomNode().getVersion();
         if (!v.isGreaterOrEqual(Version.SERVER_VERSION_8_1_3)) {
-            console.info("StringOperationsExample: skipping (server is " + v
-                + "; string ops require 8.1.3+).");
-            return;
+            throw new ExampleSkipException(
+                "server is " + v + "; string operations require 8.1.3+");
         }
 
         Session session = cluster.createSession(Behavior.DEFAULT);
         DataSet set = dataSet("string-ops-demo");
-        session.truncate(set);
         Key key = set.id("row1");
 
         console.info("--- 1) Fluent BinBuilder: strlen, substr [1,4), substr from 3, find, upper ---");

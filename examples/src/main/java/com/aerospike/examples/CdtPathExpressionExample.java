@@ -49,8 +49,6 @@ public class CdtPathExpressionExample extends Example {
         Session session = cluster.createSession(Behavior.DEFAULT);
         DataSet set = dataSet("cdt-path-demo");
 
-        session.truncate(set);
-
         boolean allOk = true;
 
         console.info("--- 1) Bin-root list: onEachChild + modifyBy (increment each element) ---");
@@ -153,7 +151,10 @@ public class CdtPathExpressionExample extends Example {
                 "The Lord of the Rings");
         allOk &= reportCheck(console, 5, stringListMatchesUnordered(rec.bins.get("catalog"), allTitles));
 
-        console.info("Overall: " + (allOk ? "SUCCESS" : "*** FAILURE ***"));
+        if (!allOk) {
+            throw new AssertionError("One or more CDT path expression checks failed");
+        }
+        console.info("Overall: SUCCESS");
     }
 
     private static boolean reportCheck(Console console, int step, boolean ok) {

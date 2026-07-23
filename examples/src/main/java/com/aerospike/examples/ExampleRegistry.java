@@ -93,6 +93,30 @@ public final class ExampleRegistry {
             "diagnostic",
             "ael",
             "records");
+        register(
+            examples,
+            "CdtPathExpressionExample",
+            CdtPathExpressionExample.class,
+            ExampleFixtures.cdtPathExpressionExample(),
+            "extended",
+            "records",
+            "server-specific");
+        register(
+            examples,
+            "StringOperationsExample",
+            StringOperationsExample.class,
+            ExampleFixtures.stringOperationsExample(),
+            "extended",
+            "records",
+            "server-specific");
+        register(
+            examples,
+            "TypedMappingExamples",
+            TypedMappingExamples.class,
+            ExampleFixtures.typedMappingExamples(),
+            "extended",
+            "mapping",
+            "records");
         register(examples, "QueryExamples", QueryExamples.class, ExampleFixtures.queryExamples(), "extended", "records");
         register(examples, "EcommerceExample", EcommerceExample.class, ExampleFixtures.ecommerceExample(), "extended", "records");
         register(examples, "RosterExample", RosterExample.class, ExampleFixture.NONE, "server-specific");
