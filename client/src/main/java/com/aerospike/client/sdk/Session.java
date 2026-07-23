@@ -142,6 +142,23 @@ public class Session {
     }
 
     /**
+     * Returns a new session backed by the same cluster but with a different behavior.
+     *
+     * <p>This is a convenience for {@code getCluster().createSession(behavior)}.
+     * The receiver is not modified.</p>
+     *
+     * <p>Subclasses (e.g. session types created via {@link SessionExtension}) should
+     * override this method to return the correct subtype.</p>
+     *
+     * @param behavior the behavior configuration for the new session
+     * @return a new {@code Session} with the specified behavior
+     * @see Cluster#createSession(Behavior)
+     */
+    public Session sessionFor(Behavior behavior) {
+        return cluster.createSession(behavior);
+    }
+
+    /**
      * Remove records in specified namespace/set efficiently.  This method is many orders of magnitude
      * faster than deleting records one at a time.
      * <p>
