@@ -22,8 +22,6 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Flow;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import com.aerospike.client.sdk.Cluster;
-import com.aerospike.client.sdk.ClusterDefinition;
 import com.aerospike.client.sdk.ErrorStrategy;
 import com.aerospike.client.sdk.Key;
 import com.aerospike.client.sdk.RecordResult;
@@ -32,6 +30,7 @@ import com.aerospike.client.sdk.Session;
 import com.aerospike.client.sdk.TypeSafeDataSet;
 import com.aerospike.client.sdk.policy.Behavior;
 import com.aerospike.client.sdk.task.ExecuteTask;
+import com.aerospike.examples.Example;
 
 /**
  * E-commerce order fulfillment example demonstrating CompletableFuture chaining,
@@ -41,72 +40,71 @@ import com.aerospike.client.sdk.task.ExecuteTask;
  * product stock, create the order, and decrement inventory -- all composed with
  * CompletableFuture. Then we scan products using Flow.Publisher with backpressure.</p>
  */
-public class EcommerceExample {
+public class EcommerceExample extends Example {
 
     static final CustomerMapper CUSTOMER_MAPPER = new CustomerMapper();
     static final ProductMapper  PRODUCT_MAPPER  = new ProductMapper();
     static final OrderMapper    ORDER_MAPPER    = new OrderMapper();
 
-    public static void main(String[] args) throws Exception {
-        try (Cluster cluster = new ClusterDefinition("localhost", 3100).connect()) {
-            Session session = cluster.createSession(Behavior.DEFAULT);
+    @Override
+    public void runExample() throws Exception {
+        Session session = cluster().createSession(Behavior.DEFAULT);
 
-            TypeSafeDataSet<Customer> customers = TypeSafeDataSet.of("test", "customers", Customer.class);
-            TypeSafeDataSet<Product>  products  = TypeSafeDataSet.of("test", "products",  Product.class);
-            TypeSafeDataSet<Order>    orders    = TypeSafeDataSet.of("test", "orders",    Order.class);
+        TypeSafeDataSet<Customer> customers = TypeSafeDataSet.of(namespace(), "customers", Customer.class);
+        TypeSafeDataSet<Product> products = TypeSafeDataSet.of(namespace(), "products", Product.class);
+        TypeSafeDataSet<Order> orders = TypeSafeDataSet.of(namespace(), "orders", Order.class);
 
-            // ==========================================
-            // 1. Seed 20 customers, 100 products, and
-            //    54 orders into Aerospike
-            // ==========================================
-            SeedData.seed(session, customers, products, orders);
+        // ==========================================
+        // 1. Seed 20 customers, 95 products, and
+        //    54 orders into Aerospike
+        // ==========================================
+        SeedData.seed(session, customers, products, orders);
 
-            // ==========================================
-            // 2. Place an order using CompletableFuture
-            //    (async lookup -> validate -> batch write)
-            // ==========================================
-            placeOrder(session, customers, products, orders, "C-100", "SKU-LAP01", 1);
+        // ==========================================
+        // 2. Place an order using CompletableFuture
+        //    (async lookup -> validate -> batch write)
+        // ==========================================
+        placeOrder(session, customers, products, orders, "C-100", "SKU-LAP01", 1);
 
-            // ==========================================
-            // 3. Demonstrate error handling on a
-            //    non-existent customer
-            // ==========================================
-            placeOrderWithErrorHandling(session, customers, products, orders,
-                    "C-MISSING", "SKU-LAP01", 1);
+        // ==========================================
+        // 3. Demonstrate error handling on a
+        //    non-existent customer
+        // ==========================================
+        placeOrderWithErrorHandling(session, customers, products, orders,
+                "C-MISSING", "SKU-LAP01", 1);
 
-            // ==========================================
-            // 4. Stream orders for a customer using
-            //    Flow.Publisher with backpressure
-            // ==========================================
-            streamOrders(session, orders, "C-100");
+        // ==========================================
+        // 4. Stream orders for a customer using
+        //    Flow.Publisher with backpressure
+        // ==========================================
+        streamOrders(session, orders, "C-100");
 
-            // ==========================================
-            // 5. Batch query: top-spender dashboard
-            // ==========================================
-            topSpenderDashboard(session, customers, orders);
+        // ==========================================
+        // 5. Batch query: top-spender dashboard
+        // ==========================================
+        topSpenderDashboard(session, customers, orders);
 
-            // ==========================================
-            // 6. Map operations: product ratings
-            // ==========================================
-            productRatings(session, products);
+        // ==========================================
+        // 6. Map operations: product ratings
+        // ==========================================
+        productRatings(session, products);
 
-            // ==========================================
-            // 7. Scan for affordable, well-stocked
-            //    products using Flow.Publisher
-            // ==========================================
-            scanAffordableProducts(session, products);
+        // ==========================================
+        // 7. Scan for affordable, well-stocked
+        //    products using Flow.Publisher
+        // ==========================================
+        scanAffordableProducts(session, products);
 
-            // ==========================================
-            // 8. Background scan: apply sale prices to
-            //    overstocked, cheap products
-            // ==========================================
-            applySalePrices(session, products);
+        // ==========================================
+        // 8. Background scan: apply sale prices to
+        //    overstocked, cheap products
+        // ==========================================
+        applySalePrices(session, products);
 
-            // ==========================================
-            // 9. Re-display stock after sale prices
-            // ==========================================
-            scanAffordableProducts(session, products);
-        }
+        // ==========================================
+        // 9. Re-display stock after sale prices
+        // ==========================================
+        scanAffordableProducts(session, products);
     }
 
     // ------------------------------------------------------------------

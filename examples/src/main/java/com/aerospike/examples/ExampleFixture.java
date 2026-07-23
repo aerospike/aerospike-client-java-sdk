@@ -14,26 +14,21 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.aerospike.client.sdk;
+package com.aerospike.examples;
 
-import org.junit.platform.suite.api.SelectClasses;
-import org.junit.platform.suite.api.Suite;
+/**
+ * Hooks that keep setup, verification, and cleanup outside doc-facing examples.
+ */
+public interface ExampleFixture {
+    ExampleFixture NONE = new ExampleFixture() {
+    };
 
-import com.aerospike.client.sdk.policy.AsyncRecordStreamTest;
-import com.aerospike.client.sdk.policy.BehaviorFileMonitorRestartTest;
-import com.aerospike.client.sdk.policy.BehaviorTest;
-import com.aerospike.client.sdk.policy.BehaviorYamlTest;
-import com.aerospike.client.sdk.policy.QueryProducerCancellationTest;
-import com.aerospike.client.sdk.policy.SystemBehaviorTest;
+    default void setup(ExampleContext context) throws Exception {
+    }
 
-@Suite
-@SelectClasses({
-    AsyncRecordStreamTest.class,
-    BehaviorFileMonitorRestartTest.class,
-    BehaviorTest.class,
-    BehaviorYamlTest.class,
-    QueryProducerCancellationTest.class,
-    SystemBehaviorTest.class,
-})
-public class SuiteCore {
+    default void verify(ExampleContext context) throws Exception {
+    }
+
+    default void cleanup(ExampleContext context) throws Exception {
+    }
 }

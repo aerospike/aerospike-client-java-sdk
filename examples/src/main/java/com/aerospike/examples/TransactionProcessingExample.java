@@ -18,8 +18,6 @@ package com.aerospike.examples;
 
 import java.util.Map;
 
-import com.aerospike.client.sdk.Cluster;
-import com.aerospike.client.sdk.ClusterDefinition;
 import com.aerospike.client.sdk.Key;
 import com.aerospike.client.sdk.RecordMapper;
 import com.aerospike.client.sdk.Session;
@@ -27,7 +25,7 @@ import com.aerospike.client.sdk.TypeSafeDataSet;
 import com.aerospike.client.sdk.policy.Behavior;
 import com.aerospike.client.sdk.util.MapUtil;
 
-public class TransactionProcessingExample {
+public class TransactionProcessingExample extends Example {
     public static class Transaction {
         private String id;
         private String desc;
@@ -182,113 +180,112 @@ public class TransactionProcessingExample {
         }
     }
 
-    public static void main(String[] args) {
-        try (Cluster cluster = new ClusterDefinition("localhost", 3100).connect()) {
-            Session session = cluster.createSession(Behavior.DEFAULT);
+    @Override
+    public void runExample() {
+        Session session = cluster().createSession(Behavior.DEFAULT);
 
-            TypeSafeDataSet<Customer> customerDataSet = TypeSafeDataSet.of("test", "customers", Customer.class);
-            TypeSafeDataSet<Account> accountDataSet = TypeSafeDataSet.of("test", "accounts", Account.class);
-            TypeSafeDataSet<Transaction> txnDataSet = TypeSafeDataSet.of("test", "txns", Transaction.class);
+        TypeSafeDataSet<Customer> customerDataSet = TypeSafeDataSet.of(namespace(), "customers", Customer.class);
+        TypeSafeDataSet<Account> accountDataSet = TypeSafeDataSet.of(namespace(), "accounts", Account.class);
+        TypeSafeDataSet<Transaction> txnDataSet = TypeSafeDataSet.of(namespace(), "txns", Transaction.class);
 
-            CustomerMapper customerMapper = new CustomerMapper();
-            AccountMapper accountMapper = new AccountMapper();
-            TransactionMapper txnMapper = new TransactionMapper();
+        CustomerMapper customerMapper = new CustomerMapper();
+        AccountMapper accountMapper = new AccountMapper();
+        TransactionMapper txnMapper = new TransactionMapper();
 
-            Customer customer = new Customer();
-            customer.setCustomerId("CUST-10042");
-            customer.setFirstName("Jane");
-            customer.setLastName("Morrison");
-            customer.setEmail("jane.morrison@example.com");
-            customer.setPhone("+1-555-867-5309");
-            customer.setTotalSpendInCents(0);
-            customer.setStatusLevel("BRONZE");
+        Customer customer = new Customer();
+        customer.setCustomerId("CUST-10042");
+        customer.setFirstName("Jane");
+        customer.setLastName("Morrison");
+        customer.setEmail("jane.morrison@example.com");
+        customer.setPhone("+1-555-867-5309");
+        customer.setTotalSpendInCents(0);
+        customer.setStatusLevel("BRONZE");
 
-            session.insert(customerDataSet)
-                .object(customer)
-                .using(customerMapper)
-                .execute();
+        session.insert(customerDataSet)
+            .object(customer)
+            .using(customerMapper)
+            .execute();
 
-            Account account = new Account();
-            account.setPan("4532015112830366");
-            account.setCustomerId(customer.getCustomerId());
-            account.setExpiryDate("03/28");
-            account.setBalanceInCents(0);
-            account.setCreditLimitInCents(500000);
-            account.setStatus("ACTIVE");
+        Account account = new Account();
+        account.setPan("4532015112830366");
+        account.setCustomerId(customer.getCustomerId());
+        account.setExpiryDate("03/28");
+        account.setBalanceInCents(0);
+        account.setCreditLimitInCents(500000);
+        account.setStatus("ACTIVE");
 
-            session.insert(accountDataSet)
-                .object(account)
-                .using(accountMapper)
-                .execute();
+        session.insert(accountDataSet)
+            .object(account)
+            .using(accountMapper)
+            .execute();
 
-            Transaction txn = new Transaction();
-            txn.setId("TXN-00001");
-            txn.setDesc("Car repairs");
-            txn.setAmountInCents(45000);
-            txn.setDate(System.currentTimeMillis());
+        Transaction txn = new Transaction();
+        txn.setId("TXN-00001");
+        txn.setDesc("Car repairs");
+        txn.setAmountInCents(45000);
+        txn.setDate(System.currentTimeMillis());
 
-            // ======================================================================
-            // Old style: Standard Aerospike Java Client
-            // ======================================================================
-            //
-            // Key txnKey = new Key("test", "txns", txn.getId());
-            // Key accountKey = new Key("test", "accounts", account.getPan());
-            // Key customerKey = new Key("test", "customers", customer.getCustomerId());
-            //
-            // BatchWritePolicy insertPolicy = new BatchWritePolicy();
-            // insertPolicy.recordExistsAction = RecordExistsAction.CREATE_ONLY;
-            //
-            // BatchWritePolicy updatePolicy = new BatchWritePolicy();
-            // updatePolicy.recordExistsAction = RecordExistsAction.UPDATE_ONLY;
-            //
-            // Expression statusExp = Exp.build(
-            //     Exp.cond(
-            //         Exp.gt(Exp.intBin("totalSpend"), Exp.val(100000)), Exp.val("PLATINUM"),
-            //         Exp.gt(Exp.intBin("totalSpend"), Exp.val(10000)),  Exp.val("GOLD"),
-            //         Exp.gt(Exp.intBin("totalSpend"), Exp.val(100)),    Exp.val("SILVER"),
-            //         Exp.val("BRONZE")
-            //     )
-            // );
-            //
-            // List<BatchRecord> batchRecords = new ArrayList<>();
-            //
-            // batchRecords.add(new BatchWrite(
-            //     insertPolicy, txnKey,
-            //     Operation.put(new Bin("id", txn.getId())),
-            //     Operation.put(new Bin("desc", txn.getDesc())),
-            //     Operation.put(new Bin("amountInCents", txn.getAmountInCents())),
-            //     Operation.put(new Bin("date", txn.getDate()))
-            // ));
-            //
-            // batchRecords.add(new BatchWrite(
-            //     updatePolicy, accountKey,
-            //     Operation.add(new Bin("balanceCents", txn.getAmountInCents()))
-            // ));
-            //
-            // batchRecords.add(new BatchWrite(
-            //     updatePolicy, customerKey,
-            //     Operation.add(new Bin("totalSpend", txn.getAmountInCents())),
-            //     ExpOperation.write("statusLevel", statusExp, ExpWriteFlags.DEFAULT)
-            // ));
-            //
-            // client.operate(new BatchPolicy(), batchRecords);
+        // ======================================================================
+        // Old style: Standard Aerospike Java Client
+        // ======================================================================
+        //
+        // Key txnKey = new Key("test", "txns", txn.getId());
+        // Key accountKey = new Key("test", "accounts", account.getPan());
+        // Key customerKey = new Key("test", "customers", customer.getCustomerId());
+        //
+        // BatchWritePolicy insertPolicy = new BatchWritePolicy();
+        // insertPolicy.recordExistsAction = RecordExistsAction.CREATE_ONLY;
+        //
+        // BatchWritePolicy updatePolicy = new BatchWritePolicy();
+        // updatePolicy.recordExistsAction = RecordExistsAction.UPDATE_ONLY;
+        //
+        // Expression statusExp = Exp.build(
+        //     Exp.cond(
+        //         Exp.gt(Exp.intBin("totalSpend"), Exp.val(100000)), Exp.val("PLATINUM"),
+        //         Exp.gt(Exp.intBin("totalSpend"), Exp.val(10000)),  Exp.val("GOLD"),
+        //         Exp.gt(Exp.intBin("totalSpend"), Exp.val(100)),    Exp.val("SILVER"),
+        //         Exp.val("BRONZE")
+        //     )
+        // );
+        //
+        // List<BatchRecord> batchRecords = new ArrayList<>();
+        //
+        // batchRecords.add(new BatchWrite(
+        //     insertPolicy, txnKey,
+        //     Operation.put(new Bin("id", txn.getId())),
+        //     Operation.put(new Bin("desc", txn.getDesc())),
+        //     Operation.put(new Bin("amountInCents", txn.getAmountInCents())),
+        //     Operation.put(new Bin("date", txn.getDate()))
+        // ));
+        //
+        // batchRecords.add(new BatchWrite(
+        //     updatePolicy, accountKey,
+        //     Operation.add(new Bin("balanceCents", txn.getAmountInCents()))
+        // ));
+        //
+        // batchRecords.add(new BatchWrite(
+        //     updatePolicy, customerKey,
+        //     Operation.add(new Bin("totalSpend", txn.getAmountInCents())),
+        //     ExpOperation.write("statusLevel", statusExp, ExpWriteFlags.DEFAULT)
+        // ));
+        //
+        // client.operate(new BatchPolicy(), batchRecords);
 
-            // ======================================================================
-            // New style: API
-            // ======================================================================
-            session
-                .insert(txnDataSet)
-                    .object(txn)
-                    .using(txnMapper)
-                .update(accountDataSet.id(account.getPan()))
-                    .bin("balanceCents").add(txn.getAmountInCents())
-                .update(customerDataSet.id(customer.getCustomerId()))
-                    .bin("totalSpend").add(txn.getAmountInCents())
-                    .bin("statusLevel").upsertFrom("when ($.totalSpend > 100000 => 'PLATINUM', "
-                            + "$.totalSpend > 10000 => 'GOLD', "
-                            + "$.totalSpend > 100 => 'SILVER', "
-                            + "default => 'BRONZE')")
-                .execute();
-        }
+        // ======================================================================
+        // New style: API
+        // ======================================================================
+        session
+            .insert(txnDataSet)
+                .object(txn)
+                .using(txnMapper)
+            .update(accountDataSet.id(account.getPan()))
+                .bin("balanceCents").add(txn.getAmountInCents())
+            .update(customerDataSet.id(customer.getCustomerId()))
+                .bin("totalSpend").add(txn.getAmountInCents())
+                .bin("statusLevel").upsertFrom("when ($.totalSpend > 100000 => 'PLATINUM', "
+                        + "$.totalSpend > 10000 => 'GOLD', "
+                        + "$.totalSpend > 100 => 'SILVER', "
+                        + "default => 'BRONZE')")
+            .execute();
     }
 }

@@ -28,5 +28,10 @@ if [ -z "$JAR_FILE" ]; then
     exit 1
 fi
 
+# Run from the examples directory so that examples which load YAML via relative
+# paths (src/main/resources/*.yml) resolve their config files regardless of the
+# caller's working directory.
+cd "$SCRIPT_DIR" || exit 1
+
 # Run Main with all arguments
 java -cp "$JAR_FILE" com.aerospike.examples.Main "$@"

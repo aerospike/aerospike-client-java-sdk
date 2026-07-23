@@ -130,6 +130,30 @@ jobs:
               }
             }
 
+      - name: Build & run examples
+        run: |
+          mvn \
+           --batch-mode \
+           --no-transfer-progress \
+           --update-snapshots \
+           --fail-at-end \
+           --errors \
+           -pl examples \
+           -am \
+           package \
+           -DskipTests
+
+          # Run from the examples module so that examples which load YAML via
+          # relative paths (src/main/resources/*.yml) resolve their config files.
+          cd examples
+          java -jar target/*-jar-with-dependencies.jar all \
+           -h 127.0.0.1 \
+           -p 3000 \
+           -n test \
+           --report target/example-reports/TEST-examples.xml
+        env:
+          MAVEN_OPTS: ${{ vars.MAVEN_OPTS }}
+
       - name: Build & run integration tests
         run: |
           mvn \
@@ -151,5 +175,6 @@ jobs:
           path: |
             **/target/surefire-reports/**
             **/target/failsafe-reports/**
+            examples/target/example-reports/**
           if-no-files-found: ignore
           retention-days: ${{ vars.ARTIFACT_RETENTION_DAYS }}

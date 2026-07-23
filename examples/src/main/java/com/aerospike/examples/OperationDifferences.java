@@ -20,8 +20,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import com.aerospike.client.sdk.Cluster;
-import com.aerospike.client.sdk.ClusterDefinition;
 import com.aerospike.client.sdk.DataSet;
 import com.aerospike.client.sdk.Record;
 import com.aerospike.client.sdk.RecordStream;
@@ -40,38 +38,37 @@ import com.aerospike.client.sdk.policy.Behavior;
  *   <li>2e: Mutation path functions (sort, remove, etc.) silently ignored</li>
  * </ul>
  */
-public class OperationDifferences {
+public class OperationDifferences extends Example {
 
     private static final String SEPARATOR = "=".repeat(70);
     private static final String PASS = "PASS";
     private static final String FAIL = "** FAIL **";
 
-    private static int totalTests = 0;
-    private static int failedTests = 0;
+    private int totalTests = 0;
+    private int failedTests = 0;
 
-    public static void main(String[] args) throws Exception {
-        try (Cluster cluster = new ClusterDefinition("localhost", 3100).connect()) {
-            Session session = cluster.createSession(Behavior.DEFAULT);
-            DataSet set = DataSet.of("test", "ael_diff_test");
+    @Override
+    public void runExample() throws Exception {
+        Session session = cluster().createSession(Behavior.DEFAULT);
+        DataSet set = dataSet("ael_diff_test");
 
-            session.truncate(set);
-            setupTestData(session, set);
+        // The runner's fixture truncates ael_diff_test before this example runs.
+        setupTestData(session, set);
 
-//            test2a_LetThenVsWithDo(session, set);
-            test2b_NameIdentifierTooPermissive(session, set);
-            test2c_RightShiftReversed(session, set);
-            test2d_ExistsSilentlyIgnored(session, set);
-            test2e_MutationOperationsIgnored(session, set);
-            testCasting_AsIntAsFloat(session, set);
+//        test2a_LetThenVsWithDo(session, set);
+        test2b_NameIdentifierTooPermissive(session, set);
+        test2c_RightShiftReversed(session, set);
+        test2d_ExistsSilentlyIgnored(session, set);
+        test2e_MutationOperationsIgnored(session, set);
+        testCasting_AsIntAsFloat(session, set);
 
-            System.out.println(SEPARATOR);
-            System.out.printf("SUMMARY: %d/%d tests show spec/implementation differences%n",
-                    failedTests, totalTests);
-            System.out.println(SEPARATOR);
-        }
+        System.out.println(SEPARATOR);
+        System.out.printf("SUMMARY: %d/%d tests show spec/implementation differences%n",
+                failedTests, totalTests);
+        System.out.println(SEPARATOR);
     }
 
-    static void setupTestData(Session session, DataSet set) {
+    void setupTestData(Session session, DataSet set) {
         // Record 1: integer bin for shift operator tests
         session.upsert(set.id(1))
                 .bin("intBin").setTo(-8)
@@ -123,7 +120,8 @@ public class OperationDifferences {
     // =========================================================================
     // 2a: Spec says `let...then`, implementation uses `let...then`
     // =========================================================================
-    static void test2a_LetThenVsWithDo(Session session, DataSet set) {
+    @SuppressWarnings("unused")
+    void test2a_LetThenVsWithDo(Session session, DataSet set) {
         System.out.println(SEPARATOR);
         System.out.println("TEST 2a: Spec keyword 'let...then' vs implementation 'let...then'");
         System.out.println(SEPARATOR);
@@ -176,7 +174,7 @@ public class OperationDifferences {
     // 2b: NAME_IDENTIFIER allows digit-starting tokens, so $.m.1 uses
     //     string key "1" instead of integer key 1
     // =========================================================================
-    static void test2b_NameIdentifierTooPermissive(Session session, DataSet set) {
+    void test2b_NameIdentifierTooPermissive(Session session, DataSet set) {
         System.out.println(SEPARATOR);
         System.out.println("TEST 2b: NAME_IDENTIFIER treats bare integers as string map keys");
         System.out.println(SEPARATOR);
@@ -232,7 +230,7 @@ public class OperationDifferences {
     // 2c: >> operator performs logical right shift (zero-fill) instead of
     //     arithmetic right shift (sign-preserving) as per spec and Java convention
     // =========================================================================
-    static void test2c_RightShiftReversed(Session session, DataSet set) {
+    void test2c_RightShiftReversed(Session session, DataSet set) {
         System.out.println(SEPARATOR);
         System.out.println("TEST 2c: >> operator semantics reversed");
         System.out.println(SEPARATOR);
@@ -328,7 +326,7 @@ public class OperationDifferences {
     //     implement visitPathFunctionExists, so it silently falls through
     //     and the exists() call is dropped from the expression.
     // =========================================================================
-    static void test2d_ExistsSilentlyIgnored(Session session, DataSet set) {
+    void test2d_ExistsSilentlyIgnored(Session session, DataSet set) {
         System.out.println(SEPARATOR);
         System.out.println("TEST 2d: exists() path function silently ignored");
         System.out.println(SEPARATOR);
@@ -419,7 +417,7 @@ public class OperationDifferences {
     //     increment) are defined in the grammar but have no visitor
     //     implementation -- they are silently ignored or cause errors.
     // =========================================================================
-    static void test2e_MutationOperationsIgnored(Session session, DataSet set) {
+    void test2e_MutationOperationsIgnored(Session session, DataSet set) {
         System.out.println(SEPARATOR);
         System.out.println("TEST 2e: Mutation path functions silently ignored");
         System.out.println(SEPARATOR);
@@ -540,7 +538,7 @@ public class OperationDifferences {
     //     arithmetic. Both operands must be the same type; the spec provides
     //     asInt() and asFloat() path functions for explicit conversion.
     // =========================================================================
-    static void testCasting_AsIntAsFloat(Session session, DataSet set) {
+    void testCasting_AsIntAsFloat(Session session, DataSet set) {
         System.out.println(SEPARATOR);
         System.out.println("TEST: asInt() / asFloat() type casting for arithmetic");
         System.out.println(SEPARATOR);
@@ -680,7 +678,7 @@ public class OperationDifferences {
         System.out.println();
     }
 
-    private static void check(String testId, boolean passed, String description) {
+    private void check(String testId, boolean passed, String description) {
         totalTests++;
         String status;
         if (passed) {
