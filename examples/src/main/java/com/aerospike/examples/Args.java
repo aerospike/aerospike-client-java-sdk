@@ -17,6 +17,8 @@
 package com.aerospike.examples;
 
 import java.util.Arrays;
+import java.util.Set;
+import java.util.TreeSet;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Options;
@@ -40,6 +42,10 @@ public class Args {
     public final String clientKeyFile;
     public final AuthMode authMode;
     public final boolean useServicesAlternate;
+    public final String reportPath;
+    public final boolean failFast;
+    public final Set<String> includeTags;
+    public final Set<String> excludeTags;
 
     public Args(CommandLine cl) {
         this.host = cl.getOptionValue("h", "localhost");
@@ -90,6 +96,10 @@ public class Args {
 		}
 
         this.useServicesAlternate = cl.hasOption("a");
+        this.reportPath = cl.getOptionValue("report");
+        this.failFast = cl.hasOption("fail-fast");
+        this.includeTags = parseTags(cl.getOptionValue("include-tags"));
+        this.excludeTags = parseTags(cl.getOptionValue("exclude-tags"));
     }
 
     /**
@@ -113,6 +123,28 @@ public class Args {
 		options.addOption("caFile", "caFile", true, "TLS CA certificate file path");
 		options.addOption("clientCertFile", "clientCertFile", true, "TLS client certificate file path");
 		options.addOption("clientKeyFile", "clientKeyFile", true, "TLS client key file path");
+        options.addOption(null, "report", true, "Write JUnit XML example report to the given path");
+        options.addOption(null, "fail-fast", false, "Stop after the first failed example");
+        options.addOption(null, "include-tags", true, "Comma-separated example tags to include");
+        options.addOption(null, "exclude-tags", true, "Comma-separated example tags to exclude");
+    }
+
+    private static Set<String> parseTags(String value) {
+        Set<String> tags = new TreeSet<>();
+
+        if (value == null || value.isBlank()) {
+            return Set.of();
+        }
+
+        for (String tag : value.split(",")) {
+            String trimmed = tag.trim();
+
+            if (!trimmed.isEmpty()) {
+                tags.add(trimmed);
+            }
+        }
+
+        return Set.copyOf(tags);
     }
 
     @Override
@@ -124,6 +156,8 @@ public class Args {
                 ", namespace='" + namespace + '\'' +
                 ", set='" + set + '\'' +
                 ", useServicesAlternate=" + useServicesAlternate +
+                ", includeTags=" + includeTags +
+                ", excludeTags=" + excludeTags +
                 '}';
     }
 }

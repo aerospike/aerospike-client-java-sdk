@@ -22,7 +22,6 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Flow;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import com.aerospike.client.sdk.Cluster;
 import com.aerospike.client.sdk.DefaultRecordMappingFactory;
 import com.aerospike.client.sdk.ErrorStrategy;
 import com.aerospike.client.sdk.RecordResult;
@@ -30,8 +29,6 @@ import com.aerospike.client.sdk.Session;
 import com.aerospike.client.sdk.TypedDataSet;
 import com.aerospike.client.sdk.policy.Behavior;
 import com.aerospike.client.sdk.task.ExecuteTask;
-
-import com.aerospike.examples.Args;
 import com.aerospike.examples.Example;
 
 /**
@@ -42,81 +39,77 @@ import com.aerospike.examples.Example;
  * product stock, create the order, and decrement inventory -- all composed with
  * CompletableFuture. Then we scan products using Flow.Publisher with backpressure.</p>
  *
- * <p>Run with the same host/port flags as other examples ({@link Args} via {@link Example#parseStandaloneArgs}):
- * default {@code localhost:3000}; {@code -h} / {@code -p} override.</p>
  */
-public class EcommerceExample {
+public class EcommerceExample extends Example {
 
     static final CustomerMapper CUSTOMER_MAPPER = new CustomerMapper();
     static final ProductMapper  PRODUCT_MAPPER  = new ProductMapper();
     static final OrderMapper    ORDER_MAPPER    = new OrderMapper();
 
-    public static void main(String[] args) throws Exception {
-        Args arguments = Example.parseStandaloneArgs(args);
-        try (Cluster cluster = Example.clusterDefinition(arguments).connect()) {
-            cluster.setRecordMappingFactory(DefaultRecordMappingFactory.of(
-                    Customer.class, CUSTOMER_MAPPER,
-                    Product.class, PRODUCT_MAPPER,
-                    Order.class, ORDER_MAPPER));
+    @Override
+    public void runExample() throws Exception {
+        cluster().setRecordMappingFactory(DefaultRecordMappingFactory.of(
+                Customer.class, CUSTOMER_MAPPER,
+                Product.class, PRODUCT_MAPPER,
+                Order.class, ORDER_MAPPER));
 
-            Session session = cluster.createSession(Behavior.DEFAULT);
+        Session session = cluster().createSession(Behavior.DEFAULT);
 
-            TypedDataSet<Customer> customers = TypedDataSet.of("test", "customers", Customer.class);
-            TypedDataSet<Product>  products  = TypedDataSet.of("test", "products",  Product.class);
-            TypedDataSet<Order>    orders    = TypedDataSet.of("test", "orders",    Order.class);
+        TypedDataSet<Customer> customers = TypedDataSet.of(namespace(), "customers", Customer.class);
+        TypedDataSet<Product> products = TypedDataSet.of(namespace(), "products", Product.class);
+        TypedDataSet<Order> orders = TypedDataSet.of(namespace(), "orders", Order.class);
 
-            // ==========================================
-            // 1. Seed 20 customers, 100 products, and
-            //    54 orders into Aerospike
-            // ==========================================
-            SeedData.seed(session, customers, products, orders);
+        // ==========================================
+        // 1. Seed 20 customers, 95 products, and
+        //    54 orders into Aerospike
+        // ==========================================
+        SeedData.seed(session, customers, products, orders);
 
-            // ==========================================
-            // 2. Place an order using CompletableFuture
-            //    (async lookup -> validate -> batch write)
-            // ==========================================
-            placeOrder(session, customers, products, orders, "C-100", "SKU-LAP01", 1);
+        // ==========================================
+        // 2. Place an order using CompletableFuture
+        //    (async lookup -> validate -> batch write)
+        // ==========================================
+        placeOrder(session, customers, products, orders, "C-100", "SKU-LAP01", 1);
 
-            // ==========================================
-            // 3. Demonstrate error handling on a
-            //    non-existent customer
-            // ==========================================
-            placeOrderWithErrorHandling(session, customers, products, orders,
-                    "C-MISSING", "SKU-LAP01", 1);
+        // ==========================================
+        // 3. Demonstrate error handling on a
+        //    non-existent customer
+        // ==========================================
+        placeOrderWithErrorHandling(session, customers, products, orders,
+                "C-MISSING", "SKU-LAP01", 1);
 
-            // ==========================================
-            // 4. Stream orders for a customer using
-            //    Flow.Publisher with backpressure
-            // ==========================================
-            streamOrders(session, orders, "C-100");
+        // ==========================================
+        // 4. Stream orders for a customer using
+        //    Flow.Publisher with backpressure
+        // ==========================================
+        streamOrders(session, orders, "C-100");
 
-            // ==========================================
-            // 5. Batch query: top-spender dashboard
-            // ==========================================
-            topSpenderDashboard(session, customers, orders);
+        // ==========================================
+        // 5. Batch query: top-spender dashboard
+        // ==========================================
+        topSpenderDashboard(session, customers, orders);
 
-            // ==========================================
-            // 6. Map operations: product ratings
-            // ==========================================
-            productRatings(session, products);
+        // ==========================================
+        // 6. Map operations: product ratings
+        // ==========================================
+        productRatings(session, products);
 
-            // ==========================================
-            // 7. Scan for affordable, well-stocked
-            //    products using Flow.Publisher
-            // ==========================================
-            scanAffordableProducts(session, products);
+        // ==========================================
+        // 7. Scan for affordable, well-stocked
+        //    products using Flow.Publisher
+        // ==========================================
+        scanAffordableProducts(session, products);
 
-            // ==========================================
-            // 8. Background scan: apply sale prices to
-            //    overstocked, cheap products
-            // ==========================================
-            applySalePrices(session, products);
+        // ==========================================
+        // 8. Background scan: apply sale prices to
+        //    overstocked, cheap products
+        // ==========================================
+        applySalePrices(session, products);
 
-            // ==========================================
-            // 9. Re-display stock after sale prices
-            // ==========================================
-            scanAffordableProducts(session, products);
-        }
+        // ==========================================
+        // 9. Re-display stock after sale prices
+        // ==========================================
+        scanAffordableProducts(session, products);
     }
 
     // ------------------------------------------------------------------

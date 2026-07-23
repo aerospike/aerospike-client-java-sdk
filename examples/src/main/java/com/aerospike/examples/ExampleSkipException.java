@@ -14,26 +14,13 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.aerospike.client.sdk;
+package com.aerospike.examples;
 
-import org.junit.platform.suite.api.SelectClasses;
-import org.junit.platform.suite.api.Suite;
-
-import com.aerospike.client.sdk.policy.AsyncRecordStreamTest;
-import com.aerospike.client.sdk.policy.BehaviorFileMonitorRestartTest;
-import com.aerospike.client.sdk.policy.BehaviorTest;
-import com.aerospike.client.sdk.policy.BehaviorYamlTest;
-import com.aerospike.client.sdk.policy.QueryProducerCancellationTest;
-import com.aerospike.client.sdk.policy.SystemBehaviorTest;
-
-@Suite
-@SelectClasses({
-    AsyncRecordStreamTest.class,
-    BehaviorFileMonitorRestartTest.class,
-    BehaviorTest.class,
-    BehaviorYamlTest.class,
-    QueryProducerCancellationTest.class,
-    SystemBehaviorTest.class,
-})
-public class SuiteCore {
+/**
+ * Signals that an example is not applicable to the current server/configuration.
+ */
+public class ExampleSkipException extends Exception {
+    public ExampleSkipException(String message) {
+        super(message);
+    }
 }

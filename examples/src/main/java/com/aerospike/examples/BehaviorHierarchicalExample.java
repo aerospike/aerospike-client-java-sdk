@@ -21,7 +21,6 @@ import java.io.IOException;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 
-import com.aerospike.client.sdk.Cluster;
 import com.aerospike.client.sdk.policy.Behavior;
 import com.aerospike.client.sdk.policy.Behavior.OpKind;
 import com.aerospike.client.sdk.policy.Behavior.OpShape;
@@ -53,16 +52,12 @@ public class BehaviorHierarchicalExample extends Example {
     private static final DateTimeFormatter TIME_FORMAT = DateTimeFormatter.ofPattern("HH:mm:ss");
     private static final String DEFAULT_CONFIG_PATH = "src/main/resources/behavior-hierarchical-example.yml";
 
-    public BehaviorHierarchicalExample(Console console) {
-        super(console);
-    }
-
     @Override
-    public void runExample(Cluster cluster, Args args) throws Exception {
+    public void runExample() throws Exception {
         demonstrateDynamicReloading(DEFAULT_CONFIG_PATH);
     }
 
-    private void demonstrateDynamicReloading(String yamlFilePath) {
+    private void demonstrateDynamicReloading(String yamlFilePath) throws IOException {
         int refreshDelayMs = 5000;
         int reloadDelayMs = 2000;
         console.write("=== Behavior Hierarchical Example with Dynamic Reloading ===\n");
@@ -81,21 +76,19 @@ public class BehaviorHierarchicalExample extends Example {
 
             console.write("\n" + "=".repeat(70));
             console.write("Monitoring for changes... Modify the YAML file to see dynamic reloading.");
-            console.write("Settings will refresh every 5 seconds. Press Ctrl+C to stop.");
+            console.write("Settings refresh once in the example runner. Re-run locally to observe file changes.");
             console.write("=".repeat(70));
 
-            // Keep running and show current settings periodically
-            while (true) {
-                Thread.sleep(refreshDelayMs);
-                console.write("\n" + getTimestamp() + " === Current Configuration ===");
-                displayCurrentSettings();
-            }
+            Thread.sleep(refreshDelayMs);
+            console.write("\n" + getTimestamp() + " === Current Configuration ===");
+            displayCurrentSettings();
 
         } catch (IOException e) {
             console.error("Error starting monitoring: " + e.getMessage());
-            e.printStackTrace();
+            throw e;
         } catch (InterruptedException e) {
             console.write("\nMonitoring interrupted");
+            Thread.currentThread().interrupt();
         }
         console.write("Monitoring stopped");
     }

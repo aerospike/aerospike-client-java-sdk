@@ -33,26 +33,28 @@ import com.aerospike.client.sdk.exp.Exp;
 import com.aerospike.client.sdk.exp.LoopVarPart;
 import com.aerospike.client.sdk.exp.MapExp;
 import com.aerospike.client.sdk.policy.Behavior;
+import com.aerospike.client.sdk.util.Version;
 
 /**
  * Demonstrates fluent CDT path helpers: {@code onEachChild}, {@code collectValues},
  * {@code modifyBy}, {@code removeMatches}, and {@code collectValuesAsExpressionRead}.
  *
  * <p>These features require Aerospike Server 8.1.1 or later ({@code selectByPath} /
- * {@code modifyByPath}). If the cluster is older, operations may fail with a server error.</p>
+ * {@code modifyByPath}). If the cluster is older, this example is skipped.</p>
  */
 public class CdtPathExpressionExample extends Example {
 
-    public CdtPathExpressionExample(Console console) {
-        super(console);
-    }
-
     @Override
-    public void runExample(Cluster cluster, Args args) throws Exception {
-        Session session = cluster.createSession(Behavior.DEFAULT);
-        DataSet set = DataSet.of(args.namespace, "cdt-path-demo");
+    public void runExample() throws Exception {
+        Cluster cluster = cluster();
+        Version version = cluster.getRandomNode().getVersion();
+        if (!version.isGreaterOrEqual(8, 1, 1, 0)) {
+            throw new ExampleSkipException(
+                "server is " + version + "; CDT path expressions require 8.1.1+");
+        }
 
-        session.truncate(set);
+        Session session = cluster.createSession(Behavior.DEFAULT);
+        DataSet set = dataSet("cdt-path-demo");
 
         boolean allOk = true;
 
@@ -156,7 +158,10 @@ public class CdtPathExpressionExample extends Example {
                 "The Lord of the Rings");
         allOk &= reportCheck(console, 5, stringListMatchesUnordered(rec.bins.get("catalog"), allTitles));
 
-        console.info("Overall: " + (allOk ? "SUCCESS" : "*** FAILURE ***"));
+        if (!allOk) {
+            throw new AssertionError("One or more CDT path expression checks failed");
+        }
+        console.info("Overall: SUCCESS");
     }
 
     private static boolean reportCheck(Console console, int step, boolean ok) {

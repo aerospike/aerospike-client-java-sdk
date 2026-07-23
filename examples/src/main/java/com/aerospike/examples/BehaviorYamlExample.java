@@ -20,7 +20,7 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.util.Set;
 
-import com.aerospike.client.sdk.Cluster;
+
 import com.aerospike.client.sdk.policy.Behavior;
 import com.aerospike.client.sdk.policy.ResolvedSettings;
 
@@ -38,12 +38,8 @@ import com.aerospike.client.sdk.policy.ResolvedSettings;
  */
 public class BehaviorYamlExample extends Example {
 
-    public BehaviorYamlExample(Console console) {
-        super(console);
-    }
-
     @Override
-    public void runExample(Cluster cluster, Args args) throws Exception {
+    public void runExample() throws Exception {
         String yamlFilePath = "src/main/resources/behavior-example.yml";
 
         try (Closeable monitor = Behavior.startMonitoringWithResource(yamlFilePath)) {
@@ -130,9 +126,7 @@ public class BehaviorYamlExample extends Example {
 
         } catch (IOException e) {
             console.error("Error loading behavior from YAML: " + e.getMessage());
-            e.printStackTrace();
-        } catch (InterruptedException e) {
-            console.write("Interrupted");
+            throw e;
         }
     }
 
