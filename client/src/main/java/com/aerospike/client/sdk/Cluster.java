@@ -90,7 +90,7 @@ public class Cluster implements Closeable {
     private boolean versionGE813;
     private boolean metricsEnabled;
 
-    Cluster(ClusterDefinition def, SystemSettings effectiveSettings, MetricsSettings metricsSettings) {
+    Cluster(ClusterDefinition def, SystemSettings effectiveSettings) {
         this.def = def;
         nodes = new Node[0];
         partitionMap = new HashMap<String,Partitions>();
@@ -102,7 +102,6 @@ public class Cluster implements Closeable {
         closed = new AtomicBoolean();
 
         this.applySystemSettings(effectiveSettings);
-        this.applyMetricsSettings(metricsSettings);
 
         tend = new ClusterTend(this);
 
@@ -299,6 +298,7 @@ public class Cluster implements Closeable {
             return;
         }
 
+        System.out.println("SYSTEM=" + settings.toString());
         this.effectiveSystemSettings = settings;
 
         if (settings.getMinimumConnectionsPerNode() != null) {
@@ -324,6 +324,8 @@ public class Cluster implements Closeable {
         if (settings.getMaximumSocketIdleTime() != null) {
             this.def.maxSocketIdleNanosTrim = settings.getMaximumSocketIdleTime().toNanos();
         }
+
+        // TODO Apply metrics settings.
 
         // Currently, the Aerospike Java client does not support dynamic updates
         // to system-level settings like connection pool sizes, socket idle times,
@@ -358,89 +360,6 @@ public class Cluster implements Closeable {
                     this.def.maxSocketIdleNanosTrim
             );
         }
-    }
-
-    /**
-     * Applies metrics settings dynamically to this cluster.
-     * Called by {@link MetricsSettingsRegistry} when settings are updated.
-     *
-     * <p><b>Note:</b> This is an internal method and should not be called directly.
-     * Metrics settings are automatically managed by the registry.</p>
-     *
-     * @param settings the system settings to apply
-     */
-    void applyMetricsSettings(MetricsSettings settings) {
-        if (settings == null) {
-            return;
-        }
-
-        boolean isUpdate = effectiveMetricsSettings != null;
-
-        if (isUpdate && log.isInfoEnabled()) {
-            log.atInfo()
-                .addKeyValue(Cluster.CONTEXT, def.clusterName)
-                .log("Metrics settings updated for cluster '" +
-                    (def.clusterName != null ? def.clusterName : "(unnamed)") +
-                    "'.");
-        }
-
-        // TODO enable metric when the code is ready.
-        if (settings.getEnabled()) {
-            enableMetricsInternal(settings);
-        }
-        else {
-            disableMetricsInternal();
-        }
-
-        /* TODO Apply metrics settings.
-        if (settings.getLatencyWarn() != null) {
-            def.latencyWarn = settings.getLatencyWarn();
-        }
-
-        if (settings.getConnectCreateWarn() != null) {
-            def.connectCreateWarn = settings.getConnectCreateWarn();
-        }
-
-        if (settings.getBatchSizeWarn() != null) {
-            def.batchSizeWarn = settings.getBatchSizeWarn();
-        }
-
-        if (settings.getShortQueryRecordsMax() != null) {
-            def.shortQueryRecordsMax = settings.getShortQueryRecordsMax();
-        }
-
-        if (settings.getLongQueryRecordsMin() != null) {
-            def.longQueryRecordsMin = settings.getLongQueryRecordsMin();
-        }
-
-        if (settings.getEnabled() != null) {
-            def.enabled = settings.getEnabled();
-        }
-        */
-
-        if (log.isInfoEnabled()) {
-            log.atInfo()
-                .addKeyValue(Cluster.CONTEXT, def.clusterName)
-                .log("Metrics settings updated for cluster '" +
-                    (def.clusterName != null ? def.clusterName : "(unnamed)") +
-                    "'.");
-        }
-
-        /* TODO Log metrics settings.
-        if (log.isDebugEnabled()) {
-            log.atDebug()
-                .addKeyValue(Cluster.CONTEXT, def.getClusterName())
-                .log(
-                    "\tlatencyWarn={}ms;connectCreateWarn={}ms;batchSizeWarn={};shortQueryRecordsMax={};longQueryRecordsMin={}ms;enabled={}",
-                    this.def.latencyWarn,
-                    this.def.connectCreateWarn,
-                    this.def.batchSizeWarn,
-                    this.def.shortQueryRecordsMax,
-                    this.def.longQueryRecordsMin,
-                    this.def.enabled
-            );
-        }
-        */
     }
 
     public final void enableMetrics(MetricsSettings settings) {

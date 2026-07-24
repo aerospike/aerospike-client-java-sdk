@@ -23,7 +23,6 @@ public class BehaviorYamlConfig {
 
     private Map<String, BehaviorConfig> behaviors;
     private Map<String, SystemSettingsConfig> system;
-    private Map<String, MetricsSettingsConfig> metrics;
 
     // Getters and setters
     public Map<String, BehaviorConfig> getBehaviors() { return behaviors; }
@@ -31,9 +30,6 @@ public class BehaviorYamlConfig {
 
     public Map<String, SystemSettingsConfig> getSystem() { return system; }
     public void setSystem(Map<String, SystemSettingsConfig> system) { this.system = system; }
-
-    public Map<String, MetricsSettingsConfig> getMetrics() { return metrics; }
-    public void setMetrics(Map<String, MetricsSettingsConfig> metrics) { this.metrics = metrics; }
 
     // Individual behavior configuration (name is the map key)
     public static class BehaviorConfig {
@@ -56,7 +52,7 @@ public class BehaviorYamlConfig {
         private SystemCircuitBreakerConfig systemCircuitBreaker;
         private SystemRefreshConfig systemRefresh;
         private SystemTransactionsConfig systemTransactions;
-        private MetricsSignalsConfig metricsSignals;
+        private SystemMetricsConfig systemMetrics;
 
         // Getters and setters
         public String getName() { return name; }
@@ -116,8 +112,8 @@ public class BehaviorYamlConfig {
         public SystemTransactionsConfig getSystemTransactions() { return systemTransactions; }
         public void setSystemTransactions(SystemTransactionsConfig systemTransactions) { this.systemTransactions = systemTransactions; }
 
-        public MetricsSignalsConfig getMetricsSignals() { return metricsSignals; }
-        public void setSystemTransactions(MetricsSignalsConfig metricsSignals) { this.metricsSignals = metricsSignals; }
+        public SystemMetricsConfig getSystemMetrics() { return systemMetrics; }
+        public void setSystemMetrics(SystemMetricsConfig metrics) { this.systemMetrics = metrics; }
     }
 
     // Base policy configuration
@@ -304,6 +300,7 @@ public class BehaviorYamlConfig {
         private SystemCircuitBreakerConfig circuitBreaker;
         private SystemRefreshConfig refresh;
         private SystemTransactionsConfig transactions;
+        private SystemMetricsConfig metrics;
 
         public SystemConnectionsConfig getConnections() { return connections; }
         public void setConnections(SystemConnectionsConfig connections) { this.connections = connections; }
@@ -316,29 +313,31 @@ public class BehaviorYamlConfig {
 
         public SystemTransactionsConfig getTransactions() { return transactions; }
         public void setTransactions(SystemTransactionsConfig transactions) { this.transactions = transactions; }
+
+        public SystemMetricsConfig getMetrics() { return metrics; }
+        public void setMetrics(SystemMetricsConfig metrics) { this.metrics = metrics; }
     }
 
-    // Metrics settings configuration (for cluster-level settings)
-    public static class MetricsSettingsConfig {
-        private MetricsSignalsConfig signals;
-
-        public MetricsSignalsConfig getSignals() {
-            return signals;
-        }
-
-        public void setSignals(MetricsSignalsConfig signals) {
-            this.signals = signals;
-        }
-    }
-
-    // Metrics - Signals
-    public static class MetricsSignalsConfig {
+    public static class SystemMetricsConfig {
+        private Map<String,String> labels;
         private Duration latencyWarn;
         private Duration connectCreateWarn;
+        private String reportDir;
+        private Long reportSizeLimit;
+        private Integer interval;
+        private Integer latencyColumns;
+        private Integer latencyShift;
         private Integer batchSizeWarn;
         private Integer shortQueryRecordsMax;
         private Integer longQueryRecordsMin;
         private Boolean enabled;
+
+        public Map<String, String> getLabels() {
+            return labels;
+        }
+        public void setLabels(Map<String, String> labels) {
+            this.labels = labels;
+        }
 
         public Duration getLatencyWarn() {
             return latencyWarn;
@@ -352,6 +351,41 @@ public class BehaviorYamlConfig {
         }
         public void setConnectCreateWarn(Duration connectCreateWarn) {
             this.connectCreateWarn = connectCreateWarn;
+        }
+
+        public String getReportDir() {
+            return reportDir;
+        }
+        public void setReportDir(String reportDir) {
+            this.reportDir = reportDir;
+        }
+
+        public Long getReportSizeLimit() {
+            return reportSizeLimit;
+        }
+        public void setReportSizeLimit(Long reportSizeLimit) {
+            this.reportSizeLimit = reportSizeLimit;
+        }
+
+        public Integer getInterval() {
+            return interval;
+        }
+        public void setInterval(Integer interval) {
+            this.interval = interval;
+        }
+
+        public Integer getLatencyColumns() {
+            return latencyColumns;
+        }
+        public void setLatencyColumns(Integer latencyColumns) {
+            this.latencyColumns = latencyColumns;
+        }
+
+        public Integer getLatencyShift() {
+            return latencyShift;
+        }
+        public void setLatencyShift(Integer latencyShift) {
+            this.latencyShift = latencyShift;
         }
 
         public Integer getBatchSizeWarn() {

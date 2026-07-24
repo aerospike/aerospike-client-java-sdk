@@ -612,24 +612,11 @@ public class ClusterDefinition {
                 .log("System Settings: " + effectiveSettings);
         }
 
-        // Apply metrics settings to policy (4-level hierarchy)
-        MetricsSettings metricsSettings = MetricsSettingsRegistry.getInstance()
-            .getEffectiveSettings(clusterName, userSuppliedMetricsSettings);
-
-        if (log.isDebugEnabled()) {
-            log.atDebug()
-                .addKeyValue(Cluster.CONTEXT, def.clusterName)
-                .log("Metrics Settings: " + metricsSettings);
-        }
-
-        Cluster cluster = new Cluster(def, effectiveSettings, metricsSettings);
+        Cluster cluster = new Cluster(def, effectiveSettings);
 
         // Register with registry for dynamic updates
         SystemSettingsRegistry.getInstance()
             .registerCluster(cluster, clusterName, effectiveSettings);
-
-        MetricsSettingsRegistry.getInstance()
-            .registerCluster(cluster, clusterName, metricsSettings);
 
         return cluster;
     }

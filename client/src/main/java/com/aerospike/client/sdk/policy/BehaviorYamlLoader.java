@@ -36,8 +36,6 @@ import org.yaml.snakeyaml.nodes.Node;
 import org.yaml.snakeyaml.nodes.ScalarNode;
 import org.yaml.snakeyaml.nodes.Tag;
 
-import com.aerospike.client.sdk.MetricsSettings;
-import com.aerospike.client.sdk.MetricsSettingsRegistry;
 import com.aerospike.client.sdk.SystemSettings;
 import com.aerospike.client.sdk.SystemSettingsRegistry;
 
@@ -201,9 +199,6 @@ public class BehaviorYamlLoader {
         // Load system settings
         loadSystemSettings(config);
 
-        // Load metrics settings
-        loadMetricsSettings(config);
-
         return updatedBehaviors;
     }
 
@@ -276,9 +271,6 @@ public class BehaviorYamlLoader {
 
         // Load system settings
         loadSystemSettings(config);
-
-        // Load metrics settings
-        loadMetricsSettings(config);
 
         return behaviors;
     }
@@ -528,42 +520,33 @@ public class BehaviorYamlLoader {
             });
         }
 
-        return builder.build();
-    }
-
-    private static void loadMetricsSettings(BehaviorYamlConfig config) {
-        if (config.getMetrics() == null) {
-            return;
-        }
-
-        MetricsSettingsRegistry registry = MetricsSettingsRegistry.getInstance();
-
-        for (Map.Entry<String, BehaviorYamlConfig.MetricsSettingsConfig> entry : config.getMetrics().entrySet()) {
-            String name = entry.getKey();
-            BehaviorYamlConfig.MetricsSettingsConfig settingsConfig = entry.getValue();
-            MetricsSettings settings = convertToMetricsSettings(settingsConfig);
-
-            if (Behavior.DEFAULT.name().equalsIgnoreCase(name)) {
-                // Update default settings
-                registry.updateDefaultSettings(settings);
-            } else {
-                // Update cluster-specific settings
-                registry.updateClusterSettings(name, settings);
-            }
-        }
-    }
-
-    private static MetricsSettings convertToMetricsSettings(BehaviorYamlConfig.MetricsSettingsConfig config) {
-        MetricsSettings.Builder builder = MetricsSettings.builder();
-
-        if (config.getSignals() != null) {
-            BehaviorYamlConfig.MetricsSignalsConfig metricsConfig = config.getSignals();
-            builder.signals(ops -> {
+        // Apply metrics settings
+        if (config.getMetrics() != null) {
+            BehaviorYamlConfig.SystemMetricsConfig metricsConfig = config.getMetrics();
+            builder.metrics (ops -> {
+                if (metricsConfig.getLabels() != null) {
+                    ops.labels(metricsConfig.getLabels());
+                }
                 if (metricsConfig.getLatencyWarn() != null) {
                     ops.latencyWarn(metricsConfig.getLatencyWarn());
                 }
                 if (metricsConfig.getConnectCreateWarn() != null) {
                     ops.connectCreateWarn(metricsConfig.getConnectCreateWarn());
+                }
+                if (metricsConfig.getReportDir() != null) {
+                    ops.reportDir(metricsConfig.getReportDir());
+                }
+                if (metricsConfig.getReportSizeLimit() != null) {
+                    ops.reportSizeLimit(metricsConfig.getReportSizeLimit());
+                }
+                if (metricsConfig.getInterval() != null) {
+                    ops.interval(metricsConfig.getInterval());
+                }
+                if (metricsConfig.getLatencyColumns() != null) {
+                    ops.latencyColumns(metricsConfig.getLatencyColumns());
+                }
+                if (metricsConfig.getLatencyShift() != null) {
+                    ops.latencyShift(metricsConfig.getLatencyShift());
                 }
                 if (metricsConfig.getBatchSizeWarn() != null) {
                     ops.batchSizeWarn(metricsConfig.getBatchSizeWarn());
