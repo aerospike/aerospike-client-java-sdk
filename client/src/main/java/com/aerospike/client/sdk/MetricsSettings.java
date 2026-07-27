@@ -17,38 +17,11 @@
 package com.aerospike.client.sdk;
 
 import java.time.Duration;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
-import java.util.function.Consumer;
 
 /**
  * Metrics settings that apply to an entire Cluster instance.
- *
- * <p><b>Example Usage:</b></p>
- * <pre>{@code
- * // Lambda-based configuration (inline):
- * new ClusterDefinition("localhost", 3000)
- *     .withMetricsSettings(builder -> builder
- *         .signals(ops -> ops
- *             .enabled(true)
- *         )
- *     )
- *     .connect();
- *
- * // Or explicit builder for complex configurations:
- * MetricsSettings settings = MetricsSettings.builder()
- *     .signals(ops -> ops
- *          .enabled(true)
- *     )
- *     .build();
- *
- * new ClusterDefinition("localhost", 3000)
- *     .withMetricsSettings(settings)
- *     .connect();
- * }</pre>
- *
- * @see ClusterDefinition#withMetricsSettings(MetricsSettings)
  */
 public class MetricsSettings {
     // TODO Where should these fields go?
@@ -67,28 +40,7 @@ public class MetricsSettings {
     private final Integer longQueryRecordsMin;
     private final Boolean enabled;
 
-    /**
-     * Default metrics settings.
-     * These are the lowest priority and serve as the base for all other settings.
-     */
-    public static final MetricsSettings DEFAULT = builder()
-        .signals(ops -> ops
-            .labels(new HashMap<>())
-            .latencyWarn(Duration.ofMillis(50))
-            .connectCreateWarn(Duration.ofMillis(500))
-            .reportDir(".")
-            .reportSizeLimit(0L)
-            .interval(30)
-            .latencyColumns(7)
-            .latencyShift(1)
-            .batchSizeWarn(500)
-            .shortQueryRecordsMax(100)
-            .longQueryRecordsMin(10)
-            .enabled(false)
-        )
-        .build();
-
-    private MetricsSettings(Builder builder) {
+    MetricsSettings(Builder builder) {
         this.labels = builder.labels;
         this.latencyWarn = builder.latencyWarn;
         this.connectCreateWarn = builder.connectCreateWarn;
@@ -117,11 +69,7 @@ public class MetricsSettings {
      * @param base the base settings to use for null fields
      * @return a new MetricsSettings with merged values
      */
-    public MetricsSettings mergeWith(MetricsSettings base) {
-        if (base == null) {
-            return this;
-        }
-
+    Builder mergeWith(MetricsSettings base) {
         Builder merged = builder();
 
         merged.labels = this.labels != null
@@ -149,7 +97,7 @@ public class MetricsSettings {
         merged.enabled = this.enabled != null
             ? this.enabled : base.enabled;
 
-        return merged.build();
+        return merged;
     }
 
     // Getters
@@ -233,14 +181,6 @@ public class MetricsSettings {
         private Boolean enabled;
 
         /**
-         * Configure metrics signals using a lambda.
-         */
-        public Builder signals(Consumer<SignalsTweaks> configurator) {
-            configurator.accept(new SignalsTweaksImpl(this));
-            return this;
-        }
-
-        /**
          * Builds the MetricsSettings instance.
          */
         public MetricsSettings build() {
@@ -255,100 +195,100 @@ public class MetricsSettings {
     /**
      * Interface for configuring metrics signal related settings.
      */
-    public interface SignalsTweaks {
-        SignalsTweaks labels(Map<String,String> labels);
-        SignalsTweaks latencyWarn(Duration duration);
-        SignalsTweaks connectCreateWarn(Duration duration);
-        SignalsTweaks reportDir(String dir);
-        SignalsTweaks reportSizeLimit(Long limit);
-        SignalsTweaks interval(Integer limit);
-        SignalsTweaks latencyColumns(Integer limit);
-        SignalsTweaks latencyShift(Integer limit);
-        SignalsTweaks batchSizeWarn(Integer n);
-        SignalsTweaks shortQueryRecordsMax(Integer n);
-        SignalsTweaks longQueryRecordsMin(Integer n);
-        SignalsTweaks enabled(Boolean b);
+    public interface MetricsTweaks {
+        MetricsTweaks labels(Map<String,String> labels);
+        MetricsTweaks latencyWarn(Duration duration);
+        MetricsTweaks connectCreateWarn(Duration duration);
+        MetricsTweaks reportDir(String dir);
+        MetricsTweaks reportSizeLimit(Long limit);
+        MetricsTweaks interval(Integer limit);
+        MetricsTweaks latencyColumns(Integer limit);
+        MetricsTweaks latencyShift(Integer limit);
+        MetricsTweaks batchSizeWarn(Integer n);
+        MetricsTweaks shortQueryRecordsMax(Integer n);
+        MetricsTweaks longQueryRecordsMin(Integer n);
+        MetricsTweaks enabled(Boolean b);
     }
 
     // -----------------------------------------------------------------------------------
     // Internal implementations of tweaks interfaces
     // -----------------------------------------------------------------------------------
 
-    private static class SignalsTweaksImpl implements SignalsTweaks {
+    static class MetricsTweaksImpl implements MetricsTweaks {
         private final Builder builder;
 
-        SignalsTweaksImpl(Builder builder) {
+        MetricsTweaksImpl(Builder builder) {
             this.builder = builder;
         }
 
         @Override
-        public SignalsTweaks labels(Map<String,String> labels) {
+        public MetricsTweaks labels(Map<String,String> labels) {
             builder.labels = labels;
             return this;
         }
 
         @Override
-        public SignalsTweaks latencyWarn(Duration duration) {
+        public MetricsTweaks latencyWarn(Duration duration) {
             builder.latencyWarn = duration;
             return this;
         }
 
         @Override
-        public SignalsTweaks connectCreateWarn(Duration duration) {
+        public MetricsTweaks connectCreateWarn(Duration duration) {
             builder.connectCreateWarn = duration;
             return this;
         }
 
         @Override
-        public SignalsTweaks reportDir(String dir) {
+        public MetricsTweaks reportDir(String dir) {
             builder.reportDir = dir;
             return this;
         }
 
         @Override
-        public SignalsTweaks reportSizeLimit(Long limit) {
+        public MetricsTweaks reportSizeLimit(Long limit) {
             builder.reportSizeLimit = limit;
             return this;
         }
 
         @Override
-        public SignalsTweaks interval(Integer interval) {
+        public MetricsTweaks interval(Integer interval) {
             builder.interval = interval;
             return this;
         }
 
         @Override
-        public SignalsTweaks latencyColumns(Integer n) {
+        public MetricsTweaks latencyColumns(Integer n) {
             builder.latencyColumns = n;
             return this;
         }
 
         @Override
-        public SignalsTweaks latencyShift(Integer n) {
+        public MetricsTweaks latencyShift(Integer n) {
             builder.latencyShift = n;
             return this;
         }
 
         @Override
-        public SignalsTweaks batchSizeWarn(Integer n) {
+        public MetricsTweaks batchSizeWarn(Integer n) {
             builder.batchSizeWarn = n;
             return this;
         }
 
         @Override
-        public SignalsTweaks shortQueryRecordsMax(Integer n) {
+        public MetricsTweaks shortQueryRecordsMax(Integer n) {
             builder.shortQueryRecordsMax = n;
             return this;
         }
 
         @Override
-        public SignalsTweaks longQueryRecordsMin(Integer n) {
+        public MetricsTweaks longQueryRecordsMin(Integer n) {
             builder.longQueryRecordsMin = n;
             return this;
         }
 
         @Override
-        public SignalsTweaks enabled(Boolean b) {
+        public MetricsTweaks enabled(Boolean b) {
             builder.enabled = b;
             return this;
         }

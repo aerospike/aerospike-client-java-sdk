@@ -130,7 +130,7 @@ public class Node implements Closeable {
         this.active = true;
 
         if (cluster.isMetricsEnabled()) {
-            this.metrics = new NodeMetrics(cluster.getMetricsSettings());
+            //this.metrics = new NodeMetrics(cluster.getMetricsSettings());
         }
 
         // Create sync connection pools.

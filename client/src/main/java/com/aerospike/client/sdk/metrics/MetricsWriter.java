@@ -162,7 +162,7 @@ public final class MetricsWriter implements MetricsListener {
 	}
 
 	private void writeCluster(Cluster cluster) {
-		MetricsSettings settings = cluster.getMetricsSettings();
+		MetricsSettings settings = cluster.getSystemSettings().getMetrics();
 		ClusterDefinition def = cluster.getClusterDefinition();
 		String appId = def.getAppId();
 		String clusterName = cluster.getClusterName();

@@ -57,7 +57,6 @@ public class ClusterDefinition {
     private static final Logger log = LoggerFactory.getLogger(Loggers.BEHAVIOR);
 
     private SystemSettings userSuppliedSystemSettings;
-    private MetricsSettings userSuppliedMetricsSettings;
     String clientVersion;
     String appId;
     String clusterName;
@@ -127,7 +126,6 @@ public class ClusterDefinition {
      */
     public ClusterDefinition(ClusterDefinition other) {
         this.userSuppliedSystemSettings = other.userSuppliedSystemSettings;
-        this.userSuppliedMetricsSettings = other.userSuppliedMetricsSettings;
         this.clientVersion = other.clientVersion;
         this.appId = other.appId;
         this.clusterName = other.clusterName;
@@ -412,68 +410,6 @@ public class ClusterDefinition {
         configurator.accept(builder);
         SystemSettings settings = builder.build();
         return withSystemSettings(settings);
-    }
-
-    /**
-     * Sets metrics settings for this cluster using a pre-built MetricsSettings instance.
-     *
-     * <p><b>Priority:</b> Code-provided settings (Level 2) override hard-coded defaults
-     * but are overridden by YAML default and cluster-specific settings.</p>
-     *
-     * <p>Example usage:</p>
-     * <pre>{@code
-     * MetricsSettings settings = MetricsSettings.builder()
-     *     .signals(ops -> ops
-     *         .enabled(true)
-     *     )
-     *     .build();
-     *
-     * new ClusterDefinition("localhost", 3000)
-     *     .withMetricsSettings(settings)
-     *     .connect();
-     * }</pre>
-     *
-     * @param settings the system settings to apply
-     * @return this ClusterDefinition for method chaining
-     * @see MetricsSettings
-     * @see #withMetricsSettings(Consumer)
-     */
-    public ClusterDefinition withMetricsSettings(MetricsSettings settings) {
-        this.userSuppliedMetricsSettings = settings;
-        return this;
-    }
-
-    /**
-     * Sets metrics settings for this cluster using a lambda configurator.
-     *
-     * <p>This is the recommended approach for inline configuration, consistent with
-     * the Behavior API. It allows concise configuration without requiring
-     * explicit builder management.</p>
-     *
-     * <p><b>Priority:</b> Code-provided settings (Level 2) override hard-coded defaults
-     * but are overridden by YAML default and cluster-specific settings.</p>
-     *
-     * <p>Example usage:</p>
-     * <pre>{@code
-     * new ClusterDefinition("localhost", 3000)
-     *     .withMetricsSettings(builder -> builder
-     *         .signals(ops -> ops
-     *             .enabled(true)
-     *         )
-     *     )
-     *     .connect();
-     * }</pre>
-     *
-     * @param configurator lambda to configure system settings
-     * @return this ClusterDefinition for method chaining
-     * @see MetricsSettings
-     * @see #withMetricsSettings(MetricsSettings)
-     */
-    public ClusterDefinition withMetricsSettings(Consumer<MetricsSettings.Builder> configurator) {
-        MetricsSettings.Builder builder = MetricsSettings.builder();
-        configurator.accept(builder);
-        MetricsSettings settings = builder.build();
-        return withMetricsSettings(settings);
     }
 
     /**

@@ -81,7 +81,6 @@ public class Cluster implements Closeable {
     private final IndexesMonitor indexesMonitor;
     private RecordMappingFactory recordMappingFactory = null;
     private volatile SystemSettings effectiveSystemSettings = SystemSettings.DEFAULT;
-    private volatile MetricsSettings effectiveMetricsSettings = MetricsSettings.DEFAULT;
     private final Object metricsLock = new Object();
     private MetricsListener metricsListener;
     private Version version;
@@ -383,7 +382,7 @@ public class Cluster implements Closeable {
         }
 
         this.metricsListener = listener;
-        this.effectiveMetricsSettings = settings;
+        //this.effectiveMetricsSettings = settings;
 
         if (metricsEnabled) {
             this.metricsListener.onDisable(this);
@@ -425,13 +424,6 @@ public class Cluster implements Closeable {
                     .log("Metrics disabled");
             }
         }
-    }
-
-    /**
-     * Get current metrics settings.
-     */
-    public MetricsSettings getMetricsSettings() {
-        return effectiveMetricsSettings;
     }
 
     /**
