@@ -18,6 +18,7 @@ package com.aerospike.client.sdk.command;
 
 import java.io.IOException;
 
+import com.aerospike.client.sdk.Loggers;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -31,7 +32,7 @@ import com.aerospike.client.sdk.query.plan.QueryWhereWire;
 import com.aerospike.client.sdk.util.RandomShift;
 
 public final class IndexProbeExecutor extends SyncExecutor {
-    private static final Logger log = LoggerFactory.getLogger(IndexProbeExecutor.class);
+    private static final Logger log = LoggerFactory.getLogger(Loggers.QUERY);
 
     private final IndexProbeCommand probe;
     private final Node[] nodes;

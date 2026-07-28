@@ -54,4 +54,9 @@ public final class Loggers {
      * Cluster tend.
      */
     public static final String TEND = "tend";
+
+    /**
+     * Query planning and executions.
+     */
+    public static final String QUERY = "query";
 }
