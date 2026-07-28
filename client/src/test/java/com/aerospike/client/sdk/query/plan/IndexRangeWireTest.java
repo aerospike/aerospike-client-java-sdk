@@ -17,6 +17,8 @@
 package com.aerospike.client.sdk.query.plan;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 
 import org.junit.jupiter.api.Test;
@@ -24,6 +26,29 @@ import org.junit.jupiter.api.Test;
 import com.aerospike.client.sdk.query.Filter;
 
 class IndexRangeWireTest {
+
+    @Test
+    void describeIntegerRange() {
+        byte[] probe = probeRangeWithBinName("age", 101L, Long.MAX_VALUE);
+        assertEquals("bin=age range=[101,9223372036854775807]", IndexRangeWire.describeProbeRange(probe));
+    }
+
+    @Test
+    void describeIntegerEquality() {
+        byte[] probe = probeRangeWithBinName("age", 30L);
+        assertEquals("bin=age range=[30,30]", IndexRangeWire.describeProbeRange(probe));
+    }
+
+    @Test
+    void describeStringEquality() {
+        byte[] probe = probeRangeWithBinName("ka", "k1");
+        assertEquals("bin=ka value=k1 len=2", IndexRangeWire.describeProbeRange(probe));
+    }
+
+    @Test
+    void describeNullRange() {
+        assertNull(IndexRangeWire.describeProbeRange(null));
+    }
 
     @Test
     void stripsBinNameForExecuteWithIndexName() {
@@ -42,6 +67,22 @@ class IndexRangeWireTest {
     }
 
     private static byte[] probeRangeWithBinName(String binName, long value) {
+        Filter structured = Filter.equal(binName, value);
+        byte[] wireBody = new byte[1 + structured.estimateSize()];
+        wireBody[0] = 1;
+        structured.write(wireBody, 1);
+        return wireBody;
+    }
+
+    private static byte[] probeRangeWithBinName(String binName, long begin, long end) {
+        Filter structured = Filter.range(binName, begin, end);
+        byte[] wireBody = new byte[1 + structured.estimateSize()];
+        wireBody[0] = 1;
+        structured.write(wireBody, 1);
+        return wireBody;
+    }
+
+    private static byte[] probeRangeWithBinName(String binName, String value) {
         Filter structured = Filter.equal(binName, value);
         byte[] wireBody = new byte[1 + structured.estimateSize()];
         wireBody[0] = 1;

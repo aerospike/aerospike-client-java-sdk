@@ -17,16 +17,24 @@
 package com.aerospike.client.sdk.command;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.aerospike.client.sdk.Cluster;
 import com.aerospike.client.sdk.Node;
 import com.aerospike.client.sdk.ResultCode;
 import com.aerospike.client.sdk.metrics.LatencyType;
+import com.aerospike.client.sdk.query.plan.IndexRangeWire;
 import com.aerospike.client.sdk.query.plan.QueryPlan;
 import com.aerospike.client.sdk.query.plan.QueryWhereWire;
 import com.aerospike.client.sdk.util.RandomShift;
 
 public final class IndexProbeExecutor extends SyncExecutor {
+    private static final Logger log = LoggerFactory.getLogger(IndexProbeExecutor.class);
+
     private final IndexProbeCommand probe;
     private final Node[] nodes;
     private int nodeIndex;
@@ -77,6 +85,60 @@ public final class IndexProbeExecutor extends SyncExecutor {
             whereBytes,
             MsgFieldParser.from(rp)
         );
+
+        if (log.isDebugEnabled()) {
+            logQueryPlan(node, plan);
+        }
+    }
+
+    private void logQueryPlan(Node node, QueryPlan plan) {
+        String range = IndexRangeWire.describeProbeRange(plan.getIndexRangeBytes());
+        String indexHint = probe.indexNameHint != null ? probe.indexNameHint : "none";
+        String whereFlags = formatWhereFlags(probe.whereFlags);
+
+        if (plan.isSecondaryIndex()) {
+            log.debug(
+                "query-plan: node={} ns={} set={} selected sindex={} {} indexType={} "
+                    + "ael={} indexHint={} whereFlags={}",
+                node,
+                plan.getNamespace(),
+                plan.getSet(),
+                plan.getIndexName(),
+                range,
+                plan.getIndexType(),
+                plan.getAel(),
+                indexHint,
+                whereFlags
+            );
+            return;
+        }
+
+        log.debug(
+            "query-plan: node={} ns={} set={} selection={} ael={} indexHint={} whereFlags={}",
+            node,
+            plan.getNamespace(),
+            plan.getSet(),
+            plan.getSelection(),
+            plan.getAel(),
+            indexHint,
+            whereFlags
+        );
+    }
+
+    private static String formatWhereFlags(int flags) {
+        int policyFlags = flags & (QueryWhereWire.FLAG_REQUIRE_INDEX | QueryWhereWire.FLAG_HARD_HINT);
+        if (policyFlags == 0) {
+            return "none";
+        }
+
+        StringBuilder sb = new StringBuilder();
+        if ((policyFlags & QueryWhereWire.FLAG_REQUIRE_INDEX) != 0) {
+            sb.append("REQUIRE_INDEX|");
+        }
+        if ((policyFlags & QueryWhereWire.FLAG_HARD_HINT) != 0) {
+            sb.append("HARD_HINT|");
+        }
+        return sb.substring(0, sb.length() - 1);
     }
 
     @Override

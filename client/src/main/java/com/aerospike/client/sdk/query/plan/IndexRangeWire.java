@@ -16,6 +16,11 @@
  */
 package com.aerospike.client.sdk.query.plan;
 
+import java.nio.charset.StandardCharsets;
+
+import com.aerospike.client.sdk.command.Buffer;
+import com.aerospike.client.sdk.command.ParticleType;
+
 /**
  * Transforms probe {@code INDEX_RANGE} (field {@code 22}) bytes for execute when field
  * {@code 21} ({@code INDEX_NAME}) is also sent.
@@ -53,4 +58,92 @@ public final class IndexRangeWire {
         System.arraycopy(probeRangeBytes, offset, execute, 2, tailLen);
         return execute;
     }
+
+    /**
+     * Human-readable explain {@code INDEX_RANGE} for debug logs
+     *
+     * @param probeRangeBytes opaque explain field-{@code 22} body, or {@code null}
+     * @return decoded range summary, or {@code null} when {@code probeRangeBytes} is {@code null}
+     */
+    public static String describeProbeRange(byte[] probeRangeBytes) {
+        if (probeRangeBytes == null) {
+            return null;
+        }
+        if (probeRangeBytes.length < 2) {
+            return "invalid(truncated)";
+        }
+
+        int binNameLen = probeRangeBytes[1] & 0xFF;
+        int offset = 2;
+        if (probeRangeBytes.length < offset + binNameLen + 1) {
+            return "invalid(truncated)";
+        }
+
+        String binName = binNameLen > 0
+            ? new String(probeRangeBytes, offset, binNameLen, StandardCharsets.UTF_8)
+            : "";
+        offset += binNameLen;
+        int ktype = probeRangeBytes[offset++] & 0xFF;
+
+        return switch (ktype) {
+            case ParticleType.INTEGER -> {
+                BoundLong begin = readIntegerBound(probeRangeBytes, offset);
+                if (begin == null) {
+                    yield "invalid(integer-begin)";
+                }
+                BoundLong end = readIntegerBound(probeRangeBytes, begin.nextOffset);
+                if (end == null) {
+                    yield "invalid(integer-end)";
+                }
+                yield "bin=" + binName + " range=[" + begin.value + "," + end.value + "]";
+            }
+            case ParticleType.STRING -> {
+                BoundBytes value = readBytesBound(probeRangeBytes, offset);
+                if (value == null) {
+                    yield "invalid(string)";
+                }
+                String text = new String(value.bytes, StandardCharsets.UTF_8);
+                yield "bin=" + binName + " value=" + text + " len=" + value.bytes.length;
+            }
+            case ParticleType.BLOB -> {
+                BoundBytes value = readBytesBound(probeRangeBytes, offset);
+                if (value == null) {
+                    yield "invalid(blob)";
+                }
+                yield "bin=" + binName + " value=x'" + Buffer.bytesToHexString(value.bytes)
+                    + "' len=" + value.bytes.length;
+            }
+            default -> "bin=" + binName + " ktype=" + ktype + " hex="
+                + Buffer.bytesToHexString(probeRangeBytes);
+        };
+    }
+
+    private static BoundLong readIntegerBound(byte[] bytes, int offset) {
+        BoundBytes raw = readBytesBound(bytes, offset);
+        if (raw == null) {
+            return null;
+        }
+        if (raw.bytes.length != 8) {
+            return null;
+        }
+        return new BoundLong(Buffer.bytesToLong(raw.bytes, 0), raw.nextOffset);
+    }
+
+    private static BoundBytes readBytesBound(byte[] bytes, int offset) {
+        if (bytes.length < offset + 4) {
+            return null;
+        }
+        int len = Buffer.bytesToInt(bytes, offset);
+        offset += 4;
+        if (len < 0 || bytes.length < offset + len) {
+            return null;
+        }
+        byte[] value = new byte[len];
+        System.arraycopy(bytes, offset, value, 0, len);
+        return new BoundBytes(value, offset + len);
+    }
+
+    private record BoundLong(long value, int nextOffset) {}
+
+    private record BoundBytes(byte[] bytes, int nextOffset) {}
 }
