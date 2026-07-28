@@ -20,8 +20,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.concurrent.ConcurrentLinkedDeque;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReferenceArray;
+import java.util.concurrent.atomic.LongAdder;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -45,7 +45,7 @@ public class ClusterTend implements Runnable {
     private Thread tendThread;
     final HashMap<String,Node> nodesMap;
     private final ConcurrentLinkedDeque<ConnectionRecover> recoverQueue;
-    private final AtomicInteger recoverCount;
+    private final LongAdder recoverCount;
     private volatile Host[] seeds;
     private int tendCount;
     private volatile int invalidNodeCount;
@@ -57,7 +57,7 @@ public class ClusterTend implements Runnable {
         this.seeds = this.def.getEffectiveHosts();
         this.nodesMap = new HashMap<String,Node>();
 
-        this.recoverCount = new AtomicInteger();
+        this.recoverCount = new LongAdder();
         this.recoverQueue = new ConcurrentLinkedDeque<ConnectionRecover>();
     }
 
@@ -264,14 +264,7 @@ public class ClusterTend implements Runnable {
         }
 
         // Perform metrics snapshot.
-        // TODO: Handle metrics
-        /*
-        synchronized(metricsLock) {
-            if (metricsEnabled && (tendCount % metricsPolicy.interval) == 0) {
-                metricsListener.onSnapshot(this);
-            }
-        }
-        */
+        cluster.metricsSnapshot(tendCount);
 
         processRecoverQueue();
     }
@@ -549,25 +542,7 @@ public class ClusterTend implements Runnable {
         for (Node node : nodesToRemove) {
             // Remove node from map.
             nodesMap.remove(node.getName());
-
-            // TODO Handle metrics
-            /*
-            synchronized(metricsLock) {
-                if (metricsEnabled) {
-                    // Flush node metrics before removal.
-                    try {
-                        metricsListener.onNodeClose(node);
-                    }
-                    catch (Throwable e) {
-                        if (log.isWarnEnabled()) {
-                            log.atWarn()
-                                .addKeyValue(Cluster.CONTEXT, def.getClusterName())
-                                .log("Write metrics failed on " + node + ": " + Util.getErrorMessage(e));
-                        }
-                    }
-                }
-            }
-            */
+            cluster.metricsNodeClose(node);
             node.close();
         }
 
@@ -630,11 +605,11 @@ public class ClusterTend implements Runnable {
         }
 
         // Do not let queue get out of control.
-        if (recoverCount.getAndIncrement() < 10000) {
+        if (recoverCount.longValue() < 10000L) {
+            recoverCount.increment();
             recoverQueue.offerLast(cs);
         }
         else {
-            recoverCount.getAndDecrement();
             cs.abort();
         }
     }
@@ -651,7 +626,7 @@ public class ClusterTend implements Runnable {
 
         while ((cs = recoverQueue.pollFirst()) != null) {
             if (cs.drain(buf)) {
-                recoverCount.getAndDecrement();
+                recoverCount.decrement();
             }
             else {
                 recoverQueue.offerLast(cs);
@@ -689,7 +664,7 @@ public class ClusterTend implements Runnable {
      * counter is used to track recoverQueue.size().
      */
     public final int getRecoverQueueSize() {
-        return recoverCount.get();
+        return recoverCount.intValue();
     }
 
     /**

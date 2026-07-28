@@ -20,13 +20,13 @@ import java.time.Duration;
 import java.util.Map;
 import java.util.Objects;
 
+import com.aerospike.client.sdk.metrics.MetricsListener;
+
 /**
  * Metrics settings that apply to an entire Cluster instance.
  */
 public class MetricsSettings {
-    // TODO Where should these fields go?
-    //private final MetricsListener
-
+    private final MetricsListener listener;
     private final Map<String,String> labels;
     private final Duration latencyWarn;
     private final Duration connectCreateWarn;
@@ -41,6 +41,7 @@ public class MetricsSettings {
     private final Boolean enabled;
 
     MetricsSettings(Builder builder) {
+        this.listener = builder.listener;
         this.labels = builder.labels;
         this.latencyWarn = builder.latencyWarn;
         this.connectCreateWarn = builder.connectCreateWarn;
@@ -72,6 +73,8 @@ public class MetricsSettings {
     Builder mergeWith(MetricsSettings base) {
         Builder merged = builder();
 
+        merged.listener = this.listener != null
+            ? this.listener : base.listener;
         merged.labels = this.labels != null
             ? this.labels : base.labels;
         merged.latencyWarn = this.latencyWarn != null
@@ -101,6 +104,7 @@ public class MetricsSettings {
     }
 
     // Getters
+    public MetricsListener getListener() { return listener; }
     public Map<String,String> getLabels() { return labels; }
     public Duration getLatencyWarn() { return latencyWarn; }
     public Duration getConnectCreateWarn() { return connectCreateWarn; }
@@ -124,6 +128,7 @@ public class MetricsSettings {
         }
         MetricsSettings that = (MetricsSettings) o;
         return
+            Objects.equals(listener, that.listener) &&
             Objects.equals(labels, that.labels) &&
             Objects.equals(latencyWarn, that.latencyWarn) &&
             Objects.equals(connectCreateWarn, that.connectCreateWarn) &&
@@ -140,15 +145,16 @@ public class MetricsSettings {
 
     @Override
     public int hashCode() {
-        return Objects.hash(labels, latencyWarn, connectCreateWarn, reportDir, reportSizeLimit,
-            interval, latencyColumns, latencyShift, batchSizeWarn, shortQueryRecordsMax,
-            longQueryRecordsMin, enabled);
+        return Objects.hash(listener, labels, latencyWarn, connectCreateWarn, reportDir,
+            reportSizeLimit, interval, latencyColumns, latencyShift, batchSizeWarn,
+            shortQueryRecordsMax, longQueryRecordsMin, enabled);
     }
 
     @Override
     public String toString() {
         return "MetricsSettings{" +
-            "labels=" + labels +
+            "listener=" + ((listener != null)? listener.getClass().getName() : "null") +
+            ", labels=" + labels +
             ", latencyWarn=" + latencyWarn.toMillis() + "ms" +
             ", connectCreateWarn=" + connectCreateWarn.toMillis() + "ms" +
             ", reportDir=" + reportDir +
@@ -167,6 +173,7 @@ public class MetricsSettings {
      * Builder for metrics settings with lambda-based configuration.
      */
     public static class Builder {
+        private MetricsListener listener;
         private Map<String,String> labels;
         private Duration latencyWarn;
         private Duration connectCreateWarn;
@@ -196,6 +203,7 @@ public class MetricsSettings {
      * Interface for configuring metrics signal related settings.
      */
     public interface MetricsTweaks {
+        MetricsTweaks listener(MetricsListener listener);
         MetricsTweaks labels(Map<String,String> labels);
         MetricsTweaks latencyWarn(Duration duration);
         MetricsTweaks connectCreateWarn(Duration duration);
@@ -219,6 +227,12 @@ public class MetricsSettings {
 
         MetricsTweaksImpl(Builder builder) {
             this.builder = builder;
+        }
+
+        @Override
+        public MetricsTweaks listener(MetricsListener listener) {
+            builder.listener = listener;
+            return this;
         }
 
         @Override

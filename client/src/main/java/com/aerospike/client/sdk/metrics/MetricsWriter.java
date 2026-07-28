@@ -50,8 +50,8 @@ public final class MetricsWriter implements MetricsListener {
 	private static final DateTimeFormatter TimestampFormat = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS");
 	private static final int MinFileSize = 1000000;
 
-	private final String dir;
-	private final StringBuilder sb;
+	private String dir;
+	private StringBuilder sb;
 	private FileWriter writer;
 	private long size;
 	private long maxSize;
@@ -60,11 +60,9 @@ public final class MetricsWriter implements MetricsListener {
 	private boolean enabled;
 
 	/**
-	 * Initialize metrics writer.
+	 * Metrics writer constructor.
 	 */
-	public MetricsWriter(String dir) {
-		this.dir = dir;
-		this.sb = new StringBuilder(8192);
+	public MetricsWriter() {
 	}
 
 	/**
@@ -78,6 +76,8 @@ public final class MetricsWriter implements MetricsListener {
 				" must be at least " + MinFileSize);
 		}
 
+		this.dir = settings.getReportDir();
+        this.sb = new StringBuilder(8192);
 		this.maxSize = settings.getReportSizeLimit();
 		this.latencyColumns = settings.getLatencyColumns();
 		this.latencyShift = settings.getLatencyShift();
@@ -145,11 +145,10 @@ public final class MetricsWriter implements MetricsListener {
 		// Must use separate StringBuilder instance to avoid conflicting with metrics detail write.
 		sb.setLength(0);
 		sb.append(now.format(TimestampFormat));
-		sb.append(" header(2)");
-		sb.append(" cluster[name,clientType,clientVersion,appId,label[],cpu,mem,recoverQueueSize,invalidNodeCount,commandCount,retryCount,delayQueueTimeoutCount,eventloop[],node[]]");
+		sb.append(" header(3)");
+		sb.append(" cluster[name,clientType,clientVersion,appId,label[],cpu,mem,recoverQueueSize,invalidNodeCount,commandCount,retryCount,node[]]");
 		sb.append(" label[name,value]");
-		sb.append(" eventloop[processSize,queueSize]");
-		sb.append(" node[name,address,port,syncConn,asyncConn,namespace[]]");
+		sb.append(" node[name,address,port,conn,namespace[]]");
 		sb.append(" conn[inUse,inPool,opened,closed]");
 		sb.append(" namespace[name,errors,timeouts,keyBusy,bytesIn,bytesOut,latency[]]");
 		sb.append(" latency(");
@@ -179,7 +178,7 @@ public final class MetricsWriter implements MetricsListener {
 		sb.append(" cluster[");
 		sb.append(clusterName);
 		sb.append(',');
-		sb.append("java");
+		sb.append("java-sdk");
 		sb.append(',');
 		sb.append(cluster.getVersion());
 		sb.append(',');
@@ -205,7 +204,6 @@ public final class MetricsWriter implements MetricsListener {
 			sb.append("]");
 		}
 
-		/*
 		sb.append(',');
 		sb.append((int)cpu);
 		sb.append(',');
@@ -218,10 +216,7 @@ public final class MetricsWriter implements MetricsListener {
 		sb.append(cluster.getCommandCount());  // Cumulative. Not reset on each interval.
 		sb.append(',');
 		sb.append(cluster.getRetryCount()); // Cumulative. Not reset on each interval.
-		sb.append(',');
-		sb.append(cluster.getDelayQueueTimeoutCount()); // Cumulative. Not reset on each interval.
 		sb.append(",[");
-        */
 
 		Node[] nodes = cluster.getNodes();
 
@@ -238,7 +233,6 @@ public final class MetricsWriter implements MetricsListener {
 	}
 
 	private void writeNode(Node node) {
-/*
  		sb.append('[');
 		sb.append(node.getName());
 		sb.append(',');
@@ -251,8 +245,6 @@ public final class MetricsWriter implements MetricsListener {
 		sb.append(',');
 
 		writeConn(node.getConnectionStats());
-		sb.append(',');
-		writeConn(node.getAsyncConnectionStats());
 		sb.append(",[");
 
 		Histograms hGrams = node.getMetrics().getHistograms();
@@ -264,15 +256,15 @@ public final class MetricsWriter implements MetricsListener {
 			Map.Entry<String, LatencyBuckets[]> entry = nsItr.next();
 			String namespace = entry.getKey();
 			sb.append(namespace).append(',');
-			sb.append(node.getErrorCountByNS(namespace));
+			sb.append(node.getErrorCount(namespace));
 			sb.append(',');
-			sb.append(node.getTimeoutCountbyNS(namespace));
+			sb.append(node.getTimeoutCount(namespace));
 			sb.append(',');
-			sb.append(node.getKeyBusyCountByNS(namespace));
+			sb.append(node.getKeyBusyCount(namespace));
 			sb.append(',');
-			sb.append(node.getBytesInByNS(namespace));
+			sb.append(node.getBytesIn(namespace));
 			sb.append(',');
-			sb.append(node.getBytesOutByNS(namespace));
+			sb.append(node.getBytesOut(namespace));
 			sb.append(",[");
 			LatencyBuckets[] latencyBuckets = hGrams.getBuckets(namespace);
 			for (int i = 0; i < max; i++) {
@@ -300,9 +292,8 @@ public final class MetricsWriter implements MetricsListener {
 			}
 		}
 		sb.append("]]");
-		*/
 	}
-/*
+
 	private void writeConn(ConnectionStats cs) {
 		sb.append(cs.inUse);
 		sb.append(',');
@@ -312,7 +303,7 @@ public final class MetricsWriter implements MetricsListener {
 		sb.append(',');
 		sb.append(cs.closed); // Cumulative. Not reset on each interval.
 	}
-*/
+
 	private void writeLine() {
 		try {
 			sb.append(System.lineSeparator());

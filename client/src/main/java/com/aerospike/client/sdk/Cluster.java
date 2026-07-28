@@ -26,7 +26,10 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.LongAdder;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.aerospike.ael.Index;
 import com.aerospike.client.sdk.metrics.MetricsListener;
@@ -35,10 +38,8 @@ import com.aerospike.client.sdk.policy.Behavior;
 import com.aerospike.client.sdk.tend.ClusterTend;
 import com.aerospike.client.sdk.tend.ConnectionRecover;
 import com.aerospike.client.sdk.tend.Partitions;
+import com.aerospike.client.sdk.util.Util;
 import com.aerospike.client.sdk.util.Version;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Represents a connection to an Aerospike cluster.
@@ -73,8 +74,8 @@ public class Cluster implements Closeable {
     volatile Node[] nodes;
     volatile HashMap<String,Partitions> partitionMap;
     private final ThreadFactory threadFactory;
-    private final AtomicLong commandCount;
-    private final AtomicLong retryCount;
+    private final LongAdder commandCount;
+    private final LongAdder retryCount;
     private final AtomicInteger nodeIndex;
     private final AtomicInteger replicaIndex;
     private final AtomicBoolean closed;
@@ -94,8 +95,8 @@ public class Cluster implements Closeable {
         nodes = new Node[0];
         partitionMap = new HashMap<String,Partitions>();
         threadFactory = Thread.ofVirtual().name("Aerospike-", 0L).factory();
-        commandCount = new AtomicLong();
-        retryCount = new AtomicLong();
+        commandCount = new LongAdder();
+        retryCount = new LongAdder();
         nodeIndex = new AtomicInteger();
         replicaIndex = new AtomicInteger();
         closed = new AtomicBoolean();
@@ -324,7 +325,20 @@ public class Cluster implements Closeable {
             this.def.maxSocketIdleNanosTrim = settings.getMaximumSocketIdleTime().toNanos();
         }
 
-        // TODO Apply metrics settings.
+        if (settings.getMetrics() != null) {
+            MetricsSettings metrics = settings.getMetrics();
+
+            if (metrics.getEnabled() && !metricsEnabled) {
+                synchronized(metricsLock) {
+                    enableMetricsInternal(metrics);
+                }
+            }
+            else if (!metrics.getEnabled() && metricsEnabled) {
+                synchronized(metricsLock) {
+                    disableMetricsInternal();
+                }
+            }
+        }
 
         // Currently, the Aerospike Java client does not support dynamic updates
         // to system-level settings like connection pool sizes, socket idle times,
@@ -373,16 +387,13 @@ public class Cluster implements Closeable {
     }
 
     private void enableMetricsInternal(MetricsSettings settings) {
-        // TODO Get listener from where?  settings?
-        //MetricsListener listener = settings.listener;
-        MetricsListener listener = null;
+        MetricsListener listener = settings.getListener();
 
         if (listener == null) {
-            listener = new MetricsWriter(settings.getReportDir());
+            listener = new MetricsWriter();
         }
 
         this.metricsListener = listener;
-        //this.effectiveMetricsSettings = settings;
 
         if (metricsEnabled) {
             this.metricsListener.onDisable(this);
@@ -416,7 +427,7 @@ public class Cluster implements Closeable {
     private void disableMetricsInternal() {
         if (metricsEnabled) {
             metricsEnabled = false;
-            //metricsListener.onDisable(this);
+            metricsListener.onDisable(this);
 
             if (log.isInfoEnabled()) {
                 log.atInfo()
@@ -611,7 +622,7 @@ public class Cluster implements Closeable {
      */
     public final void addCommandCount() {
         if (metricsEnabled) {
-            commandCount.getAndIncrement();
+            commandCount.increment();
         }
     }
 
@@ -619,28 +630,43 @@ public class Cluster implements Closeable {
      * Return command count. The value is cumulative and not reset per metrics interval.
      */
     public final long getCommandCount() {
-        return commandCount.get();
+        return commandCount.longValue();
     }
 
     /**
      * Increment command retry count. There can be multiple retries for a single command.
      */
     public final void addRetry() {
-        retryCount.getAndIncrement();
+        retryCount.increment();
     }
 
     /**
      * Add command retry count. There can be multiple retries for a single command.
      */
     public final void addRetries(int count) {
-        retryCount.getAndAdd(count);
+        retryCount.add(count);
     }
 
     /**
      * Return command retry count. The value is cumulative and not reset per metrics interval.
      */
     public final long getRetryCount() {
-        return retryCount.get();
+        return retryCount.longValue();
+    }
+
+    /**
+     * Return connection recoverQueue size. The queue contains connections that have timed out and
+     * need to be drained before returning the connection to a connection pool.
+     */
+    public final int getRecoverQueueSize() {
+        return tend.getRecoverQueueSize();
+    }
+
+    /**
+     * Return count of add node failures in the most recent cluster tend iteration.
+     */
+    public final int getInvalidNodeCount() {
+        return tend.getInvalidNodeCount();
     }
 
     /**
@@ -817,6 +843,40 @@ public class Cluster implements Closeable {
     }
 
     /**
+     * Log metrics snapshot at periodic interval. For internal use only.
+     */
+    public void metricsSnapshot(int tendCount) {
+        MetricsSettings ms = effectiveSystemSettings.getMetrics();
+
+        synchronized(metricsLock) {
+            if (metricsEnabled && (tendCount % ms.getInterval()) == 0) {
+                metricsListener.onSnapshot(this);
+            }
+        }
+    }
+
+    /**
+     * Flush metrics for closing node. For internal use only.
+     */
+    public void metricsNodeClose(Node node) {
+        synchronized(metricsLock) {
+            if (metricsEnabled) {
+                // Flush node metrics before removal.
+                try {
+                    metricsListener.onNodeClose(node);
+                }
+                catch (Throwable e) {
+                    if (log.isWarnEnabled()) {
+                        log.atWarn()
+                            .addKeyValue(Cluster.CONTEXT, def.getClusterName())
+                            .log("Write metrics failed on " + node + ": " + Util.getErrorMessage(e));
+                    }
+                }
+            }
+        }
+    }
+
+    /**
      * Close the cluster connection and releases all associated resources.
      *
      * <p>This method stops the index monitor and closes the underlying client
@@ -840,7 +900,6 @@ public class Cluster implements Closeable {
         indexesMonitor.stopMonitor();
         tend.close();
 
-        /* TODO Handle metrics close.
         synchronized(metricsLock) {
             try {
                 disableMetricsInternal();
@@ -853,7 +912,6 @@ public class Cluster implements Closeable {
                 }
             }
         }
-        */
 
         Node[] nodeArray = nodes;
 

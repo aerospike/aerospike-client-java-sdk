@@ -29,11 +29,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.aerospike.client.sdk.command.AdminCommand;
+import com.aerospike.client.sdk.command.AdminCommand.LoginCommand;
 import com.aerospike.client.sdk.command.Connection;
 import com.aerospike.client.sdk.command.Info;
 import com.aerospike.client.sdk.command.Pool;
 import com.aerospike.client.sdk.command.SyncExecutor;
-import com.aerospike.client.sdk.command.AdminCommand.LoginCommand;
+import com.aerospike.client.sdk.metrics.ConnectionStats;
+import com.aerospike.client.sdk.metrics.LatencyType;
 import com.aerospike.client.sdk.metrics.NodeMetrics;
 import com.aerospike.client.sdk.tend.ConnectionRecover;
 import com.aerospike.client.sdk.tend.NodeValidator;
@@ -130,7 +132,8 @@ public class Node implements Closeable {
         this.active = true;
 
         if (cluster.isMetricsEnabled()) {
-            //this.metrics = new NodeMetrics(cluster.getMetricsSettings());
+            MetricsSettings ms = cluster.getSystemSettings().getMetrics();
+            this.metrics = new NodeMetrics(ms);
         }
 
         // Create sync connection pools.
@@ -652,31 +655,24 @@ public class Node implements Closeable {
 
     private Connection createConnection(Pool pool, int timeout) {
         // Create sync connection.
-        /*
+        TlsBuilder tls = cluster.def.tlsBuilder;
         Connection conn;
 
-        if (cluster.metricsEnabled) {
+        if (cluster.isMetricsEnabled()) {
             long begin = System.nanoTime();
 
-            conn = (cluster.tlsPolicy != null && !cluster.tlsPolicy.forLoginOnly) ?
-                new Connection(cluster.tlsPolicy, host.tlsName, address, timeout, this, pool) :
+            conn = (tls != null && !tls.isForLoginOnly()) ?
+                new Connection(tls, host.tlsName, address, timeout, this, pool) :
                 new Connection(address, timeout, this, pool);
 
             long elapsed = System.nanoTime() - begin;
             metrics.addLatency(null, LatencyType.CONN, elapsed);
         }
         else {
-            conn = (cluster.tlsPolicy != null && !cluster.tlsPolicy.forLoginOnly) ?
-                new Connection(cluster.tlsPolicy, host.tlsName, address, timeout, this, pool) :
-                new Connection(address, timeout, this, pool);
-        }
-        */
-
-        TlsBuilder tls = cluster.def.tlsBuilder;
-
-        Connection conn = (tls != null && !tls.isForLoginOnly()) ?
+            conn = (tls != null && !tls.isForLoginOnly()) ?
                 new Connection(tls, host.tlsName, address, timeout, this, pool) :
                 new Connection(address, timeout, this, pool);
+        }
 
         connsOpened.getAndIncrement();
         return conn;
@@ -889,6 +885,24 @@ public class Node implements Closeable {
         }
     }
 
+    public final ConnectionStats getConnectionStats() {
+        int inUse = 0;
+        int inPool = 0;
+
+        for (Pool pool : connectionPools) {
+            int tmp = pool.size();
+            inPool += tmp;
+            tmp = pool.getTotal() - tmp;
+
+            // Timing issues may cause values to go negative. Adjust.
+            if (tmp < 0) {
+                tmp = 0;
+            }
+            inUse += tmp;
+        }
+        return new ConnectionStats(inUse, inPool, connsOpened.get(), connsClosed.get());
+    }
+
     /**
      * Close pooled connection on error and decrement connection count.
      */
@@ -984,11 +998,39 @@ public class Node implements Closeable {
     }
 
     /**
+     * Return error count. The value is cumulative and not reset per metrics interval.
+     */
+    public long getErrorCount() {
+        return errorCounter.getTotal();
+    }
+
+    /**
+     * Return error count by namespace. The value is cumulative and not reset per metrics interval.
+     */
+    public long getErrorCount(String namespace) {
+        return errorCounter.getCountByNS(namespace);
+    }
+
+    /**
      * Increment transaction timeout count. If the timeout is retryable (ie socketTimeout),
      * multiple timeouts per transaction may occur.
      */
     public void addTimeout(String namespace) {
         timeoutCounter.increment(namespace);
+    }
+
+    /**
+     * Return timeout count. The value is cumulative and not reset per metrics interval.
+     */
+    public long getTimeoutCount() {
+        return timeoutCounter.getTotal();
+    }
+
+    /**
+     * Return timeout count. The value is cumulative and not reset per metrics interval.
+     */
+    public long getTimeoutCount(String namespace) {
+        return timeoutCounter.getCountByNS(namespace);
     }
 
     /**
@@ -999,6 +1041,20 @@ public class Node implements Closeable {
     }
 
     /**
+     * Return key busy count. The value is cumulative and not reset per metrics interval.
+     */
+    public long getKeyBusyCount() {
+        return keyBusyCounter.getTotal();
+    }
+
+    /**
+     * Return key busy count for a given namespace. The value is cumulative and not reset per metrics interval.
+     */
+    public long getKeyBusyCount(String namespace) {
+        return keyBusyCounter.getCountByNS(namespace);
+    }
+
+    /**
      * Add to the count of bytes sent to the node.
      */
     public void addBytesOut(String namespace, long count) {
@@ -1006,10 +1062,34 @@ public class Node implements Closeable {
     }
 
     /**
+     * Return count of bytes out by namespace. The value is cumulative and not reset per metrics interval.
+     */
+    public long getBytesOut(String namespace) {
+        return metrics.bytesOutCounter.getCountByNS(namespace);
+    }
+    /**
      * Add to the count of bytes received from the node.
      */
     public void addBytesIn(String namespace, long count) {
         metrics.bytesInCounter.increment(namespace, count);
+    }
+
+    /**
+     * Return count of bytes in by namespace. The value is cumulative and not reset per metrics interval.
+     */
+    public long getBytesIn(String namespace) {
+        return metrics.bytesInCounter.getCountByNS(namespace);
+    }
+
+    /**
+     * Add elapsed time in nanoseconds to latency buckets corresponding to latency type.
+     */
+    public final void addLatency(String namespace, LatencyType type, long elapsed) {
+        metrics.addLatency(namespace, type, elapsed);
+    }
+
+    public final NodeMetrics getMetrics() {
+        return metrics;
     }
 
     public final void enableMetrics(MetricsSettings settings) {
@@ -1076,7 +1156,6 @@ public class Node implements Closeable {
     public void setPeersCount(int peersCount) {
         this.peersCount = peersCount;
     }
-
 
     /**
      * Return current generation of partition maps.

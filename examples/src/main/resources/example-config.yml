@@ -58,6 +58,20 @@ system:
     transactions:
       sleepBetweenAttempts: 250ms
       numberOfAttempts: 3
+    metrics:
+      enabled: false
+      interval: 31
+      reportDir: "metrics"
+      reportSizeLimit: 5000000 
+      latencyColumns: 6
+      latencyShift: 2
+      latencyWarn: 51ms
+      connectCreateWarn: 501ms
+      batchSizeWarn: 501
+      shortQueryRecordsMax: 101
+      longQueryRecordsMin: 11
+      labels:
+        owner: platform-team
 
   # Production cluster specific settings
   production:

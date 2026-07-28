@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2025 Aerospike, Inc.
+ * Copyright (c) 2012-2026 Aerospike, Inc.
  *
  * Portions may be licensed to Aerospike, Inc. under one or more contributor
  * license agreements WHICH ARE COMPATIBLE WITH THE APACHE LICENSE, VERSION 2.0.
@@ -17,11 +17,11 @@
 
 package com.aerospike.client.sdk.metrics;
 
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.LongAdder;
 
 public class Counter {
-	private final ConcurrentHashMap<String, AtomicLong> counterMap = new ConcurrentHashMap<>();
+	private final ConcurrentHashMap<String,LongAdder> counterMap = new ConcurrentHashMap<>();
 	private final static String noNSLabel = "";
 
 	/**
@@ -39,9 +39,12 @@ public class Counter {
 		String namespace = (ns == null) ? noNSLabel : ns;
 		counterMap.compute(namespace, (k, v) -> {
 			if (v == null) {
-				return new AtomicLong(1);
-			} else {
-				v.incrementAndGet();
+			    LongAdder la = new LongAdder();
+			    la.increment();
+				return la;
+			}
+			else {
+				v.increment();
 				return v;
 			}
 		});
@@ -57,9 +60,12 @@ public class Counter {
 		String namespace = (ns == null) ? noNSLabel : ns;
 		counterMap.compute(namespace, (k, v) -> {
 			if (v == null) {
-				return new AtomicLong(count);
-			} else {
-				v.getAndAdd(count);
+                LongAdder la = new LongAdder();
+                la.add(count);
+                return la;
+			}
+			else {
+			    v.add(count);
 				return v;
 			}
 		});
@@ -71,11 +77,9 @@ public class Counter {
 	 * @return the total
 	 */
 	public long getTotal() {
-		AtomicLong total = new AtomicLong();
-		counterMap.forEach((k,v)-> {
-			total.getAndAdd(v.longValue());
-		});
-		return total.get();
+		return counterMap.values().stream()
+			.mapToLong(LongAdder::longValue)
+			.sum();
 	}
 
 	/**
@@ -85,7 +89,7 @@ public class Counter {
 	 * @return the count for the namespace
 	 */
 	public long getCountByNS(String namespace) {
-		AtomicLong count = counterMap.get(namespace);
+	    LongAdder count = counterMap.get(namespace);
 		if (count == null) {
 			return 0;
 		}
