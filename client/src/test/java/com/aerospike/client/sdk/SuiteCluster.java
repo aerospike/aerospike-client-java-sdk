@@ -27,7 +27,6 @@ import com.aerospike.client.sdk.policy.Behavior;
 import com.aerospike.client.sdk.policy.Behavior.Selectors;
 import com.aerospike.client.sdk.query.ExpSecondaryIndexTest;
 import com.aerospike.client.sdk.query.QueryBlobTest;
-import com.aerospike.client.sdk.query.QueryChildrenTest;
 import com.aerospike.client.sdk.query.QueryCollectionTest;
 import com.aerospike.client.sdk.query.QueryContextTest;
 import com.aerospike.client.sdk.query.QueryExecuteTest;
@@ -85,7 +84,6 @@ import com.aerospike.client.sdk.query.QueryStringTest;
     // Query
     ExpSecondaryIndexTest.class,
     QueryBlobTest.class,
-    QueryChildrenTest.class,
     QueryCollectionTest.class,
     QueryContextTest.class,
     QueryExecuteTest.class,
