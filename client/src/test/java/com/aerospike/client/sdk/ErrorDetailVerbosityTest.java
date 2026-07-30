@@ -382,7 +382,6 @@ public class ErrorDetailVerbosityTest extends ClusterTest {
         assertSubCode(ae, ResultCode.OP_NOT_APPLICABLE, SubCode.OPNOT_HLL_FOLD_INDEX_BITS_TOO_LARGE);
     }
 
-    /* TODO Port when bit operations are supported.
     @Test
     public void testBitGetOffsetOutOfRange() {
         Behavior behavior1 = Behavior.DEFAULT.deriveWithChanges("errorDetail", builder -> builder
@@ -401,9 +400,8 @@ public class ErrorDetailVerbosityTest extends ClusterTest {
 
         AerospikeException ae = assertThrows(AerospikeException.class, () -> {
             session1.upsert(key)
-                .bin(binName).by g(new byte[] {(byte)0xAA, (byte)0xBB, (byte)0xCC, (byte)0xDD})
+                .bin(binName).bitGet(2000000000, 8)
                 .execute();
-            client.operate(wp, key, BitOperation.get(binName, 2000000000, 8));
         });
 
         // AS_SUB_PARAM_BITS_OFFSET_OUT_OF_RANGE = 2
@@ -420,17 +418,21 @@ public class ErrorDetailVerbosityTest extends ClusterTest {
 
         Session session1 = cluster.createSession(behavior1);
 
-        Key key = new Key(args.namespace, args.set, "edv-bits-key2");
-        client.put(new WritePolicy(), key, new Bin(binName, new byte[]{(byte)0xAA, (byte)0xBB, (byte)0xCC, (byte)0xDD}));
+        Key key = args.set.id("edv-bits-key2");
+
+        session1.upsert(key)
+            .bin(binName).setTo(new byte[] {(byte)0xAA, (byte)0xBB, (byte)0xCC, (byte)0xDD})
+            .execute();
 
         AerospikeException ae = assertThrows(AerospikeException.class, () -> {
-            client.operate(wp, key, BitOperation.get(binName, 0, 0));
+            session1.upsert(key)
+                .bin(binName).bitGet(0, 0)
+                .execute();
         });
 
         // AS_SUB_PARAM_BITS_SIZE_OUT_OF_RANGE = 3
         assertSubCode(ae, ResultCode.PARAMETER_ERROR, SubCode.PARAM_BITS_SIZE_OUT_OF_RANGE);
     }
-     */
 
     @Test
     public void testReadFilteredOut() {
