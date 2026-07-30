@@ -32,19 +32,14 @@ class AelMaterializerWhereTest extends ClusterTest {
     void parseWhereFromString_allowsIndexFalse_usesServerCompiledOp128WhenSupportsAel() {
         ParseResult result = AelMaterializer.parseWhereFromString(
             session,
-            false,
-            args.namespace,
-            null,
             "$.age > 30"
         );
 
         assertThat(result.getFilter()).isNull();
         assertThat(result.getExpression()).isNotNull();
         if (cluster.supportsAel()) {
+            //TODO clean up
             assertThat(isServerCompiledAelWire(result.getExpression())).isTrue();
-        }
-        else {
-            assertThat(isServerCompiledAelWire(result.getExpression())).isFalse();
         }
     }
 
@@ -52,9 +47,6 @@ class AelMaterializerWhereTest extends ClusterTest {
     void parseWhereFromString_allowsIndexTrue_mayProduceFilter() {
         ParseResult result = AelMaterializer.parseWhereFromString(
             session,
-            true,
-            args.namespace,
-            "aelmaterializerwhere",
             "$.age > 30"
         );
 

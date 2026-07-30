@@ -16,26 +16,14 @@
  */
 package com.aerospike.client.sdk;
 
-import java.util.Collection;
-import java.util.Set;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import com.aerospike.ael.AelParseException;
-import com.aerospike.ael.ExpressionContext;
-import com.aerospike.ael.Index;
-import com.aerospike.ael.IndexContext;
 import com.aerospike.ael.ParseResult;
-import com.aerospike.ael.ParsedExpression;
-import com.aerospike.ael.api.AelParser;
-import com.aerospike.ael.impl.AelParserImpl;
-import com.aerospike.client.sdk.command.ParticleType;
 import com.aerospike.client.sdk.exp.Exp;
 import com.aerospike.client.sdk.exp.Expression;
 import com.aerospike.client.sdk.query.AelPlaceholderBinder;
 import com.aerospike.client.sdk.query.Filter;
 import com.aerospike.client.sdk.query.PreparedAel;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public final class AelMaterializer {
     private static final Logger log = LoggerFactory.getLogger(Loggers.AEL);
@@ -50,7 +38,9 @@ public final class AelMaterializer {
         if (cluster.supportsAel()) {
             return Expression.fromServerCompiledFilter(ael);
         }
-        return clientParseStringToExpression(ael);
+        throw AerospikeException.toException(ResultCode.OP_NOT_APPLICABLE,
+                "Aerospike Expression Language (AEL) requires server version 8.1.3+. Server version is " +
+                        cluster.getVersion());
     }
 
     public static Expression expressionFromString(Cluster cluster, String ael, Object[] params) {
@@ -72,131 +62,18 @@ public final class AelMaterializer {
      * <p>String-AEL dataset queries on {@link Cluster#supportsQuerySelection()} clusters use field
      * {@code 44} via {@link com.aerospike.client.sdk.query.IndexProbePlanner} instead.</p>
      */
-    public static ParseResult parseWhereFromString(
-        Session session,
-        boolean allowsIndex,
-        String namespace,
-        String querySet,
-        String ael
-    ) {
-        if (!allowsIndex && session.getCluster().supportsAel()) {
-            return serverCompiledFilterResult(ael);
+    public static ParseResult parseWhereFromString(Session session, String ael) {
+        if (!session.getCluster().supportsAel()) {
+            throw AerospikeException.toException(ResultCode.OP_NOT_APPLICABLE,
+                    "Aerospike Expression Language (AEL) requires server version 8.1.3+. Server version is " +
+                            session.getCluster().getVersion());
         }
-        return clientParseWhere(session, allowsIndex, namespace, querySet, ael);
+
+        return serverCompiledFilterResult(ael);
     }
 
     private static ParseResult serverCompiledFilterResult(String ael) {
         return new ParseResult(null, Exp.expr(Expression.fromServerCompiledFilter(ael)));
     }
 
-    private static ParseResult clientParseWhere(
-        Session session,
-        boolean allowsIndex,
-        String namespace,
-        String querySet,
-        String ael
-    ) {
-        AelParser parser = new AelParserImpl();
-
-        ParsedExpression parseResult;
-        IndexContext indexContext = null;
-        ExpressionContext context = ExpressionContext.of(ael);
-        if (allowsIndex) {
-            Set<Index> indexes = session.getCluster().getIndexes();
-            indexContext = IndexContext.withQuerySet(namespace, querySet, indexes);
-            parseResult = parser.parseExpression(context, indexContext);
-        }
-        else {
-            parseResult = parser.parseExpression(context);
-        }
-        ParseResult result = parseResult.getResult();
-        if (result.getExp() == null && result.getFilter() == null) {
-            throw new AelParseException("Unknown error parsing AEL: '" + ael + "'");
-        }
-
-        if (log.isDebugEnabled()) {
-            if (allowsIndex && result.getFilter() != null) {
-                Filter filter = result.getFilter();
-
-                log.debug(String.format("Ael('%s', '%s') => (Exp: %s, Filter: %s)",
-                        ael,
-                        namespace,
-                        result.getExp(),
-                        formStringOfFilter(filter, indexContext)));
-            }
-            else {
-                log.debug(String.format("Ael('%s', '%s') => (Exp: %s)",
-                        ael,
-                        namespace,
-                        result.getExp()));
-            }
-        }
-
-        return result;
-    }
-
-    private static Expression clientParseStringToExpression(String ael) {
-        AelParser parser = new AelParserImpl();
-        ExpressionContext context = ExpressionContext.of(ael);
-        ParsedExpression parseResult = parser.parseExpression(context);
-        Exp exp = parseResult.getResult().getExp();
-
-        if (log.isDebugEnabled()) {
-            log.debug(String.format("Ael(\"%s\") => (Exp: %s)",
-                    ael,
-                    exp));
-        }
-
-        return Exp.build(exp);
-    }
-
-    private static String valTypeToString(int type) {
-        switch (type) {
-        case ParticleType.BLOB:
-            return "BLOB";
-        case ParticleType.GEOJSON:
-            return "GeoJSON";
-        case ParticleType.INTEGER:
-            return "numeric";
-        case ParticleType.STRING:
-            return "string";
-        default:
-            return "Unknown(" + type + ")";
-        }
-    }
-
-    private static String shorten(Value value) {
-        String val = value.toString();
-        if (val.length() <= 8) {
-            return val;
-        }
-        return val.substring(0, 5) + "...";
-    }
-
-    private static String filterCriteriaToString(Filter filter) {
-        if (filter.getEnd() != null) {
-            return "(" + shorten(filter.getBegin()) + "-" + shorten(filter.getEnd());
-        }
-        else {
-            return "(" + shorten(filter.getBegin()) + ")";
-        }
-    }
-
-    private static String formStringOfFilter(Filter filter, IndexContext indexContext) {
-        StringBuffer sb = new StringBuffer();
-        sb.append(filter.getName())
-                .append(" [")
-                .append(valTypeToString(filter.getValType()))
-                .append(" ] ")
-                .append(filterCriteriaToString(filter));
-        if (indexContext != null && indexContext.getIndexes() != null) {
-            Collection<Index> indexes = indexContext.getIndexes();
-            sb.append("{");
-            for (Index index : indexes) {
-                sb.append(index.getBinValuesRatio()).append(",");
-            }
-            sb.append("}");
-        }
-        return sb.toString();
-    }
 }

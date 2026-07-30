@@ -35,11 +35,6 @@ import com.aerospike.ael.parts.operand.OperandFactoryTests;
 @SelectClasses({
     // com.aerospike.ael.ctx
     CtxTests.class,
-    // com.aerospike.ael.expression
-    ArithmeticExpressionsTests.class,
-    BareGetFunctionTests.class,
-    BinExpressionsTests.class,
-    BinNamingTests.class,
     BlobTests.class,
     CastingTests.class,
     ControlStructuresTests.class,

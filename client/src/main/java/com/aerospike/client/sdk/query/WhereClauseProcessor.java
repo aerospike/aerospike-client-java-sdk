@@ -79,7 +79,7 @@ public abstract class WhereClauseProcessor {
 
         @Override
         public ParseResult process(String namespace, String querySet, Session session) {
-            return AelMaterializer.parseWhereFromString(session, allowsIndex, namespace, querySet, this.ael);
+            return AelMaterializer.parseWhereFromString(session, this.ael);
         }
     }
 
@@ -100,7 +100,7 @@ public abstract class WhereClauseProcessor {
         @Override
         public ParseResult process(String namespace, String querySet, Session session) {
             String aelStr = getAelString();
-            return AelMaterializer.parseWhereFromString(session, allowsIndex, namespace, querySet, aelStr);
+            return AelMaterializer.parseWhereFromString(session, aelStr);
         }
     }
 
