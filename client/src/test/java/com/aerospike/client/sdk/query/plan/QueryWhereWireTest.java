@@ -39,6 +39,37 @@ class QueryWhereWireTest {
     }
 
     @Test
+    void forExplainWithFlagsRequireIndex() {
+        int flags = QueryWhereWire.FLAG_EXPLAIN | QueryWhereWire.FLAG_REQUIRE_INDEX;
+        byte[] payload = QueryWhereWire.forExplain(flags, SIMPLE_AEL);
+
+        assertEquals(flags, QueryWhereWire.flags(payload));
+    }
+
+    @Test
+    void forExplainWithFlagsHardHint() {
+        int flags = QueryWhereWire.FLAG_EXPLAIN | QueryWhereWire.FLAG_HARD_HINT;
+        byte[] payload = QueryWhereWire.forExplain(flags, SIMPLE_AEL);
+
+        assertEquals(flags, QueryWhereWire.flags(payload));
+    }
+
+    @Test
+    void forExplainWithFlagsRequireIndexAndHardHint() {
+        int flags = QueryWhereWire.FLAG_EXPLAIN | QueryWhereWire.FLAG_REQUIRE_INDEX
+            | QueryWhereWire.FLAG_HARD_HINT;
+        byte[] payload = QueryWhereWire.forExplain(flags, SIMPLE_AEL);
+
+        assertEquals(flags, QueryWhereWire.flags(payload));
+    }
+
+    @Test
+    void forExplainWithFlagsRequiresExplainBit() {
+        assertThrows(IllegalArgumentException.class,
+            () -> QueryWhereWire.forExplain(QueryWhereWire.FLAG_REQUIRE_INDEX, SIMPLE_AEL));
+    }
+
+    @Test
     void forExecuteClearsExplainFlag() {
         byte[] payload = QueryWhereWire.forExecute(SIMPLE_AEL);
 
@@ -55,8 +86,8 @@ class QueryWhereWireTest {
     }
 
     @Test
-    void clearExplainRebuildsExecutePayload() {
-        byte[] explain = QueryWhereWire.encode(
+    void clearExplainClearsAllExplainOnlyFlags() {
+        byte[] explain = QueryWhereWire.forExplain(
             QueryWhereWire.FLAG_EXPLAIN | QueryWhereWire.FLAG_REQUIRE_INDEX,
             COMPOUND_AEL
         );
@@ -64,14 +95,14 @@ class QueryWhereWireTest {
 
         assertEquals(0, QueryWhereWire.flags(execute));
         assertEquals(COMPOUND_AEL, QueryWhereWire.ael(execute));
+        assertArrayEquals(QueryWhereWire.forExecute(COMPOUND_AEL), execute);
     }
 
     @Test
-    void clearExplainClearsExplainBit() {
+    void clearExplainOnDefaultExplainPayload() {
         byte[] explain = QueryWhereWire.forExplain(SIMPLE_AEL);
         byte[] execute = QueryWhereWire.clearExplain(explain);
 
-        assertEquals(0, QueryWhereWire.flags(execute) & QueryWhereWire.FLAG_EXPLAIN);
         assertArrayEquals(QueryWhereWire.forExecute(SIMPLE_AEL), execute);
     }
 
@@ -103,19 +134,76 @@ class QueryWhereWireTest {
     }
 
     @Test
-    void rejectsVarIntEncodingFlag() {
+    void rejectsContinuationBitInSemanticFlags() {
         assertThrows(IllegalArgumentException.class,
             () -> QueryWhereWire.encode(QueryWhereWire.FLAG_ENC_VARINT, SIMPLE_AEL));
     }
 
     @Test
-    void encodeAcceptsHardHintBit() {
-        byte[] payload = QueryWhereWire.encode(
-            QueryWhereWire.FLAG_EXPLAIN | QueryWhereWire.FLAG_HARD_HINT,
+    void decodeSingleBytePrefixMatchesV1() {
+        byte[] payload = expectedPayload(
+            QueryWhereWire.FLAG_EXPLAIN | QueryWhereWire.FLAG_REQUIRE_INDEX,
             SIMPLE_AEL
         );
-        assertEquals(QueryWhereWire.FLAG_EXPLAIN | QueryWhereWire.FLAG_HARD_HINT,
-            QueryWhereWire.flags(payload));
+
+        assertEquals(
+            QueryWhereWire.FLAG_EXPLAIN | QueryWhereWire.FLAG_REQUIRE_INDEX,
+            QueryWhereWire.flags(payload)
+        );
+        assertEquals(SIMPLE_AEL, QueryWhereWire.ael(payload));
+    }
+
+    @Test
+    void decodeMultiBytePrefixOrSemanticFlags() {
+        byte[] prefix = {
+            (byte) (QueryWhereWire.FLAG_ENC_VARINT | QueryWhereWire.FLAG_EXPLAIN
+                | QueryWhereWire.FLAG_REQUIRE_INDEX),
+            (byte) QueryWhereWire.FLAG_HARD_HINT
+        };
+        byte[] payload = multiBytePrefixPayload(prefix, SIMPLE_AEL);
+
+        assertEquals(
+            QueryWhereWire.FLAG_EXPLAIN | QueryWhereWire.FLAG_REQUIRE_INDEX
+                | QueryWhereWire.FLAG_HARD_HINT,
+            QueryWhereWire.flags(payload)
+        );
+        assertEquals(SIMPLE_AEL, QueryWhereWire.ael(payload));
+    }
+
+    @Test
+    void clearExplainCollapsesMultiBytePrefixToSingleByte() {
+        byte[] prefix = {
+            (byte) (QueryWhereWire.FLAG_ENC_VARINT | QueryWhereWire.FLAG_EXPLAIN
+                | QueryWhereWire.FLAG_REQUIRE_INDEX),
+            (byte) QueryWhereWire.FLAG_HARD_HINT
+        };
+        byte[] explain = multiBytePrefixPayload(prefix, COMPOUND_AEL);
+        byte[] execute = QueryWhereWire.clearExplain(explain);
+
+        assertArrayEquals(QueryWhereWire.forExecute(COMPOUND_AEL), execute);
+    }
+
+    @Test
+    void rejectsTruncatedMultiBytePrefix() {
+        byte[] payload = new byte[] {
+            (byte) (QueryWhereWire.FLAG_ENC_VARINT | QueryWhereWire.FLAG_EXPLAIN)
+        };
+
+        assertThrows(IllegalArgumentException.class, () -> QueryWhereWire.flags(payload));
+        assertThrows(IllegalArgumentException.class, () -> QueryWhereWire.ael(payload));
+    }
+
+    @Test
+    void rejectsOverlongFlagPrefix() {
+        byte[] payload = new byte[] {
+            (byte) QueryWhereWire.FLAG_ENC_VARINT,
+            (byte) QueryWhereWire.FLAG_ENC_VARINT,
+            (byte) QueryWhereWire.FLAG_ENC_VARINT,
+            (byte) QueryWhereWire.FLAG_ENC_VARINT,
+            (byte) QueryWhereWire.FLAG_ENC_VARINT,
+        };
+
+        assertThrows(IllegalArgumentException.class, () -> QueryWhereWire.flags(payload));
     }
 
     private static byte[] expectedPayload(int flags, String ael) {
@@ -123,6 +211,14 @@ class QueryWhereWireTest {
         byte[] payload = new byte[1 + aelBytes.length];
         payload[0] = (byte) flags;
         System.arraycopy(aelBytes, 0, payload, 1, aelBytes.length);
+        return payload;
+    }
+
+    private static byte[] multiBytePrefixPayload(byte[] prefix, String ael) {
+        byte[] aelBytes = ael.getBytes(StandardCharsets.UTF_8);
+        byte[] payload = new byte[prefix.length + aelBytes.length];
+        System.arraycopy(prefix, 0, payload, 0, prefix.length);
+        System.arraycopy(aelBytes, 0, payload, prefix.length, aelBytes.length);
         return payload;
     }
 }

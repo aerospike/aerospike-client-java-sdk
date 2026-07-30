@@ -591,11 +591,11 @@ public class QuerySelectionIntegrationTest extends ClusterTest {
     }
 
     /**
-     * Server below query-selection version.
-     * String-AEL range on age -> legacy path; matching records returned.
+     * Server below AEL / query-selection version.
+     * String AEL on dataset query fails at execute (no client parse fallback).
      */
     @Test
-    void gateOffStringAelUsesLegacySelection() {
+    void gateOffStringAelFailsAtExecute() {
         String where = "$.age >= 14 and $.age <= 18";
         Version saved = cluster.getVersion();
 
@@ -603,15 +603,16 @@ public class QuerySelectionIntegrationTest extends ClusterTest {
             cluster.setVersion(Version.SERVER_VERSION_8_1_2);
             assumeFalse(cluster.supportsQuerySelection(),
                 "server version below 8.1.3 should not use query selection");
+            assumeFalse(cluster.supportsAel(),
+                "server version below 8.1.3 should not support string AEL");
 
-            List<Integer> ages = collectAges(session.query(dataSet)
-                .readingOnlyBins(binName)
-                .where(where)
-                .execute());
+            AerospikeException ex = assertThrows(AerospikeException.class, () ->
+                session.query(dataSet)
+                    .readingOnlyBins(binName)
+                    .where(where)
+                    .execute());
 
-            assertAll("gateOffLegacyExecute",
-                () -> assertEquals(5, ages.size()),
-                () -> assertEquals(List.of(14, 15, 16, 17, 18), ages));
+            assertEquals(ResultCode.OP_NOT_APPLICABLE, ex.getResultCode());
         }
         finally {
             cluster.setVersion(saved);
