@@ -37,7 +37,7 @@ import com.aerospike.client.sdk.query.plan.QueryPlan;
 import com.aerospike.client.sdk.query.plan.QuerySelection;
 
 /**
- * Tier C — operational scenarios for server-led query selection on {@code qselint}.
+ * Operational scenarios for server-led query selection.
  */
 class QuerySelectionOperationalIntegrationTest extends ClusterTest {
     private static DataSet dataSet;
@@ -54,7 +54,7 @@ class QuerySelectionOperationalIntegrationTest extends ClusterTest {
     }
 
     /**
-     * C.1 — partition-restricted query still uses server selection and returns a subset of the
+     * partition-restricted query still uses server selection and returns a subset of the
      * unrestricted result.
      */
     @Test
@@ -80,7 +80,7 @@ class QuerySelectionOperationalIntegrationTest extends ClusterTest {
     }
 
     /**
-     * C.2 — chunked execute returns the full matching set without re-planning between chunks.
+     * chunked execute returns the full matching set without re-planning between chunks.
      */
     @Test
     void chunkedExecuteReturnsFullMatchingSet() {

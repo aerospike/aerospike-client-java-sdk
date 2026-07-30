@@ -111,10 +111,10 @@ public final class QueryWhereWire {
     public static byte[] encode(int flags, String ael) {
         requireAel(ael);
         validateFlags(flags);
-        byte[] prefix = encodeFlagPrefix(flags);
         byte[] aelBytes = ael.getBytes(StandardCharsets.UTF_8);
-        byte[] payload = Arrays.copyOf(prefix, prefix.length + aelBytes.length);
-        System.arraycopy(aelBytes, 0, payload, prefix.length, aelBytes.length);
+        byte[] payload = new byte[1 + aelBytes.length];
+        payload[0] = (byte) (flags & FLAG_SEMANTIC_MASK);
+        System.arraycopy(aelBytes, 0, payload, 1, aelBytes.length);
         return payload;
     }
 
@@ -130,10 +130,18 @@ public final class QueryWhereWire {
 
         FlagPrefix parsed = decodeFlagPrefix(explainPayload);
         int executeFlags = parsed.flags & ~EXPLAIN_ONLY_FLAGS;
+
+        if (parsed.aelOffset == 1 && executeFlags == 0) {
+            byte[] execute = Arrays.copyOf(explainPayload, explainPayload.length);
+            execute[0] = 0;
+            return execute;
+        }
+
         byte[] prefix = encodeFlagPrefix(executeFlags);
-        byte[] aelBytes = Arrays.copyOfRange(explainPayload, parsed.aelOffset, explainPayload.length);
-        byte[] payload = Arrays.copyOf(prefix, prefix.length + aelBytes.length);
-        System.arraycopy(aelBytes, 0, payload, prefix.length, aelBytes.length);
+        int aelLength = explainPayload.length - parsed.aelOffset;
+        byte[] payload = new byte[prefix.length + aelLength];
+        System.arraycopy(prefix, 0, payload, 0, prefix.length);
+        System.arraycopy(explainPayload, parsed.aelOffset, payload, prefix.length, aelLength);
         return payload;
     }
 

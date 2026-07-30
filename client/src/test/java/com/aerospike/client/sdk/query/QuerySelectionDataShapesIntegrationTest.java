@@ -39,7 +39,7 @@ import com.aerospike.client.sdk.query.plan.QueryPlan;
 import com.aerospike.client.sdk.query.plan.QuerySelection;
 
 /**
- * Tier B — range and data-shape coverage for server-led query selection on {@code qselint}.
+ * Range and data-shape coverage for server-led query selection.
  */
 class QuerySelectionDataShapesIntegrationTest extends ClusterTest {
     private static DataSet dataSet;
@@ -56,7 +56,7 @@ class QuerySelectionDataShapesIntegrationTest extends ClusterTest {
     }
 
     /**
-     * B.1 — delete a few keys so the indexed range has gaps in stored ages.
+     * delete a few keys so the indexed range has gaps in stored ages.
      */
     @Test
     void executeRangeAcrossSparseAgesReturnsExistingSubset() {
@@ -79,7 +79,7 @@ class QuerySelectionDataShapesIntegrationTest extends ClusterTest {
         }
     }
 
-    /** B.2 — full index span over the fixture. */
+    /** full index span over the fixture. */
     @Test
     void executeFullAgeSpanReturnsAllRecords() {
         List<Integer> ages = collectAges(session.query(dataSet)
@@ -92,7 +92,7 @@ class QuerySelectionDataShapesIntegrationTest extends ClusterTest {
         assertEquals(RECORD_COUNT, ages.get(ages.size() - 1));
     }
 
-    /** B.3 — degenerate point range. */
+    /** degenerate point range. */
     @Test
     void executePointRangeReturnsSingleAge() {
         List<Integer> ages = collectAges(session.query(dataSet)
@@ -122,7 +122,7 @@ class QuerySelectionDataShapesIntegrationTest extends ClusterTest {
     }
 
     /**
-     * B.5 — records without {@code age} bin do not appear in an age filter result set.
+     * records without {@code age} bin do not appear in an age filter result set.
      */
     @Test
     void executeRangeSkipsRecordsMissingAgeBin() {
@@ -144,7 +144,7 @@ class QuerySelectionDataShapesIntegrationTest extends ClusterTest {
     }
 
     /**
-     * B.6 — PI filter on a minority country value after skewing the fixture.
+     * PI filter on a minority country value after skewing the fixture.
      */
     @Test
     void executeMinorityCountryPredicateReturnsSkewedCount() {

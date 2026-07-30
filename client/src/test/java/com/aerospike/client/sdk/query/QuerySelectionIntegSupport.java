@@ -28,7 +28,7 @@ import com.aerospike.client.sdk.RecordStream;
 import com.aerospike.client.sdk.ResultCode;
 import com.aerospike.client.sdk.Session;
 
-/** Shared {@code qselint} fixture for server query-selection integration tests. */
+/** Shared fixture for server query-selection integration tests. */
 final class QuerySelectionIntegSupport {
     static final String SET_NAME = "qselint";
     static final String AGE_INDEX = "qsel_age_idx";
