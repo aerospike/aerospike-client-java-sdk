@@ -169,6 +169,7 @@ public class SuiteCluster {
         ClusterTest.session = session;
         ClusterTest.sessionWithSendKey = sessionWithSendKey;
         ClusterTest.initializedBySuite = true;
+        ClusterTest.ensurePartitionMapReady();
     }
 
     private static String resolvePath(String dir, String path) {

@@ -37,90 +37,98 @@ public class ClusterTest {
 
     @BeforeAll
     public static void initCluster() {
-        if (session != null) {
-            return; // Already initialized by suite
-        }
+        if (session == null) {
+            Host[] hosts = Host.parseHosts(args.host, args.port);
 
-        Host[] hosts = Host.parseHosts(args.host, args.port);
+            ClusterDefinition def = new ClusterDefinition(hosts)
+                .clusterName(args.clusterName)
+                .withSystemSettings(SystemSettings.builder()
+                        .connections(ops -> ops.maximumConnectionsPerNode(200)).build()
+                        .mergeWith(SystemSettings.DEFAULT));
 
-        ClusterDefinition def = new ClusterDefinition(hosts)
-            .clusterName(args.clusterName)
-            .withSystemSettings(SystemSettings.builder()
-                    .connections(ops -> ops.maximumConnectionsPerNode(200)).build()
-                    .mergeWith(SystemSettings.DEFAULT));
+            if (args.useServicesAlternate) {
+                def.usingServicesAlternate();
+            }
 
-        if (args.useServicesAlternate) {
-            def.usingServicesAlternate();
-        }
+            // Handle authenticated requests if provided
+            if (args.user != null && args.password != null) {
+                switch (args.authMode) {
+                    case INTERNAL:
+                        def.withNativeCredentials(args.user, args.password);
+                        break;
+                    case EXTERNAL:
+                        def.withExternalCredentials(args.user, args.password);
+                        break;
+                    case EXTERNAL_INSECURE:
+                        def.withExternalInsecureCredentials(args.user, args.password);
+                        break;
+                    default:
+                        break;
+                }
+            }
 
-        // Handle authenticated requests if provided
-        if (args.user != null && args.password != null) {
-            switch (args.authMode) {
-                case INTERNAL:
-                    def.withNativeCredentials(args.user, args.password);
-                    break;
-                case EXTERNAL:
-                    def.withExternalCredentials(args.user, args.password);
-                    break;
-                case EXTERNAL_INSECURE:
-                    def.withExternalInsecureCredentials(args.user, args.password);
-                    break;
-                default:
-                    break;
+            if (args.tlsName != null) {
+                String certHome = System.getenv("CERT_HOME");
+                if (certHome == null) {
+                    certHome = "";
+                }
+
+                String caFile = resolvePath(certHome, args.caFile);
+                String clientCertFile = resolvePath(certHome, args.clientCertFile);
+                String clientKeyFile = resolvePath(certHome, args.clientKeyFile);
+
+                def.withTlsConfig(tls -> tls
+                    .tlsName(args.tlsName)
+                    .caFile(caFile)
+                    .clientCertFile(clientCertFile)
+                    .clientKeyFile(clientKeyFile)
+                );
+            }
+
+            cluster = def.connect();
+
+            try {
+                session = cluster.createSession(Behavior.DEFAULT);
+                sessionWithSendKey = cluster.createSession(Behavior.DEFAULT.deriveWithChanges(
+                        "sendKey",
+                        opt -> opt.on(Selectors.all(), s -> s.sendKey(true)))
+                );
+                args.setServerSpecific(cluster);
+            }
+            catch (RuntimeException re) {
+                cluster.close();
+                throw re;
             }
         }
 
-        if (args.tlsName != null) {
-            String certHome = System.getenv("CERT_HOME");
-            if (certHome == null) {
-                certHome = "";
-            }
-
-            String caFile = resolvePath(certHome, args.caFile);
-            String clientCertFile = resolvePath(certHome, args.clientCertFile);
-            String clientKeyFile = resolvePath(certHome, args.clientKeyFile);
-
-            def.withTlsConfig(tls -> tls
-                .tlsName(args.tlsName)
-                .caFile(caFile)
-                .clientCertFile(clientCertFile)
-                .clientKeyFile(clientKeyFile)
-            );
-        }
-
-        cluster = def.connect();
-
-        try {
-            session = cluster.createSession(Behavior.DEFAULT);
-            sessionWithSendKey = cluster.createSession(Behavior.DEFAULT.deriveWithChanges(
-                    "sendKey",
-                    opt -> opt.on(Selectors.all(), s -> s.sendKey(true)))
-            );
-            args.setServerSpecific(cluster);
-        }
-        catch (RuntimeException re) {
-            cluster.close();
-            throw re;
-        }
+        ensurePartitionMapReady();
     }
 
     /**
      * Brief wait when the tend thread has not yet populated the partition map.
-     * Avoids flaky "Partition map empty" errors in long shared-cluster suites.
+     * Called from {@link #initCluster()} (before subclass {@code @BeforeAll}) and
+     * {@link #waitForPartitionMap()} (before each test).
      */
-    @BeforeEach
-    public void waitForPartitionMap() {
+    protected static void ensurePartitionMapReady() {
         if (cluster == null || args.namespace == null) {
             return;
         }
 
-        for (int attempt = 0; attempt < 40; attempt++) {
+        for (int attempt = 0; attempt < 60; attempt++) {
             if (!cluster.getPartitionMap().isEmpty()
                     && cluster.getPartitionMap().containsKey(args.namespace)) {
                 return;
             }
             Util.sleep(50);
         }
+
+        throw new AerospikeException("Partition map not ready for namespace '" + args.namespace + "'");
+    }
+
+    /** Re-check before each test in case tend refreshed the map mid-class. */
+    @BeforeEach
+    public void waitForPartitionMap() {
+        ensurePartitionMapReady();
     }
 
     @AfterAll
