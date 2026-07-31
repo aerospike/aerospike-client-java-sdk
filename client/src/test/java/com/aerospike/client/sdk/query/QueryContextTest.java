@@ -75,6 +75,10 @@ public class QueryContextTest extends ClusterTest {
 
     @AfterAll
     public static void destroy() {
+        if (dataSet == null) {
+            return;
+        }
+
         session.dropIndex(dataSet, indexName);
     }
 

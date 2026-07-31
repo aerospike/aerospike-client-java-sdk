@@ -87,6 +87,10 @@ public class QueryCollectionTest extends ClusterTest {
 
     @AfterAll
     public static void destroy() {
+        if (dataSet == null) {
+            return;
+        }
+
         for (int i = 1; i <= size; i++) {
             String key = keyPrefix + i;
             session.delete(dataSet.ids(key));

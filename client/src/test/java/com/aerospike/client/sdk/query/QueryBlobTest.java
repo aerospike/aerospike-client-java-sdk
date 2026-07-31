@@ -94,6 +94,10 @@ public class QueryBlobTest extends ClusterTest {
 
     @AfterAll
     public static void destroy() {
+        if (dataSet == null) {
+            return;
+        }
+
         for (int i = 1; i <= size; i++) {
             session.delete(dataSet.ids(i));
         }

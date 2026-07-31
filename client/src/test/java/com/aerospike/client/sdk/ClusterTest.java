@@ -129,9 +129,14 @@ public class ClusterTest {
         return file.getAbsolutePath();
     }
 
+    /** For {@code @EnabledIf} on test classes that require AEL (8.1.3+). */
+    public static boolean supportsAel() {
+        return cluster != null && cluster.supportsAel();
+    }
+
     /** Skip when the cluster minimum version is below {@link Version#SERVER_VERSION_8_1_3}. */
     protected static void assumeSupportsAel() {
-        Assumptions.assumeTrue(cluster.supportsAel(),
+        Assumptions.assumeTrue(supportsAel(),
             "server does not support AEL (requires " + Version.SERVER_VERSION_8_1_3 + "+)");
     }
 }
