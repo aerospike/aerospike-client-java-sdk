@@ -831,7 +831,7 @@ public class QueryExamples extends Example {
             .defaultExpireRecordAfter(Duration.ofMinutes(20))
             .execute();
         System.out.println("Multi operations:");
-        print(rsStream);
+        print((RecordStream) rsStream);
 
         rsStream = session.queryTypedKeys(customerDataSet.ids(1,2,3))
                     .bin("name").get()
