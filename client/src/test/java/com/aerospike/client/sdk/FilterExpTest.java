@@ -45,6 +45,8 @@ public class FilterExpTest extends ClusterTest {
 
     @BeforeAll
     public static void register() {
+        assumeSupportsAel();
+
         RegisterTask task = session.registerUdfString(UdfTest.lua, "record_example.lua");
         task.waitTillComplete();
     }

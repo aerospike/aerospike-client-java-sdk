@@ -16,6 +16,17 @@
  */
 package com.aerospike.client.sdk.query;
 
+import static com.aerospike.client.sdk.query.QuerySelectionIntegSupport.AGE_BIN;
+import static com.aerospike.client.sdk.query.QuerySelectionIntegSupport.AGE_INDEX;
+import static com.aerospike.client.sdk.query.QuerySelectionIntegSupport.COUNTRY_BIN;
+import static com.aerospike.client.sdk.query.QuerySelectionIntegSupport.RECORD_COUNT;
+import static com.aerospike.client.sdk.query.QuerySelectionIntegSupport.SCORE_BIN;
+import static com.aerospike.client.sdk.query.QuerySelectionIntegSupport.SCORE_INDEX;
+import static com.aerospike.client.sdk.query.QuerySelectionIntegSupport.SET_NAME;
+import static com.aerospike.client.sdk.query.QuerySelectionIntegSupport.collectAges;
+import static com.aerospike.client.sdk.query.QuerySelectionIntegSupport.countRecords;
+import static com.aerospike.client.sdk.query.QuerySelectionIntegSupport.destroyQselint;
+import static com.aerospike.client.sdk.query.QuerySelectionIntegSupport.prepareQselint;
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -25,7 +36,6 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeFalse;
-import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -45,7 +55,6 @@ import com.aerospike.client.sdk.command.FieldType;
 import com.aerospike.client.sdk.command.PartitionFilter;
 import com.aerospike.client.sdk.command.PartitionTracker;
 import com.aerospike.client.sdk.command.QueryCommand;
-import com.aerospike.client.sdk.exp.Exp;
 import com.aerospike.client.sdk.policy.QueryDuration;
 import com.aerospike.client.sdk.policy.Behavior;
 import com.aerospike.client.sdk.policy.ResolvedSettings;
@@ -64,70 +73,19 @@ import java.util.List;
  * ({@link com.aerospike.client.sdk.Cluster#supportsQuerySelection()}).</p>
  */
 public class QuerySelectionIntegrationTest extends ClusterTest {
-    private static final String setName = "qselint";
-    private static final String indexName = "qsel_age_idx";
-    private static final String scoreIndexName = "qsel_score_idx";
     private static final String bogusIndexName = "qsel_nonexistent_idx";
-    private static final String keyPrefix = "qselkey";
-    private static final String binName = "age";
-    private static final String scoreBinName = "score";
-    private static final String countryBinName = "country";
-    private static final int size = 50;
 
     private static DataSet dataSet;
 
     @BeforeAll
     public static void prepare() {
-        assumeTrue(cluster.supportsQuerySelection(), "server does not support query selection");
-
-        dataSet = DataSet.of(args.namespace, setName);
-
-        for (int i = 1; i <= size; i++) {
-            session.delete(dataSet.ids(keyPrefix + i));
-        }
-
-        try {
-            session.createIndex(dataSet, indexName, binName, IndexType.INTEGER,
-                IndexCollectionType.DEFAULT)
-                .waitTillComplete();
-        }
-        catch (AerospikeException ae) {
-            if (ae.getResultCode() != ResultCode.INDEX_ALREADY_EXISTS) {
-                throw ae;
-            }
-        }
-
-        try {
-            session.createIndex(dataSet, scoreIndexName, scoreBinName, IndexType.INTEGER,
-                IndexCollectionType.DEFAULT)
-                .waitTillComplete();
-        }
-        catch (AerospikeException ae) {
-            if (ae.getResultCode() != ResultCode.INDEX_ALREADY_EXISTS) {
-                throw ae;
-            }
-        }
-
-        for (int i = 1; i <= size; i++) {
-            String country = (i % 2 == 0) ? "US" : "CA";
-            session.upsert(dataSet.ids(keyPrefix + i))
-                .bins(binName, scoreBinName, countryBinName)
-                .values(i, i, country)
-                .execute();
-        }
+        QuerySelectionIntegSupport.assumeQuerySelectionEnabled();
+        dataSet = prepareQselint(session, args.namespace);
     }
 
     @AfterAll
     public static void destroy() {
-        if (dataSet == null) {
-            return;
-        }
-
-        for (int i = 1; i <= size; i++) {
-            session.delete(dataSet.ids(keyPrefix + i));
-        }
-        session.dropIndex(dataSet, indexName);
-        session.dropIndex(dataSet, scoreIndexName);
+        destroyQselint(session, dataSet);
     }
 
     /**
@@ -141,46 +99,11 @@ public class QuerySelectionIntegrationTest extends ClusterTest {
         assertAll("probeResponse",
             () -> assertEquals(QuerySelection.SECONDARY_INDEX, plan.getSelection()),
             () -> assertEquals(args.namespace, plan.getNamespace()),
-            () -> assertEquals(setName, plan.getSet()),
+            () -> assertEquals(SET_NAME, plan.getSet()),
             () -> assertNotNull(plan.getIndexName()),
             () -> assertNotNull(plan.getIndexRangeBytes()),
             () -> assertNotNull(plan.getExplainWhereBytes()),
-            () -> assertEquals(indexName, plan.getIndexName()));
-    }
-
-    /**
-     * No index on country.
-     * Equality query on country -> server selects primary index.
-     */
-    @Test
-    void planNonIndexedPredicateSelectsPrimaryIndex() {
-        QueryPlan plan = explainPlan("$.country == 'US'");
-
-        assertAll("probeResponse",
-            () -> assertEquals(QuerySelection.PRIMARY_INDEX, plan.getSelection()),
-            () -> assertEquals(args.namespace, plan.getNamespace()),
-            () -> assertEquals(setName, plan.getSet()),
-            () -> assertNull(plan.getIndexName()),
-            () -> assertNull(plan.getIndexRangeBytes()),
-            () -> assertNotNull(plan.getExplainWhereBytes()));
-    }
-
-    /**
-     * Index on bin age.
-     * Range query on age with forIndex(age) hint -> server selects age index.
-     */
-    @Test
-    void planForIndexHintUsesHintedIndex() {
-        QueryBuilder qb = session.query(dataSet)
-            .where("$.age >= 14 and $.age <= 18")
-            .withHint(hint -> hint.forIndex(indexName));
-        QueryPlan plan = explainPlan(qb);
-
-        assertAll("probeResponse",
-            () -> assertEquals(QuerySelection.SECONDARY_INDEX, plan.getSelection()),
-            () -> assertEquals(indexName, plan.getIndexName()),
-            () -> assertNotNull(plan.getIndexRangeBytes()),
-            () -> assertNotNull(plan.getExplainWhereBytes()));
+            () -> assertEquals(AGE_INDEX, plan.getIndexName()));
     }
 
     @Test
@@ -192,26 +115,12 @@ public class QuerySelectionIntegrationTest extends ClusterTest {
 
         assertAll("firstProbeResponse",
             () -> assertEquals(QuerySelection.SECONDARY_INDEX, first.getSelection()),
-            () -> assertEquals(indexName, first.getIndexName()));
+            () -> assertEquals(AGE_INDEX, first.getIndexName()));
         assertAll("repeatedProbeStability",
             () -> assertEquals(first.getSelection(), second.getSelection()),
             () -> assertEquals(first.getIndexName(), second.getIndexName()),
             () -> assertArrayEquals(first.getExplainWhereBytes(), second.getExplainWhereBytes()),
             () -> assertArrayEquals(first.getIndexRangeBytes(), second.getIndexRangeBytes()));
-    }
-
-    @Test
-    void indexProbePlannerSmoke() {
-        String where = "$.age >= 14 and $.age <= 18";
-        WhereClauseProcessor whereClause = WhereClauseProcessor.from(where);
-
-        QueryPlan plan = IndexProbePlanner.plan(session, dataSet, whereClause, null);
-
-        assertAll("probeResponse",
-            () -> assertEquals(QuerySelection.SECONDARY_INDEX, plan.getSelection()),
-            () -> assertEquals(indexName, plan.getIndexName()),
-            () -> assertNotNull(plan.getIndexRangeBytes()),
-            () -> assertNotNull(plan.getExplainWhereBytes()));
     }
 
     /**
@@ -228,7 +137,7 @@ public class QuerySelectionIntegrationTest extends ClusterTest {
         assertAll("probeResponse",
             () -> assertEquals(QuerySelection.SECONDARY_INDEX, plan.getSelection()),
             () -> assertNotEquals(bogusIndexName, plan.getIndexName()),
-            () -> assertEquals(indexName, plan.getIndexName()),
+            () -> assertEquals(AGE_INDEX, plan.getIndexName()),
             () -> assertNotNull(plan.getIndexRangeBytes()),
             () -> assertNotNull(plan.getExplainWhereBytes()));
     }
@@ -249,65 +158,6 @@ public class QuerySelectionIntegrationTest extends ClusterTest {
     }
 
     /**
-     * Index on bin age.
-     * Range query on age -> matching records returned.
-     */
-    @Test
-    void executeSimpleRangeReturnsMatchingRecords() {
-        String where = "$.age >= 14 and $.age <= 18";
-
-        RecordStream rs = session.query(dataSet)
-            .readingOnlyBins(binName)
-            .where(where)
-            .execute();
-
-        try {
-            List<Integer> ages = new ArrayList<>();
-            while (rs.hasNext()) {
-                Record rec = rs.next().recordOrThrow();
-                ages.add(rec.getInt(binName));
-            }
-            ages.sort(Integer::compareTo);
-
-            assertAll("executeResults",
-                () -> assertEquals(5, ages.size()),
-                () -> assertEquals(List.of(14, 15, 16, 17, 18), ages));
-        }
-        finally {
-            rs.close();
-        }
-    }
-
-    /**
-     * Index on bin age.
-     * Equality query on age -> single matching record.
-     */
-    @Test
-    void executeEqualityReturnsSingleRecord() {
-        String where = "$.age == 25";
-
-        RecordStream rs = session.query(dataSet)
-            .readingOnlyBins(binName)
-            .where(where)
-            .execute();
-
-        try {
-            List<Integer> ages = new ArrayList<>();
-            while (rs.hasNext()) {
-                Record rec = rs.next().recordOrThrow();
-                ages.add(rec.getInt(binName));
-            }
-
-            assertAll("executeResults",
-                () -> assertEquals(1, ages.size()),
-                () -> assertEquals(25, ages.get(0)));
-        }
-        finally {
-            rs.close();
-        }
-    }
-
-    /**
      * No index on country.
      * Equality query on country -> primary-index path; matching records returned.
      */
@@ -316,7 +166,7 @@ public class QuerySelectionIntegrationTest extends ClusterTest {
         String where = "$.country == 'US'";
 
         RecordStream rs = session.query(dataSet)
-            .readingOnlyBins(countryBinName)
+            .readingOnlyBins(COUNTRY_BIN)
             .where(where)
             .execute();
 
@@ -324,7 +174,7 @@ public class QuerySelectionIntegrationTest extends ClusterTest {
             List<String> countries = new ArrayList<>();
             while (rs.hasNext()) {
                 Record rec = rs.next().recordOrThrow();
-                countries.add(rec.getString(countryBinName));
+                countries.add(rec.getString(COUNTRY_BIN));
             }
 
             assertAll("executeResults",
@@ -348,10 +198,10 @@ public class QuerySelectionIntegrationTest extends ClusterTest {
 
         assertAll("probeResponse",
             () -> assertEquals(QuerySelection.SECONDARY_INDEX, plan.getSelection()),
-            () -> assertEquals(indexName, plan.getIndexName()));
+            () -> assertEquals(AGE_INDEX, plan.getIndexName()));
 
         RecordStream rs = session.query(dataSet)
-            .readingOnlyBins(binName)
+            .readingOnlyBins(AGE_BIN)
             .where(where)
             .execute();
 
@@ -359,7 +209,7 @@ public class QuerySelectionIntegrationTest extends ClusterTest {
             List<Integer> ages = new ArrayList<>();
             while (rs.hasNext()) {
                 Record rec = rs.next().recordOrThrow();
-                ages.add(rec.getInt(binName));
+                ages.add(rec.getInt(AGE_BIN));
             }
             ages.sort(Integer::compareTo);
 
@@ -394,11 +244,11 @@ public class QuerySelectionIntegrationTest extends ClusterTest {
 
         assertAll("probeResponse",
             () -> assertEquals(QuerySelection.SECONDARY_INDEX, plan.getSelection()),
-            () -> assertEquals(indexName, plan.getIndexName()),
+            () -> assertEquals(AGE_INDEX, plan.getIndexName()),
             () -> assertNotNull(plan.getExplainWhereBytes()));
 
         RecordStream rs = session.query(dataSet)
-            .readingOnlyBins(binName, countryBinName)
+            .readingOnlyBins(AGE_BIN, COUNTRY_BIN)
             .where(where)
             .execute();
 
@@ -406,8 +256,8 @@ public class QuerySelectionIntegrationTest extends ClusterTest {
             List<Integer> ages = new ArrayList<>();
             while (rs.hasNext()) {
                 Record rec = rs.next().recordOrThrow();
-                assertEquals("US", rec.getString(countryBinName));
-                int age = rec.getInt(binName);
+                assertEquals("US", rec.getString(COUNTRY_BIN));
+                int age = rec.getInt(AGE_BIN);
                 assertTrue(age > 30);
                 ages.add(age);
             }
@@ -432,15 +282,15 @@ public class QuerySelectionIntegrationTest extends ClusterTest {
         String where = "$.age > 30 and $.country == 'US'";
 
         List<Integer> serverLedAges = collectAges(session.query(dataSet)
-            .readingOnlyBins(binName)
+            .readingOnlyBins(AGE_BIN)
             .where(where)
-            .execute());
+            .execute(), AGE_BIN);
 
         List<Integer> legacyAges = collectAges(session.query(dataSet)
-            .readingOnlyBins(binName)
+            .readingOnlyBins(AGE_BIN)
             .where(where)
-            .withHint(hint -> hint.forBin(binName))
-            .execute());
+            .withHint(hint -> hint.forBin(AGE_BIN))
+            .execute(), AGE_BIN);
 
         assertAll("compoundLegacyVsServerLed",
             () -> assertEquals(serverLedAges, legacyAges),
@@ -457,7 +307,7 @@ public class QuerySelectionIntegrationTest extends ClusterTest {
         String where = "$.age >= 14 and $.age <= 18";
 
         RecordStream rs = session.query(dataSet)
-            .readingOnlyBins(binName)
+            .readingOnlyBins(AGE_BIN)
             .where(where)
             .execute();
 
@@ -465,8 +315,8 @@ public class QuerySelectionIntegrationTest extends ClusterTest {
             List<Integer> ages = new ArrayList<>();
             while (rs.hasNext()) {
                 Record rec = rs.next().recordOrThrow();
-                ages.add(rec.getInt(binName));
-                assertNull(rec.getValue(countryBinName),
+                ages.add(rec.getInt(AGE_BIN));
+                assertNull(rec.getValue(COUNTRY_BIN),
                     "country bin should not be returned when not requested");
             }
             ages.sort(Integer::compareTo);
@@ -491,15 +341,15 @@ public class QuerySelectionIntegrationTest extends ClusterTest {
         String where = "$.age >= 14 and $.age <= 18";
 
         List<Integer> defaultAges = collectAges(session.query(dataSet)
-            .readingOnlyBins(binName)
+            .readingOnlyBins(AGE_BIN)
             .where(where)
-            .execute());
+            .execute(), AGE_BIN);
 
         List<Integer> forBinAges = collectAges(session.query(dataSet)
-            .readingOnlyBins(binName)
+            .readingOnlyBins(AGE_BIN)
             .where(where)
-            .withHint(hint -> hint.forBin(binName))
-            .execute());
+            .withHint(hint -> hint.forBin(AGE_BIN))
+            .execute(), AGE_BIN);
 
         assertAll("forBinLegacyPath",
             () -> assertEquals(defaultAges, forBinAges),
@@ -516,18 +366,18 @@ public class QuerySelectionIntegrationTest extends ClusterTest {
 
         QueryBuilder qb = session.query(dataSet)
             .where(where)
-            .withHint(hint -> hint.forIndex(indexName));
+            .withHint(hint -> hint.forIndex(AGE_INDEX));
         QueryPlan plan = explainPlan(qb);
 
         List<Integer> ages = collectAges(session.query(dataSet)
-            .readingOnlyBins(binName)
+            .readingOnlyBins(AGE_BIN)
             .where(where)
-            .withHint(hint -> hint.forIndex(indexName))
-            .execute());
+            .withHint(hint -> hint.forIndex(AGE_INDEX))
+            .execute(), AGE_BIN);
 
         assertAll("forIndexProbeAndExecute",
             () -> assertEquals(QuerySelection.SECONDARY_INDEX, plan.getSelection()),
-            () -> assertEquals(indexName, plan.getIndexName()),
+            () -> assertEquals(AGE_INDEX, plan.getIndexName()),
             () -> assertEquals(5, ages.size()),
             () -> assertEquals(List.of(14, 15, 16, 17, 18), ages));
     }
@@ -546,35 +396,14 @@ public class QuerySelectionIntegrationTest extends ClusterTest {
         QueryPlan plan = explainPlan(qb);
 
         List<Integer> ages = collectAges(session.query(dataSet)
-            .readingOnlyBins(binName)
+            .readingOnlyBins(AGE_BIN)
             .where(where)
             .withHint(hint -> hint.queryDuration(QueryDuration.SHORT))
-            .execute());
+            .execute(), AGE_BIN);
 
         assertAll("durationOnlyHint",
             () -> assertEquals(QuerySelection.SECONDARY_INDEX, plan.getSelection()),
-            () -> assertEquals(indexName, plan.getIndexName()),
-            () -> assertEquals(List.of(14, 15, 16, 17, 18), ages));
-    }
-
-    /**
-     * Index on bin age.
-     * where(Exp) on age -> non-probe path; matching records returned.
-     */
-    @Test
-    void whereExpUsesNonProbeExecutePath() {
-        int begin = 14;
-        int end = 18;
-
-        List<Integer> ages = collectAges(session.query(dataSet)
-            .readingOnlyBins(binName)
-            .where(Exp.and(
-                Exp.ge(Exp.intBin(binName), Exp.val(begin)),
-                Exp.le(Exp.intBin(binName), Exp.val(end))))
-            .execute());
-
-        assertAll("whereExpResults",
-            () -> assertEquals(5, ages.size()),
+            () -> assertEquals(AGE_INDEX, plan.getIndexName()),
             () -> assertEquals(List.of(14, 15, 16, 17, 18), ages));
     }
 
@@ -586,7 +415,7 @@ public class QuerySelectionIntegrationTest extends ClusterTest {
     void noWhereScanReturnsAllRecords() {
         int count = countRecords(session.query(dataSet).execute());
 
-        assertEquals(size, count);
+        assertEquals(RECORD_COUNT, count);
     }
 
     /**
@@ -607,7 +436,7 @@ public class QuerySelectionIntegrationTest extends ClusterTest {
 
             AerospikeException ex = assertThrows(AerospikeException.class, () ->
                 session.query(dataSet)
-                    .readingOnlyBins(binName)
+                    .readingOnlyBins(AGE_BIN)
                     .where(where)
                     .execute());
 
@@ -645,13 +474,13 @@ public class QuerySelectionIntegrationTest extends ClusterTest {
         QueryPlan plan = explainPlan(where);
 
         int count = countRecords(session.query(dataSet)
-            .readingOnlyBins(binName)
+            .readingOnlyBins(AGE_BIN)
             .where(where)
             .execute());
 
         assertAll("emptySiResult",
             () -> assertEquals(QuerySelection.SECONDARY_INDEX, plan.getSelection()),
-            () -> assertEquals(indexName, plan.getIndexName()),
+            () -> assertEquals(AGE_INDEX, plan.getIndexName()),
             () -> assertEquals(0, count));
     }
 
@@ -668,21 +497,21 @@ public class QuerySelectionIntegrationTest extends ClusterTest {
         QueryPlan scorePlan = explainPlan(scoreWhere);
 
         List<Integer> ages = collectAges(session.query(dataSet)
-            .readingOnlyBins(binName)
+            .readingOnlyBins(AGE_BIN)
             .where(ageWhere)
-            .execute());
+            .execute(), AGE_BIN);
 
         List<Integer> scores = collectScores(session.query(dataSet)
-            .readingOnlyBins(scoreBinName)
+            .readingOnlyBins(SCORE_BIN)
             .where(scoreWhere)
             .execute());
 
         assertAll("multiIndexAutoSelect",
             () -> assertEquals(QuerySelection.SECONDARY_INDEX, agePlan.getSelection()),
-            () -> assertEquals(indexName, agePlan.getIndexName()),
+            () -> assertEquals(AGE_INDEX, agePlan.getIndexName()),
             () -> assertEquals(List.of(14, 15, 16, 17, 18), ages),
             () -> assertEquals(QuerySelection.SECONDARY_INDEX, scorePlan.getSelection()),
-            () -> assertEquals(scoreIndexName, scorePlan.getIndexName()),
+            () -> assertEquals(SCORE_INDEX, scorePlan.getIndexName()),
             () -> assertEquals(List.of(40, 41, 42, 43, 44), scores));
     }
 
@@ -696,19 +525,19 @@ public class QuerySelectionIntegrationTest extends ClusterTest {
 
         QueryBuilder qb = session.query(dataSet)
             .where(where)
-            .withHint(hint -> hint.forIndex(scoreIndexName));
+            .withHint(hint -> hint.forIndex(SCORE_INDEX));
         QueryPlan plan = explainPlan(qb);
 
         List<Integer> ages = collectAges(session.query(dataSet)
-            .readingOnlyBins(binName)
+            .readingOnlyBins(AGE_BIN)
             .where(where)
-            .withHint(hint -> hint.forIndex(scoreIndexName))
-            .execute());
+            .withHint(hint -> hint.forIndex(SCORE_INDEX))
+            .execute(), AGE_BIN);
 
         assertAll("wrongExistingIndexHint",
             () -> assertEquals(QuerySelection.SECONDARY_INDEX, plan.getSelection()),
-            () -> assertNotEquals(scoreIndexName, plan.getIndexName()),
-            () -> assertEquals(indexName, plan.getIndexName()),
+            () -> assertNotEquals(SCORE_INDEX, plan.getIndexName()),
+            () -> assertEquals(AGE_INDEX, plan.getIndexName()),
             () -> assertEquals(List.of(14, 15, 16, 17, 18), ages));
     }
 
@@ -716,38 +545,10 @@ public class QuerySelectionIntegrationTest extends ClusterTest {
         try {
             List<Integer> scores = new ArrayList<>();
             while (rs.hasNext()) {
-                scores.add(rs.next().recordOrThrow().getInt(scoreBinName));
+                scores.add(rs.next().recordOrThrow().getInt(SCORE_BIN));
             }
             scores.sort(Integer::compareTo);
             return scores;
-        }
-        finally {
-            rs.close();
-        }
-    }
-
-    private static List<Integer> collectAges(RecordStream rs) {
-        try {
-            List<Integer> ages = new ArrayList<>();
-            while (rs.hasNext()) {
-                ages.add(rs.next().recordOrThrow().getInt(binName));
-            }
-            ages.sort(Integer::compareTo);
-            return ages;
-        }
-        finally {
-            rs.close();
-        }
-    }
-
-    private static int countRecords(RecordStream rs) {
-        try {
-            int count = 0;
-            while (rs.hasNext()) {
-                rs.next().recordOrThrow();
-                count++;
-            }
-            return count;
         }
         finally {
             rs.close();
@@ -794,7 +595,7 @@ public class QuerySelectionIntegrationTest extends ClusterTest {
 
         QueryBuilder legacyQb = session.query(dataSet)
             .where(where)
-            .withHint(hint -> hint.forBin(binName));
+            .withHint(hint -> hint.forBin(AGE_BIN));
         QueryCommand legacyCmd = IndexProbePlanner.buildCommand(
             session, dataSet, legacyQb.getAel(), legacyQb.getQueryHint(), settings, legacyQb);
         byte[] legacy43 = fieldBytes(encodeExecuteQuery(legacyCmd), FieldType.FILTER_EXP);

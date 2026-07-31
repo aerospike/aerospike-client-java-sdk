@@ -19,10 +19,12 @@ package com.aerospike.client.sdk;
 import java.io.File;
 
 import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeAll;
 
 import com.aerospike.client.sdk.policy.Behavior;
 import com.aerospike.client.sdk.policy.Behavior.Selectors;
+import com.aerospike.client.sdk.util.Version;
 
 public class ClusterTest {
     public static Args args = Args.Instance;
@@ -125,5 +127,11 @@ public class ClusterTest {
         }
         file = new File(dir, path);
         return file.getAbsolutePath();
+    }
+
+    /** Skip when the cluster minimum version is below {@link Version#SERVER_VERSION_8_1_3}. */
+    protected static void assumeSupportsAel() {
+        Assumptions.assumeTrue(cluster.supportsAel(),
+            "server does not support AEL (requires " + Version.SERVER_VERSION_8_1_3 + "+)");
     }
 }

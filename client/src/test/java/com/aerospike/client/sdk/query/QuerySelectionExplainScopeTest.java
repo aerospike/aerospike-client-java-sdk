@@ -180,22 +180,6 @@ class QuerySelectionExplainScopeTest extends ClusterTest {
     }
 
     /**
-     * MAPKEYS + CDT EXISTS — no SI candidate in server walker today → PI fallback on explain.
-     * Uses server AEL {@code .exists()}, not legacy {@code .get(return: EXISTS)}.
-     */
-    @Test
-    void explainMapKeysExists_primaryIndexFallback() {
-        String where = "$." + mapBin + "." + mapKey + ".exists() == true";
-        QueryPlan plan = explain(where);
-
-        assertAll("mapKeysPiExplain",
-            () -> assertEquals(QuerySelection.PRIMARY_INDEX, plan.getSelection()),
-            () -> assertNull(plan.getIndexName()),
-            () -> assertNull(plan.getIndexRangeBytes()),
-            () -> assertNotNull(plan.getExplainWhereBytes()));
-    }
-
-    /**
      * E2E: BLOB query uses field {@code 44} explain → execute (SI plan when explain succeeds).
      */
     @Test

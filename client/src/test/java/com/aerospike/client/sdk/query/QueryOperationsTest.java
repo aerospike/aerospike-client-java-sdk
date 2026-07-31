@@ -121,6 +121,8 @@ public class QueryOperationsTest extends ClusterTest {
 
     @Test
     public void queryProjectSubsetOfBins() {
+        assumeSupportsAel();
+
         int begin = 1;
         int end = 10;
 
@@ -151,6 +153,8 @@ public class QueryOperationsTest extends ClusterTest {
 
     @Test
     public void queryProjectBinsViaExpressionRead() {
+        assumeSupportsAel();
+
         String typeSuffix = cluster.supportsAel() ? ":INT" : "";
 
         RecordStream rs = session.query(args.set)
@@ -180,6 +184,8 @@ public class QueryOperationsTest extends ClusterTest {
 
     @Test
     public void queryProjectBinsViaExpressionReadWithFilter() {
+        assumeSupportsAel();
+
         int begin = 1;
         int end = 10;
 
@@ -214,6 +220,8 @@ public class QueryOperationsTest extends ClusterTest {
 
     @Test
     public void queryProjectMixedGetAndExpressionRead() {
+        assumeSupportsAel();
+
         int begin = 1;
         int end = 10;
 
@@ -249,6 +257,8 @@ public class QueryOperationsTest extends ClusterTest {
 
     @Test
     public void queryWithExpReadOperation() {
+        assumeSupportsAel();
+
         int begin = 1;
         int end = 10;
 
@@ -277,6 +287,8 @@ public class QueryOperationsTest extends ClusterTest {
 
     @Test
     public void queryWithMultipleExpReadOperations() {
+        assumeSupportsAel();
+
         int begin = 5;
         int end = 15;
 
@@ -313,6 +325,8 @@ public class QueryOperationsTest extends ClusterTest {
 
     @Test
     public void queryWithExpReadAndFilterExp() {
+        assumeSupportsAel();
+
         // Combined: secondary-index-style range filter AND an additional
         // less-than predicate, all expressed in a single where() clause.
         RecordStream rs = session.query(args.set)
@@ -341,6 +355,8 @@ public class QueryOperationsTest extends ClusterTest {
 
     @Test
     public void queryWithGetOperation() {
+        assumeSupportsAel();
+
         int begin = 1;
         int end = 5;
 
@@ -368,6 +384,8 @@ public class QueryOperationsTest extends ClusterTest {
 
     @Test
     public void backgroundUpdateWriteSucceeds() {
+        assumeSupportsAel();
+
         // New-API counterpart of the old executeWithWriteOperationSucceeds
         // test: write a "marker" bin to records in a filtered range using
         // a background task, then read it back per-key.
@@ -398,6 +416,8 @@ public class QueryOperationsTest extends ClusterTest {
 
     @Test
     public void queryWithExpReadNoFilter() {
+        assumeSupportsAel();
+
         RecordStream rs = session.query(args.set)
             .bin("offset").selectFrom("$." + binName1 + " + 1000")
             .execute();
@@ -420,6 +440,8 @@ public class QueryOperationsTest extends ClusterTest {
 
     @Test
     public void queryWithExpReadEvalNoFail() {
+        assumeSupportsAel();
+
         // Reading a non-existent bin would normally fail; ignoreEvalFailure
         // is the new-API replacement for ExpReadFlags.EVAL_NO_FAIL.
         int begin = 1;

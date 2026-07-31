@@ -18,34 +18,35 @@ package com.aerospike.client.sdk;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import com.aerospike.client.sdk.exp.Expression;
 
 /**
  * Server-compiled AEL materialization for field {@code 43} paths.
+ *
+ * <p>Wire layout details are covered by {@link com.aerospike.client.sdk.exp.ServerCompiledFilterWireTest}.</p>
  */
 class AelMaterializerWhereTest extends ClusterTest {
 
-    @Test
-    void expressionFromString_usesServerCompiledOp128WhenSupportsAel() {
-        Expression expression = AelMaterializer.expressionFromString(cluster, "$.age > 30");
+    private static final String AEL = "$.age > 30";
 
-        assertThat(expression).isNotNull();
-        if (cluster.supportsAel()) {
-            assertThat(isServerCompiledAelWire(expression)).isTrue();
-        }
+    @BeforeAll
+    static void requireAel() {
+        assumeSupportsAel();
     }
 
     @Test
-    void whereClauseProcessor_stringAel_materializesServerCompiledFilter() {
-        var where = com.aerospike.client.sdk.query.WhereClauseProcessor.from("$.age > 30");
-        Expression expression = where.toFilterExpression(session);
+    void stringAel_materializesServerCompiledFilterFromMaterializerAndWhereProcessor() {
+        Expression fromMaterializer = AelMaterializer.expressionFromString(cluster, AEL);
+        Expression fromWhere = com.aerospike.client.sdk.query.WhereClauseProcessor.from(AEL)
+            .toFilterExpression(session);
 
-        assertThat(expression).isNotNull();
-        if (cluster.supportsAel()) {
-            assertThat(isServerCompiledAelWire(expression)).isTrue();
-        }
+        assertThat(fromMaterializer).isNotNull();
+        assertThat(fromWhere).isNotNull();
+        assertThat(isServerCompiledAelWire(fromMaterializer)).isTrue();
+        assertThat(isServerCompiledAelWire(fromWhere)).isTrue();
     }
 
     private static boolean isServerCompiledAelWire(Expression expression) {

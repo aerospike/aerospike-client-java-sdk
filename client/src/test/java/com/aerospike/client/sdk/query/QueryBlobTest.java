@@ -48,6 +48,8 @@ public class QueryBlobTest extends ClusterTest {
 
     @BeforeAll
     public static void prepare() {
+        assumeSupportsAel();
+
         dataSet = DataSet.of(args.namespace, setName);
 
         for (int i = 1; i <= size; i++) {

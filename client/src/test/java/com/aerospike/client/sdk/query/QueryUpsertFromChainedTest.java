@@ -34,6 +34,8 @@ public class QueryUpsertFromChainedTest extends ClusterTest {
 
     @Test
     public void chainedQueryThenUpsertFromAddsComputedBin() {
+        assumeSupportsAel();
+
         Key key = args.set.id(TEST_KEY);
 
         session.delete(key).execute();

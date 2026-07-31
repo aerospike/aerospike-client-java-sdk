@@ -42,6 +42,8 @@ public class QueryContextTest extends ClusterTest {
 
     @BeforeAll
     public static void prepare() {
+        assumeSupportsAel();
+
         dataSet = args.set;
 
         try {

@@ -221,6 +221,8 @@ public class BatchTest extends ClusterTest {
 
     @Test
     public void batchReadComplex() {
+        assumeSupportsAel();
+
         String ael = "$.bbin * 8";
 
         RecordStream rs = session
@@ -374,6 +376,8 @@ public class BatchTest extends ClusterTest {
 */
     @Test
     public void batchWriteComplex() {
+        assumeSupportsAel();
+
         DataSet ds = new DataSet("invalid", args.set.getSet());
 
         ChainableNoBinsBuilder noBinsBuilder = session
