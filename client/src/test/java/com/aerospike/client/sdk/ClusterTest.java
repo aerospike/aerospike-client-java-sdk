@@ -109,7 +109,7 @@ public class ClusterTest {
      * Avoids flaky "Partition map empty" errors in long shared-cluster suites.
      */
     @BeforeEach
-    public static void waitForPartitionMap() {
+    public void waitForPartitionMap() {
         if (cluster == null || args.namespace == null) {
             return;
         }
