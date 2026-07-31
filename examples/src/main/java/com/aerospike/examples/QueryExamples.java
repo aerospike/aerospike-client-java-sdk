@@ -71,6 +71,11 @@ import com.aerospike.examples.query.CustomerMapper;
 @SuppressWarnings("unused")
 public class QueryExamples extends Example {
 
+    @Override
+    protected boolean requiresStringAel() {
+        return true;
+    }
+
     public static void print(RecordStream recordStream) {
         int count = 0;
         while (recordStream.hasNext()) {

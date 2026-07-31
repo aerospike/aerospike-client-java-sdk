@@ -11,6 +11,11 @@ import com.aerospike.client.sdk.policy.Behavior;
 public class StudentScoresExample extends Example {
     private static final String[] SUBJECTS = {"math", "english", "science", "history", "art"};
 
+    @Override
+    protected boolean requiresStringAel() {
+        return true;
+    }
+
     private static Map<String, Integer> generateScores(Random random) {
         Map<String, Integer> scores = new HashMap<>();
         for (String subject : SUBJECTS) {

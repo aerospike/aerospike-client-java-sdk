@@ -253,6 +253,7 @@ public class CompleteYamlConfigExample extends Example {
         }
 
         try (Cluster cluster = clusterDef.connect()) {
+            ensurePartitionMapReady(cluster, namespace());
             console.write("Connected to cluster at " + host() + ":" + port() + "\n");
 
             DataSet dataSet = dataSet("complete-yaml-demo");

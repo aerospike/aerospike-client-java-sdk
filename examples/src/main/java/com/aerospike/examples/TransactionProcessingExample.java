@@ -27,6 +27,11 @@ import com.aerospike.client.sdk.policy.Behavior;
 import com.aerospike.client.sdk.util.MapUtil;
 
 public class TransactionProcessingExample extends Example {
+    @Override
+    protected boolean requiresStringAel() {
+        return true;
+    }
+
     public static class Transaction {
         private String id;
         private String desc;

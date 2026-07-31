@@ -25,9 +25,12 @@ import org.apache.commons.cli.DefaultParser;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 
+import com.aerospike.client.sdk.AerospikeException;
 import com.aerospike.client.sdk.Cluster;
 import com.aerospike.client.sdk.ClusterDefinition;
 import com.aerospike.client.sdk.DataSet;
+import com.aerospike.client.sdk.util.Util;
+import com.aerospike.client.sdk.util.Version;
 
 /**
  * Abstract base class for all examples.
@@ -171,6 +174,49 @@ public abstract class Example {
 
     protected DataSet dataSet(String set) {
         return context.dataSet(set);
+    }
+
+    /**
+     * Whether this example requires string AEL (server 8.1.3+). When true and the cluster
+     * is older, {@link ExampleRunner} skips the example before {@link #runExample()}.
+     */
+    protected boolean requiresStringAel() {
+        return false;
+    }
+
+    /** @return true when the connected cluster supports string AEL (8.1.3+). */
+    protected static boolean supportsStringAel(Cluster cluster) {
+        return cluster.getRandomNode().getVersion().isGreaterOrEqual(Version.SERVER_VERSION_8_1_3);
+    }
+
+    /**
+     * Skip with {@link ExampleSkipException} unless the cluster supports string AEL (8.1.3+).
+     */
+    protected void requireStringAel() throws ExampleSkipException {
+        if (!supportsStringAel(cluster())) {
+            Version v = cluster().getRandomNode().getVersion();
+            throw new ExampleSkipException("server is " + v + "; string AEL requires 8.1.3+");
+        }
+    }
+
+    /**
+     * Wait until the tend thread has populated the partition map for {@code namespace}.
+     * Secondary cluster connections (e.g. YAML config demos) need this before writes.
+     */
+    protected static void ensurePartitionMapReady(Cluster cluster, String namespace) {
+        if (cluster == null || namespace == null) {
+            return;
+        }
+
+        for (int attempt = 0; attempt < 60; attempt++) {
+            if (!cluster.getPartitionMap().isEmpty()
+                    && cluster.getPartitionMap().containsKey(namespace)) {
+                return;
+            }
+            Util.sleep(50);
+        }
+
+        throw new AerospikeException("Partition map not ready for namespace '" + namespace + "'");
     }
 
     /**
