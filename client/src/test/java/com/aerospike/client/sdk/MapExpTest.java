@@ -23,17 +23,15 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.TreeMap;
 
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import com.aerospike.client.sdk.cdt.MapOrder;
+import com.aerospike.client.sdk.cdt.MapReturnType;
+import com.aerospike.client.sdk.exp.Exp;
+import com.aerospike.client.sdk.exp.Expression;
+import com.aerospike.client.sdk.exp.MapExp;
 
 public class MapExpTest extends ClusterTest {
-
-    @BeforeAll
-    public static void requireAel() {
-        assumeSupportsAel();
-    }
 
     @Test
     public void sortedMapEquality() {
@@ -52,8 +50,7 @@ public class MapExpTest extends ClusterTest {
             .bin(binName).setTo(map)
             .execute();
 
-        // Expression where = Exp.build(Exp.eq(Exp.mapBin(binName), Exp.val(map)));
-        String where = "$." + binName + ".get(type: MAP) == {'key1': 'e', 'key2': 'd', 'key3': 'c', 'key4': 'b', 'key5': 'a'}";
+        Expression where = Exp.build(Exp.eq(Exp.mapBin(binName), Exp.val(map)));
 
         RecordStream rs = session.query(key)
             .readingOnlyBins(binName)
@@ -86,9 +83,8 @@ public class MapExpTest extends ClusterTest {
             .bin(binName).setTo(map)
             .execute();
 
-        //Expression readExp = Exp.build(
-        //  MapExp.removeByValue(MapReturnType.INVERTED, Exp.val(2), Exp.mapBin(binName)));
-        String readExp = "$." + binName + ".{=2}.get(return: ORDERED_MAP)";
+        Expression readExp = Exp.build(
+            MapExp.removeByValue(MapReturnType.INVERTED, Exp.val(2), Exp.mapBin(binName)));
 
         RecordStream rs = session.query(key)
             .bin(binName).selectFrom(readExp)
