@@ -25,6 +25,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
 
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -45,6 +46,11 @@ public class ExpOperationTest extends ClusterTest {
 
     String keyA = "A";
     byte[] keyB = new byte[] {(byte)'B'};
+
+    @BeforeAll
+    public static void requireAel() {
+        assumeSupportsAel();
+    }
 
     @BeforeEach
     public void setUp() throws Exception {

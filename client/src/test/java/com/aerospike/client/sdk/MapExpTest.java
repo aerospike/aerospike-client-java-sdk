@@ -24,16 +24,23 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.TreeMap;
 
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 import com.aerospike.client.sdk.cdt.MapOrder;
+import com.aerospike.client.sdk.cdt.MapReturnType;
+import com.aerospike.client.sdk.exp.Exp;
+import com.aerospike.client.sdk.exp.Expression;
+import com.aerospike.client.sdk.exp.MapExp;
 
+/**
+ * Integration tests for map expressions: client {@link Exp} API (always run) and
+ * string AEL equivalents (run when server-side AEL supports them).
+ */
 public class MapExpTest extends ClusterTest {
 
     @Test
     public void sortedMapEquality() {
-        assumeFalse(cluster.supportsAel(), "AEL cannot send the map ordering to server side.");
-
         TreeMap<String,String> map = new TreeMap<>();
         map.put("key1", "e");
         map.put("key2", "d");
@@ -48,8 +55,7 @@ public class MapExpTest extends ClusterTest {
             .bin(binName).setTo(map)
             .execute();
 
-        // Expression where = Exp.build(Exp.eq(Exp.mapBin(binName), Exp.val(map)));
-        String where = "$." + binName + ".get(type: MAP) == {'key1': 'e', 'key2': 'd', 'key3': 'c', 'key4': 'b', 'key5': 'a'}";
+        Expression where = Exp.build(Exp.eq(Exp.mapBin(binName), Exp.val(map)));
 
         RecordStream rs = session.query(key)
             .readingOnlyBins(binName)
@@ -69,7 +75,6 @@ public class MapExpTest extends ClusterTest {
 
     @Test
     public void invertedMapExp() {
-        assumeFalse(cluster.supportsAel(), "Server side AEL doesn't support map type fetch");
         HashMap<String,Integer> map = new HashMap<>();
         map.put("a", 1);
         map.put("b", 2);
@@ -83,9 +88,9 @@ public class MapExpTest extends ClusterTest {
             .bin(binName).setTo(map)
             .execute();
 
-        //Expression readExp = Exp.build(
-        //  MapExp.removeByValue(MapReturnType.INVERTED, Exp.val(2), Exp.mapBin(binName)));
-        String readExp = "$." + binName + ".{=2}.get(return: ORDERED_MAP)";
+        // INVERTED remove returns the map with entries removed where value != 2.
+        Expression readExp = Exp.build(
+            MapExp.removeByValue(MapReturnType.INVERTED, Exp.val(2), Exp.mapBin(binName)));
 
         RecordStream rs = session.query(key)
             .bin(binName).selectFrom(readExp)
@@ -97,5 +102,82 @@ public class MapExpTest extends ClusterTest {
         assertEquals(2L, m.size());
         assertEquals(2L, m.get("b"));
         assertEquals(2L, m.get("c"));
+    }
+
+    /**
+     * String AEL equivalents of the {@link Exp} tests above. Skipped on 8.1.3+ until
+     * the server accepts these forms (currently Parameter error).
+     */
+    @Nested
+    class StringAel {
+
+        @Test
+        public void sortedMapEquality() {
+            assumeSupportsAel();
+            assumeFalse(supportsAel(),
+                "server-side string AEL fails (Parameter error): map equality filter "
+                    + "($.m.get(type: MAP) == {...}) cannot compare KEY_ORDERED map ordering");
+
+            TreeMap<String,String> map = new TreeMap<>();
+            map.put("key1", "e");
+            map.put("key2", "d");
+            map.put("key3", "c");
+            map.put("key4", "b");
+            map.put("key5", "a");
+
+            Key key = args.set.id("sortedMapEqualityAel");
+            String binName = "m";
+
+            session.upsert(key)
+                .bin(binName).setTo(map)
+                .execute();
+
+            String where = "$." + binName + ".get(type: MAP) == {'key1': 'e', 'key2': 'd', 'key3': 'c', 'key4': 'b', 'key5': 'a'}";
+
+            RecordStream rs = session.query(key)
+                .readingOnlyBins(binName)
+                .failOnFilteredOut()
+                .where(where)
+                .execute();
+
+            assertTrue(rs.hasNext());
+            Record rec = rs.next().recordOrThrow();
+            AerospikeMap<?,?> m = rec.getMap(binName);
+            assertEquals(MapOrder.KEY_ORDERED, m.getOrder());
+        }
+
+        @Test
+        public void invertedMapExp() {
+            assumeSupportsAel();
+            assumeFalse(supportsAel(),
+                "server-side string AEL fails (Parameter error): "
+                    + "$.m.{=n}.get(return: ORDERED_MAP) in selectFrom is not supported");
+
+            HashMap<String,Integer> map = new HashMap<>();
+            map.put("a", 1);
+            map.put("b", 2);
+            map.put("c", 2);
+            map.put("d", 3);
+
+            Key key = args.set.id("imeAel");
+            String binName = "m";
+
+            session.upsert(key)
+                .bin(binName).setTo(map)
+                .execute();
+
+            String readExp = "$." + binName + ".{=2}.get(return: ORDERED_MAP)";
+
+            RecordStream rs = session.query(key)
+                .bin(binName).selectFrom(readExp)
+                .execute();
+
+            assertTrue(rs.hasNext());
+            Record rec = rs.next().recordOrThrow();
+            Map<?,?> m = rec.getMap(binName);
+            assertEquals(2L, m.size());
+            assertEquals(2L, m.get("b"));
+            assertEquals(2L, m.get("c"));
+        }
     }
 }

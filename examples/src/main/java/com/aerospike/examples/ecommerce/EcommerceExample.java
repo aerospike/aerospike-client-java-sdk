@@ -78,6 +78,8 @@ public class EcommerceExample extends Example {
         placeOrderWithErrorHandling(session, customers, products, orders,
                 "C-MISSING", "SKU-LAP01", 1);
 
+        requireStringAel();
+
         // ==========================================
         // 4. Stream orders for a customer using
         //    Flow.Publisher with backpressure

@@ -321,8 +321,7 @@ public class PutGetTest extends ClusterTest {
             .using(customerMapper)
             .executeAsync(ErrorStrategy.IN_STREAM);
 
-        assertTrue(rs.hasNext());
-        rs.next().recordOrThrow();
+        drainAsyncResults(rs, 3);
 
         List<Customer> readCustomers = session.queryTypedKeys(customerDataSet.ids(key, key + 1, key + 2))
             .execute()
@@ -437,8 +436,7 @@ public class PutGetTest extends ClusterTest {
             .using(customerMapper)
             .executeAsync(ErrorStrategy.IN_STREAM);
 
-        assertTrue(rs.hasNext());
-        rs.next().recordOrThrow();
+        drainAsyncResults(rs, customers.size());
 
         List<Customer> readCustomers = session.query(keys)
             .execute()
@@ -455,5 +453,15 @@ public class PutGetTest extends ClusterTest {
             assertEquals("sample" + c.getId(), c.getName());
             offset++;
         }
+    }
+
+    /** Async multi-key writes complete in the background; drain all results before follow-up reads. */
+    private static void drainAsyncResults(RecordStream rs, int expectedCount) {
+        int count = 0;
+        while (rs.hasNext()) {
+            rs.next().recordOrThrow();
+            count++;
+        }
+        assertEquals(expectedCount, count);
     }
 }

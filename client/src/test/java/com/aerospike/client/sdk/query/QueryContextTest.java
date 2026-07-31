@@ -42,6 +42,8 @@ public class QueryContextTest extends ClusterTest {
 
     @BeforeAll
     public static void prepare() {
+        assumeSupportsAel();
+
         dataSet = args.set;
 
         try {
@@ -73,6 +75,10 @@ public class QueryContextTest extends ClusterTest {
 
     @AfterAll
     public static void destroy() {
+        if (dataSet == null) {
+            return;
+        }
+
         session.dropIndex(dataSet, indexName);
     }
 

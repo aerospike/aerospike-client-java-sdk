@@ -24,6 +24,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -100,6 +101,11 @@ public class ReadOperationsTest extends ClusterTest {
 
     @Nested
     class ExpressionReads {
+
+        @BeforeAll
+        static void requireAel() {
+            assumeSupportsAel();
+        }
 
         @Test
         public void selectFromSimpleExpression() {
@@ -277,6 +283,8 @@ public class ReadOperationsTest extends ClusterTest {
 
         @Test
         public void batchQueryWithSelectFrom() {
+            assumeSupportsAel();
+
             Key key1 = args.set.id(KEY_PREFIX + "1");
             Key key2 = args.set.id(KEY_PREFIX + "2");
 
@@ -319,6 +327,11 @@ public class ReadOperationsTest extends ClusterTest {
 
     @Nested
     class ChainedQueries {
+
+        @BeforeAll
+        static void requireAel() {
+            assumeSupportsAel();
+        }
 
         @Test
         public void chainedQueryWithOperations() {

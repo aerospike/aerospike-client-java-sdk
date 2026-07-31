@@ -18,48 +18,35 @@ package com.aerospike.client.sdk;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
-import com.aerospike.ael.ParseResult;
 import com.aerospike.client.sdk.exp.Expression;
 
 /**
- * WHERE materialization for field {@code 43} paths ({@code parseWhereFromString}).
+ * Server-compiled AEL materialization for field {@code 43} paths.
+ *
+ * <p>Wire layout details are covered by {@link com.aerospike.client.sdk.exp.ServerCompiledFilterWireTest}.</p>
  */
 class AelMaterializerWhereTest extends ClusterTest {
 
-    @Test
-    void parseWhereFromString_allowsIndexFalse_usesServerCompiledOp128WhenSupportsAel() {
-        ParseResult result = AelMaterializer.parseWhereFromString(
-            session,
-            false,
-            args.namespace,
-            null,
-            "$.age > 30"
-        );
+    private static final String AEL = "$.age > 30";
 
-        assertThat(result.getFilter()).isNull();
-        assertThat(result.getExpression()).isNotNull();
-        if (cluster.supportsAel()) {
-            assertThat(isServerCompiledAelWire(result.getExpression())).isTrue();
-        }
-        else {
-            assertThat(isServerCompiledAelWire(result.getExpression())).isFalse();
-        }
+    @BeforeAll
+    static void requireAel() {
+        assumeSupportsAel();
     }
 
     @Test
-    void parseWhereFromString_allowsIndexTrue_mayProduceFilter() {
-        ParseResult result = AelMaterializer.parseWhereFromString(
-            session,
-            true,
-            args.namespace,
-            "aelmaterializerwhere",
-            "$.age > 30"
-        );
+    void stringAel_materializesServerCompiledFilterFromMaterializerAndWhereProcessor() {
+        Expression fromMaterializer = AelMaterializer.expressionFromString(cluster, AEL);
+        Expression fromWhere = com.aerospike.client.sdk.query.WhereClauseProcessor.from(AEL)
+            .toFilterExpression(session);
 
-        assertThat(result.getExpression()).isNotNull();
-        assertThat(isServerCompiledAelWire(result.getExpression())).isFalse();
+        assertThat(fromMaterializer).isNotNull();
+        assertThat(fromWhere).isNotNull();
+        assertThat(isServerCompiledAelWire(fromMaterializer)).isTrue();
+        assertThat(isServerCompiledAelWire(fromWhere)).isTrue();
     }
 
     private static boolean isServerCompiledAelWire(Expression expression) {

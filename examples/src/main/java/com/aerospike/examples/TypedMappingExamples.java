@@ -46,6 +46,11 @@ import com.aerospike.client.sdk.util.MapUtil;
  */
 public final class TypedMappingExamples extends Example {
 
+    @Override
+    protected boolean requiresStringAel() {
+        return true;
+    }
+
     /** Simple inventory row stored under an integer user key. */
     public static final class Widget {
         private long id;

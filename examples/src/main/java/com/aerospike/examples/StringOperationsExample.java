@@ -26,7 +26,6 @@ import com.aerospike.client.sdk.exp.Exp;
 import com.aerospike.client.sdk.exp.StringExp;
 import com.aerospike.client.sdk.operation.StringOperation;
 import com.aerospike.client.sdk.policy.Behavior;
-import com.aerospike.client.sdk.util.Version;
 
 /**
  * Server string read/modify operations (Aerospike 8.1.3+): fluent {@code BinBuilder},
@@ -41,13 +40,9 @@ public class StringOperationsExample extends Example {
 
     @Override
     public void runExample() throws Exception {
-        Cluster cluster = cluster();
-        Version v = cluster.getRandomNode().getVersion();
-        if (!v.isGreaterOrEqual(Version.SERVER_VERSION_8_1_3)) {
-            throw new ExampleSkipException(
-                "server is " + v + "; string operations require 8.1.3+");
-        }
+        requireStringAel();
 
+        Cluster cluster = cluster();
         Session session = cluster.createSession(Behavior.DEFAULT);
         DataSet set = dataSet("string-ops-demo");
         Key key = set.id("row1");

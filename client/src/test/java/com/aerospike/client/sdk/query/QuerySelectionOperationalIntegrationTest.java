@@ -119,7 +119,7 @@ class QuerySelectionOperationalIntegrationTest extends ClusterTest {
         QueryPlan plan = IndexProbePlanner.plan(
             session,
             dataSet,
-            WhereClauseProcessor.from(true, template, 14, 18),
+            WhereClauseProcessor.from(template, 14, 18),
             null);
 
         List<Integer> ages = collectAges(session.query(dataSet)

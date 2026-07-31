@@ -17,10 +17,8 @@
 package com.aerospike.client.sdk;
 
 import java.io.Closeable;
-import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map.Entry;
-import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
@@ -28,7 +26,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
-import com.aerospike.ael.Index;
 import com.aerospike.client.sdk.policy.Behavior;
 import com.aerospike.client.sdk.tend.ClusterTend;
 import com.aerospike.client.sdk.tend.ConnectionRecover;
@@ -42,7 +39,7 @@ import org.slf4j.LoggerFactory;
  * Represents a connection to an Aerospike cluster.
  *
  * <p>This class manages the lifecycle of a connection to an Aerospike cluster,
- * including the underlying client, index monitoring, and record mapping factory.
+ * including the underlying client and record mapping factory.
  * It implements {@link Closeable} to ensure proper resource cleanup.</p>
  *
  * <p>Example usage:</p>
@@ -58,10 +55,6 @@ import org.slf4j.LoggerFactory;
  * @see Behavior
  */
 public class Cluster implements Closeable {
-    /**
-     * Default interval for refreshing index information from the cluster.
-     */
-    public static final Duration INDEX_REFRESH = Duration.ofSeconds(5);
     public static final String CONTEXT = "aerospike.cluster";
     private static final Logger log = LoggerFactory.getLogger(Loggers.TEND);
 
@@ -75,7 +68,6 @@ public class Cluster implements Closeable {
     private final AtomicInteger nodeIndex;
     private final AtomicInteger replicaIndex;
     private final AtomicBoolean closed;
-    private final IndexesMonitor indexesMonitor;
     private RecordMappingFactory recordMappingFactory = null;
     private volatile SystemSettings effectiveSystemSettings = SystemSettings.DEFAULT;
     private Version version;
@@ -105,16 +97,6 @@ public class Cluster implements Closeable {
         else {
             tend.runThread();
         }
-
-        this.indexesMonitor = new IndexesMonitor();
-
-        if (!this.indexesMonitor.startMonitor(createSession(Behavior.DEFAULT), INDEX_REFRESH)) {
-            if (log.isWarnEnabled()) {
-                log.atWarn()
-                    .addKeyValue(Cluster.CONTEXT, def.clusterName)
-                    .log("Initial index fetch did not complete within 1 second. Index information may be incomplete.");
-            }
-        }
     }
 
     /**
@@ -141,20 +123,6 @@ public class Cluster implements Closeable {
      */
     public void startVirtualThread(Runnable runnable) {
         threadFactory.newThread(runnable).start();
-    }
-
-    /**
-     * Gets the set of available indexes in the cluster.
-     *
-     * <p>This returns the current set of secondary indexes that are available
-     * for querying. The index information is automatically refreshed at regular
-     * intervals.</p>
-     *
-     * @return a set of Index objects representing available secondary indexes
-     * @see Index
-     */
-    public Set<Index> getIndexes() {
-        return indexesMonitor.getIndexes();
     }
 
     /**
@@ -737,9 +705,8 @@ public class Cluster implements Closeable {
     /**
      * Close the cluster connection and releases all associated resources.
      *
-     * <p>This method stops the index monitor and closes the underlying client
-     * connection. It should be called when the cluster is no longer needed
-     * to ensure proper resource cleanup.</p>
+     * <p>This method closes the underlying client connection. It should be called when the
+     * cluster is no longer needed to ensure proper resource cleanup.</p>
      *
      * <p>This method is automatically called when using try-with-resources:</p>
      * <pre>{@code
@@ -755,7 +722,6 @@ public class Cluster implements Closeable {
             return;
         }
 
-        indexesMonitor.stopMonitor();
         tend.close();
 
         /* TODO Handle metrics close.

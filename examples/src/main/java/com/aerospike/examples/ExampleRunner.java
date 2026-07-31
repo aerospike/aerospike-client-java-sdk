@@ -38,6 +38,7 @@ public class ExampleRunner {
         List<ExampleResult> results = new ArrayList<>();
 
         try (Cluster cluster = createCluster()) {
+            Example.ensurePartitionMapReady(cluster, args.namespace);
             ExampleContext context = new ExampleContext(cluster, args, console);
 
             for (ExampleDefinition definition : definitions) {
@@ -89,7 +90,13 @@ public class ExampleRunner {
 
         try {
             definition.fixture().setup(context);
-            instantiate(definition).run(context);
+            Example example = instantiate(definition);
+            if (example.requiresStringAel() && !Example.supportsStringAel(context.cluster())) {
+                throw new ExampleSkipException(
+                    "server is " + context.cluster().getRandomNode().getVersion()
+                        + "; string AEL requires 8.1.3+");
+            }
+            example.run(context);
             definition.fixture().verify(context);
             console.info(definition.name() + " Passed");
             result = ExampleResult.passed(definition.name(), elapsedMillis(start));

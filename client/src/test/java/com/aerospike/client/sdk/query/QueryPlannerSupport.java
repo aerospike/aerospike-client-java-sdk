@@ -44,7 +44,7 @@ final class QueryPlannerSupport {
         return IndexProbePlanner.plan(
             ClusterTest.session,
             dataSet,
-            WhereClauseProcessor.from(true, where),
+            WhereClauseProcessor.from(where),
             null);
     }
 
