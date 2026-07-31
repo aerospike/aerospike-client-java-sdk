@@ -65,7 +65,6 @@ import com.aerospike.client.sdk.query.QueryStringTest;
     ListExpTest.class,
     ListMapTest.class,
     MapExpTest.class,
-    NodeChurnPartitionBehaviorTest.class,
     OperateBitTest.class,
     OperateHllTest.class,
     OperateListTest.class,

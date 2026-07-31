@@ -21,9 +21,11 @@ import java.io.File;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 
 import com.aerospike.client.sdk.policy.Behavior;
 import com.aerospike.client.sdk.policy.Behavior.Selectors;
+import com.aerospike.client.sdk.util.Util;
 import com.aerospike.client.sdk.util.Version;
 
 public class ClusterTest {
@@ -99,6 +101,25 @@ public class ClusterTest {
         catch (RuntimeException re) {
             cluster.close();
             throw re;
+        }
+    }
+
+    /**
+     * Brief wait when the tend thread has not yet populated the partition map.
+     * Avoids flaky "Partition map empty" errors in long shared-cluster suites.
+     */
+    @BeforeEach
+    public static void waitForPartitionMap() {
+        if (cluster == null || args.namespace == null) {
+            return;
+        }
+
+        for (int attempt = 0; attempt < 40; attempt++) {
+            if (!cluster.getPartitionMap().isEmpty()
+                    && cluster.getPartitionMap().containsKey(args.namespace)) {
+                return;
+            }
+            Util.sleep(50);
         }
     }
 
