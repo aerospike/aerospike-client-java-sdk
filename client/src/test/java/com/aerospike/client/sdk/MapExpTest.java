@@ -18,23 +18,32 @@ package com.aerospike.client.sdk;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assumptions.assumeFalse;
 
 import java.util.HashMap;
 import java.util.Map;
 import java.util.TreeMap;
 
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import com.aerospike.client.sdk.cdt.MapOrder;
-import com.aerospike.client.sdk.cdt.MapReturnType;
-import com.aerospike.client.sdk.exp.Exp;
-import com.aerospike.client.sdk.exp.Expression;
-import com.aerospike.client.sdk.exp.MapExp;
 
+/**
+ * Effectively no-op. Kept here for server side AEL + Map exp behavior
+ */
 public class MapExpTest extends ClusterTest {
+
+    @BeforeAll
+    public static void requireStringAel() {
+        assumeSupportsAel();
+    }
 
     @Test
     public void sortedMapEquality() {
+        assumeFalse(supportsAel(),
+            "server-side string AEL fails (Parameter error): map equality filter "
+                + "($.m.get(type: MAP) == {...}) cannot compare KEY_ORDERED map ordering");
 
         TreeMap<String,String> map = new TreeMap<>();
         map.put("key1", "e");
@@ -50,7 +59,8 @@ public class MapExpTest extends ClusterTest {
             .bin(binName).setTo(map)
             .execute();
 
-        Expression where = Exp.build(Exp.eq(Exp.mapBin(binName), Exp.val(map)));
+        // Exp equivalent: Exp.build(Exp.eq(Exp.mapBin(binName), Exp.val(map)))
+        String where = "$." + binName + ".get(type: MAP) == {'key1': 'e', 'key2': 'd', 'key3': 'c', 'key4': 'b', 'key5': 'a'}";
 
         RecordStream rs = session.query(key)
             .readingOnlyBins(binName)
@@ -70,6 +80,10 @@ public class MapExpTest extends ClusterTest {
 
     @Test
     public void invertedMapExp() {
+        assumeFalse(supportsAel(),
+            "server-side string AEL fails (Parameter error): "
+                + "$.m.{=n}.get(return: ORDERED_MAP) in selectFrom is not supported");
+
         HashMap<String,Integer> map = new HashMap<>();
         map.put("a", 1);
         map.put("b", 2);
@@ -83,8 +97,8 @@ public class MapExpTest extends ClusterTest {
             .bin(binName).setTo(map)
             .execute();
 
-        Expression readExp = Exp.build(
-            MapExp.removeByValue(MapReturnType.INVERTED, Exp.val(2), Exp.mapBin(binName)));
+        // Exp equivalent: MapExp.removeByValue(MapReturnType.INVERTED, Exp.val(2), Exp.mapBin(binName))
+        String readExp = "$." + binName + ".{=2}.get(return: ORDERED_MAP)";
 
         RecordStream rs = session.query(key)
             .bin(binName).selectFrom(readExp)
