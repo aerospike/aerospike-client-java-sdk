@@ -427,7 +427,7 @@ public class QueryBuilder extends AbstractFilterableBuilder implements
      * @throws IllegalArgumentException if multiple filter conditions are specified
      */
     public QueryBuilder where(String ael, Object ... params) {
-        setWhereClause(createWhereClauseProcessor(this.implementation.allowsSecondaryIndexQuery(), ael, params));
+        setWhereClause(createWhereClauseProcessor(ael, params));
         return this;
     }
 
@@ -517,7 +517,7 @@ public class QueryBuilder extends AbstractFilterableBuilder implements
      * @throws IllegalArgumentException if multiple filter conditions are specified
      */
     public QueryBuilder where(PreparedAel ael, Object ... params) {
-        setWhereClause(WhereClauseProcessor.from(this.implementation.allowsSecondaryIndexQuery(), ael, params));
+        setWhereClause(WhereClauseProcessor.from(ael, params));
         return this;
     }
 

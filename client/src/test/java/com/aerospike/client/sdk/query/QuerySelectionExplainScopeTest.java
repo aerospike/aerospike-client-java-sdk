@@ -241,7 +241,7 @@ class QuerySelectionExplainScopeTest extends ClusterTest {
 
     private static QueryPlan explain(String where) {
         return IndexProbePlanner.plan(
-            session, dataSet, WhereClauseProcessor.from(true, where), null);
+            session, dataSet, WhereClauseProcessor.from(where), null);
     }
 
     private static int countRecords(RecordStream rs) {

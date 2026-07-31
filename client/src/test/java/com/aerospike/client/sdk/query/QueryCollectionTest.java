@@ -96,10 +96,10 @@ public class QueryCollectionTest extends ClusterTest {
     public void queryCollection() throws Exception {
         String queryMapKey = mapKeyPrefix + 2;
 
-        String where = "$." + binName + "." + queryMapKey + ".get(return: EXISTS) == true";
+        // Server AEL .exists() on field 44 (legacy get(return: EXISTS) + forBin was client-only).
+        String where = "$." + binName + "." + queryMapKey + ".exists() == true";
 
         RecordStream rs = session.query(dataSet)
-            .withHint(hint -> hint.forBin(binName))
             .where(where)
             .execute();
 

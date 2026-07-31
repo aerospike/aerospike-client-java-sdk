@@ -27,7 +27,6 @@ import java.util.Objects;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.aerospike.ael.ParseResult;
 import com.aerospike.client.sdk.ael.BooleanExpression;
 import com.aerospike.client.sdk.command.Txn;
 import com.aerospike.client.sdk.exp.Exp;
@@ -880,10 +879,9 @@ public class ChainableOperationBuilder extends AbstractOperationBuilder<Chainabl
     @Override
     public ChainableOperationBuilder where(String ael, Object... params) {
         verifyState("setting where clause");
-        WhereClauseProcessor processor = createWhereClauseProcessor(false, ael, params);
+        WhereClauseProcessor processor = createWhereClauseProcessor(ael, params);
         if (processor != null) {
-            ParseResult parseResult = processor.process(getNamespaceFromKeys(currentSpec.getKeys()), session);
-            currentSpec.setWhereClause(Exp.build(parseResult.getExp()));
+            currentSpec.setWhereClause(processor.toFilterExpression(session));
         }
         return this;
     }
@@ -892,17 +890,15 @@ public class ChainableOperationBuilder extends AbstractOperationBuilder<Chainabl
     public ChainableOperationBuilder where(BooleanExpression ael) {
         verifyState("setting where clause");
         WhereClauseProcessor processor = WhereClauseProcessor.from(ael);
-        ParseResult parseResult = processor.process(getNamespaceFromKeys(currentSpec.getKeys()), session);
-        currentSpec.setWhereClause(Exp.build(parseResult.getExp()));
+        currentSpec.setWhereClause(processor.toFilterExpression(session));
         return this;
     }
 
     @Override
     public ChainableOperationBuilder where(PreparedAel ael, Object... params) {
         verifyState("setting where clause");
-        WhereClauseProcessor processor = WhereClauseProcessor.from(false, ael, params);
-        ParseResult parseResult = processor.process(getNamespaceFromKeys(currentSpec.getKeys()), session);
-        currentSpec.setWhereClause(Exp.build(parseResult.getExp()));
+        WhereClauseProcessor processor = WhereClauseProcessor.from(ael, params);
+        currentSpec.setWhereClause(processor.toFilterExpression(session));
         return this;
     }
 
@@ -910,8 +906,7 @@ public class ChainableOperationBuilder extends AbstractOperationBuilder<Chainabl
     public ChainableOperationBuilder where(Exp exp) {
         verifyState("setting where clause");
         WhereClauseProcessor processor = WhereClauseProcessor.from(exp);
-        ParseResult parseResult = processor.process(getNamespaceFromKeys(currentSpec.getKeys()), session);
-        currentSpec.setWhereClause(Exp.build(parseResult.getExp()));
+        currentSpec.setWhereClause(processor.toFilterExpression(session));
         return this;
     }
 
@@ -919,8 +914,7 @@ public class ChainableOperationBuilder extends AbstractOperationBuilder<Chainabl
     public ChainableOperationBuilder where(Expression e) {
         verifyState("setting where clause");
         WhereClauseProcessor processor = WhereClauseProcessor.from(e);
-        ParseResult parseResult = processor.process(getNamespaceFromKeys(currentSpec.getKeys()), session);
-        currentSpec.setWhereClause(Exp.build(parseResult.getExp()));
+        currentSpec.setWhereClause(processor.toFilterExpression(session));
         return this;
     }
 
@@ -943,10 +937,9 @@ public class ChainableOperationBuilder extends AbstractOperationBuilder<Chainabl
             throw new IllegalStateException("Cannot set defaultWhere before any operations are specified");
         }
 
-        WhereClauseProcessor processor = createWhereClauseProcessor(false, ael, params);
+        WhereClauseProcessor processor = createWhereClauseProcessor(ael, params);
         if (processor != null) {
-            ParseResult parseResult = processor.process(namespace, session);
-            this.defaultWhereClause = Exp.build(parseResult.getExp());
+            this.defaultWhereClause = processor.toFilterExpression(session);
         }
         return this;
     }
@@ -967,8 +960,7 @@ public class ChainableOperationBuilder extends AbstractOperationBuilder<Chainabl
         }
 
         WhereClauseProcessor processor = WhereClauseProcessor.from(ael);
-        ParseResult parseResult = processor.process(namespace, session);
-        this.defaultWhereClause = Exp.build(parseResult.getExp());
+        this.defaultWhereClause = processor.toFilterExpression(session);
         return this;
     }
 
@@ -988,9 +980,8 @@ public class ChainableOperationBuilder extends AbstractOperationBuilder<Chainabl
             throw new IllegalStateException("Cannot set defaultWhere before any operations are specified");
         }
 
-        WhereClauseProcessor processor = WhereClauseProcessor.from(false, ael, params);
-        ParseResult parseResult = processor.process(namespace, session);
-        this.defaultWhereClause = Exp.build(parseResult.getExp());
+        WhereClauseProcessor processor = WhereClauseProcessor.from(ael, params);
+        this.defaultWhereClause = processor.toFilterExpression(session);
         return this;
     }
 
@@ -1010,8 +1001,7 @@ public class ChainableOperationBuilder extends AbstractOperationBuilder<Chainabl
         }
 
         WhereClauseProcessor processor = WhereClauseProcessor.from(exp);
-        ParseResult parseResult = processor.process(namespace, session);
-        this.defaultWhereClause = Exp.build(parseResult.getExp());
+        this.defaultWhereClause = processor.toFilterExpression(session);
         return this;
     }
 

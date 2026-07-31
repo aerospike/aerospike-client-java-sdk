@@ -16,7 +16,6 @@
  */
 package com.aerospike.client.sdk.query;
 
-import com.aerospike.ael.ParseResult;
 import com.aerospike.client.sdk.Cluster;
 import com.aerospike.client.sdk.DataSet;
 import com.aerospike.client.sdk.Session;
@@ -76,7 +75,7 @@ final class IndexProbePlanner {
     ) {
         Cluster cluster = session.getCluster();
         if (!useServerQuerySelection(cluster, where, hint)) {
-            return legacyCommand(session, cluster, dataSet, where, policy, qb);
+            return legacyCommand(cluster, dataSet, where, policy, qb);
         }
         QueryPlan plan = plan(session, dataSet, where, hint);
         return QueryCommand.forPlan(cluster, dataSet, plan, policy, qb);
@@ -137,22 +136,16 @@ final class IndexProbePlanner {
     }
 
     private static QueryCommand legacyCommand(
-        Session session,
         Cluster cluster,
         DataSet dataSet,
         WhereClauseProcessor where,
         ResolvedSettings policy,
         QueryBuilder qb
     ) {
-        Filter filter = null;
         Expression filterExp = null;
-
         if (where != null) {
-            ParseResult pr = where.process(dataSet.getNamespace(), dataSet.getSet(), session);
-            filter = pr.getFilter();
-            filterExp = pr.getExpression();
+            filterExp = where.toFilterExpression(cluster);
         }
-
-        return new QueryCommand(cluster, dataSet, filter, filterExp, policy, qb);
+        return new QueryCommand(cluster, dataSet, null, filterExp, policy, qb);
     }
 }

@@ -20,38 +20,32 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import org.junit.jupiter.api.Test;
 
-import com.aerospike.ael.ParseResult;
 import com.aerospike.client.sdk.exp.Expression;
 
 /**
- * WHERE materialization for field {@code 43} paths ({@code parseWhereFromString}).
+ * Server-compiled AEL materialization for field {@code 43} paths.
  */
 class AelMaterializerWhereTest extends ClusterTest {
 
     @Test
-    void parseWhereFromString_allowsIndexFalse_usesServerCompiledOp128WhenSupportsAel() {
-        ParseResult result = AelMaterializer.parseWhereFromString(
-            session,
-            "$.age > 30"
-        );
+    void expressionFromString_usesServerCompiledOp128WhenSupportsAel() {
+        Expression expression = AelMaterializer.expressionFromString(cluster, "$.age > 30");
 
-        assertThat(result.getFilter()).isNull();
-        assertThat(result.getExpression()).isNotNull();
+        assertThat(expression).isNotNull();
         if (cluster.supportsAel()) {
-            //TODO clean up
-            assertThat(isServerCompiledAelWire(result.getExpression())).isTrue();
+            assertThat(isServerCompiledAelWire(expression)).isTrue();
         }
     }
 
     @Test
-    void parseWhereFromString_allowsIndexTrue_mayProduceFilter() {
-        ParseResult result = AelMaterializer.parseWhereFromString(
-            session,
-            "$.age > 30"
-        );
+    void whereClauseProcessor_stringAel_materializesServerCompiledFilter() {
+        var where = com.aerospike.client.sdk.query.WhereClauseProcessor.from("$.age > 30");
+        Expression expression = where.toFilterExpression(session);
 
-        assertThat(result.getExpression()).isNotNull();
-        assertThat(isServerCompiledAelWire(result.getExpression())).isFalse();
+        assertThat(expression).isNotNull();
+        if (cluster.supportsAel()) {
+            assertThat(isServerCompiledAelWire(expression)).isTrue();
+        }
     }
 
     private static boolean isServerCompiledAelWire(Expression expression) {

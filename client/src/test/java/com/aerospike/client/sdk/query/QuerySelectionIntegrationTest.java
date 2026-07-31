@@ -53,7 +53,6 @@ import com.aerospike.client.sdk.query.plan.QueryPlan;
 import com.aerospike.client.sdk.query.plan.QuerySelection;
 import com.aerospike.client.sdk.util.Version;
 
-import com.aerospike.ael.ParseResult;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -204,7 +203,7 @@ public class QuerySelectionIntegrationTest extends ClusterTest {
     @Test
     void indexProbePlannerSmoke() {
         String where = "$.age >= 14 and $.age <= 18";
-        WhereClauseProcessor whereClause = WhereClauseProcessor.from(true, where);
+        WhereClauseProcessor whereClause = WhereClauseProcessor.from(where);
 
         QueryPlan plan = IndexProbePlanner.plan(session, dataSet, whereClause, null);
 
@@ -757,7 +756,7 @@ public class QuerySelectionIntegrationTest extends ClusterTest {
 
     private static QueryPlan explainPlan(String where) {
         return IndexProbePlanner.plan(
-            session, dataSet, WhereClauseProcessor.from(true, where), null);
+            session, dataSet, WhereClauseProcessor.from(where), null);
     }
 
     private static QueryPlan explainPlan(QueryBuilder qb) {
@@ -796,9 +795,8 @@ public class QuerySelectionIntegrationTest extends ClusterTest {
         QueryBuilder legacyQb = session.query(dataSet)
             .where(where)
             .withHint(hint -> hint.forBin(binName));
-        ParseResult pr = legacyQb.getAel().process(dataSet.getNamespace(), dataSet.getSet(), session);
-        QueryCommand legacyCmd = new QueryCommand(
-            cluster, dataSet, pr.getFilter(), pr.getExpression(), settings, legacyQb);
+        QueryCommand legacyCmd = IndexProbePlanner.buildCommand(
+            session, dataSet, legacyQb.getAel(), legacyQb.getQueryHint(), settings, legacyQb);
         byte[] legacy43 = fieldBytes(encodeExecuteQuery(legacyCmd), FieldType.FILTER_EXP);
 
         assertArrayEquals(plan.getExecuteWhereBytes(), serverLed44);

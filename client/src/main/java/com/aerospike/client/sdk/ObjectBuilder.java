@@ -32,7 +32,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.aerospike.ael.ParseResult;
 import com.aerospike.client.sdk.command.Batch;
 import com.aerospike.client.sdk.command.BatchAttr;
 import com.aerospike.client.sdk.command.BatchCommand;
@@ -1305,8 +1304,7 @@ public class ObjectBuilder<T> {
 
     private Expression getFilterExp(String namespace, String querySet) {
         if (opBuilder.getAel() != null && !elements.isEmpty()) {
-            ParseResult parseResult = opBuilder.getAel().process(namespace, querySet, opBuilder.getSession());
-            return Exp.build(parseResult.getExp());
+            return opBuilder.getAel().toFilterExpression(opBuilder.getSession());
         }
         return null;
     }

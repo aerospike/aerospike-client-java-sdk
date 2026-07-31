@@ -187,7 +187,7 @@ class QuerySelectionHintFlagsTest extends ClusterTest {
 
     private static QueryPlan explainPlan(String where) {
         return IndexProbePlanner.plan(
-            session, dataSet, WhereClauseProcessor.from(true, where), null);
+            session, dataSet, WhereClauseProcessor.from(where), null);
     }
 
     private static QueryPlan explainPlan(QueryBuilder qb) {
