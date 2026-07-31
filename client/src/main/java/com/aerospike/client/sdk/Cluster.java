@@ -661,9 +661,7 @@ public class Cluster implements Closeable {
      * <p>Requires cluster minimum version {@link Version#SERVER_VERSION_8_1_3} or newer.</p>
      */
     public boolean supportsQuerySelection() {
-        // TODO Change to version check when server main branch supports it.
-        //return versionGE813;
-        return false;
+        return versionGE813;
     }
 
     /**

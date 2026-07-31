@@ -17,12 +17,17 @@
 package com.aerospike.client.sdk.query.plan;
 
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 
 /**
  * Encodes field {@code 44} ({@code WHERE}) payloads for server query explain/execute.
  *
- * <p>Wire shape: {@code [flags: u8][AEL source UTF-8...]}. Flags match server
- * {@code AS_QUERY_WHERE_FLAG_*} in {@code query_where.h}.</p>
+ * <p>Wire shape: {@code [flag-byte 0][flag-byte 1]…[flag-byte N][AEL source UTF-8…]}.
+ * Each flag byte uses varInt-style continuation: bit {@code 0} = more flag bytes follow;
+ * bits {@code 1–7} = semantic flags OR'd across bytes. When all semantic flags fit in one
+ * byte, bit {@code 0} is clear (v1-compatible single-byte prefix).</p>
+ *
+ * <p>Flags match server {@code AS_QUERY_WHERE_FLAG_*} in {@code query_where.h}.</p>
  *
  * <p>Non-blank AEL is validated at the explain probe entry
  * ({@link com.aerospike.client.sdk.query.IndexProbePlanner} /
@@ -33,8 +38,9 @@ import java.nio.charset.StandardCharsets;
 public final class QueryWhereWire {
 
     /**
-     * Bit 0 encoding selector — {@code 0} = single-byte flags (v1); {@code 1} = varInt (future).
-     * Must remain clear until varInt encoding is supported.
+     * Bit 0 continuation bit — {@code 1} = more flag bytes follow; {@code 0} = last flag byte.
+     *
+     * <p>On a single-byte prefix with bit 0 clear, wire layout matches v1 encoding.</p>
      */
     public static final int FLAG_ENC_VARINT = 1 << 0;
 
@@ -53,6 +59,12 @@ public final class QueryWhereWire {
     /** Explain-only flags cleared when building field {@code 44} for execute. */
     static final int EXPLAIN_ONLY_FLAGS = FLAG_EXPLAIN | FLAG_REQUIRE_INDEX | FLAG_HARD_HINT;
 
+    /** Semantic flag bits carried in bits 1–7 of each prefix byte. */
+    private static final int FLAG_SEMANTIC_MASK = 0xFE;
+
+    /** Maximum varInt-style flag prefix length (guards malformed payloads). */
+    private static final int MAX_FLAG_PREFIX_LEN = 4;
+
     private QueryWhereWire() {
     }
 
@@ -68,11 +80,14 @@ public final class QueryWhereWire {
      * {@link #FLAG_EXPLAIN}).
      */
     public static byte[] forExplain(int flags, String ael) {
+        if ((flags & FLAG_EXPLAIN) == 0) {
+            throw new IllegalArgumentException("explain WHERE flags must include EXPLAIN");
+        }
         return encode(flags, ael);
     }
 
     /**
-     * Field {@code 44} body for phase 2 (execute) — same AEL, EXPLAIN cleared.
+     * Field {@code 44} body for phase 2 (execute) — same AEL, explain-only flags cleared.
      */
     public static byte[] forExecute(String ael) {
         return encode(0, ael);
@@ -88,7 +103,7 @@ public final class QueryWhereWire {
     }
 
     /**
-     * Encodes a WHERE field value: {@code [flags][AEL UTF-8]}.
+     * Encodes a WHERE field value: varInt-style flag prefix + AEL UTF-8.
      *
      * @param flags bit mask of {@link #FLAG_EXPLAIN}, {@link #FLAG_REQUIRE_INDEX}, etc.
      * @param ael   raw AEL source text (not packed predexp, not msgpack {@code [128,"…"]})
@@ -98,28 +113,55 @@ public final class QueryWhereWire {
         validateFlags(flags);
         byte[] aelBytes = ael.getBytes(StandardCharsets.UTF_8);
         byte[] payload = new byte[1 + aelBytes.length];
-        payload[0] = (byte) flags;
+        payload[0] = (byte) (flags & FLAG_SEMANTIC_MASK);
         System.arraycopy(aelBytes, 0, payload, 1, aelBytes.length);
         return payload;
     }
 
     /**
-     * Rebuilds execute payload from an explain payload (clears {@link #FLAG_EXPLAIN}).
+     * Rebuilds execute payload from an explain payload (clears explain-only flags).
+     *
+     * <p>A multi-byte prefix may collapse to a single byte after clearing explain flags.</p>
      */
     public static byte[] clearExplain(byte[] explainPayload) {
-        int executeFlags = (explainPayload[0] & 0xFF) & ~EXPLAIN_ONLY_FLAGS;
-        byte[] payload = new byte[explainPayload.length];
-        payload[0] = (byte) executeFlags;
-        System.arraycopy(explainPayload, 1, payload, 1, explainPayload.length - 1);
+        if (explainPayload.length == 0) {
+            return explainPayload;
+        }
+
+        FlagPrefix parsed = decodeFlagPrefix(explainPayload);
+        int executeFlags = parsed.flags & ~EXPLAIN_ONLY_FLAGS;
+
+        if (parsed.aelOffset == 1 && executeFlags == 0) {
+            byte[] execute = Arrays.copyOf(explainPayload, explainPayload.length);
+            execute[0] = 0;
+            return execute;
+        }
+
+        byte[] prefix = encodeFlagPrefix(executeFlags);
+        int aelLength = explainPayload.length - parsed.aelOffset;
+        byte[] payload = new byte[prefix.length + aelLength];
+        System.arraycopy(prefix, 0, payload, 0, prefix.length);
+        System.arraycopy(explainPayload, parsed.aelOffset, payload, prefix.length, aelLength);
         return payload;
     }
 
+    /**
+     * Returns the decoded semantic flags from a WHERE payload.
+     */
     public static int flags(byte[] payload) {
-        return payload[0] & 0xFF;
+        return decodeFlagPrefix(payload).flags;
     }
 
+    /**
+     * Returns the AEL source text from a WHERE payload.
+     */
     public static String ael(byte[] payload) {
-        return new String(payload, 1, payload.length - 1, StandardCharsets.UTF_8);
+        FlagPrefix parsed = decodeFlagPrefix(payload);
+        if (parsed.aelOffset >= payload.length) {
+            throw new IllegalArgumentException("missing WHERE AEL");
+        }
+        return new String(payload, parsed.aelOffset, payload.length - parsed.aelOffset,
+            StandardCharsets.UTF_8);
     }
 
     private static void validateFlags(int flags) {
@@ -127,7 +169,49 @@ public final class QueryWhereWire {
             throw new IllegalArgumentException("unknown WHERE flags 0x" + Integer.toHexString(flags));
         }
         if ((flags & FLAG_ENC_VARINT) != 0) {
-            throw new IllegalArgumentException("varInt WHERE flags encoding is not supported");
+            throw new IllegalArgumentException(
+                "WHERE flag bit 0 is reserved for wire continuation, not a semantic flag");
         }
+    }
+
+    /**
+     * Decodes a varInt-style flag prefix and returns semantic flags plus the AEL byte offset.
+     */
+    private static FlagPrefix decodeFlagPrefix(byte[] payload) {
+        if (payload.length == 0) {
+            throw new IllegalArgumentException("missing WHERE payload");
+        }
+
+        int offset = 0;
+        int decoded = 0;
+
+        while (true) {
+            if (offset >= payload.length) {
+                throw new IllegalArgumentException("truncated WHERE flag prefix");
+            }
+            if (offset >= MAX_FLAG_PREFIX_LEN) {
+                throw new IllegalArgumentException("WHERE flag prefix too long");
+            }
+
+            int b = payload[offset++] & 0xFF;
+            decoded |= b & FLAG_SEMANTIC_MASK;
+            if ((b & FLAG_ENC_VARINT) == 0) {
+                break;
+            }
+        }
+
+        return new FlagPrefix(decoded, offset);
+    }
+
+    /**
+     * Encodes semantic flags into a varInt-style prefix.
+     *
+     * <p>Current Tier-D flags always fit in one byte with continuation clear.</p>
+     */
+    private static byte[] encodeFlagPrefix(int semantic) {
+        return new byte[] { (byte) (semantic & FLAG_SEMANTIC_MASK) };
+    }
+
+    private record FlagPrefix(int flags, int aelOffset) {
     }
 }
