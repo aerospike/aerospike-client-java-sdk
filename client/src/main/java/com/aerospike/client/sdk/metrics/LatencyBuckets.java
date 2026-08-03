@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2024 Aerospike, Inc.
+ * Copyright 2012-2026 Aerospike, Inc.
  *
  * Portions may be licensed to Aerospike, Inc. under one or more contributor
  * license agreements WHICH ARE COMPATIBLE WITH THE APACHE LICENSE, VERSION 2.0.
@@ -16,7 +16,7 @@
  */
 package com.aerospike.client.sdk.metrics;
 
-import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.LongAdder;
 
 /**
  * Latency buckets for a command group (See {@link com.aerospike.client.metrics.LatencyType}).
@@ -25,7 +25,7 @@ import java.util.concurrent.atomic.AtomicLong;
 public final class LatencyBuckets {
 	private static final long NS_TO_MS = 1000000;
 
-	private final AtomicLong[] buckets;
+	private final LongAdder[] buckets;
 	private final int latencyShift;
 
 	/**
@@ -37,10 +37,10 @@ public final class LatencyBuckets {
 	 */
 	public LatencyBuckets(int latencyColumns, int latencyShift) {
 		this.latencyShift = latencyShift;
-		buckets = new AtomicLong[latencyColumns];
+		buckets = new LongAdder[latencyColumns];
 
 		for (int i = 0; i < buckets.length; i++) {
-			buckets[i] = new AtomicLong();
+			buckets[i] = new LongAdder();
 		}
 	}
 
@@ -55,7 +55,7 @@ public final class LatencyBuckets {
 	 * Return cumulative count of a bucket.
 	 */
 	public long getBucket(int i) {
-		return buckets[i].get();
+		return buckets[i].longValue();
 	}
 
 	/**
@@ -63,7 +63,7 @@ public final class LatencyBuckets {
 	 */
 	public void add(long elapsed) {
 		int index = getIndex(elapsed);
-		buckets[index].getAndIncrement();
+		buckets[index].increment();
 	}
 
 	private int getIndex(long elapsedNanos) {
