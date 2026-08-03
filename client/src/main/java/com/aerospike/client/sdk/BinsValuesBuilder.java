@@ -30,7 +30,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.aerospike.ael.ParseResult;
 import com.aerospike.client.sdk.ael.BooleanExpression;
 import com.aerospike.client.sdk.command.Batch;
 import com.aerospike.client.sdk.command.BatchAttr;
@@ -470,7 +469,7 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder
      */
     @Override
     public BinsValuesBuilder where(String ael, Object... params) {
-        setWhereClause(createWhereClauseProcessor(false, ael, params));
+        setWhereClause(createWhereClauseProcessor(ael, params));
         return this;
     }
 
@@ -497,7 +496,7 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder
      */
     @Override
     public BinsValuesBuilder where(PreparedAel ael, Object... params) {
-        setWhereClause(WhereClauseProcessor.from(false, ael, params));
+        setWhereClause(WhereClauseProcessor.from(ael, params));
         return this;
     }
 
@@ -1047,8 +1046,7 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder
     private Expression getFilterExp(Session session, String namespace, String querySet) {
         if (ael != null) {
             // Apply filter expression clause.
-            ParseResult parseResult = ael.process(namespace, querySet, session);
-            return Exp.build(parseResult.getExp());
+            return ael.toFilterExpression(session);
         } else {
             return null;
         }

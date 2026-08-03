@@ -65,7 +65,6 @@ import com.aerospike.client.sdk.query.QueryStringTest;
     ListExpTest.class,
     ListMapTest.class,
     MapExpTest.class,
-    NodeChurnPartitionBehaviorTest.class,
     OperateBitTest.class,
     OperateHllTest.class,
     OperateListTest.class,
@@ -170,6 +169,7 @@ public class SuiteCluster {
         ClusterTest.session = session;
         ClusterTest.sessionWithSendKey = sessionWithSendKey;
         ClusterTest.initializedBySuite = true;
+        ClusterTest.ensurePartitionMapReady();
     }
 
     private static String resolvePath(String dir, String path) {

@@ -104,6 +104,7 @@ public class YamlConfigConnectionExample extends Example {
         }
 
         try (Cluster cluster = clusterDef.connect()) {
+            ensurePartitionMapReady(cluster, namespace());
             console.write("Successfully connected to cluster!\n");
 
             // Show if behaviors were loaded from YAML

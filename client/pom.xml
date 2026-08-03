@@ -39,11 +39,6 @@
     </dependency>
 
     <dependency>
-        <groupId>org.antlr</groupId>
-        <artifactId>antlr4-runtime</artifactId>
-    </dependency>
-
-    <dependency>
         <groupId>org.projectlombok</groupId>
         <artifactId>lombok</artifactId>
     </dependency>
@@ -166,38 +161,11 @@
           <show>public</show>
           <splitindex>true</splitindex>
           <bottom>Copyright &#169; 2012&#x2013;{currentYear} Aerospike, Inc. All rights reserved.</bottom>
-          <sourcepath>${basedir}/src/main/java${path.separator}${project.build.directory}/generated-sources/antlr4</sourcepath>
+          <sourcepath>${basedir}/src/main/java</sourcepath>
           <sourceFileIncludes>
             <include>com/aerospike/client/sdk/*</include>
           </sourceFileIncludes>
         </configuration>
-      </plugin>
-    
-      <plugin>
-        <groupId>org.antlr</groupId>
-        <artifactId>antlr4-maven-plugin</artifactId>
-        <version>${antlr.version}</version>
-        <executions>
-          <execution>
-            <id>antlr</id>
-            <phase>generate-sources</phase>
-            <goals>
-              <goal>antlr4</goal>
-            </goals>
-            <configuration>
-              <sourceDirectory>src/main/antlr4/com/aerospike/ael</sourceDirectory>
-              <outputDirectory>${project.build.directory}/generated-sources/antlr4/com/aerospike/ael</outputDirectory>
-              <listener>false</listener>
-              <arguments>
-                <argument>-visitor</argument>
-                <argument>-no-listener</argument>
-              </arguments>
-              <includes>
-                <include>Condition.g4</include>
-              </includes>
-          </configuration>
-          </execution>
-        </executions>
       </plugin>
     </plugins>
   </build>

@@ -117,6 +117,8 @@ public class ExpSecondaryIndexTest extends ClusterTest {
 
     @Test
     public void queryExpSIbyName() {
+        assumeSupportsAel();
+
         String sincdices = getSecondaryIndices();
         if (!sincdices.contains("indexname=" + indexName)) {
             addExpSI();

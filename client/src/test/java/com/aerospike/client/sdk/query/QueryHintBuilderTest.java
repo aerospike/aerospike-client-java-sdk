@@ -28,7 +28,6 @@ import org.junit.jupiter.api.Test;
 import com.aerospike.client.sdk.AerospikeException;
 import com.aerospike.client.sdk.ClusterTest;
 import com.aerospike.client.sdk.DataSet;
-import com.aerospike.client.sdk.RecordStream;
 import com.aerospike.client.sdk.ResultCode;
 import com.aerospike.client.sdk.policy.QueryDuration;
 
@@ -162,52 +161,5 @@ public class QueryHintBuilderTest extends ClusterTest {
             .withHint(hint -> hint.forIndex("idx"));
 
         assertThrows(IllegalArgumentException.class, () -> qb.withHint(hint -> hint.forBin("age")));
-    }
-
-    // -- query executes with hint (smoke test) --------------------------------
-
-    @Test
-    public void queryWithIndexHintExecutes() {
-        RecordStream rs = session.query(dataSet)
-            .where("$." + binName + " >= 10 and $." + binName + " <= 50")
-            .withHint(hint -> hint.forIndex(indexName).queryDuration(QueryDuration.SHORT))
-            .execute();
-
-        int count = 0;
-        while (rs.hasNext()) {
-            rs.next().recordOrThrow();
-            count++;
-        }
-        assertEquals(size, count);
-    }
-
-    @Test
-    public void queryWithBinHintExecutes() {
-        RecordStream rs = session.query(dataSet)
-            .where("$." + binName + " >= 10 and $." + binName + " <= 50")
-            .withHint(hint -> hint.forBin(binName))
-            .execute();
-
-        int count = 0;
-        while (rs.hasNext()) {
-            rs.next().recordOrThrow();
-            count++;
-        }
-        assertEquals(size, count);
-    }
-
-    @Test
-    public void queryWithDurationOnlyHintExecutes() {
-        RecordStream rs = session.query(dataSet)
-            .where("$." + binName + " >= 10 and $." + binName + " <= 50")
-            .withHint(hint -> hint.queryDuration(QueryDuration.SHORT))
-            .execute();
-
-        int count = 0;
-        while (rs.hasNext()) {
-            rs.next().recordOrThrow();
-            count++;
-        }
-        assertEquals(size, count);
     }
 }

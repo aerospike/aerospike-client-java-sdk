@@ -43,10 +43,6 @@ public class IndexQueryBuilderImpl extends QueryImpl {
     }
 
     @Override
-    public boolean allowsSecondaryIndexQuery() {
-        return true;
-    }
-    @Override
     public RecordStream execute() {
         return executeInternal(null);
     }

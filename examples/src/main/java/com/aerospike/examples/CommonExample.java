@@ -277,6 +277,8 @@ public class CommonExample extends Example {
 
         session.createIndex(set, "ageidx", "age", IndexType.INTEGER, IndexCollectionType.DEFAULT).waitTillComplete();
 
+        requireStringAel();
+
         System.out.println("Foreground secondary index query");
 
         rs = session.query(set)

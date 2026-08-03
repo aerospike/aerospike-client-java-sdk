@@ -46,6 +46,8 @@ public class QueryCollectionTest extends ClusterTest {
 
     @BeforeAll
     public static void prepare() {
+        assumeSupportsAel();
+
         dataSet = DataSet.of(args.namespace, setName);
 
         for (int i = 1; i <= size; i++) {
@@ -85,6 +87,10 @@ public class QueryCollectionTest extends ClusterTest {
 
     @AfterAll
     public static void destroy() {
+        if (dataSet == null) {
+            return;
+        }
+
         for (int i = 1; i <= size; i++) {
             String key = keyPrefix + i;
             session.delete(dataSet.ids(key));
@@ -96,10 +102,10 @@ public class QueryCollectionTest extends ClusterTest {
     public void queryCollection() throws Exception {
         String queryMapKey = mapKeyPrefix + 2;
 
-        String where = "$." + binName + "." + queryMapKey + ".get(return: EXISTS) == true";
+        // Server AEL .exists() on field 44 (legacy get(return: EXISTS) + forBin was client-only).
+        String where = "$." + binName + "." + queryMapKey + ".exists() == true";
 
         RecordStream rs = session.query(dataSet)
-            .withHint(hint -> hint.forBin(binName))
             .where(where)
             .execute();
 

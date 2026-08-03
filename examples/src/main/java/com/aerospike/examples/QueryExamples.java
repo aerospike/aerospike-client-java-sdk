@@ -71,6 +71,11 @@ import com.aerospike.examples.query.CustomerMapper;
 @SuppressWarnings("unused")
 public class QueryExamples extends Example {
 
+    @Override
+    protected boolean requiresStringAel() {
+        return true;
+    }
+
     public static void print(RecordStream recordStream) {
         int count = 0;
         while (recordStream.hasNext()) {
@@ -831,7 +836,7 @@ public class QueryExamples extends Example {
             .defaultExpireRecordAfter(Duration.ofMinutes(20))
             .execute();
         System.out.println("Multi operations:");
-        print(rsStream);
+        print((RecordStream) rsStream);
 
         rsStream = session.queryTypedKeys(customerDataSet.ids(1,2,3))
                     .bin("name").get()

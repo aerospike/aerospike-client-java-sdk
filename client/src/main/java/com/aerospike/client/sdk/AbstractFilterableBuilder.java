@@ -19,7 +19,6 @@ package com.aerospike.client.sdk;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.aerospike.ael.ParseResult;
 import com.aerospike.client.sdk.command.BatchRecord;
 import com.aerospike.client.sdk.exp.Expression;
 import com.aerospike.client.sdk.policy.ResolvedSettings;
@@ -62,8 +61,7 @@ public abstract class AbstractFilterableBuilder {
         if (this.ael == null) {
             return null;
         }
-        ParseResult parseResult = this.ael.process(namespace, querySet, session);
-        return parseResult.getExpression();
+        return this.ael.toFilterExpression(session);
     }
 
     /**
@@ -103,13 +101,13 @@ public abstract class AbstractFilterableBuilder {
     /**
      * Create WhereClauseProcessor from AEL string.
      */
-    protected WhereClauseProcessor createWhereClauseProcessor(boolean allowSecondaryIndex, String ael, Object... params) {
+    protected WhereClauseProcessor createWhereClauseProcessor(String ael, Object... params) {
         if (ael == null || ael.isEmpty()) {
             return null;
         } else if (params.length == 0) {
-            return WhereClauseProcessor.from(allowSecondaryIndex, ael);
+            return WhereClauseProcessor.from(ael);
         } else {
-            return WhereClauseProcessor.from(allowSecondaryIndex, String.format(ael, params));
+            return WhereClauseProcessor.from(String.format(ael, params));
         }
     }
 

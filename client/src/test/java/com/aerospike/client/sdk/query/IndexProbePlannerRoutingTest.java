@@ -39,11 +39,10 @@ class IndexProbePlannerRoutingTest extends ClusterTest {
     }
 
     @Test
-    void useServerQuerySelection_stringAel_ignoresAllowsIndexFalse() {
-        WhereClauseProcessor where = WhereClauseProcessor.from(false, "$.age > 30");
+    void useServerQuerySelection_stringAel_usesServerExplain() {
+        WhereClauseProcessor where = WhereClauseProcessor.from("$.age > 30");
 
         assertTrue(where.hasStringAel());
-        assertFalse(where.allowsIndex());
         assertTrue(IndexProbePlanner.useServerQuerySelection(cluster, where, null));
     }
 
@@ -57,7 +56,7 @@ class IndexProbePlannerRoutingTest extends ClusterTest {
 
     @Test
     void useServerQuerySelection_forBinHint_staysLegacy() {
-        WhereClauseProcessor where = WhereClauseProcessor.from(true, "$.age > 30");
+        WhereClauseProcessor where = WhereClauseProcessor.from("$.age > 30");
         QueryHint.Result hint = QueryHint.create().forBin("age");
 
         assertFalse(IndexProbePlanner.useServerQuerySelection(cluster, where, hint));
@@ -65,37 +64,35 @@ class IndexProbePlannerRoutingTest extends ClusterTest {
 
     @Test
     void useServerQuerySelection_mapKeysCollection_usesServerExplain() {
-        WhereClauseProcessor where = WhereClauseProcessor.from(true,
-            "$.map_bin.mkey2.get(return: EXISTS) == true");
+        WhereClauseProcessor where = WhereClauseProcessor.from("$.map_bin.mkey2.get(return: EXISTS) == true");
 
         assertTrue(IndexProbePlanner.useServerQuerySelection(cluster, where, null));
     }
 
     @Test
     void useServerQuerySelection_blobEquality_usesServerExplain() {
-        WhereClauseProcessor where = WhereClauseProcessor.from(true,
-            "$.bb == x'000000000000c350'");
+        WhereClauseProcessor where = WhereClauseProcessor.from("$.bb == x'000000000000c350'");
 
         assertTrue(IndexProbePlanner.useServerQuerySelection(cluster, where, null));
     }
 
     @Test
     void useServerQuerySelection_primaryIndexPredicate_usesServer() {
-        WhereClauseProcessor where = WhereClauseProcessor.from(true, "$.country == 'US'");
+        WhereClauseProcessor where = WhereClauseProcessor.from("$.country == 'US'");
 
         assertTrue(IndexProbePlanner.useServerQuerySelection(cluster, where, null));
     }
 
     @Test
     void useServerQuerySelection_integerRange_usesServer() {
-        WhereClauseProcessor where = WhereClauseProcessor.from(true, "$.age >= 14 and $.age <= 18");
+        WhereClauseProcessor where = WhereClauseProcessor.from("$.age >= 14 and $.age <= 18");
 
         assertTrue(IndexProbePlanner.useServerQuerySelection(cluster, where, null));
     }
 
     @Test
     void planRejectsBlankAel() {
-        WhereClauseProcessor where = WhereClauseProcessor.from(false, "   ");
+        WhereClauseProcessor where = WhereClauseProcessor.from("   ");
         assertThrows(IllegalArgumentException.class,
             () -> IndexProbePlanner.plan(session, args.set, where, null));
     }
