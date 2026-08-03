@@ -16,6 +16,8 @@
 */
 package com.aerospike.client.sdk.exp;
 
+import com.aerospike.client.sdk.AerospikeException;
+import com.aerospike.client.sdk.ResultCode;
 import com.aerospike.client.sdk.cdt.CTX;
 import com.aerospike.client.sdk.util.Packer;
 
@@ -86,6 +88,8 @@ public class CdtExp {
 	 * @return				an {@link Exp} that evaluates to the type specified by {@code returnType}
 	 */
     public static Exp selectByPath(Exp.Type returnType, int flags, Exp bin, CTX... ctx) {
+        validateFlags(flags, "select");
+
         byte[] bytes = packCdtSelect(Type.SELECT, flags, ctx);
 
         return new Exp.Module(bin, bytes, returnType.code, MODULE);
@@ -138,12 +142,29 @@ public class CdtExp {
 	 * @return				an {@link Exp} containing the entire modified CDT structure
 	 */
     public static Exp modifyByPath(Exp.Type returnType, int modifyFlag, Exp modifyExp, Exp bin, CTX... ctx) {
+        validateFlags(modifyFlag, "modify");
+
         byte[] bytes = packCdtModify(Type.SELECT, modifyFlag, modifyExp, ctx);
 
         return new Exp.Module(bin, bytes, returnType.code, MODULE | MODIFY);
     }
 
-	private static byte[] packCdtModify(Type type, int modifyFlag, Exp modifyExp, CTX... ctx) {
+    /**
+     * Reject invalid path flags instead of masking them into a valid operation.
+     * <p>
+     * Legal select flags are the exposed {@link SelectFlags} constants (0..3 and 0x10)
+     * and legal modify flags are the {@link ModifyFlags} constants (0 and 0x10); a
+     * negative value, or one with bit 2 (the internal apply bit) set, is never valid.
+     * Without this check a negative value silently aliases onto a valid server return
+     * type instead of erroring (CLIENT-5184).
+     */
+    private static void validateFlags(int flags, String name) {
+        if (flags < 0 || (flags & 4) != 0) {
+            throw new AerospikeException(ResultCode.PARAMETER_ERROR, "invalid " + name + " flag " + flags);
+        }
+    }
+
+    private static byte[] packCdtModify(Type type, int modifyFlag, Exp modifyExp, CTX... ctx) {
         Packer packer = new Packer();
 
         for (int i = 0; i < 2; i++) {
