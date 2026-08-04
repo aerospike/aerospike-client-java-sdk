@@ -256,7 +256,7 @@ public class ErrorDetailVerbosityTest extends ClusterTest {
                 .getFirstRecord();
         });
 
-        assertSubCodeAbsent(ae, ResultCode.GENERATION_ERROR, "Generation");
+        assertSubCodeAbsent(ae, ResultCode.GENERATION_ERROR, "generation");
     }
 
     // ---------------------------------------------------------------------
