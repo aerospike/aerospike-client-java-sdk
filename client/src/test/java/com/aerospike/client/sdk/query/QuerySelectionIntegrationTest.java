@@ -36,6 +36,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeFalse;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -55,6 +56,8 @@ import com.aerospike.client.sdk.command.FieldType;
 import com.aerospike.client.sdk.command.PartitionFilter;
 import com.aerospike.client.sdk.command.PartitionTracker;
 import com.aerospike.client.sdk.command.QueryCommand;
+import com.aerospike.client.sdk.exp.Exp;
+import com.aerospike.client.sdk.exp.Expression;
 import com.aerospike.client.sdk.policy.QueryDuration;
 import com.aerospike.client.sdk.policy.Behavior;
 import com.aerospike.client.sdk.policy.ResolvedSettings;
@@ -74,6 +77,17 @@ import java.util.List;
  */
 public class QuerySelectionIntegrationTest extends ClusterTest {
     private static final String bogusIndexName = "qsel_nonexistent_idx";
+    private static final String EXP_SET_NAME = "qselexpint";
+    private static final String EXP_KEY_MATCH = "qselexp1";
+    private static final String EXP_KEY_OTHER = "qselexp2";
+    private static final String EXP_INDEX = "qsel_exp_idx";
+    private static final Expression EXP_INDEX_EXPRESSION = Exp.build(
+        Exp.cond(
+            Exp.and(
+                Exp.ge(Exp.intBin(AGE_BIN), Exp.val(14)),
+                Exp.eq(Exp.stringBin(COUNTRY_BIN), Exp.val("US"))),
+            Exp.val(1),
+            Exp.unknown()));
 
     private static DataSet dataSet;
 
@@ -86,6 +100,57 @@ public class QuerySelectionIntegrationTest extends ClusterTest {
     @AfterAll
     public static void destroy() {
         destroyQselint(session, dataSet);
+    }
+
+    /**
+     * Expression secondary index explain — documents current server gap.
+     *
+     * <p>Today {@code as_sindex_select_from_exp} only matches bin SIs from bin-comparison
+     * candidates; expression SIs fall back to PI on field {@code 44} explain even when they
+     * are the only index on the set. This test <strong>expects that PI behavior</strong> so it
+     * fails after server-side expression-SI explain lands — then replace the
+     * {@code expressionIndexExplainToday} assertions with SI + {@code bin_name_len == 0} checks.</p>
+     */
+    @Test
+    void expressionIndexExplainOmitsBinNameInRange() {
+        assumeExpressionSecondaryIndexSupported();
+
+        QueryPlan binPlan = explainPlan("$.age >= 14 and $.age <= 18");
+        byte[] binRange = binPlan.getIndexRangeBytes();
+        assertAll("binIndexContrast",
+            () -> assertNotNull(binRange),
+            () -> assertTrue((binRange[1] & 0xFF) > 0,
+                "bin index explain INDEX_RANGE should include driving bin name"));
+
+        DataSet expDataSet = prepareExpIndexFixture();
+        try {
+            String where = "$.age >= 14 and $.country == 'US'";
+
+            QueryPlan plan = explainPlan(expDataSet, where);
+
+            // Server gap today: expression SI exists but explain returns PI (no 21/22).
+            // When server merges expression-SI explain, this block fails — update assertions below.
+            assertAll("expressionIndexExplainToday",
+                () -> assertEquals(QuerySelection.PRIMARY_INDEX, plan.getSelection(),
+                    "replace with SECONDARY_INDEX when server selects expression SIs on explain"),
+                () -> assertNull(plan.getIndexName(),
+                    "replace with EXP_INDEX when server selects expression SIs on explain"),
+                () -> assertNull(plan.getIndexRangeBytes(),
+                    "replace with bin_name_len==0 range when server selects expression SIs on explain"));
+
+            // Execute still works today via PI scan + AEL filter.
+            List<Integer> ages = collectAges(session.query(expDataSet)
+                .readingOnlyBins(AGE_BIN, COUNTRY_BIN)
+                .where(where)
+                .execute(), AGE_BIN);
+
+            assertAll("expressionIndexExecuteToday",
+                () -> assertEquals(1, ages.size()),
+                () -> assertEquals(List.of(16), ages));
+        }
+        finally {
+            destroyExpIndexFixture(expDataSet);
+        }
     }
 
     /**
@@ -555,9 +620,58 @@ public class QuerySelectionIntegrationTest extends ClusterTest {
         }
     }
 
-    private static QueryPlan explainPlan(String where) {
+    private static void assumeExpressionSecondaryIndexSupported() {
+        Version serverVersion = cluster.getRandomNode().getVersion();
+        assumeTrue(serverVersion.isGreaterOrEqual(8, 1, 0, 0),
+            "expression secondary index tests require server 8.1.0+");
+    }
+
+    private static DataSet prepareExpIndexFixture() {
+        DataSet expDataSet = DataSet.of(args.namespace, EXP_SET_NAME);
+
+        session.delete(expDataSet.ids(EXP_KEY_MATCH));
+        session.delete(expDataSet.ids(EXP_KEY_OTHER));
+
+        try {
+            session.createIndex(expDataSet, EXP_INDEX, IndexType.INTEGER, IndexCollectionType.DEFAULT,
+                EXP_INDEX_EXPRESSION)
+                .waitTillComplete();
+        }
+        catch (AerospikeException ae) {
+            if (ae.getResultCode() != ResultCode.INDEX_ALREADY_EXISTS) {
+                throw ae;
+            }
+        }
+
+        session.upsert(expDataSet.ids(EXP_KEY_MATCH))
+            .bins(AGE_BIN, SCORE_BIN, COUNTRY_BIN)
+            .values(16, 16, "US")
+            .execute();
+        session.upsert(expDataSet.ids(EXP_KEY_OTHER))
+            .bins(AGE_BIN, SCORE_BIN, COUNTRY_BIN)
+            .values(30, 30, "CA")
+            .execute();
+
+        return expDataSet;
+    }
+
+    private static void destroyExpIndexFixture(DataSet expDataSet) {
+        session.delete(expDataSet.ids(EXP_KEY_MATCH));
+        session.delete(expDataSet.ids(EXP_KEY_OTHER));
+        try {
+            session.dropIndex(expDataSet, EXP_INDEX);
+        }
+        catch (AerospikeException ignored) {
+        }
+    }
+
+    private static QueryPlan explainPlan(DataSet ds, String where) {
         return IndexProbePlanner.plan(
-            session, dataSet, WhereClauseProcessor.from(where), null);
+            session, ds, WhereClauseProcessor.from(where), null);
+    }
+
+    private static QueryPlan explainPlan(String where) {
+        return explainPlan(dataSet, where);
     }
 
     private static QueryPlan explainPlan(QueryBuilder qb) {
