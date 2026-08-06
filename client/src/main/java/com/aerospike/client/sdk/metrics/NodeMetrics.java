@@ -32,7 +32,7 @@ public final class NodeMetrics {
 	public NodeMetrics(MetricsSettings settings) {
 		this.bytesInCounter = new Counter();
 		this.bytesOutCounter = new Counter();
-		histograms = new Histograms(settings.getLatencyColumns(), settings.getLatencyShift());
+		histograms = new Histograms(settings);
 	}
 
 	/**

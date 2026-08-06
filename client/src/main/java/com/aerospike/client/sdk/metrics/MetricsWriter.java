@@ -26,6 +26,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -55,6 +56,7 @@ public final class MetricsWriter implements MetricsListener {
 	private FileWriter writer;
 	private long size;
 	private long maxSize;
+    private TimeUnit latencyUnit;
 	private int latencyColumns;
 	private int latencyShift;
 	private boolean enabled;
@@ -79,6 +81,7 @@ public final class MetricsWriter implements MetricsListener {
 		this.dir = settings.getReportDir();
         this.sb = new StringBuilder(8192);
 		this.maxSize = settings.getReportSizeLimit();
+		this.latencyUnit = settings.getLatencyUnit();
 		this.latencyColumns = settings.getLatencyColumns();
 		this.latencyShift = settings.getLatencyShift();
 
@@ -152,6 +155,8 @@ public final class MetricsWriter implements MetricsListener {
 		sb.append(" conn[inUse,inPool,opened,closed]");
 		sb.append(" namespace[name,errors,timeouts,keyBusy,bytesIn,bytesOut,latency[]]");
 		sb.append(" latency(");
+        sb.append(latencyUnit);
+        sb.append(',');
 		sb.append(latencyColumns);
 		sb.append(',');
 		sb.append(latencyShift);

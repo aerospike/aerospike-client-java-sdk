@@ -16,6 +16,7 @@
  */
 package com.aerospike.client.sdk.metrics;
 
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.LongAdder;
 
 /**
@@ -23,10 +24,9 @@ import java.util.concurrent.atomic.LongAdder;
  * Latency bucket counts are cumulative and not reset on each metrics snapshot interval.
  */
 public final class LatencyBuckets {
-	private static final long NS_TO_MS = 1000000;
-
 	private final LongAdder[] buckets;
 	private final int latencyShift;
+    private final TimeUnit latencyUnit;
 
 	/**
 	 * Initialize latency buckets.
@@ -35,7 +35,8 @@ public final class LatencyBuckets {
 	 * @param latencyShift		power of 2 multiple between each range bucket in latency histograms starting at bucket 3.
 	 * 							The first 2 buckets are "&lt;=1ms" and "&gt;1ms".
 	 */
-	public LatencyBuckets(int latencyColumns, int latencyShift) {
+	public LatencyBuckets(TimeUnit latencyUnit, int latencyColumns, int latencyShift) {
+	    this.latencyUnit = latencyUnit;
 		this.latencyShift = latencyShift;
 		buckets = new LongAdder[latencyColumns];
 
@@ -67,13 +68,7 @@ public final class LatencyBuckets {
 	}
 
 	private int getIndex(long elapsedNanos) {
-		// Convert nanoseconds to milliseconds.
-		long elapsed = elapsedNanos / NS_TO_MS;
-
-		// Round up elapsed to nearest millisecond.
-		if ((elapsedNanos - (elapsed * NS_TO_MS)) > 0) {
-			elapsed++;
-		}
+	    long elapsed = latencyUnit.convert(elapsedNanos, TimeUnit.NANOSECONDS);
 
 		int lastBucket = buckets.length - 1;
 		long limit = 1;

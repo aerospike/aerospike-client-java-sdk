@@ -18,25 +18,26 @@
 package com.aerospike.client.sdk.metrics;
 
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
+
+import com.aerospike.client.sdk.MetricsSettings;
 
 public class Histograms {
 	private final ConcurrentHashMap<String, LatencyBuckets[]> histoMap = new ConcurrentHashMap<>();
-	private final int histoShift;
-	private final int columnCount;
+    private final TimeUnit latencyUnit;
+    private final int latencyColumns;
+	private final int latencyShift;
 	private final static String noNSLabel = "";
 	private final int max;
 
 	/**
 	 * A Histograms object is a container for a map of namespaces to histograms (as defined by their associated
 	 * LatencyBuckets) & their histogram properties
-	 *
-	 * @param columnCount number of histogram columns or "buckets"
-	 * @param shift       power of 2 multiple between each range bucket in histogram starting at bucket 3.
-	 *                    The first 2 buckets are "&lt;=1ms" and "&gt;1ms".
 	 */
-	public Histograms(int columnCount, int shift) {
-		this.histoShift = shift;
-		this.columnCount = columnCount;
+	public Histograms(MetricsSettings settings) {
+        this.latencyUnit = settings.getLatencyUnit();
+        this.latencyColumns = settings.getLatencyColumns();
+		this.latencyShift = settings.getLatencyShift();
 		max = LatencyType.getMax();
 	}
 
@@ -44,7 +45,7 @@ public class Histograms {
 		LatencyBuckets[] buckets = new LatencyBuckets[max];
 
 		for (int i = 0; i < max; i++) {
-			buckets[i] = new LatencyBuckets(columnCount, histoShift);
+			buckets[i] = new LatencyBuckets(latencyUnit, latencyColumns, latencyShift);
 		}
 		return buckets;
 	}
