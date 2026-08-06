@@ -105,11 +105,11 @@ public class QuerySelectionIntegrationTest extends ClusterTest {
     /**
      * Expression secondary index explain — documents current server gap.
      *
-     * <p>Today {@code as_sindex_select_from_exp} only matches bin SIs from bin-comparison
-     * candidates; expression SIs fall back to PI on field {@code 44} explain even when they
-     * are the only index on the set. This test <strong>expects that PI behavior</strong> so it
-     * fails after server-side expression-SI explain lands — then replace the
-     * {@code expressionIndexExplainToday} assertions with SI + {@code bin_name_len == 0} checks.</p>
+     * <p>Isolated set {@code qselexpint} has only an expression SI. Explain still returns
+     * {@code PRIMARY_INDEX} today (no fields {@code 21}/{@code 22}). Execute works via PI +
+     * AEL filter. When server selects expression SIs on explain, replace
+     * {@code expressionIndexExplainToday} with {@code SECONDARY_INDEX}, {@code EXP_INDEX}, and
+     * {@code bin_name_len == 0} on field {@code 22}.</p>
      */
     @Test
     void expressionIndexExplainOmitsBinNameInRange() {
@@ -119,7 +119,7 @@ public class QuerySelectionIntegrationTest extends ClusterTest {
         byte[] binRange = binPlan.getIndexRangeBytes();
         assertAll("binIndexContrast",
             () -> assertNotNull(binRange),
-            () -> assertTrue((binRange[1] & 0xFF) > 0,
+            () -> assertTrue(indexRangeBinNameLen(binRange) > 0,
                 "bin index explain INDEX_RANGE should include driving bin name"));
 
         DataSet expDataSet = prepareExpIndexFixture();
@@ -128,8 +128,6 @@ public class QuerySelectionIntegrationTest extends ClusterTest {
 
             QueryPlan plan = explainPlan(expDataSet, where);
 
-            // Server gap today: expression SI exists but explain returns PI (no 21/22).
-            // When server merges expression-SI explain, this block fails — update assertions below.
             assertAll("expressionIndexExplainToday",
                 () -> assertEquals(QuerySelection.PRIMARY_INDEX, plan.getSelection(),
                     "replace with SECONDARY_INDEX when server selects expression SIs on explain"),
@@ -138,7 +136,6 @@ public class QuerySelectionIntegrationTest extends ClusterTest {
                 () -> assertNull(plan.getIndexRangeBytes(),
                     "replace with bin_name_len==0 range when server selects expression SIs on explain"));
 
-            // Execute still works today via PI scan + AEL filter.
             List<Integer> ages = collectAges(session.query(expDataSet)
                 .readingOnlyBins(AGE_BIN, COUNTRY_BIN)
                 .where(where)
@@ -151,6 +148,10 @@ public class QuerySelectionIntegrationTest extends ClusterTest {
         finally {
             destroyExpIndexFixture(expDataSet);
         }
+    }
+
+    private static int indexRangeBinNameLen(byte[] rangeBytes) {
+        return rangeBytes[1] & 0xFF;
     }
 
     /**

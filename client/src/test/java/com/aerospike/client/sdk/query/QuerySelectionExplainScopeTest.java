@@ -51,9 +51,10 @@ import com.aerospike.client.sdk.query.plan.QuerySelection;
  * <p><strong>Expected server behavior (integration branch, per {@code query_plan.c} /
  * {@code exp.c}):</strong></p>
  * <ul>
- *   <li>Scalar INTEGER / STRING / BLOB equality → SI explain when a matching index exists</li>
+ *   <li>Scalar INTEGER / STRING / BLOB / GEO → SI explain when a matching index exists</li>
  *   <li>STRING on bin without SI → PI explain (OK, no index fields)</li>
- *   <li>MAPKEYS + CDT {@code .exists()} (no SI candidate in walker today) → PI fallback</li>
+ *   <li>MAPKEYS / MAPVALUES bare {@code .exists()} → SI when collection index exists</li>
+ *   <li>{@code .exists() == true} and {@code geoCompare(...) == true} → PI (planner limitation)</li>
  * </ul>
  *
  * <p>Field {@code 44} uses <strong>server AEL</strong> ({@code .exists()}). Legacy client syntax
@@ -70,6 +71,12 @@ class QuerySelectionExplainScopeTest extends ClusterTest {
     private static final String mapBin = "map_bin";
     private static final String mapIndexName = "qscexp_map_idx";
     private static final String mapKey = "mkey2";
+    private static final String locBin = "loc";
+    private static final String geoIndexName = "qscexp_loc_idx";
+    private static final double matchLng = -122.0986857;
+    private static final double matchLat = 37.4214209;
+    private static final String matchPointGeoJson =
+        "{\"type\":\"Point\",\"coordinates\":[" + matchLng + "," + matchLat + "]}";
 
     private static DataSet dataSet;
     private static String blobHex;
@@ -113,6 +120,16 @@ class QuerySelectionExplainScopeTest extends ClusterTest {
             }
         }
 
+        try {
+            session.createIndex(dataSet, geoIndexName, locBin, IndexType.GEO2DSPHERE,
+                IndexCollectionType.DEFAULT).waitTillComplete();
+        }
+        catch (AerospikeException ae) {
+            if (ae.getResultCode() != ResultCode.INDEX_ALREADY_EXISTS) {
+                throw ae;
+            }
+        }
+
         byte[] blobBytes = new byte[8];
         Buffer.longToBytes(50001, blobBytes, 0);
         blobHex = Buffer.bytesToHexString(blobBytes);
@@ -120,14 +137,28 @@ class QuerySelectionExplainScopeTest extends ClusterTest {
         HashMap<String, String> map = new HashMap<>();
         map.put(mapKey, "v1");
 
+        // Indexed regions (AeroCircle): geo SI probe uses the query point from AEL; the bin
+        // must be a region that spatially contains that point, not an identical Point shape.
+        String k1Loc = "{ \"type\": \"AeroCircle\", \"coordinates\": [[" +
+            matchLng + ", " + matchLat + "], 3000.0 ] }";
+        String k2Loc = "{ \"type\": \"AeroCircle\", \"coordinates\": [[-121.0, 38.0], 3000.0 ] }";
+
         session.upsert(dataSet.ids("k1"))
             .bins(ageBin, countryBin, blobBin, mapBin)
             .values(25, "US", blobBytes, map)
             .execute();
 
+        session.upsert(dataSet.ids("k1"))
+            .bin(locBin).setToGeoJson(k1Loc)
+            .execute();
+
         session.upsert(dataSet.ids("k2"))
             .bins(ageBin, countryBin)
             .values(30, "CA")
+            .execute();
+
+        session.upsert(dataSet.ids("k2"))
+            .bin(locBin).setToGeoJson(k2Loc)
             .execute();
     }
 
@@ -141,6 +172,7 @@ class QuerySelectionExplainScopeTest extends ClusterTest {
         session.dropIndex(dataSet, intIndexName);
         session.dropIndex(dataSet, blobIndexName);
         session.dropIndex(dataSet, mapIndexName);
+        session.dropIndex(dataSet, geoIndexName);
     }
 
     @Test
@@ -195,11 +227,57 @@ class QuerySelectionExplainScopeTest extends ClusterTest {
     }
 
     /**
-     * E2E: MAPKEYS EXISTS uses field {@code 44} explain → execute (PI plan when no SI candidate).
+     * GEO DEFAULT — server selects the GEO2DSPHERE secondary index on explain.
+     */
+    @Test
+    void explainGeoCompare_selectsSecondaryIndex() {
+        String where = geoCompareWhere(matchPointGeoJson);
+        QueryPlan plan = explain(where);
+
+        assertAll("geoSiExplain",
+            () -> assertEquals(QuerySelection.SECONDARY_INDEX, plan.getSelection()),
+            () -> assertEquals(geoIndexName, plan.getIndexName()),
+            () -> assertNotNull(plan.getIndexRangeBytes()),
+            () -> assertEquals(IndexCollectionType.DEFAULT, plan.getIndexType()),
+            () -> assertNotNull(plan.getExplainWhereBytes()));
+    }
+
+    /**
+     * E2E: GEO query uses field {@code 44} explain → execute (SI plan when explain succeeds).
+     */
+    @Test
+    void executeGeoCompare_returnsMatchingRow() {
+        String where = geoCompareWhere(matchPointGeoJson);
+
+        int count = countRecords(session.query(dataSet)
+            .readingOnlyBins(locBin)
+            .where(where)
+            .execute());
+
+        assertEquals(1, count);
+    }
+
+    /**
+     * MAPKEYS + bare CDT EXISTS — server selects the MAPKEYS secondary index on explain.
+     */
+    @Test
+    void explainMapKeysExists_selectsSecondaryIndex() {
+        String where = "$." + mapBin + "." + mapKey + ".exists()";
+        QueryPlan plan = explain(where);
+
+        assertAll("mapKeysSiExplain",
+            () -> assertEquals(QuerySelection.SECONDARY_INDEX, plan.getSelection()),
+            () -> assertEquals(mapIndexName, plan.getIndexName()),
+            () -> assertNotNull(plan.getIndexRangeBytes()),
+            () -> assertEquals(IndexCollectionType.MAPKEYS, plan.getIndexType()));
+    }
+
+    /**
+     * E2E: MAPKEYS EXISTS uses field {@code 44} explain → execute (SI when bare {@code .exists()}).
      */
     @Test
     void executeMapKeysExists_returnsMatchingRows() {
-        String where = "$." + mapBin + "." + mapKey + ".exists() == true";
+        String where = "$." + mapBin + "." + mapKey + ".exists()";
 
         RecordStream rs = session.query(dataSet)
             .readingOnlyBins(mapBin)
@@ -221,6 +299,10 @@ class QuerySelectionExplainScopeTest extends ClusterTest {
         finally {
             rs.close();
         }
+    }
+
+    private static String geoCompareWhere(String geoJsonLiteral) {
+        return "geoCompare($." + locBin + ", geoJson('" + geoJsonLiteral + "'))";
     }
 
     private static QueryPlan explain(String where) {

@@ -98,8 +98,7 @@ public class QueryGeoTest extends ClusterTest {
 
     @Test
     public void queryGeo1() {
-        // TODO: Test AEL variant (.where("geoCompare($.loc, geoJson('...'))")")
-        // when it becomes available.
+        // Covered on field {@code 44} by {@link QuerySelectionExplainScopeTest}.
         String region = "{ \"type\": \"Point\", \"coordinates\": [ -122.0986857, 37.4214209 ] }";
         Expression where = Exp.build(Exp.geoCompare(Exp.geoBin("loc"), Exp.geo(region)));
 
