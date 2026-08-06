@@ -441,6 +441,8 @@ public final class RecordParser {
         int lang = -1;
         int aelOffset = -1;
         int aelSpan = -1;
+        String lhsOperand = null;
+        String rhsOperand = null;
 
         for (int i = 0; i < count && offset < end; i++) {
             // Read key (positive fixint or uint8).
@@ -485,6 +487,14 @@ public final class RecordParser {
             case ExpressionTrace.KEY_AEL_SPAN:
                 aelSpan = (int)unpackUint(offset, end);
                 break;
+            case ExpressionTrace.KEY_OPERANDS: {
+                String[] operands = unpackStrArray(offset, end);
+                if (operands != null && operands.length >= 2) {
+                    lhsOperand = operands[0];
+                    rhsOperand = operands[1];
+                }
+                break;
+            }
             default:
                 // Unknown / reserved trace key (outcome, ael_line, ael_col, etc.) — skip.
                 break;
@@ -494,7 +504,8 @@ public final class RecordParser {
             offset = skipMsgpackValue(offset, end);
         }
 
-        return new ExpressionTrace(phase, byteOffset, op, depth, path, snippet, lang, aelOffset, aelSpan);
+        return new ExpressionTrace(phase, byteOffset, op, depth, path, snippet, lang, aelOffset,
+            aelSpan, lhsOperand, rhsOperand);
     }
 
     /**

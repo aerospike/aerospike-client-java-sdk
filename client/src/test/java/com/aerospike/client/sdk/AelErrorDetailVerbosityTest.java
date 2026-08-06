@@ -31,7 +31,7 @@ import com.aerospike.client.sdk.policy.Behavior;
 import com.aerospike.client.sdk.policy.Behavior.Selectors;
 
 /**
- * Extended error-detail coverage for server-compiled AEL (SERVER-1137 / AER-6932).
+ * Extended error-detail coverage for server-compiled AEL (SERVER-1137/1138/1139 / AER-6932).
  *
  * <p>Complements {@link ErrorDetailVerbosityTest}, which exercises wire msgpack {@code Exp}
  * build failures. These tests send textual AEL and assert folded compile diagnostics and,
@@ -49,6 +49,21 @@ public class AelErrorDetailVerbosityTest extends ClusterTest {
     /** Integer bin plus string literal — AEL type error at compile time. */
     private static String badSelectAel() {
         return "$." + binName + ":INT + 'x'";
+    }
+
+    /** Integer division by zero — AEL eval fault at runtime. */
+    private static String divZeroSelectAel() {
+        return "$." + binName + ":INT / 0";
+    }
+
+    /** Ordered map literal with duplicate keys — compile-time rejection (3856ffdb8). */
+    private static String duplicateMapLiteralAel() {
+        return "{1:1, 1:2}";
+    }
+
+    /** :UNORDERED map literal with duplicate keys — still rejected at compile time. */
+    private static String duplicateUnorderedMapLiteralAel() {
+        return "{1:1, 1:2}:UNORDERED";
     }
 
     @BeforeAll
@@ -103,6 +118,11 @@ public class AelErrorDetailVerbosityTest extends ClusterTest {
         assertEquals(ExpressionTrace.PHASE_BUILD, trace.getPhase());
         assertEquals(ExpressionTrace.LANG_AEL, trace.getLang());
         assertTrue(trace.getAelOffset() >= 0, "Expected AEL source offset in trace");
+        // ael_span is optional — the server omits the key when the span width is zero.
+        if (trace.getSnippet() != null) {
+            assertTrue(trace.getSnippet().contains("and"),
+                "Expected snippet to cover the trailing 'and': " + trace.getSnippet());
+        }
     }
 
     @Test
@@ -195,6 +215,106 @@ public class AelErrorDetailVerbosityTest extends ClusterTest {
         assertNotNull(trace, "Expected filter-decision explainer trace at verbosity 3");
         assertEquals(ExpressionTrace.PHASE_EVAL, trace.getPhase());
         assertEquals(ExpressionTrace.LANG_AEL, trace.getLang());
+        assertNotNull(trace.getOp(), "Expected decisive op in filter explainer trace");
+        assertNotNull(trace.getPath(), "Expected op path in filter explainer trace");
+        assertTrue(trace.getPath().length > 0, "Expected non-empty op path");
+        assertNotNull(trace.getLhsOperand(), "Expected lhs operand in filter explainer trace");
+        assertNotNull(trace.getRhsOperand(), "Expected rhs operand in filter explainer trace");
+        assertTrue(trace.getLhsOperand().contains("1"),
+            "Expected stored bin value in lhs operand: " + trace.getLhsOperand());
+        assertTrue(trace.getRhsOperand().contains("99"),
+            "Expected filter literal in rhs operand: " + trace.getRhsOperand());
+    }
+
+    @Test
+    public void testAelSelectFromEvalFaultMessage() {
+        Session session1 = sessionWithVerbosity(ErrorDetailVerbosity.MESSAGE);
+
+        AerospikeException ae = assertThrows(AerospikeException.class, () -> {
+            session1.query(intKey)
+                .bin("out").selectFrom(divZeroSelectAel())
+                .execute();
+        });
+
+        assertEquals(ResultCode.OP_NOT_APPLICABLE, ae.getResultCode());
+        assertEquals(SubCode.NONE, ae.getSubCode());
+
+        String msg = ae.getBaseMessage();
+        assertNotNull(msg);
+        assertTrue(msg.toLowerCase().contains("division by zero"),
+            "Expected eval-fault message in: " + msg);
+    }
+
+    @Test
+    public void testAelSelectFromEvalFaultTrace() {
+        Session session1 = sessionWithVerbosity(ErrorDetailVerbosity.EXPRESSION_TRACE);
+
+        AerospikeException ae = assertThrows(AerospikeException.class, () -> {
+            session1.query(intKey)
+                .bin("out").selectFrom(divZeroSelectAel())
+                .execute();
+        });
+
+        assertEquals(ResultCode.OP_NOT_APPLICABLE, ae.getResultCode());
+
+        ExpressionTrace trace = ae.getExpressionTrace();
+        assertNotNull(trace, "Expected eval-fault trace at verbosity 3");
+        assertEquals(ExpressionTrace.PHASE_EVAL, trace.getPhase());
+        assertEquals(ExpressionTrace.LANG_AEL, trace.getLang());
+        assertNotNull(trace.getOp(), "Expected failing op in eval-fault trace");
+    }
+
+    @Test
+    public void testAelMapLiteralDuplicateKeysOrdered() {
+        Session session1 = sessionWithVerbosity(ErrorDetailVerbosity.MESSAGE);
+
+        AerospikeException ae = assertThrows(AerospikeException.class, () -> {
+            session1.query(intKey)
+                .bin("out").selectFrom(duplicateMapLiteralAel())
+                .execute();
+        });
+
+        assertEquals(ResultCode.PARAMETER_ERROR, ae.getResultCode());
+        assertDuplicateMapLiteralMessage(ae.getBaseMessage());
+    }
+
+    @Test
+    public void testAelMapLiteralDuplicateKeysUnordered() {
+        Session session1 = sessionWithVerbosity(ErrorDetailVerbosity.MESSAGE);
+
+        AerospikeException ae = assertThrows(AerospikeException.class, () -> {
+            session1.query(intKey)
+                .bin("out").selectFrom(duplicateUnorderedMapLiteralAel())
+                .execute();
+        });
+
+        assertEquals(ResultCode.PARAMETER_ERROR, ae.getResultCode());
+        assertDuplicateMapLiteralMessage(ae.getBaseMessage());
+    }
+
+    @Test
+    public void testAelMapLiteralDuplicateKeysBuildTrace() {
+        Session session1 = sessionWithVerbosity(ErrorDetailVerbosity.EXPRESSION_TRACE);
+
+        AerospikeException ae = assertThrows(AerospikeException.class, () -> {
+            session1.query(intKey)
+                .bin("out").selectFrom(duplicateMapLiteralAel())
+                .execute();
+        });
+
+        assertEquals(ResultCode.PARAMETER_ERROR, ae.getResultCode());
+
+        ExpressionTrace trace = ae.getExpressionTrace();
+        assertNotNull(trace, "Expected AEL build trace for duplicate map literal");
+        assertEquals(ExpressionTrace.PHASE_BUILD, trace.getPhase());
+        assertEquals(ExpressionTrace.LANG_AEL, trace.getLang());
+        assertTrue(trace.getAelOffset() >= 0, "Expected AEL source offset");
+    }
+
+    private static void assertDuplicateMapLiteralMessage(String msg) {
+        assertNotNull(msg);
+        assertTrue(msg.toLowerCase().contains("duplicate"),
+            "Expected duplicate-key diagnostic in: " + msg);
     }
 
     private static Session sessionWithVerbosity(int verbosity) {

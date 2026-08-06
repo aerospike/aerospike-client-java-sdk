@@ -54,6 +54,8 @@ public class ExpressionTrace implements Serializable {
     public static final int KEY_AEL_SPAN = 10;
     /** Nested trace key: 1-based line in AEL source (uint; reserved). */
     public static final int KEY_AEL_LINE = 11;
+    /** Nested trace key: decisive comparison operands {@code [lhs, rhs]} (str[2]). */
+    public static final int KEY_OPERANDS = 13;
     /** Nested trace key: 1-based column in AEL source (uint; reserved). */
     public static final int KEY_AEL_COL = 12;
 
@@ -87,6 +89,8 @@ public class ExpressionTrace implements Serializable {
     private final int lang;
     private final int aelOffset;
     private final int aelSpan;
+    private final String lhsOperand;
+    private final String rhsOperand;
 
     /**
      * Construct a trace. Use {@code -1} / {@code null} for any absent field.
@@ -100,9 +104,11 @@ public class ExpressionTrace implements Serializable {
      * @param lang       {@link #LANG_MSGPACK} / {@link #LANG_AEL}, or {@code -1} (&rArr; msgpack)
      * @param aelOffset  char offset into AEL source text, or {@code -1}
      * @param aelSpan    byte width of the offending AEL source region, or {@code -1}
+     * @param lhsOperand left-hand operand of the decisive comparison, or {@code null}
+     * @param rhsOperand right-hand operand of the decisive comparison, or {@code null}
      */
     public ExpressionTrace(int phase, int byteOffset, String op, int depth, String[] path,
-        String snippet, int lang, int aelOffset, int aelSpan) {
+        String snippet, int lang, int aelOffset, int aelSpan, String lhsOperand, String rhsOperand) {
         this.phase = phase;
         this.byteOffset = byteOffset;
         this.op = op;
@@ -112,6 +118,8 @@ public class ExpressionTrace implements Serializable {
         this.lang = lang;
         this.aelOffset = aelOffset;
         this.aelSpan = aelSpan;
+        this.lhsOperand = lhsOperand;
+        this.rhsOperand = rhsOperand;
     }
 
     /**
@@ -190,6 +198,22 @@ public class ExpressionTrace implements Serializable {
         return aelSpan;
     }
 
+    /**
+     * Left-hand operand of the decisive comparison in a filter-decision explainer trace,
+     * or {@code null} when absent (dropped under a tight byte budget or not applicable).
+     */
+    public String getLhsOperand() {
+        return lhsOperand;
+    }
+
+    /**
+     * Right-hand operand of the decisive comparison in a filter-decision explainer trace,
+     * or {@code null} when absent.
+     */
+    public String getRhsOperand() {
+        return rhsOperand;
+    }
+
     @Override
     public String toString() {
         StringBuilder sb = new StringBuilder(128);
@@ -216,6 +240,12 @@ public class ExpressionTrace implements Serializable {
         }
         if (aelSpan >= 0) {
             sb.append(", aelSpan=").append(aelSpan);
+        }
+        if (lhsOperand != null) {
+            sb.append(", lhs=").append(lhsOperand);
+        }
+        if (rhsOperand != null) {
+            sb.append(", rhs=").append(rhsOperand);
         }
         sb.append(']');
     }
