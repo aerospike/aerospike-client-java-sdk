@@ -37,7 +37,7 @@ import com.aerospike.client.sdk.util.Packer;
  * Modify-style expressions (e.g. {@link #upper}, {@link #replace}) return the
  * <strong>modified string value</strong>; they do not mutate the underlying bin.
  * To persist a change, write the returned value back via
- * {@link com.aerospike.client.exp.Exp.Build} or use
+ * {@link com.aerospike.client.sdk.exp.Exp.Build} or use
  * {@link com.aerospike.client.sdk.operation.StringOperation} for direct ops.
  * <p>
  * Index orientation is left-to-right with codepoint addressing. Negative indexes
@@ -45,17 +45,22 @@ import com.aerospike.client.sdk.util.Packer;
  * indexes are clamped to the valid range; no error is returned.
  * <p>
  * Unlike {@link com.aerospike.client.sdk.operation.StringOperation}, these builders
- * do <strong>not</strong> accept a {@link com.aerospike.client.cdt.CTX}. To apply
+ * do <strong>not</strong> accept a {@link com.aerospike.client.sdk.cdt.CTX}. To apply
  * a string expression to a value nested inside a list or map, compose with
- * {@link com.aerospike.client.exp.ListExp#getByIndex} or
- * {@link com.aerospike.client.exp.MapExp#getByKey} (which do take CTX) to extract
+ * {@link com.aerospike.client.sdk.exp.ListExp#getByIndex} or
+ * {@link com.aerospike.client.sdk.exp.MapExp#getByKey} (which do take CTX) to extract
  * the leaf, then pass the resulting {@code Exp} as {@code src}.
  * <p>
  * String expressions require server version 8.1.3 or later.
+ *
+ * <pre>{@code
+ * // Filter records whose "name" bin starts with "hello".
+ * Expression filter = Exp.build(
+ *     StringExp.startsWith(Exp.val("hello"), Exp.stringBin("name")));
+ * }</pre>
  */
 public final class StringExp {
     private static final int MODULE = 3;       // CALL_STRING
-    private static final int MODULE_REPR = 4;  // CALL_REPR
 
     // Read ops
     private static final int STRLEN = 0;
@@ -111,6 +116,11 @@ public final class StringExp {
      * (see {@link com.aerospike.client.sdk.operation.StringOperation#strlen} for examples).
      * For UTF-8 byte length, use {@link #byteLength(Exp)}.
      *
+     * <pre>{@code
+     * // "hello world" -> 11
+     * Exp len = StringExp.strlen(Exp.stringBin("text"));
+     * }</pre>
+     *
      * @param src   source string expression
      * @return      integer-typed expression yielding the codepoint count
      */
@@ -124,6 +134,11 @@ public final class StringExp {
      * {@code start} to the end. Negative {@code start} counts from the end of the
      * string.
      *
+     * <pre>{@code
+     * // "hello world" from 6 -> "world"
+     * Exp tail = StringExp.substr(Exp.val(6), Exp.stringBin("text"));
+     * }</pre>
+     *
      * @param start starting codepoint index (negative counts from end)
      * @param src   source string expression
      * @return      string-typed expression yielding the substring
@@ -134,13 +149,20 @@ public final class StringExp {
     }
 
     /**
-     * Create expression that reads the half-open codepoint range {@code [start, end)}
-     * of {@code src}. Negative indexes count from the end of the string.
+     * Create expression that returns the codepoints of {@code src} from {@code start}
+     * (inclusive) to {@code end} (exclusive). Negative indexes count from the end.
+     * If, after negative-index normalization, {@code start >= end}, the result is the
+     * empty string.
      *
-     * @param start     starting codepoint index (negative counts from end)
-     * @param end       one past the last codepoint (exclusive)
-     * @param src       source string expression
-     * @return          string-typed expression yielding the substring
+     * <pre>{@code
+     * // "hello world" [0, 5) -> "hello"
+     * Exp head = StringExp.substr(Exp.val(0), Exp.val(5), Exp.stringBin("text"));
+     * }</pre>
+     *
+     * @param start starting codepoint index, inclusive (negative counts from end)
+     * @param end   end codepoint index, exclusive (negative counts from end)
+     * @param src   source string expression
+     * @return      string-typed expression yielding the substring
      */
     public static Exp substr(Exp start, Exp end, Exp src) {
         byte[] bytes = Pack.pack(SUBSTR, start, end);
@@ -150,6 +172,11 @@ public final class StringExp {
     /**
      * Create expression that returns the codepoint at {@code index} of {@code src}
      * as a one-codepoint string. Negative indexes count from the end.
+     *
+     * <pre>{@code
+     * // "Hello123World" at 5 -> "1"
+     * Exp c = StringExp.charAt(Exp.val(5), Exp.stringBin("text"));
+     * }</pre>
      *
      * @param index codepoint index (negative counts from end)
      * @param src   source string expression
@@ -163,6 +190,11 @@ public final class StringExp {
     /**
      * Create expression that returns the codepoint index of the first occurrence of
      * {@code needle} in {@code src}, or {@code -1} if not found.
+     *
+     * <pre>{@code
+     * // "hello world" find "world" -> 6
+     * Exp idx = StringExp.find(Exp.val("world"), Exp.stringBin("text"));
+     * }</pre>
      *
      * @param needle    substring to search for (any expression yielding a string)
      * @param src       source string expression
@@ -178,6 +210,11 @@ public final class StringExp {
      * match of {@code needle} ({@code 1} = first, {@code -1} = last), or {@code -1}
      * if not found.
      *
+     * <pre>{@code
+     * // "ababab" 2nd occurrence of "ab" -> 2
+     * Exp idx = StringExp.find(Exp.val("ab"), Exp.val(2), Exp.stringBin("text"));
+     * }</pre>
+     *
      * @param needle        substring to search for
      * @param occurrence    1-based occurrence to return (negative counts from the last)
      * @param src           source string expression
@@ -190,11 +227,16 @@ public final class StringExp {
 
     /**
      * Create expression that tests whether {@code src} contains {@code needle} as a
-     * substring. Returns an integer flag: {@code 1} on match, {@code 0} otherwise.
+     * substring. Returns a boolean flag: {@code true} on match, {@code false} otherwise.
+     *
+     * <pre>{@code
+     * Expression filter = Exp.build(
+     *     StringExp.contains(Exp.val("hello"), Exp.stringBin("text")));
+     * }</pre>
      *
      * @param needle    substring to test for
      * @param src       source string expression
-     * @return          integer-typed expression: 1 on match, 0 otherwise
+     * @return          boolean-typed expression: true on match, false otherwise
      */
     public static Exp contains(Exp needle, Exp src) {
         byte[] bytes = Pack.pack(CONTAINS, needle);
@@ -203,11 +245,15 @@ public final class StringExp {
 
     /**
      * Create expression that tests whether {@code src} begins with {@code prefix}.
-     * Returns an integer flag: {@code 1} on match, {@code 0} otherwise.
+     * Returns a boolean flag: {@code true} on match, {@code false} otherwise.
+     *
+     * <pre>{@code
+     * Exp matched = StringExp.startsWith(Exp.val("Hello"), Exp.stringBin("text"));
+     * }</pre>
      *
      * @param prefix    prefix to test for
      * @param src       source string expression
-     * @return          integer-typed expression: 1 on match, 0 otherwise
+     * @return          boolean-typed expression: true on match, false otherwise
      */
     public static Exp startsWith(Exp prefix, Exp src) {
         byte[] bytes = Pack.pack(STARTS_WITH, prefix);
@@ -216,11 +262,15 @@ public final class StringExp {
 
     /**
      * Create expression that tests whether {@code src} ends with {@code suffix}.
-     * Returns an integer flag: {@code 1} on match, {@code 0} otherwise.
+     * Returns a boolean flag: {@code true} on match, {@code false} otherwise.
+     *
+     * <pre>{@code
+     * Exp matched = StringExp.endsWith(Exp.val("World"), Exp.stringBin("text"));
+     * }</pre>
      *
      * @param suffix    suffix to test for
      * @param src       source string expression
-     * @return          integer-typed expression: 1 on match, 0 otherwise
+     * @return          boolean-typed expression: true on match, false otherwise
      */
     public static Exp endsWith(Exp suffix, Exp src) {
         byte[] bytes = Pack.pack(ENDS_WITH, suffix);
@@ -228,9 +278,13 @@ public final class StringExp {
     }
 
     /**
-     * Create expression that parses {@code src} as an int64. Yields
-     * {@link com.aerospike.client.sdk.ResultCode#OP_NOT_APPLICABLE} when the value is not
-     * a parseable integer string.
+     * Create expression that parses {@code src} as an int64. The expression returns
+     * an error if the source cannot be parsed as an integer.
+     *
+     * <pre>{@code
+     * // "12345" -> 12345
+     * Exp n = StringExp.toInteger(Exp.stringBin("text"));
+     * }</pre>
      *
      * @param src   source string expression
      * @return      integer-typed expression yielding the parsed int64
@@ -241,9 +295,13 @@ public final class StringExp {
     }
 
     /**
-     * Create expression that parses {@code src} as a 64-bit float. Yields
-     * {@link com.aerospike.client.sdk.ResultCode#OP_NOT_APPLICABLE} when the value is not
-     * a parseable floating-point string.
+     * Create expression that parses {@code src} as a 64-bit float. The expression
+     * returns an error if the source cannot be parsed as a double.
+     *
+     * <pre>{@code
+     * // "3.14" -> 3.14
+     * Exp v = StringExp.toDouble(Exp.stringBin("text"));
+     * }</pre>
      *
      * @param src   source string expression
      * @return      float-typed expression yielding the parsed double
@@ -258,6 +316,11 @@ public final class StringExp {
      * Differs from {@link #strlen} for non-ASCII content where one codepoint can encode
      * to multiple bytes.
      *
+     * <pre>{@code
+     * // "hello" -> 5
+     * Exp len = StringExp.byteLength(Exp.stringBin("text"));
+     * }</pre>
+     *
      * @param src   source string expression
      * @return      integer-typed expression yielding the UTF-8 byte length
      */
@@ -268,10 +331,14 @@ public final class StringExp {
 
     /**
      * Create expression that tests whether {@code src} contains a valid integer or
-     * float literal. Returns an integer flag: {@code 1} on match, {@code 0} otherwise.
+     * float literal. Returns a boolean flag: {@code true} on match, {@code false} otherwise.
+     *
+     * <pre>{@code
+     * Exp numeric = StringExp.isNumeric(Exp.stringBin("text"));
+     * }</pre>
      *
      * @param src   source string expression
-     * @return      integer-typed expression: 1 if numeric, 0 otherwise
+     * @return      boolean-typed expression: true if numeric, false otherwise
      */
     public static Exp isNumeric(Exp src) {
         byte[] bytes = Pack.pack(IS_NUMERIC);
@@ -280,12 +347,17 @@ public final class StringExp {
 
     /**
      * Create expression that tests whether {@code src} parses as a number of the
-     * requested {@link com.aerospike.client.sdk.operation.StringNumericType}. Returns an
-     * integer flag: {@code 1} on match, {@code 0} otherwise.
+     * requested {@link com.aerospike.client.sdk.operation.StringNumericType}. Returns a
+     * boolean flag: {@code true} on match, {@code false} otherwise.
+     *
+     * <pre>{@code
+     * // restrict to integer-only validation
+     * Exp isInt = StringExp.isNumeric(StringNumericType.INT, Exp.stringBin("text"));
+     * }</pre>
      *
      * @param numericType   one of the {@link com.aerospike.client.sdk.operation.StringNumericType} constants
      * @param src           source string expression
-     * @return              integer-typed expression: 1 if numeric of the given type, 0 otherwise
+     * @return              boolean-typed expression: true if numeric of the given type, false otherwise
      */
     public static Exp isNumeric(int numericType, Exp src) {
         byte[] bytes = Pack.pack(IS_NUMERIC, numericType);
@@ -294,11 +366,14 @@ public final class StringExp {
 
     /**
      * Create expression that tests whether every cased codepoint in {@code src} is
-     * uppercase. Returns an integer flag: {@code 1} on match, {@code 0} otherwise.
-     * The empty string matches (no cased codepoint violates the predicate).
+     * uppercase. Returns a boolean flag: {@code true} on match, {@code false} otherwise.
+     *
+     * <pre>{@code
+     * Exp upper = StringExp.isUpper(Exp.stringBin("text"));
+     * }</pre>
      *
      * @param src   source string expression
-     * @return      integer-typed expression: 1 if all-uppercase, 0 otherwise
+     * @return      boolean-typed expression: true if all-uppercase, false otherwise
      */
     public static Exp isUpper(Exp src) {
         byte[] bytes = Pack.pack(IS_UPPER);
@@ -307,11 +382,14 @@ public final class StringExp {
 
     /**
      * Create expression that tests whether every cased codepoint in {@code src} is
-     * lowercase. Returns an integer flag: {@code 1} on match, {@code 0} otherwise.
-     * The empty string matches (no cased codepoint violates the predicate).
+     * lowercase. Returns a boolean flag: {@code true} on match, {@code false} otherwise.
+     *
+     * <pre>{@code
+     * Exp lower = StringExp.isLower(Exp.stringBin("text"));
+     * }</pre>
      *
      * @param src   source string expression
-     * @return      integer-typed expression: 1 if all-lowercase, 0 otherwise
+     * @return      boolean-typed expression: true if all-lowercase, false otherwise
      */
     public static Exp isLower(Exp src) {
         byte[] bytes = Pack.pack(IS_LOWER);
@@ -320,6 +398,11 @@ public final class StringExp {
 
     /**
      * Create expression that returns the UTF-8 bytes of {@code src} as a blob.
+     *
+     * <pre>{@code
+     * // "hello" -> [0x68, 0x65, 0x6c, 0x6c, 0x6f]
+     * Exp blob = StringExp.toBlob(Exp.stringBin("text"));
+     * }</pre>
      *
      * @param src   source string expression
      * @return      blob-typed expression yielding the UTF-8 byte array
@@ -332,6 +415,11 @@ public final class StringExp {
     /**
      * Create expression that splits {@code src} by Unicode codepoint — each codepoint
      * becomes its own list element.
+     *
+     * <pre>{@code
+     * // "abc" -> ["a", "b", "c"]
+     * Exp parts = StringExp.split(Exp.stringBin("text"));
+     * }</pre>
      *
      * @param src   source string expression
      * @return      list-typed expression yielding a list of single-codepoint strings
@@ -346,6 +434,11 @@ public final class StringExp {
      * If the separator is absent, the result is a singleton list containing the whole
      * source.
      *
+     * <pre>{@code
+     * // "one,two,three" with "," -> ["one", "two", "three"]
+     * Exp tokens = StringExp.split(Exp.val(","), Exp.stringBin("text"));
+     * }</pre>
+     *
      * @param separator substring used to split the source
      * @param src       source string expression
      * @return          list-typed expression yielding the token list
@@ -359,6 +452,11 @@ public final class StringExp {
      * Create expression that base64-decodes {@code src} and returns the decoded
      * bytes as a blob.
      *
+     * <pre>{@code
+     * // "aGVsbG8=" -> "hello".getBytes()
+     * Exp decoded = StringExp.b64Decode(Exp.stringBin("text"));
+     * }</pre>
+     *
      * @param src   source string expression holding base64 text
      * @return      blob-typed expression yielding the decoded bytes
      */
@@ -369,11 +467,16 @@ public final class StringExp {
 
     /**
      * Create expression that tests whether {@code pattern} (ICU regex syntax) matches
-     * {@code src}. Returns an integer flag: {@code 1} on match, {@code 0} otherwise.
+     * {@code src}. Returns a boolean flag: {@code true} on match, {@code false} otherwise.
+     *
+     * <pre>{@code
+     * // matches if "text" contains any digit run
+     * Exp matched = StringExp.regexCompare(Exp.val("[0-9]+"), Exp.stringBin("text"));
+     * }</pre>
      *
      * @param pattern   ICU-syntax regex pattern (must be valid UTF-8)
      * @param src       source string expression
-     * @return          integer-typed expression: 1 on match, 0 otherwise
+     * @return          boolean-typed expression: true on match, false otherwise
      */
     public static Exp regexCompare(Exp pattern, Exp src) {
         byte[] bytes = Pack.pack(REGEX_COMPARE, pattern);
@@ -383,12 +486,18 @@ public final class StringExp {
     /**
      * Create expression that tests whether {@code pattern} matches {@code src} under
      * the supplied {@link StringRegexFlags}. Flags can be combined with bitwise OR.
-     * Returns an integer flag: {@code 1} on match, {@code 0} otherwise.
+     * Returns a boolean flag: {@code true} on match, {@code false} otherwise.
+     *
+     * <pre>{@code
+     * Exp matched = StringExp.regexCompare(
+     *     Exp.val("hello"), StringRegexFlags.CASE_INSENSITIVE,
+     *     Exp.stringBin("text"));
+     * }</pre>
      *
      * @param pattern       ICU-syntax regex pattern (must be valid UTF-8)
      * @param regexFlags    bitwise-OR of {@link StringRegexFlags} constants
      * @param src           source string expression
-     * @return              integer-typed expression: 1 on match, 0 otherwise
+     * @return              boolean-typed expression: true on match, false otherwise
      */
     public static Exp regexCompare(Exp pattern, int regexFlags, Exp src) {
         byte[] bytes = Pack.pack(REGEX_COMPARE, pattern, regexFlags);
@@ -682,9 +791,13 @@ public final class StringExp {
      * {@link StringRegexFlags#GLOBAL} to replace every match. Flag values may be
      * combined with bitwise OR. Does not modify the underlying bin.
      *
-     * @param policy        kept for API symmetry with the other modify ops; unused — the
-     *                      regex_replace server op does not accept policy flags
-     *                      (see implementation note)
+     * <pre>{@code
+     * // "abc123def456" regexReplace "[0-9]+"->"NUM" with GLOBAL -> "abcNUMdefNUM"
+     * Exp out = StringExp.regexReplace(
+     *     Exp.val("[0-9]+"), Exp.val("NUM"), StringRegexFlags.GLOBAL,
+     *     Exp.stringBin("text"));
+     * }</pre>
+     *
      * @param pattern       ICU-syntax regex pattern (must be valid UTF-8)
      * @param replacement   replacement text (must be valid UTF-8)
      * @param regexFlags    bitwise-OR of {@link StringRegexFlags} constants
@@ -692,7 +805,6 @@ public final class StringExp {
      * @return              string-typed expression yielding the modified string
      */
     public static Exp regexReplace(
-        int flags,
         Exp pattern,
         Exp replacement,
         int regexFlags,
@@ -711,12 +823,19 @@ public final class StringExp {
      * {@code src} may be any expression yielding an integer, float, string, or blob
      * value. Returns an error for any other source type.
      *
+     * <pre>{@code
+     * // integer bin "n" = 42 -> "42"
+     * Exp s = StringExp.toString(Exp.intBin("n"));
+     * }</pre>
+     *
      * @param src   source expression (integer, float, string, or blob)
      * @return      string-typed expression yielding the string representation
      */
     public static Exp toString(Exp src) {
-        byte[] bytes = reprPayload();
-        return new Exp.Module(src, bytes, Exp.Type.STRING.code, MODULE_REPR);
+        // Dedicated TO_STRING opcode (99), encoded as [99, bin]. The prior
+        // CALL_REPR (module 4) shape was rejected by current servers with
+        // PARAMETER. Mirrors aerospike-client-c CLIENT-5164 (PR #228).
+        return Exp.toStringExp(src);
     }
 
     //-----------------------------------------------------------------
@@ -777,24 +896,6 @@ public final class StringExp {
             pattern.pack(packer);
             replacement.pack(packer);
             packer.packInt(regexFlags);
-            if (i == 0) {
-                packer.createBuffer();
-            }
-        }
-        return packer.getBuffer();
-    }
-
-    // Single-zero payload [0] for CALL_REPR (StringExp.toString). The server's
-    // parse_op_call at exp.c:3244 rejects an empty list (ele_count == 0), so the
-    // payload must contain at least one element. The CALL_REPR dispatcher at
-    // exp.c:5019 ignores the sub-op id and goes straight to as_bin_to_string, so
-    // the value carried here is unused. The spec previously documented this as `[]`;
-    // the server is the source of truth — see §2.7 in the cross-client spec.
-    private static byte[] reprPayload() {
-        Packer packer = new Packer();
-        for (int i = 0; i < 2; i++) {
-            packer.packArrayBegin(1);
-            packer.packInt(0);
             if (i == 0) {
                 packer.createBuffer();
             }

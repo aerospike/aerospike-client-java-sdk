@@ -39,6 +39,7 @@ import com.aerospike.client.sdk.query.QueryIntegerTest;
 import com.aerospike.client.sdk.query.QueryKeyTest;
 import com.aerospike.client.sdk.query.QueryOperationsTest;
 import com.aerospike.client.sdk.query.QueryRPSTest;
+import com.aerospike.client.sdk.query.QuerySelectionErrorDetailTest;
 import com.aerospike.client.sdk.query.QueryStringTest;
 
 @Suite
@@ -56,6 +57,7 @@ import com.aerospike.client.sdk.query.QueryStringTest;
     DeleteBinTest.class,
     DurableDeleteTests.class,
     ErrorDetailVerbosityTest.class,
+    AelErrorDetailVerbosityTest.class,
     ExpireTest.class,
     ExpOperationTest.class,
     FilterExpTest.class,
@@ -95,6 +97,7 @@ import com.aerospike.client.sdk.query.QueryStringTest;
     QueryKeyTest.class,
     QueryOperationsTest.class,
     QueryRPSTest.class,
+    QuerySelectionErrorDetailTest.class,
     QueryStringTest.class,
     QueryWithPartitionPaginationTest.class
 })

@@ -70,7 +70,7 @@ public final class TxnRoll {
             }
 
             BatchAttr attr = new BatchAttr();
-            attr.setRead(rollPolicy, partitions.scMode);
+            attr.setTxnVerify(rollPolicy);
 
             List<BatchRecord> records = new ArrayList<BatchRecord>(max);
             Long[] versions = new Long[max];
@@ -271,7 +271,7 @@ public final class TxnRoll {
         }
 
         BatchAttr attr = new BatchAttr();
-        attr.setTxn(txnAttr);
+        attr.setTxnRoll(rollPolicy, txnAttr);
 
         List<BatchRecord> records = new ArrayList<BatchRecord>(max);
 
@@ -296,7 +296,7 @@ public final class TxnRoll {
             if (bn.offsetsSize == 1) {
                 int i = bn.offsets[0];
                 commands[count++] = new BatchSingle.TxnRoll(
-                    cluster, parent, txn, records.get(i), status, bn.node, txnAttr);
+                    cluster, parent, txn, records.get(i), status, bn.node);
             }
             else {
                 commands[count++] = new Batch.TxnRoll(

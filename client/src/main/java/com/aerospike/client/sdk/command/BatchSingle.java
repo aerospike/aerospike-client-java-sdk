@@ -327,7 +327,7 @@ public final class BatchSingle {
         @Override
         protected CommandBuffer getCommandBuffer() {
             CommandBuffer cb = new CommandBuffer();
-            cb.setTxnVerify(br.key, version, cmd.serverTimeout);
+            cb.setTxnVerify(br, version, cmd.serverTimeout);
             return cb;
         }
 
@@ -364,7 +364,6 @@ public final class BatchSingle {
     public static final class TxnRoll extends BatchSingleExecutor {
         private final Txn txn;
         private final BatchRecord br;
-        private final int attr;
 
         public TxnRoll(
             Cluster cluster,
@@ -372,19 +371,17 @@ public final class BatchSingle {
             Txn txn,
             BatchRecord br,
             BatchStatus status,
-            Node node,
-            int attr
+            Node node
         ) {
             super(cluster, cmd, status, br.key, node, true);
             this.txn = txn;
             this.br = br;
-            this.attr = attr;
         }
 
         @Override
         protected CommandBuffer getCommandBuffer() {
             CommandBuffer cb = new CommandBuffer();
-            cb.setTxnRoll(br.key, txn, attr, cmd.serverTimeout);
+            cb.setTxnRoll(br, txn, cmd.serverTimeout);
             return cb;
         }
 

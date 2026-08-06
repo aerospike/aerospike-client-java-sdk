@@ -32,7 +32,7 @@ public final class BatchAttr {
     public void setRead(ResolvedSettings settings, boolean scMode) {
         readAttr = Command.INFO1_READ;
         writeAttr = 0;
-        txnAttr = 0;
+        txnAttr = settings.getErrorDetailBits();
         hasWrite = false;
 
         if (scMode) {
@@ -74,7 +74,7 @@ public final class BatchAttr {
         readAttr = 0;
         writeAttr = (byte)(Command.INFO2_WRITE | Command.INFO2_RESPOND_ALL_OPS);
         infoAttr = 0;
-        txnAttr = 0;
+        txnAttr = settings.getErrorDetailBits();
         hasWrite = true;
 
         switch (type) {
@@ -111,7 +111,7 @@ public final class BatchAttr {
         readAttr = 0;
         writeAttr = (byte)(Command.INFO2_WRITE | Command.INFO2_RESPOND_ALL_OPS);
         infoAttr = 0;
-        txnAttr = 0;
+        txnAttr = settings.getErrorDetailBits();
         hasWrite = true;
 
         if (settings.getCommitLevel() == CommitLevel.COMMIT_MASTER) {
@@ -126,7 +126,7 @@ public final class BatchAttr {
         readAttr = 0;
         writeAttr = Command.INFO2_WRITE;
         infoAttr = 0;
-        txnAttr = 0;
+        txnAttr = settings.getErrorDetailBits();
         hasWrite = true;
 
         switch (type) {
@@ -165,7 +165,7 @@ public final class BatchAttr {
         readAttr = 0;
         writeAttr = (byte)(Command.INFO2_WRITE | Command.INFO2_RESPOND_ALL_OPS | Command.INFO2_DELETE);
         infoAttr = 0;
-        txnAttr = 0;
+        txnAttr = settings.getErrorDetailBits();
         hasWrite = true;
 
         if (settings.getUseDurableDelete(durableDeleteDefault, durableDeleteOverride)) {
@@ -177,11 +177,20 @@ public final class BatchAttr {
         }
     }
 
-    public void setTxn(int attr) {
+    public void setTxnVerify(ResolvedSettings settings) {
+        readAttr = (byte)(Command.INFO1_READ | Command.INFO1_NOBINDATA);
+        writeAttr = 0;
+        infoAttr = (byte)Command.INFO3_SC_READ_TYPE;
+        txnAttr = (byte)(Command.INFO4_TXN_VERIFY_READ | settings.getErrorDetailBits());
+        hasWrite = false;
+        linearize = true;
+    }
+
+    public void setTxnRoll(ResolvedSettings settings, int attr) {
         readAttr = 0;
         writeAttr = (byte)(Command.INFO2_WRITE | Command.INFO2_RESPOND_ALL_OPS | Command.INFO2_DURABLE_DELETE);
         infoAttr = 0;
-        txnAttr = (byte)attr;
+        txnAttr = (byte)(attr | settings.getErrorDetailBits());
         hasWrite = true;
     }
 }

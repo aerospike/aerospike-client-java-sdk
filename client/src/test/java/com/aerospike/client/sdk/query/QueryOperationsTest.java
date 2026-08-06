@@ -155,7 +155,7 @@ public class QueryOperationsTest extends ClusterTest {
     public void queryProjectBinsViaExpressionRead() {
         assumeSupportsAel();
 
-        String typeSuffix = cluster.supportsAel() ? ":INT" : "";
+        String typeSuffix = ":INT";
 
         RecordStream rs = session.query(args.set)
             .bin("result1").selectFrom("$." + binName1 + typeSuffix)
@@ -189,7 +189,7 @@ public class QueryOperationsTest extends ClusterTest {
         int begin = 1;
         int end = 10;
 
-        String typeSuffix = cluster.supportsAel() ? ":INT" : "";
+        String typeSuffix = ":INT";
 
         RecordStream rs = session.query(args.set)
             .bin("result1").selectFrom("$." + binName1 + typeSuffix)
@@ -225,7 +225,7 @@ public class QueryOperationsTest extends ClusterTest {
         int begin = 1;
         int end = 10;
 
-        String typeSuffix = cluster.supportsAel() ? ":INT" : "";
+        String typeSuffix = ":INT";
 
         RecordStream rs = session.query(args.set)
             .bin(binName1).get()
@@ -292,7 +292,7 @@ public class QueryOperationsTest extends ClusterTest {
         int begin = 5;
         int end = 15;
 
-        String typeSuffix = cluster.supportsAel() ? ":INT" : "";
+        String typeSuffix = ":INT";
 
         RecordStream rs = session.query(args.set)
             .bin(binName1).get()
@@ -446,7 +446,7 @@ public class QueryOperationsTest extends ClusterTest {
         // is the new-API replacement for ExpReadFlags.EVAL_NO_FAIL.
         int begin = 1;
         int end = 5;
-        String typeSuffix = cluster.supportsAel() ? ":INT" : "";
+        String typeSuffix = ":INT";
 
         RecordStream rs = session.query(args.set)
             .bin(binName1).get()

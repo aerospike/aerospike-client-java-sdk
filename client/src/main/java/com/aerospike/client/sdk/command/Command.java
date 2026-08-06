@@ -130,8 +130,7 @@ public class Command {
         sendKey = settings.getSendKey();
         compress = settings.getUseCompression();
 
-        errorDetailBits = (byte)((settings.getErrorDetailVerbosity()
-            << Command.INFO4_ERROR_VERBOSITY_SHIFT) & Command.INFO4_ERROR_VERBOSITY_MASK);
+        errorDetailBits = settings.getErrorDetailBits();
     }
 
     public int getConnectTimeout() {

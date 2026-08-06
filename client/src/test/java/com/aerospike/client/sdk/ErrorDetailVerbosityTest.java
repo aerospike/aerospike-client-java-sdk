@@ -256,7 +256,7 @@ public class ErrorDetailVerbosityTest extends ClusterTest {
                 .getFirstRecord();
         });
 
-        assertSubCodeAbsent(ae, ResultCode.GENERATION_ERROR, "Generation");
+        assertSubCodeAbsent(ae, ResultCode.GENERATION_ERROR, "generation");
     }
 
     // ---------------------------------------------------------------------
@@ -988,7 +988,7 @@ public class ErrorDetailVerbosityTest extends ClusterTest {
         assertEquals(expectedSubCode, ae.getSubCode(), "Unexpected subcode");
 
         String msg = ae.getBaseMessage();
-        assertNotNull("Expected server error message", msg);
+        assertNotNull(msg, "Expected server error message");
         assertTrue(msg.contains("subcode=" + expectedSubCode),
             "Expected 'subcode=" + expectedSubCode + "' in: " + msg);
     }
@@ -1005,7 +1005,7 @@ public class ErrorDetailVerbosityTest extends ClusterTest {
         assertEquals(SubCode.NONE, ae.getSubCode(), "Expected no subcode");
 
         String msg = ae.getBaseMessage();
-        assertNotNull("Expected server error message", msg);
+        assertNotNull(msg, "Expected server error message");
 
         for (String expected : expectedSubstrings) {
             assertTrue(msg.contains(expected), "Expected '" + expected + "' in: " + msg);

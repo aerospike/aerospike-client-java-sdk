@@ -62,6 +62,7 @@ public final class OperateArgs {
             case EXP_MODIFY:
             case HLL_MODIFY:
             case MAP_MODIFY:
+            case STRING_MODIFY:
             default:
                 wattr = Command.INFO2_WRITE;
                 write = true;

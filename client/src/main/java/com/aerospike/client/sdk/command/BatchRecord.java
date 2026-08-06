@@ -99,6 +99,7 @@ public class BatchRecord {
         this.resultCode = ae.getResultCode();
         this.subCode = ae.getSubCode();
         this.message = ae.getMessage();
+        this.expTrace = ae.getExpressionTrace();
         this.inDoubt = inDoubt;
     }
 
@@ -109,6 +110,7 @@ public class BatchRecord {
         this.resultCode = rp.resultCode;
         this.subCode = rp.subCode;
         this.message = rp.message;
+        this.expTrace = rp.expTrace;
         this.inDoubt = inDoubt;
     }
 
@@ -118,6 +120,7 @@ public class BatchRecord {
     public final void setErrorUDF(RecordParser rp, boolean inDoubt) {
         this.resultCode = rp.resultCode;
         this.subCode = rp.subCode;
+        this.expTrace = rp.expTrace;
         this.inDoubt = inDoubt;
 
         Record r = rp.parseRecord(false);
