@@ -599,8 +599,9 @@ public final class CommandBuffer {
     }
 
     private void sizeTxnBatch(Txn txn, Long ver, boolean hasWrite) {
+        dataOffset++; // Add info4 byte for transaction.
+
         if (txn != null) {
-            dataOffset++; // Add info4 byte for transaction.
             dataOffset += 8 + Command.FIELD_HEADER_SIZE;
 
             if (ver != null) {
@@ -636,23 +637,18 @@ public final class CommandBuffer {
     }
 
     private void writeBatchRead(BatchCommand cmd, BatchRead rec, Long ver, int opCount) {
+        dataBuffer[dataOffset++] = (byte)(BATCH_MSG_INFO | BATCH_MSG_INFO4 | BATCH_MSG_TTL);
+        dataBuffer[dataOffset++] = rec.readAttr;
+        dataBuffer[dataOffset++] = rec.writeAttr;
+        dataBuffer[dataOffset++] = rec.infoAttr;
+        dataBuffer[dataOffset++] = rec.txnAttr;  // Also contains error detail bits.
+        Buffer.intToBytes(rec.ttl, dataBuffer, dataOffset);
+        dataOffset += 4;
+
         if (cmd.txn != null) {
-            dataBuffer[dataOffset++] = (byte)(BATCH_MSG_INFO | BATCH_MSG_INFO4 | BATCH_MSG_TTL);
-            dataBuffer[dataOffset++] = rec.readAttr;
-            dataBuffer[dataOffset++] = rec.writeAttr;
-            dataBuffer[dataOffset++] = rec.infoAttr;
-            dataBuffer[dataOffset++] = rec.txnAttr;
-            Buffer.intToBytes(rec.ttl, dataBuffer, dataOffset);
-            dataOffset += 4;
             writeBatchFieldsTxn(cmd, rec, ver, 0, opCount);
         }
         else {
-            dataBuffer[dataOffset++] = (byte)(BATCH_MSG_INFO | BATCH_MSG_TTL);
-            dataBuffer[dataOffset++] = rec.readAttr;
-            dataBuffer[dataOffset++] = rec.writeAttr;
-            dataBuffer[dataOffset++] = rec.infoAttr;
-            Buffer.intToBytes(rec.ttl, dataBuffer, dataOffset);
-            dataOffset += 4;
             writeBatchFieldsReg(cmd, rec, 0, opCount);
         }
     }
@@ -660,27 +656,20 @@ public final class CommandBuffer {
     private void writeBatchWrite(
         BatchCommand cmd, BatchRecord rec, int gen, int ttl, Long ver, int fieldCount, int opCount
     ) {
+        dataBuffer[dataOffset++] = (byte)(BATCH_MSG_INFO | BATCH_MSG_INFO4 | BATCH_MSG_GEN | BATCH_MSG_TTL);
+        dataBuffer[dataOffset++] = rec.readAttr;
+        dataBuffer[dataOffset++] = rec.writeAttr;
+        dataBuffer[dataOffset++] = rec.infoAttr;
+        dataBuffer[dataOffset++] = rec.txnAttr;  // Also contains error detail bits.
+        Buffer.shortToBytes(gen, dataBuffer, dataOffset);
+        dataOffset += 2;
+        Buffer.intToBytes(ttl, dataBuffer, dataOffset);
+        dataOffset += 4;
+
         if (cmd.txn != null) {
-            dataBuffer[dataOffset++] = (byte)(BATCH_MSG_INFO | BATCH_MSG_INFO4 | BATCH_MSG_GEN | BATCH_MSG_TTL);
-            dataBuffer[dataOffset++] = rec.readAttr;
-            dataBuffer[dataOffset++] = rec.writeAttr;
-            dataBuffer[dataOffset++] = rec.infoAttr;
-            dataBuffer[dataOffset++] = rec.txnAttr;
-            Buffer.shortToBytes(gen, dataBuffer, dataOffset);
-            dataOffset += 2;
-            Buffer.intToBytes(ttl, dataBuffer, dataOffset);
-            dataOffset += 4;
             writeBatchFieldsTxn(cmd, rec, ver, fieldCount, opCount);
         }
         else {
-            dataBuffer[dataOffset++] = (byte)(BATCH_MSG_INFO | BATCH_MSG_GEN | BATCH_MSG_TTL);
-            dataBuffer[dataOffset++] = rec.readAttr;
-            dataBuffer[dataOffset++] = rec.writeAttr;
-            dataBuffer[dataOffset++] = rec.infoAttr;
-            Buffer.shortToBytes(gen, dataBuffer, dataOffset);
-            dataOffset += 2;
-            Buffer.intToBytes(ttl, dataBuffer, dataOffset);
-            dataOffset += 4;
             writeBatchFieldsReg(cmd, rec, fieldCount, opCount);
         }
     }
@@ -1381,8 +1370,9 @@ public final class CommandBuffer {
         compress(cmd);
     }
 
-    public void setTxnVerify(Key key, long ver, int serverTimeout) {
+    public void setTxnVerify(BatchRecord br, long ver, int serverTimeout) {
         begin();
+        Key key = br.key;
         int fieldCount = estimateKeySize(key);
 
         // Version field.
@@ -1391,10 +1381,10 @@ public final class CommandBuffer {
 
         sizeBuffer();
         dataBuffer[8] = Command.MSG_REMAINING_HEADER_SIZE;
-        dataBuffer[9] = (byte)(Command.INFO1_READ | Command.INFO1_NOBINDATA);
-        dataBuffer[10] = (byte)0;
-        dataBuffer[11] = (byte)Command.INFO3_SC_READ_TYPE;
-        dataBuffer[12] = (byte)Command.INFO4_TXN_VERIFY_READ;
+        dataBuffer[9] = br.readAttr;
+        dataBuffer[10] = br.writeAttr;
+        dataBuffer[11] = br.infoAttr;
+        dataBuffer[12] = br.txnAttr;
         dataBuffer[13] = 0;
         Buffer.intToBytes(0, dataBuffer, 14);
         Buffer.intToBytes(0, dataBuffer, 18);
@@ -1419,18 +1409,19 @@ public final class CommandBuffer {
         end();
     }
 
-    public void setTxnRoll(Key key, Txn txn, int txnAttr, int serverTimeout) {
+    public void setTxnRoll(BatchRecord br, Txn txn, int serverTimeout) {
         begin();
+        Key key = br.key;
         int fieldCount = estimateKeySize(key);
 
         fieldCount += sizeTxn(key, txn, false);
 
         sizeBuffer();
         dataBuffer[8]  = Command.MSG_REMAINING_HEADER_SIZE;
-        dataBuffer[9]  = (byte)0;
-        dataBuffer[10] = (byte)Command.INFO2_WRITE | Command.INFO2_DURABLE_DELETE;
-        dataBuffer[11] = (byte)0;
-        dataBuffer[12] = (byte)txnAttr;
+        dataBuffer[9]  = br.readAttr;
+        dataBuffer[10] = br.writeAttr;
+        dataBuffer[11] = br.infoAttr;
+        dataBuffer[12] = br.txnAttr;
         dataBuffer[13] = 0; // clear the result code
         Buffer.intToBytes(0, dataBuffer, 14);
         Buffer.intToBytes(0, dataBuffer, 18);

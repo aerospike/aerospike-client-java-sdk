@@ -595,6 +595,14 @@ public class BatchTest extends ClusterTest {
 
     @Test
     public void batchReadMixedExpressionsInvalidRowReturnsParameterError() {
+        Behavior behavior1 = Behavior.DEFAULT.deriveWithChanges("errorDetail", builder -> builder
+            .on(Selectors.all(), ops -> ops
+                .errorDetailVerbosity(ErrorDetailVerbosity.EXPRESSION_TRACE)
+            )
+        );
+
+        Session session1 = cluster.createSession(behavior1);
+
         String key1 = KeyPrefix + 1;
         String key2 = KeyPrefix + 2;
 
@@ -602,7 +610,7 @@ public class BatchTest extends ClusterTest {
         Expression validExp = Exp.build(Exp.binExists(BinName));
         Expression invalidExp = Expression.fromBytes(new byte[] {0x00, 0x01, 0x02});
 
-        RecordStream rs = session
+        RecordStream rs = session1
             .query(args.set.id(key1))
                 .where(validExp)
             .query(args.set.id(key2))
@@ -617,34 +625,43 @@ public class BatchTest extends ClusterTest {
         assertTrue(rs.hasNext());
         RecordResult res2 = rs.next();
         assertEquals(ResultCode.PARAMETER_ERROR, res2.getResultCode());
+        assertEquals(SubCode.NONE, res2.getSubCode());
+        assertNotNull(res2.getMessage());
+        assertNotNull(res2.getExpressionTrace());
     }
 
     @Test
     public void batchReadWithInvalidExpressionReturnsParameterError() {
+        Behavior behavior1 = Behavior.DEFAULT.deriveWithChanges("errorDetail", builder -> builder
+            .on(Selectors.all(), ops -> ops
+                .errorDetailVerbosity(ErrorDetailVerbosity.EXPRESSION_TRACE)
+            )
+        );
+
+        Session session1 = cluster.createSession(behavior1);
+
         String key1 = KeyPrefix + 1;
         String key2 = KeyPrefix + 2;
 
         Expression invalidExp = Expression.fromBytes(new byte[] {(byte)0xFF, (byte)0xFE, (byte)0xFD});
         List<Key> keys = args.set.ids(List.of(key1, key2));
 
-        try {
-            RecordStream rs = session.query(keys)
-                .where(invalidExp)
-                .includeMissingKeys()
-                .execute();
+        RecordStream rs = session1.query(keys)
+            .where(invalidExp)
+            .includeMissingKeys()
+            .execute();
 
-            boolean foundParamError = false;
-            while (rs.hasNext()) {
-                RecordResult res = rs.next();
-                if (res.getResultCode() == ResultCode.PARAMETER_ERROR) {
-                    foundParamError = true;
-                }
-            }
-            assertTrue(foundParamError,
-                "Expected at least one PARAMETER_ERROR result from batch with invalid expression");
-        } catch (AerospikeException ae) {
-            assertEquals(ResultCode.PARAMETER_ERROR, ae.getResultCode(),
-                "Expected PARAMETER_ERROR, got: " + ResultCode.getResultString(ae.getResultCode()));
+        int count = 0;
+
+        while (rs.hasNext()) {
+            RecordResult res = rs.next();
+            assertEquals(ResultCode.PARAMETER_ERROR, res.getResultCode());
+            assertEquals(SubCode.NONE, res.getSubCode());
+            assertNotNull(res.getMessage());
+            assertNotNull(res.getExpressionTrace());
+            count++;
         }
+
+        assertEquals(2, count);
     }
 }

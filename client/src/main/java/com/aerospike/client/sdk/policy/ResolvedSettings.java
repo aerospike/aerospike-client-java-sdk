@@ -19,6 +19,8 @@ package com.aerospike.client.sdk.policy;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
+import com.aerospike.client.sdk.command.Command;
+
 public final class ResolvedSettings {
     private final CommitLevel commitLevel;
     private final Replica replicaOrder;
@@ -225,6 +227,11 @@ public final class ResolvedSettings {
 
     public int getErrorDetailVerbosity() {
         return errorDetailVerbosity;
+    }
+
+    public byte getErrorDetailBits() {
+        return (byte)((errorDetailVerbosity << Command.INFO4_ERROR_VERBOSITY_SHIFT) &
+            Command.INFO4_ERROR_VERBOSITY_MASK);
     }
 
     public int getMaximumNumberOfCallAttempts() {
