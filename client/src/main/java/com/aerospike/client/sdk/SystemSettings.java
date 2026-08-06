@@ -19,6 +19,7 @@ package com.aerospike.client.sdk;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.Objects;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
 import com.aerospike.client.sdk.MetricsSettings.MetricsTweaks;
@@ -122,6 +123,7 @@ public class SystemSettings {
             .reportDir(".")
             .reportSizeLimit(0L)
             .interval(30)
+            .latencyUnit(TimeUnit.MILLISECONDS)
             .latencyColumns(7)
             .latencyShift(1)
             .batchSizeWarn(500)

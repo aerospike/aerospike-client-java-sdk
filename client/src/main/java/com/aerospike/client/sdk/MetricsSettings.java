@@ -19,6 +19,7 @@ package com.aerospike.client.sdk;
 import java.time.Duration;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.TimeUnit;
 
 import com.aerospike.client.sdk.metrics.MetricsListener;
 
@@ -33,6 +34,7 @@ public class MetricsSettings {
     private final String reportDir;
     private final Long reportSizeLimit;
     private final Integer interval;
+    private final TimeUnit latencyUnit;
     private final Integer latencyColumns;
     private final Integer latencyShift;
     private final Integer batchSizeWarn;
@@ -48,6 +50,7 @@ public class MetricsSettings {
         this.reportDir = builder.reportDir;
         this.reportSizeLimit = builder.reportSizeLimit;
         this.interval = builder.interval;
+        this.latencyUnit = builder.latencyUnit;
         this.latencyColumns = builder.latencyColumns;
         this.latencyShift = builder.latencyShift;
         this.batchSizeWarn = builder.batchSizeWarn;
@@ -87,6 +90,8 @@ public class MetricsSettings {
             ? this.reportSizeLimit : base.reportSizeLimit;
         merged.interval = this.interval != null
             ? this.interval : base.interval;
+        merged.latencyUnit = this.latencyUnit != null
+            ? this.latencyUnit : base.latencyUnit;
         merged.latencyColumns = this.latencyColumns != null
             ? this.latencyColumns : base.latencyColumns;
         merged.latencyShift = this.latencyShift != null
@@ -111,6 +116,7 @@ public class MetricsSettings {
     public String getReportDir() { return reportDir; }
     public Long getReportSizeLimit() { return reportSizeLimit; }
     public Integer getInterval() { return interval; }
+    public TimeUnit getLatencyUnit() { return latencyUnit; }
     public Integer getLatencyColumns() { return latencyColumns; }
     public Integer getLatencyShift() { return latencyShift; }
     public Integer getBatchSizeWarn() { return batchSizeWarn; }
@@ -135,6 +141,7 @@ public class MetricsSettings {
             Objects.equals(reportDir, that.reportDir) &&
             Objects.equals(reportSizeLimit, that.reportSizeLimit) &&
             Objects.equals(interval, that.interval) &&
+            Objects.equals(latencyUnit, that.latencyUnit) &&
             Objects.equals(latencyColumns, that.latencyColumns) &&
             Objects.equals(latencyShift, that.latencyShift) &&
             Objects.equals(batchSizeWarn, that.batchSizeWarn) &&
@@ -146,7 +153,7 @@ public class MetricsSettings {
     @Override
     public int hashCode() {
         return Objects.hash(listener, labels, latencyWarn, connectCreateWarn, reportDir,
-            reportSizeLimit, interval, latencyColumns, latencyShift, batchSizeWarn,
+            reportSizeLimit, interval, latencyUnit, latencyColumns, latencyShift, batchSizeWarn,
             shortQueryRecordsMax, longQueryRecordsMin, enabled);
     }
 
@@ -160,6 +167,7 @@ public class MetricsSettings {
             ", reportDir=" + reportDir +
             ", reportSizeLimit=" + reportSizeLimit +
             ", interval=" + interval +
+            ", latencyUnit=" + latencyUnit +
             ", latencyColumns=" + latencyColumns +
             ", latencyShift=" + latencyShift +
             ", batchSizeWarn=" + batchSizeWarn +
@@ -180,6 +188,7 @@ public class MetricsSettings {
         private String reportDir;
         private Long reportSizeLimit;
         private Integer interval;
+        private TimeUnit latencyUnit;
         private Integer latencyColumns;
         private Integer latencyShift;
         private Integer batchSizeWarn;
@@ -210,6 +219,7 @@ public class MetricsSettings {
         MetricsTweaks reportDir(String dir);
         MetricsTweaks reportSizeLimit(Long limit);
         MetricsTweaks interval(Integer limit);
+        MetricsTweaks latencyUnit(TimeUnit unit);
         MetricsTweaks latencyColumns(Integer limit);
         MetricsTweaks latencyShift(Integer limit);
         MetricsTweaks batchSizeWarn(Integer n);
@@ -268,6 +278,12 @@ public class MetricsSettings {
         @Override
         public MetricsTweaks interval(Integer interval) {
             builder.interval = interval;
+            return this;
+        }
+
+        @Override
+        public MetricsTweaks latencyUnit(TimeUnit unit) {
+            builder.latencyUnit = unit;
             return this;
         }
 

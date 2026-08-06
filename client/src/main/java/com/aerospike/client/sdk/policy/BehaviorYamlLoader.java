@@ -542,6 +542,9 @@ public class BehaviorYamlLoader {
                 if (metricsConfig.getInterval() != null) {
                     ops.interval(metricsConfig.getInterval());
                 }
+                if (metricsConfig.getLatencyUnit() != null) {
+                    ops.latencyUnit(metricsConfig.getLatencyUnit());
+                }
                 if (metricsConfig.getLatencyColumns() != null) {
                     ops.latencyColumns(metricsConfig.getLatencyColumns());
                 }

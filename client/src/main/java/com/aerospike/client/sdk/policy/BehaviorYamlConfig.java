@@ -18,6 +18,7 @@ package com.aerospike.client.sdk.policy;
 
 import java.time.Duration;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 public class BehaviorYamlConfig {
 
@@ -325,6 +326,7 @@ public class BehaviorYamlConfig {
         private String reportDir;
         private Long reportSizeLimit;
         private Integer interval;
+        private TimeUnit latencyUnit;
         private Integer latencyColumns;
         private Integer latencyShift;
         private Integer batchSizeWarn;
@@ -372,6 +374,13 @@ public class BehaviorYamlConfig {
         }
         public void setInterval(Integer interval) {
             this.interval = interval;
+        }
+
+        public TimeUnit getLatencyUnit() {
+            return latencyUnit;
+        }
+        public void setLatencyUnit(TimeUnit unit) {
+            this.latencyUnit = unit;
         }
 
         public Integer getLatencyColumns() {
