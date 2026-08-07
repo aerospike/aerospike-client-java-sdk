@@ -53,8 +53,10 @@ import com.aerospike.client.sdk.query.plan.QuerySelection;
  * <ul>
  *   <li>Scalar INTEGER / STRING / BLOB / GEO → SI explain when a matching index exists</li>
  *   <li>STRING on bin without SI → PI explain (OK, no index fields)</li>
- *   <li>MAPKEYS / MAPVALUES bare {@code .exists()} → SI when collection index exists</li>
- *   <li>{@code .exists() == true} and {@code geoCompare(...) == true} → PI (planner limitation)</li>
+ *   <li>MAPKEYS / MAPVALUES / LIST-value {@code .exists()} (bare or {@code == true}) → SI</li>
+ *   <li>Bare or wrapped {@code geoCompare(...)} → GEO SI when index exists</li>
+ *   <li>LIST index path {@code [N].exists()} → PI (positional existence; see
+ *       {@link QueryPlannerCollectionCdtTest})</li>
  * </ul>
  *
  * <p>Field {@code 44} uses <strong>server AEL</strong> ({@code .exists()}). Legacy client syntax
@@ -235,6 +237,22 @@ class QuerySelectionExplainScopeTest extends ClusterTest {
         QueryPlan plan = explain(where);
 
         assertAll("geoSiExplain",
+            () -> assertEquals(QuerySelection.SECONDARY_INDEX, plan.getSelection()),
+            () -> assertEquals(geoIndexName, plan.getIndexName()),
+            () -> assertNotNull(plan.getIndexRangeBytes()),
+            () -> assertEquals(IndexCollectionType.DEFAULT, plan.getIndexType()),
+            () -> assertNotNull(plan.getExplainWhereBytes()));
+    }
+
+    /**
+     * GEO wrapped as {@code geoCompare(...) == true} — same SI plan as bare {@code geoCompare(...)}.
+     */
+    @Test
+    void explainGeoCompareEqTrue_selectsSecondaryIndex() {
+        String where = geoCompareWhere(matchPointGeoJson) + " == true";
+        QueryPlan plan = explain(where);
+
+        assertAll("geoEqTrueSiExplain",
             () -> assertEquals(QuerySelection.SECONDARY_INDEX, plan.getSelection()),
             () -> assertEquals(geoIndexName, plan.getIndexName()),
             () -> assertNotNull(plan.getIndexRangeBytes()),

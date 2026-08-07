@@ -50,9 +50,10 @@ import com.aerospike.client.sdk.query.plan.QuerySelection;
  * Query planner integration tests for MAPKEYS / MAPVALUES / LIST collection indexes with CDT
  * {@code .exists()} predicates on field {@code 44} explain.
  *
- * <p>Index selection requires bare {@code .exists()} at conjunct level ({@code EXP_CALL} root).
- * Wrapping with {@code == true} yields {@code EXP_CMP_EQ} and the planner falls back to PI
- * ({@code extract_call_cmp_candidate} does not handle {@code RESULT_TYPE_EXISTS}).</p>
+ * <p>Bare {@code .exists()} and {@code .exists() == true} both plan as collection SI candidates
+ * when the selector carries a probe value (MAPKEYS key, MAPVALUES value, LIST value path).
+ * LIST index paths ({@code [0]}) still fall back to PI — value-containment indexes cannot
+ * answer positional existence.</p>
  *
  * <p>Uses server AEL syntax ({@code .exists()}, not legacy {@code .get(return: EXISTS)}).
  * List <strong>index</strong> paths use {@code [0]}; list <strong>value</strong> paths use
@@ -150,12 +151,16 @@ public class QueryPlannerCollectionCdtTest extends ClusterTest {
     }
 
     /**
-     * {@code .exists() == true} — planner sees {@code EXP_CMP_EQ}, not top-level {@code EXP_CALL}.
+     * MAPKEYS + {@code .exists() == true} — wrapped {@code EXP_CMP_EQ} still selects MAPKEYS SI.
      */
     @Test
-    void planMapKeysExistsEqTruePrimaryIndexFallback() {
-        assertPlan(plan(dataSet, mapKeysExistsWhere() + " == true"),
-            QuerySelection.PRIMARY_INDEX, null, false);
+    void planMapKeysExistsEqTrueSecondaryIndex() {
+        QueryPlan plan = plan(dataSet, mapKeysExistsWhere() + " == true");
+        assertAll("mapKeysEqTrueSiExplain",
+            () -> assertEquals(QuerySelection.SECONDARY_INDEX, plan.getSelection()),
+            () -> assertEquals(mapIndex, plan.getIndexName()),
+            () -> assertNotNull(plan.getIndexRangeBytes()),
+            () -> assertEquals(IndexCollectionType.MAPKEYS, plan.getIndexType()));
     }
 
     /**
@@ -172,12 +177,16 @@ public class QueryPlannerCollectionCdtTest extends ClusterTest {
     }
 
     /**
-     * {@code .exists() == true} on MAPVALUES — same {@code EXP_CMP_EQ} planner limitation as MAPKEYS.
+     * MAPVALUES + {@code .exists() == true} — wrapped {@code EXP_CMP_EQ} still selects MAPVALUES SI.
      */
     @Test
-    void planMapValuesExistsEqTruePrimaryIndexFallback() {
-        assertPlan(plan(dataSet, mapValuesExistsWhere() + " == true"),
-            QuerySelection.PRIMARY_INDEX, null, false);
+    void planMapValuesExistsEqTrueSecondaryIndex() {
+        QueryPlan plan = plan(dataSet, mapValuesExistsWhere() + " == true");
+        assertAll("mapValuesEqTrueSiExplain",
+            () -> assertEquals(QuerySelection.SECONDARY_INDEX, plan.getSelection()),
+            () -> assertEquals(mapValuesIndex, plan.getIndexName()),
+            () -> assertNotNull(plan.getIndexRangeBytes()),
+            () -> assertEquals(IndexCollectionType.MAPVALUES, plan.getIndexType()));
     }
 
     /**
@@ -194,12 +203,16 @@ public class QueryPlannerCollectionCdtTest extends ClusterTest {
     }
 
     /**
-     * LIST value path {@code .exists() == true} — PI ({@code EXP_CMP_EQ} limitation).
+     * LIST value path {@code .exists() == true} — wrapped {@code EXP_CMP_EQ} still selects LIST SI.
      */
     @Test
-    void planListValueExistsEqTruePrimaryIndexFallback() {
-        assertPlan(plan(dataSet, listValueExistsWhere() + " == true"),
-            QuerySelection.PRIMARY_INDEX, null, false);
+    void planListValueExistsEqTrueSecondaryIndex() {
+        QueryPlan plan = plan(dataSet, listValueExistsWhere() + " == true");
+        assertAll("listValueEqTrueSiExplain",
+            () -> assertEquals(QuerySelection.SECONDARY_INDEX, plan.getSelection()),
+            () -> assertEquals(listStrIndex, plan.getIndexName()),
+            () -> assertNotNull(plan.getIndexRangeBytes()),
+            () -> assertEquals(IndexCollectionType.LIST, plan.getIndexType()));
     }
 
     /**
