@@ -121,4 +121,29 @@ public class QueryGeoTest extends ClusterTest {
             rs.close();
         }
     }
+
+    @Test
+    public void queryGeoAelString() {
+        assumeSupportsAel();
+
+        String region = "{\"type\":\"Point\",\"coordinates\":[-122.0986857,37.4214209]}";
+        String where = "geoCompare($.loc, geoJson('" + region + "'))";
+
+        RecordStream rs = session.query(setRegions)
+            .where(where)
+            .execute();
+
+        try {
+            int count = 0;
+
+            while (rs.hasNext()) {
+                rs.next().recordOrThrow();
+                count++;
+            }
+            assertEquals(5, count);
+        }
+        finally {
+            rs.close();
+        }
+    }
 }

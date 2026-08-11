@@ -452,6 +452,11 @@ public class FilterExpTest extends ClusterTest {
     }
 
     @Test
+    public void filterMembershipIn() {
+        testAel("$." + binA + ":INT in [2, 3]");
+    }
+
+    @Test
     public void filterAddInt() {
         Exp exp =
             Exp.eq(

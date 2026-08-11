@@ -49,6 +49,8 @@ public class AelPathReadTest extends ClusterTest {
     private static final String BIN_MAP = "m";
     private static final String BIN_LIST = "l";
     private static final String BIN_INT = "num";
+    private static final String BIN_STR = "s";
+    private static final String BIN_BLOB = "b";
 
     private Key key;
 
@@ -71,6 +73,8 @@ public class AelPathReadTest extends ClusterTest {
             .bin(BIN_MAP).setTo(map)
             .bin(BIN_LIST).setTo(List.of(100, 200, 300, 400, 500))
             .bin(BIN_INT).setTo(42)
+            .bin(BIN_STR).setTo("  trim-me  ")
+            .bin(BIN_BLOB).setTo(new byte[] {(byte) 0xDE, (byte) 0xAD, (byte) 0xBE, (byte) 0xEF})
             .execute();
     }
 
@@ -161,6 +165,101 @@ public class AelPathReadTest extends ClusterTest {
         assertEquals(ResultCode.OP_NOT_APPLICABLE, ex.getResultCode());
     }
 
+    // --- rank / positional getters / rel-range ---
+
+    @Test
+    public void listRankSelectorRead() {
+        assertEquals(200L, selectLong("rank", "$." + BIN_LIST + ":LIST.[{#1}]:INT"));
+    }
+
+    @Test
+    public void mapRankSelectorRead() {
+        assertEquals(10L, selectLong("rank", "$." + BIN_MAP + ":MAP.{#0}:INT"));
+    }
+
+    @Test
+    public void getIndexesForListValue() {
+        List<?> indexes = selectList("idx", "$." + BIN_LIST + ":LIST.[=200:200].getIndexes()");
+        assertThat(indexes)
+            .extracting(v -> ((Number) v).longValue())
+            .containsExactly(1L);
+    }
+
+    @Test
+    public void getRanksForListValue() {
+        List<?> ranks = selectList("rank", "$." + BIN_LIST + ":LIST.[=200:200].getRanks()");
+        assertThat(ranks)
+            .extracting(v -> ((Number) v).longValue())
+            .containsExactly(1L);
+    }
+
+    @Test
+    public void listRelRankRangeCount() {
+        assertEquals(2L, selectLong("n", "$." + BIN_LIST + ":LIST.[#0:1~200].count()"));
+    }
+
+    // --- string / blob path methods ---
+
+    @Test
+    public void stringTrimPathMethod() {
+        assertEquals("trim-me", selectString("trimmed", "$." + BIN_STR + ":STRING.trim()"));
+    }
+
+    @Test
+    public void blobBitGetPathMethod() {
+        assertEquals(0xDEL, selectLong("bits", "$." + BIN_BLOB + ":BLOB.bitGet(offset: 0, size: 8)"));
+    }
+
+    @Test
+    public void missingPathSegmentWithNoFailReturnsNull() {
+        Object value = selectValueAllowNull("v", "$." + BIN_MAP + ":MAP.missing:INT:NO_FAIL");
+        assertThat(value).isNull();
+    }
+
+    // --- path writes (mutations via AEL strings) ---
+
+    @Test
+    public void mapSetToOnPath() {
+        upsertPath(BIN_MAP, "$." + BIN_MAP + ":MAP.delta:INT.setTo(99)");
+        assertEquals(99L, mapLong("delta"));
+    }
+
+    @Test
+    public void mapAddOnPath() {
+        upsertPath(BIN_MAP, "$." + BIN_MAP + ":MAP.alpha.add(5)");
+        assertEquals(15L, mapLong("alpha"));
+    }
+
+    @Test
+    public void mapRemoveOnPath() {
+        upsertPath(BIN_MAP, "$." + BIN_MAP + ":MAP.beta.remove()");
+        assertThat(mapLong("beta")).isNull();
+        assertEquals(2L, selectLong("size", "$." + BIN_MAP + ":MAP.count()"));
+    }
+
+    @Test
+    public void listAppendOnPath() {
+        upsertPath(BIN_LIST, "$." + BIN_LIST + ":LIST.append(600)");
+        assertEquals(600L, selectLong("last", "$." + BIN_LIST + ":LIST.[5]:INT"));
+    }
+
+    @Test
+    public void modifyIncrementsMatchingMapValues() {
+        upsertPath(BIN_MAP, "$." + BIN_MAP + ":MAP.*[?(@ > 15)].modify(@ + 1)");
+        assertEquals(10L, mapLong("alpha"));
+        assertEquals(21L, mapLong("beta"));
+        assertEquals(31L, mapLong("gamma"));
+    }
+
+    @Test
+    public void createOrderedNestedMapOnMissingKey() {
+        upsertPath(BIN_MAP, "$." + BIN_MAP + ":MAP.nested:KEY_ORDERED.inner:INT.setTo(7)");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> nested = (Map<String, Object>) mapValue("nested");
+        assertNotNull(nested);
+        assertEquals(7L, ((Number) nested.get("inner")).longValue());
+    }
+
     // --- typed bins / path tails ---
 
     @Test
@@ -210,5 +309,44 @@ public class AelPathReadTest extends ClusterTest {
             Record rec = rs.next().recordOrThrow();
             return rec.getValue(resultBin);
         }
+    }
+
+    private Object selectValueAllowNull(String resultBin, String ael) {
+        try (RecordStream rs = session.query(key)
+            .bin(resultBin)
+            .selectFrom(ael)
+            .execute()) {
+            assertTrue(rs.hasNext(), () -> "no record for AEL: " + ael);
+            Record rec = rs.next().recordOrThrow();
+            return rec.getValue(resultBin);
+        }
+    }
+
+    private String selectString(String resultBin, String ael) {
+        Object value = selectValue(resultBin, ael);
+        assertInstanceOf(String.class, value, () -> "expected string for AEL: " + ael);
+        return (String) value;
+    }
+
+    private void upsertPath(String binName, String ael) {
+        session.update(key)
+            .bin(binName).upsertFrom(ael)
+            .execute();
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> mapBin() {
+        Record rec = session.query(key).execute().getFirstRecord();
+        assertNotNull(rec);
+        return (Map<String, Object>) rec.getValue(BIN_MAP);
+    }
+
+    private Long mapLong(String mapKey) {
+        Object value = mapBin().get(mapKey);
+        return value == null ? null : ((Number) value).longValue();
+    }
+
+    private Object mapValue(String mapKey) {
+        return mapBin().get(mapKey);
     }
 }

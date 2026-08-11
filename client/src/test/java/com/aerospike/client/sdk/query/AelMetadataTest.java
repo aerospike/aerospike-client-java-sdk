@@ -205,6 +205,25 @@ public class AelMetadataTest extends ClusterTest {
         assertFalse(matchesWhere(longTtlKey, "$.ttl() <= 120"));
     }
 
+    @Test
+    public void timeSinceLastUpdateNonNegative() {
+        assertTrue(matchesWhere(stringKey, "$.timeSinceLastUpdate() >= 0"));
+    }
+
+    @Test
+    public void voidTimePositiveWhenTtlSet() {
+        Assumptions.assumeTrue(args.hasTtl, "cluster TTL not enabled");
+
+        Key ttlKey = args.set.id("ael_meta_void_time");
+        sessionWithSendKey.delete(ttlKey).execute();
+        sessionWithSendKey.upsert(ttlKey)
+            .expireRecordAfterSeconds(3600)
+            .bin(BIN_MARKER).setTo(1)
+            .execute();
+
+        assertTrue(matchesWhere(ttlKey, "$.voidTime() > 0"));
+    }
+
     // --- setup + helpers ---
 
     private static void probeKeySupport() {
