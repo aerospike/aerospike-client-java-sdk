@@ -103,13 +103,7 @@ public class QuerySelectionIntegrationTest extends ClusterTest {
     }
 
     /**
-     * Expression secondary index explain — documents current server gap.
-     *
-     * <p>Isolated set {@code qselexpint} has only an expression SI. Explain still returns
-     * {@code PRIMARY_INDEX} today (no fields {@code 21}/{@code 22}). Execute works via PI +
-     * AEL filter. When server selects expression SIs on explain, replace
-     * {@code expressionIndexExplainToday} with {@code SECONDARY_INDEX}, {@code EXP_INDEX}, and
-     * {@code bin_name_len == 0} on field {@code 22}.</p>
+     * Expression secondary index explain — field {@code 22} omits bin name ({@code bin_name_len == 0}).
      */
     @Test
     void expressionIndexExplainOmitsBinNameInRange() {
@@ -128,20 +122,19 @@ public class QuerySelectionIntegrationTest extends ClusterTest {
 
             QueryPlan plan = explainPlan(expDataSet, where);
 
-            assertAll("expressionIndexExplainToday",
-                () -> assertEquals(QuerySelection.PRIMARY_INDEX, plan.getSelection(),
-                    "replace with SECONDARY_INDEX when server selects expression SIs on explain"),
-                () -> assertNull(plan.getIndexName(),
-                    "replace with EXP_INDEX when server selects expression SIs on explain"),
-                () -> assertNull(plan.getIndexRangeBytes(),
-                    "replace with bin_name_len==0 range when server selects expression SIs on explain"));
+            assertAll("expressionIndexExplain",
+                () -> assertEquals(QuerySelection.SECONDARY_INDEX, plan.getSelection()),
+                () -> assertEquals(EXP_INDEX, plan.getIndexName()),
+                () -> assertNotNull(plan.getIndexRangeBytes()),
+                () -> assertEquals(0, indexRangeBinNameLen(plan.getIndexRangeBytes()),
+                    "expression SI explain INDEX_RANGE should omit driving bin name"));
 
             List<Integer> ages = collectAges(session.query(expDataSet)
                 .readingOnlyBins(AGE_BIN, COUNTRY_BIN)
                 .where(where)
                 .execute(), AGE_BIN);
 
-            assertAll("expressionIndexExecuteToday",
+            assertAll("expressionIndexExecute",
                 () -> assertEquals(1, ages.size()),
                 () -> assertEquals(List.of(16), ages));
         }
@@ -150,8 +143,52 @@ public class QuerySelectionIntegrationTest extends ClusterTest {
         }
     }
 
+    /**
+     * Oversized string literal on an unindexed bin — explain PI-fallback, execute succeeds (full scan).
+     */
+    @Test
+    void explainOversizedLiteralOnUnindexedBinFallsBackToPrimaryIndex() {
+        String where = "$." + COUNTRY_BIN + " == '" + oversizedLiteral() + "'";
+        QueryPlan plan = explainPlan(where);
+
+        assertAll("oversizedLiteralPiExplain",
+            () -> assertEquals(QuerySelection.PRIMARY_INDEX, plan.getSelection()),
+            () -> assertNull(plan.getIndexName()),
+            () -> assertNull(plan.getIndexRangeBytes()));
+
+        assertEquals(0, countRecords(session.query(dataSet)
+            .readingOnlyBins(COUNTRY_BIN)
+            .where(where)
+            .execute()));
+    }
+
+    /**
+     * Partial AND with an oversized literal — age SI still selected; execute filters both conjuncts.
+     */
+    @Test
+    void explainPartialAndWithOversizedLiteralStillSelectsAgeIndex() {
+        String where = "$." + AGE_BIN + " >= 14 and $." + AGE_BIN + " <= 18 and $." +
+            COUNTRY_BIN + " == '" + oversizedLiteral() + "'";
+
+        QueryPlan plan = explainPlan(where);
+
+        assertAll("partialAndOversizedExplain",
+            () -> assertEquals(QuerySelection.SECONDARY_INDEX, plan.getSelection()),
+            () -> assertEquals(AGE_INDEX, plan.getIndexName()),
+            () -> assertNotNull(plan.getIndexRangeBytes()));
+
+        assertEquals(0, countRecords(session.query(dataSet)
+            .readingOnlyBins(AGE_BIN, COUNTRY_BIN)
+            .where(where)
+            .execute()));
+    }
+
     private static int indexRangeBinNameLen(byte[] rangeBytes) {
         return rangeBytes[1] & 0xFF;
+    }
+
+    private static String oversizedLiteral() {
+        return "x".repeat(2048);
     }
 
     /**
