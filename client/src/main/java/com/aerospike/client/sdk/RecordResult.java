@@ -548,7 +548,7 @@ public final class RecordResult {
      * Return exception expression trace if exception exists.
      * Otherwise, return server returned expression trace.
      */
-    public ExpressionTrace getExpTrace() {
+    public ExpressionTrace getExpressionTrace() {
         return (exception != null)? exception.getExpressionTrace() : expTrace;
     }
 
