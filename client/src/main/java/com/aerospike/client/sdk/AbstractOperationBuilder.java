@@ -205,6 +205,13 @@ public abstract class AbstractOperationBuilder<T extends AbstractOperationBuilde
     }
 
     /**
+     * Records server-compiled read AEL from string {@code selectFrom()} paths.
+     * Chainable builders override this to attach AEL to the current {@link OperationSpec}.
+     */
+    protected void trackServerReadAel(String ael) {
+    }
+
+    /**
      * Add a record-level delete operation to the current operate call.
      * Unlike {@code delete(Key)} which starts a new batch entry for a different key,
      * this deletes the record being operated on as part of the same atomic operation.

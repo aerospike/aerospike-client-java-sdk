@@ -20,6 +20,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import com.aerospike.client.sdk.exp.Expression;
+import com.aerospike.client.sdk.query.WhereClauseProcessor;
 
 /**
  * Internal class representing a single operation specification in a chainable batch operation.
@@ -42,6 +43,12 @@ public class OperationSpec {
 
     /** Optional filter expression for conditional operations */
     private Expression whereClause = null;
+
+    /** Source WHERE processor when built from string or prepared AEL */
+    private WhereClauseProcessor whereProcessor = null;
+
+    /** Server-compiled read AEL strings from selectFrom() on field 43 paths */
+    private final List<String> serverReadAels = new ArrayList<>();
 
     /** Generation check value (0 means no generation check) */
     private int generation = 0;
@@ -129,6 +136,22 @@ public class OperationSpec {
      */
     public void setWhereClause(Expression whereClause) {
         this.whereClause = whereClause;
+    }
+
+    WhereClauseProcessor getWhereProcessor() {
+        return whereProcessor;
+    }
+
+    void setWhereProcessor(WhereClauseProcessor whereProcessor) {
+        this.whereProcessor = whereProcessor;
+    }
+
+    void addServerReadAel(String ael) {
+        serverReadAels.add(ael);
+    }
+
+    List<String> getServerReadAels() {
+        return serverReadAels;
     }
 
     /**

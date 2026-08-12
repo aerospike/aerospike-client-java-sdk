@@ -332,7 +332,7 @@ public class Session {
      * @see ChainableQueryBuilder
      */
     public ChainableQueryBuilder query(Key key) {
-        return new ChainableQueryBuilder(this, new ArrayList<>(), null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, getCurrentTransaction())
+        return new ChainableQueryBuilder(this, new ArrayList<>(), null, null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, getCurrentTransaction())
                 .initQuery(key);
     }
 
@@ -362,7 +362,7 @@ public class Session {
      * @see ChainableQueryBuilder
      */
     public ChainableQueryBuilder query(Key key1, Key key2, Key...keys) {
-        return new ChainableQueryBuilder(this, new ArrayList<>(), null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, getCurrentTransaction())
+        return new ChainableQueryBuilder(this, new ArrayList<>(), null, null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, getCurrentTransaction())
                 .initQuery(buildKeyList(key1, key2, keys));
     }
 
@@ -390,7 +390,7 @@ public class Session {
      * @see ChainableQueryBuilder
      */
     public ChainableQueryBuilder query(List<Key> keyList) {
-        return new ChainableQueryBuilder(this, new ArrayList<>(), null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, getCurrentTransaction())
+        return new ChainableQueryBuilder(this, new ArrayList<>(), null, null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, getCurrentTransaction())
                 .initQuery(keyList);
     }
 
@@ -402,7 +402,7 @@ public class Session {
      * {@link RecordStream} from {@code execute()}.
      */
     public <T> TypedKeyQueryBuilder<T> query(TypedKey<T> typedKey) {
-        ChainableQueryBuilder inner = new ChainableQueryBuilder(this, new ArrayList<>(), null,
+        ChainableQueryBuilder inner = new ChainableQueryBuilder(this, new ArrayList<>(), null, null,
             AbstractOperationBuilder.NOT_EXPLICITLY_SET, getCurrentTransaction())
             .initQueryTyped(typedKey);
         return new TypedKeyQueryBuilder<>(this, typedKey.getEntityClass(), inner);
@@ -456,7 +456,7 @@ public class Session {
         Objects.requireNonNull(typedKeys, "typedKeys");
         TypedKey.requireSharedEntityClass(typedKeys);
         Class<T> entityClass = typedKeys.get(0).getEntityClass();
-        ChainableQueryBuilder inner = new ChainableQueryBuilder(this, new ArrayList<>(), null,
+        ChainableQueryBuilder inner = new ChainableQueryBuilder(this, new ArrayList<>(), null, null,
             AbstractOperationBuilder.NOT_EXPLICITLY_SET, getCurrentTransaction())
             .initQueryTyped(typedKeys);
         return new TypedKeyQueryBuilder<>(this, entityClass, inner);
@@ -482,7 +482,7 @@ public class Session {
      * {@code List}.</p>
      */
     public ChainableQueryBuilder queryTypedKeysAny(List<? extends TypedKey<?>> typedKeys) {
-        return new ChainableQueryBuilder(this, new ArrayList<>(), null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, getCurrentTransaction())
+        return new ChainableQueryBuilder(this, new ArrayList<>(), null, null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, getCurrentTransaction())
                 .initQueryTyped(typedKeys);
     }
 
@@ -631,7 +631,7 @@ public class Session {
      */
     public UdfFunctionBuilder executeUdf(Key key) {
         return new UdfFunctionBuilder(this, List.of(key), new ArrayList<>(),
-                null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, getCurrentTransaction(), null);
+                null, null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, getCurrentTransaction(), null);
     }
 
     /**
@@ -654,7 +654,7 @@ public class Session {
      */
     public UdfFunctionBuilder executeUdf(List<Key> keyList) {
         return new UdfFunctionBuilder(this, keyList, new ArrayList<>(),
-                null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, getCurrentTransaction(), null);
+                null, null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, getCurrentTransaction(), null);
     }
 
     /**
@@ -678,7 +678,7 @@ public class Session {
      */
     public UdfFunctionBuilder executeUdf(Key key1, Key key2, Key... keys) {
         return new UdfFunctionBuilder(this, buildKeyList(key1, key2, keys), new ArrayList<>(),
-                null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, getCurrentTransaction(), null);
+                null, null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, getCurrentTransaction(), null);
     }
 
     /**
@@ -687,7 +687,7 @@ public class Session {
      */
     public UdfFunctionBuilder executeUdf(TypedKey<?> typedKey) {
         return new UdfFunctionBuilder(this, List.of(typedKey.getKey()), new ArrayList<>(),
-            null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, getCurrentTransaction(),
+            null, null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, getCurrentTransaction(),
             typedKey.getEntityClass());
     }
 
@@ -702,7 +702,7 @@ public class Session {
         list.addAll(Arrays.asList(more));
         Class<?> entity = TypedKey.requireSharedEntityClass(list);
         return new UdfFunctionBuilder(this, TypedKey.nativeKeys(list), new ArrayList<>(),
-            null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, getCurrentTransaction(), entity);
+            null, null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, getCurrentTransaction(), entity);
     }
 
     /**
@@ -715,7 +715,7 @@ public class Session {
         List<TypedKey<?>> list = new ArrayList<>(typedKeys);
         Class<?> entity = TypedKey.requireSharedEntityClass(list);
         return new UdfFunctionBuilder(this, TypedKey.nativeKeys(list), new ArrayList<>(),
-            null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, getCurrentTransaction(), entity);
+            null, null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, getCurrentTransaction(), entity);
     }
 
     // -------------------
@@ -1139,7 +1139,7 @@ public class Session {
      * @return builder for further no-bin operations in the same batch
      */
     public ChainableNoBinsBuilder touch(Key key) {
-        return new ChainableNoBinsBuilder(this, new ArrayList<>(), null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, getCurrentTransaction())
+        return new ChainableNoBinsBuilder(this, new ArrayList<>(), null, null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, getCurrentTransaction())
                 .touch(key);
     }
 
@@ -1160,7 +1160,7 @@ public class Session {
      * @return builder for further no-bin operations in the same batch
      */
     public ChainableNoBinsBuilder touch(List<Key> keys) {
-        return new ChainableNoBinsBuilder(this, new ArrayList<>(), null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, getCurrentTransaction())
+        return new ChainableNoBinsBuilder(this, new ArrayList<>(), null, null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, getCurrentTransaction())
                 .touch(keys);
     }
 
@@ -1182,7 +1182,7 @@ public class Session {
      * @return builder for further no-bin operations in the same batch
      */
     public ChainableNoBinsBuilder touch(Key key1, Key key2, Key ... keys) {
-        return new ChainableNoBinsBuilder(this, new ArrayList<>(), null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, getCurrentTransaction())
+        return new ChainableNoBinsBuilder(this, new ArrayList<>(), null, null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, getCurrentTransaction())
                 .touch(buildKeyList(key1, key2, keys));
     }
 
@@ -1221,7 +1221,7 @@ public class Session {
      * @return builder for further no-bin operations in the same batch
      */
     public ChainableNoBinsBuilder exists(Key key) {
-        return new ChainableNoBinsBuilder(this, new ArrayList<>(), null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, getCurrentTransaction())
+        return new ChainableNoBinsBuilder(this, new ArrayList<>(), null, null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, getCurrentTransaction())
                 .exists(key);
     }
 
@@ -1239,7 +1239,7 @@ public class Session {
      * @return builder for further no-bin operations in the same batch
      */
     public ChainableNoBinsBuilder exists(List<Key> keys) {
-        return new ChainableNoBinsBuilder(this, new ArrayList<>(), null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, getCurrentTransaction())
+        return new ChainableNoBinsBuilder(this, new ArrayList<>(), null, null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, getCurrentTransaction())
                 .exists(keys);
     }
 
@@ -1259,7 +1259,7 @@ public class Session {
      * @return builder for further no-bin operations in the same batch
      */
     public ChainableNoBinsBuilder exists(Key key1, Key key2, Key ... keys) {
-        return new ChainableNoBinsBuilder(this, new ArrayList<>(), null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, getCurrentTransaction())
+        return new ChainableNoBinsBuilder(this, new ArrayList<>(), null, null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, getCurrentTransaction())
                 .exists(buildKeyList(key1, key2, keys));
     }
 
@@ -1297,7 +1297,7 @@ public class Session {
      * @return builder for further no-bin operations in the same batch
      */
     public ChainableNoBinsBuilder delete(Key key) {
-        return new ChainableNoBinsBuilder(this, new ArrayList<>(), null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, getCurrentTransaction())
+        return new ChainableNoBinsBuilder(this, new ArrayList<>(), null, null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, getCurrentTransaction())
                 .delete(key);
     }
 
@@ -1314,7 +1314,7 @@ public class Session {
      * @return builder for further no-bin operations in the same batch
      */
     public ChainableNoBinsBuilder delete(List<Key> keys) {
-        return new ChainableNoBinsBuilder(this, new ArrayList<>(), null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, getCurrentTransaction())
+        return new ChainableNoBinsBuilder(this, new ArrayList<>(), null, null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, getCurrentTransaction())
                 .delete(keys);
     }
 
@@ -1333,7 +1333,7 @@ public class Session {
      * @return builder for further no-bin operations in the same batch
      */
     public ChainableNoBinsBuilder delete(Key key1, Key key2, Key ... keys) {
-        return new ChainableNoBinsBuilder(this, new ArrayList<>(), null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, getCurrentTransaction())
+        return new ChainableNoBinsBuilder(this, new ArrayList<>(), null, null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, getCurrentTransaction())
                 .delete(buildKeyList(key1, key2, keys));
     }
 

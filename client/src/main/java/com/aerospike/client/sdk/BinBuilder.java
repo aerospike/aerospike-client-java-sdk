@@ -275,6 +275,7 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      * @see #selectFrom(String, Consumer) for options like ignoreEvalFailure()
      */
     public T selectFrom(String ael) {
+        opBuilder.trackServerReadAel(ael);
         return opBuilder.addOp(ExpressionOpHelper.createReadOp(binName, ael, ExpReadFlags.DEFAULT, opBuilder.getSession().getCluster()));
     }
 
@@ -311,6 +312,7 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      * @return the parent operation builder for chaining
      */
     public T selectFrom(String ael, ExpressionReadOptions options) {
+        opBuilder.trackServerReadAel(ael);
         return opBuilder.addOp(ExpressionOpHelper.createReadOp(binName, ael, options.getFlags(), opBuilder.getSession().getCluster()));
     }
 
@@ -377,6 +379,7 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      * @return the parent operation builder for chaining
      */
     public T selectFrom(PreparedAel ael, Object... params) {
+        opBuilder.trackServerReadAel(ael.formValue(params));
         return opBuilder.addOp(ExpressionOpHelper.createReadOp(binName, ael, params, ExpReadFlags.DEFAULT, opBuilder.getSession().getCluster()));
     }
 
@@ -412,6 +415,7 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      * @return the parent operation builder for chaining
      */
     public T selectFrom(PreparedAel ael, ExpressionReadOptions options, Object... params) {
+        opBuilder.trackServerReadAel(ael.formValue(params));
         return opBuilder.addOp(ExpressionOpHelper.createReadOp(binName, ael, params, options.getFlags(), opBuilder.getSession().getCluster()));
     }
 

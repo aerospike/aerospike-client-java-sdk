@@ -303,6 +303,34 @@ public class FilterExpTest extends ClusterTest {
         assertFalse(rs.hasNext());
     }
 
+    /**
+     * Untyped AEL in both the policy filter (field 43) and EXP_READ op (field 43 opcode 128)
+     * on the same operate request. Dataset queries avoid this by sending the filter on
+     * field 44; keyed operate paths send both as server-compiled payloads.
+     */
+    @Test
+    public void operateSelectFromWithMatchingWhereUntypedAel() {
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
+            session.upsert(args.set.id(keyA))
+                .bin("result").selectFrom("$." + binA)
+                .where("$." + binA + " == 1")
+                .execute());
+
+        assertTrue(ex.getMessage().contains("pin bin types"));
+    }
+
+    @Test
+    public void operateSelectFromWithMatchingWhereTypedAel() {
+        RecordStream rs = session.upsert(args.set.id(keyA))
+            .bin("result").selectFrom("$." + binA + ":INT")
+            .where("$." + binA + " == 1")
+            .execute();
+
+        assertTrue(rs.hasNext());
+        Record rec = rs.next().recordOrThrow();
+        assertEquals(1, rec.getLong("result"));
+    }
+
     @Test
     public void operateReadExcept() {
         RecordStream rs = session.upsert(args.set.id(keyA))

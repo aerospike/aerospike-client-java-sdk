@@ -178,6 +178,7 @@ public final class QueryBinBuilder<P> implements CdtOperationAcceptor<P> {
      * @see #selectFrom(String, Consumer) for options like ignoreEvalFailure()
      */
     public P selectFrom(String ael) {
+        queryBuilder.trackServerReadAel(ael);
         queryBuilder.addOperation(ExpressionOpHelper.createReadOp(binName, ael, ExpReadFlags.DEFAULT,
             queryBuilder.getSession().getCluster()));
         return wrapResult();
@@ -217,6 +218,7 @@ public final class QueryBinBuilder<P> implements CdtOperationAcceptor<P> {
      * @return the parent query builder for continued chaining
      */
     public P selectFrom(String ael, ExpressionReadOptions options) {
+        queryBuilder.trackServerReadAel(ael);
         queryBuilder.addOperation(ExpressionOpHelper.createReadOp(binName, ael, options.getFlags(),
             queryBuilder.getSession().getCluster()));
         return wrapResult();
@@ -285,6 +287,7 @@ public final class QueryBinBuilder<P> implements CdtOperationAcceptor<P> {
      * @param params parameter values to bind
      */
     public P selectFrom(PreparedAel ael, Object... params) {
+        queryBuilder.trackServerReadAel(ael.formValue(params));
         queryBuilder.addOperation(ExpressionOpHelper.createReadOp(binName, ael, params, ExpReadFlags.DEFAULT,
             queryBuilder.getSession().getCluster()));
         return wrapResult();
@@ -325,6 +328,7 @@ public final class QueryBinBuilder<P> implements CdtOperationAcceptor<P> {
      * @return the parent query builder for continued chaining
      */
     public P selectFrom(PreparedAel ael, ExpressionReadOptions options, Object... params) {
+        queryBuilder.trackServerReadAel(ael.formValue(params));
         queryBuilder.addOperation(ExpressionOpHelper.createReadOp(binName, ael, params, options.getFlags(),
             queryBuilder.getSession().getCluster()));
         return wrapResult();

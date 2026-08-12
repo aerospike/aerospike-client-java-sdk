@@ -63,6 +63,7 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
     private final List<OperationSpec> operationSpecs;
     private OperationSpec currentSpec = null;
     private Expression defaultWhereClause;
+    private WhereClauseProcessor defaultWhereProcessor;
     private long defaultExpirationInSeconds = AbstractOperationBuilder.NOT_EXPLICITLY_SET;
     private Txn txnToUse;
     private long limit = 0;
@@ -75,10 +76,11 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
      * Package-private constructor.
      */
     ChainableQueryBuilder(Session session, List<OperationSpec> existingSpecs,
-                         Expression defaultWhereClause, long defaultExpirationInSeconds, Txn txnToUse) {
+                         Expression defaultWhereClause, WhereClauseProcessor defaultWhereProcessor, long defaultExpirationInSeconds, Txn txnToUse) {
         this.session = session;
         this.operationSpecs = existingSpecs;
         this.defaultWhereClause = defaultWhereClause;
+        this.defaultWhereProcessor = defaultWhereProcessor;
         this.defaultExpirationInSeconds = defaultExpirationInSeconds;
         this.txnToUse = txnToUse;
     }
@@ -180,6 +182,12 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
         currentSpec.getOperations().add(op);
     }
 
+    void trackServerReadAel(String ael) {
+        if (session.getCluster().supportsAel() && currentSpec != null) {
+            currentSpec.addServerReadAel(ael);
+        }
+    }
+
     /**
      * Appends one or more pre-built {@link Operation}s to the current query step.
      * Prefer {@link #bin(String)} with {@code get()} or {@code selectFrom(...)} when possible.
@@ -209,7 +217,7 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
      */
     public ChainableOperationBuilder upsert(Key key) {
         finalizeCurrentOperation();
-        return new ChainableOperationBuilder(session, OpType.UPSERT, operationSpecs, defaultWhereClause, defaultExpirationInSeconds, txnToUse)
+        return new ChainableOperationBuilder(session, OpType.UPSERT, operationSpecs, defaultWhereClause, defaultWhereProcessor, defaultExpirationInSeconds, txnToUse)
                 .init(key, OpType.UPSERT);
     }
 
@@ -221,7 +229,7 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
      */
     public ChainableOperationBuilder upsert(List<Key> keys) {
         finalizeCurrentOperation();
-        return new ChainableOperationBuilder(session, OpType.UPSERT, operationSpecs, defaultWhereClause, defaultExpirationInSeconds, txnToUse)
+        return new ChainableOperationBuilder(session, OpType.UPSERT, operationSpecs, defaultWhereClause, defaultWhereProcessor, defaultExpirationInSeconds, txnToUse)
                 .init(keys, OpType.UPSERT);
     }
 
@@ -250,7 +258,7 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
      */
     public ChainableOperationBuilder update(Key key) {
         finalizeCurrentOperation();
-        return new ChainableOperationBuilder(session, OpType.UPDATE, operationSpecs, defaultWhereClause, defaultExpirationInSeconds, txnToUse)
+        return new ChainableOperationBuilder(session, OpType.UPDATE, operationSpecs, defaultWhereClause, defaultWhereProcessor, defaultExpirationInSeconds, txnToUse)
                 .init(key, OpType.UPDATE);
     }
 
@@ -262,7 +270,7 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
      */
     public ChainableOperationBuilder update(List<Key> keys) {
         finalizeCurrentOperation();
-        return new ChainableOperationBuilder(session, OpType.UPDATE, operationSpecs, defaultWhereClause, defaultExpirationInSeconds, txnToUse)
+        return new ChainableOperationBuilder(session, OpType.UPDATE, operationSpecs, defaultWhereClause, defaultWhereProcessor, defaultExpirationInSeconds, txnToUse)
                 .init(keys, OpType.UPDATE);
     }
 
@@ -291,7 +299,7 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
      */
     public ChainableOperationBuilder insert(Key key) {
         finalizeCurrentOperation();
-        return new ChainableOperationBuilder(session, OpType.INSERT, operationSpecs, defaultWhereClause, defaultExpirationInSeconds, txnToUse)
+        return new ChainableOperationBuilder(session, OpType.INSERT, operationSpecs, defaultWhereClause, defaultWhereProcessor, defaultExpirationInSeconds, txnToUse)
                 .init(key, OpType.INSERT);
     }
 
@@ -303,7 +311,7 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
      */
     public ChainableOperationBuilder insert(List<Key> keys) {
         finalizeCurrentOperation();
-        return new ChainableOperationBuilder(session, OpType.INSERT, operationSpecs, defaultWhereClause, defaultExpirationInSeconds, txnToUse)
+        return new ChainableOperationBuilder(session, OpType.INSERT, operationSpecs, defaultWhereClause, defaultWhereProcessor, defaultExpirationInSeconds, txnToUse)
                 .init(keys, OpType.INSERT);
     }
 
@@ -332,7 +340,7 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
      */
     public ChainableOperationBuilder replace(Key key) {
         finalizeCurrentOperation();
-        return new ChainableOperationBuilder(session, OpType.REPLACE, operationSpecs, defaultWhereClause, defaultExpirationInSeconds, txnToUse)
+        return new ChainableOperationBuilder(session, OpType.REPLACE, operationSpecs, defaultWhereClause, defaultWhereProcessor, defaultExpirationInSeconds, txnToUse)
                 .init(key, OpType.REPLACE);
     }
 
@@ -344,7 +352,7 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
      */
     public ChainableOperationBuilder replace(List<Key> keys) {
         finalizeCurrentOperation();
-        return new ChainableOperationBuilder(session, OpType.REPLACE, operationSpecs, defaultWhereClause, defaultExpirationInSeconds, txnToUse)
+        return new ChainableOperationBuilder(session, OpType.REPLACE, operationSpecs, defaultWhereClause, defaultWhereProcessor, defaultExpirationInSeconds, txnToUse)
                 .init(keys, OpType.REPLACE);
     }
 
@@ -374,7 +382,7 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
      */
     public ChainableOperationBuilder replaceIfExists(Key key) {
         finalizeCurrentOperation();
-        return new ChainableOperationBuilder(session, OpType.REPLACE_IF_EXISTS, operationSpecs, defaultWhereClause, defaultExpirationInSeconds, txnToUse)
+        return new ChainableOperationBuilder(session, OpType.REPLACE_IF_EXISTS, operationSpecs, defaultWhereClause, defaultWhereProcessor, defaultExpirationInSeconds, txnToUse)
                 .init(key, OpType.REPLACE_IF_EXISTS);
     }
 
@@ -387,7 +395,7 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
      */
     public ChainableOperationBuilder replaceIfExists(List<Key> keys) {
         finalizeCurrentOperation();
-        return new ChainableOperationBuilder(session, OpType.REPLACE_IF_EXISTS, operationSpecs, defaultWhereClause, defaultExpirationInSeconds, txnToUse)
+        return new ChainableOperationBuilder(session, OpType.REPLACE_IF_EXISTS, operationSpecs, defaultWhereClause, defaultWhereProcessor, defaultExpirationInSeconds, txnToUse)
                 .init(keys, OpType.REPLACE_IF_EXISTS);
     }
 
@@ -417,7 +425,7 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
      */
     public ChainableNoBinsBuilder delete(Key key) {
         finalizeCurrentOperation();
-        return new ChainableNoBinsBuilder(session, operationSpecs, defaultWhereClause, defaultExpirationInSeconds, txnToUse)
+        return new ChainableNoBinsBuilder(session, operationSpecs, defaultWhereClause, defaultWhereProcessor, defaultExpirationInSeconds, txnToUse)
                 .initDelete(key);
     }
 
@@ -439,7 +447,7 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
      */
     public ChainableNoBinsBuilder delete(List<Key> keys) {
         finalizeCurrentOperation();
-        return new ChainableNoBinsBuilder(session, operationSpecs, defaultWhereClause, defaultExpirationInSeconds, txnToUse)
+        return new ChainableNoBinsBuilder(session, operationSpecs, defaultWhereClause, defaultWhereProcessor, defaultExpirationInSeconds, txnToUse)
                 .initDelete(keys);
     }
 
@@ -468,7 +476,7 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
      */
     public ChainableNoBinsBuilder touch(Key key) {
         finalizeCurrentOperation();
-        return new ChainableNoBinsBuilder(session, operationSpecs, defaultWhereClause, defaultExpirationInSeconds, txnToUse)
+        return new ChainableNoBinsBuilder(session, operationSpecs, defaultWhereClause, defaultWhereProcessor, defaultExpirationInSeconds, txnToUse)
                 .initTouch(key);
     }
 
@@ -490,7 +498,7 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
      */
     public ChainableNoBinsBuilder touch(List<Key> keys) {
         finalizeCurrentOperation();
-        return new ChainableNoBinsBuilder(session, operationSpecs, defaultWhereClause, defaultExpirationInSeconds, txnToUse)
+        return new ChainableNoBinsBuilder(session, operationSpecs, defaultWhereClause, defaultWhereProcessor, defaultExpirationInSeconds, txnToUse)
                 .initTouch(keys);
     }
 
@@ -519,7 +527,7 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
      */
     public ChainableNoBinsBuilder exists(Key key) {
         finalizeCurrentOperation();
-        return new ChainableNoBinsBuilder(session, operationSpecs, defaultWhereClause, defaultExpirationInSeconds, txnToUse)
+        return new ChainableNoBinsBuilder(session, operationSpecs, defaultWhereClause, defaultWhereProcessor, defaultExpirationInSeconds, txnToUse)
                 .initExists(key);
     }
 
@@ -541,7 +549,7 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
      */
     public ChainableNoBinsBuilder exists(List<Key> keys) {
         finalizeCurrentOperation();
-        return new ChainableNoBinsBuilder(session, operationSpecs, defaultWhereClause, defaultExpirationInSeconds, txnToUse)
+        return new ChainableNoBinsBuilder(session, operationSpecs, defaultWhereClause, defaultWhereProcessor, defaultExpirationInSeconds, txnToUse)
                 .initExists(keys);
     }
 
@@ -737,7 +745,7 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
     public UdfFunctionBuilder executeUdf(Key key) {
         finalizeCurrentOperation();
         return new UdfFunctionBuilder(session, List.of(key), operationSpecs,
-                defaultWhereClause, defaultExpirationInSeconds, txnToUse, null);
+                defaultWhereClause, defaultWhereProcessor, defaultExpirationInSeconds, txnToUse, null);
     }
 
     /**
@@ -749,7 +757,7 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
     public UdfFunctionBuilder executeUdf(List<Key> keys) {
         finalizeCurrentOperation();
         return new UdfFunctionBuilder(session, keys, operationSpecs,
-                defaultWhereClause, defaultExpirationInSeconds, txnToUse, null);
+                defaultWhereClause, defaultWhereProcessor, defaultExpirationInSeconds, txnToUse, null);
     }
 
     /**
@@ -778,6 +786,7 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
         WhereClauseProcessor processor = createWhereClauseProcessor(ael, params);
         if (processor != null) {
             currentSpec.setWhereClause(processor.toFilterExpression(session));
+            currentSpec.setWhereProcessor(processor);
         }
         return this;
     }
@@ -787,6 +796,7 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
         verifyState("setting where clause");
         WhereClauseProcessor processor = WhereClauseProcessor.from(ael);
         currentSpec.setWhereClause(processor.toFilterExpression(session));
+        currentSpec.setWhereProcessor(processor);
         return this;
     }
 
@@ -795,6 +805,7 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
         verifyState("setting where clause");
         WhereClauseProcessor processor = WhereClauseProcessor.from(ael, params);
         currentSpec.setWhereClause(processor.toFilterExpression(session));
+        currentSpec.setWhereProcessor(processor);
         return this;
     }
 
@@ -803,6 +814,7 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
         verifyState("setting where clause");
         WhereClauseProcessor processor = WhereClauseProcessor.from(exp);
         currentSpec.setWhereClause(processor.toFilterExpression(session));
+        currentSpec.setWhereProcessor(processor);
         return this;
     }
 
@@ -811,6 +823,7 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
         verifyState("setting where clause");
         WhereClauseProcessor processor = WhereClauseProcessor.from(e);
         currentSpec.setWhereClause(processor.toFilterExpression(session));
+        currentSpec.setWhereProcessor(processor);
         return this;
     }
 
@@ -834,6 +847,7 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
         WhereClauseProcessor processor = createWhereClauseProcessor(ael, params);
         if (processor != null) {
             this.defaultWhereClause = processor.toFilterExpression(session);
+            this.defaultWhereProcessor = processor;
         }
         return this;
     }
@@ -855,6 +869,7 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
 
         WhereClauseProcessor processor = WhereClauseProcessor.from(ael);
         this.defaultWhereClause = processor.toFilterExpression(session);
+        this.defaultWhereProcessor = processor;
         return this;
     }
 
@@ -876,6 +891,7 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
 
         WhereClauseProcessor processor = WhereClauseProcessor.from(ael, params);
         this.defaultWhereClause = processor.toFilterExpression(session);
+        this.defaultWhereProcessor = processor;
         return this;
     }
 
@@ -896,6 +912,7 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
 
         WhereClauseProcessor processor = WhereClauseProcessor.from(exp);
         this.defaultWhereClause = processor.toFilterExpression(session);
+        this.defaultWhereProcessor = processor;
         return this;
     }
 
@@ -1225,8 +1242,8 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
         cluster.startVirtualThread(() -> {
             try {
                 RecordStream syncResult = OperationSpecExecutor.execute(
-                    session, specs, defaultWhereClause, defaultExpirationInSeconds, txnToUse,
-                    notInAnyTransaction, null);
+                    session, specs, defaultWhereClause, defaultWhereProcessor, defaultExpirationInSeconds, txnToUse,
+                    notInAnyTransaction, ErrorDisposition.IN_STREAM, null);
                 syncResult.forEach(result -> AbstractFilterableBuilder.dispatchResult(result, asyncStream, errorHandler));
             } finally {
                 asyncStream.complete();
@@ -1250,7 +1267,7 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
         if (specs.isEmpty()) {
             return new RecordStream();
         }
-        return OperationSpecExecutor.execute(session, specs, defaultWhereClause,
+        return OperationSpecExecutor.execute(session, specs, defaultWhereClause, defaultWhereProcessor,
             defaultExpirationInSeconds, txnToUse, notInAnyTransaction, disposition, null);
     }
 
@@ -1320,6 +1337,8 @@ public class ChainableQueryBuilder extends AbstractFilterableBuilder
             newSpec = new OperationSpec(newKeys, original.getOpType());
         }
         newSpec.setWhereClause(original.getWhereClause());
+        newSpec.setWhereProcessor(original.getWhereProcessor());
+        original.getServerReadAels().forEach(newSpec::addServerReadAel);
         newSpec.setGeneration(original.getGeneration());
         newSpec.setExpirationInSeconds(original.getExpirationInSeconds());
         newSpec.setFailOnFilteredOut(original.isFailOnFilteredOut());

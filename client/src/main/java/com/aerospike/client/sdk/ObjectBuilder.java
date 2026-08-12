@@ -524,7 +524,7 @@ public class ObjectBuilder<T> {
      */
     public ChainableOperationBuilder insert(Key key) {
         List<OperationSpec> specs = materializeToSpecs();
-        return new ChainableOperationBuilder(opBuilder.getSession(), OpType.INSERT, specs, null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, txnToUse)
+        return new ChainableOperationBuilder(opBuilder.getSession(), OpType.INSERT, specs, null, null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, txnToUse)
                 .init(key, OpType.INSERT);
     }
 
@@ -540,7 +540,7 @@ public class ObjectBuilder<T> {
      */
     public ChainableOperationBuilder insert(List<Key> keys) {
         List<OperationSpec> specs = materializeToSpecs();
-        return new ChainableOperationBuilder(opBuilder.getSession(), OpType.INSERT, specs, null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, txnToUse)
+        return new ChainableOperationBuilder(opBuilder.getSession(), OpType.INSERT, specs, null, null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, txnToUse)
                 .init(keys, OpType.INSERT);
     }
 
@@ -552,7 +552,7 @@ public class ObjectBuilder<T> {
      */
     public ChainableOperationBuilder update(Key key) {
         List<OperationSpec> specs = materializeToSpecs();
-        return new ChainableOperationBuilder(opBuilder.getSession(), OpType.UPDATE, specs, null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, txnToUse)
+        return new ChainableOperationBuilder(opBuilder.getSession(), OpType.UPDATE, specs, null, null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, txnToUse)
                 .init(key, OpType.UPDATE);
     }
 
@@ -568,7 +568,7 @@ public class ObjectBuilder<T> {
      */
     public ChainableOperationBuilder update(List<Key> keys) {
         List<OperationSpec> specs = materializeToSpecs();
-        return new ChainableOperationBuilder(opBuilder.getSession(), OpType.UPDATE, specs, null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, txnToUse)
+        return new ChainableOperationBuilder(opBuilder.getSession(), OpType.UPDATE, specs, null, null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, txnToUse)
                 .init(keys, OpType.UPDATE);
     }
 
@@ -580,7 +580,7 @@ public class ObjectBuilder<T> {
      */
     public ChainableOperationBuilder upsert(Key key) {
         List<OperationSpec> specs = materializeToSpecs();
-        return new ChainableOperationBuilder(opBuilder.getSession(), OpType.UPSERT, specs, null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, txnToUse)
+        return new ChainableOperationBuilder(opBuilder.getSession(), OpType.UPSERT, specs, null, null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, txnToUse)
                 .init(key, OpType.UPSERT);
     }
 
@@ -596,7 +596,7 @@ public class ObjectBuilder<T> {
      */
     public ChainableOperationBuilder upsert(List<Key> keys) {
         List<OperationSpec> specs = materializeToSpecs();
-        return new ChainableOperationBuilder(opBuilder.getSession(), OpType.UPSERT, specs, null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, txnToUse)
+        return new ChainableOperationBuilder(opBuilder.getSession(), OpType.UPSERT, specs, null, null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, txnToUse)
                 .init(keys, OpType.UPSERT);
     }
 
@@ -608,7 +608,7 @@ public class ObjectBuilder<T> {
      */
     public ChainableOperationBuilder replace(Key key) {
         List<OperationSpec> specs = materializeToSpecs();
-        return new ChainableOperationBuilder(opBuilder.getSession(), OpType.REPLACE, specs, null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, txnToUse)
+        return new ChainableOperationBuilder(opBuilder.getSession(), OpType.REPLACE, specs, null, null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, txnToUse)
                 .init(key, OpType.REPLACE);
     }
 
@@ -624,7 +624,7 @@ public class ObjectBuilder<T> {
      */
     public ChainableOperationBuilder replace(List<Key> keys) {
         List<OperationSpec> specs = materializeToSpecs();
-        return new ChainableOperationBuilder(opBuilder.getSession(), OpType.REPLACE, specs, null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, txnToUse)
+        return new ChainableOperationBuilder(opBuilder.getSession(), OpType.REPLACE, specs, null, null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, txnToUse)
                 .init(keys, OpType.REPLACE);
     }
 
@@ -636,7 +636,7 @@ public class ObjectBuilder<T> {
      */
     public ChainableNoBinsBuilder delete(Key key) {
         List<OperationSpec> specs = materializeToSpecs();
-        return new ChainableNoBinsBuilder(opBuilder.getSession(), specs, null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, txnToUse)
+        return new ChainableNoBinsBuilder(opBuilder.getSession(), specs, null, null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, txnToUse)
                 .initDelete(key);
     }
 
@@ -652,7 +652,7 @@ public class ObjectBuilder<T> {
      */
     public ChainableNoBinsBuilder delete(List<Key> keys) {
         List<OperationSpec> specs = materializeToSpecs();
-        return new ChainableNoBinsBuilder(opBuilder.getSession(), specs, null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, txnToUse)
+        return new ChainableNoBinsBuilder(opBuilder.getSession(), specs, null, null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, txnToUse)
                 .initDelete(keys);
     }
 
@@ -664,7 +664,7 @@ public class ObjectBuilder<T> {
      */
     public ChainableNoBinsBuilder exists(Key key) {
         List<OperationSpec> specs = materializeToSpecs();
-        return new ChainableNoBinsBuilder(opBuilder.getSession(), specs, null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, txnToUse)
+        return new ChainableNoBinsBuilder(opBuilder.getSession(), specs, null, null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, txnToUse)
                 .initExists(key);
     }
 
@@ -680,7 +680,7 @@ public class ObjectBuilder<T> {
      */
     public ChainableNoBinsBuilder exists(List<Key> keys) {
         List<OperationSpec> specs = materializeToSpecs();
-        return new ChainableNoBinsBuilder(opBuilder.getSession(), specs, null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, txnToUse)
+        return new ChainableNoBinsBuilder(opBuilder.getSession(), specs, null, null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, txnToUse)
                 .initExists(keys);
     }
 
@@ -692,7 +692,7 @@ public class ObjectBuilder<T> {
      */
     public ChainableQueryBuilder query(Key key) {
         List<OperationSpec> specs = materializeToSpecs();
-        return new ChainableQueryBuilder(opBuilder.getSession(), specs, null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, txnToUse)
+        return new ChainableQueryBuilder(opBuilder.getSession(), specs, null, null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, txnToUse)
                 .initQuery(key);
     }
 
@@ -704,13 +704,13 @@ public class ObjectBuilder<T> {
      */
     public ChainableQueryBuilder query(List<Key> keys) {
         List<OperationSpec> specs = materializeToSpecs();
-        return new ChainableQueryBuilder(opBuilder.getSession(), specs, null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, txnToUse)
+        return new ChainableQueryBuilder(opBuilder.getSession(), specs, null, null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, txnToUse)
                 .initQuery(keys);
     }
 
     public ChainableQueryBuilder query(TypedKey<T> typedKey) {
         List<OperationSpec> specs = materializeToSpecs();
-        return new ChainableQueryBuilder(opBuilder.getSession(), specs, null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, txnToUse)
+        return new ChainableQueryBuilder(opBuilder.getSession(), specs, null, null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, txnToUse)
                 .initQueryTyped(typedKey);
     }
 
@@ -724,7 +724,7 @@ public class ObjectBuilder<T> {
 
     public ChainableQueryBuilder queryTypedKeys(List<? extends TypedKey<?>> typedKeys) {
         List<OperationSpec> specs = materializeToSpecs();
-        return new ChainableQueryBuilder(opBuilder.getSession(), specs, null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, txnToUse)
+        return new ChainableQueryBuilder(opBuilder.getSession(), specs, null, null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, txnToUse)
                 .initQueryTyped(typedKeys);
     }
 
@@ -737,7 +737,7 @@ public class ObjectBuilder<T> {
     public UdfFunctionBuilder executeUdf(Key key) {
         List<OperationSpec> specs = materializeToSpecs();
         return new UdfFunctionBuilder(opBuilder.getSession(), List.of(key), specs,
-                null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, txnToUse, null);
+                null, null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, txnToUse, null);
     }
 
     /**
@@ -749,7 +749,7 @@ public class ObjectBuilder<T> {
     public UdfFunctionBuilder executeUdf(List<Key> keys) {
         List<OperationSpec> specs = materializeToSpecs();
         return new UdfFunctionBuilder(opBuilder.getSession(), keys, specs,
-                null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, txnToUse, null);
+                null, null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, txnToUse, null);
     }
 
     // ========================================
