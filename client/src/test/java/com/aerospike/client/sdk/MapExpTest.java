@@ -24,6 +24,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.TreeMap;
 
+import org.junit.jupiter.api.Assumptions;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
@@ -110,13 +112,41 @@ public class MapExpTest extends ClusterTest {
      */
     @Nested
     class StringAel {
+        private static boolean serverSupportsSortedMapEqualityFilter;
+
+        @BeforeAll
+        public static void probeMapEqualityFilter() {
+            assumeSupportsAel();
+            Key probeKey = args.set.id("sortedMapEqualityProbe");
+            TreeMap<String,String> map = new TreeMap<>();
+            map.put("key1", "e");
+            map.put("key2", "d");
+
+            session.upsert(probeKey)
+                .bin("m").setTo(map)
+                .execute();
+
+            String where = "$.m == {'key1': 'e', 'key2': 'd'}";
+            try (RecordStream rs = session.query(probeKey)
+                .readingOnlyBins("m")
+                .failOnFilteredOut()
+                .where(where)
+                .execute()) {
+                serverSupportsSortedMapEqualityFilter = rs.hasNext();
+            }
+            catch (com.aerospike.client.sdk.AerospikeException ex) {
+                serverSupportsSortedMapEqualityFilter = false;
+            }
+            finally {
+                session.delete(probeKey).execute();
+            }
+        }
 
         @Test
         public void sortedMapEquality() {
             assumeSupportsAel();
-            assumeFalse(supportsAel(),
-                "server-side string AEL fails (Parameter error): map equality filter "
-                    + "($.m.get(type: MAP) == {...}) cannot compare KEY_ORDERED map ordering");
+            Assumptions.assumeTrue(serverSupportsSortedMapEqualityFilter,
+                "server-side string AEL map equality filter ($.m == {...}) not supported yet");
 
             TreeMap<String,String> map = new TreeMap<>();
             map.put("key1", "e");
@@ -132,7 +162,7 @@ public class MapExpTest extends ClusterTest {
                 .bin(binName).setTo(map)
                 .execute();
 
-            String where = "$." + binName + ".get(type: MAP) == {'key1': 'e', 'key2': 'd', 'key3': 'c', 'key4': 'b', 'key5': 'a'}";
+            String where = "$." + binName + " == {'key1': 'e', 'key2': 'd', 'key3': 'c', 'key4': 'b', 'key5': 'a'}";
 
             RecordStream rs = session.query(key)
                 .readingOnlyBins(binName)
