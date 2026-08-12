@@ -20,7 +20,6 @@ import java.util.List;
 
 import com.aerospike.client.sdk.command.Txn;
 import com.aerospike.client.sdk.exp.Expression;
-import com.aerospike.client.sdk.query.WhereClauseProcessor;
 
 /**
  * Intermediate builder for UDF operations that requires specifying the UDF function
@@ -48,7 +47,6 @@ public class UdfFunctionBuilder {
     private final List<Key> keys;
     private final List<OperationSpec> existingSpecs;
     private final Expression defaultWhereClause;
-    private final WhereClauseProcessor defaultWhereProcessor;
     private final long defaultExpirationInSeconds;
     private final Txn txnToUse;
     /** When non-null, UDF leg carries read mapping for {@link RecordResult#udfResultAsObject()}. */
@@ -66,13 +64,12 @@ public class UdfFunctionBuilder {
      * @param readMappingClass entity class for typed UDF entry points, or {@code null}
      */
     UdfFunctionBuilder(Session session, List<Key> keys, List<OperationSpec> existingSpecs,
-                       Expression defaultWhereClause, WhereClauseProcessor defaultWhereProcessor, long defaultExpirationInSeconds, Txn txnToUse,
+                       Expression defaultWhereClause, long defaultExpirationInSeconds, Txn txnToUse,
                        Class<?> readMappingClass) {
         this.session = session;
         this.keys = keys;
         this.existingSpecs = existingSpecs;
         this.defaultWhereClause = defaultWhereClause;
-        this.defaultWhereProcessor = defaultWhereProcessor;
         this.defaultExpirationInSeconds = defaultExpirationInSeconds;
         this.txnToUse = txnToUse;
         this.readMappingClass = readMappingClass;
@@ -99,7 +96,7 @@ public class UdfFunctionBuilder {
         }
 
         ChainableUdfBuilder builder = new ChainableUdfBuilder(
-                session, existingSpecs, defaultWhereClause, defaultWhereProcessor, defaultExpirationInSeconds, txnToUse);
+                session, existingSpecs, defaultWhereClause, defaultExpirationInSeconds, txnToUse);
         return builder.initUdfWithFunction(keys, packageName, functionName, readMappingClass);
     }
 }

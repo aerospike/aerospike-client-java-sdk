@@ -55,7 +55,6 @@ import com.aerospike.client.sdk.policy.Behavior.Mode;
 import com.aerospike.client.sdk.policy.Behavior.OpKind;
 import com.aerospike.client.sdk.policy.Behavior.OpShape;
 import com.aerospike.client.sdk.policy.ResolvedSettings;
-import com.aerospike.client.sdk.query.WhereClauseProcessor;
 import com.aerospike.client.sdk.tend.Partitions;
 
 /**
@@ -98,7 +97,7 @@ class OperationSpecExecutor {
         long defaultExpirationInSeconds, Txn txn, boolean notInAnyTransaction,
         Boolean durableDeleteDefault
     ) {
-        return execute(session, specs, defaultWhereClause, null, defaultExpirationInSeconds, txn,
+        return execute(session, specs, defaultWhereClause, defaultExpirationInSeconds, txn,
             notInAnyTransaction, ErrorDisposition.IN_STREAM, durableDeleteDefault);
     }
 
@@ -116,15 +115,12 @@ class OperationSpecExecutor {
      */
     public static RecordStream execute(
         Session session, List<OperationSpec> specs, Expression defaultWhereClause,
-        WhereClauseProcessor defaultWhereProcessor, long defaultExpirationInSeconds, Txn txn,
-        boolean notInAnyTransaction, ErrorDisposition disposition, Boolean durableDeleteDefault
+        long defaultExpirationInSeconds, Txn txn, boolean notInAnyTransaction,
+        ErrorDisposition disposition, Boolean durableDeleteDefault
     ) {
         if (specs.isEmpty()) {
             return new RecordStream();
         }
-
-        FilteredOperateAelValidator.validate(
-            session.getCluster(), specs, defaultWhereClause, defaultWhereProcessor);
 
         // Single-key optimization: bypass batch infrastructure for single-spec, single-key operations
         if (specs.size() == 1) {

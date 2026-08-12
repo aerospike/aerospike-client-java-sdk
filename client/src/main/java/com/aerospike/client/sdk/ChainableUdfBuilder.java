@@ -75,7 +75,6 @@ public class ChainableUdfBuilder extends AbstractSessionOperationBuilder<Chainab
     private final List<OperationSpec> operationSpecs;
     private OperationSpec currentSpec = null;
     private Expression defaultWhereClause;
-    private WhereClauseProcessor defaultWhereProcessor;
     private long defaultExpirationInSeconds = AbstractOperationBuilder.NOT_EXPLICITLY_SET;
 
     /**
@@ -90,11 +89,10 @@ public class ChainableUdfBuilder extends AbstractSessionOperationBuilder<Chainab
      * Package-private constructor for continuing an existing chain.
      */
     ChainableUdfBuilder(Session session, List<OperationSpec> existingSpecs,
-                        Expression defaultWhereClause, WhereClauseProcessor defaultWhereProcessor, long defaultExpirationInSeconds, Txn txnToUse) {
+                        Expression defaultWhereClause, long defaultExpirationInSeconds, Txn txnToUse) {
         super(session, OpType.UDF);
         this.operationSpecs = existingSpecs;
         this.defaultWhereClause = defaultWhereClause;
-        this.defaultWhereProcessor = defaultWhereProcessor;
         this.defaultExpirationInSeconds = defaultExpirationInSeconds;
         this.txnToUse = txnToUse;
     }
@@ -235,7 +233,7 @@ public class ChainableUdfBuilder extends AbstractSessionOperationBuilder<Chainab
     public UdfFunctionBuilder executeUdf(Key key) {
         finalizeCurrentOperation();
         return new UdfFunctionBuilder(session, List.of(key), operationSpecs,
-                defaultWhereClause, defaultWhereProcessor, defaultExpirationInSeconds, txnToUse, null);
+                defaultWhereClause, defaultExpirationInSeconds, txnToUse, null);
     }
 
     /**
@@ -248,7 +246,7 @@ public class ChainableUdfBuilder extends AbstractSessionOperationBuilder<Chainab
     public UdfFunctionBuilder executeUdf(List<Key> keys) {
         finalizeCurrentOperation();
         return new UdfFunctionBuilder(session, keys, operationSpecs,
-                defaultWhereClause, defaultWhereProcessor, defaultExpirationInSeconds, txnToUse, null);
+                defaultWhereClause, defaultExpirationInSeconds, txnToUse, null);
     }
 
     /**
@@ -277,7 +275,7 @@ public class ChainableUdfBuilder extends AbstractSessionOperationBuilder<Chainab
      */
     public ChainableOperationBuilder upsert(Key key) {
         finalizeCurrentOperation();
-        return new ChainableOperationBuilder(session, OpType.UPSERT, operationSpecs, defaultWhereClause, defaultWhereProcessor, defaultExpirationInSeconds, txnToUse)
+        return new ChainableOperationBuilder(session, OpType.UPSERT, operationSpecs, defaultWhereClause, defaultExpirationInSeconds, txnToUse)
                 .init(key, OpType.UPSERT);
     }
 
@@ -289,7 +287,7 @@ public class ChainableUdfBuilder extends AbstractSessionOperationBuilder<Chainab
      */
     public ChainableOperationBuilder upsert(List<Key> keys) {
         finalizeCurrentOperation();
-        return new ChainableOperationBuilder(session, OpType.UPSERT, operationSpecs, defaultWhereClause, defaultWhereProcessor, defaultExpirationInSeconds, txnToUse)
+        return new ChainableOperationBuilder(session, OpType.UPSERT, operationSpecs, defaultWhereClause, defaultExpirationInSeconds, txnToUse)
                 .init(keys, OpType.UPSERT);
     }
 
@@ -318,7 +316,7 @@ public class ChainableUdfBuilder extends AbstractSessionOperationBuilder<Chainab
      */
     public ChainableOperationBuilder update(Key key) {
         finalizeCurrentOperation();
-        return new ChainableOperationBuilder(session, OpType.UPDATE, operationSpecs, defaultWhereClause, defaultWhereProcessor, defaultExpirationInSeconds, txnToUse)
+        return new ChainableOperationBuilder(session, OpType.UPDATE, operationSpecs, defaultWhereClause, defaultExpirationInSeconds, txnToUse)
                 .init(key, OpType.UPDATE);
     }
 
@@ -330,7 +328,7 @@ public class ChainableUdfBuilder extends AbstractSessionOperationBuilder<Chainab
      */
     public ChainableOperationBuilder update(List<Key> keys) {
         finalizeCurrentOperation();
-        return new ChainableOperationBuilder(session, OpType.UPDATE, operationSpecs, defaultWhereClause, defaultWhereProcessor, defaultExpirationInSeconds, txnToUse)
+        return new ChainableOperationBuilder(session, OpType.UPDATE, operationSpecs, defaultWhereClause, defaultExpirationInSeconds, txnToUse)
                 .init(keys, OpType.UPDATE);
     }
 
@@ -359,7 +357,7 @@ public class ChainableUdfBuilder extends AbstractSessionOperationBuilder<Chainab
      */
     public ChainableOperationBuilder insert(Key key) {
         finalizeCurrentOperation();
-        return new ChainableOperationBuilder(session, OpType.INSERT, operationSpecs, defaultWhereClause, defaultWhereProcessor, defaultExpirationInSeconds, txnToUse)
+        return new ChainableOperationBuilder(session, OpType.INSERT, operationSpecs, defaultWhereClause, defaultExpirationInSeconds, txnToUse)
                 .init(key, OpType.INSERT);
     }
 
@@ -371,7 +369,7 @@ public class ChainableUdfBuilder extends AbstractSessionOperationBuilder<Chainab
      */
     public ChainableOperationBuilder insert(List<Key> keys) {
         finalizeCurrentOperation();
-        return new ChainableOperationBuilder(session, OpType.INSERT, operationSpecs, defaultWhereClause, defaultWhereProcessor, defaultExpirationInSeconds, txnToUse)
+        return new ChainableOperationBuilder(session, OpType.INSERT, operationSpecs, defaultWhereClause, defaultExpirationInSeconds, txnToUse)
                 .init(keys, OpType.INSERT);
     }
 
@@ -400,7 +398,7 @@ public class ChainableUdfBuilder extends AbstractSessionOperationBuilder<Chainab
      */
     public ChainableOperationBuilder replace(Key key) {
         finalizeCurrentOperation();
-        return new ChainableOperationBuilder(session, OpType.REPLACE, operationSpecs, defaultWhereClause, defaultWhereProcessor, defaultExpirationInSeconds, txnToUse)
+        return new ChainableOperationBuilder(session, OpType.REPLACE, operationSpecs, defaultWhereClause, defaultExpirationInSeconds, txnToUse)
                 .init(key, OpType.REPLACE);
     }
 
@@ -412,7 +410,7 @@ public class ChainableUdfBuilder extends AbstractSessionOperationBuilder<Chainab
      */
     public ChainableOperationBuilder replace(List<Key> keys) {
         finalizeCurrentOperation();
-        return new ChainableOperationBuilder(session, OpType.REPLACE, operationSpecs, defaultWhereClause, defaultWhereProcessor, defaultExpirationInSeconds, txnToUse)
+        return new ChainableOperationBuilder(session, OpType.REPLACE, operationSpecs, defaultWhereClause, defaultExpirationInSeconds, txnToUse)
                 .init(keys, OpType.REPLACE);
     }
 
@@ -442,7 +440,7 @@ public class ChainableUdfBuilder extends AbstractSessionOperationBuilder<Chainab
      */
     public ChainableOperationBuilder replaceIfExists(Key key) {
         finalizeCurrentOperation();
-        return new ChainableOperationBuilder(session, OpType.REPLACE_IF_EXISTS, operationSpecs, defaultWhereClause, defaultWhereProcessor, defaultExpirationInSeconds, txnToUse)
+        return new ChainableOperationBuilder(session, OpType.REPLACE_IF_EXISTS, operationSpecs, defaultWhereClause, defaultExpirationInSeconds, txnToUse)
                 .init(key, OpType.REPLACE_IF_EXISTS);
     }
 
@@ -455,7 +453,7 @@ public class ChainableUdfBuilder extends AbstractSessionOperationBuilder<Chainab
      */
     public ChainableOperationBuilder replaceIfExists(List<Key> keys) {
         finalizeCurrentOperation();
-        return new ChainableOperationBuilder(session, OpType.REPLACE_IF_EXISTS, operationSpecs, defaultWhereClause, defaultWhereProcessor, defaultExpirationInSeconds, txnToUse)
+        return new ChainableOperationBuilder(session, OpType.REPLACE_IF_EXISTS, operationSpecs, defaultWhereClause, defaultExpirationInSeconds, txnToUse)
                 .init(keys, OpType.REPLACE_IF_EXISTS);
     }
 
@@ -485,7 +483,7 @@ public class ChainableUdfBuilder extends AbstractSessionOperationBuilder<Chainab
      */
     public ChainableNoBinsBuilder delete(Key key) {
         finalizeCurrentOperation();
-        return new ChainableNoBinsBuilder(session, operationSpecs, defaultWhereClause, defaultWhereProcessor, defaultExpirationInSeconds, txnToUse)
+        return new ChainableNoBinsBuilder(session, operationSpecs, defaultWhereClause, defaultExpirationInSeconds, txnToUse)
                 .initDelete(key);
     }
 
@@ -497,7 +495,7 @@ public class ChainableUdfBuilder extends AbstractSessionOperationBuilder<Chainab
      */
     public ChainableNoBinsBuilder delete(List<Key> keys) {
         finalizeCurrentOperation();
-        return new ChainableNoBinsBuilder(session, operationSpecs, defaultWhereClause, defaultWhereProcessor, defaultExpirationInSeconds, txnToUse)
+        return new ChainableNoBinsBuilder(session, operationSpecs, defaultWhereClause, defaultExpirationInSeconds, txnToUse)
                 .initDelete(keys);
     }
 
@@ -526,7 +524,7 @@ public class ChainableUdfBuilder extends AbstractSessionOperationBuilder<Chainab
      */
     public ChainableNoBinsBuilder touch(Key key) {
         finalizeCurrentOperation();
-        return new ChainableNoBinsBuilder(session, operationSpecs, defaultWhereClause, defaultWhereProcessor, defaultExpirationInSeconds, txnToUse)
+        return new ChainableNoBinsBuilder(session, operationSpecs, defaultWhereClause, defaultExpirationInSeconds, txnToUse)
                 .initTouch(key);
     }
 
@@ -538,7 +536,7 @@ public class ChainableUdfBuilder extends AbstractSessionOperationBuilder<Chainab
      */
     public ChainableNoBinsBuilder touch(List<Key> keys) {
         finalizeCurrentOperation();
-        return new ChainableNoBinsBuilder(session, operationSpecs, defaultWhereClause, defaultWhereProcessor, defaultExpirationInSeconds, txnToUse)
+        return new ChainableNoBinsBuilder(session, operationSpecs, defaultWhereClause, defaultExpirationInSeconds, txnToUse)
                 .initTouch(keys);
     }
 
@@ -567,7 +565,7 @@ public class ChainableUdfBuilder extends AbstractSessionOperationBuilder<Chainab
      */
     public ChainableNoBinsBuilder exists(Key key) {
         finalizeCurrentOperation();
-        return new ChainableNoBinsBuilder(session, operationSpecs, defaultWhereClause, defaultWhereProcessor, defaultExpirationInSeconds, txnToUse)
+        return new ChainableNoBinsBuilder(session, operationSpecs, defaultWhereClause, defaultExpirationInSeconds, txnToUse)
                 .initExists(key);
     }
 
@@ -579,7 +577,7 @@ public class ChainableUdfBuilder extends AbstractSessionOperationBuilder<Chainab
      */
     public ChainableNoBinsBuilder exists(List<Key> keys) {
         finalizeCurrentOperation();
-        return new ChainableNoBinsBuilder(session, operationSpecs, defaultWhereClause, defaultWhereProcessor, defaultExpirationInSeconds, txnToUse)
+        return new ChainableNoBinsBuilder(session, operationSpecs, defaultWhereClause, defaultExpirationInSeconds, txnToUse)
                 .initExists(keys);
     }
 
@@ -608,7 +606,7 @@ public class ChainableUdfBuilder extends AbstractSessionOperationBuilder<Chainab
      */
     public ChainableQueryBuilder query(Key key) {
         finalizeCurrentOperation();
-        return new ChainableQueryBuilder(session, operationSpecs, defaultWhereClause, defaultWhereProcessor, defaultExpirationInSeconds, txnToUse)
+        return new ChainableQueryBuilder(session, operationSpecs, defaultWhereClause, defaultExpirationInSeconds, txnToUse)
                 .initQuery(key);
     }
 
@@ -620,7 +618,7 @@ public class ChainableUdfBuilder extends AbstractSessionOperationBuilder<Chainab
      */
     public ChainableQueryBuilder query(List<Key> keys) {
         finalizeCurrentOperation();
-        return new ChainableQueryBuilder(session, operationSpecs, defaultWhereClause, defaultWhereProcessor, defaultExpirationInSeconds, txnToUse)
+        return new ChainableQueryBuilder(session, operationSpecs, defaultWhereClause, defaultExpirationInSeconds, txnToUse)
                 .initQuery(keys);
     }
 
@@ -650,7 +648,7 @@ public class ChainableUdfBuilder extends AbstractSessionOperationBuilder<Chainab
      */
     public <T> ChainableQueryBuilder query(TypedKey<T> typedKey) {
         finalizeCurrentOperation();
-        return new ChainableQueryBuilder(session, operationSpecs, defaultWhereClause, defaultWhereProcessor, defaultExpirationInSeconds, txnToUse)
+        return new ChainableQueryBuilder(session, operationSpecs, defaultWhereClause, defaultExpirationInSeconds, txnToUse)
                 .initQueryTyped(typedKey);
     }
 
@@ -681,7 +679,7 @@ public class ChainableUdfBuilder extends AbstractSessionOperationBuilder<Chainab
      */
     public ChainableQueryBuilder queryTypedKeys(List<? extends TypedKey<?>> typedKeys) {
         finalizeCurrentOperation();
-        return new ChainableQueryBuilder(session, operationSpecs, defaultWhereClause, defaultWhereProcessor, defaultExpirationInSeconds, txnToUse)
+        return new ChainableQueryBuilder(session, operationSpecs, defaultWhereClause, defaultExpirationInSeconds, txnToUse)
                 .initQueryTyped(typedKeys);
     }
 
@@ -847,7 +845,6 @@ public class ChainableUdfBuilder extends AbstractSessionOperationBuilder<Chainab
         WhereClauseProcessor processor = createWhereClauseProcessor(ael, params);
         if (processor != null) {
             currentSpec.setWhereClause(processor.toFilterExpression(session));
-            currentSpec.setWhereProcessor(processor);
         }
         return this;
     }
@@ -857,7 +854,6 @@ public class ChainableUdfBuilder extends AbstractSessionOperationBuilder<Chainab
         verifyState("setting where clause");
         WhereClauseProcessor processor = WhereClauseProcessor.from(ael);
         currentSpec.setWhereClause(processor.toFilterExpression(session));
-        currentSpec.setWhereProcessor(processor);
         return this;
     }
 
@@ -866,7 +862,6 @@ public class ChainableUdfBuilder extends AbstractSessionOperationBuilder<Chainab
         verifyState("setting where clause");
         WhereClauseProcessor processor = WhereClauseProcessor.from(ael, params);
         currentSpec.setWhereClause(processor.toFilterExpression(session));
-        currentSpec.setWhereProcessor(processor);
         return this;
     }
 
@@ -875,7 +870,6 @@ public class ChainableUdfBuilder extends AbstractSessionOperationBuilder<Chainab
         verifyState("setting where clause");
         WhereClauseProcessor processor = WhereClauseProcessor.from(exp);
         currentSpec.setWhereClause(processor.toFilterExpression(session));
-        currentSpec.setWhereProcessor(processor);
         return this;
     }
 
@@ -884,7 +878,6 @@ public class ChainableUdfBuilder extends AbstractSessionOperationBuilder<Chainab
         verifyState("setting where clause");
         WhereClauseProcessor processor = WhereClauseProcessor.from(e);
         currentSpec.setWhereClause(processor.toFilterExpression(session));
-        currentSpec.setWhereProcessor(processor);
         return this;
     }
 
@@ -907,7 +900,6 @@ public class ChainableUdfBuilder extends AbstractSessionOperationBuilder<Chainab
         WhereClauseProcessor processor = createWhereClauseProcessor(ael, params);
         if (processor != null) {
             this.defaultWhereClause = processor.toFilterExpression(session);
-            this.defaultWhereProcessor = processor;
         }
         return this;
     }
@@ -929,7 +921,6 @@ public class ChainableUdfBuilder extends AbstractSessionOperationBuilder<Chainab
 
         WhereClauseProcessor processor = WhereClauseProcessor.from(ael);
         this.defaultWhereClause = processor.toFilterExpression(session);
-        this.defaultWhereProcessor = processor;
         return this;
     }
 
@@ -951,7 +942,6 @@ public class ChainableUdfBuilder extends AbstractSessionOperationBuilder<Chainab
 
         WhereClauseProcessor processor = WhereClauseProcessor.from(ael, params);
         this.defaultWhereClause = processor.toFilterExpression(session);
-        this.defaultWhereProcessor = processor;
         return this;
     }
 
@@ -972,7 +962,6 @@ public class ChainableUdfBuilder extends AbstractSessionOperationBuilder<Chainab
 
         WhereClauseProcessor processor = WhereClauseProcessor.from(exp);
         this.defaultWhereClause = processor.toFilterExpression(session);
-        this.defaultWhereProcessor = processor;
         return this;
     }
 
@@ -1091,7 +1080,7 @@ public class ChainableUdfBuilder extends AbstractSessionOperationBuilder<Chainab
                      (txnToUse != null ? "yes" : "no"));
         }
 
-        return OperationSpecExecutor.execute(session, operationSpecs, defaultWhereClause, defaultWhereProcessor,
+        return OperationSpecExecutor.execute(session, operationSpecs, defaultWhereClause,
             defaultExpirationInSeconds, txnToUse, notInAnyTransaction,
             AbstractFilterableBuilder.defaultDisposition(operationSpecs), durableDeleteDefault);
     }
@@ -1129,7 +1118,7 @@ public class ChainableUdfBuilder extends AbstractSessionOperationBuilder<Chainab
                      (txnToUse != null ? "yes" : "no"));
         }
 
-        return OperationSpecExecutor.execute(session, operationSpecs, defaultWhereClause, defaultWhereProcessor,
+        return OperationSpecExecutor.execute(session, operationSpecs, defaultWhereClause,
             defaultExpirationInSeconds, txnToUse, notInAnyTransaction, disposition, durableDeleteDefault);
     }
 
@@ -1182,8 +1171,8 @@ public class ChainableUdfBuilder extends AbstractSessionOperationBuilder<Chainab
         cluster.startVirtualThread(() -> {
             try {
                 RecordStream syncResult = OperationSpecExecutor.execute(session, operationSpecs,
-                    defaultWhereClause, defaultWhereProcessor, defaultExpirationInSeconds, txnToUse, notInAnyTransaction,
-                    null, durableDeleteDefault);
+                    defaultWhereClause, defaultExpirationInSeconds, txnToUse, notInAnyTransaction,
+                    durableDeleteDefault);
                 syncResult.forEach(result -> AbstractFilterableBuilder.dispatchResult(result, asyncStream, errorHandler));
             } finally {
                 asyncStream.complete();
