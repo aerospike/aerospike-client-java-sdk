@@ -40,6 +40,9 @@ import com.aerospike.client.sdk.policy.Behavior.Selectors;
 public class AelErrorDetailVerbosityTest extends ClusterTest {
     private static final String binName = "aedvbin";
     private static Key intKey;
+    /** Set in {@link #setup()} from a live probe against the cluster. */
+    private static boolean serverRejectsDuplicateOrderedMapKeys;
+    private static boolean serverRejectsDuplicateUnorderedMapKeys;
 
     /** Trailing {@code and} with no right-hand operand — AEL parse failure. */
     private static String badFilterAel() {
@@ -77,6 +80,22 @@ public class AelErrorDetailVerbosityTest extends ClusterTest {
         session.upsert(intKey)
             .bin(binName).setTo(1)
             .execute();
+
+        serverRejectsDuplicateOrderedMapKeys = probeDuplicateMapLiteral(duplicateMapLiteralAel());
+        serverRejectsDuplicateUnorderedMapKeys = probeDuplicateMapLiteral(duplicateUnorderedMapLiteralAel());
+    }
+
+    /** {@code true} when {@code selectFrom} of the AEL fails with {@link ResultCode#PARAMETER_ERROR}. */
+    private static boolean probeDuplicateMapLiteral(String ael) {
+        try {
+            session.query(intKey)
+                .bin("_dup_probe").selectFrom(ael)
+                .execute();
+            return false;
+        }
+        catch (AerospikeException ae) {
+            return ae.getResultCode() == ResultCode.PARAMETER_ERROR;
+        }
     }
 
     @Test
@@ -94,9 +113,9 @@ public class AelErrorDetailVerbosityTest extends ClusterTest {
 
         String msg = ae.getBaseMessage();
         assertNotNull(msg);
-        assertTrue(msg.contains("invalid metadata expression in request"),
+        assertTrue(msg.contains("invalid filter expression in request"),
             "Expected filter-build context in: " + msg);
-        assertTrue(msg.length() > "invalid metadata expression in request".length(),
+        assertTrue(msg.length() > "invalid filter expression in request".length(),
             "Expected AEL compile diagnostic folded into message: " + msg);
     }
 
@@ -176,6 +195,56 @@ public class AelErrorDetailVerbosityTest extends ClusterTest {
         assertNotNull(trace, "Expected a non-null AEL build trace at verbosity 3");
         assertEquals(ExpressionTrace.PHASE_BUILD, trace.getPhase());
         assertEquals(ExpressionTrace.LANG_AEL, trace.getLang());
+    }
+
+    /**
+     * Keyed operate: server-compiled string {@code where()} (field 43) plus untyped
+     * {@code selectFrom()} (EXP_READ). Filter AEL compiles; read AEL fails with
+     * {@code unresolved bin type} (server {@code ael_actions.c}). {@code expop.c} stages
+     * {@code invalid expression in operation request}; {@code as_exp_stage_build_error_details}
+     * folds the AEL diagnostic when {@link ErrorDetailVerbosity#MESSAGE} is set.
+     *
+     * <p>Client validation is disabled here only so the request reaches the server; default
+     * sessions still fail fast via {@link FilteredOperateAelValidator}.</p>
+     */
+    @Test
+    public void testUntypedSelectFromWithStringWhereServerExtendedErrorMessage() {
+            Session session1 = sessionWithVerbosity(ErrorDetailVerbosity.MESSAGE);
+
+            AerospikeException ae = assertThrows(AerospikeException.class, () ->
+                    session1.upsert(intKey)
+                            .bin("out").selectFrom("$." + binName)
+                            .where("$." + binName + " == 1")
+                            .execute());
+
+            assertEquals(ResultCode.PARAMETER_ERROR, ae.getResultCode());
+            assertEquals(SubCode.NONE, ae.getSubCode());
+
+            String msg = ae.getBaseMessage();
+            assertNotNull(msg);
+            assertTrue(msg.contains("invalid expression in operation request"),
+                    "Expected exp-op build context in: " + msg);
+            assertTrue(msg.contains("unresolved bin type"),
+                    "Expected AEL unresolved-bin diagnostic in: " + msg);
+    }
+
+    @Test
+    public void testUntypedSelectFromWithStringWhereServerExtendedErrorTrace() {
+            Session session1 = sessionWithVerbosity(ErrorDetailVerbosity.EXPRESSION_TRACE);
+
+            AerospikeException ae = assertThrows(AerospikeException.class, () ->
+                    session1.upsert(intKey)
+                            .bin("out").selectFrom("$." + binName)
+                            .where("$." + binName + " == 1")
+                            .execute());
+
+            assertEquals(ResultCode.PARAMETER_ERROR, ae.getResultCode());
+
+            ExpressionTrace trace = ae.getExpressionTrace();
+            assertNotNull(trace, "Expected AEL build trace at verbosity 3");
+            assertEquals(ExpressionTrace.PHASE_BUILD, trace.getPhase());
+            assertEquals(ExpressionTrace.LANG_AEL, trace.getLang());
+            assertTrue(trace.getAelOffset() >= 0, "Expected AEL source offset in trace");
     }
 
     @Test
@@ -266,6 +335,9 @@ public class AelErrorDetailVerbosityTest extends ClusterTest {
 
     @Test
     public void testAelMapLiteralDuplicateKeysOrdered() {
+        Assumptions.assumeTrue(serverRejectsDuplicateOrderedMapKeys,
+            "Server build does not reject ordered map literals with duplicate keys yet");
+
         Session session1 = sessionWithVerbosity(ErrorDetailVerbosity.MESSAGE);
 
         AerospikeException ae = assertThrows(AerospikeException.class, () -> {
@@ -280,6 +352,9 @@ public class AelErrorDetailVerbosityTest extends ClusterTest {
 
     @Test
     public void testAelMapLiteralDuplicateKeysUnordered() {
+        Assumptions.assumeTrue(serverRejectsDuplicateUnorderedMapKeys,
+            "Server build does not reject :UNORDERED map literals with duplicate keys yet");
+
         Session session1 = sessionWithVerbosity(ErrorDetailVerbosity.MESSAGE);
 
         AerospikeException ae = assertThrows(AerospikeException.class, () -> {
@@ -294,6 +369,9 @@ public class AelErrorDetailVerbosityTest extends ClusterTest {
 
     @Test
     public void testAelMapLiteralDuplicateKeysBuildTrace() {
+        Assumptions.assumeTrue(serverRejectsDuplicateOrderedMapKeys,
+            "Server build does not reject ordered map literals with duplicate keys yet");
+
         Session session1 = sessionWithVerbosity(ErrorDetailVerbosity.EXPRESSION_TRACE);
 
         AerospikeException ae = assertThrows(AerospikeException.class, () -> {

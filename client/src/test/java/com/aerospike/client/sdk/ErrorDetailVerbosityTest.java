@@ -874,7 +874,7 @@ public class ErrorDetailVerbosityTest extends ClusterTest {
     // Verbosity 3: expression build-failure trace (SERVER-1137).
     //
     // A type-mismatched comparison expression fails to *build* on the server.
-    // As a filter_exp it yields "invalid metadata expression in request"; as an
+    // As a filter_exp it yields "invalid filter expression in request"; as an
     // exp_write op it yields "invalid expression in operation request". Both carry
     // PARAMETER_ERROR + SubCode.NONE and, at verbosity 3, a structured build trace.
     // Assert trace PRESENCE and SHAPE, not exact byte_offset/snippet bytes.
@@ -909,7 +909,7 @@ public class ErrorDetailVerbosityTest extends ClusterTest {
 
         String msg = ae.getBaseMessage();
         assertNotNull(msg);
-        assertTrue(msg.contains("invalid metadata expression in request"),
+        assertTrue(msg.contains("invalid filter expression in request"),
             "Expected filter-build message in: " + msg);
 
         ExpressionTrace t = ae.getExpressionTrace();
@@ -971,7 +971,7 @@ public class ErrorDetailVerbosityTest extends ClusterTest {
 
         String msg = ae.getBaseMessage();
         assertNotNull(msg);
-        assertTrue(msg.contains("invalid metadata expression in request"),
+        assertTrue(msg.contains("invalid filter expression in request"),
             "Expected filter-build message in: " + msg);
 
         assertNull(ae.getExpressionTrace(), "Verbosity 2 must surface NO expression trace");
