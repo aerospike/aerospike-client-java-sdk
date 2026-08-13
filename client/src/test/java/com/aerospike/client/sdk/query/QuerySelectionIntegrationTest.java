@@ -36,7 +36,6 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeFalse;
-import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -56,8 +55,6 @@ import com.aerospike.client.sdk.command.FieldType;
 import com.aerospike.client.sdk.command.PartitionFilter;
 import com.aerospike.client.sdk.command.PartitionTracker;
 import com.aerospike.client.sdk.command.QueryCommand;
-import com.aerospike.client.sdk.exp.Exp;
-import com.aerospike.client.sdk.exp.Expression;
 import com.aerospike.client.sdk.policy.QueryDuration;
 import com.aerospike.client.sdk.policy.Behavior;
 import com.aerospike.client.sdk.policy.ResolvedSettings;
@@ -77,17 +74,6 @@ import java.util.List;
  */
 public class QuerySelectionIntegrationTest extends ClusterTest {
     private static final String bogusIndexName = "qsel_nonexistent_idx";
-    private static final String EXP_SET_NAME = "qselexpint";
-    private static final String EXP_KEY_MATCH = "qselexp1";
-    private static final String EXP_KEY_OTHER = "qselexp2";
-    private static final String EXP_INDEX = "qsel_exp_idx";
-    private static final Expression EXP_INDEX_EXPRESSION = Exp.build(
-        Exp.cond(
-            Exp.and(
-                Exp.ge(Exp.intBin(AGE_BIN), Exp.val(14)),
-                Exp.eq(Exp.stringBin(COUNTRY_BIN), Exp.val("US"))),
-            Exp.val(1),
-            Exp.unknown()));
 
     private static DataSet dataSet;
 
@@ -100,47 +86,6 @@ public class QuerySelectionIntegrationTest extends ClusterTest {
     @AfterAll
     public static void destroy() {
         destroyQselint(session, dataSet);
-    }
-
-    /**
-     * Expression secondary index explain — field {@code 22} omits bin name ({@code bin_name_len == 0}).
-     */
-    @Test
-    void expressionIndexExplainOmitsBinNameInRange() {
-        assumeExpressionSecondaryIndexSupported();
-
-        QueryPlan binPlan = explainPlan("$.age >= 14 and $.age <= 18");
-        byte[] binRange = binPlan.getIndexRangeBytes();
-        assertAll("binIndexContrast",
-            () -> assertNotNull(binRange),
-            () -> assertTrue(indexRangeBinNameLen(binRange) > 0,
-                "bin index explain INDEX_RANGE should include driving bin name"));
-
-        DataSet expDataSet = prepareExpIndexFixture();
-        try {
-            String where = "$.age >= 14 and $.country == 'US'";
-
-            QueryPlan plan = explainPlan(expDataSet, where);
-
-            assertAll("expressionIndexExplain",
-                () -> assertEquals(QuerySelection.SECONDARY_INDEX, plan.getSelection()),
-                () -> assertEquals(EXP_INDEX, plan.getIndexName()),
-                () -> assertNotNull(plan.getIndexRangeBytes()),
-                () -> assertEquals(0, indexRangeBinNameLen(plan.getIndexRangeBytes()),
-                    "expression SI explain INDEX_RANGE should omit driving bin name"));
-
-            List<Integer> ages = collectAges(session.query(expDataSet)
-                .readingOnlyBins(AGE_BIN, COUNTRY_BIN)
-                .where(where)
-                .execute(), AGE_BIN);
-
-            assertAll("expressionIndexExecute",
-                () -> assertEquals(1, ages.size()),
-                () -> assertEquals(List.of(16), ages));
-        }
-        finally {
-            destroyExpIndexFixture(expDataSet);
-        }
     }
 
     /**
@@ -183,8 +128,70 @@ public class QuerySelectionIntegrationTest extends ClusterTest {
             .execute()));
     }
 
-    private static int indexRangeBinNameLen(byte[] rangeBytes) {
-        return rangeBytes[1] & 0xFF;
+    /**
+     * Oversized string literal on an indexed bin — unindexable term PI-fallbacks; execute succeeds.
+     */
+    @Test
+    void explainOversizedLiteralOnIndexedBinFallsBackToPrimaryIndex() {
+        String where = "$." + AGE_BIN + " == '" + oversizedLiteral() + "'";
+        QueryPlan plan = explainPlan(where);
+
+        assertAll("oversizedIndexedBinPiExplain",
+            () -> assertEquals(QuerySelection.PRIMARY_INDEX, plan.getSelection()),
+            () -> assertNull(plan.getIndexName()),
+            () -> assertNull(plan.getIndexRangeBytes()));
+
+        assertEquals(0, countRecords(session.query(dataSet)
+            .readingOnlyBins(AGE_BIN)
+            .where(where)
+            .execute()));
+    }
+
+    /**
+     * OR inside one AND conjunct must not poison a sibling conjunct's SI candidate.
+     */
+    @Test
+    void explainOrConjunctWithIndexableSiblingSelectsAgeIndex() {
+        assertOrConjunctStillSelectsAgeIndex(
+            "$.age > 10 and ($.age < 50 or $.country == 'US')");
+        assertOrConjunctStillSelectsAgeIndex(
+            "($.age < 50 or $.country == 'US') and $.age > 10");
+    }
+
+    /**
+     * OR conjunct E2E — age index plan with residual filter over the unindexed OR branch.
+     */
+    @Test
+    void executeOrConjunctWithIndexableSiblingReturnsMatchingRecords() {
+        String where = "$.age > 10 and ($.age < 50 or $.country == 'US')";
+
+        QueryPlan plan = explainPlan(where);
+
+        assertAll("orConjunctExplain",
+            () -> assertEquals(QuerySelection.SECONDARY_INDEX, plan.getSelection()),
+            () -> assertEquals(AGE_INDEX, plan.getIndexName()),
+            () -> assertNotNull(plan.getIndexRangeBytes()));
+
+        List<Integer> ages = collectAges(session.query(dataSet)
+            .readingOnlyBins(AGE_BIN, COUNTRY_BIN)
+            .where(where)
+            .execute(), AGE_BIN);
+
+        List<Integer> expected = new ArrayList<>();
+        for (int age = 11; age <= 50; age++) {
+            expected.add(age);
+        }
+
+        assertEquals(expected, ages);
+    }
+
+    private static void assertOrConjunctStillSelectsAgeIndex(String where) {
+        QueryPlan plan = explainPlan(where);
+
+        assertAll("orConjunctSiExplain",
+            () -> assertEquals(QuerySelection.SECONDARY_INDEX, plan.getSelection()),
+            () -> assertEquals(AGE_INDEX, plan.getIndexName()),
+            () -> assertNotNull(plan.getIndexRangeBytes()));
     }
 
     private static String oversizedLiteral() {
@@ -655,51 +662,6 @@ public class QuerySelectionIntegrationTest extends ClusterTest {
         }
         finally {
             rs.close();
-        }
-    }
-
-    private static void assumeExpressionSecondaryIndexSupported() {
-        Version serverVersion = cluster.getRandomNode().getVersion();
-        assumeTrue(serverVersion.isGreaterOrEqual(8, 1, 0, 0),
-            "expression secondary index tests require server 8.1.0+");
-    }
-
-    private static DataSet prepareExpIndexFixture() {
-        DataSet expDataSet = DataSet.of(args.namespace, EXP_SET_NAME);
-
-        session.delete(expDataSet.ids(EXP_KEY_MATCH));
-        session.delete(expDataSet.ids(EXP_KEY_OTHER));
-
-        try {
-            session.createIndex(expDataSet, EXP_INDEX, IndexType.INTEGER, IndexCollectionType.DEFAULT,
-                EXP_INDEX_EXPRESSION)
-                .waitTillComplete();
-        }
-        catch (AerospikeException ae) {
-            if (ae.getResultCode() != ResultCode.INDEX_ALREADY_EXISTS) {
-                throw ae;
-            }
-        }
-
-        session.upsert(expDataSet.ids(EXP_KEY_MATCH))
-            .bins(AGE_BIN, SCORE_BIN, COUNTRY_BIN)
-            .values(16, 16, "US")
-            .execute();
-        session.upsert(expDataSet.ids(EXP_KEY_OTHER))
-            .bins(AGE_BIN, SCORE_BIN, COUNTRY_BIN)
-            .values(30, 30, "CA")
-            .execute();
-
-        return expDataSet;
-    }
-
-    private static void destroyExpIndexFixture(DataSet expDataSet) {
-        session.delete(expDataSet.ids(EXP_KEY_MATCH));
-        session.delete(expDataSet.ids(EXP_KEY_OTHER));
-        try {
-            session.dropIndex(expDataSet, EXP_INDEX);
-        }
-        catch (AerospikeException ignored) {
         }
     }
 

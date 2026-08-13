@@ -65,7 +65,7 @@ import com.aerospike.client.sdk.util.Version;
  *   <li>MAPKEYS / MAPVALUES / LIST-value {@code .exists()} (bare or {@code == true}) → SI</li>
  *   <li>Bare or wrapped {@code geoCompare(...)} → GEO SI when index exists</li>
  *   <li>Ctx-path scalar ({@code $.bin.[N]}) and ctx-path geo ({@code $.map.key}) → DEFAULT SI</li>
- *   <li>Expression-call sindexes ({@code upper($.name)}) → SI with {@code bin_name_len == 0}</li>
+ *   <li>Expression-call sindexes ({@code $.name.uppercase()}) → SI with {@code bin_name_len == 0}</li>
  *   <li>LIST index path {@code [N].exists()} → PI (positional existence; see
  *       {@link QueryPlannerCollectionCdtTest})</li>
  * </ul>
@@ -424,13 +424,13 @@ class QuerySelectionExplainScopeTest extends ClusterTest {
     }
 
     /**
-     * Expression-call SI — {@code upper($.name)} structurally matches an {@code exp=} index.
+     * Expression-call SI — {@code $.name.uppercase()} structurally matches an {@code exp=} index.
      */
     @Test
     void explainExpCallUpper_selectsSecondaryIndex() {
         assumeExpressionSecondaryIndexSupported();
 
-        String where = "upper($." + nameBin + ") == '" + upperMatch + "'";
+        String where = "$." + nameBin + ".uppercase() == '" + upperMatch + "'";
         QueryPlan plan = explain(where);
 
         assertAll("expCallUpperSiExplain",
@@ -447,7 +447,7 @@ class QuerySelectionExplainScopeTest extends ClusterTest {
     void executeExpCallUpper_returnsMatchingRow() {
         assumeExpressionSecondaryIndexSupported();
 
-        String where = "upper($." + nameBin + ") == '" + upperMatch + "'";
+        String where = "$." + nameBin + ".uppercase() == '" + upperMatch + "'";
 
         int count = countRecords(session.query(dataSet)
             .readingOnlyBins(nameBin)
