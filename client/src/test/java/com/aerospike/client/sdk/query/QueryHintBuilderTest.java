@@ -139,8 +139,11 @@ public class QueryHintBuilderTest extends ClusterTest {
     public void effectiveDurationFromHint() {
         QueryBuilder qb = new QueryBuilder(session, dataSet);
         qb.where("$." + binName + " > 0")
-            .withHint(hint -> hint.queryDuration(QueryDuration.SHORT));
+            .withHint(hint -> hint.queryDuration(QueryDuration.SHORT)
+            .allowScansWithWhere()
+            );
         assertEquals(QueryDuration.SHORT, qb.getEffectiveQueryDuration());
+        assertEquals(true, qb.getEffectiveAllowScansWithWhere());
     }
 
     @Test

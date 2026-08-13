@@ -202,7 +202,7 @@ public final class Behavior {
             // Query defaults
             .on(Selectors.reads().query(), ops -> ops
                     .recordQueueSize(5000)
-                    // .maxConcurrentNodes(0)  // Queries don't have maxConcurrentNodes
+                    .allowScansWithWhere(false)
                     .maximumNumberOfCallAttempts(6)
             )
             // Retryable write defaults
@@ -977,6 +977,7 @@ public final class Behavior {
         @Override QueryTweaks errorDetailVerbosity(int e);
         @Override QueryTweaks stackTraceOnException(boolean enabled);
         QueryTweaks recordQueueSize(int n);
+        QueryTweaks allowScansWithWhere(boolean allow);
     }
     public interface BatchTweaks extends CommonTweaks {
         @Override BatchTweaks errorDetailVerbosity(int e);
@@ -1175,6 +1176,7 @@ public final class Behavior {
         @Override ReadQueryAnyModeTweaks errorDetailVerbosity(int e);
         @Override ReadQueryAnyModeTweaks stackTraceOnException(boolean enabled);
         @Override ReadQueryAnyModeTweaks recordQueueSize(int n);
+        @Override ReadQueryAnyModeTweaks allowScansWithWhere(boolean allow);
     }
     public interface ReadPointApTweaks extends ReadApTweaks {
         @Override ReadPointApTweaks abandonCallAfter(Duration d);
@@ -2359,6 +2361,7 @@ public final class Behavior {
 
         // Query
         @Override public TweaksProxy recordQueueSize(int n) { patch.settings.recordQueueSize = n; return this; }
+        @Override public TweaksProxy allowScansWithWhere(boolean allow) { patch.settings.allowScansWithWhere = allow; return this; }
 
         // Batch
         @Override public TweaksProxy maxConcurrentNodes(int n) { patch.settings.maxConcurrentNodes = n; return this; }

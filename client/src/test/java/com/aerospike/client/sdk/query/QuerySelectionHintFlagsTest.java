@@ -105,7 +105,7 @@ class QuerySelectionHintFlagsTest extends ClusterTest {
     void requireIndexOnPrimaryIndexPlanFailsExplain() {
         QueryBuilder qb = session.query(dataSet)
             .where("$.country == 'US'")
-            .withHint(hint -> hint.requireIndex());
+            .withHint(hint -> hint.disallowScansWithWhere());
 
         AerospikeException e = assertThrows(AerospikeException.class, () -> explainPlan(qb));
         assertEquals(ResultCode.INDEX_NOTFOUND, e.getResultCode());
@@ -116,7 +116,7 @@ class QuerySelectionHintFlagsTest extends ClusterTest {
     void requireIndexWithSoftHintSelectsSecondaryIndex() {
         QueryBuilder qb = session.query(dataSet)
             .where("$.age == 25")
-            .withHint(hint -> hint.requireIndex().forIndex(scoreIndexName));
+            .withHint(hint -> hint.disallowScansWithWhere().forIndex(scoreIndexName));
 
         QueryPlan plan = explainPlan(qb);
 
@@ -151,7 +151,7 @@ class QuerySelectionHintFlagsTest extends ClusterTest {
     void requireIndexAndHardHintSelectsHintedIndex() {
         QueryBuilder qb = session.query(dataSet)
             .where("$.age == 25")
-            .withHint(hint -> hint.forIndex(indexName).requireIndex().hardHint());
+            .withHint(hint -> hint.forIndex(indexName).disallowScansWithWhere().hardHint());
 
         QueryPlan plan = explainPlan(qb);
 
