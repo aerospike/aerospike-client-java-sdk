@@ -728,8 +728,7 @@ public final class StringOperation {
         CTX... ctx
     ) {
         List<Value> list = pair(pattern, replacement);
-        // Server's regex_replace op table accepts only [list, regexFlags]; no slot for policy flags.
-        byte[] bytes = packStringOp(REGEX_REPLACE, list, regexFlags, ctx);
+        byte[] bytes = packStringOp(REGEX_REPLACE, list, regexFlags, flags, ctx);
         return new Operation(Operation.Type.STRING_MODIFY, binName, new Value.BytesValue(bytes, ParticleType.STRING));
     }
 
@@ -937,6 +936,22 @@ public final class StringOperation {
         p.packInt(subop);
         p.packValueList(list);
         p.packInt(v2);
+        return p.getBuffer();
+    }
+
+    private static byte[] packStringOp(int subop, List<Value> list, int v2, int v3, CTX[] ctx) {
+        Packer p = new Packer();
+        writeOuterHeader(p, 4, ctx);
+        p.packInt(subop);
+        p.packValueList(list);
+        p.packInt(v2);
+        p.packInt(v3);
+        p.createBuffer();
+        writeOuterHeader(p, 4, ctx);
+        p.packInt(subop);
+        p.packValueList(list);
+        p.packInt(v2);
+        p.packInt(v3);
         return p.getBuffer();
     }
 }

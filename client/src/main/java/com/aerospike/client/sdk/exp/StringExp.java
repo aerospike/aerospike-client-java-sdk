@@ -798,6 +798,7 @@ public final class StringExp {
      *     Exp.stringBin("text"));
      * }</pre>
      *
+     * @param flags         write flags. See {@link com.aerospike.client.sdk.operation.StringWriteFlags}
      * @param pattern       ICU-syntax regex pattern (must be valid UTF-8)
      * @param replacement   replacement text (must be valid UTF-8)
      * @param regexFlags    bitwise-OR of {@link StringRegexFlags} constants
@@ -805,12 +806,13 @@ public final class StringExp {
      * @return              string-typed expression yielding the modified string
      */
     public static Exp regexReplace(
+        int flags,
         Exp pattern,
         Exp replacement,
         int regexFlags,
         Exp src
     ) {
-        byte[] bytes = packRegexReplace(pattern, replacement, regexFlags);
+        byte[] bytes = packRegexReplace(pattern, replacement, regexFlags, flags);
         return addModify(src, bytes);
     }
 
@@ -885,10 +887,10 @@ public final class StringExp {
     // (pattern, replacement) pair as a function call. Note: the server's regex_replace
     // op table is declared with max_args=2 (particle_string.c:476), so there is no
     // trailing policy-flags slot — only the regexFlags integer.
-    private static byte[] packRegexReplace(Exp pattern, Exp replacement, int regexFlags) {
+    private static byte[] packRegexReplace(Exp pattern, Exp replacement, int regexFlags, int flags) {
         Packer packer = new Packer();
         for (int i = 0; i < 2; i++) {
-            packer.packArrayBegin(3);
+            packer.packArrayBegin(4);
             packer.packInt(REGEX_REPLACE);
             packer.packArrayBegin(2);
             packer.packInt(QUOTED);
@@ -896,6 +898,7 @@ public final class StringExp {
             pattern.pack(packer);
             replacement.pack(packer);
             packer.packInt(regexFlags);
+            packer.packInt(flags);
             if (i == 0) {
                 packer.createBuffer();
             }
