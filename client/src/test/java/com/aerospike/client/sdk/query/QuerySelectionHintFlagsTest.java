@@ -55,8 +55,8 @@ class QuerySelectionHintFlagsTest extends ClusterTest {
 
         dataSet = DataSet.of(args.namespace, setName);
 
-        session.delete(dataSet.ids(keyPrefix + "1"));
-        session.delete(dataSet.ids(keyPrefix + "2"));
+        session.delete(dataSet.ids(keyPrefix + "1")).execute();
+        session.delete(dataSet.ids(keyPrefix + "2")).execute();
 
         try {
             session.createIndex(dataSet, indexName, binName, IndexType.INTEGER,
@@ -94,8 +94,8 @@ class QuerySelectionHintFlagsTest extends ClusterTest {
         if (dataSet == null) {
             return;
         }
-        session.delete(dataSet.ids(keyPrefix + "1"));
-        session.delete(dataSet.ids(keyPrefix + "2"));
+        session.delete(dataSet.ids(keyPrefix + "1")).execute();
+        session.delete(dataSet.ids(keyPrefix + "2")).execute();
         session.dropIndex(dataSet, indexName);
         session.dropIndex(dataSet, scoreIndexName);
     }

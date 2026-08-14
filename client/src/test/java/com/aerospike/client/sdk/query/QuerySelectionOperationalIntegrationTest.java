@@ -24,6 +24,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 import org.junit.jupiter.api.AfterAll;
@@ -54,29 +55,47 @@ class QuerySelectionOperationalIntegrationTest extends ClusterTest {
     }
 
     /**
-     * partition-restricted query still uses server selection and returns a subset of the
+     * A partition-restricted query still uses server selection and returns a subset of the
      * unrestricted result.
+     *
+     * <p>Asserted as a partition of the result rather than as "the lower range returns something":
+     * only five records match, spread over 4096 partitions by digest, so any particular range may
+     * legitimately be empty. Two complementary ranges must together yield exactly the unrestricted
+     * result, which holds for any key distribution while still catching a range that drops or
+     * duplicates rows.</p>
      */
     @Test
     void executeWithPartitionRangeAndWhereReturnsMatchingSubset() {
         String where = "$.age >= 14 and $.age <= 18";
 
-        List<Integer> full = collectAges(session.query(dataSet)
-            .readingOnlyBins(AGE_BIN)
-            .where(where)
-            .execute(), AGE_BIN);
+        List<Integer> full = matchingAges(where);
+        List<Integer> lower = matchingAges(where, 0, 2048);
+        List<Integer> upper = matchingAges(where, 2048, 4096);
 
-        List<Integer> partial = collectAges(session.query(dataSet)
-            .onPartitionRange(0, 512)
-            .readingOnlyBins(AGE_BIN)
-            .where(where)
-            .execute(), AGE_BIN);
+        List<Integer> union = new ArrayList<>(lower);
+        union.addAll(upper);
+        union.sort(Integer::compareTo);
 
         assertAll("partitionRestricted",
             () -> assertEquals(List.of(14, 15, 16, 17, 18), full),
-            () -> assertTrue(partial.size() > 0),
-            () -> assertTrue(partial.size() <= full.size()),
-            () -> assertTrue(full.containsAll(partial)));
+            () -> assertEquals(full, union),
+            () -> assertTrue(Collections.disjoint(lower, upper),
+                "a record must not be returned by both partition ranges"));
+    }
+
+    private static List<Integer> matchingAges(String where) {
+        return collectAges(session.query(dataSet)
+            .readingOnlyBins(AGE_BIN)
+            .where(where)
+            .execute(), AGE_BIN);
+    }
+
+    private static List<Integer> matchingAges(String where, int startIncl, int endExcl) {
+        return collectAges(session.query(dataSet)
+            .onPartitionRange(startIncl, endExcl)
+            .readingOnlyBins(AGE_BIN)
+            .where(where)
+            .execute(), AGE_BIN);
     }
 
     /**

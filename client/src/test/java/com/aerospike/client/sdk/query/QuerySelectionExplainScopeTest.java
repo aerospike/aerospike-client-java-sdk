@@ -17,15 +17,19 @@
 package com.aerospike.client.sdk.query;
 
 import static org.junit.jupiter.api.Assertions.assertAll;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 import org.junit.jupiter.api.AfterAll;
@@ -41,10 +45,12 @@ import com.aerospike.client.sdk.ResultCode;
 import com.aerospike.client.sdk.Value;
 import com.aerospike.client.sdk.cdt.CTX;
 import com.aerospike.client.sdk.command.Buffer;
+import com.aerospike.client.sdk.command.ParticleType;
 import com.aerospike.client.sdk.exp.Exp;
 import com.aerospike.client.sdk.exp.Expression;
 import com.aerospike.client.sdk.exp.StringExp;
 import com.aerospike.client.sdk.operation.StringWriteFlags;
+import com.aerospike.client.sdk.query.plan.IndexRangeWire;
 import com.aerospike.client.sdk.query.plan.QueryPlan;
 import com.aerospike.client.sdk.query.plan.QuerySelection;
 import com.aerospike.client.sdk.util.Version;
@@ -64,6 +70,8 @@ import com.aerospike.client.sdk.util.Version;
  *   <li>STRING on bin without SI → PI explain (OK, no index fields)</li>
  *   <li>MAPKEYS / MAPVALUES / LIST-value {@code .exists()} (bare or {@code == true}) → SI</li>
  *   <li>Bare or wrapped {@code geoCompare(...)} → GEO SI when index exists</li>
+ *   <li>Region literals above the {@code 2048}-byte STRING/BLOB bound → GEO SI (geo bounds are
+ *       capped at the 1 MiB GeoJSON wire limit instead)</li>
  *   <li>Ctx-path scalar ({@code $.bin.[N]}) and ctx-path geo ({@code $.map.key}) → DEFAULT SI</li>
  *   <li>Expression-call sindexes ({@code $.name.uppercase()}) → SI with {@code bin_name_len == 0}</li>
  *   <li>LIST index path {@code [N].exists()} → PI (positional existence; see
@@ -90,6 +98,12 @@ class QuerySelectionExplainScopeTest extends ClusterTest {
     private static final double matchLat = 37.4214209;
     private static final String matchPointGeoJson =
         "{\"type\":\"Point\",\"coordinates\":[" + matchLng + "," + matchLat + "]}";
+    private static final String ptBin = "pt";
+    private static final String ptGeoIndex = "qscexp_pt_idx";
+    private static final double farLng = -121.0;
+    private static final double farLat = 38.0;
+    private static final int stringBoundMax = 2048;
+    private static final String largeRegionGeoJson = circlePolygon(matchLng, matchLat, 0.5, 200);
     private static final String scoreListBin = "scoreList";
     private static final String scoreListIndex = "qscexp_score_list_idx";
     private static final int scoreListMatchIndex = 2;
@@ -160,6 +174,16 @@ class QuerySelectionExplainScopeTest extends ClusterTest {
             }
         }
 
+        try {
+            session.createIndex(dataSet, ptGeoIndex, ptBin, IndexType.GEO2DSPHERE,
+                IndexCollectionType.DEFAULT).waitTillComplete();
+        }
+        catch (AerospikeException ae) {
+            if (ae.getResultCode() != ResultCode.INDEX_ALREADY_EXISTS) {
+                throw ae;
+            }
+        }
+
         createCtxIndex(scoreListIndex, scoreListBin, IndexType.INTEGER, CTX.listIndex(scoreListMatchIndex));
         createCtxIndex(venueGeoIndex, venueBin, IndexType.GEO2DSPHERE,
             CTX.mapKey(Value.get(venueLocationKey)));
@@ -203,6 +227,16 @@ class QuerySelectionExplainScopeTest extends ClusterTest {
         session.upsert(dataSet.ids("k2"))
             .bin(locBin).setToGeoJson(k2Loc)
             .execute();
+
+        // Indexed points: the large-region tests query in the other direction from locBin -
+        // a Polygon region literal against point-valued bins.
+        session.upsert(dataSet.ids("k1"))
+            .bin(ptBin).setToGeoJson(pointGeoJson(matchLng, matchLat))
+            .execute();
+
+        session.upsert(dataSet.ids("k2"))
+            .bin(ptBin).setToGeoJson(pointGeoJson(farLng, farLat))
+            .execute();
     }
 
     @AfterAll
@@ -216,6 +250,7 @@ class QuerySelectionExplainScopeTest extends ClusterTest {
         session.dropIndex(dataSet, blobIndexName);
         session.dropIndex(dataSet, mapIndexName);
         session.dropIndex(dataSet, geoIndexName);
+        dropIndexQuietly(dataSet, ptGeoIndex);
         dropIndexQuietly(dataSet, scoreListIndex);
         dropIndexQuietly(dataSet, venueGeoIndex);
         dropIndexQuietly(dataSet, upperExpIndex);
@@ -314,6 +349,58 @@ class QuerySelectionExplainScopeTest extends ClusterTest {
         int count = countRecords(session.query(dataSet)
             .readingOnlyBins(locBin)
             .where(where)
+            .execute());
+
+        assertEquals(1, count);
+    }
+
+    /**
+     * A region literal past the {@code 2048}-byte STRING/BLOB sindex bound still selects the GEO
+     * SI — geo bounds are capped at the GeoJSON wire limit (1 MiB), not the STRING/BLOB limit.
+     * Servers that shared the STRING/BLOB cap PI-fell-back here even with a matching geo index.
+     */
+    @Test
+    void explainLargeGeoRegion_selectsSecondaryIndex() {
+        assertTrue(largeRegionGeoJson.length() > stringBoundMax,
+            "region literal must exceed the STRING/BLOB sindex bound to be meaningful");
+
+        QueryPlan plan = explain(pointInRegionWhere(largeRegionGeoJson));
+
+        assertAll("largeGeoSiExplain",
+            () -> assertEquals(QuerySelection.SECONDARY_INDEX, plan.getSelection()),
+            () -> assertEquals(ptGeoIndex, plan.getIndexName()),
+            () -> assertNotNull(plan.getIndexRangeBytes()),
+            () -> assertEquals(IndexCollectionType.DEFAULT, plan.getIndexType()));
+    }
+
+    /**
+     * The whole region literal survives into {@code INDEX_RANGE}. The server carries geo bounds by
+     * borrowed pointer rather than by inline copy, so a truncated or stale bound would still
+     * present as a well-formed range field — only the bytes themselves catch it.
+     */
+    @Test
+    void explainLargeGeoRegion_indexRangeCarriesWholeRegion() {
+        QueryPlan plan = explain(pointInRegionWhere(largeRegionGeoJson));
+        byte[] rangeBytes = plan.getIndexRangeBytes();
+        byte[] expected = largeRegionGeoJson.getBytes(StandardCharsets.UTF_8);
+
+        assertAll("largeGeoBoundBytes",
+            () -> assertEquals(ptBin, indexRangeBinName(rangeBytes)),
+            () -> assertEquals(ParticleType.GEOJSON, indexRangeKtype(rangeBytes)),
+            () -> assertArrayEquals(expected, indexRangeBound(rangeBytes)),
+            () -> assertTrue(
+                IndexRangeWire.describeProbeRange(rangeBytes).endsWith(" len=" + expected.length),
+                "describeProbeRange should report the full geo bound length"));
+    }
+
+    /**
+     * E2E: the large-region plan replays a multi-KB {@code INDEX_RANGE} on execute.
+     */
+    @Test
+    void executeLargeGeoRegion_returnsMatchingRow() {
+        int count = countRecords(session.query(dataSet)
+            .readingOnlyBins(ptBin)
+            .where(pointInRegionWhere(largeRegionGeoJson))
             .execute());
 
         assertEquals(1, count);
@@ -466,8 +553,50 @@ class QuerySelectionExplainScopeTest extends ClusterTest {
             ", geoJson('" + geoJsonLiteral + "'))";
     }
 
+    private static String pointInRegionWhere(String regionLiteral) {
+        return "geoCompare($." + ptBin + ", geoJson('" + regionLiteral + "'))";
+    }
+
+    private static String pointGeoJson(double lng, double lat) {
+        return String.format(Locale.ROOT, "{\"type\":\"Point\",\"coordinates\":[%.7f,%.7f]}", lng, lat);
+    }
+
+    /**
+     * Closed counter-clockwise ring approximating a circle, sized by vertex count so the literal
+     * lands well above the STRING/BLOB bound while staying far below the 1 MiB geo ceiling.
+     */
+    private static String circlePolygon(double centerLng, double centerLat, double radiusDeg, int vertices) {
+        StringBuilder sb = new StringBuilder("{\"type\":\"Polygon\",\"coordinates\":[[");
+        for (int i = 0; i <= vertices; i++) {
+            double theta = 2 * Math.PI * (i % vertices) / vertices;
+            if (i > 0) {
+                sb.append(',');
+            }
+            sb.append(String.format(Locale.ROOT, "[%.6f,%.6f]",
+                centerLng + (radiusDeg * Math.cos(theta)),
+                centerLat + (radiusDeg * Math.sin(theta))));
+        }
+        return sb.append("]]}").toString();
+    }
+
     private static int indexRangeBinNameLen(byte[] rangeBytes) {
         return rangeBytes[1] & 0xFF;
+    }
+
+    private static String indexRangeBinName(byte[] rangeBytes) {
+        return new String(rangeBytes, 2, indexRangeBinNameLen(rangeBytes), StandardCharsets.UTF_8);
+    }
+
+    private static int indexRangeKtype(byte[] rangeBytes) {
+        return rangeBytes[2 + indexRangeBinNameLen(rangeBytes)] & 0xFF;
+    }
+
+    private static byte[] indexRangeBound(byte[] rangeBytes) {
+        int offset = 2 + indexRangeBinNameLen(rangeBytes) + 1;
+        int len = Buffer.bytesToInt(rangeBytes, offset);
+        byte[] bound = new byte[len];
+        System.arraycopy(rangeBytes, offset + 4, bound, 0, len);
+        return bound;
     }
 
     private static void assumeExpressionSecondaryIndexSupported() {

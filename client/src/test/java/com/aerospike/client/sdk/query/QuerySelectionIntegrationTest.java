@@ -651,6 +651,46 @@ public class QuerySelectionIntegrationTest extends ClusterTest {
             () -> assertEquals(List.of(14, 15, 16, 17, 18), ages));
     }
 
+    /**
+     * Index on bin age, values 1..{@link QuerySelectionIntegSupport#RECORD_COUNT}.
+     * Range bounds sent to the secondary index are inclusive for {@code >=}/{@code <=} and exclusive
+     * for {@code >}/{@code <}, including at the first and last values in the set, where an
+     * off-by-one in the index range would otherwise hide behind neighbouring rows.
+     */
+    @Test
+    void executeIntegerRangeBoundaryRowsAreInclusive() {
+        assertAll("rangeBoundaries",
+            () -> assertEquals(List.of(10, 11, 12), agesWhere("$.age >= 10 and $.age <= 12")),
+            () -> assertEquals(List.of(11), agesWhere("$.age > 10 and $.age < 12")),
+            () -> assertEquals(List.of(10, 11), agesWhere("$.age >= 10 and $.age < 12")),
+            () -> assertEquals(List.of(11, 12), agesWhere("$.age > 10 and $.age <= 12")),
+            () -> assertEquals(List.of(1), agesWhere("$.age >= 1 and $.age <= 1")),
+            () -> assertEquals(List.of(1, 2), agesWhere("$.age <= 2")),
+            () -> assertEquals(List.of(RECORD_COUNT), agesWhere("$.age >= " + RECORD_COUNT)));
+    }
+
+    /**
+     * Exclusive bounds one apart enclose no integer, so the range is empty before any record is read
+     * and the server rejects the plan outright. This is the boundary case of
+     * {@link #executeContradictionPredicateThrowsFilteredOut} and must not be confused with
+     * {@link #executeValidSecondaryIndexQueryWithNoMatchesReturnsEmptyStream}: a satisfiable range
+     * that happens to match nothing yields an empty stream, whereas an unsatisfiable one throws.
+     */
+    @Test
+    void executeIntegerRangeWithNoRepresentableValuesThrowsFilteredOut() {
+        AerospikeException ex = assertThrows(AerospikeException.class,
+            () -> agesWhere("$.age > 1 and $.age < 2"));
+
+        assertEquals(ResultCode.FILTERED_OUT, ex.getResultCode());
+    }
+
+    private static List<Integer> agesWhere(String where) {
+        return collectAges(session.query(dataSet)
+            .readingOnlyBins(AGE_BIN)
+            .where(where)
+            .execute(), AGE_BIN);
+    }
+
     private static List<Integer> collectScores(RecordStream rs) {
         try {
             List<Integer> scores = new ArrayList<>();
