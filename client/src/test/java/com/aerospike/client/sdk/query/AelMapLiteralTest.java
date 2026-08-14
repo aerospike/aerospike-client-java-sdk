@@ -57,8 +57,11 @@ public class AelMapLiteralTest extends ClusterTest {
             .bin(BIN_MAP).setTo(java.util.Map.of("alpha", 10, "beta", 20))
             .execute();
 
+        // A map literal is a comparison operand, so INF and the wildcard are legal
+        // inside one. Compared against the bin rather than bound to a variable: a
+        // `${var}` cannot take a path suffix, so `${cap}.count()` is a syntax error.
         serverAcceptsMultiEntryMapLiteralWithInf = probeSelectFrom(
-            "let(cap = {alpha: 10, sentinel: INF}) then (${cap}.count() > 0)");
+            "$." + BIN_MAP + ":MAP == {alpha: 10, sentinel: INF}");
         serverRejectsCreateOrderOnModify = probeSelectFromFails(
             "$." + BIN_MAP + ":MAP.nested:KEY_ORDERED.modify(@ + 1)",
             "create-order flags are not supported on modify()");
@@ -71,10 +74,12 @@ public class AelMapLiteralTest extends ClusterTest {
 
         try (RecordStream rs = session.query(key)
             .bin("ok")
-            .selectFrom("let(cap = {alpha: 10, sentinel: INF}) then (${cap}.count() > 0)")
+            .selectFrom("$." + BIN_MAP + ":MAP == {alpha: 10, sentinel: INF}")
             .execute()) {
             assertTrue(rs.hasNext());
-            assertEquals(true, rs.next().recordOrThrow().getValue("ok"));
+            // The seeded map is {alpha: 10, beta: 20}, so the comparison is false; the
+            // point is that a multi-entry literal carrying INF compiles at all.
+            assertEquals(false, rs.next().recordOrThrow().getValue("ok"));
         }
     }
 
