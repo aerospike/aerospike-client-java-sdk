@@ -161,7 +161,7 @@ public class QuerySelectionErrorDetailTest extends ClusterTest {
 
         QueryBuilder qb = verbose.query(dataSet)
             .where("$.country == 'US'")
-            .withHint(hint -> hint.requireIndex());
+            .withHint(hint -> hint.disallowScansWithWhere());
 
         AerospikeException ae = assertThrows(AerospikeException.class, () -> explainPlan(verbose, qb));
 

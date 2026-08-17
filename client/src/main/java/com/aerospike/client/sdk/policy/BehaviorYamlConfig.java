@@ -206,12 +206,16 @@ public class BehaviorYamlConfig {
     public static class QueryConfig extends PolicyConfig {
         private Integer recordQueueSize;
         private Integer maxConcurrentServers;
+        private Boolean allowScansWithWhere;
 
         public Integer getRecordQueueSize() { return recordQueueSize; }
         public void setRecordQueueSize(Integer recordQueueSize) { this.recordQueueSize = recordQueueSize; }
 
         public Integer getMaxConcurrentServers() { return maxConcurrentServers; }
         public void setMaxConcurrentServers(Integer maxConcurrentServers) { this.maxConcurrentServers = maxConcurrentServers; }
+
+        public Boolean getAllowScansWithWhere() { return allowScansWithWhere; }
+        public void setAllowScansWithWhere(Boolean allowScansWithWhere) { this.allowScansWithWhere = allowScansWithWhere; }
     }
 
     // Info configuration

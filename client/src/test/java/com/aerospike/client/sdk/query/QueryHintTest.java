@@ -26,7 +26,6 @@ import java.util.function.Function;
 import org.junit.jupiter.api.Test;
 
 import com.aerospike.client.sdk.policy.QueryDuration;
-import com.aerospike.client.sdk.query.plan.QueryWhereWire;
 
 /**
  * Tests for the {@link QueryHint} type-state API.
@@ -65,6 +64,7 @@ public class QueryHintTest {
         assertNull(result.getIndexName());
         assertEquals("age", result.getBinName());
         assertNull(result.getQueryDuration());
+        assertNull(result.getAllowScansWithWhere());
     }
 
     @Test
@@ -81,28 +81,34 @@ public class QueryHintTest {
     @Test
     public void queryDurationOnly() {
         QueryHint.Result result = apply(hint ->
-            hint.queryDuration(QueryDuration.SHORT));
+            hint.queryDuration(QueryDuration.SHORT)
+            .allowScansWithWhere()
+            );
         assertNull(result.getIndexName());
         assertNull(result.getBinName());
         assertEquals(QueryDuration.SHORT, result.getQueryDuration());
+        assertEquals(true, result.getAllowScansWithWhere());
     }
 
     @Test
     public void queryDurationThenForIndex() {
         QueryHint.Result result = apply(hint ->
-            hint.queryDuration(QueryDuration.LONG).forIndex("idx_name"));
+            hint.queryDuration(QueryDuration.LONG).allowScansWithWhere().forIndex("idx_name"));
         assertEquals("idx_name", result.getIndexName());
         assertNull(result.getBinName());
         assertEquals(QueryDuration.LONG, result.getQueryDuration());
+        assertEquals(true, result.getAllowScansWithWhere());
     }
 
     @Test
     public void queryDurationThenForBin() {
         QueryHint.Result result = apply(hint ->
-            hint.queryDuration(QueryDuration.SHORT).forBin("score"));
+            hint.queryDuration(QueryDuration.SHORT).allowScansWithWhere().forBin("score")
+            );
         assertNull(result.getIndexName());
         assertEquals("score", result.getBinName());
         assertEquals(QueryDuration.SHORT, result.getQueryDuration());
+        assertEquals(true, result.getAllowScansWithWhere());
     }
 
     // -- empty hint (no-op) ---------------------------------------------------
@@ -113,6 +119,7 @@ public class QueryHintTest {
         assertNull(result.getIndexName());
         assertNull(result.getBinName());
         assertNull(result.getQueryDuration());
+        assertNull(result.getAllowScansWithWhere());
     }
 
     // -- probe path index-name hint -------------------------------------------
@@ -142,8 +149,8 @@ public class QueryHintTest {
 
     @Test
     public void requireIndexOnly() {
-        QueryHint.Result result = apply(hint -> hint.requireIndex());
-        assertTrue(result.isRequireIndex());
+        QueryHint.Result result = apply(hint -> hint.disallowScansWithWhere());
+        assertNull(result.getAllowScansWithWhere());
         assertFalse(result.isHardHint());
     }
 
@@ -152,14 +159,14 @@ public class QueryHintTest {
         QueryHint.Result result = apply(hint -> hint.forIndex("my_idx").hardHint());
         assertEquals("my_idx", result.getIndexName());
         assertTrue(result.isHardHint());
-        assertFalse(result.isRequireIndex());
+        assertNull(result.getAllowScansWithWhere());
     }
 
     @Test
     public void requireIndexForIndexHardHint() {
         QueryHint.Result result = apply(hint ->
-            hint.requireIndex().forIndex("my_idx").hardHint());
-        assertTrue(result.isRequireIndex());
+            hint.disallowScansWithWhere().forIndex("my_idx").hardHint());
+        assertNull(result.getAllowScansWithWhere());
         assertTrue(result.isHardHint());
         assertEquals("my_idx", result.getIndexName());
     }
@@ -168,32 +175,6 @@ public class QueryHintTest {
     public void hardHintWithoutForIndexThrows() {
         org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class,
             () -> apply(hint -> hint.queryDuration(QueryDuration.SHORT).forIndex("  ").hardHint()));
-    }
-
-    @Test
-    public void explainWhereFlagsRequireIndex() {
-        QueryHint.Result result = apply(hint -> hint.requireIndex());
-        assertEquals(
-            QueryWhereWire.FLAG_EXPLAIN | QueryWhereWire.FLAG_REQUIRE_INDEX,
-            IndexProbePlanner.explainWhereFlags(result));
-    }
-
-    @Test
-    public void explainWhereFlagsHardHint() {
-        QueryHint.Result result = apply(hint -> hint.forIndex("age_idx").hardHint());
-        assertEquals(
-            QueryWhereWire.FLAG_EXPLAIN | QueryWhereWire.FLAG_HARD_HINT,
-            IndexProbePlanner.explainWhereFlags(result));
-    }
-
-    @Test
-    public void explainWhereFlagsRequireIndexAndHardHint() {
-        QueryHint.Result result = apply(hint ->
-            hint.forIndex("age_idx").requireIndex().hardHint());
-        assertEquals(
-            QueryWhereWire.FLAG_EXPLAIN | QueryWhereWire.FLAG_REQUIRE_INDEX
-                | QueryWhereWire.FLAG_HARD_HINT,
-            IndexProbePlanner.explainWhereFlags(result));
     }
 
     // -- helper ---------------------------------------------------------------

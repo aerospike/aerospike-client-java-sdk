@@ -355,6 +355,9 @@ public class BehaviorYamlLoader {
                 if (config.getQuery().getRecordQueueSize() != null) {
                     ops.recordQueueSize(config.getQuery().getRecordQueueSize());
                 }
+                if (config.getQuery().getAllowScansWithWhere() != null) {
+                    ops.allowScansWithWhere(config.getQuery().getAllowScansWithWhere());
+                }
             });
         }
 

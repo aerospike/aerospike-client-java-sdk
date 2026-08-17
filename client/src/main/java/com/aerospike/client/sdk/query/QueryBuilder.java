@@ -39,6 +39,10 @@ import com.aerospike.client.sdk.command.Txn;
 import com.aerospike.client.sdk.exp.Exp;
 import com.aerospike.client.sdk.exp.Expression;
 import com.aerospike.client.sdk.policy.QueryDuration;
+import com.aerospike.client.sdk.policy.ResolvedSettings;
+import com.aerospike.client.sdk.policy.Behavior.Mode;
+import com.aerospike.client.sdk.policy.Behavior.OpKind;
+import com.aerospike.client.sdk.policy.Behavior.OpShape;
 import com.aerospike.client.sdk.tend.Partition;
 
 /**
@@ -401,6 +405,18 @@ public class QueryBuilder extends AbstractFilterableBuilder implements
             return queryHint.getQueryDuration();
         }
         return QueryDuration.LONG;
+    }
+
+    /**
+     * Return effective allow scans with where.
+     */
+    public boolean getEffectiveAllowScansWithWhere() {
+        if (queryHint != null && queryHint.getAllowScansWithWhere() != null) {
+            return queryHint.getAllowScansWithWhere();
+        }
+
+        ResolvedSettings settings = getSession().getBehavior().getSettings(OpKind.READ, OpShape.QUERY, Mode.ANY);
+        return settings.getAllowScansWithWhere();
     }
 
     /**

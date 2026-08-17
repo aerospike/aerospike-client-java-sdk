@@ -59,8 +59,8 @@ public final class QueryHint {
         String getBinName();
         /** @return the query duration override, or {@code null} if not set */
         QueryDuration getQueryDuration();
-        /** @return whether explain must select a secondary index ({@code REQUIRE_INDEX}) */
-        boolean isRequireIndex();
+        /** @return whether scan should be allowed on query with a where clause */
+        Boolean getAllowScansWithWhere();
         /** @return whether the index name hint is strict ({@code HARD_HINT}) */
         boolean isHardHint();
     }
@@ -75,8 +75,10 @@ public final class QueryHint {
         AfterTarget forBin(String binName);
         /** Override the expected query duration. */
         AfterDuration queryDuration(QueryDuration duration);
-        /** Reject primary-index fallback on server explain. */
-        Start requireIndex();
+        /** Allow primary index scans with where clause. Secondary index queries are not affected. */
+        Start allowScansWithWhere();
+        /** Disallow primary index scans with where clause. Secondary index queries are not affected. */
+        Start disallowScansWithWhere();
     }
 
     /**
@@ -85,8 +87,10 @@ public final class QueryHint {
     public interface AfterIndex extends AfterTarget {
         /** Require the hinted index name on explain (no soft fallback). */
         Result hardHint();
-        /** Reject primary-index fallback on server explain. */
-        AfterIndex requireIndex();
+        /** Allow primary index scans with where clause. Secondary index queries are not affected. */
+        AfterIndex allowScansWithWhere();
+        /** Disallow primary index scans with where clause. Secondary index queries are not affected. */
+        AfterIndex disallowScansWithWhere();
     }
 
     /**
@@ -105,8 +109,10 @@ public final class QueryHint {
         AfterIndex forIndex(String indexName);
         /** Prefer the secondary index on the given bin. */
         AfterTarget forBin(String binName);
-        /** Reject primary-index fallback on server explain. */
-        AfterDuration requireIndex();
+        /** Allow primary index scans with where clause. Secondary index queries are not affected. */
+        AfterDuration allowScansWithWhere();
+        /** Disallow primary index scans with where clause. Secondary index queries are not affected. */
+        AfterDuration disallowScansWithWhere();
     }
 
   // ---- package-private implementation ------------------------------------------------
@@ -117,8 +123,8 @@ public final class QueryHint {
     static final class Impl implements Start, AfterIndex, AfterDuration {
         private String indexName;
         private String binName;
+        private Boolean allowScansWithWhere;
         private QueryDuration queryDuration;
-        private boolean requireIndex;
         private boolean hardHint;
 
         @Override
@@ -140,8 +146,14 @@ public final class QueryHint {
         }
 
         @Override
-        public Impl requireIndex() {
-            this.requireIndex = true;
+        public Impl allowScansWithWhere() {
+            this.allowScansWithWhere = true;
+            return this;
+        }
+
+        @Override
+        public Impl disallowScansWithWhere() {
+            this.allowScansWithWhere = false;
             return this;
         }
 
@@ -158,8 +170,8 @@ public final class QueryHint {
         @Override public String getIndexName()            { return indexName; }
         @Override public String getBinName()              { return binName; }
         @Override public QueryDuration getQueryDuration() { return queryDuration; }
-        @Override public boolean isRequireIndex()         { return requireIndex; }
         @Override public boolean isHardHint()             { return hardHint; }
+        @Override public Boolean getAllowScansWithWhere() { return allowScansWithWhere; }
     }
 
     /**

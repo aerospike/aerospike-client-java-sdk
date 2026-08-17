@@ -43,6 +43,7 @@ public final class ResolvedSettings {
     private final boolean allowInlineSsdAccess;
     private final boolean useDurableDelete;
     private final boolean simulateXdrWrite;
+    private final boolean allowScansWithWhere;
 
     public ResolvedSettings(Settings src) {
         commitLevel = (src.commitLevel != null) ? src.commitLevel : CommitLevel.COMMIT_ALL;
@@ -73,6 +74,9 @@ public final class ResolvedSettings {
 
         recordQueueSize = (src.recordQueueSize != null) ?
             src.recordQueueSize : 5000;
+
+        allowScansWithWhere = (src.allowScansWithWhere != null) ?
+            src.allowScansWithWhere : false;
 
         maxConcurrentNodes = (src.maxConcurrentNodes != null) ?
             src.maxConcurrentNodes : 1;
@@ -133,6 +137,9 @@ public final class ResolvedSettings {
         recordQueueSize = (src.recordQueueSize != null) ?
             src.recordQueueSize : res.recordQueueSize;
 
+        allowScansWithWhere = (src.allowScansWithWhere != null) ?
+            src.allowScansWithWhere : res.allowScansWithWhere;
+
         maxConcurrentNodes = (src.maxConcurrentNodes != null) ?
             src.maxConcurrentNodes : res.maxConcurrentNodes;
 
@@ -176,6 +183,7 @@ public final class ResolvedSettings {
         m.put("errorDetailVerbosity", errorDetailVerbosity);
         m.put("maximumNumberOfCallAttempts", maximumNumberOfCallAttempts);
         m.put("recordQueueSize", recordQueueSize);
+        m.put("allowScansWithWhere", allowScansWithWhere);
         m.put("maxConcurrentNodes", maxConcurrentNodes);
         m.put("resetTtlOnReadAtPercent", resetTtlOnReadAtPercent);
         m.put("sendKey", sendKey);
@@ -240,6 +248,10 @@ public final class ResolvedSettings {
 
     public int getRecordQueueSize() {
         return recordQueueSize;
+    }
+
+    public boolean getAllowScansWithWhere() {
+        return allowScansWithWhere;
     }
 
     public int getMaxConcurrentNodes() {
