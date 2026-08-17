@@ -37,11 +37,9 @@ public final class SyncTxnAddKeysExecutor extends OperateWriteExecutor {
     @Override
     protected void parseResult(Node node, Connection conn, byte[] buffer) throws IOException {
         RecordParser rp = new RecordParser(conn, buffer);
-        rp.parseTranDeadline(cmd.txn);
 
-        if (node.isMetricsEnabled()) {
-            node.addBytesIn(cmd.namespace, rp.bytesIn);
-        }
+        rp.parseTranDeadline(cmd.txn);
+        node.addBytesIn(cmd.namespace, rp.bytesIn);
 
         if (rp.resultCode == ResultCode.OK) {
             return;

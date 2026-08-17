@@ -19,9 +19,11 @@ package com.aerospike.client.sdk;
 import java.time.Duration;
 import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 
+import com.aerospike.client.sdk.ExtendedMetricsSettings.ExtendedMetricsTweaks;
 import com.aerospike.client.sdk.metrics.MetricsListener;
+import com.aerospike.client.sdk.metrics.MetricsTier;
 
 /**
  * Metrics settings that apply to an entire Cluster instance.
@@ -33,14 +35,14 @@ public class MetricsSettings {
     private final Duration connectCreateWarn;
     private final String reportDir;
     private final Long reportSizeLimit;
+    private final Double exportSampleRate;
     private final Integer interval;
-    private final TimeUnit latencyUnit;
-    private final Integer latencyColumns;
-    private final Integer latencyShift;
     private final Integer batchSizeWarn;
     private final Integer shortQueryRecordsMax;
     private final Integer longQueryRecordsMin;
     private final Boolean enabled;
+    private final ExtendedMetricsSettings extended;
+    private final MetricsTier tier;
 
     MetricsSettings(Builder builder) {
         this.listener = builder.listener;
@@ -49,14 +51,20 @@ public class MetricsSettings {
         this.connectCreateWarn = builder.connectCreateWarn;
         this.reportDir = builder.reportDir;
         this.reportSizeLimit = builder.reportSizeLimit;
+        this.exportSampleRate = builder.exportSampleRate;
         this.interval = builder.interval;
-        this.latencyUnit = builder.latencyUnit;
-        this.latencyColumns = builder.latencyColumns;
-        this.latencyShift = builder.latencyShift;
         this.batchSizeWarn = builder.batchSizeWarn;
         this.shortQueryRecordsMax = builder.shortQueryRecordsMax;
         this.longQueryRecordsMin = builder.longQueryRecordsMin;
         this.enabled = builder.enabled;
+        this.extended = new ExtendedMetricsSettings(builder.extended);
+
+        if (this.enabled) {
+            this.tier = (extended.getEnabled())? MetricsTier.EXTENDED : MetricsTier.STANDARD;
+        }
+        else {
+            this.tier = MetricsTier.NONE;
+        }
    }
 
     /**
@@ -88,14 +96,10 @@ public class MetricsSettings {
             ? this.reportDir : base.reportDir;
         merged.reportSizeLimit = this.reportSizeLimit != null
             ? this.reportSizeLimit : base.reportSizeLimit;
+        merged.exportSampleRate = this.exportSampleRate != null
+            ? this.exportSampleRate : base.exportSampleRate;
         merged.interval = this.interval != null
             ? this.interval : base.interval;
-        merged.latencyUnit = this.latencyUnit != null
-            ? this.latencyUnit : base.latencyUnit;
-        merged.latencyColumns = this.latencyColumns != null
-            ? this.latencyColumns : base.latencyColumns;
-        merged.latencyShift = this.latencyShift != null
-            ? this.latencyShift : base.latencyShift;
         merged.batchSizeWarn = this.batchSizeWarn != null
             ? this.batchSizeWarn : base.batchSizeWarn;
         merged.shortQueryRecordsMax = this.shortQueryRecordsMax != null
@@ -104,6 +108,8 @@ public class MetricsSettings {
             ? this.longQueryRecordsMin : base.longQueryRecordsMin;
         merged.enabled = this.enabled != null
             ? this.enabled : base.enabled;
+
+        merged.extended = this.extended.mergeWith(base.extended);
 
         return merged;
     }
@@ -115,14 +121,14 @@ public class MetricsSettings {
     public Duration getConnectCreateWarn() { return connectCreateWarn; }
     public String getReportDir() { return reportDir; }
     public Long getReportSizeLimit() { return reportSizeLimit; }
+    public Double getExportSampleRate() { return exportSampleRate; }
     public Integer getInterval() { return interval; }
-    public TimeUnit getLatencyUnit() { return latencyUnit; }
-    public Integer getLatencyColumns() { return latencyColumns; }
-    public Integer getLatencyShift() { return latencyShift; }
     public Integer getBatchSizeWarn() { return batchSizeWarn; }
     public Integer getShortQueryRecordsMax() { return shortQueryRecordsMax; }
     public Integer getLongQueryRecordsMin() { return longQueryRecordsMin; }
     public Boolean getEnabled() { return enabled; }
+    public ExtendedMetricsSettings getExtended() { return extended; }
+    public MetricsTier getTier() { return tier; }
 
     @Override
     public boolean equals(Object o) {
@@ -140,21 +146,20 @@ public class MetricsSettings {
             Objects.equals(connectCreateWarn, that.connectCreateWarn) &&
             Objects.equals(reportDir, that.reportDir) &&
             Objects.equals(reportSizeLimit, that.reportSizeLimit) &&
+            Objects.equals(exportSampleRate, that.exportSampleRate) &&
             Objects.equals(interval, that.interval) &&
-            Objects.equals(latencyUnit, that.latencyUnit) &&
-            Objects.equals(latencyColumns, that.latencyColumns) &&
-            Objects.equals(latencyShift, that.latencyShift) &&
             Objects.equals(batchSizeWarn, that.batchSizeWarn) &&
             Objects.equals(shortQueryRecordsMax, that.shortQueryRecordsMax) &&
             Objects.equals(longQueryRecordsMin, that.longQueryRecordsMin) &&
-            Objects.equals(enabled, that.enabled);
+            Objects.equals(enabled, that.enabled) &&
+            Objects.equals(extended, that.extended);
     }
 
     @Override
     public int hashCode() {
         return Objects.hash(listener, labels, latencyWarn, connectCreateWarn, reportDir,
-            reportSizeLimit, interval, latencyUnit, latencyColumns, latencyShift, batchSizeWarn,
-            shortQueryRecordsMax, longQueryRecordsMin, enabled);
+            reportSizeLimit, exportSampleRate, interval, batchSizeWarn,
+            shortQueryRecordsMax, longQueryRecordsMin, enabled, extended);
     }
 
     @Override
@@ -166,14 +171,13 @@ public class MetricsSettings {
             ", connectCreateWarn=" + connectCreateWarn.toMillis() + "ms" +
             ", reportDir=" + reportDir +
             ", reportSizeLimit=" + reportSizeLimit +
+            ", exportSampleRate=" + exportSampleRate +
             ", interval=" + interval +
-            ", latencyUnit=" + latencyUnit +
-            ", latencyColumns=" + latencyColumns +
-            ", latencyShift=" + latencyShift +
             ", batchSizeWarn=" + batchSizeWarn +
             ", shortQueryRecordsMax=" + shortQueryRecordsMax +
             ", longQueryRecordsMin=" + longQueryRecordsMin +
             ", enabled=" + enabled +
+            ", extended=" + extended +
             '}';
     }
 
@@ -187,14 +191,13 @@ public class MetricsSettings {
         private Duration connectCreateWarn;
         private String reportDir;
         private Long reportSizeLimit;
+        private Double exportSampleRate;
         private Integer interval;
-        private TimeUnit latencyUnit;
-        private Integer latencyColumns;
-        private Integer latencyShift;
         private Integer batchSizeWarn;
         private Integer shortQueryRecordsMax;
         private Integer longQueryRecordsMin;
         private Boolean enabled;
+        private ExtendedMetricsSettings.Builder extended = ExtendedMetricsSettings.builder();
 
         /**
          * Builds the MetricsSettings instance.
@@ -218,14 +221,13 @@ public class MetricsSettings {
         MetricsTweaks connectCreateWarn(Duration duration);
         MetricsTweaks reportDir(String dir);
         MetricsTweaks reportSizeLimit(Long limit);
+        MetricsTweaks exportSampleRate(Double rate);
         MetricsTweaks interval(Integer limit);
-        MetricsTweaks latencyUnit(TimeUnit unit);
-        MetricsTweaks latencyColumns(Integer limit);
-        MetricsTweaks latencyShift(Integer limit);
         MetricsTweaks batchSizeWarn(Integer n);
         MetricsTweaks shortQueryRecordsMax(Integer n);
         MetricsTweaks longQueryRecordsMin(Integer n);
         MetricsTweaks enabled(Boolean b);
+        MetricsTweaks extended(Consumer<ExtendedMetricsTweaks> configurator);
     }
 
     // -----------------------------------------------------------------------------------
@@ -276,26 +278,14 @@ public class MetricsSettings {
         }
 
         @Override
+        public MetricsTweaks exportSampleRate(Double rate) {
+            builder.exportSampleRate = rate;
+            return this;
+        }
+
+        @Override
         public MetricsTweaks interval(Integer interval) {
             builder.interval = interval;
-            return this;
-        }
-
-        @Override
-        public MetricsTweaks latencyUnit(TimeUnit unit) {
-            builder.latencyUnit = unit;
-            return this;
-        }
-
-        @Override
-        public MetricsTweaks latencyColumns(Integer n) {
-            builder.latencyColumns = n;
-            return this;
-        }
-
-        @Override
-        public MetricsTweaks latencyShift(Integer n) {
-            builder.latencyShift = n;
             return this;
         }
 
@@ -320,6 +310,12 @@ public class MetricsSettings {
         @Override
         public MetricsTweaks enabled(Boolean b) {
             builder.enabled = b;
+            return this;
+        }
+
+        @Override
+        public MetricsTweaks extended(Consumer<ExtendedMetricsTweaks> configurator) {
+            configurator.accept(new ExtendedMetricsSettings.ExtendedMetricsTweaksImpl(builder.extended));
             return this;
         }
     }

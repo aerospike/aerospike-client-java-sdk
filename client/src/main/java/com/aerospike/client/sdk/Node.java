@@ -131,7 +131,7 @@ public class Node implements Closeable {
         this.racks = this.rebalanceChanged ? new HashMap<String,Integer>() : null;
         this.active = true;
 
-        if (cluster.isMetricsEnabled()) {
+        if (cluster.isExtendedMetricsEnabled()) {
             MetricsSettings ms = cluster.getSystemSettings().getMetrics();
             this.metrics = new NodeMetrics(ms);
         }
@@ -658,7 +658,7 @@ public class Node implements Closeable {
         TlsBuilder tls = cluster.def.tlsBuilder;
         Connection conn;
 
-        if (cluster.isMetricsEnabled()) {
+        if (cluster.isExtendedMetricsEnabled()) {
             long begin = System.nanoTime();
 
             conn = (tls != null && !tls.isForLoginOnly()) ?
@@ -1058,7 +1058,9 @@ public class Node implements Closeable {
      * Add to the count of bytes sent to the node.
      */
     public void addBytesOut(String namespace, long count) {
-        metrics.bytesOutCounter.increment(namespace, count);
+        if (cluster.isExtendedMetricsEnabled()) {
+            metrics.bytesOutCounter.increment(namespace, count);
+        }
     }
 
     /**
@@ -1071,7 +1073,9 @@ public class Node implements Closeable {
      * Add to the count of bytes received from the node.
      */
     public void addBytesIn(String namespace, long count) {
-        metrics.bytesInCounter.increment(namespace, count);
+        if (cluster.isExtendedMetricsEnabled()) {
+            metrics.bytesInCounter.increment(namespace, count);
+        }
     }
 
     /**
@@ -1085,7 +1089,9 @@ public class Node implements Closeable {
      * Add elapsed time in nanoseconds to latency buckets corresponding to latency type.
      */
     public final void addLatency(String namespace, LatencyType type, long elapsed) {
-        metrics.addLatency(namespace, type, elapsed);
+        if (cluster.isExtendedMetricsEnabled()) {
+            metrics.addLatency(namespace, type, elapsed);
+        }
     }
 
     public final NodeMetrics getMetrics() {
@@ -1094,10 +1100,6 @@ public class Node implements Closeable {
 
     public final void enableMetrics(MetricsSettings settings) {
         metrics = new NodeMetrics(settings);
-    }
-
-    public boolean isMetricsEnabled() {
-        return cluster.isMetricsEnabled();
     }
 
     private boolean isErrorRateValid() {

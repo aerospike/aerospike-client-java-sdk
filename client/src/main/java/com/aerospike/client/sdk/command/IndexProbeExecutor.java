@@ -68,9 +68,7 @@ public final class IndexProbeExecutor extends SyncExecutor {
     protected void parseResult(Node node, Connection conn, byte[] buffer) throws IOException {
         RecordParser rp = new RecordParser(conn, buffer);
 
-        if (node.isMetricsEnabled()) {
-            node.addBytesIn(cmd.namespace, rp.bytesIn);
-        }
+        node.addBytesIn(cmd.namespace, rp.bytesIn);
 
         if (rp.resultCode != ResultCode.OK && rp.resultCode != ResultCode.FILTERED_OUT) {
             throw rp.toException();

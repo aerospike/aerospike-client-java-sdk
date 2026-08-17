@@ -130,6 +130,7 @@ public class BehaviorYamlLoader {
      */
     public static Map<String, Behavior> loadBehaviorsFromFile(File file) throws IOException {
         BehaviorYamlConfig config = loadYamlConfig(file);
+        //System.out.println("FILE: " + config);
         return updateBehaviorsFromConfig(config);
     }
 
@@ -539,17 +540,11 @@ public class BehaviorYamlLoader {
                 if (metricsConfig.getReportSizeLimit() != null) {
                     ops.reportSizeLimit(metricsConfig.getReportSizeLimit());
                 }
+                if (metricsConfig.getExportSampleRate() != null) {
+                    ops.exportSampleRate(metricsConfig.getExportSampleRate());
+                }
                 if (metricsConfig.getInterval() != null) {
                     ops.interval(metricsConfig.getInterval());
-                }
-                if (metricsConfig.getLatencyUnit() != null) {
-                    ops.latencyUnit(metricsConfig.getLatencyUnit());
-                }
-                if (metricsConfig.getLatencyColumns() != null) {
-                    ops.latencyColumns(metricsConfig.getLatencyColumns());
-                }
-                if (metricsConfig.getLatencyShift() != null) {
-                    ops.latencyShift(metricsConfig.getLatencyShift());
                 }
                 if (metricsConfig.getBatchSizeWarn() != null) {
                     ops.batchSizeWarn(metricsConfig.getBatchSizeWarn());
@@ -562,6 +557,23 @@ public class BehaviorYamlLoader {
                 }
                 if (metricsConfig.getEnabled() != null) {
                     ops.enabled(metricsConfig.getEnabled());
+                }
+                if (metricsConfig.getExtended() != null) {
+                    BehaviorYamlConfig.ExtendedMetricsConfig extendedConfig = metricsConfig.getExtended();
+                    ops.extended(ext -> {
+                        if (extendedConfig.getLatencyUnit() != null) {
+                            ext.latencyUnit(extendedConfig.getLatencyUnit());
+                        }
+                        if (extendedConfig.getLatencyColumns() != null) {
+                            ext.latencyColumns(extendedConfig.getLatencyColumns());
+                        }
+                        if (extendedConfig.getLatencyShift() != null) {
+                            ext.latencyShift(extendedConfig.getLatencyShift());
+                        }
+                        if (extendedConfig.getEnabled() != null) {
+                            ext.enabled(extendedConfig.getEnabled());
+                        }
+                    });
                 }
             });
         }

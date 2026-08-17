@@ -122,14 +122,18 @@ public class SystemSettings {
             .connectCreateWarn(Duration.ofMillis(500))
             .reportDir(".")
             .reportSizeLimit(0L)
+            .exportSampleRate(1.0)
             .interval(30)
-            .latencyUnit(TimeUnit.MILLISECONDS)
-            .latencyColumns(7)
-            .latencyShift(1)
             .batchSizeWarn(500)
             .shortQueryRecordsMax(100)
             .longQueryRecordsMin(10)
             .enabled(false)
+            .extended(ops2 -> ops2
+                .latencyUnit(TimeUnit.MILLISECONDS)
+                .latencyColumns(7)
+                .latencyShift(1)
+                .enabled(false)
+            )
         )
         .build();
 

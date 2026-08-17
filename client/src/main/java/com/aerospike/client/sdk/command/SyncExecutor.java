@@ -58,8 +58,7 @@ public abstract class SyncExecutor {
         Node node;
         AerospikeException exception = null;
         long begin = 0;
-        boolean metricsEnabled = cluster.isMetricsEnabled();
-        LatencyType latencyType = metricsEnabled? getLatencyType() : LatencyType.NONE;
+        LatencyType latencyType = cluster.isExtendedMetricsEnabled()? getLatencyType() : LatencyType.NONE;
         boolean isClientTimeout;
 
         // Execute command until successful, timed out or maximum iterations have been reached.
@@ -93,10 +92,7 @@ public abstract class SyncExecutor {
                     // Send command.
                     conn.write(cb.getBuffer(), cb.getLength());
                     commandSentCounter++;
-
-                    if (metricsEnabled) {
-                        node.addBytesOut(cmd.namespace, cb.getLength());
-                    }
+                    node.addBytesOut(cmd.namespace, cb.getLength());
 
                     // Parse results.
                     parseResult(node, conn, cb.getBuffer());

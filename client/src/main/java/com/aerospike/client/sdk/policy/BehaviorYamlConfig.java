@@ -325,14 +325,13 @@ public class BehaviorYamlConfig {
         private Duration connectCreateWarn;
         private String reportDir;
         private Long reportSizeLimit;
+        private Double exportSampleRate;
         private Integer interval;
-        private TimeUnit latencyUnit;
-        private Integer latencyColumns;
-        private Integer latencyShift;
         private Integer batchSizeWarn;
         private Integer shortQueryRecordsMax;
         private Integer longQueryRecordsMin;
         private Boolean enabled;
+        private ExtendedMetricsConfig extended;
 
         public Map<String, String> getLabels() {
             return labels;
@@ -369,32 +368,18 @@ public class BehaviorYamlConfig {
             this.reportSizeLimit = reportSizeLimit;
         }
 
+        public Double getExportSampleRate() {
+            return exportSampleRate;
+        }
+        public void setExportSampleRate(Double exportSampleRate) {
+            this.exportSampleRate = exportSampleRate;
+        }
+
         public Integer getInterval() {
             return interval;
         }
         public void setInterval(Integer interval) {
             this.interval = interval;
-        }
-
-        public TimeUnit getLatencyUnit() {
-            return latencyUnit;
-        }
-        public void setLatencyUnit(TimeUnit unit) {
-            this.latencyUnit = unit;
-        }
-
-        public Integer getLatencyColumns() {
-            return latencyColumns;
-        }
-        public void setLatencyColumns(Integer latencyColumns) {
-            this.latencyColumns = latencyColumns;
-        }
-
-        public Integer getLatencyShift() {
-            return latencyShift;
-        }
-        public void setLatencyShift(Integer latencyShift) {
-            this.latencyShift = latencyShift;
         }
 
         public Integer getBatchSizeWarn() {
@@ -416,6 +401,48 @@ public class BehaviorYamlConfig {
         }
         public void setLongQueryRecordsMin(Integer longQueryRecordsMin) {
             this.longQueryRecordsMin = longQueryRecordsMin;
+        }
+
+        public Boolean getEnabled() {
+            return enabled;
+        }
+        public void setEnabled(Boolean enabled) {
+            this.enabled = enabled;
+        }
+
+        public ExtendedMetricsConfig getExtended() {
+            return extended;
+        }
+        public void setExtended(ExtendedMetricsConfig extended) {
+            this.extended = extended;
+        }
+    }
+
+    public static class ExtendedMetricsConfig {
+        private TimeUnit latencyUnit;
+        private Integer latencyColumns;
+        private Integer latencyShift;
+        private Boolean enabled;
+
+        public TimeUnit getLatencyUnit() {
+            return latencyUnit;
+        }
+        public void setLatencyUnit(TimeUnit unit) {
+            this.latencyUnit = unit;
+        }
+
+        public Integer getLatencyColumns() {
+            return latencyColumns;
+        }
+        public void setLatencyColumns(Integer latencyColumns) {
+            this.latencyColumns = latencyColumns;
+        }
+
+        public Integer getLatencyShift() {
+            return latencyShift;
+        }
+        public void setLatencyShift(Integer latencyShift) {
+            this.latencyShift = latencyShift;
         }
 
         public Boolean getEnabled() {

@@ -53,11 +53,9 @@ public final class ExistsExecutor extends SyncExecutor {
     @Override
     protected void parseResult(Node node, Connection conn, byte[] buffer) throws IOException {
         RecordParser rp = new RecordParser(conn, buffer);
-        rp.parseFields(cmd.txn, read.key, false);
 
-        if (node.isMetricsEnabled()) {
-            node.addBytesIn(cmd.namespace, rp.bytesIn);
-        }
+        rp.parseFields(cmd.txn, read.key, false);
+        node.addBytesIn(cmd.namespace, rp.bytesIn);
 
         if (rp.resultCode == ResultCode.OK) {
             exists = true;
