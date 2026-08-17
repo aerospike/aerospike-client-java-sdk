@@ -36,6 +36,7 @@ public final class Settings {
 
     // Query-only
     Integer recordQueueSize;
+    Boolean allowScansWithWhere;
 
     // Batch-only
     Integer maxConcurrentNodes;
@@ -71,6 +72,7 @@ public final class Settings {
         this.waitForSocketResponseAfterCallFails = orig.waitForSocketResponseAfterCallFails;
         this.errorDetailVerbosity = orig.errorDetailVerbosity;
         this.recordQueueSize = orig.recordQueueSize;
+        this.allowScansWithWhere = orig.allowScansWithWhere;
         this.maxConcurrentNodes = orig.maxConcurrentNodes;
         this.allowInlineMemoryAccess = orig.allowInlineMemoryAccess;
         this.allowInlineSsdAccess = orig.allowInlineSsdAccess;
@@ -122,6 +124,9 @@ public final class Settings {
 
         if (recordQueueSize != null) {
             m.put("recordQueueSize", recordQueueSize);
+        }
+        if (allowScansWithWhere != null) {
+            m.put("allowScansWithWhere", allowScansWithWhere);
         }
 
         if (maxConcurrentNodes != null) {

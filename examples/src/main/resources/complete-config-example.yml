@@ -108,6 +108,7 @@ behaviors:
 
     query:
       recordQueueSize: 5000
+      allowScansWithWhere: false
       maxConcurrentServers: 8
       abandonCallAfter: 30s
       maximumNumberOfCallAttempts: 1
@@ -172,6 +173,7 @@ behaviors:
 
     query:
       recordQueueSize: 10000
+      allowScansWithWhere: false
       maxConcurrentServers: 4
       abandonCallAfter: 60s
 
@@ -193,6 +195,7 @@ behaviors:
 
     query:
       recordQueueSize: 20000
+      allowScansWithWhere: false
       maxConcurrentServers: 16
       abandonCallAfter: 45s
 
@@ -223,6 +226,7 @@ behaviors:
 
     query:
       recordQueueSize: 1000
+      allowScansWithWhere: false
       maxConcurrentServers: 2
       abandonCallAfter: 120s
 
@@ -232,6 +236,7 @@ behaviors:
 
     query:
       recordQueueSize: 50000
+      allowScansWithWhere: false
       maxConcurrentServers: 32
       abandonCallAfter: 300s
       maximumNumberOfCallAttempts: 2
