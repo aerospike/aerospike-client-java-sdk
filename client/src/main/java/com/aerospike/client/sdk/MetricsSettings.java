@@ -59,8 +59,9 @@ public class MetricsSettings {
         this.enabled = builder.enabled;
         this.extended = new ExtendedMetricsSettings(builder.extended);
 
-        if (this.enabled) {
-            this.tier = (extended.getEnabled())? MetricsTier.EXTENDED : MetricsTier.STANDARD;
+        if (this.enabled != null && this.enabled) {
+            this.tier = (extended.getEnabled() != null && extended.getEnabled())?
+                MetricsTier.EXTENDED : MetricsTier.STANDARD;
         }
         else {
             this.tier = MetricsTier.NONE;

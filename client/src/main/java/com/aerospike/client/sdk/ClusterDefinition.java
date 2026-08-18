@@ -408,7 +408,8 @@ public class ClusterDefinition {
     public ClusterDefinition withSystemSettings(Consumer<SystemSettings.Builder> configurator) {
         SystemSettings.Builder builder = SystemSettings.builder();
         configurator.accept(builder);
-        SystemSettings settings = builder.build();
+        SystemSettings settings = builder.build().mergeWith(SystemSettings.DEFAULT);
+        //System.out.println("SystemSettings= " + settings);
         return withSystemSettings(settings);
     }
 
