@@ -23,9 +23,8 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.Iterator;
+import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 
 import org.slf4j.Logger;
@@ -40,6 +39,7 @@ import com.aerospike.client.sdk.Loggers;
 import com.aerospike.client.sdk.MetricsSettings;
 import com.aerospike.client.sdk.Node;
 import com.aerospike.client.sdk.command.Buffer;
+import com.aerospike.client.sdk.tend.Partitions;
 import com.aerospike.client.sdk.util.Util;
 
 /**
@@ -255,51 +255,56 @@ public final class MetricsWriter implements MetricsListener {
 		writeConn(node.getConnectionStats());
 		sb.append(",[");
 
-		Histograms hGrams = node.getMetrics().getHistograms();
-		ConcurrentHashMap<String, LatencyBuckets[]> hMap = hGrams.getMap();
-		int max = LatencyType.getMax();
+        HashMap<String,Partitions> partitionMap = node.cluster.getPartitionMap();
+        NodeMetrics nodeMetrics = node.getMetrics();
+        int max = LatencyType.getMax();
+        int count = 0;
 
-		Iterator<Map.Entry<String, LatencyBuckets[]>> nsItr = hMap.entrySet().iterator();
-		while (nsItr.hasNext()) {
-			Map.Entry<String, LatencyBuckets[]> entry = nsItr.next();
-			String namespace = entry.getKey();
-			sb.append(namespace).append(',');
-			sb.append(node.getErrorCount(namespace));
-			sb.append(',');
-			sb.append(node.getTimeoutCount(namespace));
-			sb.append(',');
-			sb.append(node.getKeyBusyCount(namespace));
-			sb.append(',');
-			sb.append(node.getBytesIn(namespace));
-			sb.append(',');
-			sb.append(node.getBytesOut(namespace));
-			sb.append(",[");
-			LatencyBuckets[] latencyBuckets = hGrams.getBuckets(namespace);
-			for (int i = 0; i < max; i++) {
-				if (i > 0) {
-					sb.append(',');
-				}
+        for (String namespace : partitionMap.keySet()) {
+            if (count > 0) {
+                sb.append(",[");
+            }
 
-				sb.append(LatencyType.getString(i));
-				sb.append('[');
+            sb.append(namespace);
+            sb.append(',');
+            sb.append(node.getErrorCount(namespace));
+            sb.append(',');
+            sb.append(node.getTimeoutCount(namespace));
+            sb.append(',');
+            sb.append(node.getKeyBusyCount(namespace));
+            sb.append(',');
+            sb.append(node.getBytesIn(namespace));
+            sb.append(',');
+            sb.append(node.getBytesOut(namespace));
+            sb.append(",[");
 
-				LatencyBuckets buckets = latencyBuckets[i];
-				int bucketMax = buckets.getMax();
-				for (int j = 0; j < bucketMax; j++) {
-					if (j > 0) {
-						sb.append(',');
-					}
-					sb.append(buckets.getBucket(j)); // Cumulative. Not reset on each interval.
-				}
-				sb.append(']');
-			}
-			if (nsItr.hasNext()) {
-				sb.append("]],[");
-			} else {
-				sb.append("]]");
-			}
-		}
-		sb.append("]]");
+            if (nodeMetrics != null) {
+                LatencyBuckets[] latencyBuckets = nodeMetrics.getHistograms().getBuckets(namespace);
+
+                for (int i = 0; i < max; i++) {
+                    if (i > 0) {
+                        sb.append(',');
+                    }
+
+                    sb.append(LatencyType.getString(i));
+                    sb.append('[');
+
+                    LatencyBuckets buckets = latencyBuckets[i];
+                    int bucketMax = buckets.getMax();
+
+                    for (int j = 0; j < bucketMax; j++) {
+                        if (j > 0) {
+                            sb.append(',');
+                        }
+                        sb.append(buckets.getBucket(j)); // Cumulative. Not reset on each interval.
+                    }
+                    sb.append(']');
+                }
+            }
+            sb.append("]]");
+            count++;
+        }
+        sb.append("]]");
 	}
 
 	private void writeConn(ConnectionStats cs) {

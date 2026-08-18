@@ -268,7 +268,7 @@ public class Cluster implements Closeable {
             return;
         }
 
-        //System.out.println("SYSTEM=" + settings.toString());
+        //System.out.println("FINAL SYSTEM SETTINGS=" + settings.toString());
         this.effectiveSystemSettings = settings;
 
         if (settings.getMinimumConnectionsPerNode() != null) {

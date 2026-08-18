@@ -1067,7 +1067,7 @@ public class Node implements Closeable {
      * Return count of bytes out by namespace. The value is cumulative and not reset per metrics interval.
      */
     public long getBytesOut(String namespace) {
-        return metrics.bytesOutCounter.getCountByNS(namespace);
+        return (metrics != null)? metrics.bytesOutCounter.getCountByNS(namespace) : 0;
     }
     /**
      * Add to the count of bytes received from the node.
@@ -1082,7 +1082,7 @@ public class Node implements Closeable {
      * Return count of bytes in by namespace. The value is cumulative and not reset per metrics interval.
      */
     public long getBytesIn(String namespace) {
-        return metrics.bytesInCounter.getCountByNS(namespace);
+        return (metrics != null)? metrics.bytesInCounter.getCountByNS(namespace) : 0;
     }
 
     /**
