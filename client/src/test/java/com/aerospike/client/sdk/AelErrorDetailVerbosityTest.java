@@ -79,7 +79,7 @@ public class AelErrorDetailVerbosityTest extends ClusterTest {
 
         String msg = ae.getBaseMessage();
         assertNotNull(msg);
-        assertTrue(msg.contains("invalid metadata expression in request"),
+        assertTrue(msg.contains("invalid filter expression in request"),
             "Expected filter-build context in: " + msg);
         assertTrue(msg.length() > "invalid metadata expression in request".length(),
             "Expected AEL compile diagnostic folded into message: " + msg);

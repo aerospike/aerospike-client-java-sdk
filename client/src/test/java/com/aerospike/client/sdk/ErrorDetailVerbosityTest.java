@@ -909,7 +909,7 @@ public class ErrorDetailVerbosityTest extends ClusterTest {
 
         String msg = ae.getBaseMessage();
         assertNotNull(msg);
-        assertTrue(msg.contains("invalid metadata expression in request"),
+        assertTrue(msg.contains("invalid filter expression in request"),
             "Expected filter-build message in: " + msg);
 
         ExpressionTrace t = ae.getExpressionTrace();
@@ -971,7 +971,8 @@ public class ErrorDetailVerbosityTest extends ClusterTest {
 
         String msg = ae.getBaseMessage();
         assertNotNull(msg);
-        assertTrue(msg.contains("invalid metadata expression in request"),
+
+        assertTrue(msg.contains("invalid filter expression in request"),
             "Expected filter-build message in: " + msg);
 
         assertNull(ae.getExpressionTrace(), "Verbosity 2 must surface NO expression trace");
