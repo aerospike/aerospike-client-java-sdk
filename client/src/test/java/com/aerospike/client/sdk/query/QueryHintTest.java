@@ -148,9 +148,9 @@ public class QueryHintTest {
     }
 
     @Test
-    public void requireIndexOnly() {
+    public void disallowScansWithWhereOnly() {
         QueryHint.Result result = apply(hint -> hint.disallowScansWithWhere());
-        assertNull(result.getAllowScansWithWhere());
+        assertEquals(false, result.getAllowScansWithWhere());
         assertFalse(result.isHardHint());
     }
 
@@ -163,10 +163,10 @@ public class QueryHintTest {
     }
 
     @Test
-    public void requireIndexForIndexHardHint() {
+    public void disallowScansWithWhereForIndexHardHint() {
         QueryHint.Result result = apply(hint ->
             hint.disallowScansWithWhere().forIndex("my_idx").hardHint());
-        assertNull(result.getAllowScansWithWhere());
+        assertEquals(false, result.getAllowScansWithWhere());
         assertTrue(result.isHardHint());
         assertEquals("my_idx", result.getIndexName());
     }

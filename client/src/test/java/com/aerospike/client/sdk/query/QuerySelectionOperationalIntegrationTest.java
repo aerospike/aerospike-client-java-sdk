@@ -24,15 +24,18 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
+import com.aerospike.client.sdk.AerospikeException;
 import com.aerospike.client.sdk.ClusterTest;
 import com.aerospike.client.sdk.DataSet;
 import com.aerospike.client.sdk.RecordStream;
+import com.aerospike.client.sdk.ResultCode;
 import com.aerospike.client.sdk.query.plan.QueryPlan;
 import com.aerospike.client.sdk.query.plan.QuerySelection;
 
@@ -40,43 +43,92 @@ import com.aerospike.client.sdk.query.plan.QuerySelection;
  * Operational scenarios for server-led query selection.
  */
 class QuerySelectionOperationalIntegrationTest extends ClusterTest {
+    private static final String scopeSetName = "qsel_scope";
+    private static final String scopeKeyPrefix = "qselscope";
+    private static final String setScopedBin = "qsel_set_value";
+    private static final String namespaceScopedBin = "qsel_ns_value";
+    private static final String setScopedIndex = "qsel_set_scope_idx";
+    private static final String namespaceScopedIndex = "qsel_ns_scope_idx";
+
     private static DataSet dataSet;
+    private static DataSet scopeDataSet;
+    private static DataSet namespaceDataSet;
 
     @BeforeAll
     static void prepare() {
         QuerySelectionIntegSupport.assumeQuerySelectionEnabled();
         dataSet = prepareQselint(session, args.namespace);
+        scopeDataSet = DataSet.of(args.namespace, scopeSetName);
+        namespaceDataSet = DataSet.of(args.namespace, null);
+
+        session.delete(scopeDataSet.ids(scopeKeyPrefix + "1")).execute();
+        session.delete(scopeDataSet.ids(scopeKeyPrefix + "2")).execute();
+        createIndexQuietly(scopeDataSet, setScopedIndex, setScopedBin);
+        createIndexQuietly(namespaceDataSet, namespaceScopedIndex, namespaceScopedBin);
+
+        session.upsert(scopeDataSet.ids(scopeKeyPrefix + "1"))
+            .bins(setScopedBin, namespaceScopedBin)
+            .values(101, 201)
+            .execute();
+        session.upsert(scopeDataSet.ids(scopeKeyPrefix + "2"))
+            .bins(setScopedBin, namespaceScopedBin)
+            .values(102, 202)
+            .execute();
     }
 
     @AfterAll
     static void destroy() {
         QuerySelectionIntegSupport.destroyQselint(session, dataSet);
+        if (scopeDataSet != null) {
+            session.delete(scopeDataSet.ids(scopeKeyPrefix + "1")).execute();
+            session.delete(scopeDataSet.ids(scopeKeyPrefix + "2")).execute();
+            QueryPlannerSupport.dropIndexQuietly(scopeDataSet, setScopedIndex);
+            QueryPlannerSupport.dropIndexQuietly(namespaceDataSet, namespaceScopedIndex);
+        }
     }
 
     /**
-     * partition-restricted query still uses server selection and returns a subset of the
+     * A partition-restricted query still uses server selection and returns a subset of the
      * unrestricted result.
+     *
+     * <p>Asserted as a partition of the result rather than as "the lower range returns something":
+     * only five records match, spread over 4096 partitions by digest, so any particular range may
+     * legitimately be empty. Two complementary ranges must together yield exactly the unrestricted
+     * result, which holds for any key distribution while still catching a range that drops or
+     * duplicates rows.</p>
      */
     @Test
     void executeWithPartitionRangeAndWhereReturnsMatchingSubset() {
         String where = "$.age >= 14 and $.age <= 18";
 
-        List<Integer> full = collectAges(session.query(dataSet)
-            .readingOnlyBins(AGE_BIN)
-            .where(where)
-            .execute(), AGE_BIN);
+        List<Integer> full = matchingAges(where);
+        List<Integer> lower = matchingAges(where, 0, 2048);
+        List<Integer> upper = matchingAges(where, 2048, 4096);
 
-        List<Integer> partial = collectAges(session.query(dataSet)
-            .onPartitionRange(0, 512)
-            .readingOnlyBins(AGE_BIN)
-            .where(where)
-            .execute(), AGE_BIN);
+        List<Integer> union = new ArrayList<>(lower);
+        union.addAll(upper);
+        union.sort(Integer::compareTo);
 
         assertAll("partitionRestricted",
             () -> assertEquals(List.of(14, 15, 16, 17, 18), full),
-            () -> assertTrue(partial.size() > 0),
-            () -> assertTrue(partial.size() <= full.size()),
-            () -> assertTrue(full.containsAll(partial)));
+            () -> assertEquals(full, union),
+            () -> assertTrue(Collections.disjoint(lower, upper),
+                "a record must not be returned by both partition ranges"));
+    }
+
+    private static List<Integer> matchingAges(String where) {
+        return collectAges(session.query(dataSet)
+            .readingOnlyBins(AGE_BIN)
+            .where(where)
+            .execute(), AGE_BIN);
+    }
+
+    private static List<Integer> matchingAges(String where, int startIncl, int endExcl) {
+        return collectAges(session.query(dataSet)
+            .onPartitionRange(startIncl, endExcl)
+            .readingOnlyBins(AGE_BIN)
+            .where(where)
+            .execute(), AGE_BIN);
     }
 
     /**
@@ -130,5 +182,48 @@ class QuerySelectionOperationalIntegrationTest extends ClusterTest {
         assertAll("preparedAel",
             () -> assertEquals(QuerySelection.SECONDARY_INDEX, plan.getSelection()),
             () -> assertEquals(List.of(14, 15, 16, 17, 18), ages));
+    }
+
+    /**
+     * The planner resolves set identity independently from the candidate expression. A set query
+     * must select its set-scoped index, while an omitted set must select the namespace-wide index.
+     * Distinct bins keep both definitions live concurrently and make the assertion order-independent.
+     */
+    @Test
+    void setScopedAndNamespaceWideQueriesSelectMatchingIndexes() {
+        String setWhere = "$." + setScopedBin + " >= 101 and $." + setScopedBin + " <= 102";
+        String namespaceWhere =
+            "$." + namespaceScopedBin + " >= 201 and $." + namespaceScopedBin + " <= 202";
+
+        QueryPlan setPlan = QueryPlannerSupport.plan(scopeDataSet, setWhere);
+        QueryPlan namespacePlan = QueryPlannerSupport.plan(namespaceDataSet, namespaceWhere);
+        List<Integer> setValues = collectAges(session.query(scopeDataSet)
+            .readingOnlyBins(setScopedBin)
+            .where(setWhere)
+            .execute(), setScopedBin);
+        List<Integer> namespaceValues = collectAges(session.query(namespaceDataSet)
+            .readingOnlyBins(namespaceScopedBin)
+            .where(namespaceWhere)
+            .execute(), namespaceScopedBin);
+
+        assertAll("indexScopes",
+            () -> assertEquals(QuerySelection.SECONDARY_INDEX, setPlan.getSelection()),
+            () -> assertEquals(setScopedIndex, setPlan.getIndexName()),
+            () -> assertEquals(List.of(101, 102), setValues),
+            () -> assertEquals(QuerySelection.SECONDARY_INDEX, namespacePlan.getSelection()),
+            () -> assertEquals(namespaceScopedIndex, namespacePlan.getIndexName()),
+            () -> assertEquals(List.of(201, 202), namespaceValues));
+    }
+
+    private static void createIndexQuietly(DataSet target, String indexName, String binName) {
+        try {
+            session.createIndex(target, indexName, binName, IndexType.INTEGER,
+                IndexCollectionType.DEFAULT).waitTillComplete();
+        }
+        catch (AerospikeException ae) {
+            if (ae.getResultCode() != ResultCode.INDEX_ALREADY_EXISTS) {
+                throw ae;
+            }
+        }
     }
 }

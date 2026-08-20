@@ -89,6 +89,116 @@ public class QuerySelectionIntegrationTest extends ClusterTest {
     }
 
     /**
+     * Oversized string literal on an unindexed bin — explain PI-fallback, execute succeeds (full scan).
+     */
+    @Test
+    void explainOversizedLiteralOnUnindexedBinFallsBackToPrimaryIndex() {
+        String where = "$." + COUNTRY_BIN + " == '" + oversizedLiteral() + "'";
+        QueryPlan plan = explainPlan(where);
+
+        assertAll("oversizedLiteralPiExplain",
+            () -> assertEquals(QuerySelection.PRIMARY_INDEX, plan.getSelection()),
+            () -> assertNull(plan.getIndexName()),
+            () -> assertNull(plan.getIndexRangeBytes()));
+
+        assertEquals(0, countRecords(session.query(dataSet)
+            .readingOnlyBins(COUNTRY_BIN)
+            .where(where)
+            .execute()));
+    }
+
+    /**
+     * Partial AND with an oversized literal — age SI still selected; execute filters both conjuncts.
+     */
+    @Test
+    void explainPartialAndWithOversizedLiteralStillSelectsAgeIndex() {
+        String where = "$." + AGE_BIN + " >= 14 and $." + AGE_BIN + " <= 18 and $." +
+            COUNTRY_BIN + " == '" + oversizedLiteral() + "'";
+
+        QueryPlan plan = explainPlan(where);
+
+        assertAll("partialAndOversizedExplain",
+            () -> assertEquals(QuerySelection.SECONDARY_INDEX, plan.getSelection()),
+            () -> assertEquals(AGE_INDEX, plan.getIndexName()),
+            () -> assertNotNull(plan.getIndexRangeBytes()));
+
+        assertEquals(0, countRecords(session.query(dataSet)
+            .readingOnlyBins(AGE_BIN, COUNTRY_BIN)
+            .where(where)
+            .execute()));
+    }
+
+    /**
+     * Oversized string literal on an indexed bin — unindexable term PI-fallbacks; execute succeeds.
+     */
+    @Test
+    void explainOversizedLiteralOnIndexedBinFallsBackToPrimaryIndex() {
+        String where = "$." + AGE_BIN + " == '" + oversizedLiteral() + "'";
+        QueryPlan plan = explainPlan(where);
+
+        assertAll("oversizedIndexedBinPiExplain",
+            () -> assertEquals(QuerySelection.PRIMARY_INDEX, plan.getSelection()),
+            () -> assertNull(plan.getIndexName()),
+            () -> assertNull(plan.getIndexRangeBytes()));
+
+        assertEquals(0, countRecords(session.query(dataSet)
+            .readingOnlyBins(AGE_BIN)
+            .where(where)
+            .execute()));
+    }
+
+    /**
+     * OR inside one AND conjunct must not poison a sibling conjunct's SI candidate.
+     */
+    @Test
+    void explainOrConjunctWithIndexableSiblingSelectsAgeIndex() {
+        assertOrConjunctStillSelectsAgeIndex(
+            "$.age > 10 and ($.age < 50 or $.country == 'US')");
+        assertOrConjunctStillSelectsAgeIndex(
+            "($.age < 50 or $.country == 'US') and $.age > 10");
+    }
+
+    /**
+     * OR conjunct E2E — age index plan with residual filter over the unindexed OR branch.
+     */
+    @Test
+    void executeOrConjunctWithIndexableSiblingReturnsMatchingRecords() {
+        String where = "$.age > 10 and ($.age < 50 or $.country == 'US')";
+
+        QueryPlan plan = explainPlan(where);
+
+        assertAll("orConjunctExplain",
+            () -> assertEquals(QuerySelection.SECONDARY_INDEX, plan.getSelection()),
+            () -> assertEquals(AGE_INDEX, plan.getIndexName()),
+            () -> assertNotNull(plan.getIndexRangeBytes()));
+
+        List<Integer> ages = collectAges(session.query(dataSet)
+            .readingOnlyBins(AGE_BIN, COUNTRY_BIN)
+            .where(where)
+            .execute(), AGE_BIN);
+
+        List<Integer> expected = new ArrayList<>();
+        for (int age = 11; age <= 50; age++) {
+            expected.add(age);
+        }
+
+        assertEquals(expected, ages);
+    }
+
+    private static void assertOrConjunctStillSelectsAgeIndex(String where) {
+        QueryPlan plan = explainPlan(where);
+
+        assertAll("orConjunctSiExplain",
+            () -> assertEquals(QuerySelection.SECONDARY_INDEX, plan.getSelection()),
+            () -> assertEquals(AGE_INDEX, plan.getIndexName()),
+            () -> assertNotNull(plan.getIndexRangeBytes()));
+    }
+
+    private static String oversizedLiteral() {
+        return "x".repeat(2048);
+    }
+
+    /**
      * Index on bin age.
      * Range query on age -> server selects age index.
      */
@@ -541,6 +651,46 @@ public class QuerySelectionIntegrationTest extends ClusterTest {
             () -> assertEquals(List.of(14, 15, 16, 17, 18), ages));
     }
 
+    /**
+     * Index on bin age, values 1..{@link QuerySelectionIntegSupport#RECORD_COUNT}.
+     * Range bounds sent to the secondary index are inclusive for {@code >=}/{@code <=} and exclusive
+     * for {@code >}/{@code <}, including at the first and last values in the set, where an
+     * off-by-one in the index range would otherwise hide behind neighbouring rows.
+     */
+    @Test
+    void executeIntegerRangeBoundaryRowsAreInclusive() {
+        assertAll("rangeBoundaries",
+            () -> assertEquals(List.of(10, 11, 12), agesWhere("$.age >= 10 and $.age <= 12")),
+            () -> assertEquals(List.of(11), agesWhere("$.age > 10 and $.age < 12")),
+            () -> assertEquals(List.of(10, 11), agesWhere("$.age >= 10 and $.age < 12")),
+            () -> assertEquals(List.of(11, 12), agesWhere("$.age > 10 and $.age <= 12")),
+            () -> assertEquals(List.of(1), agesWhere("$.age >= 1 and $.age <= 1")),
+            () -> assertEquals(List.of(1, 2), agesWhere("$.age <= 2")),
+            () -> assertEquals(List.of(RECORD_COUNT), agesWhere("$.age >= " + RECORD_COUNT)));
+    }
+
+    /**
+     * Exclusive bounds one apart enclose no integer, so the range is empty before any record is read
+     * and the server rejects the plan outright. This is the boundary case of
+     * {@link #executeContradictionPredicateThrowsFilteredOut} and must not be confused with
+     * {@link #executeValidSecondaryIndexQueryWithNoMatchesReturnsEmptyStream}: a satisfiable range
+     * that happens to match nothing yields an empty stream, whereas an unsatisfiable one throws.
+     */
+    @Test
+    void executeIntegerRangeWithNoRepresentableValuesThrowsFilteredOut() {
+        AerospikeException ex = assertThrows(AerospikeException.class,
+            () -> agesWhere("$.age > 1 and $.age < 2"));
+
+        assertEquals(ResultCode.FILTERED_OUT, ex.getResultCode());
+    }
+
+    private static List<Integer> agesWhere(String where) {
+        return collectAges(session.query(dataSet)
+            .readingOnlyBins(AGE_BIN)
+            .where(where)
+            .execute(), AGE_BIN);
+    }
+
     private static List<Integer> collectScores(RecordStream rs) {
         try {
             List<Integer> scores = new ArrayList<>();
@@ -555,9 +705,13 @@ public class QuerySelectionIntegrationTest extends ClusterTest {
         }
     }
 
-    private static QueryPlan explainPlan(String where) {
+    private static QueryPlan explainPlan(DataSet ds, String where) {
         return IndexProbePlanner.plan(
-            session, dataSet, WhereClauseProcessor.from(where), null);
+            session, ds, WhereClauseProcessor.from(where), null);
+    }
+
+    private static QueryPlan explainPlan(String where) {
+        return explainPlan(dataSet, where);
     }
 
     private static QueryPlan explainPlan(QueryBuilder qb) {

@@ -55,8 +55,8 @@ class QuerySelectionHintFlagsTest extends ClusterTest {
 
         dataSet = DataSet.of(args.namespace, setName);
 
-        session.delete(dataSet.ids(keyPrefix + "1"));
-        session.delete(dataSet.ids(keyPrefix + "2"));
+        session.delete(dataSet.ids(keyPrefix + "1")).execute();
+        session.delete(dataSet.ids(keyPrefix + "2")).execute();
 
         try {
             session.createIndex(dataSet, indexName, binName, IndexType.INTEGER,
@@ -94,8 +94,8 @@ class QuerySelectionHintFlagsTest extends ClusterTest {
         if (dataSet == null) {
             return;
         }
-        session.delete(dataSet.ids(keyPrefix + "1"));
-        session.delete(dataSet.ids(keyPrefix + "2"));
+        session.delete(dataSet.ids(keyPrefix + "1")).execute();
+        session.delete(dataSet.ids(keyPrefix + "2")).execute();
         session.dropIndex(dataSet, indexName);
         session.dropIndex(dataSet, scoreIndexName);
     }
@@ -129,7 +129,11 @@ class QuerySelectionHintFlagsTest extends ClusterTest {
                 QueryWhereWire.flags(plan.getExplainWhereBytes())));
     }
 
-    /** D.6 — {@code HARD_HINT} + matching {@code forIndex} selects that index. */
+    /**
+     * D.6 — {@code HARD_HINT} + matching {@code forIndex} selects that index. {@code REQUIRE_INDEX}
+     * rides along because the query behavior default is {@code allowScansWithWhere(false)}, and the
+     * hint does not override it.
+     */
     @Test
     void hardHintWithMatchingIndexSelectsHintedIndex() {
         QueryBuilder qb = session.query(dataSet)
@@ -140,6 +144,26 @@ class QuerySelectionHintFlagsTest extends ClusterTest {
 
         assertAll("hardHintMatch",
             () -> assertEquals(QuerySelection.SECONDARY_INDEX, plan.getSelection()),
+            () -> assertEquals(indexName, plan.getIndexName()),
+            () -> assertEquals(
+                QueryWhereWire.FLAG_EXPLAIN | QueryWhereWire.FLAG_REQUIRE_INDEX
+                    | QueryWhereWire.FLAG_HARD_HINT,
+                QueryWhereWire.flags(plan.getExplainWhereBytes())));
+    }
+
+    /**
+     * The same hint with {@code allowScansWithWhere()} drops {@code REQUIRE_INDEX}, pinning that the
+     * flag comes from the scan policy rather than from {@code hardHint}.
+     */
+    @Test
+    void hardHintWithScansAllowedOmitsRequireIndex() {
+        QueryBuilder qb = session.query(dataSet)
+            .where("$.age == 25")
+            .withHint(hint -> hint.forIndex(indexName).allowScansWithWhere().hardHint());
+
+        QueryPlan plan = explainPlan(qb);
+
+        assertAll("hardHintScansAllowed",
             () -> assertEquals(indexName, plan.getIndexName()),
             () -> assertEquals(
                 QueryWhereWire.FLAG_EXPLAIN | QueryWhereWire.FLAG_HARD_HINT,

@@ -51,7 +51,7 @@ final class QuerySelectionIntegSupport {
         DataSet dataSet = DataSet.of(namespace, SET_NAME);
 
         for (int i = 1; i <= RECORD_COUNT; i++) {
-            session.delete(dataSet.ids(KEY_PREFIX + i));
+            session.delete(dataSet.ids(KEY_PREFIX + i)).execute();
         }
 
         createIndexQuietly(session, dataSet, AGE_INDEX, AGE_BIN, IndexType.INTEGER,
@@ -76,9 +76,9 @@ final class QuerySelectionIntegSupport {
         }
 
         for (int i = 1; i <= RECORD_COUNT; i++) {
-            session.delete(dataSet.ids(KEY_PREFIX + i));
+            session.delete(dataSet.ids(KEY_PREFIX + i)).execute();
         }
-        session.delete(dataSet.ids(KEY_PREFIX + "missing"));
+        session.delete(dataSet.ids(KEY_PREFIX + "missing")).execute();
         dropIndexQuietly(session, dataSet, AGE_INDEX);
         dropIndexQuietly(session, dataSet, SCORE_INDEX);
     }

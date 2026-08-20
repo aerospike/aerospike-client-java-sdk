@@ -60,9 +60,9 @@ class QuerySelectionDataShapesIntegrationTest extends ClusterTest {
      */
     @Test
     void executeRangeAcrossSparseAgesReturnsExistingSubset() {
-        session.delete(dataSet.ids(KEY_PREFIX + 15));
-        session.delete(dataSet.ids(KEY_PREFIX + 16));
-        session.delete(dataSet.ids(KEY_PREFIX + 17));
+        session.delete(dataSet.ids(KEY_PREFIX + 15)).execute();
+        session.delete(dataSet.ids(KEY_PREFIX + 16)).execute();
+        session.delete(dataSet.ids(KEY_PREFIX + 17)).execute();
 
         try {
             List<Integer> ages = collectAges(session.query(dataSet)
@@ -139,7 +139,7 @@ class QuerySelectionDataShapesIntegrationTest extends ClusterTest {
             assertEquals(List.of(14, 15, 16, 17, 18), ages);
         }
         finally {
-            session.delete(dataSet.ids(KEY_PREFIX + "missing"));
+            session.delete(dataSet.ids(KEY_PREFIX + "missing")).execute();
         }
     }
 
