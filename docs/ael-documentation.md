@@ -245,17 +245,25 @@ These select multiple elements and can **only** appear at the end of a path. The
 
 Selects map entries by a range of keys (begin inclusive, end exclusive):
 
+Key ranges are written with the `{@…}` brace form. The plain `{a:c}` form is an **index** range
+(see [Index Range](#index-range) below), so the `@` is what distinguishes "by key" from "by index".
+
 | Syntax | Description |
 |--------|-------------|
-| `{a-c}` | Keys from "a" up to (but not including) "c" |
-| `{a-}` | Keys from "a" to the end |
-| `{!g-z}` | Keys **not** in range "g" to "z", but not including "z" (inverted) |
+| `{@a:c}` | Keys from "a" up to (but not including) "c" |
+| `{@a:}` | Keys from "a" to the end |
+| `{@:c}` | Keys from the smallest key up to (but not including) "c" |
+| `{!@g:z}` | Keys **not** in range "g" to "z", but not including "z" (inverted) |
 
 ```
-$.m.{a-d}                    -- keys a, b, c (not d)
-$.m.{!a-d}                   -- all keys except a, b, c
-$.m.{5-}                     -- integer keys from 5 onward
+$.m.{@a:d}                   -- keys a, b, c (not d)
+$.m.{!@a:d}                  -- all keys except a, b, c
+$.m.{@5:}                    -- integer keys from 5 onward
 ```
+
+**Note:** String and blob keys are valid range endpoints, but only **integer** endpoints let the
+server pick a MAPKEYS secondary index for the query — string bounds are evaluated as a residual
+filter over a primary-index scan.
 
 #### Key List
 
@@ -310,7 +318,7 @@ Selects entries by a range of values (begin inclusive, end exclusive):
 | `{=111:}` | Values from 111 to the end |
 | `{!=10:20}` | Values **outside** 10-20 (inverted) |
 
-**Note:** Value ranges (`{=…:…}` here, and `[=…:…]` on lists in [§6.2](#62-plural-list-elements-leaf-only)) must use **integer** endpoints (e.g. `{=111:334}`). Endpoints written as plain names or quoted text (such as `{=a:b}`) are not supported.
+**Note:** Value ranges (`{=…:…}` here, and `[=…:…]` on lists in [§6.2](#62-plural-list-elements-leaf-only)) accept string and blob endpoints, but only **integer** endpoints (e.g. `{=111:334}`) let the server pick a MAPVALUES or LIST secondary index. String bounds such as `{=a:b}` are evaluated as a residual filter over a primary-index scan.
 
 #### Rank Range
 
@@ -470,7 +478,7 @@ Navigates: bin `data` → key `users` → index 0 → key `addresses` → index 
 ### Mixed CDT with Plural Leaf
 
 ```
-$.mapBin.items.{a-d}                -- key range on a nested map
+$.mapBin.items.{@a:d}               -- key range on a nested map
 $.listBin.[0].[1:3]                  -- index range on a nested list
 $.mapBin.settings.{=1,2,3}          -- value list on a nested map
 ```
@@ -1073,7 +1081,7 @@ $.listBin.[] == [1, 2, 3]
 $.m.1                          -- access integer key 1
 $.m."1"                        -- access string key "1"
 $.m.{1,2}                      -- key list with integer keys 1 and 2
-$.m.{1-3}                      -- key range: integer keys [1, 3)
+$.m.{@1:3}                     -- key range: integer keys [1, 3)
 ```
 
 ### Relative rank range
@@ -1127,8 +1135,8 @@ $.x > 5       -- x is a SCALAR bin (no context)
 Key ranges, index ranges, value lists, rank ranges — these can **only** appear at the end of a path, never as intermediate context:
 
 ```
-CORRECT:   $.m.nested.{a-c}
-INCORRECT: $.m.{a-c}.nested     -- plural in middle is invalid
+CORRECT:   $.m.nested.{@a:c}
+INCORRECT: $.m.{@a:c}.nested    -- plural in middle is invalid
 ```
 
 ### Rule 5: Annotate types when comparing bins to bins
@@ -1166,7 +1174,7 @@ INCORRECT: when ($.a == 1 => "one")
 Place `!` immediately after the opening bracket/brace:
 
 ```
-{!a-c}     -- inverted key range
+{!@a:c}    -- inverted key range
 [!0:3]     -- inverted index range
 {!=1,2,3}  -- inverted value list
 [!#0:3]    -- inverted rank range
@@ -1174,7 +1182,7 @@ Place `!` immediately after the opening bracket/brace:
 
 ### Rule 10: Range semantics
 
-- Key ranges and value ranges are **begin-inclusive, end-exclusive**: `{a-d}` includes a, b, c but not d.
+- Key ranges and value ranges are **begin-inclusive, end-exclusive**: `{@a:d}` includes a, b, c but not d.
 - Index ranges in the AEL are also **exclusive** on the end.
 - Rank ranges follow the same pattern.
 

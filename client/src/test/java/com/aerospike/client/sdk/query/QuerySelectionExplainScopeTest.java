@@ -73,7 +73,8 @@ import com.aerospike.client.sdk.util.Version;
  *   <li>Region literals above the {@code 2048}-byte STRING/BLOB bound → GEO SI (geo bounds are
  *       capped at the 1 MiB GeoJSON wire limit instead)</li>
  *   <li>Ctx-path scalar ({@code $.bin.[N]}) and ctx-path geo ({@code $.map.key}) → DEFAULT SI</li>
- *   <li>Expression-call sindexes ({@code $.name.uppercase()}) → SI with {@code bin_name_len == 0}</li>
+ *   <li>Expression sindexes over arithmetic ({@code $.age + 1}) → SI with {@code bin_name_len == 0};
+ *       AEL string path functions ({@code $.name.uppercase()}) → PI</li>
  *   <li>LIST index path {@code [N].exists()} → PI (positional existence; see
  *       {@link QueryPlannerCollectionCdtTest})</li>
  * </ul>
@@ -87,6 +88,9 @@ class QuerySelectionExplainScopeTest extends ClusterTest {
     private static final String intIndexName = "qscexp_age_idx";
     private static final String ageBin = "age";
     private static final String countryBin = "country";
+    private static final String tagBin = "tag";
+    private static final String tagIndexName = "qscexp_tag_idx";
+    private static final String tagMatch = "featured";
     private static final String blobBin = "bb";
     private static final String blobIndexName = "qscexp_bb_idx";
     private static final String mapBin = "map_bin";
@@ -114,13 +118,12 @@ class QuerySelectionExplainScopeTest extends ClusterTest {
     private static final String nameBin = "name";
     private static final String upperExpIndex = "qscexp_upper_name_idx";
     private static final String upperMatch = "ALICE";
-    private static final Expression upperExpIndexExpression = Exp.build(
-        Exp.cond(
-            Exp.eq(
-                StringExp.upper(StringWriteFlags.DEFAULT, Exp.stringBin(nameBin)),
-                Exp.val(upperMatch)),
-            Exp.val(1),
-            Exp.unknown()));
+    private static final Expression upperExpIndexExpression =
+        Exp.build(StringExp.upper(StringWriteFlags.DEFAULT, Exp.stringBin(nameBin)));
+    private static final String agePlusExpIndex = "qscexp_age_plus_idx";
+    private static final int agePlusMatch = 26;
+    private static final Expression agePlusExpIndexExpression =
+        Exp.build(Exp.add(Exp.intBin(ageBin), Exp.val(1)));
 
     private static DataSet dataSet;
     private static String blobHex;
@@ -146,6 +149,16 @@ class QuerySelectionExplainScopeTest extends ClusterTest {
 
         try {
             session.createIndex(dataSet, blobIndexName, blobBin, IndexType.BLOB,
+                IndexCollectionType.DEFAULT).waitTillComplete();
+        }
+        catch (AerospikeException ae) {
+            if (ae.getResultCode() != ResultCode.INDEX_ALREADY_EXISTS) {
+                throw ae;
+            }
+        }
+
+        try {
+            session.createIndex(dataSet, tagIndexName, tagBin, IndexType.STRING,
                 IndexCollectionType.DEFAULT).waitTillComplete();
         }
         catch (AerospikeException ae) {
@@ -187,7 +200,8 @@ class QuerySelectionExplainScopeTest extends ClusterTest {
         createCtxIndex(scoreListIndex, scoreListBin, IndexType.INTEGER, CTX.listIndex(scoreListMatchIndex));
         createCtxIndex(venueGeoIndex, venueBin, IndexType.GEO2DSPHERE,
             CTX.mapKey(Value.get(venueLocationKey)));
-        createExpIndexQuietly(upperExpIndex, IndexType.INTEGER, upperExpIndexExpression);
+        createExpIndexQuietly(upperExpIndex, IndexType.STRING, upperExpIndexExpression);
+        createExpIndexQuietly(agePlusExpIndex, IndexType.INTEGER, agePlusExpIndexExpression);
 
         byte[] blobBytes = new byte[8];
         Buffer.longToBytes(50001, blobBytes, 0);
@@ -211,8 +225,8 @@ class QuerySelectionExplainScopeTest extends ClusterTest {
         k2Venue.put(venueLocationKey, Value.getAsGeoJSON(k2Loc));
 
         session.upsert(dataSet.ids("k1"))
-            .bins(ageBin, countryBin, blobBin, mapBin, scoreListBin, nameBin, venueBin)
-            .values(25, "US", blobBytes, map, k1Scores, "alice", k1Venue)
+            .bins(ageBin, countryBin, tagBin, blobBin, mapBin, scoreListBin, nameBin, venueBin)
+            .values(25, "US", tagMatch, blobBytes, map, k1Scores, "alice", k1Venue)
             .execute();
 
         session.upsert(dataSet.ids("k1"))
@@ -220,8 +234,8 @@ class QuerySelectionExplainScopeTest extends ClusterTest {
             .execute();
 
         session.upsert(dataSet.ids("k2"))
-            .bins(ageBin, countryBin, scoreListBin, nameBin, venueBin)
-            .values(30, "CA", k2Scores, "bob", k2Venue)
+            .bins(ageBin, countryBin, tagBin, scoreListBin, nameBin, venueBin)
+            .values(30, "CA", "ordinary", k2Scores, "bob", k2Venue)
             .execute();
 
         session.upsert(dataSet.ids("k2"))
@@ -247,6 +261,7 @@ class QuerySelectionExplainScopeTest extends ClusterTest {
         session.delete(dataSet.ids("k1"));
         session.delete(dataSet.ids("k2"));
         session.dropIndex(dataSet, intIndexName);
+        session.dropIndex(dataSet, tagIndexName);
         session.dropIndex(dataSet, blobIndexName);
         session.dropIndex(dataSet, mapIndexName);
         session.dropIndex(dataSet, geoIndexName);
@@ -254,6 +269,7 @@ class QuerySelectionExplainScopeTest extends ClusterTest {
         dropIndexQuietly(dataSet, scoreListIndex);
         dropIndexQuietly(dataSet, venueGeoIndex);
         dropIndexQuietly(dataSet, upperExpIndex);
+        dropIndexQuietly(dataSet, agePlusExpIndex);
     }
 
     @Test
@@ -275,6 +291,27 @@ class QuerySelectionExplainScopeTest extends ClusterTest {
             () -> assertNull(plan.getIndexName()),
             () -> assertNull(plan.getIndexRangeBytes()),
             () -> assertNotNull(plan.getExplainWhereBytes()));
+    }
+
+    /**
+     * Scalar STRING equality uses the same hash-shaped range wire as BLOB, but carries UTF-8 bytes.
+     * Assert the selected index and the golden result together so this complements, rather than
+     * duplicates, the unindexed STRING primary-index case above.
+     */
+    @Test
+    void scalarStringSecondaryIndexPlansAndExecutes() {
+        String where = "$." + tagBin + " == '" + tagMatch + "'";
+        QueryPlan plan = explain(where);
+        int count = countRecords(session.query(dataSet)
+            .readingOnlyBins(tagBin)
+            .where(where)
+            .execute());
+
+        assertAll("stringSi",
+            () -> assertEquals(QuerySelection.SECONDARY_INDEX, plan.getSelection()),
+            () -> assertEquals(tagIndexName, plan.getIndexName()),
+            () -> assertNotNull(plan.getIndexRangeBytes()),
+            () -> assertEquals(1, count));
     }
 
     /**
@@ -511,37 +548,65 @@ class QuerySelectionExplainScopeTest extends ClusterTest {
     }
 
     /**
-     * Expression-call SI — {@code $.name.uppercase()} structurally matches an {@code exp=} index.
+     * Expression sindex SI — the AEL arithmetic subtree {@code $.age + 1} structurally matches the
+     * {@code exp=} index built from {@code Exp.add(Exp.intBin("age"), Exp.val(1))}. Expression
+     * candidates carry no bin name, so the index range arrives with {@code bin_name_len == 0}.
      */
     @Test
-    void explainExpCallUpper_selectsSecondaryIndex() {
+    void explainExpArith_selectsSecondaryIndex() {
         assumeExpressionSecondaryIndexSupported();
 
-        String where = "$." + nameBin + ".uppercase() == '" + upperMatch + "'";
-        QueryPlan plan = explain(where);
+        QueryPlan plan = explain(arithExpWhere());
 
-        assertAll("expCallUpperSiExplain",
+        assertAll("expArithSiExplain",
             () -> assertEquals(QuerySelection.SECONDARY_INDEX, plan.getSelection()),
-            () -> assertEquals(upperExpIndex, plan.getIndexName()),
+            () -> assertEquals(agePlusExpIndex, plan.getIndexName()),
             () -> assertNotNull(plan.getIndexRangeBytes()),
             () -> assertEquals(0, indexRangeBinNameLen(plan.getIndexRangeBytes())));
     }
 
     /**
-     * E2E: expression-call query uses field {@code 44} explain → execute.
+     * E2E: expression-sindex query uses field {@code 44} explain → execute.
      */
     @Test
-    void executeExpCallUpper_returnsMatchingRow() {
+    void executeExpArith_returnsMatchingRow() {
         assumeExpressionSecondaryIndexSupported();
 
-        String where = "$." + nameBin + ".uppercase() == '" + upperMatch + "'";
-
         int count = countRecords(session.query(dataSet)
-            .readingOnlyBins(nameBin)
-            .where(where)
+            .readingOnlyBins(ageBin)
+            .where(arithExpWhere())
             .execute());
 
         assertEquals(1, count);
+    }
+
+    /**
+     * String path functions are PI-only even with a matching {@code exp=} index in place. AEL
+     * compiles {@code .uppercase()} as a path/CDT string op, while {@code StringExp.upper(...)}
+     * compiles through the client expression pipeline, so the two instruction trees never compare
+     * equal in expression-candidate matching. The predicate itself still evaluates correctly as a
+     * residual filter.
+     */
+    @Test
+    void explainExpCallUpper_fallsBackToPrimaryIndex() {
+        assumeExpressionSecondaryIndexSupported();
+
+        assertAll("expCallUpperPiExplain",
+            () -> assertEquals(QuerySelection.PRIMARY_INDEX, explain(upperCallWhere()).getSelection()),
+            () -> assertNull(explain(upperCallWhere()).getIndexName()),
+            () -> assertNull(explain(upperCallWhere()).getIndexRangeBytes()),
+            () -> assertEquals(1, countRecords(session.query(dataSet)
+                .readingOnlyBins(nameBin)
+                .where(upperCallWhere())
+                .execute())));
+    }
+
+    private static String arithExpWhere() {
+        return "($." + ageBin + " + 1) == " + agePlusMatch;
+    }
+
+    private static String upperCallWhere() {
+        return "$." + nameBin + ".uppercase() == '" + upperMatch + "'";
     }
 
     private static String geoCompareWhere(String geoJsonLiteral) {
