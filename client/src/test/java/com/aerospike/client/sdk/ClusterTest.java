@@ -18,10 +18,6 @@ package com.aerospike.client.sdk;
 
 import java.io.File;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeAll;
@@ -171,39 +167,5 @@ public class ClusterTest {
     protected static void assumeSupportsAel() {
         Assumptions.assumeTrue(supportsAel(),
             "server does not support AEL (requires " + Version.SERVER_VERSION_8_1_3 + "+)");
-    }
-
-    /** Probed once per JVM — batch row errors with field-45 extended messages. */
-    protected static boolean supportsBatchExtendedErrorDetail() {
-        return ExtendedErrorDetailCapabilities.supportsBatchExtendedErrorDetail(
-            cluster, session, args.set);
-    }
-
-    /** Probed once per JVM — batch row errors with expression trace at verbosity 3. */
-    protected static boolean supportsBatchExpressionTrace() {
-        return ExtendedErrorDetailCapabilities.supportsBatchExpressionTrace(
-            cluster, session, args.set);
-    }
-
-    /**
-     * Assert batch invalid-filter row error. Always checks result code; extended message
-     * and trace expectations apply only when the connected server reports capability.
-     */
-    protected static void assertBatchInvalidFilterError(RecordResult res) {
-        assertEquals(ResultCode.PARAMETER_ERROR, res.getResultCode());
-        assertEquals(SubCode.NONE, res.getSubCode());
-
-        if (supportsBatchExtendedErrorDetail()) {
-            String msg = res.getMessage();
-            assertNotNull(msg, "Expected server error message for batch filter build failure");
-            assertTrue(msg.contains(ExtendedErrorDetailCapabilities.BATCH_FILTER_BUILD_MESSAGE),
-                "Expected batch filter-build context in: " + msg);
-        }
-
-        if (supportsBatchExpressionTrace()) {
-            ExpressionTrace trace = res.getExpressionTrace();
-            assertNotNull(trace, "Expected expression trace at verbosity 3");
-            assertEquals(ExpressionTrace.PHASE_BUILD, trace.getPhase());
-        }
     }
 }
