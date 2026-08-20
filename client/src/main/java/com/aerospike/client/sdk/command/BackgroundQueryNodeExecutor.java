@@ -63,7 +63,7 @@ public final class BackgroundQueryNodeExecutor extends NodeExecutor {
                 // Non-fatal error.
                 return false;
             }
-            throw AerospikeException.toException(parser.resultCode, null);
+            throw parser.toException();
         }
 
         if (parser.opCount > 0) {
