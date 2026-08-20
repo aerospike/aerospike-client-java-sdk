@@ -27,7 +27,12 @@ import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
+import com.aerospike.client.sdk.ErrorDetailVerbosity;
 import com.aerospike.client.sdk.policy.Behavior;
+import com.aerospike.client.sdk.policy.Behavior.Mode;
+import com.aerospike.client.sdk.policy.Behavior.OpKind;
+import com.aerospike.client.sdk.policy.Behavior.OpShape;
+import com.aerospike.client.sdk.policy.Behavior.Selectors;
 import com.aerospike.client.sdk.policy.ResolvedSettings;
 import com.aerospike.client.sdk.query.plan.QueryWhereWire;
 
@@ -36,9 +41,23 @@ class IndexProbeCommandTest {
     private static final String AEL = "$.age > 30";
 
     @Test
-    void info4IsZero() {
+    void info4CarriesErrorDetailVerbosity() {
         CommandBuffer cb = encodeExplain(null);
-        assertEquals(0, cb.getBuffer()[12] & 0xFF);
+        assertEquals(0, cb.getBuffer()[12] & Command.INFO4_ERROR_VERBOSITY_MASK);
+
+        Behavior behavior = Behavior.DEFAULT.deriveWithChanges("errorDetail", builder -> builder
+            .on(Selectors.all(), ops -> ops
+                .errorDetailVerbosity(ErrorDetailVerbosity.EXPRESSION_TRACE)
+            )
+        );
+        ResolvedSettings settings = behavior.getSettings(OpKind.READ, OpShape.QUERY, Mode.ANY);
+        CommandBuffer verbose = new CommandBuffer();
+        verbose.setQueryExplain(explainCommand(7L, null, QueryWhereWire.FLAG_EXPLAIN, settings));
+
+        assertEquals(
+            settings.getErrorDetailBits(),
+            verbose.getBuffer()[12] & Command.INFO4_ERROR_VERBOSITY_MASK
+        );
     }
 
     @Test
@@ -177,12 +196,17 @@ class IndexProbeCommandTest {
     }
 
     private static IndexProbeCommand explainCommand(long taskId, String indexHint, int whereFlags) {
-        return new IndexProbeCommand(null, "test", "users", AEL, indexHint, whereFlags, taskId, settings());
+        return explainCommand(taskId, indexHint, whereFlags, settings());
+    }
+
+    private static IndexProbeCommand explainCommand(
+        long taskId, String indexHint, int whereFlags, ResolvedSettings settings
+    ) {
+        return new IndexProbeCommand(null, "test", "users", AEL, indexHint, whereFlags, taskId, settings);
     }
 
     private static ResolvedSettings settings() {
-        return Behavior.DEFAULT.getSettings(
-            Behavior.OpKind.READ, Behavior.OpShape.QUERY, Behavior.Mode.ANY);
+        return Behavior.DEFAULT.getSettings(OpKind.READ, OpShape.QUERY, Mode.ANY);
     }
 
     private static List<Integer> fieldTypes(CommandBuffer cb) {

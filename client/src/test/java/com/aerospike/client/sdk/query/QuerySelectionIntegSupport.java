@@ -16,10 +16,15 @@
  */
 package com.aerospike.client.sdk.query;
 
+import static org.junit.jupiter.api.Assertions.assertAll;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.IntFunction;
 
 import com.aerospike.client.sdk.AerospikeException;
 import com.aerospike.client.sdk.ClusterTest;
@@ -27,71 +32,184 @@ import com.aerospike.client.sdk.DataSet;
 import com.aerospike.client.sdk.RecordStream;
 import com.aerospike.client.sdk.ResultCode;
 import com.aerospike.client.sdk.Session;
+import com.aerospike.client.sdk.cdt.CTX;
+import com.aerospike.client.sdk.exp.Expression;
+import com.aerospike.client.sdk.query.plan.QueryPlan;
+import com.aerospike.client.sdk.query.plan.QuerySelection;
 
-/** Shared fixture for server query-selection integration tests. */
+/** Shared fixture and helpers for server query-selection integration tests. */
 final class QuerySelectionIntegSupport {
-    static final String SET_NAME = "qselint";
-    static final String AGE_INDEX = "qsel_age_idx";
-    static final String SCORE_INDEX = "qsel_score_idx";
-    static final String KEY_PREFIX = "qselkey";
     static final String AGE_BIN = "age";
     static final String SCORE_BIN = "score";
     static final String COUNTRY_BIN = "country";
     static final int RECORD_COUNT = 50;
 
+    /** Names for one class-scoped qselint dataset; suffix keeps parallel test classes isolated. */
+    static final class Fixture {
+        final String setName;
+        final String ageIndex;
+        final String scoreIndex;
+        final String keyPrefix;
+
+        private Fixture(String setName, String ageIndex, String scoreIndex, String keyPrefix) {
+            this.setName = setName;
+            this.ageIndex = ageIndex;
+            this.scoreIndex = scoreIndex;
+            this.keyPrefix = keyPrefix;
+        }
+
+        static Fixture forSuffix(String suffix) {
+            return new Fixture(
+                "qselint_" + suffix,
+                "qsel_age_idx_" + suffix,
+                "qsel_score_idx_" + suffix,
+                "qselkey_" + suffix);
+        }
+
+        DataSet dataSet(String namespace) {
+            return DataSet.of(namespace, setName);
+        }
+    }
+
     private QuerySelectionIntegSupport() {
     }
 
-    static void assumeQuerySelectionEnabled() {
+    static void assumeQuerySelection() {
         assumeTrue(ClusterTest.cluster.supportsQuerySelection(),
             "server does not support query selection");
     }
 
-    static DataSet prepareQselint(Session session, String namespace) {
-        DataSet dataSet = DataSet.of(namespace, SET_NAME);
+    static QueryPlan plan(DataSet dataSet, String where) {
+        return plan(ClusterTest.session, dataSet, where);
+    }
+
+    static QueryPlan plan(DataSet dataSet, QueryBuilder qb) {
+        return plan(ClusterTest.session, dataSet, qb);
+    }
+
+    static QueryPlan plan(Session session, DataSet dataSet, String where) {
+        return IndexProbePlanner.plan(
+            session,
+            dataSet,
+            WhereClauseProcessor.from(where),
+            null);
+    }
+
+    static QueryPlan plan(Session session, DataSet dataSet, QueryBuilder qb) {
+        return IndexProbePlanner.plan(session, dataSet, qb.getAel(), qb.getQueryHint());
+    }
+
+    static void assertPlan(
+        QueryPlan plan,
+        QuerySelection expectedSelection,
+        String expectedIndexName,
+        boolean expectIndexRange
+    ) {
+        assertPlan(plan, expectedSelection, expectedIndexName, expectIndexRange, null);
+    }
+
+    static void assertPlan(
+        QueryPlan plan,
+        QuerySelection expectedSelection,
+        String expectedIndexName,
+        boolean expectIndexRange,
+        IndexCollectionType expectedCollectionType
+    ) {
+        if (expectedCollectionType == null) {
+            assertAll(
+                () -> assertEquals(expectedSelection, plan.getSelection()),
+                () -> assertEquals(expectedIndexName, plan.getIndexName()),
+                () -> {
+                    if (expectIndexRange) {
+                        assertNotNull(plan.getIndexRangeBytes());
+                    }
+                    else {
+                        assertNull(plan.getIndexRangeBytes());
+                    }
+                },
+                () -> assertNotNull(plan.getExplainWhereBytes()));
+        }
+        else {
+            assertAll(
+                () -> assertEquals(expectedSelection, plan.getSelection()),
+                () -> assertEquals(expectedIndexName, plan.getIndexName()),
+                () -> assertNotNull(plan.getIndexRangeBytes()),
+                () -> assertEquals(expectedCollectionType, plan.getIndexType()),
+                () -> assertNotNull(plan.getExplainWhereBytes()));
+        }
+    }
+
+    static void deleteKeys(DataSet dataSet, IntFunction<String> keyFn, int fromInclusive, int toInclusive) {
+        for (int i = fromInclusive; i <= toInclusive; i++) {
+            ClusterTest.session.delete(dataSet.ids(keyFn.apply(i)));
+        }
+    }
+
+    static DataSet prepareQselint(Session session, String namespace, Fixture fixture) {
+        DataSet dataSet = fixture.dataSet(namespace);
 
         for (int i = 1; i <= RECORD_COUNT; i++) {
-            session.delete(dataSet.ids(KEY_PREFIX + i)).execute();
+            session.delete(dataSet.ids(fixture.keyPrefix + i)).execute();
         }
 
-        createIndexQuietly(session, dataSet, AGE_INDEX, AGE_BIN, IndexType.INTEGER,
+        createIndexQuietly(session, dataSet, fixture.ageIndex, AGE_BIN, IndexType.INTEGER,
             IndexCollectionType.DEFAULT);
-        createIndexQuietly(session, dataSet, SCORE_INDEX, SCORE_BIN, IndexType.INTEGER,
+        createIndexQuietly(session, dataSet, fixture.scoreIndex, SCORE_BIN, IndexType.INTEGER,
             IndexCollectionType.DEFAULT);
 
-        for (int i = 1; i <= RECORD_COUNT; i++) {
-            String country = (i % 2 == 0) ? "US" : "CA";
-            session.upsert(dataSet.ids(KEY_PREFIX + i))
-                .bins(AGE_BIN, SCORE_BIN, COUNTRY_BIN)
-                .values(i, i, country)
-                .execute();
-        }
-
+        seedQselintRows(session, dataSet, fixture, 1, RECORD_COUNT);
         return dataSet;
     }
 
-    static void destroyQselint(Session session, DataSet dataSet) {
+    static void destroyQselint(Session session, DataSet dataSet, Fixture fixture) {
         if (dataSet == null) {
             return;
         }
 
         for (int i = 1; i <= RECORD_COUNT; i++) {
-            session.delete(dataSet.ids(KEY_PREFIX + i)).execute();
+            session.delete(dataSet.ids(fixture.keyPrefix + i)).execute();
         }
-        session.delete(dataSet.ids(KEY_PREFIX + "missing")).execute();
-        dropIndexQuietly(session, dataSet, AGE_INDEX);
-        dropIndexQuietly(session, dataSet, SCORE_INDEX);
+        session.delete(dataSet.ids(fixture.keyPrefix + "missing")).execute();
+        dropIndexQuietly(session, dataSet, fixture.ageIndex);
+        dropIndexQuietly(session, dataSet, fixture.scoreIndex);
     }
 
-    static void upsertRow(Session session, DataSet dataSet, int keyNum, int age, int score, String country) {
-        session.upsert(dataSet.ids(KEY_PREFIX + keyNum))
+    /** Restores rows tests may delete or rewrite so later methods see the baseline catalog. */
+    static void restoreQselintBaseline(Session session, DataSet dataSet, Fixture fixture) {
+        seedQselintRows(session, dataSet, fixture, 15, 17);
+        session.delete(dataSet.ids(fixture.keyPrefix + "missing")).execute();
+    }
+
+    private static void seedQselintRows(
+        Session session,
+        DataSet dataSet,
+        Fixture fixture,
+        int fromInclusive,
+        int toInclusive
+    ) {
+        for (int i = fromInclusive; i <= toInclusive; i++) {
+            String country = (i % 2 == 0) ? "US" : "CA";
+            upsertRow(session, dataSet, fixture, i, i, i, country);
+        }
+    }
+
+    static void upsertRow(
+        Session session,
+        DataSet dataSet,
+        Fixture fixture,
+        int keyNum,
+        int age,
+        int score,
+        String country
+    ) {
+        session.upsert(dataSet.ids(fixture.keyPrefix + keyNum))
             .bins(AGE_BIN, SCORE_BIN, COUNTRY_BIN)
             .values(age, score, country)
             .execute();
     }
 
     static List<Integer> collectAges(RecordStream rs, String ageBin) {
-        try {
+        try (rs) {
             List<Integer> ages = new ArrayList<>();
             while (rs.hasNext()) {
                 ages.add(rs.next().recordOrThrow().getInt(ageBin));
@@ -99,13 +217,10 @@ final class QuerySelectionIntegSupport {
             ages.sort(Integer::compareTo);
             return ages;
         }
-        finally {
-            rs.close();
-        }
     }
 
     static int countRecords(RecordStream rs) {
-        try {
+        try (rs) {
             int count = 0;
             while (rs.hasNext()) {
                 rs.next().recordOrThrow();
@@ -113,12 +228,9 @@ final class QuerySelectionIntegSupport {
             }
             return count;
         }
-        finally {
-            rs.close();
-        }
     }
 
-    private static void createIndexQuietly(
+    static void createIndexQuietly(
         Session session,
         DataSet dataSet,
         String indexName,
@@ -137,9 +249,63 @@ final class QuerySelectionIntegSupport {
         }
     }
 
-    private static void dropIndexQuietly(Session session, DataSet dataSet, String indexName) {
+    static void createIndexQuietly(
+        Session session,
+        DataSet dataSet,
+        String indexName,
+        String binName,
+        IndexType indexType,
+        IndexCollectionType collectionType,
+        CTX... ctx
+    ) {
+        try {
+            session.createIndex(dataSet, indexName, binName, indexType, collectionType, ctx)
+                .waitTillComplete();
+        }
+        catch (AerospikeException ae) {
+            if (ae.getResultCode() != ResultCode.INDEX_ALREADY_EXISTS) {
+                throw ae;
+            }
+        }
+    }
+
+    static void createExpIndexQuietly(
+        Session session,
+        DataSet dataSet,
+        String indexName,
+        IndexType indexType,
+        Expression exp
+    ) {
+        try {
+            session.createIndex(dataSet, indexName, indexType, IndexCollectionType.DEFAULT, exp)
+                .waitTillComplete();
+        }
+        catch (AerospikeException ae) {
+            if (ae.getResultCode() != ResultCode.INDEX_ALREADY_EXISTS) {
+                throw ae;
+            }
+        }
+    }
+
+    static void dropIndexQuietly(DataSet dataSet, String indexName) {
+        dropIndexQuietly(ClusterTest.session, dataSet, indexName);
+    }
+
+    static void dropIndexQuietly(Session session, DataSet dataSet, String indexName) {
         try {
             session.dropIndex(dataSet, indexName);
+        }
+        catch (AerospikeException ignored) {
+        }
+    }
+
+    /**
+     * Waits for the drop rather than only dispatching it. Use when indexes are dropped and
+     * recreated in the same test class so a pending drop cannot race a later create.
+     */
+    static void dropIndexQuietlyAndWait(Session session, DataSet dataSet, String indexName) {
+        try {
+            session.dropIndex(dataSet, indexName).waitTillComplete();
         }
         catch (AerospikeException ignored) {
         }

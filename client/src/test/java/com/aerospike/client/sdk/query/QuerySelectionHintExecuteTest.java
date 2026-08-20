@@ -17,9 +17,8 @@
 package com.aerospike.client.sdk.query;
 
 import static com.aerospike.client.sdk.query.QuerySelectionIntegSupport.AGE_BIN;
-import static com.aerospike.client.sdk.query.QuerySelectionIntegSupport.AGE_INDEX;
 import static com.aerospike.client.sdk.query.QuerySelectionIntegSupport.COUNTRY_BIN;
-import static com.aerospike.client.sdk.query.QuerySelectionIntegSupport.SCORE_INDEX;
+import static com.aerospike.client.sdk.query.QuerySelectionIntegSupport.assumeQuerySelection;
 import static com.aerospike.client.sdk.query.QuerySelectionIntegSupport.collectAges;
 import static com.aerospike.client.sdk.query.QuerySelectionIntegSupport.destroyQselint;
 import static com.aerospike.client.sdk.query.QuerySelectionIntegSupport.prepareQselint;
@@ -39,16 +38,17 @@ import com.aerospike.client.sdk.ClusterTest;
 import com.aerospike.client.sdk.DataSet;
 import com.aerospike.client.sdk.ResultCode;
 import com.aerospike.client.sdk.policy.QueryDuration;
+import com.aerospike.client.sdk.query.QuerySelectionIntegSupport.Fixture;
 
 /**
  * Hint contracts as an application observes them: rows returned from {@code execute()}, or the
  * {@link AerospikeException} it throws.
  *
- * <p>{@link QuerySelectionHintFlagsTest} covers the same hint combinations against the explain
- * response, which pins <em>server</em> planner behavior. These tests instead pin the
- * <em>application-visible</em> outcome, so nothing here inspects a {@code QueryPlan}. A strict-hint
- * violation that the planner rejects but {@code execute()} swallowed into a primary-index scan
- * would pass there and fail here.</p>
+ * <p>{@link QuerySelectionHintFlagsTest} covers successful hint combinations against the explain
+ * response (wire flags and index choice). These tests pin what the application actually sees from
+ * {@code execute()}: thrown errors for strict-hint violations, soft-hint fallback parity, and
+ * duration hints. Happy-path strict hints that only return {@code ageRangeRows} are not repeated
+ * here — wire-level coverage there is enough unless {@code execute()} diverges from explain.</p>
  *
  * <p>The two halves are read together: a <em>soft</em> hint that cannot be honored must fall back
  * silently and return the same rows as no hint at all, whereas the same hint marked
@@ -56,6 +56,7 @@ import com.aerospike.client.sdk.policy.QueryDuration;
  * converts a fallback into an error, rather than either behavior being incidental.</p>
  */
 class QuerySelectionHintExecuteTest extends ClusterTest {
+    private static final Fixture FIXTURE = Fixture.forSuffix("hintexec");
     private static final String bogusIndexName = "qselhintexec_missing_idx";
     private static final String ageRangeWhere = "$." + AGE_BIN + " >= 14 and $." + AGE_BIN + " <= 18";
     private static final List<Integer> ageRangeRows = List.of(14, 15, 16, 17, 18);
@@ -64,24 +65,16 @@ class QuerySelectionHintExecuteTest extends ClusterTest {
 
     @BeforeAll
     static void prepare() {
-        QuerySelectionIntegSupport.assumeQuerySelectionEnabled();
-        dataSet = prepareQselint(session, args.namespace);
+        assumeQuerySelection();
+        dataSet = prepareQselint(session, args.namespace, FIXTURE);
     }
 
     @AfterAll
     static void destroy() {
-        destroyQselint(session, dataSet);
+        destroyQselint(session, dataSet, FIXTURE);
     }
 
     // ---------------------------------------------------------------- strict hints must be enforced
-
-    /** Hard hint naming the index that serves the predicate — normal results. */
-    @Test
-    void executeHardHintOnMatchingIndexReturnsMatchingRows() {
-        List<Integer> ages = ageRows(hint -> hint.forIndex(AGE_INDEX).hardHint());
-
-        assertEquals(ageRangeRows, ages);
-    }
 
     /**
      * Hard hint naming an index that exists but cannot serve the predicate (it indexes a different
@@ -90,7 +83,7 @@ class QuerySelectionHintExecuteTest extends ClusterTest {
     @Test
     void executeHardHintOnWrongIndexThrowsIndexNotFound() {
         AerospikeException e = assertThrows(AerospikeException.class, () ->
-            ageRows(hint -> hint.forIndex(SCORE_INDEX).hardHint()));
+            ageRows(hint -> hint.forIndex(FIXTURE.scoreIndex).hardHint()));
 
         assertEquals(ResultCode.INDEX_NOTFOUND, e.getResultCode());
     }
@@ -120,22 +113,6 @@ class QuerySelectionHintExecuteTest extends ClusterTest {
         assertEquals(ResultCode.INDEX_NOTFOUND, e.getResultCode());
     }
 
-    /** {@code disallowScansWithWhere()} is satisfied by a soft hint that names a usable index. */
-    @Test
-    void executeRequireIndexWithValidSoftHintReturnsMatchingRows() {
-        List<Integer> ages = ageRows(hint -> hint.disallowScansWithWhere().forIndex(AGE_INDEX));
-
-        assertEquals(ageRangeRows, ages);
-    }
-
-    /** Both strict flags together on a matching index — still normal results. */
-    @Test
-    void executeRequireIndexWithHardHintReturnsMatchingRows() {
-        List<Integer> ages = ageRows(hint -> hint.forIndex(AGE_INDEX).disallowScansWithWhere().hardHint());
-
-        assertEquals(ageRangeRows, ages);
-    }
-
     // ------------------------------------------------------------- soft hints must never break you
 
     /**
@@ -147,7 +124,7 @@ class QuerySelectionHintExecuteTest extends ClusterTest {
         List<Integer> unhinted = ageRows(null);
         List<Integer> hinted = ageRows(hint -> hint.forIndex(bogusIndexName));
 
-        assertAll("missingIndexSoftHintParity",
+        assertAll(
             () -> assertEquals(ageRangeRows, unhinted),
             () -> assertEquals(unhinted, hinted));
     }
@@ -156,9 +133,9 @@ class QuerySelectionHintExecuteTest extends ClusterTest {
     @Test
     void executeSoftHintOnWrongIndexReturnsSameRowsAsNoHint() {
         List<Integer> unhinted = ageRows(null);
-        List<Integer> hinted = ageRows(hint -> hint.forIndex(SCORE_INDEX));
+        List<Integer> hinted = ageRows(hint -> hint.forIndex(FIXTURE.scoreIndex));
 
-        assertAll("wrongIndexSoftHintParity",
+        assertAll(
             () -> assertEquals(ageRangeRows, unhinted),
             () -> assertEquals(unhinted, hinted));
     }

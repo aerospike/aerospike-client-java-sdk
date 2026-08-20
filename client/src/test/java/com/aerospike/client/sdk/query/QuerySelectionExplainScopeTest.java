@@ -16,6 +16,12 @@
  */
 package com.aerospike.client.sdk.query;
 
+import static com.aerospike.client.sdk.query.QuerySelectionIntegSupport.assumeQuerySelection;
+import static com.aerospike.client.sdk.query.QuerySelectionIntegSupport.createExpIndexQuietly;
+import static com.aerospike.client.sdk.query.QuerySelectionIntegSupport.createIndexQuietly;
+import static com.aerospike.client.sdk.query.QuerySelectionIntegSupport.countRecords;
+import static com.aerospike.client.sdk.query.QuerySelectionIntegSupport.dropIndexQuietly;
+import static com.aerospike.client.sdk.query.QuerySelectionIntegSupport.plan;
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -35,13 +41,13 @@ import java.util.Map;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
-import com.aerospike.client.sdk.AerospikeException;
 import com.aerospike.client.sdk.ClusterTest;
 import com.aerospike.client.sdk.DataSet;
 import com.aerospike.client.sdk.Record;
 import com.aerospike.client.sdk.RecordStream;
-import com.aerospike.client.sdk.ResultCode;
 import com.aerospike.client.sdk.Value;
 import com.aerospike.client.sdk.cdt.CTX;
 import com.aerospike.client.sdk.command.Buffer;
@@ -130,78 +136,31 @@ class QuerySelectionExplainScopeTest extends ClusterTest {
 
     @BeforeAll
     static void prepare() {
-        assumeTrue(cluster.supportsQuerySelection(), "server does not support query selection");
+        assumeQuerySelection();
 
         dataSet = DataSet.of(args.namespace, setName);
 
         session.delete(dataSet.ids("k1"));
         session.delete(dataSet.ids("k2"));
 
-        try {
-            session.createIndex(dataSet, intIndexName, ageBin, IndexType.INTEGER,
-                IndexCollectionType.DEFAULT).waitTillComplete();
-        }
-        catch (AerospikeException ae) {
-            if (ae.getResultCode() != ResultCode.INDEX_ALREADY_EXISTS) {
-                throw ae;
-            }
-        }
-
-        try {
-            session.createIndex(dataSet, blobIndexName, blobBin, IndexType.BLOB,
-                IndexCollectionType.DEFAULT).waitTillComplete();
-        }
-        catch (AerospikeException ae) {
-            if (ae.getResultCode() != ResultCode.INDEX_ALREADY_EXISTS) {
-                throw ae;
-            }
-        }
-
-        try {
-            session.createIndex(dataSet, tagIndexName, tagBin, IndexType.STRING,
-                IndexCollectionType.DEFAULT).waitTillComplete();
-        }
-        catch (AerospikeException ae) {
-            if (ae.getResultCode() != ResultCode.INDEX_ALREADY_EXISTS) {
-                throw ae;
-            }
-        }
-
-        try {
-            session.createIndex(dataSet, mapIndexName, mapBin, IndexType.STRING,
-                IndexCollectionType.MAPKEYS).waitTillComplete();
-        }
-        catch (AerospikeException ae) {
-            if (ae.getResultCode() != ResultCode.INDEX_ALREADY_EXISTS) {
-                throw ae;
-            }
-        }
-
-        try {
-            session.createIndex(dataSet, geoIndexName, locBin, IndexType.GEO2DSPHERE,
-                IndexCollectionType.DEFAULT).waitTillComplete();
-        }
-        catch (AerospikeException ae) {
-            if (ae.getResultCode() != ResultCode.INDEX_ALREADY_EXISTS) {
-                throw ae;
-            }
-        }
-
-        try {
-            session.createIndex(dataSet, ptGeoIndex, ptBin, IndexType.GEO2DSPHERE,
-                IndexCollectionType.DEFAULT).waitTillComplete();
-        }
-        catch (AerospikeException ae) {
-            if (ae.getResultCode() != ResultCode.INDEX_ALREADY_EXISTS) {
-                throw ae;
-            }
-        }
-
-        createCtxIndex(scoreListIndex, scoreListBin, IndexType.INTEGER, CTX.listIndex(scoreListMatchIndex));
-        createCtxIndex(venueGeoIndex, venueBin, IndexType.GEO2DSPHERE,
-            CTX.mapKey(Value.get(venueLocationKey)));
-        createExpIndexQuietly(upperExpIndex, IndexType.STRING, upperExpIndexExpression);
-        createExpIndexQuietly(agePlusExpIndex, IndexType.INTEGER, agePlusExpIndexExpression);
+        createIndexQuietly(session, dataSet, intIndexName, ageBin, IndexType.INTEGER,
+            IndexCollectionType.DEFAULT);
+        createIndexQuietly(session, dataSet, blobIndexName, blobBin, IndexType.BLOB,
+            IndexCollectionType.DEFAULT);
+        createIndexQuietly(session, dataSet, tagIndexName, tagBin, IndexType.STRING,
+            IndexCollectionType.DEFAULT);
+        createIndexQuietly(session, dataSet, mapIndexName, mapBin, IndexType.STRING,
+            IndexCollectionType.MAPKEYS);
+        createIndexQuietly(session, dataSet, geoIndexName, locBin, IndexType.GEO2DSPHERE,
+            IndexCollectionType.DEFAULT);
+        createIndexQuietly(session, dataSet, ptGeoIndex, ptBin, IndexType.GEO2DSPHERE,
+            IndexCollectionType.DEFAULT);
+        createIndexQuietly(session, dataSet, scoreListIndex, scoreListBin, IndexType.INTEGER,
+            IndexCollectionType.DEFAULT, CTX.listIndex(scoreListMatchIndex));
+        createIndexQuietly(session, dataSet, venueGeoIndex, venueBin, IndexType.GEO2DSPHERE,
+            IndexCollectionType.DEFAULT, CTX.mapKey(Value.get(venueLocationKey)));
+        createExpIndexQuietly(session, dataSet, upperExpIndex, IndexType.STRING, upperExpIndexExpression);
+        createExpIndexQuietly(session, dataSet, agePlusExpIndex, IndexType.INTEGER, agePlusExpIndexExpression);
 
         byte[] blobBytes = new byte[8];
         Buffer.longToBytes(50001, blobBytes, 0);
@@ -273,20 +232,20 @@ class QuerySelectionExplainScopeTest extends ClusterTest {
     }
 
     @Test
-    void explainScalarIntegerSecondaryIndex_succeeds() {
-        QueryPlan plan = explain("$.age == 25");
+    void planScalarIntegerSecondaryIndex() {
+        QueryPlan plan = plan(dataSet,"$.age == 25");
 
-        assertAll("integerSiExplain",
+        assertAll(
             () -> assertEquals(QuerySelection.SECONDARY_INDEX, plan.getSelection()),
             () -> assertEquals(intIndexName, plan.getIndexName()),
             () -> assertNotNull(plan.getIndexRangeBytes()));
     }
 
     @Test
-    void explainScalarStringPrimaryIndex_noIndexFields() {
-        QueryPlan plan = explain("$.country == 'US'");
+    void planScalarStringPrimaryIndex() {
+        QueryPlan plan = plan(dataSet,"$.country == 'US'");
 
-        assertAll("stringPiExplain",
+        assertAll(
             () -> assertEquals(QuerySelection.PRIMARY_INDEX, plan.getSelection()),
             () -> assertNull(plan.getIndexName()),
             () -> assertNull(plan.getIndexRangeBytes()),
@@ -301,13 +260,13 @@ class QuerySelectionExplainScopeTest extends ClusterTest {
     @Test
     void scalarStringSecondaryIndexPlansAndExecutes() {
         String where = "$." + tagBin + " == '" + tagMatch + "'";
-        QueryPlan plan = explain(where);
+        QueryPlan plan = plan(dataSet,where);
         int count = countRecords(session.query(dataSet)
             .readingOnlyBins(tagBin)
             .where(where)
             .execute());
 
-        assertAll("stringSi",
+        assertAll(
             () -> assertEquals(QuerySelection.SECONDARY_INDEX, plan.getSelection()),
             () -> assertEquals(tagIndexName, plan.getIndexName()),
             () -> assertNotNull(plan.getIndexRangeBytes()),
@@ -318,11 +277,11 @@ class QuerySelectionExplainScopeTest extends ClusterTest {
      * BLOB scalar equality — server selects the BLOB secondary index on explain.
      */
     @Test
-    void explainBlobEquality_selectsSecondaryIndex() {
+    void planBlobEqualitySecondaryIndex() {
         String where = "$." + blobBin + " == x'" + blobHex + "'";
-        QueryPlan plan = explain(where);
+        QueryPlan plan = plan(dataSet,where);
 
-        assertAll("blobSiExplain",
+        assertAll(
             () -> assertEquals(QuerySelection.SECONDARY_INDEX, plan.getSelection()),
             () -> assertEquals(blobIndexName, plan.getIndexName()),
             () -> assertNotNull(plan.getIndexRangeBytes()),
@@ -333,7 +292,7 @@ class QuerySelectionExplainScopeTest extends ClusterTest {
      * E2E: BLOB query uses field {@code 44} explain → execute (SI plan when explain succeeds).
      */
     @Test
-    void executeBlobEquality_returnsMatchingRow() {
+    void executeBlobEqualityReturnsMatchingRow() {
         String where = "$." + blobBin + " == x'" + blobHex + "'";
 
         int count = countRecords(session.query(dataSet)
@@ -345,30 +304,16 @@ class QuerySelectionExplainScopeTest extends ClusterTest {
     }
 
     /**
-     * GEO DEFAULT — server selects the GEO2DSPHERE secondary index on explain.
+     * Bare {@code geoCompare(...)} and {@code geoCompare(...) == true} share the same GEO SI plan.
      */
-    @Test
-    void explainGeoCompare_selectsSecondaryIndex() {
-        String where = "geoCompare($." + locBin + ", geoJson('" + matchPointGeoJson + "'))";
-        QueryPlan plan = explain(where);
+    @ParameterizedTest
+    @ValueSource(booleans = {false, true})
+    void explainGeoCompareUnwrapsExpCmpEq(boolean eqTrue) {
+        String where = "geoCompare($." + locBin + ", geoJson('" + matchPointGeoJson + "'))"
+            + (eqTrue ? " == true" : "");
+        QueryPlan plan = plan(dataSet,where);
 
-        assertAll("geoSiExplain",
-            () -> assertEquals(QuerySelection.SECONDARY_INDEX, plan.getSelection()),
-            () -> assertEquals(geoIndexName, plan.getIndexName()),
-            () -> assertNotNull(plan.getIndexRangeBytes()),
-            () -> assertEquals(IndexCollectionType.DEFAULT, plan.getIndexType()),
-            () -> assertNotNull(plan.getExplainWhereBytes()));
-    }
-
-    /**
-     * GEO wrapped as {@code geoCompare(...) == true} — same SI plan as bare {@code geoCompare(...)}.
-     */
-    @Test
-    void explainGeoCompareEqTrue_selectsSecondaryIndex() {
-        String where = "geoCompare($." + locBin + ", geoJson('" + matchPointGeoJson + "')) == true";
-        QueryPlan plan = explain(where);
-
-        assertAll("geoEqTrueSiExplain",
+        assertAll(
             () -> assertEquals(QuerySelection.SECONDARY_INDEX, plan.getSelection()),
             () -> assertEquals(geoIndexName, plan.getIndexName()),
             () -> assertNotNull(plan.getIndexRangeBytes()),
@@ -380,7 +325,7 @@ class QuerySelectionExplainScopeTest extends ClusterTest {
      * E2E: GEO query uses field {@code 44} explain → execute (SI plan when explain succeeds).
      */
     @Test
-    void executeGeoCompare_returnsMatchingRow() {
+    void executeGeoCompareReturnsMatchingRow() {
         String where = "geoCompare($." + locBin + ", geoJson('" + matchPointGeoJson + "'))";
 
         int count = countRecords(session.query(dataSet)
@@ -397,14 +342,14 @@ class QuerySelectionExplainScopeTest extends ClusterTest {
      * Servers that shared the STRING/BLOB cap PI-fell-back here even with a matching geo index.
      */
     @Test
-    void explainLargeGeoRegion_selectsSecondaryIndex() {
+    void planLargeGeoRegionSecondaryIndex() {
         assertTrue(largeRegionGeoJson.length() > stringBoundMax,
             "region literal must exceed the STRING/BLOB sindex bound to be meaningful");
 
-        QueryPlan plan = explain(
+        QueryPlan plan = plan(dataSet,
             "geoCompare($." + ptBin + ", geoJson('" + largeRegionGeoJson + "'))");
 
-        assertAll("largeGeoSiExplain",
+        assertAll(
             () -> assertEquals(QuerySelection.SECONDARY_INDEX, plan.getSelection()),
             () -> assertEquals(ptGeoIndex, plan.getIndexName()),
             () -> assertNotNull(plan.getIndexRangeBytes()),
@@ -417,13 +362,13 @@ class QuerySelectionExplainScopeTest extends ClusterTest {
      * present as a well-formed range field — only the bytes themselves catch it.
      */
     @Test
-    void explainLargeGeoRegion_indexRangeCarriesWholeRegion() {
-        QueryPlan plan = explain(
+    void planLargeGeoRegionIndexRange() {
+        QueryPlan plan = plan(dataSet,
             "geoCompare($." + ptBin + ", geoJson('" + largeRegionGeoJson + "'))");
         byte[] rangeBytes = plan.getIndexRangeBytes();
         byte[] expected = largeRegionGeoJson.getBytes(StandardCharsets.UTF_8);
 
-        assertAll("largeGeoBoundBytes",
+        assertAll(
             () -> assertEquals(ptBin, indexRangeBinName(rangeBytes)),
             () -> assertEquals(ParticleType.GEOJSON, indexRangeKtype(rangeBytes)),
             () -> assertArrayEquals(expected, indexRangeBound(rangeBytes)),
@@ -436,7 +381,7 @@ class QuerySelectionExplainScopeTest extends ClusterTest {
      * E2E: the large-region plan replays a multi-KB {@code INDEX_RANGE} on execute.
      */
     @Test
-    void executeLargeGeoRegion_returnsMatchingRow() {
+    void executeLargeGeoRegionReturnsMatchingRow() {
         int count = countRecords(session.query(dataSet)
             .readingOnlyBins(ptBin)
             .where("geoCompare($." + ptBin + ", geoJson('" + largeRegionGeoJson + "'))")
@@ -449,11 +394,11 @@ class QuerySelectionExplainScopeTest extends ClusterTest {
      * MAPKEYS + bare CDT EXISTS — server selects the MAPKEYS secondary index on explain.
      */
     @Test
-    void explainMapKeysExists_selectsSecondaryIndex() {
+    void planMapKeysExistsSecondaryIndex() {
         String where = "$." + mapBin + "." + mapKey + ".exists()";
-        QueryPlan plan = explain(where);
+        QueryPlan plan = plan(dataSet,where);
 
-        assertAll("mapKeysSiExplain",
+        assertAll(
             () -> assertEquals(QuerySelection.SECONDARY_INDEX, plan.getSelection()),
             () -> assertEquals(mapIndexName, plan.getIndexName()),
             () -> assertNotNull(plan.getIndexRangeBytes()),
@@ -464,7 +409,7 @@ class QuerySelectionExplainScopeTest extends ClusterTest {
      * E2E: MAPKEYS EXISTS uses field {@code 44} explain → execute (SI when bare {@code .exists()}).
      */
     @Test
-    void executeMapKeysExists_returnsMatchingRows() {
+    void executeMapKeysExistsReturnsMatchingRows() {
         String where = "$." + mapBin + "." + mapKey + ".exists()";
 
         RecordStream rs = session.query(dataSet)
@@ -472,7 +417,7 @@ class QuerySelectionExplainScopeTest extends ClusterTest {
             .where(where)
             .execute();
 
-        try {
+        try (rs) {
             int count = 0;
             while (rs.hasNext()) {
                 Record record = rs.next().recordOrThrow();
@@ -484,20 +429,17 @@ class QuerySelectionExplainScopeTest extends ClusterTest {
             }
             assertNotEquals(0, count);
         }
-        finally {
-            rs.close();
-        }
     }
 
     /**
      * Ctx-path scalar equality — {@code $.scoreList.[N] == v} selects the ctx DEFAULT SI.
      */
     @Test
-    void explainCtxPathScalarEquality_selectsSecondaryIndex() {
+    void planCtxPathScalarEqualitySecondaryIndex() {
         String where = "$." + scoreListBin + ".[" + scoreListMatchIndex + "] == " + scoreListMatchValue;
-        QueryPlan plan = explain(where);
+        QueryPlan plan = plan(dataSet,where);
 
-        assertAll("ctxScalarSiExplain",
+        assertAll(
             () -> assertEquals(QuerySelection.SECONDARY_INDEX, plan.getSelection()),
             () -> assertEquals(scoreListIndex, plan.getIndexName()),
             () -> assertNotNull(plan.getIndexRangeBytes()),
@@ -508,7 +450,7 @@ class QuerySelectionExplainScopeTest extends ClusterTest {
      * E2E: ctx-path scalar query uses field {@code 44} explain → execute.
      */
     @Test
-    void executeCtxPathScalarEquality_returnsMatchingRow() {
+    void executeCtxPathScalarEqualityReturnsMatchingRow() {
         String where = "$." + scoreListBin + ".[" + scoreListMatchIndex + "] == " + scoreListMatchValue;
 
         int count = countRecords(session.query(dataSet)
@@ -523,12 +465,12 @@ class QuerySelectionExplainScopeTest extends ClusterTest {
      * Ctx-path geoCompare — nested map key geo selects the ctx GEO SI.
      */
     @Test
-    void explainCtxPathGeoCompare_selectsSecondaryIndex() {
+    void planCtxPathGeoCompareSecondaryIndex() {
         String where = "geoCompare($." + venueBin + "." + venueLocationKey
             + ", geoJson('" + matchPointGeoJson + "'))";
-        QueryPlan plan = explain(where);
+        QueryPlan plan = plan(dataSet,where);
 
-        assertAll("ctxGeoSiExplain",
+        assertAll(
             () -> assertEquals(QuerySelection.SECONDARY_INDEX, plan.getSelection()),
             () -> assertEquals(venueGeoIndex, plan.getIndexName()),
             () -> assertNotNull(plan.getIndexRangeBytes()),
@@ -539,7 +481,7 @@ class QuerySelectionExplainScopeTest extends ClusterTest {
      * E2E: ctx-path geo query uses field {@code 44} explain → execute.
      */
     @Test
-    void executeCtxPathGeoCompare_returnsMatchingRow() {
+    void executeCtxPathGeoCompareReturnsMatchingRow() {
         String where = "geoCompare($." + venueBin + "." + venueLocationKey
             + ", geoJson('" + matchPointGeoJson + "'))";
 
@@ -557,12 +499,12 @@ class QuerySelectionExplainScopeTest extends ClusterTest {
      * candidates carry no bin name, so the index range arrives with {@code bin_name_len == 0}.
      */
     @Test
-    void explainExpArith_selectsSecondaryIndex() {
+    void planExpArithSecondaryIndex() {
         assumeExpressionSecondaryIndexSupported();
 
-        QueryPlan plan = explain("($." + ageBin + " + 1) == " + agePlusMatch);
+        QueryPlan plan = plan(dataSet,"($." + ageBin + " + 1) == " + agePlusMatch);
 
-        assertAll("expArithSiExplain",
+        assertAll(
             () -> assertEquals(QuerySelection.SECONDARY_INDEX, plan.getSelection()),
             () -> assertEquals(agePlusExpIndex, plan.getIndexName()),
             () -> assertNotNull(plan.getIndexRangeBytes()),
@@ -573,7 +515,7 @@ class QuerySelectionExplainScopeTest extends ClusterTest {
      * E2E: expression-sindex query uses field {@code 44} explain → execute.
      */
     @Test
-    void executeExpArith_returnsMatchingRow() {
+    void executeExpArithReturnsMatchingRow() {
         assumeExpressionSecondaryIndexSupported();
 
         int count = countRecords(session.query(dataSet)
@@ -592,14 +534,14 @@ class QuerySelectionExplainScopeTest extends ClusterTest {
      * residual filter.
      */
     @Test
-    void explainExpCallUpper_fallsBackToPrimaryIndex() {
+    void planExpCallUpperPrimaryIndex() {
         assumeExpressionSecondaryIndexSupported();
 
         String where = "$." + nameBin + ".uppercase() == '" + upperMatch + "'";
-        assertAll("expCallUpperPiExplain",
-            () -> assertEquals(QuerySelection.PRIMARY_INDEX, explain(where).getSelection()),
-            () -> assertNull(explain(where).getIndexName()),
-            () -> assertNull(explain(where).getIndexRangeBytes()),
+        assertAll(
+            () -> assertEquals(QuerySelection.PRIMARY_INDEX, plan(dataSet,where).getSelection()),
+            () -> assertNull(plan(dataSet,where).getIndexName()),
+            () -> assertNull(plan(dataSet,where).getIndexRangeBytes()),
             () -> assertEquals(1, countRecords(session.query(dataSet)
                 .readingOnlyBins(nameBin)
                 .where(where)
@@ -652,62 +594,5 @@ class QuerySelectionExplainScopeTest extends ClusterTest {
         Version serverVersion = cluster.getRandomNode().getVersion();
         assumeTrue(serverVersion.isGreaterOrEqual(8, 1, 0, 0),
             "expression secondary index tests require server 8.1.0+");
-    }
-
-    private static void createCtxIndex(
-        String indexName,
-        String binName,
-        IndexType indexType,
-        CTX... ctx
-    ) {
-        try {
-            session.createIndex(dataSet, indexName, binName, indexType,
-                IndexCollectionType.DEFAULT, ctx).waitTillComplete();
-        }
-        catch (AerospikeException ae) {
-            if (ae.getResultCode() != ResultCode.INDEX_ALREADY_EXISTS) {
-                throw ae;
-            }
-        }
-    }
-
-    private static void createExpIndexQuietly(
-        String indexName,
-        IndexType indexType,
-        Expression exp
-    ) {
-        try {
-            session.createIndex(dataSet, indexName, indexType, IndexCollectionType.DEFAULT, exp)
-                .waitTillComplete();
-        }
-        catch (AerospikeException ae) {
-            if (ae.getResultCode() != ResultCode.INDEX_ALREADY_EXISTS) {
-                throw ae;
-            }
-        }
-    }
-
-    private static void dropIndexQuietly(DataSet ds, String indexName) {
-        try {
-            session.dropIndex(ds, indexName);
-        }
-        catch (AerospikeException ignored) {
-        }
-    }
-
-    private static QueryPlan explain(String where) {
-        return IndexProbePlanner.plan(
-            session, dataSet, WhereClauseProcessor.from(where), null);
-    }
-
-    private static int countRecords(RecordStream rs) {
-        try (rs) {
-            int count = 0;
-            while (rs.hasNext()) {
-                rs.next().recordOrThrow();
-                count++;
-            }
-            return count;
-        }
     }
 }

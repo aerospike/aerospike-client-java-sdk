@@ -16,6 +16,9 @@
  */
 package com.aerospike.client.sdk.query;
 
+import static com.aerospike.client.sdk.query.QuerySelectionIntegSupport.assumeQuerySelection;
+import static com.aerospike.client.sdk.query.QuerySelectionIntegSupport.createIndexQuietly;
+import static com.aerospike.client.sdk.query.QuerySelectionIntegSupport.dropIndexQuietlyAndWait;
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -47,10 +50,10 @@ import com.aerospike.client.sdk.ResultCode;
  * across a catalog change — plus the pagination invariant that motivates pinning a plan for the life
  * of a query, namely that chunked and paged reads neither drop nor duplicate a record.</p>
  *
- * <p>This class owns a private set and private index names. Every other query-selection class shares
- * the {@code qselint} fixture, and a test that drops an index mid-run would otherwise corrupt it.
- * {@link #resetIndexBaseline()} restores the intended catalog before each test so a failure part-way
- * through one test cannot cascade into the next.</p>
+ * <p>Query-selection integration classes each use a {@link QuerySelectionIntegSupport.Fixture}-scoped
+ * dataset so parallel execution cannot collide. This class still owns its own set and index names
+ * because it drops and recreates indexes mid-run; {@link #resetIndexBaseline()} restores the
+ * intended catalog before each test so a failure part-way through one test cannot cascade.</p>
  */
 class QuerySelectionLifecycleTest extends ClusterTest {
     private static final String setName = "qsellife";
@@ -69,7 +72,7 @@ class QuerySelectionLifecycleTest extends ClusterTest {
 
     @BeforeAll
     static void prepare() {
-        QuerySelectionIntegSupport.assumeQuerySelectionEnabled();
+        QuerySelectionIntegSupport.assumeQuerySelection();
 
         dataSet = DataSet.of(args.namespace, setName);
 
@@ -89,15 +92,16 @@ class QuerySelectionLifecycleTest extends ClusterTest {
         for (int i = 1; i <= recordCount; i++) {
             session.delete(dataSet.ids(keyPrefix + i)).execute();
         }
-        dropIndexQuietly(ageIndex);
-        dropIndexQuietly(countryIndex);
+        dropIndexQuietlyAndWait(session, dataSet, ageIndex);
+        dropIndexQuietlyAndWait(session, dataSet, countryIndex);
     }
 
     /** Baseline for every test: age indexed, country not. */
     @BeforeEach
     void resetIndexBaseline() {
-        createIndexQuietly(ageIndex, ageBin, IndexType.INTEGER);
-        dropIndexQuietly(countryIndex);
+        createIndexQuietly(session, dataSet, ageIndex, ageBin, IndexType.INTEGER,
+            IndexCollectionType.DEFAULT);
+        dropIndexQuietlyAndWait(session, dataSet, countryIndex);
     }
 
     // -------------------------------------------------------------------------- catalog changes
@@ -115,12 +119,12 @@ class QuerySelectionLifecycleTest extends ClusterTest {
     void executeAfterOnlyIndexDroppedReturnsSameRows() {
         List<Integer> withIndex = agesWhere(ageRangeWhere);
 
-        dropIndexQuietly(ageIndex);
+        dropIndexQuietlyAndWait(session, dataSet, ageIndex);
         List<Integer> withoutIndex = agesWhere(ageRangeWhere);
         AerospikeException noIndexLeft = assertThrows(AerospikeException.class,
             () -> requireIndexAges(ageRangeWhere));
 
-        assertAll("indexDropped",
+        assertAll(
             () -> assertEquals(ageRangeRows, withIndex),
             () -> assertEquals(withIndex, withoutIndex),
             () -> assertEquals(ResultCode.INDEX_NOTFOUND, noIndexLeft.getResultCode(),
@@ -142,12 +146,13 @@ class QuerySelectionLifecycleTest extends ClusterTest {
         AerospikeException noIndexYet = assertThrows(AerospikeException.class,
             () -> requireIndexAges(where));
 
-        createIndexQuietly(countryIndex, countryBin, IndexType.STRING);
+        createIndexQuietly(session, dataSet, countryIndex, countryBin, IndexType.STRING,
+            IndexCollectionType.DEFAULT);
 
         List<Integer> afterIndex = agesWhere(where);
         List<Integer> viaNewIndex = requireIndexAges(where);
 
-        assertAll("indexCreated",
+        assertAll(
             () -> assertEquals(10, beforeIndex.size(), "half the fixture has country US"),
             () -> assertEquals(ResultCode.INDEX_NOTFOUND, noIndexYet.getResultCode()),
             () -> assertEquals(beforeIndex, afterIndex),
@@ -172,26 +177,24 @@ class QuerySelectionLifecycleTest extends ClusterTest {
             .chunkSize(2)
             .execute();
 
-        try {
+        try (rs) {
             while (rs.hasMoreChunks()) {
                 chunks++;
                 while (rs.hasNext()) {
                     ages.add(rs.next().recordOrThrow().getInt(ageBin));
                 }
                 if (chunks == 1) {
-                    createIndexQuietly(countryIndex, countryBin, IndexType.STRING);
+                    createIndexQuietly(session, dataSet, countryIndex, countryBin, IndexType.STRING,
+                        IndexCollectionType.DEFAULT);
                 }
             }
-        }
-        finally {
-            rs.close();
         }
 
         List<Integer> sorted = new ArrayList<>(ages);
         sorted.sort(Integer::compareTo);
         int observedChunks = chunks;
 
-        assertAll("chunkedDuringIndexCreate",
+        assertAll(
             () -> assertEquals(ageRangeRows, sorted),
             () -> assertEquals(ageRangeRows.size(), ages.size(), "no record returned twice"),
             () -> assertTrue(observedChunks > 1,
@@ -201,7 +204,8 @@ class QuerySelectionLifecycleTest extends ClusterTest {
 
     /**
      * Chunking and partition restriction must compose: draining complementary partition ranges in
-     * chunks yields each matching record exactly once between them.
+     * chunks yields each matching record exactly once between them. Pagination/partition routing —
+     * not index selection; the same invariant would hold on the legacy execute path.
      */
     @Test
     void executeChunkedAcrossPartitionRangesReturnsCompleteSet() {
@@ -212,7 +216,7 @@ class QuerySelectionLifecycleTest extends ClusterTest {
         union.addAll(upper);
         union.sort(Integer::compareTo);
 
-        assertAll("chunkedPartitionRanges",
+        assertAll(
             () -> assertEquals(ageRangeRows, union),
             () -> assertTrue(Collections.disjoint(lower, upper),
                 "a record must not appear in both partition ranges"));
@@ -244,7 +248,7 @@ class QuerySelectionLifecycleTest extends ClusterTest {
             pageSizes.add(onThisPage);
         }
 
-        assertAll("navigatablePagination",
+        assertAll(
             () -> assertEquals(ageRangeRows, ages, "pages in order yield the sorted set"),
             () -> assertEquals(List.of(2, 2, 1), pageSizes, "five rows at pageSize 2"));
     }
@@ -276,55 +280,24 @@ class QuerySelectionLifecycleTest extends ClusterTest {
             .chunkSize(2)
             .execute();
 
-        try {
+        try (rs) {
             while (rs.hasMoreChunks()) {
                 while (rs.hasNext()) {
                     ages.add(rs.next().recordOrThrow().getInt(ageBin));
                 }
             }
         }
-        finally {
-            rs.close();
-        }
         return ages;
     }
 
     private static List<Integer> collectAges(RecordStream rs) {
-        try {
+        try (rs) {
             List<Integer> ages = new ArrayList<>();
             while (rs.hasNext()) {
                 ages.add(rs.next().recordOrThrow().getInt(ageBin));
             }
             ages.sort(Integer::compareTo);
             return ages;
-        }
-        finally {
-            rs.close();
-        }
-    }
-
-    private static void createIndexQuietly(String indexName, String binName, IndexType indexType) {
-        try {
-            session.createIndex(dataSet, indexName, binName, indexType, IndexCollectionType.DEFAULT)
-                .waitTillComplete();
-        }
-        catch (AerospikeException ae) {
-            if (ae.getResultCode() != ResultCode.INDEX_ALREADY_EXISTS) {
-                throw ae;
-            }
-        }
-    }
-
-    /**
-     * Waits for the drop rather than only dispatching it. This class drops and recreates indexes far
-     * more often than the rest of the suite, and leaving catalog work in flight risks a later
-     * same-named create racing a pending drop.
-     */
-    private static void dropIndexQuietly(String indexName) {
-        try {
-            session.dropIndex(dataSet, indexName).waitTillComplete();
-        }
-        catch (AerospikeException ignored) {
         }
     }
 }

@@ -927,8 +927,9 @@ public final class CommandBuffer {
         dataBuffer[9] = (byte)readAttr;
         dataBuffer[10] = (byte)writeAttr;
         dataBuffer[11] = (byte)infoAttr;
+        dataBuffer[12] = cmd.getErrorDetailBits();
 
-        for (int i = 12; i < 18; i++) {
+        for (int i = 13; i < 18; i++) {
             dataBuffer[i] = 0;
         }
         Buffer.intToBytes(cmd.readTouchTtlPercent, dataBuffer, 18);
@@ -1078,7 +1079,9 @@ public final class CommandBuffer {
         dataBuffer[10] = 0;
         dataBuffer[11] = 0;
 
-        for (int i = 12; i < 18; i++) {
+        dataBuffer[12] = cmd.getErrorDetailBits();
+
+        for (int i = 13; i < 18; i++) {
             dataBuffer[i] = 0;
         }
 

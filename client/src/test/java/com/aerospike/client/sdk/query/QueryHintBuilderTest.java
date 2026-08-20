@@ -17,7 +17,6 @@
 package com.aerospike.client.sdk.query;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
@@ -32,12 +31,11 @@ import com.aerospike.client.sdk.ResultCode;
 import com.aerospike.client.sdk.policy.QueryDuration;
 
 /**
- * Integration tests for {@link QueryHint} applied through the {@link QueryBuilder} API.
+ * {@link QueryBuilder} hint plumbing: default state, effective duration/scan policy, and
+ * single {@code withHint} enforcement.
  *
- * <p>These tests validate that hint values are correctly stored on the builder and that
- * the effective query duration respects hint precedence. Full server-side validation
- * of index selection is not possible in a unit test, so we focus on the client-side
- * plumbing.</p>
+ * <p>Hint field capture is covered by {@link QueryHintTest}. {@code withHint} stores the same
+ * {@link QueryHint.Result} — no separate getter round-trip tests here.</p>
  */
 public class QueryHintBuilderTest extends ClusterTest {
     private static final String indexName = "hintTestIndex";
@@ -48,7 +46,7 @@ public class QueryHintBuilderTest extends ClusterTest {
     private static DataSet dataSet;
 
     @BeforeAll
-    public static void prepare() {
+    static void prepare() {
         dataSet = DataSet.of(args.namespace, "hinttest");
 
         for (int i = 1; i <= size; i++) {
@@ -71,7 +69,7 @@ public class QueryHintBuilderTest extends ClusterTest {
     }
 
     @AfterAll
-    public static void destroy() {
+    static void destroy() {
         try {
             session.dropIndex(dataSet, indexName);
         }
@@ -86,57 +84,21 @@ public class QueryHintBuilderTest extends ClusterTest {
     // -- QueryBuilder stores hint correctly -----------------------------------
 
     @Test
-    public void hintIsNullByDefault() {
+    void hintIsNullByDefault() {
         QueryBuilder qb = new QueryBuilder(session, dataSet);
         assertNull(qb.getQueryHint());
-    }
-
-    @Test
-    public void hintForIndexStoredOnBuilder() {
-        QueryBuilder qb = new QueryBuilder(session, dataSet);
-        qb.where("$." + binName + " > 0")
-            .withHint(hint -> hint.forIndex("my_idx"));
-
-        QueryHint.Result hint = qb.getQueryHint();
-        assertNotNull(hint);
-        assertEquals("my_idx", hint.getIndexName());
-        assertNull(hint.getBinName());
-        assertNull(hint.getQueryDuration());
-    }
-
-    @Test
-    public void hintForBinStoredOnBuilder() {
-        QueryBuilder qb = new QueryBuilder(session, dataSet);
-        qb.where("$." + binName + " > 0")
-            .withHint(hint -> hint.forBin("age"));
-
-        QueryHint.Result hint = qb.getQueryHint();
-        assertNotNull(hint);
-        assertNull(hint.getIndexName());
-        assertEquals("age", hint.getBinName());
-    }
-
-    @Test
-    public void hintWithAllOptions() {
-        QueryBuilder qb = new QueryBuilder(session, dataSet);
-        qb.where("$." + binName + " > 0")
-            .withHint(hint -> hint.forIndex("idx").queryDuration(QueryDuration.SHORT));
-
-        QueryHint.Result hint = qb.getQueryHint();
-        assertEquals("idx", hint.getIndexName());
-        assertEquals(QueryDuration.SHORT, hint.getQueryDuration());
     }
 
     // -- effective query duration ------------------------------------------------
 
     @Test
-    public void effectiveDurationDefaultsToLong() {
+    void effectiveDurationDefaultsToLong() {
         QueryBuilder qb = new QueryBuilder(session, dataSet);
         assertEquals(QueryDuration.LONG, qb.getEffectiveQueryDuration());
     }
 
     @Test
-    public void effectiveDurationFromHint() {
+    void effectiveDurationFromHint() {
         QueryBuilder qb = new QueryBuilder(session, dataSet);
         qb.where("$." + binName + " > 0")
             .withHint(hint -> hint.queryDuration(QueryDuration.SHORT)
@@ -147,7 +109,7 @@ public class QueryHintBuilderTest extends ClusterTest {
     }
 
     @Test
-    public void hintWithoutDurationDefaultsToLong() {
+    void hintWithoutDurationDefaultsToLong() {
         QueryBuilder qb = new QueryBuilder(session, dataSet);
         qb.where("$." + binName + " > 0")
             .withHint(hint -> hint.forIndex("idx"));
@@ -158,7 +120,7 @@ public class QueryHintBuilderTest extends ClusterTest {
     // -- double call throws ---------------------------------------------------
 
     @Test
-    public void doubleWithHintThrows() {
+    void doubleWithHintThrows() {
         QueryBuilder qb = new QueryBuilder(session, dataSet);
         qb.where("$." + binName + " > 0")
             .withHint(hint -> hint.forIndex("idx"));
