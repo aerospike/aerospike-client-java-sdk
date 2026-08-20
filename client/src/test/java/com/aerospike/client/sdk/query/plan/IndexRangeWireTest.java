@@ -54,18 +54,6 @@ class IndexRangeWireTest {
             IndexRangeWire.describeProbeRange(probe));
     }
 
-    /**
-     * Geo bounds run to 1 MiB, so the describer reports the full length but abbreviates the text.
-     */
-    @Test
-    void describeGeoRegionAbbreviatesLongRegion() {
-        String region = polygonOfLength(4096);
-        byte[] probe = geoProbeRangeWithBinName("loc", region);
-
-        assertEquals("bin=loc region=" + region.substring(0, 64) + "... len=" + region.length(),
-            IndexRangeWire.describeProbeRange(probe));
-    }
-
     @Test
     void describeNullRange() {
         assertNull(IndexRangeWire.describeProbeRange(null));
@@ -117,14 +105,6 @@ class IndexRangeWireTest {
         wireBody[0] = 1;
         structured.write(wireBody, 1);
         return wireBody;
-    }
-
-    private static String polygonOfLength(int minLength) {
-        StringBuilder sb = new StringBuilder("{\"type\":\"Polygon\",\"coordinates\":[[");
-        for (int i = 0; sb.length() < minLength; i++) {
-            sb.append("[-122.0").append(i % 10).append(",37.4").append(i % 10).append("],");
-        }
-        return sb.append("[-122.00,37.40]]]}").toString();
     }
 
     private static byte[] slice(byte[] bytes, int from, int to) {

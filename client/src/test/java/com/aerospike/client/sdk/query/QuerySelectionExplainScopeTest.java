@@ -349,7 +349,7 @@ class QuerySelectionExplainScopeTest extends ClusterTest {
      */
     @Test
     void explainGeoCompare_selectsSecondaryIndex() {
-        String where = geoCompareWhere(matchPointGeoJson);
+        String where = "geoCompare($." + locBin + ", geoJson('" + matchPointGeoJson + "'))";
         QueryPlan plan = explain(where);
 
         assertAll("geoSiExplain",
@@ -365,7 +365,7 @@ class QuerySelectionExplainScopeTest extends ClusterTest {
      */
     @Test
     void explainGeoCompareEqTrue_selectsSecondaryIndex() {
-        String where = geoCompareWhere(matchPointGeoJson) + " == true";
+        String where = "geoCompare($." + locBin + ", geoJson('" + matchPointGeoJson + "')) == true";
         QueryPlan plan = explain(where);
 
         assertAll("geoEqTrueSiExplain",
@@ -381,7 +381,7 @@ class QuerySelectionExplainScopeTest extends ClusterTest {
      */
     @Test
     void executeGeoCompare_returnsMatchingRow() {
-        String where = geoCompareWhere(matchPointGeoJson);
+        String where = "geoCompare($." + locBin + ", geoJson('" + matchPointGeoJson + "'))";
 
         int count = countRecords(session.query(dataSet)
             .readingOnlyBins(locBin)
@@ -401,7 +401,8 @@ class QuerySelectionExplainScopeTest extends ClusterTest {
         assertTrue(largeRegionGeoJson.length() > stringBoundMax,
             "region literal must exceed the STRING/BLOB sindex bound to be meaningful");
 
-        QueryPlan plan = explain(pointInRegionWhere(largeRegionGeoJson));
+        QueryPlan plan = explain(
+            "geoCompare($." + ptBin + ", geoJson('" + largeRegionGeoJson + "'))");
 
         assertAll("largeGeoSiExplain",
             () -> assertEquals(QuerySelection.SECONDARY_INDEX, plan.getSelection()),
@@ -417,7 +418,8 @@ class QuerySelectionExplainScopeTest extends ClusterTest {
      */
     @Test
     void explainLargeGeoRegion_indexRangeCarriesWholeRegion() {
-        QueryPlan plan = explain(pointInRegionWhere(largeRegionGeoJson));
+        QueryPlan plan = explain(
+            "geoCompare($." + ptBin + ", geoJson('" + largeRegionGeoJson + "'))");
         byte[] rangeBytes = plan.getIndexRangeBytes();
         byte[] expected = largeRegionGeoJson.getBytes(StandardCharsets.UTF_8);
 
@@ -437,7 +439,7 @@ class QuerySelectionExplainScopeTest extends ClusterTest {
     void executeLargeGeoRegion_returnsMatchingRow() {
         int count = countRecords(session.query(dataSet)
             .readingOnlyBins(ptBin)
-            .where(pointInRegionWhere(largeRegionGeoJson))
+            .where("geoCompare($." + ptBin + ", geoJson('" + largeRegionGeoJson + "'))")
             .execute());
 
         assertEquals(1, count);
@@ -522,7 +524,8 @@ class QuerySelectionExplainScopeTest extends ClusterTest {
      */
     @Test
     void explainCtxPathGeoCompare_selectsSecondaryIndex() {
-        String where = ctxGeoCompareWhere(matchPointGeoJson);
+        String where = "geoCompare($." + venueBin + "." + venueLocationKey
+            + ", geoJson('" + matchPointGeoJson + "'))";
         QueryPlan plan = explain(where);
 
         assertAll("ctxGeoSiExplain",
@@ -537,7 +540,8 @@ class QuerySelectionExplainScopeTest extends ClusterTest {
      */
     @Test
     void executeCtxPathGeoCompare_returnsMatchingRow() {
-        String where = ctxGeoCompareWhere(matchPointGeoJson);
+        String where = "geoCompare($." + venueBin + "." + venueLocationKey
+            + ", geoJson('" + matchPointGeoJson + "'))";
 
         int count = countRecords(session.query(dataSet)
             .readingOnlyBins(venueBin)
@@ -556,7 +560,7 @@ class QuerySelectionExplainScopeTest extends ClusterTest {
     void explainExpArith_selectsSecondaryIndex() {
         assumeExpressionSecondaryIndexSupported();
 
-        QueryPlan plan = explain(arithExpWhere());
+        QueryPlan plan = explain("($." + ageBin + " + 1) == " + agePlusMatch);
 
         assertAll("expArithSiExplain",
             () -> assertEquals(QuerySelection.SECONDARY_INDEX, plan.getSelection()),
@@ -574,7 +578,7 @@ class QuerySelectionExplainScopeTest extends ClusterTest {
 
         int count = countRecords(session.query(dataSet)
             .readingOnlyBins(ageBin)
-            .where(arithExpWhere())
+            .where("($." + ageBin + " + 1) == " + agePlusMatch)
             .execute());
 
         assertEquals(1, count);
@@ -591,35 +595,15 @@ class QuerySelectionExplainScopeTest extends ClusterTest {
     void explainExpCallUpper_fallsBackToPrimaryIndex() {
         assumeExpressionSecondaryIndexSupported();
 
+        String where = "$." + nameBin + ".uppercase() == '" + upperMatch + "'";
         assertAll("expCallUpperPiExplain",
-            () -> assertEquals(QuerySelection.PRIMARY_INDEX, explain(upperCallWhere()).getSelection()),
-            () -> assertNull(explain(upperCallWhere()).getIndexName()),
-            () -> assertNull(explain(upperCallWhere()).getIndexRangeBytes()),
+            () -> assertEquals(QuerySelection.PRIMARY_INDEX, explain(where).getSelection()),
+            () -> assertNull(explain(where).getIndexName()),
+            () -> assertNull(explain(where).getIndexRangeBytes()),
             () -> assertEquals(1, countRecords(session.query(dataSet)
                 .readingOnlyBins(nameBin)
-                .where(upperCallWhere())
+                .where(where)
                 .execute())));
-    }
-
-    private static String arithExpWhere() {
-        return "($." + ageBin + " + 1) == " + agePlusMatch;
-    }
-
-    private static String upperCallWhere() {
-        return "$." + nameBin + ".uppercase() == '" + upperMatch + "'";
-    }
-
-    private static String geoCompareWhere(String geoJsonLiteral) {
-        return "geoCompare($." + locBin + ", geoJson('" + geoJsonLiteral + "'))";
-    }
-
-    private static String ctxGeoCompareWhere(String geoJsonLiteral) {
-        return "geoCompare($." + venueBin + "." + venueLocationKey +
-            ", geoJson('" + geoJsonLiteral + "'))";
-    }
-
-    private static String pointInRegionWhere(String regionLiteral) {
-        return "geoCompare($." + ptBin + ", geoJson('" + regionLiteral + "'))";
     }
 
     private static String pointGeoJson(double lng, double lat) {
@@ -717,16 +701,13 @@ class QuerySelectionExplainScopeTest extends ClusterTest {
     }
 
     private static int countRecords(RecordStream rs) {
-        try {
+        try (rs) {
             int count = 0;
             while (rs.hasNext()) {
                 rs.next().recordOrThrow();
                 count++;
             }
             return count;
-        }
-        finally {
-            rs.close();
         }
     }
 }

@@ -130,7 +130,7 @@ class QuerySelectionHintFlagsTest extends ClusterTest {
     }
 
     /**
-     * D.6 — {@code HARD_HINT} + matching {@code forIndex} selects that index. {@code REQUIRE_INDEX}
+     * {@code HARD_HINT} + matching {@code forIndex} selects that index. {@code REQUIRE_INDEX}
      * rides along because the query behavior default is {@code allowScansWithWhere(false)}, and the
      * hint does not override it.
      */
@@ -187,7 +187,7 @@ class QuerySelectionHintFlagsTest extends ClusterTest {
                 QueryWhereWire.flags(plan.getExplainWhereBytes())));
     }
 
-    /** D.8 — {@code HARD_HINT} with wrong index name fails explain. */
+    /** {@code HARD_HINT} with wrong index name fails explain. */
     @Test
     void hardHintWithWrongIndexFailsExplain() {
         QueryBuilder qb = session.query(dataSet)
@@ -199,7 +199,7 @@ class QuerySelectionHintFlagsTest extends ClusterTest {
     }
 
     /**
-     * D.9 — syntactically invalid AEL fails explain with {@code PARAMETER}.
+     * syntactically invalid AEL fails explain with {@code PARAMETER}.
      * (Unknown bin with valid syntax returns PI, not {@code PARAMETER}.)
      */
     @Test

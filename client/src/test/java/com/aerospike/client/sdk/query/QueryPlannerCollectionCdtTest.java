@@ -59,11 +59,6 @@ import com.aerospike.client.sdk.query.plan.QuerySelection;
  * {@code {@lo:hi}} (map keys) — plan as collection SI candidates only when both bounds are
  * integers; string bounds stay on PI. LIST index paths ({@code [0]}) also fall back to PI —
  * value-containment indexes cannot answer positional existence.</p>
- *
- * <p>Uses server AEL syntax ({@code .exists()}, not legacy {@code .get(return: EXISTS)}).
- * List <strong>index</strong> paths use {@code [0]}; list <strong>value</strong> paths use
- * {@code [=name]} (STRING). BLOB list value selectors ({@code [=X'…']}) are not in server
- * AEL {@code key_val} grammar today.</p>
  */
 public class QueryPlannerCollectionCdtTest extends ClusterTest {
     private static final String setName = "qp_cdt";
@@ -124,7 +119,7 @@ public class QueryPlannerCollectionCdtTest extends ClusterTest {
         Buffer.longToBytes(50003, listBlobBytes, 0);
 
         for (int i = 1; i <= size; i++) {
-            HashMap<String, String> map = new HashMap<>();
+            Map<String, String> map = new HashMap<>();
             map.put("mkey1", "v" + i);
             if (i % 2 == 0) {
                 map.put(mapKey, mapValueTarget);
@@ -141,7 +136,7 @@ public class QueryPlannerCollectionCdtTest extends ClusterTest {
 
             // Integer keys and integer values in one bin - the planner only turns range
             // selectors into index candidates when both bounds are integers.
-            HashMap<Integer, Integer> intMap = new HashMap<>();
+            Map<Integer, Integer> intMap = new HashMap<>();
             if (i % 2 == 0) {
                 intMap.put(mapKeyRangeLo, mapValueRangeLo);
                 intMap.put(15, 150);
@@ -182,7 +177,7 @@ public class QueryPlannerCollectionCdtTest extends ClusterTest {
                 strList.add("other" + i);
             }
 
-            HashMap<String, List<String>> nested = new HashMap<>();
+            Map<String, List<String>> nested = new HashMap<>();
             nested.put(nestedListKey,
                 List.of(i % 2 == 0 ? nestedListTarget : "nested_other" + i));
 
@@ -214,7 +209,7 @@ public class QueryPlannerCollectionCdtTest extends ClusterTest {
      */
     @Test
     void planMapKeysExistsSecondaryIndex() {
-        QueryPlan plan = plan(dataSet, mapKeysExistsWhere());
+        QueryPlan plan = plan(dataSet, "$." + mapBin + "." + mapKey + ".exists()");
         assertAll("mapKeysSiExplain",
             () -> assertEquals(QuerySelection.SECONDARY_INDEX, plan.getSelection()),
             () -> assertEquals(mapIndex, plan.getIndexName()),
@@ -227,7 +222,7 @@ public class QueryPlannerCollectionCdtTest extends ClusterTest {
      */
     @Test
     void planMapKeysExistsEqTrueSecondaryIndex() {
-        QueryPlan plan = plan(dataSet, mapKeysExistsWhere() + " == true");
+        QueryPlan plan = plan(dataSet, "$." + mapBin + "." + mapKey + ".exists() == true");
         assertAll("mapKeysEqTrueSiExplain",
             () -> assertEquals(QuerySelection.SECONDARY_INDEX, plan.getSelection()),
             () -> assertEquals(mapIndex, plan.getIndexName()),
@@ -240,7 +235,7 @@ public class QueryPlannerCollectionCdtTest extends ClusterTest {
      */
     @Test
     void planMapValuesExistsSecondaryIndex() {
-        QueryPlan plan = plan(dataSet, mapValuesExistsWhere());
+        QueryPlan plan = plan(dataSet, "$." + mapBin + ".{=" + mapValueTarget + "}.exists()");
         assertAll("mapValuesSiExplain",
             () -> assertEquals(QuerySelection.SECONDARY_INDEX, plan.getSelection()),
             () -> assertEquals(mapValuesIndex, plan.getIndexName()),
@@ -253,7 +248,7 @@ public class QueryPlannerCollectionCdtTest extends ClusterTest {
      */
     @Test
     void planMapValuesExistsEqTrueSecondaryIndex() {
-        QueryPlan plan = plan(dataSet, mapValuesExistsWhere() + " == true");
+        QueryPlan plan = plan(dataSet, "$." + mapBin + ".{=" + mapValueTarget + "}.exists() == true");
         assertAll("mapValuesEqTrueSiExplain",
             () -> assertEquals(QuerySelection.SECONDARY_INDEX, plan.getSelection()),
             () -> assertEquals(mapValuesIndex, plan.getIndexName()),
@@ -266,7 +261,7 @@ public class QueryPlannerCollectionCdtTest extends ClusterTest {
      */
     @Test
     void planListValueExistsSecondaryIndex() {
-        QueryPlan plan = plan(dataSet, listValueExistsWhere());
+        QueryPlan plan = plan(dataSet, "$." + listStrBin + ".[=" + listStrTarget + "].exists()");
         assertAll("listValueSiExplain",
             () -> assertEquals(QuerySelection.SECONDARY_INDEX, plan.getSelection()),
             () -> assertEquals(listStrIndex, plan.getIndexName()),
@@ -279,7 +274,7 @@ public class QueryPlannerCollectionCdtTest extends ClusterTest {
      */
     @Test
     void planListValueExistsEqTrueSecondaryIndex() {
-        QueryPlan plan = plan(dataSet, listValueExistsWhere() + " == true");
+        QueryPlan plan = plan(dataSet, "$." + listStrBin + ".[=" + listStrTarget + "].exists() == true");
         assertAll("listValueEqTrueSiExplain",
             () -> assertEquals(QuerySelection.SECONDARY_INDEX, plan.getSelection()),
             () -> assertEquals(listStrIndex, plan.getIndexName()),
@@ -293,7 +288,7 @@ public class QueryPlannerCollectionCdtTest extends ClusterTest {
      */
     @Test
     void planListIndexExistsPrimaryIndexFallback() {
-        assertPlan(plan(dataSet, listIndexExistsWhere()), QuerySelection.PRIMARY_INDEX, null, false);
+        assertPlan(plan(dataSet, "$." + listBin + ".[0].exists()"), QuerySelection.PRIMARY_INDEX, null, false);
     }
 
     /**
@@ -301,7 +296,7 @@ public class QueryPlannerCollectionCdtTest extends ClusterTest {
      */
     @Test
     void planListIndexExistsEqTruePrimaryIndexFallback() {
-        assertPlan(plan(dataSet, listIndexExistsWhere() + " == true"),
+        assertPlan(plan(dataSet, "$." + listBin + ".[0].exists() == true"),
             QuerySelection.PRIMARY_INDEX, null, false);
     }
 
@@ -310,7 +305,8 @@ public class QueryPlannerCollectionCdtTest extends ClusterTest {
      */
     @Test
     void planListValueRangeExistsSecondaryIndex() {
-        QueryPlan plan = plan(dataSet, listValueRangeExistsWhere());
+        QueryPlan plan = plan(dataSet,
+            "$." + intListBin + ".[=" + listRangeLo + ":" + listRangeHi + "].exists()");
         assertAll("listValueRangeSiExplain",
             () -> assertEquals(QuerySelection.SECONDARY_INDEX, plan.getSelection()),
             () -> assertEquals(intListIndex, plan.getIndexName()),
@@ -324,7 +320,8 @@ public class QueryPlannerCollectionCdtTest extends ClusterTest {
      */
     @Test
     void planMapKeysRangeExistsSecondaryIndex() {
-        QueryPlan plan = plan(dataSet, mapKeysRangeExistsWhere());
+        QueryPlan plan = plan(dataSet,
+            "$." + intMapBin + ".{@" + mapKeyRangeLo + ":" + mapKeyRangeHi + "}.exists()");
         assertAll("mapKeysRangeSiExplain",
             () -> assertEquals(QuerySelection.SECONDARY_INDEX, plan.getSelection()),
             () -> assertEquals(intMapKeysIndex, plan.getIndexName()),
@@ -338,7 +335,8 @@ public class QueryPlannerCollectionCdtTest extends ClusterTest {
      */
     @Test
     void planMapValuesRangeExistsSecondaryIndex() {
-        QueryPlan plan = plan(dataSet, mapValuesRangeExistsWhere());
+        QueryPlan plan = plan(dataSet,
+            "$." + intMapBin + ".{=" + mapValueRangeLo + ":" + mapValueRangeHi + "}.exists()");
         assertAll("mapValuesRangeSiExplain",
             () -> assertEquals(QuerySelection.SECONDARY_INDEX, plan.getSelection()),
             () -> assertEquals(intMapValuesIndex, plan.getIndexName()),
@@ -353,13 +351,14 @@ public class QueryPlannerCollectionCdtTest extends ClusterTest {
      */
     @Test
     void planStringBoundRangeSelectorsFallBackToPrimaryIndex() {
+        String mapKeysRange = "$." + mapBin + ".{@" + strMapKeyRangeLo + ":" + strMapKeyRangeHi + "}.exists()";
+        String mapValuesRange = "$." + mapBin + ".{=" + strMapValueRangeLo + ":"
+            + strMapValueRangeHi + "}.exists()";
         assertAll("stringBoundRanges",
-            () -> assertPlan(plan(dataSet, stringMapKeysRangeExistsWhere()),
-                QuerySelection.PRIMARY_INDEX, null, false),
-            () -> assertPlan(plan(dataSet, stringMapValuesRangeExistsWhere()),
-                QuerySelection.PRIMARY_INDEX, null, false),
-            () -> assertEquals(10, countMatches(stringMapKeysRangeExistsWhere(), mapBin)),
-            () -> assertEquals(10, countMatches(stringMapValuesRangeExistsWhere(), mapBin)));
+            () -> assertPlan(plan(dataSet, mapKeysRange), QuerySelection.PRIMARY_INDEX, null, false),
+            () -> assertPlan(plan(dataSet, mapValuesRange), QuerySelection.PRIMARY_INDEX, null, false),
+            () -> assertEquals(10, countMatches(mapKeysRange, mapBin)),
+            () -> assertEquals(10, countMatches(mapValuesRange, mapBin)));
     }
 
     /**
@@ -368,9 +367,13 @@ public class QueryPlannerCollectionCdtTest extends ClusterTest {
     @Test
     void executeRangeSelectorsWithoutForBinReturnsMatchingRows() {
         assertAll("rangeSelectorExecute",
-            () -> assertEquals(10, countRangeSelectorMatches(listValueRangeExistsWhere(), intListBin)),
-            () -> assertEquals(10, countIntMapKeyRangeMatches(mapKeysRangeExistsWhere())),
-            () -> assertEquals(10, countIntMapValueRangeMatches(mapValuesRangeExistsWhere())));
+            () -> assertEquals(10, countRangeSelectorMatches(
+                "$." + intListBin + ".[=" + listRangeLo + ":" + listRangeHi + "].exists()",
+                intListBin)),
+            () -> assertEquals(10, countIntMapKeyRangeMatches(
+                "$." + intMapBin + ".{@" + mapKeyRangeLo + ":" + mapKeyRangeHi + "}.exists()")),
+            () -> assertEquals(10, countIntMapValueRangeMatches(
+                "$." + intMapBin + ".{=" + mapValueRangeLo + ":" + mapValueRangeHi + "}.exists()")));
     }
 
     /**
@@ -379,10 +382,12 @@ public class QueryPlannerCollectionCdtTest extends ClusterTest {
     @Test
     void executeCdtExistsWithoutForBinReturnsMatchingRows() {
         assertAll("cdtExistsExecute",
-            () -> assertEquals(10, countMapKeyMatches(mapKeysExistsWhere())),
-            () -> assertEquals(10, countMapValueMatches(mapValuesExistsWhere())),
-            () -> assertEquals(10, countListValueMatches(listValueExistsWhere())),
-            () -> assertEquals(size, countListIndexExistsMatches(listIndexExistsWhere())));
+            () -> assertEquals(10, countMapKeyMatches("$." + mapBin + "." + mapKey + ".exists()")),
+            () -> assertEquals(10, countMapValueMatches(
+                "$." + mapBin + ".{=" + mapValueTarget + "}.exists()")),
+            () -> assertEquals(10, countListValueMatches(
+                "$." + listStrBin + ".[=" + listStrTarget + "].exists()")),
+            () -> assertEquals(size, countListIndexExistsMatches("$." + listBin + ".[0].exists()")));
     }
 
     /**
@@ -391,8 +396,8 @@ public class QueryPlannerCollectionCdtTest extends ClusterTest {
      */
     @Test
     void planInListSelectsTopLevelAndNestedListIndexes() {
-        QueryPlan topLevel = plan(dataSet, topLevelInWhere());
-        QueryPlan nested = plan(dataSet, nestedInWhere());
+        QueryPlan topLevel = plan(dataSet, "'" + listStrTarget + "' in $." + listStrBin);
+        QueryPlan nested = plan(dataSet, "'" + nestedListTarget + "' in $." + nestedBin + "." + nestedListKey);
 
         assertAll("inListPlans",
             () -> assertCollectionPlan(topLevel, listStrIndex, IndexCollectionType.LIST),
@@ -406,11 +411,15 @@ public class QueryPlannerCollectionCdtTest extends ClusterTest {
      */
     @Test
     void planContainmentImplicationBoundaries() {
-        QueryPlan nestedExists = plan(dataSet, nestedExistsWhere());
-        QueryPlan positiveCount = plan(dataSet, intListCountWhere("> 0"));
-        QueryPlan reverseExists = plan(dataSet, "true == " + mapKeysExistsWhere());
-        QueryPlan zeroCount = plan(dataSet, intListCountWhere("== 0"));
-        QueryPlan falseExists = plan(dataSet, mapKeysExistsWhere() + " == false");
+        QueryPlan nestedExists = plan(dataSet,
+            "$." + nestedBin + "." + nestedListKey + ".[=" + nestedListTarget + "].exists()");
+        QueryPlan positiveCount = plan(dataSet,
+            "$." + intListBin + ".[=" + listRangeLo + ":" + listRangeHi + "].count() > 0");
+        QueryPlan reverseExists = plan(dataSet,
+            "true == $." + mapBin + "." + mapKey + ".exists()");
+        QueryPlan zeroCount = plan(dataSet,
+            "$." + intListBin + ".[=" + listRangeLo + ":" + listRangeHi + "].count() == 0");
+        QueryPlan falseExists = plan(dataSet, "$." + mapBin + "." + mapKey + ".exists() == false");
 
         assertAll("containmentBoundaries",
             () -> assertCollectionPlan(nestedExists, nestedListIndex, IndexCollectionType.LIST),
@@ -428,69 +437,20 @@ public class QueryPlannerCollectionCdtTest extends ClusterTest {
     @Test
     void executeInNestedAndCountPredicatesReturnGoldenRows() {
         assertAll("newCandidateRows",
-            () -> assertEquals(10, countMatches(topLevelInWhere(), listStrBin)),
-            () -> assertEquals(10, countMatches(nestedInWhere(), nestedBin)),
-            () -> assertEquals(10, countMatches(nestedExistsWhere(), nestedBin)),
-            () -> assertEquals(10, countMatches(intListCountWhere("> 0"), intListBin)),
-            () -> assertEquals(10, countMatches(intListCountWhere("== 0"), intListBin)),
-            () -> assertEquals(10, countMatches(mapKeysExistsWhere() + " == false", mapBin)));
-    }
-
-    private static String mapKeysExistsWhere() {
-        return "$." + mapBin + "." + mapKey + ".exists()";
-    }
-
-    private static String mapValuesExistsWhere() {
-        return "$." + mapBin + ".{=" + mapValueTarget + "}.exists()";
-    }
-
-    private static String listIndexExistsWhere() {
-        return "$." + listBin + ".[0].exists()";
-    }
-
-    private static String listValueExistsWhere() {
-        return "$." + listStrBin + ".[=" + listStrTarget + "].exists()";
-    }
-
-    private static String listValueRangeExistsWhere() {
-        return "$." + intListBin + ".[=" + listRangeLo + ":" + listRangeHi + "].exists()";
-    }
-
-    private static String topLevelInWhere() {
-        return "'" + listStrTarget + "' in $." + listStrBin;
-    }
-
-    private static String nestedInWhere() {
-        return "'" + nestedListTarget + "' in $." + nestedBin + "." + nestedListKey;
-    }
-
-    private static String nestedExistsWhere() {
-        return "$." + nestedBin + "." + nestedListKey + ".[=" + nestedListTarget + "].exists()";
-    }
-
-    /**
-     * {@code count()} needs a plural selector. A singular by-value selector ({@code [=v]}) is a
-     * scalar leaf, and {@code count()} on it is {@code OP_NOT_APPLICABLE} at execute time, so the
-     * interval form is the one that carries both a planner candidate and a usable predicate.
-     */
-    private static String intListCountWhere(String comparison) {
-        return "$." + intListBin + ".[=" + listRangeLo + ":" + listRangeHi + "].count() " + comparison;
-    }
-
-    private static String mapKeysRangeExistsWhere() {
-        return "$." + intMapBin + ".{@" + mapKeyRangeLo + ":" + mapKeyRangeHi + "}.exists()";
-    }
-
-    private static String mapValuesRangeExistsWhere() {
-        return "$." + intMapBin + ".{=" + mapValueRangeLo + ":" + mapValueRangeHi + "}.exists()";
-    }
-
-    private static String stringMapKeysRangeExistsWhere() {
-        return "$." + mapBin + ".{@" + strMapKeyRangeLo + ":" + strMapKeyRangeHi + "}.exists()";
-    }
-
-    private static String stringMapValuesRangeExistsWhere() {
-        return "$." + mapBin + ".{=" + strMapValueRangeLo + ":" + strMapValueRangeHi + "}.exists()";
+            () -> assertEquals(10, countMatches("'" + listStrTarget + "' in $." + listStrBin, listStrBin)),
+            () -> assertEquals(10, countMatches(
+                "'" + nestedListTarget + "' in $." + nestedBin + "." + nestedListKey, nestedBin)),
+            () -> assertEquals(10, countMatches(
+                "$." + nestedBin + "." + nestedListKey + ".[=" + nestedListTarget + "].exists()",
+                nestedBin)),
+            () -> assertEquals(10, countMatches(
+                "$." + intListBin + ".[=" + listRangeLo + ":" + listRangeHi + "].count() > 0",
+                intListBin)),
+            () -> assertEquals(10, countMatches(
+                "$." + intListBin + ".[=" + listRangeLo + ":" + listRangeHi + "].count() == 0",
+                intListBin)),
+            () -> assertEquals(10, countMatches(
+                "$." + mapBin + "." + mapKey + ".exists() == false", mapBin)));
     }
 
     private static int countRangeSelectorMatches(String where, String binName) {

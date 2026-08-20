@@ -31,8 +31,6 @@ import com.aerospike.client.sdk.command.ParticleType;
  */
 public final class IndexRangeWire {
 
-    private static final int GEO_REGION_DESCRIBE_MAX = 64;
-
     private IndexRangeWire() {
     }
 
@@ -120,24 +118,12 @@ public final class IndexRangeWire {
                 if (value == null) {
                     yield "invalid(geojson)";
                 }
-                yield "bin=" + binName + " region=" + abbreviateRegion(value.bytes)
-                    + " len=" + value.bytes.length;
+                String region = new String(value.bytes, StandardCharsets.UTF_8);
+                yield "bin=" + binName + " region=" + region + " len=" + value.bytes.length;
             }
             default -> "bin=" + binName + " ktype=" + ktype + " hex="
                 + Buffer.bytesToHexString(probeRangeBytes);
         };
-    }
-
-    /**
-     * Region text is abbreviated because a geo bound may be up to 1 MiB, unlike STRING/BLOB
-     * bounds, which the server caps at 2048.
-     */
-    private static String abbreviateRegion(byte[] region) {
-        String text = new String(region, StandardCharsets.UTF_8);
-        if (text.length() <= GEO_REGION_DESCRIBE_MAX) {
-            return text;
-        }
-        return text.substring(0, GEO_REGION_DESCRIBE_MAX) + "...";
     }
 
     private static BoundLong readIntegerBound(byte[] bytes, int offset) {
