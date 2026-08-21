@@ -20,8 +20,10 @@ import static com.aerospike.client.sdk.query.QuerySelectionIntegSupport.assumeQu
 import static com.aerospike.client.sdk.query.QuerySelectionIntegSupport.createIndexQuietly;
 import static com.aerospike.client.sdk.query.QuerySelectionIntegSupport.plan;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import org.junit.jupiter.api.AfterAll;
@@ -32,6 +34,7 @@ import com.aerospike.client.sdk.AerospikeException;
 import com.aerospike.client.sdk.ClusterTest;
 import com.aerospike.client.sdk.DataSet;
 import com.aerospike.client.sdk.ErrorDetailVerbosity;
+import com.aerospike.client.sdk.ExpressionTrace;
 import com.aerospike.client.sdk.ResultCode;
 import com.aerospike.client.sdk.Session;
 import com.aerospike.client.sdk.SubCode;
@@ -97,9 +100,13 @@ public class QuerySelectionErrorDetailTest extends ClusterTest {
 
         assertEquals(ResultCode.PARAMETER_ERROR, ae.getResultCode());
         assertEquals(SubCode.NONE, ae.getSubCode());
-        // TODO: server explain (field 44 EXPLAIN) should stage extended error details at
-        // verbosity 2 — message containing "invalid filter expression in query" plus AEL
-        // compile diagnostic (see AelErrorDetailVerbosityTest on non-explain paths).
+
+        String msg = ae.getBaseMessage();
+        assertNotNull(msg, "Expected server error message at verbosity 2");
+        assertTrue(msg.contains("invalid filter expression in query"),
+            "Expected query explain filter-build context in: " + msg);
+        assertTrue(msg.length() > "invalid filter expression in query".length(),
+            "Expected AEL compile diagnostic folded into message: " + msg);
     }
 
     @Test
@@ -112,8 +119,17 @@ public class QuerySelectionErrorDetailTest extends ClusterTest {
 
         assertEquals(ResultCode.PARAMETER_ERROR, ae.getResultCode());
         assertEquals(SubCode.NONE, ae.getSubCode());
-        // TODO: server explain should return ExpressionTrace (PHASE_BUILD, LANG_AEL) at
-        // verbosity 3 once query_plan stages as_exp_stage_build_error_details on AEL failure.
+
+        String msg = ae.getBaseMessage();
+        assertNotNull(msg, "Expected server error message at verbosity 3");
+        assertTrue(msg.contains("invalid filter expression in query"),
+            "Expected query explain filter-build context in: " + msg);
+
+        ExpressionTrace trace = ae.getExpressionTrace();
+        assertNotNull(trace, "Expected a non-null AEL build trace at verbosity 3");
+        assertEquals(ExpressionTrace.PHASE_BUILD, trace.getPhase());
+        assertEquals(ExpressionTrace.LANG_AEL, trace.getLang());
+        assertTrue(trace.getAelOffset() >= 0, "Expected AEL source offset in trace");
     }
 
     @Test
