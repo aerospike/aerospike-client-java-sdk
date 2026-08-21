@@ -113,6 +113,14 @@ public final class IndexRangeWire {
                 yield "bin=" + binName + " value=x'" + Buffer.bytesToHexString(value.bytes)
                     + "' len=" + value.bytes.length;
             }
+            case ParticleType.GEOJSON -> {
+                BoundBytes value = readBytesBound(probeRangeBytes, offset);
+                if (value == null) {
+                    yield "invalid(geojson)";
+                }
+                String region = new String(value.bytes, StandardCharsets.UTF_8);
+                yield "bin=" + binName + " region=" + region + " len=" + value.bytes.length;
+            }
             default -> "bin=" + binName + " ktype=" + ktype + " hex="
                 + Buffer.bytesToHexString(probeRangeBytes);
         };

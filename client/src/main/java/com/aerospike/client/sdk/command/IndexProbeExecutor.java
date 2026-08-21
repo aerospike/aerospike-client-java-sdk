@@ -73,6 +73,7 @@ public final class IndexProbeExecutor extends SyncExecutor {
         }
 
         if (rp.resultCode != ResultCode.OK && rp.resultCode != ResultCode.FILTERED_OUT) {
+            rp.parseFieldsError();
             throw rp.toException();
         }
 

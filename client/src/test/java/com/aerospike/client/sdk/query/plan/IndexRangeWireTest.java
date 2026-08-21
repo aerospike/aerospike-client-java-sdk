@@ -46,6 +46,15 @@ class IndexRangeWireTest {
     }
 
     @Test
+    void describeGeoRegion() {
+        String region = "{\"type\":\"Point\",\"coordinates\":[-122.0986857,37.4214209]}";
+        byte[] probe = geoProbeRangeWithBinName("loc", region);
+
+        assertEquals("bin=loc region=" + region + " len=" + region.length(),
+            IndexRangeWire.describeProbeRange(probe));
+    }
+
+    @Test
     void describeNullRange() {
         assertNull(IndexRangeWire.describeProbeRange(null));
     }
@@ -84,6 +93,14 @@ class IndexRangeWireTest {
 
     private static byte[] probeRangeWithBinName(String binName, String value) {
         Filter structured = Filter.equal(binName, value);
+        byte[] wireBody = new byte[1 + structured.estimateSize()];
+        wireBody[0] = 1;
+        structured.write(wireBody, 1);
+        return wireBody;
+    }
+
+    private static byte[] geoProbeRangeWithBinName(String binName, String region) {
+        Filter structured = Filter.geoWithinRegion(binName, region);
         byte[] wireBody = new byte[1 + structured.estimateSize()];
         wireBody[0] = 1;
         structured.write(wireBody, 1);

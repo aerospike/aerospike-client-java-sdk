@@ -19,169 +19,130 @@ package com.aerospike.client.sdk.query;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.function.Function;
+import java.util.stream.Stream;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import com.aerospike.client.sdk.policy.QueryDuration;
 
 /**
  * Tests for the {@link QueryHint} type-state API.
  *
- * <p>These tests validate both the runtime behaviour (correct values are captured)
- * and, by their existence, that the type-state transitions compile. Invalid transitions
- * (e.g. {@code forIndex().forBin()}) are enforced by the compiler and cannot be tested
- * at runtime.</p>
+ * <p>Invalid transitions (e.g. {@code forIndex().forBin()}) are enforced by the compiler and
+ * cannot be tested at runtime.</p>
  */
-public class QueryHintTest {
+class QueryHintTest {
 
-    // -- forIndex paths -------------------------------------------------------
+    @ParameterizedTest
+    @MethodSource("hintCaptureCases")
+    void hintCapturesConfiguredValues(
+        Function<QueryHint.Start, ? extends QueryHint.Result> configurator,
+        String indexName,
+        String binName,
+        QueryDuration duration,
+        Boolean allowScansWithWhere
+    ) {
+        QueryHint.Result result = configurator.apply(QueryHint.create());
 
-    @Test
-    public void forIndexOnly() {
-        QueryHint.Result result = apply(hint -> hint.forIndex("my_idx"));
-        assertEquals("my_idx", result.getIndexName());
-        assertNull(result.getBinName());
-        assertNull(result.getQueryDuration());
+        assertEquals(indexName, result.getIndexName());
+        assertEquals(binName, result.getBinName());
+        assertEquals(duration, result.getQueryDuration());
+        assertEquals(allowScansWithWhere, result.getAllowScansWithWhere());
+    }
+
+    @ParameterizedTest
+    @MethodSource("probeIndexNameCases")
+    void probeIndexNameHint(
+        Function<QueryHint.Start, ? extends QueryHint.Result> configurator,
+        String expected
+    ) {
+        QueryHint.Result result = configurator != null ? configurator.apply(QueryHint.create()) : null;
+        assertEquals(expected, IndexProbePlanner.indexNameHintForProbe(result));
     }
 
     @Test
-    public void forIndexThenQueryDuration() {
-        QueryHint.Result result = apply(hint ->
-            hint.forIndex("my_idx").queryDuration(QueryDuration.SHORT));
-        assertEquals("my_idx", result.getIndexName());
-        assertNull(result.getBinName());
-        assertEquals(QueryDuration.SHORT, result.getQueryDuration());
-    }
-
-    // -- forBin paths ---------------------------------------------------------
-
-    @Test
-    public void forBinOnly() {
-        QueryHint.Result result = apply(hint -> hint.forBin("age"));
-        assertNull(result.getIndexName());
-        assertEquals("age", result.getBinName());
-        assertNull(result.getQueryDuration());
-        assertNull(result.getAllowScansWithWhere());
-    }
-
-    @Test
-    public void forBinThenQueryDuration() {
-        QueryHint.Result result = apply(hint ->
-            hint.forBin("age").queryDuration(QueryDuration.LONG_RELAX_AP));
-        assertNull(result.getIndexName());
-        assertEquals("age", result.getBinName());
-        assertEquals(QueryDuration.LONG_RELAX_AP, result.getQueryDuration());
-    }
-
-    // -- queryDuration paths --------------------------------------------------
-
-    @Test
-    public void queryDurationOnly() {
-        QueryHint.Result result = apply(hint ->
-            hint.queryDuration(QueryDuration.SHORT)
-            .allowScansWithWhere()
-            );
-        assertNull(result.getIndexName());
-        assertNull(result.getBinName());
-        assertEquals(QueryDuration.SHORT, result.getQueryDuration());
-        assertEquals(true, result.getAllowScansWithWhere());
-    }
-
-    @Test
-    public void queryDurationThenForIndex() {
-        QueryHint.Result result = apply(hint ->
-            hint.queryDuration(QueryDuration.LONG).allowScansWithWhere().forIndex("idx_name"));
-        assertEquals("idx_name", result.getIndexName());
-        assertNull(result.getBinName());
-        assertEquals(QueryDuration.LONG, result.getQueryDuration());
-        assertEquals(true, result.getAllowScansWithWhere());
-    }
-
-    @Test
-    public void queryDurationThenForBin() {
-        QueryHint.Result result = apply(hint ->
-            hint.queryDuration(QueryDuration.SHORT).allowScansWithWhere().forBin("score")
-            );
-        assertNull(result.getIndexName());
-        assertEquals("score", result.getBinName());
-        assertEquals(QueryDuration.SHORT, result.getQueryDuration());
-        assertEquals(true, result.getAllowScansWithWhere());
-    }
-
-    // -- empty hint (no-op) ---------------------------------------------------
-
-    @Test
-    public void emptyHint() {
-        QueryHint.Result result = apply(hint -> hint);
-        assertNull(result.getIndexName());
-        assertNull(result.getBinName());
-        assertNull(result.getQueryDuration());
-        assertNull(result.getAllowScansWithWhere());
-    }
-
-    // -- probe path index-name hint -------------------------------------------
-
-    @Test
-    public void probeIndexNameHintUsesForIndex() {
-        QueryHint.Result result = apply(hint -> hint.forIndex("age_idx"));
-        assertEquals("age_idx", IndexProbePlanner.indexNameHintForProbe(result));
-    }
-
-    @Test
-    public void probeIndexNameHintIgnoresForBin() {
-        QueryHint.Result result = apply(hint -> hint.forBin("age"));
-        assertNull(IndexProbePlanner.indexNameHintForProbe(result));
-    }
-
-    @Test
-    public void probeIndexNameHintIgnoresBlankForIndex() {
-        QueryHint.Result result = apply(hint -> hint.forIndex("  "));
-        assertNull(IndexProbePlanner.indexNameHintForProbe(result));
-    }
-
-    @Test
-    public void probeIndexNameHintNullWhenNoHint() {
-        assertNull(IndexProbePlanner.indexNameHintForProbe(null));
-    }
-
-    @Test
-    public void requireIndexOnly() {
-        QueryHint.Result result = apply(hint -> hint.disallowScansWithWhere());
-        assertNull(result.getAllowScansWithWhere());
+    void disallowScansWithWhereOnly() {
+        QueryHint.Result result = QueryHint.create().disallowScansWithWhere();
+        assertEquals(false, result.getAllowScansWithWhere());
         assertFalse(result.isHardHint());
     }
 
     @Test
-    public void forIndexThenHardHint() {
-        QueryHint.Result result = apply(hint -> hint.forIndex("my_idx").hardHint());
+    void forIndexThenHardHint() {
+        QueryHint.Result result = QueryHint.create().forIndex("my_idx").hardHint();
         assertEquals("my_idx", result.getIndexName());
         assertTrue(result.isHardHint());
         assertNull(result.getAllowScansWithWhere());
     }
 
     @Test
-    public void requireIndexForIndexHardHint() {
-        QueryHint.Result result = apply(hint ->
-            hint.disallowScansWithWhere().forIndex("my_idx").hardHint());
-        assertNull(result.getAllowScansWithWhere());
+    void disallowScansWithWhereForIndexHardHint() {
+        QueryHint.Result result = QueryHint.create()
+            .disallowScansWithWhere().forIndex("my_idx").hardHint();
+        assertEquals(false, result.getAllowScansWithWhere());
         assertTrue(result.isHardHint());
         assertEquals("my_idx", result.getIndexName());
     }
 
     @Test
-    public void hardHintWithoutForIndexThrows() {
-        org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class,
-            () -> apply(hint -> hint.queryDuration(QueryDuration.SHORT).forIndex("  ").hardHint()));
+    void hardHintWithoutForIndexThrows() {
+        assertThrows(IllegalArgumentException.class, () ->
+            QueryHint.create().queryDuration(QueryDuration.SHORT).forIndex("  ").hardHint());
     }
 
-    // -- helper ---------------------------------------------------------------
+    private static Stream<Arguments> hintCaptureCases() {
+        return Stream.of(
+            Arguments.of(
+                (Function<QueryHint.Start, QueryHint.Result>) hint -> hint.forIndex("my_idx"),
+                "my_idx", null, null, null),
+            Arguments.of(
+                (Function<QueryHint.Start, QueryHint.Result>) hint ->
+                    hint.forIndex("my_idx").queryDuration(QueryDuration.SHORT),
+                "my_idx", null, QueryDuration.SHORT, null),
+            Arguments.of(
+                (Function<QueryHint.Start, QueryHint.Result>) hint -> hint.forBin("age"),
+                null, "age", null, null),
+            Arguments.of(
+                (Function<QueryHint.Start, QueryHint.Result>) hint ->
+                    hint.forBin("age").queryDuration(QueryDuration.LONG_RELAX_AP),
+                null, "age", QueryDuration.LONG_RELAX_AP, null),
+            Arguments.of(
+                (Function<QueryHint.Start, QueryHint.Result>) hint ->
+                    hint.queryDuration(QueryDuration.SHORT).allowScansWithWhere(),
+                null, null, QueryDuration.SHORT, true),
+            Arguments.of(
+                (Function<QueryHint.Start, QueryHint.Result>) hint ->
+                    hint.queryDuration(QueryDuration.LONG).allowScansWithWhere().forIndex("idx_name"),
+                "idx_name", null, QueryDuration.LONG, true),
+            Arguments.of(
+                (Function<QueryHint.Start, QueryHint.Result>) hint ->
+                    hint.queryDuration(QueryDuration.SHORT).allowScansWithWhere().forBin("score"),
+                null, "score", QueryDuration.SHORT, true),
+            Arguments.of(
+                (Function<QueryHint.Start, QueryHint.Result>) hint -> hint,
+                null, null, null, null)
+        );
+    }
 
-    private static QueryHint.Result apply(
-            Function<QueryHint.Start, ? extends QueryHint.Result> configurator) {
-        QueryHint.Start start = QueryHint.create();
-        return configurator.apply(start);
+    private static Stream<Arguments> probeIndexNameCases() {
+        return Stream.of(
+            Arguments.of(
+                (Function<QueryHint.Start, QueryHint.Result>) hint -> hint.forIndex("age_idx"),
+                "age_idx"),
+            Arguments.of(
+                (Function<QueryHint.Start, QueryHint.Result>) hint -> hint.forBin("age"),
+                null),
+            Arguments.of(
+                (Function<QueryHint.Start, QueryHint.Result>) hint -> hint.forIndex("  "),
+                null),
+            Arguments.of(null, null)
+        );
     }
 }
