@@ -31,7 +31,7 @@ import com.aerospike.client.sdk.query.PreparedAel;
 /**
  * Unit tests for fluent CDT path context assembly and unsupported AEL path overloads (no server required).
  */
-public class CdtPathExpressionFluentTest {
+class CdtPathExpressionFluentTest {
 
     @Test
     void finishPathRequiresEachChild() {
