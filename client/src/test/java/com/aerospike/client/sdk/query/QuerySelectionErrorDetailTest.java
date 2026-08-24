@@ -20,10 +20,13 @@ import static com.aerospike.client.sdk.query.QuerySelectionIntegSupport.assumeQu
 import static com.aerospike.client.sdk.query.QuerySelectionIntegSupport.createIndexQuietly;
 import static com.aerospike.client.sdk.query.QuerySelectionIntegSupport.plan;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
+import com.aerospike.client.sdk.ExpressionTrace;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
