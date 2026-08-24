@@ -1953,6 +1953,54 @@ public class Session {
     }
 
     /**
+     * Create an expression-based secondary index from an AEL (Aerospike Expression Language)
+     * string. The AEL text is compiled by the server, so the cluster must support server-side
+     * AEL parsing (see {@link Cluster#supportsAel()}, which requires server version 8.1.3 or
+     * newer).
+     * This asynchronous server call will return before command is complete.
+     * The user can optionally wait for command completion by using the returned
+     * IndexTask instance.
+     *
+     * <p>This is the AEL equivalent of
+     * {@link #createIndex(DataSet, String, IndexType, IndexCollectionType, Expression)}. The
+     * expression is evaluated against every record in the set and the resulting value, which
+     * must match {@code indexType}, becomes the indexed value. A record whose expression
+     * evaluates to {@code unknown} (equivalently {@code error}) is left out of the index, which
+     * is how a sparse index over a subset of the set is built.</p>
+     *
+     * <p>Example:</p>
+     * <pre>{@code
+     * // Index adults living in a target country on their age; skip every other record.
+     * // IF (age >= 18 AND country IN ["Australia", "Canada", "USA"]) THEN age ELSE unknown
+     * String ael =
+     *     "when ($.age >= 18 and $.country in ['Australia', 'Canada', 'USA'] => $.age, " +
+     *     "default => unknown)";
+     *
+     * session.createIndex(dataSet, indexName, IndexType.INTEGER, IndexCollectionType.DEFAULT, ael)
+     *     .waitTillComplete();
+     * }</pre>
+     *
+     * @param set                   dataSet containing namespace and set information
+     * @param indexName             name of secondary index
+     * @param indexType             underlying data type of the value produced by the expression
+     * @param indexCollectionType   index collection type
+     * @param aelString             AEL expression on which to build the index
+     * @return task that can be polled for index build completion
+     * @throws AerospikeException   if aelString is null or if index create fails
+     * @see #createIndex(DataSet, String, IndexType, IndexCollectionType, Expression)
+     */
+    public final IndexTask createIndex(
+        DataSet set,
+        String indexName,
+        IndexType indexType,
+        IndexCollectionType indexCollectionType,
+        String aelString
+    ) {
+        Expression exp = Expression.fromServerCompiledFilter(aelString);
+        return createIndex(set, indexName, indexType, indexCollectionType, exp);
+    }
+
+    /**
      * Create an expression-based secondary index with the provided index collection type
      * This asynchronous server call will return before command is complete.
      * The user can optionally wait for command completion by using the returned
@@ -2137,6 +2185,19 @@ public class Session {
         CTX... ctx
     ) {
         return createIndex(set.asDataSet(), indexName, binName, indexType, indexCollectionType, ctx);
+    }
+
+    /**
+     * @see #createIndex(DataSet, String, IndexType, IndexCollectionType, String)
+     */
+    public final IndexTask createIndex(
+        TypedDataSet<?> set,
+        String indexName,
+        IndexType indexType,
+        IndexCollectionType indexCollectionType,
+        String aelString
+    ) {
+        return createIndex(set.asDataSet(), indexName, indexType, indexCollectionType, aelString);
     }
 
     /**
