@@ -25,7 +25,6 @@ import org.junit.platform.suite.api.Suite;
 
 import com.aerospike.client.sdk.policy.Behavior;
 import com.aerospike.client.sdk.policy.Behavior.Selectors;
-import com.aerospike.client.sdk.query.AelBuilderIntegrationTest;
 import com.aerospike.client.sdk.query.ExpSecondaryIndexTest;
 import com.aerospike.client.sdk.query.QueryBlobTest;
 import com.aerospike.client.sdk.query.QueryCollectionTest;
@@ -86,7 +85,6 @@ import com.aerospike.client.sdk.query.QueryStringTest;
     TxnTest.class,
     UdfTest.class,
     // Query
-    AelBuilderIntegrationTest.class,
     ExpSecondaryIndexTest.class,
     QueryBlobTest.class,
     QueryCollectionTest.class,
