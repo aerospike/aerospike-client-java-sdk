@@ -42,7 +42,7 @@ public class ClusterTend implements Runnable {
 
     private final Cluster cluster;
     private final ClusterDefinition def;
-    private Thread tendThread;
+    private volatile Thread tendThread;
     final HashMap<String,Node> nodesMap;
     private final ConcurrentLinkedDeque<ConnectionRecover> recoverQueue;
     private final AtomicInteger recoverCount;
@@ -702,6 +702,19 @@ public class ClusterTend implements Runnable {
     public final void close() {
         // Stop cluster tend thread.
         valid = false;
-        tendThread.interrupt();
+        Thread thread = tendThread;
+        if (thread == null) {
+            return;
+        }
+        thread.interrupt();
+        if (!thread.isAlive()) {
+            return;
+        }
+        try {
+            thread.join((long) def.getTendInterval() + def.getTendTimeout());
+        }
+        catch (InterruptedException ie) {
+            Thread.currentThread().interrupt();
+        }
     }
 }
