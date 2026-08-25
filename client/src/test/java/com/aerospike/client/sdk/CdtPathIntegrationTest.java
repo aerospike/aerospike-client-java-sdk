@@ -64,8 +64,20 @@ class CdtPathIntegrationTest extends ClusterTest {
             "CDT path ops require server version 8.1.1+");
     }
 
+    /** {@code mapKeysIn} / {@code andFilter} CTX entries require server 8.1.2+ (see CdtExpTest). */
+    private static void assumeMapKeysInAndFilterContexts() {
+        Assumptions.assumeTrue(
+            cluster.getRandomNode().getVersion().isGreaterOrEqual(8, 1, 2, 0),
+            "mapKeysIn/andFilter CTX ops require server version 8.1.2+");
+    }
+
     @Nested
     class SelectMapKeysIn {
+
+        @BeforeEach
+        void requireMapKeysInServer() {
+            assumeMapKeysInAndFilterContexts();
+        }
 
         @ParameterizedTest(name = "{0}")
         @MethodSource("com.aerospike.client.sdk.CdtPathIntegrationTest#mapKeysInCases")
@@ -245,6 +257,8 @@ class CdtPathIntegrationTest extends ClusterTest {
 
         @BeforeEach
         void seed() {
+            assumeMapKeysInAndFilterContexts();
+
             key = args.set.id("cdtPathAndFilterFirst");
             session.delete(key).execute();
             session.upsert(key).bin(BIN).setTo(Map.of("a", 1)).execute();
@@ -298,6 +312,8 @@ class CdtPathIntegrationTest extends ClusterTest {
 
         @BeforeEach
         void seed() {
+            assumeMapKeysInAndFilterContexts();
+
             key = args.set.id("cdtPathAndFilterChained");
             session.delete(key).execute();
             session.upsert(key).bin(BIN).setTo(Map.of("a", 5, "b", 15, "c", 25)).execute();
