@@ -20,7 +20,6 @@ import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -34,6 +33,8 @@ import com.aerospike.client.sdk.ResultCode;
 import com.aerospike.client.sdk.Session;
 import com.aerospike.client.sdk.cdt.CTX;
 import com.aerospike.client.sdk.exp.Expression;
+import com.aerospike.client.sdk.junit.ServerFeature;
+import com.aerospike.client.sdk.junit.ServerFeatureSupport;
 import com.aerospike.client.sdk.query.plan.QueryPlan;
 import com.aerospike.client.sdk.query.plan.QuerySelection;
 
@@ -75,8 +76,7 @@ final class QuerySelectionIntegSupport {
     }
 
     static void assumeQuerySelection() {
-        assumeTrue(ClusterTest.cluster.supportsQuerySelection(),
-            "server does not support query selection");
+        ServerFeatureSupport.assume(ServerFeature.QUERY_SELECTION);
     }
 
     static QueryPlan plan(DataSet dataSet, String where) {

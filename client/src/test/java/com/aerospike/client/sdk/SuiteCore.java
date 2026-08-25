@@ -36,6 +36,7 @@ import com.aerospike.client.sdk.policy.SystemBehaviorTest;
     CdtPathOperationTest.class,
     CtxSerdeTest.class,
     QueryProducerCancellationTest.class,
+    StringApiPackagingTest.class,
     SystemBehaviorTest.class,
 })
 public class SuiteCore {
