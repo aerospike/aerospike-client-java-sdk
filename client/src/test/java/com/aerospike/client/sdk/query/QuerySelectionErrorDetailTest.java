@@ -24,7 +24,6 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import com.aerospike.client.sdk.ExpressionTrace;
 import org.junit.jupiter.api.AfterAll;
@@ -64,10 +63,7 @@ public class QuerySelectionErrorDetailTest extends ClusterTest {
 
     @BeforeAll
     static void prepare() {
-        assumeTrue(args.serverVersion.isGreaterOrEqual(8, 1, 3, 0),
-            "Extended error-detail requires server version 8.1.3 or later");
         assumeQuerySelection();
-
         dataSet = DataSet.of(args.namespace, setName);
 
         session.delete(dataSet.ids(keyPrefix + "1"));

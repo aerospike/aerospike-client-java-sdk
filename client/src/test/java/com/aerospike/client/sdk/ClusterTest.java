@@ -17,14 +17,16 @@
 package com.aerospike.client.sdk;
 
 import java.io.File;
+import java.util.Arrays;
 
 import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 
 import com.aerospike.client.sdk.policy.Behavior;
 import com.aerospike.client.sdk.policy.Behavior.Selectors;
+import com.aerospike.client.sdk.junit.ServerFeature;
+import com.aerospike.client.sdk.junit.ServerFeatureSupport;
 import com.aerospike.client.sdk.util.Util;
 import com.aerospike.client.sdk.util.Version;
 
@@ -158,14 +160,63 @@ public class ClusterTest {
         return file.getAbsolutePath();
     }
 
-    /** For {@code @EnabledIf} on test classes that require AEL (8.1.3+). */
+    /**
+     * For {@code @EnabledIf} on test classes that require AEL (8.1.3+).
+     *
+     * <p>Prefer {@link com.aerospike.client.sdk.junit.RequiresServerFeature} on the test
+     * class or nested class instead: {@code @EnabledIf} is evaluated before {@code @BeforeAll},
+     * so with {@code cluster} still null it disables the entire class rather than skipping it.</p>
+     */
     public static boolean supportsAel() {
         return cluster != null && cluster.supportsAel();
     }
 
+    /** For {@code @EnabledIf} on test classes that require string operations (8.1.3+). */
+    public static boolean supportsStringOperations() {
+        return cluster != null && cluster.supportsStringOperations();
+    }
+
     /** Skip when the cluster minimum version is below {@link Version#SERVER_VERSION_8_1_3}. */
     protected static void assumeSupportsAel() {
-        Assumptions.assumeTrue(supportsAel(),
-            "server does not support AEL (requires " + Version.SERVER_VERSION_8_1_3 + "+)");
+        ServerFeatureSupport.assume(ServerFeature.AEL);
+    }
+
+    /** Skip when the cluster does not support string read/write operations (8.1.3+). */
+    protected static void assumeSupportsStringOps() {
+        ServerFeatureSupport.assume(ServerFeature.STRING_OPS);
+    }
+
+    /** Skip when extended error-detail verbosity is unavailable (8.1.3+). */
+    protected static void assumeExtendedErrorDetail() {
+        ServerFeatureSupport.assume(ServerFeature.EXTENDED_ERROR_DETAIL);
+    }
+
+    /** Delete test keys before seeding so a prior run cannot leave unexpected bins. */
+    protected void deleteTestKeys(Key... keys) {
+        if (keys.length == 0) {
+            return;
+        }
+        ChainableNoBinsBuilder d = session.delete(Arrays.asList(keys));
+        if (args.scMode) {
+            d = d.withDurableDelete();
+        }
+        d.execute();
+    }
+
+    /** Return a key with no prior record state in the namespace set. */
+    protected Key freshKey(String id) {
+        Key key = args.set.id(id);
+        deleteTestKeys(key);
+        return key;
+    }
+
+    /** Count records consumed from a query stream (does not close the stream). */
+    protected static int countResults(RecordStream rs) {
+        int count = 0;
+        while (rs.hasNext()) {
+            rs.next();
+            count++;
+        }
+        return count;
     }
 }

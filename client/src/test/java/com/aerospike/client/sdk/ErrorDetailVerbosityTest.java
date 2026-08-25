@@ -28,7 +28,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
@@ -38,7 +37,10 @@ import com.aerospike.client.sdk.policy.Behavior.OpKind;
 import com.aerospike.client.sdk.policy.Behavior.OpShape;
 import com.aerospike.client.sdk.policy.Behavior.Selectors;
 import com.aerospike.client.sdk.policy.ResolvedSettings;
+import com.aerospike.client.sdk.junit.RequiresServerFeature;
+import com.aerospike.client.sdk.junit.ServerFeature;
 
+@RequiresServerFeature(ServerFeature.EXTENDED_ERROR_DETAIL)
 public class ErrorDetailVerbosityTest extends ClusterTest {
     private static final String binName = "edv-bin";
     private static Key intKey;
@@ -47,9 +49,6 @@ public class ErrorDetailVerbosityTest extends ClusterTest {
 
     @BeforeAll
     public static void setup() {
-        Assumptions.assumeTrue(args.serverVersion.isGreaterOrEqual(8, 1, 3, 0),
-            "Extended error-detail requires server version 8.1.3 or later");
-
         intKey = args.set.id("edv-int-key");
         strKey = args.set.id("edv-str-key");
         listKey = args.set.id("edv-list-key");

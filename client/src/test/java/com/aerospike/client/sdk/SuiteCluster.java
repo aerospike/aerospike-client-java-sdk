@@ -73,6 +73,7 @@ import com.aerospike.client.sdk.query.QueryStringTest;
     OperateHllTest.class,
     OperateListTest.class,
     OperateMapTest.class,
+    OperateStringTest.class,
     OperateTest.class,
     OpTypeTest.class,
     PutGetTest.class,

@@ -663,7 +663,7 @@ public class BatchTest extends ClusterTest {
         assertEquals(ResultCode.PARAMETER_ERROR, res.getResultCode());
         assertEquals(SubCode.NONE, res.getSubCode());
 
-        if (args.serverVersion.isGreaterOrEqual(Version.SERVER_VERSION_8_1_3)) {
+        if (supportsAel()) {
             assertNotNull(res.getMessage());
             assertNotNull(res.getExpressionTrace());
         }
