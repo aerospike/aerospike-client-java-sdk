@@ -133,6 +133,8 @@ public class ExpSecondaryIndexTest extends ClusterTest {
 
     @Test
     public void createAelSI() {
+        assumeSupportsAel();
+
         addAelSI();
         String indices = getSecondaryIndices();
         assertTrue(indices.contains("indexname=" + indexNameAel));
