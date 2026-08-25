@@ -32,6 +32,9 @@ import com.aerospike.client.sdk.policy.SystemBehaviorTest;
     BehaviorFileMonitorRestartTest.class,
     BehaviorTest.class,
     BehaviorYamlTest.class,
+    CdtPathExpressionFluentTest.class,
+    CdtPathOperationTest.class,
+    CtxSerdeTest.class,
     QueryProducerCancellationTest.class,
     SystemBehaviorTest.class,
 })

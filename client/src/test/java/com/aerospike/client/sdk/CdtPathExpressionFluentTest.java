@@ -29,7 +29,7 @@ import com.aerospike.client.sdk.exp.LoopVarPart;
 import com.aerospike.client.sdk.query.PreparedAel;
 
 /**
- * Unit tests for fluent CDT path helpers (no server required).
+ * Unit tests for fluent CDT path context assembly and unsupported AEL path overloads (no server required).
  */
 class CdtPathExpressionFluentTest {
 

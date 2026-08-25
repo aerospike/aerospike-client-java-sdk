@@ -582,10 +582,19 @@ public final class Pack {
 
     public static byte[] pack(int command, int v1, Expression expression) {
         Packer packer = new Packer();
+        byte[] expressionBytes = expression.getBytes();
+
         packer.packArrayBegin(3);
         packer.packInt(command);
         packer.packInt(v1);
-        packer.packByteArray(expression.getBytes(), 0, expression.getBytes().length);
+        packer.packByteArray(expressionBytes, 0, expressionBytes.length);
+
+        packer.createBuffer();
+
+        packer.packArrayBegin(3);
+        packer.packInt(command);
+        packer.packInt(v1);
+        packer.packByteArray(expressionBytes, 0, expressionBytes.length);
 
         return packer.getBuffer();
     }
