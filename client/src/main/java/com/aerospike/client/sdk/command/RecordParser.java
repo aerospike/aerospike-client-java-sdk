@@ -405,16 +405,9 @@ public final class RecordParser {
             subCode = (int)subcode;
         }
 
-        if (message != null && subcode >= 0) {
-            return message + " (subcode=" + subcode + ")";
-        }
-        else if (subcode >= 0) {
-            return "error subcode=" + subcode;
-        }
-        else if (message != null) {
-            return message;
-        }
-        return null;
+        // The message is returned verbatim. The subcode travels on its own field and
+        // is rendered by AerospikeException.getMessage(), alongside the result code.
+        return message;
     }
 
     private ExpressionTrace parseExpTrace(int offset, int end) {
