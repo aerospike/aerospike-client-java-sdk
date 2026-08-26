@@ -34,7 +34,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import com.aerospike.client.sdk.AerospikeException;
@@ -56,8 +55,8 @@ import com.aerospike.client.sdk.query.QuerySelectionIntegSupport.Fixture;
  * actually async on the dataset path; {@link QueryBuilder#getTxnToUse()} is never read by
  * {@link IndexQueryBuilderImpl}.</p>
  *
- * <p>{@link #chunkedExecuteWithErrorHandlerPaginatesEntireSet()} is expected to fail: on a chunked
- * query, {@code execute(ErrorHandler)} truncates the result set to the first chunk.</p>
+ * <p>The chunked-pagination tests guard CLIENT-5352, where {@code execute(ErrorHandler)} truncated
+ * a chunked result set to the first chunk.</p>
  */
 public class QueryBuilderExecutePathTest extends ClusterTest {
     private static final Fixture FIXTURE = Fixture.forSuffix("qbexec");
@@ -245,18 +244,16 @@ public class QueryBuilderExecutePathTest extends ClusterTest {
     }
 
     /**
-     * Expected to fail. {@code IndexQueryBuilderImpl.execute(ErrorHandler)} wraps the stream in
-     * {@code AbstractFilterableBuilder.filterStreamErrors}, which drains the source with
-     * {@code forEach} — that only walks the current chunk — and returns a stream over the buffered
-     * list. The {@code ChunkedRecordStream} is discarded, so the caller cannot reach the remaining
-     * chunks and silently receives {@code chunkSize} rows instead of the full set.
+     * Regression for CLIENT-5352. {@code execute(ErrorHandler)} used to post-filter through
+     * {@code filterStreamErrors}, which drained the source with {@code forEach} — only ever the
+     * current chunk — and returned a stream over the buffered list, discarding the
+     * {@code ChunkedRecordStream} along with the command needed for later chunks. The caller
+     * silently got {@code chunkSize} rows in a single chunk instead of the full set.
      *
-     * <p>Compare {@link #chunkedExecutePaginatesEntireSet()} (no handler, correct) and
-     * {@link #chunkedExecuteAsyncWithErrorHandlerPaginatesEntireSet()} (handler installed on the
-     * stream rather than post-filtered, correct). The only difference is the wrapper.</p>
+     * <p>The chunk-count assertion is what pins the regression: the buffered replacement stream
+     * reports exactly one chunk, so attaching a handler must not collapse pagination.</p>
      */
     @Test
-    @Disabled("Pending fix")
     void chunkedExecuteWithErrorHandlerPaginatesEntireSet() {
         AtomicInteger handled = new AtomicInteger();
         ChunkDrain drain = drainAllChunks(
@@ -264,12 +261,15 @@ public class QueryBuilderExecutePathTest extends ClusterTest {
 
         assertAll(
             () -> assertEquals(0, handled.get(), "no row in the fixture fails"),
-            () -> assertEquals(RECORD_COUNT, drain.records()));
+            () -> assertEquals(RECORD_COUNT, drain.records()),
+            () -> assertTrue(drain.chunks() > 1,
+                "attaching an ErrorHandler must not collapse the query into one chunk"));
     }
 
     /**
-     * Contrast: {@code executeAsync(ErrorHandler)} installs the handler on the stream via
-     * {@code executeInternal(handler)} instead of post-filtering it, so chunked pagination survives.
+     * {@code executeAsync(ErrorHandler)} always installed the handler on the stream rather than
+     * post-filtering it, so it paginated correctly even before CLIENT-5352. Kept as the contrast
+     * case: both overloads now take the same path and must agree.
      */
     @Test
     void chunkedExecuteAsyncWithErrorHandlerPaginatesEntireSet() {
@@ -279,7 +279,35 @@ public class QueryBuilderExecutePathTest extends ClusterTest {
 
         assertAll(
             () -> assertEquals(0, handled.get(), "no row in the fixture fails"),
-            () -> assertEquals(RECORD_COUNT, drain.records()));
+            () -> assertEquals(RECORD_COUNT, drain.records()),
+            () -> assertTrue(drain.chunks() > 1,
+                "attaching an ErrorHandler must not collapse the query into one chunk"));
+    }
+
+    /**
+     * The unchunked {@code execute(ErrorHandler)} path also changed shape under CLIENT-5352: it no
+     * longer drains into an intermediate list, so errors are routed as records are published rather
+     * than eagerly before the call returns. The full result set must still arrive.
+     */
+    @Test
+    void unchunkedExecuteWithErrorHandlerYieldsEntireSet() {
+        AtomicInteger handled = new AtomicInteger();
+        int records = 0;
+
+        try (RecordStream rs = session.query(dataSet)
+                .readingOnlyBins(AGE_BIN)
+                .where(ALL_AGES_WHERE)
+                .execute((key, index, ex) -> handled.incrementAndGet())) {
+            while (rs.hasNext()) {
+                rs.next().recordOrThrow();
+                records++;
+            }
+        }
+
+        int total = records;
+        assertAll(
+            () -> assertEquals(0, handled.get(), "no row in the fixture fails"),
+            () -> assertEquals(RECORD_COUNT, total));
     }
 
     // ---------------------------------------------------------------- transaction mode conflicts

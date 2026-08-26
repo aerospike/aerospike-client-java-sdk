@@ -181,11 +181,26 @@ public class RecordStream implements Iterator<RecordResult>, Closeable {
      * @param recordQueueSize async queue capacity per chunk
      */
     public RecordStream(AsyncRecordStream stream, QueryCommand cmd, long limit, int recordQueueSize) {
+        this(stream, cmd, limit, recordQueueSize, null);
+    }
+
+    /**
+     * Creates a RecordStream for index/scan queries with server-side chunking, routing per-record
+     * errors to {@code errorHandler} on every chunk.
+     *
+     * @param stream first-chunk async buffer (see {@link ChunkedRecordStream})
+     * @param cmd query command used to load each chunk
+     * @param limit maximum records to yield; non-positive values are treated as unbounded
+     * @param recordQueueSize async queue capacity per chunk
+     * @param errorHandler handler for per-record errors, or {@code null} to leave them in the stream
+     */
+    public RecordStream(AsyncRecordStream stream, QueryCommand cmd, long limit, int recordQueueSize,
+                        ErrorHandler errorHandler) {
         if (limit <= 0) {
             limit = Long.MAX_VALUE;
         }
 
-        impl = new ChunkedRecordStream(stream, cmd, limit, recordQueueSize);
+        impl = new ChunkedRecordStream(stream, cmd, limit, recordQueueSize, errorHandler);
     }
 
     /**

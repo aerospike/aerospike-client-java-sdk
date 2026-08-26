@@ -16,7 +16,6 @@
  */
 package com.aerospike.client.sdk;
 
-import java.util.ArrayList;
 import java.util.List;
 
 import com.aerospike.client.sdk.command.BatchRecord;
@@ -143,22 +142,6 @@ public abstract class AbstractFilterableBuilder {
         } else {
             stream.publish(result);
         }
-    }
-
-    /**
-     * Synchronously filter a RecordStream, dispatching errors to the handler
-     * and returning a new stream containing only successful results.
-     */
-    public static RecordStream filterStreamErrors(RecordStream source, ErrorHandler handler) {
-        List<RecordResult> filtered = new ArrayList<>();
-        source.forEach(result -> {
-            if (isActionableError(result.getResultCode())) {
-                dispatchError(result, handler);
-            } else {
-                filtered.add(result);
-            }
-        });
-        return new RecordStream(filtered, 0);
     }
 
     static void dispatchError(RecordResult result, ErrorHandler handler) {
