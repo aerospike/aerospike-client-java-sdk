@@ -42,7 +42,10 @@ package com.aerospike.client.sdk;
  * branch had no dispatchable subcode).
  * <p>
  * This catalogue mirrors the server's per-status enums in
- * {@code as/include/base/proto.h} and is server-version-specific. It is append-only:
+ * {@code as/include/base/proto.h} and is server-version-specific. It is pinned to
+ * server master as of 2026-08-21 (39 subcodes); no released server version carries
+ * the feature yet, so the pin advances to a release number once one ships. Re-verify
+ * this catalogue against {@code proto.h} at every client release. It is append-only:
  * published values are immutable and are never renumbered or reused. New failure modes
  * get new values appended to their group. Treat any subcode value not declared here as
  * an opaque integer rather than assuming it is absent.
@@ -89,6 +92,14 @@ public final class SubCode {
 
     /** String or string op argument is not valid UTF-8. */
     public static final int PARAM_STRING_UTF8_INVALID = 11;
+
+    // 12 is reserved server-side for a regex-limit subcode still in review.
+
+    /**
+     * String is not valid base64 — a length that is not a multiple of 4, a character
+     * outside the alphabet, or misplaced {@code '='} padding.
+     */
+    public static final int OPNOT_STRING_B64_INVALID = 13;
 
     //-------------------------------------------------------
     // Pairs with ResultCode.PARTITION_UNAVAILABLE (11)  [AS_ERR_UNAVAILABLE]

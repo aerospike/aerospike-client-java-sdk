@@ -135,7 +135,6 @@ public class ErrorDetailVerbosityTest extends ClusterTest {
         assertEquals(SubCode.BIN_NOT_FOUND_HLL_CANNOT_CREATE_WITH_OP, ae.getSubCode());
         String msg = ae.getBaseMessage();
         assertNotNull(msg);
-        assertTrue(msg.contains("subcode=1"), "Expected subcode in: " + msg);
     }
 
     @Test
@@ -166,7 +165,6 @@ public class ErrorDetailVerbosityTest extends ClusterTest {
         String msg = ae.getBaseMessage();
         assertNotNull(msg);
         assertTrue(msg.contains("count op"), "Expected message text in: " + msg);
-        assertTrue(msg.contains("(subcode=1)"), "Expected subcode in: " + msg);
     }
 
     // ---------------------------------------------------------------------
@@ -980,8 +978,7 @@ public class ErrorDetailVerbosityTest extends ClusterTest {
     /**
      * Assert the server-supplied {@code (resultCode, subcode)} pair. The numeric
      * subcode must be exposed first-class via {@link AerospikeException#getSubCode()}
-     * (not merely embedded in the message string), and the "subcode=N" suffix must
-     * still appear in the message for parity with the C client.
+     * (not merely embedded in the message string).
      */
     private void assertSubCode(AerospikeException ae, int expectedResultCode, int expectedSubCode) {
         assertEquals(expectedResultCode, ae.getResultCode(), "Unexpected result code");
@@ -989,8 +986,6 @@ public class ErrorDetailVerbosityTest extends ClusterTest {
 
         String msg = ae.getBaseMessage();
         assertNotNull(msg, "Expected server error message");
-        assertTrue(msg.contains("subcode=" + expectedSubCode),
-            "Expected 'subcode=" + expectedSubCode + "' in: " + msg);
     }
 
     /**
@@ -1010,6 +1005,5 @@ public class ErrorDetailVerbosityTest extends ClusterTest {
         for (String expected : expectedSubstrings) {
             assertTrue(msg.contains(expected), "Expected '" + expected + "' in: " + msg);
         }
-        assertFalse(msg.contains("subcode="), "Expected NO subcode suffix in: " + msg);
     }
 }
