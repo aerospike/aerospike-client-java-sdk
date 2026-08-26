@@ -28,7 +28,7 @@ import org.junit.jupiter.api.Test;
 
 import com.aerospike.client.sdk.AerospikeComparator;
 
-class AelPlaceholderBinderTest {
+public class AelPlaceholderBinderTest {
 
     @Test
     void bindSubstitutesInOrder() {

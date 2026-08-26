@@ -38,7 +38,7 @@ import com.aerospike.client.sdk.query.plan.QueryWhereWire;
  * wire flags and successful index selection. Explain-time failures ({@code INDEX_NOTFOUND},
  * {@code PARAMETER_ERROR}) are covered by {@link QuerySelectionErrorDetailTest}.
  */
-class QuerySelectionHintFlagsTest extends ClusterTest {
+public class QuerySelectionHintFlagsTest extends ClusterTest {
     private static final String setName = "qselhint";
     private static final String indexName = "qselhint_age_idx";
     private static final String scoreIndexName = "qselhint_score_idx";

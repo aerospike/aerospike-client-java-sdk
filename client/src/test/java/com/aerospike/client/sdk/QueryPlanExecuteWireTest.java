@@ -45,7 +45,7 @@ import com.aerospike.client.sdk.query.plan.QueryPlan;
 import com.aerospike.client.sdk.query.plan.QuerySelection;
 import com.aerospike.client.sdk.query.plan.QueryWhereWire;
 
-class QueryPlanExecuteWireTest {
+public class QueryPlanExecuteWireTest {
 
     private static final String AEL = "$.age > 30";
     private static final byte[] EXPLAIN_WHERE = QueryWhereWire.forExplain(AEL);

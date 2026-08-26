@@ -91,16 +91,12 @@ public class AelMetadataTest extends ClusterTest {
 
         sessionWithSendKey.delete(stringKey, intKey).execute();
 
-        long futureLastUpdate = System.currentTimeMillis() * 1_000_000L + 1_000_000L;
-
         sessionWithSendKey.upsert(stringKey)
             .bin(BIN_MARKER).setTo(1)
-            .bin(BIN_UPDATE).setTo(futureLastUpdate)
             .execute();
 
         sessionWithSendKey.upsert(intKey)
             .bin(BIN_MARKER).setTo(2)
-            .bin(BIN_UPDATE).setTo(futureLastUpdate)
             .execute();
     }
 
@@ -175,7 +171,22 @@ public class AelMetadataTest extends ClusterTest {
 
     @Test
     public void lastUpdateLessThanBinValue() {
-        assertTrue(matchesWhere(stringKey, "$.lastUpdate() < $." + BIN_UPDATE));
+        long lastUpdateNs;
+        try (RecordStream rs = query(stringKey)
+            .bin(BIN_UPDATE)
+            .selectFrom("$.lastUpdateTime()")
+            .execute()) {
+            assertTrue(rs.hasNext());
+            lastUpdateNs = ((Number) rs.next().recordOrThrow().getValue(BIN_UPDATE)).longValue();
+        }
+
+        // lastUpdateTime() is citrusleaf-epoch nanoseconds; seed a bin threshold in the same units.
+        sessionWithSendKey.upsert(stringKey)
+            .bin(BIN_MARKER).setTo(1)
+            .bin(BIN_UPDATE).setTo(lastUpdateNs + 10_000_000L)
+            .execute();
+
+        assertTrue(matchesWhere(stringKey, "$.lastUpdateTime() < $." + BIN_UPDATE));
     }
 
     @Test

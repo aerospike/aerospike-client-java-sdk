@@ -35,7 +35,7 @@ import com.aerospike.client.sdk.exp.Exp;
  * {@code hint.getBinName()} are consulted — AEL text shape (range, blob, map keys, etc.) is not.
  * Blank AEL is validated later in {@link IndexProbePlanner#plan}.</p>
  */
-class IndexProbePlannerRoutingTest extends ClusterTest {
+public class IndexProbePlannerRoutingTest extends ClusterTest {
 
     @BeforeAll
     static void requireQuerySelection() {

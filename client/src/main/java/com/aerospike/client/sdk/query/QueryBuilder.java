@@ -279,8 +279,8 @@ public class QueryBuilder extends AbstractFilterableBuilder implements
         if (startIncl < 0 || startIncl >= 4096) {
             throw new IllegalArgumentException("Start partition must in the range of 0 to 4095, not " + startIncl);
         }
-        if (endExcl < 1 || startIncl > 4096) {
-            throw new IllegalArgumentException("End partition (exclusive) must in the range of 1 to 4096, not " + startIncl);
+        if (endExcl < 1 || endExcl > 4096) {
+            throw new IllegalArgumentException("End partition (exclusive) must in the range of 1 to 4096, not " + endExcl);
         }
         if (startIncl >= endExcl) {
             throw new IllegalArgumentException(String.format(
