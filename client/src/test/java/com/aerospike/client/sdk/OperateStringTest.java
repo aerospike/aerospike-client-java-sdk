@@ -126,6 +126,108 @@ public class OperateStringTest extends ClusterTest {
         }
 
         @Nested
+        @DisplayName("StringOperation / appendOperations")
+        class OperationReads {
+            Key key;
+
+            @BeforeEach
+            void seedReadRecord() {
+                key = freshKey("stringOpReadSweep");
+                try (RecordStream rs = session.upsert(key)
+                    .bin(STRING_BIN).setTo("Hello,42")
+                    .bin(NUM_BIN).setTo("12345")
+                    .bin(FLT_BIN).setTo("3.14")
+                    .bin(B64_BIN).setTo("aGVsbG8=")
+                    .bin(INT_BIN).setTo(42)
+                    .execute()) {
+                }
+            }
+
+            @Test
+            @DisplayName("StringOperation read API sweep")
+            public void stringOperationReadSweep() {
+                try (RecordStream rs = session.upsert(key)
+                    .appendOperations(
+                        StringOperation.strlen(STRING_BIN),
+                        StringOperation.substr(STRING_BIN, 1, 4),
+                        StringOperation.substr(STRING_BIN, 3),
+                        StringOperation.charAt(STRING_BIN, 0),
+                        StringOperation.find(STRING_BIN, "ll"),
+                        StringOperation.find(STRING_BIN, "l", -1),
+                        StringOperation.byteLength(STRING_BIN),
+                        StringOperation.contains(STRING_BIN, ","),
+                        StringOperation.startsWith(STRING_BIN, "Hel"),
+                        StringOperation.endsWith(STRING_BIN, "42"),
+                        StringOperation.isNumeric(NUM_BIN),
+                        StringOperation.isNumeric(NUM_BIN, StringNumericType.INT),
+                        StringOperation.isUpper(STRING_BIN),
+                        StringOperation.isLower(STRING_BIN),
+                        StringOperation.toInteger(NUM_BIN),
+                        StringOperation.toDouble(FLT_BIN),
+                        StringOperation.split(STRING_BIN),
+                        StringOperation.split(STRING_BIN, ","),
+                        StringOperation.regexCompare(STRING_BIN, "Hel.*"),
+                        StringOperation.regexCompare(STRING_BIN, "hel.*", StringRegexFlags.CASE_INSENSITIVE),
+                        StringOperation.b64Decode(B64_BIN),
+                        StringOperation.toBlob(STRING_BIN),
+                        StringOperation.toString(INT_BIN))
+                    .execute()) {
+                    assertTrue(rs.hasNext());
+                    Record rec = rs.next().recordOrThrow();
+                    assertAll("StringOperation read sweep",
+                        () -> assertEquals(8L, rec.operationResult(0).getLong(),
+                            "StringOperation.strlen(stringBin s)"),
+                        () -> assertEquals("ell", rec.operationResult(1).getString(),
+                            "StringOperation.substr(offset=1, count=4)"),
+                        () -> assertEquals("lo,42", rec.operationResult(2).getString(),
+                            "StringOperation.substr(offset=3)"),
+                        () -> assertEquals("H", rec.operationResult(3).getString(),
+                            "StringOperation.charAt(index=0)"),
+                        () -> assertEquals(2L, rec.operationResult(4).getLong(),
+                            "StringOperation.find(needle=ll)"),
+                        () -> assertEquals(3L, rec.operationResult(5).getLong(),
+                            "StringOperation.find(needle=l, occurrence=-1)"),
+                        () -> assertEquals(8L, rec.operationResult(6).getLong(),
+                            "StringOperation.byteLength(stringBin s)"),
+                        () -> assertTrue(rec.operationResult(7).getBoolean(),
+                            "StringOperation.contains(needle=,)"),
+                        () -> assertTrue(rec.operationResult(8).getBoolean(),
+                            "StringOperation.startsWith(prefix=Hel)"),
+                        () -> assertTrue(rec.operationResult(9).getBoolean(),
+                            "StringOperation.endsWith(suffix=42)"),
+                        () -> assertTrue(rec.operationResult(10).getBoolean(),
+                            "StringOperation.isNumeric(stringBin num)"),
+                        () -> assertTrue(rec.operationResult(11).getBoolean(),
+                            "StringOperation.isNumeric(INT, stringBin num)"),
+                        () -> assertFalse(rec.operationResult(12).getBoolean(),
+                            "StringOperation.isUpper(stringBin s)"),
+                        () -> assertFalse(rec.operationResult(13).getBoolean(),
+                            "StringOperation.isLower(stringBin s)"),
+                        () -> assertEquals(12345L, rec.operationResult(14).getLong(),
+                            "StringOperation.toInteger(stringBin num)"),
+                        () -> assertEquals(3.14, rec.operationResult(15).getDouble(), 0.0001,
+                            "StringOperation.toDouble(stringBin flt)"),
+                        () -> assertEquals(8, rec.operationResult(16).getList().size(),
+                            "StringOperation.split(stringBin s)"),
+                        () -> assertEquals(2, rec.operationResult(17).getList().size(),
+                            "StringOperation.split(delimiter=,)"),
+                        () -> assertTrue(rec.operationResult(18).getBoolean(),
+                            "StringOperation.regexCompare(pattern=Hel.*)"),
+                        () -> assertTrue(rec.operationResult(19).getBoolean(),
+                            "StringOperation.regexCompare(pattern=hel.*, CASE_INSENSITIVE)"),
+                        () -> assertEquals("hello",
+                            new String(rec.operationResult(20).getBytes(), StandardCharsets.UTF_8),
+                            "StringOperation.b64Decode(stringBin b64)"),
+                        () -> assertEquals("Hello,42",
+                            new String(rec.operationResult(21).getBytes(), StandardCharsets.UTF_8),
+                            "StringOperation.toBlob(stringBin s)"),
+                        () -> assertEquals("42", rec.operationResult(22).getString(),
+                            "StringOperation.toString(intBin n)"));
+                }
+            }
+        }
+
+        @Nested
         @DisplayName("StringExp projections")
         class ExpReads {
             Key key;
@@ -269,6 +371,217 @@ public class OperateStringTest extends ClusterTest {
                     Record rec = rs.next().recordOrThrow();
                     assertNull(rec.operationResult(0).getValue(), "upper modify returns no operation payload");
                     assertEquals("AB", rec.operationResult(1).getString(), "stored bin after upper");
+                }
+            }
+        }
+
+        @Nested
+        @DisplayName("StringOperation / appendOperations")
+        class OperationApi {
+            private static final String UP_BIN = "mUp";
+            private static final String LOW_BIN = "mLow";
+            private static final String REPL_BIN = "mRepl";
+            private static final String REPL_ALL_BIN = "mReplAll";
+            private static final String INSERT_BIN = "mInsert";
+            private static final String OVERWRITE_BIN = "mOverwrite";
+            private static final String SNIP_BIN = "mSnip";
+            private static final String APPEND_BIN = "mAppend";
+            private static final String PREPEND_BIN = "mPrepend";
+            private static final String PAD_START_BIN = "mPadStart";
+            private static final String PAD_END_BIN = "mPadEnd";
+            private static final String REPEAT_BIN = "mRepeat";
+            private static final String FOLD_BIN = "mFold";
+            private static final String CONCAT_BIN = "mConcat";
+            private static final String CONCAT_LIST_BIN = "mConcatList";
+
+            Key key;
+
+            @BeforeEach
+            void seedModifyBins() {
+                key = freshKey("stringOpModifySweep");
+                try (RecordStream rs = session.upsert(key)
+                    .bin(UP_BIN).setTo("Hello")
+                    .bin(LOW_BIN).setTo("Hello")
+                    .bin(REPL_BIN).setTo("Hello")
+                    .bin(REPL_ALL_BIN).setTo("Hello")
+                    .bin(INSERT_BIN).setTo("Hello")
+                    .bin(OVERWRITE_BIN).setTo("Hello")
+                    .bin(SNIP_BIN).setTo("Hello")
+                    .bin(APPEND_BIN).setTo("Hello")
+                    .bin(PREPEND_BIN).setTo("Hello")
+                    .bin(PAD_START_BIN).setTo("Hello")
+                    .bin(PAD_END_BIN).setTo("Hello")
+                    .bin(REPEAT_BIN).setTo("Hello")
+                    .bin(FOLD_BIN).setTo("Hello")
+                    .bin(CONCAT_BIN).setTo("Hello")
+                    .bin(CONCAT_LIST_BIN).setTo("Hello")
+                    .bin(NFC_BIN).setTo("e\u0301")
+                    .execute()) {
+                }
+
+                int flags = StringWriteFlags.DEFAULT;
+                try (RecordStream rs = session.upsert(key)
+                    .appendOperations(
+                        StringOperation.upper(flags, UP_BIN),
+                        StringOperation.lower(flags, LOW_BIN),
+                        StringOperation.replace(flags, REPL_BIN, "lo", "LL"),
+                        StringOperation.replaceAll(flags, REPL_ALL_BIN, "l", "L"),
+                        StringOperation.insert(flags, INSERT_BIN, 1, "X"),
+                        StringOperation.overwrite(flags, OVERWRITE_BIN, 1, "i"),
+                        StringOperation.snip(flags, SNIP_BIN, 1, 4),
+                        StringOperation.append(flags, APPEND_BIN, "!"),
+                        StringOperation.prepend(flags, PREPEND_BIN, ">"),
+                        StringOperation.padStart(flags, PAD_START_BIN, 7, "0"),
+                        StringOperation.padEnd(flags, PAD_END_BIN, 10, "."),
+                        StringOperation.repeat(flags, REPEAT_BIN, 2),
+                        StringOperation.caseFold(flags, FOLD_BIN),
+                        StringOperation.normalizeNFC(flags, NFC_BIN),
+                        StringOperation.concat(flags, CONCAT_BIN, "!"),
+                        StringOperation.concat(flags, CONCAT_LIST_BIN, List.of("!", "?")))
+                    .execute()) {
+                }
+            }
+
+            @Test
+            @DisplayName("StringOperation modify API sweep")
+            public void stringOperationModifySweep() {
+                try (RecordStream rs = session.query(key)
+                    .bin(UP_BIN).get()
+                    .bin(LOW_BIN).get()
+                    .bin(REPL_BIN).get()
+                    .bin(REPL_ALL_BIN).get()
+                    .bin(INSERT_BIN).get()
+                    .bin(OVERWRITE_BIN).get()
+                    .bin(SNIP_BIN).get()
+                    .bin(APPEND_BIN).get()
+                    .bin(PREPEND_BIN).get()
+                    .bin(PAD_START_BIN).get()
+                    .bin(PAD_END_BIN).get()
+                    .bin(REPEAT_BIN).get()
+                    .bin(FOLD_BIN).get()
+                    .bin(NFC_BIN).get()
+                    .bin(CONCAT_BIN).get()
+                    .bin(CONCAT_LIST_BIN).get()
+                    .execute()) {
+                    assertTrue(rs.hasNext());
+                    Record rec = rs.next().recordOrThrow();
+                    assertAll("StringOperation modify sweep",
+                        () -> assertEquals("HELLO", rec.getString(UP_BIN),
+                            "StringOperation.upper(flags, stringBin)"),
+                        () -> assertEquals("hello", rec.getString(LOW_BIN),
+                            "StringOperation.lower(flags, stringBin)"),
+                        () -> assertEquals("HelLL", rec.getString(REPL_BIN),
+                            "StringOperation.replace(flags, lo, LL, stringBin)"),
+                        () -> assertEquals("HeLLo", rec.getString(REPL_ALL_BIN),
+                            "StringOperation.replaceAll(flags, l, L, stringBin)"),
+                        () -> assertEquals("HXello", rec.getString(INSERT_BIN),
+                            "StringOperation.insert(flags, index=1, X, stringBin)"),
+                        () -> assertEquals("Hillo", rec.getString(OVERWRITE_BIN),
+                            "StringOperation.overwrite(flags, index=1, i, stringBin)"),
+                        () -> assertEquals("Ho", rec.getString(SNIP_BIN),
+                            "StringOperation.snip(flags, index=1, count=4, stringBin)"),
+                        () -> assertEquals("Hello!", rec.getString(APPEND_BIN),
+                            "StringOperation.append(flags, !, stringBin)"),
+                        () -> assertEquals(">Hello", rec.getString(PREPEND_BIN),
+                            "StringOperation.prepend(flags, >, stringBin)"),
+                        () -> assertEquals("00Hello", rec.getString(PAD_START_BIN),
+                            "StringOperation.padStart(flags, width=7, pad=0, stringBin)"),
+                        () -> assertEquals("Hello.....", rec.getString(PAD_END_BIN),
+                            "StringOperation.padEnd(flags, width=10, pad=., stringBin)"),
+                        () -> assertEquals("HelloHello", rec.getString(REPEAT_BIN),
+                            "StringOperation.repeat(flags, count=2, stringBin)"),
+                        () -> assertEquals("hello", rec.getString(FOLD_BIN),
+                            "StringOperation.caseFold(flags, stringBin)"),
+                        () -> assertEquals("\u00e9", rec.getString(NFC_BIN),
+                            "StringOperation.normalizeNFC(flags, nfcBin)"),
+                        () -> assertEquals("Hello!", rec.getString(CONCAT_BIN),
+                            "StringOperation.concat(flags, !, stringBin)"),
+                        () -> assertEquals("Hello!?", rec.getString(CONCAT_LIST_BIN),
+                            "StringOperation.concat(flags, [!,?], stringBin)"));
+                }
+            }
+        }
+
+        @Nested
+        @DisplayName("StringOperation trim")
+        class OperationTrim {
+            Key key;
+
+            @BeforeEach
+            void seedTrimBins() {
+                key = freshKey("stringOpTrim");
+                try (RecordStream rs = session.upsert(key)
+                    .bin("trimAll").setTo("  hello  ")
+                    .bin("trimStart").setTo("  hello  ")
+                    .bin("trimEnd").setTo("  hello  ")
+                    .execute()) {
+                }
+
+                int flags = StringWriteFlags.DEFAULT;
+                try (RecordStream rs = session.upsert(key)
+                    .appendOperations(
+                        StringOperation.trim(flags, "trimAll"),
+                        StringOperation.trimStart(flags, "trimStart"),
+                        StringOperation.trimEnd(flags, "trimEnd"))
+                    .execute()) {
+                }
+            }
+
+            @Test
+            @DisplayName("StringOperation trim API sweep")
+            public void stringOperationTrimSweep() {
+                try (RecordStream rs = session.query(key)
+                    .bin("trimAll").get()
+                    .bin("trimStart").get()
+                    .bin("trimEnd").get()
+                    .execute()) {
+                    assertTrue(rs.hasNext());
+                    Record rec = rs.next().recordOrThrow();
+                    assertAll("StringOperation trim sweep",
+                        () -> assertEquals("hello", rec.getString("trimAll"),
+                            "StringOperation.trim(flags, stringBin)"),
+                        () -> assertEquals("hello  ", rec.getString("trimStart"),
+                            "StringOperation.trimStart(flags, stringBin)"),
+                        () -> assertEquals("  hello", rec.getString("trimEnd"),
+                            "StringOperation.trimEnd(flags, stringBin)"));
+                }
+            }
+        }
+
+        @Nested
+        @DisplayName("StringOperation regexReplace")
+        class OperationRegexReplace {
+            Key key;
+
+            @BeforeEach
+            void seedRegexReplaceBin() {
+                key = freshKey("stringOpRegexReplace");
+                try (RecordStream rs = session.upsert(key)
+                    .bin(DIGITS_BIN).setTo("abc123def456")
+                    .execute()) {
+                }
+
+                try (RecordStream rs = session.upsert(key)
+                    .appendOperations(StringOperation.regexReplace(
+                        StringWriteFlags.DEFAULT,
+                        DIGITS_BIN,
+                        "[0-9]+",
+                        "NUM",
+                        StringRegexFlags.GLOBAL))
+                    .execute()) {
+                }
+            }
+
+            @Test
+            @DisplayName("StringOperation.regexReplace(pattern=[0-9]+, replacement=NUM, GLOBAL)")
+            public void stringOperationRegexReplace() {
+                try (RecordStream rs = session.query(key)
+                    .bin(DIGITS_BIN).get()
+                    .execute()) {
+                    assertTrue(rs.hasNext());
+                    Record rec = rs.next().recordOrThrow();
+                    assertEquals("abcNUMdefNUM", rec.getString(DIGITS_BIN),
+                        "StringOperation.regexReplace(flags, [0-9]+, NUM, GLOBAL, digitsBin)");
                 }
             }
         }
@@ -520,6 +833,33 @@ public class OperateStringTest extends ClusterTest {
     // these through as_bin_string_modify_ctx_tr / its read-side twin, which
     // is a separate code path from the top-level-bin variant exercised above.
     //=================================================================
+
+    @Test
+    public void readOpOnStringNestedInList() {
+        session.delete(KEY).execute();
+
+        List<String> list = new ArrayList<>();
+        list.add("alpha");
+        list.add("beta");
+        list.add("gamma");
+
+        session.upsert(KEY)
+            .bin(BIN).setTo(list)
+            .execute();
+
+        try (RecordStream rs = session.upsert(KEY)
+            .appendOperations(
+                StringOperation.strlen(BIN, CTX.listIndex(1)),
+                StringOperation.find(BIN, "et", CTX.listIndex(1)))
+            .execute()) {
+            assertTrue(rs.hasNext());
+            Record rec = rs.next().recordOrThrow();
+            assertEquals(4L, rec.operationResult(0).getLong(),
+                "StringOperation.strlen on nested list string");
+            assertEquals(1L, rec.operationResult(1).getLong(),
+                "StringOperation.find on nested list string");
+        }
+    }
 
     @Test
     public void modifyOpWithFlagsOnStringNestedInList() {
