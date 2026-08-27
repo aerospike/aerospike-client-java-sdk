@@ -124,11 +124,12 @@ class ConnectionRecoverTest {
         InetSocketAddress address =
             new InetSocketAddress(InetAddress.getLoopbackAddress(), server.port());
 
-        // Cluster tend probes seed hosts in the background. Use an unroutable port so it
-        // does not race with the loopback test server for accepted sockets.
+        // Cluster tend probes seed hosts during construction. Use an unroutable port and
+        // do not fail startup when it is unreachable.
         ClusterDefinition def = new ClusterDefinition(new Host("127.0.0.1", 9))
             .clusterName("connection-recover-" + UUID.randomUUID())
-            .connPoolsPerNode(1);
+            .connPoolsPerNode(1)
+            .failIfNotConnected(false);
         def.minConnsPerNode = 0;
         def.maxConnsPerNode = 5;
 
@@ -204,7 +205,8 @@ class ConnectionRecoverTest {
                         handler.accept(socket);
                     }
                     else {
-                        socket.close();
+                        // Unexpected connection: keep it open so client-side connect() succeeds.
+                        holdOpen(socket);
                     }
                 }
                 catch (IOException ioe) {
