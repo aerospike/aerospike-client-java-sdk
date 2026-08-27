@@ -39,7 +39,7 @@ import com.aerospike.client.sdk.query.PreparedAel;
 
 /**
  * Read-only CDT builder for query operations.
- * 
+ *
  * <p>This builder provides all CDT read operations without any write operations like
  * {@code remove()}, {@code setTo()}, {@code insert()}, {@code update()}, or {@code add()}.
  * It is designed for use in query contexts where only read operations are permitted.</p>
@@ -50,7 +50,7 @@ import com.aerospike.client.sdk.query.PreparedAel;
  *
  * @param <T> the type of the parent builder to return for method chaining
  */
-public class CdtReadOnlyBuilder<T> implements CdtReadContextBuilder<T>, 
+public class CdtReadOnlyBuilder<T> implements CdtReadContextBuilder<T>,
                                                CdtReadContextInvertableBuilder<T> {
 
     private final String binName;
@@ -901,6 +901,20 @@ public class CdtReadOnlyBuilder<T> implements CdtReadContextBuilder<T>,
     public T listGetRange(int index, int count) {
         params.pushCurrentToContext();
         return addOpAndReturn(ListOperation.getRange(binName, index, count, params.context()));
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public T listJoin() {
+        params.pushCurrentToContext();
+        return addOpAndReturn(ListOperation.join(binName, params.context()));
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public T listJoin(String separator) {
+        params.pushCurrentToContext();
+        return addOpAndReturn(ListOperation.join(binName, separator, params.context()));
     }
 
     // ========================================

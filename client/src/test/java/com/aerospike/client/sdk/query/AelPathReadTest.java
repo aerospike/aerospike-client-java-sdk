@@ -90,8 +90,8 @@ public class AelPathReadTest extends ClusterTest {
 
     @Test
     public void implicitMultiSelectValuesDifferFromGetKeys() {
-        List<?> values = selectList("values", "$." + BIN_MAP + ":MAP.{alpha,beta,gamma}");
-        List<?> keys = selectList("keys", "$." + BIN_MAP + ":MAP.{alpha,beta,gamma}.getKeys()");
+        List<?> values = selectList("values", "$." + BIN_MAP + ":MAP.{@alpha,beta,gamma}");
+        List<?> keys = selectList("keys", "$." + BIN_MAP + ":MAP.{@alpha,beta,gamma}.getKeys()");
 
         assertThat(values)
             .extracting(v -> ((Number) v).longValue())
@@ -101,7 +101,7 @@ public class AelPathReadTest extends ClusterTest {
 
     @Test
     public void getKeyValuesReturnsFlatKeyValueList() {
-        List<?> flat = selectList("kv", "$." + BIN_MAP + ":MAP.{alpha,beta}.getKeyValues()");
+        List<?> flat = selectList("kv", "$." + BIN_MAP + ":MAP.{@alpha,beta}.getKeyValues()");
         assertEquals(4, flat.size());
         assertEquals("alpha", flat.get(0));
         assertEquals(10L, ((Number) flat.get(1)).longValue());
@@ -111,7 +111,7 @@ public class AelPathReadTest extends ClusterTest {
 
     @Test
     public void getTreePreservesMapStructure() {
-        Object tree = selectValue("tree", "$." + BIN_MAP + ":MAP.{alpha,beta}.getTree()");
+        Object tree = selectValue("tree", "$." + BIN_MAP + ":MAP.{@alpha,beta}.getTree()");
         assertInstanceOf(Map.class, tree);
         @SuppressWarnings("unchecked")
         Map<String, Object> map = (Map<String, Object>) tree;
@@ -122,7 +122,7 @@ public class AelPathReadTest extends ClusterTest {
 
     @Test
     public void getTreeOnFullMapKeyList() {
-        Object tree = selectValue("tree", "$." + BIN_MAP + ":MAP.{alpha,beta,gamma}.getTree()");
+        Object tree = selectValue("tree", "$." + BIN_MAP + ":MAP.{@alpha,beta,gamma}.getTree()");
         assertInstanceOf(Map.class, tree);
         @SuppressWarnings("unchecked")
         Map<String, Object> map = (Map<String, Object>) tree;
@@ -144,7 +144,7 @@ public class AelPathReadTest extends ClusterTest {
 
     @Test
     public void countOnMultiSelectMapKeyListIsMatchCount() {
-        assertEquals(3L, selectLong("count", "$." + BIN_MAP + ":MAP.{alpha,beta,gamma}.count()"));
+        assertEquals(3L, selectLong("count", "$." + BIN_MAP + ":MAP.{@alpha,beta,gamma}.count()"));
     }
 
     @Test

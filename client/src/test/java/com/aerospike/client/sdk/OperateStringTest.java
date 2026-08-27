@@ -21,10 +21,13 @@ import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeFalse;
 
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.function.Function;
 import java.util.stream.Stream;
@@ -37,6 +40,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
+import com.aerospike.client.sdk.cdt.CTX;
 import com.aerospike.client.sdk.exp.Exp;
 import com.aerospike.client.sdk.exp.StringExp;
 import com.aerospike.client.sdk.junit.RequiresServerFeature;
@@ -62,6 +66,8 @@ public class OperateStringTest extends ClusterTest {
     private static final String DIGITS_BIN = "digits";
     /** Decomposed e-acute for {@link StringExp#normalizeNFC} coverage. */
     private static final String NFC_BIN = "nfc";
+    private static final Key KEY = args.set.id("stringop-key");
+    private static final String BIN = "sbin";
 
     @Nested
     @DisplayName("reads")
@@ -502,5 +508,76 @@ public class OperateStringTest extends ClusterTest {
                         "$." + STRING_BIN + ".find('ll')"));
             }
         }
+    }
+
+    //=================================================================
+    // CTX navigation — string nested in list/map bins
+    //
+    // Exercises the §2.3.1 CTX-wrapper wire envelope: when CTX is non-empty
+    // the op-data becomes [0xFF, ctx_list, [sub_op, args...]] — three outer
+    // elements, with the sub-op and its args in their own nested array so
+    // the inner arity is self-describing (SERVER-1483). The server dispatches
+    // these through as_bin_string_modify_ctx_tr / its read-side twin, which
+    // is a separate code path from the top-level-bin variant exercised above.
+    //=================================================================
+
+    @Test
+    public void modifyOpWithFlagsOnStringNestedInList() {
+        session.delete(KEY).execute();
+
+        List<String> list = new ArrayList<>();
+        list.add("alpha");
+        list.add("beta");
+        list.add("gamma");
+
+        session.upsert(KEY)
+            .bin(BIN).setTo(list)
+            .execute();
+
+        session.upsert(KEY)
+            .appendOperations(StringOperation.append(
+                StringWriteFlags.NO_FAIL, BIN, "!", CTX.listIndex(1)))
+            .execute();
+
+        AerospikeList<?> after = session.query(KEY)
+            .execute()
+            .getFirstRecord()
+            .getList(BIN);
+
+        assertEquals(Arrays.asList("alpha", "beta!", "gamma"), after);
+    }
+
+    @Test
+    public void noFailFlagDecidesOutcomeOnUnreachableCtxPath() {
+        session.delete(KEY).execute();
+
+        List<Value> list = new ArrayList<Value>();
+        list.add(Value.get("alpha"));
+        list.add(Value.get("beta"));
+
+        session.upsert(KEY)
+            .bin(BIN).setTo(list)
+            .execute();
+
+        session.upsert(KEY)
+            .appendOperations(StringOperation.append(
+                StringWriteFlags.NO_FAIL, BIN, "!", CTX.listIndex(99)))
+            .execute();
+
+        AerospikeList<?> after = session.query(KEY)
+            .execute()
+            .getFirstRecord()
+            .getList(BIN);
+
+        assertEquals(Arrays.asList("alpha", "beta"), after);
+
+        AerospikeException ae = assertThrows(AerospikeException.class, () -> {
+            session.upsert(KEY)
+                .appendOperations(StringOperation.append(
+                    StringWriteFlags.DEFAULT, BIN, "!", CTX.listIndex(99)))
+                .execute();
+        });
+
+        assertEquals(ResultCode.OP_NOT_APPLICABLE, ae.getResultCode());
     }
 }

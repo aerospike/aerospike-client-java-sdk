@@ -80,7 +80,7 @@ import com.aerospike.client.sdk.util.Version;
  *       capped at the 1 MiB GeoJSON wire limit instead)</li>
  *   <li>Ctx-path scalar ({@code $.bin.[N]}) and ctx-path geo ({@code $.map.key}) → DEFAULT SI</li>
  *   <li>Expression sindexes over arithmetic ({@code $.age + 1}) → SI with {@code bin_name_len == 0};
- *       AEL string path functions ({@code $.name.uppercase()}) → PI</li>
+ *       AEL string path functions ({@code $.name.upper()}) → PI</li>
  *   <li>LIST index path {@code [N].exists()} → PI (positional existence; see
  *       {@link QueryPlannerCollectionCdtTest})</li>
  * </ul>
@@ -528,7 +528,7 @@ public class QuerySelectionExplainScopeTest extends ClusterTest {
 
     /**
      * String path functions are PI-only even with a matching {@code exp=} index in place. AEL
-     * compiles {@code .uppercase()} as a path/CDT string op, while {@code StringExp.upper(...)}
+     * compiles {@code .upper()} as a path/CDT string op, while {@code StringExp.upper(...)}
      * compiles through the client expression pipeline, so the two instruction trees never compare
      * equal in expression-candidate matching. The predicate itself still evaluates correctly as a
      * residual filter.
@@ -537,7 +537,7 @@ public class QuerySelectionExplainScopeTest extends ClusterTest {
     void planExpCallUpperPrimaryIndex() {
         assumeExpressionSecondaryIndexSupported();
 
-        String where = "$." + nameBin + ".uppercase() == '" + upperMatch + "'";
+        String where = "$." + nameBin + ".upper() == '" + upperMatch + "'";
         assertAll(
             () -> assertEquals(QuerySelection.PRIMARY_INDEX, plan(dataSet,where).getSelection()),
             () -> assertNull(plan(dataSet,where).getIndexName()),

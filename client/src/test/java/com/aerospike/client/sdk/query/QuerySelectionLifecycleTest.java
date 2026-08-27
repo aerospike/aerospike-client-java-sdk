@@ -16,7 +16,6 @@
  */
 package com.aerospike.client.sdk.query;
 
-import static com.aerospike.client.sdk.query.QuerySelectionIntegSupport.assumeQuerySelection;
 import static com.aerospike.client.sdk.query.QuerySelectionIntegSupport.createIndexQuietly;
 import static com.aerospike.client.sdk.query.QuerySelectionIntegSupport.dropIndexQuietlyAndWait;
 import static org.junit.jupiter.api.Assertions.assertAll;

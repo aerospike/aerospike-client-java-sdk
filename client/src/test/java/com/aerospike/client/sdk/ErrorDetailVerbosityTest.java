@@ -17,7 +17,6 @@
 package com.aerospike.client.sdk;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -32,13 +31,13 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import com.aerospike.client.sdk.exp.Exp;
+import com.aerospike.client.sdk.junit.RequiresServerFeature;
+import com.aerospike.client.sdk.junit.ServerFeature;
 import com.aerospike.client.sdk.policy.Behavior;
 import com.aerospike.client.sdk.policy.Behavior.OpKind;
 import com.aerospike.client.sdk.policy.Behavior.OpShape;
 import com.aerospike.client.sdk.policy.Behavior.Selectors;
 import com.aerospike.client.sdk.policy.ResolvedSettings;
-import com.aerospike.client.sdk.junit.RequiresServerFeature;
-import com.aerospike.client.sdk.junit.ServerFeature;
 
 @RequiresServerFeature(ServerFeature.EXTENDED_ERROR_DETAIL)
 public class ErrorDetailVerbosityTest extends ClusterTest {

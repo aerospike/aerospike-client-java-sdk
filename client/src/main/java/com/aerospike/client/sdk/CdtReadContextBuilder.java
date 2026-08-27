@@ -27,7 +27,7 @@ import com.aerospike.client.sdk.query.PreparedAel;
 
 /**
  * Read-only CDT context navigation interface for query operations.
- * 
+ *
  * <p>This interface provides navigation methods for traversing CDT (Collection Data Type)
  * structures. Unlike {@link CdtContextNonInvertableBuilder}, this interface returns
  * read-only builders and does not include any write operations like {@code setTo()},
@@ -501,4 +501,24 @@ public interface CdtReadContextBuilder<T> extends CdtReadActionBuilder<T> {
      * @return the parent builder for method chaining
      */
     T listGetRange(int index, int count);
+
+    /**
+     * Concatenate the string items of the list bin and returns the result as a
+     * single string, with no separator between items. Every item must be a string;
+     * a non-string item returns {@code AEROSPIKE_ERR_PARAMETER}. An empty list returns
+     * an empty string.
+     * @return the parent builder for method chaining
+     */
+    T listJoin();
+
+    /**
+     * Concatenate the string items of the list bin, placing {@code separator}
+     * between consecutive items, and returns the result as a single string. Every item
+     * must be a string; a non-string item returns {@code AEROSPIKE_ERR_PARAMETER}. An
+     * empty list returns an empty string, and a single-item list returns that item
+     * with no separator applied.
+     * @param separator separator between strings in list.
+     * @return the query builder for method chaining
+     */
+    T listJoin(String separator);
 }
