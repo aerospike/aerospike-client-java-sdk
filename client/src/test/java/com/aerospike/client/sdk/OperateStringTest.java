@@ -40,6 +40,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
+import com.aerospike.client.sdk.cdt.CTX;
 import com.aerospike.client.sdk.exp.Exp;
 import com.aerospike.client.sdk.exp.StringExp;
 import com.aerospike.client.sdk.junit.RequiresServerFeature;
@@ -534,7 +535,8 @@ public class OperateStringTest extends ClusterTest {
             .execute();
 
         session.upsert(KEY)
-            .bin(BIN).onListIndex(1).listAppend("!", ops -> ops.allowFailures())
+            .appendOperations(StringOperation.append(
+                StringWriteFlags.NO_FAIL, BIN, "!", CTX.listIndex(1)))
             .execute();
 
         AerospikeList<?> after = session.query(KEY)
@@ -558,7 +560,8 @@ public class OperateStringTest extends ClusterTest {
             .execute();
 
         session.upsert(KEY)
-            .bin(BIN).onListIndex(99).listAppend("!", ops -> ops.allowFailures())
+            .appendOperations(StringOperation.append(
+                StringWriteFlags.NO_FAIL, BIN, "!", CTX.listIndex(99)))
             .execute();
 
         AerospikeList<?> after = session.query(KEY)
@@ -570,7 +573,8 @@ public class OperateStringTest extends ClusterTest {
 
         AerospikeException ae = assertThrows(AerospikeException.class, () -> {
             session.upsert(KEY)
-                .bin(BIN).onListIndex(99).listAppend("!")
+                .appendOperations(StringOperation.append(
+                    StringWriteFlags.DEFAULT, BIN, "!", CTX.listIndex(99)))
                 .execute();
         });
 
