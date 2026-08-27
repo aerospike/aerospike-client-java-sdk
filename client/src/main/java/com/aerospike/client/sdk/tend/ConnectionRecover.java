@@ -117,6 +117,12 @@ public final class ConnectionRecover {
             if (isSingle) {
                 if (state == Command.STATE_READ_HEADER) {
                     drainHeader(buf);
+
+                    // drainHeader() closes the connection when it rejects the response.
+                    // A closed connection must not go on to be recovered.
+                    if (isComplete()) {
+                        return true;
+                    }
                 }
                 drainDetail(buf);
                 recover();
@@ -126,6 +132,10 @@ public final class ConnectionRecover {
                 while (true) {
                     if (state == Command.STATE_READ_HEADER) {
                         drainHeader(buf);
+
+                        if (isComplete()) {
+                            return true;
+                        }
                     }
                     drainDetail(buf);
 
