@@ -42,8 +42,5 @@ abstract class QueryImpl {
     protected QueryBuilder getQueryBuilder() {
         return queryBuilder;
     }
-
-    public boolean hasPartitionFilter() {
-        return queryBuilder.getStartPartition() > 0 || queryBuilder.getEndPartition() < 4096;
-    }
+    
 }

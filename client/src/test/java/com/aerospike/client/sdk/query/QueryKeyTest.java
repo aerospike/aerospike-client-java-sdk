@@ -19,6 +19,9 @@ package com.aerospike.client.sdk.query;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -100,6 +103,40 @@ public class QueryKeyTest extends ClusterTest {
 
                 Object userkey = key.userKey.getObject();
                 assertNotNull(userkey);
+                count++;
+            }
+
+            assertEquals(4, count);
+        }
+        finally {
+            rs.close();
+        }
+    }
+
+    @Test
+    public void queryKeyWithPreparedAelWhere() {
+        assumeSupportsAel();
+
+        int begin = 2;
+        int end = 5;
+        PreparedAel filter = PreparedAel.prepare(
+            "$." + binName + " >= ?0 and $." + binName + " <= ?1");
+
+        List<Key> keys = new ArrayList<>(size);
+        for (int i = 1; i <= size; i++) {
+            keys.add(dataSet.id(keyPrefix + i));
+        }
+
+        RecordStream rs = session.query(keys)
+            .where(filter, begin, end)
+            .execute();
+
+        try {
+            int count = 0;
+            while (rs.hasNext()) {
+                RecordResult result = rs.next();
+                Key key = result.getKey();
+                assertNotNull(key.userKey);
                 count++;
             }
 

@@ -25,6 +25,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import com.aerospike.client.sdk.ClusterTest;
+import com.aerospike.client.sdk.ael.Ael;
 import com.aerospike.client.sdk.exp.Exp;
 
 /**
@@ -54,6 +55,29 @@ public class IndexProbePlannerRoutingTest extends ClusterTest {
         WhereClauseProcessor where = WhereClauseProcessor.from(Exp.eq(Exp.intBin("age"), Exp.val(30)));
 
         assertFalse(IndexProbePlanner.useServerQuerySelection(cluster, where, null));
+    }
+
+    @Test
+    void useServerQuerySelection_booleanExpressionWhere_staysLegacy() {
+        WhereClauseProcessor where = WhereClauseProcessor.from(Ael.longBin("age").gt(30));
+
+        assertFalse(where.hasStringAel());
+        assertFalse(IndexProbePlanner.useServerQuerySelection(cluster, where, null));
+    }
+
+    @Test
+    void booleanExpressionWhere_hasNoAelString() {
+        WhereClauseProcessor where = WhereClauseProcessor.from(Ael.longBin("age").gt(30));
+
+        assertThrows(IllegalStateException.class, where::getAelString);
+    }
+
+    @Test
+    void expWhere_hasNoAelString() {
+        WhereClauseProcessor where = WhereClauseProcessor.from(Exp.eq(Exp.intBin("age"), Exp.val(30)));
+
+        assertFalse(where.hasStringAel());
+        assertThrows(IllegalStateException.class, where::getAelString);
     }
 
     @Test

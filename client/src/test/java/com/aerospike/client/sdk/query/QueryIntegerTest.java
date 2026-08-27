@@ -27,6 +27,7 @@ import com.aerospike.client.sdk.ClusterTest;
 import com.aerospike.client.sdk.DataSet;
 import com.aerospike.client.sdk.RecordStream;
 import com.aerospike.client.sdk.ResultCode;
+import com.aerospike.client.sdk.ael.Ael;
 import com.aerospike.client.sdk.exp.Exp;
 
 public class QueryIntegerTest extends ClusterTest {
@@ -86,6 +87,29 @@ public class QueryIntegerTest extends ClusterTest {
             .where(Exp.and(
                 Exp.ge(Exp.intBin(binName), Exp.val(begin)),
                 Exp.le(Exp.intBin(binName), Exp.val(end))))
+            .execute();
+
+        try {
+            int count = 0;
+            while (rs.hasNext()) {
+                rs.next();
+                count++;
+            }
+
+            assertEquals(5, count);
+        }
+        finally {
+            rs.close();
+        }
+    }
+
+    @Test
+    public void queryIntegerWithTypedAelWhere() {
+        int begin = 14;
+        int end = 18;
+
+        RecordStream rs = session.query(dataSet)
+            .where(Ael.longBin(binName).gte(begin).and(Ael.longBin(binName).lte(end)))
             .execute();
 
         try {

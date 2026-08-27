@@ -157,6 +157,27 @@ public class NavigatableRecordStreamSortTest extends ClusterTest {
     }
 
     @Test
+    public void sortByDescendingSortProperties() {
+        NavigatableRecordStream nav = loadAll().sortBy(SortProperties.descending(BIN_SEQ));
+
+        assertEquals(List.of(50, 40, 30, 30, 20, 10), collectSeq(nav));
+    }
+
+    @Test
+    public void sortByAscendingIgnoreCaseSortProperties() {
+        NavigatableRecordStream nav = loadAll().sortBy(SortProperties.ascendingIgnoreCase(BIN_FRUIT));
+
+        assertEquals(Arrays.asList(null, null, "apple", "apple", "Banana", "cherry"), collectFruit(nav));
+    }
+
+    @Test
+    public void sortByDescendingIgnoreCaseSortProperties() {
+        NavigatableRecordStream nav = loadAll().sortBy(SortProperties.descendingIgnoreCase(BIN_FRUIT));
+
+        assertEquals(Arrays.asList("cherry", "Banana", "apple", "apple", null, null), collectFruit(nav));
+    }
+
+    @Test
     public void defaultSortByStringIsCaseInsensitive() {
         NavigatableRecordStream nav = loadAll().sortBy(BIN_FRUIT);
 

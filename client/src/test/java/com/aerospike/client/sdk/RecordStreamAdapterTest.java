@@ -78,6 +78,25 @@ public class RecordStreamAdapterTest extends ClusterTest {
     }
 
     @Test
+    public void singleKeyStream_reportsOneChunk() {
+        RecordStream rs = session.query(args.set.id(KEY_PREFIX + "0")).execute();
+        try {
+            int count = 0;
+            while (rs.hasMoreChunks()) {
+                while (rs.hasNext()) {
+                    assertEquals("user_0", rs.next().recordOrThrow().getString("name"));
+                    count++;
+                }
+            }
+            assertEquals(1, count);
+            assertFalse(rs.hasMoreChunks());
+        }
+        finally {
+            rs.close();
+        }
+    }
+
+    @Test
     public void completableFutureBatchKeys() throws Exception {
         RecordStream rs = session.query(testKeys()).execute();
         CompletableFuture<List<RecordResult>> future = rs.asCompletableFuture();
