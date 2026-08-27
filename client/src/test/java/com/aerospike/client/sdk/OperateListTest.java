@@ -19,6 +19,7 @@ package com.aerospike.client.sdk;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
@@ -26,6 +27,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 
 import com.aerospike.client.sdk.cdt.ListOrder;
@@ -1230,5 +1232,113 @@ public class OperateListTest extends ClusterTest {
 
         val= (Long)list.get(2);
         assertEquals(3, val);
+    }
+
+    @Test
+    public void operateListJoin() {
+        Assumptions.assumeTrue(args.serverVersion.isGreaterOrEqual(8, 1, 3, 0),
+            "List join requires server version 8.1.3 or later");
+
+        Key key = args.set.id("oplkeyjoin");
+
+        session.delete(key).execute();
+
+        List<Value> items = new ArrayList<Value>();
+        items.add(Value.get("alpha"));
+        items.add(Value.get("beta"));
+        items.add(Value.get("gamma"));
+
+        session.upsert(key)
+            .bin(binName).setTo(items)
+            .execute();
+
+        // Two reads on one bin come back as an ordered list of results.
+        Record rec = session.query(key)
+            .bin(binName).listJoin()
+            .bin(binName).listJoin(", ")
+            .execute()
+            .getFirstRecord();
+
+        List<?> results = rec.getList(binName);
+        assertEquals("alphabetagamma", results.get(0));
+        assertEquals("alpha, beta, gamma", results.get(1));
+    }
+
+    @Test
+    public void operateListJoinEmptyList() {
+        Assumptions.assumeTrue(args.serverVersion.isGreaterOrEqual(8, 1, 3, 0),
+            "List join requires server version 8.1.3 or later");
+
+        Key key = args.set.id("oplkeyjoinempty");
+
+        session.delete(key).execute();
+
+        session.upsert(key)
+            .bin(binName).setTo(new ArrayList<String>())
+            .execute();
+
+        Record rec = session.query(key)
+            .bin(binName).listJoin(",")
+            .execute()
+            .getFirstRecord();
+
+        assertEquals("", rec.getString(binName));
+    }
+
+    @Test
+    public void operateListJoinNonStringItemFails() {
+        Assumptions.assumeTrue(args.serverVersion.isGreaterOrEqual(8, 1, 3, 0),
+            "List join requires server version 8.1.3 or later");
+
+        Key key = args.set.id("oplkeyjoinbad");
+
+        session.delete(key).execute();
+
+        List<Object> items = new ArrayList<>();
+            items.add("alpha");
+            items.add(7);
+
+        session.upsert(key)
+            .bin(binName).setTo(items)
+            .execute();
+
+        // Every item must be a string; the server rejects the whole op otherwise.
+        AerospikeException ae = assertThrows(AerospikeException.class, () -> {
+            session.query(key)
+                .bin(binName).listJoin(",")
+                .execute()
+                .getFirstRecord();
+        });
+
+        assertEquals(ResultCode.PARAMETER_ERROR, ae.getResultCode());
+    }
+
+    @Test
+    public void operateListJoinNested() {
+        Assumptions.assumeTrue(args.serverVersion.isGreaterOrEqual(8, 1, 3, 0),
+            "List join requires server version 8.1.3 or later");
+
+        Key key = args.set.id("oplkeyjoinctx");
+
+        session.delete(key).execute();
+
+        List<String> inner = new ArrayList<>();
+        inner.add("x");
+        inner.add("y");
+
+        List<Object> outer = new ArrayList<>();
+        outer.add("skip");
+        outer.add(inner);
+
+        session.upsert(key)
+            .bin(binName).setTo(outer)
+            .execute();
+
+        Record rec = session.query(key)
+            .bin(binName).onListIndex(1).listJoin("-")
+            .execute()
+            .getFirstRecord();
+
+        assertEquals("x-y", rec.getString(binName));
     }
 }

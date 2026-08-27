@@ -30,6 +30,7 @@ import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
+import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -554,5 +555,36 @@ public class ListExpTest extends ClusterTest {
                 assertTrue(result.contains(30L));
             }
         }
+    }
+
+    @Test
+    public void listJoinExp() {
+        Assumptions.assumeTrue(args.serverVersion.isGreaterOrEqual(8, 1, 3, 0),
+            "List join requires server version 8.1.3 or later");
+
+        Key key = args.set.id("explistjoin");
+
+        session.delete(key).execute();
+
+        List<Value> items = new ArrayList<Value>();
+        items.add(Value.get("a"));
+        items.add(Value.get("b"));
+        items.add(Value.get("c"));
+
+        session.upsert(key)
+            .bin("jbin").setTo(items)
+            .execute();
+
+        Exp plainExp = ListExp.join(Exp.listBin("jbin"));
+        Exp sepExp = ListExp.join(Exp.val("-"), Exp.listBin("jbin"));
+
+        Record rec = session.query(key)
+            .bin("plain").selectFrom(plainExp)
+            .bin("sep").selectFrom(sepExp)
+            .execute()
+            .getFirstRecord();
+
+        assertEquals("abc", rec.getString("plain"));
+        assertEquals("a-b-c", rec.getString("sep"));
     }
 }

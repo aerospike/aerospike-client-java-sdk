@@ -75,6 +75,7 @@ public final class ListExp {
     private static final int GET_BY_VALUE_INTERVAL = 25;
     private static final int GET_BY_RANK_RANGE = 26;
     private static final int GET_BY_VALUE_REL_RANK_RANGE = 27;
+    private static final int STRING_LIST_JOIN = 28;
     private static final int REMOVE_BY_INDEX = 32;
     private static final int REMOVE_BY_RANK = 34;
     private static final int REMOVE_BY_VALUE = 35;
@@ -294,6 +295,41 @@ public final class ListExp {
     public static Exp size(Exp bin, CTX... ctx) {
         byte[] bytes = Pack.pack(SIZE, ctx);
         return addRead(bin, bytes, Exp.Type.INT);
+    }
+
+    /**
+     * Create expression that concatenates the string items of a list and returns the
+     * result as a single string, with no separator between items. Every item must be a
+     * string. An empty list yields an empty string.
+     *
+     * <pre>{@code
+     * // List bin "a" = ["x", "y", "z"] -> "xyz"
+     * ListExp.join(Exp.listBin("a"))
+     * }</pre>
+     *
+     * Requires server version 8.1.3 or later.
+     */
+    public static Exp join(Exp bin, CTX... ctx) {
+        byte[] bytes = Pack.pack(STRING_LIST_JOIN, ctx);
+        return addRead(bin, bytes, Exp.Type.STRING);
+    }
+
+    /**
+     * Create expression that concatenates the string items of a list, placing
+     * {@code separator} between consecutive items, and returns the result as a single
+     * string. Every item must be a string. An empty list yields an empty string, and a
+     * single-item list yields that item with no separator applied.
+     *
+     * <pre>{@code
+     * // List bin "a" = ["x", "y", "z"] -> "x,y,z"
+     * ListExp.join(Exp.val(","), Exp.listBin("a"))
+     * }</pre>
+     *
+     * Requires server version 8.1.3 or later.
+     */
+    public static Exp join(Exp separator, Exp bin, CTX... ctx) {
+        byte[] bytes = Pack.pack(STRING_LIST_JOIN, separator, ctx);
+        return addRead(bin, bytes, Exp.Type.STRING);
     }
 
     /**

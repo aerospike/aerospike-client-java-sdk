@@ -158,6 +158,34 @@ public final class QueryBinBuilder<P> implements CdtOperationAcceptor<P> {
         return wrapResult();
     }
 
+    /**
+     * Concatenate the string items of the list bin and returns the result as a
+     * single string, with no separator between items. Every item must be a string;
+     * a non-string item returns {@code AEROSPIKE_ERR_PARAMETER}. An empty list returns
+     * an empty string.
+     *
+     * @return the query builder for method chaining
+     */
+    public P listJoin() {
+        queryBuilder.addOperation(ListOperation.join(binName));
+        return wrapResult();
+   }
+
+    /**
+     * Concatenate the string items of the list bin, placing {@code separator}
+     * between consecutive items, and returns the result as a single string. Every item
+     * must be a string; a non-string item returns {@code AEROSPIKE_ERR_PARAMETER}. An
+     * empty list returns an empty string, and a single-item list returns that item
+     * with no separator applied.
+     *
+     * @param separator separator between strings in list.
+     * @return the query builder for method chaining
+     */
+    public P listJoin(String separator) {
+        queryBuilder.addOperation(ListOperation.join(binName, separator));
+        return wrapResult();
+    }
+
     // ----------------------------------------
     // selectFrom - Read expression operations
     // Supports all 5 AEL input types
