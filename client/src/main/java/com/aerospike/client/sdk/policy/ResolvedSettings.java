@@ -66,8 +66,18 @@ public final class ResolvedSettings {
         waitForSocketResponseAfterCallFailsMs = (src.waitForSocketResponseAfterCallFails != null) ?
             (int)src.waitForSocketResponseAfterCallFails.toMillis() : 30000;
 
-        errorDetailVerbosity = (src.errorDetailVerbosity != null) ?
+        int errorDetail = (src.errorDetailVerbosity != null) ?
             src.errorDetailVerbosity : 0;
+
+        if (errorDetail < 0) {
+            errorDetail = 0;
+        }
+
+        if (errorDetail > 3) {
+            errorDetail = 3;
+        }
+
+        errorDetailVerbosity = errorDetail;
 
         maximumNumberOfCallAttempts = (src.maximumNumberOfCallAttempts != null) ?
             src.maximumNumberOfCallAttempts : 3;

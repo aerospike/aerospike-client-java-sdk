@@ -361,7 +361,13 @@ public final class CTX {
         int count = 0;
 
         while (i < max) {
-            int id = (int)(long)(Long)list.get(i);
+            int id;
+            try {
+                id = (int)(long)(Long)list.get(i);
+            }
+            catch (ClassCastException e) {
+                throw new AerospikeException.Parse("Context id must be an integer");
+            }
 
             if (++i >= max) {
                 throw new AerospikeException.Parse("List count must be even");

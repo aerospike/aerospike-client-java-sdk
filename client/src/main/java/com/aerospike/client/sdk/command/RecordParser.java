@@ -159,20 +159,15 @@ public final class RecordParser {
      * Multi-record parse header.
      */
     public boolean parseHeader() {
+        // Clear any per-row error detail captured for a prior record.
+        subCode = SubCode.NONE;
+        message = null;
+        expTrace = null;
+
         dataOffset += 3;
         info3 = dataBuffer[dataOffset] & 0xFF;
         dataOffset += 2;
         resultCode = dataBuffer[dataOffset] & 0xFF;
-
-        // If this is the end marker of the response, do not proceed further.
-        if ((info3 & Command.INFO3_LAST) != 0) {
-            if (resultCode != 0) {
-                // The server returned a fatal error.
-                throw AerospikeException.toException(resultCode, null);
-            }
-            return false;
-        }
-
         dataOffset++;
         generation = Buffer.bytesToInt(dataBuffer, dataOffset);
         dataOffset += 4;
@@ -184,6 +179,22 @@ public final class RecordParser {
         dataOffset += 2;
         opCount = Buffer.bytesToShort(dataBuffer, dataOffset);
         dataOffset += 2;
+
+        // If this is the end marker of the response, do not proceed further.
+        if ((info3 & Command.INFO3_LAST) != 0) {
+            if (resultCode != 0) {
+                // The server returned a fatal error. Parse fields for possible detailed error.
+                // A malformed field section must not mask the result code.
+                try {
+                    parseFieldsError();
+                }
+                catch (Throwable t) {
+                }
+
+                throw toException();
+            }
+            return false;
+        }
         return true;
     }
 
@@ -281,7 +292,9 @@ public final class RecordParser {
                 break;
 
             case FieldType.ERROR_MESSAGE:
-                message = parseErrorDetails(dataOffset, size);
+                if (size > 0) {
+                    message = parseErrorDetails(dataOffset, size);
+                }
                 break;
             }
             dataOffset += size;
@@ -392,16 +405,9 @@ public final class RecordParser {
             subCode = (int)subcode;
         }
 
-        if (message != null && subcode >= 0) {
-            return message + " (subcode=" + subcode + ")";
-        }
-        else if (subcode >= 0) {
-            return "error subcode=" + subcode;
-        }
-        else if (message != null) {
-            return message;
-        }
-        return null;
+        // The message is returned verbatim. The subcode travels on its own field and
+        // is rendered by AerospikeException.getMessage(), alongside the result code.
+        return message;
     }
 
     private ExpressionTrace parseExpTrace(int offset, int end) {
@@ -441,6 +447,8 @@ public final class RecordParser {
         int lang = -1;
         int aelOffset = -1;
         int aelSpan = -1;
+        int outcome = -1;
+        String[] operands = null;
 
         for (int i = 0; i < count && offset < end; i++) {
             // Read key (positive fixint or uint8).
@@ -476,6 +484,12 @@ public final class RecordParser {
             case ExpressionTrace.KEY_SNIPPET:
                 snippet = unpackStrValue(offset, end);
                 break;
+            case ExpressionTrace.KEY_OUTCOME:
+                outcome = (int)unpackUint(offset, end);
+                break;
+            case ExpressionTrace.KEY_OPERANDS:
+                operands = unpackStrArray(offset, end);
+                break;
             case ExpressionTrace.KEY_LANG:
                 lang = (int)unpackUint(offset, end);
                 break;
@@ -486,7 +500,7 @@ public final class RecordParser {
                 aelSpan = (int)unpackUint(offset, end);
                 break;
             default:
-                // Unknown / reserved trace key (outcome, ael_line, ael_col, etc.) — skip.
+                // Unknown / reserved trace key (ael_line, ael_col, etc.) — skip.
                 break;
             }
 
@@ -494,7 +508,7 @@ public final class RecordParser {
             offset = skipMsgpackValue(offset, end);
         }
 
-        return new ExpressionTrace(phase, byteOffset, op, depth, path, snippet, lang, aelOffset, aelSpan);
+        return new ExpressionTrace(phase, byteOffset, op, depth, path, snippet, lang, aelOffset, aelSpan, outcome, operands);
     }
 
     /**

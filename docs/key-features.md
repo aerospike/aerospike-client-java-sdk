@@ -1284,6 +1284,55 @@ When AEL queries reference an indexed bin, the SDK automatically selects the
 secondary index. This is transparent to the application — no query changes
 are needed when indexes are added or removed.
 
+### Expression indexes
+
+An index can also be built over a computed value rather than a bin. The
+expression is evaluated against every record in the set and its result becomes
+the indexed value; a record that evaluates to `unknown` is left out of the
+index, which is how a sparse index over a subset of the set is built.
+Expression indexes require server 8.1 or newer.
+
+The expression can be supplied as AEL text, which the server compiles — this
+form additionally requires every node to be on server 8.1.3 or newer
+(`session.getCluster().supportsAel()`):
+
+```java
+// Index adults living in a target country on their age; skip every other record.
+String ael =
+    "when ($.age >= 18 and $.country in ['Australia', 'Canada', 'USA'] => $.age, " +
+    "default => unknown)";
+
+session.createIndex(users, "idx_adults_by_age",
+        IndexType.INTEGER, IndexCollectionType.DEFAULT, ael)
+    .waitTillComplete();
+```
+
+Or built programmatically with `Exp`, which the client compiles before sending:
+
+```java
+Expression exp = Exp.build(
+    Exp.cond(
+        Exp.and(
+            Exp.ge(Exp.intBin("age"), Exp.val(18)),
+            Exp.or(
+                Exp.eq(Exp.stringBin("country"), Exp.val("Australia")),
+                Exp.eq(Exp.stringBin("country"), Exp.val("Canada")),
+                Exp.eq(Exp.stringBin("country"), Exp.val("USA"))
+            )
+        ),
+        Exp.intBin("age"),
+        Exp.unknown()
+    )
+);
+
+session.createIndex(users, "idx_adults_by_age",
+        IndexType.INTEGER, IndexCollectionType.DEFAULT, exp)
+    .waitTillComplete();
+```
+
+Queries then use the index the same way as any other — a `where` clause whose
+predicate matches the indexed expression is planned against it.
+
 ---
 
 ## Info Commands

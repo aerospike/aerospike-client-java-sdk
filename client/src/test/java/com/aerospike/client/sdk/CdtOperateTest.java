@@ -25,10 +25,13 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Stream;
 
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import com.aerospike.client.sdk.cdt.CTX;
 import com.aerospike.client.sdk.cdt.CdtOperation;
@@ -2140,65 +2143,56 @@ public class CdtOperateTest extends ClusterTest {
     // Legal SelectFlags values are the exposed constants 0..3 and 0x10 (and ORs). The
     // negatives are the ticket's repro table; 4..7 cover the bit-2-set positives that
     // the old "flags & ~4" mask would have silently cleared.
-    private static final int[] INVALID_SELECT_FLAGS = {-1, -2, -3, -9, -12, -16, 4, 5, 6, 7};
 
     // Legal ModifyFlags values are DEFAULT (0) and NO_FAIL (0x10). Bit 2 is the
     // internal apply bit and must never be caller-supplied.
-    private static final int[] INVALID_MODIFY_FLAGS = {-1, -2, -12, -16, 4, 5, 6, 7};
 
-    @Test
-    public void testSelectByPathRejectsInvalidFlags() {
-        for (int flag : INVALID_SELECT_FLAGS) {
-            final int f = flag;
+    @ParameterizedTest(name = "select flag {0}")
+    @MethodSource("invalidSelectFlags")
+    void testSelectByPathRejectsInvalidFlags(int flag) {
+        AerospikeException ae = assertThrows(AerospikeException.class, () ->
+            CdtOperation.selectByPath(BIN_NAME, flag, CTX.allChildren()));
 
-            AerospikeException ae = assertThrows(AerospikeException.class, () -> {
-                CdtOperation.selectByPath(BIN_NAME, f, CTX.allChildren());
-            });
-
-            assertEquals(ResultCode.PARAMETER_ERROR, ae.getResultCode());
-        }
+        assertEquals(ResultCode.PARAMETER_ERROR, ae.getResultCode());
     }
 
-    @Test
-    public void testModifyByPathRejectsInvalidFlags() {
+    @ParameterizedTest(name = "modify flag {0}")
+    @MethodSource("invalidModifyFlags")
+    void testModifyByPathRejectsInvalidFlags(int flag) {
         Expression modifyExp = Exp.build(Exp.add(Exp.intLoopVar(LoopVarPart.VALUE), Exp.val(5)));
 
-        for (int flag : INVALID_MODIFY_FLAGS) {
-            final int f = flag;
+        AerospikeException ae = assertThrows(AerospikeException.class, () ->
+            CdtOperation.modifyByPath(BIN_NAME, flag, modifyExp, CTX.allChildren()));
 
-            AerospikeException ae = assertThrows(AerospikeException.class, () -> {
-                CdtOperation.modifyByPath(BIN_NAME, f, modifyExp, CTX.allChildren());
-            });
-
-            assertEquals(ResultCode.PARAMETER_ERROR, ae.getResultCode());
-        }
+        assertEquals(ResultCode.PARAMETER_ERROR, ae.getResultCode());
     }
 
-    @Test
-    public void testCdtExpSelectByPathRejectsInvalidFlags() {
-        for (int flag : INVALID_SELECT_FLAGS) {
-            final int f = flag;
+    @ParameterizedTest(name = "CdtExp select flag {0}")
+    @MethodSource("invalidSelectFlags")
+    void testCdtExpSelectByPathRejectsInvalidFlags(int flag) {
+        AerospikeException ae = assertThrows(AerospikeException.class, () ->
+            CdtExp.selectByPath(Exp.Type.LIST, flag, Exp.mapBin(BIN_NAME), CTX.allChildren()));
 
-            AerospikeException ae = assertThrows(AerospikeException.class, () -> {
-                CdtExp.selectByPath(Exp.Type.LIST, f, Exp.mapBin(BIN_NAME), CTX.allChildren());
-            });
-
-            assertEquals(ResultCode.PARAMETER_ERROR, ae.getResultCode());
-        }
+        assertEquals(ResultCode.PARAMETER_ERROR, ae.getResultCode());
     }
 
-    @Test
-    public void testCdtExpModifyByPathRejectsInvalidFlags() {
+    @ParameterizedTest(name = "CdtExp modify flag {0}")
+    @MethodSource("invalidModifyFlags")
+    void testCdtExpModifyByPathRejectsInvalidFlags(int flag) {
         Exp modifyExp = Exp.add(Exp.intLoopVar(LoopVarPart.VALUE), Exp.val(5));
-        for (int flag : INVALID_MODIFY_FLAGS) {
-            final int f = flag;
 
-            AerospikeException ae = assertThrows(AerospikeException.class, () -> {
-                CdtExp.modifyByPath(Exp.Type.MAP, f, modifyExp, Exp.mapBin(BIN_NAME), CTX.allChildren());
-            });
+        AerospikeException ae = assertThrows(AerospikeException.class, () ->
+            CdtExp.modifyByPath(Exp.Type.MAP, flag, modifyExp, Exp.mapBin(BIN_NAME), CTX.allChildren()));
 
-            assertEquals(ResultCode.PARAMETER_ERROR, ae.getResultCode());
-        }
+        assertEquals(ResultCode.PARAMETER_ERROR, ae.getResultCode());
+    }
+
+    static Stream<Integer> invalidSelectFlags() {
+        return Stream.of(-1, -2, -3, -9, -12, -16, 4, 5, 6, 7);
+    }
+
+    static Stream<Integer> invalidModifyFlags() {
+        return Stream.of(-1, -2, -12, -16, 4, 5, 6, 7);
     }
 
     // Regression: valid flags must still build. NO_FAIL (0x10) sets a high bit but not

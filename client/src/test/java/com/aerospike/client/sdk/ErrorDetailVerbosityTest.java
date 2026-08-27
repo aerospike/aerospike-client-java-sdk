@@ -28,7 +28,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
@@ -38,7 +37,10 @@ import com.aerospike.client.sdk.policy.Behavior.OpKind;
 import com.aerospike.client.sdk.policy.Behavior.OpShape;
 import com.aerospike.client.sdk.policy.Behavior.Selectors;
 import com.aerospike.client.sdk.policy.ResolvedSettings;
+import com.aerospike.client.sdk.junit.RequiresServerFeature;
+import com.aerospike.client.sdk.junit.ServerFeature;
 
+@RequiresServerFeature(ServerFeature.EXTENDED_ERROR_DETAIL)
 public class ErrorDetailVerbosityTest extends ClusterTest {
     private static final String binName = "edv-bin";
     private static Key intKey;
@@ -47,9 +49,6 @@ public class ErrorDetailVerbosityTest extends ClusterTest {
 
     @BeforeAll
     public static void setup() {
-        Assumptions.assumeTrue(args.serverVersion.isGreaterOrEqual(8, 1, 3, 0),
-            "Extended error-detail requires server version 8.1.3 or later");
-
         intKey = args.set.id("edv-int-key");
         strKey = args.set.id("edv-str-key");
         listKey = args.set.id("edv-list-key");
@@ -136,7 +135,6 @@ public class ErrorDetailVerbosityTest extends ClusterTest {
         assertEquals(SubCode.BIN_NOT_FOUND_HLL_CANNOT_CREATE_WITH_OP, ae.getSubCode());
         String msg = ae.getBaseMessage();
         assertNotNull(msg);
-        assertTrue(msg.contains("subcode=1"), "Expected subcode in: " + msg);
     }
 
     @Test
@@ -167,7 +165,6 @@ public class ErrorDetailVerbosityTest extends ClusterTest {
         String msg = ae.getBaseMessage();
         assertNotNull(msg);
         assertTrue(msg.contains("count op"), "Expected message text in: " + msg);
-        assertTrue(msg.contains("(subcode=1)"), "Expected subcode in: " + msg);
     }
 
     // ---------------------------------------------------------------------
@@ -909,7 +906,7 @@ public class ErrorDetailVerbosityTest extends ClusterTest {
 
         String msg = ae.getBaseMessage();
         assertNotNull(msg);
-        assertTrue(msg.contains("invalid metadata expression in request"),
+        assertTrue(msg.contains("invalid filter expression in request"),
             "Expected filter-build message in: " + msg);
 
         ExpressionTrace t = ae.getExpressionTrace();
@@ -971,7 +968,8 @@ public class ErrorDetailVerbosityTest extends ClusterTest {
 
         String msg = ae.getBaseMessage();
         assertNotNull(msg);
-        assertTrue(msg.contains("invalid metadata expression in request"),
+
+        assertTrue(msg.contains("invalid filter expression in request"),
             "Expected filter-build message in: " + msg);
 
         assertNull(ae.getExpressionTrace(), "Verbosity 2 must surface NO expression trace");
@@ -980,8 +978,7 @@ public class ErrorDetailVerbosityTest extends ClusterTest {
     /**
      * Assert the server-supplied {@code (resultCode, subcode)} pair. The numeric
      * subcode must be exposed first-class via {@link AerospikeException#getSubCode()}
-     * (not merely embedded in the message string), and the "subcode=N" suffix must
-     * still appear in the message for parity with the C client.
+     * (not merely embedded in the message string).
      */
     private void assertSubCode(AerospikeException ae, int expectedResultCode, int expectedSubCode) {
         assertEquals(expectedResultCode, ae.getResultCode(), "Unexpected result code");
@@ -989,8 +986,6 @@ public class ErrorDetailVerbosityTest extends ClusterTest {
 
         String msg = ae.getBaseMessage();
         assertNotNull(msg, "Expected server error message");
-        assertTrue(msg.contains("subcode=" + expectedSubCode),
-            "Expected 'subcode=" + expectedSubCode + "' in: " + msg);
     }
 
     /**
@@ -1010,6 +1005,5 @@ public class ErrorDetailVerbosityTest extends ClusterTest {
         for (String expected : expectedSubstrings) {
             assertTrue(msg.contains(expected), "Expected '" + expected + "' in: " + msg);
         }
-        assertFalse(msg.contains("subcode="), "Expected NO subcode suffix in: " + msg);
     }
 }

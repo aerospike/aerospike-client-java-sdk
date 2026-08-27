@@ -624,10 +624,7 @@ public class BatchTest extends ClusterTest {
 
         assertTrue(rs.hasNext());
         RecordResult res2 = rs.next();
-        assertEquals(ResultCode.PARAMETER_ERROR, res2.getResultCode());
-        assertEquals(SubCode.NONE, res2.getSubCode());
-        assertNotNull(res2.getMessage());
-        assertNotNull(res2.getExpressionTrace());
+        assertBatchInvalidFilterError(res2);
     }
 
     @Test
@@ -655,13 +652,20 @@ public class BatchTest extends ClusterTest {
 
         while (rs.hasNext()) {
             RecordResult res = rs.next();
-            assertEquals(ResultCode.PARAMETER_ERROR, res.getResultCode());
-            assertEquals(SubCode.NONE, res.getSubCode());
-            assertNotNull(res.getMessage());
-            assertNotNull(res.getExpressionTrace());
+            assertBatchInvalidFilterError(res);
             count++;
         }
 
         assertEquals(2, count);
+    }
+
+    private static void assertBatchInvalidFilterError(RecordResult res) {
+        assertEquals(ResultCode.PARAMETER_ERROR, res.getResultCode());
+        assertEquals(SubCode.NONE, res.getSubCode());
+
+        if (supportsAel()) {
+            assertNotNull(res.getMessage());
+            assertNotNull(res.getExpressionTrace());
+        }
     }
 }

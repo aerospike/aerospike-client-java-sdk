@@ -24,7 +24,7 @@ import java.nio.charset.StandardCharsets;
 
 import org.junit.jupiter.api.Test;
 
-class QueryWhereWireTest {
+public class QueryWhereWireTest {
 
     private static final String SIMPLE_AEL = "$.age > 30";
     private static final String COMPOUND_AEL = "$.age > 30 and $.country == 'US'";

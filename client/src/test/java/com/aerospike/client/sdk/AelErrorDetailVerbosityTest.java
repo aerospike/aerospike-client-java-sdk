@@ -23,12 +23,13 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import com.aerospike.client.sdk.policy.Behavior;
 import com.aerospike.client.sdk.policy.Behavior.Selectors;
+import com.aerospike.client.sdk.junit.RequiresServerFeature;
+import com.aerospike.client.sdk.junit.ServerFeature;
 
 /**
  * Extended error-detail coverage for server-compiled AEL (SERVER-1137 / AER-6932).
@@ -37,6 +38,7 @@ import com.aerospike.client.sdk.policy.Behavior.Selectors;
  * build failures. These tests send textual AEL and assert folded compile diagnostics and,
  * at verbosity 3, {@link ExpressionTrace} with {@link ExpressionTrace#LANG_AEL}.</p>
  */
+@RequiresServerFeature(ServerFeature.AEL)
 public class AelErrorDetailVerbosityTest extends ClusterTest {
     private static final String binName = "aedvbin";
     private static Key intKey;
@@ -53,10 +55,6 @@ public class AelErrorDetailVerbosityTest extends ClusterTest {
 
     @BeforeAll
     public static void setup() {
-        Assumptions.assumeTrue(args.serverVersion.isGreaterOrEqual(8, 1, 3, 0),
-            "Extended error-detail requires server version 8.1.3 or later");
-        assumeSupportsAel();
-
         intKey = args.set.id("aedv-int-key");
 
         session.upsert(intKey)
@@ -79,7 +77,7 @@ public class AelErrorDetailVerbosityTest extends ClusterTest {
 
         String msg = ae.getBaseMessage();
         assertNotNull(msg);
-        assertTrue(msg.contains("invalid metadata expression in request"),
+        assertTrue(msg.contains("invalid filter expression in request"),
             "Expected filter-build context in: " + msg);
         assertTrue(msg.length() > "invalid metadata expression in request".length(),
             "Expected AEL compile diagnostic folded into message: " + msg);

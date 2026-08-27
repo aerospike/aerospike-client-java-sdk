@@ -16,32 +16,32 @@
  */
 package com.aerospike.client.sdk.query;
 
+import static com.aerospike.client.sdk.query.QuerySelectionIntegSupport.assumeQuerySelection;
+import static com.aerospike.client.sdk.query.QuerySelectionIntegSupport.createIndexQuietly;
+import static com.aerospike.client.sdk.query.QuerySelectionIntegSupport.plan;
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
-import com.aerospike.client.sdk.AerospikeException;
 import com.aerospike.client.sdk.ClusterTest;
 import com.aerospike.client.sdk.DataSet;
-import com.aerospike.client.sdk.ResultCode;
 import com.aerospike.client.sdk.query.plan.QueryPlan;
 import com.aerospike.client.sdk.query.plan.QuerySelection;
 import com.aerospike.client.sdk.query.plan.QueryWhereWire;
 
 /**
- * Tier D integration tests: {@code REQUIRE_INDEX} and {@code HARD_HINT} on field {@code 44} explain.
+ * Tier D integration tests: {@code REQUIRE_INDEX} and {@code HARD_HINT} on field {@code 44} explain
+ * wire flags and successful index selection. Explain-time failures ({@code INDEX_NOTFOUND},
+ * {@code PARAMETER_ERROR}) are covered by {@link QuerySelectionErrorDetailTest}.
  */
-class QuerySelectionHintFlagsTest extends ClusterTest {
+public class QuerySelectionHintFlagsTest extends ClusterTest {
     private static final String setName = "qselhint";
     private static final String indexName = "qselhint_age_idx";
     private static final String scoreIndexName = "qselhint_score_idx";
-    private static final String bogusIndexName = "qselhint_missing_idx";
     private static final String binName = "age";
     private static final String scoreBinName = "score";
     private static final String countryBinName = "country";
@@ -51,32 +51,17 @@ class QuerySelectionHintFlagsTest extends ClusterTest {
 
     @BeforeAll
     static void prepare() {
-        assumeTrue(cluster.supportsQuerySelection(), "server does not support query selection");
+        assumeQuerySelection();
 
         dataSet = DataSet.of(args.namespace, setName);
 
-        session.delete(dataSet.ids(keyPrefix + "1"));
-        session.delete(dataSet.ids(keyPrefix + "2"));
+        session.delete(dataSet.ids(keyPrefix + "1")).execute();
+        session.delete(dataSet.ids(keyPrefix + "2")).execute();
 
-        try {
-            session.createIndex(dataSet, indexName, binName, IndexType.INTEGER,
-                IndexCollectionType.DEFAULT).waitTillComplete();
-        }
-        catch (AerospikeException ae) {
-            if (ae.getResultCode() != ResultCode.INDEX_ALREADY_EXISTS) {
-                throw ae;
-            }
-        }
-
-        try {
-            session.createIndex(dataSet, scoreIndexName, scoreBinName, IndexType.INTEGER,
-                IndexCollectionType.DEFAULT).waitTillComplete();
-        }
-        catch (AerospikeException ae) {
-            if (ae.getResultCode() != ResultCode.INDEX_ALREADY_EXISTS) {
-                throw ae;
-            }
-        }
+        createIndexQuietly(session, dataSet, indexName, binName, IndexType.INTEGER,
+            IndexCollectionType.DEFAULT);
+        createIndexQuietly(session, dataSet, scoreIndexName, scoreBinName, IndexType.INTEGER,
+            IndexCollectionType.DEFAULT);
 
         session.upsert(dataSet.ids(keyPrefix + "1"))
             .bins(binName, scoreBinName, countryBinName)
@@ -94,21 +79,10 @@ class QuerySelectionHintFlagsTest extends ClusterTest {
         if (dataSet == null) {
             return;
         }
-        session.delete(dataSet.ids(keyPrefix + "1"));
-        session.delete(dataSet.ids(keyPrefix + "2"));
+        session.delete(dataSet.ids(keyPrefix + "1")).execute();
+        session.delete(dataSet.ids(keyPrefix + "2")).execute();
         session.dropIndex(dataSet, indexName);
         session.dropIndex(dataSet, scoreIndexName);
-    }
-
-    /** D.3 — {@code REQUIRE_INDEX} on PI-eligible WHERE rejects explain. */
-    @Test
-    void requireIndexOnPrimaryIndexPlanFailsExplain() {
-        QueryBuilder qb = session.query(dataSet)
-            .where("$.country == 'US'")
-            .withHint(hint -> hint.disallowScansWithWhere());
-
-        AerospikeException e = assertThrows(AerospikeException.class, () -> explainPlan(qb));
-        assertEquals(ResultCode.INDEX_NOTFOUND, e.getResultCode());
     }
 
     /** D.4 — {@code REQUIRE_INDEX} + soft {@code forIndex} still selects a secondary index. */
@@ -118,79 +92,55 @@ class QuerySelectionHintFlagsTest extends ClusterTest {
             .where("$.age == 25")
             .withHint(hint -> hint.disallowScansWithWhere().forIndex(scoreIndexName));
 
-        QueryPlan plan = explainPlan(qb);
+        QueryPlan queryPlan = plan(dataSet, qb);
 
-        assertAll("requireIndexSoftHint",
-            () -> assertEquals(QuerySelection.SECONDARY_INDEX, plan.getSelection()),
-            () -> assertEquals(indexName, plan.getIndexName()),
-            () -> assertNotNull(plan.getIndexRangeBytes()),
+        assertAll(
+            () -> assertEquals(QuerySelection.SECONDARY_INDEX, queryPlan.getSelection()),
+            () -> assertEquals(indexName, queryPlan.getIndexName()),
+            () -> assertNotNull(queryPlan.getIndexRangeBytes()),
             () -> assertEquals(
                 QueryWhereWire.FLAG_EXPLAIN | QueryWhereWire.FLAG_REQUIRE_INDEX,
-                QueryWhereWire.flags(plan.getExplainWhereBytes())));
+                QueryWhereWire.flags(queryPlan.getExplainWhereBytes())));
     }
 
-    /** D.6 — {@code HARD_HINT} + matching {@code forIndex} selects that index. */
+    /**
+     * {@code HARD_HINT} + matching {@code forIndex} selects that index. {@code REQUIRE_INDEX}
+     * rides along because the query behavior default is {@code allowScansWithWhere(false)} — so an
+     * explicit {@code disallowScansWithWhere().hardHint()} adds no distinct wire shape.
+     */
     @Test
     void hardHintWithMatchingIndexSelectsHintedIndex() {
         QueryBuilder qb = session.query(dataSet)
             .where("$.age == 25")
             .withHint(hint -> hint.forIndex(indexName).hardHint());
 
-        QueryPlan plan = explainPlan(qb);
+        QueryPlan queryPlan = plan(dataSet, qb);
 
-        assertAll("hardHintMatch",
-            () -> assertEquals(QuerySelection.SECONDARY_INDEX, plan.getSelection()),
-            () -> assertEquals(indexName, plan.getIndexName()),
-            () -> assertEquals(
-                QueryWhereWire.FLAG_EXPLAIN | QueryWhereWire.FLAG_HARD_HINT,
-                QueryWhereWire.flags(plan.getExplainWhereBytes())));
-    }
-
-    /** D.7 — both flags with index hint. */
-    @Test
-    void requireIndexAndHardHintSelectsHintedIndex() {
-        QueryBuilder qb = session.query(dataSet)
-            .where("$.age == 25")
-            .withHint(hint -> hint.forIndex(indexName).disallowScansWithWhere().hardHint());
-
-        QueryPlan plan = explainPlan(qb);
-
-        assertAll("bothFlags",
-            () -> assertEquals(indexName, plan.getIndexName()),
+        assertAll(
+            () -> assertEquals(QuerySelection.SECONDARY_INDEX, queryPlan.getSelection()),
+            () -> assertEquals(indexName, queryPlan.getIndexName()),
             () -> assertEquals(
                 QueryWhereWire.FLAG_EXPLAIN | QueryWhereWire.FLAG_REQUIRE_INDEX
                     | QueryWhereWire.FLAG_HARD_HINT,
-                QueryWhereWire.flags(plan.getExplainWhereBytes())));
-    }
-
-    /** D.8 — {@code HARD_HINT} with wrong index name fails explain. */
-    @Test
-    void hardHintWithWrongIndexFailsExplain() {
-        QueryBuilder qb = session.query(dataSet)
-            .where("$.age == 25")
-            .withHint(hint -> hint.forIndex(bogusIndexName).hardHint());
-
-        AerospikeException e = assertThrows(AerospikeException.class, () -> explainPlan(qb));
-        assertEquals(ResultCode.INDEX_NOTFOUND, e.getResultCode());
+                QueryWhereWire.flags(queryPlan.getExplainWhereBytes())));
     }
 
     /**
-     * D.9 — syntactically invalid AEL fails explain with {@code PARAMETER}.
-     * (Unknown bin with valid syntax returns PI, not {@code PARAMETER}.)
+     * The same hint with {@code allowScansWithWhere()} drops {@code REQUIRE_INDEX}, pinning that the
+     * flag comes from the scan policy rather than from {@code hardHint}.
      */
     @Test
-    void badAelFailsExplainWithParameter() {
-        AerospikeException e = assertThrows(AerospikeException.class,
-            () -> explainPlan("$.age > 30 and"));
-        assertEquals(ResultCode.PARAMETER_ERROR, e.getResultCode());
-    }
+    void hardHintWithScansAllowedOmitsRequireIndex() {
+        QueryBuilder qb = session.query(dataSet)
+            .where("$.age == 25")
+            .withHint(hint -> hint.forIndex(indexName).allowScansWithWhere().hardHint());
 
-    private static QueryPlan explainPlan(String where) {
-        return IndexProbePlanner.plan(
-            session, dataSet, WhereClauseProcessor.from(where), null);
-    }
+        QueryPlan queryPlan = plan(dataSet, qb);
 
-    private static QueryPlan explainPlan(QueryBuilder qb) {
-        return IndexProbePlanner.plan(session, dataSet, qb.getAel(), qb.getQueryHint());
+        assertAll(
+            () -> assertEquals(indexName, queryPlan.getIndexName()),
+            () -> assertEquals(
+                QueryWhereWire.FLAG_EXPLAIN | QueryWhereWire.FLAG_HARD_HINT,
+                QueryWhereWire.flags(queryPlan.getExplainWhereBytes())));
     }
 }

@@ -18,12 +18,13 @@ package com.aerospike.client.sdk.query;
 
 import static com.aerospike.client.sdk.query.QuerySelectionIntegSupport.AGE_BIN;
 import static com.aerospike.client.sdk.query.QuerySelectionIntegSupport.collectAges;
+import static com.aerospike.client.sdk.query.QuerySelectionIntegSupport.createIndexQuietly;
+import static com.aerospike.client.sdk.query.QuerySelectionIntegSupport.dropIndexQuietly;
+import static com.aerospike.client.sdk.query.QuerySelectionIntegSupport.plan;
 import static com.aerospike.client.sdk.query.QuerySelectionIntegSupport.prepareQselint;
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.util.ArrayList;
 import java.util.List;
 
 import org.junit.jupiter.api.AfterAll;
@@ -32,83 +33,62 @@ import org.junit.jupiter.api.Test;
 
 import com.aerospike.client.sdk.ClusterTest;
 import com.aerospike.client.sdk.DataSet;
-import com.aerospike.client.sdk.RecordStream;
+import com.aerospike.client.sdk.query.QuerySelectionIntegSupport.Fixture;
 import com.aerospike.client.sdk.query.plan.QueryPlan;
 import com.aerospike.client.sdk.query.plan.QuerySelection;
 
 /**
- * Operational scenarios for server-led query selection.
+ * Query-selection scenarios not covered elsewhere: prepared AEL routing and index scope resolution.
+ *
+ * <p>Partition-range and chunked execute invariants live in {@link QuerySelectionLifecycleTest} —
+ * they exercise pagination/partition routing, not index selection.</p>
  */
-class QuerySelectionOperationalIntegrationTest extends ClusterTest {
+public class QuerySelectionOperationalIntegrationTest extends ClusterTest {
+    private static final Fixture FIXTURE = Fixture.forSuffix("oper");
+    private static final String scopeSetName = "qsel_scope";
+    private static final String scopeKeyPrefix = "qselscope";
+    private static final String setScopedBin = "qsel_set_value";
+    private static final String namespaceScopedBin = "qsel_ns_value";
+    private static final String setScopedIndex = "qsel_set_scope_idx";
+    private static final String namespaceScopedIndex = "qsel_ns_scope_idx";
+
     private static DataSet dataSet;
+    private static DataSet scopeDataSet;
+    private static DataSet namespaceDataSet;
 
     @BeforeAll
     static void prepare() {
-        QuerySelectionIntegSupport.assumeQuerySelectionEnabled();
-        dataSet = prepareQselint(session, args.namespace);
+        QuerySelectionIntegSupport.assumeQuerySelection();
+        dataSet = prepareQselint(session, args.namespace, FIXTURE);
+        scopeDataSet = DataSet.of(args.namespace, scopeSetName);
+        namespaceDataSet = DataSet.of(args.namespace, null);
+
+        session.delete(scopeDataSet.ids(scopeKeyPrefix + "1")).execute();
+        session.delete(scopeDataSet.ids(scopeKeyPrefix + "2")).execute();
+        createIndexQuietly(session, scopeDataSet, setScopedIndex, setScopedBin, IndexType.INTEGER,
+            IndexCollectionType.DEFAULT);
+        createIndexQuietly(session, namespaceDataSet, namespaceScopedIndex, namespaceScopedBin,
+            IndexType.INTEGER, IndexCollectionType.DEFAULT);
+
+        session.upsert(scopeDataSet.ids(scopeKeyPrefix + "1"))
+            .bins(setScopedBin, namespaceScopedBin)
+            .values(101, 201)
+            .execute();
+        session.upsert(scopeDataSet.ids(scopeKeyPrefix + "2"))
+            .bins(setScopedBin, namespaceScopedBin)
+            .values(102, 202)
+            .execute();
     }
 
     @AfterAll
     static void destroy() {
-        QuerySelectionIntegSupport.destroyQselint(session, dataSet);
-    }
-
-    /**
-     * partition-restricted query still uses server selection and returns a subset of the
-     * unrestricted result.
-     */
-    @Test
-    void executeWithPartitionRangeAndWhereReturnsMatchingSubset() {
-        String where = "$.age >= 14 and $.age <= 18";
-
-        List<Integer> full = collectAges(session.query(dataSet)
-            .readingOnlyBins(AGE_BIN)
-            .where(where)
-            .execute(), AGE_BIN);
-
-        List<Integer> partial = collectAges(session.query(dataSet)
-            .onPartitionRange(0, 512)
-            .readingOnlyBins(AGE_BIN)
-            .where(where)
-            .execute(), AGE_BIN);
-
-        assertAll("partitionRestricted",
-            () -> assertEquals(List.of(14, 15, 16, 17, 18), full),
-            () -> assertTrue(partial.size() > 0),
-            () -> assertTrue(partial.size() <= full.size()),
-            () -> assertTrue(full.containsAll(partial)));
-    }
-
-    /**
-     * chunked execute returns the full matching set without re-planning between chunks.
-     */
-    @Test
-    void chunkedExecuteReturnsFullMatchingSet() {
-        String where = "$.age >= 14 and $.age <= 18";
-        QueryPlan plan = QueryPlannerSupport.plan(dataSet, where);
-
-        List<Integer> ages = new ArrayList<>();
-        RecordStream rs = session.query(dataSet)
-            .readingOnlyBins(AGE_BIN)
-            .where(where)
-            .chunkSize(2)
-            .execute();
-
-        try {
-            while (rs.hasMoreChunks()) {
-                while (rs.hasNext()) {
-                    ages.add(rs.next().recordOrThrow().getInt(AGE_BIN));
-                }
-            }
-            ages.sort(Integer::compareTo);
+        QuerySelectionIntegSupport.destroyQselint(session, dataSet, FIXTURE);
+        if (scopeDataSet != null) {
+            session.delete(scopeDataSet.ids(scopeKeyPrefix + "1")).execute();
+            session.delete(scopeDataSet.ids(scopeKeyPrefix + "2")).execute();
+            dropIndexQuietly(scopeDataSet, setScopedIndex);
+            dropIndexQuietly(namespaceDataSet, namespaceScopedIndex);
         }
-        finally {
-            rs.close();
-        }
-
-        assertAll("chunkedExecute",
-            () -> assertEquals(QuerySelection.SECONDARY_INDEX, plan.getSelection()),
-            () -> assertEquals(List.of(14, 15, 16, 17, 18), ages));
     }
 
     /** Prepared AEL uses the same field {@code 44} selection path as raw string AEL. */
@@ -127,8 +107,39 @@ class QuerySelectionOperationalIntegrationTest extends ClusterTest {
             .where(template, 14, 18)
             .execute(), AGE_BIN);
 
-        assertAll("preparedAel",
+        assertAll(
             () -> assertEquals(QuerySelection.SECONDARY_INDEX, plan.getSelection()),
             () -> assertEquals(List.of(14, 15, 16, 17, 18), ages));
+    }
+
+    /**
+     * The planner resolves set identity independently from the candidate expression. A set query
+     * must select its set-scoped index, while an omitted set must select the namespace-wide index.
+     * Distinct bins keep both definitions live concurrently and make the assertion order-independent.
+     */
+    @Test
+    void setScopedAndNamespaceWideQueriesSelectMatchingIndexes() {
+        String setWhere = "$." + setScopedBin + " >= 101 and $." + setScopedBin + " <= 102";
+        String namespaceWhere =
+            "$." + namespaceScopedBin + " >= 201 and $." + namespaceScopedBin + " <= 202";
+
+        QueryPlan setPlan = plan(scopeDataSet, setWhere);
+        QueryPlan namespacePlan = plan(namespaceDataSet, namespaceWhere);
+        List<Integer> setValues = collectAges(session.query(scopeDataSet)
+            .readingOnlyBins(setScopedBin)
+            .where(setWhere)
+            .execute(), setScopedBin);
+        List<Integer> namespaceValues = collectAges(session.query(namespaceDataSet)
+            .readingOnlyBins(namespaceScopedBin)
+            .where(namespaceWhere)
+            .execute(), namespaceScopedBin);
+
+        assertAll(
+            () -> assertEquals(QuerySelection.SECONDARY_INDEX, setPlan.getSelection()),
+            () -> assertEquals(setScopedIndex, setPlan.getIndexName()),
+            () -> assertEquals(List.of(101, 102), setValues),
+            () -> assertEquals(QuerySelection.SECONDARY_INDEX, namespacePlan.getSelection()),
+            () -> assertEquals(namespaceScopedIndex, namespacePlan.getIndexName()),
+            () -> assertEquals(List.of(201, 202), namespaceValues));
     }
 }

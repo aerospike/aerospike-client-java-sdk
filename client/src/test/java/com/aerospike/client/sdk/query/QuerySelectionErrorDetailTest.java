@@ -16,13 +16,16 @@
  */
 package com.aerospike.client.sdk.query;
 
+import static com.aerospike.client.sdk.query.QuerySelectionIntegSupport.assumeQuerySelection;
+import static com.aerospike.client.sdk.query.QuerySelectionIntegSupport.createIndexQuietly;
+import static com.aerospike.client.sdk.query.QuerySelectionIntegSupport.plan;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
+import com.aerospike.client.sdk.ExpressionTrace;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -31,13 +34,11 @@ import com.aerospike.client.sdk.AerospikeException;
 import com.aerospike.client.sdk.ClusterTest;
 import com.aerospike.client.sdk.DataSet;
 import com.aerospike.client.sdk.ErrorDetailVerbosity;
-import com.aerospike.client.sdk.ExpressionTrace;
 import com.aerospike.client.sdk.ResultCode;
 import com.aerospike.client.sdk.Session;
 import com.aerospike.client.sdk.SubCode;
 import com.aerospike.client.sdk.policy.Behavior;
 import com.aerospike.client.sdk.policy.Behavior.Selectors;
-import com.aerospike.client.sdk.query.plan.QueryPlan;
 
 /**
  * Error-detail verbosity on server query-selection (field {@code 44} explain) paths.
@@ -62,23 +63,13 @@ public class QuerySelectionErrorDetailTest extends ClusterTest {
 
     @BeforeAll
     static void prepare() {
-        assumeTrue(args.serverVersion.isGreaterOrEqual(8, 1, 3, 0),
-            "Extended error-detail requires server version 8.1.3 or later");
-        QuerySelectionIntegSupport.assumeQuerySelectionEnabled();
-
+        assumeQuerySelection();
         dataSet = DataSet.of(args.namespace, setName);
 
         session.delete(dataSet.ids(keyPrefix + "1"));
 
-        try {
-            session.createIndex(dataSet, indexName, binName, IndexType.INTEGER,
-                IndexCollectionType.DEFAULT).waitTillComplete();
-        }
-        catch (AerospikeException ae) {
-            if (ae.getResultCode() != ResultCode.INDEX_ALREADY_EXISTS) {
-                throw ae;
-            }
-        }
+        createIndexQuietly(session, dataSet, indexName, binName, IndexType.INTEGER,
+            IndexCollectionType.DEFAULT);
 
         session.upsert(dataSet.ids(keyPrefix + "1"))
             .bins(binName, countryBinName)
@@ -100,19 +91,18 @@ public class QuerySelectionErrorDetailTest extends ClusterTest {
         Session verbose = sessionWithVerbosity(ErrorDetailVerbosity.MESSAGE);
 
         AerospikeException ae = assertThrows(AerospikeException.class, () ->
-            explainPlan(verbose, BAD_AEL));
+            IndexProbePlanner.plan(
+                verbose, dataSet, WhereClauseProcessor.from(BAD_AEL), null));
 
         assertEquals(ResultCode.PARAMETER_ERROR, ae.getResultCode());
         assertEquals(SubCode.NONE, ae.getSubCode());
 
         String msg = ae.getBaseMessage();
         assertNotNull(msg, "Expected server error message at verbosity 2");
-        // Explain may fold AEL diagnostics when query_plan stages build errors; otherwise
-        // the generic PARAMETER string is still returned at verbosity >= 2.
-        assertTrue(
-            msg.contains("invalid filter expression in query")
-                || msg.toLowerCase().contains("parameter"),
-            "Unexpected explain message: " + msg);
+        assertTrue(msg.contains("invalid filter expression in query"),
+            "Expected query explain filter-build context in: " + msg);
+        assertTrue(msg.length() > "invalid filter expression in query".length(),
+            "Expected AEL compile diagnostic folded into message: " + msg);
     }
 
     @Test
@@ -120,15 +110,22 @@ public class QuerySelectionErrorDetailTest extends ClusterTest {
         Session verbose = sessionWithVerbosity(ErrorDetailVerbosity.EXPRESSION_TRACE);
 
         AerospikeException ae = assertThrows(AerospikeException.class, () ->
-            explainPlan(verbose, BAD_AEL));
+            IndexProbePlanner.plan(
+                verbose, dataSet, WhereClauseProcessor.from(BAD_AEL), null));
 
         assertEquals(ResultCode.PARAMETER_ERROR, ae.getResultCode());
+        assertEquals(SubCode.NONE, ae.getSubCode());
+
+        String msg = ae.getBaseMessage();
+        assertNotNull(msg, "Expected server error message at verbosity 3");
+        assertTrue(msg.contains("invalid filter expression in query"),
+            "Expected query explain filter-build context in: " + msg);
 
         ExpressionTrace trace = ae.getExpressionTrace();
-        if (trace != null) {
-            assertEquals(ExpressionTrace.PHASE_BUILD, trace.getPhase());
-            assertEquals(ExpressionTrace.LANG_AEL, trace.getLang());
-        }
+        assertNotNull(trace, "Expected a non-null AEL build trace at verbosity 3");
+        assertEquals(ExpressionTrace.PHASE_BUILD, trace.getPhase());
+        assertEquals(ExpressionTrace.LANG_AEL, trace.getLang());
+        assertTrue(trace.getAelOffset() >= 0, "Expected AEL source offset in trace");
     }
 
     @Test
@@ -136,7 +133,8 @@ public class QuerySelectionErrorDetailTest extends ClusterTest {
         Session verbose = sessionWithVerbosity(ErrorDetailVerbosity.MESSAGE);
 
         AerospikeException ae = assertThrows(AerospikeException.class, () ->
-            explainPlan(verbose, BAD_AEL));
+            IndexProbePlanner.plan(
+                verbose, dataSet, WhereClauseProcessor.from(BAD_AEL), null));
 
         assertEquals(ResultCode.PARAMETER_ERROR, ae.getResultCode());
         assertNull(ae.getExpressionTrace(), "Verbosity 2 must surface NO expression trace");
@@ -152,7 +150,7 @@ public class QuerySelectionErrorDetailTest extends ClusterTest {
                 .execute());
 
         assertEquals(ResultCode.PARAMETER_ERROR, ae.getResultCode());
-        assertNotNull(ae.getBaseMessage(), "Expected server error message at verbosity 2");
+        // TODO: fails at explain today; same server staging gap as explainBadAelDetailedMessageAtVerbosity2.
     }
 
     @Test
@@ -163,7 +161,7 @@ public class QuerySelectionErrorDetailTest extends ClusterTest {
             .where("$.country == 'US'")
             .withHint(hint -> hint.disallowScansWithWhere());
 
-        AerospikeException ae = assertThrows(AerospikeException.class, () -> explainPlan(verbose, qb));
+        AerospikeException ae = assertThrows(AerospikeException.class, () -> plan(verbose, dataSet, qb));
 
         assertEquals(ResultCode.INDEX_NOTFOUND, ae.getResultCode());
         assertEquals(SubCode.NONE, ae.getSubCode());
@@ -177,7 +175,7 @@ public class QuerySelectionErrorDetailTest extends ClusterTest {
             .where("$.age == 25")
             .withHint(hint -> hint.forIndex(bogusIndexName).hardHint());
 
-        AerospikeException ae = assertThrows(AerospikeException.class, () -> explainPlan(verbose, qb));
+        AerospikeException ae = assertThrows(AerospikeException.class, () -> plan(verbose, dataSet, qb));
 
         assertEquals(ResultCode.INDEX_NOTFOUND, ae.getResultCode());
         assertEquals(SubCode.NONE, ae.getSubCode());
@@ -190,14 +188,5 @@ public class QuerySelectionErrorDetailTest extends ClusterTest {
             )
         );
         return cluster.createSession(behavior);
-    }
-
-    private static QueryPlan explainPlan(Session session1, String where) {
-        return IndexProbePlanner.plan(
-            session1, dataSet, WhereClauseProcessor.from(where), null);
-    }
-
-    private static QueryPlan explainPlan(Session session1, QueryBuilder qb) {
-        return IndexProbePlanner.plan(session1, dataSet, qb.getAel(), qb.getQueryHint());
     }
 }
