@@ -124,10 +124,9 @@ class ConnectionRecoverTest {
         InetSocketAddress address =
             new InetSocketAddress(InetAddress.getLoopbackAddress(), server.port());
 
-        server.expectConnection(ConnectionRecoverTest::holdOpen);
-
-        ClusterDefinition def = new ClusterDefinition(
-            new Host(address.getHostString(), address.getPort()))
+        // Cluster tend probes seed hosts in the background. Use an unroutable port so it
+        // does not race with the loopback test server for accepted sockets.
+        ClusterDefinition def = new ClusterDefinition(new Host("127.0.0.1", 9))
             .clusterName("connection-recover-" + UUID.randomUUID())
             .connPoolsPerNode(1);
         def.minConnsPerNode = 0;
@@ -135,6 +134,7 @@ class ConnectionRecoverTest {
 
         cluster = new Cluster(def, SystemSettings.DEFAULT);
 
+        server.expectConnection(ConnectionRecoverTest::holdOpen);
         tendConn = new Connection(address, 5_000, null, null);
 
         NodeValidator nv = new NodeValidator();
