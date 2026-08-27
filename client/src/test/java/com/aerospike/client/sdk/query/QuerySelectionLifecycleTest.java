@@ -55,7 +55,7 @@ import com.aerospike.client.sdk.ResultCode;
  * because it drops and recreates indexes mid-run; {@link #resetIndexBaseline()} restores the
  * intended catalog before each test so a failure part-way through one test cannot cascade.</p>
  */
-class QuerySelectionLifecycleTest extends ClusterTest {
+public class QuerySelectionLifecycleTest extends ClusterTest {
     private static final String setName = "qsellife";
     private static final String keyPrefix = "qsellifekey";
     private static final String ageBin = "age";

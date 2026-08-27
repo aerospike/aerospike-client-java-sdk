@@ -32,7 +32,7 @@ import com.aerospike.client.sdk.command.FieldType;
 import com.aerospike.client.sdk.command.MsgFieldParser;
 import com.aerospike.client.sdk.query.IndexCollectionType;
 
-class QueryPlanTest {
+public class QueryPlanTest {
 
     private static final String AEL = "$.age > 30";
     private static final byte[] EXPLAIN_WHERE = QueryWhereWire.forExplain(AEL);

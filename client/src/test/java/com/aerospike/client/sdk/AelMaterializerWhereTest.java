@@ -28,7 +28,7 @@ import com.aerospike.client.sdk.exp.Expression;
  *
  * <p>Wire layout details are covered by {@link com.aerospike.client.sdk.exp.ServerCompiledFilterWireTest}.</p>
  */
-class AelMaterializerWhereTest extends ClusterTest {
+public class AelMaterializerWhereTest extends ClusterTest {
 
     private static final String AEL = "$.age > 30";
 

@@ -38,7 +38,7 @@ import com.aerospike.client.sdk.policy.QueryDuration;
  * <p>Invalid transitions (e.g. {@code forIndex().forBin()}) are enforced by the compiler and
  * cannot be tested at runtime.</p>
  */
-class QueryHintTest {
+public class QueryHintTest {
 
     @ParameterizedTest
     @MethodSource("hintCaptureCases")

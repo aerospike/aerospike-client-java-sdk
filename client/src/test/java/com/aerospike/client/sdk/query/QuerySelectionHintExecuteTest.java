@@ -55,7 +55,7 @@ import com.aerospike.client.sdk.query.QuerySelectionIntegSupport.Fixture;
  * {@code hardHint()} must fail. That pairing is what pins {@code hardHint()} as the thing that
  * converts a fallback into an error, rather than either behavior being incidental.</p>
  */
-class QuerySelectionHintExecuteTest extends ClusterTest {
+public class QuerySelectionHintExecuteTest extends ClusterTest {
     private static final Fixture FIXTURE = Fixture.forSuffix("hintexec");
     private static final String bogusIndexName = "qselhintexec_missing_idx";
     private static final String ageRangeWhere = "$." + AGE_BIN + " >= 14 and $." + AGE_BIN + " <= 18";

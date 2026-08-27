@@ -89,7 +89,7 @@ import com.aerospike.client.sdk.util.Version;
  * {@code .get(return: EXISTS)} fails explain with {@code PARAMETER} — see
  * {@link QueryPlannerCollectionCdtTest} for the supported shapes.</p>
  */
-class QuerySelectionExplainScopeTest extends ClusterTest {
+public class QuerySelectionExplainScopeTest extends ClusterTest {
     private static final String setName = "qscexp";
     private static final String intIndexName = "qscexp_age_idx";
     private static final String ageBin = "age";

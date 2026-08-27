@@ -25,7 +25,7 @@ import org.junit.jupiter.api.Test;
 
 import com.aerospike.client.sdk.query.Filter;
 
-class IndexRangeWireTest {
+public class IndexRangeWireTest {
 
     @Test
     void describeIntegerRange() {

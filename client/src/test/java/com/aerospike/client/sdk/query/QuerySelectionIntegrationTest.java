@@ -75,7 +75,7 @@ import java.util.List;
  * <p>Requires cluster minimum version {@link Version#SERVER_VERSION_8_1_3}
  * ({@link com.aerospike.client.sdk.Cluster#supportsQuerySelection()}).</p>
  */
-class QuerySelectionIntegrationTest extends ClusterTest {
+public class QuerySelectionIntegrationTest extends ClusterTest {
     private static final Fixture FIXTURE = Fixture.forSuffix("integ");
     private static final String bogusIndexName = "qsel_nonexistent_idx";
     private static final String OVERSIZED_LITERAL = "x".repeat(2048);
