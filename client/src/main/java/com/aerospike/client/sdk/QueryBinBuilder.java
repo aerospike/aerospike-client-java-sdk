@@ -33,6 +33,7 @@ import com.aerospike.client.sdk.exp.ExpReadFlags;
 import com.aerospike.client.sdk.exp.Expression;
 import com.aerospike.client.sdk.operation.BitOperation;
 import com.aerospike.client.sdk.operation.HLLOperation;
+import com.aerospike.client.sdk.operation.StringOperation;
 import com.aerospike.client.sdk.query.PreparedAel;
 
 /**
@@ -1038,6 +1039,273 @@ public final class QueryBinBuilder<P> implements CdtOperationAcceptor<P> {
     }
 
     // ----------------------------------------
+    // String
+    // ----------------------------------------
+
+    /**
+     * Return the number of Unicode codepoints in the string.
+     *
+     * @return the query builder for method chaining
+     */
+    public P strlen() {
+        Operation op = StringOperation.strlen(binName);
+        queryBuilder.addOperation(op);
+        return wrapResult();
+    }
+
+    /**
+     * Read from {@code start} to the end of the string. Negative indexes count from the end.
+     *
+     * @return the query builder for method chaining
+     */
+    public P substr(int start) {
+        Operation op = StringOperation.substr(binName, start);
+        queryBuilder.addOperation(op);
+        return wrapResult();
+    }
+
+    /**
+     * Return the codepoints of the bin from {@code start} (inclusive) to {@code end} (exclusive).
+     * Negative indexes count from the end of the string. If, after negative-index normalization,
+     * {@code start >= end}, the result is the empty string.
+     *
+     * @return the query builder for method chaining
+     */
+    public P substr(int start, int end) {
+        Operation op = StringOperation.substr(binName, start, end);
+        queryBuilder.addOperation(op);
+        return wrapResult();
+    }
+
+    /**
+     * Return the codepoint at {@code index} as a one-codepoint string.
+     * Negative indexes count from the end.
+     *
+     * @return the query builder for method chaining
+     */
+    public P charAt(int index) {
+        Operation op = StringOperation.charAt(binName, index);
+        queryBuilder.addOperation(op);
+        return wrapResult();
+    }
+
+    /**
+     * Return the codepoint index of the first occurrence of {@code needle}, or {@code -1}
+     * if not found.
+     *
+     * @return the query builder for method chaining
+     */
+    public P find(String needle) {
+        Operation op = StringOperation.find(binName, needle);
+        queryBuilder.addOperation(op);
+        return wrapResult();
+    }
+
+    /**
+     * Locate a specific {@code occurrence} of {@code needle} ({@code 1} = first match,
+     * {@code -1} = last match). Return the codepoint index of that match, or {@code -1}
+     * if not found.
+     *
+     * @return the query builder for method chaining
+     */
+    public P find(String needle, int occurrence) {
+        Operation op = StringOperation.find(binName, needle, occurrence);
+        queryBuilder.addOperation(op);
+        return wrapResult();
+    }
+
+    /**
+     * Return {@code true} if the bin contains {@code needle} as a substring, {@code false}
+     * otherwise.
+     *
+     * @return the query builder for method chaining
+     */
+    public P contains(String needle) {
+        Operation op = StringOperation.contains(binName, needle);
+        queryBuilder.addOperation(op);
+        return wrapResult();
+    }
+
+    /**
+     * Return {@code true} if the bin begins with {@code prefix}, {@code false} otherwise.
+     *
+     * @return the query builder for method chaining
+     */
+    public P startsWith(String prefix) {
+        Operation op = StringOperation.startsWith(binName, prefix);
+        queryBuilder.addOperation(op);
+        return wrapResult();
+    }
+
+    /**
+     * Return {@code true} if the bin ends with {@code suffix}, {@code false} otherwise.
+     *
+     * @return the query builder for method chaining
+     */
+    public P endsWith(String suffix) {
+        Operation op = StringOperation.endsWith(binName, suffix);
+        queryBuilder.addOperation(op);
+        return wrapResult();
+    }
+
+    /**
+     * Parse the string as an int64. Returns {@code AEROSPIKE_ERR_PARAMETER} if the bin
+     * cannot be parsed as an integer.
+     *
+     * @return the query builder for method chaining
+     */
+    public P stringToInteger() {
+        Operation op = StringOperation.toInteger(binName);
+        queryBuilder.addOperation(op);
+        return wrapResult();
+    }
+
+    /**
+     * Parse the string as a 64-bit float. Returns {@code AEROSPIKE_ERR_PARAMETER} if the
+     * bin cannot be parsed as a double.
+     *
+     * @return the query builder for method chaining
+     */
+    public P stringToDouble() {
+        Operation op = StringOperation.toDouble(binName);
+        queryBuilder.addOperation(op);
+        return wrapResult();
+    }
+
+    /**
+     * Return the number of UTF-8 bytes in the string (int64). Differs from {@link #strlen}
+     * for non-ASCII content where one codepoint can encode to multiple bytes.
+     *
+     * @return the query builder for method chaining
+     */
+    public P byteLength() {
+        Operation op = StringOperation.byteLength(binName);
+        queryBuilder.addOperation(op);
+        return wrapResult();
+    }
+
+    /**
+     * Return {@code true} if the bin contains a valid integer or float, {@code false}
+     * otherwise.
+     *
+     * @return the query builder for method chaining
+     */
+    public P isNumeric() {
+        Operation op = StringOperation.isNumeric(binName);
+        queryBuilder.addOperation(op);
+        return wrapResult();
+    }
+
+    /**
+     * Return {@code true} if the bin contains a number matching {@code numericType}
+     * (see {@link com.aerospike.client.sdk.operation.StringNumericType}), {@code false}
+     * otherwise. For example, restrict to integer-only or float-only validation.
+     *
+     * @return the query builder for method chaining
+     */
+    public P isNumeric(int numericType) {
+        Operation op = StringOperation.isNumeric(binName, numericType);
+        queryBuilder.addOperation(op);
+        return wrapResult();
+    }
+
+    /**
+     * Return {@code true} if every cased codepoint in the bin is uppercase, {@code false}
+     * otherwise.
+     *
+     * @return the query builder for method chaining
+     */
+    public P isUpper() {
+        Operation op = StringOperation.isUpper(binName);
+        queryBuilder.addOperation(op);
+        return wrapResult();
+    }
+
+    /**
+     * Return {@code true} if every cased codepoint in the bin is lowercase, {@code false}
+     * otherwise.
+     *
+     * @return the query builder for method chaining
+     */
+    public P isLower() {
+        Operation op = StringOperation.isLower(binName);
+        queryBuilder.addOperation(op);
+        return wrapResult();
+    }
+
+    /**
+     * Return the UTF-8 bytes of the string as a blob (byte[]).
+     *
+     * @return the query builder for method chaining
+     */
+    public P stringToBlob() {
+        Operation op = StringOperation.toBlob(binName);
+        queryBuilder.addOperation(op);
+        return wrapResult();
+    }
+
+    /**
+     * Split the bin by Unicode codepoint — each codepoint becomes its own element of the
+     * returned list.
+     *
+     * @return the query builder for method chaining
+     */
+    public P split() {
+        Operation op = StringOperation.split(binName);
+        queryBuilder.addOperation(op);
+        return wrapResult();
+    }
+
+    /**
+     * Split the bin by the {@code separator} substring. If the separator is absent the
+     * result is a singleton list containing the whole string.
+     *
+     * @return the query builder for method chaining
+     */
+    public P split(String separator) {
+        Operation op = StringOperation.split(binName, separator);
+        queryBuilder.addOperation(op);
+        return wrapResult();
+    }
+
+    /**
+     * Treat the bin as base64-encoded text and returns the decoded bytes as a string.
+     *
+     * @return the query builder for method chaining
+     */
+    public P b64Decode() {
+        Operation op = StringOperation.b64Decode(binName);
+        queryBuilder.addOperation(op);
+        return wrapResult();
+    }
+
+    /**
+     * Match {@code pattern} (ICU regex syntax) against the bin and return {@code true} on
+     * match, {@code false} otherwise.
+     *
+     * @return the query builder for method chaining
+     */
+    public P regexCompare(String pattern) {
+        Operation op = StringOperation.regexCompare(binName, pattern);
+        queryBuilder.addOperation(op);
+        return wrapResult();
+    }
+
+    /**
+     * Match {@code pattern} (ICU regex syntax) against the bin honoring
+     * {@link com.aerospike.client.sdk.operation.StringRegexFlags} (e.g.
+     * {@code CASE_INSENSITIVE}), which may be combined with bitwise OR. Returns
+     * {@code true} on match, {@code false} otherwise.
+     *
+     * @return the query builder for method chaining
+     */
+    public P regexCompare(String pattern, int regexFlags) {
+        Operation op = StringOperation.regexCompare(binName, pattern, regexFlags);
+        queryBuilder.addOperation(op);
+        return wrapResult();
+    }
+
+    // ----------------------------------------
     // Bit (BLOB)
     // ----------------------------------------
 
@@ -1105,6 +1373,57 @@ public final class QueryBinBuilder<P> implements CdtOperationAcceptor<P> {
      */
     public P bitGetInt(int bitOffset, int bitSize, boolean signed) {
         Operation op = BitOperation.getInt(binName, bitOffset, bitSize, signed);
+        queryBuilder.addOperation(op);
+        return wrapResult();
+    }
+
+    /**
+     * Return the base64 text of the whole byte[] bin as a string.
+     * Example:
+     * <ul>
+     * <li>bin = [0b00000001, 0b01000010, 0b00000011]</li>
+     * <li>returns "AUID"</li>
+     * </ul>
+     * <p>
+     *
+     * @return the query builder for method chaining
+     */
+    public P bitB64Encode() {
+        Operation op = BitOperation.b64Encode(binName);
+        queryBuilder.addOperation(op);
+        return wrapResult();
+    }
+
+    /**
+     * Return the base64 text of {@code byteSize} bytes of the byte[] bin starting
+     * at {@code byteOffset}, as a string. A negative {@code byteOffset} counts back from
+     * the end of the blob. Note the span is expressed in <b>bytes</b>, unlike the bit
+     * offsets and sizes the other bit read operations take.
+     *
+     * @param byteOffset starting byte index
+     * @param byteSize   width in bytes
+     * @return the query builder for method chaining
+     */
+    public P bitB64Encode(int byteOffset, int byteSize) {
+        Operation op = BitOperation.b64Encode(binName, byteOffset, byteSize);
+        queryBuilder.addOperation(op);
+        return wrapResult();
+    }
+
+    /**
+     * Create bit "b64Encode" operation on a byte range, with {@code byteSize} measured from
+     * the end of the blob.
+     * When {@code invertSize} is true, {@code byteSize} counts back from the blob's end
+     * rather than forward from {@code byteOffset}, so a {@code byteSize} of 0 means "to the
+     * end of the blob".
+     *
+     * @param byteOffset starting byte index
+     * @param byteSize   width in bytes
+     * @param invertSize when true, count back from blob's end
+     * @return the query builder for method chaining
+     */
+    public P bitB64Encode(int byteOffset, int byteSize, boolean invertSize) {
+        Operation op = BitOperation.b64Encode(binName, byteOffset, byteSize, invertSize);
         queryBuilder.addOperation(op);
         return wrapResult();
     }

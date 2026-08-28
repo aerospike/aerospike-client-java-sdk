@@ -22,8 +22,10 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Arrays;
+import java.util.Base64;
 import java.util.List;
 
+import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 
 import com.aerospike.client.sdk.operation.BitOperation;
@@ -1017,5 +1019,70 @@ public class OperateBitTest extends ClusterTest {
         assertArrayEquals(new byte[] {0x00}, get2);
         assertArrayEquals(new byte[] {0x00}, get3);
         assertArrayEquals(new byte[] {0x00}, get4);
+    }
+
+    @Test
+    public void operateBitB64Encode() {
+        Assumptions.assumeTrue(args.serverVersion.isGreaterOrEqual(8, 1, 3, 0),
+            "bit b64Encode requires server version 8.1.3 or later");
+
+        session.delete(key).execute();
+
+        byte[] initial = new byte[] {(byte)0x01, (byte)0x42, (byte)0x03};
+
+        session.upsert(key)
+            .bin(binName).setTo(initial)
+            .execute();
+
+        // The span is in bytes, not bits, unlike every other bit read op. With
+        // invertSize the size counts back from the end, so 0 means "to the end".
+        Record rec = session.query(key)
+            .bin(binName).bitB64Encode()
+            .bin(binName).bitB64Encode(0, 2)
+            .bin(binName).bitB64Encode(1, 0, true)
+            .bin(binName).bitB64Encode(-1, 1)
+            .execute()
+            .getFirstRecord();
+
+        List<?> results = rec.getList(binName);
+        Base64.Encoder enc = Base64.getEncoder();
+        assertEquals(enc.encodeToString(initial), results.get(0));
+        assertEquals(enc.encodeToString(new byte[] {(byte)0x01, (byte)0x42}), results.get(1));
+        assertEquals(enc.encodeToString(new byte[] {(byte)0x42, (byte)0x03}), results.get(2));
+        assertEquals(enc.encodeToString(new byte[] {(byte)0x03}), results.get(3));
+    }
+
+    @Test
+    public void operateBitB64EncodeRoundTripsThroughB64Decode() {
+        Assumptions.assumeTrue(args.serverVersion.isGreaterOrEqual(8, 1, 3, 0),
+            "bit b64Encode requires server version 8.1.3 or later");
+
+        session.delete(key).execute();
+
+        byte[] initial = new byte[] {(byte)0xDE, (byte)0xAD, (byte)0xBE, (byte)0xEF};
+
+        session.upsert(key)
+            .bin(binName).setTo(initial)
+            .execute();
+
+        // b64Encode is the inverse of StringOperation.b64Decode: encode the blob here,
+        // write the text to a string bin, then decode it back and compare.
+        Record encoded = session.query(key)
+            .bin(binName).bitB64Encode()
+            .execute()
+            .getFirstRecord();
+
+        String text = encoded.getString(binName);
+
+        session.upsert(key)
+            .bin("b64txt").setTo(text)
+            .execute();
+
+        Record decoded = session.query(key)
+            .bin("b64txt").b64Decode()
+            .execute()
+            .getFirstRecord();
+
+        assertArrayEquals(initial, (byte[])decoded.getValue("b64txt"));
     }
 }
