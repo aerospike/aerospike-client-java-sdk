@@ -45,4 +45,8 @@ public final class FieldType {
     public static final int FILTER_EXP = 43;
     public static final int WHERE = 44;
     public static final int ERROR_MESSAGE = 45;
+    /** Top-K order-by clause. Layout: {@code [type:1][direction:1][flags:1][nameLen:1][name]}. */
+    public static final int ORDER_BY = 46;
+    /** Top-K limit. {@code uint32}, big-endian. Always sent together with {@link #ORDER_BY}. */
+    public static final int TOP_K = 47;
 }
