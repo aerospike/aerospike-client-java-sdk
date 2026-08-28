@@ -16,8 +16,12 @@
  */
 package com.aerospike.client.sdk.query;
 
+import static com.aerospike.client.sdk.query.QuerySelectionIntegSupport.collectAges;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+
+import java.util.ArrayList;
+import java.util.List;
 
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -108,5 +112,26 @@ public class QueryKeyTest extends ClusterTest {
         finally {
             rs.close();
         }
+    }
+
+    @Test
+    public void queryKeyWithPreparedAelWhere() {
+        assumeSupportsAel();
+
+        int begin = 2;
+        int end = 5;
+        PreparedAel filter = PreparedAel.prepare(
+            "$." + binName + " >= ?0 and $." + binName + " <= ?1");
+
+        List<Key> keys = new ArrayList<>(size);
+        for (int i = 1; i <= size; i++) {
+            keys.add(dataSet.id(keyPrefix + i));
+        }
+
+        List<Integer> values = collectAges(session.query(keys)
+            .where(filter, begin, end)
+            .execute(), binName);
+
+        assertEquals(List.of(2, 3, 4, 5), values);
     }
 }
