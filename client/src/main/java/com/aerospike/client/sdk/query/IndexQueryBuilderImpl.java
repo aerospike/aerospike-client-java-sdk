@@ -76,12 +76,22 @@ public class IndexQueryBuilderImpl extends QueryImpl {
         Cluster cluster = session.getCluster();
         QueryBuilder qb = getQueryBuilder();
 
+        // Cross-field Top-K validation (pairing, limit/chunkSize/withNoBins, projection membership).
+        qb.validateTopKQueryState();
+
         // Check for operations - not supported on servers < 8.1.2
         if (!cluster.supportsQueryOperations() && qb.getOperations() != null &&
             !qb.getOperations().isEmpty()) {
             throw AerospikeException.toException(ResultCode.OP_NOT_APPLICABLE,
                 "Index query with read operations requires server version 8.1.2+. Server version is " +
                 cluster.getVersion());
+        }
+
+        // Check for Top-K (orderBy/topK) - not yet supported; see Cluster.supportsTopK().
+        if (qb.getOrderBySpec() != null && !cluster.supportsTopK()) {
+            throw AerospikeException.toException(ResultCode.UNSUPPORTED_FEATURE,
+                "Top-K query (orderBy/topK) requires a minimum server version not yet assigned " +
+                "by Core engineering. Server version is " + cluster.getVersion());
         }
 
         ResolvedSettings policy = session.getBehavior().getSettings(OpKind.READ, OpShape.QUERY, Mode.ANY);
@@ -96,6 +106,11 @@ public class IndexQueryBuilderImpl extends QueryImpl {
             stream.withErrorHandler(handler);
         }
         cmd.execute(stream);
+
+        if (qb.getOrderBySpec() != null) {
+            // qb.getTopK() is non-null here: enforced by validateTopKQueryState() above.
+            return TopKMergingRecordStream.merge(stream, qb.getOrderBySpec(), qb.getTopK());
+        }
 
         if (qb.getChunkSize() == 0) {
             // Normal query

@@ -74,6 +74,7 @@ public class Cluster implements Closeable {
     private boolean versionGE8;
     private boolean versionGE812;
     private boolean versionGE813;
+    private boolean versionGETopK;
     private boolean metricsEnabled;
 
     Cluster(ClusterDefinition def, SystemSettings effectiveSettings) {
@@ -633,6 +634,18 @@ public class Cluster implements Closeable {
     }
 
     /**
+     * Whether this cluster's minimum server version supports Top-K queries
+     * ({@code orderBy(...)}/{@code topK(...)} on {@link com.aerospike.client.sdk.query.QueryBuilder}).
+     *
+     * <p>Placeholder gate: always {@code false} until {@link Version#SERVER_VERSION_TOP_K_MIN_TBD}
+     * is updated with a real assigned version. Fails closed since an old server would silently
+     * ignore the new wire fields rather than reject them.</p>
+     */
+    public boolean supportsTopK() {
+        return versionGETopK;
+    }
+
+    /**
      * Sets the minimum server version for the cluster. For internal use only.
      *
      * <p>This method is typically called by the cluster tend mechanism when
@@ -654,6 +667,7 @@ public class Cluster implements Closeable {
         this.versionGE8 = version.isGreaterOrEqual(Version.SERVER_VERSION_8_0);
         this.versionGE812 = version.isGreaterOrEqual(Version.SERVER_VERSION_8_1_2);
         this.versionGE813 = version.isGreaterOrEqual(Version.SERVER_VERSION_8_1_3);
+        this.versionGETopK = version.isGreaterOrEqual(Version.SERVER_VERSION_TOP_K_MIN_TBD);
     }
 
     /**

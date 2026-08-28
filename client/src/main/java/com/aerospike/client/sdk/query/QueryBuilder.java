@@ -24,6 +24,7 @@ import org.slf4j.LoggerFactory;
 
 import com.aerospike.client.sdk.AbstractFilterableBuilder;
 import com.aerospike.client.sdk.AerospikeException;
+import com.aerospike.client.sdk.Bin;
 import com.aerospike.client.sdk.DataSet;
 import com.aerospike.client.sdk.ErrorHandler;
 import com.aerospike.client.sdk.ErrorStrategy;
@@ -97,6 +98,8 @@ public class QueryBuilder extends AbstractFilterableBuilder implements
     private java.util.List<com.aerospike.client.sdk.Operation> operations = null;
     private boolean withNoBins = false;
     private boolean transactionSet;
+    private OrderBySpec orderBySpec = null;
+    private Integer topK = null;
 
     /**
      * Creates a QueryBuilder for querying an entire dataset.
@@ -255,6 +258,149 @@ public class QueryBuilder extends AbstractFilterableBuilder implements
         }
         this.chunkSize = chunkSize;
         return this;
+    }
+
+    /**
+     * Sets the Top-K order-by clause: {@code ORDER BY <binName> <ASC|DESC>}, paired with
+     * {@link #topK(int)} to form {@code ORDER BY <binName> <ASC|DESC> LIMIT k}.
+     *
+     * <p>{@code binName} must name a bin in the returned record. Not supported together with
+     * {@link #withNoBins()}, {@link #chunkSize(int)}, or {@link #limit(long)}.</p>
+     *
+     * <p>Not yet supported by any server version -- see
+     * {@link com.aerospike.client.sdk.Cluster#supportsTopK()}.</p>
+     *
+     * @param binName   the order-key bin name, as it appears in the returned record
+     * @param type      the declared scalar type of the order-key bin (Aerospike has no schema)
+     * @param direction {@link Order#ASC} (keep the K smallest) or {@link Order#DESC} (keep the
+     *                  K largest)
+     * @return this QueryBuilder for method chaining
+     * @throws AerospikeException with {@link ResultCode#PARAMETER_ERROR} if the arguments are invalid
+     */
+    public QueryBuilder orderBy(String binName, OrderByType type, Order direction) {
+        return orderBy(binName, type, direction, OrderByFlags.NONE);
+    }
+
+    /**
+     * Sets the Top-K order-by clause with flags. See {@link #orderBy(String, OrderByType, Order)}.
+     *
+     * @param binName   the order-key bin name, as it appears in the returned record
+     * @param type      the declared scalar type of the order-key bin
+     * @param direction {@link Order#ASC} or {@link Order#DESC}
+     * @param flags     bitmask of {@link OrderByFlags}; only valid with {@link OrderByType#STRING}
+     * @return this QueryBuilder for method chaining
+     * @throws AerospikeException with {@link ResultCode#PARAMETER_ERROR} if the arguments are invalid
+     */
+    public QueryBuilder orderBy(String binName, OrderByType type, Order direction, int flags) {
+        validateOrderBySpec(binName, type, direction, flags);
+        this.orderBySpec = new OrderBySpec(binName, type, direction, flags);
+        return this;
+    }
+
+    private static void validateOrderBySpec(String binName, OrderByType type, Order direction, int flags) {
+        if (binName == null || binName.isEmpty()) {
+            throw AerospikeException.toException(ResultCode.PARAMETER_ERROR,
+                "orderBy requires a non-empty bin name");
+        }
+        if (binName.length() > Bin.MAX_BIN_NAME_LENGTH) {
+            throw AerospikeException.toException(ResultCode.PARAMETER_ERROR,
+                "orderBy bin name '" + binName + "' exceeds the " +
+                Bin.MAX_BIN_NAME_LENGTH + "-character bin name limit");
+        }
+        if (type == null) {
+            throw AerospikeException.toException(ResultCode.PARAMETER_ERROR,
+                "orderBy requires a type declaration (INTEGER, DOUBLE, STRING, or BYTES); Aerospike has no schema");
+        }
+        if (direction == null) {
+            throw AerospikeException.toException(ResultCode.PARAMETER_ERROR,
+                "orderBy direction must be ASC or DESC");
+        }
+        if ((flags & OrderByFlags.CASE_INSENSITIVE) != 0 && type != OrderByType.STRING) {
+            throw AerospikeException.toException(ResultCode.PARAMETER_ERROR,
+                "orderBy flag CASE_INSENSITIVE is only valid with type STRING");
+        }
+    }
+
+    /**
+     * Sets the Top-K limit, pairing with {@link #orderBy(String, OrderByType, Order)}.
+     *
+     * @param k the maximum number of records to return, inclusive range {@code [1, 1000]}
+     * @return this QueryBuilder for method chaining
+     * @throws AerospikeException with {@link ResultCode#PARAMETER_ERROR} if k is out of range
+     */
+    public QueryBuilder topK(int k) {
+        if (k < 1 || k > 1000) {
+            throw AerospikeException.toException(ResultCode.PARAMETER_ERROR,
+                "topK must be in the inclusive range [1, 1000]; got " + k);
+        }
+        this.topK = k;
+        return this;
+    }
+
+    /**
+     * Gets the Top-K order-by clause, or {@code null} if {@link #orderBy} was not called.
+     */
+    public OrderBySpec getOrderBySpec() {
+        return orderBySpec;
+    }
+
+    /**
+     * Gets the Top-K limit, or {@code null} if {@link #topK(int)} was not called.
+     */
+    public Integer getTopK() {
+        return topK;
+    }
+
+    /**
+     * Cross-field Top-K validation, run once at query-execution time since the relevant knobs
+     * ({@link #orderBy}, {@link #topK}, {@link #limit}, {@link #chunkSize}, {@link #withNoBins},
+     * {@link #readingOnlyBins}) can be called in any order.
+     *
+     * @throws AerospikeException with {@link ResultCode#PARAMETER_ERROR} on any conflict
+     */
+    void validateTopKQueryState() {
+        boolean hasOrderBy = orderBySpec != null;
+        boolean hasTopK = topK != null;
+
+        if (hasOrderBy != hasTopK) {
+            throw AerospikeException.toException(ResultCode.PARAMETER_ERROR,
+                "orderBy(...) and topK(...) must be set together (both or neither); got orderBy=" +
+                hasOrderBy + ", topK=" + hasTopK);
+        }
+        if (!hasOrderBy) {
+            return;
+        }
+        if (withNoBins) {
+            throw AerospikeException.toException(ResultCode.PARAMETER_ERROR,
+                "orderBy/topK is incompatible with withNoBins() -- Top-K needs a value to rank on");
+        }
+        if (chunkSize != 0) {
+            throw AerospikeException.toException(ResultCode.PARAMETER_ERROR,
+                "orderBy/topK is incompatible with chunkSize(...) (server-side streaming); " +
+                "Top-K is single-shot, its whole result is already bounded to k <= 1000");
+        }
+        if (limit != 0) {
+            throw AerospikeException.toException(ResultCode.PARAMETER_ERROR,
+                "orderBy/topK is incompatible with limit(...); topK(k) is itself the result cap " +
+                "-- remove limit() when using orderBy()/topK()");
+        }
+
+        String binName = orderBySpec.getBinName();
+        boolean hasBinListProjection = this.binNames != null;
+        boolean hasOpsProjection = this.operations != null && !this.operations.isEmpty();
+
+        if (hasBinListProjection || hasOpsProjection) {
+            boolean inBinList = hasBinListProjection &&
+                java.util.Arrays.asList(this.binNames).contains(binName);
+            boolean inOps = hasOpsProjection &&
+                this.operations.stream().anyMatch(op -> binName.equals(op.binName));
+
+            if (!inBinList && !inOps) {
+                throw AerospikeException.toException(ResultCode.PARAMETER_ERROR,
+                    "orderBy bin '" + binName + "' is not in the query's projection; add it to " +
+                    "readingOnlyBins(...)/selectFrom(...) or remove the projection");
+            }
+        }
     }
 
     /**

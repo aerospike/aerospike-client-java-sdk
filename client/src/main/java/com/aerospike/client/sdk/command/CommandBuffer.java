@@ -900,6 +900,18 @@ public final class CommandBuffer {
             operationCount = binNames.length;
         }
 
+        // Estimate Top-K ORDER_BY/TOP_K field sizes (always both null or both set).
+        byte[] orderByNameBytes = null;
+
+        if (cmd.orderBySpec != null) {
+            orderByNameBytes = Buffer.stringToUtf8(cmd.orderBySpec.getBinName());
+            dataOffset += Command.FIELD_HEADER_SIZE + 4 + orderByNameBytes.length;
+            fieldCount++;
+
+            dataOffset += 4 + Command.FIELD_HEADER_SIZE;
+            fieldCount++;
+        }
+
         sizeBuffer();
 
         int readAttr = Command.INFO1_READ;
@@ -1025,6 +1037,11 @@ public final class CommandBuffer {
             writeField(maxRecords, FieldType.MAX_RECORDS);
         }
 
+        if (cmd.orderBySpec != null) {
+            writeFieldOrderBy(cmd.orderBySpec, orderByNameBytes);
+            writeField(cmd.topK, FieldType.TOP_K);
+        }
+
         if (cmd.ops != null) {
             for (Operation op : cmd.ops) {
                 writeOperation(op);
@@ -1037,6 +1054,19 @@ public final class CommandBuffer {
         }
 
         end();
+    }
+
+    /** Writes the Top-K {@code ORDER_BY} field body: {@code [type][direction][flags][nameLen][name]}. */
+    private void writeFieldOrderBy(
+        com.aerospike.client.sdk.query.OrderBySpec spec, byte[] nameBytes
+    ) {
+        writeFieldHeader(4 + nameBytes.length, FieldType.ORDER_BY);
+        dataBuffer[dataOffset++] = (byte)spec.getType().getWireCode();
+        dataBuffer[dataOffset++] = (byte)spec.getDirection().getWireCode();
+        dataBuffer[dataOffset++] = (byte)spec.getFlags();
+        dataBuffer[dataOffset++] = (byte)nameBytes.length;
+        System.arraycopy(nameBytes, 0, dataBuffer, dataOffset, nameBytes.length);
+        dataOffset += nameBytes.length;
     }
 
     /**

@@ -27,6 +27,7 @@ import com.aerospike.client.sdk.exp.Expression;
 import com.aerospike.client.sdk.policy.QueryDuration;
 import com.aerospike.client.sdk.policy.ResolvedSettings;
 import com.aerospike.client.sdk.query.Filter;
+import com.aerospike.client.sdk.query.OrderBySpec;
 import com.aerospike.client.sdk.query.QueryBuilder;
 import com.aerospike.client.sdk.query.QueryHint;
 import com.aerospike.client.sdk.query.plan.IndexRangeWire;
@@ -45,6 +46,10 @@ public final class QueryCommand extends Command {
     final int readTouchTtlPercent;
     final boolean withNoBins;
     final boolean planDriven;
+    /** Top-K order-by clause, or {@code null} if this is not a Top-K query. */
+    public final OrderBySpec orderBySpec;
+    /** Top-K limit, paired 1:1 with {@link #orderBySpec} (both null or both set). */
+    public final Integer topK;
     /** Field {@code 44} execute payload when plan-driven; {@code null} on legacy path. */
     final byte[] executeWhereBytes;
 
@@ -102,6 +107,8 @@ public final class QueryCommand extends Command {
         this.maxConcurrentNodes = settings.getMaxConcurrentNodes();
         this.readTouchTtlPercent = settings.getResetTtlOnReadAtPercent();
         this.withNoBins = qb.getWithNoBins();
+        this.orderBySpec = qb.getOrderBySpec();
+        this.topK = qb.getTopK();
 
         if (qb.getChunkSize() > 0) {
             this.maxRecords = qb.getChunkSize();

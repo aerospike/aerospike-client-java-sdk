@@ -27,6 +27,13 @@ public final class Version implements Comparable<Version> {
     public static final Version SERVER_VERSION_8_1_2 = new Version(8, 1, 2, 0);
     public static final Version SERVER_VERSION_8_1_3 = new Version(8, 1, 3, 0);
 
+    /**
+     * Placeholder minimum server version for Top-K queries. Not yet assigned by Core
+     * engineering (server side: aerospike-server#1547, still unmerged), so this is set
+     * intentionally unreachable until the real version lands here.
+     */
+    public static final Version SERVER_VERSION_TOP_K_MIN_TBD = new Version(99, 99, 99, 0);
+
     /*
     public static Version getServerVersion(IAerospikeClient client, InfoPolicy policy) {
         Node node = client.getCluster().getRandomNode();
