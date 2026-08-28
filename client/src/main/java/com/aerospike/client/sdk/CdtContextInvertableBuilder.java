@@ -26,6 +26,7 @@ import com.aerospike.client.sdk.cdt.path.CdtCollectOptions;
 import com.aerospike.client.sdk.cdt.path.CdtModifyOptions;
 import com.aerospike.client.sdk.exp.Exp;
 import com.aerospike.client.sdk.query.PreparedAel;
+import com.aerospike.client.sdk.vector.Vector;
 
 /**
  * This interface handles operations at the end of contexts. Note that some of these methods
@@ -673,6 +674,19 @@ public interface CdtContextInvertableBuilder<T extends AbstractOperationBuilder<
     public T listSet(int index, byte[] value, ListEntryWriteOptions options);
     public T listSet(int index, List<?> value, ListEntryWriteOptions options);
     public T listSet(int index, Map<?,?> value, ListEntryWriteOptions options);
+    // Vector overloads
+    public T listAppend(Vector value);
+    public T listAppend(Vector value, Consumer<ListEntryWriteOptions> options);
+    public T listAppend(Vector value, ListEntryWriteOptions options);
+    public T listAdd(Vector value);
+    public T listAdd(Vector value, Consumer<ListEntryWriteOptions> options);
+    public T listAdd(Vector value, ListEntryWriteOptions options);
+    public T listInsert(int index, Vector value);
+    public T listInsert(int index, Vector value, Consumer<ListEntryWriteOptions> options);
+    public T listInsert(int index, Vector value, ListEntryWriteOptions options);
+    public T listSet(int index, Vector value);
+    public T listSet(int index, Vector value, Consumer<ListEntryWriteOptions> options);
+    public T listSet(int index, Vector value, ListEntryWriteOptions options);
     public T listIncrement(int index);
     public T listIncrement(int index, Consumer<ListEntryWriteOptions> options);
     public T listIncrement(int index, ListEntryWriteOptions options);

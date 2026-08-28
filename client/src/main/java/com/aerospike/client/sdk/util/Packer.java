@@ -30,6 +30,7 @@ import com.aerospike.client.sdk.cdt.ListOrder;
 import com.aerospike.client.sdk.cdt.MapOrder;
 import com.aerospike.client.sdk.command.Buffer;
 import com.aerospike.client.sdk.command.ParticleType;
+import com.aerospike.client.sdk.vector.Vector;
 
 import java.util.UUID;
 
@@ -285,6 +286,12 @@ public final class Packer {
         packByteArray(buffer, 0, buffer.length);
     }
 
+    public void packVector(final Vector val) {
+        final byte[] buffer = new byte[val.getWireSize()];
+        val.writeTo(buffer, 0);
+        packParticleBytes(buffer, ParticleType.VECTOR);
+    }
+
     private void packByteArrayBegin(int size) {
         // Use string header codes for byte arrays.
         packStringBegin(size);
@@ -345,6 +352,11 @@ public final class Packer {
 
         if (obj instanceof Map<?,?>) {
             packMap((Map<?,?>)obj);
+            return;
+        }
+
+        if (obj instanceof Vector) {
+            packVector((Vector)obj);
             return;
         }
 

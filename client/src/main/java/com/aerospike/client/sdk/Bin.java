@@ -21,6 +21,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 
 import com.aerospike.client.sdk.cdt.MapOrder;
+import com.aerospike.client.sdk.vector.Vector;
 
 import java.util.SortedMap;
 
@@ -255,6 +256,17 @@ public final class Bin {
     public Bin(String name, List<? extends Entry<?,?>> value, MapOrder mapOrder) {
         this.name = name;
         this.value = Value.get(value, mapOrder);
+    }
+
+    /**
+     * Create bin with a vector value.  The value is serialized as the server vector particle type.
+     *
+     * @param name      bin name, current limit is 15 characters
+     * @param value     bin value
+     */
+    public Bin(final String name, final Vector value) {
+        this.name = name;
+        this.value = Value.get(value);
     }
 
     /**

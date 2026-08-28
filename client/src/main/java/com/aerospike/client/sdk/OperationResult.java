@@ -18,6 +18,7 @@ package com.aerospike.client.sdk;
 
 import com.aerospike.client.sdk.Value.GeoJSONValue;
 import com.aerospike.client.sdk.Value.HLLValue;
+import com.aerospike.client.sdk.vector.Vector;
 
 /**
  * Operation result object.
@@ -126,6 +127,13 @@ public final class OperationResult {
      */
     public AerospikeMap<?,?> getMap() {
         return (AerospikeMap<?,?>)result;
+    }
+
+    /**
+     * Get value as a vector.
+     */
+    public Vector getVector() {
+        return (Vector)result;
     }
 
     /**

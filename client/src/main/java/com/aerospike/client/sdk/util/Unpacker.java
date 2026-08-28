@@ -30,6 +30,7 @@ import com.aerospike.client.sdk.cdt.ListOrder;
 import com.aerospike.client.sdk.cdt.MapOrder;
 import com.aerospike.client.sdk.command.Buffer;
 import com.aerospike.client.sdk.command.ParticleType;
+import com.aerospike.client.sdk.vector.Vector;
 
 /**
  * De-serialize collection objects using MessagePack format specification:
@@ -280,6 +281,10 @@ public abstract class Unpacker<T> {
             val = getGeoJSON(Buffer.utf8ToString(buffer, offset, count));
             break;
 
+        case ParticleType.VECTOR:
+            val = getVector(Arrays.copyOfRange(buffer, offset, offset + count));
+            break;
+
         case ParticleType.JBLOB:
             // Java deserialization is no longer allowed, so return java serialized blob as byte[].
             val = getBlob(Arrays.copyOfRange(buffer, offset, offset + count));
@@ -490,6 +495,10 @@ public abstract class Unpacker<T> {
     protected abstract T getBoolean(boolean value);
     protected abstract T getGeoJSON(String value);
 
+    protected T getVector(final byte[] value) {
+        return getBlob(value);
+    }
+
     public static Object unpackObjectList(byte[] buffer, int offset, int length) {
         ObjectUnpacker unpacker = new ObjectUnpacker(buffer, offset, length);
         return unpacker.unpackList();
@@ -557,6 +566,11 @@ public abstract class Unpacker<T> {
         @Override
         protected Object getGeoJSON(String value) {
             return Value.getAsGeoJSON(value);
+        }
+
+        @Override
+        protected Object getVector(final byte[] value) {
+            return Vector.from(value, 0, value.length);
         }
     }
 }
