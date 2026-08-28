@@ -23,6 +23,7 @@ import java.util.Arrays;
 import com.aerospike.client.sdk.Value;
 import com.aerospike.client.sdk.util.Unpacker;
 import com.aerospike.client.sdk.util.Utf8;
+import com.aerospike.client.sdk.vector.Vector;
 
 public final class Buffer {
 
@@ -79,6 +80,9 @@ public final class Buffer {
 
         case ParticleType.HLL:
             return Buffer.bytesToHLL(buf, offset, len);
+
+        case ParticleType.VECTOR:
+            return Buffer.bytesToVector(buf, offset, len);
 
         case ParticleType.LIST:
             return Unpacker.unpackObjectList(buf, offset, len);
@@ -269,6 +273,10 @@ public final class Buffer {
     public static Object bytesToHLL(byte[] buf, int offset, int len) {
         byte[] bytes = Arrays.copyOfRange(buf, offset, offset+len);
         return Value.getAsHLL(bytes);
+    }
+
+    public static Object bytesToVector(final byte[] buf, final int offset, final int len) {
+        return Vector.from(buf, offset, len);
     }
 
     public static Object bytesToNumber(byte[] buf, int offset, int len) {

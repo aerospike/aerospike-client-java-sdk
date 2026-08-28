@@ -272,6 +272,20 @@ public abstract class Exp {
     }
 
     /**
+     * Create vector bin expression for use with {@link com.aerospike.client.sdk.exp.VectorExp}.
+     *
+     * <pre>{@code
+     * // Cosine distance between vector bin "v" and a query vector > 0.8
+     * Exp.gt(
+     *     VectorExp.distance(VectorDistanceMetric.COSINE, query, Exp.vectorBin("v")),
+     *     Exp.val(0.8))
+     * }</pre>
+     */
+    public static Exp vectorBin(final String name) {
+        return new Bin(name, Type.BLOB);
+    }
+
+    /**
      * Create expression that returns if bin of specified name exists.
      *
      * <pre>{@code
@@ -1416,6 +1430,7 @@ public abstract class Exp {
     private static final int INT_RSCAN = 41;
     private static final int MIN = 50;
     private static final int MAX = 51;
+    private static final int VECTOR_DIST = 52;
     private static final int DIGEST_MODULO = 64;
     private static final int DEVICE_SIZE = 65;
     private static final int LAST_UPDATE = 66;
@@ -1561,6 +1576,30 @@ public abstract class Exp {
             packer.packInt(retType);
             packer.packInt(module);
             packer.packByteArray(bytes, 0, bytes.length);
+            bin.pack(packer);
+        }
+    }
+
+    /**
+     * For internal use only. Built by {@link com.aerospike.client.sdk.exp.VectorExp#distance}.
+     */
+    static final class VectorDist extends Exp {
+        private final int metric;
+        private final byte[] query;
+        private final Exp bin;
+
+        VectorDist(final int metric, final byte[] query, final Exp bin) {
+            this.metric = metric;
+            this.query = query;
+            this.bin = bin;
+        }
+
+        @Override
+        public void pack(final Packer packer) {
+            packer.packArrayBegin(4);
+            packer.packInt(VECTOR_DIST);
+            packer.packInt(metric);
+            packer.packParticleBytes(query);
             bin.pack(packer);
         }
     }

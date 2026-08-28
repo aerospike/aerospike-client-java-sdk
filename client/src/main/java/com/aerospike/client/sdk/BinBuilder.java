@@ -42,6 +42,7 @@ import com.aerospike.client.sdk.operation.StringOperation;
 import com.aerospike.client.sdk.operation.StringRegexFlags;
 import com.aerospike.client.sdk.operation.StringWriteFlags;
 import com.aerospike.client.sdk.query.PreparedAel;
+import com.aerospike.client.sdk.vector.Vector;
 
 /**
  * Operations for one bin: scalar writes ({@link #setTo}), reads ({@link #get}),
@@ -181,6 +182,16 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      * @return the parent operation builder for chaining
      */
     public T setTo(SortedMap<?, ?> value) {
+        return opBuilder.setTo(new Bin(binName, value));
+    }
+
+    /**
+     * Queues a write that sets this bin to a vector (stored as the server vector particle type).
+     *
+     * @param value vector to store
+     * @return the parent operation builder for chaining
+     */
+    public T setTo(final Vector value) {
         return opBuilder.setTo(new Bin(binName, value));
     }
 

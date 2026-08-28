@@ -30,6 +30,7 @@ import com.aerospike.client.sdk.cdt.MapOperation;
 import com.aerospike.client.sdk.cdt.MapOrder;
 import com.aerospike.client.sdk.cdt.MapPolicy;
 import com.aerospike.client.sdk.cdt.MapWriteFlags;
+import com.aerospike.client.sdk.vector.Vector;
 
 /**
  * CDT helpers for a single bin: appends {@link ListOperation} and {@link MapOperation} steps to
@@ -850,6 +851,34 @@ public class AbstractCdtBuilder<T extends AbstractOperationBuilder<T>> {
             return this.opBuilder.addOp(ListOperation.set(binName, index, value));
         }
     }
+
+    /** @see #listAppend(Value) */
+    public T listAppend(final Vector value) { return listAppend(Value.get(value)); }
+    /** @see #listAppend(Value, Consumer) */
+    public T listAppend(final Vector value, final Consumer<ListEntryWriteOptions> options) { return listAppend(Value.get(value), options); }
+    /** @see #listAppend(Value, ListEntryWriteOptions) */
+    public T listAppend(final Vector value, final ListEntryWriteOptions options) { return listAppend(Value.get(value), options); }
+
+    /** @see #listAdd(Value) */
+    public T listAdd(final Vector value) { return listAdd(Value.get(value)); }
+    /** @see #listAdd(Value, Consumer) */
+    public T listAdd(final Vector value, final Consumer<ListEntryWriteOptions> options) { return listAdd(Value.get(value), options); }
+    /** @see #listAdd(Value, ListEntryWriteOptions) */
+    public T listAdd(final Vector value, final ListEntryWriteOptions options) { return listAdd(Value.get(value), options); }
+
+    /** @see #listInsert(int, Value) */
+    public T listInsert(final int index, final Vector value) { return listInsert(index, Value.get(value)); }
+    /** @see #listInsert(int, Value, Consumer) */
+    public T listInsert(final int index, final Vector value, final Consumer<ListEntryWriteOptions> options) { return listInsert(index, Value.get(value), options); }
+    /** @see #listInsert(int, Value, ListEntryWriteOptions) */
+    public T listInsert(final int index, final Vector value, final ListEntryWriteOptions options) { return listInsert(index, Value.get(value), options); }
+
+    /** @see #listSet(int, Value) */
+    public T listSet(final int index, final Vector value) { return listSet(index, Value.get(value)); }
+    /** @see #listSet(int, Value, Consumer) */
+    public T listSet(final int index, final Vector value, final Consumer<ListEntryWriteOptions> options) { return listSet(index, Value.get(value), options); }
+    /** @see #listSet(int, Value, ListEntryWriteOptions) */
+    public T listSet(final int index, final Vector value, final ListEntryWriteOptions options) { return listSet(index, Value.get(value), options); }
 
     /** @see #listSet(int, Value) */
     public T listSet(int index, long value) { return listSet(index, Value.get(value)); }

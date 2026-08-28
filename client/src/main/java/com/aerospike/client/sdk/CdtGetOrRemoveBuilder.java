@@ -40,6 +40,7 @@ import com.aerospike.client.sdk.exp.Exp;
 import com.aerospike.client.sdk.exp.ExpReadFlags;
 import com.aerospike.client.sdk.exp.Expression;
 import com.aerospike.client.sdk.query.PreparedAel;
+import com.aerospike.client.sdk.vector.Vector;
 
 /**
  * Builder for map and list (CDT) read, remove, existence checks, and nested path operations on a bin.
@@ -2769,6 +2770,73 @@ public class CdtGetOrRemoveBuilder<T extends AbstractOperationBuilder<T>> extend
         else {
             return this.opBuilder.addOp(MapOperation.put(resolveMapPolicy(MapWriteFlags.DEFAULT, null), binName, params.getVal1(), Value.get(mapper.toMap(value)), params.context()));
         }
+    }
+
+    // =================================
+    // Vector overloads
+    // =================================
+    /**
+     * Set the list element at the selected index, or put a map entry at the selected key.
+     *
+     * @param value vector to write
+     *
+     * @return the parent operation builder for chaining
+     */
+    public T setTo(final Vector value) {
+        if (params.getOperation() == CdtOperation.LIST_BY_INDEX) {
+            return this.opBuilder.addOp(ListOperation.set(binName, params.getInt1(), Value.get(value), params.context()));
+        }
+        else {
+            return this.opBuilder.addOp(MapOperation.put(resolveMapPolicy(MapWriteFlags.DEFAULT, null), binName, params.getVal1(), Value.get(value), params.context()));
+        }
+    }
+    /** @see #setTo(Vector) */
+    public T insert(final Vector value) {
+        return insert(value, (MapEntryWriteOptions)null);
+    }
+    /** @see #setTo(Vector) */
+    public T insert(final Vector value, final Consumer<MapEntryWriteOptions> options) {
+        return insert(value, applyOptions(options));
+    }
+    /** @see #setTo(Vector) */
+    public T insert(final Vector value, final MapEntryWriteOptions options) {
+        if (params.getOperation() == CdtOperation.LIST_BY_INDEX) {
+            return this.opBuilder.addOp(ListOperation.insert(binName, params.getInt1(), Value.get(value), params.context()));
+        }
+        final MapPolicy mp = resolveMapPolicy(MapWriteFlags.CREATE_ONLY, options);
+        return this.opBuilder.addOp(MapOperation.put(mp, binName, params.getVal1(), Value.get(value), params.context()));
+    }
+    /** @see #setTo(Vector) */
+    public T update(final Vector value) {
+        return update(value, (MapEntryWriteOptions)null);
+    }
+    /** @see #setTo(Vector) */
+    public T update(final Vector value, final Consumer<MapEntryWriteOptions> options) {
+        return update(value, applyOptions(options));
+    }
+    /** @see #setTo(Vector) */
+    public T update(final Vector value, final MapEntryWriteOptions options) {
+        if (params.getOperation() == CdtOperation.LIST_BY_INDEX) {
+            throw new IllegalArgumentException("upsert/update is not applicable for list operations");
+        }
+        final MapPolicy mp = resolveMapPolicy(MapWriteFlags.UPDATE_ONLY, options);
+        return this.opBuilder.addOp(MapOperation.put(mp, binName, params.getVal1(), Value.get(value), params.context()));
+    }
+    /** @see #setTo(Vector) */
+    public T upsert(final Vector value) {
+        return upsert(value, (MapEntryWriteOptions)null);
+    }
+    /** @see #setTo(Vector) */
+    public T upsert(final Vector value, final Consumer<MapEntryWriteOptions> options) {
+        return upsert(value, applyOptions(options));
+    }
+    /** @see #setTo(Vector) */
+    public T upsert(final Vector value, final MapEntryWriteOptions options) {
+        if (params.getOperation() == CdtOperation.LIST_BY_INDEX) {
+            throw new IllegalArgumentException("upsert/update is not applicable for list operations");
+        }
+        final MapPolicy mp = resolveMapPolicy(MapWriteFlags.DEFAULT, options);
+        return this.opBuilder.addOp(MapOperation.put(mp, binName, params.getVal1(), Value.get(value), params.context()));
     }
 
     // =================================

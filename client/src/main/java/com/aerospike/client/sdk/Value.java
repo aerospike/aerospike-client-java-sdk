@@ -26,6 +26,7 @@ import com.aerospike.client.sdk.cdt.MapOrder;
 import com.aerospike.client.sdk.command.Buffer;
 import com.aerospike.client.sdk.command.ParticleType;
 import com.aerospike.client.sdk.util.Packer;
+import com.aerospike.client.sdk.vector.Vector;
 
 import java.util.SortedMap;
 import java.util.UUID;
@@ -236,6 +237,13 @@ public abstract class Value {
     }
 
     /**
+     * Get vector or null value instance.
+     */
+    public static Value get(final Vector value) {
+        return (value == null)? NullValue.INSTANCE : new VectorValue(value);
+    }
+
+    /**
      * Get null value instance.
      */
     public static Value getAsNull() {
@@ -286,6 +294,10 @@ public abstract class Value {
 
         if (value instanceof Map<?,?> val) {
             return new MapValue(val);
+        }
+
+        if (value instanceof Vector val) {
+            return new VectorValue(val);
         }
 
         if (value instanceof Double val) {
@@ -1424,6 +1436,68 @@ public abstract class Value {
         @Override
         public int hashCode() {
             return Arrays.hashCode(bytes);
+        }
+    }
+
+    /**
+     * Vector value.
+     */
+    public static final class VectorValue extends Value {
+        private final Vector vector;
+
+        public VectorValue(final Vector vector) {
+            this.vector = vector;
+        }
+
+        @Override
+        public int estimateSize() {
+            return vector.getWireSize();
+        }
+
+        @Override
+        public int write(final byte[] buffer, final int offset) {
+            return vector.writeTo(buffer, offset);
+        }
+
+        @Override
+        public void pack(final Packer packer) {
+            packer.packVector(vector);
+        }
+
+        @Override
+        public void validateKeyType() {
+            throw AerospikeException.toException(ResultCode.PARAMETER_ERROR, "Invalid key type: Vector");
+        }
+
+        @Override
+        public int getType() {
+            return ParticleType.VECTOR;
+        }
+
+        @Override
+        public Object getObject() {
+            return vector;
+        }
+
+        public Vector getVector() {
+            return vector;
+        }
+
+        @Override
+        public String toString() {
+            return vector.toString();
+        }
+
+        @Override
+        public boolean equals(final Object other) {
+            return (other != null &&
+                this.getClass().equals(other.getClass()) &&
+                this.vector.equals(((VectorValue)other).vector));
+        }
+
+        @Override
+        public int hashCode() {
+            return vector.hashCode();
         }
     }
 
