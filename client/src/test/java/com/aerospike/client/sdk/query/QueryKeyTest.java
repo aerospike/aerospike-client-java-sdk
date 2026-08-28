@@ -16,6 +16,7 @@
  */
 package com.aerospike.client.sdk.query;
 
+import static com.aerospike.client.sdk.query.QuerySelectionIntegSupport.collectAges;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
@@ -127,23 +128,10 @@ public class QueryKeyTest extends ClusterTest {
             keys.add(dataSet.id(keyPrefix + i));
         }
 
-        RecordStream rs = session.query(keys)
+        List<Integer> values = collectAges(session.query(keys)
             .where(filter, begin, end)
-            .execute();
+            .execute(), binName);
 
-        try {
-            int count = 0;
-            while (rs.hasNext()) {
-                RecordResult result = rs.next();
-                Key key = result.getKey();
-                assertNotNull(key.userKey);
-                count++;
-            }
-
-            assertEquals(4, count);
-        }
-        finally {
-            rs.close();
-        }
+        assertEquals(List.of(2, 3, 4, 5), values);
     }
 }

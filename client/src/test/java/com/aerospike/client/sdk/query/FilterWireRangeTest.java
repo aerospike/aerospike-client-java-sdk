@@ -18,11 +18,29 @@ package com.aerospike.client.sdk.query;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
 
+import com.aerospike.client.sdk.exp.Exp;
+import com.aerospike.client.sdk.exp.Expression;
+import com.aerospike.client.sdk.query.plan.IndexRangeWire;
+
+/**
+ * Wire-encoding coverage for {@link Filter}: opaque {@link Filter#fromWireRange} replay on the
+ * server-led query path, and structured factory bytes for legacy callers.
+ */
 public class FilterWireRangeTest {
+
+    private static final String GEO_POINT =
+        "{\"type\":\"Point\",\"coordinates\":[-122.0986857,37.4214209]}";
+    private static final String GEO_REGION =
+        "{\"type\":\"Polygon\",\"coordinates\":[[[-122.1,37.4],[-122.0,37.4],[-122.0,37.5],[-122.1,37.5],[-122.1,37.4]]]}";
+    private static final String GEO_CIRCLE =
+        "{ \"type\": \"AeroCircle\", "
+            + "\"coordinates\": [[-122.10000000, 37.40000000], 1000.000000] }";
+    private static final byte[] BLOB = new byte[] {1, 2, 3, 4};
 
     @Test
     void fromWireRangeReplaysBytesVerbatim() {
@@ -39,11 +57,38 @@ public class FilterWireRangeTest {
         byte[] out = new byte[wireBody.length];
         opaque.write(out, 0);
         assertArrayEquals(wireBody, out);
+
+        Filter mapKeysOpaque = Filter.fromWireRange("mapkeys_idx", wireBody, IndexCollectionType.MAPKEYS);
+        assertEquals(IndexCollectionType.MAPKEYS, mapKeysOpaque.getCollectionType());
     }
 
     @Test
-    void structuredFilterDoesNotUseWireRange() {
-        Filter structured = Filter.equal("age", 30L);
-        assertTrue(!structured.hasWireRange());
+    void structuredFiltersEncodeProbeRangeBytes() {
+        assertProbeRange(Filter.equal("age", 30L), "bin=age range=[30,30]");
+        assertProbeRange(Filter.range("age", 18L, 65L), "bin=age range=[18,65]");
+        assertProbeRange(Filter.equal("name", "alice"), "bin=name value=alice len=5");
+        assertProbeRange(Filter.equal("digest", BLOB), "bin=digest value=x'01020304' len=4");
+        assertProbeRange(Filter.geoWithinRegion("loc", GEO_REGION),
+            "bin=loc region=" + GEO_REGION + " len=" + GEO_REGION.length());
+        assertProbeRange(Filter.geoWithinRadius("loc", -122.1, 37.4, 1000.0),
+            "bin=loc region=" + GEO_CIRCLE + " len=" + GEO_CIRCLE.length());
+        assertProbeRange(Filter.geoContains("loc", GEO_POINT),
+            "bin=loc region=" + GEO_POINT + " len=" + GEO_POINT.length());
+
+        // packedExp is not written to INDEX_RANGE; this case only checks the empty-bin-name wire shape.
+        assertProbeRange(Filter.equal(ageIntIndexExpression(), 30L), "bin= range=[30,30]");
+        assertProbeRange(Filter.equalByIndex("age_idx", 30L), "bin= range=[30,30]");
+    }
+
+    private static void assertProbeRange(Filter filter, String expectedDescription) {
+        assertFalse(filter.hasWireRange());
+        byte[] wireBody = new byte[1 + filter.estimateSize()];
+        wireBody[0] = 1;
+        filter.write(wireBody, 1);
+        assertEquals(expectedDescription, IndexRangeWire.describeProbeRange(wireBody));
+    }
+
+    private static Expression ageIntIndexExpression() {
+        return Exp.build(Exp.intBin("age"));
     }
 }

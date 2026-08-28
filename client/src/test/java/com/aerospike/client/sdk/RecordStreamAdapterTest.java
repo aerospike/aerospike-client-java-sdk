@@ -81,15 +81,17 @@ public class RecordStreamAdapterTest extends ClusterTest {
     public void singleKeyStream_reportsOneChunk() {
         RecordStream rs = session.query(args.set.id(KEY_PREFIX + "0")).execute();
         try {
-            int count = 0;
+            int chunkCount = 0;
+            int recordCount = 0;
             while (rs.hasMoreChunks()) {
+                chunkCount++;
                 while (rs.hasNext()) {
                     assertEquals("user_0", rs.next().recordOrThrow().getString("name"));
-                    count++;
+                    recordCount++;
                 }
             }
-            assertEquals(1, count);
-            assertFalse(rs.hasMoreChunks());
+            assertEquals(1, chunkCount);
+            assertEquals(1, recordCount);
         }
         finally {
             rs.close();

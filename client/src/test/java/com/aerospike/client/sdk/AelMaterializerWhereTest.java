@@ -67,7 +67,11 @@ public class AelMaterializerWhereTest extends ClusterTest {
     void toFilterExp_session_delegatesToCluster() {
         WhereClauseProcessor where = WhereClauseProcessor.from(AEL);
 
-        assertThat(where.toFilterExp(session)).isNotNull();
+        Exp fromSession = where.toFilterExp(session);
+        Exp fromCluster = where.toFilterExp(cluster);
+
+        assertThat(Exp.build(fromSession).getBytes()).isEqualTo(Exp.build(fromCluster).getBytes());
+        assertThat(isServerCompiledAelWire(Exp.build(fromSession))).isTrue();
     }
 
     @Test

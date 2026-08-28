@@ -18,8 +18,10 @@ package com.aerospike.client.sdk;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import java.util.Date;
 import java.util.List;
@@ -28,10 +30,17 @@ import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
 
+import com.aerospike.client.sdk.ael.Ael;
+import com.aerospike.client.sdk.command.Txn;
 import com.aerospike.client.sdk.exp.Exp;
+import com.aerospike.client.sdk.exp.Expression;
 import com.aerospike.client.sdk.mapper.Address;
 import com.aerospike.client.sdk.mapper.Customer;
 import com.aerospike.client.sdk.mapper.CustomerMapper;
+import com.aerospike.client.sdk.policy.QueryDuration;
+import com.aerospike.client.sdk.query.PreparedAel;
+import com.aerospike.client.sdk.query.TypedQueryBuilder;
+import com.aerospike.client.sdk.tend.Partition;
 import com.aerospike.client.sdk.util.MapUtil;
 
 /**
@@ -64,6 +73,31 @@ public class TypedQueryMappingTest extends ClusterTest {
         assertEquals(1, customers.size());
         assertEquals(key, customers.get(0).getId());
         assertEquals("typed-read", customers.get(0).getName());
+    }
+
+    @Test
+    public void typedDatasetQueryReadingOnlyBinsMapsPartialRecord() {
+        CustomerMapper customerMapper = new CustomerMapper();
+        cluster.setRecordMappingFactory(DefaultRecordMappingFactory.of(Customer.class, customerMapper));
+
+        int key = 91024;
+        session.delete(args.set.id(key)).execute();
+
+        TypedDataSet<Customer> ds =
+            new TypedDataSet<>(args.namespace, args.set.getSet(), Customer.class);
+        session.insert(ds).object(new Customer(key, "partial-bins", 42, new Date(),
+            new Address("1 Partial St", "Boulder", "CO", "USA", "80301"))).execute();
+
+        try (TypedRecordStream<Customer> stream = session.query(ds)
+                .where(Exp.eq(Exp.intBin("id"), Exp.val(key)))
+                .readingOnlyBins("name", "age")
+                .limit(1)
+                .execute()) {
+            Customer customer = stream.getFirstObject().orElseThrow();
+            assertEquals("partial-bins", customer.getName());
+            assertEquals(42, customer.getAge());
+            assertEquals(null, customer.getAddress());
+        }
     }
 
     @Test
@@ -212,6 +246,209 @@ public class TypedQueryMappingTest extends ClusterTest {
 
         assertEquals(1, out.size());
         assertEquals("ctx-explicit", out.get(0).getName());
+    }
+
+    @Test
+    public void typedDatasetQueryWithNoBinsExecuteAsync() {
+        installCustomerMapper();
+        int key = 91025;
+        TypedDataSet<Customer> ds = customerDataSet();
+        seedCustomer(ds, key, "no-bins");
+
+        try (TypedRecordStream<Customer> stream = session.query(ds)
+                .where(Exp.eq(Exp.intBin("id"), Exp.val(key)))
+                .withNoBins()
+                .limit(1)
+                .executeAsync(ErrorStrategy.IN_STREAM)) {
+            RecordResult rr = stream.getFirst().orElseThrow();
+            assertNotNull(rr.getKey());
+            assertTrue(rr.recordOrThrow().generation > 0);
+            assertNull(rr.recordOrThrow().getString("name"));
+        }
+    }
+
+    @Test
+    public void typedDatasetQueryAlternateWhereClauses() {
+        assumeSupportsAel();
+        installCustomerMapper();
+        int key = 91026;
+        TypedDataSet<Customer> ds = customerDataSet();
+        seedCustomer(ds, key, "where-overloads");
+
+        assertCustomerName(session.query(ds)
+            .where("$.id == " + key)
+            .limit(1)
+            .execute()
+            .getFirstObject()
+            .orElseThrow(), "where-overloads");
+
+        PreparedAel prepared = PreparedAel.prepare("$.id == ?0");
+        assertCustomerName(session.query(ds)
+            .where(prepared, key)
+            .limit(1)
+            .execute()
+            .getFirstObject()
+            .orElseThrow(), "where-overloads");
+
+        assertCustomerName(session.query(ds)
+            .where(Ael.longBin("id").eq(key))
+            .limit(1)
+            .execute()
+            .getFirstObject()
+            .orElseThrow(), "where-overloads");
+
+        Expression expression = Exp.build(Exp.eq(Exp.intBin("id"), Exp.val(key)));
+        assertCustomerName(session.query(ds)
+            .where(expression)
+            .limit(1)
+            .execute()
+            .getFirstObject()
+            .orElseThrow(), "where-overloads");
+    }
+
+    @Test
+    public void typedDatasetQueryExecuteOverloadSmoke() {
+        installCustomerMapper();
+        int key = 91027;
+        TypedDataSet<Customer> ds = customerDataSet();
+        seedCustomer(ds, key, "execute-overloads");
+
+        try (TypedRecordStream<Customer> stream = session.query(ds)
+                .where(Exp.eq(Exp.intBin("id"), Exp.val(key)))
+                .limit(1)
+                .execute(ErrorStrategy.IN_STREAM)) {
+            assertCustomerName(stream.getFirstObject().orElseThrow(), "execute-overloads");
+        }
+
+        try (TypedRecordStream<Customer> stream = session.query(ds)
+                .where(Exp.eq(Exp.intBin("id"), Exp.val(key)))
+                .limit(1)
+                .execute((ignoredKey, ignoredIndex, ex) -> { })) {
+            assertCustomerName(stream.getFirstObject().orElseThrow(), "execute-overloads");
+        }
+
+        try (TypedRecordStream<Customer> stream = session.query(ds)
+                .where(Exp.eq(Exp.intBin("id"), Exp.val(key)))
+                .limit(1)
+                .executeAsync((ignoredKey, ignoredIndex, ex) -> { })) {
+            assertCustomerName(stream.getFirstObject().orElseThrow(), "execute-overloads");
+        }
+    }
+
+    @Test
+    public void typedDatasetQueryChunkedExecuteOnIsolatedSet() {
+        installCustomerMapper();
+        TypedDataSet<Customer> ds = chunkedCustomerDataSet();
+        int key = 91030;
+        seedCustomer(ds, key, "chunk-a");
+
+        Key aerospikeKey = ds.id(key).getKey();
+        int partition = Partition.getPartitionId(aerospikeKey.digest);
+
+        try (TypedRecordStream<Customer> stream = session.query(ds)
+                .onPartition(partition)
+                .readingOnlyBins("name", "id")
+                .withHint(hint -> hint.queryDuration(QueryDuration.SHORT))
+                .where(Exp.eq(Exp.intBin("id"), Exp.val(key)))
+                .limit(1)
+                .chunkSize(1)
+                .execute()) {
+            int chunkCount = 0;
+            int recordCount = 0;
+            while (stream.hasMoreChunks()) {
+                chunkCount++;
+                Optional<Customer> customer;
+                while ((customer = stream.popObject()).isPresent()) {
+                    assertCustomerName(customer.get(), "chunk-a");
+                    recordCount++;
+                }
+            }
+            assertEquals(1, recordCount);
+            assertEquals(1, chunkCount);
+        }
+    }
+
+    @Test
+    public void typedDatasetQueryPartitionPinning() {
+        installCustomerMapper();
+        int key = 91035;
+        TypedDataSet<Customer> ds = customerDataSet();
+        seedCustomer(ds, key, "partition");
+
+        Key aerospikeKey = ds.id(key).getKey();
+        int partition = Partition.getPartitionId(aerospikeKey.digest);
+
+        TypedQueryBuilder<Customer> rangeQb = session.query(ds).onPartitionRange(partition, partition + 1);
+        assertEquals(partition, rangeQb.getStartPartition());
+        assertEquals(partition + 1, rangeQb.getEndPartition());
+
+        TypedQueryBuilder<Customer> qb = session.query(ds)
+            .onPartition(partition)
+            .where(Exp.eq(Exp.intBin("id"), Exp.val(key)))
+            .limit(1);
+        assertEquals(partition, qb.getStartPartition());
+        assertEquals(partition + 1, qb.getEndPartition());
+
+        assertCustomerName(qb.execute().getFirstObject().orElseThrow(), "partition");
+    }
+
+    @Test
+    public void typedDatasetQueryBinBuilderOnDataset() {
+        installCustomerMapper();
+        int key = 91033;
+        TypedDataSet<Customer> ds = customerDataSet();
+        seedCustomer(ds, key, "bin-builder");
+
+        try (RecordStream stream = session.query(ds)
+                .where(Exp.eq(Exp.intBin("id"), Exp.val(key)))
+                .bin("name")
+                .get()
+                .execute()) {
+            assertEquals("bin-builder", stream.getFirst().orElseThrow().recordOrThrow().getString("name"));
+        }
+    }
+
+    @Test
+    public void typedDatasetQueryInTransaction() {
+        assumeTrue(args.scMode, "transactions require strong consistency");
+        installCustomerMapper();
+        int key = 91034;
+        TypedDataSet<Customer> ds = customerDataSet();
+        seedCustomer(ds, key, "in-txn");
+
+        session.doInTransaction(txnSession -> {
+            Txn txn = txnSession.getCurrentTransaction();
+            assertNotNull(txn);
+
+            try (TypedRecordStream<Customer> stream = txnSession.query(ds)
+                    .inTransaction(txn)
+                    .where(Exp.eq(Exp.intBin("id"), Exp.val(key)))
+                    .execute()) {
+                assertCustomerName(stream.getFirstObject().orElseThrow(), "in-txn");
+            }
+        });
+    }
+
+    private void installCustomerMapper() {
+        cluster.setRecordMappingFactory(DefaultRecordMappingFactory.of(Customer.class, new CustomerMapper()));
+    }
+
+    private TypedDataSet<Customer> customerDataSet() {
+        return new TypedDataSet<>(args.namespace, args.set.getSet(), Customer.class);
+    }
+
+    private TypedDataSet<Customer> chunkedCustomerDataSet() {
+        return new TypedDataSet<>(args.namespace, "typed_chunk_test", Customer.class);
+    }
+
+    private void seedCustomer(TypedDataSet<Customer> ds, int key, String name) {
+        session.delete(ds.id(key).getKey()).execute();
+        session.insert(ds).object(new Customer(key, name, 21, new Date(),
+            new Address("1 St", "Boulder", "CO", "USA", "80301"))).execute();
+    }
+
+    private static void assertCustomerName(Customer customer, String expectedName) {
+        assertEquals(expectedName, customer.getName());
     }
 
     @Test

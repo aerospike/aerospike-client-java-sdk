@@ -30,7 +30,7 @@ import com.aerospike.client.sdk.query.AelPathReadTest;
 import com.aerospike.client.sdk.query.AelPathSubExprTest;
 import com.aerospike.client.sdk.query.AelWildcardTest;
 import com.aerospike.client.sdk.query.ExpSecondaryIndexTest;
-import com.aerospike.client.sdk.query.IndexProbePlannerRoutingTest;
+import com.aerospike.client.sdk.query.FilterIndexRangeIntegrationTest;
 import com.aerospike.client.sdk.query.QueryBlobTest;
 import com.aerospike.client.sdk.query.QueryBuilderBinBuilderTest;
 import com.aerospike.client.sdk.query.QueryBuilderExecutePathTest;
@@ -110,7 +110,7 @@ import com.aerospike.client.sdk.query.QueryUpsertFromChainedTest;
     UdfTest.class,
     // Query
     ExpSecondaryIndexTest.class,
-    IndexProbePlannerRoutingTest.class,
+    FilterIndexRangeIntegrationTest.class,
     QueryBlobTest.class,
     QueryCollectionTest.class,
     QueryContextTest.class,
