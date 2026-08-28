@@ -42,6 +42,7 @@ import com.aerospike.client.sdk.query.PreparedAel;
 import com.aerospike.client.sdk.query.TypedQueryBuilder;
 import com.aerospike.client.sdk.tend.Partition;
 import com.aerospike.client.sdk.util.MapUtil;
+import com.aerospike.client.sdk.util.Version;
 
 /**
  * Integration-style tests for typed reads (requires a running cluster like {@link ClusterTest}).
@@ -394,6 +395,10 @@ public class TypedQueryMappingTest extends ClusterTest {
 
     @Test
     public void typedDatasetQueryBinBuilderOnDataset() {
+        assumeTrue(
+            cluster.getVersion().isGreaterOrEqual(Version.SERVER_VERSION_8_1_2),
+            "dataset bin projection requires server 8.1.2+");
+
         installCustomerMapper();
         int key = 91033;
         TypedDataSet<Customer> ds = customerDataSet();
