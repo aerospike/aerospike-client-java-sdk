@@ -18,8 +18,12 @@ package com.aerospike.client.sdk.policy;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.lang.reflect.InvocationHandler;
+import java.lang.reflect.Method;
+import java.lang.reflect.Proxy;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -28,12 +32,13 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
 
 import com.aerospike.client.sdk.ErrorDetailVerbosity;
 
 /**
- * Aerospike Policy Behavior Builder — Typed Selectors (non-generic bases)
+ * Aerospike Policy Behavior Builder — Typed Selectors
  *
  * <h2>Overview</h2>
  * Provides selector-driven API for configuring Aerospike operation policies with:
@@ -784,11 +789,15 @@ public final class Behavior {
 
         @Override public <T extends TweaksView> T on(Selector<T> selector) {
             Objects.requireNonNull(selector, "selector");
+            if (!(selector instanceof TypedSelector<?>)) {
+                throw new IllegalArgumentException("Selector must be created by Behavior.Selectors");
+            }
+
             Patch patch = new Patch(selector.spec());
             patches.add(patch);
-            TweaksProxy proxy = new TweaksProxy(patch);
-            @SuppressWarnings("unchecked") T typed = (T) proxy;
-            return typed;
+            @SuppressWarnings("unchecked")
+            TypedSelector<T> typedSelector = (TypedSelector<T>) selector;
+            return TweaksProxy.create(typedSelector.tweaksType(), patch);
         }
 
         @Override public <T extends TweaksView> BehaviorBuilder on(Selector<T> selector, java.util.function.Consumer<T> apply) {
@@ -955,815 +964,174 @@ public final class Behavior {
     }
 
     // -----------------------------------------------------------------------------------
-    // Tweak view model — NON-GENERIC base + concrete views with covariant returns
+    // Tweak view model — generic capability interfaces + concrete marker views
     // -----------------------------------------------------------------------------------
     public interface TweaksView {}
 
-    // Base (non-generic) surfaces
-    public interface CommonTweaks extends TweaksView {
-        CommonTweaks abandonCallAfter(Duration d);
-        CommonTweaks delayBetweenRetries(Duration d);
-        CommonTweaks maximumNumberOfCallAttempts(int n);
-        CommonTweaks replicaOrder(Replica r);
-        CommonTweaks sendKey(boolean sendKey);
-        CommonTweaks useCompression(boolean compress);
-        CommonTweaks waitForCallToComplete(Duration d);
-        CommonTweaks waitForConnectionToComplete(Duration d);
-        CommonTweaks waitForSocketResponseAfterCallFails(Duration d);
-        CommonTweaks errorDetailVerbosity(int e);
-        CommonTweaks stackTraceOnException(boolean enabled);
+    public interface CommonTweaks<T extends CommonTweaks<T>> extends TweaksView {
+        T abandonCallAfter(Duration d);
+        T delayBetweenRetries(Duration d);
+        T maximumNumberOfCallAttempts(int n);
+        T replicaOrder(Replica r);
+        T sendKey(boolean sendKey);
+        T useCompression(boolean compress);
+        T waitForCallToComplete(Duration d);
+        T waitForConnectionToComplete(Duration d);
+        T waitForSocketResponseAfterCallFails(Duration d);
+        T errorDetailVerbosity(int e);
+        T stackTraceOnException(boolean enabled);
     }
-    public interface QueryTweaks extends CommonTweaks {
-        @Override QueryTweaks errorDetailVerbosity(int e);
-        @Override QueryTweaks stackTraceOnException(boolean enabled);
-        QueryTweaks recordQueueSize(int n);
-        QueryTweaks allowScansWithWhere(boolean allow);
-    }
-    public interface BatchTweaks extends CommonTweaks {
-        @Override BatchTweaks errorDetailVerbosity(int e);
-        @Override BatchTweaks stackTraceOnException(boolean enabled);
-        BatchTweaks maxConcurrentNodes(int n);
-        BatchTweaks allowInlineMemoryAccess(boolean v);
-        BatchTweaks allowInlineSsdAccess(boolean v);
-    }
-    public interface WriteTweaks extends CommonTweaks {
-        @Override WriteTweaks errorDetailVerbosity(int e);
-        @Override WriteTweaks stackTraceOnException(boolean enabled);
-        WriteTweaks useDurableDelete(boolean b);
-        WriteTweaks simulateXdrWrite(boolean b);
-    }
-    public interface WriteApTweaks extends WriteTweaks {
-        WriteApTweaks commitLevel(CommitLevel level);
-    }
-    public interface ReadTweaks extends CommonTweaks {
-        @Override ReadTweaks errorDetailVerbosity(int e);
-        @Override ReadTweaks stackTraceOnException(boolean enabled);
-        ReadTweaks resetTtlOnReadAtPercent(int percent);
-    }
-    public interface ReadApTweaks extends ReadTweaks {
-        ReadApTweaks readMode(ReadModeAP mode);
-    }
-    public interface ReadCpTweaks extends ReadTweaks {
-        ReadCpTweaks consistency(ReadModeSC c);
-    }
-    public interface RetryableWriteTweaks extends WriteTweaks {}
-    public interface NonRetryableWriteTweaks extends WriteTweaks {}
 
-    // Concrete Any-Mode markers (covariant return redeclaration)
-    public interface AllAnyModeTweaks extends CommonTweaks {
-        // Common tweaks
-        @Override AllAnyModeTweaks abandonCallAfter(Duration d);
-        @Override AllAnyModeTweaks delayBetweenRetries(Duration d);
-        @Override AllAnyModeTweaks maximumNumberOfCallAttempts(int n);
-        @Override AllAnyModeTweaks replicaOrder(Replica r);
-        @Override AllAnyModeTweaks sendKey(boolean sendKey);
-        @Override AllAnyModeTweaks useCompression(boolean compress);
-        @Override AllAnyModeTweaks waitForCallToComplete(Duration d);
-        @Override AllAnyModeTweaks waitForConnectionToComplete(Duration d);
-        @Override AllAnyModeTweaks waitForSocketResponseAfterCallFails(Duration d);
-        @Override AllAnyModeTweaks errorDetailVerbosity(int e);
-        @Override AllAnyModeTweaks stackTraceOnException(boolean enabled);
+    public interface QueryTweaks<T extends QueryTweaks<T>> extends CommonTweaks<T> {
+        T recordQueueSize(int n);
+        T allowScansWithWhere(boolean allow);
+    }
 
-        // Read-specific settings
-        AllAnyModeTweaks resetTtlOnReadAtPercent(int percent);
-        AllAnyModeTweaks readMode(ReadModeAP mode);
-        AllAnyModeTweaks consistency(ReadModeSC c);
+    public interface BatchTweaks<T extends BatchTweaks<T>> extends CommonTweaks<T> {
+        T maxConcurrentNodes(int n);
+        T allowInlineMemoryAccess(boolean v);
+        T allowInlineSsdAccess(boolean v);
+    }
 
-        // Write-specific settings
-        AllAnyModeTweaks useDurableDelete(boolean b);
-        AllAnyModeTweaks simulateXdrWrite(boolean b);
-        AllAnyModeTweaks commitLevel(CommitLevel level);
+    public interface WriteTweaks<T extends WriteTweaks<T>> extends CommonTweaks<T> {
+        T useDurableDelete(boolean b);
+        T simulateXdrWrite(boolean b);
+    }
 
-        // Batch-specific settings
-        AllAnyModeTweaks maxConcurrentNodes(int n);
-        AllAnyModeTweaks allowInlineMemoryAccess(boolean v);
-        AllAnyModeTweaks allowInlineSsdAccess(boolean v);
+    public interface WriteApTweaks<T extends WriteApTweaks<T>> extends WriteTweaks<T> {
+        T commitLevel(CommitLevel level);
+    }
 
-        // Query-specific settings
+    public interface ReadTweaks<T extends ReadTweaks<T>> extends CommonTweaks<T> {
+        T resetTtlOnReadAtPercent(int percent);
+    }
+
+    public interface ReadApTweaks<T extends ReadApTweaks<T>> extends ReadTweaks<T> {
+        T readMode(ReadModeAP mode);
+    }
+
+    public interface ReadCpTweaks<T extends ReadCpTweaks<T>> extends ReadTweaks<T> {
+        T consistency(ReadModeSC c);
+    }
+
+    public interface RetryableWriteTweaks<T extends RetryableWriteTweaks<T>> extends WriteTweaks<T> {}
+    public interface NonRetryableWriteTweaks<T extends NonRetryableWriteTweaks<T>> extends WriteTweaks<T> {}
+
+    // Concrete marker views compose the capabilities valid for each selector.
+    public interface AllAnyModeTweaks extends
+        BatchTweaks<AllAnyModeTweaks>,
+        ReadApTweaks<AllAnyModeTweaks>,
+        ReadCpTweaks<AllAnyModeTweaks>,
+        WriteApTweaks<AllAnyModeTweaks> {
         AllAnyModeTweaks recordQueueSize(int n);
     }
-    public interface ReadAnyAnyModeTweaks extends ReadTweaks {
-        @Override ReadAnyAnyModeTweaks abandonCallAfter(Duration d);
-        @Override ReadAnyAnyModeTweaks delayBetweenRetries(Duration d);
-        @Override ReadAnyAnyModeTweaks maximumNumberOfCallAttempts(int n);
-        @Override ReadAnyAnyModeTweaks replicaOrder(Replica r);
-        @Override ReadAnyAnyModeTweaks sendKey(boolean sendKey);
-        @Override ReadAnyAnyModeTweaks useCompression(boolean compress);
-        @Override ReadAnyAnyModeTweaks waitForCallToComplete(Duration d);
-        @Override ReadAnyAnyModeTweaks waitForConnectionToComplete(Duration d);
-        @Override ReadAnyAnyModeTweaks waitForSocketResponseAfterCallFails(Duration d);
-        @Override ReadAnyAnyModeTweaks errorDetailVerbosity(int e);
-        @Override ReadAnyAnyModeTweaks stackTraceOnException(boolean enabled);
-        @Override ReadAnyAnyModeTweaks resetTtlOnReadAtPercent(int percent);
-    }
-    public interface ReadAnyApTweaks extends ReadApTweaks {
-        @Override ReadAnyApTweaks abandonCallAfter(Duration d);
-        @Override ReadAnyApTweaks delayBetweenRetries(Duration d);
-        @Override ReadAnyApTweaks maximumNumberOfCallAttempts(int n);
-        @Override ReadAnyApTweaks replicaOrder(Replica r);
-        @Override ReadAnyApTweaks sendKey(boolean sendKey);
-        @Override ReadAnyApTweaks useCompression(boolean compress);
-        @Override ReadAnyApTweaks waitForCallToComplete(Duration d);
-        @Override ReadAnyApTweaks waitForConnectionToComplete(Duration d);
-        @Override ReadAnyApTweaks waitForSocketResponseAfterCallFails(Duration d);
-        @Override ReadAnyApTweaks errorDetailVerbosity(int e);
-        @Override ReadAnyApTweaks stackTraceOnException(boolean enabled);
-        @Override ReadAnyApTweaks readMode(ReadModeAP mode);
-        @Override ReadAnyApTweaks resetTtlOnReadAtPercent(int percent);
-    }
-    public interface ReadAnyCpTweaks extends ReadCpTweaks {
-        @Override ReadAnyCpTweaks abandonCallAfter(Duration d);
-        @Override ReadAnyCpTweaks delayBetweenRetries(Duration d);
-        @Override ReadAnyCpTweaks maximumNumberOfCallAttempts(int n);
-        @Override ReadAnyCpTweaks replicaOrder(Replica r);
-        @Override ReadAnyCpTweaks sendKey(boolean sendKey);
-        @Override ReadAnyCpTweaks useCompression(boolean compress);
-        @Override ReadAnyCpTweaks waitForCallToComplete(Duration d);
-        @Override ReadAnyCpTweaks waitForConnectionToComplete(Duration d);
-        @Override ReadAnyCpTweaks waitForSocketResponseAfterCallFails(Duration d);
-        @Override ReadAnyCpTweaks errorDetailVerbosity(int e);
-        @Override ReadAnyCpTweaks stackTraceOnException(boolean enabled);
-        @Override ReadAnyCpTweaks consistency(ReadModeSC c);
-        @Override ReadAnyCpTweaks resetTtlOnReadAtPercent(int percent);
-    }
-    public interface WriteRootAnyModeTweaks extends WriteTweaks {
-        @Override WriteRootAnyModeTweaks abandonCallAfter(Duration d);
-        @Override WriteRootAnyModeTweaks delayBetweenRetries(Duration d);
-        @Override WriteRootAnyModeTweaks maximumNumberOfCallAttempts(int n);
-        @Override WriteRootAnyModeTweaks replicaOrder(Replica r);
-        @Override WriteRootAnyModeTweaks sendKey(boolean sendKey);
-        @Override WriteRootAnyModeTweaks useCompression(boolean compress);
-        @Override WriteRootAnyModeTweaks waitForCallToComplete(Duration d);
-        @Override WriteRootAnyModeTweaks waitForConnectionToComplete(Duration d);
-        @Override WriteRootAnyModeTweaks waitForSocketResponseAfterCallFails(Duration d);
-        @Override WriteRootAnyModeTweaks errorDetailVerbosity(int e);
-        @Override WriteRootAnyModeTweaks stackTraceOnException(boolean enabled);
-        @Override WriteRootAnyModeTweaks useDurableDelete(boolean b);
-        @Override WriteRootAnyModeTweaks simulateXdrWrite(boolean b);
-    }
-    public interface WriteRootApTweaks extends WriteApTweaks {
-        @Override WriteRootApTweaks abandonCallAfter(Duration d);
-        @Override WriteRootApTweaks delayBetweenRetries(Duration d);
-        @Override WriteRootApTweaks maximumNumberOfCallAttempts(int n);
-        @Override WriteRootApTweaks replicaOrder(Replica r);
-        @Override WriteRootApTweaks sendKey(boolean sendKey);
-        @Override WriteRootApTweaks useCompression(boolean compress);
-        @Override WriteRootApTweaks waitForCallToComplete(Duration d);
-        @Override WriteRootApTweaks waitForConnectionToComplete(Duration d);
-        @Override WriteRootApTweaks waitForSocketResponseAfterCallFails(Duration d);
-        @Override WriteRootApTweaks errorDetailVerbosity(int e);
-        @Override WriteRootApTweaks stackTraceOnException(boolean enabled);
-        @Override WriteRootApTweaks useDurableDelete(boolean b);
-        @Override WriteRootApTweaks simulateXdrWrite(boolean b);
-        @Override WriteRootApTweaks commitLevel(CommitLevel level);
-    }
-    public interface WriteRootCpTweaks extends WriteTweaks {
-        @Override WriteRootCpTweaks abandonCallAfter(Duration d);
-        @Override WriteRootCpTweaks delayBetweenRetries(Duration d);
-        @Override WriteRootCpTweaks maximumNumberOfCallAttempts(int n);
-        @Override WriteRootCpTweaks replicaOrder(Replica r);
-        @Override WriteRootCpTweaks sendKey(boolean sendKey);
-        @Override WriteRootCpTweaks useCompression(boolean compress);
-        @Override WriteRootCpTweaks waitForCallToComplete(Duration d);
-        @Override WriteRootCpTweaks waitForConnectionToComplete(Duration d);
-        @Override WriteRootCpTweaks waitForSocketResponseAfterCallFails(Duration d);
-        @Override WriteRootCpTweaks errorDetailVerbosity(int e);
-        @Override WriteRootCpTweaks stackTraceOnException(boolean enabled);
-        @Override WriteRootCpTweaks useDurableDelete(boolean b);
-        @Override WriteRootCpTweaks simulateXdrWrite(boolean b);
-    }
 
-    // READ concrete views
-    public interface ReadPointAnyModeTweaks extends CommonTweaks {
-        @Override ReadPointAnyModeTweaks abandonCallAfter(Duration d);
-        @Override ReadPointAnyModeTweaks delayBetweenRetries(Duration d);
-        @Override ReadPointAnyModeTweaks maximumNumberOfCallAttempts(int n);
-        @Override ReadPointAnyModeTweaks replicaOrder(Replica r);
-        @Override ReadPointAnyModeTweaks sendKey(boolean sendKey);
-        @Override ReadPointAnyModeTweaks useCompression(boolean compress);
-        @Override ReadPointAnyModeTweaks waitForCallToComplete(Duration d);
-        @Override ReadPointAnyModeTweaks waitForConnectionToComplete(Duration d);
-        @Override ReadPointAnyModeTweaks waitForSocketResponseAfterCallFails(Duration d);
-        @Override ReadPointAnyModeTweaks errorDetailVerbosity(int e);
-        @Override ReadPointAnyModeTweaks stackTraceOnException(boolean enabled);
-    }
-    public interface ReadBatchAnyModeTweaks extends BatchTweaks {
-        @Override ReadBatchAnyModeTweaks abandonCallAfter(Duration d);
-        @Override ReadBatchAnyModeTweaks delayBetweenRetries(Duration d);
-        @Override ReadBatchAnyModeTweaks maximumNumberOfCallAttempts(int n);
-        @Override ReadBatchAnyModeTweaks replicaOrder(Replica r);
-        @Override ReadBatchAnyModeTweaks sendKey(boolean sendKey);
-        @Override ReadBatchAnyModeTweaks useCompression(boolean compress);
-        @Override ReadBatchAnyModeTweaks waitForCallToComplete(Duration d);
-        @Override ReadBatchAnyModeTweaks waitForConnectionToComplete(Duration d);
-        @Override ReadBatchAnyModeTweaks waitForSocketResponseAfterCallFails(Duration d);
-        @Override ReadBatchAnyModeTweaks errorDetailVerbosity(int e);
-        @Override ReadBatchAnyModeTweaks stackTraceOnException(boolean enabled);
-        @Override ReadBatchAnyModeTweaks maxConcurrentNodes(int n);
-        @Override ReadBatchAnyModeTweaks allowInlineMemoryAccess(boolean v);
-        @Override ReadBatchAnyModeTweaks allowInlineSsdAccess(boolean v);
-    }
-    public interface ReadQueryAnyModeTweaks extends QueryTweaks {
-        @Override ReadQueryAnyModeTweaks abandonCallAfter(Duration d);
-        @Override ReadQueryAnyModeTweaks delayBetweenRetries(Duration d);
-        @Override ReadQueryAnyModeTweaks maximumNumberOfCallAttempts(int n);
-        @Override ReadQueryAnyModeTweaks replicaOrder(Replica r);
-        @Override ReadQueryAnyModeTweaks sendKey(boolean sendKey);
-        @Override ReadQueryAnyModeTweaks useCompression(boolean compress);
-        @Override ReadQueryAnyModeTweaks waitForCallToComplete(Duration d);
-        @Override ReadQueryAnyModeTweaks waitForConnectionToComplete(Duration d);
-        @Override ReadQueryAnyModeTweaks waitForSocketResponseAfterCallFails(Duration d);
-        @Override ReadQueryAnyModeTweaks errorDetailVerbosity(int e);
-        @Override ReadQueryAnyModeTweaks stackTraceOnException(boolean enabled);
-        @Override ReadQueryAnyModeTweaks recordQueueSize(int n);
-        @Override ReadQueryAnyModeTweaks allowScansWithWhere(boolean allow);
-    }
-    public interface ReadPointApTweaks extends ReadApTweaks {
-        @Override ReadPointApTweaks abandonCallAfter(Duration d);
-        @Override ReadPointApTweaks delayBetweenRetries(Duration d);
-        @Override ReadPointApTweaks maximumNumberOfCallAttempts(int n);
-        @Override ReadPointApTweaks replicaOrder(Replica r);
-        @Override ReadPointApTweaks sendKey(boolean sendKey);
-        @Override ReadPointApTweaks useCompression(boolean compress);
-        @Override ReadPointApTweaks waitForCallToComplete(Duration d);
-        @Override ReadPointApTweaks waitForConnectionToComplete(Duration d);
-        @Override ReadPointApTweaks waitForSocketResponseAfterCallFails(Duration d);
-        @Override ReadPointApTweaks errorDetailVerbosity(int e);
-        @Override ReadPointApTweaks stackTraceOnException(boolean enabled);
-        @Override ReadPointApTweaks readMode(ReadModeAP mode);
-        @Override ReadPointApTweaks resetTtlOnReadAtPercent(int percent);
-    }
-    public interface ReadPointCpTweaks extends ReadCpTweaks {
-        @Override ReadPointCpTweaks abandonCallAfter(Duration d);
-        @Override ReadPointCpTweaks delayBetweenRetries(Duration d);
-        @Override ReadPointCpTweaks maximumNumberOfCallAttempts(int n);
-        @Override ReadPointCpTweaks replicaOrder(Replica r);
-        @Override ReadPointCpTweaks sendKey(boolean sendKey);
-        @Override ReadPointCpTweaks useCompression(boolean compress);
-        @Override ReadPointCpTweaks waitForCallToComplete(Duration d);
-        @Override ReadPointCpTweaks waitForConnectionToComplete(Duration d);
-        @Override ReadPointCpTweaks waitForSocketResponseAfterCallFails(Duration d);
-        @Override ReadPointCpTweaks errorDetailVerbosity(int e);
-        @Override ReadPointCpTweaks stackTraceOnException(boolean enabled);
-        @Override ReadPointCpTweaks consistency(ReadModeSC c);
-        @Override ReadPointCpTweaks resetTtlOnReadAtPercent(int percent);
-    }
-    public interface ReadBatchApTweaks extends BatchTweaks, ReadApTweaks {
-        @Override ReadBatchApTweaks abandonCallAfter(Duration d);
-        @Override ReadBatchApTweaks delayBetweenRetries(Duration d);
-        @Override ReadBatchApTweaks maximumNumberOfCallAttempts(int n);
-        @Override ReadBatchApTweaks replicaOrder(Replica r);
-        @Override ReadBatchApTweaks sendKey(boolean sendKey);
-        @Override ReadBatchApTweaks useCompression(boolean compress);
-        @Override ReadBatchApTweaks waitForCallToComplete(Duration d);
-        @Override ReadBatchApTweaks waitForConnectionToComplete(Duration d);
-        @Override ReadBatchApTweaks waitForSocketResponseAfterCallFails(Duration d);
-        @Override ReadBatchApTweaks errorDetailVerbosity(int e);
-        @Override ReadBatchApTweaks stackTraceOnException(boolean enabled);
-        @Override ReadBatchApTweaks maxConcurrentNodes(int n);
-        @Override ReadBatchApTweaks allowInlineMemoryAccess(boolean v);
-        @Override ReadBatchApTweaks allowInlineSsdAccess(boolean v);
-        @Override ReadBatchApTweaks readMode(ReadModeAP mode);
-        @Override ReadBatchApTweaks resetTtlOnReadAtPercent(int percent);
-    }
-    public interface ReadBatchCpTweaks extends BatchTweaks, ReadCpTweaks {
-        @Override ReadBatchCpTweaks abandonCallAfter(Duration d);
-        @Override ReadBatchCpTweaks delayBetweenRetries(Duration d);
-        @Override ReadBatchCpTweaks maximumNumberOfCallAttempts(int n);
-        @Override ReadBatchCpTweaks replicaOrder(Replica r);
-        @Override ReadBatchCpTweaks sendKey(boolean sendKey);
-        @Override ReadBatchCpTweaks useCompression(boolean compress);
-        @Override ReadBatchCpTweaks waitForCallToComplete(Duration d);
-        @Override ReadBatchCpTweaks waitForConnectionToComplete(Duration d);
-        @Override ReadBatchCpTweaks waitForSocketResponseAfterCallFails(Duration d);
-        @Override ReadBatchCpTweaks errorDetailVerbosity(int e);
-        @Override ReadBatchCpTweaks stackTraceOnException(boolean enabled);
-        @Override ReadBatchCpTweaks maxConcurrentNodes(int n);
-        @Override ReadBatchCpTweaks allowInlineMemoryAccess(boolean v);
-        @Override ReadBatchCpTweaks allowInlineSsdAccess(boolean v);
-        @Override ReadBatchCpTweaks consistency(ReadModeSC c);
-        @Override ReadBatchCpTweaks resetTtlOnReadAtPercent(int percent);
-    }
-    public interface ReadQueryApTweaks extends ReadApTweaks, QueryTweaks {
-        @Override ReadQueryApTweaks abandonCallAfter(Duration d);
-        @Override ReadQueryApTweaks delayBetweenRetries(Duration d);
-        @Override ReadQueryApTweaks maximumNumberOfCallAttempts(int n);
-        @Override ReadQueryApTweaks replicaOrder(Replica r);
-        @Override ReadQueryApTweaks sendKey(boolean sendKey);
-        @Override ReadQueryApTweaks useCompression(boolean compress);
-        @Override ReadQueryApTweaks waitForCallToComplete(Duration d);
-        @Override ReadQueryApTweaks waitForConnectionToComplete(Duration d);
-        @Override ReadQueryApTweaks waitForSocketResponseAfterCallFails(Duration d);
-        @Override ReadQueryApTweaks errorDetailVerbosity(int e);
-        @Override ReadQueryApTweaks stackTraceOnException(boolean enabled);
-        @Override ReadQueryApTweaks readMode(ReadModeAP mode);
-        @Override ReadQueryApTweaks resetTtlOnReadAtPercent(int percent);
-        @Override ReadQueryApTweaks recordQueueSize(int n);
-    }
-    public interface ReadQueryCpTweaks extends ReadCpTweaks, QueryTweaks {
-        @Override ReadQueryCpTweaks abandonCallAfter(Duration d);
-        @Override ReadQueryCpTweaks delayBetweenRetries(Duration d);
-        @Override ReadQueryCpTweaks maximumNumberOfCallAttempts(int n);
-        @Override ReadQueryCpTweaks replicaOrder(Replica r);
-        @Override ReadQueryCpTweaks sendKey(boolean sendKey);
-        @Override ReadQueryCpTweaks useCompression(boolean compress);
-        @Override ReadQueryCpTweaks waitForCallToComplete(Duration d);
-        @Override ReadQueryCpTweaks waitForConnectionToComplete(Duration d);
-        @Override ReadQueryCpTweaks waitForSocketResponseAfterCallFails(Duration d);
-        @Override ReadQueryCpTweaks errorDetailVerbosity(int e);
-        @Override ReadQueryCpTweaks stackTraceOnException(boolean enabled);
-        @Override ReadQueryCpTweaks consistency(ReadModeSC c);
-        @Override ReadQueryCpTweaks resetTtlOnReadAtPercent(int percent);
-        @Override ReadQueryCpTweaks recordQueueSize(int n);
-    }
+    public interface ReadAnyAnyModeTweaks extends ReadTweaks<ReadAnyAnyModeTweaks> {}
+    public interface ReadAnyApTweaks extends ReadApTweaks<ReadAnyApTweaks> {}
+    public interface ReadAnyCpTweaks extends ReadCpTweaks<ReadAnyCpTweaks> {}
 
-    // WRITE shape concrete views (retryability-agnostic)
-    public interface WritePointAnyModeTweaks extends WriteTweaks {
-        @Override WritePointAnyModeTweaks abandonCallAfter(Duration d);
-        @Override WritePointAnyModeTweaks delayBetweenRetries(Duration d);
-        @Override WritePointAnyModeTweaks maximumNumberOfCallAttempts(int n);
-        @Override WritePointAnyModeTweaks replicaOrder(Replica r);
-        @Override WritePointAnyModeTweaks sendKey(boolean sendKey);
-        @Override WritePointAnyModeTweaks useCompression(boolean compress);
-        @Override WritePointAnyModeTweaks waitForCallToComplete(Duration d);
-        @Override WritePointAnyModeTweaks waitForConnectionToComplete(Duration d);
-        @Override WritePointAnyModeTweaks waitForSocketResponseAfterCallFails(Duration d);
-        @Override WritePointAnyModeTweaks errorDetailVerbosity(int e);
-        @Override WritePointAnyModeTweaks stackTraceOnException(boolean enabled);
-        @Override WritePointAnyModeTweaks useDurableDelete(boolean b);
-        @Override WritePointAnyModeTweaks simulateXdrWrite(boolean b);
-    }
-    public interface WritePointApTweaks extends WriteApTweaks {
-        @Override WritePointApTweaks abandonCallAfter(Duration d);
-        @Override WritePointApTweaks delayBetweenRetries(Duration d);
-        @Override WritePointApTweaks maximumNumberOfCallAttempts(int n);
-        @Override WritePointApTweaks replicaOrder(Replica r);
-        @Override WritePointApTweaks sendKey(boolean sendKey);
-        @Override WritePointApTweaks useCompression(boolean compress);
-        @Override WritePointApTweaks waitForCallToComplete(Duration d);
-        @Override WritePointApTweaks waitForConnectionToComplete(Duration d);
-        @Override WritePointApTweaks waitForSocketResponseAfterCallFails(Duration d);
-        @Override WritePointApTweaks errorDetailVerbosity(int e);
-        @Override WritePointApTweaks stackTraceOnException(boolean enabled);
-        @Override WritePointApTweaks useDurableDelete(boolean b);
-        @Override WritePointApTweaks simulateXdrWrite(boolean b);
-        @Override WritePointApTweaks commitLevel(CommitLevel level);
-    }
-    public interface WritePointCpTweaks extends WriteTweaks {
-        @Override WritePointCpTweaks abandonCallAfter(Duration d);
-        @Override WritePointCpTweaks delayBetweenRetries(Duration d);
-        @Override WritePointCpTweaks maximumNumberOfCallAttempts(int n);
-        @Override WritePointCpTweaks replicaOrder(Replica r);
-        @Override WritePointCpTweaks sendKey(boolean sendKey);
-        @Override WritePointCpTweaks useCompression(boolean compress);
-        @Override WritePointCpTweaks waitForCallToComplete(Duration d);
-        @Override WritePointCpTweaks waitForConnectionToComplete(Duration d);
-        @Override WritePointCpTweaks waitForSocketResponseAfterCallFails(Duration d);
-        @Override WritePointCpTweaks errorDetailVerbosity(int e);
-        @Override WritePointCpTweaks stackTraceOnException(boolean enabled);
-        @Override WritePointCpTweaks useDurableDelete(boolean b);
-        @Override WritePointCpTweaks simulateXdrWrite(boolean b);
-    }
-    public interface WriteBatchAnyModeTweaks extends BatchTweaks, WriteTweaks {
-        @Override WriteBatchAnyModeTweaks abandonCallAfter(Duration d);
-        @Override WriteBatchAnyModeTweaks delayBetweenRetries(Duration d);
-        @Override WriteBatchAnyModeTweaks maximumNumberOfCallAttempts(int n);
-        @Override WriteBatchAnyModeTweaks replicaOrder(Replica r);
-        @Override WriteBatchAnyModeTweaks sendKey(boolean sendKey);
-        @Override WriteBatchAnyModeTweaks useCompression(boolean compress);
-        @Override WriteBatchAnyModeTweaks waitForCallToComplete(Duration d);
-        @Override WriteBatchAnyModeTweaks waitForConnectionToComplete(Duration d);
-        @Override WriteBatchAnyModeTweaks waitForSocketResponseAfterCallFails(Duration d);
-        @Override WriteBatchAnyModeTweaks errorDetailVerbosity(int e);
-        @Override WriteBatchAnyModeTweaks stackTraceOnException(boolean enabled);
-        @Override WriteBatchAnyModeTweaks maxConcurrentNodes(int n);
-        @Override WriteBatchAnyModeTweaks allowInlineMemoryAccess(boolean v);
-        @Override WriteBatchAnyModeTweaks allowInlineSsdAccess(boolean v);
-        @Override WriteBatchAnyModeTweaks useDurableDelete(boolean b);
-        @Override WriteBatchAnyModeTweaks simulateXdrWrite(boolean b);
-    }
-    public interface WriteBatchApTweaks extends BatchTweaks, WriteApTweaks {
-        @Override WriteBatchApTweaks abandonCallAfter(Duration d);
-        @Override WriteBatchApTweaks delayBetweenRetries(Duration d);
-        @Override WriteBatchApTweaks maximumNumberOfCallAttempts(int n);
-        @Override WriteBatchApTweaks replicaOrder(Replica r);
-        @Override WriteBatchApTweaks sendKey(boolean sendKey);
-        @Override WriteBatchApTweaks useCompression(boolean compress);
-        @Override WriteBatchApTweaks waitForCallToComplete(Duration d);
-        @Override WriteBatchApTweaks waitForConnectionToComplete(Duration d);
-        @Override WriteBatchApTweaks waitForSocketResponseAfterCallFails(Duration d);
-        @Override WriteBatchApTweaks errorDetailVerbosity(int e);
-        @Override WriteBatchApTweaks stackTraceOnException(boolean enabled);
-        @Override WriteBatchApTweaks maxConcurrentNodes(int n);
-        @Override WriteBatchApTweaks allowInlineMemoryAccess(boolean v);
-        @Override WriteBatchApTweaks allowInlineSsdAccess(boolean v);
-        @Override WriteBatchApTweaks useDurableDelete(boolean b);
-        @Override WriteBatchApTweaks simulateXdrWrite(boolean b);
-        @Override WriteBatchApTweaks commitLevel(CommitLevel level);
-    }
-    public interface WriteBatchCpTweaks extends BatchTweaks, WriteTweaks {
-        @Override WriteBatchCpTweaks abandonCallAfter(Duration d);
-        @Override WriteBatchCpTweaks delayBetweenRetries(Duration d);
-        @Override WriteBatchCpTweaks maximumNumberOfCallAttempts(int n);
-        @Override WriteBatchCpTweaks replicaOrder(Replica r);
-        @Override WriteBatchCpTweaks sendKey(boolean sendKey);
-        @Override WriteBatchCpTweaks useCompression(boolean compress);
-        @Override WriteBatchCpTweaks waitForCallToComplete(Duration d);
-        @Override WriteBatchCpTweaks waitForConnectionToComplete(Duration d);
-        @Override WriteBatchCpTweaks waitForSocketResponseAfterCallFails(Duration d);
-        @Override WriteBatchCpTweaks errorDetailVerbosity(int e);
-        @Override WriteBatchCpTweaks stackTraceOnException(boolean enabled);
-        @Override WriteBatchCpTweaks maxConcurrentNodes(int n);
-        @Override WriteBatchCpTweaks allowInlineMemoryAccess(boolean v);
-        @Override WriteBatchCpTweaks allowInlineSsdAccess(boolean v);
-        @Override WriteBatchCpTweaks useDurableDelete(boolean b);
-        @Override WriteBatchCpTweaks simulateXdrWrite(boolean b);
-    }
+    public interface WriteRootAnyModeTweaks extends WriteTweaks<WriteRootAnyModeTweaks> {}
+    public interface WriteRootApTweaks extends WriteApTweaks<WriteRootApTweaks> {}
+    public interface WriteRootCpTweaks extends WriteTweaks<WriteRootCpTweaks> {}
 
-    // WRITE concrete views
-    public interface RetryableWriteAnyModeTweaks extends RetryableWriteTweaks {
-        @Override RetryableWriteAnyModeTweaks abandonCallAfter(Duration d);
-        @Override RetryableWriteAnyModeTweaks delayBetweenRetries(Duration d);
-        @Override RetryableWriteAnyModeTweaks maximumNumberOfCallAttempts(int n);
-        @Override RetryableWriteAnyModeTweaks replicaOrder(Replica r);
-        @Override RetryableWriteAnyModeTweaks sendKey(boolean sendKey);
-        @Override RetryableWriteAnyModeTweaks useCompression(boolean compress);
-        @Override RetryableWriteAnyModeTweaks waitForCallToComplete(Duration d);
-        @Override RetryableWriteAnyModeTweaks waitForConnectionToComplete(Duration d);
-        @Override RetryableWriteAnyModeTweaks waitForSocketResponseAfterCallFails(Duration d);
-        @Override RetryableWriteAnyModeTweaks errorDetailVerbosity(int e);
-        @Override RetryableWriteAnyModeTweaks stackTraceOnException(boolean enabled);
-        @Override RetryableWriteAnyModeTweaks useDurableDelete(boolean b);
-        @Override RetryableWriteAnyModeTweaks simulateXdrWrite(boolean b);
-    }
-    public interface RetryableWritePointAnyModeTweaks extends RetryableWriteTweaks {
-        @Override RetryableWritePointAnyModeTweaks abandonCallAfter(Duration d);
-        @Override RetryableWritePointAnyModeTweaks delayBetweenRetries(Duration d);
-        @Override RetryableWritePointAnyModeTweaks maximumNumberOfCallAttempts(int n);
-        @Override RetryableWritePointAnyModeTweaks replicaOrder(Replica r);
-        @Override RetryableWritePointAnyModeTweaks sendKey(boolean sendKey);
-        @Override RetryableWritePointAnyModeTweaks useCompression(boolean compress);
-        @Override RetryableWritePointAnyModeTweaks waitForCallToComplete(Duration d);
-        @Override RetryableWritePointAnyModeTweaks waitForConnectionToComplete(Duration d);
-        @Override RetryableWritePointAnyModeTweaks waitForSocketResponseAfterCallFails(Duration d);
-        @Override RetryableWritePointAnyModeTweaks errorDetailVerbosity(int e);
-        @Override RetryableWritePointAnyModeTweaks stackTraceOnException(boolean enabled);
-        @Override RetryableWritePointAnyModeTweaks useDurableDelete(boolean b);
-        @Override RetryableWritePointAnyModeTweaks simulateXdrWrite(boolean b);
-    }
-    public interface RetryableWritePointApTweaks extends WriteApTweaks {
-        @Override RetryableWritePointApTweaks abandonCallAfter(Duration d);
-        @Override RetryableWritePointApTweaks delayBetweenRetries(Duration d);
-        @Override RetryableWritePointApTweaks maximumNumberOfCallAttempts(int n);
-        @Override RetryableWritePointApTweaks replicaOrder(Replica r);
-        @Override RetryableWritePointApTweaks sendKey(boolean sendKey);
-        @Override RetryableWritePointApTweaks useCompression(boolean compress);
-        @Override RetryableWritePointApTweaks waitForCallToComplete(Duration d);
-        @Override RetryableWritePointApTweaks waitForConnectionToComplete(Duration d);
-        @Override RetryableWritePointApTweaks waitForSocketResponseAfterCallFails(Duration d);
-        @Override RetryableWritePointApTweaks errorDetailVerbosity(int e);
-        @Override RetryableWritePointApTweaks stackTraceOnException(boolean enabled);
-        @Override RetryableWritePointApTweaks useDurableDelete(boolean b);
-        @Override RetryableWritePointApTweaks simulateXdrWrite(boolean b);
-        @Override RetryableWritePointApTweaks commitLevel(CommitLevel level);
-    }
-    public interface RetryableWritePointCpTweaks extends RetryableWriteTweaks {
-        @Override RetryableWritePointCpTweaks abandonCallAfter(Duration d);
-        @Override RetryableWritePointCpTweaks delayBetweenRetries(Duration d);
-        @Override RetryableWritePointCpTweaks maximumNumberOfCallAttempts(int n);
-        @Override RetryableWritePointCpTweaks replicaOrder(Replica r);
-        @Override RetryableWritePointCpTweaks sendKey(boolean sendKey);
-        @Override RetryableWritePointCpTweaks useCompression(boolean compress);
-        @Override RetryableWritePointCpTweaks waitForCallToComplete(Duration d);
-        @Override RetryableWritePointCpTweaks waitForConnectionToComplete(Duration d);
-        @Override RetryableWritePointCpTweaks waitForSocketResponseAfterCallFails(Duration d);
-        @Override RetryableWritePointCpTweaks errorDetailVerbosity(int e);
-        @Override RetryableWritePointCpTweaks stackTraceOnException(boolean enabled);
-        @Override RetryableWritePointCpTweaks useDurableDelete(boolean b);
-        @Override RetryableWritePointCpTweaks simulateXdrWrite(boolean b);
-    }
-    public interface RetryableWriteBatchAnyModeTweaks extends BatchTweaks, RetryableWriteTweaks {
-        @Override RetryableWriteBatchAnyModeTweaks abandonCallAfter(Duration d);
-        @Override RetryableWriteBatchAnyModeTweaks delayBetweenRetries(Duration d);
-        @Override RetryableWriteBatchAnyModeTweaks maximumNumberOfCallAttempts(int n);
-        @Override RetryableWriteBatchAnyModeTweaks replicaOrder(Replica r);
-        @Override RetryableWriteBatchAnyModeTweaks sendKey(boolean sendKey);
-        @Override RetryableWriteBatchAnyModeTweaks useCompression(boolean compress);
-        @Override RetryableWriteBatchAnyModeTweaks waitForCallToComplete(Duration d);
-        @Override RetryableWriteBatchAnyModeTweaks waitForConnectionToComplete(Duration d);
-        @Override RetryableWriteBatchAnyModeTweaks waitForSocketResponseAfterCallFails(Duration d);
-        @Override RetryableWriteBatchAnyModeTweaks errorDetailVerbosity(int e);
-        @Override RetryableWriteBatchAnyModeTweaks stackTraceOnException(boolean enabled);
-        @Override RetryableWriteBatchAnyModeTweaks maxConcurrentNodes(int n);
-        @Override RetryableWriteBatchAnyModeTweaks allowInlineMemoryAccess(boolean v);
-        @Override RetryableWriteBatchAnyModeTweaks allowInlineSsdAccess(boolean v);
-        @Override RetryableWriteBatchAnyModeTweaks useDurableDelete(boolean b);
-        @Override RetryableWriteBatchAnyModeTweaks simulateXdrWrite(boolean b);
-    }
-    public interface RetryableWriteBatchApTweaks extends BatchTweaks, WriteApTweaks {
-        @Override RetryableWriteBatchApTweaks abandonCallAfter(Duration d);
-        @Override RetryableWriteBatchApTweaks delayBetweenRetries(Duration d);
-        @Override RetryableWriteBatchApTweaks maximumNumberOfCallAttempts(int n);
-        @Override RetryableWriteBatchApTweaks replicaOrder(Replica r);
-        @Override RetryableWriteBatchApTweaks sendKey(boolean sendKey);
-        @Override RetryableWriteBatchApTweaks useCompression(boolean compress);
-        @Override RetryableWriteBatchApTweaks waitForCallToComplete(Duration d);
-        @Override RetryableWriteBatchApTweaks waitForConnectionToComplete(Duration d);
-        @Override RetryableWriteBatchApTweaks waitForSocketResponseAfterCallFails(Duration d);
-        @Override RetryableWriteBatchApTweaks errorDetailVerbosity(int e);
-        @Override RetryableWriteBatchApTweaks stackTraceOnException(boolean enabled);
-        @Override RetryableWriteBatchApTweaks maxConcurrentNodes(int n);
-        @Override RetryableWriteBatchApTweaks allowInlineMemoryAccess(boolean v);
-        @Override RetryableWriteBatchApTweaks allowInlineSsdAccess(boolean v);
-        @Override RetryableWriteBatchApTweaks useDurableDelete(boolean b);
-        @Override RetryableWriteBatchApTweaks simulateXdrWrite(boolean b);
-        @Override RetryableWriteBatchApTweaks commitLevel(CommitLevel level);
-    }
-    public interface RetryableWriteBatchCpTweaks extends BatchTweaks, RetryableWriteTweaks {
-        @Override RetryableWriteBatchCpTweaks abandonCallAfter(Duration d);
-        @Override RetryableWriteBatchCpTweaks delayBetweenRetries(Duration d);
-        @Override RetryableWriteBatchCpTweaks maximumNumberOfCallAttempts(int n);
-        @Override RetryableWriteBatchCpTweaks replicaOrder(Replica r);
-        @Override RetryableWriteBatchCpTweaks sendKey(boolean sendKey);
-        @Override RetryableWriteBatchCpTweaks useCompression(boolean compress);
-        @Override RetryableWriteBatchCpTweaks waitForCallToComplete(Duration d);
-        @Override RetryableWriteBatchCpTweaks waitForConnectionToComplete(Duration d);
-        @Override RetryableWriteBatchCpTweaks waitForSocketResponseAfterCallFails(Duration d);
-        @Override RetryableWriteBatchCpTweaks errorDetailVerbosity(int e);
-        @Override RetryableWriteBatchCpTweaks stackTraceOnException(boolean enabled);
-        @Override RetryableWriteBatchCpTweaks maxConcurrentNodes(int n);
-        @Override RetryableWriteBatchCpTweaks allowInlineMemoryAccess(boolean v);
-        @Override RetryableWriteBatchCpTweaks allowInlineSsdAccess(boolean v);
-        @Override RetryableWriteBatchCpTweaks useDurableDelete(boolean b);
-        @Override RetryableWriteBatchCpTweaks simulateXdrWrite(boolean b);
-    }
+    public interface ReadPointAnyModeTweaks extends CommonTweaks<ReadPointAnyModeTweaks> {}
+    public interface ReadBatchAnyModeTweaks extends BatchTweaks<ReadBatchAnyModeTweaks> {}
+    public interface ReadQueryAnyModeTweaks extends QueryTweaks<ReadQueryAnyModeTweaks> {}
+    public interface ReadPointApTweaks extends ReadApTweaks<ReadPointApTweaks> {}
+    public interface ReadPointCpTweaks extends ReadCpTweaks<ReadPointCpTweaks> {}
+    public interface ReadBatchApTweaks extends
+        BatchTweaks<ReadBatchApTweaks>, ReadApTweaks<ReadBatchApTweaks> {}
+    public interface ReadBatchCpTweaks extends
+        BatchTweaks<ReadBatchCpTweaks>, ReadCpTweaks<ReadBatchCpTweaks> {}
+    public interface ReadQueryApTweaks extends
+        ReadApTweaks<ReadQueryApTweaks>, QueryTweaks<ReadQueryApTweaks> {}
+    public interface ReadQueryCpTweaks extends
+        ReadCpTweaks<ReadQueryCpTweaks>, QueryTweaks<ReadQueryCpTweaks> {}
 
-    public interface NonRetryableWriteAnyModeTweaks extends NonRetryableWriteTweaks {
-        @Override NonRetryableWriteAnyModeTweaks abandonCallAfter(Duration d);
-        @Override NonRetryableWriteAnyModeTweaks delayBetweenRetries(Duration d);
-        @Override NonRetryableWriteAnyModeTweaks maximumNumberOfCallAttempts(int n);
-        @Override NonRetryableWriteAnyModeTweaks replicaOrder(Replica r);
-        @Override NonRetryableWriteAnyModeTweaks sendKey(boolean sendKey);
-        @Override NonRetryableWriteAnyModeTweaks useCompression(boolean compress);
-        @Override NonRetryableWriteAnyModeTweaks waitForCallToComplete(Duration d);
-        @Override NonRetryableWriteAnyModeTweaks waitForConnectionToComplete(Duration d);
-        @Override NonRetryableWriteAnyModeTweaks waitForSocketResponseAfterCallFails(Duration d);
-        @Override NonRetryableWriteAnyModeTweaks errorDetailVerbosity(int e);
-        @Override NonRetryableWriteAnyModeTweaks stackTraceOnException(boolean enabled);
-        @Override NonRetryableWriteAnyModeTweaks useDurableDelete(boolean b);
-        @Override NonRetryableWriteAnyModeTweaks simulateXdrWrite(boolean b);
-    }
-    public interface NonRetryableWritePointAnyModeTweaks extends NonRetryableWriteTweaks {
-        @Override NonRetryableWritePointAnyModeTweaks abandonCallAfter(Duration d);
-        @Override NonRetryableWritePointAnyModeTweaks delayBetweenRetries(Duration d);
-        @Override NonRetryableWritePointAnyModeTweaks maximumNumberOfCallAttempts(int n);
-        @Override NonRetryableWritePointAnyModeTweaks replicaOrder(Replica r);
-        @Override NonRetryableWritePointAnyModeTweaks sendKey(boolean sendKey);
-        @Override NonRetryableWritePointAnyModeTweaks useCompression(boolean compress);
-        @Override NonRetryableWritePointAnyModeTweaks waitForCallToComplete(Duration d);
-        @Override NonRetryableWritePointAnyModeTweaks waitForConnectionToComplete(Duration d);
-        @Override NonRetryableWritePointAnyModeTweaks waitForSocketResponseAfterCallFails(Duration d);
-        @Override NonRetryableWritePointAnyModeTweaks errorDetailVerbosity(int e);
-        @Override NonRetryableWritePointAnyModeTweaks stackTraceOnException(boolean enabled);
-        @Override NonRetryableWritePointAnyModeTweaks useDurableDelete(boolean b);
-        @Override NonRetryableWritePointAnyModeTweaks simulateXdrWrite(boolean b);
-    }
-    public interface NonRetryableWritePointApTweaks extends WriteApTweaks {
-        @Override NonRetryableWritePointApTweaks abandonCallAfter(Duration d);
-        @Override NonRetryableWritePointApTweaks delayBetweenRetries(Duration d);
-        @Override NonRetryableWritePointApTweaks maximumNumberOfCallAttempts(int n);
-        @Override NonRetryableWritePointApTweaks replicaOrder(Replica r);
-        @Override NonRetryableWritePointApTweaks sendKey(boolean sendKey);
-        @Override NonRetryableWritePointApTweaks useCompression(boolean compress);
-        @Override NonRetryableWritePointApTweaks waitForCallToComplete(Duration d);
-        @Override NonRetryableWritePointApTweaks waitForConnectionToComplete(Duration d);
-        @Override NonRetryableWritePointApTweaks waitForSocketResponseAfterCallFails(Duration d);
-        @Override NonRetryableWritePointApTweaks errorDetailVerbosity(int e);
-        @Override NonRetryableWritePointApTweaks stackTraceOnException(boolean enabled);
-        @Override NonRetryableWritePointApTweaks useDurableDelete(boolean b);
-        @Override NonRetryableWritePointApTweaks simulateXdrWrite(boolean b);
-        @Override NonRetryableWritePointApTweaks commitLevel(CommitLevel level);
-    }
-    public interface NonRetryableWritePointCpTweaks extends NonRetryableWriteTweaks {
-        @Override NonRetryableWritePointCpTweaks abandonCallAfter(Duration d);
-        @Override NonRetryableWritePointCpTweaks delayBetweenRetries(Duration d);
-        @Override NonRetryableWritePointCpTweaks maximumNumberOfCallAttempts(int n);
-        @Override NonRetryableWritePointCpTweaks replicaOrder(Replica r);
-        @Override NonRetryableWritePointCpTweaks sendKey(boolean sendKey);
-        @Override NonRetryableWritePointCpTweaks useCompression(boolean compress);
-        @Override NonRetryableWritePointCpTweaks waitForCallToComplete(Duration d);
-        @Override NonRetryableWritePointCpTweaks waitForConnectionToComplete(Duration d);
-        @Override NonRetryableWritePointCpTweaks waitForSocketResponseAfterCallFails(Duration d);
-        @Override NonRetryableWritePointCpTweaks errorDetailVerbosity(int e);
-        @Override NonRetryableWritePointCpTweaks stackTraceOnException(boolean enabled);
-        @Override NonRetryableWritePointCpTweaks useDurableDelete(boolean b);
-        @Override NonRetryableWritePointCpTweaks simulateXdrWrite(boolean b);
-    }
-    public interface NonRetryableWriteBatchAnyModeTweaks extends BatchTweaks, NonRetryableWriteTweaks {
-        @Override NonRetryableWriteBatchAnyModeTweaks abandonCallAfter(Duration d);
-        @Override NonRetryableWriteBatchAnyModeTweaks delayBetweenRetries(Duration d);
-        @Override NonRetryableWriteBatchAnyModeTweaks maximumNumberOfCallAttempts(int n);
-        @Override NonRetryableWriteBatchAnyModeTweaks replicaOrder(Replica r);
-        @Override NonRetryableWriteBatchAnyModeTweaks sendKey(boolean sendKey);
-        @Override NonRetryableWriteBatchAnyModeTweaks useCompression(boolean compress);
-        @Override NonRetryableWriteBatchAnyModeTweaks waitForCallToComplete(Duration d);
-        @Override NonRetryableWriteBatchAnyModeTweaks waitForConnectionToComplete(Duration d);
-        @Override NonRetryableWriteBatchAnyModeTweaks waitForSocketResponseAfterCallFails(Duration d);
-        @Override NonRetryableWriteBatchAnyModeTweaks errorDetailVerbosity(int e);
-        @Override NonRetryableWriteBatchAnyModeTweaks stackTraceOnException(boolean enabled);
-        @Override NonRetryableWriteBatchAnyModeTweaks maxConcurrentNodes(int n);
-        @Override NonRetryableWriteBatchAnyModeTweaks allowInlineMemoryAccess(boolean v);
-        @Override NonRetryableWriteBatchAnyModeTweaks allowInlineSsdAccess(boolean v);
-        @Override NonRetryableWriteBatchAnyModeTweaks useDurableDelete(boolean b);
-        @Override NonRetryableWriteBatchAnyModeTweaks simulateXdrWrite(boolean b);
-    }
-    public interface NonRetryableWriteBatchApTweaks extends BatchTweaks, WriteApTweaks {
-        @Override NonRetryableWriteBatchApTweaks abandonCallAfter(Duration d);
-        @Override NonRetryableWriteBatchApTweaks delayBetweenRetries(Duration d);
-        @Override NonRetryableWriteBatchApTweaks maximumNumberOfCallAttempts(int n);
-        @Override NonRetryableWriteBatchApTweaks replicaOrder(Replica r);
-        @Override NonRetryableWriteBatchApTweaks sendKey(boolean sendKey);
-        @Override NonRetryableWriteBatchApTweaks useCompression(boolean compress);
-        @Override NonRetryableWriteBatchApTweaks waitForCallToComplete(Duration d);
-        @Override NonRetryableWriteBatchApTweaks waitForConnectionToComplete(Duration d);
-        @Override NonRetryableWriteBatchApTweaks waitForSocketResponseAfterCallFails(Duration d);
-        @Override NonRetryableWriteBatchApTweaks errorDetailVerbosity(int e);
-        @Override NonRetryableWriteBatchApTweaks stackTraceOnException(boolean enabled);
-        @Override NonRetryableWriteBatchApTweaks maxConcurrentNodes(int n);
-        @Override NonRetryableWriteBatchApTweaks allowInlineMemoryAccess(boolean v);
-        @Override NonRetryableWriteBatchApTweaks allowInlineSsdAccess(boolean v);
-        @Override NonRetryableWriteBatchApTweaks useDurableDelete(boolean b);
-        @Override NonRetryableWriteBatchApTweaks simulateXdrWrite(boolean b);
-        @Override NonRetryableWriteBatchApTweaks commitLevel(CommitLevel level);
-    }
-    public interface NonRetryableWriteBatchCpTweaks extends BatchTweaks, NonRetryableWriteTweaks {
-        @Override NonRetryableWriteBatchCpTweaks abandonCallAfter(Duration d);
-        @Override NonRetryableWriteBatchCpTweaks delayBetweenRetries(Duration d);
-        @Override NonRetryableWriteBatchCpTweaks maximumNumberOfCallAttempts(int n);
-        @Override NonRetryableWriteBatchCpTweaks replicaOrder(Replica r);
-        @Override NonRetryableWriteBatchCpTweaks sendKey(boolean sendKey);
-        @Override NonRetryableWriteBatchCpTweaks useCompression(boolean compress);
-        @Override NonRetryableWriteBatchCpTweaks waitForCallToComplete(Duration d);
-        @Override NonRetryableWriteBatchCpTweaks waitForConnectionToComplete(Duration d);
-        @Override NonRetryableWriteBatchCpTweaks waitForSocketResponseAfterCallFails(Duration d);
-        @Override NonRetryableWriteBatchCpTweaks errorDetailVerbosity(int e);
-        @Override NonRetryableWriteBatchCpTweaks stackTraceOnException(boolean enabled);
-        @Override NonRetryableWriteBatchCpTweaks maxConcurrentNodes(int n);
-        @Override NonRetryableWriteBatchCpTweaks allowInlineMemoryAccess(boolean v);
-        @Override NonRetryableWriteBatchCpTweaks allowInlineSsdAccess(boolean v);
-        @Override NonRetryableWriteBatchCpTweaks useDurableDelete(boolean b);
-        @Override NonRetryableWriteBatchCpTweaks simulateXdrWrite(boolean b);
-    }
+    public interface WritePointAnyModeTweaks extends WriteTweaks<WritePointAnyModeTweaks> {}
+    public interface WritePointApTweaks extends WriteApTweaks<WritePointApTweaks> {}
+    public interface WritePointCpTweaks extends WriteTweaks<WritePointCpTweaks> {}
+    public interface WriteBatchAnyModeTweaks extends
+        BatchTweaks<WriteBatchAnyModeTweaks>, WriteTweaks<WriteBatchAnyModeTweaks> {}
+    public interface WriteBatchApTweaks extends
+        BatchTweaks<WriteBatchApTweaks>, WriteApTweaks<WriteBatchApTweaks> {}
+    public interface WriteBatchCpTweaks extends
+        BatchTweaks<WriteBatchCpTweaks>, WriteTweaks<WriteBatchCpTweaks> {}
 
-    // Query write tweaks (for background operations)
-    public interface RetryableWriteQueryAnyModeTweaks extends QueryTweaks, RetryableWriteTweaks {
-        @Override RetryableWriteQueryAnyModeTweaks abandonCallAfter(Duration d);
-        @Override RetryableWriteQueryAnyModeTweaks delayBetweenRetries(Duration d);
-        @Override RetryableWriteQueryAnyModeTweaks maximumNumberOfCallAttempts(int n);
-        @Override RetryableWriteQueryAnyModeTweaks replicaOrder(Replica r);
-        @Override RetryableWriteQueryAnyModeTweaks sendKey(boolean sendKey);
-        @Override RetryableWriteQueryAnyModeTweaks useCompression(boolean compress);
-        @Override RetryableWriteQueryAnyModeTweaks waitForCallToComplete(Duration d);
-        @Override RetryableWriteQueryAnyModeTweaks waitForConnectionToComplete(Duration d);
-        @Override RetryableWriteQueryAnyModeTweaks waitForSocketResponseAfterCallFails(Duration d);
-        @Override RetryableWriteQueryAnyModeTweaks errorDetailVerbosity(int e);
-        @Override RetryableWriteQueryAnyModeTweaks stackTraceOnException(boolean enabled);
-        @Override RetryableWriteQueryAnyModeTweaks useDurableDelete(boolean b);
-        @Override RetryableWriteQueryAnyModeTweaks simulateXdrWrite(boolean b);
-    }
-    public interface RetryableWriteQueryApTweaks extends QueryTweaks, WriteApTweaks {
-        @Override RetryableWriteQueryApTweaks abandonCallAfter(Duration d);
-        @Override RetryableWriteQueryApTweaks delayBetweenRetries(Duration d);
-        @Override RetryableWriteQueryApTweaks maximumNumberOfCallAttempts(int n);
-        @Override RetryableWriteQueryApTweaks replicaOrder(Replica r);
-        @Override RetryableWriteQueryApTweaks sendKey(boolean sendKey);
-        @Override RetryableWriteQueryApTweaks useCompression(boolean compress);
-        @Override RetryableWriteQueryApTweaks waitForCallToComplete(Duration d);
-        @Override RetryableWriteQueryApTweaks waitForConnectionToComplete(Duration d);
-        @Override RetryableWriteQueryApTweaks waitForSocketResponseAfterCallFails(Duration d);
-        @Override RetryableWriteQueryApTweaks errorDetailVerbosity(int e);
-        @Override RetryableWriteQueryApTweaks stackTraceOnException(boolean enabled);
-        @Override RetryableWriteQueryApTweaks useDurableDelete(boolean b);
-        @Override RetryableWriteQueryApTweaks simulateXdrWrite(boolean b);
-        @Override RetryableWriteQueryApTweaks commitLevel(CommitLevel level);
-    }
-    public interface RetryableWriteQueryCpTweaks extends QueryTweaks, RetryableWriteTweaks {
-        @Override RetryableWriteQueryCpTweaks abandonCallAfter(Duration d);
-        @Override RetryableWriteQueryCpTweaks delayBetweenRetries(Duration d);
-        @Override RetryableWriteQueryCpTweaks maximumNumberOfCallAttempts(int n);
-        @Override RetryableWriteQueryCpTweaks replicaOrder(Replica r);
-        @Override RetryableWriteQueryCpTweaks sendKey(boolean sendKey);
-        @Override RetryableWriteQueryCpTweaks useCompression(boolean compress);
-        @Override RetryableWriteQueryCpTweaks waitForCallToComplete(Duration d);
-        @Override RetryableWriteQueryCpTweaks waitForConnectionToComplete(Duration d);
-        @Override RetryableWriteQueryCpTweaks waitForSocketResponseAfterCallFails(Duration d);
-        @Override RetryableWriteQueryCpTweaks errorDetailVerbosity(int e);
-        @Override RetryableWriteQueryCpTweaks stackTraceOnException(boolean enabled);
-        @Override RetryableWriteQueryCpTweaks useDurableDelete(boolean b);
-        @Override RetryableWriteQueryCpTweaks simulateXdrWrite(boolean b);
-    }
-    public interface NonRetryableWriteQueryAnyModeTweaks extends QueryTweaks, NonRetryableWriteTweaks {
-        @Override NonRetryableWriteQueryAnyModeTweaks abandonCallAfter(Duration d);
-        @Override NonRetryableWriteQueryAnyModeTweaks delayBetweenRetries(Duration d);
-        @Override NonRetryableWriteQueryAnyModeTweaks maximumNumberOfCallAttempts(int n);
-        @Override NonRetryableWriteQueryAnyModeTweaks replicaOrder(Replica r);
-        @Override NonRetryableWriteQueryAnyModeTweaks sendKey(boolean sendKey);
-        @Override NonRetryableWriteQueryAnyModeTweaks useCompression(boolean compress);
-        @Override NonRetryableWriteQueryAnyModeTweaks waitForCallToComplete(Duration d);
-        @Override NonRetryableWriteQueryAnyModeTweaks waitForConnectionToComplete(Duration d);
-        @Override NonRetryableWriteQueryAnyModeTweaks waitForSocketResponseAfterCallFails(Duration d);
-        @Override NonRetryableWriteQueryAnyModeTweaks errorDetailVerbosity(int e);
-        @Override NonRetryableWriteQueryAnyModeTweaks stackTraceOnException(boolean enabled);
-        @Override NonRetryableWriteQueryAnyModeTweaks useDurableDelete(boolean b);
-        @Override NonRetryableWriteQueryAnyModeTweaks simulateXdrWrite(boolean b);
-    }
-    public interface NonRetryableWriteQueryApTweaks extends QueryTweaks, WriteApTweaks {
-        @Override NonRetryableWriteQueryApTweaks abandonCallAfter(Duration d);
-        @Override NonRetryableWriteQueryApTweaks delayBetweenRetries(Duration d);
-        @Override NonRetryableWriteQueryApTweaks maximumNumberOfCallAttempts(int n);
-        @Override NonRetryableWriteQueryApTweaks replicaOrder(Replica r);
-        @Override NonRetryableWriteQueryApTweaks sendKey(boolean sendKey);
-        @Override NonRetryableWriteQueryApTweaks useCompression(boolean compress);
-        @Override NonRetryableWriteQueryApTweaks waitForCallToComplete(Duration d);
-        @Override NonRetryableWriteQueryApTweaks waitForConnectionToComplete(Duration d);
-        @Override NonRetryableWriteQueryApTweaks waitForSocketResponseAfterCallFails(Duration d);
-        @Override NonRetryableWriteQueryApTweaks errorDetailVerbosity(int e);
-        @Override NonRetryableWriteQueryApTweaks stackTraceOnException(boolean enabled);
-        @Override NonRetryableWriteQueryApTweaks useDurableDelete(boolean b);
-        @Override NonRetryableWriteQueryApTweaks simulateXdrWrite(boolean b);
-        @Override NonRetryableWriteQueryApTweaks commitLevel(CommitLevel level);
-    }
-    public interface NonRetryableWriteQueryCpTweaks extends QueryTweaks, NonRetryableWriteTweaks {
-        @Override NonRetryableWriteQueryCpTweaks abandonCallAfter(Duration d);
-        @Override NonRetryableWriteQueryCpTweaks delayBetweenRetries(Duration d);
-        @Override NonRetryableWriteQueryCpTweaks maximumNumberOfCallAttempts(int n);
-        @Override NonRetryableWriteQueryCpTweaks replicaOrder(Replica r);
-        @Override NonRetryableWriteQueryCpTweaks sendKey(boolean sendKey);
-        @Override NonRetryableWriteQueryCpTweaks useCompression(boolean compress);
-        @Override NonRetryableWriteQueryCpTweaks waitForCallToComplete(Duration d);
-        @Override NonRetryableWriteQueryCpTweaks waitForConnectionToComplete(Duration d);
-        @Override NonRetryableWriteQueryCpTweaks waitForSocketResponseAfterCallFails(Duration d);
-        @Override NonRetryableWriteQueryCpTweaks errorDetailVerbosity(int e);
-        @Override NonRetryableWriteQueryCpTweaks stackTraceOnException(boolean enabled);
-        @Override NonRetryableWriteQueryCpTweaks useDurableDelete(boolean b);
-        @Override NonRetryableWriteQueryCpTweaks simulateXdrWrite(boolean b);
-    }
+    public interface RetryableWriteAnyModeTweaks extends
+        RetryableWriteTweaks<RetryableWriteAnyModeTweaks> {}
+    public interface RetryableWritePointAnyModeTweaks extends
+        RetryableWriteTweaks<RetryableWritePointAnyModeTweaks> {}
+    public interface RetryableWritePointApTweaks extends WriteApTweaks<RetryableWritePointApTweaks> {}
+    public interface RetryableWritePointCpTweaks extends
+        RetryableWriteTweaks<RetryableWritePointCpTweaks> {}
+    public interface RetryableWriteBatchAnyModeTweaks extends
+        BatchTweaks<RetryableWriteBatchAnyModeTweaks>,
+        RetryableWriteTweaks<RetryableWriteBatchAnyModeTweaks> {}
+    public interface RetryableWriteBatchApTweaks extends
+        BatchTweaks<RetryableWriteBatchApTweaks>, WriteApTweaks<RetryableWriteBatchApTweaks> {}
+    public interface RetryableWriteBatchCpTweaks extends
+        BatchTweaks<RetryableWriteBatchCpTweaks>,
+        RetryableWriteTweaks<RetryableWriteBatchCpTweaks> {}
 
-    // SYSTEM tweaks interfaces
+    public interface NonRetryableWriteAnyModeTweaks extends
+        NonRetryableWriteTweaks<NonRetryableWriteAnyModeTweaks> {}
+    public interface NonRetryableWritePointAnyModeTweaks extends
+        NonRetryableWriteTweaks<NonRetryableWritePointAnyModeTweaks> {}
+    public interface NonRetryableWritePointApTweaks extends WriteApTweaks<NonRetryableWritePointApTweaks> {}
+    public interface NonRetryableWritePointCpTweaks extends
+        NonRetryableWriteTweaks<NonRetryableWritePointCpTweaks> {}
+    public interface NonRetryableWriteBatchAnyModeTweaks extends
+        BatchTweaks<NonRetryableWriteBatchAnyModeTweaks>,
+        NonRetryableWriteTweaks<NonRetryableWriteBatchAnyModeTweaks> {}
+    public interface NonRetryableWriteBatchApTweaks extends
+        BatchTweaks<NonRetryableWriteBatchApTweaks>, WriteApTweaks<NonRetryableWriteBatchApTweaks> {}
+    public interface NonRetryableWriteBatchCpTweaks extends
+        BatchTweaks<NonRetryableWriteBatchCpTweaks>,
+        NonRetryableWriteTweaks<NonRetryableWriteBatchCpTweaks> {}
+
+    public interface RetryableWriteQueryAnyModeTweaks extends
+        QueryTweaks<RetryableWriteQueryAnyModeTweaks>,
+        RetryableWriteTweaks<RetryableWriteQueryAnyModeTweaks> {}
+    public interface RetryableWriteQueryApTweaks extends
+        QueryTweaks<RetryableWriteQueryApTweaks>, WriteApTweaks<RetryableWriteQueryApTweaks> {}
+    public interface RetryableWriteQueryCpTweaks extends
+        QueryTweaks<RetryableWriteQueryCpTweaks>,
+        RetryableWriteTweaks<RetryableWriteQueryCpTweaks> {}
+    public interface NonRetryableWriteQueryAnyModeTweaks extends
+        QueryTweaks<NonRetryableWriteQueryAnyModeTweaks>,
+        NonRetryableWriteTweaks<NonRetryableWriteQueryAnyModeTweaks> {}
+    public interface NonRetryableWriteQueryApTweaks extends
+        QueryTweaks<NonRetryableWriteQueryApTweaks>, WriteApTweaks<NonRetryableWriteQueryApTweaks> {}
+    public interface NonRetryableWriteQueryCpTweaks extends
+        QueryTweaks<NonRetryableWriteQueryCpTweaks>,
+        NonRetryableWriteTweaks<NonRetryableWriteQueryCpTweaks> {}
+
     /**
      * Tweaks for transaction verification operations (read-like settings).
-     * Provides configuration for transactional verification calls.
-     *
-     * <p><b>Note:</b> Transaction verification is internally implemented as a batch operation,
-     * so batch-specific settings (maxConcurrentNodes, allowInlineMemoryAccess, allowInlineSsdAccess)
-     * are available and apply to these operations.</p>
+     * Transaction verification is internally implemented as a batch operation.
      */
-    public interface SystemTxnVerifyTweaks extends BatchTweaks {
+    public interface SystemTxnVerifyTweaks extends BatchTweaks<SystemTxnVerifyTweaks> {
         SystemTxnVerifyTweaks consistency(ReadModeSC consistency);
-        SystemTxnVerifyTweaks replicaOrder(Replica replicaOrder);
-        @Override SystemTxnVerifyTweaks maximumNumberOfCallAttempts(int attempts);
-        @Override SystemTxnVerifyTweaks waitForCallToComplete(Duration duration);
-        @Override SystemTxnVerifyTweaks abandonCallAfter(Duration duration);
-        @Override SystemTxnVerifyTweaks delayBetweenRetries(Duration duration);
-        @Override SystemTxnVerifyTweaks waitForConnectionToComplete(Duration d);
-        @Override SystemTxnVerifyTweaks waitForSocketResponseAfterCallFails(Duration d);
-        @Override SystemTxnVerifyTweaks useCompression(boolean compress);
-        @Override SystemTxnVerifyTweaks errorDetailVerbosity(int e);
-        @Override SystemTxnVerifyTweaks stackTraceOnException(boolean enabled);
-        @Override SystemTxnVerifyTweaks maxConcurrentNodes(int n);
-        @Override SystemTxnVerifyTweaks allowInlineMemoryAccess(boolean v);
-        @Override SystemTxnVerifyTweaks allowInlineSsdAccess(boolean v);
     }
 
     /**
      * Tweaks for transaction rollback operations (write-like settings).
-     * Provides configuration for transactional rollback calls.
-     *
-     * <p><b>Note:</b> Transaction rollback is internally implemented as a batch operation,
-     * so batch-specific settings (maxConcurrentNodes, allowInlineMemoryAccess, allowInlineSsdAccess)
-     * are available and apply to these operations.</p>
+     * Transaction rollback is internally implemented as a batch operation.
      */
-    public interface SystemTxnRollTweaks extends BatchTweaks {
-        SystemTxnRollTweaks replicaOrder(Replica replicaOrder);
-        @Override SystemTxnRollTweaks maximumNumberOfCallAttempts(int attempts);
-        @Override SystemTxnRollTweaks waitForCallToComplete(Duration duration);
-        @Override SystemTxnRollTweaks abandonCallAfter(Duration duration);
-        @Override SystemTxnRollTweaks delayBetweenRetries(Duration duration);
-        @Override SystemTxnRollTweaks waitForConnectionToComplete(Duration d);
-        @Override SystemTxnRollTweaks waitForSocketResponseAfterCallFails(Duration d);
-        @Override SystemTxnRollTweaks useCompression(boolean compress);
-        @Override SystemTxnRollTweaks errorDetailVerbosity(int e);
-        @Override SystemTxnRollTweaks stackTraceOnException(boolean enabled);
-        @Override SystemTxnRollTweaks maxConcurrentNodes(int n);
-        @Override SystemTxnRollTweaks allowInlineMemoryAccess(boolean v);
-        @Override SystemTxnRollTweaks allowInlineSsdAccess(boolean v);
-    }
+    public interface SystemTxnRollTweaks extends BatchTweaks<SystemTxnRollTweaks> {}
 
 
     // -----------------------------------------------------------------------------------
     // Selectors + factories
     // -----------------------------------------------------------------------------------
-    public interface Selector<T extends TweaksView> { SelectionSpec spec(); }
+    public interface Selector<T extends TweaksView> {
+        SelectionSpec spec();
+    }
+
+    private interface TypedSelector<T extends TweaksView> {
+        Class<T> tweaksType();
+    }
 
     /**
      * Factory for creating selectors that specify which operations to configure.
@@ -1918,7 +1286,7 @@ public final class Behavior {
          *
          * @return selector for read operations
          */
-        public static ReadAnySelector<ReadAnyAnyModeTweaks> reads() { return new ReadAnySel<>(new SelectionSpec(OpKind.READ, OpShape.ANY, Mode.ANY)); }
+        public static ReadAnySelector<ReadAnyAnyModeTweaks> reads() { return new ReadAnySel<>(new SelectionSpec(OpKind.READ, OpShape.ANY, Mode.ANY), ReadAnyAnyModeTweaks.class); }
 
         /**
          * Selects all WRITE operations. Continue chaining to narrow by retryability, shape, or mode.
@@ -1963,10 +1331,11 @@ public final class Behavior {
         }
     }
 
-    public static final class AllSelector implements Selector<AllAnyModeTweaks> {
+    public static final class AllSelector implements Selector<AllAnyModeTweaks>, TypedSelector<AllAnyModeTweaks> {
         private final SelectionSpec spec;
         AllSelector(SelectionSpec spec) { this.spec = spec; }
         @Override public SelectionSpec spec() { return spec; }
+        @Override public Class<AllAnyModeTweaks> tweaksType() { return AllAnyModeTweaks.class; }
     }
 
     // READ selectors (shape → mode chaining)
@@ -1992,38 +1361,58 @@ public final class Behavior {
         ReadQuerySelector<ReadQueryCpTweaks> cp();
     }
 
-    static final class ReadAnySel<T extends TweaksView> implements ReadAnySelector<T> {
+    static final class ReadAnySel<T extends TweaksView> implements ReadAnySelector<T>, TypedSelector<T> {
         private final SelectionSpec spec;
-        ReadAnySel(SelectionSpec spec) { this.spec = spec; }
+        private final Class<T> tweaksType;
+        ReadAnySel(SelectionSpec spec, Class<T> tweaksType) {
+            this.spec = spec;
+            this.tweaksType = tweaksType;
+        }
         @Override public SelectionSpec spec() { return spec; }
+        @Override public Class<T> tweaksType() { return tweaksType; }
 
-        @Override public ReadPointSelector<ReadPointAnyModeTweaks> get()  { return new ReadPointSel<>(spec.withShape(OpShape.POINT)); }
-        @Override public ReadBatchSelector<ReadBatchAnyModeTweaks> batch(){ return new ReadBatchSel<>(spec.withShape(OpShape.BATCH)); }
-        @Override public ReadQuerySelector<ReadQueryAnyModeTweaks> query(){ return new ReadQuerySel<>(spec.withShape(OpShape.QUERY)); }
+        @Override public ReadPointSelector<ReadPointAnyModeTweaks> get()  { return new ReadPointSel<>(spec.withShape(OpShape.POINT), ReadPointAnyModeTweaks.class); }
+        @Override public ReadBatchSelector<ReadBatchAnyModeTweaks> batch(){ return new ReadBatchSel<>(spec.withShape(OpShape.BATCH), ReadBatchAnyModeTweaks.class); }
+        @Override public ReadQuerySelector<ReadQueryAnyModeTweaks> query(){ return new ReadQuerySel<>(spec.withShape(OpShape.QUERY), ReadQueryAnyModeTweaks.class); }
 
-        @Override public ReadAnySelector<ReadAnyApTweaks> ap() { return new ReadAnySel<>(spec.withMode(Mode.AP)); }
-        @Override public ReadAnySelector<ReadAnyCpTweaks> cp() { return new ReadAnySel<>(spec.withMode(Mode.CP)); }
+        @Override public ReadAnySelector<ReadAnyApTweaks> ap() { return new ReadAnySel<>(spec.withMode(Mode.AP), ReadAnyApTweaks.class); }
+        @Override public ReadAnySelector<ReadAnyCpTweaks> cp() { return new ReadAnySel<>(spec.withMode(Mode.CP), ReadAnyCpTweaks.class); }
     }
-    static final class ReadPointSel<T extends TweaksView> implements ReadPointSelector<T> {
+    static final class ReadPointSel<T extends TweaksView> implements ReadPointSelector<T>, TypedSelector<T> {
         private final SelectionSpec spec;
-        ReadPointSel(SelectionSpec spec) { this.spec = spec; }
+        private final Class<T> tweaksType;
+        ReadPointSel(SelectionSpec spec, Class<T> tweaksType) {
+            this.spec = spec;
+            this.tweaksType = tweaksType;
+        }
         @Override public SelectionSpec spec() { return spec; }
-        @Override public ReadPointSelector<ReadPointApTweaks> ap() { return new ReadPointSel<>(spec.withMode(Mode.AP)); }
-        @Override public ReadPointSelector<ReadPointCpTweaks> cp() { return new ReadPointSel<>(spec.withMode(Mode.CP)); }
+        @Override public Class<T> tweaksType() { return tweaksType; }
+        @Override public ReadPointSelector<ReadPointApTweaks> ap() { return new ReadPointSel<>(spec.withMode(Mode.AP), ReadPointApTweaks.class); }
+        @Override public ReadPointSelector<ReadPointCpTweaks> cp() { return new ReadPointSel<>(spec.withMode(Mode.CP), ReadPointCpTweaks.class); }
     }
-    static final class ReadBatchSel<T extends TweaksView> implements ReadBatchSelector<T> {
+    static final class ReadBatchSel<T extends TweaksView> implements ReadBatchSelector<T>, TypedSelector<T> {
         private final SelectionSpec spec;
-        ReadBatchSel(SelectionSpec spec) { this.spec = spec; }
+        private final Class<T> tweaksType;
+        ReadBatchSel(SelectionSpec spec, Class<T> tweaksType) {
+            this.spec = spec;
+            this.tweaksType = tweaksType;
+        }
         @Override public SelectionSpec spec() { return spec; }
-        @Override public ReadBatchSelector<ReadBatchApTweaks> ap() { return new ReadBatchSel<>(spec.withMode(Mode.AP)); }
-        @Override public ReadBatchSelector<ReadBatchCpTweaks> cp() { return new ReadBatchSel<>(spec.withMode(Mode.CP)); }
+        @Override public Class<T> tweaksType() { return tweaksType; }
+        @Override public ReadBatchSelector<ReadBatchApTweaks> ap() { return new ReadBatchSel<>(spec.withMode(Mode.AP), ReadBatchApTweaks.class); }
+        @Override public ReadBatchSelector<ReadBatchCpTweaks> cp() { return new ReadBatchSel<>(spec.withMode(Mode.CP), ReadBatchCpTweaks.class); }
     }
-    static final class ReadQuerySel<T extends TweaksView> implements ReadQuerySelector<T> {
+    static final class ReadQuerySel<T extends TweaksView> implements ReadQuerySelector<T>, TypedSelector<T> {
         private final SelectionSpec spec;
-        ReadQuerySel(SelectionSpec spec) { this.spec = spec; }
+        private final Class<T> tweaksType;
+        ReadQuerySel(SelectionSpec spec, Class<T> tweaksType) {
+            this.spec = spec;
+            this.tweaksType = tweaksType;
+        }
         @Override public SelectionSpec spec() { return spec; }
-        @Override public ReadQuerySelector<ReadQueryApTweaks> ap() { return new ReadQuerySel<>(spec.withMode(Mode.AP)); }
-        @Override public ReadQuerySelector<ReadQueryCpTweaks> cp() { return new ReadQuerySel<>(spec.withMode(Mode.CP)); }
+        @Override public Class<T> tweaksType() { return tweaksType; }
+        @Override public ReadQuerySelector<ReadQueryApTweaks> ap() { return new ReadQuerySel<>(spec.withMode(Mode.AP), ReadQueryApTweaks.class); }
+        @Override public ReadQuerySelector<ReadQueryCpTweaks> cp() { return new ReadQuerySel<>(spec.withMode(Mode.CP), ReadQueryCpTweaks.class); }
     }
 
     // WRITE selectors (shape → mode and retryable toggle)
@@ -2155,10 +1544,11 @@ public final class Behavior {
     public interface SystemTxnRollSelector extends Selector<SystemTxnRollTweaks> {}
 
 
-    public static final class WriteRootSel implements WriteRootSelector<WriteRootAnyModeTweaks> {
+    public static final class WriteRootSel implements WriteRootSelector<WriteRootAnyModeTweaks>, TypedSelector<WriteRootAnyModeTweaks> {
         private final SelectionSpec spec;
         WriteRootSel(SelectionSpec spec) { this.spec = spec; }
         @Override public SelectionSpec spec() { return spec; }
+        @Override public Class<WriteRootAnyModeTweaks> tweaksType() { return WriteRootAnyModeTweaks.class; }
 
         // Mode-first pattern: returns mode-specific selector types (WriteRootApTweaks, WriteRootCpTweaks)
         @Override public WriteRootSelector<WriteRootApTweaks> ap() { return new WriteRootApSel(spec.withMode(Mode.AP)); }
@@ -2171,13 +1561,14 @@ public final class Behavior {
         @Override public NonRetryableWriteSelector<NonRetryableWriteAnyModeTweaks> nonRetryable() { return new NonRetryableWriteAnySel(spec.withKind(OpKind.WRITE_NON_RETRYABLE)); }
 
         // Shape selection (retryability-agnostic - applies to both retryable and non-retryable)
-        @Override public WritePointSelector<WritePointAnyModeTweaks> point() { return new WritePointSel<>(spec.withShape(OpShape.POINT)); }
-        @Override public WriteBatchSelector<WriteBatchAnyModeTweaks> batch() { return new WriteBatchSel<>(spec.withShape(OpShape.BATCH)); }
+        @Override public WritePointSelector<WritePointAnyModeTweaks> point() { return new WritePointSel<>(spec.withShape(OpShape.POINT), WritePointAnyModeTweaks.class); }
+        @Override public WriteBatchSelector<WriteBatchAnyModeTweaks> batch() { return new WriteBatchSel<>(spec.withShape(OpShape.BATCH), WriteBatchAnyModeTweaks.class); }
     }
-    public static final class WriteRootApSel implements WriteRootSelector<WriteRootApTweaks> {
+    public static final class WriteRootApSel implements WriteRootSelector<WriteRootApTweaks>, TypedSelector<WriteRootApTweaks> {
         private final SelectionSpec spec;
         WriteRootApSel(SelectionSpec spec) { this.spec = spec; }
         @Override public SelectionSpec spec() { return spec; }
+        @Override public Class<WriteRootApTweaks> tweaksType() { return WriteRootApTweaks.class; }
 
         @Override public WriteRootSelector<WriteRootApTweaks> ap() { return this; }
         @Override public WriteRootSelector<WriteRootCpTweaks> cp() { return new WriteRootCpSel(spec.withMode(Mode.CP)); }
@@ -2189,13 +1580,14 @@ public final class Behavior {
 
         // Shape selection (retryability-agnostic) - AP mode preserved in SelectionSpec
         // Note: returns generic AnyMode types, but can still call .ap() afterward to expose AP-specific methods
-        @Override public WritePointSelector<WritePointAnyModeTweaks> point() { return new WritePointSel<>(spec.withShape(OpShape.POINT)); }
-        @Override public WriteBatchSelector<WriteBatchAnyModeTweaks> batch() { return new WriteBatchSel<>(spec.withShape(OpShape.BATCH)); }
+        @Override public WritePointSelector<WritePointAnyModeTweaks> point() { return new WritePointSel<>(spec.withShape(OpShape.POINT), WritePointAnyModeTweaks.class); }
+        @Override public WriteBatchSelector<WriteBatchAnyModeTweaks> batch() { return new WriteBatchSel<>(spec.withShape(OpShape.BATCH), WriteBatchAnyModeTweaks.class); }
     }
-    public static final class WriteRootCpSel implements WriteRootSelector<WriteRootCpTweaks> {
+    public static final class WriteRootCpSel implements WriteRootSelector<WriteRootCpTweaks>, TypedSelector<WriteRootCpTweaks> {
         private final SelectionSpec spec;
         WriteRootCpSel(SelectionSpec spec) { this.spec = spec; }
         @Override public SelectionSpec spec() { return spec; }
+        @Override public Class<WriteRootCpTweaks> tweaksType() { return WriteRootCpTweaks.class; }
 
         @Override public WriteRootSelector<WriteRootApTweaks> ap() { return new WriteRootApSel(spec.withMode(Mode.AP)); }
         @Override public WriteRootSelector<WriteRootCpTweaks> cp() { return this; }
@@ -2206,90 +1598,132 @@ public final class Behavior {
 
         // Shape selection (retryability-agnostic) - CP mode preserved in SelectionSpec
         // Note: returns generic AnyMode types, but can still call .cp() afterward to expose CP-specific methods
-        @Override public WritePointSelector<WritePointAnyModeTweaks> point() { return new WritePointSel<>(spec.withShape(OpShape.POINT)); }
-        @Override public WriteBatchSelector<WriteBatchAnyModeTweaks> batch() { return new WriteBatchSel<>(spec.withShape(OpShape.BATCH)); }
+        @Override public WritePointSelector<WritePointAnyModeTweaks> point() { return new WritePointSel<>(spec.withShape(OpShape.POINT), WritePointAnyModeTweaks.class); }
+        @Override public WriteBatchSelector<WriteBatchAnyModeTweaks> batch() { return new WriteBatchSel<>(spec.withShape(OpShape.BATCH), WriteBatchAnyModeTweaks.class); }
     }
-    public static final class RetryableWriteAnySel implements RetryableWriteSelector<RetryableWriteAnyModeTweaks> {
+    public static final class RetryableWriteAnySel implements RetryableWriteSelector<RetryableWriteAnyModeTweaks>, TypedSelector<RetryableWriteAnyModeTweaks> {
         private final SelectionSpec spec;
         RetryableWriteAnySel(SelectionSpec spec) { this.spec = spec; }
         @Override public SelectionSpec spec() { return spec; }
+        @Override public Class<RetryableWriteAnyModeTweaks> tweaksType() { return RetryableWriteAnyModeTweaks.class; }
 
         @Override public RetryableWriteSelector<RetryableWriteAnyModeTweaks> ap() { return new RetryableWriteAnySel(spec.withMode(Mode.AP)); }
         @Override public RetryableWriteSelector<RetryableWriteAnyModeTweaks> cp() { return new RetryableWriteAnySel(spec.withMode(Mode.CP)); }
 
-        @Override public RetryableWritePointSelector<RetryableWritePointAnyModeTweaks> point() { return new RetryableWritePointSel<>(spec.withShape(OpShape.POINT)); }
-        @Override public RetryableWriteBatchSelector<RetryableWriteBatchAnyModeTweaks> batch() { return new RetryableWriteBatchSel<>(spec.withShape(OpShape.BATCH)); }
-        @Override public RetryableWriteQuerySelector<RetryableWriteQueryAnyModeTweaks> query() { return new RetryableWriteQuerySel<>(spec.withShape(OpShape.QUERY)); }
+        @Override public RetryableWritePointSelector<RetryableWritePointAnyModeTweaks> point() { return new RetryableWritePointSel<>(spec.withShape(OpShape.POINT), RetryableWritePointAnyModeTweaks.class); }
+        @Override public RetryableWriteBatchSelector<RetryableWriteBatchAnyModeTweaks> batch() { return new RetryableWriteBatchSel<>(spec.withShape(OpShape.BATCH), RetryableWriteBatchAnyModeTweaks.class); }
+        @Override public RetryableWriteQuerySelector<RetryableWriteQueryAnyModeTweaks> query() { return new RetryableWriteQuerySel<>(spec.withShape(OpShape.QUERY), RetryableWriteQueryAnyModeTweaks.class); }
     }
-    public static final class RetryableWritePointSel<T extends TweaksView> implements RetryableWritePointSelector<T> {
+    public static final class RetryableWritePointSel<T extends TweaksView> implements RetryableWritePointSelector<T>, TypedSelector<T> {
         private final SelectionSpec spec;
-        RetryableWritePointSel(SelectionSpec spec) { this.spec = spec; }
+        private final Class<T> tweaksType;
+        RetryableWritePointSel(SelectionSpec spec, Class<T> tweaksType) {
+            this.spec = spec;
+            this.tweaksType = tweaksType;
+        }
         @Override public SelectionSpec spec() { return spec; }
-        @Override public RetryableWritePointSelector<RetryableWritePointApTweaks> ap() { return new RetryableWritePointSel<>(spec.withMode(Mode.AP)); }
-        @Override public RetryableWritePointSelector<RetryableWritePointCpTweaks> cp() { return new RetryableWritePointSel<>(spec.withMode(Mode.CP)); }
+        @Override public Class<T> tweaksType() { return tweaksType; }
+        @Override public RetryableWritePointSelector<RetryableWritePointApTweaks> ap() { return new RetryableWritePointSel<>(spec.withMode(Mode.AP), RetryableWritePointApTweaks.class); }
+        @Override public RetryableWritePointSelector<RetryableWritePointCpTweaks> cp() { return new RetryableWritePointSel<>(spec.withMode(Mode.CP), RetryableWritePointCpTweaks.class); }
     }
-    public static final class RetryableWriteBatchSel<T extends TweaksView> implements RetryableWriteBatchSelector<T> {
+    public static final class RetryableWriteBatchSel<T extends TweaksView> implements RetryableWriteBatchSelector<T>, TypedSelector<T> {
         private final SelectionSpec spec;
-        RetryableWriteBatchSel(SelectionSpec spec) { this.spec = spec; }
+        private final Class<T> tweaksType;
+        RetryableWriteBatchSel(SelectionSpec spec, Class<T> tweaksType) {
+            this.spec = spec;
+            this.tweaksType = tweaksType;
+        }
         @Override public SelectionSpec spec() { return spec; }
-        @Override public RetryableWriteBatchSelector<RetryableWriteBatchApTweaks> ap() { return new RetryableWriteBatchSel<>(spec.withMode(Mode.AP)); }
-        @Override public RetryableWriteBatchSelector<RetryableWriteBatchCpTweaks> cp() { return new RetryableWriteBatchSel<>(spec.withMode(Mode.CP)); }
+        @Override public Class<T> tweaksType() { return tweaksType; }
+        @Override public RetryableWriteBatchSelector<RetryableWriteBatchApTweaks> ap() { return new RetryableWriteBatchSel<>(spec.withMode(Mode.AP), RetryableWriteBatchApTweaks.class); }
+        @Override public RetryableWriteBatchSelector<RetryableWriteBatchCpTweaks> cp() { return new RetryableWriteBatchSel<>(spec.withMode(Mode.CP), RetryableWriteBatchCpTweaks.class); }
     }
-    public static final class RetryableWriteQuerySel<T extends TweaksView> implements RetryableWriteQuerySelector<T> {
+    public static final class RetryableWriteQuerySel<T extends TweaksView> implements RetryableWriteQuerySelector<T>, TypedSelector<T> {
         private final SelectionSpec spec;
-        RetryableWriteQuerySel(SelectionSpec spec) { this.spec = spec; }
+        private final Class<T> tweaksType;
+        RetryableWriteQuerySel(SelectionSpec spec, Class<T> tweaksType) {
+            this.spec = spec;
+            this.tweaksType = tweaksType;
+        }
         @Override public SelectionSpec spec() { return spec; }
-        @Override public RetryableWriteQuerySelector<RetryableWriteQueryApTweaks> ap() { return new RetryableWriteQuerySel<>(spec.withMode(Mode.AP)); }
-        @Override public RetryableWriteQuerySelector<RetryableWriteQueryCpTweaks> cp() { return new RetryableWriteQuerySel<>(spec.withMode(Mode.CP)); }
+        @Override public Class<T> tweaksType() { return tweaksType; }
+        @Override public RetryableWriteQuerySelector<RetryableWriteQueryApTweaks> ap() { return new RetryableWriteQuerySel<>(spec.withMode(Mode.AP), RetryableWriteQueryApTweaks.class); }
+        @Override public RetryableWriteQuerySelector<RetryableWriteQueryCpTweaks> cp() { return new RetryableWriteQuerySel<>(spec.withMode(Mode.CP), RetryableWriteQueryCpTweaks.class); }
     }
-    public static final class NonRetryableWriteAnySel implements NonRetryableWriteSelector<NonRetryableWriteAnyModeTweaks> {
+    public static final class NonRetryableWriteAnySel implements NonRetryableWriteSelector<NonRetryableWriteAnyModeTweaks>, TypedSelector<NonRetryableWriteAnyModeTweaks> {
         private final SelectionSpec spec;
         NonRetryableWriteAnySel(SelectionSpec spec) { this.spec = spec; }
         @Override public SelectionSpec spec() { return spec; }
+        @Override public Class<NonRetryableWriteAnyModeTweaks> tweaksType() { return NonRetryableWriteAnyModeTweaks.class; }
 
         @Override public NonRetryableWriteSelector<NonRetryableWriteAnyModeTweaks> ap() { return new NonRetryableWriteAnySel(spec.withMode(Mode.AP)); }
         @Override public NonRetryableWriteSelector<NonRetryableWriteAnyModeTweaks> cp() { return new NonRetryableWriteAnySel(spec.withMode(Mode.CP)); }
 
-        @Override public NonRetryableWritePointSelector<NonRetryableWritePointAnyModeTweaks> point() { return new NonRetryableWritePointSel<>(spec.withShape(OpShape.POINT)); }
-        @Override public NonRetryableWriteBatchSelector<NonRetryableWriteBatchAnyModeTweaks> batch() { return new NonRetryableWriteBatchSel<>(spec.withShape(OpShape.BATCH)); }
-        @Override public NonRetryableWriteQuerySelector<NonRetryableWriteQueryAnyModeTweaks> query() { return new NonRetryableWriteQuerySel<>(spec.withShape(OpShape.QUERY)); }
+        @Override public NonRetryableWritePointSelector<NonRetryableWritePointAnyModeTweaks> point() { return new NonRetryableWritePointSel<>(spec.withShape(OpShape.POINT), NonRetryableWritePointAnyModeTweaks.class); }
+        @Override public NonRetryableWriteBatchSelector<NonRetryableWriteBatchAnyModeTweaks> batch() { return new NonRetryableWriteBatchSel<>(spec.withShape(OpShape.BATCH), NonRetryableWriteBatchAnyModeTweaks.class); }
+        @Override public NonRetryableWriteQuerySelector<NonRetryableWriteQueryAnyModeTweaks> query() { return new NonRetryableWriteQuerySel<>(spec.withShape(OpShape.QUERY), NonRetryableWriteQueryAnyModeTweaks.class); }
     }
-    public static final class NonRetryableWritePointSel<T extends TweaksView> implements NonRetryableWritePointSelector<T> {
+    public static final class NonRetryableWritePointSel<T extends TweaksView> implements NonRetryableWritePointSelector<T>, TypedSelector<T> {
         private final SelectionSpec spec;
-        NonRetryableWritePointSel(SelectionSpec spec) { this.spec = spec; }
+        private final Class<T> tweaksType;
+        NonRetryableWritePointSel(SelectionSpec spec, Class<T> tweaksType) {
+            this.spec = spec;
+            this.tweaksType = tweaksType;
+        }
         @Override public SelectionSpec spec() { return spec; }
-        @Override public NonRetryableWritePointSelector<NonRetryableWritePointApTweaks> ap() { return new NonRetryableWritePointSel<>(spec.withMode(Mode.AP)); }
-        @Override public NonRetryableWritePointSelector<NonRetryableWritePointCpTweaks> cp() { return new NonRetryableWritePointSel<>(spec.withMode(Mode.CP)); }
+        @Override public Class<T> tweaksType() { return tweaksType; }
+        @Override public NonRetryableWritePointSelector<NonRetryableWritePointApTweaks> ap() { return new NonRetryableWritePointSel<>(spec.withMode(Mode.AP), NonRetryableWritePointApTweaks.class); }
+        @Override public NonRetryableWritePointSelector<NonRetryableWritePointCpTweaks> cp() { return new NonRetryableWritePointSel<>(spec.withMode(Mode.CP), NonRetryableWritePointCpTweaks.class); }
     }
-    public static final class NonRetryableWriteBatchSel<T extends TweaksView> implements NonRetryableWriteBatchSelector<T> {
+    public static final class NonRetryableWriteBatchSel<T extends TweaksView> implements NonRetryableWriteBatchSelector<T>, TypedSelector<T> {
         private final SelectionSpec spec;
-        NonRetryableWriteBatchSel(SelectionSpec spec) { this.spec = spec; }
+        private final Class<T> tweaksType;
+        NonRetryableWriteBatchSel(SelectionSpec spec, Class<T> tweaksType) {
+            this.spec = spec;
+            this.tweaksType = tweaksType;
+        }
         @Override public SelectionSpec spec() { return spec; }
-        @Override public NonRetryableWriteBatchSelector<NonRetryableWriteBatchApTweaks> ap() { return new NonRetryableWriteBatchSel<>(spec.withMode(Mode.AP)); }
-        @Override public NonRetryableWriteBatchSelector<NonRetryableWriteBatchCpTweaks> cp() { return new NonRetryableWriteBatchSel<>(spec.withMode(Mode.CP)); }
+        @Override public Class<T> tweaksType() { return tweaksType; }
+        @Override public NonRetryableWriteBatchSelector<NonRetryableWriteBatchApTweaks> ap() { return new NonRetryableWriteBatchSel<>(spec.withMode(Mode.AP), NonRetryableWriteBatchApTweaks.class); }
+        @Override public NonRetryableWriteBatchSelector<NonRetryableWriteBatchCpTweaks> cp() { return new NonRetryableWriteBatchSel<>(spec.withMode(Mode.CP), NonRetryableWriteBatchCpTweaks.class); }
     }
-    public static final class NonRetryableWriteQuerySel<T extends TweaksView> implements NonRetryableWriteQuerySelector<T> {
+    public static final class NonRetryableWriteQuerySel<T extends TweaksView> implements NonRetryableWriteQuerySelector<T>, TypedSelector<T> {
         private final SelectionSpec spec;
-        NonRetryableWriteQuerySel(SelectionSpec spec) { this.spec = spec; }
+        private final Class<T> tweaksType;
+        NonRetryableWriteQuerySel(SelectionSpec spec, Class<T> tweaksType) {
+            this.spec = spec;
+            this.tweaksType = tweaksType;
+        }
         @Override public SelectionSpec spec() { return spec; }
-        @Override public NonRetryableWriteQuerySelector<NonRetryableWriteQueryApTweaks> ap() { return new NonRetryableWriteQuerySel<>(spec.withMode(Mode.AP)); }
-        @Override public NonRetryableWriteQuerySelector<NonRetryableWriteQueryCpTweaks> cp() { return new NonRetryableWriteQuerySel<>(spec.withMode(Mode.CP)); }
+        @Override public Class<T> tweaksType() { return tweaksType; }
+        @Override public NonRetryableWriteQuerySelector<NonRetryableWriteQueryApTweaks> ap() { return new NonRetryableWriteQuerySel<>(spec.withMode(Mode.AP), NonRetryableWriteQueryApTweaks.class); }
+        @Override public NonRetryableWriteQuerySelector<NonRetryableWriteQueryCpTweaks> cp() { return new NonRetryableWriteQuerySel<>(spec.withMode(Mode.CP), NonRetryableWriteQueryCpTweaks.class); }
     }
 
     // Write shape selector implementations (retryability-agnostic)
-    static final class WritePointSel<T extends TweaksView> implements WritePointSelector<T> {
+    static final class WritePointSel<T extends TweaksView> implements WritePointSelector<T>, TypedSelector<T> {
         private final SelectionSpec spec;
-        WritePointSel(SelectionSpec spec) { this.spec = spec; }
+        private final Class<T> tweaksType;
+        WritePointSel(SelectionSpec spec, Class<T> tweaksType) {
+            this.spec = spec;
+            this.tweaksType = tweaksType;
+        }
         @Override public SelectionSpec spec() { return spec; }
-        @Override public WritePointSelector<WritePointApTweaks> ap() { return new WritePointSel<>(spec.withMode(Mode.AP)); }
-        @Override public WritePointSelector<WritePointCpTweaks> cp() { return new WritePointSel<>(spec.withMode(Mode.CP)); }
+        @Override public Class<T> tweaksType() { return tweaksType; }
+        @Override public WritePointSelector<WritePointApTweaks> ap() { return new WritePointSel<>(spec.withMode(Mode.AP), WritePointApTweaks.class); }
+        @Override public WritePointSelector<WritePointCpTweaks> cp() { return new WritePointSel<>(spec.withMode(Mode.CP), WritePointCpTweaks.class); }
     }
-    static final class WriteBatchSel<T extends TweaksView> implements WriteBatchSelector<T> {
+    static final class WriteBatchSel<T extends TweaksView> implements WriteBatchSelector<T>, TypedSelector<T> {
         private final SelectionSpec spec;
-        WriteBatchSel(SelectionSpec spec) { this.spec = spec; }
+        private final Class<T> tweaksType;
+        WriteBatchSel(SelectionSpec spec, Class<T> tweaksType) {
+            this.spec = spec;
+            this.tweaksType = tweaksType;
+        }
         @Override public SelectionSpec spec() { return spec; }
-        @Override public WriteBatchSelector<WriteBatchApTweaks> ap() { return new WriteBatchSel<>(spec.withMode(Mode.AP)); }
-        @Override public WriteBatchSelector<WriteBatchCpTweaks> cp() { return new WriteBatchSel<>(spec.withMode(Mode.CP)); }
+        @Override public Class<T> tweaksType() { return tweaksType; }
+        @Override public WriteBatchSelector<WriteBatchApTweaks> ap() { return new WriteBatchSel<>(spec.withMode(Mode.AP), WriteBatchApTweaks.class); }
+        @Override public WriteBatchSelector<WriteBatchCpTweaks> cp() { return new WriteBatchSel<>(spec.withMode(Mode.CP), WriteBatchCpTweaks.class); }
     }
 
     // TRANSACTION selector implementations
@@ -2305,82 +1739,111 @@ public final class Behavior {
         }
     }
 
-    static final class SystemTxnVerifySel implements SystemTxnVerifySelector {
+    static final class SystemTxnVerifySel implements SystemTxnVerifySelector, TypedSelector<SystemTxnVerifyTweaks> {
         private final SelectionSpec spec;
         SystemTxnVerifySel(SelectionSpec spec) { this.spec = spec; }
         @Override public SelectionSpec spec() { return spec; }
+        @Override public Class<SystemTxnVerifyTweaks> tweaksType() { return SystemTxnVerifyTweaks.class; }
     }
 
-    static final class SystemTxnRollSel implements SystemTxnRollSelector {
+    static final class SystemTxnRollSel implements SystemTxnRollSelector, TypedSelector<SystemTxnRollTweaks> {
         private final SelectionSpec spec;
         SystemTxnRollSel(SelectionSpec spec) { this.spec = spec; }
         @Override public SelectionSpec spec() { return spec; }
+        @Override public Class<SystemTxnRollTweaks> tweaksType() { return SystemTxnRollTweaks.class; }
     }
 
     // -----------------------------------------------------------------------------------
-    // Tweaks proxy (records into Patch) — returns TweaksProxy (covariant for all)
+    // Tweaks proxy
     // -----------------------------------------------------------------------------------
-    static final class TweaksProxy implements
-    // base capability interfaces
-    CommonTweaks, BatchTweaks, QueryTweaks, ReadApTweaks, ReadCpTweaks, WriteApTweaks, RetryableWriteTweaks, NonRetryableWriteTweaks,
-    // concrete any-mode & read views
-    AllAnyModeTweaks, ReadAnyAnyModeTweaks, ReadAnyApTweaks, ReadAnyCpTweaks,
-    ReadPointAnyModeTweaks, ReadBatchAnyModeTweaks, ReadQueryAnyModeTweaks,
-    ReadPointApTweaks, ReadPointCpTweaks, ReadBatchApTweaks, ReadBatchCpTweaks, ReadQueryApTweaks, ReadQueryCpTweaks,
-    // write views (retryability-agnostic)
-    WritePointAnyModeTweaks, WritePointApTweaks, WritePointCpTweaks,
-    WriteBatchAnyModeTweaks, WriteBatchApTweaks, WriteBatchCpTweaks,
-    // write views (root)
-    WriteRootAnyModeTweaks, WriteRootApTweaks, WriteRootCpTweaks,
-    // write views (retryable)
-    RetryableWriteAnyModeTweaks, RetryableWritePointAnyModeTweaks, RetryableWriteBatchAnyModeTweaks,
-    RetryableWriteBatchApTweaks, RetryableWriteBatchCpTweaks, RetryableWritePointApTweaks, RetryableWritePointCpTweaks,
-    RetryableWriteQueryAnyModeTweaks, RetryableWriteQueryApTweaks, RetryableWriteQueryCpTweaks,
-    // write views (non-retryable)
-    NonRetryableWriteAnyModeTweaks, NonRetryableWritePointAnyModeTweaks, NonRetryableWriteBatchAnyModeTweaks,
-    NonRetryableWriteBatchApTweaks, NonRetryableWriteBatchCpTweaks, NonRetryableWritePointApTweaks, NonRetryableWritePointCpTweaks,
-    NonRetryableWriteQueryAnyModeTweaks, NonRetryableWriteQueryApTweaks, NonRetryableWriteQueryCpTweaks,
-    // system views
-    SystemTxnVerifyTweaks, SystemTxnRollTweaks {
+    // Each proxy implements exactly one marker view. Java does not allow a single class to
+    // implement the same generic capability (for example CommonTweaks) with different self types.
+    static final class TweaksProxy implements InvocationHandler {
+        private static final Map<String, BiConsumer<Settings, Object>> SETTERS = Map.ofEntries(
+            Map.entry("abandonCallAfter", (settings, value) -> settings.abandonCallAfter = (Duration)value),
+            Map.entry("delayBetweenRetries", (settings, value) -> settings.delayBetweenRetries = (Duration)value),
+            Map.entry("maximumNumberOfCallAttempts",
+                (settings, value) -> settings.maximumNumberOfCallAttempts = (Integer)value),
+            Map.entry("replicaOrder", (settings, value) -> settings.replicaOrder = (Replica)value),
+            Map.entry("sendKey", (settings, value) -> settings.sendKey = (Boolean)value),
+            Map.entry("useCompression", (settings, value) -> settings.useCompression = (Boolean)value),
+            Map.entry("waitForCallToComplete", (settings, value) -> settings.waitForCallToComplete = (Duration)value),
+            Map.entry("waitForConnectionToComplete",
+                (settings, value) -> settings.waitForConnectionToComplete = (Duration)value),
+            Map.entry("waitForSocketResponseAfterCallFails",
+                (settings, value) -> settings.waitForSocketResponseAfterCallFails = (Duration)value),
+            Map.entry("errorDetailVerbosity", (settings, value) -> settings.errorDetailVerbosity = (Integer)value),
+            Map.entry("stackTraceOnException", (settings, value) -> settings.stackTraceOnException = (Boolean)value),
+            Map.entry("recordQueueSize", (settings, value) -> settings.recordQueueSize = (Integer)value),
+            Map.entry("allowScansWithWhere", (settings, value) -> settings.allowScansWithWhere = (Boolean)value),
+            Map.entry("maxConcurrentNodes", (settings, value) -> settings.maxConcurrentNodes = (Integer)value),
+            Map.entry("allowInlineMemoryAccess",
+                (settings, value) -> settings.allowInlineMemoryAccess = (Boolean)value),
+            Map.entry("allowInlineSsdAccess", (settings, value) -> settings.allowInlineSsdAccess = (Boolean)value),
+            Map.entry("useDurableDelete", (settings, value) -> settings.useDurableDelete = (Boolean)value),
+            Map.entry("simulateXdrWrite", (settings, value) -> settings.simulateXdrWrite = (Boolean)value),
+            Map.entry("commitLevel", (settings, value) -> settings.commitLevel = (CommitLevel)value),
+            Map.entry("resetTtlOnReadAtPercent",
+                (settings, value) -> settings.resetTtlOnReadAtPercent = (Integer)value),
+            Map.entry("readMode", (settings, value) -> settings.readModeAP = (ReadModeAP)value),
+            Map.entry("consistency", (settings, value) -> settings.readModeSC = (ReadModeSC)value)
+        );
+
+        static {
+            Set<String> tweakMethods = List.of(
+                    CommonTweaks.class,
+                    QueryTweaks.class,
+                    BatchTweaks.class,
+                    WriteTweaks.class,
+                    WriteApTweaks.class,
+                    ReadTweaks.class,
+                    ReadApTweaks.class,
+                    ReadCpTweaks.class
+                ).stream()
+                .flatMap(type -> Arrays.stream(type.getDeclaredMethods()))
+                .map(Method::getName)
+                .collect(Collectors.toSet());
+
+            if (!SETTERS.keySet().equals(tweakMethods)) {
+                throw new ExceptionInInitializerError(
+                    "Tweak methods and settings handlers differ: methods=" + tweakMethods +
+                    ", handlers=" + SETTERS.keySet()
+                );
+            }
+        }
 
         private final Patch patch;
-        TweaksProxy(Patch patch) { this.patch = patch; }
 
-        // Common
-        @Override public TweaksProxy abandonCallAfter(Duration d) { patch.settings.abandonCallAfter = d; return this; }
-        @Override public TweaksProxy delayBetweenRetries(Duration d) { patch.settings.delayBetweenRetries = d; return this; }
-        @Override public TweaksProxy maximumNumberOfCallAttempts(int n) { patch.settings.maximumNumberOfCallAttempts = n; return this; }
-        @Override public TweaksProxy replicaOrder(Replica r) { patch.settings.replicaOrder = r; return this; }
-        @Override public TweaksProxy sendKey(boolean sendKey) { patch.settings.sendKey = sendKey; return this; }
-        @Override public TweaksProxy useCompression(boolean compress) { patch.settings.useCompression = compress; return this; }
-        @Override public TweaksProxy waitForCallToComplete(Duration d) { patch.settings.waitForCallToComplete = d; return this; }
-        @Override public TweaksProxy waitForConnectionToComplete(Duration d) { patch.settings.waitForConnectionToComplete = d; return this; }
-        @Override public TweaksProxy waitForSocketResponseAfterCallFails(Duration d) { patch.settings.waitForSocketResponseAfterCallFails = d; return this; }
-        @Override public TweaksProxy errorDetailVerbosity(int e) { patch.settings.errorDetailVerbosity = e; return this; }
-        @Override public TweaksProxy stackTraceOnException(boolean enabled) { patch.settings.stackTraceOnException = enabled; return this; }
+        private TweaksProxy(Patch patch) {
+            this.patch = patch;
+        }
 
-        // Query
-        @Override public TweaksProxy recordQueueSize(int n) { patch.settings.recordQueueSize = n; return this; }
-        @Override public TweaksProxy allowScansWithWhere(boolean allow) { patch.settings.allowScansWithWhere = allow; return this; }
+        static <T extends TweaksView> T create(Class<T> tweaksType, Patch patch) {
+            Object proxy = Proxy.newProxyInstance(
+                tweaksType.getClassLoader(),
+                new Class<?>[] { tweaksType },
+                new TweaksProxy(patch)
+            );
+            return tweaksType.cast(proxy);
+        }
 
-        // Batch
-        @Override public TweaksProxy maxConcurrentNodes(int n) { patch.settings.maxConcurrentNodes = n; return this; }
-        @Override public TweaksProxy allowInlineMemoryAccess(boolean v) { patch.settings.allowInlineMemoryAccess = v; return this; }
-        @Override public TweaksProxy allowInlineSsdAccess(boolean v) { patch.settings.allowInlineSsdAccess = v; return this; }
+        @Override public Object invoke(Object proxy, Method method, Object[] args) {
+            if (method.getDeclaringClass() == Object.class) {
+                return switch (method.getName()) {
+                    case "equals" -> proxy == args[0];
+                    case "hashCode" -> System.identityHashCode(proxy);
+                    case "toString" -> "TweaksProxy[" + patch.spec + "]";
+                    default -> throw new UnsupportedOperationException(method.toString());
+                };
+            }
 
-        // Write
-        @Override public TweaksProxy useDurableDelete(boolean b) { patch.settings.useDurableDelete = b; return this; }
-        @Override public TweaksProxy simulateXdrWrite(boolean b) { patch.settings.simulateXdrWrite = b; return this; }
-
-        // Write AP
-        @Override public TweaksProxy commitLevel(CommitLevel level) { patch.settings.commitLevel = level; return this; }
-
-        // Read
-        @Override public TweaksProxy resetTtlOnReadAtPercent(int percent) { patch.settings.resetTtlOnReadAtPercent = percent; return this; }
-
-        // Read modes
-        @Override public TweaksProxy readMode(ReadModeAP mode) { patch.settings.readModeAP = mode; return this; }
-        @Override public TweaksProxy consistency(ReadModeSC c) { patch.settings.readModeSC = c; return this; }
+            BiConsumer<Settings, Object> setter = SETTERS.get(method.getName());
+            if (setter == null) {
+                throw new UnsupportedOperationException(method.toString());
+            }
+            setter.accept(patch.settings, args[0]);
+            return proxy;
+        }
     }
 
     // -----------------------------------------------------------------------------------

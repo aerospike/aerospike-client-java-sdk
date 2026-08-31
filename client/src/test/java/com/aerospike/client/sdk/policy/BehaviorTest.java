@@ -214,6 +214,23 @@ public class BehaviorTest {
         }
 
         @Test
+        @DisplayName("Direct selector style should preserve the concrete type while chaining")
+        void testDirectSelectorStyle() {
+            Behavior behavior = Behavior.DEFAULT.deriveWithChanges("test", builder ->
+                builder.on(Selectors.reads().batch().ap())
+                    .abandonCallAfter(Duration.ofSeconds(7))
+                    .maxConcurrentNodes(12)
+                    .readMode(ReadModeAP.ONE)
+            );
+
+            ResolvedSettings settings =
+                behavior.getSettings(OpKind.READ, OpShape.BATCH, Mode.AP);
+            assertEquals(7000, settings.getAbandonCallAfterMs());
+            assertEquals(12, settings.getMaxConcurrentNodes());
+            assertEquals(ReadModeAP.ONE, settings.getReadModeAP());
+        }
+
+        @Test
         @DisplayName("Selectors.all() should allow setting all possible settings including mode-specific")
         void testSelectorsAllWithModeSpecificSettings() {
             Behavior behavior = Behavior.DEFAULT.deriveWithChanges("test", builder -> builder
