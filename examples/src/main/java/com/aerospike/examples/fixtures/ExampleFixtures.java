@@ -231,6 +231,20 @@ public final class ExampleFixtures {
             });
     }
 
+    public static ExampleFixture vectorTopKQueryExample() {
+        return truncating(
+            "vector_topk_demo",
+            context -> {
+                Session session = context.session();
+                DataSet dataSet = context.dataSet("vector_topk_demo");
+
+                ExampleAssertions.assertCount(session, dataSet, 3);
+                ExampleAssertions.assertBinEquals(session, dataSet, "sku-1", "name", "wireless mouse");
+                ExampleAssertions.assertBinEquals(session, dataSet, "sku-1", "category", "electronics");
+                ExampleAssertions.assertBinEquals(session, dataSet, "sku-3", "category", "outdoor");
+            });
+    }
+
     public static ExampleFixture ecommerceExample() {
         return truncating(
             context -> List.of(

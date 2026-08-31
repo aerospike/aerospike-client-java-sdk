@@ -28,6 +28,10 @@ import com.aerospike.client.sdk.Bin;
 import com.aerospike.client.sdk.ClusterTest;
 import com.aerospike.client.sdk.DataSet;
 import com.aerospike.client.sdk.ResultCode;
+import com.aerospike.client.sdk.exp.Exp;
+import com.aerospike.client.sdk.exp.VectorExp;
+import com.aerospike.client.sdk.vector.Vector;
+import com.aerospike.client.sdk.vector.VectorDistanceMetric;
 
 /**
  * Unit tests for {@link QueryBuilder}'s Top-K ({@code orderBy}/{@code topK}) API: per-call
@@ -223,6 +227,80 @@ class QueryTopKValidationTest extends ClusterTest {
         qb.orderBy("n", OrderByType.INTEGER, Order.ASC).topK(5);
 
         qb.validateTopKQueryState();
+    }
+
+    @Test
+    void orderByBinInProjectionPassesWhenSatisfiedOnlyBySelectFromOperation() {
+        // "similarity" is never a physical bin -- it only exists via .bin(...).selectFrom(...).
+        // No readingOnlyBins() at all; validateTopKQueryState() must still find it via getOperations().
+        QueryBuilder qb = new QueryBuilder(session, dataSet());
+        qb.bin("similarity").selectFrom(Exp.intBin("n"));
+        qb.orderBy("similarity", OrderByType.DOUBLE, Order.DESC).topK(5);
+
+        qb.validateTopKQueryState();
+    }
+
+    @Test
+    void orderByBinInProjectionFailsWhenNotProducedByEitherProjectionMechanism() {
+        QueryBuilder qb = new QueryBuilder(session, dataSet());
+        qb.bin("d").selectFrom(Exp.intBin("n"));
+        qb.orderBy("similarity", OrderByType.DOUBLE, Order.DESC).topK(5).readingOnlyBins("stock");
+
+        assertThrows(AerospikeException.class, qb::validateTopKQueryState);
+    }
+
+    // -- full hybrid-search combination: selectFrom + readingOnlyBins + orderBy + topK --------
+    // together, the way a real hybrid vector Top-K query builds it (see VectorTopKQueryExample).
+
+    @Test
+    void hybridVectorTopKQueryShapePassesClientSideValidation() {
+        Vector queryVector = Vector.ofFloat32(new float[] {0.10f, 0.95f, 0.40f, 0.08f});
+
+        QueryBuilder qb = new QueryBuilder(session, dataSet())
+            .where(Exp.and(
+                Exp.eq(Exp.stringBin("category"), Exp.val("electronics")),
+                Exp.gt(Exp.intBin("stock"), Exp.val(0))));
+        qb.bin("similarity").selectFrom(
+            VectorExp.distance(VectorDistanceMetric.COSINE, queryVector, Exp.vectorBin("embedding")));
+        qb.readingOnlyBins("name", "stock", "similarity")
+            .orderBy("similarity", OrderByType.DOUBLE, Order.DESC)
+            .topK(10);
+
+        // Does not throw -- every piece (where/selectFrom/readingOnlyBins/orderBy/topK) is
+        // mutually consistent; the query is only blocked by the capability gate below, not by
+        // any client-side request-time validation rule.
+        qb.validateTopKQueryState();
+    }
+
+    @Test
+    void hybridVectorTopKQueryShapeFailsOnlyAtACapabilityGateNotAtRequestValidation() {
+        Vector queryVector = Vector.ofFloat32(new float[] {0.10f, 0.95f, 0.40f, 0.08f});
+
+        QueryBuilder qb = new QueryBuilder(session, dataSet())
+            .where(Exp.and(
+                Exp.eq(Exp.stringBin("category"), Exp.val("electronics")),
+                Exp.gt(Exp.intBin("stock"), Exp.val(0))));
+        qb.bin("similarity").selectFrom(
+            VectorExp.distance(VectorDistanceMetric.COSINE, queryVector, Exp.vectorBin("embedding")));
+        qb.readingOnlyBins("name", "stock", "similarity")
+            .orderBy("similarity", OrderByType.DOUBLE, Order.DESC)
+            .topK(10);
+
+        // IndexQueryBuilderImpl.executeInternal() checks two independent, version-gated
+        // capabilities in order, before ever building/sending a command:
+        //   1. supportsQueryOperations() (8.1.2+) -- this query has operations (selectFrom),
+        //      so on a pre-8.1.2 test cluster this fires first with OP_NOT_APPLICABLE.
+        //   2. supportsTopK() (min version still TBD) -- fires with UNSUPPORTED_FEATURE once
+        //      (1) passes, i.e. on any 8.1.2+ cluster, which every real Top-K-capable server
+        //      will be by construction.
+        // Either way, this proves every OTHER client-side piece of this hybrid-search combination
+        // (where/selectFrom/readingOnlyBins/orderBy/topK together) is valid -- validateTopKQueryState()
+        // itself never throws for this shape (see previous test) -- and the query is only ever
+        // blocked by a capability gate, never by request-time misuse.
+        AerospikeException ae = assertThrows(AerospikeException.class, qb::execute);
+        assertEquals(
+            cluster.supportsQueryOperations() ? ResultCode.UNSUPPORTED_FEATURE : ResultCode.OP_NOT_APPLICABLE,
+            ae.getResultCode());
     }
 
     // -- capability gate: placeholder version means it's always unsupported today ----

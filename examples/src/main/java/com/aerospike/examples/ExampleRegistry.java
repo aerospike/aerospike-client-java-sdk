@@ -120,6 +120,14 @@ public final class ExampleRegistry {
         register(examples, "QueryExamples", QueryExamples.class, ExampleFixtures.queryExamples(), "extended", "records");
         register(examples, "EcommerceExample", EcommerceExample.class, ExampleFixtures.ecommerceExample(), "extended", "records");
         register(examples, "RosterExample", RosterExample.class, ExampleFixture.NONE, "server-specific");
+        register(
+            examples,
+            "VectorTopKQueryExample",
+            VectorTopKQueryExample.class,
+            ExampleFixtures.vectorTopKQueryExample(),
+            "extended",
+            "records",
+            "server-specific");
 
         return Collections.unmodifiableMap(examples);
     }
