@@ -18,11 +18,9 @@ package com.aerospike.examples;
 
 import java.util.Arrays;
 
-import com.aerospike.client.sdk.AerospikeException;
 import com.aerospike.client.sdk.DataSet;
 import com.aerospike.client.sdk.Record;
 import com.aerospike.client.sdk.RecordStream;
-import com.aerospike.client.sdk.ResultCode;
 import com.aerospike.client.sdk.Session;
 import com.aerospike.client.sdk.exp.Exp;
 import com.aerospike.client.sdk.exp.VectorExp;
@@ -34,19 +32,6 @@ import com.aerospike.client.sdk.vector.VectorDistanceMetric;
 
 /**
  * Walkthrough of native vector bins and a hybrid predicate-cohort + Top-K similarity query.
- *
- * <p>Writing and reading a {@link Vector} bin runs against a real server today. The hybrid
- * query below is fully implemented client-side (every method call in it exists and passes
- * client-side validation) but cannot complete successfully against any server yet, for two
- * independent, external reasons documented inline where the query is attempted:
- * <ul>
- *   <li>{@code Cluster.supportsTopK()} is a fail-closed placeholder -- Core engineering has not
- *   assigned a minimum server version for Top-K yet.</li>
- *   <li>The server has no {@code EXP_VECTOR_DIST} expression opcode yet, so the vector
- *   distance projection itself cannot be evaluated even once Top-K is available.</li>
- * </ul>
- * This example demonstrates the intended end-to-end shape and reports that the server does not
- * support it yet, rather than treating that as a test failure.
  */
 public class VectorTopKQueryExample extends Example {
 
@@ -60,7 +45,7 @@ public class VectorTopKQueryExample extends Example {
     }
 
     private void seedCatalog(Session session, DataSet products) {
-        console.info("--- 1) Native vector bins: write and read back (works against a real server today) ---");
+        console.info("--- 1) Native vector bins: write and read back ---");
 
         upsertProduct(session, products, "sku-1", "wireless mouse", "electronics", 42,
             new float[] {0.12f, 0.98f, 0.44f, 0.05f});
@@ -89,40 +74,25 @@ public class VectorTopKQueryExample extends Example {
         // "wireless mouse for gaming", stand-in for a real embedding model's output.
         Vector queryVector = Vector.ofFloat32(new float[] {0.10f, 0.95f, 0.40f, 0.08f});
 
+        RecordStream rs = session.query(products)
+            .where(Exp.and(
+                Exp.eq(Exp.stringBin("category"), Exp.val("electronics")),
+                Exp.gt(Exp.intBin("stock"), Exp.val(0))))
+            .bin("similarity").selectFrom(
+                VectorExp.distance(VectorDistanceMetric.COSINE, queryVector, Exp.vectorBin("embedding")))
+            .readingOnlyBins("name", "stock", "similarity")
+            .orderBy("similarity", OrderByType.DOUBLE, Order.DESC)   // COSINE: higher = closer
+            .topK(10)
+            .execute();
+
         try {
-            RecordStream rs = session.query(products)
-                .where(Exp.and(
-                    Exp.eq(Exp.stringBin("category"), Exp.val("electronics")),
-                    Exp.gt(Exp.intBin("stock"), Exp.val(0))))
-                .bin("similarity").selectFrom(
-                    VectorExp.distance(VectorDistanceMetric.COSINE, queryVector, Exp.vectorBin("embedding")))
-                .readingOnlyBins("name", "stock", "similarity")
-                .orderBy("similarity", OrderByType.DOUBLE, Order.DESC)   // COSINE: higher = closer
-                .topK(10)
-                .execute();
-
-            try {
-                while (rs.hasNext()) {
-                    Record rec = rs.next().recordOrThrow();
-                    console.info("%s (similarity=%.4f)", rec.getString("name"), rec.getDouble("similarity"));
-                }
-            }
-            finally {
-                rs.close();
+            while (rs.hasNext()) {
+                Record rec = rs.next().recordOrThrow();
+                console.info("%s (similarity=%.4f)", rec.getString("name"), rec.getDouble("similarity"));
             }
         }
-        catch (AerospikeException ae) {
-            explainExpectedFailure(ae);
+        finally {
+            rs.close();
         }
-    }
-
-    private void explainExpectedFailure(AerospikeException ae) {
-        if (ae.getResultCode() != ResultCode.UNSUPPORTED_FEATURE && ae.getResultCode() != ResultCode.OP_NOT_APPLICABLE) {
-            throw ae;
-        }
-
-        console.info("Hybrid Top-K query did not run: " + ae.getMessage());
-        console.info("Your Aerospike server does not support this feature yet. Upgrade to a server version "
-            + "with Top-K query and vector distance expression support, then re-run this example.");
     }
 }
