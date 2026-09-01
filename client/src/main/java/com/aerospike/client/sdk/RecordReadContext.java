@@ -24,7 +24,8 @@ import java.util.Objects;
  * <p>Pass {@code RecordReadContext} into the four-argument
  * {@link RecordMapper#fromMap(java.util.Map, Key, int, RecordReadContext)} when mapping needs the
  * {@link Session} or factory (dependent reads, nested objects), including untyped
- * {@link RecordStream} overloads such as {@link RecordStream#getFirst(RecordMapper, RecordReadContext)}.
+ * {@link RecordStream} overloads such as {@link RecordStream#getFirst(RecordMapper, RecordReadContext)}
+ * and {@link RecordStream#getFirst(Session, Class)}.
  * Use the three-argument {@link RecordMapper#fromMap(java.util.Map, Key, int)} for pure bin/key/gen
  * mapping.</p>
  *

@@ -237,16 +237,42 @@ public class Session {
      * records and Java objects. This enables automatic object serialization and
      * deserialization when working with typed datasets.</p>
      *
-     * <p>If no factory is set, this method will return null, and object mapping
-     * operations will not be available.</p>
+     * <p>If no factory is set, this method returns {@code null}. Prefer {@link #getMapper(Class)}
+     * when you need a mapper: that call treats a missing factory as an error.</p>
      *
-     * @return the record mapping factory, or null if none is set
+     * @return the record mapping factory, or {@code null} if none is set
      * @see RecordMappingFactory
      * @see DefaultRecordMappingFactory
      * @see Cluster#setRecordMappingFactory(RecordMappingFactory)
+     * @see #getMapper(Class)
      */
     public RecordMappingFactory getRecordMappingFactory() {
         return this.cluster.getRecordMappingFactory();
+    }
+
+    /**
+     * Returns the {@link RecordMapper} registered for {@code clazz} on this session's cluster.
+     *
+     * <p>Looks up the mapper from {@link #getRecordMappingFactory()}. A {@code null} factory
+     * (none configured) or a factory that has no mapper for {@code clazz} is an error, not a
+     * {@code null} return.</p>
+     *
+     * <pre>{@code
+     * RecordMapper<Player> mapper = session.getMapper(Player.class);
+     * Optional<Player> player = session.query(playerKey).execute().getFirst(mapper);
+     * }</pre>
+     *
+     * @param <T> the domain type
+     * @param clazz the class to resolve a mapper for
+     * @return the non-null mapper registered for {@code clazz}
+     * @throws IllegalStateException if no factory is configured on the cluster, or the factory
+     *         has no mapper for {@code clazz}
+     * @throws NullPointerException if {@code clazz} is {@code null}
+     * @see MappingSupport#requireMapper(RecordMappingFactory, Class)
+     * @see Cluster#setRecordMappingFactory(RecordMappingFactory)
+     */
+    public <T> RecordMapper<T> getMapper(Class<T> clazz) {
+        return MappingSupport.requireMapper(getRecordMappingFactory(), clazz);
     }
 
     private List<Key> buildKeyList(Key key1, Key key2, Key ...keys) {

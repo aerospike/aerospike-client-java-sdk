@@ -385,6 +385,7 @@ Used when the SDK can build **`RecordReadContext`** (session + entity class):
 | **`RecordResult.toObject()`** | Row has **`readMappingSession`** + **`readMappingClass`** (typed read / typed leg). |
 | **`RecordResult.udfResultAsObject()`** (mapper-less, typed UDF hint) | Same. |
 | **`RecordResult.udfResultAsObject(RecordMapper, RecordReadContext)`** | You pass **`ctx`**. |
+| **`RecordStream`** | Overloads that take **`RecordReadContext`**, and factory-backed **`(Session, Class)`** overloads such as **`getFirst(session, Player.class)`**. |
 | **`TypedRecordStream` / `TypedNavigatableRecordStream`** | Mapper-less **`toObjectList()`**, **`getFirstObject()`**, …; **`RecordMapper`** overloads that take **`RecordReadContext`**. |
 | **`MapUtil.asObjectFromMap(..., RecordReadContext)`** | Nested mapping with context. |
 
@@ -394,11 +395,11 @@ Used when you pass a **`RecordMapper`** but the SDK does **not** thread **`Recor
 
 | Location | When |
 |----------|------|
-| **`RecordStream`** | **`getFirst(RecordMapper)`**, **`toObjectList(RecordMapper)`**, **`forEach(RecordMapper, …)`**, … |
+| **`RecordStream`** | Mapper-only **`getFirst(RecordMapper)`**, **`toObjectList(RecordMapper)`**, **`forEach(RecordMapper, …)`**, … (no **`ctx`** argument). |
 | **`NavigatableRecordStream`** | Explicit **`RecordMapper`** APIs. |
 | **`RecordResult.udfResultAsObject(RecordMapper)`** | Single mapper argument. |
 
-**Rule of thumb:** typed factory-backed streams and **`RecordResult.toObject()`** on typed legs → **four-arg** path (override when you need **`Session`**). **`RecordStream`** + mapper you pass in → **three-arg**, unless you use an overload that documents **`RecordReadContext`**.
+**Rule of thumb:** typed factory-backed streams and **`RecordResult.toObject()`** on typed legs → **four-arg** path (override when you need **`Session`**). **`RecordStream`** + mapper you pass in → **three-arg**, unless you use an overload that takes **`RecordReadContext`**.
 
 ---
 

@@ -307,6 +307,75 @@ public class TypedQueryMappingTest extends ClusterTest {
     }
 
     @Test
+    public void sessionGetMapperAndRecordStreamSessionClassOverloads() {
+        CustomerMapper baseMapper = new CustomerMapper();
+        RecordMapper<Customer> capturingMapper = new RecordMapper<Customer>() {
+            @Override
+            public Customer fromMap(Map<String, Object> map, Key recordKey, int generation) {
+                throw new AssertionError("expected 4-arg fromMap with RecordReadContext");
+            }
+
+            @Override
+            public Customer fromMap(
+                    Map<String, Object> map, Key recordKey, int generation, RecordReadContext<Customer> ctx) {
+                assertEquals(session, ctx.getSession());
+                assertEquals(Customer.class, ctx.getEntityClass());
+                return baseMapper.fromMap(map, recordKey, generation);
+            }
+
+            @Override
+            public Map<String, Object> toMap(Customer element) {
+                return baseMapper.toMap(element);
+            }
+
+            @Override
+            public Object id(Customer element) {
+                return baseMapper.id(element);
+            }
+        };
+
+        RecordMappingFactory prior = cluster.getRecordMappingFactory();
+        cluster.setRecordMappingFactory(DefaultRecordMappingFactory.of(Customer.class, capturingMapper));
+        try {
+            assertEquals(capturingMapper, session.getMapper(Customer.class));
+
+            int key = 91006;
+            Key nativeKey = args.set.id(key);
+            session.delete(nativeKey).execute();
+            TypedDataSet<Customer> ds =
+                new TypedDataSet<>(args.namespace, args.set.getSet(), Customer.class);
+            session.insert(ds).object(new Customer(key, "ctx-session-class", 32, new Date(),
+                new Address("4 Ctx St", "Boulder", "CO", "USA", "80302"))).execute();
+
+            Optional<Customer> first = session.query(nativeKey).execute().getFirst(session, Customer.class);
+            assertEquals("ctx-session-class", first.orElseThrow().getName());
+
+            List<Customer> list = session.query(nativeKey).execute().toObjectList(session, Customer.class);
+            assertEquals(1, list.size());
+            assertEquals("ctx-session-class", list.get(0).getName());
+
+            Optional<Customer> byKey = session.query(nativeKey).execute()
+                .get(nativeKey, session, Customer.class);
+            assertEquals("ctx-session-class", byKey.orElseThrow().getName());
+        } finally {
+            cluster.setRecordMappingFactory(prior);
+        }
+    }
+
+    @Test
+    public void sessionGetMapperThrowsWhenFactoryMissing() {
+        RecordMappingFactory prior = cluster.getRecordMappingFactory();
+        cluster.setRecordMappingFactory(null);
+        try {
+            IllegalStateException ex = assertThrows(IllegalStateException.class,
+                () -> session.getMapper(Customer.class));
+            assertTrue(ex.getMessage().contains("No RecordMappingFactory"));
+        } finally {
+            cluster.setRecordMappingFactory(prior);
+        }
+    }
+
+    @Test
     public void typedDatasetQueryWithNoBinsExecuteAsync() {
         installCustomerMapper();
         int key = 91025;

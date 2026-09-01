@@ -42,4 +42,10 @@ public class MappingSupportTest {
         assertThrows(IllegalStateException.class,
             () -> MappingSupport.requireMapper(f, String.class));
     }
+
+    @Test
+    public void requireMapper_nullClass_throws() {
+        assertThrows(NullPointerException.class,
+            () -> MappingSupport.requireMapper(null, null));
+    }
 }

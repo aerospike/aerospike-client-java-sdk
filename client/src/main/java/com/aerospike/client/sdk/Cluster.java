@@ -132,10 +132,14 @@ public class Cluster implements Closeable {
      * convert between Aerospike records and Java objects. This enables automatic
      * object serialization/deserialization when working with typed datasets.</p>
      *
-     * @param factory the record mapping factory to use
+     * <p>Pass {@code null} to clear a previously installed factory. {@link Session#getMapper(Class)}
+     * and typed mapping APIs treat a missing factory as an error.</p>
+     *
+     * @param factory the record mapping factory to use, or {@code null} to clear it
      * @return this Cluster for method chaining
      * @see RecordMappingFactory
      * @see DefaultRecordMappingFactory
+     * @see Session#getMapper(Class)
      */
     public Cluster setRecordMappingFactory(RecordMappingFactory factory) {
         this.recordMappingFactory = factory;
@@ -182,8 +186,13 @@ public class Cluster implements Closeable {
     /**
      * Gets the current record mapping factory.
      *
-     * @return the current record mapping factory, or null if none is set
+     * <p>May be {@code null} if {@link #setRecordMappingFactory(RecordMappingFactory)} has not been
+     * called, or was called with {@code null}. {@link Session#getMapper(Class)} treats a missing
+     * factory as an error.</p>
+     *
+     * @return the current record mapping factory, or {@code null} if none is set
      * @see RecordMappingFactory
+     * @see Session#getMapper(Class)
      */
     public RecordMappingFactory getRecordMappingFactory() {
         return recordMappingFactory;
