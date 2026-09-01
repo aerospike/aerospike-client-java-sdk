@@ -24,8 +24,9 @@ import java.util.Arrays;
  *
  * <p>Wire shape: {@code [flag-byte 0][flag-byte 1]…[flag-byte N][AEL source UTF-8…]}.
  * Each flag byte uses varInt-style continuation: bit {@code 0} = more flag bytes follow;
- * bits {@code 1–7} = semantic flags OR'd across bytes. When all semantic flags fit in one
- * byte, bit {@code 0} is clear (v1-compatible single-byte prefix).</p>
+ * bits {@code 1–7} carry flag positions {@code [1 + 7i .. 7 + 7i]} for the {@code i}-th
+ * byte. When all semantic flags fit in one byte, bit {@code 0} is clear and the byte
+ * decodes to itself (v1-compatible single-byte prefix).</p>
  *
  * <p>Flags match server {@code AS_QUERY_WHERE_FLAG_*} in {@code query_where.h}.</p>
  *
@@ -62,8 +63,24 @@ public final class QueryWhereWire {
     /** Semantic flag bits carried in bits 1–7 of each prefix byte. */
     private static final int FLAG_SEMANTIC_MASK = 0xFE;
 
-    /** Maximum varInt-style flag prefix length (guards malformed payloads). */
-    private static final int MAX_FLAG_PREFIX_LEN = 4;
+    /** Payload bits per prefix byte (bits 1–7; bit 0 is the continuation bit). */
+    private static final int FLAG_PAYLOAD_BITS = 7;
+
+    private static final int FLAG_PAYLOAD_MASK = 0x7F;
+
+    /**
+     * Maximum varInt-style flag prefix length (guards malformed payloads). Matches
+     * server {@code AS_QUERY_WHERE_FLAGS_MAX_BYTES}: 9 bytes × 7 payload bits fills
+     * flag positions 1–63, which is all a {@code uint64_t} decoded value can hold.
+     */
+    private static final int MAX_FLAG_PREFIX_LEN = 9;
+
+    /**
+     * Highest flag position this client can represent, since {@link #flags} is an
+     * {@code int}. A prefix setting a position above this decodes to a value that
+     * cannot round-trip, so it is rejected rather than silently truncated.
+     */
+    private static final int MAX_FLAG_POSITION = 31;
 
     private QueryWhereWire() {
     }
@@ -111,10 +128,11 @@ public final class QueryWhereWire {
     public static byte[] encode(int flags, String ael) {
         requireAel(ael);
         validateFlags(flags);
+        byte[] prefix = encodeFlagPrefix(flags);
         byte[] aelBytes = ael.getBytes(StandardCharsets.UTF_8);
-        byte[] payload = new byte[1 + aelBytes.length];
-        payload[0] = (byte) (flags & FLAG_SEMANTIC_MASK);
-        System.arraycopy(aelBytes, 0, payload, 1, aelBytes.length);
+        byte[] payload = new byte[prefix.length + aelBytes.length];
+        System.arraycopy(prefix, 0, payload, 0, prefix.length);
+        System.arraycopy(aelBytes, 0, payload, prefix.length, aelBytes.length);
         return payload;
     }
 
@@ -176,6 +194,12 @@ public final class QueryWhereWire {
 
     /**
      * Decodes a varInt-style flag prefix and returns semantic flags plus the AEL byte offset.
+     *
+     * <p>Mirrors server {@code where_parse_flags} in {@code query_where.c}: the {@code i}-th
+     * prefix byte carries flag positions {@code [1 + 7i .. 7 + 7i]} in its bits 1–7, so each
+     * byte's payload is shifted into place rather than OR'd flat. The two agree by
+     * construction on a single-byte prefix, which is the only shape the current flag set
+     * needs.</p>
      */
     private static FlagPrefix decodeFlagPrefix(byte[] payload) {
         if (payload.length == 0) {
@@ -183,7 +207,7 @@ public final class QueryWhereWire {
         }
 
         int offset = 0;
-        int decoded = 0;
+        long decoded = 0;
 
         while (true) {
             if (offset >= payload.length) {
@@ -193,23 +217,53 @@ public final class QueryWhereWire {
                 throw new IllegalArgumentException("WHERE flag prefix too long");
             }
 
-            int b = payload[offset++] & 0xFF;
-            decoded |= b & FLAG_SEMANTIC_MASK;
+            int b = payload[offset] & 0xFF;
+            long flagPayload = (b & FLAG_SEMANTIC_MASK) >>> 1;
+
+            decoded |= flagPayload << (1 + FLAG_PAYLOAD_BITS * offset);
+            offset++;
+
             if ((b & FLAG_ENC_VARINT) == 0) {
                 break;
             }
         }
 
-        return new FlagPrefix(decoded, offset);
+        if ((decoded >>> (MAX_FLAG_POSITION + 1)) != 0) {
+            throw new IllegalArgumentException(
+                "WHERE flags 0x" + Long.toHexString(decoded) + " exceed flag position "
+                    + MAX_FLAG_POSITION);
+        }
+
+        return new FlagPrefix((int) decoded, offset);
     }
 
     /**
-     * Encodes semantic flags into a varInt-style prefix.
+     * Encodes semantic flags into a varInt-style prefix — the exact inverse of
+     * {@link #decodeFlagPrefix}.
      *
-     * <p>Current Tier-D flags always fit in one byte with continuation clear.</p>
+     * <p>Current flags all sit in positions 1–3, so this emits a single byte with the
+     * continuation bit clear, matching the v1 encoding.</p>
      */
     private static byte[] encodeFlagPrefix(int semantic) {
-        return new byte[] { (byte) (semantic & FLAG_SEMANTIC_MASK) };
+        byte[] prefix = new byte[flagPrefixLength(semantic)];
+
+        for (int i = 0; i < prefix.length; i++) {
+            int flagPayload = (semantic >>> (1 + FLAG_PAYLOAD_BITS * i)) & FLAG_PAYLOAD_MASK;
+            int cont = (i + 1 < prefix.length) ? FLAG_ENC_VARINT : 0;
+            prefix[i] = (byte) ((flagPayload << 1) | cont);
+        }
+
+        return prefix;
+    }
+
+    /**
+     * Number of prefix bytes needed to carry {@code semantic}: the byte holding its
+     * highest set flag position, since position {@code p} lives in byte {@code (p - 1) / 7}.
+     */
+    private static int flagPrefixLength(int semantic) {
+        int highestPosition = MAX_FLAG_POSITION - Integer.numberOfLeadingZeros(semantic);
+
+        return (highestPosition < 1) ? 1 : ((highestPosition - 1) / FLAG_PAYLOAD_BITS) + 1;
     }
 
     private record FlagPrefix(int flags, int aelOffset) {
