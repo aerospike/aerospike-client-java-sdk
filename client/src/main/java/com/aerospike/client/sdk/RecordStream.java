@@ -370,6 +370,26 @@ public class RecordStream implements Iterator<RecordResult>, Closeable {
     }
 
     /**
+     * Like {@link #asCompletableFuture(RecordMapper)} but passes {@link RecordReadContext} into
+     * {@link RecordMapper#fromMap(java.util.Map, Key, int, RecordReadContext)} so factory-backed
+     * mappers (for example the Java object mapper) can use the session.
+     *
+     * @param <T> the target type
+     * @param mapper the mapper to convert each record
+     * @param ctx session and entity type for factory-backed mapping
+     * @return a CompletableFuture that completes with the mapped results
+     */
+    public <T> CompletableFuture<List<T>> asCompletableFuture(RecordMapper<T> mapper, RecordReadContext<T> ctx) {
+        return asCompletableFuture().thenApply(list -> {
+            List<T> results = new ArrayList<>(list.size());
+            for (RecordResult rr : list) {
+                results.add(mapBins(mapper, rr, ctx));
+            }
+            return results;
+        });
+    }
+
+    /**
      * Drains a stream expected to hold zero or one successful result, maps it with {@code mapper},
      * and completes the returned {@link CompletableFuture} with an {@link Optional}.
      *
@@ -391,6 +411,20 @@ public class RecordStream implements Iterator<RecordResult>, Closeable {
      */
     public <T> CompletableFuture<Optional<T>> asCompletableFutureSingle(RecordMapper<T> mapper) {
         return asCompletableFuture(mapper).thenApply(AsyncExecutionSupport::singleMappedAsOptional);
+    }
+
+    /**
+     * Like {@link #asCompletableFutureSingle(RecordMapper)} but passes {@link RecordReadContext}
+     * into {@link RecordMapper#fromMap(java.util.Map, Key, int, RecordReadContext)}.
+     *
+     * @param <T> the target type
+     * @param mapper the mapper to convert the record
+     * @param ctx session and entity type for factory-backed mapping
+     * @return future completing with an optional mapped result
+     */
+    public <T> CompletableFuture<Optional<T>> asCompletableFutureSingle(
+            RecordMapper<T> mapper, RecordReadContext<T> ctx) {
+        return asCompletableFuture(mapper, ctx).thenApply(AsyncExecutionSupport::singleMappedAsOptional);
     }
 
     // ========================================
@@ -621,6 +655,29 @@ public class RecordStream implements Iterator<RecordResult>, Closeable {
     }
 
     /**
+     * Like {@link #toObjectList(RecordMapper)} but passes {@link RecordReadContext} into
+     * {@link RecordMapper#fromMap(java.util.Map, Key, int, RecordReadContext)} so factory-backed
+     * mappers can use the session (for example the Java object mapper).
+     *
+     * @param <T> the target type
+     * @param mapper the mapper to convert each record to the target type
+     * @param ctx session and entity type for factory-backed mapping
+     * @return a list of mapped objects
+     * @throws AerospikeException if any element has a non-OK result code
+     */
+    public <T> List<T> toObjectList(RecordMapper<T> mapper, RecordReadContext<T> ctx) {
+        try {
+            List<T> result = new ArrayList<>();
+            while (hasNext()) {
+                result.add(mapBins(mapper, next(), ctx));
+            }
+            return result;
+        } finally {
+            close();
+        }
+    }
+
+    /**
      * Converts this RecordStream into a NavigatableRecordStream for in-memory sorting and pagination.
      *
      * <p>This is a <b>terminal operation</b> that reads all records from the current stream
@@ -730,6 +787,26 @@ public class RecordStream implements Iterator<RecordResult>, Closeable {
     }
 
     /**
+     * Like {@link #forEach(RecordMapper, Consumer)} but passes {@link RecordReadContext} into
+     * {@link RecordMapper#fromMap(java.util.Map, Key, int, RecordReadContext)}.
+     *
+     * @param <T> the target type
+     * @param mapper the mapper to convert each record to the target type
+     * @param ctx session and entity type for factory-backed mapping
+     * @param consumer the action to be performed for each mapped element
+     * @throws AerospikeException if any element has a non-OK result code
+     */
+    public <T> void forEach(RecordMapper<T> mapper, RecordReadContext<T> ctx, Consumer<T> consumer) {
+        try {
+            while (hasNext()) {
+                consumer.accept(mapBins(mapper, next(), ctx));
+            }
+        } finally {
+            close();
+        }
+    }
+
+    /**
      * Searches the stream for a record with the specified key and returns it if found.
      *
      * <p>This is a <b>terminal operation</b> that closes the stream after the search completes
@@ -775,6 +852,31 @@ public class RecordStream implements Iterator<RecordResult>, Closeable {
                 if (thisRecord.getKey().equals(key)) {
                     Record rec = thisRecord.recordOrThrow();
                     return Optional.of(mapper.fromMap(rec.bins, thisRecord.getKey(), rec.generation));
+                }
+            }
+            return Optional.empty();
+        } finally {
+            close();
+        }
+    }
+
+    /**
+     * Like {@link #get(Key, RecordMapper)} but passes {@link RecordReadContext} into
+     * {@link RecordMapper#fromMap(java.util.Map, Key, int, RecordReadContext)}.
+     *
+     * @param <T> the type of the object to be returned
+     * @param key the key of the record
+     * @param mapper the mapper to use to convert the record to the class
+     * @param ctx session and entity type for factory-backed mapping
+     * @return an Optional containing the mapped data, or empty if the key was not found
+     * @throws AerospikeException if the result code is not OK
+     */
+    public <T> Optional<T> get(Key key, RecordMapper<T> mapper, RecordReadContext<T> ctx) {
+        try {
+            while (hasNext()) {
+                RecordResult thisRecord = next();
+                if (thisRecord.getKey().equals(key)) {
+                    return Optional.of(mapBins(mapper, thisRecord, ctx));
                 }
             }
             return Optional.empty();
@@ -841,6 +943,23 @@ public class RecordStream implements Iterator<RecordResult>, Closeable {
             RecordResult item = next();
             Record rec = item.recordOrThrow();
             return Optional.of(mapper.fromMap(rec.bins, item.getKey(), rec.generation));
+        }
+        return Optional.empty();
+    }
+
+    /**
+     * Like {@link #pop(RecordMapper)} but passes {@link RecordReadContext} into
+     * {@link RecordMapper#fromMap(java.util.Map, Key, int, RecordReadContext)}.
+     *
+     * @param <T> the target type
+     * @param mapper the mapper to convert the record to the target type
+     * @param ctx session and entity type for factory-backed mapping
+     * @return an Optional containing the mapped object, or empty if the stream is exhausted
+     * @throws AerospikeException if the element has a non-OK result code
+     */
+    public <T> Optional<T> pop(RecordMapper<T> mapper, RecordReadContext<T> ctx) {
+        if (hasNext()) {
+            return Optional.of(mapBins(mapper, next(), ctx));
         }
         return Optional.empty();
     }
@@ -915,6 +1034,24 @@ public class RecordStream implements Iterator<RecordResult>, Closeable {
     }
 
     /**
+     * Like {@link #popUdfResultObject(RecordMapper)} but passes {@link RecordReadContext} into
+     * {@link RecordMapper#fromMap(java.util.Map, Key, int, RecordReadContext)}.
+     *
+     * @param <T> the target type
+     * @param mapper the mapper to convert the UDF result map to the target type
+     * @param ctx session and entity type for factory-backed mapping
+     * @return an Optional containing the mapped UDF result, or empty if the stream is exhausted
+     *         or the UDF returned null
+     * @throws AerospikeException with ResultCode = OP_NOT_APPLICABLE if the UDF return value is not a map
+     */
+    public <T> Optional<T> popUdfResultObject(RecordMapper<T> mapper, RecordReadContext<T> ctx) {
+        if (hasNext()) {
+            return next().udfResultAsObject(mapper, ctx);
+        }
+        return Optional.empty();
+    }
+
+    /**
      * Removes and returns the next element from the stream, mapped to an object along with
      * its record metadata (generation and expiration).
      *
@@ -932,6 +1069,27 @@ public class RecordStream implements Iterator<RecordResult>, Closeable {
             RecordResult item = next();
             Record rec = item.recordOrThrow();
             T object = mapper.fromMap(rec.bins, item.getKey(), rec.generation);
+            return Optional.of(new ObjectWithMetadata<>(object, rec));
+        }
+        return Optional.empty();
+    }
+
+    /**
+     * Like {@link #popWithMetadata(RecordMapper)} but passes {@link RecordReadContext} into
+     * {@link RecordMapper#fromMap(java.util.Map, Key, int, RecordReadContext)}.
+     *
+     * @param <T> the type of the object to be returned
+     * @param mapper the mapper to convert the record to the target type
+     * @param ctx session and entity type for factory-backed mapping
+     * @return an Optional containing an ObjectWithMetadata, or empty if the stream is exhausted
+     * @throws AerospikeException if the element has a non-OK result code
+     */
+    public <T> Optional<ObjectWithMetadata<T>> popWithMetadata(
+            RecordMapper<T> mapper, RecordReadContext<T> ctx) {
+        if (hasNext()) {
+            RecordResult item = next();
+            Record rec = item.recordOrThrow();
+            T object = mapper.fromMap(rec.bins, item.getKey(), rec.generation, ctx);
             return Optional.of(new ObjectWithMetadata<>(object, rec));
         }
         return Optional.empty();
@@ -991,6 +1149,29 @@ public class RecordStream implements Iterator<RecordResult>, Closeable {
     public <T> Optional<T> getFirst(RecordMapper<T> mapper) {
         try {
             return pop(mapper);
+        } finally {
+            close();
+        }
+    }
+
+    /**
+     * Like {@link #getFirst(RecordMapper)} but passes {@link RecordReadContext} into
+     * {@link RecordMapper#fromMap(java.util.Map, Key, int, RecordReadContext)} so factory-backed
+     * mappers (for example the Java object mapper) can use the session even when the stream
+     * is untyped.
+     *
+     * <p>This is a <b>terminal operation</b> that closes the stream after retrieving the
+     * first element. For a non-closing variant, use {@link #pop(RecordMapper, RecordReadContext)}.</p>
+     *
+     * @param <T> the target type
+     * @param mapper the mapper to convert the record to the target type
+     * @param ctx session and entity type for factory-backed mapping
+     * @return an Optional containing the mapped object, or empty if the stream is empty
+     * @throws AerospikeException if the element has a non-OK result code
+     */
+    public <T> Optional<T> getFirst(RecordMapper<T> mapper, RecordReadContext<T> ctx) {
+        try {
+            return pop(mapper, ctx);
         } finally {
             close();
         }
@@ -1073,6 +1254,25 @@ public class RecordStream implements Iterator<RecordResult>, Closeable {
     }
 
     /**
+     * Like {@link #getFirstUdfResultObject(RecordMapper)} but passes {@link RecordReadContext}
+     * into {@link RecordMapper#fromMap(java.util.Map, Key, int, RecordReadContext)}.
+     *
+     * @param <T> the target type
+     * @param mapper the mapper to convert the UDF result map to the target type
+     * @param ctx session and entity type for factory-backed mapping
+     * @return an Optional containing the mapped UDF result, or empty if the stream is empty
+     *         or the UDF returned null
+     * @throws AerospikeException with ResultCode = OP_NOT_APPLICABLE if the UDF return value is not a map
+     */
+    public <T> Optional<T> getFirstUdfResultObject(RecordMapper<T> mapper, RecordReadContext<T> ctx) {
+        try {
+            return popUdfResultObject(mapper, ctx);
+        } finally {
+            close();
+        }
+    }
+
+    /**
      * Domain object plus Aerospike record metadata from {@link #popWithMetadata(RecordMapper)}
      * and {@link #getFirstWithMetadata(RecordMapper)}.
      *
@@ -1135,6 +1335,31 @@ public class RecordStream implements Iterator<RecordResult>, Closeable {
         } finally {
             close();
         }
+    }
+
+    /**
+     * Like {@link #getFirstWithMetadata(RecordMapper)} but passes {@link RecordReadContext} into
+     * {@link RecordMapper#fromMap(java.util.Map, Key, int, RecordReadContext)}.
+     *
+     * @param <T> the type of the object to be returned
+     * @param mapper the mapper to use to convert the record to the class
+     * @param ctx session and entity type for factory-backed mapping
+     * @return an Optional containing an ObjectWithMetadata with the mapped object and its metadata,
+     *         or empty if the stream is empty
+     * @throws AerospikeException if the result code is not OK
+     */
+    public <T> Optional<ObjectWithMetadata<T>> getFirstWithMetadata(
+            RecordMapper<T> mapper, RecordReadContext<T> ctx) {
+        try {
+            return popWithMetadata(mapper, ctx);
+        } finally {
+            close();
+        }
+    }
+
+    private static <T> T mapBins(RecordMapper<T> mapper, RecordResult rr, RecordReadContext<T> ctx) {
+        Record rec = rr.recordOrThrow();
+        return mapper.fromMap(rec.bins, rr.getKey(), rec.generation, ctx);
     }
 
 

@@ -250,6 +250,63 @@ public class TypedQueryMappingTest extends ClusterTest {
     }
 
     @Test
+    public void untypedRecordStreamMapperOverloadsPassRecordReadContext() {
+        CustomerMapper baseMapper = new CustomerMapper();
+        RecordMapper<Customer> capturingMapper = new RecordMapper<Customer>() {
+            @Override
+            public Customer fromMap(Map<String, Object> map, Key recordKey, int generation) {
+                throw new AssertionError("expected 4-arg fromMap with RecordReadContext");
+            }
+
+            @Override
+            public Customer fromMap(
+                    Map<String, Object> map, Key recordKey, int generation, RecordReadContext<Customer> ctx) {
+                assertNotNull(ctx.getSession());
+                assertEquals(Customer.class, ctx.getEntityClass());
+                assertEquals(session, ctx.getSession());
+                return baseMapper.fromMap(map, recordKey, generation);
+            }
+
+            @Override
+            public Map<String, Object> toMap(Customer element) {
+                return baseMapper.toMap(element);
+            }
+
+            @Override
+            public Object id(Customer element) {
+                return baseMapper.id(element);
+            }
+        };
+
+        int key = 91005;
+        Key nativeKey = args.set.id(key);
+        session.delete(nativeKey).execute();
+
+        TypedDataSet<Customer> ds =
+            new TypedDataSet<>(args.namespace, args.set.getSet(), Customer.class);
+        Customer customer = new Customer(key, "ctx-untyped", 31, new Date(),
+            new Address("3 Ctx St", "Boulder", "CO", "USA", "80302"));
+        session.insert(ds).object(customer).execute();
+
+        RecordReadContext<Customer> ctx = new RecordReadContext<>(session, Customer.class);
+
+        Optional<Customer> first = session.query(nativeKey).execute().getFirst(capturingMapper, ctx);
+        assertEquals("ctx-untyped", first.orElseThrow().getName());
+
+        List<Customer> list = session.query(nativeKey).execute().toObjectList(capturingMapper, ctx);
+        assertEquals(1, list.size());
+        assertEquals("ctx-untyped", list.get(0).getName());
+
+        Optional<Customer> byKey = session.query(nativeKey).execute().get(nativeKey, capturingMapper, ctx);
+        assertEquals("ctx-untyped", byKey.orElseThrow().getName());
+
+        Optional<RecordStream.ObjectWithMetadata<Customer>> meta =
+            session.query(nativeKey).execute().getFirstWithMetadata(capturingMapper, ctx);
+        assertEquals("ctx-untyped", meta.orElseThrow().get().getName());
+        assertTrue(meta.get().getGeneration() > 0);
+    }
+
+    @Test
     public void typedDatasetQueryWithNoBinsExecuteAsync() {
         installCustomerMapper();
         int key = 91025;
