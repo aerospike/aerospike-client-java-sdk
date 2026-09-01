@@ -616,6 +616,86 @@ public class OperateStringTest extends ClusterTest {
             }
         }
 
+        /**
+         * Scopes a server defect: {@code isUpper} / {@code isLower} do not observe the
+         * result of a preceding {@code upper} / {@code lower}, though other reads on the
+         * same operand do.
+         *
+         * <p>Not front-end specific — {@code AelStringTest.isUpperAndIsLowerObserveChainedCaseOp}
+         * reproduces it through AEL source text, so it sits in the shared string-op
+         * evaluation below both the AEL compiler and these Exp builders. The two controls
+         * here are what narrow it: the classifiers are correct on an uncomputed operand,
+         * and other reads are correct on a computed one.
+         */
+        @Nested
+        @DisplayName("StringExp case classification after a case op")
+        class ChainedCaseOps {
+            Key key;
+
+            @BeforeEach
+            void seedChainedCaseRecord() {
+                key = freshKey("stringExpChainedCase");
+                seed(key, b -> b.bin(STRING_BIN).setTo("Hello World"));
+            }
+
+            /** Control: the classifiers themselves are sound on an uncomputed operand. */
+            @Test
+            @DisplayName("isUpper / isLower are correct on an uncomputed operand")
+            public void classifiersCorrectOnUncomputedOperand() {
+                Exp s = Exp.stringBin(STRING_BIN);
+                assertAll("classifiers on uncomputed operands",
+                    () -> assertProjection(session, key,
+                        "StringExp.isUpper(val HELLO)",
+                        StringExp.isUpper(Exp.val("HELLO")),
+                        rec -> assertTrue(rec.getBoolean("r"), "literal is all upper")),
+                    () -> assertProjection(session, key,
+                        "StringExp.isLower(val hello)",
+                        StringExp.isLower(Exp.val("hello")),
+                        rec -> assertTrue(rec.getBoolean("r"), "literal is all lower")),
+                    () -> assertProjection(session, key,
+                        "StringExp.isUpper(stringBin s)",
+                        StringExp.isUpper(s),
+                        rec -> assertFalse(rec.getBoolean("r"), "mixed-case bin is not all upper")));
+            }
+
+            /** Control: other reads do observe the case op's result. */
+            @Test
+            @DisplayName("upper / contains observe the case op result")
+            public void otherReadsObserveCaseOp() {
+                Exp s = Exp.stringBin(STRING_BIN);
+                int flags = StringWriteFlags.DEFAULT;
+                assertAll("other reads on a computed operand",
+                    () -> assertProjection(session, key,
+                        "StringExp.upper(flags, stringBin s)",
+                        StringExp.upper(flags, s),
+                        rec -> assertEquals("HELLO WORLD", rec.getString("r"),
+                            "upper produces the uppercased value")),
+                    // "Hello World" does not contain "HELLO", so a true here can only come
+                    // from contains seeing the uppercased value.
+                    () -> assertProjection(session, key,
+                        "StringExp.contains(HELLO, upper(flags, stringBin s))",
+                        StringExp.contains(Exp.val("HELLO"), StringExp.upper(flags, s)),
+                        rec -> assertTrue(rec.getBoolean("r"), "contains sees the case op result")));
+            }
+
+            @Disabled("server: isUpper/isLower ignore a chained case op; reproduces via AEL too")
+            @Test
+            @DisplayName("isUpper / isLower observe the case op result")
+            public void classifiersObserveCaseOp() {
+                Exp s = Exp.stringBin(STRING_BIN);
+                int flags = StringWriteFlags.DEFAULT;
+                assertAll("classifiers on a computed operand",
+                    () -> assertProjection(session, key,
+                        "StringExp.isUpper(upper(flags, stringBin s))",
+                        StringExp.isUpper(StringExp.upper(flags, s)),
+                        rec -> assertTrue(rec.getBoolean("r"), "uppercased value is all upper")),
+                    () -> assertProjection(session, key,
+                        "StringExp.isLower(lower(flags, stringBin s))",
+                        StringExp.isLower(StringExp.lower(flags, s)),
+                        rec -> assertTrue(rec.getBoolean("r"), "lowercased value is all lower")));
+            }
+        }
+
         @Nested
         @DisplayName("StringExp trim")
         class Trim {

@@ -25,6 +25,8 @@ import org.junit.jupiter.api.extension.ExecutionCondition;
 import org.junit.jupiter.api.extension.ExtensionContext;
 import org.junit.platform.commons.support.AnnotationSupport;
 
+import com.aerospike.client.sdk.ClusterTest;
+
 public final class RequiresServerFeatureExtension implements ExecutionCondition {
 
     @Override
@@ -34,12 +36,33 @@ public final class RequiresServerFeatureExtension implements ExecutionCondition 
             return ConditionEvaluationResult.enabled("no @RequiresServerFeature");
         }
 
+        ensureClusterConnected();
+
         for (ServerFeature feature : required) {
             if (!feature.isSupported()) {
                 return ConditionEvaluationResult.disabled(feature.skipMessage());
             }
         }
         return ConditionEvaluationResult.enabled("cluster supports " + required);
+    }
+
+    /**
+     * Connects the cluster if nothing has yet.
+     *
+     * <p>A class-level condition is evaluated before that class's {@code @BeforeAll}, so on a
+     * standalone run ({@code -Dtest=SomeTest}) {@link ClusterTest#cluster} is still null and
+     * every feature would read as unsupported — silently disabling the whole class with a
+     * message claiming the server lacks the feature. Only {@code SuiteCluster} connects early
+     * enough to avoid that, so without this the annotated classes never ran outside the suite.
+     *
+     * <p>{@link ClusterTest#initCluster()} is idempotent, so this is a no-op once the suite or
+     * an earlier class has connected. A connection failure propagates rather than being
+     * reported as an unsupported feature.
+     */
+    private static void ensureClusterConnected() {
+        if (ClusterTest.cluster == null) {
+            ClusterTest.initCluster();
+        }
     }
 
     private static List<ServerFeature> requiredFeatures(ExtensionContext context) {

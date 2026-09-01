@@ -192,8 +192,21 @@ public class AelStringTest extends ClusterTest {
         assertTrue(selectBoolean("$.upper:STRING.isUpper()"));
         assertTrue(selectBoolean("$.lower:STRING.isLower()"));
     }
-    
-    @Disabled("server: isUpper/isLower ignore a chained case op; contains/strlen on the same receiver do not")
+
+    /**
+     * Server bug: {@code isUpper} / {@code isLower} do not observe the result of a
+     * preceding case op, though every other read op does.
+     *
+     * <p>{@code $.s:STRING.upper()} yields {@code "HELLO WORLD"} and
+     * {@code $.s:STRING.upper().contains(needle: 'HELLO')} is {@code true} — so the chained
+     * receiver is the modified value. But {@code .upper().isUpper()} returns {@code false},
+     * and symmetrically for {@code .lower().isLower()}. Enable once the server agrees.
+     *
+     * <p>Not an AEL-layer bug: {@code OperateStringTest.ChainedCaseOps} reproduces it
+     * through the msgpack {@code StringExp} builders, so the fault is in the shared
+     * string-op evaluation rather than in this front-end.
+     */
+    @Disabled("server: isUpper/isLower ignore a chained case op; reproduces via StringExp too")
     @Test
     public void isUpperAndIsLowerObserveChainedCaseOp() {
         assertTrue(selectBoolean("$.s:STRING.upper().isUpper()"));
