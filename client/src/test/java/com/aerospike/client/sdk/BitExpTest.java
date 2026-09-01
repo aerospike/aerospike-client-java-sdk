@@ -17,10 +17,14 @@
 package com.aerospike.client.sdk;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.Base64;
+
+import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 
 import com.aerospike.client.sdk.exp.BitExp;
@@ -636,5 +640,40 @@ public class BitExpTest extends ClusterTest {
         assertTrue(rs.hasNext());
         Record r = rs.next().recordOrThrow();
         assertNotNull(r);
+    }
+
+    @Test
+    public void b64EncodeRead() {
+        Assumptions.assumeTrue(args.serverVersion.isGreaterOrEqual(8, 1, 3, 0),
+            "bit b64Encode requires server version 8.1.3 or later");
+
+        Key key = args.set.id("b64EncodeRead");
+
+        session.delete(key).execute();
+
+        byte[] blob = new byte[] {0x01, 0x42, 0x03, 0x04, 0x05};
+
+        session.upsert(key)
+            .bin(binA).setTo(blob)
+            .execute();
+
+        Exp wholeExp = BitExp.b64Encode(Exp.blobBin(binA));
+        Exp spanExp = BitExp.b64Encode(Exp.val(1), Exp.val(2), Exp.blobBin(binA));
+        Exp invertedExp = BitExp.b64Encode(Exp.val(1), Exp.val(0), true, Exp.blobBin(binA));
+        Exp negoffExp = BitExp.b64Encode(Exp.val(-2), Exp.val(2), Exp.blobBin(binA));
+
+        Record rec = session.query(key)
+            .bin("whole").selectFrom(wholeExp)
+            .bin("span").selectFrom(spanExp)
+            .bin("inverted").selectFrom(invertedExp)
+            .bin("negoff").selectFrom(negoffExp)
+            .execute()
+            .getFirstRecord();
+
+        Base64.Encoder enc = Base64.getEncoder();
+        assertEquals(enc.encodeToString(blob), rec.getString("whole"));
+        assertEquals(enc.encodeToString(new byte[] {0x42, 0x03}), rec.getString("span"));
+        assertEquals(enc.encodeToString(new byte[] {0x42, 0x03, 0x04, 0x05}), rec.getString("inverted"));
+        assertEquals(enc.encodeToString(new byte[] {0x04, 0x05}), rec.getString("negoff"));
     }
 }

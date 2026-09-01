@@ -19,18 +19,45 @@ package com.aerospike.client.sdk;
 import org.junit.platform.suite.api.SelectClasses;
 import org.junit.platform.suite.api.Suite;
 
+import com.aerospike.client.sdk.command.IndexProbeCommandTest;
 import com.aerospike.client.sdk.policy.AsyncRecordStreamTest;
+import com.aerospike.client.sdk.policy.BehaviorFileMonitorRestartTest;
 import com.aerospike.client.sdk.policy.BehaviorTest;
 import com.aerospike.client.sdk.policy.BehaviorYamlTest;
 import com.aerospike.client.sdk.policy.QueryProducerCancellationTest;
 import com.aerospike.client.sdk.policy.SystemBehaviorTest;
+import com.aerospike.client.sdk.query.AelPlaceholderBinderTest;
+import com.aerospike.client.sdk.query.FilterOverrideTest;
+import com.aerospike.client.sdk.query.FilterWireRangeTest;
+import com.aerospike.client.sdk.query.IndexProbePlannerRoutingTest;
+import com.aerospike.client.sdk.query.QueryHintTest;
+import com.aerospike.client.sdk.query.SortPropertiesValidationTest;
+import com.aerospike.client.sdk.query.plan.IndexRangeWireTest;
+import com.aerospike.client.sdk.query.plan.QueryPlanTest;
+import com.aerospike.client.sdk.query.plan.QueryWhereWireTest;
 
 @Suite
 @SelectClasses({
+    AelPlaceholderBinderTest.class,
     AsyncRecordStreamTest.class,
+    BehaviorFileMonitorRestartTest.class,
     BehaviorTest.class,
     BehaviorYamlTest.class,
+    CdtPathExpressionFluentTest.class,
+    CdtPathOperationTest.class,
+    CtxSerdeTest.class,
+    FilterOverrideTest.class,
+    FilterWireRangeTest.class,
+    IndexProbeCommandTest.class,
+    IndexProbePlannerRoutingTest.class,
+    IndexRangeWireTest.class,
+    QueryHintTest.class,
+    QueryPlanExecuteWireTest.class,
+    QueryPlanTest.class,
     QueryProducerCancellationTest.class,
+    QueryWhereWireTest.class,
+    SortPropertiesValidationTest.class,
+    StringApiPackagingTest.class,
     SystemBehaviorTest.class,
 })
 public class SuiteCore {

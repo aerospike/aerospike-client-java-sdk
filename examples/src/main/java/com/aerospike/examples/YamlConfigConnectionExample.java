@@ -24,7 +24,6 @@ import com.aerospike.client.sdk.RecordStream;
 import com.aerospike.client.sdk.Session;
 import com.aerospike.client.sdk.policy.Behavior;
 import com.aerospike.client.sdk.policy.ResolvedSettings;
-import com.aerospike.client.sdk.util.Util;
 
 /**
  * Example demonstrating how to connect to an Aerospike cluster using a custom
@@ -71,12 +70,8 @@ public class YamlConfigConnectionExample extends Example {
 
     private static final String ENV_CONFIG_URL = "AEROSPIKE_CLIENT_CONFIG_URL";
 
-    public YamlConfigConnectionExample(Console console) {
-        super(console);
-    }
-
     @Override
-    public void runExample(Cluster clusterNotUsed, Args args) throws Exception {
+    public void runExample() throws Exception {
         // Check if the configuration environment variable is set
         String configPath = System.getenv(ENV_CONFIG_URL);
 
@@ -92,24 +87,24 @@ public class YamlConfigConnectionExample extends Example {
             console.write("The client will load behaviors and settings from this file.\n");
         }
 
-        console.write("Connection settings: " + args);
-        console.write("Connecting to Aerospike cluster at " + args.host + ":" + args.port);
-        if (args.useServicesAlternate) {
+        console.write("Connecting to Aerospike cluster at " + host() + ":" + port());
+        if (useServicesAlternate()) {
             console.write("Using alternate services for cluster discovery");
         }
 
         // Create cluster definition
         // When connect() is called, it automatically checks for AEROSPIKE_CLIENT_CONFIG_URL
         // and loads the configuration if the environment variable is set
-        ClusterDefinition clusterDef = new ClusterDefinition(args.host, args.port)
+        ClusterDefinition clusterDef = new ClusterDefinition(host(), port())
             .appId("yaml-config-example")
             .failIfNotConnected(true);
 
-        if (args.useServicesAlternate) {
+        if (useServicesAlternate()) {
             clusterDef.usingServicesAlternate();
         }
 
         try (Cluster cluster = clusterDef.connect()) {
+            ensurePartitionMapReady(cluster, namespace());
             console.write("Successfully connected to cluster!\n");
 
             // Show if behaviors were loaded from YAML
@@ -122,14 +117,11 @@ public class YamlConfigConnectionExample extends Example {
             console.write("Using behavior: " + behavior.name() + "\n");
 
             // Perform example operations
-            performExampleOperations(session, args);
+            performExampleOperations(session);
 
             // Demonstrate using different behaviors for different operations
             demonstrateBehaviorSwitching(cluster);
 
-        } catch (Throwable t) {
-            console.error("Error: " + Util.getErrorMessage(t));
-            t.printStackTrace();
         } finally {
             // Clean up monitoring if it was started
             if (Behavior.isMonitoring()) {
@@ -185,10 +177,10 @@ public class YamlConfigConnectionExample extends Example {
     /**
      * Perform example CRUD operations using the session
      */
-    private void performExampleOperations(Session session, Args args) {
+    private void performExampleOperations(Session session) throws Exception {
         console.write("=== Performing Example Operations ===");
 
-        DataSet dataSet = DataSet.of(args.namespace, "yaml-config-demo");
+        DataSet dataSet = dataSet("yaml-config-demo");
 
         try {
             // Write a record
@@ -223,13 +215,9 @@ public class YamlConfigConnectionExample extends Example {
             var existsResults = session.exists(dataSet.ids("user-001", "user-002", "user-999")).execute();
             console.write("  Exists results: " + existsResults);
 
-            // Clean up - delete test records
-            console.write("Cleaning up test records...");
-            session.delete(dataSet.ids("user-001", "user-002", "user-003", "user-004")).execute();
-            console.write("  Records deleted.");
-
         } catch (Exception e) {
             console.error("Operation failed: " + e.getMessage());
+            throw e;
         }
 
         console.write("");

@@ -68,7 +68,6 @@ AerospikeException (RuntimeException)
 ├── CapacityException                           SERVER_MEM_ERROR (8)
 │   │                                           DEVICE_OVERLOAD (18)
 │   │                                           NO_MORE_CONNECTIONS (-7)
-│   │                                           ASYNC_QUEUE_FULL (-9)
 │   │                                           BATCH_QUEUES_FULL (152)
 │   │                                           BATCH_MAX_REQUESTS_EXCEEDED (151)
 │   ├── KeyBusyException                        KEY_BUSY (14)
@@ -241,7 +240,6 @@ This returns the most specific subclass for the given code. For example, `result
 | -12 | `MAX_ERROR_RATE` | Max error rate exceeded | `Backoff` |
 | -11 | `MAX_RETRIES_EXCEEDED` | Max retries limit reached | `AerospikeException` |
 | -10 | `SERIALIZE_ERROR` | Client serialization error | `Serialize` |
-| -9 | `ASYNC_QUEUE_FULL` | Async delay queue is full | `CapacityException` |
 | -8 | `SERVER_NOT_AVAILABLE` | Connection to server failed | `Connection` |
 | -7 | `NO_MORE_CONNECTIONS` | No more available connections | `CapacityException` |
 | -5 | `QUERY_TERMINATED` | Query was terminated by user | `QueryTerminated` |

@@ -16,6 +16,8 @@
  */
 package com.aerospike.client.sdk.command;
 
+import com.aerospike.client.sdk.AerospikeException;
+import com.aerospike.client.sdk.ExpressionTrace;
 import com.aerospike.client.sdk.Key;
 import com.aerospike.client.sdk.Node;
 import com.aerospike.client.sdk.Record;
@@ -30,7 +32,10 @@ public class BatchRecord {
     public final Expression where;
     public Node node;
     public Record record;
+    public String message;
+    public ExpressionTrace expTrace;
     public int resultCode;
+    public int subCode;
     public byte readAttr;
     public byte writeAttr;
     public final byte infoAttr;
@@ -90,9 +95,50 @@ public class BatchRecord {
     /**
      * Set error result. For internal use only.
      */
-    public final void setError(int resultCode, boolean inDoubt) {
-        this.resultCode = resultCode;
+    public final void setError(AerospikeException ae, boolean inDoubt) {
+        this.resultCode = ae.getResultCode();
+        this.subCode = ae.getSubCode();
+        this.message = ae.getMessage();
+        this.expTrace = ae.getExpressionTrace();
         this.inDoubt = inDoubt;
+    }
+
+    /**
+     * Set error result. For internal use only.
+     */
+    public final void setError(RecordParser rp, boolean inDoubt) {
+        this.resultCode = rp.resultCode;
+        this.subCode = rp.subCode;
+        this.message = rp.message;
+        this.expTrace = rp.expTrace;
+        this.inDoubt = inDoubt;
+    }
+
+    /**
+     * Set error result. For internal use only.
+     */
+    public final void setErrorUDF(RecordParser rp, boolean inDoubt) {
+        this.resultCode = rp.resultCode;
+        this.subCode = rp.subCode;
+        this.expTrace = rp.expTrace;
+        this.inDoubt = inDoubt;
+
+        Record r = rp.parseRecord(false);
+        String m = r.getString("FAILURE");
+
+        if (m != null) {
+            this.message = m;
+        }
+        else {
+            this.message = rp.message;
+        }
+    }
+
+    /**
+     * Convert batch response to an exception.
+     */
+    public AerospikeException toException() {
+        return AerospikeException.toException(resultCode, subCode, message, expTrace, inDoubt);
     }
 
     /**

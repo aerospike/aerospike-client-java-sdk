@@ -19,7 +19,6 @@ package com.aerospike.examples;
 import java.util.Optional;
 
 import com.aerospike.client.sdk.AerospikeException;
-import com.aerospike.client.sdk.Cluster;
 import com.aerospike.client.sdk.DataSet;
 import com.aerospike.client.sdk.Record;
 import com.aerospike.client.sdk.RecordResult;
@@ -41,10 +40,6 @@ import com.aerospike.client.sdk.task.ExecuteTask;
  * Examples for common commands.
  */
 public class CommonExample extends Example {
-    public CommonExample(Console console) {
-        super(console);
-    }
-
     public void printRecordStream(String header, RecordStream rs) {
         if (header != null) {
             System.out.println("=".repeat(40));
@@ -64,13 +59,9 @@ public class CommonExample extends Example {
         }
     }
     @Override
-    public void runExample(Cluster cluster, Args args) throws Exception {
-        Session session = cluster.createSession(Behavior.DEFAULT);
-        DataSet set = DataSet.of("test", "set");
-
-        System.out.println("Truncate records");
-
-        session.truncate(set);
+    public void runExample() throws Exception {
+        Session session = cluster().createSession(Behavior.DEFAULT);
+        DataSet set = dataSet();
 
         System.out.println("Write 1 record");
 
@@ -189,7 +180,7 @@ public class CommonExample extends Example {
         RecordStream results = session.exists(set.ids(113,114,999)).includeMissingKeys().execute();
 
         results.forEach(rr -> {
-            System.out.printf("   Key: %s -> %b\n", rr.key(), rr.asBoolean());
+            System.out.printf("   Key: %s -> %b\n", rr.getKey(), rr.asBoolean());
         });
 
         System.out.println("Batch touch");
@@ -197,7 +188,7 @@ public class CommonExample extends Example {
         results = session.touch(set.ids(113,114,999)).includeMissingKeys().execute();
 
         results.forEach(rr -> {
-            System.out.printf("   Key: %s -> %b\n", rr.key(), rr.asBoolean());
+            System.out.printf("   Key: %s -> %b\n", rr.getKey(), rr.asBoolean());
         });
 
         System.out.println("Batch delete");
@@ -205,7 +196,7 @@ public class CommonExample extends Example {
         results = session.delete(set.ids(113,114,999)).includeMissingKeys().execute();
 
         results.forEach(rr -> {
-            System.out.printf("   Key: %s -> %b\n", rr.key(), rr.asBoolean());
+            System.out.printf("   Key: %s -> %b\n", rr.getKey(), rr.asBoolean());
         });
 
         // Test filtering out
@@ -284,7 +275,9 @@ public class CommonExample extends Example {
 
         System.out.println("Create index");
 
-        session.createIndex(set, "ageidx", "age", IndexType.INTEGER, IndexCollectionType.DEFAULT);
+        session.createIndex(set, "ageidx", "age", IndexType.INTEGER, IndexCollectionType.DEFAULT).waitTillComplete();
+
+        requireStringAel();
 
         System.out.println("Foreground secondary index query");
 
@@ -372,7 +365,7 @@ public class CommonExample extends Example {
 
         session.query(set).withHint(hint -> hint.queryDuration(QueryDuration.LONG)).recordsPerSecond(20).execute();
 
-        session.backgroundTask().update(set).bin("age").add(1).recordsPerSecond(35).execute();
+        session.backgroundTask().update(set).bin("age").add(1).recordsPerSecond(35).execute().waitTillComplete();
 
         // Exp operations - read and write.
         System.out.println("Read and write operation example");

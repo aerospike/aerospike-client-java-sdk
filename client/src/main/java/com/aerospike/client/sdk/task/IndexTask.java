@@ -108,12 +108,17 @@ public final class IndexTask extends Task {
                 }
                 else {
                     // Throw exception immediately.
-                    throw AerospikeException.resultCodeToException(error.code, command + " failed: " + error.message);
+                    throw AerospikeException.toException(error.code, command + " failed: " + error.message);
                 }
             }
 
             int begin = index + find.length();
             int end = response.indexOf(';', begin);
+
+            if (end < 0) {
+                end = response.length();
+            }
+
             String str = response.substring(begin, end);
             int pct = Integer.parseInt(str);
 

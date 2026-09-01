@@ -1,6 +1,9 @@
 #!/bin/bash
+set -euo pipefail
 
 hastest=false
+def=""
+arg=""
 
 for i in $*
 do

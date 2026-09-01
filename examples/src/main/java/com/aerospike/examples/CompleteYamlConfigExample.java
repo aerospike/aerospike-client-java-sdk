@@ -34,8 +34,10 @@ import com.aerospike.client.sdk.policy.ResolvedSettings;
 import com.aerospike.client.sdk.util.Util;
 
 /**
- * Demonstrates all available YAML configuration options including system settings,
- * behaviors, and inheritance.
+ * Demonstrates YAML configuration for system settings and behaviors (including inheritance).
+ *
+ * <p>Behavior policy fields in the YAML file are grouped under selector blocks such as
+ * {@code allOperations} and {@code retryableWrites}; see {@code complete-config-example.yml}.</p>
  *
  * <p>Usage: {@code ./run_examples CompleteYamlConfigExample -h localhost -p 3000}</p>
  */
@@ -43,12 +45,8 @@ public class CompleteYamlConfigExample extends Example {
 
     private static final String CONFIG_FILE = "src/main/resources/complete-config-example.yml";
 
-    public CompleteYamlConfigExample(Console console) {
-        super(console);
-    }
-
     @Override
-    public void runExample(Cluster cluster, Args args) throws Exception {
+    public void runExample() throws Exception {
         console.write("=== Complete YAML Configuration Example ===\n");
 
         try (Closeable monitor = Behavior.startMonitoringWithResource(CONFIG_FILE)) {
@@ -58,8 +56,8 @@ public class CompleteYamlConfigExample extends Example {
             displayAllBehaviors();
             demonstrateBehaviorInheritance();
 
-            if (args.host != null) {
-                performClusterOperations(args);
+            if (host() != null) {
+                performClusterOperations();
             } else {
                 console.write("\n=== Skipping Cluster Operations ===");
                 console.write("No host specified. Add -h <host> to perform actual operations.\n");
@@ -67,9 +65,7 @@ public class CompleteYamlConfigExample extends Example {
 
         } catch (IOException e) {
             console.error("Error loading configuration: " + e.getMessage());
-            e.printStackTrace();
-        } catch (InterruptedException e) {
-            console.write("Interrupted");
+            throw e;
         }
     }
 
@@ -245,21 +241,22 @@ public class CompleteYamlConfigExample extends Example {
         console.write("");
     }
 
-    private void performClusterOperations(Args args) {
+    private void performClusterOperations() {
         console.write("=== CLUSTER OPERATIONS ===\n");
 
-        ClusterDefinition clusterDef = new ClusterDefinition(args.host, args.port)
+        ClusterDefinition clusterDef = new ClusterDefinition(host(), port())
             .appId("complete-yaml-example")
             .failIfNotConnected(true);
 
-        if (args.useServicesAlternate) {
+        if (useServicesAlternate()) {
             clusterDef.usingServicesAlternate();
         }
 
         try (Cluster cluster = clusterDef.connect()) {
-            console.write("Connected to cluster at " + args.host + ":" + args.port + "\n");
+            ensurePartitionMapReady(cluster, namespace());
+            console.write("Connected to cluster at " + host() + ":" + port() + "\n");
 
-            DataSet dataSet = DataSet.of(args.namespace, "complete-yaml-demo");
+            DataSet dataSet = dataSet("complete-yaml-demo");
 
             testWithBehavior(cluster, "high-performance", dataSet);
             testWithBehavior(cluster, "high-reliability", dataSet);
@@ -270,7 +267,7 @@ public class CompleteYamlConfigExample extends Example {
 
         } catch (Throwable t) {
             console.error("Cluster operation failed: " + Util.getErrorMessage(t));
-            t.printStackTrace();
+            throw new RuntimeException(t);
         }
     }
 
@@ -308,6 +305,7 @@ public class CompleteYamlConfigExample extends Example {
 
         } catch (Exception e) {
             console.error("  Error: " + e.getMessage());
+            throw new RuntimeException(e);
         }
 
         console.write("");

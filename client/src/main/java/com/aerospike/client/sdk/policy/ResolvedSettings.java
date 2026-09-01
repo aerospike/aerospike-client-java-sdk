@@ -19,6 +19,8 @@ package com.aerospike.client.sdk.policy;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
+import com.aerospike.client.sdk.command.Command;
+
 public final class ResolvedSettings {
     private final CommitLevel commitLevel;
     private final Replica replicaOrder;
@@ -29,6 +31,7 @@ public final class ResolvedSettings {
     private final int waitForCallToCompleteMs;
     private final int waitForConnectionToCompleteMs;
     private final int waitForSocketResponseAfterCallFailsMs;
+    private final int errorDetailVerbosity;
     private final int maximumNumberOfCallAttempts;
     private final int recordQueueSize;
     private final int maxConcurrentNodes;
@@ -40,6 +43,7 @@ public final class ResolvedSettings {
     private final boolean allowInlineSsdAccess;
     private final boolean useDurableDelete;
     private final boolean simulateXdrWrite;
+    private final boolean allowScansWithWhere;
 
     public ResolvedSettings(Settings src) {
         commitLevel = (src.commitLevel != null) ? src.commitLevel : CommitLevel.COMMIT_ALL;
@@ -62,11 +66,27 @@ public final class ResolvedSettings {
         waitForSocketResponseAfterCallFailsMs = (src.waitForSocketResponseAfterCallFails != null) ?
             (int)src.waitForSocketResponseAfterCallFails.toMillis() : 30000;
 
+        int errorDetail = (src.errorDetailVerbosity != null) ?
+            src.errorDetailVerbosity : 0;
+
+        if (errorDetail < 0) {
+            errorDetail = 0;
+        }
+
+        if (errorDetail > 3) {
+            errorDetail = 3;
+        }
+
+        errorDetailVerbosity = errorDetail;
+
         maximumNumberOfCallAttempts = (src.maximumNumberOfCallAttempts != null) ?
             src.maximumNumberOfCallAttempts : 3;
 
         recordQueueSize = (src.recordQueueSize != null) ?
             src.recordQueueSize : 5000;
+
+        allowScansWithWhere = (src.allowScansWithWhere != null) ?
+            src.allowScansWithWhere : false;
 
         maxConcurrentNodes = (src.maxConcurrentNodes != null) ?
             src.maxConcurrentNodes : 1;
@@ -121,8 +141,14 @@ public final class ResolvedSettings {
         maximumNumberOfCallAttempts = (src.maximumNumberOfCallAttempts != null) ?
             src.maximumNumberOfCallAttempts : res.maximumNumberOfCallAttempts;
 
+        errorDetailVerbosity = (src.errorDetailVerbosity != null) ?
+            src.errorDetailVerbosity : res.errorDetailVerbosity;
+
         recordQueueSize = (src.recordQueueSize != null) ?
             src.recordQueueSize : res.recordQueueSize;
+
+        allowScansWithWhere = (src.allowScansWithWhere != null) ?
+            src.allowScansWithWhere : res.allowScansWithWhere;
 
         maxConcurrentNodes = (src.maxConcurrentNodes != null) ?
             src.maxConcurrentNodes : res.maxConcurrentNodes;
@@ -164,8 +190,10 @@ public final class ResolvedSettings {
         m.put("waitForCallToCompleteMs", waitForCallToCompleteMs);
         m.put("waitForConnectionToCompleteMs", waitForConnectionToCompleteMs);
         m.put("waitForSocketResponseAfterCallFailsMs", waitForSocketResponseAfterCallFailsMs);
+        m.put("errorDetailVerbosity", errorDetailVerbosity);
         m.put("maximumNumberOfCallAttempts", maximumNumberOfCallAttempts);
         m.put("recordQueueSize", recordQueueSize);
+        m.put("allowScansWithWhere", allowScansWithWhere);
         m.put("maxConcurrentNodes", maxConcurrentNodes);
         m.put("resetTtlOnReadAtPercent", resetTtlOnReadAtPercent);
         m.put("sendKey", sendKey);
@@ -215,12 +243,25 @@ public final class ResolvedSettings {
         return waitForSocketResponseAfterCallFailsMs;
     }
 
+    public int getErrorDetailVerbosity() {
+        return errorDetailVerbosity;
+    }
+
+    public byte getErrorDetailBits() {
+        return (byte)((errorDetailVerbosity << Command.INFO4_ERROR_VERBOSITY_SHIFT) &
+            Command.INFO4_ERROR_VERBOSITY_MASK);
+    }
+
     public int getMaximumNumberOfCallAttempts() {
         return maximumNumberOfCallAttempts;
     }
 
     public int getRecordQueueSize() {
         return recordQueueSize;
+    }
+
+    public boolean getAllowScansWithWhere() {
+        return allowScansWithWhere;
     }
 
     public int getMaxConcurrentNodes() {

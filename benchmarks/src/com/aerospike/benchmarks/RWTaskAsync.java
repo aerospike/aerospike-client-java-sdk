@@ -46,13 +46,13 @@ public class RWTaskAsync extends RWTask implements Runnable {
             while (stream.hasNext()) {
                 rec = stream.next();
             }
-            if (rec == null || rec.exception() == null) {
+            if (rec == null || rec.getException() == null) {
                 if (useLatency) {
                     counters.read.latency.add(System.nanoTime() - begin);
                 }
                 processRead(key, rec);
             } else {
-                readFailure(rec.exception());
+                readFailure(rec.getException());
             }
         } catch (Exception e) {
             readFailure(e);
@@ -67,13 +67,13 @@ public class RWTaskAsync extends RWTask implements Runnable {
             while (stream.hasNext()) {
                 rec = stream.next();
             }
-            if (rec == null || rec.exception() == null) {
+            if (rec == null || rec.getException() == null) {
                 if (useLatency) {
                     counters.read.latency.add(System.nanoTime() - begin);
                 }
                 processRead(key, rec);
             } else {
-                readFailure(rec.exception());
+                readFailure(rec.getException());
             }
         } catch (Exception t) {
             readFailure(t);
@@ -156,13 +156,13 @@ public class RWTaskAsync extends RWTask implements Runnable {
             }
             elasped = System.nanoTime() - begin;
 
-            RecordResult errRecord = records.stream().filter(record -> record.exception() != null)
+            RecordResult errRecord = records.stream().filter(record -> record.getException() != null)
                     .findAny()
                     .orElse(null);
 
             if (errRecord != null) {
                 // batch with partial failure are not accounted to successful reads
-                readFailure(errRecord.exception());
+                readFailure(errRecord.getException());
             } else {
                 if (useLatency) {
                     counters.read.latency.add(elasped);
@@ -187,13 +187,13 @@ public class RWTaskAsync extends RWTask implements Runnable {
             elasped = System.nanoTime() - begin;
 
             RecordResult errRecord = records.stream()
-                    .filter(record -> record.exception() != null)
+                    .filter(record -> record.getException() != null)
                     .findAny()
                     .orElse(null);
 
             if (errRecord != null) {
                 // batch with partial failure are not accounted to successful reads
-                readFailure(errRecord.exception());
+                readFailure(errRecord.getException());
             } else {
                 if (useLatency) {
                     counters.read.latency.add(elasped);

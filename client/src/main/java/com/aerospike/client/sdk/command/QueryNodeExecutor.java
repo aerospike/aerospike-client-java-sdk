@@ -22,7 +22,6 @@ import com.aerospike.client.sdk.Cluster;
 import com.aerospike.client.sdk.Key;
 import com.aerospike.client.sdk.Record;
 import com.aerospike.client.sdk.RecordResult;
-import com.aerospike.client.sdk.Value;
 import com.aerospike.client.sdk.command.PartitionTracker.NodePartitions;
 import com.aerospike.client.sdk.metrics.LatencyType;
 import com.aerospike.client.sdk.query.KeyRecord;
@@ -61,23 +60,23 @@ public final class QueryNodeExecutor extends NodeExecutor {
     @Override
     protected boolean parseRow() {
         BVal bval = new BVal();
-        Key key = parseKey(fieldCount, bval);
+        Key key = parser.parseFieldsQuery(bval);
 
-        if ((info3 & Command.INFO3_PARTITION_DONE) != 0) {
+        if ((parser.info3 & Command.INFO3_PARTITION_DONE) != 0) {
             // When an error code is received, mark partition as unavailable
             // for the current round. Unavailable partitions will be retried
             // in the next round. Generation is overloaded as partitionId.
-            if (resultCode != 0) {
-                tracker.partitionUnavailable(nodePartitions, generation);
+            if (parser.resultCode != 0) {
+                tracker.partitionUnavailable(nodePartitions, parser.generation);
             }
             return true;
         }
 
-        if (resultCode != 0) {
-            throw AerospikeException.resultCodeToException(resultCode, null);
+        if (parser.resultCode != 0) {
+            throw parser.toException();
         }
 
-        Record record = parseRecord();
+        Record record = parser.parseRecord(false);
 
         if (! valid) {
             throw new AerospikeException.QueryTerminated();
@@ -92,47 +91,5 @@ public final class QueryNodeExecutor extends NodeExecutor {
             tracker.setLast(nodePartitions, key, bval.val);
         }
         return true;
-    }
-
-    private Key parseKey(int fieldCount, BVal bval) {
-        byte[] digest = null;
-        String namespace = null;
-        String setName = null;
-        Value userKey = null;
-
-        for (int i = 0; i < fieldCount; i++) {
-            int fieldlen = Buffer.bytesToInt(dataBuffer, dataOffset);
-            dataOffset += 4;
-
-            int fieldtype = dataBuffer[dataOffset++];
-            int size = fieldlen - 1;
-
-            switch (fieldtype) {
-            case FieldType.DIGEST_RIPE:
-                digest = new byte[size];
-                System.arraycopy(dataBuffer, dataOffset, digest, 0, size);
-                break;
-
-            case FieldType.NAMESPACE:
-                namespace = Buffer.utf8ToString(dataBuffer, dataOffset, size);
-                break;
-
-            case FieldType.TABLE:
-                setName = Buffer.utf8ToString(dataBuffer, dataOffset, size);
-                break;
-
-            case FieldType.KEY:
-                int type = dataBuffer[dataOffset++];
-                size--;
-                userKey = Buffer.bytesToKeyValue(type, dataBuffer, dataOffset, size);
-                break;
-
-            case FieldType.BVAL_ARRAY:
-                bval.val = Buffer.littleBytesToLong(dataBuffer, dataOffset);
-                break;
-            }
-            dataOffset += size;
-        }
-        return new Key(namespace, digest, setName, userKey);
     }
 }

@@ -158,7 +158,7 @@ public class BatchTest extends ClusterTest {
 
         List<RecordResult> resExcludingMissingKeys = rs.stream().toList();
         assertEquals(1, resExcludingMissingKeys.size());
-        assertEquals(ResultCode.OK, resExcludingMissingKeys.getFirst().resultCode());
+        assertEquals(ResultCode.OK, resExcludingMissingKeys.getFirst().getResultCode());
         assertEquals(ValuePrefix + "1", resExcludingMissingKeys.getFirst().recordOrThrow().getString(BinName));
 
         // includeMissingKeys: each missing key produces a RecordResult with KEY_NOT_FOUND_ERROR.
@@ -172,8 +172,8 @@ public class BatchTest extends ClusterTest {
 
         List<RecordResult> resWithMissingKey = rs.stream().toList();
         assertEquals(2, resWithMissingKey.size());
-        assertEquals(ResultCode.OK, resWithMissingKey.get(0).resultCode());
-        assertEquals(ResultCode.KEY_NOT_FOUND_ERROR, resWithMissingKey.get(1).resultCode());
+        assertEquals(ResultCode.OK, resWithMissingKey.get(0).getResultCode());
+        assertEquals(ResultCode.KEY_NOT_FOUND_ERROR, resWithMissingKey.get(1).getResultCode());
     }
 
     @Test
@@ -221,6 +221,8 @@ public class BatchTest extends ClusterTest {
 
     @Test
     public void batchReadComplex() {
+        assumeSupportsAel();
+
         String ael = "$.bbin * 8";
 
         RecordStream rs = session
@@ -374,6 +376,8 @@ public class BatchTest extends ClusterTest {
 */
     @Test
     public void batchWriteComplex() {
+        assumeSupportsAel();
+
         DataSet ds = new DataSet("invalid", args.set.getSet());
 
         ChainableNoBinsBuilder noBinsBuilder = session
@@ -391,19 +395,19 @@ public class BatchTest extends ClusterTest {
 
         assertTrue(rs.hasNext());
         RecordResult res = rs.next();
-        assertEquals(ResultCode.OK, res.resultCode());
+        assertEquals(ResultCode.OK, res.getResultCode());
 
         assertTrue(rs.hasNext());
         res = rs.next();
-        assertEquals(ResultCode.INVALID_NAMESPACE, res.resultCode());
+        assertEquals(ResultCode.INVALID_NAMESPACE, res.getResultCode());
 
         assertTrue(rs.hasNext());
         res = rs.next();
-        assertEquals(ResultCode.OK, res.resultCode());
+        assertEquals(ResultCode.OK, res.getResultCode());
 
         assertTrue(rs.hasNext());
         res = rs.next();
-        assertEquals(ResultCode.OK, res.resultCode());
+        assertEquals(ResultCode.OK, res.getResultCode());
 
         assertFalse(rs.hasNext());
 
@@ -591,6 +595,14 @@ public class BatchTest extends ClusterTest {
 
     @Test
     public void batchReadMixedExpressionsInvalidRowReturnsParameterError() {
+        Behavior behavior1 = Behavior.DEFAULT.deriveWithChanges("errorDetail", builder -> builder
+            .on(Selectors.all(), ops -> ops
+                .errorDetailVerbosity(ErrorDetailVerbosity.EXPRESSION_TRACE)
+            )
+        );
+
+        Session session1 = cluster.createSession(behavior1);
+
         String key1 = KeyPrefix + 1;
         String key2 = KeyPrefix + 2;
 
@@ -598,7 +610,7 @@ public class BatchTest extends ClusterTest {
         Expression validExp = Exp.build(Exp.binExists(BinName));
         Expression invalidExp = Expression.fromBytes(new byte[] {0x00, 0x01, 0x02});
 
-        RecordStream rs = session
+        RecordStream rs = session1
             .query(args.set.id(key1))
                 .where(validExp)
             .query(args.set.id(key2))
@@ -608,39 +620,52 @@ public class BatchTest extends ClusterTest {
 
         assertTrue(rs.hasNext());
         RecordResult res1 = rs.next();
-        assertEquals(ResultCode.OK, res1.resultCode());
+        assertEquals(ResultCode.OK, res1.getResultCode());
 
         assertTrue(rs.hasNext());
         RecordResult res2 = rs.next();
-        assertEquals(ResultCode.PARAMETER_ERROR, res2.resultCode());
+        assertBatchInvalidFilterError(res2);
     }
 
     @Test
     public void batchReadWithInvalidExpressionReturnsParameterError() {
+        Behavior behavior1 = Behavior.DEFAULT.deriveWithChanges("errorDetail", builder -> builder
+            .on(Selectors.all(), ops -> ops
+                .errorDetailVerbosity(ErrorDetailVerbosity.EXPRESSION_TRACE)
+            )
+        );
+
+        Session session1 = cluster.createSession(behavior1);
+
         String key1 = KeyPrefix + 1;
         String key2 = KeyPrefix + 2;
 
         Expression invalidExp = Expression.fromBytes(new byte[] {(byte)0xFF, (byte)0xFE, (byte)0xFD});
         List<Key> keys = args.set.ids(List.of(key1, key2));
 
-        try {
-            RecordStream rs = session.query(keys)
-                .where(invalidExp)
-                .includeMissingKeys()
-                .execute();
+        RecordStream rs = session1.query(keys)
+            .where(invalidExp)
+            .includeMissingKeys()
+            .execute();
 
-            boolean foundParamError = false;
-            while (rs.hasNext()) {
-                RecordResult res = rs.next();
-                if (res.resultCode() == ResultCode.PARAMETER_ERROR) {
-                    foundParamError = true;
-                }
-            }
-            assertTrue(foundParamError,
-                "Expected at least one PARAMETER_ERROR result from batch with invalid expression");
-        } catch (AerospikeException ae) {
-            assertEquals(ResultCode.PARAMETER_ERROR, ae.getResultCode(),
-                "Expected PARAMETER_ERROR, got: " + ResultCode.getResultString(ae.getResultCode()));
+        int count = 0;
+
+        while (rs.hasNext()) {
+            RecordResult res = rs.next();
+            assertBatchInvalidFilterError(res);
+            count++;
+        }
+
+        assertEquals(2, count);
+    }
+
+    private static void assertBatchInvalidFilterError(RecordResult res) {
+        assertEquals(ResultCode.PARAMETER_ERROR, res.getResultCode());
+        assertEquals(SubCode.NONE, res.getSubCode());
+
+        if (supportsAel()) {
+            assertNotNull(res.getMessage());
+            assertNotNull(res.getExpressionTrace());
         }
     }
 }

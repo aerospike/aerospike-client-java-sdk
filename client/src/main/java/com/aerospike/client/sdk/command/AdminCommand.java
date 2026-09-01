@@ -21,14 +21,19 @@ import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
 
 import org.mindrot.jbcrypt.BCrypt;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.aerospike.client.sdk.AerospikeException;
+import com.aerospike.client.sdk.Cluster;
 import com.aerospike.client.sdk.ClusterDefinition;
-import com.aerospike.client.sdk.Log;
+import com.aerospike.client.sdk.Loggers;
 import com.aerospike.client.sdk.ResultCode;
 import com.aerospike.client.sdk.policy.AuthMode;
 
 public class AdminCommand {
+    private static final Logger log = LoggerFactory.getLogger(Loggers.TEND);
+
     // Commands
     private static final byte AUTHENTICATE = 0;
     private static final byte LOGIN = 20;
@@ -110,7 +115,7 @@ public class AdminCommand {
                             "Please authenticate using your certificate.";
                 }
 
-                throw AerospikeException.resultCodeToException(result, msg);
+                throw AerospikeException.toException(result, msg);
             }
 
             // Read session token.
@@ -119,7 +124,7 @@ public class AdminCommand {
             int fieldCount = dataBuffer[11] & 0xFF;
 
             if (receiveSize <= 0 || receiveSize > dataBuffer.length || fieldCount <= 0) {
-                throw AerospikeException.resultCodeToException(result, "Failed to retrieve session token");
+                throw AerospikeException.toException(result, "Failed to retrieve session token");
             }
 
             conn.readFully(dataBuffer, receiveSize);
@@ -142,8 +147,10 @@ public class AdminCommand {
                         sessionExpiration = System.nanoTime() + TimeUnit.SECONDS.toNanos(seconds);
                     }
                     else {
-                        if (Log.warnEnabled()) {
-                            Log.warn(def.getContext(), "Invalid session TTL: " + seconds);
+                        if (log.isWarnEnabled()) {
+                            log.atWarn()
+                                .addKeyValue(Cluster.CONTEXT, def.getClusterName())
+                                .log("Invalid session TTL: " + seconds);
                         }
                     }
                 }
@@ -151,7 +158,7 @@ public class AdminCommand {
             }
 
             if (sessionToken == null) {
-                throw AerospikeException.resultCodeToException(result, "Failed to retrieve session token");
+                throw AerospikeException.toException(result, "Failed to retrieve session token");
             }
         }
     }

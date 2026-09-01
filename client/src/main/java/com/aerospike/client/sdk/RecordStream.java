@@ -20,6 +20,7 @@ import java.io.Closeable;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Spliterator;
 import java.util.Spliterators;
@@ -122,7 +123,19 @@ public class RecordStream implements Iterator<RecordResult>, Closeable {
      * @param record the record data
      */
     RecordStream(Key key, Record record) {
-        RecordResult rec = new RecordResult(key, record, 0); // Single item, index = 0
+        this(key, record, null, null);
+    }
+
+    /**
+     * Creates a RecordStream containing a single record from a key and record pair.
+     *
+     * @param key the key of the record
+     * @param record the record data
+     * @param readMappingSession when {@code readMappingClass} is non-null, the session for typed mapping
+     * @param readMappingClass optional hint for {@link RecordResult#toObject()}
+     */
+    RecordStream(Key key, Record record, Session readMappingSession, Class<?> readMappingClass) {
+        RecordResult rec = new RecordResult(key, record, 0, readMappingSession, readMappingClass);
         impl = new SingleItemRecordStream(rec);
     }
     /**
@@ -243,7 +256,8 @@ public class RecordStream implements Iterator<RecordResult>, Closeable {
 
     /**
      * Drains this stream into a {@link CompletableFuture} that completes with all results
-     * as a list. The draining happens on a virtual thread, so this method returns immediately.
+     * as a list. For async streams backed by {@link AsyncRecordStream}, collection is passive
+     * (no extra consumer virtual thread). Otherwise draining uses a virtual thread.
      *
      * <p>This is a <b>terminal operation</b> that closes the stream when draining completes
      * or an exception occurs.</p>
@@ -257,18 +271,65 @@ public class RecordStream implements Iterator<RecordResult>, Closeable {
      *     session.query(dataSet.id("k1", "k2")).executeAsync(ErrorStrategy.IN_STREAM)
      *            .asCompletableFuture();
      *
-     * future.thenAccept(results -&gt; results.forEach(r -&gt; System.out.println(r.key())));
+     * future.thenAccept(results -&gt; results.forEach(r -&gt; System.out.println(r.getKey())));
      * </pre>
      *
      * @return a CompletableFuture that completes with all results from this stream
      */
     public CompletableFuture<List<RecordResult>> asCompletableFuture() {
+        return asCompletableFuture((ErrorHandler) null);
+    }
+
+    /**
+     * Drains this stream into a {@link CompletableFuture}. When {@code handler} is non-null,
+     * actionable errors are dispatched to the handler and omitted from the completed list.
+     *
+     * @param handler optional error handler (null for IN_STREAM semantics)
+     * @return a CompletableFuture that completes with collected results
+     */
+    public CompletableFuture<List<RecordResult>> asCompletableFuture(ErrorHandler handler) {
+        if (impl instanceof AsyncRecordStream async) {
+            if (handler != null) {
+                async.withErrorHandler(handler);
+            }
+            CompletableFuture<List<RecordResult>> future = async.asCompletableFuture();
+            future.whenComplete((ignored, t) -> close());
+            return future;
+        }
+        return drainViaVirtualThread(handler);
+    }
+
+    /**
+     * Drains a stream expected to hold zero or one result into a {@link CompletableFuture}.
+     *
+     * @return future completing with an optional result (empty if the stream had no records)
+     */
+    public CompletableFuture<Optional<RecordResult>> asCompletableFutureSingle() {
+        return asCompletableFutureSingle((ErrorHandler) null);
+    }
+
+    /**
+     * Drains a stream expected to hold zero or one successful result into a {@link CompletableFuture}.
+     *
+     * @param handler optional error handler
+     * @return future completing with an optional result
+     */
+    public CompletableFuture<Optional<RecordResult>> asCompletableFutureSingle(ErrorHandler handler) {
+        return asCompletableFuture(handler).thenApply(AsyncExecutionSupport::singleAsOptional);
+    }
+
+    private CompletableFuture<List<RecordResult>> drainViaVirtualThread(ErrorHandler handler) {
         CompletableFuture<List<RecordResult>> future = new CompletableFuture<>();
         Thread.startVirtualThread(() -> {
             try {
                 List<RecordResult> results = new ArrayList<>();
                 while (hasNext()) {
-                    results.add(next());
+                    RecordResult rr = next();
+                    if (handler != null && AbstractFilterableBuilder.isActionableError(rr.getResultCode())) {
+                        AbstractFilterableBuilder.dispatchError(rr, handler);
+                    } else {
+                        results.add(rr);
+                    }
                 }
                 future.complete(results);
             } catch (Throwable t) {
@@ -299,23 +360,133 @@ public class RecordStream implements Iterator<RecordResult>, Closeable {
      * @return a CompletableFuture that completes with the mapped results
      */
     public <T> CompletableFuture<List<T>> asCompletableFuture(RecordMapper<T> mapper) {
-        CompletableFuture<List<T>> future = new CompletableFuture<>();
-        Thread.startVirtualThread(() -> {
-            try {
-                List<T> results = new ArrayList<>();
-                while (hasNext()) {
-                    RecordResult rr = next();
-                    Record rec = rr.recordOrThrow();
-                    results.add(mapper.fromMap(rec.bins, rr.key(), rec.generation));
-                }
-                future.complete(results);
-            } catch (Throwable t) {
-                future.completeExceptionally(t);
-            } finally {
-                close();
+        return asCompletableFuture().thenApply(list -> {
+            List<T> results = new ArrayList<>(list.size());
+            for (RecordResult rr : list) {
+                Record rec = rr.recordOrThrow();
+                results.add(mapper.fromMap(rec.bins, rr.getKey(), rec.generation));
             }
+            return results;
         });
-        return future;
+    }
+
+    /**
+     * Like {@link #asCompletableFuture(RecordMapper)} but passes {@link RecordReadContext} into
+     * {@link RecordMapper#fromMap(java.util.Map, Key, int, RecordReadContext)} so factory-backed
+     * mappers (for example the Java object mapper) can use the session.
+     *
+     * @param <T> the target type
+     * @param mapper the mapper to convert each record
+     * @param ctx session and entity type for factory-backed mapping
+     * @return a CompletableFuture that completes with the mapped results
+     */
+    public <T> CompletableFuture<List<T>> asCompletableFuture(RecordMapper<T> mapper, RecordReadContext<T> ctx) {
+        return asCompletableFuture().thenApply(list -> {
+            List<T> results = new ArrayList<>(list.size());
+            for (RecordResult rr : list) {
+                results.add(mapBins(mapper, rr, ctx));
+            }
+            return results;
+        });
+    }
+
+    /**
+     * Drains this stream and maps each record to {@code clazz} using the session's
+     * {@link RecordMappingFactory}.
+     *
+     * <p>Resolves the mapper with {@link Session#getMapper(Class)} and passes a
+     * {@link RecordReadContext} into four-argument {@link RecordMapper#fromMap}.
+     * This is a <b>terminal operation</b> that closes the stream when draining completes.
+     * Records with non-OK result codes cause the future to complete exceptionally.</p>
+     *
+     * <pre>{@code
+     * CompletableFuture<List<Player>> future =
+     *     session.query(playerKeys).executeAsync(ErrorStrategy.IN_STREAM)
+     *            .asCompletableFuture(session, Player.class);
+     * }</pre>
+     *
+     * @param <T> the domain type
+     * @param session the session whose mapping factory and identity are used for context
+     * @param clazz the domain class to map into
+     * @return a CompletableFuture that completes with the mapped results
+     * @throws IllegalStateException if no factory is set or no mapper is registered for {@code clazz}
+     * @throws NullPointerException if {@code session} or {@code clazz} is {@code null}
+     */
+    public <T> CompletableFuture<List<T>> asCompletableFuture(Session session, Class<T> clazz) {
+        RecordMapper<T> mapper;
+        RecordReadContext<T> ctx;
+        try {
+            mapper = requireMapper(session, clazz);
+            ctx = mappingContext(session, clazz);
+        } catch (RuntimeException e) {
+            close();
+            throw e;
+        }
+        return asCompletableFuture(mapper, ctx);
+    }
+
+    /**
+     * Drains a stream expected to hold zero or one successful result, maps it with {@code mapper},
+     * and completes the returned {@link CompletableFuture} with an {@link Optional}.
+     *
+     * <p>Same semantics as {@link #asCompletableFutureSingle()}: empty if no records;
+     * {@link IllegalStateException} if more than one result is present.</p>
+     *
+     * <p>This is a <b>terminal operation</b> that closes the stream when draining completes
+     * or an exception occurs.</p>
+     *
+     * <pre>
+     * CompletableFuture&lt;Optional&lt;Customer&gt;&gt; future =
+     *     session.query(customerDataSet.id("C001")).executeAsync(ErrorStrategy.IN_STREAM)
+     *            .asCompletableFutureSingle(customerMapper);
+     * </pre>
+     *
+     * @param <T> the target type
+     * @param mapper the mapper to convert the record
+     * @return future completing with an optional mapped result
+     */
+    public <T> CompletableFuture<Optional<T>> asCompletableFutureSingle(RecordMapper<T> mapper) {
+        return asCompletableFuture(mapper).thenApply(AsyncExecutionSupport::singleMappedAsOptional);
+    }
+
+    /**
+     * Like {@link #asCompletableFutureSingle(RecordMapper)} but passes {@link RecordReadContext}
+     * into {@link RecordMapper#fromMap(java.util.Map, Key, int, RecordReadContext)}.
+     *
+     * @param <T> the target type
+     * @param mapper the mapper to convert the record
+     * @param ctx session and entity type for factory-backed mapping
+     * @return future completing with an optional mapped result
+     */
+    public <T> CompletableFuture<Optional<T>> asCompletableFutureSingle(
+            RecordMapper<T> mapper, RecordReadContext<T> ctx) {
+        return asCompletableFuture(mapper, ctx).thenApply(AsyncExecutionSupport::singleMappedAsOptional);
+    }
+
+    /**
+     * Drains a stream of zero or one records and maps it to {@code clazz} using the session's
+     * {@link RecordMappingFactory}.
+     *
+     * <p>Same semantics as {@link #asCompletableFutureSingle()}: empty if no records;
+     * {@link IllegalStateException} if more than one result is present. Resolves the mapper with
+     * {@link Session#getMapper(Class)} and passes a {@link RecordReadContext} into four-argument
+     * {@link RecordMapper#fromMap}.</p>
+     *
+     * <pre>{@code
+     * CompletableFuture<Optional<Player>> future =
+     *     session.query(playerKey).executeAsync(ErrorStrategy.IN_STREAM)
+     *            .asCompletableFutureSingle(session, Player.class);
+     * }</pre>
+     *
+     * @param <T> the domain type
+     * @param session the session whose mapping factory and identity are used for context
+     * @param clazz the domain class to map into
+     * @return future completing with an optional mapped result
+     * @throws IllegalStateException if no factory is set or no mapper is registered for {@code clazz}
+     * @throws NullPointerException if {@code session} or {@code clazz} is {@code null}
+     */
+    public <T> CompletableFuture<Optional<T>> asCompletableFutureSingle(Session session, Class<T> clazz) {
+        return asCompletableFuture(session, clazz).thenApply(AsyncExecutionSupport::singleMappedAsOptional);
     }
 
     // ========================================
@@ -494,8 +665,8 @@ public class RecordStream implements Iterator<RecordResult>, Closeable {
      * RecordStream results = session.update(keys).bin("name").setTo("value").execute();
      * RecordStream failures = results.failures();
      * failures.forEach(failure -&gt; {
-     *     System.err.println("Failed for key: " + failure.key() +
-     *                        ", reason: " + failure.message());
+     *     System.err.println("Failed for key: " + failure.getKey() +
+     *                        ", reason: " + failure.getMessage());
      * });
      * </pre>
      *
@@ -509,7 +680,7 @@ public class RecordStream implements Iterator<RecordResult>, Closeable {
 
             while (this.hasNext()) {
                 RecordResult result = this.next();
-                if (result.resultCode() != ResultCode.OK) {
+                if (result.getResultCode() != ResultCode.OK) {
                     failedRecords.add(result);
                 }
             }
@@ -537,12 +708,70 @@ public class RecordStream implements Iterator<RecordResult>, Closeable {
             while (hasNext()) {
                 RecordResult keyRecord = next();
                 Record rec = keyRecord.recordOrThrow();
-                result.add(mapper.fromMap(rec.bins, keyRecord.key(), rec.generation));
+                result.add(mapper.fromMap(rec.bins, keyRecord.getKey(), rec.generation));
             }
             return result;
         } finally {
             close();
         }
+    }
+
+    /**
+     * Like {@link #toObjectList(RecordMapper)} but passes {@link RecordReadContext} into
+     * {@link RecordMapper#fromMap(java.util.Map, Key, int, RecordReadContext)} so factory-backed
+     * mappers can use the session (for example the Java object mapper).
+     *
+     * @param <T> the target type
+     * @param mapper the mapper to convert each record to the target type
+     * @param ctx session and entity type for factory-backed mapping
+     * @return a list of mapped objects
+     * @throws AerospikeException if any element has a non-OK result code
+     */
+    public <T> List<T> toObjectList(RecordMapper<T> mapper, RecordReadContext<T> ctx) {
+        try {
+            List<T> result = new ArrayList<>();
+            while (hasNext()) {
+                result.add(mapBins(mapper, next(), ctx));
+            }
+            return result;
+        } finally {
+            close();
+        }
+    }
+
+    /**
+     * Consumes all records and maps each one to {@code clazz} using the session's
+     * {@link RecordMappingFactory}.
+     *
+     * <p>Resolves the mapper with {@link Session#getMapper(Class)} and passes a
+     * {@link RecordReadContext} into four-argument {@link RecordMapper#fromMap}.
+     * This is a <b>terminal operation</b> that closes the stream.</p>
+     *
+     * <pre>{@code
+     * List<Player> players = session.query(playerKeys)
+     *     .execute()
+     *     .toObjectList(session, Player.class);
+     * }</pre>
+     *
+     * @param <T> the domain type
+     * @param session the session whose mapping factory and identity are used for context
+     * @param clazz the domain class to map into
+     * @return a list of mapped objects
+     * @throws AerospikeException if any element has a non-OK result code
+     * @throws IllegalStateException if no factory is set or no mapper is registered for {@code clazz}
+     * @throws NullPointerException if {@code session} or {@code clazz} is {@code null}
+     */
+    public <T> List<T> toObjectList(Session session, Class<T> clazz) {
+        RecordMapper<T> mapper;
+        RecordReadContext<T> ctx;
+        try {
+            mapper = requireMapper(session, clazz);
+            ctx = mappingContext(session, clazz);
+        } catch (RuntimeException e) {
+            close();
+            throw e;
+        }
+        return toObjectList(mapper, ctx);
     }
 
     /**
@@ -647,11 +876,65 @@ public class RecordStream implements Iterator<RecordResult>, Closeable {
             while (hasNext()) {
                 RecordResult rr = next();
                 Record rec = rr.recordOrThrow();
-                consumer.accept(mapper.fromMap(rec.bins, rr.key(), rec.generation));
+                consumer.accept(mapper.fromMap(rec.bins, rr.getKey(), rec.generation));
             }
         } finally {
             close();
         }
+    }
+
+    /**
+     * Like {@link #forEach(RecordMapper, Consumer)} but passes {@link RecordReadContext} into
+     * {@link RecordMapper#fromMap(java.util.Map, Key, int, RecordReadContext)}.
+     *
+     * @param <T> the target type
+     * @param mapper the mapper to convert each record to the target type
+     * @param ctx session and entity type for factory-backed mapping
+     * @param consumer the action to be performed for each mapped element
+     * @throws AerospikeException if any element has a non-OK result code
+     */
+    public <T> void forEach(RecordMapper<T> mapper, RecordReadContext<T> ctx, Consumer<T> consumer) {
+        try {
+            while (hasNext()) {
+                consumer.accept(mapBins(mapper, next(), ctx));
+            }
+        } finally {
+            close();
+        }
+    }
+
+    /**
+     * Maps each record to {@code clazz} using the session's {@link RecordMappingFactory} and
+     * passes it to {@code consumer}.
+     *
+     * <p>Resolves the mapper with {@link Session#getMapper(Class)} and passes a
+     * {@link RecordReadContext} into four-argument {@link RecordMapper#fromMap}.
+     * This is a <b>terminal operation</b> that closes the stream.</p>
+     *
+     * <pre>{@code
+     * session.query(playerKeys).execute()
+     *     .forEach(session, Player.class, player -> System.out.println(player.getName()));
+     * }</pre>
+     *
+     * @param <T> the domain type
+     * @param session the session whose mapping factory and identity are used for context
+     * @param clazz the domain class to map into
+     * @param consumer the action to run for each mapped object
+     * @throws AerospikeException if any element has a non-OK result code
+     * @throws IllegalStateException if no factory is set or no mapper is registered for {@code clazz}
+     * @throws NullPointerException if {@code session} or {@code clazz} is {@code null}
+     */
+    public <T> void forEach(Session session, Class<T> clazz, Consumer<T> consumer) {
+        RecordMapper<T> mapper;
+        RecordReadContext<T> ctx;
+        try {
+            mapper = requireMapper(session, clazz);
+            ctx = mappingContext(session, clazz);
+        } catch (RuntimeException e) {
+            close();
+            throw e;
+        }
+        forEach(mapper, ctx, consumer);
     }
 
     /**
@@ -669,7 +952,7 @@ public class RecordStream implements Iterator<RecordResult>, Closeable {
         try {
             while (hasNext()) {
                 RecordResult kr = next();
-                if (kr.key().equals(key)) {
+                if (kr.getKey().equals(key)) {
                     return Optional.of(kr.recordOrThrow());
                 }
             }
@@ -697,15 +980,76 @@ public class RecordStream implements Iterator<RecordResult>, Closeable {
         try {
             while (hasNext()) {
                 RecordResult thisRecord = next();
-                if (thisRecord.key().equals(key)) {
+                if (thisRecord.getKey().equals(key)) {
                     Record rec = thisRecord.recordOrThrow();
-                    return Optional.of(mapper.fromMap(rec.bins, thisRecord.key(), rec.generation));
+                    return Optional.of(mapper.fromMap(rec.bins, thisRecord.getKey(), rec.generation));
                 }
             }
             return Optional.empty();
         } finally {
             close();
         }
+    }
+
+    /**
+     * Like {@link #get(Key, RecordMapper)} but passes {@link RecordReadContext} into
+     * {@link RecordMapper#fromMap(java.util.Map, Key, int, RecordReadContext)}.
+     *
+     * @param <T> the type of the object to be returned
+     * @param key the key of the record
+     * @param mapper the mapper to use to convert the record to the class
+     * @param ctx session and entity type for factory-backed mapping
+     * @return an Optional containing the mapped data, or empty if the key was not found
+     * @throws AerospikeException if the result code is not OK
+     */
+    public <T> Optional<T> get(Key key, RecordMapper<T> mapper, RecordReadContext<T> ctx) {
+        try {
+            while (hasNext()) {
+                RecordResult thisRecord = next();
+                if (thisRecord.getKey().equals(key)) {
+                    return Optional.of(mapBins(mapper, thisRecord, ctx));
+                }
+            }
+            return Optional.empty();
+        } finally {
+            close();
+        }
+    }
+
+    /**
+     * Searches the stream for {@code key} and maps that record to {@code clazz} using the
+     * session's {@link RecordMappingFactory}.
+     *
+     * <p>Resolves the mapper with {@link Session#getMapper(Class)} and passes a
+     * {@link RecordReadContext} into four-argument {@link RecordMapper#fromMap}.
+     * This is a <b>terminal operation</b> that closes the stream after the search completes.</p>
+     *
+     * <pre>{@code
+     * Optional<Player> player = session.query(playerKeys)
+     *     .execute()
+     *     .get(playerKey, session, Player.class);
+     * }</pre>
+     *
+     * @param <T> the domain type
+     * @param key the key of the record to find
+     * @param session the session whose mapping factory and identity are used for context
+     * @param clazz the domain class to map into
+     * @return an Optional containing the mapped object, or empty if the key was not found
+     * @throws AerospikeException if the result code is not OK
+     * @throws IllegalStateException if no factory is set or no mapper is registered for {@code clazz}
+     * @throws NullPointerException if {@code session} or {@code clazz} is {@code null}
+     */
+    public <T> Optional<T> get(Key key, Session session, Class<T> clazz) {
+        RecordMapper<T> mapper;
+        RecordReadContext<T> ctx;
+        try {
+            mapper = requireMapper(session, clazz);
+            ctx = mappingContext(session, clazz);
+        } catch (RuntimeException e) {
+            close();
+            throw e;
+        }
+        return get(key, mapper, ctx);
     }
 
     // ========================================
@@ -735,7 +1079,7 @@ public class RecordStream implements Iterator<RecordResult>, Closeable {
      * closes the stream after retrieving the first element, use {@link #getFirst(boolean)}.</p>
      *
      * @param throwException if true and the element has a non-OK result code, an exception is thrown;
-     *        if false, the caller must inspect {@link RecordResult#resultCode()} to check for errors
+     *        if false, the caller must inspect {@link RecordResult#getResultCode()} to check for errors
      * @return an Optional containing the next element, or empty if the stream is exhausted
      * @throws AerospikeException if throwException is true and the element has a non-OK result code
      */
@@ -765,9 +1109,53 @@ public class RecordStream implements Iterator<RecordResult>, Closeable {
         if (hasNext()) {
             RecordResult item = next();
             Record rec = item.recordOrThrow();
-            return Optional.of(mapper.fromMap(rec.bins, item.key(), rec.generation));
+            return Optional.of(mapper.fromMap(rec.bins, item.getKey(), rec.generation));
         }
         return Optional.empty();
+    }
+
+    /**
+     * Like {@link #pop(RecordMapper)} but passes {@link RecordReadContext} into
+     * {@link RecordMapper#fromMap(java.util.Map, Key, int, RecordReadContext)}.
+     *
+     * @param <T> the target type
+     * @param mapper the mapper to convert the record to the target type
+     * @param ctx session and entity type for factory-backed mapping
+     * @return an Optional containing the mapped object, or empty if the stream is exhausted
+     * @throws AerospikeException if the element has a non-OK result code
+     */
+    public <T> Optional<T> pop(RecordMapper<T> mapper, RecordReadContext<T> ctx) {
+        if (hasNext()) {
+            return Optional.of(mapBins(mapper, next(), ctx));
+        }
+        return Optional.empty();
+    }
+
+    /**
+     * Removes and returns the next record mapped to {@code clazz} using the session's
+     * {@link RecordMappingFactory}.
+     *
+     * <p>Resolves the mapper with {@link Session#getMapper(Class)} and passes a
+     * {@link RecordReadContext} into four-argument {@link RecordMapper#fromMap}.
+     * Does <b>not</b> close the stream. For a terminal first-element read, use
+     * {@link #getFirst(Session, Class)}.</p>
+     *
+     * <pre>{@code
+     * Optional<Player> next = stream.pop(session, Player.class);
+     * }</pre>
+     *
+     * @param <T> the domain type
+     * @param session the session whose mapping factory and identity are used for context
+     * @param clazz the domain class to map into
+     * @return an Optional containing the mapped object, or empty if the stream is exhausted
+     * @throws AerospikeException if the element has a non-OK result code
+     * @throws IllegalStateException if no factory is set or no mapper is registered for {@code clazz}
+     * @throws NullPointerException if {@code session} or {@code clazz} is {@code null}
+     */
+    public <T> Optional<T> pop(Session session, Class<T> clazz) {
+        RecordMapper<T> mapper = requireMapper(session, clazz);
+        RecordReadContext<T> ctx = mappingContext(session, clazz);
+        return pop(mapper, ctx);
     }
 
     /**
@@ -806,12 +1194,12 @@ public class RecordStream implements Iterator<RecordResult>, Closeable {
      *
      * <p>This method does <b>not</b> close the stream. The caller is responsible for closing
      * the stream when done, or for fully consuming it. For a terminal variant that automatically
-     * closes the stream, use {@link #getFirstUdfResult()}.</p>
+     * closes the stream, use {@link #getFirstUdfResultObject()}.</p>
      *
      * @return an Optional containing the UDF result, or empty if the stream is exhausted
      * @throws AerospikeException if the UDF invocation failed
      */
-    public Optional<Object> popUdfResult() {
+    public Optional<Object> popUdfResultObject() {
         if (hasNext()) {
             return Optional.ofNullable(next().udfResultOrThrow());
         }
@@ -824,18 +1212,65 @@ public class RecordStream implements Iterator<RecordResult>, Closeable {
      *
      * <p>This method does <b>not</b> close the stream. The caller is responsible for closing
      * the stream when done, or for fully consuming it. For a terminal variant that automatically
-     * closes the stream, use {@link #getFirstUdfResult(RecordMapper)}.</p>
+     * closes the stream, use {@link #getFirstUdfResultObject(RecordMapper)}.</p>
      *
      * @param <T> the target type
      * @param mapper the mapper to convert the UDF result map to the target type
      * @return an Optional containing the mapped UDF result, or empty if the stream is exhausted
+     *         or the UDF returned null
      * @throws AerospikeException with ResultCode = OP_NOT_APPLICABLE if the UDF return value is not a map
      */
-    public <T> Optional<T> popUdfResult(RecordMapper<T> mapper) {
+    public <T> Optional<T> popUdfResultObject(RecordMapper<T> mapper) {
         if (hasNext()) {
-            return Optional.ofNullable(next().udfResultAs(mapper));
+            return next().udfResultAsObject(mapper);
         }
         return Optional.empty();
+    }
+
+    /**
+     * Like {@link #popUdfResultObject(RecordMapper)} but passes {@link RecordReadContext} into
+     * {@link RecordMapper#fromMap(java.util.Map, Key, int, RecordReadContext)}.
+     *
+     * @param <T> the target type
+     * @param mapper the mapper to convert the UDF result map to the target type
+     * @param ctx session and entity type for factory-backed mapping
+     * @return an Optional containing the mapped UDF result, or empty if the stream is exhausted
+     *         or the UDF returned null
+     * @throws AerospikeException with ResultCode = OP_NOT_APPLICABLE if the UDF return value is not a map
+     */
+    public <T> Optional<T> popUdfResultObject(RecordMapper<T> mapper, RecordReadContext<T> ctx) {
+        if (hasNext()) {
+            return next().udfResultAsObject(mapper, ctx);
+        }
+        return Optional.empty();
+    }
+
+    /**
+     * Removes and returns the next UDF result mapped to {@code clazz} using the session's
+     * {@link RecordMappingFactory}.
+     *
+     * <p>The UDF must return a map. Resolves the mapper with {@link Session#getMapper(Class)}
+     * and passes a {@link RecordReadContext} into four-argument {@link RecordMapper#fromMap}.
+     * Does <b>not</b> close the stream. For a terminal first-element read, use
+     * {@link #getFirstUdfResultObject(Session, Class)}.</p>
+     *
+     * <pre>{@code
+     * Optional<Player> fromUdf = stream.popUdfResultObject(session, Player.class);
+     * }</pre>
+     *
+     * @param <T> the domain type
+     * @param session the session whose mapping factory and identity are used for context
+     * @param clazz the domain class to map into
+     * @return an Optional containing the mapped UDF result, or empty if the stream is exhausted
+     *         or the UDF returned null
+     * @throws AerospikeException with ResultCode = OP_NOT_APPLICABLE if the UDF return value is not a map
+     * @throws IllegalStateException if no factory is set or no mapper is registered for {@code clazz}
+     * @throws NullPointerException if {@code session} or {@code clazz} is {@code null}
+     */
+    public <T> Optional<T> popUdfResultObject(Session session, Class<T> clazz) {
+        RecordMapper<T> mapper = requireMapper(session, clazz);
+        RecordReadContext<T> ctx = mappingContext(session, clazz);
+        return popUdfResultObject(mapper, ctx);
     }
 
     /**
@@ -855,10 +1290,59 @@ public class RecordStream implements Iterator<RecordResult>, Closeable {
         if (hasNext()) {
             RecordResult item = next();
             Record rec = item.recordOrThrow();
-            T object = mapper.fromMap(rec.bins, item.key(), rec.generation);
+            T object = mapper.fromMap(rec.bins, item.getKey(), rec.generation);
             return Optional.of(new ObjectWithMetadata<>(object, rec));
         }
         return Optional.empty();
+    }
+
+    /**
+     * Like {@link #popWithMetadata(RecordMapper)} but passes {@link RecordReadContext} into
+     * {@link RecordMapper#fromMap(java.util.Map, Key, int, RecordReadContext)}.
+     *
+     * @param <T> the type of the object to be returned
+     * @param mapper the mapper to convert the record to the target type
+     * @param ctx session and entity type for factory-backed mapping
+     * @return an Optional containing an ObjectWithMetadata, or empty if the stream is exhausted
+     * @throws AerospikeException if the element has a non-OK result code
+     */
+    public <T> Optional<ObjectWithMetadata<T>> popWithMetadata(
+            RecordMapper<T> mapper, RecordReadContext<T> ctx) {
+        if (hasNext()) {
+            RecordResult item = next();
+            Record rec = item.recordOrThrow();
+            T object = mapper.fromMap(rec.bins, item.getKey(), rec.generation, ctx);
+            return Optional.of(new ObjectWithMetadata<>(object, rec));
+        }
+        return Optional.empty();
+    }
+
+    /**
+     * Removes and returns the next record mapped to {@code clazz} together with generation and
+     * expiration, using the session's {@link RecordMappingFactory}.
+     *
+     * <p>Resolves the mapper with {@link Session#getMapper(Class)} and passes a
+     * {@link RecordReadContext} into four-argument {@link RecordMapper#fromMap}.
+     * Does <b>not</b> close the stream. For a terminal first-element read, use
+     * {@link #getFirstWithMetadata(Session, Class)}.</p>
+     *
+     * <pre>{@code
+     * Optional<RecordStream.ObjectWithMetadata<Player>> row =
+     *     stream.popWithMetadata(session, Player.class);
+     * }</pre>
+     *
+     * @param <T> the domain type
+     * @param session the session whose mapping factory and identity are used for context
+     * @param clazz the domain class to map into
+     * @return an Optional containing object and metadata, or empty if the stream is exhausted
+     * @throws AerospikeException if the element has a non-OK result code
+     * @throws IllegalStateException if no factory is set or no mapper is registered for {@code clazz}
+     * @throws NullPointerException if {@code session} or {@code clazz} is {@code null}
+     */
+    public <T> Optional<ObjectWithMetadata<T>> popWithMetadata(Session session, Class<T> clazz) {
+        RecordMapper<T> mapper = requireMapper(session, clazz);
+        RecordReadContext<T> ctx = mappingContext(session, clazz);
+        return popWithMetadata(mapper, ctx);
     }
 
     // ========================================
@@ -888,7 +1372,7 @@ public class RecordStream implements Iterator<RecordResult>, Closeable {
      * {@link #pop(boolean)}.</p>
      *
      * @param throwException if true and the element has a non-OK result code, an exception is thrown;
-     *        if false, the caller must inspect {@link RecordResult#resultCode()} to check for errors
+     *        if false, the caller must inspect {@link RecordResult#getResultCode()} to check for errors
      * @return an Optional containing the first element, or empty if the stream is empty
      * @throws AerospikeException if throwException is true and the element has a non-OK result code
      */
@@ -915,6 +1399,61 @@ public class RecordStream implements Iterator<RecordResult>, Closeable {
     public <T> Optional<T> getFirst(RecordMapper<T> mapper) {
         try {
             return pop(mapper);
+        } finally {
+            close();
+        }
+    }
+
+    /**
+     * Like {@link #getFirst(RecordMapper)} but passes {@link RecordReadContext} into
+     * {@link RecordMapper#fromMap(java.util.Map, Key, int, RecordReadContext)} so factory-backed
+     * mappers (for example the Java object mapper) can use the session even when the stream
+     * is untyped.
+     *
+     * <p>This is a <b>terminal operation</b> that closes the stream after retrieving the
+     * first element. For a non-closing variant, use {@link #pop(RecordMapper, RecordReadContext)}.</p>
+     *
+     * @param <T> the target type
+     * @param mapper the mapper to convert the record to the target type
+     * @param ctx session and entity type for factory-backed mapping
+     * @return an Optional containing the mapped object, or empty if the stream is empty
+     * @throws AerospikeException if the element has a non-OK result code
+     */
+    public <T> Optional<T> getFirst(RecordMapper<T> mapper, RecordReadContext<T> ctx) {
+        try {
+            return pop(mapper, ctx);
+        } finally {
+            close();
+        }
+    }
+
+    /**
+     * Gets the first record mapped to {@code clazz} using the session's {@link RecordMappingFactory}.
+     *
+     * <p>Resolves the mapper with {@link Session#getMapper(Class)} and passes a
+     * {@link RecordReadContext} into four-argument {@link RecordMapper#fromMap}. This is a
+     * <b>terminal operation</b> that closes the stream. For a non-closing variant, use
+     * {@link #pop(Session, Class)}.</p>
+     *
+     * <pre>{@code
+     * Optional<Player> player = session.upsert(playerKey)
+     *     .bin("score").get()
+     *     .execute()
+     *     .getFirst(session, Player.class);
+     * }</pre>
+     *
+     * @param <T> the domain type
+     * @param session the session whose mapping factory and identity are used for context
+     * @param clazz the domain class to map into
+     * @return an Optional containing the mapped object, or empty if the stream is empty
+     * @throws AerospikeException if the element has a non-OK result code
+     * @throws IllegalStateException if no factory is set or no mapper is registered for {@code clazz}
+     * @throws NullPointerException if {@code session} or {@code clazz} is {@code null}
+     */
+    public <T> Optional<T> getFirst(Session session, Class<T> clazz) {
+        try {
+            RecordMapper<T> mapper = requireMapper(session, clazz);
+            return pop(mapper, mappingContext(session, clazz));
         } finally {
             close();
         }
@@ -961,14 +1500,14 @@ public class RecordStream implements Iterator<RecordResult>, Closeable {
      *
      * <p>This is a <b>terminal operation</b> that closes the stream after retrieving the
      * first element. For a non-closing variant that allows continued iteration, use
-     * {@link #popUdfResult()}.</p>
+     * {@link #popUdfResultObject()}.</p>
      *
      * @return an Optional containing the UDF result, or empty if the stream is empty
      * @throws AerospikeException if the UDF invocation failed
      */
-    public Optional<Object> getFirstUdfResult() {
+    public Optional<Object> getFirstUdfResultObject() {
         try {
-            return popUdfResult();
+            return popUdfResultObject();
         } finally {
             close();
         }
@@ -980,16 +1519,70 @@ public class RecordStream implements Iterator<RecordResult>, Closeable {
      *
      * <p>This is a <b>terminal operation</b> that closes the stream after retrieving the
      * first element. For a non-closing variant that allows continued iteration, use
-     * {@link #popUdfResult(RecordMapper)}.</p>
+     * {@link #popUdfResultObject(RecordMapper)}.</p>
      *
      * @param <T> the target type
      * @param mapper the mapper to convert the UDF result map to the target type
      * @return an Optional containing the mapped UDF result, or empty if the stream is empty
+     *         or the UDF returned null
      * @throws AerospikeException with ResultCode = OP_NOT_APPLICABLE if the UDF return value is not a map
      */
-    public <T> Optional<T> getFirstUdfResult(RecordMapper<T> mapper) {
+    public <T> Optional<T> getFirstUdfResultObject(RecordMapper<T> mapper) {
         try {
-            return popUdfResult(mapper);
+            return popUdfResultObject(mapper);
+        } finally {
+            close();
+        }
+    }
+
+    /**
+     * Like {@link #getFirstUdfResultObject(RecordMapper)} but passes {@link RecordReadContext}
+     * into {@link RecordMapper#fromMap(java.util.Map, Key, int, RecordReadContext)}.
+     *
+     * @param <T> the target type
+     * @param mapper the mapper to convert the UDF result map to the target type
+     * @param ctx session and entity type for factory-backed mapping
+     * @return an Optional containing the mapped UDF result, or empty if the stream is empty
+     *         or the UDF returned null
+     * @throws AerospikeException with ResultCode = OP_NOT_APPLICABLE if the UDF return value is not a map
+     */
+    public <T> Optional<T> getFirstUdfResultObject(RecordMapper<T> mapper, RecordReadContext<T> ctx) {
+        try {
+            return popUdfResultObject(mapper, ctx);
+        } finally {
+            close();
+        }
+    }
+
+    /**
+     * Gets the first UDF result mapped to {@code clazz} using the session's
+     * {@link RecordMappingFactory}.
+     *
+     * <p>The UDF must return a map. Resolves the mapper with {@link Session#getMapper(Class)}
+     * and passes a {@link RecordReadContext} into four-argument {@link RecordMapper#fromMap}.
+     * This is a <b>terminal operation</b> that closes the stream. For a non-closing variant, use
+     * {@link #popUdfResultObject(Session, Class)}.</p>
+     *
+     * <pre>{@code
+     * Optional<Player> fromUdf = session.executeUdf(playerKey)
+     *     .function("mypkg", "toMap")
+     *     .execute()
+     *     .getFirstUdfResultObject(session, Player.class);
+     * }</pre>
+     *
+     * @param <T> the domain type
+     * @param session the session whose mapping factory and identity are used for context
+     * @param clazz the domain class to map into
+     * @return an Optional containing the mapped UDF result, or empty if the stream is empty
+     *         or the UDF returned null
+     * @throws AerospikeException with ResultCode = OP_NOT_APPLICABLE if the UDF return value is not a map
+     * @throws IllegalStateException if no factory is set or no mapper is registered for {@code clazz}
+     * @throws NullPointerException if {@code session} or {@code clazz} is {@code null}
+     */
+    public <T> Optional<T> getFirstUdfResultObject(Session session, Class<T> clazz) {
+        try {
+            RecordMapper<T> mapper = requireMapper(session, clazz);
+            return popUdfResultObject(mapper, mappingContext(session, clazz));
         } finally {
             close();
         }
@@ -1058,6 +1651,71 @@ public class RecordStream implements Iterator<RecordResult>, Closeable {
         } finally {
             close();
         }
+    }
+
+    /**
+     * Like {@link #getFirstWithMetadata(RecordMapper)} but passes {@link RecordReadContext} into
+     * {@link RecordMapper#fromMap(java.util.Map, Key, int, RecordReadContext)}.
+     *
+     * @param <T> the type of the object to be returned
+     * @param mapper the mapper to use to convert the record to the class
+     * @param ctx session and entity type for factory-backed mapping
+     * @return an Optional containing an ObjectWithMetadata with the mapped object and its metadata,
+     *         or empty if the stream is empty
+     * @throws AerospikeException if the result code is not OK
+     */
+    public <T> Optional<ObjectWithMetadata<T>> getFirstWithMetadata(
+            RecordMapper<T> mapper, RecordReadContext<T> ctx) {
+        try {
+            return popWithMetadata(mapper, ctx);
+        } finally {
+            close();
+        }
+    }
+
+    /**
+     * Gets the first record mapped to {@code clazz} together with generation and expiration,
+     * using the session's {@link RecordMappingFactory}.
+     *
+     * <p>Resolves the mapper with {@link Session#getMapper(Class)} and passes a
+     * {@link RecordReadContext} into four-argument {@link RecordMapper#fromMap}. This is a
+     * <b>terminal operation</b> that closes the stream. For a non-closing variant, use
+     * {@link #popWithMetadata(Session, Class)}.</p>
+     *
+     * <pre>{@code
+     * Optional<RecordStream.ObjectWithMetadata<Player>> row =
+     *     session.query(playerKey).execute().getFirstWithMetadata(session, Player.class);
+     * }</pre>
+     *
+     * @param <T> the domain type
+     * @param session the session whose mapping factory and identity are used for context
+     * @param clazz the domain class to map into
+     * @return an Optional containing object and metadata, or empty if the stream is empty
+     * @throws AerospikeException if the result code is not OK
+     * @throws IllegalStateException if no factory is set or no mapper is registered for {@code clazz}
+     * @throws NullPointerException if {@code session} or {@code clazz} is {@code null}
+     */
+    public <T> Optional<ObjectWithMetadata<T>> getFirstWithMetadata(Session session, Class<T> clazz) {
+        try {
+            RecordMapper<T> mapper = requireMapper(session, clazz);
+            return popWithMetadata(mapper, mappingContext(session, clazz));
+        } finally {
+            close();
+        }
+    }
+
+    private static <T> RecordMapper<T> requireMapper(Session session, Class<T> clazz) {
+        Objects.requireNonNull(session, "session");
+        return MappingSupport.requireMapper(session.getRecordMappingFactory(), clazz);
+    }
+
+    private static <T> RecordReadContext<T> mappingContext(Session session, Class<T> clazz) {
+        return new RecordReadContext<>(session, clazz);
+    }
+
+    private static <T> T mapBins(RecordMapper<T> mapper, RecordResult rr, RecordReadContext<T> ctx) {
+        Record rec = rr.recordOrThrow();
+        return mapper.fromMap(rec.bins, rr.getKey(), rec.generation, ctx);
     }
 
 

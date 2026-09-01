@@ -16,199 +16,157 @@
  */
 package com.aerospike.client.sdk.query;
 
-import java.util.Collection;
-import java.util.Set;
-
-import com.aerospike.ael.AelParseException;
-import com.aerospike.ael.ExpressionContext;
-import com.aerospike.ael.Index;
-import com.aerospike.ael.IndexContext;
-import com.aerospike.ael.ParseResult;
-import com.aerospike.ael.ParsedExpression;
-import com.aerospike.ael.api.AelParser;
-import com.aerospike.ael.impl.AelParserImpl;
-import com.aerospike.client.sdk.Log;
+import com.aerospike.client.sdk.AelMaterializer;
+import com.aerospike.client.sdk.Cluster;
 import com.aerospike.client.sdk.Session;
-import com.aerospike.client.sdk.Value;
 import com.aerospike.client.sdk.ael.BooleanExpression;
-import com.aerospike.client.sdk.command.ParticleType;
 import com.aerospike.client.sdk.exp.Exp;
 import com.aerospike.client.sdk.exp.Expression;
 
+/**
+ * Holds a WHERE clause (string AEL, prepared AEL, {@link Exp}, or {@link BooleanExpression})
+ * and materializes it to server-compiled filter bytes. No client-side AEL parsing or index selection.
+ */
 public abstract class WhereClauseProcessor {
-    protected final boolean allowsIndex;
 
     /**
-     * Parse AEL with no query-set filtering of secondary indexes (legacy behavior).
+     * AEL source text when this WHERE was built from a string or {@link PreparedAel}.
      */
-    public final ParseResult process(String namespace, Session session) {
-        return process(namespace, null, session);
-    }
+    abstract String getAelString();
 
     /**
-     * Parse AEL; when {@code querySet} is non-null and non-blank, only indexes whose set matches
-     * (or have no set) participate in secondary-index selection.
+     * Whether this WHERE was built from an AEL string or {@link PreparedAel}.
      */
-    public abstract ParseResult process(String namespace, String querySet, Session session);
+    public abstract boolean hasStringAel();
 
-    public WhereClauseProcessor(boolean allowsIndex) {
-        this.allowsIndex = allowsIndex;
+    /**
+     * Materialize row filter expression bytes for field {@code 43} paths.
+     */
+    public abstract Exp toFilterExp(Cluster cluster);
+
+    public final Exp toFilterExp(Session session) {
+        return toFilterExp(session.getCluster());
     }
 
-    protected String valTypeToString(int type) {
-        switch(type) {
-        case ParticleType.BLOB: return "BLOB";
-        case ParticleType.GEOJSON: return "GeoJSON";
-        case ParticleType.INTEGER: return "numeric";
-        case ParticleType.STRING: return "string";
-        default: return "Unknown(" + type + ")";
-        }
-    }
-    protected String shorten(Value value) {
-        String val = value.toString();
-        if (val.length() <= 8 ) {
-            return val;
-        }
-        return val.substring(0, 5) + "...";
-    }
-    protected String filterCriteriaToString(Filter filter) {
-        if (filter.getEnd() != null) {
-            return "(" + shorten(filter.getBegin()) + "-" + shorten(filter.getEnd());
-        }
-        else {
-            return "(" + shorten(filter.getBegin()) + ")";
-        }
+    public final Expression toFilterExpression(Session session) {
+        return toFilterExpression(session.getCluster());
     }
 
-    protected String formStringOfFilter(Filter filter, IndexContext indexContext) {
-        StringBuffer sb = new StringBuffer();
-        sb.append(filter.getName())
-                .append(" [")
-                .append(valTypeToString(filter.getValType()))
-                .append(" ] ")
-                .append(filterCriteriaToString(filter));
-        if (indexContext != null && indexContext.getIndexes() != null) {
-            Collection<Index> indexes = indexContext.getIndexes();
-            sb.append("{");
-            for (Index index : indexes) {
-                sb.append(index.getBinValuesRatio()).append(",");
-            }
-            sb.append("}");
-        }
-            ;
-        return sb.toString();
+    public final Expression toFilterExpression(Cluster cluster) {
+        Exp exp = toFilterExp(cluster);
+        return exp != null ? Exp.build(exp) : null;
     }
 
-    protected ParseResult process(String ael, String namespace, String querySet, Session session) {
-        AelParser parser = new AelParserImpl();
-
-        ParsedExpression parseResult;
-        IndexContext indexContext = null;
-        ExpressionContext context = ExpressionContext.of(ael);
-        if (allowsIndex) {
-            Set<Index> indexes = session.getCluster().getIndexes();
-            indexContext = IndexContext.withQuerySet(namespace, querySet, indexes);
-            parseResult = parser.parseExpression(context, indexContext);
-        }
-        else {
-            parseResult = parser.parseExpression(context);
-        }
-        ParseResult result = parseResult.getResult();
-        if (result.getExp() == null && result.getFilter() == null) {
-            throw new AelParseException("Unknown error parsing AEL: '" + ael + "'");
-        }
-
-        if (Log.debugEnabled()) {
-            if (allowsIndex && result.getFilter() != null) {
-                Filter filter = result.getFilter();
-
-                Log.debug(String.format("Ael('%s', '%s') => (Exp: %s, Filter: %s)",
-                        ael,
-                        namespace,
-                        result.getExp(),
-                        formStringOfFilter(filter, indexContext)));
-            }
-            else {
-                Log.debug(String.format("Ael('%s', '%s') => (Exp: %s)",
-                        ael,
-                        namespace,
-                        result.getExp()));
-            }
-        }
-
-        return result;
-    }
-
-    private static class WhereStringImpl extends WhereClauseProcessor {
+    private static final class WhereStringImpl extends WhereClauseProcessor {
         private final String ael;
-        public WhereStringImpl(boolean allowsIndex, String ael) {
-            super(allowsIndex);
+
+        WhereStringImpl(String ael) {
             this.ael = ael;
         }
 
         @Override
-        public ParseResult process(String namespace, String querySet, Session session) {
-            return process(this.ael, namespace, querySet, session);
+        String getAelString() {
+            return ael;
+        }
+
+        @Override
+        public boolean hasStringAel() {
+            return true;
+        }
+
+        @Override
+        public Exp toFilterExp(Cluster cluster) {
+            return Exp.expr(AelMaterializer.expressionFromString(cluster, ael));
         }
     }
 
-    private static class WherePreparedImpl extends WhereClauseProcessor {
+    private static final class WherePreparedImpl extends WhereClauseProcessor {
         private final PreparedAel ael;
         private final Object[] params;
-        public WherePreparedImpl(boolean allowsIndex, PreparedAel ael, Object... params) {
-            super(allowsIndex);
+
+        WherePreparedImpl(PreparedAel ael, Object... params) {
             this.ael = ael;
             this.params = params;
         }
 
         @Override
-        public ParseResult process(String namespace, String querySet, Session session) {
-            // TODO: For now, until AEL supports prepared statements
-            String aelStr = ael.formValue(params);
-            return process(aelStr, namespace, querySet, session);
+        String getAelString() {
+            return ael.formValue(params);
+        }
+
+        @Override
+        public boolean hasStringAel() {
+            return true;
+        }
+
+        @Override
+        public Exp toFilterExp(Cluster cluster) {
+            return Exp.expr(AelMaterializer.expressionFromPrepared(cluster, ael, params));
         }
     }
 
-    private static class WhereBoolExprImpl extends WhereClauseProcessor {
+    private static final class WhereBoolExprImpl extends WhereClauseProcessor {
         private final BooleanExpression ael;
-        public WhereBoolExprImpl(boolean allowsIndex, BooleanExpression ael) {
-            super(allowsIndex);
+
+        WhereBoolExprImpl(BooleanExpression ael) {
             this.ael = ael;
         }
 
         @Override
-        public ParseResult process(String namespace, String querySet, Session session) {
-            // namespace, querySet, session intentionally ignored - not required in this implementation
-             return new ParseResult(null, ael.toAerospikeExp());
+        String getAelString() {
+            throw new IllegalStateException("WHERE clause does not provide an AEL string");
+        }
+
+        @Override
+        public boolean hasStringAel() {
+            return false;
+        }
+
+        @Override
+        public Exp toFilterExp(Cluster cluster) {
+            return ael.toAerospikeExp();
         }
     }
 
-    private static class WhereExpImpl extends WhereClauseProcessor {
+    private static final class WhereExpImpl extends WhereClauseProcessor {
         private final Exp exp;
-        public WhereExpImpl(boolean allowsIndex, Exp exp) {
-            super(allowsIndex);
+
+        WhereExpImpl(Exp exp) {
             this.exp = exp;
         }
 
         @Override
-        public ParseResult process(String namespace, String querySet, Session session) {
-            // namespace, querySet, session intentionally ignored - not required in this implementation
-            return new ParseResult(null, exp);
+        String getAelString() {
+            throw new IllegalStateException("WHERE clause does not provide an AEL string");
+        }
+
+        @Override
+        public boolean hasStringAel() {
+            return false;
+        }
+
+        @Override
+        public Exp toFilterExp(Cluster cluster) {
+            return exp;
         }
     }
 
-    public static WhereClauseProcessor from(boolean allowsIndex, String ael) {
-        return new WhereStringImpl(allowsIndex, ael);
+    public static WhereClauseProcessor from(String ael) {
+        return new WhereStringImpl(ael);
     }
-    public static WhereClauseProcessor from(boolean allowsIndex, PreparedAel ael, Object ... params) {
-        return new WherePreparedImpl(allowsIndex, ael, params);
+
+    public static WhereClauseProcessor from(PreparedAel ael, Object... params) {
+        return new WherePreparedImpl(ael, params);
     }
+
     public static WhereClauseProcessor from(BooleanExpression ael) {
-        return new WhereBoolExprImpl(false, ael);
+        return new WhereBoolExprImpl(ael);
     }
+
     public static WhereClauseProcessor from(Exp exp) {
-        return new WhereExpImpl(false, exp);
+        return new WhereExpImpl(exp);
     }
+
     public static WhereClauseProcessor from(Expression exp) {
         return from(Exp.expr(exp));
     }

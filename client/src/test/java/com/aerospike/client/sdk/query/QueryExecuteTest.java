@@ -46,6 +46,8 @@ public class QueryExecuteTest extends ClusterTest {
 
     @BeforeAll
     public static void prepare() {
+        assumeSupportsAel();
+
         RegisterTask task = session.registerUdfString(UdfTest.lua, "record_example.lua");
         task.waitTillComplete();
 

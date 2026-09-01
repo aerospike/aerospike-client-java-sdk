@@ -15,6 +15,7 @@ behaviors:
       allowInlineSsdAccess: true
     query:
       recordQueueSize: 1000
+      allowScansWithWhere: false
 
   high-reliability:
     allOperations:
@@ -46,6 +47,7 @@ behaviors:
       abandonCallAfter: 8s
     query:
       recordQueueSize: 12000
+      allowScansWithWhere: false
       maxConcurrentServers: 1
 
   development:
@@ -63,4 +65,5 @@ behaviors:
       allowInlineSsdAccess: true
     query:
       recordQueueSize: 1000
+      allowScansWithWhere: true
       maxConcurrentServers: 2

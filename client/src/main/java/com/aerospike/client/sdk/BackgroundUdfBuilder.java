@@ -20,7 +20,6 @@ import java.util.List;
 import java.util.Random;
 import java.util.concurrent.ExecutorService;
 
-import com.aerospike.ael.ParseResult;
 import com.aerospike.client.sdk.ael.BooleanExpression;
 import com.aerospike.client.sdk.command.BackgroundQueryCommand;
 import com.aerospike.client.sdk.command.BackgroundQueryNodeExecutor;
@@ -31,7 +30,6 @@ import com.aerospike.client.sdk.policy.Behavior.Mode;
 import com.aerospike.client.sdk.policy.Behavior.OpKind;
 import com.aerospike.client.sdk.policy.Behavior.OpShape;
 import com.aerospike.client.sdk.policy.ResolvedSettings;
-import com.aerospike.client.sdk.query.Filter;
 import com.aerospike.client.sdk.query.PreparedAel;
 import com.aerospike.client.sdk.query.WhereClauseProcessor;
 import com.aerospike.client.sdk.task.ExecuteTask;
@@ -161,7 +159,7 @@ public class BackgroundUdfBuilder extends AbstractSessionOperationBuilder<Backgr
      */
     @Override
     public BackgroundUdfBuilder where(String ael, Object... params) {
-        setWhereClause(createWhereClauseProcessor(true, ael, params));
+        setWhereClause(createWhereClauseProcessor(ael, params));
         return this;
     }
 
@@ -183,7 +181,7 @@ public class BackgroundUdfBuilder extends AbstractSessionOperationBuilder<Backgr
      */
     @Override
     public BackgroundUdfBuilder where(PreparedAel ael, Object... params) {
-        setWhereClause(WhereClauseProcessor.from(true, ael, params));
+        setWhereClause(WhereClauseProcessor.from(ael, params));
         return this;
     }
 
@@ -270,20 +268,17 @@ public class BackgroundUdfBuilder extends AbstractSessionOperationBuilder<Backgr
             Mode.ANY
         );
 
-        Filter filter = null;
         Expression filterExp = null;
 
         if (ael != null) {
-            ParseResult pr = ael.process(dataset.getNamespace(), dataset.getSet(), session);
-            filter = pr.getFilter();
-            filterExp = Exp.build(pr.getExp());
+            filterExp = ael.toFilterExpression(session);
         }
 
         int ttl = getExpirationAsInt();
         long taskId = new Random().nextLong();
 
         BackgroundQueryCommand cmd = new BackgroundQueryCommand(cluster, dataset, taskId, opType,
-            ttl, packageName, functionName, functionArgs, filter, filterExp, settings, recordsPerSecond,
+            ttl, packageName, functionName, functionArgs, null, filterExp, settings, recordsPerSecond,
             durableDeleteDefault);
 
         final NodeStatus status = new NodeStatus();

@@ -25,12 +25,16 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
 
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import com.aerospike.client.sdk.Value.HLLValue;
 import com.aerospike.client.sdk.command.Buffer;
 import com.aerospike.client.sdk.exp.Exp;
 import com.aerospike.client.sdk.exp.Expression;
+import com.aerospike.client.sdk.exp.HLLExp;
+import com.aerospike.client.sdk.operation.HLLWriteFlags;
 
 public class ExpOperationTest extends ClusterTest {
     String binA = "A";
@@ -42,6 +46,11 @@ public class ExpOperationTest extends ClusterTest {
 
     String keyA = "A";
     byte[] keyB = new byte[] {(byte)'B'};
+
+    @BeforeAll
+    public static void requireAel() {
+        assumeSupportsAel();
+    }
 
     @BeforeEach
     public void setUp() throws Exception {
@@ -97,8 +106,8 @@ public class ExpOperationTest extends ClusterTest {
 
     @Test
     public void expReadOnWriteEvalError() {
-        String wael = "$.D";
-        String rael = "$.A";
+        String wael = "$.D:INT";
+        String rael = "$.A:INT";
 
         RecordStream rs = session.update(args.set.id(keyA))
             .bin(binD).upsertFrom(wael)
@@ -357,7 +366,7 @@ public class ExpOperationTest extends ClusterTest {
     @Test
     public void expReturnsFloat() {
         //Expression ael = Exp.build(Exp.add(Exp.toFloat(Exp.intBin(binA)), Exp.val(4.0)));
-        String ael = "$." + binA + ".asFloat() + 4.0";
+        String ael = "$." + binA + ":INT.toFloat() + 4.0";
 
         RecordStream rs = session.update(args.set.id(keyA))
             .bin(binC).upsertFrom(ael)
@@ -469,46 +478,37 @@ public class ExpOperationTest extends ClusterTest {
 
     @Test
     public void expReturnsHLL() {
-        // TODO: Support HLL.
-        /*
-        Expression ael = Exp.build(HLLExp.init(HLLPolicy.Default, Exp.val(4), Exp.nil()));
+        Expression exp = Exp.build(HLLExp.init(HLLWriteFlags.DEFAULT, Exp.val(4), Exp.nil()));
 
         RecordStream rs = session.update(args.set.id(keyA))
-            .bin(binC).upsertFrom(ael)
+            .bin(binH).hllInit(HllConfig.of(4))
+            .bin(binC).upsertFrom(exp)
+            .bin(binH).get()
             .bin(binC).get()
-            .bin(expVar).selectFrom(ael)
+            .bin(expVar).selectFrom(exp)
             .execute();
 
-        Record record = client.operate(null, keyA,
-            HLLOperation.init(HLLPolicy.Default, binH, 4),
-            ExpOperation.write(binC, exp, ExpWriteFlags.DEFAULT),
-            Operation.get(binH),
-            Operation.get(binC),
-            ExpOperation.read(expVar, exp, ExpReadFlags.DEFAULT)
-            );
+        assertTrue(rs.hasNext());
+        Record rec = rs.getFirstRecord();
 
-        assertRecordFound(keyA, record);
-        //System.out.println(record);
-
-        List<?> results = record.getList(binH);
+        List<?> results = rec.getList(binH);
         HLLValue valH = (HLLValue)results.get(1);
 
-        results = record.getList(binC);
+        results = rec.getList(binC);
         HLLValue valC = (HLLValue)results.get(1);
 
-        HLLValue valExp = record.getHLLValue(expVar);
+        HLLValue valExp = rec.getHLLValue(expVar);
 
         String resultString = "bytes not equal";
-        assertArrayEquals(resultString, valH.getBytes(), valC.getBytes());
-        assertArrayEquals(resultString, valH.getBytes(), valExp.getBytes());
+        assertArrayEquals(valH.getBytes(), valC.getBytes(), resultString);
+        assertArrayEquals(valH.getBytes(), valExp.getBytes(), resultString);
 
-        record = client.operate(null, keyA,
-            ExpOperation.read(expVar, exp, ExpReadFlags.DEFAULT)
-            );
+        rs = session.query(args.set.id(keyA))
+            .bin(expVar).selectFrom(exp)
+            .execute();
 
-        valExp = record.getHLLValue(expVar);
-        assertArrayEquals(resultString, valH.getBytes(), valExp.getBytes());
-        */
+        valExp = rec.getHLLValue(expVar);
+        assertArrayEquals(valH.getBytes(), valExp.getBytes(), resultString);
     }
 
     @Test

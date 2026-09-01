@@ -38,6 +38,8 @@ public class QueryStringTest extends ClusterTest {
 
     @BeforeAll
     public static void prepare() {
+        assumeSupportsAel();
+
         try {
             session.createIndex(args.set, indexName, binName, IndexType.STRING,
                 IndexCollectionType.DEFAULT)
