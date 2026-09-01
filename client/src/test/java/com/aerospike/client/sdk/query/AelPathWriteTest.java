@@ -36,7 +36,6 @@ import com.aerospike.client.sdk.ClusterTest;
 import com.aerospike.client.sdk.Key;
 import com.aerospike.client.sdk.Record;
 import com.aerospike.client.sdk.RecordStream;
-import com.aerospike.client.sdk.RecordResult;
 import com.aerospike.client.sdk.ResultCode;
 
 /**
@@ -44,20 +43,17 @@ import com.aerospike.client.sdk.ResultCode;
  * the {@code :PROPERTY} flags.
  *
  * <p>These run through {@code upsertFrom}, which evaluates the AEL against the record and
- * stores the <em>result</em> in the target bin. The source bin is not mutated, so each
- * test asserts on the computed output bin and (where it matters) that the source is intact.
+ * stores the <em>result</em> in bin {@code out}. The source bin is not mutated, so each
+ * test asserts on the computed output and (where it matters) that the source is intact.
  *
- * <p>Seeded state: list {@code [100, 200, 300, 400, 500]} and key-ordered map
- * {@code {alpha: 10, beta: 20, gamma: 30}}.
+ * <p>Fixture — one record with these bins:
+ * <pre>
+ *   l   [100, 200, 300, 400, 500]
+ *   m   {alpha: 10, beta: 20, gamma: 30}    key-ordered
+ * </pre>
  */
 public class AelPathWriteTest extends ClusterTest {
     private static final String KEY = "ael_path_write";
-    private static final String BIN_LIST = "l";
-    private static final String BIN_MAP = "m";
-    private static final String BIN_OUT = "out";
-
-    private static final String L = "$." + BIN_LIST + ":LIST";
-    private static final String M = "$." + BIN_MAP + ":MAP";
 
     private static final List<Long> SEEDED_LIST = List.of(100L, 200L, 300L, 400L, 500L);
 
@@ -79,8 +75,8 @@ public class AelPathWriteTest extends ClusterTest {
         map.put("gamma", 30);
 
         session.upsert(key)
-            .bin(BIN_LIST).setTo(List.of(100, 200, 300, 400, 500))
-            .bin(BIN_MAP).setTo(map)
+            .bin("l").setTo(List.of(100, 200, 300, 400, 500))
+            .bin("m").setTo(map)
             .execute();
     }
 
@@ -88,34 +84,36 @@ public class AelPathWriteTest extends ClusterTest {
 
     @Test
     public void setToReplacesListElement() {
-        assertEquals(List.of(999L, 200L, 300L, 400L, 500L), writeLongs(L + ".[0]:INT.setTo(999)"));
+        assertEquals(List.of(999L, 200L, 300L, 400L, 500L),
+            writeLongs("$.l:LIST.[0]:INT.setTo(999)"));
     }
 
     @Test
     public void addIncrementsListElement() {
-        assertEquals(List.of(105L, 200L, 300L, 400L, 500L), writeLongs(L + ".[0]:INT.add(5)"));
+        assertEquals(List.of(105L, 200L, 300L, 400L, 500L),
+            writeLongs("$.l:LIST.[0]:INT.add(5)"));
     }
 
     @Test
     public void setToReplacesMapValue() {
-        assertEquals(99L, writeMap(M + ".alpha:INT.setTo(99)").get("alpha"));
+        assertEquals(99L, writeMap("$.m:MAP.alpha:INT.setTo(99)").get("alpha"));
     }
 
     @Test
     public void addIncrementsMapValue() {
-        assertEquals(11L, writeMap(M + ".alpha:INT.add(1)").get("alpha"));
+        assertEquals(11L, writeMap("$.m:MAP.alpha:INT.add(1)").get("alpha"));
     }
 
     @Test
     public void setToCreatesAbsentMapKey() {
-        Map<String, Long> result = writeMap(M + ".delta:INT.setTo(40)");
+        Map<String, Long> result = writeMap("$.m:MAP.delta:INT.setTo(40)");
         assertEquals(4, result.size());
         assertEquals(40L, result.get("delta"));
     }
 
     @Test
     public void updateReplacesExistingMapKey() {
-        assertEquals(11L, writeMap(M + ".alpha:INT.update(11)").get("alpha"));
+        assertEquals(11L, writeMap("$.m:MAP.alpha:INT.update(11)").get("alpha"));
     }
 
     /**
@@ -124,51 +122,50 @@ public class AelPathWriteTest extends ClusterTest {
      */
     @Test
     public void createOnlyPropertyRejectedOnSetTo() {
-        AerospikeException ex = assertThrows(AerospikeException.class,
-            () -> write(M + ".delta:INT.setTo(40):CREATE_ONLY"));
-        assertEquals(ResultCode.PARAMETER_ERROR, ex.getResultCode());
+        assertWriteFails("$.m:MAP.delta:INT.setTo(40):CREATE_ONLY", ResultCode.PARAMETER_ERROR);
     }
 
     // --- bulk collection writes ---
 
     @Test
     public void appendAddsSingleListElement() {
-        assertEquals(List.of(100L, 200L, 300L, 400L, 500L, 600L), writeLongs(L + ".append(600)"));
+        assertEquals(List.of(100L, 200L, 300L, 400L, 500L, 600L),
+            writeLongs("$.l:LIST.append(600)"));
     }
 
     @Test
     public void appendItemsAddsCollection() {
         assertEquals(List.of(100L, 200L, 300L, 400L, 500L, 700L, 800L),
-            writeLongs(L + ".appendItems([700, 800])"));
+            writeLongs("$.l:LIST.appendItems([700, 800])"));
     }
 
     @Test
     public void putItemsMergesIntoMap() {
-        Map<String, Long> result = writeMap(M + ".putItems({delta: 40})");
+        Map<String, Long> result = writeMap("$.m:MAP.putItems({delta: 40})");
         assertEquals(4, result.size());
         assertEquals(40L, result.get("delta"));
     }
 
     @Test
     public void updateItemsRewritesExistingKeys() {
-        assertEquals(11L, writeMap(M + ".updateItems({alpha: 11})").get("alpha"));
+        assertEquals(11L, writeMap("$.m:MAP.updateItems({alpha: 11})").get("alpha"));
     }
 
     // --- structural writes ---
 
     @Test
     public void removeDropsSelectedElement() {
-        assertEquals(List.of(200L, 300L, 400L, 500L), writeLongs(L + ".[0]:INT.remove()"));
+        assertEquals(List.of(200L, 300L, 400L, 500L), writeLongs("$.l:LIST.[0]:INT.remove()"));
     }
 
     @Test
     public void clearEmptiesCollection() {
-        assertEquals(List.of(), writeLongs(L + ".clear()"));
+        assertEquals(List.of(), writeLongs("$.l:LIST.clear()"));
     }
 
     @Test
     public void sortOrdersList() {
-        assertEquals(SEEDED_LIST, writeLongs(L + ".sort()"));
+        assertEquals(SEEDED_LIST, writeLongs("$.l:LIST.sort()"));
     }
 
     // --- modify() over a filtered selection ---
@@ -176,12 +173,13 @@ public class AelPathWriteTest extends ClusterTest {
     @Test
     public void modifyAppliesExpressionToMatchedListElements() {
         assertEquals(List.of(100L, 200L, 301L, 401L, 501L),
-            writeLongs(L + ".*[?(@:INT > 200)].modify(@:INT + 1)"));
+            writeLongs("$.l:LIST.*[?(@:INT > 200)].modify(@:INT + 1)"));
     }
 
     @Test
     public void modifyAppliesExpressionToMatchedMapValues() {
-        Map<String, Long> result = writeMap(M + ".*[?(@key:STRING == 'beta')].modify(@:INT * 2)");
+        Map<String, Long> result =
+            writeMap("$.m:MAP.*[?(@key:STRING == 'beta')].modify(@:INT * 2)");
         assertEquals(40L, result.get("beta"));
         assertEquals(10L, result.get("alpha"));
         assertEquals(30L, result.get("gamma"));
@@ -189,8 +187,8 @@ public class AelPathWriteTest extends ClusterTest {
 
     @Test
     public void modifyLeavesSourceBinUnchanged() {
-        writeLongs(L + ".*[?(@:INT > 200)].modify(@:INT + 1)");
-        assertEquals(SEEDED_LIST, readLongs(BIN_LIST));
+        writeLongs("$.l:LIST.*[?(@:INT > 200)].modify(@:INT + 1)");
+        assertEquals(SEEDED_LIST, readLongs("l"));
     }
 
     // --- property flags ---
@@ -198,7 +196,7 @@ public class AelPathWriteTest extends ClusterTest {
     @Test
     public void addUniqueAcceptsDistinctItems() {
         assertEquals(List.of(100L, 200L, 300L, 400L, 500L, 600L, 700L),
-            writeLongs(L + ".appendItems([600, 700]):ADD_UNIQUE"));
+            writeLongs("$.l:LIST.appendItems([600, 700]):ADD_UNIQUE"));
     }
 
     /**
@@ -207,9 +205,7 @@ public class AelPathWriteTest extends ClusterTest {
      */
     @Test
     public void addUniqueRejectsDuplicateWithinInput() {
-        AerospikeException ex = assertThrows(AerospikeException.class,
-            () -> write(L + ".appendItems([1, 1, 2]):ADD_UNIQUE"));
-        assertEquals(ResultCode.OP_NOT_APPLICABLE, ex.getResultCode());
+        assertWriteFails("$.l:LIST.appendItems([1, 1, 2]):ADD_UNIQUE", ResultCode.OP_NOT_APPLICABLE);
     }
 
     /**
@@ -218,25 +214,30 @@ public class AelPathWriteTest extends ClusterTest {
      */
     @Test
     public void noFailSuppressesAddUniqueFailureWholesale() {
-        assertEquals(SEEDED_LIST, writeLongs(L + ".appendItems([1, 1, 2]):ADD_UNIQUE:NO_FAIL"));
+        assertEquals(SEEDED_LIST, writeLongs("$.l:LIST.appendItems([1, 1, 2]):ADD_UNIQUE:NO_FAIL"));
     }
 
     @Test
     public void noFailAcceptedOnModify() {
         assertEquals(List.of(100L, 200L, 301L, 401L, 501L),
-            writeLongs(L + ".*[?(@:INT > 200)].modify(@:INT + 1):NO_FAIL"));
+            writeLongs("$.l:LIST.*[?(@:INT > 200)].modify(@:INT + 1):NO_FAIL"));
     }
 
     // --- absent-bin behaviour ---
 
     @Test
     public void writeToAbsentBinIsNotApplicable() {
-        AerospikeException ex = assertThrows(AerospikeException.class,
-            () -> write("$.missingmap:MAP.k:INT.setTo(1)"));
-        assertEquals(ResultCode.OP_NOT_APPLICABLE, ex.getResultCode());
+        assertWriteFails("$.nosuchbin:MAP.k:INT.setTo(1)", ResultCode.OP_NOT_APPLICABLE);
     }
 
     // --- helpers ---
+
+    private void assertWriteFails(String ael, int expectedResultCode) {
+        AerospikeException ex = assertThrows(AerospikeException.class, () -> write(ael),
+            () -> "expected server to reject AEL: " + ael);
+        assertEquals(expectedResultCode, ex.getResultCode(),
+            () -> "unexpected result code for AEL: " + ael);
+    }
 
     private List<Long> writeLongs(String ael) {
         Object value = write(ael);
@@ -252,23 +253,22 @@ public class AelPathWriteTest extends ClusterTest {
         return out;
     }
 
-    /** Evaluates a write-intent AEL into {@link #BIN_OUT} and returns the stored result. */
+    /** Evaluates a write-intent AEL into bin {@code out} and returns the stored result. */
     private Object write(String ael) {
         try (RecordStream rs = session.query(key)
             .upsert(key)
-            .bin(BIN_OUT)
+            .bin("out")
             .upsertFrom(ael)
             .execute()) {
             while (rs.hasNext()) {
-                RecordResult rr = rs.next();
-                rr.recordOrThrow();
+                rs.next().recordOrThrow();
             }
         }
 
         try (RecordStream rs = session.query(key).execute()) {
             assertTrue(rs.hasNext(), () -> "no record after AEL write: " + ael);
             Record rec = rs.next().recordOrThrow();
-            Object value = rec.getValue(BIN_OUT);
+            Object value = rec.getValue("out");
             assertNotNull(value, () -> "no output bin after AEL write: " + ael);
             return value;
         }

@@ -50,19 +50,22 @@ import com.aerospike.client.sdk.ResultCode;
  *
  * <p>String methods take a STRING receiver, so paths are pinned {@code :STRING}. Index
  * arguments are codepoint offsets and negative values count from the end.
+ *
+ * <p>Fixture — one record with these bins:
+ * <pre>
+ *   s       "Hello World"
+ *   uni     "héllo"          5 codepoints, 6 UTF-8 bytes
+ *   numstr  "1234"
+ *   b64     "aGVsbG8="       base64 of "hello"
+ *   padded  "  trim me  "
+ *   upper   "HELLO"
+ *   lower   "hello"
+ *   num     42
+ *   f       2.5
+ * </pre>
  */
 public class AelStringTest extends ClusterTest {
     private static final String KEY = "ael_string";
-    private static final String BIN_TEXT = "s";
-    private static final String BIN_NUMERIC = "numstr";
-    private static final String BIN_BASE64 = "b64";
-    private static final String BIN_PADDED = "padded";
-    private static final String BIN_UPPER = "upper";
-    private static final String BIN_LOWER = "lower";
-    private static final String BIN_INT = "num";
-    private static final String BIN_FLOAT = "f";
-
-    private static final String TEXT = "Hello World";
 
     private Key key;
 
@@ -77,14 +80,15 @@ public class AelStringTest extends ClusterTest {
         session.delete(key).execute();
 
         session.upsert(key)
-            .bin(BIN_TEXT).setTo(TEXT)
-            .bin(BIN_NUMERIC).setTo("1234")
-            .bin(BIN_BASE64).setTo("aGVsbG8=")
-            .bin(BIN_PADDED).setTo("  trim me  ")
-            .bin(BIN_UPPER).setTo("HELLO")
-            .bin(BIN_LOWER).setTo("hello")
-            .bin(BIN_INT).setTo(42)
-            .bin(BIN_FLOAT).setTo(2.5)
+            .bin("s").setTo("Hello World")
+            .bin("uni").setTo("héllo")
+            .bin("numstr").setTo("1234")
+            .bin("b64").setTo("aGVsbG8=")
+            .bin("padded").setTo("  trim me  ")
+            .bin("upper").setTo("HELLO")
+            .bin("lower").setTo("hello")
+            .bin("num").setTo(42)
+            .bin("f").setTo(2.5)
             .execute();
     }
 
@@ -92,64 +96,66 @@ public class AelStringTest extends ClusterTest {
 
     @Test
     public void strlenCountsCodepoints() {
-        assertEquals(TEXT.length(), selectLong("$." + BIN_TEXT + ":STRING.strlen()"));
+        assertEquals(11L, selectLong("$.s:STRING.strlen()"));
+        assertEquals(5L, selectLong("$.uni:STRING.strlen()"));
     }
 
     @Test
     public void bytesLengthCountsUtf8Bytes() {
-        assertEquals(TEXT.getBytes(StandardCharsets.UTF_8).length,
-            selectLong("$." + BIN_TEXT + ":STRING.bytesLength()"));
+        assertEquals(11L, selectLong("$.s:STRING.bytesLength()"));
+        // "héllo" is where the two lengths part ways: é is one codepoint, two bytes.
+        assertEquals(6L, selectLong("$.uni:STRING.bytesLength()"));
     }
 
     // --- substring / indexing ---
 
     @Test
     public void substrWithFromAndTo() {
-        assertEquals("Hello", selectString("$." + BIN_TEXT + ":STRING.substr(from: 0, to: 5)"));
+        assertEquals("Hello", selectString("$.s:STRING.substr(from: 0, to: 5)"));
     }
 
     @Test
     public void substrWithFromOnlyRunsToEnd() {
-        assertEquals("World", selectString("$." + BIN_TEXT + ":STRING.substr(from: 6)"));
+        assertEquals("World", selectString("$.s:STRING.substr(from: 6)"));
     }
 
     @Test
     public void substrWithNegativeFromCountsFromEnd() {
-        assertEquals("World", selectString("$." + BIN_TEXT + ":STRING.substr(from: -5)"));
+        assertEquals("World", selectString("$.s:STRING.substr(from: -5)"));
     }
 
     @Test
     public void charAtReturnsSingleCodepointString() {
-        assertEquals("H", selectString("$." + BIN_TEXT + ":STRING.charAt(index: 0)"));
+        assertEquals("H", selectString("$.s:STRING.charAt(index: 0)"));
     }
 
     @Test
     public void charAtWithNegativeIndexCountsFromEnd() {
-        assertEquals("d", selectString("$." + BIN_TEXT + ":STRING.charAt(index: -1)"));
+        assertEquals("d", selectString("$.s:STRING.charAt(index: -1)"));
     }
 
     // --- search ---
 
     @Test
     public void findReturnsFirstOccurrenceIndex() {
-        assertEquals(6L, selectLong("$." + BIN_TEXT + ":STRING.find(needle: 'World')"));
+        assertEquals(6L, selectLong("$.s:STRING.find(needle: 'World')"));
     }
 
     @Test
     public void findWithOccurrenceSelectsNthMatch() {
         // "Hello World" — 'l' at codepoints 2, 3, 9; the 2nd occurrence is index 3.
-        assertEquals(3L, selectLong("$." + BIN_TEXT + ":STRING.find(needle: 'l', occurrence: 2)"));
+        assertEquals(3L, selectLong("$.s:STRING.find(needle: 'l', occurrence: 2)"));
     }
 
     @Test
     public void findReturnsMinusOneWhenAbsent() {
-        assertEquals(-1L, selectLong("$." + BIN_TEXT + ":STRING.find(needle: 'zzz')"));
+        assertEquals(-1L, selectLong("$.s:STRING.find(needle: 'zzz')"));
     }
 
     @Test
     public void containsUsesNamedNeedle() {
-        assertTrue(selectBoolean("$." + BIN_TEXT + ":STRING.contains(needle: 'World')"));
-        assertFalse(selectBoolean("$." + BIN_TEXT + ":STRING.contains(needle: 'zzz')"));
+        assertTrue(selectBoolean("$.s:STRING.contains(needle: 'World')"));
+        assertFalse(selectBoolean("$.s:STRING.contains(needle: 'zzz')"));
     }
 
     /**
@@ -159,119 +165,106 @@ public class AelStringTest extends ClusterTest {
      */
     @Test
     public void startsWithAndEndsWithTakePositionalArgument() {
-        assertTrue(selectBoolean("$." + BIN_TEXT + ":STRING.startsWith('Hello')"));
-        assertFalse(selectBoolean("$." + BIN_TEXT + ":STRING.startsWith('World')"));
-        assertTrue(selectBoolean("$." + BIN_TEXT + ":STRING.endsWith('World')"));
-        assertFalse(selectBoolean("$." + BIN_TEXT + ":STRING.endsWith('Hello')"));
+        assertTrue(selectBoolean("$.s:STRING.startsWith('Hello')"));
+        assertFalse(selectBoolean("$.s:STRING.startsWith('World')"));
+        assertTrue(selectBoolean("$.s:STRING.endsWith('World')"));
+        assertFalse(selectBoolean("$.s:STRING.endsWith('Hello')"));
     }
 
     @Test
     public void startsWithRejectsNamedArgument() {
         assertThrows(AerospikeException.class,
-            () -> selectValue("$." + BIN_TEXT + ":STRING.startsWith(needle: 'Hello')"));
+            () -> selectValue("$.s:STRING.startsWith(needle: 'Hello')"));
     }
 
     // --- classification ---
 
     @Test
     public void isNumericDistinguishesNumericText() {
-        assertTrue(selectBoolean("$." + BIN_NUMERIC + ":STRING.isNumeric()"));
-        assertFalse(selectBoolean("$." + BIN_TEXT + ":STRING.isNumeric()"));
+        assertTrue(selectBoolean("$.numstr:STRING.isNumeric()"));
+        assertFalse(selectBoolean("$.s:STRING.isNumeric()"));
     }
 
     @Test
     public void isUpperAndIsLowerOnStoredText() {
-        assertFalse(selectBoolean("$." + BIN_TEXT + ":STRING.isUpper()"));
-        assertFalse(selectBoolean("$." + BIN_TEXT + ":STRING.isLower()"));
-        assertTrue(selectBoolean("$." + BIN_UPPER + ":STRING.isUpper()"));
-        assertTrue(selectBoolean("$." + BIN_LOWER + ":STRING.isLower()"));
+        assertFalse(selectBoolean("$.s:STRING.isUpper()"));
+        assertFalse(selectBoolean("$.s:STRING.isLower()"));
+        assertTrue(selectBoolean("$.upper:STRING.isUpper()"));
+        assertTrue(selectBoolean("$.lower:STRING.isLower()"));
     }
-
-    /**
-     * Server bug: {@code isUpper} / {@code isLower} do not observe the result of a
-     * preceding case op, though every other read op does.
-     *
-     * <p>{@code $.s:STRING.upper()} yields {@code "HELLO WORLD"} and
-     * {@code $.s:STRING.upper().contains(needle: 'HELLO')} is {@code true} — so the chained
-     * receiver is the modified value. But {@code .upper().isUpper()} returns {@code false},
-     * and symmetrically for {@code .lower().isLower()}. Enable once the server agrees.
-     */
+    
     @Disabled("server: isUpper/isLower ignore a chained case op; contains/strlen on the same receiver do not")
     @Test
     public void isUpperAndIsLowerObserveChainedCaseOp() {
-        assertTrue(selectBoolean("$." + BIN_TEXT + ":STRING.upper().isUpper()"));
-        assertTrue(selectBoolean("$." + BIN_TEXT + ":STRING.lower().isLower()"));
+        assertTrue(selectBoolean("$.s:STRING.upper().isUpper()"));
+        assertTrue(selectBoolean("$.s:STRING.lower().isLower()"));
     }
 
     /** Guards the premise of the disabled test above: other reads do see the case op. */
     @Test
     public void otherReadsObserveChainedCaseOp() {
-        assertTrue(selectBoolean("$." + BIN_TEXT + ":STRING.upper().contains(needle: 'HELLO')"));
-        assertEquals("HELLO WORLD", selectString("$." + BIN_TEXT + ":STRING.upper()"));
+        assertTrue(selectBoolean("$.s:STRING.upper().contains(needle: 'HELLO')"));
+        assertEquals("HELLO WORLD", selectString("$.s:STRING.upper()"));
     }
 
     // --- case and normalization ---
 
     @Test
     public void upperAndLower() {
-        assertEquals("HELLO WORLD", selectString("$." + BIN_TEXT + ":STRING.upper()"));
-        assertEquals("hello world", selectString("$." + BIN_TEXT + ":STRING.lower()"));
+        assertEquals("HELLO WORLD", selectString("$.s:STRING.upper()"));
+        assertEquals("hello world", selectString("$.s:STRING.lower()"));
     }
 
     @Test
     public void caseFoldProducesComparisonKey() {
-        assertEquals("hello world", selectString("$." + BIN_TEXT + ":STRING.caseFold()"));
+        assertEquals("hello world", selectString("$.s:STRING.caseFold()"));
     }
 
     @Test
     public void normalizeNfcLeavesAlreadyNormalizedTextAlone() {
-        assertEquals(TEXT, selectString("$." + BIN_TEXT + ":STRING.normalizeNFC()"));
+        assertEquals("Hello World", selectString("$.s:STRING.normalizeNFC()"));
     }
 
     // --- trimming and padding ---
 
     @Test
     public void trimVariantsRemoveSurroundingWhitespace() {
-        assertEquals("trim me", selectString("$." + BIN_PADDED + ":STRING.trim()"));
-        assertEquals("trim me  ", selectString("$." + BIN_PADDED + ":STRING.trimStart()"));
-        assertEquals("  trim me", selectString("$." + BIN_PADDED + ":STRING.trimEnd()"));
+        assertEquals("trim me", selectString("$.padded:STRING.trim()"));
+        assertEquals("trim me  ", selectString("$.padded:STRING.trimStart()"));
+        assertEquals("  trim me", selectString("$.padded:STRING.trimEnd()"));
     }
 
     @Test
     public void padStartAndPadEndFillToTargetLength() {
-        assertEquals("****Hello World",
-            selectString("$." + BIN_TEXT + ":STRING.padStart(length: 15, pad: '*')"));
-        assertEquals("Hello World****",
-            selectString("$." + BIN_TEXT + ":STRING.padEnd(length: 15, pad: '*')"));
+        assertEquals("****Hello World", selectString("$.s:STRING.padStart(length: 15, pad: '*')"));
+        assertEquals("Hello World****", selectString("$.s:STRING.padEnd(length: 15, pad: '*')"));
     }
 
     @Test
     public void padIsNoOpWhenAlreadyAtTargetLength() {
-        assertEquals(TEXT, selectString("$." + BIN_TEXT + ":STRING.padStart(length: 5, pad: '*')"));
+        assertEquals("Hello World", selectString("$.s:STRING.padStart(length: 5, pad: '*')"));
     }
 
     // --- construction ---
 
     @Test
     public void repeatConcatenatesCopies() {
-        assertEquals(TEXT + TEXT, selectString("$." + BIN_TEXT + ":STRING.repeat(2)"));
+        assertEquals("Hello WorldHello World", selectString("$.s:STRING.repeat(2)"));
     }
 
     @Test
     public void spliceInsertsAtCodepointOffset() {
-        assertEquals("Hello, World",
-            selectString("$." + BIN_TEXT + ":STRING.splice(offset: 5, value: ',')"));
+        assertEquals("Hello, World", selectString("$.s:STRING.splice(offset: 5, value: ',')"));
     }
 
     @Test
     public void overwriteReplacesInPlace() {
-        assertEquals("Jello World",
-            selectString("$." + BIN_TEXT + ":STRING.overwrite(offset: 0, value: 'J')"));
+        assertEquals("Jello World", selectString("$.s:STRING.overwrite(offset: 0, value: 'J')"));
     }
 
     @Test
     public void snipRemovesRange() {
-        assertEquals("World", selectString("$." + BIN_TEXT + ":STRING.snip(from: 0, to: 6)"));
+        assertEquals("World", selectString("$.s:STRING.snip(from: 0, to: 6)"));
     }
 
     // --- replacement ---
@@ -279,52 +272,52 @@ public class AelStringTest extends ClusterTest {
     @Test
     public void replaceSubstitutesFirstMatchOnly() {
         assertEquals("Hello There",
-            selectString("$." + BIN_TEXT + ":STRING.replace(find: 'World', replace: 'There')"));
+            selectString("$.s:STRING.replace(find: 'World', replace: 'There')"));
     }
 
     @Test
     public void replaceAllSubstitutesEveryMatch() {
         assertEquals("HeLLo WorLd",
-            selectString("$." + BIN_TEXT + ":STRING.replaceAll(find: 'l', replace: 'L')"));
+            selectString("$.s:STRING.replaceAll(find: 'l', replace: 'L')"));
     }
 
     @Test
     public void regexReplaceUsesRegexLiteral() {
         assertEquals("Hell0 W0rld",
-            selectString("$." + BIN_TEXT + ":STRING.regexReplace(pattern: /o/, replace: '0')"));
+            selectString("$.s:STRING.regexReplace(pattern: /o/, replace: '0')"));
     }
 
     @Test
     public void regexReplaceHonoursCaseInsensitiveFlag() {
         assertEquals("He__o Wor_d",
-            selectString("$." + BIN_TEXT + ":STRING.regexReplace(pattern: /L/i, replace: '_')"));
+            selectString("$.s:STRING.regexReplace(pattern: /L/i, replace: '_')"));
     }
 
     // --- regex match operator ---
 
     @Test
     public void regexOperatorMatchesLiteralPattern() {
-        assertTrue(selectBoolean("$." + BIN_TEXT + ":STRING =~ /Hello/"));
-        assertFalse(selectBoolean("$." + BIN_TEXT + ":STRING =~ /zzz/"));
+        assertTrue(selectBoolean("$.s:STRING =~ /Hello/"));
+        assertFalse(selectBoolean("$.s:STRING =~ /zzz/"));
     }
 
     @Test
     public void regexOperatorHonoursCaseInsensitiveFlag() {
-        assertFalse(selectBoolean("$." + BIN_TEXT + ":STRING =~ /hello/"));
-        assertTrue(selectBoolean("$." + BIN_TEXT + ":STRING =~ /hello/i"));
+        assertFalse(selectBoolean("$.s:STRING =~ /hello/"));
+        assertTrue(selectBoolean("$.s:STRING =~ /hello/i"));
     }
 
     @Test
     public void regexOperatorSupportsAnchors() {
-        assertTrue(selectBoolean("$." + BIN_TEXT + ":STRING =~ /^Hello/"));
-        assertTrue(selectBoolean("$." + BIN_TEXT + ":STRING =~ /World$/"));
-        assertFalse(selectBoolean("$." + BIN_TEXT + ":STRING =~ /^World/"));
+        assertTrue(selectBoolean("$.s:STRING =~ /^Hello/"));
+        assertTrue(selectBoolean("$.s:STRING =~ /World$/"));
+        assertFalse(selectBoolean("$.s:STRING =~ /^World/"));
     }
 
     @Test
     public void regexOperatorUsableAsWhereFilter() {
-        assertTrue(matchesWhere("$." + BIN_TEXT + ":STRING =~ /^Hello W/"));
-        assertFalse(matchesWhere("$." + BIN_TEXT + ":STRING =~ /^Goodbye/"));
+        assertTrue(matchesWhere("$.s:STRING =~ /^Hello W/"));
+        assertFalse(matchesWhere("$.s:STRING =~ /^Goodbye/"));
     }
 
     /**
@@ -334,103 +327,101 @@ public class AelStringTest extends ClusterTest {
      */
     @Test
     public void regexRejectsNonIcuNamedGroupSpelling() {
-        AerospikeException ex = assertThrows(AerospikeException.class,
-            () -> selectValue("$." + BIN_TEXT + ":STRING =~ /(?P<name>Hello)/"));
-        assertEquals(ResultCode.OP_NOT_APPLICABLE, ex.getResultCode());
+        assertNotApplicable("$.s:STRING =~ /(?P<name>Hello)/");
     }
 
     @Test
     public void regexAcceptsIcuNamedGroupSpelling() {
-        assertTrue(selectBoolean("$." + BIN_TEXT + ":STRING =~ /(?<name>Hello)/"));
+        assertTrue(selectBoolean("$.s:STRING =~ /(?<name>Hello)/"));
     }
 
     @Test
     public void regexRejectsNonIcuOpenEndedInterval() {
-        AerospikeException ex = assertThrows(AerospikeException.class,
-            () -> selectValue("$." + BIN_TEXT + ":STRING =~ /a{,3}/"));
-        assertEquals(ResultCode.OP_NOT_APPLICABLE, ex.getResultCode());
+        assertNotApplicable("$.s:STRING =~ /a{,3}/");
     }
 
     @Test
     public void regexRejectsMalformedPattern() {
-        AerospikeException ex = assertThrows(AerospikeException.class,
-            () -> selectValue("$." + BIN_TEXT + ":STRING =~ /[/"));
-        assertEquals(ResultCode.OP_NOT_APPLICABLE, ex.getResultCode());
+        assertNotApplicable("$.s:STRING =~ /[/");
     }
 
     // --- conversions ---
 
     @Test
     public void splitBreaksOnSeparator() {
-        assertEquals(List.of("Hello", "World"), selectList("$." + BIN_TEXT + ":STRING.split(' ')"));
+        assertEquals(List.of("Hello", "World"), selectList("$.s:STRING.split(' ')"));
     }
 
     @Test
     public void toBlobReturnsUtf8Bytes() {
-        Object value = selectValue("$." + BIN_TEXT + ":STRING.toBlob()");
-        assertInstanceOf(byte[].class, value);
-        assertArrayEquals(TEXT.getBytes(StandardCharsets.UTF_8), (byte[]) value);
+        assertBlobEquals("Hello World", "$.s:STRING.toBlob()");
     }
 
     @Test
     public void b64DecodeReturnsDecodedBytes() {
-        Object value = selectValue("$." + BIN_BASE64 + ":STRING.b64Decode()");
-        assertInstanceOf(byte[].class, value);
-        assertArrayEquals("hello".getBytes(StandardCharsets.UTF_8), (byte[]) value);
+        assertBlobEquals("hello", "$.b64:STRING.b64Decode()");
     }
 
     @Test
     public void b64DecodeRejectsNonBase64Text() {
-        AerospikeException ex = assertThrows(AerospikeException.class,
-            () -> selectValue("$." + BIN_TEXT + ":STRING.b64Decode()"));
-        assertEquals(ResultCode.OP_NOT_APPLICABLE, ex.getResultCode());
+        assertNotApplicable("$.s:STRING.b64Decode()");
     }
 
     @Test
     public void toIntParsesNumericString() {
-        assertEquals(1234L, selectLong("$." + BIN_NUMERIC + ":STRING.toInt()"));
+        assertEquals(1234L, selectLong("$.numstr:STRING.toInt()"));
     }
 
     @Test
     public void toFloatParsesNumericString() {
-        assertEquals(1234.0, selectDouble("$." + BIN_NUMERIC + ":STRING.toFloat()"));
+        assertEquals(1234.0, selectDouble("$.numstr:STRING.toFloat()"));
     }
 
     @Test
     public void toIntRejectsNonNumericString() {
-        AerospikeException ex = assertThrows(AerospikeException.class,
-            () -> selectValue("$." + BIN_TEXT + ":STRING.toInt()"));
-        assertEquals(ResultCode.OP_NOT_APPLICABLE, ex.getResultCode());
+        assertNotApplicable("$.s:STRING.toInt()");
     }
 
     @Test
     public void toStringRendersIntAndFloatBins() {
-        assertEquals("42", selectString("$." + BIN_INT + ":INT.toString()"));
-        assertEquals("2.5", selectString("$." + BIN_FLOAT + ":FLOAT.toString()"));
+        assertEquals("42", selectString("$.num:INT.toString()"));
+        assertEquals("2.5", selectString("$.f:FLOAT.toString()"));
     }
 
     // --- composition ---
 
     @Test
     public void stringOpsChainLeftToRight() {
-        assertEquals("HELLO", selectString("$." + BIN_TEXT + ":STRING.substr(from: 0, to: 5).upper()"));
+        assertEquals("HELLO", selectString("$.s:STRING.substr(from: 0, to: 5).upper()"));
     }
 
     @Test
     public void stringOpResultUsableInArithmeticComparison() {
-        assertTrue(matchesWhere("$." + BIN_TEXT + ":STRING.strlen() == 11"));
-        assertFalse(matchesWhere("$." + BIN_TEXT + ":STRING.strlen() == 12"));
+        assertTrue(matchesWhere("$.s:STRING.strlen() == 11"));
+        assertFalse(matchesWhere("$.s:STRING.strlen() == 12"));
     }
 
     @Test
     public void stringPredicateCombinesWithLogicalOperators() {
-        assertTrue(matchesWhere(
-            "$." + BIN_TEXT + ":STRING.startsWith('Hello') and $." + BIN_INT + ":INT == 42"));
-        assertFalse(matchesWhere(
-            "$." + BIN_TEXT + ":STRING.startsWith('Hello') and $." + BIN_INT + ":INT == 1"));
+        assertTrue(matchesWhere("$.s:STRING.startsWith('Hello') and $.num:INT == 42"));
+        assertFalse(matchesWhere("$.s:STRING.startsWith('Hello') and $.num:INT == 1"));
     }
 
     // --- helpers ---
+
+    private void assertNotApplicable(String ael) {
+        AerospikeException ex = assertThrows(AerospikeException.class, () -> selectValue(ael),
+            () -> "expected server to reject AEL: " + ael);
+        assertEquals(ResultCode.OP_NOT_APPLICABLE, ex.getResultCode(),
+            () -> "unexpected result code for AEL: " + ael);
+    }
+
+    private void assertBlobEquals(String expectedText, String ael) {
+        Object value = selectValue(ael);
+        assertInstanceOf(byte[].class, value, () -> "expected blob for AEL: " + ael);
+        assertArrayEquals(expectedText.getBytes(StandardCharsets.UTF_8), (byte[]) value,
+            () -> "unexpected bytes for AEL: " + ael);
+    }
 
     private String selectString(String ael) {
         Object value = selectValue(ael);

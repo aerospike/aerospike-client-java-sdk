@@ -46,14 +46,18 @@ import com.aerospike.client.sdk.ResultCode;
  *
  * <p>Scoped to complement {@code FilterExpTest}, which already pairs Exp and AEL for the
  * arithmetic, bitwise, {@code min}/{@code max}, {@code when} and {@code let} surface.
+ *
+ * <p>Fixture — one record with these bins:
+ * <pre>
+ *   num  42
+ *   s    "hello"
+ *   l    [100, 200, 300]
+ *   m    {alpha: 10, beta: 20}
+ * </pre>
+ * Bin {@code nosuchbin} is deliberately never written.
  */
 public class AelLiteralTest extends ClusterTest {
     private static final String KEY = "ael_literal";
-    private static final String BIN_INT = "num";
-    private static final String BIN_STR = "s";
-    private static final String BIN_LIST = "l";
-    private static final String BIN_MAP = "m";
-    private static final String BIN_ABSENT = "nosuchbin";
 
     private Key key;
 
@@ -72,10 +76,10 @@ public class AelLiteralTest extends ClusterTest {
         map.put("beta", 20);
 
         session.upsert(key)
-            .bin(BIN_INT).setTo(42)
-            .bin(BIN_STR).setTo("hello")
-            .bin(BIN_LIST).setTo(List.of(100, 200, 300))
-            .bin(BIN_MAP).setTo(map)
+            .bin("num").setTo(42)
+            .bin("s").setTo("hello")
+            .bin("l").setTo(List.of(100, 200, 300))
+            .bin("m").setTo(map)
             .execute();
     }
 
@@ -88,20 +92,20 @@ public class AelLiteralTest extends ClusterTest {
 
     @Test
     public void booleanLiteralsCombineWithPredicates() {
-        assertTrue(selectBoolean("$." + BIN_INT + ":INT == 42 and true"));
-        assertFalse(selectBoolean("$." + BIN_INT + ":INT == 42 and false"));
+        assertTrue(selectBoolean("$.num:INT == 42 and true"));
+        assertFalse(selectBoolean("$.num:INT == 42 and false"));
     }
 
     @Test
     public void integerLiteralRadixForms() {
-        assertTrue(matchesWhere("$." + BIN_INT + ":INT == 0x2A"));
-        assertTrue(matchesWhere("$." + BIN_INT + ":INT == 0b101010"));
+        assertTrue(matchesWhere("$.num:INT == 0x2A"));
+        assertTrue(matchesWhere("$.num:INT == 0b101010"));
     }
 
     @Test
     public void negativeIntegerLiteral() {
-        assertEquals(-42L, selectLong("0 - $." + BIN_INT + ":INT"));
-        assertTrue(matchesWhere("$." + BIN_INT + ":INT > -1"));
+        assertEquals(-42L, selectLong("0 - $.num:INT"));
+        assertTrue(matchesWhere("$.num:INT > -1"));
     }
 
     @Test
@@ -116,8 +120,8 @@ public class AelLiteralTest extends ClusterTest {
 
     @Test
     public void singleAndDoubleQuotedStringsAreEquivalent() {
-        assertTrue(matchesWhere("$." + BIN_STR + ":STRING == 'hello'"));
-        assertTrue(matchesWhere("$." + BIN_STR + ":STRING == \"hello\""));
+        assertTrue(matchesWhere("$.s:STRING == 'hello'"));
+        assertTrue(matchesWhere("$.s:STRING == \"hello\""));
     }
 
     // --- collection literals ---
@@ -150,123 +154,122 @@ public class AelLiteralTest extends ClusterTest {
     /** SORTED is not an accepted list-literal order suffix; UNSORTED is. */
     @Test
     public void sortedListLiteralSuffixRejected() {
-        AerospikeException ex = assertThrows(AerospikeException.class,
-            () -> selectValue("[3, 1, 2]:SORTED"));
-        assertEquals(ResultCode.PARAMETER_ERROR, ex.getResultCode());
+        assertRejected("[3, 1, 2]:SORTED", ResultCode.PARAMETER_ERROR);
     }
 
     // --- membership ---
 
     @Test
     public void inMembershipOverListLiteral() {
-        assertTrue(selectBoolean("$." + BIN_INT + ":INT in [1, 42, 3]"));
-        assertFalse(selectBoolean("$." + BIN_INT + ":INT in [1, 2, 3]"));
+        assertTrue(selectBoolean("$.num:INT in [1, 42, 3]"));
+        assertFalse(selectBoolean("$.num:INT in [1, 2, 3]"));
     }
 
     @Test
     public void inMembershipOverStrings() {
-        assertTrue(selectBoolean("$." + BIN_STR + ":STRING in ['hello', 'world']"));
-        assertFalse(selectBoolean("$." + BIN_STR + ":STRING in ['nope']"));
+        assertTrue(selectBoolean("$.s:STRING in ['hello', 'world']"));
+        assertFalse(selectBoolean("$.s:STRING in ['nope']"));
     }
 
     @Test
     public void inMembershipUsableAsWhereFilter() {
-        assertTrue(matchesWhere("$." + BIN_INT + ":INT in [41, 42, 43]"));
-        assertFalse(matchesWhere("$." + BIN_INT + ":INT in [1, 2]"));
+        assertTrue(matchesWhere("$.num:INT in [41, 42, 43]"));
+        assertFalse(matchesWhere("$.num:INT in [1, 2]"));
     }
 
     // --- logical ---
 
     @Test
     public void notNegatesPredicate() {
-        assertTrue(selectBoolean("not($." + BIN_INT + ":INT == 1)"));
-        assertFalse(selectBoolean("not($." + BIN_INT + ":INT == 42)"));
+        assertTrue(selectBoolean("not($.num:INT == 1)"));
+        assertFalse(selectBoolean("not($.num:INT == 42)"));
     }
 
     @Test
     public void notRequiresParenthesisedCallForm() {
-        assertThrows(AerospikeException.class,
-            () -> selectValue("!($." + BIN_INT + ":INT == 1)"));
+        assertThrows(AerospikeException.class, () -> selectValue("!($.num:INT == 1)"));
     }
 
     @Test
     public void andOrShortCircuitToExpectedTruth() {
-        assertTrue(selectBoolean("$." + BIN_INT + ":INT == 42 or $." + BIN_INT + ":INT == 1"));
-        assertFalse(selectBoolean("$." + BIN_INT + ":INT == 42 and $." + BIN_INT + ":INT == 1"));
+        assertTrue(selectBoolean("$.num:INT == 42 or $.num:INT == 1"));
+        assertFalse(selectBoolean("$.num:INT == 42 and $.num:INT == 1"));
     }
 
     // --- trilean / absent handling ---
 
     @Test
     public void unknownIsAbsorbedByOr() {
-        assertTrue(selectBoolean("$." + BIN_INT + ":INT == 42 or unknown"));
+        assertTrue(selectBoolean("$.num:INT == 42 or unknown"));
     }
 
     @Test
     public void existsDistinguishesPresentFromAbsentBin() {
-        assertTrue(selectBoolean("$." + BIN_MAP + ".exists()"));
-        assertFalse(selectBoolean("$." + BIN_ABSENT + ".exists()"));
+        assertTrue(selectBoolean("$.m.exists()"));
+        assertFalse(selectBoolean("$.nosuchbin.exists()"));
     }
 
     @Test
     public void existsUsableAsWhereFilter() {
-        assertTrue(matchesWhere("$." + BIN_MAP + ".exists()"));
-        assertFalse(matchesWhere("$." + BIN_ABSENT + ".exists()"));
+        assertTrue(matchesWhere("$.m.exists()"));
+        assertFalse(matchesWhere("$.nosuchbin.exists()"));
     }
 
     /** A bare bin reference has no resolved type, so it cannot be a projection on its own. */
     @Test
     public void bareUntypedBinReferenceRejected() {
-        AerospikeException ex = assertThrows(AerospikeException.class,
-            () -> selectValue("$." + BIN_ABSENT));
-        assertEquals(ResultCode.PARAMETER_ERROR, ex.getResultCode());
+        assertRejected("$.nosuchbin", ResultCode.PARAMETER_ERROR);
     }
 
     /** A type-pinned read of an absent bin compiles, then faults at evaluation. */
     @Test
     public void typedReadOfAbsentBinIsNotApplicable() {
-        AerospikeException ex = assertThrows(AerospikeException.class,
-            () -> selectValue("$." + BIN_ABSENT + ":INT"));
-        assertEquals(ResultCode.OP_NOT_APPLICABLE, ex.getResultCode());
+        assertRejected("$.nosuchbin:INT", ResultCode.OP_NOT_APPLICABLE);
     }
 
     @Test
     public void absentBinDoesNotMatchWhereFilter() {
-        assertFalse(matchesWhere("$." + BIN_ABSENT + ":INT == 1"));
+        assertFalse(matchesWhere("$.nosuchbin:INT == 1"));
     }
 
     // --- bin type introspection ---
 
     @Test
     public void typeReportsBinParticleType() {
-        assertTrue(matchesWhere("$." + BIN_INT + ".type() == INT"));
-        assertTrue(matchesWhere("$." + BIN_STR + ".type() == STRING"));
-        assertFalse(matchesWhere("$." + BIN_INT + ".type() == STRING"));
+        assertTrue(matchesWhere("$.num.type() == INT"));
+        assertTrue(matchesWhere("$.s.type() == STRING"));
+        assertFalse(matchesWhere("$.num.type() == STRING"));
     }
 
     // --- quoted bin names ---
 
     @Test
     public void quotedBinNameResolvesSameAsBare() {
-        assertTrue(matchesWhere("$.\"" + BIN_INT + "\":INT == 42"));
-        assertTrue(matchesWhere("$.'" + BIN_INT + "':INT == 42"));
+        assertTrue(matchesWhere("$.\"num\":INT == 42"));
+        assertTrue(matchesWhere("$.'num':INT == 42"));
     }
 
     // --- comments ---
 
     @Test
     public void blockCommentsAreIgnored() {
-        assertTrue(matchesWhere("$." + BIN_INT + ":INT /* inline */ == 42"));
+        assertTrue(matchesWhere("$.num:INT /* inline */ == 42"));
     }
 
     /** AEL has block comments only; a // sequence is a parse error, not a line comment. */
     @Test
     public void lineCommentsAreNotSupported() {
-        assertThrows(AerospikeException.class,
-            () -> selectValue("$." + BIN_INT + ":INT // trailing\n"));
+        assertThrows(AerospikeException.class, () -> selectValue("$.num:INT // trailing\n"));
     }
 
     // --- helpers ---
+
+    private void assertRejected(String ael, int expectedResultCode) {
+        AerospikeException ex = assertThrows(AerospikeException.class, () -> selectValue(ael),
+            () -> "expected server to reject AEL: " + ael);
+        assertEquals(expectedResultCode, ex.getResultCode(),
+            () -> "unexpected result code for AEL: " + ael);
+    }
 
     private long selectLong(String ael) {
         Object value = selectValue(ael);

@@ -46,17 +46,15 @@ import com.aerospike.client.sdk.ResultCode;
  * getters) and {@code AelWildcardTest} (filtered wildcards). This suite covers the
  * selector forms themselves, including inversion and value-relative ranges.
  *
- * <p>Seeded state: list {@code [100, 200, 300, 400, 500]} and key-ordered map
- * {@code {alpha: 10, beta: 20, gamma: 30}}.
+ * <p>Fixture — one record with these bins:
+ * <pre>
+ *   l   [100, 200, 300, 400, 500]
+ *   m   {alpha: 10, beta: 20, gamma: 30}    key-ordered
+ *   sl  ["delta", "alpha", "charlie", "bravo"]
+ * </pre>
  */
 public class AelPathSelectorTest extends ClusterTest {
     private static final String KEY = "ael_path_selector";
-    private static final String BIN_LIST = "l";
-    private static final String BIN_MAP = "m";
-    private static final String BIN_STRINGS = "sl";
-
-    private static final String L = "$." + BIN_LIST + ":LIST";
-    private static final String M = "$." + BIN_MAP + ":MAP";
 
     private Key key;
 
@@ -76,9 +74,9 @@ public class AelPathSelectorTest extends ClusterTest {
         map.put("gamma", 30);
 
         session.upsert(key)
-            .bin(BIN_LIST).setTo(List.of(100, 200, 300, 400, 500))
-            .bin(BIN_MAP).setTo(map)
-            .bin(BIN_STRINGS).setTo(List.of("delta", "alpha", "charlie", "bravo"))
+            .bin("l").setTo(List.of(100, 200, 300, 400, 500))
+            .bin("m").setTo(map)
+            .bin("sl").setTo(List.of("delta", "alpha", "charlie", "bravo"))
             .execute();
     }
 
@@ -86,151 +84,150 @@ public class AelPathSelectorTest extends ClusterTest {
 
     @Test
     public void listIndexRange() {
-        assertEquals(List.of(100L, 200L), selectLongs(L + ".[0:2]"));
+        assertEquals(List.of(100L, 200L), selectLongs("$.l:LIST.[0:2]"));
     }
 
     @Test
     public void listIndexRangeOpenEnd() {
-        assertEquals(List.of(400L, 500L), selectLongs(L + ".[3:]"));
+        assertEquals(List.of(400L, 500L), selectLongs("$.l:LIST.[3:]"));
     }
 
     @Test
     public void listIndexRangeOpenStart() {
-        assertEquals(List.of(100L, 200L), selectLongs(L + ".[:2]"));
+        assertEquals(List.of(100L, 200L), selectLongs("$.l:LIST.[:2]"));
     }
 
     @Test
     public void listIndexRangeInverted() {
-        assertEquals(List.of(300L, 400L, 500L), selectLongs(L + ".[!0:2]"));
+        assertEquals(List.of(300L, 400L, 500L), selectLongs("$.l:LIST.[!0:2]"));
     }
 
     // --- list: by value ---
 
     @Test
     public void listByValueSingular() {
-        assertEquals(200L, selectLong(L + ".[=200]:INT"));
+        assertEquals(200L, selectLong("$.l:LIST.[=200]:INT"));
     }
 
     @Test
     public void listByValueRange() {
-        assertEquals(List.of(100L, 200L), selectLongs(L + ".[=100:300]"));
+        assertEquals(List.of(100L, 200L), selectLongs("$.l:LIST.[=100:300]"));
     }
 
     @Test
     public void listByValueOnStringsNeedsQuotedLiteral() {
-        assertEquals("alpha", selectValue("$." + BIN_STRINGS + ":LIST.[='alpha']:STRING"));
+        assertEquals("alpha", selectValue("$.sl:LIST.[='alpha']:STRING"));
     }
 
     @Test
     public void listByValueRejectsUnquotedStringLiteral() {
-        assertParameterError("$." + BIN_STRINGS + ":LIST.[=alpha]");
+        assertParameterError("$.sl:LIST.[=alpha]");
     }
 
     // --- list: by rank ---
 
     @Test
     public void listByRankLowest() {
-        assertEquals(100L, selectLong(L + ".[#0]:INT"));
+        assertEquals(100L, selectLong("$.l:LIST.[#0]:INT"));
     }
 
     @Test
     public void listByRankHighestUsesNegativeRank() {
-        assertEquals(500L, selectLong(L + ".[#-1]:INT"));
+        assertEquals(500L, selectLong("$.l:LIST.[#-1]:INT"));
     }
 
     /**
      * A rank range returns elements in rank order, which need not be storage order — an
-     * unordered list ranks by value, so {@code [#0:2]} on {@code [200, 100, ...]} yields
-     * the two smallest.
+     * unordered list ranks by value, so {@code [#0:2]} yields the two smallest.
      */
     @Test
     public void listByRankRange() {
-        assertEquals(List.of(100L, 200L), sortedLongs(L + ".[#0:2]"));
+        assertEquals(List.of(100L, 200L), sortedLongs("$.l:LIST.[#0:2]"));
     }
 
     /**
-     * Value-relative rank range: {@code [#0:2~300]} starts at the rank of value 300 and
-     * takes elements from there.
+     * Value-relative rank range: the {@code ~300} anchor starts the range at the rank of
+     * value 300 rather than at an absolute rank.
      */
     @Test
     public void listByValueRelativeRankRange() {
-        assertEquals(List.of(300L, 400L, 500L), sortedLongs(L + ".[#0:2~300]"));
+        assertEquals(List.of(300L, 400L, 500L), sortedLongs("$.l:LIST.[#0:2~300]"));
     }
 
     // --- map: by key ---
 
     @Test
     public void mapByExplicitKey() {
-        assertEquals(10L, selectLong(M + ".{@alpha}:INT"));
+        assertEquals(10L, selectLong("$.m:MAP.{@alpha}:INT"));
     }
 
     @Test
     public void mapByKeyList() {
-        assertEquals(List.of(10L, 30L), selectLongs(M + ".{@alpha,gamma}"));
+        assertEquals(List.of(10L, 30L), selectLongs("$.m:MAP.{@alpha,gamma}"));
     }
 
     @Test
     public void mapByKeyListInverted() {
-        assertEquals(List.of(20L), selectLongs(M + ".{!@alpha,gamma}"));
+        assertEquals(List.of(20L), selectLongs("$.m:MAP.{!@alpha,gamma}"));
     }
 
     @Test
     public void mapByKeyRange() {
-        assertEquals(List.of(10L, 20L), selectLongs(M + ".{@alpha:gamma}"));
+        assertEquals(List.of(10L, 20L), selectLongs("$.m:MAP.{@alpha:gamma}"));
     }
 
     // --- map: by index, value, rank ---
 
     @Test
     public void mapByIndexNeedsTypePin() {
-        assertEquals(10L, selectLong(M + ".{0}:INT"));
+        assertEquals(10L, selectLong("$.m:MAP.{0}:INT"));
     }
 
     @Test
     public void mapByIndexRange() {
-        assertEquals(List.of(10L, 20L), selectLongs(M + ".{0:2}"));
+        assertEquals(List.of(10L, 20L), selectLongs("$.m:MAP.{0:2}"));
     }
 
     @Test
     public void mapByValueSingular() {
-        assertEquals(10L, selectLong(M + ".{=10}:INT"));
+        assertEquals(10L, selectLong("$.m:MAP.{=10}:INT"));
     }
 
     @Test
     public void mapByValueRange() {
-        assertEquals(List.of(10L, 20L), selectLongs(M + ".{=10:30}"));
+        assertEquals(List.of(10L, 20L), selectLongs("$.m:MAP.{=10:30}"));
     }
 
     @Test
     public void mapByRankSingular() {
-        assertEquals(10L, selectLong(M + ".{#0}:INT"));
+        assertEquals(10L, selectLong("$.m:MAP.{#0}:INT"));
     }
 
     @Test
     public void mapByRankRange() {
-        assertEquals(List.of(10L, 20L), selectLongs(M + ".{#0:2}"));
+        assertEquals(List.of(10L, 20L), selectLongs("$.m:MAP.{#0:2}"));
     }
 
     // --- multi-select getters ---
 
     @Test
     public void getKeysOnRankRange() {
-        assertEquals(List.of("alpha", "beta"), selectList(M + ".{#0:2}.getKeys()"));
+        assertEquals(List.of("alpha", "beta"), selectList("$.m:MAP.{#0:2}.getKeys()"));
     }
 
     @Test
     public void getIndexesOnListRange() {
-        assertEquals(List.of(0L, 1L, 2L), selectLongs(L + ".[0:3].getIndexes()"));
+        assertEquals(List.of(0L, 1L, 2L), selectLongs("$.l:LIST.[0:3].getIndexes()"));
     }
 
     @Test
     public void getRanksOnListRange() {
-        assertEquals(List.of(0L, 1L, 2L), selectLongs(L + ".[0:3].getRanks()"));
+        assertEquals(List.of(0L, 1L, 2L), selectLongs("$.l:LIST.[0:3].getRanks()"));
     }
 
     @Test
     public void getMapsRebuildsMapFromKeySelection() {
-        Object value = selectValue(M + ".{@alpha,beta}.getMaps()");
+        Object value = selectValue("$.m:MAP.{@alpha,beta}.getMaps()");
         assertInstanceOf(Map.class, value);
         @SuppressWarnings("unchecked")
         Map<String, Object> map = (Map<String, Object>) value;
@@ -241,16 +238,16 @@ public class AelPathSelectorTest extends ClusterTest {
 
     @Test
     public void countOnSelectorIsMatchCount() {
-        assertEquals(3L, selectLong(L + ".[0:3].count()"));
-        assertEquals(2L, selectLong(M + ".{@alpha,gamma}.count()"));
+        assertEquals(3L, selectLong("$.l:LIST.[0:3].count()"));
+        assertEquals(2L, selectLong("$.m:MAP.{@alpha,gamma}.count()"));
     }
 
     // --- selectors in filter position ---
 
     @Test
     public void selectorUsableInWhereClause() {
-        assertTrue(matchesWhere(L + ".[#-1]:INT == 500"));
-        assertTrue(matchesWhere(M + ".{@beta}:INT == 20"));
+        assertTrue(matchesWhere("$.l:LIST.[#-1]:INT == 500"));
+        assertTrue(matchesWhere("$.m:MAP.{@beta}:INT == 20"));
     }
 
     // --- rejected forms ---
@@ -261,35 +258,34 @@ public class AelPathSelectorTest extends ClusterTest {
      */
     @Test
     public void invertRejectedOnSingularKeySelect() {
-        assertParameterError(M + ".{!@alpha}");
+        assertParameterError("$.m:MAP.{!@alpha}");
     }
 
     @Test
     public void invertRejectedOnSingularValueSelect() {
-        assertParameterError(L + ".[!=200]");
+        assertParameterError("$.l:LIST.[!=200]");
     }
 
     @Test
     public void invertRejectedOnSingularRankSelect() {
-        assertParameterError(L + ".[!#0]");
+        assertParameterError("$.l:LIST.[!#0]");
     }
 
     /** getKeys needs a selection to enumerate; a singular select is not one. */
     @Test
     public void getKeysRejectedOnSingularSelect() {
-        assertParameterError(M + ".{#0}.getKeys()");
+        assertParameterError("$.m:MAP.{#0}.getKeys()");
     }
 
     /** join consumes a whole list, not a multi-select. */
     @Test
     public void joinRejectedOnMultiSelect() {
-        assertParameterError("$." + BIN_STRINGS + ":LIST.[0:4].join(',')");
+        assertParameterError("$.sl:LIST.[0:4].join(',')");
     }
 
     @Test
     public void joinAcceptedOnWholeList() {
-        assertEquals("delta,alpha,charlie,bravo",
-            selectValue("$." + BIN_STRINGS + ":LIST.join(',')"));
+        assertEquals("delta,alpha,charlie,bravo", selectValue("$.sl:LIST.join(',')"));
     }
 
     // --- helpers ---

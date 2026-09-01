@@ -43,17 +43,15 @@ import com.aerospike.client.sdk.Value;
  * <p>Both families were only reachable through the msgpack {@code Exp} builders before;
  * this suite covers their AEL source spelling.
  *
- * <p>Seeded blob is {@code 0x01020304} — bit offsets are counted from the most significant
- * bit of byte 0, so {@code 0x01} has its only set bit at offset 7.
+ * <p>Fixture — one record with these bins:
+ * <pre>
+ *   b   0x01020304        bit offsets count from the MSB of byte 0, so 0x01's only
+ *                         set bit is at offset 7 and the blob has 5 set bits total
+ *   h   HLL of {1, 2, 3}  index bits 8, no minhash
+ * </pre>
  */
 public class AelBitHllTest extends ClusterTest {
     private static final String KEY = "ael_bit_hll";
-    private static final String BIN_BLOB = "b";
-    private static final String BIN_HLL = "h";
-    private static final String BIN_HLL2 = "h2";
-
-    private static final String B = "$." + BIN_BLOB + ":BLOB";
-    private static final String H = "$." + BIN_HLL + ":HLL";
 
     private Key key;
 
@@ -68,12 +66,11 @@ public class AelBitHllTest extends ClusterTest {
         session.delete(key).execute();
 
         session.upsert(key)
-            .bin(BIN_BLOB).setTo(new byte[] { 0x01, 0x02, 0x03, 0x04 })
+            .bin("b").setTo(new byte[] { 0x01, 0x02, 0x03, 0x04 })
             .execute();
 
         session.upsert(key)
-            .bin(BIN_HLL).hllAdd(List.of(Value.get(1), Value.get(2), Value.get(3)), HllConfig.of(8))
-            .bin(BIN_HLL2).hllAdd(List.of(Value.get(3), Value.get(4)), HllConfig.of(8))
+            .bin("h").hllAdd(List.of(Value.get(1), Value.get(2), Value.get(3)), HllConfig.of(8))
             .execute();
     }
 
@@ -82,104 +79,104 @@ public class AelBitHllTest extends ClusterTest {
     @Test
     public void bitCountCountsSetBits() {
         // 0x01|0x02|0x03|0x04 -> 1 + 1 + 2 + 1 set bits.
-        assertEquals(5L, selectLong(B + ".bitCount(offset: 0, size: 32)"));
+        assertEquals(5L, selectLong("$.b:BLOB.bitCount(offset: 0, size: 32)"));
     }
 
     @Test
     public void bitCountHonoursOffsetAndSize() {
-        assertEquals(1L, selectLong(B + ".bitCount(offset: 0, size: 8)"));
-        assertEquals(2L, selectLong(B + ".bitCount(offset: 16, size: 8)"));
+        assertEquals(1L, selectLong("$.b:BLOB.bitCount(offset: 0, size: 8)"));
+        assertEquals(2L, selectLong("$.b:BLOB.bitCount(offset: 16, size: 8)"));
     }
 
     @Test
     public void bitGetReturnsSelectedBytes() {
-        assertBlob("01", B + ".bitGet(offset: 0, size: 8)");
-        assertBlob("0102", B + ".bitGet(offset: 0, size: 16)");
+        assertBlob("01", "$.b:BLOB.bitGet(offset: 0, size: 8)");
+        assertBlob("0102", "$.b:BLOB.bitGet(offset: 0, size: 16)");
     }
 
     @Test
     public void bitGetIntReturnsInteger() {
-        assertEquals(1L, selectLong(B + ".bitGetInt(offset: 0, size: 8)"));
-        assertEquals(258L, selectLong(B + ".bitGetInt(offset: 0, size: 16)"));
+        assertEquals(1L, selectLong("$.b:BLOB.bitGetInt(offset: 0, size: 8)"));
+        assertEquals(258L, selectLong("$.b:BLOB.bitGetInt(offset: 0, size: 16)"));
     }
 
     @Test
     public void bitLscanFindsFirstSetBitFromLeft() {
-        assertEquals(7L, selectLong(B + ".bitLscan(offset: 0, size: 32, value: true)"));
+        assertEquals(7L, selectLong("$.b:BLOB.bitLscan(offset: 0, size: 32, value: true)"));
     }
 
     @Test
     public void bitRscanFindsLastSetBitFromRight() {
-        assertEquals(29L, selectLong(B + ".bitRscan(offset: 0, size: 32, value: true)"));
+        assertEquals(29L, selectLong("$.b:BLOB.bitRscan(offset: 0, size: 32, value: true)"));
     }
 
     @Test
     public void bitScanForClearBits() {
-        assertEquals(0L, selectLong(B + ".bitLscan(offset: 0, size: 32, value: false)"));
+        assertEquals(0L, selectLong("$.b:BLOB.bitLscan(offset: 0, size: 32, value: false)"));
     }
 
     @Test
     public void b64EncodeRendersBlobAsText() {
-        assertEquals("AQIDBA==", selectValue(B + ".b64Encode()"));
+        assertEquals("AQIDBA==", selectValue("$.b:BLOB.b64Encode()"));
     }
 
     // --- bit modifies (local: produce a new blob, bin untouched) ---
 
     @Test
     public void bitSetWritesGivenBits() {
-        assertBlob("ff020304", B + ".bitSet(offset: 0, size: 8, value: x'FF')");
+        assertBlob("ff020304", "$.b:BLOB.bitSet(offset: 0, size: 8, value: x'FF')");
     }
 
     @Test
     public void bitSetIntWritesInteger() {
-        assertBlob("ff020304", B + ".bitSetInt(offset: 0, size: 8, value: 255)");
+        assertBlob("ff020304", "$.b:BLOB.bitSetInt(offset: 0, size: 8, value: 255)");
     }
 
     @Test
     public void bitwiseOrAndXorAgainstMask() {
-        assertBlob("f1020304", B + ".bitOr(offset: 0, size: 8, value: x'F0')");
-        assertBlob("00020304", B + ".bitAnd(offset: 0, size: 8, value: x'F0')");
-        assertBlob("fe020304", B + ".bitXor(offset: 0, size: 8, value: x'FF')");
+        assertBlob("f1020304", "$.b:BLOB.bitOr(offset: 0, size: 8, value: x'F0')");
+        assertBlob("00020304", "$.b:BLOB.bitAnd(offset: 0, size: 8, value: x'F0')");
+        assertBlob("fe020304", "$.b:BLOB.bitXor(offset: 0, size: 8, value: x'FF')");
     }
 
     @Test
     public void bitNotInvertsSelectedBits() {
-        assertBlob("fe020304", B + ".bitNot(offset: 0, size: 8)");
+        assertBlob("fe020304", "$.b:BLOB.bitNot(offset: 0, size: 8)");
     }
 
     @Test
     public void bitShiftsMoveBitsWithinSelection() {
-        assertBlob("02020304", B + ".bitLshift(offset: 0, size: 8, shift: 1)");
-        assertBlob("00020304", B + ".bitRshift(offset: 0, size: 8, shift: 1)");
+        assertBlob("02020304", "$.b:BLOB.bitLshift(offset: 0, size: 8, shift: 1)");
+        assertBlob("00020304", "$.b:BLOB.bitRshift(offset: 0, size: 8, shift: 1)");
     }
 
     @Test
     public void bitArithmeticOnSelection() {
-        assertBlob("02020304", B + ".bitAdd(offset: 0, size: 8, value: 1)");
-        assertBlob("00020304", B + ".bitSubtract(offset: 0, size: 8, value: 1)");
+        assertBlob("02020304", "$.b:BLOB.bitAdd(offset: 0, size: 8, value: 1)");
+        assertBlob("00020304", "$.b:BLOB.bitSubtract(offset: 0, size: 8, value: 1)");
     }
 
     @Test
     public void bitResizeGrowsWithZeroPadding() {
-        assertBlob("0102030400000000", B + ".bitResize(byteSize: 8)");
+        assertBlob("0102030400000000", "$.b:BLOB.bitResize(byteSize: 8)");
     }
 
     @Test
     public void bitInsertAddsBytes() {
-        assertBlob("aa01020304", B + ".bitInsert(byteOffset: 0, value: x'AA')");
+        assertBlob("aa01020304", "$.b:BLOB.bitInsert(byteOffset: 0, value: x'AA')");
     }
 
     @Test
     public void bitRemoveDropsBytes() {
-        assertBlob("020304", B + ".bitRemove(byteOffset: 0, byteSize: 1)");
+        assertBlob("020304", "$.b:BLOB.bitRemove(byteOffset: 0, byteSize: 1)");
     }
 
     @Test
     public void bitOpsLeaveSourceBinUnchanged() {
-        selectValue(B + ".bitSet(offset: 0, size: 8, value: x'FF')");
+        selectValue("$.b:BLOB.bitSet(offset: 0, size: 8, value: x'FF')");
         try (RecordStream rs = session.query(key).execute()) {
             Record rec = rs.next().recordOrThrow();
-            assertEquals("01020304", HexFormat.of().formatHex((byte[]) rec.getValue(BIN_BLOB)));
+            assertEquals("01020304", HexFormat.of().formatHex((byte[]) rec.getValue("b")));
         }
     }
 
@@ -187,32 +184,32 @@ public class AelBitHllTest extends ClusterTest {
 
     @Test
     public void bitCountUsableInWhereClause() {
-        assertTrue(matchesWhere(B + ".bitCount(offset: 0, size: 32) == 5"));
-        assertTrue(matchesWhere(B + ".bitGetInt(offset: 0, size: 8) == 1"));
+        assertTrue(matchesWhere("$.b:BLOB.bitCount(offset: 0, size: 32) == 5"));
+        assertTrue(matchesWhere("$.b:BLOB.bitGetInt(offset: 0, size: 8) == 1"));
     }
 
     // --- HLL ---
 
     @Test
     public void hllCountEstimatesCardinality() {
-        assertEquals(3L, selectLong(H + ".hllCount()"));
+        assertEquals(3L, selectLong("$.h:HLL.hllCount()"));
     }
 
     @Test
     public void hllDescribeReturnsIndexAndMinhashBits() {
-        assertEquals(List.of(8L, 0L), selectLongs(H + ".hllDescribe()"));
+        assertEquals(List.of(8L, 0L), selectLongs("$.h:HLL.hllDescribe()"));
     }
 
     @Test
     public void hllMayContainTestsMembership() {
-        assertEquals(1L, selectLong(H + ".hllMayContain([1])"));
-        assertEquals(0L, selectLong(H + ".hllMayContain([9999])"));
+        assertEquals(1L, selectLong("$.h:HLL.hllMayContain([1])"));
+        assertEquals(0L, selectLong("$.h:HLL.hllMayContain([9999])"));
     }
 
     @Test
     public void hllCountUsableInWhereClause() {
-        assertTrue(matchesWhere(H + ".hllCount() == 3"));
-        assertTrue(matchesWhere(H + ".hllCount() > 0"));
+        assertTrue(matchesWhere("$.h:HLL.hllCount() == 3"));
+        assertTrue(matchesWhere("$.h:HLL.hllCount() > 0"));
     }
 
     // --- helpers ---
