@@ -21,6 +21,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 
 import org.junit.jupiter.api.Test;
 
@@ -153,21 +154,43 @@ public class QueryWhereWireTest {
         assertEquals(SIMPLE_AEL, QueryWhereWire.ael(payload));
     }
 
+    /**
+     * The i-th prefix byte carries flag positions [1 + 7i .. 7 + 7i], so a payload bit set
+     * in the second byte is flag position 8 — not a re-OR of the first byte's positions.
+     * Mirrors server {@code where_parse_flags} in {@code query_where.c}.
+     */
     @Test
-    void decodeMultiBytePrefixOrSemanticFlags() {
+    void decodeMultiBytePrefixShiftsPayloadIntoFlagPositions() {
         byte[] prefix = {
-            (byte) (QueryWhereWire.FLAG_ENC_VARINT | QueryWhereWire.FLAG_EXPLAIN
-                | QueryWhereWire.FLAG_REQUIRE_INDEX),
-            (byte) QueryWhereWire.FLAG_HARD_HINT
+            (byte) (QueryWhereWire.FLAG_ENC_VARINT | QueryWhereWire.FLAG_EXPLAIN),
+            (byte) (1 << 1)
         };
         byte[] payload = multiBytePrefixPayload(prefix, SIMPLE_AEL);
 
         assertEquals(
-            QueryWhereWire.FLAG_EXPLAIN | QueryWhereWire.FLAG_REQUIRE_INDEX
-                | QueryWhereWire.FLAG_HARD_HINT,
+            QueryWhereWire.FLAG_EXPLAIN | (1 << 8),
             QueryWhereWire.flags(payload)
         );
         assertEquals(SIMPLE_AEL, QueryWhereWire.ael(payload));
+    }
+
+    /**
+     * A single-byte prefix decodes to itself, so client and server agree by construction
+     * on every flag combination the current set can express.
+     */
+    @Test
+    void singleBytePrefixDecodesToItself() {
+        for (int flags = 0; flags <= QueryWhereWire.FLAG_KNOWN; flags++) {
+            if ((flags & QueryWhereWire.FLAG_ENC_VARINT) != 0) {
+                continue;
+            }
+
+            byte[] payload = QueryWhereWire.encode(flags, SIMPLE_AEL);
+
+            assertEquals(1, payload.length - SIMPLE_AEL.length(), "flags 0x" + Integer.toHexString(flags));
+            assertEquals(flags, payload[0] & 0xFF, "flags 0x" + Integer.toHexString(flags));
+            assertEquals(flags, QueryWhereWire.flags(payload));
+        }
     }
 
     @Test
@@ -175,12 +198,25 @@ public class QueryWhereWireTest {
         byte[] prefix = {
             (byte) (QueryWhereWire.FLAG_ENC_VARINT | QueryWhereWire.FLAG_EXPLAIN
                 | QueryWhereWire.FLAG_REQUIRE_INDEX),
-            (byte) QueryWhereWire.FLAG_HARD_HINT
+            0
         };
         byte[] explain = multiBytePrefixPayload(prefix, COMPOUND_AEL);
         byte[] execute = QueryWhereWire.clearExplain(explain);
 
         assertArrayEquals(QueryWhereWire.forExecute(COMPOUND_AEL), execute);
+    }
+
+    @Test
+    void clearExplainPreservesFlagsBeyondTheFirstPrefixByte() {
+        byte[] prefix = {
+            (byte) (QueryWhereWire.FLAG_ENC_VARINT | QueryWhereWire.FLAG_EXPLAIN),
+            (byte) (1 << 1)
+        };
+        byte[] explain = multiBytePrefixPayload(prefix, COMPOUND_AEL);
+        byte[] execute = QueryWhereWire.clearExplain(explain);
+
+        assertEquals(1 << 8, QueryWhereWire.flags(execute));
+        assertEquals(COMPOUND_AEL, QueryWhereWire.ael(execute));
     }
 
     @Test
@@ -193,15 +229,25 @@ public class QueryWhereWireTest {
         assertThrows(IllegalArgumentException.class, () -> QueryWhereWire.ael(payload));
     }
 
+    /** Server caps the prefix at AS_QUERY_WHERE_FLAGS_MAX_BYTES (9). */
     @Test
     void rejectsOverlongFlagPrefix() {
-        byte[] payload = new byte[] {
-            (byte) QueryWhereWire.FLAG_ENC_VARINT,
-            (byte) QueryWhereWire.FLAG_ENC_VARINT,
-            (byte) QueryWhereWire.FLAG_ENC_VARINT,
-            (byte) QueryWhereWire.FLAG_ENC_VARINT,
-            (byte) QueryWhereWire.FLAG_ENC_VARINT,
-        };
+        byte[] prefix = new byte[10];
+        Arrays.fill(prefix, (byte) QueryWhereWire.FLAG_ENC_VARINT);
+
+        byte[] payload = multiBytePrefixPayload(prefix, SIMPLE_AEL);
+
+        assertThrows(IllegalArgumentException.class, () -> QueryWhereWire.flags(payload));
+    }
+
+    /** Flag positions above 31 cannot round-trip through the int flag domain. */
+    @Test
+    void rejectsFlagPositionBeyondIntRange() {
+        byte[] prefix = new byte[6];
+        Arrays.fill(prefix, (byte) QueryWhereWire.FLAG_ENC_VARINT);
+        prefix[5] = (byte) (1 << 1);
+
+        byte[] payload = multiBytePrefixPayload(prefix, SIMPLE_AEL);
 
         assertThrows(IllegalArgumentException.class, () -> QueryWhereWire.flags(payload));
     }

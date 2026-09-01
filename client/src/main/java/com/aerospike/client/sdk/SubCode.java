@@ -43,7 +43,7 @@ package com.aerospike.client.sdk;
  * <p>
  * This catalogue mirrors the server's per-status enums in
  * {@code as/include/base/proto.h} and is server-version-specific. It is pinned to
- * server master as of 2026-08-21 (39 subcodes); no released server version carries
+ * server master as of 2026-08-31 (40 subcodes); no released server version carries
  * the feature yet, so the pin advances to a release number once one ships. Re-verify
  * this catalogue against {@code proto.h} at every client release. It is append-only:
  * published values are immutable and are never renumbered or reused. New failure modes
@@ -102,6 +102,12 @@ public final class SubCode {
 
     /** A needed replica is unavailable (likely a partition split). */
     public static final int UNAVAIL_REPLICA_UNAVAILABLE = 2;
+
+    /**
+     * This node is leaving the cluster (e.g. an index-checkpoint save/park). Fail over
+     * to another node rather than backing off — retrying this node cannot succeed.
+     */
+    public static final int UNAVAIL_NODE_SHUTTING_DOWN = 3;
 
     //-------------------------------------------------------
     // Pairs with ResultCode.UNSUPPORTED_FEATURE (16)  [AS_ERR_UNSUPPORTED_FEATURE]

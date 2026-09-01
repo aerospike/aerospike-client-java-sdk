@@ -25,9 +25,14 @@ import org.junit.platform.suite.api.Suite;
 
 import com.aerospike.client.sdk.policy.Behavior;
 import com.aerospike.client.sdk.policy.Behavior.Selectors;
+import com.aerospike.client.sdk.query.AelBitHllTest;
+import com.aerospike.client.sdk.query.AelLiteralTest;
 import com.aerospike.client.sdk.query.AelMetadataTest;
 import com.aerospike.client.sdk.query.AelPathReadTest;
+import com.aerospike.client.sdk.query.AelPathSelectorTest;
 import com.aerospike.client.sdk.query.AelPathSubExprTest;
+import com.aerospike.client.sdk.query.AelPathWriteTest;
+import com.aerospike.client.sdk.query.AelStringTest;
 import com.aerospike.client.sdk.query.AelWildcardTest;
 import com.aerospike.client.sdk.query.ExpSecondaryIndexTest;
 import com.aerospike.client.sdk.query.FilterIndexRangeIntegrationTest;
@@ -75,11 +80,16 @@ import com.aerospike.client.sdk.query.QueryUpsertFromChainedTest;
     DeleteBinTest.class,
     DurableDeleteTests.class,
     ErrorDetailVerbosityTest.class,
+    AelBitHllTest.class,
     AelErrorDetailVerbosityTest.class,
+    AelLiteralTest.class,
     AelMaterializerWhereTest.class,
     AelMetadataTest.class,
     AelPathReadTest.class,
+    AelPathSelectorTest.class,
     AelPathSubExprTest.class,
+    AelPathWriteTest.class,
+    AelStringTest.class,
     AelWildcardTest.class,
     ExpireTest.class,
     ExpOperationTest.class,
