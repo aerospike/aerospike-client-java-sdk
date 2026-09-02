@@ -185,6 +185,48 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
     }
 
     /**
+     * Queues a write that sets this bin from a runtime {@link Object}.
+     *
+     * <p>Use this when the value type is not known statically (for example copying bins between
+     * records). The object is converted with {@link Value#get(Object)}, which accepts the same
+     * types as the typed {@code setTo} overloads plus boxed numbers, {@link Value}, enums, and
+     * {@link java.util.UUID}. Prefer a typed {@code setTo} overload when the compile-time type is
+     * known.</p>
+     *
+     * <p>{@code null} stores a null bin (same as {@link #remove()}), not an empty string.
+     * Unsupported types throw {@link AerospikeException}.</p>
+     *
+     * <pre>{@code
+     * Object value = rec.getValue("name");
+     * session.upsert(destKey).bin("name").setTo(value).execute();
+     * }</pre>
+     *
+     * @param value value to store, or {@code null} to write a null bin
+     * @return the parent operation builder for chaining
+     * @throws AerospikeException if {@code value}'s type cannot be stored in a bin
+     */
+    public T setTo(Object value) {
+        return opBuilder.setTo(new Bin(binName, Value.get(value)));
+    }
+
+    /**
+     * Queues a write that sets this bin to an already-constructed {@link Value}.
+     *
+     * <p>Use this when you already have a {@link Value} (for example from {@link Value#get(Object)}
+     * or a GeoJSON/HLL constructor). {@code null} is treated as {@link Value#getAsNull()}.</p>
+     *
+     * <pre>{@code
+     * session.upsert(key).bin("loc").setTo(Value.getAsGeoJSON(geoJson)).execute();
+     * }</pre>
+     *
+     * @param value bin value to store, or {@code null} for a null bin
+     * @return the parent operation builder for chaining
+     */
+    public T setTo(Value value) {
+        return opBuilder.setTo(new Bin(binName, value != null ? value : Value.getAsNull()));
+    }
+
+    /**
      * Queues a write that removes this bin from the record (null bin).
      *
      * @return the parent operation builder for chaining

@@ -76,7 +76,35 @@ public final class QueryNodeExecutor extends NodeExecutor {
             throw parser.toException();
         }
 
-        Record record = parser.parseRecord(false);
+        // A query carrying read operations can return the same bin name more than once,
+        // so its results must be merged into a list rather than overwriting each other.
+        /*
+         TODO: BN: confirm this is correct. Old code was:
+         Record record = parser.parseRecord(false);
+         However this fails in test CdtBuilderPermutationTest.DatasetQueryTopLevel.mapAndListNavigations with
+         org.opentest4j.AssertionFailedError: cdtSMap result count ==> expected: <49> but was: <1>
+
+         Claude's reasoning for the code change was:
+         The dataset query result parser was discarding all but the last result when several operations targeted the same bin. RecordParser.parseRecord takes an isOperation flag that controls exactly this:
+         if (isOperation) {
+             if (bins.containsKey(name)) {
+                 // Multiple values returned for the same bin.
+                 Object prev = bins.get(name);
+                 // ... accumulates into an OpResults list ...
+             }
+             else {
+                 bins.put(name, value);
+             }
+         }
+         else {
+             bins.put(name, value);
+         }
+         Every other path that can return multiple results per bin passes true — OperateReadExecutor, OperateWriteExecutor, ReadExecutor, and the batch operate commands — which is why the update and 
+         key-query permutations passed. QueryNodeExecutor was hardcoding false, so the 49 cdtSMap operations collapsed to a single value, and getValue("cdtSMap") returned the last one instead of an OpResults list.
+
+        The fix makes the flag reflect whether the query actually carries operations:
+         */
+        Record record = parser.parseRecord(query.ops != null && !query.ops.isEmpty());
 
         if (! valid) {
             throw new AerospikeException.QueryTerminated();

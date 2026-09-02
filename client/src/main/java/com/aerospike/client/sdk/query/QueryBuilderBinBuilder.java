@@ -18,6 +18,7 @@ package com.aerospike.client.sdk.query;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Consumer;
 
 import com.aerospike.client.sdk.CdtGetOrRemoveBuilder.CdtOperation;
@@ -31,6 +32,7 @@ import com.aerospike.client.sdk.ExpressionOpHelper;
 import com.aerospike.client.sdk.ExpressionReadOptions;
 import com.aerospike.client.sdk.Operation;
 import com.aerospike.client.sdk.QueryBinBuilder;
+import com.aerospike.client.sdk.SpecialValue;
 import com.aerospike.client.sdk.Value;
 import com.aerospike.client.sdk.Value.HLLValue;
 import com.aerospike.client.sdk.ael.BooleanExpression;
@@ -433,6 +435,23 @@ public class QueryBuilderBinBuilder implements CdtOperationAcceptor<QueryBuilder
         return new CdtReadOnlyBuilder<>(binName, this, new CdtOperationParams(CdtOperation.MAP_BY_VALUE, Value.get(value)));
     }
 
+    public CdtReadContextInvertableBuilder<QueryBuilder> onMapValue(List<?> value) {
+        return mapValue(Value.get(value));
+    }
+
+    public CdtReadContextInvertableBuilder<QueryBuilder> onMapValue(Map<?,?> value) {
+        return mapValue(Value.get(value));
+    }
+
+    public CdtReadContextInvertableBuilder<QueryBuilder> onMapValue(SpecialValue value) {
+        return mapValue(value.toAerospikeValue());
+    }
+
+    private CdtReadContextInvertableBuilder<QueryBuilder> mapValue(Value value) {
+        return new CdtReadOnlyBuilder<>(binName, this,
+            new CdtOperationParams(CdtOperation.MAP_BY_VALUE, value));
+    }
+
     /**
      * Navigate to map elements by index range.
      *
@@ -465,6 +484,89 @@ public class QueryBuilderBinBuilder implements CdtOperationAcceptor<QueryBuilder
         return new CdtReadOnlyBuilder<>(binName, this, new CdtOperationParams(CdtOperation.MAP_BY_KEY_RANGE, Value.get(startIncl), Value.get(endExcl)));
     }
 
+    public CdtReadActionInvertableBuilder<QueryBuilder> onMapKeyRange(byte[] startIncl, byte[] endExcl) {
+        return mapKeyRange(Value.get(startIncl), Value.get(endExcl));
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onMapKeyRange(double startIncl, double endExcl) {
+        return mapKeyRange(Value.get(startIncl), Value.get(endExcl));
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onMapKeyRange(SpecialValue startIncl, SpecialValue endExcl) {
+        return mapKeyRange(startIncl.toAerospikeValue(), endExcl.toAerospikeValue());
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onMapKeyRange(SpecialValue startIncl, long endExcl) {
+        return mapKeyRange(startIncl.toAerospikeValue(), Value.get(endExcl));
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onMapKeyRange(SpecialValue startIncl, String endExcl) {
+        return mapKeyRange(startIncl.toAerospikeValue(), Value.get(endExcl));
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onMapKeyRange(SpecialValue startIncl, byte[] endExcl) {
+        return mapKeyRange(startIncl.toAerospikeValue(), Value.get(endExcl));
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onMapKeyRange(SpecialValue startIncl, double endExcl) {
+        return mapKeyRange(startIncl.toAerospikeValue(), Value.get(endExcl));
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onMapKeyRange(long startIncl, SpecialValue endExcl) {
+        return mapKeyRange(Value.get(startIncl), endExcl.toAerospikeValue());
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onMapKeyRange(String startIncl, SpecialValue endExcl) {
+        return mapKeyRange(Value.get(startIncl), endExcl.toAerospikeValue());
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onMapKeyRange(byte[] startIncl, SpecialValue endExcl) {
+        return mapKeyRange(Value.get(startIncl), endExcl.toAerospikeValue());
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onMapKeyRange(double startIncl, SpecialValue endExcl) {
+        return mapKeyRange(Value.get(startIncl), endExcl.toAerospikeValue());
+    }
+
+    private CdtReadActionInvertableBuilder<QueryBuilder> mapKeyRange(Value startIncl, Value endExcl) {
+        return new CdtReadOnlyBuilder<>(binName, this,
+            new CdtOperationParams(CdtOperation.MAP_BY_KEY_RANGE, startIncl, endExcl));
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onMapKeyRelativeIndexRange(long key, int index) {
+        return mapKeyRelativeIndexRange(Value.get(key), index);
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onMapKeyRelativeIndexRange(String key, int index) {
+        return mapKeyRelativeIndexRange(Value.get(key), index);
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onMapKeyRelativeIndexRange(byte[] key, int index) {
+        return mapKeyRelativeIndexRange(Value.get(key), index);
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onMapKeyRelativeIndexRange(long key, int index, int count) {
+        return mapKeyRelativeIndexRange(Value.get(key), index, count);
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onMapKeyRelativeIndexRange(String key, int index, int count) {
+        return mapKeyRelativeIndexRange(Value.get(key), index, count);
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onMapKeyRelativeIndexRange(byte[] key, int index, int count) {
+        return mapKeyRelativeIndexRange(Value.get(key), index, count);
+    }
+
+    private CdtReadActionInvertableBuilder<QueryBuilder> mapKeyRelativeIndexRange(Value key, int index) {
+        return new CdtReadOnlyBuilder<>(binName, this,
+            new CdtOperationParams(CdtOperation.MAP_BY_KEY_REL_INDEX_RANGE, key, index));
+    }
+
+    private CdtReadActionInvertableBuilder<QueryBuilder> mapKeyRelativeIndexRange(Value key, int index, int count) {
+        return new CdtReadOnlyBuilder<>(binName, this,
+            new CdtOperationParams(CdtOperation.MAP_BY_KEY_REL_INDEX_RANGE, key, index, count));
+    }
+
     /**
      * Navigate to map elements by rank range.
      *
@@ -495,6 +597,167 @@ public class QueryBuilderBinBuilder implements CdtOperationAcceptor<QueryBuilder
     /** Navigate to map elements by value range. */
     public CdtReadActionInvertableBuilder<QueryBuilder> onMapValueRange(String startIncl, String endExcl) {
         return new CdtReadOnlyBuilder<>(binName, this, new CdtOperationParams(CdtOperation.MAP_BY_VALUE_RANGE, Value.get(startIncl), Value.get(endExcl)));
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onMapValueRange(byte[] startIncl, byte[] endExcl) {
+        return mapValueRange(Value.get(startIncl), Value.get(endExcl));
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onMapValueRange(double startIncl, double endExcl) {
+        return mapValueRange(Value.get(startIncl), Value.get(endExcl));
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onMapValueRange(boolean startIncl, boolean endExcl) {
+        return mapValueRange(Value.get(startIncl), Value.get(endExcl));
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onMapValueRange(List<?> startIncl, List<?> endExcl) {
+        return mapValueRange(Value.get(startIncl), Value.get(endExcl));
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onMapValueRange(Map<?,?> startIncl, Map<?,?> endExcl) {
+        return mapValueRange(Value.get(startIncl), Value.get(endExcl));
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onMapValueRange(SpecialValue startIncl, SpecialValue endExcl) {
+        return mapValueRange(startIncl.toAerospikeValue(), endExcl.toAerospikeValue());
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onMapValueRange(SpecialValue startIncl, long endExcl) {
+        return mapValueRange(startIncl.toAerospikeValue(), Value.get(endExcl));
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onMapValueRange(SpecialValue startIncl, String endExcl) {
+        return mapValueRange(startIncl.toAerospikeValue(), Value.get(endExcl));
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onMapValueRange(SpecialValue startIncl, byte[] endExcl) {
+        return mapValueRange(startIncl.toAerospikeValue(), Value.get(endExcl));
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onMapValueRange(SpecialValue startIncl, double endExcl) {
+        return mapValueRange(startIncl.toAerospikeValue(), Value.get(endExcl));
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onMapValueRange(SpecialValue startIncl, boolean endExcl) {
+        return mapValueRange(startIncl.toAerospikeValue(), Value.get(endExcl));
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onMapValueRange(SpecialValue startIncl, List<?> endExcl) {
+        return mapValueRange(startIncl.toAerospikeValue(), Value.get(endExcl));
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onMapValueRange(SpecialValue startIncl, Map<?,?> endExcl) {
+        return mapValueRange(startIncl.toAerospikeValue(), Value.get(endExcl));
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onMapValueRange(long startIncl, SpecialValue endExcl) {
+        return mapValueRange(Value.get(startIncl), endExcl.toAerospikeValue());
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onMapValueRange(String startIncl, SpecialValue endExcl) {
+        return mapValueRange(Value.get(startIncl), endExcl.toAerospikeValue());
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onMapValueRange(byte[] startIncl, SpecialValue endExcl) {
+        return mapValueRange(Value.get(startIncl), endExcl.toAerospikeValue());
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onMapValueRange(double startIncl, SpecialValue endExcl) {
+        return mapValueRange(Value.get(startIncl), endExcl.toAerospikeValue());
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onMapValueRange(boolean startIncl, SpecialValue endExcl) {
+        return mapValueRange(Value.get(startIncl), endExcl.toAerospikeValue());
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onMapValueRange(List<?> startIncl, SpecialValue endExcl) {
+        return mapValueRange(Value.get(startIncl), endExcl.toAerospikeValue());
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onMapValueRange(Map<?,?> startIncl, SpecialValue endExcl) {
+        return mapValueRange(Value.get(startIncl), endExcl.toAerospikeValue());
+    }
+
+    private CdtReadActionInvertableBuilder<QueryBuilder> mapValueRange(Value startIncl, Value endExcl) {
+        return new CdtReadOnlyBuilder<>(binName, this,
+            new CdtOperationParams(CdtOperation.MAP_BY_VALUE_RANGE, startIncl, endExcl));
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onMapValueRelativeRankRange(long value, int rank) {
+        return mapValueRelativeRankRange(Value.get(value), rank);
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onMapValueRelativeRankRange(String value, int rank) {
+        return mapValueRelativeRankRange(Value.get(value), rank);
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onMapValueRelativeRankRange(byte[] value, int rank) {
+        return mapValueRelativeRankRange(Value.get(value), rank);
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onMapValueRelativeRankRange(double value, int rank) {
+        return mapValueRelativeRankRange(Value.get(value), rank);
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onMapValueRelativeRankRange(boolean value, int rank) {
+        return mapValueRelativeRankRange(Value.get(value), rank);
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onMapValueRelativeRankRange(List<?> value, int rank) {
+        return mapValueRelativeRankRange(Value.get(value), rank);
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onMapValueRelativeRankRange(Map<?,?> value, int rank) {
+        return mapValueRelativeRankRange(Value.get(value), rank);
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onMapValueRelativeRankRange(SpecialValue value, int rank) {
+        return mapValueRelativeRankRange(value.toAerospikeValue(), rank);
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onMapValueRelativeRankRange(long value, int rank, int count) {
+        return mapValueRelativeRankRange(Value.get(value), rank, count);
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onMapValueRelativeRankRange(String value, int rank, int count) {
+        return mapValueRelativeRankRange(Value.get(value), rank, count);
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onMapValueRelativeRankRange(byte[] value, int rank, int count) {
+        return mapValueRelativeRankRange(Value.get(value), rank, count);
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onMapValueRelativeRankRange(double value, int rank, int count) {
+        return mapValueRelativeRankRange(Value.get(value), rank, count);
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onMapValueRelativeRankRange(boolean value, int rank, int count) {
+        return mapValueRelativeRankRange(Value.get(value), rank, count);
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onMapValueRelativeRankRange(List<?> value, int rank, int count) {
+        return mapValueRelativeRankRange(Value.get(value), rank, count);
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onMapValueRelativeRankRange(Map<?,?> value, int rank, int count) {
+        return mapValueRelativeRankRange(Value.get(value), rank, count);
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onMapValueRelativeRankRange(SpecialValue value, int rank, int count) {
+        return mapValueRelativeRankRange(value.toAerospikeValue(), rank, count);
+    }
+
+    private CdtReadActionInvertableBuilder<QueryBuilder> mapValueRelativeRankRange(Value value, int rank) {
+        return new CdtReadOnlyBuilder<>(binName, this,
+            new CdtOperationParams(CdtOperation.MAP_BY_VALUE_REL_RANK_RANGE, value, rank));
+    }
+
+    private CdtReadActionInvertableBuilder<QueryBuilder> mapValueRelativeRankRange(
+        Value value, int rank, int count
+    ) {
+        return new CdtReadOnlyBuilder<>(binName, this,
+            new CdtOperationParams(CdtOperation.MAP_BY_VALUE_REL_RANK_RANGE, value, rank, count));
     }
 
     /**
@@ -568,6 +831,253 @@ public class QueryBuilderBinBuilder implements CdtOperationAcceptor<QueryBuilder
     /** Navigate to list elements by value. */
     public CdtReadContextInvertableBuilder<QueryBuilder> onListValue(byte[] value) {
         return new CdtReadOnlyBuilder<>(binName, this, new CdtOperationParams(CdtOperation.LIST_BY_VALUE, Value.get(value)));
+    }
+
+    public CdtReadContextInvertableBuilder<QueryBuilder> onListValue(SpecialValue value) {
+        return listValue(value.toAerospikeValue());
+    }
+
+    public CdtReadContextInvertableBuilder<QueryBuilder> onListValue(double value) {
+        return listValue(Value.get(value));
+    }
+
+    public CdtReadContextInvertableBuilder<QueryBuilder> onListValue(boolean value) {
+        return listValue(Value.get(value));
+    }
+
+    public CdtReadContextInvertableBuilder<QueryBuilder> onListValue(List<?> value) {
+        return listValue(Value.get(value));
+    }
+
+    public CdtReadContextInvertableBuilder<QueryBuilder> onListValue(Map<?,?> value) {
+        return listValue(Value.get(value));
+    }
+
+    private CdtReadContextInvertableBuilder<QueryBuilder> listValue(Value value) {
+        return new CdtReadOnlyBuilder<>(binName, this,
+            new CdtOperationParams(CdtOperation.LIST_BY_VALUE, value));
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onListIndexRange(int index, int count) {
+        return new CdtReadOnlyBuilder<>(binName, this,
+            new CdtOperationParams(CdtOperation.LIST_BY_INDEX_RANGE, index, count));
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onListIndexRange(int index) {
+        return new CdtReadOnlyBuilder<>(binName, this,
+            new CdtOperationParams(CdtOperation.LIST_BY_INDEX_RANGE, index));
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onListRankRange(int rank, int count) {
+        return new CdtReadOnlyBuilder<>(binName, this,
+            new CdtOperationParams(CdtOperation.LIST_BY_RANK_RANGE, rank, count));
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onListRankRange(int rank) {
+        return new CdtReadOnlyBuilder<>(binName, this,
+            new CdtOperationParams(CdtOperation.LIST_BY_RANK_RANGE, rank));
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onListValueRange(long startIncl, long endExcl) {
+        return listValueRange(Value.get(startIncl), Value.get(endExcl));
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onListValueRange(String startIncl, String endExcl) {
+        return listValueRange(Value.get(startIncl), Value.get(endExcl));
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onListValueRange(byte[] startIncl, byte[] endExcl) {
+        return listValueRange(Value.get(startIncl), Value.get(endExcl));
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onListValueRange(double startIncl, double endExcl) {
+        return listValueRange(Value.get(startIncl), Value.get(endExcl));
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onListValueRange(
+        SpecialValue startIncl, SpecialValue endExcl
+    ) {
+        return listValueRange(startIncl.toAerospikeValue(), endExcl.toAerospikeValue());
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onListValueRange(SpecialValue startIncl, long endExcl) {
+        return listValueRange(startIncl.toAerospikeValue(), Value.get(endExcl));
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onListValueRange(SpecialValue startIncl, String endExcl) {
+        return listValueRange(startIncl.toAerospikeValue(), Value.get(endExcl));
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onListValueRange(SpecialValue startIncl, byte[] endExcl) {
+        return listValueRange(startIncl.toAerospikeValue(), Value.get(endExcl));
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onListValueRange(SpecialValue startIncl, double endExcl) {
+        return listValueRange(startIncl.toAerospikeValue(), Value.get(endExcl));
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onListValueRange(long startIncl, SpecialValue endExcl) {
+        return listValueRange(Value.get(startIncl), endExcl.toAerospikeValue());
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onListValueRange(String startIncl, SpecialValue endExcl) {
+        return listValueRange(Value.get(startIncl), endExcl.toAerospikeValue());
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onListValueRange(byte[] startIncl, SpecialValue endExcl) {
+        return listValueRange(Value.get(startIncl), endExcl.toAerospikeValue());
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onListValueRange(double startIncl, SpecialValue endExcl) {
+        return listValueRange(Value.get(startIncl), endExcl.toAerospikeValue());
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onListValueRange(boolean startIncl, boolean endExcl) {
+        return listValueRange(Value.get(startIncl), Value.get(endExcl));
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onListValueRange(List<?> startIncl, List<?> endExcl) {
+        return listValueRange(Value.get(startIncl), Value.get(endExcl));
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onListValueRange(Map<?,?> startIncl, Map<?,?> endExcl) {
+        return listValueRange(Value.get(startIncl), Value.get(endExcl));
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onListValueRange(
+        SpecialValue startIncl, boolean endExcl
+    ) {
+        return listValueRange(startIncl.toAerospikeValue(), Value.get(endExcl));
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onListValueRange(boolean startIncl, SpecialValue endExcl) {
+        return listValueRange(Value.get(startIncl), endExcl.toAerospikeValue());
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onListValueRange(
+        SpecialValue startIncl, List<?> endExcl
+    ) {
+        return listValueRange(startIncl.toAerospikeValue(), Value.get(endExcl));
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onListValueRange(List<?> startIncl, SpecialValue endExcl) {
+        return listValueRange(Value.get(startIncl), endExcl.toAerospikeValue());
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onListValueRange(
+        SpecialValue startIncl, Map<?,?> endExcl
+    ) {
+        return listValueRange(startIncl.toAerospikeValue(), Value.get(endExcl));
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onListValueRange(Map<?,?> startIncl, SpecialValue endExcl) {
+        return listValueRange(Value.get(startIncl), endExcl.toAerospikeValue());
+    }
+
+    private CdtReadActionInvertableBuilder<QueryBuilder> listValueRange(Value startIncl, Value endExcl) {
+        return new CdtReadOnlyBuilder<>(binName, this,
+            new CdtOperationParams(CdtOperation.LIST_BY_VALUE_RANGE, startIncl, endExcl));
+    }
+
+    public CdtReadContextInvertableBuilder<QueryBuilder> onListValueList(List<?> values) {
+        List<Value> packed = new ArrayList<>(values.size());
+        for (Object value : values) {
+            packed.add(Value.get(value));
+        }
+        return new CdtReadOnlyBuilder<>(binName, this,
+            new CdtOperationParams(CdtOperation.LIST_BY_VALUE_LIST, packed));
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onListValueRelativeRankRange(long value, int rank) {
+        return listValueRelativeRankRange(Value.get(value), rank);
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onListValueRelativeRankRange(String value, int rank) {
+        return listValueRelativeRankRange(Value.get(value), rank);
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onListValueRelativeRankRange(byte[] value, int rank) {
+        return listValueRelativeRankRange(Value.get(value), rank);
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onListValueRelativeRankRange(double value, int rank) {
+        return listValueRelativeRankRange(Value.get(value), rank);
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onListValueRelativeRankRange(SpecialValue value, int rank) {
+        return listValueRelativeRankRange(value.toAerospikeValue(), rank);
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onListValueRelativeRankRange(
+        long value, int rank, int count
+    ) {
+        return listValueRelativeRankRange(Value.get(value), rank, count);
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onListValueRelativeRankRange(
+        String value, int rank, int count
+    ) {
+        return listValueRelativeRankRange(Value.get(value), rank, count);
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onListValueRelativeRankRange(
+        byte[] value, int rank, int count
+    ) {
+        return listValueRelativeRankRange(Value.get(value), rank, count);
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onListValueRelativeRankRange(
+        double value, int rank, int count
+    ) {
+        return listValueRelativeRankRange(Value.get(value), rank, count);
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onListValueRelativeRankRange(
+        SpecialValue value, int rank, int count
+    ) {
+        return listValueRelativeRankRange(value.toAerospikeValue(), rank, count);
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onListValueRelativeRankRange(boolean value, int rank) {
+        return listValueRelativeRankRange(Value.get(value), rank);
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onListValueRelativeRankRange(List<?> value, int rank) {
+        return listValueRelativeRankRange(Value.get(value), rank);
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onListValueRelativeRankRange(Map<?,?> value, int rank) {
+        return listValueRelativeRankRange(Value.get(value), rank);
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onListValueRelativeRankRange(
+        boolean value, int rank, int count
+    ) {
+        return listValueRelativeRankRange(Value.get(value), rank, count);
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onListValueRelativeRankRange(
+        List<?> value, int rank, int count
+    ) {
+        return listValueRelativeRankRange(Value.get(value), rank, count);
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onListValueRelativeRankRange(
+        Map<?,?> value, int rank, int count
+    ) {
+        return listValueRelativeRankRange(Value.get(value), rank, count);
+    }
+
+    private CdtReadActionInvertableBuilder<QueryBuilder> listValueRelativeRankRange(Value value, int rank) {
+        return new CdtReadOnlyBuilder<>(binName, this,
+            new CdtOperationParams(CdtOperation.LIST_BY_VALUE_REL_RANK_RANGE, value, rank));
+    }
+
+    private CdtReadActionInvertableBuilder<QueryBuilder> listValueRelativeRankRange(
+        Value value, int rank, int count
+    ) {
+        return new CdtReadOnlyBuilder<>(binName, this,
+            new CdtOperationParams(CdtOperation.LIST_BY_VALUE_REL_RANK_RANGE, value, rank, count));
     }
 
     // ----------------------------------------
