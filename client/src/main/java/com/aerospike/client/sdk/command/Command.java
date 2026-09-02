@@ -68,6 +68,8 @@ public class Command {
     public static final int INFO4_TXN_ROLL_FORWARD      = (1 << 1); // Roll forward transaction.
     public static final int INFO4_TXN_ROLL_BACK         = (1 << 2); // Roll back transaction.
     public static final int INFO4_TXN_ON_LOCKING_ONLY   = (1 << 4); // Must be able to lock record in transaction.
+    public static final int INFO4_ERROR_VERBOSITY_SHIFT = 5;        // info4 bits 5-6: error detail verbosity level
+    public static final int INFO4_ERROR_VERBOSITY_MASK  = 0x60;     // 0b0110_0000: bits 5-6 only
 
     public static final byte STATE_READ_AUTH_HEADER = 1;
     public static final byte STATE_READ_HEADER = 2;
@@ -95,6 +97,7 @@ public class Command {
     public final int timeoutDelay;
     public final int maxRetries;
     public final int sleepBetweenRetries;
+    public final byte errorDetailBits;
     public final boolean sendKey;
     public final boolean compress;
 
@@ -126,6 +129,8 @@ public class Command {
         sleepBetweenRetries = settings.getDelayBetweenRetriesMs();
         sendKey = settings.getSendKey();
         compress = settings.getUseCompression();
+
+        errorDetailBits = settings.getErrorDetailBits();
     }
 
     public int getConnectTimeout() {
@@ -142,5 +147,9 @@ public class Command {
 
     public int getMaxRetries() {
         return maxRetries;
+    }
+
+    public byte getErrorDetailBits() {
+        return errorDetailBits;
     }
 }

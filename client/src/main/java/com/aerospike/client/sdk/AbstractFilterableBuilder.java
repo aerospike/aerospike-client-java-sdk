@@ -19,9 +19,7 @@ package com.aerospike.client.sdk;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.aerospike.ael.ParseResult;
 import com.aerospike.client.sdk.command.BatchRecord;
-import com.aerospike.client.sdk.exp.Exp;
 import com.aerospike.client.sdk.exp.Expression;
 import com.aerospike.client.sdk.policy.ResolvedSettings;
 import com.aerospike.client.sdk.query.WhereClauseProcessor;
@@ -63,8 +61,7 @@ public abstract class AbstractFilterableBuilder {
         if (this.ael == null) {
             return null;
         }
-        ParseResult parseResult = this.ael.process(namespace, querySet, session);
-        return Exp.build(parseResult.getExp());
+        return this.ael.toFilterExpression(session);
     }
 
     /**
@@ -85,26 +82,32 @@ public abstract class AbstractFilterableBuilder {
         ResolvedSettings settings,
         int index
     ) {
-        if (settings.getStackTraceOnException() && isActionableError(br.resultCode)) {
-            return new RecordResult(
-                br,
-                AerospikeException.resultCodeToException(br.resultCode, null, br.inDoubt),
-                index);
-        } else {
-            return new RecordResult(br, index);
+        return createRecordResultFromBatchRecord(br, settings, index, null, null);
+    }
+
+    static RecordResult createRecordResultFromBatchRecord(
+        BatchRecord br,
+        ResolvedSettings settings,
+        int index,
+        Session readMappingSession,
+        Class<?> readMappingClass
+    ) {
+        if (isActionableError(br.resultCode)) {
+            return RecordResult.batchError(br, index, readMappingSession, readMappingClass);
         }
+        return RecordResult.batchSuccess(br, index, readMappingSession, readMappingClass);
     }
 
     /**
      * Create WhereClauseProcessor from AEL string.
      */
-    protected WhereClauseProcessor createWhereClauseProcessor(boolean allowSecondaryIndex, String ael, Object... params) {
+    protected WhereClauseProcessor createWhereClauseProcessor(String ael, Object... params) {
         if (ael == null || ael.isEmpty()) {
             return null;
         } else if (params.length == 0) {
-            return WhereClauseProcessor.from(allowSecondaryIndex, ael);
+            return WhereClauseProcessor.from(ael);
         } else {
-            return WhereClauseProcessor.from(allowSecondaryIndex, String.format(ael, params));
+            return WhereClauseProcessor.from(String.format(ael, params));
         }
     }
 
@@ -135,7 +138,7 @@ public abstract class AbstractFilterableBuilder {
      * route to the handler; otherwise publish to the stream.
      */
     static void dispatchResult(RecordResult result, AsyncRecordStream stream, ErrorHandler handler) {
-        if (handler != null && isActionableError(result.resultCode())) {
+        if (handler != null && isActionableError(result.getResultCode())) {
             dispatchError(result, handler);
         } else {
             stream.publish(result);
@@ -149,7 +152,7 @@ public abstract class AbstractFilterableBuilder {
     public static RecordStream filterStreamErrors(RecordStream source, ErrorHandler handler) {
         List<RecordResult> filtered = new ArrayList<>();
         source.forEach(result -> {
-            if (isActionableError(result.resultCode())) {
+            if (isActionableError(result.getResultCode())) {
                 dispatchError(result, handler);
             } else {
                 filtered.add(result);
@@ -159,10 +162,40 @@ public abstract class AbstractFilterableBuilder {
     }
 
     static void dispatchError(RecordResult result, ErrorHandler handler) {
-        AerospikeException ex = result.exception() != null
-            ? result.exception()
-            : AerospikeException.resultCodeToException(result.resultCode(), result.message(), result.inDoubt());
-        handler.handle(result.key(), result.index(), ex);
+        AerospikeException ex = result.toException();
+        handler.handle(result.getKey(), result.getIndex(), ex);
+    }
+
+    /**
+     * Route a batch {@link RecordResult} according to the {@link ErrorDisposition}: throw on
+     * actionable errors, dispatch to an error handler, or publish to the stream. Non-error
+     * results are always published to the stream.
+     *
+     * @param result     the result to route
+     * @param resultCode the batch record's result code
+     * @param disposition how to handle per-record errors
+     * @param stream     the target stream for publishable results
+     */
+    static void routeBatchResult(RecordResult result, int resultCode,
+                                 ErrorDisposition disposition, AsyncRecordStream stream) {
+        if (isActionableError(resultCode)) {
+            switch (disposition) {
+                case ErrorDisposition.Throw ignored -> {
+                     throw result.toException();
+                }
+
+                case ErrorDisposition.Handler h -> {
+                    dispatchError(result, h.errorHandler());
+                }
+
+                case ErrorDisposition.InStream ignored -> {
+                    stream.publish(result);
+                }
+            }
+        }
+        else {
+            stream.publish(result);
+        }
     }
 }
 

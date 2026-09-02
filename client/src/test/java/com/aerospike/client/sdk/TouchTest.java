@@ -52,7 +52,7 @@ public class TouchTest extends ClusterTest {
         sleep(1000);
 
         rs = session.query(key).readingOnlyBins("touchbin").execute();
-        record = rs.next().recordOrNull();
+        record = rs.next().getRecord();
         assertNotNull(record);
 
         sleep(3000);
@@ -81,7 +81,7 @@ public class TouchTest extends ClusterTest {
         sleep(1000);
 
         RecordStream rs = session.query(key).withNoBins().execute();
-        Record record = rs.next().recordOrNull();
+        Record record = rs.next().getRecord();
         assertNotNull(record);
         assertNotEquals(0, record.expiration);
 

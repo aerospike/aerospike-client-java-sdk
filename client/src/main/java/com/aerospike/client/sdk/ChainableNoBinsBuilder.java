@@ -24,7 +24,9 @@ import java.util.Date;
 import java.util.List;
 import java.util.Objects;
 
-import com.aerospike.ael.ParseResult;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.aerospike.client.sdk.ael.BooleanExpression;
 import com.aerospike.client.sdk.command.Txn;
 import com.aerospike.client.sdk.exp.Exp;
@@ -56,6 +58,8 @@ import com.aerospike.client.sdk.query.WhereClauseProcessor;
  */
 public class ChainableNoBinsBuilder extends AbstractSessionOperationBuilder<ChainableNoBinsBuilder>
         implements FilterableOperation<ChainableNoBinsBuilder> {
+
+    private static final Logger log = LoggerFactory.getLogger(Loggers.COMMAND);
 
     private final Session session;
     private final List<OperationSpec> operationSpecs;
@@ -478,6 +482,140 @@ public class ChainableNoBinsBuilder extends AbstractSessionOperationBuilder<Chai
     }
 
     /**
+     * Chain a typed point read on one key so results can use {@link RecordResult#toObject()} with the
+     * key’s entity class.
+     *
+     * @param typedKey key plus domain type
+     * @param <T> entity type carried by the key
+     * @return builder for specifying bins and executing the read leg
+     */
+    public <T> ChainableQueryBuilder query(TypedKey<T> typedKey) {
+        finalizeCurrentOperation();
+        return new ChainableQueryBuilder(session, operationSpecs, defaultWhereClause, defaultExpirationInSeconds, txnToUse)
+                .initQueryTyped(typedKey);
+    }
+
+    /**
+     * Chain a typed multi-key read; all keys must share the same entity class at runtime
+     * ({@link TypedKey#requireSharedEntityClass}).
+     *
+     * @param k1 first typed key
+     * @param k2 second typed key
+     * @param more additional typed keys (same entity class)
+     * @return builder for specifying bins and executing the read leg
+     */
+    public ChainableQueryBuilder query(TypedKey<?> k1, TypedKey<?> k2, TypedKey<?>... more) {
+        List<TypedKey<?>> list = new ArrayList<>();
+        list.add(k1);
+        list.add(k2);
+        list.addAll(Arrays.asList(more));
+        return queryTypedKeys(list);
+    }
+
+    /**
+     * Chain a typed multi-key read. Same semantics as {@link Session#queryTypedKeys(java.util.List)}
+     * but appended to this batch chain. Cannot overload {@link #query(List)} with a second {@code List}-typed
+     * parameter at the same erasure, so this method name is used for {@code List<? extends TypedKey<?>>}.
+     *
+     * @param typedKeys non-empty list; one entity class for all keys
+     * @return builder for specifying bins and executing the read leg
+     */
+    public ChainableQueryBuilder queryTypedKeys(List<? extends TypedKey<?>> typedKeys) {
+        finalizeCurrentOperation();
+        return new ChainableQueryBuilder(session, operationSpecs, defaultWhereClause, defaultExpirationInSeconds, txnToUse)
+                .initQueryTyped(typedKeys);
+    }
+
+    /**
+     * Typed batch variant of {@link #upsert(List)}: uses {@link TypedKey#nativeKeys(TypedKeyList)}.
+     * {@link TypedKeyList} avoids clashing with {@code upsert(List<Key>)} at erasure.
+     *
+     * @param typedKeys non-empty homogeneous typed keys
+     * @param <T> shared entity type
+     * @return builder for further bin operations on this write leg
+     */
+    public <T> ChainableOperationBuilder upsert(TypedKeyList<T> typedKeys) {
+        return upsert(TypedKey.nativeKeys(typedKeys));
+    }
+
+    /**
+     * Typed batch variant of {@link #update(List)}.
+     *
+     * @param typedKeys non-empty homogeneous typed keys
+     * @param <T> shared entity type
+     * @return builder for further bin operations
+     */
+    public <T> ChainableOperationBuilder update(TypedKeyList<T> typedKeys) {
+        return update(TypedKey.nativeKeys(typedKeys));
+    }
+
+    /**
+     * Typed batch variant of {@link #insert(List)}.
+     *
+     * @param typedKeys non-empty homogeneous typed keys
+     * @param <T> shared entity type
+     * @return builder for further bin operations
+     */
+    public <T> ChainableOperationBuilder insert(TypedKeyList<T> typedKeys) {
+        return insert(TypedKey.nativeKeys(typedKeys));
+    }
+
+    /**
+     * Typed batch variant of {@link #replace(List)}.
+     *
+     * @param typedKeys non-empty homogeneous typed keys
+     * @param <T> shared entity type
+     * @return builder for further bin operations
+     */
+    public <T> ChainableOperationBuilder replace(TypedKeyList<T> typedKeys) {
+        return replace(TypedKey.nativeKeys(typedKeys));
+    }
+
+    /**
+     * Typed batch variant of {@link #replaceIfExists(List)}.
+     *
+     * @param typedKeys non-empty homogeneous typed keys
+     * @param <T> shared entity type
+     * @return builder for further bin operations
+     */
+    public <T> ChainableOperationBuilder replaceIfExists(TypedKeyList<T> typedKeys) {
+        return replaceIfExists(TypedKey.nativeKeys(typedKeys));
+    }
+
+    /**
+     * Typed batch variant of {@link #delete(List)}.
+     *
+     * @param typedKeys non-empty homogeneous typed keys
+     * @param <T> shared entity type
+     * @return builder for further no-bin operations
+     */
+    public <T> ChainableNoBinsBuilder delete(TypedKeyList<T> typedKeys) {
+        return delete(TypedKey.nativeKeys(typedKeys));
+    }
+
+    /**
+     * Typed batch variant of {@link #touch(List)}.
+     *
+     * @param typedKeys non-empty homogeneous typed keys
+     * @param <T> shared entity type
+     * @return builder for further no-bin operations
+     */
+    public <T> ChainableNoBinsBuilder touch(TypedKeyList<T> typedKeys) {
+        return touch(TypedKey.nativeKeys(typedKeys));
+    }
+
+    /**
+     * Typed batch variant of {@link #exists(List)}.
+     *
+     * @param typedKeys non-empty homogeneous typed keys
+     * @param <T> shared entity type
+     * @return builder for further no-bin operations
+     */
+    public <T> ChainableNoBinsBuilder exists(TypedKeyList<T> typedKeys) {
+        return exists(TypedKey.nativeKeys(typedKeys));
+    }
+
+    /**
      * Chain a UDF execution on a single key.
      * Returns a {@link UdfFunctionBuilder} requiring the UDF function to be specified.
      *
@@ -487,7 +625,7 @@ public class ChainableNoBinsBuilder extends AbstractSessionOperationBuilder<Chai
     public UdfFunctionBuilder executeUdf(Key key) {
         finalizeCurrentOperation();
         return new UdfFunctionBuilder(session, List.of(key), operationSpecs,
-                defaultWhereClause, defaultExpirationInSeconds, txnToUse);
+                defaultWhereClause, defaultExpirationInSeconds, txnToUse, null);
     }
 
     /**
@@ -499,7 +637,7 @@ public class ChainableNoBinsBuilder extends AbstractSessionOperationBuilder<Chai
     public UdfFunctionBuilder executeUdf(List<Key> keys) {
         finalizeCurrentOperation();
         return new UdfFunctionBuilder(session, keys, operationSpecs,
-                defaultWhereClause, defaultExpirationInSeconds, txnToUse);
+                defaultWhereClause, defaultExpirationInSeconds, txnToUse, null);
     }
 
     /**
@@ -633,10 +771,9 @@ public class ChainableNoBinsBuilder extends AbstractSessionOperationBuilder<Chai
     @Override
     public ChainableNoBinsBuilder where(String ael, Object... params) {
         verifyState("setting where clause");
-        WhereClauseProcessor processor = createWhereClauseProcessor(false, ael, params);
+        WhereClauseProcessor processor = createWhereClauseProcessor(ael, params);
         if (processor != null) {
-            ParseResult parseResult = processor.process(getNamespaceFromKeys(currentSpec.getKeys()), session);
-            currentSpec.setWhereClause(Exp.build(parseResult.getExp()));
+            currentSpec.setWhereClause(processor.toFilterExpression(session));
         }
         return this;
     }
@@ -646,8 +783,7 @@ public class ChainableNoBinsBuilder extends AbstractSessionOperationBuilder<Chai
     public ChainableNoBinsBuilder where(BooleanExpression ael) {
         verifyState("setting where clause");
         WhereClauseProcessor processor = WhereClauseProcessor.from(ael);
-        ParseResult parseResult = processor.process(getNamespaceFromKeys(currentSpec.getKeys()), session);
-        currentSpec.setWhereClause(Exp.build(parseResult.getExp()));
+        currentSpec.setWhereClause(processor.toFilterExpression(session));
         return this;
     }
 
@@ -655,9 +791,8 @@ public class ChainableNoBinsBuilder extends AbstractSessionOperationBuilder<Chai
     @Override
     public ChainableNoBinsBuilder where(PreparedAel ael, Object... params) {
         verifyState("setting where clause");
-        WhereClauseProcessor processor = WhereClauseProcessor.from(false, ael, params);
-        ParseResult parseResult = processor.process(getNamespaceFromKeys(currentSpec.getKeys()), session);
-        currentSpec.setWhereClause(Exp.build(parseResult.getExp()));
+        WhereClauseProcessor processor = WhereClauseProcessor.from(ael, params);
+        currentSpec.setWhereClause(processor.toFilterExpression(session));
         return this;
     }
 
@@ -666,8 +801,7 @@ public class ChainableNoBinsBuilder extends AbstractSessionOperationBuilder<Chai
     public ChainableNoBinsBuilder where(Exp exp) {
         verifyState("setting where clause");
         WhereClauseProcessor processor = WhereClauseProcessor.from(exp);
-        ParseResult parseResult = processor.process(getNamespaceFromKeys(currentSpec.getKeys()), session);
-        currentSpec.setWhereClause(Exp.build(parseResult.getExp()));
+        currentSpec.setWhereClause(processor.toFilterExpression(session));
         return this;
     }
 
@@ -676,8 +810,7 @@ public class ChainableNoBinsBuilder extends AbstractSessionOperationBuilder<Chai
     public ChainableNoBinsBuilder where(Expression e) {
         verifyState("setting where clause");
         WhereClauseProcessor processor = WhereClauseProcessor.from(e);
-        ParseResult parseResult = processor.process(getNamespaceFromKeys(currentSpec.getKeys()), session);
-        currentSpec.setWhereClause(Exp.build(parseResult.getExp()));
+        currentSpec.setWhereClause(processor.toFilterExpression(session));
         return this;
     }
 
@@ -698,10 +831,9 @@ public class ChainableNoBinsBuilder extends AbstractSessionOperationBuilder<Chai
             throw new IllegalStateException("Cannot set defaultWhere before any operations are specified");
         }
 
-        WhereClauseProcessor processor = createWhereClauseProcessor(false, ael, params);
+        WhereClauseProcessor processor = createWhereClauseProcessor(ael, params);
         if (processor != null) {
-            ParseResult parseResult = processor.process(namespace, session);
-            this.defaultWhereClause = Exp.build(parseResult.getExp());
+            this.defaultWhereClause = processor.toFilterExpression(session);
         }
         return this;
     }
@@ -722,8 +854,7 @@ public class ChainableNoBinsBuilder extends AbstractSessionOperationBuilder<Chai
         }
 
         WhereClauseProcessor processor = WhereClauseProcessor.from(ael);
-        ParseResult parseResult = processor.process(namespace, session);
-        this.defaultWhereClause = Exp.build(parseResult.getExp());
+        this.defaultWhereClause = processor.toFilterExpression(session);
         return this;
     }
 
@@ -743,9 +874,8 @@ public class ChainableNoBinsBuilder extends AbstractSessionOperationBuilder<Chai
             throw new IllegalStateException("Cannot set defaultWhere before any operations are specified");
         }
 
-        WhereClauseProcessor processor = WhereClauseProcessor.from(false, ael, params);
-        ParseResult parseResult = processor.process(namespace, session);
-        this.defaultWhereClause = Exp.build(parseResult.getExp());
+        WhereClauseProcessor processor = WhereClauseProcessor.from(ael, params);
+        this.defaultWhereClause = processor.toFilterExpression(session);
         return this;
     }
 
@@ -765,8 +895,7 @@ public class ChainableNoBinsBuilder extends AbstractSessionOperationBuilder<Chai
         }
 
         WhereClauseProcessor processor = WhereClauseProcessor.from(exp);
-        ParseResult parseResult = processor.process(namespace, session);
-        this.defaultWhereClause = Exp.build(parseResult.getExp());
+        this.defaultWhereClause = processor.toFilterExpression(session);
         return this;
     }
 
@@ -940,8 +1069,8 @@ public class ChainableNoBinsBuilder extends AbstractSessionOperationBuilder<Chai
     private RecordStream executeAsyncInternal(ErrorHandler errorHandler) {
         prepareSpecs();
 
-        if (txnToUse != null && Log.warnEnabled()) {
-            Log.warn(
+        if (txnToUse != null && log.isWarnEnabled()) {
+            log.warn(
                 "executeAsync() called within a transaction. " +
                 "Async operations may still be in flight when commit() is called, " +
                 "which could lead to inconsistent state. " +
@@ -950,7 +1079,7 @@ public class ChainableNoBinsBuilder extends AbstractSessionOperationBuilder<Chai
         }
 
         int totalKeys = operationSpecs.stream().mapToInt(spec -> spec.getKeys().size()).sum();
-        AsyncRecordStream asyncStream = new AsyncRecordStream(totalKeys);
+        AsyncRecordStream asyncStream = AsyncExecutionSupport.newStream(totalKeys, errorHandler);
 
         Cluster cluster = session.getCluster();
         cluster.startVirtualThread(() -> {
@@ -958,7 +1087,7 @@ public class ChainableNoBinsBuilder extends AbstractSessionOperationBuilder<Chai
                 RecordStream syncResult = OperationSpecExecutor.execute(
                     session, operationSpecs, defaultWhereClause, defaultExpirationInSeconds,
                     txnToUse, notInAnyTransaction, durableDeleteDefault);
-                syncResult.forEach(result -> dispatchResult(result, asyncStream, errorHandler));
+                syncResult.forEach(result -> AbstractFilterableBuilder.dispatchResult(result, asyncStream, errorHandler));
             } finally {
                 asyncStream.complete();
             }

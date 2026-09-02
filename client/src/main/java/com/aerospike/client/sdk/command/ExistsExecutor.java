@@ -18,7 +18,6 @@ package com.aerospike.client.sdk.command;
 
 import java.io.IOException;
 
-import com.aerospike.client.sdk.AerospikeException;
 import com.aerospike.client.sdk.Cluster;
 import com.aerospike.client.sdk.Node;
 import com.aerospike.client.sdk.ResultCode;
@@ -72,13 +71,13 @@ public final class ExistsExecutor extends SyncExecutor {
 
         if (rp.resultCode == ResultCode.FILTERED_OUT) {
             if (read.failOnFilteredOut) {
-                throw AerospikeException.resultCodeToException(rp.resultCode, null);
+                throw rp.toException();
             }
             exists = true;
             return;
         }
 
-        throw AerospikeException.resultCodeToException(rp.resultCode, null);
+        throw rp.toException();
     }
 
     @Override

@@ -16,6 +16,7 @@
  */
 package com.aerospike.client.sdk;
 
+import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -23,12 +24,19 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
+import com.aerospike.client.sdk.cdt.MapOperation;
 import com.aerospike.client.sdk.cdt.MapOrder;
+import com.aerospike.client.sdk.cdt.MapPolicy;
+import com.aerospike.client.sdk.cdt.MapReturnType;
+import com.aerospike.client.sdk.cdt.MapWriteFlags;
 
 public class OperateMapTest extends ClusterTest {
     private static final String binName = "opmapbin";
@@ -968,6 +976,58 @@ public class OperateMapTest extends ClusterTest {
     }
 
     @Test
+    public void operateMapWriteFlags() {
+        Key key = args.set.id("operateMapWriteFlags");
+
+        session.delete(key).execute();
+        session.upsert(key).bin(binName).setTo(Map.of("existing", 1L)).execute();
+
+        AerospikeException exists = assertThrows(AerospikeException.class, () ->
+            session.upsert(key)
+                .bin(binName).onMapKey("existing").insert(99L)
+                .execute()
+                .getFirstRecord());
+        assertEquals(ResultCode.ELEMENT_EXISTS, exists.getResultCode());
+
+        session.upsert(key)
+            .bin(binName).onMapKey("existing").insert(99L, opt -> opt.allowFailures())
+            .execute();
+        assertEquals(1L, session.query(key).execute().getFirstRecord().getMap(binName).get("existing"));
+
+        AerospikeException notFound = assertThrows(AerospikeException.class, () ->
+            session.upsert(key)
+                .bin(binName).onMapKey("missing").update(42L)
+                .execute()
+                .getFirstRecord());
+        assertEquals(ResultCode.ELEMENT_NOT_FOUND, notFound.getResultCode());
+
+        session.upsert(key)
+            .bin(binName).onMapKey("missing").update(42L, opt -> opt.allowFailures())
+            .execute();
+        assertNull(session.query(key).execute().getFirstRecord().getMap(binName).get("missing"));
+
+        Map<String, Integer> deniedBatch = Map.of("existing", 9, "added", 2);
+        assertThrows(AerospikeException.class, () ->
+            session.upsert(key)
+                .bin(binName).mapInsertItems(deniedBatch)
+                .execute()
+                .getFirstRecord());
+
+        Map<?, ?> afterDeniedBatch = session.query(key).execute().getFirstRecord().getMap(binName);
+        assertEquals(1, afterDeniedBatch.size());
+        assertEquals(1L, afterDeniedBatch.get("existing"));
+
+        session.upsert(key)
+            .bin(binName).mapInsertItems(deniedBatch, opt -> opt.allowFailures().allowPartial())
+            .execute();
+
+        Map<?, ?> afterPartialBatch = session.query(key).execute().getFirstRecord().getMap(binName);
+        assertEquals(2, afterPartialBatch.size());
+        assertEquals(1L, afterPartialBatch.get("existing"));
+        assertEquals(2L, afterPartialBatch.get("added"));
+    }
+
+    @Test
     public void operateMapInfinity() {
         Key key = args.set.id("operateMapInfinity");
 
@@ -1002,13 +1062,11 @@ public class OperateMapTest extends ClusterTest {
         //System.out.println("Record: " + record);
 
         List<?> results = rec.getList(binName);
-        int i = 0;
 
-        long v = (Long)results.get(i++);
-        assertEquals(5L, v);
-
-        v = (Long)results.get(i++);
-        assertEquals(9L, v);
+        assertAll(
+            () -> assertEquals(5L, results.get(0)),
+            () -> assertEquals(9L, results.get(1))
+        );
     }
 
     @Test
@@ -1186,7 +1244,7 @@ public class OperateMapTest extends ClusterTest {
         m1.put(3, "order");
         m1.put(2, "key");
 
-        AerospikeMap<String,Map<Integer,String>> inputMap = new AerospikeMap<>(AerospikeMap.Type.ORDERED, 10);
+        AerospikeMap<String,Map<Integer,String>> inputMap = AerospikeMap.of(MapOrder.KEY_ORDERED, 10);
         inputMap.put("first", m1);
 
         // Create nested maps that are all sorted and lookup by map value.
@@ -1263,5 +1321,83 @@ public class OperateMapTest extends ClusterTest {
         map = (Map<?,?>)map.get("key3");
         long v = (Long)map.get("key31");
         assertEquals(99, v);
+    }
+
+    @Test
+    public void operateMapSetPolicyAndUpdateOnlyPut() {
+        Key key = args.set.id("operateMapSetPolicyUpdateOnly");
+        session.delete(key).execute();
+
+        session.upsert(key)
+            .bin(binName).mapCreate(MapOrder.KEY_ORDERED)
+            .bin(binName).mapUpsertItems(Map.of("a", 10, "b", 20))
+            .execute();
+
+        MapPolicy updateOnly = new MapPolicy(MapOrder.KEY_ORDERED, MapWriteFlags.UPDATE_ONLY);
+
+        session.update(key)
+            .appendOperations(MapOperation.setMapPolicy(
+                new MapPolicy(MapOrder.KEY_ORDERED, MapWriteFlags.DEFAULT, true), binName))
+            .appendOperations(MapOperation.put(updateOnly, binName, Value.get("a"), Value.get(99L)))
+            .execute();
+
+        assertEquals(99L, session.query(key).execute().getFirstRecord().getMap(binName).get("a"));
+
+        AerospikeException notFound = assertThrows(AerospikeException.class, () ->
+            session.update(key)
+                .appendOperations(MapOperation.put(updateOnly, binName, Value.get("missing"), Value.get(1L)))
+                .execute()
+                .getFirstRecord());
+        assertEquals(ResultCode.ELEMENT_NOT_FOUND, notFound.getResultCode());
+    }
+
+    @Nested
+    class RemoveLowLevelReturnTypes {
+
+        private Key key;
+
+        @BeforeEach
+        void seedOrderedMap() {
+            key = args.set.id("operateMapRemoveReturnTypes");
+            session.delete(key).execute();
+
+            Map<String, Integer> items = new LinkedHashMap<>();
+            items.put("k1", 10);
+            items.put("k2", 20);
+            items.put("k3", 30);
+
+            session.upsert(key)
+                .bin(binName).mapCreate(MapOrder.KEY_ORDERED)
+                .bin(binName).mapUpsertItems(items)
+                .execute();
+        }
+
+        @Test
+        void removeByIndexReturnsValue() {
+            Record result = session.update(key)
+                .appendOperations(MapOperation.removeByIndex(binName, 1, MapReturnType.VALUE))
+                .execute()
+                .getFirstRecord();
+            assertEquals(20L, result.getLong(binName));
+        }
+
+        @Test
+        void removeByRankReturnsValue() {
+            Record result = session.update(key)
+                .appendOperations(MapOperation.removeByRank(binName, 0, MapReturnType.VALUE))
+                .execute()
+                .getFirstRecord();
+            assertEquals(10L, result.getLong(binName));
+        }
+
+        @Test
+        void removeByValueListReturnsCount() {
+            List<Value> removeValues = List.of(Value.get(20), Value.get(99));
+            Record result = session.update(key)
+                .appendOperations(MapOperation.removeByValueList(binName, removeValues, MapReturnType.COUNT))
+                .execute()
+                .getFirstRecord();
+            assertEquals(1L, result.getLong(binName));
+        }
     }
 }

@@ -16,13 +16,37 @@
  */
 package com.aerospike.client.sdk;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.util.Arrays;
+import java.util.Base64;
+import java.util.List;
+
+import org.junit.jupiter.api.Assumptions;
+import org.junit.jupiter.api.Test;
+
+import com.aerospike.client.sdk.operation.BitOperation;
+import com.aerospike.client.sdk.operation.BitOverflowAction;
+import com.aerospike.client.sdk.operation.BitPolicy;
+import com.aerospike.client.sdk.operation.BitResizeFlags;
+import com.aerospike.client.sdk.operation.BitWriteFlags;
+
 public class OperateBitTest extends ClusterTest {
-    /* TODO Wait till BitOperations are supported in new client.
 
     private static final String binName = "opbbin";
     private static final Key key = args.set.id("opbkey1");
 
-    private void assertBitModifyOperations(byte[] initial, byte[] expected, Operation... ops) {
+    private Record executeOperations(Operation... operations) {
+        ChainableOperationBuilder builder = session.upsert(key).appendOperations(operations);
+        RecordStream rs = builder.execute();
+        assertTrue(rs.hasNext());
+        return rs.next().recordOrThrow();
+    }
+
+    private void assertBitModifyOperations(byte[] initial, byte[] expected, Operation... operations) {
         session.delete(key).execute();
 
         if (initial != null) {
@@ -31,32 +55,67 @@ public class OperateBitTest extends ClusterTest {
                 .execute();
         }
 
-        client.operate(null, key, operations);
-        Record record = client.get(null, key, binName);
-
-        //System.out.println("Record  : " + record);
-
-        byte[] actual = (byte[])record.getValue(binName);
-
-        //System.out.println("Initial : " + (initial != null ?
-        //      DatatypeConverter.printHexBinary(initial) : "null"));
-        //System.out.println("Expected: " +
-        //  DatatypeConverter.printHexBinary(expected));
-        //System.out.println("Actual  : " +
-        //  DatatypeConverter.printHexBinary(actual));
-
+        executeOperations(operations);
+        Record record = session.query(key).bin(binName).get().execute().next().recordOrThrow();
+        byte[] actual = record.getBytes(binName);
         assertArrayEquals(expected, actual);
     }
 
     private void assertThrows(Class<?> eclass, int eresult, Operation... ops) {
         try {
-            client.operate(null, key, ops);
-            assert(false);
+            executeOperations(ops);
+            assertTrue(false);
         }
         catch (AerospikeException e) {
             assertEquals(eclass, e.getClass());
             assertEquals(eresult, e.getResultCode());
         }
+    }
+
+    public static String bytesToString(byte[] bytes) {
+        StringBuilder sb = new StringBuilder(bytes.length * 3);
+        for (byte b : bytes) {
+            sb.append(String.format("%02X ", b));
+        }
+        return sb.toString();
+    }
+
+    @Test
+    public void operateBitBinFluent() {
+        byte[] bit0 = new byte[] {(byte) 0x80};
+        byte[] bytes1 = new byte[] {0x0A};
+
+        session.delete(key).execute();
+
+        session.upsert(key)
+            .bin(binName).setTo(new byte[] {0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08})
+            .execute();
+
+        session.upsert(key)
+            .bin(binName).bitSet(1, 1, bit0)
+            .bin(binName).bitSet(3, 1, bit0, opt -> opt.updateOnly())
+            .bin(binName).bitRemove(6, 2, opt -> opt.updateOnly())
+            .execute();
+
+        Record record = session.query(key).bin(binName).get().execute().getFirstRecord();
+        assertArrayEquals(
+            new byte[] {0x51, 0x02, 0x03, 0x04, 0x05, 0x06},
+            record.getBytes(binName));
+
+        session.delete(key).execute();
+
+        session.upsert(key)
+            .bin(binName).bitInsert(1, bytes1, opt -> opt.createOnly())
+            .execute();
+
+        record = session.query(key).bin(binName).get().execute().next().recordOrThrow();
+        assertArrayEquals(new byte[] {0x00, 0x0A}, record.getBytes(binName));
+
+        assertThrows(AerospikeException.BinNotFoundException.class, 17,
+            BitOperation.set(BitPolicy.Default, "b", 1, 1, bit0));
+
+        assertThrows(AerospikeException.class, 4,
+            BitOperation.set(new BitPolicy(BitWriteFlags.CREATE_ONLY), binName, 1, 1, bit0));
     }
 
     @Test
@@ -81,7 +140,7 @@ public class OperateBitTest extends ClusterTest {
             BitOperation.insert(addMode, binName, 1, bytes1)
         );
 
-        assertThrows(AerospikeException.class, 17,
+        assertThrows(AerospikeException.BinNotFoundException.class, 17,
             BitOperation.set(putMode, "b", 1, 1, bit0));
 
         assertThrows(AerospikeException.class, 4,
@@ -304,17 +363,17 @@ public class OperateBitTest extends ClusterTest {
             .bin(binName).setTo(initial)
             .execute();
 
-        assertThrows(AerospikeException.class, 26,
+        assertThrows(AerospikeException.BinOpInvalidException.class, 26,
             BitOperation.add(putMode, binName, 0, 8, 0xFF, false, BitOverflowAction.FAIL),
             BitOperation.add(putMode, binName, 0, 8, 0xFF, false, BitOverflowAction.FAIL)
         );
 
-        assertThrows(AerospikeException.class, 26,
+        assertThrows(AerospikeException.BinOpInvalidException.class, 26,
             BitOperation.add(putMode, binName, 0, 8, 0x7F, true, BitOverflowAction.FAIL),
             BitOperation.add(putMode, binName, 0, 8, 0x02, true, BitOverflowAction.FAIL)
         );
 
-        assertThrows(AerospikeException.class, 26,
+        assertThrows(AerospikeException.BinOpInvalidException.class, 26,
             BitOperation.add(putMode, binName, 0, 8, 0x81, true, BitOverflowAction.FAIL),
             BitOperation.add(putMode, binName, 0, 8, 0xFE, true, BitOverflowAction.FAIL)
         );
@@ -381,16 +440,16 @@ public class OperateBitTest extends ClusterTest {
             .bin(binName).setTo(initial)
             .execute();
 
-        assertThrows(AerospikeException.class, 26,
+        assertThrows(AerospikeException.BinOpInvalidException.class, 26,
             BitOperation.subtract(putMode, binName, 0, 8, 1, false, BitOverflowAction.FAIL)
         );
 
-        assertThrows(AerospikeException.class, 26,
+        assertThrows(AerospikeException.BinOpInvalidException.class, 26,
             BitOperation.subtract(putMode, binName, 0, 8, 0x7F, true, BitOverflowAction.FAIL),
             BitOperation.subtract(putMode, binName, 0, 8, 0x02, true, BitOverflowAction.FAIL)
         );
 
-        assertThrows(AerospikeException.class, 26,
+        assertThrows(AerospikeException.BinOpInvalidException.class, 26,
             BitOperation.subtract(putMode, binName, 0, 8, 0x81, true, BitOverflowAction.FAIL),
             BitOperation.subtract(putMode, binName, 0, 8, 0xFE, true, BitOverflowAction.FAIL)
         );
@@ -447,7 +506,7 @@ public class OperateBitTest extends ClusterTest {
             .bin(binName).setTo(bytes)
             .execute();
 
-        Record record = client.operate(null, key,
+        Record record = executeOperations(
             BitOperation.get(binName, 0, 1),
             BitOperation.get(binName, 1, 1),
             BitOperation.get(binName, 7, 1),
@@ -469,7 +528,7 @@ public class OperateBitTest extends ClusterTest {
             new byte[] {(byte)0x55, (byte)0x54}
         };
 
-        assertRecordFound(key, record);
+        assertNotNull(record);
         //System.out.println("Record: " + record);
 
         List<?> result_list = record.getList(binName);
@@ -485,10 +544,10 @@ public class OperateBitTest extends ClusterTest {
 
     public void assertBitReadOperation(byte[] initial, Long[] expected,
         Operation... operations) {
-        client.delete(null, key);
-        client.put(null, key, new Bin(binName, initial));
+        session.delete(key).execute();
+        session.upsert(key).bin(binName).setTo(initial).execute();
 
-        Record record = client.operate(null, key, operations);
+        Record record = executeOperations(operations);
 
         //System.out.println("Record: " + record);
 
@@ -627,7 +686,7 @@ public class OperateBitTest extends ClusterTest {
 
     public void assertBitModifyRegion(int bin_sz, int offset, int set_sz,
         byte[] expected, boolean is_insert, Operation... operations) {
-        client.delete(null, key);
+        session.delete(key).execute();
 
         byte[] initial = new byte[bin_sz];
 
@@ -635,7 +694,7 @@ public class OperateBitTest extends ClusterTest {
             initial[i] = (byte)0xFF;
         }
 
-        client.put(null, key, new Bin(binName, initial));
+        session.upsert(key).bin(binName).setTo(initial).execute();
 
         int int_sz = 64;
 
@@ -666,7 +725,7 @@ public class OperateBitTest extends ClusterTest {
         full_ops[full_ops.length - 1] = BitOperation.get(binName, offset,
             set_sz);
 
-        Record record = client.operate(null, key, full_ops);
+        Record record = executeOperations(full_ops);
 
         List<?> result_list = record.getList(binName);
         long lscan1_result = (Long)result_list.get(result_list.size() - 7);
@@ -679,14 +738,13 @@ public class OperateBitTest extends ClusterTest {
         String err_output = String.format("bin_sz %d offset %d set_sz %d",
             bin_sz, offset, set_sz);
 
-        assertEquals("lscan1 - " + err_output, -1, lscan1_result);
-        assertEquals("rscan1 - " + err_output, -1, rscan1_result);
-        assertEquals("getint - " + err_output, 0, getint_result);
-        assertEquals("count - " + err_output, 0, count_result);
-        assertEquals("lscan - " + err_output, offset, lscan_result);
-        assertEquals("rscan - " + err_output, offset + set_sz - 1,
-            rscan_result);
-        assertArrayEquals("op - " + err_output, expected, actual);
+        assertEquals(-1, lscan1_result, "lscan1 - " + err_output);
+        assertEquals(-1, rscan1_result, "rscan1 - " + err_output);
+        assertEquals(0, getint_result, "getint - " + err_output);
+        assertEquals(0, count_result, "count - " + err_output);
+        assertEquals(offset, lscan_result, "lscan - " + err_output);
+        assertEquals(offset + set_sz - 1, rscan_result, "rscan - " + err_output);
+        assertArrayEquals(expected, actual, "op - " + err_output);
     }
 
     public void assertBitModifyRegion(int bin_sz, int offset, int set_sz,
@@ -887,52 +945,52 @@ public class OperateBitTest extends ClusterTest {
         byte[] initial = new byte[]{};
         byte[] buf = new byte[] {(byte)0x80};
 
-        client.delete(null, key);
-        client.put(null, key, new Bin(binName, initial));
+        session.delete(key).execute();
+        session.upsert(key).bin(binName).setTo(initial).execute();
 
-        assertThrows(AerospikeException.class, 26,
+        assertThrows(AerospikeException.BinOpInvalidException.class, 26,
             BitOperation.set(policy, binName, 0, 1, buf));
-        assertThrows(AerospikeException.class, 26,
+        assertThrows(AerospikeException.BinOpInvalidException.class, 26,
             BitOperation.or(policy, binName, 0, 1, buf));
-        assertThrows(AerospikeException.class, 26,
+        assertThrows(AerospikeException.BinOpInvalidException.class, 26,
             BitOperation.xor(policy, binName, 0, 1, buf));
-        assertThrows(AerospikeException.class, 26,
+        assertThrows(AerospikeException.BinOpInvalidException.class, 26,
             BitOperation.and(policy, binName, 0, 1, buf));
-        assertThrows(AerospikeException.class, 26,
+        assertThrows(AerospikeException.BinOpInvalidException.class, 26,
             BitOperation.not(policy, binName, 0, 1));
-        assertThrows(AerospikeException.class, 26,
+        assertThrows(AerospikeException.BinOpInvalidException.class, 26,
             BitOperation.lshift(policy, binName, 0, 1, 1));
-        assertThrows(AerospikeException.class, 26,
+        assertThrows(AerospikeException.BinOpInvalidException.class, 26,
             BitOperation.rshift(policy, binName, 0, 1, 1));
         // OK for insert.
         assertThrows(AerospikeException.class, 4,
             BitOperation.remove(policy, binName, 0, 1));
-        assertThrows(AerospikeException.class, 26,
+        assertThrows(AerospikeException.BinOpInvalidException.class, 26,
             BitOperation.add(policy, binName, 0, 1, 1, false, BitOverflowAction.FAIL));
-        assertThrows(AerospikeException.class, 26,
+        assertThrows(AerospikeException.BinOpInvalidException.class, 26,
             BitOperation.subtract(policy, binName, 0, 1, 1, false, BitOverflowAction.FAIL));
-        assertThrows(AerospikeException.class, 26,
+        assertThrows(AerospikeException.BinOpInvalidException.class, 26,
             BitOperation.setInt(policy, binName, 0, 1, 1));
 
-        assertThrows(AerospikeException.class, 26,
+        assertThrows(AerospikeException.BinOpInvalidException.class, 26,
             BitOperation.get(binName, 0, 1));
-        assertThrows(AerospikeException.class, 26,
+        assertThrows(AerospikeException.BinOpInvalidException.class, 26,
             BitOperation.count(binName, 0, 1));
-        assertThrows(AerospikeException.class, 26,
+        assertThrows(AerospikeException.BinOpInvalidException.class, 26,
             BitOperation.lscan(binName, 0, 1, true));
-        assertThrows(AerospikeException.class, 26,
+        assertThrows(AerospikeException.BinOpInvalidException.class, 26,
             BitOperation.rscan(binName, 0, 1, true));
-        assertThrows(AerospikeException.class, 26,
+        assertThrows(AerospikeException.BinOpInvalidException.class, 26,
             BitOperation.getInt(binName, 0, 1, false));
     }
 
     @Test
     public void operateBitResize() {
-        client.delete(null, key);
+        session.delete(key).execute();
 
         BitPolicy policy = new BitPolicy();
         BitPolicy noFail = new BitPolicy(BitWriteFlags.NO_FAIL);
-        Record record = client.operate(null, key,
+        Record record = executeOperations(
             BitOperation.resize(policy, binName, 20, BitResizeFlags.DEFAULT),
             BitOperation.get(binName, 19 * 8, 8),
             BitOperation.resize(noFail, binName, 10, BitResizeFlags.GROW_ONLY),
@@ -961,5 +1019,70 @@ public class OperateBitTest extends ClusterTest {
         assertArrayEquals(new byte[] {0x00}, get2);
         assertArrayEquals(new byte[] {0x00}, get3);
         assertArrayEquals(new byte[] {0x00}, get4);
-    }*/
+    }
+
+    @Test
+    public void operateBitB64Encode() {
+        Assumptions.assumeTrue(args.serverVersion.isGreaterOrEqual(8, 1, 3, 0),
+            "bit b64Encode requires server version 8.1.3 or later");
+
+        session.delete(key).execute();
+
+        byte[] initial = new byte[] {(byte)0x01, (byte)0x42, (byte)0x03};
+
+        session.upsert(key)
+            .bin(binName).setTo(initial)
+            .execute();
+
+        // The span is in bytes, not bits, unlike every other bit read op. With
+        // invertSize the size counts back from the end, so 0 means "to the end".
+        Record rec = session.query(key)
+            .bin(binName).bitB64Encode()
+            .bin(binName).bitB64Encode(0, 2)
+            .bin(binName).bitB64Encode(1, 0, true)
+            .bin(binName).bitB64Encode(-1, 1)
+            .execute()
+            .getFirstRecord();
+
+        List<?> results = rec.getList(binName);
+        Base64.Encoder enc = Base64.getEncoder();
+        assertEquals(enc.encodeToString(initial), results.get(0));
+        assertEquals(enc.encodeToString(new byte[] {(byte)0x01, (byte)0x42}), results.get(1));
+        assertEquals(enc.encodeToString(new byte[] {(byte)0x42, (byte)0x03}), results.get(2));
+        assertEquals(enc.encodeToString(new byte[] {(byte)0x03}), results.get(3));
+    }
+
+    @Test
+    public void operateBitB64EncodeRoundTripsThroughB64Decode() {
+        Assumptions.assumeTrue(args.serverVersion.isGreaterOrEqual(8, 1, 3, 0),
+            "bit b64Encode requires server version 8.1.3 or later");
+
+        session.delete(key).execute();
+
+        byte[] initial = new byte[] {(byte)0xDE, (byte)0xAD, (byte)0xBE, (byte)0xEF};
+
+        session.upsert(key)
+            .bin(binName).setTo(initial)
+            .execute();
+
+        // b64Encode is the inverse of StringOperation.b64Decode: encode the blob here,
+        // write the text to a string bin, then decode it back and compare.
+        Record encoded = session.query(key)
+            .bin(binName).bitB64Encode()
+            .execute()
+            .getFirstRecord();
+
+        String text = encoded.getString(binName);
+
+        session.upsert(key)
+            .bin("b64txt").setTo(text)
+            .execute();
+
+        Record decoded = session.query(key)
+            .bin("b64txt").b64Decode()
+            .execute()
+            .getFirstRecord();
+
+        assertArrayEquals(initial, (byte[])decoded.getValue("b64txt"));
+    }
 }

@@ -112,6 +112,8 @@ public class BackgroundTaskTest extends ClusterTest {
 
     @Test
     public void backgroundUpdateWithWhere() {
+        assumeSupportsAel();
+
         ExecuteTask task = session.backgroundTask()
             .update(bgSet)
             .where("$.bgval > 5")
@@ -141,6 +143,8 @@ public class BackgroundTaskTest extends ClusterTest {
 
     @Test
     public void backgroundDelete() {
+        assumeSupportsAel();
+
         BackgroundOperationBuilder b = session.backgroundTask()
             .delete(bgSet)
             .where("$.bgval > 8");
@@ -237,6 +241,8 @@ public class BackgroundTaskTest extends ClusterTest {
 
     @Test
     public void backgroundUdfWithWhere() {
+        assumeSupportsAel();
+
         ExecuteTask task = session.backgroundTask()
             .executeUdf(bgSet)
             .function("bg_test_example", "writeBin")

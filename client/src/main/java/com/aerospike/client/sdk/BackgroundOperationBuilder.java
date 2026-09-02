@@ -19,7 +19,6 @@ package com.aerospike.client.sdk;
 import java.util.Random;
 import java.util.concurrent.ExecutorService;
 
-import com.aerospike.ael.ParseResult;
 import com.aerospike.client.sdk.ael.BooleanExpression;
 import com.aerospike.client.sdk.command.BackgroundQueryCommand;
 import com.aerospike.client.sdk.command.BackgroundQueryNodeExecutor;
@@ -30,7 +29,6 @@ import com.aerospike.client.sdk.policy.Behavior.Mode;
 import com.aerospike.client.sdk.policy.Behavior.OpKind;
 import com.aerospike.client.sdk.policy.Behavior.OpShape;
 import com.aerospike.client.sdk.policy.ResolvedSettings;
-import com.aerospike.client.sdk.query.Filter;
 import com.aerospike.client.sdk.query.PreparedAel;
 import com.aerospike.client.sdk.query.WhereClauseProcessor;
 import com.aerospike.client.sdk.task.ExecuteTask;
@@ -110,7 +108,7 @@ public class BackgroundOperationBuilder extends AbstractOperationBuilder<Backgro
      */
     @Override
     public BackgroundOperationBuilder where(String ael, Object... params) {
-        setWhereClause(createWhereClauseProcessor(true, ael, params));
+        setWhereClause(createWhereClauseProcessor(ael, params));
         return this;
     }
 
@@ -137,7 +135,7 @@ public class BackgroundOperationBuilder extends AbstractOperationBuilder<Backgro
      */
     @Override
     public BackgroundOperationBuilder where(PreparedAel ael, Object... params) {
-        setWhereClause(WhereClauseProcessor.from(true, ael, params));
+        setWhereClause(WhereClauseProcessor.from(ael, params));
         return this;
     }
 
@@ -231,7 +229,6 @@ public class BackgroundOperationBuilder extends AbstractOperationBuilder<Backgro
             Mode.ANY
         );
 
-        Filter filter = null;
         Expression filterExp = null;
 
         // Set the ops to be valid based on the opType
@@ -244,15 +241,13 @@ public class BackgroundOperationBuilder extends AbstractOperationBuilder<Backgro
                 ops.add(Operation.touch());
                 break;
             default:
-                throw AerospikeException.resultCodeToException(
+                throw AerospikeException.toException(
                         ResultCode.PARAMETER_ERROR, "No operations were passed to an update() running as a background task.");
             }
         }
 
         if (ael != null) {
-            ParseResult pr = ael.process(dataset.getNamespace(), session);
-            filter = pr.getFilter();
-            filterExp = Exp.build(pr.getExp());
+            filterExp = ael.toFilterExpression(session);
 
             //Exp exp = pr.getExp();
             //System.out.println("BACKGROUND FILTEREXP: " + exp.toString());
@@ -263,7 +258,7 @@ public class BackgroundOperationBuilder extends AbstractOperationBuilder<Backgro
         long taskId = new Random().nextLong();
 
         BackgroundQueryCommand cmd = new BackgroundQueryCommand(cluster, dataset, taskId, opType,
-            ops, ttl, filter, filterExp, settings, recordsPerSecond, durableDeleteDefault);
+            ops, ttl, null, filterExp, settings, recordsPerSecond, durableDeleteDefault);
 
         final NodeStatus status = new NodeStatus();
 

@@ -143,6 +143,88 @@ jobs:
         env:
           MAVEN_OPTS: ${{ vars.MAVEN_OPTS }}
 
+      - name: Build & run examples
+        run: |
+          mvn \
+           --batch-mode \
+           --no-transfer-progress \
+           --update-snapshots \
+           --fail-at-end \
+           --errors \
+           -pl examples \
+           -am \
+           package \
+           -DskipTests
+
+          # Run from the examples module so that examples which load YAML via
+          # relative paths (src/main/resources/*.yml) resolve their config files.
+          cd examples
+          java -jar target/*-jar-with-dependencies.jar all \
+           -h 127.0.0.1 \
+           -p 3000 \
+           -n test \
+           --report target/example-reports/TEST-examples.xml
+        env:
+          MAVEN_OPTS: ${{ vars.MAVEN_OPTS }}
+
+      - name: JaCoCo coverage summary
+        if: always()
+        run: |
+          python3 <<'PY'
+          import os
+          import sys
+          import xml.etree.ElementTree as ET
+          from pathlib import Path
+
+          def counter_pct(counters, counter_type):
+              for counter in counters:
+                  if counter.get("type") == counter_type:
+                      missed = int(counter.get("missed", "0"))
+                      covered = int(counter.get("covered", "0"))
+                      total = missed + covered
+                      return (100.0 * covered / total) if total else None
+              return None
+
+          def fmt_pct(value):
+              return "n/a" if value is None else f"{value:.1f}%"
+
+          reports = sorted(Path(".").glob("**/target/site/jacoco/jacoco.xml"))
+          if not reports:
+              print("No JaCoCo report found (tests may have been skipped).")
+              sys.exit(0)
+
+          lines = ["## JaCoCo coverage", ""]
+          for report_path in reports:
+              module = report_path.parts[0] if len(report_path.parts) > 3 else str(report_path)
+              root = ET.parse(report_path).getroot()
+              packages = []
+              for package in root.findall("package"):
+                  name = package.get("name", "").replace("/", ".")
+                  line_pct = counter_pct(package.findall("counter"), "LINE")
+                  branch_pct = counter_pct(package.findall("counter"), "BRANCH")
+                  if line_pct is None and branch_pct is None:
+                      continue
+                  packages.append((name, line_pct, branch_pct))
+
+              packages.sort(key=lambda row: row[0])
+              lines.append(f"### {module}")
+              lines.append("")
+              lines.append("| Package | Line | Branch |")
+              lines.append("| --- | ---: | ---: |")
+              for name, line_pct, branch_pct in packages:
+                  lines.append(f"| `{name}` | {fmt_pct(line_pct)} | {fmt_pct(branch_pct)} |")
+
+              total_line = counter_pct(root.findall("counter"), "LINE")
+              total_branch = counter_pct(root.findall("counter"), "BRANCH")
+              lines.append(f"| **Total** | **{fmt_pct(total_line)}** | **{fmt_pct(total_branch)}** |")
+              lines.append("")
+
+          summary_path = Path(os.environ["GITHUB_STEP_SUMMARY"])
+          with summary_path.open("a", encoding="utf-8") as summary:
+              summary.write("\n".join(lines))
+              summary.write("\n")
+          PY
+
       - name: Upload surefire/failsafe reports (always)
         if: always()
         uses: actions/upload-artifact@v4
@@ -151,5 +233,7 @@ jobs:
           path: |
             **/target/surefire-reports/**
             **/target/failsafe-reports/**
+            **/target/site/jacoco/**
+            examples/target/example-reports/**
           if-no-files-found: ignore
           retention-days: ${{ vars.ARTIFACT_RETENTION_DAYS }}

@@ -17,10 +17,8 @@
 package com.aerospike.client.sdk;
 
 import java.io.Closeable;
-import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map.Entry;
-import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
@@ -28,18 +26,20 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
-import com.aerospike.ael.Index;
 import com.aerospike.client.sdk.policy.Behavior;
 import com.aerospike.client.sdk.tend.ClusterTend;
 import com.aerospike.client.sdk.tend.ConnectionRecover;
 import com.aerospike.client.sdk.tend.Partitions;
 import com.aerospike.client.sdk.util.Version;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 /**
  * Represents a connection to an Aerospike cluster.
  *
  * <p>This class manages the lifecycle of a connection to an Aerospike cluster,
- * including the underlying client, index monitoring, and record mapping factory.
+ * including the underlying client and record mapping factory.
  * It implements {@link Closeable} to ensure proper resource cleanup.</p>
  *
  * <p>Example usage:</p>
@@ -55,10 +55,8 @@ import com.aerospike.client.sdk.util.Version;
  * @see Behavior
  */
 public class Cluster implements Closeable {
-    /**
-     * Default interval for refreshing index information from the cluster.
-     */
-    public static final Duration INDEX_REFRESH = Duration.ofSeconds(5);
+    public static final String CONTEXT = "aerospike.cluster";
+    private static final Logger log = LoggerFactory.getLogger(Loggers.TEND);
 
     ClusterDefinition def;
     ClusterTend tend;
@@ -70,12 +68,12 @@ public class Cluster implements Closeable {
     private final AtomicInteger nodeIndex;
     private final AtomicInteger replicaIndex;
     private final AtomicBoolean closed;
-    final Log.Context context;
-    private final IndexesMonitor indexesMonitor;
     private RecordMappingFactory recordMappingFactory = null;
     private volatile SystemSettings effectiveSystemSettings = SystemSettings.DEFAULT;
     private Version version;
     private boolean versionGE8;
+    private boolean versionGE812;
+    private boolean versionGE813;
     private boolean metricsEnabled;
 
     Cluster(ClusterDefinition def, SystemSettings effectiveSettings) {
@@ -88,7 +86,6 @@ public class Cluster implements Closeable {
         nodeIndex = new AtomicInteger();
         replicaIndex = new AtomicInteger();
         closed = new AtomicBoolean();
-        context = def.context;
 
         this.applySystemSettings(effectiveSettings);
 
@@ -99,11 +96,6 @@ public class Cluster implements Closeable {
         }
         else {
             tend.runThread();
-        }
-
-        this.indexesMonitor = new IndexesMonitor();
-        if (!this.indexesMonitor.startMonitor(createSession(Behavior.DEFAULT), INDEX_REFRESH)) {
-            Log.warn("Initial index fetch did not complete within 1 second. Index information may be incomplete.");
         }
     }
 
@@ -131,20 +123,6 @@ public class Cluster implements Closeable {
      */
     public void startVirtualThread(Runnable runnable) {
         threadFactory.newThread(runnable).start();
-    }
-
-    /**
-     * Gets the set of available indexes in the cluster.
-     *
-     * <p>This returns the current set of secondary indexes that are available
-     * for querying. The index information is automatically refreshed at regular
-     * intervals.</p>
-     *
-     * @return a set of Index objects representing available secondary indexes
-     * @see Index
-     */
-    public Set<Index> getIndexes() {
-        return indexesMonitor.getIndexes();
     }
 
     /**
@@ -178,6 +156,27 @@ public class Cluster implements Closeable {
      */
     public Session createSession(Behavior behavior) {
         return new Session(this, behavior);
+    }
+
+    /**
+     * Creates a new session of a custom type using the provided {@link SessionExtension}.
+     *
+     * <p>The extension is responsible for constructing the session subtype. The return type
+     * is inferred from the extension's type parameter, providing compile-time safety.</p>
+     *
+     * <p>Example:</p>
+     * <pre>{@code
+     * MappingSession session = cluster.createSession(behavior, mappingExtension);
+     * }</pre>
+     *
+     * @param <S>       the concrete session type
+     * @param behavior  the behavior configuration for the session
+     * @param extension the session extension that creates the session subtype
+     * @return a new session instance of type {@code S}
+     * @see SessionExtension
+     */
+    public <S extends Session> S createSession(Behavior behavior, SessionExtension<S> extension) {
+        return extension.create(this, behavior);
     }
 
     /**
@@ -299,18 +298,26 @@ public class Cluster implements Closeable {
         // - client.setMaxConnsPerNode(settings.getMaximumConnectionsPerNode())
         // - etc.
 
-        Log.info("System settings updated for cluster '" +
-            (def.clusterName != null ? def.clusterName : "(unnamed)") +
-            "'. Note: Settings will take effect on next connection.");
+        if (log.isInfoEnabled()) {
+            log.atInfo()
+                .addKeyValue(Cluster.CONTEXT, def.clusterName)
+                .log("System settings updated for cluster '" +
+                    (def.clusterName != null ? def.clusterName : "(unnamed)") +
+                    "'. Note: Settings will take effect on next connection.");
+        }
 
-        if (Log.debugEnabled()) {
-            Log.debug("\tMinConnsPerNode=%,d;MaxConnsPerNode=%,d;MaxErrorRate=%,d;ErrorRateWindow=%,d;TendInterval=%,dms;MaxSocketIdleNanos=%,dns"
-                    .formatted(this.def.minConnsPerNode,
-                            this.def.maxConnsPerNode,
-                            this.def.maxErrorRate,
-                            this.def.errorRateWindow,
-                            this.def.tendInterval,
-                            this.def.maxSocketIdleNanosTrim));
+        if (log.isDebugEnabled()) {
+            log.atDebug()
+                .addKeyValue(Cluster.CONTEXT, def.getClusterName())
+                .log(
+                    "\tMinConnsPerNode={};MaxConnsPerNode={};MaxErrorRate={};ErrorRateWindow={};TendInterval={}ms;MaxSocketIdleNanos={}ns",
+                    this.def.minConnsPerNode,
+                    this.def.maxConnsPerNode,
+                    this.def.maxErrorRate,
+                    this.def.errorRateWindow,
+                    this.def.tendInterval,
+                    this.def.maxSocketIdleNanosTrim
+            );
         }
     }
 
@@ -376,7 +383,7 @@ public class Cluster implements Closeable {
         Node[] nodeArray = nodes;
 
         if (nodeArray.length == 0) {
-            throw AerospikeException.resultCodeToException(ResultCode.SERVER_NOT_AVAILABLE, "Cluster is empty");
+            throw AerospikeException.toException(ResultCode.SERVER_NOT_AVAILABLE, "Cluster is empty");
         }
         return nodeArray;
     }
@@ -472,19 +479,6 @@ public class Cluster implements Closeable {
             close();
             throw e;
         }
-    }
-
-    /**
-     * Gets the log context for this cluster.
-     *
-     * <p>The log context provides logging functionality specific to this cluster
-     * instance, allowing log messages to be associated with the cluster connection.</p>
-     *
-     * @return the Log.Context for this cluster
-     * @see Log.Context
-     */
-    public final Log.Context getLogContext() {
-        return context;
     }
 
     /**
@@ -599,6 +593,46 @@ public class Cluster implements Closeable {
     }
 
     /**
+     * Whether this cluster allows server-side parsing of textual AEL for filters, expression reads,
+     * and expression writes (wire form {@code [128, utf8]}).
+     *
+     * <p>True when the cluster's {@linkplain #getVersion() minimum server version} is
+     * {@link Version#SERVER_VERSION_8_1_3} or newer.</p>
+     *
+     * @see com.aerospike.client.sdk.exp.Expression#fromServerCompiledFilter(String)
+     */
+    public boolean supportsAel() {
+        return versionGE813;
+    }
+
+    /**
+     * Whether this cluster's minimum server version supports read operations in index query.
+     *
+     * <p>Requires cluster minimum version {@link Version#SERVER_VERSION_8_1_2} or newer.</p>
+     */
+    public boolean supportsQueryOperations() {
+        return versionGE812;
+    }
+
+    /**
+     * Whether this cluster's minimum server version supports the new string operations.
+     *
+     * <p>Requires cluster minimum version {@link Version#SERVER_VERSION_8_1_3} or newer.</p>
+     */
+    public boolean supportsStringOperations() {
+        return versionGE813;
+    }
+
+    /**
+     * Whether this cluster's minimum server version supports server side index selection.
+     *
+     * <p>Requires cluster minimum version {@link Version#SERVER_VERSION_8_1_3} or newer.</p>
+     */
+    public boolean supportsQuerySelection() {
+        return versionGE813;
+    }
+
+    /**
      * Sets the minimum server version for the cluster. For internal use only.
      *
      * <p>This method is typically called by the cluster tend mechanism when
@@ -618,6 +652,8 @@ public class Cluster implements Closeable {
     public void setVersion(Version version) {
         this.version = version;
         this.versionGE8 = version.isGreaterOrEqual(Version.SERVER_VERSION_8_0);
+        this.versionGE812 = version.isGreaterOrEqual(Version.SERVER_VERSION_8_1_2);
+        this.versionGE813 = version.isGreaterOrEqual(Version.SERVER_VERSION_8_1_3);
     }
 
     /**
@@ -662,16 +698,15 @@ public class Cluster implements Closeable {
             String namespace = entry.getKey();
             Partitions partitions = entry.getValue();
 
-            partitions.log(context, namespace);
+            partitions.log(def, namespace);
         }
     }
 
     /**
      * Close the cluster connection and releases all associated resources.
      *
-     * <p>This method stops the index monitor and closes the underlying client
-     * connection. It should be called when the cluster is no longer needed
-     * to ensure proper resource cleanup.</p>
+     * <p>This method closes the underlying client connection. It should be called when the
+     * cluster is no longer needed to ensure proper resource cleanup.</p>
      *
      * <p>This method is automatically called when using try-with-resources:</p>
      * <pre>{@code
@@ -687,7 +722,6 @@ public class Cluster implements Closeable {
             return;
         }
 
-        indexesMonitor.stopMonitor();
         tend.close();
 
         /* TODO Handle metrics close.
@@ -696,7 +730,11 @@ public class Cluster implements Closeable {
                 disableMetricsInternal();
             }
             catch (Throwable e) {
-                Log.warn("DisableMetrics failed: " + Util.getErrorMessage(e));
+                if (log.isWarnEnabled()) {
+                    log.atWarn()
+                        .addKeyValue(Cluster.CONTEXT, def.getClusterName())
+                        .log("DisableMetrics failed: " + Util.getErrorMessage(e));
+                }
             }
         }
         */

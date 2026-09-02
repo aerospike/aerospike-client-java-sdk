@@ -288,87 +288,37 @@ public class DurableDeleteTests extends ClusterTest {
     }
 
     /**
-     * On SC, non-durable batch delete is typically forbidden ({@link ResultCode#FAIL_FORBIDDEN}).
-     * Uses default {@link Session}; does not assert resolved {@link Settings#getUseDurableDelete()} is
-     * true.
+     * Batch delete with explicit {@code withoutDurableDelete()} on SC must match the namespace’s
+     * {@code strong-consistency-allow-expunge} value (read from server into {@link Args#strongConsistencyAllowExpunge}).
+     * When {@code false} or absent from info: expect {@link ResultCode#FAIL_FORBIDDEN} and records unchanged.
+     * When {@code true}: expect successful delete and records gone. See {@code docs/durable-delete-behavior.md}
+     * (section on that setting). Also verifies a probe {@link Session} where batch CP {@code useDurableDelete}
+     * is true in {@link Behavior} but {@code withoutDurableDelete()} still wins on the wire.
+     *
+     * @see <a href="https://aerospike.com/docs/database/learn/strong-consistency/">Strong consistency</a>
+     * @see <a href="https://aerospike.com/docs/database/manage/namespace/retention/">Namespace retention</a>
+     * @see <a href="https://aerospike.com/docs/database/reference/error-codes/">Error codes</a>
      */
     @Test
-    public void batchDeleteExplicitNonDurableRejectedOnStrongConsistency() {
-        Assumptions.assumeTrue(args.scMode,
-            "Requires SC namespace policy that forbids non-durable deletes.");
-        Assumptions.assumeTrue(args.enterprise,
-            "Durable delete / SC delete policy is an Enterprise-relevant scenario.");
+    public void batchDeleteExplicitNonDurableOnScReflectsNamespaceExpungePolicy() {
+        Assumptions.assumeTrue(args.scMode, "SC namespace only.");
+        Assumptions.assumeTrue(args.enterprise, "Enterprise only.");
 
-        String binName = "ddNdBin";
-        int firstKey = 10430;
-        List<Key> keys = args.set.ids(firstKey, firstKey + 1);
+        boolean allowExpunge = Boolean.TRUE.equals(args.strongConsistencyAllowExpunge);
 
-        session.upsert(keys).bin(binName).add(1).execute();
-
-        RecordStream rs = session.delete(keys).withoutDurableDelete().execute();
-
-        int count = 0;
-        while (rs.hasNext()) {
-            RecordResult rr = rs.next();
-            assertEquals(ResultCode.FAIL_FORBIDDEN, rr.resultCode(),
-                "expected non-durable batch delete to be forbidden on SC; got "
-                    + rr.resultCode() + " (" + ResultCode.getResultString(rr.resultCode()) + ") key="
-                    + rr.key());
-            count++;
-        }
-        assertEquals(keys.size(), count);
-
-        RecordStream exists = session.exists(keys).includeMissingKeys().execute();
-        for (int i = 0; i < keys.size(); i++) {
-            assertTrue(exists.hasNext(), "key index " + i);
-            assertTrue(exists.next().asBoolean(), "record should still exist after forbidden delete; index " + i);
-        }
-    }
-
-    /**
-     * {@link ResolvedSettings#getUseDurableDelete()} is true for batch CP non-retryable writes, but
-     * SC then rejects the delete ({@link ResultCode#FAIL_FORBIDDEN}).
-     */
-    @Test
-    public void batchDeleteExplicitNonDurableRejectedWhenBehaviorDurableTrue() {
-        Assumptions.assumeTrue(args.scMode,
-            "Requires SC namespace policy that forbids non-durable deletes.");
-        Assumptions.assumeTrue(args.enterprise,
-            "Durable delete / SC delete policy is an Enterprise-relevant scenario.");
+        assertExplicitNonDurableBatchDeleteOutcome(session,
+            args.set.ids(10430, 10431), "ddNdBin", allowExpunge);
 
         Behavior probeBehavior = Behavior.DEFAULT.deriveWithChanges("BatchDdFalseOvProbe", b -> b
             .on(Selectors.writes().nonRetryable().batch().cp(), ops -> ops.useDurableDelete(true)));
         ResolvedSettings batchWriteCp =
             probeBehavior.getSettings(OpKind.WRITE_NON_RETRYABLE, OpShape.BATCH, Mode.CP);
         assertTrue(batchWriteCp.getUseDurableDelete(),
-            "probe: batch CP non-retryable durable-delete must be on in Settings (override false must win)");
+            "probe: batch CP non-retryable durable-delete must be on in Settings");
 
         Session probeSession = cluster.createSession(probeBehavior);
-
-        String binName = "ddFbBin";
-        int firstKey = 10460;
-        List<Key> keys = args.set.ids(firstKey, firstKey + 1);
-
-        probeSession.upsert(keys).bin(binName).add(1).execute();
-
-        RecordStream rs = probeSession.delete(keys).withoutDurableDelete().execute();
-
-        int count = 0;
-        while (rs.hasNext()) {
-            RecordResult rr = rs.next();
-            assertEquals(ResultCode.FAIL_FORBIDDEN, rr.resultCode(),
-                "settings true + durableDelete(false) must not send durable delete on SC; got "
-                    + rr.resultCode() + " (" + ResultCode.getResultString(rr.resultCode()) + ") key="
-                    + rr.key());
-            count++;
-        }
-        assertEquals(keys.size(), count);
-
-        RecordStream exists = probeSession.exists(keys).includeMissingKeys().execute();
-        for (int i = 0; i < keys.size(); i++) {
-            assertTrue(exists.hasNext(), "key index " + i);
-            assertTrue(exists.next().asBoolean(), "record should still exist after forbidden delete; index " + i);
-        }
+        assertExplicitNonDurableBatchDeleteOutcome(probeSession,
+            args.set.ids(10460, 10461), "ddFbBin", allowExpunge);
     }
 
     /**
@@ -454,13 +404,58 @@ public class DurableDeleteTests extends ClusterTest {
         assertFalse(ex.next().asBoolean());
     }
 
+    /**
+     * Asserts batch {@code delete(keys).withoutDurableDelete()} outcome for SC + Enterprise:
+     * {@code allowExpunge == false} → {@link ResultCode#FAIL_FORBIDDEN} and keys still exist;
+     * {@code true} → OK (or benign not-found) and keys absent.
+     */
+    private static void assertExplicitNonDurableBatchDeleteOutcome(
+        Session session,
+        List<Key> keys,
+        String binName,
+        boolean allowExpunge
+    ) {
+        session.upsert(keys).bin(binName).add(1).execute();
+
+        RecordStream rs = session.delete(keys).withoutDurableDelete().execute();
+
+        if (!allowExpunge) {
+            int count = 0;
+            while (rs.hasNext()) {
+                RecordResult rr = rs.next();
+                assertEquals(ResultCode.FAIL_FORBIDDEN, rr.getResultCode(),
+                    "strong-consistency-allow-expunge=false: expect FORBIDDEN for non-durable batch delete; got "
+                        + rr.getResultCode() + " (" + ResultCode.getResultString(rr.getResultCode()) + ") key="
+                        + rr.getKey());
+                count++;
+            }
+            assertEquals(keys.size(), count);
+
+            RecordStream exists = session.exists(keys).includeMissingKeys().execute();
+            for (int i = 0; i < keys.size(); i++) {
+                assertTrue(exists.hasNext(), "key index " + i);
+                assertTrue(exists.next().asBoolean(),
+                    "record should still exist when delete forbidden; index " + i);
+            }
+        }
+        else {
+            assertBatchDeleteStreamOk(rs, keys.size());
+            RecordStream exists = session.exists(keys).includeMissingKeys().execute();
+            for (int i = 0; i < keys.size(); i++) {
+                assertTrue(exists.hasNext(), "key index " + i);
+                assertFalse(exists.next().asBoolean(),
+                    "record should be removed when strong-consistency-allow-expunge=true; index " + i);
+            }
+        }
+    }
+
     private static void assertBatchDeleteStreamOk(RecordStream stream, int expectedCount) {
         int count = 0;
         while (stream.hasNext()) {
             RecordResult rr = stream.next();
-            int rc = rr.resultCode();
+            int rc = rr.getResultCode();
             assertTrue(rc == ResultCode.OK || rc == ResultCode.KEY_NOT_FOUND_ERROR,
-                "unexpected delete resultCode=" + rc + " key=" + rr.key());
+                "unexpected delete resultCode=" + rc + " key=" + rr.getKey());
             count++;
         }
         assertEquals(expectedCount, count);
@@ -470,10 +465,10 @@ public class DurableDeleteTests extends ClusterTest {
         int count = 0;
         while (stream.hasNext()) {
             RecordResult rr = stream.next();
-            int rc = rr.resultCode();
+            int rc = rr.getResultCode();
             assertEquals(ResultCode.OK, rc,
                 "unexpected operate-delete resultCode=" + rc + " (" + ResultCode.getResultString(rc) + ") key="
-                    + rr.key());
+                    + rr.getKey());
             count++;
         }
         assertEquals(expectedCount, count);

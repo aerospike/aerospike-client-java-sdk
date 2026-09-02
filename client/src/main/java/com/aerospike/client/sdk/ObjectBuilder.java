@@ -20,25 +20,24 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Arrays;
-import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import com.aerospike.ael.ParseResult;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.aerospike.client.sdk.command.Batch;
 import com.aerospike.client.sdk.command.BatchAttr;
 import com.aerospike.client.sdk.command.BatchCommand;
 import com.aerospike.client.sdk.command.BatchExecutor;
 import com.aerospike.client.sdk.command.BatchNode;
 import com.aerospike.client.sdk.command.BatchNodes;
-import com.aerospike.client.sdk.command.BatchRead;
 import com.aerospike.client.sdk.command.BatchRecord;
 import com.aerospike.client.sdk.command.BatchSingle;
 import com.aerospike.client.sdk.command.BatchStatus;
@@ -47,17 +46,14 @@ import com.aerospike.client.sdk.command.IBatchCommand;
 import com.aerospike.client.sdk.command.OperateArgs;
 import com.aerospike.client.sdk.command.OperateWriteCommand;
 import com.aerospike.client.sdk.command.OperateWriteExecutor;
-import com.aerospike.client.sdk.command.ReadAttr;
 import com.aerospike.client.sdk.command.Txn;
 import com.aerospike.client.sdk.command.TxnMonitor;
 import com.aerospike.client.sdk.exp.Exp;
 import com.aerospike.client.sdk.exp.Expression;
-import com.aerospike.client.sdk.policy.Settings;
 import com.aerospike.client.sdk.policy.Behavior.OpKind;
 import com.aerospike.client.sdk.policy.Behavior.OpShape;
 import com.aerospike.client.sdk.policy.ResolvedSettings;
 import com.aerospike.client.sdk.tend.Partitions;
-import com.aerospike.client.sdk.util.Version;
 
 /**
  * Builder for applying a dataset operation (insert, update, upsert, replace, etc.) to one or more
@@ -79,6 +75,8 @@ import com.aerospike.client.sdk.util.Version;
  */
 @SuppressWarnings("unused")
 public class ObjectBuilder<T> {
+    private static final Logger log = LoggerFactory.getLogger(Loggers.COMMAND);
+
     private final OperationObjectBuilder<T> opBuilder;
     private final List<T> elements;
     private RecordMapper<T> recordMapper;
@@ -411,7 +409,7 @@ public class ObjectBuilder<T> {
      */
     public ObjectBuilder<T> notInAnyTransaction() {
         if (transactionSet) {
-            throw AerospikeException.resultCodeToException(ResultCode.PARAMETER_ERROR,
+            throw AerospikeException.toException(ResultCode.PARAMETER_ERROR,
                 "The transaction mode has already been set");
         }
         this.transactionSet = true;
@@ -439,7 +437,7 @@ public class ObjectBuilder<T> {
      */
     public ObjectBuilder<T> inTransaction(Txn txn) {
         if (transactionSet) {
-            throw AerospikeException.resultCodeToException(ResultCode.PARAMETER_ERROR,
+            throw AerospikeException.toException(ResultCode.PARAMETER_ERROR,
                 "The transaction mode has already been set");
         }
         this.transactionSet = true;
@@ -467,19 +465,10 @@ public class ObjectBuilder<T> {
         if (this.recordMapper != null) {
             return this.recordMapper;
         }
-        else {
-            RecordMappingFactory factory = opBuilder.getSession().getRecordMappingFactory();
-            if (factory != null) {
-                @SuppressWarnings("unchecked")
-                RecordMapper<T> mapper = (RecordMapper<T>)factory.getMapper(element.getClass());
-                if (mapper != null) {
-                    return mapper;
-                }
-            }
-        }
-        throw new UnsupportedOperationException(String.format(
-                "Could not find a mapper to convert objects of type %s. Did you specify a RcordMappingFactory on the connection?",
-                element.getClass().getName()));
+        RecordMappingFactory factory = opBuilder.getSession().getRecordMappingFactory();
+        @SuppressWarnings("unchecked")
+        Class<T> clazz = (Class<T>) element.getClass();
+        return MappingSupport.requireMapper(factory, clazz);
     }
 
     private List<Operation> operationsForElement(RecordMapper<T> mapper, T element) {
@@ -539,6 +528,10 @@ public class ObjectBuilder<T> {
                 .init(key, OpType.INSERT);
     }
 
+    public ChainableOperationBuilder insert(TypedKey<?> typedKey) {
+        return insert(typedKey.getKey());
+    }
+
     /**
      * Chain an insert operation on multiple keys after this object operation.
      *
@@ -561,6 +554,10 @@ public class ObjectBuilder<T> {
         List<OperationSpec> specs = materializeToSpecs();
         return new ChainableOperationBuilder(opBuilder.getSession(), OpType.UPDATE, specs, null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, txnToUse)
                 .init(key, OpType.UPDATE);
+    }
+
+    public ChainableOperationBuilder update(TypedKey<?> typedKey) {
+        return update(typedKey.getKey());
     }
 
     /**
@@ -587,6 +584,10 @@ public class ObjectBuilder<T> {
                 .init(key, OpType.UPSERT);
     }
 
+    public ChainableOperationBuilder upsert(TypedKey<?> typedKey) {
+        return upsert(typedKey.getKey());
+    }
+
     /**
      * Chain an upsert operation on multiple keys after this object operation.
      *
@@ -609,6 +610,10 @@ public class ObjectBuilder<T> {
         List<OperationSpec> specs = materializeToSpecs();
         return new ChainableOperationBuilder(opBuilder.getSession(), OpType.REPLACE, specs, null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, txnToUse)
                 .init(key, OpType.REPLACE);
+    }
+
+    public ChainableOperationBuilder replace(TypedKey<?> typedKey) {
+        return replace(typedKey.getKey());
     }
 
     /**
@@ -635,6 +640,10 @@ public class ObjectBuilder<T> {
                 .initDelete(key);
     }
 
+    public ChainableNoBinsBuilder delete(TypedKey<?> typedKey) {
+        return delete(typedKey.getKey());
+    }
+
     /**
      * Chain a delete operation on multiple keys after this object operation.
      *
@@ -657,6 +666,10 @@ public class ObjectBuilder<T> {
         List<OperationSpec> specs = materializeToSpecs();
         return new ChainableNoBinsBuilder(opBuilder.getSession(), specs, null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, txnToUse)
                 .initExists(key);
+    }
+
+    public ChainableNoBinsBuilder exists(TypedKey<?> typedKey) {
+        return exists(typedKey.getKey());
     }
 
     /**
@@ -695,6 +708,26 @@ public class ObjectBuilder<T> {
                 .initQuery(keys);
     }
 
+    public ChainableQueryBuilder query(TypedKey<T> typedKey) {
+        List<OperationSpec> specs = materializeToSpecs();
+        return new ChainableQueryBuilder(opBuilder.getSession(), specs, null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, txnToUse)
+                .initQueryTyped(typedKey);
+    }
+
+    public ChainableQueryBuilder query(TypedKey<?> k1, TypedKey<?> k2, TypedKey<?>... more) {
+        List<TypedKey<?>> list = new ArrayList<>();
+        list.add(k1);
+        list.add(k2);
+        list.addAll(Arrays.asList(more));
+        return queryTypedKeys(list);
+    }
+
+    public ChainableQueryBuilder queryTypedKeys(List<? extends TypedKey<?>> typedKeys) {
+        List<OperationSpec> specs = materializeToSpecs();
+        return new ChainableQueryBuilder(opBuilder.getSession(), specs, null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, txnToUse)
+                .initQueryTyped(typedKeys);
+    }
+
     /**
      * Chain a UDF execution on a single key after this object operation.
      *
@@ -704,7 +737,7 @@ public class ObjectBuilder<T> {
     public UdfFunctionBuilder executeUdf(Key key) {
         List<OperationSpec> specs = materializeToSpecs();
         return new UdfFunctionBuilder(opBuilder.getSession(), List.of(key), specs,
-                null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, txnToUse);
+                null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, txnToUse, null);
     }
 
     /**
@@ -716,7 +749,7 @@ public class ObjectBuilder<T> {
     public UdfFunctionBuilder executeUdf(List<Key> keys) {
         List<OperationSpec> specs = materializeToSpecs();
         return new UdfFunctionBuilder(opBuilder.getSession(), keys, specs,
-                null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, txnToUse);
+                null, AbstractOperationBuilder.NOT_EXPLICITLY_SET, txnToUse, null);
     }
 
     // ========================================
@@ -763,8 +796,8 @@ public class ObjectBuilder<T> {
     }
 
     private RecordStream executeWithDisposition(ErrorDisposition disposition) {
-        if (Log.debugEnabled()) {
-            Log.debug("ObjectBuilder.execute() called for " + elements.size() + " element(s), transaction: " +
+        if (log.isDebugEnabled()) {
+            log.debug("ObjectBuilder.execute() called for " + elements.size() + " element(s), transaction: " +
                      (txnToUse != null ? "yes" : "no"));
         }
 
@@ -791,7 +824,7 @@ public class ObjectBuilder<T> {
      */
     public RecordStream executeAsync(ErrorStrategy strategy) {
         Objects.requireNonNull(strategy, "ErrorStrategy must not be null");
-        return executeAsyncInStream();
+        return executeAsyncInStream(null);
     }
 
     /**
@@ -803,18 +836,17 @@ public class ObjectBuilder<T> {
      */
     public RecordStream executeAsync(ErrorHandler handler) {
         Objects.requireNonNull(handler, "ErrorHandler must not be null");
-        RecordStream source = executeAsyncInStream();
-        return filterErrors(source, handler);
+        return executeAsyncInStream(handler);
     }
 
-    private RecordStream executeAsyncInStream() {
-        if (Log.debugEnabled()) {
-            Log.debug("ObjectBuilder.executeAsync() called for " + elements.size() + " element(s), transaction: " +
+    private RecordStream executeAsyncInStream(ErrorHandler errorHandler) {
+        if (log.isDebugEnabled()) {
+            log.debug("ObjectBuilder.executeAsync() called for " + elements.size() + " element(s), transaction: " +
                      (txnToUse != null ? "yes" : "no"));
         }
 
-        if (this.txnToUse != null && Log.warnEnabled()) {
-            Log.warn(
+        if (this.txnToUse != null && log.isWarnEnabled()) {
+            log.warn(
                 "executeAsync() called within a transaction. " +
                 "Async operations may still be in flight when commit() is called, " +
                 "which could lead to inconsistent state. " +
@@ -827,36 +859,18 @@ public class ObjectBuilder<T> {
         }
 
         if (elements.size() == 1) {
-            return executeSingleAsync(elements.get(0));
+            return executeSingleAsync(elements.get(0), errorHandler);
         }
 
         if (elements.size() < AbstractOperationBuilder.getBatchOperationThreshold()) {
-            return executeIndividualAsync();
+            return executeIndividualAsync(errorHandler);
         }
 
-        return executeBatchAsync();
+        return executeBatchAsync(errorHandler);
     }
 
-    private RecordStream filterErrors(RecordStream source, ErrorHandler handler) {
-        AsyncRecordStream filtered = new AsyncRecordStream(Math.max(elements.size(), 1));
-        Session session = opBuilder.getSession();
-        session.getCluster().startVirtualThread(() -> {
-            try {
-                source.forEach(result -> {
-                    if (!result.isOk()) {
-                        AerospikeException ex = result.exception() != null
-                            ? result.exception()
-                            : AerospikeException.resultCodeToException(result.resultCode(), result.message(), result.inDoubt());
-                        handler.handle(result.key(), result.index(), ex);
-                    } else {
-                        filtered.publish(result);
-                    }
-                });
-            } finally {
-                filtered.complete();
-            }
-        });
-        return new RecordStream(filtered);
+    private AsyncRecordStream newAsyncStream(int capacity, ErrorHandler errorHandler) {
+        return AsyncExecutionSupport.newStream(capacity, errorHandler);
     }
 
     /**
@@ -915,17 +929,19 @@ public class ObjectBuilder<T> {
                 if (AbstractFilterableBuilder.isActionableError(br.resultCode)) {
                     switch (disposition) {
                         case ErrorDisposition.Throw ignored -> {
-                            AerospikeException ex = result.exception() != null
-                                ? result.exception()
-                                : AerospikeException.resultCodeToException(br.resultCode, null, br.inDoubt);
-                            throw ex;
+                            throw result.toException();
                         }
-                        case ErrorDisposition.Handler h ->
+
+                        case ErrorDisposition.Handler h -> {
                             AbstractFilterableBuilder.dispatchError(result, h.errorHandler());
-                        case ErrorDisposition.InStream ignored ->
+                        }
+
+                        case ErrorDisposition.InStream ignored -> {
                             recordStream.publish(result);
+                        }
                     }
-                } else {
+                }
+                else {
                     recordStream.publish(result);
                 }
             }
@@ -939,7 +955,7 @@ public class ObjectBuilder<T> {
     /**
      * Execute operations using async batch operations (10+ objects).
      */
-    private RecordStream executeBatchAsync() {
+    private RecordStream executeBatchAsync(ErrorHandler errorHandler) {
         BatchCommand parent = prepareBatch();
         List<BatchRecord> records = parent.getRecords();
         Session session = opBuilder.getSession();
@@ -948,7 +964,7 @@ public class ObjectBuilder<T> {
 
         List<BatchNode> bns = BatchNodes.generate(cluster, parent, records, status);
 
-        AsyncRecordStream stream = new AsyncRecordStream(elements.size());
+        AsyncRecordStream stream = newAsyncStream(elements.size(), errorHandler);
         IBatchCommand[] commands = new IBatchCommand[bns.size()];
         int count = 0;
 
@@ -1109,7 +1125,7 @@ public class ObjectBuilder<T> {
      * Execute operations asynchronously for individual objects (< batch threshold).
      * Returns immediately; virtual threads complete in background.
      */
-    private RecordStream executeIndividualAsync() {
+    private RecordStream executeIndividualAsync(ErrorHandler errorHandler) {
         List<Key> keys = new ArrayList<>(elements.size());
 
         for (T element : elements) {
@@ -1130,9 +1146,8 @@ public class ObjectBuilder<T> {
         // Apply where clause if present
         final Expression filterExp = getFilterExp(firstKey.namespace, firstKey.setName);
         int ttl = (int) resolveTtl(expirationInSeconds, defaultExpirationInSeconds);
-        boolean stackTraceOnException = settings.getStackTraceOnException();
 
-        AsyncRecordStream stream = new AsyncRecordStream(elements.size());
+        AsyncRecordStream stream = newAsyncStream(elements.size(), errorHandler);
         AtomicInteger pendingOps = new AtomicInteger(elements.size());
 
         if (txnToUse != null) {
@@ -1190,7 +1205,7 @@ public class ObjectBuilder<T> {
         return new RecordStream();
     }
 
-    private RecordStream executeSingleAsync(T element) {
+    private RecordStream executeSingleAsync(T element, ErrorHandler errorHandler) {
         RecordMapper<T> recordMapper = getMapper(element);
         Key key = getKeyForElement(recordMapper, element);
 
@@ -1206,8 +1221,7 @@ public class ObjectBuilder<T> {
         final Expression filterExp = getFilterExp(key.namespace, key.setName);
 
         int ttl = (int) resolveTtl(expirationInSeconds, defaultExpirationInSeconds);
-        boolean stackTraceOnException = settings.getStackTraceOnException();
-        AsyncRecordStream stream = new AsyncRecordStream(1);
+        AsyncRecordStream stream = newAsyncStream(1, errorHandler);
         AtomicInteger pendingOps = new AtomicInteger(1);
 
         if (txnToUse != null) {
@@ -1290,8 +1304,7 @@ public class ObjectBuilder<T> {
 
     private Expression getFilterExp(String namespace, String querySet) {
         if (opBuilder.getAel() != null && !elements.isEmpty()) {
-            ParseResult parseResult = opBuilder.getAel().process(namespace, querySet, opBuilder.getSession());
-            return Exp.build(parseResult.getExp());
+            return opBuilder.getAel().toFilterExpression(opBuilder.getSession());
         }
         return null;
     }

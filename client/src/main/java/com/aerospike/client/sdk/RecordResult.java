@@ -17,6 +17,7 @@
 package com.aerospike.client.sdk;
 
 import java.util.Map;
+import java.util.Optional;
 
 import com.aerospike.client.sdk.command.BatchRecord;
 import com.aerospike.client.sdk.query.KeyRecord;
@@ -25,95 +26,275 @@ import com.aerospike.client.sdk.query.KeyRecord;
  * Represents the result of a single operation in a batch or standalone execution.
  * Contains the key, record data (for record operations), UDF return value (for UDF operations),
  * result code, and error information if the operation failed.
+ *
+ * Errors are stored with either an AerospikeException (when available) or individual error
+ * fields (resultCode, subCode, message, exoTrace, inDoubt). The error field getters will
+ * use the exception error fields when the exception exists.
+ *
+ * <p>When {@link #readMappingClass()} is non-null after a typed read, {@link #readMappingSession()}
+ * is also set so {@link #toObject()} and {@link #udfResultAsObject()} can resolve mappers from the
+ * session's {@link RecordMappingFactory}. Those references are typically short-lived compared to
+ * the session itself.</p>
+ *
+ * @param readMappingSession when non-null, session paired with {@code readMappingClass}; must be
+ *        {@code null} iff {@code readMappingClass} is {@code null}
+ * @param readMappingClass when non-null, domain type hint for {@link #toObject()} after reads
+ *        issued via {@link TypedKey} (or equivalent batch hints)
  */
-public record RecordResult(Key key, Record recordOrNull, Object udfReturnValue, int resultCode, AerospikeException exception, boolean inDoubt, String message, int index) {
+public final class RecordResult {
+    private final Key key;
+    private final Record rec;
+    private final Object udfReturnValue;
+    private final AerospikeException exception;
+    private final String message;
+    private final ExpressionTrace expTrace;
+    private final Session readMappingSession;
+    private final Class<?> readMappingClass;
+    private final int resultCode;
+    private final int subCode;
+    private final int index;
+    private final boolean inDoubt;
 
+    /**
+     * Single record success with no returned record (for exists, touch, delete).
+     */
+    public RecordResult(Key key, int index) {
+        this.key = key;
+        this.rec = null;
+        this.udfReturnValue = null;
+        this.exception = null;
+        this.message = null;
+        this.expTrace = null;
+        this.readMappingSession = null;
+        this.readMappingClass = null;
+        this.resultCode = ResultCode.OK;
+        this.subCode = SubCode.NONE;
+        this.index = index;
+        this.inDoubt = false;
+    }
+
+    /**
+     * Single record success with record result.
+     */
     public RecordResult(Key key, Record rec, int index) {
-        this(key, rec, null, ResultCode.OK, null, false, null, index);
+        this.key = key;
+        this.rec = rec;
+        this.udfReturnValue = null;
+        this.exception = null;
+        this.message = null;
+        this.expTrace = null;
+        this.readMappingSession = null;
+        this.readMappingClass = null;
+        this.resultCode = ResultCode.OK;
+        this.subCode = SubCode.NONE;
+        this.index = index;
+        this.inDoubt = false;
     }
 
-    RecordResult(Key key, int resultCode, boolean inDoubt, String message, int index) {
-        this(key, null, null, resultCode, null, inDoubt, message, index);
+    /**
+     * Single record object mapper result.
+     */
+    public RecordResult(
+        Key key, Record rec, int index, Session readMappingSession, Class<?> readMappingClass
+    ) {
+        verifyMapper(readMappingSession, readMappingClass);
+        this.key = key;
+        this.rec = rec;
+        this.udfReturnValue = null;
+        this.exception = null;
+        this.message = null;
+        this.expTrace = null;
+        this.readMappingSession = readMappingSession;
+        this.readMappingClass = readMappingClass;
+        this.resultCode = ResultCode.OK;
+        this.subCode = SubCode.NONE;
+        this.index = index;
+        this.inDoubt = false;
     }
 
+    /**
+     * Single record server returned error.
+     */
+    public RecordResult(Key key, int resultCode, int subCode, String message, int index, boolean inDoubt) {
+        this.key = key;
+        this.rec = null;
+        this.udfReturnValue = null;
+        this.exception = null;
+        this.message = message;
+        this.expTrace = null;
+        this.readMappingSession = null;
+        this.readMappingClass = null;
+        this.resultCode = resultCode;
+        this.subCode = subCode;
+        this.index = index;
+        this.inDoubt = inDoubt;
+    }
+
+    /**
+     * Single record client exception.
+     */
     RecordResult(Key key, AerospikeException ae, int index) {
-        this(key, null, null, ae.getResultCode(), ae, ae.getInDoubt(), ae.getMessage(), index);
+        this.key = key;
+        this.rec = null;
+        this.udfReturnValue = null;
+        this.exception = ae;
+        this.message = null;
+        this.expTrace = null;
+        this.readMappingSession = null;
+        this.readMappingClass = null;
+        this.resultCode = ae.getResultCode();
+        this.subCode = SubCode.NONE;
+        this.index = index;
+        this.inDoubt = false;
     }
 
+    /**
+     * Query record result.
+     */
     public RecordResult(KeyRecord keyRecord, int index) {
-        this(keyRecord.key, keyRecord.record, null, ResultCode.OK, null, false, null, index);
-    }
-
-    public RecordResult(BatchRecord batchRecord, int index) {
-        this(batchRecord.key, batchRecord.record, null, batchRecord.resultCode, null, batchRecord.inDoubt, ResultCode.getResultString(batchRecord.resultCode), index);
-    }
-
-    public RecordResult(BatchRecord batchRecord, AerospikeException ae, int index) {
-        this(batchRecord.key, batchRecord.record, null, batchRecord.resultCode, ae, batchRecord.inDoubt, ResultCode.getResultString(batchRecord.resultCode), index);
-    }
-
-    // Constructor with error handling based on stackTraceOnException flag
-    RecordResult(Key key, int resultCode, boolean inDoubt, String message, boolean stackTraceOnException, int index) {
-        this(key, null, null, resultCode,
-             stackTraceOnException && AbstractFilterableBuilder.isActionableError(resultCode) ?
-                 createExceptionWithCleanedStackTrace(resultCode, message, inDoubt) : null,
-             inDoubt, message, index);
-    }
-
-    // Constructor for BatchRecord with error handling
-    RecordResult(BatchRecord batchRecord, boolean stackTraceOnException, int index) {
-        this(batchRecord.key, batchRecord.record, null, batchRecord.resultCode,
-             stackTraceOnException && AbstractFilterableBuilder.isActionableError(batchRecord.resultCode) ?
-                 createExceptionWithCleanedStackTrace(batchRecord.resultCode,
-                     ResultCode.getResultString(batchRecord.resultCode), batchRecord.inDoubt) : null,
-             batchRecord.inDoubt, ResultCode.getResultString(batchRecord.resultCode), index);
+        this.key = keyRecord.key;
+        this.rec = keyRecord.record;
+        this.udfReturnValue = null;
+        this.exception = null;
+        this.message = null;
+        this.expTrace = null;
+        this.readMappingSession = null;
+        this.readMappingClass = null;
+        this.resultCode = ResultCode.OK;
+        this.subCode = SubCode.NONE;
+        this.index = index;
+        this.inDoubt = false;
     }
 
     /**
-     * Constructor for UDF results.
-     *
-     * @param key the key the UDF was executed on
-     * @param udfReturnValue the value returned by the UDF
-     * @param index the index in the batch operation
+     * UDF success result with optional read-mapping context (typed UDF via {@link TypedKey}).
      */
-    RecordResult(Key key, Object udfReturnValue, int index) {
-        this(key, null, udfReturnValue, ResultCode.OK, null, false, null, index);
+    public RecordResult(
+        Key key, Object udfReturnValue, int index, Session readMappingSession,
+        Class<?> readMappingClass
+    ) {
+        verifyMapper(readMappingSession, readMappingClass);
+        this.key = key;
+        this.rec = null;
+        this.udfReturnValue = udfReturnValue;
+        this.exception = null;
+        this.message = null;
+        this.expTrace = null;
+        this.readMappingSession = readMappingSession;
+        this.readMappingClass = readMappingClass;
+        this.resultCode = ResultCode.OK;
+        this.subCode = SubCode.NONE;
+        this.index = index;
+        this.inDoubt = false;
     }
 
     /**
-     * Constructor for UDF results with error.
-     *
-     * @param key the key the UDF was executed on
-     * @param udfReturnValue the value returned by the UDF (may be null on error)
-     * @param ae the exception that occurred
-     * @param index the index in the batch operation
+     * Batch success.
      */
-    RecordResult(Key key, Object udfReturnValue, AerospikeException ae, int index) {
-        this(key, null, udfReturnValue, ae.getResultCode(), ae, ae.getInDoubt(), ae.getMessage(), index);
+    private RecordResult(
+        BatchRecord br, int index, Session readMappingSession, Class<?> readMappingClass
+    ) {
+        this.key = br.key;
+        this.rec = br.record;
+        this.udfReturnValue = null;
+        this.exception = null;
+        this.message = null;
+        this.expTrace = null;
+        this.readMappingSession = readMappingSession;
+        this.readMappingClass = readMappingClass;
+        this.resultCode = br.resultCode;
+        this.subCode = SubCode.NONE;
+        this.index = index;
+        this.inDoubt = false;
     }
 
-    // Helper method to create exception and clean stack trace
-    private static AerospikeException createExceptionWithCleanedStackTrace(int resultCode, String message, boolean inDoubt) {
-        AerospikeException ex = AerospikeException.resultCodeToException(resultCode, message, inDoubt);
-        // Remove RecordResult constructor and resultCodeToException from stack trace
-        StackTraceElement[] stack = ex.getStackTrace();
-        int startIndex = 0;
-        for (int i = 0; i < stack.length; i++) {
-            String className = stack[i].getClassName();
-            String methodName = stack[i].getMethodName();
-            // Find first frame that's not RecordResult or resultCodeToException
-            if (!className.equals("com.aerospike.RecordResult") &&
-                !methodName.equals("resultCodeToException")) {
-                startIndex = i;
-                break;
-            }
+    /**
+     * Batch record server returned error.
+     */
+    private RecordResult(
+        BatchRecord br, int index, Session readMappingSession, Class<?> readMappingClass,
+        boolean error
+    ) {
+        this.key = br.key;
+        this.rec = null;
+        this.udfReturnValue = null;
+        this.exception = null;
+        this.message = getMessage(br);
+        this.expTrace = br.expTrace;
+        this.readMappingSession = readMappingSession;
+        this.readMappingClass = readMappingClass;
+        this.resultCode = br.resultCode;
+        this.subCode = br.subCode;
+        this.index = index;
+        this.inDoubt = br.inDoubt;
+    }
+
+    /**
+     * Batch record client exception.
+     */
+    private RecordResult(BatchRecord br, int index, AerospikeException ae) {
+        this.key = br.key;
+        this.rec = null;
+        this.udfReturnValue = null;
+        this.exception = ae;
+        this.message = null;
+        this.expTrace = null;
+        this.readMappingSession = null;
+        this.readMappingClass = null;
+        this.resultCode = br.resultCode;
+        this.subCode = SubCode.NONE;
+        this.index = index;
+        this.inDoubt = false;
+    }
+
+    /**
+     * Batch success.
+     */
+    public static RecordResult batchSuccess(BatchRecord br, int index) {
+        return new RecordResult(br, index, null, null);
+    }
+
+    /**
+     * Batch success with object mapper.
+     */
+    public static RecordResult batchSuccess(
+        BatchRecord br, int index, Session readMappingSession, Class<?> readMappingClass
+    ) {
+        verifyMapper(readMappingSession, readMappingClass);
+        return new RecordResult(br, index, readMappingSession, readMappingClass);
+    }
+
+    /**
+     * Batch record server returned error.
+     */
+    public static RecordResult batchError(BatchRecord br, int index) {
+        return new RecordResult(br, index, null, null, true);
+    }
+
+    /**
+     * Batch record server returned error with object mapper.
+     */
+    public static RecordResult batchError(
+        BatchRecord br, int index, Session readMappingSession, Class<?> readMappingClass
+    ) {
+        verifyMapper(readMappingSession, readMappingClass);
+        return new RecordResult(br, index, readMappingSession, readMappingClass, true);
+    }
+
+    /**
+     * Batch record client exception.
+     */
+    public static RecordResult batchError(
+        BatchRecord br, int index, AerospikeException ae
+    ) {
+        return new RecordResult(br, index, ae);
+    }
+
+    private static void verifyMapper(Session readMappingSession, Class<?> readMappingClass) {
+        if ((readMappingSession == null) != (readMappingClass == null)) {
+            throw new IllegalArgumentException(
+                "readMappingSession and readMappingClass must both be null or both non-null");
         }
-        if (startIndex > 0) {
-            StackTraceElement[] cleanedStack = new StackTraceElement[stack.length - startIndex];
-            System.arraycopy(stack, startIndex, cleanedStack, 0, cleanedStack.length);
-            ex.setStackTrace(cleanedStack);
-        }
-        return ex;
     }
 
     /**
@@ -122,7 +303,7 @@ public record RecordResult(Key key, Record recordOrNull, Object udfReturnValue, 
      * @return {@code true} if successful; {@code false} if any other result code
      */
     public boolean isOk() {
-        return this.resultCode == ResultCode.OK;
+        return getResultCode() == ResultCode.OK;
     }
 
     /**
@@ -134,7 +315,7 @@ public record RecordResult(Key key, Record recordOrNull, Object udfReturnValue, 
                 throw exception;
             }
             else {
-                throw AerospikeException.resultCodeToException(resultCode, message(), inDoubt);
+                throw AerospikeException.toException(resultCode, subCode, message, expTrace, inDoubt);
             }
         }
         return this;
@@ -148,7 +329,38 @@ public record RecordResult(Key key, Record recordOrNull, Object udfReturnValue, 
      */
     public Record recordOrThrow() {
         orThrow();
-        return recordOrNull;
+        return rec;
+    }
+
+    /**
+     * Maps this successful read result to a Java object using the {@link RecordMappingFactory}
+     * on the embedded session when this result carries a type hint from a {@link TypedKey} read.
+     *
+     * @param <T> domain type (must match {@link #readMappingClass()})
+     * @return mapped object
+     * @throws IllegalStateException if no type hint or session is present
+     */
+    @SuppressWarnings("unchecked")
+    public <T> T toObject() {
+        orThrow();
+
+        if (readMappingClass == null || readMappingSession == null) {
+            throw new IllegalStateException(
+                "No read mapping context on this result. Use RecordMapper explicitly "
+                    + "(e.g. RecordStream#getFirst(RecordMapper)) or perform the read via "
+                    + "Session#query(TypedKey) / Session#queryTypedKeys / Session#queryTypedKeysAny / TypedKeyList so the SDK records the entity type.");
+        }
+
+        RecordMapper<T> mapper = MappingSupport.requireMapper(
+            readMappingSession.getRecordMappingFactory(), (Class<T>) readMappingClass);
+
+        if (rec == null) {
+            throw AerospikeException.toException(ResultCode.KEY_NOT_FOUND_ERROR, SubCode.NONE,
+                "No record bins to map for key " + key, null, false);
+        }
+
+        RecordReadContext<T> ctx = new RecordReadContext<>(readMappingSession, (Class<T>) readMappingClass);
+        return mapper.fromMap(rec.bins, key, rec.generation, ctx);
     }
 
     /**
@@ -159,31 +371,94 @@ public record RecordResult(Key key, Record recordOrNull, Object udfReturnValue, 
     }
 
     /**
-     * Returns the UDF return value converted to the specified type using a RecordMapper.
+     * Maps the UDF return value using the session's {@link RecordMappingFactory} for
+     * {@link #readMappingClass()}. Requires {@link #readMappingSession()} and {@link #readMappingClass()}
+     * (e.g. typed read / batch hint); otherwise throws {@link IllegalStateException}.
+     *
+     * <p>If the UDF returned {@code null}, returns {@link Optional#empty()}.</p>
+     *
+     * @param <T> expected type (must match the embedded read mapping class)
+     * @return mapped value, or empty if the UDF result is null
+     * @throws AerospikeException if the operation was not successful or the value is not a map
+     */
+    @SuppressWarnings("unchecked")
+    public <T> Optional<T> udfResultAsObject() {
+        orThrow();
+
+        if (readMappingSession == null || readMappingClass == null) {
+            throw new IllegalStateException(
+                "No read mapping context on this result for mapper-less UDF mapping. "
+                    + "Use udfResultAsObject(RecordMapper) or udfResultAsObject(RecordMapper, RecordReadContext), "
+                    + "or perform the operation via a typed key path once hints are propagated.");
+        }
+
+        if (udfReturnValue == null) {
+            return Optional.empty();
+        }
+
+        if (!(udfReturnValue instanceof Map)) {
+            throw AerospikeException.toException(ResultCode.OP_NOT_APPLICABLE,
+                "UDF result is not a Map, cannot use RecordMapper. Actual type: "
+                    + udfReturnValue.getClass().getName());
+        }
+
+        Map<String, Object> map = (Map<String, Object>) udfReturnValue;
+        RecordMapper<T> mapper = MappingSupport.requireMapper(
+            readMappingSession.getRecordMappingFactory(), (Class<T>) readMappingClass);
+        RecordReadContext<T> ctx = new RecordReadContext<>(readMappingSession, (Class<T>) readMappingClass);
+        return Optional.of(mapper.fromMap(map, key, 0, ctx));
+    }
+
+    /**
+     * Returns the UDF return value converted using a {@link RecordMapper}.
      *
      * <p>UDFs written in Lua return Lua types that map to Java types (String, Long, Map, List, etc.).
-     * When a UDF returns a Lua table, it becomes a {@code Map<String, Object>} in Java. This method
-     * uses the provided RecordMapper to convert that Map to a typed object.</p>
+     * When a UDF returns a Lua table, it becomes a {@code Map<String, Object>} in Java.</p>
      *
      * @param <T> the expected return type
      * @param mapper the RecordMapper to use for converting the UDF result Map to the target type
-     * @return the UDF return value converted to the specified type
-     * @throws AerospikeException if the operation was not successful
-     * @throws ClassCastException if the UDF result is not a Map and cannot be converted
+     * @return present mapped value, or {@link Optional#empty()} if the UDF returned null
+     * @throws AerospikeException if the operation was not successful or the value is not a map
      */
     @SuppressWarnings("unchecked")
-    public <T> T udfResultAs(RecordMapper<T> mapper) {
+    public <T> Optional<T> udfResultAsObject(RecordMapper<T> mapper) {
         orThrow();
+
         if (udfReturnValue == null) {
-            return null;
+            return Optional.empty();
         }
+
         if (!(udfReturnValue instanceof Map)) {
-            throw AerospikeException.resultCodeToException(ResultCode.OP_NOT_APPLICABLE,
-                    "UDF result is not a Map, cannot use RecordMapper. Actual type: "
-                + udfReturnValue.getClass().getName());
+            throw AerospikeException.toException(ResultCode.OP_NOT_APPLICABLE,
+                "UDF result is not a Map, cannot use RecordMapper. Actual type: "
+                    + udfReturnValue.getClass().getName());
         }
+
         Map<String, Object> map = (Map<String, Object>) udfReturnValue;
-        return mapper.fromMap(map, key, 0);
+        return Optional.of(mapper.fromMap(map, key, 0));
+    }
+
+    /**
+     * Like {@link #udfResultAsObject(RecordMapper)} but passes {@link RecordReadContext} into
+     * {@link RecordMapper#fromMap(Map, Key, int, RecordReadContext)} so mappers can use the session
+     * or {@link RecordReadContext#getRecordMappingFactory()} (e.g. dependent loads).
+     */
+    @SuppressWarnings("unchecked")
+    public <T> Optional<T> udfResultAsObject(RecordMapper<T> mapper, RecordReadContext<T> ctx) {
+        orThrow();
+
+        if (udfReturnValue == null) {
+            return Optional.empty();
+        }
+
+        if (!(udfReturnValue instanceof Map)) {
+            throw AerospikeException.toException(ResultCode.OP_NOT_APPLICABLE,
+                "UDF result is not a Map, cannot use RecordMapper. Actual type: "
+                    + udfReturnValue.getClass().getName());
+        }
+
+        Map<String, Object> map = (Map<String, Object>) udfReturnValue;
+        return Optional.of(mapper.fromMap(map, key, 0, ctx));
     }
 
     /**
@@ -206,15 +481,105 @@ public record RecordResult(Key key, Record recordOrNull, Object udfReturnValue, 
      * @throws AerospikeException for other failure codes
      */
     public boolean asBoolean() {
-        if (isOk()) {
+        int resultCode = getResultCode();
+
+        if (resultCode == ResultCode.OK) {
             return true;
         }
-        else if (this.resultCode == ResultCode.KEY_NOT_FOUND_ERROR) {
+        else if (resultCode == ResultCode.KEY_NOT_FOUND_ERROR) {
             return false;
         }
+
         orThrow();
         // Just to keep the compiler happy
         return false;
     }
 
+    private static String getMessage(BatchRecord br) {
+        return (br.message != null)?  br.message : ResultCode.getResultString(br.resultCode);
+    }
+
+    /**
+     * Convert to an exception.
+     */
+    public AerospikeException toException() {
+        return (exception != null) ?
+            exception :
+            AerospikeException.toException(resultCode, subCode, message, expTrace, inDoubt);
+    }
+
+    /**
+     * Return key.
+     */
+    public Key getKey() {
+        return key;
+    }
+
+    /**
+     * Return record.
+     */
+    public Record getRecord() {
+        return rec;
+    }
+
+    /**
+     * Return UDF result.
+     */
+    public Object getUdfReturnValue() {
+        return udfReturnValue;
+    }
+
+    /**
+     * Return exception which may be null.
+     */
+    public AerospikeException getException() {
+        return exception;
+    }
+
+    /**
+     * Return exception message if exception exists.
+     * Otherwise, return server returned message.
+     */
+    public String getMessage() {
+        return (exception != null)? exception.getMessage() : message;
+    }
+
+    /**
+     * Return exception expression trace if exception exists.
+     * Otherwise, return server returned expression trace.
+     */
+    public ExpressionTrace getExpressionTrace() {
+        return (exception != null)? exception.getExpressionTrace() : expTrace;
+    }
+
+    /**
+     * Return exception resultCode if exception exists.
+     * Otherwise, return server returned resultCode.
+     */
+    public int getResultCode() {
+        return (exception != null)? exception.getResultCode() : resultCode;
+    }
+
+    /**
+     * Return exception subCode if exception exists.
+     * Otherwise, return server returned subCode.
+     */
+    public int getSubCode() {
+        return (exception != null)? exception.getSubCode() : subCode;
+    }
+
+    /**
+     * Return index offset.
+     */
+    public int getIndex() {
+        return index;
+    }
+
+    /**
+     * Return exception inDoubt if exception exists.
+     * Otherwise, return local inDoubt.
+     */
+    public boolean isInDoubt() {
+        return (exception != null)? exception.getInDoubt() : inDoubt;
+    }
 }

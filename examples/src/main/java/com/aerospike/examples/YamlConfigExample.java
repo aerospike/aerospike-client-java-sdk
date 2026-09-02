@@ -17,13 +17,13 @@
 package com.aerospike.examples;
 
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Map;
 
-import com.aerospike.client.sdk.Cluster;
 import com.aerospike.client.sdk.SystemSettingsRegistry;
 import com.aerospike.client.sdk.policy.Behavior;
 import com.aerospike.client.sdk.policy.BehaviorYamlLoader;
@@ -53,12 +53,8 @@ import com.aerospike.client.sdk.policy.BehaviorYamlLoader;
  */
 public class YamlConfigExample extends Example {
 
-    public YamlConfigExample(Console console) {
-        super(console);
-    }
-
     @Override
-    public void runExample(Cluster clusterNotUsed, Args args) throws Exception {
+    public void runExample() throws Exception {
         // Example 1: Load from a file
         loadFromFile();
 
@@ -78,21 +74,21 @@ public class YamlConfigExample extends Example {
         System.out.println("=== Loading from file ===");
 
         File configFile = new File("src/main/resources/example-config.yml");
-        if (configFile.exists()) {
-            Map<String, Behavior> behaviors = BehaviorYamlLoader.loadBehaviorsFromFile(configFile);
-
-            System.out.println("Loaded " + behaviors.size() + " behaviors:");
-            for (String name : behaviors.keySet()) {
-                System.out.println("  - " + name);
-            }
-
-            // System settings are automatically registered in SystemSettingsRegistry
-            SystemSettingsRegistry registry = SystemSettingsRegistry.getInstance();
-            System.out.println("Default system settings: " + registry.getDefaultSettings());
-            System.out.println("Production cluster settings: " + registry.getClusterSettings("production"));
-        } else {
-            System.out.println("Config file not found: " + configFile.getAbsolutePath());
+        if (!configFile.exists()) {
+            throw new FileNotFoundException("Config file not found: " + configFile.getAbsolutePath());
         }
+
+        Map<String, Behavior> behaviors = BehaviorYamlLoader.loadBehaviorsFromFile(configFile);
+
+        System.out.println("Loaded " + behaviors.size() + " behaviors:");
+        for (String name : behaviors.keySet()) {
+            System.out.println("  - " + name);
+        }
+
+        // System settings are automatically registered in SystemSettingsRegistry
+        SystemSettingsRegistry registry = SystemSettingsRegistry.getInstance();
+        System.out.println("Default system settings: " + registry.getDefaultSettings());
+        System.out.println("Production cluster settings: " + registry.getClusterSettings("production"));
     }
 
     /**
@@ -186,14 +182,14 @@ public class YamlConfigExample extends Example {
 
         // Example of how you would use it with a real cluster:
         /*
-        try (Cluster cluster = new ClusterDefinition("localhost", 3000)
+        try (Cluster cluster = new ClusterDefinition(host(), port())
                 .connect()) {
 
             // Create a session using the loaded behavior
             Session session = cluster.createSession(productionBehavior);
 
             // Use the session for operations
-            DataSet myDataSet = DataSet.of("test", "mySet");
+            DataSet myDataSet = dataSet("mySet");
             session.upsert(myDataSet.id(1))
                 .bin("name").setTo("example")
                 .execute();

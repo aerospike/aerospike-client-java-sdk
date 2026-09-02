@@ -87,7 +87,7 @@ public final class BatchNodes {
             }
             catch (AerospikeException ae) {
                 // This method only called on initialization, so inDoubt must be false.
-                b.setError(ae.getResultCode(), false);
+                b.setError(ae, false);
 
                 if (except == null) {
                     except = ae;
@@ -159,7 +159,7 @@ public final class BatchNodes {
             }
             catch (AerospikeException ae) {
                 // This method only called on retry, so commandSentCounter(2) will be greater than 1.
-                b.setError(ae.getResultCode(), BatchCommand.inDoubt(b.hasWrite, 2));
+                b.setError(ae, BatchCommand.inDoubt(b.hasWrite, 2));
 
                 if (except == null) {
                     except = ae;

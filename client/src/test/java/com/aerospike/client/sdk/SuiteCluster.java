@@ -24,20 +24,39 @@ import org.junit.platform.suite.api.SelectClasses;
 import org.junit.platform.suite.api.Suite;
 
 import com.aerospike.client.sdk.policy.Behavior;
+import com.aerospike.client.sdk.policy.Behavior.Selectors;
+import com.aerospike.client.sdk.query.AelMetadataTest;
+import com.aerospike.client.sdk.query.AelPathReadTest;
+import com.aerospike.client.sdk.query.AelPathSubExprTest;
+import com.aerospike.client.sdk.query.AelWildcardTest;
 import com.aerospike.client.sdk.query.ExpSecondaryIndexTest;
+import com.aerospike.client.sdk.query.FilterIndexRangeIntegrationTest;
 import com.aerospike.client.sdk.query.QueryBlobTest;
-import com.aerospike.client.sdk.query.QueryChildrenTest;
+import com.aerospike.client.sdk.query.QueryBuilderBinBuilderTest;
+import com.aerospike.client.sdk.query.QueryBuilderExecutePathTest;
+import com.aerospike.client.sdk.query.QueryBuilderValidationTest;
 import com.aerospike.client.sdk.query.QueryCollectionTest;
 import com.aerospike.client.sdk.query.QueryContextTest;
 import com.aerospike.client.sdk.query.QueryExecuteTest;
 import com.aerospike.client.sdk.query.QueryFilterExpTest;
 import com.aerospike.client.sdk.query.QueryFilterSetTest;
 import com.aerospike.client.sdk.query.QueryGeoTest;
+import com.aerospike.client.sdk.query.QueryHintBuilderTest;
 import com.aerospike.client.sdk.query.QueryIndexTest;
 import com.aerospike.client.sdk.query.QueryIntegerTest;
 import com.aerospike.client.sdk.query.QueryKeyTest;
+import com.aerospike.client.sdk.query.QueryOperationsTest;
+import com.aerospike.client.sdk.query.QueryPlannerCollectionCdtTest;
 import com.aerospike.client.sdk.query.QueryRPSTest;
+import com.aerospike.client.sdk.query.QuerySelectionErrorDetailTest;
+import com.aerospike.client.sdk.query.QuerySelectionExplainScopeTest;
+import com.aerospike.client.sdk.query.QuerySelectionHintExecuteTest;
+import com.aerospike.client.sdk.query.QuerySelectionHintFlagsTest;
+import com.aerospike.client.sdk.query.QuerySelectionIntegrationTest;
+import com.aerospike.client.sdk.query.QuerySelectionLifecycleTest;
+import com.aerospike.client.sdk.query.QuerySelectionOperationalIntegrationTest;
 import com.aerospike.client.sdk.query.QueryStringTest;
+import com.aerospike.client.sdk.query.QueryUpsertFromChainedTest;
 
 @Suite
 @SelectClasses({
@@ -46,63 +65,90 @@ import com.aerospike.client.sdk.query.QueryStringTest;
     AppendTest.class,
     BackgroundTaskTest.class,
     BatchTest.class,
-    DurableDeleteTests.class,
     BitExpTest.class,
-//  CdtExpTest.class,
-//  CdtOperateTest.class,
+    CdtPathIntegrationTest.class,
+    CdtExpTest.class,
+    CdtMapKeyValueReadOrderTest.class,
+    CdtOperateComplexTest.class,
+    CdtOperateTest.class,
+    ConnectionPoolSettingsIntegrationTest.class,
     DeleteBinTest.class,
+    DurableDeleteTests.class,
+    ErrorDetailVerbosityTest.class,
+    AelErrorDetailVerbosityTest.class,
+    AelMaterializerWhereTest.class,
+    AelMetadataTest.class,
+    AelPathReadTest.class,
+    AelPathSubExprTest.class,
+    AelWildcardTest.class,
     ExpireTest.class,
     ExpOperationTest.class,
     FilterExpTest.class,
     GenerationTest.class,
-//  HLLExpTest.class,
+    HLLExpTest.class,
+    KeyBusyIntegrationTest.class,
     ListExpTest.class,
     ListMapTest.class,
     MapExpTest.class,
-    NodeChurnPartitionBehaviorTest.class,
-//  OperateBitTest.class,
-//  OperateHllTest.class,
-//  OperateListTest.class,
-//  OperateMapTest.class,
+    NavigatableRecordStreamSortTest.class,
+    OperateBitTest.class,
+    OperateHllTest.class,
+    OperateListTest.class,
+    OperateMapTest.class,
+    OperateStringTest.class,
     OperateTest.class,
     OpTypeTest.class,
     PutGetTest.class,
-    QueryOperationsTest.class,
+    ReadOperationsTest.class,
     RecordStreamAdapterTest.class,
     ReplaceTest.class,
     ServerInfoTest.class,
+    SessionExtensionTest.class,
     TouchTest.class,
+    TypedQueryMappingTest.class,
     TxnTest.class,
     UdfTest.class,
     // Query
     ExpSecondaryIndexTest.class,
+    FilterIndexRangeIntegrationTest.class,
     QueryBlobTest.class,
-    QueryChildrenTest.class,
     QueryCollectionTest.class,
     QueryContextTest.class,
     QueryExecuteTest.class,
     QueryFilterExpTest.class,
     QueryFilterSetTest.class,
     QueryGeoTest.class,
+    QueryHintBuilderTest.class,
     QueryIndexTest.class,
     QueryIntegerTest.class,
     QueryKeyTest.class,
+    QueryOperationsTest.class,
+    QueryBuilderBinBuilderTest.class,
+    QueryBuilderExecutePathTest.class,
+    QueryBuilderValidationTest.class,
+    QueryPlannerCollectionCdtTest.class,
     QueryRPSTest.class,
+    QuerySelectionErrorDetailTest.class,
+    QuerySelectionExplainScopeTest.class,
+    QuerySelectionHintExecuteTest.class,
+    QuerySelectionHintFlagsTest.class,
+    QuerySelectionIntegrationTest.class,
+    QuerySelectionLifecycleTest.class,
+    QuerySelectionOperationalIntegrationTest.class,
     QueryStringTest.class,
+    QueryUpsertFromChainedTest.class,
     QueryWithPartitionPaginationTest.class
 })
 public class SuiteCluster {
     @BeforeSuite
     public static void beforeSuite() {
         System.out.println("Begin AerospikeClient");
-        Log.setCallback(null);
 
         Args args = Args.Instance;
 
         Host[] hosts = Host.parseHosts(args.host, args.port);
 
         ClusterDefinition def = new ClusterDefinition(hosts)
-            .withLogLevel(Log.Level.DEBUG)
             .clusterName(args.clusterName)
             .withSystemSettings(SystemSettings.builder()
                     .connections(ops -> ops.maximumConnectionsPerNode(200)).build()
@@ -145,10 +191,14 @@ public class SuiteCluster {
         }
 
         Cluster cluster = def.connect();
-        Session session;
+        Session session, sessionWithSendKey;
 
         try {
             session = cluster.createSession(Behavior.DEFAULT);
+            sessionWithSendKey = cluster.createSession(Behavior.DEFAULT.deriveWithChanges(
+                    "sendKey",
+                    opt -> opt.on(Selectors.all(), s -> s.sendKey(true)))
+            );
             args.setServerSpecific(cluster);
         }
         catch (RuntimeException re) {
@@ -158,7 +208,9 @@ public class SuiteCluster {
 
         ClusterTest.cluster = cluster;
         ClusterTest.session = session;
+        ClusterTest.sessionWithSendKey = sessionWithSendKey;
         ClusterTest.initializedBySuite = true;
+        ClusterTest.ensurePartitionMapReady();
     }
 
     private static String resolvePath(String dir, String path) {
@@ -179,6 +231,7 @@ public class SuiteCluster {
             ClusterTest.cluster.close();
             ClusterTest.cluster = null;
             ClusterTest.session = null;
+            ClusterTest.sessionWithSendKey = null;
         }
         ClusterTest.initializedBySuite = false;
     }

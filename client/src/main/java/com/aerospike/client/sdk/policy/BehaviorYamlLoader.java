@@ -39,6 +39,14 @@ import org.yaml.snakeyaml.nodes.Tag;
 import com.aerospike.client.sdk.SystemSettings;
 import com.aerospike.client.sdk.SystemSettingsRegistry;
 
+/**
+ * Loads {@link Behavior} definitions and system settings from YAML.
+ *
+ * <p>Under each {@code behaviors:} entry, policy fields must appear under a <em>selector block</em>
+ * (for example {@code allOperations}, {@code retryableWrites}, {@code batchReads}), matching
+ * {@link Behavior.Selectors}. Only {@code parent} and optional {@code name} are recognized beside those
+ * blocks; other keys at the behavior root are not part of the schema and are skipped when loading.</p>
+ */
 public class BehaviorYamlLoader {
 
     private static final Yaml yaml;
@@ -178,16 +186,13 @@ public class BehaviorYamlLoader {
                 // Check if behavior already exists
                 Optional<Behavior> existingBehavior = registry.getBehavior(behaviorName);
 
+                final Behavior applied;
                 if (existingBehavior.isPresent()) {
-                    // Update existing behavior
-                    Behavior updatedBehavior = updateExistingBehavior(existingBehavior.get(), behaviorName, behaviorConfig);
-                    updatedBehaviors.put(behaviorName, updatedBehavior);
+                    applied = updateExistingBehavior(existingBehavior.get(), behaviorName, behaviorConfig);
                 } else {
-                    // Create new behavior
-                    Behavior newBehavior = createNewBehavior(behaviorName, behaviorConfig);
-                    updatedBehaviors.put(behaviorName, newBehavior);
-                    registry.registerBehavior(newBehavior);
+                    applied = createNewBehavior(behaviorName, behaviorConfig);
                 }
+                updatedBehaviors.put(behaviorName, applied);
             }
         }
 
@@ -197,23 +202,34 @@ public class BehaviorYamlLoader {
         return updatedBehaviors;
     }
 
+    private static Behavior resolveYamlParent(BehaviorYamlConfig.BehaviorConfig config) {
+        Behavior parent = Behavior.DEFAULT;
+        if (config.getParent() != null
+                && !Behavior.DEFAULT.name().equalsIgnoreCase(config.getParent())) {
+            Optional<Behavior> parentOpt = BehaviorRegistry.getInstance().getBehavior(config.getParent());
+            if (parentOpt.isPresent()) {
+                parent = parentOpt.get();
+            }
+        }
+        return parent;
+    }
+
     /**
-     * Update an existing behavior with new configuration
-     *
-     * @param existingBehavior The existing behavior to update
-     * @param name The behavior name (from the map key)
-     * @param config The new configuration
-     * @return The updated behavior (new instance with same name)
+     * Updates an existing registry behavior in place when its YAML parent matches the current parent;
+     * otherwise replaces it with a newly derived behavior (for example when {@code parent:} changes).
      */
-    private static Behavior updateExistingBehavior(Behavior existingBehavior, String name, BehaviorYamlConfig.BehaviorConfig config) {
-        // Create a new behavior with the updated configuration
-        // Note: This creates a new instance rather than modifying the existing one
-        Behavior updatedBehavior = createNewBehavior(name, config);
-
-        // Update the registry to point to the new behavior
-        BehaviorRegistry.getInstance().registerBehavior(updatedBehavior);
-
-        return updatedBehavior;
+    private static Behavior updateExistingBehavior(Behavior existing, String behaviorName,
+            BehaviorYamlConfig.BehaviorConfig behaviorConfig) {
+        if (existing == Behavior.DEFAULT) {
+            Behavior.DEFAULT.reloadDefaultRootFromYaml(behaviorConfig);
+            return Behavior.DEFAULT;
+        }
+        Behavior parent = resolveYamlParent(behaviorConfig);
+        if (existing.getParent() != parent) {
+            return createNewBehavior(behaviorName, behaviorConfig);
+        }
+        existing.reloadDerivedProfileFromYaml(parent, behaviorName, behaviorConfig);
+        return existing;
     }
 
     /**
@@ -224,15 +240,7 @@ public class BehaviorYamlLoader {
      * @return A new Behavior instance
      */
     private static Behavior createNewBehavior(String name, BehaviorYamlConfig.BehaviorConfig config) {
-        // Determine parent behavior
-        Behavior parent = Behavior.DEFAULT;
-        if (config.getParent() != null && !"default".equalsIgnoreCase(config.getParent())) {
-            BehaviorRegistry registry = BehaviorRegistry.getInstance();
-            Optional<Behavior> parentOpt = registry.getBehavior(config.getParent());
-            if (parentOpt.isPresent()) {
-                parent = parentOpt.get();
-            }
-        }
+        Behavior parent = resolveYamlParent(config);
 
         // Use deriveWithChanges to create the behavior with parent inheritance
         Behavior behavior = parent.deriveWithChanges(name, builder -> {
@@ -268,12 +276,10 @@ public class BehaviorYamlLoader {
     }
 
     /**
-     * Apply behavior configuration to a builder using the new selector-based API
-     *
-     * @param builder The behavior builder
-     * @param config The behavior configuration from YAML
+     * Apply behavior configuration to a builder using the selector-based API.
+     * Each populated nested section on {@code config} becomes one or more {@code builder.on(Behavior.Selectors...)} patches.
      */
-    private static void applyBehaviorConfigToBuilder(Behavior.BehaviorBuilder builder, BehaviorYamlConfig.BehaviorConfig config) {
+    static void applyBehaviorConfigToBuilder(Behavior.BehaviorBuilder builder, BehaviorYamlConfig.BehaviorConfig config) {
         // Apply all operations configuration
         if (config.getAllOperations() != null) {
             builder.on(Behavior.Selectors.all(), ops -> {
@@ -347,6 +353,9 @@ public class BehaviorYamlLoader {
                 applyCommonConfig(ops, config.getQuery());
                 if (config.getQuery().getRecordQueueSize() != null) {
                     ops.recordQueueSize(config.getQuery().getRecordQueueSize());
+                }
+                if (config.getQuery().getAllowScansWithWhere() != null) {
+                    ops.allowScansWithWhere(config.getQuery().getAllowScansWithWhere());
                 }
             });
         }
@@ -440,7 +449,7 @@ public class BehaviorYamlLoader {
             BehaviorYamlConfig.SystemSettingsConfig settingsConfig = entry.getValue();
             SystemSettings settings = convertToSystemSettings(settingsConfig);
 
-            if ("DEFAULT".equalsIgnoreCase(name)) {
+            if (Behavior.DEFAULT.name().equalsIgnoreCase(name)) {
                 // Update default settings
                 registry.updateDefaultSettings(settings);
             } else {

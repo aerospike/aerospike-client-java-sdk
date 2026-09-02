@@ -18,8 +18,10 @@ package com.aerospike.client.sdk.query;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Consumer;
 
+import com.aerospike.client.sdk.CdtGetOrRemoveBuilder.CdtOperation;
 import com.aerospike.client.sdk.CdtOperationAcceptor;
 import com.aerospike.client.sdk.CdtOperationParams;
 import com.aerospike.client.sdk.CdtReadActionInvertableBuilder;
@@ -29,15 +31,20 @@ import com.aerospike.client.sdk.CdtReadOnlyBuilder;
 import com.aerospike.client.sdk.ExpressionOpHelper;
 import com.aerospike.client.sdk.ExpressionReadOptions;
 import com.aerospike.client.sdk.Operation;
+import com.aerospike.client.sdk.QueryBinBuilder;
+import com.aerospike.client.sdk.SpecialValue;
 import com.aerospike.client.sdk.Value;
-import com.aerospike.client.sdk.CdtGetOrRemoveBuilder.CdtOperation;
+import com.aerospike.client.sdk.Value.HLLValue;
 import com.aerospike.client.sdk.ael.BooleanExpression;
 import com.aerospike.client.sdk.cdt.ListOperation;
 import com.aerospike.client.sdk.cdt.ListOrder;
 import com.aerospike.client.sdk.cdt.MapOperation;
+import com.aerospike.client.sdk.cdt.path.CdtPathExpressionAel;
 import com.aerospike.client.sdk.exp.Exp;
 import com.aerospike.client.sdk.exp.ExpReadFlags;
 import com.aerospike.client.sdk.exp.Expression;
+import com.aerospike.client.sdk.operation.BitOperation;
+import com.aerospike.client.sdk.operation.HLLOperation;
 
 /**
  * Builder for bin-level read operations in QueryBuilder contexts.
@@ -158,7 +165,7 @@ public class QueryBuilderBinBuilder implements CdtOperationAcceptor<QueryBuilder
 
     /** Create a read expression from a AEL string. */
     public QueryBuilder selectFrom(String ael) {
-        queryBuilder.addOperation(ExpressionOpHelper.createReadOp(binName, ael, ExpReadFlags.DEFAULT));
+        queryBuilder.addOperation(ExpressionOpHelper.createReadOp(binName, ael, ExpReadFlags.DEFAULT, queryBuilder.getSession().getCluster()));
         return queryBuilder;
     }
 
@@ -166,7 +173,23 @@ public class QueryBuilderBinBuilder implements CdtOperationAcceptor<QueryBuilder
     public QueryBuilder selectFrom(String ael, Consumer<ExpressionReadOptions> options) {
         ExpressionReadOptions opts = new ExpressionReadOptions();
         options.accept(opts);
-        queryBuilder.addOperation(ExpressionOpHelper.createReadOp(binName, ael, opts.getFlags()));
+        return selectFrom(ael, opts);
+    }
+
+    /**
+     * Create a read expression from an AEL string with pre-built options.
+     *
+     * <p>This is the direct-options overload of {@link #selectFrom(String, Consumer)}. Use it
+     * when read options have already been built (for example shared across many bins) rather
+     * than configured via a lambda.</p>
+     *
+     * @param ael     the AEL expression string
+     * @param options the read options to apply (e.g. configured via
+     *                {@link ExpressionReadOptions#ignoreEvalFailure()})
+     * @return the parent query builder for continued chaining
+     */
+    public QueryBuilder selectFrom(String ael, ExpressionReadOptions options) {
+        queryBuilder.addOperation(ExpressionOpHelper.createReadOp(binName, ael, options.getFlags(), queryBuilder.getSession().getCluster()));
         return queryBuilder;
     }
 
@@ -180,13 +203,26 @@ public class QueryBuilderBinBuilder implements CdtOperationAcceptor<QueryBuilder
     public QueryBuilder selectFrom(BooleanExpression ael, Consumer<ExpressionReadOptions> options) {
         ExpressionReadOptions opts = new ExpressionReadOptions();
         options.accept(opts);
-        queryBuilder.addOperation(ExpressionOpHelper.createReadOp(binName, ael, opts.getFlags()));
+        return selectFrom(ael, opts);
+    }
+
+    /**
+     * Create a read expression from a {@link BooleanExpression} with pre-built options.
+     *
+     * <p>This is the direct-options overload of {@link #selectFrom(BooleanExpression, Consumer)}.</p>
+     *
+     * @param ael     the boolean expression to evaluate
+     * @param options the read options to apply
+     * @return the parent query builder for continued chaining
+     */
+    public QueryBuilder selectFrom(BooleanExpression ael, ExpressionReadOptions options) {
+        queryBuilder.addOperation(ExpressionOpHelper.createReadOp(binName, ael, options.getFlags()));
         return queryBuilder;
     }
 
     /** Create a read expression from a PreparedAel. */
     public QueryBuilder selectFrom(PreparedAel ael, Object... params) {
-        queryBuilder.addOperation(ExpressionOpHelper.createReadOp(binName, ael, params, ExpReadFlags.DEFAULT));
+        queryBuilder.addOperation(ExpressionOpHelper.createReadOp(binName, ael, params, ExpReadFlags.DEFAULT, queryBuilder.getSession().getCluster()));
         return queryBuilder;
     }
 
@@ -194,7 +230,23 @@ public class QueryBuilderBinBuilder implements CdtOperationAcceptor<QueryBuilder
     public QueryBuilder selectFrom(PreparedAel ael, Consumer<ExpressionReadOptions> options, Object... params) {
         ExpressionReadOptions opts = new ExpressionReadOptions();
         options.accept(opts);
-        queryBuilder.addOperation(ExpressionOpHelper.createReadOp(binName, ael, params, opts.getFlags()));
+        return selectFrom(ael, opts, params);
+    }
+
+    /**
+     * Create a read expression from a {@link PreparedAel} with pre-built options and bound
+     * parameters.
+     *
+     * <p>This is the direct-options overload of
+     * {@link #selectFrom(PreparedAel, Consumer, Object...)}.</p>
+     *
+     * @param ael     the prepared AEL statement
+     * @param options the read options to apply
+     * @param params  parameter values to bind to the prepared statement
+     * @return the parent query builder for continued chaining
+     */
+    public QueryBuilder selectFrom(PreparedAel ael, ExpressionReadOptions options, Object... params) {
+        queryBuilder.addOperation(ExpressionOpHelper.createReadOp(binName, ael, params, options.getFlags(), queryBuilder.getSession().getCluster()));
         return queryBuilder;
     }
 
@@ -208,7 +260,20 @@ public class QueryBuilderBinBuilder implements CdtOperationAcceptor<QueryBuilder
     public QueryBuilder selectFrom(Exp exp, Consumer<ExpressionReadOptions> options) {
         ExpressionReadOptions opts = new ExpressionReadOptions();
         options.accept(opts);
-        queryBuilder.addOperation(ExpressionOpHelper.createReadOp(binName, exp, opts.getFlags()));
+        return selectFrom(exp, opts);
+    }
+
+    /**
+     * Create a read expression from a low-level {@link Exp} expression with pre-built options.
+     *
+     * <p>This is the direct-options overload of {@link #selectFrom(Exp, Consumer)}.</p>
+     *
+     * @param exp     the Exp expression to evaluate
+     * @param options the read options to apply
+     * @return the parent query builder for continued chaining
+     */
+    public QueryBuilder selectFrom(Exp exp, ExpressionReadOptions options) {
+        queryBuilder.addOperation(ExpressionOpHelper.createReadOp(binName, exp, options.getFlags()));
         return queryBuilder;
     }
 
@@ -222,7 +287,20 @@ public class QueryBuilderBinBuilder implements CdtOperationAcceptor<QueryBuilder
     public QueryBuilder selectFrom(Expression exp, Consumer<ExpressionReadOptions> options) {
         ExpressionReadOptions opts = new ExpressionReadOptions();
         options.accept(opts);
-        queryBuilder.addOperation(ExpressionOpHelper.createReadOp(binName, exp, opts.getFlags()));
+        return selectFrom(exp, opts);
+    }
+
+    /**
+     * Create a read expression from a pre-compiled {@link Expression} with pre-built options.
+     *
+     * <p>This is the direct-options overload of {@link #selectFrom(Expression, Consumer)}.</p>
+     *
+     * @param exp     the compiled expression to evaluate
+     * @param options the read options to apply
+     * @return the parent query builder for continued chaining
+     */
+    public QueryBuilder selectFrom(Expression exp, ExpressionReadOptions options) {
+        queryBuilder.addOperation(ExpressionOpHelper.createReadOp(binName, exp, options.getFlags()));
         return queryBuilder;
     }
 
@@ -231,6 +309,61 @@ public class QueryBuilderBinBuilder implements CdtOperationAcceptor<QueryBuilder
     // Note: Not currently supported by server for dataset queries (scan/index).
     // API included for future support. Will throw at execution time if used.
     // ========================================
+
+    /**
+     * Begin path iteration at this query projection bin's root ({@link com.aerospike.client.sdk.cdt.CTX#allChildren()}).
+     *
+     * <p><b>Server note:</b> dataset queries (scan / secondary-index) may not support nested CDT reads yet;
+     * unsupported combinations fail at execution time. Same API shape as {@link QueryBinBuilder#onEachChild()}.</p>
+     *
+     * <p><b>Example</b>:</p>
+     * <pre>{@code
+     * session.query(key).bin("nums").onEachChild().collectValues().execute();
+     * }</pre>
+     *
+     * @return read-only CDT path builder rooted at this bin
+     * @see CdtReadContextBuilder#onEachChild()
+     */
+    public CdtReadContextBuilder<QueryBuilder> onEachChild() {
+        return new CdtReadOnlyBuilder<>(binName, this, CdtOperationParams.forEachChildAtBinRoot());
+    }
+
+    /**
+     * Same as {@link #onEachChild()} with a per-child filter
+     * ({@link com.aerospike.client.sdk.cdt.CTX#allChildrenWithFilter(com.aerospike.client.sdk.exp.Exp)}).
+     *
+     * @param filter server-side predicate for each child at the bin root
+     * @return read-only CDT path builder for this bin
+     * @see CdtReadContextBuilder#onEachChild(Exp)
+     */
+    public CdtReadContextBuilder<QueryBuilder> onEachChild(Exp filter) {
+        return new CdtReadOnlyBuilder<>(binName, this, CdtOperationParams.forEachChildAtBinRootWithFilter(filter));
+    }
+
+    /**
+     * Same as {@link #onEachChild(Exp)} with AEL filter text (not yet supported for path fragments).
+     *
+     * @param ael AEL predicate
+     * @return read-only path builder (unreachable until supported)
+     * @throws UnsupportedOperationException until path-scoped AEL compiles
+     */
+    public CdtReadContextBuilder<QueryBuilder> onEachChild(String ael) {
+        CdtPathExpressionAel.throwAelNotSupported();
+        throw new AssertionError("unreachable");
+    }
+
+    /**
+     * Same as {@link #onEachChild(String)} with {@link PreparedAel} bind parameters.
+     *
+     * @param ael prepared AEL template
+     * @param bindParams bind values
+     * @return read-only path builder (unreachable until supported)
+     * @throws UnsupportedOperationException until path-scoped AEL compiles
+     */
+    public CdtReadContextBuilder<QueryBuilder> onEachChild(PreparedAel ael, Object... bindParams) {
+        CdtPathExpressionAel.throwPreparedAelNotSupported(ael, bindParams);
+        throw new AssertionError("unreachable");
+    }
 
     /**
      * Navigate to a map element by index.
@@ -302,6 +435,23 @@ public class QueryBuilderBinBuilder implements CdtOperationAcceptor<QueryBuilder
         return new CdtReadOnlyBuilder<>(binName, this, new CdtOperationParams(CdtOperation.MAP_BY_VALUE, Value.get(value)));
     }
 
+    public CdtReadContextInvertableBuilder<QueryBuilder> onMapValue(List<?> value) {
+        return mapValue(Value.get(value));
+    }
+
+    public CdtReadContextInvertableBuilder<QueryBuilder> onMapValue(Map<?,?> value) {
+        return mapValue(Value.get(value));
+    }
+
+    public CdtReadContextInvertableBuilder<QueryBuilder> onMapValue(SpecialValue value) {
+        return mapValue(value.toAerospikeValue());
+    }
+
+    private CdtReadContextInvertableBuilder<QueryBuilder> mapValue(Value value) {
+        return new CdtReadOnlyBuilder<>(binName, this,
+            new CdtOperationParams(CdtOperation.MAP_BY_VALUE, value));
+    }
+
     /**
      * Navigate to map elements by index range.
      *
@@ -334,6 +484,89 @@ public class QueryBuilderBinBuilder implements CdtOperationAcceptor<QueryBuilder
         return new CdtReadOnlyBuilder<>(binName, this, new CdtOperationParams(CdtOperation.MAP_BY_KEY_RANGE, Value.get(startIncl), Value.get(endExcl)));
     }
 
+    public CdtReadActionInvertableBuilder<QueryBuilder> onMapKeyRange(byte[] startIncl, byte[] endExcl) {
+        return mapKeyRange(Value.get(startIncl), Value.get(endExcl));
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onMapKeyRange(double startIncl, double endExcl) {
+        return mapKeyRange(Value.get(startIncl), Value.get(endExcl));
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onMapKeyRange(SpecialValue startIncl, SpecialValue endExcl) {
+        return mapKeyRange(startIncl.toAerospikeValue(), endExcl.toAerospikeValue());
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onMapKeyRange(SpecialValue startIncl, long endExcl) {
+        return mapKeyRange(startIncl.toAerospikeValue(), Value.get(endExcl));
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onMapKeyRange(SpecialValue startIncl, String endExcl) {
+        return mapKeyRange(startIncl.toAerospikeValue(), Value.get(endExcl));
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onMapKeyRange(SpecialValue startIncl, byte[] endExcl) {
+        return mapKeyRange(startIncl.toAerospikeValue(), Value.get(endExcl));
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onMapKeyRange(SpecialValue startIncl, double endExcl) {
+        return mapKeyRange(startIncl.toAerospikeValue(), Value.get(endExcl));
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onMapKeyRange(long startIncl, SpecialValue endExcl) {
+        return mapKeyRange(Value.get(startIncl), endExcl.toAerospikeValue());
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onMapKeyRange(String startIncl, SpecialValue endExcl) {
+        return mapKeyRange(Value.get(startIncl), endExcl.toAerospikeValue());
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onMapKeyRange(byte[] startIncl, SpecialValue endExcl) {
+        return mapKeyRange(Value.get(startIncl), endExcl.toAerospikeValue());
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onMapKeyRange(double startIncl, SpecialValue endExcl) {
+        return mapKeyRange(Value.get(startIncl), endExcl.toAerospikeValue());
+    }
+
+    private CdtReadActionInvertableBuilder<QueryBuilder> mapKeyRange(Value startIncl, Value endExcl) {
+        return new CdtReadOnlyBuilder<>(binName, this,
+            new CdtOperationParams(CdtOperation.MAP_BY_KEY_RANGE, startIncl, endExcl));
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onMapKeyRelativeIndexRange(long key, int index) {
+        return mapKeyRelativeIndexRange(Value.get(key), index);
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onMapKeyRelativeIndexRange(String key, int index) {
+        return mapKeyRelativeIndexRange(Value.get(key), index);
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onMapKeyRelativeIndexRange(byte[] key, int index) {
+        return mapKeyRelativeIndexRange(Value.get(key), index);
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onMapKeyRelativeIndexRange(long key, int index, int count) {
+        return mapKeyRelativeIndexRange(Value.get(key), index, count);
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onMapKeyRelativeIndexRange(String key, int index, int count) {
+        return mapKeyRelativeIndexRange(Value.get(key), index, count);
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onMapKeyRelativeIndexRange(byte[] key, int index, int count) {
+        return mapKeyRelativeIndexRange(Value.get(key), index, count);
+    }
+
+    private CdtReadActionInvertableBuilder<QueryBuilder> mapKeyRelativeIndexRange(Value key, int index) {
+        return new CdtReadOnlyBuilder<>(binName, this,
+            new CdtOperationParams(CdtOperation.MAP_BY_KEY_REL_INDEX_RANGE, key, index));
+    }
+
+    private CdtReadActionInvertableBuilder<QueryBuilder> mapKeyRelativeIndexRange(Value key, int index, int count) {
+        return new CdtReadOnlyBuilder<>(binName, this,
+            new CdtOperationParams(CdtOperation.MAP_BY_KEY_REL_INDEX_RANGE, key, index, count));
+    }
+
     /**
      * Navigate to map elements by rank range.
      *
@@ -364,6 +597,167 @@ public class QueryBuilderBinBuilder implements CdtOperationAcceptor<QueryBuilder
     /** Navigate to map elements by value range. */
     public CdtReadActionInvertableBuilder<QueryBuilder> onMapValueRange(String startIncl, String endExcl) {
         return new CdtReadOnlyBuilder<>(binName, this, new CdtOperationParams(CdtOperation.MAP_BY_VALUE_RANGE, Value.get(startIncl), Value.get(endExcl)));
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onMapValueRange(byte[] startIncl, byte[] endExcl) {
+        return mapValueRange(Value.get(startIncl), Value.get(endExcl));
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onMapValueRange(double startIncl, double endExcl) {
+        return mapValueRange(Value.get(startIncl), Value.get(endExcl));
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onMapValueRange(boolean startIncl, boolean endExcl) {
+        return mapValueRange(Value.get(startIncl), Value.get(endExcl));
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onMapValueRange(List<?> startIncl, List<?> endExcl) {
+        return mapValueRange(Value.get(startIncl), Value.get(endExcl));
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onMapValueRange(Map<?,?> startIncl, Map<?,?> endExcl) {
+        return mapValueRange(Value.get(startIncl), Value.get(endExcl));
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onMapValueRange(SpecialValue startIncl, SpecialValue endExcl) {
+        return mapValueRange(startIncl.toAerospikeValue(), endExcl.toAerospikeValue());
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onMapValueRange(SpecialValue startIncl, long endExcl) {
+        return mapValueRange(startIncl.toAerospikeValue(), Value.get(endExcl));
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onMapValueRange(SpecialValue startIncl, String endExcl) {
+        return mapValueRange(startIncl.toAerospikeValue(), Value.get(endExcl));
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onMapValueRange(SpecialValue startIncl, byte[] endExcl) {
+        return mapValueRange(startIncl.toAerospikeValue(), Value.get(endExcl));
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onMapValueRange(SpecialValue startIncl, double endExcl) {
+        return mapValueRange(startIncl.toAerospikeValue(), Value.get(endExcl));
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onMapValueRange(SpecialValue startIncl, boolean endExcl) {
+        return mapValueRange(startIncl.toAerospikeValue(), Value.get(endExcl));
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onMapValueRange(SpecialValue startIncl, List<?> endExcl) {
+        return mapValueRange(startIncl.toAerospikeValue(), Value.get(endExcl));
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onMapValueRange(SpecialValue startIncl, Map<?,?> endExcl) {
+        return mapValueRange(startIncl.toAerospikeValue(), Value.get(endExcl));
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onMapValueRange(long startIncl, SpecialValue endExcl) {
+        return mapValueRange(Value.get(startIncl), endExcl.toAerospikeValue());
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onMapValueRange(String startIncl, SpecialValue endExcl) {
+        return mapValueRange(Value.get(startIncl), endExcl.toAerospikeValue());
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onMapValueRange(byte[] startIncl, SpecialValue endExcl) {
+        return mapValueRange(Value.get(startIncl), endExcl.toAerospikeValue());
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onMapValueRange(double startIncl, SpecialValue endExcl) {
+        return mapValueRange(Value.get(startIncl), endExcl.toAerospikeValue());
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onMapValueRange(boolean startIncl, SpecialValue endExcl) {
+        return mapValueRange(Value.get(startIncl), endExcl.toAerospikeValue());
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onMapValueRange(List<?> startIncl, SpecialValue endExcl) {
+        return mapValueRange(Value.get(startIncl), endExcl.toAerospikeValue());
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onMapValueRange(Map<?,?> startIncl, SpecialValue endExcl) {
+        return mapValueRange(Value.get(startIncl), endExcl.toAerospikeValue());
+    }
+
+    private CdtReadActionInvertableBuilder<QueryBuilder> mapValueRange(Value startIncl, Value endExcl) {
+        return new CdtReadOnlyBuilder<>(binName, this,
+            new CdtOperationParams(CdtOperation.MAP_BY_VALUE_RANGE, startIncl, endExcl));
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onMapValueRelativeRankRange(long value, int rank) {
+        return mapValueRelativeRankRange(Value.get(value), rank);
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onMapValueRelativeRankRange(String value, int rank) {
+        return mapValueRelativeRankRange(Value.get(value), rank);
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onMapValueRelativeRankRange(byte[] value, int rank) {
+        return mapValueRelativeRankRange(Value.get(value), rank);
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onMapValueRelativeRankRange(double value, int rank) {
+        return mapValueRelativeRankRange(Value.get(value), rank);
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onMapValueRelativeRankRange(boolean value, int rank) {
+        return mapValueRelativeRankRange(Value.get(value), rank);
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onMapValueRelativeRankRange(List<?> value, int rank) {
+        return mapValueRelativeRankRange(Value.get(value), rank);
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onMapValueRelativeRankRange(Map<?,?> value, int rank) {
+        return mapValueRelativeRankRange(Value.get(value), rank);
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onMapValueRelativeRankRange(SpecialValue value, int rank) {
+        return mapValueRelativeRankRange(value.toAerospikeValue(), rank);
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onMapValueRelativeRankRange(long value, int rank, int count) {
+        return mapValueRelativeRankRange(Value.get(value), rank, count);
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onMapValueRelativeRankRange(String value, int rank, int count) {
+        return mapValueRelativeRankRange(Value.get(value), rank, count);
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onMapValueRelativeRankRange(byte[] value, int rank, int count) {
+        return mapValueRelativeRankRange(Value.get(value), rank, count);
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onMapValueRelativeRankRange(double value, int rank, int count) {
+        return mapValueRelativeRankRange(Value.get(value), rank, count);
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onMapValueRelativeRankRange(boolean value, int rank, int count) {
+        return mapValueRelativeRankRange(Value.get(value), rank, count);
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onMapValueRelativeRankRange(List<?> value, int rank, int count) {
+        return mapValueRelativeRankRange(Value.get(value), rank, count);
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onMapValueRelativeRankRange(Map<?,?> value, int rank, int count) {
+        return mapValueRelativeRankRange(Value.get(value), rank, count);
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onMapValueRelativeRankRange(SpecialValue value, int rank, int count) {
+        return mapValueRelativeRankRange(value.toAerospikeValue(), rank, count);
+    }
+
+    private CdtReadActionInvertableBuilder<QueryBuilder> mapValueRelativeRankRange(Value value, int rank) {
+        return new CdtReadOnlyBuilder<>(binName, this,
+            new CdtOperationParams(CdtOperation.MAP_BY_VALUE_REL_RANK_RANGE, value, rank));
+    }
+
+    private CdtReadActionInvertableBuilder<QueryBuilder> mapValueRelativeRankRange(
+        Value value, int rank, int count
+    ) {
+        return new CdtReadOnlyBuilder<>(binName, this,
+            new CdtOperationParams(CdtOperation.MAP_BY_VALUE_REL_RANK_RANGE, value, rank, count));
     }
 
     /**
@@ -437,5 +831,424 @@ public class QueryBuilderBinBuilder implements CdtOperationAcceptor<QueryBuilder
     /** Navigate to list elements by value. */
     public CdtReadContextInvertableBuilder<QueryBuilder> onListValue(byte[] value) {
         return new CdtReadOnlyBuilder<>(binName, this, new CdtOperationParams(CdtOperation.LIST_BY_VALUE, Value.get(value)));
+    }
+
+    public CdtReadContextInvertableBuilder<QueryBuilder> onListValue(SpecialValue value) {
+        return listValue(value.toAerospikeValue());
+    }
+
+    public CdtReadContextInvertableBuilder<QueryBuilder> onListValue(double value) {
+        return listValue(Value.get(value));
+    }
+
+    public CdtReadContextInvertableBuilder<QueryBuilder> onListValue(boolean value) {
+        return listValue(Value.get(value));
+    }
+
+    public CdtReadContextInvertableBuilder<QueryBuilder> onListValue(List<?> value) {
+        return listValue(Value.get(value));
+    }
+
+    public CdtReadContextInvertableBuilder<QueryBuilder> onListValue(Map<?,?> value) {
+        return listValue(Value.get(value));
+    }
+
+    private CdtReadContextInvertableBuilder<QueryBuilder> listValue(Value value) {
+        return new CdtReadOnlyBuilder<>(binName, this,
+            new CdtOperationParams(CdtOperation.LIST_BY_VALUE, value));
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onListIndexRange(int index, int count) {
+        return new CdtReadOnlyBuilder<>(binName, this,
+            new CdtOperationParams(CdtOperation.LIST_BY_INDEX_RANGE, index, count));
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onListIndexRange(int index) {
+        return new CdtReadOnlyBuilder<>(binName, this,
+            new CdtOperationParams(CdtOperation.LIST_BY_INDEX_RANGE, index));
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onListRankRange(int rank, int count) {
+        return new CdtReadOnlyBuilder<>(binName, this,
+            new CdtOperationParams(CdtOperation.LIST_BY_RANK_RANGE, rank, count));
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onListRankRange(int rank) {
+        return new CdtReadOnlyBuilder<>(binName, this,
+            new CdtOperationParams(CdtOperation.LIST_BY_RANK_RANGE, rank));
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onListValueRange(long startIncl, long endExcl) {
+        return listValueRange(Value.get(startIncl), Value.get(endExcl));
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onListValueRange(String startIncl, String endExcl) {
+        return listValueRange(Value.get(startIncl), Value.get(endExcl));
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onListValueRange(byte[] startIncl, byte[] endExcl) {
+        return listValueRange(Value.get(startIncl), Value.get(endExcl));
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onListValueRange(double startIncl, double endExcl) {
+        return listValueRange(Value.get(startIncl), Value.get(endExcl));
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onListValueRange(
+        SpecialValue startIncl, SpecialValue endExcl
+    ) {
+        return listValueRange(startIncl.toAerospikeValue(), endExcl.toAerospikeValue());
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onListValueRange(SpecialValue startIncl, long endExcl) {
+        return listValueRange(startIncl.toAerospikeValue(), Value.get(endExcl));
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onListValueRange(SpecialValue startIncl, String endExcl) {
+        return listValueRange(startIncl.toAerospikeValue(), Value.get(endExcl));
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onListValueRange(SpecialValue startIncl, byte[] endExcl) {
+        return listValueRange(startIncl.toAerospikeValue(), Value.get(endExcl));
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onListValueRange(SpecialValue startIncl, double endExcl) {
+        return listValueRange(startIncl.toAerospikeValue(), Value.get(endExcl));
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onListValueRange(long startIncl, SpecialValue endExcl) {
+        return listValueRange(Value.get(startIncl), endExcl.toAerospikeValue());
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onListValueRange(String startIncl, SpecialValue endExcl) {
+        return listValueRange(Value.get(startIncl), endExcl.toAerospikeValue());
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onListValueRange(byte[] startIncl, SpecialValue endExcl) {
+        return listValueRange(Value.get(startIncl), endExcl.toAerospikeValue());
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onListValueRange(double startIncl, SpecialValue endExcl) {
+        return listValueRange(Value.get(startIncl), endExcl.toAerospikeValue());
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onListValueRange(boolean startIncl, boolean endExcl) {
+        return listValueRange(Value.get(startIncl), Value.get(endExcl));
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onListValueRange(List<?> startIncl, List<?> endExcl) {
+        return listValueRange(Value.get(startIncl), Value.get(endExcl));
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onListValueRange(Map<?,?> startIncl, Map<?,?> endExcl) {
+        return listValueRange(Value.get(startIncl), Value.get(endExcl));
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onListValueRange(
+        SpecialValue startIncl, boolean endExcl
+    ) {
+        return listValueRange(startIncl.toAerospikeValue(), Value.get(endExcl));
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onListValueRange(boolean startIncl, SpecialValue endExcl) {
+        return listValueRange(Value.get(startIncl), endExcl.toAerospikeValue());
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onListValueRange(
+        SpecialValue startIncl, List<?> endExcl
+    ) {
+        return listValueRange(startIncl.toAerospikeValue(), Value.get(endExcl));
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onListValueRange(List<?> startIncl, SpecialValue endExcl) {
+        return listValueRange(Value.get(startIncl), endExcl.toAerospikeValue());
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onListValueRange(
+        SpecialValue startIncl, Map<?,?> endExcl
+    ) {
+        return listValueRange(startIncl.toAerospikeValue(), Value.get(endExcl));
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onListValueRange(Map<?,?> startIncl, SpecialValue endExcl) {
+        return listValueRange(Value.get(startIncl), endExcl.toAerospikeValue());
+    }
+
+    private CdtReadActionInvertableBuilder<QueryBuilder> listValueRange(Value startIncl, Value endExcl) {
+        return new CdtReadOnlyBuilder<>(binName, this,
+            new CdtOperationParams(CdtOperation.LIST_BY_VALUE_RANGE, startIncl, endExcl));
+    }
+
+    public CdtReadContextInvertableBuilder<QueryBuilder> onListValueList(List<?> values) {
+        List<Value> packed = new ArrayList<>(values.size());
+        for (Object value : values) {
+            packed.add(Value.get(value));
+        }
+        return new CdtReadOnlyBuilder<>(binName, this,
+            new CdtOperationParams(CdtOperation.LIST_BY_VALUE_LIST, packed));
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onListValueRelativeRankRange(long value, int rank) {
+        return listValueRelativeRankRange(Value.get(value), rank);
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onListValueRelativeRankRange(String value, int rank) {
+        return listValueRelativeRankRange(Value.get(value), rank);
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onListValueRelativeRankRange(byte[] value, int rank) {
+        return listValueRelativeRankRange(Value.get(value), rank);
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onListValueRelativeRankRange(double value, int rank) {
+        return listValueRelativeRankRange(Value.get(value), rank);
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onListValueRelativeRankRange(SpecialValue value, int rank) {
+        return listValueRelativeRankRange(value.toAerospikeValue(), rank);
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onListValueRelativeRankRange(
+        long value, int rank, int count
+    ) {
+        return listValueRelativeRankRange(Value.get(value), rank, count);
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onListValueRelativeRankRange(
+        String value, int rank, int count
+    ) {
+        return listValueRelativeRankRange(Value.get(value), rank, count);
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onListValueRelativeRankRange(
+        byte[] value, int rank, int count
+    ) {
+        return listValueRelativeRankRange(Value.get(value), rank, count);
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onListValueRelativeRankRange(
+        double value, int rank, int count
+    ) {
+        return listValueRelativeRankRange(Value.get(value), rank, count);
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onListValueRelativeRankRange(
+        SpecialValue value, int rank, int count
+    ) {
+        return listValueRelativeRankRange(value.toAerospikeValue(), rank, count);
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onListValueRelativeRankRange(boolean value, int rank) {
+        return listValueRelativeRankRange(Value.get(value), rank);
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onListValueRelativeRankRange(List<?> value, int rank) {
+        return listValueRelativeRankRange(Value.get(value), rank);
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onListValueRelativeRankRange(Map<?,?> value, int rank) {
+        return listValueRelativeRankRange(Value.get(value), rank);
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onListValueRelativeRankRange(
+        boolean value, int rank, int count
+    ) {
+        return listValueRelativeRankRange(Value.get(value), rank, count);
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onListValueRelativeRankRange(
+        List<?> value, int rank, int count
+    ) {
+        return listValueRelativeRankRange(Value.get(value), rank, count);
+    }
+
+    public CdtReadActionInvertableBuilder<QueryBuilder> onListValueRelativeRankRange(
+        Map<?,?> value, int rank, int count
+    ) {
+        return listValueRelativeRankRange(Value.get(value), rank, count);
+    }
+
+    private CdtReadActionInvertableBuilder<QueryBuilder> listValueRelativeRankRange(Value value, int rank) {
+        return new CdtReadOnlyBuilder<>(binName, this,
+            new CdtOperationParams(CdtOperation.LIST_BY_VALUE_REL_RANK_RANGE, value, rank));
+    }
+
+    private CdtReadActionInvertableBuilder<QueryBuilder> listValueRelativeRankRange(
+        Value value, int rank, int count
+    ) {
+        return new CdtReadOnlyBuilder<>(binName, this,
+            new CdtOperationParams(CdtOperation.LIST_BY_VALUE_REL_RANK_RANGE, value, rank, count));
+    }
+
+    // ----------------------------------------
+    // HyperLogLog (HLL)
+    // ----------------------------------------
+
+    /**
+     * Read the estimated cardinality of the HLL bin.
+     *
+     * <p>Server returns the estimated number of unique elements in the bin
+     * as a long.</p>
+     *
+     * @return the query builder for method chaining
+     */
+    public QueryBuilder hllGetCount() {
+        Operation op = HLLOperation.getCount(binName);
+        queryBuilder.addOperation(op);
+        return queryBuilder;
+    }
+
+    /**
+     * Describe the HLL bin's configuration.
+     *
+     * <p>Server returns a list of two longs containing the {@code indexBitCount}
+     * and {@code minHashBitCount} that were used to create the bin.</p>
+     *
+     * @return the query builder for method chaining
+     */
+    public QueryBuilder hllDescribe() {
+        Operation op = HLLOperation.describe(binName);
+        queryBuilder.addOperation(op);
+        return queryBuilder;
+    }
+
+    /**
+     * Read the union of the HLL bin with the supplied HLL values.
+     *
+     * <p>Server returns an HLL value that is the union of {@code hlls} together
+     * with the bin's current contents. The bin itself is not modified.</p>
+     *
+     * @param hlls HLL values to union with the bin
+     * @return the query builder for method chaining
+     */
+    public QueryBuilder hllGetUnion(List<HLLValue> hlls) {
+        Operation op = HLLOperation.getUnion(binName, hlls);
+        queryBuilder.addOperation(op);
+        return queryBuilder;
+    }
+
+    /**
+     * Read the estimated count of the union of the HLL bin with the supplied
+     * HLL values.
+     *
+     * <p>Server returns the estimated number of unique elements in the union
+     * of {@code hlls} with the bin's current contents. The bin itself is not
+     * modified.</p>
+     *
+     * @param hlls HLL values to union with the bin
+     * @return the query builder for method chaining
+     */
+    public QueryBuilder hllGetUnionCount(List<HLLValue> hlls) {
+        Operation op = HLLOperation.getUnionCount(binName, hlls);
+        queryBuilder.addOperation(op);
+        return queryBuilder;
+    }
+
+    /**
+     * Read the estimated count of the intersection of the HLL bin with the
+     * supplied HLL values.
+     *
+     * <p>Server returns the estimated number of elements contained in the
+     * intersection of {@code hlls} with the bin. The {@code hlls} list may
+     * contain at most two values when minhash bits are 0; more are allowed
+     * when minhash bits are nonzero.</p>
+     *
+     * @param hlls HLL values to intersect with the bin
+     * @return the query builder for method chaining
+     */
+    public QueryBuilder hllGetIntersectCount(List<HLLValue> hlls) {
+        Operation op = HLLOperation.getIntersectCount(binName, hlls);
+        queryBuilder.addOperation(op);
+        return queryBuilder;
+    }
+
+    /**
+     * Read the estimated Jaccard similarity of the HLL bin with the supplied
+     * HLL values.
+     *
+     * <p>Server returns a double in {@code [0.0, 1.0]} estimating the
+     * similarity of the bin to {@code hlls}. The {@code hlls} list may
+     * contain at most two values when minhash bits are 0; more are allowed
+     * when minhash bits are nonzero.</p>
+     *
+     * @param hlls HLL values to compare against the bin
+     * @return the query builder for method chaining
+     */
+    public QueryBuilder hllGetSimilarity(List<HLLValue> hlls) {
+        Operation op = HLLOperation.getSimilarity(binName, hlls);
+        queryBuilder.addOperation(op);
+        return queryBuilder;
+    }
+
+    // ----------------------------------------
+    // Bit (BLOB)
+    // ----------------------------------------
+
+    /**
+     * Read {@code bitSize} bits at {@code bitOffset} as raw bytes.
+     *
+     * @param bitOffset starting bit index
+     * @param bitSize   number of bits to read
+     * @return the query builder for method chaining
+     */
+    public QueryBuilder bitGet(int bitOffset, int bitSize) {
+        Operation op = BitOperation.get(binName, bitOffset, bitSize);
+        queryBuilder.addOperation(op);
+        return queryBuilder;
+    }
+
+    /**
+     * Count bits set to {@code 1} in the given range.
+     *
+     * @param bitOffset starting bit index
+     * @param bitSize   number of bits to scan
+     * @return the query builder for method chaining
+     */
+    public QueryBuilder bitCount(int bitOffset, int bitSize) {
+        Operation op = BitOperation.count(binName, bitOffset, bitSize);
+        queryBuilder.addOperation(op);
+        return queryBuilder;
+    }
+
+    /**
+     * Scan from the left for the first bit matching {@code value}.
+     *
+     * @param bitOffset starting bit index
+     * @param bitSize   number of bits to scan
+     * @param value     {@code true} to find a set bit, {@code false} for unset
+     * @return the query builder for method chaining
+     */
+    public QueryBuilder bitLscan(int bitOffset, int bitSize, boolean value) {
+        Operation op = BitOperation.lscan(binName, bitOffset, bitSize, value);
+        queryBuilder.addOperation(op);
+        return queryBuilder;
+    }
+
+    /**
+     * Scan from the right for the first bit matching {@code value}.
+     *
+     * @param bitOffset starting bit index
+     * @param bitSize   number of bits to scan
+     * @param value     {@code true} to find a set bit, {@code false} for unset
+     * @return the query builder for method chaining
+     */
+    public QueryBuilder bitRscan(int bitOffset, int bitSize, boolean value) {
+        Operation op = BitOperation.rscan(binName, bitOffset, bitSize, value);
+        queryBuilder.addOperation(op);
+        return queryBuilder;
+    }
+
+    /**
+     * Decode an integer from {@code bitSize} bits at {@code bitOffset}.
+     *
+     * @param bitOffset starting bit index
+     * @param bitSize   width of the integer in bits
+     * @param signed    {@code true} to interpret as two's-complement signed
+     * @return the query builder for method chaining
+     */
+    public QueryBuilder bitGetInt(int bitOffset, int bitSize, boolean signed) {
+        Operation op = BitOperation.getInt(binName, bitOffset, bitSize, signed);
+        queryBuilder.addOperation(op);
+        return queryBuilder;
     }
 }

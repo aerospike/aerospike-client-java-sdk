@@ -52,6 +52,8 @@ public class Args {
     public boolean enterprise;
     public boolean hasTtl;
     public boolean scMode;
+
+    public boolean strongConsistencyAllowExpunge;
     public boolean useServicesAlternate;
     public Version serverVersion;
     public String containerNamePrefix;
@@ -99,7 +101,6 @@ public class Args {
             options.addOption("clientKeyFile", true, "TLS client key file path");
             options.addOption("a", "servicesAlternate", false,
                 "Use services alternate for cluster discovery");
-            options.addOption("d", "debug", false, "Run in debug mode.");
             options.addOption("u", "usage", false, "Print usage.");
             options.addOption("container-prefix", true,
                 "Container name prefix for node-controller/chaos tests (default: aerospike). Env: CONTAINER_NAME_PREFIX");
@@ -110,10 +111,6 @@ public class Args {
             if (cl.hasOption("u")) {
                 logUsage(options);
                 throw new AerospikeException("Terminate after displaying usage");
-            }
-
-            if (cl.hasOption("d")) {
-                Log.setLevel(Log.Level.DEBUG);
             }
 
             host = cl.getOptionValue("h", "127.0.0.1");
@@ -165,6 +162,7 @@ public class Args {
     }
 
     private static void logUsage(Options options) {
+        @SuppressWarnings("deprecation")
         HelpFormatter formatter = new HelpFormatter();
         StringWriter sw = new StringWriter();
         PrintWriter pw = new PrintWriter(sw);
@@ -217,6 +215,9 @@ public class Args {
         else {
             hasTtl = true;
         }
+
+        String allowExpunge = parseStringOptional(namespaceTokens, "strong-consistency-allow-expunge");
+        strongConsistencyAllowExpunge = Boolean.valueOf(allowExpunge);
     }
 
     private static int parseInt(String namespaceTokens, String name) {
@@ -235,6 +236,24 @@ public class Args {
 
         if (begin < 0) {
             throw new RuntimeException("Failed to find server config: " + name);
+        }
+
+        begin += search.length();
+        int end = namespaceTokens.indexOf(';', begin);
+
+        if (end < 0) {
+            end = namespaceTokens.length();
+        }
+
+        return namespaceTokens.substring(begin, end);
+    }
+
+    private static String parseStringOptional(String namespaceTokens, String name) {
+        String search = name + '=';
+        int begin = namespaceTokens.indexOf(search);
+
+        if (begin < 0) {
+            return null;
         }
 
         begin += search.length();

@@ -137,7 +137,7 @@ public class OperationObjectBuilder<T> extends AbstractFilterableBuilder impleme
      */
     @Override
     public OperationObjectBuilder<T> where(String ael, Object ... params) {
-        setWhereClause(createWhereClauseProcessor(false, ael, params));
+        setWhereClause(createWhereClauseProcessor(ael, params));
         return this;
     }
 
@@ -155,7 +155,7 @@ public class OperationObjectBuilder<T> extends AbstractFilterableBuilder impleme
      */
     @Override
     public OperationObjectBuilder<T> where(PreparedAel ael, Object ... params) {
-        setWhereClause(WhereClauseProcessor.from(false, ael, params));
+        setWhereClause(WhereClauseProcessor.from(ael, params));
         return this;
     }
 

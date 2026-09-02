@@ -19,6 +19,7 @@ package com.aerospike.client.sdk.exp;
 import java.io.Serializable;
 import java.util.Arrays;
 
+import com.aerospike.client.sdk.AerospikeException;
 import com.aerospike.client.sdk.util.Crypto;
 import com.aerospike.client.sdk.util.Packer;
 
@@ -27,6 +28,8 @@ import com.aerospike.client.sdk.util.Packer;
  */
 public final class Expression implements Serializable {
     private static final long serialVersionUID = 1L;
+
+    public static final int SERVER_COMPILED_AEL_EXPRESSION_OP = 128;
 
     private final byte[] bytes;
 
@@ -67,6 +70,41 @@ public final class Expression implements Serializable {
      */
     public static Expression fromBase64(String s) {
         return Expression.fromBase64(s.getBytes());
+    }
+
+    /**
+     * Build filter-expression bytes for {@linkplain com.aerospike.client.sdk.command.FieldType#FILTER_EXP field 43} when the server
+     * should parse/compile textual AEL.
+     *
+     * <p>Fluent APIs normally obtain this via {@link com.aerospike.client.sdk.AelMaterializer} for the
+     * session's cluster (server path when {@link com.aerospike.client.sdk.Cluster#supportsAel()}).</p>
+     *
+     * @param aelString AEL string (UTF-8)
+     */
+    public static Expression fromServerCompiledFilter(String aelString) {
+        if (aelString == null) {
+            throw new AerospikeException("Server-compiled AEL source must not be null");
+        }
+        return new Expression(encodeServerCompiledFilterPayload(aelString));
+    }
+
+    private static byte[] encodeServerCompiledFilterPayload(String aelString) {
+        try {
+            Packer packer = new Packer();
+            packPayload(packer, aelString);
+            packer.createBuffer();
+            packPayload(packer, aelString);
+            return packer.getBuffer();
+        }
+        catch (Throwable t) {
+            throw new AerospikeException.Serialize(t);
+        }
+    }
+
+    private static void packPayload(Packer packer, String aelString) {
+        packer.packArrayBegin(2);
+        packer.packInt(SERVER_COMPILED_AEL_EXPRESSION_OP);
+        packer.packString(aelString);
     }
 
     /**

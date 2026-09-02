@@ -43,12 +43,6 @@ public abstract class Value {
     public static boolean UseBoolBin = true;
 
     /**
-     * Should the client return a map when {@link com.aerospike.client.sdk.cdt.MapReturnType#KEY_VALUE}
-     * is specified in a map read operation and the server returns a list of key/value pairs.
-     */
-    public static boolean ReturnMapForKeyValue = false;
-
-    /**
      * Null value.
      */
     public static final Value NULL = NullValue.INSTANCE;
@@ -431,7 +425,7 @@ public abstract class Value {
 
         @Override
         public void validateKeyType() {
-            throw AerospikeException.resultCodeToException(ResultCode.PARAMETER_ERROR, "Invalid key type: null");
+            throw AerospikeException.toException(ResultCode.PARAMETER_ERROR, "Invalid key type: null");
         }
 
         @Override
@@ -1176,7 +1170,7 @@ public abstract class Value {
 
         @Override
         public void validateKeyType() {
-            throw AerospikeException.resultCodeToException(ResultCode.PARAMETER_ERROR, "Invalid key type: boolean");
+            throw AerospikeException.toException(ResultCode.PARAMETER_ERROR, "Invalid key type: boolean");
         }
 
         @Override
@@ -1252,7 +1246,7 @@ public abstract class Value {
 
         @Override
         public void validateKeyType() {
-            throw AerospikeException.resultCodeToException(ResultCode.PARAMETER_ERROR, "Invalid key type: BoolIntValue");
+            throw AerospikeException.toException(ResultCode.PARAMETER_ERROR, "Invalid key type: BoolIntValue");
         }
 
         @Override
@@ -1329,7 +1323,7 @@ public abstract class Value {
 
         @Override
         public void validateKeyType() {
-            throw AerospikeException.resultCodeToException(ResultCode.PARAMETER_ERROR, "Invalid key type: GeoJson");
+            throw AerospikeException.toException(ResultCode.PARAMETER_ERROR, "Invalid key type: GeoJson");
         }
 
         @Override
@@ -1393,7 +1387,7 @@ public abstract class Value {
 
         @Override
         public void validateKeyType() {
-            throw AerospikeException.resultCodeToException(ResultCode.PARAMETER_ERROR, "Invalid key type: HLL");
+            throw AerospikeException.toException(ResultCode.PARAMETER_ERROR, "Invalid key type: HLL");
         }
 
         @Override
@@ -1463,7 +1457,7 @@ public abstract class Value {
 
         @Override
         public void validateKeyType() {
-            throw AerospikeException.resultCodeToException(ResultCode.PARAMETER_ERROR, "Invalid key type: value[]");
+            throw AerospikeException.toException(ResultCode.PARAMETER_ERROR, "Invalid key type: value[]");
         }
 
         @Override
@@ -1529,7 +1523,7 @@ public abstract class Value {
 
         @Override
         public void validateKeyType() {
-            throw AerospikeException.resultCodeToException(ResultCode.PARAMETER_ERROR, "Invalid key type: list");
+            throw AerospikeException.toException(ResultCode.PARAMETER_ERROR, "Invalid key type: list");
         }
 
         @Override
@@ -1595,7 +1589,7 @@ public abstract class Value {
 
         @Override
         public void validateKeyType() {
-            throw AerospikeException.resultCodeToException(ResultCode.PARAMETER_ERROR, "Invalid key type: list");
+            throw AerospikeException.toException(ResultCode.PARAMETER_ERROR, "Invalid key type: list");
         }
 
         @Override
@@ -1661,7 +1655,7 @@ public abstract class Value {
 
         @Override
         public void validateKeyType() {
-            throw AerospikeException.resultCodeToException(ResultCode.PARAMETER_ERROR, "Invalid key type: map");
+            throw AerospikeException.toException(ResultCode.PARAMETER_ERROR, "Invalid key type: map");
         }
 
         @Override
@@ -1738,7 +1732,7 @@ public abstract class Value {
 
         @Override
         public void validateKeyType() {
-            throw AerospikeException.resultCodeToException(ResultCode.PARAMETER_ERROR, "Invalid key type: map");
+            throw AerospikeException.toException(ResultCode.PARAMETER_ERROR, "Invalid key type: map");
         }
 
         @Override
@@ -1810,7 +1804,7 @@ public abstract class Value {
 
         @Override
         public void validateKeyType() {
-            throw AerospikeException.resultCodeToException(ResultCode.PARAMETER_ERROR, "Invalid key type: map");
+            throw AerospikeException.toException(ResultCode.PARAMETER_ERROR, "Invalid key type: map");
         }
 
         @Override
@@ -1869,12 +1863,12 @@ public abstract class Value {
 
         @Override
         public void validateKeyType() {
-            throw AerospikeException.resultCodeToException(ResultCode.PARAMETER_ERROR, "Invalid key type: INF");
+            throw AerospikeException.toException(ResultCode.PARAMETER_ERROR, "Invalid key type: INF");
         }
 
         @Override
         public int getType() {
-            throw AerospikeException.resultCodeToException(ResultCode.PARAMETER_ERROR, "Invalid particle type: INF");
+            throw AerospikeException.toException(ResultCode.PARAMETER_ERROR, "Invalid particle type: INF");
         }
 
         @Override
@@ -1925,12 +1919,12 @@ public abstract class Value {
 
         @Override
         public void validateKeyType() {
-            throw AerospikeException.resultCodeToException(ResultCode.PARAMETER_ERROR, "Invalid key type: wildcard");
+            throw AerospikeException.toException(ResultCode.PARAMETER_ERROR, "Invalid key type: wildcard");
         }
 
         @Override
         public int getType() {
-            throw AerospikeException.resultCodeToException(ResultCode.PARAMETER_ERROR, "Invalid particle type: wildcard");
+            throw AerospikeException.toException(ResultCode.PARAMETER_ERROR, "Invalid particle type: wildcard");
         }
 
         @Override

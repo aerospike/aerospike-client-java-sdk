@@ -27,6 +27,7 @@ import java.io.IOException;
 import java.time.Duration;
 import java.util.Map;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -36,6 +37,11 @@ import com.aerospike.client.sdk.SystemSettingsRegistry;
 
 @DisplayName("Behavior YAML Serialization Tests")
 public class BehaviorYamlTest {
+
+    @AfterEach
+    void resetBehaviorRegistryAfterEachYamlTest() {
+        Behavior.restoreBehaviorRegistry();
+    }
 
     /**
      * Helper method to load behaviors from a text block string to map
@@ -72,6 +78,27 @@ public class BehaviorYamlTest {
             assertNotNull(settings);
             assertEquals(5000, settings.getAbandonCallAfterMs());
             assertEquals(3, settings.getMaximumNumberOfCallAttempts());
+        }
+
+        @Test
+        @DisplayName("YAML DEFAULT entry updates Behavior.DEFAULT used by sessions")
+        void testYamlDefaultUpdatesRootDefaultReference() throws IOException {
+            ResolvedSettings before = Behavior.DEFAULT.getSettings(Behavior.OpKind.WRITE_RETRYABLE,
+                Behavior.OpShape.POINT, Behavior.Mode.AP);
+            assertFalse(before.getSendKey());
+
+            String yaml = """
+                behaviors:
+                  DEFAULT:
+                    retryableWrites:
+                      sendKey: true
+                """;
+
+            loadFromYamlString(yaml);
+
+            ResolvedSettings after = Behavior.DEFAULT.getSettings(Behavior.OpKind.WRITE_RETRYABLE,
+                Behavior.OpShape.POINT, Behavior.Mode.AP);
+            assertTrue(after.getSendKey());
         }
 
         @Test
@@ -1172,9 +1199,6 @@ public class BehaviorYamlTest {
             String yaml = """
                 behaviors:
                   production-config:
-                    sendKey: true
-                    useCompression: false
-
                     allOperations:
                       abandonCallAfter: 10s
                       waitForCallToComplete: 5s
@@ -1183,6 +1207,8 @@ public class BehaviorYamlTest {
                       delayBetweenRetries: 250ms
                       replicaOrder: SEQUENCE
                       resetTtlOnReadAtPercent: 80
+                      sendKey: true
+                      useCompression: false
 
                     consistencyModeReads:
                       readConsistency: SESSION
@@ -1216,12 +1242,16 @@ public class BehaviorYamlTest {
             assertEquals(10000, readSettings.getAbandonCallAfterMs());
             assertEquals(80, readSettings.getResetTtlOnReadAtPercent());
             assertEquals(ReadModeSC.SESSION, readSettings.getReadModeSC());
+            assertTrue(readSettings.getSendKey());
+            assertFalse(readSettings.getUseCompression());
 
             ResolvedSettings writeSettings = prodConfig.getSettings(Behavior.OpKind.WRITE_RETRYABLE,
                 Behavior.OpShape.POINT, Behavior.Mode.AP);
             assertNotNull(writeSettings);
             assertTrue(writeSettings.getUseDurableDelete());
             assertEquals(5, writeSettings.getMaximumNumberOfCallAttempts());
+            assertTrue(writeSettings.getSendKey());
+            assertFalse(writeSettings.getUseCompression());
 
             ResolvedSettings batchSettings = prodConfig.getSettings(Behavior.OpKind.READ,
                 Behavior.OpShape.BATCH, Behavior.Mode.AP);

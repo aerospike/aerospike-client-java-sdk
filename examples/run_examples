@@ -11,6 +11,7 @@
 #
 # Examples:
 #   ./run_examples YamlConfigConnectionExample -h localhost -p 3000
+#   ./run_examples StringOperationsExample -h localhost -p 3000 -n test
 #   ./run_examples BehaviorYamlExample -h localhost -p 3100 -a
 #   ./run_examples all -h localhost -p 3000
 #   ./run_examples -u
@@ -27,6 +28,11 @@ if [ -z "$JAR_FILE" ]; then
     echo "  cd $SCRIPT_DIR && mvn package"
     exit 1
 fi
+
+# Run from the examples directory so that examples which load YAML via relative
+# paths (src/main/resources/*.yml) resolve their config files regardless of the
+# caller's working directory.
+cd "$SCRIPT_DIR" || exit 1
 
 # Run Main with all arguments
 java -cp "$JAR_FILE" com.aerospike.examples.Main "$@"

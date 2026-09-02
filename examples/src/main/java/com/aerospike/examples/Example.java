@@ -17,30 +17,39 @@
 package com.aerospike.examples;
 
 import java.io.File;
-import java.lang.reflect.Constructor;
 import java.util.List;
 
+import org.apache.commons.cli.CommandLine;
+import org.apache.commons.cli.CommandLineParser;
+import org.apache.commons.cli.DefaultParser;
+import org.apache.commons.cli.Options;
+import org.apache.commons.cli.ParseException;
+
+import com.aerospike.client.sdk.AerospikeException;
 import com.aerospike.client.sdk.Cluster;
 import com.aerospike.client.sdk.ClusterDefinition;
-import com.aerospike.client.sdk.Log;
+import com.aerospike.client.sdk.DataSet;
+import com.aerospike.client.sdk.util.Util;
+import com.aerospike.client.sdk.util.Version;
 
 /**
  * Abstract base class for all examples.
  *
- * <p>Concrete examples should extend this class and implement the {@link #runExample(Args)} method.
- * The base class handles example lifecycle (begin/end logging) and provides a console for output.
+ * <p>Concrete examples should extend this class and implement the {@link #runExample()} method.
+ * The base class provides access to runner-managed configuration. Lifecycle logging and the
+ * setup/verify/cleanup fixture flow are owned by {@link ExampleRunner}.
  */
 public abstract class Example {
-    private static final String PACKAGE_NAME = "com.aerospike.examples.";
-
     protected Console console;
+    private ExampleContext context;
 
-    public Example(Console console) {
-        this.console = console;
+    void initialize(ExampleContext context) {
+        this.context = context;
+        this.console = context.console();
     }
 
     /**
-     * Run one or more examples.
+     * Run one or more examples through the fixture and reporting-aware runner.
      *
      * @param console the console for output
      * @param args configuration parameters
@@ -48,16 +57,63 @@ public abstract class Example {
      * @throws Exception if an example fails
      */
     public static void runExamples(Console console, Args args, List<String> examples) throws Exception {
+        ExampleRunResult result = new ExampleRunner(console, args).run(examples);
+
+        if (result.exitCode() != 0) {
+            throw new IllegalStateException("One or more examples failed");
+        }
+    }
+
+    private static String resolvePath(String dir, String path) {
+        File file = new File(path);
+
+        if (file.isAbsolute()) {
+            return path;
+        }
+
+        file = new File(dir, path);
+        return file.getAbsolutePath();
+    }
+
+    /**
+     * Parse {@link Args} from a {@code main} {@code String[]} using the same options as
+     * {@link Main} ({@link Args#addCommonOptions}): {@code -h}/{@code --host}, {@code -p}/{@code --port}
+     * (defaults {@code localhost:3000}), {@code -a} services alternate, TLS flags, etc.
+     *
+     * @param argv arguments passed to {@code main}
+     * @return parsed configuration
+     * @throws ParseException if the command line is invalid
+     */
+    public static Args parseStandaloneArgs(String[] argv) throws ParseException {
+        Options options = new Options();
+        Args.addCommonOptions(options);
+        CommandLineParser parser = new DefaultParser();
+        CommandLine cl = parser.parse(options, argv);
+        return new Args(cl);
+    }
+
+    /**
+     * Build a {@link ClusterDefinition} with the same baseline settings as {@link #runExamples}
+     * (connection pool sizing, optional TLS, optional services alternate from {@code -a}).
+     * Callers may chain further options (credentials, racks, …) before {@link ClusterDefinition#connect()}.
+     *
+     * @param args parsed example arguments
+     * @return definition (not yet connected)
+     */
+    public static ClusterDefinition clusterDefinition(Args args) {
         ClusterDefinition def = new ClusterDefinition(args.host, args.port)
-        	.withLogLevel(Log.Level.DEBUG)
-        	.clusterName(args.clusterName)
-        	.withSystemSettings(builder -> builder
-    	    	.circuitBreaker(ops -> ops.maximumErrorsInErrorWindow(200))
-    	        .connections(conn -> conn
-    	        	.minimumConnectionsPerNode(200)
-    	            .maximumConnectionsPerNode(200)
-    	         )
-    	    );
+                .clusterName(args.clusterName)
+                .withSystemSettings(builder -> builder
+                        .circuitBreaker(ops -> ops.maximumErrorsInErrorWindow(200))
+                        .connections(conn -> conn
+                                .minimumConnectionsPerNode(200)
+                                .maximumConnectionsPerNode(200)
+                        )
+                );
+
+        if (args.useServicesAlternate) {
+            def = def.usingServicesAlternate();
+        }
 
         if (args.tlsName != null) {
             String certHome = System.getenv("CERT_HOME");
@@ -71,79 +127,103 @@ public abstract class Example {
             String clientKeyFile = resolvePath(certHome, args.clientKeyFile);
 
             def.withTlsConfig(tls -> tls
-            	.tlsName(args.tlsName)
-	            .caFile(caFile)
-	            .clientCertFile(clientCertFile)
-	            .clientKeyFile(clientKeyFile)
-	        );
+                    .tlsName(args.tlsName)
+                    .caFile(caFile)
+                    .clientCertFile(clientCertFile)
+                    .clientKeyFile(clientKeyFile)
+            );
         }
 
-        Cluster cluster = def.connect();
-
-		try {
-	    	for (String exampleName : examples) {
-	            runExample(exampleName, cluster, args, console);
-	        }
-		}
-		finally {
-			cluster.close();
-		}
-    }
-
-    private static String resolvePath(String dir, String path) {
-        File file = new File(path);
-
-        if (file.isAbsolute()) {
-        	return path;
-        }
-
-        file = new File(dir, path);
-        return file.getAbsolutePath();
+        return def;
     }
 
     /**
-     * Run a single example by name using reflection.
+     * Initialize this example with the runner-managed context and run its body.
      *
-     * @param exampleName the simple name of the example class
-     * @param cluster cluster
-     * @param args configuration parameters
-     * @param console the console for output
-     * @throws Exception if the example fails or cannot be found
-     */
-    public static void runExample(
-    	String exampleName, Cluster cluster, Args args, Console console
-    ) throws Exception {
-        String fullName =  PACKAGE_NAME + exampleName;
-        Class<?> cls = Class.forName(fullName);
-
-        if (Example.class.isAssignableFrom(cls)) {
-            Constructor<?> ctor = cls.getDeclaredConstructor(Console.class);
-            Example example = (Example) ctor.newInstance(console);
-            example.run(cluster, args);
-        } else {
-            console.error("Invalid example: " + exampleName);
-        }
-    }
-
-    /**
-     * Run this example with lifecycle logging.
-     *
-     * @param cluster cluster
-     * @param args configuration parameters
+     * @param context runner-managed example context
      * @throws Exception if the example fails
      */
-    public void run(Cluster cluster, Args args) throws Exception {
-        console.info(this.getClass().getSimpleName() + " Begin");
-        runExample(cluster, args);
-        console.info(this.getClass().getSimpleName() + " End");
+    public void run(ExampleContext context) throws Exception {
+        initialize(context);
+        runExample();
+    }
+
+    protected Cluster cluster() {
+        return context.cluster();
+    }
+
+    protected String namespace() {
+        return context.args().namespace;
+    }
+
+    protected String host() {
+        return context.args().host;
+    }
+
+    protected int port() {
+        return context.args().port;
+    }
+
+    protected boolean useServicesAlternate() {
+        return context.args().useServicesAlternate;
+    }
+
+    protected DataSet dataSet() {
+        return context.dataSet();
+    }
+
+    protected DataSet dataSet(String set) {
+        return context.dataSet(set);
+    }
+
+    /**
+     * Whether this example requires string AEL (server 8.1.3+). When true and the cluster
+     * is older, {@link ExampleRunner} skips the example before {@link #runExample()}.
+     */
+    protected boolean requiresStringAel() {
+        return false;
+    }
+
+    /** @return true when the connected cluster supports string AEL (8.1.3+). */
+    protected static boolean supportsStringAel(Cluster cluster) {
+        return cluster.getRandomNode().getVersion().isGreaterOrEqual(Version.SERVER_VERSION_8_1_3);
+    }
+
+    /**
+     * Skip with {@link ExampleSkipException} unless the cluster supports string AEL (8.1.3+).
+     */
+    protected void requireStringAel() throws ExampleSkipException {
+        if (!supportsStringAel(cluster())) {
+            Version v = cluster().getRandomNode().getVersion();
+            throw new ExampleSkipException("server is " + v + "; string AEL requires 8.1.3+");
+        }
+    }
+
+    /**
+     * Wait until the tend thread has populated the partition map for {@code namespace}.
+     * Secondary cluster connections (e.g. YAML config demos) need this before writes.
+     */
+    protected static void ensurePartitionMapReady(Cluster cluster, String namespace) {
+        if (cluster == null || namespace == null) {
+            return;
+        }
+
+        for (int attempt = 0; attempt < 60; attempt++) {
+            if (!cluster.getPartitionMap().isEmpty()
+                    && cluster.getPartitionMap().containsKey(namespace)) {
+                return;
+            }
+            Util.sleep(50);
+        }
+
+        throw new AerospikeException("Partition map not ready for namespace '" + namespace + "'");
     }
 
     /**
      * Run the example logic. Subclasses must implement this method.
      *
-     * @param params configuration parameters
      * @throws Exception if the example fails
      */
-    public abstract void runExample(Cluster cluster, Args args) throws Exception;
+    public abstract void runExample() throws Exception;
 }
 

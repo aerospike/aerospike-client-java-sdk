@@ -22,7 +22,6 @@ import com.aerospike.client.sdk.Cluster;
 import com.aerospike.client.sdk.Key;
 import com.aerospike.client.sdk.Record;
 import com.aerospike.client.sdk.RecordResult;
-import com.aerospike.client.sdk.Value;
 import com.aerospike.client.sdk.command.PartitionTracker.NodePartitions;
 import com.aerospike.client.sdk.metrics.LatencyType;
 import com.aerospike.client.sdk.query.KeyRecord;
@@ -61,23 +60,51 @@ public final class QueryNodeExecutor extends NodeExecutor {
     @Override
     protected boolean parseRow() {
         BVal bval = new BVal();
-        Key key = parseKey(fieldCount, bval);
+        Key key = parser.parseFieldsQuery(bval);
 
-        if ((info3 & Command.INFO3_PARTITION_DONE) != 0) {
+        if ((parser.info3 & Command.INFO3_PARTITION_DONE) != 0) {
             // When an error code is received, mark partition as unavailable
             // for the current round. Unavailable partitions will be retried
             // in the next round. Generation is overloaded as partitionId.
-            if (resultCode != 0) {
-                tracker.partitionUnavailable(nodePartitions, generation);
+            if (parser.resultCode != 0) {
+                tracker.partitionUnavailable(nodePartitions, parser.generation);
             }
             return true;
         }
 
-        if (resultCode != 0) {
-            throw AerospikeException.resultCodeToException(resultCode, null);
+        if (parser.resultCode != 0) {
+            throw parser.toException();
         }
 
-        Record record = parseRecord();
+        // A query carrying read operations can return the same bin name more than once,
+        // so its results must be merged into a list rather than overwriting each other.
+        /*
+         TODO: BN: confirm this is correct. Old code was:
+         Record record = parser.parseRecord(false);
+         However this fails in test CdtBuilderPermutationTest.DatasetQueryTopLevel.mapAndListNavigations with
+         org.opentest4j.AssertionFailedError: cdtSMap result count ==> expected: <49> but was: <1>
+
+         Claude's reasoning for the code change was:
+         The dataset query result parser was discarding all but the last result when several operations targeted the same bin. RecordParser.parseRecord takes an isOperation flag that controls exactly this:
+         if (isOperation) {
+             if (bins.containsKey(name)) {
+                 // Multiple values returned for the same bin.
+                 Object prev = bins.get(name);
+                 // ... accumulates into an OpResults list ...
+             }
+             else {
+                 bins.put(name, value);
+             }
+         }
+         else {
+             bins.put(name, value);
+         }
+         Every other path that can return multiple results per bin passes true — OperateReadExecutor, OperateWriteExecutor, ReadExecutor, and the batch operate commands — which is why the update and 
+         key-query permutations passed. QueryNodeExecutor was hardcoding false, so the 49 cdtSMap operations collapsed to a single value, and getValue("cdtSMap") returned the last one instead of an OpResults list.
+
+        The fix makes the flag reflect whether the query actually carries operations:
+         */
+        Record record = parser.parseRecord(query.ops != null && !query.ops.isEmpty());
 
         if (! valid) {
             throw new AerospikeException.QueryTerminated();
@@ -92,47 +119,5 @@ public final class QueryNodeExecutor extends NodeExecutor {
             tracker.setLast(nodePartitions, key, bval.val);
         }
         return true;
-    }
-
-    private Key parseKey(int fieldCount, BVal bval) {
-        byte[] digest = null;
-        String namespace = null;
-        String setName = null;
-        Value userKey = null;
-
-        for (int i = 0; i < fieldCount; i++) {
-            int fieldlen = Buffer.bytesToInt(dataBuffer, dataOffset);
-            dataOffset += 4;
-
-            int fieldtype = dataBuffer[dataOffset++];
-            int size = fieldlen - 1;
-
-            switch (fieldtype) {
-            case FieldType.DIGEST_RIPE:
-                digest = new byte[size];
-                System.arraycopy(dataBuffer, dataOffset, digest, 0, size);
-                break;
-
-            case FieldType.NAMESPACE:
-                namespace = Buffer.utf8ToString(dataBuffer, dataOffset, size);
-                break;
-
-            case FieldType.TABLE:
-                setName = Buffer.utf8ToString(dataBuffer, dataOffset, size);
-                break;
-
-            case FieldType.KEY:
-                int type = dataBuffer[dataOffset++];
-                size--;
-                userKey = Buffer.bytesToKeyValue(type, dataBuffer, dataOffset, size);
-                break;
-
-            case FieldType.BVAL_ARRAY:
-                bval.val = Buffer.littleBytesToLong(dataBuffer, dataOffset);
-                break;
-            }
-            dataOffset += size;
-        }
-        return new Key(namespace, digest, setName, userKey);
     }
 }

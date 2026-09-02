@@ -89,7 +89,7 @@ public class AppendTest extends ClusterTest {
             assertTrue(rs.hasNext());
             RecordResult item = rs.next();
             String str = item.recordOrThrow().getString(binName);
-            assertEquals(item.index() == 0 ? "emptyfull" : "full",str);
+            assertEquals(item.getIndex() == 0 ? "emptyfull" : "full",str);
         }
         deleteKeys(args.set.id(key1), args.set.id(key2));
         assertFalse(rs.hasNext());

@@ -19,6 +19,7 @@ package com.aerospike.examples;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import org.apache.commons.cli.CommandLine;
@@ -37,33 +38,20 @@ import org.apache.commons.cli.Options;
  * ./run_examples -u
  * }</pre>
  *
- * <h2>Available Examples</h2>
- * <ul>
- *   <li>{@code BehaviorHierarchicalExample} - Demonstrates hierarchical YAML configuration with dynamic reloading</li>
- *   <li>{@code BehaviorYamlExample} - Demonstrates loading behaviors from YAML files</li>
- *   <li>{@code YamlConfigConnectionExample} - Demonstrates connecting to a cluster with YAML configuration</li>
- * </ul>
+ * <p>The set of available examples is defined by {@link ExampleRegistry}; run with
+ * {@code -u} to print the current list.
  */
 public class Main {
-
-    private static final String[] EXAMPLE_NAMES = new String[] {
-        "CommonExample",
-        "BatchExample",
-        "BehaviorHierarchicalExample",
-        "BehaviorYamlExample",
-        "CompleteYamlConfigExample",
-        "YamlConfigExample",
-        "YamlConfigConnectionExample"
-    };
-
     public static String[] getAllExampleNames() {
-        return EXAMPLE_NAMES;
+        return ExampleRegistry.names();
     }
 
     /**
      * Main entry point.
      */
     public static void main(String[] args) {
+        int exitCode = 1;
+
         try {
             Options options = new Options();
             Args.addCommonOptions(options);
@@ -73,6 +61,7 @@ public class Main {
 
             if (args.length == 0 || cl.hasOption("u")) {
                 logUsage(options);
+                exitCode = 0;
                 return;
             }
 
@@ -81,22 +70,20 @@ public class Main {
 
             if (exampleNames.length == 0) {
                 logUsage(options);
+                exitCode = 0;
                 return;
             }
 
-            // Check for "all"
-            for (String exampleName : exampleNames) {
-                if (exampleName.equalsIgnoreCase("all")) {
-                    exampleNames = EXAMPLE_NAMES;
-                    break;
-                }
-            }
-
             Console console = new Console();
-            runExamples(console, arguments, exampleNames);
+            exitCode = runExamples(console, arguments, exampleNames);
 
         } catch (Exception ex) {
             ex.printStackTrace();
+        }
+        finally {
+            if (exitCode != 0) {
+                System.exit(exitCode);
+            }
         }
     }
 
@@ -112,7 +99,7 @@ public class Main {
         System.out.println(sw.toString());
         System.out.println("examples:");
 
-        for (String name : EXAMPLE_NAMES) {
+        for (String name : ExampleRegistry.names()) {
             System.out.println("  " + name);
         }
         System.out.println();
@@ -122,11 +109,19 @@ public class Main {
     /**
      * Run one or more examples.
      */
-    public static void runExamples(Console console, Args args, String[] examples) throws Exception {
-        List<String> exampleList = new ArrayList<>();
+    public static int runExamples(Console console, Args args, String[] examples) throws Exception {
+        List<String> exampleList = expandExamples(examples);
+        ExampleRunResult result = new ExampleRunner(console, args).run(exampleList);
+        return result.exitCode();
+    }
+
+    private static List<String> expandExamples(String[] examples) {
         for (String example : examples) {
-            exampleList.add(example);
+            if (example.equalsIgnoreCase("all")) {
+                return Arrays.asList(ExampleRegistry.names());
+            }
         }
-        Example.runExamples(console, args, exampleList);
+
+        return new ArrayList<>(Arrays.asList(examples));
     }
 }

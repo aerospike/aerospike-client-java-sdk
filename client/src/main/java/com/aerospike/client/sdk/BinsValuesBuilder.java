@@ -27,7 +27,9 @@ import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import com.aerospike.ael.ParseResult;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.aerospike.client.sdk.ael.BooleanExpression;
 import com.aerospike.client.sdk.command.Batch;
 import com.aerospike.client.sdk.command.BatchAttr;
@@ -58,7 +60,11 @@ import com.aerospike.client.sdk.tend.Partitions;
  * Builder for the bins+values pattern in OperationBuilder. This allows setting
  * multiple bin names and then providing values for each record.
  */
-public class BinsValuesBuilder extends AbstractFilterableBuilder implements FilterableOperation<BinsValuesBuilder> {
+public class BinsValuesBuilder extends AbstractFilterableBuilder
+        implements FilterableOperation<BinsValuesBuilder> {
+
+    private static final Logger log = LoggerFactory.getLogger(Loggers.COMMAND);
+
     private static class ValueData {
         private Object[] values;
         private int generation = 0;
@@ -277,7 +283,7 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
      */
     public BinsValuesBuilder notInAnyTransaction() {
         if (transactionSet) {
-            throw AerospikeException.resultCodeToException(ResultCode.PARAMETER_ERROR,
+            throw AerospikeException.toException(ResultCode.PARAMETER_ERROR,
                 "The transaction mode has already been set");
         }
         this.transactionSet = true;
@@ -306,7 +312,7 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
      */
     public BinsValuesBuilder inTransaction(Txn txn) {
         if (transactionSet) {
-            throw AerospikeException.resultCodeToException(ResultCode.PARAMETER_ERROR,
+            throw AerospikeException.toException(ResultCode.PARAMETER_ERROR,
                 "The transaction mode has already been set");
         }
         this.transactionSet = true;
@@ -463,7 +469,7 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
      */
     @Override
     public BinsValuesBuilder where(String ael, Object... params) {
-        setWhereClause(createWhereClauseProcessor(false, ael, params));
+        setWhereClause(createWhereClauseProcessor(ael, params));
         return this;
     }
 
@@ -490,7 +496,7 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
      */
     @Override
     public BinsValuesBuilder where(PreparedAel ael, Object... params) {
-        setWhereClause(WhereClauseProcessor.from(false, ael, params));
+        setWhereClause(WhereClauseProcessor.from(ael, params));
         return this;
     }
 
@@ -588,8 +594,8 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
     }
 
     private RecordStream executeWithDisposition(ErrorDisposition disposition) {
-        if (Log.debugEnabled()) {
-            Log.debug("BinsValuesBuilder.execute() called for " + keys.size() + " key(s), transaction: "
+        if (log.isDebugEnabled()) {
+            log.debug("BinsValuesBuilder.execute() called for " + keys.size() + " key(s), transaction: "
                     + (txnToUse != null ? "yes" : "no"));
         }
 
@@ -618,7 +624,7 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
      */
     public RecordStream executeAsync(ErrorStrategy strategy) {
         Objects.requireNonNull(strategy, "ErrorStrategy must not be null");
-        return executeAsyncInStream();
+        return executeAsyncInStream(null);
     }
 
     /**
@@ -630,13 +636,12 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
      */
     public RecordStream executeAsync(ErrorHandler handler) {
         Objects.requireNonNull(handler, "ErrorHandler must not be null");
-        RecordStream source = executeAsyncInStream();
-        return filterErrors(source, handler);
+        return executeAsyncInStream(handler);
     }
 
-    private RecordStream executeAsyncInStream() {
-        if (Log.debugEnabled()) {
-            Log.debug("BinsValuesBuilder.executeAsync() called for " + keys.size() + " key(s), transaction: "
+    private RecordStream executeAsyncInStream(ErrorHandler errorHandler) {
+        if (log.isDebugEnabled()) {
+            log.debug("BinsValuesBuilder.executeAsync() called for " + keys.size() + " key(s), transaction: "
                     + (txnToUse != null ? "yes" : "no"));
         }
 
@@ -644,8 +649,8 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
             return new RecordStream();
         }
 
-        if (this.txnToUse != null && Log.warnEnabled()) {
-            Log.warn("executeAsync() called within a transaction. "
+        if (this.txnToUse != null && log.isWarnEnabled()) {
+            log.warn("executeAsync() called within a transaction. "
                     + "Async operations may still be in flight when commit() is called, "
                     + "which could lead to inconsistent state. "
                     + "Consider using execute() for transactional safety.");
@@ -658,32 +663,14 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
         }
 
         if (keys.size() >= AbstractOperationBuilder.getBatchOperationThreshold()) {
-            return executeBatchAsync();
+            return executeBatchAsync(errorHandler);
         } else {
-            return executeIndividualAsync();
+            return executeIndividualAsync(errorHandler);
         }
     }
 
-    private RecordStream filterErrors(RecordStream source, ErrorHandler handler) {
-        AsyncRecordStream filtered = new AsyncRecordStream(Math.max(keys.size(), 1));
-        Session session = opBuilder.getSession();
-        session.getCluster().startVirtualThread(() -> {
-            try {
-                source.forEach(result -> {
-                    if (!result.isOk()) {
-                        AerospikeException ex = result.exception() != null
-                            ? result.exception()
-                            : AerospikeException.resultCodeToException(result.resultCode(), result.message(), result.inDoubt());
-                        handler.handle(result.key(), result.index(), ex);
-                    } else {
-                        filtered.publish(result);
-                    }
-                });
-            } finally {
-                filtered.complete();
-            }
-        });
-        return new RecordStream(filtered);
+    private AsyncRecordStream newAsyncStream(int capacity, ErrorHandler errorHandler) {
+        return AsyncExecutionSupport.newStream(capacity, errorHandler);
     }
 
     private RecordStream executeBatchSync(ErrorDisposition disposition) {
@@ -733,44 +720,43 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
 
         for (int i = 0; i < keys.size(); i++) {
             BatchRecord br = records.get(i);
+
             boolean include = switch (br.resultCode) {
                 case ResultCode.FILTERED_OUT -> isWrite || failOnFilteredOut;
                 case ResultCode.KEY_NOT_FOUND_ERROR -> isWrite || includeMissingKeys;
                 default -> true;
             };
+
             if (!include) {
                 continue;
-            }
-
-            RecordResult result;
-            if (settings.getStackTraceOnException() && AbstractFilterableBuilder.isActionableError(br.resultCode)) {
-                result = new RecordResult(br,
-                        AerospikeException.resultCodeToException(br.resultCode, null, br.inDoubt), i);
-            } else {
-                result = new RecordResult(br, i);
             }
 
             if (AbstractFilterableBuilder.isActionableError(br.resultCode)) {
                 switch (disposition) {
                     case ErrorDisposition.Throw ignored -> {
-                        AerospikeException ex = result.exception() != null
-                            ? result.exception()
-                            : AerospikeException.resultCodeToException(br.resultCode, null, br.inDoubt);
-                        throw ex;
+                        throw br.toException();
                     }
-                    case ErrorDisposition.Handler h ->
+
+                    case ErrorDisposition.Handler h -> {
+                        RecordResult result = RecordResult.batchError(br, i);
                         AbstractFilterableBuilder.dispatchError(result, h.errorHandler());
-                    case ErrorDisposition.InStream ignored ->
+                    }
+
+                    case ErrorDisposition.InStream ignored -> {
+                        RecordResult result = RecordResult.batchError(br, i);
                         results.add(result);
+                    }
                 }
-            } else {
+            }
+            else {
+                RecordResult result = RecordResult.batchSuccess(br, i);
                 results.add(result);
             }
         }
         return new RecordStream(results, 0);
     }
 
-    private RecordStream executeBatchAsync() {
+    private RecordStream executeBatchAsync(ErrorHandler errorHandler) {
         BatchCommand parent = prepareBatch();
         List<BatchRecord> records = parent.getRecords();
         Session session = opBuilder.getSession();
@@ -779,7 +765,7 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
         BatchStatus status = new BatchStatus();
         List<BatchNode> bns = BatchNodes.generate(cluster, parent, records, status);
 
-        AsyncRecordStream stream = new AsyncRecordStream(keys.size());
+        AsyncRecordStream stream = newAsyncStream(keys.size(), errorHandler);
         IBatchCommand[] commands = new IBatchCommand[bns.size()];
         int count = 0;
 
@@ -876,7 +862,7 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
 
         Partitions partitions = getPartitions(cluster, firstKey.namespace);
         ResolvedSettings settings = session.getBehavior().getSettings(OpKind.WRITE_RETRYABLE, OpShape.POINT, partitions.scMode);
-        final Expression filterExp = processWhereClause(firstKey.namespace, opBuilder.getSession());
+        final Expression filterExp = processWhereClause(firstKey.namespace, session);
 
         if (txnToUse != null) {
             TxnMonitor.addKeys(txnToUse, session, keys);
@@ -957,7 +943,7 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
      * Execute operations asynchronously for individual keys (< batch threshold).
      * Returns immediately; virtual threads complete in background.
      */
-    private RecordStream executeIndividualAsync() {
+    private RecordStream executeIndividualAsync(ErrorHandler errorHandler) {
         if (keys.size() == 0) {
             return new RecordStream();
         }
@@ -970,7 +956,7 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
         Partitions partitions = getPartitions(cluster, firstKey.namespace);
         ResolvedSettings policy = session.getBehavior().getSettings(OpKind.WRITE_RETRYABLE, OpShape.POINT, partitions.scMode);
         final Expression filterExp = getFilterExp(session, firstKey.namespace, firstKey.setName);
-        AsyncRecordStream asyncStream = new AsyncRecordStream(keys.size());
+        AsyncRecordStream asyncStream = newAsyncStream(keys.size(), errorHandler);
 
         if (txnToUse != null) {
             cluster.startVirtualThread(() -> {
@@ -1060,8 +1046,7 @@ public class BinsValuesBuilder extends AbstractFilterableBuilder implements Filt
     private Expression getFilterExp(Session session, String namespace, String querySet) {
         if (ael != null) {
             // Apply filter expression clause.
-            ParseResult parseResult = ael.process(namespace, querySet, session);
-            return Exp.build(parseResult.getExp());
+            return ael.toFilterExpression(session);
         } else {
             return null;
         }

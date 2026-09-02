@@ -24,6 +24,7 @@ import org.junit.platform.suite.api.SelectClasses;
 import org.junit.platform.suite.api.Suite;
 
 import com.aerospike.client.sdk.policy.Behavior;
+import com.aerospike.client.sdk.policy.Behavior.Selectors;
 
 
 /**
@@ -40,12 +41,10 @@ public class SuiteClusterChaos {
     @BeforeSuite
     public static void beforeSuite() {
         System.out.println("Begin SuiteChaosCluster (Aerolab/chaos tests)");
-        Log.setCallback(null);
         Args args = Args.Instance;
         Host[] hosts = Host.parseHosts(args.host, args.port);
 
         ClusterDefinition def = new ClusterDefinition(hosts)
-            .withLogLevel(Log.Level.DEBUG)
             .clusterName(args.clusterName)
             .withSystemSettings(SystemSettings.builder()
                 .connections(ops -> ops.maximumConnectionsPerNode(200)).build()
@@ -88,9 +87,14 @@ public class SuiteClusterChaos {
         }
 
         Cluster cluster = def.connect();
-        Session session;
+        Session session, sessionWithSendKey;
         try {
             session = cluster.createSession(Behavior.DEFAULT);
+            sessionWithSendKey = cluster.createSession(Behavior.DEFAULT.deriveWithChanges(
+                    "sendKey",
+                    opt -> opt.on(Selectors.all(), s -> s.sendKey(true)))
+            );
+
             args.setServerSpecific(cluster);
         } catch (RuntimeException re) {
             cluster.close();
@@ -99,6 +103,7 @@ public class SuiteClusterChaos {
 
         ClusterTest.cluster = cluster;
         ClusterTest.session = session;
+        ClusterTest.sessionWithSendKey = sessionWithSendKey;
         ClusterTest.initializedBySuite = true;
     }
 
@@ -118,6 +123,7 @@ public class SuiteClusterChaos {
             ClusterTest.cluster.close();
             ClusterTest.cluster = null;
             ClusterTest.session = null;
+            ClusterTest.sessionWithSendKey = null;
         }
         ClusterTest.initializedBySuite = false;
     }

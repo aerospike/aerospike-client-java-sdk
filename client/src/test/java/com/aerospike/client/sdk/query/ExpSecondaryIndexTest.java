@@ -40,6 +40,7 @@ import com.aerospike.client.sdk.util.Version;
 public class ExpSecondaryIndexTest extends ClusterTest {
     private static final DataSet dataSet = DataSet.of(args.set.getNamespace(), "exp_SI_test_set");
     private static final String indexName = "εχπ_ΣΙ_τεστ_ιδχ";
+    private static final String indexNameAel = "AELIndex";
     private static final List<String> countries = List.of("Australia", "Canada", "USA");
     private static final Expression exp = Exp.build(
         // IF (age >= 18 AND country IN ["Australia, "Canada", "USA"])
@@ -54,6 +55,8 @@ public class ExpSecondaryIndexTest extends ClusterTest {
                     Exp.eq(Exp.stringBin("country"), Exp.val(countries.get(2))))),
             Exp.val(1),
             Exp.unknown()));
+    private static final String aelString =
+        "when ($.age >= 18 and $.country in ['Australia', 'Canada', 'USA'] => $.age, default => unknown)";
 
     @BeforeAll
     public static void setup() {
@@ -103,6 +106,19 @@ public class ExpSecondaryIndexTest extends ClusterTest {
         }
     }
 
+    public static void addAelSI() {
+        try {
+            session.createIndex(dataSet, indexNameAel, IndexType.INTEGER, IndexCollectionType.DEFAULT,
+                aelString)
+                .waitTillComplete();
+        }
+        catch (AerospikeException ae) {
+            if (ae.getResultCode() != ResultCode.INDEX_ALREADY_EXISTS) {
+                throw ae;
+            }
+        }
+    }
+
     @AfterAll
     public static void destroy() {
         session.dropIndex(dataSet, indexName);
@@ -116,7 +132,18 @@ public class ExpSecondaryIndexTest extends ClusterTest {
     }
 
     @Test
+    public void createAelSI() {
+        assumeSupportsAel();
+
+        addAelSI();
+        String indices = getSecondaryIndices();
+        assertTrue(indices.contains("indexname=" + indexNameAel));
+    }
+
+    @Test
     public void queryExpSIbyName() {
+        assumeSupportsAel();
+
         String sincdices = getSecondaryIndices();
         if (!sincdices.contains("indexname=" + indexName)) {
             addExpSI();

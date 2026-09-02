@@ -16,26 +16,19 @@
  */
 package com.aerospike.examples;
 
-import com.aerospike.client.sdk.Cluster;
 import com.aerospike.client.sdk.DataSet;
 import com.aerospike.client.sdk.Session;
 import com.aerospike.client.sdk.policy.Behavior;
 
 public class BatchExample extends Example {
-    public BatchExample(Console console) {
-        super(console);
-    }
-
     @Override
-    public void runExample(Cluster cluster, Args args) throws Exception {
-        Session session = cluster.createSession(Behavior.DEFAULT);
+    public void runExample() throws Exception {
+        Session session = cluster().createSession(Behavior.DEFAULT);
         
         System.out.println("*************");
         System.out.println("* Batch tests");
         System.out.println("*************");
-        DataSet set = DataSet.of("test", "set");
-        
-        session.truncate(set);
+        DataSet set = dataSet();
         
         System.out.println("Batch Insert:");
         session.insert(set.ids(1,2,3,4,5))

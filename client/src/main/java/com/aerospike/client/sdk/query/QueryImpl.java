@@ -34,8 +34,6 @@ abstract class QueryImpl {
     public abstract RecordStream execute(ErrorHandler handler);
     public abstract RecordStream executeAsync(ErrorStrategy strategy);
     public abstract RecordStream executeAsync(ErrorHandler handler);
-    public abstract boolean allowsSecondaryIndexQuery();
-
 
     public Session getSession() {
         return session;

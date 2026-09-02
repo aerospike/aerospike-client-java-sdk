@@ -107,6 +107,7 @@ public abstract class AbstractOperationBuilder<T extends AbstractOperationBuilde
             case EXP_MODIFY:
             case HLL_MODIFY:
             case MAP_MODIFY:
+            case STRING_MODIFY:
                 // These are questionable. For example, MAP_MODIFY could be CLEAR (retryable) or DECREMENT (non-retryable)
                 // For now return as not retryable, but will need further information in API v2
                 return false;
@@ -121,6 +122,8 @@ public abstract class AbstractOperationBuilder<T extends AbstractOperationBuilde
             case READ_HEADER:
             case TOUCH:
             case WRITE:
+            case STRING_READ:
+            case TO_STRING:
                 // definitely retryable
             }
         }
