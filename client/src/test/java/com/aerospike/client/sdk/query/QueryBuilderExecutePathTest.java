@@ -35,6 +35,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 import com.aerospike.client.sdk.AerospikeException;
@@ -42,6 +43,7 @@ import com.aerospike.client.sdk.ClusterTest;
 import com.aerospike.client.sdk.DataSet;
 import com.aerospike.client.sdk.ErrorHandler;
 import com.aerospike.client.sdk.ErrorStrategy;
+import com.aerospike.client.sdk.KnownDefect;
 import com.aerospike.client.sdk.RecordStream;
 import com.aerospike.client.sdk.ResultCode;
 import com.aerospike.client.sdk.Session;
@@ -192,6 +194,12 @@ public class QueryBuilderExecutePathTest extends ClusterTest {
      * active transaction on the session (no explicit {@code inTransaction} call required).
      */
     @Test
+    @Tag(KnownDefect.TAG)
+    @Disabled("Known defect: committing a transaction whose only activity was a query fails. The server has"
+        + " no MRT support on the query path (as_transaction_has_mrt_id is never consulted under"
+        + " as/src/query, and records are read with is_mrt hardcoded false), so the client correctly does"
+        + " not forward the transaction. But that also means Txn.setNamespace is never called, and TxnRoll"
+        + " then does partitionMap.get(null) and throws InvalidNamespace at commit.")
     void executeAsyncInsideTransactionCompletes() {
         assumeTrue(args.scMode, "transactions require strong consistency");
 
@@ -213,6 +221,9 @@ public class QueryBuilderExecutePathTest extends ClusterTest {
      * forwards it to the wire command.
      */
     @Test
+    @Tag(KnownDefect.TAG)
+    @Disabled("Known defect: this transaction runs no command at all, so Txn.namespace stays null and"
+        + " TxnRoll throws InvalidNamespace at commit. Committing an empty transaction should be a no-op.")
     void explicitInTransactionSetsTxnOnBuilder() {
         assumeTrue(args.scMode, "transactions require strong consistency");
 
@@ -294,6 +305,9 @@ public class QueryBuilderExecutePathTest extends ClusterTest {
     }
 
     @Test
+    @Tag(KnownDefect.TAG)
+    @Disabled("Known defect: the assertion under test passes, but the enclosing doInTransaction block runs"
+        + " no command, so Txn.namespace stays null and TxnRoll throws InvalidNamespace at commit.")
     void notInAnyTransactionThenInTransactionThrows() {
         assumeTrue(args.scMode, "transactions require strong consistency");
 

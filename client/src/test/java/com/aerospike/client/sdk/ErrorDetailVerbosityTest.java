@@ -28,6 +28,7 @@ import java.util.List;
 import java.util.Map;
 
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 import com.aerospike.client.sdk.exp.Exp;
@@ -236,7 +237,16 @@ public class ErrorDetailVerbosityTest extends ClusterTest {
     }
 
     @Test
+    @Tag(KnownDefect.TAG)
     public void testDeleteGenerationMismatch() {
+        KnownDefect.skipWhere(args.scMode,
+            "on a strong-consistency namespace the delete is durable, so it runs through tombstone_master in"
+                + " delete_ee.c rather than delete.c. Both do the same generation_check and set the same"
+                + " AS_ERR_GENERATION, but the Enterprise path omits the matching"
+                + " as_error_details_set_fmt(AS_SUB_NONE, \"delete generation mismatch\"), so the server sends"
+                + " no detail and the client falls back to the generic ResultCode text. The fix belongs in the"
+                + " server; see docs/strong-consistency-8.1.3-findings.md");
+
         Behavior behavior1 = Behavior.DEFAULT.deriveWithChanges("errorDetail", builder -> builder
             .on(Selectors.all(), ops -> ops
                 .errorDetailVerbosity(ErrorDetailVerbosity.MESSAGE)
