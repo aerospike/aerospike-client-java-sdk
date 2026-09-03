@@ -43,7 +43,15 @@ public class ChunkedRecordStream implements RecordStreamImpl {
     private long recordCount = 0;
     private AsyncRecordStream stream;
     private final int recordQueueSize;
+    private final ErrorHandler errorHandler;
     private boolean first = true;
+
+    /**
+     * @see #ChunkedRecordStream(AsyncRecordStream, QueryCommand, long, int, ErrorHandler)
+     */
+    public ChunkedRecordStream(AsyncRecordStream stream, QueryCommand cmd, long limit, int recordQueueSize) {
+        this(stream, cmd, limit, recordQueueSize, null);
+    }
 
     /**
      * Creates a chunked stream over {@code cmd}, using {@code stream} as the buffer for the first chunk.
@@ -52,11 +60,15 @@ public class ChunkedRecordStream implements RecordStreamImpl {
      * @param cmd query command that loads each chunk from the server
      * @param limit maximum number of records to yield; {@code 0} or less means no limit
      * @param recordQueueSize capacity of each chunk's {@link AsyncRecordStream}
+     * @param errorHandler applied to every chunk's stream so error routing survives chunk
+     *                     boundaries; {@code null} leaves errors in the stream
      */
-    public ChunkedRecordStream(AsyncRecordStream stream, QueryCommand cmd, long limit, int recordQueueSize) {
+    public ChunkedRecordStream(AsyncRecordStream stream, QueryCommand cmd, long limit, int recordQueueSize,
+                              ErrorHandler errorHandler) {
         this.cmd = cmd;
         this.limit = limit;
         this.recordQueueSize = recordQueueSize;
+        this.errorHandler = errorHandler;
         this.stream = stream;
     }
 
@@ -79,6 +91,9 @@ public class ChunkedRecordStream implements RecordStreamImpl {
 
         // Query next chunk.
         stream = new AsyncRecordStream(recordQueueSize);
+        if (errorHandler != null) {
+            stream.withErrorHandler(errorHandler);
+        }
         cmd.execute(stream);
         return true;
     }
