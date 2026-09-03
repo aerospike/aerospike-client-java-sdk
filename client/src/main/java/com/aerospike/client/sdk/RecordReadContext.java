@@ -53,4 +53,12 @@ public final class RecordReadContext<T> {
     public RecordMappingFactory getRecordMappingFactory() {
         return session.getRecordMappingFactory();
     }
+
+    @Override
+    public String toString() {
+        return "RecordReadContext{session=" + session.getClass().getName() +
+            '@' + Integer.toHexString(System.identityHashCode(session)) +
+            ", entityClass=" + entityClass.getName() +
+            '}';
+    }
 }

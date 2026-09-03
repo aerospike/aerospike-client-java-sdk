@@ -146,6 +146,12 @@ public class AelPlaceholderBinderTest {
     }
 
     @Test
+    void preparedAelToStringReturnsStatement() {
+        PreparedAel p = PreparedAel.prepare("$.x > ?0");
+        assertThat(p.toString()).isEqualTo("$.x > ?0");
+    }
+
+    @Test
     void nonFiniteFloatThrows() {
         assertThatThrownBy(() -> AelPlaceholderBinder.formatLiteral(Double.NaN))
                 .isInstanceOf(IllegalArgumentException.class)

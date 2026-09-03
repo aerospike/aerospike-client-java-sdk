@@ -21,6 +21,7 @@ import com.aerospike.client.sdk.ResultCode;
 import com.aerospike.client.sdk.command.FieldType;
 import com.aerospike.client.sdk.command.MsgFieldParser;
 import com.aerospike.client.sdk.query.IndexCollectionType;
+import com.aerospike.client.sdk.util.ContainerString;
 
 /**
  * Result of a server query explain (phase 1). Holds field {@code 44} explain bytes,
@@ -193,5 +194,17 @@ public final class QueryPlan {
             throw new AerospikeException.Parse(
                 "Inconsistent query plan response: INDEX_RANGE truncated");
         }
+    }
+
+    @Override
+    public String toString() {
+        return "QueryPlan{selection=" + selection +
+            ", namespace=" + namespace +
+            ", set=" + set +
+            ", ael=" + ContainerString.format(getAel()) +
+            ", indexName=" + indexName +
+            ", indexType=" + indexType +
+            ", indexRange=" + ContainerString.format(IndexRangeWire.describeProbeRange(indexRangeBytes)) +
+            '}';
     }
 }

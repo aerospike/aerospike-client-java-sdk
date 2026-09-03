@@ -24,6 +24,7 @@ import java.util.Set;
 import java.util.TreeMap;
 
 import com.aerospike.client.sdk.cdt.MapOrder;
+import com.aerospike.client.sdk.util.ContainerString;
 
 /**
  * {@link Map} implementation that records how entries should be encoded as an Aerospike map. The
@@ -312,7 +313,10 @@ public final class AerospikeMap<K,V> implements Map<K,V> {
     /** {@inheritDoc} */
     @Override
     public String toString() {
-        return map.toString();
+        return "AerospikeMap{order=" + order +
+            ", persistIndex=" + persistIndex +
+            ", values=" + ContainerString.formatMap(map) +
+            '}';
     }
 
     /** {@inheritDoc} */

@@ -49,4 +49,9 @@ public class PreparedAel {
     public String formValue(Object... params) {
         return AelPlaceholderBinder.bind(statement, params);
     }
+
+    @Override
+    public String toString() {
+        return statement;
+    }
 }

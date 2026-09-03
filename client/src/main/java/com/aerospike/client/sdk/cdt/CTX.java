@@ -25,6 +25,7 @@ import com.aerospike.client.sdk.exp.Expression;
 import com.aerospike.client.sdk.AerospikeException;
 import com.aerospike.client.sdk.Value;
 import com.aerospike.client.sdk.util.Crypto;
+import com.aerospike.client.sdk.util.ContainerString;
 import com.aerospike.client.sdk.util.Pack;
 import com.aerospike.client.sdk.util.Unpacker;
 
@@ -422,5 +423,24 @@ public final class CTX {
         this.id = id;
         this.value = null;
         this.exp = exp;
+    }
+
+    @Override
+    public String toString() {
+        StringBuilder sb = new StringBuilder(80);
+        sb.append("CTX{id=0x");
+        sb.append(Integer.toHexString(id));
+
+        if (exp != null) {
+            sb.append(", exp=");
+            ContainerString.append(sb, exp, ContainerString.DEFAULT_MAX_CHARS);
+        }
+        else {
+            sb.append(", value=");
+            ContainerString.append(sb, value, ContainerString.DEFAULT_MAX_CHARS);
+        }
+
+        sb.append('}');
+        return sb.toString();
     }
 }
