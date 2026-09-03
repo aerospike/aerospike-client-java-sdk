@@ -23,6 +23,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
 
+import com.aerospike.client.sdk.cdt.CTX;
+import com.aerospike.client.sdk.command.ParticleType;
 import com.aerospike.client.sdk.exp.Exp;
 import com.aerospike.client.sdk.exp.Expression;
 import com.aerospike.client.sdk.query.plan.IndexRangeWire;
@@ -78,6 +80,30 @@ public class FilterWireRangeTest {
         // packedExp is not written to INDEX_RANGE; this case only checks the empty-bin-name wire shape.
         assertProbeRange(Filter.equal(ageIntIndexExpression(), 30L), "bin= range=[30,30]");
         assertProbeRange(Filter.equalByIndex("age_idx", 30L), "bin= range=[30,30]");
+    }
+
+    @Test
+    void toStringIncludesStructuredFields() {
+        Filter filter = Filter.range("scores", IndexCollectionType.LIST, 10L, 20L, CTX.listIndex(0));
+
+        assertTrue(filter.toString().contains("Filter{name=scores"));
+        assertTrue(filter.toString().contains("indexName=null"));
+        assertTrue(filter.toString().contains("colType=LIST"));
+        assertTrue(filter.toString().contains("valType=" + ParticleType.INTEGER));
+        assertTrue(filter.toString().contains("begin=10"));
+        assertTrue(filter.toString().contains("end=20"));
+        assertTrue(filter.toString().contains("packedCtx=bytes[len="));
+    }
+
+    @Test
+    void toStringIncludesWireRangeBytes() {
+        byte[] wireBody = new byte[] {1, 2, 3};
+        Filter filter = Filter.fromWireRange("age_idx", wireBody, IndexCollectionType.MAPKEYS);
+
+        assertEquals(
+            "Filter{name=null, indexName=age_idx, colType=MAPKEYS, valType=0, wireRangeBytes=bytes[len=3, hex=010203]}",
+            filter.toString()
+        );
     }
 
     private static void assertProbeRange(Filter filter, String expectedDescription) {

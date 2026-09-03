@@ -23,11 +23,11 @@ import com.aerospike.client.sdk.cdt.CTX;
 import com.aerospike.client.sdk.command.Buffer;
 import com.aerospike.client.sdk.command.ParticleType;
 import com.aerospike.client.sdk.exp.Expression;
+import com.aerospike.client.sdk.util.ContainerString;
 import com.aerospike.client.sdk.util.Pack;
 
 /**
  * Query filter definition.
- *
  * Currently, only one filter is allowed in a Statement, and must be on bin which has a secondary index defined.
  */
 public final class Filter {
@@ -823,6 +823,35 @@ public final class Filter {
      */
     public byte[] getPackedExp() {
         return packedExp;
+    }
+
+    @Override
+    public String toString() {
+        StringBuilder sb = new StringBuilder(200);
+        sb.append("Filter{name=");
+        sb.append(name);
+        sb.append(", indexName=");
+        sb.append(indexName);
+        sb.append(", colType=");
+        sb.append(colType);
+        sb.append(", valType=");
+        sb.append(valType);
+        appendField(sb, "begin", begin);
+        appendField(sb, "end", end);
+        appendField(sb, "packedCtx", packedCtx);
+        appendField(sb, "packedExp", packedExp);
+        appendField(sb, "wireRangeBytes", wireRangeBytes);
+        sb.append('}');
+        return sb.toString();
+    }
+
+    private static void appendField(StringBuilder sb, String name, Object value) {
+        if (value != null) {
+            sb.append(", ");
+            sb.append(name);
+            sb.append('=');
+            ContainerString.append(sb, value, ContainerString.DEFAULT_MAX_CHARS);
+        }
     }
 
     /**

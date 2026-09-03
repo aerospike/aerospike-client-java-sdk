@@ -122,6 +122,11 @@ public final class Expression implements Serializable {
     }
 
     @Override
+    public String toString() {
+        return getBase64();
+    }
+
+    @Override
     public int hashCode() {
         final int prime = 31;
         int result = 1;

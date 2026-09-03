@@ -35,6 +35,7 @@ import java.util.stream.StreamSupport;
 import com.aerospike.client.sdk.command.QueryCommand;
 import com.aerospike.client.sdk.query.RecordStreamImpl;
 import com.aerospike.client.sdk.query.SingleItemRecordStream;
+import com.aerospike.client.sdk.util.ContainerString;
 
 public class RecordStream implements Iterator<RecordResult>, Closeable {
     private final RecordStreamImpl impl;
@@ -1112,6 +1113,14 @@ public class RecordStream implements Iterator<RecordResult>, Closeable {
          */
         public int getGeneration() {
             return generation;
+        }
+
+        @Override
+        public String toString() {
+            return "ObjectWithMetadata{object=" + ContainerString.format(object) +
+                ", generation=" + generation +
+                ", expiration=" + expiration +
+                '}';
         }
     }
 

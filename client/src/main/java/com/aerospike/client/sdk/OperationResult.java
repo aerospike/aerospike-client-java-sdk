@@ -18,6 +18,7 @@ package com.aerospike.client.sdk;
 
 import com.aerospike.client.sdk.Value.GeoJSONValue;
 import com.aerospike.client.sdk.Value.HLLValue;
+import com.aerospike.client.sdk.util.ContainerString;
 
 /**
  * Operation result object.
@@ -140,5 +141,10 @@ public final class OperationResult {
      */
     public HLLValue getHLLValue() {
         return (HLLValue)result;
+    }
+
+    @Override
+    public String toString() {
+        return "OperationResult{value=" + ContainerString.format(result) + '}';
     }
 }

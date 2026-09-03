@@ -30,13 +30,14 @@ import com.aerospike.client.sdk.AerospikeException;
 import com.aerospike.client.sdk.ResultCode;
 import com.aerospike.client.sdk.command.FieldType;
 import com.aerospike.client.sdk.command.MsgFieldParser;
+import com.aerospike.client.sdk.query.Filter;
 import com.aerospike.client.sdk.query.IndexCollectionType;
 
 public class QueryPlanTest {
 
     private static final String AEL = "$.age > 30";
     private static final byte[] EXPLAIN_WHERE = QueryWhereWire.forExplain(AEL);
-    private static final byte[] RANGE = new byte[] {1, 3, 'a', 'g', 'e', 3};
+    private static final byte[] RANGE = probeRangeWithBinName("age", 30L);
 
     @Test
     void primaryIndexPlanWhenNoIndexFields() {
@@ -74,6 +75,36 @@ public class QueryPlanTest {
     }
 
     @Test
+    void toStringDescribesPrimaryIndexPlan() {
+        QueryPlan plan = QueryPlan.fromExplainResponse(
+            ResultCode.OK, "test", "users", EXPLAIN_WHERE, fieldsOf());
+
+        String s = plan.toString();
+        assertTrue(s.contains("selection=PRIMARY_INDEX"));
+        assertTrue(s.contains("namespace=test"));
+        assertTrue(s.contains("set=users"));
+        assertTrue(s.contains("ael=" + AEL));
+        assertTrue(s.contains("indexRange=null"));
+    }
+
+    @Test
+    void toStringDescribesSecondaryIndexPlanRange() {
+        MsgFieldParser fields = fieldsOf(
+            field(FieldType.INDEX_NAME, "age_idx"),
+            field(FieldType.INDEX_TYPE, new byte[] {(byte) IndexCollectionType.LIST.ordinal()}),
+            field(FieldType.INDEX_RANGE, RANGE)
+        );
+        QueryPlan plan = QueryPlan.fromExplainResponse(
+            ResultCode.OK, "test", null, EXPLAIN_WHERE, fields);
+
+        String s = plan.toString();
+        assertTrue(s.contains("selection=SECONDARY_INDEX"));
+        assertTrue(s.contains("indexName=age_idx"));
+        assertTrue(s.contains("indexType=LIST"));
+        assertTrue(s.contains("indexRange=bin=age range=[30,30]"));
+    }
+
+    @Test
     void filteredOutPlan() {
         QueryPlan plan = QueryPlan.fromExplainResponse(
             ResultCode.FILTERED_OUT, "test", "users", EXPLAIN_WHERE, fieldsOf());
@@ -82,6 +113,7 @@ public class QueryPlanTest {
         assertTrue(plan.isFilteredOut());
         assertNull(plan.getIndexName());
         assertNull(plan.getIndexRangeBytes());
+        assertTrue(plan.toString().contains("selection=FILTERED_OUT"));
     }
 
     @Test
@@ -141,6 +173,14 @@ public class QueryPlanTest {
 
         assertThrows(AerospikeException.Parse.class, () ->
             QueryPlan.fromExplainResponse(ResultCode.OK, "test", "users", EXPLAIN_WHERE, fields));
+    }
+
+    private static byte[] probeRangeWithBinName(String binName, long value) {
+        Filter structured = Filter.equal(binName, value);
+        byte[] wireBody = new byte[1 + structured.estimateSize()];
+        wireBody[0] = 1;
+        structured.write(wireBody, 1);
+        return wireBody;
     }
 
     private static MsgFieldParser fieldsOf(Field... entries) {
