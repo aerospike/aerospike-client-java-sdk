@@ -18,6 +18,9 @@ package com.aerospike.client.sdk.query;
 
 import java.util.Objects;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.aerospike.client.sdk.AbstractFilterableBuilder;
 import com.aerospike.client.sdk.AerospikeException;
 import com.aerospike.client.sdk.AsyncRecordStream;
@@ -25,6 +28,7 @@ import com.aerospike.client.sdk.Cluster;
 import com.aerospike.client.sdk.DataSet;
 import com.aerospike.client.sdk.ErrorHandler;
 import com.aerospike.client.sdk.ErrorStrategy;
+import com.aerospike.client.sdk.Loggers;
 import com.aerospike.client.sdk.RecordStream;
 import com.aerospike.client.sdk.ResultCode;
 import com.aerospike.client.sdk.Session;
@@ -35,6 +39,8 @@ import com.aerospike.client.sdk.policy.Behavior.OpShape;
 import com.aerospike.client.sdk.policy.ResolvedSettings;
 
 public class IndexQueryBuilderImpl extends QueryImpl {
+    private static final Logger log = LoggerFactory.getLogger(Loggers.COMMAND);
+
     private final DataSet dataSet;
 
     public IndexQueryBuilderImpl(QueryBuilder builder, Session session, DataSet dataSet) {
@@ -76,6 +82,8 @@ public class IndexQueryBuilderImpl extends QueryImpl {
         Cluster cluster = session.getCluster();
         QueryBuilder qb = getQueryBuilder();
 
+        warnQueryDoesNotParticipateInTransaction(qb);
+
         // Check for operations - not supported on servers < 8.1.2
         if (!cluster.supportsQueryOperations() && qb.getOperations() != null &&
             !qb.getOperations().isEmpty()) {
@@ -106,5 +114,34 @@ public class IndexQueryBuilderImpl extends QueryImpl {
             // Paginated query
             return new RecordStream(stream, cmd, qb.getLimit(), policy.getRecordQueueSize());
         }
+    }
+
+    /**
+     * Reports that this query will not take part in the transaction it is running inside.
+     *
+     * <p>The server has no multi-record transaction support on the query path, so a query is always evaluated
+     * outside any transaction, whether the transaction was passed explicitly or inherited from the session.
+     * The consequence is a disagreement rather than an error: within one transaction the same record reads as
+     * two different values depending on how it is asked for, because a point read participates and sees the
+     * transaction's own writes while a query does not and still sees the pre-transaction state. Rows a query
+     * returns are also absent from the transaction's read set, so commit cannot detect that another writer
+     * changed them.</p>
+     *
+     * <p>None of that is new behaviour; it was simply silent. Warning rather than failing is deliberate,
+     * because querying for keys inside a transactional block and then writing those keys transactionally is
+     * legitimate and has to keep working. Whether the explicit case should instead be refused outright is
+     * still open (CLIENT-5404).</p>
+     */
+    private static void warnQueryDoesNotParticipateInTransaction(QueryBuilder qb) {
+        if (qb.getTxnToUse() == null || !log.isWarnEnabled()) {
+            return;
+        }
+
+        log.warn(
+            "Query executed inside a transaction will not take part in it. The server has no multi-record "
+                + "transaction support on the query path, so this query reads the state as it was before the "
+                + "transaction began: it will not see the transaction's own writes, and the rows it returns "
+                + "are not protected against concurrent modification at commit. Call notInAnyTransaction() "
+                + "on this query to confirm that is intended and silence this warning.");
     }
 }

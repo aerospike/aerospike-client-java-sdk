@@ -42,6 +42,7 @@ import com.aerospike.client.sdk.query.QueryFilterExpTest;
 import com.aerospike.client.sdk.query.QueryFilterSetTest;
 import com.aerospike.client.sdk.query.QueryGeoTest;
 import com.aerospike.client.sdk.query.QueryHintBuilderTest;
+import com.aerospike.client.sdk.query.QueryInTransactionVisibilityTest;
 import com.aerospike.client.sdk.query.QueryIndexTest;
 import com.aerospike.client.sdk.query.QueryIntegerTest;
 import com.aerospike.client.sdk.query.QueryKeyTest;
@@ -119,6 +120,7 @@ import com.aerospike.client.sdk.query.QueryUpsertFromChainedTest;
     QueryFilterSetTest.class,
     QueryGeoTest.class,
     QueryHintBuilderTest.class,
+    QueryInTransactionVisibilityTest.class,
     QueryIndexTest.class,
     QueryIntegerTest.class,
     QueryKeyTest.class,
