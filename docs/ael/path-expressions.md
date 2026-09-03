@@ -1,4 +1,6 @@
-# AEL Path Expressions — Syntax Proposal (v2)
+# AEL Path Expressions
+
+Application Java uses the fluent path API (`onEachChild`, `collectValues`, `modifyBy`, `removeMatches`). See [CDT path operations](../cdt-path-operations.md). This page is the **AEL text syntax** (`$.store.book.*.remove()`) and the low-level `CTX` / `CdtOperation` mapping, not the chain an application should generate.
 
 ## Background
 
