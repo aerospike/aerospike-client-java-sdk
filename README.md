@@ -114,6 +114,7 @@ For comprehensive documentation with code examples for every feature, see the
 | **AEL (Expression Language)** | Text-based server-side filters with automatic secondary index selection | [AEL Reference](docs/ael-documentation.md) |
 | **Expression bin ops** | Compute derived values server-side (`selectFrom`, `upsertFrom`) | [Expression Ops](docs/key-features.md#expression-based-bin-operations) |
 | **List & Map CDT operations** | Fluent navigation and manipulation of nested collection data types | [List Ops](docs/list-operations.md), [Map Ops](docs/map-operations.md) |
+| **CDT path expressions** | Iterate, filter, collect, modify, or remove matching nested elements (`onEachChild`, `removeMatches`) | [Path ops](docs/cdt-path-operations.md) |
 | **Async & reactive** | `executeAsync()` with `CompletableFuture` and `Flow.Publisher` (backpressure) | [Async Operations](docs/key-features.md#async-operations) |
 | **Transactions** | Multi-record ACID transactions with automatic retry on transient failures | [Transactions](docs/key-features.md#transactions) |
 | **Behavior (policy config)** | Cascading, selector-based configuration — separate dev concerns from ops concerns | [Behavior](docs/key-features.md#behavior-policy-configuration) |
@@ -124,6 +125,12 @@ For comprehensive documentation with code examples for every feature, see the
 | **Secondary indexes** | Create and drop indexes; AEL queries use them automatically | [Indexes](docs/key-features.md#secondary-indexes) |
 | **Info commands** | Typed, structured access to cluster metadata (namespaces, sets, indexes) | [Info Commands](docs/key-features.md#info-commands) |
 | **Exception hierarchy** | Fine-grained unchecked exceptions with result codes for programmatic handling | [Exceptions](docs/key-features.md#exception-hierarchy) |
+
+## Known traps
+
+* **Do not special-case a batch of one key.** A node sub-batch of size 1 already uses the single-record path. Application-level `if (n == 1)` branching is redundant; generated code has been observed reimplementing this optimization. See [Heterogeneous Batch Chains](docs/key-features.md#heterogeneous-batch-chains).
+* **Do not loop single-key calls to emulate a batch.** Pass `users.ids(...)` (or a `List<Key>`) to `session.query`, `session.exists`, or a write verb. The SDK uses the same verb for one key and many; looping `session.query(users.id(x))` issues sequential point calls.
+* **Path-expression removal is `onEachChild(…).removeMatches()`, not a missing API.** Do not build `CdtOperation.modifyByPath` with `Exp.removeResult()`, and do not use `.remove()` after `onEachChild` — `.remove()` is the single-selection terminal. Server 8.1.1+. See [CDT path operations](docs/cdt-path-operations.md).
 
 ## Building
 

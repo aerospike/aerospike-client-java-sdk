@@ -147,6 +147,8 @@ Map keys can be strings, integers, or BLOBs. Map values can be any supported typ
 
 ## 3. Path Expressions
 
+This section is **AEL record-path syntax** (`$.bin.key`). Multi-match CDT path operations in Java (`onEachChild`, `removeMatches`) are a different API: [CDT path operations](cdt-path-operations.md).
+
 Paths are the core of the AEL. A path is a dot-separated chain of elements that navigates from a record's bin into nested data structures (maps and lists).
 
 ### Structure
