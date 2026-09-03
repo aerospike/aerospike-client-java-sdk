@@ -57,6 +57,11 @@ import com.aerospike.client.sdk.query.QuerySelectionIntegSupport.Fixture;
  *
  * <p>The chunked-pagination tests guard CLIENT-5352, where {@code execute(ErrorHandler)} truncated
  * a chunked result set to the first chunk.</p>
+ *
+ * <p>Handler counts below are zero by construction rather than by luck: the dataset query path
+ * cannot yield a per-record error, because {@code QueryNodeExecutor.parseRow} throws for the whole
+ * query on a non-zero result code and otherwise publishes a result fixed at
+ * {@link ResultCode#OK}. Routing itself is covered by {@code AsyncRecordStreamTest}.</p>
  */
 public class QueryBuilderExecutePathTest extends ClusterTest {
     private static final Fixture FIXTURE = Fixture.forSuffix("qbexec");

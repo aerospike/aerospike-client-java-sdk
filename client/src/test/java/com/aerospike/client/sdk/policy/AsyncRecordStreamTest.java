@@ -37,9 +37,12 @@ import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 import com.aerospike.client.sdk.AsyncRecordStream;
+import com.aerospike.client.sdk.ErrorHandler;
 import com.aerospike.client.sdk.Key;
 import com.aerospike.client.sdk.Record;
 import com.aerospike.client.sdk.RecordResult;
+import com.aerospike.client.sdk.ResultCode;
+import com.aerospike.client.sdk.SubCode;
 
 /**
  * Comprehensive tests for AsyncRecordStream covering:
@@ -47,6 +50,7 @@ import com.aerospike.client.sdk.RecordResult;
  * - The reported bug (hanging with one element)
  * - Backpressure
  * - Error handling
+ * - Error handler routing
  * - Cancellation
  * - Concurrent access
  * - Edge cases
@@ -59,6 +63,17 @@ public class AsyncRecordStreamTest {
         Key key = new Key("test", "set", id);
         Record record = new Record(0, 0);
         return new RecordResult(key, record, 0);
+    }
+
+    // Helper method to create a server-error RecordResult
+    private RecordResult createErrorResult(int id, int resultCode) {
+        Key key = new Key("test", "set", id);
+        return new RecordResult(
+            key, resultCode, SubCode.NONE, ResultCode.getResultString(resultCode), 0, false);
+    }
+
+    private static List<Integer> userKeysOf(List<RecordResult> results) {
+        return results.stream().map(r -> r.getKey().userKey.toInteger()).toList();
     }
 
     // ========================================
@@ -371,6 +386,88 @@ public class AsyncRecordStreamTest {
                     assertEquals("Unknown error", thrown.getMessage());
                 }
             }
+        });
+    }
+
+    // ========================================
+    // Error Handler Routing Tests
+    // ========================================
+
+    /**
+     * CLIENT-5352 changed {@code execute(ErrorHandler)} on the dataset query path from
+     * post-filtering a drained stream to installing the handler here, and threaded the handler
+     * through {@code ChunkedRecordStream} so each chunk's stream gets one. Every chunk now relies
+     * on this publish-time routing.
+     */
+    @Test
+    public void testErrorHandlerTakesErrorsAndLeavesSuccesses() {
+        Assertions.assertTimeout(Duration.ofMillis(2000), () -> {
+            List<Integer> handledIds = new ArrayList<>();
+            List<Integer> handledCodes = new ArrayList<>();
+
+            try (AsyncRecordStream stream = new AsyncRecordStream(10)) {
+                stream.withErrorHandler((key, index, ex) -> {
+                    handledIds.add(key.userKey.toInteger());
+                    handledCodes.add(ex.getResultCode());
+                });
+
+                stream.publish(createResult(1));
+                stream.publish(createErrorResult(2, ResultCode.BIN_TYPE_ERROR));
+                stream.publish(createResult(3));
+                stream.complete();
+
+                assertEquals(List.of(1, 3), userKeysOf(stream.stream().toList()),
+                    "only successful results stay in the stream");
+                assertEquals(List.of(2), handledIds);
+                assertEquals(List.of(ResultCode.BIN_TYPE_ERROR), handledCodes);
+            }
+        });
+    }
+
+    /**
+     * Control for the test above: with no handler installed the same error result is left in the
+     * stream, which is the in-stream disposition. Routing must be the handler's doing.
+     */
+    @Test
+    public void testWithoutErrorHandlerErrorsRemainInStream() {
+        Assertions.assertTimeout(Duration.ofMillis(2000), () -> {
+            try (AsyncRecordStream stream = new AsyncRecordStream(10)) {
+                stream.publish(createResult(1));
+                stream.publish(createErrorResult(2, ResultCode.BIN_TYPE_ERROR));
+                stream.complete();
+
+                List<RecordResult> results = stream.stream().toList();
+                assertEquals(List.of(1, 2), userKeysOf(results));
+                assertTrue(results.get(0).isOk());
+                assertEquals(ResultCode.BIN_TYPE_ERROR, results.get(1).getResultCode());
+            }
+        });
+    }
+
+    /**
+     * The chunk-boundary case. {@code ChunkedRecordStream.hasMoreChunks()} builds a fresh stream
+     * per chunk and installs the same handler on each; before CLIENT-5352 it installed none, so
+     * errors from the second chunk onward were dropped. One handler must keep routing across
+     * successive streams rather than being one-shot.
+     */
+    @Test
+    public void testErrorHandlerRoutesAcrossSuccessiveStreams() {
+        Assertions.assertTimeout(Duration.ofMillis(2000), () -> {
+            List<Integer> handledIds = new ArrayList<>();
+            ErrorHandler handler = (key, index, ex) -> handledIds.add(key.userKey.toInteger());
+
+            for (int chunk = 1; chunk <= 3; chunk++) {
+                try (AsyncRecordStream stream = new AsyncRecordStream(10)) {
+                    stream.withErrorHandler(handler);
+                    stream.publish(createErrorResult(chunk, ResultCode.PARAMETER_ERROR));
+                    stream.complete();
+
+                    assertTrue(stream.stream().toList().isEmpty(),
+                        "chunk published only an error, so nothing should reach the stream");
+                }
+            }
+
+            assertEquals(List.of(1, 2, 3), handledIds, "every chunk's error reaches the handler");
         });
     }
 
