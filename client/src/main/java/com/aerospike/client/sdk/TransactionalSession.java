@@ -123,6 +123,14 @@ public class TransactionalSession extends Session{
      * @param <T> the type of value returned by the operation
      * @param operation the transactional operation to execute
      * @return the result of the operation
+     * <p>The return value carries the operation's result, so there is no room for a
+     * {@link CommitStatus}. An abandoned roll-forward is therefore thrown rather than reported,
+     * since returning normally would present provisional writes as committed. Use
+     * {@link #doInTransaction(Session.TransactionalVoid)} to inspect the status instead.</p>
+     *
+     * @param operation the transactional operation to execute
+     * @return the operation's result, or null if the transaction was aborted
+     * @throws AerospikeException.Commit if the transaction's roll-forward was abandoned
      * @throws AerospikeException if the operation fails with a non-retryable error
      * @throws RuntimeException if any other exception occurs during execution
      * @see #doInTransaction(Session.TransactionalVoid)
@@ -164,7 +172,7 @@ public class TransactionalSession extends Session{
                         throw e;
                     }
 
-                    commitTxn();
+                    commitTxnOrThrow();
                     return result;
                 }
             }
@@ -204,16 +212,24 @@ public class TransactionalSession extends Session{
      * });
      * }</pre>
      *
+     * <p><b>Check the returned status.</b> {@link CommitStatus#ROLL_FORWARD_ABANDONED} means the
+     * writes are still provisional and not yet visible, even though no exception was thrown. A
+     * caller that ignores it will read pre-transaction values back.</p>
+     *
      * @param operation the transactional operation to execute
+     * @return the outcome of the commit, or null when this call committed nothing: a nested
+     *         invocation, whose commit belongs to the outermost call, or a transaction aborted
+     *         through {@link #abort()}
      * @throws AerospikeException if the operation fails with a non-retryable error
      * @throws RuntimeException if any other exception occurs during execution
      * @see #doInTransactionReturning(Transactional)
      */
-    public void doInTransaction(TransactionalVoid operation) {
+    public CommitStatus doInTransaction(TransactionalVoid operation) {
         try {
             if (++count > 1) {
                 // Nested transaction, do not enforce transaction semantics
                 operation.execute(this);
+                return null;
             }
             else {
                 // Outermost transaction, commit when complete.
@@ -227,7 +243,7 @@ public class TransactionalSession extends Session{
                     }
                     catch (AbortException abortex) {
                         abortTxn();
-                        return;
+                        return null;
                     }
                     catch (AerospikeException ae) {
                         abortTxn();
@@ -244,8 +260,7 @@ public class TransactionalSession extends Session{
                         throw e;
                     }
 
-                    commitTxn();
-                    return;
+                    return commitTxn();
                 }
             }
         }
@@ -319,7 +334,24 @@ public class TransactionalSession extends Session{
     }
 
     private CommitStatus commitTxn() {
+        return commitTxn(new TxnRoll(getCluster(), txn));
+    }
+
+    /**
+     * Commits, throwing when the roll-forward was abandoned. Used where the caller has no way to
+     * receive a {@link CommitStatus}, so silence would leave provisional writes looking committed.
+     * CLOSE_ABANDONED is not an error: those writes are durable and only the transaction monitor
+     * cleanup was left to the server.
+     */
+    private void commitTxnOrThrow() {
         TxnRoll tr = new TxnRoll(getCluster(), txn);
+
+        if (commitTxn(tr) == CommitStatus.ROLL_FORWARD_ABANDONED) {
+            throw tr.getRollForwardException();
+        }
+    }
+
+    private CommitStatus commitTxn(TxnRoll tr) {
         ResolvedSettings verifyPolicy = getBehavior().getSettings(OpKind.SYSTEM_TXN_VERIFY, OpShape.SYSTEM, Mode.ANY);
         ResolvedSettings rollPolicy = getBehavior().getSettings(OpKind.SYSTEM_TXN_ROLL, OpShape.SYSTEM, Mode.ANY);
 
